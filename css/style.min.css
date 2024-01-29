@@ -148,6 +148,67 @@ section {
 .jumbotron-single h1 {
   font-size: 3rem !important; }
 
+
+  .jumbotron-post {
+    color: #fff;
+    padding-top: 80px;
+    padding-bottom: 80px;
+    background-repeat: no-repeat;
+    background-size: cover;
+    background-position: 50% 50%;
+    position: relative;
+    border-radius: 0;
+    margin-bottom: 0;
+    overflow: hidden;
+    min-height: 1vh; }
+    @media (max-width: 767px) and (orientation: landscape) {
+      .jumbotron-post {
+        min-height: 500px; } }
+    .jumbotron-post .container {
+      position: relative;
+      z-index: 1; }
+    .jumbotron-post:before {
+      position: absolute;
+      display: block;
+      content: "";
+      opacity: 0.8;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: #ff00cc;
+      /* fallback for old browsers */
+      background: -webkit-linear-gradient(to right, #333399, #ff00cc);
+      /* Chrome 10-25, Safari 5.1-6 */
+      background: linear-gradient(to right, #333399, #ff00cc);
+      /* W3C, IE 10+/ Edge, Firefox 16+, Chrome 26+, Opera 12+, Safari 7+ */ }
+    .jumbotron-post h1 {
+      line-height: .9;
+      font-weight: bold;
+      font-size: 420%;
+      font-family: 'Montserrat';
+      opacity: 0;
+      animation: 1s fadeInFromTop cubic-bezier(0.785, 0.135, 0.15, 0.86) 1s forwards;
+      animation-delay: .8s; }
+    .jumbotron-post img {
+      opacity: 0;
+      animation: 1s fadeInFromTop cubic-bezier(0.785, 0.135, 0.15, 0.86) 1s forwards;
+      animation-delay: .8s; }
+    .jumbotron-post i {
+        font-size: 1.2rem;
+        font-weight: bold;
+        opacity: 0;
+        animation: 1s fadeInFromTop cubic-bezier(0.785, 0.135, 0.15, 0.86) 1s forwards;
+        animation-delay: .8s; }
+      .jumbotron-post p {
+          opacity: 0;
+          animation: 1s fadeInFromTop cubic-bezier(0.785, 0.135, 0.15, 0.86) 1s forwards;
+          animation-delay: .8s; }
+  
+  .jumbotron-single h1 {
+    font-size: 3rem !important; }
+
+
 .overlay {
   color: #fff; }
   .overlay:before {
