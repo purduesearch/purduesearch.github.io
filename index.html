@@ -19,6 +19,7 @@
     <link rel="stylesheet" href="vendor/owlcarousel/owl.carousel.min.css">
     <link rel="stylesheet" href="vendor/lightcase/lightcase.css">
      <link rel="stylesheet" href="https://unpkg.com/aos@next/dist/aos.css" />
+    <link rel="stylesheet" href="css/newscarousel.scss"/>
 
     <!-- Fonts -->
     <link href="https://fonts.googleapis.com/css?family=Lato:300,400|Work+Sans:300,400,700" rel="stylesheet">
@@ -37,14 +38,14 @@
 	<nav id="header-navbar" class="navbar navbar-expand-lg py-4">
     <div class="container">
         <a class="navbar-brand d-flex align-items-center text-white" href="/">
-            <img src="img/icons/purdue_search_logo.png" style="width:2em;">
+            <img src="img/icons/purdue_search_logo.png" style="width:10vw;">
             <h3 class="font-weight-bolder mb-0">SEARCH of Purdue</h3>
             
         </a>
         <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbar-nav-header" aria-controls="navbar-nav-header" aria-expanded="false" aria-label="Toggle navigation">
             <span class="lnr lnr-menu"></span>
         </button>
-        <div class="collapse navbar-collapse" id="navbar-nav-header">
+        <div class="collapse navbar-collapse" id="navbar-nav-header" >
             <ul class="navbar-nav ml-auto">
                 <li class="nav-item">
                     <a class="nav-link" href="index.html">Home</a>
@@ -70,59 +71,17 @@
                 <li class="nav-item">
                     <a class="nav-link" href="astrousa.html">Astro-USA</a>
                 </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="contact.html">Contact</a>
-                </li>
-                <li class="nav-item">
-                    <a id="side-search-open" class="nav-link" href="#">
-                        <span class="lnr lnr-magnifier"></span>
-                    </a>
-                </li>
-                 <li class="nav-item only-desktop">
-                    <a class="nav-link" id="side-nav-open" href="#">
-                        <span class="lnr lnr-menu"></span>
-                    </a>
-                </li>
             </ul>
         </div>
     </div>
 </nav>
 
-<div id="side-nav" class="sidenav">
-	<a href="javascript:void(0)" id="side-nav-close">&times;</a>
-	
-	<div class="sidenav-content">
-		<p>
-			Kuncen WB1, Wirobrajan 10010, DIY
-		</p>
-		<p>
-			<span class="fs-16 primary-color">(+68) 120034509</span>
-		</p>
-		<p>info@yourdomain.com</p>
-	</div>
-</div><div id="side-search" class="sidenav">
-	<a href="javascript:void(0)" id="side-search-close">&times;</a>
-	<div class="sidenav-content">
-		<form action="">
 
-			<div class="input-group md-form form-sm form-2 pl-0">
-			  <input class="form-control my-0 py-1 red-border" type="text" placeholder="Search" aria-label="Search">
-			  <div class="input-group-append">
-			    <button class="input-group-text red lighten-3" id="basic-text1">
-			    	<span class="lnr lnr-magnifier"></span>
-			    </button>
-			  </div>
-			</div>
-
-		</form>
-	</div>
-	
-</div>	
 <div class="jumbotron d-flex align-items-center" style="background-image:url('img/bg.jpg');">
   <div class="container text-center" style="display:inline">
     <!--<h1 class="display-1 mb-4">RO<br>XY</h1>-->
-    <h1 class="display-1 mb-4">Space and Earth Analogs Research Chapter of Purdue</h1>
-    <i>
+    <h1 class="display-1 mb-4" style="margin-top:20%;">Space and Earth Analogs Research Chapter of Purdue</h1>
+    <i style="font-size:125%;font-weight:lighter;">
         Purdue University's premiere human space-focused chapter with Analogs, <br>
         Research, Outreach, Software, and Student Analog Astronaut Training subteams.
     </i>
@@ -133,6 +92,7 @@
 
     
   </div>
+  <!--
   <div class="rectangle-1"></div>
   <div class="rectangle-2"></div>
   <div class="rectangle-transparent-1"></div>
@@ -144,15 +104,59 @@
   	<img src="img/obj_triangle.png" alt="">
   </div>
   <div class="triangle triangle-2">
-  	<img src="img/obj_triangle.png" alt="">
-  </div>
+    <img src="img/obj_triangle.png" alt="">
+</div>
   <div class="triangle triangle-3">
   	<img src="img/obj_triangle.png" alt="">
   </div>
   <div class="triangle triangle-4">
   	<img src="img/obj_triangle.png" alt="">
-  </div>
+  </div>-->
 </div>	<!-- Features Section-->
+
+
+
+
+<div class="owl-carousel owl-theme owl-news" style="max-width:100%; margin-left:0%;">
+    <div class="shadow rounded feature-item p-4 mb-4 newsitem">
+        <h4 class="testi-text">Participated in national challenges such as NASA Rasc-AL and NASA SUITS. Got qualified for the On-site round of SUITS in 2024</h4>
+        <div class="testi-meta-inner d-flex justify-content-center align-items-center">
+        </div>
+    </div>
+    <div class="shadow rounded feature-item p-4 mb-4 newsitem">
+        <h4 class="testi-text">Had outreach programs with researchers from NASA, SpaceX, SETI, Blue Origin, The Mars Society and Virgin Galactic</h4>
+        <div class="testi-meta-inner d-flex justify-content-center align-items-center">
+        </div>
+    </div>
+    
+     <div class="shadow rounded feature-item p-4 mb-4 newsitem" >
+        <h4 class="testi-text">Led a Student run Astronaut training program on Campus</h4>
+        <div class="testi-meta-inner d-flex justify-content-center align-items-center">
+        </div>
+    </div>
+
+    
+    <div class="shadow rounded feature-item p-4 mb-4 newsitem" >
+        <h4 class="testi-text">Have partnerships with analog labs such as Hi-Seas and MDRS to allow students to work with researchers in those facilities </h4>
+        <div class="testi-meta-inner d-flex justify-content-center align-items-center">
+        </div>
+    </div>
+    <div class="shadow rounded feature-item p-4 mb-4 newsitem" >
+        <h4 class="testi-text">Currently doing research projects on Bio-Astronautics and Hydroponics </h4>
+        <div class="testi-meta-inner d-flex justify-content-center align-items-center">
+        </div>
+    </div>
+    <div class="shadow rounded feature-item p-4 mb-4 newsitem" >
+        <h4 class="testi-text">Planning to build a self-sustaining, innovative, and inclusive lunar habitat to foster interdisciplinary research and development.</h4>
+        <div class="testi-meta-inner d-flex justify-content-center align-items-center">
+            
+        </div>
+    </div>
+    </div>
+    
+</div>
+
+
 <section id="features" class="bg-white">
     <div class="container">
         <div class="section-content">
@@ -477,10 +481,12 @@
         </div>
     </div>
 </section>
+
 <!-- End of Portfolio Section -->	<!-- Client Section -->
-<section id="client" class="overlay bg-fixed" style="background-image: url(img/bg.jpg);">
-    <div class="container">
-        <div class="section-content" data-aos="fade-up">
+
+<section id="client" class="overlay bg-fixed" style="background-image: url(img/bg.jpg);max-width: 100%; width:100%; ">
+    <div class="container"style="max-width: 100%; width:100%;">
+        <div class="section-content" style="max-width: 100%; width:100%;">
             <div class="row ">
                 <div class="col-md-12">
                     <!-- Section Title -->
@@ -493,34 +499,34 @@
                 <div class="col-md-12 client-holder">
                     <div class="client-slider owl-carousel">
                         <div class="client-item">
-                            <img class="img-responsive" src="img/outreach/companies/blueorigin.png" alt=" ">
+                            <img src="img/outreach/companies/blueorigin.png" alt=" ">
                         </div>
                         <div class="client-item">
-                            <img class="img-responsive" style="padding-top: 26px; width:50em;" src="img/outreach/companies/hiseas.png" alt=" ">
+                            <img  style="padding-top: 26px; width:50em;" src="img/outreach/companies/hiseas.png" alt=" ">
                         </div>
                         <div class="client-item">
-                            <img class="img-responsive" src="img/outreach/companies/MDRS.png" alt=" ">
+                            <img src="img/outreach/companies/MDRS.png" alt=" ">
                         </div>
                         <div class="client-item">
-                            <img class="img-responsive" src="img/outreach/companies/nasa.png" alt=" ">
+                            <img  src="img/outreach/companies/nasa.png" alt=" ">
                         </div>
                         <div class="client-item">
-                            <img class="img-responsive" src="img/outreach/companies/PAC.png" alt=" ">
+                            <img src="img/outreach/companies/PAC.png" alt=" ">
                         </div>
                         <div class="client-item">
-                            <img class="img-responsive" src="img/outreach/companies/psp.png" alt=" ">
+                            <img  src="img/outreach/companies/psp.png" alt=" ">
                         </div>
                         <div class="client-item">
-                            <img class="img-responsive" src="img/outreach/companies/seti.png" alt=" ">
+                            <img src="img/outreach/companies/seti.png" alt=" ">
                         </div>
                         <div class="client-item">
-                            <img class="img-responsive" style="padding-top: 26px; width:50em;" src="img/outreach/companies/spacex.png" alt=" ">
+                            <img  style="padding-top: 26px; width:50em;" src="img/outreach/companies/spacex.png" alt=" ">
                         </div>
                         <div class="client-item">
-                            <img class="img-responsive" src="img/outreach/companies/tms.png" alt=" ">
+                            <img src="img/outreach/companies/tms.png" alt=" ">
                         </div>
                         <div class="client-item">
-                            <img class="img-responsive" src="img/outreach/companies/virgingalactic.svg" alt=" ">
+                            <img src="img/outreach/companies/virgingalactic.svg" alt=" ">
                         </div>
                     </div>
                     <!-- End of Client Holder -->
@@ -529,41 +535,11 @@
         </div>
 </section>
 <!-- End of Client Section -->	<!-- Reservation Section -->
+
 <section id="reservation" class="bg-white section-content">
     <div class="container">
-        <div class="row align-items-center">
-            <div class="col-lg-5 offset-lg-1 mb-5 mb-lg-0" data-aos="fade-right">
-                <div class="bg-white p-5 shadow">
-                    <div class="heading-section text-center">
-                        <h2 class="mb-4">
-                            Contact Us
-                        </h2>
-                    </div>
-                    <form method="post" name="contact-us" action="">
-                        <div class="row">
-                            <div class="col-md-12 form-group">
-                                <input type="text" class="form-control" id="name" name="name" placeholder="Name">
-                            </div>
-                            <div class="col-md-12 form-group">
-                                <input type="text" class="form-control" id="email" name="email" placeholder="Email">
-                            </div>
-                            <div class="col-md-12 form-group">
-                                <input type="number" class="form-control" id="phoneNumber" name="phoneNumber" placeholder="Phone">
-                            </div>
-                            <div class="col-md-12 form-group">
-                                <input type="text" class="form-control" id="websiteUrl" name="websiteUrl" placeholder="Website">
-                            </div>
-                            <div class="col-md-12 form-group">
-                                <textarea class="form-control" id="message" name="message" rows="6" placeholder="Your Message ..."></textarea>
-                            </div>
-                            <div class="col-md-12 text-center">
-                                <button class="btn btn-primary btn-shadow btn-lg" type="submit" name="submit">Send Message</button>
-                            </div>
-                        </div>
-                    </form>
-                </div>
-            </div>
-            <div class="col-lg-4 offset-lg-1" data-aos="fade-left">
+            
+            <div class="col-lg-4 offset-lg-4" data-aos="fade-left">
                 <h2 class="mb-4">
                     Social Media
                 </h2>
@@ -610,16 +586,27 @@
                           </svg>
                         <p><a href="https://tr.ee/2cDpkXTPDY">Slack</a></p>
                     </li>
+                    <li class="list-inline-item text-center px-3">
+                        <i class="fab fa-twitter" style="font-size:46px"></i>
+                        <p><a href="https://twitter.com/purduesearch">Twitter</a></p>
+                    </li>
+                    <li class="list-inline-item text-center px-3">
+                        <i class="fab fa-youtube" style="font-size:46px"></i>
+                        <p><a href="https://www.youtube.com/@PurdueSEARCH">YouTube</a></p>
+                    </li>
+                    <li class="list-inline-item text-center px-3">
+                        <i class="fab fa-linkedin" style="font-size:46px;"></i>
+                        <p><a href="https://www.linkedin.com/company/purdue-search/">LinkedIn</a></p>
+                    </li>
                 </ul>
             </div>
-        </div>
         
     </div>
 </section>
 <!-- End of Reservation Section -->	<!-- Features Section-->
-<section id="cta" class="bg-fixed overlay" style="background-image: url(img/bg.jpg);">
-    <div class="container">
-        <div class="section-content" data-aos="fade-up">
+<section id="cta" class="bg-fixed overlay" style="background-image: url(img/bg.jpg); max-width: 100%; width:100%" >
+    <div class="container"style="max-width: 100%; width:100%;">
+        <div class="section-content" data-aos="fade-up"style="max-width: 100%; width:100%;">
             <div class="row">
                 <div class="col-md-12 text-center">
                     <h2 class="mb-2">SEARCH of Purdue</h2>
@@ -642,19 +629,16 @@
            
             <div class="col-lg-4 col-md-12">
             	<nav class="nav nav-mastfoot justify-content-center">
-	                <a class="nav-link" href="#">
-	                	<i class="fab fa-facebook-f"></i>
-	                </a>
-	                <a class="nav-link" href="#">
+	                <a class="nav-link" href="https://twitter.com/purduesearch">
 	                	<i class="fab fa-twitter"></i>
 	                </a>
-	                <a class="nav-link" href="#">
+	                <a class="nav-link" href="https://instagram.com/purdue_search">
 	                	<i class="fab fa-instagram"></i>
 	                </a>
-	                <a class="nav-link" href="#">
+	                <a class="nav-link" href="https://www.linkedin.com/company/purdue-search/">
 	                	<i class="fab fa-linkedin"></i>
 	                </a>
-	                <a class="nav-link" href="#">
+	                <a class="nav-link" href="https://www.youtube.com/@PurdueSEARCH">
 	                	<i class="fab fa-youtube"></i>
 	                </a>
 	            </nav>
@@ -676,6 +660,24 @@
 	 
 	<!-- Main JS -->
 	<script src="js/app.min.js "></script>
+    <script>
+        $('.owl-news').owlCarousel({
+            loop:true,
+            margin:10,
+            nav:true,
+            responsive:{
+                0:{
+                    items:1
+                },
+                600:{
+                    items:3
+                },
+                1000:{
+                    items:3
+                }
+            }
+        })
+    </script>
 	<script src="//localhost:35729/livereload.js"></script>
 </body>
 </html>
