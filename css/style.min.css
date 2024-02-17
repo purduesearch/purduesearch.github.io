@@ -148,7 +148,6 @@ nav{
   .jumbotron h1 {
     line-height: .9;
     font-weight: bold;
-    font-size: 4.44738583719vw;
     font-family: 'Montserrat';
     opacity: 0;
     animation: 1s fadeInFromTop cubic-bezier(0.785, 0.135, 0.15, 0.86) 1s forwards;
