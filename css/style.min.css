@@ -14,14 +14,16 @@ body {
 
   .owl-carousel{
     border:none;
-    margin-top:5%;
+
   }
   .owl-nav{
     display: none;
+    margin-bottom: 10%;
   }
   .newsitem{
     height:85%;
     max-height:85%;
+    margin-bottom: 10%;
   }
 
 h1,
@@ -778,7 +780,7 @@ nav{
 .blog-content img.float-left {
   margin: 0.99272005294vw 0.99272005294vw 0.99272005294vw 0; }
 
-.blog-content .img.float-right {
+.blog-content img.float-right {
   margin: 0.99272005294vw 0 0.99272005294vw 0.99272005294vw; }
 
 /*=====  End of BLOG  ======*/
