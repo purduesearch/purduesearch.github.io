@@ -151,6 +151,7 @@ nav{
     line-height: .9;
     font-weight: bold;
     font-family: 'Montserrat';
+    font-size: 3.17670416942vw
     opacity: 0;
     animation: 1s fadeInFromTop cubic-bezier(0.785, 0.135, 0.15, 0.86) 1s forwards;
     animation-delay: .8s; }
