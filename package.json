@@ -2,6 +2,7 @@
   "name": "purduesearch.github.io",
   "version": "0.1.0",
   "private": true,
+  "homepage": "https://space-earth-analogs-research-chapter.github.io/Space-Earth-Analogs-Research-Chapter",
   "dependencies": {
     "@lottiefiles/react-lottie-player": "^3.6.0",
     "@testing-library/dom": "^10.4.1",
