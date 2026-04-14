@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
 import Breadcrumb from '../../components/Breadcrumb';
+import SEOHead from '../../components/SEOHead';
 
 const AstroHydroponics = () => {
   useEffect(() => {
@@ -27,8 +28,11 @@ const AstroHydroponics = () => {
 
   return (
     <div>
-      <title>ASTRO-USA Hydroponics System | Purdue SEARCH</title>
-      <meta name="description" content="Purdue SEARCH develops an autonomous hydroponics system at Purdue's greenhouse for integration into the ASTRO-USA habitat." />
+      <SEOHead
+        title="ASTRO-USA Hydroponics System"
+        description="Purdue SEARCH develops an autonomous hydroponics system at Purdue's greenhouse for integration into the ASTRO-USA habitat."
+        canonical="/astrousa/hydroponics"
+      />
       <Navbar />
       <Breadcrumb />
       <div id="main-content" className="jumbotron-post jumbotron-single d-flex align-items-center" style={{ backgroundImage: 'url(/software/2023_24/SUITS/bg.webp)' }}>

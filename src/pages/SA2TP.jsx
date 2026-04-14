@@ -5,6 +5,7 @@ import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import SEOHead from '../components/SEOHead';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -78,8 +79,11 @@ const SA2TP = () => {
 
   return (
     <div>
-      <title>SA²TP Analog Astronaut Training | Purdue SEARCH</title>
-      <meta name="description" content="The Student Analog Astronaut Training Program at Purdue prepares students with flight training, skydiving, scuba certification, NASA facility visits, and more." />
+      <SEOHead
+        title="SA²TP Analog Astronaut Training"
+        description="The Student Analog Astronaut Training Program at Purdue prepares students with flight training, skydiving, scuba certification, NASA facility visits, and more."
+        canonical="/sa2tp"
+      />
       <Navbar />
 
       {/* ===== SCROLL-SCRUBBED VIDEO HERO ===== */}
@@ -90,7 +94,8 @@ const SA2TP = () => {
           src="/sa2tp/Plane_Panorama.webm"
           muted
           playsInline
-          preload="auto"
+          preload="metadata"
+          poster="/sa2tp.webp"
           style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', zIndex: 0 }}
         />
         <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(18,18,28,0.35) 0%, rgba(18,18,28,0.6) 100%)', zIndex: 1 }} />

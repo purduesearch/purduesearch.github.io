@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
 import Breadcrumb from '../../components/Breadcrumb';
+import SEOHead from '../../components/SEOHead';
 
 const AstroOverview = () => {
   useEffect(() => {
@@ -27,8 +28,11 @@ const AstroOverview = () => {
 
   return (
     <div>
-      <title>ASTRO-USA Habitat Overview | Purdue SEARCH</title>
-      <meta name="description" content="An overview of the ASTRO-USA habitat project — goals, background, and design approach for Purdue's on-campus space habitat analog." />
+      <SEOHead
+        title="ASTRO-USA Habitat Overview"
+        description="An overview of the ASTRO-USA habitat project — goals, background, and design approach for Purdue's on-campus space habitat analog."
+        canonical="/astrousa/overview"
+      />
       <Navbar />
       <Breadcrumb />
       <div id="main-content" className="jumbotron-post jumbotron-single d-flex align-items-center" style={{ backgroundImage: 'url(/software/2023_24/SUITS/bg.webp)' }}>

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
 import Breadcrumb from '../../components/Breadcrumb';
+import SEOHead from '../../components/SEOHead';
 
 const AstroArchitecture = () => {
   useEffect(() => {
@@ -27,8 +28,11 @@ const AstroArchitecture = () => {
 
   return (
     <div>
-      <title>ASTRO-USA Architecture Design | Purdue SEARCH</title>
-      <meta name="description" content="Design evolution of the ASTRO-USA habitat — from shipping container concepts to circular modular architecture, driven by mission constraints and crew ergonomics." />
+      <SEOHead
+        title="ASTRO-USA Architecture Design"
+        description="Design evolution of the ASTRO-USA habitat — from shipping container concepts to circular modular architecture, driven by mission constraints and crew ergonomics."
+        canonical="/astrousa/architecture"
+      />
       <Navbar />
       <Breadcrumb />
       <div id="main-content" className="jumbotron-post jumbotron-single d-flex align-items-center" style={{ backgroundImage: 'url(/software/2023_24/SUITS/bg.webp)' }}>

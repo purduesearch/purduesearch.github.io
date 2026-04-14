@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import SEOHead from '../components/SEOHead';
 
 const About = () => {
   const sweepRefs = useRef([]);
@@ -50,8 +51,11 @@ const About = () => {
 
   return (
     <>
-      <title>About Us | Purdue SEARCH</title>
-      <meta name="description" content="Meet the student leaders and faculty advisors behind Purdue SEARCH — Purdue University's premier space analog research and astronaut training organization." />
+      <SEOHead
+        title="About Us"
+        description="Meet the student leaders and faculty advisors behind Purdue SEARCH — Purdue University's premier space analog research and astronaut training organization."
+        canonical="/about"
+      />
       <Navbar />
 
       {/* ===== HERO ===== */}
@@ -75,24 +79,25 @@ const About = () => {
             <span className="about-section-label">What We Stand For</span>
             <h2>Mission</h2>
             <p>
-              Here at the Space and Earth Analogs Research Chapter (SEARCH) of Purdue, our mission is to
-              promote human spaceflight and space exploration through interdisciplinary collaboration. We do
-              this through space analog research — the simulation of space environments right here on Earth —
-              in order to design and develop new technologies.
+              SEARCH’s mission is to advance human space exploration and spaceflight-relevant research by 
+              developing analog habitats and operations, leading student-driven research projects, and 
+              providing hands-on training that prepares Purdue students to become future leaders in aerospace 
+              and related fields.
             </p>
             <p>
-              We have several high-profile projects, including two NASA competitions: a systems design
-              challenge called RASC-AL and an augmented reality software competition called SUITS. We also
-              pursue our own research, driven by motivated Purdue students and faculty. One of these
-              initiatives is our Student Analog Astronaut Training Program — a three-week summer experience
-              where we teach a crew of 10 students the foundational skills needed to become an astronaut.
-              Another is ASTRO-USA, where we are working to build a fully self-sustaining space habitat for
-              bioastronautics research at Purdue University.
+              SEARCH of Purdue supports this mission by promoting learning, innovation, and engagement in human space exploration. We pursue this mission by aiming to:
+              <li>Advance research and technology that strengthen human space exploration capabilities through collaborative research and development, student competitions, and analog programs.
+              Cultivate interdisciplinary collaboration between students and departments with diverse interests and areas of expertise.
+              Connect students directly with faculty, researchers, and mentors to expand networking opportunities and encourage involvement in both SEARCH projects and broader university research efforts.
+              Foster a community that celebrates space exploration and supports members’ passions through social events and shared experiences.
+              Provide personal and professional development opportunities that help members pursue careers in space through mentorship and program participation.
+              Build external institutional partnerships and secure funding that advance Purdue’s research and technology related to human spaceflight and exploration.
+              Increase campus-wide awareness of space exploration and research through an open guest lecture series.
+              Inspire younger generations to engage in space exploration through K-12 outreach events.
+              </li>
             </p>
             <p>
-              Finally, and perhaps most importantly, we organize outreach events that bring industry
-              professionals to Purdue. These events average 70 attendees per session and allow students to
-              connect their coursework to real-world applications. We host at least 3 events every semester.
+              SEARCH’s vision is to make Purdue a national leader in student-driven human space exploration and analog research by creating a sustainable pipeline from student interest to interdisciplinary collaboration, hands-on experience, research leadership, and real-world impact.
             </p>
             <p>
               If you are interested in any of these activities, please connect with us — all contact

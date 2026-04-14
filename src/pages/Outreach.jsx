@@ -3,6 +3,7 @@ import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import SEOHead from '../components/SEOHead';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -52,8 +53,11 @@ const Outreach = () => {
 
   return (
     <div>
-      <title>Outreach Events | Purdue SEARCH</title>
-      <meta name="description" content="Purdue SEARCH hosts talks, watch parties, and networking events with scientists and engineers from NASA, SpaceX, SETI, Blue Origin, and more." />
+      <SEOHead
+        title="Outreach Events"
+        description="Purdue SEARCH hosts talks, watch parties, and networking events with scientists and engineers from NASA, SpaceX, SETI, Blue Origin, and more."
+        canonical="/outreach"
+      />
       <Navbar />
 
       {/* ===== SCROLL-SCRUBBED VIDEO HERO ===== */}
@@ -64,7 +68,8 @@ const Outreach = () => {
           src="/outreach/Launch_Party.webm"
           muted
           playsInline
-          preload="auto"
+          preload="metadata"
+          poster="/outreach.webp"
           style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', zIndex: 0 }}
         />
         <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(18,18,28,0.30) 0%, rgba(18,18,28,0.65) 100%)', zIndex: 1 }} />

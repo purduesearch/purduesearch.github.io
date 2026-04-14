@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import BlogCard from '../components/BlogCard';
+import SEOHead from '../components/SEOHead';
 
 const Blog = () => {
   useEffect(() => {
@@ -38,8 +39,11 @@ const Blog = () => {
 
   return (
     <div>
-      <title>Blog | Purdue SEARCH</title>
-      <meta name="description" content="Latest news and updates from Purdue SEARCH — student-led space analog research at Purdue University." />
+      <SEOHead
+        title="Blog &amp; News"
+        description="Latest news and updates from Purdue SEARCH — student-led space analog research at Purdue University."
+        canonical="/blog"
+      />
       <Navbar />
       <div id="main-content" className="jumbotron jumbotron-single d-flex align-items-center" style={{ backgroundImage: 'url(/Purdue_Sky.webp)' }}>
         <div className="container text-center">

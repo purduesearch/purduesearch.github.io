@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
 import Breadcrumb from '../../components/Breadcrumb';
+import SEOHead from '../../components/SEOHead';
 
 const RodInterview = () => {
   useEffect(() => {
@@ -27,8 +28,11 @@ const RodInterview = () => {
 
   return (
     <div>
-      <title>SA²TP Leadership Interview | Purdue SEARCH</title>
-      <meta name="description" content="Purdue Exponent interview with SEARCH leadership about the Student Analog Astronaut Training Program and what it takes to train like an astronaut." />
+      <SEOHead
+        title="SA²TP Leadership Interview"
+        description="Purdue Exponent interview with SEARCH leadership about the Student Analog Astronaut Training Program and what it takes to train like an astronaut."
+        canonical="/sa2tp/rod-interview"
+      />
       <Navbar />
       <Breadcrumb />
       <div id="main-content" className="jumbotron-post jumbotron-single d-flex align-items-center" style={{ backgroundImage: 'url(/software/2023_24/SUITS/bg.webp)' }}>

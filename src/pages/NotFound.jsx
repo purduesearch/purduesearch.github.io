@@ -2,11 +2,16 @@ import { Link } from 'react-router-dom';
 import { Player } from '@lottiefiles/react-lottie-player';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import SEOHead from '../components/SEOHead';
 
 const NotFound = () => (
   <div>
-    <title>404 — Page Not Found | Purdue SEARCH</title>
-    <meta name="description" content="The page you're looking for doesn't exist or has been moved. Return to the Purdue SEARCH homepage." />
+    <SEOHead
+      title="404 — Page Not Found"
+      description="The page you're looking for doesn't exist or has been moved. Return to the Purdue SEARCH homepage."
+      canonical="/404"
+      noindex
+    />
     <Navbar />
     <div
       id="main-content"

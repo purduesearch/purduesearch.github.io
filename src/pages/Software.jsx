@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import SEOHead from '../components/SEOHead';
 
 const Software = () => {
   useEffect(() => {
@@ -19,8 +20,11 @@ const Software = () => {
 
   return (
     <div>
-      <title>SUITS Software | Purdue SEARCH</title>
-      <meta name="description" content="Purdue SEARCH's software team builds augmented-reality interfaces for NASA's SUITS challenge, tested at Johnson Space Center." />
+      <SEOHead
+        title="SUITS Software"
+        description="Purdue SEARCH's software team builds augmented-reality interfaces for NASA's SUITS challenge, tested at Johnson Space Center."
+        canonical="/software"
+      />
       <Navbar />
 
       {/* ===== HERO ===== */}

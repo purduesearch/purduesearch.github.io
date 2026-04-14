@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
 import Breadcrumb from '../../components/Breadcrumb';
+import SEOHead from '../../components/SEOHead';
 
 const Rascal = () => {
   useEffect(() => {
@@ -27,8 +28,11 @@ const Rascal = () => {
 
   return (
     <div>
-      <title>NASA RASC-AL Competition | Purdue SEARCH</title>
-      <meta name="description" content="Purdue SEARCH has competed in NASA's RASC-AL design challenge multiple times, developing concepts for deep-space human missions." />
+      <SEOHead
+        title="NASA RASC-AL Competition"
+        description="Purdue SEARCH has competed in NASA's RASC-AL design challenge multiple times, developing concepts for deep-space human missions."
+        canonical="/research/rascal"
+      />
       <Navbar />
       <Breadcrumb />
       <div id="main-content" className="jumbotron-post jumbotron-single d-flex align-items-center" style={{ backgroundImage: 'url(/research/2022_23/mars_mission.webp)' }}>

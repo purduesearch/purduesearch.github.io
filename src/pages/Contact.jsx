@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import SEOHead from '../components/SEOHead';
 
 const Contact = () => {
   useEffect(() => {
@@ -18,8 +19,11 @@ const Contact = () => {
 
   return (
     <div>
-      <title>Contact | Purdue SEARCH</title>
-      <meta name="description" content="Get in touch with Purdue SEARCH. Reach out to join our team, ask about research collaborations, or learn about upcoming events." />
+      <SEOHead
+        title="Contact"
+        description="Get in touch with Purdue SEARCH. Reach out to join our team, ask about research collaborations, or learn about upcoming events."
+        canonical="/contact"
+      />
       <Navbar />
       <div id="main-content" className="jumbotron jumbotron-single d-flex align-items-center" style={{ backgroundImage: 'url(/Purdue_Sky.webp)' }}>
         <div className="container text-center">

@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import { useFuse, FUSE_OPTIONS, useSearchQuery } from '../hooks/useSearch';
+import SEOHead from '../components/SEOHead';
 
 const SECTIONS = ['Main', 'Programs', 'Research', 'Blog'];
 const SUGGESTIONS = ['SA²TP', 'Research', 'ASTRO-USA', 'Outreach', 'MDRS', 'SUITS'];
@@ -45,7 +46,12 @@ const SearchResults = () => {
 
   return (
     <>
-      <title>Search — Purdue SEARCH</title>
+      <SEOHead
+        title="Search"
+        description="Search Purdue SEARCH programs, research, and events."
+        canonical="/search"
+        noindex
+      />
       <Navbar />
       <main id="main-content">
         <section className="search-results-page">

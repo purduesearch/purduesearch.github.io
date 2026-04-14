@@ -5,6 +5,7 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import STLViewer from '../components/STLViewer';
+import SEOHead from '../components/SEOHead';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -249,8 +250,11 @@ const Research = () => {
 
   return (
     <div>
-      <title>Microgreen Research | Purdue SEARCH</title>
-      <meta name="description" content="Purdue SEARCH is designing and testing a microgreen growth chamber for NASA's LEAF initiative, providing astronauts with a compact, nutrient-dense food source for long-duration missions." />
+      <SEOHead
+        title="Research Programs"
+        description="Purdue SEARCH conducts bioastronautics and life-support research including microgreen growth chambers for NASA's LEAF initiative and the NASA RASC-AL competition."
+        canonical="/research"
+      />
       <Navbar />
 
       {/* ===== HERO ===== */}

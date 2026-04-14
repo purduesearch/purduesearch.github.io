@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
 import Breadcrumb from '../../components/Breadcrumb';
+import SEOHead from '../../components/SEOHead';
 
 const Crew1 = () => {
   useEffect(() => {
@@ -27,8 +28,11 @@ const Crew1 = () => {
 
   return (
     <div>
-      <title>SA²TP Crew 1 — Summer 2023 | Purdue SEARCH</title>
-      <meta name="description" content="Summer 2023 recap of Purdue SEARCH's first Student Analog Astronaut Training Program — flight training, scuba, fitness, and a visit to NASA's Space Academy." />
+      <SEOHead
+        title="SA²TP Crew 1 — Summer 2023"
+        description="Summer 2023 recap of Purdue SEARCH's first Student Analog Astronaut Training Program — flight training, scuba, fitness, and a visit to NASA's Space Academy."
+        canonical="/sa2tp/crew1"
+      />
       <Navbar />
       <Breadcrumb />
       <div id="main-content" className="jumbotron-post jumbotron-single d-flex align-items-center" style={{ backgroundImage: 'url(/software/2023_24/SUITS/bg.webp)' }}>

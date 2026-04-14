@@ -5,6 +5,7 @@ import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import SEOHead from '../components/SEOHead';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -258,10 +259,55 @@ const Home = () => {
     if (window.AOS) window.AOS.init({ once: true });
   }, []);
 
+  // WebSite + SiteNavigationElement structured data
+  useEffect(() => {
+    const script = document.createElement('script');
+    script.type = 'application/ld+json';
+    script.text = JSON.stringify([
+      {
+        '@context': 'https://schema.org',
+        '@type': 'WebSite',
+        'url': 'https://purduesearch.github.io/',
+        'name': 'Purdue SEARCH',
+        'potentialAction': {
+          '@type': 'SearchAction',
+          'target': {
+            '@type': 'EntryPoint',
+            'urlTemplate': 'https://purduesearch.github.io/search?q={search_term_string}',
+          },
+          'query-input': 'required name=search_term_string',
+        },
+      },
+      {
+        '@context': 'https://schema.org',
+        '@type': 'ItemList',
+        'name': 'Site Navigation',
+        'itemListElement': [
+          { '@type': 'SiteLinksSearchBox', 'url': 'https://purduesearch.github.io/' },
+          { '@type': 'ListItem', 'position': 1, 'name': 'About', 'url': 'https://purduesearch.github.io/about' },
+          { '@type': 'ListItem', 'position': 2, 'name': 'Research', 'url': 'https://purduesearch.github.io/research' },
+          { '@type': 'ListItem', 'position': 3, 'name': 'SA²TP', 'url': 'https://purduesearch.github.io/sa2tp' },
+          { '@type': 'ListItem', 'position': 4, 'name': 'ASTRO-USA', 'url': 'https://purduesearch.github.io/astrousa' },
+          { '@type': 'ListItem', 'position': 5, 'name': 'Software', 'url': 'https://purduesearch.github.io/software' },
+          { '@type': 'ListItem', 'position': 6, 'name': 'Analog Programs', 'url': 'https://purduesearch.github.io/analogs' },
+          { '@type': 'ListItem', 'position': 7, 'name': 'Outreach', 'url': 'https://purduesearch.github.io/outreach' },
+          { '@type': 'ListItem', 'position': 8, 'name': 'Blog', 'url': 'https://purduesearch.github.io/blog' },
+          { '@type': 'ListItem', 'position': 9, 'name': 'Contact', 'url': 'https://purduesearch.github.io/contact' },
+        ],
+      },
+    ]);
+    document.head.appendChild(script);
+    return () => { document.head.removeChild(script); };
+  }, []);
+
   return (
     <div>
-      <title>Purdue SEARCH | Space Analog Astronaut Research Chapter</title>
-      <meta name="description" content="Purdue SEARCH is a student-led space research organization at Purdue University. We run analog astronaut training, bioastronautics research, and space habitat design programs." />
+      <SEOHead
+        title="Purdue SEARCH | Space Analog Astronaut Research Chapter"
+        description="SEARCH is a student-led space research organization at Purdue University. We run astronaut training, bioastronautics research, and space habitat programs."
+        canonical="/"
+        fullTitle
+      />
       <Navbar />
 
       {/* ===== HERO ===== */}
@@ -273,7 +319,8 @@ const Home = () => {
           src="/Mars%20Video.webm"
           muted
           playsInline
-          preload="auto"
+          preload="metadata"
+          poster="/home.webp"
         />
         <div className="container text-center">
           <motion.div className="hero-wordmark" style={{ opacity: wordmarkOpacity, scale: wordmarkScale }}>SEARCH</motion.div>
@@ -300,8 +347,8 @@ const Home = () => {
 
       <section id="client" className="overlay bg-fixed" style={{ backgroundImage: 'url(/bg.jpg)' }} aria-label="Outreach partners">
         <div className="container">
-          <div className="title-wrap mb-5">
-            <h2>Our Collaborations</h2>
+          <div className="title-wrap mb-5 text-center">
+            <h2 style={{ color: '#fff' }}>Our Collaborations</h2>
           </div>
         </div>
         <div className="logo-marquee-wrap">

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
 import Breadcrumb from '../../components/Breadcrumb';
+import SEOHead from '../../components/SEOHead';
 
 const MDRSUtah = () => {
   useEffect(() => {
@@ -27,8 +28,11 @@ const MDRSUtah = () => {
 
   return (
     <div>
-      <title>MDRS Utah Mars Analog | Purdue SEARCH</title>
-      <meta name="description" content="Purdue SEARCH traveled to the Mars Desert Research Station in Hanksville, Utah to experience two weeks of analog Mars habitat living." />
+      <SEOHead
+        title="MDRS Utah Mars Analog"
+        description="Purdue SEARCH traveled to the Mars Desert Research Station in Hanksville, Utah to experience two weeks of analog Mars habitat living."
+        canonical="/analogs/mdrs-utah"
+      />
       <Navbar />
       <Breadcrumb />
       <div id="main-content" className="jumbotron-post jumbotron-single d-flex align-items-center" style={{ backgroundImage: 'url(/software/2023_24/SUITS/bg.webp)' }}>

@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import SEOHead from '../components/SEOHead';
 
 const Analogs = () => {
   useEffect(() => {
@@ -19,8 +20,11 @@ const Analogs = () => {
 
   return (
     <div>
-      <title>Analog Programs | Purdue SEARCH</title>
-      <meta name="description" content="Purdue SEARCH's business team organizes research trips to analog facilities including Biosphere 2 and Kennedy Space Center." />
+      <SEOHead
+        title="Analog Programs"
+        description="Purdue SEARCH's business team organizes research trips to analog facilities including Biosphere 2 and Kennedy Space Center."
+        canonical="/analogs"
+      />
       <Navbar />
       <div id="main-content" className="jumbotron jumbotron-single d-flex align-items-center" style={{ backgroundImage: 'url(/analogs_bg.jpg)' }}>
         <div className="container text-center">

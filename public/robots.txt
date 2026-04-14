@@ -1,4 +1,8 @@
 User-agent: *
 Allow: /
+Disallow: /search
 
 Sitemap: https://purduesearch.github.io/sitemap.xml
+
+# LLM-readable site index
+# https://purduesearch.github.io/llms.txt

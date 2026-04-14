@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
 import Breadcrumb from '../../components/Breadcrumb';
+import SEOHead from '../../components/SEOHead';
 
 const Suits = () => {
   useEffect(() => {
@@ -27,8 +28,11 @@ const Suits = () => {
 
   return (
     <div>
-      <title>JARVIS — NASA SUITS Challenge | Purdue SEARCH</title>
-      <meta name="description" content="Purdue SEARCH's JARVIS team competes in NASA SUITS, designing AI-powered spacesuit and rover interfaces for Artemis lunar surface missions." />
+      <SEOHead
+        title="JARVIS — NASA SUITS Challenge"
+        description="Purdue SEARCH's JARVIS team competes in NASA SUITS, designing AI-powered spacesuit and rover interfaces for Artemis lunar surface missions."
+        canonical="/software/suits"
+      />
       <Navbar />
       <Breadcrumb />
 

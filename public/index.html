@@ -27,6 +27,10 @@
     <!-- Canonical -->
     <link rel="canonical" href="https://purduesearch.github.io/" />
 
+    <!-- hreflang -->
+    <link rel="alternate" hreflang="en" href="https://purduesearch.github.io/" />
+    <link rel="alternate" hreflang="x-default" href="https://purduesearch.github.io/" />
+
     <!-- JSON-LD Organization Schema -->
     <script type="application/ld+json">
     {
@@ -36,22 +40,44 @@
       "alternateName": "Space and Earth Analogs Research Chapter of Purdue",
       "url": "https://purduesearch.github.io/",
       "logo": "https://purduesearch.github.io/icons/purdue_search_logo.png",
-      "description": "Student-led space analog research organization at Purdue University focused on astronaut training, bioastronautics, and habitat design.",
+      "description": "Student-led space analog research organization at Purdue University focused on analog astronaut training, bioastronautics, space habitat design, and outreach.",
       "foundingDate": "2022",
+      "address": {
+        "@type": "PostalAddress",
+        "streetAddress": "610 Purdue Mall",
+        "addressLocality": "West Lafayette",
+        "addressRegion": "IN",
+        "postalCode": "47907",
+        "addressCountry": "US"
+      },
       "sameAs": [
         "https://www.instagram.com/purdue_search/",
         "https://twitter.com/purduesearch",
         "https://www.linkedin.com/company/purdue-search/",
-        "https://www.youtube.com/@PurdueSEARCH",
+        "https://www.youtube.com/channel/UCLDbIwWQl9hdfFn27U9r-yg",
         "https://boilerlink.purdue.edu/organization/search"
       ],
       "parentOrganization": {
         "@type": "CollegeOrUniversity",
         "name": "Purdue University",
         "url": "https://www.purdue.edu"
+      },
+      "contactPoint": {
+        "@type": "ContactPoint",
+        "contactType": "general inquiry",
+        "url": "https://purduesearch.github.io/contact"
       }
     }
     </script>
+
+    <!-- Preconnect to external origins (reduces connection latency) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="preconnect" href="https://use.fontawesome.com" crossorigin />
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+    <link rel="dns-prefetch" href="https://unpkg.com" />
+    <link rel="dns-prefetch" href="https://code.jquery.com" />
+    <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com" />
 
     <!-- Google Fonts (consolidated: Oswald added for headings) -->
     <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Montserrat:wght@400;500;700;900&family=Ubuntu:wght@400;500;700&family=Lato:wght@300;400&family=Work+Sans:wght@300;400;700&display=swap" rel="stylesheet" />
@@ -69,15 +95,11 @@
     <!-- Font Awesome 5 -->
     <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.15.4/css/all.css" />
 
-    <!-- LinearIcons -->
+    <!-- LinearIcons (used in Navbar and Contact) -->
     <link rel="stylesheet" href="https://cdn.linearicons.com/free/1.0.0/icon-font.min.css" />
 
-    <!-- Local CSS (served as static assets) -->
+    <!-- Base template styles (must load before search-theme overrides) -->
     <link rel="stylesheet" href="%PUBLIC_URL%/style.min.css" />
-    <link rel="stylesheet" href="%PUBLIC_URL%/vendor/bootstrap/bootstrap.min.css" />
-    <link rel="stylesheet" href="%PUBLIC_URL%/vendor/owlcarousel/owl.carousel.min.css" />
-    <link rel="stylesheet" href="%PUBLIC_URL%/vendor/lightcase/lightcase.css" />
-    <link rel="stylesheet" href="%PUBLIC_URL%/vendor/select2/select2.min.css" />
 
     <!-- SEARCH Theme Overrides — must load last -->
     <link rel="stylesheet" href="%PUBLIC_URL%/search-theme.css" />
@@ -88,12 +110,12 @@
     <div id="root"></div>
 
     <!-- jQuery -->
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script defer src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <!-- Bootstrap 4 Bundle JS (includes Popper) -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
     <!-- Owl Carousel JS -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/OwlCarousel2/2.3.4/owl.carousel.min.js"></script>
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/OwlCarousel2/2.3.4/owl.carousel.min.js"></script>
     <!-- AOS JS -->
-    <script src="https://unpkg.com/aos@next/dist/aos.js"></script>
+    <script defer src="https://unpkg.com/aos@next/dist/aos.js"></script>
   </body>
 </html>

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Player } from '@lottiefiles/react-lottie-player';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import SEOHead from '../components/SEOHead';
 
 const AstroFlowDiagram = lazy(() => import('../components/AstroFlowDiagram'));
 
@@ -166,8 +167,11 @@ const AstroUSA = () => {
 
   return (
     <div>
-      <title>ASTRO-USA Habitat Project | Purdue SEARCH</title>
-      <meta name="description" content="ASTRO-USA is Purdue SEARCH's flagship project — designing and building a fully closed-loop, self-sustaining space habitat analog on Purdue's campus." />
+      <SEOHead
+        title="ASTRO-USA Habitat Project"
+        description="ASTRO-USA is Purdue SEARCH's flagship project — designing and building a fully closed-loop, self-sustaining space habitat analog on Purdue's campus."
+        canonical="/astrousa"
+      />
       <Navbar />
 
       {/* ===== HERO ===== */}
