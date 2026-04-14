@@ -58,9 +58,8 @@ function AnimatedRoutes() {
 }
 
 function App() {
-  const basename = new URL(process.env.PUBLIC_URL || '', 'http://x').pathname;
   return (
-    <BrowserRouter basename={basename}>
+    <BrowserRouter>
       <ScrollToTop />
       <AnimatedRoutes />
     </BrowserRouter>
