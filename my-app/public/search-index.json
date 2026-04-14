@@ -1,0 +1,128 @@
+[
+  {
+    "title": "Home",
+    "path": "/",
+    "section": "Main",
+    "excerpt": "Purdue SEARCH is a student-led space analog research organization at Purdue University. We run interdisciplinary programs spanning astronaut training, bioastronautics research, space habitat design, and outreach.",
+    "tags": ["home", "purdue", "space", "analog", "research", "training", "search club"]
+  },
+  {
+    "title": "About SEARCH",
+    "path": "/about",
+    "section": "Main",
+    "excerpt": "Founded in Summer 2022, SEARCH operates six semi-independent subteams focused on analog astronaut training, life support research, software development, and community outreach. Meet our officers and academic advisors.",
+    "tags": ["about", "team", "officers", "leadership", "history", "founded", "2022", "advisors", "members"]
+  },
+  {
+    "title": "Contact Us",
+    "path": "/contact",
+    "section": "Main",
+    "excerpt": "Get in touch with SEARCH via our contact form, join us at weekly meetings, or find us on Discord and Instagram. We meet weekly on Purdue's campus.",
+    "tags": ["contact", "join", "email", "meeting", "discord", "instagram", "apply"]
+  },
+  {
+    "title": "Blog & News",
+    "path": "/blog",
+    "section": "Blog",
+    "excerpt": "Latest news and updates from Purdue SEARCH. Follow our programs, events, and research milestones throughout the academic year.",
+    "tags": ["blog", "news", "updates", "posts", "latest", "articles"]
+  },
+  {
+    "title": "Outreach Events",
+    "path": "/outreach",
+    "section": "Programs",
+    "excerpt": "SEARCH hosts campus tabling events, speaker series, and film screenings. Past speakers include representatives from NASA JPL, Blue Origin, SETI, and Virgin Galactic.",
+    "tags": ["outreach", "events", "speakers", "nasa", "blue origin", "seti", "tabling", "films", "dune", "interstellar"]
+  },
+  {
+    "title": "SA²TP — Student Analog Astronaut Training Program",
+    "path": "/sa2tp",
+    "section": "Programs",
+    "excerpt": "The Student Analog Astronaut Training Program gives crew members real flight training in Cessna and Cirrus aircraft, skydiving certification, scuba diving, and participation in analog habitat simulations like ASTRO-USA.",
+    "tags": ["sa2tp", "astronaut", "training", "skydiving", "scuba", "flight", "cessna", "cirrus", "crew", "analog", "psp", "lunabotics"]
+  },
+  {
+    "title": "SA²TP — Crew 1",
+    "path": "/sa2tp/crew1",
+    "section": "Programs",
+    "excerpt": "Crew 1 completed their analog astronaut training during Summer 2023, logging flight hours, skydive jumps, and open water scuba certification. Read about their mission experiences and milestones.",
+    "tags": ["crew1", "crew 1", "summer 2023", "sa2tp", "astronaut", "training", "first crew"]
+  },
+  {
+    "title": "Rod Interview — Purdue Exponent",
+    "path": "/sa2tp/rod-interview",
+    "section": "Programs",
+    "excerpt": "SEARCH founder Rodrigo Schmitt discusses the origins of SEARCH, the vision for SA²TP, and why Purdue students are uniquely positioned to advance human spaceflight in an interview with the Purdue Exponent.",
+    "tags": ["interview", "rod", "rodrigo", "exponent", "founder", "sa2tp", "purdue"]
+  },
+  {
+    "title": "Research — Microgreen Microwaves",
+    "path": "/research",
+    "section": "Research",
+    "excerpt": "SEARCH's research team investigates closed-loop food production for space habitats, including microgreen cultivation, hydroponics systems, and participation in NASA's Rasc-AL design competition.",
+    "tags": ["research", "rascal", "microgreen", "microwaves", "hydroponics", "food", "space", "nasa", "ices", "conference"]
+  },
+  {
+    "title": "NASA Rasc-AL Competition",
+    "path": "/research/rascal",
+    "section": "Research",
+    "excerpt": "SEARCH competed in NASA's Revolutionary Aerospace Systems Concepts – Academic Linkage (Rasc-AL) competition, presenting a lunar habitat design concept with integrated life-support and food production systems.",
+    "tags": ["rascal", "rasc-al", "nasa", "competition", "2023", "2024", "lunar", "habitat", "design", "aerospace"]
+  },
+  {
+    "title": "Software — NASA SUITS Challenge",
+    "path": "/software",
+    "section": "Programs",
+    "excerpt": "The SEARCH software team develops augmented reality interfaces for astronaut telemetry using Microsoft HoloLens, competing in NASA's SUITS (Spacesuit User Interface Technologies for Students) Challenge.",
+    "tags": ["suits", "software", "ar", "augmented reality", "nasa", "hololens", "microsoft", "telemetry", "spacesuit"]
+  },
+  {
+    "title": "SUITS — Project Details",
+    "path": "/software/suits",
+    "section": "Programs",
+    "excerpt": "SEARCH presented their SUITS AR interface at Johnson Space Center. The system overlays real-time life-support telemetry onto an astronaut's field of view using HoloLens 2 headsets.",
+    "tags": ["suits", "johnson space center", "jsc", "hololens", "ar", "nasa", "presentation", "software"]
+  },
+  {
+    "title": "Analog Programs",
+    "path": "/analogs",
+    "section": "Programs",
+    "excerpt": "SEARCH participates in field research at analog environments including Mars Desert Research Station (MDRS) in Utah, Kennedy Space Center, and Biosphere 2 in Arizona to simulate deep-space mission conditions.",
+    "tags": ["analogs", "mdrs", "biosphere", "ksc", "kennedy space center", "field research", "mars", "utah", "arizona"]
+  },
+  {
+    "title": "MDRS Utah Mission",
+    "path": "/analogs/mdrs-utah",
+    "section": "Programs",
+    "excerpt": "SEARCH crew members conducted a two-week analog mission at the Mars Desert Research Station in Utah, simulating Mars surface operations, EVA procedures, and science experiments in a remote desert habitat.",
+    "tags": ["mdrs", "utah", "mars", "desert", "analog", "eva", "mission", "habitat", "research station"]
+  },
+  {
+    "title": "Astro-USA Habitat",
+    "path": "/astrousa",
+    "section": "Programs",
+    "excerpt": "ASTRO-USA (Analog Space Technology for Research & Operations – United States of America) is SEARCH's flagship closed-loop life-support habitat built from a modified shipping container, supporting multi-day crew simulations.",
+    "tags": ["astrousa", "habitat", "demeter", "life support", "closed loop", "container", "bioreactor", "hydroponics", "crew", "simulation"]
+  },
+  {
+    "title": "Astro-USA — Program Overview",
+    "path": "/astrousa/overview",
+    "section": "Programs",
+    "excerpt": "An overview of the ASTRO-USA program goals, crew mission structure, and how the habitat integrates water recycling, food production, waste management, and atmospheric control for analog astronaut missions.",
+    "tags": ["astrousa", "overview", "goals", "mission", "program", "water", "food", "waste"]
+  },
+  {
+    "title": "Astro-USA — Habitat Architecture",
+    "path": "/astrousa/architecture",
+    "section": "Programs",
+    "excerpt": "The ASTRO-USA habitat architecture section details the structural design, subsystem layout, airlock, crew quarters, lab, and kitchen areas within the modified shipping container habitat.",
+    "tags": ["astrousa", "architecture", "design", "systems", "airlock", "lab", "kitchen", "structural", "layout"]
+  },
+  {
+    "title": "Astro-USA — Hydroponics & LEAF",
+    "path": "/astrousa/hydroponics",
+    "section": "Programs",
+    "excerpt": "ASTRO-USA's hydroponics bay uses NFT (Nutrient Film Technique) towers with automated pH and EC control to grow food crops for crew consumption, closing the nutrition loop within the habitat.",
+    "tags": ["hydroponics", "leaf", "nft", "nutrient film", "plants", "food", "crops", "astrousa", "nasa", "ph", "ec"]
+  }
+]
