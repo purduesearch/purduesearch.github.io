@@ -76,6 +76,11 @@ const Footer = () => (
                 LinkedIn
               </a>
             </li>
+            <li>
+              <a href="https://www.facebook.com/share/14YKGkqYqNh/" target="_blank" rel="noopener noreferrer">
+                Facebook
+              </a>
+            </li>
           </ul>
         </div>
 
@@ -130,6 +135,9 @@ const Footer = () => (
           </a>
           <a className="social-circle" href="https://www.youtube.com/@PurdueSEARCH" target="_blank" rel="noopener noreferrer" aria-label="YouTube">
             <i className="fab fa-youtube" />
+          </a>
+          <a className="social-circle" href="https://www.facebook.com/share/14YKGkqYqNh/" target="_blank" rel="noopener noreferrer" aria-label="Facebook">
+            <i className="fab fa-facebook-f" />
           </a>
         </div>
       </div>

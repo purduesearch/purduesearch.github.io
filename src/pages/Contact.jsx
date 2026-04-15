@@ -88,9 +88,14 @@ const Contact = () => {
               </div>
               <div className="col-md-3" data-aos="fade-up" data-aos-delay={600}>
                 <span className="lnr lnr-envelope fs-40 py-4 d-block" />
-                <h5>JOIN US</h5>
+                <h5>EMAIL US</h5>
                 <p>
-                  <a href="https://forms.gle/8PUCmvD63rwyPYZy9" target="_blank" rel="noopener noreferrer">
+                  <a href="mailto:purduesearch@gmail.com">
+                    purduesearch@gmail.com
+                  </a>
+                </p>
+                <p>
+                  <a href="https://forms.gle/8PUCmvD63rwyPYZy9" target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.875rem' }}>
                     Apply via Google Form
                   </a>
                 </p>

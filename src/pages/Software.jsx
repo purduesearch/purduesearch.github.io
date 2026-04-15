@@ -151,7 +151,7 @@ const Software = () => {
               Awards &amp; <b>Recognition</b>
             </h2>
             <p className="section-sub-title" style={{ color: 'rgba(245,239,230,0.6)' }}>
-              JARVIS has earned NASA recognition two years running.
+              Our team has earned NASA recognition two years running.
             </p>
           </div>
           <div className="suits-award-strip" data-aos="fade-up">
@@ -173,7 +173,7 @@ const Software = () => {
             </div>
           </div>
           <div data-aos="fade-up">
-            <img loading="lazy" src="/software/Win_Photo_Suits.webp" alt="JARVIS team at NASA SUITS competition" style={{ display: 'block', width: '100%', maxWidth: 720, margin: '0 auto', borderRadius: 10 }} />
+            <img loading="lazy" src="/software/Win_Photo_Suits.webp" alt="SUITS team at NASA SUITS competition" style={{ display: 'block', width: '100%', maxWidth: 720, margin: '0 auto', borderRadius: 10 }} />
           </div>
         </div>
       </section>
@@ -193,18 +193,18 @@ const Software = () => {
             <p>
               For 2025–26 the challenge targets the <strong>Lunar South Pole</strong> environment: teams must design interfaces supporting Artemis III surface operations,
               including navigation across permanently shadowed regions, coordination with a <strong>Lunar Terrain Vehicle (LTV)</strong>, and search-and-rescue contingency
-              procedures. JARVIS addresses these demands with a unified AI-driven platform spanning spacesuit wrist displays, helmet overlays, and a pressurized-rover console.
+              procedures. VISOR addresses these demands with a unified AI-driven platform spanning spacesuit wrist displays, helmet overlays, and a pressurized-rover console.
             </p>
             <div style={{ clear: 'both' }} />
           </div>
         </div>
       </section>
 
-      {/* ===== 2025-26 JARVIS ARCHITECTURE ===== */}
+      {/* ===== 2025-26 VISOR ARCHITECTURE ===== */}
       <section id="suits-arch-2526">
         <div className="container">
           <div className="title-wrap mb-2" data-aos="fade-up">
-            <h2 className="section-title">2025–26 JARVIS <b>System</b></h2>
+            <h2 className="section-title">2025–26 VISOR <b>System</b></h2>
             <p className="section-sub-title">A full-stack mission interface: AI reasoning, real-time telemetry, and multi-device hardware.</p>
           </div>
         </div>
@@ -216,7 +216,7 @@ const Software = () => {
               <span className="about-section-label">Artificial Intelligence</span>
               <h3 style={{ fontFamily: 'var(--font-heading)', marginBottom: '1rem' }}>On-Device AI for Mission-Critical Decisions</h3>
               <p style={{ color: 'var(--color-muted)', lineHeight: '1.8' }}>
-                JARVIS deploys a multi-model AI stack running at the edge — no cloud dependency during EVA operations. The system combines conversational reasoning,
+                VISOR deploys a multi-model AI stack running at the edge — no cloud dependency during EVA operations. The system combines conversational reasoning,
                 biomedical expertise, and document retrieval to give crews real-time answers sourced directly from NASA procedure libraries.
               </p>
               <div style={{ marginTop: '1rem' }}>
@@ -231,11 +231,11 @@ const Software = () => {
                 <li><strong>MedGemma</strong> — biomedical query answering for crew health monitoring</li>
                 <li><strong>RAG Pipeline</strong> — retrieves exact NASA procedure documents for cited answers</li>
                 <li><strong>RLHF Fine-tuning</strong> — mission-specialist alignment shaped by expert feedback</li>
-                <li><strong>openWakeWord</strong> — passive "Hey JARVIS" activation; hands-free in EVA gloves</li>
+                <li><strong>openWakeWord</strong> — passive "Hey VISOR" activation; hands-free in EVA gloves</li>
               </ul>
             </div>
             <div className="mg-media-img" data-aos="fade-left">
-              <img loading="lazy" src="/software/Meeting_SUITS.webp" alt="JARVIS team developing AI systems" />
+              <img loading="lazy" src="/software/Meeting_SUITS.webp" alt="VISOR team developing AI systems" />
             </div>
           </div>
         </div>
@@ -272,7 +272,7 @@ const Software = () => {
             <span className="about-section-label">Communications</span>
             <h3 style={{ fontFamily: 'var(--font-heading)', marginBottom: '1rem' }}>LunarLink</h3>
             <p style={{ color: 'var(--color-muted)', lineHeight: '1.8' }}>
-              LunarLink is JARVIS's HTTP GET/POST middleware that translates the NASA Telemetry Sharing System (TSS) API stream into structured JSON,
+              LunarLink is VISOR's HTTP GET/POST middleware that translates the NASA Telemetry Sharing System (TSS) API stream into structured JSON,
               keeping mission-critical data synchronized across all connected devices in real time.
             </p>
           </div>
@@ -284,7 +284,7 @@ const Software = () => {
         <div className="container">
           <div className="title-wrap mb-5 text-center" data-aos="fade-up">
             <h2 className="section-title">Common <b>Features</b></h2>
-            <p className="section-sub-title">Capabilities shared across all JARVIS interfaces — WMD, HMD, and rover console.</p>
+            <p className="section-sub-title">Capabilities shared across all VISOR interfaces — WMD, HMD, and rover console.</p>
           </div>
           <div className="row" data-aos="fade-up">
             {[
@@ -304,7 +304,7 @@ const Software = () => {
           <div className="row justify-content-center" data-aos="fade-up">
             {[
               { icon: 'fas fa-exclamation-triangle', title: 'Caution & Warning AI', desc: 'Real-time anomaly detection across biomed and suit telemetry streams. MedGemma classifies severity and recommends immediate crew action.' },
-              { icon: 'fas fa-robot', title: 'JARVIS Assistant', desc: 'Voice and text conversational interface backed by Gemma3n + RAG. Ask mission questions, get procedure steps, or request a status summary — hands-free.' },
+              { icon: 'fas fa-robot', title: 'VISOR Assistant', desc: 'Voice and text conversational interface backed by Gemma3n + RAG. Ask mission questions, get procedure steps, or request a status summary — hands-free.' },
             ].map(f => (
               <div key={f.title} className="col-md-4 mb-4">
                 <div className="shadow rounded feature-item p-4 h-100" data-aos="fade-up">
@@ -327,7 +327,7 @@ const Software = () => {
           </div>
           <div className="mg-media-row" data-aos="fade-up">
             <div className="mg-media-img" data-aos="fade-right">
-              <img loading="lazy" src="/software/Data_Monitors_Suits.webp" alt="JARVIS Pressurized Rover UI on monitors" />
+              <img loading="lazy" src="/software/Data_Monitors_Suits.webp" alt="VISOR Pressurized Rover UI on monitors" />
             </div>
             <div className="mg-media-text">
               <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
@@ -363,7 +363,7 @@ const Software = () => {
                 {[
                   { name: 'WMD + HMD Combination', desc: 'Input on the wrist display; context-rich overlays projected into the helmet visor — the two devices complement each other without redundancy.' },
                   { name: '2D / 3D Navigation Map', desc: 'Toggleable flat map and terrain-aware 3D view with full GeoPin overlay, route guidance, and crew location tracking.' },
-                  { name: 'Procedure List', desc: 'Step-through NASA EVA checklist with AI-assisted completion confirmation — JARVIS flags missed or out-of-order steps.' },
+                  { name: 'Procedure List', desc: 'Step-through NASA EVA checklist with AI-assisted completion confirmation — VISOR flags missed or out-of-order steps.' },
                   { name: 'Biomed Data Display', desc: 'Heart rate, O₂ saturation, and suit pressure displayed at a glance; MedGemma flags readings outside nominal range.' },
                 ].map(f => (
                   <li key={f.name} style={{ paddingBottom: '1rem', marginBottom: '1rem', borderBottom: '1px solid var(--color-border)' }}>
@@ -374,7 +374,7 @@ const Software = () => {
               </ul>
             </div>
             <div className="mg-media-img" data-aos="fade-left">
-              <img loading="lazy" src="/software/Presentation_SUITS.webp" alt="JARVIS spacesuit interface presentation" />
+              <img loading="lazy" src="/software/Presentation_SUITS.webp" alt="VISOR spacesuit interface presentation" />
             </div>
           </div>
         </div>
@@ -385,7 +385,7 @@ const Software = () => {
         <div className="container">
           <div className="title-wrap mb-5 text-center" data-aos="fade-up">
             <h2 className="section-title">Mission <b>CONOPS</b></h2>
-            <p className="section-sub-title">Five-phase concept of operations for a nominal JARVIS-assisted EVA.</p>
+            <p className="section-sub-title">Five-phase concept of operations for a nominal VISOR-assisted EVA.</p>
           </div>
           <div className="suits-conops-flow" data-aos="fade-up">
             <div className="suits-conops-step">
@@ -397,7 +397,7 @@ const Software = () => {
             <div className="suits-conops-step">
               <div className="suits-conops-num">2</div>
               <div className="suits-conops-label">Egress</div>
-              <div className="suits-conops-desc">Crew exits rover; JARVIS activates WMD/HMD interfaces and loads EVA task queue.</div>
+              <div className="suits-conops-desc">Crew exits rover; VISOR activates WMD/HMD interfaces and loads EVA task queue.</div>
             </div>
             <div className="suits-conops-arrow" aria-hidden="true">&#8594;</div>
             <div className="suits-conops-step">
@@ -415,7 +415,7 @@ const Software = () => {
             <div className="suits-conops-step">
               <div className="suits-conops-num">5</div>
               <div className="suits-conops-label">Ingress</div>
-              <div className="suits-conops-desc">Crew returns; JARVIS logs EVA data and syncs mission state to ground control.</div>
+              <div className="suits-conops-desc">Crew returns; VISOR logs EVA data and syncs mission state to ground control.</div>
             </div>
           </div>
         </div>
@@ -456,16 +456,16 @@ const Software = () => {
         <div className="container">
           <div className="title-wrap mb-5 text-center" data-aos="fade-up">
             <h2 className="section-title">Community <b>Outreach</b></h2>
-            <p className="section-sub-title">JARVIS brings space tech into classrooms — from elementary school to university research fairs.</p>
+            <p className="section-sub-title">VISOR brings space tech into classrooms — from elementary school to university research fairs.</p>
           </div>
           <div className="row" data-aos="fade-up">
             {[
               { icon: 'fas fa-child', audience: 'Elementary', title: 'Purdue Elementary STEM Day', desc: 'Interactive spacesuit demo for K–5 students exploring life as an astronaut.' },
-              { icon: 'fas fa-moon', audience: 'Middle School', title: 'West Lafayette Space Night', desc: 'Evening of lunar-surface simulations and Q&A with the JARVIS team for middle schoolers.' },
-              { icon: 'fas fa-university', audience: 'Public', title: 'Purdue Open House', desc: 'Campus-wide showcase of JARVIS interfaces drawing students, faculty, and alumni.' },
-              { icon: 'fas fa-flask', audience: 'Undergraduate', title: 'Undergraduate Research Fair', desc: "Presentation of JARVIS technical architecture at Purdue's annual research showcase." },
+              { icon: 'fas fa-moon', audience: 'Middle School', title: 'West Lafayette Space Night', desc: 'Evening of lunar-surface simulations and Q&A with the VISOR team for middle schoolers.' },
+              { icon: 'fas fa-university', audience: 'Public', title: 'Purdue Open House', desc: 'Campus-wide showcase of VISOR interfaces drawing students, faculty, and alumni.' },
+              { icon: 'fas fa-flask', audience: 'Undergraduate', title: 'Undergraduate Research Fair', desc: "Presentation of VISOR technical architecture at Purdue's annual research showcase." },
               { icon: 'fas fa-rocket', audience: 'High School', title: 'Astronautics Workshop', desc: 'Hands-on spacesuit UI workshop for local high school students interested in aerospace careers.' },
-              { icon: 'fas fa-satellite', audience: 'All Ages', title: 'SEARCH Showcase', desc: "JARVIS featured in SEARCH's annual public event alongside all club programs and competitions." },
+              { icon: 'fas fa-satellite', audience: 'All Ages', title: 'SEARCH Showcase', desc: "VISOR featured in SEARCH's annual public event alongside all club programs and competitions." },
             ].map(ev => (
               <div key={ev.title} className="col-md-4 mb-4" data-aos="fade-up">
                 <div className="shadow rounded feature-item p-4 h-100">

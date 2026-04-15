@@ -423,13 +423,13 @@ const AstroUSA = () => {
             <figure className="blueprint-img" style={{ flex: '1 1 300px' }}>
               <img loading="lazy" src="/astrousa/fig2_floor_plan.webp" alt="Food Production Module floor plan" style={{ width: '100%' }} />
               <figcaption style={{ textAlign: 'center', fontSize: '0.78rem', color: 'var(--color-muted)', marginTop: '0.6rem', padding: '0 0.5rem' }}>
-                Fig. 2 — Food Production Module floor plan
+                Food Production Module floor plan
               </figcaption>
             </figure>
             <figure className="blueprint-img" style={{ flex: '1 1 300px' }}>
               <img loading="lazy" src="/astrousa/fig10_minihab_layout.webp" alt="2D layout of Mini-Hab" style={{ width: '100%' }} />
               <figcaption style={{ textAlign: 'center', fontSize: '0.78rem', color: 'var(--color-muted)', marginTop: '0.6rem', padding: '0 0.5rem' }}>
-                Fig. 10 — Mini-Hab 2D layout
+                Mini-Hab 2D layout
               </figcaption>
             </figure>
           </div>
@@ -440,8 +440,8 @@ const AstroUSA = () => {
               <div className="mini-hab-callout-title">Mini-Hab — 3-Year Development Plan</div>
               <div className="mini-hab-callout-body">
                 <strong>Year 1 (2025):</strong> Food Production Module (464 × 92 in) — 27 × 11 NFT hydroponic towers, Kratky DWC, propagation station, 4.4 kW solar, Mycoponics™ integration.<br />
-                <strong>Year 2 (2026):</strong> BSL-2 Laboratory Module — anaerobic &amp; phototrophic bioreactor research, NASA BioWaTERR trailer integration, EVA simulation protocols.<br />
-                <strong>Year 3 (2027):</strong> Crew Quarters Module — first full 14-day analog mission, mass-balance monitoring (waste input → permeate output → plant biomass).
+                <strong>Year 2 (2026):</strong> BSL-2 Laboratory Module — anaerobic &amp; phototrophic bioreactor research, EVA simulation protocols.<br />
+                <strong>Year 3 (2027):</strong> Crew Quarters Module — first full 14-day analog mission, NASA BioWaTERR trailer integration, mass-balance monitoring (waste input → permeate output → plant biomass).
               </div>
             </div>
           </div>
@@ -503,17 +503,29 @@ const AstroUSA = () => {
               ))}
             </div>
           </div>
-          <div style={{ display: 'flex', gap: '1.5rem', marginTop: '2.5rem', flexWrap: 'wrap' }} data-aos="fade-up">
-            <figure style={{ flex: '1 1 300px', margin: 0 }}>
-              <img loading="lazy" src="/astrousa/fig6_solar_diagram.webp" alt="Solar farm electrical diagram" style={{ width: '100%', borderRadius: '10px' }} />
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem', marginTop: '2.5rem' }} data-aos="fade-up">
+            <figure style={{ margin: 0 }}>
+              <img loading="lazy" src="/astrousa/Overview.webp" alt="Power systems overview" style={{ width: '100%', borderRadius: '10px' }} />
               <figcaption style={{ textAlign: 'center', fontSize: '0.78rem', color: 'var(--color-muted)', marginTop: '0.6rem' }}>
-                Fig. 6 — Solar farm electrical diagram
+                Power systems overview
               </figcaption>
             </figure>
-            <figure style={{ flex: '1 1 300px', margin: 0 }}>
-              <img loading="lazy" src="/astrousa/fig7_one_line.webp" alt="Single-line power distribution diagram" style={{ width: '100%', borderRadius: '10px' }} />
+            <figure style={{ margin: 0 }}>
+              <img loading="lazy" src="/astrousa/Solar_One-Line_Diagram.webp" alt="Solar one-line electrical diagram" style={{ width: '100%', borderRadius: '10px' }} />
               <figcaption style={{ textAlign: 'center', fontSize: '0.78rem', color: 'var(--color-muted)', marginTop: '0.6rem' }}>
-                Fig. 7 — Single-line power distribution
+                Solar one-line diagram
+              </figcaption>
+            </figure>
+            <figure style={{ margin: 0 }}>
+              <img loading="lazy" src="/astrousa/One-Line_Diagram.webp" alt="Full one-line power distribution diagram" style={{ width: '100%', borderRadius: '10px' }} />
+              <figcaption style={{ textAlign: 'center', fontSize: '0.78rem', color: 'var(--color-muted)', marginTop: '0.6rem' }}>
+                One-line power distribution
+              </figcaption>
+            </figure>
+            <figure style={{ margin: 0 }}>
+              <img loading="lazy" src="/astrousa/Wiring_Diagram.webp" alt="Habitat wiring diagram" style={{ width: '100%', borderRadius: '10px' }} />
+              <figcaption style={{ textAlign: 'center', fontSize: '0.78rem', color: 'var(--color-muted)', marginTop: '0.6rem' }}>
+                Habitat wiring diagram
               </figcaption>
             </figure>
           </div>
@@ -613,7 +625,7 @@ const AstroUSA = () => {
                 <img loading="lazy" src="/astrousa/fig4_nft_towers.webp" alt="27×11 NFT tower assemblies" style={{ width: '100%', borderRadius: '12px', objectFit: 'cover', aspectRatio: '4/3' }} />
               </div>
               <p style={{ fontSize: '0.78rem', color: 'var(--color-muted)', marginTop: '0.6rem', textAlign: 'center' }}>
-                Fig. 4 — 27×11 NFT tower assemblies
+                27×11 NFT tower assemblies
               </p>
             </div>
             <div className="col-md-6 mb-4">
@@ -621,7 +633,7 @@ const AstroUSA = () => {
                 <img loading="lazy" src="/astrousa/fig5_propagation.webp" alt="Propagation station and DWC buckets" style={{ width: '100%', borderRadius: '12px', objectFit: 'cover', aspectRatio: '4/3' }} />
               </div>
               <p style={{ fontSize: '0.78rem', color: 'var(--color-muted)', marginTop: '0.6rem', textAlign: 'center' }}>
-                Fig. 5 — Propagation station + DWC buckets
+                Propagation station + DWC buckets
               </p>
             </div>
           </div>
@@ -681,7 +693,7 @@ const AstroUSA = () => {
               {
                 icon: 'fa-calendar-alt',
                 title: 'Phased Timeline',
-                body: 'Year 1: Food Production Module. Year 2: Lab + bioreactors + BioWaTERR integration. Year 3: Crew Quarters + first full 14-day analog mission. Years 4–5: Primary ASTRO-USA habitat construction and first primary mission.',
+                body: 'Year 1: Food Production Module. Year 2: Lab + bioreactors. Year 3: Crew Quarters + first full 14-day analog mission + BioWaTERR integration. Years 4–5: Primary ASTRO-USA habitat construction and first primary mission.',
               },
             ].map((card, i) => (
               <div className="col-md-6 mb-4" key={i}>
@@ -745,7 +757,7 @@ const AstroUSA = () => {
                 {
                   year: '2026',
                   phase: 'Laboratory Module',
-                  bullets: ['Bioreactor train build-out', 'NASA BioWaTERR integration', 'EVA simulation protocols', 'Insulation, HVAC, & solar panels', 'Organized into 6 subteams'],
+                  bullets: ['Bioreactor train build-out', 'EVA simulation protocols', 'Insulation, HVAC, & solar panels', 'Organized into 6 subteams'],
                 },
                 {
                   year: '2027',
@@ -755,7 +767,7 @@ const AstroUSA = () => {
                 {
                   year: '2028–29',
                   phase: 'Primary ASTRO-USA Habitat',
-                  bullets: ['Full-scale primary habitat build', 'System integration & validation', 'First primary habitat mission'],
+                  bullets: ['Full-scale primary habitat build', 'System integration & validation', 'First primary habitat mission', 'NASA BioWaTERR integration'],
                 },
               ].map((node, i) => (
                 <div className={`timeline-node${node.active ? ' active' : ''}`} key={i}>

@@ -96,9 +96,6 @@ const About = () => {
               <li>Inspire younger generations to engage in space exploration through K-12 outreach events.</li>
             </p>
             <p>
-              SEARCH’s vision is to make Purdue a national leader in student-driven human space exploration and analog research by creating a sustainable pipeline from student interest to interdisciplinary collaboration, hands-on experience, research leadership, and real-world impact.
-            </p>
-            <p>
               If you are interested in any of these activities, please connect with us — all contact
               information is on the Contact page.
             </p>
@@ -157,6 +154,11 @@ const About = () => {
           <div className="about-section-inner section-sweep" ref={addSweepRef}>
             <span className="about-section-label">Looking Ahead</span>
             <h2>Plans &amp; Goals</h2>
+            <p>
+              SEARCH’s vision is to make Purdue a national leader in student-driven human space exploration 
+              and analog research by creating a sustainable pipeline from student interest to interdisciplinary 
+              collaboration, hands-on experience, research leadership, and real-world impact.
+            </p>
             <p>
               In the near future, SEARCH plans to build a self-sustaining, innovative, and inclusive
               lunar habitat to foster interdisciplinary research and development. The organization hopes
@@ -280,10 +282,6 @@ const About = () => {
                         <div className="my-4"><img loading="lazy" src="/officers/advisors/bera.webp" width="150px" className="officer-photo" alt="Dr. Aniket Bera" /></div>
                         <h4>Dr. Aniket Bera</h4><h5>Software Advisor</h5><p>Associate Professor, CS</p>
                       </div>
-                      <div className="shadow rounded feature-item p-4 mb-4" data-aos="fade-up">
-                        <div className="my-4"><img loading="lazy" src="/officers/advisors/mall.webp" width="150px" className="officer-photo" alt="Dr. Kshitij Mall" /></div>
-                        <h4>Dr. Kshitij Mall</h4><h5>Co-Founder</h5><p>Post Doc, Purdue University</p>
-                      </div>
                     </div>
                     <div className="col-md-4 col-sm-12 text-center mt-4">
                       <div className="shadow rounded feature-item p-4 mb-4" data-aos="fade-up">
@@ -307,7 +305,7 @@ const About = () => {
                       <table className="table table-condensed table-striped table-bordered">
                         <thead><tr><th style={{ color: 'black' }}>Position</th><th style={{ color: 'black' }}>Name</th></tr></thead>
                         <tbody>
-                          <tr><td>President &amp; Co-Founder</td><td>Rodrigo Schmitt</td></tr>
+                          <tr><td>President</td><td>Rodrigo Schmitt</td></tr>
                           <tr><td>Vice President</td><td>Lainie Rapp</td></tr>
                           <tr><td>Treasurer</td><td>Ryan Williams</td></tr>
                           <tr><td>Social Media Lead</td><td>Sharvari Deshpande</td></tr>
@@ -326,7 +324,7 @@ const About = () => {
                       <table className="table table-condensed table-striped table-bordered">
                         <thead><tr><th style={{ color: 'black' }}>Position</th><th style={{ color: 'black' }}>Name</th></tr></thead>
                         <tbody>
-                          <tr><td>President &amp; Co-Founder</td><td>Rodrigo Schmitt</td></tr>
+                          <tr><td>President</td><td>Rodrigo Schmitt</td></tr>
                           <tr><td>Vice President</td><td>Spruha Vashi</td></tr>
                           <tr><td>Co-Treasurer</td><td>Khush Patel</td></tr>
                           <tr><td>Co-Treasurer</td><td>Mariana Aguilar</td></tr>
@@ -344,7 +342,7 @@ const About = () => {
                       <table className="table table-condensed table-striped table-bordered">
                         <thead><tr><th style={{ color: 'black' }}>Position</th><th style={{ color: 'black' }}>Name</th></tr></thead>
                         <tbody>
-                          <tr><td>President &amp; Co-Founder</td><td>Rodrigo Schmitt</td></tr>
+                          <tr><td>President</td><td>Rodrigo Schmitt</td></tr>
                           <tr><td>Vice President</td><td>Spruha Vashi</td></tr>
                           <tr><td>Treasurer</td><td>Khush Patel</td></tr>
                           <tr><td>Social Media Lead</td><td>Lainie Rapp</td></tr>

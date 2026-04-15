@@ -118,7 +118,7 @@ const Analogs = () => {
         </div>
       </section>
 
-      <section id="blog" className="bg-grey">
+      {/* <section id="blog" className="bg-grey">
         <div className="container">
           <div className="section-content">
             <div className="title-wrap mb-5" data-aos="fade-up">
@@ -151,7 +151,7 @@ const Analogs = () => {
             </div>
           </div>
         </div>
-      </section>
+      </section> */}
 
       {/* ===== CTA ===== */}
       <section style={{ background: 'var(--color-bg-secondary)', padding: '3rem 0', textAlign: 'center' }}>

@@ -102,15 +102,15 @@ const TESTIMONIALS = [
     name: 'Spruha Vashi',
     role: 'Analog Programs Lead',
     photo: '/officers/vashi.webp',
-    quote: 'Partnering with MDRS and HI-SEAS opens doors most undergrads never get to walk through.',
+    quote: 'Partnering with HI-SEAS opens doors most undergrads never get to walk through.',
   },
 ];
 
 const PROGRAMS = [
   'Competed in national challenges such as NASA RASC-AL and NASA SUITS — qualifying for the on-site round at Johnson Space Center in 2024.',
-  'Hosted outreach events with researchers from NASA, SpaceX, SETI, Blue Origin, The Mars Society, and Virgin Galactic.',
+  'Hosted outreach events with researchers from NASA, SpaceX, SETI, Blue Origin, and Virgin Galactic.',
   'Led a student-run Analog Astronaut Training Program including flight, scuba, and fitness certification.',
-  'Partnered with Hi-SEAS and MDRS to send students to world-class analog research facilities.',
+  'Partnered with Hi-SEAS to send students to world-class analog research facilities.',
   'Conducting bio-astronautics and hydroponics research toward NASA\'s LEAF initiative.',
   'Designing ASTRO-USA — a self-sustaining, closed-loop habitat on Purdue\'s campus for long-duration mission simulation.',
 ];
@@ -356,13 +356,11 @@ const Home = () => {
             {[...Array(2)].flatMap((_, copy) => [
               <div key={`bo-${copy}`} className="client-item"><img loading="lazy" src="/outreach/companies/blueorigin.webp" alt="Blue Origin" /></div>,
               <div key={`hs-${copy}`} className="client-item"><img loading="lazy" src="/outreach/companies/hiseas.webp" alt="Hi-SEAS" /></div>,
-              <div key={`md-${copy}`} className="client-item"><img loading="lazy" src="/outreach/companies/MDRS.webp" alt="MDRS" /></div>,
               <div key={`na-${copy}`} className="client-item"><img loading="lazy" src="/outreach/companies/nasa.webp" alt="NASA" /></div>,
               <div key={`pa-${copy}`} className="client-item"><img loading="lazy" src="/outreach/companies/PAC.webp" alt="Purdue Aerospace Council" /></div>,
               <div key={`ps-${copy}`} className="client-item"><img loading="lazy" src="/outreach/companies/psp.webp" alt="Purdue Space Program" /></div>,
               <div key={`se-${copy}`} className="client-item"><img loading="lazy" src="/outreach/companies/seti.webp" alt="SETI Institute" /></div>,
               <div key={`sx-${copy}`} className="client-item"><img loading="lazy" src="/outreach/companies/spacex.webp" alt="SpaceX" /></div>,
-              <div key={`tm-${copy}`} className="client-item"><img loading="lazy" src="/outreach/companies/tms.webp" alt="The Mars Society" /></div>,
               <div key={`vg-${copy}`} className="client-item"><img loading="lazy" src="/outreach/companies/virgingalactic.svg" alt="Virgin Galactic" /></div>,
             ])}
           </div>
@@ -418,7 +416,7 @@ const Home = () => {
             {[
               { icon: '/icons/rocket-solid.svg', title: 'Research', body: 'Student-led research in bio-astronautics and hydroponics. Competing in NASA challenges such as RASC-AL and SUITS.', delay: '0' },
               { icon: '/icons/user-astronaut-solid.svg', title: 'Training', body: 'Running the Student Analog Astronaut Training Program — three weeks of fitness, flight, scuba, and NASA facility visits.', delay: '100' },
-              { icon: '/icons/shuttle-space-solid.svg', title: 'Outreach', body: '3+ events per semester with speakers from NASA, SpaceX, SETI, Blue Origin, and The Mars Society.', delay: '200' },
+              { icon: '/icons/shuttle-space-solid.svg', title: 'Outreach', body: '3+ events per semester with speakers from NASA, SpaceX, SETI, and Blue Origin.', delay: '200' },
             ].map(({ icon, title, body, delay }) => (
               <div key={title} className="col-md-4 col-sm-12" data-aos="fade-up" data-aos-delay={delay}>
                 <TiltCard className="pillar-card">
@@ -462,7 +460,7 @@ const Home = () => {
                       </div>
                       <h4><Link to="/analogs">Analog Programs</Link></h4>
                       <p>
-                        Ever wondered how to get involved with Mars Desert Research Station (MDRS) or
+                        Ever wondered how to get involved with
                         Hawai'i Space Exploration Analog and Simulation (HI-SEAS)? Click here to know more!
                       </p>
                     </div>
@@ -638,7 +636,7 @@ const Home = () => {
       </section>
 
       {/* ===== EVENTS CALENDAR ===== */}
-      <section id="events-calendar">
+      {/* <section id="events-calendar">
         <div className="container">
           <div className="title-wrap text-center mb-5" data-aos="fade-up">
             <h2 className="section-title">Upcoming <b>Events</b></h2>
@@ -647,7 +645,6 @@ const Home = () => {
             </p>
           </div>
           <div className="cal-wrap" data-aos="fade-up">
-            {/* Monthly calendar grid */}
             <div className="cal-card">
               <div className="cal-month-header">
                 <span className="cal-month-title">
@@ -682,7 +679,6 @@ const Home = () => {
               </div>
             </div>
 
-            {/* Upcoming events sidebar */}
             <div>
               <div className="cal-events-list">
                 {CAL_EVENTS.map((ev, i) => (
@@ -706,7 +702,7 @@ const Home = () => {
             </div>
           </div>
         </div>
-      </section>
+      </section> */}
 
       <Footer />
     </div>
