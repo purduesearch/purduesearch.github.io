@@ -100,7 +100,7 @@ const TESTIMONIALS = [
   },
   {
     name: 'Spruha Vashi',
-    role: 'Analog Programs Lead',
+    role: 'Business & Operations Lead',
     photo: '/officers/vashi.webp',
     quote: 'Partnering with HI-SEAS opens doors most undergrads never get to walk through.',
   },
@@ -110,7 +110,7 @@ const PROGRAMS = [
   'Competed in national challenges such as NASA RASC-AL and NASA SUITS — qualifying for the on-site round at Johnson Space Center in 2024.',
   'Hosted outreach events with researchers from NASA, SpaceX, SETI, Blue Origin, and Virgin Galactic.',
   'Led a student-run Analog Astronaut Training Program including flight, scuba, and fitness certification.',
-  'Partnered with Hi-SEAS to send students to world-class analog research facilities.',
+  'Organized research trips to world-class analog facilities including Biosphere 2 and Kennedy Space Center.',
   'Conducting bio-astronautics and hydroponics research toward NASA\'s LEAF initiative.',
   'Designing ASTRO-USA — a self-sustaining, closed-loop habitat on Purdue\'s campus for long-duration mission simulation.',
 ];
@@ -289,7 +289,7 @@ const Home = () => {
           { '@type': 'ListItem', 'position': 3, 'name': 'SA²TP', 'url': 'https://purduesearch.github.io/sa2tp' },
           { '@type': 'ListItem', 'position': 4, 'name': 'ASTRO-USA', 'url': 'https://purduesearch.github.io/astrousa' },
           { '@type': 'ListItem', 'position': 5, 'name': 'Software', 'url': 'https://purduesearch.github.io/software' },
-          { '@type': 'ListItem', 'position': 6, 'name': 'Analog Programs', 'url': 'https://purduesearch.github.io/analogs' },
+          { '@type': 'ListItem', 'position': 6, 'name': 'Business & Operations', 'url': 'https://purduesearch.github.io/business' },
           { '@type': 'ListItem', 'position': 7, 'name': 'Outreach', 'url': 'https://purduesearch.github.io/outreach' },
           { '@type': 'ListItem', 'position': 8, 'name': 'Blog', 'url': 'https://purduesearch.github.io/blog' },
           { '@type': 'ListItem', 'position': 9, 'name': 'Contact', 'url': 'https://purduesearch.github.io/contact' },
@@ -456,12 +456,12 @@ const Home = () => {
                     </div>
                     <div className="shadow rounded feature-item p-4 mb-4" data-aos="fade-right" data-aos-delay={200}>
                       <div className="my-4">
-                        <img loading="lazy" src="/icons/microscope-solid.svg" width="50px" alt="Analog Programs" />
+                        <img loading="lazy" src="/icons/microscope-solid.svg" width="50px" alt="Business & Operations" />
                       </div>
-                      <h4><Link to="/analogs">Analog Programs</Link></h4>
+                      <h4><Link to="/business">Business &amp; Operations</Link></h4>
                       <p>
-                        Ever wondered how to get involved with
-                        Hawai'i Space Exploration Analog and Simulation (HI-SEAS)? Click here to know more!
+                        The team behind every trip, partnership, and sponsorship that keeps
+                        SEARCH's missions funded and running.
                       </p>
                     </div>
                   </div>
