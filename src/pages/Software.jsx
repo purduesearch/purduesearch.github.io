@@ -579,7 +579,7 @@ const Software = () => {
                     <h4>Vinitha Marupeddi</h4><h5>Communications</h5><p>Computer Science</p>
                   </div>
                   <div className="shadow rounded feature-item p-4 mb-4" data-aos="fade-up">
-                    <div className="my-4"><img loading="lazy" src="/software/2023_24/SUITS/patel.jpeg" width="150px" className="officer-photo" alt="Dipam Patel" /></div>
+                    <div className="my-4"><img loading="lazy" src="/software/2023_24/SUITS/patel.webp" width="150px" className="officer-photo" alt="Dipam Patel" /></div>
                     <h4>Dipam Patel</h4><h5>Unity UI</h5><p>Computer Science</p>
                   </div>
                 </div>
