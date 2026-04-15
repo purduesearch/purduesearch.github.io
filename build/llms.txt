@@ -1,0 +1,49 @@
+# Purdue SEARCH — Space and Earth Analogs Research Chapter
+
+> Student-led space analog research organization at Purdue University.
+> Founded 2022. Located at 610 Purdue Mall, West Lafayette, IN 47907.
+> Contact: https://purduesearch.github.io/contact
+
+Purdue SEARCH (Space and Earth Analogs Research Chapter) is a student organization at Purdue University in West Lafayette, Indiana. Members conduct interdisciplinary research and training programs modeled on real NASA analog astronaut missions, spanning engineering, life sciences, software development, and community outreach.
+
+## Programs
+
+- [SA²TP — Student Analog Astronaut Training Program](https://purduesearch.github.io/sa2tp): Semester-long analog astronaut mission simulations including EVA training, crew resource management, and life support operations. Crew 1 completed in Summer 2023.
+- [ASTRO-USA Habitat Project](https://purduesearch.github.io/astrousa): Deep-space habitat engineering project covering systems architecture, hydroponics, and life support design for long-duration spaceflight.
+- [Research](https://purduesearch.github.io/research): Bioastronautics and life-support research including NASA RASC-AL 2023 competition entry (RASCAL project).
+- [Software — SUITS](https://purduesearch.github.io/software): Augmented-reality software (JARVIS) developed for the NASA SUITS (Spacesuit User Interface Technologies for Students) challenge.
+- [Analog Programs](https://purduesearch.github.io/analogs): Field deployments to analog environments including Kennedy Space Center and Biosphere 2.
+- [Outreach](https://purduesearch.github.io/outreach): Campus tabling events, speaker series, and film screenings. Past speakers include representatives from NASA JPL, Blue Origin, SETI Institute, and Virgin Galactic.
+
+## Key Pages
+
+- [Home](https://purduesearch.github.io/)
+- [About SEARCH](https://purduesearch.github.io/about): History, team structure, officers, and faculty advisors. Founded Summer 2022.
+- [Blog & News](https://purduesearch.github.io/blog): Program updates, event recaps, and research milestones.
+- [Contact](https://purduesearch.github.io/contact): Meeting schedule, Discord, Instagram, and contact form.
+
+## Subpages
+
+- [SA²TP Crew 1 — Summer 2023](https://purduesearch.github.io/sa2tp/crew1)
+- [Interview with Rod Sween](https://purduesearch.github.io/sa2tp/rod-interview)
+- [NASA RASC-AL Competition](https://purduesearch.github.io/research/rascal)
+- [JARVIS — NASA SUITS Challenge](https://purduesearch.github.io/software/suits)
+- [ASTRO-USA Overview](https://purduesearch.github.io/astrousa/overview)
+- [ASTRO-USA Architecture](https://purduesearch.github.io/astrousa/architecture)
+- [ASTRO-USA Hydroponics](https://purduesearch.github.io/astrousa/hydroponics)
+
+## Organization Details
+
+- **Type**: Student organization (non-profit, university-affiliated)
+- **University**: Purdue University, West Lafayette, IN 47907
+- **Address**: 610 Purdue Mall, West Lafayette, IN 47907
+- **Founded**: Summer 2022
+- **Parent organization**: Purdue University (https://www.purdue.edu)
+
+## Social & Media
+
+- YouTube: https://www.youtube.com/channel/UCLDbIwWQl9hdfFn27U9r-yg
+- Instagram: https://www.instagram.com/purdue_search/
+- Twitter/X: https://twitter.com/purduesearch
+- LinkedIn: https://www.linkedin.com/company/purdue-search/
+- Boilerlink: https://boilerlink.purdue.edu/organization/search

@@ -6,7 +6,7 @@ import SearchBar from './SearchBar';
 const NAV_LINKS = [
   { label: 'Home',     to: '/' },
   { label: 'About',    to: '/about' },
-  { label: 'Analogs', to: '/analogs' },
+  { label: 'Business', to: '/business' },
 ];
 
 const TEAMS_PATHS = ['/research', '/sa2tp', '/software', '/astrousa'];

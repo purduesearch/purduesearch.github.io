@@ -290,7 +290,7 @@ const About = () => {
                     <div className="col-md-4 col-sm-12 text-center mt-4">
                       <div className="shadow rounded feature-item p-4 mb-4" data-aos="fade-up">
                         <div className="my-4"><img loading="lazy" src="/officers/advisors/schmitt.webp" width="150px" className="officer-photo" alt="Rodrigo Schmitt" /></div>
-                        <h4>Rodrigo Schmitt</h4><h5>Co-Founder</h5><p>PhD Student, Purdue University</p>
+                        <h4>Rodrigo Schmitt</h4><h5>Founder</h5><p>PhD Student, Purdue University</p>
                       </div>
                     </div>
                   </div>

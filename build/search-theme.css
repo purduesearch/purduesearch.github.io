@@ -4036,3 +4036,209 @@ html::-webkit-scrollbar { display: none; }
 .stl-hint-row { display: flex; justify-content: center; gap: 2rem; flex-wrap: wrap; margin-top: 1.25rem; }
 .stl-hint { font-size: 0.8rem; color: rgba(245,239,230,0.4); display: flex; align-items: center; gap: 0.4rem; }
 .stl-hint i { color: rgba(245,239,230,0.25); }
+
+/* ── Business & Operations Page ──────────────────────────────────────── */
+
+/* Function cards grid — "What We Do" section */
+.biz-functions-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.75rem;
+  margin-top: 0.5rem;
+}
+
+.biz-function-card {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  padding: 2.25rem 1.75rem;
+  text-align: center;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+  cursor: default;
+}
+
+.biz-function-card:hover {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 1px var(--color-accent), 0 8px 40px rgba(184, 50, 37, 0.25);
+}
+
+.biz-fn-icon {
+  font-size: 2.5rem;
+  color: var(--color-accent);
+  margin-bottom: 1rem;
+  display: block;
+  transition: transform 0.3s ease;
+}
+
+.biz-function-card:hover .biz-fn-icon {
+  transform: scale(1.15);
+}
+
+.biz-fn-title {
+  font-family: var(--font-heading);
+  font-size: 1.2rem;
+  color: #fff;
+  margin-bottom: 0.75rem;
+}
+
+.biz-fn-desc {
+  font-size: 0.88rem;
+  color: rgba(245, 239, 230, 0.65);
+  line-height: 1.75;
+  margin: 0;
+}
+
+@media (max-width: 900px) {
+  .biz-functions-grid { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 580px) {
+  .biz-functions-grid { grid-template-columns: 1fr; }
+}
+
+/* Team Lead Spotlight */
+.biz-lead-card {
+  display: flex;
+  align-items: center;
+  gap: 3rem;
+  background: #fff;
+  border-left: 5px solid var(--color-accent);
+  border-radius: 16px;
+  padding: 2.5rem 2.5rem 2.5rem 2rem;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+}
+
+.biz-lead-photo-wrap {
+  flex-shrink: 0;
+}
+
+.biz-lead-photo {
+  width: 260px;
+  height: 260px;
+  border-radius: 50%;
+  object-fit: cover;
+  object-position: center top;
+  border: 4px solid var(--color-accent);
+  box-shadow: 0 4px 20px rgba(184, 50, 37, 0.2);
+}
+
+.biz-lead-content {
+  flex: 1;
+}
+
+.biz-lead-name {
+  font-family: var(--font-heading);
+  font-size: 2rem;
+  color: var(--color-text);
+  margin: 0.4rem 0 0.25rem;
+}
+
+.biz-lead-title {
+  font-family: var(--font-heading);
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-accent);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  margin-bottom: 1rem;
+}
+
+.biz-lead-bio {
+  color: var(--color-muted);
+  line-height: 1.8;
+  font-size: 0.95rem;
+  margin-bottom: 0;
+}
+
+@media (max-width: 768px) {
+  .biz-lead-card {
+    flex-direction: column;
+    gap: 1.5rem;
+    text-align: center;
+    padding: 2rem 1.5rem;
+  }
+  .biz-lead-photo { width: 180px; height: 180px; }
+}
+
+/* Impact Stats — dark strip with count-up */
+.biz-stats-section {
+  background: var(--color-bg-dark, #12121c);
+  padding: 4rem 0;
+}
+
+.biz-stats-row {
+  display: flex;
+  justify-content: space-around;
+  flex-wrap: wrap;
+  gap: 2rem;
+}
+
+.biz-stat-item {
+  text-align: center;
+  flex: 1;
+  min-width: 160px;
+}
+
+.biz-stat-number {
+  font-family: var(--font-heading);
+  font-size: 3.5rem;
+  font-weight: 700;
+  color: var(--color-accent);
+  line-height: 1;
+  margin-bottom: 0.5rem;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 0.1em;
+}
+
+.biz-stat-number strong {
+  font-family: inherit;
+  font-weight: 700;
+  color: inherit;
+}
+
+.biz-stat-plus {
+  font-family: var(--font-heading);
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--color-accent);
+  margin-top: 0.35rem;
+}
+
+.biz-stat-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(245, 239, 230, 0.6);
+}
+
+@media (max-width: 600px) {
+  .biz-stats-row { gap: 1.5rem; }
+  .biz-stat-number { font-size: 2.75rem; }
+}
+
+/* Industry Partners — scrolling marquee */
+.biz-partners-strip {
+  overflow: hidden;
+  padding: 1rem 0;
+}
+
+.biz-marquee-track {
+  display: flex;
+  width: max-content;
+  animation: biz-marquee 28s linear infinite;
+}
+
+.biz-partners-strip:hover .biz-marquee-track {
+  animation-play-state: paused;
+}
+
+@keyframes biz-marquee {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .biz-marquee-track { animation: none; }
+}

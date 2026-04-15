@@ -87,15 +87,8 @@
     "title": "Analog Programs",
     "path": "/analogs",
     "section": "Programs",
-    "excerpt": "SEARCH participates in field research at analog environments including Mars Desert Research Station (MDRS) in Utah, Kennedy Space Center, and Biosphere 2 in Arizona to simulate deep-space mission conditions.",
-    "tags": ["analogs", "mdrs", "biosphere", "ksc", "kennedy space center", "field research", "mars", "utah", "arizona"]
-  },
-  {
-    "title": "MDRS Utah Mission",
-    "path": "/analogs/mdrs-utah",
-    "section": "Programs",
-    "excerpt": "SEARCH crew members conducted a two-week analog mission at the Mars Desert Research Station in Utah, simulating Mars surface operations, EVA procedures, and science experiments in a remote desert habitat.",
-    "tags": ["mdrs", "utah", "mars", "desert", "analog", "eva", "mission", "habitat", "research station"]
+    "excerpt": "SEARCH participates in field research at analog environments including Kennedy Space Center and Biosphere 2 in Arizona to simulate deep-space mission conditions.",
+    "tags": ["analogs", "biosphere", "ksc", "kennedy space center", "field research", "arizona"]
   },
   {
     "title": "Astro-USA Habitat",

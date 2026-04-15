@@ -8,7 +8,7 @@ import About from './pages/About';
 import Research from './pages/Research';
 import SA2TP from './pages/SA2TP';
 import Software from './pages/Software';
-import Analogs from './pages/Analogs';
+import Business from './pages/Business';
 import AstroUSA from './pages/AstroUSA';
 import Outreach from './pages/Outreach';
 import Contact from './pages/Contact';
@@ -39,7 +39,7 @@ function AnimatedRoutes() {
         <Route path="/sa2tp/rod-interview" element={<PageWrapper><RodInterview /></PageWrapper>} />
         <Route path="/software" element={<PageWrapper><Software /></PageWrapper>} />
         <Route path="/software/suits" element={<PageWrapper><Suits /></PageWrapper>} />
-        <Route path="/analogs" element={<PageWrapper><Analogs /></PageWrapper>} />
+        <Route path="/business" element={<PageWrapper><Business /></PageWrapper>} />
         <Route path="/astrousa" element={<PageWrapper><AstroUSA /></PageWrapper>} />
         <Route path="/astrousa/overview" element={<PageWrapper><AstroOverview /></PageWrapper>} />
         <Route path="/astrousa/architecture" element={<PageWrapper><AstroArchitecture /></PageWrapper>} />
