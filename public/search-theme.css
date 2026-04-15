@@ -690,6 +690,7 @@ section#single-content .feature-item {
   z-index: 0;
   pointer-events: none;
   display: block;
+  will-change: transform;
 }
 
 /* Ensure jumbotron stacks layers correctly */

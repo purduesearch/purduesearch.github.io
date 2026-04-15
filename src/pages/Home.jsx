@@ -186,6 +186,25 @@ const Home = () => {
 
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
+    let targetTime = 0;
+    let smoothedTime = 0;
+    let rafId;
+
+    const tick = () => {
+      const diff = targetTime - smoothedTime;
+      if (Math.abs(diff) > 0.033) {
+        smoothedTime += diff * 0.12;
+      } else {
+        smoothedTime = targetTime;
+      }
+      // Only write currentTime when the decoder has finished its last seek —
+      // stacking seeks causes the browser to queue them and flush all at once
+      if (!video.seeking && Math.abs(smoothedTime - video.currentTime) > 0.016) {
+        video.currentTime = smoothedTime;
+      }
+      rafId = requestAnimationFrame(tick);
+    };
+
     const initScrub = () => {
       if (video.duration <= 0) return;
       const st = ScrollTrigger.create({
@@ -194,9 +213,10 @@ const Home = () => {
         end: 'bottom top',
         scrub: true,
         onUpdate: (self) => {
-          video.currentTime = self.progress * video.duration;
+          targetTime = self.progress * video.duration;
         },
       });
+      rafId = requestAnimationFrame(tick);
       return st;
     };
 
@@ -210,7 +230,7 @@ const Home = () => {
 
     return () => {
       if (st) st.kill();
-      ScrollTrigger.getAll().forEach(t => t.kill());
+      if (rafId) cancelAnimationFrame(rafId);
     };
   }, []);
 
@@ -319,7 +339,7 @@ const Home = () => {
           src="/Mars%20Video.webm"
           muted
           playsInline
-          preload="metadata"
+          preload="auto"
           poster="/home.webp"
         />
         <div className="container text-center">

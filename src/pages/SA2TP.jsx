@@ -28,6 +28,23 @@ const SA2TP = () => {
 
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
+    let targetTime = 0;
+    let smoothedTime = 0;
+    let rafId;
+
+    const tick = () => {
+      const diff = targetTime - smoothedTime;
+      if (Math.abs(diff) > 0.033) {
+        smoothedTime += diff * 0.12;
+      } else {
+        smoothedTime = targetTime;
+      }
+      if (!video.seeking && Math.abs(smoothedTime - video.currentTime) > 0.016) {
+        video.currentTime = smoothedTime;
+      }
+      rafId = requestAnimationFrame(tick);
+    };
+
     const initScrub = () => {
       if (video.duration <= 0) return;
       const st = ScrollTrigger.create({
@@ -36,9 +53,10 @@ const SA2TP = () => {
         end: 'bottom top',
         scrub: true,
         onUpdate: (self) => {
-          video.currentTime = 1.5 + self.progress * (video.duration - 1.5);
+          targetTime = self.progress * video.duration;
         },
       });
+      rafId = requestAnimationFrame(tick);
       return st;
     };
 
@@ -51,6 +69,7 @@ const SA2TP = () => {
 
     return () => {
       if (st) st.kill();
+      if (rafId) cancelAnimationFrame(rafId);
     };
   }, []);
 
@@ -94,7 +113,7 @@ const SA2TP = () => {
           src="/sa2tp/Plane_Panorama.webm"
           muted
           playsInline
-          preload="metadata"
+          preload="auto"
           poster="/sa2tp.webp"
           style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', zIndex: 0 }}
         />

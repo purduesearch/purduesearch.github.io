@@ -25,6 +25,23 @@ const Outreach = () => {
 
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
+    let targetTime = 0;
+    let smoothedTime = 0;
+    let rafId;
+
+    const tick = () => {
+      const diff = targetTime - smoothedTime;
+      if (Math.abs(diff) > 0.033) {
+        smoothedTime += diff * 0.12;
+      } else {
+        smoothedTime = targetTime;
+      }
+      if (!video.seeking && Math.abs(smoothedTime - video.currentTime) > 0.016) {
+        video.currentTime = smoothedTime;
+      }
+      rafId = requestAnimationFrame(tick);
+    };
+
     const initScrub = () => {
       if (video.duration <= 0) return;
       const st = ScrollTrigger.create({
@@ -33,9 +50,10 @@ const Outreach = () => {
         end: 'bottom top',
         scrub: true,
         onUpdate: (self) => {
-          video.currentTime = self.progress * video.duration;
+          targetTime = self.progress * video.duration;
         },
       });
+      rafId = requestAnimationFrame(tick);
       return st;
     };
 
@@ -48,6 +66,7 @@ const Outreach = () => {
 
     return () => {
       if (st) st.kill();
+      if (rafId) cancelAnimationFrame(rafId);
     };
   }, []);
 
@@ -68,7 +87,7 @@ const Outreach = () => {
           src="/outreach/Launch_Party.webm"
           muted
           playsInline
-          preload="metadata"
+          preload="auto"
           poster="/outreach.webp"
           style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', zIndex: 0 }}
         />
