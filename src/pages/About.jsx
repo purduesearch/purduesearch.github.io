@@ -86,15 +86,14 @@ const About = () => {
             </p>
             <p>
               SEARCH of Purdue supports this mission by promoting learning, innovation, and engagement in human space exploration. We pursue this mission by aiming to:
-              <li>Advance research and technology that strengthen human space exploration capabilities through collaborative research and development, student competitions, and analog programs.
-              Cultivate interdisciplinary collaboration between students and departments with diverse interests and areas of expertise.
-              Connect students directly with faculty, researchers, and mentors to expand networking opportunities and encourage involvement in both SEARCH projects and broader university research efforts.
-              Foster a community that celebrates space exploration and supports members’ passions through social events and shared experiences.
-              Provide personal and professional development opportunities that help members pursue careers in space through mentorship and program participation.
-              Build external institutional partnerships and secure funding that advance Purdue’s research and technology related to human spaceflight and exploration.
-              Increase campus-wide awareness of space exploration and research through an open guest lecture series.
-              Inspire younger generations to engage in space exploration through K-12 outreach events.
-              </li>
+              <li>Advance research and technology that strengthen human space exploration capabilities through collaborative research and development, student competitions, and analog programs.</li>
+              <li>Cultivate interdisciplinary collaboration between students and departments with diverse interests and areas of expertise.</li>
+              <li>Connect students directly with faculty, researchers, and mentors to expand networking opportunities and encourage involvement in both SEARCH projects and broader university research efforts.</li>
+              <li>Foster a community that celebrates space exploration and supports members’ passions through social events and shared experiences.</li>
+              <li>Provide personal and professional development opportunities that help members pursue careers in space through mentorship and program participation.</li>
+              <li>Build external institutional partnerships and secure funding that advance Purdue’s research and technology related to human spaceflight and exploration.</li>
+              <li>Increase campus-wide awareness of space exploration and research through an open guest lecture series.</li>
+              <li>Inspire younger generations to engage in space exploration through K-12 outreach events.</li>
             </p>
             <p>
               SEARCH’s vision is to make Purdue a national leader in student-driven human space exploration and analog research by creating a sustainable pipeline from student interest to interdisciplinary collaboration, hands-on experience, research leadership, and real-world impact.

@@ -421,7 +421,10 @@ const SA2TP = () => {
               />
               <h5 style={{ fontFamily: 'var(--font-heading)', marginBottom: '0.3rem' }}>Crew 1 — Summer 2023</h5>
               <p style={{ color: 'var(--color-muted)', fontSize: '0.9rem', marginBottom: '0.5rem' }}>
-                <em>SA²TP Lead: Émilie Laflèche</em>
+                <em>Logistics Lead: Émilie Laflèche</em>
+              </p>
+              <p style={{ color: 'var(--color-muted)', fontSize: '0.9rem', marginBottom: '0.5rem' }}>
+                <em>Crew Commander: Émilie Laflèche</em>
               </p>
               <p style={{ color: 'var(--color-muted)', fontSize: '0.92rem', lineHeight: '1.6' }}>
                 Radon · Becker · Jackson · McGeary · Kung · Laflèche
@@ -438,7 +441,10 @@ const SA2TP = () => {
               />
               <h5 style={{ fontFamily: 'var(--font-heading)', marginBottom: '0.3rem' }}>Crew 2 — 2024</h5>
               <p style={{ color: 'var(--color-muted)', fontSize: '0.9rem', marginBottom: '0.5rem' }}>
-                <em>SA²TP Lead: John Peters</em>
+                <em>Logistics Lead: John Peters</em>
+              </p>
+              <p style={{ color: 'var(--color-muted)', fontSize: '0.9rem', marginBottom: '0.5rem' }}>
+                <em>Crew Commander: Jehan Shalabi</em>
               </p>
               <p style={{ color: 'var(--color-muted)', fontSize: '0.92rem', lineHeight: '1.6' }}>
                 Montilla-Celis · Sanchez · Sanders · Verma · Shalabi · Garcia · Tyagi
@@ -455,7 +461,10 @@ const SA2TP = () => {
               />
               <h5 style={{ fontFamily: 'var(--font-heading)', marginBottom: '0.3rem' }}>Crew 3 — Summer 2025</h5>
               <p style={{ color: 'var(--color-muted)', fontSize: '0.9rem', marginBottom: '0.5rem' }}>
-                <em>SA²TP Lead: Sam Waymire</em>
+                <em>Logistics Lead: John Peters</em>
+              </p>
+              <p style={{ color: 'var(--color-muted)', fontSize: '0.9rem', marginBottom: '0.5rem' }}>
+                <em>Crew Commander: Ethan Williamson</em>
               </p>
               <p style={{ color: 'var(--color-muted)', fontSize: '0.92rem', lineHeight: '1.6' }}>
                 Majchrowski · Williamson · Atri · Garcia · Grambart
