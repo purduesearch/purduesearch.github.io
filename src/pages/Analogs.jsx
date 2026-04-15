@@ -71,7 +71,7 @@ const Analogs = () => {
               </p>
             </div>
             <div className="mg-media-img" data-aos="fade-left">
-              <img loading="lazy" src="/analogs/2022/habitat.webp" alt="MDRS Habitat analog environment" />
+              <img loading="lazy" src="/analogs/2022/habitat.webp" alt="Analog habitat environment" />
             </div>
           </div>
         </div>
@@ -117,41 +117,6 @@ const Analogs = () => {
           </div>
         </div>
       </section>
-
-      {/* <section id="blog" className="bg-grey">
-        <div className="container">
-          <div className="section-content">
-            <div className="title-wrap mb-5" data-aos="fade-up">
-              <h2 className="section-title">Latest <b>news</b></h2>
-              <p className="section-sub-title">Analogs team has collaborated with MDRS and Hi-SEAS. Here are some of our past projects</p>
-            </div>
-            <div className="row">
-              <div className="col-md-12 blog-holder">
-                <div className="row">
-                  <div className="col-md-4 blog-item-wrapper" data-aos="fade-up">
-                    <div className="blog-item">
-                      <div className="blog-img">
-                        <Link to="/analogs/mdrs-utah"><img loading="lazy" src="/analogs/2022/mdrs_bg.webp" alt="SEARCH Goes to Mars!" /></Link>
-                      </div>
-                      <div className="blog-text">
-                        <div className="blog-tag"><a href="#top"><h6><small>MDRS</small></h6></a></div>
-                        <div className="blog-title"><Link to="/analogs/mdrs-utah"><h4>SEARCH Goes to Mars!</h4></Link></div>
-                        <div className="blog-meta"><p className="blog-date">18 Feb 2024</p></div>
-                        <div className="blog-desc"><p>Read about our trip to MDRS in Utah to experience what it's like to live in an analog Mars habitat.</p></div>
-                        <div className="blog-author"><p>by Hrishikesh Viswanath</p></div>
-                        <div className="blog-share-wrapper">
-                          <a className="blog-share" href="https://www.instagram.com/purdue_search/" target="_blank" rel="noopener noreferrer"><i className="fab fa-instagram" /></a>
-                          <a className="blog-share" href="https://twitter.com/purduesearch" target="_blank" rel="noopener noreferrer"><i className="fab fa-twitter-square" /></a>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section> */}
 
       {/* ===== CTA ===== */}
       <section style={{ background: 'var(--color-bg-secondary)', padding: '3rem 0', textAlign: 'center' }}>

@@ -110,11 +110,14 @@ const About = () => {
             <span className="about-section-label">Our Origins</span>
             <h2>Background</h2>
             <p>
-              SEARCH of Purdue was founded in the summer of 2022 by Rodrigo Schmitt, a PhD student in
-              Aerospace Engineering, and Kshitij Mall, a Post-Doc in Aerospace, under the advising of
-              Dr. Marshall Porterfield and Dr. Cesare Guariniello. Our vision as a multidisciplinary
-              organization of students, faculty, staff, and alumni is to increase support for human
-              spaceflight and space exploration.
+              Founded in the summer of 2022, SEARCH of Purdue was created as a multidisciplinary organization 
+              focused on increasing Purdue’s involvement in human space exploration. The organization was 
+              established to unite students, faculty, staff, and alumni with diverse interests and expertise 
+              in a shared effort to support spaceflight-relevant research, hands-on projects, and professional 
+              development. Since its founding, SEARCH has grown into a collaborative community centered on 
+              analog habitat development, research initiatives, experiential training, outreach, and broader 
+              engagement in space exploration. By building this foundation, SEARCH continues to foster innovation, 
+              interdisciplinary collaboration, and meaningful participation in human space exploration across Purdue’s campus.
             </p>
             <p>
               We aim to involve the student community in research projects that expand our understanding
@@ -133,16 +136,17 @@ const About = () => {
             <span className="about-section-label">How We Operate</span>
             <h2>Operations</h2>
             <p>
-              Beyond student-led research, SEARCH runs a robust outreach program designed to connect
-              space enthusiasts at Purdue with researchers and engineers from organizations such as
-              SpaceX, SETI, Blue Origin, and NASA. These events take place every semester and are open
-              to all Purdue students.
+              Beyond its student-led research efforts, SEARCH maintains an active outreach program that 
+              connects Purdue students with researchers, engineers, and industry professionals involved 
+              in space exploration. Through semesterly events such as guest lectures, panels, and networking 
+              opportunities, the organization helps students build connections with the broader aerospace 
+              community.
             </p>
             <p>
-              Our subteams — Microgreens Research, Astronaut Training, SUITS Software, ASTRO-USA
-              Habitat, Analog Programs, and Outreach — each operate semi-independently under faculty
-              advisement, giving members deep ownership of their projects while benefiting from
-              cross-team collaboration.
+              SEARCH operates through several subteams, including Research, Astronaut Training, 
+              Software, ASTRO-USA, Business, and Outreach. Each subteam takes ownership of its initiatives 
+              while contributing to the organization’s broader goals. This operating structure supports both 
+              focused project leadership and interdisciplinary collaboration across SEARCH.
             </p>
           </div>
         </div>

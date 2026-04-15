@@ -123,18 +123,6 @@ const Blog = () => {
                 <div className="row">
                   <div className="col-md-4 blog-item-wrapper" data-aos="fade-up">
                     <BlogCard
-                      image="/analogs/2022/mdrs_bg.webp"
-                      imageAlt="MDRS Utah Analog Mission"
-                      tag="MDRS"
-                      title="SEARCH Goes to Mars!"
-                      href="/analogs/mdrs-utah"
-                      date="18 Feb 2024"
-                      excerpt="Six SEARCH members simulated Mars surface operations at the Mars Desert Research Station in Utah — conducting EVAs, science experiments, and habitat operations in a pressurized analog environment."
-                      author="Hrishikesh Viswanath"
-                    />
-                  </div>
-                  <div className="col-md-4 blog-item-wrapper" data-aos="fade-up" data-aos-delay="100">
-                    <BlogCard
                       image="/research/2022_23/mars_mission.webp"
                       imageAlt="NASA RASC-AL 2023"
                       tag="NASA"

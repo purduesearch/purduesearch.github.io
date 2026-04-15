@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useFuse, FUSE_OPTIONS } from '../hooks/useSearch';
 
 const MAX_RESULTS = 5;
-const SUGGESTIONS = ['SA²TP', 'Research', 'ASTRO-USA', 'Outreach', 'MDRS'];
+const SUGGESTIONS = ['SA²TP', 'Research', 'ASTRO-USA', 'Outreach', 'SUITS'];
 
 const SearchBar = () => {
   const [isOpen, setIsOpen]           = useState(false);

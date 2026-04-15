@@ -7,7 +7,6 @@ const BREADCRUMBS = {
   '/sa2tp/crew1':           [['SA²TP', '/sa2tp'], ['Crew 1', null]],
   '/sa2tp/rod-interview':   [['SA²TP', '/sa2tp'], ['Rod Interview', null]],
   '/software/suits':        [['Software', '/software'], ['SUITS', null]],
-  '/analogs/mdrs-utah':     [['Analogs', '/analogs'], ['MDRS Utah', null]],
   '/astrousa/overview':     [['ASTRO-USA', '/astrousa'], ['Overview', null]],
   '/astrousa/architecture': [['ASTRO-USA', '/astrousa'], ['Architecture', null]],
   '/astrousa/hydroponics':  [['ASTRO-USA', '/astrousa'], ['Hydroponics', null]],

@@ -12,7 +12,7 @@ Purdue SEARCH (Space and Earth Analogs Research Chapter) is a student organizati
 - [ASTRO-USA Habitat Project](https://purduesearch.github.io/astrousa): Deep-space habitat engineering project covering systems architecture, hydroponics, and life support design for long-duration spaceflight.
 - [Research](https://purduesearch.github.io/research): Bioastronautics and life-support research including NASA RASC-AL 2023 competition entry (RASCAL project).
 - [Software — SUITS](https://purduesearch.github.io/software): Augmented-reality software (JARVIS) developed for the NASA SUITS (Spacesuit User Interface Technologies for Students) challenge.
-- [Analog Programs](https://purduesearch.github.io/analogs): Field deployments to MDRS (Mars Desert Research Station) in Utah and other analog environments.
+- [Analog Programs](https://purduesearch.github.io/analogs): Field deployments to analog environments including Kennedy Space Center and Biosphere 2.
 - [Outreach](https://purduesearch.github.io/outreach): Campus tabling events, speaker series, and film screenings. Past speakers include representatives from NASA JPL, Blue Origin, SETI Institute, and Virgin Galactic.
 
 ## Key Pages
@@ -28,7 +28,6 @@ Purdue SEARCH (Space and Earth Analogs Research Chapter) is a student organizati
 - [Interview with Rod Sween](https://purduesearch.github.io/sa2tp/rod-interview)
 - [NASA RASC-AL Competition](https://purduesearch.github.io/research/rascal)
 - [JARVIS — NASA SUITS Challenge](https://purduesearch.github.io/software/suits)
-- [MDRS Utah Mars Analog](https://purduesearch.github.io/analogs/mdrs-utah)
 - [ASTRO-USA Overview](https://purduesearch.github.io/astrousa/overview)
 - [ASTRO-USA Architecture](https://purduesearch.github.io/astrousa/architecture)
 - [ASTRO-USA Hydroponics](https://purduesearch.github.io/astrousa/hydroponics)

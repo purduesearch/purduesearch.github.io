@@ -50,12 +50,11 @@ const Crew1 = () => {
                   <h4>About the Mission</h4>
                   <img loading="lazy"className="float-left" width="220px" src="/sa2tp/2023/logo.webp" alt="SA2TP Logo" />
                   <i>In Purdue's Space and Earth Analogs Research Chapter (SEARCH), we not only dream of the impossible, but work
-                    to make it a reality. Since 2022, we have coordinated the recruitment and logistical planning of Purdue's Mars
-                    Desert Research Station (MDRS) analog astronaut crew alongside The Mars Society. In our newest collaborative
-                    initiative with Purdue Space Program (PSP) and Purdue Lunabotics, the Student-Analog Astronaut Training
-                    Program (SA2TP), we are reaching higher than ever before, truly bound by nothing but our lofty aspirations of
-                    making space exploration accessible for all.
-                    We're going places, And we can't wait to meet you there.</i>
+                    to make it a reality. Since 2022, we have coordinated analog astronaut training programs at Purdue alongside
+                    partner organizations including The Mars Society. In our newest collaborative initiative with Purdue Space
+                    Program (PSP) and Purdue Lunabotics, the Student-Analog Astronaut Training Program (SA2TP), we are reaching
+                    higher than ever before, truly bound by nothing but our lofty aspirations of making space exploration
+                    accessible for all. We're going places, and we can't wait to meet you there.</i>
                   <br /><br />
                   <img loading="lazy"src="/sa2tp/2023/PXL_20230808_201504997.webp" alt="SA2TP members at the station" style={{ borderRadius: 10 }} />
                   <br /><br />

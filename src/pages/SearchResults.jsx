@@ -6,7 +6,7 @@ import { useFuse, FUSE_OPTIONS, useSearchQuery } from '../hooks/useSearch';
 import SEOHead from '../components/SEOHead';
 
 const SECTIONS = ['Main', 'Programs', 'Research', 'Blog'];
-const SUGGESTIONS = ['SA²TP', 'Research', 'ASTRO-USA', 'Outreach', 'MDRS', 'SUITS'];
+const SUGGESTIONS = ['SA²TP', 'Research', 'ASTRO-USA', 'Outreach', 'SUITS'];
 
 const SearchResults = () => {
   const [indexData, setIndexData] = useState(null);

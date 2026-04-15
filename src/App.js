@@ -20,7 +20,6 @@ import RodInterview from './pages/SA2TP/RodInterview';
 import AstroOverview from './pages/AstroUSA/Overview';
 import AstroArchitecture from './pages/AstroUSA/Architecture';
 import AstroHydroponics from './pages/AstroUSA/Hydroponics';
-import MDRSUtah from './pages/Analogs/MDRSUtah';
 import NotFound from './pages/NotFound';
 import SearchResults from './pages/SearchResults';
 
@@ -41,7 +40,6 @@ function AnimatedRoutes() {
         <Route path="/software" element={<PageWrapper><Software /></PageWrapper>} />
         <Route path="/software/suits" element={<PageWrapper><Suits /></PageWrapper>} />
         <Route path="/analogs" element={<PageWrapper><Analogs /></PageWrapper>} />
-        <Route path="/analogs/mdrs-utah" element={<PageWrapper><MDRSUtah /></PageWrapper>} />
         <Route path="/astrousa" element={<PageWrapper><AstroUSA /></PageWrapper>} />
         <Route path="/astrousa/overview" element={<PageWrapper><AstroOverview /></PageWrapper>} />
         <Route path="/astrousa/architecture" element={<PageWrapper><AstroArchitecture /></PageWrapper>} />
