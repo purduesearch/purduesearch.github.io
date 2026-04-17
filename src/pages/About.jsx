@@ -213,8 +213,8 @@ const About = () => {
                 </div>
                 <div className="col-md-4 col-sm-12 text-center mt-4">
                   <div className="shadow rounded feature-item p-4 mb-4" data-aos="fade-up">
-                    <div className="my-4"><img loading="lazy" src="/officers/shruti.webp" width="150px" className="officer-photo" alt="Shruti Subramanian" /></div>
-                    <h4>Shruti Subramanian</h4><h5>Research Co-Lead</h5>
+                    <div className="my-4"><img loading="lazy" src="/officers/shruti.webp" width="150px" className="officer-photo" alt="Shruti Subramaniyan" /></div>
+                    <h4>Shruti Subramaniyan</h4><h5>Research Co-Lead</h5>
                   </div>
                   <div className="shadow rounded feature-item p-4 mb-4" data-aos="fade-up">
                     <div className="my-4"><img loading="lazy" src="/officers/henry.webp" width="150px" className="officer-photo" alt="Henry Ewald" /></div>
@@ -230,8 +230,8 @@ const About = () => {
               <div className="row">
                 <div className="col-md-4 col-sm-12 text-center mt-4">
                   <div className="shadow rounded feature-item p-4 mb-4" data-aos="fade-up">
-                    <div className="my-4"><img loading="lazy" src="/officers/swastik.webp" width="150px" className="officer-photo" alt="Swastil Patel" /></div>
-                    <h4>Swastil Patel</h4><h5>Software Lead</h5>
+                    <div className="my-4"><img loading="lazy" src="/officers/swastik.webp" width="150px" className="officer-photo" alt="Swastik Patel" /></div>
+                    <h4>Swastik Patel</h4><h5>Software Lead</h5>
                   </div>
                   <div className="shadow rounded feature-item p-4 mb-4" data-aos="fade-up">
                     <div className="my-4"><img loading="lazy" src="/officers/heer.webp" width="150px" className="officer-photo" alt="Heer Meta" /></div>
@@ -294,8 +294,8 @@ const About = () => {
                 </div>
                 <div className="col-md-4 col-sm-12 text-center mt-4">
                   <div className="shadow rounded feature-item p-4 mb-4" data-aos="fade-up">
-                    <div className="my-4"><img loading="lazy" src="/officers/shruti.webp" width="150px" className="officer-photo" alt="Shruti Subramanian" /></div>
-                    <h4>Shruti Subramanian</h4><h5>Research Co-Lead</h5>
+                    <div className="my-4"><img loading="lazy" src="/officers/shruti.webp" width="150px" className="officer-photo" alt="Shruti Subramaniyan" /></div>
+                    <h4>Shruti Subramaniyan</h4><h5>Research Co-Lead</h5>
                   </div>
                   <div className="shadow rounded feature-item p-4 mb-4" data-aos="fade-up">
                     <div className="my-4"><img loading="lazy" src="/officers/henry.webp" width="150px" className="officer-photo" alt="Henry Ewald" /></div>
@@ -391,10 +391,10 @@ const About = () => {
                           <tr><td>Treasurer</td><td>Brayden Quale</td></tr>
                           <tr><td>Astronaut Training Co-Lead</td><td>John Peters</td></tr>
                           <tr><td>Astronaut Training Co-Lead</td><td>Micah Ambrose</td></tr>
-                          <tr><td>Research Co-Lead</td><td>Shruti Subramanian</td></tr>
+                          <tr><td>Research Co-Lead</td><td>Shruti Subramaniyan</td></tr>
                           <tr><td>Research Co-Lead</td><td>Manya Kadiwala</td></tr>
-                          <tr><td>Software Lead</td><td>Swastil Patel</td></tr>
-                          <tr><td>Outreach Lead</td><td>Matthew Sheer</td></tr>
+                          <tr><td>Software Lead</td><td>Swastik Patel</td></tr>
+                          <tr><td>Outreach Lead</td><td>Matthew Scheer</td></tr>
                           <tr><td>Social Media and Marketing Lead</td><td>Nitya Jhaveri</td></tr>
                           <tr><td>ASTRO-USA Chief Engineer</td><td>Adriana Sanchez</td></tr>
                           <tr><td>ASTRO-USA Project Manager</td><td>Vijay Muthmukumar</td></tr>
