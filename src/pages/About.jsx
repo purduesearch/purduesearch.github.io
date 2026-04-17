@@ -381,6 +381,27 @@ const About = () => {
                     <div className="panel-heading">
                       <h2><b>Past Leadership</b></h2>
                     </div>
+                      <div className="panel-body">
+                      <h5>Officers Spring 2025</h5>
+                      <table className="table table-condensed table-striped table-bordered">
+                        <thead><tr><th style={{ color: 'black' }}>Position</th><th style={{ color: 'black' }}>Name</th></tr></thead>
+                        <tbody>
+                          <tr><td>President</td><td>Brasen Garcia</td></tr>
+                          <tr><td>Vice President</td><td>Sonali Garg</td></tr>
+                          <tr><td>Treasurer</td><td>Brayden Quale</td></tr>
+                          <tr><td>Astronaut Training Co-Lead</td><td>John Peters</td></tr>
+                          <tr><td>Astronaut Training Co-Lead</td><td>Micah Ambrose</td></tr>
+                          <tr><td>Research Co-Lead</td><td>Shruti Subramanian</td></tr>
+                          <tr><td>Research Co-Lead</td><td>Manya Kadiwala</td></tr>
+                          <tr><td>Software Lead</td><td>Swastil Patel</td></tr>
+                          <tr><td>Outreach Lead</td><td>Matthew Sheer</td></tr>
+                          <tr><td>Social Media and Marketing Lead</td><td>Nitya Jhaveri</td></tr>
+                          <tr><td>ASTRO-USA Chief Engineer</td><td>Adriana Sanchez</td></tr>
+                          <tr><td>ASTRO-USA Project Manager</td><td>Vijay Muthmukumar</td></tr>
+                          <tr><td>Business Lead</td><td>Nathanael Herman</td></tr>
+                        </tbody>
+                      </table>
+                    </div>
                     <div className="panel-body">
                       <h5>Officers 2024 Academic Year</h5>
                       <table className="table table-condensed table-striped table-bordered">
@@ -399,27 +420,6 @@ const About = () => {
                           <tr><td>Analog Programs Lead</td><td>Spruha Vashi</td></tr>
                           <tr><td>Outreach Co-Lead</td><td>Sonali Garg</td></tr>
                           <tr><td>Outreach Co-Lead</td><td>Matthew Scheer</td></tr>
-                        </tbody>
-                      </table>
-                    </div>
-                    <div className="panel-body">
-                      <h5>Officers Spring 2025</h5>
-                      <table className="table table-condensed table-striped table-bordered">
-                        <thead><tr><th style={{ color: 'black' }}>Position</th><th style={{ color: 'black' }}>Name</th></tr></thead>
-                        <tbody>
-                          <tr><td>President</td><td>Brasen Garcia</td></tr>
-                          <tr><td>Vice President</td><td>Sonali Garg</td></tr>
-                          <tr><td>Treasurer</td><td>Brayden Quale</td></tr>
-                          <tr><td>Astronaut Training Co-Lead</td><td>John Peters</td></tr>
-                          <tr><td>Astronaut Training Co-Lead</td><td>Micah Ambrose</td></tr>
-                          <tr><td>Research Co-Lead</td><td>Shruti Subramanian</td></tr>
-                          <tr><td>Research Co-Lead</td><td>Manya Kadiwala</td></tr>
-                          <tr><td>Software Lead</td><td>Swastil Patel</td></tr>
-                          <tr><td>Outreach Lead</td><td>Matthew Sheer</td></tr>
-                          <tr><td>Social Media and Marketing Lead</td><td>Nitya Jhaveri</td></tr>
-                          <tr><td>ASTRO-USA Chief Engineer</td><td>Adriana Sanchez</td></tr>
-                          <tr><td>ASTRO-USA Project Manager</td><td>Vijay Muthmukumar</td></tr>
-                          <tr><td>Business Lead</td><td>Nathanael Herman</td></tr>
                         </tbody>
                       </table>
                     </div>
