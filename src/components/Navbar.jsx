@@ -148,6 +148,9 @@ const Navbar = () => {
                 <SearchBar />
               </li>
               <li className="nav-item" style={{ position: 'relative' }}>
+                <Link className="nav-link" to="/clubpm">Club PM</Link>
+              </li>
+              <li className="nav-item" style={{ position: 'relative' }}>
                 <Link className="nav-link" to="/outreach">Outreach</Link>
                 {pathname === '/outreach' && (
                   <motion.span layoutId="nav-underline" className="nav-active-indicator" />
