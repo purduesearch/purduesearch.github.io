@@ -236,40 +236,6 @@ const AstroUSA = () => {
               Biosphere 2 broke its closed loop. ASTRO-USA is built to close all three gaps at once.
             </p>
           </div>
-          {/* Prior analog comparison */}
-          <div className="astro-analog-table" data-aos="fade-up">
-            <table>
-              <thead>
-                <tr>
-                  <th>Analog</th>
-                  <th>Hab. Design</th>
-                  <th>Human Factors</th>
-                  <th>Enabling Systems</th>
-                </tr>
-              </thead>
-              <tbody>
-                {[
-                  { name: 'CHAPEA',      hd: 'Low — non-modular 3D-printed rect.', hf: 'Medium', es: 'Low — no closed-loop food/waste' },
-                  { name: 'HERA',        hd: 'Medium — modular but fixed',          hf: 'Medium', es: 'Low — no integrated food/waste loop' },
-                  { name: 'HI-SEAS',     hd: 'Medium',                              hf: 'Medium', es: 'Low — no food production system' },
-                  { name: 'ILMAH',       hd: 'Medium — inflatable',                 hf: 'Low',    es: 'Low — partial pressurization only' },
-                  { name: 'Biosphere 2', hd: 'Medium',                              hf: 'Medium', es: 'Medium — broke closed loop (O₂ injection)' },
-                  { name: 'SAM',         hd: 'Medium',                              hf: 'High',   es: 'Medium — no strict power/air limits' },
-                  { name: 'ASTRO-USA',   hd: 'High — modular cylindrical/ISS-like', hf: 'High — full env. control, windowless', es: 'High — full closed loop, TRL 6 target', highlight: true },
-                ].map((row, i) => (
-                  <tr key={i} className={row.highlight ? 'analog-table-highlight' : ''}>
-                    <td><strong>{row.name}</strong></td>
-                    <td>{row.hd}</td>
-                    <td>{row.hf}</td>
-                    <td>{row.es}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <p style={{ fontSize: '0.72rem', color: 'var(--color-muted)', marginTop: '0.5rem', textAlign: 'center' }}>
-              Fidelity framework: High = TRL 6, Medium = TRL 5, Low = TRL 4 or below. Source: ICES-2026-251.
-            </p>
-          </div>
 
           <div className="fidelity-split" ref={fidelityRef} data-aos="fade-up">
             <div className="fidelity-panel-before">
