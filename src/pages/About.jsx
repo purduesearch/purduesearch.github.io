@@ -180,12 +180,12 @@ const About = () => {
         </div>
       </section>
 
-      {/* ===== OFFICERS ===== */}
+      {/* ===== OFFICERS 2026–2027 ===== */}
       <section id="who-we-are" className="bg-white">
         <div className="container">
 
           <div className="title-wrap" data-aos="fade-up">
-            <h2 className="section-title">Introducing our <br />Officers for the <b>2024 Academic Year</b></h2>
+            <h2 className="section-title">Introducing our <br />Officers for the <b>2026–2027 Academic Year</b></h2>
           </div>
 
           <div className="row" style={{ top: '20px' }}>
@@ -193,32 +193,32 @@ const About = () => {
               <div className="row">
                 <div className="col-md-4 col-sm-12 text-center mt-4">
                   <div className="shadow rounded feature-item p-4 mb-4" data-aos="fade-up">
-                    <div className="my-4"><img loading="lazy" src="/officers/herman.webp" width="150px" className="officer-photo" alt="Nathanael Herman" /></div>
-                    <h4>Nathanael Herman</h4><h5>President</h5><p>Computer Science and Creative Writing</p>
+                    <div className="my-4"><img loading="lazy" src="/officers/john.webp" width="150px" className="officer-photo" alt="John Peters" /></div>
+                    <h4>John Peters</h4><h5>President</h5>
                   </div>
                   <div className="shadow rounded feature-item p-4 mb-4" data-aos="fade-up">
-                    <div className="my-4"><img loading="lazy" src="/officers/deangelis.webp" width="150px" className="officer-photo" alt="Ryan DeAngelis" /></div>
-                    <h4>Ryan DeAngelis</h4><h5>Vice-President</h5><p>Industrial Engineering</p>
+                    <div className="my-4"><img loading="lazy" src="/officers/myles.webp" width="150px" className="officer-photo" alt="Myles Bryan" /></div>
+                    <h4>Myles Bryan</h4><h5>Vice President</h5>
                   </div>
                 </div>
                 <div className="col-md-4 col-sm-12 text-center">
                   <div className="shadow rounded feature-item p-4 mb-4" data-aos="fade-up">
-                    <div className="my-4"><img loading="lazy" src="/officers/tyagi.webp" width="150px" className="officer-photo" alt="Devyani Tyagi" /></div>
-                    <h4>Devyani Tyagi</h4><h5>Treasurer</h5><p>Applied Physics and Math</p>
+                    <div className="my-4"><img loading="lazy" src="/officers/brayden.webp" width="150px" className="officer-photo" alt="Brayden Quale" /></div>
+                    <h4>Brayden Quale</h4><h5>Treasurer</h5>
                   </div>
                   <div className="shadow rounded feature-item p-4 mb-4" data-aos="fade-up">
-                    <div className="my-4"><img loading="lazy" src="/officers/deshpande.webp" width="150px" className="officer-photo" alt="Sharvari Deshpande" /></div>
-                    <h4>Sharvari Deshpande</h4><h5>Social Media Lead</h5><p>First Year Engineering</p>
+                    <div className="my-4"><img loading="lazy" src="/officers/sam.webp" width="150px" className="officer-photo" alt="Sam Waymire" /></div>
+                    <h4>Sam Waymire</h4><h5>Astronaut Training Lead</h5>
                   </div>
                 </div>
                 <div className="col-md-4 col-sm-12 text-center mt-4">
                   <div className="shadow rounded feature-item p-4 mb-4" data-aos="fade-up">
-                    <div className="my-4"><img loading="lazy" src="/officers/viswanath.webp" width="150px" className="officer-photo" alt="Hrishikesh Viswanath" /></div>
-                    <h4>Hrishikesh Viswanath</h4><h5>Admin Lead</h5><p>Computer Science</p>
+                    <div className="my-4"><img loading="lazy" src="/officers/shruti.webp" width="150px" className="officer-photo" alt="Shruti Subramaniyan" /></div>
+                    <h4>Shruti Subramaniyan</h4><h5>Research Co-Lead</h5>
                   </div>
                   <div className="shadow rounded feature-item p-4 mb-4" data-aos="fade-up">
-                    <div className="my-4"><img loading="lazy" src="/officers/crivello.webp" width="150px" className="officer-photo" alt="Bella Crivello" /></div>
-                    <h4>Bella Crivello</h4><h5>Research Co-Lead</h5><p>Aerospace Engineering</p>
+                    <div className="my-4"><img loading="lazy" src="/officers/henry.webp" width="150px" className="officer-photo" alt="Henry Ewald" /></div>
+                    <h4>Henry Ewald</h4><h5>Research Co-Lead</h5>
                   </div>
                 </div>
               </div>
@@ -230,36 +230,113 @@ const About = () => {
               <div className="row">
                 <div className="col-md-4 col-sm-12 text-center mt-4">
                   <div className="shadow rounded feature-item p-4 mb-4" data-aos="fade-up">
-                    <div className="my-4"><img loading="lazy" src="/officers/garcia.webp" width="150px" className="officer-photo" alt="Brasen Garcia" /></div>
-                    <h4>Brasen Garcia</h4><h5>Research Co-Lead</h5><p>Aerospace Engineering</p>
+                    <div className="my-4"><img loading="lazy" src="/officers/swastik.webp" width="150px" className="officer-photo" alt="Swastik Patel" /></div>
+                    <h4>Swastik Patel</h4><h5>Software Lead</h5>
                   </div>
                   <div className="shadow rounded feature-item p-4 mb-4" data-aos="fade-up">
-                    <div className="my-4"><img loading="lazy" src="/officers/singh.webp" width="150px" className="officer-photo" alt="Gurmehar Singh" /></div>
-                    <h4>Gurmehar Singh</h4><h5>Software Lead</h5><p>Computer Science</p>
+                    <div className="my-4"><img loading="lazy" src="/officers/heer.webp" width="150px" className="officer-photo" alt="Heer Meta" /></div>
+                    <h4>Heer Meta</h4><h5>Business Lead</h5>
                   </div>
                 </div>
                 <div className="col-md-4 col-sm-12 text-center">
                   <div className="shadow rounded feature-item p-4 mb-4" data-aos="fade-up">
-                    <div className="my-4"><img loading="lazy" src="/officers/adhikari.webp" width="150px" className="officer-photo" alt="Ilina Adhikari" /></div>
-                    <h4>Ilina Adhikari</h4><h5>ASTRO-USA Lead</h5><p>Mechanical Engineering</p>
+                    <div className="my-4"><img loading="lazy" src="/officers/melissa.webp" width="150px" className="officer-photo" alt="Melissa Cook" /></div>
+                    <h4>Melissa Cook</h4><h5>Outreach Lead</h5>
                   </div>
                   <div className="shadow rounded feature-item p-4 mb-4" data-aos="fade-up">
-                    <div className="my-4"><img loading="lazy" src="/officers/peters.webp" width="150px" className="officer-photo" alt="John Peters" /></div>
-                    <h4>John Peters</h4><h5>Astronaut Training Lead</h5><p>Planetary Sciences</p>
-                  </div>
-                  <div className="shadow rounded feature-item p-4 mb-4" data-aos="fade-up">
-                    <div className="my-4"><img loading="lazy" src="/officers/vashi.webp" width="150px" className="officer-photo" alt="Spruha Vashi" /></div>
-                    <h4>Spruha Vashi</h4><h5>Analog Programs Lead</h5><p>Aerospace Engineering</p>
+                    <div className="my-4"><img loading="lazy" src="/officers/ethan.webp" width="150px" className="officer-photo" alt="Ethan Williamson" /></div>
+                    <h4>Ethan Williamson</h4><h5>ASTRO-USA Chief Engineer</h5>
                   </div>
                 </div>
                 <div className="col-md-4 col-sm-12 text-center mt-4">
                   <div className="shadow rounded feature-item p-4 mb-4" data-aos="fade-up">
-                    <div className="my-4"><img loading="lazy" src="/officers/garg.webp" width="150px" className="officer-photo" alt="Sonali Garg" /></div>
-                    <h4>Sonali Garg</h4><h5>Outreach Co-Lead</h5><p>Aerospace Engineering</p>
+                    <div className="my-4"><img loading="lazy" src="/officers/vijay.webp" width="150px" className="officer-photo" alt="Vijay Muthmukumar" /></div>
+                    <h4>Vijay Muthmukumar</h4><h5>ASTRO-USA Project Manager</h5>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      {/* ===== OFFICERS 2027–2028 ===== */}
+      <section id="officers-2027" className="bg-white" style={{ paddingTop: 0 }}>
+        <div className="container">
+
+          <div className="title-wrap" data-aos="fade-up">
+            <h2 className="section-title">Elected Officers for <b>2027–2028</b></h2>
+          </div>
+
+          <div className="row" style={{ top: '20px' }}>
+            <div className="col-md-10 offset-md-1 features-holder">
+              <div className="row">
+                <div className="col-md-4 col-sm-12 text-center mt-4">
+                  <div className="shadow rounded feature-item p-4 mb-4" data-aos="fade-up">
+                    <div className="my-4"><img loading="lazy" src="/officers/john.webp" width="150px" className="officer-photo" alt="John Peters" /></div>
+                    <h4>John Peters</h4><h5>President</h5>
                   </div>
                   <div className="shadow rounded feature-item p-4 mb-4" data-aos="fade-up">
-                    <div className="my-4"><img loading="lazy" src="/officers/scheer.webp" width="150px" className="officer-photo" alt="Matthew Scheer" /></div>
-                    <h4>Matthew Scheer</h4><h5>Outreach Co-Lead</h5><p>Planetary Sciences</p>
+                    <div className="my-4"><img loading="lazy" src="/officers/myles.webp" width="150px" className="officer-photo" alt="Myles Bryan" /></div>
+                    <h4>Myles Bryan</h4><h5>Vice President</h5>
+                  </div>
+                </div>
+                <div className="col-md-4 col-sm-12 text-center">
+                  <div className="shadow rounded feature-item p-4 mb-4" data-aos="fade-up">
+                    <div className="my-4"><img loading="lazy" src="/officers/brayden.webp" width="150px" className="officer-photo" alt="Brayden Quale" /></div>
+                    <h4>Brayden Quale</h4><h5>Treasurer</h5>
+                  </div>
+                  <div className="shadow rounded feature-item p-4 mb-4" data-aos="fade-up">
+                    <div className="my-4"><img loading="lazy" src="/officers/sam.webp" width="150px" className="officer-photo" alt="Sam Waymire" /></div>
+                    <h4>Sam Waymire</h4><h5>Astronaut Training Lead</h5>
+                  </div>
+                </div>
+                <div className="col-md-4 col-sm-12 text-center mt-4">
+                  <div className="shadow rounded feature-item p-4 mb-4" data-aos="fade-up">
+                    <div className="my-4"><img loading="lazy" src="/officers/shruti.webp" width="150px" className="officer-photo" alt="Shruti Subramaniyan" /></div>
+                    <h4>Shruti Subramaniyan</h4><h5>Research Co-Lead</h5>
+                  </div>
+                  <div className="shadow rounded feature-item p-4 mb-4" data-aos="fade-up">
+                    <div className="my-4"><img loading="lazy" src="/officers/henry.webp" width="150px" className="officer-photo" alt="Henry Ewald" /></div>
+                    <h4>Henry Ewald</h4><h5>Research Co-Lead</h5>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="row" style={{ top: '20px' }}>
+            <div className="col-md-10 offset-md-1 features-holder">
+              <div className="row">
+                <div className="col-md-4 col-sm-12 text-center mt-4">
+                  <div className="shadow rounded feature-item p-4 mb-4" data-aos="fade-up">
+                    <div className="my-4"><img loading="lazy" src="/officers/azeem.webp" width="150px" className="officer-photo" alt="Azeem Ehtisham" /></div>
+                    <h4>Azeem Ehtisham</h4><h5>Software Co-Lead</h5>
+                  </div>
+                  <div className="shadow rounded feature-item p-4 mb-4" data-aos="fade-up">
+                    <div className="my-4"><img loading="lazy" src="/officers/jason.webp" width="150px" className="officer-photo" alt="Jason White" /></div>
+                    <h4>Jason White</h4><h5>Software Co-Lead</h5>
+                  </div>
+                </div>
+                <div className="col-md-4 col-sm-12 text-center">
+                  <div className="shadow rounded feature-item p-4 mb-4" data-aos="fade-up">
+                    <div className="my-4"><img loading="lazy" src="/officers/melissa.webp" width="150px" className="officer-photo" alt="Melissa Cook" /></div>
+                    <h4>Melissa Cook</h4><h5>Outreach Co-Lead</h5>
+                  </div>
+                  <div className="shadow rounded feature-item p-4 mb-4" data-aos="fade-up">
+                    <div className="my-4"><img loading="lazy" src="/officers/katie.webp" width="150px" className="officer-photo" alt="Katie Downs" /></div>
+                    <h4>Katie Downs</h4><h5>Outreach Co-Lead</h5>
+                  </div>
+                </div>
+                <div className="col-md-4 col-sm-12 text-center mt-4">
+                  <div className="shadow rounded feature-item p-4 mb-4" data-aos="fade-up">
+                    <div className="my-4"><img loading="lazy" src="/officers/chelsea.webp" width="150px" className="officer-photo" alt="Chelsea Garcia" /></div>
+                    <h4>Chelsea Garcia</h4><h5>ASTRO-USA Chief Engineer</h5>
+                  </div>
+                  <div className="shadow rounded feature-item p-4 mb-4" data-aos="fade-up">
+                    <div className="my-4"><img loading="lazy" src="/officers/keegan.webp" width="150px" className="officer-photo" alt="Keegan Breese" /></div>
+                    <h4>Keegan Breese</h4><h5>ASTRO-USA Project Manager</h5>
                   </div>
                 </div>
               </div>
@@ -303,6 +380,48 @@ const About = () => {
                   <div className="panel panel-default" style={{ width: '100%' }}>
                     <div className="panel-heading">
                       <h2><b>Past Leadership</b></h2>
+                    </div>
+                      <div className="panel-body">
+                      <h5>Officers Spring 2025</h5>
+                      <table className="table table-condensed table-striped table-bordered">
+                        <thead><tr><th style={{ color: 'black' }}>Position</th><th style={{ color: 'black' }}>Name</th></tr></thead>
+                        <tbody>
+                          <tr><td>President</td><td>Brasen Garcia</td></tr>
+                          <tr><td>Vice President</td><td>Sonali Garg</td></tr>
+                          <tr><td>Treasurer</td><td>Brayden Quale</td></tr>
+                          <tr><td>Astronaut Training Co-Lead</td><td>John Peters</td></tr>
+                          <tr><td>Astronaut Training Co-Lead</td><td>Micah Ambrose</td></tr>
+                          <tr><td>Research Co-Lead</td><td>Shruti Subramaniyan</td></tr>
+                          <tr><td>Research Co-Lead</td><td>Manya Kadiwala</td></tr>
+                          <tr><td>Software Lead</td><td>Swastik Patel</td></tr>
+                          <tr><td>Outreach Lead</td><td>Matthew Scheer</td></tr>
+                          <tr><td>Social Media and Marketing Lead</td><td>Nitya Jhaveri</td></tr>
+                          <tr><td>ASTRO-USA Chief Engineer</td><td>Adriana Sanchez</td></tr>
+                          <tr><td>ASTRO-USA Project Manager</td><td>Vijay Muthmukumar</td></tr>
+                          <tr><td>Business Lead</td><td>Nathanael Herman</td></tr>
+                        </tbody>
+                      </table>
+                    </div>
+                    <div className="panel-body">
+                      <h5>Officers 2024 Academic Year</h5>
+                      <table className="table table-condensed table-striped table-bordered">
+                        <thead><tr><th style={{ color: 'black' }}>Position</th><th style={{ color: 'black' }}>Name</th></tr></thead>
+                        <tbody>
+                          <tr><td>President</td><td>Nathanael Herman</td></tr>
+                          <tr><td>Vice President</td><td>Ryan DeAngelis</td></tr>
+                          <tr><td>Treasurer</td><td>Devyani Tyagi</td></tr>
+                          <tr><td>Admin Lead</td><td>Hrishikesh Viswanath</td></tr>
+                          <tr><td>Social Media Lead</td><td>Sharvari Deshpande</td></tr>
+                          <tr><td>Research Co-Lead</td><td>Bella Crivello</td></tr>
+                          <tr><td>Research Co-Lead</td><td>Brasen Garcia</td></tr>
+                          <tr><td>Software Lead</td><td>Gurmehar Singh</td></tr>
+                          <tr><td>Astronaut Training Lead</td><td>John Peters</td></tr>
+                          <tr><td>ASTRO-USA Lead</td><td>Ilina Adhikari</td></tr>
+                          <tr><td>Analog Programs Lead</td><td>Spruha Vashi</td></tr>
+                          <tr><td>Outreach Co-Lead</td><td>Sonali Garg</td></tr>
+                          <tr><td>Outreach Co-Lead</td><td>Matthew Scheer</td></tr>
+                        </tbody>
+                      </table>
                     </div>
                     <div className="panel-body">
                       <h5>Officers Summer and Fall 2023</h5>

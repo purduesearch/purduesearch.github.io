@@ -20,7 +20,7 @@ const Business = () => {
     const link = document.createElement('link');
     link.rel = 'preload';
     link.as = 'image';
-    link.href = '/business/Business_Hero.webp';
+    link.href = '/business/buisness.webp';
     document.head.appendChild(link);
     return () => { if (document.head.contains(link)) document.head.removeChild(link); };
   }, []);
@@ -67,7 +67,7 @@ const Business = () => {
       <div
         id="main-content"
         className="jumbotron jumbotron-single d-flex align-items-center"
-        style={{ backgroundImage: 'url(/business/Business_Hero.webp), url(/analogs_bg.jpg)' }}
+        style={{ backgroundImage: 'url(/business/buisness.webp), url(/analogs_bg.jpg)' }}
       >
         <div className="container text-center">
           <h1 className="display-2 mb-4">Business &amp; Operations</h1>

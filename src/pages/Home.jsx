@@ -100,7 +100,7 @@ const TESTIMONIALS = [
   },
   {
     name: 'Spruha Vashi',
-    role: 'Business & Operations Lead',
+    role: 'Analogs Lead',
     photo: '/officers/vashi.webp',
     quote: 'Partnering with HI-SEAS opens doors most undergrads never get to walk through.',
   },
@@ -392,7 +392,7 @@ const Home = () => {
         <div className="container">
           <div className="title-wrap text-center mb-2" data-aos="fade-up">
             <h2 className="section-title">Voices from <b>Our Team</b></h2>
-            <p className="tc-subtitle">Hear from the students who lead SEARCH.</p>
+            <p className="tc-subtitle">Hear from the students who have led SEARCH.</p>
           </div>
           <div className="testimonial-stage" data-aos="fade-up">
             {TESTIMONIALS.map((t, i) => {
