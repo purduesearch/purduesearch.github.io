@@ -19,10 +19,9 @@ const PORT = parseInt(process.env.PORT ?? "3000", 10);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// CORS — allow the Vite dev server
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL ?? "http://localhost:5173",
+    origin: process.env.FRONTEND_URL ?? "http://localhost:3000",
     credentials: true,
   })
 );

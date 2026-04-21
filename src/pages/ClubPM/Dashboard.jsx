@@ -69,7 +69,6 @@ export default function Dashboard() {
                 <div
                   key={project.id}
                   className={`cpm-animate-fade-in cpm-stagger-${Math.min(i + 1, 6)}`}
-                  style={{ opacity: 0 }}
                 >
                   <ProjectCard project={project} />
                 </div>
@@ -86,7 +85,7 @@ export default function Dashboard() {
           }}>
             My Tasks
           </h2>
-          <div className="cpm-glass-card cpm-animate-fade-in" style={{ padding: '1rem', animationDelay: '0.2s', opacity: 0 }}>
+          <div className="cpm-glass-card cpm-animate-fade-in" style={{ padding: '1rem', animationDelay: '0.2s' }}>
             {myTasks.length === 0 ? (
               <p style={{ color: 'var(--color-text-muted)', fontSize: '0.875rem', textAlign: 'center', padding: '1.5rem 0' }}>
                 No tasks assigned to you

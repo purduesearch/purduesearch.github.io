@@ -52,7 +52,7 @@ export async function attachMember(
 
 authRouter.get("/slack", (_req: Request, res: Response) => {
   const clientId = process.env.SLACK_CLIENT_ID;
-  const redirectUri = `${process.env.FRONTEND_URL ? "" : "http://localhost:3000"}/auth/slack/callback`;
+  const redirectUri = `${process.env.BACKEND_URL ?? "http://localhost:3001"}/auth/slack/callback`;
 
   const scopes = [
     "users:read",
@@ -86,7 +86,7 @@ authRouter.get("/slack/callback", async (req: Request, res: Response) => {
         client_id: process.env.SLACK_CLIENT_ID ?? "",
         client_secret: process.env.SLACK_CLIENT_SECRET ?? "",
         code,
-        redirect_uri: `${process.env.FRONTEND_URL ? "" : "http://localhost:3000"}/auth/slack/callback`,
+        redirect_uri: `${process.env.BACKEND_URL ?? "http://localhost:3001"}/auth/slack/callback`,
       }),
     });
 
@@ -153,8 +153,8 @@ authRouter.get("/slack/callback", async (req: Request, res: Response) => {
     req.session.slackAccessToken = accessToken;
 
     // Redirect to frontend
-    const frontendUrl = process.env.FRONTEND_URL ?? "http://localhost:5173";
-    res.redirect(frontendUrl);
+    const frontendUrl = process.env.FRONTEND_URL ?? "http://localhost:3000";
+    res.redirect(`${frontendUrl}/clubpm`);
   } catch (error) {
     console.error("OAuth callback error:", error);
     res.status(500).json({ error: "Authentication failed" });

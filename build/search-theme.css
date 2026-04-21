@@ -4293,6 +4293,8 @@ html::-webkit-scrollbar { display: none; }
   background: var(--color-surface-50);
   color: var(--color-text-primary);
   min-height: 100vh;
+  display: flex;
+  flex-direction: column;
   font-family: Inter, system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
@@ -4362,7 +4364,7 @@ html::-webkit-scrollbar { display: none; }
 @keyframes cpmPulse  { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
 @keyframes cpmSpin   { to { transform: rotate(360deg); } }
 
-.cpm-animate-fade-in { animation: cpmFadeIn 0.4s cubic-bezier(0.4,0,0.2,1) forwards; }
+.cpm-animate-fade-in { animation: cpmFadeIn 0.4s cubic-bezier(0.4,0,0.2,1) both; }
 .cpm-animate-pulse   { animation: cpmPulse  2s   cubic-bezier(0.4,0,0.6,1) infinite; }
 .cpm-spinner { width: 2rem; height: 2rem; border-radius: 50%; border: 2px solid var(--color-accent-primary); border-top-color: transparent; animation: cpmSpin 0.8s linear infinite; }
 

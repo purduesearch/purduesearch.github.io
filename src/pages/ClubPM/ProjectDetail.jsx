@@ -9,6 +9,7 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
+  useDroppable,
 } from '@dnd-kit/core';
 import {
   SortableContext,
@@ -238,7 +239,7 @@ export default function ProjectDetail() {
 }
 
 function KanbanColumn({ column }) {
-  const { setNodeRef } = useSortable({ id: column.id });
+  const { setNodeRef } = useDroppable({ id: column.id });
 
   return (
     <div ref={setNodeRef} className="cpm-kanban-column">

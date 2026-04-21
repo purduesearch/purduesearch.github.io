@@ -66,7 +66,12 @@ function AnimatedRoutes() {
       <AnimatePresence mode="wait">
         <Routes location={location} key={location.pathname}>
           {/* Club PM routes */}
-          <Route path="/clubpm/login" element={<div className="clubpm-app"><ClubPmLogin /></div>} />
+          <Route path="/clubpm/login" element={
+            <div className="clubpm-app">
+              <ClubPmNavBar />
+              <ClubPmLogin />
+            </div>
+          } />
           <Route path="/clubpm" element={<ClubPmProtectedPage><ClubPmDashboard /></ClubPmProtectedPage>} />
           <Route path="/clubpm/projects/:id" element={<ClubPmProtectedPage><ClubPmProjectDetail /></ClubPmProtectedPage>} />
           <Route path="/clubpm/projects/:id/gantt" element={<ClubPmProtectedPage><ClubPmGanttView /></ClubPmProtectedPage>} />
