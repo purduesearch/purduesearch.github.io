@@ -139,12 +139,12 @@ projectsRouter.get("/:id/tasks", async (req: Request, res: Response) => {
 projectsRouter.post("/:id/tasks", async (req: Request, res: Response) => {
   try {
     const projectId = req.params.id as string;
-    const { title, description, priority, dueDate, assigneeId } = req.body as {
+    const { title, description, priority, dueDate, assigneeIds } = req.body as {
       title: string;
       description?: string;
       priority?: Priority;
       dueDate?: string;
-      assigneeId?: string;
+      assigneeIds?: string[];
     };
 
     if (!title) {
@@ -158,7 +158,7 @@ projectsRouter.post("/:id/tasks", async (req: Request, res: Response) => {
       priority,
       dueDate: dueDate ? new Date(dueDate) : undefined,
       projectId,
-      assigneeId,
+      assigneeIds,
     });
 
     res.status(201).json(task);

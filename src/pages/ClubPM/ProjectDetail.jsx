@@ -1,50 +1,63 @@
-import { useState, useEffect, useCallback } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { get, patch } from '../../api/clubPmClient';
-import MemberBadge from '../../components/clubpm/MemberBadge';
+import React, { useState, useEffect, useCallback } from "react";
+import { useParams, Link } from "react-router-dom";
+import { get, patch } from "../../api/clubPmClient";
+import MemberBadge from "../../components/clubpm/MemberBadge";
+import { useClubPmAuth } from "../../clubpm/ClubPmAuth";
+import TaskModal from "../../components/clubpm/TaskModal";
+import CalendarView from "../../components/clubpm/CalendarView";
+import ProjectActivity from "../../components/clubpm/ProjectActivity";
+import ReportingView from "../../components/clubpm/ReportingView";
+import MilestonePanel from "../../components/clubpm/MilestonePanel";
 import {
   DndContext,
   DragOverlay,
-  closestCorners,
+  closestCenter,
   PointerSensor,
   useSensor,
   useSensors,
-  useDroppable,
-} from '@dnd-kit/core';
+} from "@dnd-kit/core";
 import {
   SortableContext,
   verticalListSortingStrategy,
   useSortable,
-} from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
+} from "@dnd-kit/sortable";
+import { useDroppable } from "@dnd-kit/core";
+import { CSS } from "@dnd-kit/utilities";
+
+// ── Constants ────────────────────────────────────────────────
 
 const COLUMNS = [
-  { id: 'TODO', label: 'To Do', color: 'var(--color-text-secondary)', emoji: '📋' },
-  { id: 'IN_PROGRESS', label: 'In Progress', color: 'var(--color-accent-cyan)', emoji: '🔧' },
-  { id: 'BLOCKED', label: 'Blocked', color: 'var(--color-accent-red)', emoji: '🚫' },
-  { id: 'DONE', label: 'Done', color: 'var(--color-accent-green)', emoji: '✅' },
+  { id: "TODO", label: "To Do", color: "var(--clubpm-text-secondary)", emoji: "📋" },
+  { id: "IN_PROGRESS", label: "In Progress", color: "var(--clubpm-accent-cyan)", emoji: "🔧" },
+  { id: "BLOCKED", label: "Blocked", color: "var(--clubpm-accent-red)", emoji: "🚫" },
+  { id: "DONE", label: "Done", color: "var(--clubpm-accent-green)", emoji: "✅" },
 ];
 
-const PRIORITY_COLORS = {
-  CRITICAL: 'var(--color-accent-red)',
-  HIGH: 'var(--color-accent-orange)',
-  MEDIUM: 'var(--color-accent-orange)',
-  LOW: 'var(--color-accent-green)',
+const PRIORITY_BADGES = {
+  CRITICAL: { label: "CRIT", class: "bg-red-500/10 text-red-400 border-red-500/20" },
+  HIGH: { label: "HIGH", class: "bg-orange-500/10 text-orange-400 border-orange-500/20" },
+  MEDIUM: { label: "MED", class: "bg-yellow-500/10 text-yellow-400 border-yellow-500/20" },
+  LOW: { label: "LOW", class: "bg-green-500/10 text-green-400 border-green-500/20" },
 };
 
 const STATUS_BADGE = {
-  ACTIVE: 'cpm-badge-active',
-  PAUSED: 'cpm-badge-paused',
-  COMPLETED: 'cpm-badge-completed',
-  ARCHIVED: 'cpm-badge-archived',
+  ACTIVE: "clubpm-badge-active",
+  PAUSED: "clubpm-badge-paused",
+  COMPLETED: "clubpm-badge-completed",
+  ARCHIVED: "clubpm-badge-archived",
 };
+
+// ── Component ────────────────────────────────────────────────
 
 export default function ProjectDetail() {
   const { id } = useParams();
+  const { member, setMember } = useClubPmAuth();
   const [project, setProject] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('tasks');
-  const [activeTask, setActiveTask] = useState(null);
+  const [activeTab, setActiveTab] = useState("tasks");
+  const [activeTask, setActiveTask] = useState(null); // For Drag Overlay
+  const [selectedTask, setSelectedTask] = useState(null); // For Task Modal
+  const [overColumn, setOverColumn] = useState(null); // For column highlight
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
@@ -67,196 +80,274 @@ export default function ProjectDetail() {
     setActiveTask(task ?? null);
   };
 
+  const handleDragOver = (event) => {
+    const { over } = event;
+    if (over && COLUMNS.some((col) => col.id === over.id)) {
+      setOverColumn(over.id);
+    } else {
+      setOverColumn(null);
+    }
+  };
+
   const handleDragEnd = async (event) => {
     setActiveTask(null);
+    setOverColumn(null);
     const { active, over } = event;
     if (!over || !project) return;
 
     const taskId = active.id;
     const newStatus = over.id;
 
+    // Check if dropped on a column
     if (COLUMNS.some((col) => col.id === newStatus)) {
       const task = project.tasks.find((t) => t.id === taskId);
       if (task && task.status !== newStatus) {
+        // Optimistic update
         setProject({
           ...project,
           tasks: project.tasks.map((t) =>
             t.id === taskId ? { ...t, status: newStatus } : t
           ),
         });
+
         try {
           await patch(`/api/tasks/${taskId}`, { status: newStatus });
         } catch {
-          fetchProject();
+          fetchProject(); // Revert on error
         }
       }
     }
   };
 
+  const handleTaskUpdate = (updatedTask) => {
+    setProject({
+      ...project,
+      tasks: project.tasks.map(t => t.id === updatedTask.id ? updatedTask : t)
+    });
+    setSelectedTask(updatedTask);
+  };
+
   if (loading) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
-        <div className="cpm-spinner" />
+      <div className="clubpm-app flex items-center justify-center min-h-[60vh] bg-[var(--clubpm-surface-50)]">
+        <div className="w-8 h-8 rounded-full border-2 border-[var(--clubpm-accent-primary)] border-t-transparent clubpm-animate-spin" />
       </div>
     );
   }
 
   if (!project) {
     return (
-      <div className="cpm-container" style={{ paddingTop: '3rem', paddingBottom: '3rem', textAlign: 'center' }}>
-        <p style={{ color: 'var(--color-text-muted)', fontSize: '1.125rem' }}>Project not found</p>
-        <Link to="/clubpm" style={{ color: 'var(--color-accent-primary)', fontSize: '0.875rem', marginTop: '0.5rem', display: 'inline-block', textDecoration: 'none' }}>
-          ← Back to Dashboard
-        </Link>
+      <div className="clubpm-app min-h-screen bg-[var(--clubpm-surface-50)]">
+        <div className="max-w-7xl mx-auto px-6 py-12 text-center">
+          <p className="text-[var(--clubpm-text-muted)] text-lg">Project not found</p>
+          <Link to="/clubpm" className="text-[var(--clubpm-accent-primary)] text-sm mt-2 inline-block">
+            ← Back to Dashboard
+          </Link>
+        </div>
       </div>
     );
   }
 
-  const tasksByStatus = COLUMNS.map((col) => ({
-    ...col,
-    tasks: project.tasks.filter((t) => t.status === col.id),
-  }));
+  const orderPref = ["TODO", "IN_PROGRESS", "BLOCKED", "DONE"];
+  
+  const tasksByStatus = orderPref.map((colId) => {
+    const colDef = COLUMNS.find(c => c.id === colId) || COLUMNS.find(c => c.id === "TODO");
+    return {
+      ...colDef,
+      tasks: project.tasks.filter((t) => t.status === colId),
+    };
+  });
 
   return (
-    <div className="cpm-container cpm-animate-fade-in" style={{ paddingTop: '2rem', paddingBottom: '2rem' }}>
-      {/* Header */}
-      <div style={{ marginBottom: '1.5rem' }}>
-        <Link to="/clubpm" style={{ fontSize: '0.875rem', color: 'var(--color-text-muted)', textDecoration: 'none', marginBottom: '0.75rem', display: 'inline-block', transition: 'color 0.2s' }}>
-          ← Dashboard
-        </Link>
-        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1rem' }}>
-          <div>
-            <h1 style={{ fontSize: '1.875rem', fontWeight: 700, color: 'var(--color-text-primary)', marginBottom: '0.5rem' }}>
-              {project.name}
-            </h1>
-            {project.description && (
-              <p style={{ color: 'var(--color-text-secondary)', maxWidth: '42rem', marginBottom: '0.75rem' }}>
-                {project.description}
-              </p>
-            )}
-            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.5rem' }}>
-              <span className={`cpm-badge ${STATUS_BADGE[project.status] ?? ''}`}>
-                {project.status}
-              </span>
-              <span className={`cpm-badge cpm-badge-${project.type.toLowerCase()}`}>
-                {project.type}
-              </span>
-              {project.slackChannel && (
-                <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
-                  📌 Slack channel linked
-                </span>
-              )}
-            </div>
-          </div>
-          <Link to={`/clubpm/projects/${project.id}/gantt`} className="cpm-btn-primary" style={{ fontSize: '0.875rem' }}>
-            📊 Gantt View
-          </Link>
-        </div>
-      </div>
-
-      {/* Tabs */}
-      <div style={{ display: 'flex', borderBottom: '1px solid var(--color-border)', marginBottom: '1.5rem' }}>
-        {['tasks', 'members', 'updates'].map((tab) => (
-          <button
-            key={tab}
-            className={`cpm-tab-btn${activeTab === tab ? ' active' : ''}`}
-            onClick={() => setActiveTab(tab)}
+    <div className="clubpm-app min-h-screen bg-[var(--clubpm-surface-50)]">
+      <div className="w-full px-8 py-8 clubpm-animate-fade-in">
+        {/* Header */}
+        <div className="mb-6">
+          <Link
+            to="/clubpm"
+            className="text-sm text-[var(--clubpm-text-muted)] hover:text-[var(--clubpm-text-primary)] transition-colors no-underline mb-3 inline-block"
           >
-            {tab === 'tasks' && `Tasks (${project.tasks.length})`}
-            {tab === 'members' && `Members (${project.members.length})`}
-            {tab === 'updates' && `Updates (${project.updates?.length ?? 0})`}
-          </button>
-        ))}
-      </div>
-
-      {/* Tab Content */}
-      {activeTab === 'tasks' && (
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCorners}
-          onDragStart={handleDragStart}
-          onDragEnd={handleDragEnd}
-        >
-          <div className="cpm-kanban-grid">
-            {tasksByStatus.map((column) => (
-              <KanbanColumn key={column.id} column={column} />
-            ))}
-          </div>
-          <DragOverlay>
-            {activeTask ? <KanbanCard task={activeTask} isDragOverlay /> : null}
-          </DragOverlay>
-        </DndContext>
-      )}
-
-      {activeTab === 'members' && (
-        <div className="cpm-members-grid">
-          {project.members.map((pm) => (
-            <div key={pm.memberId} className="cpm-glass-card" style={{ padding: '1rem', textAlign: 'center' }}>
-              <MemberBadge member={pm.member} size="lg" />
-              <p style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--color-text-primary)', marginTop: '0.5rem' }}>
-                {pm.member.displayName}
-              </p>
-              <p style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
-                {pm.projectRole}
-              </p>
+            ← Dashboard
+          </Link>
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h1 className="text-3xl font-bold text-[var(--clubpm-text-primary)] mb-2">
+                {project.name}
+              </h1>
+              {project.description && (
+                <p className="text-[var(--clubpm-text-secondary)] max-w-2xl mb-3">
+                  {project.description}
+                </p>
+              )}
+              <div className="flex flex-wrap items-center gap-2">
+                <span className={`clubpm-badge ${STATUS_BADGE[project.status] ?? ""}`}>
+                  {project.status}
+                </span>
+                <span className={`clubpm-badge clubpm-badge-${project.type.toLowerCase()}`}>
+                  {project.type}
+                </span>
+                {project.slackChannel && (
+                  <span className="text-xs text-[var(--clubpm-text-muted)]">
+                    📌 Slack channel linked
+                  </span>
+                )}
+              </div>
             </div>
+            <Link
+              to={`/clubpm/projects/${project.id}/gantt`}
+              className="clubpm-btn-primary text-sm no-underline"
+            >
+              📊 Gantt View
+            </Link>
+          </div>
+        </div>
+
+        {/* Tabs */}
+        <div className="flex border-b border-[var(--clubpm-border)] mb-6 overflow-x-auto">
+          {["tasks", "calendar", "milestones", "activity", "reports", "members", "updates"].map((tab) => (
+            <button
+              key={tab}
+              className={`clubpm-tab-btn whitespace-nowrap ${activeTab === tab ? "active" : ""}`}
+              onClick={() => setActiveTab(tab)}
+            >
+              {tab === "tasks" && `📋 Tasks (${project.tasks.length})`}
+              {tab === "calendar" && "📅 Calendar"}
+              {tab === "milestones" && "🎯 Milestones"}
+              {tab === "activity" && "📜 Activity"}
+              {tab === "reports" && "📊 Reports"}
+              {tab === "members" && `👥 Members (${project.members.length})`}
+              {tab === "updates" && `📝 Updates (${project.updates?.length ?? 0})`}
+            </button>
           ))}
         </div>
-      )}
 
-      {activeTab === 'updates' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxWidth: '42rem' }}>
-          {(!project.updates || project.updates.length === 0) ? (
-            <p style={{ color: 'var(--color-text-muted)', fontSize: '0.875rem' }}>No updates yet</p>
-          ) : (
-            project.updates.map((update) => (
-              <div key={update.id} className="cpm-glass-card" style={{ padding: '1rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                  <div style={{
-                    width: '1.5rem', height: '1.5rem', borderRadius: '50%',
-                    background: 'var(--color-accent-primary)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: '0.75rem', fontWeight: 700, color: 'white',
-                  }}>
-                    U
-                  </div>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
-                    {new Date(update.postedAt).toLocaleDateString('en-US', {
-                      month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
-                    })}
-                  </span>
+        {/* Tab Content */}
+        {activeTab === "tasks" && (
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragStart={handleDragStart}
+            onDragOver={handleDragOver}
+            onDragEnd={handleDragEnd}
+          >
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {tasksByStatus.map((column) => (
+                <KanbanColumn
+                  key={column.id}
+                  column={column}
+                  onTaskClick={setSelectedTask}
+                  isOver={overColumn === column.id}
+                />
+              ))}
+            </div>
+            <DragOverlay dropAnimation={null}>
+              {activeTask ? (
+                <div style={{ opacity: 0.95, cursor: "grabbing", transform: "scale(1.02)", boxShadow: "0 20px 60px rgba(0,0,0,0.5)" }}>
+                  <KanbanCard task={activeTask} isDragOverlay />
                 </div>
-                <p style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)', whiteSpace: 'pre-wrap' }}>
-                  {update.content}
+              ) : null}
+            </DragOverlay>
+          </DndContext>
+        )}
+
+        {activeTab === "calendar" && (
+          <CalendarView tasks={project.tasks} onTaskClick={setSelectedTask} />
+        )}
+
+        {activeTab === "milestones" && (
+          <MilestonePanel projectId={project.id} onRefresh={fetchProject} />
+        )}
+
+        {activeTab === "activity" && (
+          <ProjectActivity projectId={project.id} />
+        )}
+
+        {activeTab === "reports" && (
+          <ReportingView projectId={project.id} />
+        )}
+
+        {activeTab === "members" && (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+            {project.members.map((pm) => (
+              <div key={pm.memberId} className="clubpm-glass-card p-4 text-center">
+                <MemberBadge member={pm.member} size="lg" />
+                <p className="text-sm font-medium text-[var(--clubpm-text-primary)] mt-2">
+                  {pm.member.displayName}
+                </p>
+                <p className="text-xs text-[var(--clubpm-text-muted)]">
+                  {pm.projectRole}
                 </p>
               </div>
-            ))
-          )}
-        </div>
-      )}
+            ))}
+          </div>
+        )}
+
+        {activeTab === "updates" && (
+          <div className="space-y-4 max-w-2xl">
+            {(!project.updates || project.updates.length === 0) ? (
+              <p className="text-[var(--clubpm-text-muted)] text-sm">No updates yet</p>
+            ) : (
+              project.updates.map((update) => (
+                <div key={update.id} className="clubpm-glass-card p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="w-6 h-6 rounded-full bg-[var(--clubpm-accent-primary)] flex items-center justify-center text-xs font-bold text-white">
+                      U
+                    </div>
+                    <span className="text-xs text-[var(--clubpm-text-muted)]">
+                      {new Date(update.postedAt).toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        hour: "numeric",
+                        minute: "2-digit",
+                      })}
+                    </span>
+                  </div>
+                  <p className="text-sm text-[var(--clubpm-text-secondary)] whitespace-pre-wrap">
+                    {update.content}
+                  </p>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+
+        {/* Task Modal */}
+        {selectedTask && (
+          <TaskModal 
+            task={selectedTask} 
+            onClose={() => setSelectedTask(null)} 
+            onUpdate={handleTaskUpdate} 
+          />
+        )}
+      </div>
     </div>
   );
 }
 
-function KanbanColumn({ column }) {
+// ── Kanban Column ────────────────────────────────────────────
+
+function KanbanColumn({ column, onTaskClick, isOver }) {
   const { setNodeRef } = useDroppable({ id: column.id });
 
   return (
-    <div ref={setNodeRef} className="cpm-kanban-column">
-      <div className="cpm-kanban-column-header" style={{ color: column.color }}>
+    <div
+      ref={setNodeRef}
+      className={`clubpm-kanban-column transition-all duration-200 ${isOver ? "drag-over" : ""}`}
+    >
+      <div className="clubpm-kanban-column-header flex items-center gap-2" style={{ color: column.color }}>
         <span>{column.emoji}</span>
         <span>{column.label}</span>
-        <span style={{ marginLeft: 'auto', color: 'var(--color-text-muted)', fontWeight: 'normal' }}>
+        <span className="ml-auto text-[var(--clubpm-text-muted)] font-normal">
           {column.tasks.length}
         </span>
       </div>
       <SortableContext items={column.tasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
         {column.tasks.map((task) => (
-          <SortableKanbanCard key={task.id} task={task} />
+          <SortableKanbanCard key={task.id} task={task} onClick={() => onTaskClick(task)} />
         ))}
       </SortableContext>
       {column.tasks.length === 0 && (
-        <div style={{ textAlign: 'center', padding: '2rem 0', fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
+        <div className="text-center py-8 text-xs text-[var(--clubpm-text-muted)]">
           Drop tasks here
         </div>
       )}
@@ -264,10 +355,22 @@ function KanbanColumn({ column }) {
   );
 }
 
-function SortableKanbanCard({ task }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task.id });
+// ── Sortable Kanban Card ─────────────────────────────────────
 
-  const style = { transform: CSS.Transform.toString(transform), transition };
+function SortableKanbanCard({ task, onClick }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: task.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
 
   return (
     <div
@@ -275,40 +378,75 @@ function SortableKanbanCard({ task }) {
       style={style}
       {...attributes}
       {...listeners}
-      className={`cpm-kanban-card${isDragging ? ' dragging' : ''}`}
+      onPointerUp={(e) => {
+        // Fallback for dnd-kit pointer sensor swallowing clicks
+        if (!isDragging && !e.cancelBubble) {
+          onClick();
+        }
+      }}
+      onClick={() => { if (!isDragging) onClick(); }}
+      className={`clubpm-kanban-card ${isDragging ? "dragging" : ""} cursor-pointer`}
     >
       <KanbanCard task={task} />
     </div>
   );
 }
 
+// ── Kanban Card Content ──────────────────────────────────────
+
 function KanbanCard({ task, isDragOverlay }) {
   const dueStr = task.dueDate
-    ? new Date(task.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    ? new Date(task.dueDate).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+      })
     : null;
 
-  const isOverdue = task.dueDate && new Date(task.dueDate) < new Date() && task.status !== 'DONE';
+  const isOverdue = task.dueDate && new Date(task.dueDate) < new Date() && task.status !== "DONE";
+  const pBadge = PRIORITY_BADGES[task.priority] || PRIORITY_BADGES.MEDIUM;
 
   return (
-    <div className={isDragOverlay ? 'cpm-kanban-card' : ''}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.5rem', marginBottom: '0.25rem' }}>
-        <p style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--color-text-primary)', lineHeight: 1.375 }}>
+    <div className={isDragOverlay ? "clubpm-kanban-card" : ""}>
+      <div className="flex items-start justify-between gap-2 mb-2">
+        <p className="text-sm font-medium text-[var(--clubpm-text-primary)] leading-snug">
           {task.title}
         </p>
-        <div
-          style={{ width: '0.5rem', height: '0.5rem', borderRadius: '50%', flexShrink: 0, marginTop: '0.375rem', backgroundColor: PRIORITY_COLORS[task.priority] }}
-          title={task.priority}
-        />
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '0.5rem' }}>
-        {task.assignee ? (
-          <MemberBadge member={task.assignee} size="sm" />
+
+      <div className="flex flex-wrap items-center gap-1 mb-3">
+        <span className={`text-[10px] px-1.5 py-0.5 rounded border font-semibold ${pBadge.class}`}>
+          {pBadge.label}
+        </span>
+        {task.tags && task.tags.map((tag, idx) => (
+          <span key={idx} className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--clubpm-surface-400)] text-[var(--clubpm-text-secondary)] border border-[var(--clubpm-border)]">
+            #{tag}
+          </span>
+        ))}
+      </div>
+
+      <div className="flex items-center justify-between mt-auto">
+        {task.assignees && task.assignees.length > 0 ? (
+          <div className="flex -space-x-2 overflow-hidden">
+            {task.assignees.slice(0, 3).map(a => (
+              <div key={a.id} className="inline-block rounded-full ring-2 ring-[var(--clubpm-surface-100)]">
+                <MemberBadge member={a} size="sm" />
+              </div>
+            ))}
+            {task.assignees.length > 3 && (
+              <div className="flex items-center justify-center w-6 h-6 rounded-full bg-[var(--clubpm-surface-300)] text-[10px] font-medium text-[var(--clubpm-text-secondary)] ring-2 ring-[var(--clubpm-surface-100)] z-10">
+                +{task.assignees.length - 3}
+              </div>
+            )}
+          </div>
         ) : (
-          <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>Unassigned</span>
+          <span className="text-xs text-[var(--clubpm-text-muted)]">Unassigned</span>
         )}
         {dueStr && (
-          <span style={{ fontSize: '0.75rem', color: isOverdue ? 'var(--color-accent-red)' : 'var(--color-text-muted)' }}>
-            {isOverdue ? '⚠ ' : ''}{dueStr}
+          <span
+            className={`text-xs ${isOverdue ? "text-red-400 font-medium" : "text-[var(--clubpm-text-muted)]"}`}
+          >
+            {isOverdue ? "⚠ " : "📅 "}
+            {dueStr}
           </span>
         )}
       </div>

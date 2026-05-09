@@ -102,4 +102,6 @@ export function registerEvents(app: App): void {
       console.error("member_joined_channel event error:", error);
     }
   });
+
+
 }

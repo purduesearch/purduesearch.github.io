@@ -46,6 +46,31 @@ membersRouter.get("/me", async (req: Request, res: Response) => {
   }
 });
 
+// ── PATCH /api/members/me ────────────────────────────────────
+
+membersRouter.patch("/me", async (req: Request, res: Response) => {
+  try {
+    if (!req.session.memberId) {
+      res.status(401).json({ error: "Not authenticated" });
+      return;
+    }
+
+    const { kanbanColumnOrder } = req.body;
+
+    const member = await prisma.member.update({
+      where: { id: req.session.memberId },
+      data: {
+        ...(kanbanColumnOrder ? { kanbanColumnOrder } : {}),
+      },
+    });
+
+    res.json(member);
+  } catch (error) {
+    console.error("Update me error:", error);
+    res.status(500).json({ error: "Failed to update profile" });
+  }
+});
+
 // ── GET /api/members ─────────────────────────────────────────
 
 membersRouter.get("/", async (_req: Request, res: Response) => {

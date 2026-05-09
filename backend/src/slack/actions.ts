@@ -3,7 +3,7 @@ import { prisma } from "../db/prisma.js";
 import { updateTask, getTask, createTask } from "../services/taskService.js";
 import { getProjectByChannel } from "../services/projectService.js";
 import { buildTaskCard } from "../utils/blockKit.js";
-import { openAddNoteModal } from "./modals.js";
+import { openAddNoteModal, openNewTaskModal, openSnoozeModal } from "./modals.js";
 
 // ── Action Registration ──────────────────────────────────────
 
@@ -161,13 +161,13 @@ export function registerActions(app: App): void {
         const task = await createTask({
           title,
           projectId: project.id,
-          assigneeId: member.id,
+          assigneeIds: [member.id],
         });
 
         await respond({
           response_type: "in_channel",
           replace_original: true,
-          blocks: buildTaskCard(task, member, project),
+          blocks: buildTaskCard(task, project),
           text: `✅ Task created: ${title}`,
         });
       } catch (error) {
@@ -186,5 +186,125 @@ export function registerActions(app: App): void {
     await respond({
       delete_original: true,
     });
+  });
+
+  // ── Open Task Modal from Reaction ──────────────────────────
+  app.action(
+    "open_task_modal_from_reaction",
+    async ({ action, ack, body, client, respond }) => {
+      await ack();
+      try {
+        if (!("value" in action) || !action.value) return;
+
+        // Value is JSON-encoded: { text, channel }
+        let initialTitle = action.value;
+        let channelId: string | undefined;
+        try {
+          const parsed = JSON.parse(action.value);
+          initialTitle = parsed.text ?? action.value;
+          channelId = parsed.channel;
+        } catch {
+          // Plain string fallback
+        }
+
+        // Fallback to body.channel if JSON parse didn't give a channel
+        if (!channelId) {
+          channelId = "channel" in body && body.channel
+            ? (body.channel as { id: string }).id
+            : undefined;
+        }
+
+        if ("trigger_id" in body && body.trigger_id) {
+          await openNewTaskModal(client, body.trigger_id, channelId ?? "", initialTitle);
+          await respond({ delete_original: true });
+        }
+      } catch (error) {
+        console.error("open_task_modal_from_reaction error:", error);
+      }
+    }
+  );
+
+  // ── Claim Task ─────────────────────────────────────────────
+  app.action("claim_task", async ({ action, ack, respond, body }) => {
+    await ack();
+
+    try {
+      if (!("value" in action) || !action.value) return;
+      const taskId = action.value;
+      const slackUserId = body.user.id;
+
+      let member = await prisma.member.findUnique({
+        where: { slackId: slackUserId },
+      });
+
+      if (!member) {
+        member = await prisma.member.create({
+          data: {
+            slackId: slackUserId,
+            slackHandle: slackUserId,
+            displayName: "name" in body.user && typeof body.user.name === "string" ? body.user.name : slackUserId,
+          },
+        });
+      }
+
+      const existingTask = await getTask(taskId);
+      const assigneeIds = existingTask?.assignees.map(a => a.id) ?? [];
+      if (!assigneeIds.includes(member.id)) assigneeIds.push(member.id);
+
+      await updateTask(taskId, { assigneeIds });
+      const task = await getTask(taskId);
+      
+      if (task && task.project) {
+        await respond({
+          replace_original: true,
+          blocks: buildTaskCard(task, task.project),
+          text: `✅ Task claimed by <@${slackUserId}>`,
+        });
+      }
+    } catch (error) {
+      console.error("claim_task error:", error);
+    }
+  });
+
+  // ── Snooze Task ────────────────────────────────────────────
+  app.action("snooze_task", async ({ action, ack, body, client }) => {
+    await ack();
+
+    try {
+      if (!("value" in action) || !action.value) return;
+      const taskId = action.value;
+
+      if ("trigger_id" in body && body.trigger_id) {
+        await openSnoozeModal(client, body.trigger_id, taskId);
+      }
+    } catch (error) {
+      console.error("snooze_task error:", error);
+    }
+  });
+
+  // ── Update Status ──────────────────────────────────────────
+  app.action("update_status", async ({ action, ack, respond }) => {
+    await ack();
+
+    try {
+      if (!("selected_option" in action) || !action.selected_option?.value) return;
+      
+      // The value is formatted as "STATUS|taskId"
+      const [newStatus, taskId] = action.selected_option.value.split("|");
+      if (!newStatus || !taskId) return;
+
+      await updateTask(taskId, { status: newStatus as any });
+      const task = await getTask(taskId);
+
+      if (task && task.project) {
+        await respond({
+          replace_original: true,
+          blocks: buildTaskCard(task, task.project),
+          text: `✅ Status updated to ${newStatus.replace("_", " ")}`,
+        });
+      }
+    } catch (error) {
+      console.error("update_status error:", error);
+    }
   });
 }

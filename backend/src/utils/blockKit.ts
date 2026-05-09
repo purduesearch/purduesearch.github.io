@@ -1,8 +1,8 @@
 import type { KnownBlock, Block } from "@slack/types";
 import type { Task, Member, Project } from "@prisma/client";
 
-type TaskWithAssignee = Task & { assignee: Member | null };
-type TaskWithRelations = Task & { assignee: Member | null; project: Project };
+type TaskWithAssignees = Task & { assignees: Member[] };
+type TaskWithRelations = Task & { assignees: Member[]; project: Project };
 
 // ── Helpers ──────────────────────────────────────────────────
 
@@ -50,13 +50,12 @@ function truncate(str: string, max: number): string {
 // ── Task Card ────────────────────────────────────────────────
 
 export function buildTaskCard(
-  task: Task,
-  assignee: Member | null,
+  task: Task & { assignees: Member[] },
   project: Project
 ): (KnownBlock | Block)[] {
   const frontendUrl = process.env.FRONTEND_URL ?? "http://localhost:5173";
-  const assigneeText = assignee
-    ? `<@${assignee.slackId}>`
+  const assigneeText = task.assignees && task.assignees.length > 0
+    ? task.assignees.map(a => `<@${a.slackId}>`).join(", ")
     : "_Unassigned_";
 
   return [
@@ -84,29 +83,47 @@ export function buildTaskCard(
       type: "actions",
       elements: [
         {
+          type: "static_select",
+          action_id: "update_status",
+          placeholder: { type: "plain_text", text: "Update Status" },
+          options: [
+            { text: { type: "plain_text", text: "📋 To Do" }, value: `TODO|${task.id}` },
+            { text: { type: "plain_text", text: "🔧 In Progress" }, value: `IN_PROGRESS|${task.id}` },
+            { text: { type: "plain_text", text: "🚫 Blocked" }, value: `BLOCKED|${task.id}` },
+            { text: { type: "plain_text", text: "✅ Done" }, value: `DONE|${task.id}` },
+          ],
+          initial_option: {
+            text: {
+              type: "plain_text",
+              text: task.status === "TODO" ? "📋 To Do" : task.status === "IN_PROGRESS" ? "🔧 In Progress" : task.status === "BLOCKED" ? "🚫 Blocked" : "✅ Done"
+            },
+            value: `${task.status}|${task.id}`
+          }
+        },
+        {
           type: "button",
-          text: { type: "plain_text", text: "✅ Mark Done", emoji: true },
+          text: { type: "plain_text", text: "🙋 Claim", emoji: true },
+          action_id: "claim_task",
+          value: task.id,
+        },
+        {
+          type: "button",
+          text: { type: "plain_text", text: "✅ Complete", emoji: true },
           action_id: "mark_done",
           value: task.id,
           style: "primary",
         },
         {
           type: "button",
-          text: { type: "plain_text", text: "📝 Add Note", emoji: true },
-          action_id: "add_note",
+          text: { type: "plain_text", text: "⏰ Snooze", emoji: true },
+          action_id: "snooze_task",
           value: task.id,
         },
         {
           type: "button",
-          text: { type: "plain_text", text: "🔀 Reassign", emoji: true },
-          action_id: "reassign",
-          value: task.id,
-        },
-        {
-          type: "button",
-          text: { type: "plain_text", text: "👁 View in Dashboard", emoji: true },
+          text: { type: "plain_text", text: "👁 Dashboard", emoji: true },
           action_id: "view_dashboard",
-          url: `${frontendUrl}/projects/${task.projectId}`,
+          url: `${frontendUrl}/clubpm/projects/${task.projectId}`,
           value: task.id,
         },
       ],
@@ -119,7 +136,7 @@ export function buildTaskCard(
 
 export function buildProjectStatusCard(
   project: Project,
-  tasks: Task[]
+  tasks: (Task & { assignees: Member[] })[]
 ): (KnownBlock | Block)[] {
   const total = tasks.length;
   const done = tasks.filter((t) => t.status === "DONE").length;
@@ -156,6 +173,14 @@ export function buildProjectStatusCard(
           `*Progress:* ${progressBar(done, total)}`,
           "",
           `📋 TODO: ${todo} • 🔧 In Progress: ${inProgress} • 🚫 Blocked: ${blocked} • ✅ Done: ${done}`,
+          "",
+          `*Tasks:*`,
+          ...tasks.map(t => {
+            const assignees = t.assignees.length > 0 
+              ? t.assignees.map(a => `<@${a.slackId}>`).join(", ") 
+              : "_Unassigned_";
+            return `• ${statusEmoji(t.status)} *${t.title}* — ${assignees}`;
+          }),
           "",
           project.targetDate
             ? `🎯 Target: ${formatDate(project.targetDate)}`
@@ -248,12 +273,12 @@ export function buildTaskReminderCard(
 
 export function buildWeekAheadCard(
   project: Project,
-  tasks: TaskWithAssignee[]
+  tasks: TaskWithAssignees[]
 ): (KnownBlock | Block)[] {
   const taskLines = tasks
     .map(
       (t) =>
-        `${statusEmoji(t.status)} *${t.title}* — ${t.assignee ? `<@${t.assignee.slackId}>` : "_Unassigned_"} • Due: ${formatDate(t.dueDate)}`
+        `${statusEmoji(t.status)} *${t.title}* — ${t.assignees && t.assignees.length > 0 ? t.assignees.map(a => `<@${a.slackId}>`).join(", ") : "_Unassigned_"} • Due: ${formatDate(t.dueDate)}`
     )
     .join("\n");
 
@@ -327,12 +352,16 @@ export function buildHelpCard(): (KnownBlock | Block)[] {
       text: {
         type: "mrkdwn",
         text: [
+          "*Project Management*",
+          "`/pm project` — Create a new project",
+          "",
           "*Task Management*",
-          '`/pm task create "Title" @user due:friday` — Create and assign a task',
-          "`/pm task done [task-id]` — Mark a task as complete",
+          "`/pm task` — Create and assign a task (opens modal)",
+          "`/pm task done` — Mark a task as complete (opens modal)",
+          "`/pm my-tasks` — View your open tasks",
           "",
           "*Project Info*",
-          "`/pm status [project-name]` — View project health card",
+          "`/pm status` — View project health card (opens modal)",
           "",
           "*Standups*",
           "`/pm standup` — Open the standup form for this channel's project",
@@ -341,15 +370,6 @@ export function buildHelpCard(): (KnownBlock | Block)[] {
           "`/pm help` — Show this reference card",
         ].join("\n"),
       },
-    },
-    {
-      type: "context",
-      elements: [
-        {
-          type: "mrkdwn",
-          text: "💡 Dates support natural language: `due:friday`, `due:next-week`, `due:jan-30`",
-        },
-      ],
     },
   ];
 }

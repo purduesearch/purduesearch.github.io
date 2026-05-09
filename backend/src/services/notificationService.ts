@@ -14,7 +14,7 @@ import {
 } from "./taskService.js";
 
 type TaskWithRelations = Task & {
-  assignee: Member | null;
+  assignees: Member[];
   project: Project;
 };
 
@@ -40,20 +40,22 @@ export async function sendDueDateReminder(
   app: App,
   task: TaskWithRelations
 ): Promise<void> {
-  if (!task.assignee) return;
+  if (!task.assignees || task.assignees.length === 0) return;
 
   const blocks = buildTaskReminderCard(task);
 
-  await app.client.chat.postMessage({
-    channel: task.assignee.slackId,
-    text: `⏰ Reminder: "${task.title}" is due ${task.dueDate ? (task.dueDate <= new Date() ? "overdue!" : "today!") : "soon!"}`,
-    blocks,
-  });
+  for (const assignee of task.assignees) {
+    await app.client.chat.postMessage({
+      channel: assignee.slackId,
+      text: `⏰ Reminder: "${task.title}" is due ${task.dueDate ? (task.dueDate <= new Date() ? "overdue!" : "today!") : "soon!"}`,
+      blocks,
+    });
+  }
 }
 
 export async function postProjectHealthSummary(
   app: App,
-  project: Project & { tasks: Task[] }
+  project: Project & { tasks: (Task & { assignees: Member[] })[] }
 ): Promise<void> {
   if (!project.slackChannel) return;
 
@@ -68,7 +70,7 @@ export async function postProjectHealthSummary(
 
 export async function postWeekAheadSummary(
   app: App,
-  project: Project & { tasks: (Task & { assignee: Member | null })[] }
+  project: Project & { tasks: (Task & { assignees: Member[] })[] }
 ): Promise<void> {
   if (!project.slackChannel) return;
 
@@ -131,7 +133,7 @@ export async function sendAllWeeklyDigests(app: App): Promise<void> {
 export async function postAllProjectHealthSummaries(app: App): Promise<void> {
   const projects = await prisma.project.findMany({
     where: { status: "ACTIVE", slackChannel: { not: null } },
-    include: { tasks: true },
+    include: { tasks: { include: { assignees: true } } },
   });
 
   for (const project of projects) {
@@ -149,7 +151,7 @@ export async function postAllProjectHealthSummaries(app: App): Promise<void> {
 export async function postAllWeekAheadSummaries(app: App): Promise<void> {
   const projects = await prisma.project.findMany({
     where: { status: "ACTIVE", slackChannel: { not: null } },
-    include: { tasks: { include: { assignee: true } } },
+    include: { tasks: { include: { assignees: true } } },
   });
 
   for (const project of projects) {

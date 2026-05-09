@@ -1,49 +1,39 @@
-import { useState, useEffect, useRef, createContext, useContext } from 'react';
-import { useLocation } from 'react-router-dom';
-import { get } from '../api/clubPmClient';
+import React, { useState, useEffect, createContext, useContext } from "react";
+import { get } from "../api/clubPmClient";
 
-const ClubPmAuthContext = createContext({
+const AuthContext = createContext({
   member: null,
-  loading: false,
+  loading: true,
   logout: () => {},
 });
 
 export function useClubPmAuth() {
-  return useContext(ClubPmAuthContext);
+  return useContext(AuthContext);
 }
 
 export function ClubPmAuthProvider({ children }) {
-  const location = useLocation();
-  const isClubPm = location.pathname.startsWith('/clubpm');
   const [member, setMember] = useState(null);
-  const [authChecked, setAuthChecked] = useState(false);
-  const hasFetched = useRef(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!isClubPm || hasFetched.current) return;
-    hasFetched.current = true;
-    get('/auth/me')
+    get("/auth/me")
       .then(setMember)
       .catch(() => setMember(null))
-      .finally(() => setAuthChecked(true));
-  }, [isClubPm]);
-
-  const loading = isClubPm && !authChecked;
+      .finally(() => setLoading(false));
+  }, []);
 
   const logout = () => {
-    get('/auth/logout')
+    get("/auth/logout")
       .catch(() => {})
       .finally(() => {
         setMember(null);
-        setAuthChecked(false);
-        hasFetched.current = false;
-        window.location.href = '/clubpm/login';
+        window.location.href = "/clubpm/login";
       });
   };
 
   return (
-    <ClubPmAuthContext.Provider value={{ member, loading, logout }}>
+    <AuthContext.Provider value={{ member, loading, logout }}>
       {children}
-    </ClubPmAuthContext.Provider>
+    </AuthContext.Provider>
   );
 }

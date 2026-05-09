@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import SearchBar from './SearchBar';
+import { useClubPmAuth } from '../clubpm/ClubPmAuth';
 
 const NAV_LINKS = [
   { label: 'Home',     to: '/' },
@@ -15,7 +16,10 @@ const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [teamsOpen, setTeamsOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
   const { pathname } = useLocation();
+  const navigate = useNavigate();
+  const { member, logout } = useClubPmAuth();
 
   const isTeamsActive = TEAMS_PATHS.some(p => pathname === p || pathname.startsWith(p + '/'));
 
@@ -45,12 +49,18 @@ const Navbar = () => {
   useEffect(() => {
     const onClickOutside = (e) => {
       if (!e.target.closest('#teams-dropdown')) setTeamsOpen(false);
+      if (!e.target.closest('#profile-dropdown')) setProfileOpen(false);
     };
     document.addEventListener('mousedown', onClickOutside);
     return () => document.removeEventListener('mousedown', onClickOutside);
   }, []);
 
   const handleTeamsLinkClick = () => setTeamsOpen(false);
+  const handleProfileLinkClick = () => setProfileOpen(false);
+  const handleLogout = () => {
+    logout();
+    setProfileOpen(false);
+  };
 
   return (
     <nav id="header-navbar" className={`navbar navbar-expand-lg${(isScrolled || menuOpen) ? '' : ' nav-transparent'}`}>
@@ -147,12 +157,40 @@ const Navbar = () => {
               <li className="nav-item mr-1">
                 <SearchBar />
               </li>
-              <li className="nav-item" style={{ position: 'relative' }}>
-                <Link className="nav-link" to="/clubpm">Club PM</Link>
-                {pathname.startsWith('/clubpm') && (
-                  <motion.span layoutId="nav-underline" className="nav-active-indicator" />
-                )}
-              </li>
+              {member ? (
+                <li className="nav-item" id="profile-dropdown" style={{ position: 'relative', display: 'flex', alignItems: 'center', marginLeft: '1rem' }}>
+                  <button
+                    className="nav-link teams-dropdown-toggle d-flex align-items-center"
+                    onClick={() => setProfileOpen(v => !v)}
+                    style={{ background: 'transparent', border: 'none', padding: 0 }}
+                  >
+                    {member.avatarUrl ? (
+                      <img src={member.avatarUrl} alt={member.displayName} style={{ width: '2rem', height: '2rem', borderRadius: '50%', border: '2px solid var(--clubpm-accent-primary)' }} />
+                    ) : (
+                      <div style={{ width: '2rem', height: '2rem', borderRadius: '50%', backgroundColor: 'var(--clubpm-accent-primary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>
+                        {member.displayName?.charAt(0)}
+                      </div>
+                    )}
+                  </button>
+                  {profileOpen && (
+                    <div className="teams-dropdown-menu" style={{ right: 0, left: 'auto', minWidth: '200px' }}>
+                      <div className="px-3 py-2 border-bottom border-secondary mb-2">
+                        <strong>{member.displayName}</strong>
+                        <div className="text-muted small">{member.slackHandle}</div>
+                      </div>
+                      <Link className="teams-dropdown-item" to="/clubpm" onClick={handleProfileLinkClick}>Dashboard</Link>
+                      <button className="teams-dropdown-item text-danger" onClick={handleLogout} style={{ border: 'none', background: 'transparent', width: '100%', textAlign: 'left' }}>Logout</button>
+                    </div>
+                  )}
+                </li>
+              ) : (
+                <li className="nav-item" style={{ position: 'relative' }}>
+                  <Link className="nav-link" to="/clubpm">Club PM</Link>
+                  {pathname.startsWith('/clubpm') && (
+                    <motion.span layoutId="nav-underline" className="nav-active-indicator" />
+                  )}
+                </li>
+              )}
               <li className="nav-item" style={{ position: 'relative' }}>
                 <Link className="nav-link" to="/outreach">Outreach</Link>
                 {pathname === '/outreach' && (

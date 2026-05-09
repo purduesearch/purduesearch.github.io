@@ -73,7 +73,8 @@ export async function openStandupModal(
 export async function openNewTaskModal(
   client: WebClient,
   triggerId: string,
-  channelId: string
+  channelId: string,
+  initialTitle?: string
 ): Promise<void> {
   // Get all active projects for the dropdown
   const projects = await prisma.project.findMany({
@@ -89,6 +90,19 @@ export async function openNewTaskModal(
 
   // Try to pre-select the current channel's project
   const channelProject = await getProjectByChannel(channelId);
+
+  // Fetch open tasks to allow picking a parent task
+  const openTasks = await prisma.task.findMany({
+    where: { status: { not: "DONE" }, parentTaskId: null },
+    include: { project: true },
+    orderBy: { createdAt: "desc" },
+    take: 100,
+  });
+
+  const parentTaskOptions = openTasks.map((t) => ({
+    text: { type: "plain_text" as const, text: `${t.title} — ${t.project.name}`.slice(0, 75) },
+    value: t.id,
+  }));
 
   await client.views.open({
     trigger_id: triggerId,
@@ -107,6 +121,7 @@ export async function openNewTaskModal(
             type: "plain_text_input",
             action_id: "title",
             placeholder: { type: "plain_text", text: "Task title..." },
+            ...(initialTitle ? { initial_value: initialTitle } : {}),
           },
         },
         {
@@ -151,11 +166,11 @@ export async function openNewTaskModal(
           label: { type: "plain_text", text: "Assignee" },
           optional: true,
           element: {
-            type: "users_select",
-            action_id: "assignee",
+            type: "multi_users_select",
+            action_id: "assignees",
             placeholder: {
               type: "plain_text",
-              text: "Select a team member",
+              text: "Select team members",
             },
           },
         },
@@ -170,6 +185,22 @@ export async function openNewTaskModal(
             placeholder: { type: "plain_text", text: "Select a date" },
           },
         },
+        ...(parentTaskOptions.length > 0
+          ? [
+              {
+                type: "input" as const,
+                block_id: "parent_task_block",
+                label: { type: "plain_text" as const, text: "Parent Task (Make this a subtask)" },
+                optional: true,
+                element: {
+                  type: "static_select" as const,
+                  action_id: "parent_task",
+                  placeholder: { type: "plain_text" as const, text: "Select a parent task" },
+                  options: parentTaskOptions as any,
+                },
+              },
+            ]
+          : []),
         {
           type: "input",
           block_id: "priority_block",
@@ -205,6 +236,86 @@ export async function openNewTaskModal(
     },
   });
 }
+
+export async function openNewProjectModal(
+  client: WebClient,
+  triggerId: string,
+  channelId?: string
+): Promise<void> {
+  await client.views.open({
+    trigger_id: triggerId,
+    view: {
+      type: "modal",
+      callback_id: "new_project_submit",
+      private_metadata: channelId || "",
+      title: { type: "plain_text", text: "Create Project" },
+      submit: { type: "plain_text", text: "Create" },
+      blocks: [
+        {
+          type: "input",
+          block_id: "name_block",
+          label: { type: "plain_text", text: "Project Name" },
+          element: {
+            type: "plain_text_input",
+            action_id: "name",
+            placeholder: { type: "plain_text", text: "e.g. Lunar Rover" },
+          },
+        },
+        {
+          type: "input",
+          block_id: "description_block",
+          label: { type: "plain_text", text: "Description" },
+          optional: true,
+          element: {
+            type: "plain_text_input",
+            action_id: "description",
+            multiline: true,
+            placeholder: { type: "plain_text", text: "What is this project about?" },
+          },
+        },
+        {
+          type: "input",
+          block_id: "type_block",
+          label: { type: "plain_text", text: "Project Type" },
+          element: {
+            type: "static_select",
+            action_id: "type",
+            placeholder: { type: "plain_text", text: "Select type" },
+            options: [
+              { text: { type: "plain_text", text: "Engineering" }, value: "ENGINEERING" },
+              { text: { type: "plain_text", text: "Research" }, value: "RESEARCH" },
+              { text: { type: "plain_text", text: "Hybrid" }, value: "HYBRID" },
+            ],
+          },
+        },
+        {
+          type: "input",
+          block_id: "channel_block",
+          label: { type: "plain_text", text: "Link Slack Channel" },
+          optional: true,
+          element: {
+            type: "channels_select",
+            action_id: "channel",
+            placeholder: { type: "plain_text", text: "Select a channel" },
+            ...(channelId ? { initial_channel: channelId } : {}),
+          },
+        },
+        {
+          type: "input",
+          block_id: "target_date_block",
+          label: { type: "plain_text", text: "Target Completion Date" },
+          optional: true,
+          element: {
+            type: "datepicker",
+            action_id: "target_date",
+            placeholder: { type: "plain_text", text: "Select a date" },
+          },
+        },
+      ],
+    },
+  });
+}
+
 
 export async function openAddNoteModal(
   client: WebClient,
@@ -326,8 +437,8 @@ export function registerModals(app: App): void {
         values.description_block?.description?.value ?? undefined;
       const projectId =
         values.project_block?.project?.selected_option?.value ?? "";
-      const assigneeSlackId =
-        values.assignee_block?.assignee?.selected_user ?? undefined;
+      const assigneeSlackIds =
+        values.assignee_block?.assignees?.selected_users ?? [];
       const dueDateStr =
         values.due_date_block?.due_date?.selected_date ?? undefined;
       const priority =
@@ -336,29 +447,31 @@ export function registerModals(app: App): void {
           | "MEDIUM"
           | "HIGH"
           | "CRITICAL") ?? "MEDIUM";
+      const parentTaskId =
+        values.parent_task_block?.parent_task?.selected_option?.value ?? undefined;
 
       if (!projectId || projectId === "none") return;
 
-      // Resolve assignee
-      let assigneeId: string | undefined;
-      if (assigneeSlackId) {
+      // Resolve assignees
+      const assigneeIds: string[] = [];
+      for (const slackId of assigneeSlackIds) {
         let member = await prisma.member.findUnique({
-          where: { slackId: assigneeSlackId },
+          where: { slackId },
         });
         if (!member) {
-          const userInfo = await client.users.info({ user: assigneeSlackId });
+          const userInfo = await client.users.info({ user: slackId });
           const profile = userInfo.user?.profile;
           member = await prisma.member.create({
             data: {
-              slackId: assigneeSlackId,
-              slackHandle: userInfo.user?.name ?? assigneeSlackId,
+              slackId,
+              slackHandle: userInfo.user?.name ?? slackId,
               displayName:
-                profile?.display_name || profile?.real_name || assigneeSlackId,
+                profile?.display_name || profile?.real_name || slackId,
               avatarUrl: profile?.image_72 ?? undefined,
             },
           });
         }
-        assigneeId = member.id;
+        assigneeIds.push(member.id);
       }
 
       // Parse due date
@@ -369,9 +482,10 @@ export function registerModals(app: App): void {
         title,
         description,
         projectId,
-        assigneeId,
+        assigneeIds,
         dueDate,
         priority,
+        parentTaskId,
       });
 
       // Fetch full task with relations for the card
@@ -381,13 +495,9 @@ export function registerModals(app: App): void {
           where: { id: projectId },
         });
         if (project) {
-          const assignee = assigneeId
-            ? await prisma.member.findUnique({ where: { id: assigneeId } })
-            : null;
-
           await client.chat.postMessage({
             channel: channelId,
-            blocks: buildTaskCard(fullTask, assignee, project),
+            blocks: buildTaskCard(fullTask, project),
             text: `✅ New task created: ${title}`,
           });
         }
@@ -470,7 +580,7 @@ export function registerModals(app: App): void {
         });
       }
 
-      await updateTask(taskId, { assigneeId: member.id });
+      await updateTask(taskId, { assigneeIds: [member.id] });
 
       const task = await getTask(taskId);
       if (task) {
@@ -483,5 +593,272 @@ export function registerModals(app: App): void {
     } catch (error) {
       console.error("Reassign submission error:", error);
     }
+  });
+
+  // ── New Project Submission ────────────────────────────────
+  app.view("new_project_submit", async ({ ack, view, client, body }) => {
+    await ack();
+
+    try {
+      const values = view.state.values;
+      const name = values.name_block?.name?.value ?? "Untitled Project";
+      const description = values.description_block?.description?.value ?? null;
+      const type = (values.type_block?.type?.selected_option?.value as any) ?? "ENGINEERING";
+      const slackChannel = values.channel_block?.channel?.selected_channel ?? null;
+      const targetDateStr = values.target_date_block?.target_date?.selected_date ?? null;
+      const targetDate = targetDateStr ? new Date(targetDateStr) : null;
+
+      const project = await prisma.project.create({
+        data: {
+          name,
+          description,
+          type,
+          slackChannel,
+          targetDate,
+        },
+      });
+
+      // Notify the user
+      await client.chat.postMessage({
+        channel: body.user.id,
+        text: `✅ Project *${name}* created successfully!\nView it on the dashboard: ${process.env.FRONTEND_URL}/clubpm/projects/${project.id}`,
+      });
+
+      // If a channel was linked, post a welcome message there
+      if (slackChannel) {
+        await client.chat.postMessage({
+          channel: slackChannel,
+          text: `🚀 This channel is now linked to the project *${name}*! Use \`/pm\` to manage tasks.`,
+        });
+      }
+    } catch (error: any) {
+      console.error("New project submission error:", error);
+      // DM the user with a meaningful error
+      const msg = error?.code === "P2002"
+        ? "❌ That Slack channel is already linked to another project. Please pick a different channel or leave it blank."
+        : `❌ Failed to create project: ${error?.message ?? "Unknown error"}`;
+      try {
+        await client.chat.postMessage({ channel: body.user.id, text: msg });
+      } catch { /* silent */ }
+    }
+  });
+
+  // ── Snooze Task Submission ─────────────────────────────────
+  app.view("snooze_submit", async ({ ack, view, client, body }) => {
+    await ack();
+
+    try {
+      const taskId = view.private_metadata;
+      const values = view.state.values;
+      const dateStr = values.date_block?.due_date?.selected_date;
+
+      if (!dateStr) return;
+      const dueDate = new Date(dateStr);
+
+      await updateTask(taskId, { dueDate });
+
+      const task = await getTask(taskId);
+      if (task) {
+        // Notify in DM
+        await client.chat.postMessage({
+          channel: body.user.id,
+          text: `✅ Task "${task.title}" has been snoozed to ${dueDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })}.`,
+        });
+      }
+    } catch (error) {
+      console.error("Snooze submission error:", error);
+    }
+  });
+
+  // ── Task Done Submission ──────────────────────────────────
+  app.view("task_done_submit", async ({ ack, view, client, body }) => {
+    await ack();
+    try {
+      const taskId = view.state.values.task_block?.task_id?.selected_option?.value;
+      if (!taskId || taskId === "none") return;
+
+      const task = await getTask(taskId);
+      if (!task) return;
+
+      await updateTask(taskId, { status: "DONE" });
+
+      await client.chat.postMessage({
+        channel: body.user.id,
+        text: `✅ Task marked as done: *${task.title}*`,
+      });
+    } catch (error) {
+      console.error("task_done_submit error:", error);
+    }
+  });
+
+  // ── Status View Submission ────────────────────────────────
+  app.view("status_view_submit", async ({ ack, view, client, body }) => {
+    await ack();
+    try {
+      const projectId = view.state.values.project_block?.project_id?.selected_option?.value;
+      if (!projectId || projectId === "none") return;
+
+      const project = await prisma.project.findUnique({
+        where: { id: projectId },
+        include: {
+          tasks: { include: { assignees: true } },
+          members: { include: { member: true } },
+        },
+      });
+      if (!project) return;
+
+      const { buildProjectStatusCard } = await import("../utils/blockKit.js");
+      await client.chat.postMessage({
+        channel: body.user.id,
+        blocks: buildProjectStatusCard(project, project.tasks),
+        text: `Status for ${project.name}`,
+      });
+    } catch (error) {
+      console.error("status_view_submit error:", error);
+    }
+  });
+}
+
+// ── Snooze Modal Builder ─────────────────────────────────────
+
+export async function openSnoozeModal(
+  client: WebClient,
+  triggerId: string,
+  taskId: string
+): Promise<void> {
+  const task = await getTask(taskId);
+  if (!task) return;
+
+  await client.views.open({
+    trigger_id: triggerId,
+    view: {
+      type: "modal",
+      callback_id: "snooze_submit",
+      private_metadata: taskId,
+      title: { type: "plain_text", text: "Snooze Task" },
+      submit: { type: "plain_text", text: "Save" },
+      blocks: [
+        {
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: `Select a new due date for *${task.title}*:`,
+          },
+        },
+        {
+          type: "input",
+          block_id: "date_block",
+          label: { type: "plain_text", text: "New Due Date" },
+          element: {
+            type: "datepicker",
+            action_id: "due_date",
+            initial_date: task.dueDate
+              ? task.dueDate.toISOString().split("T")[0]
+              : new Date().toISOString().split("T")[0],
+            placeholder: {
+              type: "plain_text",
+              text: "Select a date",
+            },
+          },
+        },
+      ],
+    },
+  });
+}
+
+// ── Task Done Picker Modal ────────────────────────────────────
+
+export async function openTaskDoneModal(
+  client: WebClient,
+  triggerId: string,
+  userId: string
+): Promise<void> {
+  // Get open tasks for this user's channel or all tasks assigned to them
+  const member = await prisma.member.findUnique({ where: { slackId: userId } });
+
+  const tasks = await prisma.task.findMany({
+    where: member
+      ? { assignees: { some: { id: member.id } }, status: { not: "DONE" } }
+      : { status: { not: "DONE" } },
+    include: { project: true },
+    orderBy: { createdAt: "desc" },
+    take: 50,
+  });
+
+  const options = tasks.map(t => ({
+    text: { type: "plain_text" as const, text: `${t.title} — ${t.project.name}`.slice(0, 75) },
+    value: t.id,
+  }));
+
+  if (options.length === 0) {
+    options.push({ text: { type: "plain_text", text: "No open tasks found" }, value: "none" });
+  }
+
+  await client.views.open({
+    trigger_id: triggerId,
+    view: {
+      type: "modal",
+      callback_id: "task_done_submit",
+      title: { type: "plain_text", text: "Mark Task Done" },
+      submit: { type: "plain_text", text: "Mark Done ✅" },
+      blocks: [
+        {
+          type: "input",
+          block_id: "task_block",
+          label: { type: "plain_text", text: "Select a task to complete" },
+          element: {
+            type: "static_select",
+            action_id: "task_id",
+            placeholder: { type: "plain_text", text: "Choose a task..." },
+            options,
+          },
+        },
+      ],
+    },
+  });
+}
+
+// ── Status Picker Modal ───────────────────────────────────────
+
+export async function openStatusModal(
+  client: WebClient,
+  triggerId: string
+): Promise<void> {
+  const projects = await prisma.project.findMany({
+    where: { status: "ACTIVE" },
+    select: { id: true, name: true },
+    orderBy: { name: "asc" },
+  });
+
+  const options = projects.map(p => ({
+    text: { type: "plain_text" as const, text: p.name },
+    value: p.id,
+  }));
+
+  if (options.length === 0) {
+    options.push({ text: { type: "plain_text", text: "No active projects" }, value: "none" });
+  }
+
+  await client.views.open({
+    trigger_id: triggerId,
+    view: {
+      type: "modal",
+      callback_id: "status_view_submit",
+      title: { type: "plain_text", text: "Project Status" },
+      submit: { type: "plain_text", text: "View Status 📊" },
+      blocks: [
+        {
+          type: "input",
+          block_id: "project_block",
+          label: { type: "plain_text", text: "Select a project" },
+          element: {
+            type: "static_select",
+            action_id: "project_id",
+            placeholder: { type: "plain_text", text: "Choose a project..." },
+            options,
+          },
+        },
+      ],
+    },
   });
 }

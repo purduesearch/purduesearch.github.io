@@ -8,6 +8,9 @@ import { authRouter } from "./api/auth.js";
 import { projectsRouter } from "./api/projects.js";
 import { tasksRouter } from "./api/tasks.js";
 import { membersRouter } from "./api/members.js";
+import { activityRouter } from "./api/activity.js";
+import { milestonesRouter } from "./api/milestones.js";
+import { reportingRouter } from "./api/reporting.js";
 import { startScheduler } from "./slack/scheduler.js";
 
 // ── Express Setup ────────────────────────────────────────────
@@ -52,6 +55,9 @@ app.use("/auth", authRouter);
 app.use("/api/projects", projectsRouter);
 app.use("/api/tasks", tasksRouter);
 app.use("/api/members", membersRouter);
+app.use("/api/activity", activityRouter);
+app.use("/api/milestones", milestonesRouter);
+app.use("/api/reporting", reportingRouter);
 
 // Health check
 app.get("/api/health", (_req, res) => {

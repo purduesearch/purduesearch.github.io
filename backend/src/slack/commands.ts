@@ -1,13 +1,7 @@
 import type { App } from "@slack/bolt";
 import { prisma } from "../db/prisma.js";
-import { createTask, updateTask, getTask } from "../services/taskService.js";
-import {
-  getProjectByChannel,
-  findProjectByName,
-} from "../services/projectService.js";
-import { buildTaskCard, buildProjectStatusCard, buildHelpCard } from "../utils/blockKit.js";
-import { extractDueDate } from "../utils/dateParser.js";
-import { openStandupModal, openNewTaskModal } from "./modals.js";
+import { buildHelpCard } from "../utils/blockKit.js";
+import { openStandupModal, openNewTaskModal, openNewProjectModal, openTaskDoneModal, openStatusModal } from "./modals.js";
 
 // ── Command Registration ─────────────────────────────────────
 
@@ -23,25 +17,34 @@ export function registerCommands(app: App): void {
       switch (subcommand) {
         case "task": {
           const action = args[1]?.toLowerCase();
-          if (action === "create") {
-            await handleTaskCreate(app, command, respond);
-          } else if (action === "done") {
-            await handleTaskDone(args[2], command, respond);
+          if (action === "done") {
+            // Open modal with task picker instead of text-based lookup
+            await openTaskDoneModal(client, command.trigger_id, command.user_id);
           } else {
-            // Open the full task creation modal instead
+            // Always open the full task creation modal
             await openNewTaskModal(client, command.trigger_id, command.channel_id);
           }
           break;
         }
 
         case "status": {
-          const projectName = args.slice(1).join(" ");
-          await handleStatus(projectName, command, respond);
+          // Open modal with project picker
+          await openStatusModal(client, command.trigger_id);
           break;
         }
 
         case "standup": {
           await openStandupModal(client, command.trigger_id, command.channel_id);
+          break;
+        }
+
+        case "project": {
+          await openNewProjectModal(client, command.trigger_id, command.channel_id);
+          break;
+        }
+
+        case "my-tasks": {
+          await handleMyTasks(command, respond);
           break;
         }
 
@@ -68,123 +71,44 @@ export function registerCommands(app: App): void {
 
 // ── Subcommand Handlers ──────────────────────────────────────
 
-async function handleTaskCreate(
-  _app: App,
-  command: { text: string; channel_id: string; user_id: string },
+
+async function handleMyTasks(
+  command: { user_id: string },
   respond: (msg: Record<string, unknown>) => Promise<unknown>
 ): Promise<void> {
-  const text = command.text;
-
-  // Parse: /pm task create "Title" @user due:friday
-  const titleMatch = text.match(/"([^"]+)"/);
-  const title = titleMatch?.[1];
-  if (!title) {
-    await respond({
-      response_type: "ephemeral",
-      text: '❌ Please provide a task title in quotes: `/pm task create "My Task" @user due:friday`',
-    });
-    return;
-  }
-
-  // Find the project for this channel
-  const project = await getProjectByChannel(command.channel_id);
-  if (!project) {
-    await respond({
-      response_type: "ephemeral",
-      text: "❌ This channel is not linked to a project. Link it first in the dashboard.",
-    });
-    return;
-  }
-
-  // Parse assignee (@user mention)
-  const userMatch = text.match(/<@(\w+)(?:\|[^>]*)?>/);
-  let assigneeId: string | undefined;
-  if (userMatch?.[1]) {
-    const member = await prisma.member.findUnique({
-      where: { slackId: userMatch[1] },
-    });
-    if (member) {
-      assigneeId = member.id;
-    }
-  }
-
-  // Parse due date
-  const dueDate = extractDueDate(text) ?? undefined;
-
-  // Create task
-  const task = await createTask({
-    title,
-    projectId: project.id,
-    assigneeId,
-    dueDate,
-    slackMsgTs: undefined,
+  const member = await prisma.member.findUnique({
+    where: { slackId: command.user_id },
   });
 
-  const assignee = assigneeId
-    ? await prisma.member.findUnique({ where: { id: assigneeId } })
-    : null;
+  if (!member) {
+    await respond({
+      response_type: "ephemeral",
+      text: "❌ You are not registered as a member yet. Join a project channel first.",
+    });
+    return;
+  }
 
-  await respond({
-    response_type: "in_channel",
-    blocks: buildTaskCard(task, assignee, project),
-    text: `✅ Task created: ${title}`,
+  const tasks = await prisma.task.findMany({
+    where: { assignees: { some: { id: member.id } }, status: { not: "DONE" } },
+    include: { project: true, assignees: true },
+    orderBy: [
+      { dueDate: "asc" },
+      { priority: "desc" }
+    ],
   });
-}
 
-async function handleTaskDone(
-  taskId: string | undefined,
-  _command: { user_id: string },
-  respond: (msg: Record<string, unknown>) => Promise<unknown>
-): Promise<void> {
-  if (!taskId) {
+  if (tasks.length === 0) {
     await respond({
       response_type: "ephemeral",
-      text: "❌ Please provide a task ID: `/pm task done [task-id]`",
+      text: "🎉 You have no open tasks! Great job.",
     });
     return;
   }
 
-  const task = await getTask(taskId);
-  if (!task) {
-    await respond({
-      response_type: "ephemeral",
-      text: `❌ Task not found: \`${taskId}\``,
-    });
-    return;
-  }
-
-  await updateTask(taskId, { status: "DONE" });
-
-  await respond({
-    response_type: "in_channel",
-    text: `✅ Task completed: ~${task.title}~`,
-  });
-}
-
-async function handleStatus(
-  projectName: string,
-  command: { channel_id: string },
-  respond: (msg: Record<string, unknown>) => Promise<unknown>
-): Promise<void> {
-  let project;
-  if (projectName) {
-    project = await findProjectByName(projectName);
-  } else {
-    project = await getProjectByChannel(command.channel_id);
-  }
-
-  if (!project) {
-    await respond({
-      response_type: "ephemeral",
-      text: projectName
-        ? `❌ Project not found: "${projectName}"`
-        : "❌ This channel is not linked to a project.",
-    });
-    return;
-  }
-
+  const { buildWeeklyDigest } = await import("../utils/blockKit.js");
+  
   await respond({
     response_type: "ephemeral",
-    blocks: buildProjectStatusCard(project, project.tasks),
+    blocks: buildWeeklyDigest(member, tasks),
   });
 }

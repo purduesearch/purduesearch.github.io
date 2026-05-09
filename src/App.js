@@ -3,8 +3,8 @@ import { AnimatePresence } from 'framer-motion';
 import ScrollToTop from './components/ScrollToTop';
 import ReadingProgress from './components/ReadingProgress';
 import PageWrapper from './components/PageWrapper';
+import Navbar from './components/Navbar';
 import { ClubPmAuthProvider, useClubPmAuth } from './clubpm/ClubPmAuth';
-import ClubPmNavBar from './components/clubpm/ClubPmNavBar';
 import ClubPmLogin from './pages/ClubPM/Login';
 import ClubPmDashboard from './pages/ClubPM/Dashboard';
 import ClubPmProjectDetail from './pages/ClubPM/ProjectDetail';
@@ -36,7 +36,7 @@ function ClubPmProtectedPage({ children }) {
 
   if (loading) {
     return (
-      <div className="clubpm-app" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
+      <div className="clubpm-app" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: '#0a0a12' }}>
         <div className="cpm-spinner" />
       </div>
     );
@@ -48,7 +48,7 @@ function ClubPmProtectedPage({ children }) {
 
   return (
     <div className="clubpm-app">
-      <ClubPmNavBar />
+      <Navbar />
       <main style={{ flex: 1 }}>{children}</main>
     </div>
   );
@@ -68,7 +68,7 @@ function AnimatedRoutes() {
           {/* Club PM routes */}
           <Route path="/clubpm/login" element={
             <div className="clubpm-app">
-              <ClubPmNavBar />
+              <Navbar />
               <ClubPmLogin />
             </div>
           } />

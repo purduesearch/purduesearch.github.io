@@ -44,8 +44,19 @@ export async function getProject(id: string) {
     include: {
       members: { include: { member: true } },
       tasks: {
-        include: { assignee: true },
+        where: { parentTaskId: null }, // top-level tasks only
+        include: {
+          assignees: true,
+          subtasks: { include: { assignees: true }, orderBy: { createdAt: "asc" } },
+          blockedBy: { select: { id: true, title: true, status: true } },
+          blocking: { select: { id: true, title: true, status: true } },
+          milestone: true,
+        },
         orderBy: { createdAt: "desc" },
+      },
+      milestones: {
+        include: { tasks: { select: { id: true, status: true } } },
+        orderBy: { dueDate: "asc" },
       },
       updates: {
         orderBy: { postedAt: "desc" },
@@ -56,11 +67,11 @@ export async function getProject(id: string) {
 }
 
 export async function getProjectByChannel(channelId: string) {
-  return prisma.project.findUnique({
+  return prisma.project.findFirst({
     where: { slackChannel: channelId },
     include: {
       members: { include: { member: true } },
-      tasks: { include: { assignee: true } },
+      tasks: { include: { assignees: true } },
     },
   });
 }
@@ -130,7 +141,7 @@ export async function findProjectByName(name: string) {
     },
     include: {
       members: { include: { member: true } },
-      tasks: { include: { assignee: true } },
+      tasks: { include: { assignees: true } },
     },
   });
 }
