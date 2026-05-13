@@ -5766,7 +5766,8 @@ html::-webkit-scrollbar { display: none; }
   padding: 16px;
   border-bottom: 1px solid var(--clubpm-border);
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  align-items: flex-start;
   gap: 8px;
 }
 

@@ -436,7 +436,7 @@ function AssigneePanel({ members, onAssign }) {
               letterSpacing: 0.5,
             }}
           >
-            Drag to assign
+            Assignees
           </div>
           <input
             type="text"
@@ -613,7 +613,7 @@ export default function ProjectDetail() {
             borderRadius: "50%",
             border: "2px solid var(--clubpm-accent-primary)",
             borderTopColor: "transparent",
-            animation: "spin 0.8s linear infinite",
+            animation: "clubpm-spin 0.8s linear infinite",
           }}
         />
       </div>
@@ -668,7 +668,6 @@ export default function ProjectDetail() {
           <header className="cpm-proj-main-header">
             <div style={{ display: "flex", alignItems: "baseline", flexWrap: "wrap", gap: 12 }}>
               <h1
-                className="text-xl"
                 style={{
                   fontSize: 20,
                   fontWeight: 700,
