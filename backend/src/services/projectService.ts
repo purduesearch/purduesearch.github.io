@@ -5,12 +5,14 @@ import type {
   ProjectType,
   Prisma,
 } from "@prisma/client";
+import { boltApp } from "../slack/bolt.js";
 
 // ── Types ────────────────────────────────────────────────────
 
 interface CreateProjectInput {
   name: string;
   description?: string;
+  driveLink?: string;
   slackChannel?: string;
   type: ProjectType;
   startDate?: Date;
@@ -20,10 +22,37 @@ interface CreateProjectInput {
 interface UpdateProjectInput {
   name?: string;
   description?: string;
+  driveLink?: string;
   slackChannel?: string;
+  slackChannelId?: string | null;
+  slackChannelName?: string | null;
   status?: ProjectStatus;
   startDate?: Date;
   targetDate?: Date;
+}
+
+// ── Channel membership cache (60s TTL) ──────────────────────
+
+const channelMembersCache = new Map<string, { ids: string[]; ts: number }>();
+
+export async function getChannelMemberSlackIds(channelId: string): Promise<string[]> {
+  const cached = channelMembersCache.get(channelId);
+  if (cached && Date.now() - cached.ts < 60_000) return cached.ids;
+
+  const ids: string[] = [];
+  let cursor: string | undefined;
+  do {
+    const result = await boltApp.client.conversations.members({
+      channel: channelId,
+      limit: 200,
+      cursor,
+    });
+    ids.push(...(result.members ?? []));
+    cursor = result.response_metadata?.next_cursor || undefined;
+  } while (cursor);
+
+  channelMembersCache.set(channelId, { ids, ts: Date.now() });
+  return ids;
 }
 
 // ── Service ──────────────────────────────────────────────────
@@ -55,7 +84,7 @@ export async function getProject(id: string) {
         orderBy: { createdAt: "desc" },
       },
       milestones: {
-        include: { tasks: { select: { id: true, status: true } } },
+        select: { id: true, title: true, dueDate: true, status: true },
         orderBy: { dueDate: "asc" },
       },
       updates: {
@@ -66,14 +95,43 @@ export async function getProject(id: string) {
   });
 }
 
-export async function getProjectByChannel(channelId: string) {
-  return prisma.project.findFirst({
-    where: { slackChannel: channelId },
+export async function getProjectsForChannel(channelId: string) {
+  // Primary: look up via notification targets
+  const targets = await prisma.projectNotificationTarget.findMany({
+    where: { slackChannelId: channelId },
+    include: {
+      project: {
+        include: {
+          members: { include: { member: true } },
+          tasks: { include: { assignees: true } },
+        },
+      },
+    },
+  });
+
+  if (targets.length > 0) {
+    return targets.map(t => t.project);
+  }
+
+  // Fallback: direct slackChannelId link or legacy slackChannel field
+  const legacy = await prisma.project.findFirst({
+    where: {
+      OR: [
+        { slackChannelId: channelId },
+        { slackChannel: channelId },
+      ],
+    },
     include: {
       members: { include: { member: true } },
       tasks: { include: { assignees: true } },
     },
   });
+  return legacy ? [legacy] : [];
+}
+
+export async function getProjectByChannel(channelId: string) {
+  const projects = await getProjectsForChannel(channelId);
+  return projects[0] ?? null;
 }
 
 export async function createProject(data: CreateProjectInput): Promise<Project> {

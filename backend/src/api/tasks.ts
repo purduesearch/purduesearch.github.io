@@ -1,7 +1,9 @@
 import { Router, type Request, type Response } from "express";
 import { requireAuth } from "./auth.js";
+import { channelAuth } from "../middleware/channelAuth.js";
 import { updateTask, deleteTask, getTask, createSubtask, getSubtasks, addDependency, removeDependency } from "../services/taskService.js";
-import type { TaskStatus, Priority } from "@prisma/client";
+import { logAuditEvent, diffObjects } from "../services/activityService.js";
+import type { TaskStatus, TaskProgress, Priority } from "@prisma/client";
 
 export const tasksRouter = Router();
 
@@ -41,19 +43,21 @@ tasksRouter.get("/search", async (req: Request, res: Response) => {
 
 // ── PATCH /api/tasks/:id ─────────────────────────────────────
 
-tasksRouter.patch("/:id", async (req: Request, res: Response) => {
+tasksRouter.patch("/:id", channelAuth, async (req: Request, res: Response) => {
   try {
     const taskId = req.params.id as string;
-    const { title, description, status, priority, dueDate, assigneeIds, tags, attachments } =
+    const { title, description, status, progress, priority, dueDate, assigneeIds, tags, attachments, parentTaskId } =
       req.body as {
         title?: string;
         description?: string;
         status?: TaskStatus;
+        progress?: TaskProgress;
         priority?: Priority;
         dueDate?: string | null;
         assigneeIds?: string[];
         tags?: string[];
         attachments?: string[];
+        parentTaskId?: string | null;
       };
 
     const existingTask = await getTask(taskId);
@@ -62,16 +66,63 @@ tasksRouter.patch("/:id", async (req: Request, res: Response) => {
       return;
     }
 
+    if (parentTaskId !== undefined) {
+      console.log(`[updateTask] id=${taskId} parentTaskId=${parentTaskId ?? "null (removing parent)"}`);
+    }
+
     const task = await updateTask(taskId, {
       title,
       description,
       status,
+      progress,
       priority,
       dueDate: dueDate === null ? undefined : dueDate ? new Date(dueDate) : undefined,
       assigneeIds,
       tags,
       attachments,
+      parentTaskId,
     });
+
+    // Audit log — fire-and-forget, never block the response
+    (() => {
+      const memberId = (req.session as any).memberId as string | undefined;
+      const assigneesBefore = (existingTask.assignees ?? []).map((a: any) => a.id).sort().join(",");
+      const assigneesAfter  = (task.assignees ?? []).map((a: any) => a.id).sort().join(",");
+      const isNowDone        = existingTask.status !== "DONE" && task.status === "DONE";
+      const assigneesChanged = assigneesBefore !== assigneesAfter;
+
+      if (isNowDone) {
+        logAuditEvent({
+          taskId: taskId, memberId: memberId ?? null, source: "WEB",
+          eventType: "TASK_COMPLETED", payload: { taskTitle: task.title },
+        }).catch(console.error);
+      } else if (assigneesChanged && task.status === existingTask.status) {
+        logAuditEvent({
+          taskId: taskId, memberId: memberId ?? null, source: "WEB",
+          eventType: "TASK_ASSIGNED",
+          payload: {
+            taskTitle:     task.title,
+            assigneeNames: (task.assignees ?? []).map((a: any) => a.displayName),
+          },
+        }).catch(console.error);
+      } else {
+        const WATCHED = ["status", "priority", "dueDate", "title", "description"];
+        const changes = diffObjects(existingTask as any, task as any, WATCHED);
+        if (changes.length > 0) {
+          logAuditEvent({
+            taskId: taskId, memberId: memberId ?? null, source: "WEB",
+            eventType: "TASK_UPDATED",
+            payload: { taskTitle: task.title, changes },
+          }).catch(console.error);
+        }
+      }
+    })();
+
+    // If task is linked to a milestone, refresh its health (fire-and-forget)
+    if ((task as any).milestoneId) {
+      const { refreshMilestoneHealth } = await import("../services/milestoneService.js");
+      refreshMilestoneHealth((task as any).milestoneId).catch(console.error);
+    }
 
     res.json(task);
   } catch (error) {
@@ -82,7 +133,7 @@ tasksRouter.patch("/:id", async (req: Request, res: Response) => {
 
 // ── DELETE /api/tasks/:id ────────────────────────────────────
 
-tasksRouter.delete("/:id", async (req: Request, res: Response) => {
+tasksRouter.delete("/:id", channelAuth, async (req: Request, res: Response) => {
   try {
     const taskId = req.params.id as string;
     const existingTask = await getTask(taskId);
@@ -91,11 +142,66 @@ tasksRouter.delete("/:id", async (req: Request, res: Response) => {
       return;
     }
 
+    const memberId = (req.session as any).memberId as string | undefined;
     await deleteTask(taskId);
+
+    logAuditEvent({
+      projectId: existingTask.projectId,
+      memberId:  memberId ?? null,
+      source:    "WEB",
+      eventType: "TASK_DELETED",
+      payload:   { taskTitle: existingTask.title },
+    }).catch(console.error);
+
     res.json({ ok: true });
   } catch (error) {
     console.error("Delete task error:", error);
     res.status(500).json({ error: "Failed to delete task" });
+  }
+});
+
+// ── GET /api/tasks/:id/comments ──────────────────────────────
+
+tasksRouter.get("/:id/comments", async (req: Request, res: Response) => {
+  try {
+    const taskId = req.params.id as string;
+    const { prisma } = await import("../db/prisma.js");
+    const comments = await prisma.taskComment.findMany({
+      where: { taskId },
+      include: { author: true },
+      orderBy: { createdAt: "asc" },
+    });
+    res.json(comments);
+  } catch (error) {
+    console.error("Get comments error:", error);
+    res.status(500).json({ error: "Failed to get comments" });
+  }
+});
+
+// ── GET /api/tasks/:id/history ────────────────────────────────
+
+tasksRouter.get("/:id/history", async (req: Request, res: Response) => {
+  try {
+    const taskId = req.params.id as string;
+    const { prisma } = await import("../db/prisma.js");
+    const activities = await prisma.activity.findMany({
+      where: { entityId: taskId, entityType: "Task" },
+      include: { member: true },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+    });
+    // Normalize to the shape TaskModal expects: { actor, action, at }
+    const history = activities.map(a => ({
+      id: a.id,
+      actor: a.member,
+      action: a.type.toLowerCase().replace(/_/g, " "),
+      at: a.createdAt,
+      metadata: a.metadata,
+    }));
+    res.json(history);
+  } catch (error) {
+    console.error("Get history error:", error);
+    res.status(500).json({ error: "Failed to get history" });
   }
 });
 
