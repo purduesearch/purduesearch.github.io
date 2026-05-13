@@ -5729,7 +5729,7 @@ html::-webkit-scrollbar { display: none; }
 
 .cpm-project-layout {
   display: flex;
-  height: 100vh;
+  height: calc(100vh - 100px);
   overflow: hidden;
   background: var(--clubpm-surface-50);
 }

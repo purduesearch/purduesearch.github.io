@@ -649,7 +649,8 @@ export default function ProjectDetail() {
   }));
 
   return (
-    <div className="clubpm-app cpm-project-layout">
+    <div className="clubpm-app">
+    <div className="cpm-project-layout">
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}
@@ -868,6 +869,7 @@ export default function ProjectDetail() {
           onUpdate={handleTaskUpdate}
         />
       )}
+    </div>
     </div>
   );
 }
