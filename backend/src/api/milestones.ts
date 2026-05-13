@@ -43,17 +43,17 @@ milestonesRouter.get("/:id", async (req: Request, res: Response) => {
 
 milestonesRouter.post("/", async (req: Request, res: Response) => {
   try {
-    const { name, projectId, dueDate } = req.body as {
-      name: string;
+    const { title, projectId, dueDate } = req.body as {
+      title: string;
       projectId: string;
       dueDate?: string;
     };
-    if (!name || !projectId) {
-      res.status(400).json({ error: "name and projectId are required" });
+    if (!title || !projectId) {
+      res.status(400).json({ error: "title and projectId are required" });
       return;
     }
     const milestone = await createMilestone({
-      name,
+      title,
       projectId,
       dueDate: dueDate ? new Date(dueDate) : undefined,
     });
@@ -68,12 +68,12 @@ milestonesRouter.post("/", async (req: Request, res: Response) => {
 
 milestonesRouter.patch("/:id", async (req: Request, res: Response) => {
   try {
-    const { name, dueDate } = req.body as {
-      name?: string;
+    const { title, dueDate } = req.body as {
+      title?: string;
       dueDate?: string | null;
     };
     const milestone = await updateMilestone(req.params.id as string, {
-      name,
+      title,
       dueDate: dueDate === null ? null : dueDate ? new Date(dueDate) : undefined,
     });
     res.json(milestone);
