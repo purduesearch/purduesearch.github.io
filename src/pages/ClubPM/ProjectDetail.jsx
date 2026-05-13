@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams, Link } from "react-router-dom";
 import { get, patch } from "../../api/clubPmClient";
 import MemberBadge from "../../components/clubpm/MemberBadge";
@@ -8,6 +8,8 @@ import CalendarView from "../../components/clubpm/CalendarView";
 import ProjectActivity from "../../components/clubpm/ProjectActivity";
 import ReportingView from "../../components/clubpm/ReportingView";
 import MilestonePanel from "../../components/clubpm/MilestonePanel";
+import GanttChart from "../../components/clubpm/GanttChart";
+import { PriorityBars, AvatarStack } from "../../components/clubpm/TaskPrimitives";
 import {
   DndContext,
   DragOverlay,
@@ -15,30 +17,32 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
+  useDroppable,
+  useDraggable,
 } from "@dnd-kit/core";
 import {
   SortableContext,
   verticalListSortingStrategy,
   useSortable,
 } from "@dnd-kit/sortable";
-import { useDroppable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
 
 // ── Constants ────────────────────────────────────────────────
 
-const COLUMNS = [
-  { id: "TODO", label: "To Do", color: "var(--clubpm-text-secondary)", emoji: "📋" },
-  { id: "IN_PROGRESS", label: "In Progress", color: "var(--clubpm-accent-cyan)", emoji: "🔧" },
-  { id: "BLOCKED", label: "Blocked", color: "var(--clubpm-accent-red)", emoji: "🚫" },
-  { id: "DONE", label: "Done", color: "var(--clubpm-accent-green)", emoji: "✅" },
+const BINS = [
+  { id: "TODO",        label: "Not Started", color: "var(--clubpm-text-secondary)" },
+  { id: "IN_PROGRESS", label: "In Progress", color: "var(--clubpm-accent-cyan)" },
+  { id: "DONE",        label: "Completed",   color: "var(--clubpm-accent-green)" },
 ];
 
-const PRIORITY_BADGES = {
-  CRITICAL: { label: "CRIT", class: "bg-red-500/10 text-red-400 border-red-500/20" },
-  HIGH: { label: "HIGH", class: "bg-orange-500/10 text-orange-400 border-orange-500/20" },
-  MEDIUM: { label: "MED", class: "bg-yellow-500/10 text-yellow-400 border-yellow-500/20" },
-  LOW: { label: "LOW", class: "bg-green-500/10 text-green-400 border-green-500/20" },
-};
+const NAV_TABS = [
+  { id: "tasks",      label: "Tasks",      icon: "📋" },
+  { id: "calendar",   label: "Calendar",   icon: "📅" },
+  { id: "milestones", label: "Milestones", icon: "🎯" },
+  { id: "activity",   label: "Activity",   icon: "📜" },
+  { id: "reports",    label: "Reports",    icon: "📊" },
+  { id: "updates",    label: "Updates",    icon: "📝" },
+];
 
 const STATUS_BADGE = {
   ACTIVE: "clubpm-badge-active",
@@ -47,17 +51,455 @@ const STATUS_BADGE = {
   ARCHIVED: "clubpm-badge-archived",
 };
 
-// ── Component ────────────────────────────────────────────────
+const PROJECT_DOT_CLASS = {
+  ACTIVE: "cpm-dot-active",
+  PAUSED: "cpm-dot-paused",
+  COMPLETED: "cpm-dot-done",
+  ARCHIVED: "cpm-dot-muted",
+};
+
+// ── Project Sidebar (left column) ────────────────────────────
+
+function ProjectSidebar({ project, allProjects, activeTab, onTabChange }) {
+  const [projectsCollapsed, setProjectsCollapsed] = useState(false);
+  const currentDotClass = PROJECT_DOT_CLASS[project.status] ?? "cpm-dot-muted";
+
+  return (
+    <aside className="cpm-project-sidebar">
+      <div className="cpm-proj-sidebar-header">
+        <Link
+          to="/clubpm"
+          style={{
+            fontSize: 11,
+            color: "var(--clubpm-text-muted)",
+            textDecoration: "none",
+            display: "inline-block",
+            marginBottom: 10,
+          }}
+        >
+          ← Dashboard
+        </Link>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span className={`cpm-status-dot ${currentDotClass}`} />
+          <span
+            style={{
+              fontSize: 14,
+              fontWeight: 600,
+              color: "var(--clubpm-text-primary)",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+            title={project.name}
+          >
+            {project.name}
+          </span>
+        </div>
+      </div>
+
+      <div style={{ padding: "8px 0", display: "flex", flexDirection: "column", gap: 2 }}>
+        {NAV_TABS.map((tab) => (
+          <button
+            key={tab.id}
+            className={`cpm-proj-nav-item${activeTab === tab.id ? " active" : ""}`}
+            onClick={() => onTabChange(tab.id)}
+          >
+            <span style={{ marginRight: 8 }}>{tab.icon}</span>
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      <div
+        style={{
+          marginTop: 8,
+          paddingTop: 12,
+          borderTop: "1px solid var(--clubpm-border)",
+        }}
+      >
+        <button
+          onClick={() => setProjectsCollapsed((c) => !c)}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            width: "100%",
+            padding: "6px 16px",
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            color: "var(--clubpm-text-muted)",
+            fontSize: 11,
+            fontWeight: 600,
+            textTransform: "uppercase",
+            letterSpacing: 0.5,
+          }}
+        >
+          <i className={`fas fa-chevron-${projectsCollapsed ? "right" : "down"}`} style={{ fontSize: 9 }} />
+          Projects
+        </button>
+        {!projectsCollapsed && (
+          <div style={{ display: "flex", flexDirection: "column", padding: "4px 0" }}>
+            {allProjects.length === 0 ? (
+              <p style={{ padding: "8px 16px", fontSize: 12, color: "var(--clubpm-text-muted)" }}>
+                No projects
+              </p>
+            ) : (
+              allProjects.map((p) => (
+                <SidebarProjectItem key={p.id} project={p} isCurrent={p.id === project.id} />
+              ))
+            )}
+          </div>
+        )}
+      </div>
+    </aside>
+  );
+}
+
+function SidebarProjectItem({ project, isCurrent }) {
+  const dotClass = PROJECT_DOT_CLASS[project.status] ?? "cpm-dot-muted";
+  return (
+    <Link
+      to={`/clubpm/projects/${project.id}`}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+        padding: "6px 16px",
+        fontSize: 13,
+        color: isCurrent ? "var(--clubpm-text-primary)" : "var(--clubpm-text-secondary)",
+        background: isCurrent ? "var(--clubpm-surface-300)" : "transparent",
+        textDecoration: "none",
+        borderLeft: isCurrent ? "2px solid var(--clubpm-accent-primary)" : "2px solid transparent",
+      }}
+    >
+      <span className={`cpm-status-dot ${dotClass}`} />
+      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+        {project.name}
+      </span>
+    </Link>
+  );
+}
+
+// ── Progress Bar (top of tasks tab) ──────────────────────────
+
+function ProgressBar({ tasks }) {
+  const total = tasks.length;
+  const done = tasks.filter((t) => t.status === "DONE").length;
+  const inProgress = tasks.filter((t) => t.status === "IN_PROGRESS" || t.status === "BLOCKED").length;
+  const todo = Math.max(total - done - inProgress, 0);
+  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+
+  if (total === 0) {
+    return (
+      <div className="cpm-proj-progress-row">
+        <div className="cpm-progress-bar-track">
+          <div
+            className="cpm-progress-bar-segment"
+            style={{ width: "100%", background: "var(--clubpm-surface-400)" }}
+          />
+        </div>
+        <span className="cpm-proj-progress-pct">0%</span>
+        <span className="cpm-proj-progress-stats">
+          <span style={{ color: "var(--clubpm-text-muted)" }}>No tasks yet</span>
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="cpm-proj-progress-row">
+      <div className="cpm-progress-bar-track">
+        <div
+          className="cpm-progress-bar-segment"
+          style={{ width: `${(done / total) * 100}%`, background: "var(--clubpm-accent-green)" }}
+        />
+        <div
+          className="cpm-progress-bar-segment"
+          style={{ width: `${(inProgress / total) * 100}%`, background: "var(--clubpm-accent-cyan)" }}
+        />
+        <div
+          className="cpm-progress-bar-segment"
+          style={{ width: `${(todo / total) * 100}%`, background: "var(--clubpm-surface-400)" }}
+        />
+      </div>
+      <span className="cpm-proj-progress-pct">{pct}%</span>
+      <span className="cpm-proj-progress-stats">
+        <span style={{ color: "var(--clubpm-accent-green)" }}>■ {done}</span>
+        <span style={{ color: "var(--clubpm-accent-cyan)" }}>■ {inProgress}</span>
+        <span style={{ color: "var(--clubpm-text-muted)" }}>■ {todo}</span>
+      </span>
+    </div>
+  );
+}
+
+// ── Status Bin (collapsible droppable section) ───────────────
+
+function StatusBin({ bin, tasks, isOver, onTaskClick }) {
+  const [collapsed, setCollapsed] = useState(false);
+  const { setNodeRef } = useDroppable({ id: bin.id });
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={`cpm-status-bin${isOver ? " cpm-status-bin--over" : ""}`}
+    >
+      <div className="cpm-status-bin-header">
+        <button
+          onClick={() => setCollapsed((c) => !c)}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            flex: 1,
+            background: "none",
+            border: "none",
+            padding: 0,
+            cursor: "pointer",
+            color: bin.color,
+            fontSize: 13,
+            fontWeight: 600,
+          }}
+        >
+          <i
+            className={`fas fa-chevron-${collapsed ? "right" : "down"}`}
+            style={{ fontSize: 10, color: "var(--clubpm-text-muted)" }}
+          />
+          <span>{bin.label}</span>
+          <span style={{ color: "var(--clubpm-text-muted)", fontWeight: 400 }}>
+            {tasks.length}
+          </span>
+        </button>
+        <button
+          style={{
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            color: "var(--clubpm-text-muted)",
+            fontSize: 12,
+            padding: "2px 8px",
+          }}
+          title="Add task"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <i className="fas fa-plus" /> Add Task
+        </button>
+      </div>
+
+      {!collapsed && (
+        <SortableContext
+          items={tasks.map((t) => t.id)}
+          strategy={verticalListSortingStrategy}
+        >
+          <div style={{ display: "flex", flexDirection: "column" }}>
+            {tasks.length === 0 ? (
+              <div
+                style={{
+                  padding: "12px 16px",
+                  fontSize: 12,
+                  color: "var(--clubpm-text-muted)",
+                  fontStyle: "italic",
+                }}
+              >
+                Drop tasks here
+              </div>
+            ) : (
+              tasks.map((task) => (
+                <CompactTaskRow key={task.id} task={task} onClick={onTaskClick} />
+              ))
+            )}
+          </div>
+        </SortableContext>
+      )}
+    </div>
+  );
+}
+
+// ── Compact Task Row ─────────────────────────────────────────
+
+function CompactTaskRow({ task, onClick }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: task.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      className="cpm-task-row-compact"
+      onClick={() => {
+        if (!isDragging) onClick(task);
+      }}
+    >
+      <i
+        className="fas fa-grip-vertical"
+        style={{
+          color: "var(--clubpm-text-muted)",
+          fontSize: 11,
+          cursor: "grab",
+          flexShrink: 0,
+        }}
+      />
+      <span
+        className={`cpm-kanban-progress ${
+          task.status === "DONE"
+            ? "cpm-kanban-progress--done"
+            : task.status === "IN_PROGRESS" || task.status === "BLOCKED"
+            ? "cpm-kanban-progress--in"
+            : "cpm-kanban-progress--none"
+        }`}
+        style={{ flexShrink: 0 }}
+      >
+        {task.status === "DONE" && <i className="fas fa-check" style={{ fontSize: 6 }} />}
+      </span>
+      <PriorityBars priority={task.priority} />
+      <span className="cpm-task-row-compact-name">{task.title}</span>
+      <AvatarStack assignees={task.assignees} />
+      {task.dueDate && (
+        <span
+          style={{
+            fontSize: 11,
+            color: "var(--clubpm-text-muted)",
+            flexShrink: 0,
+            whiteSpace: "nowrap",
+          }}
+        >
+          {new Date(task.dueDate).toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+          })}
+        </span>
+      )}
+    </div>
+  );
+}
+
+// ── Assignee Panel (right column) ────────────────────────────
+
+function AssigneePanel({ members, onAssign }) {
+  const [collapsed, setCollapsed] = useState(false);
+  const [search, setSearch] = useState("");
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return members;
+    return members.filter((pm) =>
+      (pm.member?.displayName ?? "").toLowerCase().includes(q)
+    );
+  }, [members, search]);
+
+  return (
+    <aside className="cpm-assignee-panel">
+      <div className="cpm-assignee-panel-header">
+        <span style={{ fontSize: 13, fontWeight: 600, color: "var(--clubpm-text-primary)" }}>
+          Members
+        </span>
+        <button
+          onClick={() => setCollapsed((c) => !c)}
+          style={{
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            color: "var(--clubpm-text-muted)",
+            padding: 4,
+          }}
+          aria-label="Toggle members panel"
+        >
+          <i
+            className={`fas fa-chevron-${collapsed ? "left" : "right"}`}
+            style={{ fontSize: 11 }}
+          />
+        </button>
+      </div>
+
+      {!collapsed && (
+        <div style={{ padding: "8px 12px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
+          <div
+            style={{
+              fontSize: 10,
+              fontWeight: 600,
+              color: "var(--clubpm-text-muted)",
+              textTransform: "uppercase",
+              letterSpacing: 0.5,
+            }}
+          >
+            Drag to assign
+          </div>
+          <input
+            type="text"
+            className="cpm-assignee-search"
+            placeholder="Search members…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            {filtered.length === 0 ? (
+              <p style={{ fontSize: 12, color: "var(--clubpm-text-muted)", padding: "4px 0" }}>
+                No members
+              </p>
+            ) : (
+              filtered.map((pm) => (
+                <DraggableMemberChip key={pm.memberId} pm={pm} />
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </aside>
+  );
+}
+
+function DraggableMemberChip({ pm }) {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: `member-${pm.memberId}`,
+    data: { type: "member", memberId: pm.memberId },
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      {...attributes}
+      {...listeners}
+      className="cpm-assignee-chip"
+      style={{
+        opacity: isDragging ? 0.5 : 1,
+        cursor: "grab",
+      }}
+    >
+      <MemberBadge member={pm.member} size="sm" />
+      <span className="cpm-assignee-chip-name">{pm.member.displayName}</span>
+    </div>
+  );
+}
+
+// ── Main Component ───────────────────────────────────────────
 
 export default function ProjectDetail() {
   const { id } = useParams();
-  const { member, setMember } = useClubPmAuth();
+  // Auth context retained for potential future use; not actively used after rewrite
+  useClubPmAuth();
+
   const [project, setProject] = useState(null);
+  const [allProjects, setAllProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("tasks");
-  const [activeTask, setActiveTask] = useState(null); // For Drag Overlay
-  const [selectedTask, setSelectedTask] = useState(null); // For Task Modal
-  const [overColumn, setOverColumn] = useState(null); // For column highlight
+  const [activeTask, setActiveTask] = useState(null);     // For DragOverlay
+  const [selectedTask, setSelectedTask] = useState(null); // For TaskModal
+  const [overBin, setOverBin] = useState(null);
+  const [assigneePanelOpen] = useState(true); // reserved for future toggle UX
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
@@ -75,31 +517,47 @@ export default function ProjectDetail() {
     fetchProject();
   }, [fetchProject]);
 
+  useEffect(() => {
+    get("/api/projects")
+      .then(setAllProjects)
+      .catch(console.error);
+  }, []);
+
   const handleDragStart = (event) => {
-    const task = project?.tasks.find((t) => t.id === event.active.id);
+    const { active } = event;
+    // Only treat task drags as active task drags (member chips have ids prefixed "member-")
+    if (typeof active.id === "string" && active.id.startsWith("member-")) {
+      setActiveTask(null);
+      return;
+    }
+    const task = project?.tasks.find((t) => t.id === active.id);
     setActiveTask(task ?? null);
   };
 
   const handleDragOver = (event) => {
     const { over } = event;
-    if (over && COLUMNS.some((col) => col.id === over.id)) {
-      setOverColumn(over.id);
+    if (over && BINS.some((b) => b.id === over.id)) {
+      setOverBin(over.id);
     } else {
-      setOverColumn(null);
+      setOverBin(null);
     }
   };
 
   const handleDragEnd = async (event) => {
     setActiveTask(null);
-    setOverColumn(null);
+    setOverBin(null);
     const { active, over } = event;
     if (!over || !project) return;
+
+    // Member-chip drags are not yet wired up — ignore (see report).
+    if (typeof active.id === "string" && active.id.startsWith("member-")) {
+      return;
+    }
 
     const taskId = active.id;
     const newStatus = over.id;
 
-    // Check if dropped on a column
-    if (COLUMNS.some((col) => col.id === newStatus)) {
+    if (BINS.some((b) => b.id === newStatus)) {
       const task = project.tasks.find((t) => t.id === taskId);
       if (task && task.status !== newStatus) {
         // Optimistic update
@@ -111,7 +569,13 @@ export default function ProjectDetail() {
         });
 
         try {
-          await patch(`/api/tasks/${taskId}`, { status: newStatus });
+          const progress =
+            newStatus === "DONE"
+              ? "COMPLETED"
+              : newStatus === "IN_PROGRESS"
+              ? "IN_PROGRESS"
+              : "NO_PROGRESS";
+          await patch(`/api/tasks/${taskId}`, { status: newStatus, progress });
         } catch {
           fetchProject(); // Revert on error
         }
@@ -120,336 +584,291 @@ export default function ProjectDetail() {
   };
 
   const handleTaskUpdate = (updatedTask) => {
-    setProject({
-      ...project,
-      tasks: project.tasks.map(t => t.id === updatedTask.id ? updatedTask : t)
-    });
+    setProject((p) =>
+      p
+        ? {
+            ...p,
+            tasks: p.tasks.map((t) => (t.id === updatedTask.id ? updatedTask : t)),
+          }
+        : p
+    );
     setSelectedTask(updatedTask);
   };
 
   if (loading) {
     return (
-      <div className="clubpm-app flex items-center justify-center min-h-[60vh] bg-[var(--clubpm-surface-50)]">
-        <div className="w-8 h-8 rounded-full border-2 border-[var(--clubpm-accent-primary)] border-t-transparent clubpm-animate-spin" />
+      <div
+        className="clubpm-app"
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          minHeight: "60vh",
+        }}
+      >
+        <div
+          style={{
+            width: 32,
+            height: 32,
+            borderRadius: "50%",
+            border: "2px solid var(--clubpm-accent-primary)",
+            borderTopColor: "transparent",
+            animation: "spin 0.8s linear infinite",
+          }}
+        />
       </div>
     );
   }
 
   if (!project) {
     return (
-      <div className="clubpm-app min-h-screen bg-[var(--clubpm-surface-50)]">
-        <div className="max-w-7xl mx-auto px-6 py-12 text-center">
-          <p className="text-[var(--clubpm-text-muted)] text-lg">Project not found</p>
-          <Link to="/clubpm" className="text-[var(--clubpm-accent-primary)] text-sm mt-2 inline-block">
-            ← Back to Dashboard
-          </Link>
-        </div>
+      <div className="clubpm-app" style={{ minHeight: "100vh", padding: "48px 24px", textAlign: "center" }}>
+        <p style={{ color: "var(--clubpm-text-muted)", fontSize: 16 }}>Project not found</p>
+        <Link
+          to="/clubpm"
+          style={{
+            color: "var(--clubpm-accent-primary)",
+            fontSize: 13,
+            marginTop: 8,
+            display: "inline-block",
+          }}
+        >
+          ← Back to Dashboard
+        </Link>
       </div>
     );
   }
 
-  const orderPref = ["TODO", "IN_PROGRESS", "BLOCKED", "DONE"];
-  
-  const tasksByStatus = orderPref.map((colId) => {
-    const colDef = COLUMNS.find(c => c.id === colId) || COLUMNS.find(c => c.id === "TODO");
-    return {
-      ...colDef,
-      tasks: project.tasks.filter((t) => t.status === colId),
-    };
-  });
+  const tasksByBin = BINS.map((b) => ({
+    ...b,
+    tasks: project.tasks.filter(
+      (t) =>
+        t.status === b.id ||
+        (b.id === "IN_PROGRESS" && t.status === "BLOCKED")
+    ),
+  }));
 
   return (
-    <div className="clubpm-app min-h-screen bg-[var(--clubpm-surface-50)]">
-      <div className="w-full px-8 py-8 clubpm-animate-fade-in">
-        {/* Header */}
-        <div className="mb-6">
-          <Link
-            to="/clubpm"
-            className="text-sm text-[var(--clubpm-text-muted)] hover:text-[var(--clubpm-text-primary)] transition-colors no-underline mb-3 inline-block"
-          >
-            ← Dashboard
-          </Link>
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div>
-              <h1 className="text-3xl font-bold text-[var(--clubpm-text-primary)] mb-2">
+    <div className="clubpm-app cpm-project-layout">
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragStart={handleDragStart}
+        onDragOver={handleDragOver}
+        onDragEnd={handleDragEnd}
+      >
+        <ProjectSidebar
+          project={project}
+          allProjects={allProjects}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+        />
+
+        <main className="cpm-project-main">
+          <header className="cpm-proj-main-header">
+            <div style={{ display: "flex", alignItems: "baseline", flexWrap: "wrap", gap: 12 }}>
+              <h1
+                className="text-xl"
+                style={{
+                  fontSize: 20,
+                  fontWeight: 700,
+                  color: "var(--clubpm-text-primary)",
+                  margin: 0,
+                }}
+              >
                 {project.name}
               </h1>
-              {project.description && (
-                <p className="text-[var(--clubpm-text-secondary)] max-w-2xl mb-3">
-                  {project.description}
-                </p>
+              <span className={`clubpm-badge ${STATUS_BADGE[project.status] ?? ""}`}>
+                {project.status}
+              </span>
+              <span className={`clubpm-badge clubpm-badge-${project.type.toLowerCase()}`}>
+                {project.type}
+              </span>
+              {project.slackChannel && (
+                <span style={{ fontSize: 11, color: "var(--clubpm-text-muted)" }}>
+                  📌 Slack channel linked
+                </span>
               )}
-              <div className="flex flex-wrap items-center gap-2">
-                <span className={`clubpm-badge ${STATUS_BADGE[project.status] ?? ""}`}>
-                  {project.status}
-                </span>
-                <span className={`clubpm-badge clubpm-badge-${project.type.toLowerCase()}`}>
-                  {project.type}
-                </span>
-                {project.slackChannel && (
-                  <span className="text-xs text-[var(--clubpm-text-muted)]">
-                    📌 Slack channel linked
-                  </span>
+            </div>
+            {activeTab === "tasks" && <ProgressBar tasks={project.tasks} />}
+          </header>
+
+          {activeTab === "tasks" && (
+            <div className="cpm-proj-main-body" style={{ padding: "16px 0 24px" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 12, padding: "0 12px" }}>
+                {tasksByBin.map((bin) => (
+                  <StatusBin
+                    key={bin.id}
+                    bin={bin}
+                    tasks={bin.tasks}
+                    isOver={overBin === bin.id}
+                    onTaskClick={setSelectedTask}
+                  />
+                ))}
+              </div>
+
+              <div style={{ padding: "24px 0 0" }}>
+                <h3
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: "var(--clubpm-text-secondary)",
+                    padding: "0 12px 12px",
+                    margin: 0,
+                  }}
+                >
+                  Timeline
+                </h3>
+                <div
+                  className="clubpm-glass-card"
+                  style={{ margin: "0 12px 24px", overflow: "hidden" }}
+                >
+                  <GanttChart tasks={project.tasks} />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === "calendar" && (
+            <div className="cpm-proj-main-body" style={{ padding: "24px" }}>
+              <CalendarView tasks={project.tasks} onTaskClick={setSelectedTask} />
+            </div>
+          )}
+
+          {activeTab === "milestones" && (
+            <div className="cpm-proj-main-body" style={{ padding: "24px" }}>
+              <MilestonePanel projectId={project.id} onRefresh={fetchProject} />
+            </div>
+          )}
+
+          {activeTab === "activity" && (
+            <div className="cpm-proj-main-body" style={{ padding: "24px" }}>
+              <ProjectActivity projectId={project.id} />
+            </div>
+          )}
+
+          {activeTab === "reports" && (
+            <div className="cpm-proj-main-body" style={{ padding: "24px" }}>
+              <ReportingView projectId={project.id} />
+            </div>
+          )}
+
+          {activeTab === "updates" && (
+            <div className="cpm-proj-main-body" style={{ padding: "24px" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 16, maxWidth: 640 }}>
+                {(!project.updates || project.updates.length === 0) ? (
+                  <p style={{ color: "var(--clubpm-text-muted)", fontSize: 13 }}>
+                    No updates yet
+                  </p>
+                ) : (
+                  project.updates.map((update) => (
+                    <div key={update.id} className="clubpm-glass-card" style={{ padding: 16 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                        <div
+                          style={{
+                            width: 24,
+                            height: 24,
+                            borderRadius: "50%",
+                            background: "var(--clubpm-accent-primary)",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            fontSize: 11,
+                            fontWeight: 700,
+                            color: "white",
+                          }}
+                        >
+                          U
+                        </div>
+                        <span style={{ fontSize: 11, color: "var(--clubpm-text-muted)" }}>
+                          {new Date(update.postedAt).toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                            hour: "numeric",
+                            minute: "2-digit",
+                          })}
+                        </span>
+                      </div>
+                      <p
+                        style={{
+                          fontSize: 13,
+                          color: "var(--clubpm-text-secondary)",
+                          whiteSpace: "pre-wrap",
+                          margin: 0,
+                        }}
+                      >
+                        {update.content}
+                      </p>
+                    </div>
+                  ))
                 )}
               </div>
             </div>
-            <Link
-              to={`/clubpm/projects/${project.id}/gantt`}
-              className="clubpm-btn-primary text-sm no-underline"
-            >
-              📊 Gantt View
-            </Link>
-          </div>
-        </div>
+          )}
+        </main>
 
-        {/* Tabs */}
-        <div className="flex border-b border-[var(--clubpm-border)] mb-6 overflow-x-auto">
-          {["tasks", "calendar", "milestones", "activity", "reports", "members", "updates"].map((tab) => (
-            <button
-              key={tab}
-              className={`clubpm-tab-btn whitespace-nowrap ${activeTab === tab ? "active" : ""}`}
-              onClick={() => setActiveTab(tab)}
-            >
-              {tab === "tasks" && `📋 Tasks (${project.tasks.length})`}
-              {tab === "calendar" && "📅 Calendar"}
-              {tab === "milestones" && "🎯 Milestones"}
-              {tab === "activity" && "📜 Activity"}
-              {tab === "reports" && "📊 Reports"}
-              {tab === "members" && `👥 Members (${project.members.length})`}
-              {tab === "updates" && `📝 Updates (${project.updates?.length ?? 0})`}
-            </button>
-          ))}
-        </div>
-
-        {/* Tab Content */}
-        {activeTab === "tasks" && (
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragStart={handleDragStart}
-            onDragOver={handleDragOver}
-            onDragEnd={handleDragEnd}
-          >
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {tasksByStatus.map((column) => (
-                <KanbanColumn
-                  key={column.id}
-                  column={column}
-                  onTaskClick={setSelectedTask}
-                  isOver={overColumn === column.id}
-                />
-              ))}
-            </div>
-            <DragOverlay dropAnimation={null}>
-              {activeTask ? (
-                <div style={{ opacity: 0.95, cursor: "grabbing", transform: "scale(1.02)", boxShadow: "0 20px 60px rgba(0,0,0,0.5)" }}>
-                  <KanbanCard task={activeTask} isDragOverlay />
-                </div>
-              ) : null}
-            </DragOverlay>
-          </DndContext>
-        )}
-
-        {activeTab === "calendar" && (
-          <CalendarView tasks={project.tasks} onTaskClick={setSelectedTask} />
-        )}
-
-        {activeTab === "milestones" && (
-          <MilestonePanel projectId={project.id} onRefresh={fetchProject} />
-        )}
-
-        {activeTab === "activity" && (
-          <ProjectActivity projectId={project.id} />
-        )}
-
-        {activeTab === "reports" && (
-          <ReportingView projectId={project.id} />
-        )}
-
-        {activeTab === "members" && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-            {project.members.map((pm) => (
-              <div key={pm.memberId} className="clubpm-glass-card p-4 text-center">
-                <MemberBadge member={pm.member} size="lg" />
-                <p className="text-sm font-medium text-[var(--clubpm-text-primary)] mt-2">
-                  {pm.member.displayName}
-                </p>
-                <p className="text-xs text-[var(--clubpm-text-muted)]">
-                  {pm.projectRole}
-                </p>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {activeTab === "updates" && (
-          <div className="space-y-4 max-w-2xl">
-            {(!project.updates || project.updates.length === 0) ? (
-              <p className="text-[var(--clubpm-text-muted)] text-sm">No updates yet</p>
-            ) : (
-              project.updates.map((update) => (
-                <div key={update.id} className="clubpm-glass-card p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="w-6 h-6 rounded-full bg-[var(--clubpm-accent-primary)] flex items-center justify-center text-xs font-bold text-white">
-                      U
-                    </div>
-                    <span className="text-xs text-[var(--clubpm-text-muted)]">
-                      {new Date(update.postedAt).toLocaleDateString("en-US", {
-                        month: "short",
-                        day: "numeric",
-                        hour: "numeric",
-                        minute: "2-digit",
-                      })}
-                    </span>
-                  </div>
-                  <p className="text-sm text-[var(--clubpm-text-secondary)] whitespace-pre-wrap">
-                    {update.content}
-                  </p>
-                </div>
-              ))
-            )}
-          </div>
-        )}
-
-        {/* Task Modal */}
-        {selectedTask && (
-          <TaskModal 
-            task={selectedTask} 
-            onClose={() => setSelectedTask(null)} 
-            onUpdate={handleTaskUpdate} 
+        {activeTab === "tasks" && assigneePanelOpen && (
+          <AssigneePanel
+            members={project.members || []}
+            onAssign={async (memberId, taskId) => {
+              try {
+                const task = project.tasks.find((t) => t.id === taskId);
+                if (!task) return;
+                const existing = (task.assignees || []).map((a) => a.id);
+                if (existing.includes(memberId)) return;
+                const next = [...existing, memberId];
+                await patch(`/api/tasks/${taskId}`, { assigneeIds: next });
+                fetchProject();
+              } catch (err) {
+                console.error("Failed to assign member", err);
+              }
+            }}
           />
         )}
-      </div>
-    </div>
-  );
-}
 
-// ── Kanban Column ────────────────────────────────────────────
+        <DragOverlay dropAnimation={null}>
+          {activeTask ? (
+            <div
+              style={{
+                opacity: 0.95,
+                cursor: "grabbing",
+                transform: "scale(1.02)",
+                boxShadow: "0 20px 60px rgba(0,0,0,0.5)",
+                background: "var(--clubpm-surface-200)",
+                border: "1px solid var(--clubpm-border)",
+                borderRadius: 6,
+                padding: "8px 12px",
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                maxWidth: 480,
+              }}
+            >
+              <PriorityBars priority={activeTask.priority} />
+              <span
+                style={{
+                  fontSize: 13,
+                  color: "var(--clubpm-text-primary)",
+                  fontWeight: 500,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {activeTask.title}
+              </span>
+            </div>
+          ) : null}
+        </DragOverlay>
+      </DndContext>
 
-function KanbanColumn({ column, onTaskClick, isOver }) {
-  const { setNodeRef } = useDroppable({ id: column.id });
-
-  return (
-    <div
-      ref={setNodeRef}
-      className={`clubpm-kanban-column transition-all duration-200 ${isOver ? "drag-over" : ""}`}
-    >
-      <div className="clubpm-kanban-column-header flex items-center gap-2" style={{ color: column.color }}>
-        <span>{column.emoji}</span>
-        <span>{column.label}</span>
-        <span className="ml-auto text-[var(--clubpm-text-muted)] font-normal">
-          {column.tasks.length}
-        </span>
-      </div>
-      <SortableContext items={column.tasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
-        {column.tasks.map((task) => (
-          <SortableKanbanCard key={task.id} task={task} onClick={() => onTaskClick(task)} />
-        ))}
-      </SortableContext>
-      {column.tasks.length === 0 && (
-        <div className="text-center py-8 text-xs text-[var(--clubpm-text-muted)]">
-          Drop tasks here
-        </div>
+      {selectedTask && (
+        <TaskModal
+          task={selectedTask}
+          onClose={() => setSelectedTask(null)}
+          onUpdate={handleTaskUpdate}
+        />
       )}
-    </div>
-  );
-}
-
-// ── Sortable Kanban Card ─────────────────────────────────────
-
-function SortableKanbanCard({ task, onClick }) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: task.id });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-  };
-
-  return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      {...attributes}
-      {...listeners}
-      onPointerUp={(e) => {
-        // Fallback for dnd-kit pointer sensor swallowing clicks
-        if (!isDragging && !e.cancelBubble) {
-          onClick();
-        }
-      }}
-      onClick={() => { if (!isDragging) onClick(); }}
-      className={`clubpm-kanban-card ${isDragging ? "dragging" : ""} cursor-pointer`}
-    >
-      <KanbanCard task={task} />
-    </div>
-  );
-}
-
-// ── Kanban Card Content ──────────────────────────────────────
-
-function KanbanCard({ task, isDragOverlay }) {
-  const dueStr = task.dueDate
-    ? new Date(task.dueDate).toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-      })
-    : null;
-
-  const isOverdue = task.dueDate && new Date(task.dueDate) < new Date() && task.status !== "DONE";
-  const pBadge = PRIORITY_BADGES[task.priority] || PRIORITY_BADGES.MEDIUM;
-
-  return (
-    <div className={isDragOverlay ? "clubpm-kanban-card" : ""}>
-      <div className="flex items-start justify-between gap-2 mb-2">
-        <p className="text-sm font-medium text-[var(--clubpm-text-primary)] leading-snug">
-          {task.title}
-        </p>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-1 mb-3">
-        <span className={`text-[10px] px-1.5 py-0.5 rounded border font-semibold ${pBadge.class}`}>
-          {pBadge.label}
-        </span>
-        {task.tags && task.tags.map((tag, idx) => (
-          <span key={idx} className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--clubpm-surface-400)] text-[var(--clubpm-text-secondary)] border border-[var(--clubpm-border)]">
-            #{tag}
-          </span>
-        ))}
-      </div>
-
-      <div className="flex items-center justify-between mt-auto">
-        {task.assignees && task.assignees.length > 0 ? (
-          <div className="flex -space-x-2 overflow-hidden">
-            {task.assignees.slice(0, 3).map(a => (
-              <div key={a.id} className="inline-block rounded-full ring-2 ring-[var(--clubpm-surface-100)]">
-                <MemberBadge member={a} size="sm" />
-              </div>
-            ))}
-            {task.assignees.length > 3 && (
-              <div className="flex items-center justify-center w-6 h-6 rounded-full bg-[var(--clubpm-surface-300)] text-[10px] font-medium text-[var(--clubpm-text-secondary)] ring-2 ring-[var(--clubpm-surface-100)] z-10">
-                +{task.assignees.length - 3}
-              </div>
-            )}
-          </div>
-        ) : (
-          <span className="text-xs text-[var(--clubpm-text-muted)]">Unassigned</span>
-        )}
-        {dueStr && (
-          <span
-            className={`text-xs ${isOverdue ? "text-red-400 font-medium" : "text-[var(--clubpm-text-muted)]"}`}
-          >
-            {isOverdue ? "⚠ " : "📅 "}
-            {dueStr}
-          </span>
-        )}
-      </div>
     </div>
   );
 }
