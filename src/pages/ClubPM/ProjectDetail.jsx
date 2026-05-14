@@ -1099,7 +1099,7 @@ export default function ProjectDetail() {
                   className="clubpm-glass-card"
                   style={{ margin: "0 12px 24px", overflow: "hidden" }}
                 >
-                  <GanttChart tasks={project.tasks} />
+                  <GanttChart tasks={project.tasks} milestones={project.milestones ?? []} />
                 </div>
               </div>
             </div>

@@ -9,6 +9,14 @@ const STATUS_COLORS = {
   DONE: "#00b894",
 };
 
+const MILESTONE_COLORS = {
+  ON_TRACK:  "var(--clubpm-accent-primary)",
+  AT_RISK:   "var(--clubpm-accent-yellow)",
+  BEHIND:    "#e17055",
+  COMPLETED: "var(--clubpm-accent-green)",
+  CANCELLED: "var(--clubpm-text-muted)",
+};
+
 const ROW_HEIGHT = 60;
 const LABEL_WIDTH = 260;
 const MIN_BAR_WIDTH = 6;
@@ -18,7 +26,7 @@ const DAY_WIDTH = 32;
 
 // ── Component ────────────────────────────────────────────────
 
-export default function GanttChart({ tasks }) {
+export default function GanttChart({ tasks, milestones = [] }) {
   const [hoveredTask, setHoveredTask] = useState(null);
 
   const { minDate, totalDays, sortedTasks } = useMemo(() => {
@@ -307,6 +315,55 @@ export default function GanttChart({ tasks }) {
             </g>
           );
         })}
+
+        {/* Milestone markers */}
+        {milestones
+          .filter((m) => m.dueDate != null)
+          .map((m) => {
+            const milestoneDate = new Date(m.dueDate);
+            const daysDiff = Math.floor(
+              (milestoneDate.getTime() - minDate.getTime()) / 86400000
+            );
+            const x = LABEL_WIDTH + daysDiff * DAY_WIDTH;
+            if (x < LABEL_WIDTH || x > chartWidth) return null;
+            const color = MILESTONE_COLORS[m.status] ?? MILESTONE_COLORS.ON_TRACK;
+            return (
+              <g key={`milestone-${m.id}`}>
+                {/* Vertical dashed line */}
+                <line
+                  x1={x} y1={0} x2={x} y2={chartHeight}
+                  stroke={color}
+                  strokeWidth={1}
+                  strokeDasharray="4,3"
+                  opacity={0.7}
+                />
+                {/* Diamond marker */}
+                <rect
+                  x={x - 5}
+                  y={PADDING_TOP / 2 - 5}
+                  width={10}
+                  height={10}
+                  transform={`rotate(45, ${x}, ${PADDING_TOP / 2})`}
+                  fill={color}
+                  stroke="var(--clubpm-surface-100)"
+                  strokeWidth={1}
+                />
+                {/* Rotated label */}
+                <text
+                  x={x}
+                  y={PADDING_TOP / 2 - 10}
+                  textAnchor="end"
+                  fontSize={9}
+                  fill={color}
+                  transform={`rotate(-45, ${x}, ${PADDING_TOP / 2 - 10})`}
+                  style={{ userSelect: "none" }}
+                  fontFamily="Inter, sans-serif"
+                >
+                  {m.title && m.title.length > 12 ? m.title.slice(0, 11) + "…" : m.title}
+                </text>
+              </g>
+            );
+          })}
 
         {/* Today line */}
         {(() => {
