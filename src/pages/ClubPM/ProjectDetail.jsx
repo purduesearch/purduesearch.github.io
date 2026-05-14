@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { useParams, Link } from "react-router-dom";
-import { get, patch } from "../../api/clubPmClient";
+import { createPortal } from "react-dom";
+import { useParams, Link, useSearchParams, useNavigate } from "react-router-dom";
+import { get, post, patch, del } from "../../api/clubPmClient";
 import MemberBadge from "../../components/clubpm/MemberBadge";
 import { useClubPmAuth } from "../../clubpm/ClubPmAuth";
 import TaskModal from "../../components/clubpm/TaskModal";
@@ -31,7 +32,7 @@ import { CSS } from "@dnd-kit/utilities";
 
 const BINS = [
   { id: "TODO",        label: "Not Started", color: "var(--clubpm-text-secondary)" },
-  { id: "IN_PROGRESS", label: "In Progress", color: "var(--clubpm-accent-cyan)" },
+  { id: "IN_PROGRESS", label: "In Progress", color: "var(--clubpm-accent-yellow)" },
   { id: "DONE",        label: "Completed",   color: "var(--clubpm-accent-green)" },
 ];
 
@@ -216,7 +217,7 @@ function ProgressBar({ tasks }) {
         />
         <div
           className="cpm-progress-bar-segment"
-          style={{ width: `${(inProgress / total) * 100}%`, background: "var(--clubpm-accent-cyan)" }}
+          style={{ width: `${(inProgress / total) * 100}%`, background: "var(--clubpm-accent-yellow)" }}
         />
         <div
           className="cpm-progress-bar-segment"
@@ -226,7 +227,7 @@ function ProgressBar({ tasks }) {
       <span className="cpm-proj-progress-pct">{pct}%</span>
       <span className="cpm-proj-progress-stats">
         <span style={{ color: "var(--clubpm-accent-green)" }}>■ {done}</span>
-        <span style={{ color: "var(--clubpm-accent-cyan)" }}>■ {inProgress}</span>
+        <span style={{ color: "var(--clubpm-accent-yellow)" }}>■ {inProgress}</span>
         <span style={{ color: "var(--clubpm-text-muted)" }}>■ {todo}</span>
       </span>
     </div>
@@ -235,7 +236,7 @@ function ProgressBar({ tasks }) {
 
 // ── Status Bin (collapsible droppable section) ───────────────
 
-function StatusBin({ bin, tasks, isOver, onTaskClick }) {
+function StatusBin({ bin, tasks, subtasksByParent, expandedParents, onToggleParent, isOver, onTaskClick, onAddTask, canEdit = true }) {
   const [collapsed, setCollapsed] = useState(false);
   const { setNodeRef } = useDroppable({ id: bin.id });
 
@@ -270,20 +271,22 @@ function StatusBin({ bin, tasks, isOver, onTaskClick }) {
             {tasks.length}
           </span>
         </button>
-        <button
-          style={{
-            background: "none",
-            border: "none",
-            cursor: "pointer",
-            color: "var(--clubpm-text-muted)",
-            fontSize: 12,
-            padding: "2px 8px",
-          }}
-          title="Add task"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <i className="fas fa-plus" /> Add Task
-        </button>
+        {canEdit && (
+          <button
+            style={{
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              color: "var(--clubpm-text-muted)",
+              fontSize: 12,
+              padding: "2px 8px",
+            }}
+            title="Add task"
+            onClick={(e) => { e.stopPropagation(); onAddTask?.(bin.id); }}
+          >
+            <i className="fas fa-plus" /> Add Task
+          </button>
+        )}
       </div>
 
       {!collapsed && (
@@ -304,9 +307,24 @@ function StatusBin({ bin, tasks, isOver, onTaskClick }) {
                 Drop tasks here
               </div>
             ) : (
-              tasks.map((task) => (
-                <CompactTaskRow key={task.id} task={task} onClick={onTaskClick} />
-              ))
+              tasks.map((task) => {
+                const subs = subtasksByParent?.get(task.id) ?? [];
+                const isExpanded = expandedParents?.has(task.id) ?? false;
+                return (
+                  <React.Fragment key={task.id}>
+                    <CompactTaskRow
+                      task={task}
+                      onClick={onTaskClick}
+                      subtaskCount={subs.length}
+                      isExpanded={isExpanded}
+                      onToggleExpand={() => onToggleParent?.(task.id)}
+                    />
+                    {isExpanded && subs.map((sub) => (
+                      <KanbanSubtaskRow key={sub.id} subtask={sub} onClick={onTaskClick} />
+                    ))}
+                  </React.Fragment>
+                );
+              })
             )}
           </div>
         </SortableContext>
@@ -317,7 +335,7 @@ function StatusBin({ bin, tasks, isOver, onTaskClick }) {
 
 // ── Compact Task Row ─────────────────────────────────────────
 
-function CompactTaskRow({ task, onClick }) {
+function CompactTaskRow({ task, onClick, subtaskCount = 0, isExpanded = false, onToggleExpand }) {
   const {
     attributes,
     listeners,
@@ -338,13 +356,13 @@ function CompactTaskRow({ task, onClick }) {
       ref={setNodeRef}
       style={style}
       {...attributes}
-      {...listeners}
       className="cpm-task-row-compact"
       onClick={() => {
         if (!isDragging) onClick(task);
       }}
     >
       <i
+        {...listeners}
         className="fas fa-grip-vertical"
         style={{
           color: "var(--clubpm-text-muted)",
@@ -367,6 +385,20 @@ function CompactTaskRow({ task, onClick }) {
       </span>
       <PriorityBars priority={task.priority} />
       <span className="cpm-task-row-compact-name">{task.title}</span>
+      {subtaskCount > 0 && (
+        <button
+          onClick={e => { e.stopPropagation(); onToggleExpand?.(); }}
+          style={{
+            background: "none", border: "none", cursor: "pointer",
+            color: "var(--clubpm-text-muted)", fontSize: 10, padding: "2px 4px",
+            display: "flex", alignItems: "center", gap: 3, flexShrink: 0,
+          }}
+          title={isExpanded ? "Collapse subtasks" : "Expand subtasks"}
+        >
+          <i className={`fas fa-chevron-${isExpanded ? "up" : "down"}`} />
+          {subtaskCount}
+        </button>
+      )}
       <AvatarStack assignees={task.assignees} />
       {task.dueDate && (
         <span
@@ -387,19 +419,61 @@ function CompactTaskRow({ task, onClick }) {
   );
 }
 
+// ── Kanban Subtask Row (non-draggable, indented) ─────────────
+
+function KanbanSubtaskRow({ subtask, onClick }) {
+  return (
+    <div
+      className="cpm-task-row-compact"
+      style={{ paddingLeft: 24, cursor: "pointer" }}
+      onClick={() => onClick(subtask)}
+    >
+      <span
+        className={`cpm-kanban-progress ${
+          subtask.status === "DONE"
+            ? "cpm-kanban-progress--done"
+            : subtask.status === "IN_PROGRESS" || subtask.status === "BLOCKED"
+            ? "cpm-kanban-progress--in"
+            : "cpm-kanban-progress--none"
+        }`}
+        style={{ flexShrink: 0 }}
+      >
+        {subtask.status === "DONE" && <i className="fas fa-check" style={{ fontSize: 6 }} />}
+      </span>
+      <PriorityBars priority={subtask.priority} />
+      <span className="cpm-task-row-compact-name" style={{ color: "var(--clubpm-text-secondary)" }}>
+        {subtask.title}
+      </span>
+      <AvatarStack assignees={subtask.assignees} />
+      {subtask.dueDate && (
+        <span style={{ fontSize: 11, color: "var(--clubpm-text-muted)", flexShrink: 0, whiteSpace: "nowrap" }}>
+          {new Date(subtask.dueDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+        </span>
+      )}
+    </div>
+  );
+}
+
 // ── Assignee Panel (right column) ────────────────────────────
 
-function AssigneePanel({ members, onAssign }) {
+function AssigneePanel({ members, channelMemberSlackIds = [], hasLinkedChannel = false, onAssign }) {
   const [collapsed, setCollapsed] = useState(false);
   const [search, setSearch] = useState("");
 
   const filtered = useMemo(() => {
+    let list = members;
+
+    if (hasLinkedChannel && channelMemberSlackIds.length > 0) {
+      const idSet = new Set(channelMemberSlackIds);
+      list = list.filter(pm => idSet.has(pm.member?.slackId));
+    }
+
     const q = search.trim().toLowerCase();
-    if (!q) return members;
-    return members.filter((pm) =>
+    if (!q) return list;
+    return list.filter((pm) =>
       (pm.member?.displayName ?? "").toLowerCase().includes(q)
     );
-  }, [members, search]);
+  }, [members, channelMemberSlackIds, hasLinkedChannel, search]);
 
   return (
     <aside className="cpm-assignee-panel">
@@ -438,6 +512,11 @@ function AssigneePanel({ members, onAssign }) {
           >
             Assignees
           </div>
+          {hasLinkedChannel && (
+            <div style={{ fontSize: 10, color: "var(--clubpm-text-muted)", padding: "0 0 4px" }}>
+              Showing channel members only
+            </div>
+          )}
           <input
             type="text"
             className="cpm-assignee-search"
@@ -485,21 +564,211 @@ function DraggableMemberChip({ pm }) {
   );
 }
 
+// ── Add Task Modal (project-scoped) ──────────────────────────
+
+const PRIORITY_LEVELS = ["CRITICAL", "HIGH", "MEDIUM", "LOW"];
+
+function AddProjectTaskModal({ projectId, initialStatus, projectMembers, onClose, onCreated }) {
+  const [title, setTitle] = useState("");
+  const [priority, setPriority] = useState("MEDIUM");
+  const [dueDate, setDueDate] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
+  const [milestoneId, setMilestoneId] = useState("");
+  const [milestones, setMilestones] = useState([]);
+
+  useEffect(() => {
+    get(`/api/milestones/project/${projectId}`)
+      .then(ms => setMilestones(
+        ms.filter(m => m.status !== "COMPLETED" && m.status !== "CANCELLED")
+      ))
+      .catch(() => {});
+  }, [projectId]);
+
+  const inputStyle = {
+    width: "100%", padding: "8px 10px", borderRadius: 6, fontSize: 13,
+    background: "var(--clubpm-surface-300)", border: "1px solid var(--clubpm-border)",
+    color: "var(--clubpm-text-primary)", outline: "none", boxSizing: "border-box",
+  };
+  const labelStyle = {
+    display: "block", fontSize: 11, fontWeight: 600, color: "var(--clubpm-text-muted)",
+    textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 5,
+  };
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    if (!title.trim()) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const newTask = await post(`/api/projects/${projectId}/tasks`, {
+        title: title.trim(),
+        priority,
+        status: initialStatus,
+        dueDate: dueDate || undefined,
+        milestoneId: milestoneId || undefined,
+      });
+      onCreated(newTask);
+      onClose();
+    } catch (err) {
+      setError(err.message ?? "Failed to create task");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return createPortal(
+    <div
+      style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.65)", zIndex: 1000,
+        display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(2px)" }}
+      onClick={e => e.target === e.currentTarget && onClose()}
+    >
+      <div style={{ background: "var(--clubpm-surface-100)", borderRadius: 12, width: "min(480px, 94vw)",
+        boxShadow: "0 24px 80px rgba(0,0,0,0.5)", border: "1px solid var(--clubpm-border)", overflow: "hidden" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between",
+          padding: "14px 20px", borderBottom: "1px solid var(--clubpm-border)", background: "var(--clubpm-surface-200)" }}>
+          <span style={{ fontSize: 14, fontWeight: 700, color: "var(--clubpm-text-primary)" }}>
+            <i className="fas fa-plus" style={{ marginRight: 8, color: "var(--clubpm-accent-primary)" }} />
+            New Task
+          </span>
+          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer",
+            color: "var(--clubpm-text-muted)", fontSize: 16, padding: "2px 6px" }}>×</button>
+        </div>
+
+        <form onSubmit={handleSubmit}>
+          <div style={{ padding: "16px 20px", display: "flex", flexDirection: "column", gap: 14 }}>
+            <div>
+              <label style={labelStyle}>Task Title *</label>
+              <input autoFocus value={title} onChange={e => setTitle(e.target.value)}
+                placeholder="What needs to be done?" style={inputStyle} required />
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <div>
+                <label style={labelStyle}>Priority</label>
+                <select value={priority} onChange={e => setPriority(e.target.value)}
+                  style={{ ...inputStyle, cursor: "pointer" }}>
+                  {PRIORITY_LEVELS.map(p => (
+                    <option key={p} value={p}>{p.charAt(0) + p.slice(1).toLowerCase()}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label style={labelStyle}>Due Date</label>
+                <input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)}
+                  style={inputStyle} />
+              </div>
+            </div>
+            {milestones.length > 0 && (
+              <div>
+                <label style={labelStyle}>Milestone</label>
+                <select value={milestoneId} onChange={e => setMilestoneId(e.target.value)}
+                  style={{ ...inputStyle, cursor: "pointer" }}>
+                  <option value="">— None —</option>
+                  {milestones.map(m => (
+                    <option key={m.id} value={m.id}>
+                      🎯 {m.title} ({(m.status ?? "ON_TRACK").replace("_", " ")})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            {error && (
+              <p style={{ fontSize: 12, color: "#e17055", background: "rgba(225,112,85,0.1)",
+                borderRadius: 6, padding: "6px 10px", margin: 0 }}>{error}</p>
+            )}
+          </div>
+
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: 8,
+            padding: "12px 20px", background: "var(--clubpm-surface-200)", borderTop: "1px solid var(--clubpm-border)" }}>
+            <button type="button" onClick={onClose} style={{ padding: "7px 16px", borderRadius: 7,
+              border: "1px solid var(--clubpm-border)", background: "none",
+              color: "var(--clubpm-text-secondary)", fontSize: 13, cursor: "pointer" }}>Cancel</button>
+            <button type="submit" disabled={saving} style={{ padding: "7px 18px", borderRadius: 7,
+              border: "none", cursor: "pointer", background: "var(--clubpm-accent-primary)",
+              color: "#fff", fontSize: 13, fontWeight: 600, opacity: saving ? 0.7 : 1 }}>
+              {saving ? "Creating…" : "Create Task"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+// ── Slack Channel Picker ─────────────────────────────────────
+
+function SlackChannelPicker({ project, channels, onSaved }) {
+  const [saving, setSaving] = useState(false);
+  const [selected, setSelected] = useState(project.slackChannelId ?? "");
+
+  const handleChange = async (e) => {
+    const channelId = e.target.value;
+    setSelected(channelId);
+    setSaving(true);
+    try {
+      const ch = channels.find(c => c.id === channelId);
+      await patch(`/api/projects/${project.id}`, {
+        slackChannelId:   channelId || null,
+        slackChannelName: ch?.name  || null,
+      });
+      onSaved();
+    } catch (err) {
+      console.error("Failed to save linked channel", err);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+      <i className="fab fa-slack" style={{ fontSize: 12, color: "var(--clubpm-text-muted)" }} />
+      <select
+        value={selected}
+        onChange={handleChange}
+        disabled={saving}
+        style={{
+          fontSize: 11,
+          padding: "3px 6px",
+          borderRadius: 5,
+          background: "var(--clubpm-surface-300)",
+          border: "1px solid var(--clubpm-border)",
+          color: selected ? "var(--clubpm-text-primary)" : "var(--clubpm-text-muted)",
+          cursor: "pointer",
+        }}
+      >
+        <option value="">— Link Slack channel —</option>
+        {channels.map(ch => (
+          <option key={ch.id} value={ch.id}>#{ch.name}</option>
+        ))}
+      </select>
+      {saving && <span style={{ fontSize: 10, color: "var(--clubpm-text-muted)" }}>Saving…</span>}
+    </div>
+  );
+}
+
 // ── Main Component ───────────────────────────────────────────
 
 export default function ProjectDetail() {
   const { id } = useParams();
-  // Auth context retained for potential future use; not actively used after rewrite
-  useClubPmAuth();
+  const [searchParams] = useSearchParams();
+  // member used for auto-assign on IN_PROGRESS
+  const { member } = useClubPmAuth();
 
   const [project, setProject] = useState(null);
   const [allProjects, setAllProjects] = useState([]);
+  const [allMembers, setAllMembers] = useState([]);
+  const [slackChannels, setSlackChannels] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("tasks");
   const [activeTask, setActiveTask] = useState(null);     // For DragOverlay
   const [selectedTask, setSelectedTask] = useState(null); // For TaskModal
   const [overBin, setOverBin] = useState(null);
   const [assigneePanelOpen] = useState(true); // reserved for future toggle UX
+  const [showAddTask, setShowAddTask] = useState(false);
+  const [addTaskInitialStatus, setAddTaskInitialStatus] = useState("TODO");
+  const navigate = useNavigate();
+  const [expandedParents, setExpandedParents] = useState(new Set());
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
@@ -522,6 +791,25 @@ export default function ProjectDetail() {
       .then(setAllProjects)
       .catch(console.error);
   }, []);
+
+  useEffect(() => {
+    get("/api/slack/channels")
+      .then(setSlackChannels)
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    get("/api/members")
+      .then(members => setAllMembers(members.map(m => ({ memberId: m.id, member: m }))))
+      .catch(console.error);
+  }, []);
+
+  const taskIdFromParam = searchParams.get("task");
+  useEffect(() => {
+    if (!taskIdFromParam || !project) return;
+    const found = project.tasks.find(t => t.id === taskIdFromParam);
+    if (found && !selectedTask) setSelectedTask(found);
+  }, [taskIdFromParam, project]);
 
   const handleDragStart = (event) => {
     const { active } = event;
@@ -546,40 +834,81 @@ export default function ProjectDetail() {
   const handleDragEnd = async (event) => {
     setActiveTask(null);
     setOverBin(null);
+    if (!canEdit) return;
     const { active, over } = event;
     if (!over || !project) return;
-
-    // Member-chip drags are not yet wired up — ignore (see report).
-    if (typeof active.id === "string" && active.id.startsWith("member-")) {
-      return;
-    }
 
     const taskId = active.id;
     const newStatus = over.id;
 
-    if (BINS.some((b) => b.id === newStatus)) {
-      const task = project.tasks.find((t) => t.id === taskId);
-      if (task && task.status !== newStatus) {
-        // Optimistic update
-        setProject({
-          ...project,
-          tasks: project.tasks.map((t) =>
-            t.id === taskId ? { ...t, status: newStatus } : t
-          ),
-        });
+    if (!BINS.some((b) => b.id === newStatus)) return;
 
-        try {
-          const progress =
-            newStatus === "DONE"
-              ? "COMPLETED"
-              : newStatus === "IN_PROGRESS"
-              ? "IN_PROGRESS"
-              : "NO_PROGRESS";
-          await patch(`/api/tasks/${taskId}`, { status: newStatus, progress });
-        } catch {
-          fetchProject(); // Revert on error
+    const task = project.tasks.find((t) => t.id === taskId);
+    if (!task || task.status === newStatus) return;
+
+    // Build patch body
+    const patchBody = { status: newStatus };
+
+    // Auto-assign current user when moving to IN_PROGRESS
+    if (newStatus === "IN_PROGRESS" && member) {
+      const alreadyAssigned = (task.assignees ?? []).some(a => a.id === member.id);
+      if (!alreadyAssigned) {
+        patchBody.assigneeIds = [...(task.assignees ?? []).map(a => a.id), member.id];
+      }
+    }
+
+    const previousTasks = project.tasks;
+
+    // Optimistic update
+    setProject(prev => ({
+      ...prev,
+      tasks: prev.tasks.map(t =>
+        t.id === taskId
+          ? {
+              ...t,
+              status: newStatus,
+              assignees: newStatus === "IN_PROGRESS" && member && !(t.assignees ?? []).some(a => a.id === member.id)
+                ? [...(t.assignees ?? []), member]
+                : t.assignees,
+            }
+          : t
+      ),
+    }));
+
+    try {
+      const updated = await patch(`/api/tasks/${taskId}`, patchBody);
+      setProject(prev => ({
+        ...prev,
+        tasks: prev.tasks.map(t => t.id === taskId ? { ...t, ...updated } : t),
+      }));
+    } catch {
+      setProject(prev => ({ ...prev, tasks: previousTasks }));
+    }
+  };
+
+  const handleProgressChange = async (taskId, newProgress) => {
+    // Optimistic update
+    setProject(prev => ({
+      ...prev,
+      tasks: prev.tasks.map(t => t.id === taskId ? { ...t, progress: newProgress } : t)
+    }));
+
+    try {
+      const patchBody = { progress: newProgress };
+      if (newProgress === "IN_PROGRESS" && member) {
+        const task = project.tasks.find(t => t.id === taskId);
+        const alreadyAssigned = (task?.assignees ?? []).some(a => a.id === member.id);
+        if (!alreadyAssigned) {
+          patchBody.assigneeIds = [...(task?.assignees ?? []).map(a => a.id), member.id];
         }
       }
+      const updated = await patch(`/api/tasks/${taskId}`, patchBody);
+      setProject(prev => ({
+        ...prev,
+        tasks: prev.tasks.map(t => t.id === taskId ? { ...t, ...updated } : t)
+      }));
+    } catch {
+      fetchProject();
     }
   };
 
@@ -593,6 +922,23 @@ export default function ProjectDetail() {
         : p
     );
     setSelectedTask(updatedTask);
+  };
+
+  const handleTaskDelete = (deletedTask) => {
+    setProject(prev => ({
+      ...prev,
+      tasks: prev.tasks.filter(t => t.id !== deletedTask.id),
+    }));
+    setSelectedTask(null);
+  };
+
+  const handleTaskCreated = (newTask) => {
+    if (newTask.projectId === project?.id) {
+      setProject(prev => ({
+        ...prev,
+        tasks: [...(prev.tasks ?? []), newTask],
+      }));
+    }
   };
 
   if (loading) {
@@ -639,14 +985,28 @@ export default function ProjectDetail() {
     );
   }
 
+  const subtasksByParent = new Map();
+  project.tasks.forEach(t => {
+    if (t.parentTaskId) {
+      if (!subtasksByParent.has(t.parentTaskId)) subtasksByParent.set(t.parentTaskId, []);
+      subtasksByParent.get(t.parentTaskId).push(t);
+    }
+  });
+
   const tasksByBin = BINS.map((b) => ({
     ...b,
     tasks: project.tasks.filter(
       (t) =>
-        t.status === b.id ||
-        (b.id === "IN_PROGRESS" && t.status === "BLOCKED")
+        !t.parentTaskId && (
+          t.status === b.id ||
+          (b.id === "IN_PROGRESS" && t.status === "BLOCKED")
+        )
     ),
   }));
+
+  const canEdit =
+    !project.slackChannelId ||
+    (project.channelMemberSlackIds ?? []).includes(member?.slackId);
 
   return (
     <div className="clubpm-app">
@@ -684,9 +1044,15 @@ export default function ProjectDetail() {
               <span className={`clubpm-badge clubpm-badge-${project.type.toLowerCase()}`}>
                 {project.type}
               </span>
-              {project.slackChannel && (
-                <span style={{ fontSize: 11, color: "var(--clubpm-text-muted)" }}>
-                  📌 Slack channel linked
+              <SlackChannelPicker
+                project={project}
+                channels={slackChannels}
+                onSaved={fetchProject}
+              />
+              {project.slackChannelId && !canEdit && (
+                <span style={{ fontSize: 11, color: "var(--clubpm-accent-yellow)", display: "flex", alignItems: "center", gap: 4 }}>
+                  <i className="fas fa-lock" style={{ fontSize: 10 }} />
+                  View only — join #{project.slackChannelName} to edit
                 </span>
               )}
             </div>
@@ -701,8 +1067,18 @@ export default function ProjectDetail() {
                     key={bin.id}
                     bin={bin}
                     tasks={bin.tasks}
+                    subtasksByParent={subtasksByParent}
+                    expandedParents={expandedParents}
+                    onToggleParent={(parentId) => setExpandedParents(prev => {
+                      const next = new Set(prev);
+                      if (next.has(parentId)) next.delete(parentId);
+                      else next.add(parentId);
+                      return next;
+                    })}
                     isOver={overBin === bin.id}
                     onTaskClick={setSelectedTask}
+                    onAddTask={(status) => { setAddTaskInitialStatus(status); setShowAddTask(true); }}
+                    canEdit={canEdit}
                   />
                 ))}
               </div>
@@ -737,7 +1113,11 @@ export default function ProjectDetail() {
 
           {activeTab === "milestones" && (
             <div className="cpm-proj-main-body" style={{ padding: "24px" }}>
-              <MilestonePanel projectId={project.id} onRefresh={fetchProject} />
+              <MilestonePanel
+                projectId={project.id}
+                project={project}
+                onRefresh={fetchProject}
+              />
             </div>
           )}
 
@@ -809,7 +1189,9 @@ export default function ProjectDetail() {
 
         {activeTab === "tasks" && assigneePanelOpen && (
           <AssigneePanel
-            members={project.members || []}
+            members={allMembers.length > 0 ? allMembers : (project.members || [])}
+            channelMemberSlackIds={project.channelMemberSlackIds ?? []}
+            hasLinkedChannel={!!project.slackChannelId}
             onAssign={async (memberId, taskId) => {
               try {
                 const task = project.tasks.find((t) => t.id === taskId);
@@ -865,8 +1247,24 @@ export default function ProjectDetail() {
       {selectedTask && (
         <TaskModal
           task={selectedTask}
-          onClose={() => setSelectedTask(null)}
+          readOnly={!canEdit}
+          onClose={() => {
+            setSelectedTask(null);
+            navigate(`/clubpm/projects/${id}`, { replace: true });
+          }}
           onUpdate={handleTaskUpdate}
+          onDelete={handleTaskDelete}
+          onTaskCreated={handleTaskCreated}
+        />
+      )}
+
+      {showAddTask && project && canEdit && (
+        <AddProjectTaskModal
+          projectId={project.id}
+          initialStatus={addTaskInitialStatus}
+          projectMembers={(project.members ?? []).map(pm => pm.member ?? pm)}
+          onClose={() => setShowAddTask(false)}
+          onCreated={handleTaskCreated}
         />
       )}
     </div>
