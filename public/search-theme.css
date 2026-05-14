@@ -4421,6 +4421,7 @@ html::-webkit-scrollbar { display: none; }
   --clubpm-accent-glow: #7c6ff0;
   --clubpm-accent-pink: #fd79a8;
   --clubpm-accent-cyan: #00cec9;
+  --clubpm-accent-yellow: #fdcb6e;
   --clubpm-accent-green: #00b894;
   --clubpm-accent-orange: #fdcb6e;
   --clubpm-accent-red: #e17055;
@@ -5964,3 +5965,251 @@ html::-webkit-scrollbar { display: none; }
   font-weight: 600;
   color: var(--clubpm-text-secondary);
 }
+
+/* ── Calendar View ──────────────────────────────────────────────── */
+.cpm-cal-root { display: flex; flex-direction: column; height: 100%; }
+
+/* Toolbar */
+.cpm-cal-toolbar { display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; border-bottom: 1px solid var(--clubpm-border); flex-shrink: 0; }
+.cpm-cal-toolbar-left { display: flex; align-items: center; gap: 8px; }
+.cpm-cal-today-btn { padding: 5px 12px; border-radius: 6px; border: 1px solid var(--clubpm-border); font-size: 13px; cursor: pointer; background: var(--clubpm-surface-200); color: var(--clubpm-text-primary); transition: background 0.15s; }
+.cpm-cal-today-btn:hover { background: var(--clubpm-surface-300); }
+.cpm-cal-nav-btn { width: 28px; height: 28px; border-radius: 4px; border: 1px solid var(--clubpm-border); cursor: pointer; background: var(--clubpm-surface-200); color: var(--clubpm-text-primary); font-size: 16px; display: inline-flex; align-items: center; justify-content: center; transition: background 0.15s; }
+.cpm-cal-nav-btn:hover { background: var(--clubpm-surface-300); }
+.cpm-cal-date-label { font-size: 13px; font-weight: 500; color: var(--clubpm-text-primary); }
+.cpm-cal-view-switcher { display: flex; border: 1px solid var(--clubpm-border); border-radius: 6px; overflow: hidden; }
+.cpm-cal-view-btn { padding: 5px 14px; font-size: 12px; border: none; cursor: pointer; background: var(--clubpm-surface-200); color: var(--clubpm-text-secondary); transition: background 0.15s, color 0.15s; }
+.cpm-cal-view-btn:hover { background: var(--clubpm-surface-300); }
+.cpm-cal-view-btn.active { background: var(--clubpm-accent-primary); color: #fff; }
+
+/* Month grid */
+.cpm-cal-month-grid { display: grid; grid-template-columns: repeat(7, 1fr); flex: 1; overflow-y: auto; }
+.cpm-cal-month-col-header { padding: 8px; text-align: left; font-size: 11px; font-weight: 600; color: var(--clubpm-text-muted); border-bottom: 1px solid var(--clubpm-border); background: var(--clubpm-surface-200); }
+.cpm-cal-month-cell { min-height: 100px; padding: 4px; border-right: 1px solid var(--clubpm-border); border-bottom: 1px solid var(--clubpm-border); background: var(--clubpm-surface-100); }
+.cpm-cal-month-cell.other-month { background: var(--clubpm-surface-50); opacity: 0.6; }
+.cpm-cal-month-cell.today { background: rgba(108, 92, 231, 0.05); }
+.cpm-cal-month-cell.today .cpm-cal-cell-num { background: var(--clubpm-accent-primary); color: #fff; border-radius: 50%; width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; }
+.cpm-cal-cell-num { font-size: 12px; font-weight: 600; margin-bottom: 4px; color: var(--clubpm-text-secondary); display: block; }
+
+/* Task chip */
+.cpm-cal-task-chip { display: flex; align-items: center; gap: 4px; font-size: 11px; padding: 2px 4px; border-radius: 3px; cursor: pointer; margin-bottom: 2px; white-space: nowrap; overflow: hidden; background: var(--clubpm-surface-200); }
+.cpm-cal-task-chip:hover { background: var(--clubpm-surface-300); }
+.cpm-cal-chip-handle { color: var(--clubpm-text-muted); font-size: 10px; flex-shrink: 0; }
+.cpm-cal-chip-status { width: 12px; height: 12px; border-radius: 50%; border: 1.5px solid; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 7px; }
+.cpm-cal-chip-avatar { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; object-fit: cover; }
+.cpm-cal-chip-avatar-initial { width: 14px; height: 14px; border-radius: 50%; background: var(--clubpm-accent-primary); color: #fff; font-size: 8px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.cpm-cal-chip-title { overflow: hidden; text-overflow: ellipsis; color: var(--clubpm-text-primary); min-width: 0; flex: 1; }
+.cpm-cal-more { font-size: 10px; color: var(--clubpm-text-muted); padding: 1px 4px; display: block; }
+
+/* Week / Day grid */
+.cpm-cal-week-grid { display: grid; grid-template-columns: 60px repeat(7, 1fr); overflow-y: auto; flex: 1; }
+.cpm-cal-day-grid { grid-template-columns: 60px 1fr; }
+.cpm-cal-week-col-header { padding: 8px 4px; text-align: center; font-size: 12px; font-weight: 600; border-bottom: 1px solid var(--clubpm-border); color: var(--clubpm-text-secondary); background: var(--clubpm-surface-200); }
+.cpm-cal-week-col-header.today { color: var(--clubpm-accent-primary); }
+.cpm-cal-week-time-gutter { border-right: 1px solid var(--clubpm-border); background: var(--clubpm-surface-200); }
+.cpm-cal-week-time-label { font-size: 10px; color: var(--clubpm-text-muted); text-align: right; padding-right: 8px; padding-top: 4px; border-right: 1px solid var(--clubpm-border); background: var(--clubpm-surface-100); }
+.cpm-cal-week-dow { display: block; }
+.cpm-cal-week-hour-cell { min-height: 52px; border-bottom: 1px solid var(--clubpm-border); border-right: 1px solid var(--clubpm-border); background: var(--clubpm-surface-100); }
+.cpm-cal-week-hour-cell.weekend { background: var(--clubpm-surface-50); }
+.cpm-cal-week-allday-cell { border-bottom: 1px solid var(--clubpm-border); border-right: 1px solid var(--clubpm-border); padding: 2px; min-height: 30px; background: var(--clubpm-surface-100); }
+.cpm-cal-show-full-day { margin: 8px; font-size: 12px; padding: 4px 10px; border: 1px solid var(--clubpm-border); border-radius: 6px; cursor: pointer; background: none; color: var(--clubpm-text-secondary); transition: background 0.15s; }
+.cpm-cal-show-full-day:hover { background: var(--clubpm-surface-200); }
+
+/* Agenda */
+.cpm-cal-agenda { display: flex; flex-direction: column; flex: 1; overflow-y: auto; }
+.cpm-cal-agenda-header { display: grid; grid-template-columns: 160px 120px 1fr; padding: 8px 16px; font-size: 11px; font-weight: 600; color: var(--clubpm-text-muted); border-bottom: 1px solid var(--clubpm-border); background: var(--clubpm-surface-200); text-transform: uppercase; letter-spacing: 0.04em; }
+.cpm-cal-agenda-day-group { display: grid; grid-template-columns: 160px 120px 1fr; border-bottom: 1px solid var(--clubpm-border); }
+.cpm-cal-agenda-date { display: flex; flex-direction: column; padding: 12px 16px; }
+.cpm-cal-agenda-day-num { font-size: 32px; font-weight: 700; color: var(--clubpm-text-primary); line-height: 1; }
+.cpm-cal-agenda-dow { font-size: 11px; font-weight: 700; color: var(--clubpm-text-secondary); text-transform: uppercase; }
+.cpm-cal-agenda-month { font-size: 11px; color: var(--clubpm-text-muted); }
+.cpm-cal-agenda-time { padding: 16px; font-size: 12px; color: var(--clubpm-text-muted); border-left: 1px solid var(--clubpm-border); display: flex; align-items: flex-start; }
+.cpm-cal-agenda-events { padding: 8px; border-left: 1px solid var(--clubpm-border); }
+.cpm-cal-agenda-row { display: flex; align-items: center; gap: 6px; padding: 6px 8px; border-radius: 4px; margin-bottom: 2px; cursor: pointer; font-size: 12px; transition: filter 0.1s; }
+.cpm-cal-agenda-row:hover { filter: brightness(1.15); background: var(--clubpm-surface-200) !important; }
+
+/* ── TaskModal Overhaul (cpm-tmodal-*) ──────────────────────── */
+
+/* Modal shell */
+.cpm-tmodal-overlay     { position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:1000; display:flex; align-items:center; justify-content:center; }
+.cpm-tmodal             { background:var(--clubpm-surface-100); color:var(--clubpm-text-primary); border-radius:12px; width:min(760px,96vw); max-height:90vh; overflow-y:auto; display:flex; flex-direction:column; box-shadow:0 24px 80px rgba(0,0,0,0.5); }
+.cpm-tmodal.fullscreen  { position:fixed; inset:0; border-radius:0; max-height:100vh; width:100vw; }
+
+/* Top bar */
+.cpm-tmodal-topbar      { display:flex; justify-content:space-between; align-items:center; padding:10px 16px; border-bottom:1px solid var(--clubpm-border); }
+.cpm-tmodal-topbar-left { display:flex; align-items:center; gap:4px; }
+.cpm-tmodal-topbar-right { display:flex; align-items:center; gap:8px; }
+.cpm-tmodal-topbar-avatar { width:28px; height:28px; border-radius:50%; background:var(--clubpm-accent-primary); color:#fff; font-size:11px; display:flex; align-items:center; justify-content:center; object-fit:cover; }
+.cpm-tmodal-breadcrumb  { display:flex; align-items:center; gap:6px; padding:6px 20px; font-size:11px; color:var(--clubpm-text-muted); border-bottom:1px solid var(--clubpm-border); }
+
+/* Title */
+.cpm-tmodal-title-row   { display:flex; align-items:flex-start; gap:12px; padding:16px 20px 8px; }
+.cpm-tmodal-title-avatar { width:32px; height:32px; border-radius:50%; background:var(--clubpm-accent-primary); color:#fff; font-size:12px; display:flex; align-items:center; justify-content:center; flex-shrink:0; overflow:hidden; }
+.cpm-tmodal-title-avatar img { width:100%; height:100%; object-fit:cover; }
+.cpm-tmodal-title       { font-size:22px; font-weight:700; color:var(--clubpm-text-primary); cursor:text; flex:1; line-height:1.3; margin:0; }
+.cpm-tmodal-title-input { font-size:22px; font-weight:700; flex:1; background:var(--clubpm-surface-200); border:1px solid var(--clubpm-accent-primary); border-radius:6px; padding:2px 6px; color:var(--clubpm-text-primary); width:100%; }
+.cpm-tmodal-actions     { display:flex; align-items:center; gap:8px; padding:0 20px 12px 52px; flex-wrap:wrap; }
+.cpm-tmodal-action-btn  { display:flex; align-items:center; gap:5px; font-size:12px; padding:5px 10px; border-radius:6px; border:1px solid var(--clubpm-border); background:none; color:var(--clubpm-text-secondary); cursor:pointer; }
+.cpm-tmodal-action-btn:hover { background:var(--clubpm-surface-300); }
+
+/* Meta grid */
+.cpm-tmodal-meta-grid   { display:grid; grid-template-columns:120px 1fr 120px 1fr; gap:10px 0; padding:12px 20px; border-top:1px solid var(--clubpm-border); border-bottom:1px solid var(--clubpm-border); align-items:center; }
+.cpm-tmodal-meta-label  { font-size:11px; color:var(--clubpm-text-muted); font-weight:500; }
+.cpm-tmodal-meta-value  { display:flex; align-items:center; gap:6px; font-size:13px; }
+.cpm-tmodal-meta-value.full-width { grid-column:span 3; }
+.cpm-tmodal-meta-secondary { font-size:11px; color:var(--clubpm-text-muted); }
+.cpm-tmodal-meta-muted  { font-size:12px; color:var(--clubpm-text-muted); font-style:italic; }
+.cpm-due-today          { color:var(--clubpm-accent-primary); font-weight:600; font-size:13px; }
+.cpm-due-overdue        { color:#e17055; font-weight:600; font-size:13px; }
+
+/* Avatar chip (inline member display) */
+.cpm-avatar-chip        { display:inline-flex; align-items:center; gap:5px; font-size:12px; color:var(--clubpm-text-secondary); }
+.cpm-avatar-chip-img    { width:20px; height:20px; border-radius:50%; object-fit:cover; }
+.cpm-avatar-chip-initials { width:20px; height:20px; border-radius:50%; background:var(--clubpm-accent-primary); color:#fff; font-size:9px; font-weight:700; display:flex; align-items:center; justify-content:center; }
+
+/* Status cycle button */
+.cpm-status-cycle-btn   { display:inline-flex; align-items:center; gap:5px; padding:3px 8px; border-radius:12px; border:1px solid var(--clubpm-border); background:none; cursor:pointer; font-size:12px; color:var(--clubpm-text-secondary); }
+.cpm-status-cycle-btn:hover { background:var(--clubpm-surface-300); }
+
+/* Sections */
+.cpm-tmodal-section          { border-bottom:1px solid var(--clubpm-border); }
+.cpm-tmodal-section-header   { display:flex; align-items:center; gap:8px; padding:12px 20px; cursor:pointer; font-size:13px; font-weight:600; color:var(--clubpm-text-primary); user-select:none; background:none; border:none; width:100%; text-align:left; }
+.cpm-tmodal-section-header:hover { background:var(--clubpm-surface-200); }
+.cpm-tmodal-section-body     { padding:8px 20px 16px; }
+.cpm-tmodal-desc-text        { font-size:13px; color:var(--clubpm-text-secondary); line-height:1.6; cursor:text; min-height:40px; margin:0; }
+.cpm-tmodal-desc-textarea    { width:100%; padding:8px; border-radius:6px; background:var(--clubpm-surface-200); border:1px solid var(--clubpm-border); color:var(--clubpm-text-primary); font-size:13px; resize:vertical; box-sizing:border-box; }
+.cpm-tmodal-desc-actions     { display:flex; gap:8px; margin-top:6px; }
+.cpm-tmodal-attachment-row   { display:flex; align-items:center; gap:8px; padding:6px 0; font-size:12px; color:var(--clubpm-accent-primary); text-decoration:none; }
+.cpm-tmodal-attachment-row:hover { text-decoration:underline; }
+
+/* Tabs */
+.cpm-tmodal-tabs        { display:flex; align-items:center; gap:4px; padding:8px 20px 0; border-bottom:2px solid var(--clubpm-border); }
+.cpm-tmodal-tab         { font-size:13px; font-weight:500; padding:6px 12px; border:none; background:none; cursor:pointer; color:var(--clubpm-text-muted); border-bottom:2px solid transparent; margin-bottom:-2px; }
+.cpm-tmodal-tab.active  { color:var(--clubpm-accent-primary); border-bottom-color:var(--clubpm-accent-primary); }
+.cpm-tmodal-tab-badge   { display:inline-flex; align-items:center; justify-content:center; width:16px; height:16px; border-radius:50%; background:var(--clubpm-accent-primary); color:#fff; font-size:9px; margin-left:4px; }
+.cpm-tmodal-tab-body    { padding:12px 20px; }
+
+/* Comments */
+.cpm-tmodal-comment         { display:flex; gap:10px; margin-bottom:14px; }
+.cpm-tmodal-comment-body    { flex:1; font-size:13px; }
+.cpm-tmodal-comment-author  { font-weight:600; margin-right:6px; color:var(--clubpm-text-primary); }
+.cpm-tmodal-comment-compose { display:flex; align-items:center; gap:10px; margin-top:8px; }
+.cpm-tmodal-comment-input   { flex:1; padding:8px 12px; border-radius:20px; background:var(--clubpm-surface-200); border:1px solid var(--clubpm-border); font-size:13px; color:var(--clubpm-text-primary); }
+
+/* History */
+.cpm-tmodal-history-row { display:flex; align-items:center; gap:8px; padding:5px 0; font-size:12px; }
+
+/* ··· dropdown */
+.cpm-tmodal-menu        { position:absolute; top:100%; right:0; background:var(--clubpm-surface-200); border:1px solid var(--clubpm-border); border-radius:8px; box-shadow:0 8px 32px rgba(0,0,0,0.3); z-index:10; min-width:160px; padding:4px; }
+.cpm-tmodal-menu button { display:block; width:100%; text-align:left; padding:7px 12px; border:none; background:none; cursor:pointer; font-size:12px; color:var(--clubpm-text-primary); border-radius:5px; }
+.cpm-tmodal-menu button:hover { background:var(--clubpm-surface-300); }
+.cpm-tmodal-menu-divider { height:1px; background:var(--clubpm-border); margin:4px 0; }
+
+/* Misc */
+.cpm-tmodal-icon-btn    { background:none; border:none; cursor:pointer; color:var(--clubpm-text-muted); padding:4px 6px; border-radius:4px; font-size:14px; }
+.cpm-tmodal-icon-btn:hover { background:var(--clubpm-surface-300); color:var(--clubpm-text-primary); }
+.cpm-tmodal-icon-btn-sm { background:none; border:none; cursor:pointer; color:var(--clubpm-text-muted); padding:2px 4px; font-size:11px; border-radius:3px; }
+.cpm-tmodal-icon-btn-sm:hover { background:var(--clubpm-surface-300); color:var(--clubpm-text-primary); }
+
+/* Add Link form */
+.cpm-tmodal-addlink-row { display:flex; gap:6px; margin-top:8px; flex-wrap:wrap; }
+.cpm-tmodal-addlink-input { flex:1; min-width:120px; }
+.cpm-tmodal-addlink-label-input { flex:1; min-width:100px; }
+
+/* Missing classes used in JSX */
+.cpm-tmodal-meta-empty  { font-size:12px; color:var(--clubpm-text-muted); font-style:italic; margin:0; }
+.cpm-tmodal-assignees   { display:flex; flex-wrap:wrap; gap:4px; }
+.cpm-tmodal-priority    { display:flex; align-items:center; gap:6px; font-size:13px; color:var(--clubpm-text-secondary); }
+.cpm-tmodal-attach-list { list-style:none; padding:0; margin:0 0 8px; display:flex; flex-direction:column; gap:2px; }
+.cpm-tmodal-attach-item { display:flex; align-items:center; gap:8px; padding:4px 0; font-size:12px; color:var(--clubpm-text-secondary); }
+.cpm-tmodal-attach-link { color:var(--clubpm-accent-primary); text-decoration:none; }
+.cpm-tmodal-attach-link:hover { text-decoration:underline; }
+.cpm-tmodal-menu-wrap   { position:relative; }
+.cpm-tmodal-menu-item   { display:block; width:100%; text-align:left; padding:7px 12px; border:none; background:none; cursor:pointer; font-size:12px; color:var(--clubpm-text-primary); border-radius:5px; }
+.cpm-tmodal-menu-item:hover { background:var(--clubpm-surface-300); }
+.cpm-tmodal-menu-item--danger { color:#e17055; }
+.cpm-tmodal-menu-item--danger:hover { background:rgba(225,112,85,0.1); }
+.cpm-tmodal-comments-list { display:flex; flex-direction:column; gap:12px; margin-bottom:12px; }
+.cpm-tmodal-comment-header { display:flex; align-items:baseline; gap:6px; margin-bottom:3px; }
+.cpm-tmodal-comment-time { font-size:11px; color:var(--clubpm-text-muted); }
+.cpm-tmodal-comment-text { font-size:13px; color:var(--clubpm-text-secondary); margin:0; line-height:1.5; }
+.cpm-tmodal-comment-submit-row { display:flex; justify-content:flex-end; margin-top:8px; }
+.cpm-tmodal-history-list { display:flex; flex-direction:column; }
+.cpm-tmodal-history-item { display:flex; align-items:center; gap:8px; padding:6px 0; border-bottom:1px solid var(--clubpm-border); font-size:12px; color:var(--clubpm-text-secondary); }
+.cpm-tmodal-history-item:last-child { border-bottom:none; }
+.cpm-tmodal-history-text { flex:1; color:var(--clubpm-text-secondary); }
+.cpm-tmodal-history-time { font-size:11px; color:var(--clubpm-text-muted); white-space:nowrap; }
+
+/* ── Milestone Panel ─────────────────────────────────────── */
+.cpm-milestone-panel { display: flex; flex-direction: column; gap: 16px; max-width: 800px; }
+.cpm-milestone-loading { display: flex; justify-content: center; padding: 48px 0; }
+.cpm-milestone-view-toggle { display: flex; gap: 8px; }
+.cpm-milestone-toggle-btn { padding: 6px 16px; border-radius: 20px; border: 1px solid var(--clubpm-border); background: var(--clubpm-surface-200); color: var(--clubpm-text-secondary); font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+.cpm-milestone-toggle-btn.active { background: var(--clubpm-accent-primary); color: #fff; border-color: var(--clubpm-accent-primary); }
+.cpm-milestone-toggle-btn:hover:not(.active) { background: var(--clubpm-surface-300); }
+
+/* Roadmap */
+.cpm-milestone-roadmap-wrap { padding: 12px 0; overflow-x: auto; }
+.cpm-milestone-roadmap-empty { padding: 24px; text-align: center; color: var(--clubpm-text-muted); font-size: 13px; }
+
+/* Badge */
+.cpm-milestone-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+
+/* Card */
+.cpm-milestone-card { padding: 14px 16px; margin-bottom: 10px; }
+.cpm-milestone-card-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.cpm-milestone-card-left { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; }
+.cpm-milestone-card-info { flex: 1; min-width: 0; }
+.cpm-milestone-card-title { font-size: 14px; font-weight: 600; color: var(--clubpm-text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cpm-milestone-card-date { font-size: 11px; color: var(--clubpm-text-muted); margin-top: 2px; }
+.cpm-milestone-card-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.cpm-milestone-expand-btn { background: none; border: none; cursor: pointer; color: var(--clubpm-text-muted); font-size: 11px; padding: 2px 4px; }
+.cpm-milestone-del-btn { background: none; border: none; cursor: pointer; font-size: 13px; opacity: 0.5; padding: 2px 4px; }
+.cpm-milestone-del-btn:hover { opacity: 1; }
+.cpm-milestone-owner { display: flex; align-items: center; }
+.cpm-milestone-avatar { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; }
+.cpm-milestone-avatar-initials { width: 24px; height: 24px; border-radius: 50%; background: var(--clubpm-accent-primary); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; }
+
+/* Card body */
+.cpm-milestone-card-body { margin-top: 14px; border-top: 1px solid var(--clubpm-border); padding-top: 12px; display: flex; flex-direction: column; gap: 12px; }
+.cpm-milestone-criteria-label { font-size: 10px; font-weight: 700; color: var(--clubpm-text-muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; }
+.cpm-milestone-criteria-text { font-size: 12px; color: var(--clubpm-text-secondary); margin: 0; line-height: 1.5; }
+.cpm-milestone-tasks-header { display: flex; align-items: center; justify-content: space-between; }
+.cpm-milestone-tasks-label { font-size: 11px; font-weight: 600; color: var(--clubpm-text-secondary); }
+.cpm-milestone-link-btn { background: none; border: 1px solid var(--clubpm-border); padding: 3px 10px; border-radius: 6px; font-size: 11px; cursor: pointer; color: var(--clubpm-text-secondary); }
+.cpm-milestone-link-btn:hover { background: var(--clubpm-surface-300); }
+.cpm-milestone-task-picker { display: flex; flex-direction: column; gap: 6px; padding: 8px; background: var(--clubpm-surface-300); border-radius: 8px; }
+.cpm-milestone-task-option { display: flex; align-items: center; gap: 8px; font-size: 12px; cursor: pointer; color: var(--clubpm-text-secondary); }
+.cpm-milestone-task-option-text { flex: 1; }
+.cpm-milestone-task-option-status { font-size: 10px; color: var(--clubpm-text-muted); }
+.cpm-milestone-task-picker-actions { margin-top: 8px; }
+.cpm-milestone-save-tasks-btn { font-size: 12px; padding: 4px 14px; }
+.cpm-milestone-linked-tasks { display: flex; flex-direction: column; gap: 6px; }
+.cpm-milestone-linked-task { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+.cpm-milestone-task-status-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.cpm-milestone-linked-task-title { flex: 1; color: var(--clubpm-text-secondary); }
+.cpm-milestone-task-status-label { font-size: 10px; color: var(--clubpm-text-muted); white-space: nowrap; }
+.cpm-milestone-no-tasks { font-size: 12px; color: var(--clubpm-text-muted); margin: 0; }
+.cpm-milestone-status-row { display: flex; align-items: center; gap: 8px; }
+.cpm-milestone-status-label { font-size: 11px; color: var(--clubpm-text-muted); }
+.cpm-milestone-status-select { background: var(--clubpm-surface-300); border: 1px solid var(--clubpm-border); border-radius: 6px; padding: 3px 8px; font-size: 12px; color: var(--clubpm-text-primary); cursor: pointer; }
+
+/* Add form */
+.cpm-milestone-add-form { padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+.cpm-milestone-add-form-title { font-size: 12px; font-weight: 700; color: var(--clubpm-text-secondary); text-transform: uppercase; letter-spacing: 0.06em; }
+.cpm-milestone-add-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.cpm-milestone-input-title { flex: 1; min-width: 180px; }
+.cpm-milestone-criteria-toggle { background: none; border: none; font-size: 11px; color: var(--clubpm-accent-primary); cursor: pointer; padding: 0; text-align: left; }
+.cpm-milestone-criteria-input { resize: vertical; min-height: 60px; }
+.cpm-milestone-error { font-size: 12px; color: #e17055; margin: 0; }
+.cpm-milestone-add-form-footer { display: flex; justify-content: flex-end; }
+
+/* Empty */
+.cpm-milestone-empty { text-align: center; padding: 48px 0; }
+.cpm-milestone-empty-icon { font-size: 36px; margin: 0 0 8px; }
+.cpm-milestone-empty-text { color: var(--clubpm-text-muted); font-size: 13px; margin: 0; }
+
+/* List */
+.cpm-milestone-list { display: flex; flex-direction: column; }
+
+.cpm-cal-agenda-task-title { color: var(--clubpm-text-primary); font-weight: 500; }
