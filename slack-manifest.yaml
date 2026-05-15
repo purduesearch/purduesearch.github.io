@@ -1,0 +1,45 @@
+display_information:
+  name: SEARCH PM
+  description: Slack-first project management for SEARCH engineering club
+  background_color: "#1a1a2e"
+
+features:
+  bot_user:
+    display_name: Club PM
+    always_online: true
+  slash_commands:
+    - command: /pm
+      description: Manage projects and tasks
+      usage_hint: "task | status [project] | standup | help"
+      should_escape: false
+
+oauth_config:
+  redirect_urls:
+    - http://localhost:3001/auth/slack/callback
+  scopes:
+    bot:
+      - chat:write
+      - commands
+      - channels:read
+      - channels:history
+      - users:read
+      - users:read.email
+      - im:write
+      - groups:read
+      - groups:history
+    user:
+      - users:read
+      - users:read.email
+
+settings:
+  socket_mode_enabled: true
+  token_rotation_enabled: false
+  event_subscriptions:
+    bot_events:
+      - message.channels
+      - message.groups
+      - channel_created
+      - member_joined_channel
+  interactivity:
+    is_enabled: true
+  org_deploy_enabled: false

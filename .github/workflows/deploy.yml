@@ -38,6 +38,8 @@ jobs:
         env:
           # Prevents ESLint warnings from failing the build on CI
           CI: false
+          # Points the ClubPM API client at the Oracle backend (set in repo Settings → Secrets)
+          REACT_APP_API_URL: ${{ secrets.REACT_APP_API_URL }}
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
