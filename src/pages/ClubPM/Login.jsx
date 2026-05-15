@@ -46,7 +46,7 @@ export default function Login() {
 
           <a
             id="slack-login-btn"
-            href="/auth/slack"
+            href={`${process.env.REACT_APP_API_URL || ''}/auth/slack`}
             className="pm-slack-btn"
           >
             <span className="pm-slack-btn-shimmer" />

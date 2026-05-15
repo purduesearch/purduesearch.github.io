@@ -24,6 +24,7 @@ jobs:
             git pull origin main
             cd backend
             npm ci --omit=dev
+            npx prisma generate
             npm run build
             npx prisma migrate deploy
             pm2 restart clubpm-backend
