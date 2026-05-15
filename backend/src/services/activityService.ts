@@ -89,7 +89,7 @@ export async function logAuditEvent(params: LogAuditEventParams): Promise<void> 
       memberId:  params.memberId ?? null,
       source:    params.source,
       eventType: params.eventType,
-      payload:   params.payload,
+      payload:   params.payload as any,
     },
   });
 }
