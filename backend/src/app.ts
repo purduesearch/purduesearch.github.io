@@ -20,6 +20,10 @@ import { startScheduler } from "./slack/scheduler.js";
 const app = express();
 const PORT = parseInt(process.env.PORT ?? "3000", 10);
 
+// Trust the first proxy (Nginx) so req.secure reflects HTTPS correctly.
+// Required for express-session to set Secure cookies behind a reverse proxy.
+app.set("trust proxy", 1);
+
 // Body parsing
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
