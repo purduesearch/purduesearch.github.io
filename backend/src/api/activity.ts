@@ -22,7 +22,7 @@ activityRouter.get("/", async (_req: Request, res: Response) => {
     // wait, ProjectUpdate has authorId, but no relation to Member in schema!
     // Let me check schema.prisma... Ah, authorId is just a String there, no relation defined.
     // I will fetch Members manually for updates or update the schema later.
-    const memberIds = [...new Set(updates.map(u => u.authorId))];
+    const memberIds = [...new Set(updates.map(u => u.authorId).filter((id): id is string => id !== null))];
     const members = await prisma.member.findMany({
       where: { id: { in: memberIds } }
     });
@@ -34,7 +34,7 @@ activityRouter.get("/", async (_req: Request, res: Response) => {
       content: u.content,
       createdAt: u.postedAt,
       project: u.project,
-      author: memberMap.get(u.authorId) || { displayName: "Unknown", avatarUrl: null }
+      author: (u.authorId ? memberMap.get(u.authorId) : undefined) || { displayName: "Unknown", avatarUrl: null }
     }));
 
     // Fetch recent TaskComments
@@ -75,7 +75,6 @@ activityRouter.get("/", async (_req: Request, res: Response) => {
 
 activityRouter.get("/project/:projectId", async (req: Request, res: Response) => {
   try {
-    const { getProjectActivities } = await import("../services/activityService.js");
     const limit  = Math.min(parseInt((req.query.limit  as string) ?? "20", 10), 100);
     const offset = parseInt((req.query.offset as string) ?? "0", 10);
     const type   = req.query.type as string | undefined;

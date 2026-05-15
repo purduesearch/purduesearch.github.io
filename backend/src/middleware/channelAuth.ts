@@ -16,14 +16,15 @@ export async function channelAuth(
   try {
     let projectId: string | null = null;
 
+    const paramId = req.params.id as string;
     if (req.baseUrl.includes("/tasks")) {
       const task = await prisma.task.findUnique({
-        where: { id: req.params.id },
+        where: { id: paramId },
         select: { projectId: true },
       });
       projectId = task?.projectId ?? null;
     } else {
-      projectId = req.params.id;
+      projectId = paramId;
     }
 
     if (!projectId) { next(); return; }
