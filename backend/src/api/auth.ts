@@ -148,13 +148,20 @@ authRouter.get("/slack/callback", async (req: Request, res: Response) => {
       },
     });
 
-    // Set session
+    // Set session and wait for it to be written to the store before redirecting.
+    // Without save(), the redirect can race ahead of the async PostgreSQL write.
     req.session.memberId = member.id;
     req.session.slackAccessToken = accessToken;
 
-    // Redirect to frontend
     const frontendUrl = process.env.FRONTEND_URL ?? "http://localhost:3000";
-    res.redirect(`${frontendUrl}/clubpm`);
+    req.session.save((err) => {
+      if (err) {
+        console.error("Session save error:", err);
+        res.status(500).json({ error: "Authentication failed" });
+        return;
+      }
+      res.redirect(`${frontendUrl}/clubpm`);
+    });
   } catch (error) {
     console.error("OAuth callback error:", error);
     res.status(500).json({ error: "Authentication failed" });
