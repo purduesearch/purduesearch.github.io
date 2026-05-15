@@ -1,6 +1,7 @@
 import React from "react";
 
 const SIZES = {
+  xs: { avatar: "w-[18px] h-[18px]", text: "text-[7px]", ring: "ring-1" },
   sm: { avatar: "w-6 h-6", text: "text-[8px]", ring: "ring-1" },
   md: { avatar: "w-8 h-8", text: "text-[10px]", ring: "ring-2" },
   lg: { avatar: "w-12 h-12", text: "text-sm", ring: "ring-2" },

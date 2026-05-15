@@ -1,11 +1,14 @@
 import type { App } from "@slack/bolt";
 import type { WebClient } from "@slack/web-api";
 import { prisma } from "../db/prisma.js";
-import { createTask, updateTask, getTask, reassignTaskFromSlack, createSubtask } from "../services/taskService.js";
+import { createTask, updateTask, getTask, reassignTaskFromSlack } from "../services/taskService.js";
 import { resolveSlackMember } from "../services/memberService.js";
 import { getProjectByChannel } from "../services/projectService.js";
 import { getMilestonesForProject } from "../services/milestoneService.js";
-import { buildTaskCard, buildStandupMessage, buildProjectReport, buildProjectHealth, buildMilestoneView } from "../utils/blockKit.js";
+import { buildTaskCard, buildStandupMessage, buildProjectReport, buildProjectHealth, buildMilestoneView, buildDriveTaskPreview } from "../utils/blockKit.js";
+import { fetchDriveFileAsText, extractFileId } from "../services/driveService.js";
+import { generateJsonFromImage, generateJsonFromDocument } from "../services/geminiService.js";
+import { driveToTasksPrompt, meetingNotesToTasksPrompt, imageToTaskPrompt } from "../utils/aiPrompts.js";
 import { logAuditEvent } from "../services/activityService.js";
 
 
@@ -81,7 +84,8 @@ export async function openNewTaskModal(
   initialDescription?: string,
   initialDueDate?: string,      // ISO "YYYY-MM-DD"
   initialAssignees?: string[],  // Slack user IDs
-  initialParentTaskId?: string
+  initialParentTaskId?: string,
+  isAdminUser?: boolean
 ): Promise<void> {
   // Get all active projects for the dropdown
   const projects = await prisma.project.findMany({
@@ -97,6 +101,15 @@ export async function openNewTaskModal(
 
   // Try to pre-select the current channel's project
   const channelProject = await getProjectByChannel(channelId);
+
+  // Build tag options from the channel project (fall back to empty)
+  let tagOptions: { text: { type: "plain_text"; text: string }; value: string }[] = [];
+  try {
+    if (channelProject?.id) {
+      const tags = await prisma.tag.findMany({ where: { projectId: channelProject.id } });
+      tagOptions = tags.map(t => ({ text: { type: "plain_text" as const, text: t.name }, value: t.id }));
+    }
+  } catch { /* no project resolved — leave empty */ }
 
   // Fetch open tasks to allow picking a parent task
   const openTasks = await prisma.task.findMany({
@@ -116,7 +129,12 @@ export async function openNewTaskModal(
     view: {
       type: "modal",
       callback_id: "new_task_submit",
-      private_metadata: channelId,
+      private_metadata: JSON.stringify({
+        channelId,
+        isAdminUser: isAdminUser ?? false,
+        // Non-admins with a channel project are locked to it; store so the handler can read it
+        lockedProjectId: (!isAdminUser && channelProject) ? channelProject.id : undefined,
+      }),
       title: { type: "plain_text", text: "Create Task" },
       submit: { type: "plain_text", text: "Create" },
       blocks: [
@@ -144,27 +162,40 @@ export async function openNewTaskModal(
             ...(initialDescription ? { initial_value: initialDescription } : {}),
           },
         },
-        {
-          type: "input",
-          block_id: "project_block",
-          label: { type: "plain_text", text: "Project" },
-          element: {
-            type: "static_select",
-            action_id: "project",
-            placeholder: { type: "plain_text", text: "Select a project" },
-            options: projectOptions.length > 0 ? projectOptions : [
-              { text: { type: "plain_text", text: "No projects available" }, value: "none" },
-            ],
-            ...(channelProject
-              ? {
-                  initial_option: {
-                    text: { type: "plain_text", text: channelProject.name },
-                    value: channelProject.id,
-                  },
-                }
-              : {}),
-          },
-        },
+        // Admins (or users in channels without a linked project) get the full project picker.
+        // Non-admins with a linked channel project see a locked read-only display; the projectId
+        // travels through private_metadata.lockedProjectId instead of form values.
+        ...(!isAdminUser && channelProject
+          ? [
+              {
+                type: "section" as const,
+                block_id: "project_block",
+                text: { type: "mrkdwn" as const, text: `*Project:* ${channelProject.name}` },
+              },
+            ]
+          : [
+              {
+                type: "input" as const,
+                block_id: "project_block",
+                label: { type: "plain_text" as const, text: "Project" },
+                element: {
+                  type: "static_select" as const,
+                  action_id: "project",
+                  placeholder: { type: "plain_text" as const, text: "Select a project" },
+                  options: projectOptions.length > 0 ? projectOptions : [
+                    { text: { type: "plain_text" as const, text: "No projects available" }, value: "none" },
+                  ],
+                  ...(channelProject
+                    ? {
+                        initial_option: {
+                          text: { type: "plain_text" as const, text: channelProject.name },
+                          value: channelProject.id,
+                        },
+                      }
+                    : {}),
+                },
+              },
+            ]),
         {
           type: "input",
           block_id: "assignee_block",
@@ -244,6 +275,49 @@ export async function openNewTaskModal(
             ],
           },
         },
+        {
+          type: "input", block_id: "tags_block",
+          label: { type: "plain_text", text: "Tags" }, optional: true,
+          element: {
+            type: "multi_static_select", action_id: "tags",
+            placeholder: { type: "plain_text", text: "Select tags" },
+            options: tagOptions.length > 0 ? tagOptions
+              : [{ text: { type: "plain_text", text: "No tags yet" }, value: "none" }],
+          },
+        },
+        {
+          type: "input", block_id: "estimated_hours_block",
+          label: { type: "plain_text", text: "Estimated Hours" }, optional: true,
+          element: { type: "plain_text_input", action_id: "estimated_hours",
+            placeholder: { type: "plain_text", text: "e.g. 4" } },
+        },
+        {
+          type: "input", block_id: "story_points_block",
+          label: { type: "plain_text", text: "Story Points" }, optional: true,
+          element: { type: "plain_text_input", action_id: "story_points",
+            placeholder: { type: "plain_text", text: "e.g. 3" } },
+        },
+        {
+          type: "input", block_id: "recurrence_block",
+          label: { type: "plain_text", text: "Recurring" }, optional: true,
+          element: {
+            type: "static_select", action_id: "recurrence",
+            placeholder: { type: "plain_text", text: "Does not repeat" },
+            options: [
+              { text: { type: "plain_text", text: "Does not repeat" }, value: "NONE" },
+              { text: { type: "plain_text", text: "Daily" }, value: "DAILY" },
+              { text: { type: "plain_text", text: "Weekly" }, value: "WEEKLY" },
+              { text: { type: "plain_text", text: "Biweekly" }, value: "BIWEEKLY" },
+              { text: { type: "plain_text", text: "Monthly" }, value: "MONTHLY" },
+            ],
+          },
+        },
+        {
+          type: "input", block_id: "recurrence_end_block",
+          label: { type: "plain_text", text: "Repeat Until" }, optional: true,
+          element: { type: "datepicker", action_id: "recurrence_end",
+            placeholder: { type: "plain_text", text: "No end date" } },
+        },
         // Fetch open milestones for the channel's project, add block if any exist
         ...(await (async () => {
           if (!channelProject) return [];
@@ -286,8 +360,21 @@ export async function openNewTaskModal(
 export async function openNewProjectModal(
   client: WebClient,
   triggerId: string,
-  channelId?: string
+  channelId?: string,
+  userId?: string
 ): Promise<void> {
+  if (userId) {
+    const member = await prisma.member.findUnique({ where: { slackId: userId }, select: { isAdmin: true } });
+    if (!member?.isAdmin) {
+      await client.chat.postEphemeral({
+        channel: channelId ?? userId,
+        user: userId,
+        text: "❌ Only admins can create projects.",
+      });
+      return;
+    }
+  }
+
   await client.views.open({
     trigger_id: triggerId,
     view: {
@@ -541,18 +628,22 @@ export function registerModals(app: App): void {
   });
 
   // ── New Task Submission ──────────────────────────────────
-  app.view("new_task_submit", async ({ ack, view, client }) => {
+  app.view("new_task_submit", async ({ ack, body, view, client }) => {
     await ack();
 
     try {
-      const channelId = view.private_metadata;
+      const meta = (() => { try { return JSON.parse(view.private_metadata); } catch { return { channelId: view.private_metadata }; } })();
+      const channelId: string = meta.channelId ?? view.private_metadata;
       const values = view.state.values;
 
       const title = values.title_block?.title?.value ?? "Untitled";
       const description =
         values.description_block?.description?.value ?? undefined;
+      // Non-admins with a locked project don't have a project dropdown; fall back to metadata.
       const projectId =
-        values.project_block?.project?.selected_option?.value ?? "";
+        values.project_block?.project?.selected_option?.value
+        || meta.lockedProjectId
+        || "";
       const assigneeSlackIds =
         values.assignee_block?.assignees?.selected_users ?? [];
       const dueDateStr =
@@ -567,6 +658,15 @@ export function registerModals(app: App): void {
         values.parent_task_block?.parent_task?.selected_option?.value ?? undefined;
       const milestoneId =
         values.milestone_block?.milestone?.selected_option?.value ?? undefined;
+      const tagIds = (values.tags_block?.tags?.selected_options ?? [])
+        .map((o: any) => o.value).filter((v: string) => v !== "none");
+      const estimatedHours = parseFloat(values.estimated_hours_block?.estimated_hours?.value ?? "") || undefined;
+      const storyPoints = parseInt(values.story_points_block?.story_points?.value ?? "") || undefined;
+      const recurrence = values.recurrence_block?.recurrence?.selected_option?.value;
+      const isRecurring = recurrence && recurrence !== "NONE" ? true : undefined;
+      const recurrencePattern = isRecurring ? recurrence : undefined;
+      const recurrenceEndRaw = values.recurrence_end_block?.recurrence_end?.selected_date;
+      const recurrenceEndDate = recurrenceEndRaw ? new Date(recurrenceEndRaw) : undefined;
 
       if (!projectId || projectId === "none") return;
 
@@ -588,6 +688,12 @@ export function registerModals(app: App): void {
         priority,
         parentTaskId,
         milestoneId,
+        tagIds,
+        estimatedHours,
+        storyPoints,
+        isRecurring,
+        recurrencePattern,
+        recurrenceEndDate,
       });
 
       if (task.milestoneId) {
@@ -616,7 +722,7 @@ export function registerModals(app: App): void {
         }
       }
 
-      const actor = await resolveSlackMember(view.user?.id ?? body.user.id).catch(() => null);
+      const actor = await resolveSlackMember(body.user.id).catch(() => null);
       logAuditEvent({
         projectId,
         taskId:   task.id,
@@ -733,6 +839,20 @@ export function registerModals(app: App): void {
     await ack();
 
     try {
+      // Server-side admin guard — the modal opener already checks this, but we
+      // enforce it here too so a lingering or replayed modal can't bypass it.
+      const submitter = await prisma.member.findUnique({
+        where: { slackId: body.user.id },
+        select: { isAdmin: true },
+      });
+      if (!submitter?.isAdmin) {
+        await client.chat.postMessage({
+          channel: body.user.id,
+          text: "❌ Only admins can create projects.",
+        });
+        return;
+      }
+
       const values = view.state.values;
       const name = values.name_block?.name?.value ?? "Untitled Project";
       const description = values.description_block?.description?.value ?? null;
@@ -1005,20 +1125,46 @@ export function registerModals(app: App): void {
       const values = view.state.values;
       const parentTaskId = values.parent_block?.parent_task?.selected_option?.value;
       const title = values.title_block?.title?.value ?? "Untitled";
+      const description = values.description_block?.description?.value ?? undefined;
       const assigneeSlackIds = values.assignee_block?.assignees?.selected_users ?? [];
+      const dueDateStr = values.due_date_block?.due_date?.selected_date ?? undefined;
+      const priority = (values.priority_block?.priority?.selected_option?.value as
+        "LOW" | "MEDIUM" | "HIGH" | "CRITICAL") ?? "MEDIUM";
+      const tagIds = (values.tags_block?.tags?.selected_options ?? [])
+        .map((o: any) => o.value).filter((v: string) => v !== "none");
+      const estimatedHours = parseFloat(values.estimated_hours_block?.estimated_hours?.value ?? "") || undefined;
+      const storyPoints = parseInt(values.story_points_block?.story_points?.value ?? "") || undefined;
 
       if (!parentTaskId || parentTaskId === "none") return;
+
+      // Look up parent to get projectId
+      const parentTask = await prisma.task.findUnique({ where: { id: parentTaskId } });
+      if (!parentTask) return;
 
       const assigneeIds = await Promise.all(
         assigneeSlackIds.map((slackId: string) => resolveSlackMember(slackId, client).then(m => m.id))
       );
 
-      const subtask = await createSubtask(parentTaskId, { title, assigneeIds });
+      const dueDate = dueDateStr ? new Date(dueDateStr) : undefined;
 
-      if (channelId) {
+      const subtask = await createTask({
+        title,
+        description,
+        projectId: parentTask.projectId,
+        assigneeIds,
+        dueDate,
+        priority,
+        parentTaskId,
+        tagIds,
+        estimatedHours,
+        storyPoints,
+      });
+
+      const fullSubtask = await getTask(subtask.id);
+      if (fullSubtask && channelId) {
         await client.chat.postMessage({
           channel: channelId,
-          blocks: buildTaskCard(subtask, subtask.project),
+          blocks: buildTaskCard(fullSubtask, fullSubtask.project),
           text: `✅ Subtask created: ${title}`,
         });
       }
@@ -1136,6 +1282,16 @@ export async function openSubtaskModal(
     parentOptions.push({ text: { type: "plain_text", text: "No open tasks available" }, value: "none" });
   }
 
+  // Fetch tags scoped to the channel project if available
+  const channelProject = await getProjectByChannel(channelId).catch(() => null);
+  let tagOptions: { text: { type: "plain_text"; text: string }; value: string }[] = [];
+  try {
+    if (channelProject?.id) {
+      const tags = await prisma.tag.findMany({ where: { projectId: channelProject.id } });
+      tagOptions = tags.map(t => ({ text: { type: "plain_text" as const, text: t.name }, value: t.id }));
+    }
+  } catch { /* ignore */ }
+
   await client.views.open({
     trigger_id: triggerId,
     view: {
@@ -1168,6 +1324,18 @@ export async function openSubtaskModal(
         },
         {
           type: "input",
+          block_id: "description_block",
+          label: { type: "plain_text", text: "Description" },
+          optional: true,
+          element: {
+            type: "plain_text_input",
+            action_id: "description",
+            multiline: true,
+            placeholder: { type: "plain_text", text: "Detailed description..." },
+          },
+        },
+        {
+          type: "input",
           block_id: "assignee_block",
           label: { type: "plain_text", text: "Assignee" },
           optional: true,
@@ -1176,6 +1344,55 @@ export async function openSubtaskModal(
             action_id: "assignees",
             placeholder: { type: "plain_text", text: "Select team members" },
           },
+        },
+        {
+          type: "input",
+          block_id: "due_date_block",
+          label: { type: "plain_text", text: "Due Date" },
+          optional: true,
+          element: {
+            type: "datepicker",
+            action_id: "due_date",
+            placeholder: { type: "plain_text", text: "Select a date" },
+          },
+        },
+        {
+          type: "input",
+          block_id: "priority_block",
+          label: { type: "plain_text", text: "Priority" },
+          element: {
+            type: "static_select",
+            action_id: "priority",
+            initial_option: { text: { type: "plain_text", text: "🟡 Medium" }, value: "MEDIUM" },
+            options: [
+              { text: { type: "plain_text", text: "🟢 Low" }, value: "LOW" },
+              { text: { type: "plain_text", text: "🟡 Medium" }, value: "MEDIUM" },
+              { text: { type: "plain_text", text: "🟠 High" }, value: "HIGH" },
+              { text: { type: "plain_text", text: "🔴 Critical" }, value: "CRITICAL" },
+            ],
+          },
+        },
+        {
+          type: "input", block_id: "tags_block",
+          label: { type: "plain_text", text: "Tags" }, optional: true,
+          element: {
+            type: "multi_static_select", action_id: "tags",
+            placeholder: { type: "plain_text", text: "Select tags" },
+            options: tagOptions.length > 0 ? tagOptions
+              : [{ text: { type: "plain_text", text: "No tags yet" }, value: "none" }],
+          },
+        },
+        {
+          type: "input", block_id: "estimated_hours_block",
+          label: { type: "plain_text", text: "Estimated Hours" }, optional: true,
+          element: { type: "plain_text_input", action_id: "estimated_hours",
+            placeholder: { type: "plain_text", text: "e.g. 4" } },
+        },
+        {
+          type: "input", block_id: "story_points_block",
+          label: { type: "plain_text", text: "Story Points" }, optional: true,
+          element: { type: "plain_text_input", action_id: "story_points",
+            placeholder: { type: "plain_text", text: "e.g. 3" } },
         },
       ],
     },
@@ -1466,5 +1683,329 @@ export async function openMilestoneModal(
         },
       ],
     },
+  });
+}
+
+// ── AI Modal Openers ─────────────────────────────────────────
+
+export async function openDriveParseModal(
+  client: WebClient,
+  triggerId: string,
+  channelId: string,
+  prefillUrl?: string
+): Promise<void> {
+  await client.views.open({
+    trigger_id: triggerId,
+    view: {
+      type: "modal",
+      callback_id: "drive_parse_submit",
+      private_metadata: JSON.stringify({ channelId }),
+      title: { type: "plain_text", text: "Parse Drive Document" },
+      submit: { type: "plain_text", text: "Extract Tasks" },
+      close: { type: "plain_text", text: "Cancel" },
+      blocks: [
+        {
+          type: "input",
+          block_id: "url_block",
+          label: { type: "plain_text", text: "Google Drive / Docs / Sheets URL" },
+          element: {
+            type: "plain_text_input",
+            action_id: "drive_url",
+            placeholder: { type: "plain_text", text: "https://docs.google.com/document/d/..." },
+            ...(prefillUrl ? { initial_value: prefillUrl } : {}),
+          },
+        },
+        {
+          type: "input",
+          block_id: "note_block",
+          optional: true,
+          label: { type: "plain_text", text: "What should I look for? (optional)" },
+          element: {
+            type: "plain_text_input",
+            action_id: "note",
+            placeholder: { type: "plain_text", text: "e.g. Focus on action items for the hardware team" },
+          },
+        },
+      ],
+    },
+  });
+}
+
+export async function openMeetingNotesModal(
+  client: WebClient,
+  triggerId: string,
+  channelId: string
+): Promise<void> {
+  await client.views.open({
+    trigger_id: triggerId,
+    view: {
+      type: "modal",
+      callback_id: "meeting_notes_submit",
+      private_metadata: JSON.stringify({ channelId }),
+      title: { type: "plain_text", text: "Parse Meeting Notes" },
+      submit: { type: "plain_text", text: "Extract Action Items" },
+      close: { type: "plain_text", text: "Cancel" },
+      blocks: [
+        {
+          type: "input",
+          block_id: "notes_block",
+          label: { type: "plain_text", text: "Meeting Notes" },
+          element: {
+            type: "plain_text_input",
+            action_id: "notes",
+            multiline: true,
+            placeholder: { type: "plain_text", text: "Paste your meeting notes here..." },
+          },
+        },
+        {
+          type: "input",
+          block_id: "attendees_block",
+          optional: true,
+          label: { type: "plain_text", text: "Attendees (optional)" },
+          element: {
+            type: "multi_users_select",
+            action_id: "attendees",
+            placeholder: { type: "plain_text", text: "Select attendees" },
+          },
+        },
+      ],
+    },
+  });
+}
+
+export async function openSprintPlanModal(
+  client: WebClient,
+  triggerId: string,
+  projectId: string
+): Promise<void> {
+  await client.views.open({
+    trigger_id: triggerId,
+    view: {
+      type: "modal",
+      callback_id: "sprint_plan_submit",
+      private_metadata: JSON.stringify({ projectId }),
+      title: { type: "plain_text", text: "Plan Sprint" },
+      submit: { type: "plain_text", text: "Generate Plan" },
+      close: { type: "plain_text", text: "Cancel" },
+      blocks: [
+        {
+          type: "input",
+          block_id: "capacity_block",
+          label: { type: "plain_text", text: "Team Capacity (story points)" },
+          element: {
+            type: "plain_text_input",
+            action_id: "capacity_points",
+            initial_value: "40",
+            placeholder: { type: "plain_text", text: "40" },
+          },
+        },
+        {
+          type: "input",
+          block_id: "days_block",
+          label: { type: "plain_text", text: "Sprint Length (days)" },
+          element: {
+            type: "plain_text_input",
+            action_id: "sprint_days",
+            initial_value: "14",
+            placeholder: { type: "plain_text", text: "14" },
+          },
+        },
+      ],
+    },
+  });
+}
+
+export async function openImageTaskModal(
+  client: WebClient,
+  triggerId: string,
+  channelId: string,
+  fileUrl: string,
+  userNote: string
+): Promise<void> {
+  await client.views.open({
+    trigger_id: triggerId,
+    view: {
+      type: "modal",
+      callback_id: "image_task_submit",
+      private_metadata: JSON.stringify({ channelId, fileUrl }),
+      title: { type: "plain_text", text: "Create Task from Image" },
+      submit: { type: "plain_text", text: "Analyze & Create" },
+      close: { type: "plain_text", text: "Cancel" },
+      blocks: [
+        {
+          type: "section",
+          text: { type: "mrkdwn", text: `📎 Image: \`${fileUrl.split("/").pop() ?? "uploaded file"}\`` },
+        },
+        {
+          type: "input",
+          block_id: "note_block",
+          optional: true,
+          label: { type: "plain_text", text: "What's wrong here? (optional)" },
+          element: {
+            type: "plain_text_input",
+            action_id: "note",
+            initial_value: userNote,
+            placeholder: { type: "plain_text", text: "Describe the issue visible in this screenshot..." },
+          },
+        },
+      ],
+    },
+  });
+}
+
+// ── AI Modal Submission Handlers ──────────────────────────────
+
+export function registerAiModals(app: App): void {
+  // Drive parse submit
+  app.view("drive_parse_submit", async ({ ack, body, view, client }) => {
+    await ack();
+    try {
+      const { channelId } = JSON.parse(view.private_metadata);
+      const driveUrl = view.state.values.url_block?.drive_url?.value ?? "";
+      if (!driveUrl) return;
+
+      const fileId = extractFileId(driveUrl);
+      if (!fileId) {
+        await client.chat.postEphemeral({ channel: channelId, user: body.user.id, text: "❌ Couldn't parse a file ID from that URL." });
+        return;
+      }
+
+      const project = await getProjectByChannel(channelId);
+      if (!project) {
+        await client.chat.postEphemeral({ channel: channelId, user: body.user.id, text: "❌ No project linked to this channel." });
+        return;
+      }
+
+      await client.chat.postEphemeral({ channel: channelId, user: body.user.id, text: "⏳ Fetching and analyzing document…" });
+
+      const fileResult = await fetchDriveFileAsText(fileId);
+      if (!fileResult) {
+        await client.chat.postEphemeral({ channel: channelId, user: body.user.id, text: "❌ Couldn't fetch that file. Make sure the service account has access." });
+        return;
+      }
+
+      const existingTasks = await prisma.task.findMany({ where: { projectId: project.id, status: { not: "DONE" } }, select: { title: true } });
+      const today = new Date().toISOString().split("T")[0];
+      const result = await generateJsonFromDocument<{ tasks: any[] }>(
+        fileResult.text,
+        driveToTasksPrompt(project.name, project.description ?? "", existingTasks.map(t => t.title), today)
+      );
+
+      if (!result?.tasks?.length) {
+        await client.chat.postEphemeral({ channel: channelId, user: body.user.id, text: "🤷 No actionable tasks found in that document." });
+        return;
+      }
+
+      await client.chat.postEphemeral({
+        channel: channelId,
+        user: body.user.id,
+        text: `📄 Found ${result.tasks.length} task(s) in *${fileResult.name}*`,
+        blocks: buildDriveTaskPreview(result.tasks, channelId),
+      });
+    } catch (err) {
+      console.error("drive_parse_submit error:", err);
+    }
+  });
+
+  // Meeting notes submit
+  app.view("meeting_notes_submit", async ({ ack, body, view, client }) => {
+    await ack();
+    try {
+      const { channelId } = JSON.parse(view.private_metadata);
+      const notes = view.state.values.notes_block?.notes?.value ?? "";
+      const attendeeIds: string[] = (view.state.values.attendees_block?.attendees?.selected_users ?? []) as string[];
+
+      const project = await getProjectByChannel(channelId);
+      if (!project) return;
+
+      await client.chat.postEphemeral({ channel: channelId, user: body.user.id, text: "⏳ Parsing meeting notes…" });
+
+      const attendeeNames = attendeeIds.length > 0
+        ? (await prisma.member.findMany({ where: { slackId: { in: attendeeIds } }, select: { displayName: true } })).map(m => m.displayName)
+        : [];
+      const today = new Date().toISOString().split("T")[0];
+      const result = await generateJsonFromDocument<{ tasks: any[]; summary: string }>(
+        notes,
+        meetingNotesToTasksPrompt(project.name, attendeeNames, today)
+      );
+
+      if (!result?.tasks?.length) {
+        await client.chat.postEphemeral({ channel: channelId, user: body.user.id, text: "🤷 No action items found in those notes." });
+        return;
+      }
+
+      await client.chat.postEphemeral({
+        channel: channelId,
+        user: body.user.id,
+        text: `📝 Found ${result.tasks.length} action item(s)\n> ${result.summary ?? ""}`,
+        blocks: buildDriveTaskPreview(result.tasks, channelId),
+      });
+    } catch (err) {
+      console.error("meeting_notes_submit error:", err);
+    }
+  });
+
+  // Sprint plan submit
+  app.view("sprint_plan_submit", async ({ ack, body, view, client }) => {
+    await ack();
+    try {
+      const { projectId } = JSON.parse(view.private_metadata);
+      const capacityPoints = parseInt(view.state.values.capacity_block?.capacity_points?.value ?? "40") || 40;
+      const sprintDays = parseInt(view.state.values.days_block?.sprint_days?.value ?? "14") || 14;
+
+      const { generateSprintPlan } = await import("../services/projectAnalysisService.js");
+      const plan = await generateSprintPlan(projectId, capacityPoints, sprintDays) as any;
+      if (!plan) return;
+
+      const lines = (plan.sprintTasks ?? []).slice(0, 15).map((t: any) => `• \`${t.taskId}\` — ${t.reason}`);
+      await client.chat.postEphemeral({
+        channel: body.user.id,
+        user: body.user.id,
+        text: `🏃 *Sprint Plan (${sprintDays}d, ${plan.totalPoints ?? "?"}pts)*\n*Theme:* ${plan.focusTheme}\n\n${lines.join("\n")}${plan.risksInPlan?.length ? `\n\n⚠️ Risks: ${plan.risksInPlan.join(", ")}` : ""}`,
+      });
+    } catch (err) {
+      console.error("sprint_plan_submit error:", err);
+    }
+  });
+
+  // Image task submit
+  app.view("image_task_submit", async ({ ack, body, view, client }) => {
+    await ack();
+    try {
+      const { channelId, fileUrl } = JSON.parse(view.private_metadata);
+      const note = view.state.values.note_block?.note?.value ?? "";
+
+      const project = await getProjectByChannel(channelId);
+      if (!project) return;
+
+      // Download file as base64 using bot token
+      const fileResp = await fetch(fileUrl, { headers: { Authorization: `Bearer ${process.env.SLACK_BOT_TOKEN}` } });
+      if (!fileResp.ok) {
+        await client.chat.postEphemeral({ channel: channelId, user: body.user.id, text: "❌ Couldn't download the image." });
+        return;
+      }
+      const buffer = await fileResp.arrayBuffer();
+      const base64 = Buffer.from(buffer).toString("base64");
+      const contentType = fileResp.headers.get("content-type") ?? "image/jpeg";
+      const mimeType = (contentType.startsWith("image/png") ? "image/png" : contentType.startsWith("image/webp") ? "image/webp" : "image/jpeg") as "image/png" | "image/jpeg" | "image/webp";
+
+      const result = await generateJsonFromImage<{ hasTask: boolean; title: string; description: string; priority: string; screenshotDescription: string }>(
+        base64, mimeType, imageToTaskPrompt(project.name, note)
+      );
+
+      if (!result) {
+        await client.chat.postEphemeral({ channel: channelId, user: body.user.id, text: "❌ Couldn't analyze the image." });
+        return;
+      }
+
+      if (result.hasTask) {
+        const isAdminUser = await import("../services/memberService.js").then(m => m.isAdminBySlackId(body.user.id));
+        await openNewTaskModal(client, ("trigger_id" in body ? (body as any).trigger_id : "") ?? "", channelId, result.title, result.description, undefined, undefined, undefined, isAdminUser);
+      } else {
+        await client.chat.postEphemeral({ channel: channelId, user: body.user.id, text: `🖼️ ${result.screenshotDescription}\n\nNo specific task detected.` });
+      }
+    } catch (err) {
+      console.error("image_task_submit error:", err);
+    }
   });
 }

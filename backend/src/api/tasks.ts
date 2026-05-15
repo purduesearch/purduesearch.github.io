@@ -1,9 +1,14 @@
 import { Router, type Request, type Response } from "express";
 import { requireAuth } from "./auth.js";
 import { channelAuth } from "../middleware/channelAuth.js";
-import { updateTask, deleteTask, getTask, createSubtask, getSubtasks, addDependency, removeDependency } from "../services/taskService.js";
+import { updateTask, deleteTask, getTask, createSubtask, getSubtasks, addDependency, removeDependency, logTime, createTask } from "../services/taskService.js";
 import { logAuditEvent, diffObjects } from "../services/activityService.js";
 import type { TaskStatus, TaskProgress, Priority } from "@prisma/client";
+import { generateJson, generateJsonFromImage } from "../services/geminiService.js";
+import {
+  duplicateDetectionPrompt, enrichTaskPrompt, deadlineSuggestionPrompt, nlToTaskPrompt, imageToTaskPrompt,
+} from "../utils/aiPrompts.js";
+import { prisma as prismaClient } from "../db/prisma.js";
 
 export const tasksRouter = Router();
 
@@ -26,7 +31,7 @@ tasksRouter.get("/search", async (req: Request, res: Response) => {
         OR: [
           { title: { contains: query, mode: "insensitive" } },
           { description: { contains: query, mode: "insensitive" } },
-          { tags: { hasSome: [query] } },
+          { tags: { some: { name: { contains: query, mode: "insensitive" } } } },
           { assignees: { some: { displayName: { contains: query, mode: "insensitive" } } } },
         ],
       },
@@ -41,12 +46,156 @@ tasksRouter.get("/search", async (req: Request, res: Response) => {
   }
 });
 
+// ── POST /api/tasks/check-duplicates ────────────────────────
+
+tasksRouter.post("/check-duplicates", async (req: Request, res: Response) => {
+  try {
+    const { title, description, projectId } = req.body as {
+      title: string;
+      description?: string;
+      projectId: string;
+    };
+
+    if (!title || !projectId) {
+      res.status(400).json({ error: "title and projectId are required" });
+      return;
+    }
+
+    const existingTasks = await prismaClient.task.findMany({
+      where: { projectId, status: { not: "DONE" } },
+      select: { id: true, title: true, description: true },
+    });
+
+    const result = await generateJson(duplicateDetectionPrompt(title, description ?? "", existingTasks));
+    res.json(result);
+  } catch (error) {
+    console.error("Check duplicates error:", error);
+    res.status(500).json({ error: "Failed to check for duplicates" });
+  }
+});
+
+// ── POST /api/tasks/create-from-nl ──────────────────────────
+
+tasksRouter.post("/create-from-nl", async (req: Request, res: Response) => {
+  try {
+    const { input, projectId } = req.body as { input: string; projectId: string };
+
+    if (!input || !projectId) {
+      res.status(400).json({ error: "input and projectId are required" });
+      return;
+    }
+
+    const project = await prismaClient.project.findUnique({
+      where: { id: projectId },
+      include: { members: { include: { member: true } } },
+    });
+    if (!project) {
+      res.status(404).json({ error: "Project not found" });
+      return;
+    }
+
+    const memberNames = project.members.map((pm: any) => pm.member.displayName as string);
+    const today = new Date().toISOString().split("T")[0];
+
+    const parsed = await generateJson<{
+      title: string;
+      description?: string | null;
+      priority?: Priority;
+      dueDate?: string | null;
+      assigneeName?: string | null;
+    }>(nlToTaskPrompt(input, project.name, memberNames, today));
+
+    if (!parsed) {
+      res.status(500).json({ error: "AI failed to parse task" });
+      return;
+    }
+
+    let assigneeId: string | undefined;
+    if (parsed.assigneeName) {
+      const nameLower = parsed.assigneeName.toLowerCase();
+      const match = project.members.find(
+        (pm: any) =>
+          pm.member.displayName.toLowerCase().includes(nameLower) ||
+          nameLower.includes(pm.member.displayName.toLowerCase()),
+      );
+      if (match) assigneeId = (match as any).member.id;
+    }
+
+    const task = await createTask({
+      title: parsed.title,
+      description: parsed.description ?? undefined,
+      priority: parsed.priority,
+      dueDate: parsed.dueDate ? new Date(parsed.dueDate) : undefined,
+      projectId,
+      assigneeIds: assigneeId ? [assigneeId] : [],
+    });
+
+    res.status(201).json(task);
+  } catch (error) {
+    console.error("Create from NL error:", error);
+    res.status(500).json({ error: "Failed to create task from natural language" });
+  }
+});
+
+// ── POST /api/tasks/create-from-image ───────────────────────
+
+tasksRouter.post("/create-from-image", async (req: Request, res: Response) => {
+  try {
+    const { imageBase64, mimeType, projectId, userNote } = req.body as {
+      imageBase64: string;
+      mimeType: "image/png" | "image/jpeg" | "image/webp";
+      projectId: string;
+      userNote?: string;
+    };
+
+    if (!imageBase64 || !mimeType || !projectId) {
+      res.status(400).json({ error: "imageBase64, mimeType, and projectId are required" });
+      return;
+    }
+
+    const project = await prismaClient.project.findUnique({ where: { id: projectId } });
+    if (!project) {
+      res.status(404).json({ error: "Project not found" });
+      return;
+    }
+
+    const result = await generateJsonFromImage<{
+      hasTask: boolean;
+      title: string;
+      description: string;
+      priority: Priority;
+      screenshotDescription: string;
+    }>(imageBase64, mimeType, imageToTaskPrompt(project.name, userNote ?? ""));
+
+    if (!result) {
+      res.status(500).json({ error: "AI failed to analyze image" });
+      return;
+    }
+
+    let createdTask = null;
+    if (result.hasTask) {
+      createdTask = await createTask({
+        title: result.title,
+        description: result.description,
+        priority: result.priority,
+        projectId,
+        assigneeIds: [],
+      });
+    }
+
+    res.json({ task: createdTask, screenshotDescription: result.screenshotDescription });
+  } catch (error) {
+    console.error("Create from image error:", error);
+    res.status(500).json({ error: "Failed to create task from image" });
+  }
+});
+
 // ── PATCH /api/tasks/:id ─────────────────────────────────────
 
 tasksRouter.patch("/:id", channelAuth, async (req: Request, res: Response) => {
   try {
     const taskId = req.params.id as string;
-    const { title, description, status, progress, priority, dueDate, assigneeIds, tags, attachments, parentTaskId } =
+    const { title, description, status, progress, priority, dueDate, assigneeIds, tags, attachments, parentTaskId, blockingTaskIds } =
       req.body as {
         title?: string;
         description?: string;
@@ -58,12 +207,27 @@ tasksRouter.patch("/:id", channelAuth, async (req: Request, res: Response) => {
         tags?: string[];
         attachments?: string[];
         parentTaskId?: string | null;
+        blockingTaskIds?: string[];
       };
 
     const existingTask = await getTask(taskId);
     if (!existingTask) {
       res.status(404).json({ error: "Task not found" });
       return;
+    }
+
+    if (status === "DONE" && existingTask.status !== "DONE") {
+      const openBlockers = ((existingTask as any).blockedBy ?? []).filter(
+        (d: any) => d.blockingTask.status !== "DONE"
+      );
+      if (openBlockers.length > 0) {
+        const names = openBlockers.map((d: any) => `"${d.blockingTask.title}"`).join(", ");
+        const count = openBlockers.length;
+        res.status(400).json({
+          error: `Cannot mark as done: ${count} blocker${count > 1 ? "s" : ""} not yet completed — ${names}`,
+        });
+        return;
+      }
     }
 
     if (parentTaskId !== undefined) {
@@ -81,6 +245,7 @@ tasksRouter.patch("/:id", channelAuth, async (req: Request, res: Response) => {
       tags,
       attachments,
       parentTaskId,
+      blockedByIds: blockingTaskIds,
     });
 
     // Audit log — fire-and-forget, never block the response
@@ -128,6 +293,22 @@ tasksRouter.patch("/:id", channelAuth, async (req: Request, res: Response) => {
   } catch (error) {
     console.error("Update task error:", error);
     res.status(500).json({ error: "Failed to update task" });
+  }
+});
+
+// ── GET /api/tasks/:id ──────────────────────────────────────
+
+tasksRouter.get("/:id", async (req: Request, res: Response) => {
+  try {
+    const task = await getTask(req.params.id as string);
+    if (!task) {
+      res.status(404).json({ error: "Task not found" });
+      return;
+    }
+    res.json(task);
+  } catch (error) {
+    console.error("Get task error:", error);
+    res.status(500).json({ error: "Failed to get task" });
   }
 });
 
@@ -336,5 +517,135 @@ tasksRouter.delete("/:id/dependencies/:depId", async (req: Request, res: Respons
   } catch (error) {
     console.error("Remove dependency error:", error);
     res.status(500).json({ error: "Failed to remove dependency" });
+  }
+});
+
+// ── POST /api/tasks/:id/time-logs ────────────────────────────
+
+tasksRouter.post("/:id/time-logs", async (req: Request, res: Response) => {
+  try {
+    const taskId = req.params.id as string;
+    const memberId = (req.session as any).memberId as string;
+    const { minutes, note } = req.body as { minutes: number; note?: string };
+    if (!minutes || typeof minutes !== "number" || minutes <= 0) {
+      res.status(400).json({ error: "minutes must be a positive number" });
+      return;
+    }
+    const log = await logTime(taskId, memberId, minutes, note);
+    res.status(201).json(log);
+  } catch (error) {
+    console.error("Log time error:", error);
+    res.status(500).json({ error: "Failed to log time" });
+  }
+});
+
+// ── GET /api/tasks/:id/time-logs ─────────────────────────────
+
+tasksRouter.get("/:id/time-logs", async (req: Request, res: Response) => {
+  try {
+    const taskId = req.params.id as string;
+    const { prisma } = await import("../db/prisma.js");
+    const timeLogs = await prisma.timeLog.findMany({
+      where: { taskId },
+      include: { member: { select: { id: true, displayName: true } } },
+      orderBy: { loggedAt: "desc" },
+    });
+    const totalMinutes = timeLogs.reduce((sum, l) => sum + l.minutes, 0);
+    res.json({ timeLogs, totalMinutes });
+  } catch (error) {
+    console.error("Get time logs error:", error);
+    res.status(500).json({ error: "Failed to get time logs" });
+  }
+});
+
+// ── POST /api/tasks/:id/ai-enrich ───────────────────────────
+
+tasksRouter.post("/:id/ai-enrich", async (req: Request, res: Response) => {
+  try {
+    const taskId = req.params.id as string;
+    const { projectType } = req.body as { projectType?: string };
+
+    const task = await getTask(taskId);
+    if (!task) {
+      res.status(404).json({ error: "Task not found" });
+      return;
+    }
+
+    const enriched = await generateJson<{
+      description: string;
+      acceptanceCriteria: string[];
+      technicalNotes: string | null;
+      definitionOfDone: string;
+    }>(enrichTaskPrompt((task as any).title, (task as any).description ?? "", projectType ?? "engineering"));
+
+    if (!enriched) {
+      res.status(500).json({ error: "AI enrichment failed" });
+      return;
+    }
+
+    const updated = await updateTask(taskId, { description: enriched.description });
+
+    res.json({ ...updated, ...enriched });
+  } catch (error) {
+    console.error("AI enrich error:", error);
+    res.status(500).json({ error: "Failed to enrich task" });
+  }
+});
+
+// ── POST /api/tasks/:id/suggest-deadline ────────────────────
+
+tasksRouter.post("/:id/suggest-deadline", async (req: Request, res: Response) => {
+  try {
+    const taskId = req.params.id as string;
+    const { sprintDays: _sprintDays } = req.body as { sprintDays?: number };
+
+    const task = await getTask(taskId);
+    if (!task) {
+      res.status(404).json({ error: "Task not found" });
+      return;
+    }
+
+    const project = await prismaClient.project.findUnique({
+      where: { id: (task as any).projectId },
+      select: { targetDate: true },
+    });
+
+    const fourWeeksAgo = new Date();
+    fourWeeksAgo.setDate(fourWeeksAgo.getDate() - 28);
+
+    const timeLogs = await prismaClient.timeLog.findMany({
+      where: {
+        task: { projectId: (task as any).projectId },
+        loggedAt: { gte: fourWeeksAgo },
+      },
+      select: { minutes: true },
+    });
+
+    const totalMinutes = timeLogs.reduce((sum, l) => sum + l.minutes, 0);
+    // Approximate velocity: total hours logged over 4 weeks → points per week (rough proxy)
+    const velocity = totalMinutes > 0 ? Math.round(totalMinutes / (4 * 60)) : 10;
+
+    const today = new Date().toISOString().split("T")[0];
+
+    const result = await generateJson<{ suggestedDueDate: string; reasoning: string }>(
+      deadlineSuggestionPrompt(
+        (task as any).title,
+        (task as any).description ?? "",
+        (task as any).storyPoints ?? null,
+        velocity,
+        (project as any)?.targetDate?.toISOString().split("T")[0] ?? null,
+        today,
+      ),
+    );
+
+    if (!result) {
+      res.status(500).json({ error: "AI deadline suggestion failed" });
+      return;
+    }
+
+    res.json(result);
+  } catch (error) {
+    console.error("Suggest deadline error:", error);
+    res.status(500).json({ error: "Failed to suggest deadline" });
   }
 });

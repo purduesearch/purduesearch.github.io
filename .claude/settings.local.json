@@ -8,5 +8,28 @@
       "Bash(xargs grep:*)",
       "Bash(git -C \"C:/Users/Henry/Documents/Temp-Repo-for-SEARCH-Website\" stash list)"
     ]
+  },
+    "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -c \"\nimport sys, json\npayload = json.load(sys.stdin)\noutput = payload.get('output', '')\nlines = output.splitlines()\nMAX = 100\nif len(lines) > MAX:\n    kept = lines[-MAX:]\n    header = f'[truncated {len(lines) - MAX} lines]'\n    payload['output'] = header + '\\n' + '\\n'.join(kept)\nprint(json.dumps(payload))\n\""
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo 'Available skills: [using-superpowers, <any others>]. Invoke via the Skill tool when needed. Do not load skill bodies proactively.'"
+          }
+        ]
+      }
+    ]
   }
 }

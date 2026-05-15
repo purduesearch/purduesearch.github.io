@@ -77,8 +77,8 @@ export async function getProject(id: string) {
         include: {
           assignees: true,
           subtasks: { include: { assignees: true }, orderBy: { createdAt: "asc" } },
-          blockedBy: { select: { id: true, title: true, status: true } },
-          blocking: { select: { id: true, title: true, status: true } },
+          blockedBy: { include: { blockingTask: { select: { id: true, title: true, status: true } } } },
+          blocks:    { include: { blockedTask:  { select: { id: true, title: true, status: true } } } },
           milestone: true,
         },
         orderBy: { createdAt: "desc" },

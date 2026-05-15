@@ -1,99 +1,83 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import MemberBadge from "./MemberBadge";
 
-const TYPE_BADGE = {
-  ENGINEERING: "clubpm-badge-engineering",
-  RESEARCH: "clubpm-badge-research",
-  HYBRID: "clubpm-badge-hybrid",
+const HEALTH_COLOR = {
+  ACTIVE:    'var(--pm-accent-teal)',
+  PAUSED:    'var(--pm-accent-amber)',
+  COMPLETED: 'var(--pm-accent-violet)',
+  ARCHIVED:  'var(--pm-text-muted)',
 };
 
-const STATUS_BADGE = {
-  ACTIVE: "clubpm-badge-active",
-  PAUSED: "clubpm-badge-paused",
-  COMPLETED: "clubpm-badge-completed",
-  ARCHIVED: "clubpm-badge-archived",
-};
+const TYPE_LABEL = { ENGINEERING: 'ENG', RESEARCH: 'RES', HYBRID: 'HYB' };
+const STATUS_LABEL = { ACTIVE: 'Active', PAUSED: 'Paused', COMPLETED: 'Done', ARCHIVED: 'Archived' };
+
+function CircleProgress({ pct, color, size = 48 }) {
+  const r = (size - 6) / 2;
+  const circ = 2 * Math.PI * r;
+  const dash = (pct / 100) * circ;
+  return (
+    <svg width={size} height={size} style={{ transform: 'rotate(-90deg)', flexShrink: 0 }}>
+      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="5" />
+      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={color} strokeWidth="5"
+        strokeDasharray={`${dash} ${circ}`} strokeLinecap="round"
+        style={{ transition: 'stroke-dasharray 0.8s cubic-bezier(0.4,0,0.2,1)' }} />
+    </svg>
+  );
+}
 
 export default function ProjectCard({ project }) {
   const total = project.totalTasks ?? project.tasks?.length ?? 0;
-  const done = project.doneTasks ?? project.tasks?.filter((t) => t.status === "DONE").length ?? 0;
-  const pct = project.completionPercent ?? (total > 0 ? Math.round((done / total) * 100) : 0);
+  const done  = project.doneTasks  ?? project.tasks?.filter(t => t.progress === 'COMPLETED' || t.status === 'DONE').length ?? 0;
+  const pct   = project.completionPercent ?? (total > 0 ? Math.round((done / total) * 100) : 0);
+  const accentColor = HEALTH_COLOR[project.status] ?? 'var(--pm-text-muted)';
+  const members = project.members ?? [];
+  const visible = members.slice(0, 4);
+  const overflow = members.length - 4;
 
-  const daysUntilTarget = project.targetDate
-    ? Math.ceil(
-        (new Date(project.targetDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
-      )
+  const daysLeft = project.targetDate
+    ? Math.ceil((new Date(project.targetDate) - Date.now()) / 86400000)
     : null;
 
   return (
-    <Link
-      to={`/clubpm/projects/${project.id}`}
-      className="clubpm-glass-card p-5 block no-underline group"
-    >
-      {/* Header row */}
-      <div className="flex items-start justify-between gap-3 mb-3">
-        <h3 className="text-base font-semibold text-[var(--clubpm-text-primary)] group-hover:text-[var(--clubpm-accent-primary)] transition-colors leading-snug">
-          {project.name}
-        </h3>
-        <span className={`clubpm-badge ${TYPE_BADGE[project.type] ?? ""} shrink-0`}>
-          {project.type}
-        </span>
-      </div>
-
-      {/* Description */}
-      {project.description && (
-        <p className="text-xs text-[var(--clubpm-text-muted)] mb-3 line-clamp-2 leading-relaxed">
-          {project.description}
-        </p>
-      )}
-
-      {/* Progress bar */}
-      <div className="mb-3">
-        <div className="flex items-center justify-between text-xs mb-1">
-          <span className="text-[var(--clubpm-text-secondary)]">
-            {done} / {total} tasks done
-          </span>
-          <span className="text-[var(--clubpm-text-muted)]">{pct}%</span>
+    <Link to={`/clubpm/projects/${project.id}`} className="pm-project-card" style={{ textDecoration: 'none' }}>
+      <div className="pm-project-card-accent" style={{ background: accentColor }} />
+      <div className="pm-project-card-body">
+        <div className="pm-project-card-top">
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="pm-project-card-name">{project.name}</div>
+            {project.description && (
+              <div className="pm-project-card-desc">{project.description}</div>
+            )}
+          </div>
+          <CircleProgress pct={pct} color={accentColor} />
         </div>
-        <div className="clubpm-progress-bar">
-          <div className="clubpm-progress-bar-fill" style={{ width: `${pct}%` }} />
-        </div>
-      </div>
 
-      {/* Footer */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-1">
-          <span className={`clubpm-badge ${STATUS_BADGE[project.status] ?? ""}`}>
-            {project.status}
-          </span>
-          {daysUntilTarget !== null && (
-            <span
-              className={`text-xs ml-2 ${
-                daysUntilTarget < 0
-                  ? "text-[var(--clubpm-accent-red)]"
-                  : daysUntilTarget < 7
-                    ? "text-[var(--clubpm-accent-orange)]"
-                    : "text-[var(--clubpm-text-muted)]"
-              }`}
-            >
-              {daysUntilTarget < 0
-                ? `${Math.abs(daysUntilTarget)}d overdue`
-                : `${daysUntilTarget}d left`}
+        <div className="pm-project-card-footer">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span className="pm-project-status-badge" style={{ color: accentColor, borderColor: accentColor, background: `${accentColor}18` }}>
+              {STATUS_LABEL[project.status] ?? project.status}
             </span>
-          )}
-        </div>
-
-        {/* Member avatars */}
-        <div className="flex -space-x-2">
-          {project.members?.slice(0, 4).map((pm) => (
-            <MemberBadge key={pm.memberId} member={pm.member} size="sm" />
-          ))}
-          {(project.members?.length ?? 0) > 4 && (
-            <div className="w-6 h-6 rounded-full bg-[var(--clubpm-surface-400)] flex items-center justify-center text-[10px] text-[var(--clubpm-text-muted)] ring-2 ring-[var(--clubpm-surface-100)]">
-              +{(project.members?.length ?? 0) - 4}
-            </div>
-          )}
+            <span className="pm-project-type-badge">
+              {TYPE_LABEL[project.type] ?? project.type}
+            </span>
+            {daysLeft !== null && (
+              <span style={{ fontSize: '0.7rem', color: daysLeft < 0 ? 'var(--pm-accent-coral)' : daysLeft < 7 ? 'var(--pm-accent-amber)' : 'var(--pm-text-muted)' }}>
+                {daysLeft < 0 ? `${Math.abs(daysLeft)}d over` : `${daysLeft}d left`}
+              </span>
+            )}
+          </div>
+          <div className="pm-avatar-stack">
+            {visible.map((pm, i) => (
+              pm.member?.avatarUrl
+                ? <img key={pm.memberId} src={pm.member.avatarUrl} alt="" className="pm-avatar-sm" style={{ zIndex: visible.length - i }} />
+                : <div key={pm.memberId} className="pm-avatar-sm pm-avatar-initials" style={{ zIndex: visible.length - i }}>
+                    {(pm.member?.displayName ?? '?').slice(0,2).toUpperCase()}
+                  </div>
+            ))}
+            {overflow > 0 && (
+              <div className="pm-avatar-sm pm-avatar-overflow">+{overflow}</div>
+            )}
+          </div>
         </div>
       </div>
     </Link>

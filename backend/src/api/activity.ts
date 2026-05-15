@@ -1,6 +1,7 @@
 import { Router, type Request, type Response } from "express";
 import { requireAuth } from "./auth.js";
 import { prisma } from "../db/prisma.js";
+import { activityBus } from "../services/activityService.js";
 
 export const activityRouter = Router();
 
@@ -75,11 +76,55 @@ activityRouter.get("/", async (_req: Request, res: Response) => {
 activityRouter.get("/project/:projectId", async (req: Request, res: Response) => {
   try {
     const { getProjectActivities } = await import("../services/activityService.js");
-    const cursor = req.query.cursor as string | undefined;
-    const activities = await getProjectActivities(req.params.projectId as string, 50, cursor);
-    res.json(activities);
+    const limit  = Math.min(parseInt((req.query.limit  as string) ?? "20", 10), 100);
+    const offset = parseInt((req.query.offset as string) ?? "0", 10);
+    const type   = req.query.type as string | undefined;
+
+    const where: Record<string, unknown> = { projectId: req.params.projectId };
+    if (type) {
+      const types = type.split(",").map(t => t.trim()).filter(Boolean);
+      if (types.length === 1) where.type = types[0];
+      else where.type = { in: types };
+    }
+
+    const [activities, total] = await Promise.all([
+      prisma.activity.findMany({
+        where: where as any,
+        include: { member: { select: { id: true, displayName: true, avatarUrl: true } } },
+        orderBy: { createdAt: "desc" },
+        take: limit,
+        skip: offset,
+      }),
+      prisma.activity.count({ where: where as any }),
+    ]);
+
+    res.json({ activities, total });
   } catch (error) {
     console.error("Fetch project activity error:", error);
     res.status(500).json({ error: "Failed to fetch project activity" });
   }
+});
+
+// ── GET /api/activity/project/:projectId/stream (SSE) ────────
+
+activityRouter.get("/project/:projectId/stream", (req: Request, res: Response) => {
+  const { projectId } = req.params;
+
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  res.flushHeaders();
+
+  const heartbeat = setInterval(() => res.write(": heartbeat\n\n"), 25_000);
+
+  const onActivity = (activity: unknown) => {
+    res.write(`data: ${JSON.stringify(activity)}\n\n`);
+  };
+
+  activityBus.on(`project:${projectId}`, onActivity);
+
+  req.on("close", () => {
+    clearInterval(heartbeat);
+    activityBus.off(`project:${projectId}`, onActivity);
+  });
 });

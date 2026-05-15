@@ -1,13 +1,17 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
+import ReactMarkdown from "react-markdown";
 import { createPortal } from "react-dom";
 import { useParams, Link, useSearchParams, useNavigate } from "react-router-dom";
 import { get, post, patch, del } from "../../api/clubPmClient";
 import MemberBadge from "../../components/clubpm/MemberBadge";
 import { useClubPmAuth } from "../../clubpm/ClubPmAuth";
+import { useProjectNav } from "../../clubpm/ProjectNavContext";
 import TaskModal from "../../components/clubpm/TaskModal";
 import CalendarView from "../../components/clubpm/CalendarView";
 import ProjectActivity from "../../components/clubpm/ProjectActivity";
+import ActivityFeed from "../../components/clubpm/ActivityFeed";
 import ReportingView from "../../components/clubpm/ReportingView";
+import ProjectAnalytics from "../../components/clubpm/ProjectAnalytics";
 import MilestonePanel from "../../components/clubpm/MilestonePanel";
 import GanttChart from "../../components/clubpm/GanttChart";
 import { PriorityBars, AvatarStack } from "../../components/clubpm/TaskPrimitives";
@@ -33,8 +37,11 @@ import { CSS } from "@dnd-kit/utilities";
 const BINS = [
   { id: "TODO",        label: "Not Started", color: "var(--clubpm-text-secondary)" },
   { id: "IN_PROGRESS", label: "In Progress", color: "var(--clubpm-accent-yellow)" },
+  { id: "BLOCKED",     label: "Blocked",     color: "var(--clubpm-accent-red, #e17055)" },
   { id: "DONE",        label: "Completed",   color: "var(--clubpm-accent-green)" },
 ];
+
+const PRIORITY_RANK = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
 
 const NAV_TABS = [
   { id: "tasks",      label: "Tasks",      icon: "📋" },
@@ -43,6 +50,7 @@ const NAV_TABS = [
   { id: "activity",   label: "Activity",   icon: "📜" },
   { id: "reports",    label: "Reports",    icon: "📊" },
   { id: "updates",    label: "Updates",    icon: "📝" },
+  { id: "ai",         label: "AI",         icon: "🤖" },
 ];
 
 const STATUS_BADGE = {
@@ -187,8 +195,9 @@ function SidebarProjectItem({ project, isCurrent }) {
 function ProgressBar({ tasks }) {
   const total = tasks.length;
   const done = tasks.filter((t) => t.status === "DONE").length;
-  const inProgress = tasks.filter((t) => t.status === "IN_PROGRESS" || t.status === "BLOCKED").length;
-  const todo = Math.max(total - done - inProgress, 0);
+  const blocked = tasks.filter((t) => t.status === "BLOCKED").length;
+  const inProgress = tasks.filter((t) => t.status === "IN_PROGRESS").length;
+  const todo = Math.max(total - done - blocked - inProgress, 0);
   const pct = total > 0 ? Math.round((done / total) * 100) : 0;
 
   if (total === 0) {
@@ -221,6 +230,10 @@ function ProgressBar({ tasks }) {
         />
         <div
           className="cpm-progress-bar-segment"
+          style={{ width: `${(blocked / total) * 100}%`, background: "var(--clubpm-accent-red, #e17055)" }}
+        />
+        <div
+          className="cpm-progress-bar-segment"
           style={{ width: `${(todo / total) * 100}%`, background: "var(--clubpm-surface-400)" }}
         />
       </div>
@@ -228,6 +241,7 @@ function ProgressBar({ tasks }) {
       <span className="cpm-proj-progress-stats">
         <span style={{ color: "var(--clubpm-accent-green)" }}>■ {done}</span>
         <span style={{ color: "var(--clubpm-accent-yellow)" }}>■ {inProgress}</span>
+        {blocked > 0 && <span style={{ color: "var(--clubpm-accent-red, #e17055)" }}>■ {blocked}</span>}
         <span style={{ color: "var(--clubpm-text-muted)" }}>■ {todo}</span>
       </span>
     </div>
@@ -236,7 +250,7 @@ function ProgressBar({ tasks }) {
 
 // ── Status Bin (collapsible droppable section) ───────────────
 
-function StatusBin({ bin, tasks, subtasksByParent, expandedParents, onToggleParent, isOver, onTaskClick, onAddTask, canEdit = true }) {
+function StatusBin({ bin, tasks, subtasksByParent, expandedParents, onToggleParent, isOver, overTaskId, onTaskClick, onAddTask, canEdit = true }) {
   const [collapsed, setCollapsed] = useState(false);
   const { setNodeRef } = useDroppable({ id: bin.id });
 
@@ -318,9 +332,10 @@ function StatusBin({ bin, tasks, subtasksByParent, expandedParents, onTogglePare
                       subtaskCount={subs.length}
                       isExpanded={isExpanded}
                       onToggleExpand={() => onToggleParent?.(task.id)}
+                      isDropTarget={overTaskId === task.id}
                     />
                     {isExpanded && subs.map((sub) => (
-                      <KanbanSubtaskRow key={sub.id} subtask={sub} onClick={onTaskClick} />
+                      <KanbanSubtaskRow key={sub.id} subtask={sub} onClick={onTaskClick} isDropTarget={overTaskId === sub.id} />
                     ))}
                   </React.Fragment>
                 );
@@ -335,7 +350,7 @@ function StatusBin({ bin, tasks, subtasksByParent, expandedParents, onTogglePare
 
 // ── Compact Task Row ─────────────────────────────────────────
 
-function CompactTaskRow({ task, onClick, subtaskCount = 0, isExpanded = false, onToggleExpand }) {
+function CompactTaskRow({ task, onClick, subtaskCount = 0, isExpanded = false, onToggleExpand, isDropTarget = false }) {
   const {
     attributes,
     listeners,
@@ -356,19 +371,19 @@ function CompactTaskRow({ task, onClick, subtaskCount = 0, isExpanded = false, o
       ref={setNodeRef}
       style={style}
       {...attributes}
-      className="cpm-task-row-compact"
+      {...listeners}
+      className={`cpm-task-row-compact${isDropTarget ? " cpm-task-row-compact--member-target" : ""}`}
       onClick={() => {
         if (!isDragging) onClick(task);
       }}
     >
       <i
-        {...listeners}
         className="fas fa-grip-vertical"
         style={{
           color: "var(--clubpm-text-muted)",
           fontSize: 11,
-          cursor: "grab",
           flexShrink: 0,
+          pointerEvents: "none",
         }}
       />
       <span
@@ -421,11 +436,19 @@ function CompactTaskRow({ task, onClick, subtaskCount = 0, isExpanded = false, o
 
 // ── Kanban Subtask Row (non-draggable, indented) ─────────────
 
-function KanbanSubtaskRow({ subtask, onClick }) {
+function KanbanSubtaskRow({ subtask, onClick, isDropTarget = false }) {
+  const { setNodeRef } = useDroppable({ id: subtask.id });
   return (
+    <div style={{ display: "flex", alignItems: "stretch" }}>
+      <div style={{ width: 40, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "flex-end", paddingRight: 4 }}>
+        <div style={{ width: 1, height: "100%", background: "var(--clubpm-border)", position: "relative" }}>
+          <div style={{ position: "absolute", bottom: "50%", left: 0, width: 16, height: 1, background: "var(--clubpm-border)" }} />
+        </div>
+      </div>
     <div
-      className="cpm-task-row-compact"
-      style={{ paddingLeft: 24, cursor: "pointer" }}
+      ref={setNodeRef}
+      className={`cpm-task-row-compact${isDropTarget ? " cpm-task-row-compact--member-target" : ""}`}
+      style={{ flex: 1, paddingLeft: 8, cursor: "pointer" }}
       onClick={() => onClick(subtask)}
     >
       <span
@@ -450,6 +473,7 @@ function KanbanSubtaskRow({ subtask, onClick }) {
           {new Date(subtask.dueDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
         </span>
       )}
+    </div>
     </div>
   );
 }
@@ -517,6 +541,20 @@ function AssigneePanel({ members, channelMemberSlackIds = [], hasLinkedChannel =
               Showing channel members only
             </div>
           )}
+          <div style={{ display: "flex", gap: 6, paddingBottom: 8, borderBottom: "1px solid var(--clubpm-border)" }}>
+            <DraggableSpecialChip
+              id="special-everyone"
+              label="Everyone"
+              iconClass="fas fa-users"
+              accentColor="var(--clubpm-accent-primary)"
+            />
+            <DraggableSpecialChip
+              id="special-nobody"
+              label="Nobody"
+              iconClass="fas fa-ban"
+              accentColor="var(--pm-accent-coral)"
+            />
+          </div>
           <input
             type="text"
             className="cpm-assignee-search"
@@ -524,7 +562,7 @@ function AssigneePanel({ members, channelMemberSlackIds = [], hasLinkedChannel =
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
-          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
             {filtered.length === 0 ? (
               <p style={{ fontSize: 12, color: "var(--clubpm-text-muted)", padding: "4px 0" }}>
                 No members
@@ -541,12 +579,33 @@ function AssigneePanel({ members, channelMemberSlackIds = [], hasLinkedChannel =
   );
 }
 
-function DraggableMemberChip({ pm }) {
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
-    id: `member-${pm.memberId}`,
-    data: { type: "member", memberId: pm.memberId },
-  });
+function ChipAvatar({ member }) {
+  const initials = (member?.displayName ?? "?")
+    .split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
+  return member?.avatarUrl ? (
+    <img
+      src={member.avatarUrl}
+      alt={member.displayName}
+      style={{ width: 18, height: 18, borderRadius: "50%", objectFit: "cover", flexShrink: 0, display: "block" }}
+    />
+  ) : (
+    <div
+      style={{
+        width: 18, height: 18, borderRadius: "50%", flexShrink: 0, display: "flex",
+        alignItems: "center", justifyContent: "center", fontSize: 7, fontWeight: 700,
+        color: "white", background: "linear-gradient(135deg, var(--clubpm-accent-primary), var(--clubpm-accent-pink))",
+      }}
+    >
+      {initials}
+    </div>
+  );
+}
 
+function DraggableSpecialChip({ id, label, iconClass, accentColor }) {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id,
+    data: { type: "special", specialId: id },
+  });
   return (
     <div
       ref={setNodeRef}
@@ -554,12 +613,40 @@ function DraggableMemberChip({ pm }) {
       {...listeners}
       className="cpm-assignee-chip"
       style={{
-        opacity: isDragging ? 0.5 : 1,
-        cursor: "grab",
+        opacity: isDragging ? 0.4 : 1,
+        borderColor: accentColor,
+        background: `color-mix(in srgb, ${accentColor} 12%, transparent)`,
       }}
     >
-      <MemberBadge member={pm.member} size="sm" />
-      <span className="cpm-assignee-chip-name">{pm.member.displayName}</span>
+      <i className={iconClass} style={{ fontSize: 11, color: accentColor, flexShrink: 0 }} aria-hidden="true" />
+      <span className="cpm-assignee-chip-name" style={{ color: accentColor }}>{label}</span>
+    </div>
+  );
+}
+
+function DraggableMemberChip({ pm }) {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: `member-${pm.memberId}`,
+    data: { type: "member", memberId: pm.memberId },
+  });
+
+  const isAdmin = pm.member?.isAdmin || pm.isAdmin;
+  return (
+    <div
+      ref={setNodeRef}
+      {...attributes}
+      {...listeners}
+      className="cpm-assignee-chip"
+      style={{
+        opacity: isDragging ? 0.4 : 1,
+        borderColor: isAdmin ? "#f9ca24" : undefined,
+      }}
+    >
+      <ChipAvatar member={pm.member} />
+      <span className="cpm-assignee-chip-name">
+        {pm.member.displayName}
+        {isAdmin && " 👑"}
+      </span>
     </div>
   );
 }
@@ -747,13 +834,446 @@ function SlackChannelPicker({ project, channels, onSaved }) {
   );
 }
 
+// ── Suggested Task Card ───────────────────────────────────────
+
+const SUGGESTED_PRIORITY_LEVELS = ["CRITICAL", "HIGH", "MEDIUM", "LOW"];
+
+function SuggestedTaskCard({ task, projectId, onAccepted, onDismiss }) {
+  const [title, setTitle] = useState(task.title ?? "");
+  const [description, setDescription] = useState(task.description ?? "");
+  const [priority, setPriority] = useState(task.priority ?? "MEDIUM");
+  const [dueDate, setDueDate] = useState(task.dueDate ? task.dueDate.split("T")[0] : "");
+  const [saving, setSaving] = useState(false);
+
+  const fieldStyle = {
+    width: "100%", padding: "6px 8px", borderRadius: 5, fontSize: 12,
+    background: "var(--clubpm-surface-200)", border: "1px solid var(--clubpm-border)",
+    color: "var(--clubpm-text-primary)", outline: "none", boxSizing: "border-box",
+  };
+
+  async function handleAccept() {
+    if (!title.trim()) return;
+    setSaving(true);
+    try {
+      await post(`/api/projects/${projectId}/parse-drive/confirm`, {
+        tasks: [{
+          title: title.trim(),
+          description: description.trim() || undefined,
+          priority,
+          dueDate: dueDate || undefined,
+          suggestedAssigneeName: task.suggestedAssigneeName ?? task.assigneeName ?? undefined,
+        }],
+      });
+      onAccepted();
+    } catch (err) { console.error(err); }
+    finally { setSaving(false); }
+  }
+
+  return (
+    <div style={{
+      background: "var(--clubpm-surface-300)", border: "1px solid var(--clubpm-border)",
+      borderRadius: 8, padding: 12, marginBottom: 10,
+    }}>
+      <div style={{ display: "flex", gap: 8, marginBottom: 8, alignItems: "flex-start" }}>
+        <input
+          value={title}
+          onChange={e => setTitle(e.target.value)}
+          placeholder="Task title"
+          style={{ ...fieldStyle, flex: 1, fontWeight: 600 }}
+        />
+        <button
+          onClick={onDismiss}
+          style={{ background: "none", border: "none", cursor: "pointer",
+            color: "var(--clubpm-text-muted)", fontSize: 18, padding: "0 2px", lineHeight: 1, flexShrink: 0 }}
+          title="Dismiss suggestion"
+        >×</button>
+      </div>
+      <textarea
+        value={description}
+        onChange={e => setDescription(e.target.value)}
+        placeholder="Description (optional)"
+        rows={2}
+        style={{ ...fieldStyle, resize: "vertical", marginBottom: 8 }}
+      />
+      <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+        <select value={priority} onChange={e => setPriority(e.target.value)}
+          style={{ ...fieldStyle, flex: 1, cursor: "pointer" }}>
+          {SUGGESTED_PRIORITY_LEVELS.map(p => (
+            <option key={p} value={p}>{p.charAt(0) + p.slice(1).toLowerCase()}</option>
+          ))}
+        </select>
+        <input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)}
+          style={{ ...fieldStyle, flex: 1 }} />
+      </div>
+      {(task.suggestedAssigneeName || task.assigneeName) && (
+        <div style={{ fontSize: 11, color: "var(--clubpm-text-muted)", marginBottom: 8 }}>
+          Suggested assignee: {task.suggestedAssigneeName ?? task.assigneeName}
+        </div>
+      )}
+      <button
+        onClick={handleAccept}
+        disabled={saving || !title.trim()}
+        className="clubpm-btn-primary"
+        style={{ fontSize: 12, padding: "5px 14px", opacity: !title.trim() ? 0.6 : 1 }}
+      >
+        {saving ? "Adding…" : "Accept"}
+      </button>
+    </div>
+  );
+}
+
+// ── AI Panel ─────────────────────────────────────────────────
+
+function AiPanel({ project }) {
+  const [qaQuestion, setQaQuestion] = useState("");
+  const [qaAnswer, setQaAnswer] = useState(null);
+  const [qaLoading, setQaLoading] = useState(false);
+
+  const [driveUrl, setDriveUrl] = useState(project.driveLink ?? "");
+  const [driveLoading, setDriveLoading] = useState(false);
+  const [drivePreview, setDrivePreview] = useState(null);
+  const [driveError, setDriveError] = useState(null);
+  const [driveSuggestedCount, setDriveSuggestedCount] = useState(5);
+
+  const [meetingNotes, setMeetingNotes] = useState("");
+  const [meetingLoading, setMeetingLoading] = useState(false);
+  const [meetingPreview, setMeetingPreview] = useState(null);
+  const [meetingExpanded, setMeetingExpanded] = useState(false);
+  const [meetingSuggestedCount, setMeetingSuggestedCount] = useState(5);
+
+  const [riskData, setRiskData] = useState(null);
+  const [riskLoading, setRiskLoading] = useState(false);
+
+  const [sprintData, setSprintData] = useState(null);
+  const [sprintLoading, setSprintLoading] = useState(false);
+
+  const [capacityData, setCapacityData] = useState(null);
+  const [capacityLoading, setCapacityLoading] = useState(false);
+
+  async function handleQa(e) {
+    e.preventDefault();
+    if (!qaQuestion.trim()) return;
+    setQaLoading(true);
+    setQaAnswer(null);
+    try {
+      const data = await post(`/api/projects/${project.id}/ask`, { question: qaQuestion });
+      setQaAnswer(data.answer);
+    } catch (err) { setQaAnswer("❌ Failed to get answer."); }
+    finally { setQaLoading(false); }
+  }
+
+  async function handleParseDrive() {
+    if (!driveUrl.trim()) return;
+    setDriveLoading(true);
+    setDrivePreview(null);
+    setDriveError(null);
+    try {
+      const data = await post(`/api/projects/${project.id}/parse-drive`, {
+        driveUrl,
+        suggestedTaskCount: driveSuggestedCount,
+      });
+      setDrivePreview(data);
+    } catch (err) {
+      setDriveError(err.message ?? "Failed to parse Drive file");
+    } finally { setDriveLoading(false); }
+  }
+
+  async function handleParseMeeting() {
+    if (!meetingNotes.trim()) return;
+    setMeetingLoading(true);
+    setMeetingPreview(null);
+    try {
+      const data = await post(`/api/projects/${project.id}/parse-meeting-notes`, {
+        notes: meetingNotes,
+        suggestedTaskCount: meetingSuggestedCount,
+      });
+      setMeetingPreview(data);
+    } catch (err) { console.error(err); }
+    finally { setMeetingLoading(false); }
+  }
+
+  const cardStyle = {
+    background: "var(--clubpm-surface-200)",
+    border: "1px solid var(--clubpm-border)",
+    borderRadius: 10,
+    padding: 20,
+    marginBottom: 16,
+  };
+
+  const inputStyle = {
+    width: "100%",
+    background: "var(--clubpm-surface-300)",
+    border: "1px solid var(--clubpm-border)",
+    borderRadius: 6,
+    color: "var(--clubpm-text-primary)",
+    fontSize: 13,
+    padding: "8px 10px",
+    boxSizing: "border-box",
+  };
+
+  const sectionLabelStyle = {
+    fontSize: 11,
+    fontWeight: 700,
+    color: "var(--clubpm-text-muted)",
+    textTransform: "uppercase",
+    letterSpacing: "0.08em",
+    marginBottom: 8,
+  };
+
+  const countInputStyle = {
+    width: 64, padding: "6px 8px", borderRadius: 5, fontSize: 12, textAlign: "center",
+    background: "var(--clubpm-surface-300)", border: "1px solid var(--clubpm-border)",
+    color: "var(--clubpm-text-primary)", outline: "none",
+  };
+
+  return (
+    <div className="cpm-proj-main-body" style={{ padding: "24px", maxWidth: 780 }}>
+      <h3 style={{ fontSize: 15, fontWeight: 700, color: "var(--clubpm-text-primary)", marginBottom: 20 }}>
+        🤖 AI Assistant
+      </h3>
+
+      {/* Section 1: Project Q&A */}
+      <div style={cardStyle}>
+        <div style={sectionLabelStyle}>Project Assistant</div>
+        <form onSubmit={handleQa} style={{ display: "flex", gap: 8 }}>
+          <input
+            type="text"
+            value={qaQuestion}
+            onChange={e => setQaQuestion(e.target.value)}
+            placeholder='Ask anything: "Who is working on auth?" or "What are we behind on?"'
+            style={{ ...inputStyle, flex: 1 }}
+          />
+          <button type="submit" disabled={qaLoading || !qaQuestion.trim()} className="clubpm-btn-primary"
+            style={{ fontSize: 13, padding: "7px 16px", whiteSpace: "nowrap" }}>
+            {qaLoading ? "…" : "Ask"}
+          </button>
+        </form>
+        {qaAnswer && (
+          <div style={{ marginTop: 12, padding: 12, background: "var(--clubpm-surface-300)", borderRadius: 8,
+                        fontSize: 13, color: "var(--clubpm-text-secondary)", lineHeight: 1.6, whiteSpace: "pre-wrap" }}>
+            {qaAnswer}
+          </div>
+        )}
+      </div>
+
+      {/* Section 2: Document Intelligence */}
+      <div style={cardStyle}>
+        <div style={sectionLabelStyle}>Document Intelligence</div>
+
+        {/* Drive parsing */}
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: "var(--clubpm-text-primary)", marginBottom: 8 }}>
+            Parse Drive Document
+          </div>
+          <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+            <input
+              type="text"
+              value={driveUrl}
+              onChange={e => setDriveUrl(e.target.value)}
+              placeholder="https://docs.google.com/document/d/..."
+              style={{ ...inputStyle, flex: 1 }}
+            />
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+            <label style={{ fontSize: 12, color: "var(--clubpm-text-muted)", whiteSpace: "nowrap" }}>
+              Suggested tasks:
+            </label>
+            <input
+              type="number"
+              min={1}
+              max={50}
+              value={driveSuggestedCount}
+              onChange={e => setDriveSuggestedCount(Math.max(1, parseInt(e.target.value) || 1))}
+              style={countInputStyle}
+            />
+            <button
+              onClick={handleParseDrive}
+              disabled={driveLoading || !driveUrl.trim()}
+              className="clubpm-btn-primary"
+              style={{ fontSize: 13, padding: "7px 16px", whiteSpace: "nowrap" }}
+            >
+              {driveLoading ? "Parsing…" : "Parse"}
+            </button>
+          </div>
+          {driveError && (
+            <p style={{ fontSize: 12, color: "#e17055", background: "rgba(225,112,85,0.1)", borderRadius: 6, padding: "6px 10px", marginTop: 8 }}>
+              {driveError}
+            </p>
+          )}
+          {drivePreview?.tasks?.length > 0 && (
+            <div style={{ marginTop: 12 }}>
+              <div style={{ fontSize: 12, color: "var(--clubpm-text-muted)", marginBottom: 10 }}>
+                Found {drivePreview.tasks.length} suggested task(s) from <strong>{drivePreview.sourceFileName}</strong>. Edit and accept each one:
+              </div>
+              {drivePreview.tasks.map((task, i) => (
+                <SuggestedTaskCard
+                  key={i}
+                  task={task}
+                  projectId={project.id}
+                  onAccepted={() => setDrivePreview(prev => ({
+                    ...prev,
+                    tasks: prev.tasks.filter((_, idx) => idx !== i),
+                  }))}
+                  onDismiss={() => setDrivePreview(prev => ({
+                    ...prev,
+                    tasks: prev.tasks.filter((_, idx) => idx !== i),
+                  }))}
+                />
+              ))}
+              {drivePreview.tasks.length === 0 && (
+                <div style={{ fontSize: 12, color: "var(--clubpm-text-muted)" }}>All suggestions handled.</div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Meeting notes (collapsible) */}
+        <div>
+          <button onClick={() => setMeetingExpanded(p => !p)}
+            style={{ background: "none", border: "none", fontSize: 13, fontWeight: 600,
+                     color: "var(--clubpm-accent-primary)", cursor: "pointer", padding: 0 }}>
+            {meetingExpanded ? "▼" : "▶"} Paste Meeting Notes
+          </button>
+          {meetingExpanded && (
+            <div style={{ marginTop: 10 }}>
+              <textarea
+                value={meetingNotes}
+                onChange={e => setMeetingNotes(e.target.value)}
+                placeholder="Paste meeting notes here…"
+                rows={6}
+                style={{ ...inputStyle, resize: "vertical", marginBottom: 8 }}
+              />
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+                <label style={{ fontSize: 12, color: "var(--clubpm-text-muted)", whiteSpace: "nowrap" }}>
+                  Suggested tasks:
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  max={50}
+                  value={meetingSuggestedCount}
+                  onChange={e => setMeetingSuggestedCount(Math.max(1, parseInt(e.target.value) || 1))}
+                  style={countInputStyle}
+                />
+                <button
+                  onClick={handleParseMeeting}
+                  disabled={meetingLoading || !meetingNotes.trim()}
+                  className="clubpm-btn-primary"
+                  style={{ fontSize: 13, padding: "7px 16px", whiteSpace: "nowrap" }}
+                >
+                  {meetingLoading ? "Parsing…" : "Extract Action Items"}
+                </button>
+              </div>
+              {meetingPreview?.tasks?.length > 0 && (
+                <div style={{ marginTop: 8 }}>
+                  {meetingPreview.summary && (
+                    <div style={{ fontSize: 12, fontStyle: "italic", color: "var(--clubpm-text-muted)", marginBottom: 10 }}>
+                      {meetingPreview.summary}
+                    </div>
+                  )}
+                  <div style={{ fontSize: 12, color: "var(--clubpm-text-muted)", marginBottom: 10 }}>
+                    {meetingPreview.tasks.length} suggested task(s). Edit and accept each one:
+                  </div>
+                  {meetingPreview.tasks.map((task, i) => (
+                    <SuggestedTaskCard
+                      key={i}
+                      task={task}
+                      projectId={project.id}
+                      onAccepted={() => setMeetingPreview(prev => ({
+                        ...prev,
+                        tasks: prev.tasks.filter((_, idx) => idx !== i),
+                      }))}
+                      onDismiss={() => setMeetingPreview(prev => ({
+                        ...prev,
+                        tasks: prev.tasks.filter((_, idx) => idx !== i),
+                      }))}
+                    />
+                  ))}
+                  {meetingPreview.tasks.length === 0 && (
+                    <div style={{ fontSize: 12, color: "var(--clubpm-text-muted)" }}>All suggestions handled.</div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Section 3: AI Insights Dashboard */}
+      <div style={sectionLabelStyle}>AI Insights</div>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 14, marginBottom: 16 }}>
+        {/* Risk Card */}
+        <div style={{ ...cardStyle, flex: "1 1 220px", marginBottom: 0 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8, color: "var(--clubpm-text-primary)" }}>🔴 Risk Analysis</div>
+          {riskData ? (
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: riskData.overallRisk === "CRITICAL" ? "#e17055" : riskData.overallRisk === "HIGH" ? "#fdcb6e" : riskData.overallRisk === "MEDIUM" ? "#74b9ff" : "#55efc4" }}>
+                {riskData.overallRisk} — {riskData.riskScore}/100
+              </div>
+              <div style={{ fontSize: 12, color: "var(--clubpm-text-muted)", marginTop: 4 }}>{riskData.topRecommendation}</div>
+              {riskData.risks?.slice(0, 3).map((r, i) => (
+                <div key={i} style={{ fontSize: 11, marginTop: 6, color: "var(--clubpm-text-secondary)" }}>• {r.description}</div>
+              ))}
+            </div>
+          ) : (
+            <button onClick={async () => { setRiskLoading(true); try { const d = await post(`/api/projects/${project.id}/ai-risks`, {}); setRiskData(d); } catch (e) { console.error(e); } finally { setRiskLoading(false); } }}
+              disabled={riskLoading} className="clubpm-btn-primary" style={{ fontSize: 12, padding: "6px 12px" }}>
+              {riskLoading ? "Analyzing…" : "Run Risk Analysis"}
+            </button>
+          )}
+        </div>
+
+        {/* Sprint Plan Card */}
+        <div style={{ ...cardStyle, flex: "1 1 220px", marginBottom: 0 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8, color: "var(--clubpm-text-primary)" }}>🏃 Sprint Plan</div>
+          {sprintData ? (
+            <div>
+              <div style={{ fontSize: 12, color: "var(--clubpm-text-muted)", marginBottom: 6 }}>{sprintData.focusTheme}</div>
+              <div style={{ fontSize: 12, color: "var(--clubpm-text-secondary)" }}>{sprintData.totalPoints} pts • {sprintData.sprintTasks?.length ?? 0} tasks</div>
+              {sprintData.risksInPlan?.length > 0 && (
+                <div style={{ fontSize: 11, color: "#fdcb6e", marginTop: 4 }}>⚠️ {sprintData.risksInPlan[0]}</div>
+              )}
+            </div>
+          ) : (
+            <button onClick={async () => { setSprintLoading(true); try { const d = await post(`/api/projects/${project.id}/sprint-plan`, {}); setSprintData(d); } catch (e) { console.error(e); } finally { setSprintLoading(false); } }}
+              disabled={sprintLoading} className="clubpm-btn-primary" style={{ fontSize: 12, padding: "6px 12px" }}>
+              {sprintLoading ? "Planning…" : "Generate Sprint Plan"}
+            </button>
+          )}
+        </div>
+
+        {/* Capacity Card */}
+        <div style={{ ...cardStyle, flex: "1 1 220px", marginBottom: 0 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8, color: "var(--clubpm-text-primary)" }}>⚖️ Capacity</div>
+          {capacityData ? (
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: capacityData.balanceScore >= 75 ? "#55efc4" : capacityData.balanceScore >= 50 ? "#fdcb6e" : "#e17055" }}>
+                Balance: {capacityData.balanceScore}/100
+              </div>
+              <div style={{ fontSize: 12, color: "var(--clubpm-text-muted)", marginTop: 4 }}>{capacityData.summary}</div>
+              {capacityData.overloaded?.slice(0, 2).map((o, i) => (
+                <div key={i} style={{ fontSize: 11, color: "#e17055", marginTop: 4 }}>⚠️ {o.member}</div>
+              ))}
+            </div>
+          ) : (
+            <button onClick={async () => { setCapacityLoading(true); try { const d = await post(`/api/projects/${project.id}/capacity-analysis`, {}); setCapacityData(d); } catch (e) { console.error(e); } finally { setCapacityLoading(false); } }}
+              disabled={capacityLoading} className="clubpm-btn-primary" style={{ fontSize: 12, padding: "6px 12px" }}>
+              {capacityLoading ? "Analyzing…" : "Analyze Capacity"}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Main Component ───────────────────────────────────────────
 
 export default function ProjectDetail() {
   const { id } = useParams();
   const [searchParams] = useSearchParams();
-  // member used for auto-assign on IN_PROGRESS
   const { member } = useClubPmAuth();
+  const { setProjectNav, clearProjectNav } = useProjectNav();
 
   const [project, setProject] = useState(null);
   const [allProjects, setAllProjects] = useState([]);
@@ -764,11 +1284,41 @@ export default function ProjectDetail() {
   const [activeTask, setActiveTask] = useState(null);     // For DragOverlay
   const [selectedTask, setSelectedTask] = useState(null); // For TaskModal
   const [overBin, setOverBin] = useState(null);
+  const [overTaskId, setOverTaskId] = useState(null);
+  const [activeMember, setActiveMember] = useState(null);
   const [assigneePanelOpen] = useState(true); // reserved for future toggle UX
   const [showAddTask, setShowAddTask] = useState(false);
   const [addTaskInitialStatus, setAddTaskInitialStatus] = useState("TODO");
   const navigate = useNavigate();
   const [expandedParents, setExpandedParents] = useState(new Set());
+  const [sortBy, setSortBy] = useState("priority");
+  const [newUpdateContent, setNewUpdateContent] = useState("");
+  const [postingUpdate, setPostingUpdate] = useState(false);
+  const [pinned, setPinned] = useState(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem('pm-starred-projects') || '[]');
+      return stored.includes(id);
+    } catch { return false; }
+  });
+  const [viewMode, setViewMode] = useState("list");
+
+  const tasksByBin = useMemo(() => {
+    if (!project) return BINS.map(b => ({ ...b, tasks: [] }));
+    const sorted = (arr) => [...arr].sort((a, b) => {
+      if (sortBy === "priority") return (PRIORITY_RANK[a.priority] ?? 4) - (PRIORITY_RANK[b.priority] ?? 4);
+      if (sortBy === "dueDate")  return (a.dueDate ? new Date(a.dueDate) : Infinity) - (b.dueDate ? new Date(b.dueDate) : Infinity);
+      if (sortBy === "status")   return (a.status ?? "").localeCompare(b.status ?? "");
+      if (sortBy === "created")  return new Date(b.createdAt) - new Date(a.createdAt);
+      if (sortBy === "title")    return a.title.localeCompare(b.title);
+      return 0;
+    });
+    return BINS.map((b) => ({
+      ...b,
+      tasks: sorted(project.tasks.filter(
+        (t) => !t.parentTaskId && t.status === b.id
+      )),
+    }));
+  }, [project, sortBy]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
@@ -785,6 +1335,32 @@ export default function ProjectDetail() {
   useEffect(() => {
     fetchProject();
   }, [fetchProject]);
+
+  // Auto-expand all parent tasks that have subtasks by default
+  useEffect(() => {
+    if (!project) return;
+    setExpandedParents(prev => {
+      const next = new Set(prev);
+      project.tasks.forEach(t => {
+        if (t.subtasks && t.subtasks.length > 0) next.add(t.id);
+      });
+      return next;
+    });
+  }, [project?.id]);
+
+  useEffect(() => {
+    if (!project) return;
+    setProjectNav({
+      projectName: project.name,
+      tabs: NAV_TABS,
+      activeTab,
+      onTabChange: setActiveTab,
+    });
+  }, [project?.name, activeTab, setProjectNav]);
+
+  useEffect(() => {
+    return () => clearProjectNav();
+  }, [clearProjectNav]);
 
   useEffect(() => {
     get("/api/projects")
@@ -813,30 +1389,115 @@ export default function ProjectDetail() {
 
   const handleDragStart = (event) => {
     const { active } = event;
-    // Only treat task drags as active task drags (member chips have ids prefixed "member-")
-    if (typeof active.id === "string" && active.id.startsWith("member-")) {
+    if (typeof active.id === "string" && (active.id.startsWith("member-") || active.id === "special-everyone" || active.id === "special-nobody")) {
       setActiveTask(null);
+      if (active.id.startsWith("member-")) {
+        const memberId = active.data.current?.memberId;
+        const pm = allMembers.find(m => m.memberId === memberId);
+        setActiveMember(pm ?? null);
+      } else {
+        // Use a synthetic pm object for the overlay
+        setActiveMember({ memberId: active.id, member: { displayName: active.id === "special-everyone" ? "Everyone" : "Nobody" } });
+      }
       return;
     }
+    setActiveMember(null);
     const task = project?.tasks.find((t) => t.id === active.id);
     setActiveTask(task ?? null);
   };
 
   const handleDragOver = (event) => {
-    const { over } = event;
+    const { active, over } = event;
     if (over && BINS.some((b) => b.id === over.id)) {
       setOverBin(over.id);
     } else {
       setOverBin(null);
     }
+    const isMemberDrag = typeof active?.id === "string" && (active.id.startsWith("member-") || active.id === "special-everyone" || active.id === "special-nobody");
+    if (isMemberDrag) {
+      const overId = over?.id;
+      const isTopLevel = overId && project?.tasks.some(t => t.id === overId);
+      const isSubtask = !isTopLevel && overId && project?.tasks.some(t => (t.subtasks ?? []).some(s => s.id === overId));
+      setOverTaskId(isTopLevel || isSubtask ? overId : null);
+    } else {
+      setOverTaskId(null);
+    }
   };
 
   const handleDragEnd = async (event) => {
     setActiveTask(null);
+    setActiveMember(null);
     setOverBin(null);
+    setOverTaskId(null);
     if (!canEdit) return;
     const { active, over } = event;
     if (!over || !project) return;
+
+    // Helper: find a task by ID across top-level tasks and their embedded subtasks
+    const findTask = (id) => {
+      const top = project.tasks.find(t => t.id === id);
+      if (top) return { task: top, parentTask: null };
+      for (const t of project.tasks) {
+        const sub = (t.subtasks ?? []).find(s => s.id === id);
+        if (sub) return { task: sub, parentTask: t };
+      }
+      return null;
+    };
+
+    // Helper: apply optimistic assignee update to state (handles subtasks)
+    const applyAssigneeUpdate = (taskId, parentTaskId, newAssignees) => {
+      setProject(prev => ({
+        ...prev,
+        tasks: prev.tasks.map(t => {
+          if (parentTaskId) {
+            if (t.id !== parentTaskId) return t;
+            return { ...t, subtasks: (t.subtasks ?? []).map(s => s.id === taskId ? { ...s, assignees: newAssignees } : s) };
+          }
+          return t.id === taskId ? { ...t, assignees: newAssignees } : t;
+        }),
+      }));
+    };
+
+    // Special chips: Everyone or Nobody
+    if (active.id === "special-everyone" || active.id === "special-nobody") {
+      const found = findTask(over.id);
+      if (!found) return;
+      const { task, parentTask } = found;
+      const everyone = active.id === "special-everyone";
+      const memberIds = everyone ? allMembers.map(m => m.memberId) : [];
+      const memberObjs = everyone ? allMembers.map(m => m.member).filter(Boolean) : [];
+      applyAssigneeUpdate(task.id, parentTask?.id ?? null, memberObjs);
+      try {
+        const updated = await patch(`/api/tasks/${task.id}`, { assigneeIds: memberIds });
+        applyAssigneeUpdate(task.id, parentTask?.id ?? null, updated.assignees ?? memberObjs);
+      } catch {
+        fetchProject();
+      }
+      return;
+    }
+
+    // Member chip dropped onto a task row → assign member
+    if (typeof active.id === "string" && active.id.startsWith("member-")) {
+      const memberId = active.data.current?.memberId;
+      if (!memberId) return;
+      const found = findTask(over.id);
+      if (!found) return;
+      const { task, parentTask } = found;
+      const alreadyAssigned = (task.assignees ?? []).some(a => a.id === memberId);
+      if (alreadyAssigned) return;
+      const memberObj = allMembers.find(m => m.memberId === memberId)?.member;
+      const newAssigneeIds = [...(task.assignees ?? []).map(a => a.id), memberId];
+      if (memberObj) {
+        applyAssigneeUpdate(task.id, parentTask?.id ?? null, [...(task.assignees ?? []), memberObj]);
+      }
+      try {
+        const updated = await patch(`/api/tasks/${task.id}`, { assigneeIds: newAssigneeIds });
+        applyAssigneeUpdate(task.id, parentTask?.id ?? null, updated.assignees ?? []);
+      } catch {
+        fetchProject();
+      }
+      return;
+    }
 
     const taskId = active.id;
     const newStatus = over.id;
@@ -845,6 +1506,15 @@ export default function ProjectDetail() {
 
     const task = project.tasks.find((t) => t.id === taskId);
     if (!task || task.status === newStatus) return;
+
+    if (newStatus === "DONE") {
+      const openBlockers = (task.blockedBy ?? []).filter(d => d.blockingTask?.status !== "DONE");
+      if (openBlockers.length > 0) {
+        const names = openBlockers.map(d => d.blockingTask.title).join(", ");
+        alert(`Cannot complete "${task.title}" — the following blockers are not done yet:\n\n${names}`);
+        return;
+      }
+    }
 
     // Build patch body
     const patchBody = { status: newStatus };
@@ -881,8 +1551,9 @@ export default function ProjectDetail() {
         ...prev,
         tasks: prev.tasks.map(t => t.id === taskId ? { ...t, ...updated } : t),
       }));
-    } catch {
+    } catch (err) {
       setProject(prev => ({ ...prev, tasks: previousTasks }));
+      if (err?.message) alert(err.message);
     }
   };
 
@@ -985,24 +1656,21 @@ export default function ProjectDetail() {
     );
   }
 
+  // Build subtask map from embedded subtasks (project fetches top-level only, subtasks are nested)
   const subtasksByParent = new Map();
   project.tasks.forEach(t => {
-    if (t.parentTaskId) {
-      if (!subtasksByParent.has(t.parentTaskId)) subtasksByParent.set(t.parentTaskId, []);
-      subtasksByParent.get(t.parentTaskId).push(t);
+    if (t.subtasks && t.subtasks.length > 0) {
+      subtasksByParent.set(t.id, t.subtasks);
     }
   });
 
-  const tasksByBin = BINS.map((b) => ({
-    ...b,
-    tasks: project.tasks.filter(
-      (t) =>
-        !t.parentTaskId && (
-          t.status === b.id ||
-          (b.id === "IN_PROGRESS" && t.status === "BLOCKED")
-        )
-    ),
-  }));
+  const HEALTH_COLOR_MAP = {
+    ACTIVE: 'var(--pm-accent-teal)',
+    PAUSED: 'var(--pm-accent-amber)',
+    COMPLETED: 'var(--pm-accent-violet)',
+    ARCHIVED: 'var(--pm-text-muted)',
+  };
+  const healthColor = HEALTH_COLOR_MAP[project.status] ?? 'var(--pm-text-muted)';
 
   const canEdit =
     !project.slackChannelId ||
@@ -1018,49 +1686,77 @@ export default function ProjectDetail() {
         onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
       >
-        <ProjectSidebar
-          project={project}
-          allProjects={allProjects}
-          activeTab={activeTab}
-          onTabChange={setActiveTab}
-        />
-
         <main className="cpm-project-main">
-          <header className="cpm-proj-main-header">
-            <div style={{ display: "flex", alignItems: "baseline", flexWrap: "wrap", gap: 12 }}>
-              <h1
-                style={{
-                  fontSize: 20,
-                  fontWeight: 700,
-                  color: "var(--clubpm-text-primary)",
-                  margin: 0,
-                }}
-              >
-                {project.name}
-              </h1>
-              <span className={`clubpm-badge ${STATUS_BADGE[project.status] ?? ""}`}>
-                {project.status}
-              </span>
-              <span className={`clubpm-badge clubpm-badge-${project.type.toLowerCase()}`}>
-                {project.type}
-              </span>
-              <SlackChannelPicker
-                project={project}
-                channels={slackChannels}
-                onSaved={fetchProject}
-              />
-              {project.slackChannelId && !canEdit && (
-                <span style={{ fontSize: 11, color: "var(--clubpm-accent-yellow)", display: "flex", alignItems: "center", gap: 4 }}>
-                  <i className="fas fa-lock" style={{ fontSize: 10 }} />
-                  View only — join #{project.slackChannelName} to edit
-                </span>
-              )}
+          <header className="pm-proj-hero">
+            {/* Breadcrumb */}
+            <div className="pm-proj-breadcrumb">
+              <Link to="/clubpm" style={{ color: 'var(--pm-text-muted)', fontSize: '0.8rem', textDecoration: 'none' }}>
+                Dashboard
+              </Link>
+              <span style={{ color: 'var(--pm-text-muted)', margin: '0 6px', fontSize: '0.8rem' }}>›</span>
+              <span style={{ color: 'var(--pm-text-secondary)', fontSize: '0.8rem' }}>{project.name}</span>
             </div>
-            {activeTab === "tasks" && <ProgressBar tasks={project.tasks} />}
+
+            {/* Hero row */}
+            <div className="pm-proj-hero-row">
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <h1 className="pm-proj-title">{project.name}</h1>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6, flexWrap: 'wrap' }}>
+                  <span className="pm-proj-health-chip" style={{ color: healthColor, borderColor: `${healthColor}40`, background: `${healthColor}12` }}>
+                    {project.status}
+                  </span>
+                  <span className="pm-proj-type-chip">{project.type}</span>
+                  <SlackChannelPicker project={project} channels={slackChannels} onSaved={fetchProject} />
+                  {project.slackChannelId && !canEdit && (
+                    <span style={{ fontSize: 11, color: 'var(--pm-accent-amber)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <i className="fas fa-lock" style={{ fontSize: 10 }} /> View only
+                    </span>
+                  )}
+                </div>
+              </div>
+              <button
+                className={`pm-pin-btn${pinned ? ' active' : ''}`}
+                onClick={() => setPinned(p => {
+                  const next = !p;
+                  try {
+                    const stored = JSON.parse(localStorage.getItem('pm-starred-projects') || '[]');
+                    const updated = next
+                      ? [...stored.filter(x => x !== id), id]
+                      : stored.filter(x => x !== id);
+                    localStorage.setItem('pm-starred-projects', JSON.stringify(updated));
+                    window.dispatchEvent(new Event('pm-stars-changed'));
+                  } catch {}
+                  return next;
+                })}
+                title={pinned ? 'Unpin project' : 'Pin project'}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill={pinned ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                </svg>
+              </button>
+            </div>
+
+            {/* Progress bar */}
+            <ProgressBar tasks={project.tasks} />
           </header>
 
           {activeTab === "tasks" && (
             <div className="cpm-proj-main-body" style={{ padding: "16px 0 24px" }}>
+              <div style={{ display: "flex", justifyContent: "flex-end", padding: "0 12px 8px" }}>
+                <select
+                  value={sortBy}
+                  onChange={e => setSortBy(e.target.value)}
+                  style={{ fontSize: 12, padding: '4px 8px', borderRadius: 6,
+                           background: 'var(--pm-bg-overlay)', border: '1px solid var(--pm-border)',
+                           color: 'var(--pm-text-secondary)', cursor: 'pointer' }}
+                >
+                  <option value="priority">Sort: Priority</option>
+                  <option value="dueDate">Sort: Due Date</option>
+                  <option value="status">Sort: Status</option>
+                  <option value="created">Sort: Created</option>
+                  <option value="title">Sort: Title</option>
+                </select>
+              </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 12, padding: "0 12px" }}>
                 {tasksByBin.map((bin) => (
                   <StatusBin
@@ -1076,6 +1772,7 @@ export default function ProjectDetail() {
                       return next;
                     })}
                     isOver={overBin === bin.id}
+                    overTaskId={overTaskId}
                     onTaskClick={setSelectedTask}
                     onAddTask={(status) => { setAddTaskInitialStatus(status); setShowAddTask(true); }}
                     canEdit={canEdit}
@@ -1129,61 +1826,88 @@ export default function ProjectDetail() {
 
           {activeTab === "reports" && (
             <div className="cpm-proj-main-body" style={{ padding: "24px" }}>
-              <ReportingView projectId={project.id} />
+              <ProjectAnalytics project={project} />
             </div>
           )}
 
           {activeTab === "updates" && (
             <div className="cpm-proj-main-body" style={{ padding: "24px" }}>
               <div style={{ display: "flex", flexDirection: "column", gap: 16, maxWidth: 640 }}>
+                {canEdit && (
+                  <div className="clubpm-glass-card" style={{ padding: 16, marginBottom: 0 }}>
+                    <textarea
+                      value={newUpdateContent}
+                      onChange={e => setNewUpdateContent(e.target.value)}
+                      placeholder="Post a project update… (Markdown supported)"
+                      rows={3}
+                      style={{ width: "100%", background: "var(--clubpm-surface-300)",
+                               border: "1px solid var(--clubpm-border)", borderRadius: 6,
+                               color: "var(--clubpm-text-primary)", fontSize: 13,
+                               padding: "8px 10px", resize: "vertical", boxSizing: "border-box" }}
+                    />
+                    <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
+                      <button
+                        disabled={!newUpdateContent.trim() || postingUpdate}
+                        onClick={async () => {
+                          setPostingUpdate(true);
+                          try {
+                            const update = await post(`/api/projects/${id}/updates`, { content: newUpdateContent.trim() });
+                            setProject(prev => ({ ...prev, updates: [update, ...(prev.updates ?? [])] }));
+                            setNewUpdateContent("");
+                          } catch (err) { console.error(err); }
+                          finally { setPostingUpdate(false); }
+                        }}
+                        className="clubpm-btn-primary"
+                        style={{ fontSize: 13, padding: "6px 16px" }}
+                      >
+                        {postingUpdate ? "Posting…" : "Post Update"}
+                      </button>
+                    </div>
+                  </div>
+                )}
                 {(!project.updates || project.updates.length === 0) ? (
                   <p style={{ color: "var(--clubpm-text-muted)", fontSize: 13 }}>
                     No updates yet
                   </p>
                 ) : (
-                  project.updates.map((update) => (
-                    <div key={update.id} className="clubpm-glass-card" style={{ padding: 16 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                        <div
-                          style={{
-                            width: 24,
-                            height: 24,
-                            borderRadius: "50%",
-                            background: "var(--clubpm-accent-primary)",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            fontSize: 11,
-                            fontWeight: 700,
-                            color: "white",
-                          }}
-                        >
-                          U
+                  project.updates.map((update) => {
+                    const initials = (update.author?.displayName ?? "?")
+                      .split(" ").map(p => p[0]).join("").slice(0, 2).toUpperCase();
+                    return (
+                      <div key={update.id} className="clubpm-glass-card" style={{ padding: 16 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                          <div
+                            style={{
+                              width: 24, height: 24, borderRadius: "50%",
+                              background: "var(--clubpm-accent-primary)",
+                              display: "flex", alignItems: "center", justifyContent: "center",
+                              fontSize: 11, fontWeight: 700, color: "white", flexShrink: 0,
+                            }}
+                          >
+                            {initials}
+                          </div>
+                          <span style={{ fontSize: 12, fontWeight: 600, color: "var(--clubpm-text-secondary)" }}>
+                            {update.author?.displayName ?? "Unknown"}
+                          </span>
+                          <span style={{ fontSize: 11, color: "var(--clubpm-text-muted)" }}>
+                            {new Date(update.postedAt).toLocaleDateString("en-US", {
+                              month: "short", day: "numeric", hour: "numeric", minute: "2-digit",
+                            })}
+                          </span>
                         </div>
-                        <span style={{ fontSize: 11, color: "var(--clubpm-text-muted)" }}>
-                          {new Date(update.postedAt).toLocaleDateString("en-US", {
-                            month: "short",
-                            day: "numeric",
-                            hour: "numeric",
-                            minute: "2-digit",
-                          })}
-                        </span>
+                        <div style={{ fontSize: 13, color: "var(--clubpm-text-secondary)" }}
+                             className="clubpm-markdown">
+                          <ReactMarkdown>{update.content}</ReactMarkdown>
+                        </div>
                       </div>
-                      <p
-                        style={{
-                          fontSize: 13,
-                          color: "var(--clubpm-text-secondary)",
-                          whiteSpace: "pre-wrap",
-                          margin: 0,
-                        }}
-                      >
-                        {update.content}
-                      </p>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
             </div>
+          )}
+          {activeTab === "ai" && (
+            <AiPanel project={project} />
           )}
         </main>
 
@@ -1240,6 +1964,11 @@ export default function ProjectDetail() {
                 {activeTask.title}
               </span>
             </div>
+          ) : activeMember ? (
+            <div className="cpm-assignee-chip" style={{ cursor: "grabbing", boxShadow: "0 8px 32px rgba(0,0,0,0.45)", opacity: 0.95 }}>
+              <ChipAvatar member={activeMember.member} />
+              <span className="cpm-assignee-chip-name">{activeMember.member?.displayName}</span>
+            </div>
           ) : null}
         </DragOverlay>
       </DndContext>
@@ -1247,7 +1976,6 @@ export default function ProjectDetail() {
       {selectedTask && (
         <TaskModal
           task={selectedTask}
-          readOnly={!canEdit}
           onClose={() => {
             setSelectedTask(null);
             navigate(`/clubpm/projects/${id}`, { replace: true });

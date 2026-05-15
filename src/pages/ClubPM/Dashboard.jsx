@@ -1,9 +1,252 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { createPortal } from "react-dom";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { get, post, patch } from "../../api/clubPmClient";
 import { useClubPmAuth } from "../../clubpm/ClubPmAuth";
 import { ProgressIndicator, PriorityBars, AvatarStack } from "../../components/clubpm/TaskPrimitives";
+import ProjectCard from "../../components/clubpm/ProjectCard";
+
+// ── useCountUp hook ───────────────────────────────────────────
+
+function useCountUp(target, duration = 800) {
+  const [count, setCount] = useState(0);
+  useEffect(() => {
+    if (target === 0) { setCount(0); return; }
+    let start = null;
+    const step = (timestamp) => {
+      if (!start) start = timestamp;
+      const elapsed = timestamp - start;
+      const progress = Math.min(elapsed / duration, 1);
+      setCount(Math.round(progress * target));
+      if (progress < 1) requestAnimationFrame(step);
+    };
+    const raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [target, duration]);
+  return count;
+}
+
+// ── StatsBar component ────────────────────────────────────────
+
+function StatTile({ value, label }) {
+  const display = useCountUp(value);
+  return (
+    <div className="pm-stat-tile">
+      <div className="pm-stat-number">{display}</div>
+      <div className="pm-stat-label">{label}</div>
+    </div>
+  );
+}
+
+function StatsBar({ projects, myTasks }) {
+  const totalProjects = projects.length;
+
+  const now = Date.now();
+  const weekMs = 7 * 24 * 60 * 60 * 1000;
+  const tasksDueThisWeek = myTasks.filter(t =>
+    t.dueDate &&
+    t.progress !== 'COMPLETED' &&
+    new Date(t.dueDate).getTime() >= now &&
+    new Date(t.dueDate).getTime() <= now + weekMs
+  ).length;
+
+  const completionRate = projects.length > 0
+    ? Math.round(
+        projects.reduce((sum, p) => {
+          const total = p.totalTasks ?? p.tasks?.length ?? 0;
+          const done  = p.doneTasks  ?? p.tasks?.filter(t => t.progress === 'COMPLETED' || t.status === 'DONE').length ?? 0;
+          const pct   = p.completionPercent ?? (total > 0 ? Math.round((done / total) * 100) : 0);
+          return sum + pct;
+        }, 0) / projects.length
+      )
+    : 0;
+
+  const membersActive = new Set(
+    myTasks.flatMap(t => (t.assignees ?? []).map(a => a.id))
+  ).size;
+
+  return (
+    <div className="pm-stats-bar">
+      <StatTile value={totalProjects}    label="Total Projects" />
+      <StatTile value={tasksDueThisWeek} label="Tasks Due This Week" />
+      <StatTile value={completionRate}   label="Completion Rate %" />
+      <StatTile value={membersActive}    label="Members Active" />
+    </div>
+  );
+}
+
+// ── AIInsightCards ────────────────────────────────────────────
+
+function AIInsightCards({ projects, tasks }) {
+  // 1. Most blocked project — project whose tasks have the most BLOCKED status
+  const mostBlocked = useMemo(() => {
+    if (!projects.length) return null;
+    let best = null;
+    let max  = -1;
+    projects.forEach(p => {
+      const blocked = (p.tasks ?? []).filter(t =>
+        (t.status ?? t.progress ?? '').toUpperCase() === 'BLOCKED'
+      ).length;
+      if (blocked > max) { max = blocked; best = { project: p, count: blocked }; }
+    });
+    return best;
+  }, [projects]);
+
+  // 2. Upcoming deadline — soonest non-DONE task due within 7 days
+  const upcomingDeadline = useMemo(() => {
+    const now    = Date.now();
+    const sevenD = 7 * 24 * 60 * 60 * 1000;
+    const candidates = tasks.filter(t => {
+      if (!t.dueDate) return false;
+      const due = new Date(t.dueDate).getTime();
+      const isDone = (t.progress ?? t.status ?? '').toUpperCase() === 'COMPLETED' ||
+                     (t.progress ?? t.status ?? '').toUpperCase() === 'DONE';
+      return !isDone && due >= now && due <= now + sevenD;
+    });
+    if (!candidates.length) return null;
+    candidates.sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
+    return candidates[0];
+  }, [tasks]);
+
+  // 3. Velocity trend — tasks completed this week vs last week
+  const velocityTrend = useMemo(() => {
+    const now     = Date.now();
+    const weekMs  = 7  * 24 * 60 * 60 * 1000;
+    const twoWeekMs = 14 * 24 * 60 * 60 * 1000;
+    const thisWeek = tasks.filter(t => {
+      const done = (t.progress ?? t.status ?? '').toUpperCase() === 'COMPLETED' ||
+                   (t.progress ?? t.status ?? '').toUpperCase() === 'DONE';
+      if (!done || !t.updatedAt) return false;
+      const ts = new Date(t.updatedAt).getTime();
+      return ts >= now - weekMs && ts <= now;
+    }).length;
+    const lastWeek = tasks.filter(t => {
+      const done = (t.progress ?? t.status ?? '').toUpperCase() === 'COMPLETED' ||
+                   (t.progress ?? t.status ?? '').toUpperCase() === 'DONE';
+      if (!done || !t.updatedAt) return false;
+      const ts = new Date(t.updatedAt).getTime();
+      return ts >= now - twoWeekMs && ts < now - weekMs;
+    }).length;
+    if (thisWeek > lastWeek)  return { label: '↑ Accelerating', sub: `${thisWeek} done this week`, accent: 'var(--pm-accent-teal)' };
+    if (thisWeek < lastWeek)  return { label: '↓ Slowing',      sub: `${thisWeek} done this week`, accent: 'var(--pm-accent-amber)' };
+    return { label: '→ Steady', sub: `${thisWeek} done this week`, accent: 'var(--pm-text-muted)' };
+  }, [tasks]);
+
+  const MONTHS_S = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  function fmtDate(str) {
+    const d = new Date(str);
+    return `${MONTHS_S[d.getMonth()]} ${d.getDate()}`;
+  }
+
+  return (
+    <div className="pm-insight-row">
+      {/* Card 1: Most Blocked */}
+      <div className="pm-insight-card" style={{ borderLeftColor: mostBlocked?.count > 0 ? '#e17055' : 'var(--pm-border)' }}>
+        <div className="pm-insight-card-label">Most Blocked</div>
+        <div className="pm-insight-card-value">
+          {mostBlocked
+            ? (mostBlocked.count > 0 ? `${mostBlocked.count} blocked task${mostBlocked.count !== 1 ? 's' : ''}` : 'None blocked')
+            : 'No projects'
+          }
+        </div>
+        {mostBlocked?.count > 0 && (
+          <div className="pm-insight-card-sub">{mostBlocked.project.name || mostBlocked.project.title}</div>
+        )}
+      </div>
+
+      {/* Card 2: Upcoming Deadline */}
+      <div className="pm-insight-card" style={{ borderLeftColor: upcomingDeadline ? 'var(--pm-accent-amber)' : 'var(--pm-border)' }}>
+        <div className="pm-insight-card-label">Upcoming Deadline</div>
+        <div className="pm-insight-card-value">
+          {upcomingDeadline ? fmtDate(upcomingDeadline.dueDate) : 'Nothing due soon'}
+        </div>
+        {upcomingDeadline && (
+          <div className="pm-insight-card-sub">{upcomingDeadline.title}</div>
+        )}
+      </div>
+
+      {/* Card 3: Velocity */}
+      <div className="pm-insight-card" style={{ borderLeftColor: velocityTrend.accent }}>
+        <div className="pm-insight-card-label">Velocity Trend</div>
+        <div className="pm-insight-card-value">{velocityTrend.label}</div>
+        <div className="pm-insight-card-sub">{velocityTrend.sub}</div>
+      </div>
+    </div>
+  );
+}
+
+// ── QuickCreateFAB ────────────────────────────────────────────
+
+function QuickCreateFAB({ onClick }) {
+  return (
+    <button className="pm-fab" onClick={onClick} title="Quick create project" aria-label="Quick create project">
+      +
+    </button>
+  );
+}
+
+// ── QuickCreateDrawer ─────────────────────────────────────────
+
+function QuickCreateDrawer({ open, onClose, onCreate }) {
+  const [name, setName]     = useState("");
+  const [type, setType]     = useState("ENGINEERING");
+  const [saving, setSaving] = useState(false);
+  const [error, setError]   = useState(null);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!name.trim()) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const project = await post("/api/projects", { name: name.trim(), type });
+      onCreate(project);
+      setName("");
+      setType("ENGINEERING");
+      onClose();
+    } catch (err) {
+      setError(err.message ?? "Failed to create project");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return createPortal(
+    <>
+      {open && <div className="pm-drawer-overlay" onClick={onClose} />}
+      <div className={`pm-drawer${open ? " open" : ""}`}>
+        <div className="pm-drawer-handle" />
+        <div className="pm-drawer-title">Quick Create Project</div>
+        <form onSubmit={handleSubmit}>
+          <input
+            className="pm-drawer-input"
+            type="text"
+            placeholder="Project name"
+            value={name}
+            onChange={e => setName(e.target.value)}
+            required
+          />
+          <select
+            className="pm-drawer-select"
+            value={type}
+            onChange={e => setType(e.target.value)}
+          >
+            <option value="ENGINEERING">Engineering</option>
+            <option value="RESEARCH">Research</option>
+            <option value="HYBRID">Hybrid</option>
+          </select>
+          {error && (
+            <p style={{ fontSize: 12, color: 'var(--pm-accent-coral)', marginBottom: 12 }}>{error}</p>
+          )}
+          <button type="submit" className="pm-drawer-submit" disabled={saving || !name.trim()}>
+            {saving ? "Creating…" : "Create Project"}
+          </button>
+        </form>
+      </div>
+    </>,
+    document.body
+  );
+}
 
 // ── Shared helpers ────────────────────────────────────────────
 
@@ -75,7 +318,7 @@ const DATE_CREATED_OPTIONS = [
   { value: "older",      label: "Older" },
 ];
 
-const DEFAULT_FILTERS = { projects: [], assignees: [], priorities: [], statuses: [], dateCreated: [] };
+const DEFAULT_FILTERS = { projects: [], assignees: [], priorities: [], statuses: [], dateCreated: [], tags: [] };
 
 function applyFilters(tasks, f) {
   let r = tasks;
@@ -84,6 +327,7 @@ function applyFilters(tasks, f) {
   if (f.priorities.length)  r = r.filter(t => f.priorities.includes(t.priority));
   if (f.statuses.length)    r = r.filter(t => f.statuses.includes(t.progress ?? "NO_PROGRESS"));
   if (f.dateCreated.length) r = r.filter(t => t.createdAt && f.dateCreated.some(range => isInDateCreatedRange(t.createdAt, range)));
+  if (f.tags.length)        r = r.filter(t => (t.tags ?? []).some(tag => f.tags.includes(tag.id ?? tag)));
   return r;
 }
 
@@ -96,9 +340,14 @@ function activeFilterCount(f) {
 function TaskRow({ task, onProgressChange, compact, showProject }) {
   const progress = task.progress ?? "NO_PROGRESS";
   const overdue = task.dueDate && isOverdue(task.dueDate, progress);
+  const navigate = useNavigate();
 
   return (
-    <div className={`cpm-task-row${compact ? " cpm-task-row--compact" : ""}`}>
+    <div
+      className={`cpm-task-row${compact ? " cpm-task-row--compact" : ""}`}
+      style={{ cursor: "pointer" }}
+      onClick={() => task.projectId && navigate(`/clubpm/projects/${task.projectId}?task=${task.id}`)}
+    >
       <ProgressIndicator progress={progress} taskId={task.id} onUpdate={onProgressChange} />
       <PriorityBars priority={task.priority} />
       <div className="cpm-task-row-info">
@@ -199,7 +448,7 @@ function FilterDropdown({ label, options, selected, onChange }) {
 
 // ── Filter Bar ────────────────────────────────────────────────
 
-function FilterBar({ tasks, filters, setFilter, onClearAll }) {
+function FilterBar({ tasks, filters, setFilter, onClearAll, allTags = [] }) {
   const projectOptions = useMemo(() =>
     [...new Map(tasks.map(t => [t.projectId, { value: t.projectId, label: t.project?.name ?? t.projectId }])).values()],
     [tasks]
@@ -211,6 +460,11 @@ function FilterBar({ tasks, filters, setFilter, onClearAll }) {
     return [...map.values()];
   }, [tasks]);
 
+  const tagOptions = useMemo(() =>
+    allTags.map(t => ({ value: t.id ?? t, label: t.name ?? t })),
+    [allTags]
+  );
+
   const active = activeFilterCount(filters);
 
   return (
@@ -220,6 +474,9 @@ function FilterBar({ tasks, filters, setFilter, onClearAll }) {
       <FilterDropdown label="Priority" options={PRIORITY_OPTIONS}     selected={filters.priorities}  onChange={v => setFilter("priorities", v)} />
       <FilterDropdown label="Status"   options={STATUS_OPTIONS}       selected={filters.statuses}    onChange={v => setFilter("statuses", v)} />
       <FilterDropdown label="Created"  options={DATE_CREATED_OPTIONS} selected={filters.dateCreated} onChange={v => setFilter("dateCreated", v)} />
+      {tagOptions.length > 0 && (
+        <FilterDropdown label="Tags" options={tagOptions} selected={filters.tags ?? []} onChange={v => setFilter("tags", v)} />
+      )}
       {active > 0 && (
         <button className="cpm-filter-clear-all" onClick={onClearAll}>
           Clear all
@@ -484,12 +741,18 @@ function FullRecapModal({ tasks, onClose }) {
 // ── Work Panel ────────────────────────────────────────────────
 
 function WorkPanel({ tasks, onProgressChange, projects, onTaskCreated }) {
+  const { member } = useClubPmAuth();
   const [showAddTask, setShowAddTask] = useState(false);
   const [showRecap, setShowRecap]     = useState(false);
   const [filters, setFilters]         = useState(DEFAULT_FILTERS);
 
   const setFilter = (key, val) => setFilters(prev => ({ ...prev, [key]: val }));
   const clearAll  = ()         => setFilters(DEFAULT_FILTERS);
+
+  const allTags = useMemo(() =>
+    [...new Map(projects.flatMap(p => p.tags ?? []).map(t => [t.id ?? t, t])).values()],
+    [projects]
+  );
 
   const filtered = useMemo(() => applyFilters(tasks, filters), [tasks, filters]);
 
@@ -500,6 +763,13 @@ function WorkPanel({ tasks, onProgressChange, projects, onTaskCreated }) {
           <div className="cpm-panel-header-top">
             <div className="cpm-panel-header-left">
               <h2 className="cpm-panel-title">Work</h2>
+              {member?.isAdmin && (
+                <span style={{ fontSize: 11, padding: "2px 7px", borderRadius: 10,
+                  background: "rgba(249,202,36,0.15)", border: "1px solid #f9ca24",
+                  color: "#f9ca24", fontWeight: 600 }}>
+                  👑 Admin
+                </span>
+              )}
               <button className="cpm-panel-recap-btn" onClick={() => setShowRecap(true)}>
                 <i className="fas fa-history" /> Full Recap
               </button>
@@ -510,7 +780,7 @@ function WorkPanel({ tasks, onProgressChange, projects, onTaskCreated }) {
               </button>
             </div>
           </div>
-          <FilterBar tasks={tasks} filters={filters} setFilter={setFilter} onClearAll={clearAll} />
+          <FilterBar tasks={tasks} filters={filters} setFilter={setFilter} onClearAll={clearAll} allTags={allTags} />
         </div>
 
         <div className="cpm-work-list">
@@ -617,6 +887,7 @@ function AgendaPanel({ tasks, onProgressChange }) {
 // ── Projects Sidebar ──────────────────────────────────────────
 
 function ProjectsSidebar({ projects, onAddProject }) {
+  const { member } = useClubPmAuth();
   const [collapsed, setCollapsed] = useState(false);
   return (
     <aside className="cpm-sidebar">
@@ -625,15 +896,29 @@ function ProjectsSidebar({ projects, onAddProject }) {
           <i className={`fas fa-chevron-${collapsed ? "right" : "down"} cpm-chevron`} />
         </button>
         <span className="cpm-sidebar-title">Projects</span>
-        <button className="cpm-add-project-btn" onClick={onAddProject} title="New Project">
-          <i className="fas fa-plus" />
-        </button>
+        {member?.isAdmin && (
+          <button className="cpm-add-project-btn" onClick={onAddProject} title="New Project">
+            <i className="fas fa-plus" />
+          </button>
+        )}
       </div>
       {!collapsed && (
         <div className="cpm-project-list">
           {projects.length === 0
-            ? <p className="cpm-sidebar-empty">No projects yet</p>
-            : projects.map(p => <ProjectListItem key={p.id} project={p} />)
+            ? (
+              <div className="pm-projects-empty">
+                <svg width="48" height="48" viewBox="0 0 48 48" fill="none" style={{ opacity: 0.4 }}>
+                  <path d="M24 4C24 4 32 12 32 24C32 31 28 38 24 44C20 38 16 31 16 24C16 12 24 4 24 4Z" stroke="var(--pm-accent-teal)" strokeWidth="1.5" fill="none"/>
+                  <circle cx="24" cy="24" r="4" stroke="var(--pm-accent-teal)" strokeWidth="1.5" fill="none"/>
+                  <path d="M16 32L10 38" stroke="var(--pm-accent-teal)" strokeWidth="1.5" strokeLinecap="round"/>
+                  <path d="M32 32L38 38" stroke="var(--pm-accent-teal)" strokeWidth="1.5" strokeLinecap="round"/>
+                </svg>
+                <p style={{ fontSize: '0.8rem', color: 'var(--pm-text-muted)', marginTop: 8, textAlign: 'center' }}>
+                  Your launchpad awaits
+                </p>
+              </div>
+            )
+            : projects.map(p => <ProjectCard key={p.id} project={p} />)
           }
         </div>
       )}
@@ -760,7 +1045,6 @@ export default function Dashboard() {
   const [projects, setProjects] = useState([]);
   const [myTasks, setMyTasks] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showCreateProject, setShowCreateProject] = useState(false);
 
   const fetchTasks = () =>
     member
@@ -795,8 +1079,9 @@ export default function Dashboard() {
 
   return (
     <div className="clubpm-app cpm-dashboard-root">
+      <StatsBar projects={projects} myTasks={myTasks} />
+      <AIInsightCards projects={projects} tasks={myTasks} />
       <div className="cpm-dashboard-layout">
-        <ProjectsSidebar projects={projects} onAddProject={() => setShowCreateProject(true)} />
         <WorkPanel
           tasks={myTasks}
           onProgressChange={handleProgressChange}
@@ -805,13 +1090,6 @@ export default function Dashboard() {
         />
         <AgendaPanel tasks={myTasks} onProgressChange={handleProgressChange} />
       </div>
-
-      {showCreateProject && (
-        <CreateProjectModal
-          onClose={() => setShowCreateProject(false)}
-          onCreate={project => setProjects(prev => [project, ...prev])}
-        />
-      )}
     </div>
   );
 }

@@ -1,11 +1,13 @@
 import { prisma } from "../db/prisma.js";
-import type { Task, TaskStatus, Priority, Prisma, Member, Project, RecurringInterval } from "@prisma/client";
+import type { Task, TaskStatus, TaskProgress, Priority, Prisma, Member, Project, RecurringInterval, Tag } from "@prisma/client";
+import { logActivity } from "./activityService.js";
 
 // ── Types ────────────────────────────────────────────────────
 
 interface CreateTaskInput {
   title: string;
   description?: string;
+  status?: TaskStatus;
   priority?: Priority;
   dueDate?: Date;
   projectId: string;
@@ -14,22 +16,36 @@ interface CreateTaskInput {
   parentTaskId?: string;
   milestoneId?: string;
   recurringInterval?: RecurringInterval;
+  tagIds?:            string[];
+  estimatedHours?:    number;
+  storyPoints?:       number;
+  isRecurring?:       boolean;
+  recurrencePattern?: string;
+  recurrenceEndDate?: Date;
+  recurringParentId?: string;
 }
 
 interface UpdateTaskInput {
   title?: string;
   description?: string;
   status?: TaskStatus;
+  progress?: TaskProgress;
   priority?: Priority;
   dueDate?: Date | null;
   assigneeIds?: string[];
   tags?: string[];
-  attachments?: string[];
+  attachments?: (string | { url: string; label?: string })[];
   parentTaskId?: string | null;
   milestoneId?: string | null;
   blockedByIds?: string[];
   blockingIds?: string[];
   recurringInterval?: RecurringInterval | null;
+  estimatedHours?:    number | null;
+  storyPoints?:       number | null;
+  isRecurring?:       boolean;
+  recurrencePattern?: string | null;
+  recurrenceEndDate?: Date | null;
+  recurringParentId?: string | null;
 }
 
 interface TaskFilters {
@@ -54,10 +70,11 @@ export async function createTask(
     }
   }
 
-  return prisma.task.create({
+  const task = await prisma.task.create({
     data: {
       title: data.title,
       description: data.description,
+      status: data.status,
       priority: data.priority,
       dueDate: data.dueDate,
       projectId: data.projectId,
@@ -65,12 +82,28 @@ export async function createTask(
       parentTaskId: data.parentTaskId,
       milestoneId: data.milestoneId,
       recurringInterval: data.recurringInterval,
+      estimatedHours: data.estimatedHours,
+      storyPoints: data.storyPoints,
+      isRecurring: data.isRecurring,
+      recurrencePattern: data.recurrencePattern,
+      recurrenceEndDate: data.recurrenceEndDate,
+      recurringParentId: data.recurringParentId,
       ...(data.assigneeIds && data.assigneeIds.length > 0
         ? { assignees: { connect: data.assigneeIds.map(id => ({ id })) } }
         : {}),
+      ...(data.tagIds?.length
+        ? { tags: { connect: data.tagIds.map(id => ({ id })) } }
+        : {}),
     },
-    include: { assignees: true, project: true, subtasks: true, blockedBy: true, blocking: true },
+    include: { assignees: true, project: true, subtasks: true },
   });
+  await logActivity({
+    type: "TASK_CREATED",
+    entityId: task.id,
+    entityType: "Task",
+    projectId: task.projectId,
+  });
+  return task;
 }
 
 export async function updateTask(
@@ -83,21 +116,26 @@ export async function updateTask(
   if (data.title !== undefined) updateData.title = data.title;
   if (data.description !== undefined) updateData.description = data.description;
   if (data.status !== undefined) updateData.status = data.status;
+  if (data.progress !== undefined) updateData.progress = data.progress;
   if (data.priority !== undefined) updateData.priority = data.priority;
   if (data.dueDate !== undefined) updateData.dueDate = data.dueDate;
-  if (data.tags !== undefined) updateData.tags = data.tags;
-  if (data.attachments !== undefined) updateData.attachments = data.attachments;
+  if (data.tags !== undefined) updateData.tags = { set: data.tags.map(id => ({ id })) };
+  if (data.estimatedHours !== undefined) updateData.estimatedHours = data.estimatedHours;
+  if (data.storyPoints !== undefined) updateData.storyPoints = data.storyPoints;
+  if (data.isRecurring !== undefined) updateData.isRecurring = data.isRecurring;
+  if (data.recurrencePattern !== undefined) updateData.recurrencePattern = data.recurrencePattern;
+  if (data.recurrenceEndDate !== undefined) updateData.recurrenceEndDate = data.recurrenceEndDate;
+  if (data.recurringParentId !== undefined) updateData.recurringParentId = data.recurringParentId;
+  if (data.attachments !== undefined) {
+    updateData.attachments = data.attachments.map(a =>
+      typeof a === "string" ? a : JSON.stringify(a)
+    );
+  }
   if (data.recurringInterval !== undefined) updateData.recurringInterval = data.recurringInterval;
 
   // M:N relations
   if (data.assigneeIds !== undefined) {
     updateData.assignees = { set: data.assigneeIds.map(aid => ({ id: aid })) };
-  }
-  if (data.blockedByIds !== undefined) {
-    updateData.blockedBy = { set: data.blockedByIds.map(bid => ({ id: bid })) };
-  }
-  if (data.blockingIds !== undefined) {
-    updateData.blocking = { set: data.blockingIds.map(bid => ({ id: bid })) };
   }
 
   // FK relations
@@ -112,15 +150,48 @@ export async function updateTask(
       : { disconnect: true };
   }
 
-  const updated = await prisma.task.update({
+  let updated = await prisma.task.update({
     where: { id },
     data: updateData,
-    include: { assignees: true, project: true, subtasks: true, blockedBy: true, blocking: true },
+    include: { assignees: true, project: true, subtasks: true, tags: true },
   });
+
+  // Dep set operations (explicit join table — cannot use Prisma connect/disconnect)
+  if (data.blockedByIds !== undefined) {
+    await prisma.taskDependency.deleteMany({ where: { blockedTaskId: id } });
+    if (data.blockedByIds.length > 0) {
+      await prisma.taskDependency.createMany({
+        data: data.blockedByIds.map(bid => ({ blockingTaskId: bid, blockedTaskId: id })),
+        skipDuplicates: true,
+      });
+    }
+  }
+  if (data.blockingIds !== undefined) {
+    await prisma.taskDependency.deleteMany({ where: { blockingTaskId: id } });
+    if (data.blockingIds.length > 0) {
+      await prisma.taskDependency.createMany({
+        data: data.blockingIds.map(bid => ({ blockingTaskId: id, blockedTaskId: bid })),
+        skipDuplicates: true,
+      });
+    }
+  }
+
+  if (data.status !== undefined) {
+    await logActivity({
+      type: "STATUS_CHANGED",
+      entityId: updated.id,
+      entityType: "Task",
+      projectId: updated.projectId,
+      metadata: { status: updated.status },
+    });
+  }
 
   // ── Recurring task spawn on DONE ──
   if (data.status === "DONE" && updated.recurringInterval) {
     await spawnRecurringTask(updated);
+  }
+  if (data.status === "DONE" && updated.isRecurring && updated.recurrencePattern) {
+    await spawnNextOccurrence(updated as Task & { assignees: Member[]; tags: Tag[] });
   }
 
   return updated;
@@ -138,8 +209,10 @@ export async function getTask(id: string) {
       project: true,
       comments: { include: { author: true }, orderBy: { createdAt: "asc" } },
       subtasks: { include: { assignees: true }, orderBy: { createdAt: "asc" } },
-      blockedBy: { select: { id: true, title: true, status: true } },
-      blocking: { select: { id: true, title: true, status: true } },
+      blockedBy: { include: { blockingTask: { select: { id: true, title: true, status: true } } } },
+      blocks:    { include: { blockedTask:  { select: { id: true, title: true, status: true } } } },
+      timeLogs:  { include: { member: { select: { id: true, displayName: true } } } },
+      tags:      true,
       milestone: true,
       parentTask: { select: { id: true, title: true } },
     },
@@ -232,7 +305,7 @@ export async function createSubtask(
   const parent = await prisma.task.findUnique({ where: { id: parentTaskId } });
   if (!parent) throw new Error("Parent task not found");
 
-  return prisma.task.create({
+  const subtask = await prisma.task.create({
     data: {
       title: data.title,
       projectId: parent.projectId,
@@ -243,35 +316,55 @@ export async function createSubtask(
     },
     include: { assignees: true, project: true },
   });
+  await logActivity({
+    type: "SUBTASK_ADDED",
+    entityId: subtask.id,
+    entityType: "Task",
+    projectId: subtask.projectId,
+    metadata: { parentTaskId },
+  });
+  return subtask;
 }
 
 // ── Dependency Helpers ──────────────────────────────────────
 
 export async function addDependency(taskId: string, blockedById: string) {
-  // Prevent self-dependency
   if (taskId === blockedById) throw new Error("A task cannot depend on itself");
 
-  // Check for circular dependency
   const hasCycle = await checkDependencyCycle(blockedById, taskId);
   if (hasCycle) throw new Error("Adding this dependency would create a circular chain");
 
-  return prisma.task.update({
+  await prisma.taskDependency.upsert({
+    where: { blockingTaskId_blockedTaskId: { blockingTaskId: blockedById, blockedTaskId: taskId } },
+    create: { blockingTaskId: blockedById, blockedTaskId: taskId },
+    update: {},
+  });
+
+  return prisma.task.findUnique({
     where: { id: taskId },
-    data: { blockedBy: { connect: { id: blockedById } } },
-    include: { blockedBy: true, blocking: true },
+    include: {
+      blockedBy: { include: { blockingTask: true } },
+      blocks:    { include: { blockedTask: true } },
+    },
   });
 }
 
 export async function removeDependency(taskId: string, blockedById: string) {
-  return prisma.task.update({
+  await prisma.taskDependency.delete({
+    where: { blockingTaskId_blockedTaskId: { blockingTaskId: blockedById, blockedTaskId: taskId } },
+  });
+
+  return prisma.task.findUnique({
     where: { id: taskId },
-    data: { blockedBy: { disconnect: { id: blockedById } } },
-    include: { blockedBy: true, blocking: true },
+    include: {
+      blockedBy: { include: { blockingTask: true } },
+      blocks:    { include: { blockedTask: true } },
+    },
   });
 }
 
 async function checkDependencyCycle(fromId: string, targetId: string): Promise<boolean> {
-  // BFS: starting from fromId, walk the blockedBy chain. If we reach targetId, it's a cycle.
+  // BFS: walk the blockedBy chain upward; if we reach targetId it's a cycle.
   const visited = new Set<string>();
   const queue = [fromId];
 
@@ -281,14 +374,12 @@ async function checkDependencyCycle(fromId: string, targetId: string): Promise<b
     if (visited.has(currentId)) continue;
     visited.add(currentId);
 
-    const task = await prisma.task.findUnique({
-      where: { id: currentId },
-      include: { blockedBy: { select: { id: true } } },
+    const deps = await prisma.taskDependency.findMany({
+      where: { blockedTaskId: currentId },
+      select: { blockingTaskId: true },
     });
-    if (task) {
-      for (const dep of task.blockedBy) {
-        queue.push(dep.id);
-      }
+    for (const dep of deps) {
+      queue.push(dep.blockingTaskId);
     }
   }
   return false;
@@ -353,6 +444,71 @@ function computeNextDueDate(currentDue: Date, interval: string): Date {
       break;
   }
   return next;
+}
+
+// ── Time Logging ────────────────────────────────────────────
+
+export async function logTime(taskId: string, memberId: string, minutes: number, note?: string) {
+  return prisma.timeLog.create({ data: { taskId, memberId, minutes, note } });
+}
+
+// ── spawnNextOccurrence (recurrencePattern-based) ───────────
+
+export async function spawnNextOccurrence(task: Task & { assignees: Member[]; tags: Tag[] }) {
+  if (!task.isRecurring || !task.recurrencePattern || !task.dueDate) return;
+  const next = new Date(task.dueDate);
+  const patterns: Record<string, () => void> = {
+    DAILY:    () => next.setDate(next.getDate() + 1),
+    WEEKLY:   () => next.setDate(next.getDate() + 7),
+    BIWEEKLY: () => next.setDate(next.getDate() + 14),
+    MONTHLY:  () => next.setMonth(next.getMonth() + 1),
+  };
+  patterns[task.recurrencePattern]?.();
+  if (task.recurrenceEndDate && next > task.recurrenceEndDate) return;
+  await prisma.task.create({
+    data: {
+      title: task.title, description: task.description, priority: task.priority,
+      projectId: task.projectId, dueDate: next, status: "TODO",
+      isRecurring: true, recurrencePattern: task.recurrencePattern,
+      recurrenceEndDate: task.recurrenceEndDate,
+      recurringParentId: task.recurringParentId ?? task.id,
+      estimatedHours: task.estimatedHours, storyPoints: task.storyPoints,
+      assignees: { connect: task.assignees.map(a => ({ id: a.id })) },
+      tags:      { connect: task.tags.map(t => ({ id: t.id })) },
+    },
+  });
+}
+
+// ── Slack-Oriented Helpers ──────────────────────────────────
+
+export async function completeTaskFromSlack(taskId: string): Promise<Task & { assignees: Member[]; project: Project }> {
+  return updateTask(taskId, { status: "DONE" });
+}
+
+export async function claimTaskFromSlack(
+  taskId: string,
+  memberId: string
+): Promise<Task & { assignees: Member[]; project: Project }> {
+  const task = await getTask(taskId);
+  const existingIds = task?.assignees.map(a => a.id) ?? [];
+  if (!existingIds.includes(memberId)) existingIds.push(memberId);
+  return updateTask(taskId, { assigneeIds: existingIds });
+}
+
+export async function createTaskFromSlackMessage(data: {
+  title: string;
+  projectId: string;
+  assigneeIds?: string[];
+  slackMsgTs?: string;
+}): Promise<Task & { assignees: Member[]; project: Project }> {
+  return createTask(data);
+}
+
+export async function reassignTaskFromSlack(
+  taskId: string,
+  memberId: string
+): Promise<Task & { assignees: Member[]; project: Project }> {
+  return updateTask(taskId, { assigneeIds: [memberId] });
 }
 
 export type { CreateTaskInput, UpdateTaskInput, TaskFilters };

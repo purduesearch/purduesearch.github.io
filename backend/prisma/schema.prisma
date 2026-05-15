@@ -103,6 +103,7 @@ model Member {
   displayName String
   avatarUrl   String?
   role            Role            @default(MEMBER)
+  isAdmin         Boolean         @default(false)
   kanbanColumnOrder String[]      @default(["TODO", "IN_PROGRESS", "BLOCKED", "DONE"])
   notificationPrefs String[]      @default(["daily_reminders", "weekly_digest", "project_updates"])
   tasks           Task[]          @relation("TaskAssignees")
@@ -111,6 +112,8 @@ model Member {
   activities      Activity[]
   activityLogs    ActivityLog[]
   ownedMilestones Milestone[]     @relation("MilestoneOwner")
+  timeLogs        TimeLog[]
+  updates         ProjectUpdate[]
   createdAt       DateTime        @default(now())
 }
 
@@ -126,7 +129,7 @@ model Project {
   type         ProjectType
   startDate    DateTime?
   targetDate   DateTime?
-  tags                 String[]
+  tags                 Tag[]
   members              ProjectMember[]
   tasks                Task[]
   milestones           Milestone[]
@@ -160,7 +163,7 @@ model Task {
   projectId   String
   assignees   Member[]   @relation("TaskAssignees")
   slackMsgTs  String?
-  tags        String[]
+  tags        Tag[]        @relation("TaskTags")
   attachments String[]
   comments    TaskComment[]
 
@@ -170,17 +173,26 @@ model Task {
   subtasks     Task[]   @relation("TaskSubtasks")
 
   // ── Dependencies ──
-  blockedBy    Task[]   @relation("TaskDependencies")
-  blocking     Task[]   @relation("TaskDependencies")
+  blockedBy    TaskDependency[] @relation("TaskDependencies_blocked")
+  blocks       TaskDependency[] @relation("TaskDependencies_blocking")
 
   // ── Progress ──
   progress     TaskProgress @default(NO_PROGRESS)
 
+  // ── Time tracking ──
+  estimatedHours Float?
+  storyPoints    Int?
+  timeLogs       TimeLog[]
+
   // ── Recurring ──
-  recurringInterval RecurringInterval?
-  lastSpawnedAt     DateTime?
-  escalatedAt       DateTime?
-  sourceTaskId      String?
+  recurringInterval  RecurringInterval?
+  lastSpawnedAt      DateTime?
+  escalatedAt        DateTime?
+  sourceTaskId       String?
+  isRecurring        Boolean   @default(false)
+  recurrencePattern  String?
+  recurrenceEndDate  DateTime?
+  recurringParentId  String?
 
   // ── Milestone ──
   milestone    Milestone? @relation(fields: [milestoneId], references: [id], onDelete: SetNull)
@@ -250,7 +262,8 @@ model ProjectUpdate {
   id        String   @id @default(cuid())
   project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
   projectId String
-  authorId  String
+  authorId  String?
+  author    Member?  @relation(fields: [authorId], references: [id], onDelete: SetNull)
   content   String
   postedAt  DateTime @default(now())
 
@@ -323,5 +336,41 @@ model ProjectNotificationTarget {
   @@unique([projectId, slackChannelId])
   @@index([projectId])
   @@index([slackChannelId])
+}
+
+model Tag {
+  id        String   @id @default(cuid())
+  name      String
+  color     String   @default("#6c5ce7")
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  tasks     Task[]   @relation("TaskTags")
+  createdAt DateTime @default(now())
+
+  @@unique([name, projectId])
+  @@index([projectId])
+}
+
+model TaskDependency {
+  blockingTaskId String
+  blockedTaskId  String
+  blockingTask   Task   @relation("TaskDependencies_blocking", fields: [blockingTaskId], references: [id], onDelete: Cascade)
+  blockedTask    Task   @relation("TaskDependencies_blocked",  fields: [blockedTaskId],  references: [id], onDelete: Cascade)
+
+  @@id([blockingTaskId, blockedTaskId])
+}
+
+model TimeLog {
+  id       String   @id @default(cuid())
+  taskId   String
+  memberId String
+  minutes  Int
+  note     String?
+  loggedAt DateTime @default(now())
+  task     Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  member   Member   @relation(fields: [memberId], references: [id])
+
+  @@index([taskId])
+  @@index([memberId])
 }
 

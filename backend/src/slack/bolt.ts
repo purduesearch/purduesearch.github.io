@@ -2,7 +2,8 @@ import { App, LogLevel } from "@slack/bolt";
 import { registerCommands } from "./commands.js";
 import { registerActions } from "./actions.js";
 import { registerEvents } from "./events.js";
-import { registerModals } from "./modals.js";
+import { registerModals, registerAiModals } from "./modals.js";
+import { registerHome } from "./home.js";
 
 // ── Bolt App Init ────────────────────────────────────────────
 
@@ -21,6 +22,8 @@ registerCommands(boltApp);
 registerActions(boltApp);
 registerEvents(boltApp);
 registerModals(boltApp);
+registerAiModals(boltApp);
+registerHome(boltApp);
 
 // ── Start Bolt ───────────────────────────────────────────────
 

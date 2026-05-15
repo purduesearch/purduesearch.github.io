@@ -1,6 +1,7 @@
 import { Router, type Request, type Response } from "express";
 import { requireAuth } from "./auth.js";
 import { channelAuth } from "../middleware/channelAuth.js";
+import { prisma } from "../db/prisma.js";
 import {
   getProject,
   createProject,
@@ -14,6 +15,15 @@ import {
 } from "../services/taskService.js";
 import { logAuditEvent, diffObjects, getProjectAuditLog } from "../services/activityService.js";
 import type { ProjectType, ProjectStatus, TaskStatus, Priority, ActivityEventType } from "@prisma/client";
+import { fetchDriveFileAsText, extractFileId } from "../services/driveService.js";
+import { generateJsonFromDocument, generateText } from "../services/geminiService.js";
+import {
+  driveToTasksPrompt, meetingNotesToTasksPrompt, projectQaPrompt,
+} from "../utils/aiPrompts.js";
+import {
+  analyzeProjectRisks, generateSprintPlan, generateProjectBrief,
+  inferTaskDependencies, analyzeTeamCapacity, generateStakeholderEmail,
+} from "../services/projectAnalysisService.js";
 
 export const projectsRouter = Router();
 
@@ -36,6 +46,13 @@ projectsRouter.get("/", async (_req: Request, res: Response) => {
 
 projectsRouter.post("/", async (req: Request, res: Response) => {
   try {
+    const memberId = (req.session as any).memberId as string;
+    const actor = await prisma.member.findUnique({ where: { id: memberId }, select: { isAdmin: true } });
+    if (!actor?.isAdmin) {
+      res.status(403).json({ error: "Admin only" });
+      return;
+    }
+
     const { name, description, driveLink, slackChannel, type, startDate, targetDate } =
       req.body as {
         name: string;
@@ -67,7 +84,6 @@ projectsRouter.post("/", async (req: Request, res: Response) => {
       targetDate: targetDate ? new Date(targetDate) : undefined,
     });
 
-    const memberId = (req.session as any).memberId as string | undefined;
     logAuditEvent({
       projectId: project.id,
       memberId:  memberId ?? null,
@@ -264,5 +280,389 @@ projectsRouter.post("/:id/tasks", async (req: Request, res: Response) => {
   } catch (error) {
     console.error("Create task error:", error);
     res.status(500).json({ error: "Failed to create task" });
+  }
+});
+
+// ── GET /api/projects/:id/tags ───────────────────────────────
+
+projectsRouter.get("/:id/tags", async (req: Request, res: Response) => {
+  try {
+    const tags = await prisma.tag.findMany({ where: { projectId: req.params.id as string } });
+    res.json(tags);
+  } catch (error) {
+    console.error("Get tags error:", error);
+    res.status(500).json({ error: "Failed to get tags" });
+  }
+});
+
+// ── POST /api/projects/:id/tags ──────────────────────────────
+
+projectsRouter.post("/:id/tags", async (req: Request, res: Response) => {
+  try {
+    const memberId = (req.session as any).memberId as string;
+    const actor = await prisma.member.findUnique({ where: { id: memberId }, select: { isAdmin: true } });
+    if (!actor?.isAdmin) {
+      res.status(403).json({ error: "Admin only" });
+      return;
+    }
+    const { name, color } = req.body as { name: string; color?: string };
+    if (!name) {
+      res.status(400).json({ error: "name is required" });
+      return;
+    }
+    const tag = await prisma.tag.create({
+      data: { name, color: color ?? "#6c5ce7", projectId: req.params.id as string },
+    });
+    res.status(201).json(tag);
+  } catch (error) {
+    console.error("Create tag error:", error);
+    res.status(500).json({ error: "Failed to create tag" });
+  }
+});
+
+// ── POST /api/projects/:id/updates ──────────────────────────
+
+projectsRouter.post("/:id/updates", async (req: Request, res: Response) => {
+  try {
+    const memberId = (req.session as any).memberId as string;
+    const { content } = req.body as { content: string };
+    if (!content) {
+      res.status(400).json({ error: "content is required" });
+      return;
+    }
+    const update = await prisma.projectUpdate.create({
+      data: { projectId: req.params.id as string, authorId: memberId, content },
+      include: { author: { select: { displayName: true, avatarUrl: true } } },
+    });
+    res.status(201).json(update);
+  } catch (error) {
+    console.error("Create project update error:", error);
+    res.status(500).json({ error: "Failed to create project update" });
+  }
+});
+
+// ── POST /api/projects/:id/parse-drive ──────────────────────
+
+projectsRouter.post("/:id/parse-drive", async (req: Request, res: Response) => {
+  try {
+    const projectId = req.params.id as string;
+    const { driveUrl, suggestedTaskCount } = req.body as { driveUrl: string; suggestedTaskCount?: number };
+
+    const fileId = extractFileId(driveUrl);
+    if (!fileId) {
+      res.status(400).json({ error: "Invalid or unrecognized Google Drive URL" });
+      return;
+    }
+
+    if (/\/folders\//.test(driveUrl)) {
+      res.status(400).json({ error: "Please paste a link to a specific file (Google Doc, Sheet, or Slides), not a Drive folder." });
+      return;
+    }
+
+    const fileResult = await fetchDriveFileAsText(fileId);
+    if (!fileResult) {
+      res.status(400).json({ error: "Could not read the file from Google Drive. Make sure it exists and has been shared with the service account." });
+      return;
+    }
+
+    const project = await getProject(projectId);
+    if (!project) {
+      res.status(404).json({ error: "Project not found" });
+      return;
+    }
+
+    const existingTasks = await prisma.task.findMany({
+      where: { projectId, status: { not: "DONE" } },
+      select: { title: true },
+    });
+    const existingTaskTitles = existingTasks.map(t => t.title);
+    const today = new Date().toISOString().split("T")[0];
+
+    const result = await generateJsonFromDocument<{ tasks: any[] }>(
+      fileResult.text,
+      driveToTasksPrompt((project as any).name, (project as any).description ?? "", existingTaskTitles, today, suggestedTaskCount),
+    );
+
+    res.json({ tasks: result?.tasks ?? [], sourceFileName: fileResult.name });
+  } catch (error) {
+    console.error("Parse drive error:", error);
+    res.status(500).json({ error: "Failed to parse Drive file" });
+  }
+});
+
+// ── POST /api/projects/:id/parse-drive/confirm ───────────────
+
+projectsRouter.post("/:id/parse-drive/confirm", async (req: Request, res: Response) => {
+  try {
+    const projectId = req.params.id as string;
+    const { tasks } = req.body as {
+      tasks: Array<{
+        title: string;
+        description?: string;
+        priority?: Priority;
+        dueDate?: string;
+        suggestedAssigneeName?: string;
+      }>;
+    };
+
+    if (!Array.isArray(tasks) || tasks.length === 0) {
+      res.status(400).json({ error: "tasks array is required" });
+      return;
+    }
+
+    const projectMembers = await prisma.projectMember.findMany({
+      where: { projectId },
+      include: { member: true },
+    });
+
+    let created = 0;
+    for (const t of tasks) {
+      let assigneeId: string | undefined;
+      if (t.suggestedAssigneeName) {
+        const nameLower = t.suggestedAssigneeName.toLowerCase();
+        const match = projectMembers.find(
+          pm =>
+            pm.member.displayName.toLowerCase().includes(nameLower) ||
+            nameLower.includes(pm.member.displayName.toLowerCase()),
+        );
+        if (match) assigneeId = match.member.id;
+      }
+      await createTask({
+        title: t.title,
+        description: t.description,
+        priority: t.priority,
+        dueDate: t.dueDate ? new Date(t.dueDate) : undefined,
+        projectId,
+        assigneeIds: assigneeId ? [assigneeId] : [],
+      });
+      created++;
+    }
+
+    res.json({ created });
+  } catch (error) {
+    console.error("Parse drive confirm error:", error);
+    res.status(500).json({ error: "Failed to create tasks from Drive file" });
+  }
+});
+
+// ── POST /api/projects/:id/parse-meeting-notes ───────────────
+
+projectsRouter.post("/:id/parse-meeting-notes", async (req: Request, res: Response) => {
+  try {
+    const projectId = req.params.id as string;
+    const { notes, attendees, suggestedTaskCount } = req.body as { notes: string; attendees?: string[]; suggestedTaskCount?: number };
+
+    if (!notes) {
+      res.status(400).json({ error: "notes is required" });
+      return;
+    }
+
+    const project = await getProject(projectId);
+    if (!project) {
+      res.status(404).json({ error: "Project not found" });
+      return;
+    }
+
+    const today = new Date().toISOString().split("T")[0];
+    const result = await generateJsonFromDocument(
+      notes,
+      meetingNotesToTasksPrompt((project as any).name, attendees ?? [], today, suggestedTaskCount),
+    );
+
+    res.json(result);
+  } catch (error) {
+    console.error("Parse meeting notes error:", error);
+    res.status(500).json({ error: "Failed to parse meeting notes" });
+  }
+});
+
+// ── POST /api/projects/:id/ai-risks ─────────────────────────
+
+projectsRouter.post("/:id/ai-risks", async (req: Request, res: Response) => {
+  try {
+    const projectId = req.params.id as string;
+    const result = await analyzeProjectRisks(projectId);
+    if (!result) {
+      res.status(404).json({ error: "Project not found or analysis failed" });
+      return;
+    }
+    res.json(result);
+  } catch (error) {
+    console.error("AI risks error:", error);
+    res.status(500).json({ error: "Failed to analyze project risks" });
+  }
+});
+
+// ── POST /api/projects/:id/sprint-plan ──────────────────────
+
+projectsRouter.post("/:id/sprint-plan", async (req: Request, res: Response) => {
+  try {
+    const projectId = req.params.id as string;
+    const { capacityPoints, sprintDays } = req.body as {
+      capacityPoints?: number;
+      sprintDays?: number;
+    };
+    const result = await generateSprintPlan(projectId, capacityPoints, sprintDays);
+    if (!result) {
+      res.status(404).json({ error: "Project not found or planning failed" });
+      return;
+    }
+    res.json(result);
+  } catch (error) {
+    console.error("Sprint plan error:", error);
+    res.status(500).json({ error: "Failed to generate sprint plan" });
+  }
+});
+
+// ── POST /api/projects/:id/generate-brief ───────────────────
+
+projectsRouter.post("/:id/generate-brief", async (req: Request, res: Response) => {
+  try {
+    const projectId = req.params.id as string;
+    const result = await generateProjectBrief(projectId);
+    if (!result) {
+      res.status(404).json({ error: "Project not found or brief generation failed" });
+      return;
+    }
+    res.json(result);
+  } catch (error) {
+    console.error("Generate brief error:", error);
+    res.status(500).json({ error: "Failed to generate project brief" });
+  }
+});
+
+// ── POST /api/projects/:id/infer-dependencies ───────────────
+
+projectsRouter.post("/:id/infer-dependencies", async (req: Request, res: Response) => {
+  try {
+    const projectId = req.params.id as string;
+    const result = await inferTaskDependencies(projectId);
+    if (!result) {
+      res.status(404).json({ error: "Project not found or inference failed" });
+      return;
+    }
+    res.json(result);
+  } catch (error) {
+    console.error("Infer dependencies error:", error);
+    res.status(500).json({ error: "Failed to infer task dependencies" });
+  }
+});
+
+// ── POST /api/projects/:id/capacity-analysis ────────────────
+
+projectsRouter.post("/:id/capacity-analysis", async (req: Request, res: Response) => {
+  try {
+    const projectId = req.params.id as string;
+    const result = await analyzeTeamCapacity(projectId);
+    if (!result) {
+      res.status(404).json({ error: "Project not found or analysis failed" });
+      return;
+    }
+    res.json(result);
+  } catch (error) {
+    console.error("Capacity analysis error:", error);
+    res.status(500).json({ error: "Failed to analyze team capacity" });
+  }
+});
+
+// ── POST /api/projects/:id/stakeholder-email ────────────────
+
+projectsRouter.post("/:id/stakeholder-email", async (req: Request, res: Response) => {
+  try {
+    const projectId = req.params.id as string;
+    const result = await generateStakeholderEmail(projectId);
+    if (!result) {
+      res.status(404).json({ error: "Project not found or email generation failed" });
+      return;
+    }
+    res.json(result);
+  } catch (error) {
+    console.error("Stakeholder email error:", error);
+    res.status(500).json({ error: "Failed to generate stakeholder email" });
+  }
+});
+
+// ── POST /api/projects/:id/ask ───────────────────────────────
+
+projectsRouter.post("/:id/ask", async (req: Request, res: Response) => {
+  try {
+    const projectId = req.params.id as string;
+    const { question } = req.body as { question: string };
+
+    if (!question) {
+      res.status(400).json({ error: "question is required" });
+      return;
+    }
+
+    const { getMilestonesForProject } = await import("../services/milestoneService.js");
+    const [project, milestonesRaw] = await Promise.all([
+      prisma.project.findUnique({
+        where: { id: projectId },
+        include: {
+          tasks: { include: { assignees: { select: { displayName: true } } } },
+          members: { include: { member: { select: { displayName: true } } } },
+          updates: { orderBy: { postedAt: "desc" }, take: 5 },
+        },
+      }),
+      getMilestonesForProject(projectId),
+    ]);
+
+    if (!project) {
+      res.status(404).json({ error: "Project not found" });
+      return;
+    }
+
+    const tasksArr = project.tasks.map(t => ({
+      title: t.title,
+      status: t.status,
+      priority: t.priority,
+      assignees: t.assignees.map((a: any) => a.displayName),
+      dueDate: (t as any).dueDate?.toISOString().split("T")[0] ?? null,
+    }));
+
+    const memberNames = project.members.map((pm: any) => pm.member.displayName);
+    const milestonesArr = (milestonesRaw as any[]).map((m: any) => ({
+      title: m.title,
+      status: m.status,
+      targetDate: m.dueDate?.toISOString().split("T")[0] ?? null,
+    }));
+    const recentUpdates = (project.updates as any[]).map(u => u.content.slice(0, 150));
+
+    const projectObj = {
+      name: project.name,
+      description: project.description,
+      type: project.type,
+      targetDate: (project as any).targetDate?.toISOString().split("T")[0] ?? null,
+    };
+
+    const answer = await generateText(
+      projectQaPrompt(question, projectObj, tasksArr, memberNames, milestonesArr, recentUpdates),
+    );
+
+    res.json({ answer });
+  } catch (error) {
+    console.error("Project ask error:", error);
+    res.status(500).json({ error: "Failed to answer question" });
+  }
+});
+
+// ── Tags router (for DELETE /api/tags/:tagId) ────────────────
+
+export const tagsRouter = Router();
+tagsRouter.use(requireAuth);
+
+tagsRouter.delete("/:tagId", async (req: Request, res: Response) => {
+  try {
+    const memberId = (req.session as any).memberId as string;
+    const actor = await prisma.member.findUnique({ where: { id: memberId }, select: { isAdmin: true } });
+    if (!actor?.isAdmin) {
+      res.status(403).json({ error: "Admin only" });
+      return;
+    }
+    await prisma.tag.delete({ where: { id: req.params.tagId as string } });
+    res.json({ ok: true });
+  } catch (error) {
+    console.error("Delete tag error:", error);
+    res.status(500).json({ error: "Failed to delete tag" });
   }
 });

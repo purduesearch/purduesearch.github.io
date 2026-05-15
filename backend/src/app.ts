@@ -4,13 +4,15 @@ import cors from "cors";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
 import { boltApp, startBolt } from "./slack/bolt.js";
+import { syncAdminStatus } from "./services/memberService.js";
 import { authRouter } from "./api/auth.js";
-import { projectsRouter } from "./api/projects.js";
+import { projectsRouter, tagsRouter } from "./api/projects.js";
 import { tasksRouter } from "./api/tasks.js";
 import { membersRouter } from "./api/members.js";
 import { activityRouter } from "./api/activity.js";
 import { milestonesRouter } from "./api/milestones.js";
 import { reportingRouter } from "./api/reporting.js";
+import { slackRouter } from "./api/slack.js";
 import { startScheduler } from "./slack/scheduler.js";
 
 // ── Express Setup ────────────────────────────────────────────
@@ -44,7 +46,9 @@ app.use(
       secure: process.env.NODE_ENV === "production",
       httpOnly: true,
       maxAge: 7 * 24 * 60 * 60 * 1000, // 1 week
-      sameSite: process.env.NODE_ENV === "production" ? "lax" : "lax",
+      // "none" required for cross-origin fetch with credentials (GitHub Pages → Oracle)
+      // "lax" is fine for same-origin local dev
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
     },
   })
 );
@@ -53,11 +57,13 @@ app.use(
 
 app.use("/auth", authRouter);
 app.use("/api/projects", projectsRouter);
+app.use("/api/tags", tagsRouter);
 app.use("/api/tasks", tasksRouter);
 app.use("/api/members", membersRouter);
 app.use("/api/activity", activityRouter);
 app.use("/api/milestones", milestonesRouter);
 app.use("/api/reporting", reportingRouter);
+app.use("/api/slack", slackRouter);
 
 // Health check
 app.get("/api/health", (_req, res) => {
@@ -71,6 +77,15 @@ async function start(): Promise<void> {
     // Start Slack Bolt app (Socket Mode)
     await startBolt();
     console.log("⚡ Slack Bolt app started (Socket Mode)");
+
+    // Sync admin status from leadership channel on boot
+    if (process.env.LEADERSHIP_CHANNEL_ID) {
+      syncAdminStatus(boltApp)
+        .then(() => console.log("🔑 Admin status synced from leadership channel"))
+        .catch(err => console.error("⚠️  Admin sync failed (check groups:read scope):", err?.data?.error ?? err));
+    } else {
+      console.warn("⚠️  LEADERSHIP_CHANNEL_ID not set — nobody will have admin rights");
+    }
 
     // Start cron scheduler
     startScheduler(boltApp);

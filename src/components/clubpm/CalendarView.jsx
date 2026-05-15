@@ -1,250 +1,323 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 
-const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const MONTHS = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December",
-];
+const WEEKDAY_ABBR  = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+const WEEKDAY_FULL  = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+const MONTHS_SHORT  = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const MONTHS_FULL   = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+const HOURS_DEFAULT = Array.from({ length: 9 }, (_, i) => i + 8); // 8‥16
+const HOURS_FULL    = Array.from({ length: 24 }, (_, i) => i);
 
-const PRIORITY_COLORS = {
-  CRITICAL: "#ef4444",
-  HIGH: "#f97316",
-  MEDIUM: "#eab308",
-  LOW: "#22c55e",
-};
+function dayKey(d) {
+  const date = d instanceof Date ? d : new Date(d);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
 
-export default function CalendarView({ tasks, onTaskClick }) {
-  const [currentDate, setCurrentDate] = useState(new Date());
-  const [viewMode, setViewMode] = useState("month"); // "month" | "week"
+function formatHour(h) {
+  if (h === 0)  return "12:00 AM";
+  if (h < 12)   return `${h}:00 AM`;
+  if (h === 12) return "12:00 PM";
+  return `${h - 12}:00 PM`;
+}
 
-  const year = currentDate.getFullYear();
-  const month = currentDate.getMonth();
-
-  const navigate = (dir) => {
-    const d = new Date(currentDate);
-    if (viewMode === "month") {
-      d.setMonth(d.getMonth() + dir);
-    } else {
-      d.setDate(d.getDate() + dir * 7);
-    }
-    setCurrentDate(d);
-  };
-
-  // ── Month View helpers ──
-  const firstDay = new Date(year, month, 1).getDay();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const prevDays = new Date(year, month, 0).getDate();
-
-  const getTasksForDate = (dateStr) => {
-    return tasks.filter((t) => {
-      if (!t.dueDate) return false;
-      return new Date(t.dueDate).toISOString().split("T")[0] === dateStr;
-    });
-  };
-
-  // Build calendar grid
-  const cells = [];
-  // Previous month fill
-  for (let i = firstDay - 1; i >= 0; i--) {
-    const day = prevDays - i;
-    const d = new Date(year, month - 1, day);
-    cells.push({ day, date: d, isCurrentMonth: false });
-  }
-  // Current month
-  for (let day = 1; day <= daysInMonth; day++) {
-    cells.push({ day, date: new Date(year, month, day), isCurrentMonth: true });
-  }
-  // Next month fill
-  const remaining = 42 - cells.length;
-  for (let day = 1; day <= remaining; day++) {
-    cells.push({ day, date: new Date(year, month + 1, day), isCurrentMonth: false });
-  }
-
-  // ── Week View helpers ──
-  const weekStart = new Date(currentDate);
-  weekStart.setDate(weekStart.getDate() - weekStart.getDay());
-  const weekDays = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(weekStart);
-    d.setDate(d.getDate() + i);
+function getMonthGrid(cursor) {
+  const year = cursor.getFullYear(), month = cursor.getMonth();
+  const start = new Date(year, month, 1);
+  start.setDate(start.getDate() - start.getDay());
+  return Array.from({ length: 42 }, (_, i) => {
+    const d = new Date(start);
+    d.setDate(start.getDate() + i);
     return d;
   });
+}
 
-  const today = new Date().toISOString().split("T")[0];
+function getWeekDays(cursor) {
+  const start = new Date(cursor);
+  start.setDate(cursor.getDate() - cursor.getDay());
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(start);
+    d.setDate(start.getDate() + i);
+    return d;
+  });
+}
+
+function formatLabel(cursor, viewMode) {
+  switch (viewMode) {
+    case "day":
+      return cursor.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
+    case "week": {
+      const days  = getWeekDays(cursor);
+      const start = days[0], end = days[6];
+      return `${WEEKDAY_ABBR[start.getDay()]} ${start.getDate()} – ${WEEKDAY_ABBR[end.getDay()]} ${end.getDate()}`;
+    }
+    case "month":
+      return `${MONTHS_FULL[cursor.getMonth()]}, ${cursor.getFullYear()}`;
+    case "agenda":
+      return `${MONTHS_FULL[cursor.getMonth()]} ${cursor.getFullYear()}`;
+    default:
+      return "";
+  }
+}
+
+function TaskChip({ task, onClick }) {
+  const statusColor =
+    task.status === "DONE"        ? "var(--clubpm-accent-green)"
+    : task.status === "IN_PROGRESS" ? "var(--clubpm-accent-cyan)"
+    : "var(--clubpm-text-muted)";
+  const firstAssignee = task.assignees?.[0];
+  return (
+    <div className="cpm-cal-task-chip" onClick={onClick}>
+      <span className="cpm-cal-chip-handle">‹</span>
+      <span className="cpm-cal-chip-status" style={{ borderColor: statusColor }}>
+        {task.status === "DONE" && <i className="fas fa-check" />}
+      </span>
+      {firstAssignee?.avatarUrl
+        ? <img src={firstAssignee.avatarUrl} alt="" className="cpm-cal-chip-avatar" />
+        : <span className="cpm-cal-chip-avatar-initial">{(firstAssignee?.displayName ?? "?")[0]}</span>
+      }
+      <span className="cpm-cal-chip-title">{task.title}</span>
+    </div>
+  );
+}
+
+export default function CalendarView({ tasks, onTaskClick }) {
+  const [viewMode, setViewMode]     = useState("month");
+  const [cursor, setCursor]         = useState(new Date());
+  const [showFullDay, setShowFullDay] = useState(false);
+
+  const snapToToday = () => setCursor(new Date());
+
+  const navigate = (dir) => {
+    const d = new Date(cursor);
+    switch (viewMode) {
+      case "day":    d.setDate(d.getDate() + dir);          break;
+      case "week":   d.setDate(d.getDate() + dir * 7);      break;
+      case "month":  d.setMonth(d.getMonth() + dir, 1);     break;
+      case "agenda": d.setMonth(d.getMonth() + dir * 3);    break;
+    }
+    setCursor(d);
+  };
+
+  const tasksByDay = useMemo(() => (tasks || []).reduce((acc, t) => {
+    if (!t.dueDate) return acc;
+    const k = dayKey(new Date(t.dueDate));
+    (acc[k] ??= []).push(t);
+    return acc;
+  }, {}), [tasks]);
+
+  const todayKey  = dayKey(new Date());
+  const monthGrid = useMemo(() => getMonthGrid(cursor), [cursor]);
+  const weekDays  = useMemo(() => getWeekDays(cursor),  [cursor]);
+
+  const agendaGroups = useMemo(() => {
+    const sorted = (tasks || [])
+      .filter(t => t.dueDate)
+      .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
+    const grouped = sorted.reduce((acc, t) => {
+      const k = dayKey(new Date(t.dueDate));
+      (acc[k] ??= []).push(t);
+      return acc;
+    }, {});
+    return Object.entries(grouped);
+  }, [tasks]);
+
+  const hours = showFullDay ? HOURS_FULL : HOURS_DEFAULT;
 
   return (
-    <div className="clubpm-animate-fade-in">
-      {/* Toolbar */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => navigate(-1)}
-            className="w-8 h-8 rounded-lg bg-[var(--clubpm-surface-200)] hover:bg-[var(--clubpm-surface-300)] text-[var(--clubpm-text-primary)] flex items-center justify-center transition-colors"
-          >
-            ‹
-          </button>
-          <h2 className="text-xl font-bold text-[var(--clubpm-text-primary)]">
-            {viewMode === "month"
-              ? `${MONTHS[month]} ${year}`
-              : `Week of ${weekStart.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`}
-          </h2>
-          <button
-            onClick={() => navigate(1)}
-            className="w-8 h-8 rounded-lg bg-[var(--clubpm-surface-200)] hover:bg-[var(--clubpm-surface-300)] text-[var(--clubpm-text-primary)] flex items-center justify-center transition-colors"
-          >
-            ›
-          </button>
-          <button
-            onClick={() => setCurrentDate(new Date())}
-            className="text-xs px-3 py-1.5 rounded-lg bg-[var(--clubpm-accent-primary)]/10 text-[var(--clubpm-accent-primary)] hover:bg-[var(--clubpm-accent-primary)]/20 transition-colors font-medium"
-          >
-            Today
-          </button>
+    <div className="clubpm-animate-fade-in cpm-cal-root">
+
+      {/* ── Toolbar ─────────────────────────────────────────────── */}
+      <div className="cpm-cal-toolbar">
+        <div className="cpm-cal-toolbar-left">
+          <button className="cpm-cal-today-btn" onClick={snapToToday}>Today</button>
+          <button className="cpm-cal-nav-btn"   onClick={() => navigate(-1)}>‹</button>
+          <span className="cpm-cal-date-label">
+            <i className="fas fa-calendar-alt" style={{ marginRight: 6 }} />
+            {formatLabel(cursor, viewMode)}
+          </span>
+          <button className="cpm-cal-nav-btn" onClick={() => navigate(+1)}>›</button>
         </div>
-        <div className="flex rounded-lg overflow-hidden border border-[var(--clubpm-border)]">
-          {["month", "week"].map((mode) => (
+        <div className="cpm-cal-view-switcher">
+          {["day","week","month","agenda"].map(v => (
             <button
-              key={mode}
-              onClick={() => setViewMode(mode)}
-              className={`px-4 py-1.5 text-xs font-medium transition-colors ${
-                viewMode === mode
-                  ? "bg-[var(--clubpm-accent-primary)] text-white"
-                  : "bg-[var(--clubpm-surface-200)] text-[var(--clubpm-text-secondary)] hover:bg-[var(--clubpm-surface-300)]"
-              }`}
+              key={v}
+              className={`cpm-cal-view-btn${viewMode === v ? " active" : ""}`}
+              onClick={() => setViewMode(v)}
             >
-              {mode.charAt(0).toUpperCase() + mode.slice(1)}
+              {v.charAt(0).toUpperCase() + v.slice(1)}
             </button>
           ))}
         </div>
       </div>
 
-      {/* Month View */}
+      {/* ── Month View ──────────────────────────────────────────── */}
       {viewMode === "month" && (
-        <div className="rounded-xl border border-[var(--clubpm-border)] overflow-hidden bg-[var(--clubpm-surface-100)]">
-          {/* Day headers */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, minmax(0, 1fr))" }}>
-            {DAYS.map((d) => (
+        <div className="cpm-cal-month-grid">
+          {WEEKDAY_FULL.map(d => (
+            <div key={d} className="cpm-cal-month-col-header">{d}</div>
+          ))}
+          {monthGrid.map((day, i) => {
+            const k          = dayKey(day);
+            const dayTasks   = tasksByDay[k] ?? [];
+            const isCurrentMonth = day.getMonth() === cursor.getMonth();
+            const isToday    = k === todayKey;
+            return (
               <div
-                key={d}
-                className="px-2 py-3 text-center text-xs font-semibold text-[var(--clubpm-text-muted)] uppercase tracking-wider bg-[var(--clubpm-surface-200)] border-b border-[var(--clubpm-border)]"
+                key={i}
+                className={`cpm-cal-month-cell${!isCurrentMonth ? " other-month" : ""}${isToday ? " today" : ""}`}
               >
-                {d}
+                <span className="cpm-cal-cell-num">{day.getDate()}</span>
+                {dayTasks.slice(0, 3).map(task => (
+                  <TaskChip key={task.id} task={task} onClick={() => onTaskClick?.(task)} />
+                ))}
+                {dayTasks.length > 3 && (
+                  <span className="cpm-cal-more">+{dayTasks.length - 3} more</span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ── Week View ───────────────────────────────────────────── */}
+      {viewMode === "week" && (
+        <>
+          <div className="cpm-cal-week-grid">
+            <div className="cpm-cal-week-time-gutter" />
+            {weekDays.map(d => (
+              <div key={dayKey(d)} className={`cpm-cal-week-col-header${dayKey(d) === todayKey ? " today" : ""}`}>
+                <span className="cpm-cal-week-dow">{WEEKDAY_ABBR[d.getDay()]} {d.getDate()}</span>
               </div>
             ))}
-          </div>
-          {/* Cells */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, minmax(0, 1fr))" }}>
-            {cells.map((cell, i) => {
-              const dateStr = cell.date.toISOString().split("T")[0];
-              const dayTasks = getTasksForDate(dateStr);
-              const isToday = dateStr === today;
 
-              return (
-                <div
-                  key={i}
-                  className={`min-h-[100px] p-1.5 border-b border-r border-[var(--clubpm-border)] transition-colors ${
-                    cell.isCurrentMonth
-                      ? "bg-[var(--clubpm-surface-100)]"
-                      : "bg-[var(--clubpm-surface-50)] opacity-40"
-                  } ${isToday ? "ring-2 ring-inset ring-[var(--clubpm-accent-primary)]/30" : ""}`}
-                >
-                  <span
-                    className={`text-xs font-medium inline-flex items-center justify-center w-6 h-6 rounded-full ${
-                      isToday
-                        ? "bg-[var(--clubpm-accent-primary)] text-white"
-                        : "text-[var(--clubpm-text-secondary)]"
-                    }`}
-                  >
-                    {cell.day}
-                  </span>
-                  <div className="mt-1 space-y-0.5">
-                    {dayTasks.slice(0, 3).map((t) => (
-                      <button
-                        key={t.id}
-                        onClick={() => onTaskClick?.(t)}
-                        className="w-full text-left px-1.5 py-0.5 rounded text-[10px] font-medium truncate transition-colors hover:opacity-80"
-                        style={{
-                          backgroundColor: `${PRIORITY_COLORS[t.priority] || "#6366f1"}22`,
-                          color: PRIORITY_COLORS[t.priority] || "#6366f1",
-                          borderLeft: `2px solid ${PRIORITY_COLORS[t.priority] || "#6366f1"}`,
-                        }}
-                      >
-                        {t.title}
-                      </button>
-                    ))}
-                    {dayTasks.length > 3 && (
-                      <span className="text-[10px] text-[var(--clubpm-text-muted)] pl-1">
-                        +{dayTasks.length - 3} more
-                      </span>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
+            <div className="cpm-cal-week-time-label">all day</div>
+            {weekDays.map(d => (
+              <div key={`allday-${dayKey(d)}`} className="cpm-cal-week-allday-cell">
+                {(tasksByDay[dayKey(d)] ?? []).map(t => (
+                  <TaskChip key={t.id} task={t} onClick={() => onTaskClick?.(t)} />
+                ))}
+              </div>
+            ))}
 
-      {/* Week View */}
-      {viewMode === "week" && (
-        <div className="rounded-xl border border-[var(--clubpm-border)] overflow-hidden bg-[var(--clubpm-surface-100)]">
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, minmax(0, 1fr))" }}>
-            {weekDays.map((d) => {
-              const dateStr = d.toISOString().split("T")[0];
-              const dayTasks = getTasksForDate(dateStr);
-              const isToday = dateStr === today;
-
-              return (
-                <div
-                  key={dateStr}
-                  className={`min-h-[400px] border-r border-[var(--clubpm-border)] last:border-r-0 ${
-                    isToday ? "bg-[var(--clubpm-accent-primary)]/5" : ""
-                  }`}
-                >
+            {hours.map(h => (
+              <React.Fragment key={h}>
+                <div className="cpm-cal-week-time-label">{formatHour(h)}</div>
+                {weekDays.map(d => (
                   <div
-                    className={`px-3 py-3 text-center border-b border-[var(--clubpm-border)] ${
-                      isToday ? "bg-[var(--clubpm-accent-primary)]/10" : "bg-[var(--clubpm-surface-200)]"
-                    }`}
-                  >
-                    <p className="text-xs text-[var(--clubpm-text-muted)] uppercase">{DAYS[d.getDay()]}</p>
-                    <p
-                      className={`text-lg font-bold ${
-                        isToday ? "text-[var(--clubpm-accent-primary)]" : "text-[var(--clubpm-text-primary)]"
-                      }`}
-                    >
-                      {d.getDate()}
-                    </p>
+                    key={`${h}-${dayKey(d)}`}
+                    className={`cpm-cal-week-hour-cell${d.getDay() === 0 || d.getDay() === 6 ? " weekend" : ""}`}
+                  />
+                ))}
+              </React.Fragment>
+            ))}
+          </div>
+          {!showFullDay && (
+            <button className="cpm-cal-show-full-day" onClick={() => setShowFullDay(true)}>
+              🕐 Show Full Day
+            </button>
+          )}
+        </>
+      )}
+
+      {/* ── Day View ────────────────────────────────────────────── */}
+      {viewMode === "day" && (
+        <>
+          <div className="cpm-cal-week-grid cpm-cal-day-grid">
+            <div className="cpm-cal-week-time-gutter" />
+            <div className={`cpm-cal-week-col-header${dayKey(cursor) === todayKey ? " today" : ""}`}>
+              <span className="cpm-cal-week-dow">
+                {WEEKDAY_ABBR[cursor.getDay()]} {cursor.getDate()}
+              </span>
+            </div>
+
+            <div className="cpm-cal-week-time-label">all day</div>
+            <div className="cpm-cal-week-allday-cell">
+              {(tasksByDay[dayKey(cursor)] ?? []).map(t => (
+                <TaskChip key={t.id} task={t} onClick={() => onTaskClick?.(t)} />
+              ))}
+            </div>
+
+            {hours.map(h => (
+              <React.Fragment key={h}>
+                <div className="cpm-cal-week-time-label">{formatHour(h)}</div>
+                <div className="cpm-cal-week-hour-cell" />
+              </React.Fragment>
+            ))}
+          </div>
+          {!showFullDay && (
+            <button className="cpm-cal-show-full-day" onClick={() => setShowFullDay(true)}>
+              🕐 Show Full Day
+            </button>
+          )}
+        </>
+      )}
+
+      {/* ── Agenda View ─────────────────────────────────────────── */}
+      {viewMode === "agenda" && (
+        <div className="cpm-cal-agenda">
+          <div className="cpm-cal-agenda-header">
+            <span>Date</span>
+            <span>Time</span>
+            <span>Event</span>
+          </div>
+          {agendaGroups.length === 0 ? (
+            <div style={{ padding: "32px 16px", textAlign: "center", color: "var(--clubpm-text-muted)", fontSize: 13 }}>
+              No upcoming tasks
+            </div>
+          ) : (
+            agendaGroups.map(([k, dayTasks]) => {
+              const d = new Date(`${k}T12:00:00`);
+              return (
+                <div key={k} className="cpm-cal-agenda-day-group">
+                  <div className="cpm-cal-agenda-date">
+                    <span className="cpm-cal-agenda-day-num">{d.getDate()}</span>
+                    <span className="cpm-cal-agenda-dow">{WEEKDAY_ABBR[d.getDay()]}</span>
+                    <span className="cpm-cal-agenda-month">{MONTHS_SHORT[d.getMonth()]}, {d.getFullYear()}</span>
                   </div>
-                  <div className="p-2 space-y-1.5">
-                    {dayTasks.map((t) => (
-                      <button
-                        key={t.id}
-                        onClick={() => onTaskClick?.(t)}
-                        className="w-full text-left p-2 rounded-lg transition-all hover:scale-[1.02]"
+                  <div className="cpm-cal-agenda-time">All day</div>
+                  <div className="cpm-cal-agenda-events">
+                    {dayTasks.map(task => (
+                      <div
+                        key={task.id}
+                        className="cpm-cal-agenda-row"
                         style={{
-                          backgroundColor: `${PRIORITY_COLORS[t.priority] || "#6366f1"}15`,
-                          borderLeft: `3px solid ${PRIORITY_COLORS[t.priority] || "#6366f1"}`,
+                          background: task.status === "DONE"
+                            ? "rgba(0,184,148,0.08)"
+                            : task.status === "IN_PROGRESS"
+                            ? "rgba(253,203,110,0.08)"
+                            : "transparent",
                         }}
+                        onClick={() => onTaskClick?.(task)}
                       >
-                        <p className="text-xs font-medium text-[var(--clubpm-text-primary)] truncate">
-                          {t.title}
-                        </p>
-                        <p className="text-[10px] text-[var(--clubpm-text-muted)] mt-0.5">
-                          {t.priority} • {t.status.replace("_", " ")}
-                        </p>
-                      </button>
+                        <span className="cpm-cal-chip-handle">‹</span>
+                        <span
+                          className="cpm-cal-chip-status"
+                          style={{
+                            borderColor: task.status === "DONE"
+                              ? "var(--clubpm-accent-green)"
+                              : task.status === "IN_PROGRESS"
+                              ? "var(--clubpm-accent-cyan)"
+                              : "var(--clubpm-text-muted)",
+                          }}
+                        >
+                          {task.status === "DONE" && <i className="fas fa-check" />}
+                        </span>
+                        {task.assignees?.[0]?.avatarUrl
+                          ? <img src={task.assignees[0].avatarUrl} alt="" className="cpm-cal-chip-avatar" />
+                          : <span className="cpm-cal-chip-avatar-initial">
+                              {(task.assignees?.[0]?.displayName ?? "?")[0]}
+                            </span>
+                        }
+                        <span className="cpm-cal-agenda-task-title">{task.title}</span>
+                      </div>
                     ))}
-                    {dayTasks.length === 0 && (
-                      <p className="text-[10px] text-[var(--clubpm-text-muted)] text-center py-4 opacity-50">
-                        No tasks
-                      </p>
-                    )}
                   </div>
                 </div>
               );
-            })}
-          </div>
+            })
+          )}
         </div>
       )}
+
     </div>
   );
 }

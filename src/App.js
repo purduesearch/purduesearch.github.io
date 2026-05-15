@@ -1,14 +1,17 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
+import { Toaster } from 'react-hot-toast';
 import ScrollToTop from './components/ScrollToTop';
 import ReadingProgress from './components/ReadingProgress';
 import PageWrapper from './components/PageWrapper';
-import Navbar from './components/Navbar';
-import { ClubPmAuthProvider, useClubPmAuth } from './clubpm/ClubPmAuth';
+import { ClubPmAuthProvider } from './clubpm/ClubPmAuth';
+import AppShell from './components/clubpm/AppShell';
+import { ProjectNavProvider } from './clubpm/ProjectNavContext';
 import ClubPmLogin from './pages/ClubPM/Login';
 import ClubPmDashboard from './pages/ClubPM/Dashboard';
 import ClubPmProjectDetail from './pages/ClubPM/ProjectDetail';
 import ClubPmGanttView from './pages/ClubPM/GanttView';
+import ClubPmMembersView from './pages/ClubPM/MembersView';
 import Home from './pages/Home';
 import About from './pages/About';
 import Research from './pages/Research';
@@ -32,25 +35,10 @@ import SearchResults from './pages/SearchResults';
 // ── Club PM protected route wrapper ──────────────────────────
 
 function ClubPmProtectedPage({ children }) {
-  const { member, loading } = useClubPmAuth();
-
-  if (loading) {
-    return (
-      <div className="clubpm-app" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: '#0a0a12' }}>
-        <div className="cpm-spinner" />
-      </div>
-    );
-  }
-
-  if (!member) {
-    return <Navigate to="/clubpm/login" replace />;
-  }
-
   return (
-    <div className="clubpm-app">
-      <Navbar />
-      <main style={{ flex: 1 }}>{children}</main>
-    </div>
+    <ProjectNavProvider>
+      <AppShell>{children}</AppShell>
+    </ProjectNavProvider>
   );
 }
 
@@ -66,15 +54,11 @@ function AnimatedRoutes() {
       <AnimatePresence mode="wait">
         <Routes location={location} key={location.pathname}>
           {/* Club PM routes */}
-          <Route path="/clubpm/login" element={
-            <div className="clubpm-app">
-              <Navbar />
-              <ClubPmLogin />
-            </div>
-          } />
+          <Route path="/clubpm/login" element={<ClubPmLogin />} />
           <Route path="/clubpm" element={<ClubPmProtectedPage><ClubPmDashboard /></ClubPmProtectedPage>} />
           <Route path="/clubpm/projects/:id" element={<ClubPmProtectedPage><ClubPmProjectDetail /></ClubPmProtectedPage>} />
           <Route path="/clubpm/projects/:id/gantt" element={<ClubPmProtectedPage><ClubPmGanttView /></ClubPmProtectedPage>} />
+          <Route path="/clubpm/members" element={<ClubPmProtectedPage><ClubPmMembersView /></ClubPmProtectedPage>} />
 
           {/* Main site routes */}
           <Route path="/" element={<PageWrapper><Home /></PageWrapper>} />
@@ -107,6 +91,20 @@ function App() {
     <BrowserRouter>
       <ScrollToTop />
       <ClubPmAuthProvider>
+        <Toaster
+          position="bottom-right"
+          toastOptions={{
+            style: {
+              background: 'var(--pm-bg-elevated)',
+              color: 'var(--pm-text-primary)',
+              border: '1px solid var(--pm-border)',
+              fontFamily: 'DM Sans, sans-serif',
+              fontSize: '14px',
+            },
+            success: { iconTheme: { primary: '#00e5c3', secondary: '#000' } },
+            error:   { iconTheme: { primary: '#ff6b6b', secondary: '#fff' } },
+          }}
+        />
         <AnimatedRoutes />
       </ClubPmAuthProvider>
     </BrowserRouter>

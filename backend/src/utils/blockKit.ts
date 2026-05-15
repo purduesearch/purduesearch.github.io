@@ -6,7 +6,7 @@ type TaskWithRelations = Task & { assignees: Member[]; project: Project };
 type TaskForCard = Task & {
   assignees: Member[];
   subtasks?: { id: string; title: string; status: string }[];
-  blockedBy?: { id: string; title: string; status: string }[];
+  blockedBy?: { blockingTask: { id: string; title: string; status: string } }[];
   parentTask?: { id: string; title: string } | null;
 };
 
@@ -74,9 +74,9 @@ export function buildTaskCard(
     const intervals: Record<string, string> = { DAILY: "daily", WEEKLY: "weekly", BIWEEKLY: "bi-weekly", MONTHLY: "monthly" };
     infoLines.push(`🔄 Repeats ${intervals[task.recurringInterval as string] ?? (task.recurringInterval as string).toLowerCase()}`);
   }
-  const openBlockers = (task.blockedBy ?? []).filter(b => b.status !== "DONE");
+  const openBlockers = (task.blockedBy ?? []).filter(b => b.blockingTask.status !== "DONE");
   if (openBlockers.length > 0) {
-    infoLines.push(`🚫 Blocked by: ${openBlockers.map(b => `*${b.title}*`).join(", ")}`);
+    infoLines.push(`🚫 Blocked by: ${openBlockers.map(b => `*${b.blockingTask.title}*`).join(", ")}`);
   }
   const subtaskCount = task.subtasks?.length ?? 0;
   if (subtaskCount > 0 && !options?.showSubtasks) {
@@ -415,10 +415,21 @@ export function buildHelpCard(): (KnownBlock | Block)[] {
           "`/pm status` — Quick project snapshot (opens modal)",
           "`/pm report` — Detailed report: progress, overdue, team workload",
           "`/pm health` — Health scorecard with risk scoring",
+          "`/pm milestone` — Create a milestone for this channel's project",
           "`/pm milestones` — Milestone progress view",
           "",
           "*Standups*",
           "`/pm standup` — Open the standup form for this channel's project",
+          "",
+          "*AI Features*",
+          "`/pm drive [url]` — Extract tasks from a Google Drive document",
+          "`/pm meeting` — Parse meeting notes into action items",
+          "`/pm brief` — Generate a project brief for stakeholders",
+          "`/pm sprint` — AI-powered sprint planning",
+          "`/pm risks` — Analyze project risks",
+          "`/pm email` — Draft a stakeholder status email",
+          "`/pm capacity` — Analyze team workload balance",
+          "`/pm ask [question]` — Ask AI a question about this project",
           "",
           "*Notifications*",
           "`/pm notify` — Manage your notification preferences",
@@ -1126,6 +1137,66 @@ export function buildMilestoneView(
   return blocks;
 }
 
+// ── Milestone Celebration Card ────────────────────────────────
+
+export function buildMilestoneCelebrationCard(
+  title: string,
+  projectName: string
+): (KnownBlock | Block)[] {
+  return [
+    { type: "header", text: { type: "plain_text", text: "🎉 Milestone Complete!", emoji: true } },
+    {
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: `*${title}* in *${projectName}* has been completed. All linked tasks are done!`,
+      },
+    },
+    { type: "divider" },
+    {
+      type: "context",
+      elements: [
+        {
+          type: "mrkdwn",
+          text: `Completed at <!date^${Math.floor(Date.now() / 1000)}^{date_short_pretty} {time}|just now>`,
+        },
+      ],
+    },
+  ];
+}
+
+// ── Milestone Alert Card ──────────────────────────────────────
+
+export function buildMilestoneAlertCard(m: {
+  title: string;
+  status: string;
+}): (KnownBlock | Block)[] {
+  const frontendUrl = process.env.FRONTEND_URL ?? "http://localhost:5173";
+  const emoji = m.status === "BEHIND" ? "🚨" : "⚠️";
+  const label = m.status === "BEHIND" ? "Behind schedule" : "At risk";
+  return [
+    {
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: `${emoji} *Milestone Alert* — *${m.title}* is *${label}*.\nReview progress and reallocate tasks if needed.`,
+      },
+    },
+    {
+      type: "actions",
+      elements: [
+        {
+          type: "button",
+          text: { type: "plain_text", text: "View Dashboard", emoji: true },
+          url: `${frontendUrl}/clubpm`,
+          style: "danger",
+          action_id: "view_milestone_dashboard",
+        },
+      ],
+    },
+  ];
+}
+
 // ── Mark Done from Reaction Card ─────────────────────────────
 
 export function buildMarkDoneFromReactionCard(task: {
@@ -1156,4 +1227,194 @@ export function buildMarkDoneFromReactionCard(task: {
       ],
     },
   ];
+}
+
+// ── AI Risk Report ────────────────────────────────────────────
+
+export function buildRiskReport(
+  project: { name: string },
+  risks: { overallRisk: string; riskScore: number; risks: Array<{ category: string; description: string; affectedTasks: string[]; severity: string }>; topRecommendation: string }
+): (KnownBlock | Block)[] {
+  const riskEmoji: Record<string, string> = { LOW: "🟢", MEDIUM: "🟡", HIGH: "🔴", CRITICAL: "🚨" };
+  const emoji = riskEmoji[risks.overallRisk] ?? "⚪";
+
+  const blocks: (KnownBlock | Block)[] = [
+    {
+      type: "header",
+      text: { type: "plain_text", text: `${emoji} AI Risk Analysis: ${project.name}`, emoji: true },
+    },
+    {
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: `*Risk Level:* ${emoji} ${risks.overallRisk} (score: ${risks.riskScore}/100)\n*Top Action:* ${risks.topRecommendation}`,
+      },
+    },
+  ];
+
+  if (risks.risks.length > 0) {
+    const severityEmoji: Record<string, string> = { LOW: "🟢", MEDIUM: "🟡", HIGH: "🔴" };
+    const lines = risks.risks.slice(0, 5).map(r =>
+      `${severityEmoji[r.severity] ?? "⚪"} *${r.category}*: ${r.description}`
+    );
+    blocks.push({
+      type: "section",
+      text: { type: "mrkdwn", text: `*Risks Identified:*\n${lines.join("\n")}` },
+    });
+  }
+
+  blocks.push({ type: "divider" });
+  return blocks;
+}
+
+// ── AI Capacity Report ────────────────────────────────────────
+
+export function buildCapacityReport(
+  project: { name: string },
+  cap: { overloaded: Array<{ member: string; recommendation: string }>; underloaded: Array<{ member: string; suggestion: string }>; balanceScore: number; summary: string }
+): (KnownBlock | Block)[] {
+  const scoreEmoji = cap.balanceScore >= 75 ? "🟢" : cap.balanceScore >= 50 ? "🟡" : "🔴";
+  const blocks: (KnownBlock | Block)[] = [
+    {
+      type: "header",
+      text: { type: "plain_text", text: `⚖️ Capacity Analysis: ${project.name}`, emoji: true },
+    },
+    {
+      type: "section",
+      text: { type: "mrkdwn", text: `${scoreEmoji} *Balance Score:* ${cap.balanceScore}/100\n${cap.summary}` },
+    },
+  ];
+
+  if (cap.overloaded.length > 0) {
+    const lines = cap.overloaded.map(o => `• *${o.member}*: ${o.recommendation}`);
+    blocks.push({
+      type: "section",
+      text: { type: "mrkdwn", text: `*🔴 Overloaded:*\n${lines.join("\n")}` },
+    });
+  }
+
+  if (cap.underloaded.length > 0) {
+    const lines = cap.underloaded.map(u => `• *${u.member}*: ${u.suggestion}`);
+    blocks.push({
+      type: "section",
+      text: { type: "mrkdwn", text: `*🟢 Underloaded:*\n${lines.join("\n")}` },
+    });
+  }
+
+  blocks.push({ type: "divider" });
+  return blocks;
+}
+
+// ── Drive Task Preview ────────────────────────────────────────
+
+export function buildDriveTaskPreview(
+  tasks: Array<{ title: string; description?: string | null; priority?: string | null; dueDate?: string | null; suggestedAssigneeName?: string | null; sourceContext?: string | null }>,
+  channelId: string
+): (KnownBlock | Block)[] {
+  const priorityEmoji: Record<string, string> = { CRITICAL: "🔴", HIGH: "🟠", MEDIUM: "🟡", LOW: "🟢" };
+  const blocks: (KnownBlock | Block)[] = [
+    {
+      type: "header",
+      text: { type: "plain_text", text: `📄 Extracted Tasks (${tasks.length})`, emoji: true },
+    },
+    {
+      type: "section",
+      text: { type: "mrkdwn", text: "Review the tasks below. Click *Add Task* to create each one." },
+    },
+  ];
+
+  for (const task of tasks.slice(0, 10)) {
+    const badge = priorityEmoji[task.priority ?? "MEDIUM"] ?? "⚪";
+    const meta: string[] = [];
+    if (task.dueDate) meta.push(`📅 ${task.dueDate}`);
+    if (task.suggestedAssigneeName) meta.push(`👤 ${task.suggestedAssigneeName}`);
+    blocks.push({
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: `${badge} *${truncate(task.title, 70)}*${meta.length ? `\n${meta.join(" • ")}` : ""}${task.description ? `\n_${truncate(task.description, 100)}_` : ""}`,
+      },
+      accessory: {
+        type: "button",
+        text: { type: "plain_text", text: "Add Task" },
+        style: "primary",
+        action_id: "ai_create_drive_task",
+        value: JSON.stringify({ title: task.title, description: task.description, priority: task.priority, dueDate: task.dueDate, channelId }),
+      },
+    } as KnownBlock);
+  }
+
+  blocks.push({ type: "divider" });
+  return blocks;
+}
+
+// ── Dependency Suggestions ────────────────────────────────────
+
+export function buildDependencySuggestionsBlocks(
+  dependencies: Array<{ blockedTaskId: string; blockingTaskId: string; confidence: number; reason: string }>,
+  _projectId: string
+): (KnownBlock | Block)[] {
+  const blocks: (KnownBlock | Block)[] = [
+    {
+      type: "header",
+      text: { type: "plain_text", text: "🔗 Suggested Task Dependencies", emoji: true },
+    },
+  ];
+
+  for (const dep of dependencies.slice(0, 8)) {
+    blocks.push({
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: `*${dep.blockingTaskId}* → blocks → *${dep.blockedTaskId}*\n_${dep.reason}_ (${Math.round(dep.confidence * 100)}% confidence)`,
+      },
+      accessory: {
+        type: "button",
+        text: { type: "plain_text", text: "Apply" },
+        style: "primary",
+        action_id: "ai_apply_dep",
+        value: JSON.stringify({ blockingTaskId: dep.blockingTaskId, blockedTaskId: dep.blockedTaskId }),
+      },
+    } as KnownBlock);
+  }
+
+  blocks.push({ type: "divider" });
+  return blocks;
+}
+
+// ── Standup Digest ────────────────────────────────────────────
+
+export function buildStandupDigestBlocks(
+  synthesis: { digest: string; blockers: Array<{ member: string; issue: string }>; momentum: string; callout: string },
+  projectName: string
+): (KnownBlock | Block)[] {
+  const momentumEmoji: Record<string, string> = { STALLED: "🔴", SLOW: "🟡", STEADY: "🟢", STRONG: "💪" };
+  const emoji = momentumEmoji[synthesis.momentum] ?? "⚪";
+
+  const blocks: (KnownBlock | Block)[] = [
+    {
+      type: "header",
+      text: { type: "plain_text", text: `📊 Standup Digest — ${projectName}`, emoji: true },
+    },
+    {
+      type: "section",
+      text: { type: "mrkdwn", text: `${emoji} *Momentum:* ${synthesis.momentum}\n\n${synthesis.digest}` },
+    },
+  ];
+
+  if (synthesis.blockers.length > 0) {
+    const lines = synthesis.blockers.map(b => `• *${b.member}*: ${b.issue}`);
+    blocks.push({
+      type: "section",
+      text: { type: "mrkdwn", text: `*🚫 Blockers:*\n${lines.join("\n")}` },
+    });
+  }
+
+  blocks.push({
+    type: "context",
+    elements: [{ type: "mrkdwn", text: `💡 ${synthesis.callout}` }],
+  });
+
+  blocks.push({ type: "divider" });
+  return blocks;
 }

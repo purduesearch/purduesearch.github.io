@@ -1,9 +1,13 @@
 import type { App } from "@slack/bolt";
 import { prisma } from "../db/prisma.js";
 import { buildHelpCard, buildProjectReport, buildProjectHealth, buildMilestoneView } from "../utils/blockKit.js";
-import { openStandupModal, openNewTaskModal, openNewProjectModal, openTaskDoneModal, openStatusModal, openSubtaskModal, openNotifyModal, openReportModal, openHealthModal, openMilestonesModal } from "./modals.js";
+import { openStandupModal, openNewTaskModal, openNewProjectModal, openTaskDoneModal, openStatusModal, openSubtaskModal, openNotifyModal, openReportModal, openHealthModal, openMilestonesModal, openDriveParseModal, openMeetingNotesModal, openSprintPlanModal } from "./modals.js";
+import { analyzeProjectRisks, generateProjectBrief, generateStakeholderEmail, analyzeTeamCapacity } from "../services/projectAnalysisService.js";
+import { generateText } from "../services/geminiService.js";
+import { buildRiskReport, buildCapacityReport } from "../utils/blockKit.js";
 import { getProjectByChannel } from "../services/projectService.js";
 import { getMilestonesForProject } from "../services/milestoneService.js";
+import { isAdminBySlackId } from "../services/memberService.js";
 
 // ── Command Registration ─────────────────────────────────────
 
@@ -20,11 +24,10 @@ export function registerCommands(app: App): void {
         case "task": {
           const action = args[1]?.toLowerCase();
           if (action === "done") {
-            // Open modal with task picker instead of text-based lookup
             await openTaskDoneModal(client, command.trigger_id, command.user_id);
           } else {
-            // Always open the full task creation modal
-            await openNewTaskModal(client, command.trigger_id, command.channel_id);
+            const isAdmin = await isAdminBySlackId(command.user_id);
+            await openNewTaskModal(client, command.trigger_id, command.channel_id, undefined, undefined, undefined, undefined, undefined, isAdmin);
           }
           break;
         }
@@ -41,7 +44,7 @@ export function registerCommands(app: App): void {
         }
 
         case "project": {
-          await openNewProjectModal(client, command.trigger_id, command.channel_id);
+          await openNewProjectModal(client, command.trigger_id, command.channel_id, command.user_id);
           break;
         }
 
@@ -100,6 +103,102 @@ export function registerCommands(app: App): void {
         case "milestone": {
           const { openMilestoneModal } = await import("./modals.js");
           await openMilestoneModal(client, command.trigger_id, command.channel_id);
+          break;
+        }
+
+        case "drive": {
+          const url = args[1];
+          await openDriveParseModal(client, command.trigger_id, command.channel_id, url);
+          break;
+        }
+
+        case "brief": {
+          const project = await getProjectByChannel(command.channel_id);
+          if (!project) { await respond({ response_type: "ephemeral", text: "❌ No project linked to this channel." }); break; }
+          await respond({ response_type: "ephemeral", text: "⏳ Generating project brief…" });
+          const brief = await generateProjectBrief(project.id) as any;
+          if (!brief) { await respond({ response_type: "ephemeral", text: "❌ Failed to generate brief." }); break; }
+          await client.chat.postMessage({
+            channel: command.channel_id,
+            blocks: [
+              { type: "section", text: { type: "mrkdwn", text: `*📄 Project Brief — ${project.name}*\n> ${brief.tldr}` } },
+              { type: "section", text: { type: "mrkdwn", text: (brief.markdown as string).slice(0, 2900) } },
+            ],
+            text: brief.tldr,
+          });
+          break;
+        }
+
+        case "sprint": {
+          const project = await getProjectByChannel(command.channel_id);
+          if (!project) { await respond({ response_type: "ephemeral", text: "❌ No project linked to this channel." }); break; }
+          await openSprintPlanModal(client, command.trigger_id, project.id);
+          break;
+        }
+
+        case "risks": {
+          const project = await getProjectByChannel(command.channel_id);
+          if (!project) { await respond({ response_type: "ephemeral", text: "❌ No project linked to this channel." }); break; }
+          await respond({ response_type: "ephemeral", text: "🔍 Analyzing project risks…" });
+          const risks = await analyzeProjectRisks(project.id) as any;
+          if (!risks) { await respond({ response_type: "ephemeral", text: "❌ Risk analysis failed." }); break; }
+          const riskEmoji: Record<string, string> = { LOW: "🟢", MEDIUM: "🟡", HIGH: "🔴", CRITICAL: "🚨" };
+          await respond({
+            response_type: "ephemeral",
+            blocks: buildRiskReport(project, risks),
+            text: `${riskEmoji[risks.overallRisk] ?? "⚪"} Risk: ${risks.overallRisk} — ${risks.topRecommendation}`,
+          });
+          break;
+        }
+
+        case "meeting": {
+          await openMeetingNotesModal(client, command.trigger_id, command.channel_id);
+          break;
+        }
+
+        case "email": {
+          const project = await getProjectByChannel(command.channel_id);
+          if (!project) { await respond({ response_type: "ephemeral", text: "❌ No project linked to this channel." }); break; }
+          await respond({ response_type: "ephemeral", text: "✍️ Drafting stakeholder email…" });
+          const email = await generateStakeholderEmail(project.id) as any;
+          if (!email) { await respond({ response_type: "ephemeral", text: "❌ Failed to generate email." }); break; }
+          await respond({ response_type: "ephemeral", text: `*Subject:* ${email.subject}\n\n${email.body}` });
+          break;
+        }
+
+        case "capacity": {
+          const project = await getProjectByChannel(command.channel_id);
+          if (!project) { await respond({ response_type: "ephemeral", text: "❌ No project linked to this channel." }); break; }
+          await respond({ response_type: "ephemeral", text: "📊 Analyzing team capacity…" });
+          const cap = await analyzeTeamCapacity(project.id) as any;
+          if (!cap) { await respond({ response_type: "ephemeral", text: "❌ Capacity analysis failed." }); break; }
+          await respond({ response_type: "ephemeral", blocks: buildCapacityReport(project, cap), text: cap.summary });
+          break;
+        }
+
+        case "ask": {
+          const question = args.slice(1).join(" ").trim();
+          if (!question) {
+            await respond({ response_type: "ephemeral", text: "Usage: `/pm ask <your question about the project>`" });
+            break;
+          }
+          const project = await getProjectByChannel(command.channel_id);
+          await respond({ response_type: "ephemeral", text: "🤔 Thinking…" });
+
+          let contextBlock = "";
+          if (project) {
+            const tasks = await prisma.task.findMany({
+              where: { projectId: project.id },
+              select: { title: true, status: true, priority: true, dueDate: true },
+            });
+            const statusCounts: Record<string, number> = {};
+            for (const t of tasks) statusCounts[t.status] = (statusCounts[t.status] ?? 0) + 1;
+            contextBlock = `\nProject: ${project.name} (status: ${project.status})\nTasks: ${JSON.stringify(statusCounts)}\nTotal tasks: ${tasks.length}`;
+          }
+
+          const prompt = `You are a project management assistant for a university engineering club. Answer the following question concisely and helpfully (max 3 sentences).${contextBlock}\n\nQuestion: ${question}`;
+          const answer = await generateText(prompt, `ask:${command.channel_id}:${question.slice(0, 32)}`);
+          await respond({ response_type: "ephemeral", text: `🤖 *AI Answer:* ${answer}` });
           break;
         }
 
