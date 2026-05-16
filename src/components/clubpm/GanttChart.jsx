@@ -84,6 +84,8 @@ export default function GanttChart({ tasks, milestones = [] }) {
   const [scale, setScale] = useState("week");
   const [containerWidth, setContainerWidth] = useState(0);
   const containerRef = useRef(null);
+  const [centerMode, setCenterMode] = useState("today");
+  const scrollRef = useRef(null);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -147,6 +149,30 @@ export default function GanttChart({ tasks, milestones = [] }) {
     : SCALE_DAY_WIDTHS[scale];
   const scaleMultiplier = { day: 4, week: 1, month: 0.4 };
   const DAY_WIDTH = Math.max(baseDayWidth * (scaleMultiplier[scale] ?? 1), SCALE_DAY_WIDTHS[scale]);
+
+  const anchorScrollX = useMemo(() => {
+    const active = tasks.filter(t => t.status !== "DONE" && t.progress !== "COMPLETED");
+    let anchorDate;
+    if (centerMode === "today") {
+      anchorDate = new Date();
+    } else if (centerMode === "oldest_active") {
+      if (!active.length) return 0;
+      anchorDate = new Date(Math.min(...active.map(t => new Date(t.createdAt).getTime())));
+    } else {
+      if (!active.length) return 0;
+      anchorDate = new Date(Math.max(...active.map(t =>
+        t.dueDate ? new Date(t.dueDate).getTime() : new Date(t.createdAt).getTime()
+      )));
+    }
+    const diffMs = anchorDate.getTime() - minDate.getTime();
+    return Math.max(0, (diffMs / 86400000) * DAY_WIDTH);
+  }, [centerMode, tasks, minDate, DAY_WIDTH]);
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollLeft = anchorScrollX;
+    }
+  }, [anchorScrollX]);
 
   const chartWidth = LABEL_WIDTH + totalDays * DAY_WIDTH;
   const chartHeight = PADDING_TOP + sortedTasks.length * ROW_HEIGHT + PADDING_BOTTOM;
@@ -262,10 +288,24 @@ export default function GanttChart({ tasks, milestones = [] }) {
             {s.charAt(0).toUpperCase() + s.slice(1)}
           </button>
         ))}
+        <div style={{ width: 1, background: "var(--clubpm-border)", margin: "0 8px", alignSelf: "stretch" }} />
+        {[
+          { id: "oldest_active", label: "Oldest" },
+          { id: "today",         label: "Today"  },
+          { id: "newest_active", label: "Newest" },
+        ].map((m) => (
+          <button
+            key={m.id}
+            className={`pm-gantt-scale-btn${centerMode === m.id ? " active" : ""}`}
+            onClick={() => setCenterMode(m.id)}
+          >
+            {m.label}
+          </button>
+        ))}
       </div>
 
       {/* ── Chart ────────────────────────────────────────── */}
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto" ref={scrollRef}>
         <svg
           width={chartWidth}
           height={chartHeight}
