@@ -43,6 +43,23 @@ const BINS = [
 
 const PRIORITY_RANK = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
 
+function getTagGroups(tasks) {
+  const tagMap = new Map();
+  const untagged = [];
+  tasks.forEach(task => {
+    const firstTag = (task.tags ?? [])[0];
+    if (!firstTag) {
+      untagged.push(task);
+    } else {
+      if (!tagMap.has(firstTag.id)) tagMap.set(firstTag.id, { tag: firstTag, tasks: [] });
+      tagMap.get(firstTag.id).tasks.push(task);
+    }
+  });
+  const groups = [...tagMap.values()].sort((a, b) => a.tag.name.localeCompare(b.tag.name));
+  if (untagged.length) groups.push({ tag: null, tasks: untagged });
+  return groups;
+}
+
 const NAV_TABS = [
   { id: "tasks",      label: "Tasks",      icon: "📋" },
   { id: "calendar",   label: "Calendar",   icon: "📅" },
@@ -250,7 +267,7 @@ function ProgressBar({ tasks }) {
 
 // ── Status Bin (collapsible droppable section) ───────────────
 
-function StatusBin({ bin, tasks, subtasksByParent, expandedParents, onToggleParent, isOver, overTaskId, onTaskClick, onAddTask, canEdit = true }) {
+function StatusBin({ bin, tasks, subtasksByParent, expandedParents, onToggleParent, isOver, overTaskId, onTaskClick, onAddTask, canEdit = true, sortBy = "priority" }) {
   const [collapsed, setCollapsed] = useState(false);
   const { setNodeRef } = useDroppable({ id: bin.id });
 
@@ -310,16 +327,50 @@ function StatusBin({ bin, tasks, subtasksByParent, expandedParents, onTogglePare
         >
           <div style={{ display: "flex", flexDirection: "column" }}>
             {tasks.length === 0 ? (
-              <div
-                style={{
-                  padding: "12px 16px",
-                  fontSize: 12,
-                  color: "var(--clubpm-text-muted)",
-                  fontStyle: "italic",
-                }}
-              >
+              <div style={{ padding: "12px 16px", fontSize: 12, color: "var(--clubpm-text-muted)", fontStyle: "italic" }}>
                 Drop tasks here
               </div>
+            ) : sortBy === "tags" ? (
+              getTagGroups(tasks).map(group => (
+                <React.Fragment key={group.tag?.id ?? "untagged"}>
+                  <div style={{
+                    padding: "6px 16px 3px",
+                    display: "flex", alignItems: "center", gap: 6,
+                  }}>
+                    {group.tag ? (
+                      <span style={{
+                        fontSize: 10, padding: "1px 8px", borderRadius: 8, fontWeight: 600,
+                        background: group.tag.color + "22", border: `1px solid ${group.tag.color}`,
+                        color: group.tag.color,
+                      }}>
+                        {group.tag.name}
+                      </span>
+                    ) : (
+                      <span style={{ fontSize: 10, color: "var(--clubpm-text-muted)", fontWeight: 600 }}>Untagged</span>
+                    )}
+                    <span style={{ fontSize: 10, color: "var(--clubpm-text-muted)" }}>{group.tasks.length}</span>
+                  </div>
+                  {group.tasks.map((task) => {
+                    const subs = subtasksByParent?.get(task.id) ?? [];
+                    const isExpanded = expandedParents?.has(task.id) ?? false;
+                    return (
+                      <React.Fragment key={task.id}>
+                        <CompactTaskRow
+                          task={task}
+                          onClick={onTaskClick}
+                          subtaskCount={subs.length}
+                          isExpanded={isExpanded}
+                          onToggleExpand={() => onToggleParent?.(task.id)}
+                          isDropTarget={overTaskId === task.id}
+                        />
+                        {isExpanded && subs.map((sub) => (
+                          <KanbanSubtaskRow key={sub.id} subtask={sub} onClick={onTaskClick} isDropTarget={overTaskId === sub.id} />
+                        ))}
+                      </React.Fragment>
+                    );
+                  })}
+                </React.Fragment>
+              ))
             ) : (
               tasks.map((task) => {
                 const subs = subtasksByParent?.get(task.id) ?? [];
@@ -1412,6 +1463,13 @@ export default function ProjectDetail() {
       if (sortBy === "status")   return (a.status ?? "").localeCompare(b.status ?? "");
       if (sortBy === "created")  return new Date(b.createdAt) - new Date(a.createdAt);
       if (sortBy === "title")    return a.title.localeCompare(b.title);
+      if (sortBy === "tags") {
+        const aTag = (a.tags?.[0]?.name ?? "").toLowerCase();
+        const bTag = (b.tags?.[0]?.name ?? "").toLowerCase();
+        if (!aTag && bTag) return 1;
+        if (aTag && !bTag) return -1;
+        return aTag.localeCompare(bTag);
+      }
       return 0;
     });
     return BINS.map((b) => ({
@@ -1857,6 +1915,7 @@ export default function ProjectDetail() {
                   <option value="status">Sort: Status</option>
                   <option value="created">Sort: Created</option>
                   <option value="title">Sort: Title</option>
+                  <option value="tags">Sort: Tags</option>
                 </select>
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 12, padding: "0 12px" }}>
@@ -1878,6 +1937,7 @@ export default function ProjectDetail() {
                     onTaskClick={setSelectedTask}
                     onAddTask={(status) => { setAddTaskInitialStatus(status); setShowAddTask(true); }}
                     canEdit={canEdit}
+                    sortBy={sortBy}
                   />
                 ))}
               </div>
