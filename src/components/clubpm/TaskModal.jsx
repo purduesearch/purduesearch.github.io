@@ -1110,7 +1110,7 @@ export default function TaskModal({ task: initialTask, readOnly = false, onClose
   }
 
   async function createTag() {
-    if (!newTagName.trim() || !task.projectId || creatingTag) return;
+    if (!newTagName.trim() || !task.projectId || creatingTag || tags.length >= 5) return;
     setCreatingTag(true);
     try {
       const tag = await post(`/api/projects/${task.projectId}/tags`, {
@@ -1120,8 +1120,9 @@ export default function TaskModal({ task: initialTask, readOnly = false, onClose
       setProjectTags(prev => [...prev, tag]);
       addTag(tag);
       setNewTagName("");
-    } catch {
-      // tag with that name may already exist — ignore
+    } catch (err) {
+      console.error("Failed to create tag:", err);
+      // tag with that name may already exist — continue
     } finally {
       setCreatingTag(false);
     }
@@ -1448,8 +1449,8 @@ export default function TaskModal({ task: initialTask, readOnly = false, onClose
                     <button onClick={createTag} disabled={!newTagName.trim() || creatingTag}
                       style={{ fontSize: 10, padding: "2px 7px", borderRadius: 5,
                         background: "var(--clubpm-accent-primary)", border: "none", color: "#fff",
-                        cursor: newTagName.trim() ? "pointer" : "default",
-                        opacity: newTagName.trim() ? 1 : 0.45 }}>
+                        cursor: newTagName.trim() && !creatingTag ? "pointer" : "default",
+                        opacity: newTagName.trim() && !creatingTag ? 1 : 0.45 }}>
                       {creatingTag ? "…" : "Create"}
                     </button>
                   </div>
