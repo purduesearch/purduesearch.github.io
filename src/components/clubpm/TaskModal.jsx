@@ -887,6 +887,9 @@ export default function TaskModal({ task: initialTask, readOnly = false, onClose
 
   const [tags, setTags] = useState(task.tags ?? []);
   const [projectTags, setProjectTags] = useState([]);
+  const [newTagName, setNewTagName] = useState("");
+  const [newTagColor, setNewTagColor] = useState("#6c5ce7");
+  const [creatingTag, setCreatingTag] = useState(false);
   const [blockingTasks, setBlockingTasks] = useState(
     task.blockedBy?.map(d => d.blockingTask) ?? []
   );
@@ -1093,7 +1096,8 @@ export default function TaskModal({ task: initialTask, readOnly = false, onClose
   }
 
   function addTag(tag) {
-    if (!tag) return;
+    if (!tag || tags.length >= 5) return;
+    if (tags.some(t => (t.id ?? t) === (tag.id ?? tag))) return;
     const newTags = [...tags, tag];
     setTags(newTags);
     saveField({ tagIds: newTags.map(t => t.id) });
@@ -1103,6 +1107,24 @@ export default function TaskModal({ task: initialTask, readOnly = false, onClose
     const newTags = tags.filter(t => (t.id ?? t) !== (tag.id ?? tag));
     setTags(newTags);
     saveField({ tagIds: newTags.map(t => t.id) });
+  }
+
+  async function createTag() {
+    if (!newTagName.trim() || !task.projectId || creatingTag) return;
+    setCreatingTag(true);
+    try {
+      const tag = await post(`/api/projects/${task.projectId}/tags`, {
+        name: newTagName.trim(),
+        color: newTagColor,
+      });
+      setProjectTags(prev => [...prev, tag]);
+      addTag(tag);
+      setNewTagName("");
+    } catch {
+      // tag with that name may already exist — ignore
+    } finally {
+      setCreatingTag(false);
+    }
   }
 
   async function addBlockingTask(taskId) {
@@ -1374,10 +1396,11 @@ export default function TaskModal({ task: initialTask, readOnly = false, onClose
             </MetaRow>
 
             <MetaRow label="Tags">
-              <div style={{ display:"flex", gap:4, flexWrap:"wrap", alignItems:"center" }}>
+              <div style={{ display: "flex", gap: 4, flexWrap: "wrap", alignItems: "center" }}>
                 {tags.map((tag) => (
                   <span key={tag.id ?? tag} style={{
-                    fontSize:11, padding:"2px 7px", borderRadius:10, display:"flex", alignItems:"center", gap:3,
+                    fontSize: 11, padding: "2px 7px", borderRadius: 10,
+                    display: "flex", alignItems: "center", gap: 3,
                     background: tag.color ? tag.color + "22" : "var(--clubpm-surface-300)",
                     border: `1px solid ${tag.color ?? "var(--clubpm-border)"}`,
                     color: tag.color ?? "var(--clubpm-text-secondary)",
@@ -1385,19 +1408,19 @@ export default function TaskModal({ task: initialTask, readOnly = false, onClose
                     {tag.name ?? tag}
                     {!readOnly && (
                       <button onClick={() => removeTag(tag)} style={{
-                        background:"none", border:"none", cursor:"pointer",
-                        padding:0, color:"inherit", fontSize:10, lineHeight:1,
+                        background: "none", border: "none", cursor: "pointer",
+                        padding: 0, color: "inherit", fontSize: 10, lineHeight: 1,
                       }}>×</button>
                     )}
                   </span>
                 ))}
-                {!readOnly && projectTags.filter(pt => !tags.some(t => (t.id ?? t) === (pt.id ?? pt))).length > 0 && (
+                {!readOnly && tags.length < 5 && projectTags.filter(pt => !tags.some(t => (t.id ?? t) === (pt.id ?? pt))).length > 0 && (
                   <select
                     value=""
                     onChange={e => addTag(projectTags.find(t => t.id === e.target.value))}
-                    style={{ fontSize:11, padding:"2px 6px", borderRadius:6,
-                      background:"var(--clubpm-surface-300)", border:"1px solid var(--clubpm-border)",
-                      color:"var(--clubpm-text-secondary)", cursor:"pointer" }}
+                    style={{ fontSize: 11, padding: "2px 6px", borderRadius: 6,
+                      background: "var(--clubpm-surface-300)", border: "1px solid var(--clubpm-border)",
+                      color: "var(--clubpm-text-secondary)", cursor: "pointer" }}
                   >
                     <option value="">+ Add tag</option>
                     {projectTags
@@ -1406,8 +1429,36 @@ export default function TaskModal({ task: initialTask, readOnly = false, onClose
                     }
                   </select>
                 )}
+                {!readOnly && tags.length < 5 && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 4 }}>
+                    <input
+                      type="text"
+                      placeholder="New tag…"
+                      value={newTagName}
+                      onChange={e => setNewTagName(e.target.value)}
+                      onKeyDown={e => e.key === "Enter" && createTag()}
+                      style={{ fontSize: 11, padding: "2px 6px", borderRadius: 5, width: 90,
+                        background: "var(--clubpm-surface-300)", border: "1px solid var(--clubpm-border)",
+                        color: "var(--clubpm-text-primary)", outline: "none" }}
+                    />
+                    <input type="color" value={newTagColor} onChange={e => setNewTagColor(e.target.value)}
+                      title="Tag color"
+                      style={{ width: 22, height: 22, padding: 1, borderRadius: 4, cursor: "pointer",
+                        border: "1px solid var(--clubpm-border)", background: "transparent" }} />
+                    <button onClick={createTag} disabled={!newTagName.trim() || creatingTag}
+                      style={{ fontSize: 10, padding: "2px 7px", borderRadius: 5,
+                        background: "var(--clubpm-accent-primary)", border: "none", color: "#fff",
+                        cursor: newTagName.trim() ? "pointer" : "default",
+                        opacity: newTagName.trim() ? 1 : 0.45 }}>
+                      {creatingTag ? "…" : "Create"}
+                    </button>
+                  </div>
+                )}
+                {!readOnly && tags.length >= 5 && (
+                  <span style={{ fontSize: 10, color: "var(--clubpm-text-muted)" }}>Max 5 tags</span>
+                )}
                 {tags.length === 0 && readOnly && (
-                  <span style={{ fontSize:12, color:"var(--clubpm-text-muted)", fontStyle:"italic" }}>None</span>
+                  <span style={{ fontSize: 12, color: "var(--clubpm-text-muted)", fontStyle: "italic" }}>None</span>
                 )}
               </div>
             </MetaRow>
