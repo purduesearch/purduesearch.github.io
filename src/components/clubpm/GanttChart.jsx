@@ -150,8 +150,11 @@ export default function GanttChart({ tasks, milestones = [] }) {
   const scaleMultiplier = { day: 4, week: 1, month: 0.4 };
   const DAY_WIDTH = Math.max(baseDayWidth * (scaleMultiplier[scale] ?? 1), SCALE_DAY_WIDTHS[scale]);
 
+  const dayWidthRef = useRef(DAY_WIDTH);
+  dayWidthRef.current = DAY_WIDTH;
+
   const anchorScrollX = useMemo(() => {
-    const active = tasks.filter(t => t.status !== "DONE" && t.progress !== "COMPLETED");
+    const active = sortedTasks.filter(t => t.status !== "DONE" && t.progress !== "COMPLETED");
     let anchorDate;
     if (centerMode === "today") {
       anchorDate = new Date();
@@ -165,8 +168,8 @@ export default function GanttChart({ tasks, milestones = [] }) {
       )));
     }
     const diffMs = anchorDate.getTime() - minDate.getTime();
-    return Math.max(0, (diffMs / 86400000) * DAY_WIDTH);
-  }, [centerMode, tasks, minDate, DAY_WIDTH]);
+    return Math.max(0, (diffMs / 86400000) * dayWidthRef.current);
+  }, [centerMode, sortedTasks, minDate]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -288,7 +291,7 @@ export default function GanttChart({ tasks, milestones = [] }) {
             {s.charAt(0).toUpperCase() + s.slice(1)}
           </button>
         ))}
-        <div style={{ width: 1, background: "var(--clubpm-border)", margin: "0 8px", alignSelf: "stretch" }} />
+        <div aria-hidden="true" style={{ width: 1, background: "var(--clubpm-border)", margin: "0 8px", alignSelf: "stretch" }} />
         {[
           { id: "oldest_active", label: "Oldest" },
           { id: "today",         label: "Today"  },
