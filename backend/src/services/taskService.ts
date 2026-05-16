@@ -230,7 +230,7 @@ export async function getTasksForProject(
 
   return prisma.task.findMany({
     where,
-    include: { assignees: true },
+    include: { assignees: true, tags: true },
     orderBy: [{ priority: "desc" }, { createdAt: "desc" }],
   });
 }
@@ -238,7 +238,7 @@ export async function getTasksForProject(
 export async function getTasksForMember(memberId: string) {
   return prisma.task.findMany({
     where: { assignees: { some: { id: memberId } } },
-    include: { project: true, assignees: true },
+    include: { project: true, assignees: true, tags: true },
     orderBy: [{ dueDate: "asc" }, { priority: "desc" }],
   });
 }

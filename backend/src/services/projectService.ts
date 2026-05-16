@@ -76,6 +76,7 @@ export async function getProject(id: string) {
         where: { parentTaskId: null }, // top-level tasks only
         include: {
           assignees: true,
+          tags: true,
           subtasks: { include: { assignees: true }, orderBy: { createdAt: "asc" } },
           blockedBy: { include: { blockingTask: { select: { id: true, title: true, status: true } } } },
           blocks:    { include: { blockedTask:  { select: { id: true, title: true, status: true } } } },
