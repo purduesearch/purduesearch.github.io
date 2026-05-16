@@ -522,13 +522,17 @@ function AddTaskModal({ projects, onClose, onCreated }) {
 
   useEffect(() => {
     if (!projectId) { setProjectTags([]); setTags([]); return; }
-    get(`/api/projects/${projectId}/tags`).then(setProjectTags).catch(() => {});
+    setProjectTags([]);
     setTags([]);
+    get(`/api/projects/${projectId}/tags`).then(setProjectTags).catch(() => {});
   }, [projectId]);
 
   function addTag(tag) {
-    if (!tag || tags.length >= 5 || tags.some(t => t.id === tag.id)) return;
-    setTags(prev => [...prev, tag]);
+    if (!tag) return;
+    setTags(prev => {
+      if (prev.length >= 5 || prev.some(t => t.id === tag.id)) return prev;
+      return [...prev, tag];
+    });
   }
   function removeTag(tagId) {
     setTags(prev => prev.filter(t => t.id !== tagId));
@@ -618,7 +622,7 @@ function AddTaskModal({ projects, onClose, onCreated }) {
                     background: tag.color + "22", border: `1px solid ${tag.color}`, color: tag.color,
                   }}>
                     {tag.name}
-                    <button onClick={() => removeTag(tag.id)} style={{
+                    <button type="button" onClick={() => removeTag(tag.id)} style={{
                       background: "none", border: "none", cursor: "pointer",
                       color: tag.color, fontSize: 12, padding: 0, lineHeight: 1,
                     }}>×</button>
@@ -650,7 +654,7 @@ function AddTaskModal({ projects, onClose, onCreated }) {
                     <input type="color" value={newTagColor} onChange={e => setNewTagColor(e.target.value)}
                       style={{ width: 30, padding: 1, borderRadius: 4, cursor: "pointer",
                         border: "1px solid var(--clubpm-border)", background: "transparent" }} />
-                    <button onClick={createTag} disabled={!newTagName.trim() || creatingTag}
+                    <button type="button" onClick={createTag} disabled={!newTagName.trim() || creatingTag}
                       style={{ padding: "5px 10px", borderRadius: 6, fontSize: 12,
                         background: "var(--clubpm-accent-primary)", border: "none", color: "#fff",
                         cursor: newTagName.trim() && !creatingTag ? "pointer" : "default",
