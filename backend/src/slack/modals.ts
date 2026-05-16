@@ -659,7 +659,7 @@ export function registerModals(app: App): void {
       const milestoneId =
         values.milestone_block?.milestone?.selected_option?.value ?? undefined;
       const tagIds = (values.tags_block?.tags?.selected_options ?? [])
-        .map((o: any) => o.value).filter((v: string) => v !== "none");
+        .map((o: any) => o.value).filter((v: string) => v !== "none").slice(0, 5);
       const estimatedHours = parseFloat(values.estimated_hours_block?.estimated_hours?.value ?? "") || undefined;
       const storyPoints = parseInt(values.story_points_block?.story_points?.value ?? "") || undefined;
       const recurrence = values.recurrence_block?.recurrence?.selected_option?.value;
