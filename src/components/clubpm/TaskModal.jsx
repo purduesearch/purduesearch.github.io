@@ -1100,13 +1100,13 @@ export default function TaskModal({ task: initialTask, readOnly = false, onClose
     if (tags.some(t => (t.id ?? t) === (tag.id ?? tag))) return;
     const newTags = [...tags, tag];
     setTags(newTags);
-    saveField({ tagIds: newTags.map(t => t.id) });
+    saveField({ tags: newTags.map(t => t.id) });
   }
 
   function removeTag(tag) {
     const newTags = tags.filter(t => (t.id ?? t) !== (tag.id ?? tag));
     setTags(newTags);
-    saveField({ tagIds: newTags.map(t => t.id) });
+    saveField({ tags: newTags.map(t => t.id) });
   }
 
   async function createTag() {
