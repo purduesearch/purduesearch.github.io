@@ -139,7 +139,26 @@ function AIInsightCards({ projects, tasks }) {
   }
 
   return (
-    <div className="pm-insight-row">
+    <div className="pm-insight-row pm-project-grid-wrap">
+      {/* Constellation line overlay connecting the three insight nodes */}
+      <svg
+        className="pm-constellation-overlay"
+        viewBox="0 0 300 60"
+        preserveAspectRatio="none"
+        aria-hidden="true"
+      >
+        {/* lines between card centers */}
+        <line x1="50" y1="30" x2="150" y2="30" />
+        <line x1="150" y1="30" x2="250" y2="30" />
+        {/* star node dots */}
+        <circle cx="50"  cy="30" r="2.5" fill="rgba(0,229,204,0.4)" />
+        <circle cx="150" cy="30" r="2.5" fill="rgba(0,229,204,0.4)" />
+        <circle cx="250" cy="30" r="2.5" fill="rgba(0,229,204,0.4)" />
+        {/* outer glow rings */}
+        <circle cx="50"  cy="30" r="5" fill="none" stroke="rgba(0,229,204,0.15)" strokeWidth="1" />
+        <circle cx="150" cy="30" r="5" fill="none" stroke="rgba(0,229,204,0.15)" strokeWidth="1" />
+        <circle cx="250" cy="30" r="5" fill="none" stroke="rgba(0,229,204,0.15)" strokeWidth="1" />
+      </svg>
       {/* Card 1: Most Blocked */}
       <div className="pm-insight-card" style={{ borderLeftColor: mostBlocked?.count > 0 ? '#e17055' : 'var(--pm-border)' }}>
         <div className="pm-insight-card-label">Most Blocked</div>
@@ -495,6 +514,37 @@ function AddTaskModal({ projects, onClose, onCreated }) {
   const [dueDate, setDueDate] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+  const [tags, setTags]           = useState([]);
+  const [projectTags, setProjectTags] = useState([]);
+  const [newTagName, setNewTagName]   = useState("");
+  const [newTagColor, setNewTagColor] = useState("#6c5ce7");
+  const [creatingTag, setCreatingTag] = useState(false);
+
+  useEffect(() => {
+    if (!projectId) { setProjectTags([]); setTags([]); return; }
+    get(`/api/projects/${projectId}/tags`).then(setProjectTags).catch(() => {});
+    setTags([]);
+  }, [projectId]);
+
+  function addTag(tag) {
+    if (!tag || tags.length >= 5 || tags.some(t => t.id === tag.id)) return;
+    setTags(prev => [...prev, tag]);
+  }
+  function removeTag(tagId) {
+    setTags(prev => prev.filter(t => t.id !== tagId));
+  }
+  async function createTag() {
+    if (!newTagName.trim() || !projectId || creatingTag || tags.length >= 5) return;
+    setCreatingTag(true);
+    try {
+      const tag = await post(`/api/projects/${projectId}/tags`, { name: newTagName.trim(), color: newTagColor });
+      setProjectTags(prev => [...prev, tag]);
+      addTag(tag);
+      setNewTagName("");
+    } catch (err) {
+      console.error("Failed to create tag:", err);
+    } finally { setCreatingTag(false); }
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -506,6 +556,7 @@ function AddTaskModal({ projects, onClose, onCreated }) {
         title: title.trim(),
         priority,
         dueDate: dueDate || undefined,
+        tagIds: tags.map(t => t.id),
       });
       onCreated();
       onClose();
@@ -552,6 +603,66 @@ function AddTaskModal({ projects, onClose, onCreated }) {
               <div className="cpm-filter-section-title" style={{ marginBottom: 4 }}>Due Date</div>
               <input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)}
                 style={{ width: "100%", padding: "8px 10px", borderRadius: 6, background: "var(--clubpm-surface-300)", border: "1px solid var(--clubpm-border)", color: "var(--clubpm-text-primary)", fontSize: 13, boxSizing: "border-box" }} />
+            </div>
+            <div>
+              <div className="cpm-filter-section-title" style={{ marginBottom: 4 }}>
+                Tags {tags.length > 0 && (
+                  <span style={{ color: "var(--clubpm-text-muted)", fontWeight: 400 }}>({tags.length}/5)</span>
+                )}
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 5 }}>
+                {tags.map(tag => (
+                  <span key={tag.id} style={{
+                    display: "inline-flex", alignItems: "center", gap: 3,
+                    padding: "2px 8px", borderRadius: 10, fontSize: 11,
+                    background: tag.color + "22", border: `1px solid ${tag.color}`, color: tag.color,
+                  }}>
+                    {tag.name}
+                    <button onClick={() => removeTag(tag.id)} style={{
+                      background: "none", border: "none", cursor: "pointer",
+                      color: tag.color, fontSize: 12, padding: 0, lineHeight: 1,
+                    }}>×</button>
+                  </span>
+                ))}
+              </div>
+              {tags.length < 5 && (
+                <>
+                  {projectTags.filter(pt => !tags.some(t => t.id === pt.id)).length > 0 && (
+                    <select
+                      value=""
+                      onChange={e => { const t = projectTags.find(x => x.id === e.target.value); if (t) addTag(t); }}
+                      style={{ width: "100%", padding: "6px 10px", borderRadius: 6, marginBottom: 5,
+                        background: "var(--clubpm-surface-300)", border: "1px solid var(--clubpm-border)",
+                        color: "var(--clubpm-text-muted)", fontSize: 12 }}
+                    >
+                      <option value="">+ Add existing tag</option>
+                      {projectTags.filter(pt => !tags.some(t => t.id === pt.id))
+                        .map(pt => <option key={pt.id} value={pt.id}>{pt.name}</option>)}
+                    </select>
+                  )}
+                  <div style={{ display: "flex", gap: 5 }}>
+                    <input type="text" placeholder="New tag name" value={newTagName}
+                      onChange={e => setNewTagName(e.target.value)}
+                      onKeyDown={e => e.key === "Enter" && createTag()}
+                      style={{ flex: 1, padding: "5px 8px", borderRadius: 6, fontSize: 12,
+                        background: "var(--clubpm-surface-300)", border: "1px solid var(--clubpm-border)",
+                        color: "var(--clubpm-text-primary)", outline: "none" }} />
+                    <input type="color" value={newTagColor} onChange={e => setNewTagColor(e.target.value)}
+                      style={{ width: 30, padding: 1, borderRadius: 4, cursor: "pointer",
+                        border: "1px solid var(--clubpm-border)", background: "transparent" }} />
+                    <button onClick={createTag} disabled={!newTagName.trim() || creatingTag}
+                      style={{ padding: "5px 10px", borderRadius: 6, fontSize: 12,
+                        background: "var(--clubpm-accent-primary)", border: "none", color: "#fff",
+                        cursor: newTagName.trim() && !creatingTag ? "pointer" : "default",
+                        opacity: newTagName.trim() && !creatingTag ? 1 : 0.5 }}>
+                      {creatingTag ? "…" : "Create"}
+                    </button>
+                  </div>
+                </>
+              )}
+              {tags.length >= 5 && (
+                <span style={{ fontSize: 10, color: "var(--clubpm-text-muted)" }}>Max 5 tags</span>
+              )}
             </div>
             {error && <p style={{ fontSize: 12, color: "#e17055", background: "rgba(225,112,85,0.1)", borderRadius: 6, padding: "6px 10px" }}>{error}</p>}
           </div>
