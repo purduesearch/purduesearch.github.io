@@ -15,10 +15,10 @@ export default function Login() {
         {/* Wordmark */}
         <div className="pm-login-wordmark">
           <h1 style={{ fontFamily: "var(--pm-font-display)", color: "var(--pm-accent-teal)", textShadow: "0 0 30px rgba(0,229,204,0.4)", fontSize: "3.5rem", fontWeight: 800, letterSpacing: "-1px", margin: 0 }}>
-            Club PM
+            Constellation
           </h1>
           <p className="pm-login-typewriter">
-            Mission control for student engineering teams
+            Track your missions across the stars
           </p>
         </div>
 

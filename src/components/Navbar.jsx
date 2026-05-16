@@ -185,7 +185,7 @@ const Navbar = () => {
                 </li>
               ) : (
                 <li className="nav-item" style={{ position: 'relative' }}>
-                  <Link className="nav-link" to="/clubpm">Club PM</Link>
+                  <Link className="nav-link" to="/clubpm">Constellation</Link>
                   {pathname.startsWith('/clubpm') && (
                     <motion.span layoutId="nav-underline" className="nav-active-indicator" />
                   )}

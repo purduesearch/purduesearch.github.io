@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useLocation, Link, Navigate, useNavigate } from 'react-router-dom';
 import { useClubPmAuth } from '../../clubpm/ClubPmAuth';
 import { get, post } from '../../api/clubPmClient';
@@ -13,7 +14,7 @@ function getBreadcrumb(pathname) {
   if (pathname.match(/\/clubpm\/projects\/[^/]+/)) return [{ label: 'Projects', href: '/clubpm' }, { label: 'Project Detail' }];
   if (pathname === '/clubpm/members') return [{ label: 'Members' }];
   if (pathname === '/clubpm/activity') return [{ label: 'Activity' }];
-  return [{ label: 'Club PM' }];
+  return [{ label: 'Constellation' }];
 }
 
 const NAV_ITEMS = [
@@ -179,8 +180,22 @@ export default function AppShell({ children }) {
       <nav className="pm-sidebar">
         {/* Logo */}
         <div className="pm-sidebar-logo">
-          <div className="pm-sidebar-logo-mark">PM</div>
-          <span className="pm-sidebar-logo-text">Club PM</span>
+          <motion.div
+            className="pm-sidebar-logo-mark"
+            initial={{ scale: 0.6, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ type: 'spring', stiffness: 320, damping: 20, delay: 0.1 }}
+          >
+            {/* two-star constellation icon */}
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+              <circle cx="5" cy="13" r="2" fill="#0d0f14"/>
+              <circle cx="13" cy="5" r="2" fill="#0d0f14"/>
+              <line x1="5" y1="13" x2="13" y2="5" stroke="#0d0f14" strokeWidth="1.5" strokeLinecap="round"/>
+              <circle cx="5" cy="13" r="1" fill="rgba(13,15,20,0.5)"/>
+              <circle cx="13" cy="5" r="1" fill="rgba(13,15,20,0.5)"/>
+            </svg>
+          </motion.div>
+          <span className="pm-sidebar-logo-text">Constellation</span>
         </div>
 
         {/* Nav items */}
@@ -330,11 +345,20 @@ export default function AppShell({ children }) {
           </div>
         </header>
 
-        <main className="pm-shell-content">
-          <ErrorBoundary>
-            {children}
-          </ErrorBoundary>
-        </main>
+        <AnimatePresence mode="wait">
+          <motion.main
+            key={location.pathname}
+            className="pm-shell-content"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ type: 'spring', stiffness: 280, damping: 24, mass: 0.8 }}
+          >
+            <ErrorBoundary>
+              {children}
+            </ErrorBoundary>
+          </motion.main>
+        </AnimatePresence>
       </div>
 
       <AICommandPalette

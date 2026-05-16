@@ -1,5 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
+import { StarProgress } from "./TaskPrimitives";
 
 const HEALTH_COLOR = {
   ACTIVE:    'var(--pm-accent-teal)',
@@ -48,6 +49,7 @@ export default function ProjectCard({ project }) {
             {project.description && (
               <div className="pm-project-card-desc">{project.description}</div>
             )}
+            <StarProgress percent={pct} />
           </div>
           <CircleProgress pct={pct} color={accentColor} />
         </div>

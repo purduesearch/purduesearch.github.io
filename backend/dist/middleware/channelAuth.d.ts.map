@@ -1,0 +1,1 @@
+{"version":3,"file":"channelAuth.d.ts","sourceRoot":"","sources":["../../src/middleware/channelAuth.ts"],"names":[],"mappings":"AAAA,OAAO,KAAK,EAAE,OAAO,EAAE,QAAQ,EAAE,YAAY,EAAE,MAAM,SAAS,CAAC;AAI/D;;;;;GAKG;AACH,wBAAsB,WAAW,CAC/B,GAAG,EAAE,OAAO,EACZ,GAAG,EAAE,QAAQ,EACb,IAAI,EAAE,YAAY,GACjB,OAAO,CAAC,IAAI,CAAC,CAmDf"}

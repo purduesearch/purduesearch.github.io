@@ -8615,3 +8615,157 @@ html::-webkit-scrollbar { display: none; }
   align-items: center;
   justify-content: center;
 }
+
+/* ── Constellation: Sidebar Logo Mark ───────────────────────── */
+/* Override text-based sizing now that the mark holds an SVG */
+.pm-sidebar-logo-mark {
+  font-size: unset;
+  line-height: 1;
+  padding: 3px;
+}
+
+/* ── Constellation: Skeleton shimmer — teal-tinted ──────────── */
+.pm-skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--pm-bg-elevated) 25%,
+    rgba(0, 229, 204, 0.07) 50%,
+    var(--pm-bg-elevated) 75%
+  );
+  background-size: 800px 100%;
+  animation: pm-shimmer 1.4s ease-in-out infinite;
+}
+
+/* ── Constellation: Sidebar starfield ───────────────────────── */
+@keyframes constellation-twinkle {
+  0%   { opacity: 0.55; }
+  40%  { opacity: 1;    }
+  70%  { opacity: 0.7;  }
+  100% { opacity: 0.55; }
+}
+@keyframes constellation-twinkle-offset {
+  0%   { opacity: 0.8;  }
+  30%  { opacity: 0.4;  }
+  65%  { opacity: 1;    }
+  100% { opacity: 0.8;  }
+}
+
+.pm-sidebar-starfield {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+
+/* Dim white stars */
+.pm-sidebar-starfield::before {
+  content: '';
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  border-radius: 50%;
+  top: 0; left: 0;
+  animation: constellation-twinkle 5.2s ease-in-out infinite;
+  box-shadow:
+    4px 42px 0 0 rgba(255,255,255,0.28),
+    21px 81px 0 0 rgba(255,255,255,0.18),
+    44px 119px 0 0 rgba(255,255,255,0.32),
+    12px 163px 0 0 rgba(255,255,255,0.22),
+    37px 208px 0 0 rgba(255,255,255,0.15),
+    60px 245px 0 0 rgba(255,255,255,0.26),
+    8px 287px 0 0 rgba(255,255,255,0.35),
+    50px 331px 0 0 rgba(255,255,255,0.19),
+    26px 374px 0 0 rgba(255,255,255,0.28),
+    55px 418px 0 0 rgba(255,255,255,0.14),
+    16px 461px 0 0 rgba(255,255,255,0.30),
+    45px 504px 0 0 rgba(255,255,255,0.20),
+    33px 548px 0 0 rgba(255,255,255,0.25),
+    7px 591px 0 0 rgba(255,255,255,0.17),
+    58px 635px 0 0 rgba(255,255,255,0.33),
+    24px 678px 0 0 rgba(255,255,255,0.21),
+    40px 722px 0 0 rgba(255,255,255,0.16),
+    18px 765px 0 0 rgba(255,255,255,0.29),
+    62px 808px 0 0 rgba(255,255,255,0.24),
+    31px 852px 0 0 rgba(255,255,255,0.18),
+    98px 67px 0 0 rgba(255,255,255,0.20),
+    131px 104px 0 0 rgba(255,255,255,0.14),
+    86px 148px 0 0 rgba(255,255,255,0.28),
+    161px 182px 0 0 rgba(255,255,255,0.16),
+    112px 226px 0 0 rgba(255,255,255,0.22),
+    146px 271px 0 0 rgba(255,255,255,0.19),
+    93px 315px 0 0 rgba(255,255,255,0.26),
+    176px 349px 0 0 rgba(255,255,255,0.13),
+    121px 394px 0 0 rgba(255,255,255,0.31),
+    96px 438px 0 0 rgba(255,255,255,0.17);
+}
+
+/* Bright accent stars (teal + pure white) */
+.pm-sidebar-starfield::after {
+  content: '';
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  border-radius: 50%;
+  top: 0; left: 0;
+  animation: constellation-twinkle-offset 7.1s ease-in-out infinite;
+  box-shadow:
+    32px 133px 0 1px rgba(0,229,204,0.55),
+    74px 227px 0 1px rgba(255,255,255,0.65),
+    19px 473px 0 1px rgba(0,229,204,0.45),
+    87px 581px 0 1px rgba(255,255,255,0.60),
+    138px 71px 0 1px rgba(0,229,204,0.50),
+    184px 402px 0 1px rgba(255,255,255,0.55),
+    157px 489px 0 0 rgba(0,229,204,0.40),
+    103px 562px 0 1px rgba(255,255,255,0.45),
+    210px 298px 0 1px rgba(0,229,204,0.35),
+    196px 671px 0 0 rgba(255,255,255,0.50);
+}
+
+/* Ensure sidebar children sit above the starfield layer */
+.pm-sidebar > *:not(.pm-sidebar-starfield) {
+  position: relative;
+  z-index: 1;
+}
+
+/* ── Constellation: Login page wordmark ─────────────────────── */
+.pm-login-wordmark h1 {
+  text-shadow: 0 0 40px rgba(0,229,204,0.5), 0 0 80px rgba(0,229,204,0.2);
+}
+
+/* ── Constellation: Star progress component ─────────────────── */
+.cpm-star-progress {
+  display: flex;
+  gap: 3px;
+  align-items: center;
+}
+.cpm-star-progress-item {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+}
+.cpm-star-progress-item svg {
+  display: block;
+}
+
+/* ── Constellation: Dashboard overlay SVG ──────────────────── */
+.pm-constellation-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  overflow: visible;
+}
+.pm-constellation-overlay line {
+  stroke: rgba(0,229,204,0.18);
+  stroke-width: 1;
+  stroke-dasharray: 4 4;
+  stroke-linecap: round;
+  animation: constellation-dash 3s linear infinite;
+}
+@keyframes constellation-dash {
+  to { stroke-dashoffset: -16; }
+}
+.pm-project-grid-wrap {
+  position: relative;
+}

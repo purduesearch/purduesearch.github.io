@@ -37,6 +37,33 @@ export function PriorityBars({ priority }) {
   );
 }
 
+// ── Star Progress (completion percentage as filled stars) ─────
+
+const StarPath = ({ filled, accent }) => (
+  <svg width="12" height="12" viewBox="0 0 24 24">
+    <polygon
+      points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"
+      fill={filled ? (accent ? 'var(--pm-accent-teal)' : 'rgba(255,255,255,0.7)') : 'none'}
+      stroke={filled ? (accent ? 'var(--pm-accent-teal)' : 'rgba(255,255,255,0.5)') : 'rgba(255,255,255,0.2)'}
+      strokeWidth="1.5"
+      strokeLinejoin="round"
+    />
+  </svg>
+);
+
+export function StarProgress({ percent = 0 }) {
+  const filled = Math.round((percent / 100) * 5);
+  return (
+    <div className="cpm-star-progress" title={`${percent}% complete`}>
+      {Array.from({ length: 5 }).map((_, i) => (
+        <span key={i} className="cpm-star-progress-item">
+          <StarPath filled={i < filled} accent={i < filled && i === filled - 1} />
+        </span>
+      ))}
+    </div>
+  );
+}
+
 // ── Avatar Stack ──────────────────────────────────────────────
 
 export function AvatarStack({ assignees }) {
