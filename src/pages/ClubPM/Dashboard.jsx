@@ -386,6 +386,24 @@ function TaskRow({ task, onProgressChange, compact, showProject }) {
             {formatDue(task.dueDate)}
           </span>
         )}
+        {task.tags && task.tags.length > 0 && (
+          <div style={{ display: "flex", gap: 3, alignItems: "center", flexShrink: 0 }}>
+            {task.tags.slice(0, 2).map(tag => (
+              <span key={tag.id} style={{
+                fontSize: 10, padding: "1px 6px", borderRadius: 8,
+                background: tag.color + "22", border: `1px solid ${tag.color}`,
+                color: tag.color, whiteSpace: "nowrap",
+              }}>
+                {tag.name}
+              </span>
+            ))}
+            {task.tags.length > 2 && (
+              <span style={{ fontSize: 10, color: "var(--clubpm-text-muted)", whiteSpace: "nowrap" }}>
+                +{task.tags.length - 2}
+              </span>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
