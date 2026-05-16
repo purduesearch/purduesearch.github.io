@@ -340,8 +340,8 @@ function StatusBin({ bin, tasks, subtasksByParent, expandedParents, onTogglePare
                     {group.tag ? (
                       <span style={{
                         fontSize: 10, padding: "1px 8px", borderRadius: 8, fontWeight: 600,
-                        background: group.tag.color + "22", border: `1px solid ${group.tag.color}`,
-                        color: group.tag.color,
+                        background: (group.tag.color ?? "#6c5ce7") + "22", border: `1px solid ${group.tag.color ?? "#6c5ce7"}`,
+                        color: group.tag.color ?? "#6c5ce7",
                       }}>
                         {group.tag.name}
                       </span>

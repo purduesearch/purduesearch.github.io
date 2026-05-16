@@ -952,7 +952,9 @@ function WorkPanel({ tasks, onProgressChange, projects, onTaskCreated }) {
         <div className="cpm-work-list">
           {sortBy === "tags" && groupedTasks ? (
             groupedTasks.length === 0 ? (
-              <p className="cpm-empty-msg">No tasks assigned to you</p>
+              <p className="cpm-empty-msg">
+                {tasks.length === 0 ? "No tasks assigned to you" : "No tasks match your filters"}
+              </p>
             ) : (
               groupedTasks.map(group => (
                 <React.Fragment key={group.tag?.id ?? "untagged"}>
@@ -963,8 +965,8 @@ function WorkPanel({ tasks, onProgressChange, projects, onTaskCreated }) {
                     {group.tag ? (
                       <span style={{
                         fontSize: 10, padding: "1px 8px", borderRadius: 8, fontWeight: 600,
-                        background: group.tag.color + "22", border: `1px solid ${group.tag.color}`,
-                        color: group.tag.color,
+                        background: (group.tag.color ?? "#6c5ce7") + "22", border: `1px solid ${group.tag.color ?? "#6c5ce7"}`,
+                        color: group.tag.color ?? "#6c5ce7",
                       }}>
                         {group.tag.name}
                       </span>
