@@ -689,7 +689,7 @@ function AddProjectTaskModal({ projectId, initialStatus, projectMembers, onClose
     setTags(prev => prev.filter(t => t.id !== tagId));
   }
   async function createTag() {
-    if (!newTagName.trim() || creatingTag) return;
+    if (!newTagName.trim() || creatingTag || tags.length >= 5) return;
     setCreatingTag(true);
     try {
       const tag = await post(`/api/projects/${projectId}/tags`, { name: newTagName.trim(), color: newTagColor });
