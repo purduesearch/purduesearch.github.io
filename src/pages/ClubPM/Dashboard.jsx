@@ -354,6 +354,23 @@ function activeFilterCount(f) {
   return Object.values(f).reduce((n, arr) => n + arr.length, 0);
 }
 
+function getTagGroups(tasks) {
+  const tagMap = new Map();
+  const untagged = [];
+  tasks.forEach(task => {
+    const firstTag = (task.tags ?? [])[0];
+    if (!firstTag) {
+      untagged.push(task);
+    } else {
+      if (!tagMap.has(firstTag.id)) tagMap.set(firstTag.id, { tag: firstTag, tasks: [] });
+      tagMap.get(firstTag.id).tasks.push(task);
+    }
+  });
+  const groups = [...tagMap.values()].sort((a, b) => a.tag.name.localeCompare(b.tag.name));
+  if (untagged.length) groups.push({ tag: null, tasks: untagged });
+  return groups;
+}
+
 // ── Task Row ──────────────────────────────────────────────────
 
 function TaskRow({ task, onProgressChange, compact, showProject }) {
@@ -877,6 +894,7 @@ function WorkPanel({ tasks, onProgressChange, projects, onTaskCreated }) {
   const { member } = useClubPmAuth();
   const [showAddTask, setShowAddTask] = useState(false);
   const [showRecap, setShowRecap]     = useState(false);
+  const [sortBy, setSortBy]           = useState("default");
   const [filters, setFilters]         = useState(DEFAULT_FILTERS);
 
   const setFilter = (key, val) => setFilters(prev => ({ ...prev, [key]: val }));
@@ -888,6 +906,11 @@ function WorkPanel({ tasks, onProgressChange, projects, onTaskCreated }) {
   );
 
   const filtered = useMemo(() => applyFilters(tasks, filters), [tasks, filters]);
+
+  const groupedTasks = useMemo(() => {
+    if (sortBy !== "tags") return null;
+    return getTagGroups(filtered);
+  }, [sortBy, filtered]);
 
   return (
     <>
@@ -908,6 +931,16 @@ function WorkPanel({ tasks, onProgressChange, projects, onTaskCreated }) {
               </button>
             </div>
             <div className="cpm-panel-header-right">
+              <select
+                value={sortBy}
+                onChange={e => setSortBy(e.target.value)}
+                style={{ fontSize: 11, padding: "3px 6px", borderRadius: 6,
+                  background: "var(--clubpm-surface-300)", border: "1px solid var(--clubpm-border)",
+                  color: "var(--clubpm-text-secondary)", cursor: "pointer" }}
+              >
+                <option value="default">Sort: Default</option>
+                <option value="tags">Sort: Tags</option>
+              </select>
               <button className="cpm-panel-icon-btn" title="Add task" onClick={() => setShowAddTask(true)}>
                 <i className="fas fa-plus" />
               </button>
@@ -917,14 +950,45 @@ function WorkPanel({ tasks, onProgressChange, projects, onTaskCreated }) {
         </div>
 
         <div className="cpm-work-list">
-          {filtered.length === 0 ? (
-            <p className="cpm-empty-msg">
-              {tasks.length === 0 ? "No tasks assigned to you" : "No tasks match your filters"}
-            </p>
+          {sortBy === "tags" && groupedTasks ? (
+            groupedTasks.length === 0 ? (
+              <p className="cpm-empty-msg">No tasks assigned to you</p>
+            ) : (
+              groupedTasks.map(group => (
+                <React.Fragment key={group.tag?.id ?? "untagged"}>
+                  <div style={{
+                    padding: "8px 16px 3px",
+                    display: "flex", alignItems: "center", gap: 6,
+                  }}>
+                    {group.tag ? (
+                      <span style={{
+                        fontSize: 10, padding: "1px 8px", borderRadius: 8, fontWeight: 600,
+                        background: group.tag.color + "22", border: `1px solid ${group.tag.color}`,
+                        color: group.tag.color,
+                      }}>
+                        {group.tag.name}
+                      </span>
+                    ) : (
+                      <span style={{ fontSize: 10, color: "var(--clubpm-text-muted)", fontWeight: 600 }}>Untagged</span>
+                    )}
+                    <span style={{ fontSize: 10, color: "var(--clubpm-text-muted)" }}>{group.tasks.length}</span>
+                  </div>
+                  {group.tasks.map(task => (
+                    <TaskRow key={task.id} task={task} onProgressChange={onProgressChange} showProject />
+                  ))}
+                </React.Fragment>
+              ))
+            )
           ) : (
-            filtered.map(task => (
-              <TaskRow key={task.id} task={task} onProgressChange={onProgressChange} showProject />
-            ))
+            filtered.length === 0 ? (
+              <p className="cpm-empty-msg">
+                {tasks.length === 0 ? "No tasks assigned to you" : "No tasks match your filters"}
+              </p>
+            ) : (
+              filtered.map(task => (
+                <TaskRow key={task.id} task={task} onProgressChange={onProgressChange} showProject />
+              ))
+            )
           )}
         </div>
       </section>
