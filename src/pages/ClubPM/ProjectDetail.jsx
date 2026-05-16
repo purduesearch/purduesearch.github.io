@@ -663,6 +663,11 @@ function AddProjectTaskModal({ projectId, initialStatus, projectMembers, onClose
   const [error, setError] = useState(null);
   const [milestoneId, setMilestoneId] = useState("");
   const [milestones, setMilestones] = useState([]);
+  const [tags, setTags]               = useState([]);
+  const [projectTags, setProjectTags] = useState([]);
+  const [newTagName, setNewTagName]   = useState("");
+  const [newTagColor, setNewTagColor] = useState("#6c5ce7");
+  const [creatingTag, setCreatingTag] = useState(false);
 
   useEffect(() => {
     get(`/api/milestones/project/${projectId}`)
@@ -670,7 +675,31 @@ function AddProjectTaskModal({ projectId, initialStatus, projectMembers, onClose
         ms.filter(m => m.status !== "COMPLETED" && m.status !== "CANCELLED")
       ))
       .catch(() => {});
+    get(`/api/projects/${projectId}/tags`).then(setProjectTags).catch(() => {});
   }, [projectId]);
+
+  function addTag(tag) {
+    if (!tag) return;
+    setTags(prev => {
+      if (prev.length >= 5 || prev.some(t => t.id === tag.id)) return prev;
+      return [...prev, tag];
+    });
+  }
+  function removeTag(tagId) {
+    setTags(prev => prev.filter(t => t.id !== tagId));
+  }
+  async function createTag() {
+    if (!newTagName.trim() || creatingTag) return;
+    setCreatingTag(true);
+    try {
+      const tag = await post(`/api/projects/${projectId}/tags`, { name: newTagName.trim(), color: newTagColor });
+      setProjectTags(prev => [...prev, tag]);
+      addTag(tag);
+      setNewTagName("");
+    } catch (err) {
+      console.error("Failed to create tag:", err);
+    } finally { setCreatingTag(false); }
+  }
 
   const inputStyle = {
     width: "100%", padding: "8px 10px", borderRadius: 6, fontSize: 13,
@@ -694,6 +723,7 @@ function AddProjectTaskModal({ projectId, initialStatus, projectMembers, onClose
         status: initialStatus,
         dueDate: dueDate || undefined,
         milestoneId: milestoneId || undefined,
+        tagIds: tags.map(t => t.id),
       });
       onCreated(newTask);
       onClose();
@@ -759,6 +789,62 @@ function AddProjectTaskModal({ projectId, initialStatus, projectMembers, onClose
                 </select>
               </div>
             )}
+            <div>
+              <label style={labelStyle}>
+                Tags {tags.length > 0 && (
+                  <span style={{ color: "var(--clubpm-text-muted)", fontWeight: 400, textTransform: "none" }}>({tags.length}/5)</span>
+                )}
+              </label>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 5 }}>
+                {tags.map(tag => (
+                  <span key={tag.id} style={{
+                    display: "inline-flex", alignItems: "center", gap: 3,
+                    padding: "2px 8px", borderRadius: 10, fontSize: 11,
+                    background: tag.color + "22", border: `1px solid ${tag.color}`, color: tag.color,
+                  }}>
+                    {tag.name}
+                    <button type="button" onClick={() => removeTag(tag.id)} style={{
+                      background: "none", border: "none", cursor: "pointer",
+                      color: tag.color, fontSize: 12, padding: 0, lineHeight: 1,
+                    }}>×</button>
+                  </span>
+                ))}
+              </div>
+              {tags.length < 5 && (
+                <>
+                  {projectTags.filter(pt => !tags.some(t => t.id === pt.id)).length > 0 && (
+                    <select
+                      value=""
+                      onChange={e => { const t = projectTags.find(x => x.id === e.target.value); if (t) addTag(t); }}
+                      style={{ ...inputStyle, cursor: "pointer", marginBottom: 6 }}
+                    >
+                      <option value="">+ Add existing tag</option>
+                      {projectTags.filter(pt => !tags.some(t => t.id === pt.id))
+                        .map(pt => <option key={pt.id} value={pt.id}>{pt.name}</option>)}
+                    </select>
+                  )}
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <input type="text" placeholder="New tag name" value={newTagName}
+                      onChange={e => setNewTagName(e.target.value)}
+                      onKeyDown={e => e.key === "Enter" && createTag()}
+                      style={{ ...inputStyle, flex: 1 }} />
+                    <input type="color" value={newTagColor} onChange={e => setNewTagColor(e.target.value)}
+                      style={{ width: 38, padding: 2, borderRadius: 6, cursor: "pointer",
+                        border: "1px solid var(--clubpm-border)", background: "transparent" }} />
+                    <button type="button" onClick={createTag} disabled={!newTagName.trim() || creatingTag}
+                      style={{ padding: "7px 14px", borderRadius: 7, border: "none",
+                        background: "var(--clubpm-accent-primary)", color: "#fff", fontSize: 13,
+                        cursor: newTagName.trim() && !creatingTag ? "pointer" : "default",
+                        opacity: newTagName.trim() && !creatingTag ? 1 : 0.5 }}>
+                      {creatingTag ? "…" : "Create"}
+                    </button>
+                  </div>
+                </>
+              )}
+              {tags.length >= 5 && (
+                <span style={{ fontSize: 11, color: "var(--clubpm-text-muted)" }}>Max 5 tags</span>
+              )}
+            </div>
             {error && (
               <p style={{ fontSize: 12, color: "#e17055", background: "rgba(225,112,85,0.1)",
                 borderRadius: 6, padding: "6px 10px", margin: 0 }}>{error}</p>
