@@ -24,7 +24,6 @@ const PLATFORM_LIMITS = {
   linkedin:  3000,
   twitter:   280,
   website:   null,
-  newsletter: null,
 };
 
 const PLATFORM_ICONS = {
@@ -32,7 +31,6 @@ const PLATFORM_ICONS = {
   linkedin:  'fab fa-linkedin',
   twitter:   'fab fa-twitter',
   website:   'fas fa-globe',
-  newsletter: 'fas fa-envelope',
 };
 
 function CharCounters({ content, platforms }) {
