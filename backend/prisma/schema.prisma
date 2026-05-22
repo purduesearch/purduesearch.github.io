@@ -539,6 +539,7 @@ model OutreachSubmission {
   isTemplate       Boolean  @default(false)
 
   comments    OutreachComment[]
+  utmLinks    UtmLink[]
 
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
@@ -600,3 +601,15 @@ model OutreachAsset {
   @@index([uploadedById])
 }
 
+model UtmLink {
+  id           String   @id @default(cuid())
+  code         String   @unique
+  targetUrl    String
+  submissionId String?
+  submission   OutreachSubmission? @relation(fields: [submissionId], references: [id], onDelete: SetNull)
+  platform     String?  // "instagram" | "linkedin" | "twitter" | "newsletter" | "website"
+  clicks       Int      @default(0)
+  createdAt    DateTime @default(now())
+
+  @@index([submissionId])
+}

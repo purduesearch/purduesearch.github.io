@@ -3,6 +3,7 @@ import { requireAuth } from "./auth.js";
 import { prisma } from "../db/prisma.js";
 import * as outreachService from "../services/outreachService.js";
 import * as aiOutreachService from "../services/aiOutreachService.js";
+import * as utmService from "../services/utmService.js";
 import { queueDm } from "../services/dmBatcher.js";
 import type { SubmissionStatus, SubmissionType } from "@prisma/client";
 
@@ -491,5 +492,70 @@ outreachRouter.post("/submissions/:id/ai/voice", async (req: Request, res: Respo
   } catch (error) {
     console.error("POST /submissions/:id/ai/voice error:", error);
     res.status(500).json({ error: "Failed to rewrite in voice" });
+  }
+});
+
+// ── UTM link routes ──────────────────────────────────────────
+
+// GET /submissions/:id/utm-links
+outreachRouter.get("/submissions/:id/utm-links", async (req: Request, res: Response) => {
+  try {
+    const submission = await outreachService.getSubmission(req.params.id as string);
+    if (!submission) {
+      res.status(404).json({ error: "Submission not found" });
+      return;
+    }
+    const links = await utmService.getLinksForSubmission(req.params.id as string);
+    res.json(links);
+  } catch (error) {
+    console.error("GET /submissions/:id/utm-links error:", error);
+    res.status(500).json({ error: "Failed to get UTM links" });
+  }
+});
+
+// POST /submissions/:id/utm-links
+outreachRouter.post("/submissions/:id/utm-links", async (req: Request, res: Response) => {
+  try {
+    const submission = await outreachService.getSubmission(req.params.id as string);
+    if (!submission) {
+      res.status(404).json({ error: "Submission not found" });
+      return;
+    }
+
+    const { targetUrl, platform } = req.body as {
+      targetUrl: string;
+      platform?: string;
+    };
+
+    if (!targetUrl?.trim()) {
+      res.status(400).json({ error: "targetUrl is required" });
+      return;
+    }
+
+    const link = await utmService.createUtmLink(
+      targetUrl,
+      req.params.id as string,
+      platform
+    );
+    res.status(201).json(link);
+  } catch (error) {
+    console.error("POST /submissions/:id/utm-links error:", error);
+    res.status(500).json({ error: "Failed to create UTM link" });
+  }
+});
+
+// DELETE /submissions/:id/utm-links/:code
+outreachRouter.delete("/submissions/:id/utm-links/:code", async (req: Request, res: Response) => {
+  try {
+    const submission = await outreachService.getSubmission(req.params.id as string);
+    if (!submission) {
+      res.status(404).json({ error: "Submission not found" });
+      return;
+    }
+    await utmService.deleteLink(req.params.code as string);
+    res.json({ ok: true });
+  } catch (error) {
+    console.error("DELETE /submissions/:id/utm-links/:code error:", error);
+    res.status(500).json({ error: "Failed to delete UTM link" });
   }
 });
