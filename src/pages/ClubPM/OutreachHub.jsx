@@ -134,6 +134,12 @@ function PlatformChips({ platforms = [] }) {
 function CopyHelper({ submission, onClose, onPublished }) {
   const [publishing, setPublishing] = useState(false);
 
+  useEffect(() => {
+    const handler = (e) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [onClose]);
+
   const copyText = (text) => {
     navigator.clipboard.writeText(text)
       .then(() => toast.success('Copied!'))
@@ -202,7 +208,7 @@ function CopyHelper({ submission, onClose, onPublished }) {
             </div>
             <ul className="pm-copy-url-list">
               {mediaUrls.map((url, i) => (
-                <li key={i} className="pm-copy-url-item">
+                <li key={url} className="pm-copy-url-item">
                   <span style={{ flex: 1, fontSize: 12, color: 'var(--clubpm-text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {url}
                   </span>
@@ -246,7 +252,7 @@ function SubmissionCard({ submission, member, onEdit, onReview, onDelete, onCopy
   const isAuthor = member?.id === submission.authorId;
   const canDelete = isAdmin || isAuthor;
   const canReview = isAdmin && (submission.status === 'SUBMITTED' || submission.status === 'IN_REVIEW');
-  const canCopy = submission.status === 'APPROVED';
+  const canCopy = submission.status === 'APPROVED' && (isAdmin || isAuthor);
   const author = submission.author ?? submission.member;
   const isSelected = selectedIds?.has(submission.id);
 
