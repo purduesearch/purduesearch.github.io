@@ -2,6 +2,7 @@ import { Router, type Request, type Response } from "express";
 import { requireAuth } from "./auth.js";
 import { prisma } from "../db/prisma.js";
 import * as outreachService from "../services/outreachService.js";
+import { queueDm } from "../services/dmBatcher.js";
 import type { SubmissionStatus, SubmissionType } from "@prisma/client";
 
 export const outreachRouter = Router();
@@ -238,6 +239,21 @@ outreachRouter.post(
         status,
         note
       );
+
+      // Notify the submission author via Slack DM (fire-and-forget)
+      const authorSlackId = updated.author?.slackId;
+      if (authorSlackId) {
+        let dmText: string;
+        if (status === "APPROVED") {
+          dmText = `✅ Your submission "*${updated.title}*" has been approved! It's ready to be published.`;
+        } else if (status === "REJECTED") {
+          dmText = `❌ Your submission "*${updated.title}*" was not approved.${note ? `\nReviewer note: ${note}` : ""}`;
+        } else {
+          // IN_REVIEW
+          dmText = `👀 Your submission "*${updated.title}*" is now under review.`;
+        }
+        Promise.resolve(queueDm(authorSlackId, dmText)).catch(console.error);
+      }
 
       res.json(updated);
     } catch (error) {
