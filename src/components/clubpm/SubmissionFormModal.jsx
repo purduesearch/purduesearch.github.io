@@ -19,6 +19,57 @@ const PLATFORM_OPTIONS = [
 
 const MAX_MEDIA_URLS = 5;
 
+const PLATFORM_LIMITS = {
+  instagram: 2200,
+  linkedin:  3000,
+  twitter:   280,
+  website:   null,
+  newsletter: null,
+};
+
+const PLATFORM_ICONS = {
+  instagram: 'fab fa-instagram',
+  linkedin:  'fab fa-linkedin',
+  twitter:   'fab fa-twitter',
+  website:   'fas fa-globe',
+  newsletter: 'fas fa-envelope',
+};
+
+function CharCounters({ content, platforms }) {
+  const limited = platforms.filter(p => PLATFORM_LIMITS[p] != null);
+  if (limited.length === 0) return null;
+
+  const len = content.length;
+  const twitterLimit = 280;
+  const showThread = platforms.includes('twitter') && len > twitterLimit;
+  const threadCount = Math.ceil(len / twitterLimit);
+
+  return (
+    <div>
+      <div className="pm-char-counter-row">
+        {limited.map(p => {
+          const limit = PLATFORM_LIMITS[p];
+          const pct = len / limit;
+          let chipClass = 'pm-char-chip';
+          if (pct >= 1) chipClass += ' pm-char-chip--error';
+          else if (pct >= 0.8) chipClass += ' pm-char-chip--warn';
+          return (
+            <span key={p} className={chipClass}>
+              <i className={PLATFORM_ICONS[p]} aria-hidden="true" />
+              {len}/{limit}
+            </span>
+          );
+        })}
+      </div>
+      {showThread && (
+        <p className="pm-char-thread-note">
+          Thread needed ({threadCount} tweets)
+        </p>
+      )}
+    </div>
+  );
+}
+
 function formatEventOption(ev) {
   if (!ev) return '';
   const d = ev.startTime ? new Date(ev.startTime) : null;
@@ -217,6 +268,7 @@ export default function SubmissionFormModal({
               placeholder="Write your caption or post body here…"
               rows={4}
             />
+            <CharCounters content={form.content} platforms={form.platform} />
           </div>
 
           {/* Platforms */}

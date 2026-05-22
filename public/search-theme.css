@@ -11710,3 +11710,42 @@ html::-webkit-scrollbar { display: none; }
   color: #fff;
 }
 
+/* ── Per-platform character counters (SubmissionFormModal) ── */
+.pm-char-counter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.pm-char-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  padding: 2px 7px;
+  border-radius: 8px;
+  border: 1px solid var(--clubpm-border, rgba(255,255,255,0.12));
+  color: var(--clubpm-text-secondary, #a0aec0);
+  background: transparent;
+  white-space: nowrap;
+}
+
+.pm-char-chip--warn {
+  color: var(--pm-accent-amber, #fdcb6e);
+  border-color: var(--pm-accent-amber, #fdcb6e);
+}
+
+.pm-char-chip--error {
+  color: #e17055;
+  border-color: #e17055;
+  background: rgba(225, 112, 85, 0.1);
+}
+
+.pm-char-thread-note {
+  margin: 2px 0 0;
+  font-size: 11px;
+  font-style: italic;
+  color: var(--clubpm-text-secondary, #a0aec0);
+}
+
