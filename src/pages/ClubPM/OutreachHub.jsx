@@ -375,12 +375,13 @@ function BoardTab({ submissions, member, onEdit, onReview, onDelete, onStatusCha
   const clearSelection = useCallback(() => setSelectedIds(new Set()), []);
 
   const handleBulkStatus = async (newStatus) => {
+    const count = selectedIds.size;
     setBulkLoading(true);
     try {
       await Promise.all(
         [...selectedIds].map(id => patch(`/api/outreach/submissions/${id}`, { status: newStatus }))
       );
-      toast.success(`Updated ${selectedIds.size} submission${selectedIds.size !== 1 ? 's' : ''} to ${STATUS_LABELS[newStatus] ?? newStatus}.`);
+      toast.success(`Updated ${count} submission${count !== 1 ? 's' : ''} to ${STATUS_LABELS[newStatus] ?? newStatus}.`);
       setSelectedIds(new Set());
       onBulkReload?.();
     } catch (err) {
