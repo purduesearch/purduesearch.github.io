@@ -56,6 +56,7 @@ export declare function sendMilestoneAlerts(app: App, changed: {
     status: string;
     prevStatus: string;
 }[]): Promise<void>;
+export declare function sendCombinedMondayDigest(app: App): Promise<void>;
 export declare function sendAllStaleTaskWarnings(app: App): Promise<void>;
 export {};
 //# sourceMappingURL=notificationService.d.ts.map

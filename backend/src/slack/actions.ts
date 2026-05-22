@@ -586,4 +586,55 @@ export function registerActions(app: App): void {
       console.error("open_image_task_modal error:", err);
     }
   });
+
+  // ── Event Create Submit ───────────────────────────────────
+  app.view("event_create_submit", async ({ ack, view, body }) => {
+    await ack();
+    try {
+      const v = view.state.values;
+      const title     = v.event_title?.value?.value ?? "";
+      const type      = (v.event_type?.value?.selected_option?.value ?? "MEETING") as any;
+      const dateStr   = v.event_date?.value?.selected_date ?? "";
+      const timeStr   = v.event_time?.value?.value ?? "00:00";
+      const location  = v.event_location?.value?.value ?? undefined;
+      const projectId = v.event_project?.value?.selected_option?.value ?? undefined;
+      const recPat    = v.event_recurring?.value?.selected_option?.value ?? undefined;
+
+      if (!title || !dateStr) return;
+
+      const startTime = new Date(`${dateStr}T${timeStr}:00`);
+      const member    = await resolveSlackMember(body.user.id);
+
+      const { createEvent } = await import("../services/eventService.js");
+      await createEvent({
+        title, type, startTime, location, projectId,
+        organizerId: member.id,
+        isRecurring: !!recPat,
+        recurrencePattern: recPat,
+      });
+    } catch (err) {
+      console.error("event_create_submit error:", err);
+    }
+  });
+
+  // ── Outreach Submit Modal ─────────────────────────────────
+  app.view("outreach_submit_modal", async ({ ack, view, body }) => {
+    await ack();
+    try {
+      const v = view.state.values;
+      const title    = v.submission_title?.value?.value ?? "";
+      const type     = (v.submission_type?.value?.selected_option?.value ?? "SOCIAL_POST") as any;
+      const content  = v.submission_content?.value?.value ?? undefined;
+      const platform = (v.submission_platform?.value?.selected_options ?? []).map((o: any) => o.value);
+      const status   = (v.submission_status?.value?.selected_option?.value ?? "SUBMITTED") as any;
+
+      if (!title) return;
+
+      const member = await resolveSlackMember(body.user.id);
+      const { createSubmission } = await import("../services/outreachService.js");
+      await createSubmission({ title, type, content, platform, authorId: member.id, status });
+    } catch (err) {
+      console.error("outreach_submit_modal error:", err);
+    }
+  });
 }

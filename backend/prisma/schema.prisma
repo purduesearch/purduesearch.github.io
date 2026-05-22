@@ -119,6 +119,11 @@ model Member {
   slackHandle String
   displayName String
   avatarUrl   String?
+  title       String?
+  email       String?
+  timezone    String?
+  team        String?
+  bio         String?
   role            Role            @default(MEMBER)
   isAdmin         Boolean         @default(false)
   isBot           Boolean         @default(false)
@@ -138,6 +143,10 @@ model Member {
   ownedMilestones Milestone[]     @relation("MilestoneOwner")
   timeLogs        TimeLog[]
   updates         ProjectUpdate[]
+  organizedEvents Event[]         @relation("EventOrganizer")
+  attendedEvents  Event[]         @relation("EventAttendees")
+  submissions     OutreachSubmission[] @relation("SubmissionAuthor")
+  reviewedSubmissions OutreachSubmission[] @relation("SubmissionReviewer")
   createdAt       DateTime        @default(now())
 }
 
@@ -162,6 +171,8 @@ model Project {
   activityLogs         ActivityLog[]
   notificationTargets  ProjectNotificationTarget[]
   notifications        Notification[]
+  events               Event[]
+  submissions          OutreachSubmission[]
   createdAt            DateTime        @default(now())
   updatedAt            DateTime        @updatedAt
 }
@@ -222,6 +233,9 @@ model Task {
   // ── Milestone ──
   milestone    Milestone? @relation(fields: [milestoneId], references: [id], onDelete: SetNull)
   milestoneId  String?
+
+  // ── Events ──
+  priorityEvents Event[] @relation("EventPriorityTasks")
 
   activityLogs ActivityLog[]
   notifications Notification[]
@@ -427,5 +441,104 @@ model TimeLog {
 
   @@index([taskId])
   @@index([memberId])
+}
+
+// ── Events ───────────────────────────────────────────────────
+
+enum EventType {
+  MEETING
+  DEADLINE
+  WORKSHOP
+  SOCIAL
+  OTHER
+}
+
+model Event {
+  id          String    @id @default(cuid())
+  title       String
+  description String?
+  type        EventType @default(MEETING)
+  startTime   DateTime
+  endTime     DateTime?
+  location    String?
+  isVirtual   Boolean   @default(false)
+
+  project     Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  projectId   String?
+
+  priorityTasks Task[]  @relation("EventPriorityTasks")
+
+  organizer   Member?   @relation("EventOrganizer", fields: [organizerId], references: [id], onDelete: SetNull)
+  organizerId String?
+
+  attendees   Member[]  @relation("EventAttendees")
+
+  notes       String?
+
+  isRecurring       Boolean   @default(false)
+  recurrencePattern String?
+  recurrenceEndDate DateTime?
+
+  submissions OutreachSubmission[]
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([startTime])
+  @@index([projectId])
+  @@index([organizerId])
+}
+
+// ── Outreach ─────────────────────────────────────────────────
+
+enum SubmissionStatus {
+  DRAFT
+  SUBMITTED
+  IN_REVIEW
+  APPROVED
+  PUBLISHED
+  REJECTED
+}
+
+enum SubmissionType {
+  SOCIAL_POST
+  NEWSLETTER
+  PHOTO
+  VIDEO
+  ANNOUNCEMENT
+  EVENT_PROMO
+}
+
+model OutreachSubmission {
+  id          String           @id @default(cuid())
+  title       String
+  type        SubmissionType
+  status      SubmissionStatus @default(DRAFT)
+  content     String?
+  mediaUrls   String[]
+  platform    String[]
+
+  project     Project?         @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  projectId   String?
+
+  event       Event?           @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  eventId     String?
+
+  author      Member           @relation("SubmissionAuthor", fields: [authorId], references: [id])
+  authorId    String
+
+  reviewer    Member?          @relation("SubmissionReviewer", fields: [reviewerId], references: [id], onDelete: SetNull)
+  reviewerId  String?
+
+  reviewNote  String?
+  scheduledAt DateTime?
+  publishedAt DateTime?
+
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@index([status])
+  @@index([authorId])
+  @@index([projectId])
 }
 

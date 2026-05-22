@@ -17,6 +17,8 @@ import { startScheduler } from "./slack/scheduler.js";
 import { notificationsRouter } from "./api/notifications.js";
 import { sseRouter } from "./api/sse.js";
 import { initDmBatcher } from "./services/dmBatcher.js";
+import { eventsRouter } from "./api/events.js";
+import { outreachRouter } from "./api/outreach.js";
 
 // ── Express Setup ────────────────────────────────────────────
 
@@ -73,6 +75,8 @@ app.use("/api/reporting", reportingRouter);
 app.use("/api/slack", slackRouter);
 app.use("/api/notifications", notificationsRouter);
 app.use("/api/notifications", sseRouter);
+app.use("/api/events", eventsRouter);
+app.use("/api/outreach", outreachRouter);
 
 // Health check
 app.get("/api/health", (_req, res) => {

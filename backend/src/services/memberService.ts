@@ -23,6 +23,10 @@ export async function resolveSlackMember(
   // Slackbot is hard-coded as a bot — its slackId is constant across workspaces.
   let isBot = existing?.isBot ?? (slackUserId === "USLACKBOT");
 
+  let title: string | undefined;
+  let email: string | undefined;
+  let timezone: string | undefined;
+
   if (client) {
     try {
       const userInfo = await client.users.info({ user: slackUserId });
@@ -31,6 +35,9 @@ export async function resolveSlackMember(
         slackHandle = userInfo.user.name || existing?.slackHandle || slackUserId;
         avatarUrl   = userInfo.user.profile?.image_72 ?? avatarUrl;
         isBot = Boolean(userInfo.user.is_bot) || slackUserId === "USLACKBOT";
+        title    = (userInfo.user.profile as any)?.title || undefined;
+        email    = (userInfo.user.profile as any)?.email || undefined;
+        timezone = userInfo.user.tz || undefined;
       }
     } catch {
       // Silently fall back to defaults if Slack API call fails
@@ -39,8 +46,27 @@ export async function resolveSlackMember(
 
   return prisma.member.upsert({
     where: { slackId: slackUserId },
-    update: { displayName, slackHandle, avatarUrl, isBot },
-    create: { slackId: slackUserId, slackHandle, displayName, avatarUrl, isBot },
+    update: {
+      displayName, slackHandle, avatarUrl, isBot,
+      ...(title    !== undefined ? { title }    : {}),
+      ...(email    !== undefined ? { email }    : {}),
+      ...(timezone !== undefined ? { timezone } : {}),
+    },
+    create: { slackId: slackUserId, slackHandle, displayName, avatarUrl, isBot, title, email, timezone },
+  });
+}
+
+export async function updateMemberProfile(
+  memberId: string,
+  data: { team?: string; bio?: string; email?: string }
+): Promise<Member> {
+  return prisma.member.update({
+    where: { id: memberId },
+    data: {
+      ...(data.team  !== undefined ? { team: data.team }   : {}),
+      ...(data.bio   !== undefined ? { bio: data.bio }     : {}),
+      ...(data.email !== undefined ? { email: data.email } : {}),
+    },
   });
 }
 

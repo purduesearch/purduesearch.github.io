@@ -55,12 +55,15 @@ membersRouter.patch("/me", async (req: Request, res: Response) => {
       return;
     }
 
-    const { kanbanColumnOrder } = req.body;
+    const { kanbanColumnOrder, team, bio, email } = req.body;
 
     const member = await prisma.member.update({
       where: { id: req.session.memberId },
       data: {
-        ...(kanbanColumnOrder ? { kanbanColumnOrder } : {}),
+        ...(kanbanColumnOrder !== undefined ? { kanbanColumnOrder } : {}),
+        ...(team  !== undefined ? { team }  : {}),
+        ...(bio   !== undefined ? { bio }   : {}),
+        ...(email !== undefined ? { email } : {}),
       },
     });
 
@@ -134,6 +137,9 @@ membersRouter.get("/", async (_req: Request, res: Response) => {
         _count: {
           select: { tasks: true, projects: true },
         },
+        projects: {
+          include: { project: { select: { id: true, name: true, status: true } } },
+        },
       },
       orderBy: { displayName: "asc" },
     });
@@ -142,5 +148,46 @@ membersRouter.get("/", async (_req: Request, res: Response) => {
   } catch (error) {
     console.error("List members error:", error);
     res.status(500).json({ error: "Failed to list members" });
+  }
+});
+
+// ── GET /api/members/:id ─────────────────────────────────────
+
+membersRouter.get("/:id", async (req: Request, res: Response) => {
+  try {
+    const member = await prisma.member.findUnique({
+      where: { id: req.params.id as string },
+      include: {
+        projects: {
+          include: {
+            project: {
+              include: {
+                _count: { select: { tasks: true } },
+                tasks: {
+                  where: { assignees: { some: { id: req.params.id as string } } },
+                  select: { id: true, status: true, progress: true },
+                },
+              },
+            },
+          },
+        },
+        activityLogs: {
+          orderBy: { createdAt: "desc" },
+          take: 20,
+          include: { project: { select: { id: true, name: true } } },
+        },
+        _count: { select: { tasks: true, projects: true } },
+      },
+    });
+
+    if (!member) {
+      res.status(404).json({ error: "Member not found" });
+      return;
+    }
+
+    res.json(member);
+  } catch (error) {
+    console.error("Get member error:", error);
+    res.status(500).json({ error: "Failed to get member" });
   }
 });

@@ -10,8 +10,8 @@ export declare function createMilestone(data: {
     }[];
 } & {
     id: string;
-    createdAt: Date;
     title: string;
+    createdAt: Date;
     description: string | null;
     status: import("@prisma/client").$Enums.MilestoneStatus;
     dueDate: Date | null;
@@ -31,8 +31,8 @@ export declare function updateMilestone(id: string, data: {
     }[];
 } & {
     id: string;
-    createdAt: Date;
     title: string;
+    createdAt: Date;
     description: string | null;
     status: import("@prisma/client").$Enums.MilestoneStatus;
     dueDate: Date | null;
@@ -44,8 +44,8 @@ export declare function updateMilestone(id: string, data: {
 }>;
 export declare function deleteMilestone(id: string): Promise<{
     id: string;
-    createdAt: Date;
     title: string;
+    createdAt: Date;
     description: string | null;
     status: import("@prisma/client").$Enums.MilestoneStatus;
     dueDate: Date | null;
@@ -63,17 +63,26 @@ export declare function getMilestone(id: string): Promise<({
             slackHandle: string;
             displayName: string;
             avatarUrl: string | null;
+            title: string | null;
+            email: string | null;
+            timezone: string | null;
+            team: string | null;
+            bio: string | null;
             role: import("@prisma/client").$Enums.Role;
             isAdmin: boolean;
             isBot: boolean;
             kanbanColumnOrder: string[];
             notificationPrefs: string[];
+            notificationChannels: import("@prisma/client/runtime/library").JsonValue | null;
+            quietHoursStart: number | null;
+            quietHoursEnd: number | null;
+            mutedProjectIds: string[];
             createdAt: Date;
         }[];
     } & {
         id: string;
-        createdAt: Date;
         title: string;
+        createdAt: Date;
         description: string | null;
         status: import("@prisma/client").$Enums.TaskStatus;
         priority: import("@prisma/client").$Enums.Priority;
@@ -98,8 +107,8 @@ export declare function getMilestone(id: string): Promise<({
     })[];
 } & {
     id: string;
-    createdAt: Date;
     title: string;
+    createdAt: Date;
     description: string | null;
     status: import("@prisma/client").$Enums.MilestoneStatus;
     dueDate: Date | null;
@@ -120,8 +129,8 @@ export declare function getMilestonesForProject(projectId: string): Promise<{
         status: import("@prisma/client").$Enums.TaskStatus;
     }[];
     id: string;
-    createdAt: Date;
     title: string;
+    createdAt: Date;
     description: string | null;
     status: import("@prisma/client").$Enums.MilestoneStatus;
     dueDate: Date | null;
@@ -161,8 +170,8 @@ export declare function getMilestoneWithProgress(milestoneId: string): Promise<{
         avatarUrl: string | null;
     } | null;
     id: string;
-    createdAt: Date;
     title: string;
+    createdAt: Date;
     description: string | null;
     status: import("@prisma/client").$Enums.MilestoneStatus;
     dueDate: Date | null;

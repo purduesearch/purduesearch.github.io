@@ -23,4 +23,6 @@ export declare function openMeetingNotesModal(client: WebClient, triggerId: stri
 export declare function openSprintPlanModal(client: WebClient, triggerId: string, projectId: string): Promise<void>;
 export declare function openImageTaskModal(client: WebClient, triggerId: string, channelId: string, fileUrl: string, userNote: string): Promise<void>;
 export declare function registerAiModals(app: App): void;
+export declare function openEventCreateModal(client: WebClient, triggerId: string, channelId: string): Promise<void>;
+export declare function openOutreachSubmitModal(client: WebClient, triggerId: string, _slackUserId: string): Promise<void>;
 //# sourceMappingURL=modals.d.ts.map

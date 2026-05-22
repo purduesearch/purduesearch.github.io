@@ -5,6 +5,8 @@ import { prisma } from "../db/prisma.js";
 import { getProject, createProject, updateProject, getProjectsWithTaskStats, getChannelMemberSlackIds, syncProjectMembersFromChannel, } from "../services/projectService.js";
 import { getTasksForProject, createTask, } from "../services/taskService.js";
 import { logAuditEvent, diffObjects, getProjectAuditLog } from "../services/activityService.js";
+import { createNotification } from "../services/notificationCrud.js";
+import { queueDm } from "../services/dmBatcher.js";
 import { fetchDriveFileAsText, extractFileId, listDriveFolderFiles, getDriveFileMeta } from "../services/driveService.js";
 import { generateJsonFromDocument, generateText } from "../services/geminiService.js";
 import { driveToTasksPrompt, meetingNotesToTasksPrompt, projectQaPrompt, } from "../utils/aiPrompts.js";
@@ -270,10 +272,40 @@ projectsRouter.post("/:id/updates", async (req, res) => {
             res.status(400).json({ error: "content is required" });
             return;
         }
+        const projectId = req.params.id;
         const update = await prisma.projectUpdate.create({
-            data: { projectId: req.params.id, authorId: memberId, content },
+            data: { projectId, authorId: memberId, content },
             include: { author: { select: { displayName: true, avatarUrl: true } } },
         });
+        // Notify all project members of the update (except author) — fire-and-forget
+        (() => {
+            const actorId = memberId;
+            return (async () => {
+                const projectWithMembers = await prisma.project.findUnique({
+                    where: { id: projectId },
+                    select: {
+                        name: true,
+                        members: { include: { member: { select: { id: true, slackId: true } } } },
+                    },
+                });
+                if (!projectWithMembers)
+                    return;
+                for (const pm of projectWithMembers.members) {
+                    const recipient = pm.member;
+                    if (recipient.id === actorId)
+                        continue;
+                    await createNotification({
+                        type: "PROJECT_UPDATE",
+                        recipientId: recipient.id,
+                        actorId,
+                        projectId,
+                        message: `New update in project ${projectWithMembers.name}: ${content.slice(0, 100)}`,
+                    });
+                    if (recipient.slackId)
+                        queueDm(recipient.slackId, `📢 New update in *${projectWithMembers.name}*:\n> ${content.slice(0, 200)}`);
+                }
+            })();
+        })().catch(console.error);
         res.status(201).json(update);
     }
     catch (error) {

@@ -6,6 +6,8 @@ import { logAuditEvent, diffObjects } from "../services/activityService.js";
 import { generateJson, generateJsonFromImage } from "../services/geminiService.js";
 import { duplicateDetectionPrompt, enrichTaskPrompt, deadlineSuggestionPrompt, nlToTaskPrompt, imageToTaskPrompt, } from "../utils/aiPrompts.js";
 import { prisma as prismaClient } from "../db/prisma.js";
+import { createNotification } from "../services/notificationCrud.js";
+import { queueDm } from "../services/dmBatcher.js";
 export const tasksRouter = Router();
 // All routes require authentication
 tasksRouter.use(requireAuth);
@@ -210,6 +212,56 @@ tasksRouter.patch("/:id", channelAuth, async (req, res) => {
                 }
             }
         })();
+        // Notification emitters (fire-and-forget)
+        (() => {
+            const actorId = req.session.memberId;
+            if (!actorId)
+                return Promise.resolve();
+            const assigneesBefore = (existingTask.assignees ?? []).map((a) => a.id);
+            const assigneesAfter = (task.assignees ?? []).map((a) => a.id);
+            const assigneesChanged = assigneesBefore.sort().join(",") !== assigneesAfter.sort().join(",");
+            const addedAssigneeIds = assigneesAfter.filter((id) => !assigneesBefore.includes(id));
+            const isNowDone = existingTask.status !== "DONE" && task.status === "DONE";
+            return (async () => {
+                const [actor, proj] = await Promise.all([
+                    prismaClient.member.findUnique({ where: { id: actorId }, select: { displayName: true } }),
+                    prismaClient.project.findUnique({ where: { id: task.projectId }, select: { name: true } }),
+                ]);
+                if (assigneesChanged && addedAssigneeIds.length > 0) {
+                    const addedAssignees = (task.assignees ?? []).filter((a) => addedAssigneeIds.includes(a.id));
+                    for (const assignee of addedAssignees) {
+                        if (assignee.id === actorId)
+                            continue;
+                        await createNotification({
+                            type: "TASK_ASSIGNED",
+                            recipientId: assignee.id,
+                            actorId,
+                            projectId: task.projectId,
+                            taskId,
+                            message: `${actor?.displayName ?? "Someone"} assigned you to "${task.title}" in ${proj?.name ?? "a project"}`,
+                        });
+                        if (assignee.slackId)
+                            queueDm(assignee.slackId, `📋 *${actor?.displayName ?? "Someone"}* assigned you to *${task.title}* in ${proj?.name ?? "a project"}`);
+                    }
+                }
+                if (isNowDone) {
+                    for (const assignee of (task.assignees ?? [])) {
+                        if (assignee.id === actorId)
+                            continue;
+                        await createNotification({
+                            type: "TASK_COMPLETED",
+                            recipientId: assignee.id,
+                            actorId,
+                            projectId: task.projectId,
+                            taskId,
+                            message: `Task "${task.title}" was marked done`,
+                        });
+                        if (assignee.slackId)
+                            queueDm(assignee.slackId, `✅ Task *${task.title}* was marked done`);
+                    }
+                }
+            })();
+        })().catch(console.error);
         // If task is linked to a milestone, refresh its health (fire-and-forget)
         if (task.milestoneId) {
             const { refreshMilestoneHealth } = await import("../services/milestoneService.js");
@@ -268,8 +320,14 @@ tasksRouter.get("/:id/comments", async (req, res) => {
         const taskId = req.params.id;
         const { prisma } = await import("../db/prisma.js");
         const comments = await prisma.taskComment.findMany({
-            where: { taskId },
-            include: { author: true },
+            where: { taskId, parentId: null },
+            include: {
+                author: true,
+                replies: {
+                    include: { author: true },
+                    orderBy: { createdAt: "asc" },
+                },
+            },
             orderBy: { createdAt: "asc" },
         });
         res.json(comments);
@@ -309,7 +367,7 @@ tasksRouter.get("/:id/history", async (req, res) => {
 tasksRouter.post("/:id/comments", async (req, res) => {
     try {
         const taskId = req.params.id;
-        const { content } = req.body;
+        const { content, parentId } = req.body;
         const memberId = req.session.memberId;
         if (!content) {
             res.status(400).json({ error: "Content is required" });
@@ -321,12 +379,30 @@ tasksRouter.post("/:id/comments", async (req, res) => {
                 content,
                 taskId,
                 authorId: memberId,
+                ...(parentId ? { parentId } : {}),
             },
         });
         const populatedComment = await prisma.taskComment.findUnique({
             where: { id: comment.id },
             include: { author: true, task: { include: { project: true } } },
         });
+        // If this is a reply, notify the parent comment's author
+        if (parentId && populatedComment) {
+            const parentComment = await prisma.taskComment.findUnique({
+                where: { id: parentId },
+                select: { authorId: true },
+            });
+            if (parentComment && parentComment.authorId !== memberId) {
+                createNotification({
+                    type: "COMMENT_REPLY",
+                    recipientId: parentComment.authorId,
+                    actorId: memberId,
+                    taskId,
+                    commentId: comment.id,
+                    message: `${populatedComment.author.displayName} replied to your comment on task "${populatedComment.task.title}"`,
+                }).catch(console.error);
+            }
+        }
         // Handle @mentions
         const mentionRegex = /@([a-zA-Z0-9_-]+)/g;
         const mentions = [...content.matchAll(mentionRegex)].map(m => m[1]);
@@ -358,11 +434,165 @@ tasksRouter.post("/:id/comments", async (req, res) => {
                 }
             }
         }
+        // Notify task assignees of new comment (exclude author)
+        const taskForNotif = await prismaClient.task.findUnique({
+            where: { id: taskId },
+            include: { assignees: true, project: true },
+        });
+        if (taskForNotif) {
+            const author = await prismaClient.member.findUnique({
+                where: { id: memberId },
+                select: { displayName: true },
+            });
+            for (const assignee of taskForNotif.assignees) {
+                if (assignee.id === memberId)
+                    continue; // skip actor
+                createNotification({
+                    type: "TASK_COMMENTED",
+                    recipientId: assignee.id,
+                    actorId: memberId,
+                    projectId: taskForNotif.projectId,
+                    taskId,
+                    message: `${author?.displayName ?? "Someone"} commented on "${taskForNotif.title}"`,
+                }).catch(console.error);
+                if (assignee.slackId)
+                    queueDm(assignee.slackId, `💬 *${author?.displayName ?? "Someone"}* commented on *${taskForNotif.title}* (${taskForNotif.project.name}):\n> ${content.slice(0, 200)}`);
+            }
+        }
+        // Sync comment to Slack thread (if task has a Slack announcement)
+        if (populatedComment?.task?.slackMsgTs) {
+            (async () => {
+                try {
+                    const { boltApp } = await import("../slack/bolt.js");
+                    const { prisma: db } = await import("../db/prisma.js");
+                    const target = await db.projectNotificationTarget.findFirst({
+                        where: { projectId: populatedComment.task.projectId },
+                        select: { slackChannelId: true },
+                    });
+                    const channelId = target?.slackChannelId ?? populatedComment.task.project?.slackChannel;
+                    if (!channelId)
+                        return;
+                    const frontendUrl = process.env.FRONTEND_URL ?? "http://localhost:3000";
+                    await boltApp.client.chat.postMessage({
+                        channel: channelId,
+                        thread_ts: populatedComment.task.slackMsgTs,
+                        text: `💬 *${populatedComment.author.displayName}* commented: ${content.slice(0, 300)}${content.length > 300 ? "…" : ""}\n<${frontendUrl}/clubpm/projects/${populatedComment.task.projectId}|View on Dashboard>`,
+                    });
+                }
+                catch (err) {
+                    console.error("Comment Slack thread sync error:", err);
+                }
+            })();
+        }
         res.status(201).json(populatedComment || comment);
     }
     catch (error) {
         console.error("Create comment error:", error);
         res.status(500).json({ error: "Failed to create comment" });
+    }
+});
+// ── PATCH /api/tasks/:id/comments/:commentId ─────────────────
+tasksRouter.patch("/:id/comments/:commentId", async (req, res) => {
+    try {
+        const commentId = req.params.commentId;
+        const memberId = req.session.memberId;
+        const { content } = req.body;
+        if (!content) {
+            res.status(400).json({ error: "Content is required" });
+            return;
+        }
+        const { prisma } = await import("../db/prisma.js");
+        const comment = await prisma.taskComment.findUnique({ where: { id: commentId } });
+        if (!comment) {
+            res.status(404).json({ error: "Comment not found" });
+            return;
+        }
+        if (comment.authorId !== memberId) {
+            res.status(403).json({ error: "Forbidden: only the author can edit this comment" });
+            return;
+        }
+        const updated = await prisma.taskComment.update({
+            where: { id: commentId },
+            data: { content, editedAt: new Date() },
+            include: { author: true },
+        });
+        res.json(updated);
+    }
+    catch (error) {
+        console.error("Edit comment error:", error);
+        res.status(500).json({ error: "Failed to edit comment" });
+    }
+});
+// ── DELETE /api/tasks/:id/comments/:commentId ─────────────────
+tasksRouter.delete("/:id/comments/:commentId", async (req, res) => {
+    try {
+        const commentId = req.params.commentId;
+        const memberId = req.session.memberId;
+        const { prisma } = await import("../db/prisma.js");
+        const comment = await prisma.taskComment.findUnique({ where: { id: commentId } });
+        if (!comment) {
+            res.status(404).json({ error: "Comment not found" });
+            return;
+        }
+        const isAuthor = comment.authorId === memberId;
+        if (!isAuthor) {
+            const member = await prismaClient.member.findUnique({
+                where: { id: memberId },
+                select: { isAdmin: true },
+            });
+            if (!member?.isAdmin) {
+                res.status(403).json({ error: "Forbidden: only the author or an admin can delete this comment" });
+                return;
+            }
+        }
+        await prisma.taskComment.delete({ where: { id: commentId } });
+        res.json({ ok: true });
+    }
+    catch (error) {
+        console.error("Delete comment error:", error);
+        res.status(500).json({ error: "Failed to delete comment" });
+    }
+});
+// ── POST /api/tasks/:id/comments/:commentId/reactions ────────
+tasksRouter.post("/:id/comments/:commentId/reactions", async (req, res) => {
+    try {
+        const commentId = req.params.commentId;
+        const memberId = req.session.memberId;
+        const { emoji } = req.body;
+        if (!emoji) {
+            res.status(400).json({ error: "emoji is required" });
+            return;
+        }
+        const { prisma } = await import("../db/prisma.js");
+        const comment = await prisma.taskComment.findUnique({ where: { id: commentId } });
+        if (!comment) {
+            res.status(404).json({ error: "Comment not found" });
+            return;
+        }
+        // reactions shape: { "👍": ["memberId1", "memberId2"], ... }
+        const reactions = comment.reactions ?? {};
+        const current = reactions[emoji] ?? [];
+        if (current.includes(memberId)) {
+            // Toggle off — remove the member from the array
+            reactions[emoji] = current.filter(id => id !== memberId);
+            if (reactions[emoji].length === 0) {
+                delete reactions[emoji];
+            }
+        }
+        else {
+            // Toggle on — add the member to the array
+            reactions[emoji] = [...current, memberId];
+        }
+        const updated = await prisma.taskComment.update({
+            where: { id: commentId },
+            data: { reactions },
+            include: { author: true },
+        });
+        res.json(updated);
+    }
+    catch (error) {
+        console.error("Toggle reaction error:", error);
+        res.status(500).json({ error: "Failed to toggle reaction" });
     }
 });
 // ── GET /api/tasks/:id/subtasks ──────────────────────────────

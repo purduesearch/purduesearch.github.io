@@ -1,4 +1,4 @@
-import type { Task, TaskStatus, TaskProgress, Priority, Member, Project, RecurringInterval, Tag } from "@prisma/client";
+import type { Task, TaskStatus, TaskProgress, Priority, Prisma, Member, Project, RecurringInterval, Tag } from "@prisma/client";
 interface CreateTaskInput {
     title: string;
     description?: string;
@@ -76,8 +76,8 @@ export declare function getTask(id: string): Promise<({
     };
     milestone: {
         id: string;
-        createdAt: Date;
         title: string;
+        createdAt: Date;
         description: string | null;
         status: import("@prisma/client").$Enums.MilestoneStatus;
         dueDate: Date | null;
@@ -93,11 +93,20 @@ export declare function getTask(id: string): Promise<({
         slackHandle: string;
         displayName: string;
         avatarUrl: string | null;
+        title: string | null;
+        email: string | null;
+        timezone: string | null;
+        team: string | null;
+        bio: string | null;
         role: import("@prisma/client").$Enums.Role;
         isAdmin: boolean;
         isBot: boolean;
         kanbanColumnOrder: string[];
         notificationPrefs: string[];
+        notificationChannels: Prisma.JsonValue | null;
+        quietHoursStart: number | null;
+        quietHoursEnd: number | null;
+        mutedProjectIds: string[];
         createdAt: Date;
     }[];
     tags: {
@@ -114,11 +123,20 @@ export declare function getTask(id: string): Promise<({
             slackHandle: string;
             displayName: string;
             avatarUrl: string | null;
+            title: string | null;
+            email: string | null;
+            timezone: string | null;
+            team: string | null;
+            bio: string | null;
             role: import("@prisma/client").$Enums.Role;
             isAdmin: boolean;
             isBot: boolean;
             kanbanColumnOrder: string[];
             notificationPrefs: string[];
+            notificationChannels: Prisma.JsonValue | null;
+            quietHoursStart: number | null;
+            quietHoursEnd: number | null;
+            mutedProjectIds: string[];
             createdAt: Date;
         };
     } & {
@@ -127,6 +145,9 @@ export declare function getTask(id: string): Promise<({
         content: string;
         taskId: string;
         authorId: string;
+        parentId: string | null;
+        editedAt: Date | null;
+        reactions: Prisma.JsonValue | null;
     })[];
     parentTask: {
         id: string;
@@ -139,17 +160,26 @@ export declare function getTask(id: string): Promise<({
             slackHandle: string;
             displayName: string;
             avatarUrl: string | null;
+            title: string | null;
+            email: string | null;
+            timezone: string | null;
+            team: string | null;
+            bio: string | null;
             role: import("@prisma/client").$Enums.Role;
             isAdmin: boolean;
             isBot: boolean;
             kanbanColumnOrder: string[];
             notificationPrefs: string[];
+            notificationChannels: Prisma.JsonValue | null;
+            quietHoursStart: number | null;
+            quietHoursEnd: number | null;
+            mutedProjectIds: string[];
             createdAt: Date;
         }[];
     } & {
         id: string;
-        createdAt: Date;
         title: string;
+        createdAt: Date;
         description: string | null;
         status: import("@prisma/client").$Enums.TaskStatus;
         priority: import("@prisma/client").$Enums.Priority;
@@ -207,8 +237,8 @@ export declare function getTask(id: string): Promise<({
     })[];
 } & {
     id: string;
-    createdAt: Date;
     title: string;
+    createdAt: Date;
     description: string | null;
     status: import("@prisma/client").$Enums.TaskStatus;
     priority: import("@prisma/client").$Enums.Priority;
@@ -238,11 +268,20 @@ export declare function getTasksForProject(projectId: string, filters?: TaskFilt
         slackHandle: string;
         displayName: string;
         avatarUrl: string | null;
+        title: string | null;
+        email: string | null;
+        timezone: string | null;
+        team: string | null;
+        bio: string | null;
         role: import("@prisma/client").$Enums.Role;
         isAdmin: boolean;
         isBot: boolean;
         kanbanColumnOrder: string[];
         notificationPrefs: string[];
+        notificationChannels: Prisma.JsonValue | null;
+        quietHoursStart: number | null;
+        quietHoursEnd: number | null;
+        mutedProjectIds: string[];
         createdAt: Date;
     }[];
     tags: {
@@ -254,8 +293,8 @@ export declare function getTasksForProject(projectId: string, filters?: TaskFilt
     }[];
 } & {
     id: string;
-    createdAt: Date;
     title: string;
+    createdAt: Date;
     description: string | null;
     status: import("@prisma/client").$Enums.TaskStatus;
     priority: import("@prisma/client").$Enums.Priority;
@@ -300,11 +339,20 @@ export declare function getTasksForMember(memberId: string): Promise<({
         slackHandle: string;
         displayName: string;
         avatarUrl: string | null;
+        title: string | null;
+        email: string | null;
+        timezone: string | null;
+        team: string | null;
+        bio: string | null;
         role: import("@prisma/client").$Enums.Role;
         isAdmin: boolean;
         isBot: boolean;
         kanbanColumnOrder: string[];
         notificationPrefs: string[];
+        notificationChannels: Prisma.JsonValue | null;
+        quietHoursStart: number | null;
+        quietHoursEnd: number | null;
+        mutedProjectIds: string[];
         createdAt: Date;
     }[];
     tags: {
@@ -316,8 +364,8 @@ export declare function getTasksForMember(memberId: string): Promise<({
     }[];
 } & {
     id: string;
-    createdAt: Date;
     title: string;
+    createdAt: Date;
     description: string | null;
     status: import("@prisma/client").$Enums.TaskStatus;
     priority: import("@prisma/client").$Enums.Priority;
@@ -362,17 +410,26 @@ export declare function getOverdueTasks(): Promise<({
         slackHandle: string;
         displayName: string;
         avatarUrl: string | null;
+        title: string | null;
+        email: string | null;
+        timezone: string | null;
+        team: string | null;
+        bio: string | null;
         role: import("@prisma/client").$Enums.Role;
         isAdmin: boolean;
         isBot: boolean;
         kanbanColumnOrder: string[];
         notificationPrefs: string[];
+        notificationChannels: Prisma.JsonValue | null;
+        quietHoursStart: number | null;
+        quietHoursEnd: number | null;
+        mutedProjectIds: string[];
         createdAt: Date;
     }[];
 } & {
     id: string;
-    createdAt: Date;
     title: string;
+    createdAt: Date;
     description: string | null;
     status: import("@prisma/client").$Enums.TaskStatus;
     priority: import("@prisma/client").$Enums.Priority;
@@ -417,17 +474,26 @@ export declare function getTasksDueToday(): Promise<({
         slackHandle: string;
         displayName: string;
         avatarUrl: string | null;
+        title: string | null;
+        email: string | null;
+        timezone: string | null;
+        team: string | null;
+        bio: string | null;
         role: import("@prisma/client").$Enums.Role;
         isAdmin: boolean;
         isBot: boolean;
         kanbanColumnOrder: string[];
         notificationPrefs: string[];
+        notificationChannels: Prisma.JsonValue | null;
+        quietHoursStart: number | null;
+        quietHoursEnd: number | null;
+        mutedProjectIds: string[];
         createdAt: Date;
     }[];
 } & {
     id: string;
-    createdAt: Date;
     title: string;
+    createdAt: Date;
     description: string | null;
     status: import("@prisma/client").$Enums.TaskStatus;
     priority: import("@prisma/client").$Enums.Priority;
@@ -472,17 +538,26 @@ export declare function getTasksDueThisWeek(memberId?: string): Promise<({
         slackHandle: string;
         displayName: string;
         avatarUrl: string | null;
+        title: string | null;
+        email: string | null;
+        timezone: string | null;
+        team: string | null;
+        bio: string | null;
         role: import("@prisma/client").$Enums.Role;
         isAdmin: boolean;
         isBot: boolean;
         kanbanColumnOrder: string[];
         notificationPrefs: string[];
+        notificationChannels: Prisma.JsonValue | null;
+        quietHoursStart: number | null;
+        quietHoursEnd: number | null;
+        mutedProjectIds: string[];
         createdAt: Date;
     }[];
 } & {
     id: string;
-    createdAt: Date;
     title: string;
+    createdAt: Date;
     description: string | null;
     status: import("@prisma/client").$Enums.TaskStatus;
     priority: import("@prisma/client").$Enums.Priority;
@@ -512,17 +587,26 @@ export declare function getSubtasks(taskId: string): Promise<({
         slackHandle: string;
         displayName: string;
         avatarUrl: string | null;
+        title: string | null;
+        email: string | null;
+        timezone: string | null;
+        team: string | null;
+        bio: string | null;
         role: import("@prisma/client").$Enums.Role;
         isAdmin: boolean;
         isBot: boolean;
         kanbanColumnOrder: string[];
         notificationPrefs: string[];
+        notificationChannels: Prisma.JsonValue | null;
+        quietHoursStart: number | null;
+        quietHoursEnd: number | null;
+        mutedProjectIds: string[];
         createdAt: Date;
     }[];
 } & {
     id: string;
-    createdAt: Date;
     title: string;
+    createdAt: Date;
     description: string | null;
     status: import("@prisma/client").$Enums.TaskStatus;
     priority: import("@prisma/client").$Enums.Priority;
@@ -570,17 +654,26 @@ export declare function createSubtask(parentTaskId: string, data: {
         slackHandle: string;
         displayName: string;
         avatarUrl: string | null;
+        title: string | null;
+        email: string | null;
+        timezone: string | null;
+        team: string | null;
+        bio: string | null;
         role: import("@prisma/client").$Enums.Role;
         isAdmin: boolean;
         isBot: boolean;
         kanbanColumnOrder: string[];
         notificationPrefs: string[];
+        notificationChannels: Prisma.JsonValue | null;
+        quietHoursStart: number | null;
+        quietHoursEnd: number | null;
+        mutedProjectIds: string[];
         createdAt: Date;
     }[];
 } & {
     id: string;
-    createdAt: Date;
     title: string;
+    createdAt: Date;
     description: string | null;
     status: import("@prisma/client").$Enums.TaskStatus;
     priority: import("@prisma/client").$Enums.Priority;
@@ -607,8 +700,8 @@ export declare function addDependency(taskId: string, blockedById: string): Prom
     blockedBy: ({
         blockingTask: {
             id: string;
-            createdAt: Date;
             title: string;
+            createdAt: Date;
             description: string | null;
             status: import("@prisma/client").$Enums.TaskStatus;
             priority: import("@prisma/client").$Enums.Priority;
@@ -638,8 +731,8 @@ export declare function addDependency(taskId: string, blockedById: string): Prom
     blocks: ({
         blockedTask: {
             id: string;
-            createdAt: Date;
             title: string;
+            createdAt: Date;
             description: string | null;
             status: import("@prisma/client").$Enums.TaskStatus;
             priority: import("@prisma/client").$Enums.Priority;
@@ -668,8 +761,8 @@ export declare function addDependency(taskId: string, blockedById: string): Prom
     })[];
 } & {
     id: string;
-    createdAt: Date;
     title: string;
+    createdAt: Date;
     description: string | null;
     status: import("@prisma/client").$Enums.TaskStatus;
     priority: import("@prisma/client").$Enums.Priority;
@@ -696,8 +789,8 @@ export declare function removeDependency(taskId: string, blockedById: string): P
     blockedBy: ({
         blockingTask: {
             id: string;
-            createdAt: Date;
             title: string;
+            createdAt: Date;
             description: string | null;
             status: import("@prisma/client").$Enums.TaskStatus;
             priority: import("@prisma/client").$Enums.Priority;
@@ -727,8 +820,8 @@ export declare function removeDependency(taskId: string, blockedById: string): P
     blocks: ({
         blockedTask: {
             id: string;
-            createdAt: Date;
             title: string;
+            createdAt: Date;
             description: string | null;
             status: import("@prisma/client").$Enums.TaskStatus;
             priority: import("@prisma/client").$Enums.Priority;
@@ -757,8 +850,8 @@ export declare function removeDependency(taskId: string, blockedById: string): P
     })[];
 } & {
     id: string;
-    createdAt: Date;
     title: string;
+    createdAt: Date;
     description: string | null;
     status: import("@prisma/client").$Enums.TaskStatus;
     priority: import("@prisma/client").$Enums.Priority;

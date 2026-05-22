@@ -1237,6 +1237,90 @@ function CreateProjectModal({ onClose, onCreate }) {
   );
 }
 
+// ── UpcomingEventsWidget ──────────────────────────────────────
+
+const EVENT_TYPE_ICONS = {
+  MEETING:   'fa-users',
+  DEADLINE:  'fa-flag',
+  WORKSHOP:  'fa-chalkboard-teacher',
+  SOCIAL:    'fa-star',
+  OTHER:     'fa-calendar-alt',
+};
+const EVENT_TYPE_COLORS = {
+  MEETING:   'var(--pm-accent-teal)',
+  DEADLINE:  'var(--pm-accent-coral)',
+  WORKSHOP:  'var(--pm-accent-amber)',
+  SOCIAL:    'var(--pm-accent-violet)',
+  OTHER:     'var(--pm-text-muted)',
+};
+
+function UpcomingEventsWidget({ events, loading }) {
+  function fmtEventDate(iso) {
+    const d = new Date(iso);
+    const now = new Date();
+    const today = new Date(now); today.setHours(0,0,0,0);
+    const tomorrow = new Date(today); tomorrow.setDate(today.getDate()+1);
+    const eventDay = new Date(d); eventDay.setHours(0,0,0,0);
+    const prefix = eventDay.getTime() === today.getTime()   ? 'Today'
+                 : eventDay.getTime() === tomorrow.getTime() ? 'Tomorrow'
+                 : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const time = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    return `${prefix} · ${time}`;
+  }
+
+  return (
+    <div className="pm-upcoming-events-widget">
+      <div className="pm-upcoming-events-header">
+        <div className="pm-upcoming-events-title">
+          <i className="fas fa-calendar-alt" />
+          Upcoming Events
+        </div>
+        <Link to="/clubpm/calendar" className="pm-upcoming-events-link">
+          View Calendar <i className="fas fa-arrow-right" />
+        </Link>
+      </div>
+
+      {loading ? (
+        <div className="pm-upcoming-events-loading">
+          <div className="pm-spinner" style={{ width: 18, height: 18 }} />
+        </div>
+      ) : events.length === 0 ? (
+        <div className="pm-upcoming-events-empty">No upcoming events in the next 7 days</div>
+      ) : (
+        <div className="pm-upcoming-events-list">
+          {events.slice(0, 7).map(ev => (
+            <div key={ev.id} className="pm-upcoming-event-row">
+              <div
+                className="pm-upcoming-event-type-dot"
+                style={{ background: EVENT_TYPE_COLORS[ev.type] ?? 'var(--pm-text-muted)' }}
+              />
+              <div className="pm-upcoming-event-icon">
+                <i className={`fas ${EVENT_TYPE_ICONS[ev.type] ?? 'fa-calendar-alt'}`} style={{ color: EVENT_TYPE_COLORS[ev.type] }} />
+              </div>
+              <div className="pm-upcoming-event-info">
+                <div className="pm-upcoming-event-title">{ev.title}</div>
+                <div className="pm-upcoming-event-meta">
+                  <span>{fmtEventDate(ev.startTime)}</span>
+                  {ev.location && <span> · {ev.location}</span>}
+                  {ev.isVirtual && <span className="pm-upcoming-event-virtual">Virtual</span>}
+                </div>
+              </div>
+              {ev.project && (
+                <span className="pm-upcoming-event-project-badge">{ev.project.name}</span>
+              )}
+              {ev._count?.priorityTasks > 0 && (
+                <span className="pm-upcoming-event-tasks-badge" title="Priority tasks">
+                  <i className="fas fa-tasks" /> {ev._count.priorityTasks}
+                </span>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Dashboard ─────────────────────────────────────────────────
 
 export default function Dashboard() {
@@ -1244,11 +1328,20 @@ export default function Dashboard() {
   const [projects, setProjects] = useState([]);
   const [myTasks, setMyTasks] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [upcomingEvents, setUpcomingEvents]   = useState([]);
+  const [eventsLoading, setEventsLoading]     = useState(true);
 
   const fetchTasks = () =>
     member
       ? get("/api/members/me").then(m => setMyTasks(m.tasks ?? []))
       : Promise.resolve();
+
+  useEffect(() => {
+    get("/api/events/upcoming")
+      .then(setUpcomingEvents)
+      .catch(() => setUpcomingEvents([]))
+      .finally(() => setEventsLoading(false));
+  }, []);
 
   useEffect(() => {
     Promise.all([
@@ -1280,6 +1373,7 @@ export default function Dashboard() {
     <div className="clubpm-app cpm-dashboard-root">
       <StatsBar projects={projects} myTasks={myTasks} />
       <AIInsightCards projects={projects} tasks={myTasks} />
+      <UpcomingEventsWidget events={upcomingEvents} loading={eventsLoading} />
       <div className="cpm-dashboard-layout">
         <WorkPanel
           tasks={myTasks}

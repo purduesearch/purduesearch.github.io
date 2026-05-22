@@ -3,7 +3,7 @@ import { prisma } from "../db/prisma.js";
 export async function getProjectBurndown(projectId) {
     // Get all tasks for the project with their creation/completion dates
     const tasks = await prisma.task.findMany({
-        where: { projectId, parentTaskId: null }, // top-level only
+        where: { projectId },
         select: { id: true, status: true, createdAt: true, updatedAt: true },
         orderBy: { createdAt: "asc" },
     });
@@ -33,7 +33,7 @@ export async function getProjectBurndown(projectId) {
 }
 export async function getProjectStatusCounts(projectId) {
     const tasks = await prisma.task.findMany({
-        where: { projectId, parentTaskId: null },
+        where: { projectId },
         select: { status: true },
     });
     const counts = { TODO: 0, IN_PROGRESS: 0, BLOCKED: 0, DONE: 0 };
@@ -47,7 +47,6 @@ export async function getOverdueCount(projectId) {
     return prisma.task.count({
         where: {
             projectId,
-            parentTaskId: null,
             status: { not: "DONE" },
             dueDate: { lt: now },
         },

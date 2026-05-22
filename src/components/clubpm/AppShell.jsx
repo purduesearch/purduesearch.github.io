@@ -16,6 +16,9 @@ function getBreadcrumb(pathname) {
   if (pathname === '/clubpm/notifications') return [{ label: 'Notifications' }];
   if (pathname === '/clubpm/notifications/preferences') return [{ label: 'Notifications', href: '/clubpm/notifications' }, { label: 'Preferences' }];
   if (pathname === '/clubpm/activity') return [{ label: 'Activity' }];
+  if (pathname === '/clubpm/calendar') return [{ label: 'Calendar' }];
+  if (pathname === '/clubpm/meeting-notes') return [{ label: 'Meeting Notes' }];
+  if (pathname === '/clubpm/outreach') return [{ label: 'Outreach' }];
   return [{ label: 'Constellation' }];
 }
 
@@ -31,6 +34,18 @@ const NAV_ITEMS = [
     ),
   },
   {
+    label: 'Calendar',
+    href: '/clubpm/calendar',
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+        <line x1="16" y1="2" x2="16" y2="6"/>
+        <line x1="8" y1="2" x2="8" y2="6"/>
+        <line x1="3" y1="10" x2="21" y2="10"/>
+      </svg>
+    ),
+  },
+  {
     label: 'Members',
     href: '/clubpm/members',
     icon: (
@@ -39,6 +54,15 @@ const NAV_ITEMS = [
         <circle cx="9" cy="7" r="4"/>
         <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
         <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+      </svg>
+    ),
+  },
+  {
+    label: 'Outreach',
+    href: '/clubpm/outreach',
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1.18h3a2 2 0 0 1 2 1.72c.127.96.36 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.74a16 16 0 0 0 6.29 6.29l.96-.96a2 2 0 0 1 2.11-.45c.907.34 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>
       </svg>
     ),
   },
@@ -226,6 +250,23 @@ export default function AppShell({ children }) {
               </Link>
             );
           })}
+          {member?.isAdmin && (
+            <Link
+              to="/clubpm/meeting-notes"
+              className={`pm-nav-item${location.pathname === '/clubpm/meeting-notes' ? ' active' : ''}`}
+            >
+              <span className="pm-nav-item-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                  <polyline points="14 2 14 8 20 8"/>
+                  <line x1="16" y1="13" x2="8" y2="13"/>
+                  <line x1="16" y1="17" x2="8" y2="17"/>
+                  <polyline points="10 9 9 9 8 9"/>
+                </svg>
+              </span>
+              <span className="pm-nav-item-label">Meeting Notes</span>
+            </Link>
+          )}
         </div>
 
         {/* Project-specific tabs — visible when inside a project */}

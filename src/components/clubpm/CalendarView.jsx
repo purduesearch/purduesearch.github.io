@@ -1,4 +1,39 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useRef, useMemo } from "react";
+
+// ── Event type config ────────────────────────────────────────────
+const EVENT_TYPE_COLOR = {
+  MEETING:  "var(--clubpm-accent-cyan,  #00cec9)",
+  DEADLINE: "var(--clubpm-accent-red,   #e17055)",
+  WORKSHOP: "var(--clubpm-accent-yellow,#fdcb6e)",
+  SOCIAL:   "#a29bfe",
+  OTHER:    "var(--clubpm-text-muted,   #636e72)",
+};
+
+const EVENT_TYPE_ICON = {
+  MEETING:  "fas fa-users",
+  DEADLINE: "fas fa-flag",
+  WORKSHOP: "fas fa-chalkboard-teacher",
+  SOCIAL:   "fas fa-star",
+  OTHER:    "fas fa-calendar-day",
+};
+
+function EventChip({ event, onClick, draggable = false, onDragStart, onDragEnd, isDragging }) {
+  const borderColor = EVENT_TYPE_COLOR[event.type] ?? EVENT_TYPE_COLOR.OTHER;
+  const iconClass   = EVENT_TYPE_ICON[event.type]  ?? EVENT_TYPE_ICON.OTHER;
+  return (
+    <div
+      className={`cpm-cal-event-chip${isDragging ? ' dragging' : ''}`}
+      style={{ borderLeft: `3px solid ${borderColor}` }}
+      draggable={draggable}
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
+      onClick={e => { e.stopPropagation(); if (!isDragging) onClick?.(event); }}
+    >
+      <i className={iconClass} style={{ fontSize: 9, marginRight: 3, color: borderColor, flexShrink: 0 }} />
+      <span className="cpm-cal-chip-title">{event.title}</span>
+    </div>
+  );
+}
 
 const WEEKDAY_ABBR  = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 const WEEKDAY_FULL  = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
@@ -79,10 +114,47 @@ function TaskChip({ task, onClick }) {
   );
 }
 
-export default function CalendarView({ tasks, onTaskClick }) {
+export default function CalendarView({ tasks, events = [], onTaskClick, onEventClick, onEventMove }) {
   const [viewMode, setViewMode]     = useState("month");
   const [cursor, setCursor]         = useState(new Date());
   const [showFullDay, setShowFullDay] = useState(false);
+  const [dragId, setDragId]         = useState(null);
+  const [dropDay, setDropDay]       = useState(null);
+  const dragIdRef = useRef(null);
+
+  // ── Drag handlers (month view) ──────────────────────────────
+  function handleEventDragStart(e, eventId) {
+    e.stopPropagation();
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", eventId);
+    dragIdRef.current = eventId;
+    setDragId(eventId);
+  }
+
+  function handleEventDragEnd() {
+    dragIdRef.current = null;
+    setDragId(null);
+    setDropDay(null);
+  }
+
+  function handleCellDragOver(e, k) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    if (dropDay !== k) setDropDay(k);
+  }
+
+  function handleCellDragLeave(e) {
+    if (!e.currentTarget.contains(e.relatedTarget)) setDropDay(null);
+  }
+
+  function handleCellDrop(e, k) {
+    e.preventDefault();
+    const id = e.dataTransfer.getData("text/plain") || dragIdRef.current;
+    setDropDay(null);
+    setDragId(null);
+    dragIdRef.current = null;
+    if (id && onEventMove) onEventMove(id, k);
+  }
 
   const snapToToday = () => setCursor(new Date());
 
@@ -104,21 +176,29 @@ export default function CalendarView({ tasks, onTaskClick }) {
     return acc;
   }, {}), [tasks]);
 
+  const eventsByDay = useMemo(() => (events || []).reduce((acc, ev) => {
+    if (!ev.startTime) return acc;
+    const k = dayKey(new Date(ev.startTime));
+    (acc[k] ??= []).push(ev);
+    return acc;
+  }, {}), [events]);
+
   const todayKey  = dayKey(new Date());
   const monthGrid = useMemo(() => getMonthGrid(cursor), [cursor]);
   const weekDays  = useMemo(() => getWeekDays(cursor),  [cursor]);
 
   const agendaGroups = useMemo(() => {
-    const sorted = (tasks || [])
-      .filter(t => t.dueDate)
-      .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
-    const grouped = sorted.reduce((acc, t) => {
+    const dayMap = {};
+    (tasks || []).filter(t => t.dueDate).forEach(t => {
       const k = dayKey(new Date(t.dueDate));
-      (acc[k] ??= []).push(t);
-      return acc;
-    }, {});
-    return Object.entries(grouped);
-  }, [tasks]);
+      (dayMap[k] ??= { tasks: [], events: [] }).tasks.push(t);
+    });
+    (events || []).filter(ev => ev.startTime).forEach(ev => {
+      const k = dayKey(new Date(ev.startTime));
+      (dayMap[k] ??= { tasks: [], events: [] }).events.push(ev);
+    });
+    return Object.entries(dayMap).sort(([a], [b]) => a.localeCompare(b));
+  }, [tasks, events]);
 
   const hours = showFullDay ? HOURS_FULL : HOURS_DEFAULT;
 
@@ -156,21 +236,43 @@ export default function CalendarView({ tasks, onTaskClick }) {
             <div key={d} className="cpm-cal-month-col-header">{d}</div>
           ))}
           {monthGrid.map((day, i) => {
-            const k          = dayKey(day);
-            const dayTasks   = tasksByDay[k] ?? [];
+            const k              = dayKey(day);
+            const dayTasks       = tasksByDay[k] ?? [];
+            const dayEvents      = eventsByDay[k] ?? [];
             const isCurrentMonth = day.getMonth() === cursor.getMonth();
-            const isToday    = k === todayKey;
+            const isToday        = k === todayKey;
+            const taskSlots      = Math.min(dayTasks.length, 3);
+            const eventSlots     = Math.min(dayEvents.length, 2);
+            const moreEvents     = dayEvents.length - eventSlots;
+            const isDragOver     = dropDay === k && dragId !== null;
             return (
               <div
                 key={i}
-                className={`cpm-cal-month-cell${!isCurrentMonth ? " other-month" : ""}${isToday ? " today" : ""}`}
+                className={`cpm-cal-month-cell${!isCurrentMonth ? " other-month" : ""}${isToday ? " today" : ""}${isDragOver ? " drag-over" : ""}`}
+                onDragOver={onEventMove ? (e) => handleCellDragOver(e, k) : undefined}
+                onDragLeave={onEventMove ? handleCellDragLeave : undefined}
+                onDrop={onEventMove ? (e) => handleCellDrop(e, k) : undefined}
               >
                 <span className="cpm-cal-cell-num">{day.getDate()}</span>
-                {dayTasks.slice(0, 3).map(task => (
+                {dayTasks.slice(0, taskSlots).map(task => (
                   <TaskChip key={task.id} task={task} onClick={() => onTaskClick?.(task)} />
                 ))}
                 {dayTasks.length > 3 && (
                   <span className="cpm-cal-more">+{dayTasks.length - 3} more</span>
+                )}
+                {dayEvents.slice(0, eventSlots).map(ev => (
+                  <EventChip
+                    key={ev.id}
+                    event={ev}
+                    onClick={onEventClick}
+                    draggable={!!onEventMove}
+                    isDragging={dragId === ev.id}
+                    onDragStart={(e) => handleEventDragStart(e, ev.id)}
+                    onDragEnd={handleEventDragEnd}
+                  />
+                ))}
+                {moreEvents > 0 && (
+                  <span className="cpm-cal-more cpm-cal-more-events">+{moreEvents} more</span>
                 )}
               </div>
             );
@@ -261,10 +363,10 @@ export default function CalendarView({ tasks, onTaskClick }) {
           </div>
           {agendaGroups.length === 0 ? (
             <div style={{ padding: "32px 16px", textAlign: "center", color: "var(--clubpm-text-muted)", fontSize: 13 }}>
-              No upcoming tasks
+              No upcoming tasks or events
             </div>
           ) : (
-            agendaGroups.map(([k, dayTasks]) => {
+            agendaGroups.map(([k, { tasks: dayTasks, events: dayEvents }]) => {
               const d = new Date(`${k}T12:00:00`);
               return (
                 <div key={k} className="cpm-cal-agenda-day-group">
@@ -310,6 +412,27 @@ export default function CalendarView({ tasks, onTaskClick }) {
                         <span className="cpm-cal-agenda-task-title">{task.title}</span>
                       </div>
                     ))}
+                    {dayEvents.map(ev => {
+                      const borderColor = EVENT_TYPE_COLOR[ev.type] ?? EVENT_TYPE_COLOR.OTHER;
+                      const iconClass   = EVENT_TYPE_ICON[ev.type]  ?? EVENT_TYPE_ICON.OTHER;
+                      const timeLabel   = ev.startTime
+                        ? new Date(ev.startTime).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
+                        : "All day";
+                      return (
+                        <div
+                          key={ev.id}
+                          className="cpm-cal-agenda-row cpm-cal-agenda-event-row"
+                          style={{ borderLeft: `3px solid ${borderColor}`, background: "rgba(108,92,231,0.06)" }}
+                          onClick={() => onEventClick?.(ev)}
+                        >
+                          <i className={iconClass} style={{ fontSize: 11, marginRight: 6, color: borderColor, flexShrink: 0 }} />
+                          <span className="cpm-cal-agenda-task-title">{ev.title}</span>
+                          <span style={{ marginLeft: "auto", fontSize: 11, color: "var(--clubpm-text-muted)", flexShrink: 0 }}>
+                            {timeLabel}
+                          </span>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               );

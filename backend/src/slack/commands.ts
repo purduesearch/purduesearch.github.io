@@ -152,7 +152,58 @@ export function registerCommands(app: App): void {
         }
 
         case "meeting": {
-          await openMeetingNotesModal(client, command.trigger_id, command.channel_id);
+          const meetingAction = args[1]?.toLowerCase();
+          if (meetingAction === "create") {
+            const { openEventCreateModal } = await import("./modals.js");
+            await openEventCreateModal(client, command.trigger_id, command.channel_id);
+          } else if (meetingAction === "list") {
+            const { getUpcomingEvents } = await import("../services/eventService.js");
+            const upcoming = await getUpcomingEvents(7);
+            if (!upcoming.length) {
+              await respond({ response_type: "ephemeral", text: "📅 No meetings scheduled in the next 7 days." });
+            } else {
+              const lines = upcoming.slice(0, 5).map(ev => {
+                const d = new Date(ev.startTime);
+                const fmt = d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+                const t   = d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+                const loc = ev.isVirtual ? "Virtual" : (ev.location ?? "TBD");
+                return `• *${ev.title}* — ${fmt} ${t} (${loc})`;
+              });
+              await respond({ response_type: "ephemeral", text: `📅 *Upcoming Meetings:*\n${lines.join("\n")}` });
+            }
+          } else if (meetingAction === "notes") {
+            const { generateWeeklyMeetingTemplate } = await import("../services/meetingNotesService.js");
+            const template = await generateWeeklyMeetingTemplate();
+            await respond({
+              response_type: "ephemeral",
+              text: `*📋 This week's meeting template:*\n\`\`\`${template.agendaTemplate.slice(0, 2800)}\`\`\``,
+            });
+          } else {
+            await openMeetingNotesModal(client, command.trigger_id, command.channel_id);
+          }
+          break;
+        }
+
+        case "outreach": {
+          const outreachAction = args[1]?.toLowerCase();
+          if (outreachAction === "submit") {
+            const { openOutreachSubmitModal } = await import("./modals.js");
+            await openOutreachSubmitModal(client, command.trigger_id, command.user_id);
+          } else if (outreachAction === "queue") {
+            const pending = await prisma.outreachSubmission.count({
+              where: { status: { in: ["SUBMITTED", "IN_REVIEW"] } },
+            });
+            const approved = await prisma.outreachSubmission.count({ where: { status: "APPROVED" } });
+            await respond({
+              response_type: "ephemeral",
+              text: `📢 *Outreach Queue:* ${pending} pending review · ${approved} approved`,
+            });
+          } else {
+            await respond({
+              response_type: "ephemeral",
+              text: "Usage: `/pm outreach submit` — submit content\n`/pm outreach queue` — check queue status",
+            });
+          }
           break;
         }
 

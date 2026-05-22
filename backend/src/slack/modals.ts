@@ -2038,3 +2038,182 @@ export function registerAiModals(app: App): void {
     }
   });
 }
+
+// ── Event Create Modal ───────────────────────────────────────
+
+export async function openEventCreateModal(
+  client: WebClient,
+  triggerId: string,
+  channelId: string
+): Promise<void> {
+  const projects = await prisma.project.findMany({
+    where: { status: "ACTIVE" },
+    select: { id: true, name: true },
+    orderBy: { name: "asc" },
+  });
+
+  await client.views.open({
+    trigger_id: triggerId,
+    view: {
+      type: "modal",
+      callback_id: "event_create_submit",
+      private_metadata: channelId,
+      title: { type: "plain_text", text: "Create Event" },
+      submit: { type: "plain_text", text: "Create" },
+      close: { type: "plain_text", text: "Cancel" },
+      blocks: [
+        {
+          type: "input",
+          block_id: "event_title",
+          label: { type: "plain_text", text: "Title" },
+          element: { type: "plain_text_input", action_id: "value", placeholder: { type: "plain_text", text: "e.g. Weekly Leadership Meeting" } },
+        },
+        {
+          type: "input",
+          block_id: "event_type",
+          label: { type: "plain_text", text: "Type" },
+          element: {
+            type: "static_select",
+            action_id: "value",
+            initial_option: { text: { type: "plain_text", text: "Meeting" }, value: "MEETING" },
+            options: [
+              { text: { type: "plain_text", text: "Meeting"  }, value: "MEETING"  },
+              { text: { type: "plain_text", text: "Deadline" }, value: "DEADLINE" },
+              { text: { type: "plain_text", text: "Workshop" }, value: "WORKSHOP" },
+              { text: { type: "plain_text", text: "Social"   }, value: "SOCIAL"   },
+              { text: { type: "plain_text", text: "Other"    }, value: "OTHER"    },
+            ],
+          },
+        },
+        {
+          type: "input",
+          block_id: "event_date",
+          label: { type: "plain_text", text: "Date" },
+          element: { type: "datepicker", action_id: "value" },
+        },
+        {
+          type: "input",
+          block_id: "event_time",
+          label: { type: "plain_text", text: "Time (HH:MM)" },
+          element: { type: "plain_text_input", action_id: "value", placeholder: { type: "plain_text", text: "19:00" } },
+        },
+        {
+          type: "input",
+          block_id: "event_location",
+          optional: true,
+          label: { type: "plain_text", text: "Location" },
+          element: { type: "plain_text_input", action_id: "value", placeholder: { type: "plain_text", text: "Room 123 or Zoom link" } },
+        },
+        ...(projects.length > 0 ? [{
+          type: "input" as const,
+          block_id: "event_project",
+          optional: true,
+          label: { type: "plain_text" as const, text: "Linked Project" },
+          element: {
+            type: "static_select" as const,
+            action_id: "value",
+            placeholder: { type: "plain_text" as const, text: "None" },
+            options: projects.map(p => ({ text: { type: "plain_text" as const, text: p.name }, value: p.id })),
+          },
+        }] : []),
+        {
+          type: "input",
+          block_id: "event_recurring",
+          optional: true,
+          label: { type: "plain_text", text: "Recurrence" },
+          element: {
+            type: "static_select",
+            action_id: "value",
+            placeholder: { type: "plain_text", text: "None (one-time)" },
+            options: [
+              { text: { type: "plain_text", text: "Weekly"   }, value: "weekly"   },
+              { text: { type: "plain_text", text: "Biweekly" }, value: "biweekly" },
+              { text: { type: "plain_text", text: "Monthly"  }, value: "monthly"  },
+            ],
+          },
+        },
+      ],
+    },
+  });
+}
+
+// ── Outreach Submit Modal ────────────────────────────────────
+
+export async function openOutreachSubmitModal(
+  client: WebClient,
+  triggerId: string,
+  _slackUserId: string
+): Promise<void> {
+  await client.views.open({
+    trigger_id: triggerId,
+    view: {
+      type: "modal",
+      callback_id: "outreach_submit_modal",
+      title: { type: "plain_text", text: "Submit Content" },
+      submit: { type: "plain_text", text: "Submit" },
+      close: { type: "plain_text", text: "Cancel" },
+      blocks: [
+        {
+          type: "input",
+          block_id: "submission_title",
+          label: { type: "plain_text", text: "Title" },
+          element: { type: "plain_text_input", action_id: "value", placeholder: { type: "plain_text", text: "Brief title for this content" } },
+        },
+        {
+          type: "input",
+          block_id: "submission_type",
+          label: { type: "plain_text", text: "Content Type" },
+          element: {
+            type: "static_select",
+            action_id: "value",
+            options: [
+              { text: { type: "plain_text", text: "Social Post"   }, value: "SOCIAL_POST"   },
+              { text: { type: "plain_text", text: "Announcement"  }, value: "ANNOUNCEMENT"  },
+              { text: { type: "plain_text", text: "Event Promo"   }, value: "EVENT_PROMO"   },
+              { text: { type: "plain_text", text: "Newsletter"    }, value: "NEWSLETTER"    },
+              { text: { type: "plain_text", text: "Photo"         }, value: "PHOTO"         },
+              { text: { type: "plain_text", text: "Video"         }, value: "VIDEO"         },
+            ],
+          },
+        },
+        {
+          type: "input",
+          block_id: "submission_content",
+          optional: true,
+          label: { type: "plain_text", text: "Content / Caption" },
+          element: { type: "plain_text_input", action_id: "value", multiline: true, placeholder: { type: "plain_text", text: "Post text, caption, or description…" } },
+        },
+        {
+          type: "input",
+          block_id: "submission_platform",
+          label: { type: "plain_text", text: "Platforms" },
+          element: {
+            type: "multi_static_select",
+            action_id: "value",
+            placeholder: { type: "plain_text", text: "Select platforms" },
+            options: [
+              { text: { type: "plain_text", text: "Instagram" }, value: "instagram" },
+              { text: { type: "plain_text", text: "LinkedIn"  }, value: "linkedin"  },
+              { text: { type: "plain_text", text: "Twitter"   }, value: "twitter"   },
+              { text: { type: "plain_text", text: "Website"   }, value: "website"   },
+            ],
+          },
+        },
+        {
+          type: "input",
+          block_id: "submission_status",
+          label: { type: "plain_text", text: "Save as" },
+          element: {
+            type: "static_select",
+            action_id: "value",
+            initial_option: { text: { type: "plain_text", text: "Submit for Review" }, value: "SUBMITTED" },
+            options: [
+              { text: { type: "plain_text", text: "Draft (save for later)" }, value: "DRAFT"     },
+              { text: { type: "plain_text", text: "Submit for Review"       }, value: "SUBMITTED" },
+            ],
+          },
+        },
+      ],
+    },
+  });
+}

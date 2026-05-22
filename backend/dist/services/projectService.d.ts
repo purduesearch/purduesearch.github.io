@@ -1,4 +1,4 @@
-import type { Project, ProjectStatus, ProjectType } from "@prisma/client";
+import type { Project, ProjectStatus, ProjectType, Prisma } from "@prisma/client";
 interface CreateProjectInput {
     name: string;
     description?: string;
@@ -25,8 +25,8 @@ export declare function getProject(id: string): Promise<({
     tasks: ({
         milestone: {
             id: string;
-            createdAt: Date;
             title: string;
+            createdAt: Date;
             description: string | null;
             status: import("@prisma/client").$Enums.MilestoneStatus;
             dueDate: Date | null;
@@ -42,11 +42,20 @@ export declare function getProject(id: string): Promise<({
             slackHandle: string;
             displayName: string;
             avatarUrl: string | null;
+            title: string | null;
+            email: string | null;
+            timezone: string | null;
+            team: string | null;
+            bio: string | null;
             role: import("@prisma/client").$Enums.Role;
             isAdmin: boolean;
             isBot: boolean;
             kanbanColumnOrder: string[];
             notificationPrefs: string[];
+            notificationChannels: Prisma.JsonValue | null;
+            quietHoursStart: number | null;
+            quietHoursEnd: number | null;
+            mutedProjectIds: string[];
             createdAt: Date;
         }[];
         tags: {
@@ -63,17 +72,26 @@ export declare function getProject(id: string): Promise<({
                 slackHandle: string;
                 displayName: string;
                 avatarUrl: string | null;
+                title: string | null;
+                email: string | null;
+                timezone: string | null;
+                team: string | null;
+                bio: string | null;
                 role: import("@prisma/client").$Enums.Role;
                 isAdmin: boolean;
                 isBot: boolean;
                 kanbanColumnOrder: string[];
                 notificationPrefs: string[];
+                notificationChannels: Prisma.JsonValue | null;
+                quietHoursStart: number | null;
+                quietHoursEnd: number | null;
+                mutedProjectIds: string[];
                 createdAt: Date;
             }[];
         } & {
             id: string;
-            createdAt: Date;
             title: string;
+            createdAt: Date;
             description: string | null;
             status: import("@prisma/client").$Enums.TaskStatus;
             priority: import("@prisma/client").$Enums.Priority;
@@ -118,8 +136,8 @@ export declare function getProject(id: string): Promise<({
         })[];
     } & {
         id: string;
-        createdAt: Date;
         title: string;
+        createdAt: Date;
         description: string | null;
         status: import("@prisma/client").$Enums.TaskStatus;
         priority: import("@prisma/client").$Enums.Priority;
@@ -149,11 +167,20 @@ export declare function getProject(id: string): Promise<({
             slackHandle: string;
             displayName: string;
             avatarUrl: string | null;
+            title: string | null;
+            email: string | null;
+            timezone: string | null;
+            team: string | null;
+            bio: string | null;
             role: import("@prisma/client").$Enums.Role;
             isAdmin: boolean;
             isBot: boolean;
             kanbanColumnOrder: string[];
             notificationPrefs: string[];
+            notificationChannels: Prisma.JsonValue | null;
+            quietHoursStart: number | null;
+            quietHoursEnd: number | null;
+            mutedProjectIds: string[];
             createdAt: Date;
         };
     } & {
@@ -198,17 +225,26 @@ export declare function getProjectsForChannel(channelId: string): Promise<({
             slackHandle: string;
             displayName: string;
             avatarUrl: string | null;
+            title: string | null;
+            email: string | null;
+            timezone: string | null;
+            team: string | null;
+            bio: string | null;
             role: import("@prisma/client").$Enums.Role;
             isAdmin: boolean;
             isBot: boolean;
             kanbanColumnOrder: string[];
             notificationPrefs: string[];
+            notificationChannels: Prisma.JsonValue | null;
+            quietHoursStart: number | null;
+            quietHoursEnd: number | null;
+            mutedProjectIds: string[];
             createdAt: Date;
         }[];
     } & {
         id: string;
-        createdAt: Date;
         title: string;
+        createdAt: Date;
         description: string | null;
         status: import("@prisma/client").$Enums.TaskStatus;
         priority: import("@prisma/client").$Enums.Priority;
@@ -238,11 +274,20 @@ export declare function getProjectsForChannel(channelId: string): Promise<({
             slackHandle: string;
             displayName: string;
             avatarUrl: string | null;
+            title: string | null;
+            email: string | null;
+            timezone: string | null;
+            team: string | null;
+            bio: string | null;
             role: import("@prisma/client").$Enums.Role;
             isAdmin: boolean;
             isBot: boolean;
             kanbanColumnOrder: string[];
             notificationPrefs: string[];
+            notificationChannels: Prisma.JsonValue | null;
+            quietHoursStart: number | null;
+            quietHoursEnd: number | null;
+            mutedProjectIds: string[];
             createdAt: Date;
         };
     } & {
@@ -274,17 +319,26 @@ export declare function getProjectByChannel(channelId: string): Promise<{
             slackHandle: string;
             displayName: string;
             avatarUrl: string | null;
+            title: string | null;
+            email: string | null;
+            timezone: string | null;
+            team: string | null;
+            bio: string | null;
             role: import("@prisma/client").$Enums.Role;
             isAdmin: boolean;
             isBot: boolean;
             kanbanColumnOrder: string[];
             notificationPrefs: string[];
+            notificationChannels: Prisma.JsonValue | null;
+            quietHoursStart: number | null;
+            quietHoursEnd: number | null;
+            mutedProjectIds: string[];
             createdAt: Date;
         }[];
     } & {
         id: string;
-        createdAt: Date;
         title: string;
+        createdAt: Date;
         description: string | null;
         status: import("@prisma/client").$Enums.TaskStatus;
         priority: import("@prisma/client").$Enums.Priority;
@@ -314,11 +368,20 @@ export declare function getProjectByChannel(channelId: string): Promise<{
             slackHandle: string;
             displayName: string;
             avatarUrl: string | null;
+            title: string | null;
+            email: string | null;
+            timezone: string | null;
+            team: string | null;
+            bio: string | null;
             role: import("@prisma/client").$Enums.Role;
             isAdmin: boolean;
             isBot: boolean;
             kanbanColumnOrder: string[];
             notificationPrefs: string[];
+            notificationChannels: Prisma.JsonValue | null;
+            quietHoursStart: number | null;
+            quietHoursEnd: number | null;
+            mutedProjectIds: string[];
             createdAt: Date;
         };
     } & {
@@ -373,11 +436,20 @@ export declare function getProjectsWithTaskStats(): Promise<{
             slackHandle: string;
             displayName: string;
             avatarUrl: string | null;
+            title: string | null;
+            email: string | null;
+            timezone: string | null;
+            team: string | null;
+            bio: string | null;
             role: import("@prisma/client").$Enums.Role;
             isAdmin: boolean;
             isBot: boolean;
             kanbanColumnOrder: string[];
             notificationPrefs: string[];
+            notificationChannels: Prisma.JsonValue | null;
+            quietHoursStart: number | null;
+            quietHoursEnd: number | null;
+            mutedProjectIds: string[];
             createdAt: Date;
         };
     } & {
@@ -408,17 +480,26 @@ export declare function findProjectByName(name: string): Promise<({
             slackHandle: string;
             displayName: string;
             avatarUrl: string | null;
+            title: string | null;
+            email: string | null;
+            timezone: string | null;
+            team: string | null;
+            bio: string | null;
             role: import("@prisma/client").$Enums.Role;
             isAdmin: boolean;
             isBot: boolean;
             kanbanColumnOrder: string[];
             notificationPrefs: string[];
+            notificationChannels: Prisma.JsonValue | null;
+            quietHoursStart: number | null;
+            quietHoursEnd: number | null;
+            mutedProjectIds: string[];
             createdAt: Date;
         }[];
     } & {
         id: string;
-        createdAt: Date;
         title: string;
+        createdAt: Date;
         description: string | null;
         status: import("@prisma/client").$Enums.TaskStatus;
         priority: import("@prisma/client").$Enums.Priority;
@@ -448,11 +529,20 @@ export declare function findProjectByName(name: string): Promise<({
             slackHandle: string;
             displayName: string;
             avatarUrl: string | null;
+            title: string | null;
+            email: string | null;
+            timezone: string | null;
+            team: string | null;
+            bio: string | null;
             role: import("@prisma/client").$Enums.Role;
             isAdmin: boolean;
             isBot: boolean;
             kanbanColumnOrder: string[];
             notificationPrefs: string[];
+            notificationChannels: Prisma.JsonValue | null;
+            quietHoursStart: number | null;
+            quietHoursEnd: number | null;
+            mutedProjectIds: string[];
             createdAt: Date;
         };
     } & {

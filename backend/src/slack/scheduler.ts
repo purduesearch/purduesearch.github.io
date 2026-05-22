@@ -260,6 +260,64 @@ export function startScheduler(app: App): void {
     }
   });
 
+  // ── Tuesday 6:30 AM — Auto-generate and DM meeting template to admins ──
+  cron.schedule("30 6 * * 2", async () => {
+    console.log("📋 Generating Tuesday meeting template for admins...");
+    try {
+      const { generateWeeklyMeetingTemplate } = await import("../services/meetingNotesService.js");
+      const template = await generateWeeklyMeetingTemplate();
+
+      const admins = await prisma.member.findMany({
+        where: { isAdmin: true, isBot: false },
+        select: { slackId: true, displayName: true },
+      });
+
+      for (const admin of admins) {
+        if (!admin.slackId) continue;
+        queueDm(admin.slackId, `*📋 Leadership Meeting Template — ${new Date().toLocaleDateString("en-US", { month: "long", day: "numeric" })}*\n\n${template.agendaTemplate.slice(0, 2900)}`);
+      }
+      console.log(`✅ Meeting template DMed to ${admins.length} admin(s)`);
+    } catch (error) {
+      console.error("❌ Meeting template error:", error);
+    }
+  });
+
+  // ── Daily 9:00 AM — DM event reminders for today's meetings to attendees ──
+  cron.schedule("0 9 * * *", async () => {
+    console.log("📅 Sending event reminders for today...");
+    try {
+      const startOfDay = new Date(); startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay   = new Date(); endOfDay.setHours(23, 59, 59, 999);
+
+      const events = await prisma.event.findMany({
+        where: { startTime: { gte: startOfDay, lte: endOfDay } },
+        include: {
+          attendees: { select: { slackId: true } },
+          organizer: { select: { slackId: true } },
+          project:   { select: { name: true } },
+        },
+      });
+
+      for (const ev of events) {
+        const time = ev.startTime.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+        const location = ev.isVirtual ? "Virtual" : (ev.location ?? "TBD");
+        const projectNote = ev.project ? ` · _${ev.project.name}_` : "";
+        const msg = `📅 *Reminder:* "${ev.title}" is today at *${time}* (${location})${projectNote}`;
+
+        const recipients = new Set<string>();
+        ev.attendees.forEach(a => a.slackId && recipients.add(a.slackId));
+        if (ev.organizer?.slackId) recipients.add(ev.organizer.slackId);
+
+        for (const slackId of recipients) {
+          queueDm(slackId, msg);
+        }
+      }
+      console.log(`✅ Event reminders sent for ${events.length} event(s) today`);
+    } catch (error) {
+      console.error("❌ Event reminder error:", error);
+    }
+  });
+
   // ── Every 6 hours — Re-sync admin status from leadership channel ──
   cron.schedule("0 */6 * * *", async () => {
     try {
@@ -291,4 +349,6 @@ export function startScheduler(app: App): void {
   console.log("  📅 Scheduled: Wednesday 10:30AM   — AI capacity → admin DMs");
   console.log("  📅 Scheduled: Sunday 8PM          — AI dependency → admin DMs");
   console.log("  📅 Scheduled: Daily 3AM           — Notification cleanup (90 days)");
+  console.log("  📅 Scheduled: Tuesday 6:30AM      — Meeting template DMs → admins");
+  console.log("  📅 Scheduled: Daily 9AM           — Event reminders → attendees");
 }

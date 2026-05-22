@@ -15,11 +15,20 @@ export declare function logActivity(data: {
         slackHandle: string;
         displayName: string;
         avatarUrl: string | null;
+        title: string | null;
+        email: string | null;
+        timezone: string | null;
+        team: string | null;
+        bio: string | null;
         role: import("@prisma/client").$Enums.Role;
         isAdmin: boolean;
         isBot: boolean;
         kanbanColumnOrder: string[];
         notificationPrefs: string[];
+        notificationChannels: import("@prisma/client/runtime/library").JsonValue | null;
+        quietHoursStart: number | null;
+        quietHoursEnd: number | null;
+        mutedProjectIds: string[];
         createdAt: Date;
     } | null;
 } & {
@@ -39,11 +48,20 @@ export declare function getProjectActivities(projectId: string, take?: number, c
         slackHandle: string;
         displayName: string;
         avatarUrl: string | null;
+        title: string | null;
+        email: string | null;
+        timezone: string | null;
+        team: string | null;
+        bio: string | null;
         role: import("@prisma/client").$Enums.Role;
         isAdmin: boolean;
         isBot: boolean;
         kanbanColumnOrder: string[];
         notificationPrefs: string[];
+        notificationChannels: import("@prisma/client/runtime/library").JsonValue | null;
+        quietHoursStart: number | null;
+        quietHoursEnd: number | null;
+        mutedProjectIds: string[];
         createdAt: Date;
     } | null;
 } & {
@@ -63,11 +81,20 @@ export declare function getEntityActivities(entityId: string, take?: number): Pr
         slackHandle: string;
         displayName: string;
         avatarUrl: string | null;
+        title: string | null;
+        email: string | null;
+        timezone: string | null;
+        team: string | null;
+        bio: string | null;
         role: import("@prisma/client").$Enums.Role;
         isAdmin: boolean;
         isBot: boolean;
         kanbanColumnOrder: string[];
         notificationPrefs: string[];
+        notificationChannels: import("@prisma/client/runtime/library").JsonValue | null;
+        quietHoursStart: number | null;
+        quietHoursEnd: number | null;
+        mutedProjectIds: string[];
         createdAt: Date;
     } | null;
 } & {
