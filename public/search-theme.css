@@ -11102,3 +11102,259 @@ html::-webkit-scrollbar { display: none; }
   outline-offset: -2px;
 }
 
+/* ── CommentThread (.pm-comment-*) ───────────────────────────── */
+
+/* Container */
+.pm-comment-thread {
+  padding-top: 12px;
+  margin-top: 10px;
+  border-top: 1px solid var(--clubpm-border);
+}
+
+/* "Comments (N)" heading */
+.pm-comment-thread-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--clubpm-text-secondary);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+
+/* Loading / empty text */
+.pm-comment-loading,
+.pm-comment-empty {
+  font-size: 12px;
+  color: var(--clubpm-text-muted, var(--clubpm-text-secondary));
+  margin: 4px 0 12px;
+}
+
+/* Comment list */
+.pm-comment-list {
+  list-style: none;
+  margin: 0 0 10px 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pm-comment-list--replies {
+  margin-top: 6px;
+  margin-bottom: 0;
+  gap: 0;
+}
+
+/* Individual comment row */
+.pm-comment-item {
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+  padding: 6px 0;
+}
+
+/* Indented reply */
+.pm-comment-item--reply {
+  margin-left: 36px;
+  padding: 4px 0;
+}
+
+/* Avatar — 28px circle, teal bg, centred initials */
+.pm-comment-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.pm-comment-avatar--initials {
+  background: var(--pm-accent-teal);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+/* Body column */
+.pm-comment-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+/* Author name + timestamp row */
+.pm-comment-meta {
+  display: flex;
+  flex-direction: row;
+  align-items: baseline;
+  gap: 6px;
+  margin-bottom: 2px;
+}
+
+.pm-comment-author {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--clubpm-text);
+}
+
+.pm-comment-time {
+  font-size: 10px;
+  color: var(--clubpm-text-secondary);
+}
+
+/* Comment body text */
+.pm-comment-text {
+  display: block;
+  font-size: 13px;
+  color: var(--clubpm-text);
+  line-height: 1.5;
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+
+/* @mention highlight */
+.pm-comment-mention {
+  display: inline;
+  background: rgba(0, 229, 204, 0.15); /* --pm-accent-teal at ~15% */
+  color: var(--pm-accent-teal);
+  border-radius: 3px;
+  padding: 0 3px;
+  font-weight: 600;
+}
+
+/* Action row below each top-level comment */
+.pm-comment-actions {
+  margin-top: 4px;
+}
+
+/* "Reply" text button */
+.pm-comment-reply-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 11px;
+  color: var(--clubpm-text-secondary);
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition: color 0.12s, background 0.12s;
+  line-height: 1;
+}
+
+.pm-comment-reply-btn:hover {
+  color: var(--pm-accent-teal);
+  background: rgba(0, 229, 204, 0.07);
+}
+
+/* Cancel button in inline reply form */
+.pm-comment-cancel-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 11px;
+  color: var(--clubpm-text-secondary);
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: color 0.12s;
+  line-height: 1;
+}
+
+.pm-comment-cancel-btn:hover {
+  color: var(--clubpm-text);
+}
+
+/* Bottom compose area */
+.pm-comment-compose {
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+  align-items: flex-start;
+  padding-top: 8px;
+  border-top: 1px solid var(--clubpm-border);
+}
+
+/* Inline reply form (below a comment) */
+.pm-comment-reply-form {
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+  align-items: flex-start;
+  margin-top: 6px;
+}
+
+/* Textarea — dark theme */
+.pm-comment-input {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--pm-bg-secondary, var(--clubpm-surface-200, #1e2333));
+  border: 1px solid var(--clubpm-border);
+  border-radius: 6px;
+  color: var(--clubpm-text);
+  font-size: 13px;
+  font-family: inherit;
+  line-height: 1.5;
+  padding: 7px 10px;
+  resize: vertical;
+  transition: border-color 0.15s;
+  outline: none;
+}
+
+.pm-comment-input::placeholder {
+  color: var(--clubpm-text-secondary);
+}
+
+.pm-comment-input:focus {
+  border-color: var(--pm-accent-teal);
+}
+
+/* Post / Reply submit button */
+.pm-comment-submit {
+  align-self: flex-end;
+  background: var(--pm-accent-teal);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 14px;
+  cursor: pointer;
+  transition: opacity 0.15s;
+  white-space: nowrap;
+  line-height: 1.4;
+}
+
+.pm-comment-submit:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.pm-comment-submit:not(:disabled):hover {
+  opacity: 0.85;
+}
+
+/* Comments toggle button on SubmissionCard */
+.pm-outreach-comments-toggle {
+  background: none;
+  border: 1px solid var(--clubpm-border);
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 11px;
+  color: var(--clubpm-text-secondary);
+  padding: 3px 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: color 0.12s, border-color 0.12s, background 0.12s;
+}
+
+.pm-outreach-comments-toggle:hover,
+.pm-outreach-comments-toggle--active {
+  color: var(--pm-accent-teal);
+  border-color: var(--pm-accent-teal);
+  background: rgba(0, 229, 204, 0.06);
+}
+

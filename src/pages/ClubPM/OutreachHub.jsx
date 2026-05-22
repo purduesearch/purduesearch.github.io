@@ -3,6 +3,7 @@ import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { get, post, patch, del } from '../../api/clubPmClient';
 import { useClubPmAuth } from '../../clubpm/ClubPmAuth';
 import SubmissionFormModal from '../../components/clubpm/SubmissionFormModal';
+import CommentThread from '../../components/clubpm/CommentThread';
 import toast from 'react-hot-toast';
 
 // ── Constants ─────────────────────────────────────────────────
@@ -132,6 +133,7 @@ function PlatformChips({ platforms = [] }) {
 
 function SubmissionCard({ submission, member, onEdit, onReview, onDelete }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [showComments, setShowComments] = useState(false);
   const isAdmin = member?.isAdmin;
   const isAuthor = member?.id === submission.authorId;
   const canDelete = isAdmin || isAuthor;
@@ -182,6 +184,17 @@ function SubmissionCard({ submission, member, onEdit, onReview, onDelete }) {
         ) : <span />}
 
         <div style={{ display: 'flex', gap: 5, marginLeft: 'auto', alignItems: 'center' }}>
+          {/* Comments toggle */}
+          <button
+            className={`pm-outreach-comments-toggle${showComments ? ' pm-outreach-comments-toggle--active' : ''}`}
+            onClick={() => setShowComments(v => !v)}
+            title={showComments ? 'Hide comments' : 'Show comments'}
+            aria-expanded={showComments}
+          >
+            <i className="fas fa-comment-alt" aria-hidden="true" />
+            {' '}Comments
+          </button>
+
           {canReview && (
             <>
               <button
@@ -230,6 +243,13 @@ function SubmissionCard({ submission, member, onEdit, onReview, onDelete }) {
           )}
         </div>
       </div>
+
+      {showComments && (
+        <CommentThread
+          submissionId={submission.id}
+          currentMember={member}
+        />
+      )}
     </div>
   );
 }
