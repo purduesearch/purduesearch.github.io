@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
+import { get } from '../../api/clubPmClient';
 
 const TYPE_OPTIONS = [
   { value: 'SOCIAL_POST',   label: 'Social Post' },
@@ -32,6 +33,127 @@ const PLATFORM_ICONS = {
   twitter:   'fab fa-twitter',
   website:   'fas fa-globe',
 };
+
+// ── Hashtag autocomplete helpers ──────────────────────────────────────────────
+
+function getHashtagAtCursor(value, cursorPos) {
+  const before = value.slice(0, cursorPos);
+  const match = before.match(/#([a-zA-Z][a-zA-Z0-9_]*)$/);
+  return match ? match[1] : null;
+}
+
+function insertHashtag(tag, value, cursorPos) {
+  const before = value.slice(0, cursorPos);
+  const after = value.slice(cursorPos);
+  const replaced = before.replace(/#([a-zA-Z][a-zA-Z0-9_]*)$/, `#${tag} `);
+  return replaced + after;
+}
+
+function useHashtagAutocomplete(content, setContent) {
+  const [dropdownItems, setDropdownItems] = useState(null);
+  const [selectedIdx, setSelectedIdx] = useState(0);
+  const dropdownRef = useRef(null);
+  const debounceTimer = useRef(null);
+  // Keep a ref to the textarea so we can read/set cursor position
+  const textareaRef = useRef(null);
+
+  const closeDropdown = useCallback(() => {
+    setDropdownItems(null);
+    setSelectedIdx(0);
+  }, []);
+
+  const fetchHashtags = useCallback((term) => {
+    clearTimeout(debounceTimer.current);
+    debounceTimer.current = setTimeout(async () => {
+      try {
+        const data = await get(`/api/outreach/hashtags?q=${encodeURIComponent(term)}`);
+        // data is expected to be an array of { tag, count } objects
+        const items = Array.isArray(data) ? data.slice(0, 8) : [];
+        if (items.length === 0) {
+          setDropdownItems(null);
+        } else {
+          setDropdownItems(items);
+          setSelectedIdx(0);
+        }
+      } catch {
+        setDropdownItems(null);
+      }
+    }, 200);
+  }, []);
+
+  // Clean up debounce timer on unmount
+  useEffect(() => {
+    return () => clearTimeout(debounceTimer.current);
+  }, []);
+
+  const onInput = useCallback((e) => {
+    const ta = e.target;
+    const term = getHashtagAtCursor(ta.value, ta.selectionStart);
+    if (term) {
+      fetchHashtags(term);
+    } else {
+      clearTimeout(debounceTimer.current);
+      closeDropdown();
+    }
+  }, [fetchHashtags, closeDropdown]);
+
+  const insertSuggestion = useCallback((tag) => {
+    const ta = textareaRef.current;
+    const cursorPos = ta ? ta.selectionStart : content.length;
+    const newValue = insertHashtag(tag, content, cursorPos);
+    setContent(newValue);
+    closeDropdown();
+    // Restore focus and move cursor after inserted text
+    if (ta) {
+      requestAnimationFrame(() => {
+        ta.focus();
+        const before = content.slice(0, cursorPos);
+        const replaced = before.replace(/#([a-zA-Z][a-zA-Z0-9_]*)$/, `#${tag} `);
+        const newCursor = replaced.length;
+        ta.setSelectionRange(newCursor, newCursor);
+      });
+    }
+  }, [content, setContent, closeDropdown]);
+
+  const onKeyDown = useCallback((e) => {
+    if (!dropdownItems || dropdownItems.length === 0) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setSelectedIdx(i => (i + 1) % dropdownItems.length);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setSelectedIdx(i => (i - 1 + dropdownItems.length) % dropdownItems.length);
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      const item = dropdownItems[selectedIdx];
+      if (item) insertSuggestion(item.tag);
+    } else if (e.key === 'Escape') {
+      closeDropdown();
+    }
+  }, [dropdownItems, selectedIdx, insertSuggestion, closeDropdown]);
+
+  const onBlur = useCallback(() => {
+    // Delay so a click on a suggestion item registers before the dropdown closes
+    setTimeout(() => {
+      // Check if focus moved inside the dropdown
+      if (dropdownRef.current && dropdownRef.current.contains(document.activeElement)) return;
+      closeDropdown();
+    }, 150);
+  }, [closeDropdown]);
+
+  return {
+    dropdownItems,
+    selectedIdx,
+    onKeyDown,
+    onInput,
+    onBlur,
+    insertSuggestion,
+    dropdownRef,
+    textareaRef,
+  };
+}
+
+// ── Character counters ─────────────────────────────────────────────────────────
 
 function CharCounters({ content, platforms }) {
   const limited = platforms.filter(p => PLATFORM_LIMITS[p] != null);
@@ -117,6 +239,12 @@ export default function SubmissionFormModal({
   const [form, setForm] = useState(() => buildInitialState(editSubmission));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+
+  const setContent = useCallback((value) => {
+    setForm(prev => ({ ...prev, content: value }));
+  }, []);
+
+  const hashtagAC = useHashtagAutocomplete(form.content, setContent);
 
   // Re-init form when editSubmission changes or modal opens
   useEffect(() => {
@@ -254,18 +382,41 @@ export default function SubmissionFormModal({
           </div>
 
           {/* Content */}
-          <div className="pm-submission-field">
+          <div className="pm-submission-field" style={{ position: 'relative' }}>
             <label className="pm-submission-label">
               Content
               <span className="pm-submission-hint"> (caption / post text)</span>
             </label>
             <textarea
+              ref={hashtagAC.textareaRef}
               style={{ ...inputStyle, resize: 'vertical', minHeight: 80 }}
               value={form.content}
-              onChange={e => setField('content', e.target.value)}
+              onChange={e => {
+                setField('content', e.target.value);
+                hashtagAC.onInput(e);
+              }}
+              onKeyDown={hashtagAC.onKeyDown}
+              onBlur={hashtagAC.onBlur}
               placeholder="Write your caption or post body here…"
               rows={4}
             />
+            {hashtagAC.dropdownItems && hashtagAC.dropdownItems.length > 0 && (
+              <div className="pm-hashtag-dropdown" ref={hashtagAC.dropdownRef}>
+                {hashtagAC.dropdownItems.map((item, idx) => (
+                  <div
+                    key={item.tag}
+                    className={`pm-hashtag-item${idx === hashtagAC.selectedIdx ? ' pm-hashtag-item--active' : ''}`}
+                    onMouseDown={e => {
+                      e.preventDefault(); // prevent textarea blur before click registers
+                      hashtagAC.insertSuggestion(item.tag);
+                    }}
+                  >
+                    <span>#{item.tag}</span>
+                    <span className="pm-hashtag-count">{item.count} uses</span>
+                  </div>
+                ))}
+              </div>
+            )}
             <CharCounters content={form.content} platforms={form.platform} />
           </div>
 
