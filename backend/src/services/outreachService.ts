@@ -239,6 +239,12 @@ export async function addComment(
   mentions: string[] = [],
   parentId?: string
 ) {
+  if (parentId) {
+    const parent = await prisma.outreachComment.findUnique({ where: { id: parentId } });
+    if (!parent || parent.submissionId !== submissionId) {
+      throw new Error("Invalid parentId: comment does not belong to this submission");
+    }
+  }
   return prisma.outreachComment.create({
     data: { submissionId, authorId, body, mentions, parentId },
     include: {

@@ -18,6 +18,10 @@
 # backend secrets — use backend/.env.example as the template
 backend/.env
 
+# backend build artifacts and dependencies
+backend/dist/
+backend/node_modules/
+
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*

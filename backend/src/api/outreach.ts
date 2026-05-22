@@ -287,8 +287,14 @@ outreachRouter.get("/calendar", async (req: Request, res: Response) => {
 });
 
 // ── GET /submissions/:id/comments ──────────────────────────────
+
 outreachRouter.get("/submissions/:id/comments", async (req: Request, res: Response) => {
   try {
+    const submission = await outreachService.getSubmission(req.params.id as string);
+    if (!submission) {
+      res.status(404).json({ error: "Submission not found" });
+      return;
+    }
     const comments = await outreachService.listComments(req.params.id as string);
     res.json(comments);
   } catch (error) {
@@ -298,8 +304,14 @@ outreachRouter.get("/submissions/:id/comments", async (req: Request, res: Respon
 });
 
 // ── POST /submissions/:id/comments ─────────────────────────────
+
 outreachRouter.post("/submissions/:id/comments", async (req: Request, res: Response) => {
   try {
+    const submission = await outreachService.getSubmission(req.params.id as string);
+    if (!submission) {
+      res.status(404).json({ error: "Submission not found" });
+      return;
+    }
     const { body, mentions, parentId } = req.body as {
       body: string;
       mentions?: string[];
@@ -318,6 +330,10 @@ outreachRouter.post("/submissions/:id/comments", async (req: Request, res: Respo
     );
     res.status(201).json(comment);
   } catch (error) {
+    if (error instanceof Error && error.message.startsWith("Invalid parentId")) {
+      res.status(400).json({ error: error.message });
+      return;
+    }
     console.error("POST /submissions/:id/comments error:", error);
     res.status(500).json({ error: "Failed to add comment" });
   }
