@@ -2,10 +2,10 @@ import { Router } from "express";
 import { requireAuth } from "./auth.js";
 import { channelAuth } from "../middleware/channelAuth.js";
 import { prisma } from "../db/prisma.js";
-import { getProject, createProject, updateProject, getProjectsWithTaskStats, getChannelMemberSlackIds, } from "../services/projectService.js";
+import { getProject, createProject, updateProject, getProjectsWithTaskStats, getChannelMemberSlackIds, syncProjectMembersFromChannel, } from "../services/projectService.js";
 import { getTasksForProject, createTask, } from "../services/taskService.js";
 import { logAuditEvent, diffObjects, getProjectAuditLog } from "../services/activityService.js";
-import { fetchDriveFileAsText, extractFileId } from "../services/driveService.js";
+import { fetchDriveFileAsText, extractFileId, listDriveFolderFiles, getDriveFileMeta } from "../services/driveService.js";
 import { generateJsonFromDocument, generateText } from "../services/geminiService.js";
 import { driveToTasksPrompt, meetingNotesToTasksPrompt, projectQaPrompt, } from "../utils/aiPrompts.js";
 import { analyzeProjectRisks, generateSprintPlan, generateProjectBrief, inferTaskDependencies, analyzeTeamCapacity, generateStakeholderEmail, } from "../services/projectAnalysisService.js";
@@ -68,6 +68,9 @@ projectsRouter.post("/", async (req, res) => {
 projectsRouter.get("/:id", async (req, res) => {
     try {
         const projectId = req.params.id;
+        // Opportunistic channel-member sync (60s per-project debounce, no-op if
+        // channel isn't linked). Done BEFORE getProject so members reflect the sync.
+        await syncProjectMembersFromChannel(projectId).catch(err => console.warn("syncProjectMembersFromChannel failed:", err));
         const project = await getProject(projectId);
         if (!project) {
             res.status(404).json({ error: "Project not found" });
@@ -95,10 +98,21 @@ projectsRouter.patch("/:id", channelAuth, async (req, res) => {
         const projectId = req.params.id;
         const { name, description, driveLink, slackChannel, slackChannelId, slackChannelName, status, startDate, targetDate } = req.body;
         const before = await getProject(projectId);
+        // Admin gate: only admins can change the channel's linked Drive folder.
+        if (driveLink !== undefined && (before?.driveLink ?? null) !== (driveLink ?? null)) {
+            const memberId = req.session.memberId;
+            const actor = memberId
+                ? await prisma.member.findUnique({ where: { id: memberId }, select: { isAdmin: true } })
+                : null;
+            if (!actor?.isAdmin) {
+                res.status(403).json({ error: "Only admins can change the channel's Drive folder" });
+                return;
+            }
+        }
         const project = await updateProject(projectId, {
             name,
             description,
-            driveLink,
+            driveLink: driveLink === undefined ? undefined : (driveLink ?? null),
             slackChannel,
             slackChannelId,
             slackChannelName,
@@ -107,7 +121,7 @@ projectsRouter.patch("/:id", channelAuth, async (req, res) => {
             targetDate: targetDate ? new Date(targetDate) : undefined,
         });
         if (before) {
-            const WATCHED_PROJECT_FIELDS = ["name", "status", "description", "type", "targetDate"];
+            const WATCHED_PROJECT_FIELDS = ["name", "status", "description", "type", "targetDate", "driveLink"];
             const changes = diffObjects(before, project, WATCHED_PROJECT_FIELDS);
             if (changes.length > 0) {
                 const memberId = req.session.memberId;
@@ -119,6 +133,12 @@ projectsRouter.patch("/:id", channelAuth, async (req, res) => {
                     payload: { changes },
                 }).catch(console.error);
             }
+        }
+        // If the linked Slack channel was set or changed, force a member sync.
+        const channelChanged = slackChannelId !== undefined &&
+            (before?.slackChannelId ?? null) !== (project.slackChannelId ?? null);
+        if (channelChanged && project.slackChannelId) {
+            syncProjectMembersFromChannel(projectId, { force: true }).catch(err => console.warn("syncProjectMembersFromChannel after PATCH failed:", err));
         }
         res.json(project);
     }
@@ -259,6 +279,53 @@ projectsRouter.post("/:id/updates", async (req, res) => {
     catch (error) {
         console.error("Create project update error:", error);
         res.status(500).json({ error: "Failed to create project update" });
+    }
+});
+// ── GET /api/projects/:id/drive-files ────────────────────────
+//
+// Lists files in the project's linked Drive folder using the service account.
+// Returns { folderId, folderName, files, notFolder } so the frontend can render
+// either a file grid, an "no folder linked" empty state, or a "linked item is
+// a single file, not a folder" empty state.
+projectsRouter.get("/:id/drive-files", async (req, res) => {
+    try {
+        const projectId = req.params.id;
+        const project = await getProject(projectId);
+        if (!project) {
+            res.status(404).json({ error: "Project not found" });
+            return;
+        }
+        const driveLink = project.driveLink;
+        if (!driveLink) {
+            res.json({ folderId: null, folderName: null, files: [], notFolder: false, noLink: true });
+            return;
+        }
+        const id = extractFileId(driveLink);
+        if (!id) {
+            res.json({ folderId: null, folderName: null, files: [], notFolder: false, noLink: true, invalidLink: true });
+            return;
+        }
+        const isFolderUrl = /\/folders\//.test(driveLink);
+        if (!isFolderUrl) {
+            res.json({ folderId: null, folderName: null, files: [], notFolder: true, noLink: false });
+            return;
+        }
+        const [folderMeta, files] = await Promise.all([
+            getDriveFileMeta(id),
+            listDriveFolderFiles(id),
+        ]);
+        res.json({
+            folderId: id,
+            folderName: folderMeta?.name ?? null,
+            folderWebViewLink: folderMeta?.webViewLink ?? driveLink,
+            files,
+            notFolder: false,
+            noLink: false,
+        });
+    }
+    catch (error) {
+        console.error("List drive files error:", error);
+        res.status(500).json({ error: "Failed to list Drive files" });
     }
 });
 // ── POST /api/projects/:id/parse-drive ──────────────────────

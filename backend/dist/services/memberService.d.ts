@@ -6,5 +6,6 @@ export declare function resolveSlackMember(slackUserId: string, client?: WebClie
 export declare function getLeadershipChannelId(client: SlackClient): Promise<string | null>;
 export declare function syncAdminStatus(app: App): Promise<void>;
 export declare function isAdminBySlackId(slackId: string): Promise<boolean>;
+export declare function getBotUserId(client: SlackClient): Promise<string | null>;
 export {};
 //# sourceMappingURL=memberService.d.ts.map

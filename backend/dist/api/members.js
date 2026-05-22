@@ -63,6 +63,7 @@ membersRouter.patch("/me", async (req, res) => {
 membersRouter.get("/", async (_req, res) => {
     try {
         const members = await prisma.member.findMany({
+            where: { isBot: false },
             include: {
                 _count: {
                     select: { tasks: true, projects: true },

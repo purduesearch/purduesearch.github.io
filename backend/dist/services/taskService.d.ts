@@ -95,6 +95,7 @@ export declare function getTask(id: string): Promise<({
         avatarUrl: string | null;
         role: import("@prisma/client").$Enums.Role;
         isAdmin: boolean;
+        isBot: boolean;
         kanbanColumnOrder: string[];
         notificationPrefs: string[];
         createdAt: Date;
@@ -115,6 +116,7 @@ export declare function getTask(id: string): Promise<({
             avatarUrl: string | null;
             role: import("@prisma/client").$Enums.Role;
             isAdmin: boolean;
+            isBot: boolean;
             kanbanColumnOrder: string[];
             notificationPrefs: string[];
             createdAt: Date;
@@ -139,6 +141,7 @@ export declare function getTask(id: string): Promise<({
             avatarUrl: string | null;
             role: import("@prisma/client").$Enums.Role;
             isAdmin: boolean;
+            isBot: boolean;
             kanbanColumnOrder: string[];
             notificationPrefs: string[];
             createdAt: Date;
@@ -237,6 +240,7 @@ export declare function getTasksForProject(projectId: string, filters?: TaskFilt
         avatarUrl: string | null;
         role: import("@prisma/client").$Enums.Role;
         isAdmin: boolean;
+        isBot: boolean;
         kanbanColumnOrder: string[];
         notificationPrefs: string[];
         createdAt: Date;
@@ -298,6 +302,7 @@ export declare function getTasksForMember(memberId: string): Promise<({
         avatarUrl: string | null;
         role: import("@prisma/client").$Enums.Role;
         isAdmin: boolean;
+        isBot: boolean;
         kanbanColumnOrder: string[];
         notificationPrefs: string[];
         createdAt: Date;
@@ -359,6 +364,7 @@ export declare function getOverdueTasks(): Promise<({
         avatarUrl: string | null;
         role: import("@prisma/client").$Enums.Role;
         isAdmin: boolean;
+        isBot: boolean;
         kanbanColumnOrder: string[];
         notificationPrefs: string[];
         createdAt: Date;
@@ -413,6 +419,7 @@ export declare function getTasksDueToday(): Promise<({
         avatarUrl: string | null;
         role: import("@prisma/client").$Enums.Role;
         isAdmin: boolean;
+        isBot: boolean;
         kanbanColumnOrder: string[];
         notificationPrefs: string[];
         createdAt: Date;
@@ -467,6 +474,7 @@ export declare function getTasksDueThisWeek(memberId?: string): Promise<({
         avatarUrl: string | null;
         role: import("@prisma/client").$Enums.Role;
         isAdmin: boolean;
+        isBot: boolean;
         kanbanColumnOrder: string[];
         notificationPrefs: string[];
         createdAt: Date;
@@ -506,6 +514,7 @@ export declare function getSubtasks(taskId: string): Promise<({
         avatarUrl: string | null;
         role: import("@prisma/client").$Enums.Role;
         isAdmin: boolean;
+        isBot: boolean;
         kanbanColumnOrder: string[];
         notificationPrefs: string[];
         createdAt: Date;
@@ -563,6 +572,7 @@ export declare function createSubtask(parentTaskId: string, data: {
         avatarUrl: string | null;
         role: import("@prisma/client").$Enums.Role;
         isAdmin: boolean;
+        isBot: boolean;
         kanbanColumnOrder: string[];
         notificationPrefs: string[];
         createdAt: Date;

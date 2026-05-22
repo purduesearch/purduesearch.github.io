@@ -15,6 +15,9 @@ import ProjectAnalytics from "../../components/clubpm/ProjectAnalytics";
 import MilestonePanel from "../../components/clubpm/MilestonePanel";
 import GanttChart from "../../components/clubpm/GanttChart";
 import { PriorityBars, AvatarStack } from "../../components/clubpm/TaskPrimitives";
+import DrivePreviewModal from "../../components/clubpm/DrivePreviewModal";
+import EditDriveFolderModal from "../../components/clubpm/EditDriveFolderModal";
+import { parseDriveUrl, mimeTypeToKind, getTypeMeta, formatRelativeTime } from "../../utils/driveUtils";
 import {
   DndContext,
   DragOverlay,
@@ -64,6 +67,7 @@ const NAV_TABS = [
   { id: "tasks",      label: "Tasks",      icon: "📋" },
   { id: "calendar",   label: "Calendar",   icon: "📅" },
   { id: "milestones", label: "Milestones", icon: "🎯" },
+  { id: "files",      label: "Files",      icon: "📁" },
   { id: "activity",   label: "Activity",   icon: "📜" },
   { id: "reports",    label: "Reports",    icon: "📊" },
   { id: "updates",    label: "Updates",    icon: "📝" },
@@ -1445,6 +1449,276 @@ function AiPanel({ project }) {
   );
 }
 
+// ── Drive Folder Pill (header chip with admin edit) ──────────
+
+function DriveFolderPill({ project, isAdmin, onPreview, onSaved }) {
+  const [editing, setEditing] = useState(false);
+  const link = project.driveLink ?? null;
+  const parsed = link ? parseDriveUrl(link) : null;
+  const isFolder = parsed?.kind === "folder";
+
+  if (!link) {
+    if (!isAdmin) return null;
+    return (
+      <>
+        <button
+          type="button"
+          className="cpm-drive-pill cpm-drive-pill-add"
+          onClick={() => setEditing(true)}
+          title="Link a Drive folder to this project"
+        >
+          <i className="fab fa-google-drive" aria-hidden="true" />
+          <span>+ Link Drive folder</span>
+        </button>
+        {editing && (
+          <EditDriveFolderModal
+            projectId={project.id}
+            currentLink={null}
+            onClose={() => setEditing(false)}
+            onSaved={onSaved}
+          />
+        )}
+      </>
+    );
+  }
+
+  return (
+    <>
+      <span className="cpm-drive-pill" title={link}>
+        <i className="fab fa-google-drive" style={{ color: "#4285F4" }} aria-hidden="true" />
+        <a
+          href={link}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="cpm-drive-pill-link"
+        >
+          {isFolder ? "Drive folder" : parsed ? getTypeMeta(parsed.kind).label : "Drive link"}
+        </a>
+        <button
+          type="button"
+          onClick={() => onPreview(link)}
+          className="cpm-drive-pill-action"
+          title="Preview"
+          aria-label="Preview Drive link"
+        >
+          <i className="fas fa-eye" aria-hidden="true" />
+        </button>
+        {isAdmin && (
+          <button
+            type="button"
+            onClick={() => setEditing(true)}
+            className="cpm-drive-pill-action"
+            title="Change Drive folder"
+            aria-label="Change Drive folder"
+          >
+            <i className="fas fa-pen" aria-hidden="true" />
+          </button>
+        )}
+      </span>
+      {editing && (
+        <EditDriveFolderModal
+          projectId={project.id}
+          currentLink={link}
+          onClose={() => setEditing(false)}
+          onSaved={onSaved}
+        />
+      )}
+    </>
+  );
+}
+
+// ── Files Tab Panel (Drive folder grid) ──────────────────────
+
+function DriveFilesPanel({ project, isAdmin, onProjectChange }) {
+  const [state, setState] = useState({ loading: true, data: null, error: null });
+  const [preview, setPreview] = useState(null); // { url, label }
+  const [editing, setEditing] = useState(false);
+
+  const fetchFiles = useCallback(() => {
+    setState({ loading: true, data: null, error: null });
+    get(`/api/projects/${project.id}/drive-files`)
+      .then(data => setState({ loading: false, data, error: null }))
+      .catch(err => setState({ loading: false, data: null, error: err?.message ?? "Failed to load" }));
+  }, [project.id]);
+
+  useEffect(() => { fetchFiles(); }, [fetchFiles]);
+
+  if (state.loading) {
+    return (
+      <div className="cpm-drive-files-empty">
+        <span className="cpm-spinner" aria-hidden="true" /> Loading Drive folder…
+      </div>
+    );
+  }
+
+  if (state.error) {
+    return (
+      <div className="cpm-drive-files-empty cpm-drive-files-error">
+        <i className="fas fa-exclamation-triangle" aria-hidden="true" />
+        <p>{state.error}</p>
+        <button className="clubpm-btn-primary" onClick={fetchFiles}>Retry</button>
+      </div>
+    );
+  }
+
+  const data = state.data;
+
+  if (data?.noLink) {
+    return (
+      <div className="cpm-drive-files-empty">
+        <i className="fab fa-google-drive" style={{ fontSize: 36, color: "#4285F4", marginBottom: 10 }} aria-hidden="true" />
+        <h3 style={{ margin: "0 0 4px", fontSize: 15, color: "var(--clubpm-text-primary)" }}>
+          No Drive folder linked
+        </h3>
+        <p>This project doesn't have a Drive folder yet.</p>
+        {isAdmin ? (
+          <>
+            <button className="clubpm-btn-primary" onClick={() => setEditing(true)} style={{ marginTop: 12 }}>
+              Link a folder
+            </button>
+            {editing && (
+              <EditDriveFolderModal
+                projectId={project.id}
+                currentLink={null}
+                onClose={() => setEditing(false)}
+                onSaved={updated => { onProjectChange?.(updated); fetchFiles(); }}
+              />
+            )}
+          </>
+        ) : (
+          <p style={{ fontSize: 11, opacity: 0.7, marginTop: 8 }}>
+            Ask an admin to link one.
+          </p>
+        )}
+      </div>
+    );
+  }
+
+  if (data?.notFolder) {
+    return (
+      <div className="cpm-drive-files-empty">
+        <i className="fab fa-google-drive" style={{ fontSize: 36, color: "#4285F4", marginBottom: 10 }} aria-hidden="true" />
+        <h3 style={{ margin: "0 0 4px", fontSize: 15, color: "var(--clubpm-text-primary)" }}>
+          The linked Drive item isn't a folder
+        </h3>
+        <p>You can still open it directly, but the Files browser needs a folder link.</p>
+        <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+          <a className="clubpm-btn-primary" href={project.driveLink} target="_blank" rel="noopener noreferrer">
+            Open link
+          </a>
+          {isAdmin && (
+            <button className="cpm-attach-cancel" onClick={() => setEditing(true)}>
+              Change link
+            </button>
+          )}
+        </div>
+        {editing && (
+          <EditDriveFolderModal
+            projectId={project.id}
+            currentLink={project.driveLink}
+            onClose={() => setEditing(false)}
+            onSaved={updated => { onProjectChange?.(updated); fetchFiles(); }}
+          />
+        )}
+      </div>
+    );
+  }
+
+  const files = data?.files ?? [];
+
+  return (
+    <div className="cpm-drive-files">
+      <header className="cpm-drive-files-header">
+        <div className="cpm-drive-files-title">
+          <i className="fas fa-folder" style={{ color: "#FFC107" }} aria-hidden="true" />
+          <span>{data.folderName || "Drive folder"}</span>
+          <span className="cpm-drive-files-count">
+            {files.length} item{files.length !== 1 ? "s" : ""}
+          </span>
+        </div>
+        <div className="cpm-drive-files-header-actions">
+          <button type="button" className="cpm-drive-files-refresh" onClick={fetchFiles} title="Refresh">
+            <i className="fas fa-sync" aria-hidden="true" /> Refresh
+          </button>
+          <a
+            href={data.folderWebViewLink || project.driveLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="cpm-drive-files-open"
+          >
+            Open in Drive <i className="fas fa-external-link-alt" aria-hidden="true" />
+          </a>
+        </div>
+      </header>
+
+      {files.length === 0 ? (
+        <div className="cpm-drive-files-empty">This Drive folder is empty.</div>
+      ) : (
+        <div className="cpm-drive-grid">
+          {files.map(f => {
+            const kind = mimeTypeToKind(f.mimeType);
+            const meta = getTypeMeta(kind);
+            const open = f.webViewLink
+              || (kind === "folder"
+                ? `https://drive.google.com/drive/folders/${f.id}`
+                : `https://drive.google.com/file/d/${f.id}/view`);
+            return (
+              <div
+                key={f.id}
+                className="cpm-drive-card"
+                onClick={() => setPreview({ url: open, label: f.name })}
+                role="button"
+                tabIndex={0}
+                onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setPreview({ url: open, label: f.name }); } }}
+              >
+                <div
+                  className="cpm-drive-card-thumb"
+                  style={{
+                    background: f.thumbnailLink ? "transparent" : `${meta.color}18`,
+                    color: meta.color,
+                  }}
+                >
+                  {f.thumbnailLink ? (
+                    <img src={f.thumbnailLink} alt="" loading="lazy" referrerPolicy="no-referrer" />
+                  ) : (
+                    <i className={`fas ${meta.icon}`} aria-hidden="true" />
+                  )}
+                  <a
+                    href={open}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="cpm-drive-card-open-btn"
+                    onClick={e => e.stopPropagation()}
+                    title="Open in Drive"
+                    aria-label="Open in Drive"
+                  >
+                    <i className="fas fa-external-link-alt" aria-hidden="true" />
+                  </a>
+                </div>
+                <div className="cpm-drive-card-meta">
+                  <div className="cpm-drive-card-name" title={f.name}>{f.name}</div>
+                  <div className="cpm-drive-card-sub">
+                    <span style={{ color: meta.color, fontWeight: 600 }}>{meta.label}</span>
+                    {f.modifiedTime && <span>· {formatRelativeTime(f.modifiedTime)}</span>}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {preview && (
+        <DrivePreviewModal
+          url={preview.url}
+          label={preview.label}
+          onClose={() => setPreview(null)}
+        />
+      )}
+    </div>
+  );
+}
+
 // ── Main Component ───────────────────────────────────────────
 
 export default function ProjectDetail() {
@@ -1472,6 +1746,7 @@ export default function ProjectDetail() {
   const [sortBy, setSortBy] = useState("priority");
   const [newUpdateContent, setNewUpdateContent] = useState("");
   const [postingUpdate, setPostingUpdate] = useState(false);
+  const [headerDrivePreview, setHeaderDrivePreview] = useState(null); // { url, label }
   const [pinned, setPinned] = useState(() => {
     try {
       const stored = JSON.parse(localStorage.getItem('pm-starred-projects') || '[]');
@@ -1892,6 +2167,12 @@ export default function ProjectDetail() {
                   </span>
                   <span className="pm-proj-type-chip">{project.type}</span>
                   <SlackChannelPicker project={project} channels={slackChannels} onSaved={fetchProject} />
+                  <DriveFolderPill
+                    project={project}
+                    isAdmin={!!member?.isAdmin}
+                    onPreview={url => setHeaderDrivePreview({ url, label: "Drive folder" })}
+                    onSaved={updated => setProject(prev => ({ ...prev, ...updated }))}
+                  />
                   {project.slackChannelId && !canEdit && (
                     <span style={{ fontSize: 11, color: 'var(--pm-accent-amber)', display: 'flex', alignItems: 'center', gap: 4 }}>
                       <i className="fas fa-lock" style={{ fontSize: 10 }} /> View only
@@ -2001,6 +2282,16 @@ export default function ProjectDetail() {
                 projectId={project.id}
                 project={project}
                 onRefresh={fetchProject}
+              />
+            </div>
+          )}
+
+          {activeTab === "files" && (
+            <div className="cpm-proj-main-body" style={{ padding: "24px" }}>
+              <DriveFilesPanel
+                project={project}
+                isAdmin={!!member?.isAdmin}
+                onProjectChange={updated => setProject(prev => ({ ...prev, ...updated }))}
               />
             </div>
           )}
@@ -2180,6 +2471,14 @@ export default function ProjectDetail() {
           projectMembers={(project.members ?? []).map(pm => pm.member ?? pm)}
           onClose={() => setShowAddTask(false)}
           onCreated={handleTaskCreated}
+        />
+      )}
+
+      {headerDrivePreview && (
+        <DrivePreviewModal
+          url={headerDrivePreview.url}
+          label={headerDrivePreview.label}
+          onClose={() => setHeaderDrivePreview(null)}
         />
       )}
     </div>

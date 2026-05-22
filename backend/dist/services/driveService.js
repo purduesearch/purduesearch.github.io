@@ -63,7 +63,8 @@ export async function listDriveFolderFiles(folderId) {
         const drive = google.drive({ version: "v3", auth });
         const res = await drive.files.list({
             q: `'${folderId}' in parents and trashed=false`,
-            fields: "files(id,name,mimeType)",
+            fields: "files(id,name,mimeType,webViewLink,thumbnailLink,iconLink,modifiedTime)",
+            orderBy: "folder,name",
             pageSize: 50,
         });
         return (res.data.files ?? []);
@@ -71,6 +72,19 @@ export async function listDriveFolderFiles(folderId) {
     catch (err) {
         console.error("[driveService] listDriveFolderFiles error:", err);
         return [];
+    }
+}
+/** Get metadata for a single Drive file/folder (lightweight). */
+export async function getDriveFileMeta(fileId) {
+    try {
+        const auth = getDriveAuth();
+        const drive = google.drive({ version: "v3", auth });
+        const res = await drive.files.get({ fileId, fields: "id,name,mimeType,webViewLink" });
+        return res.data;
+    }
+    catch (err) {
+        console.error("[driveService] getDriveFileMeta error:", err);
+        return null;
     }
 }
 /** Download a file from Drive and return it as base64. */

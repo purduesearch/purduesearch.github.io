@@ -17,6 +17,7 @@ export declare function logActivity(data: {
         avatarUrl: string | null;
         role: import("@prisma/client").$Enums.Role;
         isAdmin: boolean;
+        isBot: boolean;
         kanbanColumnOrder: string[];
         notificationPrefs: string[];
         createdAt: Date;
@@ -40,6 +41,7 @@ export declare function getProjectActivities(projectId: string, take?: number, c
         avatarUrl: string | null;
         role: import("@prisma/client").$Enums.Role;
         isAdmin: boolean;
+        isBot: boolean;
         kanbanColumnOrder: string[];
         notificationPrefs: string[];
         createdAt: Date;
@@ -63,6 +65,7 @@ export declare function getEntityActivities(entityId: string, take?: number): Pr
         avatarUrl: string | null;
         role: import("@prisma/client").$Enums.Role;
         isAdmin: boolean;
+        isBot: boolean;
         kanbanColumnOrder: string[];
         notificationPrefs: string[];
         createdAt: Date;

@@ -65,6 +65,7 @@ export declare function getMilestone(id: string): Promise<({
             avatarUrl: string | null;
             role: import("@prisma/client").$Enums.Role;
             isAdmin: boolean;
+            isBot: boolean;
             kanbanColumnOrder: string[];
             notificationPrefs: string[];
             createdAt: Date;

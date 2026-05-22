@@ -11,7 +11,7 @@ interface CreateProjectInput {
 interface UpdateProjectInput {
     name?: string;
     description?: string;
-    driveLink?: string;
+    driveLink?: string | null;
     slackChannel?: string;
     slackChannelId?: string | null;
     slackChannelName?: string | null;
@@ -44,6 +44,7 @@ export declare function getProject(id: string): Promise<({
             avatarUrl: string | null;
             role: import("@prisma/client").$Enums.Role;
             isAdmin: boolean;
+            isBot: boolean;
             kanbanColumnOrder: string[];
             notificationPrefs: string[];
             createdAt: Date;
@@ -64,6 +65,7 @@ export declare function getProject(id: string): Promise<({
                 avatarUrl: string | null;
                 role: import("@prisma/client").$Enums.Role;
                 isAdmin: boolean;
+                isBot: boolean;
                 kanbanColumnOrder: string[];
                 notificationPrefs: string[];
                 createdAt: Date;
@@ -149,6 +151,7 @@ export declare function getProject(id: string): Promise<({
             avatarUrl: string | null;
             role: import("@prisma/client").$Enums.Role;
             isAdmin: boolean;
+            isBot: boolean;
             kanbanColumnOrder: string[];
             notificationPrefs: string[];
             createdAt: Date;
@@ -197,6 +200,7 @@ export declare function getProjectsForChannel(channelId: string): Promise<({
             avatarUrl: string | null;
             role: import("@prisma/client").$Enums.Role;
             isAdmin: boolean;
+            isBot: boolean;
             kanbanColumnOrder: string[];
             notificationPrefs: string[];
             createdAt: Date;
@@ -236,6 +240,7 @@ export declare function getProjectsForChannel(channelId: string): Promise<({
             avatarUrl: string | null;
             role: import("@prisma/client").$Enums.Role;
             isAdmin: boolean;
+            isBot: boolean;
             kanbanColumnOrder: string[];
             notificationPrefs: string[];
             createdAt: Date;
@@ -271,6 +276,7 @@ export declare function getProjectByChannel(channelId: string): Promise<{
             avatarUrl: string | null;
             role: import("@prisma/client").$Enums.Role;
             isAdmin: boolean;
+            isBot: boolean;
             kanbanColumnOrder: string[];
             notificationPrefs: string[];
             createdAt: Date;
@@ -310,6 +316,7 @@ export declare function getProjectByChannel(channelId: string): Promise<{
             avatarUrl: string | null;
             role: import("@prisma/client").$Enums.Role;
             isAdmin: boolean;
+            isBot: boolean;
             kanbanColumnOrder: string[];
             notificationPrefs: string[];
             createdAt: Date;
@@ -343,6 +350,9 @@ export declare function addMemberToProject(projectId: string, memberId: string, 
     projectRole: string;
     joinedAt: Date;
 }>;
+export declare function syncProjectMembersFromChannel(projectId: string, options?: {
+    force?: boolean;
+}): Promise<void>;
 export declare function removeMemberFromProject(projectId: string, memberId: string): Promise<{
     projectId: string;
     memberId: string;
@@ -365,6 +375,7 @@ export declare function getProjectsWithTaskStats(): Promise<{
             avatarUrl: string | null;
             role: import("@prisma/client").$Enums.Role;
             isAdmin: boolean;
+            isBot: boolean;
             kanbanColumnOrder: string[];
             notificationPrefs: string[];
             createdAt: Date;
@@ -399,6 +410,7 @@ export declare function findProjectByName(name: string): Promise<({
             avatarUrl: string | null;
             role: import("@prisma/client").$Enums.Role;
             isAdmin: boolean;
+            isBot: boolean;
             kanbanColumnOrder: string[];
             notificationPrefs: string[];
             createdAt: Date;
@@ -438,6 +450,7 @@ export declare function findProjectByName(name: string): Promise<({
             avatarUrl: string | null;
             role: import("@prisma/client").$Enums.Role;
             isAdmin: boolean;
+            isBot: boolean;
             kanbanColumnOrder: string[];
             notificationPrefs: string[];
             createdAt: Date;

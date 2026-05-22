@@ -6,12 +6,24 @@ export declare function fetchDriveFileAsText(fileId: string): Promise<{
     name: string;
     mimeType: string;
 } | null>;
-/** List files in a Drive folder (non-recursive, first 50). */
-export declare function listDriveFolderFiles(folderId: string): Promise<Array<{
+export type DriveFolderFile = {
     id: string;
     name: string;
     mimeType: string;
-}>>;
+    webViewLink?: string;
+    thumbnailLink?: string;
+    iconLink?: string;
+    modifiedTime?: string;
+};
+/** List files in a Drive folder (non-recursive, first 50). */
+export declare function listDriveFolderFiles(folderId: string): Promise<DriveFolderFile[]>;
+/** Get metadata for a single Drive file/folder (lightweight). */
+export declare function getDriveFileMeta(fileId: string): Promise<{
+    id: string;
+    name: string;
+    mimeType: string;
+    webViewLink?: string;
+} | null>;
 /** Download a file from Drive and return it as base64. */
 export declare function fetchDriveFileAsBase64(fileId: string): Promise<{
     base64: string;

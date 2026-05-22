@@ -3,6 +3,9 @@ import { createPortal } from "react-dom";
 import { get, post, patch, del } from "../../api/clubPmClient";
 import { useClubPmAuth } from "../../clubpm/ClubPmAuth";
 import MemberBadge from "./MemberBadge";
+import AttachmentPickerModal from "./AttachmentPickerModal";
+import DrivePreviewModal from "./DrivePreviewModal";
+import { parseDriveUrl, getTypeMeta } from "../../utils/driveUtils";
 
 // ─── Constants ────────────────────────────────────────────────
 
@@ -671,53 +674,6 @@ function ConfirmDeleteDialog({ taskTitle, onConfirm, onCancel, saving }) {
   );
 }
 
-// ─── Add Link Modal ────────────────────────────────────────────
-
-function AddLinkModal({ onAdd, onClose }) {
-  const [url, setUrl] = useState("");
-  const [label, setLabel] = useState("");
-
-  function handleAdd() {
-    if (!url.trim()) return;
-    onAdd({ url: url.trim(), label: label.trim() || url.trim() });
-    onClose();
-  }
-
-  return createPortal(
-    <div style={styles.overlay} onClick={e => e.target === e.currentTarget && onClose()}>
-      <div style={{ ...styles.subModal, maxWidth:380 }}>
-        <div style={styles.subModalHeader}>
-          <span style={{ fontSize:14, fontWeight:700 }}>
-            <i className="fab fa-google-drive" style={{ marginRight:8, color:"#4285F4" }} />
-            Add Attachment
-          </span>
-          <IconBtn icon="times" onClick={onClose} />
-        </div>
-        <div style={{ padding:"16px 20px", display:"flex", flexDirection:"column", gap:12 }}>
-          <div>
-            <label style={styles.fieldLabel}>URL *</label>
-            <input autoFocus value={url} onChange={e => setUrl(e.target.value)}
-              placeholder="https://drive.google.com/…" style={styles.input} />
-          </div>
-          <div>
-            <label style={styles.fieldLabel}>Label (optional)</label>
-            <input value={label} onChange={e => setLabel(e.target.value)}
-              placeholder="e.g. Design Specs v2" style={styles.input} />
-          </div>
-        </div>
-        <div style={styles.subModalFooter}>
-          <button style={styles.cancelBtn} onClick={onClose}>Cancel</button>
-          <button style={{ ...styles.primaryBtn, opacity: !url.trim() ? 0.6 : 1 }}
-            onClick={handleAdd} disabled={!url.trim()}>
-            Add
-          </button>
-        </div>
-      </div>
-    </div>,
-    document.body
-  );
-}
-
 // ─── Comment Row ───────────────────────────────────────────────
 
 function CommentRow({ comment }) {
@@ -911,6 +867,7 @@ export default function TaskModal({ task: initialTask, readOnly = false, onClose
   const [showShiftModal, setShowShiftModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showAddLink, setShowAddLink] = useState(false);
+  const [previewAttachment, setPreviewAttachment] = useState(null); // { url, label }
   const [showParentPicker, setShowParentPicker] = useState(false);
   const [deletingSaving, setDeletingSaving] = useState(false);
   const [nestedTask, setNestedTask] = useState(null);
@@ -1090,8 +1047,9 @@ export default function TaskModal({ task: initialTask, readOnly = false, onClose
     setShowSubtaskModal(false);
   }
 
-  async function handleAddLink({ url, label }) {
-    const attachments = [...(task.attachments ?? []), { url, label }];
+  async function handleAddLink(payload) {
+    const additions = Array.isArray(payload) ? payload : [payload];
+    const attachments = [...(task.attachments ?? []), ...additions];
     await saveField({ attachments });
   }
 
@@ -1540,29 +1498,57 @@ export default function TaskModal({ task: initialTask, readOnly = false, onClose
                   ? <p style={{ fontSize:12, color:"var(--clubpm-text-muted)", fontStyle:"italic", margin:0 }}>
                       No attachments yet
                     </p>
-                  : (task.attachments ?? []).map((att, i) => (
-                      <div key={i} style={{
-                        display:"flex", alignItems:"center", gap:10, padding:"8px 12px",
-                        borderRadius:7, border:"1px solid var(--clubpm-border)",
-                        background:"var(--clubpm-surface-200)",
-                      }}>
-                        <i className="fab fa-google-drive" style={{ color:"#4285F4", fontSize:16, flexShrink:0 }} />
-                        <a href={att.url} target="_blank" rel="noopener noreferrer" style={{
-                          fontSize:12, color:"var(--clubpm-accent-primary)", flex:1,
-                          overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
-                          textDecoration:"none",
-                        }}>{att.label || att.url}</a>
-                        <button onClick={() => {
-                          const next = (task.attachments ?? []).filter((_,j) => j !== i);
-                          saveField({ attachments: next });
-                        }} style={{
-                          background:"none", border:"none", cursor:"pointer", padding:"2px 4px",
-                          color:"var(--clubpm-text-muted)", fontSize:11, borderRadius:4,
+                  : (task.attachments ?? []).map((att, i) => {
+                      const parsed = parseDriveUrl(att.url);
+                      const meta = getTypeMeta(parsed.kind);
+                      const canPreview = parsed.kind !== "unknown";
+                      return (
+                        <div key={i} style={{
+                          display:"flex", alignItems:"center", gap:10, padding:"8px 12px",
+                          borderRadius:7, border:"1px solid var(--clubpm-border)",
+                          background:"var(--clubpm-surface-200)",
                         }}>
-                          <i className="fas fa-times" />
-                        </button>
-                      </div>
-                    ))
+                          <i className={`fas ${meta.icon}`} style={{ color: meta.color, fontSize:16, flexShrink:0 }} aria-hidden="true" />
+                          <a href={att.url} target="_blank" rel="noopener noreferrer" style={{
+                            fontSize:12, color:"var(--clubpm-accent-primary)", flex:1,
+                            overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
+                            textDecoration:"none",
+                          }}>{att.label || att.url}</a>
+                          <span style={{
+                            fontSize:10, color: meta.color, fontWeight:600, letterSpacing:"0.04em",
+                            textTransform:"uppercase", flexShrink:0,
+                          }}>
+                            {meta.label}
+                          </span>
+                          {canPreview && (
+                            <button
+                              type="button"
+                              onClick={() => setPreviewAttachment({ url: att.url, label: att.label })}
+                              title="Preview"
+                              aria-label="Preview attachment"
+                              style={{
+                                background:"none", border:"none", cursor:"pointer", padding:"2px 4px",
+                                color:"var(--clubpm-text-muted)", fontSize:12, borderRadius:4,
+                              }}
+                            >
+                              <i className="fas fa-eye" aria-hidden="true" />
+                            </button>
+                          )}
+                          <button onClick={() => {
+                            const next = (task.attachments ?? []).filter((_,j) => j !== i);
+                            saveField({ attachments: next });
+                          }}
+                          title="Remove attachment"
+                          aria-label="Remove attachment"
+                          style={{
+                            background:"none", border:"none", cursor:"pointer", padding:"2px 4px",
+                            color:"var(--clubpm-text-muted)", fontSize:11, borderRadius:4,
+                          }}>
+                            <i className="fas fa-times" />
+                          </button>
+                        </div>
+                      );
+                    })
                 }
                 <button onClick={() => setShowAddLink(true)} style={{
                   display:"flex", alignItems:"center", gap:6, padding:"7px 10px",
@@ -1832,9 +1818,18 @@ export default function TaskModal({ task: initialTask, readOnly = false, onClose
       )}
 
       {showAddLink && (
-        <AddLinkModal
+        <AttachmentPickerModal
+          projectId={task.projectId}
           onAdd={handleAddLink}
           onClose={() => setShowAddLink(false)}
+        />
+      )}
+
+      {previewAttachment && (
+        <DrivePreviewModal
+          url={previewAttachment.url}
+          label={previewAttachment.label}
+          onClose={() => setPreviewAttachment(null)}
         />
       )}
 

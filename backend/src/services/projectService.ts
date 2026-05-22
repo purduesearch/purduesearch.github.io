@@ -23,7 +23,7 @@ interface CreateProjectInput {
 interface UpdateProjectInput {
   name?: string;
   description?: string;
-  driveLink?: string;
+  driveLink?: string | null;
   slackChannel?: string;
   slackChannelId?: string | null;
   slackChannelName?: string | null;

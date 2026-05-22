@@ -1,36 +1,35 @@
 import { prisma } from "../db/prisma.js";
 export async function resolveSlackMember(slackUserId, client) {
-    let member = await prisma.member.findUnique({
+    const existing = await prisma.member.findUnique({
         where: { slackId: slackUserId },
     });
-    if (member) {
-        return member;
-    }
-    let displayName = slackUserId;
-    let slackHandle = slackUserId;
-    let avatarUrl;
+    // Fast path: existing member and no client → can't refresh anything.
+    if (existing && !client)
+        return existing;
+    let displayName = existing?.displayName ?? slackUserId;
+    let slackHandle = existing?.slackHandle ?? slackUserId;
+    let avatarUrl = existing?.avatarUrl ?? undefined;
+    // Slackbot is hard-coded as a bot — its slackId is constant across workspaces.
+    let isBot = existing?.isBot ?? (slackUserId === "USLACKBOT");
     if (client) {
         try {
             const userInfo = await client.users.info({ user: slackUserId });
             if (userInfo.user) {
-                displayName = userInfo.user.real_name || slackUserId;
-                slackHandle = userInfo.user.name || slackUserId;
-                avatarUrl = userInfo.user.profile?.image_72;
+                displayName = userInfo.user.real_name || existing?.displayName || slackUserId;
+                slackHandle = userInfo.user.name || existing?.slackHandle || slackUserId;
+                avatarUrl = userInfo.user.profile?.image_72 ?? avatarUrl;
+                isBot = Boolean(userInfo.user.is_bot) || slackUserId === "USLACKBOT";
             }
         }
         catch {
             // Silently fall back to defaults if Slack API call fails
         }
     }
-    member = await prisma.member.create({
-        data: {
-            slackId: slackUserId,
-            slackHandle,
-            displayName,
-            avatarUrl,
-        },
+    return prisma.member.upsert({
+        where: { slackId: slackUserId },
+        update: { displayName, slackHandle, avatarUrl, isBot },
+        create: { slackId: slackUserId, slackHandle, displayName, avatarUrl, isBot },
     });
-    return member;
 }
 // Resolve a channel name like "leadership" or "#leadership" to a Slack channel ID.
 // Accepts a WebClient directly so callers don't need the full App object.
@@ -81,6 +80,12 @@ export async function syncAdminStatus(app) {
         slackIds.push(...(res.members ?? []));
         cursor = res.response_metadata?.next_cursor || undefined;
     } while (cursor);
+    // Ensure every leadership-channel member exists in the DB before granting admin.
+    // After a workspace migration the Member table may be empty (slackIds are new), and
+    // without this loop updateMany would match zero rows and grant no admin.
+    for (const id of slackIds) {
+        await resolveSlackMember(id, app.client);
+    }
     // Snapshot current state so we can log what actually changed
     const existing = await prisma.member.findMany({
         select: { slackId: true, displayName: true, isAdmin: true },
@@ -88,8 +93,10 @@ export async function syncAdminStatus(app) {
     const existingMap = new Map(existing.map(m => [m.slackId, m]));
     const gained = slackIds.filter(id => existingMap.has(id) && !existingMap.get(id).isAdmin);
     const lost = existing.filter(m => m.isAdmin && !slackIds.includes(m.slackId));
-    await prisma.member.updateMany({ where: { slackId: { in: slackIds } }, data: { isAdmin: true } });
+    await prisma.member.updateMany({ where: { slackId: { in: slackIds }, isBot: false }, data: { isAdmin: true } });
     await prisma.member.updateMany({ where: { slackId: { notIn: slackIds }, isAdmin: true }, data: { isAdmin: false } });
+    // Bots never get admin, even if they're in #leadership.
+    await prisma.member.updateMany({ where: { isBot: true, isAdmin: true }, data: { isAdmin: false } });
     for (const id of gained) {
         const name = existingMap.get(id)?.displayName ?? id;
         console.log(`🔑 [admin] GRANTED: ${name} (${id})`);
@@ -104,5 +111,21 @@ export async function syncAdminStatus(app) {
 export async function isAdminBySlackId(slackId) {
     const m = await prisma.member.findUnique({ where: { slackId }, select: { isAdmin: true } });
     return m?.isAdmin ?? false;
+}
+// Cached after first call — the bot's own Slack user ID, used to check channel
+// membership and to invite the bot into a private channel via the user token.
+let _botUserId = undefined;
+export async function getBotUserId(client) {
+    if (_botUserId !== undefined)
+        return _botUserId;
+    try {
+        const res = await client.auth.test();
+        _botUserId = res.user_id ?? null;
+    }
+    catch (err) {
+        console.error("getBotUserId: auth.test failed:", err);
+        _botUserId = null;
+    }
+    return _botUserId;
 }
 //# sourceMappingURL=memberService.js.map
