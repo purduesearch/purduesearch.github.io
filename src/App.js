@@ -12,6 +12,8 @@ import ClubPmDashboard from './pages/ClubPM/Dashboard';
 import ClubPmProjectDetail from './pages/ClubPM/ProjectDetail';
 import ClubPmGanttView from './pages/ClubPM/GanttView';
 import ClubPmMembersView from './pages/ClubPM/MembersView';
+import NotificationCenter from './components/clubpm/NotificationCenter';
+import NotificationPreferences from './components/clubpm/NotificationPreferences';
 import Home from './pages/Home';
 import About from './pages/About';
 import Research from './pages/Research';
@@ -59,6 +61,8 @@ function AnimatedRoutes() {
           <Route path="/clubpm/projects/:id" element={<ClubPmProtectedPage><ClubPmProjectDetail /></ClubPmProtectedPage>} />
           <Route path="/clubpm/projects/:id/gantt" element={<ClubPmProtectedPage><ClubPmGanttView /></ClubPmProtectedPage>} />
           <Route path="/clubpm/members" element={<ClubPmProtectedPage><ClubPmMembersView /></ClubPmProtectedPage>} />
+          <Route path="/clubpm/notifications" element={<ClubPmProtectedPage><NotificationCenter /></ClubPmProtectedPage>} />
+          <Route path="/clubpm/notifications/preferences" element={<ClubPmProtectedPage><NotificationPreferences /></ClubPmProtectedPage>} />
 
           {/* Main site routes */}
           <Route path="/" element={<PageWrapper><Home /></PageWrapper>} />

@@ -454,6 +454,80 @@ export async function sendMilestoneAlerts(
   }
 }
 
+// ── Combined Monday Digest + Standup Prompt ──────────────────
+
+export async function sendCombinedMondayDigest(app: App): Promise<void> {
+  const members = await prisma.member.findMany({
+    where: {
+      OR: [
+        { notificationPrefs: { has: "weekly_digest" } },
+        { notificationPrefs: { has: "standup_prompts" } },
+      ],
+    },
+    include: {
+      projects: {
+        where: { project: { status: "ACTIVE" } },
+        include: {
+          project: {
+            include: { notificationTargets: { where: { type: "CHANNEL" } } },
+          },
+        },
+      },
+    },
+  });
+
+  for (const member of members) {
+    try {
+      const tasks = (await getTasksDueThisWeek(member.id)) as TaskWithRelations[];
+
+      // Build digest section
+      const digestBlocks =
+        member.notificationPrefs.includes("weekly_digest") && tasks.length > 0
+          ? buildWeeklyDigest(member, tasks)
+          : [];
+
+      // Build standup section
+      let standupBlocks: any[] = [];
+      if (member.notificationPrefs.includes("standup_prompts")) {
+        const seen = new Set<string>();
+        const projectChannels: { name: string; channelId: string }[] = [];
+        for (const pm of member.projects) {
+          for (const target of pm.project.notificationTargets) {
+            if (!seen.has(target.slackChannelId)) {
+              seen.add(target.slackChannelId);
+              projectChannels.push({ name: pm.project.name, channelId: target.slackChannelId });
+            }
+          }
+          const legacy = pm.project.slackChannel;
+          if (legacy && !seen.has(legacy)) {
+            seen.add(legacy);
+            projectChannels.push({ name: pm.project.name, channelId: legacy });
+          }
+        }
+        standupBlocks = buildStandupDmPrompt(member.displayName, projectChannels);
+      }
+
+      const allBlocks = [
+        ...(digestBlocks.length > 0 && standupBlocks.length > 0
+          ? [...digestBlocks, { type: "divider" }]
+          : digestBlocks),
+        ...standupBlocks,
+      ];
+
+      if (allBlocks.length === 0) continue;
+
+      const taskCount = tasks.length;
+      await app.client.chat.postMessage({
+        channel: member.slackId,
+        text: `📋 Good Monday, ${member.displayName}! ${taskCount > 0 ? `You have ${taskCount} task(s) due this week.` : "Time for your standup!"}`,
+        blocks: allBlocks,
+      });
+    } catch (error) {
+      console.error(`Failed to send Monday digest to ${member.displayName}:`, error);
+    }
+  }
+}
+
 // ── Stale Task Warnings ───────────────────────────────────────
 
 export async function sendAllStaleTaskWarnings(app: App): Promise<void> {

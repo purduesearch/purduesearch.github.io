@@ -71,6 +71,59 @@ membersRouter.patch("/me", async (req: Request, res: Response) => {
   }
 });
 
+// ── PATCH /api/members/me/notification-preferences ──────────
+
+membersRouter.patch("/me/notification-preferences", async (req: Request, res: Response) => {
+  try {
+    if (!req.session.memberId) {
+      res.status(401).json({ error: "Not authenticated" });
+      return;
+    }
+
+    const {
+      notificationPrefs,
+      notificationChannels,
+      quietHoursStart,
+      quietHoursEnd,
+      mutedProjectIds,
+    } = req.body;
+
+    // Validate quiet hours range
+    if (quietHoursStart !== undefined && (quietHoursStart < 0 || quietHoursStart > 23 || !Number.isInteger(quietHoursStart))) {
+      res.status(400).json({ error: "quietHoursStart must be an integer between 0 and 23" });
+      return;
+    }
+    if (quietHoursEnd !== undefined && (quietHoursEnd < 0 || quietHoursEnd > 23 || !Number.isInteger(quietHoursEnd))) {
+      res.status(400).json({ error: "quietHoursEnd must be an integer between 0 and 23" });
+      return;
+    }
+
+    const updateData: Record<string, unknown> = {};
+    if (notificationPrefs !== undefined)    updateData.notificationPrefs    = notificationPrefs;
+    if (notificationChannels !== undefined) updateData.notificationChannels = notificationChannels;
+    if (quietHoursStart !== undefined)      updateData.quietHoursStart      = quietHoursStart;
+    if (quietHoursEnd !== undefined)        updateData.quietHoursEnd        = quietHoursEnd;
+    if (mutedProjectIds !== undefined)      updateData.mutedProjectIds      = mutedProjectIds;
+
+    const member = await prisma.member.update({
+      where: { id: req.session.memberId },
+      data: updateData,
+      select: {
+        notificationPrefs:    true,
+        notificationChannels: true,
+        quietHoursStart:      true,
+        quietHoursEnd:        true,
+        mutedProjectIds:      true,
+      },
+    });
+
+    res.json(member);
+  } catch (error) {
+    console.error("Update notification preferences error:", error);
+    res.status(500).json({ error: "Failed to update notification preferences" });
+  }
+});
+
 // ── GET /api/members ─────────────────────────────────────────
 
 membersRouter.get("/", async (_req: Request, res: Response) => {

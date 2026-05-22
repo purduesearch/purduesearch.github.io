@@ -95,6 +95,22 @@ enum MilestoneStatus {
   CANCELLED
 }
 
+enum NotificationType {
+  TASK_ASSIGNED
+  TASK_COMPLETED
+  TASK_UPDATED
+  TASK_COMMENTED
+  TASK_MENTIONED
+  TASK_DUE_SOON
+  TASK_OVERDUE
+  MILESTONE_COMPLETED
+  MILESTONE_AT_RISK
+  PROJECT_UPDATE
+  STANDUP_POSTED
+  COMMENT_REPLY
+  SYSTEM
+}
+
 // ── Models ───────────────────────────────────────────────────
 
 model Member {
@@ -108,10 +124,16 @@ model Member {
   isBot           Boolean         @default(false)
   kanbanColumnOrder String[]      @default(["TODO", "IN_PROGRESS", "BLOCKED", "DONE"])
   notificationPrefs String[]      @default(["daily_reminders", "weekly_digest", "project_updates"])
+  notificationChannels  Json?
+  quietHoursStart       Int?
+  quietHoursEnd         Int?
+  mutedProjectIds       String[]  @default([])
   tasks           Task[]          @relation("TaskAssignees")
   projects        ProjectMember[]
   comments        TaskComment[]
   activities      Activity[]
+  notifications         Notification[] @relation("NotificationRecipient")
+  sentNotifications     Notification[] @relation("NotificationActor")
   activityLogs    ActivityLog[]
   ownedMilestones Milestone[]     @relation("MilestoneOwner")
   timeLogs        TimeLog[]
@@ -139,6 +161,7 @@ model Project {
   activities           Activity[]
   activityLogs         ActivityLog[]
   notificationTargets  ProjectNotificationTarget[]
+  notifications        Notification[]
   createdAt            DateTime        @default(now())
   updatedAt            DateTime        @updatedAt
 }
@@ -201,6 +224,7 @@ model Task {
   milestoneId  String?
 
   activityLogs ActivityLog[]
+  notifications Notification[]
 
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
@@ -212,16 +236,22 @@ model Task {
 }
 
 model TaskComment {
-  id        String   @id @default(cuid())
+  id        String      @id @default(cuid())
   content   String
-  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  task      Task        @relation(fields: [taskId], references: [id], onDelete: Cascade)
   taskId    String
-  author    Member   @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  author    Member      @relation(fields: [authorId], references: [id], onDelete: Cascade)
   authorId  String
-  createdAt DateTime @default(now())
+  parentId  String?
+  parent    TaskComment?  @relation("CommentThread", fields: [parentId], references: [id], onDelete: Cascade)
+  replies   TaskComment[] @relation("CommentThread")
+  editedAt  DateTime?
+  reactions Json?
+  createdAt DateTime    @default(now())
 
   @@index([taskId])
   @@index([authorId])
+  @@index([parentId])
 }
 
 model Milestone {
@@ -360,6 +390,29 @@ model TaskDependency {
   blockedTask    Task   @relation("TaskDependencies_blocked",  fields: [blockedTaskId],  references: [id], onDelete: Cascade)
 
   @@id([blockingTaskId, blockedTaskId])
+}
+
+model Notification {
+  id          String           @id @default(cuid())
+  type        NotificationType
+  recipientId String
+  recipient   Member           @relation("NotificationRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  actorId     String?
+  actor       Member?          @relation("NotificationActor", fields: [actorId], references: [id], onDelete: SetNull)
+  projectId   String?
+  project     Project?         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  taskId      String?
+  task        Task?            @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  commentId   String?
+  message     String
+  read        Boolean          @default(false)
+  readAt      DateTime?
+  metadata    Json?
+  createdAt   DateTime         @default(now())
+
+  @@index([recipientId, read, createdAt(sort: Desc)])
+  @@index([recipientId, createdAt(sort: Desc)])
+  @@index([projectId])
 }
 
 model TimeLog {

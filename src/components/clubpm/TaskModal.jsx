@@ -676,30 +676,259 @@ function ConfirmDeleteDialog({ taskTitle, onConfirm, onCancel, saving }) {
 
 // ─── Comment Row ───────────────────────────────────────────────
 
-function CommentRow({ comment }) {
+const QUICK_REACTIONS = ["👍", "🎉", "❤️", "👀"];
+
+function CommentRow({ comment, taskId, currentMember, onUpdate, onDelete, isReply = false }) {
+  const [editing, setEditing] = useState(false);
+  const [editDraft, setEditDraft] = useState(comment.content);
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [showReplyInput, setShowReplyInput] = useState(false);
+  const [replyDraft, setReplyDraft] = useState("");
+  const [submittingReply, setSubmittingReply] = useState(false);
+
+  const isAuthor = currentMember && comment.authorId === currentMember.id;
+  const isAdmin = currentMember?.isAdmin;
+  const canEdit = isAuthor;
+  const canDelete = isAuthor || isAdmin;
+
+  async function handleSaveEdit() {
+    if (!editDraft.trim() || savingEdit) return;
+    setSavingEdit(true);
+    try {
+      const updated = await patch(`/api/tasks/${taskId}/comments/${comment.id}`, { content: editDraft.trim() });
+      onUpdate({ ...comment, content: updated.content ?? editDraft.trim(), editedAt: updated.editedAt ?? new Date().toISOString() });
+      setEditing(false);
+    } catch (e) {
+      console.error("Failed to edit comment", e);
+    } finally {
+      setSavingEdit(false);
+    }
+  }
+
+  async function handleDelete() {
+    if (!window.confirm("Delete this comment?")) return;
+    try {
+      await del(`/api/tasks/${taskId}/comments/${comment.id}`);
+      onDelete(comment.id);
+    } catch (e) {
+      console.error("Failed to delete comment", e);
+    }
+  }
+
+  async function handleReaction(emoji) {
+    const reactions = comment.reactions ?? {};
+    const voters = reactions[emoji] ?? [];
+    const myId = currentMember?.id;
+    const alreadyReacted = myId && voters.includes(myId);
+    const newVoters = alreadyReacted ? voters.filter(id => id !== myId) : [...voters, myId];
+    const newReactions = { ...reactions, [emoji]: newVoters };
+    // Optimistic update
+    onUpdate({ ...comment, reactions: newReactions });
+    try {
+      await post(`/api/tasks/${taskId}/comments/${comment.id}/reactions`, { emoji });
+    } catch (e) {
+      // Rollback
+      onUpdate({ ...comment, reactions });
+      console.error("Failed to toggle reaction", e);
+    }
+  }
+
+  async function handleSubmitReply() {
+    if (!replyDraft.trim() || submittingReply) return;
+    setSubmittingReply(true);
+    try {
+      const newReply = await post(`/api/tasks/${taskId}/comments`, { content: replyDraft.trim(), parentId: comment.id });
+      onUpdate({ ...comment, replies: [...(comment.replies ?? []), newReply] });
+      setReplyDraft("");
+      setShowReplyInput(false);
+    } catch (e) {
+      console.error("Failed to post reply", e);
+    } finally {
+      setSubmittingReply(false);
+    }
+  }
+
+  function handleUpdateReply(updatedReply) {
+    onUpdate({ ...comment, replies: (comment.replies ?? []).map(r => r.id === updatedReply.id ? updatedReply : r) });
+  }
+
+  function handleDeleteReply(replyId) {
+    onUpdate({ ...comment, replies: (comment.replies ?? []).filter(r => r.id !== replyId) });
+  }
+
+  const reactions = comment.reactions ?? {};
+
   return (
-    <div style={{ display:"flex", gap:10, marginBottom:14 }}>
-      {comment.author?.avatarUrl
-        ? <img src={comment.author.avatarUrl} alt={comment.author.displayName}
-            style={{ width:26, height:26, borderRadius:"50%", flexShrink:0, marginTop:1 }} />
-        : <div style={{
-            width:26, height:26, borderRadius:"50%", flexShrink:0, marginTop:1,
-            background:"var(--clubpm-accent-primary)", color:"#fff",
-            fontSize:11, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center",
-          }}>{(comment.author?.displayName??"?")[0].toUpperCase()}</div>
-      }
-      <div style={{ flex:1 }}>
-        <div style={{ display:"flex", alignItems:"baseline", gap:8, marginBottom:3 }}>
-          <span style={{ fontSize:13, fontWeight:600, color:"var(--clubpm-text-primary)" }}>
-            {comment.author?.displayName ?? "Unknown"}
-          </span>
-          <span style={{ fontSize:11, color:"var(--clubpm-text-muted)" }}>
-            {formatDate(comment.createdAt)}
-          </span>
+    <div className={`pm-comment-row${isReply ? " pm-comment-reply-indent" : ""}`} style={{ marginBottom: isReply ? 8 : 14 }}>
+      <div style={{ display:"flex", gap:10 }}>
+        {comment.author?.avatarUrl
+          ? <img src={comment.author.avatarUrl} alt={comment.author.displayName}
+              style={{ width:26, height:26, borderRadius:"50%", flexShrink:0, marginTop:1 }} />
+          : <div style={{
+              width:26, height:26, borderRadius:"50%", flexShrink:0, marginTop:1,
+              background:"var(--clubpm-accent-primary)", color:"#fff",
+              fontSize:11, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center",
+            }}>{(comment.author?.displayName??"?")[0].toUpperCase()}</div>
+        }
+        <div style={{ flex:1 }}>
+          <div style={{ display:"flex", alignItems:"baseline", gap:8, marginBottom:3 }}>
+            <span style={{ fontSize:13, fontWeight:600, color:"var(--clubpm-text-primary)" }}>
+              {comment.author?.displayName ?? "Unknown"}
+            </span>
+            <span style={{ fontSize:11, color:"var(--clubpm-text-muted)" }}>
+              {formatDate(comment.createdAt)}
+            </span>
+            {comment.editedAt && (
+              <span className="pm-comment-edited">(edited)</span>
+            )}
+            <div className="pm-comment-controls">
+              {canEdit && !editing && (
+                <button className="pm-comment-control-btn" title="Edit" onClick={() => { setEditDraft(comment.content); setEditing(true); }}>
+                  ✏
+                </button>
+              )}
+              {canDelete && (
+                <button className="pm-comment-control-btn" title="Delete" onClick={handleDelete}>
+                  🗑
+                </button>
+              )}
+              {!isReply && (
+                <button className="pm-comment-control-btn" title="Reply" onClick={() => setShowReplyInput(r => !r)}>
+                  <i className="fas fa-reply" aria-hidden="true" />
+                </button>
+              )}
+            </div>
+          </div>
+
+          {editing ? (
+            <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+              <textarea
+                value={editDraft}
+                onChange={e => setEditDraft(e.target.value)}
+                autoFocus
+                rows={3}
+                style={{
+                  width:"100%", padding:"8px 10px", borderRadius:6, fontSize:13,
+                  background:"var(--clubpm-surface-200)", border:"1px solid var(--clubpm-accent-primary)",
+                  color:"var(--clubpm-text-primary)", outline:"none", resize:"vertical",
+                  lineHeight:1.5, boxSizing:"border-box",
+                }}
+              />
+              <div style={{ display:"flex", gap:6 }}>
+                <button
+                  onClick={handleSaveEdit}
+                  disabled={savingEdit || !editDraft.trim()}
+                  style={{
+                    padding:"5px 12px", borderRadius:6, border:"none", cursor:"pointer",
+                    background:"var(--clubpm-accent-primary)", color:"#fff", fontSize:12, fontWeight:600,
+                    opacity: savingEdit || !editDraft.trim() ? 0.6 : 1,
+                  }}
+                >
+                  {savingEdit ? "Saving…" : "Save"}
+                </button>
+                <button
+                  onClick={() => { setEditing(false); setEditDraft(comment.content); }}
+                  style={{
+                    padding:"5px 12px", borderRadius:6, border:"1px solid var(--clubpm-border)",
+                    background:"none", color:"var(--clubpm-text-secondary)", fontSize:12, cursor:"pointer",
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <p style={{ margin:0, fontSize:13, color:"var(--clubpm-text-secondary)", lineHeight:1.5 }}>
+              {comment.content}
+            </p>
+          )}
+
+          {/* Reactions bar */}
+          <div className="pm-comment-reactions">
+            {QUICK_REACTIONS.map(emoji => {
+              const voters = reactions[emoji] ?? [];
+              const count = voters.length;
+              const reacted = currentMember && voters.includes(currentMember.id);
+              return (
+                <button
+                  key={emoji}
+                  className="pm-comment-reaction-btn"
+                  onClick={() => handleReaction(emoji)}
+                  style={{
+                    fontWeight: reacted ? 700 : 400,
+                    background: reacted ? "rgba(108,92,231,0.15)" : undefined,
+                    borderColor: reacted ? "var(--clubpm-accent-primary)" : undefined,
+                    color: reacted ? "var(--clubpm-accent-primary)" : undefined,
+                  }}
+                  title={`React with ${emoji}`}
+                >
+                  {emoji}{count > 0 ? ` ${count}` : ""}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Threaded replies */}
+          {!isReply && (comment.replies ?? []).length > 0 && (
+            <div style={{ marginTop:8, display:"flex", flexDirection:"column", gap:0 }}>
+              {(comment.replies ?? []).map(reply => (
+                <CommentRow
+                  key={reply.id}
+                  comment={reply}
+                  taskId={taskId}
+                  currentMember={currentMember}
+                  onUpdate={handleUpdateReply}
+                  onDelete={handleDeleteReply}
+                  isReply={true}
+                />
+              ))}
+            </div>
+          )}
+
+          {/* Reply input */}
+          {showReplyInput && !isReply && (
+            <div className="pm-comment-reply-input">
+              <textarea
+                value={replyDraft}
+                onChange={e => setReplyDraft(e.target.value)}
+                autoFocus
+                rows={2}
+                placeholder="Write a reply…"
+                style={{
+                  width:"100%", padding:"7px 10px", borderRadius:6, fontSize:12,
+                  background:"var(--clubpm-surface-200)", border:"1px solid var(--clubpm-border)",
+                  color:"var(--clubpm-text-primary)", outline:"none", resize:"vertical",
+                  lineHeight:1.5, boxSizing:"border-box",
+                }}
+                onFocus={e => e.target.style.borderColor = "var(--clubpm-accent-primary)"}
+                onBlur={e => e.target.style.borderColor = "var(--clubpm-border)"}
+                onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSubmitReply(); } }}
+              />
+              <div style={{ display:"flex", gap:6, marginTop:5 }}>
+                <button
+                  onClick={handleSubmitReply}
+                  disabled={submittingReply || !replyDraft.trim()}
+                  style={{
+                    padding:"4px 12px", borderRadius:6, border:"none", cursor:"pointer",
+                    background:"var(--clubpm-accent-primary)", color:"#fff", fontSize:12, fontWeight:600,
+                    opacity: submittingReply || !replyDraft.trim() ? 0.6 : 1,
+                  }}
+                >
+                  {submittingReply ? "Posting…" : "Reply"}
+                </button>
+                <button
+                  onClick={() => { setShowReplyInput(false); setReplyDraft(""); }}
+                  style={{
+                    padding:"4px 12px", borderRadius:6, border:"1px solid var(--clubpm-border)",
+                    background:"none", color:"var(--clubpm-text-secondary)", fontSize:12, cursor:"pointer",
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
         </div>
-        <p style={{ margin:0, fontSize:13, color:"var(--clubpm-text-secondary)", lineHeight:1.5 }}>
-          {comment.content}
-        </p>
       </div>
     </div>
   );
@@ -958,7 +1187,7 @@ export default function TaskModal({ task: initialTask, readOnly = false, onClose
     setSubmittingComment(true);
     try {
       const c = await post(`/api/tasks/${task.id}/comments`, { content: commentDraft.trim() });
-      setComments(prev => [...prev, c]);
+      setComments(prev => [...prev, { replies: [], reactions: {}, ...c }]);
       setCommentDraft("");
     } finally {
       setSubmittingComment(false);
@@ -1727,7 +1956,16 @@ export default function TaskModal({ task: initialTask, readOnly = false, onClose
                       No comments yet
                     </p>
                   )}
-                  {comments.map(c => <CommentRow key={c.id} comment={c} />)}
+                  {comments.map(c => (
+                    <CommentRow
+                      key={c.id}
+                      comment={c}
+                      taskId={task.id}
+                      currentMember={member}
+                      onUpdate={updated => setComments(prev => prev.map(x => x.id === updated.id ? updated : x))}
+                      onDelete={id => setComments(prev => prev.filter(x => x.id !== id))}
+                    />
+                  ))}
 
                   <div style={{ display:"flex", alignItems:"center", gap:10, marginTop:4 }}>
                     {member?.avatarUrl

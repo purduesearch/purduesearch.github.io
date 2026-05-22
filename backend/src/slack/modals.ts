@@ -735,6 +735,23 @@ export function registerModals(app: App): void {
           assigneeNames: fullTask?.assignees?.map((a: any) => a.displayName) ?? [],
         },
       }).catch(console.error);
+
+      // DM each assigned member (except submitter)
+      if (assigneeIds.length > 0) {
+        (async () => {
+          try {
+            const { queueDm } = await import("../services/dmBatcher.js");
+            for (const assigneeId of assigneeIds) {
+              const assigneeMember = await prisma.member.findUnique({ where: { id: assigneeId }, select: { slackId: true, id: true } });
+              if (!assigneeMember?.slackId) continue;
+              if (actor && assigneeMember.id === actor.id) continue; // skip self-assignment
+              queueDm(assigneeMember.slackId, `📋 *${actor?.displayName ?? "Someone"}* assigned you to a new task: *${title}*`);
+            }
+          } catch (err) {
+            console.error("new_task_submit DM error:", err);
+          }
+        })();
+      }
     } catch (error) {
       console.error("New task submission error:", error);
     }
@@ -829,6 +846,18 @@ export function registerModals(app: App): void {
           toName:    member.displayName,
         },
       }).catch(console.error);
+
+      // DM the new assignee
+      (async () => {
+        try {
+          const { queueDm } = await import("../services/dmBatcher.js");
+          if (member.slackId && actor?.id !== member.id) {
+            queueDm(member.slackId, `📋 *${actor?.displayName ?? "Someone"}* assigned you to: *${task?.title ?? "a task"}*`);
+          }
+        } catch (err) {
+          console.error("reassign_submit assignee DM error:", err);
+        }
+      })();
     } catch (error) {
       console.error("Reassign submission error:", error);
     }

@@ -14,6 +14,9 @@ import { milestonesRouter } from "./api/milestones.js";
 import { reportingRouter } from "./api/reporting.js";
 import { slackRouter } from "./api/slack.js";
 import { startScheduler } from "./slack/scheduler.js";
+import { notificationsRouter } from "./api/notifications.js";
+import { sseRouter } from "./api/sse.js";
+import { initDmBatcher } from "./services/dmBatcher.js";
 
 // ── Express Setup ────────────────────────────────────────────
 
@@ -68,6 +71,8 @@ app.use("/api/activity", activityRouter);
 app.use("/api/milestones", milestonesRouter);
 app.use("/api/reporting", reportingRouter);
 app.use("/api/slack", slackRouter);
+app.use("/api/notifications", notificationsRouter);
+app.use("/api/notifications", sseRouter);
 
 // Health check
 app.get("/api/health", (_req, res) => {
@@ -81,6 +86,9 @@ async function start(): Promise<void> {
     // Start Slack Bolt app (Socket Mode)
     await startBolt();
     console.log("⚡ Slack Bolt app started (Socket Mode)");
+
+    // Initialize DM batcher (must come before scheduler)
+    initDmBatcher(boltApp);
 
     // Sync admin status from leadership channel on boot
     if (process.env.LEADERSHIP_CHANNEL_ID) {
