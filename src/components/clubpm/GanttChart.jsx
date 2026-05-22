@@ -86,6 +86,7 @@ export default function GanttChart({ tasks, milestones = [] }) {
   const containerRef = useRef(null);
   const [centerMode, setCenterMode] = useState("today");
   const scrollRef = useRef(null);
+  const [collapsedParents, setCollapsedParents] = useState(new Set());
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -115,6 +116,10 @@ export default function GanttChart({ tasks, milestones = [] }) {
     const allDates = tasksWithDates.flatMap((t) => [
       new Date(t.createdAt),
       t.dueDate ? new Date(t.dueDate) : new Date(t.createdAt),
+      ...(t.subtasks ?? []).flatMap((s) => [
+        new Date(s.createdAt),
+        s.dueDate ? new Date(s.dueDate) : new Date(s.createdAt),
+      ]),
     ]);
 
     const min = new Date(Math.min(...allDates.map((d) => d.getTime())));
@@ -142,6 +147,20 @@ export default function GanttChart({ tasks, milestones = [] }) {
     () => computeCriticalPath(sortedTasks),
     [sortedTasks]
   );
+
+  const flatRows = useMemo(() => {
+    const rows = [];
+    for (const task of sortedTasks) {
+      const subs = (task.subtasks ?? []).filter((s) => s.createdAt || s.dueDate);
+      rows.push({ task, isSubtask: false, hasSubtasks: subs.length > 0 });
+      if (subs.length > 0 && !collapsedParents.has(task.id)) {
+        for (const sub of subs) {
+          rows.push({ task: sub, isSubtask: true, hasSubtasks: false });
+        }
+      }
+    }
+    return rows;
+  }, [sortedTasks, collapsedParents]);
 
   // Dynamically compute DAY_WIDTH so bars fill the container; scale buttons act as zoom multipliers
   const baseDayWidth = containerWidth > LABEL_WIDTH && totalDays > 0
@@ -178,7 +197,7 @@ export default function GanttChart({ tasks, milestones = [] }) {
   }, [anchorScrollX]);
 
   const chartWidth = LABEL_WIDTH + totalDays * DAY_WIDTH;
-  const chartHeight = PADDING_TOP + sortedTasks.length * ROW_HEIGHT + PADDING_BOTTOM;
+  const chartHeight = PADDING_TOP + flatRows.length * ROW_HEIGHT + PADDING_BOTTOM;
 
   // Generate month/day markers
   const markers = useMemo(() => {
@@ -225,29 +244,32 @@ export default function GanttChart({ tasks, milestones = [] }) {
     return LABEL_WIDTH + diffDays * DAY_WIDTH;
   };
 
-  // Build task index map for dependency arrows
+  // Build task index map (keyed by task id → flatRows index for correct Y position)
   const taskIndexMap = useMemo(
-    () => new Map(sortedTasks.map((t, i) => [t.id, i])),
-    [sortedTasks]
+    () => new Map(flatRows.map((r, i) => [r.task.id, i])),
+    [flatRows]
   );
 
   // Compute dependency arrow segments
   const dependencyArrows = useMemo(() => {
     const arrows = [];
 
-    sortedTasks.forEach((successor, succIdx) => {
+    sortedTasks.forEach((successor) => {
       if (!successor.dependencies || successor.dependencies.length === 0) return;
 
-      const succStartDate = new Date(successor.createdAt);
-      const succBarX = getX(succStartDate);
+      const succFlatIdx = taskIndexMap.get(successor.id);
+      if (succFlatIdx === undefined) return;
 
-      const succY = PADDING_TOP + succIdx * ROW_HEIGHT + ROW_HEIGHT / 2;
+      const succBarX = getX(new Date(successor.createdAt));
+      const succY = PADDING_TOP + succFlatIdx * ROW_HEIGHT + ROW_HEIGHT / 2;
 
       successor.dependencies.forEach((dep) => {
-        const predIdx = taskIndexMap.get(dep.taskId);
-        if (predIdx === undefined) return;
+        const predFlatIdx = taskIndexMap.get(dep.taskId);
+        if (predFlatIdx === undefined) return;
 
-        const pred = sortedTasks[predIdx];
+        const pred = flatRows[predFlatIdx]?.task;
+        if (!pred) return;
+
         const predEndDate = pred.dueDate
           ? new Date(pred.dueDate)
           : new Date(new Date(pred.createdAt).getTime() + 3 * 24 * 60 * 60 * 1000);
@@ -255,9 +277,9 @@ export default function GanttChart({ tasks, milestones = [] }) {
         const predBarX = getX(new Date(pred.createdAt));
         const predBarWidth = Math.max(getX(predEndDate) - predBarX, MIN_BAR_WIDTH);
 
-        const x1 = predBarX + predBarWidth; // right edge of predecessor bar
-        const y1 = PADDING_TOP + predIdx * ROW_HEIGHT + ROW_HEIGHT / 2;
-        const x2 = succBarX; // left edge of successor bar
+        const x1 = predBarX + predBarWidth;
+        const y1 = PADDING_TOP + predFlatIdx * ROW_HEIGHT + ROW_HEIGHT / 2;
+        const x2 = succBarX;
         const y2 = succY;
 
         const cpOffset = 40;
@@ -268,7 +290,7 @@ export default function GanttChart({ tasks, milestones = [] }) {
     });
 
     return arrows;
-  }, [sortedTasks, taskIndexMap, minDate, DAY_WIDTH]);
+  }, [sortedTasks, taskIndexMap, flatRows, minDate, DAY_WIDTH]);
 
   if (sortedTasks.length === 0) {
     return (
@@ -423,7 +445,7 @@ export default function GanttChart({ tasks, milestones = [] }) {
           />
 
           {/* Task rows */}
-          {sortedTasks.map((task, index) => {
+          {flatRows.map(({ task, isSubtask, hasSubtasks }, index) => {
             const y = PADDING_TOP + index * ROW_HEIGHT;
             const startDate = new Date(task.createdAt);
             const endDate = task.dueDate
@@ -434,7 +456,12 @@ export default function GanttChart({ tasks, milestones = [] }) {
             const barWidth = Math.max(getX(endDate) - barX, MIN_BAR_WIDTH);
             const color = STATUS_COLORS[task.status];
             const isHovered = hoveredTask === task.id;
-            const isCritical = criticalPathSet.has(task.id);
+            const isCritical = !isSubtask && criticalPathSet.has(task.id);
+            const isCollapsed = collapsedParents.has(task.id);
+
+            const barY = isSubtask ? y + 20 : y + 16;
+            const barH = isSubtask ? 20 : 28;
+            const labelIndent = isSubtask ? 22 : hasSubtasks ? 20 : 12;
 
             return (
               <g
@@ -445,79 +472,78 @@ export default function GanttChart({ tasks, milestones = [] }) {
               >
                 {/* Row highlight */}
                 {isHovered && (
-                  <rect
-                    x={0}
-                    y={y}
-                    width={chartWidth}
-                    height={ROW_HEIGHT}
-                    fill="rgba(108, 92, 231, 0.05)"
-                  />
+                  <rect x={0} y={y} width={chartWidth} height={ROW_HEIGHT} fill="rgba(108, 92, 231, 0.05)" />
                 )}
 
                 {/* Row separator */}
-                <line
-                  x1={0}
-                  y1={y + ROW_HEIGHT}
-                  x2={chartWidth}
-                  y2={y + ROW_HEIGHT}
-                  stroke="rgba(255, 255, 255, 0.03)"
-                  strokeWidth={1}
-                />
+                <line x1={0} y1={y + ROW_HEIGHT} x2={chartWidth} y2={y + ROW_HEIGHT} stroke="rgba(255, 255, 255, 0.03)" strokeWidth={1} />
 
-                {/* Task label */}
-                <text
-                  x={12}
-                  y={y + ROW_HEIGHT / 2}
-                  fill={isHovered ? "var(--clubpm-text-primary)" : "var(--clubpm-text-secondary)"}
-                  fontSize={13}
-                  fontFamily="Inter, sans-serif"
-                  dominantBaseline="middle"
-                >
-                  {task.title.length > 28
-                    ? task.title.slice(0, 28) + "…"
-                    : task.title}
-                </text>
+                {/* Subtask indent connector line */}
+                {isSubtask && (
+                  <line x1={14} y1={y} x2={14} y2={y + ROW_HEIGHT / 2} stroke="rgba(255,255,255,0.12)" strokeWidth={1} />
+                )}
 
-                {/* Critical path star indicator in label column */}
-                {isCritical && (
+                {/* Collapse toggle for parent tasks with subtasks */}
+                {hasSubtasks && (
                   <text
-                    x={246}
+                    x={8}
                     y={y + ROW_HEIGHT / 2}
-                    fill="var(--pm-accent-amber)"
-                    fontSize={10}
+                    fill="var(--clubpm-text-muted)"
+                    fontSize={9}
                     dominantBaseline="middle"
                     fontFamily="Inter, sans-serif"
+                    style={{ cursor: "pointer", userSelect: "none" }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setCollapsedParents((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(task.id)) next.delete(task.id);
+                        else next.add(task.id);
+                        return next;
+                      });
+                    }}
                   >
-                    ★
+                    {isCollapsed ? "▶" : "▼"}
                   </text>
                 )}
 
-                {/* Bar — critical path gets glow + full opacity */}
+                {/* Task label */}
+                <text
+                  x={labelIndent}
+                  y={y + ROW_HEIGHT / 2}
+                  fill={isHovered ? "var(--clubpm-text-primary)" : isSubtask ? "var(--clubpm-text-muted)" : "var(--clubpm-text-secondary)"}
+                  fontSize={isSubtask ? 11 : 13}
+                  fontFamily="Inter, sans-serif"
+                  dominantBaseline="middle"
+                >
+                  {task.title.length > (isSubtask ? 24 : 28)
+                    ? task.title.slice(0, isSubtask ? 24 : 28) + "…"
+                    : task.title}
+                </text>
+
+                {/* Critical path star indicator */}
+                {isCritical && (
+                  <text x={246} y={y + ROW_HEIGHT / 2} fill="var(--pm-accent-amber)" fontSize={10} dominantBaseline="middle" fontFamily="Inter, sans-serif">★</text>
+                )}
+
+                {/* Bar */}
                 <rect
                   x={barX}
-                  y={y + 16}
+                  y={barY}
                   width={barWidth}
-                  height={28}
-                  rx={6}
+                  height={barH}
+                  rx={isSubtask ? 4 : 6}
                   fill={color}
-                  opacity={isCritical ? 1.0 : isHovered ? 0.9 : 0.7}
+                  opacity={isCritical ? 1.0 : isHovered ? 0.9 : isSubtask ? 0.5 : 0.7}
                   style={{
                     transition: "opacity 0.15s ease",
-                    filter: isCritical
-                      ? "drop-shadow(0 0 4px var(--pm-accent-amber))"
-                      : "none",
+                    filter: isCritical ? "drop-shadow(0 0 4px var(--pm-accent-amber))" : "none",
                   }}
                 />
 
                 {/* Critical path left-edge dot */}
                 {isCritical && (
-                  <circle
-                    cx={barX + 5}
-                    cy={y + 16 + 14}
-                    r={3}
-                    fill="var(--pm-accent-amber)"
-                    opacity={0.9}
-                  />
+                  <circle cx={barX + 5} cy={barY + barH / 2} r={3} fill="var(--pm-accent-amber)" opacity={0.9} />
                 )}
 
                 {/* Assignees label on bar */}
@@ -526,7 +552,7 @@ export default function GanttChart({ tasks, milestones = [] }) {
                     x={barX + (isCritical ? 14 : 8)}
                     y={y + ROW_HEIGHT / 2}
                     fill="white"
-                    fontSize={11}
+                    fontSize={isSubtask ? 9 : 11}
                     fontWeight={500}
                     fontFamily="Inter, sans-serif"
                     dominantBaseline="middle"
@@ -539,29 +565,11 @@ export default function GanttChart({ tasks, milestones = [] }) {
                 {/* Tooltip on hover */}
                 {isHovered && (
                   <g>
-                    <rect
-                      x={barX + barWidth + 8}
-                      y={y + 4}
-                      width={180}
-                      height={32}
-                      rx={6}
-                      fill="var(--clubpm-surface-400)"
-                      stroke="var(--clubpm-border)"
-                      strokeWidth={1}
-                    />
-                    <text
-                      x={barX + barWidth + 16}
-                      y={y + 24}
-                      fill="var(--clubpm-text-primary)"
-                      fontSize={10}
-                      fontFamily="Inter, sans-serif"
-                    >
+                    <rect x={barX + barWidth + 8} y={y + 4} width={180} height={32} rx={6} fill="var(--clubpm-surface-400)" stroke="var(--clubpm-border)" strokeWidth={1} />
+                    <text x={barX + barWidth + 16} y={y + 24} fill="var(--clubpm-text-primary)" fontSize={10} fontFamily="Inter, sans-serif">
                       {task.status.replace("_", " ")} · {task.priority} ·{" "}
                       {task.dueDate
-                        ? new Date(task.dueDate).toLocaleDateString("en-US", {
-                            month: "short",
-                            day: "numeric",
-                          })
+                        ? new Date(task.dueDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })
                         : "No due date"}
                     </text>
                   </g>
