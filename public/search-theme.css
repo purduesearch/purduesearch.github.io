@@ -11199,7 +11199,7 @@ html::-webkit-scrollbar { display: none; }
 .pm-comment-author {
   font-size: 11px;
   font-weight: 600;
-  color: var(--clubpm-text);
+  color: var(--clubpm-text-primary);
 }
 
 .pm-comment-time {
@@ -11211,7 +11211,7 @@ html::-webkit-scrollbar { display: none; }
 .pm-comment-text {
   display: block;
   font-size: 13px;
-  color: var(--clubpm-text);
+  color: var(--clubpm-text-primary);
   line-height: 1.5;
   word-break: break-word;
   white-space: pre-wrap;
@@ -11264,7 +11264,7 @@ html::-webkit-scrollbar { display: none; }
 }
 
 .pm-comment-cancel-btn:hover {
-  color: var(--clubpm-text);
+  color: var(--clubpm-text-primary);
 }
 
 /* Bottom compose area */
@@ -11290,10 +11290,10 @@ html::-webkit-scrollbar { display: none; }
 .pm-comment-input {
   width: 100%;
   box-sizing: border-box;
-  background: var(--pm-bg-secondary, var(--clubpm-surface-200, #1e2333));
+  background: var(--pm-bg-elevated, #1a1e2a);
   border: 1px solid var(--clubpm-border);
   border-radius: 6px;
-  color: var(--clubpm-text);
+  color: var(--clubpm-text-primary);
   font-size: 13px;
   font-family: inherit;
   line-height: 1.5;
