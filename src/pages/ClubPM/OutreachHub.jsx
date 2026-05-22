@@ -307,16 +307,16 @@ function SubmissionCard({ submission, member, onEdit, onReview, onDelete, onCopy
           </div>
         ) : <span />}
 
-        <div style={{ display: 'flex', gap: 5, marginLeft: 'auto', alignItems: 'center' }}>
-          {/* Comments toggle */}
+        <div className="pm-outreach-card-actions">
+          {/* Comments toggle — icon only */}
           <button
             className={`pm-outreach-comments-toggle${showComments ? ' pm-outreach-comments-toggle--active' : ''}`}
             onClick={() => setShowComments(v => !v)}
             title={showComments ? 'Hide comments' : 'Show comments'}
+            aria-label={showComments ? 'Hide comments' : 'Show comments'}
             aria-expanded={showComments}
           >
             <i className="fas fa-comment-alt" aria-hidden="true" />
-            {' '}Comments
           </button>
 
           {canCopy && (
@@ -324,9 +324,9 @@ function SubmissionCard({ submission, member, onEdit, onReview, onDelete, onCopy
               className="pm-outreach-review-btn pm-copy-trigger-btn"
               onClick={() => onCopy(submission)}
               title="Copy for Posting"
+              aria-label="Copy for Posting"
             >
-              <i className="fas fa-clipboard" aria-hidden="true" style={{ marginRight: 4 }} />
-              Copy for Posting
+              <i className="fas fa-clipboard" aria-hidden="true" />
             </button>
           )}
           {canReview && (

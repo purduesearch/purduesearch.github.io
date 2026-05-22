@@ -10502,14 +10502,27 @@ html::-webkit-scrollbar { display: none; }
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 6px;
-  margin-top: 2px;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+  row-gap: 4px;
 }
 
 .pm-outreach-card-author {
   display: flex;
   align-items: center;
   gap: 5px;
+  min-width: 0;
+  flex-shrink: 1;
+}
+
+.pm-outreach-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  flex-shrink: 0;
 }
 
 .pm-outreach-review-btn {
@@ -11344,10 +11357,9 @@ html::-webkit-scrollbar { display: none; }
   cursor: pointer;
   font-size: 11px;
   color: var(--clubpm-text-secondary);
-  padding: 3px 8px;
+  padding: 3px 7px;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
   transition: color 0.12s, border-color 0.12s, background 0.12s;
 }
 
