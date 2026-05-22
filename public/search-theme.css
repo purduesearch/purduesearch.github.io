@@ -11753,7 +11753,7 @@ html::-webkit-scrollbar { display: none; }
 
 .pm-hashtag-dropdown {
   position: absolute;
-  top: calc(100% - 28px); /* sit just below the textarea, above CharCounters */
+  top: 100%;
   left: 0;
   right: 0;
   z-index: 100;

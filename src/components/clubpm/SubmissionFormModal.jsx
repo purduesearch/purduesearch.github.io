@@ -99,21 +99,20 @@ function useHashtagAutocomplete(content, setContent) {
 
   const insertSuggestion = useCallback((tag) => {
     const ta = textareaRef.current;
-    const cursorPos = ta ? ta.selectionStart : content.length;
-    const newValue = insertHashtag(tag, content, cursorPos);
+    const currentValue = ta ? ta.value : '';
+    const cursorPos = ta ? ta.selectionStart : currentValue.length;
+    const newValue = insertHashtag(tag, currentValue, cursorPos);
     setContent(newValue);
     closeDropdown();
-    // Restore focus and move cursor after inserted text
     if (ta) {
       requestAnimationFrame(() => {
         ta.focus();
-        const before = content.slice(0, cursorPos);
+        const before = currentValue.slice(0, cursorPos);
         const replaced = before.replace(/#([a-zA-Z][a-zA-Z0-9_]*)$/, `#${tag} `);
-        const newCursor = replaced.length;
-        ta.setSelectionRange(newCursor, newCursor);
+        ta.setSelectionRange(replaced.length, replaced.length);
       });
     }
-  }, [content, setContent, closeDropdown]);
+  }, [setContent, closeDropdown]);
 
   const onKeyDown = useCallback((e) => {
     if (!dropdownItems || dropdownItems.length === 0) return;
