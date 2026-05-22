@@ -214,10 +214,11 @@ function SidebarProjectItem({ project, isCurrent }) {
 // ── Progress Bar (top of tasks tab) ──────────────────────────
 
 function ProgressBar({ tasks }) {
-  const total = tasks.length;
-  const done = tasks.filter((t) => t.status === "DONE").length;
-  const blocked = tasks.filter((t) => t.status === "BLOCKED").length;
-  const inProgress = tasks.filter((t) => t.status === "IN_PROGRESS").length;
+  const allTasks = tasks.flatMap(t => [t, ...(t.subtasks ?? [])]);
+  const total = allTasks.length;
+  const done = allTasks.filter((t) => t.status === "DONE").length;
+  const blocked = allTasks.filter((t) => t.status === "BLOCKED").length;
+  const inProgress = allTasks.filter((t) => t.status === "IN_PROGRESS").length;
   const todo = Math.max(total - done - blocked - inProgress, 0);
   const pct = total > 0 ? Math.round((done / total) * 100) : 0;
 

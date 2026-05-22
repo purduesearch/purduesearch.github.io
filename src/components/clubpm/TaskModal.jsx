@@ -1325,8 +1325,8 @@ export default function TaskModal({ task: initialTask, readOnly = false, onClose
             <MetaRow label="Due Date">
               {editingDueDate ? (
                 <input type="date" autoFocus defaultValue={toInputDate(task.dueDate)}
-                  onBlur={e => { setEditingDueDate(false); if (e.target.value) saveField({ dueDate: new Date(e.target.value).toISOString() }); }}
-                  onChange={e => { if (e.target.value) saveField({ dueDate: new Date(e.target.value).toISOString() }); }}
+                  onBlur={e => { setEditingDueDate(false); if (e.target.value) saveField({ dueDate: new Date(e.target.value + 'T12:00:00').toISOString() }); }}
+                  onChange={e => { if (e.target.value) saveField({ dueDate: new Date(e.target.value + 'T12:00:00').toISOString() }); }}
                   style={{ ...styles.input, width:130, padding:"4px 8px", fontSize:12 }} />
               ) : (
                 <button onClick={() => setEditingDueDate(true)} style={{
@@ -1883,7 +1883,7 @@ function CreateSubtaskModal({ parentTask, projectMembers, onCreated, onClose }) 
         title: title.trim(),
         description: description.trim() || undefined,
         priority,
-        dueDate: dueDate ? new Date(dueDate).toISOString() : undefined,
+        dueDate: dueDate ? new Date(dueDate + 'T12:00:00').toISOString() : undefined,
         status: "TODO",
         parentTaskId: parentTask.id,
         assigneeIds: assignees.map(a => a.id),
