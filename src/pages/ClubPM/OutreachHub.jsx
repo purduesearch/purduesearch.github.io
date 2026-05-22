@@ -131,7 +131,7 @@ function PlatformChips({ platforms = [] }) {
 
 // ── SubmissionCard ────────────────────────────────────────────
 
-function SubmissionCard({ submission, member, onEdit, onReview, onDelete }) {
+function SubmissionCard({ submission, member, onEdit, onReview, onDelete, selectedIds, toggleSelect }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [showComments, setShowComments] = useState(false);
   const isAdmin = member?.isAdmin;
@@ -139,10 +139,19 @@ function SubmissionCard({ submission, member, onEdit, onReview, onDelete }) {
   const canDelete = isAdmin || isAuthor;
   const canReview = isAdmin && (submission.status === 'SUBMITTED' || submission.status === 'IN_REVIEW');
   const author = submission.author ?? submission.member;
+  const isSelected = selectedIds?.has(submission.id);
 
   return (
-    <div className="pm-outreach-card">
+    <div className={`pm-outreach-card${isSelected ? ' pm-card--selected' : ''}`}>
       <div className="pm-outreach-card-top">
+        <input
+          type="checkbox"
+          className="pm-card-checkbox"
+          checked={isSelected ?? false}
+          onChange={() => toggleSelect?.(submission.id)}
+          onClick={e => e.stopPropagation()}
+          aria-label={`Select "${submission.title}"`}
+        />
         <TypeBadge type={submission.type} />
         {submission.scheduledAt && (
           <span style={{ fontSize: 10, color: 'var(--clubpm-text-muted)', marginLeft: 'auto' }}>
@@ -261,8 +270,77 @@ const STATUS_LABELS = {
   APPROVED: 'Approved', PUBLISHED: 'Published',
 };
 
-function BoardTab({ submissions, member, onEdit, onReview, onDelete, onStatusChange }) {
+function BulkToolbar({ selectedIds, onClearSelection, onBulkStatus, onBulkDelete, loading }) {
+  const count = selectedIds.size;
+  const [pendingStatus, setPendingStatus] = useState('');
+
+  const handleStatusApply = () => {
+    if (!pendingStatus) return;
+    onBulkStatus(pendingStatus);
+    setPendingStatus('');
+  };
+
+  return (
+    <div className="pm-bulk-toolbar" role="toolbar" aria-label="Bulk actions">
+      <span className="pm-bulk-count">{count} selected</span>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <select
+          className="pm-bulk-status-select"
+          value={pendingStatus}
+          onChange={e => setPendingStatus(e.target.value)}
+          disabled={loading}
+          aria-label="Change status to"
+        >
+          <option value="">Change Status&hellip;</option>
+          {BOARD_COLUMNS.map(col => (
+            <option key={col.id} value={col.id}>{col.label}</option>
+          ))}
+        </select>
+        <button
+          className="pm-bulk-status-apply-btn"
+          onClick={handleStatusApply}
+          disabled={loading || !pendingStatus}
+          aria-label="Apply status change"
+        >
+          {loading
+            ? <span className="pm-bulk-spinner" aria-hidden="true" />
+            : <i className="fas fa-check" aria-hidden="true" />
+          }
+          Apply
+        </button>
+      </div>
+
+      <button
+        className="pm-bulk-delete-btn"
+        onClick={onBulkDelete}
+        disabled={loading}
+        aria-label={`Delete ${count} selected submissions`}
+      >
+        {loading
+          ? <span className="pm-bulk-spinner" aria-hidden="true" />
+          : <i className="fas fa-trash-alt" aria-hidden="true" />
+        }
+        Delete
+      </button>
+
+      <button
+        className="pm-bulk-clear-btn"
+        onClick={onClearSelection}
+        disabled={loading}
+        aria-label="Clear selection"
+        title="Clear selection (Esc)"
+      >
+        <i className="fas fa-times" aria-hidden="true" /> Clear
+      </button>
+    </div>
+  );
+}
+
+function BoardTab({ submissions, member, onEdit, onReview, onDelete, onStatusChange, onBulkReload }) {
   const [columns, setColumns] = useState({});
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [bulkLoading, setBulkLoading] = useState(false);
 
   useEffect(() => {
     const cols = {};
@@ -273,6 +351,62 @@ function BoardTab({ submissions, member, onEdit, onReview, onDelete, onStatusCha
     });
     setColumns(cols);
   }, [submissions]);
+
+  // Escape key clears selection
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.key === 'Escape' && selectedIds.size > 0) {
+        setSelectedIds(new Set());
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [selectedIds]);
+
+  const toggleSelect = useCallback((id) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const clearSelection = useCallback(() => setSelectedIds(new Set()), []);
+
+  const handleBulkStatus = async (newStatus) => {
+    setBulkLoading(true);
+    try {
+      await Promise.all(
+        [...selectedIds].map(id => patch(`/api/outreach/submissions/${id}`, { status: newStatus }))
+      );
+      toast.success(`Updated ${selectedIds.size} submission${selectedIds.size !== 1 ? 's' : ''} to ${STATUS_LABELS[newStatus] ?? newStatus}.`);
+      setSelectedIds(new Set());
+      onBulkReload?.();
+    } catch (err) {
+      toast.error(err.message ?? 'Bulk status update failed.');
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    const count = selectedIds.size;
+    if (!window.confirm(`Delete ${count} submission${count !== 1 ? 's' : ''}?`)) return;
+    setBulkLoading(true);
+    try {
+      await Promise.all(
+        [...selectedIds].map(id => del(`/api/outreach/submissions/${id}`))
+      );
+      toast.success(`Deleted ${count} submission${count !== 1 ? 's' : ''}.`);
+      setSelectedIds(new Set());
+      onBulkReload?.();
+    } catch (err) {
+      toast.error(err.message ?? 'Bulk delete failed.');
+    } finally {
+      setBulkLoading(false);
+    }
+  };
 
   const handleDragEnd = (result) => {
     const { destination, source, draggableId } = result;
@@ -303,59 +437,72 @@ function BoardTab({ submissions, member, onEdit, onReview, onDelete, onStatusCha
   };
 
   return (
-    <DragDropContext onDragEnd={handleDragEnd}>
-      <div className="pm-outreach-board">
-        {BOARD_COLUMNS.map(col => (
-          <div key={col.id} className="pm-outreach-col">
-            <div className="pm-kanban-col-header">
-              <span className="pm-kanban-col-dot" style={{ background: col.color }} />
-              <span className="pm-kanban-col-label" style={{ color: col.color }}>{col.label}</span>
-              <span className="pm-kanban-col-count">{(columns[col.id] ?? []).length}</span>
+    <div className="pm-board-tab-wrapper">
+      {selectedIds.size > 0 && (
+        <BulkToolbar
+          selectedIds={selectedIds}
+          onClearSelection={clearSelection}
+          onBulkStatus={handleBulkStatus}
+          onBulkDelete={handleBulkDelete}
+          loading={bulkLoading}
+        />
+      )}
+      <DragDropContext onDragEnd={handleDragEnd}>
+        <div className="pm-outreach-board">
+          {BOARD_COLUMNS.map(col => (
+            <div key={col.id} className="pm-outreach-col">
+              <div className="pm-kanban-col-header">
+                <span className="pm-kanban-col-dot" style={{ background: col.color }} />
+                <span className="pm-kanban-col-label" style={{ color: col.color }}>{col.label}</span>
+                <span className="pm-kanban-col-count">{(columns[col.id] ?? []).length}</span>
+              </div>
+              <Droppable droppableId={col.id}>
+                {(provided, snapshot) => (
+                  <div
+                    ref={provided.innerRef}
+                    {...provided.droppableProps}
+                    className={`pm-outreach-col-body${snapshot.isDraggingOver ? ' drag-over' : ''}`}
+                  >
+                    {(columns[col.id] ?? []).length === 0 && !snapshot.isDraggingOver && (
+                      <div className="pm-outreach-col-empty">No submissions</div>
+                    )}
+                    {(columns[col.id] ?? []).map((s, index) => {
+                      const canDrag = member?.isAdmin || member?.id === s.authorId;
+                      return (
+                        <Draggable key={s.id} draggableId={s.id} index={index} isDragDisabled={!canDrag}>
+                          {(dragProvided, dragSnapshot) => (
+                            <div
+                              ref={dragProvided.innerRef}
+                              {...dragProvided.draggableProps}
+                              {...dragProvided.dragHandleProps}
+                              style={{
+                                ...dragProvided.draggableProps.style,
+                                opacity: dragSnapshot.isDragging ? 0.85 : 1,
+                              }}
+                            >
+                              <SubmissionCard
+                                submission={s}
+                                member={member}
+                                onEdit={onEdit}
+                                onReview={onReview}
+                                onDelete={onDelete}
+                                selectedIds={selectedIds}
+                                toggleSelect={toggleSelect}
+                              />
+                            </div>
+                          )}
+                        </Draggable>
+                      );
+                    })}
+                    {provided.placeholder}
+                  </div>
+                )}
+              </Droppable>
             </div>
-            <Droppable droppableId={col.id}>
-              {(provided, snapshot) => (
-                <div
-                  ref={provided.innerRef}
-                  {...provided.droppableProps}
-                  className={`pm-outreach-col-body${snapshot.isDraggingOver ? ' drag-over' : ''}`}
-                >
-                  {(columns[col.id] ?? []).length === 0 && !snapshot.isDraggingOver && (
-                    <div className="pm-outreach-col-empty">No submissions</div>
-                  )}
-                  {(columns[col.id] ?? []).map((s, index) => {
-                    const canDrag = member?.isAdmin || member?.id === s.authorId;
-                    return (
-                      <Draggable key={s.id} draggableId={s.id} index={index} isDragDisabled={!canDrag}>
-                        {(dragProvided, dragSnapshot) => (
-                          <div
-                            ref={dragProvided.innerRef}
-                            {...dragProvided.draggableProps}
-                            {...dragProvided.dragHandleProps}
-                            style={{
-                              ...dragProvided.draggableProps.style,
-                              opacity: dragSnapshot.isDragging ? 0.85 : 1,
-                            }}
-                          >
-                            <SubmissionCard
-                              submission={s}
-                              member={member}
-                              onEdit={onEdit}
-                              onReview={onReview}
-                              onDelete={onDelete}
-                            />
-                          </div>
-                        )}
-                      </Draggable>
-                    );
-                  })}
-                  {provided.placeholder}
-                </div>
-              )}
-            </Droppable>
-          </div>
-        ))}
-      </div>
-    </DragDropContext>
+          ))}
+        </div>
+      </DragDropContext>
+    </div>
   );
 }
 
@@ -562,6 +709,12 @@ export default function OutreachHub() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editSubmission, setEditSubmission]   = useState(null);
 
+  const loadSubmissions = useCallback(() => {
+    get('/api/outreach/submissions')
+      .then(subs => setSubmissions(Array.isArray(subs) ? subs : []))
+      .catch(console.error);
+  }, []);
+
   useEffect(() => {
     Promise.all([
       get('/api/outreach/submissions'),
@@ -689,6 +842,7 @@ export default function OutreachHub() {
             onReview={handleReview}
             onDelete={handleDelete}
             onStatusChange={handleStatusChange}
+            onBulkReload={loadSubmissions}
           />
         )}
         {activeTab === 'calendar' && <CalendarTab />}

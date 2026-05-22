@@ -11358,3 +11358,196 @@ html::-webkit-scrollbar { display: none; }
   background: rgba(0, 229, 204, 0.06);
 }
 
+/* ── Bulk Actions Toolbar ──────────────────────────────────────── */
+
+.pm-board-tab-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.pm-bulk-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 8px 14px;
+  background: var(--clubpm-surface, #1a1f2e);
+  border-bottom: 1px solid var(--clubpm-border, rgba(255, 255, 255, 0.08));
+  border-radius: 8px 8px 0 0;
+  margin-bottom: 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
+.pm-bulk-count {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--pm-accent-teal);
+  white-space: nowrap;
+  min-width: 70px;
+}
+
+.pm-bulk-status-select {
+  appearance: none;
+  background: var(--clubpm-bg, #12151f);
+  border: 1px solid var(--clubpm-border, rgba(255, 255, 255, 0.08));
+  border-radius: 6px;
+  color: var(--clubpm-text-primary, #e8eaf0);
+  font-size: 12px;
+  padding: 5px 28px 5px 9px;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%2300e5cc'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  transition: border-color 0.15s;
+}
+
+.pm-bulk-status-select:focus {
+  outline: none;
+  border-color: var(--pm-accent-teal);
+}
+
+.pm-bulk-status-select:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pm-bulk-status-apply-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 11px;
+  border-radius: 6px;
+  border: 1px solid var(--pm-accent-teal);
+  background: rgba(0, 229, 204, 0.1);
+  color: var(--pm-accent-teal);
+  cursor: pointer;
+  transition: background 0.15s, opacity 0.15s;
+  white-space: nowrap;
+}
+
+.pm-bulk-status-apply-btn:hover:not(:disabled) {
+  background: rgba(0, 229, 204, 0.2);
+}
+
+.pm-bulk-status-apply-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.pm-bulk-delete-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 11px;
+  border-radius: 6px;
+  border: 1px solid rgba(225, 112, 85, 0.5);
+  background: rgba(225, 112, 85, 0.12);
+  color: #e17055;
+  cursor: pointer;
+  transition: background 0.15s, opacity 0.15s;
+  white-space: nowrap;
+}
+
+.pm-bulk-delete-btn:hover:not(:disabled) {
+  background: rgba(225, 112, 85, 0.22);
+}
+
+.pm-bulk-delete-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.pm-bulk-clear-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 5px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--clubpm-border, rgba(255, 255, 255, 0.08));
+  background: none;
+  color: var(--clubpm-text-secondary, #8892a4);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, opacity 0.15s;
+  white-space: nowrap;
+  margin-left: auto;
+}
+
+.pm-bulk-clear-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--clubpm-text-primary, #e8eaf0);
+}
+
+.pm-bulk-clear-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.pm-bulk-spinner {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  animation: spin 0.7s linear infinite;
+}
+
+/* ── Card checkbox & selected state ───────────────────────────── */
+
+.pm-card-checkbox {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  min-width: 14px;
+  border: 1.5px solid var(--clubpm-border, rgba(255, 255, 255, 0.18));
+  border-radius: 3px;
+  background: var(--clubpm-bg, #12151f);
+  cursor: pointer;
+  position: relative;
+  transition: border-color 0.12s, background 0.12s;
+  flex-shrink: 0;
+}
+
+.pm-card-checkbox:checked {
+  background: var(--pm-accent-teal);
+  border-color: var(--pm-accent-teal);
+}
+
+.pm-card-checkbox:checked::after {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 0px;
+  width: 4px;
+  height: 7px;
+  border: 2px solid #12151f;
+  border-top: none;
+  border-left: none;
+  transform: rotate(45deg);
+}
+
+.pm-card-checkbox:focus-visible {
+  outline: 2px solid var(--pm-accent-teal);
+  outline-offset: 1px;
+}
+
+.pm-card-checkbox:hover:not(:checked) {
+  border-color: var(--pm-accent-teal);
+}
+
+.pm-card--selected {
+  border: 2px solid var(--pm-accent-teal) !important;
+  box-shadow: 0 0 0 1px rgba(0, 229, 204, 0.18);
+}
+
