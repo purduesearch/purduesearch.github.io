@@ -405,6 +405,8 @@ export function registerEvents(app: App): void {
       if (projects.length === 0) return;
 
       const member = await resolveSlackMember(slackUserId, client);
+      // Don't auto-add bots as project members (assignee picker would show them).
+      if (member.isBot) return;
       await Promise.all(projects.map((p) => addMemberToProject(p.id, member.id)));
 
       const projectNames = projects.map((p) => `*${p.name}*`).join(", ");

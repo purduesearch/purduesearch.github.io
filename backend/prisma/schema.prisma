@@ -105,6 +105,7 @@ model Member {
   avatarUrl   String?
   role            Role            @default(MEMBER)
   isAdmin         Boolean         @default(false)
+  isBot           Boolean         @default(false)
   kanbanColumnOrder String[]      @default(["TODO", "IN_PROGRESS", "BLOCKED", "DONE"])
   notificationPrefs String[]      @default(["daily_reminders", "weekly_digest", "project_updates"])
   tasks           Task[]          @relation("TaskAssignees")

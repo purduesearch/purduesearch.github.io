@@ -8,6 +8,7 @@ import {
   updateProject,
   getProjectsWithTaskStats,
   getChannelMemberSlackIds,
+  syncProjectMembersFromChannel,
 } from "../services/projectService.js";
 import {
   getTasksForProject,
@@ -104,6 +105,13 @@ projectsRouter.post("/", async (req: Request, res: Response) => {
 projectsRouter.get("/:id", async (req: Request, res: Response) => {
   try {
     const projectId = req.params.id as string;
+
+    // Opportunistic channel-member sync (60s per-project debounce, no-op if
+    // channel isn't linked). Done BEFORE getProject so members reflect the sync.
+    await syncProjectMembersFromChannel(projectId).catch(err =>
+      console.warn("syncProjectMembersFromChannel failed:", err)
+    );
+
     const project = await getProject(projectId);
     if (!project) {
       res.status(404).json({ error: "Project not found" });
@@ -171,6 +179,16 @@ projectsRouter.patch("/:id", channelAuth, async (req: Request, res: Response) =>
           payload:   { changes },
         }).catch(console.error);
       }
+    }
+
+    // If the linked Slack channel was set or changed, force a member sync.
+    const channelChanged =
+      slackChannelId !== undefined &&
+      (before?.slackChannelId ?? null) !== (project.slackChannelId ?? null);
+    if (channelChanged && project.slackChannelId) {
+      syncProjectMembersFromChannel(projectId, { force: true }).catch(err =>
+        console.warn("syncProjectMembersFromChannel after PATCH failed:", err)
+      );
     }
 
     res.json(project);

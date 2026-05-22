@@ -6,6 +6,7 @@ import type {
   Prisma,
 } from "@prisma/client";
 import { boltApp } from "../slack/bolt.js";
+import { resolveSlackMember } from "./memberService.js";
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -157,6 +158,59 @@ export async function addMemberToProject(
     },
     update: { projectRole },
     create: { projectId, memberId, projectRole },
+  });
+}
+
+// ── Sync project membership from linked Slack channel ────────
+//
+// For each user in the project's linked Slack channel, ensure a Member row
+// exists (refreshing isBot via users.info) and a ProjectMember row exists
+// for every non-bot. Also removes any ProjectMember whose Member is a bot
+// (cleanup for rows added before the isBot flag existed).
+//
+// Per-project debounce avoids re-syncing on every page load: defaults to 60s,
+// matching the existing channelMembersCache TTL.
+
+const lastSyncByProject = new Map<string, number>();
+
+export async function syncProjectMembersFromChannel(
+  projectId: string,
+  options: { force?: boolean } = {}
+): Promise<void> {
+  const project = await prisma.project.findUnique({
+    where: { id: projectId },
+    select: { slackChannelId: true },
+  });
+  if (!project?.slackChannelId) return;
+
+  if (!options.force) {
+    const last = lastSyncByProject.get(projectId) ?? 0;
+    if (Date.now() - last < 60_000) return;
+  }
+  lastSyncByProject.set(projectId, Date.now());
+
+  let slackIds: string[];
+  try {
+    slackIds = await getChannelMemberSlackIds(project.slackChannelId);
+  } catch (err) {
+    // Bot may not be in the channel yet, or scope missing — degrade silently.
+    console.warn(`[syncProjectMembersFromChannel] could not list members for ${project.slackChannelId}:`, (err as Error).message);
+    return;
+  }
+
+  for (const slackId of slackIds) {
+    try {
+      const member = await resolveSlackMember(slackId, boltApp.client);
+      if (member.isBot) continue;
+      await addMemberToProject(projectId, member.id);
+    } catch (err) {
+      console.warn(`[syncProjectMembersFromChannel] failed for slackId=${slackId}:`, (err as Error).message);
+    }
+  }
+
+  // Cleanup: remove any ProjectMember that is a bot.
+  await prisma.projectMember.deleteMany({
+    where: { projectId, member: { isBot: true } },
   });
 }
 
