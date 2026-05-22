@@ -2,6 +2,7 @@ import { Router, type Request, type Response } from "express";
 import { requireAuth } from "./auth.js";
 import { prisma } from "../db/prisma.js";
 import * as outreachService from "../services/outreachService.js";
+import * as aiOutreachService from "../services/aiOutreachService.js";
 import { queueDm } from "../services/dmBatcher.js";
 import type { SubmissionStatus, SubmissionType } from "@prisma/client";
 
@@ -387,5 +388,108 @@ outreachRouter.post("/submissions/:id/comments", async (req: Request, res: Respo
     }
     console.error("POST /submissions/:id/comments error:", error);
     res.status(500).json({ error: "Failed to add comment" });
+  }
+});
+
+// ── AI routes ────────────────────────────────────────────────
+
+// POST /submissions/:id/ai/draft
+outreachRouter.post("/submissions/:id/ai/draft", async (req: Request, res: Response) => {
+  try {
+    const submission = await outreachService.getSubmission(req.params.id as string);
+    if (!submission) {
+      res.status(404).json({ error: "Submission not found" });
+      return;
+    }
+
+    const { platform, voiceName } = req.body as {
+      platform?: string;
+      voiceName?: string;
+    };
+
+    const brief = submission.content ?? submission.title;
+    const variants = await aiOutreachService.generateCaptionVariants(
+      brief,
+      platform,
+      voiceName
+    );
+    res.json({ variants });
+  } catch (error) {
+    console.error("POST /submissions/:id/ai/draft error:", error);
+    res.status(500).json({ error: "Failed to generate caption variants" });
+  }
+});
+
+// POST /submissions/:id/ai/hashtags
+outreachRouter.post("/submissions/:id/ai/hashtags", async (req: Request, res: Response) => {
+  try {
+    const submission = await outreachService.getSubmission(req.params.id as string);
+    if (!submission) {
+      res.status(404).json({ error: "Submission not found" });
+      return;
+    }
+
+    const topHashtagStats = await outreachService.listHashtags();
+    const topTags = topHashtagStats.slice(0, 20).map((h) => h.tag);
+
+    const content = submission.content ?? submission.title;
+    const hashtags = await aiOutreachService.suggestHashtags(content, topTags);
+    res.json({ hashtags });
+  } catch (error) {
+    console.error("POST /submissions/:id/ai/hashtags error:", error);
+    res.status(500).json({ error: "Failed to suggest hashtags" });
+  }
+});
+
+// POST /submissions/:id/ai/alt-text
+outreachRouter.post("/submissions/:id/ai/alt-text", async (req: Request, res: Response) => {
+  try {
+    const { imageUrl } = req.body as { imageUrl: string };
+    if (!imageUrl) {
+      res.status(400).json({ error: "imageUrl is required" });
+      return;
+    }
+
+    const altText = await aiOutreachService.generateAltText(imageUrl);
+    res.json({ altText });
+  } catch (error) {
+    console.error("POST /submissions/:id/ai/alt-text error:", error);
+    res.status(500).json({ error: "Failed to generate alt text" });
+  }
+});
+
+// POST /submissions/:id/ai/voice
+outreachRouter.post("/submissions/:id/ai/voice", async (req: Request, res: Response) => {
+  try {
+    const submission = await outreachService.getSubmission(req.params.id as string);
+    if (!submission) {
+      res.status(404).json({ error: "Submission not found" });
+      return;
+    }
+
+    const { voiceName } = req.body as { voiceName: string };
+    if (!voiceName) {
+      res.status(400).json({ error: "voiceName is required" });
+      return;
+    }
+
+    const brandVoice = await prisma.brandVoice.findFirst({
+      where: { name: voiceName },
+    });
+    if (!brandVoice) {
+      res.status(404).json({ error: `Brand voice "${voiceName}" not found` });
+      return;
+    }
+
+    const content = submission.content ?? submission.title;
+    const rewritten = await aiOutreachService.rewriteInVoice(
+      content,
+      brandVoice.name,
+      brandVoice.examples
+    );
+    res.json({ content: rewritten });
+  } catch (error) {
+    console.error("POST /submissions/:id/ai/voice error:", error);
+    res.status(500).json({ error: "Failed to rewrite in voice" });
   }
 });
