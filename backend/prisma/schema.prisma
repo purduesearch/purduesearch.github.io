@@ -561,3 +561,13 @@ model OutreachComment {
   @@index([submissionId])
 }
 
+model HashtagStat {
+  id          String    @id @default(cuid())
+  tag         String    @unique
+  category    String?
+  useCount    Int       @default(0)
+  lastUsedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+

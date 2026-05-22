@@ -303,6 +303,41 @@ outreachRouter.get("/submissions/:id/comments", async (req: Request, res: Respon
   }
 });
 
+// ── GET /hashtags ────────────────────────────────────────────
+
+outreachRouter.get("/hashtags", async (req: Request, res: Response) => {
+  try {
+    const q = typeof req.query.q === "string" ? req.query.q : undefined;
+    const hashtags = await outreachService.listHashtags(q);
+    res.json(hashtags);
+  } catch (error) {
+    console.error("GET /hashtags error:", error);
+    res.status(500).json({ error: "Failed to list hashtags" });
+  }
+});
+
+// ── POST /hashtags/seed ──────────────────────────────────────
+
+outreachRouter.post("/hashtags/seed", async (req: Request, res: Response) => {
+  try {
+    // Admin only
+    const member = await prisma.member.findUnique({
+      where: { id: req.session.memberId },
+      select: { isAdmin: true },
+    });
+    if (!member?.isAdmin) {
+      res.status(403).json({ error: "Forbidden" });
+      return;
+    }
+
+    const count = await outreachService.seedHashtagsFromSubmissions();
+    res.json({ seeded: count });
+  } catch (error) {
+    console.error("POST /hashtags/seed error:", error);
+    res.status(500).json({ error: "Failed to seed hashtags" });
+  }
+});
+
 // ── POST /submissions/:id/comments ─────────────────────────────
 
 outreachRouter.post("/submissions/:id/comments", async (req: Request, res: Response) => {
