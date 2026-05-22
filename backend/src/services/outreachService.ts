@@ -216,4 +216,35 @@ export async function getContentCalendar(from: Date, to: Date) {
   });
 }
 
+export async function listComments(submissionId: string) {
+  return prisma.outreachComment.findMany({
+    where: { submissionId, parentId: null },
+    include: {
+      author: { select: { id: true, displayName: true, avatarUrl: true } },
+      replies: {
+        include: {
+          author: { select: { id: true, displayName: true, avatarUrl: true } },
+        },
+        orderBy: { createdAt: "asc" },
+      },
+    },
+    orderBy: { createdAt: "asc" },
+  });
+}
+
+export async function addComment(
+  submissionId: string,
+  authorId: string,
+  body: string,
+  mentions: string[] = [],
+  parentId?: string
+) {
+  return prisma.outreachComment.create({
+    data: { submissionId, authorId, body, mentions, parentId },
+    include: {
+      author: { select: { id: true, displayName: true, avatarUrl: true } },
+    },
+  });
+}
+
 export type { CreateSubmissionInput, UpdateSubmissionInput, ListSubmissionsFilters };

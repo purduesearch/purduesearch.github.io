@@ -205,4 +205,31 @@ outreachRouter.get("/calendar", async (req, res) => {
         res.status(500).json({ error: "Failed to get content calendar" });
     }
 });
+// ── GET /submissions/:id/comments ──────────────────────────────
+outreachRouter.get("/submissions/:id/comments", async (req, res) => {
+    try {
+        const comments = await outreachService.listComments(req.params.id);
+        res.json(comments);
+    }
+    catch (error) {
+        console.error("GET /submissions/:id/comments error:", error);
+        res.status(500).json({ error: "Failed to list comments" });
+    }
+});
+// ── POST /submissions/:id/comments ─────────────────────────────
+outreachRouter.post("/submissions/:id/comments", async (req, res) => {
+    try {
+        const { body, mentions, parentId } = req.body;
+        if (!body?.trim()) {
+            res.status(400).json({ error: "body is required" });
+            return;
+        }
+        const comment = await outreachService.addComment(req.params.id, req.session.memberId, body, mentions, parentId);
+        res.status(201).json(comment);
+    }
+    catch (error) {
+        console.error("POST /submissions/:id/comments error:", error);
+        res.status(500).json({ error: "Failed to add comment" });
+    }
+});
 //# sourceMappingURL=outreach.js.map

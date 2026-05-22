@@ -356,5 +356,50 @@ export declare function getContentCalendar(from: Date, to: Date): Promise<({
     scheduledAt: Date | null;
     publishedAt: Date | null;
 })[]>;
+export declare function listComments(submissionId: string): Promise<({
+    author: {
+        id: string;
+        displayName: string;
+        avatarUrl: string | null;
+    };
+    replies: ({
+        author: {
+            id: string;
+            displayName: string;
+            avatarUrl: string | null;
+        };
+    } & {
+        id: string;
+        createdAt: Date;
+        authorId: string;
+        parentId: string | null;
+        submissionId: string;
+        body: string;
+        mentions: string[];
+    })[];
+} & {
+    id: string;
+    createdAt: Date;
+    authorId: string;
+    parentId: string | null;
+    submissionId: string;
+    body: string;
+    mentions: string[];
+})[]>;
+export declare function addComment(submissionId: string, authorId: string, body: string, mentions?: string[], parentId?: string): Promise<{
+    author: {
+        id: string;
+        displayName: string;
+        avatarUrl: string | null;
+    };
+} & {
+    id: string;
+    createdAt: Date;
+    authorId: string;
+    parentId: string | null;
+    submissionId: string;
+    body: string;
+    mentions: string[];
+}>;
 export type { CreateSubmissionInput, UpdateSubmissionInput, ListSubmissionsFilters };
 //# sourceMappingURL=outreachService.d.ts.map

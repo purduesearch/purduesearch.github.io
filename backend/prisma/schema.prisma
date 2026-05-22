@@ -147,6 +147,7 @@ model Member {
   attendedEvents  Event[]         @relation("EventAttendees")
   submissions     OutreachSubmission[] @relation("SubmissionAuthor")
   reviewedSubmissions OutreachSubmission[] @relation("SubmissionReviewer")
+  outreachComments OutreachComment[] @relation("OutreachCommentAuthor")
   createdAt       DateTime        @default(now())
 }
 
@@ -534,11 +535,29 @@ model OutreachSubmission {
   scheduledAt DateTime?
   publishedAt DateTime?
 
+  comments    OutreachComment[]
+
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
 
   @@index([status])
   @@index([authorId])
   @@index([projectId])
+}
+
+model OutreachComment {
+  id           String   @id @default(cuid())
+  submissionId String
+  submission   OutreachSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  authorId     String
+  author       Member   @relation("OutreachCommentAuthor", fields: [authorId], references: [id])
+  body         String
+  mentions     String[]
+  parentId     String?
+  parent       OutreachComment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  replies      OutreachComment[] @relation("CommentReplies")
+  createdAt    DateTime @default(now())
+
+  @@index([submissionId])
 }
 

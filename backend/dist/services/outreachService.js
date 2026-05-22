@@ -166,4 +166,27 @@ export async function getContentCalendar(from, to) {
         orderBy: { scheduledAt: "asc" },
     });
 }
+export async function listComments(submissionId) {
+    return prisma.outreachComment.findMany({
+        where: { submissionId, parentId: null },
+        include: {
+            author: { select: { id: true, displayName: true, avatarUrl: true } },
+            replies: {
+                include: {
+                    author: { select: { id: true, displayName: true, avatarUrl: true } },
+                },
+                orderBy: { createdAt: "asc" },
+            },
+        },
+        orderBy: { createdAt: "asc" },
+    });
+}
+export async function addComment(submissionId, authorId, body, mentions = [], parentId) {
+    return prisma.outreachComment.create({
+        data: { submissionId, authorId, body, mentions, parentId },
+        include: {
+            author: { select: { id: true, displayName: true, avatarUrl: true } },
+        },
+    });
+}
 //# sourceMappingURL=outreachService.js.map
