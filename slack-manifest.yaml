@@ -16,8 +16,10 @@ features:
 oauth_config:
   redirect_urls:
     - http://localhost:3001/auth/slack/callback
+    - https://YOUR_ORACLE_DOMAIN/auth/slack/callback
   scopes:
     bot:
+      - app_mentions:read
       - chat:write
       - commands
       - channels:read
@@ -27,19 +29,30 @@ oauth_config:
       - im:write
       - groups:read
       - groups:history
+      - reactions:read
+      - files:read
     user:
       - users:read
       - users:read.email
+      - channels:read
+      - groups:read
+      - mpim:read
+      - channels:write.invites
+      - groups:write.invites
 
 settings:
   socket_mode_enabled: true
   token_rotation_enabled: false
   event_subscriptions:
     bot_events:
+      - app_mention
       - message.channels
       - message.groups
       - channel_created
       - member_joined_channel
+      - member_left_channel
+      - reaction_added
+      - file_shared
   interactivity:
     is_enabled: true
   org_deploy_enabled: false

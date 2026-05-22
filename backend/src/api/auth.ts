@@ -57,6 +57,12 @@ authRouter.get("/slack", (_req: Request, res: Response) => {
   const scopes = [
     "users:read",
     "users:read.email",
+    // Needed for the project channel picker (users.conversations + conversations.invite)
+    "channels:read",
+    "groups:read",
+    "mpim:read",
+    "channels:write.invites",
+    "groups:write.invites",
   ].join(",");
 
   const url = new URL("https://slack.com/oauth/v2/authorize");

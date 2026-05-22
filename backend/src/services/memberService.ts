@@ -98,6 +98,13 @@ export async function syncAdminStatus(app: App): Promise<void> {
     cursor = res.response_metadata?.next_cursor || undefined;
   } while (cursor);
 
+  // Ensure every leadership-channel member exists in the DB before granting admin.
+  // After a workspace migration the Member table may be empty (slackIds are new), and
+  // without this loop updateMany would match zero rows and grant no admin.
+  for (const id of slackIds) {
+    await resolveSlackMember(id, app.client);
+  }
+
   // Snapshot current state so we can log what actually changed
   const existing = await prisma.member.findMany({
     select: { slackId: true, displayName: true, isAdmin: true },
@@ -125,4 +132,20 @@ export async function syncAdminStatus(app: App): Promise<void> {
 export async function isAdminBySlackId(slackId: string): Promise<boolean> {
   const m = await prisma.member.findUnique({ where: { slackId }, select: { isAdmin: true } });
   return m?.isAdmin ?? false;
+}
+
+// Cached after first call — the bot's own Slack user ID, used to check channel
+// membership and to invite the bot into a private channel via the user token.
+let _botUserId: string | null | undefined = undefined;
+
+export async function getBotUserId(client: SlackClient): Promise<string | null> {
+  if (_botUserId !== undefined) return _botUserId;
+  try {
+    const res = await client.auth.test();
+    _botUserId = (res.user_id as string | undefined) ?? null;
+  } catch (err) {
+    console.error("getBotUserId: auth.test failed:", err);
+    _botUserId = null;
+  }
+  return _botUserId;
 }

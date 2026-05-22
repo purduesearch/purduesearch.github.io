@@ -940,14 +940,29 @@ function AddProjectTaskModal({ projectId, initialStatus, projectMembers, onClose
 
 function SlackChannelPicker({ project, channels, onSaved }) {
   const [saving, setSaving] = useState(false);
+  const [status, setStatus] = useState("");
+  const [error, setError] = useState("");
   const [selected, setSelected] = useState(project.slackChannelId ?? "");
 
   const handleChange = async (e) => {
     const channelId = e.target.value;
+    const ch = channels.find(c => c.id === channelId);
     setSelected(channelId);
+    setError("");
     setSaving(true);
     try {
-      const ch = channels.find(c => c.id === channelId);
+      if (channelId && ch && !ch.botIsMember) {
+        setStatus("Inviting bot…");
+        try {
+          await post(`/api/slack/channels/${channelId}/invite-bot`, {});
+        } catch (inviteErr) {
+          const code = inviteErr?.message ?? "unknown_error";
+          setError(`Could not invite bot (${code}). Run \`/invite @Club PM\` in #${ch.name} then retry.`);
+          setSelected(project.slackChannelId ?? "");
+          return;
+        }
+      }
+      setStatus("Saving…");
       await patch(`/api/projects/${project.id}`, {
         slackChannelId:   channelId || null,
         slackChannelName: ch?.name  || null,
@@ -955,34 +970,44 @@ function SlackChannelPicker({ project, channels, onSaved }) {
       onSaved();
     } catch (err) {
       console.error("Failed to save linked channel", err);
+      setError(err?.message ?? "Failed to save linked channel");
+      setSelected(project.slackChannelId ?? "");
     } finally {
       setSaving(false);
+      setStatus("");
     }
   };
 
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-      <i className="fab fa-slack" style={{ fontSize: 12, color: "var(--clubpm-text-muted)" }} />
-      <select
-        value={selected}
-        onChange={handleChange}
-        disabled={saving}
-        style={{
-          fontSize: 11,
-          padding: "3px 6px",
-          borderRadius: 5,
-          background: "var(--clubpm-surface-300)",
-          border: "1px solid var(--clubpm-border)",
-          color: selected ? "var(--clubpm-text-primary)" : "var(--clubpm-text-muted)",
-          cursor: "pointer",
-        }}
-      >
-        <option value="">— Link Slack channel —</option>
-        {channels.map(ch => (
-          <option key={ch.id} value={ch.id}>#{ch.name}</option>
-        ))}
-      </select>
-      {saving && <span style={{ fontSize: 10, color: "var(--clubpm-text-muted)" }}>Saving…</span>}
+    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+        <i className="fab fa-slack" style={{ fontSize: 12, color: "var(--clubpm-text-muted)" }} />
+        <select
+          value={selected}
+          onChange={handleChange}
+          disabled={saving}
+          style={{
+            fontSize: 11,
+            padding: "3px 6px",
+            borderRadius: 5,
+            background: "var(--clubpm-surface-300)",
+            border: "1px solid var(--clubpm-border)",
+            color: selected ? "var(--clubpm-text-primary)" : "var(--clubpm-text-muted)",
+            cursor: "pointer",
+          }}
+        >
+          <option value="">— Link Slack channel —</option>
+          {channels.map(ch => (
+            <option key={ch.id} value={ch.id}>
+              #{ch.name}{ch.botIsMember === false ? " (bot not in channel)" : ""}
+            </option>
+          ))}
+        </select>
+        {saving && <span style={{ fontSize: 10, color: "var(--clubpm-text-muted)" }}>{status}</span>}
+      </div>
+      {error && (
+        <span style={{ fontSize: 10, color: "var(--clubpm-accent-danger, #e06c75)" }}>{error}</span>
+      )}
     </div>
   );
 }
