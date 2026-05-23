@@ -152,6 +152,7 @@ model Member {
   campaignsOwned  Campaign[]       @relation("CampaignOwner")
   ownedContacts   OutreachContact[] @relation("ContactOwner")
   contactInteractions ContactInteraction[]
+  recordedMetrics PostMetric[]
   createdAt       DateTime        @default(now())
 }
 
@@ -546,6 +547,7 @@ model OutreachSubmission {
 
   comments    OutreachComment[]
   utmLinks    UtmLink[]
+  metrics     PostMetric[]
 
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
@@ -678,4 +680,23 @@ model UtmLink {
   createdAt    DateTime @default(now())
 
   @@index([submissionId])
+}
+
+model PostMetric {
+  id           String   @id @default(cuid())
+  submissionId String
+  submission   OutreachSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  platform     String   // "instagram" | "linkedin" | "twitter" | "website" | "newsletter"
+  impressions  Int?
+  likes        Int?
+  comments     Int?
+  shares       Int?
+  clicks       Int?
+  recordedAt   DateTime @default(now())
+  recordedById String
+  recordedBy   Member   @relation(fields: [recordedById], references: [id])
+
+  @@index([submissionId])
+  @@index([platform])
+  @@index([recordedAt])
 }
