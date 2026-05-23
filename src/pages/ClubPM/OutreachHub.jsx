@@ -6,6 +6,7 @@ import SubmissionFormModal from '../../components/clubpm/SubmissionFormModal';
 import CommentThread from '../../components/clubpm/CommentThread';
 import ComposerTab from '../../components/clubpm/ComposerTab';
 import CrossPostBundle from '../../components/clubpm/CrossPostBundle';
+import BrandVoiceAdmin from '../../components/clubpm/BrandVoiceAdmin';
 import toast from 'react-hot-toast';
 
 // ── Constants ─────────────────────────────────────────────────
@@ -887,7 +888,12 @@ export default function OutreachHub() {
         )}
         {activeTab === 'calendar' && <CalendarTab />}
         {activeTab === 'recommendations' && (
-          <RecommendationsTab submissions={submissions} />
+          <>
+            <RecommendationsTab submissions={submissions} />
+            <div style={{ padding: '0 0 24px' }}>
+              <BrandVoiceAdmin isAdmin={!!member?.isAdmin} />
+            </div>
+          </>
         )}
       </div>
 

@@ -21,6 +21,7 @@ import { eventsRouter } from "./api/events.js";
 import { outreachRouter } from "./api/outreach.js";
 import { redirectRouter } from "./api/redirect.js";
 import { assetsRouter } from "./api/assets.js";
+import { brandVoicesRouter } from "./api/brandVoices.js";
 
 // ── Express Setup ────────────────────────────────────────────
 
@@ -80,6 +81,7 @@ app.use("/api/notifications", sseRouter);
 app.use("/api/events", eventsRouter);
 app.use("/api/outreach", outreachRouter);
 app.use("/api/outreach/assets", assetsRouter);
+app.use("/api/outreach/brand-voices", brandVoicesRouter);
 app.use("/r", redirectRouter);
 
 // Health check

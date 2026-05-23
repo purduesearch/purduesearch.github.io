@@ -13067,3 +13067,174 @@ html::-webkit-scrollbar { display: none; }
   padding: 6px 0;
 }
 
+/* ── Brand Voice Admin ───────────────────────────────────────── */
+
+.pm-bv-admin {
+  padding: 20px 0;
+  border-top: 1px solid var(--clubpm-border);
+  margin-top: 24px;
+}
+
+.pm-bv-admin-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.pm-bv-admin-title {
+  margin: 0 0 4px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--clubpm-text-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pm-bv-admin-subtitle {
+  margin: 0;
+  font-size: 13px;
+  color: var(--clubpm-text-secondary);
+  max-width: 520px;
+}
+
+.pm-bv-form-wrap {
+  background: var(--pm-bg-elevated, rgba(255,255,255,0.03));
+  border: 1px solid var(--clubpm-border);
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.pm-bv-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.pm-bv-label-hint {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--clubpm-text-secondary);
+}
+
+.pm-bv-examples-textarea {
+  min-height: 120px;
+  font-size: 13px;
+  resize: vertical;
+}
+
+.pm-bv-default-row {
+  display: flex;
+  align-items: center;
+}
+
+.pm-bv-form-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+/* Voice card list */
+.pm-bv-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.pm-bv-card {
+  border: 1px solid var(--clubpm-border);
+  border-radius: 10px;
+  padding: 16px 18px;
+  background: var(--pm-bg-elevated, rgba(255,255,255,0.03));
+  transition: border-color 0.15s;
+}
+
+.pm-bv-card--default {
+  border-color: var(--pm-accent-teal);
+  background: rgba(0, 229, 204, 0.04);
+}
+
+.pm-bv-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.pm-bv-card-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--clubpm-text-primary);
+}
+
+.pm-bv-default-badge {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 2px 6px;
+  border-radius: 5px;
+  background: rgba(0, 229, 204, 0.15);
+  color: var(--pm-accent-teal);
+  border: 1px solid rgba(0, 229, 204, 0.3);
+  text-transform: uppercase;
+}
+
+.pm-bv-card-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.pm-bv-card-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid var(--clubpm-border);
+  background: transparent;
+  color: var(--clubpm-text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.pm-bv-card-btn:hover { color: var(--pm-accent-teal); border-color: var(--pm-accent-teal); }
+.pm-bv-card-btn--danger:hover { color: #e17055; border-color: #e17055; }
+
+.pm-bv-card-description {
+  font-size: 13px;
+  color: var(--clubpm-text-secondary);
+  margin: 0 0 10px;
+}
+
+.pm-bv-examples {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pm-bv-example {
+  margin: 0;
+  padding: 8px 12px;
+  border-left: 3px solid var(--pm-accent-teal);
+  background: rgba(0,0,0,0.15);
+  border-radius: 0 6px 6px 0;
+  font-size: 12px;
+  font-style: italic;
+  color: var(--clubpm-text-secondary);
+  line-height: 1.5;
+}
+
+.pm-bv-more {
+  font-size: 11px;
+  color: var(--clubpm-text-secondary);
+  padding-left: 4px;
+}
+

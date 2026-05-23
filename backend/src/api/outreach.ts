@@ -556,17 +556,6 @@ outreachRouter.post("/ai/voice", async (req: Request, res: Response) => {
   }
 });
 
-// GET /brand-voices
-outreachRouter.get("/brand-voices", async (_req: Request, res: Response) => {
-  try {
-    const voices = await prisma.brandVoice.findMany({ orderBy: { name: "asc" } });
-    res.json(voices);
-  } catch (error) {
-    console.error("GET /brand-voices error:", error);
-    res.status(500).json({ error: "Failed to list brand voices" });
-  }
-});
-
 // ── UTM link routes ──────────────────────────────────────────
 
 // GET /submissions/:id/utm-links
