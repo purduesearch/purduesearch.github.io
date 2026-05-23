@@ -131,7 +131,7 @@ function PlatformChips({ platforms = [] }) {
 
 // ── SubmissionCard ────────────────────────────────────────────
 
-function SubmissionCard({ submission, member, onEdit, onReview, onDelete, onCopy, selectedIds, toggleSelect, onSafetyUpdate }) {
+function SubmissionCard({ submission, member, onEdit, onReview, onDelete, onCopy, selectedIds, toggleSelect, onSafetyUpdate, onExpandBlog }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [showComments, setShowComments] = useState(false);
   const isAdmin = member?.isAdmin;
@@ -238,6 +238,16 @@ function SubmissionCard({ submission, member, onEdit, onReview, onDelete, onCopy
               aria-label="Copy for Posting"
             >
               <i className="fas fa-clipboard" aria-hidden="true" />
+            </button>
+          )}
+          {['APPROVED', 'PUBLISHED', 'IN_REVIEW'].includes(submission.status) && submission.content && (
+            <button
+              className="pm-outreach-review-btn"
+              onClick={() => onExpandBlog?.(submission)}
+              title={submission.blogSlug ? 'Re-expand to blog post' : 'Expand to blog post (AI)'}
+              aria-label="Expand to blog post"
+            >
+              <i className={`fas ${submission.blogSlug ? 'fa-blog' : 'fa-pen-fancy'}`} aria-hidden="true" />
             </button>
           )}
           {canReview && (
@@ -373,7 +383,7 @@ function BulkToolbar({ selectedIds, onClearSelection, onBulkStatus, onBulkDelete
   );
 }
 
-function BoardTab({ submissions, member, onEdit, onReview, onDelete, onStatusChange, onBulkReload, campaigns, onSafetyUpdate }) {
+function BoardTab({ submissions, member, onEdit, onReview, onDelete, onStatusChange, onBulkReload, campaigns, onSafetyUpdate, onExpandBlog }) {
   const [columns,        setColumns]        = useState({});
   const [selectedIds,    setSelectedIds]    = useState(new Set());
   const [bulkLoading,    setBulkLoading]    = useState(false);
@@ -554,6 +564,7 @@ function BoardTab({ submissions, member, onEdit, onReview, onDelete, onStatusCha
                                 selectedIds={selectedIds}
                                 toggleSelect={toggleSelect}
                                 onSafetyUpdate={onSafetyUpdate}
+                                onExpandBlog={onExpandBlog}
                               />
                             </div>
                           )}
@@ -918,6 +929,24 @@ export default function OutreachHub() {
             onBulkReload={loadSubmissions}
             campaigns={campaigns}
             onSafetyUpdate={(id, patch) => setSubmissions(prev => prev.map(s => s.id === id ? { ...s, ...patch } : s))}
+            onExpandBlog={async (submission) => {
+              const isRegen = !!submission.blogSlug;
+              if (isRegen && !window.confirm('A blog post already exists for this submission. Regenerate?')) return;
+              try {
+                const t = toast.loading('Expanding to blog post…');
+                const updated = await post(`/api/outreach/submissions/${submission.id}/ai/expand-blog`);
+                toast.dismiss(t);
+                toast.success(
+                  <span>
+                    Blog post {isRegen ? 'updated' : 'created'}.{' '}
+                    <a href={`/blog/${updated.blogSlug}`} target="_blank" rel="noreferrer" style={{ color: 'var(--pm-accent-teal)', textDecoration: 'underline' }}>View</a>
+                  </span>
+                );
+                setSubmissions(prev => prev.map(s => s.id === submission.id ? { ...s, blogSlug: updated.blogSlug, blogMarkdown: updated.blogMarkdown } : s));
+              } catch (err) {
+                toast.error(err.message ?? 'Failed to expand');
+              }
+            }}
           />
         )}
         {activeTab === 'calendar' && <CalendarTab campaigns={campaigns} />}

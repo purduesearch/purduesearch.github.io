@@ -1040,6 +1040,54 @@ outreachRouter.delete("/submissions/:id/approvals/:approverId", async (req: Requ
   }
 });
 
+// ── POST /submissions/:id/ai/expand-blog ─────────────────────
+
+outreachRouter.post("/submissions/:id/ai/expand-blog", async (req: Request, res: Response) => {
+  try {
+    const submission = await prisma.outreachSubmission.findUnique({
+      where:  { id: req.params.id as string },
+      include: { project: { select: { name: true } } },
+    });
+    if (!submission) {
+      res.status(404).json({ error: "Submission not found" });
+      return;
+    }
+    if (!submission.content?.trim()) {
+      res.status(400).json({ error: "Submission has no content to expand" });
+      return;
+    }
+
+    const markdown = await aiOutreachService.expandToBlog(
+      submission.title,
+      submission.content,
+      submission.project?.name ?? undefined
+    );
+
+    // Auto-generate slug if missing
+    let slug = submission.blogSlug;
+    if (!slug) {
+      const baseSlug = submission.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60) || "post";
+      slug = baseSlug;
+      let suffix = 1;
+      while (await prisma.outreachSubmission.findFirst({ where: { blogSlug: slug, NOT: { id: submission.id } }, select: { id: true } })) {
+        suffix += 1;
+        slug = `${baseSlug}-${suffix}`;
+      }
+    }
+
+    const updated = await prisma.outreachSubmission.update({
+      where: { id: req.params.id as string },
+      data:  { blogMarkdown: markdown, blogSlug: slug },
+      select: { id: true, blogMarkdown: true, blogSlug: true },
+    });
+
+    res.json(updated);
+  } catch (error) {
+    console.error("POST /submissions/:id/ai/expand-blog error:", error);
+    res.status(500).json({ error: "Failed to expand to blog" });
+  }
+});
+
 // ── POST /ai/video-script ────────────────────────────────────
 
 outreachRouter.post("/ai/video-script", async (req: Request, res: Response) => {

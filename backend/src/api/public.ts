@@ -95,6 +95,55 @@ publicRouter.get("/outreach/published", async (req: Request, res: Response) => {
   }
 });
 
+// ── GET /public/blog — list published blog posts ─────────────
+
+publicRouter.get("/blog", async (_req: Request, res: Response) => {
+  try {
+    const posts = await prisma.outreachSubmission.findMany({
+      where: {
+        status:       "PUBLISHED",
+        blogMarkdown: { not: null },
+        blogSlug:     { not: null },
+      },
+      orderBy: { publishedAt: "desc" },
+      take: 50,
+      select: {
+        id: true, title: true, blogSlug: true, publishedAt: true,
+        content: true, mediaUrls: true,
+        project: { select: { name: true, programTag: true } },
+      },
+    });
+    res.json(posts);
+  } catch (error) {
+    console.error("GET /public/blog error:", error);
+    res.status(500).json({ error: "Failed to load blog list" });
+  }
+});
+
+// ── GET /public/blog/:slug — full post ───────────────────────
+
+publicRouter.get("/blog/:slug", async (req: Request, res: Response) => {
+  try {
+    const post = await prisma.outreachSubmission.findUnique({
+      where: { blogSlug: req.params.slug as string },
+      select: {
+        id: true, title: true, blogSlug: true, blogMarkdown: true,
+        mediaUrls: true, publishedAt: true, status: true,
+        project: { select: { name: true, programTag: true } },
+        author:  { select: { displayName: true, avatarUrl: true } },
+      },
+    });
+    if (!post || post.status !== "PUBLISHED" || !post.blogMarkdown) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    res.json(post);
+  } catch (error) {
+    console.error("GET /public/blog/:slug error:", error);
+    res.status(500).json({ error: "Failed to load blog post" });
+  }
+});
+
 // ── Newsletter unsubscribe ───────────────────────────────────
 
 publicRouter.get("/newsletter/unsubscribe/:token", async (req: Request, res: Response) => {

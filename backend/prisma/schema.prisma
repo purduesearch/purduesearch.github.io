@@ -550,6 +550,8 @@ model OutreachSubmission {
   safetyCheckedAt  DateTime?
   newsletterHtml   String?  // Rich HTML for NEWSLETTER-type submissions
   videoScript      Json?    // [{ shotNumber, durationSec, description, voiceover?, onScreenText? }]
+  blogMarkdown     String?  // AI-expanded long-form for /blog/:slug
+  blogSlug         String?  @unique
 
   campaign    Campaign?        @relation(fields: [campaignId], references: [id], onDelete: SetNull)
   campaignId  String?

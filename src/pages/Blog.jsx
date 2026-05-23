@@ -1,12 +1,26 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import BlogCard from '../components/BlogCard';
 import SEOHead from '../components/SEOHead';
 
+const BLOG_API_BASE = process.env.REACT_APP_API_URL || '';
+
 const Blog = () => {
+  const [dynamicPosts, setDynamicPosts] = useState([]);
+
   useEffect(() => {
     if (window.AOS) window.AOS.init({ once: true });
+  }, []);
+
+  // Fetch AI-expanded blog posts from the outreach backend (best-effort)
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`${BLOG_API_BASE}/api/public/blog`)
+      .then(r => r.ok ? r.json() : [])
+      .then(data => { if (!cancelled) setDynamicPosts(Array.isArray(data) ? data : []); })
+      .catch(() => {});
+    return () => { cancelled = true; };
   }, []);
 
   useEffect(() => {
@@ -61,6 +75,34 @@ const Blog = () => {
               <h2 className="section-title">Latest <b>News</b></h2>
               <p className="section-sub-title">Recent highlights from SEARCH programs, competitions, and research.</p>
             </div>
+
+            {/* Latest dynamic posts from the outreach team */}
+            {dynamicPosts.length > 0 && (
+              <>
+                <h3><b>Latest</b></h3><br />
+                <div className="row">
+                  <div className="col-md-12 blog-holder">
+                    <div className="row">
+                      {dynamicPosts.slice(0, 6).map((p, i) => (
+                        <div key={p.id} className="col-md-4 blog-item-wrapper" data-aos="fade-up" data-aos-delay={i * 60}>
+                          <BlogCard
+                            image={p.mediaUrls?.[0] ?? '/Purdue_Sky.webp'}
+                            imageAlt={p.title}
+                            tag={p.project?.name ?? 'Update'}
+                            title={p.title}
+                            href={`/blog/${p.blogSlug}`}
+                            date={p.publishedAt ? new Date(p.publishedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : ''}
+                            excerpt={(p.content ?? '').slice(0, 180)}
+                            author="SEARCH Outreach Team"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                <hr style={{ borderColor: 'var(--color-border)', margin: '40px 0' }} />
+              </>
+            )}
 
             {/* 2024–25 */}
             <h3><b>2024–25</b></h3><br />

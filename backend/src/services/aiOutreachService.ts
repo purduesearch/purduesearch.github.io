@@ -87,6 +87,41 @@ Respond with ONLY a valid JSON object (no markdown):
   };
 }
 
+// ── Blog expansion ───────────────────────────────────────────
+
+/**
+ * Expand a short submission (caption / announcement) into a ~400-word
+ * blog post in markdown, with a heading, sub-sections, and a TL;DR.
+ */
+export async function expandToBlog(
+  title: string,
+  content: string,
+  projectName?: string
+): Promise<string> {
+  const context = projectName ? `\nProject: ${projectName}` : "";
+  const prompt = `You are a content writer for Purdue SEARCH, a university engineering club.
+Expand the following short post into a 350-450 word blog article in Markdown.
+${context}
+
+Original title: ${title}
+Original content:
+${content}
+
+Requirements:
+- Start with a "# ${title}" heading (the H1)
+- Open with a short TL;DR (two sentences max, italicized via *…*)
+- Use 2-3 "##" sub-section headings
+- Keep the tone matching the original — celebratory, technical-but-accessible
+- DO NOT fabricate specific numbers, names, dates, or claims not present in the original
+- End with a single-line call-to-action ("→ Follow @purduesearch for updates" or similar)
+
+Return only the Markdown — no fences, no preamble.`;
+
+  const result = await generateText(prompt);
+  if (!result) throw new Error("[aiOutreachService] expandToBlog: empty response");
+  return result;
+}
+
 // ── Video script ─────────────────────────────────────────────
 
 export interface VideoShot {
