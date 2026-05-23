@@ -4,6 +4,7 @@ import { get, post, patch, del } from '../../api/clubPmClient';
 import { useClubPmAuth } from '../../clubpm/ClubPmAuth';
 import SubmissionFormModal from '../../components/clubpm/SubmissionFormModal';
 import CommentThread from '../../components/clubpm/CommentThread';
+import ComposerTab from '../../components/clubpm/ComposerTab';
 import toast from 'react-hot-toast';
 
 // ── Constants ─────────────────────────────────────────────────
@@ -929,6 +930,7 @@ export default function OutreachHub() {
   };
 
   const TABS = [
+    { id: 'composer',        label: 'Composer',        icon: 'fas fa-pen-nib' },
     { id: 'board',           label: 'Board',           icon: 'fas fa-columns' },
     { id: 'calendar',        label: 'Calendar',        icon: 'fas fa-calendar-alt' },
     { id: 'recommendations', label: 'Recommendations', icon: 'fas fa-lightbulb' },
@@ -973,6 +975,18 @@ export default function OutreachHub() {
 
       {/* Tab content */}
       <div className="pm-outreach-tab-content" role="tabpanel">
+        {activeTab === 'composer' && (
+          <ComposerTab
+            onSaved={(submission) => {
+              setSubmissions(prev => {
+                const exists = prev.find(s => s.id === submission.id);
+                return exists
+                  ? prev.map(s => s.id === submission.id ? { ...s, ...submission } : s)
+                  : [submission, ...prev];
+              });
+            }}
+          />
+        )}
         {activeTab === 'board' && (
           <BoardTab
             submissions={submissions}

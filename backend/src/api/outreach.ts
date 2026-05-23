@@ -96,7 +96,7 @@ outreachRouter.post("/submissions", async (req: Request, res: Response) => {
       platform,
       projectId,
       eventId,
-      authorId: req.session.memberId!,
+      authorId: req.memberId!,
       scheduledAt: scheduledAt ? new Date(scheduledAt) : undefined,
     });
 
@@ -118,9 +118,9 @@ outreachRouter.patch("/submissions/:id", async (req: Request, res: Response) => 
     }
 
     // Check: author or admin
-    if (submission.authorId !== req.session.memberId) {
+    if (submission.authorId !== req.memberId) {
       const member = await prisma.member.findUnique({
-        where: { id: req.session.memberId },
+        where: { id: req.memberId },
         select: { isAdmin: true },
       });
       if (!member?.isAdmin) {
@@ -184,9 +184,9 @@ outreachRouter.delete("/submissions/:id", async (req: Request, res: Response) =>
     }
 
     // Check: author or admin
-    if (submission.authorId !== req.session.memberId) {
+    if (submission.authorId !== req.memberId) {
       const member = await prisma.member.findUnique({
-        where: { id: req.session.memberId },
+        where: { id: req.memberId },
         select: { isAdmin: true },
       });
       if (!member?.isAdmin) {
@@ -211,7 +211,7 @@ outreachRouter.post(
     try {
       // Admin only
       const member = await prisma.member.findUnique({
-        where: { id: req.session.memberId },
+        where: { id: req.memberId },
         select: { isAdmin: true },
       });
       if (!member?.isAdmin) {
@@ -237,7 +237,7 @@ outreachRouter.post(
 
       const updated = await outreachService.reviewSubmission(
         req.params.id as string,
-        req.session.memberId!,
+        req.memberId!,
         status,
         note
       );
@@ -340,7 +340,7 @@ outreachRouter.post("/hashtags/seed", async (req: Request, res: Response) => {
   try {
     // Admin only
     const member = await prisma.member.findUnique({
-      where: { id: req.session.memberId },
+      where: { id: req.memberId },
       select: { isAdmin: true },
     });
     if (!member?.isAdmin) {
@@ -376,7 +376,7 @@ outreachRouter.post("/submissions/:id/comments", async (req: Request, res: Respo
     }
     const comment = await outreachService.addComment(
       req.params.id as string,
-      req.session.memberId!,
+      req.memberId!,
       body,
       mentions,
       parentId
@@ -492,6 +492,78 @@ outreachRouter.post("/submissions/:id/ai/voice", async (req: Request, res: Respo
   } catch (error) {
     console.error("POST /submissions/:id/ai/voice error:", error);
     res.status(500).json({ error: "Failed to rewrite in voice" });
+  }
+});
+
+// ── Standalone AI routes (no submission ID — for Composer) ───
+
+// POST /ai/draft
+outreachRouter.post("/ai/draft", async (req: Request, res: Response) => {
+  try {
+    const { content, platform, voiceName } = req.body as {
+      content: string;
+      platform?: string;
+      voiceName?: string;
+    };
+    if (!content?.trim()) {
+      res.status(400).json({ error: "content is required" });
+      return;
+    }
+    const variants = await aiOutreachService.generateCaptionVariants(content, platform, voiceName);
+    res.json({ variants });
+  } catch (error) {
+    console.error("POST /ai/draft error:", error);
+    res.status(500).json({ error: "Failed to generate caption variants" });
+  }
+});
+
+// POST /ai/hashtags
+outreachRouter.post("/ai/hashtags", async (req: Request, res: Response) => {
+  try {
+    const { content } = req.body as { content: string };
+    if (!content?.trim()) {
+      res.status(400).json({ error: "content is required" });
+      return;
+    }
+    const topHashtagStats = await outreachService.listHashtags();
+    const topTags = topHashtagStats.slice(0, 20).map((h) => h.tag);
+    const hashtags = await aiOutreachService.suggestHashtags(content, topTags);
+    res.json({ hashtags });
+  } catch (error) {
+    console.error("POST /ai/hashtags error:", error);
+    res.status(500).json({ error: "Failed to suggest hashtags" });
+  }
+});
+
+// POST /ai/voice
+outreachRouter.post("/ai/voice", async (req: Request, res: Response) => {
+  try {
+    const { content, voiceName } = req.body as { content: string; voiceName: string };
+    if (!content?.trim() || !voiceName) {
+      res.status(400).json({ error: "content and voiceName are required" });
+      return;
+    }
+    const brandVoice = await prisma.brandVoice.findFirst({ where: { name: voiceName } });
+    if (!brandVoice) {
+      res.status(404).json({ error: `Brand voice "${voiceName}" not found` });
+      return;
+    }
+    const rewritten = await aiOutreachService.rewriteInVoice(content, brandVoice.name, brandVoice.examples);
+    res.json({ content: rewritten });
+  } catch (error) {
+    console.error("POST /ai/voice error:", error);
+    res.status(500).json({ error: "Failed to rewrite in voice" });
+  }
+});
+
+// GET /brand-voices
+outreachRouter.get("/brand-voices", async (_req: Request, res: Response) => {
+  try {
+    const voices = await prisma.brandVoice.findMany({ orderBy: { name: "asc" } });
+    res.json(voices);
+  } catch (error) {
+    console.error("GET /brand-voices error:", error);
+    res.status(500).json({ error: "Failed to list brand voices" });
   }
 });
 
