@@ -186,6 +186,100 @@ Respond with ONLY a valid JSON array, no markdown:
   return result.filter(d => d.title && d.content && d.scheduledAt);
 }
 
+// ── Gap analysis ─────────────────────────────────────────────
+
+interface GapItem {
+  title: string;
+  reason: string;
+  priority: "HIGH" | "MEDIUM" | "LOW";
+  suggestedType: string;
+}
+
+/**
+ * AI-powered content gap analysis: given upcoming events and recent milestones
+ * with no existing submissions, produce a prioritized list of missed opportunities.
+ */
+export async function generateGapAnalysis(
+  events: { title: string; startTime: string | null; type: string }[],
+  milestones: { title: string; projectName: string | null; completedAt: string | null }[]
+): Promise<GapItem[]> {
+  if (events.length === 0 && milestones.length === 0) return [];
+
+  const eventsList = events.map(e =>
+    `- ${e.title} (${e.type}, ${e.startTime ? new Date(e.startTime).toDateString() : "TBD"})`
+  ).join("\n") || "None";
+
+  const milestonesList = milestones.map(m =>
+    `- ${m.title}${m.projectName ? ` (${m.projectName})` : ""}${m.completedAt ? `, completed ${new Date(m.completedAt).toDateString()}` : ""}`
+  ).join("\n") || "None";
+
+  const prompt = `You are a social media strategist for Purdue SEARCH, a university engineering club.
+The following upcoming events and recent milestones have NO social media content planned for them.
+Identify which represent the best outreach opportunities and explain why.
+
+Upcoming events with no promo:
+${eventsList}
+
+Recent milestones with no celebration post:
+${milestonesList}
+
+Return ONLY a valid JSON array (no markdown) of up to 8 items, each with:
+- "title": the event or milestone name
+- "reason": one sentence on why this is worth posting about
+- "priority": "HIGH", "MEDIUM", or "LOW"
+- "suggestedType": one of "EVENT_PROMO", "ANNOUNCEMENT", "SOCIAL_POST", "NEWSLETTER"
+
+[{"title":"...","reason":"...","priority":"HIGH","suggestedType":"EVENT_PROMO"}]`;
+
+  const result = await generateJson<GapItem[]>(prompt);
+  if (!result || !Array.isArray(result)) return [];
+  return result.slice(0, 8).filter(g => g.title && g.reason);
+}
+
+// ── Weekly digest ─────────────────────────────────────────────
+
+/**
+ * Generate a narrative weekly digest summarising last week's outreach performance.
+ */
+export async function generateWeeklyDigest(
+  published: { title: string; type: string; platforms: string[] }[],
+  metrics: { platform: string; impressions: number; likes: number; comments: number; shares: number }[],
+  crmFunnel: Record<string, number>
+): Promise<string> {
+  const pubList = published.length > 0
+    ? published.map(p => `- "${p.title}" (${p.type}) on ${p.platforms.join(", ")}`).join("\n")
+    : "No posts published last week.";
+
+  const metricSummary = metrics.length > 0
+    ? metrics.map(m =>
+        `${m.platform}: ${m.impressions} impressions, ${m.likes} likes, ${m.comments} comments, ${m.shares} shares`
+      ).join("\n")
+    : "No engagement metrics recorded yet.";
+
+  const funnelStr = Object.entries(crmFunnel)
+    .map(([stage, count]) => `${stage}: ${count}`)
+    .join(", ") || "No CRM data.";
+
+  const prompt = `You are the outreach director for Purdue SEARCH, a university engineering club.
+Write a concise (3-4 paragraph) weekly outreach digest in a professional, upbeat tone.
+Cover: what was published, engagement highlights, CRM pipeline state, and 2-3 actionable recommendations for next week.
+
+Last week's published posts:
+${pubList}
+
+Engagement metrics:
+${metricSummary}
+
+CRM pipeline:
+${funnelStr}
+
+Return only the digest narrative — no headers, no bullet points, plain paragraphs.`;
+
+  const result = await generateText(prompt);
+  if (!result) throw new Error("[aiOutreachService] generateWeeklyDigest: empty response");
+  return result;
+}
+
 // ── Voice rewrite ─────────────────────────────────────────────
 
 /**

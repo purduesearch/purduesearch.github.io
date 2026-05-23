@@ -665,3 +665,76 @@ outreachRouter.delete("/submissions/:id/utm-links/:code", async (req: Request, r
     res.status(500).json({ error: "Failed to delete UTM link" });
   }
 });
+
+// ── POST /submissions/:id/metrics ─────────────────────────────
+
+outreachRouter.post("/submissions/:id/metrics", async (req: Request, res: Response) => {
+  try {
+    const submission = await outreachService.getSubmission(req.params.id as string);
+    if (!submission) {
+      res.status(404).json({ error: "Submission not found" });
+      return;
+    }
+
+    const { platform, impressions, likes, comments, shares, clicks } = req.body as {
+      platform: string;
+      impressions?: number | null;
+      likes?: number | null;
+      comments?: number | null;
+      shares?: number | null;
+      clicks?: number | null;
+    };
+
+    if (!platform) {
+      res.status(400).json({ error: "platform is required" });
+      return;
+    }
+
+    const metric = await prisma.postMetric.create({
+      data: {
+        submissionId: req.params.id as string,
+        platform,
+        impressions:  impressions  ?? null,
+        likes:        likes        ?? null,
+        comments:     comments     ?? null,
+        shares:       shares       ?? null,
+        clicks:       clicks       ?? null,
+        recordedById: req.session.memberId!,
+      },
+      include: { recordedBy: { select: { id: true, displayName: true } } },
+    });
+
+    // Sync HashtagStat useCount for hashtags in the submission content
+    if (submission.content) {
+      const tags = (submission.content.match(/#(\w+)/g) ?? []).map((t: string) => t.slice(1).toLowerCase());
+      for (const tag of tags) {
+        await prisma.hashtagStat.upsert({
+          where: { tag },
+          create: { tag, useCount: 1, lastUsedAt: new Date() },
+          update: { useCount: { increment: 1 }, lastUsedAt: new Date() },
+        });
+      }
+    }
+
+    res.status(201).json(metric);
+  } catch (error) {
+    console.error("POST /submissions/:id/metrics error:", error);
+    res.status(500).json({ error: "Failed to record metric" });
+  }
+});
+
+// ── GET /submissions/:id/metrics ──────────────────────────────
+
+outreachRouter.get("/submissions/:id/metrics", async (req: Request, res: Response) => {
+  try {
+    const metrics = await prisma.postMetric.findMany({
+      where: { submissionId: req.params.id as string },
+      orderBy: { recordedAt: "desc" },
+      include: { recordedBy: { select: { id: true, displayName: true } } },
+    });
+    res.json(metrics);
+  } catch (error) {
+    console.error("GET /submissions/:id/metrics error:", error);
+    res.status(500).json({ error: "Failed to load metrics" });
+  }
+});
