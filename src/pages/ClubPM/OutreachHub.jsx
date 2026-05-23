@@ -10,6 +10,7 @@ import BrandVoiceAdmin from '../../components/clubpm/BrandVoiceAdmin';
 import CampaignsTab from '../../components/clubpm/CampaignsTab';
 import CalendarTab from '../../components/clubpm/CalendarTab';
 import CrmTab from '../../components/clubpm/CrmTab';
+import InsightsTab from '../../components/clubpm/InsightsTab';
 import toast from 'react-hot-toast';
 
 // ── Constants ─────────────────────────────────────────────────
@@ -761,7 +762,7 @@ export default function OutreachHub() {
     { id: 'calendar',        label: 'Calendar',        icon: 'fas fa-calendar-alt' },
     { id: 'campaigns',       label: 'Campaigns',       icon: 'fas fa-flag' },
     { id: 'crm',             label: 'CRM',             icon: 'fas fa-address-book' },
-    { id: 'recommendations', label: 'Recommendations', icon: 'fas fa-lightbulb' },
+    { id: 'insights',        label: 'Insights',        icon: 'fas fa-chart-line' },
   ];
 
   if (loading) {
@@ -838,13 +839,8 @@ export default function OutreachHub() {
             campaigns={campaigns}
           />
         )}
-        {activeTab === 'recommendations' && (
-          <>
-            <RecommendationsTab submissions={submissions} />
-            <div style={{ padding: '0 0 24px' }}>
-              <BrandVoiceAdmin isAdmin={!!member?.isAdmin} />
-            </div>
-          </>
+        {activeTab === 'insights' && (
+          <InsightsTab submissions={submissions} isAdmin={!!member?.isAdmin} />
         )}
       </div>
 
