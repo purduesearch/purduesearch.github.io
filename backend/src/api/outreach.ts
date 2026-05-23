@@ -882,6 +882,51 @@ outreachRouter.get("/activity", async (_req: Request, res: Response) => {
   }
 });
 
+// ── POST /submissions/:id/ai/safety-check ────────────────────
+
+outreachRouter.post("/submissions/:id/ai/safety-check", async (req: Request, res: Response) => {
+  try {
+    const submission = await prisma.outreachSubmission.findUnique({
+      where: { id: req.params.id as string },
+    });
+    if (!submission) {
+      res.status(404).json({ error: "Submission not found" });
+      return;
+    }
+
+    if (!submission.content?.trim()) {
+      res.status(400).json({ error: "Submission has no content to check" });
+      return;
+    }
+
+    // Look up default brand voice (if any)
+    const defaultVoice = await prisma.brandVoice.findFirst({
+      where: { isDefault: true },
+      select: { name: true, description: true },
+    });
+
+    const report = await aiOutreachService.checkSafety(
+      submission.content,
+      submission.platformContent as Record<string, { caption?: string }> | null,
+      defaultVoice
+    );
+
+    const updated = await prisma.outreachSubmission.update({
+      where: { id: req.params.id as string },
+      data: {
+        safetyReport:    report as never,
+        safetyCheckedAt: new Date(),
+      },
+      select: { id: true, safetyReport: true, safetyCheckedAt: true },
+    });
+
+    res.json(updated);
+  } catch (error) {
+    console.error("POST /submissions/:id/ai/safety-check error:", error);
+    res.status(500).json({ error: "Failed to run safety check" });
+  }
+});
+
 // ── GET /conflicts ───────────────────────────────────────────
 
 outreachRouter.get("/conflicts", async (req: Request, res: Response) => {

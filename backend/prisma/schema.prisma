@@ -543,6 +543,8 @@ model OutreachSubmission {
   platformContent  Json?    // per-platform variants: { instagram: { caption, hashtags[], altText }, linkedin: { caption }, twitter: { caption }, ... }
   isTemplate       Boolean  @default(false)
   placeholders     Json?    // [{ key: "memberName", description: "Who to feature" }]
+  safetyReport     Json?    // { safe: bool, issues: [{ category, severity, message, suggestedFix? }] }
+  safetyCheckedAt  DateTime?
 
   campaign    Campaign?        @relation(fields: [campaignId], references: [id], onDelete: SetNull)
   campaignId  String?

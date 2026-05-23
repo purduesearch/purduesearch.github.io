@@ -4,6 +4,7 @@ import { get, post, patch, del } from '../../api/clubPmClient';
 import { useClubPmAuth } from '../../clubpm/ClubPmAuth';
 import SubmissionFormModal from '../../components/clubpm/SubmissionFormModal';
 import CommentThread from '../../components/clubpm/CommentThread';
+import SafetyBadge from '../../components/clubpm/SafetyBadge';
 import ComposerTab from '../../components/clubpm/ComposerTab';
 import CrossPostBundle from '../../components/clubpm/CrossPostBundle';
 import BrandVoiceAdmin from '../../components/clubpm/BrandVoiceAdmin';
@@ -129,7 +130,7 @@ function PlatformChips({ platforms = [] }) {
 
 // ── SubmissionCard ────────────────────────────────────────────
 
-function SubmissionCard({ submission, member, onEdit, onReview, onDelete, onCopy, selectedIds, toggleSelect }) {
+function SubmissionCard({ submission, member, onEdit, onReview, onDelete, onCopy, selectedIds, toggleSelect, onSafetyUpdate }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [showComments, setShowComments] = useState(false);
   const isAdmin = member?.isAdmin;
@@ -175,6 +176,19 @@ function SubmissionCard({ submission, member, onEdit, onReview, onDelete, onCopy
       )}
 
       <PlatformChips platforms={submission.platform ?? []} />
+
+      {/* Safety badge (only for non-DRAFT or already-checked submissions) */}
+      {(submission.safetyReport || ['SUBMITTED', 'IN_REVIEW', 'APPROVED'].includes(submission.status)) && (
+        <div style={{ marginTop: 6 }}>
+          <SafetyBadge
+            submissionId={submission.id}
+            report={submission.safetyReport}
+            checkedAt={submission.safetyCheckedAt}
+            onUpdate={({ report, checkedAt }) => onSafetyUpdate?.(submission.id, { safetyReport: report, safetyCheckedAt: checkedAt })}
+            compact
+          />
+        </div>
+      )}
 
       <div className="pm-outreach-card-footer">
         {author ? (
@@ -346,7 +360,7 @@ function BulkToolbar({ selectedIds, onClearSelection, onBulkStatus, onBulkDelete
   );
 }
 
-function BoardTab({ submissions, member, onEdit, onReview, onDelete, onStatusChange, onBulkReload, campaigns }) {
+function BoardTab({ submissions, member, onEdit, onReview, onDelete, onStatusChange, onBulkReload, campaigns, onSafetyUpdate }) {
   const [columns,        setColumns]        = useState({});
   const [selectedIds,    setSelectedIds]    = useState(new Set());
   const [bulkLoading,    setBulkLoading]    = useState(false);
@@ -526,6 +540,7 @@ function BoardTab({ submissions, member, onEdit, onReview, onDelete, onStatusCha
                                 onCopy={setCopyTarget}
                                 selectedIds={selectedIds}
                                 toggleSelect={toggleSelect}
+                                onSafetyUpdate={onSafetyUpdate}
                               />
                             </div>
                           )}
@@ -889,6 +904,7 @@ export default function OutreachHub() {
             onStatusChange={handleStatusChange}
             onBulkReload={loadSubmissions}
             campaigns={campaigns}
+            onSafetyUpdate={(id, patch) => setSubmissions(prev => prev.map(s => s.id === id ? { ...s, ...patch } : s))}
           />
         )}
         {activeTab === 'calendar' && <CalendarTab campaigns={campaigns} />}

@@ -1,4 +1,91 @@
+import { createHash } from "node:crypto";
 import { generateJson, generateText } from "./geminiService.js";
+
+// ── Safety / brand-compliance check ──────────────────────────
+
+export type SafetyCategory =
+  | "BRAND_TONE"
+  | "SENSITIVE_INFO"
+  | "UNVERIFIED_CLAIM"
+  | "LINK_SAFETY"
+  | "TYPO_OR_GRAMMAR";
+
+export type SafetySeverity = "INFO" | "WARN" | "BLOCK";
+
+export interface SafetyIssue {
+  category: SafetyCategory;
+  severity: SafetySeverity;
+  message: string;
+  suggestedFix?: string;
+}
+
+export interface SafetyReport {
+  safe: boolean;
+  issues: SafetyIssue[];
+}
+
+/**
+ * Run an AI safety / brand-compliance review on submission content.
+ * Returns a SafetyReport with categorized issues. Cached by content hash.
+ */
+export async function checkSafety(
+  content: string,
+  platformContent?: Record<string, { caption?: string }> | null,
+  brandVoice?: { name?: string; description?: string } | null
+): Promise<SafetyReport> {
+  if (!content?.trim()) {
+    return { safe: true, issues: [] };
+  }
+
+  const platformBlock = platformContent && Object.keys(platformContent).length > 0
+    ? `\n\nPer-platform variants:\n${Object.entries(platformContent)
+        .map(([p, v]) => `[${p}]: ${v?.caption ?? "(none)"}`)
+        .join("\n")}`
+    : "";
+
+  const voiceBlock = brandVoice?.name
+    ? `\nBrand voice: ${brandVoice.name}${brandVoice.description ? ` — ${brandVoice.description}` : ""}`
+    : "";
+
+  const prompt = `You are a content compliance reviewer for Purdue SEARCH, a university engineering club.
+Review the following social media submission and identify any issues across these categories:
+
+- BRAND_TONE: off-brand voice (e.g., overly corporate when our voice is casual, or vice versa), inappropriate humor, tone-deaf framing.
+- SENSITIVE_INFO: personal info that shouldn't be public (full names + addresses, phone numbers, SSNs, internal Slack handles, IDs).
+- UNVERIFIED_CLAIM: factual claims that should be verified (numbers, achievements, partnerships) without citation.
+- LINK_SAFETY: shortened or suspicious links, unverified domains, malformed URLs.
+- TYPO_OR_GRAMMAR: typos, grammatical errors, formatting issues.
+
+Severity levels:
+- INFO: nitpick, optional fix
+- WARN: should be reviewed before publishing
+- BLOCK: do not publish without fixing
+${voiceBlock}
+
+Content to review:
+${content}${platformBlock}
+
+Respond with ONLY a valid JSON object (no markdown):
+{
+  "safe": true|false,
+  "issues": [
+    { "category": "BRAND_TONE", "severity": "WARN", "message": "...", "suggestedFix": "..." }
+  ]
+}
+
+"safe" should be false if there are any BLOCK-severity issues, true otherwise. Issues array can be empty.`;
+
+  const hash = createHash("sha1").update(content + (platformBlock ?? "") + (voiceBlock ?? "")).digest("hex");
+
+  const result = await generateJson<SafetyReport>(prompt, `safety:${hash}`);
+  if (!result || typeof result.safe !== "boolean" || !Array.isArray(result.issues)) {
+    return { safe: true, issues: [] };
+  }
+  return {
+    safe: result.issues.every(i => i.severity !== "BLOCK"),
+    issues: result.issues.slice(0, 10),
+  };
+}
 
 // ── Caption variants ─────────────────────────────────────────
 
