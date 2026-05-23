@@ -423,6 +423,174 @@ function MetricsFormModal({ submissions, onClose }) {
   );
 }
 
+// ── Syndication Helper ────────────────────────────────────────
+
+function SyndicationHelper() {
+  const [milestones, setMilestones] = useState([]);
+  const [milestoneId, setMilestoneId] = useState('');
+  const [posts, setPosts] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [loadingMilestones, setLoadingMilestones] = useState(false);
+
+  useEffect(() => {
+    setLoadingMilestones(true);
+    get('/api/milestones?status=COMPLETED')
+      .then(data => {
+        const list = Array.isArray(data) ? data : [];
+        setMilestones(list);
+        if (list.length > 0) setMilestoneId(list[0].id);
+      })
+      .catch(() => {})
+      .finally(() => setLoadingMilestones(false));
+  }, []);
+
+  async function generate() {
+    if (!milestoneId) return;
+    setLoading(true);
+    try {
+      const data = await post('/api/outreach/ai/syndicate', { milestoneId });
+      setPosts(data.posts ?? []);
+    } catch {
+      toast.error('Failed to generate syndication posts');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const PLATFORM_ICONS = { instagram: 'fab fa-instagram', linkedin: 'fab fa-linkedin', twitter: 'fab fa-twitter' };
+
+  return (
+    <div className="pm-insights-card">
+      <div className="pm-insights-card-header">
+        <span className="pm-insights-card-title">
+          <i className="fas fa-share-alt" aria-hidden="true" style={{ marginRight: 6, color: '#fdcb6e' }} />
+          Syndication Helper
+        </span>
+        <span className="pm-insights-card-sub">AI-tailored posts per audience from a milestone</span>
+      </div>
+
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+        <select
+          className="pm-insights-select"
+          value={milestoneId}
+          onChange={e => { setMilestoneId(e.target.value); setPosts(null); }}
+          disabled={loadingMilestones || milestones.length === 0}
+          style={{ flex: 1, minWidth: 200 }}
+        >
+          {milestones.length === 0
+            ? <option>No completed milestones</option>
+            : milestones.map(m => <option key={m.id} value={m.id}>{m.title}{m.project ? ` — ${m.project.name}` : ''}</option>)
+          }
+        </select>
+        <button className="pm-insights-refresh-btn" onClick={generate} disabled={loading || !milestoneId}>
+          {loading ? <i className="fas fa-spinner fa-spin" aria-hidden="true" /> : 'Generate'}
+        </button>
+      </div>
+
+      {posts === null && !loading && (
+        <div className="pm-insights-empty">Pick a milestone and click Generate to get audience-tailored posts.</div>
+      )}
+      {posts?.length === 0 && (
+        <div className="pm-insights-empty">No suggestions generated. Try a different milestone.</div>
+      )}
+      {posts?.map((p, i) => (
+        <div key={i} className="pm-insights-syndication-post">
+          <div className="pm-insights-syndication-header">
+            <span className="pm-insights-syndication-audience">{p.audience}</span>
+            <div style={{ display: 'flex', gap: 5 }}>
+              {(p.platform ?? []).map(pl => (
+                <i key={pl} className={PLATFORM_ICONS[pl] ?? 'fas fa-globe'} aria-hidden="true"
+                   style={{ fontSize: 13, color: 'var(--clubpm-text-secondary)' }} />
+              ))}
+            </div>
+          </div>
+          <div className="pm-insights-syndication-caption">{p.caption}</div>
+          <button
+            className="pm-insights-copy-btn"
+            style={{ alignSelf: 'flex-start', marginTop: 4 }}
+            onClick={() => { navigator.clipboard.writeText(p.caption); toast.success('Copied!'); }}
+          >
+            <i className="fas fa-copy" aria-hidden="true" /> Copy
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── Spotlight Helper ─────────────────────────────────────────
+
+function SpotlightHelper() {
+  const [members, setMembers] = useState([]);
+  const [memberId, setMemberId] = useState('');
+  const [draft, setDraft] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    get('/api/members')
+      .then(data => {
+        const list = (Array.isArray(data) ? data : []).filter(m => !m.isBot);
+        setMembers(list);
+        if (list.length > 0) setMemberId(list[0].id);
+      })
+      .catch(() => {});
+  }, []);
+
+  async function generate() {
+    if (!memberId) return;
+    setLoading(true);
+    try {
+      const data = await post('/api/outreach/ai/spotlight', { memberId });
+      setDraft(data.draft ?? '');
+    } catch {
+      toast.error('Failed to generate spotlight');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="pm-insights-card">
+      <div className="pm-insights-card-header">
+        <span className="pm-insights-card-title">
+          <i className="fas fa-star" aria-hidden="true" style={{ marginRight: 6, color: '#fdcb6e' }} />
+          Member Spotlight
+        </span>
+        <span className="pm-insights-card-sub">AI-generated spotlight post for any member</span>
+      </div>
+
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+        <select
+          className="pm-insights-select"
+          value={memberId}
+          onChange={e => { setMemberId(e.target.value); setDraft(null); }}
+          style={{ flex: 1, minWidth: 180 }}
+        >
+          {members.map(m => <option key={m.id} value={m.id}>{m.displayName}{m.title ? ` — ${m.title}` : ''}</option>)}
+        </select>
+        <button className="pm-insights-refresh-btn" onClick={generate} disabled={loading || !memberId}>
+          {loading ? <i className="fas fa-spinner fa-spin" aria-hidden="true" /> : 'Generate'}
+        </button>
+      </div>
+
+      {draft === null && !loading && (
+        <div className="pm-insights-empty">Pick a member and click Generate for an AI-written spotlight post.</div>
+      )}
+      {draft !== null && (
+        <>
+          <div className="pm-insights-digest-body">{draft}</div>
+          <button
+            className="pm-insights-copy-btn"
+            onClick={() => { navigator.clipboard.writeText(draft); toast.success('Copied!'); }}
+          >
+            <i className="fas fa-copy" aria-hidden="true" /> Copy
+          </button>
+        </>
+      )}
+    </div>
+  );
+}
+
 // ── InsightsTab root ──────────────────────────────────────────
 
 export default function InsightsTab({ submissions = [], isAdmin = false }) {
@@ -544,6 +712,12 @@ export default function InsightsTab({ submissions = [], isAdmin = false }) {
       <div className="pm-insights-ai-row">
         <WeeklyDigestCard />
         <GapAnalysis />
+      </div>
+
+      {/* Spotlight + Syndication */}
+      <div className="pm-insights-ai-row">
+        <SpotlightHelper />
+        <SyndicationHelper />
       </div>
 
       {/* Hashtag library */}

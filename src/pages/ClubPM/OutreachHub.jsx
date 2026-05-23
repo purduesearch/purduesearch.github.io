@@ -11,6 +11,9 @@ import CampaignsTab from '../../components/clubpm/CampaignsTab';
 import CalendarTab from '../../components/clubpm/CalendarTab';
 import CrmTab from '../../components/clubpm/CrmTab';
 import InsightsTab from '../../components/clubpm/InsightsTab';
+import KeyboardShortcutsModal from '../../components/clubpm/KeyboardShortcutsModal';
+import ActivityFeedSidebar from '../../components/clubpm/ActivityFeedSidebar';
+import OutreachSearch from '../../components/clubpm/OutreachSearch';
 import toast from 'react-hot-toast';
 
 // ── Constants ─────────────────────────────────────────────────
@@ -673,6 +676,9 @@ export default function OutreachHub() {
   const [loading, setLoading]                 = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editSubmission, setEditSubmission]   = useState(null);
+  const [showShortcuts, setShowShortcuts]     = useState(false);
+  const [showActivity, setShowActivity]       = useState(false);
+  const [contacts, setContacts]               = useState([]);
 
   const loadSubmissions = useCallback(() => {
     get('/api/outreach/submissions')
@@ -686,15 +692,47 @@ export default function OutreachHub() {
       get('/api/projects'),
       get('/api/events/upcoming').catch(() => []),
       get('/api/outreach/campaigns').catch(() => []),
+      get('/api/outreach/contacts').catch(() => []),
     ])
-      .then(([subs, projs, evts, camps]) => {
-        setSubmissions(Array.isArray(subs) ? subs : []);
-        setProjects(Array.isArray(projs) ? projs : []);
-        setEvents(Array.isArray(evts) ? evts : []);
-        setCampaigns(Array.isArray(camps) ? camps : []);
+      .then(([subs, projs, evts, camps, conts]) => {
+        setSubmissions(Array.isArray(subs)   ? subs   : []);
+        setProjects(Array.isArray(projs)     ? projs  : []);
+        setEvents(Array.isArray(evts)        ? evts   : []);
+        setCampaigns(Array.isArray(camps)    ? camps  : []);
+        setContacts(Array.isArray(conts)     ? conts  : []);
       })
       .catch(console.error)
       .finally(() => setLoading(false));
+  }, []);
+
+  // ── Keyboard shortcuts ──────────────────────────────────────
+  const TAB_IDS = ['composer', 'board', 'calendar', 'campaigns', 'crm', 'insights'];
+  useEffect(() => {
+    function onKey(e) {
+      // Skip if typing in an input / textarea / select
+      const tag = document.activeElement?.tagName?.toLowerCase();
+      if (['input', 'textarea', 'select'].includes(tag)) return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+
+      if (e.key === '?') { e.preventDefault(); setShowShortcuts(s => !s); return; }
+      if (e.key === 'Escape') { setShowShortcuts(false); return; }
+      if (e.key === 'n') { e.preventDefault(); setEditSubmission(null); setShowCreateModal(true); return; }
+      if (e.key === 'c') { e.preventDefault(); setActiveTab('composer'); return; }
+      if (e.key === '/') {
+        e.preventDefault();
+        document.querySelector('.pm-search-input, .pm-crm-search')?.focus();
+        return;
+      }
+      // 1-6 tab jump
+      const num = parseInt(e.key, 10);
+      if (num >= 1 && num <= TAB_IDS.length) {
+        e.preventDefault();
+        setActiveTab(TAB_IDS[num - 1]);
+      }
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleSave = async (payload) => {
@@ -784,6 +822,23 @@ export default function OutreachHub() {
           </h1>
           <p className="pm-outreach-page-sub">Manage social content, scheduling, and publication.</p>
         </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, maxWidth: 420 }}>
+          <OutreachSearch
+            submissions={submissions}
+            campaigns={campaigns}
+            contacts={contacts}
+            onNavigate={(kind, _item) => setActiveTab(kind)}
+          />
+        </div>
+        <button
+          className="pm-outreach-activity-btn"
+          onClick={() => setShowActivity(s => !s)}
+          title="Activity feed"
+          aria-label="Toggle activity feed"
+        >
+          <i className="fas fa-stream" aria-hidden="true" />
+          Activity
+        </button>
       </div>
 
       {/* Tab bar */}
@@ -800,6 +855,14 @@ export default function OutreachHub() {
             {tab.label}
           </button>
         ))}
+        <button
+          className="pm-outreach-shortcuts-hint"
+          onClick={() => setShowShortcuts(true)}
+          title="Keyboard shortcuts (?)"
+          aria-label="Show keyboard shortcuts"
+        >
+          <i className="fas fa-keyboard" aria-hidden="true" />
+        </button>
       </div>
 
       {/* Tab content */}
@@ -863,6 +926,17 @@ export default function OutreachHub() {
         editSubmission={editSubmission}
         projects={projects}
         events={events}
+      />
+
+      {/* Keyboard shortcuts modal */}
+      {showShortcuts && (
+        <KeyboardShortcutsModal onClose={() => setShowShortcuts(false)} />
+      )}
+
+      {/* Activity feed sidebar */}
+      <ActivityFeedSidebar
+        isOpen={showActivity}
+        onClose={() => setShowActivity(false)}
       />
     </div>
   );

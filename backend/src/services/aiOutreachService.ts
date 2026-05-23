@@ -280,6 +280,87 @@ Return only the digest narrative — no headers, no bullet points, plain paragra
   return result;
 }
 
+// ── Member spotlight ──────────────────────────────────────────
+
+/**
+ * Generate a "Member Spotlight" social post for a given member.
+ */
+export async function generateMemberSpotlight(
+  displayName: string,
+  title: string | undefined,
+  team: string | undefined,
+  bio: string | undefined,
+  recentMilestones: string[]
+): Promise<string> {
+  const milestonesBlock = recentMilestones.length > 0
+    ? `\nRecent contributions:\n${recentMilestones.map(m => `- ${m}`).join("\n")}`
+    : "";
+
+  const prompt = `You are a social media writer for Purdue SEARCH, a university engineering club.
+Write an engaging "Member Spotlight" post for ${displayName}${title ? `, ${title}` : ""}${team ? ` on the ${team} team` : ""}.
+${bio ? `About them: ${bio}` : ""}${milestonesBlock}
+
+The post should:
+- Feel personal and celebratory, not like a resume
+- Be 150–220 characters (Instagram-friendly)
+- End with relevant hashtags (3–5)
+- NOT include their Slack handle or personal contact info
+
+Return only the post text — no extra commentary.`;
+
+  const result = await generateText(prompt);
+  if (!result) throw new Error("[aiOutreachService] generateMemberSpotlight: empty response");
+  return result;
+}
+
+// ── Milestone syndication ─────────────────────────────────────
+
+interface SyndicationPost {
+  audience: string;    // e.g., "Sponsors", "Prospective Members", "General Public"
+  platform: string[];
+  caption: string;
+}
+
+/**
+ * Given a completed milestone, suggest cross-program syndication posts
+ * tailored to different audiences.
+ */
+export async function generateSyndicationPosts(
+  milestoneTitle: string,
+  projectName: string | undefined,
+  milestoneDescription: string | undefined
+): Promise<SyndicationPost[]> {
+  const context = [
+    projectName    ? `Project: ${projectName}` : "",
+    milestoneDescription ? `Description: ${milestoneDescription}` : "",
+  ].filter(Boolean).join("\n");
+
+  const prompt = `You are a social media strategist for Purdue SEARCH, a university engineering club.
+A milestone was just completed: "${milestoneTitle}"
+${context}
+
+Generate 3 distinct social posts for 3 different audiences:
+1. Sponsors / Industry Partners — emphasize technical achievement and ROI
+2. Prospective Members / Recruits — emphasize excitement, growth, and team culture
+3. General Public / Alumni — emphasize the impact and story
+
+For each, choose appropriate platforms from [instagram, linkedin, twitter].
+Keep captions under 280 characters.
+
+Respond with ONLY a valid JSON array (no markdown):
+[
+  {
+    "audience": "Sponsors / Industry Partners",
+    "platform": ["linkedin"],
+    "caption": "..."
+  }
+]`;
+
+  const result = await generateJson<SyndicationPost[]>(prompt);
+  if (!result || !Array.isArray(result)) return [];
+  return result.slice(0, 3).filter(p => p.audience && p.caption);
+}
+
 // ── Voice rewrite ─────────────────────────────────────────────
 
 /**

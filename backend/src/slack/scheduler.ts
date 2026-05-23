@@ -318,6 +318,81 @@ export function startScheduler(app: App): void {
     }
   });
 
+  // ── Thursday 11:00 AM — Member Spotlight auto-draft suggestion ──
+  cron.schedule("0 11 * * 4", async () => {
+    console.log("🌟 Generating member spotlight draft suggestion...");
+    try {
+      const { generateMemberSpotlight } = await import("../services/aiOutreachService.js");
+
+      // Pick a member who hasn't been spotlighted recently (no SOCIAL_POST in last 30 days)
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 86_400_000);
+      const recentlySpotlighted = await prisma.outreachSubmission.findMany({
+        where: {
+          type:      "SOCIAL_POST",
+          status:    { not: "DRAFT" },
+          createdAt: { gte: thirtyDaysAgo },
+          title:     { contains: "Spotlight", mode: "insensitive" },
+        },
+        select: { authorId: true },
+      });
+      const recentIds = new Set(recentlySpotlighted.map(s => s.authorId));
+
+      const candidate = await prisma.member.findFirst({
+        where: {
+          isBot:   false,
+          id:      { notIn: [...recentIds] },
+          slackId: { not: undefined },
+        },
+        orderBy: { createdAt: "asc" }, // oldest member first (fair rotation)
+        select: { id: true, displayName: true, title: true, team: true, bio: true, slackId: true },
+      });
+      if (!candidate) return;
+
+      const milestones = await prisma.milestone.findMany({
+        where:   { status: "COMPLETED", project: { members: { some: { memberId: candidate.id } } } },
+        orderBy: { completedAt: "desc" },
+        take:    3,
+        select:  { title: true },
+      });
+
+      const draft = await generateMemberSpotlight(
+        candidate.displayName,
+        candidate.title ?? undefined,
+        candidate.team  ?? undefined,
+        candidate.bio   ?? undefined,
+        milestones.map(m => m.title)
+      );
+
+      // Find first admin to own the draft
+      const admin = await prisma.member.findFirst({
+        where: { isAdmin: true, isBot: false },
+        select: { id: true, slackId: true },
+      });
+      if (!admin) return;
+
+      await prisma.outreachSubmission.create({
+        data: {
+          title:    `Member Spotlight — ${candidate.displayName}`,
+          content:  draft,
+          type:     "SOCIAL_POST",
+          status:   "DRAFT",
+          platform: ["instagram", "linkedin"],
+          authorId: admin.id,
+        },
+      });
+
+      if (admin.slackId) {
+        queueDm(
+          admin.slackId,
+          `🌟 Auto-created a *Member Spotlight* draft for *${candidate.displayName}*. Review it in Outreach Hub → Board.`
+        );
+      }
+      console.log(`✅ Member spotlight draft created for ${candidate.displayName}`);
+    } catch (err) {
+      console.error("❌ Member spotlight error:", err);
+    }
+  });
+
   // ── Monday 10:00 AM — Outreach Weekly Slack post (AI narrative) ──
   cron.schedule("0 10 * * 1", async () => {
     const channelId = process.env.OUTREACH_CHANNEL_ID;
@@ -578,6 +653,7 @@ export function startScheduler(app: App): void {
   console.log("  📅 Scheduled: Daily 9AM           — Event reminders → attendees");
   console.log("  📅 Scheduled: Hourly              — Auto-publish APPROVED outreach submissions");
   console.log("  📅 Scheduled: Daily 8:10AM        — Auto-create EVENT_PROMO drafts (7/3/1 day lead)");
+  console.log("  📅 Scheduled: Thursday 11AM       — Member Spotlight auto-draft (fair rotation)");
   console.log("  📅 Scheduled: Monday 10AM         — Outreach Weekly Slack digest (AI narrative)");
   console.log("  📅 Scheduled: Daily 9:05AM        — CRM follow-up reminders → contact owners");
 }

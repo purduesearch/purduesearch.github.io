@@ -738,3 +738,134 @@ outreachRouter.get("/submissions/:id/metrics", async (req: Request, res: Respons
     res.status(500).json({ error: "Failed to load metrics" });
   }
 });
+
+// ── POST /ai/spotlight — member spotlight post draft ──────────
+
+outreachRouter.post("/ai/spotlight", async (req: Request, res: Response) => {
+  try {
+    const { memberId } = req.body as { memberId: string };
+    if (!memberId) {
+      res.status(400).json({ error: "memberId is required" });
+      return;
+    }
+
+    const member = await prisma.member.findUnique({
+      where: { id: memberId },
+      select: { displayName: true, title: true, team: true, bio: true },
+    });
+    if (!member) {
+      res.status(404).json({ error: "Member not found" });
+      return;
+    }
+
+    // Grab their recent completed milestones
+    const milestones = await prisma.milestone.findMany({
+      where:   { status: "COMPLETED", project: { members: { some: { memberId } } } },
+      orderBy: { completedAt: "desc" },
+      take:    3,
+      select:  { title: true },
+    });
+
+    const draft = await aiOutreachService.generateMemberSpotlight(
+      member.displayName,
+      member.title ?? undefined,
+      member.team  ?? undefined,
+      member.bio   ?? undefined,
+      milestones.map(m => m.title)
+    );
+
+    res.json({ draft, member: { displayName: member.displayName, title: member.title } });
+  } catch (error) {
+    console.error("POST /ai/spotlight error:", error);
+    res.status(500).json({ error: "Failed to generate spotlight" });
+  }
+});
+
+// ── POST /ai/syndicate — cross-program syndication posts ──────
+
+outreachRouter.post("/ai/syndicate", async (req: Request, res: Response) => {
+  try {
+    const { milestoneId } = req.body as { milestoneId: string };
+    if (!milestoneId) {
+      res.status(400).json({ error: "milestoneId is required" });
+      return;
+    }
+
+    const milestone = await prisma.milestone.findUnique({
+      where:   { id: milestoneId },
+      include: { project: { select: { name: true } } },
+    });
+    if (!milestone) {
+      res.status(404).json({ error: "Milestone not found" });
+      return;
+    }
+
+    const posts = await aiOutreachService.generateSyndicationPosts(
+      milestone.title,
+      milestone.project?.name ?? undefined,
+      milestone.description  ?? undefined
+    );
+
+    res.json({ posts, milestone: { title: milestone.title, projectName: milestone.project?.name } });
+  } catch (error) {
+    console.error("POST /ai/syndicate error:", error);
+    res.status(500).json({ error: "Failed to generate syndication posts" });
+  }
+});
+
+// ── GET /activity — recent outreach activity feed ─────────────
+
+outreachRouter.get("/activity", async (_req: Request, res: Response) => {
+  try {
+    const since = new Date(Date.now() - 14 * 86_400_000); // last 14 days
+
+    const [recentSubmissions, recentComments, recentContacts] = await Promise.all([
+      prisma.outreachSubmission.findMany({
+        where:   { updatedAt: { gte: since } },
+        orderBy: { updatedAt: "desc" },
+        take:    20,
+        select: {
+          id: true, title: true, status: true, type: true, updatedAt: true,
+          author: { select: { id: true, displayName: true, avatarUrl: true } },
+        },
+      }),
+      prisma.outreachComment.findMany({
+        where:   { createdAt: { gte: since } },
+        orderBy: { createdAt: "desc" },
+        take:    15,
+        include: {
+          author:     { select: { id: true, displayName: true, avatarUrl: true } },
+          submission: { select: { id: true, title: true } },
+        },
+      }),
+      prisma.outreachContact.findMany({
+        where:   { createdAt: { gte: since } },
+        orderBy: { createdAt: "desc" },
+        take:    10,
+        select: {
+          id: true, name: true, contactType: true, stage: true, createdAt: true,
+          owner: { select: { id: true, displayName: true, avatarUrl: true } },
+        },
+      }),
+    ]);
+
+    // Merge into a unified feed sorted by timestamp
+    type FeedItem =
+      | { kind: "submission"; ts: Date; data: (typeof recentSubmissions)[number] }
+      | { kind: "comment";    ts: Date; data: (typeof recentComments)[number] }
+      | { kind: "contact";    ts: Date; data: (typeof recentContacts)[number] };
+
+    const feed: FeedItem[] = [
+      ...recentSubmissions.map(s => ({ kind: "submission" as const, ts: s.updatedAt, data: s })),
+      ...recentComments.map(c    => ({ kind: "comment"    as const, ts: c.createdAt, data: c })),
+      ...recentContacts.map(c    => ({ kind: "contact"    as const, ts: c.createdAt, data: c })),
+    ];
+
+    feed.sort((a, b) => b.ts.getTime() - a.ts.getTime());
+
+    res.json(feed.slice(0, 30));
+  } catch (error) {
+    console.error("GET /activity error:", error);
+    res.status(500).json({ error: "Failed to load activity feed" });
+  }
+});
