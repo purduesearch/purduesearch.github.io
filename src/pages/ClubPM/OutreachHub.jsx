@@ -7,6 +7,7 @@ import CommentThread from '../../components/clubpm/CommentThread';
 import ComposerTab from '../../components/clubpm/ComposerTab';
 import CrossPostBundle from '../../components/clubpm/CrossPostBundle';
 import BrandVoiceAdmin from '../../components/clubpm/BrandVoiceAdmin';
+import CampaignsTab from '../../components/clubpm/CampaignsTab';
 import toast from 'react-hot-toast';
 
 // ── Constants ─────────────────────────────────────────────────
@@ -351,21 +352,26 @@ function BulkToolbar({ selectedIds, onClearSelection, onBulkStatus, onBulkDelete
   );
 }
 
-function BoardTab({ submissions, member, onEdit, onReview, onDelete, onStatusChange, onBulkReload }) {
-  const [columns, setColumns] = useState({});
-  const [selectedIds, setSelectedIds] = useState(new Set());
-  const [bulkLoading, setBulkLoading] = useState(false);
-  const [copyTarget, setCopyTarget] = useState(null);
+function BoardTab({ submissions, member, onEdit, onReview, onDelete, onStatusChange, onBulkReload, campaigns }) {
+  const [columns,        setColumns]        = useState({});
+  const [selectedIds,    setSelectedIds]    = useState(new Set());
+  const [bulkLoading,    setBulkLoading]    = useState(false);
+  const [copyTarget,     setCopyTarget]     = useState(null);
+  const [campaignFilter, setCampaignFilter] = useState(null); // null = "All"
+
+  const filtered = campaignFilter
+    ? submissions.filter(s => s.campaignId === campaignFilter)
+    : submissions;
 
   useEffect(() => {
     const cols = {};
     BOARD_COLUMNS.forEach(col => { cols[col.id] = []; });
-    submissions.forEach(s => {
+    filtered.forEach(s => {
       if (cols[s.status]) cols[s.status].push(s);
       else cols['DRAFT'].push(s);
     });
     setColumns(cols);
-  }, [submissions]);
+  }, [filtered]);
 
   // Escape key clears selection
   useEffect(() => {
@@ -454,6 +460,27 @@ function BoardTab({ submissions, member, onEdit, onReview, onDelete, onStatusCha
 
   return (
     <div className="pm-board-tab-wrapper">
+      {campaigns?.length > 0 && (
+        <div className="pm-board-campaign-filter" role="group" aria-label="Filter by campaign">
+          <button
+            className={`pm-campaign-chip${!campaignFilter ? ' pm-campaign-chip--active' : ''}`}
+            onClick={() => setCampaignFilter(null)}
+          >
+            All
+          </button>
+          {campaigns.map(c => (
+            <button
+              key={c.id}
+              className={`pm-campaign-chip${campaignFilter === c.id ? ' pm-campaign-chip--active' : ''}`}
+              style={campaignFilter === c.id ? { borderColor: c.color ?? 'var(--pm-accent-teal)', color: c.color ?? 'var(--pm-accent-teal)' } : {}}
+              onClick={() => setCampaignFilter(prev => prev === c.id ? null : c.id)}
+            >
+              <span className="pm-campaign-chip-dot" style={{ background: c.color ?? 'var(--pm-accent-teal)' }} />
+              {c.name}
+            </button>
+          ))}
+        </div>
+      )}
       {selectedIds.size > 0 && (
         <BulkToolbar
           selectedIds={selectedIds}
@@ -729,11 +756,12 @@ function RecommendationsTab({ submissions }) {
 
 export default function OutreachHub() {
   const { member } = useClubPmAuth();
-  const [activeTab, setActiveTab]         = useState('board');
-  const [submissions, setSubmissions]     = useState([]);
-  const [projects, setProjects]           = useState([]);
-  const [events, setEvents]               = useState([]);
-  const [loading, setLoading]             = useState(true);
+  const [activeTab, setActiveTab]             = useState('board');
+  const [submissions, setSubmissions]         = useState([]);
+  const [projects, setProjects]               = useState([]);
+  const [events, setEvents]                   = useState([]);
+  const [campaigns, setCampaigns]             = useState([]);
+  const [loading, setLoading]                 = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editSubmission, setEditSubmission]   = useState(null);
 
@@ -748,11 +776,13 @@ export default function OutreachHub() {
       get('/api/outreach/submissions'),
       get('/api/projects'),
       get('/api/events/upcoming').catch(() => []),
+      get('/api/outreach/campaigns').catch(() => []),
     ])
-      .then(([subs, projs, evts]) => {
+      .then(([subs, projs, evts, camps]) => {
         setSubmissions(Array.isArray(subs) ? subs : []);
         setProjects(Array.isArray(projs) ? projs : []);
         setEvents(Array.isArray(evts) ? evts : []);
+        setCampaigns(Array.isArray(camps) ? camps : []);
       })
       .catch(console.error)
       .finally(() => setLoading(false));
@@ -821,6 +851,7 @@ export default function OutreachHub() {
     { id: 'composer',        label: 'Composer',        icon: 'fas fa-pen-nib' },
     { id: 'board',           label: 'Board',           icon: 'fas fa-columns' },
     { id: 'calendar',        label: 'Calendar',        icon: 'fas fa-calendar-alt' },
+    { id: 'campaigns',       label: 'Campaigns',       icon: 'fas fa-flag' },
     { id: 'recommendations', label: 'Recommendations', icon: 'fas fa-lightbulb' },
   ];
 
@@ -884,9 +915,13 @@ export default function OutreachHub() {
             onDelete={handleDelete}
             onStatusChange={handleStatusChange}
             onBulkReload={loadSubmissions}
+            campaigns={campaigns}
           />
         )}
         {activeTab === 'calendar' && <CalendarTab />}
+        {activeTab === 'campaigns' && (
+          <CampaignsTab isAdmin={!!member?.isAdmin} />
+        )}
         {activeTab === 'recommendations' && (
           <>
             <RecommendationsTab submissions={submissions} />
