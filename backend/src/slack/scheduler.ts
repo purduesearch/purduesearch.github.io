@@ -338,6 +338,116 @@ export function startScheduler(app: App): void {
     }
   });
 
+  // ── Every hour — Auto-publish APPROVED submissions past scheduledAt ──
+  cron.schedule("0 * * * *", async () => {
+    try {
+      const now = new Date();
+      const due = await prisma.outreachSubmission.findMany({
+        where: {
+          status:      "APPROVED",
+          scheduledAt: { lte: now },
+        },
+        include: {
+          author: { select: { slackId: true, displayName: true } },
+        },
+      });
+      if (due.length === 0) return;
+
+      await prisma.outreachSubmission.updateMany({
+        where: { id: { in: due.map(s => s.id) } },
+        data:  { status: "PUBLISHED" },
+      });
+
+      for (const submission of due) {
+        if (!submission.author?.slackId) continue;
+        queueDm(
+          submission.author.slackId,
+          `✅ Your post *"${submission.title}"* has been auto-published. Time to cross-post!`
+        );
+      }
+      console.log(`✅ Auto-published ${due.length} submission(s)`);
+    } catch (err) {
+      console.error("❌ Auto-publish error:", err);
+    }
+  });
+
+  // ── Daily 8:10 AM — Auto-create EVENT_PROMO drafts 7/3/1 days before events ──
+  cron.schedule("10 8 * * *", async () => {
+    console.log("📣 Checking for upcoming events needing outreach drafts...");
+    try {
+      const now = new Date();
+      const targetsInDays = [7, 3, 1];
+
+      for (const days of targetsInDays) {
+        const windowStart = new Date(now);
+        windowStart.setDate(windowStart.getDate() + days);
+        windowStart.setHours(0, 0, 0, 0);
+        const windowEnd = new Date(windowStart);
+        windowEnd.setHours(23, 59, 59, 999);
+
+        const events = await prisma.event.findMany({
+          where: {
+            startTime:   { gte: windowStart, lte: windowEnd },
+            type:        { not: "MEETING" },
+            isRecurring: false,
+          },
+          select: { id: true, title: true, startTime: true, type: true },
+        });
+
+        for (const event of events) {
+          // Skip if an EVENT_PROMO submission already references this event
+          const existing = await prisma.outreachSubmission.findFirst({
+            where: {
+              type:      "EVENT_PROMO",
+              eventId:   event.id,
+              status:    { not: "DRAFT" },
+            },
+          });
+          if (existing) continue;
+
+          // Check if a DRAFT already exists for this event
+          const existingDraft = await prisma.outreachSubmission.findFirst({
+            where: { type: "EVENT_PROMO", eventId: event.id, status: "DRAFT" },
+          });
+          if (existingDraft) continue;
+
+          // Find first admin to own the draft
+          const admin = await prisma.member.findFirst({
+            where: { isAdmin: true, isBot: false },
+            select: { id: true, slackId: true },
+          });
+          if (!admin) continue;
+
+          const eventDate = event.startTime
+            ? event.startTime.toLocaleDateString("en-US", { month: "short", day: "numeric" })
+            : "upcoming";
+
+          await prisma.outreachSubmission.create({
+            data: {
+              title:    `[Auto] Promote: ${event.title}`,
+              content:  `Join us for ${event.title} on ${eventDate}! Stay tuned for more details.`,
+              type:     "EVENT_PROMO",
+              status:   "DRAFT",
+              platform: ["instagram", "linkedin"],
+              authorId: admin.id,
+              eventId:  event.id,
+            },
+          });
+
+          if (admin.slackId) {
+            queueDm(
+              admin.slackId,
+              `📣 Auto-created an EVENT_PROMO draft for *${event.title}* (${days} day${days !== 1 ? "s" : ""} away). Please review and submit it in the Outreach Hub.`
+            );
+          }
+        }
+      }
+      console.log("✅ Event promo draft check complete");
+    } catch (err) {
+      console.error("❌ Event promo draft error:", err);
+    }
+  });
+
   console.log("  📅 Scheduled: Monday 9AM         — Combined digest + standup DMs");
   console.log("  📅 Scheduled: Tue–Fri 9:15AM     — Standup prompt DMs");
   console.log("  📅 Scheduled: Sunday 6PM          — Combined health + week-ahead (channels)");
@@ -351,4 +461,6 @@ export function startScheduler(app: App): void {
   console.log("  📅 Scheduled: Daily 3AM           — Notification cleanup (90 days)");
   console.log("  📅 Scheduled: Tuesday 6:30AM      — Meeting template DMs → admins");
   console.log("  📅 Scheduled: Daily 9AM           — Event reminders → attendees");
+  console.log("  📅 Scheduled: Hourly              — Auto-publish APPROVED outreach submissions");
+  console.log("  📅 Scheduled: Daily 8:10AM        — Auto-create EVENT_PROMO drafts (7/3/1 day lead)");
 }
