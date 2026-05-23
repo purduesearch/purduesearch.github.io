@@ -621,6 +621,9 @@ export default function ComposerTab({ onSaved }) {
             onInsertVariant={handleInsertVariant}
             onInsertHashtags={handleInsertHashtags}
             onVoiceRewrite={handleVoiceRewrite}
+            onImageGenerated={(asset) => {
+              setMediaUrls(prev => prev.includes(asset.url) ? prev : [...prev, asset.url]);
+            }}
           />
         )}
       </div>

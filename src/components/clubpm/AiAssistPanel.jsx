@@ -16,6 +16,7 @@ export default function AiAssistPanel({
   onInsertVariant, // (text) => void
   onInsertHashtags, // (tags) => void
   onVoiceRewrite,  // (text) => void
+  onImageGenerated, // (asset) => void
 }) {
   const [voices, setVoices] = useState([]);
   const [selectedVoice, setSelectedVoice] = useState('');
@@ -38,6 +39,31 @@ export default function AiAssistPanel({
   const [utmLoading, setUtmLoading] = useState(false);
   const [utmLinks, setUtmLinks] = useState([]);
   const [utmPlatform, setUtmPlatform] = useState(selectedPlatforms?.[0] ?? 'instagram');
+
+  // Image generation section
+  const [imgPrompt, setImgPrompt]   = useState('');
+  const [imgAspect, setImgAspect]   = useState('square');
+  const [imgLoading, setImgLoading] = useState(false);
+  const [imgResult, setImgResult]   = useState(null);
+
+  async function handleGenerateImage() {
+    if (!imgPrompt.trim()) { toast.error('Enter a prompt first.'); return; }
+    setImgLoading(true);
+    setImgResult(null);
+    try {
+      const { asset } = await post('/api/outreach/ai/generate-image', {
+        prompt:      imgPrompt.trim(),
+        aspectRatio: imgAspect,
+      });
+      setImgResult(asset);
+      onImageGenerated?.(asset);
+      toast.success('Image generated');
+    } catch (err) {
+      toast.error(err.message ?? 'Failed to generate image');
+    } finally {
+      setImgLoading(false);
+    }
+  }
 
   useEffect(() => {
     get('/api/outreach/brand-voices')
@@ -283,6 +309,52 @@ export default function AiAssistPanel({
           </button>
         </div>
       )}
+
+      {/* Image generation */}
+      <div className="pm-ai-panel-section">
+        <div className="pm-ai-panel-section-title">
+          <i className="fas fa-image" aria-hidden="true" /> Generate Cover Image
+        </div>
+        <textarea
+          className="cpm-form-textarea pm-ai-prompt-input"
+          placeholder="Describe the image — e.g. 'team of engineering students huddled around a robotic prototype, dramatic studio lighting'"
+          value={imgPrompt}
+          onChange={e => setImgPrompt(e.target.value)}
+          rows={2}
+          maxLength={600}
+        />
+        <div className="pm-ai-imggen-row">
+          <select
+            className="cpm-form-select"
+            value={imgAspect}
+            onChange={e => setImgAspect(e.target.value)}
+            style={{ flex: 1 }}
+          >
+            <option value="square">Square (1:1)</option>
+            <option value="portrait">Portrait (2:3)</option>
+            <option value="landscape">Landscape (3:2)</option>
+          </select>
+          <button
+            type="button"
+            className="cpm-btn cpm-btn--primary pm-ai-btn"
+            onClick={handleGenerateImage}
+            disabled={imgLoading}
+          >
+            {imgLoading
+              ? <><span className="pm-bulk-spinner" /> Generating…</>
+              : <><i className="fas fa-magic" aria-hidden="true" /> Generate</>}
+          </button>
+        </div>
+        {imgResult && (
+          <div className="pm-ai-imggen-result">
+            <img src={imgResult.url} alt={imgResult.altText ?? imgPrompt} />
+            <div style={{ fontSize: 10, color: 'var(--clubpm-text-secondary)', marginTop: 4 }}>
+              <i className="fas fa-check-circle" aria-hidden="true" style={{ color: 'var(--pm-accent-teal)' }} /> Added to your asset library &amp; attached to this post.
+            </div>
+          </div>
+        )}
+        <p className="pm-ai-panel-hint">Powered by Pollinations.ai (free). Limit: 3 per minute.</p>
+      </div>
 
       {/* UTM Link Builder */}
       <div className="pm-ai-panel-section">

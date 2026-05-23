@@ -1040,6 +1040,50 @@ outreachRouter.delete("/submissions/:id/approvals/:approverId", async (req: Requ
   }
 });
 
+// ── POST /ai/generate-image ──────────────────────────────────
+
+outreachRouter.post("/ai/generate-image", async (req: Request, res: Response) => {
+  try {
+    const memberId = req.session.memberId!;
+    const { generateImageUrl, checkRateLimit } = await import("../services/imageGenService.js");
+
+    const rl = checkRateLimit(memberId);
+    if (!rl.allowed) {
+      res.status(429).json({ error: `Rate limited — try again in ${rl.retryAfterSec}s` });
+      return;
+    }
+
+    const { prompt, aspectRatio } = req.body as {
+      prompt: string;
+      aspectRatio?: "square" | "portrait" | "landscape";
+    };
+    if (!prompt?.trim()) {
+      res.status(400).json({ error: "prompt is required" });
+      return;
+    }
+
+    const generated = generateImageUrl({ prompt, aspectRatio });
+
+    // Persist as an OutreachAsset so it shows up in the AssetPicker library
+    const asset = await prisma.outreachAsset.create({
+      data: {
+        name:         prompt.slice(0, 80),
+        kind:         "IMAGE",
+        url:          generated.url,
+        thumbnailUrl: generated.url,
+        altText:      prompt,
+        tags:         ["ai-generated"],
+        uploadedById: memberId,
+      },
+    });
+
+    res.status(201).json({ asset, generated });
+  } catch (error) {
+    console.error("POST /ai/generate-image error:", error);
+    res.status(500).json({ error: "Failed to generate image" });
+  }
+});
+
 // ── Newsletter ───────────────────────────────────────────────
 
 outreachRouter.get("/subscribers", async (_req: Request, res: Response) => {

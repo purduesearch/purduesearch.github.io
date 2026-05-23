@@ -103,6 +103,11 @@ function AssetCard({ asset, onSelect, onDelete, selectable }) {
           </div>
         )}
         <span className="pm-asset-card-kind">{asset.kind}</span>
+        {asset.tags?.includes('ai-generated') && (
+          <span className="pm-asset-card-ai-badge" title="AI-generated image">
+            <i className="fas fa-magic" aria-hidden="true" /> AI
+          </span>
+        )}
       </div>
       <div className="pm-asset-card-body">
         <div className="pm-asset-card-name" title={asset.name}>{asset.name}</div>

@@ -16612,3 +16612,44 @@ html::-webkit-scrollbar { display: none; }
 .pm-newsletter-preview a { color: #0096a8; }
 .pm-newsletter-preview img { max-width: 100%; height: auto; }
 
+/* ── AI Image Generation panel section ───────────────────────── */
+
+.pm-ai-prompt-input {
+  width: 100%;
+  margin-top: 6px;
+  font-size: 12px;
+  resize: vertical;
+}
+.pm-ai-imggen-row {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+  align-items: stretch;
+}
+.pm-ai-imggen-result {
+  margin-top: 8px;
+}
+.pm-ai-imggen-result img {
+  width: 100%;
+  border-radius: 8px;
+  display: block;
+}
+
+/* AssetPicker — AI-generated badge */
+.pm-asset-card-ai-badge {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 7px;
+  border-radius: 10px;
+  background: rgba(162,155,254,0.95);
+  color: #1a1426;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  z-index: 2;
+}
+
