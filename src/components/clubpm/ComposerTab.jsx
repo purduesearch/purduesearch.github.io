@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import PlatformPreview from './PlatformPreview';
 import AiAssistPanel from './AiAssistPanel';
 import AssetPicker from './AssetPicker';
+import TemplatePicker from './TemplatePicker';
 
 // ── Constants ─────────────────────────────────────────────────
 
@@ -238,6 +239,7 @@ export default function ComposerTab({ onSaved }) {
   const [showPreview, setShowPreview]   = useState(false);
   const [showAiPanel, setShowAiPanel]   = useState(true);
   const [showAssetPicker, setShowAssetPicker] = useState(false);
+  const [showTemplatePicker, setShowTemplatePicker] = useState(false);
 
   const contentRef = useRef(null);
 
@@ -337,7 +339,17 @@ export default function ComposerTab({ onSaved }) {
         <div className="pm-composer-form">
           {/* Title */}
           <div className="cpm-form-group">
-            <label className="cpm-form-label">Title *</label>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+              <label className="cpm-form-label">Title *</label>
+              <button
+                type="button"
+                className="pm-composer-template-btn"
+                onClick={() => setShowTemplatePicker(true)}
+                title="Browse template library"
+              >
+                <i className="fas fa-clone" aria-hidden="true" /> Use template
+              </button>
+            </div>
             <input
               type="text"
               className="cpm-form-input"
@@ -543,6 +555,24 @@ export default function ComposerTab({ onSaved }) {
         onClose={() => setShowAssetPicker(false)}
         onSelect={handleAssetSelect}
         title="Select Media Asset"
+      />
+
+      <TemplatePicker
+        isOpen={showTemplatePicker}
+        onClose={() => setShowTemplatePicker(false)}
+        onTemplateInstantiated={(created) => {
+          // Load the freshly-created draft into composer state
+          setTitle(created.title ?? '');
+          setType(created.type ?? 'SOCIAL_POST');
+          setPlatforms(created.platform ?? []);
+          setBaseContent(created.content ?? '');
+          setMediaUrls(created.mediaUrls ?? []);
+          setScheduledAt(created.scheduledAt ? created.scheduledAt.slice(0, 16) : '');
+          setSavedId(created.id);
+          setIsTemplate(false);
+          onSaved?.(created);
+          toast.success('Template loaded into composer — review & save');
+        }}
       />
     </div>
   );

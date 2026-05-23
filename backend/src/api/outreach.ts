@@ -72,6 +72,8 @@ outreachRouter.post("/submissions", async (req: Request, res: Response) => {
       projectId,
       eventId,
       scheduledAt,
+      isTemplate,
+      placeholders,
     } = req.body as {
       title: string;
       type: SubmissionType;
@@ -81,6 +83,8 @@ outreachRouter.post("/submissions", async (req: Request, res: Response) => {
       projectId?: string;
       eventId?: string;
       scheduledAt?: string;
+      isTemplate?: boolean;
+      placeholders?: unknown;
     };
 
     if (!title || !type) {
@@ -98,6 +102,8 @@ outreachRouter.post("/submissions", async (req: Request, res: Response) => {
       eventId,
       authorId: req.memberId!,
       scheduledAt: scheduledAt ? new Date(scheduledAt) : undefined,
+      isTemplate,
+      placeholders,
     });
 
     res.status(201).json(submission);
@@ -140,6 +146,8 @@ outreachRouter.patch("/submissions/:id", async (req: Request, res: Response) => 
       eventId,
       reviewNote,
       scheduledAt,
+      isTemplate,
+      placeholders,
     } = req.body as {
       title?: string;
       type?: SubmissionType;
@@ -151,6 +159,8 @@ outreachRouter.patch("/submissions/:id", async (req: Request, res: Response) => 
       eventId?: string | null;
       reviewNote?: string | null;
       scheduledAt?: string | null;
+      isTemplate?: boolean;
+      placeholders?: unknown;
     };
 
     const updated = await outreachService.updateSubmission(req.params.id as string, {
@@ -164,6 +174,8 @@ outreachRouter.patch("/submissions/:id", async (req: Request, res: Response) => 
       eventId,
       reviewNote,
       scheduledAt: scheduledAt != null ? new Date(scheduledAt) : scheduledAt,
+      isTemplate,
+      placeholders,
     });
 
     res.json(updated);
@@ -867,5 +879,136 @@ outreachRouter.get("/activity", async (_req: Request, res: Response) => {
   } catch (error) {
     console.error("GET /activity error:", error);
     res.status(500).json({ error: "Failed to load activity feed" });
+  }
+});
+
+// ── Templates ────────────────────────────────────────────────
+
+function substitutePlaceholders(text: string, values: Record<string, string>): string {
+  return text.replace(/\{\{(\w+)\}\}/g, (_m, key) => values[key] ?? `{{${key}}}`);
+}
+
+outreachRouter.get("/templates", async (_req: Request, res: Response) => {
+  try {
+    const templates = await prisma.outreachSubmission.findMany({
+      where:   { isTemplate: true },
+      orderBy: { updatedAt: "desc" },
+      include: {
+        author:     { select: { id: true, displayName: true } },
+        recurrences: { select: { id: true, cronExpression: true, active: true, nextRunAt: true } },
+      },
+    });
+    res.json(templates);
+  } catch (error) {
+    console.error("GET /templates error:", error);
+    res.status(500).json({ error: "Failed to list templates" });
+  }
+});
+
+outreachRouter.post("/templates/:id/instantiate", async (req: Request, res: Response) => {
+  try {
+    const template = await prisma.outreachSubmission.findUnique({
+      where: { id: req.params.id as string },
+    });
+    if (!template || !template.isTemplate) {
+      res.status(404).json({ error: "Template not found" });
+      return;
+    }
+
+    const { values } = (req.body as { values?: Record<string, string> }) ?? {};
+    const vals = values ?? {};
+
+    const created = await prisma.outreachSubmission.create({
+      data: {
+        title:           substitutePlaceholders(template.title, vals),
+        content:         template.content ? substitutePlaceholders(template.content, vals) : null,
+        type:            template.type,
+        status:          "DRAFT",
+        platform:        template.platform,
+        mediaUrls:       template.mediaUrls,
+        platformContent: template.platformContent ?? undefined,
+        campaignId:      template.campaignId,
+        projectId:       template.projectId,
+        authorId:        req.session.memberId!,
+        isTemplate:      false,
+      },
+      include: {
+        author:  { select: { id: true, displayName: true, avatarUrl: true } },
+        project: { select: { id: true, name: true } },
+        campaign: { select: { id: true, name: true, color: true } },
+      },
+    });
+
+    res.status(201).json(created);
+  } catch (error) {
+    console.error("POST /templates/:id/instantiate error:", error);
+    res.status(500).json({ error: "Failed to instantiate template" });
+  }
+});
+
+outreachRouter.post("/templates/:id/recurrence", async (req: Request, res: Response) => {
+  try {
+    const { CronExpressionParser } = await import("cron-parser");
+    const template = await prisma.outreachSubmission.findUnique({
+      where: { id: req.params.id as string },
+    });
+    if (!template || !template.isTemplate) {
+      res.status(404).json({ error: "Template not found" });
+      return;
+    }
+
+    const { cronExpression, active, defaultValues } = req.body as {
+      cronExpression: string;
+      active?: boolean;
+      defaultValues?: Record<string, string>;
+    };
+
+    if (!cronExpression) {
+      res.status(400).json({ error: "cronExpression is required" });
+      return;
+    }
+
+    let nextRunAt: Date;
+    try {
+      nextRunAt = CronExpressionParser.parse(cronExpression).next().toDate();
+    } catch {
+      res.status(400).json({ error: "Invalid cronExpression" });
+      return;
+    }
+
+    // Upsert by templateSubmissionId — one recurrence per template for simplicity
+    const existing = await prisma.recurringTemplate.findFirst({
+      where: { templateSubmissionId: template.id },
+    });
+
+    const data = {
+      templateSubmissionId: template.id,
+      cronExpression,
+      defaultValues: defaultValues ?? undefined,
+      active: active ?? true,
+      nextRunAt,
+      ownerId: req.session.memberId!,
+    };
+
+    const recurrence = existing
+      ? await prisma.recurringTemplate.update({ where: { id: existing.id }, data })
+      : await prisma.recurringTemplate.create({ data });
+
+    res.json(recurrence);
+  } catch (error) {
+    console.error("POST /templates/:id/recurrence error:", error);
+    res.status(500).json({ error: "Failed to set recurrence" });
+  }
+});
+
+outreachRouter.delete("/templates/:id/recurrence", async (req: Request, res: Response) => {
+  try {
+    await prisma.recurringTemplate.deleteMany({
+      where: { templateSubmissionId: req.params.id as string },
+    });
+    res.json({ ok: true });
+  } catch (error) {
+    console.error("DELETE /templates/:id/recurrence error:", error);
+    res.status(500).json({ error: "Failed to delete recurrence" });
   }
 });

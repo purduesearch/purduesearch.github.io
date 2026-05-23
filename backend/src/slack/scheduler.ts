@@ -561,6 +561,78 @@ export function startScheduler(app: App): void {
     }
   });
 
+  // ── Every hour — Instantiate due RecurringTemplate(s) into DRAFTs ──
+  cron.schedule("5 * * * *", async () => {
+    try {
+      const { CronExpressionParser } = await import("cron-parser");
+      const now = new Date();
+      const due = await prisma.recurringTemplate.findMany({
+        where: {
+          active: true,
+          nextRunAt: { lte: now },
+        },
+        include: {
+          templateSubmission: true,
+          owner: { select: { slackId: true } },
+        },
+      });
+      if (due.length === 0) return;
+
+      function substitute(text: string, vals: Record<string, string>): string {
+        return text.replace(/\{\{(\w+)\}\}/g, (_m, k) => vals[k] ?? `{{${k}}}`);
+      }
+
+      for (const rec of due) {
+        const tmpl = rec.templateSubmission;
+        if (!tmpl.isTemplate) continue;
+        const vals = (rec.defaultValues as Record<string, string> | null) ?? {};
+        try {
+          await prisma.outreachSubmission.create({
+            data: {
+              title:     substitute(tmpl.title, vals),
+              content:   tmpl.content ? substitute(tmpl.content, vals) : null,
+              type:      tmpl.type,
+              status:    "DRAFT",
+              platform:  tmpl.platform,
+              mediaUrls: tmpl.mediaUrls,
+              authorId:  rec.ownerId,
+              campaignId: tmpl.campaignId,
+              projectId:  tmpl.projectId,
+              isTemplate: false,
+            },
+          });
+
+          // Recompute nextRunAt from cron expression
+          let nextRunAt: Date;
+          try {
+            nextRunAt = CronExpressionParser.parse(rec.cronExpression).next().toDate();
+          } catch {
+            // Bad cron — deactivate to prevent infinite errors
+            await prisma.recurringTemplate.update({
+              where: { id: rec.id },
+              data:  { active: false, lastRunAt: now },
+            });
+            continue;
+          }
+
+          await prisma.recurringTemplate.update({
+            where: { id: rec.id },
+            data:  { lastRunAt: now, nextRunAt },
+          });
+
+          if (rec.owner?.slackId) {
+            queueDm(rec.owner.slackId, `🔁 Recurring template *${tmpl.title}* spawned a new DRAFT in Outreach Hub. Review & schedule it.`);
+          }
+        } catch (err) {
+          console.error(`❌ Recurring template ${rec.id} failed:`, err);
+        }
+      }
+      console.log(`✅ Instantiated ${due.length} recurring template(s)`);
+    } catch (err) {
+      console.error("❌ Recurring template cron error:", err);
+    }
+  });
+
   // ── Daily 8:10 AM — Auto-create EVENT_PROMO drafts 7/3/1 days before events ──
   cron.schedule("10 8 * * *", async () => {
     console.log("📣 Checking for upcoming events needing outreach drafts...");
@@ -652,6 +724,7 @@ export function startScheduler(app: App): void {
   console.log("  📅 Scheduled: Tuesday 6:30AM      — Meeting template DMs → admins");
   console.log("  📅 Scheduled: Daily 9AM           — Event reminders → attendees");
   console.log("  📅 Scheduled: Hourly              — Auto-publish APPROVED outreach submissions");
+  console.log("  📅 Scheduled: Hourly :05          — Instantiate recurring template DRAFTs");
   console.log("  📅 Scheduled: Daily 8:10AM        — Auto-create EVENT_PROMO drafts (7/3/1 day lead)");
   console.log("  📅 Scheduled: Thursday 11AM       — Member Spotlight auto-draft (fair rotation)");
   console.log("  📅 Scheduled: Monday 10AM         — Outreach Weekly Slack digest (AI narrative)");

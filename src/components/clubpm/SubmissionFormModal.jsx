@@ -210,6 +210,8 @@ function buildInitialState(editSubmission) {
       mediaUrls: [''],
       scheduledAt: '',
       status: 'DRAFT',
+      isTemplate: false,
+      placeholders: [],
     };
   }
   return {
@@ -224,6 +226,8 @@ function buildInitialState(editSubmission) {
       ? editSubmission.scheduledAt.slice(0, 16)
       : '',
     status: editSubmission.status === 'SUBMITTED' ? 'SUBMITTED' : 'DRAFT',
+    isTemplate: !!editSubmission.isTemplate,
+    placeholders: Array.isArray(editSubmission.placeholders) ? editSubmission.placeholders : [],
   };
 }
 
@@ -306,6 +310,10 @@ export default function SubmissionFormModal({
         mediaUrls: form.mediaUrls.map(u => u.trim()).filter(Boolean),
         scheduledAt: form.scheduledAt || undefined,
         status: form.status,
+        isTemplate: form.isTemplate,
+        placeholders: form.isTemplate
+          ? form.placeholders.filter(p => p.key && p.key.trim())
+          : [],
       };
       await onSave(payload);
       onClose();
@@ -519,6 +527,68 @@ export default function SubmissionFormModal({
               value={form.scheduledAt}
               onChange={e => setField('scheduledAt', e.target.value)}
             />
+          </div>
+
+          {/* Template toggle + placeholders */}
+          <div className="pm-submission-field">
+            <label className="pm-submission-label" style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={form.isTemplate}
+                onChange={e => setField('isTemplate', e.target.checked)}
+                style={{ accentColor: 'var(--pm-accent-teal)' }}
+              />
+              <i className="fas fa-clone" aria-hidden="true" style={{ color: 'var(--pm-accent-teal)' }} />
+              Save as reusable template
+            </label>
+            {form.isTemplate && (
+              <div style={{ marginTop: 8, padding: 10, borderRadius: 8, background: 'var(--clubpm-surface-2)', border: '1px solid var(--clubpm-border)' }}>
+                <div style={{ fontSize: 11, color: 'var(--clubpm-text-secondary)', marginBottom: 6 }}>
+                  Use <code style={{ background: 'rgba(0,229,204,0.12)', padding: '1px 5px', borderRadius: 4 }}>{'{{key}}'}</code> in title/content as placeholders. Define each key below.
+                </div>
+                {form.placeholders.map((ph, i) => (
+                  <div key={i} style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
+                    <input
+                      type="text"
+                      placeholder="key (e.g. memberName)"
+                      value={ph.key ?? ''}
+                      onChange={e => {
+                        const next = [...form.placeholders];
+                        next[i] = { ...next[i], key: e.target.value.replace(/[^\w]/g, '') };
+                        setField('placeholders', next);
+                      }}
+                      style={{ ...inputStyle, flex: '0 0 160px' }}
+                    />
+                    <input
+                      type="text"
+                      placeholder="description"
+                      value={ph.description ?? ''}
+                      onChange={e => {
+                        const next = [...form.placeholders];
+                        next[i] = { ...next[i], description: e.target.value };
+                        setField('placeholders', next);
+                      }}
+                      style={{ ...inputStyle, flex: 1 }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setField('placeholders', form.placeholders.filter((_, j) => j !== i))}
+                      style={{ background: 'none', border: '1px solid var(--clubpm-border)', borderRadius: 6, color: 'var(--clubpm-text-secondary)', cursor: 'pointer', padding: '4px 8px' }}
+                      title="Remove"
+                    >
+                      <i className="fas fa-times" aria-hidden="true" />
+                    </button>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => setField('placeholders', [...form.placeholders, { key: '', description: '' }])}
+                  style={{ marginTop: 4, background: 'transparent', border: '1px dashed var(--clubpm-border)', borderRadius: 6, color: 'var(--pm-accent-teal)', cursor: 'pointer', padding: '5px 10px', fontSize: 12 }}
+                >
+                  <i className="fas fa-plus" aria-hidden="true" /> Add placeholder
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Status toggle */}

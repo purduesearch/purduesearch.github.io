@@ -14,6 +14,8 @@ interface CreateSubmissionInput {
   eventId?: string;
   authorId: string;
   scheduledAt?: Date;
+  isTemplate?: boolean;
+  placeholders?: unknown;
 }
 
 interface UpdateSubmissionInput {
@@ -29,6 +31,8 @@ interface UpdateSubmissionInput {
   reviewNote?: string | null;
   scheduledAt?: Date | null;
   publishedAt?: Date | null;
+  isTemplate?: boolean;
+  placeholders?: unknown;
 }
 
 interface ListSubmissionsFilters {
@@ -70,6 +74,8 @@ export async function createSubmission(data: CreateSubmissionInput) {
       ...(data.projectId ? { projectId: data.projectId } : {}),
       ...(data.eventId ? { eventId: data.eventId } : {}),
       ...(data.scheduledAt ? { scheduledAt: data.scheduledAt } : {}),
+      ...(data.isTemplate != null ? { isTemplate: data.isTemplate } : {}),
+      ...(data.placeholders !== undefined ? { placeholders: data.placeholders as never } : {}),
     },
     include: submissionDetailInclude,
   });
@@ -95,6 +101,8 @@ export async function updateSubmission(id: string, data: UpdateSubmissionInput) 
   if (data.projectId !== undefined) updateData.projectId = data.projectId;
   if (data.eventId !== undefined) updateData.eventId = data.eventId;
   if (data.reviewerId !== undefined) updateData.reviewerId = data.reviewerId;
+  if (data.isTemplate !== undefined) updateData.isTemplate = data.isTemplate;
+  if (data.placeholders !== undefined) updateData.placeholders = data.placeholders;
 
   const updated = await prisma.outreachSubmission.update({
     where: { id },

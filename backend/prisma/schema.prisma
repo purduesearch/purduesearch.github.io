@@ -153,6 +153,7 @@ model Member {
   ownedContacts   OutreachContact[] @relation("ContactOwner")
   contactInteractions ContactInteraction[]
   recordedMetrics PostMetric[]
+  ownedRecurringTemplates RecurringTemplate[] @relation("RecurringTemplateOwner")
   createdAt       DateTime        @default(now())
 }
 
@@ -541,6 +542,7 @@ model OutreachSubmission {
   publishedAt      DateTime?
   platformContent  Json?    // per-platform variants: { instagram: { caption, hashtags[], altText }, linkedin: { caption }, twitter: { caption }, ... }
   isTemplate       Boolean  @default(false)
+  placeholders     Json?    // [{ key: "memberName", description: "Who to feature" }]
 
   campaign    Campaign?        @relation(fields: [campaignId], references: [id], onDelete: SetNull)
   campaignId  String?
@@ -548,6 +550,7 @@ model OutreachSubmission {
   comments    OutreachComment[]
   utmLinks    UtmLink[]
   metrics     PostMetric[]
+  recurrences RecurringTemplate[]
 
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
@@ -699,4 +702,22 @@ model PostMetric {
   @@index([submissionId])
   @@index([platform])
   @@index([recordedAt])
+}
+
+model RecurringTemplate {
+  id                    String   @id @default(cuid())
+  templateSubmissionId  String
+  templateSubmission    OutreachSubmission @relation(fields: [templateSubmissionId], references: [id], onDelete: Cascade)
+  cronExpression        String
+  defaultValues         Json?    // map of placeholder key → default value
+  active                Boolean  @default(true)
+  nextRunAt             DateTime
+  lastRunAt             DateTime?
+  ownerId               String
+  owner                 Member   @relation("RecurringTemplateOwner", fields: [ownerId], references: [id])
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@index([templateSubmissionId])
+  @@index([active, nextRunAt])
 }
