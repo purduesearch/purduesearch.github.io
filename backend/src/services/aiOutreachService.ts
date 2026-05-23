@@ -94,6 +94,68 @@ export async function generateAltText(imageUrl: string): Promise<string> {
   return "Image content";
 }
 
+// ── Calendar auto-fill ────────────────────────────────────────
+
+interface AutoFillDraft {
+  title: string;
+  content: string;
+  type: string;
+  scheduledAt: string;
+  platform: string[];
+}
+
+/**
+ * Given upcoming events and recent milestones without existing outreach,
+ * suggest DRAFT submissions to fill gaps in the given date range.
+ */
+export async function generateCalendarAutofill(
+  from: Date,
+  to: Date,
+  events: { title: string; startTime: string | null; type: string }[],
+  milestones: { title: string; projectName: string | null; completedAt: string | null }[]
+): Promise<AutoFillDraft[]> {
+  if (events.length === 0 && milestones.length === 0) {
+    return [];
+  }
+
+  const eventsList = events
+    .map(e => `- ${e.title} (${e.type}, ${e.startTime ? new Date(e.startTime).toDateString() : "TBD"})`)
+    .join("\n") || "None";
+
+  const milestonesList = milestones
+    .map(m => `- ${m.title}${m.projectName ? ` (${m.projectName})` : ""}`)
+    .join("\n") || "None";
+
+  const prompt = `You are a social media strategist for Purdue SEARCH, a university engineering club.
+Date range to fill: ${from.toDateString()} to ${to.toDateString()}
+
+Upcoming club events that need promotion:
+${eventsList}
+
+Recent milestones worth celebrating:
+${milestonesList}
+
+Generate 2-5 social media draft posts to cover these content opportunities.
+For each post, choose a scheduledAt date within the range (ISO 8601), a type from [SOCIAL_POST, ANNOUNCEMENT, EVENT_PROMO, NEWSLETTER], and platforms from [instagram, linkedin, twitter].
+
+Respond with ONLY a valid JSON array, no markdown:
+[
+  {
+    "title": "short title",
+    "content": "draft caption text (under 300 chars)",
+    "type": "EVENT_PROMO",
+    "scheduledAt": "2026-05-25T12:00:00.000Z",
+    "platform": ["instagram", "linkedin"]
+  }
+]`;
+
+  const result = await generateJson<AutoFillDraft[]>(prompt);
+  if (!result || !Array.isArray(result)) {
+    return [];
+  }
+  return result.filter(d => d.title && d.content && d.scheduledAt);
+}
+
 // ── Voice rewrite ─────────────────────────────────────────────
 
 /**

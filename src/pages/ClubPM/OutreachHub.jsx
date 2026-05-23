@@ -8,6 +8,7 @@ import ComposerTab from '../../components/clubpm/ComposerTab';
 import CrossPostBundle from '../../components/clubpm/CrossPostBundle';
 import BrandVoiceAdmin from '../../components/clubpm/BrandVoiceAdmin';
 import CampaignsTab from '../../components/clubpm/CampaignsTab';
+import CalendarTab from '../../components/clubpm/CalendarTab';
 import toast from 'react-hot-toast';
 
 // ── Constants ─────────────────────────────────────────────────
@@ -64,18 +65,6 @@ function fmtDate(str) {
   if (!str) return null;
   const d = new Date(str);
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-}
-
-function startOfMonth(d) {
-  const r = new Date(d);
-  r.setDate(1); r.setHours(0, 0, 0, 0);
-  return r;
-}
-
-function endOfMonth(d) {
-  const r = new Date(d);
-  r.setMonth(r.getMonth() + 1); r.setDate(0); r.setHours(23, 59, 59, 999);
-  return r;
 }
 
 // ── TypeBadge ─────────────────────────────────────────────────
@@ -561,89 +550,7 @@ function BoardTab({ submissions, member, onEdit, onReview, onDelete, onStatusCha
   );
 }
 
-// ── CalendarTab ───────────────────────────────────────────────
-
-function CalendarTab() {
-  const [calItems, setCalItems] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [currentMonth, setCurrentMonth] = useState(() => new Date());
-
-  const loadCalendar = useCallback((monthDate) => {
-    setLoading(true);
-    const from = startOfMonth(monthDate).toISOString();
-    const to   = endOfMonth(monthDate).toISOString();
-    get(`/api/outreach/calendar?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`)
-      .then(data => setCalItems(Array.isArray(data) ? data : []))
-      .catch(() => setCalItems([]))
-      .finally(() => setLoading(false));
-  }, []);
-
-  useEffect(() => {
-    loadCalendar(currentMonth);
-  }, [currentMonth, loadCalendar]);
-
-  // Group by week label
-  const grouped = {};
-  calItems.forEach(item => {
-    if (!item.scheduledAt) return;
-    const d = new Date(item.scheduledAt);
-    const weekStart = new Date(d);
-    weekStart.setDate(d.getDate() - d.getDay());
-    const key = weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    (grouped[key] = grouped[key] || []).push(item);
-  });
-  const groupKeys = Object.keys(grouped).sort((a, b) => new Date(a) - new Date(b));
-
-  const monthLabel = currentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-
-  return (
-    <div className="pm-outreach-calendar">
-      <div className="pm-outreach-calendar-nav">
-        <button
-          className="cpm-nav-btn"
-          onClick={() => setCurrentMonth(prev => { const d = new Date(prev); d.setMonth(d.getMonth() - 1); return d; })}
-        >
-          <i className="fas fa-angle-left" aria-hidden="true" /> Prev
-        </button>
-        <span className="pm-outreach-calendar-month">{monthLabel}</span>
-        <button
-          className="cpm-nav-btn"
-          onClick={() => setCurrentMonth(prev => { const d = new Date(prev); d.setMonth(d.getMonth() + 1); return d; })}
-        >
-          Next <i className="fas fa-angle-right" aria-hidden="true" />
-        </button>
-      </div>
-
-      {loading ? (
-        <div className="pm-outreach-loading">
-          <div className="pm-outreach-spinner" />
-        </div>
-      ) : calItems.length === 0 ? (
-        <div className="pm-outreach-empty">
-          <i className="fas fa-calendar-times" aria-hidden="true" />
-          <p>No scheduled submissions for {monthLabel}.</p>
-        </div>
-      ) : (
-        groupKeys.map(weekKey => (
-          <div key={weekKey} className="pm-outreach-cal-group">
-            <div className="pm-outreach-cal-week-label">
-              <i className="fas fa-calendar-week" aria-hidden="true" style={{ marginRight: 6, opacity: 0.6 }} />
-              Week of {weekKey}
-            </div>
-            {grouped[weekKey].map((item, i) => (
-              <div key={item.id ?? i} className="pm-outreach-cal-row">
-                <span className="pm-outreach-cal-date">{fmtDate(item.scheduledAt)}</span>
-                <TypeBadge type={item.type} />
-                <span className="pm-outreach-cal-title">{item.title}</span>
-                <PlatformChips platforms={item.platform ?? []} />
-              </div>
-            ))}
-          </div>
-        ))
-      )}
-    </div>
-  );
-}
+// CalendarTab is now in src/components/clubpm/CalendarTab.jsx
 
 // ── RecommendationsTab ────────────────────────────────────────
 
@@ -918,7 +825,7 @@ export default function OutreachHub() {
             campaigns={campaigns}
           />
         )}
-        {activeTab === 'calendar' && <CalendarTab />}
+        {activeTab === 'calendar' && <CalendarTab campaigns={campaigns} />}
         {activeTab === 'campaigns' && (
           <CampaignsTab isAdmin={!!member?.isAdmin} />
         )}

@@ -556,6 +556,51 @@ outreachRouter.post("/ai/voice", async (req: Request, res: Response) => {
   }
 });
 
+// POST /ai/calendar-autofill
+outreachRouter.post("/ai/calendar-autofill", async (req: Request, res: Response) => {
+  try {
+    const { from, to } = req.body as { from: string; to: string };
+    if (!from || !to) {
+      res.status(400).json({ error: "from and to are required" });
+      return;
+    }
+    const fromDate = new Date(from);
+    const toDate   = new Date(to);
+
+    // Fetch events in range — exclude MEETING and recurring events
+    const events = await prisma.event.findMany({
+      where: {
+        startTime: { gte: fromDate, lte: toDate },
+        type:       { not: "MEETING" },
+        isRecurring: false,
+      },
+      select: { title: true, startTime: true, type: true },
+    });
+
+    // Fetch recent milestones with no outreach submission
+    const recentMilestones = await prisma.milestone.findMany({
+      where: {
+        status: "COMPLETED",
+        completedAt: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
+      },
+      select: { title: true, project: { select: { name: true } }, completedAt: true },
+      take: 10,
+    });
+
+    const drafts = await aiOutreachService.generateCalendarAutofill(
+      fromDate,
+      toDate,
+      events.map(e => ({ title: e.title, startTime: e.startTime?.toISOString() ?? null, type: e.type })),
+      recentMilestones.map(m => ({ title: m.title, projectName: m.project?.name ?? null, completedAt: m.completedAt?.toISOString() ?? null })),
+    );
+
+    res.json({ drafts });
+  } catch (error) {
+    console.error("POST /ai/calendar-autofill error:", error);
+    res.status(500).json({ error: "Failed to generate auto-fill suggestions" });
+  }
+});
+
 // ── UTM link routes ──────────────────────────────────────────
 
 // GET /submissions/:id/utm-links
