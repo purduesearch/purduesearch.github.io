@@ -94,6 +94,36 @@ export async function generateAltText(imageUrl: string): Promise<string> {
   return "Image content";
 }
 
+// ── Email template ────────────────────────────────────────────
+
+/**
+ * Generate a personalized outreach email body for a contact.
+ */
+export async function generateEmailTemplate(
+  contactName: string,
+  organization: string | undefined,
+  contactType: string,
+  intent: string,
+  campaignName?: string
+): Promise<string> {
+  const orgLine = organization ? ` at ${organization}` : "";
+  const campLine = campaignName ? ` as part of our "${campaignName}" initiative` : "";
+
+  const prompt = `You are writing on behalf of Purdue SEARCH, a university engineering club.
+Write a professional, concise email to ${contactName}${orgLine} (contact type: ${contactType}).
+Intent: ${intent}${campLine}.
+
+Keep the email to 3-4 short paragraphs. Include a clear call-to-action.
+Sign off as "The Purdue SEARCH Team".
+Return ONLY the plain-text email body — no subject line, no markdown.`;
+
+  const result = await generateText(prompt);
+  if (!result) {
+    throw new Error("[aiOutreachService] generateEmailTemplate: Gemini returned empty response");
+  }
+  return result;
+}
+
 // ── Calendar auto-fill ────────────────────────────────────────
 
 interface AutoFillDraft {

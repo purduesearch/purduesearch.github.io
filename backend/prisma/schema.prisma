@@ -150,6 +150,8 @@ model Member {
   outreachComments OutreachComment[] @relation("OutreachCommentAuthor")
   assets          OutreachAsset[]  @relation("AssetUploader")
   campaignsOwned  Campaign[]       @relation("CampaignOwner")
+  ownedContacts   OutreachContact[] @relation("ContactOwner")
+  contactInteractions ContactInteraction[]
   createdAt       DateTime        @default(now())
 }
 
@@ -619,10 +621,50 @@ model Campaign {
   ownerId      String
   owner        Member   @relation("CampaignOwner", fields: [ownerId], references: [id])
   submissions  OutreachSubmission[]
+  contacts     OutreachContact[]
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
   @@index([ownerId])
+}
+
+model OutreachContact {
+  id              String    @id @default(cuid())
+  name            String
+  email           String?
+  phone           String?
+  organization    String?
+  role            String?
+  contactType     String    // "SPONSOR" | "PRESS" | "PARTNER" | "PROSPECT" | "ALUMNI"
+  stage           String    @default("COLD") // "COLD" | "CONTACTED" | "ENGAGED" | "ACTIVE" | "DORMANT"
+  tags            String[]
+  notes           String?
+  lastContactedAt DateTime?
+  nextFollowUpAt  DateTime?
+  ownerId         String?
+  owner           Member?   @relation("ContactOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  campaignId      String?
+  campaign        Campaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  interactions    ContactInteraction[]
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([contactType, stage])
+  @@index([nextFollowUpAt])
+  @@index([ownerId])
+}
+
+model ContactInteraction {
+  id         String          @id @default(cuid())
+  contactId  String
+  contact    OutreachContact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  type       String          // "EMAIL" | "MEETING" | "CALL" | "NOTE" | "EVENT_ATTENDED"
+  summary    String
+  occurredAt DateTime        @default(now())
+  memberId   String
+  member     Member          @relation(fields: [memberId], references: [id])
+
+  @@index([contactId])
 }
 
 model UtmLink {
