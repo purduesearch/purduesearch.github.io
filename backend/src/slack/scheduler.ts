@@ -318,6 +318,52 @@ export function startScheduler(app: App): void {
     }
   });
 
+  // ── Daily 9:05 AM — CRM follow-up reminders → contact owners ────
+  cron.schedule("5 9 * * *", async () => {
+    console.log("📇 Sending CRM follow-up reminders...");
+    try {
+      const endOfToday = new Date();
+      endOfToday.setHours(23, 59, 59, 999);
+
+      const contacts = await prisma.outreachContact.findMany({
+        where: {
+          nextFollowUpAt: { lte: endOfToday },
+          owner: { isNot: null },
+        },
+        include: {
+          owner: { select: { slackId: true, displayName: true } },
+        },
+      });
+
+      // Group by owner slackId
+      const byOwner = new Map<string, typeof contacts>();
+      for (const c of contacts) {
+        const sid = c.owner?.slackId;
+        if (!sid) continue;
+        const bucket = byOwner.get(sid) ?? [];
+        bucket.push(c);
+        byOwner.set(sid, bucket);
+      }
+
+      for (const [slackId, ownerContacts] of byOwner) {
+        const lines = ownerContacts.slice(0, 8).map(c => {
+          const due = c.nextFollowUpAt!;
+          const today = new Date(); today.setHours(0, 0, 0, 0);
+          const isOverdue = due < today;
+          const label = isOverdue ? "overdue" : "today";
+          const org = c.organization ? ` (${c.organization})` : "";
+          return `• *${c.name}*${org} — follow-up ${label}`;
+        });
+        const extra = ownerContacts.length > 8 ? `\n_…and ${ownerContacts.length - 8} more_` : "";
+        const msg = `📇 *CRM Follow-up Reminders* — you have ${ownerContacts.length} contact${ownerContacts.length > 1 ? "s" : ""} to follow up with:\n${lines.join("\n")}${extra}\n\n_Open the Outreach Hub → CRM tab to log interactions._`;
+        queueDm(slackId, msg);
+      }
+      console.log(`✅ CRM follow-up reminders sent to ${byOwner.size} member(s) for ${contacts.length} contact(s)`);
+    } catch (err) {
+      console.error("❌ CRM follow-up reminder error:", err);
+    }
+  });
+
   // ── Every 6 hours — Re-sync admin status from leadership channel ──
   cron.schedule("0 */6 * * *", async () => {
     try {
@@ -463,4 +509,5 @@ export function startScheduler(app: App): void {
   console.log("  📅 Scheduled: Daily 9AM           — Event reminders → attendees");
   console.log("  📅 Scheduled: Hourly              — Auto-publish APPROVED outreach submissions");
   console.log("  📅 Scheduled: Daily 8:10AM        — Auto-create EVENT_PROMO drafts (7/3/1 day lead)");
+  console.log("  📅 Scheduled: Daily 9:05AM        — CRM follow-up reminders → contact owners");
 }
