@@ -318,6 +318,75 @@ export function startScheduler(app: App): void {
     }
   });
 
+  // ── Monday 10:00 AM — Outreach Weekly Slack post (AI narrative) ──
+  cron.schedule("0 10 * * 1", async () => {
+    const channelId = process.env.OUTREACH_CHANNEL_ID;
+    if (!channelId) return; // Skip if no outreach channel configured
+
+    console.log("📊 Generating Outreach Weekly Slack digest...");
+    try {
+      const oneWeekAgo = new Date(Date.now() - 7 * 86_400_000);
+
+      const [published, metrics, contacts, upcoming] = await Promise.all([
+        prisma.outreachSubmission.findMany({
+          where: { status: "PUBLISHED", publishedAt: { gte: oneWeekAgo } },
+          select: { title: true, type: true, platform: true },
+        }),
+        prisma.postMetric.findMany({
+          where: { recordedAt: { gte: oneWeekAgo } },
+          select: { platform: true, impressions: true, likes: true, comments: true, shares: true },
+        }),
+        prisma.outreachContact.groupBy({ by: ["stage"], _count: { id: true } }),
+        prisma.outreachSubmission.findMany({
+          where: {
+            status:      { in: ["APPROVED", "IN_REVIEW", "SUBMITTED"] },
+            scheduledAt: { gte: new Date(), lte: new Date(Date.now() + 7 * 86_400_000) },
+          },
+          select: { title: true, scheduledAt: true, platform: true },
+          orderBy: { scheduledAt: "asc" },
+          take: 5,
+        }),
+      ]);
+
+      const { generateWeeklyDigest } = await import("../services/aiOutreachService.js");
+
+      const funnel = contacts.reduce<Record<string, number>>(
+        (acc, g) => ({ ...acc, [g.stage]: g._count.id }),
+        {}
+      );
+
+      const narrative = await generateWeeklyDigest(
+        published.map(s => ({ title: s.title, type: s.type, platforms: s.platform })),
+        metrics.map(m => ({
+          platform:    m.platform,
+          impressions: m.impressions ?? 0,
+          likes:       m.likes       ?? 0,
+          comments:    m.comments    ?? 0,
+          shares:      m.shares      ?? 0,
+        })),
+        funnel
+      );
+
+      const upcomingBlock = upcoming.length > 0
+        ? `\n\n*📅 This week's planned posts:*\n${upcoming.map(s => {
+            const date = s.scheduledAt ? new Date(s.scheduledAt).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }) : "TBD";
+            return `• "${s.title}" — ${date} (${s.platform.join(", ")})`;
+          }).join("\n")}`
+        : "";
+
+      const message = `*📣 Outreach Weekly — ${new Date().toLocaleDateString("en-US", { month: "long", day: "numeric" })}*\n\n${narrative}${upcomingBlock}`;
+
+      await app.client.chat.postMessage({
+        channel: channelId,
+        text:    message,
+      });
+
+      console.log("✅ Outreach Weekly Slack digest posted");
+    } catch (err) {
+      console.error("❌ Outreach Weekly digest error:", err);
+    }
+  });
+
   // ── Daily 9:05 AM — CRM follow-up reminders → contact owners ────
   cron.schedule("5 9 * * *", async () => {
     console.log("📇 Sending CRM follow-up reminders...");
@@ -509,5 +578,6 @@ export function startScheduler(app: App): void {
   console.log("  📅 Scheduled: Daily 9AM           — Event reminders → attendees");
   console.log("  📅 Scheduled: Hourly              — Auto-publish APPROVED outreach submissions");
   console.log("  📅 Scheduled: Daily 8:10AM        — Auto-create EVENT_PROMO drafts (7/3/1 day lead)");
+  console.log("  📅 Scheduled: Monday 10AM         — Outreach Weekly Slack digest (AI narrative)");
   console.log("  📅 Scheduled: Daily 9:05AM        — CRM follow-up reminders → contact owners");
 }
