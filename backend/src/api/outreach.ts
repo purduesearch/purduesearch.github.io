@@ -882,6 +882,102 @@ outreachRouter.get("/activity", async (_req: Request, res: Response) => {
   }
 });
 
+// ── GET /conflicts ───────────────────────────────────────────
+
+outreachRouter.get("/conflicts", async (req: Request, res: Response) => {
+  try {
+    const { at, platforms, excludeId, eventId, projectId } = req.query as {
+      at?: string;
+      platforms?: string;
+      excludeId?: string;
+      eventId?: string;
+      projectId?: string;
+    };
+
+    if (!at) {
+      res.status(400).json({ error: "at (ISO datetime) is required" });
+      return;
+    }
+
+    const targetAt = new Date(at);
+    if (isNaN(targetAt.getTime())) {
+      res.status(400).json({ error: "Invalid 'at' datetime" });
+      return;
+    }
+
+    const platformList = (platforms ?? "").split(",").map(p => p.trim()).filter(Boolean);
+
+    // ±24h window for same-platform conflicts
+    const dayWindowStart = new Date(targetAt.getTime() - 24 * 60 * 60 * 1000);
+    const dayWindowEnd   = new Date(targetAt.getTime() + 24 * 60 * 60 * 1000);
+
+    // Same calendar day window
+    const startOfDay = new Date(targetAt);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(targetAt);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    // ±7d for events, ±3d for projects (per plan)
+    const eventWindowStart   = new Date(targetAt.getTime() - 7 * 86_400_000);
+    const eventWindowEnd     = new Date(targetAt.getTime() + 7 * 86_400_000);
+    const projectWindowStart = new Date(targetAt.getTime() - 3 * 86_400_000);
+    const projectWindowEnd   = new Date(targetAt.getTime() + 3 * 86_400_000);
+
+    const baseWhere = {
+      isTemplate: false,
+      status:     { in: ["SUBMITTED", "IN_REVIEW", "APPROVED", "PUBLISHED"] as SubmissionStatus[] },
+      ...(excludeId ? { id: { not: excludeId } } : {}),
+    };
+
+    const [samePlatform24h, sameDayAll, sameEvent7d, sameProject3d] = await Promise.all([
+      platformList.length > 0
+        ? prisma.outreachSubmission.findMany({
+            where: {
+              ...baseWhere,
+              scheduledAt: { gte: dayWindowStart, lte: dayWindowEnd },
+              platform:    { hasSome: platformList },
+            },
+            select: { id: true, title: true, scheduledAt: true, platform: true },
+          })
+        : [],
+      prisma.outreachSubmission.count({
+        where: { ...baseWhere, scheduledAt: { gte: startOfDay, lte: endOfDay } },
+      }),
+      eventId
+        ? prisma.outreachSubmission.findMany({
+            where: {
+              ...baseWhere,
+              eventId,
+              scheduledAt: { gte: eventWindowStart, lte: eventWindowEnd },
+            },
+            select: { id: true, title: true, scheduledAt: true },
+          })
+        : [],
+      projectId
+        ? prisma.outreachSubmission.findMany({
+            where: {
+              ...baseWhere,
+              projectId,
+              scheduledAt: { gte: projectWindowStart, lte: projectWindowEnd },
+            },
+            select: { id: true, title: true, scheduledAt: true },
+          })
+        : [],
+    ]);
+
+    res.json({
+      samePlatformIn24h: samePlatform24h.length,
+      samePlatformItems: samePlatform24h,
+      sameDayCount:      sameDayAll,
+      sameEventItems:    sameEvent7d,
+      sameProjectItems:  sameProject3d,
+    });
+  } catch (error) {
+    console.error("GET /conflicts error:", error);
+    res.status(500).json({ error: "Failed to compute conflicts" });
+  }
+});
+
 // ── Templates ────────────────────────────────────────────────
 
 function substitutePlaceholders(text: string, values: Record<string, string>): string {

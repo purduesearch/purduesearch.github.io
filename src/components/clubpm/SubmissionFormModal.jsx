@@ -243,7 +243,29 @@ export default function SubmissionFormModal({
   const [form, setForm] = useState(() => buildInitialState(editSubmission));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+  const [conflicts, setConflicts] = useState(null);
   const { suggest: suggestBestTime, suggesting: suggestingTime, lastInfo: suggestedTimeInfo } = useSuggestBestTime();
+
+  // Debounced conflict detection on scheduledAt / platforms changes
+  useEffect(() => {
+    if (!form.scheduledAt || form.platform.length === 0 || form.isTemplate) {
+      setConflicts(null);
+      return;
+    }
+    const handle = setTimeout(() => {
+      const params = new URLSearchParams({
+        at:        new Date(form.scheduledAt).toISOString(),
+        platforms: form.platform.join(','),
+      });
+      if (editSubmission?.id) params.set('excludeId', editSubmission.id);
+      if (form.eventId)       params.set('eventId',   form.eventId);
+      if (form.projectId)     params.set('projectId', form.projectId);
+      get(`/api/outreach/conflicts?${params.toString()}`)
+        .then(setConflicts)
+        .catch(() => setConflicts(null));
+    }, 400);
+    return () => clearTimeout(handle);
+  }, [form.scheduledAt, form.platform, form.eventId, form.projectId, form.isTemplate, editSubmission?.id]);
 
   const setContent = useCallback((value) => {
     setForm(prev => ({ ...prev, content: value }));
@@ -644,6 +666,36 @@ export default function SubmissionFormModal({
               </label>
             </div>
           </div>
+
+          {/* Conflict warnings */}
+          {conflicts && (conflicts.samePlatformIn24h > 0 || conflicts.sameDayCount >= 3 || conflicts.sameEventItems?.length > 0 || conflicts.sameProjectItems?.length > 0) && (
+            <div className="pm-conflict-chips">
+              {conflicts.samePlatformIn24h > 0 && (
+                <span className="pm-conflict-chip" title={(conflicts.samePlatformItems ?? []).map(s => s.title).join(', ')}>
+                  <i className="fas fa-exclamation-triangle" aria-hidden="true" />
+                  {conflicts.samePlatformIn24h} other post{conflicts.samePlatformIn24h !== 1 ? 's' : ''} on selected platform{form.platform.length !== 1 ? 's' : ''} within 24h
+                </span>
+              )}
+              {conflicts.sameDayCount >= 3 && (
+                <span className="pm-conflict-chip">
+                  <i className="fas fa-calendar-day" aria-hidden="true" />
+                  {conflicts.sameDayCount} posts scheduled that day
+                </span>
+              )}
+              {conflicts.sameEventItems?.length > 0 && (
+                <span className="pm-conflict-chip" title={conflicts.sameEventItems.map(s => s.title).join(', ')}>
+                  <i className="fas fa-calendar-check" aria-hidden="true" />
+                  {conflicts.sameEventItems.length} other post{conflicts.sameEventItems.length !== 1 ? 's' : ''} for this event within 7d
+                </span>
+              )}
+              {conflicts.sameProjectItems?.length > 0 && (
+                <span className="pm-conflict-chip" title={conflicts.sameProjectItems.map(s => s.title).join(', ')}>
+                  <i className="fas fa-folder-open" aria-hidden="true" />
+                  {conflicts.sameProjectItems.length} other post{conflicts.sameProjectItems.length !== 1 ? 's' : ''} for this project within 3d
+                </span>
+              )}
+            </div>
+          )}
 
           {/* Error */}
           {error && (
