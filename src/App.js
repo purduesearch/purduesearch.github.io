@@ -18,6 +18,7 @@ import CalendarPage from './pages/ClubPM/CalendarPage';
 import MeetingNotesView from './pages/ClubPM/MeetingNotesView';
 import OutreachHub from './pages/ClubPM/OutreachHub';
 import PublicCampaign from './pages/PublicCampaign';
+import Archive from './pages/Archive';
 import Home from './pages/Home';
 import About from './pages/About';
 import Research from './pages/Research';
@@ -73,6 +74,7 @@ function AnimatedRoutes() {
 
           {/* Public outreach routes (no auth) */}
           <Route path="/r/c/:slug" element={<PublicCampaign />} />
+          <Route path="/r/archive" element={<Archive />} />
 
           {/* Main site routes */}
           <Route path="/" element={<PageWrapper><Home /></PageWrapper>} />

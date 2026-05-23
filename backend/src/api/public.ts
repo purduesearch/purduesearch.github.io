@@ -67,6 +67,34 @@ publicRouter.get("/campaigns/:slug", async (req: Request, res: Response) => {
   }
 });
 
+// ── GET /public/outreach/published ───────────────────────────
+
+publicRouter.get("/outreach/published", async (req: Request, res: Response) => {
+  try {
+    const { program, limit } = req.query as { program?: string; limit?: string };
+    const take = Math.min(50, parseInt(limit ?? "20", 10) || 20);
+
+    const submissions = await prisma.outreachSubmission.findMany({
+      where: {
+        status: "PUBLISHED",
+        ...(program ? { project: { programTag: program } } : {}),
+      },
+      orderBy: { publishedAt: "desc" },
+      take,
+      select: {
+        id: true, title: true, content: true, mediaUrls: true,
+        type: true, platform: true, publishedAt: true,
+        project: { select: { name: true, programTag: true } },
+      },
+    });
+
+    res.json(submissions);
+  } catch (error) {
+    console.error("GET /public/outreach/published error:", error);
+    res.status(500).json({ error: "Failed to load published outreach" });
+  }
+});
+
 // ── GET /public/press-kit/:projectId/:token ──────────────────
 
 publicRouter.get("/press-kit/:projectId/:token", async (req: Request, res: Response) => {
