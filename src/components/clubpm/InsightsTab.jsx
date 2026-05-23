@@ -423,6 +423,62 @@ function MetricsFormModal({ submissions, onClose }) {
   );
 }
 
+// ── UTM Top Tracked Links ─────────────────────────────────────
+
+const UTM_PLATFORM_ICONS = {
+  instagram: 'fab fa-instagram',
+  linkedin:  'fab fa-linkedin',
+  twitter:   'fab fa-twitter',
+  website:   'fas fa-globe',
+  newsletter:'fas fa-envelope',
+};
+
+function UtmLinksCard({ links }) {
+  const topLinks = (links ?? []).filter(l => (l.clicks ?? 0) > 0);
+
+  function copyLink(code) {
+    const url = `${window.location.origin}/r/${code}`;
+    navigator.clipboard.writeText(url)
+      .then(() => toast.success('Copied'))
+      .catch(() => toast.error('Failed to copy'));
+  }
+
+  return (
+    <div className="pm-insights-card">
+      <div className="pm-insights-card-header">
+        <span className="pm-insights-card-title">
+          <i className="fas fa-link" aria-hidden="true" style={{ marginRight: 6, color: 'var(--pm-accent-teal)' }} />
+          Top Tracked Links
+        </span>
+        <span className="pm-insights-card-sub">{topLinks.length} of {links?.length ?? 0}</span>
+      </div>
+      {topLinks.length === 0 ? (
+        <div className="pm-insights-empty">
+          No UTM clicks yet. Generate tracked short links from the Composer / submission detail.
+        </div>
+      ) : (
+        <div className="pm-insights-utm-list">
+          {topLinks.slice(0, 10).map(l => (
+            <div key={l.id} className="pm-insights-utm-row">
+              {l.platform && (
+                <i className={UTM_PLATFORM_ICONS[l.platform] ?? 'fas fa-globe'} aria-hidden="true" style={{ width: 16, textAlign: 'center', color: 'var(--clubpm-text-secondary)' }} />
+              )}
+              <div className="pm-insights-utm-info">
+                <div className="pm-insights-utm-title">{l.submission?.title ?? '(unlinked)'}</div>
+                <div className="pm-insights-utm-code">/r/{l.code}</div>
+              </div>
+              <span className="pm-insights-utm-clicks">{l.clicks} {l.clicks === 1 ? 'click' : 'clicks'}</span>
+              <button className="pm-insights-icon-btn" onClick={() => copyLink(l.code)} title="Copy link">
+                <i className="fas fa-copy" aria-hidden="true" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Syndication Helper ────────────────────────────────────────
 
 function SyndicationHelper() {
@@ -598,6 +654,7 @@ export default function InsightsTab({ submissions = [], isAdmin = false }) {
   const [bestTimes, setBestTimes] = useState(null);
   const [sourceMix, setSourceMix] = useState(null);
   const [hashtags, setHashtags]   = useState([]);
+  const [utmLinks, setUtmLinks]   = useState([]);
   const [showMetrics, setShowMetrics] = useState(false);
   const [loadingMain, setLoadingMain] = useState(true);
 
@@ -606,16 +663,18 @@ export default function InsightsTab({ submissions = [], isAdmin = false }) {
   const loadAll = useCallback(async () => {
     setLoadingMain(true);
     try {
-      const [sum, times, mix, tags] = await Promise.all([
+      const [sum, times, mix, tags, utm] = await Promise.all([
         get('/api/outreach/insights/summary'),
         get('/api/outreach/insights/best-times'),
         get('/api/outreach/insights/source-mix'),
         get('/api/outreach/insights/hashtags'),
+        get('/api/outreach/insights/utm').catch(() => []),
       ]);
       setSummary(sum);
       setBestTimes(times);
       setSourceMix(mix);
       setHashtags(tags);
+      setUtmLinks(Array.isArray(utm) ? utm : []);
     } catch {
       toast.error('Failed to load insights');
     } finally {
@@ -719,6 +778,9 @@ export default function InsightsTab({ submissions = [], isAdmin = false }) {
         <SpotlightHelper />
         <SyndicationHelper />
       </div>
+
+      {/* UTM Top Tracked Links */}
+      <UtmLinksCard links={utmLinks} />
 
       {/* Hashtag library */}
       <HashtagLeaderboard

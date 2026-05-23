@@ -322,3 +322,21 @@ insightsRouter.get("/digest", async (_req: Request, res: Response) => {
     res.status(500).json({ error: "Failed to generate digest" });
   }
 });
+
+// ── GET /insights/utm — top tracked links by clicks ──────────
+
+insightsRouter.get("/utm", async (_req: Request, res: Response) => {
+  try {
+    const links = await prisma.utmLink.findMany({
+      orderBy: { clicks: "desc" },
+      take:    20,
+      include: {
+        submission: { select: { id: true, title: true, status: true } },
+      },
+    });
+    res.json(links);
+  } catch (error) {
+    console.error("GET /insights/utm error:", error);
+    res.status(500).json({ error: "Failed to load UTM analytics" });
+  }
+});

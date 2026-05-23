@@ -16498,3 +16498,46 @@ html::-webkit-scrollbar { display: none; }
 }
 .pm-widget-date { margin-left: auto; }
 
+/* ── UTM Tracked Links card ──────────────────────────────────── */
+
+.pm-insights-utm-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.pm-insights-utm-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  border-radius: 7px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--clubpm-border);
+}
+.pm-insights-utm-info {
+  flex: 1;
+  min-width: 0;
+}
+.pm-insights-utm-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--clubpm-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pm-insights-utm-code {
+  font-size: 10px;
+  color: var(--clubpm-text-secondary);
+  font-family: monospace;
+}
+.pm-insights-utm-clicks {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--pm-accent-teal);
+  padding: 3px 8px;
+  background: rgba(0,229,204,0.1);
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
