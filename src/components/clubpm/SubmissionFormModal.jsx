@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { get } from '../../api/clubPmClient';
+import useSuggestBestTime from './useSuggestBestTime';
 
 const TYPE_OPTIONS = [
   { value: 'SOCIAL_POST',   label: 'Social Post' },
@@ -242,6 +243,7 @@ export default function SubmissionFormModal({
   const [form, setForm] = useState(() => buildInitialState(editSubmission));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+  const { suggest: suggestBestTime, suggesting: suggestingTime, lastInfo: suggestedTimeInfo } = useSuggestBestTime();
 
   const setContent = useCallback((value) => {
     setForm(prev => ({ ...prev, content: value }));
@@ -517,16 +519,35 @@ export default function SubmissionFormModal({
 
           {/* Schedule date/time */}
           <div className="pm-submission-field">
-            <label className="pm-submission-label">
-              Schedule Date &amp; Time
-              <span className="pm-submission-hint"> (optional)</span>
-            </label>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+              <label className="pm-submission-label" style={{ margin: 0 }}>
+                Schedule Date &amp; Time
+                <span className="pm-submission-hint"> (optional)</span>
+              </label>
+              <button
+                type="button"
+                className="pm-suggest-time-btn"
+                onClick={async () => {
+                  const value = await suggestBestTime(form.platform);
+                  if (value) setField('scheduledAt', value);
+                }}
+                disabled={suggestingTime || form.platform.length === 0}
+                title="Suggest the best time to post based on past engagement"
+              >
+                {suggestingTime
+                  ? <><i className="fas fa-spinner fa-spin" aria-hidden="true" /> Suggesting…</>
+                  : <><i className="fas fa-magic" aria-hidden="true" /> Suggest best time</>}
+              </button>
+            </div>
             <input
               type="datetime-local"
               style={inputStyle}
               value={form.scheduledAt}
               onChange={e => setField('scheduledAt', e.target.value)}
             />
+            {suggestedTimeInfo && (
+              <div className="pm-suggest-time-info">{suggestedTimeInfo}</div>
+            )}
           </div>
 
           {/* Template toggle + placeholders */}

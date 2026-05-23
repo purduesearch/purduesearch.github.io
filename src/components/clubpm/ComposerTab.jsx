@@ -5,6 +5,7 @@ import PlatformPreview from './PlatformPreview';
 import AiAssistPanel from './AiAssistPanel';
 import AssetPicker from './AssetPicker';
 import TemplatePicker from './TemplatePicker';
+import useSuggestBestTime from './useSuggestBestTime';
 
 // ── Constants ─────────────────────────────────────────────────
 
@@ -240,6 +241,7 @@ export default function ComposerTab({ onSaved }) {
   const [showAiPanel, setShowAiPanel]   = useState(true);
   const [showAssetPicker, setShowAssetPicker] = useState(false);
   const [showTemplatePicker, setShowTemplatePicker] = useState(false);
+  const { suggest: suggestBestTime, suggesting: suggestingTime, lastInfo: suggestedTimeInfo } = useSuggestBestTime();
 
   const contentRef = useRef(null);
 
@@ -464,15 +466,34 @@ export default function ComposerTab({ onSaved }) {
           {/* Schedule + Template */}
           <div className="pm-composer-row pm-composer-schedule-row">
             <div className="cpm-form-group pm-composer-schedule-group">
-              <label className="cpm-form-label">
-                <i className="fas fa-clock" aria-hidden="true" /> Schedule (optional)
-              </label>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                <label className="cpm-form-label" style={{ margin: 0 }}>
+                  <i className="fas fa-clock" aria-hidden="true" /> Schedule (optional)
+                </label>
+                <button
+                  type="button"
+                  className="pm-suggest-time-btn"
+                  onClick={async () => {
+                    const value = await suggestBestTime(platforms);
+                    if (value) setScheduledAt(value);
+                  }}
+                  disabled={suggestingTime || platforms.length === 0}
+                  title="Suggest the best time to post based on past engagement"
+                >
+                  {suggestingTime
+                    ? <><i className="fas fa-spinner fa-spin" aria-hidden="true" /> Suggesting…</>
+                    : <><i className="fas fa-magic" aria-hidden="true" /> Suggest best time</>}
+                </button>
+              </div>
               <input
                 type="datetime-local"
                 className="cpm-form-input"
                 value={scheduledAt}
                 onChange={e => setScheduledAt(e.target.value)}
               />
+              {suggestedTimeInfo && (
+                <div className="pm-suggest-time-info">{suggestedTimeInfo}</div>
+              )}
             </div>
             <div className="pm-composer-template-check">
               <label className="pm-composer-template-label">

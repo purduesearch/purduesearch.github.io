@@ -15732,3 +15732,30 @@ html::-webkit-scrollbar { display: none; }
 }
 .pm-template-cron-preset:hover { background: rgba(0,229,204,0.08); color: var(--pm-accent-teal); border-color: var(--pm-accent-teal); }
 
+/* ── Suggest Best Time ──────────────────────────────────────── */
+
+.pm-suggest-time-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 7px;
+  border: 1px solid var(--clubpm-border);
+  background: transparent;
+  color: var(--pm-accent-teal);
+  font-size: 11px;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+}
+.pm-suggest-time-btn:hover:not(:disabled) {
+  background: rgba(0,229,204,0.1);
+  border-color: var(--pm-accent-teal);
+}
+.pm-suggest-time-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.pm-suggest-time-info {
+  margin-top: 4px;
+  font-size: 10px;
+  color: var(--clubpm-text-secondary);
+  font-style: italic;
+}
+
