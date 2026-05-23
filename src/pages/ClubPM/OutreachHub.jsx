@@ -5,6 +5,7 @@ import { useClubPmAuth } from '../../clubpm/ClubPmAuth';
 import SubmissionFormModal from '../../components/clubpm/SubmissionFormModal';
 import CommentThread from '../../components/clubpm/CommentThread';
 import ComposerTab from '../../components/clubpm/ComposerTab';
+import CrossPostBundle from '../../components/clubpm/CrossPostBundle';
 import toast from 'react-hot-toast';
 
 // ── Constants ─────────────────────────────────────────────────
@@ -126,120 +127,6 @@ function PlatformChips({ platforms = [] }) {
           </span>
         );
       })}
-    </div>
-  );
-}
-
-// ── CopyHelper ────────────────────────────────────────────────
-
-function CopyHelper({ submission, onClose, onPublished }) {
-  const [publishing, setPublishing] = useState(false);
-
-  useEffect(() => {
-    const handler = (e) => { if (e.key === 'Escape') onClose(); };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [onClose]);
-
-  const copyText = (text) => {
-    navigator.clipboard.writeText(text)
-      .then(() => toast.success('Copied!'))
-      .catch(() => toast.error('Copy failed — try selecting and copying manually.'));
-  };
-
-  const handlePublish = async () => {
-    setPublishing(true);
-    try {
-      await patch(`/api/outreach/submissions/${submission.id}`, { status: 'PUBLISHED' });
-      toast.success('Marked as published!');
-      onPublished?.();
-      onClose();
-    } catch (err) {
-      toast.error(err.message ?? 'Failed to mark as published.');
-    } finally {
-      setPublishing(false);
-    }
-  };
-
-  const mediaUrls = Array.isArray(submission.mediaUrls) ? submission.mediaUrls.filter(Boolean) : [];
-
-  return (
-    <div className="pm-copy-modal-overlay" role="dialog" aria-modal="true" aria-label="Copy for Posting" onClick={onClose}>
-      <div className="pm-copy-modal" onClick={e => e.stopPropagation()}>
-        <div className="pm-copy-modal-header">
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: 'var(--clubpm-text-primary)' }}>
-              {submission.title}
-            </h2>
-            <PlatformChips platforms={submission.platform ?? []} />
-          </div>
-          <button
-            className="pm-copy-close-btn"
-            onClick={onClose}
-            aria-label="Close"
-            title="Close"
-          >
-            <i className="fas fa-times" aria-hidden="true" />
-          </button>
-        </div>
-
-        {submission.content && (
-          <div style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--clubpm-text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
-              Content
-            </div>
-            <div className="pm-copy-content-row">
-              <pre className="pm-copy-modal-content-box">{submission.content}</pre>
-              <button
-                className="pm-copy-btn"
-                onClick={() => copyText(submission.content)}
-                title="Copy content"
-                aria-label="Copy content to clipboard"
-              >
-                <i className="fas fa-clipboard" aria-hidden="true" />
-              </button>
-            </div>
-          </div>
-        )}
-
-        {mediaUrls.length > 0 && (
-          <div style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--clubpm-text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
-              Media URLs
-            </div>
-            <ul className="pm-copy-url-list">
-              {mediaUrls.map((url, i) => (
-                <li key={url} className="pm-copy-url-item">
-                  <span style={{ flex: 1, fontSize: 12, color: 'var(--clubpm-text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {url}
-                  </span>
-                  <button
-                    className="pm-copy-btn"
-                    onClick={() => copyText(url)}
-                    title="Copy URL"
-                    aria-label={`Copy URL ${i + 1} to clipboard`}
-                    style={{ flexShrink: 0 }}
-                  >
-                    <i className="fas fa-clipboard" aria-hidden="true" />
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        <button
-          className="pm-copy-publish-btn"
-          onClick={handlePublish}
-          disabled={publishing}
-        >
-          {publishing
-            ? <span className="pm-bulk-spinner" aria-hidden="true" />
-            : <i className="fas fa-check-circle" aria-hidden="true" />
-          }
-          {publishing ? 'Marking as Published…' : 'Mark as Published'}
-        </button>
-      </div>
     </div>
   );
 }
@@ -633,7 +520,7 @@ function BoardTab({ submissions, member, onEdit, onReview, onDelete, onStatusCha
       </DragDropContext>
 
       {copyTarget && (
-        <CopyHelper
+        <CrossPostBundle
           submission={copyTarget}
           onClose={() => setCopyTarget(null)}
           onPublished={() => {
