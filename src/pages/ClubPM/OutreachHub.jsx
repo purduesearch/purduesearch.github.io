@@ -9,6 +9,7 @@ import CrossPostBundle from '../../components/clubpm/CrossPostBundle';
 import BrandVoiceAdmin from '../../components/clubpm/BrandVoiceAdmin';
 import CampaignsTab from '../../components/clubpm/CampaignsTab';
 import CalendarTab from '../../components/clubpm/CalendarTab';
+import CrmTab from '../../components/clubpm/CrmTab';
 import toast from 'react-hot-toast';
 
 // ── Constants ─────────────────────────────────────────────────
@@ -759,6 +760,7 @@ export default function OutreachHub() {
     { id: 'board',           label: 'Board',           icon: 'fas fa-columns' },
     { id: 'calendar',        label: 'Calendar',        icon: 'fas fa-calendar-alt' },
     { id: 'campaigns',       label: 'Campaigns',       icon: 'fas fa-flag' },
+    { id: 'crm',             label: 'CRM',             icon: 'fas fa-address-book' },
     { id: 'recommendations', label: 'Recommendations', icon: 'fas fa-lightbulb' },
   ];
 
@@ -828,6 +830,13 @@ export default function OutreachHub() {
         {activeTab === 'calendar' && <CalendarTab campaigns={campaigns} />}
         {activeTab === 'campaigns' && (
           <CampaignsTab isAdmin={!!member?.isAdmin} />
+        )}
+        {activeTab === 'crm' && (
+          <CrmTab
+            isAdmin={!!member?.isAdmin}
+            currentMemberId={member?.id}
+            campaigns={campaigns}
+          />
         )}
         {activeTab === 'recommendations' && (
           <>

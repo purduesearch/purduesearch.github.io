@@ -14021,3 +14021,659 @@ html::-webkit-scrollbar { display: none; }
   border-top: 1px solid var(--clubpm-border);
 }
 
+/* ── CRM Tab ──────────────────────────────────────────────────── */
+
+.pm-crm-root {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px 0;
+}
+
+.pm-crm-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.pm-crm-type-chips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.pm-crm-type-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border-radius: 20px;
+  border: 1px solid var(--clubpm-border);
+  background: transparent;
+  color: var(--clubpm-text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.pm-crm-type-chip:hover {
+  background: rgba(255,255,255,0.06);
+  color: var(--clubpm-text-primary);
+}
+.pm-crm-type-chip.active {
+  border-color: var(--pm-accent-teal);
+  color: var(--pm-accent-teal);
+  background: rgba(0,229,204,0.1);
+}
+
+.pm-crm-search {
+  flex: 1;
+  min-width: 180px;
+  max-width: 280px;
+  padding: 7px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--clubpm-border);
+  background: var(--clubpm-surface-2);
+  color: var(--clubpm-text-primary);
+  font-size: 13px;
+}
+.pm-crm-search:focus { outline: none; border-color: var(--pm-accent-teal); }
+
+.pm-crm-import-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--clubpm-border);
+  background: transparent;
+  color: var(--clubpm-text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.pm-crm-import-btn:hover { background: rgba(255,255,255,0.06); color: var(--clubpm-text-primary); }
+
+.pm-crm-add-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 8px;
+  border: none;
+  background: var(--pm-accent-teal);
+  color: #000;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.pm-crm-add-btn:hover { opacity: 0.88; }
+
+/* Kanban board */
+.pm-crm-board {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+}
+
+.pm-crm-column {
+  flex: 0 0 220px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pm-crm-col-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--clubpm-surface-2);
+  border: 1px solid var(--clubpm-border);
+}
+.pm-crm-col-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+.pm-crm-col-count {
+  font-size: 11px;
+  color: var(--clubpm-text-secondary);
+}
+
+.pm-crm-col-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 60px;
+  padding: 4px 0;
+}
+
+/* Contact card */
+.pm-crm-card {
+  background: var(--clubpm-surface-2);
+  border: 1px solid var(--clubpm-border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.pm-crm-card:hover {
+  border-color: var(--pm-accent-teal);
+  box-shadow: 0 2px 12px rgba(0,229,204,0.12);
+}
+.pm-crm-card.is-dragging {
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  opacity: 0.95;
+}
+
+.pm-crm-card-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 5px;
+}
+.pm-crm-card-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+.pm-crm-card-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--clubpm-text-primary);
+  line-height: 1.3;
+}
+.pm-crm-card-org {
+  font-size: 11px;
+  color: var(--clubpm-text-secondary);
+}
+.pm-crm-card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+.pm-crm-card-tag {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: rgba(255,255,255,0.07);
+  color: var(--clubpm-text-secondary);
+}
+.pm-crm-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 8px;
+  font-size: 10px;
+  color: var(--clubpm-text-secondary);
+}
+.pm-crm-card-followup {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.pm-crm-card-followup.overdue { color: #ff7675; }
+
+/* Contact drawer */
+.pm-crm-drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  z-index: 200;
+}
+.pm-crm-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 420px;
+  max-width: 95vw;
+  background: var(--clubpm-surface-1);
+  border-left: 1px solid var(--clubpm-border);
+  z-index: 201;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: -4px 0 32px rgba(0,0,0,0.3);
+}
+
+.pm-crm-drawer-header {
+  padding: 20px 20px 14px;
+  border-bottom: 1px solid var(--clubpm-border);
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.pm-crm-drawer-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 17px;
+  flex-shrink: 0;
+}
+.pm-crm-drawer-title { font-size: 16px; font-weight: 700; color: var(--clubpm-text-primary); }
+.pm-crm-drawer-sub { font-size: 12px; color: var(--clubpm-text-secondary); margin-top: 2px; }
+.pm-crm-drawer-close {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: var(--clubpm-text-secondary);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 4px;
+  line-height: 1;
+}
+.pm-crm-drawer-close:hover { color: var(--clubpm-text-primary); }
+
+.pm-crm-drawer-stage-bar {
+  padding: 10px 20px;
+  display: flex;
+  gap: 6px;
+  border-bottom: 1px solid var(--clubpm-border);
+  flex-wrap: wrap;
+}
+.pm-crm-stage-btn {
+  padding: 4px 10px;
+  border-radius: 16px;
+  border: 1px solid var(--clubpm-border);
+  background: transparent;
+  color: var(--clubpm-text-secondary);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+.pm-crm-stage-btn.active {
+  background: rgba(0,229,204,0.15);
+  border-color: var(--pm-accent-teal);
+  color: var(--pm-accent-teal);
+  font-weight: 700;
+}
+
+.pm-crm-drawer-actions {
+  padding: 8px 20px;
+  display: flex;
+  gap: 8px;
+  border-bottom: 1px solid var(--clubpm-border);
+}
+.pm-crm-drawer-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--clubpm-border);
+  background: transparent;
+  color: var(--clubpm-text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+.pm-crm-drawer-action-btn:hover { background: rgba(255,255,255,0.06); color: var(--clubpm-text-primary); }
+.pm-crm-drawer-action-btn.danger:hover { color: #ff7675; border-color: #ff7675; }
+
+.pm-crm-overdue-banner {
+  margin: 0 20px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: rgba(255,118,117,0.12);
+  border: 1px solid rgba(255,118,117,0.35);
+  color: #ff7675;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Drawer tabs */
+.pm-crm-drawer-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--clubpm-border);
+  padding: 0 20px;
+}
+.pm-crm-drawer-tab {
+  padding: 10px 14px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--clubpm-text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 0.12s, border-color 0.12s;
+}
+.pm-crm-drawer-tab.active {
+  color: var(--pm-accent-teal);
+  border-bottom-color: var(--pm-accent-teal);
+}
+
+.pm-crm-drawer-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.pm-crm-info-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.pm-crm-info-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--clubpm-text-secondary);
+}
+.pm-crm-info-value {
+  font-size: 13px;
+  color: var(--clubpm-text-primary);
+}
+.pm-crm-info-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 2px;
+}
+.pm-crm-info-tag {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.07);
+  color: var(--clubpm-text-secondary);
+}
+
+/* Timeline */
+.pm-crm-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.pm-crm-timeline-item {
+  display: flex;
+  gap: 12px;
+  position: relative;
+  padding-bottom: 16px;
+}
+.pm-crm-timeline-item:last-child { padding-bottom: 0; }
+.pm-crm-timeline-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--pm-accent-teal);
+  flex-shrink: 0;
+  margin-top: 4px;
+}
+.pm-crm-timeline-item::before {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 14px;
+  bottom: 0;
+  width: 2px;
+  background: var(--clubpm-border);
+}
+.pm-crm-timeline-item:last-child::before { display: none; }
+.pm-crm-timeline-content { flex: 1; }
+.pm-crm-timeline-type {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--pm-accent-teal);
+}
+.pm-crm-timeline-summary {
+  font-size: 12px;
+  color: var(--clubpm-text-primary);
+  margin-top: 2px;
+}
+.pm-crm-timeline-meta {
+  font-size: 10px;
+  color: var(--clubpm-text-secondary);
+  margin-top: 3px;
+}
+
+.pm-crm-add-interaction-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid var(--clubpm-border);
+  background: var(--clubpm-surface-2);
+}
+.pm-crm-add-interaction-form select,
+.pm-crm-add-interaction-form input,
+.pm-crm-add-interaction-form textarea {
+  padding: 7px 10px;
+  border-radius: 7px;
+  border: 1px solid var(--clubpm-border);
+  background: var(--clubpm-surface-1);
+  color: var(--clubpm-text-primary);
+  font-size: 12px;
+  width: 100%;
+  box-sizing: border-box;
+}
+.pm-crm-add-interaction-form textarea { resize: vertical; min-height: 56px; }
+.pm-crm-add-interaction-form select:focus,
+.pm-crm-add-interaction-form input:focus,
+.pm-crm-add-interaction-form textarea:focus { outline: none; border-color: var(--pm-accent-teal); }
+.pm-crm-add-interaction-save {
+  align-self: flex-end;
+  padding: 6px 14px;
+  border-radius: 7px;
+  border: none;
+  background: var(--pm-accent-teal);
+  color: #000;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.pm-crm-add-interaction-save:hover { opacity: 0.88; }
+
+/* Email tab */
+.pm-crm-email-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.pm-crm-email-intents {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.pm-crm-intent-btn {
+  padding: 5px 12px;
+  border-radius: 16px;
+  border: 1px solid var(--clubpm-border);
+  background: transparent;
+  color: var(--clubpm-text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+.pm-crm-intent-btn.active {
+  border-color: var(--pm-accent-teal);
+  color: var(--pm-accent-teal);
+  background: rgba(0,229,204,0.1);
+}
+.pm-crm-email-preview {
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid var(--clubpm-border);
+  background: var(--clubpm-surface-2);
+  font-size: 12px;
+  color: var(--clubpm-text-primary);
+  white-space: pre-wrap;
+  max-height: 260px;
+  overflow-y: auto;
+}
+.pm-crm-email-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.pm-crm-email-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--clubpm-border);
+  background: transparent;
+  color: var(--clubpm-text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+  text-decoration: none;
+}
+.pm-crm-email-action-btn:hover { background: rgba(255,255,255,0.06); color: var(--clubpm-text-primary); }
+.pm-crm-email-action-btn.primary { background: var(--pm-accent-teal); color: #000; border-color: transparent; font-weight: 600; }
+.pm-crm-email-action-btn.primary:hover { opacity: 0.88; }
+
+/* Contact form modal */
+.pm-crm-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 300;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.pm-crm-modal {
+  background: var(--clubpm-surface-1);
+  border: 1px solid var(--clubpm-border);
+  border-radius: 14px;
+  width: 100%;
+  max-width: 480px;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.pm-crm-modal-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--clubpm-text-primary);
+  margin-bottom: 4px;
+}
+.pm-crm-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.pm-crm-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.pm-crm-form-group.full { grid-column: 1 / -1; }
+.pm-crm-form-label { font-size: 11px; font-weight: 600; color: var(--clubpm-text-secondary); }
+.pm-crm-form-input,
+.pm-crm-form-select,
+.pm-crm-form-textarea {
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--clubpm-border);
+  background: var(--clubpm-surface-2);
+  color: var(--clubpm-text-primary);
+  font-size: 13px;
+  width: 100%;
+  box-sizing: border-box;
+}
+.pm-crm-form-input:focus,
+.pm-crm-form-select:focus,
+.pm-crm-form-textarea:focus { outline: none; border-color: var(--pm-accent-teal); }
+.pm-crm-form-textarea { resize: vertical; min-height: 72px; }
+.pm-crm-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--clubpm-border);
+}
+.pm-crm-modal-cancel {
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: 1px solid var(--clubpm-border);
+  background: transparent;
+  color: var(--clubpm-text-secondary);
+  font-size: 13px;
+  cursor: pointer;
+}
+.pm-crm-modal-cancel:hover { background: rgba(255,255,255,0.06); }
+.pm-crm-modal-save {
+  padding: 8px 18px;
+  border-radius: 8px;
+  border: none;
+  background: var(--pm-accent-teal);
+  color: #000;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.pm-crm-modal-save:hover { opacity: 0.88; }
+
+/* CSV import modal */
+.pm-crm-import-modal { max-width: 520px; }
+.pm-crm-import-dropzone {
+  border: 2px dashed var(--clubpm-border);
+  border-radius: 10px;
+  padding: 28px;
+  text-align: center;
+  color: var(--clubpm-text-secondary);
+  font-size: 13px;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.pm-crm-import-dropzone:hover { border-color: var(--pm-accent-teal); }
+.pm-crm-import-preview {
+  max-height: 180px;
+  overflow-y: auto;
+  border: 1px solid var(--clubpm-border);
+  border-radius: 8px;
+}
+.pm-crm-import-preview table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+.pm-crm-import-preview th {
+  padding: 5px 8px;
+  text-align: left;
+  background: var(--clubpm-surface-2);
+  color: var(--clubpm-text-secondary);
+  font-weight: 600;
+}
+.pm-crm-import-preview td {
+  padding: 4px 8px;
+  color: var(--clubpm-text-primary);
+  border-top: 1px solid var(--clubpm-border);
+}
+.pm-crm-import-note {
+  font-size: 11px;
+  color: var(--clubpm-text-secondary);
+  line-height: 1.5;
+}
+
