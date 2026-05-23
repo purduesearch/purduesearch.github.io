@@ -1040,6 +1040,57 @@ outreachRouter.delete("/submissions/:id/approvals/:approverId", async (req: Requ
   }
 });
 
+// ── POST /ai/video-script ────────────────────────────────────
+
+outreachRouter.post("/ai/video-script", async (req: Request, res: Response) => {
+  try {
+    const { topic, durationSec, platform, submissionId } = req.body as {
+      topic: string;
+      durationSec?: number;
+      platform?: string;
+      submissionId?: string;
+    };
+    if (!topic?.trim()) {
+      res.status(400).json({ error: "topic is required" });
+      return;
+    }
+
+    const script = await aiOutreachService.generateVideoScript(
+      topic.trim(),
+      durationSec ?? 30,
+      platform ?? "instagram"
+    );
+
+    // Optionally persist to a submission
+    if (submissionId) {
+      await prisma.outreachSubmission.update({
+        where: { id: submissionId },
+        data:  { videoScript: script as never },
+      }).catch(() => { /* ignore — script still returned */ });
+    }
+
+    res.json(script);
+  } catch (error) {
+    console.error("POST /ai/video-script error:", error);
+    res.status(500).json({ error: "Failed to generate video script" });
+  }
+});
+
+outreachRouter.patch("/submissions/:id/video-script", async (req: Request, res: Response) => {
+  try {
+    const { script } = req.body as { script: unknown };
+    const updated = await prisma.outreachSubmission.update({
+      where: { id: req.params.id as string },
+      data:  { videoScript: (script ?? null) as never },
+      select: { id: true, videoScript: true },
+    });
+    res.json(updated);
+  } catch (error) {
+    console.error("PATCH /submissions/:id/video-script error:", error);
+    res.status(500).json({ error: "Failed to save video script" });
+  }
+});
+
 // ── POST /ai/generate-image ──────────────────────────────────
 
 outreachRouter.post("/ai/generate-image", async (req: Request, res: Response) => {

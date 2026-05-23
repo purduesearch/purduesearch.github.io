@@ -87,6 +87,69 @@ Respond with ONLY a valid JSON object (no markdown):
   };
 }
 
+// ── Video script ─────────────────────────────────────────────
+
+export interface VideoShot {
+  shotNumber:   number;
+  durationSec:  number;
+  description:  string;
+  voiceover?:   string;
+  onScreenText?: string;
+}
+
+export interface VideoScript {
+  shots:   VideoShot[];
+  caption: string;
+}
+
+/**
+ * Generate a shot-list for a short-form video / reel using Gemini.
+ */
+export async function generateVideoScript(
+  topic: string,
+  durationSec: number = 30,
+  platform: string = "instagram"
+): Promise<VideoScript> {
+  const prompt = `You are a producer creating short-form video content for Purdue SEARCH, a university engineering club.
+Topic: ${topic}
+Target length: ${durationSec} seconds
+Platform: ${platform} (${platform === "instagram" || platform === "tiktok" ? "vertical 9:16" : "horizontal 16:9"})
+
+Generate a shot-by-shot script with 4-7 shots that totals approximately ${durationSec} seconds.
+For each shot, include: shot number, duration in seconds, what to film (description), optional voiceover line (one short sentence), and optional on-screen text overlay.
+
+Also generate a punchy ${platform} caption for the finished post (under 250 chars), with relevant hashtags.
+
+Respond with ONLY a valid JSON object (no markdown):
+{
+  "shots": [
+    {
+      "shotNumber": 1,
+      "durationSec": 5,
+      "description": "Wide shot of the team gathered around the prototype",
+      "voiceover": "Last week, we hit a major milestone.",
+      "onScreenText": "Milestone unlocked"
+    }
+  ],
+  "caption": "..."
+}`;
+
+  const result = await generateJson<VideoScript>(prompt);
+  if (!result || !Array.isArray(result.shots) || result.shots.length === 0) {
+    return { shots: [], caption: "" };
+  }
+  return {
+    shots: result.shots.slice(0, 8).map((s, i) => ({
+      shotNumber:    i + 1,
+      durationSec:   Number(s.durationSec) || 5,
+      description:   s.description ?? "",
+      voiceover:     s.voiceover,
+      onScreenText:  s.onScreenText,
+    })),
+    caption: result.caption ?? "",
+  };
+}
+
 // ── Caption variants ─────────────────────────────────────────
 
 /**

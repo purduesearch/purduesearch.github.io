@@ -16653,3 +16653,130 @@ html::-webkit-scrollbar { display: none; }
   z-index: 2;
 }
 
+/* ── Video Script Panel ──────────────────────────────────────── */
+
+.pm-video-script {
+  margin-top: 16px;
+  border: 1px solid var(--clubpm-border);
+  border-radius: 10px;
+  background: var(--clubpm-surface-2);
+  padding: 14px;
+}
+.pm-video-script-header {
+  margin-bottom: 10px;
+}
+.pm-video-script-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--clubpm-text-primary);
+}
+.pm-video-script-controls {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.pm-video-script-summary {
+  font-size: 11px;
+  color: var(--clubpm-text-secondary);
+  margin-bottom: 10px;
+}
+.pm-video-script-shots {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.pm-video-shot {
+  display: flex;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--clubpm-surface-1);
+  border: 1px solid var(--clubpm-border);
+  transition: opacity 0.13s;
+}
+.pm-video-shot.done {
+  opacity: 0.55;
+}
+.pm-video-shot.done .pm-video-shot-desc {
+  text-decoration: line-through;
+}
+.pm-video-shot-check {
+  flex-shrink: 0;
+  padding-top: 1px;
+}
+.pm-video-shot-check input { accent-color: var(--pm-accent-teal); transform: scale(1.1); }
+.pm-video-shot-body { flex: 1; }
+.pm-video-shot-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 4px;
+}
+.pm-video-shot-num {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--pm-accent-teal);
+}
+.pm-video-shot-dur {
+  font-size: 10px;
+  color: var(--clubpm-text-secondary);
+  font-family: monospace;
+}
+.pm-video-shot-desc {
+  font-size: 13px;
+  color: var(--clubpm-text-primary);
+  line-height: 1.4;
+}
+.pm-video-shot-vo, .pm-video-shot-text {
+  font-size: 11px;
+  color: var(--clubpm-text-secondary);
+  margin-top: 4px;
+  font-style: italic;
+}
+.pm-video-shot-vo i, .pm-video-shot-text i {
+  margin-right: 4px;
+  color: var(--pm-accent-teal);
+}
+
+.pm-video-script-caption {
+  margin-top: 8px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(0,229,204,0.08);
+  border: 1px dashed var(--pm-accent-teal);
+}
+.pm-video-script-caption-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--pm-accent-teal);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.pm-video-script-caption-insert {
+  margin-left: auto;
+  background: transparent;
+  border: 1px solid var(--pm-accent-teal);
+  color: var(--pm-accent-teal);
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+.pm-video-script-caption-insert:hover { background: rgba(0,229,204,0.15); }
+.pm-video-script-caption p {
+  margin: 0;
+  font-size: 12px;
+  color: var(--clubpm-text-primary);
+  line-height: 1.5;
+}
+

@@ -8,6 +8,7 @@ import TemplatePicker from './TemplatePicker';
 import useSuggestBestTime from './useSuggestBestTime';
 import NewsletterEditor from './NewsletterEditor';
 import SubscriberManager from './SubscriberManager';
+import VideoScriptPanel from './VideoScriptPanel';
 
 // ── Constants ─────────────────────────────────────────────────
 
@@ -246,6 +247,7 @@ export default function ComposerTab({ onSaved }) {
   const [showSubscribers, setShowSubscribers]       = useState(false);
   const [newsletterHtml, setNewsletterHtml]         = useState('');
   const [sendingNewsletter, setSendingNewsletter]   = useState(false);
+  const [videoScript, setVideoScript]               = useState(null);
   const { suggest: suggestBestTime, suggesting: suggestingTime, lastInfo: suggestedTimeInfo } = useSuggestBestTime();
 
   const contentRef = useRef(null);
@@ -420,6 +422,17 @@ export default function ComposerTab({ onSaved }) {
               submissionId={savedId}
               initialHtml={newsletterHtml}
               onChange={setNewsletterHtml}
+            />
+          )}
+
+          {/* Video / reel shot list */}
+          {type === 'VIDEO' && (
+            <VideoScriptPanel
+              submissionId={savedId}
+              initialScript={videoScript}
+              topic={title}
+              onScriptGenerated={setVideoScript}
+              onCaptionInsert={(caption) => setBaseContent(caption)}
             />
           )}
 

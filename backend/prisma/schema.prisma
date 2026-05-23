@@ -549,6 +549,7 @@ model OutreachSubmission {
   safetyReport     Json?    // { safe: bool, issues: [{ category, severity, message, suggestedFix? }] }
   safetyCheckedAt  DateTime?
   newsletterHtml   String?  // Rich HTML for NEWSLETTER-type submissions
+  videoScript      Json?    // [{ shotNumber, durationSec, description, voiceover?, onScreenText? }]
 
   campaign    Campaign?        @relation(fields: [campaignId], references: [id], onDelete: SetNull)
   campaignId  String?
