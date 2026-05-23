@@ -6,6 +6,8 @@ import AiAssistPanel from './AiAssistPanel';
 import AssetPicker from './AssetPicker';
 import TemplatePicker from './TemplatePicker';
 import useSuggestBestTime from './useSuggestBestTime';
+import NewsletterEditor from './NewsletterEditor';
+import SubscriberManager from './SubscriberManager';
 
 // ── Constants ─────────────────────────────────────────────────
 
@@ -241,6 +243,9 @@ export default function ComposerTab({ onSaved }) {
   const [showAiPanel, setShowAiPanel]   = useState(true);
   const [showAssetPicker, setShowAssetPicker] = useState(false);
   const [showTemplatePicker, setShowTemplatePicker] = useState(false);
+  const [showSubscribers, setShowSubscribers]       = useState(false);
+  const [newsletterHtml, setNewsletterHtml]         = useState('');
+  const [sendingNewsletter, setSendingNewsletter]   = useState(false);
   const { suggest: suggestBestTime, suggesting: suggestingTime, lastInfo: suggestedTimeInfo } = useSuggestBestTime();
 
   const contentRef = useRef(null);
@@ -409,6 +414,15 @@ export default function ComposerTab({ onSaved }) {
             <CharCounter content={baseContent} platforms={platforms} />
           </div>
 
+          {/* Newsletter rich-text editor */}
+          {type === 'NEWSLETTER' && (
+            <NewsletterEditor
+              submissionId={savedId}
+              initialHtml={newsletterHtml}
+              onChange={setNewsletterHtml}
+            />
+          )}
+
           {/* Live preview */}
           {showPreview && platforms.length > 0 && (
             <PreviewSection
@@ -524,6 +538,46 @@ export default function ComposerTab({ onSaved }) {
                   <i className="fas fa-check-circle" aria-hidden="true" /> Draft saved
                 </span>
               )}
+              {type === 'NEWSLETTER' && (
+                <>
+                  <button
+                    type="button"
+                    className="cpm-btn cpm-btn--secondary"
+                    onClick={() => setShowSubscribers(true)}
+                    title="Manage newsletter subscribers"
+                  >
+                    <i className="fas fa-users" aria-hidden="true" /> Subscribers
+                  </button>
+                  {savedId && (
+                    <button
+                      type="button"
+                      className="cpm-btn cpm-btn--primary"
+                      onClick={async () => {
+                        if (!newsletterHtml?.trim()) {
+                          toast.error('Newsletter body is empty');
+                          return;
+                        }
+                        if (!window.confirm('Send to all confirmed subscribers? This cannot be undone.')) return;
+                        setSendingNewsletter(true);
+                        try {
+                          const result = await post(`/api/outreach/submissions/${savedId}/newsletter/send`);
+                          const r = result.result ?? {};
+                          toast.success(`Sent to ${r.succeeded ?? 0} (${r.failed ?? 0} failed)`);
+                        } catch (err) {
+                          toast.error(err.message ?? 'Failed to send');
+                        } finally {
+                          setSendingNewsletter(false);
+                        }
+                      }}
+                      disabled={sendingNewsletter}
+                    >
+                      {sendingNewsletter
+                        ? <><span className="pm-bulk-spinner" /> Sending…</>
+                        : <><i className="fas fa-paper-plane" aria-hidden="true" /> Send Newsletter</>}
+                    </button>
+                  )}
+                </>
+              )}
               <button
                 type="button"
                 className="cpm-btn cpm-btn--secondary"
@@ -594,6 +648,11 @@ export default function ComposerTab({ onSaved }) {
           onSaved?.(created);
           toast.success('Template loaded into composer — review & save');
         }}
+      />
+
+      <SubscriberManager
+        isOpen={showSubscribers}
+        onClose={() => setShowSubscribers(false)}
       />
     </div>
   );

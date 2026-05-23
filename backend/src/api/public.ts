@@ -95,6 +95,59 @@ publicRouter.get("/outreach/published", async (req: Request, res: Response) => {
   }
 });
 
+// ── Newsletter unsubscribe ───────────────────────────────────
+
+publicRouter.get("/newsletter/unsubscribe/:token", async (req: Request, res: Response) => {
+  try {
+    const subscriber = await prisma.newsletterSubscriber.findUnique({
+      where:  { unsubscribeToken: req.params.token as string },
+    });
+    if (!subscriber) {
+      res.status(404).send(`<html><body style="font-family: sans-serif; padding: 40px; text-align: center;"><h1>Link not found</h1></body></html>`);
+      return;
+    }
+    if (!subscriber.unsubscribedAt) {
+      await prisma.newsletterSubscriber.update({
+        where: { id: subscriber.id },
+        data:  { unsubscribedAt: new Date() },
+      });
+    }
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    res.send(`<html><body style="font-family: sans-serif; padding: 40px; text-align: center; background: #f8fafb;">
+      <h1 style="color: #0096a8;">Unsubscribed</h1>
+      <p>You won't receive any more Purdue SEARCH newsletters at ${subscriber.email}.</p>
+      <p style="font-size: 12px; color: #888; margin-top: 30px;">Changed your mind? Contact us to resubscribe.</p>
+    </body></html>`);
+  } catch (error) {
+    console.error("GET /public/newsletter/unsubscribe error:", error);
+    res.status(500).send("Server error");
+  }
+});
+
+// ── Newsletter open tracking pixel ───────────────────────────
+
+const PIXEL_PNG = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=",
+  "base64"
+);
+
+publicRouter.get("/newsletter/track/open/:sendId.png", async (req: Request, res: Response) => {
+  try {
+    const sendId = req.params.sendId as string;
+    // Fire-and-forget increment
+    prisma.newsletterSend.update({
+      where: { id: sendId },
+      data:  { opens: { increment: 1 } },
+    }).catch(() => { /* ignore unknown send IDs */ });
+  } catch {
+    /* ignore */
+  }
+  res.setHeader("Content-Type", "image/png");
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
+  res.setHeader("Pragma", "no-cache");
+  res.send(PIXEL_PNG);
+});
+
 // ── GET /public/press-kit/:projectId/:token ──────────────────
 
 publicRouter.get("/press-kit/:projectId/:token", async (req: Request, res: Response) => {

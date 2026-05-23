@@ -1040,6 +1040,163 @@ outreachRouter.delete("/submissions/:id/approvals/:approverId", async (req: Requ
   }
 });
 
+// ── Newsletter ───────────────────────────────────────────────
+
+outreachRouter.get("/subscribers", async (_req: Request, res: Response) => {
+  try {
+    const subs = await prisma.newsletterSubscriber.findMany({
+      orderBy: { createdAt: "desc" },
+    });
+    res.json(subs);
+  } catch (error) {
+    console.error("GET /subscribers error:", error);
+    res.status(500).json({ error: "Failed to list subscribers" });
+  }
+});
+
+outreachRouter.post("/subscribers", async (req: Request, res: Response) => {
+  try {
+    const { randomBytes } = await import("node:crypto");
+    const { subscribers } = req.body as {
+      subscribers?: { email: string; name?: string }[];
+    };
+    if (!Array.isArray(subscribers) || subscribers.length === 0) {
+      res.status(400).json({ error: "subscribers array required" });
+      return;
+    }
+    let created = 0, skipped = 0;
+    for (const s of subscribers) {
+      if (!s.email?.trim()) { skipped++; continue; }
+      try {
+        await prisma.newsletterSubscriber.create({
+          data: {
+            email:            s.email.trim().toLowerCase(),
+            name:             s.name?.trim() ?? null,
+            unsubscribeToken: randomBytes(16).toString("hex"),
+            source:           "import",
+            confirmedAt:      new Date(),
+          },
+        });
+        created++;
+      } catch {
+        skipped++;
+      }
+    }
+    res.status(201).json({ created, skipped });
+  } catch (error) {
+    console.error("POST /subscribers error:", error);
+    res.status(500).json({ error: "Failed to import subscribers" });
+  }
+});
+
+outreachRouter.delete("/subscribers/:id", async (req: Request, res: Response) => {
+  try {
+    await prisma.newsletterSubscriber.delete({ where: { id: req.params.id as string } });
+    res.json({ ok: true });
+  } catch (error) {
+    console.error("DELETE /subscribers/:id error:", error);
+    res.status(500).json({ error: "Failed to delete subscriber" });
+  }
+});
+
+outreachRouter.post("/submissions/:id/newsletter/send", async (req: Request, res: Response) => {
+  try {
+    const submission = await prisma.outreachSubmission.findUnique({
+      where: { id: req.params.id as string },
+    });
+    if (!submission) {
+      res.status(404).json({ error: "Submission not found" });
+      return;
+    }
+    if (submission.type !== "NEWSLETTER") {
+      res.status(400).json({ error: "Submission is not type NEWSLETTER" });
+      return;
+    }
+    if (!submission.newsletterHtml?.trim()) {
+      res.status(400).json({ error: "Newsletter HTML is empty" });
+      return;
+    }
+
+    // Admin gate
+    const me = await prisma.member.findUnique({
+      where: { id: req.session.memberId },
+      select: { isAdmin: true },
+    });
+    if (!me?.isAdmin) {
+      res.status(403).json({ error: "Admin only" });
+      return;
+    }
+
+    const subscribers = await prisma.newsletterSubscriber.findMany({
+      where: { confirmedAt: { not: null }, unsubscribedAt: null },
+      select: { email: true, unsubscribeToken: true },
+    });
+
+    if (subscribers.length === 0) {
+      res.status(400).json({ error: "No confirmed subscribers" });
+      return;
+    }
+
+    // Create the NewsletterSend up-front so the tracking pixel can reference it
+    const send = await prisma.newsletterSend.create({
+      data: {
+        submissionId:   submission.id,
+        recipientCount: subscribers.length,
+      },
+    });
+
+    const baseUrl = `${req.protocol}://${req.get("host")}`;
+    const pixelUrl = (sendId: string) => `${baseUrl}/api/public/newsletter/track/open/${sendId}.png`;
+    const wrap = (innerHtml: string, unsubscribeToken: string) => `
+<!DOCTYPE html>
+<html><body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; color: #1a1d29;">
+${innerHtml}
+<hr style="margin-top: 36px; border: none; border-top: 1px solid #ddd;" />
+<p style="font-size: 11px; color: #888; margin-top: 16px;">
+  You're receiving this because you subscribed to Purdue SEARCH updates.
+  <a href="${baseUrl}/api/public/newsletter/unsubscribe/${unsubscribeToken}" style="color: #0096a8;">Unsubscribe</a>.
+</p>
+<img src="${pixelUrl(send.id)}" width="1" height="1" alt="" style="display: block;" />
+</body></html>`;
+
+    const { sendBatch } = await import("../services/emailService.js");
+    const result = await sendBatch(
+      subscribers.map(s => s.email),
+      submission.title,
+      (email) => {
+        const s = subscribers.find(x => x.email === email)!;
+        return wrap(submission.newsletterHtml!, s.unsubscribeToken);
+      }
+    );
+
+    // Advance status to PUBLISHED
+    await prisma.outreachSubmission.update({
+      where: { id: submission.id },
+      data:  { status: "PUBLISHED", publishedAt: new Date() },
+    });
+
+    res.json({ send, result });
+  } catch (error) {
+    console.error("POST /submissions/:id/newsletter/send error:", error);
+    res.status(500).json({ error: "Failed to send newsletter" });
+  }
+});
+
+outreachRouter.patch("/submissions/:id/newsletter-html", async (req: Request, res: Response) => {
+  try {
+    const { html } = req.body as { html?: string };
+    const updated = await prisma.outreachSubmission.update({
+      where: { id: req.params.id as string },
+      data:  { newsletterHtml: html ?? null },
+      select: { id: true, newsletterHtml: true },
+    });
+    res.json(updated);
+  } catch (error) {
+    console.error("PATCH /submissions/:id/newsletter-html error:", error);
+    res.status(500).json({ error: "Failed to save newsletter HTML" });
+  }
+});
+
 // ── POST /press-kit/:projectId — mint / return token ────────
 
 outreachRouter.post("/press-kit/:projectId", async (req: Request, res: Response) => {

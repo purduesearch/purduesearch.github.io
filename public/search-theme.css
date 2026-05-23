@@ -16541,3 +16541,74 @@ html::-webkit-scrollbar { display: none; }
   flex-shrink: 0;
 }
 
+/* ── Newsletter Editor ───────────────────────────────────────── */
+
+.pm-newsletter-editor {
+  margin-top: 16px;
+  border: 1px solid var(--clubpm-border);
+  border-radius: 10px;
+  background: var(--clubpm-surface-2);
+  overflow: hidden;
+}
+.pm-newsletter-editor-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--clubpm-border);
+}
+.pm-newsletter-editor-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--clubpm-text-primary);
+}
+.pm-newsletter-preview-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 7px;
+  border: 1px solid var(--clubpm-border);
+  background: transparent;
+  color: var(--clubpm-text-secondary);
+  font-size: 11px;
+  cursor: pointer;
+}
+.pm-newsletter-preview-toggle:hover { color: var(--pm-accent-teal); border-color: var(--pm-accent-teal); }
+
+.pm-newsletter-quill-wrap {
+  background: #fff;
+  color: #1a1d29;
+}
+.pm-newsletter-quill-wrap .ql-toolbar.ql-snow {
+  border: none;
+  border-bottom: 1px solid #e0e3e7;
+  background: #fafbfc;
+}
+.pm-newsletter-quill-wrap .ql-container.ql-snow {
+  border: none;
+  min-height: 240px;
+  font-size: 14px;
+  font-family: 'DM Sans', system-ui, sans-serif;
+}
+.pm-newsletter-quill-wrap .ql-editor {
+  min-height: 240px;
+}
+
+.pm-newsletter-preview {
+  padding: 24px;
+  background: #fff;
+  color: #1a1d29;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+  max-height: 480px;
+  overflow-y: auto;
+}
+.pm-newsletter-preview h1, .pm-newsletter-preview h2, .pm-newsletter-preview h3 {
+  color: #0a1929;
+  margin-top: 16px;
+}
+.pm-newsletter-preview a { color: #0096a8; }
+.pm-newsletter-preview img { max-width: 100%; height: auto; }
+

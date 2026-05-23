@@ -548,6 +548,7 @@ model OutreachSubmission {
   placeholders     Json?    // [{ key: "memberName", description: "Who to feature" }]
   safetyReport     Json?    // { safe: bool, issues: [{ category, severity, message, suggestedFix? }] }
   safetyCheckedAt  DateTime?
+  newsletterHtml   String?  // Rich HTML for NEWSLETTER-type submissions
 
   campaign    Campaign?        @relation(fields: [campaignId], references: [id], onDelete: SetNull)
   campaignId  String?
@@ -557,6 +558,7 @@ model OutreachSubmission {
   metrics     PostMetric[]
   recurrences RecurringTemplate[]
   approvals   ApprovalRecord[]
+  newsletterSends NewsletterSend[]
 
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
@@ -711,6 +713,29 @@ model PostMetric {
   @@index([submissionId])
   @@index([platform])
   @@index([recordedAt])
+}
+
+model NewsletterSubscriber {
+  id              String    @id @default(cuid())
+  email           String    @unique
+  name            String?
+  unsubscribeToken String   @unique
+  confirmedAt     DateTime?
+  unsubscribedAt  DateTime?
+  source          String?   // "import" | "self-signup" | "manual"
+  createdAt       DateTime  @default(now())
+}
+
+model NewsletterSend {
+  id             String   @id @default(cuid())
+  submissionId   String
+  submission     OutreachSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  sentAt         DateTime @default(now())
+  recipientCount Int      @default(0)
+  opens          Int      @default(0)
+  clicks         Int      @default(0)
+
+  @@index([submissionId])
 }
 
 model ApprovalRecord {
