@@ -94,7 +94,7 @@ campaignsRouter.get("/:id/progress", async (req: Request, res: Response) => {
 
 campaignsRouter.post("/", async (req: Request, res: Response) => {
   try {
-    const { name, description, startDate, endDate, goalType, goalTarget, color } = req.body as {
+    const { name, description, startDate, endDate, goalType, goalTarget, color, requiredApprovers } = req.body as {
       name: string;
       description?: string;
       startDate: string;
@@ -102,6 +102,7 @@ campaignsRouter.post("/", async (req: Request, res: Response) => {
       goalType?: string;
       goalTarget?: number;
       color?: string;
+      requiredApprovers?: string[];
     };
 
     if (!name?.trim() || !startDate) {
@@ -119,6 +120,7 @@ campaignsRouter.post("/", async (req: Request, res: Response) => {
         goalTarget: goalTarget ?? null,
         color: color ?? null,
         ownerId: req.session.memberId!,
+        requiredApprovers: Array.isArray(requiredApprovers) ? requiredApprovers : [],
       },
       include: CAMPAIGN_INCLUDE,
     });
@@ -151,7 +153,7 @@ campaignsRouter.patch("/:id", async (req: Request, res: Response) => {
       }
     }
 
-    const { name, description, startDate, endDate, goalType, goalTarget, goalProgress, color } = req.body as {
+    const { name, description, startDate, endDate, goalType, goalTarget, goalProgress, color, requiredApprovers } = req.body as {
       name?: string;
       description?: string | null;
       startDate?: string;
@@ -160,6 +162,7 @@ campaignsRouter.patch("/:id", async (req: Request, res: Response) => {
       goalTarget?: number | null;
       goalProgress?: number;
       color?: string | null;
+      requiredApprovers?: string[];
     };
 
     const updated = await prisma.campaign.update({
@@ -173,6 +176,7 @@ campaignsRouter.patch("/:id", async (req: Request, res: Response) => {
         ...(goalTarget !== undefined ? { goalTarget } : {}),
         ...(goalProgress != null ? { goalProgress } : {}),
         ...(color !== undefined ? { color } : {}),
+        ...(Array.isArray(requiredApprovers) ? { requiredApprovers } : {}),
       },
       include: CAMPAIGN_INCLUDE,
     });

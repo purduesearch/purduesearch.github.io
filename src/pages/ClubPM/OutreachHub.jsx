@@ -5,6 +5,7 @@ import { useClubPmAuth } from '../../clubpm/ClubPmAuth';
 import SubmissionFormModal from '../../components/clubpm/SubmissionFormModal';
 import CommentThread from '../../components/clubpm/CommentThread';
 import SafetyBadge from '../../components/clubpm/SafetyBadge';
+import ApprovalChips from '../../components/clubpm/ApprovalChips';
 import ComposerTab from '../../components/clubpm/ComposerTab';
 import CrossPostBundle from '../../components/clubpm/CrossPostBundle';
 import BrandVoiceAdmin from '../../components/clubpm/BrandVoiceAdmin';
@@ -186,6 +187,18 @@ function SubmissionCard({ submission, member, onEdit, onReview, onDelete, onCopy
             checkedAt={submission.safetyCheckedAt}
             onUpdate={({ report, checkedAt }) => onSafetyUpdate?.(submission.id, { safetyReport: report, safetyCheckedAt: checkedAt })}
             compact
+          />
+        </div>
+      )}
+
+      {/* Approval workflow chips (shows only when campaign has requiredApprovers) */}
+      {submission.campaignId && ['SUBMITTED', 'IN_REVIEW'].includes(submission.status) && (
+        <div style={{ marginTop: 6 }}>
+          <ApprovalChips
+            submissionId={submission.id}
+            currentMemberId={member?.id}
+            isAdmin={!!member?.isAdmin}
+            onAdvanced={() => onSafetyUpdate?.(submission.id, { status: 'APPROVED' })}
           />
         </div>
       )}

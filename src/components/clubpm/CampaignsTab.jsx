@@ -74,7 +74,23 @@ function CampaignFormModal({ initial, onSave, onClose }) {
     initial?.endDate ? initial.endDate.slice(0, 10) : ''
   );
   const [color,       setColor]       = useState(initial?.color ?? '#a29bfe');
+  const [requiredApprovers, setRequiredApprovers] = useState(initial?.requiredApprovers ?? []);
+  const [members,     setMembers]     = useState([]);
   const [saving,      setSaving]      = useState(false);
+
+  useEffect(() => {
+    get('/api/members')
+      .then(data => setMembers((Array.isArray(data) ? data : []).filter(m => !m.isBot)))
+      .catch(() => {});
+  }, []);
+
+  function toggleApprover(memberId) {
+    setRequiredApprovers(prev =>
+      prev.includes(memberId)
+        ? prev.filter(id => id !== memberId)
+        : [...prev, memberId]
+    );
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -92,6 +108,7 @@ function CampaignFormModal({ initial, onSave, onClose }) {
         goalType: goalType || null,
         goalTarget: goalTarget !== '' ? Number(goalTarget) : null,
         color,
+        requiredApprovers,
       });
     } finally {
       setSaving(false);
@@ -205,6 +222,37 @@ function CampaignFormModal({ initial, onSave, onClose }) {
                 onChange={e => setColor(e.target.value)}
                 title="Custom color"
               />
+            </div>
+          </div>
+
+          <div className="cpm-form-group">
+            <label className="cpm-form-label">
+              Required Approvers <span style={{ fontSize: 11, color: 'var(--clubpm-text-secondary)', fontWeight: 400 }}>(submissions in this campaign need all selected members to approve before they can advance to APPROVED)</span>
+            </label>
+            <div className="pm-campaign-approver-grid">
+              {members.length === 0 && (
+                <div style={{ fontSize: 12, color: 'var(--clubpm-text-secondary)' }}>Loading members…</div>
+              )}
+              {members.map(m => {
+                const isSelected = requiredApprovers.includes(m.id);
+                return (
+                  <button
+                    key={m.id}
+                    type="button"
+                    className={`pm-campaign-approver-chip${isSelected ? ' pm-campaign-approver-chip--active' : ''}`}
+                    onClick={() => toggleApprover(m.id)}
+                    title={m.displayName}
+                  >
+                    {m.avatarUrl
+                      ? <img src={m.avatarUrl} alt="" className="pm-campaign-approver-avatar" />
+                      : <div className="pm-campaign-approver-avatar pm-campaign-approver-avatar--initials">
+                          {(m.displayName ?? '?').slice(0, 2).toUpperCase()}
+                        </div>}
+                    <span className="pm-campaign-approver-name">{m.displayName}</span>
+                    {isSelected && <i className="fas fa-check" aria-hidden="true" style={{ color: 'var(--pm-accent-teal)', fontSize: 10 }} />}
+                  </button>
+                );
+              })}
             </div>
           </div>
 

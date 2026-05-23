@@ -154,6 +154,7 @@ model Member {
   contactInteractions ContactInteraction[]
   recordedMetrics PostMetric[]
   ownedRecurringTemplates RecurringTemplate[] @relation("RecurringTemplateOwner")
+  submissionApprovals ApprovalRecord[] @relation("SubmissionApprover")
   createdAt       DateTime        @default(now())
 }
 
@@ -553,6 +554,7 @@ model OutreachSubmission {
   utmLinks    UtmLink[]
   metrics     PostMetric[]
   recurrences RecurringTemplate[]
+  approvals   ApprovalRecord[]
 
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
@@ -616,21 +618,22 @@ model OutreachAsset {
 }
 
 model Campaign {
-  id           String   @id @default(cuid())
-  name         String
-  description  String?
-  startDate    DateTime
-  endDate      DateTime?
-  goalType     String?  // "RECRUITMENT" | "SPONSORSHIP" | "EVENT" | "AWARENESS"
-  goalTarget   Int?
-  goalProgress Int      @default(0)
-  color        String?  // hex for calendar/board chip
-  ownerId      String
-  owner        Member   @relation("CampaignOwner", fields: [ownerId], references: [id])
-  submissions  OutreachSubmission[]
-  contacts     OutreachContact[]
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id                String   @id @default(cuid())
+  name              String
+  description       String?
+  startDate         DateTime
+  endDate           DateTime?
+  goalType          String?  // "RECRUITMENT" | "SPONSORSHIP" | "EVENT" | "AWARENESS"
+  goalTarget        Int?
+  goalProgress      Int      @default(0)
+  color             String?  // hex for calendar/board chip
+  ownerId           String
+  owner             Member   @relation("CampaignOwner", fields: [ownerId], references: [id])
+  requiredApprovers String[] @default([])  // member IDs who must approve before APPROVED status
+  submissions       OutreachSubmission[]
+  contacts          OutreachContact[]
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
   @@index([ownerId])
 }
@@ -704,6 +707,19 @@ model PostMetric {
   @@index([submissionId])
   @@index([platform])
   @@index([recordedAt])
+}
+
+model ApprovalRecord {
+  id           String   @id @default(cuid())
+  submissionId String
+  submission   OutreachSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  approverId   String
+  approver     Member   @relation("SubmissionApprover", fields: [approverId], references: [id])
+  approvedAt   DateTime @default(now())
+  comment      String?
+
+  @@unique([submissionId, approverId])
+  @@index([submissionId])
 }
 
 model RecurringTemplate {

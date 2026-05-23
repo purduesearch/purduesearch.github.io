@@ -163,6 +163,32 @@ outreachRouter.patch("/submissions/:id", async (req: Request, res: Response) => 
       placeholders?: unknown;
     };
 
+    // Approval gate: block status transition to APPROVED if campaign has
+    // requiredApprovers and not all have signed off (admin override via
+    // ?override=1 query bypasses this).
+    if (status === "APPROVED" && submission.status !== "APPROVED" && submission.campaignId) {
+      const campaign = await prisma.campaign.findUnique({
+        where:  { id: submission.campaignId },
+        select: { requiredApprovers: true },
+      });
+      const required = campaign?.requiredApprovers ?? [];
+      if (required.length > 0) {
+        const approvals = await prisma.approvalRecord.findMany({
+          where:  { submissionId: submission.id },
+          select: { approverId: true },
+        });
+        const approvedIds = new Set(approvals.map(a => a.approverId));
+        const missing = required.filter(id => !approvedIds.has(id));
+        if (missing.length > 0 && req.query.override !== "1") {
+          res.status(409).json({
+            error: "Approval workflow incomplete",
+            missingApproverIds: missing,
+          });
+          return;
+        }
+      }
+    }
+
     const updated = await outreachService.updateSubmission(req.params.id as string, {
       title,
       type,
@@ -879,6 +905,138 @@ outreachRouter.get("/activity", async (_req: Request, res: Response) => {
   } catch (error) {
     console.error("GET /activity error:", error);
     res.status(500).json({ error: "Failed to load activity feed" });
+  }
+});
+
+// ── Approvals ────────────────────────────────────────────────
+
+outreachRouter.get("/submissions/:id/approvals", async (req: Request, res: Response) => {
+  try {
+    const submission = await prisma.outreachSubmission.findUnique({
+      where: { id: req.params.id as string },
+      include: { campaign: { select: { requiredApprovers: true } } },
+    });
+    if (!submission) {
+      res.status(404).json({ error: "Submission not found" });
+      return;
+    }
+
+    const required = submission.campaign?.requiredApprovers ?? [];
+    const approvals = await prisma.approvalRecord.findMany({
+      where:   { submissionId: req.params.id as string },
+      include: { approver: { select: { id: true, displayName: true, avatarUrl: true } } },
+      orderBy: { approvedAt: "asc" },
+    });
+
+    const approvedIds = new Set(approvals.map(a => a.approverId));
+    const remaining = required.filter(id => !approvedIds.has(id));
+
+    // Resolve remaining approver display info
+    const remainingMembers = remaining.length > 0
+      ? await prisma.member.findMany({
+          where:  { id: { in: remaining } },
+          select: { id: true, displayName: true, avatarUrl: true },
+        })
+      : [];
+
+    res.json({
+      required,
+      approvals,
+      remaining: remainingMembers,
+      complete: required.length > 0 && remaining.length === 0,
+    });
+  } catch (error) {
+    console.error("GET /submissions/:id/approvals error:", error);
+    res.status(500).json({ error: "Failed to load approvals" });
+  }
+});
+
+outreachRouter.post("/submissions/:id/approvals", async (req: Request, res: Response) => {
+  try {
+    const submission = await prisma.outreachSubmission.findUnique({
+      where: { id: req.params.id as string },
+      include: { campaign: { select: { requiredApprovers: true } } },
+    });
+    if (!submission) {
+      res.status(404).json({ error: "Submission not found" });
+      return;
+    }
+
+    const required = submission.campaign?.requiredApprovers ?? [];
+    const memberId = req.session.memberId!;
+
+    // Only required approvers (or admins) can approve
+    const isRequired = required.includes(memberId);
+    let isAdminOverride = false;
+    if (!isRequired) {
+      const me = await prisma.member.findUnique({
+        where: { id: memberId },
+        select: { isAdmin: true },
+      });
+      if (!me?.isAdmin) {
+        res.status(403).json({ error: "Not a required approver for this submission" });
+        return;
+      }
+      isAdminOverride = true;
+    }
+
+    const { comment } = (req.body as { comment?: string }) ?? {};
+
+    // Upsert approval (one per approver)
+    const record = await prisma.approvalRecord.upsert({
+      where:  { submissionId_approverId: { submissionId: submission.id, approverId: memberId } },
+      create: { submissionId: submission.id, approverId: memberId, comment: comment?.trim() || null },
+      update: { approvedAt: new Date(), comment: comment?.trim() || null },
+      include: { approver: { select: { id: true, displayName: true, avatarUrl: true } } },
+    });
+
+    // If all required approvers (or admin override) have approved, advance status
+    const approvals = await prisma.approvalRecord.findMany({
+      where:  { submissionId: submission.id },
+      select: { approverId: true },
+    });
+    const approvedIds = new Set(approvals.map(a => a.approverId));
+    const complete = required.length > 0 && required.every(id => approvedIds.has(id));
+
+    let advanced = false;
+    if ((complete || (isAdminOverride && required.length === 0)) && submission.status !== "APPROVED" && submission.status !== "PUBLISHED") {
+      await prisma.outreachSubmission.update({
+        where: { id: submission.id },
+        data:  { status: "APPROVED", reviewerId: memberId },
+      });
+      advanced = true;
+    }
+
+    res.status(201).json({ record, complete, advanced });
+  } catch (error) {
+    console.error("POST /submissions/:id/approvals error:", error);
+    res.status(500).json({ error: "Failed to record approval" });
+  }
+});
+
+outreachRouter.delete("/submissions/:id/approvals/:approverId", async (req: Request, res: Response) => {
+  try {
+    const memberId = req.session.memberId!;
+    if (memberId !== req.params.approverId) {
+      const me = await prisma.member.findUnique({
+        where: { id: memberId },
+        select: { isAdmin: true },
+      });
+      if (!me?.isAdmin) {
+        res.status(403).json({ error: "Can only retract your own approval" });
+        return;
+      }
+    }
+    await prisma.approvalRecord.deleteMany({
+      where: {
+        submissionId: req.params.id as string,
+        approverId:   req.params.approverId as string,
+      },
+    });
+    res.json({ ok: true });
+  } catch (error) {
+    console.error("DELETE /submissions/:id/approvals/:approverId error:", error);
+    res.status(500).json({ error: "Failed to retract approval" });
   }
 });
 
