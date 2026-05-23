@@ -366,6 +366,31 @@ function CampaignDetailDrawer({ campaign, onClose, onEdit, isAdmin }) {
     toast.success('Progress updated.');
   };
 
+  // Public toggle state — mirrors campaign.isPublic but updates locally on toggle
+  const [isPublic, setIsPublic] = useState(!!campaign.isPublic);
+  useEffect(() => { setIsPublic(!!campaign.isPublic); }, [campaign.isPublic]);
+
+  const publicUrl = campaign.slug ? `${window.location.origin}/r/c/${campaign.slug}` : '';
+
+  async function togglePublic() {
+    const next = !isPublic;
+    setIsPublic(next);  // optimistic
+    try {
+      await patch(`/api/outreach/campaigns/${campaign.id}`, { isPublic: next });
+      toast.success(next ? 'Campaign is now public' : 'Campaign is no longer public');
+    } catch (err) {
+      setIsPublic(!next);  // revert
+      toast.error(err.message ?? 'Failed to update');
+    }
+  }
+
+  function copyPublicUrl() {
+    if (!publicUrl) return;
+    navigator.clipboard.writeText(publicUrl)
+      .then(() => toast.success('Public link copied'))
+      .catch(() => toast.error('Failed to copy'));
+  }
+
   return (
     <div className="pm-campaign-drawer-overlay" onClick={onClose}>
       <div className="pm-campaign-drawer" onClick={e => e.stopPropagation()}>
@@ -410,6 +435,31 @@ function CampaignDetailDrawer({ campaign, onClose, onEdit, isAdmin }) {
                 }
                 {' '}{campaign.owner.displayName}
               </span>
+            )}
+          </div>
+
+          {/* Public link toggle */}
+          <div className="pm-campaign-public-row">
+            <label className="pm-campaign-public-toggle">
+              <input
+                type="checkbox"
+                checked={isPublic}
+                onChange={togglePublic}
+                disabled={!isAdmin}
+              />
+              <i className={`fas fa-${isPublic ? 'globe-americas' : 'lock'}`} aria-hidden="true" />
+              {isPublic ? 'Public' : 'Make public'}
+            </label>
+            {isPublic && publicUrl && (
+              <>
+                <span className="pm-campaign-public-url" title={publicUrl}>{publicUrl}</span>
+                <button className="pm-campaign-public-copy" onClick={copyPublicUrl} title="Copy public link">
+                  <i className="fas fa-copy" aria-hidden="true" />
+                </button>
+                <a href={publicUrl} target="_blank" rel="noreferrer" className="pm-campaign-public-copy" title="Open">
+                  <i className="fas fa-external-link-alt" aria-hidden="true" />
+                </a>
+              </>
             )}
           </div>
         </div>

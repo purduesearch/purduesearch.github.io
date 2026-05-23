@@ -25,6 +25,7 @@ import { brandVoicesRouter } from "./api/brandVoices.js";
 import { campaignsRouter } from "./api/campaigns.js";
 import { contactsRouter } from "./api/contacts.js";
 import { insightsRouter } from "./api/insights.js";
+import { publicRouter } from "./api/public.js";
 
 // ── Express Setup ────────────────────────────────────────────
 
@@ -88,6 +89,7 @@ app.use("/api/outreach/brand-voices", brandVoicesRouter);
 app.use("/api/outreach/campaigns", campaignsRouter);
 app.use("/api/outreach/contacts", contactsRouter);
 app.use("/api/outreach/insights", insightsRouter);
+app.use("/api/public", publicRouter);
 app.use("/r", redirectRouter);
 
 // Health check

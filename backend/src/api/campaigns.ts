@@ -110,6 +110,15 @@ campaignsRouter.post("/", async (req: Request, res: Response) => {
       return;
     }
 
+    // Auto-generate slug from name; ensure uniqueness with a numeric suffix if needed
+    const baseSlug = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60) || "campaign";
+    let slug = baseSlug;
+    let suffix = 1;
+    while (await prisma.campaign.findUnique({ where: { slug }, select: { id: true } })) {
+      suffix += 1;
+      slug = `${baseSlug}-${suffix}`;
+    }
+
     const campaign = await prisma.campaign.create({
       data: {
         name: name.trim(),
@@ -121,6 +130,8 @@ campaignsRouter.post("/", async (req: Request, res: Response) => {
         color: color ?? null,
         ownerId: req.session.memberId!,
         requiredApprovers: Array.isArray(requiredApprovers) ? requiredApprovers : [],
+        slug,
+        isPublic: false,
       },
       include: CAMPAIGN_INCLUDE,
     });
@@ -153,7 +164,7 @@ campaignsRouter.patch("/:id", async (req: Request, res: Response) => {
       }
     }
 
-    const { name, description, startDate, endDate, goalType, goalTarget, goalProgress, color, requiredApprovers } = req.body as {
+    const { name, description, startDate, endDate, goalType, goalTarget, goalProgress, color, requiredApprovers, isPublic } = req.body as {
       name?: string;
       description?: string | null;
       startDate?: string;
@@ -163,6 +174,7 @@ campaignsRouter.patch("/:id", async (req: Request, res: Response) => {
       goalProgress?: number;
       color?: string | null;
       requiredApprovers?: string[];
+      isPublic?: boolean;
     };
 
     const updated = await prisma.campaign.update({
@@ -177,6 +189,7 @@ campaignsRouter.patch("/:id", async (req: Request, res: Response) => {
         ...(goalProgress != null ? { goalProgress } : {}),
         ...(color !== undefined ? { color } : {}),
         ...(Array.isArray(requiredApprovers) ? { requiredApprovers } : {}),
+        ...(typeof isPublic === "boolean" ? { isPublic } : {}),
       },
       include: CAMPAIGN_INCLUDE,
     });

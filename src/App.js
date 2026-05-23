@@ -17,6 +17,7 @@ import NotificationPreferences from './components/clubpm/NotificationPreferences
 import CalendarPage from './pages/ClubPM/CalendarPage';
 import MeetingNotesView from './pages/ClubPM/MeetingNotesView';
 import OutreachHub from './pages/ClubPM/OutreachHub';
+import PublicCampaign from './pages/PublicCampaign';
 import Home from './pages/Home';
 import About from './pages/About';
 import Research from './pages/Research';
@@ -69,6 +70,9 @@ function AnimatedRoutes() {
           <Route path="/clubpm/calendar" element={<ClubPmProtectedPage><CalendarPage /></ClubPmProtectedPage>} />
           <Route path="/clubpm/meeting-notes" element={<ClubPmProtectedPage><MeetingNotesView /></ClubPmProtectedPage>} />
           <Route path="/clubpm/outreach" element={<ClubPmProtectedPage><OutreachHub /></ClubPmProtectedPage>} />
+
+          {/* Public outreach routes (no auth) */}
+          <Route path="/r/c/:slug" element={<PublicCampaign />} />
 
           {/* Main site routes */}
           <Route path="/" element={<PageWrapper><Home /></PageWrapper>} />

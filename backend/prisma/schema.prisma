@@ -630,6 +630,8 @@ model Campaign {
   ownerId           String
   owner             Member   @relation("CampaignOwner", fields: [ownerId], references: [id])
   requiredApprovers String[] @default([])  // member IDs who must approve before APPROVED status
+  slug              String?  @unique
+  isPublic          Boolean  @default(false)
   submissions       OutreachSubmission[]
   contacts          OutreachContact[]
   createdAt         DateTime @default(now())
