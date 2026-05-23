@@ -2182,6 +2182,21 @@ export default function ProjectDetail() {
                 </div>
               </div>
               <button
+                className="pm-pin-btn"
+                title="Generate Press Kit (one-page PDF for sponsors / press)"
+                onClick={async () => {
+                  try {
+                    const result = await post(`/api/outreach/press-kit/${project.id}`);
+                    window.open(result.url, '_blank', 'noopener');
+                  } catch (err) {
+                    alert(err.message ?? 'Failed to generate press kit');
+                  }
+                }}
+                style={{ marginRight: 4 }}
+              >
+                <i className="fas fa-file-pdf" aria-hidden="true" style={{ fontSize: 14 }} />
+              </button>
+              <button
                 className={`pm-pin-btn${pinned ? ' active' : ''}`}
                 onClick={() => setPinned(p => {
                   const next = !p;

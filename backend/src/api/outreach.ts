@@ -1040,6 +1040,20 @@ outreachRouter.delete("/submissions/:id/approvals/:approverId", async (req: Requ
   }
 });
 
+// ── POST /press-kit/:projectId — mint / return token ────────
+
+outreachRouter.post("/press-kit/:projectId", async (req: Request, res: Response) => {
+  try {
+    const { ensurePressKitToken } = await import("../services/pressKitService.js");
+    const token = await ensurePressKitToken(req.params.projectId as string);
+    const url = `${req.protocol}://${req.get("host")}/api/public/press-kit/${req.params.projectId}/${token}`;
+    res.json({ token, url });
+  } catch (error) {
+    console.error("POST /press-kit/:projectId error:", error);
+    res.status(500).json({ error: "Failed to generate press kit token" });
+  }
+});
+
 // ── POST /submissions/:id/ai/safety-check ────────────────────
 
 outreachRouter.post("/submissions/:id/ai/safety-check", async (req: Request, res: Response) => {

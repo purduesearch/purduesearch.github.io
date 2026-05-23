@@ -170,6 +170,8 @@ model Project {
   type         ProjectType
   startDate    DateTime?
   targetDate   DateTime?
+  programTag       String?         // "astrousa" | "sa2tp" | "research" | "software" | "business" (for public archive grouping)
+  pressKitToken    String?         @unique
   tags                 Tag[]
   members              ProjectMember[]
   tasks                Task[]

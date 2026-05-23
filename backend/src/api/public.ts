@@ -67,6 +67,32 @@ publicRouter.get("/campaigns/:slug", async (req: Request, res: Response) => {
   }
 });
 
+// ── GET /public/press-kit/:projectId/:token ──────────────────
+
+publicRouter.get("/press-kit/:projectId/:token", async (req: Request, res: Response) => {
+  try {
+    const project = await prisma.project.findUnique({
+      where:  { id: req.params.projectId as string },
+      select: { pressKitToken: true },
+    });
+    if (!project || !project.pressKitToken || project.pressKitToken !== req.params.token) {
+      res.status(404).send("Not found");
+      return;
+    }
+    const { buildPressKitHtml } = await import("../services/pressKitService.js");
+    const html = await buildPressKitHtml(req.params.projectId as string);
+    if (!html) {
+      res.status(404).send("Not found");
+      return;
+    }
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    res.send(html);
+  } catch (error) {
+    console.error("GET /public/press-kit error:", error);
+    res.status(500).send("Server error");
+  }
+});
+
 // ── POST /public/campaigns/:slug/signup ──────────────────────
 
 publicRouter.post("/campaigns/:slug/signup", async (req: Request, res: Response) => {
