@@ -3,6 +3,7 @@ import { post, patch } from '../../api/clubPmClient';
 import toast from 'react-hot-toast';
 import PlatformPreview from './PlatformPreview';
 import AiAssistPanel from './AiAssistPanel';
+import AssetPicker from './AssetPicker';
 
 // ── Constants ─────────────────────────────────────────────────
 
@@ -236,6 +237,7 @@ export default function ComposerTab({ onSaved }) {
   const [savedId, setSavedId]           = useState(null);
   const [showPreview, setShowPreview]   = useState(false);
   const [showAiPanel, setShowAiPanel]   = useState(true);
+  const [showAssetPicker, setShowAssetPicker] = useState(false);
 
   const contentRef = useRef(null);
 
@@ -248,6 +250,7 @@ export default function ComposerTab({ onSaved }) {
     setScheduledAt('');
     setIsTemplate(false);
     setSavedId(null);
+    setMediaUrls([]);
   }, []);
 
   // Insert variant into base content
@@ -285,6 +288,7 @@ export default function ComposerTab({ onSaved }) {
       status,
       content: baseContent.trim() || undefined,
       platform: platforms,
+      mediaUrls: mediaUrls.length ? mediaUrls : undefined,
       platformContent: Object.keys(platformContent).length ? platformContent : undefined,
       scheduledAt: scheduledAt || undefined,
       isTemplate,
@@ -316,7 +320,15 @@ export default function ComposerTab({ onSaved }) {
     }
   };
 
-  const mediaUrls = [];
+  const [mediaUrls, setMediaUrls] = useState([]);
+
+  const handleAssetSelect = useCallback((asset) => {
+    if (!mediaUrls.includes(asset.url)) {
+      setMediaUrls(prev => [...prev, asset.url]);
+      toast.success(`${asset.name} added.`);
+    }
+    setShowAssetPicker(false);
+  }, [mediaUrls]);
 
   return (
     <div className="pm-composer-layout">
@@ -392,6 +404,40 @@ export default function ComposerTab({ onSaved }) {
               mediaUrls={mediaUrls}
             />
           )}
+
+          {/* Media / Assets */}
+          <div className="cpm-form-group">
+            <div className="pm-composer-content-header">
+              <label className="cpm-form-label">Media</label>
+              <button
+                type="button"
+                className="pm-composer-preview-toggle"
+                onClick={() => setShowAssetPicker(true)}
+              >
+                <i className="fas fa-photo-video" aria-hidden="true" /> Asset Library
+              </button>
+            </div>
+            {mediaUrls.length > 0 ? (
+              <div className="pm-composer-media-list">
+                {mediaUrls.map((url, i) => (
+                  <div key={url} className="pm-composer-media-item">
+                    <img src={url} alt="" className="pm-composer-media-thumb" onError={e => { e.target.style.display='none'; }} />
+                    <span className="pm-composer-media-url" title={url}>{url}</span>
+                    <button
+                      type="button"
+                      className="pm-composer-media-remove"
+                      onClick={() => setMediaUrls(prev => prev.filter((_, j) => j !== i))}
+                      title="Remove"
+                    >
+                      <i className="fas fa-times" aria-hidden="true" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="pm-composer-media-empty">No media attached. Use the Asset Library to browse or add images.</p>
+            )}
+          </div>
 
           {/* Per-platform overrides */}
           {platforms.length > 1 && (
@@ -491,6 +537,13 @@ export default function ComposerTab({ onSaved }) {
           />
         )}
       </div>
+
+      <AssetPicker
+        isOpen={showAssetPicker}
+        onClose={() => setShowAssetPicker(false)}
+        onSelect={handleAssetSelect}
+        title="Select Media Asset"
+      />
     </div>
   );
 }

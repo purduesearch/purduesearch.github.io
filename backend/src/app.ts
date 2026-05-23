@@ -20,6 +20,7 @@ import { initDmBatcher } from "./services/dmBatcher.js";
 import { eventsRouter } from "./api/events.js";
 import { outreachRouter } from "./api/outreach.js";
 import { redirectRouter } from "./api/redirect.js";
+import { assetsRouter } from "./api/assets.js";
 
 // ── Express Setup ────────────────────────────────────────────
 
@@ -78,6 +79,7 @@ app.use("/api/notifications", notificationsRouter);
 app.use("/api/notifications", sseRouter);
 app.use("/api/events", eventsRouter);
 app.use("/api/outreach", outreachRouter);
+app.use("/api/outreach/assets", assetsRouter);
 app.use("/r", redirectRouter);
 
 // Health check
