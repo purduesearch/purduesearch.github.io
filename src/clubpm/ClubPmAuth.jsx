@@ -20,10 +20,13 @@ export function ClubPmAuthProvider({ children }) {
   useEffect(() => {
     let freshToken = false;
 
+    console.log("[ClubPmAuth] mount — href:", window.location.href);
+
     // Primary: extract Bearer token from query parameter (?lt=...).
     // Query params survive cross-origin redirects reliably in all browsers including Firefox.
     const params = new URLSearchParams(window.location.search);
     const lt = params.get("lt");
+    console.log("[ClubPmAuth] lt param:", lt ? lt.slice(0, 12) + "…" : "(none)");
     if (lt) {
       setStoredToken(lt);
       freshToken = true;
@@ -40,6 +43,7 @@ export function ClubPmAuthProvider({ children }) {
     // any in-flight sessions that still use the old redirect format.
     if (!freshToken) {
       const hash = window.location.hash;
+      console.log("[ClubPmAuth] hash:", hash ? hash.slice(0, 20) : "(none)");
       if (hash.startsWith("#lt=")) {
         setStoredToken(hash.slice(4));
         freshToken = true;
@@ -47,8 +51,11 @@ export function ClubPmAuthProvider({ children }) {
       }
     }
 
+    console.log("[ClubPmAuth] freshToken:", freshToken, "storedToken:", getStoredToken() ? "present" : "absent");
+
     const doAuth = (canRetry) => {
       const token = getStoredToken();
+      console.log("[ClubPmAuth] doAuth canRetry:", canRetry, "token:", token ? "present" : "absent");
       fetch(`${BASE_URL}/auth/me`, {
         credentials: "include",
         headers: {
@@ -57,6 +64,7 @@ export function ClubPmAuthProvider({ children }) {
         },
       })
         .then(async (res) => {
+          console.log("[ClubPmAuth] /auth/me status:", res.status);
           if (res.ok) {
             const m = await res.json();
             setMember(m);
