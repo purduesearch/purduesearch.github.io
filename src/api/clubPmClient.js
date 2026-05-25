@@ -29,14 +29,11 @@ class ApiError extends Error {
 
 async function handleResponse(response) {
   if (response.status === 401) {
-    // Only redirect to login when already inside the protected ClubPM app.
-    // Public pages (blog, outreach archive, etc.) call /auth/me on mount and
-    // must be able to get a 401 without being bounced to the login screen.
-    const path = window.location.pathname;
-    const isProtected = path.startsWith("/clubpm") && !path.startsWith("/clubpm/login");
-    if (isProtected) {
-      window.location.href = "/clubpm/login";
-    }
+    // Throw without redirecting. AppShell already redirects via React Router's
+    // <Navigate> when member is null — a hard window.location redirect would
+    // hit a GitHub Pages 404 for any /clubpm/* route, and would also fire on
+    // 401s from non-auth endpoints (e.g. Slack integration) even when the user's
+    // own token is valid.
     throw new ApiError(401, "Not authenticated");
   }
 
@@ -95,11 +92,6 @@ export async function del(path) {
   });
   
   if (response.status === 401) {
-    const path = window.location.pathname;
-    const isProtected = path.startsWith("/clubpm") && !path.startsWith("/clubpm/login");
-    if (isProtected) {
-      window.location.href = "/clubpm/login";
-    }
     throw new ApiError(401, "Not authenticated");
   }
 
