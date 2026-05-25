@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { prisma } from "../db/prisma.js";
+import { generatePressKitSynopsis } from "./aiService.js";
 
 function escapeHtml(s: string | null | undefined): string {
   if (!s) return "";
@@ -64,6 +65,13 @@ export async function buildPressKitHtml(projectId: string): Promise<string | nul
 
   if (!project) return null;
 
+  // All top-level tasks with their subtasks
+  const tasks = await prisma.task.findMany({
+    where: { projectId, parentTaskId: null },
+    include: { subtasks: { orderBy: { createdAt: "asc" } } },
+    orderBy: { createdAt: "asc" },
+  });
+
   // Top 4 assets uploaded by anyone associated with this project
   const memberIds = project.members.map(m => m.member.id);
   const assets = memberIds.length > 0
@@ -90,9 +98,70 @@ export async function buildPressKitHtml(projectId: string): Promise<string | nul
       })
     : [];
 
+  // AI synopsis — synthesizes project data into press-ready prose
+  const synopsis = await generatePressKitSynopsis(
+    { name: project.name, type: project.type, status: project.status, description: project.description },
+    tasks.map(t => ({
+      title: t.title,
+      description: t.description,
+      status: t.status,
+      subtasks: t.subtasks.map(s => ({ title: s.title, description: s.description })),
+    })),
+    project.milestones.map(m => ({ title: m.title }))
+  );
+
   const leads = project.members
     .filter(m => m.projectRole?.toUpperCase() === "LEAD")
     .map(m => m.member);
+
+  // Tasks grouped by status
+  const STATUS_ORDER = ["IN_PROGRESS", "BLOCKED", "TODO", "DONE"] as const;
+  type TaskStatus = typeof STATUS_ORDER[number];
+  const STATUS_LABEL: Record<TaskStatus, string> = {
+    IN_PROGRESS: "In Progress",
+    BLOCKED:     "Blocked",
+    TODO:        "To Do",
+    DONE:        "Done",
+  };
+  const STATUS_COLOR: Record<TaskStatus, string> = {
+    IN_PROGRESS: "#0096a8",
+    BLOCKED:     "#c0392b",
+    TODO:        "#888",
+    DONE:        "#27ae60",
+  };
+
+  function renderTaskCard(t: { title: string; description: string | null; status: string; subtasks: { title: string; description: string | null }[] }): string {
+    const status = t.status as TaskStatus;
+    const color = STATUS_COLOR[status] ?? "#888";
+    const subtasksHtml = t.subtasks.length > 0
+      ? `<ul class="subtask-list">${t.subtasks.map(s => `
+          <li class="subtask-item">
+            <span class="subtask-title">${escapeHtml(s.title)}</span>
+            ${s.description ? `<span class="subtask-desc">${escapeHtml(s.description)}</span>` : ""}
+          </li>`).join("")}</ul>`
+      : "";
+    return `<div class="task-card" style="border-left-color:${color}">
+      <div class="task-card-header">
+        <span class="task-status-pill" style="background:${color}">${escapeHtml(STATUS_LABEL[status] ?? t.status)}</span>
+        <span class="task-card-title">${escapeHtml(t.title)}</span>
+      </div>
+      ${t.description ? `<p class="task-card-desc">${escapeHtml(t.description)}</p>` : ""}
+      ${subtasksHtml}
+    </div>`;
+  }
+
+  const tasksBuckets = STATUS_ORDER.map(status => {
+    const bucket = tasks.filter(t => t.status === status);
+    if (bucket.length === 0) return "";
+    return `<div class="tasks-group">
+      <div class="tasks-group-label" style="color:${STATUS_COLOR[status]}">${STATUS_LABEL[status]}</div>
+      ${bucket.map(renderTaskCard).join("")}
+    </div>`;
+  }).join("");
+
+  const tasksHtml = tasks.length > 0
+    ? `<div class="tasks-container">${tasksBuckets}</div>`
+    : `<p class="empty">No tasks recorded.</p>`;
 
   const milestonesHtml = project.milestones.length > 0
     ? `<ul class="milestones">${project.milestones.map(m => `
@@ -199,6 +268,28 @@ export async function buildPressKitHtml(projectId: string): Promise<string | nul
     font-size: 11px;
   }
   .contributor img { width: 20px; height: 20px; border-radius: 50%; }
+  .synopsis { font-size: 15px; color: #222; line-height: 1.65; }
+  .tasks-container { display: flex; flex-direction: column; gap: 0; }
+  .tasks-group { margin-bottom: 14px; }
+  .tasks-group-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; font-weight: 700; margin-bottom: 6px; }
+  .task-card {
+    border-left: 3px solid #0096a8;
+    background: #f8fbfc;
+    padding: 8px 12px;
+    margin-bottom: 6px;
+    page-break-inside: avoid;
+  }
+  .task-card-header { display: flex; align-items: center; gap: 7px; margin-bottom: 3px; }
+  .task-status-pill {
+    font-size: 9px; text-transform: uppercase; letter-spacing: 0.8px;
+    color: #fff; padding: 1px 6px; border-radius: 10px; white-space: nowrap; flex-shrink: 0;
+  }
+  .task-card-title { font-weight: 700; font-size: 12px; color: #0a1929; }
+  .task-card-desc { font-size: 11px; color: #555; margin: 2px 0 4px; }
+  .subtask-list { list-style: none; padding: 0; margin: 4px 0 0 16px; border-left: 1px solid #dde; padding-left: 10px; }
+  .subtask-item { margin-bottom: 4px; }
+  .subtask-title { font-size: 11px; font-weight: 600; color: #333; display: block; }
+  .subtask-desc { font-size: 10px; color: #666; display: block; margin-top: 1px; }
   .empty { color: #999; font-style: italic; font-size: 12px; }
   .footer {
     margin-top: 40px;
@@ -235,7 +326,14 @@ export async function buildPressKitHtml(projectId: string): Promise<string | nul
     ${project.targetDate ? `<span><strong>Target:</strong> ${fmtDate(project.targetDate)}</span>` : ""}
   </div>
 
+  ${synopsis ? `<div class="section"><div class="section-title">About This Project</div><p class="synopsis">${escapeHtml(synopsis)}</p></div>` : ""}
+
   ${project.description ? `<div class="section"><div class="section-title">Overview</div><p class="description">${escapeHtml(project.description)}</p></div>` : ""}
+
+  <div class="section">
+    <div class="section-title">Tasks</div>
+    ${tasksHtml}
+  </div>
 
   <div class="section">
     <div class="section-title">Recent Milestones</div>

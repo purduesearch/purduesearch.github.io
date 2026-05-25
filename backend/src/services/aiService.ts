@@ -86,6 +86,98 @@ function nextFriday(today: string): string {
   return d.toISOString().split("T")[0];
 }
 
+// ── Press Kit Synopsis ───────────────────────────────────────
+
+export interface PressKitProject {
+  name: string;
+  type: string;
+  status: string;
+  description?: string | null;
+}
+
+export interface PressKitTask {
+  title: string;
+  description?: string | null;
+  status: string;
+  subtasks: { title: string; description?: string | null }[];
+}
+
+export interface PressKitMilestone {
+  title: string;
+}
+
+export async function generatePressKitSynopsis(
+  project: PressKitProject,
+  tasks: PressKitTask[],
+  milestones: PressKitMilestone[]
+): Promise<string> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) return "";
+
+  const lines: string[] = [];
+  lines.push(`Project: ${project.name} (${project.type}, status: ${project.status})`);
+  if (project.description) lines.push(`Description: ${project.description}`);
+  lines.push("");
+
+  if (milestones.length > 0) {
+    lines.push("Completed milestones:");
+    for (const m of milestones) lines.push(`  - ${m.title}`);
+    lines.push("");
+  }
+
+  if (tasks.length > 0) {
+    lines.push("Tasks:");
+    for (const t of tasks) {
+      lines.push(`  [${t.status}] ${t.title}${t.description ? ` — ${t.description.slice(0, 120)}` : ""}`);
+      for (const s of t.subtasks) {
+        lines.push(`    • ${s.title}${s.description ? ` — ${s.description.slice(0, 120)}` : ""}`);
+      }
+    }
+    lines.push("");
+  }
+
+  const prompt = `You are writing press kit copy for a university engineering club project.
+Given the project data below, write 2–3 sentences of polished, press-ready prose that synthesizes:
+- What the project is and what it is building
+- The key technical areas or subsystems being worked on
+- Where the project currently stands
+
+Write in third person, present tense. Be specific — mention technical terms and subsystem names from the task data. Do not use filler phrases like "exciting" or "cutting-edge". Return only the synopsis text, no labels or markdown.
+
+${lines.join("\n")}`;
+
+  let response: Response;
+  try {
+    response = await fetch(`${GEMINI_URL}?key=${apiKey}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+          temperature: 0.4,
+          maxOutputTokens: 256,
+          thinkingConfig: { thinkingBudget: 0 },
+        },
+      }),
+    });
+  } catch {
+    return "";
+  }
+
+  if (!response.ok) return "";
+
+  let data: { candidates?: { content?: { parts?: { text?: string; thought?: boolean }[] } }[] };
+  try {
+    data = (await response.json()) as typeof data;
+  } catch {
+    return "";
+  }
+
+  const parts = data.candidates?.[0]?.content?.parts ?? [];
+  const responsePart = parts.find((p) => !p.thought) ?? parts[parts.length - 1];
+  return (responsePart?.text ?? "").trim();
+}
+
 export async function parseTaskFromMessage(
   text: string,
   todayDate?: string,
