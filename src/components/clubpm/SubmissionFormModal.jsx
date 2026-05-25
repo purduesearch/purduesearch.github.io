@@ -1,5 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
+import { get } from '../../api/clubPmClient';
+import useSuggestBestTime from './useSuggestBestTime';
 
 const TYPE_OPTIONS = [
   { value: 'SOCIAL_POST',   label: 'Social Post' },
@@ -18,6 +20,175 @@ const PLATFORM_OPTIONS = [
 ];
 
 const MAX_MEDIA_URLS = 5;
+
+const PLATFORM_LIMITS = {
+  instagram: 2200,
+  linkedin:  3000,
+  twitter:   280,
+  website:   null,
+};
+
+const PLATFORM_ICONS = {
+  instagram: 'fab fa-instagram',
+  linkedin:  'fab fa-linkedin',
+  twitter:   'fab fa-twitter',
+  website:   'fas fa-globe',
+};
+
+// ── Hashtag autocomplete helpers ──────────────────────────────────────────────
+
+function getHashtagAtCursor(value, cursorPos) {
+  const before = value.slice(0, cursorPos);
+  const match = before.match(/#([a-zA-Z][a-zA-Z0-9_]*)$/);
+  return match ? match[1] : null;
+}
+
+function insertHashtag(tag, value, cursorPos) {
+  const before = value.slice(0, cursorPos);
+  const after = value.slice(cursorPos);
+  const replaced = before.replace(/#([a-zA-Z][a-zA-Z0-9_]*)$/, `#${tag} `);
+  return replaced + after;
+}
+
+function useHashtagAutocomplete(content, setContent) {
+  const [dropdownItems, setDropdownItems] = useState(null);
+  const [selectedIdx, setSelectedIdx] = useState(0);
+  const dropdownRef = useRef(null);
+  const debounceTimer = useRef(null);
+  // Keep a ref to the textarea so we can read/set cursor position
+  const textareaRef = useRef(null);
+
+  const closeDropdown = useCallback(() => {
+    setDropdownItems(null);
+    setSelectedIdx(0);
+  }, []);
+
+  const fetchHashtags = useCallback((term) => {
+    clearTimeout(debounceTimer.current);
+    debounceTimer.current = setTimeout(async () => {
+      try {
+        const data = await get(`/api/outreach/hashtags?q=${encodeURIComponent(term)}`);
+        // data is expected to be an array of { tag, count } objects
+        const items = Array.isArray(data) ? data.slice(0, 8) : [];
+        if (items.length === 0) {
+          setDropdownItems(null);
+        } else {
+          setDropdownItems(items);
+          setSelectedIdx(0);
+        }
+      } catch {
+        setDropdownItems(null);
+      }
+    }, 200);
+  }, []);
+
+  // Clean up debounce timer on unmount
+  useEffect(() => {
+    return () => clearTimeout(debounceTimer.current);
+  }, []);
+
+  const onInput = useCallback((e) => {
+    const ta = e.target;
+    const term = getHashtagAtCursor(ta.value, ta.selectionStart);
+    if (term) {
+      fetchHashtags(term);
+    } else {
+      clearTimeout(debounceTimer.current);
+      closeDropdown();
+    }
+  }, [fetchHashtags, closeDropdown]);
+
+  const insertSuggestion = useCallback((tag) => {
+    const ta = textareaRef.current;
+    const currentValue = ta ? ta.value : '';
+    const cursorPos = ta ? ta.selectionStart : currentValue.length;
+    const newValue = insertHashtag(tag, currentValue, cursorPos);
+    setContent(newValue);
+    closeDropdown();
+    if (ta) {
+      requestAnimationFrame(() => {
+        ta.focus();
+        const before = currentValue.slice(0, cursorPos);
+        const replaced = before.replace(/#([a-zA-Z][a-zA-Z0-9_]*)$/, `#${tag} `);
+        ta.setSelectionRange(replaced.length, replaced.length);
+      });
+    }
+  }, [setContent, closeDropdown]);
+
+  const onKeyDown = useCallback((e) => {
+    if (!dropdownItems || dropdownItems.length === 0) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setSelectedIdx(i => (i + 1) % dropdownItems.length);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setSelectedIdx(i => (i - 1 + dropdownItems.length) % dropdownItems.length);
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      const item = dropdownItems[selectedIdx];
+      if (item) insertSuggestion(item.tag);
+    } else if (e.key === 'Escape') {
+      closeDropdown();
+    }
+  }, [dropdownItems, selectedIdx, insertSuggestion, closeDropdown]);
+
+  const onBlur = useCallback(() => {
+    // Delay so a click on a suggestion item registers before the dropdown closes
+    setTimeout(() => {
+      // Check if focus moved inside the dropdown
+      if (dropdownRef.current && dropdownRef.current.contains(document.activeElement)) return;
+      closeDropdown();
+    }, 150);
+  }, [closeDropdown]);
+
+  return {
+    dropdownItems,
+    selectedIdx,
+    onKeyDown,
+    onInput,
+    onBlur,
+    insertSuggestion,
+    dropdownRef,
+    textareaRef,
+  };
+}
+
+// ── Character counters ─────────────────────────────────────────────────────────
+
+function CharCounters({ content, platforms }) {
+  const limited = platforms.filter(p => PLATFORM_LIMITS[p] != null);
+  if (limited.length === 0) return null;
+
+  const len = content.length;
+  const twitterLimit = 280;
+  const showThread = platforms.includes('twitter') && len > twitterLimit;
+  const threadCount = Math.ceil(len / twitterLimit);
+
+  return (
+    <div>
+      <div className="pm-char-counter-row">
+        {limited.map(p => {
+          const limit = PLATFORM_LIMITS[p];
+          const pct = len / limit;
+          let chipClass = 'pm-char-chip';
+          if (pct >= 1) chipClass += ' pm-char-chip--error';
+          else if (pct >= 0.8) chipClass += ' pm-char-chip--warn';
+          return (
+            <span key={p} className={chipClass}>
+              <i className={PLATFORM_ICONS[p]} aria-hidden="true" />
+              {len}/{limit}
+            </span>
+          );
+        })}
+      </div>
+      {showThread && (
+        <p className="pm-char-thread-note">
+          Thread needed ({threadCount} tweets)
+        </p>
+      )}
+    </div>
+  );
+}
 
 function formatEventOption(ev) {
   if (!ev) return '';
@@ -40,6 +211,8 @@ function buildInitialState(editSubmission) {
       mediaUrls: [''],
       scheduledAt: '',
       status: 'DRAFT',
+      isTemplate: false,
+      placeholders: [],
     };
   }
   return {
@@ -54,6 +227,8 @@ function buildInitialState(editSubmission) {
       ? editSubmission.scheduledAt.slice(0, 16)
       : '',
     status: editSubmission.status === 'SUBMITTED' ? 'SUBMITTED' : 'DRAFT',
+    isTemplate: !!editSubmission.isTemplate,
+    placeholders: Array.isArray(editSubmission.placeholders) ? editSubmission.placeholders : [],
   };
 }
 
@@ -68,6 +243,35 @@ export default function SubmissionFormModal({
   const [form, setForm] = useState(() => buildInitialState(editSubmission));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+  const [conflicts, setConflicts] = useState(null);
+  const { suggest: suggestBestTime, suggesting: suggestingTime, lastInfo: suggestedTimeInfo } = useSuggestBestTime();
+
+  // Debounced conflict detection on scheduledAt / platforms changes
+  useEffect(() => {
+    if (!form.scheduledAt || form.platform.length === 0 || form.isTemplate) {
+      setConflicts(null);
+      return;
+    }
+    const handle = setTimeout(() => {
+      const params = new URLSearchParams({
+        at:        new Date(form.scheduledAt).toISOString(),
+        platforms: form.platform.join(','),
+      });
+      if (editSubmission?.id) params.set('excludeId', editSubmission.id);
+      if (form.eventId)       params.set('eventId',   form.eventId);
+      if (form.projectId)     params.set('projectId', form.projectId);
+      get(`/api/outreach/conflicts?${params.toString()}`)
+        .then(setConflicts)
+        .catch(() => setConflicts(null));
+    }, 400);
+    return () => clearTimeout(handle);
+  }, [form.scheduledAt, form.platform, form.eventId, form.projectId, form.isTemplate, editSubmission?.id]);
+
+  const setContent = useCallback((value) => {
+    setForm(prev => ({ ...prev, content: value }));
+  }, []);
+
+  const hashtagAC = useHashtagAutocomplete(form.content, setContent);
 
   // Re-init form when editSubmission changes or modal opens
   useEffect(() => {
@@ -130,6 +334,10 @@ export default function SubmissionFormModal({
         mediaUrls: form.mediaUrls.map(u => u.trim()).filter(Boolean),
         scheduledAt: form.scheduledAt || undefined,
         status: form.status,
+        isTemplate: form.isTemplate,
+        placeholders: form.isTemplate
+          ? form.placeholders.filter(p => p.key && p.key.trim())
+          : [],
       };
       await onSave(payload);
       onClose();
@@ -205,18 +413,42 @@ export default function SubmissionFormModal({
           </div>
 
           {/* Content */}
-          <div className="pm-submission-field">
+          <div className="pm-submission-field" style={{ position: 'relative' }}>
             <label className="pm-submission-label">
               Content
               <span className="pm-submission-hint"> (caption / post text)</span>
             </label>
             <textarea
+              ref={hashtagAC.textareaRef}
               style={{ ...inputStyle, resize: 'vertical', minHeight: 80 }}
               value={form.content}
-              onChange={e => setField('content', e.target.value)}
+              onChange={e => {
+                setField('content', e.target.value);
+                hashtagAC.onInput(e);
+              }}
+              onKeyDown={hashtagAC.onKeyDown}
+              onBlur={hashtagAC.onBlur}
               placeholder="Write your caption or post body here…"
               rows={4}
             />
+            {hashtagAC.dropdownItems && hashtagAC.dropdownItems.length > 0 && (
+              <div className="pm-hashtag-dropdown" ref={hashtagAC.dropdownRef}>
+                {hashtagAC.dropdownItems.map((item, idx) => (
+                  <div
+                    key={item.tag}
+                    className={`pm-hashtag-item${idx === hashtagAC.selectedIdx ? ' pm-hashtag-item--active' : ''}`}
+                    onMouseDown={e => {
+                      e.preventDefault(); // prevent textarea blur before click registers
+                      hashtagAC.insertSuggestion(item.tag);
+                    }}
+                  >
+                    <span>#{item.tag}</span>
+                    <span className="pm-hashtag-count">{item.count} uses</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            <CharCounters content={form.content} platforms={form.platform} />
           </div>
 
           {/* Platforms */}
@@ -309,16 +541,97 @@ export default function SubmissionFormModal({
 
           {/* Schedule date/time */}
           <div className="pm-submission-field">
-            <label className="pm-submission-label">
-              Schedule Date &amp; Time
-              <span className="pm-submission-hint"> (optional)</span>
-            </label>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+              <label className="pm-submission-label" style={{ margin: 0 }}>
+                Schedule Date &amp; Time
+                <span className="pm-submission-hint"> (optional)</span>
+              </label>
+              <button
+                type="button"
+                className="pm-suggest-time-btn"
+                onClick={async () => {
+                  const value = await suggestBestTime(form.platform);
+                  if (value) setField('scheduledAt', value);
+                }}
+                disabled={suggestingTime || form.platform.length === 0}
+                title="Suggest the best time to post based on past engagement"
+              >
+                {suggestingTime
+                  ? <><i className="fas fa-spinner fa-spin" aria-hidden="true" /> Suggesting…</>
+                  : <><i className="fas fa-magic" aria-hidden="true" /> Suggest best time</>}
+              </button>
+            </div>
             <input
               type="datetime-local"
               style={inputStyle}
               value={form.scheduledAt}
               onChange={e => setField('scheduledAt', e.target.value)}
             />
+            {suggestedTimeInfo && (
+              <div className="pm-suggest-time-info">{suggestedTimeInfo}</div>
+            )}
+          </div>
+
+          {/* Template toggle + placeholders */}
+          <div className="pm-submission-field">
+            <label className="pm-submission-label" style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={form.isTemplate}
+                onChange={e => setField('isTemplate', e.target.checked)}
+                style={{ accentColor: 'var(--pm-accent-teal)' }}
+              />
+              <i className="fas fa-clone" aria-hidden="true" style={{ color: 'var(--pm-accent-teal)' }} />
+              Save as reusable template
+            </label>
+            {form.isTemplate && (
+              <div style={{ marginTop: 8, padding: 10, borderRadius: 8, background: 'var(--clubpm-surface-2)', border: '1px solid var(--clubpm-border)' }}>
+                <div style={{ fontSize: 11, color: 'var(--clubpm-text-secondary)', marginBottom: 6 }}>
+                  Use <code style={{ background: 'rgba(0,229,204,0.12)', padding: '1px 5px', borderRadius: 4 }}>{'{{key}}'}</code> in title/content as placeholders. Define each key below.
+                </div>
+                {form.placeholders.map((ph, i) => (
+                  <div key={i} style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
+                    <input
+                      type="text"
+                      placeholder="key (e.g. memberName)"
+                      value={ph.key ?? ''}
+                      onChange={e => {
+                        const next = [...form.placeholders];
+                        next[i] = { ...next[i], key: e.target.value.replace(/[^\w]/g, '') };
+                        setField('placeholders', next);
+                      }}
+                      style={{ ...inputStyle, flex: '0 0 160px' }}
+                    />
+                    <input
+                      type="text"
+                      placeholder="description"
+                      value={ph.description ?? ''}
+                      onChange={e => {
+                        const next = [...form.placeholders];
+                        next[i] = { ...next[i], description: e.target.value };
+                        setField('placeholders', next);
+                      }}
+                      style={{ ...inputStyle, flex: 1 }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setField('placeholders', form.placeholders.filter((_, j) => j !== i))}
+                      style={{ background: 'none', border: '1px solid var(--clubpm-border)', borderRadius: 6, color: 'var(--clubpm-text-secondary)', cursor: 'pointer', padding: '4px 8px' }}
+                      title="Remove"
+                    >
+                      <i className="fas fa-times" aria-hidden="true" />
+                    </button>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => setField('placeholders', [...form.placeholders, { key: '', description: '' }])}
+                  style={{ marginTop: 4, background: 'transparent', border: '1px dashed var(--clubpm-border)', borderRadius: 6, color: 'var(--pm-accent-teal)', cursor: 'pointer', padding: '5px 10px', fontSize: 12 }}
+                >
+                  <i className="fas fa-plus" aria-hidden="true" /> Add placeholder
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Status toggle */}
@@ -353,6 +666,36 @@ export default function SubmissionFormModal({
               </label>
             </div>
           </div>
+
+          {/* Conflict warnings */}
+          {conflicts && (conflicts.samePlatformIn24h > 0 || conflicts.sameDayCount >= 3 || conflicts.sameEventItems?.length > 0 || conflicts.sameProjectItems?.length > 0) && (
+            <div className="pm-conflict-chips">
+              {conflicts.samePlatformIn24h > 0 && (
+                <span className="pm-conflict-chip" title={(conflicts.samePlatformItems ?? []).map(s => s.title).join(', ')}>
+                  <i className="fas fa-exclamation-triangle" aria-hidden="true" />
+                  {conflicts.samePlatformIn24h} other post{conflicts.samePlatformIn24h !== 1 ? 's' : ''} on selected platform{form.platform.length !== 1 ? 's' : ''} within 24h
+                </span>
+              )}
+              {conflicts.sameDayCount >= 3 && (
+                <span className="pm-conflict-chip">
+                  <i className="fas fa-calendar-day" aria-hidden="true" />
+                  {conflicts.sameDayCount} posts scheduled that day
+                </span>
+              )}
+              {conflicts.sameEventItems?.length > 0 && (
+                <span className="pm-conflict-chip" title={conflicts.sameEventItems.map(s => s.title).join(', ')}>
+                  <i className="fas fa-calendar-check" aria-hidden="true" />
+                  {conflicts.sameEventItems.length} other post{conflicts.sameEventItems.length !== 1 ? 's' : ''} for this event within 7d
+                </span>
+              )}
+              {conflicts.sameProjectItems?.length > 0 && (
+                <span className="pm-conflict-chip" title={conflicts.sameProjectItems.map(s => s.title).join(', ')}>
+                  <i className="fas fa-folder-open" aria-hidden="true" />
+                  {conflicts.sameProjectItems.length} other post{conflicts.sameProjectItems.length !== 1 ? 's' : ''} for this project within 3d
+                </span>
+              )}
+            </div>
+          )}
 
           {/* Error */}
           {error && (

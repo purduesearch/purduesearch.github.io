@@ -275,6 +275,9 @@ projectsRouter.post("/:id/tasks", async (req: Request, res: Response) => {
 
     console.log(`[createTask] projectId=${projectId} title="${title}" parentTaskId=${parentTaskId ?? "none"} status=${status ?? "default"}`);
 
+    const memberId = req.memberId;
+    console.log(`[createTask req] projectId=${projectId} dueDate=${JSON.stringify(dueDate)} actor=${memberId} ua="${(req.headers["user-agent"] ?? "").slice(0, 80)}"`);
+
     const task = await createTask({
       title,
       description,
@@ -286,6 +289,7 @@ projectsRouter.post("/:id/tasks", async (req: Request, res: Response) => {
       status,
       milestoneId: milestoneId ?? undefined,
       tagIds,
+      createdById: memberId,
     });
 
     console.log(`[createTask] created id=${task.id} parentTaskId=${(task as any).parentTaskId ?? "none"}`);
@@ -296,7 +300,6 @@ projectsRouter.post("/:id/tasks", async (req: Request, res: Response) => {
       refreshMilestoneHealth(milestoneId).catch(console.error);
     }
 
-    const memberId = (req.session as any).memberId as string | undefined;
     logAuditEvent({
       projectId,
       taskId:   task.id,
@@ -311,7 +314,12 @@ projectsRouter.post("/:id/tasks", async (req: Request, res: Response) => {
     }).catch(console.error);
 
     res.status(201).json(task);
-  } catch (error) {
+  } catch (error: any) {
+    const msg: string = error?.message ?? "";
+    if (msg.startsWith("Invalid ") || msg.includes("year out of range")) {
+      res.status(400).json({ error: msg });
+      return;
+    }
     console.error("Create task error:", error);
     res.status(500).json({ error: "Failed to create task" });
   }

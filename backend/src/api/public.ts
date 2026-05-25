@@ -1,0 +1,269 @@
+import { Router, type Request, type Response } from "express";
+import { prisma } from "../db/prisma.js";
+
+export const publicRouter = Router();
+
+// ── Simple in-memory IP rate limiter (token-bucket) ──────────
+
+const RATE_WINDOW_MS = 60_000;
+const MAX_PER_WINDOW = 5;
+const ipLog = new Map<string, number[]>();
+
+function rateLimit(ip: string): boolean {
+  const now = Date.now();
+  const log = ipLog.get(ip) ?? [];
+  const recent = log.filter(t => now - t < RATE_WINDOW_MS);
+  if (recent.length >= MAX_PER_WINDOW) {
+    ipLog.set(ip, recent);
+    return false;
+  }
+  recent.push(now);
+  ipLog.set(ip, recent);
+  return true;
+}
+
+// ── GET /public/campaigns/:slug ──────────────────────────────
+
+publicRouter.get("/campaigns/:slug", async (req: Request, res: Response) => {
+  try {
+    const slug = req.params.slug as string;
+    const campaign = await prisma.campaign.findUnique({
+      where: { slug },
+      include: {
+        owner: { select: { displayName: true, avatarUrl: true } },
+        submissions: {
+          where:   { status: "PUBLISHED" },
+          orderBy: { publishedAt: "desc" },
+          take:    20,
+          select: {
+            id: true, title: true, content: true, mediaUrls: true,
+            type: true, platform: true, publishedAt: true,
+          },
+        },
+      },
+    });
+
+    if (!campaign || !campaign.isPublic) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+
+    res.json({
+      id:          campaign.id,
+      name:        campaign.name,
+      description: campaign.description,
+      startDate:   campaign.startDate,
+      endDate:     campaign.endDate,
+      goalType:    campaign.goalType,
+      goalTarget:  campaign.goalTarget,
+      goalProgress: campaign.goalProgress,
+      color:       campaign.color,
+      owner:       campaign.owner ? { displayName: campaign.owner.displayName, avatarUrl: campaign.owner.avatarUrl } : null,
+      submissions: campaign.submissions,
+    });
+  } catch (error) {
+    console.error("GET /public/campaigns/:slug error:", error);
+    res.status(500).json({ error: "Failed to load campaign" });
+  }
+});
+
+// ── GET /public/outreach/published ───────────────────────────
+
+publicRouter.get("/outreach/published", async (req: Request, res: Response) => {
+  try {
+    const { program, limit } = req.query as { program?: string; limit?: string };
+    const take = Math.min(50, parseInt(limit ?? "20", 10) || 20);
+
+    const submissions = await prisma.outreachSubmission.findMany({
+      where: {
+        status: "PUBLISHED",
+        ...(program ? { project: { programTag: program } } : {}),
+      },
+      orderBy: { publishedAt: "desc" },
+      take,
+      select: {
+        id: true, title: true, content: true, mediaUrls: true,
+        type: true, platform: true, publishedAt: true,
+        project: { select: { name: true, programTag: true } },
+      },
+    });
+
+    res.json(submissions);
+  } catch (error) {
+    console.error("GET /public/outreach/published error:", error);
+    res.status(500).json({ error: "Failed to load published outreach" });
+  }
+});
+
+// ── GET /public/blog — list published blog posts ─────────────
+// Any submission with blogMarkdown + blogSlug set is public — expand-blog IS the publish action.
+
+publicRouter.get("/blog", async (_req: Request, res: Response) => {
+  try {
+    const posts = await prisma.outreachSubmission.findMany({
+      where: {
+        blogMarkdown: { not: null },
+        blogSlug:     { not: null },
+      },
+      orderBy: { publishedAt: "desc" },
+      take: 50,
+      select: {
+        id: true, title: true, blogSlug: true, publishedAt: true,
+        content: true, mediaUrls: true,
+        project: { select: { name: true, programTag: true } },
+      },
+    });
+    res.json(posts);
+  } catch (error) {
+    console.error("GET /public/blog error:", error);
+    res.status(500).json({ error: "Failed to load blog list" });
+  }
+});
+
+// ── GET /public/blog/:slug — full post ───────────────────────
+
+publicRouter.get("/blog/:slug", async (req: Request, res: Response) => {
+  try {
+    const post = await prisma.outreachSubmission.findUnique({
+      where: { blogSlug: req.params.slug as string },
+      select: {
+        id: true, title: true, blogSlug: true, blogMarkdown: true,
+        mediaUrls: true, publishedAt: true, createdAt: true,
+        project: { select: { name: true, programTag: true } },
+        author:  { select: { displayName: true, avatarUrl: true } },
+      },
+    });
+    if (!post || !post.blogMarkdown) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    res.json(post);
+  } catch (error) {
+    console.error("GET /public/blog/:slug error:", error);
+    res.status(500).json({ error: "Failed to load blog post" });
+  }
+});
+
+// ── Newsletter unsubscribe ───────────────────────────────────
+
+publicRouter.get("/newsletter/unsubscribe/:token", async (req: Request, res: Response) => {
+  try {
+    const subscriber = await prisma.newsletterSubscriber.findUnique({
+      where:  { unsubscribeToken: req.params.token as string },
+    });
+    if (!subscriber) {
+      res.status(404).send(`<html><body style="font-family: sans-serif; padding: 40px; text-align: center;"><h1>Link not found</h1></body></html>`);
+      return;
+    }
+    if (!subscriber.unsubscribedAt) {
+      await prisma.newsletterSubscriber.update({
+        where: { id: subscriber.id },
+        data:  { unsubscribedAt: new Date() },
+      });
+    }
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    res.send(`<html><body style="font-family: sans-serif; padding: 40px; text-align: center; background: #f8fafb;">
+      <h1 style="color: #0096a8;">Unsubscribed</h1>
+      <p>You won't receive any more Purdue SEARCH newsletters at ${subscriber.email}.</p>
+      <p style="font-size: 12px; color: #888; margin-top: 30px;">Changed your mind? Contact us to resubscribe.</p>
+    </body></html>`);
+  } catch (error) {
+    console.error("GET /public/newsletter/unsubscribe error:", error);
+    res.status(500).send("Server error");
+  }
+});
+
+// ── Newsletter open tracking pixel ───────────────────────────
+
+const PIXEL_PNG = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=",
+  "base64"
+);
+
+publicRouter.get("/newsletter/track/open/:sendId.png", async (req: Request, res: Response) => {
+  try {
+    const sendId = req.params.sendId as string;
+    // Fire-and-forget increment
+    prisma.newsletterSend.update({
+      where: { id: sendId },
+      data:  { opens: { increment: 1 } },
+    }).catch(() => { /* ignore unknown send IDs */ });
+  } catch {
+    /* ignore */
+  }
+  res.setHeader("Content-Type", "image/png");
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
+  res.setHeader("Pragma", "no-cache");
+  res.send(PIXEL_PNG);
+});
+
+// ── GET /public/press-kit/:projectId/:token ──────────────────
+
+publicRouter.get("/press-kit/:projectId/:token", async (req: Request, res: Response) => {
+  try {
+    const project = await prisma.project.findUnique({
+      where:  { id: req.params.projectId as string },
+      select: { pressKitToken: true },
+    });
+    if (!project || !project.pressKitToken || project.pressKitToken !== req.params.token) {
+      res.status(404).send("Not found");
+      return;
+    }
+    const { buildPressKitHtml } = await import("../services/pressKitService.js");
+    const html = await buildPressKitHtml(req.params.projectId as string);
+    if (!html) {
+      res.status(404).send("Not found");
+      return;
+    }
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    res.send(html);
+  } catch (error) {
+    console.error("GET /public/press-kit error:", error);
+    res.status(500).send("Server error");
+  }
+});
+
+// ── POST /public/campaigns/:slug/signup ──────────────────────
+
+publicRouter.post("/campaigns/:slug/signup", async (req: Request, res: Response) => {
+  try {
+    const ip = (req.ip ?? req.socket.remoteAddress ?? "unknown").toString();
+    if (!rateLimit(ip)) {
+      res.status(429).json({ error: "Too many requests — try again in a minute" });
+      return;
+    }
+
+    const slug = req.params.slug as string;
+    const campaign = await prisma.campaign.findUnique({
+      where:  { slug },
+      select: { id: true, isPublic: true },
+    });
+    if (!campaign || !campaign.isPublic) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+
+    const { name, email, role } = req.body as { name?: string; email?: string; role?: string };
+    if (!name?.trim() || !email?.trim()) {
+      res.status(400).json({ error: "Name and email are required" });
+      return;
+    }
+
+    await prisma.outreachContact.create({
+      data: {
+        name:        name.trim(),
+        email:       email.trim(),
+        role:        role?.trim() ?? null,
+        contactType: "PROSPECT",
+        stage:       "COLD",
+        campaignId:  campaign.id,
+        tags:        ["self-signup"],
+      },
+    });
+
+    res.status(201).json({ ok: true });
+  } catch (error) {
+    console.error("POST /public/campaigns/:slug/signup error:", error);
+    res.status(500).json({ error: "Failed to record signup" });
+  }
+});

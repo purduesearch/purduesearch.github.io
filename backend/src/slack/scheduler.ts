@@ -318,6 +318,196 @@ export function startScheduler(app: App): void {
     }
   });
 
+  // ── Thursday 11:00 AM — Member Spotlight auto-draft suggestion ──
+  cron.schedule("0 11 * * 4", async () => {
+    console.log("🌟 Generating member spotlight draft suggestion...");
+    try {
+      const { generateMemberSpotlight } = await import("../services/aiOutreachService.js");
+
+      // Pick a member who hasn't been spotlighted recently (no SOCIAL_POST in last 30 days)
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 86_400_000);
+      const recentlySpotlighted = await prisma.outreachSubmission.findMany({
+        where: {
+          type:      "SOCIAL_POST",
+          status:    { not: "DRAFT" },
+          createdAt: { gte: thirtyDaysAgo },
+          title:     { contains: "Spotlight", mode: "insensitive" },
+        },
+        select: { authorId: true },
+      });
+      const recentIds = new Set(recentlySpotlighted.map(s => s.authorId));
+
+      const candidate = await prisma.member.findFirst({
+        where: {
+          isBot:   false,
+          id:      { notIn: [...recentIds] },
+          slackId: { not: undefined },
+        },
+        orderBy: { createdAt: "asc" }, // oldest member first (fair rotation)
+        select: { id: true, displayName: true, title: true, team: true, bio: true, slackId: true },
+      });
+      if (!candidate) return;
+
+      const milestones = await prisma.milestone.findMany({
+        where:   { status: "COMPLETED", project: { members: { some: { memberId: candidate.id } } } },
+        orderBy: { completedAt: "desc" },
+        take:    3,
+        select:  { title: true },
+      });
+
+      const draft = await generateMemberSpotlight(
+        candidate.displayName,
+        candidate.title ?? undefined,
+        candidate.team  ?? undefined,
+        candidate.bio   ?? undefined,
+        milestones.map(m => m.title)
+      );
+
+      // Find first admin to own the draft
+      const admin = await prisma.member.findFirst({
+        where: { isAdmin: true, isBot: false },
+        select: { id: true, slackId: true },
+      });
+      if (!admin) return;
+
+      await prisma.outreachSubmission.create({
+        data: {
+          title:    `Member Spotlight — ${candidate.displayName}`,
+          content:  draft,
+          type:     "SOCIAL_POST",
+          status:   "DRAFT",
+          platform: ["instagram", "linkedin"],
+          authorId: admin.id,
+        },
+      });
+
+      if (admin.slackId) {
+        queueDm(
+          admin.slackId,
+          `🌟 Auto-created a *Member Spotlight* draft for *${candidate.displayName}*. Review it in Outreach Hub → Board.`
+        );
+      }
+      console.log(`✅ Member spotlight draft created for ${candidate.displayName}`);
+    } catch (err) {
+      console.error("❌ Member spotlight error:", err);
+    }
+  });
+
+  // ── Monday 10:00 AM — Outreach Weekly Slack post (AI narrative) ──
+  cron.schedule("0 10 * * 1", async () => {
+    const channelId = process.env.OUTREACH_CHANNEL_ID;
+    if (!channelId) return; // Skip if no outreach channel configured
+
+    console.log("📊 Generating Outreach Weekly Slack digest...");
+    try {
+      const oneWeekAgo = new Date(Date.now() - 7 * 86_400_000);
+
+      const [published, metrics, contacts, upcoming] = await Promise.all([
+        prisma.outreachSubmission.findMany({
+          where: { status: "PUBLISHED", publishedAt: { gte: oneWeekAgo } },
+          select: { title: true, type: true, platform: true },
+        }),
+        prisma.postMetric.findMany({
+          where: { recordedAt: { gte: oneWeekAgo } },
+          select: { platform: true, impressions: true, likes: true, comments: true, shares: true },
+        }),
+        prisma.outreachContact.groupBy({ by: ["stage"], _count: { id: true } }),
+        prisma.outreachSubmission.findMany({
+          where: {
+            status:      { in: ["APPROVED", "IN_REVIEW", "SUBMITTED"] },
+            scheduledAt: { gte: new Date(), lte: new Date(Date.now() + 7 * 86_400_000) },
+          },
+          select: { title: true, scheduledAt: true, platform: true },
+          orderBy: { scheduledAt: "asc" },
+          take: 5,
+        }),
+      ]);
+
+      const { generateWeeklyDigest } = await import("../services/aiOutreachService.js");
+
+      const funnel = contacts.reduce<Record<string, number>>(
+        (acc, g) => ({ ...acc, [g.stage]: g._count.id }),
+        {}
+      );
+
+      const narrative = await generateWeeklyDigest(
+        published.map(s => ({ title: s.title, type: s.type, platforms: s.platform })),
+        metrics.map(m => ({
+          platform:    m.platform,
+          impressions: m.impressions ?? 0,
+          likes:       m.likes       ?? 0,
+          comments:    m.comments    ?? 0,
+          shares:      m.shares      ?? 0,
+        })),
+        funnel
+      );
+
+      const upcomingBlock = upcoming.length > 0
+        ? `\n\n*📅 This week's planned posts:*\n${upcoming.map(s => {
+            const date = s.scheduledAt ? new Date(s.scheduledAt).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }) : "TBD";
+            return `• "${s.title}" — ${date} (${s.platform.join(", ")})`;
+          }).join("\n")}`
+        : "";
+
+      const message = `*📣 Outreach Weekly — ${new Date().toLocaleDateString("en-US", { month: "long", day: "numeric" })}*\n\n${narrative}${upcomingBlock}`;
+
+      await app.client.chat.postMessage({
+        channel: channelId,
+        text:    message,
+      });
+
+      console.log("✅ Outreach Weekly Slack digest posted");
+    } catch (err) {
+      console.error("❌ Outreach Weekly digest error:", err);
+    }
+  });
+
+  // ── Daily 9:05 AM — CRM follow-up reminders → contact owners ────
+  cron.schedule("5 9 * * *", async () => {
+    console.log("📇 Sending CRM follow-up reminders...");
+    try {
+      const endOfToday = new Date();
+      endOfToday.setHours(23, 59, 59, 999);
+
+      const contacts = await prisma.outreachContact.findMany({
+        where: {
+          nextFollowUpAt: { lte: endOfToday },
+          owner: { isNot: null },
+        },
+        include: {
+          owner: { select: { slackId: true, displayName: true } },
+        },
+      });
+
+      // Group by owner slackId
+      const byOwner = new Map<string, typeof contacts>();
+      for (const c of contacts) {
+        const sid = c.owner?.slackId;
+        if (!sid) continue;
+        const bucket = byOwner.get(sid) ?? [];
+        bucket.push(c);
+        byOwner.set(sid, bucket);
+      }
+
+      for (const [slackId, ownerContacts] of byOwner) {
+        const lines = ownerContacts.slice(0, 8).map(c => {
+          const due = c.nextFollowUpAt!;
+          const today = new Date(); today.setHours(0, 0, 0, 0);
+          const isOverdue = due < today;
+          const label = isOverdue ? "overdue" : "today";
+          const org = c.organization ? ` (${c.organization})` : "";
+          return `• *${c.name}*${org} — follow-up ${label}`;
+        });
+        const extra = ownerContacts.length > 8 ? `\n_…and ${ownerContacts.length - 8} more_` : "";
+        const msg = `📇 *CRM Follow-up Reminders* — you have ${ownerContacts.length} contact${ownerContacts.length > 1 ? "s" : ""} to follow up with:\n${lines.join("\n")}${extra}\n\n_Open the Outreach Hub → CRM tab to log interactions._`;
+        queueDm(slackId, msg);
+      }
+      console.log(`✅ CRM follow-up reminders sent to ${byOwner.size} member(s) for ${contacts.length} contact(s)`);
+    } catch (err) {
+      console.error("❌ CRM follow-up reminder error:", err);
+    }
+  });
+
   // ── Every 6 hours — Re-sync admin status from leadership channel ──
   cron.schedule("0 */6 * * *", async () => {
     try {
@@ -338,6 +528,188 @@ export function startScheduler(app: App): void {
     }
   });
 
+  // ── Every hour — Auto-publish APPROVED submissions past scheduledAt ──
+  cron.schedule("0 * * * *", async () => {
+    try {
+      const now = new Date();
+      const due = await prisma.outreachSubmission.findMany({
+        where: {
+          status:      "APPROVED",
+          scheduledAt: { lte: now },
+        },
+        include: {
+          author: { select: { slackId: true, displayName: true } },
+        },
+      });
+      if (due.length === 0) return;
+
+      await prisma.outreachSubmission.updateMany({
+        where: { id: { in: due.map(s => s.id) } },
+        data:  { status: "PUBLISHED" },
+      });
+
+      for (const submission of due) {
+        if (!submission.author?.slackId) continue;
+        queueDm(
+          submission.author.slackId,
+          `✅ Your post *"${submission.title}"* has been auto-published. Time to cross-post!`
+        );
+      }
+      console.log(`✅ Auto-published ${due.length} submission(s)`);
+    } catch (err) {
+      console.error("❌ Auto-publish error:", err);
+    }
+  });
+
+  // ── Every hour — Instantiate due RecurringTemplate(s) into DRAFTs ──
+  cron.schedule("5 * * * *", async () => {
+    try {
+      const { CronExpressionParser } = await import("cron-parser");
+      const now = new Date();
+      const due = await prisma.recurringTemplate.findMany({
+        where: {
+          active: true,
+          nextRunAt: { lte: now },
+        },
+        include: {
+          templateSubmission: true,
+          owner: { select: { slackId: true } },
+        },
+      });
+      if (due.length === 0) return;
+
+      function substitute(text: string, vals: Record<string, string>): string {
+        return text.replace(/\{\{(\w+)\}\}/g, (_m, k) => vals[k] ?? `{{${k}}}`);
+      }
+
+      for (const rec of due) {
+        const tmpl = rec.templateSubmission;
+        if (!tmpl.isTemplate) continue;
+        const vals = (rec.defaultValues as Record<string, string> | null) ?? {};
+        try {
+          await prisma.outreachSubmission.create({
+            data: {
+              title:     substitute(tmpl.title, vals),
+              content:   tmpl.content ? substitute(tmpl.content, vals) : null,
+              type:      tmpl.type,
+              status:    "DRAFT",
+              platform:  tmpl.platform,
+              mediaUrls: tmpl.mediaUrls,
+              authorId:  rec.ownerId,
+              campaignId: tmpl.campaignId,
+              projectId:  tmpl.projectId,
+              isTemplate: false,
+            },
+          });
+
+          // Recompute nextRunAt from cron expression
+          let nextRunAt: Date;
+          try {
+            nextRunAt = CronExpressionParser.parse(rec.cronExpression).next().toDate();
+          } catch {
+            // Bad cron — deactivate to prevent infinite errors
+            await prisma.recurringTemplate.update({
+              where: { id: rec.id },
+              data:  { active: false, lastRunAt: now },
+            });
+            continue;
+          }
+
+          await prisma.recurringTemplate.update({
+            where: { id: rec.id },
+            data:  { lastRunAt: now, nextRunAt },
+          });
+
+          if (rec.owner?.slackId) {
+            queueDm(rec.owner.slackId, `🔁 Recurring template *${tmpl.title}* spawned a new DRAFT in Outreach Hub. Review & schedule it.`);
+          }
+        } catch (err) {
+          console.error(`❌ Recurring template ${rec.id} failed:`, err);
+        }
+      }
+      console.log(`✅ Instantiated ${due.length} recurring template(s)`);
+    } catch (err) {
+      console.error("❌ Recurring template cron error:", err);
+    }
+  });
+
+  // ── Daily 8:10 AM — Auto-create EVENT_PROMO drafts 7/3/1 days before events ──
+  cron.schedule("10 8 * * *", async () => {
+    console.log("📣 Checking for upcoming events needing outreach drafts...");
+    try {
+      const now = new Date();
+      const targetsInDays = [7, 3, 1];
+
+      for (const days of targetsInDays) {
+        const windowStart = new Date(now);
+        windowStart.setDate(windowStart.getDate() + days);
+        windowStart.setHours(0, 0, 0, 0);
+        const windowEnd = new Date(windowStart);
+        windowEnd.setHours(23, 59, 59, 999);
+
+        const events = await prisma.event.findMany({
+          where: {
+            startTime:   { gte: windowStart, lte: windowEnd },
+            type:        { not: "MEETING" },
+            isRecurring: false,
+          },
+          select: { id: true, title: true, startTime: true, type: true },
+        });
+
+        for (const event of events) {
+          // Skip if an EVENT_PROMO submission already references this event
+          const existing = await prisma.outreachSubmission.findFirst({
+            where: {
+              type:      "EVENT_PROMO",
+              eventId:   event.id,
+              status:    { not: "DRAFT" },
+            },
+          });
+          if (existing) continue;
+
+          // Check if a DRAFT already exists for this event
+          const existingDraft = await prisma.outreachSubmission.findFirst({
+            where: { type: "EVENT_PROMO", eventId: event.id, status: "DRAFT" },
+          });
+          if (existingDraft) continue;
+
+          // Find first admin to own the draft
+          const admin = await prisma.member.findFirst({
+            where: { isAdmin: true, isBot: false },
+            select: { id: true, slackId: true },
+          });
+          if (!admin) continue;
+
+          const eventDate = event.startTime
+            ? event.startTime.toLocaleDateString("en-US", { month: "short", day: "numeric" })
+            : "upcoming";
+
+          await prisma.outreachSubmission.create({
+            data: {
+              title:    `[Auto] Promote: ${event.title}`,
+              content:  `Join us for ${event.title} on ${eventDate}! Stay tuned for more details.`,
+              type:     "EVENT_PROMO",
+              status:   "DRAFT",
+              platform: ["instagram", "linkedin"],
+              authorId: admin.id,
+              eventId:  event.id,
+            },
+          });
+
+          if (admin.slackId) {
+            queueDm(
+              admin.slackId,
+              `📣 Auto-created an EVENT_PROMO draft for *${event.title}* (${days} day${days !== 1 ? "s" : ""} away). Please review and submit it in the Outreach Hub.`
+            );
+          }
+        }
+      }
+      console.log("✅ Event promo draft check complete");
+    } catch (err) {
+      console.error("❌ Event promo draft error:", err);
+    }
+  });
+
   console.log("  📅 Scheduled: Monday 9AM         — Combined digest + standup DMs");
   console.log("  📅 Scheduled: Tue–Fri 9:15AM     — Standup prompt DMs");
   console.log("  📅 Scheduled: Sunday 6PM          — Combined health + week-ahead (channels)");
@@ -351,4 +723,10 @@ export function startScheduler(app: App): void {
   console.log("  📅 Scheduled: Daily 3AM           — Notification cleanup (90 days)");
   console.log("  📅 Scheduled: Tuesday 6:30AM      — Meeting template DMs → admins");
   console.log("  📅 Scheduled: Daily 9AM           — Event reminders → attendees");
+  console.log("  📅 Scheduled: Hourly              — Auto-publish APPROVED outreach submissions");
+  console.log("  📅 Scheduled: Hourly :05          — Instantiate recurring template DRAFTs");
+  console.log("  📅 Scheduled: Daily 8:10AM        — Auto-create EVENT_PROMO drafts (7/3/1 day lead)");
+  console.log("  📅 Scheduled: Thursday 11AM       — Member Spotlight auto-draft (fair rotation)");
+  console.log("  📅 Scheduled: Monday 10AM         — Outreach Weekly Slack digest (AI narrative)");
+  console.log("  📅 Scheduled: Daily 9:05AM        — CRM follow-up reminders → contact owners");
 }

@@ -1,5 +1,5 @@
 import { prisma } from "../db/prisma.js";
-import type { SubmissionStatus, SubmissionType } from "@prisma/client";
+import type { SubmissionStatus, SubmissionType, HashtagStat } from "@prisma/client";
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -14,6 +14,8 @@ interface CreateSubmissionInput {
   eventId?: string;
   authorId: string;
   scheduledAt?: Date;
+  isTemplate?: boolean;
+  placeholders?: unknown;
 }
 
 interface UpdateSubmissionInput {
@@ -29,6 +31,8 @@ interface UpdateSubmissionInput {
   reviewNote?: string | null;
   scheduledAt?: Date | null;
   publishedAt?: Date | null;
+  isTemplate?: boolean;
+  placeholders?: unknown;
 }
 
 interface ListSubmissionsFilters {
@@ -58,7 +62,7 @@ const submissionDetailInclude = {
 // ── Service ──────────────────────────────────────────────────
 
 export async function createSubmission(data: CreateSubmissionInput) {
-  return prisma.outreachSubmission.create({
+  const submission = await prisma.outreachSubmission.create({
     data: {
       title: data.title,
       type: data.type,
@@ -70,9 +74,15 @@ export async function createSubmission(data: CreateSubmissionInput) {
       ...(data.projectId ? { projectId: data.projectId } : {}),
       ...(data.eventId ? { eventId: data.eventId } : {}),
       ...(data.scheduledAt ? { scheduledAt: data.scheduledAt } : {}),
+      ...(data.isTemplate != null ? { isTemplate: data.isTemplate } : {}),
+      ...(data.placeholders !== undefined ? { placeholders: data.placeholders as never } : {}),
     },
     include: submissionDetailInclude,
   });
+  if (data.content) {
+    recordHashtagUsage(data.content).catch(console.error);
+  }
+  return submission;
 }
 
 export async function updateSubmission(id: string, data: UpdateSubmissionInput) {
@@ -91,12 +101,18 @@ export async function updateSubmission(id: string, data: UpdateSubmissionInput) 
   if (data.projectId !== undefined) updateData.projectId = data.projectId;
   if (data.eventId !== undefined) updateData.eventId = data.eventId;
   if (data.reviewerId !== undefined) updateData.reviewerId = data.reviewerId;
+  if (data.isTemplate !== undefined) updateData.isTemplate = data.isTemplate;
+  if (data.placeholders !== undefined) updateData.placeholders = data.placeholders;
 
-  return prisma.outreachSubmission.update({
+  const updated = await prisma.outreachSubmission.update({
     where: { id },
     data: updateData,
     include: submissionDetailInclude,
   });
+  if (data.content) {
+    recordHashtagUsage(data.content).catch(console.error);
+  }
+  return updated;
 }
 
 export async function deleteSubmission(id: string) {
@@ -213,6 +229,100 @@ export async function getContentCalendar(from: Date, to: Date) {
     },
     include: submissionListInclude,
     orderBy: { scheduledAt: "asc" },
+  });
+}
+
+export async function listComments(submissionId: string) {
+  return prisma.outreachComment.findMany({
+    where: { submissionId, parentId: null },
+    include: {
+      author: { select: { id: true, displayName: true, avatarUrl: true } },
+      replies: {
+        include: {
+          author: { select: { id: true, displayName: true, avatarUrl: true } },
+        },
+        orderBy: { createdAt: "asc" },
+      },
+    },
+    orderBy: { createdAt: "asc" },
+  });
+}
+
+export async function addComment(
+  submissionId: string,
+  authorId: string,
+  body: string,
+  mentions: string[] = [],
+  parentId?: string
+) {
+  if (parentId) {
+    const parent = await prisma.outreachComment.findUnique({ where: { id: parentId } });
+    if (!parent || parent.submissionId !== submissionId) {
+      throw new Error("Invalid parentId: comment does not belong to this submission");
+    }
+  }
+  return prisma.outreachComment.create({
+    data: { submissionId, authorId, body, mentions, parentId },
+    include: {
+      author: { select: { id: true, displayName: true, avatarUrl: true } },
+    },
+  });
+}
+
+// ── Hashtag utilities ────────────────────────────────────────
+
+export async function recordHashtagUsage(content: string) {
+  if (!content?.trim()) return;
+  const tags = content.match(/\B#[a-zA-Z][a-zA-Z0-9_]*/g) ?? [];
+  const unique = [...new Set(tags.map(t => t.toLowerCase()))];
+  const now = new Date();
+  await Promise.all(
+    unique.map(tag =>
+      prisma.hashtagStat.upsert({
+        where: { tag },
+        update: { useCount: { increment: 1 }, lastUsedAt: now },
+        create: { tag, useCount: 1, lastUsedAt: now },
+      })
+    )
+  );
+}
+
+export async function seedHashtagsFromSubmissions(): Promise<number> {
+  const submissions = await prisma.outreachSubmission.findMany({
+    where: { status: { in: ['APPROVED', 'PUBLISHED'] }, content: { not: null } },
+    select: { content: true },
+  });
+
+  const tagCounts = new Map<string, number>();
+  for (const s of submissions) {
+    const matches = s.content?.match(/\B#[a-zA-Z][a-zA-Z0-9_]*/g) ?? [];
+    for (const tag of matches) {
+      const norm = tag.toLowerCase();
+      tagCounts.set(norm, (tagCounts.get(norm) ?? 0) + 1);
+    }
+  }
+
+  const now = new Date();
+  await Promise.all(
+    [...tagCounts.entries()].map(([tag, count]) =>
+      prisma.hashtagStat.upsert({
+        where: { tag },
+        update: { useCount: { increment: count }, lastUsedAt: now },
+        create: { tag, useCount: count, lastUsedAt: now },
+      })
+    )
+  );
+
+  return tagCounts.size;
+}
+
+export async function listHashtags(query?: string): Promise<HashtagStat[]> {
+  return prisma.hashtagStat.findMany({
+    where: query
+      ? { tag: { contains: query.toLowerCase() } }
+      : undefined,
+    orderBy: [{ useCount: 'desc' }, { tag: 'asc' }],
+    take: 30,
   });
 }
 

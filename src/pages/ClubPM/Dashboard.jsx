@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { Link, useNavigate } from "react-router-dom";
 import { get, post, patch } from "../../api/clubPmClient";
@@ -1331,19 +1331,7 @@ export default function Dashboard() {
   const [upcomingEvents, setUpcomingEvents]   = useState([]);
   const [eventsLoading, setEventsLoading]     = useState(true);
 
-  const fetchTasks = () =>
-    member
-      ? get("/api/members/me").then(m => setMyTasks(m.tasks ?? []))
-      : Promise.resolve();
-
-  useEffect(() => {
-    get("/api/events/upcoming")
-      .then(setUpcomingEvents)
-      .catch(() => setUpcomingEvents([]))
-      .finally(() => setEventsLoading(false));
-  }, []);
-
-  useEffect(() => {
+  const loadDashboard = useCallback(() => {
     Promise.all([
       get("/api/projects"),
       member ? get("/api/members/me").then(m => m.tasks ?? []) : Promise.resolve([]),
@@ -1353,12 +1341,25 @@ export default function Dashboard() {
       .finally(() => setLoading(false));
   }, [member]);
 
+  useEffect(() => {
+    get("/api/events/upcoming")
+      .then(setUpcomingEvents)
+      .catch(() => setUpcomingEvents([]))
+      .finally(() => setEventsLoading(false));
+  }, []);
+
+  useEffect(() => {
+    loadDashboard();
+  }, [loadDashboard]);
+
   const handleProgressChange = (taskId, newProgress) => {
     const original = myTasks.find(t => t.id === taskId)?.progress ?? "NO_PROGRESS";
     setMyTasks(prev => prev.map(t => t.id === taskId ? { ...t, progress: newProgress } : t));
-    patch(`/api/tasks/${taskId}`, { progress: newProgress }).catch(() =>
-      setMyTasks(prev => prev.map(t => t.id === taskId ? { ...t, progress: original } : t))
-    );
+    patch(`/api/tasks/${taskId}`, { progress: newProgress })
+      .then(() => loadDashboard())
+      .catch(() =>
+        setMyTasks(prev => prev.map(t => t.id === taskId ? { ...t, progress: original } : t))
+      );
   };
 
   if (loading) {
@@ -1379,7 +1380,7 @@ export default function Dashboard() {
           tasks={myTasks}
           onProgressChange={handleProgressChange}
           projects={projects}
-          onTaskCreated={fetchTasks}
+          onTaskCreated={loadDashboard}
         />
         <AgendaPanel tasks={myTasks} onProgressChange={handleProgressChange} />
       </div>

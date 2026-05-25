@@ -24,7 +24,7 @@ reportingRouter.get("/project/:projectId", async (req: Request, res: Response) =
 reportingRouter.get("/meeting-template", async (req: Request, res: Response) => {
   try {
     const member = await prisma.member.findUnique({
-      where: { id: req.session.memberId },
+      where: { id: req.memberId },
       select: { isAdmin: true },
     });
     if (!member?.isAdmin) {
@@ -53,7 +53,7 @@ reportingRouter.get("/meeting-template", async (req: Request, res: Response) => 
 reportingRouter.get("/meeting-template/markdown", async (req: Request, res: Response) => {
   try {
     const member = await prisma.member.findUnique({
-      where: { id: req.session.memberId },
+      where: { id: req.memberId },
       select: { isAdmin: true },
     });
     if (!member?.isAdmin) {

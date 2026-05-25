@@ -1,50 +1,81 @@
 import { Router, type Request, type Response, type NextFunction } from "express";
+import { createHmac } from "crypto";
 import { prisma } from "../db/prisma.js";
 
 export const authRouter = Router();
 
-// ── Types ────────────────────────────────────────────────────
+// Expose memberId on every request (set by requireAuth, works for both session and Bearer token).
+declare module "express-serve-static-core" {
+  interface Request {
+    memberId?: string;
+  }
+}
 
-interface AuthenticatedRequest extends Request {
-  member?: {
-    id: string;
-    slackId: string;
-    displayName: string;
-  };
+// ── Token helpers (HMAC-signed, 7-day TTL) ───────────────────
+// Used when cross-origin cookies are blocked (e.g. Brave Shields).
+// Frontend stores token in localStorage and sends it as Authorization: Bearer.
+
+const TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
+function tokenSecret(): string {
+  return process.env.SESSION_SECRET ?? "dev-secret-change-me";
+}
+
+export function signToken(memberId: string): string {
+  const expires = Date.now() + TOKEN_TTL_MS;
+  const payload = Buffer.from(`${memberId}|${expires}`).toString("base64url");
+  const sig = createHmac("sha256", tokenSecret()).update(payload).digest("hex");
+  return `${payload}.${sig}`;
+}
+
+function verifyToken(token: string): string | null {
+  try {
+    const dotIdx = token.indexOf(".");
+    if (dotIdx === -1) return null;
+    const payload = token.slice(0, dotIdx);
+    const sig = token.slice(dotIdx + 1);
+    const expectedSig = createHmac("sha256", tokenSecret()).update(payload).digest("hex");
+    // Constant-time comparison
+    if (sig.length !== expectedSig.length) return null;
+    let diff = 0;
+    for (let i = 0; i < sig.length; i++) diff |= sig.charCodeAt(i) ^ expectedSig.charCodeAt(i);
+    if (diff !== 0) return null;
+    const decoded = Buffer.from(payload, "base64url").toString();
+    const pipeIdx = decoded.lastIndexOf("|");
+    if (pipeIdx === -1) return null;
+    const memberId = decoded.slice(0, pipeIdx);
+    const expires = parseInt(decoded.slice(pipeIdx + 1));
+    if (isNaN(expires) || Date.now() > expires) return null;
+    return memberId;
+  } catch {
+    return null;
+  }
 }
 
 // ── Middleware: Require Auth ─────────────────────────────────
 
 export function requireAuth(
-  req: AuthenticatedRequest,
+  req: Request,
   res: Response,
   next: NextFunction
 ): void {
+  // Bearer token first — works even when Brave blocks SameSite=None cross-origin cookies.
+  const authHeader = req.headers.authorization;
+  if (authHeader?.startsWith("Bearer ")) {
+    const memberId = verifyToken(authHeader.slice(7));
+    if (memberId) {
+      req.memberId = memberId;
+      console.log(`[auth] source=bearer path=${req.path}`);
+      return next();
+    }
+  }
+  // Fall back to session cookie.
   if (!req.session.memberId) {
     res.status(401).json({ error: "Not authenticated" });
     return;
   }
-  next();
-}
-
-// Middleware: attach member to request
-export async function attachMember(
-  req: AuthenticatedRequest,
-  _res: Response,
-  next: NextFunction
-): Promise<void> {
-  if (req.session.memberId) {
-    const member = await prisma.member.findUnique({
-      where: { id: req.session.memberId },
-    });
-    if (member) {
-      req.member = {
-        id: member.id,
-        slackId: member.slackId,
-        displayName: member.displayName,
-      };
-    }
-  }
+  req.memberId = req.session.memberId;
+  console.log(`[auth] source=cookie path=${req.path}`);
   next();
 }
 
@@ -160,13 +191,16 @@ authRouter.get("/slack/callback", async (req: Request, res: Response) => {
     req.session.slackAccessToken = accessToken;
 
     const frontendUrl = process.env.FRONTEND_URL ?? "http://localhost:3000";
+    // Sign a Bearer token to include in the redirect fragment so cross-origin clients
+    // (e.g. Brave with Shields blocking SameSite=None cookies) can authenticate via header.
+    const loginToken = signToken(member.id);
     req.session.save((err) => {
       if (err) {
         console.error("Session save error:", err);
         res.status(500).json({ error: "Authentication failed" });
         return;
       }
-      res.redirect(`${frontendUrl}/clubpm`);
+      res.redirect(`${frontendUrl}/clubpm?lt=${encodeURIComponent(loginToken)}`);
     });
   } catch (error) {
     console.error("OAuth callback error:", error);
@@ -189,14 +223,9 @@ authRouter.get("/logout", (req: Request, res: Response) => {
 
 // ── GET /auth/me — Check auth status ─────────────────────────
 
-authRouter.get("/me", async (req: Request, res: Response) => {
-  if (!req.session.memberId) {
-    res.status(401).json({ error: "Not authenticated" });
-    return;
-  }
-
+authRouter.get("/me", requireAuth, async (req: Request, res: Response) => {
   const member = await prisma.member.findUnique({
-    where: { id: req.session.memberId },
+    where: { id: req.memberId! },
     include: {
       tasks: {
         include: { project: true },

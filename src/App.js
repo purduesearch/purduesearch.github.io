@@ -17,6 +17,9 @@ import NotificationPreferences from './components/clubpm/NotificationPreferences
 import CalendarPage from './pages/ClubPM/CalendarPage';
 import MeetingNotesView from './pages/ClubPM/MeetingNotesView';
 import OutreachHub from './pages/ClubPM/OutreachHub';
+import PublicCampaign from './pages/PublicCampaign';
+import Archive from './pages/Archive';
+import BlogPost from './pages/BlogPost';
 import Home from './pages/Home';
 import About from './pages/About';
 import Research from './pages/Research';
@@ -70,6 +73,10 @@ function AnimatedRoutes() {
           <Route path="/clubpm/meeting-notes" element={<ClubPmProtectedPage><MeetingNotesView /></ClubPmProtectedPage>} />
           <Route path="/clubpm/outreach" element={<ClubPmProtectedPage><OutreachHub /></ClubPmProtectedPage>} />
 
+          {/* Public outreach routes (no auth) */}
+          <Route path="/r/c/:slug" element={<PublicCampaign />} />
+          <Route path="/r/archive" element={<Archive />} />
+
           {/* Main site routes */}
           <Route path="/" element={<PageWrapper><Home /></PageWrapper>} />
           <Route path="/about" element={<PageWrapper><About /></PageWrapper>} />
@@ -88,6 +95,7 @@ function AnimatedRoutes() {
           <Route path="/outreach" element={<PageWrapper><Outreach /></PageWrapper>} />
           <Route path="/contact" element={<PageWrapper><Contact /></PageWrapper>} />
           <Route path="/blog" element={<PageWrapper><Blog /></PageWrapper>} />
+          <Route path="/blog/:slug" element={<PageWrapper><BlogPost /></PageWrapper>} />
           <Route path="/search" element={<PageWrapper><SearchResults /></PageWrapper>} />
           <Route path="*" element={<PageWrapper><NotFound /></PageWrapper>} />
         </Routes>

@@ -2,6 +2,17 @@ import { prisma } from "../db/prisma.js";
 import type { Task, TaskStatus, TaskProgress, Priority, Prisma, Member, Project, RecurringInterval, Tag } from "@prisma/client";
 import { logActivity } from "./activityService.js";
 
+// ── Helpers ──────────────────────────────────────────────────
+
+function safeParseDate(input: unknown, fieldName: string): Date | undefined {
+  if (input == null || input === "") return undefined;
+  const d = new Date(input as string);
+  if (isNaN(d.getTime())) throw new Error(`Invalid ${fieldName}: ${String(input)}`);
+  const year = d.getUTCFullYear();
+  if (year < 1970 || year > 9999) throw new Error(`${fieldName} year out of range (1970–9999): got ${year}`);
+  return d;
+}
+
 // ── Types ────────────────────────────────────────────────────
 
 interface CreateTaskInput {
@@ -9,19 +20,20 @@ interface CreateTaskInput {
   description?: string;
   status?: TaskStatus;
   priority?: Priority;
-  dueDate?: Date;
+  dueDate?: Date | string;
   projectId: string;
   assigneeIds?: string[];
   slackMsgTs?: string;
   parentTaskId?: string;
   milestoneId?: string;
+  createdById?: string;
   recurringInterval?: RecurringInterval;
   tagIds?:            string[];
   estimatedHours?:    number;
   storyPoints?:       number;
   isRecurring?:       boolean;
   recurrencePattern?: string;
-  recurrenceEndDate?: Date;
+  recurrenceEndDate?: Date | string;
   recurringParentId?: string;
 }
 
@@ -76,17 +88,18 @@ export async function createTask(
       description: data.description,
       status: data.status,
       priority: data.priority,
-      dueDate: data.dueDate,
+      dueDate: safeParseDate(data.dueDate, "dueDate"),
       projectId: data.projectId,
       slackMsgTs: data.slackMsgTs,
       parentTaskId: data.parentTaskId,
       milestoneId: data.milestoneId,
+      createdById: data.createdById,
       recurringInterval: data.recurringInterval,
       estimatedHours: data.estimatedHours,
       storyPoints: data.storyPoints,
       isRecurring: data.isRecurring,
       recurrencePattern: data.recurrencePattern,
-      recurrenceEndDate: data.recurrenceEndDate,
+      recurrenceEndDate: safeParseDate(data.recurrenceEndDate, "recurrenceEndDate"),
       recurringParentId: data.recurringParentId,
       ...(data.assigneeIds && data.assigneeIds.length > 0
         ? { assignees: { connect: data.assigneeIds.map(id => ({ id })) } }
@@ -118,13 +131,13 @@ export async function updateTask(
   if (data.status !== undefined) updateData.status = data.status;
   if (data.progress !== undefined) updateData.progress = data.progress;
   if (data.priority !== undefined) updateData.priority = data.priority;
-  if (data.dueDate !== undefined) updateData.dueDate = data.dueDate;
+  if (data.dueDate !== undefined) updateData.dueDate = safeParseDate(data.dueDate, "dueDate") ?? null;
   if (data.tags !== undefined) updateData.tags = { set: data.tags.map(id => ({ id })) };
   if (data.estimatedHours !== undefined) updateData.estimatedHours = data.estimatedHours;
   if (data.storyPoints !== undefined) updateData.storyPoints = data.storyPoints;
   if (data.isRecurring !== undefined) updateData.isRecurring = data.isRecurring;
   if (data.recurrencePattern !== undefined) updateData.recurrencePattern = data.recurrencePattern;
-  if (data.recurrenceEndDate !== undefined) updateData.recurrenceEndDate = data.recurrenceEndDate;
+  if (data.recurrenceEndDate !== undefined) updateData.recurrenceEndDate = safeParseDate(data.recurrenceEndDate, "recurrenceEndDate") ?? null;
   if (data.recurringParentId !== undefined) updateData.recurringParentId = data.recurringParentId;
   if (data.attachments !== undefined) {
     updateData.attachments = data.attachments.map(a =>

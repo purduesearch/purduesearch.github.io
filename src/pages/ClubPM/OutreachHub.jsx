@@ -3,6 +3,19 @@ import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { get, post, patch, del } from '../../api/clubPmClient';
 import { useClubPmAuth } from '../../clubpm/ClubPmAuth';
 import SubmissionFormModal from '../../components/clubpm/SubmissionFormModal';
+import CommentThread from '../../components/clubpm/CommentThread';
+import SafetyBadge from '../../components/clubpm/SafetyBadge';
+import ApprovalChips from '../../components/clubpm/ApprovalChips';
+import ComposerTab from '../../components/clubpm/ComposerTab';
+import CrossPostBundle from '../../components/clubpm/CrossPostBundle';
+import BrandVoiceAdmin from '../../components/clubpm/BrandVoiceAdmin';
+import CampaignsTab from '../../components/clubpm/CampaignsTab';
+import CalendarTab from '../../components/clubpm/CalendarTab';
+import CrmTab from '../../components/clubpm/CrmTab';
+import InsightsTab from '../../components/clubpm/InsightsTab';
+import KeyboardShortcutsModal from '../../components/clubpm/KeyboardShortcutsModal';
+import ActivityFeedSidebar from '../../components/clubpm/ActivityFeedSidebar';
+import OutreachSearch from '../../components/clubpm/OutreachSearch';
 import toast from 'react-hot-toast';
 
 // ── Constants ─────────────────────────────────────────────────
@@ -59,18 +72,6 @@ function fmtDate(str) {
   if (!str) return null;
   const d = new Date(str);
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-}
-
-function startOfMonth(d) {
-  const r = new Date(d);
-  r.setDate(1); r.setHours(0, 0, 0, 0);
-  return r;
-}
-
-function endOfMonth(d) {
-  const r = new Date(d);
-  r.setMonth(r.getMonth() + 1); r.setDate(0); r.setHours(23, 59, 59, 999);
-  return r;
 }
 
 // ── TypeBadge ─────────────────────────────────────────────────
@@ -130,17 +131,28 @@ function PlatformChips({ platforms = [] }) {
 
 // ── SubmissionCard ────────────────────────────────────────────
 
-function SubmissionCard({ submission, member, onEdit, onReview, onDelete }) {
+function SubmissionCard({ submission, member, onEdit, onReview, onDelete, onCopy, selectedIds, toggleSelect, onSafetyUpdate, onExpandBlog }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [showComments, setShowComments] = useState(false);
   const isAdmin = member?.isAdmin;
   const isAuthor = member?.id === submission.authorId;
   const canDelete = isAdmin || isAuthor;
   const canReview = isAdmin && (submission.status === 'SUBMITTED' || submission.status === 'IN_REVIEW');
+  const canCopy = submission.status === 'APPROVED' && (isAdmin || isAuthor);
   const author = submission.author ?? submission.member;
+  const isSelected = selectedIds?.has(submission.id);
 
   return (
-    <div className="pm-outreach-card">
+    <div className={`pm-outreach-card${isSelected ? ' pm-card--selected' : ''}`}>
       <div className="pm-outreach-card-top">
+        <input
+          type="checkbox"
+          className="pm-card-checkbox"
+          checked={isSelected ?? false}
+          onChange={() => toggleSelect?.(submission.id)}
+          onClick={e => e.stopPropagation()}
+          aria-label={`Select "${submission.title}"`}
+        />
         <TypeBadge type={submission.type} />
         {submission.scheduledAt && (
           <span style={{ fontSize: 10, color: 'var(--clubpm-text-muted)', marginLeft: 'auto' }}>
@@ -166,6 +178,31 @@ function SubmissionCard({ submission, member, onEdit, onReview, onDelete }) {
 
       <PlatformChips platforms={submission.platform ?? []} />
 
+      {/* Safety badge (only for non-DRAFT or already-checked submissions) */}
+      {(submission.safetyReport || ['SUBMITTED', 'IN_REVIEW', 'APPROVED'].includes(submission.status)) && (
+        <div style={{ marginTop: 6 }}>
+          <SafetyBadge
+            submissionId={submission.id}
+            report={submission.safetyReport}
+            checkedAt={submission.safetyCheckedAt}
+            onUpdate={({ report, checkedAt }) => onSafetyUpdate?.(submission.id, { safetyReport: report, safetyCheckedAt: checkedAt })}
+            compact
+          />
+        </div>
+      )}
+
+      {/* Approval workflow chips (shows only when campaign has requiredApprovers) */}
+      {submission.campaignId && ['SUBMITTED', 'IN_REVIEW'].includes(submission.status) && (
+        <div style={{ marginTop: 6 }}>
+          <ApprovalChips
+            submissionId={submission.id}
+            currentMemberId={member?.id}
+            isAdmin={!!member?.isAdmin}
+            onAdvanced={() => onSafetyUpdate?.(submission.id, { status: 'APPROVED' })}
+          />
+        </div>
+      )}
+
       <div className="pm-outreach-card-footer">
         {author ? (
           <div className="pm-outreach-card-author">
@@ -181,7 +218,38 @@ function SubmissionCard({ submission, member, onEdit, onReview, onDelete }) {
           </div>
         ) : <span />}
 
-        <div style={{ display: 'flex', gap: 5, marginLeft: 'auto', alignItems: 'center' }}>
+        <div className="pm-outreach-card-actions">
+          {/* Comments toggle — icon only */}
+          <button
+            className={`pm-outreach-comments-toggle${showComments ? ' pm-outreach-comments-toggle--active' : ''}`}
+            onClick={() => setShowComments(v => !v)}
+            title={showComments ? 'Hide comments' : 'Show comments'}
+            aria-label={showComments ? 'Hide comments' : 'Show comments'}
+            aria-expanded={showComments}
+          >
+            <i className="fas fa-comment-alt" aria-hidden="true" />
+          </button>
+
+          {canCopy && (
+            <button
+              className="pm-outreach-review-btn pm-copy-trigger-btn"
+              onClick={() => onCopy(submission)}
+              title="Copy for Posting"
+              aria-label="Copy for Posting"
+            >
+              <i className="fas fa-clipboard" aria-hidden="true" />
+            </button>
+          )}
+          {['APPROVED', 'PUBLISHED', 'IN_REVIEW'].includes(submission.status) && submission.content && (
+            <button
+              className="pm-outreach-review-btn"
+              onClick={() => onExpandBlog?.(submission)}
+              title={submission.blogSlug ? 'Re-expand to blog post' : 'Expand to blog post (AI)'}
+              aria-label="Expand to blog post"
+            >
+              <i className={`fas ${submission.blogSlug ? 'fa-blog' : 'fa-pen-fancy'}`} aria-hidden="true" />
+            </button>
+          )}
           {canReview && (
             <>
               <button
@@ -230,6 +298,13 @@ function SubmissionCard({ submission, member, onEdit, onReview, onDelete }) {
           )}
         </div>
       </div>
+
+      {showComments && (
+        <CommentThread
+          submissionId={submission.id}
+          currentMember={member}
+        />
+      )}
     </div>
   );
 }
@@ -241,18 +316,150 @@ const STATUS_LABELS = {
   APPROVED: 'Approved', PUBLISHED: 'Published',
 };
 
-function BoardTab({ submissions, member, onEdit, onReview, onDelete, onStatusChange }) {
-  const [columns, setColumns] = useState({});
+function BulkToolbar({ selectedIds, onClearSelection, onBulkStatus, onBulkDelete, loading }) {
+  const count = selectedIds.size;
+  const [pendingStatus, setPendingStatus] = useState('');
+
+  const handleStatusApply = () => {
+    if (!pendingStatus) return;
+    onBulkStatus(pendingStatus);
+    setPendingStatus('');
+  };
+
+  return (
+    <div className="pm-bulk-toolbar" role="toolbar" aria-label="Bulk actions">
+      <span className="pm-bulk-count">{count} selected</span>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <select
+          className="pm-bulk-status-select"
+          value={pendingStatus}
+          onChange={e => setPendingStatus(e.target.value)}
+          disabled={loading}
+          aria-label="Change status to"
+        >
+          <option value="">Change Status&hellip;</option>
+          {BOARD_COLUMNS.map(col => (
+            <option key={col.id} value={col.id}>{col.label}</option>
+          ))}
+        </select>
+        <button
+          className="pm-bulk-status-apply-btn"
+          onClick={handleStatusApply}
+          disabled={loading || !pendingStatus}
+          aria-label="Apply status change"
+        >
+          {loading
+            ? <span className="pm-bulk-spinner" aria-hidden="true" />
+            : <i className="fas fa-check" aria-hidden="true" />
+          }
+          Apply
+        </button>
+      </div>
+
+      <button
+        className="pm-bulk-delete-btn"
+        onClick={onBulkDelete}
+        disabled={loading}
+        aria-label={`Delete ${count} selected submissions`}
+      >
+        {loading
+          ? <span className="pm-bulk-spinner" aria-hidden="true" />
+          : <i className="fas fa-trash-alt" aria-hidden="true" />
+        }
+        Delete
+      </button>
+
+      <button
+        className="pm-bulk-clear-btn"
+        onClick={onClearSelection}
+        disabled={loading}
+        aria-label="Clear selection"
+        title="Clear selection (Esc)"
+      >
+        <i className="fas fa-times" aria-hidden="true" /> Clear
+      </button>
+    </div>
+  );
+}
+
+function BoardTab({ submissions, member, onEdit, onReview, onDelete, onStatusChange, onBulkReload, campaigns, onSafetyUpdate, onExpandBlog }) {
+  const [columns,        setColumns]        = useState({});
+  const [selectedIds,    setSelectedIds]    = useState(new Set());
+  const [bulkLoading,    setBulkLoading]    = useState(false);
+  const [copyTarget,     setCopyTarget]     = useState(null);
+  const [campaignFilter, setCampaignFilter] = useState(null); // null = "All"
+
+  const filtered = campaignFilter
+    ? submissions.filter(s => s.campaignId === campaignFilter)
+    : submissions;
 
   useEffect(() => {
     const cols = {};
     BOARD_COLUMNS.forEach(col => { cols[col.id] = []; });
-    submissions.forEach(s => {
+    filtered.forEach(s => {
       if (cols[s.status]) cols[s.status].push(s);
       else cols['DRAFT'].push(s);
     });
     setColumns(cols);
-  }, [submissions]);
+  }, [filtered]);
+
+  // Escape key clears selection
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.key === 'Escape' && selectedIds.size > 0) {
+        setSelectedIds(new Set());
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [selectedIds]);
+
+  const toggleSelect = useCallback((id) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const clearSelection = useCallback(() => setSelectedIds(new Set()), []);
+
+  const handleBulkStatus = async (newStatus) => {
+    const count = selectedIds.size;
+    setBulkLoading(true);
+    try {
+      await Promise.all(
+        [...selectedIds].map(id => patch(`/api/outreach/submissions/${id}`, { status: newStatus }))
+      );
+      toast.success(`Updated ${count} submission${count !== 1 ? 's' : ''} to ${STATUS_LABELS[newStatus] ?? newStatus}.`);
+      setSelectedIds(new Set());
+      onBulkReload?.();
+    } catch (err) {
+      toast.error(err.message ?? 'Bulk status update failed.');
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    const count = selectedIds.size;
+    if (!window.confirm(`Delete ${count} submission${count !== 1 ? 's' : ''}?`)) return;
+    setBulkLoading(true);
+    try {
+      await Promise.all(
+        [...selectedIds].map(id => del(`/api/outreach/submissions/${id}`))
+      );
+      toast.success(`Deleted ${count} submission${count !== 1 ? 's' : ''}.`);
+      setSelectedIds(new Set());
+      onBulkReload?.();
+    } catch (err) {
+      toast.error(err.message ?? 'Bulk delete failed.');
+    } finally {
+      setBulkLoading(false);
+    }
+  };
 
   const handleDragEnd = (result) => {
     const { destination, source, draggableId } = result;
@@ -283,145 +490,111 @@ function BoardTab({ submissions, member, onEdit, onReview, onDelete, onStatusCha
   };
 
   return (
-    <DragDropContext onDragEnd={handleDragEnd}>
-      <div className="pm-outreach-board">
-        {BOARD_COLUMNS.map(col => (
-          <div key={col.id} className="pm-outreach-col">
-            <div className="pm-kanban-col-header">
-              <span className="pm-kanban-col-dot" style={{ background: col.color }} />
-              <span className="pm-kanban-col-label" style={{ color: col.color }}>{col.label}</span>
-              <span className="pm-kanban-col-count">{(columns[col.id] ?? []).length}</span>
-            </div>
-            <Droppable droppableId={col.id}>
-              {(provided, snapshot) => (
-                <div
-                  ref={provided.innerRef}
-                  {...provided.droppableProps}
-                  className={`pm-outreach-col-body${snapshot.isDraggingOver ? ' drag-over' : ''}`}
-                >
-                  {(columns[col.id] ?? []).length === 0 && !snapshot.isDraggingOver && (
-                    <div className="pm-outreach-col-empty">No submissions</div>
-                  )}
-                  {(columns[col.id] ?? []).map((s, index) => {
-                    const canDrag = member?.isAdmin || member?.id === s.authorId;
-                    return (
-                      <Draggable key={s.id} draggableId={s.id} index={index} isDragDisabled={!canDrag}>
-                        {(dragProvided, dragSnapshot) => (
-                          <div
-                            ref={dragProvided.innerRef}
-                            {...dragProvided.draggableProps}
-                            {...dragProvided.dragHandleProps}
-                            style={{
-                              ...dragProvided.draggableProps.style,
-                              opacity: dragSnapshot.isDragging ? 0.85 : 1,
-                            }}
-                          >
-                            <SubmissionCard
-                              submission={s}
-                              member={member}
-                              onEdit={onEdit}
-                              onReview={onReview}
-                              onDelete={onDelete}
-                            />
-                          </div>
-                        )}
-                      </Draggable>
-                    );
-                  })}
-                  {provided.placeholder}
-                </div>
-              )}
-            </Droppable>
-          </div>
-        ))}
-      </div>
-    </DragDropContext>
-  );
-}
-
-// ── CalendarTab ───────────────────────────────────────────────
-
-function CalendarTab() {
-  const [calItems, setCalItems] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [currentMonth, setCurrentMonth] = useState(() => new Date());
-
-  const loadCalendar = useCallback((monthDate) => {
-    setLoading(true);
-    const from = startOfMonth(monthDate).toISOString();
-    const to   = endOfMonth(monthDate).toISOString();
-    get(`/api/outreach/calendar?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`)
-      .then(data => setCalItems(Array.isArray(data) ? data : []))
-      .catch(() => setCalItems([]))
-      .finally(() => setLoading(false));
-  }, []);
-
-  useEffect(() => {
-    loadCalendar(currentMonth);
-  }, [currentMonth, loadCalendar]);
-
-  // Group by week label
-  const grouped = {};
-  calItems.forEach(item => {
-    if (!item.scheduledAt) return;
-    const d = new Date(item.scheduledAt);
-    const weekStart = new Date(d);
-    weekStart.setDate(d.getDate() - d.getDay());
-    const key = weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    (grouped[key] = grouped[key] || []).push(item);
-  });
-  const groupKeys = Object.keys(grouped).sort((a, b) => new Date(a) - new Date(b));
-
-  const monthLabel = currentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-
-  return (
-    <div className="pm-outreach-calendar">
-      <div className="pm-outreach-calendar-nav">
-        <button
-          className="cpm-nav-btn"
-          onClick={() => setCurrentMonth(prev => { const d = new Date(prev); d.setMonth(d.getMonth() - 1); return d; })}
-        >
-          <i className="fas fa-angle-left" aria-hidden="true" /> Prev
-        </button>
-        <span className="pm-outreach-calendar-month">{monthLabel}</span>
-        <button
-          className="cpm-nav-btn"
-          onClick={() => setCurrentMonth(prev => { const d = new Date(prev); d.setMonth(d.getMonth() + 1); return d; })}
-        >
-          Next <i className="fas fa-angle-right" aria-hidden="true" />
-        </button>
-      </div>
-
-      {loading ? (
-        <div className="pm-outreach-loading">
-          <div className="pm-outreach-spinner" />
+    <div className="pm-board-tab-wrapper">
+      {campaigns?.length > 0 && (
+        <div className="pm-board-campaign-filter" role="group" aria-label="Filter by campaign">
+          <button
+            className={`pm-campaign-chip${!campaignFilter ? ' pm-campaign-chip--active' : ''}`}
+            onClick={() => setCampaignFilter(null)}
+          >
+            All
+          </button>
+          {campaigns.map(c => (
+            <button
+              key={c.id}
+              className={`pm-campaign-chip${campaignFilter === c.id ? ' pm-campaign-chip--active' : ''}`}
+              style={campaignFilter === c.id ? { borderColor: c.color ?? 'var(--pm-accent-teal)', color: c.color ?? 'var(--pm-accent-teal)' } : {}}
+              onClick={() => setCampaignFilter(prev => prev === c.id ? null : c.id)}
+            >
+              <span className="pm-campaign-chip-dot" style={{ background: c.color ?? 'var(--pm-accent-teal)' }} />
+              {c.name}
+            </button>
+          ))}
         </div>
-      ) : calItems.length === 0 ? (
-        <div className="pm-outreach-empty">
-          <i className="fas fa-calendar-times" aria-hidden="true" />
-          <p>No scheduled submissions for {monthLabel}.</p>
-        </div>
-      ) : (
-        groupKeys.map(weekKey => (
-          <div key={weekKey} className="pm-outreach-cal-group">
-            <div className="pm-outreach-cal-week-label">
-              <i className="fas fa-calendar-week" aria-hidden="true" style={{ marginRight: 6, opacity: 0.6 }} />
-              Week of {weekKey}
-            </div>
-            {grouped[weekKey].map((item, i) => (
-              <div key={item.id ?? i} className="pm-outreach-cal-row">
-                <span className="pm-outreach-cal-date">{fmtDate(item.scheduledAt)}</span>
-                <TypeBadge type={item.type} />
-                <span className="pm-outreach-cal-title">{item.title}</span>
-                <PlatformChips platforms={item.platform ?? []} />
+      )}
+      {selectedIds.size > 0 && (
+        <BulkToolbar
+          selectedIds={selectedIds}
+          onClearSelection={clearSelection}
+          onBulkStatus={handleBulkStatus}
+          onBulkDelete={handleBulkDelete}
+          loading={bulkLoading}
+        />
+      )}
+      <DragDropContext onDragEnd={handleDragEnd}>
+        <div className="pm-outreach-board">
+          {BOARD_COLUMNS.map(col => (
+            <div key={col.id} className="pm-outreach-col">
+              <div className="pm-kanban-col-header">
+                <span className="pm-kanban-col-dot" style={{ background: col.color }} />
+                <span className="pm-kanban-col-label" style={{ color: col.color }}>{col.label}</span>
+                <span className="pm-kanban-col-count">{(columns[col.id] ?? []).length}</span>
               </div>
-            ))}
-          </div>
-        ))
+              <Droppable droppableId={col.id}>
+                {(provided, snapshot) => (
+                  <div
+                    ref={provided.innerRef}
+                    {...provided.droppableProps}
+                    className={`pm-outreach-col-body${snapshot.isDraggingOver ? ' drag-over' : ''}`}
+                  >
+                    {(columns[col.id] ?? []).length === 0 && !snapshot.isDraggingOver && (
+                      <div className="pm-outreach-col-empty">No submissions</div>
+                    )}
+                    {(columns[col.id] ?? []).map((s, index) => {
+                      const canDrag = member?.isAdmin || member?.id === s.authorId;
+                      return (
+                        <Draggable key={s.id} draggableId={s.id} index={index} isDragDisabled={!canDrag}>
+                          {(dragProvided, dragSnapshot) => (
+                            <div
+                              ref={dragProvided.innerRef}
+                              {...dragProvided.draggableProps}
+                              {...dragProvided.dragHandleProps}
+                              style={{
+                                ...dragProvided.draggableProps.style,
+                                opacity: dragSnapshot.isDragging ? 0.85 : 1,
+                              }}
+                            >
+                              <SubmissionCard
+                                submission={s}
+                                member={member}
+                                onEdit={onEdit}
+                                onReview={onReview}
+                                onDelete={onDelete}
+                                onCopy={setCopyTarget}
+                                selectedIds={selectedIds}
+                                toggleSelect={toggleSelect}
+                                onSafetyUpdate={onSafetyUpdate}
+                                onExpandBlog={onExpandBlog}
+                              />
+                            </div>
+                          )}
+                        </Draggable>
+                      );
+                    })}
+                    {provided.placeholder}
+                  </div>
+                )}
+              </Droppable>
+            </div>
+          ))}
+        </div>
+      </DragDropContext>
+
+      {copyTarget && (
+        <CrossPostBundle
+          submission={copyTarget}
+          onClose={() => setCopyTarget(null)}
+          onPublished={() => {
+            setCopyTarget(null);
+            onBulkReload?.();
+          }}
+        />
       )}
     </div>
   );
 }
+
+// CalendarTab is now in src/components/clubpm/CalendarTab.jsx
 
 // ── RecommendationsTab ────────────────────────────────────────
 
@@ -534,27 +707,71 @@ function RecommendationsTab({ submissions }) {
 
 export default function OutreachHub() {
   const { member } = useClubPmAuth();
-  const [activeTab, setActiveTab]         = useState('board');
-  const [submissions, setSubmissions]     = useState([]);
-  const [projects, setProjects]           = useState([]);
-  const [events, setEvents]               = useState([]);
-  const [loading, setLoading]             = useState(true);
+  const [activeTab, setActiveTab]             = useState('board');
+  const [submissions, setSubmissions]         = useState([]);
+  const [projects, setProjects]               = useState([]);
+  const [events, setEvents]                   = useState([]);
+  const [campaigns, setCampaigns]             = useState([]);
+  const [loading, setLoading]                 = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editSubmission, setEditSubmission]   = useState(null);
+  const [showShortcuts, setShowShortcuts]     = useState(false);
+  const [showActivity, setShowActivity]       = useState(false);
+  const [contacts, setContacts]               = useState([]);
+
+  const loadSubmissions = useCallback(() => {
+    get('/api/outreach/submissions')
+      .then(subs => setSubmissions(Array.isArray(subs) ? subs : []))
+      .catch(console.error);
+  }, []);
 
   useEffect(() => {
     Promise.all([
       get('/api/outreach/submissions'),
       get('/api/projects'),
       get('/api/events/upcoming').catch(() => []),
+      get('/api/outreach/campaigns').catch(() => []),
+      get('/api/outreach/contacts').catch(() => []),
     ])
-      .then(([subs, projs, evts]) => {
-        setSubmissions(Array.isArray(subs) ? subs : []);
-        setProjects(Array.isArray(projs) ? projs : []);
-        setEvents(Array.isArray(evts) ? evts : []);
+      .then(([subs, projs, evts, camps, conts]) => {
+        setSubmissions(Array.isArray(subs)   ? subs   : []);
+        setProjects(Array.isArray(projs)     ? projs  : []);
+        setEvents(Array.isArray(evts)        ? evts   : []);
+        setCampaigns(Array.isArray(camps)    ? camps  : []);
+        setContacts(Array.isArray(conts)     ? conts  : []);
       })
       .catch(console.error)
       .finally(() => setLoading(false));
+  }, []);
+
+  // ── Keyboard shortcuts ──────────────────────────────────────
+  const TAB_IDS = ['composer', 'board', 'calendar', 'campaigns', 'crm', 'insights'];
+  useEffect(() => {
+    function onKey(e) {
+      // Skip if typing in an input / textarea / select
+      const tag = document.activeElement?.tagName?.toLowerCase();
+      if (['input', 'textarea', 'select'].includes(tag)) return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+
+      if (e.key === '?') { e.preventDefault(); setShowShortcuts(s => !s); return; }
+      if (e.key === 'Escape') { setShowShortcuts(false); return; }
+      if (e.key === 'n') { e.preventDefault(); setEditSubmission(null); setShowCreateModal(true); return; }
+      if (e.key === 'c') { e.preventDefault(); setActiveTab('composer'); return; }
+      if (e.key === '/') {
+        e.preventDefault();
+        document.querySelector('.pm-search-input, .pm-crm-search')?.focus();
+        return;
+      }
+      // 1-6 tab jump
+      const num = parseInt(e.key, 10);
+      if (num >= 1 && num <= TAB_IDS.length) {
+        e.preventDefault();
+        setActiveTab(TAB_IDS[num - 1]);
+      }
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleSave = async (payload) => {
@@ -617,9 +834,12 @@ export default function OutreachHub() {
   };
 
   const TABS = [
+    { id: 'composer',        label: 'Composer',        icon: 'fas fa-pen-nib' },
     { id: 'board',           label: 'Board',           icon: 'fas fa-columns' },
     { id: 'calendar',        label: 'Calendar',        icon: 'fas fa-calendar-alt' },
-    { id: 'recommendations', label: 'Recommendations', icon: 'fas fa-lightbulb' },
+    { id: 'campaigns',       label: 'Campaigns',       icon: 'fas fa-flag' },
+    { id: 'crm',             label: 'CRM',             icon: 'fas fa-address-book' },
+    { id: 'insights',        label: 'Insights',        icon: 'fas fa-chart-line' },
   ];
 
   if (loading) {
@@ -641,6 +861,23 @@ export default function OutreachHub() {
           </h1>
           <p className="pm-outreach-page-sub">Manage social content, scheduling, and publication.</p>
         </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, maxWidth: 420 }}>
+          <OutreachSearch
+            submissions={submissions}
+            campaigns={campaigns}
+            contacts={contacts}
+            onNavigate={(kind, _item) => setActiveTab(kind)}
+          />
+        </div>
+        <button
+          className="pm-outreach-activity-btn"
+          onClick={() => setShowActivity(s => !s)}
+          title="Activity feed"
+          aria-label="Toggle activity feed"
+        >
+          <i className="fas fa-stream" aria-hidden="true" />
+          Activity
+        </button>
       </div>
 
       {/* Tab bar */}
@@ -657,10 +894,30 @@ export default function OutreachHub() {
             {tab.label}
           </button>
         ))}
+        <button
+          className="pm-outreach-shortcuts-hint"
+          onClick={() => setShowShortcuts(true)}
+          title="Keyboard shortcuts (?)"
+          aria-label="Show keyboard shortcuts"
+        >
+          <i className="fas fa-keyboard" aria-hidden="true" />
+        </button>
       </div>
 
       {/* Tab content */}
       <div className="pm-outreach-tab-content" role="tabpanel">
+        {activeTab === 'composer' && (
+          <ComposerTab
+            onSaved={(submission) => {
+              setSubmissions(prev => {
+                const exists = prev.find(s => s.id === submission.id);
+                return exists
+                  ? prev.map(s => s.id === submission.id ? { ...s, ...submission } : s)
+                  : [submission, ...prev];
+              });
+            }}
+          />
+        )}
         {activeTab === 'board' && (
           <BoardTab
             submissions={submissions}
@@ -669,11 +926,42 @@ export default function OutreachHub() {
             onReview={handleReview}
             onDelete={handleDelete}
             onStatusChange={handleStatusChange}
+            onBulkReload={loadSubmissions}
+            campaigns={campaigns}
+            onSafetyUpdate={(id, patch) => setSubmissions(prev => prev.map(s => s.id === id ? { ...s, ...patch } : s))}
+            onExpandBlog={async (submission) => {
+              const isRegen = !!submission.blogSlug;
+              if (isRegen && !window.confirm('A blog post already exists for this submission. Regenerate?')) return;
+              try {
+                const t = toast.loading('Expanding to blog post…');
+                const updated = await post(`/api/outreach/submissions/${submission.id}/ai/expand-blog`);
+                toast.dismiss(t);
+                toast.success(
+                  <span>
+                    Blog post {isRegen ? 'updated' : 'created'}.{' '}
+                    <a href={`/blog/${updated.blogSlug}`} target="_blank" rel="noreferrer" style={{ color: 'var(--pm-accent-teal)', textDecoration: 'underline' }}>View</a>
+                  </span>
+                );
+                setSubmissions(prev => prev.map(s => s.id === submission.id ? { ...s, blogSlug: updated.blogSlug, blogMarkdown: updated.blogMarkdown } : s));
+              } catch (err) {
+                toast.error(err.message ?? 'Failed to expand');
+              }
+            }}
           />
         )}
-        {activeTab === 'calendar' && <CalendarTab />}
-        {activeTab === 'recommendations' && (
-          <RecommendationsTab submissions={submissions} />
+        {activeTab === 'calendar' && <CalendarTab campaigns={campaigns} />}
+        {activeTab === 'campaigns' && (
+          <CampaignsTab isAdmin={!!member?.isAdmin} />
+        )}
+        {activeTab === 'crm' && (
+          <CrmTab
+            isAdmin={!!member?.isAdmin}
+            currentMemberId={member?.id}
+            campaigns={campaigns}
+          />
+        )}
+        {activeTab === 'insights' && (
+          <InsightsTab submissions={submissions} isAdmin={!!member?.isAdmin} />
         )}
       </div>
 
@@ -696,6 +984,17 @@ export default function OutreachHub() {
         editSubmission={editSubmission}
         projects={projects}
         events={events}
+      />
+
+      {/* Keyboard shortcuts modal */}
+      {showShortcuts && (
+        <KeyboardShortcutsModal onClose={() => setShowShortcuts(false)} />
+      )}
+
+      {/* Activity feed sidebar */}
+      <ActivityFeedSidebar
+        isOpen={showActivity}
+        onClose={() => setShowActivity(false)}
       />
     </div>
   );

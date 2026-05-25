@@ -1,4 +1,5 @@
 import { google } from "googleapis";
+import { Readable } from "node:stream";
 
 function getDriveAuth() {
   const keyJson = Buffer.from(process.env.GOOGLE_SERVICE_ACCOUNT_KEY!, "base64").toString("utf8");
@@ -7,6 +8,57 @@ function getDriveAuth() {
     credentials: key,
     scopes: ["https://www.googleapis.com/auth/drive.readonly"],
   });
+}
+
+function getDriveWriteAuth() {
+  const keyJson = Buffer.from(process.env.GOOGLE_SERVICE_ACCOUNT_KEY!, "base64").toString("utf8");
+  const key = JSON.parse(keyJson);
+  return new google.auth.GoogleAuth({
+    credentials: key,
+    scopes: ["https://www.googleapis.com/auth/drive.file"],
+  });
+}
+
+/**
+ * Upload a base64-encoded image to Google Drive and make it publicly readable.
+ * Returns the file ID and a direct-view URL, or null on error.
+ */
+export async function uploadImageToDrive(
+  imageBase64: string,
+  mimeType: string,
+  filename: string,
+  folderId?: string
+): Promise<{ fileId: string; url: string } | null> {
+  try {
+    const auth  = getDriveWriteAuth();
+    const drive = google.drive({ version: "v3", auth });
+
+    const buffer   = Buffer.from(imageBase64, "base64");
+    const readable = Readable.from(buffer);
+
+    const meta: Record<string, unknown> = { name: filename };
+    if (folderId) meta.parents = [folderId];
+
+    const file = await drive.files.create({
+      requestBody: meta,
+      media:       { mimeType, body: readable },
+      fields:      "id",
+    });
+
+    const fileId = file.data.id!;
+
+    // Make the file publicly readable so it can be used as <img src>
+    await drive.permissions.create({
+      fileId,
+      requestBody: { role: "reader", type: "anyone" },
+    });
+
+    const url = `https://drive.google.com/uc?export=view&id=${fileId}`;
+    return { fileId, url };
+  } catch (err) {
+    console.error("[driveService] uploadImageToDrive error:", err);
+    return null;
+  }
 }
 
 /** Extract file ID from any Google Drive/Docs/Sheets/Slides URL. Returns null if not parseable. */
