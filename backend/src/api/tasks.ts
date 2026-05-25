@@ -1,6 +1,7 @@
 import { Router, type Request, type Response } from "express";
 import { requireAuth } from "./auth.js";
 import { channelAuth } from "../middleware/channelAuth.js";
+import { getTaskPermissions } from "../middleware/taskAccess.js";
 import { updateTask, deleteTask, getTask, createSubtask, getSubtasks, addDependency, removeDependency, logTime, createTask } from "../services/taskService.js";
 import { logAuditEvent, diffObjects } from "../services/activityService.js";
 import type { TaskStatus, TaskProgress, Priority, NotificationType } from "@prisma/client";
@@ -218,6 +219,12 @@ tasksRouter.patch("/:id", channelAuth, async (req: Request, res: Response) => {
       return;
     }
 
+    const { canEdit } = await getTaskPermissions(req.memberId!, taskId);
+    if (!canEdit) {
+      res.status(403).json({ error: "Only assignees, the creator, or an admin can edit this task" });
+      return;
+    }
+
     if (status === "DONE" && existingTask.status !== "DONE") {
       const openBlockers = ((existingTask as any).blockedBy ?? []).filter(
         (d: any) => d.blockingTask.status !== "DONE"
@@ -374,6 +381,12 @@ tasksRouter.delete("/:id", channelAuth, async (req: Request, res: Response) => {
     const existingTask = await getTask(taskId);
     if (!existingTask) {
       res.status(404).json({ error: "Task not found" });
+      return;
+    }
+
+    const { canDelete } = await getTaskPermissions(req.memberId!, taskId);
+    if (!canDelete) {
+      res.status(403).json({ error: "Only the creator or an admin can delete this task" });
       return;
     }
 

@@ -1144,42 +1144,54 @@ outreachRouter.patch("/submissions/:id/video-script", async (req: Request, res: 
 outreachRouter.post("/ai/generate-image", async (req: Request, res: Response) => {
   try {
     const memberId = req.session.memberId!;
-    const { generateImageUrl, checkRateLimit } = await import("../services/imageGenService.js");
+    const { generateImage, checkMemberRateLimit } = await import("../services/imageGenService.js");
+    const { uploadImageToDrive } = await import("../services/driveService.js");
 
-    const rl = checkRateLimit(memberId);
+    // Per-member burst limit (3/min)
+    const rl = checkMemberRateLimit(memberId);
     if (!rl.allowed) {
       res.status(429).json({ error: `Rate limited — try again in ${rl.retryAfterSec}s` });
       return;
     }
 
-    const { prompt, aspectRatio } = req.body as {
-      prompt: string;
+    const { prompt, aspectRatio, quality } = req.body as {
+      prompt:       string;
       aspectRatio?: "square" | "portrait" | "landscape";
+      quality?:     "fast" | "standard" | "ultra";
     };
     if (!prompt?.trim()) {
       res.status(400).json({ error: "prompt is required" });
       return;
     }
 
-    const generated = generateImageUrl({ prompt, aspectRatio });
+    // Generate via Imagen 4
+    const generated = await generateImage({ prompt, aspectRatio, quality });
+
+    // Upload the base64 PNG to Google Drive and get a stable public URL
+    const folderId  = process.env.DRIVE_AI_IMAGES_FOLDER_ID || undefined;
+    const filename  = `ai-${Date.now()}.png`;
+    const driveFile = await uploadImageToDrive(generated.base64, generated.mimeType, filename, folderId);
+
+    const imageUrl = driveFile?.url ?? `data:${generated.mimeType};base64,${generated.base64}`;
 
     // Persist as an OutreachAsset so it shows up in the AssetPicker library
     const asset = await prisma.outreachAsset.create({
       data: {
         name:         prompt.slice(0, 80),
         kind:         "IMAGE",
-        url:          generated.url,
-        thumbnailUrl: generated.url,
+        url:          imageUrl,
+        thumbnailUrl: imageUrl,
         altText:      prompt,
-        tags:         ["ai-generated"],
+        tags:         ["ai-generated", `imagen-${generated.quality}`],
         uploadedById: memberId,
       },
     });
 
-    res.status(201).json({ asset, generated });
-  } catch (error) {
+    res.status(201).json({ asset, generated: { ...generated, url: imageUrl, base64: undefined } });
+  } catch (error: any) {
     console.error("POST /ai/generate-image error:", error);
-    res.status(500).json({ error: "Failed to generate image" });
+    const msg = error?.message ?? "Failed to generate image";
+    res.status(msg.includes("quota") ? 429 : 500).json({ error: msg });
   }
 });
 

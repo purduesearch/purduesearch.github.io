@@ -41,10 +41,11 @@ export default function AiAssistPanel({
   const [utmPlatform, setUtmPlatform] = useState(selectedPlatforms?.[0] ?? 'instagram');
 
   // Image generation section
-  const [imgPrompt, setImgPrompt]   = useState('');
-  const [imgAspect, setImgAspect]   = useState('square');
-  const [imgLoading, setImgLoading] = useState(false);
-  const [imgResult, setImgResult]   = useState(null);
+  const [imgPrompt, setImgPrompt]     = useState('');
+  const [imgAspect, setImgAspect]     = useState('square');
+  const [imgQuality, setImgQuality]   = useState('standard');
+  const [imgLoading, setImgLoading]   = useState(false);
+  const [imgResult, setImgResult]     = useState(null);
 
   async function handleGenerateImage() {
     if (!imgPrompt.trim()) { toast.error('Enter a prompt first.'); return; }
@@ -54,6 +55,7 @@ export default function AiAssistPanel({
       const { asset } = await post('/api/outreach/ai/generate-image', {
         prompt:      imgPrompt.trim(),
         aspectRatio: imgAspect,
+        quality:     imgQuality,
       });
       setImgResult(asset);
       onImageGenerated?.(asset);
@@ -328,11 +330,19 @@ export default function AiAssistPanel({
             className="cpm-form-select"
             value={imgAspect}
             onChange={e => setImgAspect(e.target.value)}
-            style={{ flex: 1 }}
           >
             <option value="square">Square (1:1)</option>
-            <option value="portrait">Portrait (2:3)</option>
-            <option value="landscape">Landscape (3:2)</option>
+            <option value="portrait">Portrait (3:4)</option>
+            <option value="landscape">Landscape (4:3)</option>
+          </select>
+          <select
+            className="cpm-form-select"
+            value={imgQuality}
+            onChange={e => setImgQuality(e.target.value)}
+          >
+            <option value="fast">Fast</option>
+            <option value="standard">Standard</option>
+            <option value="ultra">Ultra</option>
           </select>
           <button
             type="button"
@@ -353,7 +363,7 @@ export default function AiAssistPanel({
             </div>
           </div>
         )}
-        <p className="pm-ai-panel-hint">Powered by Pollinations.ai (free). Limit: 3 per minute.</p>
+        <p className="pm-ai-panel-hint">Powered by Pollinations.ai. 25 images/day per tier (Fast · Standard · Ultra).</p>
       </div>
 
       {/* UTM Link Builder */}

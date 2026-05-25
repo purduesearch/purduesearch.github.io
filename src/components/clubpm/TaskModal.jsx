@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
+import toast from "react-hot-toast";
 import { get, post, patch, del } from "../../api/clubPmClient";
 import { useClubPmAuth } from "../../clubpm/ClubPmAuth";
 import MemberBadge from "./MemberBadge";
@@ -1148,7 +1149,12 @@ export default function TaskModal({ task: initialTask, readOnly = false, onClose
       onUpdate?.({ ...updated, ...result });
     } catch (err) {
       setTask(previous);
-      if (fields.status && err?.message) alert(err.message);
+      if (err?.status === 403) {
+        toast.error(err.message || "You don't have permission to edit this task");
+      } else {
+        if (fields.status && err?.message) alert(err.message);
+        else toast.error("Failed to save task");
+      }
     }
   }, [task, onUpdate]);
 
@@ -1265,6 +1271,12 @@ export default function TaskModal({ task: initialTask, readOnly = false, onClose
       await del(`/api/tasks/${task.id}`);
       onDelete?.(task);
       onClose();
+    } catch (err) {
+      if (err?.status === 403) {
+        toast.error(err.message || "You don't have permission to delete this task");
+      } else {
+        toast.error("Failed to delete task");
+      }
     } finally {
       setDeletingSaving(false);
     }
@@ -1502,7 +1514,7 @@ export default function TaskModal({ task: initialTask, readOnly = false, onClose
                           {label}
                         </button>
                       ))}
-                      {member?.isAdmin && (
+                      {(member?.isAdmin || task?.createdById === member?.id) && (
                         <>
                           <div style={{ height:1, background:"var(--clubpm-border)", margin:"4px 0" }} />
                           <button onClick={() => { setMenuOpen(false); setShowDeleteConfirm(true); }} style={{

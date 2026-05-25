@@ -1,7 +1,14 @@
 import { createHash } from "node:crypto";
-import { generateJson, generateText } from "./geminiService.js";
+import {
+  generateJson,
+  generateText,
+  generateJsonComplex,
+  generateTextComplex,
+  todayContext,
+} from "./geminiService.js";
 
 // ── Safety / brand-compliance check ──────────────────────────
+// Uses the complex model — accuracy matters here.
 
 export type SafetyCategory =
   | "BRAND_TONE"
@@ -13,29 +20,23 @@ export type SafetyCategory =
 export type SafetySeverity = "INFO" | "WARN" | "BLOCK";
 
 export interface SafetyIssue {
-  category: SafetyCategory;
-  severity: SafetySeverity;
-  message: string;
+  category:     SafetyCategory;
+  severity:     SafetySeverity;
+  message:      string;
   suggestedFix?: string;
 }
 
 export interface SafetyReport {
-  safe: boolean;
+  safe:   boolean;
   issues: SafetyIssue[];
 }
 
-/**
- * Run an AI safety / brand-compliance review on submission content.
- * Returns a SafetyReport with categorized issues. Cached by content hash.
- */
 export async function checkSafety(
   content: string,
   platformContent?: Record<string, { caption?: string }> | null,
   brandVoice?: { name?: string; description?: string } | null
 ): Promise<SafetyReport> {
-  if (!content?.trim()) {
-    return { safe: true, issues: [] };
-  }
+  if (!content?.trim()) return { safe: true, issues: [] };
 
   const platformBlock = platformContent && Object.keys(platformContent).length > 0
     ? `\n\nPer-platform variants:\n${Object.entries(platformContent)
@@ -50,9 +51,9 @@ export async function checkSafety(
   const prompt = `You are a content compliance reviewer for Purdue SEARCH, a university engineering club.
 Review the following social media submission and identify any issues across these categories:
 
-- BRAND_TONE: off-brand voice (e.g., overly corporate when our voice is casual, or vice versa), inappropriate humor, tone-deaf framing.
+- BRAND_TONE: off-brand voice (overly corporate or vice versa), inappropriate humor, tone-deaf framing.
 - SENSITIVE_INFO: personal info that shouldn't be public (full names + addresses, phone numbers, SSNs, internal Slack handles, IDs).
-- UNVERIFIED_CLAIM: factual claims that should be verified (numbers, achievements, partnerships) without citation.
+- UNVERIFIED_CLAIM: factual claims (numbers, achievements, partnerships) without citation.
 - LINK_SAFETY: shortened or suspicious links, unverified domains, malformed URLs.
 - TYPO_OR_GRAMMAR: typos, grammatical errors, formatting issues.
 
@@ -75,31 +76,27 @@ Respond with ONLY a valid JSON object (no markdown):
 
 "safe" should be false if there are any BLOCK-severity issues, true otherwise. Issues array can be empty.`;
 
-  const hash = createHash("sha1").update(content + (platformBlock ?? "") + (voiceBlock ?? "")).digest("hex");
-
-  const result = await generateJson<SafetyReport>(prompt, `safety:${hash}`);
+  const hash   = createHash("sha1").update(content + (platformBlock ?? "") + (voiceBlock ?? "")).digest("hex");
+  const result = await generateJsonComplex<SafetyReport>(prompt, `safety:${hash}`);
   if (!result || typeof result.safe !== "boolean" || !Array.isArray(result.issues)) {
     return { safe: true, issues: [] };
   }
   return {
-    safe: result.issues.every(i => i.severity !== "BLOCK"),
+    safe:   result.issues.every(i => i.severity !== "BLOCK"),
     issues: result.issues.slice(0, 10),
   };
 }
 
 // ── Blog expansion ───────────────────────────────────────────
+// Uses complex model — quality and accuracy matter for published content.
 
-/**
- * Expand a short submission (caption / announcement) into a ~400-word
- * blog post in markdown, with a heading, sub-sections, and a TL;DR.
- */
 export async function expandToBlog(
-  title: string,
-  content: string,
+  title:       string,
+  content:     string,
   projectName?: string
 ): Promise<string> {
   const context = projectName ? `\nProject: ${projectName}` : "";
-  const prompt = `You are a content writer for Purdue SEARCH, a university engineering club.
+  const prompt  = `You are a content writer for Purdue SEARCH, a university engineering club.
 Expand the following short post into a 350-450 word blog article in Markdown.
 ${context}
 
@@ -117,18 +114,19 @@ Requirements:
 
 Return only the Markdown — no fences, no preamble.`;
 
-  const result = await generateText(prompt);
+  const result = await generateTextComplex(prompt);
   if (!result) throw new Error("[aiOutreachService] expandToBlog: empty response");
   return result;
 }
 
 // ── Video script ─────────────────────────────────────────────
+// Uses complex model for richer, more coherent shot lists.
 
 export interface VideoShot {
-  shotNumber:   number;
-  durationSec:  number;
-  description:  string;
-  voiceover?:   string;
+  shotNumber:    number;
+  durationSec:   number;
+  description:   string;
+  voiceover?:    string;
   onScreenText?: string;
 }
 
@@ -137,21 +135,19 @@ export interface VideoScript {
   caption: string;
 }
 
-/**
- * Generate a shot-list for a short-form video / reel using Gemini.
- */
 export async function generateVideoScript(
-  topic: string,
+  topic:       string,
   durationSec: number = 30,
-  platform: string = "instagram"
+  platform:    string = "instagram"
 ): Promise<VideoScript> {
   const prompt = `You are a producer creating short-form video content for Purdue SEARCH, a university engineering club.
+${todayContext()}
 Topic: ${topic}
 Target length: ${durationSec} seconds
 Platform: ${platform} (${platform === "instagram" || platform === "tiktok" ? "vertical 9:16" : "horizontal 16:9"})
 
 Generate a shot-by-shot script with 4-7 shots that totals approximately ${durationSec} seconds.
-For each shot, include: shot number, duration in seconds, what to film (description), optional voiceover line (one short sentence), and optional on-screen text overlay.
+For each shot include: shot number, duration in seconds, what to film (description), optional voiceover line (one short sentence), and optional on-screen text overlay.
 
 Also generate a punchy ${platform} caption for the finished post (under 250 chars), with relevant hashtags.
 
@@ -169,7 +165,7 @@ Respond with ONLY a valid JSON object (no markdown):
   "caption": "..."
 }`;
 
-  const result = await generateJson<VideoScript>(prompt);
+  const result = await generateJsonComplex<VideoScript>(prompt);
   if (!result || !Array.isArray(result.shots) || result.shots.length === 0) {
     return { shots: [], caption: "" };
   }
@@ -187,14 +183,10 @@ Respond with ONLY a valid JSON object (no markdown):
 
 // ── Caption variants ─────────────────────────────────────────
 
-/**
- * Generate 3 caption variants from a brief in a given brand voice.
- * Returns an array of 3 variant strings.
- */
 export async function generateCaptionVariants(
-  brief: string,
-  platform: string = "general",
-  voiceName?: string,
+  brief:           string,
+  platform:        string = "general",
+  voiceName?:      string,
   existingContent?: string
 ): Promise<string[]> {
   const voiceInstruction = voiceName
@@ -220,7 +212,6 @@ Respond with ONLY a valid JSON array of 3 strings, no markdown, no explanation:
   if (!result || !Array.isArray(result) || result.length === 0) {
     throw new Error("[aiOutreachService] generateCaptionVariants: Gemini returned null or invalid response");
   }
-  // Ensure we return exactly 3; pad or trim as needed
   const variants = result.slice(0, 3).map(String);
   while (variants.length < 3) variants.push(variants[0] ?? "");
   return variants;
@@ -228,12 +219,8 @@ Respond with ONLY a valid JSON array of 3 strings, no markdown, no explanation:
 
 // ── Hashtag suggestions ──────────────────────────────────────
 
-/**
- * Suggest up to 10 relevant hashtags given content text and existing top hashtags.
- * Returns an array of tag strings (without #).
- */
 export async function suggestHashtags(
-  content: string,
+  content:     string,
   topExisting: string[]
 ): Promise<string[]> {
   const existingList = topExisting.length > 0
@@ -260,17 +247,7 @@ Respond with ONLY a valid JSON array of up to 10 hashtag strings (without the # 
 
 // ── Alt text ─────────────────────────────────────────────────
 
-/**
- * Generate alt-text for an image given its URL.
- * Note: geminiService does not support URL-based image input directly —
- * it requires base64 inline data. We fall back to a placeholder and log a warning.
- * If the image can be fetched and converted to base64, callers should do that
- * and use generateJsonFromImage directly.
- */
 export async function generateAltText(imageUrl: string): Promise<string> {
-  // geminiService's generateJsonFromImage requires base64 inline data.
-  // Image URLs cannot be passed directly without fetching + converting.
-  // Log a warning and return a reasonable placeholder.
   console.warn(
     "[aiOutreachService] generateAltText: vision via URL not supported — " +
     "geminiService requires base64 inline data. Returning placeholder. " +
@@ -281,17 +258,14 @@ export async function generateAltText(imageUrl: string): Promise<string> {
 
 // ── Email template ────────────────────────────────────────────
 
-/**
- * Generate a personalized outreach email body for a contact.
- */
 export async function generateEmailTemplate(
-  contactName: string,
-  organization: string | undefined,
-  contactType: string,
-  intent: string,
+  contactName:   string,
+  organization:  string | undefined,
+  contactType:   string,
+  intent:        string,
   campaignName?: string
 ): Promise<string> {
-  const orgLine = organization ? ` at ${organization}` : "";
+  const orgLine  = organization ? ` at ${organization}` : "";
   const campLine = campaignName ? ` as part of our "${campaignName}" initiative` : "";
 
   const prompt = `You are writing on behalf of Purdue SEARCH, a university engineering club.
@@ -303,38 +277,42 @@ Sign off as "The Purdue SEARCH Team".
 Return ONLY the plain-text email body — no subject line, no markdown.`;
 
   const result = await generateText(prompt);
-  if (!result) {
-    throw new Error("[aiOutreachService] generateEmailTemplate: Gemini returned empty response");
-  }
+  if (!result) throw new Error("[aiOutreachService] generateEmailTemplate: Gemini returned empty response");
   return result;
 }
 
 // ── Calendar auto-fill ────────────────────────────────────────
+// Uses complex model because it reasons about dates and schedules.
 
 interface AutoFillDraft {
-  title: string;
-  content: string;
-  type: string;
+  title:       string;
+  content:     string;
+  type:        string;
   scheduledAt: string;
-  platform: string[];
+  platform:    string[];
 }
 
-/**
- * Given upcoming events and recent milestones without existing outreach,
- * suggest DRAFT submissions to fill gaps in the given date range.
- */
 export async function generateCalendarAutofill(
-  from: Date,
-  to: Date,
-  events: { title: string; startTime: string | null; type: string }[],
+  from:       Date,
+  to:         Date,
+  events:     { title: string; startTime: string | null; type: string }[],
   milestones: { title: string; projectName: string | null; completedAt: string | null }[]
 ): Promise<AutoFillDraft[]> {
-  if (events.length === 0 && milestones.length === 0) {
-    return [];
+  if (events.length === 0 && milestones.length === 0) return [];
+
+  // Provide day-of-week for all dates so the model doesn't guess incorrectly.
+  const DAY_NAMES = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+  function fmtDate(d: Date) {
+    return `${DAY_NAMES[d.getDay()]} ${d.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}`;
   }
 
   const eventsList = events
-    .map(e => `- ${e.title} (${e.type}, ${e.startTime ? new Date(e.startTime).toDateString() : "TBD"})`)
+    .map(e => {
+      const dateStr = e.startTime
+        ? fmtDate(new Date(e.startTime))
+        : "TBD";
+      return `- ${e.title} (${e.type}, ${dateStr})`;
+    })
     .join("\n") || "None";
 
   const milestonesList = milestones
@@ -342,7 +320,10 @@ export async function generateCalendarAutofill(
     .join("\n") || "None";
 
   const prompt = `You are a social media strategist for Purdue SEARCH, a university engineering club.
-Date range to fill: ${from.toDateString()} to ${to.toDateString()}
+${todayContext()}
+Date range to fill: ${fmtDate(from)} to ${fmtDate(to)}
+
+IMPORTANT: The day-of-week values above are authoritative. Do not derive or verify them from training data.
 
 Upcoming club events that need promotion:
 ${eventsList}
@@ -364,41 +345,43 @@ Respond with ONLY a valid JSON array, no markdown:
   }
 ]`;
 
-  const result = await generateJson<AutoFillDraft[]>(prompt);
-  if (!result || !Array.isArray(result)) {
-    return [];
-  }
+  const result = await generateJsonComplex<AutoFillDraft[]>(prompt);
+  if (!result || !Array.isArray(result)) return [];
   return result.filter(d => d.title && d.content && d.scheduledAt);
 }
 
 // ── Gap analysis ─────────────────────────────────────────────
 
 interface GapItem {
-  title: string;
-  reason: string;
-  priority: "HIGH" | "MEDIUM" | "LOW";
+  title:         string;
+  reason:        string;
+  priority:      "HIGH" | "MEDIUM" | "LOW";
   suggestedType: string;
 }
 
-/**
- * AI-powered content gap analysis: given upcoming events and recent milestones
- * with no existing submissions, produce a prioritized list of missed opportunities.
- */
 export async function generateGapAnalysis(
-  events: { title: string; startTime: string | null; type: string }[],
+  events:     { title: string; startTime: string | null; type: string }[],
   milestones: { title: string; projectName: string | null; completedAt: string | null }[]
 ): Promise<GapItem[]> {
   if (events.length === 0 && milestones.length === 0) return [];
 
+  const DAY_NAMES = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+  function fmtDate(iso: string | null) {
+    if (!iso) return "TBD";
+    const d = new Date(iso);
+    return `${DAY_NAMES[d.getDay()]} ${d.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}`;
+  }
+
   const eventsList = events.map(e =>
-    `- ${e.title} (${e.type}, ${e.startTime ? new Date(e.startTime).toDateString() : "TBD"})`
+    `- ${e.title} (${e.type}, ${fmtDate(e.startTime)})`
   ).join("\n") || "None";
 
   const milestonesList = milestones.map(m =>
-    `- ${m.title}${m.projectName ? ` (${m.projectName})` : ""}${m.completedAt ? `, completed ${new Date(m.completedAt).toDateString()}` : ""}`
+    `- ${m.title}${m.projectName ? ` (${m.projectName})` : ""}${m.completedAt ? `, completed ${fmtDate(m.completedAt)}` : ""}`
   ).join("\n") || "None";
 
   const prompt = `You are a social media strategist for Purdue SEARCH, a university engineering club.
+${todayContext()}
 The following upcoming events and recent milestones have NO social media content planned for them.
 Identify which represent the best outreach opportunities and explain why.
 
@@ -423,13 +406,10 @@ Return ONLY a valid JSON array (no markdown) of up to 8 items, each with:
 
 // ── Weekly digest ─────────────────────────────────────────────
 
-/**
- * Generate a narrative weekly digest summarising last week's outreach performance.
- */
 export async function generateWeeklyDigest(
-  published: { title: string; type: string; platforms: string[] }[],
-  metrics: { platform: string; impressions: number; likes: number; comments: number; shares: number }[],
-  crmFunnel: Record<string, number>
+  published:  { title: string; type: string; platforms: string[] }[],
+  metrics:    { platform: string; impressions: number; likes: number; comments: number; shares: number }[],
+  crmFunnel:  Record<string, number>
 ): Promise<string> {
   const pubList = published.length > 0
     ? published.map(p => `- "${p.title}" (${p.type}) on ${p.platforms.join(", ")}`).join("\n")
@@ -446,6 +426,7 @@ export async function generateWeeklyDigest(
     .join(", ") || "No CRM data.";
 
   const prompt = `You are the outreach director for Purdue SEARCH, a university engineering club.
+${todayContext()}
 Write a concise (3-4 paragraph) weekly outreach digest in a professional, upbeat tone.
 Cover: what was published, engagement highlights, CRM pipeline state, and 2-3 actionable recommendations for next week.
 
@@ -467,15 +448,12 @@ Return only the digest narrative — no headers, no bullet points, plain paragra
 
 // ── Member spotlight ──────────────────────────────────────────
 
-/**
- * Generate a "Member Spotlight" social post for a given member.
- */
 export async function generateMemberSpotlight(
-  displayName: string,
-  title: string | undefined,
-  team: string | undefined,
-  bio: string | undefined,
-  recentMilestones: string[]
+  displayName:       string,
+  title:             string | undefined,
+  team:              string | undefined,
+  bio:               string | undefined,
+  recentMilestones:  string[]
 ): Promise<string> {
   const milestonesBlock = recentMilestones.length > 0
     ? `\nRecent contributions:\n${recentMilestones.map(m => `- ${m}`).join("\n")}`
@@ -501,22 +479,18 @@ Return only the post text — no extra commentary.`;
 // ── Milestone syndication ─────────────────────────────────────
 
 interface SyndicationPost {
-  audience: string;    // e.g., "Sponsors", "Prospective Members", "General Public"
+  audience: string;
   platform: string[];
-  caption: string;
+  caption:  string;
 }
 
-/**
- * Given a completed milestone, suggest cross-program syndication posts
- * tailored to different audiences.
- */
 export async function generateSyndicationPosts(
-  milestoneTitle: string,
-  projectName: string | undefined,
+  milestoneTitle:       string,
+  projectName:          string | undefined,
   milestoneDescription: string | undefined
 ): Promise<SyndicationPost[]> {
   const context = [
-    projectName    ? `Project: ${projectName}` : "",
+    projectName          ? `Project: ${projectName}` : "",
     milestoneDescription ? `Description: ${milestoneDescription}` : "",
   ].filter(Boolean).join("\n");
 
@@ -548,12 +522,9 @@ Respond with ONLY a valid JSON array (no markdown):
 
 // ── Voice rewrite ─────────────────────────────────────────────
 
-/**
- * Rewrite content in a given brand voice using example sentences.
- */
 export async function rewriteInVoice(
-  content: string,
-  voiceName: string,
+  content:       string,
+  voiceName:     string,
   voiceExamples: string[]
 ): Promise<string> {
   const examplesBlock = voiceExamples.length > 0
@@ -569,8 +540,6 @@ Content to rewrite:
 ${content}`;
 
   const result = await generateText(prompt);
-  if (!result) {
-    throw new Error("[aiOutreachService] rewriteInVoice: Gemini returned empty response");
-  }
+  if (!result) throw new Error("[aiOutreachService] rewriteInVoice: Gemini returned empty response");
   return result;
 }

@@ -37,7 +37,7 @@ export async function channelAuth(
     if (!project?.slackChannelId) { next(); return; }
 
     // Look up the current user's slackId from the session
-    const memberId = req.session.memberId;
+    const memberId = req.memberId;
     if (!memberId) {
       res.status(401).json({ error: "Not authenticated" });
       return;

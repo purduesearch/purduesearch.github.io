@@ -134,6 +134,7 @@ model Member {
   quietHoursEnd         Int?
   mutedProjectIds       String[]  @default([])
   tasks           Task[]          @relation("TaskAssignees")
+  createdTasks    Task[]          @relation("TaskCreator")
   projects        ProjectMember[]
   comments        TaskComment[]
   activities      Activity[]
@@ -212,6 +213,8 @@ model Task {
   tags        Tag[]        @relation("TaskTags")
   attachments String[]
   comments    TaskComment[]
+  createdById String?
+  createdBy   Member?     @relation("TaskCreator", fields: [createdById], references: [id])
 
   // ── Subtask hierarchy ──
   parentTask   Task?    @relation("TaskSubtasks", fields: [parentTaskId], references: [id], onDelete: Cascade)

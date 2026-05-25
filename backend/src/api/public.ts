@@ -96,12 +96,12 @@ publicRouter.get("/outreach/published", async (req: Request, res: Response) => {
 });
 
 // ── GET /public/blog — list published blog posts ─────────────
+// Any submission with blogMarkdown + blogSlug set is public — expand-blog IS the publish action.
 
 publicRouter.get("/blog", async (_req: Request, res: Response) => {
   try {
     const posts = await prisma.outreachSubmission.findMany({
       where: {
-        status:       "PUBLISHED",
         blogMarkdown: { not: null },
         blogSlug:     { not: null },
       },
@@ -128,12 +128,12 @@ publicRouter.get("/blog/:slug", async (req: Request, res: Response) => {
       where: { blogSlug: req.params.slug as string },
       select: {
         id: true, title: true, blogSlug: true, blogMarkdown: true,
-        mediaUrls: true, publishedAt: true, status: true,
+        mediaUrls: true, publishedAt: true, createdAt: true,
         project: { select: { name: true, programTag: true } },
         author:  { select: { displayName: true, avatarUrl: true } },
       },
     });
-    if (!post || post.status !== "PUBLISHED" || !post.blogMarkdown) {
+    if (!post || !post.blogMarkdown) {
       res.status(404).json({ error: "Not found" });
       return;
     }

@@ -2054,6 +2054,8 @@ export default function ProjectDetail() {
         : p
     );
     setSelectedTask(updatedTask);
+    // Full refetch captures parent-change restructuring and other server-side side effects.
+    fetchProject();
   };
 
   const handleTaskDelete = (deletedTask) => {
@@ -2062,6 +2064,7 @@ export default function ProjectDetail() {
       tasks: prev.tasks.filter(t => t.id !== deletedTask.id),
     }));
     setSelectedTask(null);
+    fetchProject();
   };
 
   const handleTaskCreated = (newTask) => {
@@ -2071,6 +2074,8 @@ export default function ProjectDetail() {
         tasks: [...(prev.tasks ?? []), newTask],
       }));
     }
+    // Refetch to get full task data (tags, createdById, subtasks, etc.)
+    fetchProject();
   };
 
   if (loading) {

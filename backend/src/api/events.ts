@@ -66,7 +66,7 @@ eventsRouter.get("/:id", async (req: Request, res: Response) => {
 eventsRouter.post("/", async (req: Request, res: Response) => {
   try {
     const member = await prisma.member.findUnique({
-      where: { id: req.session.memberId },
+      where: { id: req.memberId },
       select: { isAdmin: true },
     });
     if (!member?.isAdmin) {
@@ -143,7 +143,7 @@ eventsRouter.post("/", async (req: Request, res: Response) => {
 eventsRouter.patch("/:id", async (req: Request, res: Response) => {
   try {
     const member = await prisma.member.findUnique({
-      where: { id: req.session.memberId },
+      where: { id: req.memberId },
       select: { isAdmin: true },
     });
     if (!member?.isAdmin) {
@@ -215,7 +215,7 @@ eventsRouter.patch("/:id", async (req: Request, res: Response) => {
 eventsRouter.delete("/:id", async (req: Request, res: Response) => {
   try {
     const member = await prisma.member.findUnique({
-      where: { id: req.session.memberId },
+      where: { id: req.memberId },
       select: { isAdmin: true },
     });
     if (!member?.isAdmin) {
@@ -236,7 +236,7 @@ eventsRouter.delete("/:id", async (req: Request, res: Response) => {
 eventsRouter.post("/:id/attendees", async (req: Request, res: Response) => {
   try {
     const { action } = req.body as { action: "join" | "leave" };
-    const memberId   = req.session.memberId;
+    const memberId   = req.memberId;
     const eventId    = req.params.id as string;
 
     if (action !== "join" && action !== "leave") {

@@ -12,13 +12,13 @@ membersRouter.use(requireAuth);
 
 membersRouter.get("/me", async (req: Request, res: Response) => {
   try {
-    if (!req.session.memberId) {
+    if (!req.memberId) {
       res.status(401).json({ error: "Not authenticated" });
       return;
     }
 
     const member = await prisma.member.findUnique({
-      where: { id: req.session.memberId },
+      where: { id: req.memberId },
       include: {
         projects: {
           include: {
@@ -50,7 +50,7 @@ membersRouter.get("/me", async (req: Request, res: Response) => {
 
 membersRouter.patch("/me", async (req: Request, res: Response) => {
   try {
-    if (!req.session.memberId) {
+    if (!req.memberId) {
       res.status(401).json({ error: "Not authenticated" });
       return;
     }
@@ -58,7 +58,7 @@ membersRouter.patch("/me", async (req: Request, res: Response) => {
     const { kanbanColumnOrder, team, bio, email } = req.body;
 
     const member = await prisma.member.update({
-      where: { id: req.session.memberId },
+      where: { id: req.memberId },
       data: {
         ...(kanbanColumnOrder !== undefined ? { kanbanColumnOrder } : {}),
         ...(team  !== undefined ? { team }  : {}),
@@ -78,7 +78,7 @@ membersRouter.patch("/me", async (req: Request, res: Response) => {
 
 membersRouter.patch("/me/notification-preferences", async (req: Request, res: Response) => {
   try {
-    if (!req.session.memberId) {
+    if (!req.memberId) {
       res.status(401).json({ error: "Not authenticated" });
       return;
     }
@@ -109,7 +109,7 @@ membersRouter.patch("/me/notification-preferences", async (req: Request, res: Re
     if (mutedProjectIds !== undefined)      updateData.mutedProjectIds      = mutedProjectIds;
 
     const member = await prisma.member.update({
-      where: { id: req.session.memberId },
+      where: { id: req.memberId },
       data: updateData,
       select: {
         notificationPrefs:    true,
