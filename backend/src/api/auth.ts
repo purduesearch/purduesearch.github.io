@@ -191,8 +191,11 @@ authRouter.get("/slack/callback", async (req: Request, res: Response) => {
     req.session.slackAccessToken = accessToken;
 
     const frontendUrl = process.env.FRONTEND_URL ?? "http://localhost:3000";
-    // Sign a Bearer token to include in the redirect fragment so cross-origin clients
-    // (e.g. Brave with Shields blocking SameSite=None cookies) can authenticate via header.
+    // Sign a Bearer token and deliver it via the root path (?lt=TOKEN at /).
+    // GitHub Pages strips query params when serving the 404.html fallback for unknown
+    // paths like /clubpm, so we redirect to the root index.html (a real static file)
+    // which preserves the query string. The SPA then stores the token in localStorage
+    // and navigates to /clubpm, where the next load reads it from localStorage.
     const loginToken = signToken(member.id);
     req.session.save((err) => {
       if (err) {
@@ -200,7 +203,9 @@ authRouter.get("/slack/callback", async (req: Request, res: Response) => {
         res.status(500).json({ error: "Authentication failed" });
         return;
       }
-      res.redirect(`${frontendUrl}/clubpm?lt=${encodeURIComponent(loginToken)}`);
+      const redirectUrl = `${frontendUrl}/?lt=${encodeURIComponent(loginToken)}`;
+      console.log(`[auth] OAuth complete — member=${member.id} redirect=/?lt=…`);
+      res.redirect(redirectUrl);
     });
   } catch (error) {
     console.error("OAuth callback error:", error);

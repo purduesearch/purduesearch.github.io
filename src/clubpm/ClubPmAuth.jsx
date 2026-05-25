@@ -29,26 +29,22 @@ export function ClubPmAuthProvider({ children }) {
     console.log("[ClubPmAuth] lt param:", lt ? lt.slice(0, 12) + "…" : "(none)");
     if (lt) {
       setStoredToken(lt);
-      freshToken = true;
-      params.delete("lt");
-      const cleaned = params.toString();
-      window.history.replaceState(
-        null,
-        "",
-        window.location.pathname + (cleaned ? `?${cleaned}` : "") + window.location.hash
-      );
+      // The OAuth redirect lands at /?lt=TOKEN (root index.html, which GitHub Pages
+      // serves directly and preserves query params). Store the token, then send the
+      // user to /clubpm — that load reads the token from localStorage, no ?lt= needed.
+      console.log("[ClubPmAuth] fresh token stored — navigating to /clubpm");
+      window.location.replace("/clubpm");
+      return;
     }
 
     // Fallback: extract from hash fragment (#lt=...) for backwards compat with
     // any in-flight sessions that still use the old redirect format.
-    if (!freshToken) {
-      const hash = window.location.hash;
-      console.log("[ClubPmAuth] hash:", hash ? hash.slice(0, 20) : "(none)");
-      if (hash.startsWith("#lt=")) {
-        setStoredToken(hash.slice(4));
-        freshToken = true;
-        window.history.replaceState(null, "", window.location.pathname + window.location.search);
-      }
+    const hash = window.location.hash;
+    console.log("[ClubPmAuth] hash:", hash ? hash.slice(0, 20) : "(none)");
+    if (hash.startsWith("#lt=")) {
+      setStoredToken(hash.slice(4));
+      freshToken = true;
+      window.history.replaceState(null, "", window.location.pathname + window.location.search);
     }
 
     console.log("[ClubPmAuth] freshToken:", freshToken, "storedToken:", getStoredToken() ? "present" : "absent");
