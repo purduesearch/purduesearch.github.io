@@ -1,5 +1,7 @@
 import React, { useState, useEffect, createContext, useContext } from "react";
-import { get, setStoredToken, clearStoredToken } from "../api/clubPmClient";
+import { get, getStoredToken, setStoredToken, clearStoredToken } from "../api/clubPmClient";
+
+const BASE_URL = process.env.REACT_APP_API_URL || "";
 
 const AuthContext = createContext({
   member: null,
@@ -46,20 +48,32 @@ export function ClubPmAuthProvider({ children }) {
     }
 
     const doAuth = (canRetry) => {
-      get("/auth/me")
-        .then((m) => {
-          setMember(m);
-          setLoading(false);
-        })
-        .catch((err) => {
-          // One retry after 250ms if we just consumed a fresh token and hit a 401.
-          // Covers the rare race where localStorage hasn't flushed before the read.
-          if (canRetry && freshToken && err?.status === 401) {
+      const token = getStoredToken();
+      fetch(`${BASE_URL}/auth/me`, {
+        credentials: "include",
+        headers: {
+          Accept: "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      })
+        .then(async (res) => {
+          if (res.ok) {
+            const m = await res.json();
+            setMember(m);
+            setLoading(false);
+          } else if (res.status === 401 && canRetry && freshToken) {
+            // One retry after 250ms if we just consumed a fresh token and hit a 401.
+            // Use direct fetch (not get()) to avoid handleResponse's redirect firing
+            // before the retry can run.
             setTimeout(() => doAuth(false), 250);
           } else {
             setMember(null);
             setLoading(false);
           }
+        })
+        .catch(() => {
+          setMember(null);
+          setLoading(false);
         });
     };
 
