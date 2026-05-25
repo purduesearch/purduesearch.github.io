@@ -131,6 +131,7 @@ tasksRouter.post("/create-from-nl", async (req: Request, res: Response) => {
       dueDate: parsed.dueDate ? new Date(parsed.dueDate) : undefined,
       projectId,
       assigneeIds: assigneeId ? [assigneeId] : [],
+      createdById: req.memberId,
     });
 
     res.status(201).json(task);
@@ -183,6 +184,7 @@ tasksRouter.post("/create-from-image", async (req: Request, res: Response) => {
         priority: result.priority,
         projectId,
         assigneeIds: [],
+        createdById: req.memberId,
       });
     }
 

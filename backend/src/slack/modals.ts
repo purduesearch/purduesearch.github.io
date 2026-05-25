@@ -678,6 +678,9 @@ export function registerModals(app: App): void {
       // Parse due date
       const dueDate = dueDateStr ? new Date(dueDateStr) : undefined;
 
+      // Resolve the submitter so we can record them as the creator
+      const actor = await resolveSlackMember(body.user.id).catch(() => null);
+
       // Create task
       const task = await createTask({
         title,
@@ -694,6 +697,7 @@ export function registerModals(app: App): void {
         isRecurring,
         recurrencePattern,
         recurrenceEndDate,
+        createdById: actor?.id,
       });
 
       if (task.milestoneId) {
@@ -722,7 +726,6 @@ export function registerModals(app: App): void {
         }
       }
 
-      const actor = await resolveSlackMember(body.user.id).catch(() => null);
       logAuditEvent({
         projectId,
         taskId:   task.id,
@@ -1146,7 +1149,7 @@ export function registerModals(app: App): void {
   });
 
   // ── Subtask Submission ────────────────────────────────────
-  app.view("subtask_submit", async ({ ack, view, client }) => {
+  app.view("subtask_submit", async ({ ack, body, view, client }) => {
     await ack();
 
     try {
@@ -1175,6 +1178,7 @@ export function registerModals(app: App): void {
       );
 
       const dueDate = dueDateStr ? new Date(dueDateStr) : undefined;
+      const actor = await resolveSlackMember(body.user.id).catch(() => null);
 
       const subtask = await createTask({
         title,
@@ -1187,6 +1191,7 @@ export function registerModals(app: App): void {
         tagIds,
         estimatedHours,
         storyPoints,
+        createdById: actor?.id,
       });
 
       const fullSubtask = await getTask(subtask.id);

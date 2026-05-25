@@ -220,8 +220,15 @@ export async function getTask(id: string) {
     include: {
       assignees: true,
       project: true,
+      createdBy: { select: { id: true, displayName: true, avatarUrl: true } },
       comments: { include: { author: true }, orderBy: { createdAt: "asc" } },
-      subtasks: { include: { assignees: true }, orderBy: { createdAt: "asc" } },
+      subtasks: {
+        include: {
+          assignees: true,
+          createdBy: { select: { id: true, displayName: true, avatarUrl: true } },
+        },
+        orderBy: { createdAt: "asc" },
+      },
       blockedBy: { include: { blockingTask: { select: { id: true, title: true, status: true } } } },
       blocks:    { include: { blockedTask:  { select: { id: true, title: true, status: true } } } },
       timeLogs:  { include: { member: { select: { id: true, displayName: true } } } },
