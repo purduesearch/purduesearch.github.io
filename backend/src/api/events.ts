@@ -231,6 +231,36 @@ eventsRouter.delete("/:id", async (req: Request, res: Response) => {
   }
 });
 
+// ── GET /api/events/:id/rsvps — Admin RSVP list ─────────────
+
+eventsRouter.get("/:id/rsvps", async (req: Request, res: Response) => {
+  try {
+    const member = await prisma.member.findUnique({
+      where: { id: req.memberId },
+      select: { isAdmin: true },
+    });
+    if (!member?.isAdmin) {
+      res.status(403).json({ error: "Forbidden" });
+      return;
+    }
+
+    const rsvps = await prisma.eventRsvp.findMany({
+      where: { eventId: req.params.id as string },
+      include: { member: { select: { id: true, displayName: true, avatarUrl: true, email: true } } },
+      orderBy: { rsvpAt: "asc" },
+    });
+
+    res.json({
+      rsvps,
+      rsvpCount:     rsvps.length,
+      attendedCount: rsvps.filter(r => r.attended).length,
+    });
+  } catch (error) {
+    console.error("Get event rsvps error:", error);
+    res.status(500).json({ error: "Failed to get RSVPs" });
+  }
+});
+
 // ── POST /api/events/:id/attendees — Join or leave ───────────
 
 eventsRouter.post("/:id/attendees", async (req: Request, res: Response) => {

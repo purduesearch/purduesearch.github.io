@@ -79,16 +79,26 @@ export function requireAuth(
   next();
 }
 
+// ── Public helper: verify a bearer token and return memberId ─
+
+export function verifyBearerToken(token: string): string | null {
+  return verifyToken(token);
+}
+
 // ── GET /auth/slack — Redirect to Slack OAuth ────────────────
 
-authRouter.get("/slack", (_req: Request, res: Response) => {
+authRouter.get("/slack", (req: Request, res: Response) => {
   const clientId = process.env.SLACK_CLIENT_ID;
   const redirectUri = `${process.env.BACKEND_URL ?? "http://localhost:3001"}/auth/slack/callback`;
+
+  // Pass returnTo through the OAuth state parameter so we can redirect
+  // back to the RSVP page (or any public page) after login completes.
+  const returnTo = typeof req.query.returnTo === "string" ? req.query.returnTo : "";
+  const state = returnTo ? Buffer.from(returnTo).toString("base64url") : "";
 
   const scopes = [
     "users:read",
     "users:read.email",
-    // Needed for the project channel picker (users.conversations + conversations.invite)
     "channels:read",
     "groups:read",
     "mpim:read",
@@ -100,6 +110,7 @@ authRouter.get("/slack", (_req: Request, res: Response) => {
   url.searchParams.set("client_id", clientId ?? "");
   url.searchParams.set("user_scope", scopes);
   url.searchParams.set("redirect_uri", redirectUri);
+  if (state) url.searchParams.set("state", state);
 
   res.redirect(url.toString());
 });
@@ -107,7 +118,13 @@ authRouter.get("/slack", (_req: Request, res: Response) => {
 // ── GET /auth/slack/callback — Handle OAuth callback ─────────
 
 authRouter.get("/slack/callback", async (req: Request, res: Response) => {
-  const { code } = req.query;
+  const { code, state } = req.query;
+
+  // Recover the returnTo path from the OAuth state parameter (base64url-encoded).
+  let returnTo = "";
+  if (typeof state === "string" && state) {
+    try { returnTo = Buffer.from(state, "base64url").toString(); } catch { /* ignore */ }
+  }
 
   if (!code || typeof code !== "string") {
     res.status(400).json({ error: "Missing authorization code" });
@@ -203,8 +220,9 @@ authRouter.get("/slack/callback", async (req: Request, res: Response) => {
         res.status(500).json({ error: "Authentication failed" });
         return;
       }
-      const redirectUrl = `${frontendUrl}/?lt=${encodeURIComponent(loginToken)}`;
-      console.log(`[auth] OAuth complete — member=${member.id} redirect=/?lt=…`);
+      let redirectUrl = `${frontendUrl}/?lt=${encodeURIComponent(loginToken)}`;
+      if (returnTo) redirectUrl += `&returnTo=${encodeURIComponent(returnTo)}`;
+      console.log(`[auth] OAuth complete — member=${member.id} redirect=/?lt=… returnTo=${returnTo || "(clubpm)"}`);
       res.redirect(redirectUrl);
     });
   } catch (error) {

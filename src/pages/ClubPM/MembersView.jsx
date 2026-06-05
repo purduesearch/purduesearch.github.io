@@ -1,6 +1,6 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { get, patch } from '../../api/clubPmClient';
+import { get, patch, post } from '../../api/clubPmClient';
 import { useClubPmAuth } from '../../clubpm/ClubPmAuth';
 
 const TEAMS = ['Software', 'Outreach', 'Research', 'Business', 'Systems', 'Other'];
@@ -136,6 +136,207 @@ function MemberCard({ member, onClick }) {
   );
 }
 
+// ── GH stats section (inside drawer) ─────────────────────────
+
+function GhStatsSection({ memberId }) {
+  const [projects, setProjects]   = useState([]);
+  const [projectId, setProjectId] = useState('');
+  const [stats, setStats]         = useState(null);
+  const [loading, setLoading]     = useState(false);
+
+  useEffect(() => {
+    get('/api/projects').then(data => {
+      const withRepo = (data ?? []).filter(p => p.githubRepo);
+      setProjects(withRepo);
+      if (withRepo.length === 1) setProjectId(withRepo[0].id);
+    }).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (!projectId) { setStats(null); return; }
+    setLoading(true);
+    get(`/api/github/members/${memberId}/stats?projectId=${projectId}`)
+      .then(setStats)
+      .catch(() => setStats(null))
+      .finally(() => setLoading(false));
+  }, [memberId, projectId]);
+
+  if (projects.length === 0) return null;
+
+  return (
+    <div className="pm-member-drawer-section">
+      <div className="pm-member-drawer-section-title">
+        <i className="fab fa-github" aria-hidden="true" /> GitHub (30d)
+      </div>
+      {projects.length > 1 && (
+        <select className="pm-gh-stats-project-select"
+          value={projectId} onChange={e => setProjectId(e.target.value)}>
+          <option value="">Select a project…</option>
+          {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+        </select>
+      )}
+      {loading && <div className="pm-spinner-wrap" style={{ padding: '8px 0' }}><div className="pm-spinner" /></div>}
+      {stats && !loading && (
+        <div className="pm-gh-stats-row">
+          <div className="pm-gh-stat-tile">
+            <span className="pm-gh-stat-num">{stats.commits30d}</span>
+            <span className="pm-gh-stat-label">Commits</span>
+          </div>
+          <div className="pm-gh-stat-tile">
+            <span className="pm-gh-stat-num">{stats.prsOpened30d}</span>
+            <span className="pm-gh-stat-label">PRs opened</span>
+          </div>
+          <div className="pm-gh-stat-tile">
+            <span className="pm-gh-stat-num">{stats.reviews30d}</span>
+            <span className="pm-gh-stat-label">Reviews</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── ContributorImportModal ────────────────────────────────────
+
+function ContributorImportModal({ onClose, onImported }) {
+  const [projects, setProjects]       = useState([]);
+  const [projectId, setProjectId]     = useState('');
+  const [discovering, setDiscovering] = useState(false);
+  const [result, setResult]           = useState(null);
+  const [manualLinks, setManualLinks] = useState({});
+  const [importing, setImporting]     = useState(false);
+  const [done, setDone]               = useState(null);
+
+  useEffect(() => {
+    get('/api/projects').then(data => {
+      const withRepo = (data ?? []).filter(p => p.githubRepo);
+      setProjects(withRepo);
+    }).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    const handler = e => e.key === 'Escape' && onClose();
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [onClose]);
+
+  const handleDiscover = async () => {
+    if (!projectId) return;
+    setDiscovering(true);
+    setResult(null);
+    try {
+      const data = await get(`/api/github/projects/${projectId}/contributors`);
+      setResult(data);
+    } catch (err) {
+      console.error('[contributor-import] discover failed:', err);
+    } finally {
+      setDiscovering(false);
+    }
+  };
+
+  const handleImport = async () => {
+    const links = [
+      ...(result?.linked ?? []).map(c => ({ memberId: c.memberId, githubLogin: c.login })),
+      ...Object.entries(manualLinks)
+        .filter(([, memberId]) => memberId)
+        .map(([login, memberId]) => ({ memberId, githubLogin: login })),
+    ];
+    if (links.length === 0) return;
+    setImporting(true);
+    try {
+      const res = await post(`/api/github/projects/${projectId}/import-members`, { links });
+      setDone(res);
+      onImported?.();
+    } catch (err) {
+      console.error('[contributor-import] import failed:', err);
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  return createPortal(
+    <div className="cpm-gh-modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="cpm-gh-modal cpm-gh-contributor-modal" role="dialog" aria-label="Import GitHub contributors">
+        <div className="cpm-gh-modal-header">
+          <span>Import GitHub Contributors</span>
+          <button className="cpm-gh-modal-close" onClick={onClose}>×</button>
+        </div>
+        <div className="cpm-gh-modal-body">
+          {done ? (
+            <div className="pm-gh-import-done">
+              <i className="fas fa-check-circle" style={{ color: 'var(--clubpm-accent-green)', fontSize: '2rem' }} />
+              <p>Added {done.added} contributor{done.added !== 1 ? 's' : ''} to the project.</p>
+              <button className="clubpm-btn-primary" onClick={onClose}>Done</button>
+            </div>
+          ) : (
+            <>
+              <div className="pm-gh-import-row">
+                <label>Project</label>
+                <select value={projectId} onChange={e => { setProjectId(e.target.value); setResult(null); }}>
+                  <option value="">Select a project with a GitHub repo…</option>
+                  {projects.map(p => <option key={p.id} value={p.id}>{p.name} ({p.githubRepo})</option>)}
+                </select>
+                <button className="clubpm-btn-secondary" onClick={handleDiscover} disabled={!projectId || discovering}>
+                  {discovering ? 'Discovering…' : 'Discover'}
+                </button>
+              </div>
+
+              {result && (
+                <>
+                  {result.linked.length > 0 && (
+                    <div className="pm-gh-contrib-section">
+                      <div className="pm-gh-contrib-section-title">
+                        Matched ({result.linked.length})
+                      </div>
+                      {result.linked.map(c => (
+                        <div key={c.login} className="pm-gh-contrib-row">
+                          {c.avatarUrl && <img src={c.avatarUrl} alt="" className="pm-gh-contrib-avatar" />}
+                          <span className="pm-gh-contrib-login">@{c.login}</span>
+                          <span className="pm-gh-contrib-arrow">→</span>
+                          <span className="pm-gh-contrib-name">{c.displayName}</span>
+                          <span className="pm-gh-contrib-commits">{c.contributions} commits</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {result.unmatched.length > 0 && (
+                    <div className="pm-gh-contrib-section">
+                      <div className="pm-gh-contrib-section-title">
+                        Unmatched — link manually ({result.unmatched.length})
+                      </div>
+                      {result.unmatched.map(c => (
+                        <div key={c.login} className="pm-gh-contrib-row">
+                          {c.avatarUrl && <img src={c.avatarUrl} alt="" className="pm-gh-contrib-avatar" />}
+                          <span className="pm-gh-contrib-login">@{c.login}</span>
+                          <span className="pm-gh-contrib-commits">{c.contributions} commits</span>
+                          <input
+                            className="pm-gh-contrib-member-input"
+                            placeholder="ClubPM member ID (or skip)"
+                            value={manualLinks[c.login] ?? ''}
+                            onChange={e => setManualLinks(prev => ({ ...prev, [c.login]: e.target.value }))}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="cpm-gh-modal-footer">
+                    <button className="clubpm-btn-primary" onClick={handleImport} disabled={importing}>
+                      {importing ? 'Importing…' : 'Import to Project'}
+                    </button>
+                  </div>
+                </>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
 // ── Member detail drawer ──────────────────────────────────────
 
 function MemberDrawer({ member, onClose, isOwnProfile }) {
@@ -221,6 +422,14 @@ function MemberDrawer({ member, onClose, isOwnProfile }) {
             <div className="pm-member-drawer-row">
               <i className="fas fa-clock" />
               <span>{offset} ({member.timezone})</span>
+            </div>
+          )}
+          {member.githubLogin && (
+            <div className="pm-member-drawer-row">
+              <i className="fab fa-github" />
+              <a href={`https://github.com/${member.githubLogin}`} target="_blank" rel="noreferrer">
+                @{member.githubLogin}
+              </a>
             </div>
           )}
         </div>
@@ -314,6 +523,8 @@ function MemberDrawer({ member, onClose, isOwnProfile }) {
                 </div>
               )}
             </div>
+
+            {member.githubLogin && <GhStatsSection memberId={member.id} />}
           </>
         )}
       </div>
@@ -329,16 +540,19 @@ export default function MembersView() {
   const [members, setMembers]     = useState([]);
   const [loading, setLoading]     = useState(true);
   const [search, setSearch]       = useState('');
-  const [filterTeam, setFilterTeam]     = useState('');
-  const [filterRole, setFilterRole]     = useState('');
+  const [filterTeam, setFilterTeam]         = useState('');
+  const [filterRole, setFilterRole]         = useState('');
   const [selectedMember, setSelectedMember] = useState(null);
+  const [showImport, setShowImport]         = useState(false);
 
-  useEffect(() => {
+  const fetchMembers = useCallback(() => {
     get('/api/members')
       .then(data => setMembers(data))
       .catch(err => console.error('Failed to load members:', err))
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => { fetchMembers(); }, [fetchMembers]);
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
@@ -368,6 +582,9 @@ export default function MembersView() {
     <div className="pm-members-page">
       <div className="pm-members-header">
         <h1 className="pm-page-title">Members</h1>
+        <button className="clubpm-btn-secondary pm-gh-import-contrib-btn" onClick={() => setShowImport(true)}>
+          <i className="fab fa-github" aria-hidden="true" /> Import Contributors
+        </button>
       </div>
 
       {!loading && <MembersStats members={members} />}
@@ -426,6 +643,13 @@ export default function MembersView() {
           member={selectedMember}
           onClose={() => setSelectedMember(null)}
           isOwnProfile={currentMember?.id === selectedMember.id}
+        />
+      )}
+
+      {showImport && (
+        <ContributorImportModal
+          onClose={() => setShowImport(false)}
+          onImported={fetchMembers}
         />
       )}
     </div>

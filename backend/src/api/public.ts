@@ -22,6 +22,92 @@ function rateLimit(ip: string): boolean {
   return true;
 }
 
+// ── RSVP endpoints (no auth required) ───────────────────────
+
+publicRouter.get("/events/:eventId/rsvp-info", async (req: Request, res: Response) => {
+  try {
+    const event = await prisma.event.findUnique({
+      where: { id: req.params.eventId as string },
+      select: {
+        id: true, title: true, description: true,
+        startTime: true, endTime: true,
+        location: true, isVirtual: true,
+        _count: { select: { rsvps: true } },
+      },
+    });
+    if (!event) {
+      res.status(404).json({ error: "Event not found" });
+      return;
+    }
+    res.json(event);
+  } catch (error) {
+    console.error("GET /public/events/:eventId/rsvp-info error:", error);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+publicRouter.post("/events/:eventId/rsvp", async (req: Request, res: Response) => {
+  try {
+    const ip = (req.ip ?? req.socket.remoteAddress ?? "unknown").toString();
+    if (!rateLimit(ip)) {
+      res.status(429).json({ error: "Too many requests — try again in a minute" });
+      return;
+    }
+
+    const eventId = req.params.eventId as string;
+    const event = await prisma.event.findUnique({ where: { id: eventId }, select: { id: true } });
+    if (!event) {
+      res.status(404).json({ error: "Event not found" });
+      return;
+    }
+
+    const { name, email, authToken } = req.body as {
+      name?: string;
+      email?: string;
+      authToken?: string;
+    };
+
+    let rsvp: { id: string };
+
+    if (authToken) {
+      // Verify the HMAC-signed Bearer token issued at Slack OAuth time
+      const { verifyBearerToken } = await import("./auth.js");
+      const memberId = verifyBearerToken(authToken);
+      if (!memberId) {
+        res.status(401).json({ error: "Invalid or expired auth token" });
+        return;
+      }
+      rsvp = await prisma.eventRsvp.upsert({
+        where: { eventId_memberId: { eventId, memberId } },
+        create: { eventId, memberId, attended: true },
+        update: { attended: true, attendedAt: new Date() },
+        select: { id: true },
+      });
+    } else {
+      if (!name?.trim() || !email?.trim()) {
+        res.status(400).json({ error: "Name and email are required" });
+        return;
+      }
+      rsvp = await prisma.eventRsvp.upsert({
+        where: { eventId_guestEmail: { eventId, guestEmail: email.trim().toLowerCase() } },
+        create: {
+          eventId,
+          guestName:  name.trim(),
+          guestEmail: email.trim().toLowerCase(),
+          attended:   true,
+        },
+        update: { attended: true, attendedAt: new Date(), guestName: name.trim() },
+        select: { id: true },
+      });
+    }
+
+    res.status(201).json({ ok: true, rsvpId: rsvp.id });
+  } catch (error) {
+    console.error("POST /public/events/:eventId/rsvp error:", error);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
 // ── GET /public/campaigns/:slug ──────────────────────────────
 
 publicRouter.get("/campaigns/:slug", async (req: Request, res: Response) => {

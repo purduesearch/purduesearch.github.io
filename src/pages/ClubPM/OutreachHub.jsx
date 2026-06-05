@@ -13,8 +13,8 @@ import CampaignsTab from '../../components/clubpm/CampaignsTab';
 import CalendarTab from '../../components/clubpm/CalendarTab';
 import CrmTab from '../../components/clubpm/CrmTab';
 import InsightsTab from '../../components/clubpm/InsightsTab';
-import KeyboardShortcutsModal from '../../components/clubpm/KeyboardShortcutsModal';
 import ActivityFeedSidebar from '../../components/clubpm/ActivityFeedSidebar';
+import useKeyboardShortcuts from '../../hooks/useKeyboardShortcuts';
 import OutreachSearch from '../../components/clubpm/OutreachSearch';
 import toast from 'react-hot-toast';
 
@@ -538,7 +538,12 @@ function BoardTab({ submissions, member, onEdit, onReview, onDelete, onStatusCha
                     className={`pm-outreach-col-body${snapshot.isDraggingOver ? ' drag-over' : ''}`}
                   >
                     {(columns[col.id] ?? []).length === 0 && !snapshot.isDraggingOver && (
-                      <div className="pm-outreach-col-empty">No submissions</div>
+                      <div className="pm-outreach-col-empty">
+                        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                          <path d="M22 12h-6l-2 3H10l-2-3H2"/><path d="M5.45 5.11L2 12v6a2 2 0 002 2h16a2 2 0 002-2v-6l-3.45-6.89A2 2 0 0016.76 4H7.24a2 2 0 00-1.79 1.11z"/>
+                        </svg>
+                        <span>No submissions</span>
+                      </div>
                     )}
                     {(columns[col.id] ?? []).map((s, index) => {
                       const canDrag = member?.isAdmin || member?.id === s.authorId;
@@ -715,7 +720,6 @@ export default function OutreachHub() {
   const [loading, setLoading]                 = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editSubmission, setEditSubmission]   = useState(null);
-  const [showShortcuts, setShowShortcuts]     = useState(false);
   const [showActivity, setShowActivity]       = useState(false);
   const [contacts, setContacts]               = useState([]);
 
@@ -744,35 +748,18 @@ export default function OutreachHub() {
       .finally(() => setLoading(false));
   }, []);
 
-  // ── Keyboard shortcuts ──────────────────────────────────────
-  const TAB_IDS = ['composer', 'board', 'calendar', 'campaigns', 'crm', 'insights'];
-  useEffect(() => {
-    function onKey(e) {
-      // Skip if typing in an input / textarea / select
-      const tag = document.activeElement?.tagName?.toLowerCase();
-      if (['input', 'textarea', 'select'].includes(tag)) return;
-      if (e.metaKey || e.ctrlKey || e.altKey) return;
-
-      if (e.key === '?') { e.preventDefault(); setShowShortcuts(s => !s); return; }
-      if (e.key === 'Escape') { setShowShortcuts(false); return; }
-      if (e.key === 'n') { e.preventDefault(); setEditSubmission(null); setShowCreateModal(true); return; }
-      if (e.key === 'c') { e.preventDefault(); setActiveTab('composer'); return; }
-      if (e.key === '/') {
-        e.preventDefault();
-        document.querySelector('.pm-search-input, .pm-crm-search')?.focus();
-        return;
-      }
-      // 1-6 tab jump
-      const num = parseInt(e.key, 10);
-      if (num >= 1 && num <= TAB_IDS.length) {
-        e.preventDefault();
-        setActiveTab(TAB_IDS[num - 1]);
-      }
-    }
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // ── Keyboard shortcuts (registered via global registry) ──────
+  useKeyboardShortcuts([
+    { id: 'outreach.new',    keys: 'n', scope: 'page', pageId: 'Outreach', description: 'New submission',      action: () => { setEditSubmission(null); setShowCreateModal(true); } },
+    { id: 'outreach.comp',   keys: 'c', scope: 'page', pageId: 'Outreach', description: 'Switch to Composer',  action: () => setActiveTab('composer') },
+    { id: 'outreach.search', keys: '/', scope: 'page', pageId: 'Outreach', description: 'Focus search',        action: () => document.querySelector('.pm-search-input, .pm-crm-search')?.focus() },
+    { id: 'outreach.tab.1',  keys: '1', scope: 'page', pageId: 'Outreach', description: 'Composer tab',        action: () => setActiveTab('composer') },
+    { id: 'outreach.tab.2',  keys: '2', scope: 'page', pageId: 'Outreach', description: 'Board tab',           action: () => setActiveTab('board') },
+    { id: 'outreach.tab.3',  keys: '3', scope: 'page', pageId: 'Outreach', description: 'Calendar tab',        action: () => setActiveTab('calendar') },
+    { id: 'outreach.tab.4',  keys: '4', scope: 'page', pageId: 'Outreach', description: 'Campaigns tab',       action: () => setActiveTab('campaigns') },
+    { id: 'outreach.tab.5',  keys: '5', scope: 'page', pageId: 'Outreach', description: 'CRM tab',             action: () => setActiveTab('crm') },
+    { id: 'outreach.tab.6',  keys: '6', scope: 'page', pageId: 'Outreach', description: 'Insights tab',        action: () => setActiveTab('insights') },
+  ]);
 
   const handleSave = async (payload) => {
     if (editSubmission) {
@@ -894,14 +881,6 @@ export default function OutreachHub() {
             {tab.label}
           </button>
         ))}
-        <button
-          className="pm-outreach-shortcuts-hint"
-          onClick={() => setShowShortcuts(true)}
-          title="Keyboard shortcuts (?)"
-          aria-label="Show keyboard shortcuts"
-        >
-          <i className="fas fa-keyboard" aria-hidden="true" />
-        </button>
       </div>
 
       {/* Tab content */}
@@ -985,11 +964,6 @@ export default function OutreachHub() {
         projects={projects}
         events={events}
       />
-
-      {/* Keyboard shortcuts modal */}
-      {showShortcuts && (
-        <KeyboardShortcutsModal onClose={() => setShowShortcuts(false)} />
-      )}
 
       {/* Activity feed sidebar */}
       <ActivityFeedSidebar

@@ -1,0 +1,5 @@
+Full instagram api integration (collect likes, fast post, sync posts to home page, etc.)
+Make the blog section easily accessible and fully editable (not just ai parse)
+Full github integration
+Performance improvements
+LinkedIn Api integration for quick posting

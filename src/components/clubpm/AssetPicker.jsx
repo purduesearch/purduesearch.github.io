@@ -162,26 +162,29 @@ export default function AssetPicker({
   onSelect,    // (asset) => void — called when user picks an asset; null if in library mode
   title = 'Asset Library',
 }) {
-  const [assets, setAssets]       = useState([]);
-  const [loading, setLoading]     = useState(true);
-  const [searchQ, setSearchQ]     = useState('');
+  const [allAssets, setAllAssets]  = useState([]);
+  const [loading, setLoading]      = useState(true);
+  const [searchQ, setSearchQ]      = useState('');
   const [kindFilter, setKindFilter] = useState('');
   const [showAddForm, setShowAddForm] = useState(false);
 
   const loadAssets = useCallback(() => {
     setLoading(true);
-    const params = new URLSearchParams();
-    if (searchQ.trim()) params.set('q', searchQ.trim());
-    if (kindFilter)     params.set('kind', kindFilter);
-    get(`/api/outreach/assets?${params}`)
-      .then(a => setAssets(Array.isArray(a) ? a : []))
-      .catch(() => setAssets([]))
+    get('/api/outreach/assets')
+      .then(a => setAllAssets(Array.isArray(a) ? a : []))
+      .catch(() => setAllAssets([]))
       .finally(() => setLoading(false));
-  }, [searchQ, kindFilter]);
+  }, []); // stable — no filter deps; filtering is client-side
 
   useEffect(() => {
     if (isOpen) loadAssets();
   }, [isOpen, loadAssets]);
+
+  const assets = allAssets.filter(a => {
+    const matchKind   = !kindFilter || a.kind === kindFilter;
+    const matchSearch = !searchQ.trim() || a.name.toLowerCase().includes(searchQ.trim().toLowerCase());
+    return matchKind && matchSearch;
+  });
 
   // Escape key
   useEffect(() => {
@@ -197,7 +200,7 @@ export default function AssetPicker({
     if (!window.confirm('Delete this asset from the library?')) return;
     try {
       await del(`/api/outreach/assets/${id}`);
-      setAssets(prev => prev.filter(a => a.id !== id));
+      setAllAssets(prev => prev.filter(a => a.id !== id));
       toast.success('Asset deleted.');
     } catch (err) {
       toast.error(err.message ?? 'Delete failed.');
@@ -205,7 +208,7 @@ export default function AssetPicker({
   };
 
   const handleAdded = (asset) => {
-    setAssets(prev => [asset, ...prev]);
+    setAllAssets(prev => [asset, ...prev]);
     setShowAddForm(false);
   };
 
@@ -249,15 +252,11 @@ export default function AssetPicker({
             placeholder="Search by name…"
             value={searchQ}
             onChange={e => setSearchQ(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter') loadAssets(); }}
           />
           <select className="cpm-form-select pm-asset-kind-filter" value={kindFilter} onChange={e => setKindFilter(e.target.value)}>
             <option value="">All types</option>
             {KIND_OPTIONS.map(k => <option key={k} value={k}>{k}</option>)}
           </select>
-          <button className="cpm-btn cpm-btn--secondary pm-asset-search-btn" onClick={loadAssets}>
-            <i className="fas fa-search" aria-hidden="true" />
-          </button>
         </div>
 
         {/* Grid */}

@@ -29,11 +29,11 @@ export function ClubPmAuthProvider({ children }) {
     console.log("[ClubPmAuth] lt param:", lt ? lt.slice(0, 12) + "…" : "(none)");
     if (lt) {
       setStoredToken(lt);
-      // The OAuth redirect lands at /?lt=TOKEN (root index.html, which GitHub Pages
-      // serves directly and preserves query params). Store the token, then send the
-      // user to /clubpm — that load reads the token from localStorage, no ?lt= needed.
-      console.log("[ClubPmAuth] fresh token stored — navigating to /clubpm");
-      window.location.replace("/clubpm");
+      // Honor returnTo so Constellation sign-in from public pages (e.g. /rsvp/:id)
+      // redirects back to the originating page instead of /clubpm.
+      const returnTo = params.get("returnTo") || "/clubpm";
+      console.log("[ClubPmAuth] fresh token stored — navigating to", returnTo);
+      window.location.replace(returnTo);
       return;
     }
 

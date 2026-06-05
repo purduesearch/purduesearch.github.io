@@ -1139,6 +1139,24 @@ outreachRouter.patch("/submissions/:id/video-script", async (req: Request, res: 
   }
 });
 
+// ── GET /ai/image-status ─────────────────────────────────────
+
+outreachRouter.get("/ai/image-status", async (_req: Request, res: Response) => {
+  try {
+    const { isCloudflareConfigured } = await import("../services/cloudflareAiService.js");
+    const cfConfigured = isCloudflareConfigured();
+    res.json({
+      provider:             cfConfigured ? "cloudflare" : "pollinations",
+      model:                cfConfigured ? "@cf/black-forest-labs/flux-1-schnell" : "flux",
+      cloudflareConfigured: cfConfigured,
+      providerLabel:        cfConfigured ? "Cloudflare Workers AI" : "Pollinations.ai",
+      modelLabel:           cfConfigured ? "FLUX.1 Schnell (Cloudflare)" : "FLUX (Pollinations)",
+    });
+  } catch {
+    res.json({ provider: "pollinations", model: "flux", cloudflareConfigured: false, providerLabel: "Pollinations.ai", modelLabel: "FLUX (Pollinations)" });
+  }
+});
+
 // ── POST /ai/generate-image ──────────────────────────────────
 
 outreachRouter.post("/ai/generate-image", async (req: Request, res: Response) => {
@@ -1635,5 +1653,97 @@ outreachRouter.delete("/templates/:id/recurrence", async (req: Request, res: Res
   } catch (error) {
     console.error("DELETE /templates/:id/recurrence error:", error);
     res.status(500).json({ error: "Failed to delete recurrence" });
+  }
+});
+
+// ── Newsletter Generation ────────────────────────────────────
+
+outreachRouter.post("/newsletters/generate", async (req: Request, res: Response) => {
+  try {
+    const { meetingTemplate, extraContent } = req.body as {
+      meetingTemplate?: string;
+      extraContent?: string;
+    };
+
+    const { generateJson } = await import("../services/geminiService.js");
+
+    const prompt = `You are a newsletter writer for Purdue SEARCH, a university engineering club.
+Generate a well-formatted HTML newsletter from the provided meeting notes.
+
+Requirements:
+- Inline CSS only (no <style> blocks) — must render in email clients
+- Single-column, table-based layout for email compatibility
+- Max width 600px, dark background (#0d1117), light text (#e2e8f0)
+- Accent color: #00e5cc (teal)
+- Sections: club highlights, project updates, upcoming events, call to action
+- Subject line: short, engaging, under 60 chars
+- Return ONLY valid JSON: { "subject": "...", "html": "..." }
+
+Meeting template / agenda:
+${(meetingTemplate ?? "").slice(0, 4000)}
+
+${extraContent ? `Additional context:\n${extraContent.slice(0, 2000)}` : ""}`;
+
+    const result = await generateJson<{ subject: string; html: string }>(prompt);
+    if (!result?.subject || !result?.html) {
+      res.status(500).json({ error: "Failed to generate newsletter content" });
+      return;
+    }
+
+    const member = await prisma.member.findUnique({
+      where: { id: req.memberId },
+      select: { id: true },
+    });
+
+    const authorId = (member?.id ?? req.memberId) as string;
+    const submission = await prisma.outreachSubmission.create({
+      data: {
+        title:          result.subject,
+        type:           "NEWSLETTER",
+        status:         "DRAFT",
+        newsletterHtml: result.html,
+        content:        result.subject,
+        authorId,
+      },
+    });
+
+    res.status(201).json({ submission, subject: result.subject, html: result.html });
+  } catch (error) {
+    console.error("POST /newsletters/generate error:", error);
+    res.status(500).json({ error: "Failed to generate newsletter" });
+  }
+});
+
+outreachRouter.post("/newsletters/parse-document", async (req: Request, res: Response) => {
+  try {
+    const { text } = req.body as { text?: string };
+    if (!text?.trim()) {
+      res.status(400).json({ error: "text is required" });
+      return;
+    }
+
+    const { generateJson } = await import("../services/geminiService.js");
+
+    const prompt = `Parse the following document into structured sections for a newsletter.
+Return ONLY valid JSON: { "sections": [{ "heading": "...", "bullets": ["..."] }], "highlights": ["..."] }
+"highlights" should be 2-3 key takeaways as short strings.
+
+Document:
+${text.slice(0, 6000)}`;
+
+    const result = await generateJson<{
+      sections: Array<{ heading: string; bullets: string[] }>;
+      highlights: string[];
+    }>(prompt);
+
+    if (!result) {
+      res.status(500).json({ error: "Failed to parse document" });
+      return;
+    }
+
+    res.json(result);
+  } catch (error) {
+    console.error("POST /newsletters/parse-document error:", error);
+    res.status(500).json({ error: "Failed to parse document" });
   }
 });

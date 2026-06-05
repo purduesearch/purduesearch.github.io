@@ -250,7 +250,15 @@ export async function getTasksForProject(
 
   return prisma.task.findMany({
     where,
-    include: { assignees: true, tags: true },
+    include: {
+      assignees: true,
+      tags: true,
+      // Lightweight GitHub link summary (Phase 2). Kanban cards use this to
+      // render a small PR-state pill without an extra round-trip per card.
+      githubLinks: {
+        select: { id: true, kind: true, state: true, refNumber: true, url: true },
+      },
+    },
     orderBy: [{ priority: "desc" }, { createdAt: "desc" }],
   });
 }

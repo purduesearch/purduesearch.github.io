@@ -17,6 +17,7 @@ import GanttChart from "../../components/clubpm/GanttChart";
 import { PriorityBars, AvatarStack } from "../../components/clubpm/TaskPrimitives";
 import DrivePreviewModal from "../../components/clubpm/DrivePreviewModal";
 import EditDriveFolderModal from "../../components/clubpm/EditDriveFolderModal";
+import GitHubPanel from "../../components/clubpm/github/GitHubPanel";
 import { parseDriveUrl, mimeTypeToKind, getTypeMeta, formatRelativeTime } from "../../utils/driveUtils";
 import {
   DndContext,
@@ -68,6 +69,7 @@ const NAV_TABS = [
   { id: "calendar",   label: "Calendar",   icon: "📅" },
   { id: "milestones", label: "Milestones", icon: "🎯" },
   { id: "files",      label: "Files",      icon: "📁" },
+  { id: "github",     label: "GitHub",     icon: "🐙" },
   { id: "activity",   label: "Activity",   icon: "📜" },
   { id: "reports",    label: "Reports",    icon: "📊" },
   { id: "updates",    label: "Updates",    icon: "📝" },
@@ -1755,6 +1757,9 @@ export default function ProjectDetail() {
     } catch { return false; }
   });
   const [viewMode, setViewMode] = useState("list");
+  const [descEdit, setDescEdit] = useState(false);
+  const [descValue, setDescValue] = useState("");
+  const [descExpanded, setDescExpanded] = useState(false);
 
   const tasksByBin = useMemo(() => {
     if (!project) return BINS.map(b => ({ ...b, tasks: [] }));
@@ -1792,6 +1797,17 @@ export default function ProjectDetail() {
       .catch(console.error)
       .finally(() => setLoading(false));
   }, [id]);
+
+  const saveDescription = useCallback(async () => {
+    try {
+      const updated = await patch(`/api/projects/${id}`, { description: descValue.trim() || null });
+      setProject(prev => ({ ...prev, description: updated.description }));
+      setDescEdit(false);
+      setDescExpanded(false);
+    } catch (err) {
+      alert(err?.message ?? "Failed to save description");
+    }
+  }, [id, descValue]);
 
   useEffect(() => {
     fetchProject();
@@ -2225,6 +2241,62 @@ export default function ProjectDetail() {
 
             {/* Progress bar */}
             <ProgressBar tasks={project.tasks} />
+
+            {/* Project description (admin-editable) */}
+            {(project.description || member?.isAdmin) && (
+              <div className="pm-proj-description">
+                {descEdit ? (
+                  <div className="pm-proj-description-edit">
+                    <textarea
+                      className="pm-proj-description-textarea"
+                      value={descValue}
+                      onChange={e => setDescValue(e.target.value)}
+                      placeholder="Describe this project for the press kit, stakeholders, and team…"
+                      rows={4}
+                      autoFocus
+                    />
+                    <div className="pm-proj-description-actions">
+                      <button className="pm-proj-description-save" onClick={saveDescription}>Save</button>
+                      <button className="pm-proj-description-cancel" onClick={() => setDescEdit(false)}>Cancel</button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="pm-proj-description-display">
+                    {project.description ? (() => {
+                      const SNIPPET_LEN = 120;
+                      const isLong = project.description.length > SNIPPET_LEN;
+                      const snippet = isLong && !descExpanded
+                        ? project.description.slice(0, SNIPPET_LEN).trimEnd() + "…"
+                        : project.description;
+                      return (
+                        <span className="pm-proj-description-text">
+                          {snippet}
+                          {isLong && (
+                            <button
+                              className="pm-proj-description-toggle"
+                              onClick={() => setDescExpanded(e => !e)}
+                            >
+                              {descExpanded ? "Show less" : "Read more"}
+                            </button>
+                          )}
+                        </span>
+                      );
+                    })() : (
+                      <p className="pm-proj-description-empty">No description — add one to include it in the press kit.</p>
+                    )}
+                    {member?.isAdmin && (
+                      <button
+                        className="pm-proj-description-edit-btn"
+                        title="Edit description"
+                        onClick={() => { setDescValue(project.description ?? ""); setDescEdit(true); }}
+                      >
+                        <i className="fas fa-pencil-alt" aria-hidden="true" />
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </header>
 
           {activeTab === "tasks" && (
@@ -2312,6 +2384,15 @@ export default function ProjectDetail() {
               <DriveFilesPanel
                 project={project}
                 isAdmin={!!member?.isAdmin}
+                onProjectChange={updated => setProject(prev => ({ ...prev, ...updated }))}
+              />
+            </div>
+          )}
+
+          {activeTab === "github" && (
+            <div className="cpm-proj-main-body" style={{ padding: "24px" }}>
+              <GitHubPanel
+                project={project}
                 onProjectChange={updated => setProject(prev => ({ ...prev, ...updated }))}
               />
             </div>
@@ -2475,6 +2556,7 @@ export default function ProjectDetail() {
       {selectedTask && (
         <TaskModal
           task={selectedTask}
+          project={project}
           onClose={() => {
             setSelectedTask(null);
             navigate(`/clubpm/projects/${id}`, { replace: true });

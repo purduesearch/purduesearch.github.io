@@ -239,6 +239,33 @@ tasksRouter.patch("/:id", channelAuth, async (req: Request, res: Response) => {
         });
         return;
       }
+
+      // CI gating (Phase 3): if the project requires passing CI and the most
+      // recent CI activity for the task is a failure, block the transition.
+      const project = await prismaClient.project.findUnique({
+        where: { id: existingTask.projectId },
+        select: { githubBlockDoneOnCiFail: true },
+      });
+      if (project?.githubBlockDoneOnCiFail) {
+        const openPr = await prismaClient.gitHubLink.findFirst({
+          where: { taskId, kind: "PR", state: { in: ["open", "draft"] } },
+        });
+        if (openPr) {
+          const lastCi = await prismaClient.activityLog.findFirst({
+            where: {
+              taskId,
+              eventType: { in: ["GITHUB_CI_PASSED", "GITHUB_CI_FAILED"] },
+            },
+            orderBy: { createdAt: "desc" },
+          });
+          if (lastCi?.eventType === "GITHUB_CI_FAILED") {
+            res.status(409).json({
+              error: "Cannot mark as done: a linked PR has failing CI checks. Resolve them or disable CI gating in project settings.",
+            });
+            return;
+          }
+        }
+      }
     }
 
     if (parentTaskId !== undefined) {

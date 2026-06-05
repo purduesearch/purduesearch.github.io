@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { get } from '../../api/clubPmClient';
+import { get, post } from '../../api/clubPmClient';
 import { useClubPmAuth } from '../../clubpm/ClubPmAuth';
 
 // ── Helpers ───────────────────────────────────────────────────
@@ -107,6 +107,187 @@ function ProjectSummaryCard({ summary }) {
 
           {milestonesCompleted.length === 0 && keyChanges.length === 0 && (
             <p className="pm-meeting-project-empty">No milestones or key changes this week.</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Newsletter Compose Panel ──────────────────────────────────
+
+function ComposeNewsletterPanel({ editorContent }) {
+  const [open,          setOpen]          = useState(false);
+  const [extraContent,  setExtraContent]  = useState('');
+  const [parsedDoc,     setParsedDoc]     = useState(null);
+  const [parsing,       setParsing]       = useState(false);
+  const [generating,    setGenerating]    = useState(false);
+  const [sending,       setSending]       = useState(false);
+  const [newsletter,    setNewsletter]    = useState(null); // { submission, subject, html }
+  const [previewMode,   setPreviewMode]   = useState('preview'); // 'preview' | 'html'
+  const [statusMsg,     setStatusMsg]     = useState('');
+  const [error,         setError]         = useState('');
+
+  async function handleParseDoc() {
+    if (!extraContent.trim()) return;
+    setParsing(true); setError('');
+    try {
+      const result = await post('/api/outreach/newsletters/parse-document', { text: extraContent });
+      setParsedDoc(result);
+    } catch (e) {
+      setError(e.message ?? 'Parse failed');
+    } finally {
+      setParsing(false);
+    }
+  }
+
+  async function handleGenerate() {
+    setGenerating(true); setError(''); setNewsletter(null);
+    try {
+      const result = await post('/api/outreach/newsletters/generate', {
+        meetingTemplate: editorContent,
+        extraContent:    extraContent.trim() || undefined,
+      });
+      setNewsletter(result);
+    } catch (e) {
+      setError(e.message ?? 'Generation failed');
+    } finally {
+      setGenerating(false);
+    }
+  }
+
+  async function handleSend() {
+    if (!newsletter?.submission?.id) return;
+    setSending(true); setError(''); setStatusMsg('');
+    try {
+      await post(`/api/outreach/submissions/${newsletter.submission.id}/newsletter/send`, {});
+      setStatusMsg('Newsletter sent to all subscribers.');
+    } catch (e) {
+      setError(e.message ?? 'Send failed');
+    } finally {
+      setSending(false);
+    }
+  }
+
+  return (
+    <div className="pm-newsletter-panel">
+      <button
+        className={`pm-newsletter-panel-toggle${open ? ' pm-newsletter-panel-toggle--open' : ''}`}
+        onClick={() => setOpen(v => !v)}
+        aria-expanded={open}
+      >
+        <i className="fas fa-envelope-open-text" aria-hidden="true" />
+        Compose Newsletter
+        <i className={`fas fa-chevron-${open ? 'up' : 'down'} pm-newsletter-chevron`} aria-hidden="true" />
+      </button>
+
+      {open && (
+        <div className="pm-newsletter-panel-body">
+          <p className="pm-newsletter-hint">
+            The current agenda template will be used as the base. Optionally paste extra content (project updates, announcements) and Parse it before generating.
+          </p>
+
+          <label className="pm-newsletter-label" htmlFor="pm-newsletter-extra">
+            Extra content / paste a doc
+          </label>
+          <textarea
+            id="pm-newsletter-extra"
+            className="pm-newsletter-textarea"
+            rows={5}
+            placeholder="Paste meeting minutes, project updates, or any extra context…"
+            value={extraContent}
+            onChange={e => setExtraContent(e.target.value)}
+          />
+
+          {parsedDoc && (
+            <div className="pm-newsletter-parsed">
+              <div className="pm-newsletter-parsed-title">Parsed highlights</div>
+              {parsedDoc.highlights?.map((h, i) => (
+                <div key={i} className="pm-newsletter-highlight">
+                  <i className="fas fa-star" aria-hidden="true" /> {h}
+                </div>
+              ))}
+              {parsedDoc.sections?.map((sec, i) => (
+                <div key={i} className="pm-newsletter-section">
+                  <div className="pm-newsletter-section-head">{sec.heading}</div>
+                  <ul className="pm-newsletter-section-list">
+                    {sec.bullets?.map((b, j) => <li key={j}>{b}</li>)}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="pm-newsletter-actions">
+            <button
+              className="pm-newsletter-parse-btn"
+              onClick={handleParseDoc}
+              disabled={parsing || !extraContent.trim()}
+            >
+              <i className={`fas ${parsing ? 'fa-spinner fa-spin' : 'fa-file-alt'}`} aria-hidden="true" />
+              {parsing ? 'Parsing…' : 'Parse Pasted Doc'}
+            </button>
+            <button
+              className="pm-newsletter-generate-btn"
+              onClick={handleGenerate}
+              disabled={generating || !editorContent.trim()}
+            >
+              <i className={`fas ${generating ? 'fa-spinner fa-spin' : 'fa-magic'}`} aria-hidden="true" />
+              {generating ? 'Generating…' : 'Generate Newsletter'}
+            </button>
+          </div>
+
+          {error && <p className="pm-newsletter-error"><i className="fas fa-exclamation-triangle" /> {error}</p>}
+
+          {newsletter && (
+            <div className="pm-newsletter-preview-section">
+              <div className="pm-newsletter-preview-header">
+                <div>
+                  <span className="pm-newsletter-subject-label">Subject: </span>
+                  <span className="pm-newsletter-subject">{newsletter.subject}</span>
+                </div>
+                <div className="pm-newsletter-preview-tabs">
+                  <button
+                    className={`pm-newsletter-tab${previewMode === 'preview' ? ' pm-newsletter-tab--active' : ''}`}
+                    onClick={() => setPreviewMode('preview')}
+                  >Preview</button>
+                  <button
+                    className={`pm-newsletter-tab${previewMode === 'html' ? ' pm-newsletter-tab--active' : ''}`}
+                    onClick={() => setPreviewMode('html')}
+                  >HTML</button>
+                </div>
+              </div>
+
+              {previewMode === 'preview' ? (
+                <iframe
+                  className="pm-newsletter-iframe"
+                  srcDoc={newsletter.html}
+                  title="Newsletter preview"
+                  sandbox="allow-same-origin"
+                />
+              ) : (
+                <textarea
+                  className="pm-newsletter-html-textarea"
+                  value={newsletter.html}
+                  onChange={e => setNewsletter(n => ({ ...n, html: e.target.value }))}
+                  rows={18}
+                  spellCheck={false}
+                />
+              )}
+
+              {statusMsg ? (
+                <p className="pm-newsletter-success"><i className="fas fa-check-circle" /> {statusMsg}</p>
+              ) : (
+                <button
+                  className="pm-newsletter-send-btn"
+                  onClick={handleSend}
+                  disabled={sending}
+                >
+                  <i className={`fas ${sending ? 'fa-spinner fa-spin' : 'fa-paper-plane'}`} aria-hidden="true" />
+                  {sending ? 'Sending…' : 'Send to Subscribers'}
+                </button>
+              )}
+            </div>
           )}
         </div>
       )}
@@ -306,6 +487,8 @@ export default function MeetingNotesView() {
             placeholder={loading ? 'Generating template…' : 'Agenda template will appear here…'}
             spellCheck={false}
           />
+
+          <ComposeNewsletterPanel editorContent={editorContent} />
         </div>
       </div>
     </div>

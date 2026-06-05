@@ -1,15 +1,11 @@
 /**
- * imageGenService — Pollinations.ai free image generation.
+ * imageGenService — tiered image generation.
  *
- * Three quality tiers, each with a 25 req/day soft quota (shared across all users):
- *   fast     → flux-schnell (fastest, lower detail)
- *   standard → flux (balanced)
- *   ultra    → flux-pro (highest quality)
+ * Priority order:
+ *   1. Cloudflare Workers AI (FLUX.1 Schnell) — best quality, requires env vars
+ *   2. Pollinations.ai (flux / flux-pro)       — free public fallback, no key needed
  *
- * Pollinations.ai is a free public API — no key required.
- * If you later gain access to Google Imagen 4, swap the generateImage()
- * implementation back to @google/genai while keeping this file's exports
- * and quota/rate-limit logic unchanged.
+ * All prompts are automatically enhanced with quality suffix tokens.
  */
 
 export type ImageAspect  = "square" | "portrait" | "landscape";
@@ -84,6 +80,22 @@ export interface GenerateImageResult {
   height:   number;
 }
 
+// ── Prompt quality enhancement ───────────────────────────────
+
+const QUALITY_SUFFIX =
+  ", photorealistic, high detail, sharp focus, 8k uhd, professional photography, " +
+  "anatomically correct proportions, studio lighting, realistic skin texture";
+
+function enhancePrompt(raw: string): string {
+  const lower = raw.toLowerCase();
+  // Don't add photo-style suffix to clearly illustrative prompts
+  if (lower.includes("illustration") || lower.includes("cartoon") ||
+      lower.includes("logo") || lower.includes("icon") || lower.includes("vector")) {
+    return raw.trim() + ", high quality, clean lines, sharp detail";
+  }
+  return raw.trim() + QUALITY_SUFFIX;
+}
+
 export async function generateImage({
   prompt,
   aspectRatio = "square",
@@ -93,6 +105,21 @@ export async function generateImage({
   aspectRatio?: ImageAspect;
   quality?:     ImageQuality;
 }): Promise<GenerateImageResult> {
+  const enhancedPrompt = enhancePrompt(prompt);
+
+  // Try Cloudflare Workers AI first (best quality when configured)
+  try {
+    const { generateImageCloudflare, isCloudflareConfigured } = await import("./cloudflareAiService.js");
+    if (isCloudflareConfigured()) {
+      const steps = quality === "fast" ? 4 : quality === "ultra" ? 8 : 6;
+      const out = await generateImageCloudflare({ prompt: enhancedPrompt, steps });
+      return { ...out, quality };
+    }
+  } catch (e) {
+    if (!String(e).includes("CLOUDFLARE_NOT_CONFIGURED")) throw e;
+    // Not configured — fall through to Pollinations
+  }
+
   const quota = consumeQuota(quality);
   if (!quota.allowed) {
     const hours = Math.ceil(quota.retryAfterSec / 3600);
@@ -104,7 +131,7 @@ export async function generateImage({
 
   const { width, height } = DIMENSIONS[aspectRatio];
   const model = POLLINATIONS_MODELS[quality];
-  const encodedPrompt = encodeURIComponent(prompt.trim().slice(0, 480));
+  const encodedPrompt = encodeURIComponent(enhancedPrompt.slice(0, 480));
   const seed = Math.floor(Math.random() * 1_000_000);
 
   const url = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${width}&height=${height}&model=${model}&seed=${seed}&nologo=true`;

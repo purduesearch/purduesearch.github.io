@@ -1,10 +1,13 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { Link, useNavigate } from "react-router-dom";
+import { QRCodeCanvas } from "qrcode.react";
 import { get, post, patch } from "../../api/clubPmClient";
 import { useClubPmAuth } from "../../clubpm/ClubPmAuth";
 import { ProgressIndicator, PriorityBars, AvatarStack } from "../../components/clubpm/TaskPrimitives";
 import ProjectCard from "../../components/clubpm/ProjectCard";
+
+const WEB_BASE = process.env.REACT_APP_WEB_URL ?? window.location.origin;
 
 // ── useCountUp hook ───────────────────────────────────────────
 
@@ -75,6 +78,63 @@ function StatsBar({ projects, myTasks }) {
   );
 }
 
+// ── GithubActivityWidget ──────────────────────────────────────
+
+const GH_EVENT_META = {
+  GITHUB_PR_OPENED:   { icon: "fa-code-pull-request", color: "var(--clubpm-accent-cyan)",    label: "PR opened" },
+  GITHUB_PR_MERGED:   { icon: "fa-code-merge",        color: "var(--clubpm-accent-primary)", label: "PR merged" },
+  GITHUB_PR_CLOSED:   { icon: "fa-times-circle",      color: "var(--clubpm-text-muted)",     label: "PR closed" },
+  GITHUB_PR_REVIEW:   { icon: "fa-eye",               color: "var(--clubpm-accent-yellow)",  label: "Review" },
+  GITHUB_CI_FAILED:   { icon: "fa-times-circle",      color: "#e17055",                      label: "CI failed" },
+  GITHUB_CI_PASSED:   { icon: "fa-check-circle",      color: "var(--clubpm-accent-green)",   label: "CI passed" },
+  GITHUB_ISSUE_SYNCED:{ icon: "fa-sync-alt",          color: "var(--clubpm-text-muted)",     label: "Issue synced" },
+  GITHUB_BRANCH_CREATED: { icon: "fa-code-branch",   color: "var(--clubpm-accent-primary)", label: "Branch created" },
+  GITHUB_PUSH:        { icon: "fa-upload",            color: "var(--clubpm-accent-cyan)",    label: "Push" },
+  GITHUB_REPO_LINKED: { icon: "fa-link",              color: "var(--clubpm-accent-green)",   label: "Repo linked" },
+};
+
+function GithubActivityWidget() {
+  const [events, setEvents] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    get("/api/github/dashboard/feed")
+      .then(data => setEvents(data.events ?? []))
+      .catch(() => setEvents([]))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading || events.length === 0) return null;
+
+  return (
+    <div className="pm-gh-activity-widget">
+      <div className="pm-gh-activity-title">
+        <i className="fab fa-github" aria-hidden="true" /> GitHub Activity
+      </div>
+      <div className="pm-gh-activity-list">
+        {events.map(ev => {
+          const meta = GH_EVENT_META[ev.eventType] ?? { icon: "fa-code", color: "var(--clubpm-text-muted)", label: ev.eventType };
+          const payload = ev.payload ?? {};
+          const desc = payload.title ?? payload.branchName ?? payload.sha?.slice(0, 7) ?? "";
+          return (
+            <div key={ev.id} className="pm-gh-activity-row">
+              <i className={`fas ${meta.icon} pm-gh-activity-icon`} style={{ color: meta.color }} aria-hidden="true" />
+              <div className="pm-gh-activity-body">
+                <span className="pm-gh-activity-label">{meta.label}</span>
+                {desc && <span className="pm-gh-activity-desc">{desc}</span>}
+                {ev.project && <span className="pm-gh-activity-project">{ev.project.name}</span>}
+              </div>
+              <span className="pm-gh-activity-time">
+                {new Date(ev.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ── AIInsightCards ────────────────────────────────────────────
 
 function AIInsightCards({ projects, tasks }) {
@@ -140,25 +200,7 @@ function AIInsightCards({ projects, tasks }) {
 
   return (
     <div className="pm-insight-row pm-project-grid-wrap">
-      {/* Constellation line overlay connecting the three insight nodes */}
-      <svg
-        className="pm-constellation-overlay"
-        viewBox="0 0 300 60"
-        preserveAspectRatio="none"
-        aria-hidden="true"
-      >
-        {/* lines between card centers */}
-        <line x1="50" y1="30" x2="150" y2="30" />
-        <line x1="150" y1="30" x2="250" y2="30" />
-        {/* star node dots */}
-        <circle cx="50"  cy="30" r="2.5" fill="rgba(0,229,204,0.4)" />
-        <circle cx="150" cy="30" r="2.5" fill="rgba(0,229,204,0.4)" />
-        <circle cx="250" cy="30" r="2.5" fill="rgba(0,229,204,0.4)" />
-        {/* outer glow rings */}
-        <circle cx="50"  cy="30" r="5" fill="none" stroke="rgba(0,229,204,0.15)" strokeWidth="1" />
-        <circle cx="150" cy="30" r="5" fill="none" stroke="rgba(0,229,204,0.15)" strokeWidth="1" />
-        <circle cx="250" cy="30" r="5" fill="none" stroke="rgba(0,229,204,0.15)" strokeWidth="1" />
-      </svg>
+
       {/* Card 1: Most Blocked */}
       <div className="pm-insight-card" style={{ borderLeftColor: mostBlocked?.count > 0 ? '#e17055' : 'var(--pm-border)' }}>
         <div className="pm-insight-card-label">Most Blocked</div>
@@ -1255,6 +1297,9 @@ const EVENT_TYPE_COLORS = {
 };
 
 function UpcomingEventsWidget({ events, loading }) {
+  const [expandedId, setExpandedId] = useState(null);
+  const [copied, setCopied] = useState(false);
+
   function fmtEventDate(iso) {
     const d = new Date(iso);
     const now = new Date();
@@ -1266,6 +1311,13 @@ function UpcomingEventsWidget({ events, loading }) {
                  : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     const time = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
     return `${prefix} · ${time}`;
+  }
+
+  function copyLink(url) {
+    navigator.clipboard.writeText(url).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    });
   }
 
   return (
@@ -1288,33 +1340,101 @@ function UpcomingEventsWidget({ events, loading }) {
         <div className="pm-upcoming-events-empty">No upcoming events in the next 7 days</div>
       ) : (
         <div className="pm-upcoming-events-list">
-          {events.slice(0, 7).map(ev => (
-            <div key={ev.id} className="pm-upcoming-event-row">
-              <div
-                className="pm-upcoming-event-type-dot"
-                style={{ background: EVENT_TYPE_COLORS[ev.type] ?? 'var(--pm-text-muted)' }}
-              />
-              <div className="pm-upcoming-event-icon">
-                <i className={`fas ${EVENT_TYPE_ICONS[ev.type] ?? 'fa-calendar-alt'}`} style={{ color: EVENT_TYPE_COLORS[ev.type] }} />
-              </div>
-              <div className="pm-upcoming-event-info">
-                <div className="pm-upcoming-event-title">{ev.title}</div>
-                <div className="pm-upcoming-event-meta">
-                  <span>{fmtEventDate(ev.startTime)}</span>
-                  {ev.location && <span> · {ev.location}</span>}
-                  {ev.isVirtual && <span className="pm-upcoming-event-virtual">Virtual</span>}
+          {events.slice(0, 7).map(ev => {
+            const rsvpUrl = `${WEB_BASE}/rsvp/${ev.id}`;
+            const rsvpCount = ev._count?.rsvps ?? 0;
+            const attendedCount = ev.rsvps?.length ?? 0;
+            const isExpanded = expandedId === ev.id;
+
+            return (
+              <div key={ev.id} className={`pm-upcoming-event-row${isExpanded ? ' pm-upcoming-event-row--expanded' : ''}`}>
+                <div
+                  className="pm-upcoming-event-type-dot"
+                  style={{ background: EVENT_TYPE_COLORS[ev.type] ?? 'var(--pm-text-muted)' }}
+                />
+                <div className="pm-upcoming-event-icon">
+                  <i className={`fas ${EVENT_TYPE_ICONS[ev.type] ?? 'fa-calendar-alt'}`} style={{ color: EVENT_TYPE_COLORS[ev.type] }} />
                 </div>
+                <div
+                  className="pm-upcoming-event-info"
+                  onClick={() => setExpandedId(isExpanded ? null : ev.id)}
+                  style={{ cursor: 'pointer', flex: 1 }}
+                >
+                  <div className="pm-upcoming-event-title">{ev.title}</div>
+                  <div className="pm-upcoming-event-meta">
+                    <span>{fmtEventDate(ev.startTime)}</span>
+                    {ev.location && <span> · {ev.location}</span>}
+                    {ev.isVirtual && <span className="pm-upcoming-event-virtual">Virtual</span>}
+                  </div>
+                </div>
+                <div className="pm-upcoming-event-badges">
+                  {ev.project && (
+                    <span className="pm-upcoming-event-project-badge">{ev.project.name}</span>
+                  )}
+                  {ev._count?.priorityTasks > 0 && (
+                    <span className="pm-upcoming-event-tasks-badge" title="Priority tasks">
+                      <i className="fas fa-tasks" /> {ev._count.priorityTasks}
+                    </span>
+                  )}
+                  <span className="pm-event-rsvp-chip" title="RSVPs">
+                    <i className="fas fa-ticket-alt" /> {rsvpCount}
+                  </span>
+                  <span className="pm-event-attended-chip" title="Attended">
+                    <i className="fas fa-user-check" /> {attendedCount}
+                  </span>
+                  <button
+                    className="pm-event-qr-toggle"
+                    onClick={e => { e.stopPropagation(); setExpandedId(isExpanded ? null : ev.id); }}
+                    title={isExpanded ? 'Hide QR code' : 'Show QR code'}
+                    aria-expanded={isExpanded}
+                  >
+                    <i className="fas fa-qrcode" />
+                  </button>
+                </div>
+
+                {isExpanded && (
+                  <div className="pm-event-qr-panel">
+                    <QRCodeCanvas
+                      id={`qr-canvas-${ev.id}`}
+                      value={rsvpUrl}
+                      size={160}
+                      bgColor="#ffffff"
+                      fgColor="#000000"
+                      level="M"
+                    />
+                    <div className="pm-event-qr-actions">
+                      <p className="pm-event-qr-label">Scan to RSVP / check in</p>
+                      <button
+                        className="pm-event-qr-copy-btn"
+                        onClick={() => copyLink(rsvpUrl)}
+                      >
+                        <i className={`fas ${copied ? 'fa-check' : 'fa-link'}`} />
+                        {copied ? 'Copied!' : 'Copy link'}
+                      </button>
+                      <button
+                        className="pm-event-qr-copy-btn"
+                        onClick={() => {
+                          const canvas = document.getElementById(`qr-canvas-${ev.id}`);
+                          if (!canvas) return;
+                          canvas.toBlob(blob => {
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = `${ev.title.replace(/\s+/g, '-')}-rsvp-qr.png`;
+                            a.click();
+                            URL.revokeObjectURL(url);
+                          });
+                        }}
+                      >
+                        <i className="fas fa-download" />
+                        Download QR
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
-              {ev.project && (
-                <span className="pm-upcoming-event-project-badge">{ev.project.name}</span>
-              )}
-              {ev._count?.priorityTasks > 0 && (
-                <span className="pm-upcoming-event-tasks-badge" title="Priority tasks">
-                  <i className="fas fa-tasks" /> {ev._count.priorityTasks}
-                </span>
-              )}
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
@@ -1374,6 +1494,7 @@ export default function Dashboard() {
     <div className="clubpm-app cpm-dashboard-root">
       <StatsBar projects={projects} myTasks={myTasks} />
       <AIInsightCards projects={projects} tasks={myTasks} />
+      <GithubActivityWidget />
       <UpcomingEventsWidget events={upcomingEvents} loading={eventsLoading} />
       <div className="cpm-dashboard-layout">
         <WorkPanel

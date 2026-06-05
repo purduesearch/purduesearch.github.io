@@ -34,6 +34,29 @@ function getDueDateStyle(dueDate) {
   return { color: 'var(--pm-text-muted)', label: format(d, 'MMM d') };
 }
 
+// Lightweight summary of GitHub links attached to a task — used by the Kanban
+// card to render a compact PR/issue pill. Picks the most "active" PR (open >
+// merged > closed) when several are linked.
+function summarizeGhLinks(links) {
+  if (!Array.isArray(links) || links.length === 0) return null;
+  const prs = links.filter(l => l.kind === 'PR');
+  const issues = links.filter(l => l.kind === 'ISSUE');
+  const branches = links.filter(l => l.kind === 'BRANCH');
+  let pr = null;
+  if (prs.length) {
+    const rank = { open: 0, draft: 1, merged: 2, closed: 3 };
+    pr = [...prs].sort((a, b) => (rank[a.state] ?? 9) - (rank[b.state] ?? 9))[0];
+  }
+  return { pr, issueCount: issues.length, branchCount: branches.length };
+}
+
+function prPillStyle(state) {
+  if (state === 'merged') return { icon: 'fa-code-merge', color: 'var(--cpm-gh-merged, #8957e5)' };
+  if (state === 'closed') return { icon: 'fa-circle-xmark', color: 'var(--cpm-gh-bad, #cf222e)' };
+  if (state === 'draft')  return { icon: 'fa-pen-ruler',   color: 'var(--pm-text-muted)' };
+  return { icon: 'fa-code-pull-request', color: 'var(--cpm-gh-ok, #1f883d)' };
+}
+
 function KanbanCard({ task, index, onClick }) {
   const dotColor = PRIORITY_DOT[task.priority] ?? 'var(--pm-text-muted)';
   const dueInfo = getDueDateStyle(task.dueDate);
@@ -41,6 +64,7 @@ function KanbanCard({ task, index, onClick }) {
   const subtaskTotal = task.subtaskCount ?? 0;
   const subtaskDone  = task.completedSubtaskCount ?? 0;
   const subtaskPct   = subtaskTotal > 0 ? Math.round((subtaskDone / subtaskTotal) * 100) : 0;
+  const gh = summarizeGhLinks(task.githubLinks);
 
   return (
     <Draggable draggableId={task.id} index={index}>
@@ -78,6 +102,30 @@ function KanbanCard({ task, index, onClick }) {
           {subtaskTotal > 0 && (
             <div className="pm-kanban-subtask-bar-wrap" title={`${subtaskDone}/${subtaskTotal} subtasks`}>
               <div className="pm-kanban-subtask-bar" style={{ width: `${subtaskPct}%` }} />
+            </div>
+          )}
+
+          {/* GitHub adornment row */}
+          {gh && (gh.pr || gh.issueCount > 0 || gh.branchCount > 0) && (
+            <div className="pm-kanban-gh-row">
+              {gh.pr && (() => {
+                const s = prPillStyle(gh.pr.state);
+                return (
+                  <span className="pm-kanban-gh-pill" style={{ color: s.color }} title={`PR #${gh.pr.refNumber} ${gh.pr.state}`}>
+                    <i className={`fas ${s.icon}`} aria-hidden="true" /> #{gh.pr.refNumber}
+                  </span>
+                );
+              })()}
+              {gh.issueCount > 0 && (
+                <span className="pm-kanban-gh-pill" title={`${gh.issueCount} linked issue${gh.issueCount === 1 ? '' : 's'}`}>
+                  <i className="fas fa-circle-dot" aria-hidden="true" /> {gh.issueCount}
+                </span>
+              )}
+              {gh.branchCount > 0 && (
+                <span className="pm-kanban-gh-pill" title={`${gh.branchCount} linked branch${gh.branchCount === 1 ? '' : 'es'}`}>
+                  <i className="fas fa-code-branch" aria-hidden="true" /> {gh.branchCount}
+                </span>
+              )}
             </div>
           )}
         </div>

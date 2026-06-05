@@ -26,6 +26,9 @@ import { campaignsRouter } from "./api/campaigns.js";
 import { contactsRouter } from "./api/contacts.js";
 import { insightsRouter } from "./api/insights.js";
 import { publicRouter } from "./api/public.js";
+import { githubAuthRouter } from "./api/githubAuth.js";
+import { githubRouter } from "./api/github.js";
+import { githubWebhookRouter } from "./api/githubWebhook.js";
 
 // ── Express Setup ────────────────────────────────────────────
 
@@ -36,7 +39,11 @@ const PORT = parseInt(process.env.PORT ?? "3000", 10);
 // Required for express-session to set Secure cookies behind a reverse proxy.
 app.set("trust proxy", 1);
 
-// Body parsing
+// GitHub webhook receiver — MUST come before express.json() so the raw body
+// is available for X-Hub-Signature-256 verification.
+app.use("/api/github/webhook", githubWebhookRouter);
+
+// Body parsing (all other routes)
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -72,6 +79,8 @@ app.use(
 // ── API Routes ───────────────────────────────────────────────
 
 app.use("/auth", authRouter);
+app.use("/auth/github", githubAuthRouter);
+app.use("/api/github", githubRouter);
 app.use("/api/projects", projectsRouter);
 app.use("/api/tags", tagsRouter);
 app.use("/api/tasks", tasksRouter);

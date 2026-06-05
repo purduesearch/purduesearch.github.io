@@ -3,9 +3,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useLocation, Link, Navigate, useNavigate } from 'react-router-dom';
 import { useClubPmAuth } from '../../clubpm/ClubPmAuth';
 import { get, post } from '../../api/clubPmClient';
+import { useShortcutsRegistry } from '../../clubpm/ShortcutsRegistry';
 import NotificationBell from './NotificationBell';
 import AICommandPalette from './AICommandPalette';
 import ErrorBoundary from './ErrorBoundary';
+import GitHubConnectButton from './github/GitHubConnectButton';
 import { useProjectNav } from '../../clubpm/ProjectNavContext';
 
 function getBreadcrumb(pathname) {
@@ -147,6 +149,7 @@ function CreateProjectModal({ onClose, onCreate }) {
 
 export default function AppShell({ children }) {
   const { member, loading, logout } = useClubPmAuth();
+  const { setShowHelp } = useShortcutsRegistry() ?? {};
   const { projectNav } = useProjectNav() ?? {};
   const location = useLocation();
   const navigate = useNavigate();
@@ -335,6 +338,9 @@ export default function AppShell({ children }) {
               <div className="pm-user-handle">@{member.slackHandle}</div>
             </div>
           </div>
+          <div className="pm-sidebar-integrations">
+            <GitHubConnectButton compact />
+          </div>
           <button className="pm-signout-btn" onClick={logout}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
               <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
@@ -364,6 +370,11 @@ export default function AppShell({ children }) {
 
           {/* Actions */}
           <div className="pm-topbar-actions">
+            {/* Keyboard shortcuts */}
+            <button className="pm-topbar-btn" title="Keyboard shortcuts (?)" aria-label="Show keyboard shortcuts" onClick={() => setShowHelp?.(true)}>
+              <i className="fas fa-keyboard" aria-hidden="true" style={{ fontSize: 14 }} />
+            </button>
+
             {/* Cmd+K trigger */}
             <button className="pm-cmd-k-btn" title="Search (⌘K)" onClick={() => setPaletteOpen(true)}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

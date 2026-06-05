@@ -253,6 +253,28 @@ export function registerCommands(app: App): void {
           break;
         }
 
+        case "description": {
+          const isAdmin = await isAdminBySlackId(command.user_id);
+          if (!isAdmin) {
+            await respond({ response_type: "ephemeral", text: "❌ Only admins can edit project descriptions." });
+            break;
+          }
+          const project = await getProjectByChannel(command.channel_id);
+          if (!project) {
+            await respond({ response_type: "ephemeral", text: "❌ No project is linked to this channel." });
+            break;
+          }
+          const newDesc = args.slice(1).join(" ").trim();
+          if (!newDesc) {
+            const current = (project as any).description ?? "_No description set._";
+            await respond({ response_type: "ephemeral", text: `*Current description for ${(project as any).name}:*\n${current}` });
+            break;
+          }
+          await prisma.project.update({ where: { id: (project as any).id }, data: { description: newDesc } });
+          await respond({ response_type: "ephemeral", text: `✅ Description updated for *${(project as any).name}*.` });
+          break;
+        }
+
         case "help":
         default: {
           await respond({

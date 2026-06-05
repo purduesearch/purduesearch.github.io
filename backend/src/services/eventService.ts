@@ -233,7 +233,11 @@ export async function getUpcomingEvents(days: number) {
       priorityTasks: {
         select: { id: true, title: true, status: true },
       },
-      _count: { select: { priorityTasks: true, attendees: true } },
+      _count: { select: { priorityTasks: true, attendees: true, rsvps: true } },
+      rsvps: {
+        where:  { attended: true },
+        select: { id: true },
+      },
     },
     orderBy: { startTime: "asc" },
   });

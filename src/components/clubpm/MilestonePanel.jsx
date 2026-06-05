@@ -123,9 +123,66 @@ function MilestoneRoadmap({ milestones, onSelectMilestone }) {
   );
 }
 
+// ── GhProgressBar ────────────────────────────────────────────
+
+function GhProgressBar({ milestoneId }) {
+  const [prog, setProg] = useState(null);
+  const [syncing, setSyncing] = useState(false);
+
+  useEffect(() => {
+    get(`/api/github/milestones/${milestoneId}/progress`)
+      .then(setProg)
+      .catch(() => {});
+  }, [milestoneId]);
+
+  const handleSync = async () => {
+    setSyncing(true);
+    try {
+      await post(`/api/github/milestones/${milestoneId}/sync`);
+      const updated = await get(`/api/github/milestones/${milestoneId}/progress`).catch(() => null);
+      if (updated) setProg(updated);
+    } catch (err) {
+      console.error("[milestone] sync failed:", err);
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  if (!prog) {
+    return (
+      <div className="cpm-ms-gh-row">
+        <button className="cpm-ms-gh-sync-btn" onClick={handleSync} disabled={syncing}>
+          {syncing ? "Syncing…" : "Sync to GitHub"}
+        </button>
+      </div>
+    );
+  }
+
+  const total = prog.openIssues + prog.closedIssues;
+  const pct = total > 0 ? Math.round((prog.closedIssues / total) * 100) : 0;
+
+  return (
+    <div className="cpm-ms-gh-row">
+      <div className="cpm-ms-gh-label">
+        <i className="fab fa-github" aria-hidden="true" />
+        <span>
+          {prog.closedIssues}/{total} issues closed ({pct}%)
+        </span>
+        <a href={prog.url} target="_blank" rel="noreferrer" className="cpm-ms-gh-link">view</a>
+      </div>
+      <div className="cpm-ms-gh-bar-track">
+        <div className="cpm-ms-gh-bar-fill" style={{ width: `${pct}%` }} />
+      </div>
+      <button className="cpm-ms-gh-sync-btn" onClick={handleSync} disabled={syncing}>
+        {syncing ? "Syncing…" : "Sync to GitHub"}
+      </button>
+    </div>
+  );
+}
+
 // ── MilestoneCard ─────────────────────────────────────────────
 
-function MilestoneCard({ milestone, projectTasks, onUpdate, onDelete }) {
+function MilestoneCard({ milestone, projectTasks, onUpdate, onDelete, hasGitHub }) {
   const [expanded, setExpanded] = useState(false);
   const [linkingTasks, setLinkingTasks] = useState(false);
   const [selectedTaskIds, setSelectedTaskIds] = useState(
@@ -260,6 +317,8 @@ function MilestoneCard({ milestone, projectTasks, onUpdate, onDelete }) {
               ))}
             </select>
           </div>
+
+          {hasGitHub && <GhProgressBar milestoneId={milestone.id} />}
         </div>
       )}
     </div>
@@ -346,6 +405,7 @@ export default function MilestonePanel({ projectId, project, onRefresh }) {
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState("roadmap");
   const [selectedId, setSelectedId] = useState(null);
+  const hasGitHub = Boolean(project?.githubRepo);
 
   const fetchMilestones = useCallback(() => {
     setLoading(true);
@@ -407,6 +467,7 @@ export default function MilestonePanel({ projectId, project, onRefresh }) {
                 projectTasks={projectTasks}
                 onUpdate={handleUpdate}
                 onDelete={handleDelete}
+                hasGitHub={hasGitHub}
               />
             ))
           )}

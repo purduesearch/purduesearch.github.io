@@ -24,6 +24,9 @@ interface UpdateProjectInput {
   name?: string;
   description?: string;
   driveLink?: string | null;
+  githubRepo?: string | null;
+  githubInstallId?: number | null;
+  githubBlockDoneOnCiFail?: boolean;
   slackChannel?: string;
   slackChannelId?: string | null;
   slackChannelName?: string | null;

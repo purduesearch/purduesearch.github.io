@@ -109,6 +109,9 @@ enum NotificationType {
   STANDUP_POSTED
   COMMENT_REPLY
   SYSTEM
+  GITHUB_PR_REVIEW_REQUESTED
+  GITHUB_PR_MERGED
+  GITHUB_CI_FAILED
 }
 
 // ── Models ───────────────────────────────────────────────────
@@ -146,6 +149,7 @@ model Member {
   updates         ProjectUpdate[]
   organizedEvents Event[]         @relation("EventOrganizer")
   attendedEvents  Event[]         @relation("EventAttendees")
+  rsvps           EventRsvp[]     @relation("MemberRsvps")
   submissions     OutreachSubmission[] @relation("SubmissionAuthor")
   reviewedSubmissions OutreachSubmission[] @relation("SubmissionReviewer")
   outreachComments OutreachComment[] @relation("OutreachCommentAuthor")
@@ -156,6 +160,15 @@ model Member {
   recordedMetrics PostMetric[]
   ownedRecurringTemplates RecurringTemplate[] @relation("RecurringTemplateOwner")
   submissionApprovals ApprovalRecord[] @relation("SubmissionApprover")
+
+  // ── GitHub OAuth (per-member) ──
+  // Access/refresh tokens are AES-GCM encrypted at rest (see backend/src/utils/crypto.ts).
+  githubLogin            String?    @unique
+  githubAccessToken      String?
+  githubRefreshToken     String?
+  githubTokenExpiresAt   DateTime?
+  createdGithubLinks     GitHubLink[] @relation("GitHubLinkActor")
+
   createdAt       DateTime        @default(now())
 }
 
@@ -173,6 +186,18 @@ model Project {
   targetDate   DateTime?
   programTag       String?         // "astrousa" | "sa2tp" | "research" | "software" | "business" (for public archive grouping)
   pressKitToken    String?         @unique
+
+  // ── GitHub link ──
+  // githubRepo is "owner/repo" (mirrors driveLink). githubInstallId is the
+  // GitHub App installation ID covering this repo; used for org-scoped reads
+  // and webhooks so individual users' OAuth budgets aren't consumed.
+  // githubBlockDoneOnCiFail (Phase 3): reject PATCH /tasks/:id when status
+  // moves to DONE while a linked PR has failing checks.
+  githubRepo                String?
+  githubInstallId           Int?
+  githubBlockDoneOnCiFail   Boolean       @default(true)
+  githubLinks               GitHubLink[]
+  githubMilestoneMaps       GitHubMilestoneMap[]
   tags                 Tag[]
   members              ProjectMember[]
   tasks                Task[]
@@ -252,6 +277,8 @@ model Task {
 
   activityLogs ActivityLog[]
   notifications Notification[]
+
+  githubLinks GitHubLink[]
 
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
@@ -364,6 +391,28 @@ enum ActivityEventType {
   PROJECT_UPDATED
   PROJECT_MEMBER_ADDED
   STANDUP_POSTED
+  GITHUB_REPO_LINKED
+  GITHUB_ISSUE_LINKED
+  GITHUB_ISSUE_IMPORTED
+  GITHUB_BRANCH_CREATED
+  GITHUB_PR_LINKED
+  GITHUB_PR_OPENED
+  GITHUB_PR_MERGED
+  GITHUB_PR_CLOSED
+  GITHUB_PR_REVIEW
+  GITHUB_CI_PASSED
+  GITHUB_CI_FAILED
+  GITHUB_PUSH
+  GITHUB_COMMIT_REFERENCED
+  GITHUB_ISSUE_SYNCED
+}
+
+enum GitHubLinkKind {
+  ISSUE
+  PR
+  BRANCH
+  COMMIT
+  FILE
 }
 
 model ActivityLog {
@@ -395,6 +444,54 @@ model ProjectNotificationTarget {
   @@unique([projectId, slackChannelId])
   @@index([projectId])
   @@index([slackChannelId])
+}
+
+// ── GitHub link (Phase 2) ────────────────────────────────────
+// Joins a Task (optional) and Project to a GitHub artifact (issue, PR,
+// branch, commit, file). One Task can have many links of different kinds.
+
+model GitHubLink {
+  id            String         @id @default(cuid())
+  project       Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId     String
+  task          Task?          @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  taskId        String?
+  kind          GitHubLinkKind
+  repoFullName  String
+  refNumber     Int?           // issue or PR number
+  refSha        String?        // commit SHA
+  refPath       String?        // branch name or file path
+  state         String?        // "open" | "closed" | "merged" | "draft"
+  title         String?
+  url           String
+  externalId    String?        // GitHub node ID for webhook join (Phase 3)
+  lastSyncedAt  DateTime?
+  createdBy     Member?        @relation("GitHubLinkActor", fields: [createdById], references: [id], onDelete: SetNull)
+  createdById   String?
+  createdAt     DateTime       @default(now())
+
+  @@index([projectId])
+  @@index([taskId])
+  @@index([repoFullName, kind])
+}
+
+// ── GitHub milestone mapping (Phase 4) ───────────────────────
+// One row per ClubPM Milestone synced to a GitHub milestone in the project's
+// linked repo. The repo is denormalized so the row remains valid after a
+// repo re-link (older mappings stay queryable but inactive).
+
+model GitHubMilestoneMap {
+  id                    String   @id @default(cuid())
+  project               Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId             String
+  milestoneId           String   @unique
+  githubMilestoneNumber Int
+  repoFullName          String
+  lastSyncedAt          DateTime?
+  createdAt             DateTime @default(now())
+
+  @@index([projectId])
+  @@index([repoFullName, githubMilestoneNumber])
 }
 
 model Tag {
@@ -493,6 +590,7 @@ model Event {
   recurrenceEndDate DateTime?
 
   submissions OutreachSubmission[]
+  rsvps       EventRsvp[]
 
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -773,4 +871,22 @@ model RecurringTemplate {
 
   @@index([templateSubmissionId])
   @@index([active, nextRunAt])
+}
+
+model EventRsvp {
+  id          String   @id @default(cuid())
+  event       Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  eventId     String
+  member      Member?  @relation("MemberRsvps", fields: [memberId], references: [id], onDelete: SetNull)
+  memberId    String?
+  guestName   String?
+  guestEmail  String?
+  rsvpAt      DateTime @default(now())
+  attended    Boolean  @default(true)
+  attendedAt  DateTime @default(now())
+
+  @@unique([eventId, memberId])
+  @@unique([eventId, guestEmail])
+  @@index([eventId])
+  @@index([memberId])
 }

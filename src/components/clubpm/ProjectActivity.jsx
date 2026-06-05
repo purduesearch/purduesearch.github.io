@@ -18,6 +18,20 @@ const EVENT_META = {
   PROJECT_UPDATED:      { icon: "⚙️", color: "var(--clubpm-text-secondary)",  label: "Project"    },
   PROJECT_MEMBER_ADDED: { icon: "👥", color: "var(--clubpm-accent-primary)",  label: "Member"     },
   STANDUP_POSTED:       { icon: "📋", color: "var(--clubpm-accent-yellow)",   label: "Standup"    },
+  GITHUB_REPO_LINKED:       { icon: "🔗", color: "var(--cpm-gh-folder, #54aeff)",  label: "GitHub"     },
+  GITHUB_ISSUE_LINKED:      { icon: "🔵", color: "var(--cpm-gh-open, #1f883d)",    label: "Issue"      },
+  GITHUB_ISSUE_IMPORTED:    { icon: "⬇️", color: "var(--cpm-gh-open, #1f883d)",    label: "Import"     },
+  GITHUB_ISSUE_SYNCED:      { icon: "🔄", color: "var(--clubpm-text-secondary)",   label: "Sync"       },
+  GITHUB_BRANCH_CREATED:    { icon: "🌿", color: "var(--cpm-gh-folder, #54aeff)",  label: "Branch"     },
+  GITHUB_PR_LINKED:         { icon: "🔀", color: "var(--cpm-gh-ok, #1f883d)",      label: "PR"         },
+  GITHUB_PR_OPENED:         { icon: "🟢", color: "var(--cpm-gh-ok, #1f883d)",      label: "PR open"    },
+  GITHUB_PR_MERGED:         { icon: "🟣", color: "var(--cpm-gh-merged, #8957e5)",  label: "PR merged"  },
+  GITHUB_PR_CLOSED:         { icon: "⚫", color: "var(--cpm-gh-bad, #cf222e)",     label: "PR closed"  },
+  GITHUB_PR_REVIEW:         { icon: "👁", color: "var(--cpm-gh-mid, #9a6700)",     label: "Review"     },
+  GITHUB_CI_PASSED:         { icon: "✔️", color: "var(--cpm-gh-ok, #1f883d)",      label: "CI"         },
+  GITHUB_CI_FAILED:         { icon: "✖️", color: "var(--cpm-gh-bad, #cf222e)",     label: "CI fail"    },
+  GITHUB_PUSH:              { icon: "⬆️", color: "var(--clubpm-text-secondary)",   label: "Push"       },
+  GITHUB_COMMIT_REFERENCED: { icon: "📌", color: "var(--clubpm-text-secondary)",   label: "Commit"     },
 };
 
 const FILTER_OPTIONS = [
@@ -120,6 +134,37 @@ function describeEvent(log) {
 
     case "STANDUP_POSTED":
       return <><strong>{actor}</strong> posted a standup{p.preview ? `: ${p.preview}` : ""}</>;
+
+    case "GITHUB_REPO_LINKED":
+      return <><strong>{actor}</strong> linked GitHub repo <em>{p.repo ?? ""}</em></>;
+    case "GITHUB_ISSUE_LINKED":
+      return p.created
+        ? <><strong>{actor}</strong> created GitHub issue <em>#{p.issueNumber}</em> from this task</>
+        : <><strong>{actor}</strong> linked GitHub issue <em>#{p.issueNumber}</em></>;
+    case "GITHUB_ISSUE_IMPORTED":
+      return <><strong>{actor}</strong> imported {p.count} GitHub issue{p.count === 1 ? "" : "s"} as tasks{p.skipped ? ` (${p.skipped} skipped)` : ""}</>;
+    case "GITHUB_ISSUE_SYNCED":
+      return <>GitHub issue <em>#{p.issueNumber}</em> {p.action}: <em>{p.title}</em></>;
+    case "GITHUB_BRANCH_CREATED":
+      return <><strong>{actor}</strong> created branch <code>{p.branchName}</code></>;
+    case "GITHUB_PR_LINKED":
+      return <><strong>{actor}</strong> linked PR <em>#{p.prNumber}</em></>;
+    case "GITHUB_PR_OPENED":
+      return <>PR <em>#{p.prNumber}</em> opened: <em>{p.title}</em></>;
+    case "GITHUB_PR_MERGED":
+      return <>PR <em>#{p.prNumber}</em> merged: <em>{p.title}</em></>;
+    case "GITHUB_PR_CLOSED":
+      return <>PR <em>#{p.prNumber}</em> closed without merge</>;
+    case "GITHUB_PR_REVIEW":
+      return <>Review on PR <em>#{p.prNumber}</em>: {String(p.state ?? "").toLowerCase().replace("_", " ")}{p.reviewer ? ` by @${p.reviewer}` : ""}</>;
+    case "GITHUB_CI_PASSED":
+      return <>CI checks passed{p.sha ? ` for ${String(p.sha).slice(0, 7)}` : ""}</>;
+    case "GITHUB_CI_FAILED":
+      return <>CI checks failed{p.sha ? ` for ${String(p.sha).slice(0, 7)}` : ""}</>;
+    case "GITHUB_PUSH":
+      return <>{p.pusher ?? "Someone"} pushed {p.commits ?? 1} commit{p.commits === 1 ? "" : "s"} to <code>{String(p.ref ?? "").replace("refs/heads/", "")}</code></>;
+    case "GITHUB_COMMIT_REFERENCED":
+      return <>Commit <code>{String(p.sha ?? "").slice(0, 7)}</code> referenced this task{p.message ? `: ${p.message}` : ""}</>;
 
     default:
       return <><strong>{actor}</strong> made a change</>;

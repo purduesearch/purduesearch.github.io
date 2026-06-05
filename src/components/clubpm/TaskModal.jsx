@@ -6,6 +6,7 @@ import { useClubPmAuth } from "../../clubpm/ClubPmAuth";
 import MemberBadge from "./MemberBadge";
 import AttachmentPickerModal from "./AttachmentPickerModal";
 import DrivePreviewModal from "./DrivePreviewModal";
+import GitHubTaskSection from "./github/GitHubTaskSection";
 import { parseDriveUrl, getTypeMeta } from "../../utils/driveUtils";
 
 // ─── Constants ────────────────────────────────────────────────
@@ -1052,7 +1053,7 @@ function MetaRow({ label, children }) {
 
 // ─── Main TaskModal ────────────────────────────────────────────
 
-export default function TaskModal({ task: initialTask, readOnly = false, onClose, onUpdate, onDelete, onTaskCreated }) {
+export default function TaskModal({ task: initialTask, project, readOnly = false, onClose, onUpdate, onDelete, onTaskCreated }) {
   const { member } = useClubPmAuth();
 
   const [task, setTask] = useState(initialTask);
@@ -1804,6 +1805,11 @@ export default function TaskModal({ task: initialTask, readOnly = false, onClose
                 </button>
               </div>
             )}
+          </div>
+
+          {/* GitHub (Phase 2) */}
+          <div style={{ padding: "0 20px 16px" }}>
+            <GitHubTaskSection task={task} project={project} />
           </div>
 
           {/* Dependencies */}

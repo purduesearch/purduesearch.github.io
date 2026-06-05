@@ -5,6 +5,8 @@ import ScrollToTop from './components/ScrollToTop';
 import ReadingProgress from './components/ReadingProgress';
 import PageWrapper from './components/PageWrapper';
 import { ClubPmAuthProvider } from './clubpm/ClubPmAuth';
+import { ShortcutsProvider } from './clubpm/ShortcutsRegistry';
+import GlobalShortcutsSetup from './components/clubpm/GlobalShortcutsSetup';
 import AppShell from './components/clubpm/AppShell';
 import { ProjectNavProvider } from './clubpm/ProjectNavContext';
 import ClubPmLogin from './pages/ClubPM/Login';
@@ -18,6 +20,7 @@ import CalendarPage from './pages/ClubPM/CalendarPage';
 import MeetingNotesView from './pages/ClubPM/MeetingNotesView';
 import OutreachHub from './pages/ClubPM/OutreachHub';
 import PublicCampaign from './pages/PublicCampaign';
+import EventRsvp from './pages/Public/EventRsvp';
 import Archive from './pages/Archive';
 import BlogPost from './pages/BlogPost';
 import Home from './pages/Home';
@@ -74,6 +77,7 @@ function AnimatedRoutes() {
           <Route path="/clubpm/outreach" element={<ClubPmProtectedPage><OutreachHub /></ClubPmProtectedPage>} />
 
           {/* Public outreach routes (no auth) */}
+          <Route path="/rsvp/:eventId" element={<EventRsvp />} />
           <Route path="/r/c/:slug" element={<PublicCampaign />} />
           <Route path="/r/archive" element={<Archive />} />
 
@@ -107,24 +111,27 @@ function AnimatedRoutes() {
 function App() {
   return (
     <BrowserRouter>
-      <ScrollToTop />
-      <ClubPmAuthProvider>
-        <Toaster
-          position="bottom-right"
-          toastOptions={{
-            style: {
-              background: 'var(--pm-bg-elevated)',
-              color: 'var(--pm-text-primary)',
-              border: '1px solid var(--pm-border)',
-              fontFamily: 'DM Sans, sans-serif',
-              fontSize: '14px',
-            },
-            success: { iconTheme: { primary: '#00e5c3', secondary: '#000' } },
-            error:   { iconTheme: { primary: '#ff6b6b', secondary: '#fff' } },
-          }}
-        />
-        <AnimatedRoutes />
-      </ClubPmAuthProvider>
+      <ShortcutsProvider>
+        <ScrollToTop />
+        <ClubPmAuthProvider>
+          <GlobalShortcutsSetup />
+          <Toaster
+            position="bottom-right"
+            toastOptions={{
+              style: {
+                background: 'var(--pm-bg-elevated)',
+                color: 'var(--pm-text-primary)',
+                border: '1px solid var(--pm-border)',
+                fontFamily: 'DM Sans, sans-serif',
+                fontSize: '14px',
+              },
+              success: { iconTheme: { primary: '#00e5c3', secondary: '#000' } },
+              error:   { iconTheme: { primary: '#ff6b6b', secondary: '#fff' } },
+            }}
+          />
+          <AnimatedRoutes />
+        </ClubPmAuthProvider>
+      </ShortcutsProvider>
     </BrowserRouter>
   );
 }

@@ -141,11 +141,14 @@ projectsRouter.get("/:id", async (req: Request, res: Response) => {
 projectsRouter.patch("/:id", channelAuth, async (req: Request, res: Response) => {
   try {
     const projectId = req.params.id as string;
-    const { name, description, driveLink, slackChannel, slackChannelId, slackChannelName, status, startDate, targetDate } =
+    const { name, description, driveLink, githubRepo, githubInstallId, githubBlockDoneOnCiFail, slackChannel, slackChannelId, slackChannelName, status, startDate, targetDate } =
       req.body as {
         name?: string;
         description?: string;
         driveLink?: string | null;
+        githubRepo?: string | null;
+        githubInstallId?: number | null;
+        githubBlockDoneOnCiFail?: boolean;
         slackChannel?: string;
         slackChannelId?: string | null;
         slackChannelName?: string | null;
@@ -156,14 +159,27 @@ projectsRouter.patch("/:id", channelAuth, async (req: Request, res: Response) =>
 
     const before = await getProject(projectId);
 
-    // Admin gate: only admins can change the channel's linked Drive folder.
+    const mutatorId = req.memberId as string | undefined;
+    const actor = mutatorId
+      ? await prisma.member.findUnique({ where: { id: mutatorId }, select: { isAdmin: true } })
+      : null;
+
+    // Admin gate: description and Drive folder are admin-only fields
+    if (description !== undefined && (before?.description ?? null) !== (description ?? null)) {
+      if (!actor?.isAdmin) {
+        res.status(403).json({ error: "Only admins can edit the project description" });
+        return;
+      }
+    }
     if (driveLink !== undefined && (before?.driveLink ?? null) !== (driveLink ?? null)) {
-      const memberId = (req.session as any).memberId as string | undefined;
-      const actor = memberId
-        ? await prisma.member.findUnique({ where: { id: memberId }, select: { isAdmin: true } })
-        : null;
       if (!actor?.isAdmin) {
         res.status(403).json({ error: "Only admins can change the channel's Drive folder" });
+        return;
+      }
+    }
+    if (githubRepo !== undefined && ((before as any)?.githubRepo ?? null) !== (githubRepo ?? null)) {
+      if (!actor?.isAdmin) {
+        res.status(403).json({ error: "Only admins can change the project's GitHub repo" });
         return;
       }
     }
@@ -172,6 +188,9 @@ projectsRouter.patch("/:id", channelAuth, async (req: Request, res: Response) =>
       name,
       description,
       driveLink: driveLink === undefined ? undefined : (driveLink ?? null),
+      githubRepo: githubRepo === undefined ? undefined : (githubRepo ?? null),
+      githubInstallId: githubInstallId === undefined ? undefined : (githubInstallId ?? null),
+      githubBlockDoneOnCiFail,
       slackChannel,
       slackChannelId,
       slackChannelName,
@@ -181,7 +200,7 @@ projectsRouter.patch("/:id", channelAuth, async (req: Request, res: Response) =>
     });
 
     if (before) {
-      const WATCHED_PROJECT_FIELDS = ["name", "status", "description", "type", "targetDate", "driveLink"];
+      const WATCHED_PROJECT_FIELDS = ["name", "status", "description", "type", "targetDate", "driveLink", "githubRepo"];
       const changes = diffObjects(before as any, project as any, WATCHED_PROJECT_FIELDS);
       if (changes.length > 0) {
         const memberId = (req.session as any).memberId as string | undefined;

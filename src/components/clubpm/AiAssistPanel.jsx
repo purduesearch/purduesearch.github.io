@@ -46,6 +46,7 @@ export default function AiAssistPanel({
   const [imgQuality, setImgQuality]   = useState('standard');
   const [imgLoading, setImgLoading]   = useState(false);
   const [imgResult, setImgResult]     = useState(null);
+  const [imgStatus, setImgStatus]     = useState(null); // { provider, model, providerLabel, modelLabel }
 
   async function handleGenerateImage() {
     if (!imgPrompt.trim()) { toast.error('Enter a prompt first.'); return; }
@@ -74,6 +75,9 @@ export default function AiAssistPanel({
         const def = v.find(x => x.isDefault);
         if (def) setSelectedVoice(def.name);
       })
+      .catch(() => {});
+    get('/api/outreach/ai/image-status')
+      .then(s => setImgStatus(s))
       .catch(() => {});
   }, []);
 
@@ -316,6 +320,17 @@ export default function AiAssistPanel({
       <div className="pm-ai-panel-section">
         <div className="pm-ai-panel-section-title">
           <i className="fas fa-image" aria-hidden="true" /> Generate Cover Image
+          {imgStatus && (
+            <span
+              className={`pm-ai-provider-badge${imgStatus.provider === 'cloudflare' ? ' pm-ai-provider-badge--cf' : ''}`}
+              title={`Provider: ${imgStatus.providerLabel}\nModel: ${imgStatus.modelLabel}\nCloudflare configured: ${imgStatus.cloudflareConfigured}`}
+            >
+              {imgStatus.provider === 'cloudflare'
+                ? <><i className="fas fa-cloud" aria-hidden="true" /> Cloudflare</>
+                : <><i className="fas fa-globe" aria-hidden="true" /> Pollinations</>
+              }
+            </span>
+          )}
         </div>
         <textarea
           className="cpm-form-textarea pm-ai-prompt-input"
@@ -363,7 +378,17 @@ export default function AiAssistPanel({
             </div>
           </div>
         )}
-        <p className="pm-ai-panel-hint">Powered by Pollinations.ai. 25 images/day per tier (Fast · Standard · Ultra).</p>
+        {imgStatus ? (
+          <p className="pm-ai-panel-hint">
+            <i className={imgStatus.provider === 'cloudflare' ? 'fas fa-cloud' : 'fas fa-globe'} aria-hidden="true" style={{ marginRight: 4 }} />
+            {imgStatus.modelLabel}
+            <span className="pm-ai-provider-debug">
+              provider={imgStatus.provider} · configured={String(imgStatus.cloudflareConfigured)}
+            </span>
+          </p>
+        ) : (
+          <p className="pm-ai-panel-hint">Checking image provider…</p>
+        )}
       </div>
 
       {/* UTM Link Builder */}
