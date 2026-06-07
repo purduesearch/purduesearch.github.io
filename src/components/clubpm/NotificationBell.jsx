@@ -2,6 +2,9 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { formatDistanceToNow } from "date-fns";
 import { get, post, patch, del } from "../../api/clubPmClient";
+import LottieBell from "./anim/LottieBell";
+
+const SESSION_GREETED_KEY = "cpm.bell.greeted";
 
 const POLL_INTERVAL_MS = 60_000; // fallback polling — SSE is primary
 
@@ -110,6 +113,7 @@ export default function NotificationBell() {
   const [open,          setOpen]          = useState(false);
   const [activeTab,     setActiveTab]     = useState("All");
   const [pulsing,       setPulsing]       = useState(false);
+  const [ringing,       setRinging]       = useState(false);
 
   const wrapperRef  = useRef(null);
   const listRef     = useRef(null);
@@ -121,8 +125,20 @@ export default function NotificationBell() {
   const fetchNotifs = useCallback(async () => {
     try {
       const data = await get("/api/notifications?limit=10");
-      setNotifications(data.notifications ?? data ?? []);
+      const notifs = data.notifications ?? data ?? [];
+      setNotifications(notifs);
       setNextCursor(data.nextCursor ?? null);
+
+      // Once per browser session, if the user logged in with unread notifs,
+      // ring the bell. Gated via sessionStorage so re-mounts don't replay it.
+      try {
+        const greeted = sessionStorage.getItem(SESSION_GREETED_KEY) === "1";
+        const unread = (notifs ?? []).some(n => !n.read);
+        if (!greeted && unread) {
+          sessionStorage.setItem(SESSION_GREETED_KEY, "1");
+          setRinging(true);
+        }
+      } catch { /* sessionStorage unavailable — skip */ }
     } catch {
       // silently ignore
     }
@@ -172,6 +188,23 @@ export default function NotificationBell() {
         if (!notif.read) {
           setPulsing(true);
           setTimeout(() => setPulsing(false), 2000);
+        }
+
+        // Reward approved → fire flying-particles animation + balance refresh.
+        if (notif.metadata?.type === "REWARD_APPROVED") {
+          window.dispatchEvent(new CustomEvent("clubpm:reward-granted", {
+            detail: {
+              xpDelta:       notif.metadata.xpDelta       ?? 0,
+              doubloonsDelta: notif.metadata.doubloonsDelta ?? 0,
+            },
+          }));
+          // Signal the sidebar/topbar to re-fetch the member balance.
+          window.dispatchEvent(new CustomEvent("clubpm:member-updated"));
+        }
+
+        // Real-time synchronization for admin tab badge: new pending reward queued
+        if (notif.type === "SYSTEM" && notif.metadata?.type === "PENDING_REWARD_CREATED") {
+          window.dispatchEvent(new CustomEvent("clubpm:pending-rewards-updated"));
         }
       } catch {
         // malformed event — ignore
@@ -269,7 +302,10 @@ export default function NotificationBell() {
         aria-haspopup="true"
         aria-expanded={open}
       >
-        <BellIcon />
+        {ringing
+          ? <LottieBell size={20} onComplete={() => setRinging(false)} />
+          : <BellIcon />
+        }
         {unreadCount > 0 && (
           <span className="pm-notif-badge" aria-hidden="true">
             {badgeLabel}

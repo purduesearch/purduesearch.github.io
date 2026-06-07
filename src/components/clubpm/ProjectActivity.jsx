@@ -223,10 +223,13 @@ function ActivityRow({ log }) {
 
   return (
     <div style={{
-      display: "flex", alignItems: "flex-start", gap: 10,
+      display: "flex", alignItems: "center", gap: 14,
       padding: "10px 0", borderBottom: "1px solid var(--clubpm-border)",
     }}>
-      <div style={{ flexShrink: 0, width: 28, display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div style={{
+        flexShrink: 0, width: 32, height: 32,
+        display: "flex", alignItems: "center", justifyContent: "center",
+      }}>
         {log.member
           ? <MemberBadge member={log.member} size="sm" />
           : <span style={{ fontSize: 16 }}>{meta.icon}</span>

@@ -2,6 +2,7 @@ import { Router, type Request, type Response } from "express";
 import { requireAuth } from "./auth.js";
 import { prisma } from "../db/prisma.js";
 import { getTasksForMember } from "../services/taskService.js";
+import { sendKudos, getKudosCaps, KudosCapError } from "../services/kudosService.js";
 
 export const membersRouter = Router();
 
@@ -29,6 +30,7 @@ membersRouter.get("/me", async (req: Request, res: Response) => {
             },
           },
         },
+        equippedBadge: { select: { id: true, name: true, rarity: true, svgUrl: true, iconClass: true } },
       },
     });
 
@@ -56,6 +58,7 @@ membersRouter.patch("/me", async (req: Request, res: Response) => {
     }
 
     const { kanbanColumnOrder, team, bio, email } = req.body;
+    const profileChanged = bio !== undefined || team !== undefined || email !== undefined;
 
     const member = await prisma.member.update({
       where: { id: req.memberId },
@@ -68,6 +71,12 @@ membersRouter.patch("/me", async (req: Request, res: Response) => {
     });
 
     res.json(member);
+
+    if (profileChanged) {
+      import("../services/challengeService.js").then(({ recordEvent }) =>
+        recordEvent(req.memberId!, "PROFILE_UPDATED", 1)
+      ).catch(err => console.error("[challenge] PROFILE_UPDATED:", err));
+    }
   } catch (error) {
     console.error("Update me error:", error);
     res.status(500).json({ error: "Failed to update profile" });
@@ -127,6 +136,56 @@ membersRouter.patch("/me/notification-preferences", async (req: Request, res: Re
   }
 });
 
+// ── GET /api/members/me/progress-snapshot ───────────────────
+//
+// Returns the per-project progress snapshot the caller last observed. The
+// client uses this to fill milestone bars from the previous value on project
+// mount (rather than snapping). Returns null if the user has never saved one.
+
+membersRouter.get("/me/progress-snapshot", async (req: Request, res: Response) => {
+  if (!req.memberId) {
+    res.status(401).json({ error: "Not authenticated" });
+    return;
+  }
+  try {
+    const member = await prisma.member.findUnique({
+      where: { id: req.memberId },
+      select: { lastSeenProgress: true },
+    });
+    res.json(member?.lastSeenProgress ?? null);
+  } catch (error) {
+    console.error("Get progress snapshot error:", error);
+    res.status(500).json({ error: "Failed to get progress snapshot" });
+  }
+});
+
+// ── PUT /api/members/me/progress-snapshot ───────────────────
+//
+// Replaces the caller's stored progress snapshot. The client debounces calls
+// from project route changes; the server doesn't merge — last write wins.
+
+membersRouter.put("/me/progress-snapshot", async (req: Request, res: Response) => {
+  if (!req.memberId) {
+    res.status(401).json({ error: "Not authenticated" });
+    return;
+  }
+  try {
+    const snapshot = req.body;
+    if (snapshot !== null && (typeof snapshot !== "object" || Array.isArray(snapshot))) {
+      res.status(400).json({ error: "snapshot must be an object or null" });
+      return;
+    }
+    await prisma.member.update({
+      where: { id: req.memberId },
+      data: { lastSeenProgress: snapshot ?? undefined },
+    });
+    res.json({ ok: true });
+  } catch (error) {
+    console.error("Save progress snapshot error:", error);
+    res.status(500).json({ error: "Failed to save progress snapshot" });
+  }
+});
+
 // ── GET /api/members ─────────────────────────────────────────
 
 membersRouter.get("/", async (_req: Request, res: Response) => {
@@ -140,6 +199,7 @@ membersRouter.get("/", async (_req: Request, res: Response) => {
         projects: {
           include: { project: { select: { id: true, name: true, status: true } } },
         },
+        avatarConfig: { select: { portraitUrl: true } },
       },
       orderBy: { displayName: "asc" },
     });
@@ -176,6 +236,8 @@ membersRouter.get("/:id", async (req: Request, res: Response) => {
           take: 20,
           include: { project: { select: { id: true, name: true } } },
         },
+        avatarConfig: { select: { portraitUrl: true } },
+        equippedBadge: { select: { id: true, name: true, rarity: true, svgUrl: true, iconClass: true } },
         _count: { select: { tasks: true, projects: true } },
       },
     });
@@ -189,5 +251,137 @@ membersRouter.get("/:id", async (req: Request, res: Response) => {
   } catch (error) {
     console.error("Get member error:", error);
     res.status(500).json({ error: "Failed to get member" });
+  }
+});
+
+// ── GET /api/members/:id/profile ─────────────────────────────
+// Engagement profile: XP, doubloons, rank, equipped cosmetics, owned badges, pending count.
+
+membersRouter.get("/:id/profile", async (req: Request, res: Response) => {
+  const id = req.params.id as string;
+  try {
+    const member = await prisma.member.findUnique({
+      where: { id },
+      select: {
+        id: true, displayName: true, avatarUrl: true, slackHandle: true,
+        xp: true, doubloons: true, rank: true,
+        equippedBadgeId: true,
+        equippedBadge: { select: { id: true, name: true, rarity: true, svgUrl: true, iconClass: true } },
+        avatarConfig: { select: { portraitUrl: true } },
+      },
+    });
+    if (!member) {
+      res.status(404).json({ error: "Member not found" });
+      return;
+    }
+
+    const [ownedCosmetics, pendingCount] = await Promise.all([
+      prisma.memberCosmetic.findMany({
+        where: { memberId: id },
+        include: { cosmetic: true },
+      }),
+      prisma.pendingReward.count({ where: { memberId: id, status: "PENDING" } }),
+    ]);
+
+    // Group equipped cosmetics by slot for easy frontend lookup
+    const equippedCosmetics: Record<string, any> = {};
+    const ownedBadges: any[] = [];
+    for (const mc of ownedCosmetics) {
+      if (mc.equippedSlot) equippedCosmetics[mc.equippedSlot] = mc.cosmetic;
+      if (mc.cosmetic.category === "BADGE") ownedBadges.push(mc.cosmetic);
+    }
+
+    res.json({
+      ...member,
+      equippedCosmetics,
+      ownedBadges,
+      pendingCount,
+    });
+  } catch (err) {
+    console.error("Get profile error:", err);
+    res.status(500).json({ error: "Failed to get profile" });
+  }
+});
+
+// ── GET /api/members/:id/xp-history ──────────────────────────
+// Returns [{ date: "YYYY-MM-DD", xp: number }] for the last 365 days (UTC days).
+
+membersRouter.get("/:id/xp-history", async (req: Request, res: Response) => {
+  const id = req.params.id as string;
+  const since = new Date(Date.now() - 365 * 86_400_000);
+  try {
+    const events = await prisma.xpEvent.findMany({
+      where: { memberId: id, createdAt: { gte: since } },
+      select: { amount: true, createdAt: true },
+    });
+    const buckets: Record<string, number> = {};
+    for (const e of events) {
+      const day = e.createdAt.toISOString().slice(0, 10);
+      buckets[day] = (buckets[day] ?? 0) + e.amount;
+    }
+    const out = Object.entries(buckets)
+      .map(([date, xp]) => ({ date, xp }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+    res.json(out);
+  } catch (err) {
+    console.error("Get xp-history error:", err);
+    res.status(500).json({ error: "Failed to get xp history" });
+  }
+});
+
+// ── GET /api/members/:id/cosmetics ───────────────────────────
+// Returns the member's full cosmetic inventory with equipped state.
+
+membersRouter.get("/:id/cosmetics", async (req: Request, res: Response) => {
+  const id = req.params.id as string;
+  try {
+    const owned = await prisma.memberCosmetic.findMany({
+      where: { memberId: id },
+      include: { cosmetic: true },
+      orderBy: { acquiredAt: "desc" },
+    });
+    res.json(owned);
+  } catch (err) {
+    console.error("Get cosmetics error:", err);
+    res.status(500).json({ error: "Failed to get cosmetics" });
+  }
+});
+
+// ── GET /api/members/:id/kudos/caps ──────────────────────────
+// Returns how many kudos the caller can still send to this member this week.
+
+membersRouter.get("/:id/kudos/caps", async (req: Request, res: Response) => {
+  if (!req.memberId) {
+    res.status(401).json({ error: "Not authenticated" });
+    return;
+  }
+  const caps = await getKudosCaps(req.memberId, req.params.id as string);
+  res.json(caps);
+});
+
+// ── POST /api/members/:id/kudos ──────────────────────────────
+// Cap-enforced: returns 429 if weekly send or receive cap is hit.
+
+membersRouter.post("/:id/kudos", async (req: Request, res: Response) => {
+  if (!req.memberId) {
+    res.status(401).json({ error: "Not authenticated" });
+    return;
+  }
+  const toId = req.params.id as string;
+  if (toId === req.memberId) {
+    res.status(400).json({ error: "Cannot send kudos to yourself" });
+    return;
+  }
+  try {
+    const { message } = req.body as { message?: string };
+    const result = await sendKudos(req.memberId, toId, message);
+    res.json(result);
+  } catch (err: any) {
+    if (err instanceof KudosCapError) {
+      res.status(429).json({ error: err.message, which: err.which });
+      return;
+    }
+    console.error("Send kudos error:", err);
+    res.status(500).json({ error: err.message ?? "Failed to send kudos" });
   }
 });

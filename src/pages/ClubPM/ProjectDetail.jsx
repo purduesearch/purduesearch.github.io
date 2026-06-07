@@ -1,14 +1,13 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import ReactMarkdown from "react-markdown";
 import { createPortal } from "react-dom";
 import { useParams, Link, useSearchParams, useNavigate } from "react-router-dom";
-import { get, post, patch, del } from "../../api/clubPmClient";
+import { get, post, patch, del, setNextRewardOrigin, getProgressSnapshot, saveProgressSnapshot } from "../../api/clubPmClient";
 import MemberBadge from "../../components/clubpm/MemberBadge";
+import AvatarPortrait from "../../components/clubpm/avatar/AvatarPortrait";
 import { useClubPmAuth } from "../../clubpm/ClubPmAuth";
 import { useProjectNav } from "../../clubpm/ProjectNavContext";
 import TaskModal from "../../components/clubpm/TaskModal";
-import CalendarView from "../../components/clubpm/CalendarView";
-import ProjectActivity from "../../components/clubpm/ProjectActivity";
 import ActivityFeed from "../../components/clubpm/ActivityFeed";
 import ReportingView from "../../components/clubpm/ReportingView";
 import ProjectAnalytics from "../../components/clubpm/ProjectAnalytics";
@@ -35,6 +34,9 @@ import {
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { animate, spring, revealStagger, prefersReducedMotion } from "../../clubpm/anim/motion";
+import { burstAt } from "../../components/clubpm/celebrate/confetti";
+import useStreakWatcher from "../../hooks/useStreakWatcher";
 
 // ── Constants ────────────────────────────────────────────────
 
@@ -65,15 +67,11 @@ function getTagGroups(tasks) {
 }
 
 const NAV_TABS = [
-  { id: "tasks",      label: "Tasks",      icon: "📋" },
-  { id: "calendar",   label: "Calendar",   icon: "📅" },
-  { id: "milestones", label: "Milestones", icon: "🎯" },
-  { id: "files",      label: "Files",      icon: "📁" },
-  { id: "github",     label: "GitHub",     icon: "🐙" },
-  { id: "activity",   label: "Activity",   icon: "📜" },
-  { id: "reports",    label: "Reports",    icon: "📊" },
-  { id: "updates",    label: "Updates",    icon: "📝" },
-  { id: "ai",         label: "AI",         icon: "🤖" },
+  { id: "tasks",      label: "Tasks",                  icon: "📋" },
+  { id: "milestones", label: "Milestones & Updates",   icon: "🎯" },
+  { id: "files",      label: "Files",                  icon: "📁" },
+  { id: "reports",    label: "Reports",                icon: "📊" },
+  { id: "ai",         label: "AI",                     icon: "🤖" },
 ];
 
 const STATUS_BADGE = {
@@ -281,6 +279,7 @@ function StatusBin({ bin, tasks, subtasksByParent, expandedParents, onTogglePare
   return (
     <div
       ref={setNodeRef}
+      data-bin-id={bin.id}
       className={`cpm-status-bin${isOver ? " cpm-status-bin--over" : ""}`}
     >
       <div className="cpm-status-bin-header">
@@ -654,25 +653,7 @@ function AssigneePanel({ members, channelMemberSlackIds = [], hasLinkedChannel =
 }
 
 function ChipAvatar({ member }) {
-  const initials = (member?.displayName ?? "?")
-    .split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
-  return member?.avatarUrl ? (
-    <img
-      src={member.avatarUrl}
-      alt={member.displayName}
-      style={{ width: 18, height: 18, borderRadius: "50%", objectFit: "cover", flexShrink: 0, display: "block" }}
-    />
-  ) : (
-    <div
-      style={{
-        width: 18, height: 18, borderRadius: "50%", flexShrink: 0, display: "flex",
-        alignItems: "center", justifyContent: "center", fontSize: 7, fontWeight: 700,
-        color: "white", background: "linear-gradient(135deg, var(--clubpm-accent-primary), var(--clubpm-accent-pink))",
-      }}
-    >
-      {initials}
-    </div>
-  );
+  return <AvatarPortrait member={member} size={18} />;
 }
 
 function DraggableSpecialChip({ id, label, iconClass, accentColor }) {
@@ -1722,6 +1703,77 @@ function DriveFilesPanel({ project, isAdmin, onProjectChange }) {
   );
 }
 
+// ── Files tab: Drive | GitHub sub-toggle ─────────────────────
+//
+// Replaces the standalone GitHub tab. Sub-state is remembered in
+// sessionStorage per project so a user reopening the same project sees the
+// pane they were on; users opening a *different* project start on Drive.
+
+function FilesTabContent({ project, isAdmin, onProjectChange }) {
+  const storageKey = `cpm.files.sub.${project.id}`;
+  const [sub, setSub] = useState(() => {
+    try { return sessionStorage.getItem(storageKey) === "github" ? "github" : "drive"; }
+    catch { return "drive"; }
+  });
+
+  useEffect(() => {
+    try { sessionStorage.setItem(storageKey, sub); } catch { /* ignore */ }
+  }, [storageKey, sub]);
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <div
+        role="tablist"
+        aria-label="Files source"
+        style={{
+          display: "inline-flex", alignSelf: "flex-start",
+          borderRadius: 999, padding: 3,
+          background: "var(--clubpm-surface-200)",
+          border: "1px solid var(--clubpm-border)",
+        }}
+      >
+        {[
+          { id: "drive",  label: "Drive",  icon: "fab fa-google-drive" },
+          { id: "github", label: "GitHub", icon: "fab fa-github" },
+        ].map(opt => (
+          <button
+            key={opt.id}
+            type="button"
+            role="tab"
+            aria-selected={sub === opt.id}
+            onClick={() => setSub(opt.id)}
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 6,
+              padding: "6px 14px", border: "none", cursor: "pointer",
+              borderRadius: 999,
+              fontSize: 13, fontWeight: 600,
+              background: sub === opt.id ? "var(--clubpm-accent-primary)" : "transparent",
+              color: sub === opt.id ? "#fff" : "var(--clubpm-text-secondary)",
+              transition: "background 0.18s ease, color 0.18s ease",
+            }}
+          >
+            <i className={opt.icon} aria-hidden="true" />
+            {opt.label}
+          </button>
+        ))}
+      </div>
+
+      {sub === "drive" ? (
+        <DriveFilesPanel
+          project={project}
+          isAdmin={isAdmin}
+          onProjectChange={onProjectChange}
+        />
+      ) : (
+        <GitHubPanel
+          project={project}
+          onProjectChange={onProjectChange}
+        />
+      )}
+    </div>
+  );
+}
+
 // ── Main Component ───────────────────────────────────────────
 
 export default function ProjectDetail() {
@@ -1729,6 +1781,7 @@ export default function ProjectDetail() {
   const [searchParams] = useSearchParams();
   const { member } = useClubPmAuth();
   const { setProjectNav, clearProjectNav } = useProjectNav();
+  const notifyStreak = useStreakWatcher();
 
   const [project, setProject] = useState(null);
   const [allProjects, setAllProjects] = useState([]);
@@ -1736,6 +1789,16 @@ export default function ProjectDetail() {
   const [slackChannels, setSlackChannels] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("tasks");
+  const tabBodyRef = useRef(null);
+  useEffect(() => {
+    if (!tabBodyRef.current) return;
+    const body = tabBodyRef.current.querySelector('.cpm-proj-main-body');
+    if (body && body.children?.length) {
+      revealStagger(body.children, { delay: 50, fromY: 8, duration: 380 });
+    } else if (body) {
+      revealStagger([body], { delay: 0, fromY: 8, duration: 380 });
+    }
+  }, [activeTab]);
   const [activeTask, setActiveTask] = useState(null);     // For DragOverlay
   const [selectedTask, setSelectedTask] = useState(null); // For TaskModal
   const [overBin, setOverBin] = useState(null);
@@ -1812,6 +1875,49 @@ export default function ProjectDetail() {
   useEffect(() => {
     fetchProject();
   }, [fetchProject]);
+
+  // Progress snapshot: the user's last-seen milestone progress for this
+  // project. Read once at mount, frozen for the lifetime of this view; saved
+  // back with the current values on unmount so the next visit can animate
+  // from these values.
+  const [previousMilestonePcts, setPreviousMilestonePcts] = useState({});
+  useEffect(() => {
+    let cancelled = false;
+    getProgressSnapshot().then(snap => {
+      if (cancelled || !snap) return;
+      const forProject = snap?.projects?.[id]?.milestones ?? {};
+      setPreviousMilestonePcts(forProject);
+    });
+    return () => { cancelled = true; };
+  }, [id]);
+
+  // Save current snapshot when leaving the project.
+  const projectMilestonesRef = useRef([]);
+  useEffect(() => {
+    projectMilestonesRef.current = project?.milestones ?? [];
+  }, [project?.milestones]);
+  useEffect(() => {
+    return () => {
+      const milestones = projectMilestonesRef.current ?? [];
+      if (!id || milestones.length === 0) return;
+      const milestonePcts = {};
+      let sum = 0; let count = 0;
+      for (const m of milestones) {
+        if (typeof m.progress === "number") {
+          milestonePcts[m.id] = m.progress;
+          sum += m.progress; count += 1;
+        }
+      }
+      const pct = count > 0 ? Math.round(sum / count) : 0;
+      // Read-modify-write: merge into existing snapshot so other projects'
+      // entries aren't blown away.
+      getProgressSnapshot().then(existing => {
+        const merged = { ...(existing ?? {}), lastSeenAt: new Date().toISOString() };
+        merged.projects = { ...(existing?.projects ?? {}), [id]: { pct, milestones: milestonePcts } };
+        saveProgressSnapshot(merged);
+      });
+    };
+  }, [id]);
 
   // Auto-expand all parent tasks that have subtasks by default
   useEffect(() => {
@@ -2006,6 +2112,17 @@ export default function ProjectDetail() {
 
     const previousTasks = project.tasks;
 
+    // Capture the drop location for the reward particles to fly from.
+    // event.delta + initial rect would also work, but @dnd-kit exposes the
+    // current translated rect of the active item.
+    const dropRect = event?.active?.rect?.current?.translated;
+    if (dropRect) {
+      setNextRewardOrigin(
+        dropRect.left + dropRect.width / 2,
+        dropRect.top + dropRect.height / 2
+      );
+    }
+
     // Optimistic update
     setProject(prev => ({
       ...prev,
@@ -2028,6 +2145,25 @@ export default function ProjectDetail() {
         ...prev,
         tasks: prev.tasks.map(t => t.id === taskId ? { ...t, ...updated } : t),
       }));
+
+      // Engagement: re-check streak after any forward status move.
+      notifyStreak();
+
+      // Satisfaction: when a task lands in DONE, settle-bounce + confetti.
+      if (newStatus === "DONE") {
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+          const doneBin = document.querySelector('[data-bin-id="DONE"]');
+          if (!doneBin) return;
+          if (!prefersReducedMotion()) {
+            animate(doneBin, {
+              scale: [1, 1.01, 1],
+              duration: 400,
+              ease: spring,
+            });
+          }
+          burstAt(doneBin, { palette: 'taskComplete' });
+        }));
+      }
     } catch (err) {
       setProject(prev => ({ ...prev, tasks: previousTasks }));
       if (err?.message) alert(err.message);
@@ -2168,7 +2304,7 @@ export default function ProjectDetail() {
         onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
       >
-        <main className="cpm-project-main">
+        <main ref={tabBodyRef} className="cpm-project-main">
           <header className="pm-proj-hero">
             {/* Breadcrumb */}
             <div className="pm-proj-breadcrumb">
@@ -2363,56 +2499,22 @@ export default function ProjectDetail() {
             </div>
           )}
 
-          {activeTab === "calendar" && (
-            <div className="cpm-proj-main-body" style={{ padding: "24px" }}>
-              <CalendarView tasks={project.tasks} onTaskClick={setSelectedTask} />
-            </div>
-          )}
-
           {activeTab === "milestones" && (
-            <div className="cpm-proj-main-body" style={{ padding: "24px" }}>
+            <div className="cpm-proj-main-body" style={{ padding: "24px", display: "flex", flexDirection: "column", gap: 28 }}>
               <MilestonePanel
                 projectId={project.id}
                 project={project}
                 onRefresh={fetchProject}
+                previousMilestonePcts={previousMilestonePcts}
               />
-            </div>
-          )}
 
-          {activeTab === "files" && (
-            <div className="cpm-proj-main-body" style={{ padding: "24px" }}>
-              <DriveFilesPanel
-                project={project}
-                isAdmin={!!member?.isAdmin}
-                onProjectChange={updated => setProject(prev => ({ ...prev, ...updated }))}
-              />
-            </div>
-          )}
-
-          {activeTab === "github" && (
-            <div className="cpm-proj-main-body" style={{ padding: "24px" }}>
-              <GitHubPanel
-                project={project}
-                onProjectChange={updated => setProject(prev => ({ ...prev, ...updated }))}
-              />
-            </div>
-          )}
-
-          {activeTab === "activity" && (
-            <div className="cpm-proj-main-body" style={{ padding: "24px" }}>
-              <ProjectActivity projectId={project.id} />
-            </div>
-          )}
-
-          {activeTab === "reports" && (
-            <div className="cpm-proj-main-body" style={{ padding: "24px" }}>
-              <ProjectAnalytics project={project} />
-            </div>
-          )}
-
-          {activeTab === "updates" && (
-            <div className="cpm-proj-main-body" style={{ padding: "24px" }}>
-              <div style={{ display: "flex", flexDirection: "column", gap: 16, maxWidth: 640 }}>
+              {/* Updates feed, formerly its own tab. Shares the same scroll
+                  container so milestones + updates read as one timeline. */}
+              <div>
+                <h3 style={{ margin: "0 0 12px", fontSize: 16, fontWeight: 600, color: "var(--clubpm-text-primary)" }}>
+                  Updates
+                </h3>
+                <div style={{ display: "flex", flexDirection: "column", gap: 16, maxWidth: 640 }}>
                 {canEdit && (
                   <div className="clubpm-glass-card" style={{ padding: 16, marginBottom: 0 }}>
                     <textarea
@@ -2484,8 +2586,26 @@ export default function ProjectDetail() {
                   })
                 )}
               </div>
+              </div>
             </div>
           )}
+
+          {activeTab === "files" && (
+            <div className="cpm-proj-main-body" style={{ padding: "24px" }}>
+              <FilesTabContent
+                project={project}
+                isAdmin={!!member?.isAdmin}
+                onProjectChange={updated => setProject(prev => ({ ...prev, ...updated }))}
+              />
+            </div>
+          )}
+
+          {activeTab === "reports" && (
+            <div className="cpm-proj-main-body" style={{ padding: "24px" }}>
+              <ProjectAnalytics project={project} />
+            </div>
+          )}
+
           {activeTab === "ai" && (
             <AiPanel project={project} />
           )}

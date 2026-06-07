@@ -1,3 +1,4 @@
+import { Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import { Toaster } from 'react-hot-toast';
@@ -17,7 +18,7 @@ import ClubPmMembersView from './pages/ClubPM/MembersView';
 import NotificationCenter from './components/clubpm/NotificationCenter';
 import NotificationPreferences from './components/clubpm/NotificationPreferences';
 import CalendarPage from './pages/ClubPM/CalendarPage';
-import MeetingNotesView from './pages/ClubPM/MeetingNotesView';
+import AdminView from './pages/ClubPM/AdminView';
 import OutreachHub from './pages/ClubPM/OutreachHub';
 import PublicCampaign from './pages/PublicCampaign';
 import EventRsvp from './pages/Public/EventRsvp';
@@ -42,6 +43,11 @@ import AstroArchitecture from './pages/AstroUSA/Architecture';
 import AstroHydroponics from './pages/AstroUSA/Hydroponics';
 import NotFound from './pages/NotFound';
 import SearchResults from './pages/SearchResults';
+
+// ── ClubPM lazy routes (avoid pulling R3F/three into the main bundle) ──
+const ClubPmProfile  = lazy(() => import('./pages/ClubPM/Profile'));
+const ClubPmShop     = lazy(() => import('./pages/ClubPM/Shop'));
+const ChallengesPage = lazy(() => import('./pages/ClubPM/ChallengesPage'));
 
 // ── Club PM protected route wrapper ──────────────────────────
 
@@ -73,8 +79,14 @@ function AnimatedRoutes() {
           <Route path="/clubpm/notifications" element={<ClubPmProtectedPage><NotificationCenter /></ClubPmProtectedPage>} />
           <Route path="/clubpm/notifications/preferences" element={<ClubPmProtectedPage><NotificationPreferences /></ClubPmProtectedPage>} />
           <Route path="/clubpm/calendar" element={<ClubPmProtectedPage><CalendarPage /></ClubPmProtectedPage>} />
-          <Route path="/clubpm/meeting-notes" element={<ClubPmProtectedPage><MeetingNotesView /></ClubPmProtectedPage>} />
+          <Route path="/clubpm/admin" element={<ClubPmProtectedPage><AdminView /></ClubPmProtectedPage>} />
+          {/* Backward-compat: legacy /meeting-notes URLs now redirect to /admin. Keep for one release. */}
+          <Route path="/clubpm/meeting-notes" element={<Navigate to="/clubpm/admin" replace />} />
           <Route path="/clubpm/outreach" element={<ClubPmProtectedPage><OutreachHub /></ClubPmProtectedPage>} />
+          <Route path="/clubpm/profile" element={<ClubPmProtectedPage><Suspense fallback={<div style={{ padding: 24 }}>Loading…</div>}><ClubPmProfile /></Suspense></ClubPmProtectedPage>} />
+          <Route path="/clubpm/profile/:memberId" element={<ClubPmProtectedPage><Suspense fallback={<div style={{ padding: 24 }}>Loading…</div>}><ClubPmProfile /></Suspense></ClubPmProtectedPage>} />
+          <Route path="/clubpm/shop" element={<ClubPmProtectedPage><Suspense fallback={<div style={{ padding: 24 }}>Loading…</div>}><ClubPmShop /></Suspense></ClubPmProtectedPage>} />
+          <Route path="/clubpm/challenges" element={<ClubPmProtectedPage><Suspense fallback={<div style={{ padding: 24 }}>Loading…</div>}><ChallengesPage /></Suspense></ClubPmProtectedPage>} />
 
           {/* Public outreach routes (no auth) */}
           <Route path="/rsvp/:eventId" element={<EventRsvp />} />
@@ -127,6 +139,9 @@ function App() {
               },
               success: { iconTheme: { primary: '#00e5c3', secondary: '#000' } },
               error:   { iconTheme: { primary: '#ff6b6b', secondary: '#fff' } },
+              // Class hook so the `celebrate` variant (toast.success(msg, { className: 'pm-toast-celebrate' }))
+              // gets the bright-teal glow + bigger size from search-theme.css.
+              className: '',
             }}
           />
           <AnimatedRoutes />

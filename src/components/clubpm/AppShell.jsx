@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLocation, Link, Navigate, useNavigate } from 'react-router-dom';
 import { useClubPmAuth } from '../../clubpm/ClubPmAuth';
@@ -7,8 +7,19 @@ import { useShortcutsRegistry } from '../../clubpm/ShortcutsRegistry';
 import NotificationBell from './NotificationBell';
 import AICommandPalette from './AICommandPalette';
 import ErrorBoundary from './ErrorBoundary';
-import GitHubConnectButton from './github/GitHubConnectButton';
 import { useProjectNav } from '../../clubpm/ProjectNavContext';
+import AvatarPortrait from './avatar/AvatarPortrait';
+import RankIcon from './RankIcon';
+import CosmeticUnlockModal from './CosmeticUnlockModal';
+import QuestCompleteToast from './QuestCompleteToast';
+import StreakBadge from './StreakBadge';
+import RankUpModal from './celebrate/RankUpModal';
+import StreakMilestoneModal from './celebrate/StreakMilestoneModal';
+import RewardFlux from './RewardFlux';
+import useRankWatcher from '../../hooks/useRankWatcher';
+import useCelebrationCheck from '../../hooks/useCelebrationCheck';
+import { tweenNumber, tweenWidthPercent } from '../../clubpm/anim/motion';
+import { progressToNextRank } from '../../clubpm/engagement/rankProgress';
 
 function getBreadcrumb(pathname) {
   if (pathname === '/clubpm') return [{ label: 'Dashboard' }];
@@ -19,8 +30,13 @@ function getBreadcrumb(pathname) {
   if (pathname === '/clubpm/notifications/preferences') return [{ label: 'Notifications', href: '/clubpm/notifications' }, { label: 'Preferences' }];
   if (pathname === '/clubpm/activity') return [{ label: 'Activity' }];
   if (pathname === '/clubpm/calendar') return [{ label: 'Calendar' }];
-  if (pathname === '/clubpm/meeting-notes') return [{ label: 'Meeting Notes' }];
+  if (pathname === '/clubpm/admin') return [{ label: 'Admin' }];
+  if (pathname === '/clubpm/meeting-notes') return [{ label: 'Admin' }];
   if (pathname === '/clubpm/outreach') return [{ label: 'Outreach' }];
+  if (pathname === '/clubpm/profile') return [{ label: 'Profile' }];
+  if (pathname.startsWith('/clubpm/profile/')) return [{ label: 'Members', href: '/clubpm/members' }, { label: 'Profile' }];
+  if (pathname === '/clubpm/shop') return [{ label: 'Shop' }];
+  if (pathname === '/clubpm/challenges') return [{ label: 'Challenges' }];
   return [{ label: 'Constellation' }];
 }
 
@@ -60,21 +76,16 @@ const NAV_ITEMS = [
     ),
   },
   {
+    label: 'Challenges',
+    href: '/clubpm/challenges',
+    icon: <i className="fas fa-trophy" aria-hidden="true" style={{ fontSize: 16, width: 18, textAlign: 'center' }} />,
+  },
+  {
     label: 'Outreach',
     href: '/clubpm/outreach',
     icon: (
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1.18h3a2 2 0 0 1 2 1.72c.127.96.36 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.74a16 16 0 0 0 6.29 6.29l.96-.96a2 2 0 0 1 2.11-.45c.907.34 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>
-      </svg>
-    ),
-  },
-  {
-    label: 'Notifications',
-    href: '/clubpm/notifications',
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-        <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
       </svg>
     ),
   },
@@ -147,13 +158,56 @@ function CreateProjectModal({ onClose, onCreate }) {
   );
 }
 
+function SidebarXpDoubloons({ member }) {
+  const navigate = useNavigate();
+  const xp = member.xp ?? 0;
+  const doubloons = member.doubloons ?? 0;
+  const { pct, next } = progressToNextRank(xp);
+
+  const barFillRef = useRef(null);
+  const xpNumRef = useRef(null);
+  const dbNumRef = useRef(null);
+  const prevRef = useRef({ xp, doubloons, pct });
+
+  useEffect(() => {
+    const prev = prevRef.current;
+    tweenWidthPercent(barFillRef.current, prev.pct, pct, { duration: 800 });
+    tweenNumber(xpNumRef.current, prev.xp, xp, { duration: 800 });
+    tweenNumber(dbNumRef.current, prev.doubloons, doubloons, { duration: 800 });
+    prevRef.current = { xp, doubloons, pct };
+  }, [xp, doubloons, pct]);
+
+  return (
+    <div className="pm-sidebar-xp" data-reward-anchor="sidebar-xp">
+      <div className="pm-sidebar-xp-bar">
+        <div ref={barFillRef} className="pm-sidebar-xp-bar-fill" style={{ width: `${pct}%` }} />
+      </div>
+      <div className="pm-sidebar-xp-meta">
+        <span className="pm-sidebar-xp-text">
+          <span ref={xpNumRef}>{xp.toLocaleString()}</span>
+          {next ? ` / ${next.minXp.toLocaleString()} XP` : ' XP · max'}
+        </span>
+        <button
+          type="button"
+          className="pm-sidebar-doubloons pm-sidebar-doubloons--link"
+          data-reward-anchor="sidebar-doubloons"
+          title="Open Shop"
+          onClick={() => navigate('/clubpm/shop')}
+        >
+          <i className="fas fa-coins" aria-hidden="true" />
+          <span ref={dbNumRef}>{doubloons.toLocaleString()}</span>
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function AppShell({ children }) {
   const { member, loading, logout } = useClubPmAuth();
   const { setShowHelp } = useShortcutsRegistry() ?? {};
   const { projectNav } = useProjectNav() ?? {};
   const location = useLocation();
   const navigate = useNavigate();
-  const [theme, setTheme] = useState(() => localStorage.getItem('pm-theme') || 'dark');
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [sidebarProjects, setSidebarProjects] = useState([]);
   const [showCreateProject, setShowCreateProject] = useState(false);
@@ -162,18 +216,56 @@ export default function AppShell({ children }) {
   });
 
   useEffect(() => {
-    if (theme === 'light') {
-      document.documentElement.classList.add('pm-theme-light');
-    } else {
-      document.documentElement.classList.remove('pm-theme-light');
-    }
-    localStorage.setItem('pm-theme', theme);
-  }, [theme]);
+    document.documentElement.classList.remove('pm-theme-light');
+    try { localStorage.removeItem('pm-theme'); } catch {}
+  }, []);
+
+  const { pendingRank, dismissRank } = useRankWatcher();
+  const { celebration, clearCelebration } = useCelebrationCheck();
+
+  const [pendingRewardsCount, setPendingRewardsCount] = useState(0);
+
+  const fetchPendingCount = useCallback(() => {
+    if (!member?.isAdmin) return;
+    get('/api/rewards/pending/count')
+      .then(res => setPendingRewardsCount(res.count ?? 0))
+      .catch(() => setPendingRewardsCount(0));
+  }, [member]);
+
+  useEffect(() => {
+    if (!member) return;
+    fetchPendingCount();
+    window.addEventListener('clubpm:pending-rewards-updated', fetchPendingCount);
+    return () => {
+      window.removeEventListener('clubpm:pending-rewards-updated', fetchPendingCount);
+    };
+  }, [member, fetchPendingCount]);
 
   useEffect(() => {
     if (!member) return;
     get('/api/projects').then(setSidebarProjects).catch(() => {});
   }, [member]);
+
+  // Apply equipped dashboard theme (cosmetic) as `theme-<slug>` on documentElement.
+  // Re-applies when avatar-updated event fires (after AvatarEditor saves).
+  useEffect(() => {
+    if (!member) return;
+    const applyTheme = async () => {
+      try {
+        const profile = await get(`/api/members/${member.id}/profile`);
+        const slug = profile?.equippedCosmetics?.theme?.cssSlug;
+        const root = document.documentElement;
+        Array.from(root.classList).forEach(c => {
+          if (c.startsWith('theme-')) root.classList.remove(c);
+        });
+        if (slug) root.classList.add(`theme-${slug}`);
+      } catch {}
+    };
+    applyTheme();
+    const handler = () => applyTheme();
+    window.addEventListener('avatar-updated', handler);
+    return () => window.removeEventListener('avatar-updated', handler);
+  }, [member?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const handler = () => {
@@ -194,10 +286,6 @@ export default function AppShell({ children }) {
     return () => document.removeEventListener('keydown', handler);
   }, []);
 
-  const toggleTheme = useCallback(() => {
-    setTheme(t => t === 'dark' ? 'light' : 'dark');
-  }, []);
-
   if (loading) {
     return (
       <div className="clubpm-app" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: 'var(--pm-bg-base)' }}>
@@ -211,7 +299,8 @@ export default function AppShell({ children }) {
   }
 
   const crumbs = getBreadcrumb(location.pathname);
-  const initials = (member.displayName || '?').slice(0, 2).toUpperCase();
+  // Rank-up + milestone celebrations are mounted at the shell level so they
+  // survive route transitions and are not duplicated per route.
 
   return (
     <div className="clubpm-app pm-shell">
@@ -255,19 +344,34 @@ export default function AppShell({ children }) {
           })}
           {member?.isAdmin && (
             <Link
-              to="/clubpm/meeting-notes"
-              className={`pm-nav-item${location.pathname === '/clubpm/meeting-notes' ? ' active' : ''}`}
+              to="/clubpm/admin"
+              className={`pm-nav-item${location.pathname.startsWith('/clubpm/admin') || location.pathname === '/clubpm/meeting-notes' ? ' active' : ''}`}
             >
               <span className="pm-nav-item-icon">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                  <polyline points="14 2 14 8 20 8"/>
-                  <line x1="16" y1="13" x2="8" y2="13"/>
-                  <line x1="16" y1="17" x2="8" y2="17"/>
-                  <polyline points="10 9 9 9 8 9"/>
+                  <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
                 </svg>
               </span>
-              <span className="pm-nav-item-label">Meeting Notes</span>
+              <span className="pm-nav-item-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                <span>Admin</span>
+                {pendingRewardsCount > 0 && (
+                  <span className="pm-admin-badge" style={{
+                    background: 'var(--pm-accent-coral, #ff7675)',
+                    color: '#fff',
+                    borderRadius: '50%',
+                    padding: '2px 6px',
+                    fontSize: '10px',
+                    fontWeight: 'bold',
+                    marginLeft: '8px',
+                    minWidth: '16px',
+                    textAlign: 'center',
+                    display: 'inline-block',
+                    lineHeight: '1.2'
+                  }}>
+                    {pendingRewardsCount}
+                  </span>
+                )}
+              </span>
             </Link>
           )}
         </div>
@@ -328,19 +432,17 @@ export default function AppShell({ children }) {
 
         {/* Footer */}
         <div className="pm-sidebar-footer">
-          <div className="pm-sidebar-user">
-            {member.avatarUrl
-              ? <img src={member.avatarUrl} alt="" className="pm-user-avatar" />
-              : <div className="pm-user-avatar">{initials}</div>
-            }
+          <Link to="/clubpm/profile" className="pm-sidebar-user pm-sidebar-user--link" title="Your profile">
+            <AvatarPortrait member={member} size={32} className="pm-user-avatar" />
             <div className="pm-user-info">
               <div className="pm-user-name">{member.displayName}</div>
               <div className="pm-user-handle">@{member.slackHandle}</div>
             </div>
-          </div>
-          <div className="pm-sidebar-integrations">
-            <GitHubConnectButton compact />
-          </div>
+            <span className="pm-sidebar-rank">
+              <RankIcon member={member} size={26} />
+            </span>
+          </Link>
+          {member && <SidebarXpDoubloons member={member} />}
           <button className="pm-signout-btn" onClick={logout}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
               <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
@@ -383,29 +485,11 @@ export default function AppShell({ children }) {
               <span style={{ fontSize: '0.7rem' }}>⌘K</span>
             </button>
 
+            {/* Streak badge */}
+            {member ? <StreakBadge /> : null}
+
             {/* Notification bell */}
             <NotificationBell />
-
-            {/* Theme toggle */}
-            <button className="pm-topbar-btn" onClick={toggleTheme} title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}>
-              {theme === 'dark' ? (
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="5"/>
-                  <line x1="12" y1="1" x2="12" y2="3"/>
-                  <line x1="12" y1="21" x2="12" y2="23"/>
-                  <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
-                  <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
-                  <line x1="1" y1="12" x2="3" y2="12"/>
-                  <line x1="21" y1="12" x2="23" y2="12"/>
-                  <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
-                  <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
-                </svg>
-              ) : (
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-                </svg>
-              )}
-            </button>
           </div>
         </header>
 
@@ -436,6 +520,18 @@ export default function AppShell({ children }) {
           onCreate={project => setSidebarProjects(prev => [project, ...prev])}
         />
       )}
+      {pendingRank ? <RankUpModal rank={pendingRank} onDismiss={dismissRank} /> : null}
+      {celebration ? (
+        <StreakMilestoneModal
+          milestone={celebration.milestone}
+          longestStreak={celebration.longestStreak}
+          freezeAwarded={celebration.freezeAwarded}
+          onDismiss={clearCelebration}
+        />
+      ) : null}
+      <RewardFlux />
+      <CosmeticUnlockModal />
+      <QuestCompleteToast />
     </div>
   );
 }

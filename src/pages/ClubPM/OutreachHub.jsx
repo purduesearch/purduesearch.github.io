@@ -1,8 +1,10 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { revealStagger } from '../../clubpm/anim/motion';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { get, post, patch, del } from '../../api/clubPmClient';
 import { useClubPmAuth } from '../../clubpm/ClubPmAuth';
 import SubmissionFormModal from '../../components/clubpm/SubmissionFormModal';
+import AvatarPortrait from '../../components/clubpm/avatar/AvatarPortrait';
 import CommentThread from '../../components/clubpm/CommentThread';
 import SafetyBadge from '../../components/clubpm/SafetyBadge';
 import ApprovalChips from '../../components/clubpm/ApprovalChips';
@@ -206,14 +208,7 @@ function SubmissionCard({ submission, member, onEdit, onReview, onDelete, onCopy
       <div className="pm-outreach-card-footer">
         {author ? (
           <div className="pm-outreach-card-author">
-            {author.avatarUrl
-              ? <img src={author.avatarUrl} alt="" className="pm-kanban-avatar" style={{ width: 20, height: 20 }} />
-              : (
-                <div className="pm-kanban-avatar pm-kanban-avatar-initials" style={{ width: 20, height: 20, fontSize: 8 }}>
-                  {(author.displayName ?? '?').slice(0, 2).toUpperCase()}
-                </div>
-              )
-            }
+            <AvatarPortrait member={author} size={20} className="pm-kanban-avatar" />
             <span style={{ fontSize: 11, color: 'var(--clubpm-text-muted)' }}>{author.displayName}</span>
           </div>
         ) : <span />}
@@ -729,6 +724,13 @@ export default function OutreachHub() {
       .catch(console.error);
   }, []);
 
+  const tabContentRef = useRef(null);
+  useEffect(() => {
+    if (!tabContentRef.current) return;
+    const direct = tabContentRef.current.children;
+    if (direct?.length) revealStagger(direct, { delay: 60, fromY: 8, duration: 380 });
+  }, [activeTab]);
+
   useEffect(() => {
     Promise.all([
       get('/api/outreach/submissions'),
@@ -884,7 +886,7 @@ export default function OutreachHub() {
       </div>
 
       {/* Tab content */}
-      <div className="pm-outreach-tab-content" role="tabpanel">
+      <div ref={tabContentRef} className="pm-outreach-tab-content" role="tabpanel">
         {activeTab === 'composer' && (
           <ComposerTab
             onSaved={(submission) => {

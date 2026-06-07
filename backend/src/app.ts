@@ -1,4 +1,6 @@
 import "dotenv/config";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import express from "express";
 import cors from "cors";
 import session from "express-session";
@@ -29,6 +31,14 @@ import { publicRouter } from "./api/public.js";
 import { githubAuthRouter } from "./api/githubAuth.js";
 import { githubRouter } from "./api/github.js";
 import { githubWebhookRouter } from "./api/githubWebhook.js";
+import { rewardsRouter } from "./api/rewards.js";
+import { eventConfigRouter } from "./api/eventConfig.js";
+import { leaderboardRouter } from "./api/leaderboard.js";
+import { shopRouter } from "./api/shop.js";
+import { avatarRouter } from "./api/avatar.js";
+import { streakRouter } from "./api/streak.js";
+import { inventoryRouter } from "./api/inventory.js";
+import { challengesRouter } from "./api/challenges.js";
 
 // ── Express Setup ────────────────────────────────────────────
 
@@ -99,7 +109,21 @@ app.use("/api/outreach/campaigns", campaignsRouter);
 app.use("/api/outreach/contacts", contactsRouter);
 app.use("/api/outreach/insights", insightsRouter);
 app.use("/api/public", publicRouter);
+app.use("/api/rewards", rewardsRouter);
+app.use("/api/event-config", eventConfigRouter);
+app.use("/api/leaderboard", leaderboardRouter);
+app.use("/api/shop", shopRouter);
+app.use("/api/avatar", avatarRouter);
+app.use("/api/inventory", inventoryRouter);
+app.use("/api/challenges", challengesRouter);
+app.use("/api", streakRouter); // /api/members/:id/streak, /api/members/me/celebration, etc.
 app.use("/r", redirectRouter);
+
+// Static uploads (portraits, etc). Avatar portraits live under uploads/portraits
+// and are referenced by their public URL from AvatarConfig.portraitUrl.
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const UPLOADS_DIR = path.resolve(__dirname, "..", "uploads");
+app.use("/uploads", express.static(UPLOADS_DIR, { fallthrough: true, maxAge: "1d" }));
 
 // Health check
 app.get("/api/health", (_req, res) => {

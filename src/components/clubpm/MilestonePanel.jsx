@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { get, post, patch, del } from "../../api/clubPmClient";
+import { pulseBadge } from "../../clubpm/anim/motion";
 
 // ── Health config ────────────────────────────────────────────
 
@@ -13,10 +14,33 @@ const HEALTH_META = {
 
 // ── ProgressRing ─────────────────────────────────────────────
 
-function ProgressRing({ progress }) {
+function ProgressRing({ progress, previous = null }) {
   const r = 14;
   const circ = 2 * Math.PI * r;
-  const offset = circ - (progress / 100) * circ;
+  const [displayed, setDisplayed] = useState(previous ?? progress);
+
+  // Tween from previous → progress on mount when we have a baseline. Without
+  // baseline, snap to current to avoid a confusing "from 0" animation on
+  // first-ever visits.
+  useEffect(() => {
+    const start = previous ?? progress;
+    if (start === progress) { setDisplayed(progress); return; }
+    let raf = 0;
+    const duration = 800;
+    const t0 = performance.now();
+    const tick = (now) => {
+      const t = Math.min(1, (now - t0) / duration);
+      const eased = 1 - Math.pow(1 - t, 3);
+      setDisplayed(Math.round(start + (progress - start) * eased));
+      if (t < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  // Intentionally ignore previous changes after mount — baseline is read once.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [progress]);
+
+  const offset = circ - (displayed / 100) * circ;
   return (
     <svg width={36} height={36} viewBox="0 0 36 36">
       <circle cx={18} cy={18} r={r} fill="none" stroke="var(--clubpm-surface-300)" strokeWidth={3} />
@@ -26,7 +50,7 @@ function ProgressRing({ progress }) {
         strokeLinecap="round" transform="rotate(-90 18 18)" />
       <text x={18} y={22} textAnchor="middle" fontSize={8}
         fill="var(--clubpm-text-primary)" fontWeight={700}>
-        {progress}%
+        {displayed}%
       </text>
     </svg>
   );
@@ -36,8 +60,22 @@ function ProgressRing({ progress }) {
 
 function HealthBadge({ status }) {
   const meta = HEALTH_META[status] ?? HEALTH_META.ON_TRACK;
+  const ref = useRef(null);
+  const prevStatusRef = useRef(status);
+
+  useEffect(() => {
+    if (prevStatusRef.current !== status) {
+      pulseBadge(ref.current, meta.color + "99");
+      prevStatusRef.current = status;
+    }
+  }, [status, meta.color]);
+
   return (
-    <span className="cpm-milestone-badge" style={{ background: meta.color + "22", color: meta.color, border: `1px solid ${meta.color}55` }}>
+    <span
+      ref={ref}
+      className="cpm-milestone-badge"
+      style={{ background: meta.color + "22", color: meta.color, border: `1px solid ${meta.color}55` }}
+    >
       {meta.icon} {meta.label}
     </span>
   );
@@ -182,7 +220,7 @@ function GhProgressBar({ milestoneId }) {
 
 // ── MilestoneCard ─────────────────────────────────────────────
 
-function MilestoneCard({ milestone, projectTasks, onUpdate, onDelete, hasGitHub }) {
+function MilestoneCard({ milestone, projectTasks, onUpdate, onDelete, hasGitHub, previousProgress }) {
   const [expanded, setExpanded] = useState(false);
   const [linkingTasks, setLinkingTasks] = useState(false);
   const [selectedTaskIds, setSelectedTaskIds] = useState(
@@ -219,7 +257,7 @@ function MilestoneCard({ milestone, projectTasks, onUpdate, onDelete, hasGitHub 
     <div className="cpm-milestone-card clubpm-glass-card">
       <div className="cpm-milestone-card-header">
         <div className="cpm-milestone-card-left">
-          <ProgressRing progress={milestone.progress ?? 0} />
+          <ProgressRing progress={milestone.progress ?? 0} previous={previousProgress} />
           <div className="cpm-milestone-card-info">
             <div className="cpm-milestone-card-title">{milestone.title}</div>
             {milestone.dueDate && (
@@ -400,7 +438,7 @@ function AddMilestoneForm({ projectId, projectMembers, onCreated }) {
 
 // ── Main Component ────────────────────────────────────────────
 
-export default function MilestonePanel({ projectId, project, onRefresh }) {
+export default function MilestonePanel({ projectId, project, onRefresh, previousMilestonePcts = {} }) {
   const [milestones, setMilestones] = useState([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState("roadmap");
@@ -464,6 +502,7 @@ export default function MilestonePanel({ projectId, project, onRefresh }) {
               <MilestoneCard
                 key={m.id}
                 milestone={m}
+                previousProgress={previousMilestonePcts[m.id] ?? null}
                 projectTasks={projectTasks}
                 onUpdate={handleUpdate}
                 onDelete={handleDelete}

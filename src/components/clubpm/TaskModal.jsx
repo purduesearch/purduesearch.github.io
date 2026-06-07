@@ -1740,7 +1740,10 @@ export default function TaskModal({ task: initialTask, project, readOnly = false
                   ? <p style={{ fontSize:12, color:"var(--clubpm-text-muted)", fontStyle:"italic", margin:0 }}>
                       No attachments yet
                     </p>
-                  : (task.attachments ?? []).map((att, i) => {
+                  : (task.attachments ?? []).map((rawAtt, i) => {
+                      // Tolerate legacy bare-string rows that pre-date the Json column.
+                      const att = typeof rawAtt === "string" ? { url: rawAtt, label: rawAtt } : (rawAtt ?? {});
+                      if (!att.url) return null;
                       const parsed = parseDriveUrl(att.url);
                       const meta = getTypeMeta(parsed.kind);
                       const canPreview = parsed.kind !== "unknown";

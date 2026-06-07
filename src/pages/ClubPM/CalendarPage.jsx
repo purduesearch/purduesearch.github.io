@@ -1,9 +1,12 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import CalendarView from '../../components/clubpm/CalendarView';
+import CalendarFilters from '../../components/clubpm/CalendarFilters';
 import EventFormModal from '../../components/clubpm/EventFormModal';
+import AvatarPortrait from '../../components/clubpm/avatar/AvatarPortrait';
 import { get, post, patch } from '../../api/clubPmClient';
 import { useClubPmAuth } from '../../clubpm/ClubPmAuth';
+import { revealStagger } from '../../clubpm/anim/motion';
 
 // ── Helpers ───────────────────────────────────────────────────────
 
@@ -127,16 +130,7 @@ function EventDetailModal({ event, onClose, onEdit, isAdmin, projects }) {
           {event.organizer && (
             <DetailRow icon="fas fa-user" label="Organizer">
               <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                {event.organizer.avatarUrl
-                  ? <img src={event.organizer.avatarUrl} alt="" style={{ width: 18, height: 18, borderRadius: '50%' }} />
-                  : <span style={{
-                      width: 18, height: 18, borderRadius: '50%',
-                      background: 'var(--clubpm-accent-cyan)', color: '#fff',
-                      display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 600,
-                    }}>
-                      {(event.organizer.displayName ?? '?')[0].toUpperCase()}
-                    </span>
-                }
+                <AvatarPortrait member={event.organizer} size={18} />
                 {event.organizer.displayName}
               </span>
             </DetailRow>
@@ -165,15 +159,7 @@ function EventDetailModal({ event, onClose, onEdit, isAdmin, projects }) {
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 2 }}>
                 {event.attendees.map(a => (
                   <span key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'var(--clubpm-surface-100)', borderRadius: 20, padding: '2px 8px 2px 3px', fontSize: 12 }}>
-                    {a.avatarUrl
-                      ? <img src={a.avatarUrl} alt="" style={{ width: 16, height: 16, borderRadius: '50%' }} />
-                      : <span style={{
-                          width: 16, height: 16, borderRadius: '50%', background: 'var(--clubpm-accent-cyan)',
-                          color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 600,
-                        }}>
-                          {(a.displayName ?? '?')[0].toUpperCase()}
-                        </span>
-                    }
+                    <AvatarPortrait member={a} size={16} />
                     <span style={{ color: 'var(--clubpm-text-secondary)' }}>{a.displayName}</span>
                   </span>
                 ))}
@@ -241,6 +227,64 @@ export default function CalendarPage() {
   const [selectedEvent, setSelectedEvent]     = useState(null);
   const [showEventForm, setShowEventForm]     = useState(false);
   const [editingEvent, setEditingEvent]       = useState(null);
+
+  // Client-side filters. Selecting nothing means "show everything" for that
+  // dimension. `showTaskDeadlines` defaults on so the global view still covers
+  // what the project-scoped Calendar tab used to.
+  const [filters, setFilters] = useState({
+    projectIds: new Set(),
+    memberIds: new Set(),
+    types: new Set(),
+    showTaskDeadlines: true,
+  });
+
+  const filteredEvents = useMemo(() => {
+    return events.filter(ev => {
+      if (filters.types.size > 0 && !filters.types.has(ev.type)) return false;
+      if (filters.projectIds.size > 0 && !filters.projectIds.has(ev.projectId)) return false;
+      if (filters.memberIds.size > 0) {
+        const attendeeIds = new Set((ev.attendees ?? []).map(a => a.id));
+        const matches = [...filters.memberIds].some(id => id === ev.organizerId || attendeeIds.has(id));
+        if (!matches) return false;
+      }
+      return true;
+    });
+  }, [events, filters]);
+
+  const filteredTasks = useMemo(() => {
+    if (!filters.showTaskDeadlines) return [];
+    return tasks.filter(t => {
+      if (filters.projectIds.size > 0 && !filters.projectIds.has(t.projectId)) return false;
+      // memberIds filter: my-tasks view already filters server-side to the
+      // current member, so member filtering is only useful when expanded;
+      // for now we don't gate tasks by member.
+      return true;
+    });
+  }, [tasks, filters]);
+
+  const calendarWrapRef = useRef(null);
+  // Reveal sequence: the wrapper stays `visibility: hidden` (layout space
+  // reserved, but nothing painted) until the first fetch completes. Then we
+  // flip it visible AND run the cell stagger on the same frame, so the user
+  // sees a clean mount-in rather than the "already on screen, now re-fade"
+  // flicker that happens if we animate cells that are already visible.
+  const [revealed, setRevealed] = useState(false);
+  const sawLoadingRef = useRef(false);
+  useEffect(() => {
+    if (eventsLoading) {
+      sawLoadingRef.current = true;
+      return;
+    }
+    if (!sawLoadingRef.current) return;
+    sawLoadingRef.current = false;
+    setRevealed(true);
+    // Wait one frame so the wrapper is in the layout tree before anime starts.
+    requestAnimationFrame(() => {
+      if (!calendarWrapRef.current) return;
+      const cells = calendarWrapRef.current.querySelectorAll('.cpm-cal-month-cell, .cpm-cal-week-col-header');
+      if (cells.length) revealStagger(cells, { delay: 18, duration: 360, fromY: 6 });
+    });
+  }, [eventsLoading]);
 
   // Fetch events for visible month whenever cursor month changes
   const fetchEvents = useCallback(async (date) => {
@@ -390,13 +434,29 @@ export default function CalendarPage() {
         </div>
       )}
 
-      {/* Calendar */}
-      <CalendarView
-        tasks={tasks}
-        events={events}
-        onEventClick={setSelectedEvent}
-        onEventMove={isAdmin ? handleEventMove : undefined}
+      {/* Filter bar — applies client-side over the already-fetched events.
+          Replaces the project-scoped Calendar tab by letting users narrow to a
+          single project / member / event type. */}
+      <CalendarFilters
+        projects={projects}
+        members={members}
+        filters={filters}
+        onChange={setFilters}
       />
+
+      {/* Calendar — hidden until first fetch completes so the stagger reveal
+          plays on a fresh mount rather than re-revealing an already-painted grid. */}
+      <div
+        ref={calendarWrapRef}
+        style={{ visibility: revealed ? 'visible' : 'hidden' }}
+      >
+        <CalendarView
+          tasks={filteredTasks}
+          events={filteredEvents}
+          onEventClick={setSelectedEvent}
+          onEventMove={isAdmin ? handleEventMove : undefined}
+        />
+      </div>
 
       {/* FAB for mobile / alternate entry point */}
       {isAdmin && (

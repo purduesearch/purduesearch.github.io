@@ -107,6 +107,11 @@ outreachRouter.post("/submissions", async (req: Request, res: Response) => {
     });
 
     res.status(201).json(submission);
+
+    // Challenge hook
+    import("../services/challengeService.js").then(({ recordEvent }) =>
+      recordEvent(req.memberId!, "OUTREACH_DRAFTED", 1)
+    ).catch(err => console.error("[challenge] OUTREACH_DRAFTED:", err));
   } catch (error) {
     console.error("POST /submissions error:", error);
     res.status(500).json({ error: "Failed to create submission" });
@@ -205,6 +210,19 @@ outreachRouter.patch("/submissions/:id", async (req: Request, res: Response) => 
     });
 
     res.json(updated);
+
+    // Challenge hook: fire when transitioning to SUBMITTED
+    if (status === "SUBMITTED" && submission.status !== "SUBMITTED" && req.memberId) {
+      import("../services/challengeService.js").then(({ recordEvent }) =>
+        recordEvent(req.memberId!, "OUTREACH_SUBMITTED", 1)
+      ).catch(err => console.error("[challenge] OUTREACH_SUBMITTED:", err));
+    }
+    // Also fire blog draft hook when status changes to DRAFT with content (treat as blog draft)
+    if (status === "DRAFT" && req.memberId) {
+      import("../services/challengeService.js").then(({ recordEvent }) =>
+        recordEvent(req.memberId!, "BLOG_DRAFTED", 1)
+      ).catch(err => console.error("[challenge] BLOG_DRAFTED:", err));
+    }
   } catch (error) {
     console.error("PATCH /submissions/:id error:", error);
     res.status(500).json({ error: "Failed to update submission" });

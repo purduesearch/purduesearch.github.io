@@ -86,7 +86,7 @@ export function computeHealth(
   return "ON_TRACK";
 }
 
-export async function refreshMilestoneHealth(milestoneId: string): Promise<void> {
+export async function refreshMilestoneHealth(milestoneId: string): Promise<{ celebrate?: { type: "milestone"; name: string } } | void> {
   const milestone = await prisma.milestone.findUnique({
     where: { id: milestoneId },
     include: { tasks: { select: { status: true } } },
@@ -106,6 +106,14 @@ export async function refreshMilestoneHealth(milestoneId: string): Promise<void>
       where: { id: milestoneId },
       data: { status: newStatus, completedAt: completedAt ?? null },
     });
+
+    // Engagement: fire MILESTONE_HIT reward on first COMPLETED transition (fire-and-forget)
+    if (newStatus === "COMPLETED" && milestone.status !== "COMPLETED") {
+      const { handleMilestoneComplete } = await import("./rewardService.js");
+      handleMilestoneComplete(milestoneId).catch(err =>
+        console.error("[reward] handleMilestoneComplete:", err));
+      return { celebrate: { type: "milestone", name: milestone.title } };
+    }
   }
 }
 
@@ -134,6 +142,13 @@ export async function refreshAllMilestoneHealth(): Promise<
     });
     changed.push({ id: m.id, title: m.title, projectId: m.projectId,
       status: newStatus, prevStatus: m.status });
+
+    // Engagement: fire MILESTONE_HIT reward on first COMPLETED transition
+    if (newStatus === "COMPLETED" && m.status !== "COMPLETED") {
+      const { handleMilestoneComplete } = await import("./rewardService.js");
+      handleMilestoneComplete(m.id).catch(err =>
+        console.error("[reward] handleMilestoneComplete:", err));
+    }
   }));
 
   return changed;
