@@ -1,29 +1,14 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { get, patch, post } from '../../api/clubPmClient';
+import { Link } from 'react-router-dom';
+import { get, post } from '../../api/clubPmClient';
 import { useClubPmAuth } from '../../clubpm/ClubPmAuth';
+import KudosButton from '../../components/clubpm/KudosButton';
+import AvatarPortrait from '../../components/clubpm/avatar/AvatarPortrait';
+import { tzOffset, copyToClipboard } from '../../clubpm/members/memberShared';
+import { revealStagger } from '../../clubpm/anim/motion';
 
-const TEAMS = ['Software', 'Outreach', 'Research', 'Business', 'Systems', 'Other'];
 const ROLES = ['Admin', 'Lead', 'Member'];
-
-function tzOffset(tz) {
-  if (!tz) return null;
-  try {
-    const now = new Date();
-    const local = new Date(now.toLocaleString('en-US', { timeZone: tz }));
-    const diff = Math.round((local - now) / 60000);
-    const sign = diff >= 0 ? '+' : '-';
-    const h = Math.floor(Math.abs(diff) / 60);
-    const m = Math.abs(diff) % 60;
-    return `UTC${sign}${h}${m ? `:${String(m).padStart(2, '0')}` : ''}`;
-  } catch {
-    return null;
-  }
-}
-
-function copyToClipboard(text) {
-  navigator.clipboard.writeText(text).catch(() => {});
-}
 
 // ── Stats header ──────────────────────────────────────────────
 
@@ -68,14 +53,7 @@ function MembersStats({ members }) {
 // ── Member card ───────────────────────────────────────────────
 
 function MemberCard({ member, onClick }) {
-  const { displayName, slackHandle, avatarUrl, role, isAdmin, title, email, team, timezone, _count } = member;
-
-  const initials = (displayName || '?')
-    .split(' ')
-    .map(w => w[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase();
+  const { displayName, slackHandle, role, isAdmin, title, email, team, timezone, _count } = member;
 
   const taskCount    = _count?.tasks    ?? 0;
   const projectCount = _count?.projects ?? 0;
@@ -85,11 +63,7 @@ function MemberCard({ member, onClick }) {
   return (
     <div className="pm-member-card pm-member-card--enriched" onClick={onClick} role="button" tabIndex={0} onKeyDown={e => e.key === 'Enter' && onClick()}>
       <div className="pm-member-top">
-        {avatarUrl ? (
-          <img className="pm-member-avatar" src={avatarUrl} alt={displayName} />
-        ) : (
-          <div className="pm-member-avatar pm-member-avatar--initials">{initials}</div>
-        )}
+        <AvatarPortrait member={member} size={56} className="pm-member-avatar" />
         <div className="pm-member-info">
           <div className="pm-member-name">{displayName}</div>
           {slackHandle && <div className="pm-member-handle">@{slackHandle}</div>}
@@ -132,66 +106,17 @@ function MemberCard({ member, onClick }) {
           {projectCount} project{projectCount !== 1 ? 's' : ''}
         </span>
       </div>
-    </div>
-  );
-}
 
-// ── GH stats section (inside drawer) ─────────────────────────
-
-function GhStatsSection({ memberId }) {
-  const [projects, setProjects]   = useState([]);
-  const [projectId, setProjectId] = useState('');
-  const [stats, setStats]         = useState(null);
-  const [loading, setLoading]     = useState(false);
-
-  useEffect(() => {
-    get('/api/projects').then(data => {
-      const withRepo = (data ?? []).filter(p => p.githubRepo);
-      setProjects(withRepo);
-      if (withRepo.length === 1) setProjectId(withRepo[0].id);
-    }).catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    if (!projectId) { setStats(null); return; }
-    setLoading(true);
-    get(`/api/github/members/${memberId}/stats?projectId=${projectId}`)
-      .then(setStats)
-      .catch(() => setStats(null))
-      .finally(() => setLoading(false));
-  }, [memberId, projectId]);
-
-  if (projects.length === 0) return null;
-
-  return (
-    <div className="pm-member-drawer-section">
-      <div className="pm-member-drawer-section-title">
-        <i className="fab fa-github" aria-hidden="true" /> GitHub (30d)
+      <div className="pm-member-card-actions" onClick={e => e.stopPropagation()}>
+        <Link
+          to={`/clubpm/profile/${member.id}`}
+          className="pm-member-card-profile-btn"
+          title="View full profile"
+        >
+          <i className="fas fa-user" />
+        </Link>
+        <KudosButton memberId={member.id} displayName={displayName} />
       </div>
-      {projects.length > 1 && (
-        <select className="pm-gh-stats-project-select"
-          value={projectId} onChange={e => setProjectId(e.target.value)}>
-          <option value="">Select a project…</option>
-          {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-        </select>
-      )}
-      {loading && <div className="pm-spinner-wrap" style={{ padding: '8px 0' }}><div className="pm-spinner" /></div>}
-      {stats && !loading && (
-        <div className="pm-gh-stats-row">
-          <div className="pm-gh-stat-tile">
-            <span className="pm-gh-stat-num">{stats.commits30d}</span>
-            <span className="pm-gh-stat-label">Commits</span>
-          </div>
-          <div className="pm-gh-stat-tile">
-            <span className="pm-gh-stat-num">{stats.prsOpened30d}</span>
-            <span className="pm-gh-stat-label">PRs opened</span>
-          </div>
-          <div className="pm-gh-stat-tile">
-            <span className="pm-gh-stat-num">{stats.reviews30d}</span>
-            <span className="pm-gh-stat-label">Reviews</span>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -340,45 +265,7 @@ function ContributorImportModal({ onClose, onImported }) {
 // ── Member detail drawer ──────────────────────────────────────
 
 function MemberDrawer({ member, onClose, isOwnProfile }) {
-  const [detail, setDetail]     = useState(null);
-  const [loading, setLoading]   = useState(true);
-  const [editMode, setEditMode] = useState(false);
-  const [editTeam, setEditTeam] = useState(member.team || '');
-  const [editBio, setEditBio]   = useState(member.bio || '');
-  const [saving, setSaving]     = useState(false);
-
-  useEffect(() => {
-    get(`/api/members/${member.id}`)
-      .then(setDetail)
-      .catch(() => setDetail(null))
-      .finally(() => setLoading(false));
-  }, [member.id]);
-
-  const handleSaveProfile = async () => {
-    setSaving(true);
-    try {
-      await patch('/api/members/me', { team: editTeam, bio: editBio });
-      setDetail(prev => prev ? { ...prev, team: editTeam, bio: editBio } : prev);
-      setEditMode(false);
-    } catch (err) {
-      console.error('Failed to update profile:', err);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const initials = (member.displayName || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
-  const offset   = tzOffset(member.timezone);
-
-  const activityLabels = {
-    TASK_CREATED: 'created a task',
-    TASK_UPDATED: 'updated a task',
-    TASK_COMPLETED: 'completed a task',
-    TASK_ASSIGNED: 'was assigned a task',
-    TASK_REASSIGNED: 'task reassigned',
-    PROJECT_UPDATED: 'updated project',
-    STANDUP_POSTED: 'posted standup',
-  };
+  const offset = tzOffset(member.timezone);
 
   return createPortal(
     <>
@@ -387,20 +274,14 @@ function MemberDrawer({ member, onClose, isOwnProfile }) {
         <button className="pm-member-drawer-close" onClick={onClose}>×</button>
 
         <div className="pm-member-drawer-profile">
-          {member.avatarUrl ? (
-            <img className="pm-member-drawer-avatar" src={member.avatarUrl} alt={member.displayName} />
-          ) : (
-            <div className="pm-member-drawer-avatar pm-member-drawer-avatar--initials">{initials}</div>
-          )}
+          <AvatarPortrait member={member} size={88} className="pm-member-drawer-avatar" />
           <div className="pm-member-drawer-name">{member.displayName}</div>
           {member.title && <div className="pm-member-drawer-title">{member.title}</div>}
           <div className="pm-member-drawer-badges">
             <span className={`pm-member-role-badge ${member.isAdmin ? 'admin' : 'member'}`}>
               {member.isAdmin ? 'Admin' : member.role === 'LEAD' ? 'Lead' : 'Member'}
             </span>
-            {(editMode ? editTeam : member.team) && (
-              <span className="pm-member-team-badge">{editMode ? editTeam : member.team}</span>
-            )}
+            {member.team && <span className="pm-member-team-badge">{member.team}</span>}
           </div>
         </div>
 
@@ -434,98 +315,18 @@ function MemberDrawer({ member, onClose, isOwnProfile }) {
           )}
         </div>
 
-        {editMode ? (
-          <div className="pm-member-drawer-edit-form">
-            <div className="pm-member-drawer-section-title">Edit Profile</div>
-            <div className="pm-member-drawer-field">
-              <label>Team</label>
-              <select value={editTeam} onChange={e => setEditTeam(e.target.value)}>
-                <option value="">Unassigned</option>
-                {TEAMS.map(t => <option key={t} value={t}>{t}</option>)}
-              </select>
-            </div>
-            <div className="pm-member-drawer-field">
-              <label>Bio</label>
-              <textarea value={editBio} onChange={e => setEditBio(e.target.value)} rows={3} placeholder="Short bio…" />
-            </div>
-            <div className="pm-member-drawer-edit-actions">
-              <button className="pm-member-drawer-cancel-btn" onClick={() => setEditMode(false)}>Cancel</button>
-              <button className="pm-member-drawer-save-btn" onClick={handleSaveProfile} disabled={saving}>
-                {saving ? 'Saving…' : 'Save'}
-              </button>
-            </div>
-          </div>
-        ) : (
-          <>
-            {(detail?.bio || member.bio) && (
-              <div className="pm-member-drawer-bio">{detail?.bio || member.bio}</div>
-            )}
-            {isOwnProfile && (
-              <button className="pm-member-edit-profile-btn" onClick={() => setEditMode(true)}>
-                <i className="fas fa-pencil-alt" /> Edit Profile
-              </button>
-            )}
-          </>
+        {member.bio && (
+          <div className="pm-member-drawer-bio">{member.bio}</div>
         )}
 
-        {loading ? (
-          <div className="pm-spinner-wrap"><div className="pm-spinner" /></div>
+        {isOwnProfile ? (
+          <Link to="/clubpm/profile" className="pm-member-edit-profile-btn" onClick={onClose}>
+            <i className="fas fa-user" /> Open my profile
+          </Link>
         ) : (
-          <>
-            <div className="pm-member-drawer-section">
-              <div className="pm-member-drawer-section-title">Projects ({detail?.projects?.length ?? 0})</div>
-              {(detail?.projects ?? []).length === 0 ? (
-                <div className="pm-member-drawer-empty">No projects yet</div>
-              ) : (
-                <div className="pm-member-drawer-projects">
-                  {detail.projects.map(pm => {
-                    const p        = pm.project;
-                    const total    = p._count?.tasks ?? 0;
-                    const myTasks  = p.tasks?.length ?? 0;
-                    const done     = p.tasks?.filter(t => t.status === 'DONE').length ?? 0;
-                    const pct      = myTasks > 0 ? Math.round((done / myTasks) * 100) : 0;
-                    const dotClass = { ACTIVE: 'cpm-dot-active', PAUSED: 'cpm-dot-paused', COMPLETED: 'cpm-dot-done', ARCHIVED: 'cpm-dot-muted' }[p.status] ?? 'cpm-dot-muted';
-                    return (
-                      <div key={p.id} className="pm-member-drawer-project-row">
-                        <span className={`cpm-status-dot ${dotClass}`} />
-                        <span className="pm-member-drawer-project-name">{p.name}</span>
-                        <span className="pm-member-drawer-project-tasks">{myTasks} task{myTasks !== 1 ? 's' : ''}</span>
-                        {myTasks > 0 && (
-                          <div className="pm-member-drawer-project-bar">
-                            <div className="pm-member-drawer-project-fill" style={{ width: `${pct}%` }} />
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
-            <div className="pm-member-drawer-section">
-              <div className="pm-member-drawer-section-title">Recent Activity</div>
-              {(detail?.activityLogs ?? []).length === 0 ? (
-                <div className="pm-member-drawer-empty">No recent activity</div>
-              ) : (
-                <div className="pm-member-drawer-activity">
-                  {detail.activityLogs.slice(0, 10).map(log => (
-                    <div key={log.id} className="pm-member-drawer-activity-row">
-                      <span className="pm-member-drawer-activity-dot" />
-                      <span className="pm-member-drawer-activity-text">
-                        {activityLabels[log.eventType] ?? log.eventType.toLowerCase().replace(/_/g, ' ')}
-                        {log.project && <span className="pm-member-drawer-activity-project"> · {log.project.name}</span>}
-                      </span>
-                      <span className="pm-member-drawer-activity-time">
-                        {new Date(log.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {member.githubLogin && <GhStatsSection memberId={member.id} />}
-          </>
+          <Link to={`/clubpm/profile/${member.id}`} className="pm-member-edit-profile-btn" onClick={onClose}>
+            <i className="fas fa-external-link-alt" /> View full profile
+          </Link>
         )}
       </div>
     </>,
@@ -578,6 +379,23 @@ export default function MembersView() {
     return [...t].sort();
   }, [members]);
 
+  const gridRef = useRef(null);
+  // Only animate when loading flips true → false AFTER we've observed loading.
+  // Initial mount (before fetch starts) must NOT animate, and filter/search
+  // changes (which only mutate `filtered`) also must not re-trigger.
+  const sawLoadingRef = useRef(false);
+  useEffect(() => {
+    if (loading) {
+      sawLoadingRef.current = true;
+      return;
+    }
+    if (!sawLoadingRef.current) return;
+    sawLoadingRef.current = false;
+    if (!gridRef.current) return;
+    const cards = gridRef.current.querySelectorAll('.pm-member-card');
+    if (cards.length) revealStagger(cards, { delay: 50, duration: 480 });
+  }, [loading]);
+
   return (
     <div className="pm-members-page">
       <div className="pm-members-header">
@@ -627,7 +445,7 @@ export default function MembersView() {
       ) : filtered.length === 0 ? (
         <div className="pm-empty-state">No members found.</div>
       ) : (
-        <div className="pm-members-grid">
+        <div ref={gridRef} className="pm-members-grid">
           {filtered.map(m => (
             <MemberCard
               key={m.id}

@@ -548,12 +548,23 @@ export function startScheduler(app: App): void {
         data:  { status: "PUBLISHED" },
       });
 
+      const { handleBlogPostPublished } = await import("../services/rewardService.js");
       for (const submission of due) {
-        if (!submission.author?.slackId) continue;
-        queueDm(
-          submission.author.slackId,
-          `✅ Your post *"${submission.title}"* has been auto-published. Time to cross-post!`
-        );
+        if (submission.author?.slackId) {
+          queueDm(
+            submission.author.slackId,
+            `✅ Your post *"${submission.title}"* has been auto-published. Time to cross-post!`
+          );
+        }
+        // Engagement: BLOG_POST_PUBLISHED reward fires for every published submission's author
+        if (submission.authorId) {
+          handleBlogPostPublished(submission.authorId, submission.id).catch(err =>
+            console.error("[reward] handleBlogPostPublished:", err));
+          // Challenge hook
+          import("../services/challengeService.js").then(({ recordEvent }) =>
+            recordEvent(submission.authorId!, "BLOG_PUBLISHED", 1)
+          ).catch(err => console.error("[challenge] BLOG_PUBLISHED:", err));
+        }
       }
       console.log(`✅ Auto-published ${due.length} submission(s)`);
     } catch (err) {
@@ -729,4 +740,123 @@ export function startScheduler(app: App): void {
   console.log("  📅 Scheduled: Thursday 11AM       — Member Spotlight auto-draft (fair rotation)");
   console.log("  📅 Scheduled: Monday 10AM         — Outreach Weekly Slack digest (AI narrative)");
   console.log("  📅 Scheduled: Daily 9:05AM        — CRM follow-up reminders → contact owners");
+
+  // ── Engagement crons ──────────────────────────────────────
+
+  // Midnight UTC — refresh every member's shop rotation for the new day
+  cron.schedule("0 0 * * *", async () => {
+    console.log("🛒 Rotating shop slots for all members...");
+    try {
+      const { rotateAll } = await import("../services/shopService.js");
+      await rotateAll();
+      console.log("✅ Shop rotation complete");
+    } catch (err) {
+      console.error("❌ Shop rotation error:", err);
+    }
+  });
+
+  // Friday 5:00 PM — Kudos digest to the club channel
+  cron.schedule("0 17 * * 5", async () => {
+    if (!process.env.SLACK_CLUB_CHANNEL_ID) return;
+    try {
+      const { getWeeklyKudos } = await import("../services/kudosService.js");
+      const kudos = await getWeeklyKudos();
+      if (kudos.length === 0) return;
+      const lines = kudos
+        .slice(0, 30) // cap message length
+        .map((k: any) => `❤️ *${k.from.displayName}* → *${k.to.displayName}*`)
+        .join("\n");
+      const extra = kudos.length > 30 ? `\n…and ${kudos.length - 30} more` : "";
+      await app.client.chat.postMessage({
+        channel: process.env.SLACK_CLUB_CHANNEL_ID,
+        text:    `*Kudos this week (${kudos.length})*\n${lines}${extra}`,
+      });
+      console.log(`✅ Kudos digest posted: ${kudos.length} kudos`);
+    } catch (err) {
+      console.error("❌ Kudos digest error:", err);
+    }
+  });
+
+  // 02:00 UTC daily — Streak reset sweep (consume freezes, reset stale streaks)
+  cron.schedule("0 2 * * *", async () => {
+    console.log("🔥 Running streak reset sweep...");
+    try {
+      const { dailyResetSweep } = await import("../services/streakService.js");
+      const result = await dailyResetSweep();
+      console.log(`✅ Streak sweep: scanned=${result.scanned} frozen=${result.frozen} reset=${result.reset}`);
+    } catch (err) {
+      console.error("❌ Streak sweep error:", err);
+    }
+  });
+
+  console.log("  📅 Scheduled: Midnight UTC        — Shop rotation refresh");
+  console.log("  📅 Scheduled: Friday 5PM          — Kudos weekly digest to club channel");
+  console.log("  📅 Scheduled: 02:00 UTC daily     — Streak reset sweep");
+
+  // ── Quest crons ───────────────────────────────────────────────
+
+  // 00:00 UTC daily — assign new daily quests to every active member
+  cron.schedule("0 0 * * *", async () => {
+    console.log("🎯 Assigning daily quests...");
+    try {
+      const { assignDailyChallenges } = await import("../services/challengeService.js");
+      const members = await prisma.member.findMany({ select: { id: true } });
+      for (const m of members) {
+        await assignDailyChallenges(m.id).catch(err =>
+          console.error(`[challenge] daily assign ${m.id}:`, err));
+      }
+      console.log(`✅ Daily quest assignment complete (${members.length} members)`);
+    } catch (err) {
+      console.error("❌ Daily quest assignment error:", err);
+    }
+  }, { timezone: "Etc/UTC" });
+
+  // Monday 00:00 UTC — assign new weekly quest
+  cron.schedule("0 0 * * 1", async () => {
+    console.log("🎯 Assigning weekly quests...");
+    try {
+      const { assignWeeklyChallenge } = await import("../services/challengeService.js");
+      const members = await prisma.member.findMany({ select: { id: true } });
+      for (const m of members) {
+        await assignWeeklyChallenge(m.id).catch(err =>
+          console.error(`[challenge] weekly assign ${m.id}:`, err));
+      }
+      console.log(`✅ Weekly quest assignment complete (${members.length} members)`);
+    } catch (err) {
+      console.error("❌ Weekly quest assignment error:", err);
+    }
+  }, { timezone: "Etc/UTC" });
+
+  // 1st of month 00:00 UTC — assign monthly quest
+  cron.schedule("0 0 1 * *", async () => {
+    console.log("🎯 Assigning monthly quests...");
+    try {
+      const { assignMonthlyChallenge } = await import("../services/challengeService.js");
+      const members = await prisma.member.findMany({ select: { id: true } });
+      for (const m of members) {
+        await assignMonthlyChallenge(m.id).catch(err =>
+          console.error(`[challenge] monthly assign ${m.id}:`, err));
+      }
+      console.log(`✅ Monthly quest assignment complete (${members.length} members)`);
+    } catch (err) {
+      console.error("❌ Monthly quest assignment error:", err);
+    }
+  }, { timezone: "Etc/UTC" });
+
+  // Sunday 23:55 UTC — end-of-week derived metric checks (Zero Gravity Backlog, Telemetry Report)
+  cron.schedule("55 23 * * 0", async () => {
+    console.log("🎯 Running weekly derived metric checks...");
+    try {
+      const { runWeeklyDerivedChecks } = await import("../services/challengeService.js");
+      await runWeeklyDerivedChecks();
+      console.log("✅ Weekly derived metric checks complete");
+    } catch (err) {
+      console.error("❌ Weekly derived checks error:", err);
+    }
+  }, { timezone: "Etc/UTC" });
+
+  console.log("  📅 Scheduled: 00:00 UTC daily     — Daily quest assignment");
+  console.log("  📅 Scheduled: Monday 00:00 UTC    — Weekly quest assignment");
+  console.log("  📅 Scheduled: 1st of month UTC    — Monthly quest assignment");
+  console.log("  📅 Scheduled: Sunday 23:55 UTC    — End-of-week derived metric checks");
 }

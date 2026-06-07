@@ -85,6 +85,29 @@ export function verifyBearerToken(token: string): string | null {
   return verifyToken(token);
 }
 
+// ── Middleware: Require Admin ────────────────────────────────
+// Must be used AFTER requireAuth (relies on req.memberId being set).
+
+export async function requireAdmin(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  if (!req.memberId) {
+    res.status(401).json({ error: "Not authenticated" });
+    return;
+  }
+  const member = await prisma.member.findUnique({
+    where: { id: req.memberId },
+    select: { isAdmin: true, role: true },
+  });
+  if (!member?.isAdmin && member?.role !== "ADMIN") {
+    res.status(403).json({ error: "Admin only" });
+    return;
+  }
+  next();
+}
+
 // ── GET /auth/slack — Redirect to Slack OAuth ────────────────
 
 authRouter.get("/slack", (req: Request, res: Response) => {

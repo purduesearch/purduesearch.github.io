@@ -1,4 +1,4 @@
-import React, { useState, useEffect, createContext, useContext } from "react";
+import React, { useState, useEffect, useCallback, createContext, useContext } from "react";
 import { get, getStoredToken, setStoredToken, clearStoredToken } from "../api/clubPmClient";
 
 const BASE_URL = process.env.REACT_APP_API_URL || "";
@@ -7,6 +7,7 @@ const AuthContext = createContext({
   member: null,
   loading: true,
   logout: () => {},
+  refetchMember: () => {},
 });
 
 export function useClubPmAuth() {
@@ -16,6 +17,33 @@ export function useClubPmAuth() {
 export function ClubPmAuthProvider({ children }) {
   const [member, setMember] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  const refetchMember = useCallback(() => {
+    const token = getStoredToken();
+    if (!token) return Promise.resolve(null);
+    return fetch(`${BASE_URL}/auth/me`, {
+      credentials: "include",
+      headers: {
+        Accept: "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    })
+      .then(async (res) => {
+        if (res.ok) {
+          const m = await res.json();
+          setMember(m);
+          return m;
+        }
+        return null;
+      })
+      .catch(() => null);
+  }, []);
+
+  useEffect(() => {
+    const handler = () => { refetchMember(); };
+    window.addEventListener("clubpm:member-updated", handler);
+    return () => window.removeEventListener("clubpm:member-updated", handler);
+  }, [refetchMember]);
 
   useEffect(() => {
     let freshToken = false;
@@ -95,7 +123,7 @@ export function ClubPmAuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ member, loading, logout }}>
+    <AuthContext.Provider value={{ member, loading, logout, refetchMember }}>
       {children}
     </AuthContext.Provider>
   );

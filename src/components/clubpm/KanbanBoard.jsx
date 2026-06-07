@@ -1,7 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { format, isPast, isWithinInterval, addDays } from 'date-fns';
 import toast from 'react-hot-toast';
+import { animate, spring, pulseGlow, prefersReducedMotion, revealStagger } from '../../clubpm/anim/motion';
+import { burstAt } from './celebrate/confetti';
+import useStreakWatcher from '../../hooks/useStreakWatcher';
 
 const COLUMNS = [
   { id: 'TODO',        label: 'Not Started', color: 'var(--pm-text-secondary)' },
@@ -143,6 +146,21 @@ export default function KanbanBoard({ tasks = [], onStatusChange, onTaskClick })
     setColumns(cols);
   }, [tasks]);
 
+  const notifyStreak = useStreakWatcher();
+  const boardRef = useRef(null);
+
+  // Stagger the columns in once on first mount with cards. Subsequent
+  // re-renders skip it so this isn't disorienting on every state change.
+  const didRevealRef = useRef(false);
+  useEffect(() => {
+    if (didRevealRef.current) return;
+    if (!boardRef.current) return;
+    const cols = boardRef.current.querySelectorAll('.pm-kanban-col');
+    if (cols.length === 0) return;
+    didRevealRef.current = true;
+    revealStagger(cols, { delay: 60, duration: 480, fromY: 8 });
+  }, [columns]);
+
   const handleDragEnd = (result) => {
     const { destination, source, draggableId } = result;
     if (!destination) return;
@@ -162,6 +180,60 @@ export default function KanbanBoard({ tasks = [], onStatusChange, onTaskClick })
       });
       onStatusChange?.(draggableId, destination.droppableId);
       toast.success(`Task moved to ${STATUS_LABELS[destination.droppableId] ?? destination.droppableId}`);
+
+      // Trigger streak re-check on any forward move (backend determines whether it counts).
+      notifyStreak();
+
+      // Pulse the destination column header on any cross-column move.
+      {
+        const colEl = boardRef.current?.querySelector(`[data-kanban-col="${destination.droppableId}"]`);
+        if (colEl) pulseGlow(colEl, 'rgba(45,212,191,0.5)');
+      }
+
+      // Settle-bounce on every drop, small amplitude for non-DONE columns and
+      // the existing bigger spring + confetti for DONE.
+      if (destination.droppableId !== 'DONE') {
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+          const card = boardRef.current?.querySelector(`[data-rfd-draggable-id="${draggableId}"]`);
+          if (card && !prefersReducedMotion()) {
+            animate(card, {
+              scale: [1.02, 0.99, 1],
+              duration: 360,
+              ease: spring,
+            });
+          }
+        }));
+      }
+      if (destination.droppableId === 'DONE') {
+        // Defer past React reconciliation. The card unmounts from the source
+        // column and remounts in DONE; we need the new node, not the stale one.
+        const fire = () => {
+          const card =
+            boardRef.current?.querySelector(`[data-rfd-draggable-id="${draggableId}"]`) ||
+            document.querySelector(`[data-rfd-draggable-id="${draggableId}"]`);
+          // Fallback: aim at the DONE column header so the burst still happens
+          // even if the card lookup races with React's re-render.
+          const anchor =
+            card ||
+            boardRef.current?.querySelector('[data-rfd-droppable-id="DONE"]') ||
+            document.querySelector('[data-rfd-droppable-id="DONE"]');
+          if (!anchor) {
+            console.warn('[KanbanBoard] DONE celebration: no anchor element');
+            return;
+          }
+          if (card && !prefersReducedMotion()) {
+            animate(card, {
+              scale: [1.05, 0.96, 1],
+              duration: 520,
+              ease: spring,
+            });
+          }
+          burstAt(anchor, { palette: 'taskComplete' });
+        };
+        // Two rAFs ≈ wait one paint past the React commit, by which point the
+        // card has been mounted at its new DOM position.
+        requestAnimationFrame(() => requestAnimationFrame(fire));
+      }
     } else {
       // Reorder within column
       setColumns(prev => {
@@ -175,9 +247,9 @@ export default function KanbanBoard({ tasks = [], onStatusChange, onTaskClick })
 
   return (
     <DragDropContext onDragEnd={handleDragEnd}>
-      <div className="pm-kanban-board">
+      <div className="pm-kanban-board" ref={boardRef}>
         {COLUMNS.map(col => (
-          <div key={col.id} className="pm-kanban-col">
+          <div key={col.id} className="pm-kanban-col" data-kanban-col={col.id}>
             <div className="pm-kanban-col-header">
               <span className="pm-kanban-col-dot" style={{ background: col.color }} />
               <span className="pm-kanban-col-label" style={{ color: col.color }}>{col.label}</span>

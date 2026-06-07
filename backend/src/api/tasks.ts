@@ -13,6 +13,38 @@ import { prisma as prismaClient } from "../db/prisma.js";
 import { createNotification } from "../services/notificationCrud.js";
 import { queueDm } from "../services/dmBatcher.js";
 
+// ── Attachment helpers ──────────────────────────────────────
+//
+// Frontend sends attachments as { url, label? } objects. We normalise them
+// before writing so every stored row has a guaranteed-clickable absolute URL
+// and a non-empty label. Strings (from older clients) are tolerated.
+
+type AttachmentInput = string | { url?: string; label?: string };
+type Attachment = { url: string; label: string };
+
+function hostOf(url: string): string {
+  try { return new URL(url).host; } catch { return url; }
+}
+
+function normaliseAttachment(att: AttachmentInput): Attachment | null {
+  const raw = typeof att === "string" ? { url: att, label: att } : att ?? {};
+  const url = typeof raw.url === "string" ? raw.url.trim() : "";
+  if (!url) return null;
+  const absoluteUrl = /^https?:\/\//i.test(url) ? url : `https://${url}`;
+  const label =
+    (typeof raw.label === "string" ? raw.label.trim() : "") ||
+    hostOf(absoluteUrl);
+  return { url: absoluteUrl, label };
+}
+
+function normaliseAttachments(input: unknown): Attachment[] | undefined {
+  if (input === undefined) return undefined;
+  if (!Array.isArray(input)) return [];
+  return input
+    .map(normaliseAttachment)
+    .filter((a): a is Attachment => a !== null);
+}
+
 export const tasksRouter = Router();
 
 // All routes require authentication
@@ -210,10 +242,12 @@ tasksRouter.patch("/:id", channelAuth, async (req: Request, res: Response) => {
         dueDate?: string | null;
         assigneeIds?: string[];
         tags?: string[];
-        attachments?: string[];
+        attachments?: AttachmentInput[];
         parentTaskId?: string | null;
         blockingTaskIds?: string[];
       };
+
+    const normalisedAttachments = normaliseAttachments(attachments);
 
     const existingTask = await getTask(taskId);
     if (!existingTask) {
@@ -281,7 +315,7 @@ tasksRouter.patch("/:id", channelAuth, async (req: Request, res: Response) => {
       dueDate: dueDate === null ? undefined : dueDate ? new Date(dueDate) : undefined,
       assigneeIds,
       tags,
-      attachments,
+      attachments: normalisedAttachments,
       parentTaskId,
       blockedByIds: blockingTaskIds,
     });
@@ -294,11 +328,26 @@ tasksRouter.patch("/:id", channelAuth, async (req: Request, res: Response) => {
       const isNowDone        = existingTask.status !== "DONE" && task.status === "DONE";
       const assigneesChanged = assigneesBefore !== assigneesAfter;
 
+      // Engagement: streak ticks on any forward status transition that isn't
+      // the DONE transition (DONE is handled by handleTaskComplete below).
+      // Forward order: TODO < IN_PROGRESS < DONE; BLOCKED is a side channel.
+      const STATUS_RANK: Record<string, number> = { TODO: 0, BLOCKED: 0, IN_PROGRESS: 1, DONE: 2 };
+      const beforeRank = STATUS_RANK[existingTask.status] ?? 0;
+      const afterRank  = STATUS_RANK[task.status]         ?? 0;
+      const isForwardAdvance = !isNowDone && afterRank > beforeRank && memberId;
+      if (isForwardAdvance) {
+        (async () => {
+          const { recordActivity } = await import("../services/streakService.js");
+          await recordActivity(memberId!, "TASK_ADVANCE");
+        })().catch(err => console.error("[streak] task advance:", err));
+      }
+
       if (isNowDone) {
         logAuditEvent({
           taskId: taskId, memberId: memberId ?? null, source: "WEB",
           eventType: "TASK_COMPLETED", payload: { taskTitle: task.title },
         }).catch(console.error);
+        // Engagement grant happens below (awaited) so the response can carry the deltas.
       } else if (assigneesChanged && task.status === existingTask.status) {
         logAuditEvent({
           taskId: taskId, memberId: memberId ?? null, source: "WEB",
@@ -379,7 +428,104 @@ tasksRouter.patch("/:id", channelAuth, async (req: Request, res: Response) => {
       refreshMilestoneHealth((task as any).milestoneId).catch(console.error);
     }
 
-    res.json(task);
+    // Engagement grant — awaited so the response can surface reward deltas to
+    // the frontend dispatcher (sidebar XP bar, +XP particles, rank-up modal).
+    let actorReward: import("../services/rewardService.js").ActorRewardSummary | null = null;
+    const isNowDone = existingTask.status !== "DONE" && task.status === "DONE";
+    if (isNowDone) {
+      try {
+        const { handleTaskComplete } = await import("../services/rewardService.js");
+        const full = await prismaClient.task.findUnique({
+          where: { id: taskId },
+          select: {
+            id: true, title: true, dueDate: true, createdById: true,
+            assignees: { select: { id: true } },
+          },
+        });
+        const actorId = (req.session as any).memberId as string | undefined;
+        if (full) actorReward = await handleTaskComplete(full, actorId ?? "");
+      } catch (err) {
+        console.error("[reward] handleTaskComplete:", err);
+      }
+    }
+
+    // Challenge hooks — awaited so we can surface progress milestones in the
+    // response (frontend toasts at 25/50/75% bands).
+    let progressMilestones: import("../services/challengeService.js").ProgressMilestone[] = [];
+    {
+      const actorId = (req.session as any).memberId as string | undefined;
+      if (actorId) {
+        const prevStatus = existingTask.status;
+        const nowDone    = prevStatus !== "DONE" && task.status === "DONE";
+        const toInProgress = prevStatus !== "IN_PROGRESS" && task.status === "IN_PROGRESS";
+        const prevAssignees = ((existingTask.assignees ?? []) as any[]).map((a: any) => a.id as string);
+        const nextAssignees = ((task.assignees ?? []) as any[]).map((a: any) => a.id as string);
+        const addedAssignees = nextAssignees.filter((id: string) => !prevAssignees.includes(id));
+        const prevTagCount = ((existingTask.tags ?? []) as any[]).length;
+        const nextTagCount = (((task as any).tags ?? []) as any[]).length;
+        const tagsAdded = nextTagCount > prevTagCount;
+        const prevAttCount = (existingTask.attachments as any[] | null)?.length ?? 0;
+        const nextAttCount = (task.attachments as any[] | null)?.length ?? 0;
+        const newAttachments = nextAttCount - prevAttCount;
+
+        try {
+          const { recordEvent } = await import("../services/challengeService.js");
+
+          if (nowDone) {
+            for (const assignee of ((task.assignees ?? []) as any[])) {
+              progressMilestones = progressMilestones.concat(
+                await recordEvent(assignee.id, "TASK_COMPLETED", 1, { taskId })
+              );
+              if (prevStatus === "IN_PROGRESS") {
+                progressMilestones = progressMilestones.concat(
+                  await recordEvent(assignee.id, "TASK_MOVED_INPROGRESS_TO_DONE", 1)
+                );
+              }
+            }
+          }
+
+          if (toInProgress) {
+            progressMilestones = progressMilestones.concat(
+              await recordEvent(actorId, "TASK_MOVED_BACKLOG_TO_INPROGRESS", 1)
+            );
+          }
+
+          if (addedAssignees.length > 0) {
+            for (const aid of addedAssignees) {
+              if (aid !== actorId) {
+                progressMilestones = progressMilestones.concat(
+                  await recordEvent(actorId, "TASK_ASSIGNED_TO_TEAMMATE", 1, { teammateId: aid })
+                );
+                progressMilestones = progressMilestones.concat(
+                  await recordEvent(actorId, "UNIQUE_ASSIGNEES", 1, { teammateId: aid })
+                );
+              }
+            }
+          }
+
+          if (tagsAdded) {
+            progressMilestones = progressMilestones.concat(
+              await recordEvent(actorId, "TASK_LABELED", 1, { taskId })
+            );
+          }
+
+          if (newAttachments > 0) {
+            for (let i = 0; i < newAttachments; i++) {
+              progressMilestones = progressMilestones.concat(
+                await recordEvent(actorId, "FILE_ATTACHED", 1, { taskId })
+              );
+            }
+          }
+        } catch (err) {
+          console.error("[challenge] task update hooks:", err);
+        }
+      }
+    }
+
+    const responseBody: any = { ...task };
+    if (actorReward) Object.assign(responseBody, actorReward);
+    if (progressMilestones.length > 0) responseBody.progressMilestones = progressMilestones;
+    res.json(responseBody);
   } catch (error) {
     console.error("Update task error:", error);
     res.status(500).json({ error: "Failed to update task" });
@@ -619,6 +765,15 @@ tasksRouter.post("/:id/comments", async (req: Request, res: Response) => {
     }
 
     res.status(201).json(populatedComment || comment);
+
+    // Challenge hooks
+    (async () => {
+      const { recordEvent } = await import("../services/challengeService.js");
+      const wordCount = content.trim().split(/\s+/).length;
+      await recordEvent(memberId, "COMMENT_WRITTEN", 1, { taskId });
+      if (wordCount >= 10) await recordEvent(memberId, "COMMENT_LONG", 1, { taskId });
+      await recordEvent(memberId, "STATUS_COMMENT", 1, { taskId });
+    })().catch(err => console.error("[challenge] comment hooks:", err));
   } catch (error) {
     console.error("Create comment error:", error);
     res.status(500).json({ error: "Failed to create comment" });
@@ -735,6 +890,8 @@ tasksRouter.post("/:id/comments/:commentId/reactions", async (req: Request, res:
       reactions[emoji] = [...current, memberId];
     }
 
+    const wasOff = !current.includes(memberId);
+
     const updated = await prisma.taskComment.update({
       where: { id: commentId },
       data: { reactions },
@@ -742,6 +899,14 @@ tasksRouter.post("/:id/comments/:commentId/reactions", async (req: Request, res:
     });
 
     res.json(updated);
+
+    // Challenge hook: only fire when toggling ON a reaction to someone else's comment
+    if (wasOff && comment.authorId !== memberId) {
+      (async () => {
+        const { recordEvent } = await import("../services/challengeService.js");
+        await recordEvent(memberId, "COMMENT_REACTION", 1, { teammateId: comment.authorId });
+      })().catch(err => console.error("[challenge] reaction hook:", err));
+    }
   } catch (error) {
     console.error("Toggle reaction error:", error);
     res.status(500).json({ error: "Failed to toggle reaction" });
@@ -825,6 +990,22 @@ tasksRouter.post("/:id/time-logs", async (req: Request, res: Response) => {
       return;
     }
     const log = await logTime(taskId, memberId, minutes, note);
+
+    // Engagement: award XP / doubloons proportional to hours logged (fire-and-forget)
+    (async () => {
+      const { handleTimeLog } = await import("../services/rewardService.js");
+      await handleTimeLog(taskId, memberId, minutes);
+    })().catch(err => console.error("[reward] handleTimeLog:", err));
+
+    // Challenge hooks
+    (async () => {
+      const { recordEvent } = await import("../services/challengeService.js");
+      await recordEvent(memberId, "TIME_LOG_ENTRY", 1, { taskId });
+      await recordEvent(memberId, "TIME_LOG_HOURS", minutes, { taskId });
+      await recordEvent(memberId, "TIME_LOG_UNIQUE_TASKS", 1, { taskId });
+      // TIME_LOG_WEEKDAY: tracked via DAILY_ACTIVE (streakService fires first action of day)
+    })().catch(err => console.error("[challenge] timelog hooks:", err));
+
     res.status(201).json(log);
   } catch (error) {
     console.error("Log time error:", error);

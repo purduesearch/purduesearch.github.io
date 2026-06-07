@@ -1,18 +1,44 @@
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
+import LottieCheck from "./anim/LottieCheck";
 
 // ── Progress Indicator ────────────────────────────────────────
 
 export const PROGRESS_CYCLE = { NO_PROGRESS: "IN_PROGRESS", IN_PROGRESS: "COMPLETED", COMPLETED: "NO_PROGRESS" };
 
-export function ProgressIndicator({ progress, taskId, onUpdate }) {
+export function ProgressIndicator({ progress, taskId, onUpdate, size = 24 }) {
+  const prevProgressRef = useRef(progress);
+  const [playingCheck, setPlayingCheck] = useState(false);
+
+  useEffect(() => {
+    if (prevProgressRef.current === "IN_PROGRESS" && progress === "COMPLETED") {
+      setPlayingCheck(true);
+    }
+    prevProgressRef.current = progress;
+  }, [progress]);
+
   return (
     <button
       className={`cpm-progress-btn cpm-progress-${progress}`}
       onClick={e => { e.stopPropagation(); onUpdate(taskId, PROGRESS_CYCLE[progress]); }}
       title={progress.replace(/_/g, " ").toLowerCase().replace(/^\w/, c => c.toUpperCase())}
+      style={{ position: "relative" }}
     >
-      {progress === "COMPLETED" && <i className="fas fa-check" />}
+      {progress === "COMPLETED" && !playingCheck && <i className="fas fa-check" />}
       {progress === "IN_PROGRESS" && <span className="cpm-progress-half" />}
+      {playingCheck && (
+        <span
+          style={{
+            position: "absolute",
+            inset: 0,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            pointerEvents: "none",
+          }}
+        >
+          <LottieCheck size={size} onComplete={() => setPlayingCheck(false)} />
+        </span>
+      )}
     </button>
   );
 }
@@ -65,15 +91,65 @@ export function StarProgress({ percent = 0 }) {
 }
 
 // ── Avatar Stack ──────────────────────────────────────────────
+//
+// When a new assignee shows up that wasn't in the previous render, animate
+// their slot in: scale 0 -> 1 with a small overshoot. Existing avatars get
+// a brief leftward shift to make visual room. Diff-based so the animation
+// only fires on actual additions.
 
 export function AvatarStack({ assignees }) {
+  const prevIdsRef = useRef([]);
+  const slotRefs = useRef(new Map());
+
+  useEffect(() => {
+    const currentIds = (assignees ?? []).map(m => m.id);
+    const added = currentIds.filter(id => !prevIdsRef.current.includes(id));
+    const isFirstRender = prevIdsRef.current.length === 0 && currentIds.length > 0;
+    prevIdsRef.current = currentIds;
+    if (isFirstRender || added.length === 0) return;
+    if (typeof window === "undefined") return;
+    const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+    if (reduce) return;
+    // Fire-and-forget — keep this module free of the animejs dep so the
+    // primitive stays cheap. Pop the new avatar elements via inline JS.
+    requestAnimationFrame(() => {
+      added.forEach(id => {
+        const el = slotRefs.current.get(id);
+        if (!el) return;
+        el.animate(
+          [
+            { transform: "scale(0)", opacity: 0 },
+            { transform: "scale(1.18)", opacity: 1, offset: 0.65 },
+            { transform: "scale(1)", opacity: 1 },
+          ],
+          { duration: 220, easing: "cubic-bezier(.4,1.6,.5,1)" },
+        );
+      });
+      // Subtle leftward shift on existing avatars so they yield room.
+      currentIds.forEach(id => {
+        if (added.includes(id)) return;
+        const el = slotRefs.current.get(id);
+        if (!el) return;
+        el.animate(
+          [{ transform: "translateX(0)" }, { transform: "translateX(-6px)" }, { transform: "translateX(0)" }],
+          { duration: 180, easing: "ease-out" },
+        );
+      });
+    });
+  }, [assignees]);
+
   if (!assignees?.length) return <span className="cpm-avatar-placeholder" />;
   const shown = assignees.slice(0, 3);
   const extra = assignees.length - 3;
   return (
     <div className="cpm-avatar-stack">
       {shown.map((m, i) => (
-        <div key={m.id} className="cpm-avatar-slot" style={{ zIndex: shown.length - i }}>
+        <div
+          key={m.id}
+          ref={el => { if (el) slotRefs.current.set(m.id, el); else slotRefs.current.delete(m.id); }}
+          className="cpm-avatar-slot"
+          style={{ zIndex: shown.length - i }}
+        >
           {m.avatarUrl
             ? <img src={m.avatarUrl} alt={m.displayName} className="cpm-avatar-img" title={m.displayName} />
             : <div className="cpm-avatar-initials" title={m.displayName}>{(m.displayName || "?").charAt(0).toUpperCase()}</div>

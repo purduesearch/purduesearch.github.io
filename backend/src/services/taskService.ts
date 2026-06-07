@@ -116,6 +116,14 @@ export async function createTask(
     entityType: "Task",
     projectId: task.projectId,
   });
+
+  // Challenge hook: TASK_CREATED_WITH_DETAILS (title + description + dueDate required)
+  if (data.createdById && data.title && data.description && data.dueDate) {
+    import("./challengeService.js").then(({ recordEvent }) =>
+      recordEvent(data.createdById!, "TASK_CREATED_WITH_DETAILS", 1, { taskId: task.id })
+    ).catch(err => console.error("[challenge] TASK_CREATED_WITH_DETAILS:", err));
+  }
+
   return task;
 }
 
@@ -140,9 +148,11 @@ export async function updateTask(
   if (data.recurrenceEndDate !== undefined) updateData.recurrenceEndDate = safeParseDate(data.recurrenceEndDate, "recurrenceEndDate") ?? null;
   if (data.recurringParentId !== undefined) updateData.recurringParentId = data.recurringParentId;
   if (data.attachments !== undefined) {
+    // attachments is now Json — store the structured shape directly. Tolerate
+    // legacy strings from older callers by upgrading them on the way in.
     updateData.attachments = data.attachments.map(a =>
-      typeof a === "string" ? a : JSON.stringify(a)
-    );
+      typeof a === "string" ? { url: a, label: a } : a
+    ) as unknown as Prisma.InputJsonValue;
   }
   if (data.recurringInterval !== undefined) updateData.recurringInterval = data.recurringInterval;
 

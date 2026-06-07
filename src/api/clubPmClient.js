@@ -27,6 +27,67 @@ class ApiError extends Error {
   }
 }
 
+// Optional viewport origin set by a UI action right before it triggers a
+// reward-granting request. Lets reward particles spawn at the action site
+// (e.g. the card the user just dropped) instead of screen center.
+// Auto-cleared after a short TTL so stale origins don't leak.
+let _nextRewardOrigin = null;
+let _nextRewardOriginTimer = null;
+
+export function setNextRewardOrigin(x, y, ttlMs = 1500) {
+  if (typeof x !== "number" || typeof y !== "number") return;
+  _nextRewardOrigin = { x, y };
+  if (_nextRewardOriginTimer) clearTimeout(_nextRewardOriginTimer);
+  _nextRewardOriginTimer = setTimeout(() => { _nextRewardOrigin = null; }, ttlMs);
+}
+
+function dispatchRewardSignals(payload) {
+  if (!payload || typeof payload !== "object") return;
+  const xpDelta = Number(payload.xpDelta ?? 0);
+  const doubloonsDelta = Number(payload.doubloonsDelta ?? 0);
+  const rankAfter = payload.rankAfter ?? null;
+  const rankBefore = payload.rankBefore ?? null;
+  if (xpDelta || doubloonsDelta) {
+    const origin = _nextRewardOrigin;
+    _nextRewardOrigin = null;
+    if (_nextRewardOriginTimer) { clearTimeout(_nextRewardOriginTimer); _nextRewardOriginTimer = null; }
+    window.dispatchEvent(new CustomEvent("clubpm:reward-granted", {
+      detail: {
+        xpDelta,
+        doubloonsDelta,
+        newXp: payload.newXp ?? null,
+        newDoubloons: payload.newDoubloons ?? null,
+        origin,
+      },
+    }));
+  }
+  if (rankAfter && rankBefore && rankAfter !== rankBefore) {
+    window.dispatchEvent(new CustomEvent("clubpm:member-updated"));
+  } else if (xpDelta || doubloonsDelta) {
+    window.dispatchEvent(new CustomEvent("clubpm:member-updated"));
+  }
+
+  // Cosmetic unlock popup — fires whenever any response grants a new cosmetic.
+  // Supported fields: unlockedCosmetic (single) or unlockedCosmetics (array).
+  const singles = payload.unlockedCosmetic
+    ? [payload.unlockedCosmetic]
+    : Array.isArray(payload.unlockedCosmetics)
+      ? payload.unlockedCosmetics
+      : [];
+  for (const cosmetic of singles) {
+    if (!cosmetic?.name) continue;
+    window.dispatchEvent(new CustomEvent("clubpm:cosmetic-unlocked", { detail: cosmetic }));
+  }
+
+  // Quest / challenge progress milestones — fires a toast at 25/50/75/100% bands.
+  // progressMilestones: [{ challengeId, challengeName?, pct }]
+  const milestones = Array.isArray(payload.progressMilestones) ? payload.progressMilestones : [];
+  for (const m of milestones) {
+    if (typeof m?.pct !== "number") continue;
+    window.dispatchEvent(new CustomEvent("clubpm:challenge-progress", { detail: m }));
+  }
+}
+
 async function handleResponse(response) {
   if (response.status === 401) {
     // Throw without redirecting. AppShell already redirects via React Router's
@@ -45,7 +106,9 @@ async function handleResponse(response) {
     );
   }
 
-  return response.json();
+  const body = await response.json();
+  dispatchRewardSignals(body);
+  return body;
 }
 
 export async function get(path) {
@@ -59,6 +122,20 @@ export async function get(path) {
 export async function post(path, data) {
   const response = await fetch(`${BASE_URL}${path}`, {
     method: "POST",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      ...authHeaders(),
+    },
+    body: JSON.stringify(data),
+  });
+  return handleResponse(response);
+}
+
+export async function put(path, data) {
+  const response = await fetch(`${BASE_URL}${path}`, {
+    method: "PUT",
     credentials: "include",
     headers: {
       "Content-Type": "application/json",
@@ -90,7 +167,7 @@ export async function del(path) {
     credentials: "include",
     headers: { Accept: "application/json", ...authHeaders() },
   });
-  
+
   if (response.status === 401) {
     throw new ApiError(401, "Not authenticated");
   }
@@ -103,3 +180,89 @@ export async function del(path) {
     );
   }
 }
+
+// ── Engagement: streak / inventory / shop consumables ─────────
+
+// Tiny module-scope cache so multiple consumers (StreakBadge + dashboard tile)
+// don't trigger duplicate network calls within the freshness window.
+let _streakCache = { memberId: null, fetchedAt: 0, data: null, inflight: null };
+const STREAK_CACHE_TTL_MS = 5_000;
+
+export async function getStreak(memberId, { force = false } = {}) {
+  const now = Date.now();
+  if (
+    !force &&
+    _streakCache.memberId === memberId &&
+    _streakCache.data &&
+    now - _streakCache.fetchedAt < STREAK_CACHE_TTL_MS
+  ) {
+    return _streakCache.data;
+  }
+  if (_streakCache.inflight && _streakCache.memberId === memberId) {
+    return _streakCache.inflight;
+  }
+  _streakCache.memberId = memberId;
+  _streakCache.inflight = get(`/api/members/${memberId}/streak`).then((data) => {
+    _streakCache.data = data;
+    _streakCache.fetchedAt = Date.now();
+    _streakCache.inflight = null;
+    return data;
+  }).catch((err) => {
+    _streakCache.inflight = null;
+    throw err;
+  });
+  return _streakCache.inflight;
+}
+
+export function invalidateStreakCache() {
+  _streakCache = { memberId: null, fetchedAt: 0, data: null, inflight: null };
+}
+
+export async function getActivity(memberId, days = 30) {
+  return get(`/api/members/${memberId}/activity?days=${days}`);
+}
+
+export async function pollCelebration() {
+  return get(`/api/members/me/celebration`);
+}
+
+export async function getInventory() {
+  return get(`/api/inventory`);
+}
+
+export async function useInventoryItem(itemKey) {
+  return post(`/api/inventory/use`, { itemKey });
+}
+
+export async function getConsumables() {
+  return get(`/api/shop/consumables`);
+}
+
+export async function purchaseConsumable(itemKey) {
+  return post(`/api/shop/purchase-consumable`, { itemKey });
+}
+
+// ── Progress snapshot ─────────────────────────────────────────
+//
+// Per-user snapshot of the milestone-progress values they last saw, so we can
+// animate bars from the old value to the new on project mount. Saves are
+// fire-and-forget; failures are logged but never block the UI.
+
+export async function getProgressSnapshot() {
+  try { return await get("/api/members/me/progress-snapshot"); }
+  catch { return null; }
+}
+
+export function saveProgressSnapshot(payload) {
+  return put("/api/members/me/progress-snapshot", payload).catch(err => {
+    console.warn("[clubpm] saveProgressSnapshot failed", err);
+  });
+}
+
+// ── Challenges / Achievements ─────────────────────────────────
+
+export const getActiveChallenges  = () => get('/api/challenges/active');
+export const claimChallenge       = (id) => post(`/api/challenges/${id}/claim`, {});
+export const getAchievements      = () => get('/api/challenges/achievements');
+export const getChallengeHistory  = (days = 30) => get(`/api/challenges/history?days=${days}`);
+export const getChallengesCatalog = () => get('/api/challenges/catalog');

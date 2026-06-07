@@ -2,46 +2,48 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from "react"
 import { createPortal } from "react-dom";
 import { Link, useNavigate } from "react-router-dom";
 import { QRCodeCanvas } from "qrcode.react";
-import { get, post, patch } from "../../api/clubPmClient";
+import { get, post, patch, getStreak } from "../../api/clubPmClient";
 import { useClubPmAuth } from "../../clubpm/ClubPmAuth";
 import { ProgressIndicator, PriorityBars, AvatarStack } from "../../components/clubpm/TaskPrimitives";
 import ProjectCard from "../../components/clubpm/ProjectCard";
+import LeaderboardPanel from "../../components/clubpm/LeaderboardPanel";
+import { tweenNumber, revealStagger } from "../../clubpm/anim/motion";
+import DailyQuestsWidget from "../../components/clubpm/challenges/DailyQuestsWidget";
 
 const WEB_BASE = process.env.REACT_APP_WEB_URL ?? window.location.origin;
 
-// ── useCountUp hook ───────────────────────────────────────────
-
-function useCountUp(target, duration = 800) {
-  const [count, setCount] = useState(0);
-  useEffect(() => {
-    if (target === 0) { setCount(0); return; }
-    let start = null;
-    const step = (timestamp) => {
-      if (!start) start = timestamp;
-      const elapsed = timestamp - start;
-      const progress = Math.min(elapsed / duration, 1);
-      setCount(Math.round(progress * target));
-      if (progress < 1) requestAnimationFrame(step);
-    };
-    const raf = requestAnimationFrame(step);
-    return () => cancelAnimationFrame(raf);
-  }, [target, duration]);
-  return count;
-}
-
 // ── StatsBar component ────────────────────────────────────────
 
-function StatTile({ value, label }) {
-  const display = useCountUp(value);
+function StatTile({ value, label, variant }) {
+  const numRef = useRef(null);
+  const prevRef = useRef(0);
+  useEffect(() => {
+    if (!numRef.current) return;
+    const handle = tweenNumber(numRef.current, prevRef.current, value, { duration: 700 });
+    prevRef.current = value;
+    return () => handle?.pause?.();
+  }, [value]);
   return (
-    <div className="pm-stat-tile">
-      <div className="pm-stat-number">{display}</div>
+    <div className={`pm-stat-tile${variant ? ` ${variant}` : ''}`}>
+      <div className="pm-stat-number" ref={numRef}>0</div>
       <div className="pm-stat-label">{label}</div>
     </div>
   );
 }
 
 function StatsBar({ projects, myTasks }) {
+  const { member } = useClubPmAuth();
+  const [streakValue, setStreakValue] = useState(0);
+
+  useEffect(() => {
+    if (!member?.id) return;
+    let cancelled = false;
+    getStreak(member.id).then((d) => { if (!cancelled) setStreakValue(d?.currentStreak ?? 0); }).catch(() => {});
+    const onChange = () => getStreak(member.id, { force: true }).then((d) => setStreakValue(d?.currentStreak ?? 0)).catch(() => {});
+    window.addEventListener('clubpm-streak-changed', onChange);
+    return () => { cancelled = true; window.removeEventListener('clubpm-streak-changed', onChange); };
+  }, [member?.id]);
+
   const totalProjects = projects.length;
 
   const now = Date.now();
@@ -68,12 +70,20 @@ function StatsBar({ projects, myTasks }) {
     myTasks.flatMap(t => (t.assignees ?? []).map(a => a.id))
   ).size;
 
+  const barRef = useRef(null);
+  useEffect(() => {
+    if (!barRef.current) return;
+    const tiles = barRef.current.querySelectorAll('.pm-stat-tile');
+    revealStagger(tiles, { delay: 80, fromY: 8 });
+  }, []);
+
   return (
-    <div className="pm-stats-bar">
+    <div className="pm-stats-bar pm-stats-bar-5col" ref={barRef}>
       <StatTile value={totalProjects}    label="Total Projects" />
       <StatTile value={tasksDueThisWeek} label="Tasks Due This Week" />
       <StatTile value={completionRate}   label="Completion Rate %" />
       <StatTile value={membersActive}    label="Members Active" />
+      <StatTile value={streakValue}      label="Day Streak"        variant="is-streak" />
     </div>
   );
 }
@@ -198,11 +208,18 @@ function AIInsightCards({ projects, tasks }) {
     return `${MONTHS_S[d.getMonth()]} ${d.getDate()}`;
   }
 
+  const insightRowRef = useRef(null);
+  useEffect(() => {
+    if (!insightRowRef.current) return;
+    const cards = insightRowRef.current.querySelectorAll('.pm-insight-card');
+    revealStagger(cards, { delay: 70, fromY: 10 });
+  }, []);
+
   return (
-    <div className="pm-insight-row pm-project-grid-wrap">
+    <div ref={insightRowRef} className="pm-insight-row pm-project-grid-wrap">
 
       {/* Card 1: Most Blocked */}
-      <div className="pm-insight-card" style={{ borderLeftColor: mostBlocked?.count > 0 ? '#e17055' : 'var(--pm-border)' }}>
+      <div className="pm-insight-card pm-card--liftable" style={{ borderLeftColor: mostBlocked?.count > 0 ? '#e17055' : 'var(--pm-border)' }}>
         <div className="pm-insight-card-label">Most Blocked</div>
         <div className="pm-insight-card-value">
           {mostBlocked
@@ -216,7 +233,7 @@ function AIInsightCards({ projects, tasks }) {
       </div>
 
       {/* Card 2: Upcoming Deadline */}
-      <div className="pm-insight-card" style={{ borderLeftColor: upcomingDeadline ? 'var(--pm-accent-amber)' : 'var(--pm-border)' }}>
+      <div className="pm-insight-card pm-card--liftable" style={{ borderLeftColor: upcomingDeadline ? 'var(--pm-accent-amber)' : 'var(--pm-border)' }}>
         <div className="pm-insight-card-label">Upcoming Deadline</div>
         <div className="pm-insight-card-value">
           {upcomingDeadline ? fmtDate(upcomingDeadline.dueDate) : 'Nothing due soon'}
@@ -227,7 +244,7 @@ function AIInsightCards({ projects, tasks }) {
       </div>
 
       {/* Card 3: Velocity */}
-      <div className="pm-insight-card" style={{ borderLeftColor: velocityTrend.accent }}>
+      <div className="pm-insight-card pm-card--liftable" style={{ borderLeftColor: velocityTrend.accent }}>
         <div className="pm-insight-card-label">Velocity Trend</div>
         <div className="pm-insight-card-value">{velocityTrend.label}</div>
         <div className="pm-insight-card-sub">{velocityTrend.sub}</div>
@@ -1493,6 +1510,7 @@ export default function Dashboard() {
   return (
     <div className="clubpm-app cpm-dashboard-root">
       <StatsBar projects={projects} myTasks={myTasks} />
+      <DailyQuestsWidget />
       <AIInsightCards projects={projects} tasks={myTasks} />
       <GithubActivityWidget />
       <UpcomingEventsWidget events={upcomingEvents} loading={eventsLoading} />
@@ -1505,6 +1523,10 @@ export default function Dashboard() {
         />
         <AgendaPanel tasks={myTasks} onProgressChange={handleProgressChange} />
       </div>
+
+      {/* Leaderboard remains on the Dashboard. Pending rewards + reward
+          config moved to /clubpm/admin. */}
+      <LeaderboardPanel />
     </div>
   );
 }

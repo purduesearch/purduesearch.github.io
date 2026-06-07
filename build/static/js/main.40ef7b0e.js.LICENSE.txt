@@ -1,4 +1,13 @@
 /*!
+ * @pixiv/three-vrm v3.5.3
+ * VRM file loader for three.js.
+ *
+ * Copyright (c) 2019-2026 pixiv Inc.
+ * @pixiv/three-vrm is distributed under MIT License
+ * https://github.com/pixiv/three-vrm/blob/release/LICENSE
+ */
+
+/*!
  * Determine if an object is a Buffer
  *
  * @author   Feross Aboukhadijeh <https://feross.org>
@@ -55,6 +64,26 @@ PERFORMANCE OF THIS SOFTWARE.
 ***************************************************************************** */
 
 /*! decimal.js-light v2.5.1 https://github.com/MikeMcl/decimal.js-light/LICENCE */
+
+/**
+     * @license React
+     * react-reconciler.production.js
+     *
+     * Copyright (c) Meta Platforms, Inc. and affiliates.
+     *
+     * This source code is licensed under the MIT license found in the
+     * LICENSE file in the root directory of this source tree.
+     */
+
+/**
+   * @license React
+   * react-reconciler.development.js
+   *
+   * Copyright (c) Meta Platforms, Inc. and affiliates.
+   *
+   * This source code is licensed under the MIT license found in the
+   * LICENSE file in the root directory of this source tree.
+   */
 
 /**
  * @license
@@ -156,6 +185,38 @@ PERFORMANCE OF THIS SOFTWARE.
  * @license qrcode.react
  * Copyright (c) Paul O'Shannessy
  * SPDX-License-Identifier: ISC
+ */
+
+/**
+ * Anime.js - animation - ESM
+ * @version v4.4.1
+ * @license MIT
+ * @copyright 2026 - Julian Garnier
+ */
+
+/**
+ * Anime.js - core - ESM
+ * @version v4.4.1
+ * @license MIT
+ * @copyright 2026 - Julian Garnier
+ */
+
+/**
+ * Anime.js - engine - ESM
+ * @version v4.4.1
+ * @license MIT
+ * @copyright 2026 - Julian Garnier
+ */
+
+/**
+ * react-router v7.14.0
+ *
+ * Copyright (c) Remix Software Inc.
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE.md file in the root directory of this source tree.
+ *
+ * @license MIT
  */
 
 /** @license React v17.0.2
