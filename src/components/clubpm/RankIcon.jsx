@@ -4,13 +4,13 @@
 // For labeled pill badges (Leaderboard, Profile header), keep using RankBadge.
 
 const RANK_DEFAULT_SVG = {
-  NESTLING:   '/clubpm/badges/nestling.svg',
-  FLEDGLING:  '/clubpm/badges/fledgling.svg',
-  CADET:      '/clubpm/badges/cadet.svg',
-  SPECIALIST: '/clubpm/badges/specialist.svg',
-  PIONEER:    '/clubpm/badges/pioneer.svg',
-  COSMONAUT:  '/clubpm/badges/cosmonaut.svg',
-  CELESTIAL:  '/clubpm/badges/celestial.svg',
+  NESTLING:   '/clubpm/badges/rank/nestling.webp',
+  FLEDGLING:  '/clubpm/badges/rank/fledgling.webp',
+  CADET:      '/clubpm/badges/rank/cadet.webp',
+  SPECIALIST: '/clubpm/badges/rank/specialist.webp',
+  PIONEER:    '/clubpm/badges/rank/pioneer.webp',
+  COSMONAUT:  '/clubpm/badges/rank/cosmonaut.webp',
+  CELESTIAL:  '/clubpm/badges/rank/celestial.webp',
 };
 
 export { RANK_DEFAULT_SVG };
