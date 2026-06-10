@@ -19,6 +19,10 @@ function rateLimit(ip: string): boolean {
   }
   recent.push(now);
   ipLog.set(ip, recent);
+  // Prune expired entries to bound memory growth
+  for (const [k, timestamps] of ipLog) {
+    if (timestamps.every(t => now - t >= RATE_WINDOW_MS)) ipLog.delete(k);
+  }
   return true;
 }
 
@@ -72,7 +76,7 @@ publicRouter.post("/events/:eventId/rsvp", async (req: Request, res: Response) =
     if (authToken) {
       // Verify the HMAC-signed Bearer token issued at Slack OAuth time
       const { verifyBearerToken } = await import("./auth.js");
-      const memberId = verifyBearerToken(authToken);
+      const memberId = await verifyBearerToken(authToken);
       if (!memberId) {
         res.status(401).json({ error: "Invalid or expired auth token" });
         return;

@@ -1,11 +1,12 @@
 import { Router, type Request, type Response } from "express";
 import { requireAuth } from "./auth.js";
 import { channelAuth } from "../middleware/channelAuth.js";
-import { getTaskPermissions } from "../middleware/taskAccess.js";
+import { getTaskPermissions, requireTaskEdit } from "../middleware/taskAccess.js";
+import { aiRateLimit } from "../middleware/aiRateLimit.js";
 import { updateTask, deleteTask, getTask, createSubtask, getSubtasks, addDependency, removeDependency, logTime, createTask } from "../services/taskService.js";
 import { logAuditEvent, diffObjects } from "../services/activityService.js";
 import type { TaskStatus, TaskProgress, Priority, NotificationType } from "@prisma/client";
-import { generateJson, generateJsonFromImage } from "../services/geminiService.js";
+import { generateJson, generateJsonFromImage, GeminiRateLimitError } from "../services/geminiService.js";
 import {
   duplicateDetectionPrompt, enrichTaskPrompt, deadlineSuggestionPrompt, nlToTaskPrompt, imageToTaskPrompt,
 } from "../utils/aiPrompts.js";
@@ -83,7 +84,7 @@ tasksRouter.get("/search", async (req: Request, res: Response) => {
 
 // ── POST /api/tasks/check-duplicates ────────────────────────
 
-tasksRouter.post("/check-duplicates", async (req: Request, res: Response) => {
+tasksRouter.post("/check-duplicates", requireAuth, aiRateLimit, async (req: Request, res: Response) => {
   try {
     const { title, description, projectId } = req.body as {
       title: string;
@@ -104,6 +105,7 @@ tasksRouter.post("/check-duplicates", async (req: Request, res: Response) => {
     const result = await generateJson(duplicateDetectionPrompt(title, description ?? "", existingTasks));
     res.json(result);
   } catch (error) {
+    if (error instanceof GeminiRateLimitError) { res.status(429).json({ error: "AI service busy — try again shortly" }); return; }
     console.error("Check duplicates error:", error);
     res.status(500).json({ error: "Failed to check for duplicates" });
   }
@@ -111,7 +113,7 @@ tasksRouter.post("/check-duplicates", async (req: Request, res: Response) => {
 
 // ── POST /api/tasks/create-from-nl ──────────────────────────
 
-tasksRouter.post("/create-from-nl", async (req: Request, res: Response) => {
+tasksRouter.post("/create-from-nl", requireAuth, aiRateLimit, async (req: Request, res: Response) => {
   try {
     const { input, projectId } = req.body as { input: string; projectId: string };
 
@@ -168,6 +170,7 @@ tasksRouter.post("/create-from-nl", async (req: Request, res: Response) => {
 
     res.status(201).json(task);
   } catch (error) {
+    if (error instanceof GeminiRateLimitError) { res.status(429).json({ error: "AI service busy — try again shortly" }); return; }
     console.error("Create from NL error:", error);
     res.status(500).json({ error: "Failed to create task from natural language" });
   }
@@ -175,7 +178,7 @@ tasksRouter.post("/create-from-nl", async (req: Request, res: Response) => {
 
 // ── POST /api/tasks/create-from-image ───────────────────────
 
-tasksRouter.post("/create-from-image", async (req: Request, res: Response) => {
+tasksRouter.post("/create-from-image", requireAuth, aiRateLimit, async (req: Request, res: Response) => {
   try {
     const { imageBase64, mimeType, projectId, userNote } = req.body as {
       imageBase64: string;
@@ -222,6 +225,7 @@ tasksRouter.post("/create-from-image", async (req: Request, res: Response) => {
 
     res.json({ task: createdTask, screenshotDescription: result.screenshotDescription });
   } catch (error) {
+    if (error instanceof GeminiRateLimitError) { res.status(429).json({ error: "AI service busy — try again shortly" }); return; }
     console.error("Create from image error:", error);
     res.status(500).json({ error: "Failed to create task from image" });
   }
@@ -230,6 +234,7 @@ tasksRouter.post("/create-from-image", async (req: Request, res: Response) => {
 // ── PATCH /api/tasks/:id ─────────────────────────────────────
 
 tasksRouter.patch("/:id", channelAuth, async (req: Request, res: Response) => {
+  const requestStartedAt = new Date();
   try {
     const taskId = req.params.id as string;
     const { title, description, status, progress, priority, dueDate, assigneeIds, tags, attachments, parentTaskId, blockingTaskIds } =
@@ -525,6 +530,34 @@ tasksRouter.patch("/:id", channelAuth, async (req: Request, res: Response) => {
     const responseBody: any = { ...task };
     if (actorReward) Object.assign(responseBody, actorReward);
     if (progressMilestones.length > 0) responseBody.progressMilestones = progressMilestones;
+
+    // Surface any achievements auto-unlocked during recordEvent so the client
+    // can fire RewardFlux + a celebration modal. Looks for unlocks since the
+    // task update started — recordEvent → evaluateAchievements → claimAchievement
+    // writes MemberAchievement rows with unlockedAt = now().
+    try {
+      const actorId = (req.session as any).memberId as string | undefined;
+      if (actorId) {
+        const recentUnlocks = await prismaClient.memberAchievement.findMany({
+          where: { memberId: actorId, unlockedAt: { gte: requestStartedAt } },
+          include: { challenge: { select: { name: true, description: true, iconClass: true, tier: true, xpReward: true, doubloonReward: true } } },
+        });
+        if (recentUnlocks.length > 0) {
+          responseBody.achievementUnlocks = recentUnlocks.map(u => ({
+            memberAchievementId: u.id,
+            name: u.challenge.name,
+            description: u.challenge.description,
+            iconClass: u.challenge.iconClass,
+            tier: u.challenge.tier,
+            xpReward: u.challenge.xpReward,
+            doubloonReward: u.challenge.doubloonReward,
+          }));
+        }
+      }
+    } catch (err) {
+      console.error("[challenge] achievement unlock surface:", err);
+    }
+
     res.json(responseBody);
   } catch (error) {
     console.error("Update task error:", error);
@@ -596,9 +629,11 @@ tasksRouter.get("/:id/comments", async (req: Request, res: Response) => {
         replies: {
           include: { author: true },
           orderBy: { createdAt: "asc" },
+          take: 200,
         },
       },
-      orderBy: { createdAt: "asc" },
+      orderBy: { createdAt: "desc" },
+      take: 200,
     });
     res.json(comments);
   } catch (error) {
@@ -636,7 +671,7 @@ tasksRouter.get("/:id/history", async (req: Request, res: Response) => {
 
 // ── POST /api/tasks/:id/comments ─────────────────────────────
 
-tasksRouter.post("/:id/comments", async (req: Request, res: Response) => {
+tasksRouter.post("/:id/comments", requireAuth, channelAuth, async (req: Request, res: Response) => {
   try {
     const taskId = req.params.id as string;
     const { content, parentId } = req.body as { content: string; parentId?: string };
@@ -927,7 +962,7 @@ tasksRouter.get("/:id/subtasks", async (req: Request, res: Response) => {
 
 // ── POST /api/tasks/:id/subtasks ─────────────────────────────
 
-tasksRouter.post("/:id/subtasks", async (req: Request, res: Response) => {
+tasksRouter.post("/:id/subtasks", requireAuth, requireTaskEdit, async (req: Request, res: Response) => {
   try {
     const { title, assigneeIds } = req.body as {
       title: string;
@@ -947,7 +982,7 @@ tasksRouter.post("/:id/subtasks", async (req: Request, res: Response) => {
 
 // ── POST /api/tasks/:id/dependencies ─────────────────────────
 
-tasksRouter.post("/:id/dependencies", async (req: Request, res: Response) => {
+tasksRouter.post("/:id/dependencies", requireAuth, requireTaskEdit, async (req: Request, res: Response) => {
   try {
     const { blockedById } = req.body as { blockedById: string };
     if (!blockedById) {
@@ -968,7 +1003,7 @@ tasksRouter.post("/:id/dependencies", async (req: Request, res: Response) => {
 
 // ── DELETE /api/tasks/:id/dependencies/:depId ────────────────
 
-tasksRouter.delete("/:id/dependencies/:depId", async (req: Request, res: Response) => {
+tasksRouter.delete("/:id/dependencies/:depId", requireAuth, requireTaskEdit, async (req: Request, res: Response) => {
   try {
     const result = await removeDependency(req.params.id as string, req.params.depId as string);
     res.json(result);
@@ -980,7 +1015,7 @@ tasksRouter.delete("/:id/dependencies/:depId", async (req: Request, res: Respons
 
 // ── POST /api/tasks/:id/time-logs ────────────────────────────
 
-tasksRouter.post("/:id/time-logs", async (req: Request, res: Response) => {
+tasksRouter.post("/:id/time-logs", requireAuth, requireTaskEdit, async (req: Request, res: Response) => {
   try {
     const taskId = req.params.id as string;
     const memberId = (req.session as any).memberId as string;
@@ -1023,6 +1058,7 @@ tasksRouter.get("/:id/time-logs", async (req: Request, res: Response) => {
       where: { taskId },
       include: { member: { select: { id: true, displayName: true } } },
       orderBy: { loggedAt: "desc" },
+      take: 200,
     });
     const totalMinutes = timeLogs.reduce((sum, l) => sum + l.minutes, 0);
     res.json({ timeLogs, totalMinutes });
@@ -1034,7 +1070,7 @@ tasksRouter.get("/:id/time-logs", async (req: Request, res: Response) => {
 
 // ── POST /api/tasks/:id/ai-enrich ───────────────────────────
 
-tasksRouter.post("/:id/ai-enrich", async (req: Request, res: Response) => {
+tasksRouter.post("/:id/ai-enrich", requireAuth, requireTaskEdit, aiRateLimit, async (req: Request, res: Response) => {
   try {
     const taskId = req.params.id as string;
     const { projectType } = req.body as { projectType?: string };
@@ -1061,6 +1097,7 @@ tasksRouter.post("/:id/ai-enrich", async (req: Request, res: Response) => {
 
     res.json({ ...updated, ...enriched });
   } catch (error) {
+    if (error instanceof GeminiRateLimitError) { res.status(429).json({ error: "AI service busy — try again shortly" }); return; }
     console.error("AI enrich error:", error);
     res.status(500).json({ error: "Failed to enrich task" });
   }
@@ -1068,7 +1105,7 @@ tasksRouter.post("/:id/ai-enrich", async (req: Request, res: Response) => {
 
 // ── POST /api/tasks/:id/suggest-deadline ────────────────────
 
-tasksRouter.post("/:id/suggest-deadline", async (req: Request, res: Response) => {
+tasksRouter.post("/:id/suggest-deadline", requireAuth, aiRateLimit, async (req: Request, res: Response) => {
   try {
     const taskId = req.params.id as string;
     const { sprintDays: _sprintDays } = req.body as { sprintDays?: number };
@@ -1119,6 +1156,7 @@ tasksRouter.post("/:id/suggest-deadline", async (req: Request, res: Response) =>
 
     res.json(result);
   } catch (error) {
+    if (error instanceof GeminiRateLimitError) { res.status(429).json({ error: "AI service busy — try again shortly" }); return; }
     console.error("Suggest deadline error:", error);
     res.status(500).json({ error: "Failed to suggest deadline" });
   }

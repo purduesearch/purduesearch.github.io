@@ -7,6 +7,8 @@ import fs from "node:fs/promises";
 import { Router, type Request, type Response } from "express";
 import multer from "multer";
 import { requireAuth } from "./auth.js";
+import { aiRateLimit } from "../middleware/aiRateLimit.js";
+import { GeminiRateLimitError } from "../services/geminiService.js";
 import {
   extractFeaturesFromImage,
   getAvatarConfig,
@@ -106,7 +108,7 @@ avatarRouter.post(
 // ── POST /api/avatar/extract-features ────────────────────────
 // Body: { imageBase64: string, mimeType?: "image/png"|"image/jpeg"|"image/webp" }
 
-avatarRouter.post("/extract-features", async (req: Request, res: Response) => {
+avatarRouter.post("/extract-features", aiRateLimit, async (req: Request, res: Response) => {
   try {
     const { imageBase64, mimeType } = req.body as { imageBase64: string; mimeType?: string };
     if (!imageBase64) {
@@ -129,6 +131,7 @@ avatarRouter.post("/extract-features", async (req: Request, res: Response) => {
     }
     res.json(features);
   } catch (err: any) {
+    if (err instanceof GeminiRateLimitError) { res.status(429).json({ error: "AI service busy — try again shortly" }); return; }
     console.error("Extract avatar features error:", err);
     res.status(500).json({ error: err.message ?? "Extraction failed" });
   }

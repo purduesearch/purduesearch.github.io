@@ -1,5 +1,6 @@
 import React from "react";
 import AvatarPortrait from "./avatar/AvatarPortrait";
+import RankIcon from "./RankIcon";
 
 const SIZES = {
   xs: { px: 18, text: 7,  ring: 1 },
@@ -8,8 +9,9 @@ const SIZES = {
   lg: { px: 48, text: 14, ring: 2 },
 };
 
-export default function MemberBadge({ member, size = "md", border, nameFrame }) {
+export default function MemberBadge({ member, size = "md", border, nameFrame, showRank = false, rankSize }) {
   const s = SIZES[size] ?? SIZES.md;
+  const resolvedRankSize = rankSize ?? Math.max(12, Math.round(s.px * 0.45));
 
   const avatar = (
     <AvatarPortrait
@@ -26,6 +28,11 @@ export default function MemberBadge({ member, size = "md", border, nameFrame }) 
           {avatar}
         </div>
       ) : avatar}
+      {showRank && member?.rank ? (
+        <span className="cpm-member-badge-rank-overlay" aria-hidden="true">
+          <RankIcon member={member} size={resolvedRankSize} />
+        </span>
+      ) : null}
       {/* Tooltip */}
       <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 rounded-md bg-[var(--clubpm-surface-400)] text-[var(--clubpm-text-primary)] text-[10px] font-medium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
         {member.displayName}

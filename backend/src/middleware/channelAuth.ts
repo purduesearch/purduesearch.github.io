@@ -60,7 +60,6 @@ export async function channelAuth(
     next();
   } catch (err) {
     console.error("channelAuth middleware error:", err);
-    // Fail-open on Slack API errors to avoid blocking legitimate users
-    next();
+    res.status(503).json({ error: "Authorization check unavailable" });
   }
 }

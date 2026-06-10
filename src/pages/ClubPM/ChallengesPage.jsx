@@ -9,6 +9,7 @@ import {
 import ChallengeCard from '../../components/clubpm/challenges/ChallengeCard.jsx';
 import AchievementCard from '../../components/clubpm/challenges/AchievementCard.jsx';
 import RewardRollModal from '../../components/clubpm/challenges/RewardRollModal.jsx';
+import StreakHubSection from '../../components/clubpm/StreakHubSection.jsx';
 
 // The API returns ActiveChallenge objects that are already flat (no nested
 // .challenge sub-object). weekly and monthly are single objects, not arrays.
@@ -101,6 +102,8 @@ export default function ChallengesPage() {
           </span>
         </div>
       </div>
+
+      <StreakHubSection />
 
       <div className="challenges-tabs">
         {TABS.map(t => (

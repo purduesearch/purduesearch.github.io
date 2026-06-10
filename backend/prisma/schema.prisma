@@ -208,7 +208,8 @@ model Member {
   // "fill from where you left off" transition + pop recent contributor avatars.
   lastSeenProgress Json?
 
-  createdAt DateTime @default(now())
+  tokenVersion Int      @default(0)
+  createdAt    DateTime @default(now())
 }
 
 model Project {
@@ -1159,6 +1160,10 @@ model DailyActivity {
   date          DateTime // UTC midnight of the activity day
   actionCount   Int      @default(0)
   firstActionAt DateTime @default(now())
+  // True if this row represents a day covered by a Streak Freeze instead of
+  // real activity. actionCount stays 0; the row exists so the heatmap can
+  // mark frozen days visually distinct from both "kept" days and resets.
+  wasFrozen     Boolean  @default(false)
 
   @@unique([memberId, date])
   @@index([memberId, date])

@@ -12,6 +12,8 @@ import AvatarPortrait from './avatar/AvatarPortrait';
 import RankIcon from './RankIcon';
 import CosmeticUnlockModal from './CosmeticUnlockModal';
 import QuestCompleteToast from './QuestCompleteToast';
+import RewardQueuedToast from './RewardQueuedToast';
+import AchievementUnlockListener from './AchievementUnlockListener';
 import StreakBadge from './StreakBadge';
 import RankUpModal from './celebrate/RankUpModal';
 import StreakMilestoneModal from './celebrate/StreakMilestoneModal';
@@ -532,6 +534,8 @@ export default function AppShell({ children }) {
       <RewardFlux />
       <CosmeticUnlockModal />
       <QuestCompleteToast />
+      <RewardQueuedToast />
+      <AchievementUnlockListener />
     </div>
   );
 }

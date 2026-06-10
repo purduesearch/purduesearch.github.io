@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import { animate, spring, pulseGlow, prefersReducedMotion, revealStagger } from '../../clubpm/anim/motion';
 import { burstAt } from './celebrate/confetti';
 import useStreakWatcher from '../../hooks/useStreakWatcher';
+import RankIcon from './RankIcon';
 
 const COLUMNS = [
   { id: 'TODO',        label: 'Not Started', color: 'var(--pm-text-secondary)' },
@@ -92,11 +93,19 @@ function KanbanCard({ task, index, onClick }) {
             ) : <span />}
             <div className="pm-kanban-avatars">
               {assignees.slice(0, 3).map((a, i) => (
-                a.avatarUrl
-                  ? <img key={a.id} src={a.avatarUrl} alt="" className="pm-kanban-avatar" style={{ zIndex: 3 - i }} />
-                  : <div key={a.id} className="pm-kanban-avatar pm-kanban-avatar-initials" style={{ zIndex: 3 - i }}>
-                      {(a.displayName ?? '?').slice(0, 2).toUpperCase()}
-                    </div>
+                <span key={a.id} className="pm-kanban-avatar-wrap" style={{ zIndex: 3 - i }}>
+                  {a.avatarUrl
+                    ? <img src={a.avatarUrl} alt="" className="pm-kanban-avatar" />
+                    : <div className="pm-kanban-avatar pm-kanban-avatar-initials">
+                        {(a.displayName ?? '?').slice(0, 2).toUpperCase()}
+                      </div>
+                  }
+                  {a.rank ? (
+                    <span className="pm-kanban-avatar-rank" aria-hidden="true">
+                      <RankIcon member={a} size={12} />
+                    </span>
+                  ) : null}
+                </span>
               ))}
             </div>
           </div>

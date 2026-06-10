@@ -113,6 +113,13 @@ export async function extendStreak(memberId: string): Promise<ExtendResult> {
         freezeConsumed = true;
         freezesUsed   += 1;
         currentStreak  = previousStreak + 1;
+        // Mark the missed day (yesterday) as frozen so the heatmap can show it.
+        const frozenDay = new Date(today.getTime() - MS_PER_DAY);
+        await prisma.dailyActivity.upsert({
+          where:  { memberId_date: { memberId, date: frozenDay } },
+          create: { memberId, date: frozenDay, actionCount: 0, wasFrozen: true },
+          update: { wasFrozen: true },
+        }).catch(err => console.error("[streak] mark frozen day:", err));
       } else {
         currentStreak = 1;
         freezesUsed   = 0;
@@ -186,7 +193,7 @@ export async function getActivityHistory(memberId: string, days: number = 30) {
   const rows = await prisma.dailyActivity.findMany({
     where: { memberId, date: { gte: since } },
     orderBy: { date: "asc" },
-    select: { date: true, actionCount: true },
+    select: { date: true, actionCount: true, wasFrozen: true },
   });
   return rows;
 }
@@ -238,6 +245,12 @@ export async function dailyResetSweep(): Promise<{ scanned: number; frozen: numb
             freezesUsedThisStreak: s.freezesUsedThisStreak + 1,
           },
         });
+        // Mark the frozen day so the heatmap reflects it.
+        await prisma.dailyActivity.upsert({
+          where:  { memberId_date: { memberId: s.memberId, date: advanced } },
+          create: { memberId: s.memberId, date: advanced, actionCount: 0, wasFrozen: true },
+          update: { wasFrozen: true },
+        }).catch(err => console.error("[streak] mark frozen day (sweep):", err));
         frozen += 1;
         continue;
       }

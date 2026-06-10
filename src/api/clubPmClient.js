@@ -43,10 +43,30 @@ export function setNextRewardOrigin(x, y, ttlMs = 1500) {
 
 function dispatchRewardSignals(payload) {
   if (!payload || typeof payload !== "object") return;
-  const xpDelta = Number(payload.xpDelta ?? 0);
-  const doubloonsDelta = Number(payload.doubloonsDelta ?? 0);
+  // Achievement auto-unlocks are surfaced by the task PATCH endpoint when the
+  // server granted their XP/DB silently. Roll those into the visible delta so
+  // RewardFlux fires, then emit a separate event so the modal listener can pop.
+  const achievementUnlocks = Array.isArray(payload.achievementUnlocks) ? payload.achievementUnlocks : [];
+  const achXp = achievementUnlocks.reduce((s, a) => s + Number(a?.xpReward ?? 0), 0);
+  const achDb = achievementUnlocks.reduce((s, a) => s + Number(a?.doubloonReward ?? 0), 0);
+  const xpDelta = Number(payload.xpDelta ?? 0) + achXp;
+  const doubloonsDelta = Number(payload.doubloonsDelta ?? 0) + achDb;
   const rankAfter = payload.rankAfter ?? null;
   const rankBefore = payload.rankBefore ?? null;
+
+  // Queued reward (admin-gated task completion) — no delta, but still surface
+  // a confirmation toast so the user knows the action was registered.
+  if (payload.queued === true && payload.taskTitle) {
+    window.dispatchEvent(new CustomEvent("clubpm:reward-queued", {
+      detail: { taskTitle: payload.taskTitle },
+    }));
+  }
+
+  for (const unlock of achievementUnlocks) {
+    if (!unlock?.name) continue;
+    window.dispatchEvent(new CustomEvent("clubpm:achievement-unlocked", { detail: unlock }));
+  }
+
   if (xpDelta || doubloonsDelta) {
     const origin = _nextRewardOrigin;
     _nextRewardOrigin = null;
