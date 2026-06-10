@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { get, post, patch, del } from "../../api/clubPmClient";
+import OrbitLoader from "../OrbitLoader";
 import { pulseBadge } from "../../clubpm/anim/motion";
 
 // ── Health config ────────────────────────────────────────────
@@ -473,7 +474,7 @@ export default function MilestonePanel({ projectId, project, onRefresh, previous
 
   if (loading) return (
     <div className="cpm-milestone-loading">
-      <div className="clubpm-spinner" />
+      <OrbitLoader size={80} />
     </div>
   );
 

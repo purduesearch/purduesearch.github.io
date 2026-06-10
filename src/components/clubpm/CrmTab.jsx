@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
+import OrbitLoader from '../OrbitLoader';
 import { get, post, patch, del } from '../../api/clubPmClient';
 import toast from 'react-hot-toast';
 
@@ -365,7 +366,7 @@ function ContactDrawer({ contactId, onClose, onUpdated, isAdmin, currentMemberId
   if (loading) return (
     <div className="pm-crm-drawer-overlay" onClick={onClose}>
       <div className="pm-crm-drawer" onClick={e => e.stopPropagation()}>
-        <div className="pm-outreach-loading"><div className="pm-outreach-spinner" /></div>
+        <div className="pm-outreach-loading"><OrbitLoader size={72} /></div>
       </div>
     </div>
   );
@@ -836,7 +837,7 @@ export default function CrmTab({ isAdmin, currentMemberId, campaigns = [] }) {
       {/* Kanban */}
       {loading ? (
         <div className="pm-outreach-loading" style={{ minHeight: 200 }}>
-          <div className="pm-outreach-spinner" />
+          <OrbitLoader size={72} />
         </div>
       ) : (
         <DragDropContext onDragEnd={handleDragEnd}>

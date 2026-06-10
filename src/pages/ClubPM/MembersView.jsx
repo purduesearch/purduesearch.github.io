@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import OrbitLoader from '../../components/OrbitLoader';
 import { Link } from 'react-router-dom';
 import { get, post } from '../../api/clubPmClient';
 import { useClubPmAuth } from '../../clubpm/ClubPmAuth';
@@ -456,7 +457,7 @@ export default function MembersView() {
       </div>
 
       {loading ? (
-        <div className="pm-spinner-wrap"><div className="pm-spinner" /></div>
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '48px 0' }}><OrbitLoader size={80} /></div>
       ) : filtered.length === 0 ? (
         <div className="pm-empty-state">No members found.</div>
       ) : (

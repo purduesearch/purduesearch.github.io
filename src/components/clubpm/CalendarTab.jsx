@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { get, post } from '../../api/clubPmClient';
+import OrbitLoader from '../OrbitLoader';
 import toast from 'react-hot-toast';
 
 // ── Constants ─────────────────────────────────────────────────
@@ -315,7 +316,7 @@ function AiAutoFillPanel({ anchor, view, onDraftsCreated, onClose }) {
 
       {loading && (
         <div className="pm-outreach-loading" style={{ minHeight: 80 }}>
-          <div className="pm-outreach-spinner" />
+          <OrbitLoader size={48} />
           <span style={{ marginLeft: 10, fontSize: 13, color: 'var(--clubpm-text-secondary)' }}>
             Gemini is thinking…
           </span>
@@ -529,7 +530,7 @@ export default function CalendarTab({ campaigns = [] }) {
       {/* Grid */}
       {loading ? (
         <div className="pm-outreach-loading" style={{ minHeight: 300 }}>
-          <div className="pm-outreach-spinner" />
+          <OrbitLoader size={80} />
         </div>
       ) : view === 'month' ? (
         <MonthGrid

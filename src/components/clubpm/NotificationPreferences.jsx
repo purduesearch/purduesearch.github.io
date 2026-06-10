@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { get, patch } from '../../api/clubPmClient';
+import OrbitLoader from '../OrbitLoader';
 
 // ── Constants ────────────────────────────────────────────────
 
@@ -104,7 +105,7 @@ export default function NotificationPreferences() {
   if (loading) {
     return (
       <div className="pm-prefs-page">
-        <div className="pm-spinner-wrap"><div className="pm-spinner" /></div>
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '40px 0' }}><OrbitLoader size={80} /></div>
       </div>
     );
   }

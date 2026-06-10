@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { get, post, patch, del } from '../../api/clubPmClient';
+import OrbitLoader from '../OrbitLoader';
 import toast from 'react-hot-toast';
 
 // ── Constants ─────────────────────────────────────────────────
@@ -504,7 +505,7 @@ function CampaignDetailDrawer({ campaign, onClose, onEdit, isAdmin }) {
         <div className="pm-campaign-drawer-body">
           {activeTab === 'content' && (
             loadingSubs ? (
-              <div className="pm-outreach-loading"><div className="pm-outreach-spinner" /></div>
+              <div className="pm-outreach-loading"><OrbitLoader size={72} /></div>
             ) : submissions.length === 0 ? (
               <div className="pm-outreach-empty">
                 <i className="fas fa-inbox" aria-hidden="true" />
@@ -530,7 +531,7 @@ function CampaignDetailDrawer({ campaign, onClose, onEdit, isAdmin }) {
 
           {activeTab === 'stats' && (
             loadingProg ? (
-              <div className="pm-outreach-loading"><div className="pm-outreach-spinner" /></div>
+              <div className="pm-outreach-loading"><OrbitLoader size={72} /></div>
             ) : (
               <div className="pm-campaign-stats-grid">
                 <div className="pm-campaign-stat-card">
@@ -720,7 +721,7 @@ export default function CampaignsTab({ isAdmin }) {
   };
 
   if (loading) {
-    return <div className="pm-outreach-loading"><div className="pm-outreach-spinner" /></div>;
+    return <div className="pm-outreach-loading"><OrbitLoader size={72} /></div>;
   }
 
   return (

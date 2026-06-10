@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { revealStagger } from '../../clubpm/anim/motion';
+import OrbitLoader from '../../components/OrbitLoader';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { get, post, patch, del } from '../../api/clubPmClient';
 import { useClubPmAuth } from '../../clubpm/ClubPmAuth';
@@ -636,7 +637,7 @@ function RecommendationsTab({ submissions }) {
       </div>
 
       {loading ? (
-        <div className="pm-outreach-loading"><div className="pm-outreach-spinner" /></div>
+        <div className="pm-outreach-loading"><OrbitLoader size={72} /></div>
       ) : (
         <>
           {/* Recent Milestones */}

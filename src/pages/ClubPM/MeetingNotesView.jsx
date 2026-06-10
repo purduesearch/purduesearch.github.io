@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { get, post } from '../../api/clubPmClient';
+import OrbitLoader from '../../components/OrbitLoader';
 import { useClubPmAuth } from '../../clubpm/ClubPmAuth';
 
 // ── Helpers ───────────────────────────────────────────────────
@@ -364,7 +365,7 @@ export default function MeetingNotesView() {
 
           {loading && (
             <div className="pm-meeting-notes-loading">
-              <div className="pm-spinner" aria-label="Loading" />
+              <OrbitLoader size={56} />
               <span className="pm-meeting-notes-loading-text">Generating summary…</span>
             </div>
           )}

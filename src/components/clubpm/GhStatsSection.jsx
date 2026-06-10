@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { get } from '../../api/clubPmClient';
+import OrbitLoader from '../OrbitLoader';
 
 export default function GhStatsSection({ memberId }) {
   const [projects, setProjects] = useState([]);
@@ -38,7 +39,7 @@ export default function GhStatsSection({ memberId }) {
           {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
         </select>
       )}
-      {loading && <div className="pm-spinner-wrap" style={{ padding: '8px 0' }}><div className="pm-spinner" /></div>}
+      {loading && <div style={{ display: 'flex', justifyContent: 'center', padding: '8px 0' }}><OrbitLoader size={48} /></div>}
       {stats && !loading && (
         <div className="pm-gh-stats-row">
           <div className="pm-gh-stat-tile">

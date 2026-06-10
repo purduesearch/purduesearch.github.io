@@ -11,13 +11,4 @@ root.render(
   </React.StrictMode>
 );
 
-// Dismiss orbit loader after React's first paint
-requestAnimationFrame(() => requestAnimationFrame(() => {
-  const loader = document.getElementById('orbit-loader');
-  if (loader) {
-    loader.classList.add('fade-out');
-    setTimeout(() => loader.remove(), 650);
-  }
-}));
-
 reportWebVitals();

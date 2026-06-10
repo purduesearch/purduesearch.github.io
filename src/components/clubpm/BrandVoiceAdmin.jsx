@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { get, post, patch, del } from '../../api/clubPmClient';
+import OrbitLoader from '../OrbitLoader';
 import toast from 'react-hot-toast';
 
 // ── VoiceForm ─────────────────────────────────────────────────
@@ -180,7 +181,7 @@ export default function BrandVoiceAdmin({ isAdmin }) {
   };
 
   if (loading) {
-    return <div className="pm-outreach-loading"><div className="pm-outreach-spinner" /></div>;
+    return <div className="pm-outreach-loading"><OrbitLoader size={72} /></div>;
   }
 
   return (

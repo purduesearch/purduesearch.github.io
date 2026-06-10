@@ -20311,3 +20311,141 @@ i.fa-coins { color: #ffd96b; }
   text-align: right;
 }
 
+/* === ORBIT LOADER =========================================================
+   Scales from a 200px inner canvas using transform: scale() on .ol-r-inner.
+   Use the OrbitLoader React component — do not author these classes manually.
+   ========================================================================== */
+
+.ol-r-outer {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+  overflow: visible;
+}
+
+.ol-r-inner {
+  flex-shrink: 0;
+}
+
+.ol-r-wrap {
+  position: relative;
+  width: 200px;
+  height: 200px;
+}
+
+.ol-r-whirl {
+  position: absolute;
+  inset: -6%;
+  border-radius: 50%;
+  background: conic-gradient(
+    from 0deg,
+    rgba(255,255,255,0) 0deg,
+    rgba(255,255,255,0) 200deg,
+    rgba(255,255,255,0.10) 300deg,
+    rgba(255,255,255,0.35) 350deg,
+    rgba(255,255,255,0) 360deg
+  );
+  -webkit-mask: radial-gradient(closest-side, transparent 64%, #000 70%, #000 98%, transparent 100%);
+          mask: radial-gradient(closest-side, transparent 64%, #000 70%, #000 98%, transparent 100%);
+  animation: ol-r-spin 2.6s linear infinite;
+}
+.ol-r-whirl-two {
+  inset: 4%;
+  background: conic-gradient(
+    from 0deg,
+    rgba(255,255,255,0) 0deg,
+    rgba(255,255,255,0) 230deg,
+    rgba(255,255,255,0.06) 320deg,
+    rgba(255,255,255,0.22) 358deg,
+    rgba(255,255,255,0) 360deg
+  );
+  -webkit-mask: radial-gradient(closest-side, transparent 52%, #000 60%, #000 97%, transparent 100%);
+          mask: radial-gradient(closest-side, transparent 52%, #000 60%, #000 97%, transparent 100%);
+  animation: ol-r-spin 2.0s linear infinite;
+}
+
+.ol-r-sun {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 24px;
+  height: 24px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 50%, #fff 0%, #fff 55%, rgba(255,255,255,0.85) 100%);
+  box-shadow:
+    0 0 6px  rgba(255,255,255,0.9),
+    0 0 16px rgba(255,255,255,0.55),
+    0 0 30px rgba(255,255,255,0.3);
+  animation: ol-r-sun-pulse 2.8s ease-in-out infinite;
+}
+
+.ol-r-orbit {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 50%;
+  animation-name: ol-r-spin-orbit;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+.ol-r-orbit::before {
+  content: "";
+  position: absolute;
+  top: -1px;
+  left: 50%;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 6px rgba(255,255,255,0.85);
+  transform: translate(-50%, -50%);
+}
+
+.ol-r-o1 { width: 50px;  height: 50px;  animation-duration: 1.5s; }
+.ol-r-o1::before { width: 6px;  height: 6px; }
+.ol-r-o2 { width: 80px;  height: 80px;  animation-duration: 2.4s; }
+.ol-r-o2::before { width: 9px;  height: 9px; }
+.ol-r-o3 { width: 112px; height: 112px; animation-duration: 3.4s; }
+.ol-r-o3::before { width: 5px;  height: 5px; }
+.ol-r-o4 { width: 158px; height: 158px; animation-duration: 5.0s; }
+.ol-r-o4::before { width: 8px;  height: 8px; }
+.ol-r-o5 { width: 186px; height: 186px; animation-duration: 7.0s; }
+.ol-r-o5::before { width: 4px;  height: 4px; }
+
+.ol-r-belt {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 100%;
+  height: 100%;
+  animation-name: ol-r-spin-orbit;
+  animation-duration: 14s;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+.ol-r-asteroid {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.75);
+}
+
+@keyframes ol-r-spin { to { transform: rotate(360deg); } }
+@keyframes ol-r-spin-orbit {
+  from { transform: translate(-50%, -50%) rotate(0deg); }
+  to   { transform: translate(-50%, -50%) rotate(360deg); }
+}
+@keyframes ol-r-sun-pulse {
+  0%, 100% {
+    box-shadow: 0 0 6px rgba(255,255,255,0.9), 0 0 16px rgba(255,255,255,0.55), 0 0 30px rgba(255,255,255,0.3);
+  }
+  50% {
+    box-shadow: 0 0 9px rgba(255,255,255,1), 0 0 22px rgba(255,255,255,0.7), 0 0 40px rgba(255,255,255,0.4);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ol-r-whirl, .ol-r-orbit, .ol-r-sun, .ol-r-belt { animation-duration: 8s; }
+}
+

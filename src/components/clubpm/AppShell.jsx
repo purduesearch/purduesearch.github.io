@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import OrbitLoader from '../OrbitLoader';
 import { useLocation, Link, Navigate, useNavigate } from 'react-router-dom';
 import { useClubPmAuth } from '../../clubpm/ClubPmAuth';
 import { get, post } from '../../api/clubPmClient';
@@ -291,7 +292,7 @@ export default function AppShell({ children }) {
   if (loading) {
     return (
       <div className="clubpm-app" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: 'var(--pm-bg-base)' }}>
-        <div className="cpm-spinner" />
+        <OrbitLoader size={120} />
       </div>
     );
   }

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { formatDistanceToNow } from "date-fns";
 import { get } from "../../api/clubPmClient";
+import OrbitLoader from "../OrbitLoader";
 
 // ── Filter chip config ────────────────────────────────────────
 
@@ -37,7 +38,7 @@ function Avatar({ member }) {
 // ── Spinner ───────────────────────────────────────────────────
 
 function Spinner() {
-  return <div className="pm-activity-spinner" aria-label="Loading" />;
+  return <OrbitLoader size={56} />;
 }
 
 // ── Activity item ─────────────────────────────────────────────

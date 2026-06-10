@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { get, post, del } from '../../api/clubPmClient';
+import OrbitLoader from '../OrbitLoader';
 import toast from 'react-hot-toast';
 
 const KIND_OPTIONS = ['IMAGE', 'VIDEO', 'GRAPHIC', 'LOGO', 'DOC'];
@@ -262,7 +263,7 @@ export default function AssetPicker({
         {/* Grid */}
         <div className="pm-asset-grid-wrap">
           {loading ? (
-            <div className="pm-outreach-loading"><div className="pm-outreach-spinner" /></div>
+            <div className="pm-outreach-loading"><OrbitLoader size={72} /></div>
           ) : assets.length === 0 ? (
             <div className="pm-outreach-empty">
               <i className="fas fa-photo-video" aria-hidden="true" />

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+import OrbitLoader from "../OrbitLoader";
 import { formatDistanceToNow, isToday, isYesterday, isThisWeek } from "date-fns";
 import { get, post, patch, del } from "../../api/clubPmClient";
 
@@ -315,7 +316,7 @@ export default function NotificationCenter() {
       {/* Content */}
       {loading ? (
         <div style={{ display: "flex", justifyContent: "center", padding: "48px 0" }}>
-          <div className="cpm-spinner" />
+          <OrbitLoader size={72} />
         </div>
       ) : dateGroups.length === 0 ? (
         <div className="pm-notif-empty" style={{ padding: "64px 16px" }}>
@@ -352,7 +353,7 @@ export default function NotificationCenter() {
 
           {loadingMore && (
             <div style={{ display: "flex", justifyContent: "center", padding: "16px 0" }}>
-              <div className="cpm-spinner" />
+              <OrbitLoader size={48} />
             </div>
           )}
         </div>
