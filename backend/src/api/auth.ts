@@ -144,6 +144,8 @@ authRouter.get("/slack", (req: Request, res: Response) => {
   url.searchParams.set("user_scope", scopes);
   url.searchParams.set("redirect_uri", redirectUri);
   if (state) url.searchParams.set("state", state);
+  // Required for non-distributed apps: tells Slack which workspace to authorize against.
+  if (process.env.SLACK_TEAM_ID) url.searchParams.set("team", process.env.SLACK_TEAM_ID);
 
   res.redirect(url.toString());
 });
