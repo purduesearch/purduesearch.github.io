@@ -1,4 +1,7 @@
 import "dotenv/config";
+import "./config/env.js"; // validate env vars at startup before binding
+import { getSessionSecret } from "./config/env.js";
+import helmet from "helmet";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import express from "express";
@@ -45,6 +48,8 @@ import { challengesRouter } from "./api/challenges.js";
 const app = express();
 const PORT = parseInt(process.env.PORT ?? "3000", 10);
 
+app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
+
 // Trust the first proxy (Nginx) so req.secure reflects HTTPS correctly.
 // Required for express-session to set Secure cookies behind a reverse proxy.
 app.set("trust proxy", 1);
@@ -72,7 +77,7 @@ app.use(
       conString: process.env.DATABASE_URL,
       createTableIfMissing: true,
     }),
-    secret: process.env.SESSION_SECRET ?? "dev-secret-change-me",
+    secret: getSessionSecret(),
     resave: false,
     saveUninitialized: false,
     cookie: {

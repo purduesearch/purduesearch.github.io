@@ -8,7 +8,7 @@ const KIND_ICON = {
   NOTHING:     'fa-ghost',
 };
 
-export default function RewardRollModal({ rolls = [], xpDelta = 0, doubloonsDelta = 0, onClose }) {
+export default function RewardRollModal({ rolls = [], xpDelta = 0, doubloonsDelta = 0, onClose, title = 'Challenge Complete!', subtitle }) {
   const modalRef = useRef(null);
 
   useEffect(() => {
@@ -44,8 +44,13 @@ export default function RewardRollModal({ rolls = [], xpDelta = 0, doubloonsDelt
       >
         <div className="reward-roll-title">
           <i className="fas fa-gift" aria-hidden="true" style={{ color: 'var(--pm-accent-teal)', marginRight: 8 }} />
-          Challenge Complete!
+          {title}
         </div>
+        {subtitle && (
+          <div className="reward-roll-subtitle" style={{ color: 'var(--pm-text-secondary)', fontSize: 13, marginBottom: 12 }}>
+            {subtitle}
+          </div>
+        )}
 
         <div className="reward-roll-items">
           {xpDelta > 0 && (

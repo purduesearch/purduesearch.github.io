@@ -13,11 +13,15 @@ import { logAuditEvent } from "./activityService.js";
 import { recordActivity } from "./streakService.js";
 import { createNotification } from "./notificationCrud.js";
 
-// Fire-and-forget streak activity hook — never throws into the caller.
-function tickStreak(memberId: string, source: Parameters<typeof recordActivity>[1]): void {
-  recordActivity(memberId, source).catch(err =>
-    console.error(`[streak] recordActivity ${source}:`, err)
-  );
+// Streak activity hook — never throws into the caller. Returns a Promise so
+// hot paths (e.g. handleTaskComplete) can await before responding, ensuring
+// the frontend's subsequent /api/members/:id/streak refetch sees the new value.
+async function tickStreak(memberId: string, source: Parameters<typeof recordActivity>[1]): Promise<void> {
+  try {
+    await recordActivity(memberId, source);
+  } catch (err) {
+    console.error(`[streak] recordActivity ${source}:`, err);
+  }
 }
 
 /** Multiply by the member's active XP boost, if any. Returns the boosted amount and the multiplier used. */
@@ -425,7 +429,7 @@ export async function handleTaskComplete(
         });
       }
     }
-    tickStreak(assignee.id, "TASK_COMPLETE");
+    await tickStreak(assignee.id, "TASK_COMPLETE");
 
     if (isActor) {
       actorSummary = {
@@ -460,7 +464,7 @@ const TIME_LOG_SINGLE_ADMIN_THRESHOLD_MIN = 120;
 
 export async function handleTimeLog(taskId: string, memberId: string, minutes: number): Promise<void> {
   const cfg = await prisma.rewardEventConfig.findUnique({ where: { eventType: "TIME_LOG_HOUR" } });
-  tickStreak(memberId, "TIME_LOG");
+  void tickStreak(memberId, "TIME_LOG");
   if (!cfg || !cfg.autoApprove) return; // time-log rewards are auto-approve by default
 
   // Large single logs are admin-reviewed (caller can fake "logged 10h").
@@ -514,7 +518,7 @@ export async function handleMilestoneComplete(milestoneId: string): Promise<void
     } else {
       await queuePendingReward(memberId, "MILESTONE_HIT", undefined, { milestoneId });
     }
-    tickStreak(memberId, "MILESTONE_COMPLETE");
+    void tickStreak(memberId, "MILESTONE_COMPLETE");
   }
 }
 
@@ -536,7 +540,7 @@ export async function handleKudosReceived(toMemberId: string, fromMemberId: stri
 }
 
 export async function handleBlogPostPublished(authorMemberId: string, submissionId: string): Promise<void> {
-  tickStreak(authorMemberId, "BLOG_POST_PUBLISHED");
+  void tickStreak(authorMemberId, "BLOG_POST_PUBLISHED");
   const cfg = await prisma.rewardEventConfig.findUnique({ where: { eventType: "BLOG_POST_PUBLISHED" } });
   if (!cfg) return;
   if (cfg.autoApprove) {

@@ -1,3 +1,4 @@
+import type { Request, Response, NextFunction } from "express";
 import { prisma } from "../db/prisma.js";
 
 /**
@@ -31,4 +32,17 @@ export async function getTaskPermissions(
     canEdit:   isAdmin || isCreator || isAssignee,
     canDelete: isAdmin || isCreator,
   };
+}
+
+export async function requireTaskEdit(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  const { canEdit } = await getTaskPermissions(req.memberId!, req.params.id as string);
+  if (!canEdit) {
+    res.status(403).json({ error: "You do not have permission to modify this task" });
+    return;
+  }
+  next();
 }

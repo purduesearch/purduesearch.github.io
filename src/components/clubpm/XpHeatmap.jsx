@@ -8,6 +8,7 @@ const CELL = 11;
 const GAP  = 2;
 const WEEKS = 52;
 const STREAK_STROKE = '#ff8c3a';
+const FROZEN_STROKE = '#5cb6ff';
 
 function intensityFor(xp) {
   if (xp <= 0)   return 0;
@@ -29,13 +30,18 @@ export default function XpHeatmap({ data = [], activity = [] }) {
   const xpLookup = new Map(data.map(d => [d.date, d.xp]));
 
   // Activity lookup — days when at least one action happened (streak kept).
+  // Frozen lookup — days with no activity but covered by a Streak Freeze.
   const activitySet = new Set();
+  const frozenSet = new Set();
   for (const row of activity) {
     if (!row?.date) continue;
     const dt = new Date(row.date);
     if (Number.isNaN(dt.getTime())) continue;
-    if ((row.actionCount ?? 0) > 0 || row.xp > 0) {
-      activitySet.add(isoDayKey(dt));
+    const key = isoDayKey(dt);
+    if (row.wasFrozen && (row.actionCount ?? 0) === 0) {
+      frozenSet.add(key);
+    } else if ((row.actionCount ?? 0) > 0 || row.xp > 0) {
+      activitySet.add(key);
     }
   }
 
@@ -47,6 +53,7 @@ export default function XpHeatmap({ data = [], activity = [] }) {
       const key = dt.toISOString().slice(0, 10);
       const xp  = xpLookup.get(key) ?? 0;
       const keptStreak = activitySet.has(key);
+      const frozen = frozenSet.has(key) && !keptStreak;
       cells.push({
         x: (WEEKS - 1 - w) * (CELL + GAP),
         y: d * (CELL + GAP),
@@ -54,6 +61,7 @@ export default function XpHeatmap({ data = [], activity = [] }) {
         intensity: intensityFor(xp),
         date: key,
         keptStreak,
+        frozen,
       });
     }
   }
@@ -68,24 +76,31 @@ export default function XpHeatmap({ data = [], activity = [] }) {
       role="img"
       aria-label="Daily activity over the past year"
     >
-      {cells.map(c => (
-        <rect
-          key={c.date}
-          className={`cpm-heatmap-cell${c.keptStreak ? ' cpm-heatmap-cell--kept' : ''}`}
-          data-intensity={c.intensity}
-          x={c.x}
-          y={c.y}
-          width={CELL}
-          height={CELL}
-          rx={2}
-          stroke={c.keptStreak ? STREAK_STROKE : 'none'}
-          strokeWidth={c.keptStreak ? 1.4 : 0}
-        >
-          <title>
-            {`${c.date}: ${c.xp} XP${c.keptStreak ? ' · streak kept' : ''}`}
-          </title>
-        </rect>
-      ))}
+      {cells.map(c => {
+        const strokeColor = c.keptStreak ? STREAK_STROKE : c.frozen ? FROZEN_STROKE : 'none';
+        const strokeWidth = (c.keptStreak || c.frozen) ? 1.4 : 0;
+        const titleSuffix = c.keptStreak ? ' · streak kept'
+          : c.frozen ? ' · streak frozen'
+          : '';
+        return (
+          <rect
+            key={c.date}
+            className={`cpm-heatmap-cell${c.keptStreak ? ' cpm-heatmap-cell--kept' : ''}${c.frozen ? ' cpm-heatmap-cell--frozen' : ''}`}
+            data-intensity={c.intensity}
+            x={c.x}
+            y={c.y}
+            width={CELL}
+            height={CELL}
+            rx={2}
+            stroke={strokeColor}
+            strokeWidth={strokeWidth}
+          >
+            <title>
+              {`${c.date}: ${c.xp} XP${titleSuffix}`}
+            </title>
+          </rect>
+        );
+      })}
     </svg>
   );
 }

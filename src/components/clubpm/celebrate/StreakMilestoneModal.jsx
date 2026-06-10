@@ -56,6 +56,11 @@ export default function StreakMilestoneModal({ milestone, onDismiss, freezeAward
   useEffect(() => {
     if (!milestone) return;
 
+    // Refresh the sidebar member info — a Streak Freeze may have just been
+    // awarded server-side at multiples of 30. Also lets any XP/DB display
+    // pulse alongside the celebration.
+    window.dispatchEvent(new CustomEvent("clubpm:member-updated"));
+
     if (!prefersReducedMotion()) {
       animate(backdropRef.current, { opacity: [0, 1], duration: 250 });
       animate(cardRef.current, {

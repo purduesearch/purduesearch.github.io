@@ -1,8 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useClubPmAuth } from '../../clubpm/ClubPmAuth';
 import { getStreak } from '../../api/clubPmClient';
 import { animate, spring, tweenNumber, prefersReducedMotion } from '../../clubpm/anim/motion';
-import { burstAt } from './celebrate/confetti';
+import { burstAt, bigBurst } from './celebrate/confetti';
 
 function formatRelative(date) {
   if (!date) return 'never';
@@ -14,6 +15,8 @@ function formatRelative(date) {
   return `${Math.floor(diffMs / day)} days ago`;
 }
 
+const SUB_MILESTONES = new Set([7, 14, 21]);
+
 export default function StreakBadge() {
   const { member } = useClubPmAuth();
   const [streak, setStreak] = useState(null);
@@ -21,7 +24,9 @@ export default function StreakBadge() {
   const flameRef = useRef(null);
   const countRef = useRef(null);
   const wrapRef  = useRef(null);
+  const plusOneRef = useRef(null);
   const prevStreakRef = useRef(0);
+  const extendedTodayRef = useRef(false);
 
   // Initial load
   useEffect(() => {
@@ -35,10 +40,7 @@ export default function StreakBadge() {
     return () => { cancelled = true; };
   }, [member?.id]);
 
-  // Single re-fetch + animate-on-extend handler, triggered by:
-  //   - the global 'clubpm-streak-changed' event (fired by useStreakWatcher)
-  //   - window focus / visibility change (backend is authoritative)
-  //   - a 60-second slow poll while the tab is visible
+  // Single re-fetch + animate-on-extend handler.
   useEffect(() => {
     if (!member?.id) return;
     const refresh = async () => {
@@ -54,7 +56,7 @@ export default function StreakBadge() {
               scale: [1, 1.4, 1],
               filter: [
                 'drop-shadow(0 0 0 var(--flame-glow))',
-                'drop-shadow(0 0 18px var(--flame-glow))',
+                'drop-shadow(0 0 22px var(--flame-glow))',
                 'drop-shadow(0 0 0 var(--flame-glow))',
               ],
               duration: 600,
@@ -62,7 +64,26 @@ export default function StreakBadge() {
             });
           }
           if (wrapRef.current) {
-            burstAt(wrapRef.current, { palette: 'streakExtend', intensity: 'small' });
+            const firstOfDay = !extendedTodayRef.current;
+            burstAt(wrapRef.current, {
+              palette: 'streakExtend',
+              intensity: firstOfDay ? 'normal' : 'small',
+            });
+            extendedTodayRef.current = true;
+          }
+          // Floating +1 above the badge.
+          if (plusOneRef.current && !prefersReducedMotion()) {
+            plusOneRef.current.textContent = '+1';
+            animate(plusOneRef.current, {
+              translateY: [-2, -22],
+              opacity:    [0, 1, 1, 0],
+              duration:   900,
+              ease: 'easeOutQuad',
+            });
+          }
+          // Sub-milestone burst at 7/14/21 between the big 10/20/30 modals.
+          if (SUB_MILESTONES.has(next)) {
+            bigBurst({ palette: 'streakExtend' });
           }
         }
         prevStreakRef.current = next;
@@ -113,29 +134,27 @@ export default function StreakBadge() {
   const lastActive = formatRelative(streak?.lastActivityDate);
 
   return (
-    <div
+    <Link
       ref={wrapRef}
+      to="/clubpm/challenges"
       className={`pm-streak-badge ${count > 0 ? 'is-active' : ''}`}
       onMouseEnter={() => setTooltipOpen(true)}
       onMouseLeave={() => setTooltipOpen(false)}
       onFocus={() => setTooltipOpen(true)}
       onBlur={() => setTooltipOpen(false)}
-      tabIndex={0}
-      role="status"
-      aria-label={`${count}-day streak. ${freezes} freezes available. Last active ${lastActive}.`}
+      aria-label={`${count}-day streak. ${freezes} freezes available. Last active ${lastActive}. Open Challenges.`}
     >
-      <svg
+      <img
         ref={flameRef}
-        className="pm-streak-flame"
-        width="18" height="18" viewBox="0 0 24 24"
+        className="pm-streak-flame pm-streak-flame-img"
+        src="/clubpm/badges/streak/flame.webp"
+        width="22"
+        height="22"
+        alt=""
         aria-hidden="true"
-      >
-        <path
-          d="M12 2.5c0 4-3 5-3 8 0 1.5 1.2 2.4 2 2.4-.4-1.2.4-3 2-3.5 0 3 2 4 2 6.5a5 5 0 1 1-10 0c0-3.5 3-4 3-7.5 0-2.5-1-3.5-1-5 0 0 4-1 5 -1z"
-          fill="currentColor"
-        />
-      </svg>
+      />
       <span ref={countRef} className="pm-streak-count">{count}</span>
+      <span ref={plusOneRef} className="pm-streak-plus-one" aria-hidden="true" />
       {tooltipOpen ? (
         <div className="pm-streak-tooltip" role="tooltip">
           <div className="pm-streak-tooltip-row">
@@ -147,8 +166,11 @@ export default function StreakBadge() {
           <div className="pm-streak-tooltip-row pm-streak-tooltip-sub">
             Last active {lastActive}
           </div>
+          <div className="pm-streak-tooltip-row pm-streak-tooltip-sub">
+            Click to open Challenges
+          </div>
         </div>
       ) : null}
-    </div>
+    </Link>
   );
 }

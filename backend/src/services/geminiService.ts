@@ -13,13 +13,16 @@ const RATE_WINDOW_MS = 60_000;
 const MAX_REQUESTS   = 28;
 const requestLog: number[] = [];
 
+export class GeminiRateLimitError extends Error {
+  constructor() { super("Gemini global rate limit exceeded"); }
+}
+
 async function rateLimitedCall<T>(fn: () => Promise<T>): Promise<T> {
   const now = Date.now();
   const windowStart = now - RATE_WINDOW_MS;
   while (requestLog.length && requestLog[0] < windowStart) requestLog.shift();
   if (requestLog.length >= MAX_REQUESTS) {
-    const wait = RATE_WINDOW_MS - (now - requestLog[0]);
-    await new Promise(r => setTimeout(r, wait));
+    throw new GeminiRateLimitError();
   }
   requestLog.push(Date.now());
   return fn();
@@ -52,7 +55,8 @@ async function complexRateLimitedCall<T>(fn: () => Promise<T>): Promise<T> {
 // ── Response cache ─────────────────────────────────────────────
 
 const cache = new Map<string, { value: string; expires: number }>();
-const TTL   = (parseInt(process.env.AI_CACHE_TTL_SECONDS ?? "300")) * 1000;
+const TTL        = (parseInt(process.env.AI_CACHE_TTL_SECONDS ?? "300")) * 1000;
+const MAX_CACHED = parseInt(process.env.AI_CACHE_MAX_ENTRIES ?? "500", 10);
 
 function getCached(key: string): string | null {
   const entry = cache.get(key);
@@ -60,6 +64,10 @@ function getCached(key: string): string | null {
   return entry.value;
 }
 function setCached(key: string, value: string): void {
+  if (cache.size >= MAX_CACHED) {
+    // Evict the oldest entry (Map insertion order is preserved)
+    cache.delete(cache.keys().next().value!);
+  }
   cache.set(key, { value, expires: Date.now() + TTL });
 }
 
@@ -96,6 +104,7 @@ export async function generateJson<T>(prompt: string, cacheKey?: string): Promis
     if (cacheKey) setCached(cacheKey, text);
     return JSON.parse(text) as T;
   } catch (err) {
+    if (err instanceof GeminiRateLimitError) throw err;
     console.error("[gemini] generateJson error:", err);
     return null;
   }
@@ -113,6 +122,7 @@ export async function generateText(prompt: string, cacheKey?: string): Promise<s
     if (cacheKey) setCached(cacheKey, text);
     return text;
   } catch (err) {
+    if (err instanceof GeminiRateLimitError) throw err;
     console.error("[gemini] generateText error:", err);
     return "";
   }
@@ -134,6 +144,7 @@ export async function generateJsonFromImage<T>(
     );
     return JSON.parse(result.response.text().trim()) as T;
   } catch (err) {
+    if (err instanceof GeminiRateLimitError) throw err;
     console.error("[gemini] generateJsonFromImage error:", err);
     return null;
   }

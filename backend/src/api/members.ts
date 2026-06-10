@@ -58,6 +58,33 @@ membersRouter.patch("/me", async (req: Request, res: Response) => {
     }
 
     const { kanbanColumnOrder, team, bio, email } = req.body;
+
+    // Input validation
+    if (email !== undefined) {
+      if (typeof email !== "string" || email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        res.status(400).json({ error: "Invalid email format" });
+        return;
+      }
+    }
+    if (bio !== undefined && (typeof bio !== "string" || bio.length > 500)) {
+      res.status(400).json({ error: "bio must be a string of at most 500 characters" });
+      return;
+    }
+    if (team !== undefined && (typeof team !== "string" || team.length > 100)) {
+      res.status(400).json({ error: "team must be a string of at most 100 characters" });
+      return;
+    }
+    const VALID_COLUMNS = new Set(["TODO", "IN_PROGRESS", "BLOCKED", "DONE"]);
+    if (kanbanColumnOrder !== undefined) {
+      if (
+        !Array.isArray(kanbanColumnOrder) ||
+        !kanbanColumnOrder.every((k: unknown) => typeof k === "string" && VALID_COLUMNS.has(k))
+      ) {
+        res.status(400).json({ error: "kanbanColumnOrder must contain only valid column keys" });
+        return;
+      }
+    }
+
     const profileChanged = bio !== undefined || team !== undefined || email !== undefined;
 
     const member = await prisma.member.update({
@@ -247,7 +274,19 @@ membersRouter.get("/:id", async (req: Request, res: Response) => {
       return;
     }
 
-    res.json(member);
+    // Strip PII and internal auth fields before returning
+    const {
+      email: _email,
+      slackId: _slackId,
+      isAdmin: _isAdmin,
+      githubLogin: _githubLogin,
+      githubAccessToken: _gat,
+      githubRefreshToken: _grt,
+      githubTokenExpiresAt: _gte,
+      tokenVersion: _tv,
+      ...publicMember
+    } = member;
+    res.json(publicMember);
   } catch (error) {
     console.error("Get member error:", error);
     res.status(500).json({ error: "Failed to get member" });

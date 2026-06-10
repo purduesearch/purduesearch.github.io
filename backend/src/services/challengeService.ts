@@ -558,6 +558,9 @@ const DISTINCT_METRICS = new Set<ChallengeMetric>([
   "TIME_LOG_UNIQUE_TASKS",
   "TIME_LOG_WEEKDAY",
   "COMMENT_REACTION",
+  // Mission Briefing fires on create AND on edits that fill in details — each
+  // task should only count once per quest period.
+  "TASK_CREATED_WITH_DETAILS",
 ]);
 
 async function evaluateAchievements(memberId: string, metric: ChallengeMetric, delta: number): Promise<void> {

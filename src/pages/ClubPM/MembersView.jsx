@@ -5,6 +5,7 @@ import { get, post } from '../../api/clubPmClient';
 import { useClubPmAuth } from '../../clubpm/ClubPmAuth';
 import KudosButton from '../../components/clubpm/KudosButton';
 import AvatarPortrait from '../../components/clubpm/avatar/AvatarPortrait';
+import RankIcon from '../../components/clubpm/RankIcon';
 import { tzOffset, copyToClipboard } from '../../clubpm/members/memberShared';
 import { revealStagger } from '../../clubpm/anim/motion';
 
@@ -63,7 +64,14 @@ function MemberCard({ member, onClick }) {
   return (
     <div className="pm-member-card pm-member-card--enriched" onClick={onClick} role="button" tabIndex={0} onKeyDown={e => e.key === 'Enter' && onClick()}>
       <div className="pm-member-top">
-        <AvatarPortrait member={member} size={56} className="pm-member-avatar" />
+        <span className="pm-member-avatar-wrap">
+          <AvatarPortrait member={member} size={56} className="pm-member-avatar" />
+          {member.rank ? (
+            <span className="cpm-member-badge-rank-overlay" aria-hidden="true">
+              <RankIcon member={member} size={24} />
+            </span>
+          ) : null}
+        </span>
         <div className="pm-member-info">
           <div className="pm-member-name">{displayName}</div>
           {slackHandle && <div className="pm-member-handle">@{slackHandle}</div>}
@@ -274,7 +282,14 @@ function MemberDrawer({ member, onClose, isOwnProfile }) {
         <button className="pm-member-drawer-close" onClick={onClose}>×</button>
 
         <div className="pm-member-drawer-profile">
-          <AvatarPortrait member={member} size={88} className="pm-member-drawer-avatar" />
+          <span className="pm-member-avatar-wrap pm-member-avatar-wrap--lg">
+            <AvatarPortrait member={member} size={88} className="pm-member-drawer-avatar" />
+            {member.rank ? (
+              <span className="cpm-member-badge-rank-overlay" aria-hidden="true">
+                <RankIcon member={member} size={36} />
+              </span>
+            ) : null}
+          </span>
           <div className="pm-member-drawer-name">{member.displayName}</div>
           {member.title && <div className="pm-member-drawer-title">{member.title}</div>}
           <div className="pm-member-drawer-badges">

@@ -1,6 +1,7 @@
 import { Router, type Request, type Response, type NextFunction } from "express";
 import { createHmac } from "crypto";
 import { prisma } from "../db/prisma.js";
+import { getSessionSecret } from "../config/env.js";
 
 export const authRouter = Router();
 
@@ -18,17 +19,17 @@ declare module "express-serve-static-core" {
 const TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 function tokenSecret(): string {
-  return process.env.SESSION_SECRET ?? "dev-secret-change-me";
+  return getSessionSecret();
 }
 
-export function signToken(memberId: string): string {
+export function signToken(memberId: string, version: number): string {
   const expires = Date.now() + TOKEN_TTL_MS;
-  const payload = Buffer.from(`${memberId}|${expires}`).toString("base64url");
+  const payload = Buffer.from(`${memberId}|${expires}|${version}`).toString("base64url");
   const sig = createHmac("sha256", tokenSecret()).update(payload).digest("hex");
   return `${payload}.${sig}`;
 }
 
-function verifyToken(token: string): string | null {
+async function verifyToken(token: string): Promise<string | null> {
   try {
     const dotIdx = token.indexOf(".");
     if (dotIdx === -1) return null;
@@ -41,11 +42,20 @@ function verifyToken(token: string): string | null {
     for (let i = 0; i < sig.length; i++) diff |= sig.charCodeAt(i) ^ expectedSig.charCodeAt(i);
     if (diff !== 0) return null;
     const decoded = Buffer.from(payload, "base64url").toString();
-    const pipeIdx = decoded.lastIndexOf("|");
-    if (pipeIdx === -1) return null;
-    const memberId = decoded.slice(0, pipeIdx);
-    const expires = parseInt(decoded.slice(pipeIdx + 1));
+    // Format: memberId|expires|version
+    const parts = decoded.split("|");
+    if (parts.length < 3) return null;
+    const version = parseInt(parts[parts.length - 1]);
+    const expires = parseInt(parts[parts.length - 2]);
+    const memberId = parts.slice(0, parts.length - 2).join("|");
     if (isNaN(expires) || Date.now() > expires) return null;
+    if (isNaN(version)) return null;
+    // Revocation check: reject if the member has logged out since this token was issued
+    const member = await prisma.member.findUnique({
+      where: { id: memberId },
+      select: { tokenVersion: true },
+    });
+    if (!member || member.tokenVersion !== version) return null;
     return memberId;
   } catch {
     return null;
@@ -54,15 +64,15 @@ function verifyToken(token: string): string | null {
 
 // ── Middleware: Require Auth ─────────────────────────────────
 
-export function requireAuth(
+export async function requireAuth(
   req: Request,
   res: Response,
   next: NextFunction
-): void {
+): Promise<void> {
   // Bearer token first — works even when Brave blocks SameSite=None cross-origin cookies.
   const authHeader = req.headers.authorization;
   if (authHeader?.startsWith("Bearer ")) {
-    const memberId = verifyToken(authHeader.slice(7));
+    const memberId = await verifyToken(authHeader.slice(7));
     if (memberId) {
       req.memberId = memberId;
       console.log(`[auth] source=bearer path=${req.path}`);
@@ -81,7 +91,7 @@ export function requireAuth(
 
 // ── Public helper: verify a bearer token and return memberId ─
 
-export function verifyBearerToken(token: string): string | null {
+export async function verifyBearerToken(token: string): Promise<string | null> {
   return verifyToken(token);
 }
 
@@ -134,6 +144,8 @@ authRouter.get("/slack", (req: Request, res: Response) => {
   url.searchParams.set("user_scope", scopes);
   url.searchParams.set("redirect_uri", redirectUri);
   if (state) url.searchParams.set("state", state);
+  // Required for non-distributed apps: tells Slack which workspace to authorize against.
+  if (process.env.SLACK_TEAM_ID) url.searchParams.set("team", process.env.SLACK_TEAM_ID);
 
   res.redirect(url.toString());
 });
@@ -236,7 +248,7 @@ authRouter.get("/slack/callback", async (req: Request, res: Response) => {
     // paths like /clubpm, so we redirect to the root index.html (a real static file)
     // which preserves the query string. The SPA then stores the token in localStorage
     // and navigates to /clubpm, where the next load reads it from localStorage.
-    const loginToken = signToken(member.id);
+    const loginToken = signToken(member.id, member.tokenVersion);
     req.session.save((err) => {
       if (err) {
         console.error("Session save error:", err);
@@ -256,7 +268,14 @@ authRouter.get("/slack/callback", async (req: Request, res: Response) => {
 
 // ── GET /auth/logout ─────────────────────────────────────────
 
-authRouter.get("/logout", (req: Request, res: Response) => {
+authRouter.get("/logout", async (req: Request, res: Response) => {
+  const memberId = req.session.memberId;
+  if (memberId) {
+    await prisma.member.update({
+      where: { id: memberId },
+      data: { tokenVersion: { increment: 1 } },
+    });
+  }
   req.session.destroy((err) => {
     if (err) {
       console.error("Logout error:", err);
@@ -289,5 +308,13 @@ authRouter.get("/me", requireAuth, async (req: Request, res: Response) => {
     return;
   }
 
-  res.json(member);
+  // Strip encrypted OAuth tokens — caller doesn't need them
+  const {
+    githubAccessToken: _gat,
+    githubRefreshToken: _grt,
+    githubTokenExpiresAt: _gte,
+    tokenVersion: _tv,
+    ...safeMember
+  } = member;
+  res.json(safeMember);
 });

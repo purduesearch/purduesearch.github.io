@@ -217,6 +217,16 @@ export async function updateTask(
     await spawnNextOccurrence(updated as Task & { assignees: Member[]; tags: Tag[] });
   }
 
+  // Challenge hook: Mission Briefing (TASK_CREATED_WITH_DETAILS) — also fire
+  // when an edit brings a task up to title + description + dueDate, so users
+  // get credit for tasks they detail incrementally. DISTINCT_METRICS dedupes
+  // by taskId, so re-edits don't double-count.
+  if (updated.createdById && updated.title && updated.description && updated.dueDate) {
+    import("./challengeService.js").then(({ recordEvent }) =>
+      recordEvent(updated.createdById!, "TASK_CREATED_WITH_DETAILS", 1, { taskId: updated.id })
+    ).catch(err => console.error("[challenge] TASK_CREATED_WITH_DETAILS (update):", err));
+  }
+
   return updated;
 }
 
