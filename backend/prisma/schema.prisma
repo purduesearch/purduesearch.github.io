@@ -241,6 +241,7 @@ model Project {
   tags                    Tag[]
   members                 ProjectMember[]
   tasks                   Task[]
+  blockers                Blocker[]
   milestones              Milestone[]
   updates                 ProjectUpdate[]
   activities              Activity[]
@@ -291,6 +292,9 @@ model Task {
   // ── Dependencies ──
   blockedBy TaskDependency[] @relation("TaskDependencies_blocked")
   blocks    TaskDependency[] @relation("TaskDependencies_blocking")
+
+  // ── Category blockers ──
+  blockers TaskBlocker[]
 
   // ── Progress ──
   progress TaskProgress @default(NO_PROGRESS)
@@ -557,10 +561,38 @@ model Tag {
 model TaskDependency {
   blockingTaskId String
   blockedTaskId  String
+  reason         String?
   blockingTask   Task   @relation("TaskDependencies_blocking", fields: [blockingTaskId], references: [id], onDelete: Cascade)
   blockedTask    Task   @relation("TaskDependencies_blocked", fields: [blockedTaskId], references: [id], onDelete: Cascade)
 
   @@id([blockingTaskId, blockedTaskId])
+}
+
+// Reusable non-task "category" blocker (e.g. "Order delays"), scoped to a
+// project. Attaching one to a task forces it BLOCKED and rejects DONE until
+// resolved (project-wide) or detached (per-task).
+model Blocker {
+  id         String        @id @default(cuid())
+  projectId  String
+  project    Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  label      String
+  color      String?
+  resolvedAt DateTime?
+  createdAt  DateTime      @default(now())
+  tasks      TaskBlocker[]
+
+  @@index([projectId])
+}
+
+model TaskBlocker {
+  taskId    String
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  blockerId String
+  blocker   Blocker  @relation(fields: [blockerId], references: [id], onDelete: Cascade)
+  reason    String?
+  createdAt DateTime @default(now())
+
+  @@id([taskId, blockerId])
 }
 
 model Notification {

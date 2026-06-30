@@ -50,6 +50,8 @@ interface UpdateTaskInput {
   parentTaskId?: string | null;
   milestoneId?: string | null;
   blockedByIds?: string[];
+  /** Optional per-blocker reason, keyed by blocking task id (used with blockedByIds). */
+  blockedByReasons?: Record<string, string | null>;
   blockingIds?: string[];
   recurringInterval?: RecurringInterval | null;
   estimatedHours?:    number | null;
@@ -131,6 +133,25 @@ export async function updateTask(
   id: string,
   data: UpdateTaskInput
 ): Promise<Task & { assignees: Member[]; project: Project }> {
+  // ── Airtight completion gate ──
+  // Enforce the open-blocker check at the data-mutation layer so EVERY
+  // completion path (web single/bulk PATCH, Slack completion, future callers)
+  // is gated, not just the HTTP routes. Only fires on the →DONE transition.
+  if (data.status === "DONE") {
+    const current = await prisma.task.findUnique({
+      where: { id },
+      select: {
+        status: true,
+        blockedBy: { include: { blockingTask: { select: { title: true, status: true } } } },
+        blockers: { include: { blocker: { select: { label: true, resolvedAt: true } } } },
+      },
+    });
+    if (current && current.status !== "DONE") {
+      const blockerError = assertCanComplete(current);
+      if (blockerError) throw new Error(blockerError);
+    }
+  }
+
   const updateData: Prisma.TaskUpdateInput = {};
 
   // Copy simple scalar fields
@@ -184,7 +205,11 @@ export async function updateTask(
     await prisma.taskDependency.deleteMany({ where: { blockedTaskId: id } });
     if (data.blockedByIds.length > 0) {
       await prisma.taskDependency.createMany({
-        data: data.blockedByIds.map(bid => ({ blockingTaskId: bid, blockedTaskId: id })),
+        data: data.blockedByIds.map(bid => ({
+          blockingTaskId: bid,
+          blockedTaskId: id,
+          reason: data.blockedByReasons?.[bid] ?? null,
+        })),
         skipDuplicates: true,
       });
     }
@@ -251,6 +276,7 @@ export async function getTask(id: string) {
       },
       blockedBy: { include: { blockingTask: { select: { id: true, title: true, status: true } } } },
       blocks:    { include: { blockedTask:  { select: { id: true, title: true, status: true } } } },
+      blockers:  { include: { blocker: true } },
       timeLogs:  { include: { member: { select: { id: true, displayName: true } } } },
       tags:      true,
       milestone: true,
@@ -278,6 +304,10 @@ export async function getTasksForProject(
       githubLinks: {
         select: { id: true, kind: true, state: true, refNumber: true, url: true },
       },
+      // Board/list payload must carry blockers so the kanban completion guard
+      // has data (the backend gate is authoritative, but this drives the UX).
+      // `reason` is a scalar on TaskDependency and is returned automatically.
+      blockedBy: { include: { blockingTask: { select: { id: true, title: true, status: true } } } },
     },
     orderBy: [{ priority: "desc" }, { createdAt: "desc" }],
   });
@@ -376,7 +406,7 @@ export async function createSubtask(
 
 // ── Dependency Helpers ──────────────────────────────────────
 
-export async function addDependency(taskId: string, blockedById: string) {
+export async function addDependency(taskId: string, blockedById: string, reason?: string | null) {
   if (taskId === blockedById) throw new Error("A task cannot depend on itself");
 
   const hasCycle = await checkDependencyCycle(blockedById, taskId);
@@ -384,8 +414,8 @@ export async function addDependency(taskId: string, blockedById: string) {
 
   await prisma.taskDependency.upsert({
     where: { blockingTaskId_blockedTaskId: { blockingTaskId: blockedById, blockedTaskId: taskId } },
-    create: { blockingTaskId: blockedById, blockedTaskId: taskId },
-    update: {},
+    create: { blockingTaskId: blockedById, blockedTaskId: taskId, reason: reason ?? null },
+    update: reason !== undefined ? { reason: reason ?? null } : {},
   });
 
   return prisma.task.findUnique({
@@ -557,6 +587,52 @@ export async function reassignTaskFromSlack(
   memberId: string
 ): Promise<Task & { assignees: Member[]; project: Project }> {
   return updateTask(taskId, { assigneeIds: [memberId] });
+}
+
+// ── Completion Guard ─────────────────────────────────────────
+
+/**
+ * Returns an error message string if the task has open blockers that prevent
+ * it from being marked DONE, or null if completion is allowed.
+ * Expects the task to have `blockedBy` included with `blockingTask`.
+ */
+export function assertCanComplete(
+  task: {
+    status: string;
+    blockedBy?: { blockingTask: { title: string; status: string } }[];
+    blockers?: { blocker: { label: string; resolvedAt: Date | null } }[];
+  }
+): string | null {
+  const openDeps = (task.blockedBy ?? []).filter(
+    (d) => d.blockingTask.status !== "DONE"
+  );
+  const openCategories = (task.blockers ?? []).filter(
+    (b) => b.blocker.resolvedAt === null
+  );
+  if (openDeps.length === 0 && openCategories.length === 0) return null;
+
+  const names = [
+    ...openDeps.map((d) => `"${d.blockingTask.title}"`),
+    ...openCategories.map((b) => `"${b.blocker.label}"`),
+  ].join(", ");
+  const count = openDeps.length + openCategories.length;
+  return `Cannot mark as done: ${count} blocker${count > 1 ? "s" : ""} not yet completed — ${names}`;
+}
+
+// Returns an error string if `newStatus` would move a task that still has an
+// open category blocker out of BLOCKED. A category-blocked task is locked: the
+// only way out is to resolve or detach the blocker (which recomputes status).
+// Task *dependencies* are intentionally NOT checked here — they only gate DONE
+// (see assertCanComplete). BLOCKED → BLOCKED is always allowed.
+export function assertNotCategoryBlocked(
+  task: { blockers?: { blocker: { label: string; resolvedAt: Date | null } }[] },
+  newStatus: string
+): string | null {
+  if (newStatus === "BLOCKED") return null;
+  const open = (task.blockers ?? []).filter((b) => b.blocker.resolvedAt === null);
+  if (open.length === 0) return null;
+  const names = open.map((b) => `"${b.blocker.label}"`).join(", ");
+  return `This task is blocked by ${open.length} blocker${open.length > 1 ? "s" : ""} — resolve or remove ${names} before changing its status.`;
 }
 
 export type { CreateTaskInput, UpdateTaskInput, TaskFilters };

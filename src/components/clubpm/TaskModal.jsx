@@ -1053,7 +1053,7 @@ function MetaRow({ label, children }) {
 
 // ─── Main TaskModal ────────────────────────────────────────────
 
-export default function TaskModal({ task: initialTask, project, readOnly = false, onClose, onUpdate, onDelete, onTaskCreated }) {
+export default function TaskModal({ task: initialTask, project, projectBlockers = [], onBlockersChange, readOnly = false, onClose, onUpdate, onDelete, onTaskCreated }) {
   const { member } = useClubPmAuth();
 
   const [task, setTask] = useState(initialTask);
@@ -1078,9 +1078,23 @@ export default function TaskModal({ task: initialTask, project, readOnly = false
   const [newTagColor, setNewTagColor] = useState("#6c5ce7");
   const [creatingTag, setCreatingTag] = useState(false);
   const [blockingTasks, setBlockingTasks] = useState(
-    task.blockedBy?.map(d => d.blockingTask) ?? []
+    task.blockedBy?.map(d => ({ ...d.blockingTask, reason: d.reason ?? null })) ?? []
   );
+  const [blocksList, setBlocksList] = useState(
+    task.blocks?.map(d => d.blockedTask) ?? []
+  );
+  const [addingBlockerId, setAddingBlockerId] = useState("");
+  const [addingBlockerReason, setAddingBlockerReason] = useState("");
+  const [taskBlockers, setTaskBlockers] = useState(
+    initialTask.blockers?.map(tb => ({ ...tb.blocker, reason: tb.reason ?? null })) ?? []
+  );
+  const [addingCategoryId, setAddingCategoryId] = useState("");
+  const [addingCategoryReason, setAddingCategoryReason] = useState("");
+  const [creatingCategory, setCreatingCategory] = useState(false);
+  const [newCategoryLabel, setNewCategoryLabel] = useState("");
+  const [savingCategory, setSavingCategory] = useState(false);
   const [depsOpen, setDepsOpen] = useState(true);
+  const [blockersOpen, setBlockersOpen] = useState(true);
   const [timeOpen, setTimeOpen] = useState(false);
   const [showLogTime, setShowLogTime] = useState(false);
   const [logMinutes, setLogMinutes] = useState("");
@@ -1120,7 +1134,13 @@ export default function TaskModal({ task: initialTask, project, readOnly = false
       // Fetch full task to get persisted blockers (blockedBy not always included in list views)
       get(`/api/tasks/${task.id}`).then(full => {
         if (full?.blockedBy) {
-          setBlockingTasks(full.blockedBy.map(d => d.blockingTask));
+          setBlockingTasks(full.blockedBy.map(d => ({ ...d.blockingTask, reason: d.reason ?? null })));
+        }
+        if (full?.blocks) {
+          setBlocksList(full.blocks.map(d => d.blockedTask));
+        }
+        if (full?.blockers) {
+          setTaskBlockers(full.blockers.map(tb => ({ ...tb.blocker, reason: tb.reason ?? null })));
         }
       }).catch(() => {});
     }
@@ -1161,9 +1181,29 @@ export default function TaskModal({ task: initialTask, project, readOnly = false
 
   const handleStatusChange = useCallback(async (newStatus) => {
     if (newStatus === "DONE") {
-      const openBlockers = blockingTasks.filter(bt => bt.status !== "DONE");
-      if (openBlockers.length > 0) {
-        const names = openBlockers.map(bt => bt.title).join(", ");
+      // Re-fetch live blocker status — local state can go stale if a blocker
+      // was completed elsewhere while this modal was open.
+      let liveBlockers = blockingTasks;
+      let liveCategoryBlockers = taskBlockers;
+      try {
+        const full = await get(`/api/tasks/${task.id}`);
+        if (full?.blockedBy) {
+          liveBlockers = full.blockedBy.map(d => ({ ...d.blockingTask, reason: d.reason ?? null }));
+          setBlockingTasks(liveBlockers);
+        }
+        if (full?.blockers) {
+          liveCategoryBlockers = full.blockers.map(tb => ({ ...tb.blocker, reason: tb.reason ?? null }));
+          setTaskBlockers(liveCategoryBlockers);
+        }
+      } catch {
+        // fall back to local state if the refetch fails
+      }
+      const openBlockers = liveBlockers.filter(bt => bt.status !== "DONE");
+      if (openBlockers.length > 0 || liveCategoryBlockers.length > 0) {
+        const names = [
+          ...openBlockers.map(bt => bt.reason ? `${bt.title} (${bt.reason})` : bt.title),
+          ...liveCategoryBlockers.map(b => b.reason ? `${b.label} (${b.reason})` : b.label),
+        ].join(", ");
         alert(`Cannot mark as done — the following blockers are not yet completed:\n\n${names}`);
         return;
       }
@@ -1187,7 +1227,7 @@ export default function TaskModal({ task: initialTask, project, readOnly = false
       }
     }
     await saveField(fields);
-  }, [task, member, saveField, onUpdate, blockingTasks]);
+  }, [task, member, saveField, onUpdate, blockingTasks, taskBlockers]);
 
   async function submitComment() {
     if (!commentDraft.trim() || submittingComment) return;
@@ -1328,17 +1368,21 @@ export default function TaskModal({ task: initialTask, project, readOnly = false
     }
   }
 
-  async function addBlockingTask(taskId) {
+  async function addBlockingTask(taskId, reason) {
     if (!taskId) return;
     const btask = projectTasks.find(t => t.id === taskId);
     if (!btask) return;
-    const newBlocking = [...blockingTasks, btask];
+    const newBlocking = [...blockingTasks, { ...btask, reason: reason || null }];
     setBlockingTasks(newBlocking);
+    const blockingTaskReasons = Object.fromEntries(newBlocking.map(b => [b.id, b.reason ?? null]));
     const correctedBlockedBy = newBlocking.map(b => ({
-      blockingTask: { id: b.id, title: b.title, status: b.status },
+      blockingTask: { id: b.id, title: b.title, status: b.status }, reason: b.reason ?? null,
     }));
     try {
-      const result = await patch(`/api/tasks/${task.id}`, { blockingTaskIds: newBlocking.map(t => t.id) });
+      const result = await patch(`/api/tasks/${task.id}`, {
+        blockingTaskIds: newBlocking.map(t => t.id),
+        blockingTaskReasons,
+      });
       const updatedTask = { ...task, ...result, blockedBy: correctedBlockedBy };
       setTask(updatedTask);
       onUpdate?.(updatedTask);
@@ -1350,16 +1394,69 @@ export default function TaskModal({ task: initialTask, project, readOnly = false
   async function removeBlockingTask(taskId) {
     const newBlocking = blockingTasks.filter(t => t.id !== taskId);
     setBlockingTasks(newBlocking);
+    const blockingTaskReasons = Object.fromEntries(newBlocking.map(b => [b.id, b.reason ?? null]));
     const correctedBlockedBy = newBlocking.map(b => ({
-      blockingTask: { id: b.id, title: b.title, status: b.status },
+      blockingTask: { id: b.id, title: b.title, status: b.status }, reason: b.reason ?? null,
     }));
     try {
-      const result = await patch(`/api/tasks/${task.id}`, { blockingTaskIds: newBlocking.map(t => t.id) });
+      const result = await patch(`/api/tasks/${task.id}`, {
+        blockingTaskIds: newBlocking.map(t => t.id),
+        blockingTaskReasons,
+      });
       const updatedTask = { ...task, ...result, blockedBy: correctedBlockedBy };
       setTask(updatedTask);
       onUpdate?.(updatedTask);
     } catch {
       setBlockingTasks(blockingTasks);
+    }
+  }
+
+  async function attachCategoryBlocker(blockerId, reason) {
+    if (!blockerId) return;
+    const existing = taskBlockers.find(b => b.id === blockerId);
+    const cat = existing || projectBlockers.find(b => b.id === blockerId);
+    if (!cat) return;
+    const previous = taskBlockers;
+    const next = existing
+      ? taskBlockers.map(b => b.id === blockerId ? { ...b, reason: reason || null } : b)
+      : [...taskBlockers, { ...cat, reason: reason || null }];
+    setTaskBlockers(next);
+    try {
+      const updated = await post(`/api/tasks/${task.id}/blockers`, { blockerId, reason: reason || null });
+      setTask(t => ({ ...t, status: updated.status, blockers: updated.blockers }));
+      onUpdate?.({ ...task, status: updated.status, blockers: updated.blockers });
+      onBlockersChange?.();
+    } catch (err) {
+      setTaskBlockers(previous);
+      toast.error(err?.message || "Failed to attach blocker");
+    }
+  }
+
+  async function detachCategoryBlocker(blockerId) {
+    const previous = taskBlockers;
+    setTaskBlockers(taskBlockers.filter(b => b.id !== blockerId));
+    try {
+      const updated = await del(`/api/tasks/${task.id}/blockers/${blockerId}`);
+      setTask(t => ({ ...t, status: updated.status, blockers: updated.blockers }));
+      onUpdate?.({ ...task, status: updated.status, blockers: updated.blockers });
+      onBlockersChange?.();
+    } catch (err) {
+      setTaskBlockers(previous);
+      toast.error(err?.message || "Failed to remove blocker");
+    }
+  }
+
+  async function createAndAttachCategoryBlocker(label, reason) {
+    if (!label.trim() || !task.projectId) return;
+    setSavingCategory(true);
+    try {
+      const cat = await post(`/api/projects/${task.projectId}/blockers`, { label: label.trim() });
+      await attachCategoryBlocker(cat.id, reason);
+      onBlockersChange?.();
+    } catch (err) {
+      toast.error(err?.message || "Failed to create blocker");
+    } finally {
+      setSavingCategory(false);
     }
   }
 
@@ -1818,7 +1915,7 @@ export default function TaskModal({ task: initialTask, project, readOnly = false
           {/* Dependencies */}
           {(() => {
             const incompleteSubtasks = subtasks.filter(s => s.status !== "DONE");
-            const totalBlockers = blockingTasks.length + incompleteSubtasks.length;
+            const totalBlockers = blockingTasks.length + incompleteSubtasks.length + taskBlockers.length;
             return (
             <div>
               <SectionHeader icon="ban" label={`Dependencies${totalBlockers > 0 ? ` (${totalBlockers})` : ""}`}
@@ -1842,21 +1939,29 @@ export default function TaskModal({ task: initialTask, project, readOnly = false
                     </div>
                   ))}
                   {blockingTasks.map(bt => (
-                    <div key={bt.id} style={{ display:"flex", alignItems:"center", gap:8, padding:"6px 10px",
+                    <div key={bt.id} style={{ display:"flex", flexDirection:"column", gap:2, padding:"6px 10px",
                       borderRadius:6, border:"1px solid var(--clubpm-border)", background:"var(--clubpm-surface-100)" }}>
-                      <StatusDot status={bt.status ?? "TODO"} size={10} />
-                      <span style={{ flex:1, fontSize:12, color:"var(--clubpm-text-primary)",
-                        overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{bt.title}</span>
-                      {!readOnly && (
-                        <button onClick={() => removeBlockingTask(bt.id)} style={{
-                          background:"none", border:"none", cursor:"pointer", padding:"2px 4px",
-                          color:"var(--clubpm-text-muted)", fontSize:12, borderRadius:4,
-                        }}>×</button>
+                      <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                        <StatusDot status={bt.status ?? "TODO"} size={10} />
+                        <span
+                          onClick={() => setNestedTask({ id: bt.id, title: bt.title, status: bt.status })}
+                          title="Open blocking task"
+                          style={{ flex:1, fontSize:12, color:"var(--clubpm-accent-primary)", cursor:"pointer",
+                            overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{bt.title}</span>
+                        {!readOnly && (
+                          <button onClick={() => removeBlockingTask(bt.id)} style={{
+                            background:"none", border:"none", cursor:"pointer", padding:"2px 4px",
+                            color:"var(--clubpm-text-muted)", fontSize:12, borderRadius:4,
+                          }}>×</button>
+                        )}
+                      </div>
+                      {bt.reason && (
+                        <span style={{ fontSize:11, color:"var(--clubpm-text-muted)", paddingLeft:18 }}>{bt.reason}</span>
                       )}
                     </div>
                   ))}
-                  {!readOnly && projectTasks.filter(t => t.id !== task.id && !blockingTasks.some(bt => bt.id === t.id) && t.status !== "DONE").length > 0 && (
-                    <select value="" onChange={e => addBlockingTask(e.target.value)} style={styles.select}>
+                  {!readOnly && !addingBlockerId && projectTasks.filter(t => t.id !== task.id && !blockingTasks.some(bt => bt.id === t.id) && t.status !== "DONE").length > 0 && (
+                    <select value="" onChange={e => setAddingBlockerId(e.target.value)} style={styles.select}>
                       <option value="">+ Add blocker…</option>
                       {projectTasks
                         .filter(t => t.id !== task.id && !blockingTasks.some(bt => bt.id === t.id) && t.status !== "DONE")
@@ -1864,14 +1969,143 @@ export default function TaskModal({ task: initialTask, project, readOnly = false
                       }
                     </select>
                   )}
+                  {!readOnly && addingBlockerId && (
+                    <div style={{ display:"flex", flexDirection:"column", gap:6, padding:"8px 10px",
+                      borderRadius:6, border:"1px dashed var(--clubpm-border)" }}>
+                      <span style={{ fontSize:12, color:"var(--clubpm-text-secondary)" }}>
+                        Blocked by: {projectTasks.find(t => t.id === addingBlockerId)?.title}
+                      </span>
+                      <input type="text" value={addingBlockerReason}
+                        onChange={e => setAddingBlockerReason(e.target.value)}
+                        placeholder="Reason (optional)" style={styles.input} />
+                      <div style={{ display:"flex", gap:8 }}>
+                        <button onClick={() => {
+                          addBlockingTask(addingBlockerId, addingBlockerReason.trim() || null);
+                          setAddingBlockerId(""); setAddingBlockerReason("");
+                        }} style={styles.primaryBtn}>Add</button>
+                        <button onClick={() => { setAddingBlockerId(""); setAddingBlockerReason(""); }}
+                          style={styles.cancelBtn}>Cancel</button>
+                      </div>
+                    </div>
+                  )}
                   {totalBlockers === 0 && readOnly && (
                     <p style={{ fontSize:12, color:"var(--clubpm-text-muted)", fontStyle:"italic", margin:0 }}>No blockers</p>
+                  )}
+                  {blocksList.length > 0 && (
+                    <div style={{ marginTop:6, paddingTop:10, borderTop:"1px solid var(--clubpm-border)" }}>
+                      <span style={{ fontSize:11, fontWeight:600, color:"var(--clubpm-text-muted)",
+                        textTransform:"uppercase", letterSpacing:"0.05em" }}>
+                        Blocks ({blocksList.length})
+                      </span>
+                      <div style={{ display:"flex", flexDirection:"column", gap:6, marginTop:6 }}>
+                        {blocksList.map(bt => (
+                          <div key={`blocks-${bt.id}`}
+                            onClick={() => setNestedTask({ id: bt.id, title: bt.title, status: bt.status })}
+                            title="Open blocked task"
+                            style={{ display:"flex", alignItems:"center", gap:8, padding:"6px 10px",
+                              borderRadius:6, border:"1px solid var(--clubpm-border)",
+                              background:"var(--clubpm-surface-100)", cursor:"pointer" }}>
+                            <StatusDot status={bt.status ?? "TODO"} size={10} />
+                            <span style={{ flex:1, fontSize:12, color:"var(--clubpm-text-primary)",
+                              overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{bt.title}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   )}
                 </div>
               )}
             </div>
             );
           })()}
+
+          {/* Blockers (category blockers, e.g. "Order delays") */}
+          <div>
+            <SectionHeader icon="tag" label={`Blockers${taskBlockers.length > 0 ? ` (${taskBlockers.length})` : ""}`}
+              open={blockersOpen} onToggle={() => setBlockersOpen(o => !o)} />
+            {blockersOpen && (
+              <div style={{ padding:"10px 20px 16px", display:"flex", flexDirection:"column", gap:8 }}>
+                {taskBlockers.map(b => (
+                  <div key={b.id} style={{ display:"flex", flexDirection:"column", gap:2, padding:"6px 10px",
+                    borderRadius:6, border:"1px solid var(--clubpm-border)", background:"var(--clubpm-surface-100)" }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                      <i className="fas fa-tag" style={{ fontSize:10, color: b.color || "#e17055" }} />
+                      <span style={{ flex:1, fontSize:12, color:"var(--clubpm-text-primary)",
+                        overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{b.label}</span>
+                      {!readOnly && (
+                        <button onClick={() => detachCategoryBlocker(b.id)} style={{
+                          background:"none", border:"none", cursor:"pointer", padding:"2px 4px",
+                          color:"var(--clubpm-text-muted)", fontSize:12, borderRadius:4,
+                        }}>×</button>
+                      )}
+                    </div>
+                    {!readOnly ? (
+                      <input type="text" value={b.reason ?? ""} placeholder="Reason (optional)"
+                        onChange={e => setTaskBlockers(prev => prev.map(x => x.id === b.id ? { ...x, reason: e.target.value } : x))}
+                        onBlur={e => attachCategoryBlocker(b.id, e.target.value.trim() || null)}
+                        style={{ ...styles.input, marginLeft: 18, fontSize: 11 }} />
+                    ) : b.reason && (
+                      <span style={{ fontSize:11, color:"var(--clubpm-text-muted)", paddingLeft:18 }}>{b.reason}</span>
+                    )}
+                  </div>
+                ))}
+                {!readOnly && !addingCategoryId && !creatingCategory && (
+                  <select value="" onChange={e => {
+                    if (e.target.value === "__new__") setCreatingCategory(true);
+                    else setAddingCategoryId(e.target.value);
+                  }} style={styles.select}>
+                    <option value="">+ Add blocker…</option>
+                    {projectBlockers
+                      .filter(b => !taskBlockers.some(tb => tb.id === b.id))
+                      .map(b => <option key={b.id} value={b.id}>{b.label}</option>)
+                    }
+                    <option value="__new__">+ New blocker category…</option>
+                  </select>
+                )}
+                {!readOnly && addingCategoryId && (
+                  <div style={{ display:"flex", flexDirection:"column", gap:6, padding:"8px 10px",
+                    borderRadius:6, border:"1px dashed var(--clubpm-border)" }}>
+                    <span style={{ fontSize:12, color:"var(--clubpm-text-secondary)" }}>
+                      Blocked by: {projectBlockers.find(b => b.id === addingCategoryId)?.label}
+                    </span>
+                    <input type="text" value={addingCategoryReason}
+                      onChange={e => setAddingCategoryReason(e.target.value)}
+                      placeholder="Reason (optional)" style={styles.input} />
+                    <div style={{ display:"flex", gap:8 }}>
+                      <button onClick={() => {
+                        attachCategoryBlocker(addingCategoryId, addingCategoryReason.trim() || null);
+                        setAddingCategoryId(""); setAddingCategoryReason("");
+                      }} style={styles.primaryBtn}>Add</button>
+                      <button onClick={() => { setAddingCategoryId(""); setAddingCategoryReason(""); }}
+                        style={styles.cancelBtn}>Cancel</button>
+                    </div>
+                  </div>
+                )}
+                {!readOnly && creatingCategory && (
+                  <div style={{ display:"flex", flexDirection:"column", gap:6, padding:"8px 10px",
+                    borderRadius:6, border:"1px dashed var(--clubpm-border)" }}>
+                    <input type="text" value={newCategoryLabel}
+                      onChange={e => setNewCategoryLabel(e.target.value)}
+                      placeholder="Blocker name (e.g. Order delays)" style={styles.input} autoFocus />
+                    <input type="text" value={addingCategoryReason}
+                      onChange={e => setAddingCategoryReason(e.target.value)}
+                      placeholder="Reason (optional)" style={styles.input} />
+                    <div style={{ display:"flex", gap:8 }}>
+                      <button disabled={!newCategoryLabel.trim() || savingCategory} onClick={async () => {
+                        await createAndAttachCategoryBlocker(newCategoryLabel, addingCategoryReason.trim() || null);
+                        setCreatingCategory(false); setNewCategoryLabel(""); setAddingCategoryReason("");
+                      }} style={styles.primaryBtn}>{savingCategory ? "Creating…" : "Create"}</button>
+                      <button onClick={() => { setCreatingCategory(false); setNewCategoryLabel(""); setAddingCategoryReason(""); }}
+                        style={styles.cancelBtn}>Cancel</button>
+                    </div>
+                  </div>
+                )}
+                {taskBlockers.length === 0 && readOnly && (
+                  <p style={{ fontSize:12, color:"var(--clubpm-text-muted)", fontStyle:"italic", margin:0 }}>No blockers</p>
+                )}
+              </div>
+            )}
+          </div>
 
           {/* Time Tracking */}
           <div>

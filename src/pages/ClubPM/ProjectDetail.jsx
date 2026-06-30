@@ -8,6 +8,7 @@ import AvatarPortrait from "../../components/clubpm/avatar/AvatarPortrait";
 import { useClubPmAuth } from "../../clubpm/ClubPmAuth";
 import { useProjectNav } from "../../clubpm/ProjectNavContext";
 import TaskModal from "../../components/clubpm/TaskModal";
+import BulkActionBar from "../../components/clubpm/BulkActionBar";
 import ActivityFeed from "../../components/clubpm/ActivityFeed";
 import ReportingView from "../../components/clubpm/ReportingView";
 import ProjectAnalytics from "../../components/clubpm/ProjectAnalytics";
@@ -22,6 +23,8 @@ import {
   DndContext,
   DragOverlay,
   closestCenter,
+  pointerWithin,
+  rectIntersection,
   PointerSensor,
   useSensor,
   useSensors,
@@ -48,6 +51,48 @@ const BINS = [
 ];
 
 const PRIORITY_RANK = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
+
+const BIN_ID_SET = new Set(BINS.map((b) => b.id));
+
+// A droppable is a "container" if it's a status bin or a blocker sub-bin
+// (id `blocker-<id>`). Task rows / subtask rows are non-container droppables.
+function isContainerId(id) {
+  return typeof id === "string" && (BIN_ID_SET.has(id) || id.startsWith("blocker-"));
+}
+
+// Custom collision detection so a task can be dropped anywhere inside a bin
+// (not just the tiny empty gap). closestCenter resolves a task hovering over a
+// populated bin to the nearest task row, which the drop handler then ignores.
+//   • Member / special chip drags → nearest task row (containers excluded), so
+//     "assign to task" keeps working.
+//   • Task drags → the bin / blocker sub-bin under the pointer. A blocker
+//     sub-bin wins over the enclosing BLOCKED bin (more specific target).
+function kanbanCollisionDetection(args) {
+  const activeId = args.active?.id;
+  const isMemberDrag =
+    typeof activeId === "string" &&
+    (activeId.startsWith("member-") || activeId === "special-everyone" || activeId === "special-nobody");
+
+  if (isMemberDrag) {
+    const rows = {
+      ...args,
+      droppableContainers: args.droppableContainers.filter(
+        (c) => !isContainerId(c.id) && !(typeof c.id === "string" && c.id.startsWith("noop-"))
+      ),
+    };
+    return closestCenter(rows);
+  }
+
+  const containers = {
+    ...args,
+    droppableContainers: args.droppableContainers.filter((c) => isContainerId(c.id)),
+  };
+  const hits = pointerWithin(containers);
+  const resolved = hits.length ? hits : rectIntersection(containers);
+  if (!resolved.length) return closestCenter(containers);
+  const subBin = resolved.find((h) => typeof h.id === "string" && h.id.startsWith("blocker-"));
+  return subBin ? [subBin] : [resolved[0]];
+}
 
 function getTagGroups(tasks) {
   const tagMap = new Map();
@@ -272,9 +317,10 @@ function ProgressBar({ tasks }) {
 
 // ── Status Bin (collapsible droppable section) ───────────────
 
-function StatusBin({ bin, tasks, subtasksByParent, expandedParents, onToggleParent, isOver, overTaskId, onTaskClick, onAddTask, canEdit = true, sortBy = "priority" }) {
+function StatusBin({ bin, tasks, subtasksByParent, expandedParents, onToggleParent, isOver, overTaskId, overBlockerId, onTaskClick, onAddTask, canEdit = true, sortBy = "priority", selectedTaskIds, blockedGroups, onResolveBlocker, onRenameBlocker }) {
   const [collapsed, setCollapsed] = useState(false);
   const { setNodeRef } = useDroppable({ id: bin.id });
+  const isBlockedBin = bin.id === "BLOCKED";
 
   return (
     <div
@@ -326,7 +372,28 @@ function StatusBin({ bin, tasks, subtasksByParent, expandedParents, onTogglePare
         )}
       </div>
 
-      {!collapsed && (
+      {!collapsed && isBlockedBin ? (
+        <div style={{ display: "flex", flexDirection: "column" }}>
+          {(blockedGroups ?? []).length === 0 ? (
+            <div style={{ padding: "12px 16px", fontSize: 12, color: "var(--clubpm-text-muted)", fontStyle: "italic" }}>
+              Drop tasks here
+            </div>
+          ) : (
+            blockedGroups.map((group) => (
+              <BlockedSubBin
+                key={`${group.type}-${group.id}`}
+                group={group}
+                onTaskClick={onTaskClick}
+                onResolveBlocker={onResolveBlocker}
+                onRenameBlocker={onRenameBlocker}
+                selectedTaskIds={selectedTaskIds}
+                canEdit={canEdit}
+                isOver={overBlockerId === `blocker-${group.id}`}
+              />
+            ))
+          )}
+        </div>
+      ) : !collapsed && (
         <SortableContext
           items={tasks.map((t) => t.id)}
           strategy={verticalListSortingStrategy}
@@ -368,9 +435,10 @@ function StatusBin({ bin, tasks, subtasksByParent, expandedParents, onTogglePare
                           isExpanded={isExpanded}
                           onToggleExpand={() => onToggleParent?.(task.id)}
                           isDropTarget={overTaskId === task.id}
+                          isSelected={selectedTaskIds?.has(task.id)}
                         />
                         {isExpanded && subs.map((sub) => (
-                          <KanbanSubtaskRow key={sub.id} subtask={sub} onClick={onTaskClick} isDropTarget={overTaskId === sub.id} />
+                          <KanbanSubtaskRow key={sub.id} subtask={sub} onClick={onTaskClick} isDropTarget={overTaskId === sub.id} isSelected={selectedTaskIds?.has(sub.id)} />
                         ))}
                       </React.Fragment>
                     );
@@ -390,9 +458,10 @@ function StatusBin({ bin, tasks, subtasksByParent, expandedParents, onTogglePare
                       isExpanded={isExpanded}
                       onToggleExpand={() => onToggleParent?.(task.id)}
                       isDropTarget={overTaskId === task.id}
+                      isSelected={selectedTaskIds?.has(task.id)}
                     />
                     {isExpanded && subs.map((sub) => (
-                      <KanbanSubtaskRow key={sub.id} subtask={sub} onClick={onTaskClick} isDropTarget={overTaskId === sub.id} />
+                      <KanbanSubtaskRow key={sub.id} subtask={sub} onClick={onTaskClick} isDropTarget={overTaskId === sub.id} isSelected={selectedTaskIds?.has(sub.id)} />
                     ))}
                   </React.Fragment>
                 );
@@ -405,9 +474,170 @@ function StatusBin({ bin, tasks, subtasksByParent, expandedParents, onTogglePare
   );
 }
 
+// ── Blocked Sub-Bin (collapsible group within the BLOCKED column) ─
+
+const BLOCKER_SWATCHES = ["#e17055", "#f5a623", "#00b894", "#0984e3", "#6c5ce7", "#e84393"];
+
+function BlockedSubBin({ group, onTaskClick, onResolveBlocker, onRenameBlocker, selectedTaskIds, canEdit, isOver }) {
+  const [collapsed, setCollapsed] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const isCategory = group.type === "category";
+  // Only category blockers accept drops (drag a task in to attach it).
+  const { setNodeRef } = useDroppable({ id: isCategory ? `blocker-${group.id}` : `noop-${group.id}` });
+
+  const [draftLabel, setDraftLabel] = useState(isCategory ? group.blocker.label : "");
+  const [draftColor, setDraftColor] = useState(isCategory ? (group.blocker.color || BLOCKER_SWATCHES[0]) : BLOCKER_SWATCHES[0]);
+
+  const label = isCategory
+    ? group.blocker.label
+    : group.type === "task"
+    ? group.blockingTask.title
+    : "Other blocked tasks";
+  const iconClass = isCategory ? "fa-tag" : group.type === "task" ? "fa-link" : "fa-question-circle";
+  const accentColor = isCategory ? (group.blocker.color || "var(--pm-accent-coral, #e17055)") : "var(--clubpm-text-muted)";
+
+  function startEdit(e) {
+    e.stopPropagation();
+    setDraftLabel(group.blocker.label);
+    setDraftColor(group.blocker.color || BLOCKER_SWATCHES[0]);
+    setEditing(true);
+  }
+  function saveEdit() {
+    const trimmed = draftLabel.trim();
+    if (!trimmed) return;
+    onRenameBlocker?.(group.blocker.id, { label: trimmed, color: draftColor });
+    setEditing(false);
+  }
+
+  return (
+    <div ref={setNodeRef} className={`cpm-blocked-subbin${isOver ? " cpm-blocked-subbin--over" : ""}`}>
+      {editing ? (
+        <div className="cpm-blocked-subbin-edit" onClick={(e) => e.stopPropagation()}>
+          <input
+            autoFocus
+            className="cpm-blocked-subbin-edit-input"
+            value={draftLabel}
+            onChange={(e) => setDraftLabel(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") saveEdit(); if (e.key === "Escape") setEditing(false); }}
+            placeholder="Blocker name"
+          />
+          <div className="cpm-blocked-subbin-swatches">
+            {BLOCKER_SWATCHES.map((c) => (
+              <button
+                key={c}
+                className={`cpm-blocked-subbin-swatch${draftColor === c ? " cpm-blocked-subbin-swatch--active" : ""}`}
+                style={{ background: c }}
+                onClick={() => setDraftColor(c)}
+                title={c}
+              />
+            ))}
+          </div>
+          <button className="cpm-blocked-subbin-edit-save" onClick={saveEdit}>Save</button>
+          <button className="cpm-blocked-subbin-edit-cancel" onClick={() => setEditing(false)}>Cancel</button>
+        </div>
+      ) : (
+        <div className="cpm-blocked-subbin-header" onClick={() => setCollapsed((c) => !c)}>
+          <i className={`fas fa-chevron-${collapsed ? "right" : "down"}`} style={{ fontSize: 9, color: "var(--clubpm-text-muted)" }} />
+          <i className={`fas ${iconClass}`} style={{ fontSize: 11, color: accentColor, flexShrink: 0 }} />
+          <span className="cpm-blocked-subbin-label">{label}</span>
+          <span className="cpm-blocked-subbin-count">{group.items.length}</span>
+          {isCategory && canEdit && (
+            <>
+              <button
+                className="cpm-blocked-subbin-edit-btn"
+                onClick={startEdit}
+                title="Rename / recolor this blocker"
+              >
+                <i className="fas fa-pencil-alt" aria-hidden="true" />
+              </button>
+              <button
+                className="cpm-blocked-subbin-resolve"
+                onClick={(e) => { e.stopPropagation(); onResolveBlocker?.(group.blocker.id); }}
+                title="Resolve this blocker for all attached tasks"
+              >
+                Resolve
+              </button>
+            </>
+          )}
+        </div>
+      )}
+      {!collapsed && (
+        <div className="cpm-blocked-subbin-body">
+          {group.items.length === 0 ? (
+            <div className="cpm-blocked-subbin-empty">
+              {isCategory ? "Drag a task here to mark it blocked by this" : "No tasks"}
+            </div>
+          ) : group.items.map(({ task, reason }) => (
+            <div
+              key={task.id}
+              className={`cpm-task-row-compact cpm-blocked-task-row${selectedTaskIds?.has(task.id) ? " cpm-task-row-compact--selected" : ""}`}
+              onClick={(e) => onTaskClick(task, e)}
+            >
+              {selectedTaskIds?.has(task.id) && (
+                <i className="fas fa-check-circle cpm-task-row-compact-checkbox" aria-hidden="true" />
+              )}
+              <PriorityBars priority={task.priority} />
+              <span className="cpm-task-row-compact-name">{task.title}</span>
+              <AvatarStack assignees={task.assignees} />
+              {reason && <span className="cpm-blocked-task-reason" title={reason}>{reason}</span>}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Blocker name modal (shown when a task is dropped on the Blocked bin) ─
+
+function BlockerNameModal({ count, onCreate, onCancel }) {
+  const [label, setLabel] = useState("");
+  const [color, setColor] = useState(BLOCKER_SWATCHES[0]);
+  function submit() {
+    const trimmed = label.trim();
+    if (!trimmed) return;
+    onCreate(trimmed, color);
+  }
+  return createPortal(
+    <div className="cpm-blocker-modal-overlay" onMouseDown={onCancel}>
+      <div className="cpm-blocker-modal" onMouseDown={(e) => e.stopPropagation()}>
+        <h3 className="cpm-blocker-modal-title">
+          What's blocking {count > 1 ? `these ${count} tasks` : "this task"}?
+        </h3>
+        <input
+          autoFocus
+          className="cpm-blocker-modal-input"
+          placeholder="e.g. Waiting on parts, Needs review…"
+          value={label}
+          onChange={(e) => setLabel(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") submit(); if (e.key === "Escape") onCancel(); }}
+        />
+        <div className="cpm-blocked-subbin-swatches" style={{ marginTop: 12 }}>
+          {BLOCKER_SWATCHES.map((c) => (
+            <button
+              key={c}
+              className={`cpm-blocked-subbin-swatch${color === c ? " cpm-blocked-subbin-swatch--active" : ""}`}
+              style={{ background: c }}
+              onClick={() => setColor(c)}
+              title={c}
+            />
+          ))}
+        </div>
+        <div className="cpm-blocker-modal-actions">
+          <button className="cpm-blocker-modal-cancel" onClick={onCancel}>Cancel</button>
+          <button className="cpm-blocker-modal-create" onClick={submit} disabled={!label.trim()}>
+            Create blocker
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
 // ── Compact Task Row ─────────────────────────────────────────
 
-function CompactTaskRow({ task, onClick, subtaskCount = 0, isExpanded = false, onToggleExpand, isDropTarget = false }) {
+function CompactTaskRow({ task, onClick, subtaskCount = 0, isExpanded = false, onToggleExpand, isDropTarget = false, isSelected = false }) {
   const {
     attributes,
     listeners,
@@ -429,11 +659,14 @@ function CompactTaskRow({ task, onClick, subtaskCount = 0, isExpanded = false, o
       style={style}
       {...attributes}
       {...listeners}
-      className={`cpm-task-row-compact${isDropTarget ? " cpm-task-row-compact--member-target" : ""}`}
-      onClick={() => {
-        if (!isDragging) onClick(task);
+      className={`cpm-task-row-compact${isDropTarget ? " cpm-task-row-compact--member-target" : ""}${isSelected ? " cpm-task-row-compact--selected" : ""}`}
+      onClick={(e) => {
+        if (!isDragging) onClick(task, e);
       }}
     >
+      {isSelected && (
+        <i className="fas fa-check-circle cpm-task-row-compact-checkbox" aria-hidden="true" />
+      )}
       <i
         className="fas fa-grip-vertical"
         style={{
@@ -509,7 +742,7 @@ function CompactTaskRow({ task, onClick, subtaskCount = 0, isExpanded = false, o
 
 // ── Kanban Subtask Row (non-draggable, indented) ─────────────
 
-function KanbanSubtaskRow({ subtask, onClick, isDropTarget = false }) {
+function KanbanSubtaskRow({ subtask, onClick, isDropTarget = false, isSelected = false }) {
   const { setNodeRef } = useDroppable({ id: subtask.id });
   return (
     <div style={{ display: "flex", alignItems: "stretch" }}>
@@ -520,10 +753,13 @@ function KanbanSubtaskRow({ subtask, onClick, isDropTarget = false }) {
       </div>
     <div
       ref={setNodeRef}
-      className={`cpm-task-row-compact${isDropTarget ? " cpm-task-row-compact--member-target" : ""}`}
+      className={`cpm-task-row-compact${isDropTarget ? " cpm-task-row-compact--member-target" : ""}${isSelected ? " cpm-task-row-compact--selected" : ""}`}
       style={{ flex: 1, paddingLeft: 8, cursor: "pointer" }}
-      onClick={() => onClick(subtask)}
+      onClick={(e) => onClick(subtask, e)}
     >
+      {isSelected && (
+        <i className="fas fa-check-circle cpm-task-row-compact-checkbox" aria-hidden="true" />
+      )}
       <span
         className={`cpm-kanban-progress ${
           subtask.status === "DONE"
@@ -1823,6 +2059,23 @@ export default function ProjectDetail() {
   const [descEdit, setDescEdit] = useState(false);
   const [descValue, setDescValue] = useState("");
   const [descExpanded, setDescExpanded] = useState(false);
+  const [selectedTaskIds, setSelectedTaskIds] = useState(() => new Set());
+  const [lastClickedId, setLastClickedId] = useState(null);
+  const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
+  const [bulkActing, setBulkActing] = useState(false);
+  const [projectBlockers, setProjectBlockers] = useState([]); // active category blockers for this project
+  const [blockerPrompt, setBlockerPrompt] = useState(null); // { taskIds } when naming a new blocker via drop
+
+  // Build subtask map from embedded subtasks (project fetches top-level only, subtasks are nested)
+  const subtasksByParent = useMemo(() => {
+    const map = new Map();
+    project?.tasks.forEach(t => {
+      if (t.subtasks && t.subtasks.length > 0) {
+        map.set(t.id, t.subtasks);
+      }
+    });
+    return map;
+  }, [project]);
 
   const tasksByBin = useMemo(() => {
     if (!project) return BINS.map(b => ({ ...b, tasks: [] }));
@@ -1849,6 +2102,24 @@ export default function ProjectDetail() {
     }));
   }, [project, sortBy]);
 
+  // Flat visual order of every visible row (matches StatusBin's render order)
+  // so shift-click can resolve a contiguous range across bins/subtasks.
+  const flatTaskOrder = useMemo(() => {
+    const order = [];
+    tasksByBin.forEach((bin) => {
+      const groups = sortBy === "tags" ? getTagGroups(bin.tasks) : [{ tasks: bin.tasks }];
+      groups.forEach((group) => {
+        group.tasks.forEach((task) => {
+          order.push(task.id);
+          if (expandedParents.has(task.id)) {
+            (subtasksByParent.get(task.id) ?? []).forEach((sub) => order.push(sub.id));
+          }
+        });
+      });
+    });
+    return order;
+  }, [tasksByBin, sortBy, expandedParents, subtasksByParent]);
+
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
   );
@@ -1860,6 +2131,217 @@ export default function ProjectDetail() {
       .catch(console.error)
       .finally(() => setLoading(false));
   }, [id]);
+
+  const fetchBlockers = useCallback(() => {
+    if (!id) return;
+    get(`/api/projects/${id}/blockers`).then(setProjectBlockers).catch(() => {});
+  }, [id]);
+
+  const refreshBlockers = useCallback(() => {
+    fetchProject();
+    fetchBlockers();
+  }, [fetchProject, fetchBlockers]);
+
+  // Look up a task (top-level or subtask) by id within the current project.
+  const findTaskById = useCallback((tid) => {
+    if (!project) return null;
+    const top = project.tasks.find(t => t.id === tid);
+    if (top) return { task: top, parentTask: null };
+    for (const t of project.tasks) {
+      const sub = (t.subtasks ?? []).find(s => s.id === tid);
+      if (sub) return { task: sub, parentTask: t };
+    }
+    return null;
+  }, [project]);
+
+  // Single-task status move — keeps the reward-origin + confetti niceties.
+  const moveSingleTask = async (task, newStatus, dropRect) => {
+    const taskId = task.id;
+    const patchBody = { status: newStatus };
+    if (newStatus === "IN_PROGRESS" && member) {
+      const alreadyAssigned = (task.assignees ?? []).some(a => a.id === member.id);
+      if (!alreadyAssigned) patchBody.assigneeIds = [...(task.assignees ?? []).map(a => a.id), member.id];
+    }
+    const previousTasks = project.tasks;
+    if (dropRect) setNextRewardOrigin(dropRect.left + dropRect.width / 2, dropRect.top + dropRect.height / 2);
+    setProject(prev => ({
+      ...prev,
+      tasks: prev.tasks.map(t => t.id === taskId ? {
+        ...t,
+        status: newStatus,
+        assignees: newStatus === "IN_PROGRESS" && member && !(t.assignees ?? []).some(a => a.id === member.id)
+          ? [...(t.assignees ?? []), member]
+          : t.assignees,
+      } : t),
+    }));
+    try {
+      const updated = await patch(`/api/tasks/${taskId}`, patchBody);
+      setProject(prev => ({ ...prev, tasks: prev.tasks.map(t => t.id === taskId ? { ...t, ...updated } : t) }));
+      notifyStreak();
+      if (newStatus === "DONE") celebrateDoneBin();
+    } catch (err) {
+      setProject(prev => ({ ...prev, tasks: previousTasks }));
+      if (err?.message) alert(err.message);
+    }
+  };
+
+  // Group status move — one optimistic pass + the bulk endpoint, then reconcile.
+  const bulkMoveStatus = async (ids, newStatus) => {
+    const idSet = new Set(ids);
+    const previousTasks = project.tasks;
+    setProject(prev => ({
+      ...prev,
+      tasks: prev.tasks.map(t => {
+        let next = idSet.has(t.id) ? { ...t, status: newStatus } : t;
+        if (next.subtasks?.length) next = { ...next, subtasks: next.subtasks.map(s => idSet.has(s.id) ? { ...s, status: newStatus } : s) };
+        return next;
+      }),
+    }));
+    try {
+      const res = await patch("/api/tasks/bulk", { ids, patch: { status: newStatus } });
+      if (res.skipped?.length) {
+        alert(`${res.skipped.length} task(s) were not moved:\n` + res.skipped.map(s => `- ${s.reason}`).join("\n"));
+      }
+      notifyStreak();
+      if (newStatus === "DONE") celebrateDoneBin();
+    } catch (err) {
+      setProject(prev => ({ ...prev, tasks: previousTasks }));
+      alert(err?.message ?? "Failed to move tasks");
+    } finally {
+      fetchProject();
+    }
+  };
+
+  // Move one or more tasks to a status, mirroring the backend's blocker rules so
+  // a locked/dep-gated task fails fast (with a message) instead of round-tripping.
+  const moveTasksToStatus = async (ids, newStatus, dropRect) => {
+    const movable = [];
+    const blocked = [];
+    for (const tid of ids) {
+      const f = findTaskById(tid);
+      if (!f) continue;
+      const t = f.task;
+      if (t.status === newStatus) continue;
+      const hasOpenCat = (t.blockers ?? []).some(tb => tb.blocker && !tb.blocker.resolvedAt);
+      if (hasOpenCat && newStatus !== "BLOCKED") { blocked.push(`${t.title} — locked until its blocker is resolved`); continue; }
+      if (newStatus === "DONE") {
+        const openDeps = (t.blockedBy ?? []).filter(d => d.blockingTask?.status !== "DONE");
+        if (openDeps.length) { blocked.push(`${t.title} — waiting on ${openDeps.map(d => d.blockingTask.title).join(", ")}`); continue; }
+      }
+      movable.push(t);
+    }
+    if (blocked.length) alert(`Some tasks couldn't be moved:\n\n${blocked.join("\n")}`);
+    if (!movable.length) return;
+    if (movable.length === 1) await moveSingleTask(movable[0], newStatus, dropRect);
+    else await bulkMoveStatus(movable.map(t => t.id), newStatus);
+  };
+
+  // Attach an existing category blocker to one or more tasks (drop onto a sub-bin).
+  const attachBlockerToTasks = async (ids, blockerId, reason = null) => {
+    const targets = ids.filter(tid => {
+      const f = findTaskById(tid);
+      return f && !(f.task.blockers ?? []).some(tb => tb.blockerId === blockerId && tb.blocker && !tb.blocker.resolvedAt);
+    });
+    if (!targets.length) return;
+    try {
+      await Promise.all(targets.map(tid => post(`/api/tasks/${tid}/blockers`, { blockerId, reason })));
+    } catch (err) {
+      alert(err?.message ?? "Failed to attach blocker");
+    } finally {
+      refreshBlockers();
+    }
+  };
+
+  // Create a brand-new category blocker (from the name modal) and attach the
+  // dragged task(s) to it.
+  const createBlockerAndAttach = async (label, color, taskIds) => {
+    try {
+      const cat = await post(`/api/projects/${id}/blockers`, { label, color: color || null });
+      await Promise.all(taskIds.map(tid => post(`/api/tasks/${tid}/blockers`, { blockerId: cat.id, reason: null })));
+    } catch (err) {
+      alert(err?.message ?? "Failed to create blocker");
+    } finally {
+      refreshBlockers();
+      clearSelection();
+    }
+  };
+
+  // Rename / recolor a category blocker (inline edit in the Blocked column).
+  const handleRenameBlocker = async (blockerId, fields) => {
+    try {
+      await patch(`/api/blockers/${blockerId}`, fields);
+    } catch (err) {
+      alert(err?.message ?? "Failed to update blocker");
+    } finally {
+      refreshBlockers();
+    }
+  };
+
+  // DONE-bin settle-bounce + confetti, shared by single and group moves.
+  const celebrateDoneBin = () => {
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      const doneBin = document.querySelector('[data-bin-id="DONE"]');
+      if (!doneBin) return;
+      if (!prefersReducedMotion()) {
+        animate(doneBin, { scale: [1, 1.01, 1], duration: 400, ease: spring });
+      }
+      burstAt(doneBin, { palette: 'taskComplete' });
+    }));
+  };
+
+  // Groups the BLOCKED column into collapsible sub-bins: one per active
+  // category blocker attached to a blocked task, plus one per blocking task
+  // that still has at least one non-DONE blocked task. A task blocked by
+  // several things appears under each of its groups.
+  const blockedGroups = useMemo(() => {
+    if (!project) return [];
+    const blockedTasks = project.tasks.filter(t => !t.parentTaskId && t.status === "BLOCKED");
+    const categoryGroups = new Map();
+    const taskGroups = new Map();
+    blockedTasks.forEach(t => {
+      (t.blockers ?? []).forEach(tb => {
+        if (!tb.blocker || tb.blocker.resolvedAt) return;
+        if (!categoryGroups.has(tb.blockerId)) {
+          categoryGroups.set(tb.blockerId, { type: "category", id: tb.blockerId, blocker: tb.blocker, items: [] });
+        }
+        categoryGroups.get(tb.blockerId).items.push({ task: t, reason: tb.reason });
+      });
+      (t.blockedBy ?? []).forEach(dep => {
+        if (!dep.blockingTask || dep.blockingTask.status === "DONE") return;
+        const bid = dep.blockingTask.id;
+        if (!taskGroups.has(bid)) {
+          taskGroups.set(bid, { type: "task", id: bid, blockingTask: dep.blockingTask, items: [] });
+        }
+        taskGroups.get(bid).items.push({ task: t, reason: dep.reason });
+      });
+    });
+    // Surface every active category — even ones with no blocked task yet — so
+    // they render as drop targets you can drag tasks into.
+    (projectBlockers ?? []).forEach(b => {
+      if (b.resolvedAt) return;
+      if (!categoryGroups.has(b.id)) {
+        categoryGroups.set(b.id, { type: "category", id: b.id, blocker: b, items: [] });
+      }
+    });
+    const groups = [
+      ...[...categoryGroups.values()].sort((a, b) => a.blocker.label.localeCompare(b.blocker.label)),
+      ...[...taskGroups.values()].sort((a, b) => a.blockingTask.title.localeCompare(b.blockingTask.title)),
+    ];
+    const groupedIds = new Set();
+    groups.forEach(g => g.items.forEach(i => groupedIds.add(i.task.id)));
+    const ungrouped = blockedTasks.filter(t => !groupedIds.has(t.id));
+    if (ungrouped.length) groups.push({ type: "other", id: "other", items: ungrouped.map(t => ({ task: t, reason: null })) });
+    return groups;
+  }, [project, projectBlockers]);
+
+  const handleResolveBlocker = useCallback(async (blockerId) => {
+    try {
+      await post(`/api/blockers/${blockerId}/resolve`, {});
+      refreshBlockers();
+    } catch (err) {
+      alert(err?.message ?? "Failed to resolve blocker");
+    }
+  }, [refreshBlockers]);
 
   const saveDescription = useCallback(async () => {
     try {
@@ -1874,7 +2356,8 @@ export default function ProjectDetail() {
 
   useEffect(() => {
     fetchProject();
-  }, [fetchProject]);
+    fetchBlockers();
+  }, [fetchProject, fetchBlockers]);
 
   // Progress snapshot: the user's last-seen milestone progress for this
   // project. Read once at mount, frozen for the lifetime of this view; saved
@@ -1930,6 +2413,52 @@ export default function ProjectDetail() {
       return next;
     });
   }, [project?.id]);
+
+  // Clear bulk selection on Escape and whenever the active tab changes.
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      if (e.key === "Escape" && selectedTaskIds.size > 0) {
+        setSelectedTaskIds(new Set());
+        setLastClickedId(null);
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [selectedTaskIds]);
+
+  useEffect(() => {
+    setSelectedTaskIds(new Set());
+    setLastClickedId(null);
+  }, [activeTab]);
+
+  const handleRowClick = useCallback((task, event) => {
+    if (event?.ctrlKey || event?.metaKey) {
+      setSelectedTaskIds(prev => {
+        const next = new Set(prev);
+        if (next.has(task.id)) next.delete(task.id);
+        else next.add(task.id);
+        return next;
+      });
+      setLastClickedId(task.id);
+      return;
+    }
+    if (event?.shiftKey && lastClickedId) {
+      const fromIdx = flatTaskOrder.indexOf(lastClickedId);
+      const toIdx = flatTaskOrder.indexOf(task.id);
+      if (fromIdx !== -1 && toIdx !== -1) {
+        const [start, end] = fromIdx <= toIdx ? [fromIdx, toIdx] : [toIdx, fromIdx];
+        setSelectedTaskIds(prev => {
+          const next = new Set(prev);
+          for (let i = start; i <= end; i++) next.add(flatTaskOrder[i]);
+          return next;
+        });
+      }
+      setLastClickedId(task.id);
+      return;
+    }
+    setLastClickedId(task.id);
+    setSelectedTask(task);
+  }, [lastClickedId, flatTaskOrder]);
 
   useEffect(() => {
     if (!project) return;
@@ -1991,19 +2520,16 @@ export default function ProjectDetail() {
 
   const handleDragOver = (event) => {
     const { active, over } = event;
-    if (over && BINS.some((b) => b.id === over.id)) {
-      setOverBin(over.id);
-    } else {
-      setOverBin(null);
-    }
+    const overId = over?.id ?? null;
     const isMemberDrag = typeof active?.id === "string" && (active.id.startsWith("member-") || active.id === "special-everyone" || active.id === "special-nobody");
     if (isMemberDrag) {
-      const overId = over?.id;
+      setOverBin(null);
       const isTopLevel = overId && project?.tasks.some(t => t.id === overId);
       const isSubtask = !isTopLevel && overId && project?.tasks.some(t => (t.subtasks ?? []).some(s => s.id === overId));
       setOverTaskId(isTopLevel || isSubtask ? overId : null);
     } else {
       setOverTaskId(null);
+      setOverBin(isContainerId(overId) ? overId : null);
     }
   };
 
@@ -2082,92 +2608,38 @@ export default function ProjectDetail() {
       return;
     }
 
-    const taskId = active.id;
-    const newStatus = over.id;
+    // ── Task drag onto a status bin or blocker sub-bin ─────────────
+    // If the grabbed task is part of a multi-selection, the whole selection
+    // moves as one group; otherwise just the grabbed task.
+    const overId = over.id;
+    const isGroup = selectedTaskIds.has(active.id) && selectedTaskIds.size > 1;
+    const draggedIds = isGroup ? [...selectedTaskIds] : [active.id];
 
-    if (!BINS.some((b) => b.id === newStatus)) return;
-
-    const task = project.tasks.find((t) => t.id === taskId);
-    if (!task || task.status === newStatus) return;
-
-    if (newStatus === "DONE") {
-      const openBlockers = (task.blockedBy ?? []).filter(d => d.blockingTask?.status !== "DONE");
-      if (openBlockers.length > 0) {
-        const names = openBlockers.map(d => d.blockingTask.title).join(", ");
-        alert(`Cannot complete "${task.title}" — the following blockers are not done yet:\n\n${names}`);
-        return;
-      }
+    // Dropped onto a specific blocker category sub-bin → attach that blocker.
+    if (typeof overId === "string" && overId.startsWith("blocker-")) {
+      await attachBlockerToTasks(draggedIds, overId.slice("blocker-".length));
+      if (isGroup) clearSelection();
+      return;
     }
 
-    // Build patch body
-    const patchBody = { status: newStatus };
+    if (!BINS.some((b) => b.id === overId)) return;
+    const newStatus = overId;
 
-    // Auto-assign current user when moving to IN_PROGRESS
-    if (newStatus === "IN_PROGRESS" && member) {
-      const alreadyAssigned = (task.assignees ?? []).some(a => a.id === member.id);
-      if (!alreadyAssigned) {
-        patchBody.assigneeIds = [...(task.assignees ?? []).map(a => a.id), member.id];
-      }
+    // Dropped onto the BLOCKED bin's general area → ask what's blocking it,
+    // then create a category blocker and attach the dragged task(s).
+    if (newStatus === "BLOCKED") {
+      const targets = draggedIds.filter(tid => {
+        const f = findTaskById(tid);
+        return f && f.task.status !== "BLOCKED";
+      });
+      if (targets.length === 0) return;
+      setBlockerPrompt({ taskIds: targets });
+      return;
     }
 
-    const previousTasks = project.tasks;
-
-    // Capture the drop location for the reward particles to fly from.
-    // event.delta + initial rect would also work, but @dnd-kit exposes the
-    // current translated rect of the active item.
     const dropRect = event?.active?.rect?.current?.translated;
-    if (dropRect) {
-      setNextRewardOrigin(
-        dropRect.left + dropRect.width / 2,
-        dropRect.top + dropRect.height / 2
-      );
-    }
-
-    // Optimistic update
-    setProject(prev => ({
-      ...prev,
-      tasks: prev.tasks.map(t =>
-        t.id === taskId
-          ? {
-              ...t,
-              status: newStatus,
-              assignees: newStatus === "IN_PROGRESS" && member && !(t.assignees ?? []).some(a => a.id === member.id)
-                ? [...(t.assignees ?? []), member]
-                : t.assignees,
-            }
-          : t
-      ),
-    }));
-
-    try {
-      const updated = await patch(`/api/tasks/${taskId}`, patchBody);
-      setProject(prev => ({
-        ...prev,
-        tasks: prev.tasks.map(t => t.id === taskId ? { ...t, ...updated } : t),
-      }));
-
-      // Engagement: re-check streak after any forward status move.
-      notifyStreak();
-
-      // Satisfaction: when a task lands in DONE, settle-bounce + confetti.
-      if (newStatus === "DONE") {
-        requestAnimationFrame(() => requestAnimationFrame(() => {
-          const doneBin = document.querySelector('[data-bin-id="DONE"]');
-          if (!doneBin) return;
-          if (!prefersReducedMotion()) {
-            animate(doneBin, {
-              scale: [1, 1.01, 1],
-              duration: 400,
-              ease: spring,
-            });
-          }
-          burstAt(doneBin, { palette: 'taskComplete' });
-        }));
-      }
-    } catch (err) {
-      setProject(prev => ({ ...prev, tasks: previousTasks }));
-      if (err?.message) alert(err.message);
-    }
+    await moveTasksToStatus(draggedIds, newStatus, dropRect);
+    if (isGroup) clearSelection();
   };
 
   const handleProgressChange = async (taskId, newProgress) => {
@@ -2217,6 +2689,67 @@ export default function ProjectDetail() {
     }));
     setSelectedTask(null);
     fetchProject();
+  };
+
+  // ── Bulk selection actions ───────────────────────────────────
+
+  const clearSelection = () => {
+    setSelectedTaskIds(new Set());
+    setLastClickedId(null);
+  };
+
+  const handleBulkPatch = async (patchFields) => {
+    if (selectedTaskIds.size === 0) return;
+    const ids = [...selectedTaskIds];
+    setBulkActing(true);
+    setProject(prev => prev ? {
+      ...prev,
+      tasks: prev.tasks.map(t => {
+        let next = selectedTaskIds.has(t.id) ? { ...t, ...patchFields } : t;
+        if (next.subtasks?.length) {
+          next = { ...next, subtasks: next.subtasks.map(s => selectedTaskIds.has(s.id) ? { ...s, ...patchFields } : s) };
+        }
+        return next;
+      }),
+    } : prev);
+    try {
+      const res = await patch("/api/tasks/bulk", { ids, patch: patchFields });
+      if (res.skipped?.length > 0) {
+        alert(`${res.skipped.length} task(s) were skipped:\n` + res.skipped.map(s => `- ${s.reason}`).join("\n"));
+      }
+    } catch (err) {
+      alert(err?.message ?? "Bulk update failed");
+    } finally {
+      setBulkActing(false);
+      fetchProject();
+      clearSelection();
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedTaskIds.size === 0) return;
+    const ids = [...selectedTaskIds];
+    setBulkActing(true);
+    setProject(prev => prev ? {
+      ...prev,
+      tasks: prev.tasks
+        .filter(t => !selectedTaskIds.has(t.id))
+        .map(t => t.subtasks?.length ? { ...t, subtasks: t.subtasks.filter(s => !selectedTaskIds.has(s.id)) } : t),
+    } : prev);
+    try {
+      const res = await post("/api/tasks/bulk-delete", { ids });
+      if (res.skipped?.length > 0) {
+        alert(`${res.skipped.length} task(s) could not be deleted:\n` + res.skipped.map(s => `- ${s.reason}`).join("\n"));
+      }
+      if (selectedTask && ids.includes(selectedTask.id)) setSelectedTask(null);
+    } catch (err) {
+      alert(err?.message ?? "Bulk delete failed");
+    } finally {
+      setBulkActing(false);
+      setBulkDeleteConfirm(false);
+      fetchProject();
+      clearSelection();
+    }
   };
 
   const handleTaskCreated = (newTask) => {
@@ -2274,14 +2807,6 @@ export default function ProjectDetail() {
     );
   }
 
-  // Build subtask map from embedded subtasks (project fetches top-level only, subtasks are nested)
-  const subtasksByParent = new Map();
-  project.tasks.forEach(t => {
-    if (t.subtasks && t.subtasks.length > 0) {
-      subtasksByParent.set(t.id, t.subtasks);
-    }
-  });
-
   const HEALTH_COLOR_MAP = {
     ACTIVE: 'var(--pm-accent-teal)',
     PAUSED: 'var(--pm-accent-amber)',
@@ -2299,7 +2824,7 @@ export default function ProjectDetail() {
     <div className="cpm-project-layout">
       <DndContext
         sensors={sensors}
-        collisionDetection={closestCenter}
+        collisionDetection={kanbanCollisionDetection}
         onDragStart={handleDragStart}
         onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
@@ -2469,10 +2994,15 @@ export default function ProjectDetail() {
                     })}
                     isOver={overBin === bin.id}
                     overTaskId={overTaskId}
-                    onTaskClick={setSelectedTask}
+                    overBlockerId={typeof overBin === "string" && overBin.startsWith("blocker-") ? overBin : null}
+                    onTaskClick={handleRowClick}
                     onAddTask={(status) => { setAddTaskInitialStatus(status); setShowAddTask(true); }}
                     canEdit={canEdit}
                     sortBy={sortBy}
+                    selectedTaskIds={selectedTaskIds}
+                    blockedGroups={bin.id === "BLOCKED" ? blockedGroups : undefined}
+                    onResolveBlocker={handleResolveBlocker}
+                    onRenameBlocker={handleRenameBlocker}
                   />
                 ))}
               </div>
@@ -2634,36 +3164,50 @@ export default function ProjectDetail() {
 
         <DragOverlay dropAnimation={null}>
           {activeTask ? (
-            <div
-              style={{
-                opacity: 0.95,
-                cursor: "grabbing",
-                transform: "scale(1.02)",
-                boxShadow: "0 20px 60px rgba(0,0,0,0.5)",
-                background: "var(--clubpm-surface-200)",
-                border: "1px solid var(--clubpm-border)",
-                borderRadius: 6,
-                padding: "8px 12px",
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-                maxWidth: 480,
-              }}
-            >
-              <PriorityBars priority={activeTask.priority} />
-              <span
-                style={{
-                  fontSize: 13,
-                  color: "var(--clubpm-text-primary)",
-                  fontWeight: 500,
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {activeTask.title}
-              </span>
-            </div>
+            (() => {
+              const groupCount = selectedTaskIds.has(activeTask.id) ? selectedTaskIds.size : 1;
+              const isGroup = groupCount > 1;
+              return (
+                <div style={{ position: "relative", cursor: "grabbing", maxWidth: 480 }}>
+                  {isGroup && (
+                    <>
+                      <div className="cpm-drag-stack cpm-drag-stack--2" />
+                      <div className="cpm-drag-stack cpm-drag-stack--1" />
+                    </>
+                  )}
+                  <div
+                    style={{
+                      position: "relative",
+                      opacity: 0.97,
+                      transform: "scale(1.02)",
+                      boxShadow: "0 20px 60px rgba(0,0,0,0.5)",
+                      background: "var(--clubpm-surface-200)",
+                      border: "1px solid var(--clubpm-border)",
+                      borderRadius: 6,
+                      padding: "8px 12px",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 10,
+                    }}
+                  >
+                    <PriorityBars priority={activeTask.priority} />
+                    <span
+                      style={{
+                        fontSize: 13,
+                        color: "var(--clubpm-text-primary)",
+                        fontWeight: 500,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {activeTask.title}
+                    </span>
+                    {isGroup && <span className="cpm-drag-group-badge">{groupCount}</span>}
+                  </div>
+                </div>
+              );
+            })()
           ) : activeMember ? (
             <div className="cpm-assignee-chip" style={{ cursor: "grabbing", boxShadow: "0 8px 32px rgba(0,0,0,0.45)", opacity: 0.95 }}>
               <ChipAvatar member={activeMember.member} />
@@ -2677,6 +3221,8 @@ export default function ProjectDetail() {
         <TaskModal
           task={selectedTask}
           project={project}
+          projectBlockers={projectBlockers}
+          onBlockersChange={refreshBlockers}
           onClose={() => {
             setSelectedTask(null);
             navigate(`/clubpm/projects/${id}`, { replace: true });
@@ -2684,6 +3230,17 @@ export default function ProjectDetail() {
           onUpdate={handleTaskUpdate}
           onDelete={handleTaskDelete}
           onTaskCreated={handleTaskCreated}
+        />
+      )}
+
+      {blockerPrompt && (
+        <BlockerNameModal
+          count={blockerPrompt.taskIds.length}
+          onCreate={(label, color) => {
+            createBlockerAndAttach(label, color, blockerPrompt.taskIds);
+            setBlockerPrompt(null);
+          }}
+          onCancel={() => setBlockerPrompt(null)}
         />
       )}
 
@@ -2702,6 +3259,23 @@ export default function ProjectDetail() {
           url={headerDrivePreview.url}
           label={headerDrivePreview.label}
           onClose={() => setHeaderDrivePreview(null)}
+        />
+      )}
+
+      {activeTab === "tasks" && canEdit && (
+        <BulkActionBar
+          count={selectedTaskIds.size}
+          projectMembers={(project.members ?? []).map(pm => pm.member ?? pm)}
+          busy={bulkActing}
+          deleteConfirm={bulkDeleteConfirm}
+          onAssign={(memberIds) => handleBulkPatch({ assigneeIds: memberIds })}
+          onDueDate={(iso) => handleBulkPatch({ dueDate: iso })}
+          onStatus={(status) => handleBulkPatch({ status })}
+          onPriority={(priority) => handleBulkPatch({ priority })}
+          onRequestDelete={() => setBulkDeleteConfirm(true)}
+          onCancelDelete={() => setBulkDeleteConfirm(false)}
+          onDelete={handleBulkDelete}
+          onClear={clearSelection}
         />
       )}
     </div>

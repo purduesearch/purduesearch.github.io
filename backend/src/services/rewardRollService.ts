@@ -72,7 +72,7 @@ export async function applyRollResults(
   sourceId: string,
   tableKey: string,
   results: RollResult[]
-): Promise<void> {
+): Promise<any[]> {
   const rolled: any[] = [];
 
   for (const result of results) {
@@ -118,7 +118,15 @@ export async function applyRollResults(
         await prisma.memberCosmetic.create({
           data: { memberId, cosmeticId: candidate.id },
         });
-        rolled.push({ kind: outcomeKind, cosmeticId: candidate.id, rarity: payload.rarity, name: candidate.name });
+        rolled.push({
+          kind: outcomeKind,
+          cosmeticId: candidate.id,
+          rarity: payload.rarity,
+          name: candidate.name,
+          svgUrl: candidate.svgUrl,
+          iconClass: candidate.iconClass,
+          category,
+        });
       } else {
         // All cosmetics of this type owned — convert to DB bonus
         const bonus = payload.rarity === "MYTHIC" ? 200
@@ -133,4 +141,6 @@ export async function applyRollResults(
   await prisma.rewardRoll.create({
     data: { memberId, sourceType, sourceId, tableKey, rolled },
   });
+
+  return rolled;
 }

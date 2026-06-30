@@ -332,9 +332,10 @@ export async function claimChallenge(
   const effectiveTableKey = rollTableKey ?? (type === "DAILY" ? "DAILY_DROP" : null);
 
   let results: RollResult[] = [];
+  let rolledDetails: any[] = [];
   if (effectiveTableKey) {
     results = rollTable(effectiveTableKey);
-    await applyRollResults(memberId, `${type}_QUEST`, memberChallengeId, effectiveTableKey, results);
+    rolledDetails = await applyRollResults(memberId, `${type}_QUEST`, memberChallengeId, effectiveTableKey, results);
   }
 
   const rolledItems = results.map(r => ({ kind: r.outcomeKind, ...r.payload }));
@@ -343,10 +344,12 @@ export async function claimChallenge(
     data:  { rolledItems },
   });
 
-  const rolls = results.map(r => ({
+  // Build the client roll list from the *applied* outcomes so the reveal can
+  // show the real badge (name + artwork), not just its rarity.
+  const rolls = rolledDetails.map(r => ({
     granted: true,
-    outcomeKind: r.outcomeKind,
-    payload: r.payload,
+    outcomeKind: r.kind,
+    payload: r,
   }));
 
   return {
@@ -376,14 +379,16 @@ async function claimAchievement(
 
   // Grant tier-appropriate cosmetics for achievements
   let results: RollResult[] = [];
+  let rolledDetails: any[] = [];
   if (tier) {
     const guaranteedTable = `ACHIEVEMENT_${tier}` as string;
     results = rollTable(guaranteedTable);
     if (results.length === 0) {
       // Fallback: grant one badge of this rarity directly
-      await grantAchievementCosmetic(memberId, "BADGE", tier);
+      const granted = await grantAchievementCosmetic(memberId, "BADGE", tier);
+      if (granted) rolledDetails = [granted];
     } else {
-      await applyRollResults(memberId, "ACHIEVEMENT", memberAchievementId, guaranteedTable, results);
+      rolledDetails = await applyRollResults(memberId, "ACHIEVEMENT", memberAchievementId, guaranteedTable, results);
     }
   }
 
@@ -393,10 +398,10 @@ async function claimAchievement(
     data:  { rolledItems },
   });
 
-  const rolls = results.map(r => ({
+  const rolls = rolledDetails.map(r => ({
     granted: true,
-    outcomeKind: r.outcomeKind,
-    payload: r.payload,
+    outcomeKind: r.kind,
+    payload: r,
   }));
 
   return {
@@ -416,7 +421,7 @@ async function grantAchievementCosmetic(
   memberId: string,
   category: "BADGE" | "BORDER",
   rarity: CosmeticRarity
-): Promise<void> {
+): Promise<any | null> {
   const owned = await prisma.memberCosmetic.findMany({
     where: { memberId }, select: { cosmeticId: true },
   });
@@ -427,10 +432,19 @@ async function grantAchievementCosmetic(
   });
   if (candidate) {
     await prisma.memberCosmetic.create({ data: { memberId, cosmeticId: candidate.id } });
-  } else {
-    const bonus = rarity === "MYTHIC" ? 300 : rarity === "RARE" ? 150 : rarity === "UNCOMMON" ? 75 : 30;
-    await grantDoubloons(memberId, bonus, "ADMIN_ADJUSTMENT");
+    return {
+      kind: category,
+      cosmeticId: candidate.id,
+      rarity,
+      name: candidate.name,
+      svgUrl: candidate.svgUrl,
+      iconClass: candidate.iconClass,
+      category,
+    };
   }
+  const bonus = rarity === "MYTHIC" ? 300 : rarity === "RARE" ? 150 : rarity === "UNCOMMON" ? 75 : 30;
+  await grantDoubloons(memberId, bonus, "ADMIN_ADJUSTMENT");
+  return null;
 }
 
 // ── Event recording ──────────────────────────────────────────────

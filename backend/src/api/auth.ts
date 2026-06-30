@@ -299,6 +299,7 @@ authRouter.get("/me", requireAuth, async (req: Request, res: Response) => {
       projects: {
         include: { project: true },
       },
+      equippedBadge: { select: { id: true, name: true, rarity: true, svgUrl: true, iconClass: true } },
     },
   });
 

@@ -36,6 +36,7 @@ type CosmeticSeed = {
   rarity: CosmeticRarity;
   cssSlug?: string;
   iconClass?: string;
+  svgUrl?: string;
   registryKey?: string;
   themeTokens?: Record<string, string>;
   doubloonPrice: number;
@@ -56,24 +57,37 @@ const COSMETICS: CosmeticSeed[] = [
   { name: "Comet Frame",       category: "NAME_FRAME", rarity: "UNCOMMON", cssSlug: "comet",    doubloonPrice: 100, shopEligible: true },
   { name: "Stardust Frame",    category: "NAME_FRAME", rarity: "MYTHIC",   cssSlug: "stardust", doubloonPrice: 800, shopEligible: true, rankGate: "COSMONAUT" },
 
-  // ── Clothing (registryKey maps into clothingRegistry.js) ──
-  { name: "Flight Jacket",     category: "CLOTHING", rarity: "COMMON",   registryKey: "flight-jacket",   doubloonPrice: 60,  shopEligible: true },
-  { name: "Lab Coat",          category: "CLOTHING", rarity: "UNCOMMON", registryKey: "lab-coat",        doubloonPrice: 150, shopEligible: true },
-  { name: "Astronaut Suit",    category: "CLOTHING", rarity: "RARE",     registryKey: "astronaut-suit",  doubloonPrice: 400, shopEligible: true, rankGate: "PIONEER" },
+  // // ── Clothing (registryKey maps into clothingRegistry.js) ──
+  // { name: "Flight Jacket",     category: "CLOTHING", rarity: "COMMON",   registryKey: "flight-jacket",   doubloonPrice: 60,  shopEligible: true },
+  // { name: "Lab Coat",          category: "CLOTHING", rarity: "UNCOMMON", registryKey: "lab-coat",        doubloonPrice: 150, shopEligible: true },
+  // { name: "Astronaut Suit",    category: "CLOTHING", rarity: "RARE",     registryKey: "astronaut-suit",  doubloonPrice: 400, shopEligible: true, rankGate: "PIONEER" },
 
-  // ── Avatar features (hair) ──
-  { name: "Buzz Cut",          category: "AVATAR_FEATURE", rarity: "COMMON",   registryKey: "buzz",        doubloonPrice: 30,  shopEligible: true },
-  { name: "Long Wavy",         category: "AVATAR_FEATURE", rarity: "UNCOMMON", registryKey: "long-wavy",   doubloonPrice: 80,  shopEligible: true },
-  { name: "Ponytail",          category: "AVATAR_FEATURE", rarity: "RARE",     registryKey: "ponytail",    doubloonPrice: 250, shopEligible: true, rankGate: "SPECIALIST" },
+  // // ── Avatar features (hair) ──
+  // { name: "Buzz Cut",          category: "AVATAR_FEATURE", rarity: "COMMON",   registryKey: "buzz",        doubloonPrice: 30,  shopEligible: true },
+  // { name: "Long Wavy",         category: "AVATAR_FEATURE", rarity: "UNCOMMON", registryKey: "long-wavy",   doubloonPrice: 80,  shopEligible: true },
+  // { name: "Ponytail",          category: "AVATAR_FEATURE", rarity: "RARE",     registryKey: "ponytail",    doubloonPrice: 250, shopEligible: true, rankGate: "SPECIALIST" },
 
   // ── Badges (rank milestones — not shop-eligible, awarded by reaching rank) ──
-  { name: "Nestling Badge",    category: "BADGE", rarity: "COMMON",   iconClass: "fas fa-egg",            doubloonPrice: 0, shopEligible: false, unlockCondition: "Reach Nestling rank" },
-  { name: "Fledgling Badge",   category: "BADGE", rarity: "COMMON",   iconClass: "fas fa-feather",        doubloonPrice: 0, shopEligible: false, unlockCondition: "Reach Fledgling rank" },
-  { name: "Cadet Badge",       category: "BADGE", rarity: "UNCOMMON", iconClass: "fas fa-user-astronaut", doubloonPrice: 0, shopEligible: false, unlockCondition: "Reach Cadet rank" },
-  { name: "Specialist Badge",  category: "BADGE", rarity: "UNCOMMON", iconClass: "fas fa-medal",          doubloonPrice: 0, shopEligible: false, unlockCondition: "Reach Specialist rank" },
-  { name: "Pioneer Badge",     category: "BADGE", rarity: "RARE",     iconClass: "fas fa-rocket",         doubloonPrice: 0, shopEligible: false, unlockCondition: "Reach Pioneer rank" },
-  { name: "Cosmonaut Badge",   category: "BADGE", rarity: "RARE",     iconClass: "fas fa-satellite",      doubloonPrice: 0, shopEligible: false, unlockCondition: "Reach Cosmonaut rank" },
-  { name: "Celestial Badge",   category: "BADGE", rarity: "MYTHIC",   iconClass: "fas fa-star",           doubloonPrice: 0, shopEligible: false, unlockCondition: "Reach Celestial rank" },
+  // svgUrl points at the rank artwork so equipping swaps the sidebar RankIcon.
+  { name: "Nestling Badge",    category: "BADGE", rarity: "COMMON",   iconClass: "fas fa-egg",            svgUrl: "/clubpm/badges/rank/nestling.webp",   doubloonPrice: 0, shopEligible: false, unlockCondition: "Reach Nestling rank" },
+  { name: "Fledgling Badge",   category: "BADGE", rarity: "COMMON",   iconClass: "fas fa-feather",        svgUrl: "/clubpm/badges/rank/fledgling.webp",  doubloonPrice: 0, shopEligible: false, unlockCondition: "Reach Fledgling rank" },
+  { name: "Cadet Badge",       category: "BADGE", rarity: "UNCOMMON", iconClass: "fas fa-user-astronaut", svgUrl: "/clubpm/badges/rank/cadet.webp",      doubloonPrice: 0, shopEligible: false, unlockCondition: "Reach Cadet rank" },
+  { name: "Specialist Badge",  category: "BADGE", rarity: "UNCOMMON", iconClass: "fas fa-medal",          svgUrl: "/clubpm/badges/rank/specialist.webp", doubloonPrice: 0, shopEligible: false, unlockCondition: "Reach Specialist rank" },
+  { name: "Pioneer Badge",     category: "BADGE", rarity: "RARE",     iconClass: "fas fa-rocket",         svgUrl: "/clubpm/badges/rank/pioneer.webp",    doubloonPrice: 0, shopEligible: false, unlockCondition: "Reach Pioneer rank" },
+  { name: "Cosmonaut Badge",   category: "BADGE", rarity: "RARE",     iconClass: "fas fa-satellite",      svgUrl: "/clubpm/badges/rank/cosmonaut.webp",  doubloonPrice: 0, shopEligible: false, unlockCondition: "Reach Cosmonaut rank" },
+  { name: "Celestial Badge",   category: "BADGE", rarity: "MYTHIC",   iconClass: "fas fa-star",           svgUrl: "/clubpm/badges/rank/celestial.webp",  doubloonPrice: 0, shopEligible: false, unlockCondition: "Reach Celestial rank" },
+
+  // ── Mythic badges
+  { name: "John Peters",       category: "BADGE", rarity: "MYTHIC",   svgUrl: "/clubpm/badges/mythic/john_peters.webp", doubloonPrice: 500, shopEligible: true, unlockCondition: "Quest drop" },
+  { name: "Ethereal Chair",       category: "BADGE", rarity: "MYTHIC",   svgUrl: "/clubpm/badges/mythic/ethereal_chair.webp", doubloonPrice: 500, shopEligible: true, unlockCondition: "Quest drop" },
+  // ── Rare badges
+  { name: "Gaming Chair",       category: "BADGE", rarity: "RARE",   svgUrl: "/clubpm/badges/rare/gaming_chair.webp", doubloonPrice: 400, shopEligible: true, unlockCondition: "Quest drop" },
+  // ── Uncommon badges
+  { name: "Folding Chair",       category: "BADGE", rarity: "UNCOMMON",   svgUrl: "/clubpm/badges/uncommon/folding_chair.webp", doubloonPrice: 200, shopEligible: true, unlockCondition: "Quest drop" },
+  { name: "Smiling Thumbs Up",       category: "BADGE", rarity: "UNCOMMON",   svgUrl: "/clubpm/badges/uncommon/smiling_thumbsup.webp", doubloonPrice: 200, shopEligible: true, unlockCondition: "Quest drop" },
+  // ── Common badges
+  { name: "Seagull",       category: "BADGE", rarity: "COMMON",   svgUrl: "/clubpm/badges/common/seagull.webp", doubloonPrice: 100, shopEligible: true, unlockCondition: "Quest drop" },
+  { name: "Wooden Chair",       category: "BADGE", rarity: "COMMON",   svgUrl: "/clubpm/badges/common/wooden_chair.webp", doubloonPrice: 100, shopEligible: true, unlockCondition: "Quest drop" },
 
   // ── Animations ──
   { name: "Pulse Animation",   category: "ANIMATION", rarity: "UNCOMMON", cssSlug: "pulse",   doubloonPrice: 90,  shopEligible: true },
@@ -192,13 +206,22 @@ async function main(): Promise<void> {
   }
   console.log(`  ✅ RewardEventConfig: ${EVENT_DEFAULTS.length} rows ensured`);
 
+  let backfilled = 0;
   for (const c of COSMETICS) {
     const existing = await prisma.cosmetic.findFirst({ where: { name: c.name } });
-    if (existing) continue;
+    if (existing) {
+      // Backfill svgUrl on rows seeded before badges had artwork, without
+      // clobbering any other admin-edited fields.
+      if (c.svgUrl && existing.svgUrl !== c.svgUrl) {
+        await prisma.cosmetic.update({ where: { id: existing.id }, data: { svgUrl: c.svgUrl } });
+        backfilled++;
+      }
+      continue;
+    }
     await prisma.cosmetic.create({ data: c });
   }
   const total = await prisma.cosmetic.count();
-  console.log(`  ✅ Cosmetic catalogue: ${total} rows total (${COSMETICS.length} seed entries)`);
+  console.log(`  ✅ Cosmetic catalogue: ${total} rows total (${COSMETICS.length} seed entries, ${backfilled} svgUrl backfilled)`);
 
   console.log("🌱 Engagement seed complete.");
 }

@@ -3,7 +3,7 @@ import { requireAuth } from "./auth.js";
 import { channelAuth } from "../middleware/channelAuth.js";
 import { getTaskPermissions, requireTaskEdit } from "../middleware/taskAccess.js";
 import { aiRateLimit } from "../middleware/aiRateLimit.js";
-import { updateTask, deleteTask, getTask, createSubtask, getSubtasks, addDependency, removeDependency, logTime, createTask } from "../services/taskService.js";
+import { updateTask, deleteTask, getTask, createSubtask, getSubtasks, addDependency, removeDependency, logTime, createTask, assertCanComplete, assertNotCategoryBlocked } from "../services/taskService.js";
 import { logAuditEvent, diffObjects } from "../services/activityService.js";
 import type { TaskStatus, TaskProgress, Priority, NotificationType } from "@prisma/client";
 import { generateJson, generateJsonFromImage, GeminiRateLimitError } from "../services/geminiService.js";
@@ -231,13 +231,136 @@ tasksRouter.post("/create-from-image", requireAuth, aiRateLimit, async (req: Req
   }
 });
 
+// ── PATCH /api/tasks/bulk ────────────────────────────────────
+// Must be above /:id routes so "bulk" is not captured as an id param.
+
+tasksRouter.patch("/bulk", async (req: Request, res: Response) => {
+  try {
+    const { ids, patch } = req.body as {
+      ids: string[];
+      patch: {
+        status?: TaskStatus;
+        priority?: Priority;
+        dueDate?: string | null;
+        assigneeIds?: string[];
+      };
+    };
+
+    if (!Array.isArray(ids) || ids.length === 0) {
+      res.status(400).json({ error: "ids must be a non-empty array" });
+      return;
+    }
+
+    const memberId = req.memberId!;
+    const updated: any[] = [];
+    const skipped: { id: string; reason: string }[] = [];
+
+    for (const id of ids) {
+      const existingTask = await getTask(id);
+      if (!existingTask) {
+        skipped.push({ id, reason: "Task not found" });
+        continue;
+      }
+
+      const { canEdit } = await getTaskPermissions(memberId, id);
+      if (!canEdit) {
+        skipped.push({ id, reason: "Permission denied" });
+        continue;
+      }
+
+      if (patch.status && patch.status !== existingTask.status) {
+        const lockError = assertNotCategoryBlocked(existingTask as any, patch.status);
+        if (lockError) {
+          skipped.push({ id, reason: lockError });
+          continue;
+        }
+      }
+
+      if (patch.status === "DONE" && existingTask.status !== "DONE") {
+        const blockerError = assertCanComplete(existingTask as any);
+        if (blockerError) {
+          skipped.push({ id, reason: blockerError });
+          continue;
+        }
+      }
+
+      try {
+        const task = await updateTask(id, {
+          status: patch.status,
+          priority: patch.priority,
+          dueDate: patch.dueDate === null ? undefined : patch.dueDate ? new Date(patch.dueDate) : undefined,
+          assigneeIds: patch.assigneeIds,
+        });
+        updated.push(task);
+      } catch (err) {
+        skipped.push({ id, reason: (err as Error).message ?? "Update failed" });
+      }
+    }
+
+    res.json({ updated, skipped });
+  } catch (error) {
+    console.error("Bulk update error:", error);
+    res.status(500).json({ error: "Failed to bulk update tasks" });
+  }
+});
+
+// ── POST /api/tasks/bulk-delete ──────────────────────────────
+
+tasksRouter.post("/bulk-delete", async (req: Request, res: Response) => {
+  try {
+    const { ids } = req.body as { ids: string[] };
+
+    if (!Array.isArray(ids) || ids.length === 0) {
+      res.status(400).json({ error: "ids must be a non-empty array" });
+      return;
+    }
+
+    const memberId = req.memberId!;
+    const deleted: string[] = [];
+    const skipped: { id: string; reason: string }[] = [];
+
+    for (const id of ids) {
+      const existingTask = await getTask(id);
+      if (!existingTask) {
+        skipped.push({ id, reason: "Task not found" });
+        continue;
+      }
+
+      const { canDelete } = await getTaskPermissions(memberId, id);
+      if (!canDelete) {
+        skipped.push({ id, reason: "Permission denied" });
+        continue;
+      }
+
+      try {
+        await deleteTask(id);
+        logAuditEvent({
+          projectId: existingTask.projectId,
+          memberId: memberId ?? null,
+          source: "WEB",
+          eventType: "TASK_DELETED",
+          payload: { taskTitle: existingTask.title },
+        }).catch(console.error);
+        deleted.push(id);
+      } catch (err) {
+        skipped.push({ id, reason: (err as Error).message ?? "Delete failed" });
+      }
+    }
+
+    res.json({ deleted, skipped });
+  } catch (error) {
+    console.error("Bulk delete error:", error);
+    res.status(500).json({ error: "Failed to bulk delete tasks" });
+  }
+});
+
 // ── PATCH /api/tasks/:id ─────────────────────────────────────
 
 tasksRouter.patch("/:id", channelAuth, async (req: Request, res: Response) => {
   const requestStartedAt = new Date();
   try {
     const taskId = req.params.id as string;
-    const { title, description, status, progress, priority, dueDate, assigneeIds, tags, attachments, parentTaskId, blockingTaskIds } =
+    const { title, description, status, progress, priority, dueDate, assigneeIds, tags, attachments, parentTaskId, blockingTaskIds, blockingTaskReasons } =
       req.body as {
         title?: string;
         description?: string;
@@ -250,6 +373,7 @@ tasksRouter.patch("/:id", channelAuth, async (req: Request, res: Response) => {
         attachments?: AttachmentInput[];
         parentTaskId?: string | null;
         blockingTaskIds?: string[];
+        blockingTaskReasons?: Record<string, string | null>;
       };
 
     const normalisedAttachments = normaliseAttachments(attachments);
@@ -266,16 +390,18 @@ tasksRouter.patch("/:id", channelAuth, async (req: Request, res: Response) => {
       return;
     }
 
+    if (status && status !== existingTask.status) {
+      const lockError = assertNotCategoryBlocked(existingTask as any, status);
+      if (lockError) {
+        res.status(400).json({ error: lockError });
+        return;
+      }
+    }
+
     if (status === "DONE" && existingTask.status !== "DONE") {
-      const openBlockers = ((existingTask as any).blockedBy ?? []).filter(
-        (d: any) => d.blockingTask.status !== "DONE"
-      );
-      if (openBlockers.length > 0) {
-        const names = openBlockers.map((d: any) => `"${d.blockingTask.title}"`).join(", ");
-        const count = openBlockers.length;
-        res.status(400).json({
-          error: `Cannot mark as done: ${count} blocker${count > 1 ? "s" : ""} not yet completed — ${names}`,
-        });
+      const blockerError = assertCanComplete(existingTask as any);
+      if (blockerError) {
+        res.status(400).json({ error: blockerError });
         return;
       }
 
@@ -323,6 +449,7 @@ tasksRouter.patch("/:id", channelAuth, async (req: Request, res: Response) => {
       attachments: normalisedAttachments,
       parentTaskId,
       blockedByIds: blockingTaskIds,
+      blockedByReasons: blockingTaskReasons,
     });
 
     // Audit log — fire-and-forget, never block the response
@@ -984,12 +1111,12 @@ tasksRouter.post("/:id/subtasks", requireAuth, requireTaskEdit, async (req: Requ
 
 tasksRouter.post("/:id/dependencies", requireAuth, requireTaskEdit, async (req: Request, res: Response) => {
   try {
-    const { blockedById } = req.body as { blockedById: string };
+    const { blockedById, reason } = req.body as { blockedById: string; reason?: string | null };
     if (!blockedById) {
       res.status(400).json({ error: "blockedById is required" });
       return;
     }
-    const result = await addDependency(req.params.id as string, blockedById);
+    const result = await addDependency(req.params.id as string, blockedById, reason);
     res.json(result);
   } catch (error: any) {
     if (error.message?.includes("circular") || error.message?.includes("itself")) {

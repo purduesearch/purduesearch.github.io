@@ -42,6 +42,7 @@ import { avatarRouter } from "./api/avatar.js";
 import { streakRouter } from "./api/streak.js";
 import { inventoryRouter } from "./api/inventory.js";
 import { challengesRouter } from "./api/challenges.js";
+import { blockersRouter } from "./api/blockers.js";
 
 // ── Express Setup ────────────────────────────────────────────
 
@@ -99,6 +100,7 @@ app.use("/api/github", githubRouter);
 app.use("/api/projects", projectsRouter);
 app.use("/api/tags", tagsRouter);
 app.use("/api/tasks", tasksRouter);
+app.use("/api", blockersRouter);
 app.use("/api/members", membersRouter);
 app.use("/api/activity", activityRouter);
 app.use("/api/milestones", milestonesRouter);
@@ -160,11 +162,24 @@ async function start(): Promise<void> {
     console.log("⏰ Cron scheduler started");
 
     // Start Express server
-    app.listen(PORT, () => {
+    const server = app.listen(PORT, () => {
       console.log(`🚀 Express server running on http://localhost:${PORT}`);
       console.log(
         `🌐 Frontend expected at ${process.env.FRONTEND_URL ?? "http://localhost:5173"}`
       );
+    });
+
+    server.on("error", (err: NodeJS.ErrnoException) => {
+      if (err.code === "EADDRINUSE") {
+        console.error(
+          `❌ Port ${PORT} is already in use. Kill the other process and retry:\n` +
+          `   Windows:  netstat -ano | findstr :${PORT}  →  taskkill /PID <pid> /F\n` +
+          `   macOS/Linux:  lsof -i :${PORT}  →  kill -9 <pid>`
+        );
+      } else {
+        console.error("❌ Server error:", err);
+      }
+      process.exit(1);
     });
   } catch (error) {
     console.error("❌ Failed to start application:", error);

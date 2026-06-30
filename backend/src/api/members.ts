@@ -227,6 +227,7 @@ membersRouter.get("/", async (_req: Request, res: Response) => {
           include: { project: { select: { id: true, name: true, status: true } } },
         },
         avatarConfig: { select: { portraitUrl: true } },
+        equippedBadge: { select: { id: true, name: true, rarity: true, svgUrl: true, iconClass: true } },
       },
       orderBy: { displayName: "asc" },
     });

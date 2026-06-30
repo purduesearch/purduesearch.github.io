@@ -91,6 +91,7 @@ export async function getProject(id: string) {
           },
           blockedBy: { include: { blockingTask: { select: { id: true, title: true, status: true } } } },
           blocks:    { include: { blockedTask:  { select: { id: true, title: true, status: true } } } },
+          blockers:  { include: { blocker: true } },
           milestone: true,
         },
         orderBy: { createdAt: "desc" },

@@ -8,6 +8,7 @@ import { get, getActivity, patch } from "../../api/clubPmClient";
 import { useClubPmAuth } from "../../clubpm/ClubPmAuth";
 import RankBadge, { RANK_META } from "../../components/clubpm/RankBadge";
 import CosmeticChip from "../../components/clubpm/CosmeticChip";
+import BadgePicker from "../../components/clubpm/BadgePicker";
 import XpHeatmap from "../../components/clubpm/XpHeatmap";
 import AvatarEditor from "../../components/clubpm/avatar/AvatarEditor";
 import AvatarPortrait from "../../components/clubpm/avatar/AvatarPortrait";
@@ -340,9 +341,24 @@ export default function Profile() {
           {badges.length === 0
             ? <div style={{ color: "var(--clubpm-text-muted, #636b7a)" }}>No badges yet — keep contributing!</div>
             : (
-              <div className="cpm-cosmetic-grid">
-                {badges.map(b => <CosmeticChip key={b.id} cosmetic={b} />)}
-              </div>
+              <>
+                <BadgePicker
+                  badges={badges}
+                  activeBadgeId={profile.equippedBadgeId ?? null}
+                  editable={isSelf}
+                  rank={profile.rank}
+                  onChange={(id) => setProfile(p => ({
+                    ...p,
+                    equippedBadgeId: id,
+                    equippedBadge: id ? (badges.find(b => b.id === id) ?? null) : null,
+                  }))}
+                />
+                {isSelf && (
+                  <div style={{ marginTop: 10, fontSize: 12, color: "var(--clubpm-text-muted, #636b7a)" }}>
+                    Click a badge to make it your active badge — it shows next to your name in the sidebar and on the leaderboard.
+                  </div>
+                )}
+              </>
             )}
         </div>
 
