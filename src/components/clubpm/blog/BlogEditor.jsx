@@ -8,6 +8,8 @@ import Placeholder from '@tiptap/extension-placeholder';
 import { TableKit } from '@tiptap/extension-table';
 import { SearchAndReplace } from '@sereneinserenade/tiptap-search-and-replace';
 import BlogImage, { uploadImageFiles } from './BlogImage';
+import BlogEmbed, { buildEmbed } from './BlogEmbed';
+import BlogGallery from './BlogGallery';
 
 // Shared editor extension set. Keep in sync with the backend renderer
 // (backend/src/services/blogRender.ts) whenever a node type is added.
@@ -20,6 +22,8 @@ export function blogExtensions() {
     TaskList,
     TaskItem.configure({ nested: true }),
     BlogImage,
+    BlogEmbed,
+    BlogGallery,
     CharacterCount,
     Placeholder.configure({ placeholder: 'Start writing your post…' }),
     TableKit.configure({ table: { resizable: true } }),
@@ -64,6 +68,15 @@ function Toolbar({ editor, onToggleFind }) {
     if (e.target.files?.length) uploadImageFiles(editor, e.target.files);
     e.target.value = '';
   };
+  const insertEmbed = () => {
+    const url = window.prompt('Paste a YouTube, Vimeo, X, Instagram, or CodePen URL:');
+    if (url === null) return;
+    const { provider, html } = buildEmbed(url);
+    editor.chain().focus().insertContent({ type: 'embed', attrs: { url: url.trim(), provider, html } }).run();
+  };
+  const insertGallery = () => {
+    editor.chain().focus().insertContent({ type: 'gallery', attrs: { images: [] } }).run();
+  };
   return (
     <div className="cpm-blog-toolbar" role="toolbar" aria-label="Formatting">
       <Btn title="Bold (Ctrl+B)" icon="fa-bold" active={editor.isActive('bold')} onClick={() => editor.chain().focus().toggleBold().run()} />
@@ -101,6 +114,8 @@ function Toolbar({ editor, onToggleFind }) {
       <Btn title="Link (Ctrl+K)" icon="fa-link" active={editor.isActive('link')} onClick={() => setLink(editor)} />
       <Btn title="Insert image" icon="fa-image" onClick={() => fileRef.current?.click()} />
       <input ref={fileRef} type="file" accept="image/*" multiple hidden onChange={pickImage} />
+      <Btn title="Embed (video / social)" icon="fa-photo-film" onClick={insertEmbed} />
+      <Btn title="Image gallery" icon="fa-images" onClick={insertGallery} />
       <Btn title="Insert table" icon="fa-table" active={inTable} onClick={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()} />
       {inTable && (
         <>
