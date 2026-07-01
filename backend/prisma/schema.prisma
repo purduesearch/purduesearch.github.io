@@ -138,6 +138,8 @@ model Member {
   mutedProjectIds         String[]             @default([])
   tasks                   Task[]               @relation("TaskAssignees")
   createdTasks            Task[]               @relation("TaskCreator")
+  archivedTasks           Task[]               @relation("TaskArchiver")
+  assignedBlockers        Blocker[]            @relation("BlockerAssignee")
   projects                ProjectMember[]
   comments                TaskComment[]
   activities              Activity[]
@@ -160,6 +162,10 @@ model Member {
   recordedMetrics         PostMetric[]
   ownedRecurringTemplates RecurringTemplate[]  @relation("RecurringTemplateOwner")
   submissionApprovals     ApprovalRecord[]     @relation("SubmissionApprover")
+  blogPosts               BlogPost[]           @relation("BlogPostCreator")
+  blogRevisions           BlogRevision[]       @relation("BlogRevisionAuthor")
+  blogAuthorships         BlogAuthor[]         @relation("BlogAuthorMember")
+  blogSnippets            BlogSnippet[]        @relation("BlogSnippetCreator")
 
   // ── GitHub OAuth (per-member) ──
   // Access/refresh tokens are AES-GCM encrypted at rest (see backend/src/utils/crypto.ts).
@@ -284,6 +290,12 @@ model Task {
   createdById String?
   createdBy   Member?       @relation("TaskCreator", fields: [createdById], references: [id])
 
+  // ── Archive ──
+  archivedAt      DateTime?
+  archivedById    String?
+  archivedBy      Member?   @relation("TaskArchiver", fields: [archivedById], references: [id])
+  archiveNudgedAt DateTime?
+
   // ── Subtask hierarchy ──
   parentTask   Task?   @relation("TaskSubtasks", fields: [parentTaskId], references: [id], onDelete: Cascade)
   parentTaskId String?
@@ -338,6 +350,7 @@ model Task {
   @@index([status])
   @@index([parentTaskId])
   @@index([milestoneId])
+  @@index([archivedAt])
 }
 
 model TaskComment {
@@ -456,6 +469,23 @@ enum ActivityEventType {
   GITHUB_PUSH
   GITHUB_COMMIT_REFERENCED
   GITHUB_ISSUE_SYNCED
+  TASK_ARCHIVED
+  TASK_UNARCHIVED
+  BLOCKER_ASSIGNED
+  TASK_DEPENDENCY_ADDED
+  TASK_DEPENDENCY_REMOVED
+  TASK_BLOCKER_ATTACHED
+  TASK_BLOCKER_DETACHED
+  BLOCKER_RESOLVED
+  COMMENT_ADDED
+  COMMENT_EDITED
+  COMMENT_DELETED
+  TIME_LOGGED
+  MILESTONE_CREATED
+  MILESTONE_UPDATED
+  MILESTONE_DELETED
+  MILESTONE_TASKS_LINKED
+  AI_PLAN_EXECUTED
 }
 
 enum GitHubLinkKind {
@@ -580,6 +610,9 @@ model Blocker {
   resolvedAt DateTime?
   createdAt  DateTime      @default(now())
   tasks      TaskBlocker[]
+
+  assigneeId String?
+  assignee   Member? @relation("BlockerAssignee", fields: [assigneeId], references: [id])
 
   @@index([projectId])
 }
@@ -763,9 +796,114 @@ model OutreachComment {
   parentId     String?
   parent       OutreachComment?   @relation("CommentReplies", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   replies      OutreachComment[]  @relation("CommentReplies")
+  // Draft annotations: a comment may instead be attached to a BlogPost (internal review notes).
+  blogPostId   String?
+  blogPost     BlogPost?          @relation("BlogPostAnnotations", fields: [blogPostId], references: [id], onDelete: Cascade)
   createdAt    DateTime           @default(now())
 
   @@index([submissionId])
+  @@index([blogPostId])
+}
+
+// ── Blog editor ──────────────────────────────────────────────
+
+enum BlogStatus {
+  DRAFT
+  SCHEDULED
+  PUBLISHED
+  ARCHIVED
+}
+
+model BlogPost {
+  id           String     @id @default(cuid())
+  title        String
+  slug         String     @unique
+  excerpt      String?
+  status       BlogStatus @default(DRAFT)
+
+  contentJson  Json // TipTap document — source of truth for editing + revision diffs
+  contentYjs   Bytes? // Yjs/CRDT binary state for realtime collaboration
+  renderedHtml String? // HTML snapshot written at publish time (served to the public site)
+
+  coverImageUrl  String?
+  readingTimeMin Int?
+
+  // SEO / social
+  metaDescription String?
+  canonicalUrl    String?
+  ogTitle         String?
+  ogDescription   String?
+  ogImageUrl      String?
+
+  // Workflow
+  scheduledAt DateTime?
+  publishedAt DateTime?
+
+  // Provenance
+  sourceSubmissionId String? // set when created via the AI expand-to-blog flow
+  createdById        String
+  createdBy          Member  @relation("BlogPostCreator", fields: [createdById], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  authors     BlogAuthor[]
+  revisions   BlogRevision[]
+  tags        BlogTag[]         @relation("BlogPostTags")
+  categories  BlogCategory[]    @relation("BlogPostCategories")
+  annotations OutreachComment[] @relation("BlogPostAnnotations")
+
+  @@index([status])
+  @@index([slug])
+}
+
+model BlogRevision {
+  id          String   @id @default(cuid())
+  postId      String
+  post        BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  contentJson Json
+  title       String
+  authorId    String
+  author      Member   @relation("BlogRevisionAuthor", fields: [authorId], references: [id])
+  createdAt   DateTime @default(now())
+
+  @@index([postId])
+}
+
+model BlogAuthor {
+  id       String   @id @default(cuid())
+  postId   String
+  post     BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  memberId String
+  member   Member   @relation("BlogAuthorMember", fields: [memberId], references: [id])
+  role     String? // e.g. "author", "editor"
+
+  @@unique([postId, memberId])
+  @@index([memberId])
+}
+
+model BlogTag {
+  id    String     @id @default(cuid())
+  name  String     @unique
+  slug  String     @unique
+  posts BlogPost[] @relation("BlogPostTags")
+}
+
+model BlogCategory {
+  id    String     @id @default(cuid())
+  name  String     @unique
+  slug  String     @unique
+  posts BlogPost[] @relation("BlogPostCategories")
+}
+
+model BlogSnippet {
+  id          String   @id @default(cuid())
+  name        String
+  contentJson Json
+  createdById String
+  createdBy   Member   @relation("BlogSnippetCreator", fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 model HashtagStat {
