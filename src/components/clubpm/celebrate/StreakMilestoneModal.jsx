@@ -3,12 +3,13 @@
 // big number reveals with confetti. Same-day only — the celebration endpoint
 // consumes itself on first read so this never re-fires same day.
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import { get } from '../../../api/clubPmClient';
 import { useClubPmAuth } from '../../../clubpm/ClubPmAuth';
-import AvatarModel from '../avatar/AvatarModel';
 import { animate, spring, springBouncy, prefersReducedMotion } from '../../../clubpm/anim/motion';
 import { bigBurst } from './confetti';
+
+const AvatarModel = lazy(() => import('../avatar/AvatarModel'));
 
 const CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ#@$%&!?*';
 
@@ -173,13 +174,15 @@ export default function StreakMilestoneModal({ milestone, onDismiss, freezeAward
       >
         <div className="pm-streak-avatar-wrap">
           {avatarConfig ? (
-            <AvatarModel
-              featureJson={avatarConfig.featureJson}
-              equippedCosmetics={avatarConfig.equippedCosmetics}
-              size={420}
-              interactive={false}
-              celebrationType={celebrationActive ? 'streak-milestone' : null}
-            />
+            <Suspense fallback={null}>
+              <AvatarModel
+                featureJson={avatarConfig.featureJson}
+                equippedCosmetics={avatarConfig.equippedCosmetics}
+                size={420}
+                interactive={false}
+                celebrationType={celebrationActive ? 'streak-milestone' : null}
+              />
+            </Suspense>
           ) : (
             <div className="pm-streak-avatar-placeholder">
               <i className="fas fa-fire" aria-hidden="true" />
