@@ -5,6 +5,8 @@ import TaskList from '@tiptap/extension-task-list';
 import TaskItem from '@tiptap/extension-task-item';
 import CharacterCount from '@tiptap/extension-character-count';
 import Placeholder from '@tiptap/extension-placeholder';
+import { TableKit } from '@tiptap/extension-table';
+import { SearchAndReplace } from '@sereneinserenade/tiptap-search-and-replace';
 
 // Shared editor extension set. Keep in sync with the backend renderer
 // (backend/src/services/blogRender.ts) whenever a node type is added.
@@ -18,6 +20,8 @@ export function blogExtensions() {
     TaskItem.configure({ nested: true }),
     CharacterCount,
     Placeholder.configure({ placeholder: 'Start writing your post…' }),
+    TableKit.configure({ table: { resizable: true } }),
+    SearchAndReplace.configure({ disableRegex: true }),
   ];
 }
 
@@ -38,9 +42,21 @@ function Btn({ active, disabled, onClick, title, icon, label }) {
   );
 }
 
-function Toolbar({ editor }) {
+function setLink(editor) {
+  const prev = editor.getAttributes('link').href ?? '';
+  const url = window.prompt('Link URL (leave empty to remove):', prev);
+  if (url === null) return;
+  if (url === '') {
+    editor.chain().focus().extendMarkRange('link').unsetLink().run();
+    return;
+  }
+  editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
+}
+
+function Toolbar({ editor, onToggleFind }) {
   if (!editor) return null;
   const heading = [1, 2, 3, 4, 5, 6].find((l) => editor.isActive('heading', { level: l })) ?? '';
+  const inTable = editor.isActive('table');
   return (
     <div className="cpm-blog-toolbar" role="toolbar" aria-label="Formatting">
       <Btn title="Bold (Ctrl+B)" icon="fa-bold" active={editor.isActive('bold')} onClick={() => editor.chain().focus().toggleBold().run()} />
@@ -75,8 +91,49 @@ function Toolbar({ editor }) {
       <Btn title="Code block" icon="fa-code" active={editor.isActive('codeBlock')} onClick={() => editor.chain().focus().toggleCodeBlock().run()} />
       <Btn title="Divider" icon="fa-minus" onClick={() => editor.chain().focus().setHorizontalRule().run()} />
       <span className="cpm-blog-tb-sep" />
+      <Btn title="Link (Ctrl+K)" icon="fa-link" active={editor.isActive('link')} onClick={() => setLink(editor)} />
+      <Btn title="Insert table" icon="fa-table" active={inTable} onClick={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()} />
+      {inTable && (
+        <>
+          <Btn title="Add column" icon="fa-table-columns" onClick={() => editor.chain().focus().addColumnAfter().run()} />
+          <Btn title="Delete column" label="−col" onClick={() => editor.chain().focus().deleteColumn().run()} />
+          <Btn title="Add row" label="+row" onClick={() => editor.chain().focus().addRowAfter().run()} />
+          <Btn title="Delete row" label="−row" onClick={() => editor.chain().focus().deleteRow().run()} />
+          <Btn title="Delete table" icon="fa-trash" onClick={() => editor.chain().focus().deleteTable().run()} />
+        </>
+      )}
+      <span className="cpm-blog-tb-sep" />
+      <Btn title="Find & replace" icon="fa-magnifying-glass" onClick={onToggleFind} />
+      <span className="cpm-blog-tb-sep" />
       <Btn title="Undo (Ctrl+Z)" icon="fa-rotate-left" disabled={!editor.can().undo()} onClick={() => editor.chain().focus().undo().run()} />
       <Btn title="Redo (Ctrl+Y)" icon="fa-rotate-right" disabled={!editor.can().redo()} onClick={() => editor.chain().focus().redo().run()} />
+    </div>
+  );
+}
+
+function FindBar({ editor, onClose }) {
+  const [term, setTerm] = React.useState('');
+  const [replaceWith, setReplaceWith] = React.useState('');
+
+  React.useEffect(() => {
+    if (!editor) return;
+    editor.commands.setSearchTerm(term);
+    editor.commands.setReplaceTerm(replaceWith);
+  }, [editor, term, replaceWith]);
+
+  React.useEffect(() => () => { editor?.commands.setSearchTerm(''); }, [editor]);
+
+  const results = editor?.storage.searchAndReplace?.results?.length ?? 0;
+  return (
+    <div className="cpm-blog-findbar">
+      <input autoFocus className="cpm-blog-find-input" placeholder="Find" value={term} onChange={(e) => setTerm(e.target.value)} />
+      <input className="cpm-blog-find-input" placeholder="Replace" value={replaceWith} onChange={(e) => setReplaceWith(e.target.value)} />
+      <span className="cpm-blog-find-count">{results} found</span>
+      <button type="button" className="cpm-blog-tb-btn" title="Previous" onClick={() => editor.commands.previousSearchResult()}><i className="fas fa-chevron-up" /></button>
+      <button type="button" className="cpm-blog-tb-btn" title="Next" onClick={() => editor.commands.nextSearchResult()}><i className="fas fa-chevron-down" /></button>
+      <button type="button" className="clubpm-btn-secondary" onClick={() => editor.commands.replace()}>Replace</button>
+      <button type="button" className="clubpm-btn-secondary" onClick={() => editor.commands.replaceAll()}>All</button>
+      <button type="button" className="cpm-blog-tb-btn" title="Close" onClick={onClose}><i className="fas fa-xmark" /></button>
     </div>
   );
 }
@@ -89,6 +146,7 @@ function Toolbar({ editor }) {
  * @param {function} onEditorReady  receives the editor instance
  */
 export default function BlogEditor({ content, onChange, editable = true, onEditorReady }) {
+  const [showFind, setShowFind] = React.useState(false);
   const editor = useEditor({
     extensions: blogExtensions(),
     content: content ?? { type: 'doc', content: [{ type: 'paragraph' }] },
@@ -105,7 +163,8 @@ export default function BlogEditor({ content, onChange, editable = true, onEdito
 
   return (
     <div className="cpm-blog-editor">
-      <Toolbar editor={editor} />
+      <Toolbar editor={editor} onToggleFind={() => setShowFind((s) => !s)} />
+      {showFind && <FindBar editor={editor} onClose={() => setShowFind(false)} />}
       <EditorContent editor={editor} className="cpm-blog-editor-surface" />
       <div className="cpm-blog-editor-footer">
         <span>{words} words</span>
