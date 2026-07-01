@@ -196,6 +196,7 @@ publicRouter.get("/blog", async (_req: Request, res: Response) => {
       take: 50,
       select: {
         id: true, title: true, slug: true, excerpt: true,
+        authorName: true, linkUrl: true,
         coverImageUrl: true, publishedAt: true, readingTimeMin: true,
         tags: { select: { name: true, slug: true } },
         categories: { select: { name: true, slug: true } },
@@ -217,6 +218,7 @@ publicRouter.get("/blog/:slug", async (req: Request, res: Response) => {
       where: { slug: req.params.slug as string },
       select: {
         id: true, title: true, slug: true, renderedHtml: true, excerpt: true,
+        authorName: true,
         coverImageUrl: true, publishedAt: true, createdAt: true, readingTimeMin: true,
         status: true,
         metaDescription: true, canonicalUrl: true,
