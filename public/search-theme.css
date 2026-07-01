@@ -21932,3 +21932,43 @@ button.cpm-badge-tile:disabled { opacity: 0.7; cursor: progress; }
 @media (max-width: 480px) {
   .cpm-blog-meta-panel { width: 100vw; max-width: 100vw; }
 }
+
+/* Draft annotations + multi-author manager (Epic 7.3) */
+.cpm-blog-authors-header {
+  display: flex; align-items: center; justify-content: space-between;
+}
+.cpm-blog-authors-title {
+  margin: 0; font-size: 13px; font-weight: 700; color: #fff;
+  display: flex; align-items: center; gap: 6px;
+}
+.cpm-blog-authors-picker {
+  margin-top: 8px; padding: 8px; border: 1px solid var(--pm-overlay, #2a2f3a); border-radius: 8px;
+  background: var(--pm-surface, #161a22); max-height: 160px; overflow-y: auto;
+}
+.cpm-blog-authors-picker-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.cpm-blog-authors-picker-list button {
+  width: 100%; display: flex; align-items: center; gap: 8px; background: none; border: none;
+  color: #fff; font-size: 13px; padding: 6px 8px; border-radius: 6px; cursor: pointer; text-align: left;
+}
+.cpm-blog-authors-picker-list button:hover { background: var(--pm-elevated, #1a1e27); }
+.cpm-blog-authors-picker-list img { width: 20px; height: 20px; border-radius: 50%; object-fit: cover; }
+.cpm-blog-authors-list { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.cpm-blog-authors-item {
+  display: flex; align-items: center; gap: 8px; padding: 6px 0;
+  border-bottom: 1px solid var(--pm-overlay, #2a2f3a);
+}
+.cpm-blog-authors-avatar { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
+.cpm-blog-authors-avatar--empty {
+  display: grid; place-items: center; background: var(--pm-surface, #161a22); color: var(--clubpm-text-muted, #9aa3b2); font-size: 11px;
+}
+.cpm-blog-authors-name { flex: 1; font-size: 13px; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cpm-blog-authors-role { font-size: 11px; color: var(--clubpm-text-muted, #9aa3b2); }
+.cpm-blog-authors-role-input {
+  width: 72px; background: var(--pm-surface, #161a22); border: 1px solid var(--pm-overlay, #2a2f3a);
+  border-radius: 6px; color: #fff; font-size: 11px; padding: 3px 6px;
+}
+.cpm-blog-authors-remove {
+  background: none; border: none; color: var(--clubpm-text-muted, #9aa3b2); cursor: pointer; padding: 4px;
+  border-radius: 6px; flex-shrink: 0;
+}
+.cpm-blog-authors-remove:hover { color: var(--pm-accent-coral, #ff6b6b); background: var(--pm-surface, #161a22); }

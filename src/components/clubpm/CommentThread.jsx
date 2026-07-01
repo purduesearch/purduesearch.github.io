@@ -54,7 +54,7 @@ function CommentAvatar({ member }) {
 
 // ── ReplyForm ─────────────────────────────────────────────────
 
-function ReplyForm({ submissionId, parentId, currentMember, onReplyPosted, onCancel }) {
+function ReplyForm({ endpoint, parentId, currentMember, onReplyPosted, onCancel }) {
   const [body, setBody] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const textareaRef = useRef(null);
@@ -69,7 +69,7 @@ function ReplyForm({ submissionId, parentId, currentMember, onReplyPosted, onCan
     if (!trimmed) return;
     setSubmitting(true);
     try {
-      const newReply = await post(`/api/outreach/submissions/${submissionId}/comments`, {
+      const newReply = await post(endpoint, {
         body: trimmed,
         parentId,
       });
@@ -129,7 +129,7 @@ function ReplyForm({ submissionId, parentId, currentMember, onReplyPosted, onCan
 
 // ── CommentItem ───────────────────────────────────────────────
 
-function CommentItem({ comment, submissionId, currentMember, onReplyPosted, isReply }) {
+function CommentItem({ comment, endpoint, currentMember, onReplyPosted, isReply }) {
   const [showReplyForm, setShowReplyForm] = useState(false);
   const author = comment.author ?? comment.member ?? null;
 
@@ -161,7 +161,7 @@ function CommentItem({ comment, submissionId, currentMember, onReplyPosted, isRe
         )}
         {showReplyForm && (
           <ReplyForm
-            submissionId={submissionId}
+            endpoint={endpoint}
             parentId={comment.id}
             currentMember={currentMember}
             onReplyPosted={handleReplyPosted}
@@ -175,7 +175,7 @@ function CommentItem({ comment, submissionId, currentMember, onReplyPosted, isRe
               <CommentItem
                 key={reply.id}
                 comment={reply}
-                submissionId={submissionId}
+                endpoint={endpoint}
                 currentMember={currentMember}
                 onReplyPosted={onReplyPosted}
                 isReply
@@ -190,20 +190,21 @@ function CommentItem({ comment, submissionId, currentMember, onReplyPosted, isRe
 
 // ── CommentThread ─────────────────────────────────────────────
 
-export default function CommentThread({ submissionId, currentMember }) {
+export default function CommentThread({ submissionId, endpoint, title = 'Comments', currentMember }) {
+  const commentsEndpoint = endpoint ?? `/api/outreach/submissions/${submissionId}/comments`;
   const [comments, setComments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [body, setBody] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    if (!submissionId) return;
+    if (!commentsEndpoint) return;
     setLoading(true);
-    get(`/api/outreach/submissions/${submissionId}/comments`)
+    get(commentsEndpoint)
       .then(data => setComments(Array.isArray(data) ? data : []))
       .catch(err => toast.error(err.message ?? 'Failed to load comments.'))
       .finally(() => setLoading(false));
-  }, [submissionId]);
+  }, [commentsEndpoint]);
 
   // Called when a new reply is posted — insert it under the correct parent
   const handleReplyPosted = (newReply, parentId) => {
@@ -221,7 +222,7 @@ export default function CommentThread({ submissionId, currentMember }) {
     if (!trimmed) return;
     setSubmitting(true);
     try {
-      const newComment = await post(`/api/outreach/submissions/${submissionId}/comments`, { body: trimmed });
+      const newComment = await post(commentsEndpoint, { body: trimmed });
       setComments(prev => [{ ...newComment, replies: [] }, ...prev]);
       setBody('');
     } catch (err) {
@@ -244,7 +245,7 @@ export default function CommentThread({ submissionId, currentMember }) {
     <div className="pm-comment-thread">
       <div className="pm-comment-thread-title">
         <i className="fas fa-comment-alt" aria-hidden="true" style={{ marginRight: 6 }} />
-        Comments{totalCount > 0 ? ` (${totalCount})` : ''}
+        {title}{totalCount > 0 ? ` (${totalCount})` : ''}
       </div>
 
       {loading ? (
@@ -257,7 +258,7 @@ export default function CommentThread({ submissionId, currentMember }) {
             <CommentItem
               key={comment.id}
               comment={comment}
-              submissionId={submissionId}
+              endpoint={commentsEndpoint}
               currentMember={currentMember}
               onReplyPosted={handleReplyPosted}
               isReply={false}

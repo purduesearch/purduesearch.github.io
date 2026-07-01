@@ -329,6 +329,8 @@ export const updateBlogSnippet = (id, data) => patch(`/api/blog/snippets/${id}`,
 export const deleteBlogSnippet = (id) => del(`/api/blog/snippets/${id}`);
 export const addBlogAuthor    = (id, memberId, role) => post(`/api/blog/posts/${id}/authors`, { memberId, role });
 export const removeBlogAuthor = (id, memberId) => del(`/api/blog/posts/${id}/authors/${memberId}`);
+export const listBlogAnnotations = (id) => get(`/api/blog/posts/${id}/annotations`);
+export const addBlogAnnotation = (id, body, parentId) => post(`/api/blog/posts/${id}/annotations`, { body, parentId });
 
 // ws(s):// base for the embedded Hocuspocus collab server (backend/src/collab/blogCollab.ts,
 // mounted at /collab/blog). Mirrors BASE_URL's origin, swapping the http(s) scheme for ws(s);

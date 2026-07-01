@@ -366,3 +366,43 @@ blogRouter.delete("/posts/:id/authors/:memberId", async (req: Request, res: Resp
     res.status(500).json({ error: "Failed to remove author" });
   }
 });
+
+// ── Draft annotations ───────────────────────────────────────────
+
+blogRouter.get("/posts/:id/annotations", async (req: Request, res: Response) => {
+  try {
+    res.json(await blogService.listAnnotations(req.params.id as string));
+  } catch (error) {
+    console.error("GET /blog/posts/:id/annotations error:", error);
+    res.status(500).json({ error: "Failed to list annotations" });
+  }
+});
+
+blogRouter.post("/posts/:id/annotations", async (req: Request, res: Response) => {
+  try {
+    const { body, mentions, parentId } = req.body as {
+      body?: string;
+      mentions?: string[];
+      parentId?: string;
+    };
+    if (!body?.trim()) {
+      res.status(400).json({ error: "body is required" });
+      return;
+    }
+    const annotation = await blogService.addAnnotation(
+      req.params.id as string,
+      req.memberId!,
+      body,
+      mentions,
+      parentId
+    );
+    res.status(201).json(annotation);
+  } catch (error) {
+    if (error instanceof Error && error.message.startsWith("Invalid parentId")) {
+      res.status(400).json({ error: error.message });
+      return;
+    }
+    console.error("POST /blog/posts/:id/annotations error:", error);
+    res.status(500).json({ error: "Failed to add annotation" });
+  }
+});

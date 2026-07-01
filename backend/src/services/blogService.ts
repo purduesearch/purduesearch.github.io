@@ -317,3 +317,43 @@ export async function removeAuthor(postId: string, memberId: string) {
   await prisma.blogAuthor.deleteMany({ where: { postId, memberId } });
   return { ok: true };
 }
+
+// ── Draft annotations ───────────────────────────────────────────
+// Internal review notes on a post, reusing the OutreachComment thread model.
+
+export async function listAnnotations(postId: string) {
+  return prisma.outreachComment.findMany({
+    where: { blogPostId: postId, parentId: null },
+    include: {
+      author: { select: { id: true, displayName: true, avatarUrl: true } },
+      replies: {
+        include: {
+          author: { select: { id: true, displayName: true, avatarUrl: true } },
+        },
+        orderBy: { createdAt: "asc" },
+      },
+    },
+    orderBy: { createdAt: "asc" },
+  });
+}
+
+export async function addAnnotation(
+  postId: string,
+  authorId: string,
+  body: string,
+  mentions: string[] = [],
+  parentId?: string
+) {
+  if (parentId) {
+    const parent = await prisma.outreachComment.findUnique({ where: { id: parentId } });
+    if (!parent || parent.blogPostId !== postId) {
+      throw new Error("Invalid parentId: comment does not belong to this post");
+    }
+  }
+  return prisma.outreachComment.create({
+    data: { blogPostId: postId, authorId, body, mentions, parentId },
+    include: {
+      author: { select: { id: true, displayName: true, avatarUrl: true } },
+    },
+  });
+}

@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import BlogEditor from '../../components/clubpm/blog/BlogEditor';
 import RevisionHistoryDrawer from '../../components/clubpm/blog/RevisionHistoryDrawer';
 import BlogMetaPanel from '../../components/clubpm/blog/BlogMetaPanel';
+import BlogAnnotationsPanel from '../../components/clubpm/blog/BlogAnnotationsPanel';
 import OrbitLoader from '../../components/OrbitLoader';
 import ApprovalChips from '../../components/clubpm/ApprovalChips';
 import { useClubPmAuth } from '../../clubpm/ClubPmAuth';
@@ -37,6 +38,7 @@ export default function BlogEditorPage() {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [previewMode, setPreviewMode] = useState(false);
   const [metaPanelOpen, setMetaPanelOpen] = useState(false);
+  const [reviewPanelOpen, setReviewPanelOpen] = useState(false);
 
   // Keep the latest editable state in a ref so the debounced autosave always
   // persists current values without re-arming on every keystroke.
@@ -256,6 +258,14 @@ export default function BlogEditorPage() {
           >
             <i className="fas fa-sliders-h" aria-hidden="true" />
           </button>
+          <button
+            type="button"
+            className={`clubpm-btn-secondary${reviewPanelOpen ? ' is-active' : ''}`}
+            onClick={() => setReviewPanelOpen((v) => !v)}
+            title="Review notes & authors"
+          >
+            <i className="fas fa-users-viewfinder" aria-hidden="true" />
+          </button>
           <button type="button" className="clubpm-btn-secondary" onClick={() => handleSave()} disabled={saving}>
             {saving ? 'Saving…' : 'Save draft'}
           </button>
@@ -349,6 +359,16 @@ export default function BlogEditorPage() {
         onClose={() => setMetaPanelOpen(false)}
         onUpdate={handleMetaUpdate}
       />
+
+      {reviewPanelOpen && (
+        <BlogAnnotationsPanel
+          post={post}
+          currentMember={member}
+          isOpen={reviewPanelOpen}
+          onClose={() => setReviewPanelOpen(false)}
+          onAuthorsChanged={() => { getBlogPost(id).then(setPost).catch(() => {}); }}
+        />
+      )}
     </div>
   );
 }
