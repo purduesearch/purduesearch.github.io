@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import BlogEditor from '../../components/clubpm/blog/BlogEditor';
+import RevisionHistoryDrawer from '../../components/clubpm/blog/RevisionHistoryDrawer';
 import OrbitLoader from '../../components/OrbitLoader';
 import ApprovalChips from '../../components/clubpm/ApprovalChips';
 import { useClubPmAuth } from '../../clubpm/ClubPmAuth';
@@ -32,12 +33,23 @@ export default function BlogEditorPage() {
   const [approval, setApproval] = useState(null); // { required, approvals, complete } or null
   const [scheduledAtInput, setScheduledAtInput] = useState('');
   const [busyAction, setBusyAction] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [previewMode, setPreviewMode] = useState(false);
 
   // Keep the latest editable state in a ref so the debounced autosave always
   // persists current values without re-arming on every keystroke.
   const stateRef = useRef({ title: '', contentJson: null });
   stateRef.current = { title, contentJson };
   const autosaveTimer = useRef(null);
+  const editorRef = useRef(null);
+
+  // Rendered exactly like the public page — reuses the live editor's own
+  // getHTML() output so preview stays in sync with the shared node renderHTML()s.
+  const previewHtml = useMemo(() => {
+    if (!previewMode) return '';
+    return editorRef.current?.getHTML() ?? '';
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [previewMode, contentJson]);
 
   useEffect(() => {
     let cancelled = false;
@@ -170,6 +182,14 @@ export default function BlogEditorPage() {
     }
   }, [id]);
 
+  const handleRestored = (updated) => {
+    setPost(updated);
+    setTitle(updated.title ?? '');
+    setContentJson(updated.contentJson ?? null);
+    setDirty(false);
+    setLastSavedAt(new Date());
+  };
+
   if (loading) return <div style={{ padding: 48, display: 'grid', placeItems: 'center' }}><OrbitLoader /></div>;
   if (error) {
     return (
@@ -199,6 +219,18 @@ export default function BlogEditorPage() {
           {approvalPending && <span className="cpm-blog-status cpm-blog-status--scheduled">Awaiting approval</span>}
         </div>
         <div className="cpm-blog-editor-header-actions">
+          <button
+            type="button"
+            className={`clubpm-btn-secondary${previewMode ? ' is-active' : ''}`}
+            onClick={() => setPreviewMode((v) => !v)}
+            title="Preview as it will appear on the public site"
+          >
+            <i className={`fas ${previewMode ? 'fa-pen' : 'fa-eye'}`} aria-hidden="true" style={{ marginRight: 6 }} />
+            {previewMode ? 'Edit' : 'Preview'}
+          </button>
+          <button type="button" className="clubpm-btn-secondary" onClick={() => setHistoryOpen(true)} title="Revision history">
+            <i className="fas fa-clock-rotate-left" aria-hidden="true" />
+          </button>
           <button type="button" className="clubpm-btn-secondary" onClick={() => handleSave()} disabled={saving}>
             {saving ? 'Saving…' : 'Save draft'}
           </button>
@@ -252,17 +284,35 @@ export default function BlogEditorPage() {
       )}
 
       <div className="cpm-blog-editor-body">
-        <input
-          className="cpm-blog-title-input"
-          value={title}
-          onChange={(e) => { setTitle(e.target.value); setDirty(true); }}
-          placeholder="Post title"
-        />
-        <BlogEditor
-          content={contentJson}
-          onChange={(json) => { setContentJson(json); setDirty(true); }}
-        />
+        {previewMode ? (
+          <div className="cpm-blog-preview">
+            <h1 className="cpm-blog-preview-title">{title || 'Untitled post'}</h1>
+            <div className="pm-blog-post-body" dangerouslySetInnerHTML={{ __html: previewHtml }} />
+          </div>
+        ) : (
+          <input
+            className="cpm-blog-title-input"
+            value={title}
+            onChange={(e) => { setTitle(e.target.value); setDirty(true); }}
+            placeholder="Post title"
+          />
+        )}
+        <div style={previewMode ? { display: 'none' } : undefined}>
+          <BlogEditor
+            content={contentJson}
+            onChange={(json) => { setContentJson(json); setDirty(true); }}
+            onEditorReady={(ed) => { editorRef.current = ed; }}
+          />
+        </div>
       </div>
+
+      {historyOpen && (
+        <RevisionHistoryDrawer
+          postId={id}
+          onClose={() => setHistoryOpen(false)}
+          onRestored={handleRestored}
+        />
+      )}
     </div>
   );
 }

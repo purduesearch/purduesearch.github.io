@@ -1,0 +1,112 @@
+import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
+import toast from 'react-hot-toast';
+import { EditorContent, useEditor } from '@tiptap/react';
+import { listBlogRevisions, rollbackBlogRevision } from '../../../api/clubPmClient';
+import { blogExtensions } from './BlogEditor';
+
+function RevisionPreview({ revision }) {
+  const editor = useEditor({
+    extensions: blogExtensions(),
+    content: revision.contentJson ?? { type: 'doc', content: [{ type: 'paragraph' }] },
+    editable: false,
+  }, [revision.id]);
+
+  return (
+    <div className="cpm-blog-revision-preview">
+      <h2 className="cpm-blog-revision-preview-title">{revision.title}</h2>
+      <EditorContent editor={editor} className="cpm-blog-editor-surface" />
+    </div>
+  );
+}
+
+// Drawer for viewing / restoring past snapshots of a post's content.
+// Opened from the editor header; "View" renders a read-only copy of the
+// snapshot in place, "Restore" rolls the live post back to it.
+export default function RevisionHistoryDrawer({ postId, onClose, onRestored }) {
+  const [revisions, setRevisions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [viewing, setViewing] = useState(null);
+  const [restoringId, setRestoringId] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    listBlogRevisions(postId)
+      .then((list) => { if (!cancelled) setRevisions(Array.isArray(list) ? list : []); })
+      .catch((err) => { if (!cancelled) setError(err?.message ?? 'Failed to load revisions'); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [postId]);
+
+  const handleRestore = async (revision) => {
+    if (!window.confirm(`Restore the post to the "${revision.title}" snapshot from ${new Date(revision.createdAt).toLocaleString()}? The current version will be saved as a new snapshot first.`)) return;
+    setRestoringId(revision.id);
+    try {
+      const updated = await rollbackBlogRevision(postId, revision.id);
+      toast.success('Restored');
+      onRestored?.(updated);
+      onClose();
+    } catch (err) {
+      toast.error(err?.message ?? 'Restore failed');
+    } finally {
+      setRestoringId(null);
+    }
+  };
+
+  return createPortal(
+    <div className="cpm-blog-snippet-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="cpm-blog-revision-modal" role="dialog" aria-label="Revision history">
+        <div className="cpm-blog-snippet-header">
+          <span><i className="fas fa-clock-rotate-left" aria-hidden="true" style={{ marginRight: 8 }} />Revision history</span>
+          <button type="button" onClick={onClose} aria-label="Close" className="cpm-blog-snippet-close">
+            <i className="fas fa-times" aria-hidden="true" />
+          </button>
+        </div>
+
+        <div className="cpm-blog-revision-body">
+          <div className="cpm-blog-revision-list-col">
+            {error && <p className="cpm-gh-error">{error}</p>}
+            {loading ? (
+              <div className="cpm-blog-snippet-empty">Loading…</div>
+            ) : revisions.length === 0 ? (
+              <div className="cpm-blog-snippet-empty">No snapshots yet — one is saved automatically before each publish or rollback.</div>
+            ) : (
+              <ul className="cpm-blog-revision-list">
+                {revisions.map((rev) => (
+                  <li key={rev.id} className={`cpm-blog-revision-item${viewing?.id === rev.id ? ' is-active' : ''}`}>
+                    <button type="button" className="cpm-blog-revision-item-main" onClick={() => setViewing(rev)}>
+                      {rev.author?.avatarUrl
+                        ? <img src={rev.author.avatarUrl} alt="" className="cpm-blog-revision-avatar" />
+                        : <span className="cpm-blog-revision-avatar cpm-blog-revision-avatar--empty"><i className="fas fa-user" aria-hidden="true" /></span>}
+                      <span className="cpm-blog-revision-item-text">
+                        <span className="cpm-blog-revision-item-title">{rev.title}</span>
+                        <span className="cpm-blog-revision-item-meta">
+                          {rev.author?.displayName ?? 'Unknown'} · {new Date(rev.createdAt).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      className="clubpm-btn-secondary cpm-blog-revision-restore"
+                      onClick={() => handleRestore(rev)}
+                      disabled={restoringId === rev.id}
+                    >
+                      {restoringId === rev.id ? 'Restoring…' : 'Restore'}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+          <div className="cpm-blog-revision-view-col">
+            {viewing
+              ? <RevisionPreview revision={viewing} />
+              : <div className="cpm-blog-snippet-empty">Select a snapshot to preview it here.</div>}
+          </div>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
