@@ -36,15 +36,25 @@ export function uploadImageFiles(editor, list) {
 
 // React NodeView: image + alignment/width controls, caption + alt fields.
 function ImageView({ node, updateAttributes, selected, editor }) {
-  const { src, alt, align, width, caption } = node.attrs;
+  const { src, alt, align, width, caption, widthUnit } = node.attrs;
   const [suggesting, setSuggesting] = React.useState(false);
   const editable = editor.isEditable;
 
   const setAlign = (a) => updateAttributes({ align: a });
-  const resize = (delta) => {
-    const base = width || node.attrs.naturalWidth || 640;
-    const next = Math.max(120, Math.min(1600, Math.round(base + delta)));
-    updateAttributes({ width: next });
+  const unit = widthUnit || 'px';
+  const resize = (dir) => {
+    if (unit === '%') {
+      const base = width || 50;
+      updateAttributes({ width: Math.max(10, Math.min(100, Math.round(base + dir * 5))) });
+    } else {
+      const base = width || node.attrs.naturalWidth || 640;
+      updateAttributes({ width: Math.max(120, Math.min(1600, Math.round(base + dir * 80))) });
+    }
+  };
+  const toggleUnit = () => {
+    // Switch unit and pick a sensible default so the image doesn't jump absurdly.
+    if (unit === 'px') updateAttributes({ widthUnit: '%', width: 45 });
+    else updateAttributes({ widthUnit: 'px', width: node.attrs.naturalWidth || 640 });
   };
 
   const suggestAlt = async () => {
@@ -71,10 +81,13 @@ function ImageView({ node, updateAttributes, selected, editor }) {
           <button type="button" className={`cpm-blog-tb-btn${(align === 'center' || !align) ? ' is-active' : ''}`} title="Align center" onClick={() => setAlign('center')}><i className="fas fa-align-center" aria-hidden="true" /></button>
           <button type="button" className={`cpm-blog-tb-btn${align === 'right' ? ' is-active' : ''}`} title="Align right" onClick={() => setAlign('right')}><i className="fas fa-align-right" aria-hidden="true" /></button>
           <button type="button" className={`cpm-blog-tb-btn${align === 'full' ? ' is-active' : ''}`} title="Full width" onClick={() => setAlign('full')}><i className="fas fa-arrows-left-right" aria-hidden="true" /></button>
+          <button type="button" className={`cpm-blog-tb-btn${align === 'wrap-left' ? ' is-active' : ''}`} title="Wrap text right (float left)" onClick={() => setAlign('wrap-left')}><i className="fas fa-indent" aria-hidden="true" /></button>
+          <button type="button" className={`cpm-blog-tb-btn${align === 'wrap-right' ? ' is-active' : ''}`} title="Wrap text left (float right)" onClick={() => setAlign('wrap-right')}><i className="fas fa-outdent" aria-hidden="true" /></button>
           <span className="cpm-blog-tb-sep" />
-          <button type="button" className="cpm-blog-tb-btn" title="Smaller" onClick={() => resize(-80)}><i className="fas fa-minus" aria-hidden="true" /></button>
-          <button type="button" className="cpm-blog-tb-btn" title="Larger" onClick={() => resize(80)}><i className="fas fa-plus" aria-hidden="true" /></button>
-          <button type="button" className="cpm-blog-tb-btn" title="Reset size" onClick={() => updateAttributes({ width: null })}><i className="fas fa-rotate-left" aria-hidden="true" /></button>
+          <button type="button" className="cpm-blog-tb-btn" title="Smaller" onClick={() => resize(-1)}><i className="fas fa-minus" aria-hidden="true" /></button>
+          <button type="button" className="cpm-blog-tb-btn" title="Larger" onClick={() => resize(1)}><i className="fas fa-plus" aria-hidden="true" /></button>
+          <button type="button" className="cpm-blog-tb-btn cpm-blog-tb-btn--unit" title="Toggle px / %" onClick={toggleUnit}>{unit}</button>
+          <button type="button" className="cpm-blog-tb-btn" title="Reset size" onClick={() => updateAttributes({ width: null, widthUnit: 'px' })}><i className="fas fa-rotate-left" aria-hidden="true" /></button>
         </div>
       )}
 
@@ -82,7 +95,7 @@ function ImageView({ node, updateAttributes, selected, editor }) {
         src={src}
         alt={alt || ''}
         draggable={false}
-        style={width ? { width: `${width}px` } : undefined}
+        style={width ? { width: `${width}${widthUnit || 'px'}` } : undefined}
       />
 
       {editable ? (
@@ -130,6 +143,7 @@ export const BlogImage = Node.create({
       alt: { default: '' },
       align: { default: 'center' },
       width: { default: null },
+      widthUnit: { default: 'px' },
       caption: { default: '' },
       naturalWidth: { default: null, rendered: false },
       naturalHeight: { default: null, rendered: false },
@@ -155,8 +169,8 @@ export const BlogImage = Node.create({
   },
 
   renderHTML({ node, HTMLAttributes }) {
-    const { src, alt, align, width, caption } = node.attrs;
-    const style = width ? `width:${width}px` : undefined;
+    const { src, alt, align, width, caption, widthUnit } = node.attrs;
+    const style = width ? `width:${width}${widthUnit || 'px'}` : undefined;
     return [
       'figure',
       mergeAttributes(HTMLAttributes, {

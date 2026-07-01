@@ -21,6 +21,7 @@ const BlogImageNode = Node.create({
       alt: { default: "" },
       align: { default: "center" },
       width: { default: null },
+      widthUnit: { default: "px" },
       caption: { default: "" },
       naturalWidth: { default: null },
       naturalHeight: { default: null },
