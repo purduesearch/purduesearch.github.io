@@ -11,6 +11,7 @@ import {
 import { syncAdminStatus } from "../services/memberService.js";
 import { prisma } from "../db/prisma.js";
 import { queueDm } from "../services/dmBatcher.js";
+import { createNotification } from "../services/notificationCrud.js";
 
 // ── Helper: notify admin project members via DM batcher ───────
 
@@ -123,6 +124,67 @@ export function startScheduler(app: App): void {
       console.log(`✅ Escalation notices queued for ${tasks.length} task(s)`);
     } catch (error) {
       console.error("❌ Escalation error:", error);
+    }
+  });
+
+  // ── Daily 3:00 AM — Auto-archive nudges → admin + creator DMs ────
+  cron.schedule("0 3 * * *", async () => {
+    console.log("🗄️ Running auto-archive nudge sweep...");
+    try {
+      const sevenDaysAgo = new Date(Date.now() - 7 * 86_400_000);
+
+      const tasks = await prisma.task.findMany({
+        where: {
+          status:          "DONE",
+          archivedAt:      null,
+          archiveNudgedAt: null,
+          OR: [
+            { rewardGrantedAt: { lte: sevenDaysAgo } },
+            { rewardGrantedAt: null, updatedAt: { lte: sevenDaysAgo } },
+          ],
+        },
+        include: { project: true, createdBy: true },
+      });
+
+      // Group by project
+      const byProject = new Map<string, typeof tasks>();
+      for (const task of tasks) {
+        const bucket = byProject.get(task.projectId) ?? [];
+        bucket.push(task);
+        byProject.set(task.projectId, bucket);
+      }
+
+      for (const [projectId, projectTasks] of byProject) {
+        const project = projectTasks[0].project;
+        const list = projectTasks.slice(0, 5).map(t => `• ${t.title}`).join("\n");
+        const extra = projectTasks.length > 5 ? `\n_…and ${projectTasks.length - 5} more_` : "";
+        const msg = `🗄️ *${projectTasks.length} task${projectTasks.length > 1 ? "s" : ""} in ${project.name}* have been DONE for 7+ days and can be archived:\n${list}${extra}`;
+        await notifyProjectAdmins(projectId, "auto_archive", msg);
+      }
+
+      for (const task of tasks) {
+        if (task.createdBy?.slackId) {
+          queueDm(task.createdBy.slackId, `🗄️ Your task *"${task.title}"* in *${task.project.name}* has been DONE for 7+ days. Consider archiving it.`);
+        }
+        if (task.createdById) {
+          await createNotification({
+            type:        "SYSTEM",
+            recipientId: task.createdById,
+            projectId:   task.projectId,
+            taskId:      task.id,
+            message:     `Task "${task.title}" has been DONE for 7+ days. Consider archiving it.`,
+          });
+        }
+      }
+
+      await prisma.task.updateMany({
+        where: { id: { in: tasks.map(t => t.id) } },
+        data:  { archiveNudgedAt: new Date() },
+      });
+
+      console.log(`✅ Auto-archive nudges queued for ${tasks.length} task(s) across ${byProject.size} project(s)`);
+    } catch (error) {
+      console.error("❌ Auto-archive nudge error:", error);
     }
   });
 
@@ -726,6 +788,7 @@ export function startScheduler(app: App): void {
   console.log("  📅 Scheduled: Sunday 6PM          — Combined health + week-ahead (channels)");
   console.log("  📅 Scheduled: Daily 8AM           — Due date reminder DMs");
   console.log("  📅 Scheduled: Daily 8:30AM        — Escalation → admin DMs");
+  console.log("  📅 Scheduled: Daily 3AM           — Auto-archive nudges → admin + creator DMs");
   console.log("  📅 Scheduled: Weekdays 10AM       — Stale tasks → admin DMs");
   console.log("  📅 Scheduled: Daily 8:45AM        — Milestone health → admin DMs");
   console.log("  📅 Scheduled: Friday 3:45PM       — AI risk → admin DMs");
@@ -859,4 +922,19 @@ export function startScheduler(app: App): void {
   console.log("  📅 Scheduled: Monday 00:00 UTC    — Weekly quest assignment");
   console.log("  📅 Scheduled: 1st of month UTC    — Monthly quest assignment");
   console.log("  📅 Scheduled: Sunday 23:55 UTC    — End-of-week derived metric checks");
+
+  // ── Blog crons ──────────────────────────────────────────────────
+
+  // Every 5 minutes — publish SCHEDULED blog posts whose scheduledAt has passed
+  cron.schedule("*/5 * * * *", async () => {
+    try {
+      const { publishDueScheduledPosts } = await import("../services/blogService.js");
+      const count = await publishDueScheduledPosts();
+      if (count > 0) console.log(`📰 Auto-published ${count} scheduled blog post(s)`);
+    } catch (err) {
+      console.error("❌ Blog auto-publish error:", err);
+    }
+  });
+
+  console.log("  📅 Scheduled: Every 5 minutes     — Auto-publish due scheduled blog posts");
 }
