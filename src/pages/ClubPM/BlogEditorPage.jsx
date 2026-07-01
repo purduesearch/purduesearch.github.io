@@ -99,13 +99,16 @@ export default function BlogEditorPage() {
     }
   }, [id]);
 
-  // Debounced autosave — the critical "never lose work" path.
+  // Debounced autosave for the title only — post body content is synced in
+  // realtime by the Yjs collab server (backend/src/collab/blogCollab.ts),
+  // which persists on its own store cadence, so re-PATCHing contentJson here
+  // would just race/overwrite the live collaborative document.
   useEffect(() => {
     if (!dirty) return undefined;
     if (autosaveTimer.current) clearTimeout(autosaveTimer.current);
     autosaveTimer.current = setTimeout(() => { handleSave({ silent: true }); }, 1500);
     return () => { if (autosaveTimer.current) clearTimeout(autosaveTimer.current); };
-  }, [dirty, title, contentJson, handleSave]);
+  }, [dirty, title, handleSave]);
 
   // Warn before leaving (browser navigation / tab close) with unsaved edits.
   useEffect(() => {
@@ -321,8 +324,11 @@ export default function BlogEditorPage() {
         )}
         <div style={previewMode ? { display: 'none' } : undefined}>
           <BlogEditor
+            key={id}
+            postId={id}
+            collabUser={{ id: member?.id, name: member?.displayName }}
             content={contentJson}
-            onChange={(json) => { setContentJson(json); setDirty(true); }}
+            onChange={(json) => { setContentJson(json); }}
             onEditorReady={(ed) => { editorRef.current = ed; }}
           />
         </div>

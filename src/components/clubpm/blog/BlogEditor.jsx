@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import TaskList from '@tiptap/extension-task-list';
@@ -6,21 +6,31 @@ import TaskItem from '@tiptap/extension-task-item';
 import CharacterCount from '@tiptap/extension-character-count';
 import Placeholder from '@tiptap/extension-placeholder';
 import { TableKit } from '@tiptap/extension-table';
+import Collaboration from '@tiptap/extension-collaboration';
+import CollaborationCursor from '@tiptap/extension-collaboration-cursor';
 import { SearchAndReplace } from '@sereneinserenade/tiptap-search-and-replace';
+import * as Y from 'yjs';
+import { HocuspocusProvider } from '@hocuspocus/provider';
 import BlogImage, { uploadImageFiles } from './BlogImage';
 import BlogEmbed, { buildEmbed } from './BlogEmbed';
 import BlogGallery from './BlogGallery';
 import BlogToc from './BlogToc';
 import BlogCallout from './BlogCallout';
 import BlogSnippetManager from './BlogSnippetManager';
+import { getBlogCollabWsUrl, getStoredToken } from '../../../api/clubPmClient';
 
 // Shared editor extension set. Keep in sync with the backend renderer
 // (backend/src/services/blogRender.ts) whenever a node type is added.
-export function blogExtensions() {
+// Pass `collab: { document, provider, user }` to swap in Yjs-backed
+// collaborative editing (see backend/src/collab/blogCollab.ts) — this
+// disables StarterKit's own undo/redo since Collaboration provides its
+// own Yjs-based history instead.
+export function blogExtensions(collab) {
   return [
     StarterKit.configure({
       heading: { levels: [1, 2, 3, 4, 5, 6] },
       link: { openOnClick: false, autolink: true, linkOnPaste: true },
+      ...(collab ? { undoRedo: false } : {}),
     }),
     TaskList,
     TaskItem.configure({ nested: true }),
@@ -33,7 +43,21 @@ export function blogExtensions() {
     Placeholder.configure({ placeholder: 'Start writing your post…' }),
     TableKit.configure({ table: { resizable: true } }),
     SearchAndReplace.configure({ disableRegex: true }),
+    ...(collab ? [
+      Collaboration.configure({ document: collab.document }),
+      CollaborationCursor.configure({ provider: collab.provider, user: collab.user }),
+    ] : []),
   ];
+}
+
+// Deterministic per-member cursor color so the same person always renders
+// the same color across sessions/tabs.
+const CURSOR_COLORS = ['#00e5cc', '#f5a623', '#ff6b6b', '#a78bfa', '#4dabf7', '#69db7c', '#ff922b'];
+function colorForMember(memberId) {
+  if (!memberId) return CURSOR_COLORS[0];
+  let hash = 0;
+  for (let i = 0; i < memberId.length; i += 1) hash = (hash * 31 + memberId.charCodeAt(i)) | 0;
+  return CURSOR_COLORS[Math.abs(hash) % CURSOR_COLORS.length];
 }
 
 function Btn({ active, disabled, onClick, title, icon, label }) {
@@ -180,22 +204,89 @@ function FindBar({ editor, onClose }) {
   );
 }
 
+function PresenceBar({ connected, peers }) {
+  return (
+    <div className="cpm-blog-presence" title={connected ? 'Live — changes sync in real time' : 'Reconnecting…'}>
+      <span className={`cpm-blog-presence-dot${connected ? ' is-live' : ''}`} aria-hidden="true" />
+      {peers.map((p) => (
+        <span
+          key={p.clientId}
+          className="cpm-blog-presence-avatar"
+          style={{ background: p.user?.color }}
+          title={`${p.user?.name || 'Someone'} is editing`}
+        >
+          {(p.user?.name || '?').charAt(0).toUpperCase()}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 /**
  * Rich-text blog editor.
- * @param {object}   content   TipTap JSON doc (or null for empty)
- * @param {function} onChange  called with the doc JSON on every change
+ * @param {object}   content     TipTap JSON doc (or null for empty); ignored when `postId` is set —
+ *                                 collaborative documents load their content from the Yjs doc instead.
+ * @param {function} onChange    called with the doc JSON on every change
  * @param {boolean}  editable
  * @param {function} onEditorReady  receives the editor instance
+ * @param {string}   postId      when set, enables realtime co-editing via the Hocuspocus collab
+ *                                 server for this post (see backend/src/collab/blogCollab.ts)
+ * @param {object}   collabUser  { id, name } of the current member, used for cursor presence
  */
-export default function BlogEditor({ content, onChange, editable = true, onEditorReady }) {
+export default function BlogEditor({ content, onChange, editable = true, onEditorReady, postId, collabUser }) {
   const [showFind, setShowFind] = React.useState(false);
   const [showSnippets, setShowSnippets] = React.useState(false);
+  const [connected, setConnected] = React.useState(false);
+  const [peers, setPeers] = React.useState([]);
+
+  // One Y.Doc + Hocuspocus connection per post. Recreated only if `postId`
+  // changes — callers should `key` the editor by post id so a full remount
+  // (not just this memo) happens on navigation between posts.
+  const collab = useMemo(() => {
+    if (!postId) return null;
+    const document = new Y.Doc();
+    const provider = new HocuspocusProvider({
+      url: getBlogCollabWsUrl(),
+      name: postId,
+      document,
+      token: () => getStoredToken() ?? '',
+    });
+    return { document, provider };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [postId]);
+
+  useEffect(() => () => {
+    collab?.provider.destroy();
+    collab?.document.destroy();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [collab]);
+
+  useEffect(() => {
+    if (!collab) return undefined;
+    const { provider } = collab;
+    const onStatus = ({ status }) => setConnected(status === 'connected');
+    const onAwareness = ({ states }) => {
+      const selfId = provider.awareness?.clientID;
+      setPeers(states.filter((s) => s.clientId !== selfId && s.user));
+    };
+    provider.on('status', onStatus);
+    provider.on('awarenessUpdate', onAwareness);
+    return () => {
+      provider.off('status', onStatus);
+      provider.off('awarenessUpdate', onAwareness);
+    };
+  }, [collab]);
+
   const editor = useEditor({
-    extensions: blogExtensions(),
-    content: content ?? { type: 'doc', content: [{ type: 'paragraph' }] },
+    extensions: blogExtensions(collab ? {
+      document: collab.document,
+      provider: collab.provider,
+      user: { name: collabUser?.name || 'Anonymous', color: colorForMember(collabUser?.id) },
+    } : null),
+    content: collab ? undefined : (content ?? { type: 'doc', content: [{ type: 'paragraph' }] }),
     editable,
     onUpdate: ({ editor: ed }) => { onChange?.(ed.getJSON()); },
-  });
+  }, [collab]);
 
   useEffect(() => {
     if (editor && onEditorReady) onEditorReady(editor);
@@ -206,7 +297,10 @@ export default function BlogEditor({ content, onChange, editable = true, onEdito
 
   return (
     <div className="cpm-blog-editor">
-      <Toolbar editor={editor} onToggleFind={() => setShowFind((s) => !s)} onToggleSnippets={() => setShowSnippets(true)} />
+      <div className="cpm-blog-toolbar-row">
+        <Toolbar editor={editor} onToggleFind={() => setShowFind((s) => !s)} onToggleSnippets={() => setShowSnippets(true)} />
+        {collab && <PresenceBar connected={connected} peers={peers} />}
+      </div>
       {showFind && <FindBar editor={editor} onClose={() => setShowFind(false)} />}
       {showSnippets && <BlogSnippetManager editor={editor} onClose={() => setShowSnippets(false)} />}
       <EditorContent editor={editor} className="cpm-blog-editor-surface" />

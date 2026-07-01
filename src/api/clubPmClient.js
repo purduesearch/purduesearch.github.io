@@ -330,6 +330,14 @@ export const deleteBlogSnippet = (id) => del(`/api/blog/snippets/${id}`);
 export const addBlogAuthor    = (id, memberId, role) => post(`/api/blog/posts/${id}/authors`, { memberId, role });
 export const removeBlogAuthor = (id, memberId) => del(`/api/blog/posts/${id}/authors/${memberId}`);
 
+// ws(s):// base for the embedded Hocuspocus collab server (backend/src/collab/blogCollab.ts,
+// mounted at /collab/blog). Mirrors BASE_URL's origin, swapping the http(s) scheme for ws(s);
+// falls back to the current page's origin so the CRA dev proxy forwards the upgrade request.
+export function getBlogCollabWsUrl() {
+  const origin = BASE_URL || window.location.origin;
+  return `${origin.replace(/^http/, 'ws')}/collab/blog`;
+}
+
 // Multipart image upload → { url, width, height }. Do NOT set Content-Type:
 // the browser fills in the multipart boundary from the FormData body.
 export async function uploadBlogImage(file) {

@@ -21535,12 +21535,30 @@ button.cpm-badge-tile:disabled { opacity: 0.7; cursor: progress; }
 .cpm-blog-title-input::placeholder { color: var(--clubpm-text-muted); opacity: .5; }
 
 /* Toolbar */
-.cpm-blog-toolbar {
-  display: flex; align-items: center; gap: 2px; flex-wrap: wrap;
-  padding: 6px; margin-bottom: 10px; border-radius: 10px;
-  background: var(--pm-surface, #161a22); border: 1px solid var(--pm-overlay, #2a2f3a);
-  position: sticky; top: 56px; z-index: 4;
+.cpm-blog-toolbar-row {
+  display: flex; align-items: center; gap: 10px;
+  position: sticky; top: 56px; z-index: 4; margin-bottom: 10px;
 }
+.cpm-blog-toolbar {
+  display: flex; align-items: center; gap: 2px; flex-wrap: wrap; flex: 1; min-width: 0;
+  padding: 6px; border-radius: 10px;
+  background: var(--pm-surface, #161a22); border: 1px solid var(--pm-overlay, #2a2f3a);
+}
+.cpm-blog-presence {
+  display: flex; align-items: center; gap: 4px; flex-shrink: 0;
+  padding: 6px 10px; border-radius: 10px;
+  background: var(--pm-surface, #161a22); border: 1px solid var(--pm-overlay, #2a2f3a);
+}
+.cpm-blog-presence-dot {
+  width: 8px; height: 8px; border-radius: 50%; background: var(--pm-accent-coral, #ff6b6b); flex-shrink: 0;
+}
+.cpm-blog-presence-dot.is-live { background: var(--pm-accent-teal); box-shadow: 0 0 0 3px rgba(0,229,204,.18); }
+.cpm-blog-presence-avatar {
+  width: 24px; height: 24px; border-radius: 50%; display: inline-grid; place-items: center;
+  font-size: 11px; font-weight: 700; color: #0d0f14; border: 2px solid var(--pm-surface, #161a22);
+  margin-left: -6px;
+}
+.cpm-blog-presence-avatar:first-of-type { margin-left: 2px; }
 .cpm-blog-tb-btn {
   background: transparent; border: none; color: var(--clubpm-text-muted, #9aa4b2);
   width: 32px; height: 32px; border-radius: 7px; cursor: pointer; font-size: 13px;
