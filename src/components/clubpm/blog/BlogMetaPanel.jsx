@@ -84,6 +84,10 @@ export default function BlogMetaPanel({ post, title, onUpdate, isOpen, onClose }
   const [ogDescription, setOgDescription] = useState(post?.ogDescription ?? '');
   const [ogImageUrl, setOgImageUrl] = useState(post?.ogImageUrl ?? '');
   const [coverImageUrl, setCoverImageUrl] = useState(post?.coverImageUrl ?? '');
+  const [authorName, setAuthorName] = useState(post?.authorName ?? '');
+  const [excerpt, setExcerpt] = useState(post?.excerpt ?? '');
+  const [linkUrl, setLinkUrl] = useState(post?.linkUrl ?? '');
+  const [publishedAt, setPublishedAt] = useState(post?.publishedAt ? post.publishedAt.slice(0, 10) : '');
   const [allTags, setAllTags] = useState([]);
   const [allCategories, setAllCategories] = useState([]);
   const [selectedTagIds, setSelectedTagIds] = useState(new Set((post?.tags ?? []).map((t) => t.id)));
@@ -103,6 +107,10 @@ export default function BlogMetaPanel({ post, title, onUpdate, isOpen, onClose }
     setOgDescription(post.ogDescription ?? '');
     setOgImageUrl(post.ogImageUrl ?? '');
     setCoverImageUrl(post.coverImageUrl ?? '');
+    setAuthorName(post.authorName ?? '');
+    setExcerpt(post.excerpt ?? '');
+    setLinkUrl(post.linkUrl ?? '');
+    setPublishedAt(post.publishedAt ? post.publishedAt.slice(0, 10) : '');
     setSelectedTagIds(new Set((post.tags ?? []).map((t) => t.id)));
     setSelectedCategoryIds(new Set((post.categories ?? []).map((c) => c.id)));
   }, [post?.id]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -276,6 +284,51 @@ export default function BlogMetaPanel({ post, title, onUpdate, isOpen, onClose }
         </div>
 
         <CoverImageField label="Cover image" value={coverImageUrl} onChange={handleCoverChange} />
+
+        <div className="cpm-blog-meta-field">
+          <label className="cpm-form-label">Byline / author name</label>
+          <input
+            className="cpm-form-input"
+            value={authorName}
+            onChange={(e) => { setAuthorName(e.target.value); scheduleSave('authorName', e.target.value); }}
+            onBlur={(e) => persistField('authorName', e.target.value)}
+            placeholder="Defaults to your name; set for guest/historical authors"
+          />
+        </div>
+
+        <div className="cpm-blog-meta-field">
+          <label className="cpm-form-label">Publish date</label>
+          <input
+            type="date"
+            className="cpm-form-input"
+            value={publishedAt}
+            onChange={(e) => { setPublishedAt(e.target.value); persistField('publishedAt', e.target.value || null); }}
+          />
+          <span className="cpm-blog-meta-hint">Backdate historical posts; blank = set on publish.</span>
+        </div>
+
+        <div className="cpm-blog-meta-field">
+          <label className="cpm-form-label">Excerpt</label>
+          <textarea
+            className="cpm-form-input cpm-blog-meta-textarea"
+            rows={3}
+            value={excerpt}
+            onChange={(e) => { setExcerpt(e.target.value); scheduleSave('excerpt', e.target.value); }}
+            onBlur={(e) => persistField('excerpt', e.target.value)}
+            placeholder="Card summary; auto-derived from the body if left blank"
+          />
+        </div>
+
+        <div className="cpm-blog-meta-field">
+          <label className="cpm-form-label">Link URL</label>
+          <input
+            className="cpm-form-input"
+            value={linkUrl}
+            onChange={(e) => { setLinkUrl(e.target.value); scheduleSave('linkUrl', e.target.value); }}
+            onBlur={(e) => persistField('linkUrl', e.target.value)}
+            placeholder="e.g. /research/rascal — card links out instead of opening an article"
+          />
+        </div>
 
         <div className="cpm-blog-meta-field">
           <label className="cpm-form-label">Tags {taxonomySaving && <span className="cpm-blog-meta-saving">saving…</span>}</label>
