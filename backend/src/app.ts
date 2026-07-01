@@ -43,6 +43,7 @@ import { streakRouter } from "./api/streak.js";
 import { inventoryRouter } from "./api/inventory.js";
 import { challengesRouter } from "./api/challenges.js";
 import { blockersRouter } from "./api/blockers.js";
+import { blogRouter } from "./api/blog.js";
 
 // ── Express Setup ────────────────────────────────────────────
 
@@ -110,6 +111,7 @@ app.use("/api/notifications", notificationsRouter);
 app.use("/api/notifications", sseRouter);
 app.use("/api/events", eventsRouter);
 app.use("/api/outreach", outreachRouter);
+app.use("/api/blog", blogRouter);
 app.use("/api/outreach/assets", assetsRouter);
 app.use("/api/outreach/brand-voices", brandVoicesRouter);
 app.use("/api/outreach/campaigns", campaignsRouter);

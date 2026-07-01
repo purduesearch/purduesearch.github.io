@@ -1081,25 +1081,39 @@ outreachRouter.post("/submissions/:id/ai/expand-blog", async (req: Request, res:
       submission.project?.name ?? undefined
     );
 
-    // Auto-generate slug if missing
-    let slug = submission.blogSlug;
-    if (!slug) {
-      const baseSlug = submission.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60) || "post";
-      slug = baseSlug;
-      let suffix = 1;
-      while (await prisma.outreachSubmission.findFirst({ where: { blogSlug: slug, NOT: { id: submission.id } }, select: { id: true } })) {
-        suffix += 1;
-        slug = `${baseSlug}-${suffix}`;
-      }
-    }
-
-    const updated = await prisma.outreachSubmission.update({
-      where: { id: req.params.id as string },
-      data:  { blogMarkdown: markdown, blogSlug: slug },
-      select: { id: true, blogMarkdown: true, blogSlug: true },
+    // Create (or update) a real BlogPost draft from the AI markdown so it opens
+    // in the full blog editor. The submission keeps a blogSlug pointer so the
+    // outreach board can link straight to the post.
+    const blogService = await import("../services/blogService.js");
+    const { markdownToTiptapJson } = await import("../services/blogRender.js");
+    const existing = await prisma.blogPost.findFirst({
+      where: { sourceSubmissionId: submission.id },
+      select: { id: true },
     });
 
-    res.json(updated);
+    let post;
+    if (existing) {
+      post = await blogService.updatePost(existing.id, {
+        title: submission.title,
+        contentJson: markdownToTiptapJson(markdown),
+      });
+    } else {
+      post = await blogService.createPostFromMarkdown({
+        title: submission.title,
+        markdown,
+        createdById: req.memberId!,
+        coverImageUrl: submission.mediaUrls?.[0],
+        sourceSubmissionId: submission.id,
+      });
+    }
+
+    // Keep the submission's blogSlug in sync (drives the board's "view blog" affordance).
+    await prisma.outreachSubmission.update({
+      where: { id: req.params.id as string },
+      data:  { blogSlug: post.slug, blogMarkdown: markdown },
+    });
+
+    res.json({ blogPostId: post.id, blogSlug: post.slug, id: submission.id });
   } catch (error) {
     console.error("POST /submissions/:id/ai/expand-blog error:", error);
     res.status(500).json({ error: "Failed to expand to blog" });
