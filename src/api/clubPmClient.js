@@ -329,3 +329,22 @@ export const updateBlogSnippet = (id, data) => patch(`/api/blog/snippets/${id}`,
 export const deleteBlogSnippet = (id) => del(`/api/blog/snippets/${id}`);
 export const addBlogAuthor    = (id, memberId, role) => post(`/api/blog/posts/${id}/authors`, { memberId, role });
 export const removeBlogAuthor = (id, memberId) => del(`/api/blog/posts/${id}/authors/${memberId}`);
+
+// Multipart image upload → { url, width, height }. Do NOT set Content-Type:
+// the browser fills in the multipart boundary from the FormData body.
+export async function uploadBlogImage(file) {
+  const form = new FormData();
+  form.append('image', file);
+  const response = await fetch(`${BASE_URL}/api/blog/upload`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { Accept: 'application/json', ...authHeaders() },
+    body: form,
+  });
+  return handleResponse(response);
+}
+
+// AI alt-text suggestion. Reuses the outreach endpoint, whose handler only
+// reads `imageUrl` from the body and ignores the :id path param.
+export const suggestBlogAltText = (imageUrl) =>
+  post('/api/outreach/submissions/blog/ai/alt-text', { imageUrl });

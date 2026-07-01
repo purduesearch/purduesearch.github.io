@@ -21598,3 +21598,45 @@ button.cpm-badge-tile:disabled { opacity: 0.7; cursor: progress; }
   color: #fff; border-radius: 7px; padding: 5px 9px; font-size: 13px; min-width: 140px;
 }
 .cpm-blog-find-count { font-size: 12px; color: var(--clubpm-text-muted); margin: 0 4px; }
+
+/* --- Blog image node -------------------------------------------------- */
+.cpm-blog-figure {
+  margin: 1.4em 0; padding: 0; display: flex; flex-direction: column;
+  gap: 8px; position: relative;
+}
+.cpm-blog-figure img { max-width: 100%; height: auto; border-radius: 10px; display: block; }
+.cpm-blog-figure figcaption {
+  font-size: 13px; color: var(--clubpm-text-muted, #9aa3b2);
+  text-align: center; font-style: italic;
+}
+.cpm-blog-img--left   { align-items: flex-start; }
+.cpm-blog-img--center { align-items: center; }
+.cpm-blog-img--right  { align-items: flex-end; }
+.cpm-blog-img--full img { width: 100%; }
+.cpm-blog-figure.is-selected img { outline: 2px solid var(--pm-accent-teal, #00e5cc); outline-offset: 2px; }
+
+.cpm-blog-img-toolbar {
+  position: absolute; top: 6px; left: 50%; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 2px; z-index: 3;
+  background: var(--pm-elevated, #1e2430); border: 1px solid var(--pm-overlay, #2a2f3a);
+  border-radius: 9px; padding: 4px; opacity: 0; transition: opacity .15s;
+  box-shadow: 0 6px 20px rgba(0,0,0,.35);
+}
+.cpm-blog-figure:hover .cpm-blog-img-toolbar,
+.cpm-blog-figure.is-selected .cpm-blog-img-toolbar { opacity: 1; }
+
+.cpm-blog-img-meta { display: flex; flex-direction: column; gap: 6px; width: 100%; max-width: 640px; }
+.cpm-blog-img-caption,
+.cpm-blog-img-alt {
+  width: 100%; background: var(--pm-surface, #161a22);
+  border: 1px solid var(--pm-overlay, #2a2f3a); color: #fff;
+  border-radius: 7px; padding: 6px 9px; font-size: 13px;
+}
+.cpm-blog-img-caption { text-align: center; font-style: italic; }
+.cpm-blog-img-alt-row { display: flex; gap: 6px; align-items: center; }
+.cpm-blog-img-alt.is-empty { border-color: var(--pm-accent-amber, #f5a623); }
+.cpm-blog-img-alt-suggest { flex: 0 0 auto; white-space: nowrap; }
+.cpm-blog-img-alt-warn {
+  font-size: 12px; color: var(--pm-accent-amber, #f5a623);
+  display: inline-flex; align-items: center; gap: 5px;
+}

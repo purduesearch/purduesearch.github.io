@@ -7,6 +7,7 @@ import CharacterCount from '@tiptap/extension-character-count';
 import Placeholder from '@tiptap/extension-placeholder';
 import { TableKit } from '@tiptap/extension-table';
 import { SearchAndReplace } from '@sereneinserenade/tiptap-search-and-replace';
+import BlogImage, { uploadImageFiles } from './BlogImage';
 
 // Shared editor extension set. Keep in sync with the backend renderer
 // (backend/src/services/blogRender.ts) whenever a node type is added.
@@ -18,6 +19,7 @@ export function blogExtensions() {
     }),
     TaskList,
     TaskItem.configure({ nested: true }),
+    BlogImage,
     CharacterCount,
     Placeholder.configure({ placeholder: 'Start writing your post…' }),
     TableKit.configure({ table: { resizable: true } }),
@@ -54,9 +56,14 @@ function setLink(editor) {
 }
 
 function Toolbar({ editor, onToggleFind }) {
+  const fileRef = React.useRef(null);
   if (!editor) return null;
   const heading = [1, 2, 3, 4, 5, 6].find((l) => editor.isActive('heading', { level: l })) ?? '';
   const inTable = editor.isActive('table');
+  const pickImage = (e) => {
+    if (e.target.files?.length) uploadImageFiles(editor, e.target.files);
+    e.target.value = '';
+  };
   return (
     <div className="cpm-blog-toolbar" role="toolbar" aria-label="Formatting">
       <Btn title="Bold (Ctrl+B)" icon="fa-bold" active={editor.isActive('bold')} onClick={() => editor.chain().focus().toggleBold().run()} />
@@ -92,6 +99,8 @@ function Toolbar({ editor, onToggleFind }) {
       <Btn title="Divider" icon="fa-minus" onClick={() => editor.chain().focus().setHorizontalRule().run()} />
       <span className="cpm-blog-tb-sep" />
       <Btn title="Link (Ctrl+K)" icon="fa-link" active={editor.isActive('link')} onClick={() => setLink(editor)} />
+      <Btn title="Insert image" icon="fa-image" onClick={() => fileRef.current?.click()} />
+      <input ref={fileRef} type="file" accept="image/*" multiple hidden onChange={pickImage} />
       <Btn title="Insert table" icon="fa-table" active={inTable} onClick={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()} />
       {inTable && (
         <>
