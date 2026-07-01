@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
+import { Extension } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import TaskList from '@tiptap/extension-task-list';
 import TaskItem from '@tiptap/extension-task-item';
@@ -17,7 +18,19 @@ import BlogGallery from './BlogGallery';
 import BlogToc from './BlogToc';
 import BlogCallout from './BlogCallout';
 import BlogSnippetManager from './BlogSnippetManager';
+import { docToMarkdown, markdownToDoc } from './blogMarkdown';
 import { getBlogCollabWsUrl, getStoredToken } from '../../../api/clubPmClient';
+import useKeyboardShortcuts from '../../../hooks/useKeyboardShortcuts';
+import { useShortcutsRegistry } from '../../../clubpm/ShortcutsRegistry';
+
+// Adds Mod-K for the link prompt (the extension-link package ships no default
+// keymap of its own) so the toolbar tooltip's "(Ctrl+K)" hint is accurate.
+const LinkShortcut = Extension.create({
+  name: 'linkShortcut',
+  addKeyboardShortcuts() {
+    return { 'Mod-k': () => { setLink(this.editor); return true; } };
+  },
+});
 
 // Shared editor extension set. Keep in sync with the backend renderer
 // (backend/src/services/blogRender.ts) whenever a node type is added.
@@ -43,6 +56,7 @@ export function blogExtensions(collab) {
     Placeholder.configure({ placeholder: 'Start writing your post…' }),
     TableKit.configure({ table: { resizable: true } }),
     SearchAndReplace.configure({ disableRegex: true }),
+    LinkShortcut,
     ...(collab ? [
       Collaboration.configure({ document: collab.document }),
       CollaborationCursor.configure({ provider: collab.provider, user: collab.user }),
@@ -60,11 +74,11 @@ function colorForMember(memberId) {
   return CURSOR_COLORS[Math.abs(hash) % CURSOR_COLORS.length];
 }
 
-function Btn({ active, disabled, onClick, title, icon, label }) {
+function Btn({ active, disabled, onClick, title, icon, label, pinned }) {
   return (
     <button
       type="button"
-      className={`cpm-blog-tb-btn${active ? ' is-active' : ''}`}
+      className={`cpm-blog-tb-btn${active ? ' is-active' : ''}${pinned ? ' cpm-blog-tb-btn--pinned' : ''}`}
       onMouseDown={(e) => e.preventDefault()}
       onClick={onClick}
       disabled={disabled}
@@ -88,7 +102,7 @@ function setLink(editor) {
   editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
 }
 
-function Toolbar({ editor, onToggleFind, onToggleSnippets }) {
+function Toolbar({ editor, onToggleFind, onToggleSnippets, onToggleMarkdown, markdownMode, onShowShortcuts, toolbarOpen, onToggleToolbarOpen }) {
   const fileRef = React.useRef(null);
   if (!editor) return null;
   const heading = [1, 2, 3, 4, 5, 6].find((l) => editor.isActive('heading', { level: l })) ?? '';
@@ -117,7 +131,20 @@ function Toolbar({ editor, onToggleFind, onToggleSnippets }) {
     }).run();
   };
   return (
-    <div className="cpm-blog-toolbar" role="toolbar" aria-label="Formatting">
+    <div
+      className={`cpm-blog-toolbar${toolbarOpen ? '' : ' is-collapsed'}${markdownMode ? ' is-markdown-mode' : ''}`}
+      role="toolbar"
+      aria-label="Formatting"
+    >
+      <span className="cpm-blog-tb-toggle-wrap">
+        <Btn
+          title={toolbarOpen ? 'Collapse toolbar' : 'Expand toolbar'}
+          icon={toolbarOpen ? 'fa-chevron-up' : 'fa-chevron-down'}
+          onClick={onToggleToolbarOpen}
+          pinned
+        />
+        <span className="cpm-blog-tb-sep" />
+      </span>
       <Btn title="Bold (Ctrl+B)" icon="fa-bold" active={editor.isActive('bold')} onClick={() => editor.chain().focus().toggleBold().run()} />
       <Btn title="Italic (Ctrl+I)" icon="fa-italic" active={editor.isActive('italic')} onClick={() => editor.chain().focus().toggleItalic().run()} />
       <Btn title="Underline (Ctrl+U)" icon="fa-underline" active={editor.isActive('underline')} onClick={() => editor.chain().focus().toggleUnderline().run()} />
@@ -173,6 +200,9 @@ function Toolbar({ editor, onToggleFind, onToggleSnippets }) {
       <span className="cpm-blog-tb-sep" />
       <Btn title="Undo (Ctrl+Z)" icon="fa-rotate-left" disabled={!editor.can().undo()} onClick={() => editor.chain().focus().undo().run()} />
       <Btn title="Redo (Ctrl+Y)" icon="fa-rotate-right" disabled={!editor.can().redo()} onClick={() => editor.chain().focus().redo().run()} />
+      <span className="cpm-blog-tb-sep" />
+      <Btn title={markdownMode ? 'Switch back to rich text' : 'Edit as Markdown'} icon="fa-file-code" active={markdownMode} onClick={onToggleMarkdown} pinned />
+      <Btn title="Keyboard shortcuts" icon="fa-keyboard" onClick={onShowShortcuts} pinned />
     </div>
   );
 }
@@ -238,6 +268,12 @@ export default function BlogEditor({ content, onChange, editable = true, onEdito
   const [showSnippets, setShowSnippets] = React.useState(false);
   const [connected, setConnected] = React.useState(false);
   const [peers, setPeers] = React.useState([]);
+  const [markdownMode, setMarkdownMode] = React.useState(false);
+  const [markdownText, setMarkdownText] = React.useState('');
+  // Collapsed by default on narrow viewports so the toolbar doesn't push the
+  // title/body below the fold; users can still expand it with the chevron.
+  const [toolbarOpen, setToolbarOpen] = React.useState(() => (typeof window === 'undefined' || window.innerWidth > 640));
+  const shortcutsRegistry = useShortcutsRegistry();
 
   // One Y.Doc + Hocuspocus connection per post. Recreated only if `postId`
   // changes — callers should `key` the editor by post id so a full remount
@@ -292,21 +328,67 @@ export default function BlogEditor({ content, onChange, editable = true, onEdito
     if (editor && onEditorReady) onEditorReady(editor);
   }, [editor, onEditorReady]);
 
+  // Registered purely so these appear in the shared "?" Keyboard Shortcuts
+  // modal — the key combos themselves are handled natively by TipTap's own
+  // keymaps (bold/italic/underline/undo/redo) or LinkShortcut above; the
+  // global registry ignores modifier-key events (see ShortcutsRegistry.jsx),
+  // so registering them here is documentation-only and never double-fires.
+  useKeyboardShortcuts([
+    { id: 'blog.bold', keys: 'Ctrl/⌘+B', scope: 'page', pageId: 'Blog Editor', description: 'Bold', action: () => editor?.chain().focus().toggleBold().run() },
+    { id: 'blog.italic', keys: 'Ctrl/⌘+I', scope: 'page', pageId: 'Blog Editor', description: 'Italic', action: () => editor?.chain().focus().toggleItalic().run() },
+    { id: 'blog.underline', keys: 'Ctrl/⌘+U', scope: 'page', pageId: 'Blog Editor', description: 'Underline', action: () => editor?.chain().focus().toggleUnderline().run() },
+    { id: 'blog.link', keys: 'Ctrl/⌘+K', scope: 'page', pageId: 'Blog Editor', description: 'Add/edit link', action: () => setLink(editor) },
+    { id: 'blog.undo', keys: 'Ctrl/⌘+Z', scope: 'page', pageId: 'Blog Editor', description: 'Undo', action: () => editor?.chain().focus().undo().run() },
+    { id: 'blog.redo', keys: 'Ctrl/⌘+Shift+Z', scope: 'page', pageId: 'Blog Editor', description: 'Redo', action: () => editor?.chain().focus().redo().run() },
+    { id: 'blog.save', keys: 'Ctrl/⌘+S', scope: 'page', pageId: 'Blog Editor', description: 'Save draft', action: () => {} },
+  ]);
+
+  const toggleMarkdown = () => {
+    if (!editor) return;
+    if (markdownMode) {
+      editor.commands.setContent(markdownToDoc(markdownText), { emitUpdate: true });
+      setMarkdownMode(false);
+    } else {
+      setMarkdownText(docToMarkdown(editor.getJSON()));
+      setMarkdownMode(true);
+    }
+  };
+
   const words = editor?.storage.characterCount.words() ?? 0;
   const chars = editor?.storage.characterCount.characters() ?? 0;
 
   return (
     <div className="cpm-blog-editor">
       <div className="cpm-blog-toolbar-row">
-        <Toolbar editor={editor} onToggleFind={() => setShowFind((s) => !s)} onToggleSnippets={() => setShowSnippets(true)} />
+        <Toolbar
+          editor={editor}
+          onToggleFind={() => setShowFind((s) => !s)}
+          onToggleSnippets={() => setShowSnippets(true)}
+          onToggleMarkdown={toggleMarkdown}
+          markdownMode={markdownMode}
+          onShowShortcuts={() => shortcutsRegistry?.setShowHelp(true)}
+          toolbarOpen={toolbarOpen}
+          onToggleToolbarOpen={() => setToolbarOpen((v) => !v)}
+        />
         {collab && <PresenceBar connected={connected} peers={peers} />}
       </div>
-      {showFind && <FindBar editor={editor} onClose={() => setShowFind(false)} />}
-      {showSnippets && <BlogSnippetManager editor={editor} onClose={() => setShowSnippets(false)} />}
-      <EditorContent editor={editor} className="cpm-blog-editor-surface" />
+      {showFind && !markdownMode && <FindBar editor={editor} onClose={() => setShowFind(false)} />}
+      {showSnippets && !markdownMode && <BlogSnippetManager editor={editor} onClose={() => setShowSnippets(false)} />}
+      {markdownMode ? (
+        <textarea
+          className="cpm-blog-markdown-textarea"
+          value={markdownText}
+          onChange={(e) => setMarkdownText(e.target.value)}
+          spellCheck={false}
+          placeholder="# Markdown source"
+        />
+      ) : (
+        <EditorContent editor={editor} className="cpm-blog-editor-surface" />
+      )}
       <div className="cpm-blog-editor-footer">
         <span>{words} words</span>
         <span>{chars} characters</span>
+        {markdownMode && <span className="cpm-blog-markdown-hint">Editing raw Markdown — switch back to rich text to continue formatting.</span>}
       </div>
     </div>
   );

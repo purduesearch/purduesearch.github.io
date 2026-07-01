@@ -124,6 +124,20 @@ export default function BlogEditorPage() {
     return () => window.removeEventListener('beforeunload', onBeforeUnload);
   }, [dirty]);
 
+  // Ctrl/Cmd+S saves the draft. The shared page-shortcut registry
+  // (src/clubpm/ShortcutsRegistry.jsx) deliberately ignores modifier-key
+  // combos, so this needs its own listener rather than useKeyboardShortcuts.
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      const mod = e.metaKey || e.ctrlKey;
+      if (!mod || e.key.toLowerCase() !== 's') return;
+      e.preventDefault();
+      handleSave();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [handleSave]);
+
   const guardedNav = (e) => {
     if (dirty && !window.confirm('You have unsaved changes. Leave anyway?')) {
       e.preventDefault();

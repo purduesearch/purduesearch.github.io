@@ -21972,3 +21972,50 @@ button.cpm-badge-tile:disabled { opacity: 0.7; cursor: progress; }
   border-radius: 6px; flex-shrink: 0;
 }
 .cpm-blog-authors-remove:hover { color: var(--pm-accent-coral, #ff6b6b); background: var(--pm-surface, #161a22); }
+
+/* Keyboard shortcuts, responsive layout, Markdown toggle (Epic 8.1) */
+.cpm-blog-tb-toggle-wrap { display: none; align-items: center; gap: 2px; }
+.cpm-blog-tb-btn--pinned { position: relative; }
+.cpm-blog-toolbar.is-markdown-mode > *:not(.cpm-blog-tb-btn--pinned) {
+  opacity: .35; pointer-events: none;
+}
+
+.cpm-blog-markdown-textarea {
+  width: 100%; min-height: 320px; resize: vertical;
+  background: #0b0d12; border: 1px solid var(--pm-overlay, #2a2f3a); border-radius: 10px;
+  color: #e7ecf3; font-family: var(--pm-font-mono, monospace); font-size: 13.5px; line-height: 1.6;
+  padding: 14px 16px; outline: none;
+}
+.cpm-blog-markdown-textarea:focus { border-color: var(--pm-accent-teal, #00e5cc); }
+.cpm-blog-markdown-hint { color: var(--pm-accent-amber, #f5a623); }
+
+@media (max-width: 720px) {
+  .cpm-blog-editor-header { flex-direction: column; align-items: stretch; gap: 8px; padding-bottom: 10px; }
+  .cpm-blog-editor-header-left { flex-wrap: wrap; row-gap: 6px; }
+  .cpm-blog-editor-header-actions {
+    flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch;
+    padding-bottom: 2px; scrollbar-width: thin;
+  }
+  .cpm-blog-editor-header-actions > * { flex-shrink: 0; }
+  .cpm-blog-schedule-input { max-width: 150px; }
+
+  /* Collapsible toolbar: collapsed shows only the toggle + pinned actions,
+     scrollable in a single row; expanded wraps to show every tool. */
+  .cpm-blog-tb-toggle-wrap { display: flex; }
+  .cpm-blog-toolbar.is-collapsed {
+    flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch;
+  }
+  .cpm-blog-toolbar.is-collapsed > *:not(.cpm-blog-tb-btn--pinned):not(.cpm-blog-tb-toggle-wrap) {
+    display: none;
+  }
+
+  .cpm-blog-editor-body { padding: 16px 6px 60px; }
+  .cpm-blog-title-input { font-size: 26px; }
+  .cpm-blog-editor-surface .ProseMirror { font-size: 16px; }
+}
+
+@media (max-width: 480px) {
+  .cpm-blog-editor-header-actions button span,
+  .cpm-blog-editor-header-actions .clubpm-btn-secondary,
+  .cpm-blog-editor-header-actions .clubpm-btn-primary { font-size: 12px; padding: 6px 8px; }
+}
