@@ -21,29 +21,31 @@ import CalendarPage from './pages/ClubPM/CalendarPage';
 import AdminView from './pages/ClubPM/AdminView';
 import OutreachHub from './pages/ClubPM/OutreachHub';
 import BlogEditorPage from './pages/ClubPM/BlogEditorPage';
-import PublicCampaign from './pages/PublicCampaign';
-import EventRsvp from './pages/Public/EventRsvp';
-import Archive from './pages/Archive';
-import BlogPost from './pages/BlogPost';
 import Home from './pages/Home';
-import About from './pages/About';
-import Research from './pages/Research';
-import SA2TP from './pages/SA2TP';
-import Software from './pages/Software';
-import Business from './pages/Business';
-import AstroUSA from './pages/AstroUSA';
-import Outreach from './pages/Outreach';
-import Contact from './pages/Contact';
-import Blog from './pages/Blog';
-import Suits from './pages/Software/Suits';
-import Rascal from './pages/Research/Rascal';
-import Crew1 from './pages/SA2TP/Crew1';
-import RodInterview from './pages/SA2TP/RodInterview';
-import AstroOverview from './pages/AstroUSA/Overview';
-import AstroArchitecture from './pages/AstroUSA/Architecture';
-import AstroHydroponics from './pages/AstroUSA/Hydroponics';
-import NotFound from './pages/NotFound';
-import SearchResults from './pages/SearchResults';
+
+// ── Public site lazy routes (code-split out of the main chunk) ──
+const PublicCampaign = lazy(() => import('./pages/PublicCampaign'));
+const EventRsvp = lazy(() => import('./pages/Public/EventRsvp'));
+const Archive = lazy(() => import('./pages/Archive'));
+const BlogPost = lazy(() => import('./pages/BlogPost'));
+const About = lazy(() => import('./pages/About'));
+const Research = lazy(() => import('./pages/Research'));
+const SA2TP = lazy(() => import('./pages/SA2TP'));
+const Software = lazy(() => import('./pages/Software'));
+const Business = lazy(() => import('./pages/Business'));
+const AstroUSA = lazy(() => import('./pages/AstroUSA'));
+const Outreach = lazy(() => import('./pages/Outreach'));
+const Contact = lazy(() => import('./pages/Contact'));
+const Blog = lazy(() => import('./pages/Blog'));
+const Suits = lazy(() => import('./pages/Software/Suits'));
+const Rascal = lazy(() => import('./pages/Research/Rascal'));
+const Crew1 = lazy(() => import('./pages/SA2TP/Crew1'));
+const RodInterview = lazy(() => import('./pages/SA2TP/RodInterview'));
+const AstroOverview = lazy(() => import('./pages/AstroUSA/Overview'));
+const AstroArchitecture = lazy(() => import('./pages/AstroUSA/Architecture'));
+const AstroHydroponics = lazy(() => import('./pages/AstroUSA/Hydroponics'));
+const NotFound = lazy(() => import('./pages/NotFound'));
+const SearchResults = lazy(() => import('./pages/SearchResults'));
 
 // ── ClubPM lazy routes (avoid pulling R3F/three into the main bundle) ──
 const ClubPmProfile  = lazy(() => import('./pages/ClubPM/Profile'));
@@ -69,55 +71,57 @@ function AnimatedRoutes() {
   return (
     <>
       {!isClubPm && <ReadingProgress />}
-      <AnimatePresence mode="wait">
-        <Routes location={location} key={location.pathname}>
-          {/* Club PM routes */}
-          <Route path="/clubpm/login" element={<ClubPmLogin />} />
-          <Route path="/clubpm" element={<ClubPmProtectedPage><ClubPmDashboard /></ClubPmProtectedPage>} />
-          <Route path="/clubpm/projects/:id" element={<ClubPmProtectedPage><ClubPmProjectDetail /></ClubPmProtectedPage>} />
-          <Route path="/clubpm/projects/:id/gantt" element={<ClubPmProtectedPage><ClubPmGanttView /></ClubPmProtectedPage>} />
-          <Route path="/clubpm/members" element={<ClubPmProtectedPage><ClubPmMembersView /></ClubPmProtectedPage>} />
-          <Route path="/clubpm/notifications" element={<ClubPmProtectedPage><NotificationCenter /></ClubPmProtectedPage>} />
-          <Route path="/clubpm/notifications/preferences" element={<ClubPmProtectedPage><NotificationPreferences /></ClubPmProtectedPage>} />
-          <Route path="/clubpm/calendar" element={<ClubPmProtectedPage><CalendarPage /></ClubPmProtectedPage>} />
-          <Route path="/clubpm/admin" element={<ClubPmProtectedPage><AdminView /></ClubPmProtectedPage>} />
-          {/* Backward-compat: legacy /meeting-notes URLs now redirect to /admin. Keep for one release. */}
-          <Route path="/clubpm/meeting-notes" element={<Navigate to="/clubpm/admin" replace />} />
-          <Route path="/clubpm/outreach" element={<ClubPmProtectedPage><OutreachHub /></ClubPmProtectedPage>} />
-          <Route path="/clubpm/outreach/blog/:id/edit" element={<ClubPmProtectedPage><BlogEditorPage /></ClubPmProtectedPage>} />
-          <Route path="/clubpm/profile" element={<ClubPmProtectedPage><Suspense fallback={<div style={{ padding: 24 }}>Loading…</div>}><ClubPmProfile /></Suspense></ClubPmProtectedPage>} />
-          <Route path="/clubpm/profile/:memberId" element={<ClubPmProtectedPage><Suspense fallback={<div style={{ padding: 24 }}>Loading…</div>}><ClubPmProfile /></Suspense></ClubPmProtectedPage>} />
-          <Route path="/clubpm/shop" element={<ClubPmProtectedPage><Suspense fallback={<div style={{ padding: 24 }}>Loading…</div>}><ClubPmShop /></Suspense></ClubPmProtectedPage>} />
-          <Route path="/clubpm/challenges" element={<ClubPmProtectedPage><Suspense fallback={<div style={{ padding: 24 }}>Loading…</div>}><ChallengesPage /></Suspense></ClubPmProtectedPage>} />
+      <Suspense fallback={null}>
+        <AnimatePresence mode="wait">
+          <Routes location={location} key={location.pathname}>
+            {/* Club PM routes */}
+            <Route path="/clubpm/login" element={<ClubPmLogin />} />
+            <Route path="/clubpm" element={<ClubPmProtectedPage><ClubPmDashboard /></ClubPmProtectedPage>} />
+            <Route path="/clubpm/projects/:id" element={<ClubPmProtectedPage><ClubPmProjectDetail /></ClubPmProtectedPage>} />
+            <Route path="/clubpm/projects/:id/gantt" element={<ClubPmProtectedPage><ClubPmGanttView /></ClubPmProtectedPage>} />
+            <Route path="/clubpm/members" element={<ClubPmProtectedPage><ClubPmMembersView /></ClubPmProtectedPage>} />
+            <Route path="/clubpm/notifications" element={<ClubPmProtectedPage><NotificationCenter /></ClubPmProtectedPage>} />
+            <Route path="/clubpm/notifications/preferences" element={<ClubPmProtectedPage><NotificationPreferences /></ClubPmProtectedPage>} />
+            <Route path="/clubpm/calendar" element={<ClubPmProtectedPage><CalendarPage /></ClubPmProtectedPage>} />
+            <Route path="/clubpm/admin" element={<ClubPmProtectedPage><AdminView /></ClubPmProtectedPage>} />
+            {/* Backward-compat: legacy /meeting-notes URLs now redirect to /admin. Keep for one release. */}
+            <Route path="/clubpm/meeting-notes" element={<Navigate to="/clubpm/admin" replace />} />
+            <Route path="/clubpm/outreach" element={<ClubPmProtectedPage><OutreachHub /></ClubPmProtectedPage>} />
+            <Route path="/clubpm/outreach/blog/:id/edit" element={<ClubPmProtectedPage><BlogEditorPage /></ClubPmProtectedPage>} />
+            <Route path="/clubpm/profile" element={<ClubPmProtectedPage><Suspense fallback={<div style={{ padding: 24 }}>Loading…</div>}><ClubPmProfile /></Suspense></ClubPmProtectedPage>} />
+            <Route path="/clubpm/profile/:memberId" element={<ClubPmProtectedPage><Suspense fallback={<div style={{ padding: 24 }}>Loading…</div>}><ClubPmProfile /></Suspense></ClubPmProtectedPage>} />
+            <Route path="/clubpm/shop" element={<ClubPmProtectedPage><Suspense fallback={<div style={{ padding: 24 }}>Loading…</div>}><ClubPmShop /></Suspense></ClubPmProtectedPage>} />
+            <Route path="/clubpm/challenges" element={<ClubPmProtectedPage><Suspense fallback={<div style={{ padding: 24 }}>Loading…</div>}><ChallengesPage /></Suspense></ClubPmProtectedPage>} />
 
-          {/* Public outreach routes (no auth) */}
-          <Route path="/rsvp/:eventId" element={<EventRsvp />} />
-          <Route path="/r/c/:slug" element={<PublicCampaign />} />
-          <Route path="/r/archive" element={<Archive />} />
+            {/* Public outreach routes (no auth) */}
+            <Route path="/rsvp/:eventId" element={<EventRsvp />} />
+            <Route path="/r/c/:slug" element={<PublicCampaign />} />
+            <Route path="/r/archive" element={<Archive />} />
 
-          {/* Main site routes */}
-          <Route path="/" element={<PageWrapper><Home /></PageWrapper>} />
-          <Route path="/about" element={<PageWrapper><About /></PageWrapper>} />
-          <Route path="/research" element={<PageWrapper><Research /></PageWrapper>} />
-          <Route path="/research/rascal" element={<PageWrapper><Rascal /></PageWrapper>} />
-          <Route path="/sa2tp" element={<PageWrapper><SA2TP /></PageWrapper>} />
-          <Route path="/sa2tp/crew1" element={<PageWrapper><Crew1 /></PageWrapper>} />
-          <Route path="/sa2tp/rod-interview" element={<PageWrapper><RodInterview /></PageWrapper>} />
-          <Route path="/software" element={<PageWrapper><Software /></PageWrapper>} />
-          <Route path="/software/suits" element={<PageWrapper><Suits /></PageWrapper>} />
-          <Route path="/business" element={<PageWrapper><Business /></PageWrapper>} />
-          <Route path="/astrousa" element={<PageWrapper><AstroUSA /></PageWrapper>} />
-          <Route path="/astrousa/overview" element={<PageWrapper><AstroOverview /></PageWrapper>} />
-          <Route path="/astrousa/architecture" element={<PageWrapper><AstroArchitecture /></PageWrapper>} />
-          <Route path="/astrousa/hydroponics" element={<PageWrapper><AstroHydroponics /></PageWrapper>} />
-          <Route path="/outreach" element={<PageWrapper><Outreach /></PageWrapper>} />
-          <Route path="/contact" element={<PageWrapper><Contact /></PageWrapper>} />
-          <Route path="/blog" element={<PageWrapper><Blog /></PageWrapper>} />
-          <Route path="/blog/:slug" element={<PageWrapper><BlogPost /></PageWrapper>} />
-          <Route path="/search" element={<PageWrapper><SearchResults /></PageWrapper>} />
-          <Route path="*" element={<PageWrapper><NotFound /></PageWrapper>} />
-        </Routes>
-      </AnimatePresence>
+            {/* Main site routes */}
+            <Route path="/" element={<PageWrapper><Home /></PageWrapper>} />
+            <Route path="/about" element={<PageWrapper><About /></PageWrapper>} />
+            <Route path="/research" element={<PageWrapper><Research /></PageWrapper>} />
+            <Route path="/research/rascal" element={<PageWrapper><Rascal /></PageWrapper>} />
+            <Route path="/sa2tp" element={<PageWrapper><SA2TP /></PageWrapper>} />
+            <Route path="/sa2tp/crew1" element={<PageWrapper><Crew1 /></PageWrapper>} />
+            <Route path="/sa2tp/rod-interview" element={<PageWrapper><RodInterview /></PageWrapper>} />
+            <Route path="/software" element={<PageWrapper><Software /></PageWrapper>} />
+            <Route path="/software/suits" element={<PageWrapper><Suits /></PageWrapper>} />
+            <Route path="/business" element={<PageWrapper><Business /></PageWrapper>} />
+            <Route path="/astrousa" element={<PageWrapper><AstroUSA /></PageWrapper>} />
+            <Route path="/astrousa/overview" element={<PageWrapper><AstroOverview /></PageWrapper>} />
+            <Route path="/astrousa/architecture" element={<PageWrapper><AstroArchitecture /></PageWrapper>} />
+            <Route path="/astrousa/hydroponics" element={<PageWrapper><AstroHydroponics /></PageWrapper>} />
+            <Route path="/outreach" element={<PageWrapper><Outreach /></PageWrapper>} />
+            <Route path="/contact" element={<PageWrapper><Contact /></PageWrapper>} />
+            <Route path="/blog" element={<PageWrapper><Blog /></PageWrapper>} />
+            <Route path="/blog/:slug" element={<PageWrapper><BlogPost /></PageWrapper>} />
+            <Route path="/search" element={<PageWrapper><SearchResults /></PageWrapper>} />
+            <Route path="*" element={<PageWrapper><NotFound /></PageWrapper>} />
+          </Routes>
+        </AnimatePresence>
+      </Suspense>
     </>
   );
 }

@@ -1,11 +1,12 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, lazy, Suspense } from 'react';
 import { Link } from 'react-router-dom';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
-import STLViewer from '../components/STLViewer';
 import SEOHead from '../components/SEOHead';
+
+const STLViewer = lazy(() => import('../components/STLViewer'));
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -528,7 +529,9 @@ const Research = () => {
           </div>
 
           <div className="stl-viewer-container" data-aos="fade-up" data-aos-delay="80">
-            <STLViewer url="/models/chamberAssembly.stl" height={520} color="#c8d4dc" />
+            <Suspense fallback={<div className="stl-viewer-loading" style={{ height: 520 }} aria-busy="true" />}>
+              <STLViewer url="/models/chamberAssembly.stl" height={520} color="#c8d4dc" />
+            </Suspense>
           </div>
 
           <div className="stl-hint-row" data-aos="fade-up" data-aos-delay="160">
