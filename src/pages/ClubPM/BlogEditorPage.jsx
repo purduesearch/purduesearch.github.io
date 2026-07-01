@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import BlogEditor from '../../components/clubpm/blog/BlogEditor';
 import RevisionHistoryDrawer from '../../components/clubpm/blog/RevisionHistoryDrawer';
+import BlogMetaPanel from '../../components/clubpm/blog/BlogMetaPanel';
 import OrbitLoader from '../../components/OrbitLoader';
 import ApprovalChips from '../../components/clubpm/ApprovalChips';
 import { useClubPmAuth } from '../../clubpm/ClubPmAuth';
@@ -35,6 +36,7 @@ export default function BlogEditorPage() {
   const [busyAction, setBusyAction] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [previewMode, setPreviewMode] = useState(false);
+  const [metaPanelOpen, setMetaPanelOpen] = useState(false);
 
   // Keep the latest editable state in a ref so the debounced autosave always
   // persists current values without re-arming on every keystroke.
@@ -182,6 +184,18 @@ export default function BlogEditorPage() {
     }
   }, [id]);
 
+  // Passed to BlogMetaPanel: `patch` set → PATCH + merge; `patch` null with
+  // `already` set → merge an already-fetched post (e.g. from setBlogTaxonomy).
+  const handleMetaUpdate = useCallback(async (patch, already) => {
+    if (!patch) {
+      if (already) setPost((prev) => ({ ...prev, ...already }));
+      return already;
+    }
+    const updated = await updateBlogPost(id, patch);
+    setPost((prev) => ({ ...prev, ...updated }));
+    return updated;
+  }, [id]);
+
   const handleRestored = (updated) => {
     setPost(updated);
     setTitle(updated.title ?? '');
@@ -230,6 +244,14 @@ export default function BlogEditorPage() {
           </button>
           <button type="button" className="clubpm-btn-secondary" onClick={() => setHistoryOpen(true)} title="Revision history">
             <i className="fas fa-clock-rotate-left" aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            className={`clubpm-btn-secondary${metaPanelOpen ? ' is-active' : ''}`}
+            onClick={() => setMetaPanelOpen((v) => !v)}
+            title="Metadata & SEO"
+          >
+            <i className="fas fa-sliders-h" aria-hidden="true" />
           </button>
           <button type="button" className="clubpm-btn-secondary" onClick={() => handleSave()} disabled={saving}>
             {saving ? 'Saving…' : 'Save draft'}
@@ -313,6 +335,14 @@ export default function BlogEditorPage() {
           onRestored={handleRestored}
         />
       )}
+
+      <BlogMetaPanel
+        post={post}
+        title={title}
+        isOpen={metaPanelOpen}
+        onClose={() => setMetaPanelOpen(false)}
+        onUpdate={handleMetaUpdate}
+      />
     </div>
   );
 }
