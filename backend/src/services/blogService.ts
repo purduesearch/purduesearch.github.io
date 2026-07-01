@@ -34,6 +34,9 @@ export interface UpdatePostInput {
   ogDescription?: string | null;
   ogImageUrl?: string | null;
   scheduledAt?: Date | null;
+  authorName?: string | null;
+  linkUrl?: string | null;
+  publishedAt?: Date | string | null;
 }
 
 export interface ListPostsFilters {
@@ -144,7 +147,10 @@ export async function updatePost(id: string, patch: UpdatePostInput) {
   if (patch.contentJson !== undefined) {
     data.contentJson = asJson(patch.contentJson);
     data.readingTimeMin = computeReadingTime(patch.contentJson);
-    if (patch.excerpt === undefined) data.excerpt = deriveExcerpt(patch.contentJson);
+    if (patch.excerpt === undefined) {
+      const existing = await prisma.blogPost.findUnique({ where: { id }, select: { excerpt: true } });
+      if (!existing?.excerpt) data.excerpt = deriveExcerpt(patch.contentJson);
+    }
   }
   if (patch.coverImageUrl !== undefined) data.coverImageUrl = patch.coverImageUrl;
   if (patch.metaDescription !== undefined) data.metaDescription = patch.metaDescription;
@@ -153,6 +159,11 @@ export async function updatePost(id: string, patch: UpdatePostInput) {
   if (patch.ogDescription !== undefined) data.ogDescription = patch.ogDescription;
   if (patch.ogImageUrl !== undefined) data.ogImageUrl = patch.ogImageUrl;
   if (patch.scheduledAt !== undefined) data.scheduledAt = patch.scheduledAt;
+  if (patch.authorName !== undefined) data.authorName = patch.authorName;
+  if (patch.linkUrl !== undefined) data.linkUrl = patch.linkUrl;
+  if (patch.publishedAt !== undefined) {
+    data.publishedAt = patch.publishedAt ? new Date(patch.publishedAt) : null;
+  }
 
   return prisma.blogPost.update({ where: { id }, data, include: postInclude });
 }
