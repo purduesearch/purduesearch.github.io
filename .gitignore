@@ -25,3 +25,6 @@ backend/node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# build output — deployed via GitHub Actions artifact, not from git
+/build
