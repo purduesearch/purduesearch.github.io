@@ -201,7 +201,8 @@ function renderNode(node: PMNode, headingIds: Map<PMNode, string>): string {
       const src = escapeAttr(String(node.attrs?.src ?? ""));
       const alt = escapeAttr(String(node.attrs?.alt ?? ""));
       const align = node.attrs?.align ? ` cpm-blog-img--${escapeAttr(String(node.attrs.align))}` : "";
-      const width = node.attrs?.width ? ` style="width:${Number(node.attrs.width)}px"` : "";
+      const wUnit = node.attrs?.widthUnit === "%" ? "%" : "px";
+      const width = node.attrs?.width ? ` style="width:${Number(node.attrs.width)}${wUnit}"` : "";
       const caption = node.attrs?.caption
         ? `<figcaption>${escapeHtml(String(node.attrs.caption))}</figcaption>`
         : "";
@@ -271,6 +272,13 @@ export function renderJsonToHtml(doc: PMDoc | null | undefined): string {
 
 // ── Markdown -> TipTap JSON (for the AI expand-to-blog flow) ──
 
+// Best-effort tag stripping so raw HTML in markdown never leaks into the editor
+// as literal angle-bracket text. (Full HTML -> ProseMirror conversion is out of
+// scope; the editor supports images/tables/etc. natively via the branches below.)
+function stripHtml(s: string): string {
+  return s.replace(/<[^>]*>/g, "");
+}
+
 function inlineTokensToNodes(tokens: Token[] | undefined, marks: PMMark[] = []): PMNode[] {
   if (!tokens) return [];
   const out: PMNode[] = [];
@@ -305,6 +313,25 @@ function inlineTokensToNodes(tokens: Token[] | undefined, marks: PMMark[] = []):
       case "br":
         out.push({ type: "hardBreak" });
         break;
+      case "html": {
+        // Literal inline HTML. Map <br> to a hard break; strip other tags so
+        // raw markup never renders as visible angle-bracket text.
+        const raw = ((t as Tokens.HTML).text ?? "").trim();
+        if (/^<br\s*\/?>$/i.test(raw)) {
+          out.push({ type: "hardBreak" });
+          break;
+        }
+        const text = stripHtml(raw);
+        if (text) out.push({ type: "text", text, ...(marks.length ? { marks } : {}) });
+        break;
+      }
+      case "image": {
+        // Inline-nested image (e.g. inside a link or emphasis) that couldn't be
+        // hoisted to a block image node — keep its alt text so nothing is lost.
+        const tok = t as Tokens.Image;
+        if (tok.text) out.push({ type: "text", text: tok.text, ...(marks.length ? { marks } : {}) });
+        break;
+      }
       case "escape":
         out.push({ type: "text", text: (t as Tokens.Escape).text, ...(marks.length ? { marks } : {}) });
         break;
@@ -318,65 +345,116 @@ function inlineTokensToNodes(tokens: Token[] | undefined, marks: PMMark[] = []):
   return out;
 }
 
+// The editor's `image` node is block-level, but markdown images are inline.
+// Convert a run of inline tokens into block nodes: paragraphs for text runs,
+// with any images hoisted out into standalone block `image` nodes (attrs match
+// BlogImage / blogSchema.ts). Empty input yields no blocks.
+function inlineTokensToBlocks(tokens: Token[] | undefined): PMNode[] {
+  const blocks: PMNode[] = [];
+  let buffer: PMNode[] = [];
+  const flush = () => {
+    if (buffer.length) {
+      blocks.push({ type: "paragraph", content: buffer });
+      buffer = [];
+    }
+  };
+  for (const t of tokens ?? []) {
+    if (t.type === "image") {
+      const im = t as Tokens.Image;
+      flush();
+      blocks.push({
+        type: "image",
+        attrs: { src: im.href, alt: im.text ?? "", align: "center", caption: im.title ?? "" },
+      });
+    } else {
+      buffer.push(...inlineTokensToNodes([t]));
+    }
+  }
+  flush();
+  return blocks;
+}
+
+function tableCellNode(cell: Tokens.TableCell, header: boolean): PMNode {
+  const inline = inlineTokensToNodes(cell.tokens);
+  return {
+    type: header ? "tableHeader" : "tableCell",
+    content: [inline.length ? { type: "paragraph", content: inline } : { type: "paragraph" }],
+  };
+}
+
+function tableTokenToNode(t: Tokens.Table): PMNode {
+  const rows: PMNode[] = [{ type: "tableRow", content: t.header.map((c) => tableCellNode(c, true)) }];
+  for (const r of t.rows) {
+    rows.push({ type: "tableRow", content: r.map((c) => tableCellNode(c, false)) });
+  }
+  return { type: "table", content: rows };
+}
+
 function listItemsToNodes(items: Tokens.ListItem[]): PMNode[] {
   return items.map((item) => {
-    const children: PMNode[] = [];
-    for (const tok of item.tokens) {
-      if (tok.type === "list") {
-        children.push(blockTokenToNode(tok) as PMNode);
-      } else if (tok.type === "text") {
-        const textTok = tok as Tokens.Text;
-        children.push({ type: "paragraph", content: inlineTokensToNodes(textTok.tokens ?? [{ type: "text", raw: textTok.text, text: textTok.text } as Token]) });
-      } else {
-        const node = blockTokenToNode(tok);
-        if (node) children.push(node);
-      }
-    }
+    const children = blockTokensToNodes(item.tokens);
     if (children.length === 0) children.push({ type: "paragraph" });
     return { type: "listItem", content: children };
   });
 }
 
-function blockTokenToNode(token: Token): PMNode | null {
+function blockTokensToNodes(tokens: Token[] | undefined): PMNode[] {
+  const out: PMNode[] = [];
+  for (const t of tokens ?? []) out.push(...blockTokenToNodes(t));
+  return out;
+}
+
+function blockTokenToNodes(token: Token): PMNode[] {
   switch (token.type) {
     case "heading": {
       const t = token as Tokens.Heading;
-      return { type: "heading", attrs: { level: t.depth }, content: inlineTokensToNodes(t.tokens) };
+      return [{ type: "heading", attrs: { level: t.depth }, content: inlineTokensToNodes(t.tokens) }];
     }
-    case "paragraph": {
-      const t = token as Tokens.Paragraph;
-      return { type: "paragraph", content: inlineTokensToNodes(t.tokens) };
+    case "paragraph":
+      return inlineTokensToBlocks((token as Tokens.Paragraph).tokens);
+    case "text": {
+      // Loose text (e.g. inside list items) — preserve inline formatting and
+      // hoist images, same as a paragraph.
+      const t = token as Tokens.Text;
+      const toks = t.tokens && t.tokens.length
+        ? t.tokens
+        : ([{ type: "text", raw: t.text, text: t.text }] as unknown as Token[]);
+      return inlineTokensToBlocks(toks);
     }
     case "blockquote": {
-      const t = token as Tokens.Blockquote;
-      return { type: "blockquote", content: (t.tokens.map(blockTokenToNode).filter(Boolean) as PMNode[]) };
+      const inner = blockTokensToNodes((token as Tokens.Blockquote).tokens);
+      return [{ type: "blockquote", content: inner.length ? inner : [{ type: "paragraph" }] }];
     }
     case "code": {
       const t = token as Tokens.Code;
-      return {
+      return [{
         type: "codeBlock",
         attrs: t.lang ? { language: t.lang } : {},
         content: t.text ? [{ type: "text", text: t.text }] : [],
-      };
+      }];
     }
     case "list": {
       const t = token as Tokens.List;
-      return {
+      return [{
         type: t.ordered ? "orderedList" : "bulletList",
         ...(t.ordered && t.start && t.start !== 1 ? { attrs: { start: t.start } } : {}),
         content: listItemsToNodes(t.items),
-      };
+      }];
     }
+    case "table":
+      return [tableTokenToNode(token as Tokens.Table)];
     case "hr":
-      return { type: "horizontalRule" };
+      return [{ type: "horizontalRule" }];
+    case "html": {
+      // Block-level raw HTML: strip tags so it never renders as literal markup.
+      const text = stripHtml((token as Tokens.HTML).text ?? "").trim();
+      return text ? [{ type: "paragraph", content: [{ type: "text", text }] }] : [];
+    }
     case "space":
-      return null;
+      return [];
     default: {
       const anyTok = token as { text?: string };
-      if (anyTok.text?.trim()) {
-        return { type: "paragraph", content: [{ type: "text", text: anyTok.text }] };
-      }
-      return null;
+      return anyTok.text?.trim() ? [{ type: "paragraph", content: [{ type: "text", text: anyTok.text }] }] : [];
     }
   }
 }
@@ -384,6 +462,6 @@ function blockTokenToNode(token: Token): PMNode | null {
 /** Convert markdown (e.g. Gemini's expand-to-blog output) into a TipTap doc. */
 export function markdownToTiptapJson(markdown: string): PMDoc {
   const tokens = new Lexer().lex(markdown ?? "");
-  const content = tokens.map(blockTokenToNode).filter(Boolean) as PMNode[];
+  const content = blockTokensToNodes(tokens);
   return { type: "doc", content: content.length ? content : [{ type: "paragraph" }] };
 }
