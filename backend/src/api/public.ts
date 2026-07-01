@@ -186,21 +186,20 @@ publicRouter.get("/outreach/published", async (req: Request, res: Response) => {
 });
 
 // ── GET /public/blog — list published blog posts ─────────────
-// Any submission with blogMarkdown + blogSlug set is public — expand-blog IS the publish action.
+// A post is public once its BlogPost.status is PUBLISHED (see blogService.publishPost).
 
 publicRouter.get("/blog", async (_req: Request, res: Response) => {
   try {
-    const posts = await prisma.outreachSubmission.findMany({
-      where: {
-        blogMarkdown: { not: null },
-        blogSlug:     { not: null },
-      },
+    const posts = await prisma.blogPost.findMany({
+      where: { status: "PUBLISHED" },
       orderBy: { publishedAt: "desc" },
       take: 50,
       select: {
-        id: true, title: true, blogSlug: true, publishedAt: true,
-        content: true, mediaUrls: true,
-        project: { select: { name: true, programTag: true } },
+        id: true, title: true, slug: true, excerpt: true,
+        coverImageUrl: true, publishedAt: true, readingTimeMin: true,
+        tags: { select: { name: true, slug: true } },
+        categories: { select: { name: true, slug: true } },
+        createdBy: { select: { displayName: true, avatarUrl: true } },
       },
     });
     res.json(posts);
@@ -214,16 +213,21 @@ publicRouter.get("/blog", async (_req: Request, res: Response) => {
 
 publicRouter.get("/blog/:slug", async (req: Request, res: Response) => {
   try {
-    const post = await prisma.outreachSubmission.findUnique({
-      where: { blogSlug: req.params.slug as string },
+    const post = await prisma.blogPost.findUnique({
+      where: { slug: req.params.slug as string },
       select: {
-        id: true, title: true, blogSlug: true, blogMarkdown: true,
-        mediaUrls: true, publishedAt: true, createdAt: true,
-        project: { select: { name: true, programTag: true } },
-        author:  { select: { displayName: true, avatarUrl: true } },
+        id: true, title: true, slug: true, renderedHtml: true, excerpt: true,
+        coverImageUrl: true, publishedAt: true, createdAt: true, readingTimeMin: true,
+        status: true,
+        metaDescription: true, canonicalUrl: true,
+        ogTitle: true, ogDescription: true, ogImageUrl: true,
+        tags: { select: { name: true, slug: true } },
+        categories: { select: { name: true, slug: true } },
+        createdBy: { select: { displayName: true, avatarUrl: true } },
+        authors: { select: { role: true, member: { select: { displayName: true, avatarUrl: true } } } },
       },
     });
-    if (!post || !post.blogMarkdown) {
+    if (!post || post.status !== "PUBLISHED" || !post.renderedHtml) {
       res.status(404).json({ error: "Not found" });
       return;
     }

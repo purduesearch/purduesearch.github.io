@@ -86,14 +86,14 @@ const Blog = () => {
                       {dynamicPosts.slice(0, 6).map((p, i) => (
                         <div key={p.id} className="col-md-4 blog-item-wrapper" data-aos="fade-up" data-aos-delay={i * 60}>
                           <BlogCard
-                            image={p.mediaUrls?.[0] ?? '/Purdue_Sky.webp'}
+                            image={p.coverImageUrl ?? '/Purdue_Sky.webp'}
                             imageAlt={p.title}
-                            tag={p.project?.name ?? 'Update'}
+                            tag={p.categories?.[0]?.name ?? p.tags?.[0]?.name ?? 'Update'}
                             title={p.title}
-                            href={`/blog/${p.blogSlug}`}
+                            href={`/blog/${p.slug}`}
                             date={p.publishedAt ? new Date(p.publishedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : ''}
-                            excerpt={(p.content ?? '').slice(0, 180)}
-                            author="SEARCH Outreach Team"
+                            excerpt={(p.excerpt ?? '').slice(0, 180)}
+                            author={p.createdBy?.displayName ?? 'SEARCH Outreach Team'}
                           />
                         </div>
                       ))}

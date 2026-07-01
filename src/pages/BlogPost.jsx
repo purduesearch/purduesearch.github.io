@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import ReactMarkdown from 'react-markdown';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import SEOHead from '../components/SEOHead';
@@ -60,12 +59,16 @@ export default function BlogPost() {
     ? new Date(post.publishedAt ?? post.createdAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
     : null;
 
+  const authorName = post.authors?.[0]?.member?.displayName ?? post.createdBy?.displayName;
+  const primaryCategory = post.categories?.[0]?.name;
+
   return (
     <div>
       <SEOHead
-        title={post.title}
-        description={(post.blogMarkdown ?? '').replace(/[#*_`]/g, '').slice(0, 160)}
+        title={post.ogTitle || post.title}
+        description={post.metaDescription || post.excerpt || ''}
         canonical={`/blog/${slug}`}
+        ogImage={post.ogImageUrl || post.coverImageUrl || undefined}
       />
       <Navbar />
 
@@ -73,19 +76,21 @@ export default function BlogPost() {
       <div
         id="main-content"
         className="jumbotron jumbotron-single d-flex align-items-center"
-        style={{ backgroundImage: `url(${post.mediaUrls?.[0] ?? '/Purdue_Sky.webp'})` }}
+        style={{ backgroundImage: `url(${post.coverImageUrl ?? '/Purdue_Sky.webp'})` }}
       >
         <div className="container text-center">
-          {post.project?.name && (
+          {primaryCategory && (
             <p className="header-sub-title" style={{ marginBottom: 8, opacity: 0.85 }}>
-              {post.project.name}
+              {primaryCategory}
             </p>
           )}
           <h1 className="display-3 mb-3">{post.title}</h1>
           <p className="header-sub-title">
-            {post.author?.displayName && <span>{post.author.displayName}</span>}
-            {post.author?.displayName && publishDate && <span style={{ margin: '0 8px' }}>·</span>}
+            {authorName && <span>{authorName}</span>}
+            {authorName && publishDate && <span style={{ margin: '0 8px' }}>·</span>}
             {publishDate && <span>{publishDate}</span>}
+            {post.readingTimeMin && <span style={{ margin: '0 8px' }}>·</span>}
+            {post.readingTimeMin && <span>{post.readingTimeMin} min read</span>}
           </p>
         </div>
       </div>
@@ -93,17 +98,26 @@ export default function BlogPost() {
       <section className="bg-white">
         <div className="container">
           <div className="section-content" style={{ maxWidth: 760, margin: '0 auto' }}>
-            <div className="pm-blog-post-body">
-              <ReactMarkdown>{post.blogMarkdown}</ReactMarkdown>
-            </div>
+            <div
+              className="pm-blog-post-body"
+              dangerouslySetInnerHTML={{ __html: post.renderedHtml || '' }}
+            />
+
+            {post.tags?.length > 0 && (
+              <div style={{ marginTop: 32, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {post.tags.map(t => (
+                  <span key={t.slug} className="cpm-tag" style={{ fontSize: 12 }}>#{t.name}</span>
+                ))}
+              </div>
+            )}
 
             <div style={{ marginTop: 48, paddingTop: 24, borderTop: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', gap: 16 }}>
               <Link to="/blog" className="btn-slide-outline">
                 <span>← All posts</span>
               </Link>
-              {post.project?.name && (
+              {primaryCategory && (
                 <span style={{ color: 'var(--color-muted)', fontSize: 13 }}>
-                  Filed under: {post.project.name}
+                  Filed under: {primaryCategory}
                 </span>
               )}
             </div>
