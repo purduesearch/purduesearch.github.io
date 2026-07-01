@@ -1,12 +1,24 @@
 import { Router, type Request, type Response } from "express";
+import multer from "multer";
+import sharp from "sharp";
 import { requireAuth } from "./auth.js";
 import { prisma } from "../db/prisma.js";
 import * as blogService from "../services/blogService.js";
+import { uploadImageToDrive } from "../services/driveService.js";
 import type { BlogStatus } from "@prisma/client";
 import type { PMDoc } from "../services/blogRender.js";
 
 export const blogRouter = Router();
 blogRouter.use(requireAuth);
+
+// In-memory upload; images are recompressed with sharp before hitting Drive.
+const imageUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 20 * 1024 * 1024, files: 1 },
+  fileFilter: (_req, file, cb) => {
+    cb(null, file.mimetype.startsWith("image/"));
+  },
+});
 
 async function isAdmin(memberId?: string): Promise<boolean> {
   if (!memberId) return false;
@@ -115,6 +127,48 @@ blogRouter.delete("/posts/:id", async (req: Request, res: Response) => {
     res.status(500).json({ error: "Failed to delete post" });
   }
 });
+
+// ── Media upload ─────────────────────────────────────────────
+// Multipart field `image`; recompresses to webp (max 1600px wide) and stores on
+// Google Drive. Returns { url, width, height } for the editor image node.
+
+blogRouter.post(
+  "/upload",
+  imageUpload.single("image"),
+  async (req: Request, res: Response) => {
+    try {
+      if (!req.file) {
+        res.status(400).json({ error: "image file is required" });
+        return;
+      }
+      const { data, info } = await sharp(req.file.buffer)
+        .rotate() // honor EXIF orientation before stripping metadata
+        .resize({ width: 1600, withoutEnlargement: true })
+        .webp({ quality: 82 })
+        .toBuffer({ resolveWithObject: true });
+
+      const folderId =
+        process.env.DRIVE_BLOG_IMAGES_FOLDER_ID ||
+        process.env.DRIVE_AI_IMAGES_FOLDER_ID ||
+        undefined;
+      const filename = `blog-${Date.now()}.webp`;
+      const uploaded = await uploadImageToDrive(
+        data.toString("base64"),
+        "image/webp",
+        filename,
+        folderId
+      );
+      if (!uploaded) {
+        res.status(502).json({ error: "Failed to upload image" });
+        return;
+      }
+      res.json({ url: uploaded.url, width: info.width, height: info.height });
+    } catch (error) {
+      console.error("POST /blog/upload error:", error);
+      res.status(500).json({ error: "Failed to process image" });
+    }
+  }
+);
 
 // ── Workflow ─────────────────────────────────────────────────
 

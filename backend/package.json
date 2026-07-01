@@ -39,7 +39,8 @@
     "marked": "^18.0.5",
     "multer": "^2.1.1",
     "node-cron": "^3.0.3",
-    "resend": "^6.12.3"
+    "resend": "^6.12.3",
+    "sharp": "^0.35.2"
   },
   "devDependencies": {
     "@types/connect-pg-simple": "^7.0.3",
