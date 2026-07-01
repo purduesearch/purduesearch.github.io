@@ -21518,6 +21518,14 @@ button.cpm-badge-tile:disabled { opacity: 0.7; cursor: progress; }
 .cpm-blog-back:hover { color: var(--pm-accent-teal); }
 .cpm-blog-dirty { font-size: 12px; color: var(--pm-accent-amber, #f5a623); }
 
+.cpm-blog-schedule-input {
+  background: var(--pm-surface, #161a22); border: 1px solid var(--pm-overlay, #2a2f3a);
+  border-radius: 8px; color: #fff; font-size: 13px; padding: 6px 8px; color-scheme: dark;
+}
+.cpm-blog-approval-row {
+  max-width: 820px; width: 100%; margin: 0 auto; padding: 10px 8px 0;
+}
+
 .cpm-blog-editor-body { max-width: 820px; width: 100%; margin: 0 auto; padding: 24px 8px 80px; }
 .cpm-blog-title-input {
   width: 100%; background: transparent; border: none; outline: none;
