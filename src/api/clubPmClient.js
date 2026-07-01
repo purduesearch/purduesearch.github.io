@@ -1,5 +1,9 @@
 const BASE_URL = process.env.REACT_APP_API_URL || "";
 
+// Absolute base for full-page redirects (e.g. OAuth flows) that can't go
+// through fetch(). Empty string in dev falls back to same-origin (CRA proxy).
+export const apiBaseUrl = BASE_URL;
+
 const TOKEN_KEY = "clubpm_auth_token";
 
 export function getStoredToken() {

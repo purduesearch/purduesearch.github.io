@@ -1,4 +1,4 @@
-import { Router, type Request, type Response } from "express";
+import { Router, type Request, type Response, type NextFunction } from "express";
 import { requireAuth } from "./auth.js";
 import {
   saveMemberGithubAuth,
@@ -9,11 +9,22 @@ import { prisma } from "../db/prisma.js";
 
 export const githubAuthRouter = Router();
 
+// A full-page OAuth redirect can't send an Authorization header, and the
+// cross-origin session cookie (SameSite=None) may be blocked by the browser.
+// The frontend therefore passes the bearer token as ?token=…; promote it into
+// the Authorization header so the standard requireAuth path can consume it.
+function promoteQueryToken(req: Request, _res: Response, next: NextFunction): void {
+  if (!req.headers.authorization && typeof req.query.token === "string") {
+    req.headers.authorization = `Bearer ${req.query.token}`;
+  }
+  next();
+}
+
 // ── GET /auth/github — begin OAuth flow ──────────────────────
 // Stores the caller's memberId in the OAuth `state` parameter (HMAC-signed via
 // session) so the callback can attribute the resulting token to them.
 
-githubAuthRouter.get("/", requireAuth, (req: Request, res: Response) => {
+githubAuthRouter.get("/", promoteQueryToken, requireAuth, (req: Request, res: Response) => {
   const clientId = process.env.GITHUB_APP_CLIENT_ID;
   if (!clientId) {
     res.status(500).json({ error: "GITHUB_APP_CLIENT_ID not configured" });

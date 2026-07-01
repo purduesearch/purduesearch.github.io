@@ -4,7 +4,7 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { useLocation } from "react-router-dom";
 import toast from "react-hot-toast";
-import { get, del } from "../../../api/clubPmClient";
+import { get, del, apiBaseUrl, getStoredToken } from "../../../api/clubPmClient";
 
 const STATUS_ENDPOINT = "/auth/github/me";
 
@@ -51,8 +51,14 @@ export default function GitHubConnectButton({ compact = false }) {
   function connect() {
     const returnTo = encodeURIComponent(location.pathname + location.search);
     // The OAuth flow is a full-page redirect — backend stashes the caller's
-    // memberId in the session before bouncing to github.com.
-    window.location.href = `/auth/github?returnTo=${returnTo}`;
+    // memberId in the session before bouncing to github.com. Must target the
+    // backend origin (apiBaseUrl), not the static GitHub Pages host.
+    // A full-page nav can't send the Authorization header, and the
+    // cross-origin session cookie may be blocked (SameSite=None), so pass the
+    // bearer token via query param — the backend accepts it as a fallback.
+    const token = getStoredToken();
+    const tokenParam = token ? `&token=${encodeURIComponent(token)}` : "";
+    window.location.href = `${apiBaseUrl}/auth/github?returnTo=${returnTo}${tokenParam}`;
   }
 
   async function disconnect() {
