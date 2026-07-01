@@ -826,6 +826,11 @@ model BlogPost {
   contentYjs   Bytes? // Yjs/CRDT binary state for realtime collaboration
   renderedHtml String? // HTML snapshot written at publish time (served to the public site)
 
+  // Free-text byline (historical / non-member authors). Overrides createdBy when set.
+  authorName   String?
+  // When set, this post's card links here instead of /blog/:slug (a "link post").
+  linkUrl      String?
+
   coverImageUrl  String?
   readingTimeMin Int?
 
