@@ -19,6 +19,7 @@ import InsightsTab from '../../components/clubpm/InsightsTab';
 import ActivityFeedSidebar from '../../components/clubpm/ActivityFeedSidebar';
 import useKeyboardShortcuts from '../../hooks/useKeyboardShortcuts';
 import OutreachSearch from '../../components/clubpm/OutreachSearch';
+import BlogTab from '../../components/clubpm/BlogTab';
 import toast from 'react-hot-toast';
 
 // ── Constants ─────────────────────────────────────────────────
@@ -829,6 +830,7 @@ export default function OutreachHub() {
     { id: 'calendar',        label: 'Calendar',        icon: 'fas fa-calendar-alt' },
     { id: 'campaigns',       label: 'Campaigns',       icon: 'fas fa-flag' },
     { id: 'crm',             label: 'CRM',             icon: 'fas fa-address-book' },
+    { id: 'blog',            label: 'Blog',            icon: 'fas fa-newspaper' },
     { id: 'insights',        label: 'Insights',        icon: 'fas fa-chart-line' },
   ];
 
@@ -920,11 +922,11 @@ export default function OutreachHub() {
                 toast.dismiss(t);
                 toast.success(
                   <span>
-                    Blog post {isRegen ? 'updated' : 'created'}.{' '}
-                    <a href={`/blog/${updated.blogSlug}`} target="_blank" rel="noreferrer" style={{ color: 'var(--pm-accent-teal)', textDecoration: 'underline' }}>View</a>
+                    Blog draft {isRegen ? 'updated' : 'created'}.{' '}
+                    <a href={`/clubpm/outreach/blog/${updated.blogPostId}/edit`} style={{ color: 'var(--pm-accent-teal)', textDecoration: 'underline' }}>Open editor</a>
                   </span>
                 );
-                setSubmissions(prev => prev.map(s => s.id === submission.id ? { ...s, blogSlug: updated.blogSlug, blogMarkdown: updated.blogMarkdown } : s));
+                setSubmissions(prev => prev.map(s => s.id === submission.id ? { ...s, blogSlug: updated.blogSlug } : s));
               } catch (err) {
                 toast.error(err.message ?? 'Failed to expand');
               }
@@ -942,6 +944,7 @@ export default function OutreachHub() {
             campaigns={campaigns}
           />
         )}
+        {activeTab === 'blog' && <BlogTab />}
         {activeTab === 'insights' && (
           <InsightsTab submissions={submissions} isAdmin={!!member?.isAdmin} />
         )}

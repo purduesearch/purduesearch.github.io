@@ -279,6 +279,24 @@ export function saveProgressSnapshot(payload) {
   });
 }
 
+// ── Task archiving ──────────────────────────────────────────────
+
+export const archiveTask       = (id) => post(`/api/tasks/${id}/archive`, {});
+export const unarchiveTask     = (id) => post(`/api/tasks/${id}/unarchive`, {});
+export const bulkArchive       = (ids, archived) => post(`/api/tasks/bulk-archive`, { ids, archived });
+export const getArchivedTasks  = (projectId) => get(`/api/projects/${projectId}/tasks?archived=1`);
+
+// ── Blockers ─────────────────────────────────────────────────
+
+export const getProjectBlockers = (projectId) => get(`/api/projects/${projectId}/blockers`);
+export const createBlocker      = (projectId, data) => post(`/api/projects/${projectId}/blockers`, data);
+export const updateBlocker      = (id, data) => patch(`/api/blockers/${id}`, data);
+
+// ── AI action plan ─────────────────────────────────────────────
+
+export const suggestActions = (projectId, goal) => post(`/api/projects/${projectId}/ai-suggest-actions`, { goal });
+export const executePlan    = (projectId, actions) => post(`/api/projects/${projectId}/ai-execute-plan`, { actions });
+
 // ── Challenges / Achievements ─────────────────────────────────
 
 export const getActiveChallenges  = () => get('/api/challenges/active');
@@ -286,3 +304,28 @@ export const claimChallenge       = (id) => post(`/api/challenges/${id}/claim`, 
 export const getAchievements      = () => get('/api/challenges/achievements');
 export const getChallengeHistory  = (days = 30) => get(`/api/challenges/history?days=${days}`);
 export const getChallengesCatalog = () => get('/api/challenges/catalog');
+
+// ── Blog editor ───────────────────────────────────────────────
+
+export const listBlogPosts   = (params = '') => get(`/api/blog/posts${params}`);
+export const getBlogPost      = (id) => get(`/api/blog/posts/${id}`);
+export const createBlogPost   = (data) => post('/api/blog/posts', data);
+export const updateBlogPost   = (id, data) => patch(`/api/blog/posts/${id}`, data);
+export const deleteBlogPost   = (id) => del(`/api/blog/posts/${id}`);
+export const publishBlogPost  = (id) => post(`/api/blog/posts/${id}/publish`, {});
+export const scheduleBlogPost = (id, scheduledAt) => post(`/api/blog/posts/${id}/schedule`, { scheduledAt });
+export const unpublishBlogPost = (id) => post(`/api/blog/posts/${id}/unpublish`, {});
+export const archiveBlogPost  = (id) => post(`/api/blog/posts/${id}/archive`, {});
+export const listBlogRevisions = (id) => get(`/api/blog/posts/${id}/revisions`);
+export const rollbackBlogRevision = (id, revId) => post(`/api/blog/posts/${id}/revisions/${revId}/rollback`, {});
+export const listBlogTags     = () => get('/api/blog/tags');
+export const createBlogTag    = (name) => post('/api/blog/tags', { name });
+export const listBlogCategories = () => get('/api/blog/categories');
+export const createBlogCategory = (name) => post('/api/blog/categories', { name });
+export const setBlogTaxonomy  = (id, tagIds, categoryIds) => put(`/api/blog/posts/${id}/taxonomy`, { tagIds, categoryIds });
+export const listBlogSnippets = () => get('/api/blog/snippets');
+export const createBlogSnippet = (name, contentJson) => post('/api/blog/snippets', { name, contentJson });
+export const updateBlogSnippet = (id, data) => patch(`/api/blog/snippets/${id}`, data);
+export const deleteBlogSnippet = (id) => del(`/api/blog/snippets/${id}`);
+export const addBlogAuthor    = (id, memberId, role) => post(`/api/blog/posts/${id}/authors`, { memberId, role });
+export const removeBlogAuthor = (id, memberId) => del(`/api/blog/posts/${id}/authors/${memberId}`);

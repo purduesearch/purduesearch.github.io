@@ -20,6 +20,7 @@ import NotificationPreferences from './components/clubpm/NotificationPreferences
 import CalendarPage from './pages/ClubPM/CalendarPage';
 import AdminView from './pages/ClubPM/AdminView';
 import OutreachHub from './pages/ClubPM/OutreachHub';
+import BlogEditorPage from './pages/ClubPM/BlogEditorPage';
 import PublicCampaign from './pages/PublicCampaign';
 import EventRsvp from './pages/Public/EventRsvp';
 import Archive from './pages/Archive';
@@ -83,6 +84,7 @@ function AnimatedRoutes() {
           {/* Backward-compat: legacy /meeting-notes URLs now redirect to /admin. Keep for one release. */}
           <Route path="/clubpm/meeting-notes" element={<Navigate to="/clubpm/admin" replace />} />
           <Route path="/clubpm/outreach" element={<ClubPmProtectedPage><OutreachHub /></ClubPmProtectedPage>} />
+          <Route path="/clubpm/outreach/blog/:id/edit" element={<ClubPmProtectedPage><BlogEditorPage /></ClubPmProtectedPage>} />
           <Route path="/clubpm/profile" element={<ClubPmProtectedPage><Suspense fallback={<div style={{ padding: 24 }}>Loading…</div>}><ClubPmProfile /></Suspense></ClubPmProtectedPage>} />
           <Route path="/clubpm/profile/:memberId" element={<ClubPmProtectedPage><Suspense fallback={<div style={{ padding: 24 }}>Loading…</div>}><ClubPmProfile /></Suspense></ClubPmProtectedPage>} />
           <Route path="/clubpm/shop" element={<ClubPmProtectedPage><Suspense fallback={<div style={{ padding: 24 }}>Loading…</div>}><ClubPmShop /></Suspense></ClubPmProtectedPage>} />
