@@ -10,6 +10,7 @@ import { SearchAndReplace } from '@sereneinserenade/tiptap-search-and-replace';
 import BlogImage, { uploadImageFiles } from './BlogImage';
 import BlogEmbed, { buildEmbed } from './BlogEmbed';
 import BlogGallery from './BlogGallery';
+import BlogToc from './BlogToc';
 
 // Shared editor extension set. Keep in sync with the backend renderer
 // (backend/src/services/blogRender.ts) whenever a node type is added.
@@ -24,6 +25,7 @@ export function blogExtensions() {
     BlogImage,
     BlogEmbed,
     BlogGallery,
+    BlogToc,
     CharacterCount,
     Placeholder.configure({ placeholder: 'Start writing your post…' }),
     TableKit.configure({ table: { resizable: true } }),
@@ -77,6 +79,9 @@ function Toolbar({ editor, onToggleFind }) {
   const insertGallery = () => {
     editor.chain().focus().insertContent({ type: 'gallery', attrs: { images: [] } }).run();
   };
+  const insertToc = () => {
+    editor.chain().focus().insertContent({ type: 'tableOfContents' }).run();
+  };
   return (
     <div className="cpm-blog-toolbar" role="toolbar" aria-label="Formatting">
       <Btn title="Bold (Ctrl+B)" icon="fa-bold" active={editor.isActive('bold')} onClick={() => editor.chain().focus().toggleBold().run()} />
@@ -117,6 +122,7 @@ function Toolbar({ editor, onToggleFind }) {
       <Btn title="Embed (video / social)" icon="fa-photo-film" onClick={insertEmbed} />
       <Btn title="Image gallery" icon="fa-images" onClick={insertGallery} />
       <Btn title="Insert table" icon="fa-table" active={inTable} onClick={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()} />
+      <Btn title="Insert table of contents" icon="fa-bars-staggered" onClick={insertToc} />
       {inTable && (
         <>
           <Btn title="Add column" icon="fa-table-columns" onClick={() => editor.chain().focus().addColumnAfter().run()} />
