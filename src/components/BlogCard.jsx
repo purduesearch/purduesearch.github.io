@@ -3,11 +3,14 @@
  * Maps to the existing .blog-item DOM structure in search-theme.css.
  * All props are optional — render only what is provided.
  */
-const BlogCard = ({ image, imageAlt, tag, title, href, date, excerpt, author }) => (
+const BlogCard = ({ image, imageAlt, tag, title, href, date, excerpt, author }) => {
+  const isExternal = typeof href === 'string' && /^https?:\/\//.test(href);
+  const linkProps = isExternal ? { target: '_blank', rel: 'noopener noreferrer' } : {};
+  return (
   <div className="blog-item">
     {image && (
       <div className="blog-img">
-        <a href={href || '#'}>
+        <a href={href || '#'} {...linkProps}>
           <img loading="lazy" src={image} alt={imageAlt || title || ''} />
         </a>
       </div>
@@ -15,12 +18,12 @@ const BlogCard = ({ image, imageAlt, tag, title, href, date, excerpt, author }) 
     <div className="blog-text">
       {tag && (
         <div className="blog-tag">
-          <a href={href || '#'}><h6><small>{tag}</small></h6></a>
+          <a href={href || '#'} {...linkProps}><h6><small>{tag}</small></h6></a>
         </div>
       )}
       {title && (
         <div className="blog-title">
-          <a href={href || '#'}><h4>{title}</h4></a>
+          <a href={href || '#'} {...linkProps}><h4>{title}</h4></a>
         </div>
       )}
       {date && (
@@ -40,6 +43,7 @@ const BlogCard = ({ image, imageAlt, tag, title, href, date, excerpt, author }) 
       )}
     </div>
   </div>
-);
+  );
+};
 
 export default BlogCard;

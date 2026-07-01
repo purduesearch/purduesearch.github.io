@@ -76,108 +76,42 @@ const Blog = () => {
               <p className="section-sub-title">Recent highlights from SEARCH programs, competitions, and research.</p>
             </div>
 
-            {/* Latest dynamic posts from the outreach team */}
-            {dynamicPosts.length > 0 && (
-              <>
-                <h3><b>Latest</b></h3><br />
-                <div className="row">
-                  <div className="col-md-12 blog-holder">
-                    <div className="row">
-                      {dynamicPosts.slice(0, 6).map((p, i) => (
-                        <div key={p.id} className="col-md-4 blog-item-wrapper" data-aos="fade-up" data-aos-delay={i * 60}>
-                          <BlogCard
-                            image={p.coverImageUrl ?? '/Purdue_Sky.webp'}
-                            imageAlt={p.title}
-                            tag={p.categories?.[0]?.name ?? p.tags?.[0]?.name ?? 'Update'}
-                            title={p.title}
-                            href={`/blog/${p.slug}`}
-                            date={p.publishedAt ? new Date(p.publishedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : ''}
-                            excerpt={(p.excerpt ?? '').slice(0, 180)}
-                            author={p.createdBy?.displayName ?? 'SEARCH Outreach Team'}
-                          />
-                        </div>
-                      ))}
+            {(() => {
+              const byYear = {};
+              for (const p of dynamicPosts) {
+                const y = p.publishedAt ? new Date(p.publishedAt).getFullYear() : 'Undated';
+                (byYear[y] ||= []).push(p);
+              }
+              const years = Object.keys(byYear).sort((a, b) => (b === 'Undated' ? -1 : Number(b) - Number(a)));
+              if (years.length === 0) {
+                return <p style={{ color: 'var(--color-muted)' }}>No posts yet — check back soon.</p>;
+              }
+              return years.map((year) => (
+                <div key={year} className="mb-5">
+                  <h3><b>{year}</b></h3><br />
+                  <div className="row">
+                    <div className="col-md-12 blog-holder">
+                      <div className="row">
+                        {byYear[year].map((p, i) => (
+                          <div key={p.id} className="col-md-4 blog-item-wrapper" data-aos="fade-up" data-aos-delay={i * 60}>
+                            <BlogCard
+                              image={p.coverImageUrl ?? '/Purdue_Sky.webp'}
+                              imageAlt={p.title}
+                              tag={p.categories?.[0]?.name ?? p.tags?.[0]?.name ?? 'Update'}
+                              title={p.title}
+                              href={p.linkUrl || `/blog/${p.slug}`}
+                              date={p.publishedAt ? new Date(p.publishedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : ''}
+                              excerpt={(p.excerpt ?? '').slice(0, 180)}
+                              author={p.authorName ?? p.createdBy?.displayName ?? 'SEARCH Team'}
+                            />
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 </div>
-                <hr style={{ borderColor: 'var(--color-border)', margin: '40px 0' }} />
-              </>
-            )}
-
-            {/* 2024–25 */}
-            <h3><b>2024–25</b></h3><br />
-            <div className="row">
-              <div className="col-md-12 blog-holder">
-                <div className="row">
-                  <div className="col-md-4 blog-item-wrapper" data-aos="fade-up">
-                    <BlogCard
-                      image="/research/ICES2025_Research.webp"
-                      imageAlt="ICES 2025 Conference"
-                      tag="Research"
-                      title="ICES 2025 Conference"
-                      href="/research"
-                      date="2025"
-                      excerpt="SEARCH presents microgreen chamber research at the International Conference on Environmental Systems — connecting our LEAF initiative work to the global space life sciences community."
-                      author="SEARCH Research Team"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* 2023–24 */}
-            <h3 className="mt-5"><b>2023–24</b></h3><br />
-            <div className="row">
-              <div className="col-md-12 blog-holder">
-                <div className="row">
-                  <div className="col-md-4 blog-item-wrapper" data-aos="fade-up">
-                    <BlogCard
-                      image="/software/2023_24/SUITS/bg.webp"
-                      imageAlt="NASA SUITS 2024"
-                      tag="NASA"
-                      title="NASA SUITS 2024"
-                      href="/software/suits"
-                      date="30 May 2024"
-                      excerpt="SEARCH competed in NASA's SUITS augmented-reality challenge at Johnson Space Center, presenting an AR HUD for astronaut EVA operations to NASA engineers and industry evaluators."
-                      author="Hrishikesh Viswanath"
-                    />
-                  </div>
-                  <div className="col-md-4 blog-item-wrapper" data-aos="fade-up" data-aos-delay="100">
-                    <BlogCard
-                      image="/research/2023_24/rascal/astros-pup-pr-hab-horizontal4.webp"
-                      imageAlt="NASA RASC-AL 2024"
-                      tag="NASA"
-                      title="NASA RASC-AL 2024"
-                      href="/research/rascal"
-                      date="3 Mar 2024"
-                      excerpt="SEARCH presented a Mars surface habitat concept at NASA's RASC-AL design challenge, competing against top universities before NASA engineers and space industry professionals."
-                      author="Hrishikesh Viswanath"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* 2022–23 */}
-            <h3 className="mt-5"><b>2022–23</b></h3><br />
-            <div className="row">
-              <div className="col-md-12 blog-holder">
-                <div className="row">
-                  <div className="col-md-4 blog-item-wrapper" data-aos="fade-up">
-                    <BlogCard
-                      image="/research/2022_23/mars_mission.webp"
-                      imageAlt="NASA RASC-AL 2023"
-                      tag="NASA"
-                      title="NASA RASC-AL 2023"
-                      href="/research/rascal"
-                      date="3 Mar 2023"
-                      excerpt="SEARCH competed in the NASA RASC-AL challenge for a second consecutive year, refining our Mars habitat design and presenting to a panel of space exploration professionals."
-                      author="Hrishikesh Viswanath"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
+              ));
+            })()}
 
             {/* Follow us */}
             <div className="text-center mt-5 pt-3" style={{ borderTop: '1px solid var(--color-border)' }}>

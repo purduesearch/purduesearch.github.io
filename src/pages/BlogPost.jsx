@@ -59,7 +59,7 @@ export default function BlogPost() {
     ? new Date(post.publishedAt ?? post.createdAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
     : null;
 
-  const authorName = post.authors?.[0]?.member?.displayName ?? post.createdBy?.displayName;
+  const authorName = post.authorName ?? post.authors?.[0]?.member?.displayName ?? post.createdBy?.displayName;
   const primaryCategory = post.categories?.[0]?.name;
 
   return (
