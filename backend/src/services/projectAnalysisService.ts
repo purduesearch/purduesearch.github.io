@@ -9,7 +9,7 @@ import {
 export async function analyzeProjectRisks(projectId: string) {
   const project = await prisma.project.findUnique({
     where: { id: projectId },
-    include: { tasks: { include: { assignees: { select: { displayName: true } } } } },
+    include: { tasks: { where: { archivedAt: null }, include: { assignees: { select: { displayName: true } } } } },
   });
   if (!project) return null;
   const today = new Date().toISOString().split("T")[0];
@@ -23,7 +23,7 @@ export async function analyzeProjectRisks(projectId: string) {
 export async function generateSprintPlan(projectId: string, capacityPoints = 40, sprintDays = 14) {
   const project = await prisma.project.findUnique({
     where: { id: projectId },
-    include: { tasks: { include: { assignees: { select: { displayName: true } } } } },
+    include: { tasks: { where: { archivedAt: null }, include: { assignees: { select: { displayName: true } } } } },
   });
   if (!project) return null;
   const tasks = project.tasks.map(t => ({
@@ -39,7 +39,7 @@ export async function generateProjectBrief(projectId: string) {
   const [project, milestones] = await Promise.all([
     prisma.project.findUnique({
       where: { id: projectId },
-      include: { tasks: true, updates: { orderBy: { postedAt: "desc" }, take: 3 } },
+      include: { tasks: { where: { archivedAt: null } }, updates: { orderBy: { postedAt: "desc" }, take: 3 } },
     }),
     getMilestonesForProject(projectId),
   ]);
@@ -64,7 +64,7 @@ export async function analyzeStandupSentiment(responses: Array<{ memberName: str
 
 export async function inferTaskDependencies(projectId: string) {
   const tasks = await prisma.task.findMany({
-    where: { projectId, status: { not: "DONE" }, parentTaskId: null },
+    where: { projectId, status: { not: "DONE" }, parentTaskId: null, archivedAt: null },
     select: { id: true, title: true, description: true },
   });
   if (tasks.length < 2) return { dependencies: [] };
@@ -76,7 +76,7 @@ export async function analyzeTeamCapacity(projectId: string, sprintDays = 14) {
     where: { id: projectId },
     include: {
       tasks: {
-        where: { status: { not: "DONE" } },
+        where: { status: { not: "DONE" }, archivedAt: null },
         include: { assignees: { select: { id: true, displayName: true } } },
       },
     },
@@ -102,7 +102,7 @@ export async function generateStakeholderEmail(projectId: string) {
   const project = await prisma.project.findUnique({
     where: { id: projectId },
     include: {
-      tasks: true,
+      tasks: { where: { archivedAt: null } },
       updates: { where: { postedAt: { gte: oneWeekAgo } }, orderBy: { postedAt: "desc" } },
     },
   });

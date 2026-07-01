@@ -1,3 +1,6 @@
+import type { ProjectContext } from "../services/projectContextService.js";
+import { todayContext } from "../services/geminiService.js";
+
 // ── Task extraction from documents ────────────────────────────
 
 export function driveToTasksPrompt(projectName: string, projectDescription: string, existingTaskTitles: string[], today: string, suggestedTaskCount?: number) {
@@ -282,23 +285,110 @@ Return ONLY: {
 }`;
 }
 
-// ── Project Q&A ───────────────────────────────────────────────
+// ── Project Q&A (rich context) ────────────────────────────────
 
-export function projectQaPrompt(question: string, project: { name: string; description?: string | null; type: string; targetDate?: string | null }, tasks: Array<{ title: string; status: string; priority: string; assignees: string[]; dueDate?: string | null }>, members: string[], milestones: Array<{ title: string; status: string; targetDate?: string | null }>, recentUpdates: string[]) {
-  return `You are a project assistant for "${project.name}" (${project.type}).
+export function projectContextPrompt(question: string, today: string, context: ProjectContext): string {
+  const { project, tasks, milestones, members, recentActivity, activeBlockers } = context;
+
+  const taskLines = tasks.map(t => {
+    const flags = [
+      t.blockedByOpenDependencies ? "waiting-on-dependency" : null,
+      t.activeCategoryBlockers.length ? `blocked-by:${t.activeCategoryBlockers.join("/")}` : null,
+      t.subtaskCounts.total ? `subtasks:${t.subtaskCounts.done}/${t.subtaskCounts.total}` : null,
+    ].filter(Boolean).join(" ");
+    const desc = t.description ? `\n  ${t.description.slice(0, 300)}` : "";
+    return `- [${t.status}] "${t.title}" | ${t.priority} | due: ${t.dueDate ?? "none"} | ${t.assignees.join(", ") || "unassigned"}${t.milestoneTitle ? ` | milestone: ${t.milestoneTitle}` : ""}${flags ? ` | ${flags}` : ""}${desc}`;
+  }).join("\n") || "none";
+
+  const milestoneLines = milestones.map(m => `${m.title} (${m.status}, due ${m.targetDate ?? "no date"})`).join(", ") || "none";
+
+  const memberLines = members.map(m => `${m.displayName} (${m.projectRole}, ${m.openTaskCount} open tasks)`).join(", ") || "unknown";
+
+  const blockerLines = activeBlockers.map(b => `${b.label}${b.assigneeName ? ` (owner: ${b.assigneeName})` : ""} — affects: ${b.attachedTaskTitles.join(", ") || "no tasks"}`).join("\n") || "none";
+
+  const activityLines = recentActivity.map(a => `${a.createdAt}: ${a.eventType}${a.actorName ? ` by ${a.actorName}` : ""}${a.taskTitle ? ` on "${a.taskTitle}"` : ""}`).join("\n") || "none";
+
+  return `${today}
+
+You are a project assistant for "${project.name}" (${project.type}).
 Description: ${project.description ?? "none"}
 Target: ${project.targetDate ?? "TBD"}
 
-Team: ${members.join(", ") || "unknown"}
+Team (${members.length}): ${memberLines}
 
-Tasks (${tasks.length}):
-${tasks.map(t => `- [${t.status}] "${t.title}" | ${t.priority} | due: ${t.dueDate ?? "none"} | ${t.assignees.join(", ") || "unassigned"}`).join("\n")}
+Tasks (${tasks.length}${context.truncated ? ", truncated to most relevant" : ""}):
+${taskLines}
 
-Milestones: ${milestones.map(m => `${m.title} (${m.status}, due ${m.targetDate ?? "no date"})`).join(", ") || "none"}
+Milestones: ${milestoneLines}
 
-Recent updates: ${recentUpdates.join(" | ") || "none"}
+Active blockers:
+${blockerLines}
+
+Recent activity:
+${activityLines}
 
 Question: "${question}"
 
 Answer concisely and factually based only on the data above. If the answer isn't in the data, say so.`;
+}
+
+// ── Agentic action-plan generation ────────────────────────────
+// Produces an editable, executable plan of concrete site actions toward a
+// stated goal. Every id referenced in the output MUST come from the ids
+// listed below — the caller drops/clamps anything else.
+
+export function suggestActionsPrompt(goal: string, context: ProjectContext): string {
+  const { project, tasks, milestones, members, activeBlockers } = context;
+
+  const taskLines = tasks.map(t =>
+    `- id="${t.id}" [${t.status}] "${t.title}" | ${t.priority} | due: ${t.dueDate ?? "none"} | assignees: ${t.assignees.join(", ") || "none"}${t.milestoneTitle ? ` | milestone: ${t.milestoneTitle}` : ""}${t.description ? `\n  ${t.description.slice(0, 200)}` : ""}`
+  ).join("\n") || "none";
+
+  const memberLines = members.map(m => `- id="${m.id}" ${m.displayName} (${m.projectRole}, ${m.openTaskCount} open tasks)`).join("\n") || "none";
+
+  const milestoneLines = milestones.map(m => `- id="${m.id}" "${m.title}" (${m.status}, due ${m.targetDate ?? "no date"})`).join("\n") || "none";
+
+  const blockerLines = activeBlockers.map(b => `- id="${b.id}" "${b.label}"${b.assigneeName ? ` (owner: ${b.assigneeName})` : ""} — affects: ${b.attachedTaskTitles.join(", ") || "no tasks"}`).join("\n") || "none";
+
+  return `${todayContext()}
+
+You are an agentic project-management assistant for "${project.name}" (${project.type}). Given a goal, propose an ORDERED list of concrete actions to move the project toward it. A human will review, edit, and selectively execute your plan — so be specific and use only real ids from the lists below.
+
+Goal: "${goal}"
+
+Existing tasks:
+${taskLines}
+
+Team members:
+${memberLines}
+
+Milestones:
+${milestoneLines}
+
+Active category blockers:
+${blockerLines}
+
+Each action is an object: { "type": string, "targetTaskId": string or null, "params": object, "rationale": "1 sentence: why this action helps the goal" }
+
+Valid "type" values and their "params" shape:
+- CREATE_TASK: targetTaskId null. params: { title (string, required), description? (string), priority? ("LOW"|"MEDIUM"|"HIGH"|"CRITICAL"), dueDate? (ISO date string), assigneeIds? (string[], from member ids above), milestoneId? (string, from milestone ids above), subtasks? (string[] — titles of child subtasks to create under this new task) }
+- UPDATE_TASK: targetTaskId required (existing task id). params: { title?, description?, priority?, dueDate?, assigneeIds? } — any subset of these fields
+- DELETE_TASK: targetTaskId required. params: {}
+- SET_STATUS: targetTaskId required. params: { status: "TODO"|"IN_PROGRESS"|"BLOCKED"|"DONE" }
+- SET_PRIORITY: targetTaskId required. params: { priority: "LOW"|"MEDIUM"|"HIGH"|"CRITICAL" }
+- SET_DUE: targetTaskId required. params: { dueDate: ISO date string or null }
+- ASSIGN: targetTaskId required. params: { assigneeIds: string[] } — replaces the task's full assignee list
+- CREATE_SUBTASK: targetTaskId required (the parent task). params: { title (string, required), assigneeIds? (string[]) }
+- ADD_DEPENDENCY: targetTaskId required (the task that will be blocked). params: { blockingTaskId (string, required — the task it depends on), reason? (string) }
+- ATTACH_BLOCKER: targetTaskId required. params: { blockerId (string, required, from blocker ids above), reason? (string) }
+- RESOLVE_BLOCKER: targetTaskId null. params: { blockerId (string, required, from blocker ids above) }
+- ADD_COMMENT: targetTaskId required. params: { content (string, required) }
+- CREATE_MILESTONE: targetTaskId null. params: { title (string, required), dueDate? (ISO date string), description? (string), ownerId? (string, from member ids above) }
+- LINK_MILESTONE: targetTaskId optional (a single task to link). params: { milestoneId (string, required, from milestone ids above), taskIds? (string[], additional tasks to link) } — at least one of targetTaskId/params.taskIds must be set
+
+When a new task naturally breaks down into sub-items, steps, or a checklist, put those child items in the CREATE_TASK "subtasks" array (a list of short titles) — do NOT enumerate them inside "description". Use CREATE_SUBTASK only to add a subtask to a task that ALREADY exists (has an id in the list above); it cannot target a task you are creating in this same plan.
+
+Only reference ids that appear in the lists above. Do not invent ids. Keep the plan focused — prefer fewer, high-value actions over an exhaustive list.
+
+Return ONLY: { "actions": [ ... ] }. If no actions are warranted, return { "actions": [] }.`;
 }

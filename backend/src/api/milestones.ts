@@ -1,6 +1,7 @@
 import { Router, type Request, type Response } from "express";
 import { requireAuth } from "./auth.js";
 import { getMilestoneWithProgress, refreshMilestoneHealth } from "../services/milestoneService.js";
+import { logAuditEvent, diffObjects } from "../services/activityService.js";
 
 export const milestonesRouter = Router();
 milestonesRouter.use(requireAuth);
@@ -91,6 +92,14 @@ milestonesRouter.post("/", async (req: Request, res: Response) => {
         owner: { select: { id: true, displayName: true, avatarUrl: true } },
       },
     });
+
+    const memberId = (req.session as any).memberId as string | undefined;
+    logAuditEvent({
+      projectId, memberId: memberId ?? null, source: "WEB",
+      eventType: "MILESTONE_CREATED",
+      payload: { milestoneTitle: milestone.title },
+    }).catch(console.error);
+
     res.status(201).json({
       ...milestone,
       progress: 0,
@@ -117,6 +126,8 @@ milestonesRouter.patch("/:id", async (req: Request, res: Response) => {
       milestoneTaskIds?: string[];
     };
     const { prisma } = await import("../db/prisma.js");
+
+    const before = await prisma.milestone.findUnique({ where: { id: milestoneId } });
 
     // Build update data
     const data: any = {};
@@ -165,6 +176,25 @@ milestonesRouter.patch("/:id", async (req: Request, res: Response) => {
     // Refresh health after any update
     await refreshMilestoneHealth(milestoneId);
 
+    const memberId = (req.session as any).memberId as string | undefined;
+    if (before) {
+      const changes = diffObjects(before as any, milestone as any, ["title", "dueDate", "description", "ownerId", "status"]);
+      if (changes.length > 0) {
+        logAuditEvent({
+          projectId: milestone.projectId, memberId: memberId ?? null, source: "WEB",
+          eventType: "MILESTONE_UPDATED",
+          payload: { milestoneTitle: milestone.title, changes },
+        }).catch(console.error);
+      }
+    }
+    if (milestoneTaskIds !== undefined) {
+      logAuditEvent({
+        projectId: milestone.projectId, memberId: memberId ?? null, source: "WEB",
+        eventType: "MILESTONE_TASKS_LINKED",
+        payload: { milestoneTitle: milestone.title, taskIds: milestoneTaskIds },
+      }).catch(console.error);
+    }
+
     const tasks = (milestone as any).tasks as { status: string }[];
     const total = tasks.length;
     const done = tasks.filter((t) => t.status === "DONE").length;
@@ -186,12 +216,23 @@ milestonesRouter.delete("/:id", async (req: Request, res: Response) => {
   try {
     const milestoneId = req.params.id as string;
     const { prisma } = await import("../db/prisma.js");
+    const milestone = await prisma.milestone.findUnique({ where: { id: milestoneId } });
     // Unlink tasks first
     await prisma.task.updateMany({
       where: { milestoneId },
       data: { milestoneId: null },
     });
     await prisma.milestone.delete({ where: { id: milestoneId } });
+
+    if (milestone) {
+      const memberId = (req.session as any).memberId as string | undefined;
+      logAuditEvent({
+        projectId: milestone.projectId, memberId: memberId ?? null, source: "WEB",
+        eventType: "MILESTONE_DELETED",
+        payload: { milestoneTitle: milestone.title },
+      }).catch(console.error);
+    }
+
     res.json({ ok: true });
   } catch (error) {
     console.error("Delete milestone error:", error);

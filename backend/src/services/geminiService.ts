@@ -168,7 +168,11 @@ export async function generateJsonFromDocument<T>(
 // safety checks, blog expansion, video scripts, calendar autofill.
 
 /** Complex-model JSON generation. Falls back to standard model if daily quota is exhausted. */
-export async function generateJsonComplex<T>(prompt: string, cacheKey?: string): Promise<T | null> {
+export async function generateJsonComplex<T>(
+  prompt: string,
+  cacheKey?: string,
+  opts?: { maxOutputTokens?: number }
+): Promise<T | null> {
   if (cacheKey) {
     const hit = getCached(cacheKey);
     if (hit) return JSON.parse(hit) as T;
@@ -177,7 +181,10 @@ export async function generateJsonComplex<T>(prompt: string, cacheKey?: string):
     const result = await complexRateLimitedCall(() =>
       complexModel().generateContent({
         contents:         [{ role: "user", parts: [{ text: prompt }] }],
-        generationConfig: { responseMimeType: "application/json" },
+        generationConfig: {
+          responseMimeType: "application/json",
+          maxOutputTokens:  opts?.maxOutputTokens ?? 8192,
+        },
       })
     );
     const text = result.response.text().trim();

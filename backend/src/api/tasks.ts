@@ -4,7 +4,7 @@ import { channelAuth } from "../middleware/channelAuth.js";
 import { getTaskPermissions, requireTaskEdit } from "../middleware/taskAccess.js";
 import { aiRateLimit } from "../middleware/aiRateLimit.js";
 import { updateTask, deleteTask, getTask, createSubtask, getSubtasks, addDependency, removeDependency, logTime, createTask, assertCanComplete, assertNotCategoryBlocked } from "../services/taskService.js";
-import { logAuditEvent, diffObjects } from "../services/activityService.js";
+import { logAuditEvent, diffObjects, getTaskAuditLog } from "../services/activityService.js";
 import type { TaskStatus, TaskProgress, Priority, NotificationType } from "@prisma/client";
 import { generateJson, generateJsonFromImage, GeminiRateLimitError } from "../services/geminiService.js";
 import {
@@ -351,6 +351,65 @@ tasksRouter.post("/bulk-delete", async (req: Request, res: Response) => {
   } catch (error) {
     console.error("Bulk delete error:", error);
     res.status(500).json({ error: "Failed to bulk delete tasks" });
+  }
+});
+
+// ── POST /api/tasks/bulk-archive ─────────────────────────────
+// Must be above /:id routes so "bulk-archive" is not captured as an id param.
+
+tasksRouter.post("/bulk-archive", async (req: Request, res: Response) => {
+  try {
+    const { ids, archived } = req.body as { ids: string[]; archived: boolean };
+
+    if (!Array.isArray(ids) || ids.length === 0) {
+      res.status(400).json({ error: "ids must be a non-empty array" });
+      return;
+    }
+
+    const memberId = req.memberId!;
+    const updated: any[] = [];
+    const skipped: { id: string; reason: string }[] = [];
+
+    for (const id of ids) {
+      const existingTask = await getTask(id);
+      if (!existingTask) {
+        skipped.push({ id, reason: "Task not found" });
+        continue;
+      }
+
+      const { canArchive } = await getTaskPermissions(memberId, id);
+      if (!canArchive) {
+        skipped.push({ id, reason: "Permission denied" });
+        continue;
+      }
+
+      try {
+        const task = await prismaClient.task.update({
+          where: { id },
+          data: archived
+            ? { archivedAt: new Date(), archivedById: memberId }
+            : { archivedAt: null, archivedById: null },
+        });
+
+        logAuditEvent({
+          projectId: existingTask.projectId,
+          taskId: id,
+          memberId,
+          source: "WEB",
+          eventType: archived ? "TASK_ARCHIVED" : "TASK_UNARCHIVED",
+          payload: { taskTitle: existingTask.title },
+        }).catch(console.error);
+
+        updated.push(task);
+      } catch (err) {
+        skipped.push({ id, reason: (err as Error).message ?? "Update failed" });
+      }
+    }
+
+    res.json({ updated, skipped });
+  } catch (error) {
+    console.error("Bulk archive error:", error);
+    res.status(500).json({ error: "Failed to bulk archive tasks" });
   }
 });
 
@@ -743,6 +802,94 @@ tasksRouter.delete("/:id", channelAuth, async (req: Request, res: Response) => {
   }
 });
 
+// ── POST /api/tasks/:id/archive ──────────────────────────────
+
+tasksRouter.post("/:id/archive", async (req: Request, res: Response) => {
+  try {
+    const taskId = req.params.id as string;
+    const memberId = req.memberId!;
+
+    const existingTask = await getTask(taskId);
+    if (!existingTask) {
+      res.status(404).json({ error: "Task not found" });
+      return;
+    }
+
+    const { canArchive } = await getTaskPermissions(memberId, taskId);
+    if (!canArchive) {
+      res.status(403).json({ error: "Only the creator, an admin, or a completed task's team can archive it" });
+      return;
+    }
+
+    const task = await prismaClient.task.update({
+      where: { id: taskId },
+      data: { archivedAt: new Date(), archivedById: memberId },
+    });
+
+    logAuditEvent({
+      projectId: existingTask.projectId,
+      taskId,
+      memberId,
+      source: "WEB",
+      eventType: "TASK_ARCHIVED",
+      payload: { taskTitle: existingTask.title },
+    }).catch(console.error);
+
+    const blockedDeps = await prismaClient.taskDependency.findMany({
+      where: { blockingTaskId: taskId },
+      include: { blockedTask: { select: { id: true, title: true, status: true, archivedAt: true } } },
+    });
+    const dependencyWarnings = blockedDeps
+      .map((dep) => dep.blockedTask)
+      .filter((t) => t.status !== "DONE" && !t.archivedAt);
+
+    res.json({ task, dependencyWarnings });
+  } catch (error) {
+    console.error("Archive task error:", error);
+    res.status(500).json({ error: "Failed to archive task" });
+  }
+});
+
+// ── POST /api/tasks/:id/unarchive ────────────────────────────
+
+tasksRouter.post("/:id/unarchive", async (req: Request, res: Response) => {
+  try {
+    const taskId = req.params.id as string;
+    const memberId = req.memberId!;
+
+    const existingTask = await getTask(taskId);
+    if (!existingTask) {
+      res.status(404).json({ error: "Task not found" });
+      return;
+    }
+
+    const { canArchive } = await getTaskPermissions(memberId, taskId);
+    if (!canArchive) {
+      res.status(403).json({ error: "Only the creator, an admin, or a completed task's team can unarchive it" });
+      return;
+    }
+
+    const task = await prismaClient.task.update({
+      where: { id: taskId },
+      data: { archivedAt: null, archivedById: null },
+    });
+
+    logAuditEvent({
+      projectId: existingTask.projectId,
+      taskId,
+      memberId,
+      source: "WEB",
+      eventType: "TASK_UNARCHIVED",
+      payload: { taskTitle: existingTask.title },
+    }).catch(console.error);
+
+    res.json({ task });
+  } catch (error) {
+    console.error("Unarchive task error:", error);
+    res.status(500).json({ error: "Failed to unarchive task" });
+  }
+});
+
 // ── GET /api/tasks/:id/comments ──────────────────────────────
 
 tasksRouter.get("/:id/comments", async (req: Request, res: Response) => {
@@ -774,20 +921,14 @@ tasksRouter.get("/:id/comments", async (req: Request, res: Response) => {
 tasksRouter.get("/:id/history", async (req: Request, res: Response) => {
   try {
     const taskId = req.params.id as string;
-    const { prisma } = await import("../db/prisma.js");
-    const activities = await prisma.activity.findMany({
-      where: { entityId: taskId, entityType: "Task" },
-      include: { member: true },
-      orderBy: { createdAt: "desc" },
-      take: 50,
-    });
-    // Normalize to the shape TaskModal expects: { actor, action, at }
-    const history = activities.map(a => ({
-      id: a.id,
-      actor: a.member,
-      action: a.type.toLowerCase().replace(/_/g, " "),
-      at: a.createdAt,
-      metadata: a.metadata,
+    const events = await getTaskAuditLog(taskId);
+    // Normalize to the shape TaskModal expects: { actor, action, at, metadata }
+    const history = events.map(e => ({
+      id: e.id,
+      actor: e.member,
+      action: e.eventType.toLowerCase().replace(/_/g, " "),
+      at: e.createdAt,
+      metadata: e.payload,
     }));
     res.json(history);
   } catch (error) {
@@ -926,6 +1067,12 @@ tasksRouter.post("/:id/comments", requireAuth, channelAuth, async (req: Request,
       })();
     }
 
+    logAuditEvent({
+      taskId, memberId: memberId ?? null, source: "WEB",
+      eventType: "COMMENT_ADDED",
+      payload: { commentId: comment.id, excerpt: content.slice(0, 120) },
+    }).catch(console.error);
+
     res.status(201).json(populatedComment || comment);
 
     // Challenge hooks
@@ -973,6 +1120,12 @@ tasksRouter.patch("/:id/comments/:commentId", async (req: Request, res: Response
       include: { author: true },
     });
 
+    logAuditEvent({
+      taskId: comment.taskId, memberId: memberId ?? null, source: "WEB",
+      eventType: "COMMENT_EDITED",
+      payload: { commentId, excerpt: content.slice(0, 120) },
+    }).catch(console.error);
+
     res.json(updated);
   } catch (error) {
     console.error("Edit comment error:", error);
@@ -1008,6 +1161,12 @@ tasksRouter.delete("/:id/comments/:commentId", async (req: Request, res: Respons
     }
 
     await prisma.taskComment.delete({ where: { id: commentId } });
+
+    logAuditEvent({
+      taskId: comment.taskId, memberId: memberId ?? null, source: "WEB",
+      eventType: "COMMENT_DELETED",
+      payload: { commentId, excerpt: comment.content.slice(0, 120) },
+    }).catch(console.error);
 
     res.json({ ok: true });
   } catch (error) {
@@ -1111,12 +1270,24 @@ tasksRouter.post("/:id/subtasks", requireAuth, requireTaskEdit, async (req: Requ
 
 tasksRouter.post("/:id/dependencies", requireAuth, requireTaskEdit, async (req: Request, res: Response) => {
   try {
+    const taskId = req.params.id as string;
     const { blockedById, reason } = req.body as { blockedById: string; reason?: string | null };
     if (!blockedById) {
       res.status(400).json({ error: "blockedById is required" });
       return;
     }
-    const result = await addDependency(req.params.id as string, blockedById, reason);
+    const result = await addDependency(taskId, blockedById, reason);
+
+    const memberId = (req.session as any).memberId as string | undefined;
+    const blockingTask = (result as any)?.blockedBy?.find(
+      (d: any) => d.blockingTaskId === blockedById
+    )?.blockingTask;
+    logAuditEvent({
+      taskId, memberId: memberId ?? null, source: "WEB",
+      eventType: "TASK_DEPENDENCY_ADDED",
+      payload: { taskTitle: result?.title, dependsOnTitle: blockingTask?.title ?? null, reason: reason ?? null },
+    }).catch(console.error);
+
     res.json(result);
   } catch (error: any) {
     if (error.message?.includes("circular") || error.message?.includes("itself")) {
@@ -1132,7 +1303,18 @@ tasksRouter.post("/:id/dependencies", requireAuth, requireTaskEdit, async (req: 
 
 tasksRouter.delete("/:id/dependencies/:depId", requireAuth, requireTaskEdit, async (req: Request, res: Response) => {
   try {
-    const result = await removeDependency(req.params.id as string, req.params.depId as string);
+    const taskId = req.params.id as string;
+    const depId = req.params.depId as string;
+    const blockingTask = await prismaClient.task.findUnique({ where: { id: depId }, select: { title: true } });
+    const result = await removeDependency(taskId, depId);
+
+    const memberId = (req.session as any).memberId as string | undefined;
+    logAuditEvent({
+      taskId, memberId: memberId ?? null, source: "WEB",
+      eventType: "TASK_DEPENDENCY_REMOVED",
+      payload: { taskTitle: result?.title, dependsOnTitle: blockingTask?.title ?? null },
+    }).catch(console.error);
+
     res.json(result);
   } catch (error) {
     console.error("Remove dependency error:", error);
@@ -1152,6 +1334,12 @@ tasksRouter.post("/:id/time-logs", requireAuth, requireTaskEdit, async (req: Req
       return;
     }
     const log = await logTime(taskId, memberId, minutes, note);
+
+    logAuditEvent({
+      taskId, memberId: memberId ?? null, source: "WEB",
+      eventType: "TIME_LOGGED",
+      payload: { minutes, note: note ?? null },
+    }).catch(console.error);
 
     // Engagement: award XP / doubloons proportional to hours logged (fire-and-forget)
     (async () => {

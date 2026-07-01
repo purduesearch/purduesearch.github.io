@@ -71,13 +71,22 @@ export async function listProjects(): Promise<Project[]> {
   });
 }
 
-export async function getProject(id: string) {
+export async function getProject(
+  id: string,
+  options: { includeArchived?: boolean; archivedOnly?: boolean } = {}
+) {
+  const archivedFilter = options.archivedOnly
+    ? { archivedAt: { not: null } }
+    : options.includeArchived
+      ? {}
+      : { archivedAt: null };
+
   return prisma.project.findUnique({
     where: { id },
     include: {
       members: { include: { member: true } },
       tasks: {
-        where: { parentTaskId: null }, // top-level tasks only
+        where: { parentTaskId: null, ...archivedFilter }, // top-level tasks only
         include: {
           assignees: true,
           tags: true,
@@ -116,7 +125,7 @@ export async function getProjectsForChannel(channelId: string) {
       project: {
         include: {
           members: { include: { member: true } },
-          tasks: { include: { assignees: true } },
+          tasks: { where: { archivedAt: null }, include: { assignees: true } },
         },
       },
     },
@@ -136,7 +145,7 @@ export async function getProjectsForChannel(channelId: string) {
     },
     include: {
       members: { include: { member: true } },
-      tasks: { include: { assignees: true } },
+      tasks: { where: { archivedAt: null }, include: { assignees: true } },
     },
   });
   return legacy ? [legacy] : [];
@@ -240,7 +249,7 @@ export async function getProjectsWithTaskStats() {
   const projects = await prisma.project.findMany({
     include: {
       members: { include: { member: true } },
-      tasks: { select: { status: true } },
+      tasks: { where: { archivedAt: null }, select: { status: true } },
     },
     orderBy: { updatedAt: "desc" },
   });
@@ -265,7 +274,7 @@ export async function findProjectByName(name: string) {
     },
     include: {
       members: { include: { member: true } },
-      tasks: { include: { assignees: true } },
+      tasks: { where: { archivedAt: null }, include: { assignees: true } },
     },
   });
 }

@@ -19,10 +19,12 @@ import type { ProjectType, ProjectStatus, TaskStatus, Priority, ActivityEventTyp
 import { createNotification } from "../services/notificationCrud.js";
 import { queueDm } from "../services/dmBatcher.js";
 import { fetchDriveFileAsText, extractFileId, listDriveFolderFiles, getDriveFileMeta } from "../services/driveService.js";
-import { generateJsonFromDocument, generateText } from "../services/geminiService.js";
+import { generateJsonFromDocument, generateTextComplex, todayContext } from "../services/geminiService.js";
 import {
-  driveToTasksPrompt, meetingNotesToTasksPrompt, projectQaPrompt,
+  driveToTasksPrompt, meetingNotesToTasksPrompt, projectContextPrompt,
 } from "../utils/aiPrompts.js";
+import { buildProjectContext } from "../services/projectContextService.js";
+import { suggestProjectActions, executeActionPlan, type ActionPlanAction } from "../services/aiActionService.js";
 import {
   analyzeProjectRisks, generateSprintPlan, generateProjectBrief,
   inferTaskDependencies, analyzeTeamCapacity, generateStakeholderEmail,
@@ -253,15 +255,17 @@ projectsRouter.get("/:id/activity", async (req: Request, res: Response) => {
 projectsRouter.get("/:id/tasks", async (req: Request, res: Response) => {
   try {
     const projectId = req.params.id as string;
-    const { status, assigneeId } = req.query as {
+    const { status, assigneeId, archived } = req.query as {
       status?: TaskStatus;
       assigneeId?: string;
+      archived?: string;
     };
 
-    const tasks = await getTasksForProject(projectId, {
-      status,
-      assigneeId,
-    });
+    const tasks = await getTasksForProject(
+      projectId,
+      { status, assigneeId },
+      archived === "1" || archived === "true" ? { archivedOnly: true } : {}
+    );
 
     res.json(tasks);
   } catch (error) {
@@ -516,7 +520,7 @@ projectsRouter.post("/:id/parse-drive", async (req: Request, res: Response) => {
     }
 
     const existingTasks = await prisma.task.findMany({
-      where: { projectId, status: { not: "DONE" } },
+      where: { projectId, status: { not: "DONE" }, archivedAt: null },
       select: { title: true },
     });
     const existingTaskTitles = existingTasks.map(t => t.title);
@@ -738,55 +742,66 @@ projectsRouter.post("/:id/ask", async (req: Request, res: Response) => {
       return;
     }
 
-    const { getMilestonesForProject } = await import("../services/milestoneService.js");
-    const [project, milestonesRaw] = await Promise.all([
-      prisma.project.findUnique({
-        where: { id: projectId },
-        include: {
-          tasks: { include: { assignees: { select: { displayName: true } } } },
-          members: { include: { member: { select: { displayName: true } } } },
-          updates: { orderBy: { postedAt: "desc" }, take: 5 },
-        },
-      }),
-      getMilestonesForProject(projectId),
-    ]);
+    const context = await buildProjectContext(projectId);
 
-    if (!project) {
+    if (!context) {
       res.status(404).json({ error: "Project not found" });
       return;
     }
 
-    const tasksArr = project.tasks.map(t => ({
-      title: t.title,
-      status: t.status,
-      priority: t.priority,
-      assignees: t.assignees.map((a: any) => a.displayName),
-      dueDate: (t as any).dueDate?.toISOString().split("T")[0] ?? null,
-    }));
-
-    const memberNames = project.members.map((pm: any) => pm.member.displayName);
-    const milestonesArr = (milestonesRaw as any[]).map((m: any) => ({
-      title: m.title,
-      status: m.status,
-      targetDate: m.dueDate?.toISOString().split("T")[0] ?? null,
-    }));
-    const recentUpdates = (project.updates as any[]).map(u => u.content.slice(0, 150));
-
-    const projectObj = {
-      name: project.name,
-      description: project.description,
-      type: project.type,
-      targetDate: (project as any).targetDate?.toISOString().split("T")[0] ?? null,
-    };
-
-    const answer = await generateText(
-      projectQaPrompt(question, projectObj, tasksArr, memberNames, milestonesArr, recentUpdates),
+    const answer = await generateTextComplex(
+      projectContextPrompt(question, todayContext(), context),
     );
 
     res.json({ answer });
   } catch (error) {
     console.error("Project ask error:", error);
     res.status(500).json({ error: "Failed to answer question" });
+  }
+});
+
+// ── POST /api/projects/:id/ai-suggest-actions ────────────────
+
+projectsRouter.post("/:id/ai-suggest-actions", async (req: Request, res: Response) => {
+  try {
+    const projectId = req.params.id as string;
+    const { goal } = req.body as { goal: string };
+
+    if (!goal) {
+      res.status(400).json({ error: "goal is required" });
+      return;
+    }
+
+    const actions = await suggestProjectActions(projectId, goal);
+    if (actions === null) {
+      res.status(404).json({ error: "Project not found" });
+      return;
+    }
+
+    res.json({ actions });
+  } catch (error) {
+    console.error("AI suggest actions error:", error);
+    res.status(500).json({ error: "Failed to suggest actions" });
+  }
+});
+
+// ── POST /api/projects/:id/ai-execute-plan ───────────────────
+
+projectsRouter.post("/:id/ai-execute-plan", async (req: Request, res: Response) => {
+  try {
+    const projectId = req.params.id as string;
+    const { actions } = req.body as { actions: ActionPlanAction[] };
+
+    if (!Array.isArray(actions) || actions.length === 0) {
+      res.status(400).json({ error: "actions must be a non-empty array" });
+      return;
+    }
+
+    const results = await executeActionPlan(projectId, req.memberId!, actions);
+    res.json({ results });
+  } catch (error) {
+    console.error("AI execute plan error:", error);
+    res.status(500).json({ error: "Failed to execute action plan" });
   }
 });
 

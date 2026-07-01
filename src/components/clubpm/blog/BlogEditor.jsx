@@ -8,7 +8,7 @@ import CharacterCount from '@tiptap/extension-character-count';
 import Placeholder from '@tiptap/extension-placeholder';
 import { TableKit } from '@tiptap/extension-table';
 import Collaboration from '@tiptap/extension-collaboration';
-import CollaborationCursor from '@tiptap/extension-collaboration-cursor';
+import CollaborationCaret from '@tiptap/extension-collaboration-caret';
 import { SearchAndReplace } from '@sereneinserenade/tiptap-search-and-replace';
 import * as Y from 'yjs';
 import { HocuspocusProvider } from '@hocuspocus/provider';
@@ -59,7 +59,7 @@ export function blogExtensions(collab) {
     LinkShortcut,
     ...(collab ? [
       Collaboration.configure({ document: collab.document }),
-      CollaborationCursor.configure({ provider: collab.provider, user: collab.user }),
+      CollaborationCaret.configure({ provider: collab.provider, user: collab.user }),
     ] : []),
   ];
 }

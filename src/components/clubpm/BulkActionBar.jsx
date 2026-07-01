@@ -96,6 +96,7 @@ export default function BulkActionBar({
   onStatus,
   onPriority,
   onDelete,
+  onArchive,
   onClear,
   deleteConfirm,
   onRequestDelete,
@@ -145,6 +146,10 @@ export default function BulkActionBar({
       </select>
 
       <div className="cpm-bulk-bar-divider" />
+
+      <button className="cpm-bulk-bar-btn" disabled={busy} onClick={onArchive}>
+        <i className="fas fa-archive" aria-hidden="true" /> Archive
+      </button>
 
       {deleteConfirm ? (
         <div className="cpm-bulk-bar-confirm">

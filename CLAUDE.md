@@ -1,4 +1,4 @@
-<!-- last synced: 2026-05-15 -->
+<!-- last synced: 2026-07-01 -->
 # CLAUDE.md — SEARCH Club Website
 
 ## Project Overview
@@ -168,7 +168,8 @@ Deploy is manual push to the `main` branch; GitHub Pages serves from root.
 - `members.ts` — Member profile, XP history, rank. Rank is a Prisma enum on `Member`.
 - `auth.ts` / `githubAuth.ts` — Session-based auth (express-session + Slack OAuth + GitHub OAuth). No JWT.
 - `projects.ts` — Project CRUD; also mounts `tagsRouter`.
-- `milestones.ts` — Milestone create/update/health refresh.
+- `milestones.ts` — Milestone CRUD + health refresh. See **Milestones API** below.
+- `blockers.ts` — Project "category" blocker CRUD + task attach/detach. See **Blockers API** below.
 - `rewards.ts` — Pending reward queue, admin approve/reject.
 - `challenges.ts` — Active challenges, claim endpoint.
 - `outreach.ts` — OutreachSubmission CRUD; sub-routers: assets, brand-voices, campaigns, contacts, insights.
@@ -184,8 +185,10 @@ Deploy is manual push to the `main` branch; GitHub Pages serves from root.
 - `taskService.ts` — Prisma query wrapper for tasks.
 - `challengeService.ts` — `recordEvent(memberId, metric, delta?)` → fires on user actions; `getActiveChallenges()`, `claimChallenge()`.
 - `milestoneService.ts` — `refreshMilestoneHealth()`.
-- `geminiService.ts` — Gemini API: `generateJson()`, `generateJsonFromImage()`.
-- `activityService.ts` — Audit log: `logAuditEvent()`, `diffObjects()`.
+- `geminiService.ts` — Gemini API. Standard model (30 RPM sliding window): `generateJson()`, `generateText()`, `generateJsonFromImage()`, `generateJsonFromDocument()`. Complex model (`GEMINI_COMPLEX_MODEL`, 25 requests/day; auto-falls back to the standard model when the daily quota is exhausted rather than blocking — `geminiService.ts:42-53`): `generateJsonComplex(prompt, cacheKey?, opts?)` / `generateTextComplex(prompt, cacheKey?)`. `generateJsonComplex`'s `opts.maxOutputTokens` (default 8192) caps/raises the response size so large structured outputs (e.g. AI action plans) don't truncate. `todayContext()` — a string injected into prompts so the model uses the real current date instead of training-data heuristics.
+- `activityService.ts` — **Two-table split**, do not conflate them: `logActivity()` writes to `Activity` (lightweight realtime feed, powers the SSE stream via `activityBus`; read with `getProjectActivities()` / `getEntityActivities()`). `logAuditEvent()` writes to `ActivityLog` (rich audit trail: `eventType` enum + `payload` JSON + optional task/member; read with `getProjectAuditLog()` (project-scoped, paginated) or `getTaskAuditLog(taskId, take = 50)` (task-scoped — backs `GET /api/tasks/:id/history`)). `diffObjects(before, after, watchFields)` returns `{ field, from, to }[]` for building audit payloads.
+- `projectContextService.ts` — `buildProjectContext(projectId, opts?)` → `ProjectContext | null`, the single shared snapshot every AI feature (`/ask`, `suggestProjectActions`) builds prompts from. Includes tasks (title, status, priority, assignees, dueDate, **description**, `blockedByOpenDependencies`, `activeCategoryBlockers`, subtask counts), milestones, members with open-task counts, `recentActivity` (from `getProjectAuditLog`), and `activeBlockers`. `opts.taskLimit` (default 300) and `opts.activityLimit` (default 30) bound what's packed in; `ProjectContext.truncated` is `true` if `taskLimit` cut off real tasks.
+- `aiActionService.ts` — Agentic action-plan engine; see **AI Action Plan** below.
 - `dmBatcher.ts` — Slack DM queue: `queueDm()`.
 - `streakService.ts` — `recordActivity()`, daily reset sweep.
 - `notificationCrud.ts` — `createNotification()`.
@@ -194,7 +197,7 @@ Deploy is manual push to the `main` branch; GitHub Pages serves from root.
 - `scheduler.ts` — All cron jobs (node-cron). Includes: midnight shop rotation, daily streak reset (02:00 UTC), Monday digest (09:00), daily due-date reminders (08:00), milestone health refresh (08:45), Friday risk analysis (15:45), hourly auto-publish. **Add new crons here only.**
 
 ### Database (`backend/prisma/schema.prisma`)
-Key models: `Member`, `Task`, `Project`, `MilestoneTask`, `XpEvent`, `DoubloonEvent`, `Challenge`, `MemberChallenge`, `MemberAchievement`, `InventoryItem`, `Cosmetic`, `MemberCosmetic`, `Streak`, `ActivityLog`, `GitHubLink`, `OutreachSubmission`.
+Key models: `Member`, `Task`, `Project`, `MilestoneTask`, `XpEvent`, `DoubloonEvent`, `Challenge`, `MemberChallenge`, `MemberAchievement`, `InventoryItem`, `Cosmetic`, `MemberCosmetic`, `Streak`, `ActivityLog`, `GitHubLink`, `OutreachSubmission`, `TaskComment`, `TaskDependency`, `TaskBlocker`, `TimeLog`.
 
 Key enums:
 - `Rank` — NESTLING → FLEDGLING → CADET → SPECIALIST → PIONEER → COSMONAUT → CELESTIAL (thresholds 0–21,000 XP)
@@ -203,6 +206,7 @@ Key enums:
 - `RewardEventType` — TIME_LOG_HOUR, TASK_COMPLETE_MEMBER_CREATED, TASK_COMPLETE_ADMIN_CREATED, MILESTONE_HIT, KUDOS_RECEIVED, BLOG_POST_PUBLISHED, EARLY_DELIVERY_BONUS
 - `ChallengeMetric` — TASK_COMPLETED, COMMENT_WRITTEN, TIME_LOG_HOURS, UNIQUE_ASSIGNEES, FILE_ATTACHED, etc.
 - `ChallengeType` — DAILY, WEEKLY, MONTHLY, ACHIEVEMENT
+- `ActivityEventType` — `ActivityLog` event types (see `logAuditEvent`/`getProjectAuditLog`/`getTaskAuditLog`). Task/project/GitHub lifecycle values (`TASK_CREATED`, `TASK_UPDATED`, `TASK_COMPLETED`, `TASK_DELETED`, `TASK_ASSIGNED`, `GITHUB_PR_MERGED`, etc.) plus the audit-sync additions: `TASK_DEPENDENCY_ADDED`/`TASK_DEPENDENCY_REMOVED`, `TASK_BLOCKER_ATTACHED`/`TASK_BLOCKER_DETACHED`, `BLOCKER_RESOLVED`, `COMMENT_ADDED`/`COMMENT_EDITED`/`COMMENT_DELETED`, `TIME_LOGGED`, `MILESTONE_CREATED`/`MILESTONE_UPDATED`/`MILESTONE_DELETED`/`MILESTONE_TASKS_LINKED`, and `AI_PLAN_EXECUTED` (one summary event per AI action-plan execution, in addition to the specific event type logged per executed action).
 
 Member XP is stored as `XpEvent` rows, not a single column — always query via aggregation.
 Task `rewardGrantedAt` is an idempotency gate; do not clear it or DONE→IN_PROGRESS→DONE re-grants XP.
@@ -216,12 +220,12 @@ POST   /api/tasks/create-from-nl               NL → structured task
 POST   /api/tasks/create-from-image            screenshot → task extraction
 GET    /api/tasks/:id                           single task + assignees + milestone
 PATCH  /api/tasks/:id                           update (status, priority, assignees, attachments…)
-DELETE /api/tasks/:id                           soft-delete (sets deletedAt); creator/admin only
+DELETE /api/tasks/:id                           hard delete (prisma.task.delete); creator/admin only — no deletedAt field, row is removed
 GET    /api/tasks/:id/comments                  threaded comments (top-level + 200 replies)
-POST   /api/tasks/:id/comments                  create comment; fires @mention DMs + challenge hooks
+POST   /api/tasks/:id/comments                  create comment; parses @handle mentions → in-app notification + Slack DM to matched members; fires challenge hooks
 PATCH  /api/tasks/:id/comments/:cid             edit (author only)
 DELETE /api/tasks/:id/comments/:cid             delete (author or admin)
-POST   /api/tasks/:id/comments/:cid/reactions   emoji reaction toggle
+POST   /api/tasks/:id/comments/:cid/reactions   toggle emoji reaction (reactions JSON: { emoji: memberId[] }); fires challenge hook on toggle-on of someone else's comment
 GET    /api/tasks/:id/subtasks                  list subtasks
 POST   /api/tasks/:id/subtasks                  create subtask
 POST   /api/tasks/:id/dependencies              add dependency (validates no circular refs)
@@ -230,11 +234,48 @@ POST   /api/tasks/:id/time-logs                 log time (daily 8-hr cap; >2 hr 
 GET    /api/tasks/:id/time-logs                 list logs + total minutes
 POST   /api/tasks/:id/ai-enrich                Gemini: description + acceptance criteria + DoD
 POST   /api/tasks/:id/suggest-deadline         AI deadline suggestion
-GET    /api/tasks/:id/history                   50 most recent audit events
+GET    /api/tasks/:id/history                   50 most recent `ActivityLog` rows for this task (`getTaskAuditLog`), mapped to { id, actor, action, at, metadata } — `action` is the humanized `eventType`, `metadata` is the raw payload (may include a `diffObjects` array rendered in TaskModal as `field: from → to`)
 ```
 
 PATCH `/:id` status→DONE triggers: blocker validation, CI gate (if `githubBlockDoneOnCiFail`), `rewardService.handleTaskComplete()`, `challengeService.recordEvent()`, streak tick.
 Always include `include: { assignees: { include: { member: true } } }` to get avatarUrl + rank.
+
+### Blockers API (`backend/src/api/blockers.ts`)
+
+Reusable, project-scoped "category" blockers (e.g. "Order delays"). Attaching one to a task forces it `BLOCKED`; the task clears back to `TODO` only once it has no open category blockers *and* no open (non-DONE) dependencies.
+
+```
+GET    /api/projects/:projectId/blockers        active (unresolved) blockers for a project
+POST   /api/projects/:projectId/blockers        create a blocker { label, color?, assigneeId? }
+PATCH  /api/blockers/:id                        rename/recolor/reassign a blocker
+POST   /api/blockers/:id/resolve                resolve + detach from all tasks; recomputes affected tasks' BLOCKED status
+POST   /api/tasks/:id/blockers                  attach an existing blocker to a task { blockerId, reason? }; sets task BLOCKED
+DELETE /api/tasks/:id/blockers/:blockerId       detach; recomputes BLOCKED status for that task
+```
+
+Reassigning a blocker's `assigneeId` (create or update) sends an in-app notification + Slack DM to the new assignee.
+
+### Milestones API (`backend/src/api/milestones.ts`)
+
+```
+GET    /api/milestones/project/:projectId       milestones for a project, with progress/taskCounts
+GET    /api/milestones/:id                      single milestone with progress
+POST   /api/milestones                          create { title, projectId, dueDate?, description?, ownerId? }
+PATCH  /api/milestones/:id                       update fields; `milestoneTaskIds` replaces the full task link set; refreshes health after update
+DELETE /api/milestones/:id                       unlinks tasks, then deletes the milestone
+```
+
+### AI Action Plan (`backend/src/api/projects.ts` + `backend/src/services/aiActionService.ts` + `projectContextService.ts`)
+
+```
+POST   /api/projects/:id/ask                    Q&A over buildProjectContext() via generateTextComplex — reflects task descriptions + recent ActivityLog, not just titles
+POST   /api/projects/:id/ai-suggest-actions     { goal } → ActionPlan (proposed actions, not executed): suggestProjectActions() builds context, prompts generateJsonComplex, validates/clamps into known ids
+POST   /api/projects/:id/ai-execute-plan        { actions: ActionPlan } → { results: [{ index, type, ok, error? }] }: executeActionPlan() re-validates and dispatches each action
+```
+
+`ActionPlan` = `{ type, targetTaskId?, params, rationale }[]`. `type` is one of `CREATE_TASK`, `UPDATE_TASK`, `DELETE_TASK`, `SET_STATUS`, `SET_PRIORITY`, `SET_DUE`, `ASSIGN`, `CREATE_SUBTASK`, `ADD_DEPENDENCY`, `ATTACH_BLOCKER`, `RESOLVE_BLOCKER`, `ADD_COMMENT`, `CREATE_MILESTONE`, `LINK_MILESTONE`. Most types require `targetTaskId` (must be a real task id in the project); `CREATE_TASK`, `CREATE_MILESTONE`, `RESOLVE_BLOCKER` are project-scoped (no target); `LINK_MILESTONE` takes an optional `targetTaskId` plus `params.taskIds[]`. `params` per type (see `aiActionService.ts` `dispatchAction()` for the authoritative list): `CREATE_TASK`/`UPDATE_TASK` → `{ title?, description?, priority?, dueDate?, assigneeIds?, milestoneId? }`; `SET_STATUS` → `{ status }`; `SET_PRIORITY` → `{ priority }`; `SET_DUE` → `{ dueDate }`; `ASSIGN` → `{ assigneeIds }`; `CREATE_SUBTASK` → `{ title, assigneeIds? }`; `ADD_DEPENDENCY` → `{ blockingTaskId, reason? }`; `ATTACH_BLOCKER`/`RESOLVE_BLOCKER` → `{ blockerId, reason? }`; `ADD_COMMENT` → `{ content }`; `CREATE_MILESTONE` → `{ title, dueDate?, description?, ownerId? }`; `LINK_MILESTONE` → `{ milestoneId, taskIds? }`.
+
+Execution is open to **any logged-in member** — `executeActionPlan` re-checks `taskAccess.ts` `getTaskPermissions` (edit/delete) for every action server-side regardless of what the client marked accepted, wraps each action in try/catch so one failure doesn't abort the batch, and logs the specific `eventType` per successful action plus one summary `AI_PLAN_EXECUTED` event with `{ totalActions, succeeded, failed }`. Frontend: `ProjectDetail.jsx`'s AiPanel "Action Plan" section (goal input → editable per-action cards, reusing the `SuggestedTaskCard` accept/dismiss idiom, via `src/components/clubpm/ActionPlanReview.jsx`) → `clubPmClient.js`'s `suggestActions(projectId, goal)` / `executePlan(projectId, actions)`.
 
 ---
 
@@ -244,7 +285,8 @@ Always include `include: { assignees: { include: { member: true } } }` to get av
 - `src/pages/ClubPM/ProjectDetail.jsx` (2,711 lines) — Main PM view. Tabs: tasks (kanban with StatusBin drag-drop), milestones, files (Drive + GitHub), reports, ai. Drag uses `@hello-pangea/dnd`. State: `project`, `activeTab`, `selectedTask`, `overBin`.
 - `src/pages/ClubPM/Dashboard.jsx` (1,532 lines) — Personal dashboard: StatsBar (5 stats), DailyQuestsWidget, AIInsightCards, WorkPanel (filterable task list), AgendaPanel (7-day), LeaderboardPanel.
 - `src/pages/ClubPM/MembersView.jsx` (490 lines) — Member roster. Supports search + team/role filters. MemberDrawer shows full profile. ContributorImportModal links GitHub logins.
-- `src/api/clubPmClient.js` (289 lines) — Fetch wrappers (get/post/patch/del). Base URL: `process.env.REACT_APP_API_URL || ""`. Session cookie sent automatically (no auth headers). Dispatches `clubpm:reward-granted`, `clubpm:achievement-unlocked`, `clubpm:challenge-progress` custom events on responses. Streak cache: 5-second TTL.
+- `src/api/clubPmClient.js` (289 lines) — Fetch wrappers (get/post/patch/del). Base URL: `process.env.REACT_APP_API_URL || ""`. Session cookie sent automatically (no auth headers). Dispatches `clubpm:reward-granted`, `clubpm:achievement-unlocked`, `clubpm:challenge-progress` custom events on responses. Streak cache: 5-second TTL. Includes `suggestActions()` / `executePlan()` for the AI Action Plan feature.
+- `src/components/clubpm/ActionPlanReview.jsx` — Renders an `ActionPlan` as editable per-action cards (per-type field config, accept/decline, rationale) for the AiPanel "Action Plan" section in `ProjectDetail.jsx`. See **AI Action Plan** above for the schema.
 
 ---
 

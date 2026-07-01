@@ -129,3 +129,15 @@ export async function getProjectAuditLog(
   const items   = hasMore ? logs.slice(0, take) : logs;
   return { items, nextCursor: hasMore ? items[items.length - 1].id : null };
 }
+
+export async function getTaskAuditLog(taskId: string, take = 50) {
+  return prisma.activityLog.findMany({
+    where: { taskId },
+    orderBy: { createdAt: "desc" },
+    take,
+    include: {
+      member: { select: { id: true, displayName: true, avatarUrl: true } },
+      task:   { select: { id: true, title: true } },
+    },
+  });
+}

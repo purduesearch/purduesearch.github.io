@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import toast from "react-hot-toast";
-import { get, post, patch, del } from "../../api/clubPmClient";
+import { get, post, patch, del, archiveTask, unarchiveTask } from "../../api/clubPmClient";
 import { useClubPmAuth } from "../../clubpm/ClubPmAuth";
 import MemberBadge from "./MemberBadge";
 import AttachmentPickerModal from "./AttachmentPickerModal";
@@ -936,22 +936,63 @@ function CommentRow({ comment, taskId, currentMember, onUpdate, onDelete, isRepl
   );
 }
 
+function formatHistoryValue(v) {
+  if (v === null || v === undefined || v === "") return "(empty)";
+  if (Array.isArray(v)) return v.length ? v.join(", ") : "(none)";
+  return String(v);
+}
+
+function HistoryDetail({ metadata }) {
+  if (!metadata || typeof metadata !== "object") return null;
+
+  if (Array.isArray(metadata.changes) && metadata.changes.length > 0) {
+    return (
+      <div style={{ display:"flex", flexDirection:"column", gap:2, marginTop:2 }}>
+        {metadata.changes.map((c, i) => (
+          <span key={i} style={{ color:"var(--clubpm-text-muted)" }}>
+            <strong style={{ color:"var(--clubpm-text-secondary)" }}>{c.field}</strong>
+            {": "}{formatHistoryValue(c.from)} → {formatHistoryValue(c.to)}
+          </span>
+        ))}
+      </div>
+    );
+  }
+
+  const parts = [];
+  if (metadata.dependsOnTitle) parts.push(`depends on "${metadata.dependsOnTitle}"`);
+  if (metadata.blockerLabel) parts.push(`blocker "${metadata.blockerLabel}"`);
+  if (metadata.assigneeNames?.length) parts.push(metadata.assigneeNames.join(", "));
+  if (metadata.minutes != null) parts.push(`${metadata.minutes} min`);
+  if (metadata.affectedTaskCount != null) parts.push(`${metadata.affectedTaskCount} task(s) affected`);
+  if (metadata.reason) parts.push(`reason: ${metadata.reason}`);
+  if (metadata.note) parts.push(`note: ${metadata.note}`);
+  if (metadata.excerpt) parts.push(`"${metadata.excerpt}"`);
+
+  if (parts.length === 0) return null;
+  return (
+    <span style={{ color:"var(--clubpm-text-muted)", marginTop:2 }}>{parts.join(" · ")}</span>
+  );
+}
+
 function HistoryRow({ entry }) {
   return (
-    <div style={{ display:"flex", alignItems:"center", gap:8, padding:"5px 0",
+    <div style={{ display:"flex", alignItems:"flex-start", gap:8, padding:"5px 0",
       borderBottom:"1px solid var(--clubpm-border)", fontSize:12 }}>
       {entry.actor?.avatarUrl
-        ? <img src={entry.actor.avatarUrl} alt={entry.actor.displayName} style={{ width:20, height:20, borderRadius:"50%", flexShrink:0 }} />
+        ? <img src={entry.actor.avatarUrl} alt={entry.actor.displayName} style={{ width:20, height:20, borderRadius:"50%", flexShrink:0, marginTop:2 }} />
         : <div style={{
-            width:20, height:20, borderRadius:"50%", flexShrink:0,
+            width:20, height:20, borderRadius:"50%", flexShrink:0, marginTop:2,
             background:"var(--clubpm-surface-400)", color:"var(--clubpm-text-muted)",
             fontSize:9, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center",
           }}>{(entry.actor?.displayName??"?")[0].toUpperCase()}</div>
       }
-      <span style={{ color:"var(--clubpm-text-secondary)", flex:1 }}>
-        <strong style={{ color:"var(--clubpm-text-primary)" }}>{entry.actor?.displayName}</strong>
-        {" "}{entry.action}
-      </span>
+      <div style={{ display:"flex", flexDirection:"column", flex:1, minWidth:0 }}>
+        <span style={{ color:"var(--clubpm-text-secondary)" }}>
+          <strong style={{ color:"var(--clubpm-text-primary)" }}>{entry.actor?.displayName ?? "Someone"}</strong>
+          {" "}{entry.action}
+        </span>
+        <HistoryDetail metadata={entry.metadata} />
+      </div>
       <span style={{ color:"var(--clubpm-text-muted)", flexShrink:0 }}>{formatDate(entry.at ?? entry.createdAt)}</span>
     </div>
   );
@@ -1306,6 +1347,32 @@ export default function TaskModal({ task: initialTask, project, projectBlockers 
     }
   }
 
+  async function handleArchiveToggle() {
+    setMenuOpen(false);
+    try {
+      if (task.archivedAt) {
+        const { task: updated } = await unarchiveTask(task.id);
+        setTask(t => ({ ...t, ...updated }));
+        onUpdate?.({ ...task, ...updated });
+        toast.success("Task unarchived");
+      } else {
+        const { task: updated, dependencyWarnings } = await archiveTask(task.id);
+        setTask(t => ({ ...t, ...updated }));
+        onUpdate?.({ ...task, ...updated });
+        if (dependencyWarnings?.length > 0) {
+          toast(
+            `Archived. Still-open dependents: ${dependencyWarnings.map(d => d.title).join(", ")}`,
+            { icon: "⚠️", duration: 6000 }
+          );
+        } else {
+          toast.success("Task archived");
+        }
+      }
+    } catch (err) {
+      toast.error(err?.message || "Failed to update archive status");
+    }
+  }
+
   async function handleDelete() {
     setDeletingSaving(true);
     try {
@@ -1599,7 +1666,12 @@ export default function TaskModal({ task: initialTask, project, projectBlockers 
                         { icon:"arrows-alt",   label:"Move Task",           action: () => { setMenuOpen(false); setShowMoveModal(true); } },
                         { icon:"calendar-week",label:"Shift Deadlines",     action: () => { setMenuOpen(false); setShowShiftModal(true); } },
                         { icon:"sitemap",      label:"Change Parent Task",  action: () => { setMenuOpen(false); setShowParentPicker(true); } },
-                      ].map(({ icon, label, action }) => (
+                        (task.status === "DONE" || member?.isAdmin || task?.createdById === member?.id) && {
+                          icon: task.archivedAt ? "box-open" : "archive",
+                          label: task.archivedAt ? "Unarchive" : "Archive",
+                          action: handleArchiveToggle,
+                        },
+                      ].filter(Boolean).map(({ icon, label, action }) => (
                         <button key={label} onClick={action} style={{
                           display:"flex", alignItems:"center", gap:9, width:"100%", textAlign:"left",
                           padding:"8px 12px", border:"none", borderRadius:6, cursor:"pointer",

@@ -287,9 +287,12 @@ export async function getTask(id: string) {
 
 export async function getTasksForProject(
   projectId: string,
-  filters?: TaskFilters
+  filters?: TaskFilters,
+  options: { includeArchived?: boolean; archivedOnly?: boolean } = {}
 ) {
   const where: any = { projectId };
+  if (options.archivedOnly) where.archivedAt = { not: null };
+  else if (!options.includeArchived) where.archivedAt = null;
   if (filters?.status) where.status = filters.status;
   if (filters?.assigneeId) where.assignees = { some: { id: filters.assigneeId } };
   if (filters?.priority) where.priority = filters.priority;
@@ -315,7 +318,7 @@ export async function getTasksForProject(
 
 export async function getTasksForMember(memberId: string) {
   return prisma.task.findMany({
-    where: { assignees: { some: { id: memberId } } },
+    where: { assignees: { some: { id: memberId } }, archivedAt: null },
     include: { project: true, assignees: true, tags: true },
     orderBy: [{ dueDate: "asc" }, { priority: "desc" }],
   });
@@ -327,6 +330,7 @@ export async function getOverdueTasks() {
     where: {
       dueDate: { lt: now },
       status: { notIn: ["DONE"] },
+      archivedAt: null,
     },
     include: { assignees: true, project: true },
   });
@@ -342,6 +346,7 @@ export async function getTasksDueToday() {
     where: {
       dueDate: { gte: startOfDay, lte: endOfDay },
       status: { notIn: ["DONE"] },
+      archivedAt: null,
     },
     include: { assignees: true, project: true },
   });
@@ -356,6 +361,7 @@ export async function getTasksDueThisWeek(memberId?: string) {
   const where: any = {
     dueDate: { gte: now, lte: endOfWeek },
     status: { notIn: ["DONE"] },
+    archivedAt: null,
   };
   if (memberId) where.assignees = { some: { id: memberId } };
 

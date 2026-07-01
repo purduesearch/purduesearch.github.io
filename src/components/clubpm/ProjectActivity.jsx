@@ -32,6 +32,21 @@ const EVENT_META = {
   GITHUB_CI_FAILED:         { icon: "✖️", color: "var(--cpm-gh-bad, #cf222e)",     label: "CI fail"    },
   GITHUB_PUSH:              { icon: "⬆️", color: "var(--clubpm-text-secondary)",   label: "Push"       },
   GITHUB_COMMIT_REFERENCED: { icon: "📌", color: "var(--clubpm-text-secondary)",   label: "Commit"     },
+  COMMENT_ADDED:          { icon: "💬", color: "var(--clubpm-accent-primary)",  label: "Comment"    },
+  COMMENT_EDITED:         { icon: "✏️", color: "var(--clubpm-text-secondary)",  label: "Comment"    },
+  COMMENT_DELETED:        { icon: "🗑",  color: "#e17055",                       label: "Comment"    },
+  TASK_DEPENDENCY_ADDED:   { icon: "🔗", color: "var(--clubpm-accent-primary)",  label: "Dependency" },
+  TASK_DEPENDENCY_REMOVED: { icon: "🔗", color: "var(--clubpm-text-muted)",      label: "Dependency" },
+  TASK_BLOCKER_ATTACHED:   { icon: "🚧", color: "var(--clubpm-accent-yellow)",   label: "Blocker"    },
+  TASK_BLOCKER_DETACHED:   { icon: "🚧", color: "var(--clubpm-text-muted)",      label: "Blocker"    },
+  BLOCKER_RESOLVED:        { icon: "✅", color: "var(--clubpm-accent-green)",    label: "Blocker"    },
+  BLOCKER_ASSIGNED:        { icon: "🚧", color: "var(--clubpm-accent-primary)",  label: "Blocker"    },
+  TIME_LOGGED:            { icon: "⏱",  color: "var(--clubpm-accent-primary)",  label: "Time"       },
+  MILESTONE_CREATED:       { icon: "🎯", color: "var(--clubpm-accent-green)",    label: "Milestone"  },
+  MILESTONE_UPDATED:       { icon: "🎯", color: "var(--clubpm-text-secondary)",  label: "Milestone"  },
+  MILESTONE_DELETED:       { icon: "🎯", color: "#e17055",                       label: "Milestone"  },
+  MILESTONE_TASKS_LINKED:  { icon: "🎯", color: "var(--clubpm-accent-primary)",  label: "Milestone"  },
+  AI_PLAN_EXECUTED:        { icon: "🤖", color: "var(--clubpm-accent-primary)",  label: "AI Plan"    },
 };
 
 const FILTER_OPTIONS = [
@@ -112,7 +127,7 @@ function describeEvent(log) {
     case "TASK_SUBTASK_CREATED":
       return (
         <>
-          <strong>{actor}</strong> added subtask <em>{p.subtaskTitle}</em> under <em>{p.parentTitle}</em>
+          <strong>{actor}</strong> added subtask <em>{p.subtaskTitle}</em> under <em>{p.parentTaskTitle ?? p.parentTitle}</em>
         </>
       );
 
@@ -165,6 +180,46 @@ function describeEvent(log) {
       return <>{p.pusher ?? "Someone"} pushed {p.commits ?? 1} commit{p.commits === 1 ? "" : "s"} to <code>{String(p.ref ?? "").replace("refs/heads/", "")}</code></>;
     case "GITHUB_COMMIT_REFERENCED":
       return <>Commit <code>{String(p.sha ?? "").slice(0, 7)}</code> referenced this task{p.message ? `: ${p.message}` : ""}</>;
+
+    case "COMMENT_ADDED":
+      return <><strong>{actor}</strong> commented{p.excerpt ? `: "${p.excerpt}"` : ""}</>;
+    case "COMMENT_EDITED":
+      return <><strong>{actor}</strong> edited a comment{p.excerpt ? `: "${p.excerpt}"` : ""}</>;
+    case "COMMENT_DELETED":
+      return <><strong>{actor}</strong> deleted a comment</>;
+
+    case "TASK_DEPENDENCY_ADDED":
+      return <><strong>{actor}</strong> made <em>{p.taskTitle}</em> depend on <em>{p.dependsOnTitle ?? "another task"}</em>{p.reason ? ` — ${p.reason}` : ""}</>;
+    case "TASK_DEPENDENCY_REMOVED":
+      return <><strong>{actor}</strong> removed <em>{p.taskTitle}</em>'s dependency on <em>{p.dependsOnTitle ?? "another task"}</em></>;
+
+    case "TASK_BLOCKER_ATTACHED":
+      return <><strong>{actor}</strong> flagged <em>{p.taskTitle}</em> as blocked by <em>{p.blockerLabel}</em>{p.reason ? ` — ${p.reason}` : ""}</>;
+    case "TASK_BLOCKER_DETACHED":
+      return <><strong>{actor}</strong> cleared blocker <em>{p.blockerLabel}</em> from <em>{p.taskTitle}</em></>;
+    case "BLOCKER_RESOLVED":
+      return <><strong>{actor}</strong> resolved blocker <em>{p.blockerLabel}</em>{p.affectedTaskCount ? ` (${p.affectedTaskCount} task${p.affectedTaskCount === 1 ? "" : "s"} unblocked)` : ""}</>;
+    case "BLOCKER_ASSIGNED":
+      return <><strong>{actor}</strong> assigned blocker <em>{p.label}</em></>;
+
+    case "TIME_LOGGED":
+      return <><strong>{actor}</strong> logged {p.minutes} min{p.note ? `: ${p.note}` : ""}</>;
+
+    case "MILESTONE_CREATED":
+      return <><strong>{actor}</strong> created milestone <em>{p.milestoneTitle}</em></>;
+    case "MILESTONE_UPDATED": {
+      const mChanges = (p.changes ?? []).map(c => `${c.field}: ${c.from} → ${c.to}`);
+      return <><strong>{actor}</strong> updated milestone <em>{p.milestoneTitle}</em>{mChanges.length ? `: ${mChanges.join(", ")}` : ""}</>;
+    }
+    case "MILESTONE_DELETED":
+      return <><strong>{actor}</strong> deleted milestone <em>{p.milestoneTitle}</em></>;
+    case "MILESTONE_TASKS_LINKED": {
+      const linkedCount = p.taskIds?.length ?? 0;
+      return <><strong>{actor}</strong> linked {linkedCount} task{linkedCount === 1 ? "" : "s"} to milestone <em>{p.milestoneTitle}</em></>;
+    }
+
+    case "AI_PLAN_EXECUTED":
+      return <><strong>{actor}</strong> ran an AI action plan ({p.succeeded ?? 0}/{p.totalActions ?? 0} applied)</>;
 
     default:
       return <><strong>{actor}</strong> made a change</>;

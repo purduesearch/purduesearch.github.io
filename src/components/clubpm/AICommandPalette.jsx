@@ -64,6 +64,7 @@ export default function AICommandPalette({ isOpen, onClose, projects = [] }) {
           title: t.title,
           projectName: t.project?.name ?? '',
           projectId: t.projectId,
+          archivedAt: t.archivedAt,
         }))
       ))
       .catch(() => setTaskResults([]))
@@ -155,6 +156,9 @@ export default function AICommandPalette({ isOpen, onClose, projects = [] }) {
           {item.type === 'project' && item.name}
           {item.type === 'task'    && item.title}
           {item.type === 'command' && item.label}
+          {item.type === 'task' && item.archivedAt && (
+            <span className="pm-palette-archived-badge">Archived</span>
+          )}
         </span>
         <span className="pm-palette-item-meta">
           {item.type === 'project' && item.status && (
