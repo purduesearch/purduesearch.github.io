@@ -44,6 +44,7 @@ import { inventoryRouter } from "./api/inventory.js";
 import { challengesRouter } from "./api/challenges.js";
 import { blockersRouter } from "./api/blockers.js";
 import { blogRouter } from "./api/blog.js";
+import { attachBlogCollab } from "./collab/blogCollab.js";
 
 // ── Express Setup ────────────────────────────────────────────
 
@@ -170,6 +171,10 @@ async function start(): Promise<void> {
         `🌐 Frontend expected at ${process.env.FRONTEND_URL ?? "http://localhost:5173"}`
       );
     });
+
+    // Embedded blog collaboration WS server, riding the same HTTP server/port.
+    attachBlogCollab(server);
+    console.log("🤝 Blog collab (Hocuspocus) attached at /collab/blog");
 
     server.on("error", (err: NodeJS.ErrnoException) => {
       if (err.code === "EADDRINUSE") {
