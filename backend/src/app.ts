@@ -102,6 +102,11 @@ app.use("/api/github", githubRouter);
 app.use("/api/projects", projectsRouter);
 app.use("/api/tags", tagsRouter);
 app.use("/api/tasks", tasksRouter);
+// Mounted before the bare "/api" routers below (blockersRouter, streakRouter):
+// those attach requireAuth via router.use() with no path, which Express runs
+// for every /api/* request that reaches them — mounting publicRouter first
+// ensures unauthenticated /api/public/* requests are handled before that.
+app.use("/api/public", publicRouter);
 app.use("/api", blockersRouter);
 app.use("/api/members", membersRouter);
 app.use("/api/activity", activityRouter);
@@ -118,7 +123,6 @@ app.use("/api/outreach/brand-voices", brandVoicesRouter);
 app.use("/api/outreach/campaigns", campaignsRouter);
 app.use("/api/outreach/contacts", contactsRouter);
 app.use("/api/outreach/insights", insightsRouter);
-app.use("/api/public", publicRouter);
 app.use("/api/rewards", rewardsRouter);
 app.use("/api/event-config", eventConfigRouter);
 app.use("/api/leaderboard", leaderboardRouter);
