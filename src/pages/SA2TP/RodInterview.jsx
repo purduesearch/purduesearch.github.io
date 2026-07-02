@@ -4,26 +4,12 @@ import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
 import Breadcrumb from '../../components/Breadcrumb';
 import SEOHead from '../../components/SEOHead';
+import JsonLd from '../../components/JsonLd';
+import { breadcrumbs } from '../../seo/schema';
 
 const RodInterview = () => {
   useEffect(() => {
     if (window.AOS) window.AOS.init({ once: true });
-  }, []);
-
-  useEffect(() => {
-    const script = document.createElement('script');
-    script.type = 'application/ld+json';
-    script.text = JSON.stringify({
-      '@context': 'https://schema.org',
-      '@type': 'BreadcrumbList',
-      'itemListElement': [
-        { '@type': 'ListItem', 'position': 1, 'name': 'Home', 'item': 'https://purduesearch.github.io/' },
-        { '@type': 'ListItem', 'position': 2, 'name': 'SA²TP', 'item': 'https://purduesearch.github.io/sa2tp' },
-        { '@type': 'ListItem', 'position': 3, 'name': 'Leadership Interview' },
-      ],
-    });
-    document.head.appendChild(script);
-    return () => { if (document.head.contains(script)) document.head.removeChild(script); };
   }, []);
 
   return (
@@ -33,6 +19,11 @@ const RodInterview = () => {
         description="Purdue Exponent interview with SEARCH leadership about the Student Analog Astronaut Training Program and what it takes to train like an astronaut."
         canonical="/sa2tp/rod-interview"
       />
+      <JsonLd data={breadcrumbs([
+        { name: 'Home', path: '/' },
+        { name: 'SA²TP', path: '/sa2tp' },
+        { name: 'SEARCH Leadership Talks about SA2TP', path: '/sa2tp/rod-interview' },
+      ])} />
       <Navbar />
       <Breadcrumb />
       <div id="main-content" className="jumbotron-post jumbotron-single d-flex align-items-center" style={{ backgroundImage: 'url(/software/2023_24/SUITS/bg.webp)' }}>

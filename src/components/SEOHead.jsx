@@ -10,22 +10,30 @@ const DEFAULT_IMAGE = '/icons/purdue_search_logo.png';
  *                                string for the home page (no suffix appended).
  * @param {string}  description - Meta description (≤160 chars recommended).
  * @param {string}  canonical   - Path only, e.g. "/about". Required.
- * @param {string}  [ogImage]   - Absolute URL or root-relative path to OG image.
- * @param {boolean} [noindex]   - Set true for search/404/utility pages.
- * @param {boolean} [fullTitle] - Set true when `title` is already the full
- *                                document title (skips " | Purdue SEARCH" suffix).
+ * @param {string}  [ogImage]     - Absolute URL or root-relative path to OG image.
+ * @param {string}  [ogImageAlt]  - Alt text for the OG/Twitter image. Defaults to
+ *                                  "Purdue SEARCH logo" (correct for the default logo image;
+ *                                  override when passing a page-specific `ogImage`).
+ * @param {boolean} [noindex]     - Set true for search/404/utility pages.
+ * @param {boolean} [fullTitle]   - Set true when `title` is already the full
+ *                                  document title (skips " | Purdue SEARCH" suffix).
  */
 export default function SEOHead({
   title,
   description,
   canonical,
   ogImage = DEFAULT_IMAGE,
+  ogImageAlt = 'Purdue SEARCH logo',
   noindex = false,
   fullTitle = false,
 }) {
   const docTitle  = fullTitle ? title : `${title} | Purdue SEARCH`;
   const fullUrl   = `${BASE_URL}${canonical}`;
   const fullImage = ogImage.startsWith('http') ? ogImage : `${BASE_URL}${ogImage}`;
+  // Default logo is a known 200x200px PNG (public/icons/purdue_search_logo.png);
+  // only emit width/height when the default (unsized) image is in use, since a
+  // caller-supplied ogImage may be a different size.
+  const isDefaultImage = ogImage === DEFAULT_IMAGE;
 
   return (
     <>
@@ -39,6 +47,9 @@ export default function SEOHead({
       <meta property="og:title"       content={docTitle} />
       <meta property="og:description" content={description} />
       <meta property="og:image"       content={fullImage} />
+      <meta property="og:image:alt"   content={ogImageAlt} />
+      {isDefaultImage && <meta property="og:image:width"  content="200" />}
+      {isDefaultImage && <meta property="og:image:height" content="200" />}
 
       {/* Twitter Card */}
       <meta name="twitter:card"        content="summary_large_image" />
@@ -46,6 +57,7 @@ export default function SEOHead({
       <meta name="twitter:title"       content={docTitle} />
       <meta name="twitter:description" content={description} />
       <meta name="twitter:image"       content={fullImage} />
+      <meta name="twitter:image:alt"   content={ogImageAlt} />
 
       {/* hreflang — English-only site */}
       <link rel="alternate" hreflang="en"        href={fullUrl} />

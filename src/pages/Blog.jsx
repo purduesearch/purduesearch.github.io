@@ -3,6 +3,8 @@ import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import BlogCard from '../components/BlogCard';
 import SEOHead from '../components/SEOHead';
+import JsonLd from '../components/JsonLd';
+import { breadcrumbs } from '../seo/schema';
 
 const BLOG_API_BASE = process.env.REACT_APP_API_URL || '';
 
@@ -58,6 +60,10 @@ const Blog = () => {
         description="Latest news and updates from Purdue SEARCH — student-led space analog research at Purdue University."
         canonical="/blog"
       />
+      <JsonLd data={breadcrumbs([
+        { name: 'Home', path: '/' },
+        { name: 'Blog', path: '/blog' },
+      ])} />
       <Navbar />
       <div id="main-content" className="jumbotron jumbotron-single d-flex align-items-center" style={{ backgroundImage: 'url(/Purdue_Sky.webp)' }}>
         <div className="container text-center">

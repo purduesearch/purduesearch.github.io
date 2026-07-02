@@ -4,26 +4,12 @@ import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
 import Breadcrumb from '../../components/Breadcrumb';
 import SEOHead from '../../components/SEOHead';
+import JsonLd from '../../components/JsonLd';
+import { breadcrumbs } from '../../seo/schema';
 
 const Suits = () => {
   useEffect(() => {
     if (window.AOS) window.AOS.init({ once: true });
-  }, []);
-
-  useEffect(() => {
-    const script = document.createElement('script');
-    script.type = 'application/ld+json';
-    script.text = JSON.stringify({
-      '@context': 'https://schema.org',
-      '@type': 'BreadcrumbList',
-      'itemListElement': [
-        { '@type': 'ListItem', 'position': 1, 'name': 'Home', 'item': 'https://purduesearch.github.io/' },
-        { '@type': 'ListItem', 'position': 2, 'name': 'Software', 'item': 'https://purduesearch.github.io/software' },
-        { '@type': 'ListItem', 'position': 3, 'name': 'NASA SUITS Challenge' },
-      ],
-    });
-    document.head.appendChild(script);
-    return () => { if (document.head.contains(script)) document.head.removeChild(script); };
   }, []);
 
   return (
@@ -33,6 +19,11 @@ const Suits = () => {
         description="Purdue SEARCH's JARVIS team competes in NASA SUITS, designing AI-powered spacesuit and rover interfaces for Artemis lunar surface missions."
         canonical="/software/suits"
       />
+      <JsonLd data={breadcrumbs([
+        { name: 'Home', path: '/' },
+        { name: 'Software', path: '/software' },
+        { name: 'JARVIS — NASA SUITS', path: '/software/suits' },
+      ])} />
       <Navbar />
       <Breadcrumb />
 

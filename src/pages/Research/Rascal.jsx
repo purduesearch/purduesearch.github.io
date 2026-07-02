@@ -4,26 +4,12 @@ import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
 import Breadcrumb from '../../components/Breadcrumb';
 import SEOHead from '../../components/SEOHead';
+import JsonLd from '../../components/JsonLd';
+import { breadcrumbs } from '../../seo/schema';
 
 const Rascal = () => {
   useEffect(() => {
     if (window.AOS) window.AOS.init({ once: true });
-  }, []);
-
-  useEffect(() => {
-    const script = document.createElement('script');
-    script.type = 'application/ld+json';
-    script.text = JSON.stringify({
-      '@context': 'https://schema.org',
-      '@type': 'BreadcrumbList',
-      'itemListElement': [
-        { '@type': 'ListItem', 'position': 1, 'name': 'Home', 'item': 'https://purduesearch.github.io/' },
-        { '@type': 'ListItem', 'position': 2, 'name': 'Research', 'item': 'https://purduesearch.github.io/research' },
-        { '@type': 'ListItem', 'position': 3, 'name': 'NASA RASC-AL' },
-      ],
-    });
-    document.head.appendChild(script);
-    return () => { if (document.head.contains(script)) document.head.removeChild(script); };
   }, []);
 
   return (
@@ -33,6 +19,11 @@ const Rascal = () => {
         description="Purdue SEARCH has competed in NASA's RASC-AL design challenge multiple times, developing concepts for deep-space human missions."
         canonical="/research/rascal"
       />
+      <JsonLd data={breadcrumbs([
+        { name: 'Home', path: '/' },
+        { name: 'Research', path: '/research' },
+        { name: 'NASA RASC-AL 2023 Competition', path: '/research/rascal' },
+      ])} />
       <Navbar />
       <Breadcrumb />
       <div id="main-content" className="jumbotron-post jumbotron-single d-flex align-items-center" style={{ backgroundImage: 'url(/research/2022_23/mars_mission.webp)' }}>
