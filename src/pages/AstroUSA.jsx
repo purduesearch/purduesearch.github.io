@@ -4,8 +4,21 @@ import { Player } from '@lottiefiles/react-lottie-player';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import SEOHead from '../components/SEOHead';
+import SectionProgressRail from '../components/SectionProgressRail';
 
 const AstroFlowDiagram = lazy(() => import('../components/AstroFlowDiagram'));
+
+const ASTRO_RAIL_SECTIONS = [
+  { id: 'astro-mission',     label: 'Mission' },
+  { id: 'astro-fidelity',    label: 'Fidelity' },
+  { id: 'astro-crew',        label: 'Crew Ops' },
+  { id: 'astro-lifesupport', label: 'Life Support' },
+  { id: 'astro-structures',  label: 'Structures' },
+  { id: 'astro-power',       label: 'Power' },
+  { id: 'astro-loop',        label: 'Closed Loop' },
+  { id: 'astro-bio',         label: 'Bio-Systems' },
+  { id: 'astro-timeline',    label: 'Timeline' },
+];
 
 const AstroUSA = () => {
   const fidelityRef = useRef(null);
@@ -173,6 +186,7 @@ const AstroUSA = () => {
         canonical="/astrousa"
       />
       <Navbar />
+      <SectionProgressRail sections={ASTRO_RAIL_SECTIONS} />
 
       {/* ===== HERO ===== */}
       <div
