@@ -22124,6 +22124,7 @@ html:not(.aos-off) [data-aos].aos-animate  { opacity: 1; transform: none; }
   pointer-events: none;
   overflow: hidden;
 }
+.starfield-canvas-wrap canvas { display: block; width: 100%; height: 100%; }
 
 /* === SECTION PROGRESS RAIL (program pages) ======================= */
 /* Sticky right-center rail of labeled dots; one per page section.
@@ -22206,4 +22207,3 @@ html:not(.aos-off) [data-aos].aos-animate  { opacity: 1; transform: none; }
   .section-rail-dot::before,
   .section-rail-label { transition: none; }
 }
-.starfield-canvas-wrap canvas { display: block; width: 100%; height: 100%; }
