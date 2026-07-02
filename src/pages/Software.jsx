@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import SEOHead from '../components/SEOHead';
+import { staggerGroup } from '../anim/scrollFx';
 
 const Software = () => {
   useEffect(() => {
@@ -16,6 +17,12 @@ const Software = () => {
     link.href = '/software/Meeting_SUITS.webp';
     document.head.appendChild(link);
     return () => { if (document.head.contains(link)) document.head.removeChild(link); };
+  }, []);
+
+  // Testing-methodology step stagger
+  useEffect(() => {
+    const cleanup = staggerGroup(document.querySelector('#suits-testing-2526 .suits-hitl-list'), 'li');
+    return () => cleanup();
   }, []);
 
   return (

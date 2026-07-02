@@ -6,6 +6,7 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import SEOHead from '../components/SEOHead';
+import { staggerGroup } from '../anim/scrollFx';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -94,6 +95,15 @@ const SA2TP = () => {
     );
     observer.observe(trigger);
     return () => observer.disconnect();
+  }, []);
+
+  // Card staggers — capstone experience cards + crew legacy cards
+  useEffect(() => {
+    const cleanups = [
+      staggerGroup(document.querySelector('#sa2tp-capstones .row'), ':scope > [class*="col-"]'),
+      staggerGroup(document.getElementById('sa2tp-crews'), '.row > [class*="col-"]'),
+    ];
+    return () => cleanups.forEach(fn => fn());
   }, []);
 
   return (
@@ -323,7 +333,7 @@ const SA2TP = () => {
           <div className="row">
 
             {/* NASA Adult Space Flight Academy */}
-            <div className="col-lg-3 col-md-6 mb-4" data-aos="fade-up" data-aos-delay="0">
+            <div className="col-lg-3 col-md-6 mb-4">
               <div className="feature-item" style={{ textAlign: 'center', height: '100%' }}>
                 <div className="feature-icon" style={{ marginBottom: '1rem' }}>
                   <i className="fas fa-rocket" style={{ fontSize: '2.2rem', color: 'var(--color-accent)' }} />
@@ -338,7 +348,7 @@ const SA2TP = () => {
             </div>
 
             {/* iFly Indoor Skydiving */}
-            <div className="col-lg-3 col-md-6 mb-4" data-aos="fade-up" data-aos-delay="80">
+            <div className="col-lg-3 col-md-6 mb-4">
               <div className="feature-item" style={{ textAlign: 'center', height: '100%' }}>
                 <div className="feature-icon" style={{ marginBottom: '1rem' }}>
                   <i className="fas fa-wind" style={{ fontSize: '2.2rem', color: 'var(--color-accent)' }} />
@@ -353,7 +363,7 @@ const SA2TP = () => {
             </div>
 
             {/* Orienteering */}
-            <div className="col-lg-3 col-md-6 mb-4" data-aos="fade-up" data-aos-delay="160">
+            <div className="col-lg-3 col-md-6 mb-4">
               <div className="feature-item" style={{ textAlign: 'center', height: '100%' }}>
                 <div className="feature-icon" style={{ marginBottom: '1rem' }}>
                   <i className="fas fa-map-marked-alt" style={{ fontSize: '2.2rem', color: 'var(--color-accent)' }} />
@@ -368,7 +378,7 @@ const SA2TP = () => {
             </div>
 
             {/* ASTRO-USA Habitat */}
-            <div className="col-lg-3 col-md-6 mb-4" data-aos="fade-up" data-aos-delay="240">
+            <div className="col-lg-3 col-md-6 mb-4">
               <div className="feature-item" style={{ textAlign: 'center', height: '100%' }}>
                 <div className="feature-icon" style={{ marginBottom: '1rem' }}>
                   <i className="fas fa-home" style={{ fontSize: '2.2rem', color: 'var(--color-accent)' }} />
@@ -431,7 +441,7 @@ const SA2TP = () => {
           <div className="row justify-content-center">
 
             {/* Crew 1 */}
-            <div className="col-lg-4 col-md-6 mb-5 text-center" data-aos="fade-up" data-aos-delay="0">
+            <div className="col-lg-4 col-md-6 mb-5 text-center">
               <img
                 loading="lazy"
                 src="/sa2tp/Crew1_Patch.webp"
@@ -451,7 +461,7 @@ const SA2TP = () => {
             </div>
 
             {/* Crew 2 */}
-            <div className="col-lg-4 col-md-6 mb-5 text-center" data-aos="fade-up" data-aos-delay="100">
+            <div className="col-lg-4 col-md-6 mb-5 text-center">
               <img
                 loading="lazy"
                 src="/sa2tp/Crew2_Patch.webp"
@@ -471,7 +481,7 @@ const SA2TP = () => {
             </div>
 
             {/* Crew 3 */}
-            <div className="col-lg-4 col-md-6 mb-5 text-center" data-aos="fade-up" data-aos-delay="200">
+            <div className="col-lg-4 col-md-6 mb-5 text-center">
               <img
                 loading="lazy"
                 src="/sa2tp/Crew3_Patch.webp"
