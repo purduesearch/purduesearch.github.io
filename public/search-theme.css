@@ -22110,3 +22110,18 @@ html:not(.aos-off) [data-aos].aos-animate  { opacity: 1; transform: none; }
 @media (prefers-reduced-motion: reduce) {
   .marquee-dup { display: none; }
 }
+
+/* === HOME STARFIELD (mission pillars) ============================ */
+/* Lazy WebGL point-cloud rendered behind #mission-pillars' content.
+   Section becomes the positioned ancestor; canvas wrapper sits absolute
+   behind the content column (z-index:0), content stays above it (z-index:1). */
+.mission-pillars-stars-host { position: relative; }
+.mission-pillars-content { position: relative; z-index: 1; }
+.starfield-canvas-wrap {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+.starfield-canvas-wrap canvas { display: block; width: 100%; height: 100%; }

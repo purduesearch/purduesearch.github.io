@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, useScroll, useTransform } from 'framer-motion';
 import { gsap } from 'gsap';
@@ -8,6 +8,8 @@ import Footer from '../components/Footer';
 import SEOHead from '../components/SEOHead';
 import { pressFeedback } from '../anim/motion';
 import { parallaxLayer, staggerGroup, heroIntro } from '../anim/scrollFx';
+
+const StarfieldCanvas = lazy(() => import('../components/StarfieldCanvas'));
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -161,6 +163,8 @@ const Home = () => {
   const programsBgRef = useRef(null);
   const missionPillarsRef = useRef(null);
   const igGridRef = useRef(null);
+  const missionPillarsSectionRef = useRef(null);
+  const [showStars, setShowStars] = useState(false);
   const [activeIdx, setActiveIdx] = useState(0);
   const [progIdx, setProgIdx] = useState(0);
 
@@ -291,6 +295,27 @@ const Home = () => {
       staggerGroup(igGridRef.current, '.ig-card'),
     ];
     return () => cleanups.forEach(fn => fn());
+  }, []);
+
+  // Mount the lazy WebGL starfield only once mission-pillars nears the
+  // viewport, so three.js is fetched just-in-time and never blocks the
+  // initial bundle. Fires once, then disconnects.
+  useEffect(() => {
+    const section = missionPillarsSectionRef.current;
+    if (!section) return;
+
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          setShowStars(true);
+          io.disconnect();
+        }
+      },
+      { rootMargin: '400px' }
+    );
+    io.observe(section);
+
+    return () => io.disconnect();
   }, []);
 
   // Testimonial auto-advance
@@ -459,8 +484,13 @@ const Home = () => {
       </section>
 
       {/* ===== MISSION PILLARS — dark background, 3-column icon cards ===== */}
-      <section id="mission-pillars">
-        <div className="container">
+      <section id="mission-pillars" className="mission-pillars-stars-host" ref={missionPillarsSectionRef}>
+        {showStars && (
+          <Suspense fallback={null}>
+            <StarfieldCanvas />
+          </Suspense>
+        )}
+        <div className="container mission-pillars-content">
           <div className="title-wrap mb-5 text-center" data-aos="fade-up">
             <h2 className="section-title">Our <b>Mission</b></h2>
             <p style={{ color: 'rgba(245,239,230,0.65)', maxWidth: '560px', margin: '0 auto' }}>
