@@ -169,6 +169,8 @@ const Home = () => {
   const [showStars, setShowStars] = useState(false);
   const [activeIdx, setActiveIdx] = useState(0);
   const [progIdx, setProgIdx] = useState(0);
+  const [carouselPaused, setCarouselPaused] = useState(false);
+  const testimonialStageRef = useRef(null);
 
   // Tactile press feedback on the hero CTAs
   useEffect(() => {
@@ -320,13 +322,32 @@ const Home = () => {
     return () => io.disconnect();
   }, []);
 
-  // Testimonial auto-advance
+  // Testimonial auto-advance — paused on hover or keyboard focus within the stage
   useEffect(() => {
+    if (carouselPaused) return;
     const id = setInterval(
       () => setActiveIdx(prev => (prev + 1) % TESTIMONIALS.length),
       5000
     );
     return () => clearInterval(id);
+  }, [carouselPaused]);
+
+  // Pause/resume handlers for the testimonial carousel (hover + focus-within)
+  useEffect(() => {
+    const el = testimonialStageRef.current;
+    if (!el) return;
+    const pause = () => setCarouselPaused(true);
+    const resume = () => setCarouselPaused(false);
+    el.addEventListener('pointerenter', pause);
+    el.addEventListener('pointerleave', resume);
+    el.addEventListener('focusin', pause);
+    el.addEventListener('focusout', resume);
+    return () => {
+      el.removeEventListener('pointerenter', pause);
+      el.removeEventListener('pointerleave', resume);
+      el.removeEventListener('focusin', pause);
+      el.removeEventListener('focusout', resume);
+    };
   }, []);
 
   // Programs quote auto-advance
@@ -430,7 +451,13 @@ const Home = () => {
       </section>
 
       {/* ===== TESTIMONIAL CAROUSEL ===== */}
-      <section id="testimonial-carousel">
+      <section
+        id="testimonial-carousel"
+        ref={testimonialStageRef}
+        role="region"
+        aria-roledescription="carousel"
+        aria-label="Testimonials"
+      >
         <div className="container">
           <div className="title-wrap text-center mb-2" data-aos="fade-up">
             <h2 className="section-title">Voices from <b>Our Team</b></h2>
