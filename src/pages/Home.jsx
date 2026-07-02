@@ -380,7 +380,7 @@ const Home = () => {
           src="/Mars%20Video.webm"
           muted
           playsInline
-          preload="auto"
+          preload="metadata"
           poster="/home.webp"
         />
         <div className="container text-center" ref={heroContentRef}>

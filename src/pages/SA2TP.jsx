@@ -123,7 +123,7 @@ const SA2TP = () => {
           src="/sa2tp/Plane_Panorama.webm"
           muted
           playsInline
-          preload="auto"
+          preload="metadata"
           poster="/sa2tp.webp"
           style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', zIndex: 0 }}
         />
@@ -249,6 +249,7 @@ const SA2TP = () => {
           loop
           muted
           playsInline
+          preload="metadata"
         />
         <div className="section-video-overlay" />
         <div className="section-video-content container" style={{ padding: '6rem 0' }}>

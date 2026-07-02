@@ -87,7 +87,7 @@ const Outreach = () => {
           src="/outreach/Launch_Party.webm"
           muted
           playsInline
-          preload="auto"
+          preload="metadata"
           poster="/outreach.webp"
           style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', zIndex: 0 }}
         />
@@ -124,6 +124,7 @@ const Outreach = () => {
                 loop
                 muted
                 playsInline
+                preload="metadata"
                 style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
               />
             </div>

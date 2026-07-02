@@ -775,6 +775,7 @@ const AstroUSA = () => {
           loop
           muted
           playsInline
+          preload="metadata"
         />
         <div className="section-video-overlay" style={{ background: 'linear-gradient(to right, rgba(18,18,28,0.78), rgba(18,18,28,0.45))' }} />
         <div className="section-video-content container" style={{ padding: '6rem 0' }}>
