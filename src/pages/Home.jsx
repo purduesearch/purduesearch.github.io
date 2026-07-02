@@ -166,7 +166,9 @@ const Home = () => {
   const missionPillarsRef = useRef(null);
   const igGridRef = useRef(null);
   const missionPillarsSectionRef = useRef(null);
+  const aboutSearchSectionRef = useRef(null);
   const [showStars, setShowStars] = useState(false);
+  const [showDroneVideo, setShowDroneVideo] = useState(false);
   const [activeIdx, setActiveIdx] = useState(0);
   const [progIdx, setProgIdx] = useState(0);
   const [carouselPaused, setCarouselPaused] = useState(false);
@@ -316,6 +318,27 @@ const Home = () => {
         }
       },
       { rootMargin: '400px' }
+    );
+    io.observe(section);
+
+    return () => io.disconnect();
+  }, []);
+
+  // Mount the below-fold drone-tour video only once the About Search
+  // section approaches the viewport, so the 13 MB file isn't fetched
+  // on initial page load. Fires once, then disconnects.
+  useEffect(() => {
+    const section = aboutSearchSectionRef.current;
+    if (!section) return;
+
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          setShowDroneVideo(true);
+          io.disconnect();
+        }
+      },
+      { rootMargin: '300px' }
     );
     io.observe(section);
 
@@ -602,8 +625,10 @@ const Home = () => {
       </section>
 
       {/* ===== ABOUT SEARCH — 2-column brand story ===== */}
-      <section id="about-search" className="about-video-section">
-        <video className="about-video-bg" src="/videos/drone_tour_purdue.webm" autoPlay loop muted playsInline preload="metadata" />
+      <section id="about-search" className="about-video-section" ref={aboutSearchSectionRef}>
+        {showDroneVideo && (
+          <video className="about-video-bg" src="/videos/drone_tour_purdue.webm" autoPlay loop muted playsInline preload="metadata" />
+        )}
         <div className="container">
           <div className="row align-items-center">
             <div className="col-md-6 about-text-col" data-aos="fade-right">
