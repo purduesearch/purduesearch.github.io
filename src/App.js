@@ -8,19 +8,7 @@ import PageWrapper from './components/PageWrapper';
 import { ClubPmAuthProvider } from './clubpm/ClubPmAuth';
 import { ShortcutsProvider } from './clubpm/ShortcutsRegistry';
 import GlobalShortcutsSetup from './components/clubpm/GlobalShortcutsSetup';
-import AppShell from './components/clubpm/AppShell';
 import { ProjectNavProvider } from './clubpm/ProjectNavContext';
-import ClubPmLogin from './pages/ClubPM/Login';
-import ClubPmDashboard from './pages/ClubPM/Dashboard';
-import ClubPmProjectDetail from './pages/ClubPM/ProjectDetail';
-import ClubPmGanttView from './pages/ClubPM/GanttView';
-import ClubPmMembersView from './pages/ClubPM/MembersView';
-import NotificationCenter from './components/clubpm/NotificationCenter';
-import NotificationPreferences from './components/clubpm/NotificationPreferences';
-import CalendarPage from './pages/ClubPM/CalendarPage';
-import AdminView from './pages/ClubPM/AdminView';
-import OutreachHub from './pages/ClubPM/OutreachHub';
-import BlogEditorPage from './pages/ClubPM/BlogEditorPage';
 import Home from './pages/Home';
 
 // ── Public site lazy routes (code-split out of the main chunk) ──
@@ -47,18 +35,34 @@ const AstroHydroponics = lazy(() => import('./pages/AstroUSA/Hydroponics'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 const SearchResults = lazy(() => import('./pages/SearchResults'));
 
-// ── ClubPM lazy routes (avoid pulling R3F/three into the main bundle) ──
+// ── ClubPM lazy routes (avoid pulling the ClubPM app shell + pages into the main bundle) ──
+const AppShell               = lazy(() => import('./components/clubpm/AppShell'));
+const ClubPmLogin            = lazy(() => import('./pages/ClubPM/Login'));
+const ClubPmDashboard        = lazy(() => import('./pages/ClubPM/Dashboard'));
+const ClubPmProjectDetail    = lazy(() => import('./pages/ClubPM/ProjectDetail'));
+const ClubPmGanttView        = lazy(() => import('./pages/ClubPM/GanttView'));
+const ClubPmMembersView      = lazy(() => import('./pages/ClubPM/MembersView'));
+const NotificationCenter     = lazy(() => import('./components/clubpm/NotificationCenter'));
+const NotificationPreferences = lazy(() => import('./components/clubpm/NotificationPreferences'));
+const CalendarPage           = lazy(() => import('./pages/ClubPM/CalendarPage'));
+const AdminView              = lazy(() => import('./pages/ClubPM/AdminView'));
+const OutreachHub            = lazy(() => import('./pages/ClubPM/OutreachHub'));
+const BlogEditorPage         = lazy(() => import('./pages/ClubPM/BlogEditorPage'));
 const ClubPmProfile  = lazy(() => import('./pages/ClubPM/Profile'));
 const ClubPmShop     = lazy(() => import('./pages/ClubPM/Shop'));
 const ChallengesPage = lazy(() => import('./pages/ClubPM/ChallengesPage'));
 
 // ── Club PM protected route wrapper ──────────────────────────
 
+const clubPmFallback = <div style={{ padding: 24 }}>Loading…</div>;
+
 function ClubPmProtectedPage({ children }) {
   return (
-    <ProjectNavProvider>
-      <AppShell>{children}</AppShell>
-    </ProjectNavProvider>
+    <Suspense fallback={clubPmFallback}>
+      <ProjectNavProvider>
+        <AppShell>{children}</AppShell>
+      </ProjectNavProvider>
+    </Suspense>
   );
 }
 
@@ -75,7 +79,7 @@ function AnimatedRoutes() {
         <AnimatePresence mode="wait">
           <Routes location={location} key={location.pathname}>
             {/* Club PM routes */}
-            <Route path="/clubpm/login" element={<ClubPmLogin />} />
+            <Route path="/clubpm/login" element={<Suspense fallback={clubPmFallback}><ClubPmLogin /></Suspense>} />
             <Route path="/clubpm" element={<ClubPmProtectedPage><ClubPmDashboard /></ClubPmProtectedPage>} />
             <Route path="/clubpm/projects/:id" element={<ClubPmProtectedPage><ClubPmProjectDetail /></ClubPmProtectedPage>} />
             <Route path="/clubpm/projects/:id/gantt" element={<ClubPmProtectedPage><ClubPmGanttView /></ClubPmProtectedPage>} />
