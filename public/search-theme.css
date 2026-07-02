@@ -22066,3 +22066,46 @@ html:not(.aos-off) [data-aos].aos-animate  { opacity: 1; transform: none; }
 @media (prefers-reduced-motion: reduce) {
   .nav-underline-target::after { transition: none; }
 }
+
+/* === GSAP PARALLAX (iOS-safe bg-fixed replacement) ============== */
+.parallax-host { position: relative; overflow: hidden; }
+.parallax-bg {
+  position: absolute; inset: -20% 0;
+  background-size: cover; background-position: center;
+  z-index: 0; pointer-events: none;
+}
+.parallax-host > :not(.parallax-bg) { position: relative; z-index: 1; }
+/* .overlay's ::before tint has z-index:auto by default (style.min.css /
+   search-theme.css K. MISC UTILITY OVERRIDES) — raise it above .parallax-bg
+   (z-index:0) so the tint still visually covers the parallax layer. */
+.parallax-host.overlay::before { z-index: 1; }
+
+/* === GSAP SCROLL REVEAL (mission pillars / instagram grid) ====== */
+/* Elements targeted by staggerGroup() start hidden pre-hydration/no-JS
+   fallback; GSAP's gsap.from() sets the initial state itself once it runs,
+   this rule only guards the reduced-motion + no-JS static case. */
+@media (prefers-reduced-motion: reduce) {
+  #mission-pillars .pillar-card,
+  .ig-grid .ig-card { opacity: 1 !important; transform: none !important; }
+}
+
+/* === POINTER-TRACKING CARD GLOW ================================= */
+.glow-track { position: relative; overflow: hidden; }
+.glow-track::before {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(220px circle at var(--mx, 50%) var(--my, 50%),
+              rgba(184, 50, 37, 0.13), transparent 65%);
+  opacity: 0; transition: opacity 0.25s ease;
+}
+.glow-track:hover::before { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .glow-track::before { display: none; } }
+
+/* === MARQUEE (JS-driven, GSAP) — Business partners strip ======== */
+/* Replaces the CSS keyframe animation on .biz-marquee-track with a
+   gsap.to() tween (see marquee() in src/anim/scrollFx.js) so it can pause
+   on hover/focus. The old keyframe is neutralized here rather than removed
+   from its original declaration, per CSS-append-only convention. */
+.biz-marquee-track { animation: none; }
+@media (prefers-reduced-motion: reduce) {
+  .marquee-dup { display: none; }
+}

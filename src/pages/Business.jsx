@@ -4,10 +4,24 @@ import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import SEOHead from '../components/SEOHead';
 import SectionHeading from '../components/SectionHeading';
-import { countUpOnView } from '../anim/motion';
+import { countUpOnView, canHover } from '../anim/motion';
+import { marquee } from '../anim/scrollFx';
+
+const PARTNER_LOGOS = [
+  { key: 'bo', src: '/outreach/companies/blueorigin.webp', alt: 'Blue Origin' },
+  { key: 'hs', src: '/outreach/companies/hiseas.webp', alt: 'Hi-SEAS' },
+  { key: 'na', src: '/outreach/companies/nasa.webp', alt: 'NASA' },
+  { key: 'pa', src: '/outreach/companies/PAC.webp', alt: 'Purdue Aerospace Council' },
+  { key: 'ps', src: '/outreach/companies/psp.webp', alt: 'Purdue Space Program' },
+  { key: 'se', src: '/outreach/companies/seti.webp', alt: 'SETI Institute' },
+  { key: 'sx', src: '/outreach/companies/spacex.webp', alt: 'SpaceX' },
+  { key: 'vg', src: '/outreach/companies/virgingalactic.svg', alt: 'Virgin Galactic' },
+];
 
 const Business = () => {
   const statsRef = useRef(null);
+  const marqueeTrackRef = useRef(null);
+  const functionsGridRef = useRef(null);
 
   useEffect(() => {
     if (window.AOS) window.AOS.init({ once: true });
@@ -32,6 +46,28 @@ const Business = () => {
       countUpOnView(el, parseFloat(el.dataset.count))
     );
     return () => cleanups.forEach(fn => fn());
+  }, []);
+
+  // JS-driven partner logo marquee (pauses on hover/focus; no-ops under
+  // reduced motion — see marquee() in src/anim/scrollFx.js)
+  useEffect(() => {
+    const cleanup = marquee(marqueeTrackRef.current);
+    return cleanup;
+  }, []);
+
+  // Pointer-tracking glow on the "What We Do" function cards
+  useEffect(() => {
+    const grid = functionsGridRef.current;
+    if (!grid || !canHover()) return;
+    const handleMove = (e) => {
+      const card = e.target.closest('.glow-track');
+      if (!card || !grid.contains(card)) return;
+      const { left, top } = card.getBoundingClientRect();
+      card.style.setProperty('--mx', `${e.clientX - left}px`);
+      card.style.setProperty('--my', `${e.clientY - top}px`);
+    };
+    grid.addEventListener('pointermove', handleMove);
+    return () => grid.removeEventListener('pointermove', handleMove);
   }, []);
 
   return (
@@ -112,8 +148,8 @@ const Business = () => {
               subtitle="Three core functions that keep SEARCH moving — from the first planning meeting to wheels-up."
             />
           </div>
-          <div className="biz-functions-grid">
-            <div className="biz-function-card" data-aos="fade-up" data-aos-delay="0">
+          <div className="biz-functions-grid" ref={functionsGridRef}>
+            <div className="biz-function-card glow-track" data-aos="fade-up" data-aos-delay="0">
               <i className="fas fa-map-marked-alt biz-fn-icon" aria-hidden="true"></i>
               <h4 className="biz-fn-title">Trip &amp; Event Logistics</h4>
               <p className="biz-fn-desc">
@@ -121,7 +157,7 @@ const Business = () => {
                 the Business team owns every detail that gets SEARCH members where they need to be.
               </p>
             </div>
-            <div className="biz-function-card" data-aos="fade-up" data-aos-delay="100">
+            <div className="biz-function-card glow-track" data-aos="fade-up" data-aos-delay="100">
               <i className="fas fa-handshake biz-fn-icon" aria-hidden="true"></i>
               <h4 className="biz-fn-title">Industry Partnerships</h4>
               <p className="biz-fn-desc">
@@ -130,7 +166,7 @@ const Business = () => {
                 for SEARCH members.
               </p>
             </div>
-            <div className="biz-function-card" data-aos="fade-up" data-aos-delay="200">
+            <div className="biz-function-card glow-track" data-aos="fade-up" data-aos-delay="200">
               <i className="fas fa-dollar-sign biz-fn-icon" aria-hidden="true"></i>
               <h4 className="biz-fn-title">Sponsorships &amp; Funding</h4>
               <p className="biz-fn-desc">
@@ -272,17 +308,20 @@ const Business = () => {
           </div>
         </div>
         <div className="biz-partners-strip">
-          <div className="biz-marquee-track" aria-hidden="true">
-            {[...Array(2)].flatMap((_, copy) => [
-              <div key={`bo-${copy}`} className="client-item"><img loading="lazy" src="/outreach/companies/blueorigin.webp" alt="Blue Origin" /></div>,
-              <div key={`hs-${copy}`} className="client-item"><img loading="lazy" src="/outreach/companies/hiseas.webp" alt="Hi-SEAS" /></div>,
-              <div key={`na-${copy}`} className="client-item"><img loading="lazy" src="/outreach/companies/nasa.webp" alt="NASA" /></div>,
-              <div key={`pa-${copy}`} className="client-item"><img loading="lazy" src="/outreach/companies/PAC.webp" alt="Purdue Aerospace Council" /></div>,
-              <div key={`ps-${copy}`} className="client-item"><img loading="lazy" src="/outreach/companies/psp.webp" alt="Purdue Space Program" /></div>,
-              <div key={`se-${copy}`} className="client-item"><img loading="lazy" src="/outreach/companies/seti.webp" alt="SETI Institute" /></div>,
-              <div key={`sx-${copy}`} className="client-item"><img loading="lazy" src="/outreach/companies/spacex.webp" alt="SpaceX" /></div>,
-              <div key={`vg-${copy}`} className="client-item"><img loading="lazy" src="/outreach/companies/virgingalactic.svg" alt="Virgin Galactic" /></div>,
-            ])}
+          <div className="biz-marquee-track" ref={marqueeTrackRef}>
+            {PARTNER_LOGOS.map(({ key, src, alt }) => (
+              <div key={key} className="client-item"><img loading="lazy" src={src} alt={alt} /></div>
+            ))}
+            {/* Duplicate sequence required for the JS marquee's seamless
+                loop (marquee() in src/anim/scrollFx.js tweens by half the
+                track's scrollWidth). Hidden from assistive tech; the
+                reduced-motion fallback hides it visually too (see
+                .marquee-dup in search-theme.css). */}
+            <div className="marquee-dup" aria-hidden="true" style={{ display: 'contents' }}>
+              {PARTNER_LOGOS.map(({ key, src, alt }) => (
+                <div key={`dup-${key}`} className="client-item"><img loading="lazy" src={src} alt={alt} /></div>
+              ))}
+            </div>
           </div>
         </div>
       </section>

@@ -7,6 +7,7 @@ import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import SEOHead from '../components/SEOHead';
 import { pressFeedback } from '../anim/motion';
+import { parallaxLayer, staggerGroup, heroIntro } from '../anim/scrollFx';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -155,6 +156,11 @@ const Home = () => {
   const statsRef   = useRef(null);
   const heroCtaPrimaryRef   = useRef(null);
   const heroCtaSecondaryRef = useRef(null);
+  const heroContentRef = useRef(null);
+  const clientBgRef = useRef(null);
+  const programsBgRef = useRef(null);
+  const missionPillarsRef = useRef(null);
+  const igGridRef = useRef(null);
   const [activeIdx, setActiveIdx] = useState(0);
   const [progIdx, setProgIdx] = useState(0);
 
@@ -271,6 +277,22 @@ const Home = () => {
     });
   }, []);
 
+  // GSAP scroll-effect utilities: hero intro, bg-fixed → parallax replacement,
+  // mission pillar / instagram grid stagger reveal
+  useEffect(() => {
+    const cleanups = [
+      // Exclude .hero-wordmark: it already has its own Framer Motion
+      // scrollY-driven opacity/scale (useTransform above) — animating it
+      // with GSAP too would fight over the same inline `style.opacity`.
+      heroIntro(heroContentRef.current, ':scope > *:not(.hero-wordmark)'),
+      parallaxLayer(clientBgRef.current),
+      parallaxLayer(programsBgRef.current),
+      staggerGroup(missionPillarsRef.current, '.pillar-card'),
+      staggerGroup(igGridRef.current, '.ig-card'),
+    ];
+    return () => cleanups.forEach(fn => fn());
+  }, []);
+
   // Testimonial auto-advance
   useEffect(() => {
     const id = setInterval(
@@ -354,7 +376,7 @@ const Home = () => {
           preload="auto"
           poster="/home.webp"
         />
-        <div className="container text-center">
+        <div className="container text-center" ref={heroContentRef}>
           <motion.div className="hero-wordmark" style={{ opacity: wordmarkOpacity, scale: wordmarkScale }}>SEARCH</motion.div>
           <h1 className="display-3 mb-3" style={{ color: '#fff' }}>
             Space and Earth Analogs Research<br />Chapter of Purdue
@@ -377,7 +399,8 @@ const Home = () => {
       </div>
       </div>{/* /hero-scroll-extender */}
 
-      <section id="client" className="overlay bg-fixed" style={{ backgroundImage: 'url(/bg.jpg)' }} aria-label="Outreach partners">
+      <section id="client" className="overlay parallax-host" aria-label="Outreach partners">
+        <div className="parallax-bg" ref={clientBgRef} style={{ backgroundImage: 'url(/bg.jpg)' }} aria-hidden="true" />
         <div className="container">
           <div className="title-wrap mb-5 text-center">
             <h2 style={{ color: '#fff' }}>Our Collaborations</h2>
@@ -444,13 +467,13 @@ const Home = () => {
               SEARCH advances human spaceflight readiness through three interconnected pillars.
             </p>
           </div>
-          <div className="row justify-content-center">
+          <div className="row justify-content-center" ref={missionPillarsRef}>
             {[
               { icon: '/icons/rocket-solid.svg', title: 'Research', body: 'Student-led research in bio-astronautics and hydroponics. Competing in NASA challenges such as RASC-AL and SUITS.', delay: '0' },
               { icon: '/icons/user-astronaut-solid.svg', title: 'Training', body: 'Running the Student Analog Astronaut Training Program — three weeks of fitness, flight, scuba, and NASA facility visits.', delay: '100' },
               { icon: '/icons/shuttle-space-solid.svg', title: 'Outreach', body: '3+ events per semester with speakers from NASA, SpaceX, SETI, and Blue Origin.', delay: '200' },
-            ].map(({ icon, title, body, delay }) => (
-              <div key={title} className="col-md-4 col-sm-12" data-aos="fade-up" data-aos-delay={delay}>
+            ].map(({ icon, title, body }) => (
+              <div key={title} className="col-md-4 col-sm-12">
                 <TiltCard className="pillar-card">
                   <div className="pillar-icon-wrap">
                     <img loading="lazy" src={icon} alt={title} />
@@ -585,7 +608,8 @@ const Home = () => {
         </div>
       </section>
 
-      <section id="programs-showcase" className="section-padding bg-fixed bg-white overlay" style={{ backgroundImage: 'url(/bg-white.jpg)' }}>
+      <section id="programs-showcase" className="section-padding bg-white overlay parallax-host">
+        <div className="parallax-bg" ref={programsBgRef} style={{ backgroundImage: 'url(/bg-white.jpg)' }} aria-hidden="true" />
         <div className="container">
           <div className="section-content" data-aos="fade-up">
             <div className="heading-section text-center">
@@ -631,7 +655,7 @@ const Home = () => {
               Follow Us
             </a>
           </div>
-          <div className="ig-grid" data-aos="fade-up">
+          <div className="ig-grid" ref={igGridRef}>
             {IG_POSTS.map((post, i) => (
               <a
                 key={i}
