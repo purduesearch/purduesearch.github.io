@@ -116,7 +116,7 @@ const SA2TP = () => {
       <Navbar />
 
       {/* ===== SCROLL-SCRUBBED VIDEO HERO ===== */}
-      <div id="main-content" className="hero-scroll-extender" ref={heroRef}>
+      <main id="main-content" className="hero-scroll-extender" ref={heroRef}>
       <div className="video-scrub-hero" style={{ height: '100vh', overflow: 'hidden', background: '#12121c' }}>
         <video
           ref={videoRef}
@@ -154,7 +154,7 @@ const SA2TP = () => {
           </div>
         </div>
       </div>
-      </div>{/* /hero-scroll-extender */}
+      </main>{/* /hero-scroll-extender */}
 
       {/* ===== PROGRAM OVERVIEW ===== */}
       <section id="sa2tp-overview" className="bg-grey">

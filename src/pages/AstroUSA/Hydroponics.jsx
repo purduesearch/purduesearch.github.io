@@ -26,11 +26,11 @@ const AstroHydroponics = () => {
       ])} />
       <Navbar />
       <Breadcrumb />
-      <div id="main-content" className="jumbotron-post jumbotron-single d-flex align-items-center" style={{ backgroundImage: 'url(/software/2023_24/SUITS/bg.webp)' }}>
+      <main id="main-content" className="jumbotron-post jumbotron-single d-flex align-items-center" style={{ backgroundImage: 'url(/software/2023_24/SUITS/bg.webp)' }}>
         <div className="container text-center" style={{ top: 30 }}>
           <h1 className="display-2 mb-4">Habitat Systems: Hydroponics</h1>
         </div>
-      </div>
+      </main>
 
       {/* ===== ABOUT ===== */}
       <section id="hydro-about">

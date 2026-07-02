@@ -65,14 +65,14 @@ const Blog = () => {
         { name: 'Blog', path: '/blog' },
       ])} />
       <Navbar />
-      <div id="main-content" className="jumbotron jumbotron-single d-flex align-items-center" style={{ backgroundImage: 'url(/Purdue_Sky.webp)' }}>
+      <main id="main-content" className="jumbotron jumbotron-single d-flex align-items-center" style={{ backgroundImage: 'url(/Purdue_Sky.webp)' }}>
         <div className="container text-center">
           <h1 className="display-2 mb-4">Blog</h1>
           <p className="header-sub-title" style={{ fontWeight: 'bold', fontSize: '120%' }}>
             Latest news and updates from Purdue SEARCH.
           </p>
         </div>
-      </div>
+      </main>
 
       <section id="blog" className="bg-grey">
         <div className="container">

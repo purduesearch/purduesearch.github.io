@@ -273,7 +273,7 @@ const Research = () => {
       <Navbar />
 
       {/* ===== HERO ===== */}
-      <div
+      <main
         id="main-content"
         className="jumbotron jumbotron-single d-flex align-items-center"
         style={{ backgroundImage: 'url(/research/Research_Hero.webp)' }}
@@ -286,7 +286,7 @@ const Research = () => {
             uses minimal resources.
           </p>
         </div>
-      </div>
+      </main>
 
       {/* ===== MISSION BACKGROUND ===== */}
       <section id="mg-background" style={{ background: 'var(--color-bg-dark)', padding: '5rem 0' }}>

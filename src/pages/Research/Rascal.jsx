@@ -26,11 +26,11 @@ const Rascal = () => {
       ])} />
       <Navbar />
       <Breadcrumb />
-      <div id="main-content" className="jumbotron-post jumbotron-single d-flex align-items-center" style={{ backgroundImage: 'url(/research/2022_23/mars_mission.webp)' }}>
+      <main id="main-content" className="jumbotron-post jumbotron-single d-flex align-items-center" style={{ backgroundImage: 'url(/research/2022_23/mars_mission.webp)' }}>
         <div className="container text-center" style={{ top: 30 }}>
           <h1 className="display-2 mb-4">NASA RASC-AL 2023 Competition</h1>
         </div>
-      </div>
+      </main>
 
       <section style={{ top: 25 }}>
         <div className="shadow container" style={{ maxWidth: '83%', marginLeft: '8%', marginRight: '8%', paddingRight: 8, paddingTop: 8, marginBottom: '8%', paddingBottom: 8 }}>

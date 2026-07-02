@@ -189,7 +189,7 @@ const AstroUSA = () => {
       <SectionProgressRail sections={ASTRO_RAIL_SECTIONS} />
 
       {/* ===== HERO ===== */}
-      <div
+      <main
         id="main-content"
         className="jumbotron jumbotron-single d-flex align-items-center"
         style={{ backgroundImage: 'url(/astrousa/Group_Photo_ASTRO.webp)' }}
@@ -201,7 +201,7 @@ const AstroUSA = () => {
             a fully closed-loop habitat analog being built on Purdue's campus.
           </p>
         </div>
-      </div>
+      </main>
 
       {/* ===== SECTION 0: MISSION INTRO ===== */}
       <section id="astro-mission">

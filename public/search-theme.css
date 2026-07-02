@@ -22209,11 +22209,13 @@ html:not(.aos-off) [data-aos].aos-animate  { opacity: 1; transform: none; }
 }
 
 /* === FOCUS-VISIBLE ============================================== */
+/* a11y focus rings must not be silently defeated by legacy `:focus { outline: none }` rules;
+   !important guarantees the ring while the color override retunes it for ClubPM's dark surface. */
 :where(a, button, [role="button"], input, select, textarea, summary):focus-visible {
-  outline: 2px solid var(--color-accent);
-  outline-offset: 2px;
+  outline: 2px solid var(--color-accent) !important;
+  outline-offset: 2px !important;
   border-radius: 2px;
 }
 .clubpm-app :where(a, button, input, select, textarea):focus-visible {
-  outline-color: var(--pm-accent-teal);
+  outline-color: var(--pm-accent-teal) !important;
 }

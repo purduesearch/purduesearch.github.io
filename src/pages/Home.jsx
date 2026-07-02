@@ -393,7 +393,7 @@ const Home = () => {
       <Navbar />
 
       {/* ===== HERO ===== */}
-      <div id="main-content" className="hero-scroll-extender" ref={heroRef}>
+      <main id="main-content" className="hero-scroll-extender" ref={heroRef}>
       <div className="jumbotron d-flex align-items-center" style={{ backgroundImage: 'none', height: '100vh', overflow: 'hidden' }}>
         <video
           ref={videoRef}
@@ -425,7 +425,7 @@ const Home = () => {
           </div>
         </div>
       </div>
-      </div>{/* /hero-scroll-extender */}
+      </main>{/* /hero-scroll-extender */}
 
       <section id="client" className="overlay parallax-host" aria-label="Outreach partners">
         <div className="parallax-bg" ref={clientBgRef} style={{ backgroundImage: 'url(/bg.jpg)' }} aria-hidden="true" />

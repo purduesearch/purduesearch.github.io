@@ -59,7 +59,7 @@ const About = () => {
       <Navbar />
 
       {/* ===== HERO ===== */}
-      <div id="main-content" className="jumbotron jumbotron-single d-flex align-items-center"
+      <main id="main-content" className="jumbotron jumbotron-single d-flex align-items-center"
         style={{ backgroundImage: 'url(/about/About_Hero.webp)' }}>
         <div className="container text-center">
           <h1 className="display-3 mb-4" style={{ fontFamily: 'Oswald, sans-serif' }}>About Us</h1>
@@ -70,7 +70,7 @@ const About = () => {
             disciplines.
           </p>
         </div>
-      </div>
+      </main>
 
       {/* ===== MISSION ===== */}
       <section id="about-mission" className="about-section">

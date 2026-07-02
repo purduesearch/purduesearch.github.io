@@ -53,7 +53,7 @@ const SearchResults = () => {
         noindex
       />
       <Navbar />
-      <div id="main-content">
+      <main id="main-content">
         <section className="search-results-page">
           <div className="container">
             <h1>
@@ -159,7 +159,7 @@ const SearchResults = () => {
             )}
           </div>
         </section>
-      </div>
+      </main>
       <Footer />
     </>
   );

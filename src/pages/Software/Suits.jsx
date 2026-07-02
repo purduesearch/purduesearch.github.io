@@ -28,14 +28,14 @@ const Suits = () => {
       <Breadcrumb />
 
       {/* ===== HERO ===== */}
-      <div id="main-content" className="jumbotron-post jumbotron-single d-flex align-items-center" style={{ backgroundImage: 'url(/software/2023_24/SUITS/bg.webp)' }}>
+      <main id="main-content" className="jumbotron-post jumbotron-single d-flex align-items-center" style={{ backgroundImage: 'url(/software/2023_24/SUITS/bg.webp)' }}>
         <div className="container text-center" style={{ top: 30 }}>
           <h1 className="display-2 mb-3">JARVIS — NASA SUITS</h1>
           <p style={{ fontSize: '1.1rem', color: 'rgba(245,239,230,0.85)', letterSpacing: '.06em', fontFamily: 'var(--font-heading)', textTransform: 'uppercase' }}>
             Just A Rather Vital Interface System
           </p>
         </div>
-      </div>
+      </main>
 
       {/* ===== AWARDS & RECOGNITION ===== */}
       <section style={{ background: 'var(--color-bg-dark)', padding: 'var(--section-pad) 0' }}>

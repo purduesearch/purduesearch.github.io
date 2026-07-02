@@ -80,7 +80,7 @@ const Business = () => {
       <Navbar />
 
       {/* ===== 1 — HERO ===== */}
-      <div
+      <main
         id="main-content"
         className="jumbotron jumbotron-single d-flex align-items-center"
         style={{ backgroundImage: 'url(/business/buisness.webp), url(/analogs_bg.jpg)' }}
@@ -92,7 +92,7 @@ const Business = () => {
             forging partnerships, and securing the resources SEARCH needs to reach further.
           </p>
         </div>
-      </div>
+      </main>
 
       {/* ===== 2 — MISSION STATEMENT ===== */}
       <section id="biz-mission">

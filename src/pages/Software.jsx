@@ -35,7 +35,7 @@ const Software = () => {
       <Navbar />
 
       {/* ===== HERO ===== */}
-      <div
+      <main
         id="main-content"
         className="jumbotron jumbotron-single d-flex align-items-center"
         style={{ backgroundImage: 'url(/software/Meeting_SUITS.webp)' }}
@@ -47,7 +47,7 @@ const Software = () => {
             for Students (SUITS) challenge — and testing them at Johnson Space Center.
           </p>
         </div>
-      </div>
+      </main>
 
       {/* ===== THE CHALLENGE ===== */}
       <section id="suits-challenge">

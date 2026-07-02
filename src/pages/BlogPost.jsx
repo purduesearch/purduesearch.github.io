@@ -83,7 +83,7 @@ export default function BlogPost() {
       <Navbar />
 
       {/* Hero banner */}
-      <div
+      <main
         id="main-content"
         className="jumbotron jumbotron-single d-flex align-items-center"
         style={{ backgroundImage: `url(${post.coverImageUrl ?? '/Purdue_Sky.webp'})` }}
@@ -103,7 +103,7 @@ export default function BlogPost() {
             {post.readingTimeMin && <span>{post.readingTimeMin} min read</span>}
           </p>
         </div>
-      </div>
+      </main>
 
       <section className="bg-white">
         <div className="container">
