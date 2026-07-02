@@ -576,7 +576,7 @@ const Home = () => {
 
       {/* ===== ABOUT SEARCH — 2-column brand story ===== */}
       <section id="about-search" className="about-video-section">
-        <video className="about-video-bg" src="/videos/drone_tour_purdue.webm" autoPlay loop muted playsInline />
+        <video className="about-video-bg" src="/videos/drone_tour_purdue.webm" autoPlay loop muted playsInline preload="metadata" />
         <div className="container">
           <div className="row align-items-center">
             <div className="col-md-6 about-text-col" data-aos="fade-right">
