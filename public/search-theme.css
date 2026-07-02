@@ -22062,8 +22062,7 @@ html:not(.aos-off) [data-aos].aos-animate  { opacity: 1; transform: none; }
   transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
 }
 .nav-underline-target:hover::after,
-.nav-underline-target:focus-visible::after,
-.nav-underline-target.active::after { transform: scaleX(1); }
+.nav-underline-target:focus-visible::after { transform: scaleX(1); }
 @media (prefers-reduced-motion: reduce) {
   .nav-underline-target::after { transition: none; }
 }

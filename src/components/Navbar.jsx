@@ -109,7 +109,7 @@ const Navbar = () => {
                 const isActive = to === '/' ? pathname === '/' : pathname === to || pathname.startsWith(to + '/');
                 return (
                   <li key={to} className="nav-item" style={{ position: 'relative' }}>
-                    <Link className={`nav-link nav-underline-target${isActive ? ' active' : ''}`} to={to}>{label}</Link>
+                    <Link className="nav-link nav-underline-target" to={to}>{label}</Link>
                     {isActive && (
                       <motion.span layoutId="nav-underline" className="nav-active-indicator" />
                     )}
@@ -120,7 +120,7 @@ const Navbar = () => {
               {/* Teams dropdown */}
               <li className="nav-item" id="teams-dropdown" style={{ position: 'relative' }}>
                 <button
-                  className={`nav-link nav-underline-target teams-dropdown-toggle${teamsOpen ? ' open' : ''}${isTeamsActive ? ' active' : ''}`}
+                  className={`nav-link nav-underline-target teams-dropdown-toggle${teamsOpen ? ' open' : ''}`}
                   onClick={() => setTeamsOpen(v => !v)}
                   aria-haspopup="true"
                   aria-expanded={teamsOpen}
@@ -186,14 +186,14 @@ const Navbar = () => {
                 </li>
               ) : (
                 <li className="nav-item" style={{ position: 'relative' }}>
-                  <Link className={`nav-link nav-underline-target${pathname.startsWith('/clubpm') ? ' active' : ''}`} to="/clubpm">Constellation</Link>
+                  <Link className="nav-link nav-underline-target" to="/clubpm">Constellation</Link>
                   {pathname.startsWith('/clubpm') && (
                     <motion.span layoutId="nav-underline" className="nav-active-indicator" />
                   )}
                 </li>
               )}
               <li className="nav-item" style={{ position: 'relative' }}>
-                <Link className={`nav-link nav-underline-target${pathname === '/outreach' ? ' active' : ''}`} to="/outreach">Outreach</Link>
+                <Link className="nav-link nav-underline-target" to="/outreach">Outreach</Link>
                 {pathname === '/outreach' && (
                   <motion.span layoutId="nav-underline" className="nav-active-indicator" />
                 )}
