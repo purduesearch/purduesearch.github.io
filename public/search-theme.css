@@ -22052,3 +22052,18 @@ html:not(.aos-off) [data-aos].aos-animate  { opacity: 1; transform: none; }
 @media (prefers-reduced-motion: reduce) {
   [data-aos] { opacity: 1 !important; transform: none !important; transition: none !important; }
 }
+
+/* === NAV UNDERLINE MICRO-INTERACTION ============================ */
+.nav-underline-target { position: relative; }
+.nav-underline-target::after {
+  content: ''; position: absolute; left: 0; bottom: -3px;
+  width: 100%; height: 2px; background: var(--color-accent);
+  transform: scaleX(0); transform-origin: left;
+  transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.nav-underline-target:hover::after,
+.nav-underline-target:focus-visible::after,
+.nav-underline-target.active::after { transform: scaleX(1); }
+@media (prefers-reduced-motion: reduce) {
+  .nav-underline-target::after { transition: none; }
+}

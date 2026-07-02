@@ -5,6 +5,7 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import SEOHead from '../components/SEOHead';
+import { countUpOnView } from '../anim/motion';
 
 const STLViewer = lazy(() => import('../components/STLViewer'));
 
@@ -202,6 +203,7 @@ const REFERENCES = [
 
 const Research = () => {
   const rootRailRef = useRef(null);
+  const overviewStatsRef = useRef(null);
 
   useEffect(() => {
     if (window.AOS) window.AOS.init({ once: true });
@@ -247,6 +249,18 @@ const Research = () => {
     return () => {
       if (st.scrollTrigger) st.scrollTrigger.kill();
     };
+  }, []);
+
+  // Count-up on project overview stats (anime.js, scroll-triggered)
+  useEffect(() => {
+    const container = overviewStatsRef.current;
+    if (!container) return;
+
+    const targets = container.querySelectorAll('[data-count]');
+    const cleanups = Array.from(targets).map(el =>
+      countUpOnView(el, parseFloat(el.dataset.count), { suffix: el.dataset.suffix || '' })
+    );
+    return () => cleanups.forEach(fn => fn());
   }, []);
 
   return (
@@ -353,21 +367,21 @@ const Research = () => {
               benefit to astronauts during multi-year missions.
             </p>
           </div>
-          <div className="mg-stat-row" data-aos="fade-up" data-aos-delay="100">
+          <div className="mg-stat-row" data-aos="fade-up" data-aos-delay="100" ref={overviewStatsRef}>
             <div className="mg-stat-card">
-              <div className="mg-stat-num">3</div>
+              <div className="mg-stat-num" data-count="3">3</div>
               <div className="mg-stat-label">Sub-Groups</div>
             </div>
             <div className="mg-stat-card">
-              <div className="mg-stat-num">17</div>
+              <div className="mg-stat-num" data-count="17">17</div>
               <div className="mg-stat-label">Deliverables</div>
             </div>
             <div className="mg-stat-card">
-              <div className="mg-stat-num">5</div>
+              <div className="mg-stat-num" data-count="5">5</div>
               <div className="mg-stat-label">Project Phases</div>
             </div>
             <div className="mg-stat-card">
-              <div className="mg-stat-num">3+</div>
+              <div className="mg-stat-num" data-count="3" data-suffix="+">3+</div>
               <div className="mg-stat-label">Cross-Team Milestones</div>
             </div>
           </div>

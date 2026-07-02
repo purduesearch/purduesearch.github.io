@@ -1,13 +1,10 @@
 import React, { useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { gsap } from 'gsap';
-import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import SEOHead from '../components/SEOHead';
 import SectionHeading from '../components/SectionHeading';
-
-gsap.registerPlugin(ScrollTrigger);
+import { countUpOnView } from '../anim/motion';
 
 const Business = () => {
   const statsRef = useRef(null);
@@ -25,33 +22,16 @@ const Business = () => {
     return () => { if (document.head.contains(link)) document.head.removeChild(link); };
   }, []);
 
-  // GSAP count-up on stats section
+  // Count-up on stats section (anime.js, scroll-triggered)
   useEffect(() => {
     const container = statsRef.current;
     if (!container) return;
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
     const targets = container.querySelectorAll('[data-count]');
-    targets.forEach(el => {
-      const end = parseFloat(el.dataset.count);
-      const isDecimal = String(end).includes('.');
-      gsap.fromTo(
-        el,
-        { innerText: 0 },
-        {
-          innerText: end,
-          duration: 1.6,
-          ease: 'power2.out',
-          snap: { innerText: isDecimal ? 0.1 : 1 },
-          scrollTrigger: { trigger: el, start: 'top 88%', once: true },
-          onUpdate() {
-            el.innerText = isDecimal
-              ? parseFloat(el.innerText).toFixed(1)
-              : Math.round(el.innerText);
-          },
-        }
-      );
-    });
+    const cleanups = Array.from(targets).map(el =>
+      countUpOnView(el, parseFloat(el.dataset.count))
+    );
+    return () => cleanups.forEach(fn => fn());
   }, []);
 
   return (

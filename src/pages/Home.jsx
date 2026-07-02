@@ -6,6 +6,7 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import SEOHead from '../components/SEOHead';
+import { pressFeedback } from '../anim/motion';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -152,8 +153,19 @@ const Home = () => {
   const videoRef   = useRef(null);
   const heroRef    = useRef(null);
   const statsRef   = useRef(null);
+  const heroCtaPrimaryRef   = useRef(null);
+  const heroCtaSecondaryRef = useRef(null);
   const [activeIdx, setActiveIdx] = useState(0);
   const [progIdx, setProgIdx] = useState(0);
+
+  // Tactile press feedback on the hero CTAs
+  useEffect(() => {
+    const cleanups = [
+      pressFeedback(heroCtaPrimaryRef.current),
+      pressFeedback(heroCtaSecondaryRef.current),
+    ];
+    return () => cleanups.forEach(fn => fn());
+  }, []);
 
   // Framer Motion scroll-driven wordmark fade
   const { scrollY } = useScroll();
@@ -351,10 +363,10 @@ const Home = () => {
             Student-led human spaceflight research, training, and outreach — right here on Earth.
           </p>
           <div className="d-flex justify-content-center" style={{ gap: '1rem', flexWrap: 'wrap' }}>
-            <Link to="/about" className="btn-slide-white" style={{ padding: '0.65rem 2rem', fontFamily: 'var(--font-body)', fontWeight: 500 }}>
+            <Link ref={heroCtaPrimaryRef} to="/about" className="btn-slide-white" style={{ padding: '0.65rem 2rem', fontFamily: 'var(--font-body)', fontWeight: 500 }}>
               <span>Meet the Team</span>
             </Link>
-            <Link to="/contact" className="btn-slide-fill" style={{ padding: '0.65rem 2rem', fontFamily: 'var(--font-body)', fontWeight: 500 }}>
+            <Link ref={heroCtaSecondaryRef} to="/contact" className="btn-slide-fill" style={{ padding: '0.65rem 2rem', fontFamily: 'var(--font-body)', fontWeight: 500 }}>
               <span>Contact Us</span>
             </Link>
           </div>
