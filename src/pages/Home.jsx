@@ -287,7 +287,7 @@ const Home = () => {
       heroIntro(heroContentRef.current, ':scope > *:not(.hero-wordmark)'),
       parallaxLayer(clientBgRef.current),
       parallaxLayer(programsBgRef.current),
-      staggerGroup(missionPillarsRef.current, '.pillar-card'),
+      staggerGroup(missionPillarsRef.current, '.col-md-4'),
       staggerGroup(igGridRef.current, '.ig-card'),
     ];
     return () => cleanups.forEach(fn => fn());

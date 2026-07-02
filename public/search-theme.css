@@ -22070,7 +22070,7 @@ html:not(.aos-off) [data-aos].aos-animate  { opacity: 1; transform: none; }
 /* === GSAP PARALLAX (iOS-safe bg-fixed replacement) ============== */
 .parallax-host { position: relative; overflow: hidden; }
 .parallax-bg {
-  position: absolute; inset: -20% 0;
+  position: absolute; inset: -25% 0;
   background-size: cover; background-position: center;
   z-index: 0; pointer-events: none;
 }
@@ -22085,7 +22085,7 @@ html:not(.aos-off) [data-aos].aos-animate  { opacity: 1; transform: none; }
    fallback; GSAP's gsap.from() sets the initial state itself once it runs,
    this rule only guards the reduced-motion + no-JS static case. */
 @media (prefers-reduced-motion: reduce) {
-  #mission-pillars .pillar-card,
+  #mission-pillars .col-md-4,
   .ig-grid .ig-card { opacity: 1 !important; transform: none !important; }
 }
 
@@ -22106,6 +22106,7 @@ html:not(.aos-off) [data-aos].aos-animate  { opacity: 1; transform: none; }
    on hover/focus. The old keyframe is neutralized here rather than removed
    from its original declaration, per CSS-append-only convention. */
 .biz-marquee-track { animation: none; }
+.marquee-dup { display: contents; }
 @media (prefers-reduced-motion: reduce) {
   .marquee-dup { display: none; }
 }

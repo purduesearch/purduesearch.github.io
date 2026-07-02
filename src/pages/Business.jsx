@@ -317,7 +317,7 @@ const Business = () => {
                 track's scrollWidth). Hidden from assistive tech; the
                 reduced-motion fallback hides it visually too (see
                 .marquee-dup in search-theme.css). */}
-            <div className="marquee-dup" aria-hidden="true" style={{ display: 'contents' }}>
+            <div className="marquee-dup" aria-hidden="true">
               {PARTNER_LOGOS.map(({ key, src, alt }) => (
                 <div key={`dup-${key}`} className="client-item"><img loading="lazy" src={src} alt={alt} /></div>
               ))}

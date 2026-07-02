@@ -8,7 +8,7 @@ gsap.registerPlugin(ScrollTrigger);
 const reduced = () =>
   window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-export function parallaxLayer(el, { strength = 18 } = {}) {
+export function parallaxLayer(el, { strength = 14 } = {}) {
   if (!el || reduced()) return () => {};
   const tween = gsap.fromTo(el, { yPercent: -strength }, {
     yPercent: strength, ease: 'none',
