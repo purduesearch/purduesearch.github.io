@@ -22038,3 +22038,274 @@ button.cpm-badge-tile:disabled { opacity: 0.7; cursor: progress; }
   .cpm-blog-figure.cpm-blog-img--wrap-left,
   .cpm-blog-figure.cpm-blog-img--wrap-right { float: none; max-width: 100%; margin-right: 0; margin-left: 0; }
 }
+
+/* === CLUBPM VAULT === */
+
+.cpm-vault-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.cpm-vault-loading {
+  display: flex;
+  justify-content: center;
+  padding: 48px 0;
+}
+
+/* Sub-view pills: Vault | Change Requests | Review Queue */
+.cpm-vault-subnav {
+  display: inline-flex;
+  align-self: flex-start;
+  gap: 4px;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--pm-bg-elevated);
+  border: 1px solid var(--pm-border);
+}
+.cpm-vault-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 16px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--pm-text-secondary);
+  font-family: var(--pm-font-body);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.18s ease, color 0.18s ease;
+}
+.cpm-vault-pill.active {
+  background: var(--pm-accent-teal);
+  color: #06231f;
+}
+
+.cpm-vault-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+.cpm-vault-search {
+  flex: 1 1 220px;
+  min-width: 180px;
+  padding: 9px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--pm-border);
+  background: var(--pm-bg-surface);
+  color: var(--pm-text-primary);
+  font-size: 13px;
+}
+.cpm-vault-search:focus {
+  outline: none;
+  border-color: var(--pm-accent-teal);
+}
+.cpm-vault-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.cpm-vault-filter-chip {
+  padding: 5px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--pm-border);
+  background: transparent;
+  color: var(--pm-text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.cpm-vault-filter-chip:hover {
+  border-color: var(--pm-accent-teal);
+}
+.cpm-vault-filter-chip.active {
+  background: var(--pm-accent-teal);
+  border-color: var(--pm-accent-teal);
+  color: #06231f;
+}
+.cpm-vault-toolbar .clubpm-btn-primary {
+  margin-left: auto;
+  padding: 9px 18px;
+}
+.cpm-vault-toolbar .clubpm-btn-primary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+
+.cpm-vault-empty,
+.cpm-vault-placeholder {
+  padding: 48px 16px;
+  text-align: center;
+  color: var(--pm-text-muted);
+  font-size: 13px;
+  border: 1px dashed var(--pm-border);
+  border-radius: 12px;
+}
+
+.cpm-vault-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.cpm-vault-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid var(--pm-border);
+  background: var(--pm-bg-surface);
+  transition: border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+}
+.cpm-vault-card[role="button"] {
+  cursor: pointer;
+}
+.cpm-vault-card[role="button"]:hover {
+  border-color: var(--pm-accent-teal);
+  transform: translateY(-1px);
+  box-shadow: var(--pm-shadow-card);
+}
+.cpm-vault-card[role="button"]:focus-visible {
+  outline: 2px solid var(--pm-accent-teal);
+  outline-offset: 2px;
+}
+.cpm-vault-card-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  background: var(--pm-bg-elevated);
+  color: var(--pm-accent-teal);
+  font-size: 18px;
+}
+.cpm-vault-card-name {
+  font-family: var(--pm-font-display);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--pm-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cpm-vault-card-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.cpm-vault-chip-part {
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: rgba(139, 124, 248, 0.15);
+  color: var(--pm-accent-violet);
+  font-family: var(--pm-font-mono);
+  font-size: 11px;
+  font-weight: 600;
+}
+.cpm-vault-chip-rev {
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: rgba(0, 229, 204, 0.15);
+  color: var(--pm-accent-teal);
+  font-size: 11px;
+  font-weight: 600;
+}
+.cpm-vault-chip-unreleased {
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: var(--pm-bg-elevated);
+  color: var(--pm-text-muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+.cpm-vault-chip-version {
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: var(--pm-bg-elevated);
+  color: var(--pm-text-secondary);
+  font-family: var(--pm-font-mono);
+  font-size: 11px;
+}
+
+.cpm-vault-checkout-badge {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgba(245, 166, 35, 0.18);
+  color: var(--pm-accent-amber);
+  font-size: 11px;
+  font-weight: 600;
+  max-width: 55%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.cpm-vault-setup-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  max-width: 520px;
+  padding: 24px;
+  border-radius: 12px;
+  border: 1px solid var(--pm-border);
+  background: var(--pm-bg-surface);
+}
+.cpm-vault-setup-card > i {
+  font-size: 22px;
+  color: var(--pm-accent-amber);
+}
+.cpm-vault-setup-hint {
+  font-size: 12px;
+  color: var(--pm-text-muted);
+}
+.cpm-vault-sa-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--pm-bg-elevated);
+  width: 100%;
+}
+.cpm-vault-sa-email {
+  font-family: var(--pm-font-mono);
+  font-size: 12px;
+  color: var(--pm-text-primary);
+  overflow-wrap: anywhere;
+}
+.cpm-vault-copy-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid var(--pm-border);
+  background: transparent;
+  color: var(--pm-text-secondary);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+.cpm-vault-copy-btn:hover {
+  border-color: var(--pm-accent-teal);
+  color: var(--pm-accent-teal);
+}

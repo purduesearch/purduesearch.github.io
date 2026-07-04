@@ -20,6 +20,7 @@ import DrivePreviewModal from "../../components/clubpm/DrivePreviewModal";
 import EditDriveFolderModal from "../../components/clubpm/EditDriveFolderModal";
 import GitHubPanel from "../../components/clubpm/github/GitHubPanel";
 import ActionPlanReview from "../../components/clubpm/ActionPlanReview";
+import VaultTab from "../../components/clubpm/vault/VaultTab";
 import { parseDriveUrl, mimeTypeToKind, getTypeMeta, formatRelativeTime } from "../../utils/driveUtils";
 import {
   DndContext,
@@ -132,6 +133,7 @@ const NAV_TABS = [
   { id: "tasks",      label: "Tasks",                  icon: "📋" },
   { id: "milestones", label: "Milestones & Updates",   icon: "🎯" },
   { id: "files",      label: "Files",                  icon: "📁" },
+  { id: "vault",      label: "Vault",                  icon: "🗄️" },
   { id: "reports",    label: "Reports",                icon: "📊" },
   { id: "ai",         label: "AI",                     icon: "🤖" },
 ];
@@ -3436,6 +3438,16 @@ export default function ProjectDetail() {
                 project={project}
                 isAdmin={!!member?.isAdmin}
                 onProjectChange={updated => setProject(prev => ({ ...prev, ...updated }))}
+              />
+            </div>
+          )}
+
+          {activeTab === "vault" && (
+            <div className="cpm-proj-main-body" style={{ padding: "24px" }}>
+              <VaultTab
+                project={project}
+                member={member}
+                isAdmin={!!member?.isAdmin}
               />
             </div>
           )}
