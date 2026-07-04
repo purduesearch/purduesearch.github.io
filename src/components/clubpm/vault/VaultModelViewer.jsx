@@ -26,8 +26,21 @@ function extensionOf(fileName) {
  *   onCaptureThumbnail — optional; called once with a PNG Blob shortly after
  *                        the first successful render (fire-and-forget upload
  *                        is the caller's responsibility)
+ *   onControlsReady    — optional; called with { camera, controls } (the live
+ *                        three.js PerspectiveCamera + OrbitControls instances)
+ *                        once the scene is set up, and again with `null` on
+ *                        teardown. Lets a parent (e.g. VaultCompareView) read
+ *                        or drive the camera without this component knowing
+ *                        anything about that use case.
  */
-export default function VaultModelViewer({ versionId, fileName, height = 420, color = "#c8d0d8", onCaptureThumbnail }) {
+export default function VaultModelViewer({
+  versionId,
+  fileName,
+  height = 420,
+  color = "#c8d0d8",
+  onCaptureThumbnail,
+  onControlsReady,
+}) {
   const mountRef = useRef(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -43,6 +56,11 @@ export default function VaultModelViewer({ versionId, fileName, height = 420, co
   useEffect(() => {
     onCaptureThumbnailRef.current = onCaptureThumbnail;
   }, [onCaptureThumbnail]);
+
+  const onControlsReadyRef = useRef(onControlsReady);
+  useEffect(() => {
+    onControlsReadyRef.current = onControlsReady;
+  }, [onControlsReady]);
 
   useEffect(() => {
     const mount = mountRef.current;
@@ -109,6 +127,8 @@ export default function VaultModelViewer({ versionId, fileName, height = 420, co
     controls.enablePan = false;
     controls.minDistance = 10;
     controls.maxDistance = 2000;
+
+    onControlsReadyRef.current?.({ camera, controls });
 
     function fitToObject(obj) {
       const box = new THREE.Box3().setFromObject(obj);
@@ -258,6 +278,7 @@ export default function VaultModelViewer({ versionId, fileName, height = 420, co
     // ── Cleanup ────────────────────────────────────────────
     return () => {
       cancelled = true;
+      onControlsReadyRef.current?.(null);
       cancelAnimationFrame(frameId);
       ro.disconnect();
       controls.dispose();

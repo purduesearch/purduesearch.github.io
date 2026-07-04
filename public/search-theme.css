@@ -22908,3 +22908,49 @@ button.cpm-badge-tile:disabled { opacity: 0.7; cursor: progress; }
 .cpm-vault-model-viewer-error i {
   font-size: 22px;
 }
+
+/* === CLUBPM VAULT — Pack A (3D compare) === */
+
+.cpm-vault-compare-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.cpm-vault-compare-sync {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  align-self: flex-start;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--pm-text-secondary);
+  cursor: pointer;
+}
+.cpm-vault-compare-sync input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--pm-accent-teal);
+  cursor: pointer;
+}
+.cpm-vault-compare-sync input[type="checkbox"]:disabled {
+  cursor: not-allowed;
+}
+
+.cpm-vault-compare-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+@media (max-width: 720px) {
+  .cpm-vault-compare-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.cpm-vault-compare-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}

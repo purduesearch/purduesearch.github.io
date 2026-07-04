@@ -19,6 +19,11 @@ import ChangeRequestModal from "./ChangeRequestModal";
 // React.lazy so it lands in its own chunk instead of the main bundle.
 const VaultModelViewer = lazy(() => import("./VaultModelViewer"));
 
+// VaultCompareView imports VaultModelViewer eagerly, which is fine only
+// because this import itself stays lazy — three.js still never reaches the
+// main chunk.
+const VaultCompareView = lazy(() => import("./VaultCompareView"));
+
 // Kept intentionally separate from VaultModelViewer's internal copy of this
 // logic: a static import of that module here would pull three.js into this
 // chunk, defeating the lazy-load split above.
@@ -35,6 +40,7 @@ function isPreviewable(fileName) {
 const TABS = [
   { id: "versions", label: "Versions" },
   { id: "3d", label: "3D" },
+  { id: "compare", label: "Compare" },
   { id: "changes", label: "Changes" },
   { id: "history", label: "History" },
 ];
@@ -429,6 +435,29 @@ export default function VaultItemModal({ itemId, project, member, isAdmin, onClo
                       </Suspense>
                     )}
                   </>
+                )}
+              </div>
+            )}
+
+            {activeTab === "compare" && (
+              <div className="cpm-vault-3d-tab">
+                {previewableVersions.length < 2 ? (
+                  <div className="cpm-vault-placeholder">
+                    Need at least two previewable versions (STL/OBJ/GLB) to compare.
+                  </div>
+                ) : (
+                  <Suspense
+                    fallback={
+                      <div className="cpm-vault-model-viewer">
+                        <div className="cpm-vault-model-viewer-overlay">
+                          <div className="cpm-spinner" />
+                          <span>Loading viewer…</span>
+                        </div>
+                      </div>
+                    }
+                  >
+                    <VaultCompareView versions={previewableVersions} />
+                  </Suspense>
                 )}
               </div>
             )}
