@@ -43,6 +43,7 @@ import { streakRouter } from "./api/streak.js";
 import { inventoryRouter } from "./api/inventory.js";
 import { challengesRouter } from "./api/challenges.js";
 import { blockersRouter } from "./api/blockers.js";
+import { vaultRouter } from "./api/vault.js";
 import { blogRouter } from "./api/blog.js";
 import { attachBlogCollab } from "./collab/blogCollab.js";
 
@@ -108,6 +109,7 @@ app.use("/api/tasks", tasksRouter);
 // ensures unauthenticated /api/public/* requests are handled before that.
 app.use("/api/public", publicRouter);
 app.use("/api", blockersRouter);
+app.use("/api", vaultRouter);
 app.use("/api/members", membersRouter);
 app.use("/api/activity", activityRouter);
 app.use("/api/milestones", milestonesRouter);

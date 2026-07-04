@@ -25,3 +25,6 @@ backend/node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# vault upload temp files (streamed to Drive, then unlinked)
+backend/uploads/vault-tmp/

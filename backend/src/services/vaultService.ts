@@ -34,6 +34,27 @@ export type VaultHealth = {
 };
 
 /**
+ * Probe-only health check for read endpoints: never calls Drive, never creates
+ * the vault folder. Reports "ok" as soon as the project has a parseable Drive
+ * folder link — actual `not-shared` failures surface only from a real write
+ * attempt (see `ensureVaultFolder`), never from this probe.
+ */
+export async function getVaultHealth(projectId: string): Promise<VaultHealth> {
+  const project = await prisma.project.findUnique({ where: { id: projectId } });
+  if (!project || !project.driveLink) {
+    return { status: "no-link" };
+  }
+
+  const linkedFolderId = extractFileId(project.driveLink);
+  const isFolderUrl = /\/folders\//.test(project.driveLink);
+  if (!linkedFolderId || !isFolderUrl) {
+    return { status: "not-folder" };
+  }
+
+  return { status: "ok" };
+}
+
+/**
  * Ensure the project's "Constellation Vault" Drive subfolder exists, creating it
  * (under the project's linked Drive folder) on first use. Returns the folder id,
  * or a VaultHealth describing why it couldn't be resolved.
