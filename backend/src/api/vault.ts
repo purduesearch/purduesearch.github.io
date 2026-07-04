@@ -5,6 +5,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import { Readable } from "node:stream";
 import { Router, type Request, type Response } from "express";
 import multer from "multer";
 import { requireAuth, requireAdmin } from "./auth.js";
@@ -62,6 +63,16 @@ sweepVaultTmpDir();
 const itemUpload = multer({
   storage: multer.diskStorage({ destination: VAULT_TMP_DIR }),
   limits: { fileSize: (Number(process.env.VAULT_MAX_UPLOAD_MB) || 512) * 1024 * 1024 },
+});
+
+// 3D-preview thumbnails (Pack A) are small, client-rendered PNG snapshots —
+// in-memory is fine, unlike the disk-backed CAD file uploads above.
+const thumbnailUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 1024 * 1024, files: 1 },
+  fileFilter: (_req, file, cb) => {
+    cb(null, file.mimetype === "image/png");
+  },
 });
 
 function cleanupTempFile(filePath?: string): void {
@@ -481,6 +492,87 @@ vaultRouter.get("/vault/versions/:id/download", async (req: Request, res: Respon
   } catch (error) {
     console.error("Download vault version error:", error);
     res.status(500).json({ error: "Failed to download version" });
+  }
+});
+
+// ── POST /api/vault/versions/:id/thumbnail ─────────────────────
+// Client-rendered 3D-preview snapshot (Pack A). PNG only, 1MB cap; stored
+// alongside the version's file in the item's Drive folder as thumb-v<n>.png.
+
+vaultRouter.post(
+  "/vault/versions/:id/thumbnail",
+  // field name "file" matches clubPmClient's uploadVaultFile FormData key
+  thumbnailUpload.single("file"),
+  async (req: Request, res: Response) => {
+    try {
+      if (!req.file) {
+        res.status(400).json({ error: "PNG thumbnail file is required" });
+        return;
+      }
+
+      const id = req.params.id as string;
+      const version = await prisma.vaultVersion.findUnique({
+        where: { id },
+        include: { item: { select: { driveFolderId: true, deletedAt: true } } },
+      });
+      if (!version || !version.item || version.item.deletedAt) {
+        res.status(404).json({ error: "Version not found" });
+        return;
+      }
+
+      const uploaded = await uploadStreamToDrive(
+        Readable.from(req.file.buffer),
+        "image/png",
+        `thumb-v${version.versionNumber}.png`,
+        version.item.driveFolderId
+      );
+      if (!uploaded) {
+        res.status(502).json({ error: "Upload to Drive failed" });
+        return;
+      }
+
+      const updated = await prisma.vaultVersion.update({
+        where: { id },
+        data: { thumbnailFileId: uploaded.fileId },
+      });
+
+      res.json(updated);
+    } catch (error) {
+      console.error("Upload vault thumbnail error:", error);
+      res.status(500).json({ error: "Failed to upload thumbnail" });
+    }
+  }
+);
+
+// ── GET /api/vault/versions/:id/thumbnail ──────────────────────
+// Proxies the thumbnail image through the backend (vault files are never
+// public); private cache since access is auth-gated per request.
+
+vaultRouter.get("/vault/versions/:id/thumbnail", async (req: Request, res: Response) => {
+  try {
+    const id = req.params.id as string;
+    const version = await prisma.vaultVersion.findUnique({ where: { id } });
+    if (!version || !version.thumbnailFileId) {
+      res.status(404).json({ error: "No thumbnail for this version" });
+      return;
+    }
+
+    const file = await getDriveFileStream(version.thumbnailFileId);
+    if (!file) {
+      res.status(404).json({ error: "Thumbnail not found in Drive" });
+      return;
+    }
+
+    res.setHeader("Cache-Control", "private, max-age=86400");
+    res.setHeader("Content-Type", file.mimeType);
+    file.stream.on("error", (err) => {
+      console.error("[vault] thumbnail stream error:", err);
+      if (!res.headersSent) res.status(500).end();
+    });
+    file.stream.pipe(res);
+  } catch (error) {
+    console.error("Get vault thumbnail error:", error);
+    res.status(500).json({ error: "Failed to get thumbnail" });
   }
 });
 
