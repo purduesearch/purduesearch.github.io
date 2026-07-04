@@ -171,3 +171,115 @@ export async function fetchDriveFileAsBase64(fileId: string): Promise<{ base64: 
     return null;
   }
 }
+
+/** Create a subfolder in Drive under the given parent folder. */
+export async function createDriveFolder(
+  name: string,
+  parentId: string
+): Promise<{ id: string; webViewLink?: string } | null> {
+  try {
+    const auth = getDriveWriteAuth();
+    const drive = google.drive({ version: "v3", auth });
+    const res = await drive.files.create({
+      requestBody: {
+        name,
+        mimeType: "application/vnd.google-apps.folder",
+        parents: [parentId],
+      },
+      fields: "id,webViewLink",
+      supportsAllDrives: true,
+    });
+    return { id: res.data.id!, webViewLink: res.data.webViewLink ?? undefined };
+  } catch (err) {
+    console.error("[driveService] createDriveFolder error:", err);
+    return null;
+  }
+}
+
+/**
+ * Upload a readable stream to Drive as a new file. The file is left private
+ * (no permissions.create) — vault files are never made public.
+ */
+export async function uploadStreamToDrive(
+  stream: NodeJS.ReadableStream,
+  mimeType: string,
+  filename: string,
+  folderId: string
+): Promise<{ fileId: string; size: number | null; md5: string | null; webViewLink?: string } | null> {
+  try {
+    const auth = getDriveWriteAuth();
+    const drive = google.drive({ version: "v3", auth });
+    const res = await drive.files.create({
+      requestBody: { name: filename, parents: [folderId] },
+      media: { mimeType, body: stream },
+      fields: "id,size,md5Checksum,webViewLink",
+      supportsAllDrives: true,
+    });
+    return {
+      fileId: res.data.id!,
+      size: res.data.size != null ? Number(res.data.size) : null,
+      md5: res.data.md5Checksum ?? null,
+      webViewLink: res.data.webViewLink ?? undefined,
+    };
+  } catch (err) {
+    console.error("[driveService] uploadStreamToDrive error:", err);
+    return null;
+  }
+}
+
+/** Stream a Drive file's contents back out (used to proxy vault downloads through the backend). */
+export async function getDriveFileStream(
+  fileId: string
+): Promise<{ stream: NodeJS.ReadableStream; name: string; mimeType: string; size?: number } | null> {
+  try {
+    const auth = getDriveWriteAuth();
+    const drive = google.drive({ version: "v3", auth });
+    const meta = await drive.files.get({
+      fileId,
+      fields: "name,mimeType,size",
+      supportsAllDrives: true,
+    });
+    const res = await drive.files.get(
+      { fileId, alt: "media", supportsAllDrives: true },
+      { responseType: "stream" }
+    );
+    return {
+      stream: res.data as unknown as NodeJS.ReadableStream,
+      name: meta.data.name ?? fileId,
+      mimeType: meta.data.mimeType ?? "application/octet-stream",
+      size: meta.data.size != null ? Number(meta.data.size) : undefined,
+    };
+  } catch (err) {
+    console.error("[driveService] getDriveFileStream error:", err);
+    return null;
+  }
+}
+
+/** Rename a Drive file (used when a vault item is renamed). */
+export async function renameDriveFile(fileId: string, newName: string): Promise<boolean> {
+  try {
+    const auth = getDriveWriteAuth();
+    const drive = google.drive({ version: "v3", auth });
+    await drive.files.update({
+      fileId,
+      requestBody: { name: newName },
+      supportsAllDrives: true,
+    });
+    return true;
+  } catch (err) {
+    console.error("[driveService] renameDriveFile error:", err);
+    return false;
+  }
+}
+
+/** Decode the service account's email from GOOGLE_SERVICE_ACCOUNT_KEY, for "share with this address" UI. */
+export function getServiceAccountEmail(): string | null {
+  try {
+    const keyJson = Buffer.from(process.env.GOOGLE_SERVICE_ACCOUNT_KEY!, "base64").toString("utf8");
+    const key = JSON.parse(keyJson);
+    return key.client_email ?? null;
+  } catch (err) {
+    console.error("[driveService] getServiceAccountEmail error:", err);
+    return null;
+  }
+}
