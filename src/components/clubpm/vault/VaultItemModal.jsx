@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import toast from "react-hot-toast";
 import {
@@ -10,12 +10,31 @@ import {
   promoteVaultItem,
   getVaultItemHistory,
   vaultDownloadUrl,
+  uploadVaultFile,
 } from "../../../api/clubPmClient";
 import VaultUploadModal from "./VaultUploadModal";
 import ChangeRequestModal from "./ChangeRequestModal";
 
+// three.js is ~150+ kB gzip — VaultModelViewer must only ever be reached via
+// React.lazy so it lands in its own chunk instead of the main bundle.
+const VaultModelViewer = lazy(() => import("./VaultModelViewer"));
+
+// Kept intentionally separate from VaultModelViewer's internal copy of this
+// logic: a static import of that module here would pull three.js into this
+// chunk, defeating the lazy-load split above.
+const PREVIEWABLE_EXTENSIONS = new Set(["stl", "obj", "gltf", "glb"]);
+function extensionOf(fileName) {
+  if (!fileName) return "";
+  const idx = fileName.lastIndexOf(".");
+  return idx === -1 ? "" : fileName.slice(idx + 1).toLowerCase();
+}
+function isPreviewable(fileName) {
+  return PREVIEWABLE_EXTENSIONS.has(extensionOf(fileName));
+}
+
 const TABS = [
   { id: "versions", label: "Versions" },
+  { id: "3d", label: "3D" },
   { id: "changes", label: "Changes" },
   { id: "history", label: "History" },
 ];
@@ -68,6 +87,7 @@ export default function VaultItemModal({ itemId, project, member, isAdmin, onClo
   const [crPreset, setCrPreset] = useState(null);
   const [history, setHistory] = useState(null);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [selected3dVersionId, setSelected3dVersionId] = useState(null);
   const checkoutNoteRef = useRef("");
 
   const load = useCallback(async () => {
@@ -99,6 +119,44 @@ export default function VaultItemModal({ itemId, project, member, isAdmin, onClo
       .finally(() => { if (!cancelled) setHistoryLoading(false); });
     return () => { cancelled = true; };
   }, [activeTab, itemId]);
+
+  const previewableVersions = useMemo(
+    () => (item?.versions ?? []).filter((v) => isPreviewable(v.fileName)),
+    [item]
+  );
+
+  // Default the 3D-tab version picker to the latest previewable version
+  // whenever the item (re)loads, and keep the selection valid if versions
+  // are added/removed underneath it.
+  useEffect(() => {
+    if (previewableVersions.length === 0) {
+      setSelected3dVersionId(null);
+      return;
+    }
+    setSelected3dVersionId((current) =>
+      previewableVersions.some((v) => v.id === current) ? current : previewableVersions[0].id
+    );
+  }, [previewableVersions]);
+
+  const selected3dVersion = previewableVersions.find((v) => v.id === selected3dVersionId) ?? null;
+
+  async function handleThumbnailCaptured(versionId, blob) {
+    try {
+      await uploadVaultFile(`/api/vault/versions/${versionId}/thumbnail`, blob);
+      setItem((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          versions: (prev.versions ?? []).map((v) =>
+            v.id === versionId ? { ...v, thumbnailFileId: v.thumbnailFileId || "pending" } : v
+          ),
+        };
+      });
+      notifyChanged();
+    } catch (err) {
+      console.error("[VaultItemModal] thumbnail capture upload failed", err);
+    }
+  }
 
   function notifyChanged() { onChanged?.(); }
 
@@ -321,6 +379,56 @@ export default function VaultItemModal({ itemId, project, member, isAdmin, onClo
                 ))}
                 {(item.versions ?? []).length === 0 && (
                   <div className="cpm-vault-placeholder">No versions yet.</div>
+                )}
+              </div>
+            )}
+
+            {activeTab === "3d" && (
+              <div className="cpm-vault-3d-tab">
+                {previewableVersions.length === 0 ? (
+                  <div className="cpm-vault-placeholder">
+                    No preview — check in an STL/OBJ/GLB export alongside the native file.
+                  </div>
+                ) : (
+                  <>
+                    <label className="cpm-vault-field cpm-vault-3d-version-select">
+                      <span>Version</span>
+                      <select
+                        value={selected3dVersionId ?? ""}
+                        onChange={(e) => setSelected3dVersionId(e.target.value)}
+                      >
+                        {previewableVersions.map((v) => (
+                          <option key={v.id} value={v.id}>
+                            v{v.versionNumber} · {v.fileName}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    {selected3dVersion && (
+                      <Suspense
+                        fallback={
+                          <div className="cpm-vault-model-viewer">
+                            <div className="cpm-vault-model-viewer-overlay">
+                              <div className="cpm-spinner" />
+                              <span>Loading viewer…</span>
+                            </div>
+                          </div>
+                        }
+                      >
+                        <VaultModelViewer
+                          key={selected3dVersion.id}
+                          versionId={selected3dVersion.id}
+                          fileName={selected3dVersion.fileName}
+                          onCaptureThumbnail={
+                            selected3dVersion.thumbnailFileId
+                              ? undefined
+                              : (blob) => handleThumbnailCaptured(selected3dVersion.id, blob)
+                          }
+                        />
+                      </Suspense>
+                    )}
+                  </>
                 )}
               </div>
             )}

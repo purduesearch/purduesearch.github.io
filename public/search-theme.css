@@ -22855,3 +22855,56 @@ button.cpm-badge-tile:disabled { opacity: 0.7; cursor: progress; }
   font-weight: 400;
   white-space: pre-wrap;
 }
+
+/* === CLUBPM VAULT — Pack A (3D previews + thumbnails) === */
+
+/* Grid-card 3D-preview snapshot, in place of the plain extension icon.
+   Sized/positioned to match .cpm-vault-card-icon's footprint in the flow. */
+.cpm-vault-card-thumb {
+  width: 100%;
+  height: 96px;
+  border-radius: 10px;
+  background: var(--pm-bg-elevated);
+  object-fit: cover;
+}
+
+.cpm-vault-3d-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.cpm-vault-3d-version-select {
+  max-width: 320px;
+}
+
+.cpm-vault-model-viewer {
+  position: relative;
+  width: 100%;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--pm-bg-base);
+  border: 1px solid var(--pm-border);
+}
+.cpm-vault-model-viewer canvas {
+  display: block;
+}
+.cpm-vault-model-viewer-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: var(--pm-bg-base);
+  color: var(--pm-text-secondary);
+  font-size: 13px;
+  z-index: 2;
+}
+.cpm-vault-model-viewer-error {
+  color: var(--pm-accent-coral);
+}
+.cpm-vault-model-viewer-error i {
+  font-size: 22px;
+}

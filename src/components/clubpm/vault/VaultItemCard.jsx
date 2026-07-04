@@ -1,4 +1,5 @@
-import React from "react";
+import React, { useState } from "react";
+import { apiBaseUrl } from "../../../api/clubPmClient";
 
 // Extension → Font Awesome icon. Anything unrecognized (native CAD formats
 // like .prt/.sldprt/.f3d included) falls back to fa-cube.
@@ -18,10 +19,20 @@ function iconForFileName(fileName) {
 }
 
 export default function VaultItemCard({ item, onClick }) {
+  const [thumbFailed, setThumbFailed] = useState(false);
+
   const latest = item.latestVersion;
   const icon = iconForFileName(latest?.fileName);
   const checkedOutName = item.checkedOutBy?.displayName;
   const clickable = typeof onClick === "function";
+
+  // Client-rendered 3D-preview snapshot (Pack A). Only present once a
+  // teammate has opened the item's 3D tab at least once; falls back to the
+  // extension icon otherwise, or if the authenticated proxy request errors.
+  const thumbUrl = latest?.thumbnailFileId
+    ? `${apiBaseUrl}/api/vault/versions/${latest.id}/thumbnail`
+    : null;
+  const showThumb = !!thumbUrl && !thumbFailed;
 
   return (
     <div
@@ -42,9 +53,19 @@ export default function VaultItemCard({ item, onClick }) {
         </span>
       )}
 
-      <div className="cpm-vault-card-icon">
-        <i className={`fas ${icon}`} aria-hidden="true" />
-      </div>
+      {showThumb ? (
+        <img
+          className="cpm-vault-card-thumb"
+          src={thumbUrl}
+          alt=""
+          crossOrigin="use-credentials"
+          onError={() => setThumbFailed(true)}
+        />
+      ) : (
+        <div className="cpm-vault-card-icon">
+          <i className={`fas ${icon}`} aria-hidden="true" />
+        </div>
+      )}
 
       <div className="cpm-vault-card-name" title={item.name}>{item.name}</div>
 
