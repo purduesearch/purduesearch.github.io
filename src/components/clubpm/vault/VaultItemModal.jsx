@@ -20,6 +20,8 @@ const TABS = [
   { id: "history", label: "History" },
 ];
 
+const CR_STATUS_LABEL = { OPEN: "Open", APPROVED: "Approved", REJECTED: "Rejected", CANCELLED: "Cancelled" };
+
 function formatBytes(bytes) {
   if (bytes == null) return "";
   if (bytes < 1024) return `${bytes} B`;
@@ -324,7 +326,26 @@ export default function VaultItemModal({ itemId, project, member, isAdmin, onClo
             )}
 
             {activeTab === "changes" && (
-              <div className="cpm-vault-placeholder">Linked change requests are coming in Phase 8.</div>
+              <div className="cpm-vault-version-list">
+                {(item.crItems ?? []).length === 0 ? (
+                  <div className="cpm-vault-placeholder">No linked change requests yet.</div>
+                ) : (
+                  (item.crItems ?? []).map((ci) => (
+                    <div key={ci.id} className="cpm-vault-version-row">
+                      <div className="cpm-vault-version-main">
+                        <span className="cpm-vault-version-number">CR-{ci.changeRequest.number}</span>
+                        <span className="cpm-vault-version-filename" title={ci.changeRequest.title}>
+                          {ci.changeRequest.title}
+                        </span>
+                        <span className={`cpm-vault-cr-status cpm-vault-cr-status-${ci.changeRequest.status.toLowerCase()}`}>
+                          {CR_STATUS_LABEL[ci.changeRequest.status] ?? ci.changeRequest.status}
+                        </span>
+                        <span className="cpm-vault-chip-rev">→ Rev {ci.targetRevision}</span>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
             )}
 
             {activeTab === "history" && (

@@ -227,6 +227,7 @@ export default function AppShell({ children }) {
   const { celebration, clearCelebration } = useCelebrationCheck();
 
   const [pendingRewardsCount, setPendingRewardsCount] = useState(0);
+  const [pendingCrCount, setPendingCrCount] = useState(0);
 
   const fetchPendingCount = useCallback(() => {
     if (!member?.isAdmin) return;
@@ -235,14 +236,22 @@ export default function AppShell({ children }) {
       .catch(() => setPendingRewardsCount(0));
   }, [member]);
 
+  const fetchPendingCrCount = useCallback(() => {
+    if (!member?.isAdmin) return;
+    get('/api/change-requests/pending/count')
+      .then(res => setPendingCrCount(res.count ?? 0))
+      .catch(() => setPendingCrCount(0));
+  }, [member]);
+
   useEffect(() => {
     if (!member) return;
     fetchPendingCount();
+    fetchPendingCrCount();
     window.addEventListener('clubpm:pending-rewards-updated', fetchPendingCount);
     return () => {
       window.removeEventListener('clubpm:pending-rewards-updated', fetchPendingCount);
     };
-  }, [member, fetchPendingCount]);
+  }, [member, fetchPendingCount, fetchPendingCrCount]);
 
   useEffect(() => {
     if (!member) return;
@@ -357,21 +366,40 @@ export default function AppShell({ children }) {
               </span>
               <span className="pm-nav-item-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
                 <span>Admin</span>
-                {pendingRewardsCount > 0 && (
-                  <span className="pm-admin-badge" style={{
-                    background: 'var(--pm-accent-coral, #ff7675)',
-                    color: '#fff',
-                    borderRadius: '50%',
-                    padding: '2px 6px',
-                    fontSize: '10px',
-                    fontWeight: 'bold',
-                    marginLeft: '8px',
-                    minWidth: '16px',
-                    textAlign: 'center',
-                    display: 'inline-block',
-                    lineHeight: '1.2'
-                  }}>
-                    {pendingRewardsCount}
+                {(pendingRewardsCount > 0 || pendingCrCount > 0) && (
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '4px', marginLeft: '8px' }}>
+                    {pendingRewardsCount > 0 && (
+                      <span className="pm-admin-badge" title="Pending rewards" style={{
+                        background: 'var(--pm-accent-coral, #ff7675)',
+                        color: '#fff',
+                        borderRadius: '50%',
+                        padding: '2px 6px',
+                        fontSize: '10px',
+                        fontWeight: 'bold',
+                        minWidth: '16px',
+                        textAlign: 'center',
+                        display: 'inline-block',
+                        lineHeight: '1.2'
+                      }}>
+                        {pendingRewardsCount}
+                      </span>
+                    )}
+                    {pendingCrCount > 0 && (
+                      <span className="pm-admin-badge" title="Open change requests" style={{
+                        background: 'var(--pm-accent-coral, #ff7675)',
+                        color: '#fff',
+                        borderRadius: '50%',
+                        padding: '2px 6px',
+                        fontSize: '10px',
+                        fontWeight: 'bold',
+                        minWidth: '16px',
+                        textAlign: 'center',
+                        display: 'inline-block',
+                        lineHeight: '1.2'
+                      }}>
+                        {pendingCrCount}
+                      </span>
+                    )}
                   </span>
                 )}
               </span>

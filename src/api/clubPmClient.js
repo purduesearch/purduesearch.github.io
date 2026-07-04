@@ -342,6 +342,7 @@ export const patchCr   = (id, body) => patch(`/api/change-requests/${id}`, body)
 export const cancelCr  = (id) => post(`/api/change-requests/${id}/cancel`, {});
 export const approveCr = (id, body = {}) => post(`/api/change-requests/${id}/approve`, body);
 export const rejectCr  = (id, body = {}) => post(`/api/change-requests/${id}/reject`, body);
+export const getCrPendingCount = () => get(`/api/change-requests/pending/count`);
 
 // ── AI action plan ─────────────────────────────────────────────
 
