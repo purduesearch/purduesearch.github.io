@@ -112,6 +112,9 @@ enum NotificationType {
   GITHUB_PR_REVIEW_REQUESTED
   GITHUB_PR_MERGED
   GITHUB_CI_FAILED
+  VAULT_CR_SUBMITTED
+  VAULT_CR_DECIDED
+  VAULT_CHECKIN
 }
 
 // ── Models ───────────────────────────────────────────────────
@@ -194,14 +197,14 @@ model Member {
   dailyActivities       DailyActivity[]
   inventory             MemberInventory[]
   activeEffects         ActiveEffect[]
-  weeklyBonusSends      Int       @default(0)
+  weeklyBonusSends      Int               @default(0)
   weeklyBonusSendsWeek  DateTime? // ISO week start for which weeklyBonusSends applies
   celebrationConsumedAt DateTime? // last time the user dismissed a milestone celebration
 
   // ── Challenges / achievements ──
-  memberChallenges    MemberChallenge[]
-  memberAchievements  MemberAchievement[]
-  rewardRolls         RewardRoll[]
+  memberChallenges   MemberChallenge[]
+  memberAchievements MemberAchievement[]
+  rewardRolls        RewardRoll[]
 
   // ── Equipped rank-slot badge (separate from generic equippedSlot scheme so
   // we can render a default rank-derived SVG when null without a join). ──
@@ -216,6 +219,13 @@ model Member {
 
   tokenVersion Int      @default(0)
   createdAt    DateTime @default(now())
+
+  // ── Constellation Vault (CAD change management) ──
+  vaultCheckouts         VaultItem[]     @relation("VaultCheckout")
+  createdVaultItems      VaultItem[]     @relation("VaultItemCreator")
+  vaultVersionUploads    VaultVersion[]  @relation("VaultVersionUploader")
+  authoredChangeRequests ChangeRequest[] @relation("ChangeRequestAuthor")
+  reviewedChangeRequests ChangeRequest[] @relation("ChangeRequestReviewer")
 }
 
 model Project {
@@ -258,6 +268,14 @@ model Project {
   submissions             OutreachSubmission[]
   createdAt               DateTime                    @default(now())
   updatedAt               DateTime                    @updatedAt
+
+  // ── Constellation Vault (CAD change management) ──
+  vaultFolderId    String?
+  vaultPartPrefix  String          @default("PRT")
+  vaultPartCounter Int             @default(0)
+  vaultCrCounter   Int             @default(0)
+  vaultItems       VaultItem[]
+  changeRequests   ChangeRequest[]
 }
 
 model ProjectMember {
@@ -342,6 +360,9 @@ model Task {
   // Set when handleTaskComplete first fires for this task. Subsequent DONE
   // transitions skip the grant (prevents DONE→IN_PROGRESS→DONE exploit).
   rewardGrantedAt DateTime?
+
+  // ── Constellation Vault (CAD change management) ──
+  changeRequests ChangeRequest[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -486,6 +507,21 @@ enum ActivityEventType {
   MILESTONE_DELETED
   MILESTONE_TASKS_LINKED
   AI_PLAN_EXECUTED
+  VAULT_ITEM_CREATED
+  VAULT_ITEM_UPDATED
+  VAULT_ITEM_DELETED
+  VAULT_VERSION_CHECKED_IN
+  VAULT_ITEM_CHECKED_OUT
+  VAULT_CHECKOUT_RELEASED
+  VAULT_ITEM_PROMOTED
+  VAULT_REVISION_RELEASED
+  CHANGE_REQUEST_CREATED
+  CHANGE_REQUEST_UPDATED
+  CHANGE_REQUEST_APPROVED
+  CHANGE_REQUEST_REJECTED
+  CHANGE_REQUEST_CANCELLED
+  VAULT_BOM_LINK_ADDED
+  VAULT_BOM_LINK_REMOVED
 }
 
 enum GitHubLinkKind {
@@ -592,8 +628,8 @@ model TaskDependency {
   blockingTaskId String
   blockedTaskId  String
   reason         String?
-  blockingTask   Task   @relation("TaskDependencies_blocking", fields: [blockingTaskId], references: [id], onDelete: Cascade)
-  blockedTask    Task   @relation("TaskDependencies_blocked", fields: [blockedTaskId], references: [id], onDelete: Cascade)
+  blockingTask   Task    @relation("TaskDependencies_blocking", fields: [blockingTaskId], references: [id], onDelete: Cascade)
+  blockedTask    Task    @relation("TaskDependencies_blocked", fields: [blockedTaskId], references: [id], onDelete: Cascade)
 
   @@id([blockingTaskId, blockedTaskId])
 }
@@ -791,16 +827,16 @@ model OutreachComment {
   submissionId String?
   submission   OutreachSubmission? @relation(fields: [submissionId], references: [id], onDelete: Cascade)
   authorId     String
-  author       Member             @relation("OutreachCommentAuthor", fields: [authorId], references: [id])
+  author       Member              @relation("OutreachCommentAuthor", fields: [authorId], references: [id])
   body         String
   mentions     String[]
   parentId     String?
-  parent       OutreachComment?   @relation("CommentReplies", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  replies      OutreachComment[]  @relation("CommentReplies")
+  parent       OutreachComment?    @relation("CommentReplies", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  replies      OutreachComment[]   @relation("CommentReplies")
   // Draft annotations: a comment may instead be attached to a BlogPost (internal review notes).
   blogPostId   String?
-  blogPost     BlogPost?          @relation("BlogPostAnnotations", fields: [blogPostId], references: [id], onDelete: Cascade)
-  createdAt    DateTime           @default(now())
+  blogPost     BlogPost?           @relation("BlogPostAnnotations", fields: [blogPostId], references: [id], onDelete: Cascade)
+  createdAt    DateTime            @default(now())
 
   @@index([submissionId])
   @@index([blogPostId])
@@ -816,20 +852,20 @@ enum BlogStatus {
 }
 
 model BlogPost {
-  id           String     @id @default(cuid())
-  title        String
-  slug         String     @unique
-  excerpt      String?
-  status       BlogStatus @default(DRAFT)
+  id      String     @id @default(cuid())
+  title   String
+  slug    String     @unique
+  excerpt String?
+  status  BlogStatus @default(DRAFT)
 
   contentJson  Json // TipTap document — source of truth for editing + revision diffs
   contentYjs   Bytes? // Yjs/CRDT binary state for realtime collaboration
   renderedHtml String? // HTML snapshot written at publish time (served to the public site)
 
   // Free-text byline (historical / non-member authors). Overrides createdBy when set.
-  authorName   String?
+  authorName String?
   // When set, this post's card links here instead of /blog/:slug (a "link post").
-  linkUrl      String?
+  linkUrl    String?
 
   coverImageUrl  String?
   readingTimeMin Int?
@@ -1226,7 +1262,7 @@ model Cosmetic {
   iconClass       String? // Font Awesome class for BADGE (legacy; svgUrl preferred)
   svgUrl          String? // public path to SVG artwork (e.g. /clubpm/badges/celestial.svg)
   registryKey     String? // key into CLOTHING / HAIR JS registries
-  themeTokens     Json?   // { accent, accentSoft, glow, bgOverlay } for themes + tinted borders
+  themeTokens     Json? // { accent, accentSoft, glow, bgOverlay } for themes + tinted borders
   doubloonPrice   Int              @default(0)
   xpGate          Int? // null = no xp gate
   rankGate        Rank? // null = no rank gate
@@ -1458,18 +1494,18 @@ model Challenge {
 }
 
 model MemberChallenge {
-  id          String    @id @default(cuid())
-  memberId    String
-  challengeId String
-  periodStart DateTime
-  periodEnd   DateTime
-  progress    Int       @default(0)
+  id           String    @id @default(cuid())
+  memberId     String
+  challengeId  String
+  periodStart  DateTime
+  periodEnd    DateTime
+  progress     Int       @default(0)
   progressMeta Json?
-  completedAt DateTime?
-  claimedAt   DateTime?
-  rolledItems Json?
-  member      Member    @relation(fields: [memberId], references: [id], onDelete: Cascade)
-  challenge   Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  completedAt  DateTime?
+  claimedAt    DateTime?
+  rolledItems  Json?
+  member       Member    @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  challenge    Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
 
   @@unique([memberId, challengeId, periodStart])
   @@index([memberId, periodStart])
@@ -1500,4 +1536,117 @@ model RewardRoll {
   member     Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
 
   @@index([memberId, createdAt])
+}
+
+// ── Constellation Vault (CAD change management) ──────────────
+
+enum ChangeRequestStatus {
+  OPEN
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+model VaultItem {
+  id              String              @id @default(cuid())
+  projectId       String
+  project         Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name            String
+  description     String?
+  driveFolderId   String
+  partNumber      String?
+  currentRevision String?
+  checkedOutById  String?
+  checkedOutBy    Member?             @relation("VaultCheckout", fields: [checkedOutById], references: [id], onDelete: SetNull)
+  checkedOutAt    DateTime?
+  checkoutNote    String?
+  createdById     String?
+  createdBy       Member?             @relation("VaultItemCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  deletedAt       DateTime?
+  versions        VaultVersion[]
+  crItems         ChangeRequestItem[]
+  childLinks      VaultBomEdge[]      @relation("BomParent")
+  parentLinks     VaultBomEdge[]      @relation("BomChild")
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  @@unique([projectId, partNumber])
+  @@index([projectId, deletedAt])
+}
+
+model VaultVersion {
+  id              String              @id @default(cuid())
+  itemId          String
+  item            VaultItem           @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  versionNumber   Int
+  driveFileId     String
+  fileName        String
+  mimeType        String?
+  sizeBytes       Int?
+  checksumMd5     String?
+  note            String?
+  uploadedById    String?
+  uploadedBy      Member?             @relation("VaultVersionUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
+  revision        String?
+  releasedAt      DateTime?
+  releasedByCrId  String?
+  thumbnailFileId String?
+  crItems         ChangeRequestItem[]
+  createdAt       DateTime            @default(now())
+
+  @@unique([itemId, versionNumber])
+  @@index([itemId])
+}
+
+model ChangeRequest {
+  id           String              @id @default(cuid())
+  projectId    String
+  project      Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  number       Int
+  title        String
+  description  String?
+  status       ChangeRequestStatus @default(OPEN)
+  authorId     String?
+  author       Member?             @relation("ChangeRequestAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+  reviewerId   String?
+  reviewer     Member?             @relation("ChangeRequestReviewer", fields: [reviewerId], references: [id], onDelete: SetNull)
+  reviewNote   String?
+  reviewedAt   DateTime?
+  releaseNotes String?
+  taskId       String?
+  task         Task?               @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  items        ChangeRequestItem[]
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  @@unique([projectId, number])
+  @@index([projectId, status])
+}
+
+model ChangeRequestItem {
+  id              String        @id @default(cuid())
+  changeRequestId String
+  changeRequest   ChangeRequest @relation(fields: [changeRequestId], references: [id], onDelete: Cascade)
+  itemId          String
+  item            VaultItem     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  versionId       String
+  version         VaultVersion  @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  targetRevision  String
+  note            String?
+
+  @@unique([changeRequestId, itemId])
+  @@index([itemId])
+}
+
+model VaultBomEdge {
+  parentId  String
+  parent    VaultItem @relation("BomParent", fields: [parentId], references: [id], onDelete: Cascade)
+  childId   String
+  child     VaultItem @relation("BomChild", fields: [childId], references: [id], onDelete: Cascade)
+  quantity  Int       @default(1)
+  note      String?
+  createdAt DateTime  @default(now())
+
+  @@id([parentId, childId])
+  @@index([childId])
 }
