@@ -296,6 +296,42 @@ export const getProjectBlockers = (projectId) => get(`/api/projects/${projectId}
 export const createBlocker      = (projectId, data) => post(`/api/projects/${projectId}/blockers`, data);
 export const updateBlocker      = (id, data) => patch(`/api/blockers/${id}`, data);
 
+// ── Vault (Constellation Vault CAD change management) ──────────
+
+export const getVault             = (projectId) => get(`/api/projects/${projectId}/vault`);
+export const getVaultItem         = (id) => get(`/api/vault/items/${id}`);
+export const patchVaultItem       = (id, body) => patch(`/api/vault/items/${id}`, body);
+export const deleteVaultItem      = (id) => del(`/api/vault/items/${id}`);
+export const checkoutVaultItem    = (id, body) => post(`/api/vault/items/${id}/checkout`, body);
+export const releaseVaultCheckout = (id) => del(`/api/vault/items/${id}/checkout`);
+export const promoteVaultItem     = (id) => post(`/api/vault/items/${id}/promote`, {});
+export const getVaultItemHistory  = (id) => get(`/api/vault/items/${id}/history`);
+export const patchVaultSettings   = (projectId, body) => patch(`/api/projects/${projectId}/vault/settings`, body);
+export const vaultDownloadUrl     = (versionId) => `${BASE_URL}/api/vault/versions/${versionId}/download`;
+
+// Multipart vault upload (new item or new version) with a live progress
+// callback. get/post/patch/del only send JSON, and fetch() has no upload
+// progress event, so this goes straight through XHR (same FormData idiom as
+// uploadBlogImage, plus xhr.upload.onprogress).
+export function uploadVaultFile(path, file, fields = {}, onProgress) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", `${BASE_URL}${path}`);
+    xhr.withCredentials = true;
+    xhr.upload.onprogress = (e) => { if (e.lengthComputable && onProgress) onProgress(e.loaded / e.total); };
+    xhr.onload = () => {
+      let body = null; try { body = JSON.parse(xhr.responseText); } catch {}
+      if (xhr.status >= 200 && xhr.status < 300) resolve(body);
+      else reject(Object.assign(new Error(body?.error || `Upload failed (${xhr.status})`), { status: xhr.status, body }));
+    };
+    xhr.onerror = () => reject(new Error("Network error during upload"));
+    const fd = new FormData();
+    fd.append("file", file);
+    Object.entries(fields).forEach(([k, v]) => v != null && fd.append(k, v));
+    xhr.send(fd);   // no Content-Type header — FormData sets the multipart boundary
+  });
+}
+
 // ── AI action plan ─────────────────────────────────────────────
 
 export const suggestActions = (projectId, goal) => post(`/api/projects/${projectId}/ai-suggest-actions`, { goal });

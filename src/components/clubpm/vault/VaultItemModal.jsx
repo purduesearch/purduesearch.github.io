@@ -1,0 +1,366 @@
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import toast from "react-hot-toast";
+import {
+  getVaultItem,
+  patchVaultItem,
+  deleteVaultItem,
+  checkoutVaultItem,
+  releaseVaultCheckout,
+  promoteVaultItem,
+  getVaultItemHistory,
+  vaultDownloadUrl,
+} from "../../../api/clubPmClient";
+import VaultUploadModal from "./VaultUploadModal";
+
+const TABS = [
+  { id: "versions", label: "Versions" },
+  { id: "changes", label: "Changes" },
+  { id: "history", label: "History" },
+];
+
+function formatBytes(bytes) {
+  if (bytes == null) return "";
+  if (bytes < 1024) return `${bytes} B`;
+  const units = ["KB", "MB", "GB"];
+  let value = bytes / 1024;
+  let unitIdx = 0;
+  while (value >= 1024 && unitIdx < units.length - 1) {
+    value /= 1024;
+    unitIdx += 1;
+  }
+  return `${value.toFixed(1)} ${units[unitIdx]}`;
+}
+
+function timeAgo(iso) {
+  if (!iso) return "";
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const mins = Math.round(diffMs / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.round(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.round(hrs / 24);
+  if (days < 30) return `${days}d ago`;
+  return new Date(iso).toLocaleDateString();
+}
+
+// `actor` on history rows may come back as a plain label or a member-shaped
+// object depending on whether the audit event has a linked member — handle
+// both without assuming the exact backend shape.
+function actorLabel(actor) {
+  if (!actor) return "Someone";
+  if (typeof actor === "string") return actor;
+  return actor.displayName ?? actor.name ?? "Someone";
+}
+
+export default function VaultItemModal({ itemId, project, member, isAdmin, onClose, onChanged }) {
+  const [item, setItem] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
+  const [activeTab, setActiveTab] = useState("versions");
+  const [nameDraft, setNameDraft] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [showUpload, setShowUpload] = useState(false);
+  const [history, setHistory] = useState(null);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const checkoutNoteRef = useRef("");
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setLoadError(null);
+    try {
+      const data = await getVaultItem(itemId);
+      setItem(data);
+      setNameDraft(data?.name ?? "");
+    } catch (err) {
+      setLoadError(err.message || "Failed to load item");
+    } finally {
+      setLoading(false);
+    }
+  }, [itemId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    if (activeTab !== "history" || !itemId) return;
+    let cancelled = false;
+    setHistoryLoading(true);
+    getVaultItemHistory(itemId)
+      .then((rows) => { if (!cancelled) setHistory(rows); })
+      .catch((err) => {
+        console.error("Failed to load vault item history", err);
+        if (!cancelled) setHistory([]);
+      })
+      .finally(() => { if (!cancelled) setHistoryLoading(false); });
+    return () => { cancelled = true; };
+  }, [activeTab, itemId]);
+
+  function notifyChanged() { onChanged?.(); }
+
+  async function handleNameBlur() {
+    const trimmed = nameDraft.trim();
+    if (!item || !trimmed || trimmed === item.name) {
+      setNameDraft(item?.name ?? "");
+      return;
+    }
+    try {
+      await patchVaultItem(item.id, { name: trimmed });
+      await load();
+      notifyChanged();
+    } catch (err) {
+      toast.error(err.message || "Failed to rename item");
+      setNameDraft(item.name);
+    }
+  }
+
+  async function handleCheckout(force = false) {
+    if (!item || busy) return;
+    setBusy(true);
+    try {
+      await checkoutVaultItem(item.id, { note: checkoutNoteRef.current || undefined, force });
+      await load();
+      notifyChanged();
+      toast.success("Checked out");
+    } catch (err) {
+      if (err.status === 409 && !force) {
+        const proceed = window.confirm(
+          `${err.message || "Someone else already has this checked out."} Force checkout anyway?`
+        );
+        if (proceed) {
+          setBusy(false);
+          await handleCheckout(true);
+          return;
+        }
+      } else {
+        toast.error(err.message || "Checkout failed");
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function onClickCheckout() {
+    checkoutNoteRef.current = window.prompt("Optional check-out note (visible to teammates):") ?? "";
+    handleCheckout(false);
+  }
+
+  async function handleRelease() {
+    if (!item || busy) return;
+    setBusy(true);
+    try {
+      await releaseVaultCheckout(item.id);
+      await load();
+      notifyChanged();
+      toast.success("Checkout released");
+    } catch (err) {
+      toast.error(err.message || "Failed to release checkout");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handlePromote() {
+    if (!item || busy) return;
+    setBusy(true);
+    try {
+      await promoteVaultItem(item.id);
+      await load();
+      notifyChanged();
+      toast.success("Promoted to a part");
+    } catch (err) {
+      toast.error(err.message || "Failed to promote item");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleDelete() {
+    if (!item || busy) return;
+    if (!window.confirm(`Delete "${item.name}"? This can't be undone.`)) return;
+    setBusy(true);
+    try {
+      await deleteVaultItem(item.id);
+      toast.success("Item deleted");
+      notifyChanged();
+      onClose();
+    } catch (err) {
+      toast.error(err.message || "Failed to delete item");
+      setBusy(false);
+    }
+  }
+
+  function handleUploadDone() {
+    setShowUpload(false);
+    load();
+    notifyChanged();
+  }
+
+  const isHolder = !!item?.checkedOutBy && item.checkedOutBy.id === member?.id;
+  const canRelease = isHolder || isAdmin;
+  const canDelete = (!!item?.createdBy && item.createdBy.id === member?.id) || isAdmin;
+
+  return createPortal(
+    <>
+      <div className="cpm-vault-item-panel-overlay" onClick={onClose} />
+      <div className="cpm-vault-item-panel">
+        <button type="button" className="cpm-vault-modal-close" onClick={onClose} aria-label="Close">
+          <i className="fas fa-times" aria-hidden="true" />
+        </button>
+
+        {loading ? (
+          <div className="cpm-vault-loading"><div className="cpm-spinner" /></div>
+        ) : loadError ? (
+          <div className="cpm-vault-placeholder">{loadError}</div>
+        ) : item ? (
+          <>
+            <div className="cpm-vault-item-header">
+              <input
+                type="text"
+                className="cpm-vault-item-name-input"
+                value={nameDraft}
+                onChange={(e) => setNameDraft(e.target.value)}
+                onBlur={handleNameBlur}
+                disabled={busy}
+              />
+
+              <div className="cpm-vault-card-chips">
+                {item.partNumber && <span className="cpm-vault-chip-part">{item.partNumber}</span>}
+                {item.currentRevision ? (
+                  <span className="cpm-vault-chip-rev">Rev {item.currentRevision}</span>
+                ) : (
+                  <span className="cpm-vault-chip-unreleased">Unreleased</span>
+                )}
+              </div>
+
+              {item.checkedOutBy && (
+                <div className="cpm-vault-checkout-note">
+                  <i className="fas fa-pen" aria-hidden="true" /> Checked out by {item.checkedOutBy.displayName}
+                  {item.checkoutNote ? ` — "${item.checkoutNote}"` : ""}
+                </div>
+              )}
+
+              <div className="cpm-vault-item-actions">
+                {!item.checkedOutById && (
+                  <button type="button" className="cpm-vault-btn-ghost" onClick={onClickCheckout} disabled={busy}>
+                    <i className="fas fa-pen" aria-hidden="true" /> Check out
+                  </button>
+                )}
+                {item.checkedOutById && canRelease && (
+                  <button type="button" className="cpm-vault-btn-ghost" onClick={handleRelease} disabled={busy}>
+                    <i className="fas fa-lock-open" aria-hidden="true" /> Release
+                  </button>
+                )}
+                {!item.partNumber && (
+                  <button type="button" className="cpm-vault-btn-ghost" onClick={handlePromote} disabled={busy}>
+                    <i className="fas fa-arrow-up" aria-hidden="true" /> Promote to Part
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="clubpm-btn-primary"
+                  onClick={() => setShowUpload(true)}
+                  disabled={busy}
+                >
+                  <i className="fas fa-file-arrow-up" aria-hidden="true" /> New check-in
+                </button>
+                {canDelete && (
+                  <button type="button" className="cpm-vault-btn-danger" onClick={handleDelete} disabled={busy}>
+                    <i className="fas fa-trash-alt" aria-hidden="true" /> Delete
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div className="cpm-vault-subnav" role="tablist" aria-label="Item detail">
+              {TABS.map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={activeTab === t.id}
+                  className={`cpm-vault-pill${activeTab === t.id ? " active" : ""}`}
+                  onClick={() => setActiveTab(t.id)}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+
+            {activeTab === "versions" && (
+              <div className="cpm-vault-version-list">
+                {(item.versions ?? []).map((v) => (
+                  <div key={v.id} className="cpm-vault-version-row">
+                    <div className="cpm-vault-version-main">
+                      <span className="cpm-vault-version-number">v{v.versionNumber}</span>
+                      <span className="cpm-vault-version-filename" title={v.fileName}>{v.fileName}</span>
+                      {v.sizeBytes != null && <span className="cpm-vault-version-size">{formatBytes(v.sizeBytes)}</span>}
+                      {v.revision && <span className="cpm-vault-chip-rev">Rev {v.revision}</span>}
+                    </div>
+                    <div className="cpm-vault-version-meta">
+                      <span>by {v.uploadedBy?.displayName ?? "Unknown"}</span>
+                      {v.note && <span className="cpm-vault-version-note">"{v.note}"</span>}
+                    </div>
+                    <div className="cpm-vault-version-actions">
+                      <a className="cpm-vault-btn-ghost" href={vaultDownloadUrl(v.id)}>
+                        <i className="fas fa-download" aria-hidden="true" /> Download
+                      </a>
+                      <button type="button" className="cpm-vault-btn-ghost" disabled title="Coming in Phase 7">
+                        Request release
+                      </button>
+                    </div>
+                  </div>
+                ))}
+                {(item.versions ?? []).length === 0 && (
+                  <div className="cpm-vault-placeholder">No versions yet.</div>
+                )}
+              </div>
+            )}
+
+            {activeTab === "changes" && (
+              <div className="cpm-vault-placeholder">Linked change requests are coming in Phase 8.</div>
+            )}
+
+            {activeTab === "history" && (
+              historyLoading ? (
+                <div className="cpm-vault-loading"><div className="cpm-spinner" /></div>
+              ) : (
+                <div className="cpm-vault-history-list">
+                  {(history ?? []).length === 0 ? (
+                    <div className="cpm-vault-placeholder">No history yet.</div>
+                  ) : (
+                    history.map((h) => (
+                      <div key={h.id} className="cpm-vault-history-row">
+                        <div className="cpm-vault-history-line">
+                          <strong>{actorLabel(h.actor)}</strong> {h.action}{" "}
+                          <span className="cpm-vault-history-time">{timeAgo(h.at)}</span>
+                        </div>
+                        {Array.isArray(h.metadata?.changes) && h.metadata.changes.length > 0 && (
+                          <ul className="cpm-vault-history-changes">
+                            {h.metadata.changes.map((c, i) => (
+                              <li key={i}>{c.field}: {String(c.from)} → {String(c.to)}</li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
+              )
+            )}
+          </>
+        ) : null}
+      </div>
+
+      {showUpload && (
+        <VaultUploadModal
+          project={project}
+          item={item}
+          onClose={() => setShowUpload(false)}
+          onDone={handleUploadDone}
+        />
+      )}
+    </>,
+    document.body
+  );
+}

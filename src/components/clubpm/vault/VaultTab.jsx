@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { get } from "../../../api/clubPmClient";
 import VaultItemCard from "./VaultItemCard";
+import VaultUploadModal from "./VaultUploadModal";
+import VaultItemModal from "./VaultItemModal";
 
 // Sub-view pills. "Review Queue" only shows for admins; both CR views are
 // placeholders until Phase 7 wires up the change-request API/UI.
@@ -26,6 +28,8 @@ export default function VaultTab({ project, member, isAdmin }) {
   const [subView, setSubView] = useState("vault");
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [selectedItemId, setSelectedItemId] = useState(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -177,8 +181,7 @@ export default function VaultTab({ project, member, isAdmin }) {
             <button
               type="button"
               className="clubpm-btn-primary"
-              disabled
-              title="Check-in is coming in Phase 5"
+              onClick={() => setShowUploadModal(true)}
             >
               <i className="fas fa-file-arrow-up" aria-hidden="true" /> Check in file
             </button>
@@ -191,7 +194,7 @@ export default function VaultTab({ project, member, isAdmin }) {
           ) : (
             <div className="cpm-vault-grid">
               {filteredItems.map(item => (
-                <VaultItemCard key={item.id} item={item} />
+                <VaultItemCard key={item.id} item={item} onClick={() => setSelectedItemId(item.id)} />
               ))}
             </div>
           )}
@@ -204,6 +207,25 @@ export default function VaultTab({ project, member, isAdmin }) {
 
       {subView === "reviewQueue" && isAdmin && (
         <div className="cpm-vault-placeholder">The review queue is coming in Phase 7.</div>
+      )}
+
+      {showUploadModal && (
+        <VaultUploadModal
+          project={project}
+          onClose={() => setShowUploadModal(false)}
+          onDone={() => { setShowUploadModal(false); load(); }}
+        />
+      )}
+
+      {selectedItemId && (
+        <VaultItemModal
+          itemId={selectedItemId}
+          project={project}
+          member={member}
+          isAdmin={isAdmin}
+          onClose={() => setSelectedItemId(null)}
+          onChanged={load}
+        />
       )}
     </div>
   );

@@ -22309,3 +22309,342 @@ button.cpm-badge-tile:disabled { opacity: 0.7; cursor: progress; }
   border-color: var(--pm-accent-teal);
   color: var(--pm-accent-teal);
 }
+
+/* ── Phase 5: check-in flow + item detail panel ─────────────── */
+
+.cpm-vault-modal-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  border: 1px solid var(--pm-border);
+  background: transparent;
+  color: var(--pm-text-secondary);
+  cursor: pointer;
+  font-size: 14px;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+.cpm-vault-modal-close:hover {
+  border-color: var(--pm-accent-teal);
+  color: var(--pm-accent-teal);
+}
+.cpm-vault-modal-close:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.cpm-vault-btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--pm-border);
+  background: transparent;
+  color: var(--pm-text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+.cpm-vault-btn-ghost:hover {
+  border-color: var(--pm-accent-teal);
+  color: var(--pm-accent-teal);
+}
+.cpm-vault-btn-ghost:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.cpm-vault-btn-danger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 107, 107, 0.35);
+  background: transparent;
+  color: var(--pm-accent-coral);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.cpm-vault-btn-danger:hover {
+  background: rgba(255, 107, 107, 0.12);
+  border-color: var(--pm-accent-coral);
+}
+.cpm-vault-btn-danger:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Check-in / upload dialog (centered — reuses .cpm-modal-overlay) */
+.cpm-vault-upload-modal {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: min(480px, 96vw);
+  max-height: 92vh;
+  overflow-y: auto;
+  padding: 22px;
+  border-radius: 14px;
+  border: 1px solid var(--pm-border);
+  background: var(--pm-bg-surface);
+  box-shadow: var(--pm-shadow-card);
+}
+.cpm-vault-upload-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.cpm-vault-upload-title {
+  font-family: var(--pm-font-display);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--pm-text-primary);
+}
+
+.cpm-vault-dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 32px 16px;
+  border-radius: 12px;
+  border: 1px dashed var(--pm-border);
+  background: var(--pm-bg-elevated);
+  color: var(--pm-text-muted);
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.cpm-vault-dropzone > i {
+  font-size: 26px;
+  color: var(--pm-accent-teal);
+}
+.cpm-vault-dropzone.active {
+  border-color: var(--pm-accent-teal);
+  background: rgba(0, 229, 204, 0.08);
+}
+.cpm-vault-dropzone.has-file {
+  border-style: solid;
+  color: var(--pm-text-primary);
+}
+.cpm-vault-dropzone-filename {
+  font-weight: 600;
+  color: var(--pm-text-primary);
+  word-break: break-word;
+}
+.cpm-vault-dropzone-filesize {
+  font-size: 12px;
+  color: var(--pm-text-muted);
+}
+
+.cpm-vault-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--pm-text-secondary);
+}
+.cpm-vault-field input,
+.cpm-vault-field textarea {
+  padding: 9px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--pm-border);
+  background: var(--pm-bg-surface);
+  color: var(--pm-text-primary);
+  font-size: 13px;
+  font-weight: 400;
+  font-family: var(--pm-font-body);
+  resize: vertical;
+}
+.cpm-vault-field input:focus,
+.cpm-vault-field textarea:focus {
+  outline: none;
+  border-color: var(--pm-accent-teal);
+}
+
+.cpm-vault-progress {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--pm-bg-elevated);
+  overflow: hidden;
+}
+.cpm-vault-progress-fill {
+  height: 100%;
+  background: var(--pm-accent-teal);
+  transition: width 0.15s ease;
+}
+
+.cpm-vault-upload-error {
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: rgba(255, 107, 107, 0.12);
+  border: 1px solid rgba(255, 107, 107, 0.3);
+  color: var(--pm-accent-coral);
+  font-size: 12px;
+}
+
+.cpm-vault-upload-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+/* Item detail panel — slides in from the right, distinct z-index band below
+   the generic .cpm-modal-overlay (5000+) so a check-in dialog opened from
+   inside the panel always layers on top of it. */
+.cpm-vault-item-panel-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 4990;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(2px);
+}
+.cpm-vault-item-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 4991;
+  width: 460px;
+  max-width: 96vw;
+  overflow-y: auto;
+  padding: 24px;
+  background: var(--pm-bg-surface);
+  border-left: 1px solid var(--pm-border);
+  box-shadow: -12px 0 40px rgba(0, 0, 0, 0.45);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.cpm-vault-item-panel .cpm-vault-modal-close {
+  align-self: flex-end;
+}
+
+.cpm-vault-item-header {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.cpm-vault-item-name-input {
+  padding: 6px 0;
+  border: none;
+  border-bottom: 1px solid transparent;
+  background: transparent;
+  color: var(--pm-text-primary);
+  font-family: var(--pm-font-display);
+  font-size: 19px;
+  font-weight: 700;
+}
+.cpm-vault-item-name-input:hover,
+.cpm-vault-item-name-input:focus {
+  outline: none;
+  border-bottom-color: var(--pm-border);
+}
+.cpm-vault-checkout-note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: rgba(245, 166, 35, 0.12);
+  color: var(--pm-accent-amber);
+  font-size: 12px;
+}
+.cpm-vault-item-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.cpm-vault-version-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.cpm-vault-version-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--pm-border);
+  background: var(--pm-bg-elevated);
+}
+.cpm-vault-version-main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.cpm-vault-version-number {
+  font-family: var(--pm-font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--pm-accent-teal);
+}
+.cpm-vault-version-filename {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--pm-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 220px;
+}
+.cpm-vault-version-size {
+  font-family: var(--pm-font-mono);
+  font-size: 11px;
+  color: var(--pm-text-muted);
+}
+.cpm-vault-version-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--pm-text-secondary);
+}
+.cpm-vault-version-note {
+  color: var(--pm-text-muted);
+  font-style: italic;
+}
+.cpm-vault-version-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.cpm-vault-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.cpm-vault-history-row {
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--pm-border);
+}
+.cpm-vault-history-row:last-child {
+  border-bottom: none;
+}
+.cpm-vault-history-line {
+  font-size: 13px;
+  color: var(--pm-text-secondary);
+}
+.cpm-vault-history-time {
+  color: var(--pm-text-muted);
+  font-size: 11px;
+}
+.cpm-vault-history-changes {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  font-size: 12px;
+  color: var(--pm-text-muted);
+}
