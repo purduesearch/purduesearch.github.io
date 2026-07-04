@@ -4,9 +4,9 @@ import { get } from "../../../api/clubPmClient";
 import VaultItemCard from "./VaultItemCard";
 import VaultUploadModal from "./VaultUploadModal";
 import VaultItemModal from "./VaultItemModal";
+import ChangeRequestList from "./ChangeRequestList";
 
-// Sub-view pills. "Review Queue" only shows for admins; both CR views are
-// placeholders until Phase 7 wires up the change-request API/UI.
+// Sub-view pills. "Review Queue" only shows for admins.
 const SUB_VIEWS = [
   { id: "vault",          label: "Vault" },
   { id: "changeRequests", label: "Change Requests" },
@@ -202,11 +202,11 @@ export default function VaultTab({ project, member, isAdmin }) {
       )}
 
       {subView === "changeRequests" && (
-        <div className="cpm-vault-placeholder">Change requests are coming in Phase 7.</div>
+        <ChangeRequestList project={project} member={member} isAdmin={isAdmin} mode="all" />
       )}
 
       {subView === "reviewQueue" && isAdmin && (
-        <div className="cpm-vault-placeholder">The review queue is coming in Phase 7.</div>
+        <ChangeRequestList project={project} member={member} isAdmin={isAdmin} mode="review" />
       )}
 
       {showUploadModal && (

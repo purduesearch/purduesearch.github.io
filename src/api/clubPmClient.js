@@ -332,6 +332,17 @@ export function uploadVaultFile(path, file, fields = {}, onProgress) {
   });
 }
 
+// ── Change requests (Constellation Vault CAD change management) ──
+
+export const listCrs   = (projectId, status) =>
+  get(`/api/projects/${projectId}/change-requests${status ? `?status=${encodeURIComponent(status)}` : ""}`);
+export const createCr  = (projectId, body) => post(`/api/projects/${projectId}/change-requests`, body);
+export const getCr     = (id) => get(`/api/change-requests/${id}`);
+export const patchCr   = (id, body) => patch(`/api/change-requests/${id}`, body);
+export const cancelCr  = (id) => post(`/api/change-requests/${id}/cancel`, {});
+export const approveCr = (id, body = {}) => post(`/api/change-requests/${id}/approve`, body);
+export const rejectCr  = (id, body = {}) => post(`/api/change-requests/${id}/reject`, body);
+
 // ── AI action plan ─────────────────────────────────────────────
 
 export const suggestActions = (projectId, goal) => post(`/api/projects/${projectId}/ai-suggest-actions`, { goal });

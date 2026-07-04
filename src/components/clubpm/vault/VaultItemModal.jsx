@@ -12,6 +12,7 @@ import {
   vaultDownloadUrl,
 } from "../../../api/clubPmClient";
 import VaultUploadModal from "./VaultUploadModal";
+import ChangeRequestModal from "./ChangeRequestModal";
 
 const TABS = [
   { id: "versions", label: "Versions" },
@@ -62,6 +63,7 @@ export default function VaultItemModal({ itemId, project, member, isAdmin, onClo
   const [nameDraft, setNameDraft] = useState("");
   const [busy, setBusy] = useState(false);
   const [showUpload, setShowUpload] = useState(false);
+  const [crPreset, setCrPreset] = useState(null);
   const [history, setHistory] = useState(null);
   const [historyLoading, setHistoryLoading] = useState(false);
   const checkoutNoteRef = useRef("");
@@ -305,7 +307,11 @@ export default function VaultItemModal({ itemId, project, member, isAdmin, onClo
                       <a className="cpm-vault-btn-ghost" href={vaultDownloadUrl(v.id)}>
                         <i className="fas fa-download" aria-hidden="true" /> Download
                       </a>
-                      <button type="button" className="cpm-vault-btn-ghost" disabled title="Coming in Phase 7">
+                      <button
+                        type="button"
+                        className="cpm-vault-btn-ghost"
+                        onClick={() => setCrPreset({ itemId: item.id, versionId: v.id })}
+                      >
                         Request release
                       </button>
                     </div>
@@ -358,6 +364,17 @@ export default function VaultItemModal({ itemId, project, member, isAdmin, onClo
           item={item}
           onClose={() => setShowUpload(false)}
           onDone={handleUploadDone}
+        />
+      )}
+
+      {crPreset && (
+        <ChangeRequestModal
+          project={project}
+          member={member}
+          isAdmin={isAdmin}
+          preset={crPreset}
+          onClose={() => setCrPreset(null)}
+          onChanged={() => { setCrPreset(null); notifyChanged(); }}
         />
       )}
     </>,

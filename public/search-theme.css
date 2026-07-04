@@ -22455,7 +22455,8 @@ button.cpm-badge-tile:disabled { opacity: 0.7; cursor: progress; }
   color: var(--pm-text-secondary);
 }
 .cpm-vault-field input,
-.cpm-vault-field textarea {
+.cpm-vault-field textarea,
+.cpm-vault-field select {
   padding: 9px 12px;
   border-radius: 8px;
   border: 1px solid var(--pm-border);
@@ -22467,7 +22468,8 @@ button.cpm-badge-tile:disabled { opacity: 0.7; cursor: progress; }
   resize: vertical;
 }
 .cpm-vault-field input:focus,
-.cpm-vault-field textarea:focus {
+.cpm-vault-field textarea:focus,
+.cpm-vault-field select:focus {
   outline: none;
   border-color: var(--pm-accent-teal);
 }
@@ -22647,4 +22649,209 @@ button.cpm-badge-tile:disabled { opacity: 0.7; cursor: progress; }
   padding-left: 18px;
   font-size: 12px;
   color: var(--pm-text-muted);
+}
+
+/* ── Phase 7: change request UI ──────────────────────────────── */
+
+.cpm-vault-cr-list {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.cpm-vault-cr-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+.cpm-vault-cr-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid var(--pm-border);
+  background: var(--pm-bg-surface);
+  cursor: pointer;
+  transition: border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+}
+.cpm-vault-cr-card:hover {
+  border-color: var(--pm-accent-teal);
+  transform: translateY(-1px);
+  box-shadow: var(--pm-shadow-card);
+}
+.cpm-vault-cr-card:focus-visible {
+  outline: 2px solid var(--pm-accent-teal);
+  outline-offset: 2px;
+}
+.cpm-vault-cr-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.cpm-vault-cr-number {
+  font-family: var(--pm-font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--pm-text-secondary);
+}
+.cpm-vault-cr-title {
+  font-family: var(--pm-font-display);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--pm-text-primary);
+}
+.cpm-vault-cr-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--pm-text-muted);
+}
+.cpm-vault-cr-author {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.cpm-vault-cr-author img {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+.cpm-vault-cr-author-fallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--pm-bg-elevated);
+  color: var(--pm-text-secondary);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+/* Status chips: OPEN (amber, matches checkout), APPROVED (teal, matches
+   released), REJECTED (coral), CANCELLED (muted). */
+.cpm-vault-cr-status {
+  display: inline-flex;
+  align-self: flex-start;
+  padding: 2px 9px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+}
+.cpm-vault-cr-status-open {
+  background: rgba(245, 166, 35, 0.15);
+  color: var(--pm-accent-amber);
+}
+.cpm-vault-cr-status-approved {
+  background: rgba(0, 229, 204, 0.15);
+  color: var(--pm-accent-teal);
+}
+.cpm-vault-cr-status-rejected {
+  background: rgba(255, 107, 107, 0.15);
+  color: var(--pm-accent-coral);
+}
+.cpm-vault-cr-status-cancelled {
+  background: var(--pm-bg-elevated);
+  color: var(--pm-text-muted);
+}
+
+.cpm-vault-cr-review-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+/* Create/view dialog (centered — reuses .cpm-modal-overlay) */
+.cpm-vault-cr-modal {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: min(560px, 96vw);
+  max-height: 92vh;
+  overflow-y: auto;
+  padding: 22px;
+  border-radius: 14px;
+  border: 1px solid var(--pm-border);
+  background: var(--pm-bg-surface);
+  box-shadow: var(--pm-shadow-card);
+}
+
+.cpm-vault-item-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.cpm-vault-item-picker-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--pm-border);
+  background: var(--pm-bg-elevated);
+}
+.cpm-vault-item-picker.read-only .cpm-vault-item-picker-row {
+  justify-content: flex-start;
+}
+.cpm-vault-item-picker-main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.cpm-vault-item-picker-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--pm-text-primary);
+}
+.cpm-vault-item-picker-row select {
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--pm-border);
+  background: var(--pm-bg-surface);
+  color: var(--pm-text-primary);
+  font-size: 12px;
+  font-family: var(--pm-font-body);
+}
+.cpm-vault-item-picker-add select {
+  width: 100%;
+  padding: 9px 12px;
+  border-radius: 8px;
+  border: 1px dashed var(--pm-border);
+  background: transparent;
+  color: var(--pm-text-secondary);
+  font-size: 13px;
+  font-family: var(--pm-font-body);
+}
+
+.cpm-vault-cr-target-rev {
+  font-family: var(--pm-font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--pm-accent-teal);
+}
+.cpm-vault-cr-hint {
+  font-size: 11px;
+  font-weight: 400;
+  font-style: italic;
+  color: var(--pm-text-muted);
+}
+.cpm-vault-cr-description {
+  margin: 0;
+  padding: 9px 12px;
+  border-radius: 8px;
+  background: var(--pm-bg-elevated);
+  color: var(--pm-text-primary);
+  font-size: 13px;
+  font-weight: 400;
+  white-space: pre-wrap;
 }
