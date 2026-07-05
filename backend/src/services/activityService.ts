@@ -82,14 +82,21 @@ export async function logAuditEvent(params: LogAuditEventParams): Promise<void> 
 
   if (!projectId) return;
 
+  // Vault audit payloads carry the item id as payload.itemId; denormalize it
+  // into the indexed vaultItemId column so item-history reads avoid a
+  // JSON-path sequential scan over the whole table.
+  const payloadItemId = params.payload["itemId"];
+  const vaultItemId = typeof payloadItemId === "string" ? payloadItemId : null;
+
   await prisma.activityLog.create({
     data: {
       projectId,
-      taskId:    params.taskId   ?? null,
-      memberId:  params.memberId ?? null,
-      source:    params.source,
-      eventType: params.eventType,
-      payload:   params.payload as any,
+      taskId:      params.taskId   ?? null,
+      memberId:    params.memberId ?? null,
+      vaultItemId,
+      source:      params.source,
+      eventType:   params.eventType,
+      payload:     params.payload as any,
     },
   });
 }

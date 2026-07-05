@@ -521,6 +521,7 @@ enum ActivityEventType {
   CHANGE_REQUEST_REJECTED
   CHANGE_REQUEST_CANCELLED
   VAULT_BOM_LINK_ADDED
+  VAULT_BOM_LINK_UPDATED
   VAULT_BOM_LINK_REMOVED
 }
 
@@ -533,20 +534,24 @@ enum GitHubLinkKind {
 }
 
 model ActivityLog {
-  id        String            @id @default(cuid())
-  projectId String
-  project   Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  taskId    String?
-  task      Task?             @relation(fields: [taskId], references: [id], onDelete: SetNull)
-  memberId  String?
-  member    Member?           @relation(fields: [memberId], references: [id], onDelete: SetNull)
-  source    ActivitySource
-  eventType ActivityEventType
-  payload   Json
-  createdAt DateTime          @default(now())
+  id          String            @id @default(cuid())
+  projectId   String
+  project     Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  taskId      String?
+  task        Task?             @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  memberId    String?
+  member      Member?           @relation(fields: [memberId], references: [id], onDelete: SetNull)
+  // Denormalized from payload.itemId so vault item history reads hit an index
+  // instead of a JSON-path sequential scan (set automatically by logAuditEvent).
+  vaultItemId String?
+  source      ActivitySource
+  eventType   ActivityEventType
+  payload     Json
+  createdAt   DateTime          @default(now())
 
   @@index([projectId, createdAt(sort: Desc)])
   @@index([taskId])
+  @@index([vaultItemId])
 }
 
 model ProjectNotificationTarget {
@@ -1595,6 +1600,10 @@ model VaultVersion {
   createdAt       DateTime            @default(now())
 
   @@unique([itemId, versionNumber])
+  // DB backstop for the approveCr serializable transaction: no two released
+  // versions of one item may ever carry the same revision letter (NULLs are
+  // distinct in Postgres, so unreleased versions are unaffected).
+  @@unique([itemId, revision])
   @@index([itemId])
 }
 
