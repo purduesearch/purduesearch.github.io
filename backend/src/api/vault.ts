@@ -30,6 +30,7 @@ import {
   isAdminMember,
   signVaultPath,
   verifyVaultSignature,
+  MEMBER_SUMMARY,
   type VaultHealth,
 } from "../services/vaultService.js";
 import { askVault, findDuplicateCandidates } from "../services/vaultContextService.js";
@@ -111,8 +112,6 @@ function cleanupTempFile(filePath?: string): void {
     if (err) console.error("[vault] temp file cleanup error:", err);
   });
 }
-
-const MEMBER_SUMMARY = { select: { id: true, displayName: true, avatarUrl: true } } as const;
 
 function healthErrorMessage(health: VaultHealth): string {
   switch (health.status) {

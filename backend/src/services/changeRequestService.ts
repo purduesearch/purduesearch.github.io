@@ -8,10 +8,8 @@ import { prisma } from "../db/prisma.js";
 import { logAuditEvent } from "./activityService.js";
 import { createNotification } from "./notificationCrud.js";
 import { queueDm } from "./dmBatcher.js";
-import { nextRevisionLetter, allocateCrNumber, isAdminMember } from "./vaultService.js";
+import { nextRevisionLetter, allocateCrNumber, isAdminMember, MEMBER_SUMMARY } from "./vaultService.js";
 import type { ChangeRequestStatus } from "@prisma/client";
-
-const MEMBER_SUMMARY = { select: { id: true, displayName: true, avatarUrl: true } } as const;
 
 const CR_INCLUDE = {
   author: MEMBER_SUMMARY,
@@ -81,13 +79,21 @@ async function validateCrItems(
     seen.add(entry.itemId);
   }
 
+  // Two batched lookups instead of 2N sequential round-trips.
+  const [foundItems, foundVersions] = await Promise.all([
+    prisma.vaultItem.findMany({ where: { id: { in: items.map((e) => e.itemId) } } }),
+    prisma.vaultVersion.findMany({ where: { id: { in: items.map((e) => e.versionId) } } }),
+  ]);
+  const itemById = new Map(foundItems.map((it) => [it.id, it]));
+  const versionById = new Map(foundVersions.map((v) => [v.id, v]));
+
   const result: { itemId: string; versionId: string; targetRevision: string; note: string | null }[] = [];
   for (const entry of items) {
-    const item = await prisma.vaultItem.findUnique({ where: { id: entry.itemId } });
+    const item = itemById.get(entry.itemId);
     if (!item || item.deletedAt || item.projectId !== projectId) {
       throw badRequest(`Vault item ${entry.itemId} not found in this project`);
     }
-    const version = await prisma.vaultVersion.findUnique({ where: { id: entry.versionId } });
+    const version = versionById.get(entry.versionId);
     if (!version || version.itemId !== item.id) {
       throw badRequest(`Version ${entry.versionId} does not belong to item ${entry.itemId}`);
     }

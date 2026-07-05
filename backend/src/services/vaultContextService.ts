@@ -333,26 +333,56 @@ ${JSON.stringify(itemsWithHistory, null, 2)}`;
   return generateText(prompt);
 }
 
-/** Where-used ancestry for an item: chains of parents up the BOM, cycle-safe. */
-async function whereUsedChains(itemId: string, itemName: string): Promise<string[]> {
-  const chains: string[] = [];
-  const walk = async (id: string, label: string, visited: Set<string>, depth: number): Promise<void> => {
-    if (depth >= 5) return;
-    const parents = await prisma.vaultBomEdge.findMany({
-      where: { childId: id },
+type AncestorEdge = { parentId: string; parentLabel: string; quantity: number };
+
+const WHERE_USED_MAX_DEPTH = 5;
+
+/**
+ * Batched upward BFS from all seed items at once — one query per depth level
+ * (the same frontier-batching pattern as vaultService's wouldCreateBomCycle)
+ * instead of one query per node. Returns childId → live parent edges.
+ */
+async function collectAncestorEdges(seedIds: string[]): Promise<Map<string, AncestorEdge[]>> {
+  const edgesByChild = new Map<string, AncestorEdge[]>();
+  const visited = new Set(seedIds);
+  let frontier = [...new Set(seedIds)];
+
+  for (let depth = 0; depth < WHERE_USED_MAX_DEPTH && frontier.length > 0; depth++) {
+    const edges = await prisma.vaultBomEdge.findMany({
+      where: { childId: { in: frontier } },
       include: { parent: { select: { id: true, name: true, partNumber: true, deletedAt: true } } },
     });
-    const live = parents.filter((p) => !p.parent.deletedAt && !visited.has(p.parent.id));
-    if (live.length === 0) {
+    const next: string[] = [];
+    for (const edge of edges) {
+      if (edge.parent.deletedAt) continue;
+      const parentLabel = `${edge.parent.name}${edge.parent.partNumber ? ` (${edge.parent.partNumber})` : ""}`;
+      const list = edgesByChild.get(edge.childId) ?? [];
+      list.push({ parentId: edge.parent.id, parentLabel, quantity: edge.quantity });
+      edgesByChild.set(edge.childId, list);
+      if (!visited.has(edge.parent.id)) {
+        visited.add(edge.parent.id);
+        next.push(edge.parent.id);
+      }
+    }
+    frontier = next;
+  }
+  return edgesByChild;
+}
+
+/** Readable where-used chains for one item, built from the in-memory edge map. */
+function buildWhereUsedChains(itemId: string, itemName: string, edgesByChild: Map<string, AncestorEdge[]>): string[] {
+  const chains: string[] = [];
+  const walk = (id: string, label: string, visited: Set<string>, depth: number): void => {
+    const parents = (edgesByChild.get(id) ?? []).filter((e) => !visited.has(e.parentId));
+    if (parents.length === 0 || depth >= WHERE_USED_MAX_DEPTH) {
       if (depth > 0) chains.push(label);
       return;
     }
-    for (const edge of live) {
-      const parentLabel = `${edge.parent.name}${edge.parent.partNumber ? ` (${edge.parent.partNumber})` : ""}`;
-      await walk(edge.parent.id, `${label} ← used in ${parentLabel} ×${edge.quantity}`, new Set([...visited, edge.parent.id]), depth + 1);
+    for (const edge of parents) {
+      walk(edge.parentId, `${label} ← used in ${edge.parentLabel} ×${edge.quantity}`, new Set([...visited, edge.parentId]), depth + 1);
     }
   };
-  await walk(itemId, itemName, new Set([itemId]), 0);
+  walk(itemId, itemName, new Set([itemId]), 0);
   return chains;
 }
 
@@ -361,9 +391,8 @@ export async function summarizeCrImpact(crId: string): Promise<string | null> {
   const cr = await prisma.changeRequest.findUnique({ where: { id: crId }, include: CR_AI_INCLUDE });
   if (!cr) return null;
 
-  const chains = (
-    await Promise.all(cr.items.map((ci) => whereUsedChains(ci.item.id, ci.item.name)))
-  ).flat();
+  const edgesByChild = await collectAncestorEdges(cr.items.map((ci) => ci.item.id));
+  const chains = cr.items.flatMap((ci) => buildWhereUsedChains(ci.item.id, ci.item.name, edgesByChild));
 
   // Open project tasks whose title/description mention an item name or part number.
   const openTasks = await prisma.task.findMany({

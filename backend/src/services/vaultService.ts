@@ -111,6 +111,9 @@ export async function allocateCrNumber(projectId: string): Promise<number> {
   return project.vaultCrCounter;
 }
 
+/** Member summary select shared by vault + change-request serializers. */
+export const MEMBER_SUMMARY = { select: { id: true, displayName: true, avatarUrl: true } } as const;
+
 /** Shared admin check for vault permission guards (creator/holder/author-or-admin). */
 export async function isAdminMember(memberId: string): Promise<boolean> {
   const member = await prisma.member.findUnique({
