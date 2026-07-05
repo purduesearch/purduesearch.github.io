@@ -2,19 +2,7 @@ import React, { useCallback, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import toast from "react-hot-toast";
 import { uploadVaultFile, checkVaultDuplicates } from "../../../api/clubPmClient";
-
-function formatBytes(bytes) {
-  if (bytes == null) return "";
-  if (bytes < 1024) return `${bytes} B`;
-  const units = ["KB", "MB", "GB"];
-  let value = bytes / 1024;
-  let unitIdx = 0;
-  while (value >= 1024 && unitIdx < units.length - 1) {
-    value /= 1024;
-    unitIdx += 1;
-  }
-  return `${value.toFixed(1)} ${units[unitIdx]}`;
-}
+import { formatBytes } from "./vaultUtils";
 
 function defaultNameFromFile(fileName) {
   if (!fileName) return "";
@@ -36,6 +24,11 @@ export default function VaultUploadModal({ project, item, onClose, onDone }) {
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState(null);
+  // Set when the backend reports the linked Drive folder isn't shared with
+  // the service account — the email the user must share with lives in the
+  // 400 body, and this is the only place that failure actually surfaces
+  // (the vault health probe is read-only and can't detect it).
+  const [notSharedEmail, setNotSharedEmail] = useState(null);
   // AI duplicate detection (Pack B): in new-item mode a file select triggers a
   // metadata-only duplicate check; picking a candidate flips this modal into
   // new-version mode for that item instead.
@@ -93,8 +86,19 @@ export default function VaultUploadModal({ project, item, onClose, onDone }) {
       onClose();
     } catch (err) {
       setError(err.message || "Upload failed");
+      const health = err.body?.health;
+      setNotSharedEmail(
+        health?.status === "not-shared" ? health.serviceAccountEmail ?? null : null
+      );
       setUploading(false);
     }
+  }
+
+  function handleCopySaEmail() {
+    if (!notSharedEmail) return;
+    navigator.clipboard?.writeText(notSharedEmail)
+      .then(() => toast.success("Copied to clipboard"))
+      .catch(() => toast.error("Could not copy — copy it manually"));
   }
 
   return createPortal(
@@ -226,6 +230,24 @@ export default function VaultUploadModal({ project, item, onClose, onDone }) {
         )}
 
         {error && <div className="cpm-vault-upload-error">{error}</div>}
+
+        {notSharedEmail && (
+          <div className="cpm-vault-sa-row">
+            <code className="cpm-vault-sa-email">{notSharedEmail}</code>
+            <button
+              type="button"
+              className="cpm-vault-copy-btn"
+              onClick={handleCopySaEmail}
+              title="Copy to clipboard"
+              aria-label="Copy service account email"
+            >
+              <i className="fas fa-copy" aria-hidden="true" />
+            </button>
+            <span className="cpm-vault-setup-hint">
+              Share the project's linked Drive folder with this address as Editor, then retry.
+            </span>
+          </div>
+        )}
 
         <div className="cpm-vault-upload-actions">
           <button type="button" className="cpm-vault-btn-ghost" onClick={onClose} disabled={uploading}>

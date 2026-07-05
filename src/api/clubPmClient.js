@@ -18,7 +18,7 @@ export function clearStoredToken() {
   localStorage.removeItem(TOKEN_KEY);
 }
 
-function authHeaders() {
+export function authHeaders() {
   const token = getStoredToken();
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
@@ -318,6 +318,9 @@ export function uploadVaultFile(path, file, fields = {}, onProgress) {
     const xhr = new XMLHttpRequest();
     xhr.open("POST", `${BASE_URL}${path}`);
     xhr.withCredentials = true;
+    // Bearer token for cross-origin users whose session cookie is blocked —
+    // same auth the JSON helpers and uploadBlogImage send.
+    Object.entries(authHeaders()).forEach(([k, v]) => xhr.setRequestHeader(k, v));
     xhr.upload.onprogress = (e) => { if (e.lengthComputable && onProgress) onProgress(e.loaded / e.total); };
     xhr.onload = () => {
       let body = null; try { body = JSON.parse(xhr.responseText); } catch {}
@@ -346,7 +349,12 @@ export const getCrPendingCount = () => get(`/api/change-requests/pending/count`)
 
 // Vault BOM / where-used (Pack C)
 export const addVaultBomLink    = (itemId, body) => post(`/api/vault/items/${itemId}/bom`, body);
+export const updateVaultBomLink = (itemId, childItemId, body) => patch(`/api/vault/items/${itemId}/bom/${childItemId}`, body);
 export const removeVaultBomLink = (itemId, childItemId) => del(`/api/vault/items/${itemId}/bom/${childItemId}`);
+
+// Short-lived signed URL for <a href>/<img> access to vault binaries (those
+// elements can't carry the Bearer header). Returns { url, expiresAt }.
+export const getVaultVersionDownloadUrl = (versionId) => get(`/api/vault/versions/${versionId}/download-url`);
 
 // Vault AI copilot (Pack B)
 export const askVault             = (projectId, question) => post(`/api/projects/${projectId}/vault/ask`, { question });

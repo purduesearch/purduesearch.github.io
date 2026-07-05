@@ -117,50 +117,49 @@ export default function VaultCompareView({ versions }) {
       </label>
 
       <div className="cpm-vault-compare-grid">
-        <div className="cpm-vault-compare-pane">
-          <label className="cpm-vault-field">
-            <span>Left</span>
-            <select value={leftId} onChange={(e) => setLeftId(e.target.value)}>
-              {list.map((v) => (
-                <option key={v.id} value={v.id}>
-                  {v.revision ? `Rev ${v.revision}` : `v${v.versionNumber}`} · {v.fileName}
-                </option>
-              ))}
-            </select>
-          </label>
-          {leftVersion && (
-            <VaultModelViewer
-              key={leftVersion.id}
-              versionId={leftVersion.id}
-              fileName={leftVersion.fileName}
-              height={320}
-              onControlsReady={handleLeftControlsReady}
-            />
-          )}
-        </div>
-
-        <div className="cpm-vault-compare-pane">
-          <label className="cpm-vault-field">
-            <span>Right</span>
-            <select value={rightId} onChange={(e) => setRightId(e.target.value)}>
-              {list.map((v) => (
-                <option key={v.id} value={v.id}>
-                  {v.revision ? `Rev ${v.revision}` : `v${v.versionNumber}`} · {v.fileName}
-                </option>
-              ))}
-            </select>
-          </label>
-          {rightVersion && (
-            <VaultModelViewer
-              key={rightVersion.id}
-              versionId={rightVersion.id}
-              fileName={rightVersion.fileName}
-              height={320}
-              onControlsReady={handleRightControlsReady}
-            />
-          )}
-        </div>
+        <ComparePane
+          label="Left"
+          list={list}
+          versionId={leftId}
+          onVersionChange={setLeftId}
+          version={leftVersion}
+          onControlsReady={handleLeftControlsReady}
+        />
+        <ComparePane
+          label="Right"
+          list={list}
+          versionId={rightId}
+          onVersionChange={setRightId}
+          version={rightVersion}
+          onControlsReady={handleRightControlsReady}
+        />
       </div>
+    </div>
+  );
+}
+
+function ComparePane({ label, list, versionId, onVersionChange, version, onControlsReady }) {
+  return (
+    <div className="cpm-vault-compare-pane">
+      <label className="cpm-vault-field">
+        <span>{label}</span>
+        <select value={versionId} onChange={(e) => onVersionChange(e.target.value)}>
+          {list.map((v) => (
+            <option key={v.id} value={v.id}>
+              {v.revision ? `Rev ${v.revision}` : `v${v.versionNumber}`} · {v.fileName}
+            </option>
+          ))}
+        </select>
+      </label>
+      {version && (
+        <VaultModelViewer
+          key={version.id}
+          versionId={version.id}
+          fileName={version.fileName}
+          height={320}
+          onControlsReady={onControlsReady}
+        />
+      )}
     </div>
   );
 }

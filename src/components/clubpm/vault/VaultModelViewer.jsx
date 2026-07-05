@@ -4,17 +4,13 @@ import { STLLoader } from "three/examples/jsm/loaders/STLLoader";
 import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
-import { vaultDownloadUrl } from "../../../api/clubPmClient";
+import { vaultDownloadUrl, authHeaders } from "../../../api/clubPmClient";
+import { extensionOf } from "./vaultUtils";
 
 // Three.js + its loaders are ~150+ kB gzip — this module must only ever be
 // reached via React.lazy() from VaultItemModal so it lands in its own chunk,
 // never the main bundle. Do not import this file anywhere eagerly.
-
-function extensionOf(fileName) {
-  if (!fileName) return "";
-  const idx = fileName.lastIndexOf(".");
-  return idx === -1 ? "" : fileName.slice(idx + 1).toLowerCase();
-}
+// (vaultUtils is a dependency-free leaf module, safe to share with it.)
 
 /**
  * Interactive 3D preview for a vault version. Renders in-place with
@@ -172,7 +168,12 @@ export default function VaultModelViewer({
 
     async function load() {
       try {
-        const res = await fetch(vaultDownloadUrl(versionId), { credentials: "include" });
+        // Bearer header included — cross-origin users may have no usable
+        // session cookie (third-party cookies blocked).
+        const res = await fetch(vaultDownloadUrl(versionId), {
+          credentials: "include",
+          headers: authHeaders(),
+        });
         if (!res.ok) throw new Error(`Download failed (${res.status})`);
         const blob = await res.blob();
         if (cancelled) return;

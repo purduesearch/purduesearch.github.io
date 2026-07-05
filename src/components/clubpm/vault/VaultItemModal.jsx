@@ -9,36 +9,28 @@ import {
   releaseVaultCheckout,
   promoteVaultItem,
   getVaultItemHistory,
-  vaultDownloadUrl,
+  getVaultVersionDownloadUrl,
   uploadVaultFile,
   getVault,
   addVaultBomLink,
+  updateVaultBomLink,
   removeVaultBomLink,
+  apiBaseUrl,
 } from "../../../api/clubPmClient";
+import { formatRelativeTime } from "../../../utils/driveUtils";
+import { formatBytes, isPreviewable, CR_STATUS_LABEL } from "./vaultUtils";
 import VaultUploadModal from "./VaultUploadModal";
 import ChangeRequestModal from "./ChangeRequestModal";
 
 // three.js is ~150+ kB gzip — VaultModelViewer must only ever be reached via
 // React.lazy so it lands in its own chunk instead of the main bundle.
+// (vaultUtils is a dependency-free leaf module, safe to import eagerly.)
 const VaultModelViewer = lazy(() => import("./VaultModelViewer"));
 
 // VaultCompareView imports VaultModelViewer eagerly, which is fine only
 // because this import itself stays lazy — three.js still never reaches the
 // main chunk.
 const VaultCompareView = lazy(() => import("./VaultCompareView"));
-
-// Kept intentionally separate from VaultModelViewer's internal copy of this
-// logic: a static import of that module here would pull three.js into this
-// chunk, defeating the lazy-load split above.
-const PREVIEWABLE_EXTENSIONS = new Set(["stl", "obj", "gltf", "glb"]);
-function extensionOf(fileName) {
-  if (!fileName) return "";
-  const idx = fileName.lastIndexOf(".");
-  return idx === -1 ? "" : fileName.slice(idx + 1).toLowerCase();
-}
-function isPreviewable(fileName) {
-  return PREVIEWABLE_EXTENSIONS.has(extensionOf(fileName));
-}
 
 const TABS = [
   { id: "versions", label: "Versions" },
@@ -48,34 +40,6 @@ const TABS = [
   { id: "changes", label: "Changes" },
   { id: "history", label: "History" },
 ];
-
-const CR_STATUS_LABEL = { OPEN: "Open", APPROVED: "Approved", REJECTED: "Rejected", CANCELLED: "Cancelled" };
-
-function formatBytes(bytes) {
-  if (bytes == null) return "";
-  if (bytes < 1024) return `${bytes} B`;
-  const units = ["KB", "MB", "GB"];
-  let value = bytes / 1024;
-  let unitIdx = 0;
-  while (value >= 1024 && unitIdx < units.length - 1) {
-    value /= 1024;
-    unitIdx += 1;
-  }
-  return `${value.toFixed(1)} ${units[unitIdx]}`;
-}
-
-function timeAgo(iso) {
-  if (!iso) return "";
-  const diffMs = Date.now() - new Date(iso).getTime();
-  const mins = Math.round(diffMs / 60000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.round(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  const days = Math.round(hrs / 24);
-  if (days < 30) return `${days}d ago`;
-  return new Date(iso).toLocaleDateString();
-}
 
 // `actor` on history rows may come back as a plain label or a member-shaped
 // object depending on whether the audit event has a linked member — handle
@@ -299,12 +263,31 @@ export default function VaultItemModal({ itemId, project, member, isAdmin, onClo
     if (quantity < 1 || bomBusy) return;
     setBomBusy(true);
     try {
-      await addVaultBomLink(itemId, { childItemId, quantity });
-      await load();
+      // Explicit PATCH (not re-POST): the add endpoint is create-only so a
+      // stale client can't silently clobber someone else's quantity. Patch
+      // the edge into local state instead of reloading the whole item.
+      const edge = await updateVaultBomLink(itemId, childItemId, { quantity });
+      setItem((prev) => prev && ({
+        ...prev,
+        childLinks: (prev.childLinks ?? []).map((e) =>
+          e.childId === childItemId ? { ...e, quantity: edge.quantity, note: edge.note } : e
+        ),
+      }));
     } catch (err) {
       toast.error(err.message || "Failed to update quantity");
     } finally {
       setBomBusy(false);
+    }
+  }
+
+  async function handleDownload(versionId) {
+    try {
+      // <a href> can't carry the Bearer header, so fetch a short-lived
+      // signed URL and navigate to it.
+      const { url } = await getVaultVersionDownloadUrl(versionId);
+      window.location.assign(`${apiBaseUrl}${url}`);
+    } catch (err) {
+      toast.error(err.message || "Failed to start download");
     }
   }
 
@@ -428,9 +411,9 @@ export default function VaultItemModal({ itemId, project, member, isAdmin, onClo
                       {v.note && <span className="cpm-vault-version-note">"{v.note}"</span>}
                     </div>
                     <div className="cpm-vault-version-actions">
-                      <a className="cpm-vault-btn-ghost" href={vaultDownloadUrl(v.id)}>
+                      <button type="button" className="cpm-vault-btn-ghost" onClick={() => handleDownload(v.id)}>
                         <i className="fas fa-download" aria-hidden="true" /> Download
-                      </a>
+                      </button>
                       <button
                         type="button"
                         className="cpm-vault-btn-ghost"
@@ -649,7 +632,7 @@ export default function VaultItemModal({ itemId, project, member, isAdmin, onClo
                       <div key={h.id} className="cpm-vault-history-row">
                         <div className="cpm-vault-history-line">
                           <strong>{actorLabel(h.actor)}</strong> {h.action}{" "}
-                          <span className="cpm-vault-history-time">{timeAgo(h.at)}</span>
+                          <span className="cpm-vault-history-time">{formatRelativeTime(h.at)}</span>
                         </div>
                         {Array.isArray(h.metadata?.changes) && h.metadata.changes.length > 0 && (
                           <ul className="cpm-vault-history-changes">

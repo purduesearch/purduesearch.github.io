@@ -1,22 +1,9 @@
 import React, { useCallback, useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { listCrs, approveCr, rejectCr } from "../../../api/clubPmClient";
+import { formatRelativeTime } from "../../../utils/driveUtils";
+import { CR_STATUS_LABEL, notifyCrCountChanged } from "./vaultUtils";
 import ChangeRequestModal from "./ChangeRequestModal";
-
-const STATUS_LABEL = { OPEN: "Open", APPROVED: "Approved", REJECTED: "Rejected", CANCELLED: "Cancelled" };
-
-function timeAgo(iso) {
-  if (!iso) return "";
-  const diffMs = Date.now() - new Date(iso).getTime();
-  const mins = Math.round(diffMs / 60000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.round(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  const days = Math.round(hrs / 24);
-  if (days < 30) return `${days}d ago`;
-  return new Date(iso).toLocaleDateString();
-}
 
 // `mode: "all"` lists every CR for the project and offers a "New change
 // request" button. `mode: "review"` scopes to OPEN CRs and adds inline
@@ -52,6 +39,7 @@ export default function ChangeRequestList({ project, member, isAdmin, mode = "al
     try {
       await approveCr(cr.id);
       toast.success(`CR-${cr.number} approved`);
+      notifyCrCountChanged();
       load();
     } catch (err) {
       toast.error(err.message || "Failed to approve");
@@ -69,6 +57,7 @@ export default function ChangeRequestList({ project, member, isAdmin, mode = "al
     try {
       await rejectCr(cr.id, { reviewNote: reviewNote || undefined });
       toast.success(`CR-${cr.number} rejected`);
+      notifyCrCountChanged();
       load();
     } catch (err) {
       toast.error(err.message || "Failed to reject");
@@ -117,7 +106,7 @@ export default function ChangeRequestList({ project, member, isAdmin, mode = "al
                 <div className="cpm-vault-cr-card-top">
                   <span className="cpm-vault-cr-number">CR-{cr.number}</span>
                   <span className={`cpm-vault-cr-status cpm-vault-cr-status-${cr.status.toLowerCase()}`}>
-                    {STATUS_LABEL[cr.status] ?? cr.status}
+                    {CR_STATUS_LABEL[cr.status] ?? cr.status}
                   </span>
                 </div>
 
@@ -133,7 +122,7 @@ export default function ChangeRequestList({ project, member, isAdmin, mode = "al
                     {cr.author?.displayName ?? "Unknown"}
                   </span>
                   <span aria-hidden="true">·</span>
-                  <span>{timeAgo(cr.createdAt)}</span>
+                  <span>{formatRelativeTime(cr.createdAt)}</span>
                 </div>
 
                 {mode === "review" && cr.status === "OPEN" && (

@@ -14,27 +14,7 @@ import {
   aiCrReleaseNotes,
   aiCrImpact,
 } from "../../../api/clubPmClient";
-
-const STATUS_LABEL = { OPEN: "Open", APPROVED: "Approved", REJECTED: "Rejected", CANCELLED: "Cancelled" };
-
-// Mirrors vaultService.ts's `nextRevisionLetter` (bijective base-26: A, B, …,
-// Z, AA, AB, …) so the client-side "→ Rev X" preview always matches what
-// approveCr's transaction will actually stamp. The server always recomputes
-// this at approval time — this is a preview only.
-function nextRevisionLetter(current) {
-  let num = 0;
-  if (current) {
-    for (const ch of current) num = num * 26 + (ch.charCodeAt(0) - 64);
-  }
-  num += 1;
-  let result = "";
-  while (num > 0) {
-    const rem = (num - 1) % 26;
-    result = String.fromCharCode(65 + rem) + result;
-    num = Math.floor((num - 1) / 26);
-  }
-  return result;
-}
+import { CR_STATUS_LABEL, nextRevisionLetter, notifyCrCountChanged } from "./vaultUtils";
 
 // Create mode (no `crId`): title/reason/task-link/item-picker form, posts a
 // new OPEN change request. `preset` (from VaultItemModal's "Request release")
@@ -159,6 +139,7 @@ export default function ChangeRequestModal({ project, member, isAdmin, crId, pre
         toast(`Heads up: ${created.warnings.length} item${created.warnings.length === 1 ? " is" : "s are"} used in other assemblies — review impact`, { icon: "⚠️" });
       }
       toast.success("Change request submitted");
+      notifyCrCountChanged();
       onChanged?.();
       onClose();
     } catch (err) {
@@ -213,56 +194,45 @@ export default function ChangeRequestModal({ project, member, isAdmin, crId, pre
     }
   }
 
-  async function handleApprove() {
+  // All three decisions share the same lifecycle: busy-guard, call the API,
+  // swap in the updated CR, refresh the admin badge count, toast, notify.
+  async function runCrAction(action, successMsg, failMsg) {
     if (!cr || busy) return;
     setBusy(true);
     try {
-      const updated = await approveCr(cr.id, { reviewNote: approveNote.trim() || undefined });
+      const updated = await action();
       setCr(updated);
-      toast.success("Change request approved");
+      toast.success(successMsg);
+      notifyCrCountChanged();
       onChanged?.();
     } catch (err) {
-      toast.error(err.message || "Failed to approve");
+      toast.error(err.message || failMsg);
     } finally {
       setBusy(false);
     }
   }
 
-  async function handleRejectConfirmed(reviewNote) {
-    if (!cr || busy) return;
-    setBusy(true);
-    try {
-      const updated = await rejectCr(cr.id, { reviewNote: reviewNote || undefined });
-      setCr(updated);
-      toast.success("Change request rejected");
-      onChanged?.();
-    } catch (err) {
-      toast.error(err.message || "Failed to reject");
-    } finally {
-      setBusy(false);
-    }
+  function handleApprove() {
+    runCrAction(
+      () => approveCr(cr.id, { reviewNote: approveNote.trim() || undefined }),
+      "Change request approved",
+      "Failed to approve"
+    );
   }
 
   function handleRejectClick() {
     const reviewNote = window.prompt("Reason for rejecting this change request:");
     if (reviewNote === null) return;
-    handleRejectConfirmed(reviewNote);
+    runCrAction(
+      () => rejectCr(cr.id, { reviewNote: reviewNote || undefined }),
+      "Change request rejected",
+      "Failed to reject"
+    );
   }
 
-  async function handleCancel() {
-    if (!cr || busy) return;
+  function handleCancel() {
     if (!window.confirm("Cancel this change request?")) return;
-    setBusy(true);
-    try {
-      const updated = await cancelCr(cr.id);
-      setCr(updated);
-      toast.success("Change request cancelled");
-      onChanged?.();
-    } catch (err) {
-      toast.error(err.message || "Failed to cancel");
-    } finally {
-      setBusy(false);
-    }
+    runCrAction(() => cancelCr(cr.id), "Change request cancelled", "Failed to cancel");
   }
 
   const availableVaultItems = vaultItems.filter((vi) => !pickedItems.some((p) => p.itemId === vi.id));
@@ -381,7 +351,7 @@ export default function ChangeRequestModal({ project, member, isAdmin, crId, pre
         {!isCreate && !loading && !loadError && cr && (
           <>
             <div className={`cpm-vault-cr-status cpm-vault-cr-status-${cr.status.toLowerCase()}`}>
-              {STATUS_LABEL[cr.status] ?? cr.status}
+              {CR_STATUS_LABEL[cr.status] ?? cr.status}
             </div>
 
             <div className="cpm-vault-item-picker read-only">
