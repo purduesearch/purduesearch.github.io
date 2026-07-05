@@ -108,3 +108,31 @@ export async function allocateCrNumber(projectId: string): Promise<number> {
   });
   return project.vaultCrCounter;
 }
+
+/**
+ * Would adding the BOM edge parent→child create a cycle? True iff `parentId`
+ * is already reachable from `childId` by walking the child's descendants
+ * (childLinks). BFS with a visited set, so shared subassemblies terminate.
+ */
+export async function wouldCreateBomCycle(parentId: string, childId: string): Promise<boolean> {
+  if (parentId === childId) return true;
+  const visited = new Set<string>([childId]);
+  let frontier = [childId];
+
+  while (frontier.length > 0) {
+    const edges = await prisma.vaultBomEdge.findMany({
+      where: { parentId: { in: frontier } },
+      select: { childId: true },
+    });
+    const next: string[] = [];
+    for (const edge of edges) {
+      if (edge.childId === parentId) return true;
+      if (!visited.has(edge.childId)) {
+        visited.add(edge.childId);
+        next.push(edge.childId);
+      }
+    }
+    frontier = next;
+  }
+  return false;
+}

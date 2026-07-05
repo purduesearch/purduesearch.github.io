@@ -25,6 +25,7 @@ import {
   getVaultHealth,
   allocatePartNumber,
   sanitizeFileName,
+  wouldCreateBomCycle,
   type VaultHealth,
 } from "../services/vaultService.js";
 import { askVault, findDuplicateCandidates } from "../services/vaultContextService.js";
@@ -766,6 +767,156 @@ vaultRouter.get("/vault/items/:id/history", async (req: Request, res: Response) 
   } catch (error) {
     console.error("Get vault item history error:", error);
     res.status(500).json({ error: "Failed to get item history" });
+  }
+});
+
+// ── POST /api/vault/items/:id/bom ──────────────────────────────
+// Link a child item into this item's bill of materials (Pack C). Same
+// project, no self-links, no cycles (walks the child's descendants).
+
+vaultRouter.post("/vault/items/:id/bom", async (req: Request, res: Response) => {
+  try {
+    const parentId = req.params.id as string;
+    const { childItemId, quantity, note } = req.body as {
+      childItemId?: string;
+      quantity?: number;
+      note?: string;
+    };
+
+    if (!childItemId) {
+      res.status(400).json({ error: "childItemId is required" });
+      return;
+    }
+    if (childItemId === parentId) {
+      res.status(400).json({ error: "An item can't be a component of itself" });
+      return;
+    }
+    const qty = quantity === undefined ? 1 : Number(quantity);
+    if (!Number.isInteger(qty) || qty < 1) {
+      res.status(400).json({ error: "quantity must be a positive integer" });
+      return;
+    }
+
+    const [parent, child] = await Promise.all([
+      prisma.vaultItem.findUnique({ where: { id: parentId } }),
+      prisma.vaultItem.findUnique({ where: { id: childItemId } }),
+    ]);
+    if (!parent || parent.deletedAt) {
+      res.status(404).json({ error: "Vault item not found" });
+      return;
+    }
+    if (!child || child.deletedAt || child.projectId !== parent.projectId) {
+      res.status(400).json({ error: "childItemId must reference a live item in the same project" });
+      return;
+    }
+
+    if (await wouldCreateBomCycle(parentId, childItemId)) {
+      res.status(409).json({ error: "Linking this item would create a cycle in the BOM" });
+      return;
+    }
+
+    let edge;
+    try {
+      edge = await prisma.vaultBomEdge.create({
+        data: {
+          parentId,
+          childId: childItemId,
+          quantity: qty,
+          note: typeof note === "string" ? note.trim() || null : null,
+        },
+        include: { child: { select: { id: true, name: true, partNumber: true, currentRevision: true } } },
+      });
+    } catch (err: any) {
+      if (err?.code === "P2002") {
+        res.status(409).json({ error: "That item is already in this BOM" });
+        return;
+      }
+      throw err;
+    }
+
+    logAuditEvent({
+      projectId: parent.projectId, memberId: req.memberId ?? null, source: "WEB",
+      eventType: "VAULT_BOM_LINK_ADDED",
+      payload: { itemId: parentId, childItemId, childName: child.name, quantity: qty },
+    }).catch(console.error);
+
+    res.status(201).json(edge);
+  } catch (error) {
+    console.error("Add BOM link error:", error);
+    res.status(500).json({ error: "Failed to add BOM link" });
+  }
+});
+
+// ── DELETE /api/vault/items/:id/bom/:childItemId ───────────────
+
+vaultRouter.delete("/vault/items/:id/bom/:childItemId", async (req: Request, res: Response) => {
+  try {
+    const parentId = req.params.id as string;
+    const childItemId = req.params.childItemId as string;
+
+    const parent = await prisma.vaultItem.findUnique({ where: { id: parentId } });
+    if (!parent || parent.deletedAt) {
+      res.status(404).json({ error: "Vault item not found" });
+      return;
+    }
+
+    try {
+      await prisma.vaultBomEdge.delete({
+        where: { parentId_childId: { parentId, childId: childItemId } },
+      });
+    } catch (err: any) {
+      if (err?.code === "P2025") {
+        res.status(404).json({ error: "BOM link not found" });
+        return;
+      }
+      throw err;
+    }
+
+    logAuditEvent({
+      projectId: parent.projectId, memberId: req.memberId ?? null, source: "WEB",
+      eventType: "VAULT_BOM_LINK_REMOVED",
+      payload: { itemId: parentId, childItemId },
+    }).catch(console.error);
+
+    res.json({ ok: true });
+  } catch (error) {
+    console.error("Remove BOM link error:", error);
+    res.status(500).json({ error: "Failed to remove BOM link" });
+  }
+});
+
+// ── GET /api/vault/items/:id/where-used ────────────────────────
+// Parents (assemblies) that use this item as a component, with quantity.
+
+vaultRouter.get("/vault/items/:id/where-used", async (req: Request, res: Response) => {
+  try {
+    const id = req.params.id as string;
+    const item = await prisma.vaultItem.findUnique({ where: { id } });
+    if (!item || item.deletedAt) {
+      res.status(404).json({ error: "Vault item not found" });
+      return;
+    }
+
+    const edges = await prisma.vaultBomEdge.findMany({
+      where: { childId: id },
+      include: { parent: { select: { id: true, name: true, partNumber: true, currentRevision: true, deletedAt: true } } },
+    });
+
+    res.json(
+      edges
+        .filter((e) => !e.parent.deletedAt)
+        .map((e) => ({
+          id: e.parent.id,
+          name: e.parent.name,
+          partNumber: e.parent.partNumber,
+          currentRevision: e.parent.currentRevision,
+          quantity: e.quantity,
+          note: e.note,
+        }))
+    );
+  } catch (error) {
+    console.error("Get where-used error:", error);
+    res.status(500).json({ error: "Failed to get where-used" });
   }
 });
 

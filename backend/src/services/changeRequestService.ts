@@ -168,7 +168,24 @@ export async function createCr(projectId: string, authorId: string, data: Create
 
   notifyAdminsOfSubmission(cr).catch((err) => console.error("[changeRequestService] notify admins error:", err));
 
-  return cr;
+  // Pack C: warn about items that other assemblies use (where-used), so the
+  // author/reviewer can weigh downstream impact. Advisory only — never blocks.
+  const warnings = (
+    await Promise.all(
+      validatedItems.map(async (vi) => {
+        const edges = await prisma.vaultBomEdge.findMany({
+          where: { childId: vi.itemId },
+          include: { parent: { select: { id: true, name: true, partNumber: true, deletedAt: true } } },
+        });
+        const usedIn = edges
+          .filter((e) => !e.parent.deletedAt)
+          .map((e) => ({ id: e.parent.id, name: e.parent.name, partNumber: e.parent.partNumber }));
+        return usedIn.length > 0 ? { itemId: vi.itemId, usedIn } : null;
+      })
+    )
+  ).filter((w): w is { itemId: string; usedIn: { id: string; name: string; partNumber: string | null }[] } => w !== null);
+
+  return { ...cr, warnings };
 }
 
 export async function updateCr(crId: string, actorId: string, data: UpdateCrInput) {
