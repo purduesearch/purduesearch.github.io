@@ -12,6 +12,7 @@ import { syncAdminStatus } from "../services/memberService.js";
 import { prisma } from "../db/prisma.js";
 import { queueDm } from "../services/dmBatcher.js";
 import { createNotification } from "../services/notificationCrud.js";
+import { sweepVaultTmpDir } from "../api/vault.js";
 
 // ── Helper: notify admin project members via DM batcher ───────
 
@@ -124,6 +125,16 @@ export function startScheduler(app: App): void {
       console.log(`✅ Escalation notices queued for ${tasks.length} task(s)`);
     } catch (error) {
       console.error("❌ Escalation error:", error);
+    }
+  });
+
+  // ── Daily 3:30 AM — Sweep orphaned vault upload temp files ──────
+  cron.schedule("30 3 * * *", async () => {
+    console.log("🧹 Sweeping vault upload temp dir...");
+    try {
+      await sweepVaultTmpDir();
+    } catch (error) {
+      console.error("❌ Vault tmp sweep error:", error);
     }
   });
 

@@ -1,4 +1,6 @@
+import crypto from "node:crypto";
 import { prisma } from "../db/prisma.js";
+import { getSessionSecret } from "../config/env.js";
 import { createDriveFolder, extractFileId, getServiceAccountEmail } from "./driveService.js";
 
 /**
@@ -107,6 +109,39 @@ export async function allocateCrNumber(projectId: string): Promise<number> {
     data: { vaultCrCounter: { increment: 1 } },
   });
   return project.vaultCrCounter;
+}
+
+/** Shared admin check for vault permission guards (creator/holder/author-or-admin). */
+export async function isAdminMember(memberId: string): Promise<boolean> {
+  const member = await prisma.member.findUnique({
+    where: { id: memberId },
+    select: { isAdmin: true, role: true },
+  });
+  return !!member?.isAdmin || member?.role === "ADMIN";
+}
+
+// ── Signed URLs for binary endpoints ─────────────────────────
+// <img>/<a href> requests can't carry the Authorization Bearer header that
+// cross-origin users rely on (third-party cookies blocked), so downloads use
+// short-lived HMAC-signed URLs minted by an authenticated JSON endpoint.
+
+const SIGNED_URL_TTL_MS = 5 * 60 * 1000;
+
+function vaultUrlHmac(path: string, exp: number): string {
+  return crypto.createHmac("sha256", getSessionSecret()).update(`${path}:${exp}`).digest("hex");
+}
+
+/** Sign a router-relative path (e.g. /vault/versions/<id>/download) → query suffix. */
+export function signVaultPath(path: string): { exp: number; sig: string } {
+  const exp = Date.now() + SIGNED_URL_TTL_MS;
+  return { exp, sig: vaultUrlHmac(path, exp) };
+}
+
+export function verifyVaultSignature(path: string, exp: number, sig: string): boolean {
+  if (!Number.isFinite(exp) || exp < Date.now()) return false;
+  const expected = vaultUrlHmac(path, exp);
+  if (sig.length !== expected.length) return false;
+  return crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected));
 }
 
 /**

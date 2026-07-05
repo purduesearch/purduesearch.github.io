@@ -18,6 +18,7 @@ import {
   uploadStreamToDrive,
   getDriveFileStream,
   renameDriveFile,
+  deleteDriveFile,
   getServiceAccountEmail,
 } from "../services/driveService.js";
 import {
@@ -26,12 +27,32 @@ import {
   allocatePartNumber,
   sanitizeFileName,
   wouldCreateBomCycle,
+  isAdminMember,
+  signVaultPath,
+  verifyVaultSignature,
   type VaultHealth,
 } from "../services/vaultService.js";
 import { askVault, findDuplicateCandidates } from "../services/vaultContextService.js";
 
 export const vaultRouter = Router();
-vaultRouter.use(requireAuth);
+
+// Binary GETs (downloads, thumbnails) are reachable from <img>/<a href>
+// elements that can't carry the Authorization Bearer header cross-origin
+// users depend on, so they alternatively accept a short-lived HMAC-signed
+// URL (minted by the authenticated /download-url endpoint below). Everything
+// else requires normal auth.
+const SIGNED_BINARY_PATH = /^\/vault\/versions\/[^/]+\/(download|thumbnail)$/;
+
+vaultRouter.use((req: Request, res: Response, next) => {
+  if (req.method === "GET" && SIGNED_BINARY_PATH.test(req.path)) {
+    const { exp, sig } = req.query as { exp?: string; sig?: string };
+    if (typeof exp === "string" && typeof sig === "string" && verifyVaultSignature(req.path, Number(exp), sig)) {
+      next();
+      return;
+    }
+  }
+  requireAuth(req, res, next);
+});
 
 // ── Upload plumbing ──────────────────────────────────────────
 // Vault files stream through a disk-backed temp dir (unlike blog.ts's
@@ -42,11 +63,17 @@ vaultRouter.use(requireAuth);
 const VAULT_TMP_DIR = "uploads/vault-tmp/";
 fs.mkdirSync(VAULT_TMP_DIR, { recursive: true });
 
-function sweepVaultTmpDir(): void {
+/**
+ * Remove temp upload files older than 24h. Async so it never blocks the
+ * event loop; runs once at boot (fire-and-forget) and daily via the cron in
+ * slack/scheduler.ts — a long-lived process would otherwise accumulate
+ * orphans from crashed requests forever.
+ */
+export async function sweepVaultTmpDir(): Promise<void> {
   const cutoffMs = Date.now() - 24 * 60 * 60 * 1000;
   let entries: string[];
   try {
-    entries = fs.readdirSync(VAULT_TMP_DIR);
+    entries = await fs.promises.readdir(VAULT_TMP_DIR);
   } catch (err) {
     console.error("[vault] tmp sweep readdir error:", err);
     return;
@@ -54,13 +81,14 @@ function sweepVaultTmpDir(): void {
   for (const entry of entries) {
     const entryPath = path.join(VAULT_TMP_DIR, entry);
     try {
-      if (fs.statSync(entryPath).mtimeMs < cutoffMs) fs.unlinkSync(entryPath);
+      const stat = await fs.promises.stat(entryPath);
+      if (stat.mtimeMs < cutoffMs) await fs.promises.unlink(entryPath);
     } catch (err) {
       console.error("[vault] tmp sweep unlink error:", err);
     }
   }
 }
-sweepVaultTmpDir();
+sweepVaultTmpDir().catch((err) => console.error("[vault] boot tmp sweep error:", err));
 
 const itemUpload = multer({
   storage: multer.diskStorage({ destination: VAULT_TMP_DIR }),
@@ -322,8 +350,7 @@ vaultRouter.delete("/vault/items/:id", async (req: Request, res: Response) => {
       return;
     }
 
-    const member = await prisma.member.findUnique({ where: { id: req.memberId! }, select: { isAdmin: true } });
-    const isCreatorOrAdmin = !!member?.isAdmin || item.createdById === req.memberId;
+    const isCreatorOrAdmin = item.createdById === req.memberId || (await isAdminMember(req.memberId!));
     if (!isCreatorOrAdmin) {
       res.status(403).json({ error: "Only the creator or an admin can delete this item" });
       return;
@@ -414,7 +441,14 @@ vaultRouter.post(
             },
           });
         } catch (err: any) {
+          // The DB row failed, so this attempt's Drive upload is orphaned —
+          // remove it (best-effort) before retrying or giving up.
+          deleteDriveFile(uploaded.fileId).catch(console.error);
           if (err?.code === "P2002" && attempt === 0) continue; // versionNumber race — retry once
+          if (err?.code === "P2002") {
+            res.status(409).json({ error: "Could not allocate a version number — please retry" });
+            return;
+          }
           throw err;
         }
       }
@@ -578,6 +612,29 @@ vaultRouter.get("/vault/versions/:id/thumbnail", async (req: Request, res: Respo
   }
 });
 
+// ── GET /api/vault/versions/:id/download-url ───────────────────
+// Mints a short-lived signed URL for the download/thumbnail proxies, so
+// <a href>/<img> elements (which can't carry a Bearer header) still work for
+// users whose cross-origin session cookie is blocked.
+
+vaultRouter.get("/vault/versions/:id/download-url", async (req: Request, res: Response) => {
+  try {
+    const id = req.params.id as string;
+    const version = await prisma.vaultVersion.findUnique({ where: { id }, select: { id: true } });
+    if (!version) {
+      res.status(404).json({ error: "Version not found" });
+      return;
+    }
+
+    const downloadPath = `/vault/versions/${id}/download`;
+    const { exp, sig } = signVaultPath(downloadPath);
+    res.json({ url: `/api${downloadPath}?exp=${exp}&sig=${sig}`, expiresAt: exp });
+  } catch (error) {
+    console.error("Get vault download url error:", error);
+    res.status(500).json({ error: "Failed to create download link" });
+  }
+});
+
 // ── POST /api/vault/items/:id/checkout ─────────────────────────
 // Advisory lock: free → take it; held by someone else → 409 unless
 // { force: true }, which steals it and notifies + audits the previous holder.
@@ -655,8 +712,7 @@ vaultRouter.delete("/vault/items/:id/checkout", async (req: Request, res: Respon
       return;
     }
 
-    const member = await prisma.member.findUnique({ where: { id: req.memberId! }, select: { isAdmin: true } });
-    const isHolderOrAdmin = item.checkedOutById === req.memberId || !!member?.isAdmin;
+    const isHolderOrAdmin = item.checkedOutById === req.memberId || (await isAdminMember(req.memberId!));
     if (!isHolderOrAdmin) {
       res.status(403).json({ error: "Only the checkout holder or an admin can release this checkout" });
       return;
@@ -698,7 +754,18 @@ vaultRouter.post("/vault/items/:id/promote", async (req: Request, res: Response)
     }
 
     const partNumber = await allocatePartNumber(item.projectId);
-    const updated = await prisma.vaultItem.update({ where: { id }, data: { partNumber } });
+    // Guarded write: only promote if still unpromoted, so a concurrent promote
+    // can't be silently overwritten (last-write-wins would leave this caller's
+    // response/audit reporting a part number that was never persisted).
+    const { count } = await prisma.vaultItem.updateMany({
+      where: { id, partNumber: null },
+      data: { partNumber },
+    });
+    if (count === 0) {
+      res.status(409).json({ error: "Item is already promoted to a part number" });
+      return;
+    }
+    const updated = await prisma.vaultItem.findUnique({ where: { id } });
 
     logAuditEvent({
       projectId: item.projectId, memberId: req.memberId ?? null, source: "WEB",
@@ -749,7 +816,7 @@ vaultRouter.get("/vault/items/:id/history", async (req: Request, res: Response) 
   try {
     const id = req.params.id as string;
     const logs = await prisma.activityLog.findMany({
-      where: { payload: { path: ["itemId"], equals: id } },
+      where: { vaultItemId: id },
       orderBy: { createdAt: "desc" },
       take: 50,
       include: { member: MEMBER_SUMMARY },
@@ -815,15 +882,27 @@ vaultRouter.post("/vault/items/:id/bom", async (req: Request, res: Response) => 
       return;
     }
 
-    // Upsert: re-posting an existing child updates its quantity/note (the UI's
-    // qty stepper uses this) — an existing edge can never introduce a cycle.
-    const cleanNote = typeof note === "string" ? note.trim() || null : undefined;
-    const edge = await prisma.vaultBomEdge.upsert({
-      where: { parentId_childId: { parentId, childId: childItemId } },
-      create: { parentId, childId: childItemId, quantity: qty, note: cleanNote ?? null },
-      update: { quantity: qty, ...(cleanNote !== undefined ? { note: cleanNote } : {}) },
-      include: { child: { select: { id: true, name: true, partNumber: true, currentRevision: true } } },
-    });
+    // Create-only: a stale client re-adding an existing child must NOT
+    // silently overwrite its quantity — quantity updates go through the
+    // explicit PATCH route below.
+    let edge;
+    try {
+      edge = await prisma.vaultBomEdge.create({
+        data: {
+          parentId,
+          childId: childItemId,
+          quantity: qty,
+          note: typeof note === "string" ? note.trim() || null : null,
+        },
+        include: { child: { select: { id: true, name: true, partNumber: true, currentRevision: true } } },
+      });
+    } catch (err: any) {
+      if (err?.code === "P2002") {
+        res.status(409).json({ error: "That item is already in this BOM" });
+        return;
+      }
+      throw err;
+    }
 
     logAuditEvent({
       projectId: parent.projectId, memberId: req.memberId ?? null, source: "WEB",
@@ -835,6 +914,66 @@ vaultRouter.post("/vault/items/:id/bom", async (req: Request, res: Response) => 
   } catch (error) {
     console.error("Add BOM link error:", error);
     res.status(500).json({ error: "Failed to add BOM link" });
+  }
+});
+
+// ── PATCH /api/vault/items/:id/bom/:childItemId ────────────────
+// Explicit quantity/note update for an existing BOM edge (the qty stepper).
+// Audited as VAULT_BOM_LINK_UPDATED so overwrites are distinguishable from
+// fresh links in the history.
+
+vaultRouter.patch("/vault/items/:id/bom/:childItemId", async (req: Request, res: Response) => {
+  try {
+    const parentId = req.params.id as string;
+    const childItemId = req.params.childItemId as string;
+    const { quantity, note } = req.body as { quantity?: number; note?: string | null };
+
+    const parent = await prisma.vaultItem.findUnique({ where: { id: parentId } });
+    if (!parent || parent.deletedAt) {
+      res.status(404).json({ error: "Vault item not found" });
+      return;
+    }
+
+    const data: { quantity?: number; note?: string | null } = {};
+    if (quantity !== undefined) {
+      const qty = Number(quantity);
+      if (!Number.isInteger(qty) || qty < 1) {
+        res.status(400).json({ error: "quantity must be a positive integer" });
+        return;
+      }
+      data.quantity = qty;
+    }
+    if (note !== undefined) data.note = typeof note === "string" ? note.trim() || null : null;
+    if (Object.keys(data).length === 0) {
+      res.status(400).json({ error: "Nothing to update" });
+      return;
+    }
+
+    let edge;
+    try {
+      edge = await prisma.vaultBomEdge.update({
+        where: { parentId_childId: { parentId, childId: childItemId } },
+        data,
+        include: { child: { select: { id: true, name: true, partNumber: true, currentRevision: true } } },
+      });
+    } catch (err: any) {
+      if (err?.code === "P2025") {
+        res.status(404).json({ error: "BOM link not found" });
+        return;
+      }
+      throw err;
+    }
+
+    logAuditEvent({
+      projectId: parent.projectId, memberId: req.memberId ?? null, source: "WEB",
+      eventType: "VAULT_BOM_LINK_UPDATED",
+      payload: { itemId: parentId, childItemId, ...data },
+    }).catch(console.error);
+
+    res.json(edge);
+  } catch (error) {
+    console.error("Update BOM link error:", error);
+    res.status(500).json({ error: "Failed to update BOM link" });
   }
 });
 

@@ -3,11 +3,12 @@
 // VaultItem inside approveCr's single transaction (see Architecture reference
 // invariant #1 in the plan) — never anywhere else in this file.
 
+import { Prisma } from "@prisma/client";
 import { prisma } from "../db/prisma.js";
 import { logAuditEvent } from "./activityService.js";
 import { createNotification } from "./notificationCrud.js";
 import { queueDm } from "./dmBatcher.js";
-import { nextRevisionLetter, allocateCrNumber } from "./vaultService.js";
+import { nextRevisionLetter, allocateCrNumber, isAdminMember } from "./vaultService.js";
 import type { ChangeRequestStatus } from "@prisma/client";
 
 const MEMBER_SUMMARY = { select: { id: true, displayName: true, avatarUrl: true } } as const;
@@ -102,9 +103,7 @@ async function validateCrItems(
 
 async function assertAuthorOrAdmin(actorId: string, authorId: string | null, action: string): Promise<void> {
   if (authorId === actorId) return;
-  const actor = await prisma.member.findUnique({ where: { id: actorId }, select: { isAdmin: true, role: true } });
-  const isAdmin = !!actor?.isAdmin || actor?.role === "ADMIN";
-  if (!isAdmin) {
+  if (!(await isAdminMember(actorId))) {
     throw forbidden(`Only the author or an admin can ${action} this change request`);
   }
 }
@@ -254,56 +253,91 @@ export async function cancelCr(crId: string, actorId: string, opts: { reviewNote
   return updated;
 }
 
-export async function approveCr(crId: string, reviewerId: string, opts: { reviewNote?: string } = {}) {
-  const result = await prisma.$transaction(async (tx) => {
-    const cr = await tx.changeRequest.findUnique({
-      where: { id: crId },
-      include: { items: { include: { version: true } } },
-    });
-    if (!cr) throw notFound("Change request not found");
-    if (cr.status !== "OPEN") throw conflict("Change request is not open");
+type ApproveTxResult = {
+  updatedCr: Awaited<ReturnType<typeof getCr>>;
+  releasedItems: { itemId: string; itemName: string; versionId: string; versionNumber: number; revision: string }[];
+  projectId: string;
+  authorId: string | null;
+  number: number;
+  title: string;
+};
 
-    const releasedItems: { itemId: string; itemName: string; versionId: string; versionNumber: number; revision: string }[] = [];
+async function runApproveTransaction(
+  crId: string,
+  reviewerId: string,
+  opts: { reviewNote?: string }
+): Promise<ApproveTxResult> {
+  const MAX_ATTEMPTS = 3;
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await prisma.$transaction(
+        async (tx) => {
+          const cr = await tx.changeRequest.findUnique({
+            where: { id: crId },
+            include: { items: { include: { version: true } } },
+          });
+          if (!cr) throw notFound("Change request not found");
+          if (cr.status !== "OPEN") throw conflict("Change request is not open");
 
-    for (const ci of cr.items) {
-      const item = await tx.vaultItem.findUnique({ where: { id: ci.itemId } });
-      if (!item || item.deletedAt) {
-        throw conflict("A vault item in this change request no longer exists");
-      }
+          const releasedItems: ApproveTxResult["releasedItems"] = [];
 
-      const revision = nextRevisionLetter(item.currentRevision);
-      if (revision !== ci.targetRevision) {
-        await tx.changeRequestItem.update({ where: { id: ci.id }, data: { targetRevision: revision } });
-      }
+          for (const ci of cr.items) {
+            const item = await tx.vaultItem.findUnique({ where: { id: ci.itemId } });
+            if (!item || item.deletedAt) {
+              throw conflict("A vault item in this change request no longer exists");
+            }
 
-      await tx.vaultVersion.update({
-        where: { id: ci.versionId },
-        data: { revision, releasedAt: new Date(), releasedByCrId: crId },
-      });
-      await tx.vaultItem.update({ where: { id: ci.itemId }, data: { currentRevision: revision } });
+            const revision = nextRevisionLetter(item.currentRevision);
+            if (revision !== ci.targetRevision) {
+              await tx.changeRequestItem.update({ where: { id: ci.id }, data: { targetRevision: revision } });
+            }
 
-      releasedItems.push({
-        itemId: ci.itemId,
-        itemName: item.name,
-        versionId: ci.versionId,
-        versionNumber: ci.version.versionNumber,
-        revision,
-      });
+            await tx.vaultVersion.update({
+              where: { id: ci.versionId },
+              data: { revision, releasedAt: new Date(), releasedByCrId: crId },
+            });
+            await tx.vaultItem.update({ where: { id: ci.itemId }, data: { currentRevision: revision } });
+
+            releasedItems.push({
+              itemId: ci.itemId,
+              itemName: item.name,
+              versionId: ci.versionId,
+              versionNumber: ci.version.versionNumber,
+              revision,
+            });
+          }
+
+          const updatedCr = await tx.changeRequest.update({
+            where: { id: crId },
+            data: {
+              status: "APPROVED",
+              reviewerId,
+              reviewedAt: new Date(),
+              reviewNote: opts.reviewNote ?? null,
+            },
+            include: CR_INCLUDE,
+          });
+
+          return { updatedCr, releasedItems, projectId: cr.projectId, authorId: cr.authorId, number: cr.number, title: cr.title };
+        },
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
+      );
+    } catch (err: any) {
+      // P2034: serialization/deadlock conflict — safe to retry from scratch.
+      // P2002 here can only be the (itemId, revision) backstop firing on a
+      // concurrent release of the same item — retrying recomputes the letter.
+      if ((err?.code === "P2034" || err?.code === "P2002") && attempt < MAX_ATTEMPTS) continue;
+      throw err;
     }
+  }
+}
 
-    const updatedCr = await tx.changeRequest.update({
-      where: { id: crId },
-      data: {
-        status: "APPROVED",
-        reviewerId,
-        reviewedAt: new Date(),
-        reviewNote: opts.reviewNote ?? null,
-      },
-      include: CR_INCLUDE,
-    });
-
-    return { updatedCr, releasedItems, projectId: cr.projectId, authorId: cr.authorId, number: cr.number, title: cr.title };
-  });
+export async function approveCr(crId: string, reviewerId: string, opts: { reviewNote?: string } = {}) {
+  // Serializable isolation: two concurrent approvals touching the same item
+  // would otherwise both read the same currentRevision under READ COMMITTED
+  // and stamp duplicate revision letters. Retried on serialization conflicts
+  // (P2034); the @@unique([itemId, revision]) constraint is the DB backstop.
+  const result = await runApproveTransaction(crId, reviewerId, opts);
 
   const { updatedCr, releasedItems, projectId, authorId, number, title } = result;
 

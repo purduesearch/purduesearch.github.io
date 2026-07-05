@@ -255,6 +255,19 @@ export async function getDriveFileStream(
   }
 }
 
+/** Delete a Drive file (cleanup for orphaned uploads after a failed check-in). */
+export async function deleteDriveFile(fileId: string): Promise<boolean> {
+  try {
+    const auth = getDriveWriteAuth();
+    const drive = google.drive({ version: "v3", auth });
+    await drive.files.delete({ fileId, supportsAllDrives: true });
+    return true;
+  } catch (err) {
+    console.error("[driveService] deleteDriveFile error:", err);
+    return false;
+  }
+}
+
 /** Rename a Drive file (used when a vault item is renamed). */
 export async function renameDriveFile(fileId: string, newName: string): Promise<boolean> {
   try {

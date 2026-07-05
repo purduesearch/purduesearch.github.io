@@ -196,6 +196,15 @@ function overlapScore(a: Set<string>, b: Set<string>): number {
   return union === 0 ? 0 : shared / union;
 }
 
+// Score combination: token overlap yields a 0-1 Jaccard score; the semantic
+// pass is a soft signal layered on top. A semantic confirmation of a token
+// match adds SEMANTIC_CONFIRM_BONUS (capped at 1); a semantic-only match
+// enters at SEMANTIC_ONLY_SCORE — above weak token overlaps, below strong
+// ones. Any new signal (e.g. geometry hashing) should slot into this scheme
+// rather than invent new ad hoc constants.
+const SEMANTIC_CONFIRM_BONUS = 0.3;
+const SEMANTIC_ONLY_SCORE = 0.5;
+
 /**
  * Filename token-overlap score against existing items, plus a Gemini semantic
  * pass over item names/descriptions. Metadata only — never claims anything
@@ -248,14 +257,14 @@ Respond with JSON: { "candidates": [{ "itemId": "...", "reason": "<one short sen
     if (!item) continue; // ignore hallucinated ids
     const existing = byId.get(item.id);
     if (existing) {
-      existing.score = Math.min(1, Math.round((existing.score + 0.3) * 100) / 100);
+      existing.score = Math.min(1, Math.round((existing.score + SEMANTIC_CONFIRM_BONUS) * 100) / 100);
       existing.reason = cand.reason || existing.reason;
     } else {
       byId.set(item.id, {
         itemId: item.id,
         name: item.name,
         partNumber: item.partNumber,
-        score: 0.5,
+        score: SEMANTIC_ONLY_SCORE,
         reason: cand.reason || "Semantically similar item",
       });
     }
@@ -279,7 +288,7 @@ const CR_AI_INCLUDE = {
 
 async function recentItemHistory(itemId: string, take = 10) {
   const logs = await prisma.activityLog.findMany({
-    where: { payload: { path: ["itemId"], equals: itemId } },
+    where: { vaultItemId: itemId },
     orderBy: { createdAt: "desc" },
     take,
     include: { member: { select: { displayName: true } } },
