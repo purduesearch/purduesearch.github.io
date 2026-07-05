@@ -11,6 +11,8 @@ import {
   rejectCr,
   getVault,
   getVaultItem,
+  aiCrReleaseNotes,
+  aiCrImpact,
 } from "../../../api/clubPmClient";
 
 const STATUS_LABEL = { OPEN: "Open", APPROVED: "Approved", REJECTED: "Rejected", CANCELLED: "Cancelled" };
@@ -60,6 +62,9 @@ export default function ChangeRequestModal({ project, member, isAdmin, crId, pre
   // View-mode state
   const [releaseNotesDraft, setReleaseNotesDraft] = useState("");
   const [approveNote, setApproveNote] = useState("");
+  const [aiDraftBusy, setAiDraftBusy] = useState(false);
+  const [impactBusy, setImpactBusy] = useState(false);
+  const [impactSummary, setImpactSummary] = useState(null);
 
   useEffect(() => {
     if (isCreate) return;
@@ -169,6 +174,34 @@ export default function ChangeRequestModal({ project, member, isAdmin, crId, pre
     } catch (err) {
       toast.error(err.message || "Failed to update release notes");
       setReleaseNotesDraft(cr.releaseNotes ?? "");
+    }
+  }
+
+  async function handleAiDraft() {
+    if (!cr || aiDraftBusy) return;
+    setAiDraftBusy(true);
+    try {
+      const res = await aiCrReleaseNotes(cr.id);
+      setReleaseNotesDraft(res.draft || "");
+      toast.success("Draft ready — review, edit, then click away to save");
+    } catch (err) {
+      toast.error(err.message || "Failed to draft release notes");
+    } finally {
+      setAiDraftBusy(false);
+    }
+  }
+
+  async function handleImpact() {
+    if (!cr || impactBusy) return;
+    setImpactBusy(true);
+    setImpactSummary(null);
+    try {
+      const res = await aiCrImpact(cr.id);
+      setImpactSummary(res.summary || "No impact information available.");
+    } catch (err) {
+      toast.error(err.message || "Failed to summarize impact");
+    } finally {
+      setImpactBusy(false);
     }
   }
 
@@ -369,6 +402,26 @@ export default function ChangeRequestModal({ project, member, isAdmin, crId, pre
                 disabled={busy || !canEditReleaseNotes}
               />
             </label>
+
+            <div className="cpm-vault-cr-ai-actions">
+              {canEditReleaseNotes && (
+                <button type="button" className="cpm-vault-btn-ghost" onClick={handleAiDraft} disabled={aiDraftBusy || busy}>
+                  <i className="fas fa-wand-magic-sparkles" aria-hidden="true" />{" "}
+                  {aiDraftBusy ? "Drafting…" : "AI draft"}
+                </button>
+              )}
+              <button type="button" className="cpm-vault-btn-ghost" onClick={handleImpact} disabled={impactBusy || busy}>
+                <i className="fas fa-diagram-project" aria-hidden="true" />{" "}
+                {impactBusy ? "Analyzing…" : "Impact summary"}
+              </button>
+            </div>
+
+            {impactSummary && !impactBusy && (
+              <div className="cpm-vault-field">
+                <span>Impact summary</span>
+                <p className="cpm-vault-cr-description">{impactSummary}</p>
+              </div>
+            )}
 
             {cr.reviewNote && (
               <div className="cpm-vault-field">

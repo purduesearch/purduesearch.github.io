@@ -344,6 +344,12 @@ export const approveCr = (id, body = {}) => post(`/api/change-requests/${id}/app
 export const rejectCr  = (id, body = {}) => post(`/api/change-requests/${id}/reject`, body);
 export const getCrPendingCount = () => get(`/api/change-requests/pending/count`);
 
+// Vault AI copilot (Pack B)
+export const askVault             = (projectId, question) => post(`/api/projects/${projectId}/vault/ask`, { question });
+export const checkVaultDuplicates = (projectId, body) => post(`/api/projects/${projectId}/vault/check-duplicates`, body);
+export const aiCrReleaseNotes     = (id) => post(`/api/change-requests/${id}/ai-release-notes`, {});
+export const aiCrImpact           = (id) => post(`/api/change-requests/${id}/ai-impact`, {});
+
 // ── AI action plan ─────────────────────────────────────────────
 
 export const suggestActions = (projectId, goal) => post(`/api/projects/${projectId}/ai-suggest-actions`, { goal });

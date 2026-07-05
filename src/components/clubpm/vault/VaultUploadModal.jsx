@@ -1,7 +1,7 @@
 import React, { useCallback, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import toast from "react-hot-toast";
-import { uploadVaultFile } from "../../../api/clubPmClient";
+import { uploadVaultFile, checkVaultDuplicates } from "../../../api/clubPmClient";
 
 function formatBytes(bytes) {
   if (bytes == null) return "";
@@ -28,7 +28,6 @@ function defaultNameFromFile(fileName) {
 //  - item     → checking in a new version of that item, posted to the item's
 //    versions endpoint.
 export default function VaultUploadModal({ project, item, onClose, onDone }) {
-  const isNewVersion = !!item;
   const inputRef = useRef(null);
   const [file, setFile] = useState(null);
   const [name, setName] = useState("");
@@ -37,15 +36,27 @@ export default function VaultUploadModal({ project, item, onClose, onDone }) {
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState(null);
+  // AI duplicate detection (Pack B): in new-item mode a file select triggers a
+  // metadata-only duplicate check; picking a candidate flips this modal into
+  // new-version mode for that item instead.
+  const [dupCandidates, setDupCandidates] = useState([]);
+  const [asVersionOf, setAsVersionOf] = useState(null);
+
+  const targetItem = item ?? asVersionOf;
+  const isNewVersion = !!targetItem;
 
   const handleFile = useCallback((selected) => {
     if (!selected) return;
     setFile(selected);
     setError(null);
-    if (!isNewVersion) {
+    setDupCandidates([]);
+    if (!item && !asVersionOf) {
       setName((prev) => prev || defaultNameFromFile(selected.name));
+      checkVaultDuplicates(project.id, { fileName: selected.name })
+        .then((res) => setDupCandidates(res.candidates || []))
+        .catch(() => setDupCandidates([]));
     }
-  }, [isNewVersion]);
+  }, [item, asVersionOf, project.id]);
 
   function handleDragEnter(e) { e.preventDefault(); if (!uploading) setDragActive(true); }
   function handleDragOver(e) { e.preventDefault(); if (!uploading) setDragActive(true); }
@@ -64,7 +75,7 @@ export default function VaultUploadModal({ project, item, onClose, onDone }) {
     setProgress(0);
     try {
       const path = isNewVersion
-        ? `/api/vault/items/${item.id}/versions`
+        ? `/api/vault/items/${targetItem.id}/versions`
         : `/api/projects/${project.id}/vault/items`;
       const fields = isNewVersion
         ? { note: note.trim() || undefined }
@@ -94,7 +105,7 @@ export default function VaultUploadModal({ project, item, onClose, onDone }) {
       <div className="cpm-vault-upload-modal">
         <div className="cpm-vault-upload-header">
           <span className="cpm-vault-upload-title">
-            {isNewVersion ? `New check-in — ${item.name}` : "Check in file"}
+            {isNewVersion ? `New check-in — ${targetItem.name}` : "Check in file"}
           </span>
           <button
             type="button"
@@ -142,6 +153,47 @@ export default function VaultUploadModal({ project, item, onClose, onDone }) {
             </>
           )}
         </div>
+
+        {!item && asVersionOf && (
+          <div className="cpm-vault-dup-flip-note">
+            <i className="fas fa-code-branch" aria-hidden="true" />
+            <span>Checking in as a new version of <strong>{asVersionOf.name}</strong></span>
+            <button
+              type="button"
+              className="cpm-vault-btn-ghost"
+              onClick={() => setAsVersionOf(null)}
+              disabled={uploading}
+            >
+              Keep as new item
+            </button>
+          </div>
+        )}
+
+        {!isNewVersion && dupCandidates.length > 0 && (
+          <div className="cpm-vault-dup-warning">
+            <div className="cpm-vault-dup-warning-title">
+              <i className="fas fa-triangle-exclamation" aria-hidden="true" />
+              This might already be in the vault (based on names only):
+            </div>
+            {dupCandidates.map((c) => (
+              <div key={c.itemId} className="cpm-vault-dup-warning-row">
+                <span className="cpm-vault-dup-warning-name">
+                  {c.name}
+                  {c.partNumber && <span className="cpm-vault-chip-part">{c.partNumber}</span>}
+                  {c.reason ? ` — ${c.reason}` : ""}
+                </span>
+                <button
+                  type="button"
+                  className="cpm-vault-btn-ghost"
+                  onClick={() => { setAsVersionOf({ id: c.itemId, name: c.name }); setDupCandidates([]); }}
+                  disabled={uploading}
+                >
+                  Check in as new version instead
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
 
         {!isNewVersion && (
           <label className="cpm-vault-field">

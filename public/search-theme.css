@@ -22954,3 +22954,91 @@ button.cpm-badge-tile:disabled { opacity: 0.7; cursor: progress; }
   gap: 10px;
   min-width: 0;
 }
+
+/* === CLUBPM VAULT — Pack B (AI copilot) === */
+
+.cpm-vault-ask-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid var(--pm-border);
+  background: var(--pm-bg-surface);
+}
+.cpm-vault-ask-panel textarea {
+  width: 100%;
+  resize: vertical;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--pm-border);
+  background: var(--pm-bg-elevated);
+  color: var(--pm-text-primary);
+  font-family: var(--pm-font-body);
+  font-size: 13px;
+}
+.cpm-vault-ask-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+.cpm-vault-ask-answer {
+  padding: 12px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--pm-border);
+  background: var(--pm-bg-elevated);
+  color: var(--pm-text-primary);
+  font-size: 13px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+
+.cpm-vault-dup-warning {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--pm-accent-amber);
+  background: color-mix(in srgb, var(--pm-accent-amber) 10%, transparent);
+  font-size: 13px;
+}
+.cpm-vault-dup-warning-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  color: var(--pm-accent-amber);
+}
+.cpm-vault-dup-warning-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.cpm-vault-dup-warning-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--pm-text-primary);
+  min-width: 0;
+}
+
+.cpm-vault-dup-flip-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--pm-accent-teal);
+  background: color-mix(in srgb, var(--pm-accent-teal) 10%, transparent);
+  color: var(--pm-text-primary);
+  font-size: 13px;
+}
+
+.cpm-vault-cr-ai-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}

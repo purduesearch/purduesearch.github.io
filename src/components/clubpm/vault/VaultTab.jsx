@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
-import { get } from "../../../api/clubPmClient";
+import { get, askVault } from "../../../api/clubPmClient";
 import VaultItemCard from "./VaultItemCard";
 import VaultUploadModal from "./VaultUploadModal";
 import VaultItemModal from "./VaultItemModal";
@@ -30,6 +30,10 @@ export default function VaultTab({ project, member, isAdmin }) {
   const [filter, setFilter] = useState("all");
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [selectedItemId, setSelectedItemId] = useState(null);
+  const [askOpen, setAskOpen] = useState(false);
+  const [askQuestion, setAskQuestion] = useState("");
+  const [askAnswer, setAskAnswer] = useState(null);
+  const [askBusy, setAskBusy] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -68,6 +72,21 @@ export default function VaultTab({ project, member, isAdmin }) {
       }
     });
   }, [items, search, filter]);
+
+  async function handleAsk() {
+    const question = askQuestion.trim();
+    if (!question || askBusy) return;
+    setAskBusy(true);
+    setAskAnswer(null);
+    try {
+      const res = await askVault(project.id, question);
+      setAskAnswer(res.answer || "No answer.");
+    } catch (err) {
+      toast.error(err.message || "Failed to ask the vault");
+    } finally {
+      setAskBusy(false);
+    }
+  }
 
   function handleCopySaEmail() {
     if (!health?.serviceAccountEmail) return;
@@ -180,12 +199,44 @@ export default function VaultTab({ project, member, isAdmin }) {
             </div>
             <button
               type="button"
+              className="cpm-vault-btn-ghost"
+              aria-expanded={askOpen}
+              onClick={() => setAskOpen((open) => !open)}
+            >
+              <i className="fas fa-wand-magic-sparkles" aria-hidden="true" /> Ask the vault
+            </button>
+            <button
+              type="button"
               className="clubpm-btn-primary"
               onClick={() => setShowUploadModal(true)}
             >
               <i className="fas fa-file-arrow-up" aria-hidden="true" /> Check in file
             </button>
           </div>
+
+          {askOpen && (
+            <div className="cpm-vault-ask-panel">
+              <textarea
+                rows={2}
+                placeholder="e.g. Which parts are still unreleased? Who has the bracket checked out?"
+                value={askQuestion}
+                onChange={(e) => setAskQuestion(e.target.value)}
+                disabled={askBusy}
+              />
+              <div className="cpm-vault-ask-actions">
+                <button
+                  type="button"
+                  className="clubpm-btn-primary"
+                  onClick={handleAsk}
+                  disabled={askBusy || !askQuestion.trim()}
+                >
+                  {askBusy ? "Thinking…" : "Ask"}
+                </button>
+              </div>
+              {askBusy && <div className="cpm-vault-loading"><div className="cpm-spinner" /></div>}
+              {askAnswer && !askBusy && <div className="cpm-vault-ask-answer">{askAnswer}</div>}
+            </div>
+          )}
 
           {filteredItems.length === 0 ? (
             <div className="cpm-vault-empty">
