@@ -344,6 +344,10 @@ export const approveCr = (id, body = {}) => post(`/api/change-requests/${id}/app
 export const rejectCr  = (id, body = {}) => post(`/api/change-requests/${id}/reject`, body);
 export const getCrPendingCount = () => get(`/api/change-requests/pending/count`);
 
+// Vault BOM / where-used (Pack C)
+export const addVaultBomLink    = (itemId, body) => post(`/api/vault/items/${itemId}/bom`, body);
+export const removeVaultBomLink = (itemId, childItemId) => del(`/api/vault/items/${itemId}/bom/${childItemId}`);
+
 // Vault AI copilot (Pack B)
 export const askVault             = (projectId, question) => post(`/api/projects/${projectId}/vault/ask`, { question });
 export const checkVaultDuplicates = (projectId, body) => post(`/api/projects/${projectId}/vault/check-duplicates`, body);

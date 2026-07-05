@@ -108,7 +108,12 @@ export default function ChangeRequestModal({ project, member, isAdmin, crId, pre
     try {
       const full = await getVaultItem(itemId);
       setPickedItems((prev) => prev.map((p) => (p.itemId === itemId
-        ? { ...p, versions: full.versions ?? [], versionsLoading: false }
+        ? {
+            ...p,
+            versions: full.versions ?? [],
+            versionsLoading: false,
+            usedIn: (full.parentLinks ?? []).map((l) => l.parent).filter(Boolean),
+          }
         : p)));
     } catch {
       setPickedItems((prev) => prev.map((p) => (p.itemId === itemId ? { ...p, versionsLoading: false } : p)));
@@ -144,12 +149,15 @@ export default function ChangeRequestModal({ project, member, isAdmin, crId, pre
 
     setBusy(true);
     try {
-      await createCr(project.id, {
+      const created = await createCr(project.id, {
         title: trimmed,
         description: description.trim() || null,
         taskId: taskId || null,
         items: pickedItems.map((p) => ({ itemId: p.itemId, versionId: p.versionId })),
       });
+      if ((created?.warnings ?? []).length > 0) {
+        toast(`Heads up: ${created.warnings.length} item${created.warnings.length === 1 ? " is" : "s are"} used in other assemblies — review impact`, { icon: "⚠️" });
+      }
       toast.success("Change request submitted");
       onChanged?.();
       onClose();
@@ -323,6 +331,14 @@ export default function ChangeRequestModal({ project, member, isAdmin, crId, pre
                       {p.partNumber && <span className="cpm-vault-chip-part">{p.partNumber}</span>}
                       <span className="cpm-vault-cr-target-rev">→ Rev {p.targetRevision}</span>
                     </div>
+                    {(p.usedIn ?? []).length > 0 && (
+                      <div className="cpm-vault-warning-banner">
+                        <i className="fas fa-triangle-exclamation" aria-hidden="true" />
+                        <span>
+                          Used in {p.usedIn.map((u) => `${u.partNumber ? `${u.partNumber} ` : ""}${u.name}`).join(", ")} — review impact
+                        </span>
+                      </div>
+                    )}
                     <select
                       value={p.versionId}
                       onChange={(e) => setItemVersion(p.itemId, e.target.value)}

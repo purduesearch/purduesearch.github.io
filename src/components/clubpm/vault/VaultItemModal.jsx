@@ -11,6 +11,9 @@ import {
   getVaultItemHistory,
   vaultDownloadUrl,
   uploadVaultFile,
+  getVault,
+  addVaultBomLink,
+  removeVaultBomLink,
 } from "../../../api/clubPmClient";
 import VaultUploadModal from "./VaultUploadModal";
 import ChangeRequestModal from "./ChangeRequestModal";
@@ -41,6 +44,7 @@ const TABS = [
   { id: "versions", label: "Versions" },
   { id: "3d", label: "3D" },
   { id: "compare", label: "Compare" },
+  { id: "bom", label: "BOM" },
   { id: "changes", label: "Changes" },
   { id: "history", label: "History" },
 ];
@@ -93,6 +97,9 @@ export default function VaultItemModal({ itemId, project, member, isAdmin, onClo
   const [crPreset, setCrPreset] = useState(null);
   const [history, setHistory] = useState(null);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [bomPickerItems, setBomPickerItems] = useState(null);
+  const [addChildId, setAddChildId] = useState("");
+  const [bomBusy, setBomBusy] = useState(false);
   const [selected3dVersionId, setSelected3dVersionId] = useState(null);
   const checkoutNoteRef = useRef("");
 
@@ -262,6 +269,57 @@ export default function VaultItemModal({ itemId, project, member, isAdmin, onClo
     setShowUpload(false);
     load();
     notifyChanged();
+  }
+
+  // Lazy-load the project's vault item list the first time the BOM tab opens
+  // (feeds the add-component picker).
+  useEffect(() => {
+    if (activeTab !== "bom" || bomPickerItems !== null) return;
+    getVault(project.id)
+      .then((data) => setBomPickerItems(data.items || []))
+      .catch(() => setBomPickerItems([]));
+  }, [activeTab, bomPickerItems, project.id]);
+
+  async function handleAddChild() {
+    if (!addChildId || bomBusy) return;
+    setBomBusy(true);
+    try {
+      await addVaultBomLink(itemId, { childItemId: addChildId });
+      setAddChildId("");
+      await load();
+      notifyChanged();
+    } catch (err) {
+      toast.error(err.message || "Failed to add component");
+    } finally {
+      setBomBusy(false);
+    }
+  }
+
+  async function handleSetChildQty(childItemId, quantity) {
+    if (quantity < 1 || bomBusy) return;
+    setBomBusy(true);
+    try {
+      await addVaultBomLink(itemId, { childItemId, quantity });
+      await load();
+    } catch (err) {
+      toast.error(err.message || "Failed to update quantity");
+    } finally {
+      setBomBusy(false);
+    }
+  }
+
+  async function handleRemoveChild(childItemId) {
+    if (bomBusy) return;
+    setBomBusy(true);
+    try {
+      await removeVaultBomLink(itemId, childItemId);
+      await load();
+      notifyChanged();
+    } catch (err) {
+      toast.error(err.message || "Failed to remove component");
+    } finally {
+      setBomBusy(false);
+    }
   }
 
   const isHolder = !!item?.checkedOutBy && item.checkedOutBy.id === member?.id;
@@ -459,6 +517,100 @@ export default function VaultItemModal({ itemId, project, member, isAdmin, onClo
                     <VaultCompareView versions={previewableVersions} />
                   </Suspense>
                 )}
+              </div>
+            )}
+
+            {activeTab === "bom" && (
+              <div className="cpm-vault-bom-tab">
+                <div className="cpm-vault-field">
+                  <span>Components</span>
+                  {(item.childLinks ?? []).length === 0 ? (
+                    <div className="cpm-vault-placeholder">No components linked yet.</div>
+                  ) : (
+                    (item.childLinks ?? []).map((edge) => (
+                      <div key={edge.childId} className="cpm-vault-bom-row">
+                        <span className="cpm-vault-bom-name">
+                          {edge.child?.name}
+                          {edge.child?.partNumber && <span className="cpm-vault-chip-part">{edge.child.partNumber}</span>}
+                        </span>
+                        <span className="cpm-vault-bom-qty">
+                          <button
+                            type="button"
+                            className="cpm-vault-btn-ghost"
+                            aria-label="Decrease quantity"
+                            disabled={bomBusy || edge.quantity <= 1}
+                            onClick={() => handleSetChildQty(edge.childId, edge.quantity - 1)}
+                          >
+                            <i className="fas fa-minus" aria-hidden="true" />
+                          </button>
+                          <span className="cpm-vault-bom-qty-value">×{edge.quantity}</span>
+                          <button
+                            type="button"
+                            className="cpm-vault-btn-ghost"
+                            aria-label="Increase quantity"
+                            disabled={bomBusy}
+                            onClick={() => handleSetChildQty(edge.childId, edge.quantity + 1)}
+                          >
+                            <i className="fas fa-plus" aria-hidden="true" />
+                          </button>
+                        </span>
+                        <button
+                          type="button"
+                          className="cpm-vault-btn-ghost"
+                          aria-label={`Remove ${edge.child?.name}`}
+                          disabled={bomBusy}
+                          onClick={() => handleRemoveChild(edge.childId)}
+                        >
+                          <i className="fas fa-times" aria-hidden="true" />
+                        </button>
+                      </div>
+                    ))
+                  )}
+
+                  <div className="cpm-vault-bom-add">
+                    <select
+                      value={addChildId}
+                      onChange={(e) => setAddChildId(e.target.value)}
+                      disabled={bomBusy || bomPickerItems === null}
+                    >
+                      <option value="">
+                        {bomPickerItems === null ? "Loading items…" : "+ Add a component…"}
+                      </option>
+                      {(bomPickerItems ?? [])
+                        .filter((vi) => vi.id !== itemId && !(item.childLinks ?? []).some((e) => e.childId === vi.id))
+                        .map((vi) => (
+                          <option key={vi.id} value={vi.id}>
+                            {vi.name}{vi.partNumber ? ` (${vi.partNumber})` : ""}
+                          </option>
+                        ))}
+                    </select>
+                    <button
+                      type="button"
+                      className="clubpm-btn-primary"
+                      onClick={handleAddChild}
+                      disabled={bomBusy || !addChildId}
+                    >
+                      Add
+                    </button>
+                  </div>
+                </div>
+
+                <div className="cpm-vault-field">
+                  <span>Where used</span>
+                  {(item.parentLinks ?? []).length === 0 ? (
+                    <div className="cpm-vault-placeholder">Not used in any assembly.</div>
+                  ) : (
+                    (item.parentLinks ?? []).map((edge) => (
+                      <div key={edge.parentId} className="cpm-vault-bom-row">
+                        <span className="cpm-vault-bom-name">
+                          {edge.parent?.name}
+                          {edge.parent?.partNumber && <span className="cpm-vault-chip-part">{edge.parent.partNumber}</span>}
+                        </span>
+                        <span className="cpm-vault-bom-qty-value">×{edge.quantity}</span>
+                      </div>
+                    ))
+                  )}
+                </div>
               </div>
             )}
 

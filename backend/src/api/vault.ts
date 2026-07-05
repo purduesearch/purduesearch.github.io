@@ -815,24 +815,15 @@ vaultRouter.post("/vault/items/:id/bom", async (req: Request, res: Response) => 
       return;
     }
 
-    let edge;
-    try {
-      edge = await prisma.vaultBomEdge.create({
-        data: {
-          parentId,
-          childId: childItemId,
-          quantity: qty,
-          note: typeof note === "string" ? note.trim() || null : null,
-        },
-        include: { child: { select: { id: true, name: true, partNumber: true, currentRevision: true } } },
-      });
-    } catch (err: any) {
-      if (err?.code === "P2002") {
-        res.status(409).json({ error: "That item is already in this BOM" });
-        return;
-      }
-      throw err;
-    }
+    // Upsert: re-posting an existing child updates its quantity/note (the UI's
+    // qty stepper uses this) — an existing edge can never introduce a cycle.
+    const cleanNote = typeof note === "string" ? note.trim() || null : undefined;
+    const edge = await prisma.vaultBomEdge.upsert({
+      where: { parentId_childId: { parentId, childId: childItemId } },
+      create: { parentId, childId: childItemId, quantity: qty, note: cleanNote ?? null },
+      update: { quantity: qty, ...(cleanNote !== undefined ? { note: cleanNote } : {}) },
+      include: { child: { select: { id: true, name: true, partNumber: true, currentRevision: true } } },
+    });
 
     logAuditEvent({
       projectId: parent.projectId, memberId: req.memberId ?? null, source: "WEB",

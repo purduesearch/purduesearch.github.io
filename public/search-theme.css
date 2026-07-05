@@ -23042,3 +23042,78 @@ button.cpm-badge-tile:disabled { opacity: 0.7; cursor: progress; }
   gap: 8px;
   flex-wrap: wrap;
 }
+
+/* === CLUBPM VAULT — Pack C (BOM / where-used) === */
+
+.cpm-vault-bom-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.cpm-vault-bom-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--pm-border);
+  background: var(--pm-bg-elevated);
+  font-size: 13px;
+}
+.cpm-vault-bom-row + .cpm-vault-bom-row {
+  margin-top: 6px;
+}
+.cpm-vault-bom-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--pm-text-primary);
+  min-width: 0;
+  flex: 1;
+}
+.cpm-vault-bom-qty {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.cpm-vault-bom-qty-value {
+  font-family: var(--pm-font-mono);
+  font-size: 12px;
+  color: var(--pm-text-secondary);
+  min-width: 28px;
+  text-align: center;
+}
+.cpm-vault-bom-add {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+.cpm-vault-bom-add select {
+  flex: 1;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--pm-border);
+  background: var(--pm-bg-elevated);
+  color: var(--pm-text-primary);
+  font-size: 13px;
+}
+
+.cpm-vault-warning-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--pm-accent-amber);
+  background: color-mix(in srgb, var(--pm-accent-amber) 12%, transparent);
+  color: var(--pm-accent-amber);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+.cpm-vault-warning-banner i {
+  margin-top: 2px;
+}
