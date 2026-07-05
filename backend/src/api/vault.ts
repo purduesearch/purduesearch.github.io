@@ -27,6 +27,7 @@ import {
   sanitizeFileName,
   type VaultHealth,
 } from "../services/vaultService.js";
+import { askVault, findDuplicateCandidates } from "../services/vaultContextService.js";
 
 export const vaultRouter = Router();
 vaultRouter.use(requireAuth);
@@ -765,5 +766,51 @@ vaultRouter.get("/vault/items/:id/history", async (req: Request, res: Response) 
   } catch (error) {
     console.error("Get vault item history error:", error);
     res.status(500).json({ error: "Failed to get item history" });
+  }
+});
+
+// ── POST /api/projects/:projectId/vault/ask ────────────────────
+// AI copilot Q&A over the project's vault snapshot (Pack B).
+
+vaultRouter.post("/projects/:projectId/vault/ask", async (req: Request, res: Response) => {
+  try {
+    const projectId = req.params.projectId as string;
+    const { question } = req.body as { question?: string };
+    if (!question || !question.trim()) {
+      res.status(400).json({ error: "question is required" });
+      return;
+    }
+
+    const answer = await askVault(projectId, question.trim());
+    if (answer === null) {
+      res.status(404).json({ error: "Project not found" });
+      return;
+    }
+
+    res.json({ answer });
+  } catch (error) {
+    console.error("Vault ask error:", error);
+    res.status(500).json({ error: "Failed to answer question" });
+  }
+});
+
+// ── POST /api/projects/:projectId/vault/check-duplicates ───────
+// Heuristic filename-token overlap + semantic metadata pass. Always a soft
+// warning — never a claim about geometry.
+
+vaultRouter.post("/projects/:projectId/vault/check-duplicates", async (req: Request, res: Response) => {
+  try {
+    const projectId = req.params.projectId as string;
+    const { fileName, name } = req.body as { fileName?: string; name?: string };
+    if (!fileName || !fileName.trim()) {
+      res.status(400).json({ error: "fileName is required" });
+      return;
+    }
+
+    const candidates = await findDuplicateCandidates(projectId, fileName.trim(), name ?? null);
+    res.json({ candidates });
+  } catch (error) {
+    console.error("Vault check-duplicates error:", error);
+    res.status(500).json({ error: "Failed to check for duplicates" });
   }
 });

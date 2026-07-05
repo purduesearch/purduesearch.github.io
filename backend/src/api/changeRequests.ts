@@ -15,6 +15,7 @@ import {
   pendingCount,
   type CrItemInput,
 } from "../services/changeRequestService.js";
+import { draftCrReleaseNotes, summarizeCrImpact } from "../services/vaultContextService.js";
 import type { ChangeRequestStatus } from "@prisma/client";
 
 export const changeRequestsRouter = Router();
@@ -136,6 +137,40 @@ changeRequestsRouter.post("/change-requests/:id/reject", requireAdmin, async (re
     res.json(cr);
   } catch (err: any) {
     handleError(res, err, "Failed to reject change request");
+  }
+});
+
+// ── POST /api/change-requests/:id/ai-release-notes ──────────────
+// AI-drafted release notes (Pack B). Not persisted — the client saves the
+// draft via PATCH releaseNotes if the author accepts it.
+
+changeRequestsRouter.post("/change-requests/:id/ai-release-notes", async (req: Request, res: Response) => {
+  try {
+    const draft = await draftCrReleaseNotes(req.params.id as string);
+    if (draft === null) {
+      res.status(404).json({ error: "Change request not found" });
+      return;
+    }
+    res.json({ draft });
+  } catch (err: any) {
+    handleError(res, err, "Failed to draft release notes");
+  }
+});
+
+// ── POST /api/change-requests/:id/ai-impact ─────────────────────
+// AI impact summary (Pack B): where-used chains, linked task, open tasks
+// mentioning the CR's items.
+
+changeRequestsRouter.post("/change-requests/:id/ai-impact", async (req: Request, res: Response) => {
+  try {
+    const summary = await summarizeCrImpact(req.params.id as string);
+    if (summary === null) {
+      res.status(404).json({ error: "Change request not found" });
+      return;
+    }
+    res.json({ summary });
+  } catch (err: any) {
+    handleError(res, err, "Failed to summarize impact");
   }
 });
 
