@@ -82,7 +82,7 @@ function StatsBar({ projects, myTasks }) {
       <StatTile value={totalProjects}    label="Total Projects" />
       <StatTile value={tasksDueThisWeek} label="Tasks Due This Week" />
       <StatTile value={completionRate}   label="Completion Rate %" />
-      <StatTile value={membersActive}    label="Members Active" />
+      <StatTile value={membersActive}    label="Collaborators" />
       <StatTile value={streakValue}      label="Day Streak"        variant="is-streak" />
     </div>
   );

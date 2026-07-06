@@ -75,7 +75,6 @@ export async function requireAuth(
     const memberId = await verifyToken(authHeader.slice(7));
     if (memberId) {
       req.memberId = memberId;
-      console.log(`[auth] source=bearer path=${req.path}`);
       return next();
     }
   }
@@ -85,7 +84,6 @@ export async function requireAuth(
     return;
   }
   req.memberId = req.session.memberId;
-  console.log(`[auth] source=cookie path=${req.path}`);
   next();
 }
 
@@ -269,7 +267,15 @@ authRouter.get("/slack/callback", async (req: Request, res: Response) => {
 // ── GET /auth/logout ─────────────────────────────────────────
 
 authRouter.get("/logout", async (req: Request, res: Response) => {
-  const memberId = req.session.memberId;
+  let memberId: string | undefined;
+  const authHeader = req.headers.authorization;
+  if (authHeader?.startsWith("Bearer ")) {
+    const bearerMemberId = await verifyBearerToken(authHeader.slice(7));
+    if (bearerMemberId) memberId = bearerMemberId;
+  }
+  if (!memberId) {
+    memberId = req.session.memberId;
+  }
   if (memberId) {
     await prisma.member.update({
       where: { id: memberId },

@@ -172,7 +172,7 @@ export function pulseBadge(el, color = 'rgba(45, 212, 191, 0.6)') {
 
 /**
  * Expand a Kanban drop-slot placeholder vertically as the drag-over column
- * changes. Driven from KanbanBoard's onDragUpdate.
+ * changes. Driven from ProjectDetail's kanban board (@dnd-kit onDragOver).
  */
 export function expandDropSlot(el, fromHeight = 0, toHeight = 56) {
   if (!el) return { pause() {}, cancel() {} };

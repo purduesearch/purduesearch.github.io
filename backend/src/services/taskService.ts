@@ -202,26 +202,55 @@ export async function updateTask(
 
   // Dep set operations (explicit join table — cannot use Prisma connect/disconnect)
   if (data.blockedByIds !== undefined) {
-    await prisma.taskDependency.deleteMany({ where: { blockedTaskId: id } });
-    if (data.blockedByIds.length > 0) {
-      await prisma.taskDependency.createMany({
-        data: data.blockedByIds.map(bid => ({
-          blockingTaskId: bid,
-          blockedTaskId: id,
-          reason: data.blockedByReasons?.[bid] ?? null,
-        })),
-        skipDuplicates: true,
-      });
+    // Cycle check: only ids NOT already in the current blocking set can
+    // introduce a new cycle (existing edges were already validated when
+    // they were added, and re-writing them doesn't change the graph).
+    const currentDeps = await prisma.taskDependency.findMany({
+      where: { blockedTaskId: id },
+      select: { blockingTaskId: true },
+    });
+    const currentIds = new Set(currentDeps.map(d => d.blockingTaskId));
+    for (const bid of data.blockedByIds) {
+      if (currentIds.has(bid)) continue;
+      const hasCycle = await checkDependencyCycle(bid, id);
+      if (hasCycle) {
+        const blockingTask = await prisma.task.findUnique({ where: { id: bid }, select: { title: true } });
+        throw new Error(
+          `Adding this dependency would create a circular chain: "${blockingTask?.title ?? bid}" would end up depending on this task`
+        );
+      }
     }
+
+    const blockedByOps: Prisma.PrismaPromise<unknown>[] = [
+      prisma.taskDependency.deleteMany({ where: { blockedTaskId: id } }),
+    ];
+    if (data.blockedByIds.length > 0) {
+      blockedByOps.push(
+        prisma.taskDependency.createMany({
+          data: data.blockedByIds.map(bid => ({
+            blockingTaskId: bid,
+            blockedTaskId: id,
+            reason: data.blockedByReasons?.[bid] ?? null,
+          })),
+          skipDuplicates: true,
+        })
+      );
+    }
+    await prisma.$transaction(blockedByOps);
   }
   if (data.blockingIds !== undefined) {
-    await prisma.taskDependency.deleteMany({ where: { blockingTaskId: id } });
+    const blockingOps: Prisma.PrismaPromise<unknown>[] = [
+      prisma.taskDependency.deleteMany({ where: { blockingTaskId: id } }),
+    ];
     if (data.blockingIds.length > 0) {
-      await prisma.taskDependency.createMany({
-        data: data.blockingIds.map(bid => ({ blockingTaskId: id, blockedTaskId: bid })),
-        skipDuplicates: true,
-      });
+      blockingOps.push(
+        prisma.taskDependency.createMany({
+          data: data.blockingIds.map(bid => ({ blockingTaskId: id, blockedTaskId: bid })),
+          skipDuplicates: true,
+        })
+      );
     }
+    await prisma.$transaction(blockingOps);
   }
 
   if (data.status !== undefined) {

@@ -64,7 +64,7 @@ app.set("trust proxy", 1);
 app.use("/api/github/webhook", githubWebhookRouter);
 
 // Body parsing (all other routes)
-app.use(express.json());
+app.use(express.json({ limit: "15mb" }));
 app.use(express.urlencoded({ extended: true }));
 
 app.use(
@@ -117,8 +117,12 @@ app.use("/api/activity", activityRouter);
 app.use("/api/milestones", milestonesRouter);
 app.use("/api/reporting", reportingRouter);
 app.use("/api/slack", slackRouter);
-app.use("/api/notifications", notificationsRouter);
+// sseRouter MUST come before notificationsRouter: the SSE stream authenticates
+// via a `?token=` query param for cookie-blocked EventSource clients, and
+// notificationsRouter's pathless requireAuth would otherwise 401 that request
+// (no cookie, no Authorization header) before it reached the /stream handler.
 app.use("/api/notifications", sseRouter);
+app.use("/api/notifications", notificationsRouter);
 app.use("/api/events", eventsRouter);
 app.use("/api/outreach", outreachRouter);
 app.use("/api/blog", blogRouter);

@@ -175,7 +175,7 @@ insightsRouter.get("/hashtags", async (_req: Request, res: Response) => {
 insightsRouter.patch("/hashtags/:id", async (req: Request, res: Response) => {
   try {
     const member = await prisma.member.findUnique({
-      where: { id: req.session.memberId },
+      where: { id: req.memberId },
       select: { isAdmin: true },
     });
     if (!member?.isAdmin) {
@@ -199,7 +199,7 @@ insightsRouter.patch("/hashtags/:id", async (req: Request, res: Response) => {
 insightsRouter.delete("/hashtags/:id", async (req: Request, res: Response) => {
   try {
     const member = await prisma.member.findUnique({
-      where: { id: req.session.memberId },
+      where: { id: req.memberId },
       select: { isAdmin: true },
     });
     if (!member?.isAdmin) {
