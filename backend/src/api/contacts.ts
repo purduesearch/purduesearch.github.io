@@ -106,7 +106,7 @@ contactsRouter.post("/", async (req: Request, res: Response) => {
         notes:        notes?.trim() ?? null,
         nextFollowUpAt: nextFollowUpAt ? new Date(nextFollowUpAt) : null,
         campaignId:   campaignId ?? null,
-        ownerId:      req.session.memberId!,
+        ownerId:      req.memberId!,
       },
       include: CONTACT_INCLUDE,
     });
@@ -130,9 +130,9 @@ contactsRouter.patch("/:id", async (req: Request, res: Response) => {
     }
 
     // Owner or admin
-    if (contact.ownerId !== req.session.memberId) {
+    if (contact.ownerId !== req.memberId) {
       const member = await prisma.member.findUnique({
-        where: { id: req.session.memberId },
+        where: { id: req.memberId },
         select: { isAdmin: true },
       });
       if (!member?.isAdmin) {
@@ -197,9 +197,9 @@ contactsRouter.delete("/:id", async (req: Request, res: Response) => {
       return;
     }
 
-    if (contact.ownerId !== req.session.memberId) {
+    if (contact.ownerId !== req.memberId) {
       const member = await prisma.member.findUnique({
-        where: { id: req.session.memberId },
+        where: { id: req.memberId },
         select: { isAdmin: true },
       });
       if (!member?.isAdmin) {
@@ -245,7 +245,7 @@ contactsRouter.post("/:id/interactions", async (req: Request, res: Response) => 
         type,
         summary:    summary.trim(),
         occurredAt: occurredAt ? new Date(occurredAt) : new Date(),
-        memberId:   req.session.memberId!,
+        memberId:   req.memberId!,
       },
       include: {
         member: { select: { id: true, displayName: true, avatarUrl: true } },
@@ -308,7 +308,7 @@ contactsRouter.post("/import", async (req: Request, res: Response) => {
         contactType,
         stage:        "COLD",
         tags:         [],
-        ownerId:      req.session.memberId!,
+        ownerId:      req.memberId!,
         campaignId:   campaignId ?? null,
       })).filter(r => r.name),
       skipDuplicates: false,

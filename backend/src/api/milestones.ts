@@ -93,7 +93,7 @@ milestonesRouter.post("/", async (req: Request, res: Response) => {
       },
     });
 
-    const memberId = (req.session as any).memberId as string | undefined;
+    const memberId = req.memberId;
     logAuditEvent({
       projectId, memberId: memberId ?? null, source: "WEB",
       eventType: "MILESTONE_CREATED",
@@ -176,7 +176,7 @@ milestonesRouter.patch("/:id", async (req: Request, res: Response) => {
     // Refresh health after any update
     await refreshMilestoneHealth(milestoneId);
 
-    const memberId = (req.session as any).memberId as string | undefined;
+    const memberId = req.memberId;
     if (before) {
       const changes = diffObjects(before as any, milestone as any, ["title", "dueDate", "description", "ownerId", "status"]);
       if (changes.length > 0) {
@@ -225,7 +225,7 @@ milestonesRouter.delete("/:id", async (req: Request, res: Response) => {
     await prisma.milestone.delete({ where: { id: milestoneId } });
 
     if (milestone) {
-      const memberId = (req.session as any).memberId as string | undefined;
+      const memberId = req.memberId;
       logAuditEvent({
         projectId: milestone.projectId, memberId: memberId ?? null, source: "WEB",
         eventType: "MILESTONE_DELETED",

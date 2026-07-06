@@ -755,7 +755,7 @@ outreachRouter.post("/submissions/:id/metrics", async (req: Request, res: Respon
         comments:     comments     ?? null,
         shares:       shares       ?? null,
         clicks:       clicks       ?? null,
-        recordedById: req.session.memberId!,
+        recordedById: req.memberId!,
       },
       include: { recordedBy: { select: { id: true, displayName: true } } },
     });
@@ -981,7 +981,7 @@ outreachRouter.post("/submissions/:id/approvals", async (req: Request, res: Resp
     }
 
     const required = submission.campaign?.requiredApprovers ?? [];
-    const memberId = req.session.memberId!;
+    const memberId = req.memberId!;
 
     // Only required approvers (or admins) can approve
     const isRequired = required.includes(memberId);
@@ -1034,7 +1034,7 @@ outreachRouter.post("/submissions/:id/approvals", async (req: Request, res: Resp
 
 outreachRouter.delete("/submissions/:id/approvals/:approverId", async (req: Request, res: Response) => {
   try {
-    const memberId = req.session.memberId!;
+    const memberId = req.memberId!;
     if (memberId !== req.params.approverId) {
       const me = await prisma.member.findUnique({
         where: { id: memberId },
@@ -1193,7 +1193,7 @@ outreachRouter.get("/ai/image-status", async (_req: Request, res: Response) => {
 
 outreachRouter.post("/ai/generate-image", async (req: Request, res: Response) => {
   try {
-    const memberId = req.session.memberId!;
+    const memberId = req.memberId!;
     const { generateImage, checkMemberRateLimit } = await import("../services/imageGenService.js");
     const { uploadImageToDrive } = await import("../services/driveService.js");
 
@@ -1324,7 +1324,7 @@ outreachRouter.post("/submissions/:id/newsletter/send", async (req: Request, res
 
     // Admin gate
     const me = await prisma.member.findUnique({
-      where: { id: req.session.memberId },
+      where: { id: req.memberId },
       select: { isAdmin: true },
     });
     if (!me?.isAdmin) {
@@ -1604,7 +1604,7 @@ outreachRouter.post("/templates/:id/instantiate", async (req: Request, res: Resp
         platformContent: template.platformContent ?? undefined,
         campaignId:      template.campaignId,
         projectId:       template.projectId,
-        authorId:        req.session.memberId!,
+        authorId:        req.memberId!,
         isTemplate:      false,
       },
       include: {
@@ -1662,7 +1662,7 @@ outreachRouter.post("/templates/:id/recurrence", async (req: Request, res: Respo
       defaultValues: defaultValues ?? undefined,
       active: active ?? true,
       nextRunAt,
-      ownerId: req.session.memberId!,
+      ownerId: req.memberId!,
     };
 
     const recurrence = existing

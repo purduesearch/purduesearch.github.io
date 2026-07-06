@@ -22,7 +22,7 @@ brandVoicesRouter.get("/", async (_req: Request, res: Response) => {
 brandVoicesRouter.post("/", async (req: Request, res: Response) => {
   try {
     const member = await prisma.member.findUnique({
-      where: { id: req.session.memberId },
+      where: { id: req.memberId },
       select: { isAdmin: true },
     });
     if (!member?.isAdmin) {
@@ -66,7 +66,7 @@ brandVoicesRouter.post("/", async (req: Request, res: Response) => {
 brandVoicesRouter.patch("/:id", async (req: Request, res: Response) => {
   try {
     const member = await prisma.member.findUnique({
-      where: { id: req.session.memberId },
+      where: { id: req.memberId },
       select: { isAdmin: true },
     });
     if (!member?.isAdmin) {
@@ -112,7 +112,7 @@ brandVoicesRouter.patch("/:id", async (req: Request, res: Response) => {
 brandVoicesRouter.delete("/:id", async (req: Request, res: Response) => {
   try {
     const member = await prisma.member.findUnique({
-      where: { id: req.session.memberId },
+      where: { id: req.memberId },
       select: { isAdmin: true },
     });
     if (!member?.isAdmin) {

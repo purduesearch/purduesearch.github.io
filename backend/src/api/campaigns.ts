@@ -128,7 +128,7 @@ campaignsRouter.post("/", async (req: Request, res: Response) => {
         goalType: goalType ?? null,
         goalTarget: goalTarget ?? null,
         color: color ?? null,
-        ownerId: req.session.memberId!,
+        ownerId: req.memberId!,
         requiredApprovers: Array.isArray(requiredApprovers) ? requiredApprovers : [],
         slug,
         isPublic: false,
@@ -153,9 +153,9 @@ campaignsRouter.patch("/:id", async (req: Request, res: Response) => {
     }
 
     // Owner or admin
-    if (campaign.ownerId !== req.session.memberId) {
+    if (campaign.ownerId !== req.memberId) {
       const member = await prisma.member.findUnique({
-        where: { id: req.session.memberId },
+        where: { id: req.memberId },
         select: { isAdmin: true },
       });
       if (!member?.isAdmin) {
@@ -210,9 +210,9 @@ campaignsRouter.delete("/:id", async (req: Request, res: Response) => {
       return;
     }
 
-    if (campaign.ownerId !== req.session.memberId) {
+    if (campaign.ownerId !== req.memberId) {
       const member = await prisma.member.findUnique({
-        where: { id: req.session.memberId },
+        where: { id: req.memberId },
         select: { isAdmin: true },
       });
       if (!member?.isAdmin) {
