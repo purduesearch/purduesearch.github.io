@@ -10,7 +10,14 @@ export const sseRouter = Router();
 // a valid query token can satisfy auth even when there's no session cookie or
 // Authorization header for requireAuth to fall back on. requireAuth still
 // handles the normal cookie/header case for everyone else.
-sseRouter.use(async (req: Request, res: Response, next: NextFunction) => {
+//
+// Scoped to the /stream route (not a pathless router.use) so non-stream
+// /api/notifications/* requests fall straight through this router to
+// notificationsRouter without a second auth pass. NOTE: sseRouter MUST be
+// mounted BEFORE notificationsRouter in app.ts — notificationsRouter attaches
+// its own pathless requireAuth, which would 401 a valid ?token= EventSource
+// (no cookie, no header) before it ever reached this handler.
+async function streamAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
   const queryToken = typeof req.query.token === "string" ? req.query.token : undefined;
   if (queryToken) {
     const memberId = await verifyBearerToken(queryToken);
@@ -20,11 +27,11 @@ sseRouter.use(async (req: Request, res: Response, next: NextFunction) => {
     }
   }
   return requireAuth(req, res, next);
-});
+}
 
 // ── GET /api/notifications/stream ───────────────────────────
 // SSE stream: sends new notification events in real time to the authenticated member.
-sseRouter.get("/stream", (req: Request, res: Response) => {
+sseRouter.get("/stream", streamAuth, (req: Request, res: Response) => {
   const memberId = req.memberId;
   if (!memberId) {
     res.status(401).json({ error: "Not authenticated" });
