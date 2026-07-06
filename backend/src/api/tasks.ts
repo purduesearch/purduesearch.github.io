@@ -61,10 +61,13 @@ tasksRouter.get("/search", async (req: Request, res: Response) => {
       res.json([]);
       return;
     }
+    const projectId = req.query.projectId as string | undefined;
 
     const { prisma } = await import("../db/prisma.js");
     const tasks = await prisma.task.findMany({
       where: {
+        archivedAt: null,
+        ...(projectId ? { projectId } : {}),
         OR: [
           { title: { contains: query, mode: "insensitive" } },
           { description: { contains: query, mode: "insensitive" } },
@@ -969,8 +972,8 @@ tasksRouter.post("/:id/comments", requireAuth, channelAuth, async (req: Request,
     }
 
     // Handle @mentions
-    const mentionRegex = /@([a-zA-Z0-9_-]+)/g;
-    const mentions = [...content.matchAll(mentionRegex)].map(m => m[1]);
+    const mentionRegex = /@([a-zA-Z0-9._-]+)/g;
+    const mentions = [...content.matchAll(mentionRegex)].map(m => m[1].replace(/\.$/, ""));
 
     if (mentions.length > 0) {
       const mentionedMembers = await prisma.member.findMany({
