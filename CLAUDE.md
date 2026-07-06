@@ -1,11 +1,11 @@
-<!-- last synced: 2026-07-01 -->
+<!-- last synced: 2026-07-05 -->
 # CLAUDE.md — SEARCH Club Website
 
 ## Project Overview
 
 Static SPA for the Purdue SEARCH club, deployed to GitHub Pages at `purduesearch.github.io`. The React app lives at the **repo root** (`src/`, `public/`, `package.json`). Pages are per-program (AstroUSA, SA²TP, etc.) with shared layout components and a global CSS file. A separate **ClubPM** subsystem (protected routes under `/clubpm`) provides project-management dashboards backed by a `backend/` Node.js/Express/Prisma/Slack service. A standalone Vite+TypeScript admin app lives in `frontend/` (separate build, not deployed to GitHub Pages).
 
-**Stack:** React 19, React Router 7, Framer Motion (page transitions), Font Awesome (icons), mxGraph 4.2.2 (interactive diagrams), Three.js (3D model viewer), `@lottiefiles/react-lottie-player` (Lottie animations), `@hello-pangea/dnd` (Kanban drag-and-drop), Fuse.js (fuzzy search), GSAP (scroll/flow animations), recharts (analytics charts), react-hot-toast (notifications), plain CSS custom properties.
+**Stack:** React 19, React Router 7, Framer Motion (page transitions), Font Awesome (icons), mxGraph 4.2.2 (interactive diagrams), Three.js (3D model viewer), `@lottiefiles/react-lottie-player` (Lottie animations), `@dnd-kit/core` (ProjectDetail kanban drag-and-drop), `@hello-pangea/dnd` (OutreachHub/CrmTab only — legacy), Fuse.js (fuzzy search), GSAP (scroll/flow animations), recharts (analytics charts), react-hot-toast (notifications), plain CSS custom properties.
 
 ---
 
@@ -46,10 +46,18 @@ Static SPA for the Purdue SEARCH club, deployed to GitHub Pages at `purduesearch
 │   │   ├── Software.jsx + Software/   # Suits
 │   │   └── ClubPM/                    # Protected PM dashboards
 │   │       ├── Dashboard.jsx
+│   │       ├── ProjectDetail.jsx      # Main PM view (kanban/milestones/files/vault/ai)
+│   │       ├── MembersView.jsx
 │   │       ├── GanttView.jsx
 │   │       ├── Login.jsx
-│   │       ├── MembersView.jsx
-│   │       └── ProjectDetail.jsx
+│   │       ├── AdminView.jsx          # Pending rewards, reward config, admin tools
+│   │       ├── CalendarPage.jsx
+│   │       ├── ChallengesPage.jsx     # Quests + achievements
+│   │       ├── MeetingNotesView.jsx
+│   │       ├── OutreachHub.jsx        # 981 lines — outreach composer/CRM/campaigns
+│   │       ├── Profile.jsx            # Member profile + avatar editor entry
+│   │       ├── Shop.jsx               # Cosmetic shop (doubloons)
+│   │       └── BlogEditorPage.jsx     # Collaborative blog editor (Hocuspocus WS)
 │   └── components/
 │       ├── AstroFlowDiagram.jsx    # mxGraph interactive diagram (complex — see gotchas)
 │       ├── AstroSubsystem3D.jsx    # Three.js 3D model viewer
@@ -65,8 +73,10 @@ Static SPA for the Purdue SEARCH club, deployed to GitHub Pages at `purduesearch
 │       └── clubpm/                 # ClubPM UI components
 │           ├── AppShell.jsx        # Protected layout shell
 │           ├── GanttChart.jsx
-│           ├── KanbanBoard.jsx     # @hello-pangea/dnd drag-and-drop
+│           ├── TaskModal.jsx       # 2,625 lines — task detail/comments/deps/time
+│           ├── KanbanBoard.jsx     # DEAD CODE — nothing imports it; the live board is in ProjectDetail.jsx (@dnd-kit)
 │           ├── MilestonePanel.jsx
+│           ├── vault/              # Constellation Vault CAD/PDM UI (VaultTab + friends)
 │           └── ...
 ├── backend/                        # Node.js / Express / Prisma / Slack Bolt
 │   ├── src/
@@ -166,7 +176,7 @@ Deploy is manual push to the `main` branch; GitHub Pages serves from root.
 ### API Routes (`backend/src/api/`)
 - `tasks.ts` — Core task CRUD + comments, subtasks, dependencies, time logs, AI enrichment. See **Task API Quick Reference** below.
 - `members.ts` — Member profile, XP history, rank. Rank is a Prisma enum on `Member`.
-- `auth.ts` / `githubAuth.ts` — Session-based auth (express-session + Slack OAuth + GitHub OAuth). No JWT.
+- `auth.ts` / `githubAuth.ts` — Dual auth: session cookie (express-session + Slack OAuth) **plus** an HMAC-signed Bearer token (7-day TTL, `tokenVersion` revocation) delivered via `?lt=` redirect and stored in localStorage — the fallback for browsers that block cross-origin cookies (Brave etc.). `requireAuth` accepts either and sets `req.memberId`. **CONVENTION: always read `req.memberId` in handlers, never `req.session.memberId`** — session reads are `undefined` for Bearer users and silently break them (this bug class existed in 12 API files; see `~/.claude/plans/clubpm-review-fixes-dappled-heron.md`). Only `auth.ts` itself may touch `req.session`.
 - `projects.ts` — Project CRUD; also mounts `tagsRouter`.
 - `milestones.ts` — Milestone CRUD + health refresh. See **Milestones API** below.
 - `blockers.ts` — Project "category" blocker CRUD + task attach/detach. See **Blockers API** below.
@@ -179,6 +189,10 @@ Deploy is manual push to the `main` branch; GitHub Pages serves from root.
 - `public.ts` — Unauthenticated endpoints (GitHub Pages reads these).
 - `github.ts` / `githubWebhook.ts` — GitHub integration + webhook (raw body handler).
 - `reporting.ts`, `activity.ts`, `events.ts`, `eventConfig.ts`, `streak.ts` — Ancillary data.
+- `vault.ts` (1,096 lines) + `changeRequests.ts` — Constellation Vault CAD/PDM: items, versions, checkouts, BOM, CRs. Mounted at bare `/api` (like `blockers.ts` and `streak.ts`).
+- `blog.ts` — Blog editor CRUD, revisions, taxonomy, publish/schedule; collaborative editing WS (Hocuspocus) attaches at `/collab/blog` on the same HTTP server (`backend/src/collab/blogCollab.ts`).
+
+**Gotcha:** `app.ts` uses `express.json()` with the default **100 kb** body limit — endpoints receiving base64 images in JSON (`/api/avatar/extract-features`, `/api/tasks/create-from-image`) 413 on real photos until the limit is raised (plan phase 3). Only the GitHub webhook mounts its own 10 mb raw parser.
 
 ### Services (`backend/src/services/`)
 - `rewardService.ts` — XP/doubloon ledger. Key: `grantXP()`, `grantDoubloons()`, `handleTaskComplete()`, `handleTimeLog()`, `handleMilestoneComplete()`. Task rewards are **admin-gated** via `queuePendingReward()`.
@@ -194,7 +208,7 @@ Deploy is manual push to the `main` branch; GitHub Pages serves from root.
 - `notificationCrud.ts` — `createNotification()`.
 
 ### Slack (`backend/src/slack/`)
-- `scheduler.ts` — All cron jobs (node-cron). Includes: midnight shop rotation, daily streak reset (02:00 UTC), Monday digest (09:00), daily due-date reminders (08:00), milestone health refresh (08:45), Friday risk analysis (15:45), hourly auto-publish. **Add new crons here only.**
+- `scheduler.ts` — All cron jobs (node-cron), **~30 of them**: shop rotation + daily quests (00:00 UTC), streak reset (02:00), vault temp sweep + notification cleanup + auto-archive nudges (03:00-03:30), due-date reminders (08:00), escalations (08:30), milestone health (08:45), Monday digest (09:00), standup prompts (09:15 Tue-Fri), CRM follow-ups (09:05), stale-task warnings (10:00 weekdays), several AI reports (risk Fri 15:45, capacity Wed 10:30, dependency inference Sun 20:00), hourly outreach auto-publish, blog scheduled-publish every 5 min, admin re-sync every 6 h. **Add new crons here only.**
 
 ### Database (`backend/prisma/schema.prisma`)
 Key models: `Member`, `Task`, `Project`, `MilestoneTask`, `XpEvent`, `DoubloonEvent`, `Challenge`, `MemberChallenge`, `MemberAchievement`, `InventoryItem`, `Cosmetic`, `MemberCosmetic`, `Streak`, `ActivityLog`, `GitHubLink`, `OutreachSubmission`, `TaskComment`, `TaskDependency`, `TaskBlocker`, `TimeLog`.
@@ -208,7 +222,7 @@ Key enums:
 - `ChallengeType` — DAILY, WEEKLY, MONTHLY, ACHIEVEMENT
 - `ActivityEventType` — `ActivityLog` event types (see `logAuditEvent`/`getProjectAuditLog`/`getTaskAuditLog`). Task/project/GitHub lifecycle values (`TASK_CREATED`, `TASK_UPDATED`, `TASK_COMPLETED`, `TASK_DELETED`, `TASK_ASSIGNED`, `GITHUB_PR_MERGED`, etc.) plus the audit-sync additions: `TASK_DEPENDENCY_ADDED`/`TASK_DEPENDENCY_REMOVED`, `TASK_BLOCKER_ATTACHED`/`TASK_BLOCKER_DETACHED`, `BLOCKER_RESOLVED`, `COMMENT_ADDED`/`COMMENT_EDITED`/`COMMENT_DELETED`, `TIME_LOGGED`, `MILESTONE_CREATED`/`MILESTONE_UPDATED`/`MILESTONE_DELETED`/`MILESTONE_TASKS_LINKED`, and `AI_PLAN_EXECUTED` (one summary event per AI action-plan execution, in addition to the specific event type logged per executed action).
 
-Member XP is stored as `XpEvent` rows, not a single column — always query via aggregation.
+Member XP lives in **two places kept in sync by `grantXP()`**: a `Member.xp` running-total column (read for display/rank) and `XpEvent` ledger rows (audit/history). Never increment one without the other — go through `rewardService.grantXP()`.
 Task `rewardGrantedAt` is an idempotency gate; do not clear it or DONE→IN_PROGRESS→DONE re-grants XP.
 
 ### Task API Quick Reference (`backend/src/api/tasks.ts`)
@@ -281,18 +295,19 @@ Execution is open to **any logged-in member** — `executeActionPlan` re-checks 
 
 ## ClubPM Frontend Key Files
 
-- `src/components/clubpm/AppShell.jsx` (542 lines) — Protected layout: `pm-sidebar` + `pm-shell-content`. Provides `useClubPmAuth()` (member, logout) and `useProjectNav()` (project-scoped tabs). Hosts: AICommandPalette, CreateProjectModal, RankUpModal, RewardFlux, QuestCompleteToast.
-- `src/pages/ClubPM/ProjectDetail.jsx` (2,711 lines) — Main PM view. Tabs: tasks (kanban with StatusBin drag-drop), milestones, files (Drive + GitHub), reports, ai. Drag uses `@hello-pangea/dnd`. State: `project`, `activeTab`, `selectedTask`, `overBin`.
-- `src/pages/ClubPM/Dashboard.jsx` (1,532 lines) — Personal dashboard: StatsBar (5 stats), DailyQuestsWidget, AIInsightCards, WorkPanel (filterable task list), AgendaPanel (7-day), LeaderboardPanel.
-- `src/pages/ClubPM/MembersView.jsx` (490 lines) — Member roster. Supports search + team/role filters. MemberDrawer shows full profile. ContributorImportModal links GitHub logins.
-- `src/api/clubPmClient.js` (289 lines) — Fetch wrappers (get/post/patch/del). Base URL: `process.env.REACT_APP_API_URL || ""`. Session cookie sent automatically (no auth headers). Dispatches `clubpm:reward-granted`, `clubpm:achievement-unlocked`, `clubpm:challenge-progress` custom events on responses. Streak cache: 5-second TTL. Includes `suggestActions()` / `executePlan()` for the AI Action Plan feature.
+- `src/components/clubpm/AppShell.jsx` (551 lines) — Protected layout: `pm-sidebar` + `pm-shell-content`. Provides `useClubPmAuth()` (member, logout) and `useProjectNav()` (project-scoped tabs). Hosts: AICommandPalette, CreateProjectModal, RankUpModal, RewardFlux, QuestCompleteToast, admin pending-reward/CR badges.
+- `src/pages/ClubPM/ProjectDetail.jsx` (3,613 lines) — Main PM view. Tabs: tasks (kanban with StatusBin drag-drop + blocker sub-bins), milestones, files (Drive + GitHub), vault, reports, ai. Drag uses **`@dnd-kit/core`** (NOT @hello-pangea/dnd) with custom collision detection; member chips are draggable onto tasks/blockers. Optimistic updates with rollback; bulk moves go through `PATCH /api/tasks/bulk`.
+- `src/pages/ClubPM/Dashboard.jsx` (1,532 lines) — Personal dashboard: StatsBar (5 stats), DailyQuestsWidget, AIInsightCards, GithubActivityWidget, UpcomingEventsWidget, WorkPanel (filterable task list), AgendaPanel (7-day), LeaderboardPanel.
+- `src/pages/ClubPM/MembersView.jsx` (491 lines) — Member roster. Supports search + team/role filters. MemberDrawer shows full profile. ContributorImportModal links GitHub logins.
+- `src/api/clubPmClient.js` (430 lines) — Fetch wrappers (get/post/patch/del/put). Base URL: `process.env.REACT_APP_API_URL || ""`. Sends session cookie **and** `Authorization: Bearer` from localStorage (`clubpm_auth_token`) on every call. Dispatches `clubpm:reward-granted`, `clubpm:achievement-unlocked`, `clubpm:challenge-progress`, `clubpm:cosmetic-unlocked`, `clubpm:reward-queued` custom events on responses. Streak cache: 5-second TTL. Also exports vault/CR helpers, blog editor helpers, `uploadVaultFile()` (XHR multipart w/ progress), and `suggestActions()` / `executePlan()`.
+- `src/clubpm/ClubPmAuth.jsx` — Auth provider: consumes the `?lt=` login token, stores it, calls `/auth/me` with Bearer + cookie. `src/clubpm/` also holds ShortcutsRegistry, avatar VRM loaders (`avatar/vrm/`), cosmetics registries, and engagement helpers.
 - `src/components/clubpm/ActionPlanReview.jsx` — Renders an `ActionPlan` as editable per-action cards (per-type field config, accept/decline, rationale) for the AiPanel "Action Plan" section in `ProjectDetail.jsx`. See **AI Action Plan** above for the schema.
 
 ---
 
 ## CSS Architecture (`public/search-theme.css`)
 
-**20,313 lines — always Grep before Reading.**
+**23,142 lines — always Grep before Reading.**
 
 Section order:
 1. CSS custom properties (`:root`) — SEARCH branding tokens
@@ -318,11 +333,14 @@ Grep: `rg "\.pm-shell" public/search-theme.css` or `rg "/\* ===" public/search-t
 
 | File | Lines | What to Grep |
 |------|-------|-------------|
-| `public/search-theme.css` | 20,313 | class names, `/* ===` section headers |
-| `src/pages/ClubPM/ProjectDetail.jsx` | 2,711 | component/state names, tab constants |
+| `public/search-theme.css` | 23,142 | class names, `/* ===` section headers |
+| `src/pages/ClubPM/ProjectDetail.jsx` | 3,613 | component/state names, tab constants |
+| `src/components/clubpm/TaskModal.jsx` | 2,625 | section names, handler names |
+| `backend/src/api/outreach.ts` | 1,781 | route paths |
+| `backend/prisma/schema.prisma` | 1,661 | model names, enum values |
 | `src/pages/ClubPM/Dashboard.jsx` | 1,532 | component names, hook usage |
-| `backend/src/api/tasks.ts` | ~450 | route paths, type names |
-| `backend/prisma/schema.prisma` | ~350 | model names, enum values |
+| `backend/src/api/tasks.ts` | 1,478 | route paths, type names |
+| `backend/src/api/vault.ts` | 1,096 | route paths |
 
 ---
 
