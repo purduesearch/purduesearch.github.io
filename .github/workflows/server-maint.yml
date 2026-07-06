@@ -17,6 +17,14 @@ on:
         description: "Public key line to append to authorized_keys (paste your .pub contents; leave blank to skip)"
         type: string
         required: false
+      github_step:
+        description: "GitHub App integration: diagnose (report only) or fix (repair stored install ids)"
+        type: choice
+        options:
+          - skip
+          - diagnose
+          - fix
+        default: skip
 
 jobs:
   maintain:
@@ -27,11 +35,12 @@ jobs:
         env:
           PUBKEY: ${{ inputs.ssh_public_key }}
           APPLY_NGINX: ${{ inputs.apply_nginx_fix }}
+          GH_STEP: ${{ inputs.github_step }}
         with:
           host: ${{ secrets.ORACLE_HOST }}
           username: ${{ secrets.ORACLE_USER }}
           key: ${{ secrets.ORACLE_SSH_KEY }}
-          envs: PUBKEY,APPLY_NGINX
+          envs: PUBKEY,APPLY_NGINX,GH_STEP
           script_stop: true
           script: |
             set -e
@@ -64,5 +73,22 @@ jobs:
               echo "nginx: client_max_body_size=512M applied and reloaded"
             else
               echo "nginx: skipped (apply_nginx_fix=false)"
+            fi
+
+            # 3) GitHub App integration diagnostic / repair
+            if [ -n "$GH_STEP" ] && [ "$GH_STEP" != "skip" ]; then
+              echo "== GitHub App: $GH_STEP =="
+              cd /opt/clubpm/backend
+              echo "-- recent getRepoStats errors from pm2 logs --"
+              grep -a "getRepoStats error\|\[githubService\]" ~/.pm2/logs/*error*.log 2>/dev/null | tail -15 || echo "(no matching log lines)"
+              if [ ! -f scripts/diagnose-github.mjs ]; then
+                echo "!! scripts/diagnose-github.mjs not on server yet."
+                echo "   Wait for the 'Deploy Backend to Oracle' action to finish (green), then re-run this workflow."
+              else
+                if [ "$GH_STEP" = "fix" ]; then export GH_APPLY=1; fi
+                node scripts/diagnose-github.mjs
+              fi
+            else
+              echo "GitHub App: skipped (github_step=skip)"
             fi
             echo "== Done =="
