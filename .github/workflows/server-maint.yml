@@ -25,6 +25,10 @@ on:
           - diagnose
           - fix
         default: skip
+      tail_error_log:
+        description: "Print recent backend error-log lines (debugging Drive/GitHub errors)"
+        type: boolean
+        default: false
 
 jobs:
   maintain:
@@ -36,11 +40,12 @@ jobs:
           PUBKEY: ${{ inputs.ssh_public_key }}
           APPLY_NGINX: ${{ inputs.apply_nginx_fix }}
           GH_STEP: ${{ inputs.github_step }}
+          TAIL_LOG: ${{ inputs.tail_error_log }}
         with:
           host: ${{ secrets.ORACLE_HOST }}
           username: ${{ secrets.ORACLE_USER }}
           key: ${{ secrets.ORACLE_SSH_KEY }}
-          envs: PUBKEY,APPLY_NGINX,GH_STEP
+          envs: PUBKEY,APPLY_NGINX,GH_STEP,TAIL_LOG
           script_stop: false
           script: |
             set -x
@@ -94,5 +99,11 @@ jobs:
               fi
             else
               echo "GitHub App: skipped (github_step=skip)"
+            fi
+
+            # 4) Tail backend error log (debugging Drive/GitHub failures)
+            if [ "$TAIL_LOG" = "true" ]; then
+              echo "== last 80 lines of backend pm2 error log =="
+              tail -n 80 ~/.pm2/logs/*error*.log 2>/dev/null || echo "(no error log found)"
             fi
             echo "== Done =="
