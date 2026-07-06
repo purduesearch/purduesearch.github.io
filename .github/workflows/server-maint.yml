@@ -1,0 +1,68 @@
+name: Server Maintenance (manual)
+
+# Manually-triggered maintenance over the SAME SSH channel deploy-backend.yml
+# already uses. Reuses the ORACLE_HOST / ORACLE_USER / ORACLE_SSH_KEY secrets,
+# so it works even without your personal keys. It is inert until you run it from
+# the Actions tab, and it does NOT touch backend/** so it won't trigger a deploy.
+# Safe to delete once you've regained direct SSH access.
+
+on:
+  workflow_dispatch:
+    inputs:
+      apply_nginx_fix:
+        description: "Apply nginx client_max_body_size=512M and reload (fixes vault upload 413)"
+        type: boolean
+        default: true
+      ssh_public_key:
+        description: "Public key line to append to authorized_keys (paste your .pub contents; leave blank to skip)"
+        type: string
+        required: false
+
+jobs:
+  maintain:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run maintenance over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          PUBKEY: ${{ inputs.ssh_public_key }}
+          APPLY_NGINX: ${{ inputs.apply_nginx_fix }}
+        with:
+          host: ${{ secrets.ORACLE_HOST }}
+          username: ${{ secrets.ORACLE_USER }}
+          key: ${{ secrets.ORACLE_SSH_KEY }}
+          envs: PUBKEY,APPLY_NGINX
+          script_stop: true
+          script: |
+            set -e
+            echo "== Connected as $(whoami)@$(hostname) =="
+
+            # 1) Restore direct SSH access (optional) — PUBLIC key only
+            if [ -n "$PUBKEY" ]; then
+              mkdir -p ~/.ssh && chmod 700 ~/.ssh
+              touch ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys
+              if grep -qF "$PUBKEY" ~/.ssh/authorized_keys; then
+                echo "SSH: public key already present, skipping"
+              else
+                printf '%s\n' "$PUBKEY" >> ~/.ssh/authorized_keys
+                echo "SSH: public key appended to ~/.ssh/authorized_keys"
+              fi
+            else
+              echo "SSH: no public key provided, skipping"
+            fi
+
+            # 2) nginx upload-size fix (drops an http-level snippet; non-invasive)
+            if [ "$APPLY_NGINX" = "true" ]; then
+              if ! sudo -n true 2>/dev/null; then
+                echo "ERROR: passwordless sudo unavailable for $(whoami); cannot modify nginx." >&2
+                echo "Fall back to the Oracle Console 'Run command' feature instead." >&2
+                exit 1
+              fi
+              printf 'client_max_body_size 512M;\n' | sudo -n tee /etc/nginx/conf.d/client-max-body.conf >/dev/null
+              sudo -n nginx -t
+              sudo -n systemctl reload nginx
+              echo "nginx: client_max_body_size=512M applied and reloaded"
+            else
+              echo "nginx: skipped (apply_nginx_fix=false)"
+            fi
+            echo "== Done =="
