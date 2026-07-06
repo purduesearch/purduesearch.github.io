@@ -4,6 +4,7 @@ import { channelAuth } from "../middleware/channelAuth.js";
 import { getTaskPermissions, requireTaskEdit } from "../middleware/taskAccess.js";
 import { aiRateLimit } from "../middleware/aiRateLimit.js";
 import { updateTask, deleteTask, getTask, createSubtask, getSubtasks, addDependency, removeDependency, logTime, createTask, assertCanComplete, assertNotCategoryBlocked } from "../services/taskService.js";
+import { assertCiGatePasses, applyCompletionSideEffects } from "../services/taskCompletionService.js";
 import { logAuditEvent, diffObjects, getTaskAuditLog } from "../services/activityService.js";
 import type { TaskStatus, TaskProgress, Priority, NotificationType } from "@prisma/client";
 import { generateJson, generateJsonFromImage, GeminiRateLimitError } from "../services/geminiService.js";
@@ -254,6 +255,8 @@ tasksRouter.patch("/bulk", async (req: Request, res: Response) => {
     const memberId = req.memberId!;
     const updated: any[] = [];
     const skipped: { id: string; reason: string }[] = [];
+    let actorReward: import("../services/rewardService.js").ActorRewardSummary | null = null;
+    let progressMilestones: import("../services/challengeService.js").ProgressMilestone[] = [];
 
     for (const id of ids) {
       const existingTask = await getTask(id);
@@ -276,10 +279,18 @@ tasksRouter.patch("/bulk", async (req: Request, res: Response) => {
         }
       }
 
-      if (patch.status === "DONE" && existingTask.status !== "DONE") {
+      const isCompletion = patch.status === "DONE" && existingTask.status !== "DONE";
+
+      if (isCompletion) {
         const blockerError = assertCanComplete(existingTask as any);
         if (blockerError) {
           skipped.push({ id, reason: blockerError });
+          continue;
+        }
+
+        const ciError = await assertCiGatePasses(id, existingTask.projectId);
+        if (ciError) {
+          skipped.push({ id, reason: ciError });
           continue;
         }
       }
@@ -292,12 +303,33 @@ tasksRouter.patch("/bulk", async (req: Request, res: Response) => {
           assigneeIds: patch.assigneeIds,
         });
         updated.push(task);
+
+        if (isCompletion) {
+          try {
+            const result = await applyCompletionSideEffects({
+              taskId: id,
+              actorId: memberId,
+              existingTask,
+              updatedTask: task,
+            });
+            if (result.actorReward) actorReward = result.actorReward;
+            if (result.progressMilestones.length > 0) {
+              progressMilestones = progressMilestones.concat(result.progressMilestones);
+            }
+          } catch (err) {
+            console.error("[reward] bulk applyCompletionSideEffects:", err);
+          }
+        }
       } catch (err) {
         skipped.push({ id, reason: (err as Error).message ?? "Update failed" });
       }
     }
 
-    res.json({ updated, skipped });
+    const responseBody: any = { updated, skipped };
+    if (actorReward) Object.assign(responseBody, actorReward);
+    if (progressMilestones.length > 0) responseBody.progressMilestones = progressMilestones;
+
+    res.json(responseBody);
   } catch (error) {
     console.error("Bulk update error:", error);
     res.status(500).json({ error: "Failed to bulk update tasks" });
@@ -466,29 +498,10 @@ tasksRouter.patch("/:id", channelAuth, async (req: Request, res: Response) => {
 
       // CI gating (Phase 3): if the project requires passing CI and the most
       // recent CI activity for the task is a failure, block the transition.
-      const project = await prismaClient.project.findUnique({
-        where: { id: existingTask.projectId },
-        select: { githubBlockDoneOnCiFail: true },
-      });
-      if (project?.githubBlockDoneOnCiFail) {
-        const openPr = await prismaClient.gitHubLink.findFirst({
-          where: { taskId, kind: "PR", state: { in: ["open", "draft"] } },
-        });
-        if (openPr) {
-          const lastCi = await prismaClient.activityLog.findFirst({
-            where: {
-              taskId,
-              eventType: { in: ["GITHUB_CI_PASSED", "GITHUB_CI_FAILED"] },
-            },
-            orderBy: { createdAt: "desc" },
-          });
-          if (lastCi?.eventType === "GITHUB_CI_FAILED") {
-            res.status(409).json({
-              error: "Cannot mark as done: a linked PR has failing CI checks. Resolve them or disable CI gating in project settings.",
-            });
-            return;
-          }
-        }
+      const ciError = await assertCiGatePasses(taskId, existingTask.projectId);
+      if (ciError) {
+        res.status(409).json({ error: ciError });
+        return;
       }
     }
 
@@ -511,12 +524,13 @@ tasksRouter.patch("/:id", channelAuth, async (req: Request, res: Response) => {
       blockedByReasons: blockingTaskReasons,
     });
 
+    const isNowDone = existingTask.status !== "DONE" && task.status === "DONE";
+
     // Audit log — fire-and-forget, never block the response
     (() => {
       const memberId = req.memberId;
       const assigneesBefore = (existingTask.assignees ?? []).map((a: any) => a.id).sort().join(",");
       const assigneesAfter  = (task.assignees ?? []).map((a: any) => a.id).sort().join(",");
-      const isNowDone        = existingTask.status !== "DONE" && task.status === "DONE";
       const assigneesChanged = assigneesBefore !== assigneesAfter;
 
       // Engagement: streak ticks on any forward status transition that isn't
@@ -534,11 +548,9 @@ tasksRouter.patch("/:id", channelAuth, async (req: Request, res: Response) => {
       }
 
       if (isNowDone) {
-        logAuditEvent({
-          taskId: taskId, memberId: memberId ?? null, source: "WEB",
-          eventType: "TASK_COMPLETED", payload: { taskTitle: task.title },
-        }).catch(console.error);
-        // Engagement grant happens below (awaited) so the response can carry the deltas.
+        // TASK_COMPLETED audit event + engagement grant are handled by
+        // applyCompletionSideEffects (called below, awaited so the response
+        // can carry the reward deltas).
       } else if (assigneesChanged && task.status === existingTask.status) {
         logAuditEvent({
           taskId: taskId, memberId: memberId ?? null, source: "WEB",
@@ -570,7 +582,6 @@ tasksRouter.patch("/:id", channelAuth, async (req: Request, res: Response) => {
       const assigneesAfter  = (task.assignees ?? []).map((a: any) => a.id);
       const assigneesChanged = assigneesBefore.sort().join(",") !== assigneesAfter.sort().join(",");
       const addedAssigneeIds = assigneesAfter.filter((id: string) => !assigneesBefore.includes(id));
-      const isNowDone        = existingTask.status !== "DONE" && task.status === "DONE";
 
       return (async () => {
         const [actor, proj] = await Promise.all([
@@ -595,58 +606,42 @@ tasksRouter.patch("/:id", channelAuth, async (req: Request, res: Response) => {
             if (assignee.slackId) queueDm(assignee.slackId, `📋 *${actor?.displayName ?? "Someone"}* assigned you to *${task.title}* in ${proj?.name ?? "a project"}`);
           }
         }
-
-        if (isNowDone) {
-          for (const assignee of (task.assignees ?? [])) {
-            if ((assignee as any).id === actorId) continue;
-            await createNotification({
-              type: "TASK_COMPLETED" as NotificationType,
-              recipientId: (assignee as any).id,
-              actorId,
-              projectId: task.projectId,
-              taskId,
-              message: `Task "${task.title}" was marked done`,
-            });
-            if ((assignee as any).slackId) queueDm((assignee as any).slackId, `✅ Task *${task.title}* was marked done`);
-          }
-        }
+        // Completed-notification fan-out for the DONE transition is handled
+        // by applyCompletionSideEffects (called below).
       })();
     })().catch(console.error);
 
-    // If task is linked to a milestone, refresh its health (fire-and-forget)
-    if ((task as any).milestoneId) {
+    // If task is linked to a milestone, refresh its health (fire-and-forget).
+    // The DONE-transition refresh is handled by applyCompletionSideEffects
+    // below, so this only needs to fire for non-completion updates.
+    if (!isNowDone && (task as any).milestoneId) {
       const { refreshMilestoneHealth } = await import("../services/milestoneService.js");
       refreshMilestoneHealth((task as any).milestoneId).catch(console.error);
     }
 
-    // Engagement grant — awaited so the response can surface reward deltas to
-    // the frontend dispatcher (sidebar XP bar, +XP particles, rank-up modal).
+    // Engagement grant + per-assignee challenge hooks for the DONE
+    // transition are shared with PATCH /bulk via applyCompletionSideEffects —
+    // awaited so the response can surface reward deltas to the frontend
+    // dispatcher (sidebar XP bar, +XP particles, rank-up modal, progress toasts).
     let actorReward: import("../services/rewardService.js").ActorRewardSummary | null = null;
-    const isNowDone = existingTask.status !== "DONE" && task.status === "DONE";
+    let progressMilestones: import("../services/challengeService.js").ProgressMilestone[] = [];
     if (isNowDone) {
-      try {
-        const { handleTaskComplete } = await import("../services/rewardService.js");
-        const full = await prismaClient.task.findUnique({
-          where: { id: taskId },
-          select: {
-            id: true, title: true, dueDate: true, createdById: true,
-            assignees: { select: { id: true } },
-          },
-        });
-        if (full) actorReward = await handleTaskComplete(full, req.memberId!);
-      } catch (err) {
-        console.error("[reward] handleTaskComplete:", err);
-      }
+      const result = await applyCompletionSideEffects({
+        taskId,
+        actorId: req.memberId!,
+        existingTask,
+        updatedTask: task,
+      });
+      actorReward = result.actorReward;
+      progressMilestones = result.progressMilestones;
     }
 
-    // Challenge hooks — awaited so we can surface progress milestones in the
-    // response (frontend toasts at 25/50/75% bands).
-    let progressMilestones: import("../services/challengeService.js").ProgressMilestone[] = [];
+    // Remaining challenge hooks — awaited so we can surface progress
+    // milestones in the response (frontend toasts at 25/50/75% bands).
     {
       const actorId = req.memberId;
       if (actorId) {
         const prevStatus = existingTask.status;
-        const nowDone    = prevStatus !== "DONE" && task.status === "DONE";
         const toInProgress = prevStatus !== "IN_PROGRESS" && task.status === "IN_PROGRESS";
         const prevAssignees = ((existingTask.assignees ?? []) as any[]).map((a: any) => a.id as string);
         const nextAssignees = ((task.assignees ?? []) as any[]).map((a: any) => a.id as string);
@@ -660,19 +655,6 @@ tasksRouter.patch("/:id", channelAuth, async (req: Request, res: Response) => {
 
         try {
           const { recordEvent } = await import("../services/challengeService.js");
-
-          if (nowDone) {
-            for (const assignee of ((task.assignees ?? []) as any[])) {
-              progressMilestones = progressMilestones.concat(
-                await recordEvent(assignee.id, "TASK_COMPLETED", 1, { taskId })
-              );
-              if (prevStatus === "IN_PROGRESS") {
-                progressMilestones = progressMilestones.concat(
-                  await recordEvent(assignee.id, "TASK_MOVED_INPROGRESS_TO_DONE", 1)
-                );
-              }
-            }
-          }
 
           if (toInProgress) {
             progressMilestones = progressMilestones.concat(
