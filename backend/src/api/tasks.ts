@@ -513,7 +513,7 @@ tasksRouter.patch("/:id", channelAuth, async (req: Request, res: Response) => {
 
     // Audit log — fire-and-forget, never block the response
     (() => {
-      const memberId = (req.session as any).memberId as string | undefined;
+      const memberId = req.memberId;
       const assigneesBefore = (existingTask.assignees ?? []).map((a: any) => a.id).sort().join(",");
       const assigneesAfter  = (task.assignees ?? []).map((a: any) => a.id).sort().join(",");
       const isNowDone        = existingTask.status !== "DONE" && task.status === "DONE";
@@ -563,7 +563,7 @@ tasksRouter.patch("/:id", channelAuth, async (req: Request, res: Response) => {
 
     // Notification emitters (fire-and-forget)
     (() => {
-      const actorId = (req.session as any).memberId as string | undefined;
+      const actorId = req.memberId;
       if (!actorId) return Promise.resolve();
 
       const assigneesBefore = (existingTask.assignees ?? []).map((a: any) => a.id);
@@ -633,8 +633,7 @@ tasksRouter.patch("/:id", channelAuth, async (req: Request, res: Response) => {
             assignees: { select: { id: true } },
           },
         });
-        const actorId = (req.session as any).memberId as string | undefined;
-        if (full) actorReward = await handleTaskComplete(full, actorId ?? "");
+        if (full) actorReward = await handleTaskComplete(full, req.memberId!);
       } catch (err) {
         console.error("[reward] handleTaskComplete:", err);
       }
@@ -644,7 +643,7 @@ tasksRouter.patch("/:id", channelAuth, async (req: Request, res: Response) => {
     // response (frontend toasts at 25/50/75% bands).
     let progressMilestones: import("../services/challengeService.js").ProgressMilestone[] = [];
     {
-      const actorId = (req.session as any).memberId as string | undefined;
+      const actorId = req.memberId;
       if (actorId) {
         const prevStatus = existingTask.status;
         const nowDone    = prevStatus !== "DONE" && task.status === "DONE";
@@ -722,7 +721,7 @@ tasksRouter.patch("/:id", channelAuth, async (req: Request, res: Response) => {
     // task update started — recordEvent → evaluateAchievements → claimAchievement
     // writes MemberAchievement rows with unlockedAt = now().
     try {
-      const actorId = (req.session as any).memberId as string | undefined;
+      const actorId = req.memberId;
       if (actorId) {
         const recentUnlocks = await prismaClient.memberAchievement.findMany({
           where: { memberId: actorId, unlockedAt: { gte: requestStartedAt } },
@@ -784,7 +783,7 @@ tasksRouter.delete("/:id", channelAuth, async (req: Request, res: Response) => {
       return;
     }
 
-    const memberId = (req.session as any).memberId as string | undefined;
+    const memberId = req.memberId;
     await deleteTask(taskId);
 
     logAuditEvent({
@@ -943,7 +942,7 @@ tasksRouter.post("/:id/comments", requireAuth, channelAuth, async (req: Request,
   try {
     const taskId = req.params.id as string;
     const { content, parentId } = req.body as { content: string; parentId?: string };
-    const memberId = (req.session as any).memberId as string;
+    const memberId = req.memberId!;
 
     if (!content) {
       res.status(400).json({ error: "Content is required" });
@@ -1094,7 +1093,7 @@ tasksRouter.post("/:id/comments", requireAuth, channelAuth, async (req: Request,
 tasksRouter.patch("/:id/comments/:commentId", async (req: Request, res: Response) => {
   try {
     const commentId = req.params.commentId as string;
-    const memberId = (req.session as any).memberId as string;
+    const memberId = req.memberId!;
     const { content } = req.body as { content: string };
 
     if (!content) {
@@ -1138,7 +1137,7 @@ tasksRouter.patch("/:id/comments/:commentId", async (req: Request, res: Response
 tasksRouter.delete("/:id/comments/:commentId", async (req: Request, res: Response) => {
   try {
     const commentId = req.params.commentId as string;
-    const memberId = (req.session as any).memberId as string;
+    const memberId = req.memberId!;
 
     const { prisma } = await import("../db/prisma.js");
     const comment = await prisma.taskComment.findUnique({ where: { id: commentId } });
@@ -1180,7 +1179,7 @@ tasksRouter.delete("/:id/comments/:commentId", async (req: Request, res: Respons
 tasksRouter.post("/:id/comments/:commentId/reactions", async (req: Request, res: Response) => {
   try {
     const commentId = req.params.commentId as string;
-    const memberId = (req.session as any).memberId as string;
+    const memberId = req.memberId!;
     const { emoji } = req.body as { emoji: string };
 
     if (!emoji) {
@@ -1278,7 +1277,7 @@ tasksRouter.post("/:id/dependencies", requireAuth, requireTaskEdit, async (req: 
     }
     const result = await addDependency(taskId, blockedById, reason);
 
-    const memberId = (req.session as any).memberId as string | undefined;
+    const memberId = req.memberId;
     const blockingTask = (result as any)?.blockedBy?.find(
       (d: any) => d.blockingTaskId === blockedById
     )?.blockingTask;
@@ -1308,7 +1307,7 @@ tasksRouter.delete("/:id/dependencies/:depId", requireAuth, requireTaskEdit, asy
     const blockingTask = await prismaClient.task.findUnique({ where: { id: depId }, select: { title: true } });
     const result = await removeDependency(taskId, depId);
 
-    const memberId = (req.session as any).memberId as string | undefined;
+    const memberId = req.memberId;
     logAuditEvent({
       taskId, memberId: memberId ?? null, source: "WEB",
       eventType: "TASK_DEPENDENCY_REMOVED",
@@ -1327,7 +1326,7 @@ tasksRouter.delete("/:id/dependencies/:depId", requireAuth, requireTaskEdit, asy
 tasksRouter.post("/:id/time-logs", requireAuth, requireTaskEdit, async (req: Request, res: Response) => {
   try {
     const taskId = req.params.id as string;
-    const memberId = (req.session as any).memberId as string;
+    const memberId = req.memberId!;
     const { minutes, note } = req.body as { minutes: number; note?: string };
     if (!minutes || typeof minutes !== "number" || minutes <= 0) {
       res.status(400).json({ error: "minutes must be a positive number" });

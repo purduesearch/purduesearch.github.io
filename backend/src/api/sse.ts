@@ -9,7 +9,7 @@ sseRouter.use(requireAuth);
 // ── GET /api/notifications/stream ───────────────────────────
 // SSE stream: sends new notification events in real time to the authenticated member.
 sseRouter.get("/stream", (req: Request, res: Response) => {
-  const memberId = (req.session as any).memberId as string;
+  const memberId = req.memberId!;
 
   res.setHeader("Content-Type",  "text/event-stream");
   res.setHeader("Cache-Control", "no-cache");

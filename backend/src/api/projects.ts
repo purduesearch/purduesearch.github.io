@@ -51,7 +51,7 @@ projectsRouter.get("/", async (_req: Request, res: Response) => {
 
 projectsRouter.post("/", async (req: Request, res: Response) => {
   try {
-    const memberId = (req.session as any).memberId as string;
+    const memberId = req.memberId!;
     const actor = await prisma.member.findUnique({ where: { id: memberId }, select: { isAdmin: true } });
     if (!actor?.isAdmin) {
       res.status(403).json({ error: "Admin only" });
@@ -205,7 +205,7 @@ projectsRouter.patch("/:id", channelAuth, async (req: Request, res: Response) =>
       const WATCHED_PROJECT_FIELDS = ["name", "status", "description", "type", "targetDate", "driveLink", "githubRepo"];
       const changes = diffObjects(before as any, project as any, WATCHED_PROJECT_FIELDS);
       if (changes.length > 0) {
-        const memberId = (req.session as any).memberId as string | undefined;
+        const memberId = req.memberId;
         logAuditEvent({
           projectId,
           memberId:  memberId ?? null,
@@ -364,7 +364,7 @@ projectsRouter.get("/:id/tags", async (req: Request, res: Response) => {
 
 projectsRouter.post("/:id/tags", async (req: Request, res: Response) => {
   try {
-    const memberId = (req.session as any).memberId as string;
+    const memberId = req.memberId!;
     const actor = await prisma.member.findUnique({ where: { id: memberId }, select: { isAdmin: true } });
     if (!actor?.isAdmin) {
       res.status(403).json({ error: "Admin only" });
@@ -389,7 +389,7 @@ projectsRouter.post("/:id/tags", async (req: Request, res: Response) => {
 
 projectsRouter.post("/:id/updates", async (req: Request, res: Response) => {
   try {
-    const memberId = (req.session as any).memberId as string;
+    const memberId = req.memberId!;
     const { content } = req.body as { content: string };
     if (!content) {
       res.status(400).json({ error: "content is required" });
@@ -812,7 +812,7 @@ tagsRouter.use(requireAuth);
 
 tagsRouter.delete("/:tagId", async (req: Request, res: Response) => {
   try {
-    const memberId = (req.session as any).memberId as string;
+    const memberId = req.memberId!;
     const actor = await prisma.member.findUnique({ where: { id: memberId }, select: { isAdmin: true } });
     if (!actor?.isAdmin) {
       res.status(403).json({ error: "Admin only" });
