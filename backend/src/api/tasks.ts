@@ -726,7 +726,11 @@ tasksRouter.patch("/:id", channelAuth, async (req: Request, res: Response) => {
     }
 
     res.json(responseBody);
-  } catch (error) {
+  } catch (error: any) {
+    if (error?.message?.includes("circular")) {
+      res.status(400).json({ error: error.message });
+      return;
+    }
     console.error("Update task error:", error);
     res.status(500).json({ error: "Failed to update task" });
   }
