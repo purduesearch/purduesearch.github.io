@@ -1,15 +1,35 @@
-import { Router, type Request, type Response } from "express";
-import { requireAuth } from "./auth.js";
+import { Router, type Request, type Response, type NextFunction } from "express";
+import { requireAuth, verifyBearerToken } from "./auth.js";
 import { activityBus } from "../services/activityService.js";
 
 export const sseRouter = Router();
 
-sseRouter.use(requireAuth);
+// EventSource cannot set an Authorization header, so Bearer-token users
+// (cookie-blocked browsers, e.g. Brave) authenticate the stream via a signed
+// `?token=` query param instead. Check that first — ahead of requireAuth — so
+// a valid query token can satisfy auth even when there's no session cookie or
+// Authorization header for requireAuth to fall back on. requireAuth still
+// handles the normal cookie/header case for everyone else.
+sseRouter.use(async (req: Request, res: Response, next: NextFunction) => {
+  const queryToken = typeof req.query.token === "string" ? req.query.token : undefined;
+  if (queryToken) {
+    const memberId = await verifyBearerToken(queryToken);
+    if (memberId) {
+      req.memberId = memberId;
+      return next();
+    }
+  }
+  return requireAuth(req, res, next);
+});
 
 // ── GET /api/notifications/stream ───────────────────────────
 // SSE stream: sends new notification events in real time to the authenticated member.
 sseRouter.get("/stream", (req: Request, res: Response) => {
-  const memberId = req.memberId!;
+  const memberId = req.memberId;
+  if (!memberId) {
+    res.status(401).json({ error: "Not authenticated" });
+    return;
+  }
 
   res.setHeader("Content-Type",  "text/event-stream");
   res.setHeader("Cache-Control", "no-cache");
