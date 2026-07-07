@@ -9,6 +9,7 @@ import { Navigate } from "react-router-dom";
 import { useClubPmAuth } from "../../clubpm/ClubPmAuth";
 import PendingRewardsPanel from "../../components/clubpm/PendingRewardsPanel";
 import EventRewardConfigPanel from "../../components/clubpm/EventRewardConfigPanel";
+import GoogleDriveConnectButton from "../../components/clubpm/GoogleDriveConnectButton";
 import MeetingNotesView from "./MeetingNotesView";
 
 export default function AdminView() {
@@ -42,6 +43,13 @@ export default function AdminView() {
 
       <section>
         <EventRewardConfigPanel />
+      </section>
+
+      <section>
+        <div className="cpm-profile-card">
+          <h3 style={{ marginTop: 0 }}>Integrations</h3>
+          <GoogleDriveConnectButton />
+        </div>
       </section>
 
       <section>

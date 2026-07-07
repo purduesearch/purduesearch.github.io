@@ -428,3 +428,10 @@ export async function uploadBlogImage(file) {
 // reads `imageUrl` from the body and ignores the :id path param.
 export const suggestBlogAltText = (imageUrl) =>
   post('/api/outreach/submissions/blog/ai/alt-text', { imageUrl });
+
+// Google Drive bot account connection (Workstream A — see
+// docs/superpowers/specs/2026-07-06-clubpm-drive-multirepo-design.md §3).
+// Connect is a full-page redirect to /auth/google (see GoogleDriveConnectButton),
+// not a fetch call, so there is no connect() helper here.
+export const getGoogleDriveStatus = () => get("/auth/google/status");
+export const disconnectGoogleDrive = () => del("/auth/google");
