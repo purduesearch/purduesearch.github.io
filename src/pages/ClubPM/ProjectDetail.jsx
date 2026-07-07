@@ -133,7 +133,6 @@ const NAV_TABS = [
   { id: "tasks",      label: "Tasks",                  icon: "📋" },
   { id: "milestones", label: "Milestones & Updates",   icon: "🎯" },
   { id: "files",      label: "Files",                  icon: "📁" },
-  { id: "vault",      label: "Vault",                  icon: "🗄️" },
   { id: "reports",    label: "Reports",                icon: "📊" },
   { id: "ai",         label: "AI",                     icon: "🤖" },
 ];
@@ -2096,10 +2095,13 @@ function DriveFilesPanel({ project, isAdmin, onProjectChange }) {
 // sessionStorage per project so a user reopening the same project sees the
 // pane they were on; users opening a *different* project start on Drive.
 
-function FilesTabContent({ project, isAdmin, onProjectChange }) {
+function FilesTabContent({ project, member, isAdmin, onProjectChange }) {
   const storageKey = `cpm.files.sub.${project.id}`;
   const [sub, setSub] = useState(() => {
-    try { return sessionStorage.getItem(storageKey) === "github" ? "github" : "drive"; }
+    try {
+      const stored = sessionStorage.getItem(storageKey);
+      return stored === "github" || stored === "vault" ? stored : "drive";
+    }
     catch { return "drive"; }
   });
 
@@ -2122,6 +2124,7 @@ function FilesTabContent({ project, isAdmin, onProjectChange }) {
         {[
           { id: "drive",  label: "Drive",  icon: "fab fa-google-drive" },
           { id: "github", label: "GitHub", icon: "fab fa-github" },
+          { id: "vault",  label: "Vault",  icon: "fas fa-database" },
         ].map(opt => (
           <button
             key={opt.id}
@@ -2151,6 +2154,8 @@ function FilesTabContent({ project, isAdmin, onProjectChange }) {
           isAdmin={isAdmin}
           onProjectChange={onProjectChange}
         />
+      ) : sub === "vault" ? (
+        <VaultTab project={project} member={member} isAdmin={isAdmin} />
       ) : (
         <GitHubPanel project={project} />
       )}
@@ -3433,18 +3438,9 @@ export default function ProjectDetail() {
             <div className="cpm-proj-main-body" style={{ padding: "24px" }}>
               <FilesTabContent
                 project={project}
-                isAdmin={!!member?.isAdmin}
-                onProjectChange={updated => setProject(prev => ({ ...prev, ...updated }))}
-              />
-            </div>
-          )}
-
-          {activeTab === "vault" && (
-            <div className="cpm-proj-main-body" style={{ padding: "24px" }}>
-              <VaultTab
-                project={project}
                 member={member}
                 isAdmin={!!member?.isAdmin}
+                onProjectChange={updated => setProject(prev => ({ ...prev, ...updated }))}
               />
             </div>
           )}
