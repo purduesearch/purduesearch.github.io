@@ -128,6 +128,19 @@ export default function AddRepoModal({ projectId, onClose, onSaved }) {
             <code> repo </code> scope (granted automatically during OAuth).
           </p>
 
+          <p className="cpm-gh-hint">
+            Don't see a newly-added repo?{" "}
+            <a
+              href="https://github.com/settings/installations"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Manage the GitHub App installation
+            </a>{" "}
+            — repos granted only through the installed app (not your personal OAuth
+            access) must be added there too.
+          </p>
+
           <div className="cpm-gh-modal-footer">
             <div style={{ flex: 1 }} />
             <button type="button" className="cpm-gh-modal-cancel" onClick={onClose} disabled={saving}>

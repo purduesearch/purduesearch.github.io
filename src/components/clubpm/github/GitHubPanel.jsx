@@ -14,12 +14,15 @@
 // GitHub yet, or when the API returns 4xx/5xx.
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import toast from "react-hot-toast";
 import {
   get,
   listProjectRepos,
   updateProjectRepo,
   removeProjectRepo,
+  apiBaseUrl,
+  getStoredToken,
 } from "../../../api/clubPmClient";
 import { useClubPmAuth } from "../../../clubpm/ClubPmAuth";
 import { formatRelativeTime, labelContrast } from "../../../utils/githubUtils";
@@ -54,6 +57,7 @@ export default function GitHubPanel({ project }) {
   const { member } = useClubPmAuth();
   const isAdmin = Boolean(member?.isAdmin);
   const projectId = project?.id;
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [repos, setRepos] = useState([]);
   const [reposLoading, setReposLoading] = useState(true);
@@ -109,9 +113,47 @@ export default function GitHubPanel({ project }) {
 
   useEffect(loadStats, [loadStats]);
 
+  // Auto-open the Add Repo modal when returning from the C1 reauth redirect
+  // (see startAddRepoReauth below). Strip the intent flag once consumed so a
+  // refresh doesn't reopen the modal.
+  useEffect(() => {
+    if (searchParams.get("intent") !== "addrepo") return;
+    setAdding(true);
+    setSearchParams(
+      prev => {
+        const next = new URLSearchParams(prev);
+        next.delete("intent");
+        return next;
+      },
+      { replace: true }
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
   function selectRepo(repoId) {
     setSelectedRepoId(repoId);
     setActiveTab("issues");
+  }
+
+  // "Add repo" doesn't open the modal directly — it forces a full-page GitHub
+  // OAuth round-trip first (mirrors GitHubConnectButton's connect()) so any
+  // repo newly accessible to the member's GitHub account shows up when the
+  // modal's "Check repo" validation queries GET /api/github/repo. Returns to
+  // this project with ?intent=addrepo, handled by the effect above.
+  function startAddRepoReauth() {
+    if (!projectId) return;
+    // FilesTabContent persists the Drive/GitHub sub-tab choice in
+    // sessionStorage (no URL scheme exists for it today); pre-set it so
+    // landing back on the Files tab shows GitHub, not Drive.
+    try {
+      sessionStorage.setItem(`cpm.files.sub.${projectId}`, "github");
+    } catch {
+      /* ignore */
+    }
+    const returnTo = `/clubpm/projects/${projectId}?tab=files&sub=github&intent=addrepo`;
+    const token = getStoredToken();
+    const tokenParam = token ? `&token=${encodeURIComponent(token)}` : "";
+    window.location.href = `${apiBaseUrl}/auth/github?returnTo=${encodeURIComponent(returnTo)}${tokenParam}`;
   }
 
   async function toggleCiGating(repo) {
@@ -167,10 +209,7 @@ export default function GitHubPanel({ project }) {
           </p>
           {reposError && <p className="cpm-gh-error">{reposError}</p>}
           {isAdmin ? (
-            // TODO(C1): before opening AddRepoModal, redirect through
-            // /auth/github?intent=addrepo to force a fresh OAuth round-trip so
-            // newly-accessible repos show up in the "Check repo" validation.
-            <button className="clubpm-btn-primary" onClick={() => setAdding(true)}>
+            <button className="clubpm-btn-primary" onClick={startAddRepoReauth}>
               Add a repository
             </button>
           ) : (
@@ -206,10 +245,7 @@ export default function GitHubPanel({ project }) {
           </button>
         ))}
         {isAdmin && (
-          // TODO(C1): before opening AddRepoModal, redirect through
-          // /auth/github?intent=addrepo to force a fresh OAuth round-trip so
-          // newly-accessible repos show up in the "Check repo" validation.
-          <button className="cpm-gh-subtab" onClick={() => setAdding(true)} title="Add a repository">
+          <button className="cpm-gh-subtab" onClick={startAddRepoReauth} title="Add a repository">
             <i className="fas fa-plus" aria-hidden="true" /> Add repo
           </button>
         )}
