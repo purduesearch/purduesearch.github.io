@@ -3,7 +3,7 @@
 
 import React, { useCallback, useEffect, useState } from "react";
 import toast from "react-hot-toast";
-import { get, post, del } from "../../../api/clubPmClient";
+import { get, post, del, listProjectRepos } from "../../../api/clubPmClient";
 import IssuePickerModal from "./IssuePickerModal";
 import BranchCreateModal from "./BranchCreateModal";
 import IssuePreviewModal from "./IssuePreviewModal";
@@ -28,7 +28,6 @@ function StateBadge({ link }) {
 
 export default function GitHubTaskSection({ task, project, onTaskUpdate }) {
   const projectId = project?.id ?? task?.projectId;
-  const repoLinked = Boolean(project?.githubRepo);
   const taskId = task?.id;
 
   const [links, setLinks] = useState([]);
@@ -37,6 +36,33 @@ export default function GitHubTaskSection({ task, project, onTaskUpdate }) {
   const [showBranch, setShowBranch] = useState(false);
   const [previewIssue, setPreviewIssue] = useState(null);
   const [previewPr, setPreviewPr] = useState(null);
+
+  // Multi-repo (Workstream B): the project may have more than one linked
+  // repo. Fetch the set so we can silently target the sole repo, or offer a
+  // compact selector when there's more than one. This is the repo used for
+  // the inline "Create issue" action; IssuePickerModal / BranchCreateModal
+  // pick their own target repo independently (they fetch the same list).
+  const [repos, setRepos] = useState([]);
+  const [reposLoading, setReposLoading] = useState(true);
+  const [selectedRepoId, setSelectedRepoId] = useState(null);
+
+  useEffect(() => {
+    if (!projectId) { setRepos([]); setReposLoading(false); return; }
+    let cancelled = false;
+    setReposLoading(true);
+    listProjectRepos(projectId)
+      .then(d => {
+        if (cancelled) return;
+        const list = d?.repos ?? [];
+        setRepos(list);
+        setSelectedRepoId(prev => (prev && list.some(r => r.id === prev)) ? prev : (list[0]?.id ?? null));
+      })
+      .catch(() => { if (!cancelled) setRepos([]); })
+      .finally(() => { if (!cancelled) setReposLoading(false); });
+    return () => { cancelled = true; };
+  }, [projectId]);
+
+  const repoLinked = repos.length > 0;
 
   const refresh = useCallback(() => {
     if (!taskId || !repoLinked) { setLinks([]); return; }
@@ -61,9 +87,10 @@ export default function GitHubTaskSection({ task, project, onTaskUpdate }) {
   }
 
   async function createIssue() {
+    if (!selectedRepoId) { toast.error("Select a repository first"); return; }
     if (!window.confirm("Create a new GitHub issue from this task?")) return;
     try {
-      const r = await post(`/api/github/tasks/${taskId}/issue`, {});
+      const r = await post(`/api/github/tasks/${taskId}/issue`, { repoId: selectedRepoId });
       toast.success(`Issue #${r.number} created`);
       refresh();
     } catch (err) {
@@ -79,6 +106,18 @@ export default function GitHubTaskSection({ task, project, onTaskUpdate }) {
     } catch (err) {
       toast.error(err?.message ?? "Sync failed");
     }
+  }
+
+  if (reposLoading && repos.length === 0) {
+    return (
+      <div className="cpm-gh-task-section">
+        <div className="cpm-gh-task-header">
+          <i className="fab fa-github" aria-hidden="true" />
+          <span>GitHub</span>
+        </div>
+        <p className="cpm-gh-hint" style={{ marginTop: 8 }}>Loading repositories…</p>
+      </div>
+    );
   }
 
   if (!repoLinked) {
@@ -106,6 +145,20 @@ export default function GitHubTaskSection({ task, project, onTaskUpdate }) {
         <span>GitHub</span>
         {loading && <span className="cpm-gh-task-loading">syncing…</span>}
         <div style={{ flex: 1 }} />
+        {repos.length > 1 && (
+          <select
+            className="cpm-gh-input"
+            style={{ width: "auto", padding: "3px 8px", fontSize: 11, marginRight: 6, textTransform: "none" }}
+            value={selectedRepoId ?? ""}
+            onChange={e => setSelectedRepoId(e.target.value)}
+            title="Target repository for new GitHub actions"
+            aria-label="Target repository"
+          >
+            {repos.map(r => (
+              <option key={r.id} value={r.id}>{r.slug}</option>
+            ))}
+          </select>
+        )}
         <button className="cpm-gh-task-refresh" onClick={refresh} title="Refresh">
           <i className="fas fa-rotate" aria-hidden="true" />
         </button>

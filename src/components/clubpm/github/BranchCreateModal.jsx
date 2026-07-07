@@ -4,7 +4,7 @@
 import React, { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import toast from "react-hot-toast";
-import { get, post } from "../../../api/clubPmClient";
+import { get, post, listProjectRepos } from "../../../api/clubPmClient";
 
 export default function BranchCreateModal({ projectId, taskId, onClose, onCreated }) {
   const [name, setName] = useState("");
@@ -12,6 +12,13 @@ export default function BranchCreateModal({ projectId, taskId, onClose, onCreate
   const [branches, setBranches] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+
+  // Multi-repo (Workstream B): resolve the project's linked repos and let
+  // the user choose a target when there's more than one; silently use the
+  // sole repo otherwise.
+  const [repos, setRepos] = useState([]);
+  const [reposLoading, setReposLoading] = useState(true);
+  const [repoId, setRepoId] = useState(null);
 
   useEffect(() => {
     function onKey(e) { if (e.key === "Escape") onClose(); }
@@ -21,27 +28,49 @@ export default function BranchCreateModal({ projectId, taskId, onClose, onCreate
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([
-      get(`/api/github/tasks/${taskId}/branch-suggestion`),
-      get(`/api/github/projects/${projectId}/branches`),
-    ])
-      .then(([sug, br]) => {
+    setReposLoading(true);
+    listProjectRepos(projectId)
+      .then(d => {
         if (cancelled) return;
-        setName(sug?.name ?? "");
-        setBranches(br?.branches ?? []);
+        const list = d?.repos ?? [];
+        setRepos(list);
+        setRepoId(prev => (prev && list.some(r => r.id === prev)) ? prev : (list[0]?.id ?? null));
       })
+      .catch(() => { if (!cancelled) setRepos([]); })
+      .finally(() => { if (!cancelled) setReposLoading(false); });
+    return () => { cancelled = true; };
+  }, [projectId]);
+
+  // Branch-name suggestion is task-scoped, not repo-scoped; fetch once.
+  useEffect(() => {
+    let cancelled = false;
+    get(`/api/github/tasks/${taskId}/branch-suggestion`)
+      .then(sug => { if (!cancelled) setName(sug?.name ?? ""); })
       .catch(() => {});
-  }, [projectId, taskId]);
+    return () => { cancelled = true; };
+  }, [taskId]);
+
+  // Base-branch options depend on the selected repo.
+  useEffect(() => {
+    if (!repoId) { setBranches([]); setBase(""); return; }
+    let cancelled = false;
+    setBase("");
+    get(`/api/github/repos/${repoId}/branches`)
+      .then(br => { if (!cancelled) setBranches(br?.branches ?? []); })
+      .catch(() => { if (!cancelled) setBranches([]); });
+    return () => { cancelled = true; };
+  }, [repoId]);
 
   async function submit(e) {
     e.preventDefault();
-    if (!name.trim() || loading) return;
+    if (!name.trim() || loading || !repoId) return;
     setLoading(true);
     setError(null);
     try {
       const r = await post(`/api/github/tasks/${taskId}/branch`, {
         name: name.trim(),
         baseRef: base || undefined,
+        repoId,
       });
       toast.success(`Branch created: ${r.name}`);
       onCreated?.(r);
@@ -67,6 +96,26 @@ export default function BranchCreateModal({ projectId, taskId, onClose, onCreate
         </div>
 
         <form onSubmit={submit} className="cpm-gh-modal-body">
+          {repos.length > 1 && (
+            <>
+              <label className="cpm-gh-label" htmlFor="cpm-gh-branch-repo">Repository</label>
+              <select
+                id="cpm-gh-branch-repo"
+                value={repoId ?? ""}
+                onChange={e => setRepoId(e.target.value)}
+                className="cpm-gh-input"
+                style={{ marginBottom: 14 }}
+              >
+                {repos.map(r => (
+                  <option key={r.id} value={r.id}>{r.slug}</option>
+                ))}
+              </select>
+            </>
+          )}
+          {!reposLoading && repos.length === 0 && (
+            <p className="cpm-gh-empty">No repositories linked to this project.</p>
+          )}
+
           <label className="cpm-gh-label" htmlFor="cpm-gh-branch-name">Branch name</label>
           <input
             id="cpm-gh-branch-name"
@@ -105,7 +154,7 @@ export default function BranchCreateModal({ projectId, taskId, onClose, onCreate
             <button type="button" className="cpm-gh-modal-cancel" onClick={onClose} disabled={loading}>
               Cancel
             </button>
-            <button type="submit" className="clubpm-btn-primary" disabled={!name.trim() || loading}>
+            <button type="submit" className="clubpm-btn-primary" disabled={!name.trim() || loading || !repoId}>
               {loading ? "Creating…" : "Create branch"}
             </button>
           </div>

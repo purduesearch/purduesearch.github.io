@@ -4,7 +4,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import toast from "react-hot-toast";
-import { get, post } from "../../../api/clubPmClient";
+import { get, post, listProjectRepos } from "../../../api/clubPmClient";
 import { formatRelativeTime, labelContrast } from "../../../utils/githubUtils";
 
 export default function IssuePickerModal({ projectId, taskId, onClose, onLinked }) {
@@ -16,6 +16,13 @@ export default function IssuePickerModal({ projectId, taskId, onClose, onLinked 
   const [selected, setSelected] = useState(() => new Set());
   const [linking, setLinking] = useState(false);
 
+  // Multi-repo (Workstream B): resolve the project's linked repos and let
+  // the user choose a target when there's more than one; silently use the
+  // sole repo otherwise.
+  const [repos, setRepos] = useState([]);
+  const [reposLoading, setReposLoading] = useState(true);
+  const [repoId, setRepoId] = useState(null);
+
   useEffect(() => {
     function onKey(e) { if (e.key === "Escape") onClose(); }
     window.addEventListener("keydown", onKey);
@@ -24,14 +31,34 @@ export default function IssuePickerModal({ projectId, taskId, onClose, onLinked 
 
   useEffect(() => {
     let cancelled = false;
+    setReposLoading(true);
+    listProjectRepos(projectId)
+      .then(d => {
+        if (cancelled) return;
+        const list = d?.repos ?? [];
+        setRepos(list);
+        setRepoId(prev => (prev && list.some(r => r.id === prev)) ? prev : (list[0]?.id ?? null));
+      })
+      .catch(() => { if (!cancelled) setRepos([]); })
+      .finally(() => { if (!cancelled) setReposLoading(false); });
+    return () => { cancelled = true; };
+  }, [projectId]);
+
+  // Selecting a different repo invalidates any in-progress selection so we
+  // never link an issue number picked from another repo's list.
+  useEffect(() => { setSelected(new Set()); }, [repoId]);
+
+  useEffect(() => {
+    if (!repoId) { setIssues([]); setLoading(false); return; }
+    let cancelled = false;
     setLoading(true);
     setError(null);
-    get(`/api/github/projects/${projectId}/issues?state=${stateFilter}`)
+    get(`/api/github/repos/${repoId}/issues?state=${stateFilter}`)
       .then(d => { if (!cancelled) setIssues(d.issues ?? []); })
       .catch(err => { if (!cancelled) setError(err?.message ?? "Failed to load"); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [projectId, stateFilter]);
+  }, [repoId, stateFilter]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -52,12 +79,12 @@ export default function IssuePickerModal({ projectId, taskId, onClose, onLinked 
   }
 
   async function linkAll() {
-    if (selected.size === 0) return;
+    if (selected.size === 0 || !repoId) return;
     setLinking(true);
     let ok = 0, skipped = 0, failed = 0;
     for (const num of selected) {
       try {
-        const r = await post(`/api/github/tasks/${taskId}/link`, { kind: "ISSUE", number: num });
+        const r = await post(`/api/github/tasks/${taskId}/link`, { kind: "ISSUE", number: num, repoId });
         if (r?.alreadyLinked) skipped++; else ok++;
       } catch {
         failed++;
@@ -86,6 +113,18 @@ export default function IssuePickerModal({ projectId, taskId, onClose, onLinked 
 
         <div className="cpm-gh-modal-body cpm-gh-picker-body">
           <div className="cpm-gh-picker-controls">
+            {repos.length > 1 && (
+              <select
+                className="cpm-gh-input"
+                value={repoId ?? ""}
+                onChange={e => setRepoId(e.target.value)}
+                aria-label="Repository"
+              >
+                {repos.map(r => (
+                  <option key={r.id} value={r.id}>{r.slug}</option>
+                ))}
+              </select>
+            )}
             <input
               type="search"
               autoFocus
@@ -107,9 +146,12 @@ export default function IssuePickerModal({ projectId, taskId, onClose, onLinked 
             </div>
           </div>
 
-          {loading && <p className="cpm-gh-loading">Loading issues…</p>}
+          {(reposLoading || loading) && <p className="cpm-gh-loading">Loading issues…</p>}
           {error && <p className="cpm-gh-error">{error}</p>}
-          {!loading && filtered.length === 0 && (
+          {!reposLoading && repos.length === 0 && (
+            <p className="cpm-gh-empty">No repositories linked to this project.</p>
+          )}
+          {!reposLoading && repos.length > 0 && !loading && filtered.length === 0 && (
             <p className="cpm-gh-empty">No matching issues.</p>
           )}
 
@@ -170,7 +212,7 @@ export default function IssuePickerModal({ projectId, taskId, onClose, onLinked 
             type="button"
             className="clubpm-btn-primary"
             onClick={linkAll}
-            disabled={selected.size === 0 || linking}
+            disabled={selected.size === 0 || linking || !repoId}
           >
             {linking ? "Linking…" : `Link ${selected.size || ""}`}
           </button>

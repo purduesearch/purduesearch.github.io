@@ -4,7 +4,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import toast from "react-hot-toast";
-import { get, post } from "../../../api/clubPmClient";
+import { get, post, listProjectRepos } from "../../../api/clubPmClient";
 import { formatRelativeTime, labelContrast } from "../../../utils/githubUtils";
 
 export default function ImportIssuesModal({ projectId, onClose, onImported }) {
@@ -15,6 +15,13 @@ export default function ImportIssuesModal({ projectId, onClose, onImported }) {
   const [importing, setImporting] = useState(false);
   const [query, setQuery] = useState("");
 
+  // Multi-repo (Workstream B): resolve the project's linked repos and let
+  // the user choose which one to browse/import from when there's more than
+  // one; silently use the sole repo otherwise.
+  const [repos, setRepos] = useState([]);
+  const [reposLoading, setReposLoading] = useState(true);
+  const [repoId, setRepoId] = useState(null);
+
   useEffect(() => {
     function onKey(e) { if (e.key === "Escape") onClose(); }
     window.addEventListener("keydown", onKey);
@@ -23,13 +30,34 @@ export default function ImportIssuesModal({ projectId, onClose, onImported }) {
 
   useEffect(() => {
     let cancelled = false;
+    setReposLoading(true);
+    listProjectRepos(projectId)
+      .then(d => {
+        if (cancelled) return;
+        const list = d?.repos ?? [];
+        setRepos(list);
+        setRepoId(prev => (prev && list.some(r => r.id === prev)) ? prev : (list[0]?.id ?? null));
+      })
+      .catch(() => { if (!cancelled) setRepos([]); })
+      .finally(() => { if (!cancelled) setReposLoading(false); });
+    return () => { cancelled = true; };
+  }, [projectId]);
+
+  // Selecting a different repo invalidates any in-progress selection so we
+  // never import an issue number picked from another repo's list.
+  useEffect(() => { setSelected(new Set()); }, [repoId]);
+
+  useEffect(() => {
+    if (!repoId) { setIssues([]); setLoading(false); return; }
+    let cancelled = false;
     setLoading(true);
-    get(`/api/github/projects/${projectId}/issues?state=open`)
+    setError(null);
+    get(`/api/github/repos/${repoId}/issues?state=open`)
       .then(d => { if (!cancelled) setIssues(d.issues ?? []); })
       .catch(err => { if (!cancelled) setError(err?.message ?? "Failed to load"); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [projectId]);
+  }, [repoId]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -51,11 +79,12 @@ export default function ImportIssuesModal({ projectId, onClose, onImported }) {
   function clearAll()  { setSelected(new Set()); }
 
   async function doImport() {
-    if (selected.size === 0) return;
+    if (selected.size === 0 || !repoId) return;
     setImporting(true);
     try {
       const result = await post(`/api/github/projects/${projectId}/import-issues`, {
         issueNumbers: [...selected],
+        repoId,
       });
       if (result.created) toast.success(`Imported ${result.created} task${result.created === 1 ? "" : "s"}`);
       if (result.skipped) toast(`Skipped (already linked): ${result.skipped}`);
@@ -84,6 +113,18 @@ export default function ImportIssuesModal({ projectId, onClose, onImported }) {
 
         <div className="cpm-gh-modal-body cpm-gh-picker-body">
           <div className="cpm-gh-picker-controls">
+            {repos.length > 1 && (
+              <select
+                className="cpm-gh-input"
+                value={repoId ?? ""}
+                onChange={e => setRepoId(e.target.value)}
+                aria-label="Repository"
+              >
+                {repos.map(r => (
+                  <option key={r.id} value={r.id}>{r.slug}</option>
+                ))}
+              </select>
+            )}
             <input
               type="search"
               autoFocus
@@ -98,9 +139,12 @@ export default function ImportIssuesModal({ projectId, onClose, onImported }) {
             </div>
           </div>
 
-          {loading && <p className="cpm-gh-loading">Loading issues…</p>}
+          {(reposLoading || loading) && <p className="cpm-gh-loading">Loading issues…</p>}
           {error && <p className="cpm-gh-error">{error}</p>}
-          {!loading && filtered.length === 0 && (
+          {!reposLoading && repos.length === 0 && (
+            <p className="cpm-gh-empty">No repositories linked to this project.</p>
+          )}
+          {!reposLoading && repos.length > 0 && !loading && filtered.length === 0 && (
             <p className="cpm-gh-empty">No open issues to import.</p>
           )}
 
@@ -155,7 +199,7 @@ export default function ImportIssuesModal({ projectId, onClose, onImported }) {
             type="button"
             className="clubpm-btn-primary"
             onClick={doImport}
-            disabled={selected.size === 0 || importing}
+            disabled={selected.size === 0 || importing || !repoId}
           >
             {importing ? "Importing…" : `Import ${selected.size || ""}`}
           </button>
