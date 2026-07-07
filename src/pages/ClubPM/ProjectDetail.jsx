@@ -2152,10 +2152,7 @@ function FilesTabContent({ project, isAdmin, onProjectChange }) {
           onProjectChange={onProjectChange}
         />
       ) : (
-        <GitHubPanel
-          project={project}
-          onProjectChange={onProjectChange}
-        />
+        <GitHubPanel project={project} />
       )}
     </div>
   );

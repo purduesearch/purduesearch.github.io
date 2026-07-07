@@ -1,18 +1,29 @@
 // Top-level GitHub tab content for a project.
 // Layout:
-//   1) Header strip with repo stats (stars, forks, open issues) + Change/Link button
+//   0) Repo switcher: a tab strip across every ProjectRepo linked to this
+//      project (multi-repo, Workstream B — all repos are equal, no
+//      "primary" — see docs/superpowers/specs/2026-07-06-clubpm-drive-multirepo-design.md §4),
+//      plus an "Add repo" trigger.
+//   1) Header strip with repo stats (stars, forks, open issues) for the
+//      selected repo + per-repo CI-gating toggle + remove button
 //   2) Sub-tab bar: Issues, Pull requests, Branches, Files, Commits
-//   3) Active sub-panel content
+//   3) Active sub-panel content, scoped to the selected repo
 //
 // Mirrors DriveFilesPanel structure: lazy-loads from /api/github endpoints,
 // degrades gracefully when no repo is linked, when the user hasn't connected
 // GitHub yet, or when the API returns 4xx/5xx.
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { get } from "../../../api/clubPmClient";
+import toast from "react-hot-toast";
+import {
+  get,
+  listProjectRepos,
+  updateProjectRepo,
+  removeProjectRepo,
+} from "../../../api/clubPmClient";
 import { useClubPmAuth } from "../../../clubpm/ClubPmAuth";
 import { formatRelativeTime, labelContrast } from "../../../utils/githubUtils";
-import LinkRepoModal from "./LinkRepoModal";
+import AddRepoModal from "./AddRepoModal";
 import IssuePreviewModal from "./IssuePreviewModal";
 import PrPreviewModal from "./PrPreviewModal";
 import FilePreviewModal from "./FilePreviewModal";
@@ -39,135 +50,255 @@ function StatTile({ icon, label, value, href }) {
   return href ? <a href={href} target="_blank" rel="noopener noreferrer">{Inner}</a> : Inner;
 }
 
-export default function GitHubPanel({ project, onProjectChange }) {
+export default function GitHubPanel({ project }) {
   const { member } = useClubPmAuth();
   const isAdmin = Boolean(member?.isAdmin);
   const projectId = project?.id;
-  const repo = project?.githubRepo;
 
-  const [editing, setEditing] = useState(false);
+  const [repos, setRepos] = useState([]);
+  const [reposLoading, setReposLoading] = useState(true);
+  const [reposError, setReposError] = useState(null);
+  const [selectedRepoId, setSelectedRepoId] = useState(null);
+  const [repoActionPending, setRepoActionPending] = useState(false);
+
+  const [adding, setAdding] = useState(false);
   const [importing, setImporting] = useState(false);
   const [stats, setStats] = useState(null);
   const [statsError, setStatsError] = useState(null);
   const [activeTab, setActiveTab] = useState("issues");
 
+  const loadRepos = useCallback(() => {
+    if (!projectId) {
+      setRepos([]);
+      setReposError(null);
+      setReposLoading(false);
+      return;
+    }
+    setReposLoading(true);
+    listProjectRepos(projectId)
+      .then(d => {
+        const list = d?.repos ?? [];
+        setRepos(list);
+        setReposError(null);
+        setSelectedRepoId(prev => {
+          if (prev && list.some(r => r.id === prev)) return prev;
+          return list[0]?.id ?? null;
+        });
+      })
+      .catch(err => setReposError(err?.message ?? "Failed to load repos"))
+      .finally(() => setReposLoading(false));
+  }, [projectId]);
+
+  useEffect(loadRepos, [loadRepos]);
+
+  const selectedRepo = useMemo(
+    () => repos.find(r => r.id === selectedRepoId) ?? null,
+    [repos, selectedRepoId]
+  );
+
   const loadStats = useCallback(() => {
-    if (!projectId || !repo) {
+    if (!selectedRepoId) {
       setStats(null);
       setStatsError(null);
       return;
     }
-    get(`/api/github/projects/${projectId}/repo`)
+    get(`/api/github/repos/${selectedRepoId}/repo`)
       .then(setStats)
       .catch(err => setStatsError(err?.message ?? "Failed to load repo"));
-  }, [projectId, repo]);
+  }, [selectedRepoId]);
 
   useEffect(loadStats, [loadStats]);
 
-  // ── Empty / disconnected states ─────────────────────────────
+  function selectRepo(repoId) {
+    setSelectedRepoId(repoId);
+    setActiveTab("issues");
+  }
 
-  if (!repo) {
+  async function toggleCiGating(repo) {
+    if (repoActionPending) return;
+    setRepoActionPending(true);
+    try {
+      const updated = await updateProjectRepo(repo.id, { blockDoneOnCiFail: !repo.blockDoneOnCiFail });
+      setRepos(prev => prev.map(r => (r.id === updated.id ? updated : r)));
+      toast.success(updated.blockDoneOnCiFail ? "CI gating enabled" : "CI gating disabled");
+    } catch (err) {
+      toast.error(err?.message ?? "Failed to update CI gating");
+    } finally {
+      setRepoActionPending(false);
+    }
+  }
+
+  async function handleRemoveRepo(repo) {
+    if (repoActionPending) return;
+    if (!window.confirm(`Remove ${repo.slug} from this project? This can't be undone.`)) return;
+    setRepoActionPending(true);
+    try {
+      await removeProjectRepo(repo.id);
+      toast.success(`${repo.slug} removed`);
+      loadRepos();
+    } catch (err) {
+      toast.error(err?.message ?? "Failed to remove repo");
+    } finally {
+      setRepoActionPending(false);
+    }
+  }
+
+  // ── Loading state ───────────────────────────────────────────
+
+  if (reposLoading && repos.length === 0) {
+    return (
+      <div className="cpm-gh-panel">
+        <p className="cpm-gh-loading">Loading repositories…</p>
+      </div>
+    );
+  }
+
+  // ── Empty state ──────────────────────────────────────────────
+
+  if (repos.length === 0) {
     return (
       <div className="cpm-gh-panel">
         <div className="cpm-gh-empty-card">
           <i className="fab fa-github" style={{ fontSize: 48 }} aria-hidden="true" />
-          <h3>No GitHub repository linked</h3>
+          <h3>Add a repository</h3>
           <p>
-            Link a repo to browse its issues, pull requests, branches, and source files
-            without leaving ClubPM.
+            Add a repo to browse its issues, pull requests, branches, and source files
+            without leaving ClubPM. You can link more than one.
           </p>
+          {reposError && <p className="cpm-gh-error">{reposError}</p>}
           {isAdmin ? (
-            <button className="clubpm-btn-primary" onClick={() => setEditing(true)}>
-              Link a repository
+            // TODO(C1): before opening AddRepoModal, redirect through
+            // /auth/github?intent=addrepo to force a fresh OAuth round-trip so
+            // newly-accessible repos show up in the "Check repo" validation.
+            <button className="clubpm-btn-primary" onClick={() => setAdding(true)}>
+              Add a repository
             </button>
           ) : (
-            <p className="cpm-gh-hint">An admin can link a repo from this tab.</p>
+            <p className="cpm-gh-hint">An admin can add a repo from this tab.</p>
           )}
         </div>
-        {editing && (
-          <LinkRepoModal
+        {adding && (
+          <AddRepoModal
             projectId={projectId}
-            currentRepo={null}
-            onClose={() => setEditing(false)}
-            onSaved={p => { onProjectChange?.(p); loadStats(); }}
+            onClose={() => setAdding(false)}
+            onSaved={() => { setAdding(false); loadRepos(); }}
           />
         )}
       </div>
     );
   }
 
-  // ── Linked: header + sub-tabs ───────────────────────────────
+  // ── Linked: switcher + header + sub-tabs ────────────────────
 
   return (
     <div className="cpm-gh-panel">
-      <div className="cpm-gh-header">
-        <div className="cpm-gh-header-main">
-          <div className="cpm-gh-header-title">
-            <i className="fab fa-github" aria-hidden="true" />
-            <a href={stats?.htmlUrl ?? `https://github.com/${repo}`} target="_blank" rel="noopener noreferrer">
-              {repo}
-            </a>
-            {stats?.visibility && <span className="cpm-gh-visibility">{stats.visibility}</span>}
-          </div>
-          {stats?.description && <p className="cpm-gh-header-desc">{stats.description}</p>}
-        </div>
-        <div className="cpm-gh-header-actions">
-          <button className="cpm-gh-refresh-btn" onClick={loadStats} title="Refresh repo stats">
-            <i className="fas fa-rotate" aria-hidden="true" />
-          </button>
-          <button className="cpm-gh-edit-btn" onClick={() => setImporting(true)} title="Import open issues as tasks">
-            <i className="fas fa-download" aria-hidden="true" /> Import issues
-          </button>
-          {isAdmin && (
-            <button className="cpm-gh-edit-btn" onClick={() => setEditing(true)}>
-              Change repo
-            </button>
-          )}
-        </div>
-      </div>
-
-      <div className="cpm-gh-stats-row">
-        <StatTile icon="fa-star" label="Stars" value={stats?.stars} />
-        <StatTile icon="fa-code-fork" label="Forks" value={stats?.forks} />
-        <StatTile icon="fa-circle-dot" label="Open issues" value={stats?.openIssues} />
-        <StatTile icon="fa-code-branch" label="Default branch" value={stats?.defaultBranch} />
-        <StatTile icon="fa-code" label="Language" value={stats?.language} />
-      </div>
-
-      {statsError && <p className="cpm-gh-error">{statsError}</p>}
-
-      <div className="cpm-gh-subtabs" role="tablist">
-        {SUB_TABS.map(t => (
+      <div className="cpm-gh-subtabs" role="tablist" aria-label="Linked repositories">
+        {repos.map(r => (
           <button
-            key={t.id}
+            key={r.id}
             role="tab"
-            aria-selected={activeTab === t.id}
-            className={`cpm-gh-subtab ${activeTab === t.id ? "is-active" : ""}`}
-            onClick={() => setActiveTab(t.id)}
+            aria-selected={selectedRepoId === r.id}
+            className={`cpm-gh-subtab ${selectedRepoId === r.id ? "is-active" : ""}`}
+            onClick={() => selectRepo(r.id)}
+            title={r.slug}
           >
-            <i className={`fas ${t.icon}`} aria-hidden="true" /> {t.label}
+            <i className="fab fa-github" aria-hidden="true" /> {r.slug}
           </button>
         ))}
+        {isAdmin && (
+          // TODO(C1): before opening AddRepoModal, redirect through
+          // /auth/github?intent=addrepo to force a fresh OAuth round-trip so
+          // newly-accessible repos show up in the "Check repo" validation.
+          <button className="cpm-gh-subtab" onClick={() => setAdding(true)} title="Add a repository">
+            <i className="fas fa-plus" aria-hidden="true" /> Add repo
+          </button>
+        )}
       </div>
 
-      <div className="cpm-gh-subpanel">
-        {activeTab === "issues"   && <IssuesList projectId={projectId} />}
-        {activeTab === "pulls"    && <PullsList projectId={projectId} />}
-        {activeTab === "branches" && <BranchesList projectId={projectId} defaultBranch={stats?.defaultBranch} />}
-        {activeTab === "files"    && <FilesBrowser projectId={projectId} defaultBranch={stats?.defaultBranch} />}
-        {activeTab === "commits"  && <CommitsList projectId={projectId} />}
-      </div>
+      {selectedRepo && (
+        <>
+          <div className="cpm-gh-header">
+            <div className="cpm-gh-header-main">
+              <div className="cpm-gh-header-title">
+                <i className="fab fa-github" aria-hidden="true" />
+                <a href={stats?.htmlUrl ?? `https://github.com/${selectedRepo.slug}`} target="_blank" rel="noopener noreferrer">
+                  {selectedRepo.slug}
+                </a>
+                {stats?.visibility && <span className="cpm-gh-visibility">{stats.visibility}</span>}
+              </div>
+              {stats?.description && <p className="cpm-gh-header-desc">{stats.description}</p>}
+            </div>
+            <div className="cpm-gh-header-actions">
+              <label className="cpm-gh-toggle" title="Block moving a task to Done when this repo's linked PR has failing CI">
+                <input
+                  type="checkbox"
+                  checked={selectedRepo.blockDoneOnCiFail ?? true}
+                  onChange={() => toggleCiGating(selectedRepo)}
+                  disabled={!isAdmin || repoActionPending}
+                />
+                <span>Block Done on CI fail</span>
+              </label>
+              <button className="cpm-gh-refresh-btn" onClick={loadStats} title="Refresh repo stats">
+                <i className="fas fa-rotate" aria-hidden="true" />
+              </button>
+              <button className="cpm-gh-edit-btn" onClick={() => setImporting(true)} title="Import open issues as tasks">
+                <i className="fas fa-download" aria-hidden="true" /> Import issues
+              </button>
+              {isAdmin && (
+                <button
+                  className="cpm-gh-modal-clear"
+                  onClick={() => handleRemoveRepo(selectedRepo)}
+                  disabled={repoActionPending}
+                  title="Remove this repo from the project"
+                >
+                  <i className="fas fa-trash" aria-hidden="true" /> Remove
+                </button>
+              )}
+            </div>
+          </div>
 
-      {editing && (
-        <LinkRepoModal
+          <div className="cpm-gh-stats-row">
+            <StatTile icon="fa-star" label="Stars" value={stats?.stars} />
+            <StatTile icon="fa-code-fork" label="Forks" value={stats?.forks} />
+            <StatTile icon="fa-circle-dot" label="Open issues" value={stats?.openIssues} />
+            <StatTile icon="fa-code-branch" label="Default branch" value={stats?.defaultBranch} />
+            <StatTile icon="fa-code" label="Language" value={stats?.language} />
+          </div>
+
+          {statsError && <p className="cpm-gh-error">{statsError}</p>}
+
+          <div className="cpm-gh-subtabs" role="tablist">
+            {SUB_TABS.map(t => (
+              <button
+                key={t.id}
+                role="tab"
+                aria-selected={activeTab === t.id}
+                className={`cpm-gh-subtab ${activeTab === t.id ? "is-active" : ""}`}
+                onClick={() => setActiveTab(t.id)}
+              >
+                <i className={`fas ${t.icon}`} aria-hidden="true" /> {t.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="cpm-gh-subpanel">
+            {activeTab === "issues"   && <IssuesList repoId={selectedRepoId} projectId={projectId} />}
+            {activeTab === "pulls"    && <PullsList repoId={selectedRepoId} projectId={projectId} />}
+            {activeTab === "branches" && <BranchesList repoId={selectedRepoId} defaultBranch={stats?.defaultBranch} />}
+            {activeTab === "files"    && <FilesBrowser repoId={selectedRepoId} projectId={projectId} defaultBranch={stats?.defaultBranch} />}
+            {activeTab === "commits"  && <CommitsList repoId={selectedRepoId} />}
+          </div>
+        </>
+      )}
+
+      {adding && (
+        <AddRepoModal
           projectId={projectId}
-          currentRepo={repo}
-          currentBlockOnCiFail={project?.githubBlockDoneOnCiFail ?? true}
-          onClose={() => setEditing(false)}
-          onSaved={p => { onProjectChange?.(p); loadStats(); }}
+          onClose={() => setAdding(false)}
+          onSaved={() => { setAdding(false); loadRepos(); }}
         />
       )}
-      {importing && (
+      {importing && selectedRepo && (
         <ImportIssuesModal
           projectId={projectId}
           onClose={() => setImporting(false)}
@@ -200,11 +331,11 @@ function useEndpoint(path, deps) {
   return { data, loading, error };
 }
 
-function IssuesList({ projectId }) {
+function IssuesList({ repoId, projectId }) {
   const [stateFilter, setStateFilter] = useState("open");
   const { data, loading, error } = useEndpoint(
-    `/api/github/projects/${projectId}/issues?state=${stateFilter}`,
-    [projectId, stateFilter]
+    `/api/github/repos/${repoId}/issues?state=${stateFilter}`,
+    [repoId, stateFilter]
   );
   const [openIssue, setOpenIssue] = useState(null);
   const issues = data?.issues ?? [];
@@ -262,6 +393,10 @@ function IssuesList({ projectId }) {
         ))}
       </ul>
       {openIssue != null && (
+        // NOTE: IssuePreviewModal still fetches /api/github/projects/:id/issues/:number,
+        // a project-scoped browse route B2 removed in favor of /repos/:repoId/....
+        // Fixing this modal to take a repoId is Phase B5's scope; passing the real
+        // projectId here (not repoId) keeps this call site honest in the meantime.
         <IssuePreviewModal
           projectId={projectId}
           number={openIssue}
@@ -272,11 +407,11 @@ function IssuesList({ projectId }) {
   );
 }
 
-function PullsList({ projectId }) {
+function PullsList({ repoId, projectId }) {
   const [stateFilter, setStateFilter] = useState("open");
   const { data, loading, error } = useEndpoint(
-    `/api/github/projects/${projectId}/pulls?state=${stateFilter}`,
-    [projectId, stateFilter]
+    `/api/github/repos/${repoId}/pulls?state=${stateFilter}`,
+    [repoId, stateFilter]
   );
   const [openPr, setOpenPr] = useState(null);
   const pulls = data?.pulls ?? [];
@@ -328,6 +463,8 @@ function PullsList({ projectId }) {
         })}
       </ul>
       {openPr != null && (
+        // NOTE: see IssuesList — PrPreviewModal is still project-scoped; B5 owns
+        // migrating it to a repoId. Passing the real projectId keeps this honest.
         <PrPreviewModal
           projectId={projectId}
           number={openPr}
@@ -338,10 +475,10 @@ function PullsList({ projectId }) {
   );
 }
 
-function BranchesList({ projectId, defaultBranch }) {
+function BranchesList({ repoId, defaultBranch }) {
   const { data, loading, error } = useEndpoint(
-    `/api/github/projects/${projectId}/branches`,
-    [projectId]
+    `/api/github/repos/${repoId}/branches`,
+    [repoId]
   );
   const branches = data?.branches ?? [];
   return (
@@ -369,11 +506,11 @@ function BranchesList({ projectId, defaultBranch }) {
   );
 }
 
-function FilesBrowser({ projectId, defaultBranch }) {
+function FilesBrowser({ repoId, projectId, defaultBranch }) {
   const [path, setPath] = useState("");
   const { data, loading, error } = useEndpoint(
-    `/api/github/projects/${projectId}/contents?path=${encodeURIComponent(path)}`,
-    [projectId, path]
+    `/api/github/repos/${repoId}/contents?path=${encodeURIComponent(path)}`,
+    [repoId, path]
   );
   const [openFile, setOpenFile] = useState(null);
 
@@ -426,6 +563,8 @@ function FilesBrowser({ projectId, defaultBranch }) {
         </ul>
       )}
       {openFile && (
+        // NOTE: see IssuesList — FilePreviewModal is still project-scoped; B5 owns
+        // migrating it to a repoId. Passing the real projectId keeps this honest.
         <FilePreviewModal
           projectId={projectId}
           path={openFile}
@@ -436,10 +575,10 @@ function FilesBrowser({ projectId, defaultBranch }) {
   );
 }
 
-function CommitsList({ projectId }) {
+function CommitsList({ repoId }) {
   const { data, loading, error } = useEndpoint(
-    `/api/github/projects/${projectId}/commits`,
-    [projectId]
+    `/api/github/repos/${repoId}/commits`,
+    [repoId]
   );
   const commits = data?.commits ?? [];
   return (

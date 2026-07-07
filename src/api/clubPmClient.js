@@ -435,3 +435,12 @@ export const suggestBlogAltText = (imageUrl) =>
 // not a fetch call, so there is no connect() helper here.
 export const getGoogleDriveStatus = () => get("/auth/google/status");
 export const disconnectGoogleDrive = () => del("/auth/google");
+
+// Multi-repo GitHub integration (Workstream B — see
+// docs/superpowers/specs/2026-07-06-clubpm-drive-multirepo-design.md §4).
+// All repos linked to a project are equal (no "primary" repo); adding a repo
+// appends a new ProjectRepo row rather than replacing a single project field.
+export const listProjectRepos  = (projectId) => get(`/api/github/projects/${projectId}/repos`);
+export const addProjectRepo    = (projectId, url) => post(`/api/github/projects/${projectId}/repos`, { url });
+export const updateProjectRepo = (repoId, body) => patch(`/api/github/repos/${repoId}`, body);
+export const removeProjectRepo = (repoId) => del(`/api/github/repos/${repoId}`);
