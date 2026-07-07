@@ -318,10 +318,10 @@ export default function GitHubPanel({ project }) {
           </div>
 
           <div className="cpm-gh-subpanel">
-            {activeTab === "issues"   && <IssuesList repoId={selectedRepoId} projectId={projectId} />}
-            {activeTab === "pulls"    && <PullsList repoId={selectedRepoId} projectId={projectId} />}
+            {activeTab === "issues"   && <IssuesList repoId={selectedRepoId} />}
+            {activeTab === "pulls"    && <PullsList repoId={selectedRepoId} />}
             {activeTab === "branches" && <BranchesList repoId={selectedRepoId} defaultBranch={stats?.defaultBranch} />}
-            {activeTab === "files"    && <FilesBrowser repoId={selectedRepoId} projectId={projectId} defaultBranch={stats?.defaultBranch} />}
+            {activeTab === "files"    && <FilesBrowser repoId={selectedRepoId} defaultBranch={stats?.defaultBranch} />}
             {activeTab === "commits"  && <CommitsList repoId={selectedRepoId} />}
           </div>
         </>
@@ -367,7 +367,7 @@ function useEndpoint(path, deps) {
   return { data, loading, error };
 }
 
-function IssuesList({ repoId, projectId }) {
+function IssuesList({ repoId }) {
   const [stateFilter, setStateFilter] = useState("open");
   const { data, loading, error } = useEndpoint(
     `/api/github/repos/${repoId}/issues?state=${stateFilter}`,
@@ -429,12 +429,8 @@ function IssuesList({ repoId, projectId }) {
         ))}
       </ul>
       {openIssue != null && (
-        // NOTE: IssuePreviewModal still fetches /api/github/projects/:id/issues/:number,
-        // a project-scoped browse route B2 removed in favor of /repos/:repoId/....
-        // Fixing this modal to take a repoId is Phase B5's scope; passing the real
-        // projectId here (not repoId) keeps this call site honest in the meantime.
         <IssuePreviewModal
-          projectId={projectId}
+          repoId={repoId}
           number={openIssue}
           onClose={() => setOpenIssue(null)}
         />
@@ -443,7 +439,7 @@ function IssuesList({ repoId, projectId }) {
   );
 }
 
-function PullsList({ repoId, projectId }) {
+function PullsList({ repoId }) {
   const [stateFilter, setStateFilter] = useState("open");
   const { data, loading, error } = useEndpoint(
     `/api/github/repos/${repoId}/pulls?state=${stateFilter}`,
@@ -499,10 +495,8 @@ function PullsList({ repoId, projectId }) {
         })}
       </ul>
       {openPr != null && (
-        // NOTE: see IssuesList — PrPreviewModal is still project-scoped; B5 owns
-        // migrating it to a repoId. Passing the real projectId keeps this honest.
         <PrPreviewModal
-          projectId={projectId}
+          repoId={repoId}
           number={openPr}
           onClose={() => setOpenPr(null)}
         />
@@ -542,7 +536,7 @@ function BranchesList({ repoId, defaultBranch }) {
   );
 }
 
-function FilesBrowser({ repoId, projectId, defaultBranch }) {
+function FilesBrowser({ repoId, defaultBranch }) {
   const [path, setPath] = useState("");
   const { data, loading, error } = useEndpoint(
     `/api/github/repos/${repoId}/contents?path=${encodeURIComponent(path)}`,
@@ -599,10 +593,8 @@ function FilesBrowser({ repoId, projectId, defaultBranch }) {
         </ul>
       )}
       {openFile && (
-        // NOTE: see IssuesList — FilePreviewModal is still project-scoped; B5 owns
-        // migrating it to a repoId. Passing the real projectId keeps this honest.
         <FilePreviewModal
-          projectId={projectId}
+          repoId={repoId}
           path={openFile}
           onClose={() => setOpenFile(null)}
         />

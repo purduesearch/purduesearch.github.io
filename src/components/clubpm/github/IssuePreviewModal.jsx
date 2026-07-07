@@ -8,7 +8,7 @@ import remarkGfm from "remark-gfm";
 import { get } from "../../../api/clubPmClient";
 import { formatRelativeTime, labelContrast } from "../../../utils/githubUtils";
 
-export default function IssuePreviewModal({ projectId, number, onClose }) {
+export default function IssuePreviewModal({ repoId, number, onClose }) {
   const [issue, setIssue] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -22,12 +22,12 @@ export default function IssuePreviewModal({ projectId, number, onClose }) {
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    get(`/api/github/projects/${projectId}/issues/${number}`)
+    get(`/api/github/repos/${repoId}/issues/${number}`)
       .then(data => { if (!cancelled) setIssue(data); })
       .catch(err => { if (!cancelled) setError(err?.message ?? "Failed to load issue"); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [projectId, number]);
+  }, [repoId, number]);
 
   const stateIcon = issue?.state === "closed" ? "fa-circle-check" : "fa-circle-dot";
   const stateColor = issue?.state === "closed" ? "var(--cpm-gh-closed, #8957e5)" : "var(--cpm-gh-open, #1f883d)";
