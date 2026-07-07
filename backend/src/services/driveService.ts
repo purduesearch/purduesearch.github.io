@@ -1,22 +1,26 @@
 import { google } from "googleapis";
 import { Readable } from "node:stream";
+import { prisma } from "../db/prisma.js";
+import { decryptSecret } from "../utils/crypto.js";
 
-function getDriveAuth() {
-  const keyJson = Buffer.from(process.env.GOOGLE_SERVICE_ACCOUNT_KEY!, "base64").toString("utf8");
-  const key = JSON.parse(keyJson);
-  return new google.auth.GoogleAuth({
-    credentials: key,
-    scopes: ["https://www.googleapis.com/auth/drive.readonly"],
-  });
-}
-
-function getDriveWriteAuth() {
-  const keyJson = Buffer.from(process.env.GOOGLE_SERVICE_ACCOUNT_KEY!, "base64").toString("utf8");
-  const key = JSON.parse(keyJson);
-  return new google.auth.GoogleAuth({
-    credentials: key,
-    scopes: ["https://www.googleapis.com/auth/drive.file"],
-  });
+/**
+ * Build a Drive client authenticated as the single OAuth "bot" account
+ * (mirrors the per-member GitHub OAuth pattern). Both viewing and uploading
+ * run as this account, so uploads are charged to a real, quota-bearing owner.
+ * Returns null if no bot account has been connected yet (see googleAuth.ts),
+ * so callers can degrade gracefully instead of throwing.
+ */
+async function getBotDrive() {
+  const cred = await prisma.googleDriveCredential.findUnique({ where: { id: "singleton" } });
+  const refreshToken = decryptSecret(cred?.refreshToken);
+  if (!refreshToken) return null;
+  const oauth2 = new google.auth.OAuth2(
+    process.env.GOOGLE_OAUTH_CLIENT_ID,
+    process.env.GOOGLE_OAUTH_CLIENT_SECRET,
+    process.env.GOOGLE_OAUTH_REDIRECT_URI
+  );
+  oauth2.setCredentials({ refresh_token: refreshToken });
+  return google.drive({ version: "v3", auth: oauth2 });
 }
 
 /**
@@ -30,8 +34,8 @@ export async function uploadImageToDrive(
   folderId?: string
 ): Promise<{ fileId: string; url: string } | null> {
   try {
-    const auth  = getDriveWriteAuth();
-    const drive = google.drive({ version: "v3", auth });
+    const drive = await getBotDrive();
+    if (!drive) return null;
 
     const buffer   = Buffer.from(imageBase64, "base64");
     const readable = Readable.from(buffer);
@@ -81,8 +85,8 @@ export function extractFileId(url: string): string | null {
 /** Export a Google Doc/Sheet/Slide/PDF as plain text. Returns text content or null on error. */
 export async function fetchDriveFileAsText(fileId: string): Promise<{ text: string; name: string; mimeType: string } | null> {
   try {
-    const auth = getDriveAuth();
-    const drive = google.drive({ version: "v3", auth });
+    const drive = await getBotDrive();
+    if (!drive) return null;
 
     const meta = await drive.files.get({ fileId, fields: "name,mimeType" });
     const mimeType = meta.data.mimeType ?? "";
@@ -129,8 +133,8 @@ export type DriveFolderFile = {
 /** List files in a Drive folder (non-recursive, first 50). */
 export async function listDriveFolderFiles(folderId: string): Promise<DriveFolderFile[]> {
   try {
-    const auth = getDriveAuth();
-    const drive = google.drive({ version: "v3", auth });
+    const drive = await getBotDrive();
+    if (!drive) return [];
     const res = await drive.files.list({
       q: `'${folderId}' in parents and trashed=false`,
       fields: "files(id,name,mimeType,webViewLink,thumbnailLink,iconLink,modifiedTime)",
@@ -147,8 +151,8 @@ export async function listDriveFolderFiles(folderId: string): Promise<DriveFolde
 /** Get metadata for a single Drive file/folder (lightweight). */
 export async function getDriveFileMeta(fileId: string): Promise<{ id: string; name: string; mimeType: string; webViewLink?: string } | null> {
   try {
-    const auth = getDriveAuth();
-    const drive = google.drive({ version: "v3", auth });
+    const drive = await getBotDrive();
+    if (!drive) return null;
     const res = await drive.files.get({ fileId, fields: "id,name,mimeType,webViewLink" });
     return res.data as any;
   } catch (err) {
@@ -160,8 +164,8 @@ export async function getDriveFileMeta(fileId: string): Promise<{ id: string; na
 /** Download a file from Drive and return it as base64. */
 export async function fetchDriveFileAsBase64(fileId: string): Promise<{ base64: string; name: string } | null> {
   try {
-    const auth = getDriveAuth();
-    const drive = google.drive({ version: "v3", auth });
+    const drive = await getBotDrive();
+    if (!drive) return null;
     const meta = await drive.files.get({ fileId, fields: "name" });
     const res = await drive.files.get({ fileId, alt: "media" }, { responseType: "arraybuffer" });
     const base64 = Buffer.from(res.data as ArrayBuffer).toString("base64");
@@ -178,8 +182,8 @@ export async function createDriveFolder(
   parentId: string
 ): Promise<{ id: string; webViewLink?: string } | null> {
   try {
-    const auth = getDriveWriteAuth();
-    const drive = google.drive({ version: "v3", auth });
+    const drive = await getBotDrive();
+    if (!drive) return null;
     const res = await drive.files.create({
       requestBody: {
         name,
@@ -207,8 +211,8 @@ export async function uploadStreamToDrive(
   folderId: string
 ): Promise<{ fileId: string; size: number | null; md5: string | null; webViewLink?: string } | null> {
   try {
-    const auth = getDriveWriteAuth();
-    const drive = google.drive({ version: "v3", auth });
+    const drive = await getBotDrive();
+    if (!drive) return null;
     const res = await drive.files.create({
       requestBody: { name: filename, parents: [folderId] },
       media: { mimeType, body: stream },
@@ -232,8 +236,8 @@ export async function getDriveFileStream(
   fileId: string
 ): Promise<{ stream: NodeJS.ReadableStream; name: string; mimeType: string; size?: number } | null> {
   try {
-    const auth = getDriveWriteAuth();
-    const drive = google.drive({ version: "v3", auth });
+    const drive = await getBotDrive();
+    if (!drive) return null;
     const meta = await drive.files.get({
       fileId,
       fields: "name,mimeType,size",
@@ -258,8 +262,8 @@ export async function getDriveFileStream(
 /** Delete a Drive file (cleanup for orphaned uploads after a failed check-in). */
 export async function deleteDriveFile(fileId: string): Promise<boolean> {
   try {
-    const auth = getDriveWriteAuth();
-    const drive = google.drive({ version: "v3", auth });
+    const drive = await getBotDrive();
+    if (!drive) return false;
     await drive.files.delete({ fileId, supportsAllDrives: true });
     return true;
   } catch (err) {
@@ -271,8 +275,8 @@ export async function deleteDriveFile(fileId: string): Promise<boolean> {
 /** Rename a Drive file (used when a vault item is renamed). */
 export async function renameDriveFile(fileId: string, newName: string): Promise<boolean> {
   try {
-    const auth = getDriveWriteAuth();
-    const drive = google.drive({ version: "v3", auth });
+    const drive = await getBotDrive();
+    if (!drive) return false;
     await drive.files.update({
       fileId,
       requestBody: { name: newName },
@@ -285,14 +289,8 @@ export async function renameDriveFile(fileId: string, newName: string): Promise<
   }
 }
 
-/** Decode the service account's email from GOOGLE_SERVICE_ACCOUNT_KEY, for "share with this address" UI. */
-export function getServiceAccountEmail(): string | null {
-  try {
-    const keyJson = Buffer.from(process.env.GOOGLE_SERVICE_ACCOUNT_KEY!, "base64").toString("utf8");
-    const key = JSON.parse(keyJson);
-    return key.client_email ?? null;
-  } catch (err) {
-    console.error("[driveService] getServiceAccountEmail error:", err);
-    return null;
-  }
+/** The connected Drive bot account's email, for "share with this address" UI. */
+export async function getBotAccountEmail(): Promise<string | null> {
+  const cred = await prisma.googleDriveCredential.findUnique({ where: { id: "singleton" } });
+  return cred?.accountEmail ?? null;
 }

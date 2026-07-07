@@ -1659,3 +1659,16 @@ model VaultBomEdge {
   @@id([parentId, childId])
   @@index([childId])
 }
+
+// ── Google Drive bot account (Workstream A) ───────────────────
+// Singleton (id is always "singleton") holding the OAuth refresh token for
+// the single Drive "bot" account used for both viewing and uploading.
+model GoogleDriveCredential {
+  id            String   @id @default("singleton")
+  refreshToken  String // encrypted via encryptSecret
+  accountEmail  String
+  scope         String
+  connectedById String?
+  connectedAt   DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}

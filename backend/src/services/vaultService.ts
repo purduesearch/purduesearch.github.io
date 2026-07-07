@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { prisma } from "../db/prisma.js";
 import { getSessionSecret } from "../config/env.js";
-import { createDriveFolder, extractFileId, getServiceAccountEmail } from "./driveService.js";
+import { createDriveFolder, extractFileId, getBotAccountEmail } from "./driveService.js";
 
 /**
  * Excel-style revision letters: A, B, ..., Z, AA, AB, ..., AZ, BA, ...
@@ -82,7 +82,7 @@ export async function ensureVaultFolder(
 
   const created = await createDriveFolder("Constellation Vault", linkedFolderId);
   if (!created) {
-    return { error: { status: "not-shared", serviceAccountEmail: getServiceAccountEmail() } };
+    return { error: { status: "not-shared", serviceAccountEmail: await getBotAccountEmail() } };
   }
 
   await prisma.project.update({
