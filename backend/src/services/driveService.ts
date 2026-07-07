@@ -176,20 +176,21 @@ export async function fetchDriveFileAsBase64(fileId: string): Promise<{ base64: 
   }
 }
 
-/** Create a subfolder in Drive under the given parent folder. */
+/** Create a Drive folder. With no parentId it is created in the bot's own root. */
 export async function createDriveFolder(
   name: string,
-  parentId: string
+  parentId?: string
 ): Promise<{ id: string; webViewLink?: string } | null> {
   try {
     const drive = await getBotDrive();
     if (!drive) return null;
+    const requestBody: Record<string, unknown> = {
+      name,
+      mimeType: "application/vnd.google-apps.folder",
+    };
+    if (parentId) requestBody.parents = [parentId];
     const res = await drive.files.create({
-      requestBody: {
-        name,
-        mimeType: "application/vnd.google-apps.folder",
-        parents: [parentId],
-      },
+      requestBody,
       fields: "id,webViewLink",
       supportsAllDrives: true,
     });
@@ -198,6 +199,87 @@ export async function createDriveFolder(
     console.error("[driveService] createDriveFolder error:", err);
     return null;
   }
+}
+
+/** Share a Drive file/folder with anyone who has the link (default: view-only). */
+export async function makeDriveFilePublic(
+  fileId: string,
+  role: "reader" | "writer" = "reader"
+): Promise<boolean> {
+  try {
+    const drive = await getBotDrive();
+    if (!drive) return false;
+    await drive.permissions.create({
+      fileId,
+      requestBody: { role, type: "anyone" },
+      supportsAllDrives: true,
+    });
+    return true;
+  } catch (err) {
+    console.error("[driveService] makeDriveFilePublic error:", err);
+    return false;
+  }
+}
+
+/**
+ * Find (or lazily create) the bot-owned root folder that holds one subfolder
+ * per ClubPM project. Under the drive.file scope the bot only sees folders it
+ * created itself, so looking it up by name is safe. Returns null if no bot
+ * account is connected.
+ */
+export async function ensureClubPmRootFolder(): Promise<string | null> {
+  try {
+    const drive = await getBotDrive();
+    if (!drive) return null;
+    const existing = await drive.files.list({
+      q: "name='ClubPM Projects' and mimeType='application/vnd.google-apps.folder' and 'root' in parents and trashed=false",
+      fields: "files(id)",
+      pageSize: 1,
+    });
+    const found = existing.data.files?.[0]?.id;
+    if (found) return found;
+    const created = await drive.files.create({
+      requestBody: { name: "ClubPM Projects", mimeType: "application/vnd.google-apps.folder" },
+      fields: "id",
+    });
+    return created.data.id ?? null;
+  } catch (err) {
+    console.error("[driveService] ensureClubPmRootFolder error:", err);
+    return null;
+  }
+}
+
+/**
+ * Ensure a project has a bot-owned Drive folder (a subfolder under the ClubPM
+ * root), creating + sharing it view-only on first use. The folder id is stored
+ * as the project's `driveLink` (a view-only webViewLink). A pre-existing link is
+ * reused only if the bot can still access it — legacy human-shared folders are
+ * invisible under drive.file (`getDriveFileMeta` returns null), so they are
+ * transparently replaced. Returns the folder id, or null if the bot isn't
+ * connected / provisioning failed.
+ */
+export async function ensureProjectDriveFolder(projectId: string): Promise<string | null> {
+  const project = await prisma.project.findUnique({
+    where: { id: projectId },
+    select: { id: true, name: true, driveLink: true },
+  });
+  if (!project) return null;
+
+  if (project.driveLink && /\/folders\//.test(project.driveLink)) {
+    const existingId = extractFileId(project.driveLink);
+    if (existingId && (await getDriveFileMeta(existingId))) return existingId;
+  }
+
+  const rootId = await ensureClubPmRootFolder();
+  if (!rootId) return null;
+  const created = await createDriveFolder(project.name || "Project", rootId);
+  if (!created) return null;
+  await makeDriveFilePublic(created.id, "reader");
+
+  const webViewLink =
+    created.webViewLink ?? `https://drive.google.com/drive/folders/${created.id}`;
+  await prisma.project.update({ where: { id: projectId }, data: { driveLink: webViewLink } });
+  return created.id;
 }
 
 /**

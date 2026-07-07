@@ -6,7 +6,10 @@ import { encryptSecret } from "../utils/crypto.js";
 
 export const googleAuthRouter = Router();
 
-const DRIVE_SCOPES = ["https://www.googleapis.com/auth/drive", "openid", "email"];
+// drive.file (not the restricted /auth/drive) so the app needs no Google
+// verification: the bot can only touch files/folders IT creates. Every project
+// folder is therefore bot-created (see ensureProjectDriveFolder in driveService).
+const DRIVE_SCOPES = ["https://www.googleapis.com/auth/drive.file", "openid", "email"];
 
 // A full-page OAuth redirect can't send an Authorization header, and the
 // cross-origin session cookie (SameSite=None) may be blocked by the browser.

@@ -1,4 +1,6 @@
 import { Router, type Request, type Response } from "express";
+import multer from "multer";
+import { Readable } from "node:stream";
 import { requireAuth } from "./auth.js";
 import { channelAuth } from "../middleware/channelAuth.js";
 import { prisma } from "../db/prisma.js";
@@ -18,7 +20,7 @@ import { logAuditEvent, diffObjects, getProjectAuditLog } from "../services/acti
 import type { ProjectType, ProjectStatus, TaskStatus, Priority, ActivityEventType, NotificationType } from "@prisma/client";
 import { createNotification } from "../services/notificationCrud.js";
 import { queueDm } from "../services/dmBatcher.js";
-import { fetchDriveFileAsText, extractFileId, listDriveFolderFiles, getDriveFileMeta } from "../services/driveService.js";
+import { fetchDriveFileAsText, extractFileId, listDriveFolderFiles, getDriveFileMeta, ensureProjectDriveFolder, uploadStreamToDrive, deleteDriveFile } from "../services/driveService.js";
 import { generateJsonFromDocument, generateTextComplex, todayContext } from "../services/geminiService.js";
 import {
   driveToTasksPrompt, meetingNotesToTasksPrompt, projectContextPrompt,
@@ -74,10 +76,8 @@ projectsRouter.post("/", async (req: Request, res: Response) => {
       return;
     }
 
-    if (!driveLink) {
-      res.status(400).json({ error: "driveLink is required" });
-      return;
-    }
+    // driveLink is no longer required at creation — a bot-owned Drive folder is
+    // provisioned lazily on first Drive/vault access (see ensureProjectDriveFolder).
 
     const project = await createProject({
       name,
@@ -452,33 +452,22 @@ projectsRouter.get("/:id/drive-files", async (req: Request, res: Response) => {
       return;
     }
 
-    const driveLink = (project as any).driveLink as string | null | undefined;
-    if (!driveLink) {
+    const folderId = await ensureProjectDriveFolder(projectId);
+    if (!folderId) {
+      // Bot not connected (or provisioning failed) — no Drive backing yet.
       res.json({ folderId: null, folderName: null, files: [], notFolder: false, noLink: true });
       return;
     }
 
-    const id = extractFileId(driveLink);
-    if (!id) {
-      res.json({ folderId: null, folderName: null, files: [], notFolder: false, noLink: true, invalidLink: true });
-      return;
-    }
-
-    const isFolderUrl = /\/folders\//.test(driveLink);
-    if (!isFolderUrl) {
-      res.json({ folderId: null, folderName: null, files: [], notFolder: true, noLink: false });
-      return;
-    }
-
     const [folderMeta, files] = await Promise.all([
-      getDriveFileMeta(id),
-      listDriveFolderFiles(id),
+      getDriveFileMeta(folderId),
+      listDriveFolderFiles(folderId),
     ]);
 
     res.json({
-      folderId: id,
+      folderId,
       folderName: folderMeta?.name ?? null,
-      folderWebViewLink: folderMeta?.webViewLink ?? driveLink,
+      folderWebViewLink: folderMeta?.webViewLink ?? null,
       files,
       notFolder: false,
       noLink: false,
@@ -486,6 +475,88 @@ projectsRouter.get("/:id/drive-files", async (req: Request, res: Response) => {
   } catch (error) {
     console.error("List drive files error:", error);
     res.status(500).json({ error: "Failed to list Drive files" });
+  }
+});
+
+// ── POST /api/projects/:id/drive-files (upload) ──────────────
+//
+// Streams an uploaded file through the bot into the project's bot-owned Drive
+// folder (provisioned on demand). Files inherit the folder's view-only sharing,
+// so members open them via the folder link; adding/removing is app-only.
+
+const driveUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: (Number(process.env.DRIVE_MAX_UPLOAD_MB) || 50) * 1024 * 1024 },
+});
+
+projectsRouter.post(
+  "/:id/drive-files",
+  driveUpload.single("file"),
+  async (req: Request, res: Response) => {
+    try {
+      const projectId = req.params.id as string;
+      const project = await getProject(projectId);
+      if (!project) {
+        res.status(404).json({ error: "Project not found" });
+        return;
+      }
+      if (!req.file) {
+        res.status(400).json({ error: "file is required" });
+        return;
+      }
+
+      const folderId = await ensureProjectDriveFolder(projectId);
+      if (!folderId) {
+        res.status(502).json({ error: "Google Drive is not connected" });
+        return;
+      }
+
+      const uploaded = await uploadStreamToDrive(
+        Readable.from(req.file.buffer),
+        req.file.mimetype || "application/octet-stream",
+        req.file.originalname || `upload-${Date.now()}`,
+        folderId
+      );
+      if (!uploaded) {
+        res.status(502).json({ error: "Upload to Drive failed" });
+        return;
+      }
+
+      res.status(201).json({
+        ok: true,
+        file: {
+          id: uploaded.fileId,
+          name: req.file.originalname,
+          webViewLink: uploaded.webViewLink ?? null,
+        },
+      });
+    } catch (error) {
+      console.error("Upload drive file error:", error);
+      res.status(500).json({ error: "Failed to upload Drive file" });
+    }
+  }
+);
+
+// ── DELETE /api/projects/:id/drive-files/:fileId ─────────────
+
+projectsRouter.delete("/:id/drive-files/:fileId", async (req: Request, res: Response) => {
+  try {
+    const projectId = req.params.id as string;
+    const fileId = req.params.fileId as string;
+    const project = await getProject(projectId);
+    if (!project) {
+      res.status(404).json({ error: "Project not found" });
+      return;
+    }
+    const ok = await deleteDriveFile(fileId);
+    if (!ok) {
+      res.status(502).json({ error: "Failed to delete the file from Drive" });
+      return;
+    }
+    res.json({ ok: true });
+  } catch (error) {
+    console.error("Delete drive file error:", error);
+    res.status(500).json({ error: "Failed to delete Drive file" });
   }
 });
 

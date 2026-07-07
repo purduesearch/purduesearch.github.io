@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { prisma } from "../db/prisma.js";
 import { getSessionSecret } from "../config/env.js";
-import { createDriveFolder, extractFileId, getBotAccountEmail } from "./driveService.js";
+import { createDriveFolder, ensureProjectDriveFolder, getBotAccountEmail } from "./driveService.js";
 
 /**
  * Excel-style revision letters: A, B, ..., Z, AA, AB, ..., AZ, BA, ...
@@ -41,19 +41,12 @@ export type VaultHealth = {
  * folder link — actual `not-shared` failures surface only from a real write
  * attempt (see `ensureVaultFolder`), never from this probe.
  */
-export async function getVaultHealth(projectId: string): Promise<VaultHealth> {
-  const project = await prisma.project.findUnique({ where: { id: projectId } });
-  if (!project || !project.driveLink) {
-    return { status: "no-link" };
-  }
-
-  const linkedFolderId = extractFileId(project.driveLink);
-  const isFolderUrl = /\/folders\//.test(project.driveLink);
-  if (!linkedFolderId || !isFolderUrl) {
-    return { status: "not-folder" };
-  }
-
-  return { status: "ok" };
+export async function getVaultHealth(_projectId: string): Promise<VaultHealth> {
+  // The vault is backed by a bot-owned Drive folder that is provisioned lazily
+  // (see ensureProjectDriveFolder), so health just reflects whether the Drive
+  // bot account is connected at all.
+  const email = await getBotAccountEmail();
+  return email ? { status: "ok" } : { status: "no-link" };
 }
 
 /**
@@ -65,22 +58,22 @@ export async function ensureVaultFolder(
   projectId: string
 ): Promise<{ folderId: string } | { error: VaultHealth }> {
   const project = await prisma.project.findUnique({ where: { id: projectId } });
-
-  if (!project || !project.driveLink) {
+  if (!project) {
     return { error: { status: "no-link" } };
-  }
-
-  const linkedFolderId = extractFileId(project.driveLink);
-  const isFolderUrl = /\/folders\//.test(project.driveLink);
-  if (!linkedFolderId || !isFolderUrl) {
-    return { error: { status: "not-folder" } };
   }
 
   if (project.vaultFolderId) {
     return { folderId: project.vaultFolderId };
   }
 
-  const created = await createDriveFolder("Constellation Vault", linkedFolderId);
+  // Anchor the vault under the project's bot-owned Drive folder (created on
+  // demand). Null means the Drive bot isn't connected yet.
+  const parentId = await ensureProjectDriveFolder(projectId);
+  if (!parentId) {
+    return { error: { status: "no-link" } };
+  }
+
+  const created = await createDriveFolder("Constellation Vault", parentId);
   if (!created) {
     return { error: { status: "not-shared", serviceAccountEmail: await getBotAccountEmail() } };
   }
