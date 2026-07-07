@@ -70,7 +70,7 @@ export default function ImportIssuesModal({ projectId, onClose, onImported }) {
   }
 
   return createPortal(
-    <div className="cpm-gh-modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+    <div className="cpm-gh-modal-overlay clubpm-portal" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="cpm-gh-modal cpm-gh-picker-modal" role="dialog" aria-label="Import GitHub issues">
         <div className="cpm-gh-modal-header">
           <span>

@@ -55,7 +55,7 @@ export default function PrPreviewModal({ projectId, number, onClose }) {
   const cMeta = pr ? CHECKS_LABEL[pr.checksStatus] ?? CHECKS_LABEL.none : null;
 
   return createPortal(
-    <div className="cpm-gh-modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+    <div className="cpm-gh-modal-overlay clubpm-portal" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="cpm-gh-preview-modal" role="dialog" aria-label={`Pull request #${number}`}>
         <div className="cpm-gh-preview-header">
           <div className="cpm-gh-preview-title-row">

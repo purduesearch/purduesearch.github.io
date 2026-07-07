@@ -40,7 +40,7 @@ export default function FilePreviewModal({ projectId, path, onClose }) {
   const lang = languageFromPath(path);
 
   return createPortal(
-    <div className="cpm-gh-modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+    <div className="cpm-gh-modal-overlay clubpm-portal" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="cpm-gh-preview-modal cpm-gh-file-modal" role="dialog" aria-label={`File ${path}`}>
         <div className="cpm-gh-preview-header">
           <div className="cpm-gh-preview-title-row">

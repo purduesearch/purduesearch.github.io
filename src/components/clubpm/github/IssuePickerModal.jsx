@@ -72,7 +72,7 @@ export default function IssuePickerModal({ projectId, taskId, onClose, onLinked 
   }
 
   return createPortal(
-    <div className="cpm-gh-modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+    <div className="cpm-gh-modal-overlay clubpm-portal" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="cpm-gh-modal cpm-gh-picker-modal" role="dialog" aria-label="Link GitHub issue">
         <div className="cpm-gh-modal-header">
           <span>

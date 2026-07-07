@@ -54,7 +54,7 @@ export default function BranchCreateModal({ projectId, taskId, onClose, onCreate
   }
 
   return createPortal(
-    <div className="cpm-gh-modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+    <div className="cpm-gh-modal-overlay clubpm-portal" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="cpm-gh-modal" role="dialog" aria-label="Create branch from task">
         <div className="cpm-gh-modal-header">
           <span>

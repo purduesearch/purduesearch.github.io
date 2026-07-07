@@ -33,7 +33,7 @@ export default function IssuePreviewModal({ projectId, number, onClose }) {
   const stateColor = issue?.state === "closed" ? "var(--cpm-gh-closed, #8957e5)" : "var(--cpm-gh-open, #1f883d)";
 
   return createPortal(
-    <div className="cpm-gh-modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+    <div className="cpm-gh-modal-overlay clubpm-portal" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="cpm-gh-preview-modal" role="dialog" aria-label={`Issue #${number}`}>
         <div className="cpm-gh-preview-header">
           <div className="cpm-gh-preview-title-row">

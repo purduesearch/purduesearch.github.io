@@ -96,7 +96,7 @@ export default function LinkRepoModal({ projectId, currentRepo, currentBlockOnCi
   }
 
   return createPortal(
-    <div className="cpm-gh-modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+    <div className="cpm-gh-modal-overlay clubpm-portal" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="cpm-gh-modal" role="dialog" aria-label="Link GitHub repo">
         <div className="cpm-gh-modal-header">
           <span>
