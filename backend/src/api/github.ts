@@ -859,14 +859,20 @@ githubRouter.get("/repos/:repoId/milestones", async (req: Request, res: Response
 });
 
 // POST /api/github/milestones/:milestoneId/sync
-// Sync a ClubPM Milestone to a GitHub milestone (create or update).
-// NOTE: syncMilestoneToGitHub is still project/repoFullName-scoped internally
-// (Project.githubRepo-era); Phase B3 adds a repoId param to this service
-// function and will update this call site to match.
+// Sync a ClubPM Milestone to a GitHub milestone (create or update) in a
+// specific linked repo. Body: { repoId } — multi-repo, Workstream B; a
+// milestone maps to exactly one repo/GH-milestone-number, so the caller picks
+// the target repo up front (defaults to the already-synced repo if any).
 githubRouter.post("/milestones/:milestoneId/sync", async (req: Request, res: Response) => {
   try {
+    const { repoId } = req.body as { repoId?: string };
+    if (!repoId) {
+      res.status(400).json({ error: "repoId required" });
+      return;
+    }
     const result = await syncMilestoneToGitHub({
       milestoneId: req.params.milestoneId as string,
+      repoId,
       actorMemberId: req.memberId!,
     });
     if ("error" in result) {
@@ -902,10 +908,8 @@ githubRouter.get("/milestones/:milestoneId/progress", async (req: Request, res: 
 // ── Phase 4: contributors / members ──────────────────────────
 
 // GET /api/github/repos/:repoId/contributors
-// Returns repo contributors annotated with matched ClubPM member (if any).
-// NOTE: discoverContributors is still project-scoped internally (reads
-// Project.githubRepo); this route already speaks the /repos/:repoId
-// contract — Phase B3 threads repoId through to the service function itself.
+// Returns repo contributors annotated with matched ClubPM member (if any),
+// scoped to this specific linked repo (multi-repo, Workstream B).
 githubRouter.get("/repos/:repoId/contributors", async (req: Request, res: Response) => {
   try {
     const repoId = req.params.repoId as string;
@@ -916,6 +920,7 @@ githubRouter.get("/repos/:repoId/contributors", async (req: Request, res: Respon
     }
     const result = await discoverContributors({
       projectId: ref.projectRepo.projectId,
+      repoId,
       actorMemberId: req.memberId!,
     });
     if ("error" in result) {
