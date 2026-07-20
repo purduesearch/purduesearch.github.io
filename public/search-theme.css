@@ -23372,3 +23372,122 @@ button.cpm-badge-tile:disabled { opacity: 0.7; cursor: progress; }
   .pm-poll-audience-grid { grid-template-columns: 1fr; }
   .pm-poll-grids { flex-direction: column; }
 }
+
+/* ── Meeting scheduler UI polish (avatars, calendar picker, QoL) ── */
+
+.pm-poll-count-pill {
+  display: inline-block; margin-left: 6px; padding: 0 7px;
+  font-size: 11px; font-weight: 700; line-height: 17px; border-radius: 999px;
+  background: var(--pm-accent-teal, #00e5cc); color: #04211f;
+}
+
+/* Avatar bits (shared) */
+.pm-poll-avatar {
+  position: relative; display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 50%; overflow: hidden; flex-shrink: 0;
+  background: var(--clubpm-surface-100, #14171d);
+  border: 1px solid var(--clubpm-border, #2a2f3a);
+}
+.pm-poll-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.pm-poll-avatar-initial {
+  font-size: 10px; font-weight: 700; color: var(--clubpm-text-muted, #8a92a0);
+  width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;
+}
+.pm-poll-avatar-guest {
+  position: absolute; right: -2px; bottom: -2px;
+  width: 10px; height: 10px; border-radius: 50%;
+  background: var(--pm-accent-amber, #f5a623); color: #221600;
+  display: flex; align-items: center; justify-content: center; font-size: 6px;
+}
+
+/* Selected invitees (avatar chips) */
+.pm-poll-selected-avatars { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.pm-poll-selected-avatar {
+  position: relative; width: 30px; height: 30px; border-radius: 50%;
+  padding: 0; border: 1px solid var(--pm-accent-teal, #00e5cc); overflow: visible;
+  background: var(--clubpm-surface-100, #14171d); cursor: pointer;
+}
+.pm-poll-selected-avatar img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+.pm-poll-selected-avatar .pm-poll-avatar-initial { border-radius: 50%; }
+.pm-poll-selected-avatar-x {
+  position: absolute; top: -5px; right: -5px; width: 15px; height: 15px; border-radius: 50%;
+  background: var(--clubpm-accent-red, #e17055); color: #fff; font-size: 8px;
+  display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.12s;
+}
+.pm-poll-selected-avatar:hover .pm-poll-selected-avatar-x { opacity: 1; }
+
+/* Member picker list (reuses cpm-attendee-item) */
+.pm-poll-member-picker {
+  display: flex; flex-direction: column; gap: 2px;
+  max-height: 220px; overflow-y: auto;
+  border: 1px solid var(--clubpm-border, #2a2f3a); border-radius: 8px; padding: 4px;
+}
+.pm-poll-member-name { font-size: 13px; color: var(--clubpm-text-primary, #e8eaed); }
+.pm-poll-member-team {
+  margin-left: auto; font-size: 10px; padding: 1px 7px; border-radius: 999px;
+  background: var(--clubpm-surface-100, #14171d); color: var(--clubpm-text-muted, #8a92a0);
+}
+
+/* when2meet-style month picker */
+.pm-cal-picker {
+  border: 1px solid var(--clubpm-border, #2a2f3a); border-radius: 10px;
+  padding: 10px 12px; background: var(--clubpm-surface-100, #14171d); user-select: none;
+}
+.pm-cal-picker-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.pm-cal-picker-month { font-size: 13px; font-weight: 700; color: var(--clubpm-text-primary, #e8eaed); }
+.pm-cal-nav {
+  width: 28px; height: 28px; border-radius: 7px; cursor: pointer;
+  background: var(--clubpm-surface-200, #1a1d24); border: 1px solid var(--clubpm-border, #2a2f3a);
+  color: var(--clubpm-text-primary, #e8eaed); display: flex; align-items: center; justify-content: center;
+}
+.pm-cal-nav:hover { border-color: var(--pm-accent-teal, #00e5cc); }
+.pm-cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+.pm-cal-dow {
+  text-align: center; font-size: 10px; font-weight: 600; padding-bottom: 2px;
+  color: var(--clubpm-text-muted, #8a92a0);
+}
+.pm-cal-day {
+  aspect-ratio: 1 / 1; border-radius: 7px; cursor: pointer; font-size: 12px;
+  background: var(--clubpm-surface-200, #1a1d24);
+  border: 1px solid transparent; color: var(--clubpm-text-primary, #e8eaed);
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.1s, border-color 0.1s;
+}
+.pm-cal-day:hover:not(.is-past):not(.is-sel) { border-color: var(--pm-accent-teal, #00e5cc); }
+.pm-cal-day.is-sel { background: var(--pm-accent-teal, #00e5cc); color: #04211f; font-weight: 700; }
+.pm-cal-day.is-today:not(.is-sel) { border-color: var(--pm-accent-amber, #f5a623); }
+.pm-cal-day.is-past { opacity: 0.28; cursor: not-allowed; }
+.pm-cal-day-pad { background: transparent; cursor: default; }
+.pm-cal-picker-foot {
+  display: flex; align-items: center; justify-content: space-between; margin-top: 8px;
+  font-size: 11px; color: var(--clubpm-text-muted, #8a92a0);
+}
+
+/* Board: responder avatars, best banner, mine count, clear */
+.pm-poll-responders { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; margin-top: 12px; }
+.pm-poll-responders .pm-poll-avatar { width: 26px; height: 26px; }
+.pm-poll-resp-more { font-size: 11px; color: var(--clubpm-text-muted, #8a92a0); margin-left: 2px; }
+
+.pm-poll-best-banner {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 14px;
+  padding: 8px 14px; border-radius: 10px; font-size: 13px;
+  background: rgba(245, 166, 35, 0.10); border: 1px solid rgba(245, 166, 35, 0.35);
+  color: var(--clubpm-text-primary, #e8eaed);
+}
+.pm-poll-best-banner > i { color: var(--pm-accent-amber, #f5a623); }
+.pm-poll-best-count { font-weight: 700; color: var(--pm-accent-amber, #f5a623); }
+.pm-poll-best-tied { font-size: 11px; color: var(--clubpm-text-muted, #8a92a0); }
+
+.pm-poll-mine-count {
+  font-size: 10px; font-weight: 700; padding: 0 6px; line-height: 16px; border-radius: 999px;
+  background: var(--pm-accent-teal, #00e5cc); color: #04211f; text-transform: none;
+}
+.pm-poll-clear { margin-left: auto; font-size: 11px !important; text-transform: none; }
+.pm-poll-grid-mine .pm-poll-cell-mine { touch-action: none; }
+.pm-poll-grid-hint { margin-top: 6px; font-size: 11px; color: var(--clubpm-text-muted, #8a92a0); }
+.pm-poll-grid-hint i { margin-right: 5px; }
+
+/* Board: hover detail with avatars */
+.pm-poll-hover-names { display: flex; flex-direction: column; gap: 3px; margin-top: 4px; }
+.pm-poll-name-row { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--clubpm-text-primary, #e8eaed); }
+.pm-poll-name-row.muted { color: var(--clubpm-text-muted, #8a92a0); }

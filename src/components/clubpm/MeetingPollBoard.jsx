@@ -11,6 +11,18 @@ function heatColor(count, total) {
   return `rgba(0, 229, 204, ${(0.14 + 0.86 * t).toFixed(3)})`;
 }
 
+// Small avatar (image or initial fallback).
+function AvatarBit({ name, url, guest, size = 24 }) {
+  return (
+    <span className="pm-poll-avatar" title={guest ? `${name} (guest)` : name} style={{ width: size, height: size }}>
+      {url
+        ? <img src={url} alt="" />
+        : <span className="pm-poll-avatar-initial">{(name ?? '?')[0].toUpperCase()}</span>}
+      {guest && <span className="pm-poll-avatar-guest"><i className="fas fa-user" /></span>}
+    </span>
+  );
+}
+
 /**
  * Reusable when2meet board: editable "your availability" grid + aggregate
  * heatmap + organizer finalize controls. Renders no overlay — the parent
@@ -36,6 +48,11 @@ export default function MeetingPollBoard({
   const agg = poll.aggregate ?? { counts: {}, perSlot: {}, bestSlotStarts: [], maxCount: 0, totalResponders: 0 };
   const total = agg.totalResponders ?? 0;
   const bestSet = useMemo(() => new Set((agg.bestSlotStarts ?? []).map(norm)), [agg.bestSlotStarts]);
+  const respByName = useMemo(() => {
+    const m = new Map();
+    for (const r of (poll.responders ?? [])) if (!m.has(r.name)) m.set(r.name, r);
+    return m;
+  }, [poll.responders]);
 
   const grid = useMemo(() => buildGrid(poll.slotStarts ?? [], tz), [poll.slotStarts, tz]);
 
@@ -85,26 +102,43 @@ export default function MeetingPollBoard({
     }
   }, [onSaveAvailability]);
 
-  // End a drag on mouseup anywhere → persist.
+  // Unified pointer painting (mouse + touch). Drag across cells resolves the
+  // hovered cell via elementFromPoint so touch-drag paints, not just taps.
   useEffect(() => {
-    function up() {
-      if (draggingRef.current) {
-        setDragging(null);
-        doSave();
-      }
+    function move(e) {
+      const d = draggingRef.current;
+      if (!d) return;
+      const el = document.elementFromPoint(e.clientX, e.clientY);
+      const iso = el?.getAttribute?.('data-iso');
+      if (iso && el.getAttribute('data-mine') === '1') applyCell(iso, d.mode);
     }
-    window.addEventListener('mouseup', up);
-    return () => window.removeEventListener('mouseup', up);
-  }, [doSave]);
+    function up() {
+      if (draggingRef.current) { setDragging(null); doSave(); }
+    }
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', up);
+    return () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointercancel', up);
+    };
+  }, [applyCell, doSave]);
 
-  function cellDown(iso) {
+  function cellDown(isoKey) {
     if (!canRespond || status !== 'OPEN') return;
-    const mode = selected.has(iso) ? 'remove' : 'add';
+    const mode = selectedRef.current.has(isoKey) ? 'remove' : 'add';
     setDragging({ mode });
-    applyCell(iso, mode);
+    applyCell(isoKey, mode);
   }
-  function cellEnter(iso) {
-    if (dragging) applyCell(iso, dragging.mode);
+
+  async function clearMine() {
+    const empty = new Set();
+    setSelected(empty);
+    selectedRef.current = empty;
+    setSaving(true);
+    try { await onSaveAvailability([]); baselineRef.current = empty; }
+    finally { setSaving(false); }
   }
 
   async function run(key, fn) {
@@ -120,17 +154,23 @@ export default function MeetingPollBoard({
     }).catch(() => {});
   }
 
+  function toggleFinalize() {
+    setFinalizeMode(m => {
+      const nm = !m;
+      setFinalizeSlot(nm ? (agg.bestSlotStarts?.[0] ?? null) : null);
+      return nm;
+    });
+  }
+
   const finalCount = finalizeSlot ? (agg.counts[norm(finalizeSlot)] ?? 0) : 0;
   const organizerName = poll.organizer?.displayName ?? poll.organizerName ?? null;
   const projectName   = poll.project?.name ?? poll.projectName ?? null;
 
   const hoverAvailable = hoverSlot ? (agg.perSlot[norm(hoverSlot)] ?? []) : [];
-  const hoverNames = hoverSlot
-    ? (poll.responders ?? []).map(r => r.name)
-    : [];
   const hoverMissing = hoverSlot
-    ? hoverNames.filter(n => !hoverAvailable.includes(n))
+    ? (poll.responders ?? []).map(r => r.name).filter(n => !hoverAvailable.includes(n))
     : [];
+  const mineCount = selected.size;
 
   return (
     <div className="pm-poll-board">
@@ -157,10 +197,30 @@ export default function MeetingPollBoard({
 
       {poll.description && <p className="pm-poll-board-desc">{poll.description}</p>}
 
+      {/* Responder avatars */}
+      {(poll.responders?.length > 0) && (
+        <div className="pm-poll-responders">
+          {poll.responders.slice(0, 14).map((r, i) => (
+            <AvatarBit key={i} name={r.name} url={r.avatarUrl} guest={r.isGuest} />
+          ))}
+          {poll.responders.length > 14 && <span className="pm-poll-resp-more">+{poll.responders.length - 14}</span>}
+        </div>
+      )}
+
       {(poll.priorityTasks?.length > 0) && (
         <div className="pm-poll-tasks">
           <span className="pm-poll-tasks-label">Priority tasks:</span>
           {poll.priorityTasks.map(t => <span key={t.id} className="pm-poll-task-chip">{t.title}</span>)}
+        </div>
+      )}
+
+      {/* Best time so far */}
+      {status === 'OPEN' && agg.maxCount > 0 && (
+        <div className="pm-poll-best-banner">
+          <i className="fas fa-star" />
+          <span>Best so far: <strong>{fmtInstant(agg.bestSlotStarts[0], tz)}</strong></span>
+          <span className="pm-poll-best-count">{agg.maxCount}/{total} free</span>
+          {agg.bestSlotStarts.length > 1 && <span className="pm-poll-best-tied">+{agg.bestSlotStarts.length - 1} tied</span>}
         </div>
       )}
 
@@ -182,7 +242,7 @@ export default function MeetingPollBoard({
             </button>
             <button type="button"
               className={`cpm-btn ${finalizeMode ? 'cpm-btn-primary' : 'cpm-btn-ghost'}`}
-              onClick={() => { setFinalizeMode(m => !m); setFinalizeSlot(null); }}>
+              onClick={toggleFinalize}>
               <i className="fas fa-circle-check" /> {finalizeMode ? 'Pick a slot below…' : 'Finalize a time'}
             </button>
           </>
@@ -242,22 +302,30 @@ export default function MeetingPollBoard({
           <div className="pm-poll-grid-col">
             <div className="pm-poll-grid-heading">
               <i className="fas fa-hand-pointer" /> Your availability
+              {mineCount > 0 && <span className="pm-poll-mine-count">{mineCount}</span>}
               {saving && <span className="pm-poll-saving"><i className="fas fa-spinner fa-spin" /> saving</span>}
               {guestName && <span className="pm-poll-guest-tag">as {guestName}</span>}
+              {mineCount > 0 && !saving && (
+                <button type="button" className="cpm-link-btn pm-poll-clear" onClick={clearMine}>Clear</button>
+              )}
             </div>
             <GridTable
+              className="pm-poll-grid-mine"
               grid={grid}
               renderCell={(iso) => {
-                const on = selected.has(norm(iso));
+                const key = norm(iso);
+                const on = selected.has(key);
                 return (
                   <td key={iso}
+                    data-iso={key}
+                    data-mine="1"
                     className={`pm-poll-cell pm-poll-cell-mine ${on ? 'is-on' : ''}`}
-                    onMouseDown={() => cellDown(iso)}
-                    onMouseEnter={() => cellEnter(iso)}
+                    onPointerDown={(e) => { e.preventDefault(); cellDown(key); }}
                   />
                 );
               }}
             />
+            <div className="pm-poll-grid-hint"><i className="fas fa-arrows-up-down-left-right" /> Click or drag to paint the times you’re free.</div>
           </div>
         )}
 
@@ -302,12 +370,22 @@ export default function MeetingPollBoard({
           <div className="pm-poll-hover-cols">
             <div>
               <span className="pm-poll-hover-h pm-poll-hover-yes">Available ({hoverAvailable.length})</span>
-              {hoverAvailable.map(n => <span key={n} className="pm-poll-name yes">{n}</span>)}
+              <div className="pm-poll-hover-names">
+                {hoverAvailable.map(n => {
+                  const r = respByName.get(n);
+                  return <span key={n} className="pm-poll-name-row"><AvatarBit name={n} url={r?.avatarUrl} guest={r?.isGuest} size={18} /> {n}</span>;
+                })}
+              </div>
             </div>
             {hoverMissing.length > 0 && (
               <div>
                 <span className="pm-poll-hover-h pm-poll-hover-no">Not available</span>
-                {hoverMissing.map(n => <span key={n} className="pm-poll-name no">{n}</span>)}
+                <div className="pm-poll-hover-names">
+                  {hoverMissing.map(n => {
+                    const r = respByName.get(n);
+                    return <span key={n} className="pm-poll-name-row muted"><AvatarBit name={n} url={r?.avatarUrl} guest={r?.isGuest} size={18} /> {n}</span>;
+                  })}
+                </div>
               </div>
             )}
           </div>
@@ -324,9 +402,9 @@ export default function MeetingPollBoard({
 }
 
 // Shared day × time table. `renderCell(iso)` returns a <td> for a real slot.
-function GridTable({ grid, renderCell }) {
+function GridTable({ grid, renderCell, className = '' }) {
   return (
-    <div className="pm-poll-grid-scroll">
+    <div className={`pm-poll-grid-scroll ${className}`}>
       <table className="pm-poll-grid-table">
         <thead>
           <tr>

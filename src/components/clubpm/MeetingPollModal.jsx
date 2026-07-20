@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import MiniMonthCalendar from './MiniMonthCalendar';
 import {
-  buildSlotStarts, decomposeSlots, localTimeZone, fmtDayLabel, SLOT_SIZES,
+  buildSlotStarts, decomposeSlots, localTimeZone, SLOT_SIZES,
 } from './meetingPollUtils';
 
 const AUDIENCES = [
@@ -32,7 +33,6 @@ export default function MeetingPollModal({ isOpen, onClose, onSave, editPoll, pr
   const [form, setForm]   = useState(EMPTY);
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
-  const [newDate, setNewDate] = useState('');
   const [error, setError] = useState('');
   const timezone = editPoll?.timezone || localTimeZone();
 
@@ -40,7 +40,6 @@ export default function MeetingPollModal({ isOpen, onClose, onSave, editPoll, pr
     if (!isOpen) return;
     setError('');
     setSearch('');
-    setNewDate('');
     if (editPoll) {
       const { dates, startMin, endMin } = decomposeSlots(editPoll.slotStarts ?? [], editPoll.timezone || localTimeZone());
       setForm({
@@ -63,13 +62,6 @@ export default function MeetingPollModal({ isOpen, onClose, onSave, editPoll, pr
   if (!isOpen) return null;
 
   const set = (field, value) => setForm(prev => ({ ...prev, [field]: value }));
-
-  function addDate() {
-    if (!newDate || form.dates.includes(newDate)) { setNewDate(''); return; }
-    set('dates', [...form.dates, newDate].sort());
-    setNewDate('');
-  }
-  const removeDate = (d) => set('dates', form.dates.filter(x => x !== d));
 
   const toggleMember = (id) => set(
     'invitedMemberIds',
@@ -179,44 +171,59 @@ export default function MeetingPollModal({ isOpen, onClose, onSave, editPoll, pr
           {/* Invited members (INVITED only) */}
           {form.audience === 'INVITED' && (
             <div className="cpm-form-field">
-              <label className="cpm-form-label">Invite members ({form.invitedMemberIds.length})</label>
+              <label className="cpm-form-label">
+                Invite members
+                {form.invitedMemberIds.length > 0 && <span className="pm-poll-count-pill">{form.invitedMemberIds.length}</span>}
+              </label>
+
+              {/* Selected avatars summary */}
+              {form.invitedMemberIds.length > 0 && (
+                <div className="pm-poll-selected-avatars">
+                  {form.invitedMemberIds.map(id => {
+                    const m = members.find(x => x.id === id);
+                    if (!m) return null;
+                    return (
+                      <button key={id} type="button" className="pm-poll-selected-avatar"
+                        title={`Remove ${m.displayName}`} onClick={() => toggleMember(id)}>
+                        {m.avatarUrl
+                          ? <img src={m.avatarUrl} alt="" />
+                          : <span className="pm-poll-avatar-initial">{(m.displayName ?? '?')[0].toUpperCase()}</span>}
+                        <span className="pm-poll-selected-avatar-x"><i className="fas fa-times" /></span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
               <input className="cpm-form-input" type="text" value={search}
-                onChange={e => setSearch(e.target.value)} placeholder="Search members…" style={{ marginBottom: 8 }} />
-              <div className="pm-poll-member-list">
-                {filteredMembers.slice(0, 40).map(m => {
+                onChange={e => setSearch(e.target.value)} placeholder="Search members…" style={{ margin: '4px 0 8px' }} />
+              <div className="pm-poll-member-picker">
+                {filteredMembers.slice(0, 60).map(m => {
                   const active = form.invitedMemberIds.includes(m.id);
                   return (
-                    <button key={m.id} type="button" className="pm-poll-member-chip"
-                      style={active ? { borderColor: 'var(--pm-accent-teal,#00e5cc)', background: 'rgba(0,229,204,0.12)' } : {}}
+                    <div key={m.id} className={`cpm-attendee-item${active ? ' selected' : ''}`}
                       onClick={() => toggleMember(m.id)}>
-                      {active && <i className="fas fa-check" style={{ fontSize: 10 }} />}
-                      {m.displayName}
-                    </button>
+                      <span className="cpm-attendee-check">{active && <i className="fas fa-check" />}</span>
+                      {m.avatarUrl
+                        ? <img src={m.avatarUrl} alt="" className="cpm-attendee-avatar" />
+                        : <span className="cpm-attendee-initial">{(m.displayName ?? '?')[0].toUpperCase()}</span>}
+                      <span className="pm-poll-member-name">{m.displayName}</span>
+                      {m.team && <span className="pm-poll-member-team">{m.team}</span>}
+                    </div>
                   );
                 })}
+                {filteredMembers.length === 0 && <div className="pm-poll-hint" style={{ padding: 8 }}>No members match “{search}”.</div>}
               </div>
             </div>
           )}
 
-          {/* Candidate dates */}
+          {/* Candidate dates — when2meet-style calendar (click or drag to select) */}
           <div className="cpm-form-field">
-            <label className="cpm-form-label">Candidate dates <span style={{ color: '#e17055' }}>*</span></label>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <input className="cpm-form-input" type="date" value={newDate}
-                onChange={e => setNewDate(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addDate(); } }} />
-              <button type="button" className="cpm-btn cpm-btn-ghost" onClick={addDate}>Add</button>
-            </div>
-            {form.dates.length > 0 && (
-              <div className="pm-poll-date-chips">
-                {form.dates.map(d => (
-                  <span key={d} className="pm-poll-date-chip">
-                    {fmtDayLabel(d)}
-                    <button type="button" onClick={() => removeDate(d)} aria-label="Remove date"><i className="fas fa-times" /></button>
-                  </span>
-                ))}
-              </div>
-            )}
+            <label className="cpm-form-label">
+              Candidate dates <span style={{ color: '#e17055' }}>*</span>
+              <span className="pm-poll-hint" style={{ marginTop: 0, marginLeft: 8, display: 'inline' }}>click or drag to select</span>
+            </label>
+            <MiniMonthCalendar selected={form.dates} onChange={dates => set('dates', dates)} />
           </div>
 
           {/* Time window + slot size */}

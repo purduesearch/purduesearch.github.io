@@ -104,3 +104,36 @@ export function decomposeSlots(slotStarts, timeZone) {
 }
 
 export const SLOT_SIZES = [15, 30, 60];
+
+export const MONTHS_FULL = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
+export const WEEKDAYS_ABBR = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+/** Zero-padded YYYY-MM-DD for a Y / M(1-12) / D triple. */
+export function toYmd(y, m, d) {
+  return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+}
+
+/** Today as YYYY-MM-DD in local time. */
+export function todayYmd() {
+  const n = new Date();
+  return toYmd(n.getFullYear(), n.getMonth() + 1, n.getDate());
+}
+
+/**
+ * A month laid out as weeks of day-of-month numbers (null pads leading/trailing
+ * cells). `month` is 0-indexed. Used by the when2meet-style date picker.
+ */
+export function monthGrid(year, month) {
+  const startDow = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const cells = [];
+  for (let i = 0; i < startDow; i++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+  while (cells.length % 7 !== 0) cells.push(null);
+  const weeks = [];
+  for (let i = 0; i < cells.length; i += 7) weeks.push(cells.slice(i, i + 7));
+  return weeks;
+}

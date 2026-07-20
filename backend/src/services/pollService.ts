@@ -22,6 +22,7 @@ export function slotKey(d: Date | string): string {
 export interface ResponderInput {
   memberId: string | null;
   name: string;
+  avatarUrl?: string | null;
   slots: Array<Date | string>;
 }
 
@@ -313,6 +314,7 @@ export function respondersFrom(poll: PollWithResponses): ResponderInput[] {
   return poll.responses.map(r => ({
     memberId: r.memberId,
     name: r.member?.displayName ?? r.guestName ?? "Guest",
+    avatarUrl: r.member?.avatarUrl ?? null,
     slots: r.slots,
   }));
 }
