@@ -359,7 +359,7 @@ After each phase: run `npm run build` (repo root) and `npx tsc --noEmit` (backen
 
 ## Model Selection
 
-Default to **Sonnet** (`claude-sonnet-4-6`) for all tasks. Use **Opus** only for:
+Default to **Sonnet** (`claude-sonnet-5`) for all tasks. Use **Opus** only for:
 - Security or performance audits of the backend
 - Multi-file refactors spanning both frontend and backend (5+ files)
 - Initial architecture design for a brand-new system
