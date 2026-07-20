@@ -76,9 +76,12 @@ export default function MeetingPollModal({ isOpen, onClose, onSave, editPoll, pr
     if (!form.title.trim())          { setError('Give the meeting a title.'); return; }
     if (form.dates.length === 0)     { setError('Add at least one candidate date.'); return; }
     if (form.endMin <= form.startMin){ setError('End time must be after start time.'); return; }
+    const slotMinutes = Math.floor(Number(form.slotMinutes));
+    if (!slotMinutes || slotMinutes < 1) { setError('Enter a slot size of at least 1 minute.'); return; }
 
-    const slotStarts = buildSlotStarts(form.dates, form.startMin, form.endMin, form.slotMinutes);
+    const slotStarts = buildSlotStarts(form.dates, form.startMin, form.endMin, slotMinutes);
     if (slotStarts.length === 0)     { setError('That window produces no time slots.'); return; }
+    if (slotStarts.length > 3000)    { setError('That’s a lot of slots — use a larger slot size or fewer dates/hours.'); return; }
 
     const payload = {
       title: form.title.trim(),
@@ -87,7 +90,7 @@ export default function MeetingPollModal({ isOpen, onClose, onSave, editPoll, pr
       audience: form.audience,
       invitedMemberIds: form.audience === 'INVITED' ? form.invitedMemberIds : [],
       slotStarts,
-      slotMinutes: form.slotMinutes,
+      slotMinutes,
       timezone,
       responseDeadline: form.responseDeadline ? new Date(form.responseDeadline).toISOString() : null,
     };
@@ -106,8 +109,9 @@ export default function MeetingPollModal({ isOpen, onClose, onSave, editPoll, pr
   const filteredMembers = members.filter(m =>
     !search || (m.displayName ?? '').toLowerCase().includes(search.toLowerCase())
   );
-  const slotCount = form.endMin > form.startMin
-    ? form.dates.length * Math.ceil((form.endMin - form.startMin) / form.slotMinutes)
+  const smNum = Math.floor(Number(form.slotMinutes)) || 0;
+  const slotCount = (form.endMin > form.startMin && smNum > 0)
+    ? form.dates.length * Math.ceil((form.endMin - form.startMin) / smNum)
     : 0;
 
   const modal = (
@@ -238,12 +242,19 @@ export default function MeetingPollModal({ isOpen, onClose, onSave, editPoll, pr
               <input className="cpm-form-input" type="time" value={toHM(form.endMin)}
                 onChange={e => set('endMin', toMin(e.target.value))} />
             </div>
-            <div className="cpm-form-field" style={{ flex: 1, minWidth: 110 }}>
-              <label className="cpm-form-label">Slot size</label>
-              <select className="cpm-form-input" value={form.slotMinutes}
-                onChange={e => set('slotMinutes', Number(e.target.value))}>
-                {SLOT_SIZES.map(s => <option key={s} value={s}>{s} min</option>)}
-              </select>
+            <div className="cpm-form-field" style={{ flex: 1, minWidth: 130 }}>
+              <label className="cpm-form-label">Slot size (min)</label>
+              <input className="cpm-form-input" type="number" min={1} step={5}
+                value={form.slotMinutes}
+                onChange={e => set('slotMinutes', e.target.value === '' ? '' : Math.max(1, Math.floor(Number(e.target.value)) || 1))}
+                placeholder="30" />
+              <div className="pm-poll-slot-presets">
+                {SLOT_SIZES.map(s => (
+                  <button key={s} type="button"
+                    className={`pm-poll-slot-preset${Number(form.slotMinutes) === s ? ' is-active' : ''}`}
+                    onClick={() => set('slotMinutes', s)}>{s}</button>
+                ))}
+              </div>
             </div>
           </div>
 

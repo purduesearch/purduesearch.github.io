@@ -69,9 +69,10 @@ export default function MeetingPollBoard({
     setSelected(next);
   }, [poll.myResponse]);
 
-  const [dragging, setDragging] = useState(null); // { mode: 'add' | 'remove' }
-  const draggingRef = useRef(null);
-  useEffect(() => { draggingRef.current = dragging; }, [dragging]);
+  // Rectangle-marquee drag: anchor cell + a snapshot of the selection at drag
+  // start; the live rectangle from the anchor to the pointer is added/removed
+  // on top of that snapshot.
+  const dragRef = useRef(null); // { anchorDi, anchorTi, mode, baseline: Set }
 
   const [saving, setSaving] = useState(false);
   const [busy, setBusy] = useState('');
@@ -80,13 +81,30 @@ export default function MeetingPollBoard({
   const [finalizeMode, setFinalizeMode] = useState(false);
   const [finalizeSlot, setFinalizeSlot] = useState(null);
 
-  const applyCell = useCallback((iso, mode) => {
-    setSelected(prev => {
-      const next = new Set(prev);
-      if (mode === 'add') next.add(iso); else next.delete(iso);
-      return next;
-    });
-  }, []);
+  // All real slot keys inside the rectangle spanning two (day,time) cells.
+  const rectIsos = useCallback((di1, ti1, di2, ti2) => {
+    const d0 = Math.min(di1, di2), d1 = Math.max(di1, di2);
+    const t0 = Math.min(ti1, ti2), t1 = Math.max(ti1, ti2);
+    const out = [];
+    for (let d = d0; d <= d1; d++) {
+      for (let t = t0; t <= t1; t++) {
+        const iso = grid.slotAt.get(`${grid.days[d]} ${grid.times[t]}`);
+        if (iso) out.push(norm(iso));
+      }
+    }
+    return out;
+  }, [grid]);
+
+  // Preview the current rectangle over the drag-start snapshot.
+  const applyRect = useCallback((di, ti) => {
+    const dr = dragRef.current;
+    if (!dr) return;
+    const isos = rectIsos(dr.anchorDi, dr.anchorTi, di, ti);
+    const next = new Set(dr.baseline);
+    if (dr.mode === 'add') for (const k of isos) next.add(k);
+    else for (const k of isos) next.delete(k);
+    setSelected(next);
+  }, [rectIsos]);
 
   const doSave = useCallback(async () => {
     const cur = selectedRef.current;
@@ -102,18 +120,21 @@ export default function MeetingPollBoard({
     }
   }, [onSaveAvailability]);
 
-  // Unified pointer painting (mouse + touch). Drag across cells resolves the
-  // hovered cell via elementFromPoint so touch-drag paints, not just taps.
+  // Unified pointer marquee (mouse + touch). While dragging, the cell under the
+  // pointer is resolved via elementFromPoint so touch-drag works, and the whole
+  // rectangle from the anchor to it is selected.
   useEffect(() => {
     function move(e) {
-      const d = draggingRef.current;
-      if (!d) return;
+      if (!dragRef.current) return;
       const el = document.elementFromPoint(e.clientX, e.clientY);
-      const iso = el?.getAttribute?.('data-iso');
-      if (iso && el.getAttribute('data-mine') === '1') applyCell(iso, d.mode);
+      if (!el || el.getAttribute('data-mine') !== '1') return;
+      const di = Number(el.getAttribute('data-di'));
+      const ti = Number(el.getAttribute('data-ti'));
+      if (Number.isNaN(di) || Number.isNaN(ti)) return;
+      applyRect(di, ti);
     }
     function up() {
-      if (draggingRef.current) { setDragging(null); doSave(); }
+      if (dragRef.current) { dragRef.current = null; doSave(); }
     }
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', up);
@@ -123,13 +144,13 @@ export default function MeetingPollBoard({
       window.removeEventListener('pointerup', up);
       window.removeEventListener('pointercancel', up);
     };
-  }, [applyCell, doSave]);
+  }, [applyRect, doSave]);
 
-  function cellDown(isoKey) {
+  function cellDown(di, ti, key) {
     if (!canRespond || status !== 'OPEN') return;
-    const mode = selectedRef.current.has(isoKey) ? 'remove' : 'add';
-    setDragging({ mode });
-    applyCell(isoKey, mode);
+    const mode = selectedRef.current.has(key) ? 'remove' : 'add';
+    dragRef.current = { anchorDi: di, anchorTi: ti, mode, baseline: new Set(selectedRef.current) };
+    applyRect(di, ti);
   }
 
   async function clearMine() {
@@ -312,20 +333,22 @@ export default function MeetingPollBoard({
             <GridTable
               className="pm-poll-grid-mine"
               grid={grid}
-              renderCell={(iso) => {
+              renderCell={(iso, di, ti) => {
                 const key = norm(iso);
                 const on = selected.has(key);
                 return (
                   <td key={iso}
                     data-iso={key}
                     data-mine="1"
+                    data-di={di}
+                    data-ti={ti}
                     className={`pm-poll-cell pm-poll-cell-mine ${on ? 'is-on' : ''}`}
-                    onPointerDown={(e) => { e.preventDefault(); cellDown(key); }}
+                    onPointerDown={(e) => { e.preventDefault(); cellDown(di, ti, key); }}
                   />
                 );
               }}
             />
-            <div className="pm-poll-grid-hint"><i className="fas fa-arrows-up-down-left-right" /> Click or drag to paint the times you’re free.</div>
+            <div className="pm-poll-grid-hint"><i className="fas fa-vector-square" /> Click a slot, or drag a box across days &amp; times to select a block.</div>
           </div>
         )}
 
@@ -413,13 +436,13 @@ function GridTable({ grid, renderCell, className = '' }) {
           </tr>
         </thead>
         <tbody>
-          {grid.times.map(hm => (
+          {grid.times.map((hm, ti) => (
             <tr key={hm}>
               <td className="pm-poll-timecol">{fmtTimeLabel(hm)}</td>
-              {grid.days.map(d => {
+              {grid.days.map((d, di) => {
                 const iso = grid.slotAt.get(`${d} ${hm}`);
                 if (!iso) return <td key={`${d}-${hm}`} className="pm-poll-cell pm-poll-cell-empty" />;
-                return renderCell(iso);
+                return renderCell(iso, di, ti);
               })}
             </tr>
           ))}
