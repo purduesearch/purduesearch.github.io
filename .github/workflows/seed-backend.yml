@@ -1,0 +1,75 @@
+name: Seed Backend (manual)
+
+# Manually-triggered database seeding over the SAME SSH channel deploy-backend.yml
+# uses. Reuses the ORACLE_HOST / ORACLE_USER / ORACLE_SSH_KEY secrets, so it works
+# without your personal keys. Inert until you run it from the Actions tab.
+#
+# The seed scripts are idempotent (prisma upserts), so this is safe to re-run.
+# It seeds against the code + schema ALREADY DEPLOYED at /opt/clubpm/backend — it
+# does not check out a branch, build, or restart the server.
+#
+# PREREQUISITE for the meeting-scheduler reward (MEETING_AVAILABILITY_SUBMITTED):
+# the migration must already be applied and the updated seedEngagement.ts deployed.
+# That happens automatically when this branch is merged to main (deploy-backend.yml
+# runs `prisma migrate deploy`). Run this seed workflow AFTER that deploy is green.
+#
+# NOTE: workflow_dispatch workflows only appear in the Actions "Run workflow" menu
+# once they exist on the default branch (main) — i.e. after this branch is merged.
+
+on:
+  workflow_dispatch:
+    inputs:
+      seed_target:
+        description: "Which seed script(s) to run on the server"
+        type: choice
+        options:
+          - engagement
+          - challenges
+          - engagement+challenges
+        default: engagement
+
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run seed over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          SEED_TARGET: ${{ inputs.seed_target }}
+        with:
+          host: ${{ secrets.ORACLE_HOST }}
+          username: ${{ secrets.ORACLE_USER }}
+          key: ${{ secrets.ORACLE_SSH_KEY }}
+          envs: SEED_TARGET
+          script: |
+            set -e
+            echo "== Connected as $(whoami)@$(hostname) =="
+            cd /opt/clubpm/backend
+
+            # Ensure the generated Prisma client matches the deployed schema so the
+            # seed's enum values (e.g. MEETING_AVAILABILITY_SUBMITTED) resolve.
+            echo "== prisma generate =="
+            npx prisma generate
+
+            case "$SEED_TARGET" in
+              engagement)
+                echo "== npm run seed:engagement =="
+                npm run seed:engagement
+                ;;
+              challenges)
+                echo "== npm run seed:challenges =="
+                npm run seed:challenges
+                ;;
+              engagement+challenges)
+                echo "== npm run seed:engagement =="
+                npm run seed:engagement
+                echo "== npm run seed:challenges =="
+                npm run seed:challenges
+                ;;
+              *)
+                echo "Unknown seed target: $SEED_TARGET" >&2
+                exit 1
+                ;;
+            esac
+
+            echo "== Seed complete =="

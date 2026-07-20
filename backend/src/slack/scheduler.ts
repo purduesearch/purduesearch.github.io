@@ -13,6 +13,8 @@ import { prisma } from "../db/prisma.js";
 import { queueDm } from "../services/dmBatcher.js";
 import { createNotification } from "../services/notificationCrud.js";
 import { sweepVaultTmpDir } from "../api/vault.js";
+import { remindNonResponders } from "../api/meetingPolls.js";
+import * as pollService from "../services/pollService.js";
 
 // ── Helper: notify admin project members via DM batcher ───────
 
@@ -714,6 +716,36 @@ export function startScheduler(app: App): void {
       console.log(`✅ Instantiated ${due.length} recurring template(s)`);
     } catch (err) {
       console.error("❌ Recurring template cron error:", err);
+    }
+  });
+
+  // ── Hourly :20 — Meeting poll reminders to invited non-responders ──
+  // Fires once per poll (reminderSentAt gate) when its response deadline is
+  // within the next 24 hours.
+  cron.schedule("20 * * * *", async () => {
+    try {
+      const now  = new Date();
+      const soon = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+      const polls = await prisma.meetingPoll.findMany({
+        where: {
+          status:           "OPEN",
+          reminderSentAt:   null,
+          responseDeadline: { gte: now, lte: soon },
+        },
+        select: { id: true },
+      });
+      if (polls.length === 0) return;
+
+      let totalNudged = 0;
+      for (const p of polls) {
+        const poll = await pollService.getPoll(p.id);
+        if (!poll) continue;
+        totalNudged += await remindNonResponders(poll, null);
+        await prisma.meetingPoll.update({ where: { id: p.id }, data: { reminderSentAt: now } });
+      }
+      console.log(`✅ Meeting poll reminders: ${totalNudged} member(s) across ${polls.length} poll(s)`);
+    } catch (err) {
+      console.error("❌ Meeting poll reminder cron error:", err);
     }
   });
 

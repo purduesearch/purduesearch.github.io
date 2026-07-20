@@ -329,6 +329,7 @@ function eventTypeToXpSource(e: RewardEventType): XpSource {
     case "KUDOS_RECEIVED":               return "KUDOS";
     case "BLOG_POST_PUBLISHED":          return "BLOG_POST";
     case "EARLY_DELIVERY_BONUS":         return "EARLY_BONUS";
+    case "MEETING_AVAILABILITY_SUBMITTED": return "MEETING";
   }
 }
 
@@ -341,6 +342,7 @@ function eventTypeToDoubloonSource(e: RewardEventType): DoubloonSource {
     case "KUDOS_RECEIVED":               return "KUDOS";
     case "BLOG_POST_PUBLISHED":          return "BLOG_POST";
     case "EARLY_DELIVERY_BONUS":         return "EARLY_BONUS";
+    case "MEETING_AVAILABILITY_SUBMITTED": return "MEETING";
   }
 }
 
@@ -562,6 +564,15 @@ export async function handleBlogPostPublished(authorMemberId: string, submission
   } else {
     await queuePendingReward(authorMemberId, "BLOG_POST_PUBLISHED", undefined, { submissionId });
   }
+}
+
+export async function handleMeetingAvailabilitySubmitted(memberId: string): Promise<void> {
+  const cfg = await prisma.rewardEventConfig.findUnique({
+    where: { eventType: "MEETING_AVAILABILITY_SUBMITTED" },
+  });
+  if (!cfg || !cfg.autoApprove) return;
+  if (cfg.xpAmount       > 0) await grantXP(memberId, cfg.xpAmount, "MEETING");
+  if (cfg.doubloonAmount > 0) await grantDoubloons(memberId, cfg.doubloonAmount, "MEETING");
 }
 
 // Silence unused-import warning for logAuditEvent (reserved for future approval audit).

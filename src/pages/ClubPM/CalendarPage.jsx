@@ -3,8 +3,15 @@ import { createPortal } from 'react-dom';
 import CalendarView from '../../components/clubpm/CalendarView';
 import CalendarFilters from '../../components/clubpm/CalendarFilters';
 import EventFormModal from '../../components/clubpm/EventFormModal';
+import MeetingPollModal from '../../components/clubpm/MeetingPollModal';
+import MeetingPollBoard from '../../components/clubpm/MeetingPollBoard';
 import AvatarPortrait from '../../components/clubpm/avatar/AvatarPortrait';
-import { get, post, patch } from '../../api/clubPmClient';
+import {
+  get, post, patch,
+  listMeetingPolls, createMeetingPoll, updateMeetingPoll, deleteMeetingPoll,
+  getMeetingPoll, submitAvailability, finalizeMeetingPoll, remindMeetingPoll,
+  downloadMeetingPollIcs, googleCalendarUrl,
+} from '../../api/clubPmClient';
 import { useClubPmAuth } from '../../clubpm/ClubPmAuth';
 import { revealStagger } from '../../clubpm/anim/motion';
 
@@ -228,6 +235,12 @@ export default function CalendarPage() {
   const [showEventForm, setShowEventForm]     = useState(false);
   const [editingEvent, setEditingEvent]       = useState(null);
 
+  // Meeting scheduler (when2meet polls)
+  const [polls, setPolls]           = useState([]);
+  const [showPollForm, setShowPollForm] = useState(false);
+  const [editingPoll, setEditingPoll]   = useState(null);
+  const [activePoll, setActivePoll]     = useState(null); // full serialized poll for the board
+
   // Client-side filters. Selecting nothing means "show everything" for that
   // dimension. `showTaskDeadlines` defaults on so the global view still covers
   // what the project-scoped Calendar tab used to.
@@ -318,6 +331,60 @@ export default function CalendarPage() {
     fetchEvents(cursor);
   }, [cursor, fetchEvents]);
 
+  // ── Meeting polls ────────────────────────────────────────────
+  const refreshPolls = useCallback(async () => {
+    try {
+      const data = await listMeetingPolls();
+      setPolls(Array.isArray(data) ? data : []);
+    } catch { /* non-fatal */ }
+  }, []);
+
+  useEffect(() => { refreshPolls(); }, [refreshPolls]);
+
+  const openPollBoard = useCallback(async (id) => {
+    try {
+      const full = await getMeetingPoll(id);
+      setActivePoll(full);
+    } catch { /* ignore */ }
+  }, []);
+
+  async function handleSavePoll(payload) {
+    let saved;
+    if (editingPoll) saved = await updateMeetingPoll(editingPoll.id, payload);
+    else             saved = await createMeetingPoll(payload);
+    setEditingPoll(null);
+    await refreshPolls();
+    if (saved?.id) await openPollBoard(saved.id);
+  }
+
+  async function handleRespond(slots) {
+    if (!activePoll) return;
+    const updated = await submitAvailability(activePoll.id, slots);
+    setActivePoll(updated);
+    refreshPolls();
+  }
+
+  async function handleFinalizePoll(startIso, endIso) {
+    if (!activePoll) return;
+    const updated = await finalizeMeetingPoll(activePoll.id, startIso, endIso);
+    setActivePoll(updated);
+    refreshPolls();
+    fetchEvents(cursor); // the new Event shows on the calendar
+  }
+
+  async function handleRemindPoll() {
+    if (!activePoll) return;
+    await remindMeetingPoll(activePoll.id);
+  }
+
+  async function handleDeletePoll() {
+    if (!activePoll) return;
+    if (!window.confirm('Delete this meeting poll? This cannot be undone.')) return;
+    await deleteMeetingPoll(activePoll.id);
+    setActivePoll(null);
+    refreshPolls();
+  }
+
   async function handleSaveEvent(formData) {
     if (editingEvent) {
       await patch(`/api/events/${editingEvent.id}`, formData);
@@ -393,18 +460,54 @@ export default function CalendarPage() {
           </p>
         </div>
 
-        {isAdmin && (
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <button
             type="button"
-            className="cpm-btn cpm-btn-primary"
-            onClick={() => setShowEventForm(true)}
+            className="cpm-btn cpm-btn-ghost"
+            onClick={() => { setEditingPoll(null); setShowPollForm(true); }}
             style={{ display: 'flex', alignItems: 'center', gap: 8 }}
           >
-            <i className="fas fa-plus" />
-            New Event
+            <i className="fas fa-calendar-check" />
+            New Poll
           </button>
-        )}
+          {isAdmin && (
+            <button
+              type="button"
+              className="cpm-btn cpm-btn-primary"
+              onClick={() => setShowEventForm(true)}
+              style={{ display: 'flex', alignItems: 'center', gap: 8 }}
+            >
+              <i className="fas fa-plus" />
+              New Event
+            </button>
+          )}
+        </div>
       </div>
+
+      {/* Scheduling polls strip */}
+      {polls.length > 0 && (
+        <div className="pm-poll-strip">
+          <div className="pm-poll-strip-head">
+            <i className="fas fa-calendar-check" style={{ color: 'var(--pm-accent-teal, #00e5cc)' }} />
+            Scheduling polls
+          </div>
+          <div className="pm-poll-strip-cards">
+            {polls.map(p => (
+              <button key={p.id} type="button" className="pm-poll-card" onClick={() => openPollBoard(p.id)}>
+                <span className={`pm-poll-status pm-poll-status-${p.status?.toLowerCase()}`}>{p.status}</span>
+                <span className="pm-poll-card-title">{p.title}</span>
+                <span className="pm-poll-card-meta">
+                  <i className="fas fa-users" /> {p.responderCount ?? 0}
+                  {p.status === 'FINALIZED' && p.finalStart && (
+                    <> · <i className="fas fa-clock" /> {new Date(p.finalStart).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</>
+                  )}
+                  {p.project?.name && <> · {p.project.name}</>}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Error banner */}
       {eventsError && (
@@ -494,6 +597,43 @@ export default function CalendarPage() {
         isAdmin={isAdmin}
         projects={projects}
       />
+
+      {/* Meeting poll create/edit modal */}
+      <MeetingPollModal
+        isOpen={showPollForm}
+        onClose={() => { setShowPollForm(false); setEditingPoll(null); }}
+        onSave={handleSavePoll}
+        editPoll={editingPoll}
+        projects={projects}
+        members={members}
+      />
+
+      {/* Meeting poll board modal */}
+      {activePoll && (
+        <div
+          className="cpm-modal-overlay"
+          onClick={e => { if (e.target === e.currentTarget) setActivePoll(null); }}
+        >
+          <div className="pm-poll-board-modal" onClick={e => e.stopPropagation()}>
+            <MeetingPollBoard
+              poll={activePoll}
+              onClose={() => setActivePoll(null)}
+              onSaveAvailability={handleRespond}
+              onFinalize={handleFinalizePoll}
+              onRemind={handleRemindPoll}
+              onEdit={() => { setEditingPoll(activePoll); setActivePoll(null); setShowPollForm(true); }}
+              onDelete={handleDeletePoll}
+              onDownloadIcs={() => downloadMeetingPollIcs(activePoll.id, `${activePoll.title || 'meeting'}.ics`)}
+              googleUrl={activePoll.finalStart ? googleCalendarUrl({
+                title: activePoll.title,
+                description: activePoll.description,
+                start: activePoll.finalStart,
+                end: activePoll.finalEnd ?? activePoll.finalStart,
+              }) : null}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

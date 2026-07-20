@@ -23,6 +23,7 @@ import OutreachHub from './pages/ClubPM/OutreachHub';
 import BlogEditorPage from './pages/ClubPM/BlogEditorPage';
 import PublicCampaign from './pages/PublicCampaign';
 import EventRsvp from './pages/Public/EventRsvp';
+import PublicSchedule from './pages/Public/PublicSchedule';
 import Archive from './pages/Archive';
 import BlogPost from './pages/BlogPost';
 import Home from './pages/Home';
@@ -92,6 +93,7 @@ function AnimatedRoutes() {
 
           {/* Public outreach routes (no auth) */}
           <Route path="/rsvp/:eventId" element={<EventRsvp />} />
+          <Route path="/schedule/:token" element={<PublicSchedule />} />
           <Route path="/r/c/:slug" element={<PublicCampaign />} />
           <Route path="/r/archive" element={<Archive />} />
 

@@ -418,6 +418,62 @@ export function getBlogCollabWsUrl() {
   return `${origin.replace(/^http/, 'ws')}/collab/blog`;
 }
 
+// ── Meeting scheduler (when2meet availability polls) ─────────
+
+export const listMeetingPolls = (params = {}) => {
+  const q = new URLSearchParams(
+    Object.entries(params).filter(([, v]) => v != null && v !== '')
+  ).toString();
+  return get(`/api/meeting-polls${q ? `?${q}` : ''}`);
+};
+export const getMeetingPoll        = (id)        => get(`/api/meeting-polls/${id}`);
+export const getMeetingPollByToken = (token)     => get(`/api/meeting-polls/token/${token}`);
+export const createMeetingPoll     = (data)      => post('/api/meeting-polls', data);
+export const updateMeetingPoll     = (id, data)  => patch(`/api/meeting-polls/${id}`, data);
+export const deleteMeetingPoll     = (id)        => del(`/api/meeting-polls/${id}`);
+export const submitAvailability    = (id, slots) => put(`/api/meeting-polls/${id}/response`, { slots });
+export const getMeetingPollResponses = (id)      => get(`/api/meeting-polls/${id}/responses`);
+export const remindMeetingPoll     = (id)        => post(`/api/meeting-polls/${id}/remind`, {});
+export const finalizeMeetingPoll   = (id, start, end) => post(`/api/meeting-polls/${id}/finalize`, { start, end });
+
+// Public (guest shareable link) — auth optional; a logged-in member passes
+// their Bearer token in the body so cookie-blocked browsers still identify them.
+export const getPublicPoll = (token) => get(`/api/public/polls/${token}`);
+export const submitPublicAvailability = (token, { guestName, slots, authToken }) =>
+  put(`/api/public/polls/${token}/response`, { guestName, slots, authToken });
+
+// Download the finalized meeting's .ics via authenticated fetch → blob, so it
+// works under both cookie and Bearer auth (a plain <a href> omits the header).
+export async function downloadMeetingPollIcs(id, filename = 'meeting.ics') {
+  const response = await fetch(`${BASE_URL}/api/meeting-polls/${id}/ics`, {
+    credentials: 'include',
+    headers: { ...authHeaders() },
+  });
+  if (!response.ok) throw new ApiError(response.status, 'Failed to download calendar file');
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+// Build a "Add to Google Calendar" template URL entirely client-side (no backend).
+export function googleCalendarUrl({ title, description, location, start, end }) {
+  const fmt = (d) => new Date(d).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
+  const params = new URLSearchParams({
+    action: 'TEMPLATE',
+    text: title || 'Meeting',
+    dates: `${fmt(start)}/${fmt(end)}`,
+    ...(description ? { details: description } : {}),
+    ...(location ? { location } : {}),
+  });
+  return `https://calendar.google.com/calendar/render?${params.toString()}`;
+}
+
 // Multipart image upload → { url, width, height }. Do NOT set Content-Type:
 // the browser fills in the multipart boundary from the FormData body.
 export async function uploadBlogImage(file) {
