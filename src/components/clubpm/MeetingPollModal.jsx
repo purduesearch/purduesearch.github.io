@@ -244,7 +244,7 @@ export default function MeetingPollModal({ isOpen, onClose, onSave, editPoll, pr
             </div>
             <div className="cpm-form-field" style={{ flex: 1, minWidth: 130 }}>
               <label className="cpm-form-label">Slot size (min)</label>
-              <input className="cpm-form-input" type="number" min={1} step={5}
+              <input className="cpm-form-input" type="number" min={1} step={1}
                 value={form.slotMinutes}
                 onChange={e => set('slotMinutes', e.target.value === '' ? '' : Math.max(1, Math.floor(Number(e.target.value)) || 1))}
                 placeholder="30" />
