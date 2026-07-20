@@ -265,6 +265,27 @@ export async function getPollByToken(token: string) {
   return prisma.meetingPoll.findUnique({ where: { publicToken: token }, include: pollInclude });
 }
 
+/**
+ * Resolve a member's access context against a poll (admin flag + project
+ * membership). Shared by the authed router and the public/guest endpoints.
+ */
+export async function resolveContext(
+  memberId: string | null | undefined,
+  poll: { projectId: string | null }
+): Promise<AccessContext> {
+  if (!memberId) return { memberId: null, isAdmin: false, isProjectMember: false };
+  const member = await prisma.member.findUnique({ where: { id: memberId }, select: { isAdmin: true } });
+  let isProjectMember = false;
+  if (poll.projectId) {
+    const pm = await prisma.projectMember.findUnique({
+      where: { projectId_memberId: { projectId: poll.projectId, memberId } },
+      select: { memberId: true },
+    });
+    isProjectMember = !!pm;
+  }
+  return { memberId, isAdmin: !!member?.isAdmin, isProjectMember };
+}
+
 export interface ListFilters {
   projectId?: string;
   status?: "OPEN" | "FINALIZED" | "CANCELED";
