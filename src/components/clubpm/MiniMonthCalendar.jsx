@@ -11,8 +11,11 @@ import { monthGrid, toYmd, todayYmd, MONTHS_FULL, WEEKDAYS_ABBR } from './meetin
  */
 export default function MiniMonthCalendar({ selected = [], onChange }) {
   const today = todayYmd();
-  const initial = selected.length ? new Date(`${[...selected].sort()[0]}T12:00:00`) : new Date();
-  const [view, setView] = useState({ year: initial.getFullYear(), month: initial.getMonth() });
+  // Always open on the current month.
+  const [view, setView] = useState(() => {
+    const n = new Date();
+    return { year: n.getFullYear(), month: n.getMonth() };
+  });
 
   const selectedSet = new Set(selected);
   const drag = useRef(null); // { mode: 'add' | 'remove' }
