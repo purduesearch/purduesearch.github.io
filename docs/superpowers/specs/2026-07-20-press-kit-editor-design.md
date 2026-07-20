@@ -27,8 +27,11 @@ is served at the existing public tokenized URL and printed to PDF via the browse
 ### Non-goals
 
 - No new image-generation or auto-imagery. Users insert their own images via the editor image tool.
+- No downloadable "media kit" (logo/asset bundle) — manual image insertion in the editor is enough.
 - Press kits do **not** enter the public blog feed / RSS / taxonomy. They are project artifacts,
   reached only via the project or their tokenized public URL.
+- No club-wide central "About Purdue SEARCH" setting — the boilerplate is **seeded per kit** (a default
+  paragraph written into each document at generation time, then freely editable).
 - No structured "always-live" data sections after generation — this is the blog-style single-document
   model: live data is captured into the doc at generation time, then freely edited (re-run "Generate"
   to refresh from live data).
@@ -46,8 +49,11 @@ is served at the existing public tokenized URL and printed to PDF via the browse
 
 ## User flow
 
-1. Project header "Press Kit" button → navigates to `/clubpm/projects/:id/press-kit`
-   (a full editor page mirroring `BlogEditorPage.jsx`).
+The press kit lives **inside the project's existing "Reports" tab**, which gains an internal sub-tab bar:
+**Charts · Activity · Press Kit**. (Charts = the current `ProjectAnalytics`; Activity = the
+`ActivityFeed`, previously imported but unrendered; Press Kit = the new panel.) No new top-level route.
+
+1. Open a project → **Reports** tab → **Press Kit** sub-tab.
 2. **No document yet** → a **Generate panel** shows: Audience (Sponsors / Press / Recruiting / General),
    section include/exclude toggles, accent color, contact email. Click **Generate**.
 3. Backend assembles live data + AI prose → seeds the TipTap document → user lands in the editor.
@@ -166,22 +172,28 @@ Follow the `req.memberId` convention (never `req.session.memberId`).
 
 ## Frontend
 
-- **`src/pages/ClubPM/PressKitPage.jsx`** (new) — mirrors `BlogEditorPage.jsx`:
-  - Header: status/save-state, **Preview** (reuses `editor.getHTML()` like the blog preview),
+- **`src/components/clubpm/PressKitPanel.jsx`** (new) — the embedded Press Kit sub-tab (borrows
+  `BlogEditorPage.jsx`'s load/save/preview/regenerate logic, but is a panel, not a route):
+  - Toolbar: status/save-state, **Preview** (reuses `editor.getHTML()` like the blog preview),
     **Revision history** drawer, **Publish/Share** (copy public link), **Regenerate** (confirm).
   - Body: reused `<BlogEditor>` pointed at the press-kit collab WS via a new prop (below).
   - **Generate/Settings panel**: audience selector, section include/exclude toggles, accent color,
     contact email. Shown as the empty state and reopenable as settings.
+- **`src/pages/ClubPM/ProjectDetail.jsx`** — reorganize the `reports` tab (~line 3475) into an internal
+  sub-tab bar with local state (optionally synced to a `?report=` query param):
+  `Charts` → existing `<ProjectAnalytics>`; `Activity` → `<ActivityFeed>` (already imported, currently
+  unrendered); `Press Kit` → `<PressKitPanel>`. Also **remove the inline PDF-generate button** in the
+  project hero (~line 3131) — press-kit access now lives entirely in the Reports sub-tab.
 - **`src/components/clubpm/blog/BlogEditor.jsx`** — add an optional `collabWsUrl` prop
   (default: `getBlogCollabWsUrl()`); pass through to the `HocuspocusProvider`. No behavior change for blog.
 - **`src/api/clubPmClient.js`** — add `getPressKitCollabWsUrl()` (mirrors `getBlogCollabWsUrl`, path
   `/collab/presskit`) and press-kit fetch helpers (`getPressKit`, `generatePressKit`, `updatePressKitConfig`,
   `publishPressKit`, revisions).
-- **`src/App.js`** — protected route `/clubpm/projects/:id/press-kit` → `<PressKitPage>`.
-- **`src/pages/ClubPM/ProjectDetail.jsx`** — replace the inline PDF-generate button (~line 3131) with a
-  link/navigate to the editor page.
 - **CSS** — append to `public/search-theme.css` with a `presskit-` prefix, reusing `cpm-blog-*` editor
   styles where possible.
+
+No new top-level route is added (`src/App.js` is untouched) — the panel renders inside the existing
+`/clubpm/projects/:id` reports tab.
 
 ## Reuse map (borrowed from the blog stack)
 
@@ -192,7 +204,7 @@ Follow the `req.memberId` convention (never `req.session.memberId`).
 | Server node schema for transformer | `backend/src/collab/blogSchema.ts` (`blogCollabExtensions`) |
 | JSON → HTML render | `renderJsonToHtml` (`backend/src/services/blogRender.ts`) |
 | Markdown → JSON seed | `markdownToTiptapJson` (`backend/src/services/blogRender.ts`) |
-| Editor page shell | `src/pages/ClubPM/BlogEditorPage.jsx` |
+| Editor panel logic (load/save/preview/regenerate) | `src/pages/ClubPM/BlogEditorPage.jsx` |
 | Revision history UI | `src/components/clubpm/blog/RevisionHistoryDrawer.jsx` |
 | WS URL helper | `getBlogCollabWsUrl` (`src/api/clubPmClient.js`) |
 
@@ -218,7 +230,8 @@ calls / ≤4 files per phase.
    `buildPressKitHtml` (drop imagery grid), public route serves stored content.
 3. **REST API**: `pressKit.ts` router (get/generate/patch/publish/revisions) + client helpers.
 4. **Collab namespace**: `pressKitCollab.ts` + `attachPressKitCollab`; `BlogEditor` `collabWsUrl` prop.
-5. **Editor page + config UI**: `PressKitPage.jsx`, route, ProjectDetail button swap.
+5. **Reports sub-tabs + panel**: reorganize the reports tab into `Charts · Activity · Press Kit`;
+   `PressKitPanel.jsx` + Generate/config UI; remove the hero PDF button.
 6. **Polish**: CSS, revision drawer wiring, preview parity, audience-specific copy, empty/error states.
 
 ## Testing / verification
