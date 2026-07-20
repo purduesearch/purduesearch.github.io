@@ -2,12 +2,46 @@
 // quick actions: link existing issue, create issue, create branch, link PR.
 
 import React, { useCallback, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import toast from "react-hot-toast";
-import { get, post, del } from "../../../api/clubPmClient";
+import { get, post, del, listProjectRepos } from "../../../api/clubPmClient";
 import IssuePickerModal from "./IssuePickerModal";
 import BranchCreateModal from "./BranchCreateModal";
 import IssuePreviewModal from "./IssuePreviewModal";
 import PrPreviewModal from "./PrPreviewModal";
+
+// Shown in place of IssuePreviewModal/PrPreviewModal when a task's GitHub
+// link points at a repoFullName that no longer matches any of the project's
+// linked ProjectRepo rows (repo was removed/renamed) — repo-scoped preview
+// fetches need a real repoId, so we can't call the endpoint with undefined.
+// Reuses the same overlay/modal classes the preview modals already rely on.
+function RepoGoneNotice({ what, repoFullName, onClose }) {
+  return createPortal(
+    <div className="cpm-gh-modal-overlay clubpm-portal" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="cpm-gh-preview-modal" role="dialog" aria-label={`${what} preview unavailable`}>
+        <div className="cpm-gh-preview-header">
+          <div className="cpm-gh-preview-title-row">
+            <i className="fas fa-triangle-exclamation" style={{ color: "var(--cpm-gh-bad, #cf222e)" }} aria-hidden="true" />
+            <span className="cpm-gh-preview-title">Repository no longer linked</span>
+          </div>
+          <div className="cpm-gh-preview-actions">
+            <button onClick={onClose} aria-label="Close" className="cpm-gh-modal-close">
+              <i className="fas fa-times" aria-hidden="true" />
+            </button>
+          </div>
+        </div>
+        <div className="cpm-gh-preview-body">
+          <p className="cpm-gh-empty">
+            This {what} belongs to {repoFullName ? <code>{repoFullName}</code> : "a repository"} which is
+            no longer linked to this project, so its live preview can't load. Re-add the repo from the
+            project's GitHub tab to restore previews for its links.
+          </p>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
 
 function StateBadge({ link }) {
   // Visual badge per link state (open/closed/merged/draft)
@@ -28,15 +62,43 @@ function StateBadge({ link }) {
 
 export default function GitHubTaskSection({ task, project, onTaskUpdate }) {
   const projectId = project?.id ?? task?.projectId;
-  const repoLinked = Boolean(project?.githubRepo);
   const taskId = task?.id;
 
   const [links, setLinks] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showPicker, setShowPicker] = useState(false);
   const [showBranch, setShowBranch] = useState(false);
+  // { number, repoFullName } — repoFullName is resolved against `repos`
+  // (below) to a repoId for the repo-scoped preview fetch.
   const [previewIssue, setPreviewIssue] = useState(null);
   const [previewPr, setPreviewPr] = useState(null);
+
+  // Multi-repo (Workstream B): the project may have more than one linked
+  // repo. Fetch the set so we can silently target the sole repo, or offer a
+  // compact selector when there's more than one. This is the repo used for
+  // the inline "Create issue" action; IssuePickerModal / BranchCreateModal
+  // pick their own target repo independently (they fetch the same list).
+  const [repos, setRepos] = useState([]);
+  const [reposLoading, setReposLoading] = useState(true);
+  const [selectedRepoId, setSelectedRepoId] = useState(null);
+
+  useEffect(() => {
+    if (!projectId) { setRepos([]); setReposLoading(false); return; }
+    let cancelled = false;
+    setReposLoading(true);
+    listProjectRepos(projectId)
+      .then(d => {
+        if (cancelled) return;
+        const list = d?.repos ?? [];
+        setRepos(list);
+        setSelectedRepoId(prev => (prev && list.some(r => r.id === prev)) ? prev : (list[0]?.id ?? null));
+      })
+      .catch(() => { if (!cancelled) setRepos([]); })
+      .finally(() => { if (!cancelled) setReposLoading(false); });
+    return () => { cancelled = true; };
+  }, [projectId]);
+
+  const repoLinked = repos.length > 0;
 
   const refresh = useCallback(() => {
     if (!taskId || !repoLinked) { setLinks([]); return; }
@@ -61,9 +123,10 @@ export default function GitHubTaskSection({ task, project, onTaskUpdate }) {
   }
 
   async function createIssue() {
+    if (!selectedRepoId) { toast.error("Select a repository first"); return; }
     if (!window.confirm("Create a new GitHub issue from this task?")) return;
     try {
-      const r = await post(`/api/github/tasks/${taskId}/issue`, {});
+      const r = await post(`/api/github/tasks/${taskId}/issue`, { repoId: selectedRepoId });
       toast.success(`Issue #${r.number} created`);
       refresh();
     } catch (err) {
@@ -79,6 +142,18 @@ export default function GitHubTaskSection({ task, project, onTaskUpdate }) {
     } catch (err) {
       toast.error(err?.message ?? "Sync failed");
     }
+  }
+
+  if (reposLoading && repos.length === 0) {
+    return (
+      <div className="cpm-gh-task-section">
+        <div className="cpm-gh-task-header">
+          <i className="fab fa-github" aria-hidden="true" />
+          <span>GitHub</span>
+        </div>
+        <p className="cpm-gh-hint" style={{ marginTop: 8 }}>Loading repositories…</p>
+      </div>
+    );
   }
 
   if (!repoLinked) {
@@ -106,6 +181,20 @@ export default function GitHubTaskSection({ task, project, onTaskUpdate }) {
         <span>GitHub</span>
         {loading && <span className="cpm-gh-task-loading">syncing…</span>}
         <div style={{ flex: 1 }} />
+        {repos.length > 1 && (
+          <select
+            className="cpm-gh-input"
+            style={{ width: "auto", padding: "3px 8px", fontSize: 11, marginRight: 6, textTransform: "none" }}
+            value={selectedRepoId ?? ""}
+            onChange={e => setSelectedRepoId(e.target.value)}
+            title="Target repository for new GitHub actions"
+            aria-label="Target repository"
+          >
+            {repos.map(r => (
+              <option key={r.id} value={r.id}>{r.slug}</option>
+            ))}
+          </select>
+        )}
         <button className="cpm-gh-task-refresh" onClick={refresh} title="Refresh">
           <i className="fas fa-rotate" aria-hidden="true" />
         </button>
@@ -125,7 +214,7 @@ export default function GitHubTaskSection({ task, project, onTaskUpdate }) {
               <StateBadge link={l} />
               <button
                 className="cpm-gh-task-chip-title"
-                onClick={() => setPreviewIssue(l.refNumber)}
+                onClick={() => setPreviewIssue({ number: l.refNumber, repoFullName: l.repoFullName })}
                 title="Open preview"
               >
                 #{l.refNumber} {l.title ?? ""}
@@ -159,7 +248,7 @@ export default function GitHubTaskSection({ task, project, onTaskUpdate }) {
               <StateBadge link={l} />
               <button
                 className="cpm-gh-task-chip-title"
-                onClick={() => setPreviewPr(l.refNumber)}
+                onClick={() => setPreviewPr({ number: l.refNumber, repoFullName: l.repoFullName })}
                 title="Open preview"
               >
                 #{l.refNumber} {l.title ?? ""}
@@ -246,18 +335,40 @@ export default function GitHubTaskSection({ task, project, onTaskUpdate }) {
         />
       )}
       {previewIssue != null && (
-        <IssuePreviewModal
-          projectId={projectId}
-          number={previewIssue}
-          onClose={() => setPreviewIssue(null)}
-        />
+        (() => {
+          const previewRepoId = repos.find(r => r.slug === previewIssue.repoFullName)?.id;
+          return previewRepoId ? (
+            <IssuePreviewModal
+              repoId={previewRepoId}
+              number={previewIssue.number}
+              onClose={() => setPreviewIssue(null)}
+            />
+          ) : (
+            <RepoGoneNotice
+              what="issue"
+              repoFullName={previewIssue.repoFullName}
+              onClose={() => setPreviewIssue(null)}
+            />
+          );
+        })()
       )}
       {previewPr != null && (
-        <PrPreviewModal
-          projectId={projectId}
-          number={previewPr}
-          onClose={() => setPreviewPr(null)}
-        />
+        (() => {
+          const previewRepoId = repos.find(r => r.slug === previewPr.repoFullName)?.id;
+          return previewRepoId ? (
+            <PrPreviewModal
+              repoId={previewRepoId}
+              number={previewPr.number}
+              onClose={() => setPreviewPr(null)}
+            />
+          ) : (
+            <RepoGoneNotice
+              what="pull request"
+              repoFullName={previewPr.repoFullName}
+              onClose={() => setPreviewPr(null)}
+            />
+          );
+        })()
       )}
     </div>
   );

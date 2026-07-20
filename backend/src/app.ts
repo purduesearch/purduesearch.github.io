@@ -32,6 +32,7 @@ import { contactsRouter } from "./api/contacts.js";
 import { insightsRouter } from "./api/insights.js";
 import { publicRouter } from "./api/public.js";
 import { githubAuthRouter } from "./api/githubAuth.js";
+import { googleAuthRouter } from "./api/googleAuth.js";
 import { githubRouter } from "./api/github.js";
 import { githubWebhookRouter } from "./api/githubWebhook.js";
 import { rewardsRouter } from "./api/rewards.js";
@@ -100,6 +101,7 @@ app.use(
 
 app.use("/auth", authRouter);
 app.use("/auth/github", githubAuthRouter);
+app.use("/auth/google", googleAuthRouter);
 app.use("/api/github", githubRouter);
 app.use("/api/projects", projectsRouter);
 app.use("/api/tags", tagsRouter);

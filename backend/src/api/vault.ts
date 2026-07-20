@@ -19,7 +19,7 @@ import {
   getDriveFileStream,
   renameDriveFile,
   deleteDriveFile,
-  getServiceAccountEmail,
+  getBotAccountEmail,
 } from "../services/driveService.js";
 import {
   ensureVaultFolder,
@@ -188,7 +188,7 @@ vaultRouter.post(
       if (!itemFolder) {
         res.status(400).json({
           error: "Could not create the item folder in Drive.",
-          health: { status: "not-shared", serviceAccountEmail: getServiceAccountEmail() },
+          health: { status: "not-shared", serviceAccountEmail: await getBotAccountEmail() },
         });
         return;
       }

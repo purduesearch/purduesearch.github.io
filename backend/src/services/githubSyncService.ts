@@ -2,6 +2,7 @@ import { prisma } from "../db/prisma.js";
 import type { TaskStatus, GitHubLinkKind } from "@prisma/client";
 import {
   octokitForProject,
+  octokitForRepo,
   parseRepoUrl,
   getIssue,
   getPull,
@@ -483,12 +484,15 @@ export async function refreshTaskLinks(opts: {
 // ─────────────────────────────────────────────────────────────
 
 /**
- * Sync a ClubPM Milestone to a GitHub milestone. If a map row already exists
- * for the milestone, update the GH milestone; otherwise create one and persist
- * the map.
+ * Sync a ClubPM Milestone to a GitHub milestone in a specific linked repo
+ * (multi-repo, Workstream B — the target repo is no longer implied by a
+ * single `Project.githubRepo`). If a map row already exists for the
+ * milestone, update the GH milestone in its already-mapped repo; otherwise
+ * create one in `repoId` and persist the map (with `projectRepoId` set).
  */
 export async function syncMilestoneToGitHub(opts: {
   milestoneId: string;
+  repoId: string;
   actorMemberId: string;
 }): Promise<{ githubMilestoneNumber: number; url: string } | { error: string }> {
   const milestone = await prisma.milestone.findUnique({
@@ -497,20 +501,25 @@ export async function syncMilestoneToGitHub(opts: {
   });
   if (!milestone) return { error: "Milestone not found" };
 
-  const project = await prisma.project.findUnique({
-    where: { id: milestone.projectId },
-    select: { githubRepo: true },
-  });
-  if (!project?.githubRepo) return { error: "Project has no linked repo" };
-  const ref = parseRepoUrl(project.githubRepo);
+  const projectRepo = await prisma.projectRepo.findUnique({ where: { id: opts.repoId } });
+  if (!projectRepo || projectRepo.projectId !== milestone.projectId) {
+    return { error: "Repo not linked to this project" };
+  }
+  const ref = parseRepoUrl(projectRepo.slug);
   if (!ref) return { error: "Invalid repo identifier" };
-
-  const o = await octokitForProject(milestone.projectId, opts.actorMemberId);
-  if (!o) return { error: "GitHub auth required" };
 
   const existing = await prisma.gitHubMilestoneMap.findUnique({
     where: { milestoneId: milestone.id },
   });
+  // A milestone maps to exactly one GitHub milestone. If it's already synced
+  // to a different repo, `existing.githubMilestoneNumber` is meaningless
+  // against `repoId` — don't silently write to the wrong repo/number.
+  if (existing?.projectRepoId && existing.projectRepoId !== projectRepo.id) {
+    return { error: "This milestone is already synced to a different repo" };
+  }
+
+  const o = await octokitForRepo(projectRepo.id, opts.actorMemberId);
+  if (!o) return { error: "GitHub auth required" };
 
   const ghState = milestone.status === "COMPLETED" || milestone.status === "CANCELLED" ? "closed" : "open";
 
@@ -527,7 +536,11 @@ export async function syncMilestoneToGitHub(opts: {
       });
       await prisma.gitHubMilestoneMap.update({
         where: { id: existing.id },
-        data: { lastSyncedAt: new Date() },
+        data: {
+          lastSyncedAt: new Date(),
+          projectRepoId: projectRepo.id,
+          repoFullName: projectRepo.slug,
+        },
       });
       return { githubMilestoneNumber: res.data.number, url: res.data.html_url };
     } catch (err: any) {
@@ -549,7 +562,8 @@ export async function syncMilestoneToGitHub(opts: {
       projectId: milestone.projectId,
       milestoneId: milestone.id,
       githubMilestoneNumber: created.number,
-      repoFullName: `${ref.owner}/${ref.repo}`,
+      repoFullName: projectRepo.slug,
+      projectRepoId: projectRepo.id,
       lastSyncedAt: new Date(),
     },
   });
@@ -558,7 +572,9 @@ export async function syncMilestoneToGitHub(opts: {
 
 /**
  * Fetch the GitHub milestone progress (open/closed issue counts) for a single
- * mapped ClubPM milestone. Returns null if unmapped or fetch fails.
+ * mapped ClubPM milestone. Repo-scoped via the map's own `projectRepoId`
+ * (multi-repo, Workstream B) rather than the project's single legacy repo.
+ * Returns null if unmapped or fetch fails.
  */
 export async function getMappedMilestoneProgress(opts: {
   milestoneId: string;
@@ -570,7 +586,11 @@ export async function getMappedMilestoneProgress(opts: {
   if (!map) return null;
   const ref = parseRepoUrl(map.repoFullName);
   if (!ref) return null;
-  const o = await octokitForProject(map.projectId, opts.actorMemberId);
+  // Prefer the mapped repo's own auth; fall back to the legacy project-level
+  // path for pre-migration maps that somehow lack `projectRepoId`.
+  const o = map.projectRepoId
+    ? await octokitForRepo(map.projectRepoId, opts.actorMemberId)
+    : await octokitForProject(map.projectId, opts.actorMemberId);
   if (!o) return null;
   const ms = await getMilestone(o, ref, map.githubMilestoneNumber);
   if (!ms) return null;
@@ -584,23 +604,25 @@ export async function getMappedMilestoneProgress(opts: {
 
 /**
  * Read repo contributors and try to match each `login` to an existing Member
- * via `githubLogin`. Returns {linked, unmatched}.
+ * via `githubLogin`. Returns {linked, unmatched}. Repo-scoped (multi-repo,
+ * Workstream B): `repoId` selects which of the project's linked repos to
+ * read contributors from.
  */
 export async function discoverContributors(opts: {
   projectId: string;
+  repoId: string;
   actorMemberId: string;
 }): Promise<{
   linked:    { login: string; avatarUrl: string | null; contributions: number; memberId: string; displayName: string }[];
   unmatched: { login: string; avatarUrl: string | null; contributions: number }[];
 } | { error: string }> {
-  const project = await prisma.project.findUnique({
-    where: { id: opts.projectId },
-    select: { githubRepo: true },
-  });
-  if (!project?.githubRepo) return { error: "Project has no linked repo" };
-  const ref = parseRepoUrl(project.githubRepo);
+  const projectRepo = await prisma.projectRepo.findUnique({ where: { id: opts.repoId } });
+  if (!projectRepo || projectRepo.projectId !== opts.projectId) {
+    return { error: "Repo not linked to this project" };
+  }
+  const ref = parseRepoUrl(projectRepo.slug);
   if (!ref) return { error: "Invalid repo identifier" };
-  const o = await octokitForProject(opts.projectId, opts.actorMemberId);
+  const o = await octokitForRepo(projectRepo.id, opts.actorMemberId);
   if (!o) return { error: "GitHub auth required" };
 
   const contribs = await listRepoContributors(o, ref);
@@ -705,7 +727,9 @@ void listMilestones;
 // Phase 3: webhook event handlers
 //
 // Each handler:
-//   - finds the project(s) linked to the webhook's repo via Project.githubRepo
+//   - finds the project(s) linked to the webhook's repo via ProjectRepo.slug
+//     (multi-repo, Workstream B — a repo may be linked to more than one
+//     project, so this stays a findMany)
 //   - reconciles GitHubLink rows
 //   - emits ActivityLog entries (visible in the project's Activity tab)
 //   - sends Notifications where appropriate
@@ -713,11 +737,12 @@ void listMilestones;
 // Handlers swallow errors so a single bad delivery doesn't break the receiver.
 // ─────────────────────────────────────────────────────────────
 
-async function projectsForRepo(repoFullName: string): Promise<{ id: string }[]> {
-  return prisma.project.findMany({
-    where: { githubRepo: repoFullName },
-    select: { id: true },
+async function projectsForRepo(repoFullName: string): Promise<{ id: string; repoId: string }[]> {
+  const repos = await prisma.projectRepo.findMany({
+    where: { slug: repoFullName },
+    select: { projectId: true, id: true },
   });
+  return repos.map(r => ({ id: r.projectId, repoId: r.id }));
 }
 
 async function notifyTaskAssignees(taskId: string, opts: {

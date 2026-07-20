@@ -254,6 +254,7 @@ model Project {
   githubBlockDoneOnCiFail Boolean                     @default(true)
   githubLinks             GitHubLink[]
   githubMilestoneMaps     GitHubMilestoneMap[]
+  repos                   ProjectRepo[]
   tags                    Tag[]
   members                 ProjectMember[]
   tasks                   Task[]
@@ -603,17 +604,39 @@ model GitHubLink {
 // repo re-link (older mappings stay queryable but inactive).
 
 model GitHubMilestoneMap {
-  id                    String    @id @default(cuid())
-  project               Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  id                    String       @id @default(cuid())
+  project               Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
   projectId             String
-  milestoneId           String    @unique
+  milestoneId           String       @unique
   githubMilestoneNumber Int
   repoFullName          String
+  // Which linked repo (ProjectRepo) this mapping targets (multi-repo phase 1).
+  // Nullable + SetNull so a repo removal doesn't cascade-delete history.
+  projectRepo           ProjectRepo? @relation(fields: [projectRepoId], references: [id], onDelete: SetNull)
+  projectRepoId         String?
   lastSyncedAt          DateTime?
-  createdAt             DateTime  @default(now())
+  createdAt             DateTime     @default(now())
 
   @@index([projectId])
   @@index([repoFullName, githubMilestoneNumber])
+}
+
+// ── Multiple GitHub repos per project (Workstream B) ──────────
+// All repos are fully equal (no "primary"). Project.githubRepo/githubInstallId/
+// githubBlockDoneOnCiFail are kept temporarily for backward compatibility until
+// all read paths move to ProjectRepo (see backend/scripts/backfillProjectRepos.ts).
+model ProjectRepo {
+  id                String               @id @default(cuid())
+  project           Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId         String
+  slug              String // "owner/repo"
+  installId         Int? // per-repo GitHub App installation
+  blockDoneOnCiFail Boolean              @default(true)
+  createdById       String?
+  createdAt         DateTime             @default(now())
+  milestoneMaps     GitHubMilestoneMap[]
+
+  @@unique([projectId, slug])
 }
 
 model Tag {
@@ -1658,4 +1681,17 @@ model VaultBomEdge {
 
   @@id([parentId, childId])
   @@index([childId])
+}
+
+// ── Google Drive bot account (Workstream A) ───────────────────
+// Singleton (id is always "singleton") holding the OAuth refresh token for
+// the single Drive "bot" account used for both viewing and uploading.
+model GoogleDriveCredential {
+  id            String   @id @default("singleton")
+  refreshToken  String // encrypted via encryptSecret
+  accountEmail  String
+  scope         String
+  connectedById String?
+  connectedAt   DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }

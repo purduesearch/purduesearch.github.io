@@ -4272,7 +4272,8 @@ html::-webkit-scrollbar { display: none; }
 
 /* -- Club PM ------------------------------------------------- */
 
-.clubpm-app {
+.clubpm-app,
+.clubpm-portal {
   --color-surface-50:        var(--pm-bg-base);
   --color-surface-100:       var(--pm-bg-surface);
   --color-surface-200:       var(--pm-bg-elevated);
@@ -4461,7 +4462,8 @@ html::-webkit-scrollbar { display: none; }
   --clubpm-shadow-glow:       var(--pm-glow-teal);
 }
 
-.clubpm-app {
+.clubpm-app,
+.clubpm-portal {
   font-family: var(--pm-font-body);
 }
 
@@ -4678,7 +4680,8 @@ html::-webkit-scrollbar { display: none; }
 
 /* -- Club PM Visual Fixes --------------------------------------- */
 
-.clubpm-app {
+.clubpm-app,
+.clubpm-portal {
   color: #ffffff !important;
   padding-top: 100px;
 }
@@ -4688,7 +4691,8 @@ html::-webkit-scrollbar { display: none; }
   padding-top: 0;
 }
 
-.clubpm-app h1, .clubpm-app h2, .clubpm-app h3, .clubpm-app p, .clubpm-app span {
+.clubpm-app h1, .clubpm-app h2, .clubpm-app h3, .clubpm-app p, .clubpm-app span,
+.clubpm-portal h1, .clubpm-portal h2, .clubpm-portal h3, .clubpm-portal p, .clubpm-portal span {
   color: inherit !important;
 }
 
@@ -17703,6 +17707,7 @@ html::-webkit-scrollbar { display: none; }
   font-size: 12px;
   cursor: pointer;
 }
+.cpm-gh-refresh-btn i { color: inherit; }
 .cpm-gh-edit-btn:hover,
 .cpm-gh-refresh-btn:hover {
   background: var(--clubpm-surface-200, #1a1d22);

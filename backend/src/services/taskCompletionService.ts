@@ -4,6 +4,7 @@ import { logAuditEvent } from "./activityService.js";
 import { createNotification } from "./notificationCrud.js";
 import { queueDm } from "./dmBatcher.js";
 import { getTask, updateTask } from "./taskService.js";
+import { octokitForRepo, parseRepoUrl, getPull } from "./githubService.js";
 
 // ── Shared task-completion side effects ─────────────────────────────
 //
@@ -19,32 +20,75 @@ type UpdatedTask = Awaited<ReturnType<typeof updateTask>>;
 
 // ── CI gate ──────────────────────────────────────────────────────────
 //
-// If the project requires passing CI and the most recent CI activity for
-// the task's open/draft PR is a failure, the →DONE transition is blocked.
-// Must be called BEFORE the task is updated (mirrors the inline check that
-// used to live in PATCH /:id).
-export async function assertCiGatePasses(taskId: string, projectId: string): Promise<string | null> {
-  const project = await prisma.project.findUnique({
-    where: { id: projectId },
-    select: { githubBlockDoneOnCiFail: true },
-  });
-  if (!project?.githubBlockDoneOnCiFail) return null;
-
-  const openPr = await prisma.gitHubLink.findFirst({
+// If the linked PR's own repo (ProjectRepo, multi-repo Workstream B) requires
+// passing CI and the most recent CI signal for the task's open/draft PR in
+// that repo is a failure, the →DONE transition is blocked. Must be called
+// BEFORE the task is updated (mirrors the inline check that used to live in
+// PATCH /:id).
+//
+// Gating is now per-repo (`ProjectRepo.blockDoneOnCiFail`), not per-project
+// (`Project.githubBlockDoneOnCiFail`, retained only for pre-migration data).
+// A task can have PR links across multiple repos; each is checked against
+// its own repo's gating flag. If a linked PR's repo has no `ProjectRepo` row
+// (not yet migrated / repo since removed), gating is treated as disabled for
+// that PR rather than blocking the transition.
+//
+// `actorMemberId` is optional — existing callers (PATCH /api/tasks/:id,
+// PATCH /api/tasks/bulk) don't thread the acting member through yet. When
+// present it's used to fetch an authenticated Octokit (via `octokitForRepo`)
+// for a live CI-status check; otherwise (or if no Octokit can be built) this
+// falls back to the most-recently-recorded webhook CI activity, same as
+// before.
+export async function assertCiGatePasses(
+  taskId: string,
+  projectId: string,
+  actorMemberId?: string
+): Promise<string | null> {
+  const openPrLinks = await prisma.gitHubLink.findMany({
     where: { taskId, kind: "PR", state: { in: ["open", "draft"] } },
   });
-  if (!openPr) return null;
+  if (openPrLinks.length === 0) return null;
 
-  const lastCi = await prisma.activityLog.findFirst({
-    where: {
-      taskId,
-      eventType: { in: ["GITHUB_CI_PASSED", "GITHUB_CI_FAILED"] },
-    },
-    orderBy: { createdAt: "desc" },
-  });
-  if (lastCi?.eventType === "GITHUB_CI_FAILED") {
-    return "Cannot mark as done: a linked PR has failing CI checks. Resolve them or disable CI gating in project settings.";
+  for (const openPr of openPrLinks) {
+    const projectRepo = await prisma.projectRepo.findFirst({
+      where: { projectId, slug: openPr.repoFullName },
+    });
+    // No ProjectRepo row for this PR's repo → gating disabled for it.
+    if (!projectRepo?.blockDoneOnCiFail) continue;
+
+    let ciFailed: boolean | null = null;
+
+    // Prefer a live check against GitHub when we can build an authenticated client.
+    if (openPr.refNumber) {
+      const ref = parseRepoUrl(openPr.repoFullName);
+      if (ref) {
+        const o = await octokitForRepo(projectRepo.id, actorMemberId);
+        if (o) {
+          const pr = await getPull(o, ref, openPr.refNumber);
+          if (pr && pr.checksStatus !== "none") {
+            ciFailed = pr.checksStatus === "failure";
+          }
+        }
+      }
+    }
+
+    // Fall back to the most recently recorded webhook CI activity for this task.
+    if (ciFailed === null) {
+      const lastCi = await prisma.activityLog.findFirst({
+        where: {
+          taskId,
+          eventType: { in: ["GITHUB_CI_PASSED", "GITHUB_CI_FAILED"] },
+        },
+        orderBy: { createdAt: "desc" },
+      });
+      ciFailed = lastCi?.eventType === "GITHUB_CI_FAILED";
+    }
+
+    if (ciFailed) {
+      return "Cannot mark as done: a linked PR has failing CI checks. Resolve them or disable CI gating in project settings.";
+    }
   }
+
   return null;
 }
 

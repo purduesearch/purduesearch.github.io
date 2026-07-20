@@ -105,7 +105,6 @@ function statusDotColor(status) {
 function CreateProjectModal({ onClose, onCreate }) {
   const [name, setName] = useState('');
   const [type, setType] = useState('ENGINEERING');
-  const [driveLink, setDriveLink] = useState('');
   const [targetDate, setTargetDate] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
@@ -115,7 +114,7 @@ function CreateProjectModal({ onClose, onCreate }) {
     if (!name.trim()) return;
     setSaving(true); setError(null);
     try {
-      const project = await post('/api/projects', { name: name.trim(), type, driveLink: driveLink.trim() || undefined, targetDate: targetDate || undefined });
+      const project = await post('/api/projects', { name: name.trim(), type, targetDate: targetDate || undefined });
       onCreate(project);
       onClose();
     } catch (err) {
@@ -134,7 +133,6 @@ function CreateProjectModal({ onClose, onCreate }) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: 20 }}>
             {[
               { label: 'Project Name *', el: <input type="text" value={name} onChange={e => setName(e.target.value)} required placeholder="e.g. Lunar Rover" /> },
-              { label: 'Google Drive Link', el: <input type="url" value={driveLink} onChange={e => setDriveLink(e.target.value)} placeholder="https://drive.google.com/…" /> },
               { label: 'Target Date', el: <input type="date" value={targetDate} onChange={e => setTargetDate(e.target.value)} /> },
             ].map(({ label, el }) => (
               <div key={label}>

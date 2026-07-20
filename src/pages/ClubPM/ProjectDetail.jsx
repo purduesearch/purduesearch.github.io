@@ -3,7 +3,7 @@ import ReactMarkdown from "react-markdown";
 import { createPortal } from "react-dom";
 import { useParams, Link, useSearchParams, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
-import { get, post, patch, del, setNextRewardOrigin, getProgressSnapshot, saveProgressSnapshot, bulkArchive, unarchiveTask, getArchivedTasks, getProjectBlockers, createBlocker, updateBlocker } from "../../api/clubPmClient";
+import { get, post, patch, del, setNextRewardOrigin, getProgressSnapshot, saveProgressSnapshot, bulkArchive, unarchiveTask, getArchivedTasks, getProjectBlockers, createBlocker, updateBlocker, uploadProjectDriveFile, deleteProjectDriveFile } from "../../api/clubPmClient";
 import MemberBadge from "../../components/clubpm/MemberBadge";
 import AvatarPortrait from "../../components/clubpm/avatar/AvatarPortrait";
 import { useClubPmAuth } from "../../clubpm/ClubPmAuth";
@@ -133,7 +133,6 @@ const NAV_TABS = [
   { id: "tasks",      label: "Tasks",                  icon: "📋" },
   { id: "milestones", label: "Milestones & Updates",   icon: "🎯" },
   { id: "files",      label: "Files",                  icon: "📁" },
-  { id: "vault",      label: "Vault",                  icon: "🗄️" },
   { id: "reports",    label: "Reports",                icon: "📊" },
   { id: "ai",         label: "AI",                     icon: "🤖" },
 ];
@@ -1914,6 +1913,35 @@ function DriveFilesPanel({ project, isAdmin, onProjectChange }) {
 
   useEffect(() => { fetchFiles(); }, [fetchFiles]);
 
+  const [uploading, setUploading] = useState(false);
+
+  const handleUpload = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setUploading(true);
+    try {
+      await uploadProjectDriveFile(project.id, file);
+      toast.success(`Uploaded ${file.name}`);
+      fetchFiles();
+    } catch (err) {
+      toast.error(err?.message || "Upload failed");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleDelete = async (file) => {
+    if (!window.confirm(`Delete "${file.name}" from Drive?`)) return;
+    try {
+      await deleteProjectDriveFile(project.id, file.id);
+      toast.success("Deleted");
+      fetchFiles();
+    } catch (err) {
+      toast.error(err?.message || "Delete failed");
+    }
+  };
+
   if (state.loading) {
     return (
       <div className="cpm-drive-files-empty">
@@ -1939,28 +1967,12 @@ function DriveFilesPanel({ project, isAdmin, onProjectChange }) {
       <div className="cpm-drive-files-empty">
         <i className="fab fa-google-drive" style={{ fontSize: 36, color: "#4285F4", marginBottom: 10 }} aria-hidden="true" />
         <h3 style={{ margin: "0 0 4px", fontSize: 15, color: "var(--clubpm-text-primary)" }}>
-          No Drive folder linked
+          Google Drive isn't connected
         </h3>
-        <p>This project doesn't have a Drive folder yet.</p>
-        {isAdmin ? (
-          <>
-            <button className="clubpm-btn-primary" onClick={() => setEditing(true)} style={{ marginTop: 12 }}>
-              Link a folder
-            </button>
-            {editing && (
-              <EditDriveFolderModal
-                projectId={project.id}
-                currentLink={null}
-                onClose={() => setEditing(false)}
-                onSaved={updated => { onProjectChange?.(updated); fetchFiles(); }}
-              />
-            )}
-          </>
-        ) : (
-          <p style={{ fontSize: 11, opacity: 0.7, marginTop: 8 }}>
-            Ask an admin to link one.
-          </p>
-        )}
+        <p>Files live in a bot-managed Drive folder that's created automatically once Google Drive is connected.</p>
+        <p style={{ fontSize: 11, opacity: 0.7, marginTop: 8 }}>
+          {isAdmin ? "Connect it under Admin → Integrations." : "Ask an admin to connect Google Drive."}
+        </p>
       </div>
     );
   }
@@ -2008,6 +2020,10 @@ function DriveFilesPanel({ project, isAdmin, onProjectChange }) {
           </span>
         </div>
         <div className="cpm-drive-files-header-actions">
+          <label className="cpm-drive-files-refresh" style={{ cursor: uploading ? "default" : "pointer" }} title="Upload a file">
+            <i className={`fas ${uploading ? "fa-spinner fa-spin" : "fa-upload"}`} aria-hidden="true" /> {uploading ? "Uploading…" : "Upload"}
+            <input type="file" hidden onChange={handleUpload} disabled={uploading} />
+          </label>
           <button type="button" className="cpm-drive-files-refresh" onClick={fetchFiles} title="Refresh">
             <i className="fas fa-sync" aria-hidden="true" /> Refresh
           </button>
@@ -2023,7 +2039,7 @@ function DriveFilesPanel({ project, isAdmin, onProjectChange }) {
       </header>
 
       {files.length === 0 ? (
-        <div className="cpm-drive-files-empty">This Drive folder is empty.</div>
+        <div className="cpm-drive-files-empty">No files yet — use Upload to add one.</div>
       ) : (
         <div className="cpm-drive-grid">
           {files.map(f => {
@@ -2054,6 +2070,16 @@ function DriveFilesPanel({ project, isAdmin, onProjectChange }) {
                   ) : (
                     <i className={`fas ${meta.icon}`} aria-hidden="true" />
                   )}
+                  <button
+                    type="button"
+                    className="cpm-drive-card-open-btn"
+                    style={{ left: 6, right: "auto", background: "rgba(176,42,42,0.72)" }}
+                    onClick={e => { e.stopPropagation(); handleDelete(f); }}
+                    title="Delete file"
+                    aria-label="Delete file"
+                  >
+                    <i className="fas fa-trash" aria-hidden="true" />
+                  </button>
                   <a
                     href={open}
                     target="_blank"
@@ -2096,10 +2122,13 @@ function DriveFilesPanel({ project, isAdmin, onProjectChange }) {
 // sessionStorage per project so a user reopening the same project sees the
 // pane they were on; users opening a *different* project start on Drive.
 
-function FilesTabContent({ project, isAdmin, onProjectChange }) {
+function FilesTabContent({ project, member, isAdmin, onProjectChange }) {
   const storageKey = `cpm.files.sub.${project.id}`;
   const [sub, setSub] = useState(() => {
-    try { return sessionStorage.getItem(storageKey) === "github" ? "github" : "drive"; }
+    try {
+      const stored = sessionStorage.getItem(storageKey);
+      return stored === "github" || stored === "vault" ? stored : "drive";
+    }
     catch { return "drive"; }
   });
 
@@ -2122,6 +2151,7 @@ function FilesTabContent({ project, isAdmin, onProjectChange }) {
         {[
           { id: "drive",  label: "Drive",  icon: "fab fa-google-drive" },
           { id: "github", label: "GitHub", icon: "fab fa-github" },
+          { id: "vault",  label: "Vault",  icon: "fas fa-database" },
         ].map(opt => (
           <button
             key={opt.id}
@@ -2151,11 +2181,10 @@ function FilesTabContent({ project, isAdmin, onProjectChange }) {
           isAdmin={isAdmin}
           onProjectChange={onProjectChange}
         />
+      ) : sub === "vault" ? (
+        <VaultTab project={project} member={member} isAdmin={isAdmin} />
       ) : (
-        <GitHubPanel
-          project={project}
-          onProjectChange={onProjectChange}
-        />
+        <GitHubPanel project={project} />
       )}
     </div>
   );
@@ -3436,18 +3465,9 @@ export default function ProjectDetail() {
             <div className="cpm-proj-main-body" style={{ padding: "24px" }}>
               <FilesTabContent
                 project={project}
-                isAdmin={!!member?.isAdmin}
-                onProjectChange={updated => setProject(prev => ({ ...prev, ...updated }))}
-              />
-            </div>
-          )}
-
-          {activeTab === "vault" && (
-            <div className="cpm-proj-main-body" style={{ padding: "24px" }}>
-              <VaultTab
-                project={project}
                 member={member}
                 isAdmin={!!member?.isAdmin}
+                onProjectChange={updated => setProject(prev => ({ ...prev, ...updated }))}
               />
             </div>
           )}

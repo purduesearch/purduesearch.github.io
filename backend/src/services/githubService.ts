@@ -80,6 +80,10 @@ export async function octokitForMember(memberId: string): Promise<Octokit | null
  * Pick the best Octokit for a project's repo.
  * Preference: installation (highest rate-limit ceiling, no user-budget burn)
  *   → caller's OAuth → null.
+ *
+ * @deprecated Legacy single-repo-per-project path (reads `Project.githubInstallId`).
+ * Kept for callers that have not yet migrated to `ProjectRepo` (multi-repo,
+ * Workstream B); prefer `octokitForRepo` for anything repo-scoped.
  */
 export async function octokitForProject(
   projectId: string,
@@ -91,6 +95,27 @@ export async function octokitForProject(
   });
   if (project?.githubInstallId) {
     const o = octokitForInstallation(project.githubInstallId);
+    if (o) return o;
+  }
+  if (fallbackMemberId) return octokitForMember(fallbackMemberId);
+  return null;
+}
+
+/**
+ * Pick the best Octokit for a specific `ProjectRepo` (multi-repo,
+ * Workstream B). Preference: that repo's own App installation → caller's
+ * OAuth → null.
+ */
+export async function octokitForRepo(
+  projectRepoId: string,
+  fallbackMemberId?: string
+): Promise<Octokit | null> {
+  const pr = await prisma.projectRepo.findUnique({
+    where: { id: projectRepoId },
+    select: { installId: true },
+  });
+  if (pr?.installId) {
+    const o = octokitForInstallation(pr.installId);
     if (o) return o;
   }
   if (fallbackMemberId) return octokitForMember(fallbackMemberId);

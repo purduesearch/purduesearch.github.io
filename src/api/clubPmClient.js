@@ -335,6 +335,14 @@ export function uploadVaultFile(path, file, fields = {}, onProgress) {
   });
 }
 
+// Project Drive folder (bot-owned, drive.file scope). Upload streams through the
+// bot into the project's auto-provisioned folder; files are shared view-only.
+export function uploadProjectDriveFile(projectId, file, onProgress) {
+  return uploadVaultFile(`/api/projects/${projectId}/drive-files`, file, {}, onProgress);
+}
+export const deleteProjectDriveFile = (projectId, fileId) =>
+  del(`/api/projects/${projectId}/drive-files/${fileId}`);
+
 // ── Change requests (Constellation Vault CAD change management) ──
 
 export const listCrs   = (projectId, status) =>
@@ -428,3 +436,19 @@ export async function uploadBlogImage(file) {
 // reads `imageUrl` from the body and ignores the :id path param.
 export const suggestBlogAltText = (imageUrl) =>
   post('/api/outreach/submissions/blog/ai/alt-text', { imageUrl });
+
+// Google Drive bot account connection (Workstream A — see
+// docs/superpowers/specs/2026-07-06-clubpm-drive-multirepo-design.md §3).
+// Connect is a full-page redirect to /auth/google (see GoogleDriveConnectButton),
+// not a fetch call, so there is no connect() helper here.
+export const getGoogleDriveStatus = () => get("/auth/google/status");
+export const disconnectGoogleDrive = () => del("/auth/google");
+
+// Multi-repo GitHub integration (Workstream B — see
+// docs/superpowers/specs/2026-07-06-clubpm-drive-multirepo-design.md §4).
+// All repos linked to a project are equal (no "primary" repo); adding a repo
+// appends a new ProjectRepo row rather than replacing a single project field.
+export const listProjectRepos  = (projectId) => get(`/api/github/projects/${projectId}/repos`);
+export const addProjectRepo    = (projectId, url) => post(`/api/github/projects/${projectId}/repos`, { url });
+export const updateProjectRepo = (repoId, body) => patch(`/api/github/repos/${repoId}`, body);
+export const removeProjectRepo = (repoId) => del(`/api/github/repos/${repoId}`);
