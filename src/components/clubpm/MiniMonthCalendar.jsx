@@ -53,22 +53,23 @@ export default function MiniMonthCalendar({ selected = [], onChange }) {
   }
 
   return (
-    <div className="pm-cal-picker" onMouseLeave={() => { /* keep drag; window mouseup ends it */ }}>
-      <div className="pm-cal-picker-head">
-        <button type="button" className="pm-cal-nav" onClick={() => shiftMonth(-1)} aria-label="Previous month">
+    <div className="pm-dpk">
+      <div className="pm-dpk-head">
+        <button type="button" className="pm-dpk-nav" onClick={() => shiftMonth(-1)} aria-label="Previous month">
           <i className="fas fa-chevron-left" />
         </button>
-        <span className="pm-cal-picker-month">{MONTHS_FULL[view.month]} {view.year}</span>
-        <button type="button" className="pm-cal-nav" onClick={() => shiftMonth(1)} aria-label="Next month">
+        <span className="pm-dpk-month">{MONTHS_FULL[view.month]} {view.year}</span>
+        <button type="button" className="pm-dpk-nav" onClick={() => shiftMonth(1)} aria-label="Next month">
           <i className="fas fa-chevron-right" />
         </button>
       </div>
 
-      <div className="pm-cal-grid" onDragStart={e => e.preventDefault()}>
-        {WEEKDAYS_ABBR.map(w => <div key={w} className="pm-cal-dow">{w}</div>)}
+      <div className="pm-dpk-grid" onDragStart={e => e.preventDefault()}>
+        {WEEKDAYS_ABBR.map(w => <div key={w} className="pm-dpk-dow">{w}</div>)}
         {weeks.flat().map((day, i) => {
-          if (day == null) return <div key={`pad-${i}`} className="pm-cal-day pm-cal-day-pad" />;
-          const ymd = toYmd(view.year, view.month, day);
+          if (day == null) return <div key={`pad-${i}`} className="pm-dpk-day pm-dpk-day-pad" />;
+          // toYmd expects a 1-indexed month; view.month is 0-indexed.
+          const ymd = toYmd(view.year, view.month + 1, day);
           const isSel = selectedSet.has(ymd);
           const isPast = ymd < today;
           const isToday = ymd === today;
@@ -77,7 +78,7 @@ export default function MiniMonthCalendar({ selected = [], onChange }) {
               key={ymd}
               type="button"
               disabled={isPast}
-              className={`pm-cal-day${isSel ? ' is-sel' : ''}${isToday ? ' is-today' : ''}${isPast ? ' is-past' : ''}`}
+              className={`pm-dpk-day${isSel ? ' is-sel' : ''}${isToday ? ' is-today' : ''}${isPast ? ' is-past' : ''}`}
               onMouseDown={() => { if (!isPast) cellDown(ymd, isSel); }}
               onMouseEnter={() => { if (!isPast) cellEnter(ymd); }}
             >
@@ -87,7 +88,7 @@ export default function MiniMonthCalendar({ selected = [], onChange }) {
         })}
       </div>
 
-      <div className="pm-cal-picker-foot">
+      <div className="pm-dpk-foot">
         <span>{selected.length} date{selected.length === 1 ? '' : 's'} selected</span>
         {selected.length > 0 && (
           <button type="button" className="cpm-link-btn" onClick={() => onChange([])}>Clear</button>

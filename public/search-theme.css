@@ -23433,36 +23433,40 @@ button.cpm-badge-tile:disabled { opacity: 0.7; cursor: progress; }
 }
 
 /* when2meet-style month picker */
-.pm-cal-picker {
+/* Namespaced pm-dpk-* to avoid colliding with CalendarView's .pm-cal-day
+   (which sets min-height:90px and would blow these cells up via aspect-ratio). */
+.pm-dpk {
   border: 1px solid var(--clubpm-border, #2a2f3a); border-radius: 10px;
   padding: 10px 12px; background: var(--clubpm-surface-100, #14171d); user-select: none;
+  max-width: 100%; box-sizing: border-box;
 }
-.pm-cal-picker-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
-.pm-cal-picker-month { font-size: 13px; font-weight: 700; color: var(--clubpm-text-primary, #e8eaed); }
-.pm-cal-nav {
-  width: 28px; height: 28px; border-radius: 7px; cursor: pointer;
+.pm-dpk-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.pm-dpk-month { font-size: 13px; font-weight: 700; color: var(--clubpm-text-primary, #e8eaed); }
+.pm-dpk-nav {
+  width: 28px; height: 28px; border-radius: 7px; cursor: pointer; flex-shrink: 0;
   background: var(--clubpm-surface-200, #1a1d24); border: 1px solid var(--clubpm-border, #2a2f3a);
   color: var(--clubpm-text-primary, #e8eaed); display: flex; align-items: center; justify-content: center;
 }
-.pm-cal-nav:hover { border-color: var(--pm-accent-teal, #00e5cc); }
-.pm-cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
-.pm-cal-dow {
-  text-align: center; font-size: 10px; font-weight: 600; padding-bottom: 2px;
+.pm-dpk-nav:hover { border-color: var(--pm-accent-teal, #00e5cc); }
+/* minmax(0,1fr) so the 7 columns always divide the width and never overflow. */
+.pm-dpk-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px; }
+.pm-dpk-dow {
+  text-align: center; font-size: 10px; font-weight: 600; padding-bottom: 2px; min-width: 0;
   color: var(--clubpm-text-muted, #8a92a0);
 }
-.pm-cal-day {
-  aspect-ratio: 1 / 1; border-radius: 7px; cursor: pointer; font-size: 12px;
+.pm-dpk-day {
+  height: 38px; min-width: 0; border-radius: 7px; cursor: pointer; font-size: 12px;
   background: var(--clubpm-surface-200, #1a1d24);
   border: 1px solid transparent; color: var(--clubpm-text-primary, #e8eaed);
   display: flex; align-items: center; justify-content: center;
   transition: background 0.1s, border-color 0.1s;
 }
-.pm-cal-day:hover:not(.is-past):not(.is-sel) { border-color: var(--pm-accent-teal, #00e5cc); }
-.pm-cal-day.is-sel { background: var(--pm-accent-teal, #00e5cc); color: #04211f; font-weight: 700; }
-.pm-cal-day.is-today:not(.is-sel) { border-color: var(--pm-accent-amber, #f5a623); }
-.pm-cal-day.is-past { opacity: 0.28; cursor: not-allowed; }
-.pm-cal-day-pad { background: transparent; cursor: default; }
-.pm-cal-picker-foot {
+.pm-dpk-day:hover:not(.is-past):not(.is-sel) { border-color: var(--pm-accent-teal, #00e5cc); }
+.pm-dpk-day.is-sel { background: var(--pm-accent-teal, #00e5cc); color: #04211f; font-weight: 700; }
+.pm-dpk-day.is-today:not(.is-sel) { border-color: var(--pm-accent-amber, #f5a623); }
+.pm-dpk-day.is-past { opacity: 0.28; cursor: not-allowed; }
+.pm-dpk-day-pad { background: transparent; cursor: default; }
+.pm-dpk-foot {
   display: flex; align-items: center; justify-content: space-between; margin-top: 8px;
   font-size: 11px; color: var(--clubpm-text-muted, #8a92a0);
 }
