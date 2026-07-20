@@ -329,6 +329,7 @@ function eventTypeToXpSource(e: RewardEventType): XpSource {
     case "KUDOS_RECEIVED":               return "KUDOS";
     case "BLOG_POST_PUBLISHED":          return "BLOG_POST";
     case "EARLY_DELIVERY_BONUS":         return "EARLY_BONUS";
+    case "MEETING_AVAILABILITY_SUBMITTED": return "MEETING";
   }
 }
 
@@ -341,6 +342,7 @@ function eventTypeToDoubloonSource(e: RewardEventType): DoubloonSource {
     case "KUDOS_RECEIVED":               return "KUDOS";
     case "BLOG_POST_PUBLISHED":          return "BLOG_POST";
     case "EARLY_DELIVERY_BONUS":         return "EARLY_BONUS";
+    case "MEETING_AVAILABILITY_SUBMITTED": return "MEETING";
   }
 }
 

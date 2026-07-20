@@ -115,6 +115,9 @@ enum NotificationType {
   VAULT_CR_SUBMITTED
   VAULT_CR_DECIDED
   VAULT_CHECKIN
+  MEETING_POLL_INVITE
+  MEETING_POLL_FINALIZED
+  MEETING_POLL_REMINDER
 }
 
 // ── Models ───────────────────────────────────────────────────
@@ -155,6 +158,9 @@ model Member {
   organizedEvents         Event[]              @relation("EventOrganizer")
   attendedEvents          Event[]              @relation("EventAttendees")
   rsvps                   EventRsvp[]          @relation("MemberRsvps")
+  organizedPolls          MeetingPoll[]        @relation("PollOrganizer")
+  invitedPolls            MeetingPoll[]        @relation("PollInvitees")
+  pollResponses           MeetingResponse[]    @relation("MemberPollResponses")
   submissions             OutreachSubmission[] @relation("SubmissionAuthor")
   reviewedSubmissions     OutreachSubmission[] @relation("SubmissionReviewer")
   outreachComments        OutreachComment[]    @relation("OutreachCommentAuthor")
@@ -266,6 +272,7 @@ model Project {
   notificationTargets     ProjectNotificationTarget[]
   notifications           Notification[]
   events                  Event[]
+  meetingPolls            MeetingPoll[]
   submissions             OutreachSubmission[]
   createdAt               DateTime                    @default(now())
   updatedAt               DateTime                    @updatedAt
@@ -351,6 +358,7 @@ model Task {
 
   // ── Events ──
   priorityEvents Event[] @relation("EventPriorityTasks")
+  priorityPolls  MeetingPoll[] @relation("PollPriorityTasks")
 
   activityLogs  ActivityLog[]
   notifications Notification[]
@@ -767,6 +775,7 @@ model Event {
 
   submissions OutreachSubmission[]
   rsvps       EventRsvp[]
+  pollLink    MeetingPoll? @relation("PollEvent")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1178,6 +1187,79 @@ model EventRsvp {
   @@index([memberId])
 }
 
+// ── Meeting Scheduler (when2meet-style availability polls) ───
+
+enum MeetingPollStatus {
+  OPEN
+  FINALIZED
+  CANCELED
+}
+
+enum MeetingPollAudience {
+  INVITED // only invited members may respond
+  PROJECT // whole project team may respond
+  ANYONE  // anyone with the link (members + guests)
+}
+
+model MeetingPoll {
+  id          String  @id @default(cuid())
+  publicToken String  @unique @default(cuid()) // shareable /schedule/:token link
+  title       String
+  description String?
+  timezone    String  @default("America/New_York")
+
+  // Candidate slots are stored as their canonical UTC start instants. The grid
+  // is derived by grouping these by day; slotMinutes gives each slot's length.
+  slotMinutes      Int        @default(30)
+  slotStarts       DateTime[]
+  responseDeadline DateTime? // soft: drives reminders + display only
+
+  audience MeetingPollAudience @default(INVITED)
+  status   MeetingPollStatus   @default(OPEN)
+
+  organizer   Member? @relation("PollOrganizer", fields: [organizerId], references: [id], onDelete: SetNull)
+  organizerId String?
+
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  projectId String?
+
+  priorityTasks  Task[]   @relation("PollPriorityTasks")
+  invitedMembers Member[] @relation("PollInvitees")
+
+  // Finalization: the winning slot + the Event it produced (kept linked).
+  finalStart DateTime?
+  finalEnd   DateTime?
+  event      Event?    @relation("PollEvent", fields: [eventId], references: [id], onDelete: SetNull)
+  eventId    String?   @unique
+
+  reminderSentAt DateTime? // non-responder nudge idempotency
+  responses      MeetingResponse[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([projectId])
+}
+
+model MeetingResponse {
+  id       String       @id @default(cuid())
+  poll     MeetingPoll  @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  pollId   String
+  member   Member?      @relation("MemberPollResponses", fields: [memberId], references: [id], onDelete: SetNull)
+  memberId String?
+  guestName String?
+
+  slots    DateTime[] // subset of poll.slotStarts this respondent is available
+  rewarded Boolean    @default(false) // XP granted once per member per poll
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([pollId, memberId])
+  @@index([pollId])
+}
+
 // ── Engagement / Gamification ────────────────────────────────
 
 enum Rank {
@@ -1198,6 +1280,7 @@ enum RewardEventType {
   KUDOS_RECEIVED
   BLOG_POST_PUBLISHED
   EARLY_DELIVERY_BONUS
+  MEETING_AVAILABILITY_SUBMITTED
 }
 
 enum XpSource {
@@ -1208,6 +1291,7 @@ enum XpSource {
   BLOG_POST
   ADMIN_ADJUSTMENT
   EARLY_BONUS
+  MEETING
 }
 
 enum DoubloonSource {
@@ -1219,6 +1303,7 @@ enum DoubloonSource {
   SHOP_PURCHASE
   ADMIN_ADJUSTMENT
   EARLY_BONUS
+  MEETING
 }
 
 enum CosmeticCategory {
