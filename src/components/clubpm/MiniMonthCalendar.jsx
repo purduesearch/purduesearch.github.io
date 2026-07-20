@@ -1,0 +1,95 @@
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { monthGrid, toYmd, todayYmd, MONTHS_FULL, WEEKDAYS_ABBR } from './meetingPollUtils';
+
+/**
+ * when2meet-style multi-date picker: a month grid where clicking a day toggles
+ * it, and click-dragging paints a run of days on or off. Past days are disabled.
+ *
+ * Props:
+ *   selected: string[]           YYYY-MM-DD keys currently chosen
+ *   onChange: (string[]) => void
+ */
+export default function MiniMonthCalendar({ selected = [], onChange }) {
+  const today = todayYmd();
+  const initial = selected.length ? new Date(`${[...selected].sort()[0]}T12:00:00`) : new Date();
+  const [view, setView] = useState({ year: initial.getFullYear(), month: initial.getMonth() });
+
+  const selectedSet = new Set(selected);
+  const drag = useRef(null); // { mode: 'add' | 'remove' }
+
+  const apply = useCallback((ymd, mode) => {
+    const next = new Set(selected);
+    if (mode === 'add') next.add(ymd); else next.delete(ymd);
+    onChange([...next].sort());
+  }, [selected, onChange]);
+
+  useEffect(() => {
+    const end = () => { drag.current = null; };
+    window.addEventListener('mouseup', end);
+    return () => window.removeEventListener('mouseup', end);
+  }, []);
+
+  const weeks = monthGrid(view.year, view.month);
+
+  function shiftMonth(delta) {
+    setView(v => {
+      const m = v.month + delta;
+      const year = v.year + Math.floor(m / 12);
+      const month = ((m % 12) + 12) % 12;
+      return { year, month };
+    });
+  }
+
+  function cellDown(ymd, isSelected) {
+    const mode = isSelected ? 'remove' : 'add';
+    drag.current = { mode };
+    apply(ymd, mode);
+  }
+  function cellEnter(ymd) {
+    if (drag.current) apply(ymd, drag.current.mode);
+  }
+
+  return (
+    <div className="pm-cal-picker" onMouseLeave={() => { /* keep drag; window mouseup ends it */ }}>
+      <div className="pm-cal-picker-head">
+        <button type="button" className="pm-cal-nav" onClick={() => shiftMonth(-1)} aria-label="Previous month">
+          <i className="fas fa-chevron-left" />
+        </button>
+        <span className="pm-cal-picker-month">{MONTHS_FULL[view.month]} {view.year}</span>
+        <button type="button" className="pm-cal-nav" onClick={() => shiftMonth(1)} aria-label="Next month">
+          <i className="fas fa-chevron-right" />
+        </button>
+      </div>
+
+      <div className="pm-cal-grid" onDragStart={e => e.preventDefault()}>
+        {WEEKDAYS_ABBR.map(w => <div key={w} className="pm-cal-dow">{w}</div>)}
+        {weeks.flat().map((day, i) => {
+          if (day == null) return <div key={`pad-${i}`} className="pm-cal-day pm-cal-day-pad" />;
+          const ymd = toYmd(view.year, view.month, day);
+          const isSel = selectedSet.has(ymd);
+          const isPast = ymd < today;
+          const isToday = ymd === today;
+          return (
+            <button
+              key={ymd}
+              type="button"
+              disabled={isPast}
+              className={`pm-cal-day${isSel ? ' is-sel' : ''}${isToday ? ' is-today' : ''}${isPast ? ' is-past' : ''}`}
+              onMouseDown={() => { if (!isPast) cellDown(ymd, isSel); }}
+              onMouseEnter={() => { if (!isPast) cellEnter(ymd); }}
+            >
+              {day}
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="pm-cal-picker-foot">
+        <span>{selected.length} date{selected.length === 1 ? '' : 's'} selected</span>
+        {selected.length > 0 && (
+          <button type="button" className="cpm-link-btn" onClick={() => onChange([])}>Clear</button>
+        )}
+      </div>
+    </div>
+  );
+}

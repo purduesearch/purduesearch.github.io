@@ -61,7 +61,7 @@ export function serializePoll(poll: LoadedPoll, ctx: pollService.AccessContext) 
     createdAt: poll.createdAt,
     responderCount: agg.totalResponders,
     aggregate: agg,
-    responders: responders.map(r => ({ memberId: r.memberId, name: r.name })),
+    responders: responders.map(r => ({ memberId: r.memberId, name: r.name, avatarUrl: r.avatarUrl ?? null })),
     myResponse: mine ? { slots: mine.slots } : null,
     permissions: {
       canRespond: access.ok,

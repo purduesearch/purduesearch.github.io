@@ -136,7 +136,7 @@ function publicSerializePoll(poll: LoadedPoll) {
     organizerName:    poll.organizer?.displayName ?? null,
     projectName:      poll.project?.name ?? null,
     aggregate:        agg,
-    responders:       responders.map(r => ({ name: r.name, isGuest: !r.memberId })),
+    responders:       responders.map(r => ({ name: r.name, isGuest: !r.memberId, avatarUrl: r.avatarUrl ?? null })),
     canGuestRespond:  poll.audience === "ANYONE" && poll.status === "OPEN",
   };
 }
