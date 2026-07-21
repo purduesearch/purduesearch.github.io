@@ -21,10 +21,10 @@ async function hasProjectAccess(memberId: string, projectId: string): Promise<bo
 }
 
 async function getOrCreateKit(projectId: string, memberId: string) {
-  const existing = await prisma.projectPressKit.findUnique({ where: { projectId } });
-  if (existing) return existing;
-  return prisma.projectPressKit.create({
-    data: { projectId, createdById: memberId, config: DEFAULT_PRESS_KIT_CONFIG as unknown as Prisma.InputJsonValue },
+  return prisma.projectPressKit.upsert({
+    where: { projectId },
+    update: {},
+    create: { projectId, createdById: memberId, config: DEFAULT_PRESS_KIT_CONFIG as unknown as Prisma.InputJsonValue },
   });
 }
 
@@ -50,15 +50,15 @@ pressKitRouter.post("/projects/:projectId/press-kit/generate", async (req: Reque
     const kit = await getOrCreateKit(projectId, req.memberId!);
     const config = normalizePressKitConfig({ ...normalizePressKitConfig(kit.config), ...(req.body ?? {}) });
 
-    // Snapshot the current doc before overwriting (if any real content exists).
+    const doc = await generatePressKitContent(projectId, config);
+    if (!doc) { res.status(404).json({ error: "Project not found" }); return; }
+
+    // Snapshot the prior doc before overwriting (only after we know we have a new one).
     if (kit.contentJson) {
       await prisma.pressKitRevision.create({
         data: { pressKitId: kit.id, contentJson: kit.contentJson as Prisma.InputJsonValue, authorId: req.memberId! },
       });
     }
-
-    const doc = await generatePressKitContent(projectId, config);
-    if (!doc) { res.status(404).json({ error: "Project not found" }); return; }
 
     const updated = await prisma.projectPressKit.update({
       where: { id: kit.id },
