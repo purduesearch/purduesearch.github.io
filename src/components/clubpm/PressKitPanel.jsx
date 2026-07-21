@@ -27,7 +27,13 @@ export default function PressKitPanel({ project, canEdit }) {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [config, setConfig] = useState(null);
+  const [config, setConfig] = useState({
+    audience: 'GENERAL',
+    includedSections: ['masthead','about','aboutSearch','stats','building','timeline','tech','team','highlights','links','contact'],
+    accentColor: '#00e5cc',
+    contactEmail: '',
+    showContact: true,
+  });
   const [revisions, setRevisions] = useState([]);
   const [showRevs, setShowRevs] = useState(false);
   const editorRef = useRef(null);
@@ -116,6 +122,7 @@ export default function PressKitPanel({ project, canEdit }) {
             {AUDIENCES.map((a) => (
               <button key={a.id} type="button"
                 className={`presskit-chip${config.audience === a.id ? ' is-active' : ''}`}
+                aria-pressed={config.audience === a.id}
                 onClick={() => setConfig((c) => ({ ...c, audience: a.id }))}>{a.label}</button>
             ))}
           </div>
