@@ -22,7 +22,7 @@ import EditDriveFolderModal from "../../components/clubpm/EditDriveFolderModal";
 import GitHubPanel from "../../components/clubpm/github/GitHubPanel";
 import ActionPlanReview from "../../components/clubpm/ActionPlanReview";
 import VaultTab from "../../components/clubpm/vault/VaultTab";
-import { parseDriveUrl, getTypeMeta } from "../../utils/driveUtils";
+import { parseDriveUrl, getTypeMeta, getPreviewUrl } from "../../utils/driveUtils";
 import {
   DndContext,
   DragOverlay,
@@ -1968,7 +1968,10 @@ function DriveFilesPanel({ project, isAdmin, onProjectChange }) {
     );
   }
 
-  // Folder linked → view-only link-out.
+  // Folder linked → view-only inline embed of the folder's contents (Google's
+  // embeddedfolderview iframe — same mechanism as the eye-icon preview, so it
+  // works whenever the folder is shared "anyone with the link").
+  const embedUrl = getPreviewUrl(parsed);
   return (
     <div className="cpm-drive-files">
       <header className="cpm-drive-files-header">
@@ -1988,14 +1991,22 @@ function DriveFilesPanel({ project, isAdmin, onProjectChange }) {
         </div>
       </header>
 
-      <div className="cpm-drive-files-empty" style={{ marginTop: 4 }}>
-        <i className="fab fa-google-drive" style={{ fontSize: 32, color: "#4285F4", marginBottom: 10 }} aria-hidden="true" />
-        <p>This project's files live in a linked Google Drive folder.</p>
-        <p style={{ fontSize: 11, opacity: 0.7, marginTop: 2 }}>Open it in Drive to browse, add, or edit files.</p>
-        <a href={link} target="_blank" rel="noopener noreferrer" className="clubpm-btn-primary" style={{ marginTop: 12 }}>
-          Open folder in Drive <i className="fas fa-external-link-alt" aria-hidden="true" style={{ marginLeft: 6 }} />
-        </a>
-      </div>
+      {embedUrl ? (
+        <iframe
+          title="Drive folder contents"
+          src={embedUrl}
+          className="cpm-drive-folder-embed"
+          loading="lazy"
+        />
+      ) : (
+        <div className="cpm-drive-files-empty" style={{ marginTop: 4 }}>
+          <i className="fab fa-google-drive" style={{ fontSize: 32, color: "#4285F4", marginBottom: 10 }} aria-hidden="true" />
+          <p>This project's files live in a linked Google Drive folder.</p>
+          <a href={link} target="_blank" rel="noopener noreferrer" className="clubpm-btn-primary" style={{ marginTop: 12 }}>
+            Open folder in Drive <i className="fas fa-external-link-alt" aria-hidden="true" style={{ marginLeft: 6 }} />
+          </a>
+        </div>
+      )}
 
       {editModal}
     </div>
