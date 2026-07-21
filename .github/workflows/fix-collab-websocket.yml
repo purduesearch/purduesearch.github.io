@@ -185,16 +185,36 @@ jobs:
             echo " WEBSOCKET HANDSHAKE PROBES"
             echo "=========================================="
 
+            # ---- Node.js ws probe (definitive — uses the real ws library) ----
+            ws_node_probe() {
+              local url="$1"
+              cd "$BACKEND_DIR" 2>/dev/null || true
+              timeout 8 node -e "
+                const ws = require('ws');
+                const socket = new ws.WebSocket('$url');
+                const t = setTimeout(() => { console.log('TIMEOUT (5s)'); process.exit(2); }, 5000);
+                socket.on('open', () => { clearTimeout(t); console.log('101 CONNECTED'); socket.close(); process.exit(0); });
+                socket.on('error', (e) => { clearTimeout(t); console.log('ERROR: ' + e.message); process.exit(1); });
+                socket.on('unexpected-response', (req, res) => { clearTimeout(t); console.log('HTTP ' + res.statusCode); process.exit(1); });
+              " 2>&1 || echo "(node probe crashed)"
+            }
+
             echo
-            echo "## DIRECT to Node (localhost:$PORT)   [expect: 101]"
+            echo "## WebSocket probe — DIRECT to Node (localhost:$PORT)   [expect: 101 CONNECTED]"
             for p in /collab/blog /collab/presskit; do
-              echo "   $p  ->  $(ws_probe "http://127.0.0.1:$PORT$p")"
+              echo "   $p  ->  $(ws_node_probe "ws://127.0.0.1:$PORT$p")"
             done
 
             echo
-            echo "## THROUGH proxy (https://$DOMAIN)      [want: 101]"
+            echo "## WebSocket probe — THROUGH proxy (wss://$DOMAIN)     [want: 101 CONNECTED]"
             for p in /collab/blog /collab/presskit; do
-              echo "   $p  ->  $(ws_probe "https://$DOMAIN$p")"
+              echo "   $p  ->  $(ws_node_probe "wss://$DOMAIN$p")"
+            done
+
+            echo
+            echo "## curl WS handshake — DIRECT (legacy check)   [expect: HTTP/1.1 101]"
+            for p in /collab/blog /collab/presskit; do
+              echo "   $p  ->  $(ws_probe "http://127.0.0.1:$PORT$p")"
             done
 
             echo
@@ -231,7 +251,11 @@ jobs:
               echo "## Full server blocks for $DOMAIN (condensed)"
               sudo -n nginx -T 2>/dev/null | awk -v domain="$DOMAIN" '
                 /^[[:space:]]*server[[:space:]]*\{/ { insrv=1; depth=0; block="" }
-                insrv { block = block $0 "\n"; gsub(/[^{]/, "", t=$0); depth += length(t); gsub(/[^}]/, "", t=$0); depth -= length(t) }
+                insrv {
+                  block = block $0 "\n"
+                  t = $0; gsub(/[^{]/, "", t); depth += length(t)
+                  t = $0; gsub(/[^}]/, "", t); depth -= length(t)
+                }
                 insrv && depth <= 0 { insrv=0; if (index(block, domain) > 0) printf "%s", block }
               ' | head -80 | sed 's/^/   /'
             fi
@@ -410,12 +434,12 @@ jobs:
 
             # ---- re-verify through the proxy ----
             echo
-            echo "## Re-verify — WebSocket handshake through proxy   [want: 101]"
+            echo "## Re-verify — WebSocket through proxy   [want: 101 CONNECTED]"
             ok=1
             for p in /collab/blog /collab/presskit; do
-              line=$(ws_probe "https://$DOMAIN$p")
+              line=$(ws_node_probe "wss://$DOMAIN$p")
               echo "   $p  ->  $line"
-              echo "$line" | grep -q "101" || ok=0
+              echo "$line" | grep -q "101 CONNECTED" || ok=0
             done
             echo
             if [ "$ok" = "1" ]; then
