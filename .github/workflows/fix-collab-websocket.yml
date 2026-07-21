@@ -1,14 +1,13 @@
 name: Fix Collab WebSocket (manual)
 
-# Diagnoses (and optionally repairs) the reverse proxy so the realtime
-# collaboration WebSocket used by the blog + press-kit editors
-# (/collab/blog, /collab/presskit) actually reaches the Node backend.
+# Diagnoses (and optionally repairs) the WebSocket upgrade path for the
+# blog + press-kit realtime collaboration editors (/collab/blog, /collab/presskit).
+#
+# Checks BOTH the backend (Node upgrade handlers) AND the reverse proxy (nginx).
 #
 # Symptom this fixes: the browser console spams
 #   WebSocket connection to 'wss://<domain>/collab/presskit' failed
-# and generated content never appears / never saves, because the proxy
-# forwards plain HTTP fine but drops the WebSocket Upgrade/Connection
-# headers, so the handshake never reaches Node.
+# and generated content never appears / never saves.
 #
 # Runs over the SAME SSH channel as deploy-backend.yml (ORACLE_HOST /
 # ORACLE_USER / ORACLE_SSH_KEY). Inert until dispatched from the Actions tab.
@@ -16,9 +15,6 @@ name: Fix Collab WebSocket (manual)
 #   mode = diagnose  -> report only, change nothing (default)
 #   mode = fix       -> idempotently add nginx WebSocket upgrade config,
 #                       backup + `nginx -t` + auto-rollback, then re-verify
-#
-# Only touches nginx. If the proxy is Caddy or unknown, it prints guidance
-# instead of editing anything.
 
 on:
   workflow_dispatch:
@@ -60,6 +56,7 @@ jobs:
             MODE="${MODE:-diagnose}"
             PORT_INPUT="${BACKEND_PORT_INPUT:-auto}"
             DOMAIN="search-constellation.duckdns.org"
+            BACKEND_DIR="/opt/clubpm/backend"
 
             echo "=================================================================="
             echo " ClubPM collab WebSocket  —  mode: $MODE"
@@ -99,43 +96,144 @@ jobs:
             [ -z "$PORT" ] && PORT="3000"
             echo "## Backend port: $PORT"
 
-            # ---- backend process ----
+            # ===========================================================
+            #  BACKEND DIAGNOSTICS — check why upgrade handlers may fail
+            # ===========================================================
             echo
-            echo "## Backend process (pm2)"
+            echo "=========================================="
+            echo " BACKEND DIAGNOSTICS"
+            echo "=========================================="
+
+            # ---- pm2 status ----
+            echo
+            echo "## pm2 process status"
             pm2 describe clubpm-backend 2>/dev/null \
-              | grep -E "status|script path|exec cwd|restarts|uptime" \
+              | grep -E "status|script path|exec cwd|restarts|uptime|node" \
               || echo "   (pm2 describe unavailable)"
 
-            # ---- diagnostics: WS handshake direct to Node (bypass proxy) ----
+            # ---- check compiled collab files exist ----
             echo
-            echo "## WebSocket handshake — DIRECT to Node (localhost:$PORT)   [expect: 101]"
+            echo "## Compiled collab files in $BACKEND_DIR/dist/"
+            for f in collab/blogCollab.js collab/pressKitCollab.js collab/blogSchema.js; do
+              if [ -f "$BACKEND_DIR/dist/$f" ]; then
+                echo "   ✓ dist/$f  ($(stat -c%s "$BACKEND_DIR/dist/$f") bytes, $(date -r "$BACKEND_DIR/dist/$f" '+%Y-%m-%d %H:%M'))"
+              else
+                echo "   ✗ dist/$f  MISSING — backend was compiled without collab code!"
+              fi
+            done
+
+            # ---- check key npm dependencies ----
+            echo
+            echo "## Key npm packages"
+            for pkg in @hocuspocus/server @hocuspocus/transformer ws yjs @tiptap/core @tiptap/starter-kit; do
+              dir="$BACKEND_DIR/node_modules/$pkg"
+              if [ -d "$dir" ]; then
+                ver=$(node -e "try{console.log(require('$dir/package.json').version)}catch{console.log('?')}" 2>/dev/null || echo "?")
+                echo "   ✓ $pkg@$ver"
+              else
+                echo "   ✗ $pkg  NOT INSTALLED"
+              fi
+            done
+
+            # ---- recent pm2 error logs (last 40 lines) ----
+            echo
+            echo "## pm2 error log (last 40 lines)"
+            ERRLOG=$(ls -t ~/.pm2/logs/*clubpm*error* 2>/dev/null | head -n1)
+            if [ -n "$ERRLOG" ]; then
+              echo "   ($ERRLOG)"
+              tail -40 "$ERRLOG" 2>/dev/null | sed 's/^/   /'
+            else
+              echo "   (no error log found)"
+            fi
+
+            # ---- recent pm2 output logs (last 30 lines — look for 🤝 attach messages) ----
+            echo
+            echo "## pm2 output log (last 30 lines — look for 🤝 collab attach messages)"
+            OUTLOG=$(ls -t ~/.pm2/logs/*clubpm*out* 2>/dev/null | head -n1)
+            if [ -n "$OUTLOG" ]; then
+              echo "   ($OUTLOG)"
+              tail -30 "$OUTLOG" 2>/dev/null | sed 's/^/   /'
+            else
+              echo "   (no output log found)"
+            fi
+
+            # ---- check if the collab attach actually ran (grep for 🤝 in recent logs) ----
+            echo
+            echo "## Collab attach confirmation (looking for 🤝 in output log)"
+            if [ -n "$OUTLOG" ]; then
+              grep -c "collab" "$OUTLOG" 2>/dev/null | xargs -I{} echo "   {} mentions of 'collab' in output log"
+              grep "collab" "$OUTLOG" 2>/dev/null | tail -5 | sed 's/^/   /' || echo "   (none found — collab may not have attached)"
+            fi
+
+            # ---- check if port is actually listening ----
+            echo
+            echo "## Port $PORT listener"
+            ss -tlnp 2>/dev/null | grep ":$PORT " | sed 's/^/   /' \
+              || echo "   (port $PORT not found in ss output — backend may not be running)"
+
+            # ---- simple HTTP check to confirm backend is up ----
+            echo
+            echo "## HTTP health check (GET /)"
+            HTTP_CODE=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 5 "http://127.0.0.1:$PORT/" 2>&1 || echo "(failed)")
+            echo "   http://127.0.0.1:$PORT/  ->  $HTTP_CODE"
+
+            # ===========================================================
+            #  WEBSOCKET HANDSHAKE PROBES
+            # ===========================================================
+            echo
+            echo "=========================================="
+            echo " WEBSOCKET HANDSHAKE PROBES"
+            echo "=========================================="
+
+            echo
+            echo "## DIRECT to Node (localhost:$PORT)   [expect: 101]"
             for p in /collab/blog /collab/presskit; do
               echo "   $p  ->  $(ws_probe "http://127.0.0.1:$PORT$p")"
             done
 
-            # ---- diagnostics: WS handshake through the public proxy ----
             echo
-            echo "## WebSocket handshake — THROUGH proxy (https://$DOMAIN)      [want: 101]"
+            echo "## THROUGH proxy (https://$DOMAIN)      [want: 101]"
             for p in /collab/blog /collab/presskit; do
               echo "   $p  ->  $(ws_probe "https://$DOMAIN$p")"
             done
 
-            # ---- sanity: plain HTTPS through the proxy should already work ----
             echo
             echo "## Sanity — plain HTTPS through proxy (any 2xx/3xx/4xx = proxy reachable)"
             echo "   /  ->  $(curl -sS -o /dev/null -w '%{http_code}' --max-time 6 "https://$DOMAIN/" 2>&1 || echo '(unreachable)')"
 
-            # ---- show current nginx collab/upgrade config ----
+            # ===========================================================
+            #  NGINX DIAGNOSTICS
+            # ===========================================================
             if [ "$PROXY" = "nginx" ]; then
+              echo
+              echo "=========================================="
+              echo " NGINX DIAGNOSTICS"
+              echo "=========================================="
+
               echo
               echo "## nginx files referencing $DOMAIN"
               sudo -n grep -rl "$DOMAIN" /etc/nginx/ 2>/dev/null | grep -vE '\.(bak|backup)' \
-                || echo "   (none found or no read permission)"
+                || echo "   (none found)"
+
               echo
-              echo "## nginx: existing collab / upgrade directives"
+              echo "## sites-enabled symlinks"
+              ls -la /etc/nginx/sites-enabled/ 2>/dev/null | sed 's/^/   /' \
+                || echo "   (sites-enabled dir not found)"
+
+              echo
+              echo "## nginx: existing collab / upgrade / domain directives"
               sudo -n nginx -T 2>/dev/null \
-                | grep -iE 'location +/collab|http_upgrade|connection_upgrade|server_name +.*search-constellation' \
-                || echo "   (none — missing upgrade config is the likely cause)"
+                | grep -iE 'location.*/collab|http_upgrade|connection_upgrade|server_name +.*search-constellation' \
+                | sed 's/^/   /' \
+                || echo "   (none — missing upgrade config)"
+
+              echo
+              echo "## Full server blocks for $DOMAIN (condensed)"
+              sudo -n nginx -T 2>/dev/null | awk -v domain="$DOMAIN" '
+                /^[[:space:]]*server[[:space:]]*\{/ { insrv=1; depth=0; block="" }
+                insrv { block = block $0 "\n"; gsub(/[^{]/, "", t=$0); depth += length(t); gsub(/[^}]/, "", t=$0); depth -= length(t) }
+                insrv && depth <= 0 { insrv=0; if (index(block, domain) > 0) printf "%s", block }
+              ' | head -80 | sed 's/^/   /'
             fi
 
             # =============================================================
@@ -145,6 +243,8 @@ jobs:
               echo
               echo "------------------------------------------------------------------"
               echo " diagnose mode only — re-run with mode=fix to apply the nginx patch."
+              echo " NOTE: If DIRECT-to-Node WS probe failed, fixing nginx won't help —"
+              echo " the backend itself needs fixing first (redeploy, npm install, etc.)."
               echo "------------------------------------------------------------------"
               exit 0
             fi
@@ -167,7 +267,6 @@ jobs:
             if ! sudo -n true 2>/dev/null; then
               echo
               echo "!! Passwordless sudo unavailable — cannot edit nginx here."
-              echo "   Diagnostics above show what to change; apply via the Oracle Console."
               exit 1
             fi
 
@@ -176,8 +275,9 @@ jobs:
             echo " Applying nginx WebSocket upgrade fix"
             echo "=================================================================="
 
-            if sudo -n nginx -T 2>/dev/null | grep -qE 'location +/collab'; then
-              echo "-> location /collab/ already present — skipping edit."
+            # Skip if collab location already present
+            if sudo -n nginx -T 2>/dev/null | grep -qE 'location.*/collab'; then
+              echo "-> location /collab/ already present — skipping nginx edit."
             else
               TS=$(date -u '+%Y%m%d%H%M%S')
 
@@ -196,63 +296,108 @@ jobs:
                   | sudo -n tee /etc/nginx/conf.d/clubpm-collab-ws.conf >/dev/null
               fi
 
-              # 2) inject `location /collab/` into the TLS server block for our domain
-              TARGETS=$(sudo -n grep -rl "$DOMAIN" /etc/nginx/ 2>/dev/null | grep -vE '\.(bak|backup)')
-              if [ -z "$TARGETS" ]; then
+              # 2) Find the ACTIVE nginx config file for our domain.
+              #    Prefer sites-enabled (symlinked from sites-available).
+              #    Fall back to any file in sites-available or conf.d.
+              ACTIVE_FILE=""
+              for d in /etc/nginx/sites-enabled /etc/nginx/sites-available /etc/nginx/conf.d; do
+                if [ -d "$d" ]; then
+                  match=$(sudo -n grep -rl "$DOMAIN" "$d" 2>/dev/null | grep -vE '\.(bak|backup)' | head -n1)
+                  if [ -n "$match" ]; then
+                    ACTIVE_FILE="$match"
+                    break
+                  fi
+                fi
+              done
+
+              if [ -z "$ACTIVE_FILE" ]; then
                 echo "!! No nginx file with server_name $DOMAIN found — add location /collab/ manually."
               else
-                for f in $TARGETS; do
-                  echo "-> Patching $f   (backup: $f.bak-$TS)"
-                  sudo -n cp -a "$f" "$f.bak-$TS"
-                  sudo -n awk -v port="$PORT" -v domain="$DOMAIN" '
-                    function flush(   i) {
-                      if (matched && hasssl) {
-                        for (i = 0; i < bi - 1; i++) print buf[i]
-                        print "    # clubpm-collab-ws (added by fix-collab-websocket workflow)"
-                        print "    location /collab/ {"
-                        print "        proxy_pass http://127.0.0.1:" port ";"
-                        print "        proxy_http_version 1.1;"
-                        print "        proxy_set_header Upgrade $http_upgrade;"
-                        print "        proxy_set_header Connection $connection_upgrade;"
-                        print "        proxy_set_header Host $host;"
-                        print "        proxy_set_header X-Real-IP $remote_addr;"
-                        print "        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;"
-                        print "        proxy_set_header X-Forwarded-Proto $scheme;"
-                        print "        proxy_read_timeout 3600s;"
-                        print "        proxy_send_timeout 3600s;"
-                        print "    }"
-                        print buf[bi - 1]
-                      } else {
-                        for (i = 0; i < bi; i++) print buf[i]
-                      }
-                    }
-                    {
-                      t = $0; nopen = gsub(/[{]/, "", t)
-                      t = $0; nclose = gsub(/[}]/, "", t)
-                      if (insrv == 0) {
-                        if ($0 ~ /^[[:space:]]*server[[:space:]]*\{/) {
-                          insrv = 1; bi = 0; matched = 0; hasssl = 0; startdepth = depth
-                          buf[bi++] = $0
-                          depth += nopen - nclose
-                          next
-                        }
-                        print $0
-                        depth += nopen - nclose
-                        next
-                      }
-                      buf[bi++] = $0
-                      if (index($0, domain) > 0) matched = 1
-                      if ($0 ~ /ssl/ || $0 ~ /443/) hasssl = 1
-                      newdepth = depth + nopen - nclose
-                      if (newdepth <= startdepth) { flush(); insrv = 0 }
-                      depth = newdepth
-                      next
-                    }
-                  ' "$f.bak-$TS" | sudo -n tee "$f" >/dev/null
-                done
+                echo "-> Target file: $ACTIVE_FILE"
+                echo "-> Backup: $ACTIVE_FILE.bak-$TS"
+                sudo -n cp -a "$ACTIVE_FILE" "$ACTIVE_FILE.bak-$TS"
+
+                # Use sed to inject the location block before the LAST closing brace
+                # in the SSL server block. Strategy: find the line with proxy_pass to
+                # our backend port, then find the next `}` that closes a location block,
+                # then the next `}` after that (closing the server block), and inject before it.
+                #
+                # Simpler approach: use a python one-liner for reliable multi-line injection
+                sudo -n python3 -c "
+import re, sys
+
+with open('$ACTIVE_FILE.bak-$TS', 'r') as f:
+    content = f.read()
+
+# Find server blocks containing our domain AND ssl/443
+blocks = list(re.finditer(r'server\s*\{', content))
+injected = False
+
+for match in reversed(blocks):
+    start = match.start()
+    # Find the matching closing brace
+    depth = 0
+    end = start
+    for i in range(start, len(content)):
+        if content[i] == '{': depth += 1
+        elif content[i] == '}': depth -= 1
+        if depth == 0:
+            end = i
+            break
+    block = content[start:end+1]
+    if '$DOMAIN' in block and ('ssl' in block or '443' in block):
+        # Check if /collab/ location already exists
+        if '/collab' in block:
+            print('   location /collab/ already in this server block — skipping')
+            continue
+        # Inject before the closing brace
+        injection = '''
+    # clubpm-collab-ws (added by fix-collab-websocket workflow)
+    location /collab/ {
+        proxy_pass http://127.0.0.1:$PORT;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \\\$http_upgrade;
+        proxy_set_header Connection \\\$connection_upgrade;
+        proxy_set_header Host \\\$host;
+        proxy_set_header X-Real-IP \\\$remote_addr;
+        proxy_set_header X-Forwarded-For \\\$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \\\$scheme;
+        proxy_read_timeout 3600s;
+        proxy_send_timeout 3600s;
+    }
+'''
+        content = content[:end] + injection + content[end:]
+        injected = True
+        print('   ✓ Injected location /collab/ block')
+        break
+
+if not injected:
+    print('   !! Could not find SSL server block for $DOMAIN')
+    sys.exit(1)
+
+with open('$ACTIVE_FILE', 'w') as f:
+    f.write(content)
+" || {
+                  echo "!! Python injection failed — rolling back."
+                  sudo -n cp -a "$ACTIVE_FILE.bak-$TS" "$ACTIVE_FILE"
+                  exit 1
+                }
+
+                # If the active file is in sites-enabled and is a symlink, we patched
+                # the resolved target. If it's in sites-available, make sure it's
+                # symlinked to sites-enabled.
+                if [ -d /etc/nginx/sites-enabled ]; then
+                  BASENAME=$(basename "$ACTIVE_FILE")
+                  AVAIL="/etc/nginx/sites-available/$BASENAME"
+                  ENABLED="/etc/nginx/sites-enabled/$BASENAME"
+                  if [ -f "$AVAIL" ] && [ ! -e "$ENABLED" ]; then
+                    echo "-> Symlinking $AVAIL -> $ENABLED (was missing)"
+                    sudo -n ln -s "$AVAIL" "$ENABLED"
+                  fi
+                fi
               fi
 
-              # 3) validate — reload on success, roll everything back on failure
+              # 3) validate — reload on success, roll back on failure
               echo
               echo "-> nginx -t"
               if sudo -n nginx -t; then
@@ -260,11 +405,9 @@ jobs:
                 sudo -n systemctl reload nginx || sudo -n nginx -s reload
               else
                 echo "!! nginx -t FAILED — rolling back."
-                for f in $TARGETS; do
-                  [ -f "$f.bak-$TS" ] && sudo -n cp -a "$f.bak-$TS" "$f"
-                done
+                [ -n "$ACTIVE_FILE" ] && [ -f "$ACTIVE_FILE.bak-$TS" ] && sudo -n cp -a "$ACTIVE_FILE.bak-$TS" "$ACTIVE_FILE"
                 sudo -n rm -f /etc/nginx/conf.d/clubpm-collab-ws.conf
-                echo "   Restored original config; nothing changed. Fix the config error and retry."
+                echo "   Restored original config; nothing changed."
                 exit 1
               fi
             fi
@@ -282,9 +425,9 @@ jobs:
             if [ "$ok" = "1" ]; then
               echo "✅ WebSocket upgrades now return 101 — reload the blog / press-kit editor."
             else
-              echo "⚠️  Still not 101 through the proxy. If the DIRECT-to-Node probe above was 101,"
-              echo "    the backend is fine and something in FRONT of nginx (Cloudflare / another"
-              echo "    load balancer) is stripping the upgrade. If DIRECT was NOT 101, the backend"
-              echo "    build is stale — run 'Deploy Backend to Oracle' and retry."
+              echo "⚠️  Still not 101 through the proxy."
+              echo "   Check the DIRECT-to-Node probe above."
+              echo "   If DIRECT also failed: the backend is the problem, not nginx."
+              echo "   Common fixes: redeploy backend, run npm install, check pm2 error logs above."
             fi
             echo "== Done =="
