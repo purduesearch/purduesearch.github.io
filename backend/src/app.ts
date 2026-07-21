@@ -25,6 +25,7 @@ import { initDmBatcher } from "./services/dmBatcher.js";
 import { eventsRouter } from "./api/events.js";
 import { meetingPollsRouter } from "./api/meetingPolls.js";
 import { outreachRouter } from "./api/outreach.js";
+import { pressKitRouter } from "./api/pressKit.js";
 import { redirectRouter } from "./api/redirect.js";
 import { assetsRouter } from "./api/assets.js";
 import { brandVoicesRouter } from "./api/brandVoices.js";
@@ -49,6 +50,7 @@ import { vaultRouter } from "./api/vault.js";
 import { changeRequestsRouter } from "./api/changeRequests.js";
 import { blogRouter } from "./api/blog.js";
 import { attachBlogCollab } from "./collab/blogCollab.js";
+import { attachPressKitCollab } from "./collab/pressKitCollab.js";
 
 // ── Express Setup ────────────────────────────────────────────
 
@@ -129,6 +131,7 @@ app.use("/api/notifications", notificationsRouter);
 app.use("/api/events", eventsRouter);
 app.use("/api/meeting-polls", meetingPollsRouter);
 app.use("/api/outreach", outreachRouter);
+app.use("/api", pressKitRouter);
 app.use("/api/blog", blogRouter);
 app.use("/api/outreach/assets", assetsRouter);
 app.use("/api/outreach/brand-voices", brandVoicesRouter);
@@ -191,6 +194,9 @@ async function start(): Promise<void> {
     // Embedded blog collaboration WS server, riding the same HTTP server/port.
     attachBlogCollab(server);
     console.log("🤝 Blog collab (Hocuspocus) attached at /collab/blog");
+
+    attachPressKitCollab(server);
+    console.log("🤝 Press kit collab (Hocuspocus) attached at /collab/presskit");
 
     server.on("error", (err: NodeJS.ErrnoException) => {
       if (err.code === "EADDRINUSE") {

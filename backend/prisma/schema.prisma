@@ -175,6 +175,8 @@ model Member {
   blogRevisions           BlogRevision[]       @relation("BlogRevisionAuthor")
   blogAuthorships         BlogAuthor[]         @relation("BlogAuthorMember")
   blogSnippets            BlogSnippet[]        @relation("BlogSnippetCreator")
+  pressKitsCreated        ProjectPressKit[]    @relation("PressKitCreator")
+  pressKitRevisions       PressKitRevision[]   @relation("PressKitRevisionAuthor")
 
   // ── GitHub OAuth (per-member) ──
   // Access/refresh tokens are AES-GCM encrypted at rest (see backend/src/utils/crypto.ts).
@@ -274,6 +276,7 @@ model Project {
   events                  Event[]
   meetingPolls            MeetingPoll[]
   submissions             OutreachSubmission[]
+  pressKit                ProjectPressKit?
   createdAt               DateTime                    @default(now())
   updatedAt               DateTime                    @updatedAt
 
@@ -983,6 +986,40 @@ model BlogSnippet {
   createdBy   Member   @relation("BlogSnippetCreator", fields: [createdById], references: [id])
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+enum PressKitStatus {
+  DRAFT
+  PUBLISHED
+}
+
+model ProjectPressKit {
+  id           String         @id @default(cuid())
+  projectId    String         @unique
+  project      Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  contentJson  Json? // TipTap document — source of truth for editing
+  contentYjs   Bytes? // Yjs/CRDT binary state for realtime collaboration
+  renderedHtml String? // inner HTML snapshot written on publish (served to public)
+  config       Json // PressKitConfig
+  status       PressKitStatus @default(DRAFT)
+  generatedAt  DateTime?
+  createdById  String
+  createdBy    Member         @relation("PressKitCreator", fields: [createdById], references: [id])
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  revisions    PressKitRevision[]
+}
+
+model PressKitRevision {
+  id          String          @id @default(cuid())
+  pressKitId  String
+  pressKit    ProjectPressKit @relation(fields: [pressKitId], references: [id], onDelete: Cascade)
+  contentJson Json
+  authorId    String
+  author      Member          @relation("PressKitRevisionAuthor", fields: [authorId], references: [id])
+  createdAt   DateTime        @default(now())
+
+  @@index([pressKitId])
 }
 
 model HashtagStat {

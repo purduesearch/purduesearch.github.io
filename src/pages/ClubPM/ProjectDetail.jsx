@@ -13,6 +13,7 @@ import BulkActionBar from "../../components/clubpm/BulkActionBar";
 import ActivityFeed from "../../components/clubpm/ActivityFeed";
 import ReportingView from "../../components/clubpm/ReportingView";
 import ProjectAnalytics from "../../components/clubpm/ProjectAnalytics";
+import PressKitPanel from "../../components/clubpm/PressKitPanel";
 import MilestonePanel from "../../components/clubpm/MilestonePanel";
 import GanttChart from "../../components/clubpm/GanttChart";
 import { PriorityBars, AvatarStack } from "../../components/clubpm/TaskPrimitives";
@@ -2226,6 +2227,7 @@ export default function ProjectDetail() {
   const navigate = useNavigate();
   const [expandedParents, setExpandedParents] = useState(new Set());
   const [sortBy, setSortBy] = useState("priority");
+  const [reportTab, setReportTab] = useState("charts"); // "charts" | "activity" | "presskit"
   const [newUpdateContent, setNewUpdateContent] = useState("");
   const [postingUpdate, setPostingUpdate] = useState(false);
   const [headerDrivePreview, setHeaderDrivePreview] = useState(null); // { url, label }
@@ -3129,21 +3131,6 @@ export default function ProjectDetail() {
                 </div>
               </div>
               <button
-                className="pm-pin-btn"
-                title="Generate Press Kit (one-page PDF for sponsors / press)"
-                onClick={async () => {
-                  try {
-                    const result = await post(`/api/outreach/press-kit/${project.id}`);
-                    window.open(result.url, '_blank', 'noopener');
-                  } catch (err) {
-                    alert(err.message ?? 'Failed to generate press kit');
-                  }
-                }}
-                style={{ marginRight: 4 }}
-              >
-                <i className="fas fa-file-pdf" aria-hidden="true" style={{ fontSize: 14 }} />
-              </button>
-              <button
                 className={`pm-pin-btn${pinned ? ' active' : ''}`}
                 onClick={() => setPinned(p => {
                   const next = !p;
@@ -3473,8 +3460,24 @@ export default function ProjectDetail() {
           )}
 
           {activeTab === "reports" && (
-            <div className="cpm-proj-main-body" style={{ padding: "24px" }}>
-              <ProjectAnalytics project={project} />
+            <div className="cpm-proj-main-body" style={{ padding: "16px 24px 24px" }}>
+              <div className="presskit-report-subtabs">
+                {[["charts", "Charts"], ["activity", "Activity"], ["presskit", "Press Kit"]].map(([id, label]) => (
+                  <button
+                    key={id}
+                    type="button"
+                    className={`presskit-subtab${reportTab === id ? " is-active" : ""}`}
+                    onClick={() => setReportTab(id)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              {reportTab === "charts" && <ProjectAnalytics project={project} />}
+              {reportTab === "activity" && (
+                <div style={{ paddingTop: 8 }}><ActivityFeed projectId={project.id} /></div>
+              )}
+              {reportTab === "presskit" && <PressKitPanel project={project} canEdit={canEdit} />}
             </div>
           )}
 

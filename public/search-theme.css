@@ -23512,3 +23512,46 @@ button.cpm-badge-tile:disabled { opacity: 0.7; cursor: progress; }
 .pm-poll-hover-names { display: flex; flex-direction: column; gap: 3px; margin-top: 4px; }
 .pm-poll-name-row { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--clubpm-text-primary, #e8eaed); }
 .pm-poll-name-row.muted { color: var(--clubpm-text-muted, #8a92a0); }
+
+/* === PRESS KIT (ClubPM Reports sub-tab) ============================== */
+.presskit-report-subtabs { display: flex; gap: 4px; margin-bottom: 12px; border-bottom: 1px solid var(--pm-border); }
+.presskit-subtab {
+  background: none; border: none; cursor: pointer; padding: 8px 14px;
+  font-size: 13px; font-weight: 600; color: var(--pm-text-muted);
+  border-bottom: 2px solid transparent; margin-bottom: -1px;
+}
+.presskit-subtab:hover { color: var(--pm-text-secondary); }
+.presskit-subtab.is-active { color: var(--pm-accent-teal); border-bottom-color: var(--pm-accent-teal); }
+
+.presskit-panel { position: relative; }
+.presskit-generate-card {
+  max-width: 640px; margin: 8px auto; padding: 24px;
+  background: var(--pm-surface); border: 1px solid var(--pm-border); border-radius: 12px;
+}
+.presskit-generate-title { font-family: var(--pm-font-display); font-size: 20px; margin: 0 0 4px; color: var(--pm-text-primary); }
+.presskit-generate-sub { font-size: 13px; color: var(--pm-text-muted); margin: 0 0 16px; }
+.presskit-field-label { display: block; font-size: 12px; font-weight: 600; color: var(--pm-text-secondary); margin: 14px 0 6px; }
+.presskit-audience-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.presskit-chip {
+  padding: 6px 14px; border-radius: 999px; border: 1px solid var(--pm-border);
+  background: var(--pm-bg-overlay); color: var(--pm-text-secondary); font-size: 13px; cursor: pointer;
+}
+.presskit-chip.is-active { background: var(--pm-accent-teal); color: #04211d; border-color: var(--pm-accent-teal); font-weight: 600; }
+.presskit-sections-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; }
+.presskit-section-toggle { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--pm-text-secondary); cursor: pointer; }
+.presskit-settings-row { display: flex; gap: 24px; flex-wrap: wrap; }
+.presskit-settings-row input[type="email"] { width: 220px; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--pm-border); background: var(--pm-bg-overlay); color: var(--pm-text-primary); }
+.presskit-generate-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 22px; }
+
+.presskit-toolbar { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+.presskit-toolbar-spacer { flex: 1; }
+.presskit-editor-wrap { border: 1px solid var(--pm-border); border-radius: 10px; overflow: hidden; }
+
+.presskit-revs-drawer {
+  position: absolute; top: 44px; right: 0; width: 320px; max-height: 60vh; overflow-y: auto;
+  background: var(--pm-elevated); border: 1px solid var(--pm-border); border-radius: 10px;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.4); padding: 12px; z-index: 20;
+}
+.presskit-revs-header { display: flex; justify-content: space-between; align-items: center; font-weight: 600; font-size: 13px; margin-bottom: 8px; color: var(--pm-text-primary); }
+.presskit-rev-row { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--pm-text-secondary); padding: 6px 0; border-top: 1px solid var(--pm-border); }
+.presskit-rev-author { flex: 1; color: var(--pm-text-muted); }
