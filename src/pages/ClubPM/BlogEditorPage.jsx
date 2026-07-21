@@ -101,10 +101,12 @@ export default function BlogEditorPage() {
     }
   }, [id]);
 
-  // Debounced autosave for the title only — post body content is synced in
-  // realtime by the Yjs collab server (backend/src/collab/blogCollab.ts),
-  // which persists on its own store cadence, so re-PATCHing contentJson here
-  // would just race/overwrite the live collaborative document.
+  // Debounced autosave for title + body. When the Yjs collab server is
+  // reachable it persists the body on its own store cadence; this REST PATCH is
+  // a safety net for when it isn't (WS blocked / proxy misconfigured) so edits
+  // still save. It only writes contentJson (never contentYjs), so it can't
+  // corrupt the live CRDT, and onLoadDocument prefers contentYjs when present —
+  // meaning collab stays authoritative when up, and this wins only when it's down.
   useEffect(() => {
     if (!dirty) return undefined;
     if (autosaveTimer.current) clearTimeout(autosaveTimer.current);
@@ -352,7 +354,7 @@ export default function BlogEditorPage() {
             postId={id}
             collabUser={{ id: member?.id, name: member?.displayName }}
             content={contentJson}
-            onChange={(json) => { setContentJson(json); }}
+            onChange={(json) => { setContentJson(json); setDirty(true); }}
             onEditorReady={(ed) => { editorRef.current = ed; }}
           />
         </div>

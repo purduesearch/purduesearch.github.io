@@ -274,6 +274,10 @@ export default function BlogEditor({ content, onChange, editable = true, onEdito
   // title/body below the fold; users can still expand it with the chevron.
   const [toolbarOpen, setToolbarOpen] = React.useState(() => (typeof window === 'undefined' || window.innerWidth > 640));
   const shortcutsRegistry = useShortcutsRegistry();
+  // Latest values read by the fallback-seed effect without re-arming it.
+  const connectedRef = React.useRef(false);
+  const contentRef = React.useRef(content);
+  contentRef.current = content;
 
   // One Y.Doc + Hocuspocus connection per post. Recreated only if `postId`
   // changes — callers should `key` the editor by post id so a full remount
@@ -300,7 +304,11 @@ export default function BlogEditor({ content, onChange, editable = true, onEdito
   useEffect(() => {
     if (!collab) return undefined;
     const { provider } = collab;
-    const onStatus = ({ status }) => setConnected(status === 'connected');
+    const onStatus = ({ status }) => {
+      const isConnected = status === 'connected';
+      connectedRef.current = isConnected;
+      setConnected(isConnected);
+    };
     const onAwareness = ({ states }) => {
       const selfId = provider.awareness?.clientID;
       setPeers(states.filter((s) => s.clientId !== selfId && s.user));
@@ -323,6 +331,36 @@ export default function BlogEditor({ content, onChange, editable = true, onEdito
     editable,
     onUpdate: ({ editor: ed }) => { onChange?.(ed.getJSON()); },
   }, [collab]);
+
+  // ── Fallback content seeding ──────────────────────────────────
+  // In collab mode the editor starts from the shared Yjs doc, which the
+  // Hocuspocus server seeds from contentJson on connect. If that server is
+  // unreachable (WS blocked / reverse proxy missing the Upgrade headers), the
+  // doc never arrives and the editor stays blank — so generated/initial text
+  // never appears and there's nothing to persist. When the doc is still empty
+  // and we either synced against an empty server doc OR never connected at all,
+  // seed it from the `content` prop so editing works regardless of the collab
+  // link. Non-collab editors already load `content` directly, so this is inert
+  // there. emitUpdate:false so seeding never spuriously marks the doc dirty.
+  useEffect(() => {
+    if (!editor || !collab) return undefined;
+    let seeded = false;
+    const seedIfEmpty = () => {
+      if (seeded || editor.isDestroyed) return;
+      const doc = contentRef.current;
+      if (doc && editor.isEmpty) {
+        seeded = true;
+        editor.commands.setContent(doc, { emitUpdate: false });
+      }
+    };
+    const onSynced = () => seedIfEmpty();            // server had no content
+    collab.provider.on('synced', onSynced);
+    const timer = setTimeout(() => {                 // server never reachable
+      if (!connectedRef.current) seedIfEmpty();
+    }, 3000);
+    return () => { clearTimeout(timer); collab.provider.off('synced', onSynced); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editor, collab]);
 
   useEffect(() => {
     if (editor && onEditorReady) onEditorReady(editor);

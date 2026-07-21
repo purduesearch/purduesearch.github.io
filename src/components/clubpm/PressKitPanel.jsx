@@ -6,6 +6,7 @@ import { useClubPmAuth } from '../../clubpm/ClubPmAuth';
 import {
   getPressKit, generatePressKit, updatePressKitConfig, publishPressKit,
   getPressKitRevisions, restorePressKitRevision, getPressKitCollabWsUrl,
+  updatePressKitContent,
 } from '../../api/clubPmClient';
 
 const AUDIENCES = [
@@ -37,8 +38,21 @@ export default function PressKitPanel({ project, canEdit }) {
   const [revisions, setRevisions] = useState([]);
   const [showRevs, setShowRevs] = useState(false);
   const editorRef = useRef(null);
+  const saveTimer = useRef(null);
   // Bumped after generate/restore to force a fresh editor mount (new Yjs doc).
   const [editorNonce, setEditorNonce] = useState(0);
+
+  // Debounced REST fallback save: the collab server persists the body when
+  // reachable, but if the WS is down (proxy misconfigured) this keeps edits
+  // from being lost. Writes contentJson only; see updatePressKitContent.
+  const scheduleContentSave = useCallback((json) => {
+    if (!canEdit) return;
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      updatePressKitContent(projectId, json).catch(() => {});
+    }, 1500);
+  }, [projectId, canEdit]);
+  useEffect(() => () => { if (saveTimer.current) clearTimeout(saveTimer.current); }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -181,6 +195,8 @@ export default function PressKitPanel({ project, canEdit }) {
           collabWsUrl={getPressKitCollabWsUrl()}
           collabUser={{ id: member?.id, name: member?.displayName }}
           editable={canEdit}
+          content={kit.contentJson}
+          onChange={scheduleContentSave}
           onEditorReady={(ed) => { editorRef.current = ed; }}
         />
       </div>

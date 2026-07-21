@@ -1,0 +1,290 @@
+name: Fix Collab WebSocket (manual)
+
+# Diagnoses (and optionally repairs) the reverse proxy so the realtime
+# collaboration WebSocket used by the blog + press-kit editors
+# (/collab/blog, /collab/presskit) actually reaches the Node backend.
+#
+# Symptom this fixes: the browser console spams
+#   WebSocket connection to 'wss://<domain>/collab/presskit' failed
+# and generated content never appears / never saves, because the proxy
+# forwards plain HTTP fine but drops the WebSocket Upgrade/Connection
+# headers, so the handshake never reaches Node.
+#
+# Runs over the SAME SSH channel as deploy-backend.yml (ORACLE_HOST /
+# ORACLE_USER / ORACLE_SSH_KEY). Inert until dispatched from the Actions tab.
+#
+#   mode = diagnose  -> report only, change nothing (default)
+#   mode = fix       -> idempotently add nginx WebSocket upgrade config,
+#                       backup + `nginx -t` + auto-rollback, then re-verify
+#
+# Only touches nginx. If the proxy is Caddy or unknown, it prints guidance
+# instead of editing anything.
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "diagnose (report only) or fix (patch nginx + reload)"
+        type: choice
+        options:
+          - diagnose
+          - fix
+        default: diagnose
+      backend_port:
+        description: "Backend port (auto = detect from nginx proxy_pass, fallback 3000)"
+        type: string
+        default: auto
+
+concurrency:
+  group: fix-collab-websocket
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Diagnose / fix collab WebSocket over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          MODE: ${{ inputs.mode }}
+          BACKEND_PORT_INPUT: ${{ inputs.backend_port }}
+        with:
+          host: ${{ secrets.ORACLE_HOST }}
+          username: ${{ secrets.ORACLE_USER }}
+          key: ${{ secrets.ORACLE_SSH_KEY }}
+          command_timeout: 5m
+          envs: MODE,BACKEND_PORT_INPUT
+          script_stop: false
+          script: |
+            set -uo pipefail
+            MODE="${MODE:-diagnose}"
+            PORT_INPUT="${BACKEND_PORT_INPUT:-auto}"
+            DOMAIN="search-constellation.duckdns.org"
+
+            echo "=================================================================="
+            echo " ClubPM collab WebSocket  —  mode: $MODE"
+            echo " $(whoami)@$(hostname)  $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+            echo "=================================================================="
+
+            # ---- raw WebSocket handshake probe: prints the HTTP status line ----
+            ws_probe() {
+              local line
+              line=$(curl -sS -i --max-time 6 \
+                -H "Connection: Upgrade" -H "Upgrade: websocket" \
+                -H "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==" \
+                -H "Sec-WebSocket-Version: 13" \
+                "$1" 2>&1 | head -n 1 | tr -d '\r')
+              [ -n "$line" ] && echo "$line" || echo "(no response / timeout)"
+            }
+
+            # ---- detect reverse proxy ----
+            PROXY="unknown"
+            if command -v nginx >/dev/null 2>&1; then PROXY="nginx"
+            elif command -v caddy >/dev/null 2>&1; then PROXY="caddy"; fi
+            echo
+            echo "## Reverse proxy: $PROXY"
+
+            # ---- resolve backend port ----
+            PORT=""
+            case "$PORT_INPUT" in
+              ""|auto) ;;
+              *[!0-9]*) echo "   (ignoring non-numeric backend_port '$PORT_INPUT')" ;;
+              *)        PORT="$PORT_INPUT" ;;
+            esac
+            if [ -z "$PORT" ] && [ "$PROXY" = "nginx" ]; then
+              PORT=$(sudo -n nginx -T 2>/dev/null \
+                | grep -oE 'proxy_pass +https?://(127\.0\.0\.1|localhost):[0-9]+' \
+                | grep -oE '[0-9]+$' | head -n1)
+            fi
+            [ -z "$PORT" ] && PORT="3000"
+            echo "## Backend port: $PORT"
+
+            # ---- backend process ----
+            echo
+            echo "## Backend process (pm2)"
+            pm2 describe clubpm-backend 2>/dev/null \
+              | grep -E "status|script path|exec cwd|restarts|uptime" \
+              || echo "   (pm2 describe unavailable)"
+
+            # ---- diagnostics: WS handshake direct to Node (bypass proxy) ----
+            echo
+            echo "## WebSocket handshake — DIRECT to Node (localhost:$PORT)   [expect: 101]"
+            for p in /collab/blog /collab/presskit; do
+              echo "   $p  ->  $(ws_probe "http://127.0.0.1:$PORT$p")"
+            done
+
+            # ---- diagnostics: WS handshake through the public proxy ----
+            echo
+            echo "## WebSocket handshake — THROUGH proxy (https://$DOMAIN)      [want: 101]"
+            for p in /collab/blog /collab/presskit; do
+              echo "   $p  ->  $(ws_probe "https://$DOMAIN$p")"
+            done
+
+            # ---- sanity: plain HTTPS through the proxy should already work ----
+            echo
+            echo "## Sanity — plain HTTPS through proxy (any 2xx/3xx/4xx = proxy reachable)"
+            echo "   /  ->  $(curl -sS -o /dev/null -w '%{http_code}' --max-time 6 "https://$DOMAIN/" 2>&1 || echo '(unreachable)')"
+
+            # ---- show current nginx collab/upgrade config ----
+            if [ "$PROXY" = "nginx" ]; then
+              echo
+              echo "## nginx files referencing $DOMAIN"
+              sudo -n grep -rl "$DOMAIN" /etc/nginx/ 2>/dev/null | grep -vE '\.(bak|backup)' \
+                || echo "   (none found or no read permission)"
+              echo
+              echo "## nginx: existing collab / upgrade directives"
+              sudo -n nginx -T 2>/dev/null \
+                | grep -iE 'location +/collab|http_upgrade|connection_upgrade|server_name +.*search-constellation' \
+                || echo "   (none — missing upgrade config is the likely cause)"
+            fi
+
+            # =============================================================
+            #  FIX (nginx only)
+            # =============================================================
+            if [ "$MODE" != "fix" ]; then
+              echo
+              echo "------------------------------------------------------------------"
+              echo " diagnose mode only — re-run with mode=fix to apply the nginx patch."
+              echo "------------------------------------------------------------------"
+              exit 0
+            fi
+
+            if [ "$PROXY" = "caddy" ]; then
+              echo
+              echo "## Caddy detected — Caddy proxies WebSockets automatically."
+              echo "   Ensure /collab/* routes to the backend in your site block, then reload:"
+              echo "       reverse_proxy /collab/* 127.0.0.1:$PORT"
+              echo "       sudo systemctl reload caddy"
+              exit 0
+            fi
+            if [ "$PROXY" != "nginx" ]; then
+              echo
+              echo "## Proxy is '$PROXY' — cannot auto-fix. Route /collab/* to 127.0.0.1:$PORT"
+              echo "   with WebSocket upgrade headers, then reload the proxy."
+              exit 0
+            fi
+
+            if ! sudo -n true 2>/dev/null; then
+              echo
+              echo "!! Passwordless sudo unavailable — cannot edit nginx here."
+              echo "   Diagnostics above show what to change; apply via the Oracle Console."
+              exit 1
+            fi
+
+            echo
+            echo "=================================================================="
+            echo " Applying nginx WebSocket upgrade fix"
+            echo "=================================================================="
+
+            if sudo -n nginx -T 2>/dev/null | grep -qE 'location +/collab'; then
+              echo "-> location /collab/ already present — skipping edit."
+            else
+              TS=$(date -u '+%Y%m%d%H%M%S')
+
+              # 1) $connection_upgrade map (http context) — drop-in unless one exists
+              if sudo -n nginx -T 2>/dev/null | grep -qE 'map +\$http_upgrade'; then
+                echo "-> \$connection_upgrade map already defined; reusing it."
+              else
+                echo "-> Adding /etc/nginx/conf.d/clubpm-collab-ws.conf (upgrade map)."
+                printf '%s\n' \
+                  '# Added by fix-collab-websocket workflow — maps the Upgrade' \
+                  '# request header so proxied WebSocket handshakes negotiate.' \
+                  'map $http_upgrade $connection_upgrade {' \
+                  '    default upgrade;' \
+                  "    ''      close;" \
+                  '}' \
+                  | sudo -n tee /etc/nginx/conf.d/clubpm-collab-ws.conf >/dev/null
+              fi
+
+              # 2) inject `location /collab/` into the TLS server block for our domain
+              TARGETS=$(sudo -n grep -rl "$DOMAIN" /etc/nginx/ 2>/dev/null | grep -vE '\.(bak|backup)')
+              if [ -z "$TARGETS" ]; then
+                echo "!! No nginx file with server_name $DOMAIN found — add location /collab/ manually."
+              else
+                for f in $TARGETS; do
+                  echo "-> Patching $f   (backup: $f.bak-$TS)"
+                  sudo -n cp -a "$f" "$f.bak-$TS"
+                  sudo -n awk -v port="$PORT" -v domain="$DOMAIN" '
+                    function flush(   i) {
+                      if (matched && hasssl) {
+                        for (i = 0; i < bi - 1; i++) print buf[i]
+                        print "    # clubpm-collab-ws (added by fix-collab-websocket workflow)"
+                        print "    location /collab/ {"
+                        print "        proxy_pass http://127.0.0.1:" port ";"
+                        print "        proxy_http_version 1.1;"
+                        print "        proxy_set_header Upgrade $http_upgrade;"
+                        print "        proxy_set_header Connection $connection_upgrade;"
+                        print "        proxy_set_header Host $host;"
+                        print "        proxy_set_header X-Real-IP $remote_addr;"
+                        print "        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;"
+                        print "        proxy_set_header X-Forwarded-Proto $scheme;"
+                        print "        proxy_read_timeout 3600s;"
+                        print "        proxy_send_timeout 3600s;"
+                        print "    }"
+                        print buf[bi - 1]
+                      } else {
+                        for (i = 0; i < bi; i++) print buf[i]
+                      }
+                    }
+                    {
+                      t = $0; nopen = gsub(/[{]/, "", t)
+                      t = $0; nclose = gsub(/[}]/, "", t)
+                      if (insrv == 0) {
+                        if ($0 ~ /^[[:space:]]*server[[:space:]]*\{/) {
+                          insrv = 1; bi = 0; matched = 0; hasssl = 0; startdepth = depth
+                          buf[bi++] = $0
+                          depth += nopen - nclose
+                          next
+                        }
+                        print $0
+                        depth += nopen - nclose
+                        next
+                      }
+                      buf[bi++] = $0
+                      if (index($0, domain) > 0) matched = 1
+                      if ($0 ~ /ssl/ || $0 ~ /443/) hasssl = 1
+                      newdepth = depth + nopen - nclose
+                      if (newdepth <= startdepth) { flush(); insrv = 0 }
+                      depth = newdepth
+                      next
+                    }
+                  ' "$f.bak-$TS" | sudo -n tee "$f" >/dev/null
+                done
+              fi
+
+              # 3) validate — reload on success, roll everything back on failure
+              echo
+              echo "-> nginx -t"
+              if sudo -n nginx -t; then
+                echo "-> config OK — reloading nginx"
+                sudo -n systemctl reload nginx || sudo -n nginx -s reload
+              else
+                echo "!! nginx -t FAILED — rolling back."
+                for f in $TARGETS; do
+                  [ -f "$f.bak-$TS" ] && sudo -n cp -a "$f.bak-$TS" "$f"
+                done
+                sudo -n rm -f /etc/nginx/conf.d/clubpm-collab-ws.conf
+                echo "   Restored original config; nothing changed. Fix the config error and retry."
+                exit 1
+              fi
+            fi
+
+            # ---- re-verify through the proxy ----
+            echo
+            echo "## Re-verify — WebSocket handshake through proxy   [want: 101]"
+            ok=1
+            for p in /collab/blog /collab/presskit; do
+              line=$(ws_probe "https://$DOMAIN$p")
+              echo "   $p  ->  $line"
+              echo "$line" | grep -q "101" || ok=0
+            done
+            echo
+            if [ "$ok" = "1" ]; then
+              echo "✅ WebSocket upgrades now return 101 — reload the blog / press-kit editor."
+            else
+              echo "⚠️  Still not 101 through the proxy. If the DIRECT-to-Node probe above was 101,"
+              echo "    the backend is fine and something in FRONT of nginx (Cloudflare / another"
+              echo "    load balancer) is stripping the upgrade. If DIRECT was NOT 101, the backend"
+              echo "    build is stale — run 'Deploy Backend to Oracle' and retry."
+            fi
+            echo "== Done =="

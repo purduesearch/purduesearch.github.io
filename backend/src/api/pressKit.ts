@@ -86,6 +86,26 @@ pressKitRouter.patch("/projects/:projectId/press-kit", async (req: Request, res:
   } catch (e) { console.error("PATCH press-kit error:", e); res.status(500).json({ error: "Failed to update press kit" }); }
 });
 
+// PATCH /api/projects/:projectId/press-kit/content — save edited body.
+// REST fallback for persistence when the realtime collab server is unreachable
+// (WS blocked / proxy misconfigured). Writes contentJson only — never
+// contentYjs — so it can't corrupt a live CRDT, and onLoadDocument prefers
+// contentYjs when present, keeping collab authoritative whenever it is up.
+pressKitRouter.patch("/projects/:projectId/press-kit/content", async (req: Request, res: Response) => {
+  try {
+    const { projectId } = req.params as { projectId: string };
+    if (!(await hasProjectAccess(req.memberId!, projectId))) { res.status(403).json({ error: "Forbidden" }); return; }
+    const contentJson = (req.body ?? {}).contentJson;
+    if (!contentJson || typeof contentJson !== "object") { res.status(400).json({ error: "contentJson (object) required" }); return; }
+    const kit = await getOrCreateKit(projectId, req.memberId!);
+    await prisma.projectPressKit.update({
+      where: { id: kit.id },
+      data: { contentJson: contentJson as Prisma.InputJsonValue },
+    });
+    res.json({ ok: true });
+  } catch (e) { console.error("PATCH press-kit/content error:", e); res.status(500).json({ error: "Failed to save press kit" }); }
+});
+
 // POST /api/projects/:projectId/press-kit/publish — snapshot rendered HTML, mark PUBLISHED
 pressKitRouter.post("/projects/:projectId/press-kit/publish", async (req: Request, res: Response) => {
   try {

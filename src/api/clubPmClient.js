@@ -417,6 +417,8 @@ export const updatePressKitConfig   = (projectId, config) => patch(`/api/project
 export const publishPressKit        = (projectId)         => post(`/api/projects/${projectId}/press-kit/publish`, {});
 export const getPressKitRevisions   = (projectId)         => get(`/api/projects/${projectId}/press-kit/revisions`);
 export const restorePressKitRevision = (projectId, revId) => post(`/api/projects/${projectId}/press-kit/revisions/${revId}/restore`, {});
+// REST fallback save for the press-kit body (used when the collab WS is down).
+export const updatePressKitContent   = (projectId, contentJson) => patch(`/api/projects/${projectId}/press-kit/content`, { contentJson });
 
 // ws(s):// base for the press-kit Hocuspocus namespace (backend/src/collab/pressKitCollab.ts).
 export function getPressKitCollabWsUrl() {
