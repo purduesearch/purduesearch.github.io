@@ -263,7 +263,7 @@ function PresenceBar({ connected, peers }) {
  *                                 server for this post (see backend/src/collab/blogCollab.ts)
  * @param {object}   collabUser  { id, name } of the current member, used for cursor presence
  */
-export default function BlogEditor({ content, onChange, editable = true, onEditorReady, postId, collabUser }) {
+export default function BlogEditor({ content, onChange, editable = true, onEditorReady, postId, collabUser, collabWsUrl }) {
   const [showFind, setShowFind] = React.useState(false);
   const [showSnippets, setShowSnippets] = React.useState(false);
   const [connected, setConnected] = React.useState(false);
@@ -282,14 +282,14 @@ export default function BlogEditor({ content, onChange, editable = true, onEdito
     if (!postId) return null;
     const document = new Y.Doc();
     const provider = new HocuspocusProvider({
-      url: getBlogCollabWsUrl(),
+      url: collabWsUrl || getBlogCollabWsUrl(),
       name: postId,
       document,
       token: () => getStoredToken() ?? '',
     });
     return { document, provider };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [postId]);
+  }, [postId, collabWsUrl]);
 
   useEffect(() => () => {
     collab?.provider.destroy();
