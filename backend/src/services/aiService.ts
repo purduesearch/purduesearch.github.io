@@ -86,96 +86,87 @@ function nextFriday(today: string): string {
   return d.toISOString().split("T")[0];
 }
 
-// ── Press Kit Synopsis ───────────────────────────────────────
+// ── Press Kit prose (audience-aware) ─────────────────────────
 
-export interface PressKitProject {
+export type PressKitAudience = "SPONSORS" | "PRESS" | "RECRUITING" | "GENERAL";
+
+export interface PressKitProseInput {
   name: string;
   type: string;
   status: string;
   description?: string | null;
+  milestones: string[];         // completed milestone titles
+  taskTitles: string[];         // top-level task titles (for subsystem inference)
+  tags: string[];
 }
 
-export interface PressKitTask {
-  title: string;
-  description?: string | null;
-  status: string;
-  subtasks: { title: string; description?: string | null }[];
+export interface PressKitProse {
+  about: string;
+  aboutSearch: string;
+  building: string;
+  sponsorship: string;
 }
 
-export interface PressKitMilestone {
-  title: string;
-}
+const AUDIENCE_TONE: Record<PressKitAudience, string> = {
+  SPONSORS:   "Emphasize impact, progress, and why the work matters to a funder. Confident, concrete.",
+  PRESS:      "Neutral, factual, quotable. Lead with what it is and why it is notable.",
+  RECRUITING: "Inviting and energetic; convey what members do and learn.",
+  GENERAL:    "Clear, professional overview for a general audience.",
+};
 
-export async function generatePressKitSynopsis(
-  project: PressKitProject,
-  tasks: PressKitTask[],
-  milestones: PressKitMilestone[]
-): Promise<string> {
+export async function generatePressKitSections(
+  input: PressKitProseInput,
+  audience: PressKitAudience
+): Promise<PressKitProse> {
+  const empty: PressKitProse = { about: "", aboutSearch: "", building: "", sponsorship: "" };
   const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) return "";
+  if (!apiKey) return empty;
 
-  const lines: string[] = [];
-  lines.push(`Project: ${project.name} (${project.type}, status: ${project.status})`);
-  if (project.description) lines.push(`Description: ${project.description}`);
-  lines.push("");
+  const prompt = `You write press-kit copy for a Purdue university engineering club (SEARCH — Students for the Exploration and Research of Space).
+Audience: ${audience}. ${AUDIENCE_TONE[audience]}
+Return ONLY a JSON object with these string fields (markdown allowed, no headings inside values):
+- "about": 2-4 sentences on what this specific project is and its current state.
+- "aboutSearch": 2-3 sentences of standard boilerplate about the SEARCH club (space research/engineering student org at Purdue).
+- "building": 3-5 sentences summarizing the technical subsystems/areas of work, inferred from the task titles. Name specific subsystems.
+- "sponsorship": ${audience === "SPONSORS" ? "2-3 sentences on the impact of support and how a sponsor can help." : "an empty string"}.
+Do not invent facts not implied by the data. No filler like "cutting-edge" or "exciting".
 
-  if (milestones.length > 0) {
-    lines.push("Completed milestones:");
-    for (const m of milestones) lines.push(`  - ${m.title}`);
-    lines.push("");
-  }
+Project: ${input.name} (${input.type}, status ${input.status})
+${input.description ? `Description: ${input.description}` : ""}
+Completed milestones: ${input.milestones.join("; ") || "none"}
+Task titles: ${input.taskTitles.slice(0, 40).join("; ") || "none"}
+Tags: ${input.tags.join(", ") || "none"}`;
 
-  if (tasks.length > 0) {
-    lines.push("Tasks:");
-    for (const t of tasks) {
-      lines.push(`  [${t.status}] ${t.title}${t.description ? ` — ${t.description.slice(0, 120)}` : ""}`);
-      for (const s of t.subtasks) {
-        lines.push(`    • ${s.title}${s.description ? ` — ${s.description.slice(0, 120)}` : ""}`);
-      }
-    }
-    lines.push("");
-  }
-
-  const prompt = `You are writing press kit copy for a university engineering club project.
-Given the project data below, write 2–3 sentences of polished, press-ready prose that synthesizes:
-- What the project is and what it is building
-- The key technical areas or subsystems being worked on
-- Where the project currently stands
-
-Write in third person, present tense. Be specific — mention technical terms and subsystem names from the task data. Do not use filler phrases like "exciting" or "cutting-edge". Return only the synopsis text, no labels or markdown.
-
-${lines.join("\n")}`;
-
-  let response: Response;
   try {
-    response = await fetch(`${GEMINI_URL}?key=${apiKey}`, {
+    const response = await fetch(`${GEMINI_URL}?key=${apiKey}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: {
           temperature: 0.4,
-          maxOutputTokens: 256,
+          maxOutputTokens: 900,
+          responseMimeType: "application/json",
           thinkingConfig: { thinkingBudget: 0 },
         },
       }),
     });
+    if (!response.ok) return empty;
+    const data = (await response.json()) as {
+      candidates?: { content?: { parts?: { text?: string; thought?: boolean }[] } }[];
+    };
+    const parts = data.candidates?.[0]?.content?.parts ?? [];
+    const raw = (parts.find((p) => !p.thought)?.text ?? parts[parts.length - 1]?.text ?? "").trim();
+    const parsed = JSON.parse(raw) as Partial<PressKitProse>;
+    return {
+      about: String(parsed.about ?? ""),
+      aboutSearch: String(parsed.aboutSearch ?? ""),
+      building: String(parsed.building ?? ""),
+      sponsorship: String(parsed.sponsorship ?? ""),
+    };
   } catch {
-    return "";
+    return empty;
   }
-
-  if (!response.ok) return "";
-
-  let data: { candidates?: { content?: { parts?: { text?: string; thought?: boolean }[] } }[] };
-  try {
-    data = (await response.json()) as typeof data;
-  } catch {
-    return "";
-  }
-
-  const parts = data.candidates?.[0]?.content?.parts ?? [];
-  const responsePart = parts.find((p) => !p.thought) ?? parts[parts.length - 1];
-  return (responsePart?.text ?? "").trim();
 }
 
 export async function parseTaskFromMessage(
