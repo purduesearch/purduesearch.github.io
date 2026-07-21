@@ -317,71 +317,67 @@ jobs:
                 echo "-> Backup: $ACTIVE_FILE.bak-$TS"
                 sudo -n cp -a "$ACTIVE_FILE" "$ACTIVE_FILE.bak-$TS"
 
-                # Use sed to inject the location block before the LAST closing brace
-                # in the SSL server block. Strategy: find the line with proxy_pass to
-                # our backend port, then find the next `}` that closes a location block,
-                # then the next `}` after that (closing the server block), and inject before it.
-                #
-                # Simpler approach: use a python one-liner for reliable multi-line injection
-                sudo -n python3 -c "
-import re, sys
-
-with open('$ACTIVE_FILE.bak-$TS', 'r') as f:
-    content = f.read()
-
-# Find server blocks containing our domain AND ssl/443
-blocks = list(re.finditer(r'server\s*\{', content))
-injected = False
-
-for match in reversed(blocks):
-    start = match.start()
-    # Find the matching closing brace
-    depth = 0
-    end = start
-    for i in range(start, len(content)):
-        if content[i] == '{': depth += 1
-        elif content[i] == '}': depth -= 1
-        if depth == 0:
-            end = i
-            break
-    block = content[start:end+1]
-    if '$DOMAIN' in block and ('ssl' in block or '443' in block):
-        # Check if /collab/ location already exists
-        if '/collab' in block:
-            print('   location /collab/ already in this server block — skipping')
-            continue
-        # Inject before the closing brace
-        injection = '''
-    # clubpm-collab-ws (added by fix-collab-websocket workflow)
-    location /collab/ {
-        proxy_pass http://127.0.0.1:$PORT;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade \\\$http_upgrade;
-        proxy_set_header Connection \\\$connection_upgrade;
-        proxy_set_header Host \\\$host;
-        proxy_set_header X-Real-IP \\\$remote_addr;
-        proxy_set_header X-Forwarded-For \\\$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \\\$scheme;
-        proxy_read_timeout 3600s;
-        proxy_send_timeout 3600s;
-    }
-'''
-        content = content[:end] + injection + content[end:]
-        injected = True
-        print('   ✓ Injected location /collab/ block')
-        break
-
-if not injected:
-    print('   !! Could not find SSL server block for $DOMAIN')
-    sys.exit(1)
-
-with open('$ACTIVE_FILE', 'w') as f:
-    f.write(content)
-" || {
+                # Write a Python helper to a temp file, then run it.
+                # This avoids YAML/shell/Python quoting conflicts.
+                INJECT_PY=$(mktemp /tmp/inject_collab_XXXXXX.py)
+                cat > "$INJECT_PY" << 'PYEOF'
+            import re, sys, os
+            src = sys.argv[1]
+            dst = sys.argv[2]
+            domain = sys.argv[3]
+            port = sys.argv[4]
+            with open(src, 'r') as f:
+                content = f.read()
+            blocks = list(re.finditer(r'server\s*\{', content))
+            injected = False
+            for match in reversed(blocks):
+                start = match.start()
+                depth = 0
+                end = start
+                for i in range(start, len(content)):
+                    if content[i] == '{': depth += 1
+                    elif content[i] == '}': depth -= 1
+                    if depth == 0:
+                        end = i
+                        break
+                block = content[start:end+1]
+                if domain in block and ('ssl' in block or '443' in block):
+                    if '/collab' in block:
+                        print('   location /collab/ already in this server block')
+                        continue
+                    injection = (
+                        '\n    # clubpm-collab-ws (added by fix-collab-websocket workflow)\n'
+                        '    location /collab/ {\n'
+                        '        proxy_pass http://127.0.0.1:' + port + ';\n'
+                        '        proxy_http_version 1.1;\n'
+                        '        proxy_set_header Upgrade $http_upgrade;\n'
+                        '        proxy_set_header Connection $connection_upgrade;\n'
+                        '        proxy_set_header Host $host;\n'
+                        '        proxy_set_header X-Real-IP $remote_addr;\n'
+                        '        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n'
+                        '        proxy_set_header X-Forwarded-Proto $scheme;\n'
+                        '        proxy_read_timeout 3600s;\n'
+                        '        proxy_send_timeout 3600s;\n'
+                        '    }\n'
+                    )
+                    content = content[:end] + injection + content[end:]
+                    injected = True
+                    print('   Injected location /collab/ block')
+                    break
+            if not injected:
+                print('   !! Could not find SSL server block for ' + domain)
+                sys.exit(1)
+            with open(dst, 'w') as f:
+                f.write(content)
+            PYEOF
+                sudo -n python3 "$INJECT_PY" "$ACTIVE_FILE.bak-$TS" "$ACTIVE_FILE" "$DOMAIN" "$PORT"
+                PY_RC=$?
+                rm -f "$INJECT_PY"
+                if [ "$PY_RC" -ne 0 ]; then
                   echo "!! Python injection failed — rolling back."
                   sudo -n cp -a "$ACTIVE_FILE.bak-$TS" "$ACTIVE_FILE"
                   exit 1
-                }
+                fi
 
                 # If the active file is in sites-enabled and is a symlink, we patched
                 # the resolved target. If it's in sites-available, make sure it's
