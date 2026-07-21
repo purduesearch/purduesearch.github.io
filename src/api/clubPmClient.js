@@ -418,6 +418,20 @@ export function getBlogCollabWsUrl() {
   return `${origin.replace(/^http/, 'ws')}/collab/blog`;
 }
 
+// ── Press Kit ────────────────────────────────────────────────
+export const getPressKit            = (projectId)         => get(`/api/projects/${projectId}/press-kit`);
+export const generatePressKit       = (projectId, config) => post(`/api/projects/${projectId}/press-kit/generate`, config);
+export const updatePressKitConfig   = (projectId, config) => patch(`/api/projects/${projectId}/press-kit`, config);
+export const publishPressKit        = (projectId)         => post(`/api/projects/${projectId}/press-kit/publish`, {});
+export const getPressKitRevisions   = (projectId)         => get(`/api/projects/${projectId}/press-kit/revisions`);
+export const restorePressKitRevision = (projectId, revId) => post(`/api/projects/${projectId}/press-kit/revisions/${revId}/restore`, {});
+
+// ws(s):// base for the press-kit Hocuspocus namespace (backend/src/collab/pressKitCollab.ts).
+export function getPressKitCollabWsUrl() {
+  const origin = BASE_URL || window.location.origin;
+  return `${origin.replace(/^http/, 'ws')}/collab/presskit`;
+}
+
 // ── Meeting scheduler (when2meet availability polls) ─────────
 
 export const listMeetingPolls = (params = {}) => {
