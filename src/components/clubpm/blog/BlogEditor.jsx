@@ -290,6 +290,7 @@ export default function BlogEditor({ content, onChange, editable = true, onEdito
       name: postId,
       document,
       token: () => getStoredToken() ?? '',
+      maxAttempts: 5,
     });
     return { document, provider };
     // eslint-disable-next-line react-hooks/exhaustive-deps
