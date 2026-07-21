@@ -11,7 +11,6 @@ import {
   format, subDays, startOfDay, parseISO, isValid,
   getISOWeek, getISOWeekYear, isAfter,
 } from 'date-fns';
-import ProjectActivity from './ProjectActivity';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -414,20 +413,6 @@ export default function ProjectAnalytics({ project }) {
         {/* Row 2 */}
         <VelocityChart tasks={tasks} />
         <RiskRadar tasks={tasks} />
-      </div>
-
-      {/* Activity used to be its own tab; lives here now so Reports is the one
-          stop for "what's been happening in this project". */}
-      <div>
-        <h3 style={{
-          margin: '0 0 12px',
-          fontSize: 16,
-          color: 'var(--pm-text-primary)',
-          fontWeight: 600,
-        }}>
-          Recent activity
-        </h3>
-        {project?.id && <ProjectActivity projectId={project.id} />}
       </div>
     </div>
   );

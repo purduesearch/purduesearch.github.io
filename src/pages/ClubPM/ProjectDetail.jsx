@@ -10,7 +10,7 @@ import { useClubPmAuth } from "../../clubpm/ClubPmAuth";
 import { useProjectNav } from "../../clubpm/ProjectNavContext";
 import TaskModal from "../../components/clubpm/TaskModal";
 import BulkActionBar from "../../components/clubpm/BulkActionBar";
-import ActivityFeed from "../../components/clubpm/ActivityFeed";
+import ProjectActivity from "../../components/clubpm/ProjectActivity";
 import ReportingView from "../../components/clubpm/ReportingView";
 import ProjectAnalytics from "../../components/clubpm/ProjectAnalytics";
 import PressKitPanel from "../../components/clubpm/PressKitPanel";
@@ -3475,7 +3475,7 @@ export default function ProjectDetail() {
               </div>
               {reportTab === "charts" && <ProjectAnalytics project={project} />}
               {reportTab === "activity" && (
-                <div style={{ paddingTop: 8 }}><ActivityFeed projectId={project.id} /></div>
+                <div style={{ paddingTop: 8 }}><ProjectActivity projectId={project.id} /></div>
               )}
               {reportTab === "presskit" && <PressKitPanel project={project} canEdit={canEdit} />}
             </div>
