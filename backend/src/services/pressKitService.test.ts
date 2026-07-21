@@ -48,6 +48,46 @@ function check(name: string, cond: boolean) {
   check("has team member", md.includes("Ana Lee"));
   check("sponsorship shown for SPONSORS", md.includes("Sponsor body."));
   check("excludes timeline (not selected)", !md.includes("## Timeline"));
+
+  // (a) sponsorship section hidden when audience !== "SPONSORS", even if
+  // "sponsorship" is included and prose.sponsorship is non-empty.
+  const mdPress = buildPressKitMarkdown(ctx, normalizePressKitConfig({
+    audience: "PRESS",
+    includedSections: ["masthead", "sponsorship"],
+  }), prose);
+  check("sponsorship hidden for non-SPONSORS audience", !mdPress.includes("## Support This Project"));
+
+  // (b) contact section is gated on both "contact" being included AND a
+  // non-empty contactEmail.
+  const mdContactShown = buildPressKitMarkdown(ctx, normalizePressKitConfig({
+    includedSections: ["masthead", "contact"],
+    showContact: true,
+    contactEmail: "leads@example.com",
+  }), prose);
+  check("contact shown when email present", mdContactShown.includes("## Contact"));
+
+  const mdContactHidden = buildPressKitMarkdown(ctx, normalizePressKitConfig({
+    includedSections: ["masthead", "contact"],
+    showContact: true,
+    contactEmail: "",
+  }), prose);
+  check("contact hidden when email empty", !mdContactHidden.includes("## Contact"));
+
+  // (c) durationDays === null omits the "Days active" row.
+  const ctxNoDuration: PressKitContext = { ...ctx, stats: { ...ctx.stats, durationDays: null } };
+  const mdNoDuration = buildPressKitMarkdown(ctxNoDuration, normalizePressKitConfig({
+    includedSections: ["stats"],
+  }), prose);
+  check("omits Days active when durationDays is null", !mdNoDuration.includes("Days active"));
+}
+
+// (d) normalizePressKitConfig: an includedSections array that is entirely
+// unknown values filters down to empty, which falls back to the default set.
+{
+  const c = normalizePressKitConfig({ includedSections: ["totallyBogus"] });
+  check("falls back to default sections when all filtered out",
+    JSON.stringify(c.includedSections) === JSON.stringify(DEFAULT_PRESS_KIT_CONFIG.includedSections));
+  check("fallback sections are non-empty", c.includedSections.length > 0);
 }
 
 console.log(`\npressKitService: ${passed} passed, ${failed} failed`);

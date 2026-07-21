@@ -151,7 +151,10 @@ Tags: ${input.tags.join(", ") || "none"}`;
         },
       }),
     });
-    if (!response.ok) return empty;
+    if (!response.ok) {
+      console.warn(`[aiService] generatePressKitSections: Gemini HTTP ${response.status}`);
+      return empty;
+    }
     const data = (await response.json()) as {
       candidates?: { content?: { parts?: { text?: string; thought?: boolean }[] } }[];
     };
@@ -164,7 +167,8 @@ Tags: ${input.tags.join(", ") || "none"}`;
       building: String(parsed.building ?? ""),
       sponsorship: String(parsed.sponsorship ?? ""),
     };
-  } catch {
+  } catch (err) {
+    console.warn("[aiService] generatePressKitSections failed:", err);
     return empty;
   }
 }

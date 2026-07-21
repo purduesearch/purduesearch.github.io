@@ -38,7 +38,8 @@ export function normalizePressKitConfig(raw: unknown): PressKitConfig {
     ? (r.includedSections as unknown[]).filter((s): s is string => typeof s === "string"
         && (SECTION_IDS as readonly string[]).includes(s))
     : DEFAULT_PRESS_KIT_CONFIG.includedSections;
-  const accentColor = typeof r.accentColor === "string" && /^#[0-9a-fA-F]{3,8}$/.test(r.accentColor)
+  const accentColor = typeof r.accentColor === "string"
+      && /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(r.accentColor)
     ? r.accentColor : DEFAULT_PRESS_KIT_CONFIG.accentColor;
   const contactEmail = typeof r.contactEmail === "string" ? r.contactEmail : "";
   const showContact = typeof r.showContact === "boolean" ? r.showContact : true;
@@ -225,12 +226,17 @@ export async function generatePressKitContent(
   const ctx = await gatherPressKitData(projectId);
   if (!ctx) return null;
 
+  const taskRows = await prisma.task.findMany({
+    where: { projectId, parentTaskId: null },
+    select: { title: true }, take: 40,
+  });
+
   const prose = await generatePressKitSections(
     {
       name: ctx.project.name, type: ctx.project.type, status: ctx.project.status,
       description: ctx.project.description,
       milestones: ctx.milestones.map((m) => m.title),
-      taskTitles: [], // titles not needed beyond count; keep prompt lean
+      taskTitles: taskRows.map((t) => t.title),
       tags: ctx.tags,
     },
     config.audience,
