@@ -3,7 +3,7 @@ import ReactMarkdown from "react-markdown";
 import { createPortal } from "react-dom";
 import { useParams, Link, useSearchParams, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
-import { get, post, patch, del, setNextRewardOrigin, getProgressSnapshot, saveProgressSnapshot, bulkArchive, unarchiveTask, getArchivedTasks, getProjectBlockers, createBlocker, updateBlocker, uploadProjectDriveFile, deleteProjectDriveFile } from "../../api/clubPmClient";
+import { get, post, patch, setNextRewardOrigin, getProgressSnapshot, saveProgressSnapshot, bulkArchive, unarchiveTask, getArchivedTasks, getProjectBlockers, createBlocker, updateBlocker } from "../../api/clubPmClient";
 import MemberBadge from "../../components/clubpm/MemberBadge";
 import AvatarPortrait from "../../components/clubpm/avatar/AvatarPortrait";
 import { useClubPmAuth } from "../../clubpm/ClubPmAuth";
@@ -22,7 +22,7 @@ import EditDriveFolderModal from "../../components/clubpm/EditDriveFolderModal";
 import GitHubPanel from "../../components/clubpm/github/GitHubPanel";
 import ActionPlanReview from "../../components/clubpm/ActionPlanReview";
 import VaultTab from "../../components/clubpm/vault/VaultTab";
-import { parseDriveUrl, mimeTypeToKind, getTypeMeta, formatRelativeTime } from "../../utils/driveUtils";
+import { parseDriveUrl, getTypeMeta } from "../../utils/driveUtils";
 import {
   DndContext,
   DragOverlay,
@@ -1898,96 +1898,63 @@ function DriveFolderPill({ project, isAdmin, onPreview, onSaved }) {
   );
 }
 
-// ── Files Tab Panel (Drive folder grid) ──────────────────────
+// ── Files Tab Panel (view-only link to the project's linked Drive folder) ────
+//
+// The Files tab is intentionally read-only: it surfaces the human-managed Drive
+// folder linked to the project (`project.driveLink`) and links out to it. The
+// bot's drive.file OAuth scope can't list a folder it didn't create, so
+// browsing/adding/editing happen in Drive itself; the app never provisions or
+// mutates the folder. (The writable, bot-owned "CAD" folder is under the Vault
+// subtab.)
 
 function DriveFilesPanel({ project, isAdmin, onProjectChange }) {
-  const [state, setState] = useState({ loading: true, data: null, error: null });
-  const [preview, setPreview] = useState(null); // { url, label }
   const [editing, setEditing] = useState(false);
+  const link = project.driveLink ?? null;
+  const parsed = link ? parseDriveUrl(link) : null;
+  const isFolder = parsed?.kind === "folder";
 
-  const fetchFiles = useCallback(() => {
-    setState({ loading: true, data: null, error: null });
-    get(`/api/projects/${project.id}/drive-files`)
-      .then(data => setState({ loading: false, data, error: null }))
-      .catch(err => setState({ loading: false, data: null, error: err?.message ?? "Failed to load" }));
-  }, [project.id]);
+  const editModal = editing && (
+    <EditDriveFolderModal
+      projectId={project.id}
+      currentLink={link}
+      onClose={() => setEditing(false)}
+      onSaved={updated => { onProjectChange?.(updated); setEditing(false); }}
+    />
+  );
 
-  useEffect(() => { fetchFiles(); }, [fetchFiles]);
-
-  const [uploading, setUploading] = useState(false);
-
-  const handleUpload = async (e) => {
-    const file = e.target.files?.[0];
-    e.target.value = "";
-    if (!file) return;
-    setUploading(true);
-    try {
-      await uploadProjectDriveFile(project.id, file);
-      toast.success(`Uploaded ${file.name}`);
-      fetchFiles();
-    } catch (err) {
-      toast.error(err?.message || "Upload failed");
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  const handleDelete = async (file) => {
-    if (!window.confirm(`Delete "${file.name}" from Drive?`)) return;
-    try {
-      await deleteProjectDriveFile(project.id, file.id);
-      toast.success("Deleted");
-      fetchFiles();
-    } catch (err) {
-      toast.error(err?.message || "Delete failed");
-    }
-  };
-
-  if (state.loading) {
-    return (
-      <div className="cpm-drive-files-empty">
-        <span className="cpm-spinner" aria-hidden="true" /> Loading Drive folder…
-      </div>
-    );
-  }
-
-  if (state.error) {
-    return (
-      <div className="cpm-drive-files-empty cpm-drive-files-error">
-        <i className="fas fa-exclamation-triangle" aria-hidden="true" />
-        <p>{state.error}</p>
-        <button className="clubpm-btn-primary" onClick={fetchFiles}>Retry</button>
-      </div>
-    );
-  }
-
-  const data = state.data;
-
-  if (data?.noLink) {
+  // No folder linked yet.
+  if (!link) {
     return (
       <div className="cpm-drive-files-empty">
         <i className="fab fa-google-drive" style={{ fontSize: 36, color: "#4285F4", marginBottom: 10 }} aria-hidden="true" />
         <h3 style={{ margin: "0 0 4px", fontSize: 15, color: "var(--clubpm-text-primary)" }}>
-          Google Drive isn't connected
+          No Drive folder linked
         </h3>
-        <p>Files live in a bot-managed Drive folder that's created automatically once Google Drive is connected.</p>
-        <p style={{ fontSize: 11, opacity: 0.7, marginTop: 8 }}>
-          {isAdmin ? "Connect it under Admin → Integrations." : "Ask an admin to connect Google Drive."}
-        </p>
+        <p>This project's files live in a Google Drive folder. Link one to open it from here.</p>
+        {isAdmin ? (
+          <button className="clubpm-btn-primary" style={{ marginTop: 12 }} onClick={() => setEditing(true)}>
+            <i className="fab fa-google-drive" aria-hidden="true" style={{ marginRight: 8 }} />
+            Link Drive folder
+          </button>
+        ) : (
+          <p style={{ fontSize: 11, opacity: 0.7, marginTop: 8 }}>Ask an admin to link the project's Drive folder.</p>
+        )}
+        {editModal}
       </div>
     );
   }
 
-  if (data?.notFolder) {
+  // Linked, but the link points at a file/doc rather than a folder.
+  if (!isFolder) {
     return (
       <div className="cpm-drive-files-empty">
         <i className="fab fa-google-drive" style={{ fontSize: 36, color: "#4285F4", marginBottom: 10 }} aria-hidden="true" />
         <h3 style={{ margin: "0 0 4px", fontSize: 15, color: "var(--clubpm-text-primary)" }}>
           The linked Drive item isn't a folder
         </h3>
-        <p>You can still open it directly, but the Files browser needs a folder link.</p>
+        <p>You can still open it directly, but the Files tab works best with a folder link.</p>
         <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-          <a className="clubpm-btn-primary" href={project.driveLink} target="_blank" rel="noopener noreferrer">
+          <a className="clubpm-btn-primary" href={link} target="_blank" rel="noopener noreferrer">
             Open link
           </a>
           {isAdmin && (
@@ -1996,123 +1963,41 @@ function DriveFilesPanel({ project, isAdmin, onProjectChange }) {
             </button>
           )}
         </div>
-        {editing && (
-          <EditDriveFolderModal
-            projectId={project.id}
-            currentLink={project.driveLink}
-            onClose={() => setEditing(false)}
-            onSaved={updated => { onProjectChange?.(updated); fetchFiles(); }}
-          />
-        )}
+        {editModal}
       </div>
     );
   }
 
-  const files = data?.files ?? [];
-
+  // Folder linked → view-only link-out.
   return (
     <div className="cpm-drive-files">
       <header className="cpm-drive-files-header">
         <div className="cpm-drive-files-title">
           <i className="fas fa-folder" style={{ color: "#FFC107" }} aria-hidden="true" />
-          <span>{data.folderName || "Drive folder"}</span>
-          <span className="cpm-drive-files-count">
-            {files.length} item{files.length !== 1 ? "s" : ""}
-          </span>
+          <span>Drive folder</span>
         </div>
         <div className="cpm-drive-files-header-actions">
-          <label className="cpm-drive-files-refresh" style={{ cursor: uploading ? "default" : "pointer" }} title="Upload a file">
-            <i className={`fas ${uploading ? "fa-spinner fa-spin" : "fa-upload"}`} aria-hidden="true" /> {uploading ? "Uploading…" : "Upload"}
-            <input type="file" hidden onChange={handleUpload} disabled={uploading} />
-          </label>
-          <button type="button" className="cpm-drive-files-refresh" onClick={fetchFiles} title="Refresh">
-            <i className="fas fa-sync" aria-hidden="true" /> Refresh
-          </button>
-          <a
-            href={data.folderWebViewLink || project.driveLink}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="cpm-drive-files-open"
-          >
+          {isAdmin && (
+            <button type="button" className="cpm-drive-files-refresh" onClick={() => setEditing(true)} title="Change linked folder">
+              <i className="fas fa-pen" aria-hidden="true" /> Change
+            </button>
+          )}
+          <a href={link} target="_blank" rel="noopener noreferrer" className="cpm-drive-files-open">
             Open in Drive <i className="fas fa-external-link-alt" aria-hidden="true" />
           </a>
         </div>
       </header>
 
-      {files.length === 0 ? (
-        <div className="cpm-drive-files-empty">No files yet — use Upload to add one.</div>
-      ) : (
-        <div className="cpm-drive-grid">
-          {files.map(f => {
-            const kind = mimeTypeToKind(f.mimeType);
-            const meta = getTypeMeta(kind);
-            const open = f.webViewLink
-              || (kind === "folder"
-                ? `https://drive.google.com/drive/folders/${f.id}`
-                : `https://drive.google.com/file/d/${f.id}/view`);
-            return (
-              <div
-                key={f.id}
-                className="cpm-drive-card"
-                onClick={() => setPreview({ url: open, label: f.name })}
-                role="button"
-                tabIndex={0}
-                onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setPreview({ url: open, label: f.name }); } }}
-              >
-                <div
-                  className="cpm-drive-card-thumb"
-                  style={{
-                    background: f.thumbnailLink ? "transparent" : `${meta.color}18`,
-                    color: meta.color,
-                  }}
-                >
-                  {f.thumbnailLink ? (
-                    <img src={f.thumbnailLink} alt="" loading="lazy" referrerPolicy="no-referrer" />
-                  ) : (
-                    <i className={`fas ${meta.icon}`} aria-hidden="true" />
-                  )}
-                  <button
-                    type="button"
-                    className="cpm-drive-card-open-btn"
-                    style={{ left: 6, right: "auto", background: "rgba(176,42,42,0.72)" }}
-                    onClick={e => { e.stopPropagation(); handleDelete(f); }}
-                    title="Delete file"
-                    aria-label="Delete file"
-                  >
-                    <i className="fas fa-trash" aria-hidden="true" />
-                  </button>
-                  <a
-                    href={open}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="cpm-drive-card-open-btn"
-                    onClick={e => e.stopPropagation()}
-                    title="Open in Drive"
-                    aria-label="Open in Drive"
-                  >
-                    <i className="fas fa-external-link-alt" aria-hidden="true" />
-                  </a>
-                </div>
-                <div className="cpm-drive-card-meta">
-                  <div className="cpm-drive-card-name" title={f.name}>{f.name}</div>
-                  <div className="cpm-drive-card-sub">
-                    <span style={{ color: meta.color, fontWeight: 600 }}>{meta.label}</span>
-                    {f.modifiedTime && <span>· {formatRelativeTime(f.modifiedTime)}</span>}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+      <div className="cpm-drive-files-empty" style={{ marginTop: 4 }}>
+        <i className="fab fa-google-drive" style={{ fontSize: 32, color: "#4285F4", marginBottom: 10 }} aria-hidden="true" />
+        <p>This project's files live in a linked Google Drive folder.</p>
+        <p style={{ fontSize: 11, opacity: 0.7, marginTop: 2 }}>Open it in Drive to browse, add, or edit files.</p>
+        <a href={link} target="_blank" rel="noopener noreferrer" className="clubpm-btn-primary" style={{ marginTop: 12 }}>
+          Open folder in Drive <i className="fas fa-external-link-alt" aria-hidden="true" style={{ marginLeft: 6 }} />
+        </a>
+      </div>
 
-      {preview && (
-        <DrivePreviewModal
-          url={preview.url}
-          label={preview.label}
-          onClose={() => setPreview(null)}
-        />
-      )}
+      {editModal}
     </div>
   );
 }

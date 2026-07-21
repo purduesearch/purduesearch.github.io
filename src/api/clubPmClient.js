@@ -335,14 +335,6 @@ export function uploadVaultFile(path, file, fields = {}, onProgress) {
   });
 }
 
-// Project Drive folder (bot-owned, drive.file scope). Upload streams through the
-// bot into the project's auto-provisioned folder; files are shared view-only.
-export function uploadProjectDriveFile(projectId, file, onProgress) {
-  return uploadVaultFile(`/api/projects/${projectId}/drive-files`, file, {}, onProgress);
-}
-export const deleteProjectDriveFile = (projectId, fileId) =>
-  del(`/api/projects/${projectId}/drive-files/${fileId}`);
-
 // ── Change requests (Constellation Vault CAD change management) ──
 
 export const listCrs   = (projectId, status) =>

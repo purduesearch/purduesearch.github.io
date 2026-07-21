@@ -250,39 +250,6 @@ export async function ensureClubPmRootFolder(): Promise<string | null> {
 }
 
 /**
- * Ensure a project has a bot-owned Drive folder (a subfolder under the ClubPM
- * root), creating + sharing it view-only on first use. The folder id is stored
- * as the project's `driveLink` (a view-only webViewLink). A pre-existing link is
- * reused only if the bot can still access it — legacy human-shared folders are
- * invisible under drive.file (`getDriveFileMeta` returns null), so they are
- * transparently replaced. Returns the folder id, or null if the bot isn't
- * connected / provisioning failed.
- */
-export async function ensureProjectDriveFolder(projectId: string): Promise<string | null> {
-  const project = await prisma.project.findUnique({
-    where: { id: projectId },
-    select: { id: true, name: true, driveLink: true },
-  });
-  if (!project) return null;
-
-  if (project.driveLink && /\/folders\//.test(project.driveLink)) {
-    const existingId = extractFileId(project.driveLink);
-    if (existingId && (await getDriveFileMeta(existingId))) return existingId;
-  }
-
-  const rootId = await ensureClubPmRootFolder();
-  if (!rootId) return null;
-  const created = await createDriveFolder(project.name || "Project", rootId);
-  if (!created) return null;
-  await makeDriveFilePublic(created.id, "reader");
-
-  const webViewLink =
-    created.webViewLink ?? `https://drive.google.com/drive/folders/${created.id}`;
-  await prisma.project.update({ where: { id: projectId }, data: { driveLink: webViewLink } });
-  return created.id;
-}
-
-/**
  * Upload a readable stream to Drive as a new file. The file is left private
  * (no permissions.create) — vault files are never made public.
  */

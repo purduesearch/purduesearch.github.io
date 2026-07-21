@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { prisma } from "../db/prisma.js";
 import { getSessionSecret } from "../config/env.js";
-import { createDriveFolder, ensureProjectDriveFolder, getBotAccountEmail } from "./driveService.js";
+import { createDriveFolder, ensureClubPmRootFolder, getBotAccountEmail } from "./driveService.js";
 
 /**
  * Excel-style revision letters: A, B, ..., Z, AA, AB, ..., AZ, BA, ...
@@ -42,17 +42,21 @@ export type VaultHealth = {
  * attempt (see `ensureVaultFolder`), never from this probe.
  */
 export async function getVaultHealth(_projectId: string): Promise<VaultHealth> {
-  // The vault is backed by a bot-owned Drive folder that is provisioned lazily
-  // (see ensureProjectDriveFolder), so health just reflects whether the Drive
-  // bot account is connected at all.
+  // The vault is backed by a bot-owned "CAD" Drive folder provisioned lazily
+  // (see ensureVaultFolder), so health just reflects whether the Drive bot
+  // account is connected at all.
   const email = await getBotAccountEmail();
   return email ? { status: "ok" } : { status: "no-link" };
 }
 
 /**
- * Ensure the project's "Constellation Vault" Drive subfolder exists, creating it
- * (under the project's linked Drive folder) on first use. Returns the folder id,
- * or a VaultHealth describing why it couldn't be resolved.
+ * Ensure the project has a bot-owned "CAD" Drive folder for vault files, creating
+ * it on first use. The folder is created and owned by the Drive bot (as
+ * "ClubPM Projects / <project> / CAD") — deliberately NOT inside the project's
+ * linked Drive folder, because the drive.file scope only lets the bot touch
+ * folders it created itself. The project's `driveLink` (the human-managed folder
+ * shown view-only in the Files tab) is never read or mutated here. Returns the
+ * folder id, or a VaultHealth describing why it couldn't be resolved.
  */
 export async function ensureVaultFolder(
   projectId: string
@@ -66,14 +70,20 @@ export async function ensureVaultFolder(
     return { folderId: project.vaultFolderId };
   }
 
-  // Anchor the vault under the project's bot-owned Drive folder (created on
-  // demand). Null means the Drive bot isn't connected yet.
-  const parentId = await ensureProjectDriveFolder(projectId);
-  if (!parentId) {
+  // The bot must be connected before it can create/own the folder. Null means
+  // no Drive bot account is connected yet.
+  const rootId = await ensureClubPmRootFolder();
+  if (!rootId) {
     return { error: { status: "no-link" } };
   }
 
-  const created = await createDriveFolder("Constellation Vault", parentId);
+  // A per-project container keeps the bot's Drive tidy; the leaf is the "CAD"
+  // folder that actually holds vault (part) files.
+  const projectFolder = await createDriveFolder(project.name || "Project", rootId);
+  if (!projectFolder) {
+    return { error: { status: "not-shared", serviceAccountEmail: await getBotAccountEmail() } };
+  }
+  const created = await createDriveFolder("CAD", projectFolder.id);
   if (!created) {
     return { error: { status: "not-shared", serviceAccountEmail: await getBotAccountEmail() } };
   }
