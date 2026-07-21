@@ -277,7 +277,7 @@ const PRINT_STYLES = `
   .pk-brand .sub { font-size: 11px; color: #666; }
   .pk-footer { margin-top: 40px; padding-top: 14px; border-top: 1px solid #ddd; font-size: 10px; color: #888; text-align: center; }
   @media screen { body { box-shadow: 0 0 24px rgba(0,0,0,0.08); margin: 20px auto; border-radius: 4px; }
-    .print-hint { position: fixed; top: 10px; right: 10px; background: var(--accent); color: #062; padding: 8px 14px;
+    .print-hint { position: fixed; top: 10px; right: 10px; background: var(--accent); color: #fff; padding: 8px 14px;
       border-radius: 6px; font-size: 12px; z-index: 1000; } }
   @media print { .print-hint { display: none; } }
 `;
@@ -295,7 +295,7 @@ export async function buildPressKitHtml(projectId: string): Promise<string | nul
   const accent = config.accentColor;
   const project = await prisma.project.findUnique({ where: { id: projectId }, select: { name: true } });
   const title = project?.name ?? "Press Kit";
-  const esc = (s: string) => s.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
   const generated = new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
 
   return `<!DOCTYPE html>
