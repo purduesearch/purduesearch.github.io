@@ -23603,3 +23603,58 @@ button.cpm-badge-tile:disabled { opacity: 0.7; cursor: progress; }
   padding: 8px 10px; border-radius: 6px; cursor: pointer; font: inherit;
 }
 .presskit-export-menu button:hover { background: var(--pm-overlay, #2a2f3a); color: var(--pm-accent-teal, #00e5cc); }
+
+/* ===================== Section Page Builder ===================== */
+/* Post theme variables live on the article wrapper (.pm-blog-post-body / .cpm-blog-editor-surface) */
+.pm-blog-post-body, .cpm-blog-editor-surface {
+  --post-accent: var(--pm-accent-teal, #00e5cc);
+  --post-max: 760px;
+}
+.pm-blog-post-body[data-fontpair="oswald-lato"], .cpm-blog-editor-surface[data-fontpair="oswald-lato"] { font-family: 'Lato', system-ui, sans-serif; }
+.pm-blog-post-body[data-fontpair="montserrat-worksans"], .cpm-blog-editor-surface[data-fontpair="montserrat-worksans"] { font-family: 'Work Sans', system-ui, sans-serif; }
+.pm-blog-post-body[data-width="wide"], .cpm-blog-editor-surface[data-width="wide"] { --post-max: 1040px; }
+
+.cpm-blog-section { width: 100%; }
+.cpm-blog-section-inner { max-width: var(--post-max); margin: 0 auto; }
+.cpm-blog-section--full .cpm-blog-section-inner { max-width: 100%; }
+.cpm-blog-section--pad-s .cpm-blog-section-inner { padding: 16px 20px; }
+.cpm-blog-section--pad-m .cpm-blog-section-inner { padding: 32px 20px; }
+.cpm-blog-section--pad-l .cpm-blog-section-inner { padding: 56px 20px; }
+.cpm-blog-section--pad-xl .cpm-blog-section-inner { padding: 88px 20px; }
+.cpm-blog-section--dark { background-color: #0e1116; color: #e6ebf2; }
+.cpm-blog-section--light { background-color: #ffffff; color: #14181f; }
+/* Column layouts: grid that collapses to one column on mobile */
+.cpm-blog-section--cols2 .cpm-blog-section-inner,
+.cpm-blog-section--cols3 .cpm-blog-section-inner,
+.cpm-blog-section--mediaText .cpm-blog-section-inner { display: grid; gap: 28px; align-items: start; }
+.cpm-blog-section--cols2 .cpm-blog-section-inner { grid-template-columns: 1fr 1fr; }
+.cpm-blog-section--cols3 .cpm-blog-section-inner { grid-template-columns: 1fr 1fr 1fr; }
+.cpm-blog-section--mediaText .cpm-blog-section-inner { grid-template-columns: 1fr 1fr; }
+@media (max-width: 640px) {
+  .cpm-blog-section--cols2 .cpm-blog-section-inner,
+  .cpm-blog-section--cols3 .cpm-blog-section-inner,
+  .cpm-blog-section--mediaText .cpm-blog-section-inner { grid-template-columns: 1fr; }
+}
+.cpm-blog-hero { position: relative; background-size: cover; background-position: center; padding: 96px 24px; text-align: center; }
+.cpm-blog-hero--left { text-align: left; }
+.cpm-blog-hero-inner { max-width: var(--post-max); margin: 0 auto; position: relative; z-index: 1; }
+.cpm-blog-hero h1 { font-size: 2.6rem; margin: 0 0 8px; }
+.cpm-blog-hero--overlay::before { content: ""; position: absolute; inset: 0; background: rgba(0,0,0,0.45); }
+.cpm-blog-statband { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 16px; margin: 12px 0; }
+.cpm-blog-stat { text-align: center; padding: 14px; border: 1px solid var(--color-border, #2a2f3a); border-radius: 12px; }
+.cpm-blog-stat-value { font-size: 2rem; font-weight: 800; color: var(--post-accent); }
+.cpm-blog-stat-label { font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.7; }
+.cpm-blog-cta { margin: 20px 0; }
+.cpm-blog-cta--center { text-align: center; } .cpm-blog-cta--right { text-align: right; }
+.cpm-blog-cta-btn { display: inline-block; padding: 12px 26px; border-radius: 10px; font-weight: 700; text-decoration: none; }
+.cpm-blog-cta-btn--solid { background: var(--post-accent); color: #06231f; }
+.cpm-blog-cta-btn--outline { border: 2px solid var(--post-accent); color: var(--post-accent); }
+/* Editor affordances */
+.cpm-blog-section { position: relative; }
+.cpm-blog-add-section { display: block; width: 100%; border: none; background: none; color: var(--pm-accent-teal, #00e5cc);
+  padding: 6px 0; font-size: 12px; cursor: pointer; opacity: 0.55; }
+.cpm-blog-add-section:hover { opacity: 1; }
+.cpm-blog-section-toolbar { position: absolute; top: 6px; right: 8px; display: flex; gap: 4px; background: #0b0e13;
+  border: 1px solid var(--pm-accent-teal, #00e5cc); border-radius: 20px; padding: 3px 7px; z-index: 5; opacity: 0; transition: opacity .12s; }
+.cpm-blog-section:hover .cpm-blog-section-toolbar, .cpm-blog-section.is-selected .cpm-blog-section-toolbar { opacity: 1; }
+.cpm-blog-section-toolbar button { background: none; border: none; color: var(--pm-accent-teal, #00e5cc); cursor: pointer; padding: 2px 5px; }

@@ -319,6 +319,20 @@ const PRINT_STYLES = `
     .print-hint { position: fixed; top: 10px; right: 10px; background: var(--accent); color: #fff; padding: 8px 14px;
       border-radius: 6px; font-size: 12px; z-index: 1000; } }
   @media print { .print-hint { display: none; } }
+  .cpm-blog-section-inner { max-width: 100%; padding: 10px 0; }
+  .cpm-blog-section--cols2 .cpm-blog-section-inner, .cpm-blog-section--cols3 .cpm-blog-section-inner,
+  .cpm-blog-section--mediaText .cpm-blog-section-inner { display: grid; gap: 18px; }
+  .cpm-blog-section--cols2 .cpm-blog-section-inner, .cpm-blog-section--mediaText .cpm-blog-section-inner { grid-template-columns: 1fr 1fr; }
+  .cpm-blog-section--cols3 .cpm-blog-section-inner { grid-template-columns: 1fr 1fr 1fr; }
+  .cpm-blog-hero { padding: 40px 10px; text-align: center; }
+  .cpm-blog-hero h1 { font-size: 26px; }
+  .cpm-blog-statband { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px,1fr)); gap: 12px; }
+  .cpm-blog-stat { border: 1px solid #e2e6ea; border-radius: 8px; padding: 10px; text-align: center; }
+  .cpm-blog-stat-value { font-size: 20px; font-weight: 800; color: var(--accent); }
+  .cpm-blog-stat-label { font-size: 9px; letter-spacing: 1px; text-transform: uppercase; color: #666; }
+  .cpm-blog-cta { text-align: center; margin: 14px 0; }
+  .cpm-blog-cta-btn { display: inline-block; padding: 8px 18px; border-radius: 6px; background: var(--accent); color: #06231f; font-weight: 700; text-decoration: none; }
+  .cpm-blog-section-toolbar, .cpm-blog-add-section { display: none; }
 `;
 
 /** Build the full public/print HTML for a project's press kit, or null if none/empty. */
