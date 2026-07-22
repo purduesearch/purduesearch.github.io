@@ -321,6 +321,31 @@ export async function deleteDriveFile(fileId: string): Promise<boolean> {
   }
 }
 
+/**
+ * Stream a Drive file's raw bytes (for the public image proxy). Returns the
+ * readable stream + mime type, or null if Drive is unavailable / the id is bad.
+ */
+export async function streamDriveFile(
+  fileId: string
+): Promise<{ stream: Readable; mimeType: string } | null> {
+  try {
+    const drive = await getBotDrive();
+    if (!drive) return null;
+    const meta = await drive.files.get({ fileId, fields: "mimeType" });
+    const resp = await drive.files.get(
+      { fileId, alt: "media" },
+      { responseType: "stream" }
+    );
+    return {
+      stream: resp.data as unknown as Readable,
+      mimeType: meta.data.mimeType ?? "application/octet-stream",
+    };
+  } catch (err) {
+    console.error("[driveService] streamDriveFile error:", err);
+    return null;
+  }
+}
+
 /** Rename a Drive file (used when a vault item is renamed). */
 export async function renameDriveFile(fileId: string, newName: string): Promise<boolean> {
   try {

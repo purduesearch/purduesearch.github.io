@@ -162,7 +162,12 @@ blogRouter.post(
         res.status(502).json({ error: "Failed to upload image" });
         return;
       }
-      res.json({ url: uploaded.url, width: info.width, height: info.height });
+      const origin = `${req.protocol}://${req.get("host")}`;
+      res.json({
+        url: `${origin}/api/public/blog-image/${uploaded.fileId}`,
+        width: info.width,
+        height: info.height,
+      });
     } catch (error) {
       console.error("POST /blog/upload error:", error);
       res.status(500).json({ error: "Failed to process image" });
