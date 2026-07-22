@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { prisma } from "../db/prisma.js";
 import { generatePressKitSections } from "./aiService.js";
-import { renderJsonToHtml, markdownToTiptapJson, type PMDoc } from "./blogRender.js";
+import { renderJsonToHtml, markdownToTiptapJson, type PMDoc, type PMNode } from "./blogRender.js";
 
 // ── Config ───────────────────────────────────────────────────
 
@@ -154,6 +154,39 @@ export function buildPressKitMarkdown(
   return out.join("\n");
 }
 
+// ── Section-based assembly (hero + statBand + sections) ───────
+
+export function buildPressKitDoc(ctx: PressKitContext, config: PressKitConfig, prose: PressKitProse): PMDoc {
+  const sections: PMNode[] = [];
+  const has = (id: string) => config.includedSections.includes(id);
+
+  if (has("masthead")) {
+    sections.push({ type: "section", attrs: { layout: "single", padding: "xl", width: "fullBleed" },
+      content: [{ type: "hero", attrs: { heading: ctx.project.name, subheading: [ctx.project.type, ctx.project.status].filter(Boolean).join(" · "), align: "center", overlay: false, bgImage: "" } }] });
+  }
+  if (has("stats")) {
+    sections.push({ type: "section", attrs: { layout: "single", padding: "l" },
+      content: [{ type: "statBand", attrs: { stats: [
+        { label: "TEAM", value: String(ctx.stats.teamSize) },
+        { label: "TASKS DONE", value: `${ctx.stats.tasksDone}/${ctx.stats.tasksTotal}` },
+        { label: "MILESTONES", value: String(ctx.stats.milestonesHit) },
+        { label: "HOURS", value: String(ctx.stats.hoursLogged) },
+      ] } }] });
+  }
+  // Prose + remaining sections: reuse the markdown assembler, minus masthead/stats, wrapped in one section.
+  const restConfig = { ...config, includedSections: config.includedSections.filter((s) => s !== "masthead" && s !== "stats") };
+  const md = buildPressKitMarkdown(ctx, restConfig, prose);
+  const restDoc = markdownToTiptapJson(md);
+  if (restDoc.content && restDoc.content.length) {
+    sections.push({ type: "section", attrs: { layout: "single", padding: "l" }, content: restDoc.content });
+  }
+  if (config.audience === "SPONSORS" && has("sponsorship")) {
+    sections.push({ type: "section", attrs: { layout: "single", padding: "l" },
+      content: [{ type: "ctaButton", attrs: { label: "Become a sponsor", href: config.contactEmail ? `mailto:${config.contactEmail}` : "", style: "solid", align: "center" } }] });
+  }
+  return { type: "doc", content: sections.length ? sections : [{ type: "paragraph" }] };
+}
+
 // ── Token ────────────────────────────────────────────────────
 
 export async function ensurePressKitToken(projectId: string): Promise<string> {
@@ -281,8 +314,7 @@ export async function generatePressKitContent(
     config.audience,
   );
 
-  const md = buildPressKitMarkdown(ctx, config, prose);
-  return markdownToTiptapJson(md);
+  return buildPressKitDoc(ctx, config, prose);
 }
 
 // ── Public HTML render (print-styled shell around the doc) ───
