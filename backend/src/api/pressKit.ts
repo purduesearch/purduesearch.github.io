@@ -6,6 +6,7 @@ import {
   renderPressKitInnerHtml, ensurePressKitToken,
 } from "../services/pressKitService.js";
 import type { PMDoc } from "../services/blogRender.js";
+import { replacePressKitDocContent } from "../collab/pressKitCollab.js";
 import type { Prisma } from "@prisma/client";
 
 export const pressKitRouter = Router();
@@ -70,6 +71,12 @@ pressKitRouter.post("/projects/:projectId/press-kit/generate", async (req: Reque
         status: "DRAFT",
       },
     });
+    // Push the new body into the live collab doc so connected editors see it
+    // immediately — nulling contentYjs above only re-seeds on a fresh load,
+    // which never happens while an editor is holding the doc open. Best-effort:
+    // the DB row is the durable copy, so a collab hiccup mustn't fail generate.
+    try { await replacePressKitDocContent(kit.id, doc); }
+    catch (e) { console.error("press-kit generate live-doc seed failed:", e); }
     res.json({ id: updated.id, config, contentJson: updated.contentJson, generatedAt: updated.generatedAt, status: updated.status });
   } catch (e) { console.error("POST press-kit/generate error:", e); res.status(500).json({ error: "Failed to generate press kit" }); }
 });
@@ -153,6 +160,8 @@ pressKitRouter.post("/projects/:projectId/press-kit/revisions/:revId/restore", a
       where: { id: kit.id },
       data: { contentJson: rev.contentJson as Prisma.InputJsonValue, contentYjs: null, status: "DRAFT" },
     });
+    try { await replacePressKitDocContent(kit.id, updated.contentJson as unknown as PMDoc); }
+    catch (e) { console.error("press-kit restore live-doc seed failed:", e); }
     res.json({ contentJson: updated.contentJson });
   } catch (e) { console.error("POST press-kit restore error:", e); res.status(500).json({ error: "Failed to restore revision" }); }
 });

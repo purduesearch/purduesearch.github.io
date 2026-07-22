@@ -70,6 +70,32 @@ const hocuspocus = new Hocuspocus({
   },
 });
 
+/**
+ * Replace the LIVE collaborative document's body for a press kit with a new
+ * TipTap doc (after AI (re)generation or a revision restore).
+ *
+ * Writing `contentJson` to the DB alone is invisible while an editor is
+ * connected: the in-memory Yjs doc is authoritative and `onLoadDocument` only
+ * runs on first load, so nulling `contentYjs` never re-seeds a doc that's still
+ * held open. This pushes the new content straight into the live doc instead.
+ * `openDirectConnection` loads the doc if it isn't already in memory, so this
+ * works whether or not anyone is currently editing; every connected editor gets
+ * the update in real time and `onStoreDocument` persists the new `contentYjs`.
+ */
+export async function replacePressKitDocContent(kitId: string, doc: PMDoc): Promise<void> {
+  const update = Y.encodeStateAsUpdate(transformer.toYdoc(doc, YJS_FIELD));
+  const connection = await hocuspocus.openDirectConnection(kitId);
+  try {
+    await connection.transact((document) => {
+      const fragment = document.getXmlFragment(YJS_FIELD);
+      if (fragment.length > 0) fragment.delete(0, fragment.length);
+      Y.applyUpdate(document, update);
+    });
+  } finally {
+    await connection.disconnect();
+  }
+}
+
 export function attachPressKitCollab(httpServer: HttpServer): void {
   const wss = new WebSocketServer({ noServer: true });
 
