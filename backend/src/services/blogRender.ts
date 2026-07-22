@@ -243,6 +243,53 @@ function renderNode(node: PMNode, headingIds: Map<PMNode, string>): string {
       // Rendered at publish time from the document's headings.
       return `<!--TOC-->`;
     }
+    case "section": {
+      const layout = String(node.attrs?.layout ?? "single");
+      const pad = String(node.attrs?.padding ?? "m");
+      const width = node.attrs?.width === "fullBleed" ? "fullBleed" : "contained";
+      const theme = String(node.attrs?.theme ?? "inherit");
+      const bg = (node.attrs?.background ?? { kind: "none", value: "" }) as { kind?: string; value?: string };
+      const styles: string[] = [];
+      if (bg.kind === "color" && bg.value) styles.push(`background-color:${escapeAttr(bg.value)}`);
+      if (bg.kind === "image" && bg.value) styles.push(`background-image:url(${escapeAttr(proxyImageSrc(bg.value, IMAGE_BASE_URL))});background-size:cover;background-position:center`);
+      const cls = [
+        "cpm-blog-section",
+        `cpm-blog-section--${escapeAttr(layout)}`,
+        `cpm-blog-section--pad-${escapeAttr(pad)}`,
+        `cpm-blog-section--${width === "fullBleed" ? "full" : "contained"}`,
+        theme !== "inherit" ? `cpm-blog-section--${escapeAttr(theme)}` : "",
+      ].filter(Boolean).join(" ");
+      const inner = renderChildren(node, headingIds);
+      const styleAttr = styles.length ? ` style="${styles.join(";")}"` : "";
+      return `<section class="${cls}"${styleAttr}><div class="cpm-blog-section-inner">${inner}</div></section>`;
+    }
+    case "column":
+      return `<div class="cpm-blog-col">${renderChildren(node, headingIds)}</div>`;
+    case "hero": {
+      const heading = escapeHtml(String(node.attrs?.heading ?? ""));
+      const sub = escapeHtml(String(node.attrs?.subheading ?? ""));
+      const align = escapeAttr(String(node.attrs?.align ?? "center"));
+      const bgImage = String(node.attrs?.bgImage ?? "");
+      const overlay = node.attrs?.overlay ? " cpm-blog-hero--overlay" : "";
+      const style = bgImage ? ` style="background-image:url(${escapeAttr(proxyImageSrc(bgImage, IMAGE_BASE_URL))})"` : "";
+      return `<header class="cpm-blog-hero cpm-blog-hero--${align}${overlay}"${style}>` +
+        `<div class="cpm-blog-hero-inner">${heading ? `<h1>${heading}</h1>` : ""}${sub ? `<p>${sub}</p>` : ""}</div></header>`;
+    }
+    case "statBand": {
+      const stats = Array.isArray(node.attrs?.stats) ? (node.attrs!.stats as { label?: string; value?: string }[]) : [];
+      const tiles = stats.map((s) =>
+        `<div class="cpm-blog-stat"><div class="cpm-blog-stat-value">${escapeHtml(String(s.value ?? ""))}</div>` +
+        `<div class="cpm-blog-stat-label">${escapeHtml(String(s.label ?? ""))}</div></div>`).join("");
+      return `<div class="cpm-blog-statband">${tiles}</div>`;
+    }
+    case "ctaButton": {
+      const label = escapeHtml(String(node.attrs?.label ?? "Learn more"));
+      const href = escapeAttr(String(node.attrs?.href ?? "#"));
+      const style = node.attrs?.style === "outline" ? "outline" : "solid";
+      const align = escapeAttr(String(node.attrs?.align ?? "center"));
+      return `<div class="cpm-blog-cta cpm-blog-cta--${align}">` +
+        `<a class="cpm-blog-cta-btn cpm-blog-cta-btn--${style}" href="${href}" target="_blank" rel="noopener noreferrer">${label}</a></div>`;
+    }
     case "table":
       return `<table class="cpm-blog-table"><tbody>${renderChildren(node, headingIds)}</tbody></table>`;
     case "tableRow":
