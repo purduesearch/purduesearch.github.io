@@ -23581,3 +23581,11 @@ button.cpm-badge-tile:disabled { opacity: 0.7; cursor: progress; }
   background: #fff;
   display: block;
 }
+
+/* Blog list row delete */
+.cpm-blog-list-delete {
+  background: none; border: none; color: var(--color-text-muted, #8a95a5);
+  cursor: pointer; padding: 6px; border-radius: 6px; opacity: 0; transition: opacity .15s, color .15s;
+}
+.cpm-blog-list-row:hover .cpm-blog-list-delete { opacity: 1; }
+.cpm-blog-list-delete:hover { color: var(--pm-accent-coral, #ff6b6b); }

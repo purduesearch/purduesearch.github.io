@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import BlogEditor from '../../components/clubpm/blog/BlogEditor';
 import RevisionHistoryDrawer from '../../components/clubpm/blog/RevisionHistoryDrawer';
@@ -10,7 +10,7 @@ import ApprovalChips from '../../components/clubpm/ApprovalChips';
 import { useClubPmAuth } from '../../clubpm/ClubPmAuth';
 import {
   getBlogPost, updateBlogPost, publishBlogPost,
-  scheduleBlogPost, unpublishBlogPost, archiveBlogPost, get,
+  scheduleBlogPost, unpublishBlogPost, archiveBlogPost, get, deleteBlogPost,
 } from '../../api/clubPmClient';
 
 const STATUS_LABELS = {
@@ -23,6 +23,7 @@ const STATUS_LABELS = {
 export default function BlogEditorPage() {
   const { id } = useParams();
   const { member } = useClubPmAuth();
+  const navigate = useNavigate();
 
   const [post, setPost]         = useState(null);
   const [title, setTitle]       = useState('');
@@ -205,6 +206,19 @@ export default function BlogEditorPage() {
     }
   }, [id]);
 
+  const handleDelete = useCallback(async () => {
+    if (!window.confirm('Delete this post permanently? This cannot be undone.')) return;
+    setBusyAction(true);
+    try {
+      await deleteBlogPost(id);
+      toast.success('Post deleted');
+      navigate('/clubpm/outreach');
+    } catch {
+      toast.error('Delete failed (only the author or an admin can).');
+      setBusyAction(false);
+    }
+  }, [id, navigate]);
+
   // Passed to BlogMetaPanel: `patch` set → PATCH + merge; `patch` null with
   // `already` set → merge an already-fetched post (e.g. from setBlogTaxonomy).
   const handleMetaUpdate = useCallback(async (patch, already) => {
@@ -320,6 +334,16 @@ export default function BlogEditorPage() {
               Publish
             </button>
           )}
+          <button
+            type="button"
+            className="clubpm-btn-secondary cpm-blog-delete-btn"
+            onClick={handleDelete}
+            disabled={busyAction}
+            title="Delete post"
+          >
+            <i className="fas fa-trash" aria-hidden="true" style={{ marginRight: 6 }} />
+            Delete
+          </button>
         </div>
       </header>
 
