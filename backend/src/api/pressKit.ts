@@ -54,7 +54,7 @@ pressKitRouter.get("/projects/:projectId/press-kit", async (req: Request, res: R
     const token = await ensurePressKitToken(projectId);
     res.json({
       id: kit.id, projectId, status: kit.status, config: normalizePressKitConfig(kit.config),
-      contentJson: kit.contentJson, generatedAt: kit.generatedAt, token,
+      contentJson: kit.contentJson, generatedAt: kit.generatedAt, token, theme: kit.theme,
     });
   } catch (e) { console.error("GET press-kit error:", e); res.status(500).json({ error: "Failed to load press kit" }); }
 });
@@ -104,8 +104,12 @@ pressKitRouter.patch("/projects/:projectId/press-kit", async (req: Request, res:
     if (!(await hasProjectAccess(req.memberId!, projectId))) { res.status(403).json({ error: "Forbidden" }); return; }
     const kit = await getOrCreateKit(projectId, req.memberId!);
     const config = normalizePressKitConfig({ ...normalizePressKitConfig(kit.config), ...(req.body ?? {}) });
-    await prisma.projectPressKit.update({ where: { id: kit.id }, data: { config: config as unknown as Prisma.InputJsonValue } });
-    res.json({ config });
+    const theme = (req.body ?? {}).theme;
+    await prisma.projectPressKit.update({
+      where: { id: kit.id },
+      data: { config: config as unknown as Prisma.InputJsonValue, ...(theme !== undefined ? { theme: theme as Prisma.InputJsonValue } : {}) },
+    });
+    res.json({ config, theme: theme ?? kit.theme });
   } catch (e) { console.error("PATCH press-kit error:", e); res.status(500).json({ error: "Failed to update press kit" }); }
 });
 

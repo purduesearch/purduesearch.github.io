@@ -35,6 +35,7 @@ export default function PressKitPanel({ project, canEdit }) {
     contactEmail: '',
     showContact: true,
   });
+  const [theme, setTheme] = useState(null);
   const [revisions, setRevisions] = useState([]);
   const [showRevs, setShowRevs] = useState(false);
   const [showExport, setShowExport] = useState(false);
@@ -59,7 +60,7 @@ export default function PressKitPanel({ project, canEdit }) {
     let cancelled = false;
     setLoading(true);
     getPressKit(projectId)
-      .then((k) => { if (!cancelled) { setKit(k); setConfig(k.config); } })
+      .then((k) => { if (!cancelled) { setKit(k); setConfig(k.config); setTheme(k.theme ?? null); } })
       .catch(() => { if (!cancelled) toast.error('Could not load press kit'); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
@@ -84,6 +85,11 @@ export default function PressKitPanel({ project, canEdit }) {
     try { const r = await updatePressKitConfig(projectId, config); setConfig(r.config); toast.success('Settings saved'); }
     catch { toast.error('Could not save settings'); }
   }, [projectId, config]);
+
+  const handleThemeChange = useCallback((next) => {
+    setTheme(next);
+    updatePressKitConfig(projectId, { theme: next }).catch(() => {});
+  }, [projectId]);
 
   const handlePublish = useCallback(async () => {
     setBusy(true);
@@ -235,6 +241,8 @@ export default function PressKitPanel({ project, canEdit }) {
           content={kit.contentJson}
           onChange={scheduleContentSave}
           onEditorReady={(ed) => { editorRef.current = ed; }}
+          theme={theme}
+          onThemeChange={canEdit ? handleThemeChange : undefined}
         />
       </div>
 

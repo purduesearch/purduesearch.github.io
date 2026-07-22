@@ -345,7 +345,8 @@ export async function buildPressKitHtml(projectId: string): Promise<string | nul
     : renderJsonToHtml(kit.contentJson as unknown as PMDoc | null, process.env.PUBLIC_API_BASE_URL ?? "");
   if (!inner || !inner.trim()) return null;
 
-  const accent = config.accentColor;
+  const theme = (kit.theme ?? null) as { accent?: string; fontPair?: string; width?: string } | null;
+  const accentFinal = theme?.accent || config.accentColor;
   const project = await prisma.project.findUnique({ where: { id: projectId }, select: { name: true } });
   const title = project?.name ?? "Press Kit";
   const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -355,7 +356,7 @@ export async function buildPressKitHtml(projectId: string): Promise<string | nul
 <html lang="en"><head><meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Press Kit — ${esc(title)}</title>
-<style>:root{--accent:${esc(accent)};}${PRINT_STYLES}</style></head>
+<style>:root{--accent:${esc(accentFinal)};}${PRINT_STYLES}</style></head>
 <body>
   <div class="print-hint">Press Ctrl/Cmd + P to save as PDF</div>
   <div class="pk-brand"><h2>Purdue SEARCH · Press Kit</h2><span class="sub">Generated ${generated}</span></div>
