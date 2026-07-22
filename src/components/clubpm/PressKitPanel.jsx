@@ -6,7 +6,7 @@ import { useClubPmAuth } from '../../clubpm/ClubPmAuth';
 import {
   getPressKit, generatePressKit, updatePressKitConfig, publishPressKit,
   getPressKitRevisions, restorePressKitRevision, getPressKitCollabWsUrl,
-  updatePressKitContent,
+  updatePressKitContent, deletePressKit,
 } from '../../api/clubPmClient';
 
 const AUDIENCES = [
@@ -114,6 +114,18 @@ export default function PressKitPanel({ project, canEdit }) {
     finally { setBusy(false); }
   }, [projectId]);
 
+  const handleDelete = useCallback(async () => {
+    if (!window.confirm('Delete this press kit and all its revisions? This cannot be undone.')) return;
+    setBusy(true);
+    try {
+      await deletePressKit(projectId);
+      setKit((prev) => ({ ...prev, contentJson: null, generatedAt: null, status: 'DRAFT' }));
+      setShowSettings(false);
+      toast.success('Press kit deleted');
+    } catch { toast.error('Delete failed'); }
+    finally { setBusy(false); }
+  }, [projectId]);
+
   if (loading) return <div style={{ padding: 48, display: 'grid', placeItems: 'center' }}><OrbitLoader /></div>;
 
   const toggleSection = (id) => setConfig((c) => ({
@@ -182,6 +194,8 @@ export default function PressKitPanel({ project, canEdit }) {
         <span className={`cpm-blog-status cpm-blog-status--${(kit.status ?? 'draft').toLowerCase()}`}>{kit.status ?? 'DRAFT'}</span>
         <div className="presskit-toolbar-spacer" />
         <button type="button" className="clubpm-btn-secondary" onClick={openRevisions} disabled={busy}>History</button>
+        <button type="button" className="clubpm-btn-secondary" onClick={handleDelete} disabled={busy || !canEdit}
+          title="Delete this press kit">Delete</button>
         <button type="button" className="clubpm-btn-secondary" onClick={() => setShowSettings(true)} disabled={busy}>Settings</button>
         <button type="button" className="clubpm-btn-secondary" onClick={handleGenerate} disabled={busy || !canEdit}
           title="Regenerate from current data (snapshots the current version first)">Regenerate</button>
