@@ -139,7 +139,7 @@ export default function PressKitPanel({ project, canEdit }) {
     try {
       await downloadPressKitExport(projectId, format, project.name);
       toast.dismiss(t); toast.success('Export ready');
-    } catch { toast.dismiss(t); toast.error('Export failed'); }
+    } catch (e) { toast.dismiss(t); toast.error(e?.message || 'Export failed'); }
   }, [projectId, project.name]);
 
   if (loading) return <div style={{ padding: 48, display: 'grid', placeItems: 'center' }}><OrbitLoader /></div>;

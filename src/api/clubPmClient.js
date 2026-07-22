@@ -429,7 +429,12 @@ export async function downloadPressKitExport(projectId, format, projectName = 'p
     credentials: 'include',
     headers: { ...authHeaders() },
   });
-  if (!response.ok) throw new ApiError(response.status, 'Export failed');
+  if (!response.ok) {
+    // Surface the server's reason — a 503 tells the user PDF is unavailable on
+    // this server but the other formats still work, which 'Export failed' hides.
+    const body = await response.json().catch(() => ({}));
+    throw new ApiError(response.status, body.error ?? 'Export failed');
+  }
   const blob = await response.blob();
   const safe = String(projectName).replace(/[^a-z0-9]+/gi, '-').replace(/^-+|-+$/g, '').toLowerCase() || 'press-kit';
   const url = URL.createObjectURL(blob);

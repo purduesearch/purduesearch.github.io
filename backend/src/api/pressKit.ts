@@ -9,20 +9,58 @@ import type { PMDoc } from "../services/blogRender.js";
 import { replacePressKitDocContent } from "../collab/pressKitCollab.js";
 import type { Prisma } from "@prisma/client";
 import puppeteer, { type Browser } from "puppeteer";
+import { existsSync } from "node:fs";
 // @ts-ignore — html-to-docx ships CommonJS with a default export
 import * as htmlToDocxNS from "html-to-docx";
 const htmlToDocx = (htmlToDocxNS as any).default ?? htmlToDocxNS;
 import { pmDocToMarkdown } from "../services/docToMarkdown.js";
 
+// Deploys set PUPPETEER_SKIP_DOWNLOAD=true (see .github/workflows/deploy-backend.yml)
+// because unpacking puppeteer's bundled Chrome needs `unzip`, which the server does
+// not have — that postinstall failure aborted a whole deploy. So drive a system
+// browser: an explicit env var wins, otherwise probe where distro packages land.
+// Keep this list in sync with the advisory check in deploy-backend.yml.
+const SYSTEM_BROWSER_PATHS = [
+  "/usr/bin/chromium",
+  "/usr/bin/chromium-browser",
+  "/usr/bin/google-chrome-stable",
+  "/usr/bin/google-chrome",
+  "/snap/bin/chromium",
+];
+
+// undefined → puppeteer falls back to its own downloaded browser, which is what
+// dev machines (where the postinstall runs normally) should use.
+function resolveExecutablePath(): string | undefined {
+  return process.env.PUPPETEER_EXECUTABLE_PATH || SYSTEM_BROWSER_PATHS.find((p) => existsSync(p));
+}
+
 let browserPromise: Promise<Browser> | null = null;
 async function getBrowser(): Promise<Browser> {
-  if (!browserPromise) {
-    browserPromise = puppeteer.launch({
-      headless: true,
-      args: ["--no-sandbox", "--disable-setuid-sandbox"],
-    });
+  const cached = browserPromise;
+  if (cached) {
+    try {
+      const browser = await cached;
+      if (browser.connected) return browser;
+    } catch {
+      // Fall through and relaunch. Caching a rejected promise would make every
+      // later export fail forever — including after a browser is installed.
+    }
+    if (browserPromise === cached) browserPromise = null;
   }
-  return browserPromise;
+  // Resolved per launch, so installing a browser takes effect on the next
+  // request without restarting the backend.
+  const launching = puppeteer.launch({
+    headless: true,
+    executablePath: resolveExecutablePath(),
+    args: ["--no-sandbox", "--disable-setuid-sandbox"],
+  });
+  browserPromise = launching;
+  try {
+    return await launching;
+  } catch (e) {
+    if (browserPromise === launching) browserPromise = null;
+    throw e;
+  }
 }
 
 export const pressKitRouter = Router();
@@ -223,7 +261,23 @@ pressKitRouter.get("/projects/:projectId/press-kit/export", async (req: Request,
       return;
     }
     if (format === "pdf") {
-      const browser = await getBrowser();
+      let browser: Browser;
+      try {
+        browser = await getBrowser();
+      } catch (e) {
+        // Distinguish "this server has no browser" from a genuine render failure:
+        // the other formats still work, so say so rather than returning a bare 500.
+        // The response text lands in a toast, so keep it short and put the
+        // operator detail in the log.
+        console.error(
+          "press-kit PDF export: browser launch failed. Install a system browser with the " +
+          "'Provision PDF Export' workflow, or set PUPPETEER_EXECUTABLE_PATH. Cause:", e,
+        );
+        res.status(503).json({
+          error: "PDF export is unavailable on this server — try DOCX or HTML.",
+        });
+        return;
+      }
       const page = await browser.newPage();
       try {
         await page.setContent(html, { waitUntil: "load" });

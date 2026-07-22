@@ -1,0 +1,262 @@
+name: Provision PDF Export (manual)
+
+# Installs the headless browser that the press-kit PDF exporter drives.
+#
+# Why this exists: `puppeteer` normally downloads its own Chrome during
+# `npm install`, but that postinstall unpacks a .zip using `unzip` — which this
+# server does not have — so it exits 1 and aborts the whole backend deploy.
+# (That is exactly what broke the blog/press-kit release.) Deploys now set
+# PUPPETEER_SKIP_DOWNLOAD=true and the backend drives a distro browser instead.
+# A distro package is also the more reliable choice: it pulls in the ~20 shared
+# libraries a downloaded Chrome needs and a minimal cloud image does not ship.
+#
+# backend/src/api/pressKit.ts resolves the browser path on every launch, so this
+# needs NO backend restart — the next PDF request picks up a fresh install.
+#
+# Runs over the SAME SSH channel as deploy-backend.yml (ORACLE_HOST /
+# ORACLE_USER / ORACLE_SSH_KEY). Inert until dispatched from the Actions tab.
+#
+#   mode = diagnose  -> report what's present and test-launch it (default)
+#   mode = install   -> install a browser via the distro package manager, verify
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "diagnose (report only) or install (install a browser + verify)"
+        type: choice
+        options:
+          - diagnose
+          - install
+        default: diagnose
+
+concurrency:
+  group: provision-pdf-export
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Provision / verify PDF export browser over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          MODE: ${{ inputs.mode }}
+        with:
+          host: ${{ secrets.ORACLE_HOST }}
+          username: ${{ secrets.ORACLE_USER }}
+          key: ${{ secrets.ORACLE_SSH_KEY }}
+          command_timeout: 15m
+          envs: MODE
+          script_stop: false
+          script: |
+            set -uo pipefail
+            MODE="${MODE:-diagnose}"
+            BACKEND_DIR="/opt/clubpm/backend"
+            # Keep in sync with SYSTEM_BROWSER_PATHS in backend/src/api/pressKit.ts
+            CANDIDATES="/usr/bin/chromium /usr/bin/chromium-browser /usr/bin/google-chrome-stable /usr/bin/google-chrome /snap/bin/chromium"
+
+            echo "=================================================================="
+            echo " ClubPM press-kit PDF export  —  mode: $MODE"
+            echo " $(whoami)@$(hostname)  $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+            echo "=================================================================="
+
+            ARCH=$(uname -m)
+            OS_NAME="unknown"
+            if [ -r /etc/os-release ]; then . /etc/os-release; OS_NAME="${PRETTY_NAME:-unknown}"; fi
+            if   command -v apt-get >/dev/null 2>&1; then PKG=apt
+            elif command -v dnf     >/dev/null 2>&1; then PKG=dnf
+            elif command -v yum     >/dev/null 2>&1; then PKG=yum
+            else PKG=none; fi
+            if sudo -n true 2>/dev/null; then SUDO_OK=1; else SUDO_OK=0; fi
+
+            echo
+            echo "## System"
+            echo "   os:      $OS_NAME"
+            echo "   arch:    $ARCH"
+            echo "   node:    $(node -v 2>/dev/null || echo 'not found')"
+            echo "   pkgmgr:  $PKG"
+            if [ "$SUDO_OK" = "1" ]; then
+              echo "   sudo:    passwordless sudo available"
+            else
+              echo "   sudo:    NOT available (install mode cannot run)"
+            fi
+            echo "   unzip:   $(command -v unzip >/dev/null 2>&1 && echo present || echo 'absent — this is why the bundled Chrome download fails')"
+
+            find_browser() {
+              for c in $CANDIDATES; do
+                if [ -x "$c" ]; then echo "$c"; return 0; fi
+              done
+              return 1
+            }
+
+            report_candidates() {
+              echo
+              echo "## Browser candidates"
+              for c in $CANDIDATES; do
+                if [ -x "$c" ]; then echo "   OK      $c"; else echo "   absent  $c"; fi
+              done
+              if [ -n "${PUPPETEER_EXECUTABLE_PATH:-}" ]; then
+                echo "   (PUPPETEER_EXECUTABLE_PATH is set in this shell: $PUPPETEER_EXECUTABLE_PATH)"
+              fi
+            }
+
+            # Definitive check: drive the browser through puppeteer exactly the way
+            # the export route does, and render a real one-page PDF.
+            verify_browser() {
+              local exe="$1"
+              echo
+              echo "## Launch test via puppeteer  ($exe)"
+              if [ ! -d "$BACKEND_DIR/node_modules/puppeteer" ]; then
+                echo "   SKIPPED — puppeteer not installed in $BACKEND_DIR (run the backend deploy first)"
+                return 1
+              fi
+              ( cd "$BACKEND_DIR" && PUPPETEER_EXECUTABLE_PATH="$exe" timeout 120 node --input-type=module -e '
+                  import puppeteer from "puppeteer";
+                  const browser = await puppeteer.launch({
+                    headless: true,
+                    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
+                    args: ["--no-sandbox", "--disable-setuid-sandbox"],
+                  });
+                  try {
+                    const version = await browser.version();
+                    const page = await browser.newPage();
+                    await page.setContent("<h1>press kit smoke test</h1>");
+                    const pdf = await page.pdf({ format: "Letter", printBackground: true });
+                    console.log("LAUNCH OK    " + version);
+                    console.log("PDF OK       " + pdf.length + " bytes rendered");
+                  } finally { await browser.close(); }
+                ' ) 2>&1 | sed 's/^/   /'
+              return "${PIPESTATUS[0]}"
+            }
+
+            report_candidates
+            BROWSER=$(find_browser)
+
+            # =============================================================
+            #  DIAGNOSE
+            # =============================================================
+            if [ "$MODE" != "install" ]; then
+              if [ -n "$BROWSER" ]; then
+                if verify_browser "$BROWSER"; then
+                  echo
+                  echo "PDF export is working. Nothing to do."
+                  exit 0
+                fi
+                echo
+                echo "A browser binary exists but puppeteer could not drive it (see the error above)."
+                echo "Re-run with mode=install to install a distro browser alongside it."
+                exit 1
+              fi
+              echo
+              echo "------------------------------------------------------------------"
+              echo " No browser installed — /press-kit/export?format=pdf returns 503."
+              echo " DOCX / Markdown / HTML export and the rest of the backend are fine."
+              echo " Re-run this workflow with mode=install to fix it."
+              echo "------------------------------------------------------------------"
+              exit 0
+            fi
+
+            # =============================================================
+            #  INSTALL
+            # =============================================================
+            if [ "$SUDO_OK" != "1" ]; then
+              echo
+              echo "!! Passwordless sudo unavailable — cannot install packages here."
+              echo "   Use the Oracle Cloud Console 'Run command' feature instead:"
+              echo "       sudo apt-get update && sudo apt-get install -y chromium"
+              echo "   (or 'sudo dnf install -y chromium' on Oracle Linux)"
+              exit 1
+            fi
+
+            if [ -n "$BROWSER" ] && verify_browser "$BROWSER"; then
+              echo
+              echo "Browser already installed and working ($BROWSER) — nothing to do."
+              exit 0
+            fi
+
+            echo
+            echo "=================================================================="
+            echo " Installing a headless browser"
+            echo "=================================================================="
+
+            install_apt() {
+              echo "-> apt-get update"
+              sudo -n apt-get update -qq
+              for pkg in chromium chromium-browser; do
+                echo "-> apt-get install -y $pkg"
+                if sudo -n env DEBIAN_FRONTEND=noninteractive apt-get install -y "$pkg"; then
+                  if find_browser >/dev/null; then return 0; fi
+                  echo "   ($pkg installed but produced no usable binary)"
+                else
+                  echo "   ($pkg not available in the configured repos)"
+                fi
+              done
+              # Google publishes no arm64 Linux build, so this fallback is x86-only.
+              if [ "$ARCH" != "x86_64" ]; then
+                echo "!! No chromium package, and Google Chrome has no $ARCH Linux build."
+                return 1
+              fi
+              echo "-> Falling back to google-chrome-stable from Google's apt repo"
+              sudo -n install -m 0755 -d /etc/apt/keyrings
+              curl -fsSL https://dl.google.com/linux/linux_signing_key.pub \
+                | sudo -n gpg --dearmor -o /etc/apt/keyrings/google-chrome.gpg || return 1
+              sudo -n chmod a+r /etc/apt/keyrings/google-chrome.gpg
+              echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/google-chrome.gpg] https://dl.google.com/linux/chrome/deb/ stable main" \
+                | sudo -n tee /etc/apt/sources.list.d/google-chrome.list >/dev/null
+              sudo -n apt-get update -qq
+              sudo -n env DEBIAN_FRONTEND=noninteractive apt-get install -y google-chrome-stable
+            }
+
+            install_rpm() {
+              local mgr="$1"
+              echo "-> $mgr install -y chromium"
+              if sudo -n "$mgr" install -y chromium && find_browser >/dev/null; then return 0; fi
+              echo "-> chromium not in the enabled repos; trying to enable EPEL"
+              sudo -n "$mgr" install -y oracle-epel-release-el9 \
+                || sudo -n "$mgr" install -y oracle-epel-release-el8 \
+                || sudo -n "$mgr" install -y epel-release \
+                || echo "   (could not enable EPEL automatically)"
+              if command -v dnf >/dev/null 2>&1; then
+                sudo -n dnf config-manager --set-enabled ol9_developer_EPEL 2>/dev/null \
+                  || sudo -n dnf config-manager --set-enabled ol8_developer_EPEL 2>/dev/null \
+                  || true
+              fi
+              echo "-> $mgr install -y chromium (retry)"
+              sudo -n "$mgr" install -y chromium
+            }
+
+            case "$PKG" in
+              apt) install_apt ;;
+              dnf) install_rpm dnf ;;
+              yum) install_rpm yum ;;
+              *)   echo "!! No supported package manager found — install chromium manually." ;;
+            esac
+
+            # =============================================================
+            #  VERIFY
+            # =============================================================
+            report_candidates
+            BROWSER=$(find_browser)
+
+            if [ -z "$BROWSER" ]; then
+              echo
+              echo "Install did not produce a browser binary at any known path."
+              echo "Install one manually, then re-run this workflow with mode=diagnose."
+              exit 1
+            fi
+
+            if verify_browser "$BROWSER"; then
+              echo
+              echo "=================================================================="
+              echo " PDF export is now working ($BROWSER)."
+              echo " No backend restart needed — the path is resolved per request."
+              echo "=================================================================="
+              exit 0
+            fi
+
+            echo
+            echo "$BROWSER is installed but puppeteer could not drive it (see error above)."
+            echo "Usually a missing shared library — check the 'error while loading"
+            echo "shared libraries' line and install that package."
+            exit 1
