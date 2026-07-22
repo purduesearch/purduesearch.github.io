@@ -502,6 +502,16 @@ export async function uploadBlogImage(file) {
 export const suggestBlogAltText = (imageUrl) =>
   post('/api/outreach/submissions/blog/ai/alt-text', { imageUrl });
 
+// Mirror of backend proxyImageSrc: rewrite legacy Drive image URLs so already-
+// published posts display in the editor too. New uploads are already proxied.
+const DRIVE_ID_RE = /(?:drive\.google\.com\/uc\?[^"']*?[?&]id=|drive\.google\.com\/file\/d\/|lh3\.googleusercontent\.com\/d\/)([a-zA-Z0-9_-]{10,})/;
+export function proxyImageSrc(src) {
+  if (!src) return src;
+  const m = String(src).match(DRIVE_ID_RE);
+  if (!m) return src;
+  return `${BASE_URL}/api/public/blog-image/${m[1]}`;
+}
+
 // Google Drive bot account connection (Workstream A — see
 // docs/superpowers/specs/2026-07-06-clubpm-drive-multirepo-design.md §3).
 // Connect is a full-page redirect to /auth/google (see GoogleDriveConnectButton),
