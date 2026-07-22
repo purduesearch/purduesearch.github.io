@@ -237,7 +237,8 @@ function SubmissionCard({ submission, member, onEdit, onReview, onDelete, onCopy
               <i className="fas fa-clipboard" aria-hidden="true" />
             </button>
           )}
-          {['APPROVED', 'PUBLISHED', 'IN_REVIEW'].includes(submission.status) && submission.content && (
+          {(['APPROVED', 'PUBLISHED'].includes(submission.status)
+            || (submission.status === 'IN_REVIEW' && submission.content)) && (
             <button
               className="pm-outreach-review-btn"
               onClick={() => onExpandBlog?.(submission)}

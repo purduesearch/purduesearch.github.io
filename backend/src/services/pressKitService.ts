@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { prisma } from "../db/prisma.js";
 import { generatePressKitSections } from "./aiService.js";
-import { renderJsonToHtml, markdownToTiptapJson, type PMDoc } from "./blogRender.js";
+import { renderJsonToHtml, markdownToTiptapJson, type PMDoc, type PMNode } from "./blogRender.js";
 
 // ── Config ───────────────────────────────────────────────────
 
@@ -57,8 +57,11 @@ export interface PressKitContext {
              startDate: Date | null; targetDate: Date | null; programTag: string | null;
              githubRepo: string | null; driveLink: string | null };
   stats: { teamSize: number; tasksDone: number; tasksTotal: number;
-           milestonesHit: number; hoursLogged: number; durationDays: number | null };
+           milestonesHit: number; hoursLogged: number; durationDays: number | null;
+           commentCount: number };
   milestones: { title: string; description: string | null; completedAt: Date | null }[];
+  contributors: { displayName: string; tasksDone: number; hours: number }[];
+  timeline: { title: string; date: Date | null; kind: "milestone" | "task" }[];
   team: { displayName: string; title: string | null; role: string | null;
           avatarUrl: string | null; isLead: boolean }[];
   tags: string[];
@@ -99,15 +102,16 @@ export function buildPressKitMarkdown(
     out.push(`| Milestones reached | ${ctx.stats.milestonesHit} |`);
     out.push(`| Hours logged | ${ctx.stats.hoursLogged} |`);
     if (ctx.stats.durationDays != null) out.push(`| Days active | ${ctx.stats.durationDays} |`);
+    out.push(`| Comments | ${ctx.stats.commentCount} |`);
     out.push("");
   }
   if (has("building") && prose.building) { out.push("## What We're Building", prose.building, ""); }
 
-  if (has("timeline") && (ctx.milestones.length || p.targetDate)) {
+  if (has("timeline") && (ctx.timeline.length || p.targetDate)) {
     out.push("## Timeline & Milestones", "");
-    for (const m of ctx.milestones) {
-      const when = m.completedAt ? ` — ${fmtDate(m.completedAt)}` : "";
-      out.push(`- **${m.title}**${when}${m.description ? `: ${m.description}` : ""}`);
+    for (const e of ctx.timeline) {
+      const when = e.date ? ` — ${fmtDate(e.date)}` : "";
+      out.push(`- **${e.title}**${when}`);
     }
     if (p.targetDate) out.push(`- **Target completion** — ${fmtDate(p.targetDate)}`);
     out.push("");
@@ -115,12 +119,18 @@ export function buildPressKitMarkdown(
   if (has("tech") && ctx.tags.length) {
     out.push("## Tech & Tools", ctx.tags.join(" · "), "");
   }
-  if (has("team") && ctx.team.length) {
+  if (has("team") && (ctx.team.length || ctx.contributors.length)) {
     out.push("## Team & Leadership", "");
     for (const t of ctx.team) {
       const lead = t.isLead ? " *(Lead)*" : "";
       const title = t.title ? ` — ${t.title}` : "";
       out.push(`- **${t.displayName}**${title}${lead}`);
+    }
+    if (ctx.contributors.length) {
+      out.push("", "**Top contributors**");
+      for (const c of ctx.contributors.slice(0, 6)) {
+        out.push(`- ${c.displayName} — ${c.tasksDone} tasks, ${c.hours} h`);
+      }
     }
     out.push("");
   }
@@ -142,6 +152,39 @@ export function buildPressKitMarkdown(
   }
 
   return out.join("\n");
+}
+
+// ── Section-based assembly (hero + statBand + sections) ───────
+
+export function buildPressKitDoc(ctx: PressKitContext, config: PressKitConfig, prose: PressKitProse): PMDoc {
+  const sections: PMNode[] = [];
+  const has = (id: string) => config.includedSections.includes(id);
+
+  if (has("masthead")) {
+    sections.push({ type: "section", attrs: { layout: "single", padding: "xl", width: "fullBleed" },
+      content: [{ type: "hero", attrs: { heading: ctx.project.name, subheading: [ctx.project.type, ctx.project.status].filter(Boolean).join(" · "), align: "center", overlay: false, bgImage: "" } }] });
+  }
+  if (has("stats")) {
+    sections.push({ type: "section", attrs: { layout: "single", padding: "l" },
+      content: [{ type: "statBand", attrs: { stats: [
+        { label: "TEAM", value: String(ctx.stats.teamSize) },
+        { label: "TASKS DONE", value: `${ctx.stats.tasksDone}/${ctx.stats.tasksTotal}` },
+        { label: "MILESTONES", value: String(ctx.stats.milestonesHit) },
+        { label: "HOURS", value: String(ctx.stats.hoursLogged) },
+      ] } }] });
+  }
+  // Prose + remaining sections: reuse the markdown assembler, minus masthead/stats, wrapped in one section.
+  const restConfig = { ...config, includedSections: config.includedSections.filter((s) => s !== "masthead" && s !== "stats") };
+  const md = buildPressKitMarkdown(ctx, restConfig, prose);
+  const restDoc = markdownToTiptapJson(md);
+  if (restDoc.content && restDoc.content.length) {
+    sections.push({ type: "section", attrs: { layout: "single", padding: "l" }, content: restDoc.content });
+  }
+  if (config.audience === "SPONSORS" && has("sponsorship")) {
+    sections.push({ type: "section", attrs: { layout: "single", padding: "l" },
+      content: [{ type: "ctaButton", attrs: { label: "Become a sponsor", href: config.contactEmail ? `mailto:${config.contactEmail}` : "", style: "solid", align: "center" } }] });
+  }
+  return { type: "doc", content: sections.length ? sections : [{ type: "paragraph" }] };
 }
 
 // ── Token ────────────────────────────────────────────────────
@@ -172,15 +215,41 @@ export async function gatherPressKitData(projectId: string): Promise<PressKitCon
   });
   if (!project) return null;
 
-  const [tasksTotal, tasksDone, hoursAgg] = await Promise.all([
+  const [tasksTotal, tasksDone, hoursAgg, commentCount, timeLogsByMember] = await Promise.all([
     prisma.task.count({ where: { projectId } }),
     prisma.task.count({ where: { projectId, status: "DONE" } }),
     prisma.timeLog.aggregate({ where: { task: { projectId } }, _sum: { minutes: true } }),
+    prisma.taskComment.count({ where: { task: { projectId } } }),
+    prisma.timeLog.groupBy({ by: ["memberId"], where: { task: { projectId } }, _sum: { minutes: true } }).catch(() => [] as { memberId: string; _sum: { minutes: number | null } }[]),
   ]);
 
   const durationDays = project.startDate
     ? Math.max(0, Math.round((Date.now() - new Date(project.startDate).getTime()) / 86_400_000))
     : null;
+
+  const hoursByMember = new Map<string, number>(
+    (timeLogsByMember as { memberId: string; _sum: { minutes: number | null } }[])
+      .map((r) => [r.memberId, Math.round((r._sum.minutes ?? 0) / 60)])
+  );
+  const doneByMember = new Map<string, number>();
+  for (const pm of project.members) {
+    const n = await prisma.task.count({
+      where: { projectId, status: "DONE", assignees: { some: { id: pm.member.id } } },
+    });
+    if (n > 0) doneByMember.set(pm.member.id, n);
+  }
+  const contributors = project.members
+    .map((pm) => ({
+      displayName: pm.member.displayName,
+      tasksDone: doneByMember.get(pm.member.id) ?? 0,
+      hours: hoursByMember.get(pm.member.id) ?? 0,
+    }))
+    .filter((c) => c.tasksDone > 0 || c.hours > 0)
+    .sort((a, b) => (b.tasksDone + b.hours) - (a.tasksDone + a.hours));
+
+  const timeline = project.milestones
+    .map((m) => ({ title: m.title, date: m.completedAt, kind: "milestone" as const }))
+    .sort((a, b) => (a.date?.getTime() ?? 0) - (b.date?.getTime() ?? 0));
 
   const team = project.members.map((pm) => ({
     displayName: pm.member.displayName,
@@ -208,10 +277,13 @@ export async function gatherPressKitData(projectId: string): Promise<PressKitCon
       milestonesHit: project.milestones.length,
       hoursLogged: Math.round((hoursAgg._sum.minutes ?? 0) / 60),
       durationDays,
+      commentCount,
     },
     milestones: project.milestones.map((m) => ({
       title: m.title, description: m.description, completedAt: m.completedAt,
     })),
+    contributors,
+    timeline,
     team,
     tags: project.tags.map((t) => t.name),
     links,
@@ -242,8 +314,7 @@ export async function generatePressKitContent(
     config.audience,
   );
 
-  const md = buildPressKitMarkdown(ctx, config, prose);
-  return markdownToTiptapJson(md);
+  return buildPressKitDoc(ctx, config, prose);
 }
 
 // ── Public HTML render (print-styled shell around the doc) ───
@@ -280,6 +351,20 @@ const PRINT_STYLES = `
     .print-hint { position: fixed; top: 10px; right: 10px; background: var(--accent); color: #fff; padding: 8px 14px;
       border-radius: 6px; font-size: 12px; z-index: 1000; } }
   @media print { .print-hint { display: none; } }
+  .cpm-blog-section-inner { max-width: 100%; padding: 10px 0; }
+  .cpm-blog-section--cols2 .cpm-blog-section-inner, .cpm-blog-section--cols3 .cpm-blog-section-inner,
+  .cpm-blog-section--mediaText .cpm-blog-section-inner { display: grid; gap: 18px; }
+  .cpm-blog-section--cols2 .cpm-blog-section-inner, .cpm-blog-section--mediaText .cpm-blog-section-inner { grid-template-columns: 1fr 1fr; }
+  .cpm-blog-section--cols3 .cpm-blog-section-inner { grid-template-columns: 1fr 1fr 1fr; }
+  .cpm-blog-hero { padding: 40px 10px; text-align: center; }
+  .cpm-blog-hero h1 { font-size: 26px; }
+  .cpm-blog-statband { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px,1fr)); gap: 12px; }
+  .cpm-blog-stat { border: 1px solid #e2e6ea; border-radius: 8px; padding: 10px; text-align: center; }
+  .cpm-blog-stat-value { font-size: 20px; font-weight: 800; color: var(--accent); }
+  .cpm-blog-stat-label { font-size: 9px; letter-spacing: 1px; text-transform: uppercase; color: #666; }
+  .cpm-blog-cta { text-align: center; margin: 14px 0; }
+  .cpm-blog-cta-btn { display: inline-block; padding: 8px 18px; border-radius: 6px; background: var(--accent); color: #06231f; font-weight: 700; text-decoration: none; }
+  .cpm-blog-section-toolbar, .cpm-blog-add-section { display: none; }
 `;
 
 /** Build the full public/print HTML for a project's press kit, or null if none/empty. */
@@ -289,10 +374,11 @@ export async function buildPressKitHtml(projectId: string): Promise<string | nul
   const config = normalizePressKitConfig(kit.config);
   const inner = kit.status === "PUBLISHED" && kit.renderedHtml
     ? kit.renderedHtml
-    : renderJsonToHtml(kit.contentJson as unknown as PMDoc | null);
+    : renderJsonToHtml(kit.contentJson as unknown as PMDoc | null, process.env.PUBLIC_API_BASE_URL ?? "");
   if (!inner || !inner.trim()) return null;
 
-  const accent = config.accentColor;
+  const theme = (kit.theme ?? null) as { accent?: string; fontPair?: string; width?: string } | null;
+  const accentFinal = theme?.accent || config.accentColor;
   const project = await prisma.project.findUnique({ where: { id: projectId }, select: { name: true } });
   const title = project?.name ?? "Press Kit";
   const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -302,7 +388,7 @@ export async function buildPressKitHtml(projectId: string): Promise<string | nul
 <html lang="en"><head><meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Press Kit — ${esc(title)}</title>
-<style>:root{--accent:${esc(accent)};}${PRINT_STYLES}</style></head>
+<style>:root{--accent:${esc(accentFinal)};}${PRINT_STYLES}</style></head>
 <body>
   <div class="print-hint">Press Ctrl/Cmd + P to save as PDF</div>
   <div class="pk-brand"><h2>Purdue SEARCH · Press Kit</h2><span class="sub">Generated ${generated}</span></div>
@@ -313,5 +399,5 @@ export async function buildPressKitHtml(projectId: string): Promise<string | nul
 
 /** Render the current doc to the inner HTML snapshot stored on publish. */
 export function renderPressKitInnerHtml(doc: PMDoc | null | undefined): string {
-  return renderJsonToHtml(doc ?? null);
+  return renderJsonToHtml(doc ?? null, process.env.PUBLIC_API_BASE_URL ?? "");
 }

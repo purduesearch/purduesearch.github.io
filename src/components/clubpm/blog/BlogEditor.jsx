@@ -17,7 +17,15 @@ import BlogEmbed, { buildEmbed } from './BlogEmbed';
 import BlogGallery from './BlogGallery';
 import BlogToc from './BlogToc';
 import BlogCallout from './BlogCallout';
+import BlogSection from './BlogSection';
+import BlogColumn from './BlogColumn';
+import BlogHero from './BlogHero';
+import BlogStatBand from './BlogStatBand';
+import BlogCta from './BlogCta';
 import BlogSnippetManager from './BlogSnippetManager';
+import BlogSectionLibrary from './BlogSectionLibrary';
+import BlogSectionSettings from './BlogSectionSettings';
+import BlogThemeBar from './BlogThemeBar';
 import { docToMarkdown, markdownToDoc } from './blogMarkdown';
 import { getBlogCollabWsUrl, getStoredToken } from '../../../api/clubPmClient';
 import useKeyboardShortcuts from '../../../hooks/useKeyboardShortcuts';
@@ -52,6 +60,11 @@ export function blogExtensions(collab) {
     BlogGallery,
     BlogToc,
     BlogCallout,
+    BlogSection,
+    BlogColumn,
+    BlogHero,
+    BlogStatBand,
+    BlogCta,
     CharacterCount,
     Placeholder.configure({ placeholder: 'Start writing your post…' }),
     TableKit.configure({ table: { resizable: true } }),
@@ -102,7 +115,7 @@ function setLink(editor) {
   editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
 }
 
-function Toolbar({ editor, onToggleFind, onToggleSnippets, onToggleMarkdown, markdownMode, onShowShortcuts, toolbarOpen, onToggleToolbarOpen }) {
+function Toolbar({ editor, onToggleFind, onToggleSnippets, onAddSection, onToggleMarkdown, markdownMode, onShowShortcuts, toolbarOpen, onToggleToolbarOpen }) {
   const fileRef = React.useRef(null);
   if (!editor) return null;
   const heading = [1, 2, 3, 4, 5, 6].find((l) => editor.isActive('heading', { level: l })) ?? '';
@@ -186,6 +199,7 @@ function Toolbar({ editor, onToggleFind, onToggleSnippets, onToggleMarkdown, mar
       <Btn title="Insert table of contents" icon="fa-bars-staggered" onClick={insertToc} />
       <Btn title="Insert callout" icon="fa-square-full" active={editor.isActive('callout')} onClick={insertCallout} />
       <Btn title="Snippets" icon="fa-clone" onClick={onToggleSnippets} />
+      <Btn title="Add section" icon="fa-square-plus" onClick={onAddSection} pinned />
       {inTable && (
         <>
           <Btn title="Add column" icon="fa-table-columns" onClick={() => editor.chain().focus().addColumnAfter().run()} />
@@ -263,9 +277,17 @@ function PresenceBar({ connected, peers }) {
  *                                 server for this post (see backend/src/collab/blogCollab.ts)
  * @param {object}   collabUser  { id, name } of the current member, used for cursor presence
  */
-export default function BlogEditor({ content, onChange, editable = true, onEditorReady, postId, collabUser, collabWsUrl }) {
+export default function BlogEditor({ content, onChange, editable = true, onEditorReady, postId, collabUser, collabWsUrl, theme, onThemeChange }) {
   const [showFind, setShowFind] = React.useState(false);
   const [showSnippets, setShowSnippets] = React.useState(false);
+  const [showSecLib, setShowSecLib] = React.useState(false);
+  const [settingsPos, setSettingsPos] = React.useState(null);
+
+  React.useEffect(() => {
+    const handler = (e) => setSettingsPos(e.detail?.pos ?? null);
+    window.addEventListener('blog-section-settings', handler);
+    return () => window.removeEventListener('blog-section-settings', handler);
+  }, []);
   const [connected, setConnected] = React.useState(false);
   const [peers, setPeers] = React.useState([]);
   const [markdownMode, setMarkdownMode] = React.useState(false);
@@ -407,16 +429,22 @@ export default function BlogEditor({ content, onChange, editable = true, onEdito
           editor={editor}
           onToggleFind={() => setShowFind((s) => !s)}
           onToggleSnippets={() => setShowSnippets(true)}
+          onAddSection={() => setShowSecLib(true)}
           onToggleMarkdown={toggleMarkdown}
           markdownMode={markdownMode}
           onShowShortcuts={() => shortcutsRegistry?.setShowHelp(true)}
           toolbarOpen={toolbarOpen}
           onToggleToolbarOpen={() => setToolbarOpen((v) => !v)}
         />
+        {onThemeChange && <BlogThemeBar theme={theme} onChange={onThemeChange} />}
         {collab && <PresenceBar connected={connected} peers={peers} />}
       </div>
       {showFind && !markdownMode && <FindBar editor={editor} onClose={() => setShowFind(false)} />}
       {showSnippets && !markdownMode && <BlogSnippetManager editor={editor} onClose={() => setShowSnippets(false)} />}
+      {showSecLib && !markdownMode && <BlogSectionLibrary editor={editor} onClose={() => setShowSecLib(false)} />}
+      {settingsPos != null && (
+        <BlogSectionSettings editor={editor} pos={settingsPos} onClose={() => setSettingsPos(null)} />
+      )}
       {markdownMode ? (
         <textarea
           className="cpm-blog-markdown-textarea"
@@ -426,7 +454,14 @@ export default function BlogEditor({ content, onChange, editable = true, onEdito
           placeholder="# Markdown source"
         />
       ) : (
-        <EditorContent editor={editor} className="cpm-blog-editor-surface" />
+        <div
+          className="cpm-blog-editor-surface"
+          data-fontpair={theme?.fontPair || 'syne-dmsans'}
+          data-width={theme?.width || 'wide'}
+          style={{ '--post-accent': theme?.accent || 'var(--pm-accent-teal)' }}
+        >
+          <EditorContent editor={editor} />
+        </div>
       )}
       <div className="cpm-blog-editor-footer">
         <span>{words} words</span>

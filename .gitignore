@@ -28,3 +28,6 @@ yarn-error.log*
 
 # vault upload temp files (streamed to Drive, then unlinked)
 backend/uploads/vault-tmp/
+
+# superpowers visual-brainstorm mockups (local only)
+.superpowers/

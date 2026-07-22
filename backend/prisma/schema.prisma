@@ -901,6 +901,7 @@ model BlogPost {
   contentJson  Json // TipTap document — source of truth for editing + revision diffs
   contentYjs   Bytes? // Yjs/CRDT binary state for realtime collaboration
   renderedHtml String? // HTML snapshot written at publish time (served to the public site)
+  theme        Json?   // { accent, fontPair, width } — per-post Section Builder theme
 
   // Free-text byline (historical / non-member authors). Overrides createdBy when set.
   authorName String?
@@ -1000,6 +1001,7 @@ model ProjectPressKit {
   contentJson  Json? // TipTap document — source of truth for editing
   contentYjs   Bytes? // Yjs/CRDT binary state for realtime collaboration
   renderedHtml String? // inner HTML snapshot written on publish (served to public)
+  theme        Json?   // { accent, fontPair, width } — per-post Section Builder theme
   config       Json // PressKitConfig
   status       PressKitStatus @default(DRAFT)
   generatedAt  DateTime?

@@ -1,6 +1,7 @@
 import { Router, type Request, type Response } from "express";
 import { prisma } from "../db/prisma.js";
 import * as pollService from "../services/pollService.js";
+import { streamDriveFile } from "../services/driveService.js";
 
 export const publicRouter = Router();
 
@@ -311,7 +312,7 @@ publicRouter.get("/blog/:slug", async (req: Request, res: Response) => {
       where: { slug: req.params.slug as string },
       select: {
         id: true, title: true, slug: true, renderedHtml: true, excerpt: true,
-        authorName: true,
+        authorName: true, theme: true,
         coverImageUrl: true, publishedAt: true, createdAt: true, readingTimeMin: true,
         status: true,
         metaDescription: true, canonicalUrl: true,
@@ -384,6 +385,19 @@ publicRouter.get("/newsletter/track/open/:sendId.png", async (req: Request, res:
   res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
   res.setHeader("Pragma", "no-cache");
   res.send(PIXEL_PNG);
+});
+
+// GET /api/public/blog-image/:fileId — proxy Drive image bytes to an <img>-safe URL.
+// Public: blog/press-kit images are public assets. Long-cached (Drive ids are stable).
+publicRouter.get("/blog-image/:fileId", async (req: Request, res: Response) => {
+  const { fileId } = req.params as { fileId: string };
+  if (!/^[a-zA-Z0-9_-]{10,}$/.test(fileId)) { res.status(400).end(); return; }
+  const file = await streamDriveFile(fileId);
+  if (!file) { res.status(404).end(); return; }
+  res.setHeader("Content-Type", file.mimeType);
+  res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+  file.stream.on("error", () => { if (!res.headersSent) res.status(502).end(); });
+  file.stream.pipe(res);
 });
 
 // ── GET /public/press-kit/:projectId/:token ──────────────────

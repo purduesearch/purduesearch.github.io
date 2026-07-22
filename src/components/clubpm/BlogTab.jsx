@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { listBlogPosts, createBlogPost } from '../../api/clubPmClient';
+import { listBlogPosts, createBlogPost, deleteBlogPost } from '../../api/clubPmClient';
 
 const STATUS_FILTERS = [
   { id: '',          label: 'All' },
@@ -42,6 +42,18 @@ export default function BlogTab() {
       toast.error('Could not create post');
     } finally {
       setCreating(false);
+    }
+  };
+
+  const handleDelete = async (e, postId, title) => {
+    e.stopPropagation();
+    if (!window.confirm(`Delete "${title}"? This cannot be undone.`)) return;
+    try {
+      await deleteBlogPost(postId);
+      setPosts((prev) => prev.filter((p) => p.id !== postId));
+      toast.success('Post deleted');
+    } catch {
+      toast.error('Could not delete post (only the author or an admin can).');
     }
   };
 
@@ -99,6 +111,15 @@ export default function BlogTab() {
                   <i className="fas fa-external-link-alt" aria-hidden="true" />
                 </a>
               )}
+              <button
+                type="button"
+                className="cpm-blog-list-delete"
+                title="Delete post"
+                aria-label="Delete post"
+                onClick={(e) => handleDelete(e, p.id, p.title)}
+              >
+                <i className="fas fa-trash" aria-hidden="true" />
+              </button>
             </li>
           ))}
         </ul>

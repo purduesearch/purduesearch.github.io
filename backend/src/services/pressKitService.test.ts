@@ -28,8 +28,10 @@ function check(name: string, cond: boolean) {
     project: { name: "AstroUSA", type: "HARDWARE", status: "ACTIVE", description: "High-altitude platform",
       startDate: new Date("2026-01-01"), targetDate: new Date("2026-09-01"), programTag: "astrousa",
       githubRepo: "purduesearch/astrousa", driveLink: null },
-    stats: { teamSize: 12, tasksDone: 30, tasksTotal: 47, milestonesHit: 6, hoursLogged: 210, durationDays: 200 },
+    stats: { teamSize: 12, tasksDone: 30, tasksTotal: 47, milestonesHit: 6, hoursLogged: 210, durationDays: 200, commentCount: 0 },
     milestones: [{ title: "First flight", description: null, completedAt: new Date("2026-05-01") }],
+    contributors: [],
+    timeline: [{ title: "First flight", date: new Date("2026-05-01"), kind: "milestone" }],
     team: [{ displayName: "Ana Lee", title: "Lead", role: null, avatarUrl: null, isLead: true }],
     tags: ["Avionics", "Structures"],
     links: [{ label: "GitHub", url: "https://github.com/purduesearch/astrousa" }],
@@ -88,6 +90,25 @@ function check(name: string, cond: boolean) {
   check("falls back to default sections when all filtered out",
     JSON.stringify(c.includedSections) === JSON.stringify(DEFAULT_PRESS_KIT_CONFIG.includedSections));
   check("fallback sections are non-empty", c.includedSections.length > 0);
+}
+
+// (e) contributors, dated timeline, comment count
+{
+  const ctx2 = {
+    project: { name: "AstroUSA", type: "HARDWARE", status: "ACTIVE", description: null,
+      startDate: new Date("2026-01-01"), targetDate: null, programTag: null, githubRepo: null, driveLink: null },
+    stats: { teamSize: 3, tasksDone: 5, tasksTotal: 8, milestonesHit: 1, hoursLogged: 40, durationDays: 100, commentCount: 22 },
+    milestones: [{ title: "First flight", description: null, completedAt: new Date("2026-05-01") }],
+    contributors: [{ displayName: "Ana Lee", tasksDone: 4, hours: 25 }],
+    timeline: [{ title: "First flight", date: new Date("2026-05-01"), kind: "milestone" as const }],
+    team: [], tags: [], links: [],
+  };
+  const md2 = buildPressKitMarkdown(ctx2 as any, normalizePressKitConfig({
+    includedSections: ["stats", "timeline", "team", "highlights"],
+  }), { about: "", aboutSearch: "", building: "", sponsorship: "" });
+  check("stats include comment count", md2.includes("22"));
+  check("timeline lists dated milestone", md2.includes("First flight") && md2.includes("2026"));
+  check("contributors render under team", md2.includes("Ana Lee") && md2.includes("4"));
 }
 
 console.log(`\npressKitService: ${passed} passed, ${failed} failed`);

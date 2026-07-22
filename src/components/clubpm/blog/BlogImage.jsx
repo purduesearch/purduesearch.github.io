@@ -2,7 +2,7 @@ import React from 'react';
 import { Node, mergeAttributes } from '@tiptap/core';
 import { ReactNodeViewRenderer, NodeViewWrapper } from '@tiptap/react';
 import { Plugin } from '@tiptap/pm/state';
-import { uploadBlogImage, suggestBlogAltText } from '../../../api/clubPmClient';
+import { uploadBlogImage, suggestBlogAltText, proxyImageSrc } from '../../../api/clubPmClient';
 
 // Upload the given File and insert an image node at `pos` (or the current
 // selection when pos is null). Shows a lightweight console error on failure.
@@ -92,7 +92,7 @@ function ImageView({ node, updateAttributes, selected, editor }) {
       )}
 
       <img
-        src={src}
+        src={proxyImageSrc(src)}
         alt={alt || ''}
         draggable={false}
         style={width ? { width: `${width}${widthUnit || 'px'}` } : undefined}

@@ -6,7 +6,7 @@ import { useClubPmAuth } from '../../clubpm/ClubPmAuth';
 import {
   getPressKit, generatePressKit, updatePressKitConfig, publishPressKit,
   getPressKitRevisions, restorePressKitRevision, getPressKitCollabWsUrl,
-  updatePressKitContent,
+  updatePressKitContent, deletePressKit, downloadPressKitExport,
 } from '../../api/clubPmClient';
 
 const AUDIENCES = [
@@ -35,8 +35,10 @@ export default function PressKitPanel({ project, canEdit }) {
     contactEmail: '',
     showContact: true,
   });
+  const [theme, setTheme] = useState(null);
   const [revisions, setRevisions] = useState([]);
   const [showRevs, setShowRevs] = useState(false);
+  const [showExport, setShowExport] = useState(false);
   const editorRef = useRef(null);
   const saveTimer = useRef(null);
   // Bumped after generate/restore to force a fresh editor mount (new Yjs doc).
@@ -58,7 +60,7 @@ export default function PressKitPanel({ project, canEdit }) {
     let cancelled = false;
     setLoading(true);
     getPressKit(projectId)
-      .then((k) => { if (!cancelled) { setKit(k); setConfig(k.config); } })
+      .then((k) => { if (!cancelled) { setKit(k); setConfig(k.config); setTheme(k.theme ?? null); } })
       .catch(() => { if (!cancelled) toast.error('Could not load press kit'); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
@@ -83,6 +85,11 @@ export default function PressKitPanel({ project, canEdit }) {
     try { const r = await updatePressKitConfig(projectId, config); setConfig(r.config); toast.success('Settings saved'); }
     catch { toast.error('Could not save settings'); }
   }, [projectId, config]);
+
+  const handleThemeChange = useCallback((next) => {
+    setTheme(next);
+    updatePressKitConfig(projectId, { theme: next }).catch(() => {});
+  }, [projectId]);
 
   const handlePublish = useCallback(async () => {
     setBusy(true);
@@ -113,6 +120,27 @@ export default function PressKitPanel({ project, canEdit }) {
     } catch { toast.error('Restore failed'); }
     finally { setBusy(false); }
   }, [projectId]);
+
+  const handleDelete = useCallback(async () => {
+    if (!window.confirm('Delete this press kit and all its revisions? This cannot be undone.')) return;
+    setBusy(true);
+    try {
+      await deletePressKit(projectId);
+      setKit((prev) => ({ ...prev, contentJson: null, generatedAt: null, status: 'DRAFT' }));
+      setShowSettings(false);
+      toast.success('Press kit deleted');
+    } catch { toast.error('Delete failed'); }
+    finally { setBusy(false); }
+  }, [projectId]);
+
+  const handleExport = useCallback(async (format) => {
+    setShowExport(false);
+    const t = toast.loading(`Exporting ${format.toUpperCase()}…`);
+    try {
+      await downloadPressKitExport(projectId, format, project.name);
+      toast.dismiss(t); toast.success('Export ready');
+    } catch { toast.dismiss(t); toast.error('Export failed'); }
+  }, [projectId, project.name]);
 
   if (loading) return <div style={{ padding: 48, display: 'grid', placeItems: 'center' }}><OrbitLoader /></div>;
 
@@ -182,9 +210,24 @@ export default function PressKitPanel({ project, canEdit }) {
         <span className={`cpm-blog-status cpm-blog-status--${(kit.status ?? 'draft').toLowerCase()}`}>{kit.status ?? 'DRAFT'}</span>
         <div className="presskit-toolbar-spacer" />
         <button type="button" className="clubpm-btn-secondary" onClick={openRevisions} disabled={busy}>History</button>
+        <button type="button" className="clubpm-btn-secondary" onClick={handleDelete} disabled={busy || !canEdit}
+          title="Delete this press kit">Delete</button>
         <button type="button" className="clubpm-btn-secondary" onClick={() => setShowSettings(true)} disabled={busy}>Settings</button>
         <button type="button" className="clubpm-btn-secondary" onClick={handleGenerate} disabled={busy || !canEdit}
           title="Regenerate from current data (snapshots the current version first)">Regenerate</button>
+        <div className="presskit-export-wrap">
+          <button type="button" className="clubpm-btn-secondary" onClick={() => setShowExport((v) => !v)} disabled={busy}>
+            <i className="fas fa-file-arrow-down" aria-hidden="true" style={{ marginRight: 6 }} />Export
+          </button>
+          {showExport && (
+            <div className="presskit-export-menu" role="menu">
+              <button type="button" role="menuitem" onClick={() => handleExport('pdf')}>PDF</button>
+              <button type="button" role="menuitem" onClick={() => handleExport('docx')}>Word (.docx)</button>
+              <button type="button" role="menuitem" onClick={() => handleExport('md')}>Markdown</button>
+              <button type="button" role="menuitem" onClick={() => handleExport('html')}>HTML</button>
+            </div>
+          )}
+        </div>
         <button type="button" className="clubpm-btn-primary" onClick={handlePublish} disabled={busy || !canEdit}>Publish &amp; share</button>
       </div>
 
@@ -198,6 +241,8 @@ export default function PressKitPanel({ project, canEdit }) {
           content={kit.contentJson}
           onChange={scheduleContentSave}
           onEditorReady={(ed) => { editorRef.current = ed; }}
+          theme={theme}
+          onThemeChange={canEdit ? handleThemeChange : undefined}
         />
       </div>
 

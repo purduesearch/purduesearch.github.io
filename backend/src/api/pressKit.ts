@@ -3,11 +3,27 @@ import { requireAuth } from "./auth.js";
 import { prisma } from "../db/prisma.js";
 import {
   DEFAULT_PRESS_KIT_CONFIG, normalizePressKitConfig, generatePressKitContent,
-  renderPressKitInnerHtml, ensurePressKitToken,
+  renderPressKitInnerHtml, ensurePressKitToken, buildPressKitHtml,
 } from "../services/pressKitService.js";
 import type { PMDoc } from "../services/blogRender.js";
 import { replacePressKitDocContent } from "../collab/pressKitCollab.js";
 import type { Prisma } from "@prisma/client";
+import puppeteer, { type Browser } from "puppeteer";
+// @ts-ignore — html-to-docx ships CommonJS with a default export
+import * as htmlToDocxNS from "html-to-docx";
+const htmlToDocx = (htmlToDocxNS as any).default ?? htmlToDocxNS;
+import { pmDocToMarkdown } from "../services/docToMarkdown.js";
+
+let browserPromise: Promise<Browser> | null = null;
+async function getBrowser(): Promise<Browser> {
+  if (!browserPromise) {
+    browserPromise = puppeteer.launch({
+      headless: true,
+      args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    });
+  }
+  return browserPromise;
+}
 
 export const pressKitRouter = Router();
 pressKitRouter.use(requireAuth);
@@ -38,7 +54,7 @@ pressKitRouter.get("/projects/:projectId/press-kit", async (req: Request, res: R
     const token = await ensurePressKitToken(projectId);
     res.json({
       id: kit.id, projectId, status: kit.status, config: normalizePressKitConfig(kit.config),
-      contentJson: kit.contentJson, generatedAt: kit.generatedAt, token,
+      contentJson: kit.contentJson, generatedAt: kit.generatedAt, token, theme: kit.theme,
     });
   } catch (e) { console.error("GET press-kit error:", e); res.status(500).json({ error: "Failed to load press kit" }); }
 });
@@ -88,8 +104,12 @@ pressKitRouter.patch("/projects/:projectId/press-kit", async (req: Request, res:
     if (!(await hasProjectAccess(req.memberId!, projectId))) { res.status(403).json({ error: "Forbidden" }); return; }
     const kit = await getOrCreateKit(projectId, req.memberId!);
     const config = normalizePressKitConfig({ ...normalizePressKitConfig(kit.config), ...(req.body ?? {}) });
-    await prisma.projectPressKit.update({ where: { id: kit.id }, data: { config: config as unknown as Prisma.InputJsonValue } });
-    res.json({ config });
+    const theme = (req.body ?? {}).theme;
+    await prisma.projectPressKit.update({
+      where: { id: kit.id },
+      data: { config: config as unknown as Prisma.InputJsonValue, ...(theme !== undefined ? { theme: theme as Prisma.InputJsonValue } : {}) },
+    });
+    res.json({ config, theme: theme ?? kit.theme });
   } catch (e) { console.error("PATCH press-kit error:", e); res.status(500).json({ error: "Failed to update press kit" }); }
 });
 
@@ -164,4 +184,71 @@ pressKitRouter.post("/projects/:projectId/press-kit/revisions/:revId/restore", a
     catch (e) { console.error("press-kit restore live-doc seed failed:", e); }
     res.json({ contentJson: updated.contentJson });
   } catch (e) { console.error("POST press-kit restore error:", e); res.status(500).json({ error: "Failed to restore revision" }); }
+});
+
+// GET /api/projects/:projectId/press-kit/export?format=pdf|docx|md|html
+pressKitRouter.get("/projects/:projectId/press-kit/export", async (req: Request, res: Response) => {
+  try {
+    const { projectId } = req.params as { projectId: string };
+    if (!(await hasProjectAccess(req.memberId!, projectId))) { res.status(403).json({ error: "Forbidden" }); return; }
+    const format = String((req.query as { format?: string }).format ?? "html");
+
+    const project = await prisma.project.findUnique({ where: { id: projectId }, select: { name: true } });
+    const base = (project?.name ?? "press-kit").replace(/[^a-z0-9]+/gi, "-").replace(/^-+|-+$/g, "").toLowerCase() || "press-kit";
+
+    if (format === "md") {
+      const kit = await prisma.projectPressKit.findUnique({ where: { projectId }, select: { contentJson: true } });
+      const md = pmDocToMarkdown(kit?.contentJson as unknown as PMDoc | null);
+      if (!md.trim()) { res.status(400).json({ error: "Nothing to export — generate first" }); return; }
+      res.setHeader("Content-Type", "text/markdown; charset=utf-8");
+      res.setHeader("Content-Disposition", `attachment; filename="${base}.md"`);
+      res.send(md);
+      return;
+    }
+
+    const html = await buildPressKitHtml(projectId);
+    if (!html) { res.status(400).json({ error: "Nothing to export — generate first" }); return; }
+
+    if (format === "html") {
+      res.setHeader("Content-Type", "text/html; charset=utf-8");
+      res.setHeader("Content-Disposition", `attachment; filename="${base}.html"`);
+      res.send(html);
+      return;
+    }
+    if (format === "docx") {
+      const buffer = (await htmlToDocx(html)) as Buffer | ArrayBuffer;
+      res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+      res.setHeader("Content-Disposition", `attachment; filename="${base}.docx"`);
+      res.send(Buffer.from(buffer as ArrayBuffer));
+      return;
+    }
+    if (format === "pdf") {
+      const browser = await getBrowser();
+      const page = await browser.newPage();
+      try {
+        await page.setContent(html, { waitUntil: "load" });
+        const pdf = await page.pdf({
+          format: "Letter", printBackground: true,
+          margin: { top: "0.5in", bottom: "0.5in", left: "0.5in", right: "0.5in" },
+        });
+        res.setHeader("Content-Type", "application/pdf");
+        res.setHeader("Content-Disposition", `attachment; filename="${base}.pdf"`);
+        res.send(Buffer.from(pdf));
+      } finally { await page.close(); }
+      return;
+    }
+    res.status(400).json({ error: "Unknown format" });
+  } catch (e) { console.error("GET press-kit/export error:", e); res.status(500).json({ error: "Export failed" }); }
+});
+
+// DELETE /api/projects/:projectId/press-kit — remove the kit + revisions, clear token
+pressKitRouter.delete("/projects/:projectId/press-kit", async (req: Request, res: Response) => {
+  try {
+    const { projectId } = req.params as { projectId: string };
+    if (!(await hasProjectAccess(req.memberId!, projectId))) { res.status(403).json({ error: "Forbidden" }); return; }
+    const kit = await prisma.projectPressKit.findUnique({ where: { projectId }, select: { id: true } });
+    if (kit) await prisma.projectPressKit.delete({ where: { id: kit.id } }); // cascades PressKitRevision
+    await prisma.project.update({ where: { id: projectId }, data: { pressKitToken: null } });
+    res.json({ ok: true });
+  } catch (e) { console.error("DELETE press-kit error:", e); res.status(500).json({ error: "Failed to delete press kit" }); }
 });

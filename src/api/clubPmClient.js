@@ -419,6 +419,25 @@ export const getPressKitRevisions   = (projectId)         => get(`/api/projects/
 export const restorePressKitRevision = (projectId, revId) => post(`/api/projects/${projectId}/press-kit/revisions/${revId}/restore`, {});
 // REST fallback save for the press-kit body (used when the collab WS is down).
 export const updatePressKitContent   = (projectId, contentJson) => patch(`/api/projects/${projectId}/press-kit/content`, { contentJson });
+export const deletePressKit = (projectId) => del(`/api/projects/${projectId}/press-kit`);
+
+// Authenticated file download for press-kit exports (a plain <a href> omits the
+// Bearer header). Mirrors downloadMeetingPollIcs.
+export async function downloadPressKitExport(projectId, format, projectName = 'press-kit') {
+  const ext = ({ pdf: 'pdf', docx: 'docx', md: 'md', html: 'html' })[format] || 'txt';
+  const response = await fetch(`${BASE_URL}/api/projects/${projectId}/press-kit/export?format=${format}`, {
+    credentials: 'include',
+    headers: { ...authHeaders() },
+  });
+  if (!response.ok) throw new ApiError(response.status, 'Export failed');
+  const blob = await response.blob();
+  const safe = String(projectName).replace(/[^a-z0-9]+/gi, '-').replace(/^-+|-+$/g, '').toLowerCase() || 'press-kit';
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `${safe}.${ext}`;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+}
 
 // ws(s):// base for the press-kit Hocuspocus namespace (backend/src/collab/pressKitCollab.ts).
 export function getPressKitCollabWsUrl() {
@@ -500,6 +519,16 @@ export async function uploadBlogImage(file) {
 // reads `imageUrl` from the body and ignores the :id path param.
 export const suggestBlogAltText = (imageUrl) =>
   post('/api/outreach/submissions/blog/ai/alt-text', { imageUrl });
+
+// Mirror of backend proxyImageSrc: rewrite legacy Drive image URLs so already-
+// published posts display in the editor too. New uploads are already proxied.
+const DRIVE_ID_RE = /(?:drive\.google\.com\/uc\?[^"']*?[?&]id=|drive\.google\.com\/file\/d\/|lh3\.googleusercontent\.com\/d\/)([a-zA-Z0-9_-]{10,})/;
+export function proxyImageSrc(src) {
+  if (!src) return src;
+  const m = String(src).match(DRIVE_ID_RE);
+  if (!m) return src;
+  return `${BASE_URL}/api/public/blog-image/${m[1]}`;
+}
 
 // Google Drive bot account connection (Workstream A — see
 // docs/superpowers/specs/2026-07-06-clubpm-drive-multirepo-design.md §3).

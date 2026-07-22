@@ -46,6 +46,20 @@ function escapeAttr(s: string): string {
   return escapeHtml(s);
 }
 
+// ── Google Drive image proxy ─────────────────────────────────
+
+// Rewrite legacy Google-Drive image URLs to the app's image proxy so <img>
+// tags actually load (Drive stopped serving uc?export=view to hotlinks).
+// `baseUrl` (optional) makes the result absolute for cross-origin public pages.
+const DRIVE_ID_RE =
+  /(?:drive\.google\.com\/uc\?[^"']*?[?&]id=|drive\.google\.com\/file\/d\/|lh3\.googleusercontent\.com\/d\/)([a-zA-Z0-9_-]{10,})/;
+export function proxyImageSrc(src: string, baseUrl = ""): string {
+  if (!src) return src;
+  const m = src.match(DRIVE_ID_RE);
+  if (!m) return src;
+  return `${baseUrl}/api/public/blog-image/${m[1]}`;
+}
+
 // ── slugify (shared by post slugs and heading anchors) ───────
 
 export function slugify(input: string): string {
@@ -198,7 +212,7 @@ function renderNode(node: PMNode, headingIds: Map<PMNode, string>): string {
     case "hardBreak":
       return `<br/>`;
     case "image": {
-      const src = escapeAttr(String(node.attrs?.src ?? ""));
+      const src = escapeAttr(proxyImageSrc(String(node.attrs?.src ?? ""), IMAGE_BASE_URL));
       const alt = escapeAttr(String(node.attrs?.alt ?? ""));
       const align = node.attrs?.align ? ` cpm-blog-img--${escapeAttr(String(node.attrs.align))}` : "";
       const wUnit = node.attrs?.widthUnit === "%" ? "%" : "px";
@@ -217,7 +231,7 @@ function renderNode(node: PMNode, headingIds: Map<PMNode, string>): string {
     case "gallery": {
       const images = Array.isArray(node.attrs?.images) ? (node.attrs!.images as Array<Record<string, unknown>>) : [];
       const items = images
-        .map((im) => `<img src="${escapeAttr(String(im.src ?? im.url ?? ""))}" alt="${escapeAttr(String(im.alt ?? ""))}"/>`)
+        .map((im) => `<img src="${escapeAttr(proxyImageSrc(String(im.src ?? im.url ?? ""), IMAGE_BASE_URL))}" alt="${escapeAttr(String(im.alt ?? ""))}"/>`)
         .join("");
       return `<div class="cpm-blog-gallery">${items}</div>`;
     }
@@ -228,6 +242,53 @@ function renderNode(node: PMNode, headingIds: Map<PMNode, string>): string {
     case "tableOfContents": {
       // Rendered at publish time from the document's headings.
       return `<!--TOC-->`;
+    }
+    case "section": {
+      const layout = String(node.attrs?.layout ?? "single");
+      const pad = String(node.attrs?.padding ?? "m");
+      const width = node.attrs?.width === "fullBleed" ? "fullBleed" : "contained";
+      const theme = String(node.attrs?.theme ?? "inherit");
+      const bg = (node.attrs?.background ?? { kind: "none", value: "" }) as { kind?: string; value?: string };
+      const styles: string[] = [];
+      if (bg.kind === "color" && bg.value) styles.push(`background-color:${escapeAttr(bg.value)}`);
+      if (bg.kind === "image" && bg.value) styles.push(`background-image:url(${escapeAttr(proxyImageSrc(bg.value, IMAGE_BASE_URL))});background-size:cover;background-position:center`);
+      const cls = [
+        "cpm-blog-section",
+        `cpm-blog-section--${escapeAttr(layout)}`,
+        `cpm-blog-section--pad-${escapeAttr(pad)}`,
+        `cpm-blog-section--${width === "fullBleed" ? "full" : "contained"}`,
+        theme !== "inherit" ? `cpm-blog-section--${escapeAttr(theme)}` : "",
+      ].filter(Boolean).join(" ");
+      const inner = renderChildren(node, headingIds);
+      const styleAttr = styles.length ? ` style="${styles.join(";")}"` : "";
+      return `<section class="${cls}"${styleAttr}><div class="cpm-blog-section-inner">${inner}</div></section>`;
+    }
+    case "column":
+      return `<div class="cpm-blog-col">${renderChildren(node, headingIds)}</div>`;
+    case "hero": {
+      const heading = escapeHtml(String(node.attrs?.heading ?? ""));
+      const sub = escapeHtml(String(node.attrs?.subheading ?? ""));
+      const align = escapeAttr(String(node.attrs?.align ?? "center"));
+      const bgImage = String(node.attrs?.bgImage ?? "");
+      const overlay = node.attrs?.overlay ? " cpm-blog-hero--overlay" : "";
+      const style = bgImage ? ` style="background-image:url(${escapeAttr(proxyImageSrc(bgImage, IMAGE_BASE_URL))})"` : "";
+      return `<header class="cpm-blog-hero cpm-blog-hero--${align}${overlay}"${style}>` +
+        `<div class="cpm-blog-hero-inner">${heading ? `<h1>${heading}</h1>` : ""}${sub ? `<p>${sub}</p>` : ""}</div></header>`;
+    }
+    case "statBand": {
+      const stats = Array.isArray(node.attrs?.stats) ? (node.attrs!.stats as { label?: string; value?: string }[]) : [];
+      const tiles = stats.map((s) =>
+        `<div class="cpm-blog-stat"><div class="cpm-blog-stat-value">${escapeHtml(String(s.value ?? ""))}</div>` +
+        `<div class="cpm-blog-stat-label">${escapeHtml(String(s.label ?? ""))}</div></div>`).join("");
+      return `<div class="cpm-blog-statband">${tiles}</div>`;
+    }
+    case "ctaButton": {
+      const label = escapeHtml(String(node.attrs?.label ?? "Learn more"));
+      const href = escapeAttr(String(node.attrs?.href ?? "#"));
+      const style = node.attrs?.style === "outline" ? "outline" : "solid";
+      const align = escapeAttr(String(node.attrs?.align ?? "center"));
+      return `<div class="cpm-blog-cta cpm-blog-cta--${align}">` +
+        `<a class="cpm-blog-cta-btn cpm-blog-cta-btn--${style}" href="${href}" target="_blank" rel="noopener noreferrer">${label}</a></div>`;
     }
     case "table":
       return `<table class="cpm-blog-table"><tbody>${renderChildren(node, headingIds)}</tbody></table>`;
@@ -260,12 +321,14 @@ function renderToc(doc: PMDoc, headingIds: Map<PMNode, string>): string {
   return `<nav class="cpm-blog-toc"><ul>${items.join("")}</ul></nav>`;
 }
 
+let IMAGE_BASE_URL = "";
+
 /** Render a full TipTap doc to the HTML snapshot served on the public site. */
-export function renderJsonToHtml(doc: PMDoc | null | undefined): string {
+export function renderJsonToHtml(doc: PMDoc | null | undefined, baseUrl = ""): string {
   if (!doc || !doc.content) return "";
+  IMAGE_BASE_URL = baseUrl;
   const headingIds = buildHeadingIdMap(doc);
   const body = doc.content.map((n) => renderNode(n, headingIds)).join("\n");
-  // Replace the TOC placeholder(s) with the generated navigation.
   const toc = renderToc(doc, headingIds);
   return body.replace(/<!--TOC-->/g, toc);
 }
