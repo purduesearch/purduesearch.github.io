@@ -66,6 +66,42 @@ const BlogCalloutNode = Node.create({
   },
 });
 
+const SectionNode = Node.create({
+  name: "section",
+  group: "block",
+  content: "(column | block)+",
+  addAttributes() {
+    return {
+      layout: { default: "single" },
+      background: { default: { kind: "none", value: "" } },
+      padding: { default: "m" },
+      width: { default: "contained" },
+      theme: { default: "inherit" },
+    };
+  },
+});
+
+const ColumnNode = Node.create({ name: "column", group: "block", content: "block+" });
+
+const HeroNode = Node.create({
+  name: "hero", group: "block", atom: true,
+  addAttributes() {
+    return { heading: { default: "" }, subheading: { default: "" }, bgImage: { default: "" }, align: { default: "center" }, overlay: { default: false } };
+  },
+});
+
+const StatBandNode = Node.create({
+  name: "statBand", group: "block", atom: true,
+  addAttributes() { return { stats: { default: [] } }; },
+});
+
+const CtaNode = Node.create({
+  name: "ctaButton", group: "block", atom: true,
+  addAttributes() {
+    return { label: { default: "Learn more" }, href: { default: "" }, style: { default: "solid" }, align: { default: "center" } };
+  },
+});
+
 // Mirrors blogExtensions() in BlogEditor.jsx (schema-relevant subset only —
 // CharacterCount/Placeholder/SearchAndReplace add no nodes/marks so they're
 // omitted here).
@@ -82,6 +118,7 @@ export function blogCollabExtensions() {
     BlogGalleryNode,
     BlogTocNode,
     BlogCalloutNode,
+    SectionNode, ColumnNode, HeroNode, StatBandNode, CtaNode,
     TableKit.configure({ table: { resizable: true } }),
   ];
 }
