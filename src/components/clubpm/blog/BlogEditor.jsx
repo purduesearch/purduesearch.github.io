@@ -290,7 +290,11 @@ export default function BlogEditor({ content, onChange, editable = true, onEdito
       name: postId,
       document,
       token: () => getStoredToken() ?? '',
-      maxAttempts: 5,
+      // 0 = reconnect forever (built-in exponential backoff 1s→30s, jittered) so
+      // the editor auto-recovers when the collab WS returns. A finite cap made a
+      // single transient drop permanently kill collaboration in the tab until a
+      // full page reload — the backoff already prevents tight-loop console spam.
+      maxAttempts: 0,
     });
     return { document, provider };
     // eslint-disable-next-line react-hooks/exhaustive-deps
