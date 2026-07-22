@@ -419,6 +419,7 @@ export const getPressKitRevisions   = (projectId)         => get(`/api/projects/
 export const restorePressKitRevision = (projectId, revId) => post(`/api/projects/${projectId}/press-kit/revisions/${revId}/restore`, {});
 // REST fallback save for the press-kit body (used when the collab WS is down).
 export const updatePressKitContent   = (projectId, contentJson) => patch(`/api/projects/${projectId}/press-kit/content`, { contentJson });
+export const deletePressKit = (projectId) => del(`/api/projects/${projectId}/press-kit`);
 
 // ws(s):// base for the press-kit Hocuspocus namespace (backend/src/collab/pressKitCollab.ts).
 export function getPressKitCollabWsUrl() {

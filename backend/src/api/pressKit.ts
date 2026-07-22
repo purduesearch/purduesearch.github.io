@@ -165,3 +165,15 @@ pressKitRouter.post("/projects/:projectId/press-kit/revisions/:revId/restore", a
     res.json({ contentJson: updated.contentJson });
   } catch (e) { console.error("POST press-kit restore error:", e); res.status(500).json({ error: "Failed to restore revision" }); }
 });
+
+// DELETE /api/projects/:projectId/press-kit — remove the kit + revisions, clear token
+pressKitRouter.delete("/projects/:projectId/press-kit", async (req: Request, res: Response) => {
+  try {
+    const { projectId } = req.params as { projectId: string };
+    if (!(await hasProjectAccess(req.memberId!, projectId))) { res.status(403).json({ error: "Forbidden" }); return; }
+    const kit = await prisma.projectPressKit.findUnique({ where: { projectId }, select: { id: true } });
+    if (kit) await prisma.projectPressKit.delete({ where: { id: kit.id } }); // cascades PressKitRevision
+    await prisma.project.update({ where: { id: projectId }, data: { pressKitToken: null } });
+    res.json({ ok: true });
+  } catch (e) { console.error("DELETE press-kit error:", e); res.status(500).json({ error: "Failed to delete press kit" }); }
+});
