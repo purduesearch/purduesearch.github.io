@@ -312,7 +312,7 @@ publicRouter.get("/blog/:slug", async (req: Request, res: Response) => {
       where: { slug: req.params.slug as string },
       select: {
         id: true, title: true, slug: true, renderedHtml: true, excerpt: true,
-        authorName: true,
+        authorName: true, theme: true,
         coverImageUrl: true, publishedAt: true, createdAt: true, readingTimeMin: true,
         status: true,
         metaDescription: true, canonicalUrl: true,

@@ -40,6 +40,7 @@ export default function BlogEditorPage() {
   const [previewMode, setPreviewMode] = useState(false);
   const [metaPanelOpen, setMetaPanelOpen] = useState(false);
   const [reviewPanelOpen, setReviewPanelOpen] = useState(false);
+  const [theme, setTheme] = useState(null);
 
   // Keep the latest editable state in a ref so the debounced autosave always
   // persists current values without re-arming on every keystroke.
@@ -65,6 +66,7 @@ export default function BlogEditorPage() {
         setPost(p);
         setTitle(p.title ?? '');
         setContentJson(p.contentJson ?? null);
+        setTheme(p.theme ?? null);
       })
       .catch(() => { if (!cancelled) setError('Could not load this post.'); })
       .finally(() => { if (!cancelled) setLoading(false); });
@@ -100,6 +102,11 @@ export default function BlogEditorPage() {
     } finally {
       if (!silent) setSaving(false);
     }
+  }, [id]);
+
+  const handleThemeChange = useCallback((next) => {
+    setTheme(next);
+    updateBlogPost(id, { theme: next }).catch(() => {});
   }, [id]);
 
   // Debounced autosave for title + body. When the Yjs collab server is
@@ -362,7 +369,13 @@ export default function BlogEditorPage() {
         {previewMode ? (
           <div className="cpm-blog-preview">
             <h1 className="cpm-blog-preview-title">{title || 'Untitled post'}</h1>
-            <div className="pm-blog-post-body" dangerouslySetInnerHTML={{ __html: previewHtml }} />
+            <div
+              className="pm-blog-post-body"
+              data-fontpair={theme?.fontPair || 'syne-dmsans'}
+              data-width={theme?.width || 'wide'}
+              style={theme?.accent ? { '--post-accent': theme.accent } : undefined}
+              dangerouslySetInnerHTML={{ __html: previewHtml }}
+            />
           </div>
         ) : (
           <input
@@ -380,6 +393,8 @@ export default function BlogEditorPage() {
             content={contentJson}
             onChange={(json) => { setContentJson(json); setDirty(true); }}
             onEditorReady={(ed) => { editorRef.current = ed; }}
+            theme={theme}
+            onThemeChange={handleThemeChange}
           />
         </div>
       </div>

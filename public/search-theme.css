@@ -23686,3 +23686,8 @@ button.cpm-badge-tile:disabled { opacity: 0.7; cursor: progress; }
 .cpm-blog-seg { display:flex; gap:4px; flex-wrap:wrap; }
 .cpm-blog-seg-b { background:var(--pm-surface,#141b26); border:1px solid var(--color-border,#2a2f3a); border-radius:6px; color:var(--pm-text,#c7d0dd); padding:5px 9px; font-size:11px; cursor:pointer; }
 .cpm-blog-seg-b.on { background:rgba(0,229,204,.14); border-color:var(--pm-accent-teal,#00e5cc); color:var(--pm-accent-teal,#00e5cc); }
+
+/* === Blog theme bar === */
+.cpm-blog-themebar { display:flex; align-items:center; gap:8px; padding:4px 8px; border:1px solid var(--color-border,#2a2f3a); border-radius:8px; }
+.cpm-blog-themebar-lab { font-size:11px; text-transform:uppercase; letter-spacing:.06em; opacity:.7; }
+.cpm-blog-themebar select { background:var(--pm-surface,#141b26); border:1px solid var(--color-border,#2a2f3a); border-radius:6px; color:inherit; font-size:12px; padding:4px 6px; }

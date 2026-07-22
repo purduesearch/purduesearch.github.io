@@ -100,6 +100,9 @@ export default function BlogPost() {
           <div className="section-content" style={{ maxWidth: 760, margin: '0 auto' }}>
             <div
               className="pm-blog-post-body"
+              data-fontpair={post.theme?.fontPair || 'syne-dmsans'}
+              data-width={post.theme?.width || 'wide'}
+              style={post.theme?.accent ? { '--post-accent': post.theme.accent } : undefined}
               dangerouslySetInnerHTML={{ __html: post.renderedHtml || '' }}
             />
 

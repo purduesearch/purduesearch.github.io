@@ -25,6 +25,7 @@ import BlogCta from './BlogCta';
 import BlogSnippetManager from './BlogSnippetManager';
 import BlogSectionLibrary from './BlogSectionLibrary';
 import BlogSectionSettings from './BlogSectionSettings';
+import BlogThemeBar from './BlogThemeBar';
 import { docToMarkdown, markdownToDoc } from './blogMarkdown';
 import { getBlogCollabWsUrl, getStoredToken } from '../../../api/clubPmClient';
 import useKeyboardShortcuts from '../../../hooks/useKeyboardShortcuts';
@@ -276,7 +277,7 @@ function PresenceBar({ connected, peers }) {
  *                                 server for this post (see backend/src/collab/blogCollab.ts)
  * @param {object}   collabUser  { id, name } of the current member, used for cursor presence
  */
-export default function BlogEditor({ content, onChange, editable = true, onEditorReady, postId, collabUser, collabWsUrl }) {
+export default function BlogEditor({ content, onChange, editable = true, onEditorReady, postId, collabUser, collabWsUrl, theme, onThemeChange }) {
   const [showFind, setShowFind] = React.useState(false);
   const [showSnippets, setShowSnippets] = React.useState(false);
   const [showSecLib, setShowSecLib] = React.useState(false);
@@ -435,6 +436,7 @@ export default function BlogEditor({ content, onChange, editable = true, onEdito
           toolbarOpen={toolbarOpen}
           onToggleToolbarOpen={() => setToolbarOpen((v) => !v)}
         />
+        {onThemeChange && <BlogThemeBar theme={theme} onChange={onThemeChange} />}
         {collab && <PresenceBar connected={connected} peers={peers} />}
       </div>
       {showFind && !markdownMode && <FindBar editor={editor} onClose={() => setShowFind(false)} />}
@@ -452,7 +454,14 @@ export default function BlogEditor({ content, onChange, editable = true, onEdito
           placeholder="# Markdown source"
         />
       ) : (
-        <EditorContent editor={editor} className="cpm-blog-editor-surface" />
+        <div
+          className="cpm-blog-editor-surface"
+          data-fontpair={theme?.fontPair || 'syne-dmsans'}
+          data-width={theme?.width || 'wide'}
+          style={{ '--post-accent': theme?.accent || 'var(--pm-accent-teal)' }}
+        >
+          <EditorContent editor={editor} />
+        </div>
       )}
       <div className="cpm-blog-editor-footer">
         <span>{words} words</span>

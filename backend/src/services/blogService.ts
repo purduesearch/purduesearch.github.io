@@ -37,6 +37,7 @@ export interface UpdatePostInput {
   authorName?: string | null;
   linkUrl?: string | null;
   publishedAt?: Date | string | null;
+  theme?: Record<string, unknown> | null;
 }
 
 export interface ListPostsFilters {
@@ -163,6 +164,9 @@ export async function updatePost(id: string, patch: UpdatePostInput) {
   if (patch.linkUrl !== undefined) data.linkUrl = patch.linkUrl;
   if (patch.publishedAt !== undefined) {
     data.publishedAt = patch.publishedAt ? new Date(patch.publishedAt) : null;
+  }
+  if (patch.theme !== undefined) {
+    data.theme = patch.theme as Prisma.InputJsonValue ?? Prisma.JsonNull;
   }
 
   return prisma.blogPost.update({ where: { id }, data, include: postInclude });
