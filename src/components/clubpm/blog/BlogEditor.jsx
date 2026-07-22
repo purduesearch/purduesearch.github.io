@@ -17,6 +17,11 @@ import BlogEmbed, { buildEmbed } from './BlogEmbed';
 import BlogGallery from './BlogGallery';
 import BlogToc from './BlogToc';
 import BlogCallout from './BlogCallout';
+import BlogSection from './BlogSection';
+import BlogColumn from './BlogColumn';
+import BlogHero from './BlogHero';
+import BlogStatBand from './BlogStatBand';
+import BlogCta from './BlogCta';
 import BlogSnippetManager from './BlogSnippetManager';
 import { docToMarkdown, markdownToDoc } from './blogMarkdown';
 import { getBlogCollabWsUrl, getStoredToken } from '../../../api/clubPmClient';
@@ -52,6 +57,11 @@ export function blogExtensions(collab) {
     BlogGallery,
     BlogToc,
     BlogCallout,
+    BlogSection,
+    BlogColumn,
+    BlogHero,
+    BlogStatBand,
+    BlogCta,
     CharacterCount,
     Placeholder.configure({ placeholder: 'Start writing your post…' }),
     TableKit.configure({ table: { resizable: true } }),
