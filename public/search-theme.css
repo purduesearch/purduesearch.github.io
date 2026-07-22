@@ -23677,3 +23677,12 @@ button.cpm-badge-tile:disabled { opacity: 0.7; cursor: progress; }
 .cpm-blog-seclib-item:hover { border-color:var(--pm-accent-teal,#00e5cc); color:var(--pm-accent-teal,#00e5cc); }
 .cpm-blog-seclib-item i { font-size:18px; }
 .cpm-blog-cta-edit input, .cpm-blog-cta-edit select { background:var(--pm-elevated,#1b2130); border:1px solid var(--color-border,#2a2f3a); border-radius:6px; color:inherit; padding:6px 8px; }
+
+/* === Section settings panel === */
+.cpm-blog-secset { position:absolute; right:12px; top:64px; z-index:60; width:230px; background:var(--pm-elevated,#1b2130);
+  border:1px solid var(--color-border,#2a2f3a); border-radius:12px; padding:12px; box-shadow:0 12px 40px rgba(0,0,0,.4); }
+.cpm-blog-secset-head { display:flex; justify-content:space-between; align-items:center; color:var(--pm-text,#e6ebf2); margin-bottom:8px; }
+.cpm-blog-secset-lab { display:block; font-size:11px; text-transform:uppercase; letter-spacing:.05em; opacity:.7; margin:10px 0 5px; }
+.cpm-blog-seg { display:flex; gap:4px; flex-wrap:wrap; }
+.cpm-blog-seg-b { background:var(--pm-surface,#141b26); border:1px solid var(--color-border,#2a2f3a); border-radius:6px; color:var(--pm-text,#c7d0dd); padding:5px 9px; font-size:11px; cursor:pointer; }
+.cpm-blog-seg-b.on { background:rgba(0,229,204,.14); border-color:var(--pm-accent-teal,#00e5cc); color:var(--pm-accent-teal,#00e5cc); }

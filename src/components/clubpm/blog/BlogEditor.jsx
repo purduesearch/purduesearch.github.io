@@ -24,6 +24,7 @@ import BlogStatBand from './BlogStatBand';
 import BlogCta from './BlogCta';
 import BlogSnippetManager from './BlogSnippetManager';
 import BlogSectionLibrary from './BlogSectionLibrary';
+import BlogSectionSettings from './BlogSectionSettings';
 import { docToMarkdown, markdownToDoc } from './blogMarkdown';
 import { getBlogCollabWsUrl, getStoredToken } from '../../../api/clubPmClient';
 import useKeyboardShortcuts from '../../../hooks/useKeyboardShortcuts';
@@ -279,6 +280,13 @@ export default function BlogEditor({ content, onChange, editable = true, onEdito
   const [showFind, setShowFind] = React.useState(false);
   const [showSnippets, setShowSnippets] = React.useState(false);
   const [showSecLib, setShowSecLib] = React.useState(false);
+  const [settingsPos, setSettingsPos] = React.useState(null);
+
+  React.useEffect(() => {
+    const handler = (e) => setSettingsPos(e.detail?.pos ?? null);
+    window.addEventListener('blog-section-settings', handler);
+    return () => window.removeEventListener('blog-section-settings', handler);
+  }, []);
   const [connected, setConnected] = React.useState(false);
   const [peers, setPeers] = React.useState([]);
   const [markdownMode, setMarkdownMode] = React.useState(false);
@@ -432,6 +440,9 @@ export default function BlogEditor({ content, onChange, editable = true, onEdito
       {showFind && !markdownMode && <FindBar editor={editor} onClose={() => setShowFind(false)} />}
       {showSnippets && !markdownMode && <BlogSnippetManager editor={editor} onClose={() => setShowSnippets(false)} />}
       {showSecLib && !markdownMode && <BlogSectionLibrary editor={editor} onClose={() => setShowSecLib(false)} />}
+      {settingsPos != null && (
+        <BlogSectionSettings editor={editor} pos={settingsPos} onClose={() => setSettingsPos(null)} />
+      )}
       {markdownMode ? (
         <textarea
           className="cpm-blog-markdown-textarea"
