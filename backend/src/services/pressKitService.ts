@@ -57,8 +57,11 @@ export interface PressKitContext {
              startDate: Date | null; targetDate: Date | null; programTag: string | null;
              githubRepo: string | null; driveLink: string | null };
   stats: { teamSize: number; tasksDone: number; tasksTotal: number;
-           milestonesHit: number; hoursLogged: number; durationDays: number | null };
+           milestonesHit: number; hoursLogged: number; durationDays: number | null;
+           commentCount: number };
   milestones: { title: string; description: string | null; completedAt: Date | null }[];
+  contributors: { displayName: string; tasksDone: number; hours: number }[];
+  timeline: { title: string; date: Date | null; kind: "milestone" | "task" }[];
   team: { displayName: string; title: string | null; role: string | null;
           avatarUrl: string | null; isLead: boolean }[];
   tags: string[];
@@ -99,15 +102,16 @@ export function buildPressKitMarkdown(
     out.push(`| Milestones reached | ${ctx.stats.milestonesHit} |`);
     out.push(`| Hours logged | ${ctx.stats.hoursLogged} |`);
     if (ctx.stats.durationDays != null) out.push(`| Days active | ${ctx.stats.durationDays} |`);
+    out.push(`| Comments | ${ctx.stats.commentCount} |`);
     out.push("");
   }
   if (has("building") && prose.building) { out.push("## What We're Building", prose.building, ""); }
 
-  if (has("timeline") && (ctx.milestones.length || p.targetDate)) {
+  if (has("timeline") && (ctx.timeline.length || p.targetDate)) {
     out.push("## Timeline & Milestones", "");
-    for (const m of ctx.milestones) {
-      const when = m.completedAt ? ` — ${fmtDate(m.completedAt)}` : "";
-      out.push(`- **${m.title}**${when}${m.description ? `: ${m.description}` : ""}`);
+    for (const e of ctx.timeline) {
+      const when = e.date ? ` — ${fmtDate(e.date)}` : "";
+      out.push(`- **${e.title}**${when}`);
     }
     if (p.targetDate) out.push(`- **Target completion** — ${fmtDate(p.targetDate)}`);
     out.push("");
@@ -115,12 +119,18 @@ export function buildPressKitMarkdown(
   if (has("tech") && ctx.tags.length) {
     out.push("## Tech & Tools", ctx.tags.join(" · "), "");
   }
-  if (has("team") && ctx.team.length) {
+  if (has("team") && (ctx.team.length || ctx.contributors.length)) {
     out.push("## Team & Leadership", "");
     for (const t of ctx.team) {
       const lead = t.isLead ? " *(Lead)*" : "";
       const title = t.title ? ` — ${t.title}` : "";
       out.push(`- **${t.displayName}**${title}${lead}`);
+    }
+    if (ctx.contributors.length) {
+      out.push("", "**Top contributors**");
+      for (const c of ctx.contributors.slice(0, 6)) {
+        out.push(`- ${c.displayName} — ${c.tasksDone} tasks, ${c.hours} h`);
+      }
     }
     out.push("");
   }
@@ -172,15 +182,41 @@ export async function gatherPressKitData(projectId: string): Promise<PressKitCon
   });
   if (!project) return null;
 
-  const [tasksTotal, tasksDone, hoursAgg] = await Promise.all([
+  const [tasksTotal, tasksDone, hoursAgg, commentCount, timeLogsByMember] = await Promise.all([
     prisma.task.count({ where: { projectId } }),
     prisma.task.count({ where: { projectId, status: "DONE" } }),
     prisma.timeLog.aggregate({ where: { task: { projectId } }, _sum: { minutes: true } }),
+    prisma.taskComment.count({ where: { task: { projectId } } }),
+    prisma.timeLog.groupBy({ by: ["memberId"], where: { task: { projectId } }, _sum: { minutes: true } }).catch(() => [] as { memberId: string; _sum: { minutes: number | null } }[]),
   ]);
 
   const durationDays = project.startDate
     ? Math.max(0, Math.round((Date.now() - new Date(project.startDate).getTime()) / 86_400_000))
     : null;
+
+  const hoursByMember = new Map<string, number>(
+    (timeLogsByMember as { memberId: string; _sum: { minutes: number | null } }[])
+      .map((r) => [r.memberId, Math.round((r._sum.minutes ?? 0) / 60)])
+  );
+  const doneByMember = new Map<string, number>();
+  for (const pm of project.members) {
+    const n = await prisma.task.count({
+      where: { projectId, status: "DONE", assignees: { some: { id: pm.member.id } } },
+    });
+    if (n > 0) doneByMember.set(pm.member.id, n);
+  }
+  const contributors = project.members
+    .map((pm) => ({
+      displayName: pm.member.displayName,
+      tasksDone: doneByMember.get(pm.member.id) ?? 0,
+      hours: hoursByMember.get(pm.member.id) ?? 0,
+    }))
+    .filter((c) => c.tasksDone > 0 || c.hours > 0)
+    .sort((a, b) => (b.tasksDone + b.hours) - (a.tasksDone + a.hours));
+
+  const timeline = project.milestones
+    .map((m) => ({ title: m.title, date: m.completedAt, kind: "milestone" as const }))
+    .sort((a, b) => (a.date?.getTime() ?? 0) - (b.date?.getTime() ?? 0));
 
   const team = project.members.map((pm) => ({
     displayName: pm.member.displayName,
@@ -208,10 +244,13 @@ export async function gatherPressKitData(projectId: string): Promise<PressKitCon
       milestonesHit: project.milestones.length,
       hoursLogged: Math.round((hoursAgg._sum.minutes ?? 0) / 60),
       durationDays,
+      commentCount,
     },
     milestones: project.milestones.map((m) => ({
       title: m.title, description: m.description, completedAt: m.completedAt,
     })),
+    contributors,
+    timeline,
     team,
     tags: project.tags.map((t) => t.name),
     links,
