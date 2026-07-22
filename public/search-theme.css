@@ -23666,4 +23666,14 @@ button.cpm-badge-tile:disabled { opacity: 0.7; cursor: progress; }
 .cpm-blog-stat-value input, .cpm-blog-stat input { width:100%; background:transparent; border:1px dashed var(--color-border,#2a2f3a); border-radius:6px; text-align:center; color:inherit; }
 .cpm-blog-stat-add, .cpm-blog-stat-x { background:none; border:none; color:var(--pm-accent-teal,#00e5cc); cursor:pointer; }
 .cpm-blog-cta-edit { display:flex; gap:8px; flex-wrap:wrap; justify-content:center; }
+
+/* Section library popover (Add-section toolbar button) */
+.cpm-blog-seclib { position:absolute; z-index:60; margin-top:6px; background:var(--pm-elevated,#1b2130);
+  border:1px solid var(--color-border,#2a2f3a); border-radius:12px; padding:12px; width:min(520px,92vw); box-shadow:0 12px 40px rgba(0,0,0,.4); }
+.cpm-blog-seclib-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; color:var(--pm-text,#e6ebf2); }
+.cpm-blog-seclib-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(120px,1fr)); gap:8px; }
+.cpm-blog-seclib-item { display:flex; flex-direction:column; align-items:center; gap:8px; padding:14px 8px;
+  background:var(--pm-surface,#141b26); border:1px solid var(--color-border,#2a2f3a); border-radius:10px; color:var(--pm-text,#c7d0dd); cursor:pointer; }
+.cpm-blog-seclib-item:hover { border-color:var(--pm-accent-teal,#00e5cc); color:var(--pm-accent-teal,#00e5cc); }
+.cpm-blog-seclib-item i { font-size:18px; }
 .cpm-blog-cta-edit input, .cpm-blog-cta-edit select { background:var(--pm-elevated,#1b2130); border:1px solid var(--color-border,#2a2f3a); border-radius:6px; color:inherit; padding:6px 8px; }

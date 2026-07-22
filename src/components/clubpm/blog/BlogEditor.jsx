@@ -23,6 +23,7 @@ import BlogHero from './BlogHero';
 import BlogStatBand from './BlogStatBand';
 import BlogCta from './BlogCta';
 import BlogSnippetManager from './BlogSnippetManager';
+import BlogSectionLibrary from './BlogSectionLibrary';
 import { docToMarkdown, markdownToDoc } from './blogMarkdown';
 import { getBlogCollabWsUrl, getStoredToken } from '../../../api/clubPmClient';
 import useKeyboardShortcuts from '../../../hooks/useKeyboardShortcuts';
@@ -112,7 +113,7 @@ function setLink(editor) {
   editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
 }
 
-function Toolbar({ editor, onToggleFind, onToggleSnippets, onToggleMarkdown, markdownMode, onShowShortcuts, toolbarOpen, onToggleToolbarOpen }) {
+function Toolbar({ editor, onToggleFind, onToggleSnippets, onAddSection, onToggleMarkdown, markdownMode, onShowShortcuts, toolbarOpen, onToggleToolbarOpen }) {
   const fileRef = React.useRef(null);
   if (!editor) return null;
   const heading = [1, 2, 3, 4, 5, 6].find((l) => editor.isActive('heading', { level: l })) ?? '';
@@ -196,6 +197,7 @@ function Toolbar({ editor, onToggleFind, onToggleSnippets, onToggleMarkdown, mar
       <Btn title="Insert table of contents" icon="fa-bars-staggered" onClick={insertToc} />
       <Btn title="Insert callout" icon="fa-square-full" active={editor.isActive('callout')} onClick={insertCallout} />
       <Btn title="Snippets" icon="fa-clone" onClick={onToggleSnippets} />
+      <Btn title="Add section" icon="fa-square-plus" onClick={onAddSection} pinned />
       {inTable && (
         <>
           <Btn title="Add column" icon="fa-table-columns" onClick={() => editor.chain().focus().addColumnAfter().run()} />
@@ -276,6 +278,7 @@ function PresenceBar({ connected, peers }) {
 export default function BlogEditor({ content, onChange, editable = true, onEditorReady, postId, collabUser, collabWsUrl }) {
   const [showFind, setShowFind] = React.useState(false);
   const [showSnippets, setShowSnippets] = React.useState(false);
+  const [showSecLib, setShowSecLib] = React.useState(false);
   const [connected, setConnected] = React.useState(false);
   const [peers, setPeers] = React.useState([]);
   const [markdownMode, setMarkdownMode] = React.useState(false);
@@ -417,6 +420,7 @@ export default function BlogEditor({ content, onChange, editable = true, onEdito
           editor={editor}
           onToggleFind={() => setShowFind((s) => !s)}
           onToggleSnippets={() => setShowSnippets(true)}
+          onAddSection={() => setShowSecLib(true)}
           onToggleMarkdown={toggleMarkdown}
           markdownMode={markdownMode}
           onShowShortcuts={() => shortcutsRegistry?.setShowHelp(true)}
@@ -427,6 +431,7 @@ export default function BlogEditor({ content, onChange, editable = true, onEdito
       </div>
       {showFind && !markdownMode && <FindBar editor={editor} onClose={() => setShowFind(false)} />}
       {showSnippets && !markdownMode && <BlogSnippetManager editor={editor} onClose={() => setShowSnippets(false)} />}
+      {showSecLib && !markdownMode && <BlogSectionLibrary editor={editor} onClose={() => setShowSecLib(false)} />}
       {markdownMode ? (
         <textarea
           className="cpm-blog-markdown-textarea"
