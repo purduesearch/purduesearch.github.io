@@ -23658,3 +23658,12 @@ button.cpm-badge-tile:disabled { opacity: 0.7; cursor: progress; }
   border: 1px solid var(--pm-accent-teal, #00e5cc); border-radius: 20px; padding: 3px 7px; z-index: 5; opacity: 0; transition: opacity .12s; }
 .cpm-blog-section:hover .cpm-blog-section-toolbar, .cpm-blog-section.is-selected .cpm-blog-section-toolbar { opacity: 1; }
 .cpm-blog-section-toolbar button { background: none; border: none; color: var(--pm-accent-teal, #00e5cc); cursor: pointer; padding: 2px 5px; }
+
+/* === Section node views — editor form controls (hero/statBand/cta) === */
+.cpm-blog-hero-h, .cpm-blog-hero-s { display:block; width:100%; background:transparent; border:none; text-align:inherit; color:inherit; }
+.cpm-blog-hero-h { font-size:2.2rem; font-weight:800; }
+.cpm-blog-hero-controls { display:flex; gap:8px; margin-top:8px; flex-wrap:wrap; font-size:12px; }
+.cpm-blog-stat-value input, .cpm-blog-stat input { width:100%; background:transparent; border:1px dashed var(--color-border,#2a2f3a); border-radius:6px; text-align:center; color:inherit; }
+.cpm-blog-stat-add, .cpm-blog-stat-x { background:none; border:none; color:var(--pm-accent-teal,#00e5cc); cursor:pointer; }
+.cpm-blog-cta-edit { display:flex; gap:8px; flex-wrap:wrap; justify-content:center; }
+.cpm-blog-cta-edit input, .cpm-blog-cta-edit select { background:var(--pm-elevated,#1b2130); border:1px solid var(--color-border,#2a2f3a); border-radius:6px; color:inherit; padding:6px 8px; }
