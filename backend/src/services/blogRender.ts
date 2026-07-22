@@ -46,6 +46,20 @@ function escapeAttr(s: string): string {
   return escapeHtml(s);
 }
 
+// ── Google Drive image proxy ─────────────────────────────────
+
+// Rewrite legacy Google-Drive image URLs to the app's image proxy so <img>
+// tags actually load (Drive stopped serving uc?export=view to hotlinks).
+// `baseUrl` (optional) makes the result absolute for cross-origin public pages.
+const DRIVE_ID_RE =
+  /(?:drive\.google\.com\/uc\?[^"']*?[?&]id=|drive\.google\.com\/file\/d\/|lh3\.googleusercontent\.com\/d\/)([a-zA-Z0-9_-]{10,})/;
+export function proxyImageSrc(src: string, baseUrl = ""): string {
+  if (!src) return src;
+  const m = src.match(DRIVE_ID_RE);
+  if (!m) return src;
+  return `${baseUrl}/api/public/blog-image/${m[1]}`;
+}
+
 // ── slugify (shared by post slugs and heading anchors) ───────
 
 export function slugify(input: string): string {
@@ -198,7 +212,7 @@ function renderNode(node: PMNode, headingIds: Map<PMNode, string>): string {
     case "hardBreak":
       return `<br/>`;
     case "image": {
-      const src = escapeAttr(String(node.attrs?.src ?? ""));
+      const src = escapeAttr(proxyImageSrc(String(node.attrs?.src ?? ""), IMAGE_BASE_URL));
       const alt = escapeAttr(String(node.attrs?.alt ?? ""));
       const align = node.attrs?.align ? ` cpm-blog-img--${escapeAttr(String(node.attrs.align))}` : "";
       const wUnit = node.attrs?.widthUnit === "%" ? "%" : "px";
@@ -217,7 +231,7 @@ function renderNode(node: PMNode, headingIds: Map<PMNode, string>): string {
     case "gallery": {
       const images = Array.isArray(node.attrs?.images) ? (node.attrs!.images as Array<Record<string, unknown>>) : [];
       const items = images
-        .map((im) => `<img src="${escapeAttr(String(im.src ?? im.url ?? ""))}" alt="${escapeAttr(String(im.alt ?? ""))}"/>`)
+        .map((im) => `<img src="${escapeAttr(proxyImageSrc(String(im.src ?? im.url ?? ""), IMAGE_BASE_URL))}" alt="${escapeAttr(String(im.alt ?? ""))}"/>`)
         .join("");
       return `<div class="cpm-blog-gallery">${items}</div>`;
     }
@@ -260,12 +274,14 @@ function renderToc(doc: PMDoc, headingIds: Map<PMNode, string>): string {
   return `<nav class="cpm-blog-toc"><ul>${items.join("")}</ul></nav>`;
 }
 
+let IMAGE_BASE_URL = "";
+
 /** Render a full TipTap doc to the HTML snapshot served on the public site. */
-export function renderJsonToHtml(doc: PMDoc | null | undefined): string {
+export function renderJsonToHtml(doc: PMDoc | null | undefined, baseUrl = ""): string {
   if (!doc || !doc.content) return "";
+  IMAGE_BASE_URL = baseUrl;
   const headingIds = buildHeadingIdMap(doc);
   const body = doc.content.map((n) => renderNode(n, headingIds)).join("\n");
-  // Replace the TOC placeholder(s) with the generated navigation.
   const toc = renderToc(doc, headingIds);
   return body.replace(/<!--TOC-->/g, toc);
 }

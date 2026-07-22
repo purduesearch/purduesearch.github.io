@@ -289,7 +289,7 @@ export async function buildPressKitHtml(projectId: string): Promise<string | nul
   const config = normalizePressKitConfig(kit.config);
   const inner = kit.status === "PUBLISHED" && kit.renderedHtml
     ? kit.renderedHtml
-    : renderJsonToHtml(kit.contentJson as unknown as PMDoc | null);
+    : renderJsonToHtml(kit.contentJson as unknown as PMDoc | null, process.env.PUBLIC_API_BASE_URL ?? "");
   if (!inner || !inner.trim()) return null;
 
   const accent = config.accentColor;
@@ -313,5 +313,5 @@ export async function buildPressKitHtml(projectId: string): Promise<string | nul
 
 /** Render the current doc to the inner HTML snapshot stored on publish. */
 export function renderPressKitInnerHtml(doc: PMDoc | null | undefined): string {
-  return renderJsonToHtml(doc ?? null);
+  return renderJsonToHtml(doc ?? null, process.env.PUBLIC_API_BASE_URL ?? "");
 }
