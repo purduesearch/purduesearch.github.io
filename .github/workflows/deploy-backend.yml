@@ -36,6 +36,7 @@ jobs:
             git reset --hard origin/main
             cd backend
             npm ci
+            export NODE_OPTIONS=--max-old-space-size=4096
             npx prisma generate
             npm run build
             npx prisma migrate deploy
