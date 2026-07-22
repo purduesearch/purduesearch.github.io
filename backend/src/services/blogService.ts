@@ -191,7 +191,7 @@ export async function publishPost(id: string, memberId: string) {
       status: "PUBLISHED",
       publishedAt: post.publishedAt ?? new Date(),
       scheduledAt: null,
-      renderedHtml: renderJsonToHtml(doc),
+      renderedHtml: renderJsonToHtml(doc, process.env.PUBLIC_API_BASE_URL ?? ""),
       readingTimeMin: computeReadingTime(doc),
     },
     include: postInclude,

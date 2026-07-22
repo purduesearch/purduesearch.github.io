@@ -61,6 +61,17 @@ function blockToMarkdown(node: PMNode): string {
     case "section":
     case "column":
       return (node.content ?? []).map(blockToMarkdown).join("\n\n");
+    case "hero": {
+      const h = String(node.attrs?.heading ?? "");
+      const sub = String(node.attrs?.subheading ?? "");
+      return [h ? `# ${h}` : "", sub].filter(Boolean).join("\n\n");
+    }
+    case "statBand": {
+      const stats = (node.attrs?.stats as { label?: string; value?: string }[]) ?? [];
+      return stats.map((s) => `- **${s.label ?? ""}:** ${s.value ?? ""}`).join("\n");
+    }
+    case "ctaButton":
+      return `[${String(node.attrs?.label ?? "Learn more")}](${String(node.attrs?.href ?? "")})`;
     default:
       return node.content ? (node.content ?? []).map(blockToMarkdown).join("\n\n") : "";
   }

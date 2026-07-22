@@ -27,7 +27,7 @@ function SectionView({ node, editor, getPos, selected }) {
       const other = parent.child(target);
       const from = dir < 0 ? pos - other.nodeSize : pos;
       tr.delete(pos, pos + cur.nodeSize);
-      tr.insert(dir < 0 ? from : from - cur.nodeSize + cur.nodeSize, cur);
+      tr.insert(dir < 0 ? from : from + other.nodeSize, cur);
       return true;
     }).run();
   };
