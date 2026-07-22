@@ -421,6 +421,24 @@ export const restorePressKitRevision = (projectId, revId) => post(`/api/projects
 export const updatePressKitContent   = (projectId, contentJson) => patch(`/api/projects/${projectId}/press-kit/content`, { contentJson });
 export const deletePressKit = (projectId) => del(`/api/projects/${projectId}/press-kit`);
 
+// Authenticated file download for press-kit exports (a plain <a href> omits the
+// Bearer header). Mirrors downloadMeetingPollIcs.
+export async function downloadPressKitExport(projectId, format, projectName = 'press-kit') {
+  const ext = ({ pdf: 'pdf', docx: 'docx', md: 'md', html: 'html' })[format] || 'txt';
+  const response = await fetch(`${BASE_URL}/api/projects/${projectId}/press-kit/export?format=${format}`, {
+    credentials: 'include',
+    headers: { ...authHeaders() },
+  });
+  if (!response.ok) throw new ApiError(response.status, 'Export failed');
+  const blob = await response.blob();
+  const safe = String(projectName).replace(/[^a-z0-9]+/gi, '-').replace(/^-+|-+$/g, '').toLowerCase() || 'press-kit';
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `${safe}.${ext}`;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+}
+
 // ws(s):// base for the press-kit Hocuspocus namespace (backend/src/collab/pressKitCollab.ts).
 export function getPressKitCollabWsUrl() {
   const origin = BASE_URL || window.location.origin;

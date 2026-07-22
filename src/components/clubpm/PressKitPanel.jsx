@@ -6,7 +6,7 @@ import { useClubPmAuth } from '../../clubpm/ClubPmAuth';
 import {
   getPressKit, generatePressKit, updatePressKitConfig, publishPressKit,
   getPressKitRevisions, restorePressKitRevision, getPressKitCollabWsUrl,
-  updatePressKitContent, deletePressKit,
+  updatePressKitContent, deletePressKit, downloadPressKitExport,
 } from '../../api/clubPmClient';
 
 const AUDIENCES = [
@@ -37,6 +37,7 @@ export default function PressKitPanel({ project, canEdit }) {
   });
   const [revisions, setRevisions] = useState([]);
   const [showRevs, setShowRevs] = useState(false);
+  const [showExport, setShowExport] = useState(false);
   const editorRef = useRef(null);
   const saveTimer = useRef(null);
   // Bumped after generate/restore to force a fresh editor mount (new Yjs doc).
@@ -126,6 +127,15 @@ export default function PressKitPanel({ project, canEdit }) {
     finally { setBusy(false); }
   }, [projectId]);
 
+  const handleExport = useCallback(async (format) => {
+    setShowExport(false);
+    const t = toast.loading(`Exporting ${format.toUpperCase()}…`);
+    try {
+      await downloadPressKitExport(projectId, format, project.name);
+      toast.dismiss(t); toast.success('Export ready');
+    } catch { toast.dismiss(t); toast.error('Export failed'); }
+  }, [projectId, project.name]);
+
   if (loading) return <div style={{ padding: 48, display: 'grid', placeItems: 'center' }}><OrbitLoader /></div>;
 
   const toggleSection = (id) => setConfig((c) => ({
@@ -199,6 +209,19 @@ export default function PressKitPanel({ project, canEdit }) {
         <button type="button" className="clubpm-btn-secondary" onClick={() => setShowSettings(true)} disabled={busy}>Settings</button>
         <button type="button" className="clubpm-btn-secondary" onClick={handleGenerate} disabled={busy || !canEdit}
           title="Regenerate from current data (snapshots the current version first)">Regenerate</button>
+        <div className="presskit-export-wrap">
+          <button type="button" className="clubpm-btn-secondary" onClick={() => setShowExport((v) => !v)} disabled={busy}>
+            <i className="fas fa-file-arrow-down" aria-hidden="true" style={{ marginRight: 6 }} />Export
+          </button>
+          {showExport && (
+            <div className="presskit-export-menu" role="menu">
+              <button type="button" role="menuitem" onClick={() => handleExport('pdf')}>PDF</button>
+              <button type="button" role="menuitem" onClick={() => handleExport('docx')}>Word (.docx)</button>
+              <button type="button" role="menuitem" onClick={() => handleExport('md')}>Markdown</button>
+              <button type="button" role="menuitem" onClick={() => handleExport('html')}>HTML</button>
+            </div>
+          )}
+        </div>
         <button type="button" className="clubpm-btn-primary" onClick={handlePublish} disabled={busy || !canEdit}>Publish &amp; share</button>
       </div>
 
