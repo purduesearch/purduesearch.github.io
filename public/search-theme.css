@@ -23778,3 +23778,36 @@ button.cpm-badge-tile:disabled { opacity: 0.7; cursor: progress; }
 .cpm-blog-img-placeholder-icon { font-size: 26px; opacity: .6; }
 .cpm-blog-img-placeholder-hint { font-size: 13.5px; max-width: 46ch; line-height: 1.45; }
 .cpm-blog-img-placeholder-btn { align-self: center; }
+
+/* === Blog editor: force readable light text (editor only) ==============
+   Some section themes ("light") and muted styles (blockquotes, captions)
+   render dark or grey text that is unreadable on the dark editing canvas.
+   In the EDITOR, render all body text as a readable near-white. Scoped to
+   .cpm-blog-editor-surface, so the published page (.pm-blog-post-body) and
+   the Preview pane (.cpm-blog-preview) keep their real per-section theming. */
+.cpm-blog-editor-surface .cpm-blog-section--light {
+  /* A white "light" band would hide white text while editing — flatten it to
+     the dark canvas here; it still publishes/previews as a light band. */
+  background-color: transparent;
+  color: #eef2f8;
+}
+.cpm-blog-editor-surface .ProseMirror,
+.cpm-blog-editor-surface .ProseMirror p,
+.cpm-blog-editor-surface .ProseMirror li,
+.cpm-blog-editor-surface .ProseMirror h1,
+.cpm-blog-editor-surface .ProseMirror h2,
+.cpm-blog-editor-surface .ProseMirror h3,
+.cpm-blog-editor-surface .ProseMirror h4,
+.cpm-blog-editor-surface .ProseMirror h5,
+.cpm-blog-editor-surface .ProseMirror h6,
+.cpm-blog-editor-surface .ProseMirror blockquote,
+.cpm-blog-editor-surface .ProseMirror figcaption,
+.cpm-blog-editor-surface .ProseMirror th,
+.cpm-blog-editor-surface .ProseMirror td,
+.cpm-blog-editor-surface .cpm-blog-hero h1,
+.cpm-blog-editor-surface .cpm-blog-hero p,
+.cpm-blog-editor-surface .cpm-blog-hero-h,
+.cpm-blog-editor-surface .cpm-blog-hero-s,
+.cpm-blog-editor-surface .cpm-blog-stat-label {
+  color: #eef2f8 !important;
+}
