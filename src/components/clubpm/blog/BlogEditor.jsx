@@ -115,6 +115,59 @@ function setLink(editor) {
   editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
 }
 
+// A dropdown that groups related toolbar actions. `items` are
+// { title, icon, active?, disabled?, onClick }. Format-style menus pass
+// closeOnSelect={false} so several toggles can be applied without reopening.
+function ToolbarMenu({ label, icon, title, items, closeOnSelect = true }) {
+  const [open, setOpen] = React.useState(false);
+  const ref = React.useRef(null);
+  React.useEffect(() => {
+    if (!open) return undefined;
+    const onDoc = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    const onKey = (e) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('mousedown', onDoc);
+    document.addEventListener('keydown', onKey);
+    return () => { document.removeEventListener('mousedown', onDoc); document.removeEventListener('keydown', onKey); };
+  }, [open]);
+  const anyActive = items.some((it) => it.active);
+  return (
+    <span className="cpm-blog-tb-menu" ref={ref}>
+      <button
+        type="button"
+        className={`cpm-blog-tb-menu-trigger${anyActive ? ' is-active' : ''}${open ? ' is-open' : ''}`}
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={() => setOpen((o) => !o)}
+        title={title || label}
+        aria-haspopup="menu"
+        aria-expanded={open}
+      >
+        {icon && <i className={`fas ${icon}`} aria-hidden="true" />}
+        <span className="cpm-blog-tb-menu-label">{label}</span>
+        <i className="fas fa-chevron-down cpm-blog-tb-menu-caret" aria-hidden="true" />
+      </button>
+      {open && (
+        <div className="cpm-blog-tb-menu-pop" role="menu">
+          {items.map((it) => (
+            <button
+              key={it.title}
+              type="button"
+              role="menuitem"
+              className={`cpm-blog-tb-menu-item${it.active ? ' is-active' : ''}`}
+              onMouseDown={(e) => e.preventDefault()}
+              disabled={it.disabled}
+              onClick={() => { it.onClick(); if (closeOnSelect) setOpen(false); }}
+            >
+              {it.icon && <i className={`fas ${it.icon}`} aria-hidden="true" />}
+              <span>{it.title}</span>
+              {it.active && <i className="fas fa-check cpm-blog-tb-menu-tick" aria-hidden="true" />}
+            </button>
+          ))}
+        </div>
+      )}
+    </span>
+  );
+}
+
 function Toolbar({ editor, onToggleFind, onToggleSnippets, onAddSection, onToggleMarkdown, markdownMode, onShowShortcuts, toolbarOpen, onToggleToolbarOpen }) {
   const fileRef = React.useRef(null);
   if (!editor) return null;
@@ -143,6 +196,34 @@ function Toolbar({ editor, onToggleFind, onToggleSnippets, onAddSection, onToggl
       content: [{ type: 'paragraph' }],
     }).run();
   };
+
+  // Grouped menu items — condense the many single-purpose buttons into three menus.
+  const formatItems = [
+    { title: 'Bold', icon: 'fa-bold', active: editor.isActive('bold'), onClick: () => editor.chain().focus().toggleBold().run() },
+    { title: 'Italic', icon: 'fa-italic', active: editor.isActive('italic'), onClick: () => editor.chain().focus().toggleItalic().run() },
+    { title: 'Underline', icon: 'fa-underline', active: editor.isActive('underline'), onClick: () => editor.chain().focus().toggleUnderline().run() },
+    { title: 'Strikethrough', icon: 'fa-strikethrough', active: editor.isActive('strike'), onClick: () => editor.chain().focus().toggleStrike().run() },
+    { title: 'Inline code', icon: 'fa-code', active: editor.isActive('code'), onClick: () => editor.chain().focus().toggleCode().run() },
+    { title: 'Link', icon: 'fa-link', active: editor.isActive('link'), onClick: () => setLink(editor) },
+  ];
+  const listItems = [
+    { title: 'Bullet list', icon: 'fa-list-ul', active: editor.isActive('bulletList'), onClick: () => editor.chain().focus().toggleBulletList().run() },
+    { title: 'Numbered list', icon: 'fa-list-ol', active: editor.isActive('orderedList'), onClick: () => editor.chain().focus().toggleOrderedList().run() },
+    { title: 'Checklist', icon: 'fa-square-check', active: editor.isActive('taskList'), onClick: () => editor.chain().focus().toggleTaskList().run() },
+  ];
+  const insertItems = [
+    { title: 'Image', icon: 'fa-image', onClick: () => fileRef.current?.click() },
+    { title: 'Embed (video / social)', icon: 'fa-photo-film', onClick: insertEmbed },
+    { title: 'Image gallery', icon: 'fa-images', onClick: insertGallery },
+    { title: 'Table', icon: 'fa-table', active: inTable, onClick: () => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run() },
+    { title: 'Table of contents', icon: 'fa-bars-staggered', onClick: insertToc },
+    { title: 'Callout', icon: 'fa-square-full', active: editor.isActive('callout'), onClick: insertCallout },
+    { title: 'Quote', icon: 'fa-quote-right', active: editor.isActive('blockquote'), onClick: () => editor.chain().focus().toggleBlockquote().run() },
+    { title: 'Code block', icon: 'fa-file-code', active: editor.isActive('codeBlock'), onClick: () => editor.chain().focus().toggleCodeBlock().run() },
+    { title: 'Divider', icon: 'fa-minus', onClick: () => editor.chain().focus().setHorizontalRule().run() },
+    { title: 'Snippets', icon: 'fa-clone', onClick: onToggleSnippets },
+  ];
+
   return (
     <div
       className={`cpm-blog-toolbar${toolbarOpen ? '' : ' is-collapsed'}${markdownMode ? ' is-markdown-mode' : ''}`}
@@ -158,11 +239,8 @@ function Toolbar({ editor, onToggleFind, onToggleSnippets, onAddSection, onToggl
         />
         <span className="cpm-blog-tb-sep" />
       </span>
-      <Btn title="Bold (Ctrl+B)" icon="fa-bold" active={editor.isActive('bold')} onClick={() => editor.chain().focus().toggleBold().run()} />
-      <Btn title="Italic (Ctrl+I)" icon="fa-italic" active={editor.isActive('italic')} onClick={() => editor.chain().focus().toggleItalic().run()} />
-      <Btn title="Underline (Ctrl+U)" icon="fa-underline" active={editor.isActive('underline')} onClick={() => editor.chain().focus().toggleUnderline().run()} />
-      <Btn title="Strikethrough" icon="fa-strikethrough" active={editor.isActive('strike')} onClick={() => editor.chain().focus().toggleStrike().run()} />
-      <span className="cpm-blog-tb-sep" />
+
+      <ToolbarMenu label="Format" icon="fa-font" title="Text formatting" items={formatItems} closeOnSelect={false} />
       <select
         className="cpm-blog-tb-select"
         value={heading}
@@ -181,27 +259,25 @@ function Toolbar({ editor, onToggleFind, onToggleSnippets, onAddSection, onToggl
         <option value="5">Heading 5</option>
         <option value="6">Heading 6</option>
       </select>
+      <ToolbarMenu label="Lists" icon="fa-list" title="Lists" items={listItems} />
+
       <span className="cpm-blog-tb-sep" />
-      <Btn title="Bullet list" icon="fa-list-ul" active={editor.isActive('bulletList')} onClick={() => editor.chain().focus().toggleBulletList().run()} />
-      <Btn title="Numbered list" icon="fa-list-ol" active={editor.isActive('orderedList')} onClick={() => editor.chain().focus().toggleOrderedList().run()} />
-      <Btn title="Checklist" icon="fa-square-check" active={editor.isActive('taskList')} onClick={() => editor.chain().focus().toggleTaskList().run()} />
-      <span className="cpm-blog-tb-sep" />
-      <Btn title="Quote" icon="fa-quote-right" active={editor.isActive('blockquote')} onClick={() => editor.chain().focus().toggleBlockquote().run()} />
-      <Btn title="Code block" icon="fa-code" active={editor.isActive('codeBlock')} onClick={() => editor.chain().focus().toggleCodeBlock().run()} />
-      <Btn title="Divider" icon="fa-minus" onClick={() => editor.chain().focus().setHorizontalRule().run()} />
-      <span className="cpm-blog-tb-sep" />
-      <Btn title="Link (Ctrl+K)" icon="fa-link" active={editor.isActive('link')} onClick={() => setLink(editor)} />
-      <Btn title="Insert image" icon="fa-image" onClick={() => fileRef.current?.click()} />
+      <button
+        type="button"
+        className="cpm-blog-add-section-btn cpm-blog-tb-btn--pinned"
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={onAddSection}
+        title="Add a section"
+      >
+        <i className="fas fa-plus" aria-hidden="true" />
+        <span>Add Section</span>
+      </button>
+      <ToolbarMenu label="Insert" icon="fa-square-plus" title="Insert content" items={insertItems} />
       <input ref={fileRef} type="file" accept="image/*" multiple hidden onChange={pickImage} />
-      <Btn title="Embed (video / social)" icon="fa-photo-film" onClick={insertEmbed} />
-      <Btn title="Image gallery" icon="fa-images" onClick={insertGallery} />
-      <Btn title="Insert table" icon="fa-table" active={inTable} onClick={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()} />
-      <Btn title="Insert table of contents" icon="fa-bars-staggered" onClick={insertToc} />
-      <Btn title="Insert callout" icon="fa-square-full" active={editor.isActive('callout')} onClick={insertCallout} />
-      <Btn title="Snippets" icon="fa-clone" onClick={onToggleSnippets} />
-      <Btn title="Add section" icon="fa-square-plus" onClick={onAddSection} pinned />
+
       {inTable && (
         <>
+          <span className="cpm-blog-tb-sep" />
           <Btn title="Add column" icon="fa-table-columns" onClick={() => editor.chain().focus().addColumnAfter().run()} />
           <Btn title="Delete column" label="−col" onClick={() => editor.chain().focus().deleteColumn().run()} />
           <Btn title="Add row" label="+row" onClick={() => editor.chain().focus().addRowAfter().run()} />
@@ -209,6 +285,7 @@ function Toolbar({ editor, onToggleFind, onToggleSnippets, onAddSection, onToggl
           <Btn title="Delete table" icon="fa-trash" onClick={() => editor.chain().focus().deleteTable().run()} />
         </>
       )}
+
       <span className="cpm-blog-tb-sep" />
       <Btn title="Find & replace" icon="fa-magnifying-glass" onClick={onToggleFind} />
       <span className="cpm-blog-tb-sep" />

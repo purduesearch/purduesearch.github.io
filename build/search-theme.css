@@ -23691,3 +23691,44 @@ button.cpm-badge-tile:disabled { opacity: 0.7; cursor: progress; }
 .cpm-blog-themebar { display:flex; align-items:center; gap:8px; padding:4px 8px; border:1px solid var(--color-border,#2a2f3a); border-radius:8px; }
 .cpm-blog-themebar-lab { font-size:11px; text-transform:uppercase; letter-spacing:.06em; opacity:.7; }
 .cpm-blog-themebar select { background:var(--pm-surface,#141b26); border:1px solid var(--color-border,#2a2f3a); border-radius:6px; color:inherit; font-size:12px; padding:4px 6px; }
+
+/* === Blog toolbar: grouped dropdown menus === */
+.cpm-blog-tb-menu { position: relative; display: inline-flex; }
+.cpm-blog-tb-menu-trigger {
+  display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 9px;
+  background: transparent; border: none; border-radius: 7px; cursor: pointer;
+  color: var(--clubpm-text-muted, #9aa4b2); font-size: 13px; transition: all .12s;
+}
+.cpm-blog-tb-menu-trigger:hover { background: var(--pm-elevated, #1e2430); color: #fff; }
+.cpm-blog-tb-menu-trigger.is-open { background: var(--pm-elevated, #1e2430); color: #fff; }
+.cpm-blog-tb-menu-trigger.is-active { color: var(--pm-accent-teal, #00e5cc); }
+.cpm-blog-tb-menu-label { font-weight: 600; }
+.cpm-blog-tb-menu-caret { font-size: 9px; opacity: .6; }
+.cpm-blog-tb-menu-trigger.is-open .cpm-blog-tb-menu-caret { transform: rotate(180deg); }
+.cpm-blog-tb-menu-pop {
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: 30; min-width: 190px;
+  display: flex; flex-direction: column; gap: 2px; padding: 6px;
+  background: var(--pm-elevated, #1b2130); border: 1px solid var(--pm-overlay, #2a2f3a);
+  border-radius: 10px; box-shadow: 0 14px 40px rgba(0,0,0,.42);
+}
+.cpm-blog-tb-menu-item {
+  display: flex; align-items: center; gap: 10px; width: 100%; padding: 7px 10px;
+  background: transparent; border: none; border-radius: 7px; cursor: pointer;
+  color: var(--pm-text, #c7d0dd); font-size: 13px; text-align: left; transition: background .12s, color .12s;
+}
+.cpm-blog-tb-menu-item i:first-child { width: 16px; text-align: center; opacity: .85; }
+.cpm-blog-tb-menu-item:hover:not(:disabled) { background: var(--pm-surface, #141b26); color: #fff; }
+.cpm-blog-tb-menu-item.is-active { color: var(--pm-accent-teal, #00e5cc); }
+.cpm-blog-tb-menu-item:disabled { opacity: .35; cursor: default; }
+.cpm-blog-tb-menu-tick { margin-left: auto; font-size: 10px; }
+
+/* === Blog toolbar: primary "Add Section" button (most important action) === */
+.cpm-blog-add-section-btn {
+  display: inline-flex; align-items: center; gap: 7px; height: 34px; padding: 0 16px;
+  background: var(--pm-accent-teal, #00e5cc); color: #06231f; border: none; border-radius: 8px;
+  font-size: 13px; font-weight: 700; letter-spacing: .01em; cursor: pointer;
+  box-shadow: 0 2px 10px rgba(0,229,204,.28); transition: transform .12s, box-shadow .12s, filter .12s;
+}
+.cpm-blog-add-section-btn:hover { filter: brightness(1.06); box-shadow: 0 4px 16px rgba(0,229,204,.42); transform: translateY(-1px); }
+.cpm-blog-add-section-btn:active { transform: translateY(0); box-shadow: 0 2px 8px rgba(0,229,204,.3); }
+.cpm-blog-add-section-btn i { font-size: 12px; }

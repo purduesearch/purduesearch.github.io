@@ -3,9 +3,9 @@ import {
   generateJson,
   generateText,
   generateJsonComplex,
-  generateTextComplex,
   todayContext,
 } from "./geminiService.js";
+import { validateSectionPlan, type SectionPlan } from "./sectionPlan.js";
 
 // ── Safety / brand-compliance check ──────────────────────────
 // Uses the complex model — accuracy matters here.
@@ -88,35 +88,54 @@ Respond with ONLY a valid JSON object (no markdown):
 }
 
 // ── Blog expansion ───────────────────────────────────────────
-// Uses complex model — quality and accuracy matter for published content.
+// Uses the complex model — quality and accuracy matter for published content.
+// Returns a section plan (not flat markdown) so the expanded post opens as a
+// designed, section-based document in the editor. Content stays grounded in the
+// submission's own text; no live project data is injected.
 
 export async function expandToBlog(
   title:       string,
   content:     string,
   projectName?: string
-): Promise<string> {
+): Promise<SectionPlan> {
   const context = projectName ? `\nProject: ${projectName}` : "";
   const prompt  = `You are a content writer for Purdue SEARCH, a university engineering club.
-Expand the following short post into a 350-450 word blog article in Markdown.
-${context}
+Turn the following short post into a designed, section-based blog article.
+${todayContext()}${context}
 
 Original title: ${title}
 Original content:
 ${content}
 
-Requirements:
-- Start with a "# ${title}" heading (the H1)
-- Open with a short TL;DR (two sentences max, italicized via *…*)
-- Use 2-3 "##" sub-section headings
-- Keep the tone matching the original — celebratory, technical-but-accessible
-- DO NOT fabricate specific numbers, names, dates, or claims not present in the original
-- End with a single-line call-to-action ("→ Follow @purduesearch for updates" or similar)
+Return ONLY a JSON object: { "sections": PlanSection[] }. Each PlanSection is exactly one of:
+  { "type": "hero", "heading": string, "subheading": string, "align": "center"|"left", "overlay": boolean }
+  { "type": "richText", "heading": string, "markdown": string }   // markdown may use ## sub-heads, bullet lists, **bold**, and [links](url)
+  { "type": "quote", "text": string, "attribution": string }
+  { "type": "cta", "label": string, "href": string, "style": "solid"|"outline" }
 
-Return only the Markdown — no fences, no preamble.`;
+Build the article in this shape:
+1. one "hero" whose heading is the title and whose subheading is a one-sentence hook.
+2. a short "richText" TL;DR (two sentences).
+3. two or three "richText" body sections, each with a heading, expanding the original into ~350–450 words total.
+4. optionally one "quote" pull-quote drawn from the original content.
+5. a final "cta" — label "Follow @purduesearch", href "https://instagram.com/purduesearch".
 
-  const result = await generateTextComplex(prompt);
-  if (!result) throw new Error("[aiOutreachService] expandToBlog: empty response");
-  return result;
+Rules:
+- Keep the tone of the original: celebratory, technical-but-accessible.
+- Do NOT fabricate specific numbers, names, dates, or claims not present in the original.
+- Avoid filler adjectives.`;
+
+  const raw  = await generateJsonComplex<unknown>(prompt, undefined, { maxOutputTokens: 4096 });
+  const plan = raw ? validateSectionPlan(raw) : { sections: [] };
+  if (plan.sections.length) return plan;
+
+  // Fallback — never produce an empty post: wrap the original in a hero + body.
+  return {
+    sections: [
+      { type: "hero", heading: title, align: "center" },
+      { type: "richText", markdown: content },
+    ],
+  };
 }
 
 // ── Video script ─────────────────────────────────────────────

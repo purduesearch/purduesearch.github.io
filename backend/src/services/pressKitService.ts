@@ -1,7 +1,8 @@
 import { randomBytes } from "node:crypto";
 import { prisma } from "../db/prisma.js";
-import { generatePressKitSections } from "./aiService.js";
-import { renderJsonToHtml, markdownToTiptapJson, type PMDoc, type PMNode } from "./blogRender.js";
+import { generatePressKitPlan, type PressKitPlanInput } from "./aiService.js";
+import { buildDocFromPlan, type SectionPlan, type PlanData } from "./sectionPlan.js";
+import { renderJsonToHtml, type PMDoc } from "./blogRender.js";
 
 // ── Config ───────────────────────────────────────────────────
 
@@ -154,37 +155,68 @@ export function buildPressKitMarkdown(
   return out.join("\n");
 }
 
-// ── Section-based assembly (hero + statBand + sections) ───────
+// ── Section-plan assembly ────────────────────────────────────
 
-export function buildPressKitDoc(ctx: PressKitContext, config: PressKitConfig, prose: PressKitProse): PMDoc {
-  const sections: PMNode[] = [];
+/** Deterministic stat tiles for the `stats` placeholder (never model-dependent). */
+function buildStatTiles(ctx: PressKitContext): { label: string; value: string }[] {
+  const s = ctx.stats;
+  const tiles = [
+    { label: "TEAM", value: String(s.teamSize) },
+    { label: "TASKS DONE", value: `${s.tasksDone}/${s.tasksTotal}` },
+    { label: "MILESTONES", value: String(s.milestonesHit) },
+    { label: "HOURS", value: String(s.hoursLogged) },
+  ];
+  if (s.durationDays != null) tiles.push({ label: "DAYS ACTIVE", value: String(s.durationDays) });
+  return tiles;
+}
+
+/** Deterministic dated entries for the `timeline` placeholder. */
+function buildTimelineData(ctx: PressKitContext): { title: string; date: string | null }[] {
+  const items = ctx.timeline.map((e) => ({ title: e.title, date: fmtDate(e.date) || null }));
+  if (ctx.project.targetDate) items.push({ title: "Target completion", date: fmtDate(ctx.project.targetDate) || null });
+  return items;
+}
+
+/**
+ * A structured section plan built without the AI — used when the model is
+ * unavailable or returns nothing, so generation still yields a designed,
+ * section-based kit (not a flat block). Prose is limited to what live data
+ * provides; placeholders are filled downstream from `PlanData`.
+ */
+export function fallbackPressKitPlan(ctx: PressKitContext, config: PressKitConfig): SectionPlan {
   const has = (id: string) => config.includedSections.includes(id);
+  const p = ctx.project;
+  const sections: SectionPlan["sections"] = [];
 
   if (has("masthead")) {
-    sections.push({ type: "section", attrs: { layout: "single", padding: "xl", width: "fullBleed" },
-      content: [{ type: "hero", attrs: { heading: ctx.project.name, subheading: [ctx.project.type, ctx.project.status].filter(Boolean).join(" · "), align: "center", overlay: false, bgImage: "" } }] });
+    sections.push({ type: "hero", heading: p.name, subheading: [p.type, p.status].filter(Boolean).join(" · "), align: "center" });
   }
-  if (has("stats")) {
-    sections.push({ type: "section", attrs: { layout: "single", padding: "l" },
-      content: [{ type: "statBand", attrs: { stats: [
-        { label: "TEAM", value: String(ctx.stats.teamSize) },
-        { label: "TASKS DONE", value: `${ctx.stats.tasksDone}/${ctx.stats.tasksTotal}` },
-        { label: "MILESTONES", value: String(ctx.stats.milestonesHit) },
-        { label: "HOURS", value: String(ctx.stats.hoursLogged) },
-      ] } }] });
+  if (has("about") && p.description) {
+    sections.push({ type: "richText", heading: "About This Project", markdown: p.description });
   }
-  // Prose + remaining sections: reuse the markdown assembler, minus masthead/stats, wrapped in one section.
-  const restConfig = { ...config, includedSections: config.includedSections.filter((s) => s !== "masthead" && s !== "stats") };
-  const md = buildPressKitMarkdown(ctx, restConfig, prose);
-  const restDoc = markdownToTiptapJson(md);
-  if (restDoc.content && restDoc.content.length) {
-    sections.push({ type: "section", attrs: { layout: "single", padding: "l" }, content: restDoc.content });
+  if (has("aboutSearch")) {
+    sections.push({ type: "richText", heading: "About Purdue SEARCH",
+      markdown: "Purdue SEARCH (Students for the Exploration and Research of Space) is a student engineering organization at Purdue University building hands-on space research and hardware projects." });
   }
-  if (config.audience === "SPONSORS" && has("sponsorship")) {
-    sections.push({ type: "section", attrs: { layout: "single", padding: "l" },
-      content: [{ type: "ctaButton", attrs: { label: "Become a sponsor", href: config.contactEmail ? `mailto:${config.contactEmail}` : "", style: "solid", align: "center" } }] });
+  if (has("stats")) sections.push({ type: "stats", heading: "By the Numbers" });
+  if (has("timeline")) sections.push({ type: "timeline", heading: "Timeline & Milestones" });
+  if (has("tech") && ctx.tags.length) {
+    sections.push({ type: "richText", heading: "Tech & Tools", markdown: ctx.tags.join(" · ") });
   }
-  return { type: "doc", content: sections.length ? sections : [{ type: "paragraph" }] };
+  if (has("team")) sections.push({ type: "team", heading: "Team & Leadership" });
+  if (has("highlights") && ctx.milestones.length) {
+    sections.push({ type: "richText", heading: "Highlights",
+      markdown: ctx.milestones.slice(0, 5).map((m) => `- ${m.title}`).join("\n") });
+  }
+  if (has("links")) sections.push({ type: "links", heading: "Links" });
+  if (has("contact") && config.showContact && config.contactEmail) {
+    sections.push({ type: "richText", heading: "Contact", markdown: `For press or partnership inquiries: ${config.contactEmail}` });
+  }
+  if (has("sponsorship") && config.audience === "SPONSORS") {
+    sections.push({ type: "cta", label: "Become a sponsor",
+      href: config.contactEmail ? `mailto:${config.contactEmail}` : "", style: "solid" });
+  }
+  return { sections };
 }
 
 // ── Token ────────────────────────────────────────────────────
@@ -300,21 +332,43 @@ export async function generatePressKitContent(
 
   const taskRows = await prisma.task.findMany({
     where: { projectId, parentTaskId: null },
-    select: { title: true }, take: 40,
+    select: { title: true }, take: 50,
   });
 
-  const prose = await generatePressKitSections(
-    {
-      name: ctx.project.name, type: ctx.project.type, status: ctx.project.status,
-      description: ctx.project.description,
-      milestones: ctx.milestones.map((m) => m.title),
-      taskTitles: taskRows.map((t) => t.title),
-      tags: ctx.tags,
-    },
-    config.audience,
-  );
+  // Deterministic data the placeholder sections render from — gated by config so a
+  // disabled section stays empty even if the model references it.
+  const has = (id: string) => config.includedSections.includes(id);
+  const planData: PlanData = {
+    stats: has("stats") ? buildStatTiles(ctx) : undefined,
+    timeline: has("timeline") ? buildTimelineData(ctx) : undefined,
+    team: has("team") ? ctx.team.map((t) => ({ displayName: t.displayName, title: t.title, isLead: t.isLead })) : undefined,
+    contributors: has("team") ? ctx.contributors : undefined,
+    links: has("links") ? ctx.links : undefined,
+  };
 
-  return buildPressKitDoc(ctx, config, prose);
+  // Full live snapshot for the model — grounds every generated statement in real data.
+  const input: PressKitPlanInput = {
+    name: ctx.project.name, type: ctx.project.type, status: ctx.project.status,
+    description: ctx.project.description,
+    programTag: ctx.project.programTag, githubRepo: ctx.project.githubRepo,
+    startDate: fmtDate(ctx.project.startDate) || null,
+    targetDate: fmtDate(ctx.project.targetDate) || null,
+    stats: ctx.stats,
+    milestones: ctx.milestones.map((m) => ({
+      title: m.title, date: fmtDate(m.completedAt) || null, description: m.description,
+    })),
+    contributors: ctx.contributors,
+    team: ctx.team.map((t) => ({ displayName: t.displayName, title: t.title, role: t.role, isLead: t.isLead })),
+    tags: ctx.tags,
+    taskTitles: taskRows.map((t) => t.title),
+    links: ctx.links,
+    enabledSections: config.includedSections,
+    showContact: config.showContact,
+    contactEmail: config.contactEmail,
+  };
+
+  const plan = (await generatePressKitPlan(input, config.audience)) ?? fallbackPressKitPlan(ctx, config);
+  return buildDocFromPlan(plan, planData);
 }
 
 // ── Public HTML render (print-styled shell around the doc) ───

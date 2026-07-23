@@ -1075,17 +1075,20 @@ outreachRouter.post("/submissions/:id/ai/expand-blog", async (req: Request, res:
       return;
     }
 
-    const markdown = await aiOutreachService.expandToBlog(
+    const plan = await aiOutreachService.expandToBlog(
       submission.title,
       submission.content,
       submission.project?.name ?? undefined
     );
 
-    // Create (or update) a real BlogPost draft from the AI markdown so it opens
-    // in the full blog editor. The submission keeps a blogSlug pointer so the
-    // outreach board can link straight to the post.
+    // Build a designed, section-based document from the plan. The submission keeps
+    // a blogSlug pointer (+ a flat-markdown copy) so the outreach board can link
+    // straight to the post.
+    const { buildDocFromPlan, planToMarkdown } = await import("../services/sectionPlan.js");
+    const doc = buildDocFromPlan(plan);
+    const markdown = planToMarkdown(plan);
+
     const blogService = await import("../services/blogService.js");
-    const { markdownToTiptapJson } = await import("../services/blogRender.js");
     const existing = await prisma.blogPost.findFirst({
       where: { sourceSubmissionId: submission.id },
       select: { id: true },
@@ -1095,12 +1098,12 @@ outreachRouter.post("/submissions/:id/ai/expand-blog", async (req: Request, res:
     if (existing) {
       post = await blogService.updatePost(existing.id, {
         title: submission.title,
-        contentJson: markdownToTiptapJson(markdown),
+        contentJson: doc,
       });
     } else {
-      post = await blogService.createPostFromMarkdown({
+      post = await blogService.createPost({
         title: submission.title,
-        markdown,
+        contentJson: doc,
         createdById: req.memberId!,
         coverImageUrl: submission.mediaUrls?.[0],
         sourceSubmissionId: submission.id,
