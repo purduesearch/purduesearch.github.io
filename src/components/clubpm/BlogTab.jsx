@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { listBlogPosts, createBlogPost, generateBlogPost, deleteBlogPost } from '../../api/clubPmClient';
@@ -24,6 +25,18 @@ function GenerateModal({ onClose, onDone }) {
   const [guidance, setGuidance] = useState('');
   const [busy, setBusy]         = useState(false);
 
+  // Close on Escape (unless generating) and lock page scroll while open.
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape' && !busy) onClose(); };
+    document.addEventListener('keydown', onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [busy, onClose]);
+
   const submit = async () => {
     if (!text.trim() || busy) return;
     setBusy(true);
@@ -40,14 +53,16 @@ function GenerateModal({ onClose, onDone }) {
     }
   };
 
-  return (
-    <div className="cpm-blog-genmodal-backdrop" onClick={busy ? undefined : onClose}>
+  return createPortal(
+    <div
+      className="cpm-modal-overlay"
+      onClick={(e) => { if (e.target === e.currentTarget && !busy) onClose(); }}
+    >
       <div
         className="cpm-blog-genmodal"
         role="dialog"
         aria-modal="true"
         aria-label="Generate blog post from text"
-        onClick={(e) => e.stopPropagation()}
       >
         <div className="cpm-blog-genmodal-head">
           <h3><i className="fas fa-wand-magic-sparkles" aria-hidden="true" /> Generate blog post from text</h3>
@@ -93,7 +108,8 @@ function GenerateModal({ onClose, onDone }) {
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

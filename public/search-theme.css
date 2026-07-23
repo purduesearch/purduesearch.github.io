@@ -23735,10 +23735,7 @@ button.cpm-badge-tile:disabled { opacity: 0.7; cursor: progress; }
 
 /* === Blog: generate-from-text modal === */
 .cpm-blog-tab-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.cpm-blog-genmodal-backdrop {
-  position: fixed; inset: 0; z-index: 1200; display: grid; place-items: center; padding: 20px;
-  background: rgba(4, 7, 12, .62); backdrop-filter: blur(3px);
-}
+/* Panel sits inside the shared .cpm-modal-overlay (portaled to <body>). */
 .cpm-blog-genmodal {
   width: min(560px, 96vw); max-height: 90vh; overflow-y: auto;
   background: var(--pm-elevated, #1b2130); border: 1px solid var(--pm-overlay, #2a2f3a);
