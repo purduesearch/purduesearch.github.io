@@ -123,5 +123,45 @@ function findAll(node: { content?: PMNode[] } | PMNode, type: string): PMNode[] 
   check("markdown omits data placeholder", !md.toLowerCase().includes("stat"));
 }
 
+// New section types + section-level styling
+{
+  const plan = validateSectionPlan({ sections: [
+    { type: "hero", heading: "H", theme: "dark", width: "fullBleed" },
+    { type: "mediaText", heading: "MT", markdown: "text here", imageSide: "right", imageAlt: "a robot", imageCaption: "cap" },
+    { type: "image", imageAlt: "wide shot", imageCaption: "the team" },
+    { type: "gallery", heading: "Gallery" },
+    { type: "callout", variant: "tip", markdown: "pro tip" },
+    { type: "divider" },
+    { type: "stats", heading: "Numbers", stats: [{ label: "MEMBERS", value: "12" }] },
+  ] });
+  check("validates all new types", plan.sections.length === 7);
+  check("hero keeps theme/width", plan.sections[0].theme === "dark" && plan.sections[0].width === "fullBleed");
+  check("callout keeps variant", plan.sections[4].variant === "tip");
+  check("stats keeps explicit values", plan.sections[6].stats?.length === 1);
+
+  const doc = buildDocFromPlan(plan);
+  const heroSection = (doc.content ?? []).find((n) => findAll(n, "hero").length > 0);
+  check("hero section carries dark theme", heroSection?.attrs?.theme === "dark");
+  check("mediaText → mediaText layout with image + two columns",
+    (doc.content ?? []).some((n) => n.attrs?.layout === "mediaText" && findAll(n, "image").length === 1 && findAll(n, "column").length === 2));
+  check("image placeholder node has null src", findAll(doc, "image").some((n) => n.attrs?.src == null));
+  check("gallery node present", findAll(doc, "gallery").length === 1);
+  check("callout node with variant", findAll(doc, "callout")[0]?.attrs?.variant === "tip");
+  check("divider → horizontalRule", findAll(doc, "horizontalRule").length === 1);
+  check("explicit stats → statBand values", (findAll(doc, "statBand")[0]?.attrs?.stats as unknown[])?.length === 1);
+}
+
+// Invalid enum values are dropped / defaulted
+{
+  const plan = validateSectionPlan({ sections: [
+    { type: "callout", variant: "bogus", markdown: "x" },
+    { type: "richText", theme: "rainbow", markdown: "y" },
+  ] });
+  check("bogus callout variant dropped", plan.sections[0].variant === undefined);
+  check("bogus theme ignored", plan.sections[1].theme === undefined);
+  const doc = buildDocFromPlan(plan);
+  check("callout defaults to info when variant invalid", findAll(doc, "callout")[0]?.attrs?.variant === "info");
+}
+
 console.log(`\nsectionPlan.test: ${passed} passed, ${failed} failed`);
 if (failed > 0) process.exit(1);

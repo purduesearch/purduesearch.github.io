@@ -212,7 +212,9 @@ function renderNode(node: PMNode, headingIds: Map<PMNode, string>): string {
     case "hardBreak":
       return `<br/>`;
     case "image": {
-      const src = escapeAttr(proxyImageSrc(String(node.attrs?.src ?? ""), IMAGE_BASE_URL));
+      const rawSrc = String(node.attrs?.src ?? "");
+      if (!rawSrc.trim()) return ""; // unfilled image placeholder — omit from published output
+      const src = escapeAttr(proxyImageSrc(rawSrc, IMAGE_BASE_URL));
       const alt = escapeAttr(String(node.attrs?.alt ?? ""));
       const align = node.attrs?.align ? ` cpm-blog-img--${escapeAttr(String(node.attrs.align))}` : "";
       const wUnit = node.attrs?.widthUnit === "%" ? "%" : "px";

@@ -87,10 +87,38 @@ Respond with ONLY a valid JSON object (no markdown):
   };
 }
 
+// ── Shared blog-plan schema + creative guidance ──────────────
+// Injected into both blog generators so the model uses the full section set
+// (formatting, columns, image placeholders, callouts, quotes, CTAs, dividers,
+// section theming) instead of a title over one block of text. Keep the type list
+// in sync with sectionPlan.ts.
+
+const BLOG_PLAN_SCHEMA = `Return ONLY a JSON object: { "sections": PlanSection[] }. Compose a rich, visually varied article — NOT a title followed by one block of text. Use a MIX of these section types:
+  { "type": "hero", "heading": string, "subheading": string, "align": "center"|"left", "overlay": boolean }
+  { "type": "richText", "heading": string, "markdown": string }        // USE real formatting: ## / ### sub-headings, **bold**, *italic*, bullet AND numbered lists, > blockquotes, [links](url), \`inline code\`
+  { "type": "columns", "heading": string, "columns": [{ "markdown": string }, { "markdown": string }] }   // 2–3 side-by-side columns (comparisons, pros/cons, steps)
+  { "type": "mediaText", "heading": string, "markdown": string, "imageSide": "left"|"right", "imageAlt": string, "imageCaption": string }   // text next to an image placeholder
+  { "type": "image", "imageAlt": string, "imageCaption": string }      // a full-width image placeholder
+  { "type": "gallery", "heading": string }                             // an empty image-gallery placeholder
+  { "type": "callout", "variant": "info"|"success"|"warning"|"tip", "markdown": string }   // a highlighted note / tip box
+  { "type": "stats", "heading": string, "stats": [{ "label": string, "value": string }] }   // a "by the numbers" band — ONLY with real numbers found in the source
+  { "type": "quote", "text": string, "attribution": string }           // a pull-quote
+  { "type": "cta", "label": string, "href": string, "style": "solid"|"outline" }   // a call-to-action band
+  { "type": "divider" }                                                // a visual break between sections
+Any section may also set "theme" ("light"|"dark"|"inherit"), "width" ("contained"|"fullBleed"), and "padding" ("s"|"m"|"l"|"xl") for visual rhythm — e.g. a "dark" hero or CTA band.
+Image placeholders (image / mediaText / gallery) are ENCOURAGED wherever a photo, diagram, or screenshot would help — describe the intended image in imageAlt/imageCaption; the author uploads the real file later (this is not fabricating facts).`;
+
+const BLOG_PLAN_RULES = `Rules:
+- Build 6–10 sections total, alternating types so the page feels designed (never several identical richText blocks in a row).
+- Include at least one image placeholder (image or mediaText) AND at least one of: callout, columns, or pull-quote.
+- Use a divider or two and a "dark"-themed hero or CTA for visual rhythm.
+- Do NOT fabricate specific numbers, names, dates, partnerships, or claims not present in the source. Image placeholders are allowed; a "stats" band is allowed only with real numbers from the source.
+- Avoid filler adjectives ("cutting-edge", "revolutionary", "exciting"); write with substance.`;
+
 // ── Blog expansion ───────────────────────────────────────────
 // Uses the complex model — quality and accuracy matter for published content.
 // Returns a section plan (not flat markdown) so the expanded post opens as a
-// designed, section-based document in the editor. Content stays grounded in the
+// designed, multi-section document in the editor. Content stays grounded in the
 // submission's own text; no live project data is injected.
 
 export async function expandToBlog(
@@ -100,32 +128,25 @@ export async function expandToBlog(
 ): Promise<SectionPlan> {
   const context = projectName ? `\nProject: ${projectName}` : "";
   const prompt  = `You are a content writer for Purdue SEARCH, a university engineering club.
-Turn the following short post into a designed, section-based blog article.
+Expand the following short post into a rich, visually varied, multi-section blog article.
 ${todayContext()}${context}
 
 Original title: ${title}
 Original content:
 ${content}
 
-Return ONLY a JSON object: { "sections": PlanSection[] }. Each PlanSection is exactly one of:
-  { "type": "hero", "heading": string, "subheading": string, "align": "center"|"left", "overlay": boolean }
-  { "type": "richText", "heading": string, "markdown": string }   // markdown may use ## sub-heads, bullet lists, **bold**, and [links](url)
-  { "type": "quote", "text": string, "attribution": string }
-  { "type": "cta", "label": string, "href": string, "style": "solid"|"outline" }
+${BLOG_PLAN_SCHEMA}
 
-Build the article in this shape:
-1. one "hero" whose heading is the title and whose subheading is a one-sentence hook.
-2. a short "richText" TL;DR (two sentences).
-3. two or three "richText" body sections, each with a heading, expanding the original into ~350–450 words total.
-4. optionally one "quote" pull-quote drawn from the original content.
-5. a final "cta" — label "Follow @purduesearch", href "https://instagram.com/purduesearch".
-
-Rules:
+Compose the article:
+- Open with a "hero" (heading = the title, subheading = a one-line hook); consider theme "dark".
+- Add a short "richText" intro / TL;DR.
+- Develop 3–5 body sections that expand meaningfully on the source (~450–650 words of prose), mixing richText (with formatting), an image placeholder or mediaText, and optionally columns, a callout, and a pull-quote.
+- End with a "cta" — label "Follow @purduesearch", href "https://instagram.com/purduesearch".
 - Keep the tone of the original: celebratory, technical-but-accessible.
-- Do NOT fabricate specific numbers, names, dates, or claims not present in the original.
-- Avoid filler adjectives.`;
 
-  const raw  = await generateJsonComplex<unknown>(prompt, undefined, { maxOutputTokens: 4096 });
+${BLOG_PLAN_RULES}`;
+
+  const raw  = await generateJsonComplex<unknown>(prompt, undefined, { maxOutputTokens: 8192 });
   const plan = raw ? validateSectionPlan(raw) : { sections: [] };
   if (plan.sections.length) return plan;
 
@@ -140,7 +161,7 @@ Rules:
 
 // ── Blog generation from raw text ────────────────────────────
 // Turns arbitrary user text (notes, a brief, an outline, a rough draft) into a
-// designed, section-based blog article. Like expandToBlog, but the title may be
+// designed, multi-section blog article. Like expandToBlog, but the title may be
 // AI-derived and the caller can pass free-form guidance (tone / angle). Returns a
 // SectionPlan; content stays grounded in the supplied text.
 
@@ -155,31 +176,24 @@ export async function generateBlogFromText(
   const guidanceLine = guidance?.trim() ? `\nAuthor guidance (follow it): ${guidance.trim()}` : "";
 
   const prompt = `You are a content writer for Purdue SEARCH, a university engineering club.
-Turn the following raw text (notes, a brief, an outline, or a rough draft) into a polished, designed, section-based blog article.
+Turn the following raw text (notes, a brief, an outline, or a rough draft) into a polished, rich, visually varied, multi-section blog article.
 ${todayContext()}${titleLine}${guidanceLine}
 
 Source text:
 ${text}
 
-Return ONLY a JSON object: { "sections": PlanSection[] }. Each PlanSection is exactly one of:
-  { "type": "hero", "heading": string, "subheading": string, "align": "center"|"left", "overlay": boolean }
-  { "type": "richText", "heading": string, "markdown": string }   // markdown may use ## sub-heads, bullet lists, **bold**, and [links](url)
-  { "type": "quote", "text": string, "attribution": string }
-  { "type": "cta", "label": string, "href": string, "style": "solid"|"outline" }
+${BLOG_PLAN_SCHEMA}
 
-Build the article in this shape:
-1. one "hero" (heading = the article title, subheading = a one-sentence hook).
-2. a short "richText" intro / TL;DR (two sentences).
-3. two to four "richText" body sections, each with a heading, organized around the ideas in the source text (~400–600 words total).
-4. optionally one "quote" pull-quote if the source contains a quotable line.
-5. a final "cta" — label "Follow @purduesearch", href "https://instagram.com/purduesearch".
+Compose the article:
+- Open with a "hero" (heading = the article title, subheading = a one-line hook); consider theme "dark".
+- Add a short "richText" intro / TL;DR.
+- Develop 3–6 body sections organized around the ideas in the source (~600–900 words of prose), mixing richText (with formatting), an image placeholder or mediaText, and optionally columns, a callout, a stat band (only if the source has real numbers), and a pull-quote.
+- End with a "cta" — label "Follow @purduesearch", href "https://instagram.com/purduesearch".
+- Default tone: celebratory, technical-but-accessible (unless the guidance says otherwise).
 
-Rules:
-- Expand and organize the source text, but do NOT fabricate specific numbers, names, dates, partnerships, or claims not present in it.
-- Keep a celebratory, technical-but-accessible tone unless the guidance says otherwise.
-- Avoid filler adjectives.`;
+${BLOG_PLAN_RULES}`;
 
-  const raw  = await generateJsonComplex<unknown>(prompt, undefined, { maxOutputTokens: 6144 });
+  const raw  = await generateJsonComplex<unknown>(prompt, undefined, { maxOutputTokens: 8192 });
   const plan = raw ? validateSectionPlan(raw) : { sections: [] };
   if (plan.sections.length) return plan;
 
