@@ -380,6 +380,7 @@ export const getChallengesCatalog = () => get('/api/challenges/catalog');
 export const listBlogPosts   = (params = '') => get(`/api/blog/posts${params}`);
 export const getBlogPost      = (id) => get(`/api/blog/posts/${id}`);
 export const createBlogPost   = (data) => post('/api/blog/posts', data);
+export const generateBlogPost = (data) => post('/api/blog/posts/generate', data);
 export const updateBlogPost   = (id, data) => patch(`/api/blog/posts/${id}`, data);
 export const deleteBlogPost   = (id) => del(`/api/blog/posts/${id}`);
 export const publishBlogPost  = (id) => post(`/api/blog/posts/${id}/publish`, {});

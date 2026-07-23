@@ -138,6 +138,60 @@ Rules:
   };
 }
 
+// ── Blog generation from raw text ────────────────────────────
+// Turns arbitrary user text (notes, a brief, an outline, a rough draft) into a
+// designed, section-based blog article. Like expandToBlog, but the title may be
+// AI-derived and the caller can pass free-form guidance (tone / angle). Returns a
+// SectionPlan; content stays grounded in the supplied text.
+
+export async function generateBlogFromText(
+  text:      string,
+  titleHint?: string,
+  guidance?:  string
+): Promise<SectionPlan> {
+  const titleLine = titleHint?.trim()
+    ? `\nUse this exact title for the hero heading: "${titleHint.trim()}".`
+    : `\nNo title was provided — craft a concise, specific title for the hero heading.`;
+  const guidanceLine = guidance?.trim() ? `\nAuthor guidance (follow it): ${guidance.trim()}` : "";
+
+  const prompt = `You are a content writer for Purdue SEARCH, a university engineering club.
+Turn the following raw text (notes, a brief, an outline, or a rough draft) into a polished, designed, section-based blog article.
+${todayContext()}${titleLine}${guidanceLine}
+
+Source text:
+${text}
+
+Return ONLY a JSON object: { "sections": PlanSection[] }. Each PlanSection is exactly one of:
+  { "type": "hero", "heading": string, "subheading": string, "align": "center"|"left", "overlay": boolean }
+  { "type": "richText", "heading": string, "markdown": string }   // markdown may use ## sub-heads, bullet lists, **bold**, and [links](url)
+  { "type": "quote", "text": string, "attribution": string }
+  { "type": "cta", "label": string, "href": string, "style": "solid"|"outline" }
+
+Build the article in this shape:
+1. one "hero" (heading = the article title, subheading = a one-sentence hook).
+2. a short "richText" intro / TL;DR (two sentences).
+3. two to four "richText" body sections, each with a heading, organized around the ideas in the source text (~400–600 words total).
+4. optionally one "quote" pull-quote if the source contains a quotable line.
+5. a final "cta" — label "Follow @purduesearch", href "https://instagram.com/purduesearch".
+
+Rules:
+- Expand and organize the source text, but do NOT fabricate specific numbers, names, dates, partnerships, or claims not present in it.
+- Keep a celebratory, technical-but-accessible tone unless the guidance says otherwise.
+- Avoid filler adjectives.`;
+
+  const raw  = await generateJsonComplex<unknown>(prompt, undefined, { maxOutputTokens: 6144 });
+  const plan = raw ? validateSectionPlan(raw) : { sections: [] };
+  if (plan.sections.length) return plan;
+
+  // Fallback — never fail: wrap the raw text in a hero + body.
+  return {
+    sections: [
+      { type: "hero", heading: titleHint?.trim() || "Untitled post", align: "center" },
+      { type: "richText", markdown: text },
+    ],
+  };
+}
+
 // ── Video script ─────────────────────────────────────────────
 // Uses complex model for richer, more coherent shot lists.
 

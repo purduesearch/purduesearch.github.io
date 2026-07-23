@@ -92,6 +92,39 @@ blogRouter.post("/posts", async (req: Request, res: Response) => {
   }
 });
 
+// POST /posts/generate — AI-generate a section-based DRAFT from raw text.
+// Body: { text (required), title? (optional override), guidance? (tone/angle) }.
+blogRouter.post("/posts/generate", async (req: Request, res: Response) => {
+  try {
+    const { text, title, guidance } = req.body as { text?: string; title?: string; guidance?: string };
+    if (!text?.trim()) {
+      res.status(400).json({ error: "text is required" });
+      return;
+    }
+    const { generateBlogFromText } = await import("../services/aiOutreachService.js");
+    const { buildDocFromPlan } = await import("../services/sectionPlan.js");
+
+    const plan = await generateBlogFromText(
+      text.trim(),
+      title?.trim() || undefined,
+      guidance?.trim() || undefined,
+    );
+    const doc = buildDocFromPlan(plan);
+    const heroHeading = plan.sections.find((s) => s.type === "hero")?.heading?.trim();
+    const finalTitle = (title?.trim() || heroHeading || "Untitled post").slice(0, 200);
+
+    const post = await blogService.createPost({
+      title: finalTitle,
+      contentJson: doc,
+      createdById: req.memberId!,
+    });
+    res.status(201).json(post);
+  } catch (error) {
+    console.error("POST /blog/posts/generate error:", error);
+    res.status(500).json({ error: "Failed to generate post" });
+  }
+});
+
 blogRouter.get("/posts/:id", async (req: Request, res: Response) => {
   try {
     const post = await blogService.getPost(req.params.id as string);
