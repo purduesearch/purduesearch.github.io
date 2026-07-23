@@ -79,6 +79,17 @@ function blockToMarkdown(node, depth = 0) {
     }
     case 'table':
       return tableToMarkdown(node);
+    case 'hero': {
+      const h = node.attrs?.heading ? `# ${escapeText(node.attrs.heading)}` : '';
+      const s = node.attrs?.subheading ? `${h ? '\n' : ''}*${escapeText(node.attrs.subheading)}*` : '';
+      return `${h}${s}`.trim();
+    }
+    case 'statBand':
+      return (node.attrs?.stats || [])
+        .map((st) => `**${st?.value || ''}** ${st?.label || ''}`.trim())
+        .join(' · ');
+    case 'ctaButton':
+      return `[${node.attrs?.label || 'Learn more'}](${node.attrs?.href || ''})`;
     default:
       if (node.content) return (node.content || []).map((c) => blockToMarkdown(c, depth)).join('\n\n');
       return '';

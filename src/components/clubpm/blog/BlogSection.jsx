@@ -1,5 +1,5 @@
 import React from 'react';
-import { Node, mergeAttributes } from '@tiptap/core';
+import { Node } from '@tiptap/core';
 import { ReactNodeViewRenderer, NodeViewWrapper, NodeViewContent } from '@tiptap/react';
 
 function SectionView({ node, editor, getPos, selected }) {
@@ -76,8 +76,26 @@ export const BlogSection = Node.create({
     };
   },
   parseHTML() { return [{ tag: 'section[data-type="blog-section"]' }]; },
-  renderHTML({ HTMLAttributes }) {
-    return ['section', mergeAttributes(HTMLAttributes, { 'data-type': 'blog-section' }), 0];
+  // Mirror the server renderer (blogRender.ts) so the editor's Preview (getHTML)
+  // matches the published page: layout/padding/width/theme classes + the
+  // .cpm-blog-section-inner wrapper that the grid/padding CSS targets.
+  renderHTML({ node }) {
+    const layout = node.attrs.layout || 'single';
+    const pad = node.attrs.padding || 'm';
+    const width = node.attrs.width === 'fullBleed' ? 'full' : 'contained';
+    const theme = node.attrs.theme || 'inherit';
+    const bg = node.attrs.background || { kind: 'none', value: '' };
+    const cls = [
+      'cpm-blog-section',
+      `cpm-blog-section--${layout}`,
+      `cpm-blog-section--pad-${pad}`,
+      `cpm-blog-section--${width}`,
+      theme !== 'inherit' ? `cpm-blog-section--${theme}` : '',
+    ].filter(Boolean).join(' ');
+    const attrs = { 'data-type': 'blog-section', class: cls };
+    if (bg.kind === 'color' && bg.value) attrs.style = `background-color:${bg.value}`;
+    else if (bg.kind === 'image' && bg.value) attrs.style = `background-image:url(${bg.value});background-size:cover;background-position:center`;
+    return ['section', attrs, ['div', { class: 'cpm-blog-section-inner' }, 0]];
   },
   addNodeView() { return ReactNodeViewRenderer(SectionView); },
 });

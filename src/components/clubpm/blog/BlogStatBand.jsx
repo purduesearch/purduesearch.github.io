@@ -1,5 +1,5 @@
 import React from 'react';
-import { Node, mergeAttributes } from '@tiptap/core';
+import { Node } from '@tiptap/core';
 import { ReactNodeViewRenderer, NodeViewWrapper } from '@tiptap/react';
 
 function StatBandView({ node, updateAttributes, editor }) {
@@ -32,7 +32,14 @@ export const BlogStatBand = Node.create({
   name: 'statBand', group: 'block', atom: true, selectable: true, draggable: true,
   addAttributes() { return { stats: { default: [] } }; },
   parseHTML() { return [{ tag: 'div[data-type="blog-statband"]' }]; },
-  renderHTML({ HTMLAttributes }) { return ['div', mergeAttributes(HTMLAttributes, { 'data-type': 'blog-statband' })]; },
+  renderHTML({ node }) {
+    const stats = Array.isArray(node.attrs.stats) ? node.attrs.stats : [];
+    const tiles = stats.map((s) => ['div', { class: 'cpm-blog-stat' },
+      ['div', { class: 'cpm-blog-stat-value' }, String(s?.value ?? '')],
+      ['div', { class: 'cpm-blog-stat-label' }, String(s?.label ?? '')],
+    ]);
+    return ['div', { 'data-type': 'blog-statband', class: 'cpm-blog-statband' }, ...tiles];
+  },
   addNodeView() { return ReactNodeViewRenderer(StatBandView); },
 });
 

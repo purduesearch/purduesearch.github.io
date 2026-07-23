@@ -1,5 +1,5 @@
 import React from 'react';
-import { Node, mergeAttributes } from '@tiptap/core';
+import { Node } from '@tiptap/core';
 import { ReactNodeViewRenderer, NodeViewWrapper } from '@tiptap/react';
 
 function HeroView({ node, updateAttributes, editor }) {
@@ -37,7 +37,16 @@ export const BlogHero = Node.create({
     return { heading: { default: '' }, subheading: { default: '' }, bgImage: { default: '' }, align: { default: 'center' }, overlay: { default: false } };
   },
   parseHTML() { return [{ tag: 'header[data-type="blog-hero"]' }]; },
-  renderHTML({ HTMLAttributes }) { return ['header', mergeAttributes(HTMLAttributes, { 'data-type': 'blog-hero' })]; },
+  renderHTML({ node }) {
+    const { heading, subheading, align, overlay, bgImage } = node.attrs;
+    const cls = `cpm-blog-hero cpm-blog-hero--${align || 'center'}${overlay ? ' cpm-blog-hero--overlay' : ''}`;
+    const attrs = { 'data-type': 'blog-hero', class: cls };
+    if (bgImage) attrs.style = `background-image:url(${bgImage})`;
+    const inner = [];
+    if (heading) inner.push(['h1', {}, heading]);
+    if (subheading) inner.push(['p', {}, subheading]);
+    return ['header', attrs, ['div', { class: 'cpm-blog-hero-inner' }, ...inner]];
+  },
   addNodeView() { return ReactNodeViewRenderer(HeroView); },
 });
 

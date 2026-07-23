@@ -1,5 +1,5 @@
 import React from 'react';
-import { Node, mergeAttributes } from '@tiptap/core';
+import { Node } from '@tiptap/core';
 import { ReactNodeViewRenderer, NodeViewWrapper } from '@tiptap/react';
 
 function CtaView({ node, updateAttributes, editor }) {
@@ -29,7 +29,15 @@ export const BlogCta = Node.create({
   name: 'ctaButton', group: 'block', atom: true, selectable: true, draggable: true,
   addAttributes() { return { label: { default: 'Learn more' }, href: { default: '' }, style: { default: 'solid' }, align: { default: 'center' } }; },
   parseHTML() { return [{ tag: 'div[data-type="blog-cta"]' }]; },
-  renderHTML({ HTMLAttributes }) { return ['div', mergeAttributes(HTMLAttributes, { 'data-type': 'blog-cta' })]; },
+  renderHTML({ node }) {
+    const { label, href, style, align } = node.attrs;
+    return ['div', { 'data-type': 'blog-cta', class: `cpm-blog-cta cpm-blog-cta--${align || 'center'}` },
+      ['a', {
+        class: `cpm-blog-cta-btn cpm-blog-cta-btn--${style || 'solid'}`,
+        href: href || '#', target: '_blank', rel: 'noopener noreferrer',
+      }, label || 'Learn more'],
+    ];
+  },
   addNodeView() { return ReactNodeViewRenderer(CtaView); },
 });
 
