@@ -23623,17 +23623,26 @@ button.cpm-badge-tile:disabled { opacity: 0.7; cursor: progress; }
 .cpm-blog-section--pad-xl .cpm-blog-section-inner { padding: 88px 20px; }
 .cpm-blog-section--dark { background-color: #0e1116; color: #e6ebf2; }
 .cpm-blog-section--light { background-color: #ffffff; color: #14181f; }
-/* Column layouts: grid that collapses to one column on mobile */
+/* Column layouts: 12-track grid that collapses to one column on mobile */
 .cpm-blog-section--cols2 .cpm-blog-section-inner,
 .cpm-blog-section--cols3 .cpm-blog-section-inner,
-.cpm-blog-section--mediaText .cpm-blog-section-inner { display: grid; gap: 28px; align-items: start; }
-.cpm-blog-section--cols2 .cpm-blog-section-inner { grid-template-columns: 1fr 1fr; }
-.cpm-blog-section--cols3 .cpm-blog-section-inner { grid-template-columns: 1fr 1fr 1fr; }
-.cpm-blog-section--mediaText .cpm-blog-section-inner { grid-template-columns: 1fr 1fr; }
-@media (max-width: 640px) {
+.cpm-blog-section--mediaText .cpm-blog-section-inner {
+  display: grid; gap: 28px; align-items: start;
+  grid-template-columns: repeat(12, 1fr);
+}
+/* Defaults when a column carries no explicit span. An inline
+   `grid-column:span N` from the column node overrides these. */
+.cpm-blog-section--cols2 .cpm-blog-col,
+.cpm-blog-section--mediaText .cpm-blog-col { grid-column: span 6; }
+.cpm-blog-section--cols3 .cpm-blog-col { grid-column: span 4; }
+
+@media (max-width: 900px) {
   .cpm-blog-section--cols2 .cpm-blog-section-inner,
   .cpm-blog-section--cols3 .cpm-blog-section-inner,
   .cpm-blog-section--mediaText .cpm-blog-section-inner { grid-template-columns: 1fr; }
+  /* !important is required: it has to beat the inline span written by the
+     column node, which is otherwise higher specificity than any selector. */
+  .cpm-blog-col { grid-column: 1 / -1 !important; }
 }
 .cpm-blog-hero { position: relative; background-size: cover; background-position: center; padding: 96px 24px; text-align: center; }
 .cpm-blog-hero--left { text-align: left; }
