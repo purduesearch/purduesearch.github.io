@@ -101,7 +101,7 @@ const Blog = () => {
                               title={p.title}
                               href={p.linkUrl || `/blog/${p.slug}`}
                               date={p.publishedAt ? new Date(p.publishedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : ''}
-                              excerpt={(p.excerpt ?? '').slice(0, 180)}
+                              excerpt={p.excerpt ?? ''}
                               author={p.authorName ?? p.createdBy?.displayName ?? 'SEARCH Team'}
                             />
                           </div>

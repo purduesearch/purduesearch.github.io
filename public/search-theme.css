@@ -23988,3 +23988,24 @@ button.cpm-badge-tile:disabled { opacity: 0.7; cursor: progress; }
   margin: 0 auto;
   padding: 0 20px 8px;
 }
+
+/* === Blog card panel =================================================== */
+.cpm-blog-cardpanel { margin-bottom: 18px; }
+.cpm-blog-cardpanel-preview {
+  background: #f4f5f7; border-radius: 10px; padding: 10px; margin-bottom: 10px;
+}
+.cpm-blog-cardpanel-preview .blog-item { margin: 0; }
+.cpm-blog-cardpanel-warn {
+  font-size: 11.5px; line-height: 1.5; color: var(--pm-accent-amber, #f5a623);
+  margin: 0 0 8px; border-left: 2px solid currentColor; padding-left: 9px;
+}
+.cpm-blog-cardpanel-hint {
+  font-size: 11px; line-height: 1.5; color: var(--pm-text-muted, #97a3b6); margin: 0 0 6px;
+}
+
+/* Clamp the card description instead of slicing the string, so descriptions
+   are never cut mid-word. */
+.blog-desc p {
+  display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical;
+  overflow: hidden;
+}
