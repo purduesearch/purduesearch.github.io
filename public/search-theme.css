@@ -23970,3 +23970,21 @@ button.cpm-badge-tile:disabled { opacity: 0.7; cursor: progress; }
   max-width: 100%; transition: width .18s ease;
 }
 .cpm-blog-previewframe-error { color: var(--pm-accent-coral, #ff6b6b); padding: 24px; }
+
+/* === Public article wrapper ===========================================
+   The article is NOT width-constrained here: each section constrains itself
+   via .cpm-blog-section-inner { max-width: var(--post-max) }, which is what
+   lets width:fullBleed sections and the theme's "wide" setting work at all.
+   Legacy posts whose content is bare blocks (no section wrappers) still need
+   a readable measure, so those are constrained individually. */
+.pm-blog-article { width: 100%; padding: 0; }
+.pm-blog-post-body > :not(.cpm-blog-section) {
+  max-width: var(--post-max, 760px);
+  margin-left: auto;
+  margin-right: auto;
+}
+.pm-blog-article-foot {
+  max-width: var(--post-max, 760px);
+  margin: 0 auto;
+  padding: 0 20px 8px;
+}
