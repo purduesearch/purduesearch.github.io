@@ -92,5 +92,33 @@ check("passes through a normal https image",
   check("empty gallery renders nothing", _render(empty as any).includes("cpm-blog-carousel") === false);
 }
 
+{
+  const mk = (attrs: Record<string, unknown>) => _render({ type: "doc", content: [
+    { type: "paragraph", content: [{ type: "text", text: "styled", marks: [{ type: "textStyle", attrs }] }] },
+  ] } as any);
+
+  check("allowed font applied", mk({ fontFamily: "Oswald" }).includes("font-family:'Oswald'"));
+  check("unknown font dropped", !mk({ fontFamily: "Comic Sans MS" }).includes("font-family"));
+  check("font with quotes normalised", mk({ fontFamily: "'Work Sans'" }).includes("font-family:'Work Sans'"));
+  check("size clamped low", mk({ fontSize: "2px" }).includes("font-size:10px"));
+  check("size clamped high", mk({ fontSize: "400px" }).includes("font-size:96px"));
+  check("size in range kept", mk({ fontSize: "22px" }).includes("font-size:22px"));
+  check("hex colour kept", mk({ color: "#ff8800" }).includes("color:#ff8800"));
+  check("short hex kept", mk({ color: "#f80" }).includes("color:#f80"));
+  check("named colour dropped", !mk({ color: "red" }).includes("color:red"));
+  check("css injection via colour dropped", !mk({ color: "#fff;background:url(javascript:alert(1))" }).includes("javascript"));
+  check("empty textStyle emits no span", !mk({}).includes("<span"));
+
+  const hl = _render({ type: "doc", content: [
+    { type: "paragraph", content: [{ type: "text", text: "hi", marks: [{ type: "highlight", attrs: { color: "#ffee00" } }] }] },
+  ] } as any);
+  check("highlight renders mark tag", hl.includes("<mark") && hl.includes("#ffee00"));
+
+  const hlBad = _render({ type: "doc", content: [
+    { type: "paragraph", content: [{ type: "text", text: "hi", marks: [{ type: "highlight", attrs: { color: "expression(x)" } }] }] },
+  ] } as any);
+  check("highlight rejects non-hex colour", hlBad.includes("<mark>") && !hlBad.includes("expression"));
+}
+
 console.log(`\nblogRender: ${passed} passed, ${failed} failed`);
 if (failed > 0) process.exit(1);
