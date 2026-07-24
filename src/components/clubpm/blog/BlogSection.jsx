@@ -1,6 +1,7 @@
 import React from 'react';
 import { Node } from '@tiptap/core';
 import { ReactNodeViewRenderer, NodeViewWrapper, NodeViewContent } from '@tiptap/react';
+import { defaultSpans, resizePair, spansAfterAdd, spansAfterRemove } from '../../../lib/columnSpans';
 
 function SectionView({ node, editor, getPos, selected }) {
   const { layout, background, padding, width, theme } = node.attrs;
@@ -45,16 +46,101 @@ function SectionView({ node, editor, getPos, selected }) {
     window.dispatchEvent(new CustomEvent('blog-section-settings', { detail: { pos: getPos?.() } }));
   };
 
+  // Column children of this section, with their current or default spans.
+  const columnCount = (() => {
+    let n = 0;
+    node.forEach((child) => { if (child.type.name === 'column') n += 1; });
+    return n;
+  })();
+
+  const currentSpans = (() => {
+    if (!columnCount) return [];
+    const explicit = [];
+    node.forEach((child) => { if (child.type.name === 'column') explicit.push(child.attrs.span); });
+    return explicit.every((s) => Number.isInteger(s)) ? explicit : defaultSpans(columnCount);
+  })();
+
+  // Write a full set of spans onto the section's column children in one
+  // transaction, so collaborators see a single atomic change.
+  const applySpans = (spans) => {
+    if (typeof getPos !== 'function') return;
+    const base = getPos();
+    editor.chain().focus().command(({ tr }) => {
+      let offset = base + 1;
+      let i = 0;
+      node.forEach((child) => {
+        if (child.type.name === 'column') {
+          tr.setNodeMarkup(tr.mapping.map(offset), undefined, { ...child.attrs, span: spans[i] ?? null });
+          i += 1;
+        }
+        offset += child.nodeSize;
+      });
+      return true;
+    }).run();
+  };
+
+  const nudge = (index, delta) => applySpans(resizePair(currentSpans, index, delta));
+
+  const addColumn = () => {
+    if (typeof getPos !== 'function' || columnCount >= 4) return;
+    const pos = getPos();
+    const spans = spansAfterAdd(currentSpans.length ? currentSpans : defaultSpans(1));
+    editor.chain().focus()
+      .insertContentAt(pos + node.nodeSize - 1, { type: 'column', content: [{ type: 'paragraph' }] })
+      .run();
+    // Re-read after insertion so the new child is included.
+    setTimeout(() => applySpans(spans), 0);
+  };
+
+  const removeColumn = () => {
+    if (columnCount <= 1) return;
+    const spans = spansAfterRemove(currentSpans, currentSpans.length - 1);
+    if (typeof getPos !== 'function') return;
+    const base = getPos();
+    let offset = base + 1;
+    let lastColumnStart = null;
+    let lastColumnSize = 0;
+    node.forEach((child) => {
+      if (child.type.name === 'column') { lastColumnStart = offset; lastColumnSize = child.nodeSize; }
+      offset += child.nodeSize;
+    });
+    if (lastColumnStart == null) return;
+    editor.chain().focus().deleteRange({ from: lastColumnStart, to: lastColumnStart + lastColumnSize }).run();
+    setTimeout(() => applySpans(spans), 0);
+  };
+
   return (
     <NodeViewWrapper as="section" className={cls} style={bgStyle}>
       {editable && (
-        <div className="cpm-blog-section-toolbar" contentEditable={false}>
-          <button type="button" title="Move up" onClick={() => move(-1)}><i className="fas fa-arrow-up" /></button>
-          <button type="button" title="Move down" onClick={() => move(1)}><i className="fas fa-arrow-down" /></button>
-          <button type="button" title="Duplicate" onClick={duplicate}><i className="fas fa-clone" /></button>
-          <button type="button" title="Style" onClick={openSettings}><i className="fas fa-palette" /></button>
-          <button type="button" title="Delete" onClick={remove}><i className="fas fa-trash" /></button>
-        </div>
+        <>
+          <div className="cpm-blog-section-grip" contentEditable={false} data-drag-handle title="Drag to reorder this section">
+            <i className="fas fa-grip-vertical" aria-hidden="true" />
+          </div>
+          <div className="cpm-blog-section-toolbar" contentEditable={false}>
+            <button type="button" title="Move up" onClick={() => move(-1)}><i className="fas fa-arrow-up" /></button>
+            <button type="button" title="Move down" onClick={() => move(1)}><i className="fas fa-arrow-down" /></button>
+            {columnCount > 0 && (
+              <>
+                <button type="button" title="Add column" onClick={addColumn} disabled={columnCount >= 4}><i className="fas fa-table-columns" /></button>
+                <button type="button" title="Remove last column" onClick={removeColumn} disabled={columnCount <= 1}><i className="fas fa-minus" /></button>
+              </>
+            )}
+            <button type="button" title="Duplicate" onClick={duplicate}><i className="fas fa-clone" /></button>
+            <button type="button" title="Style" onClick={openSettings}><i className="fas fa-palette" /></button>
+            <button type="button" title="Delete" onClick={remove}><i className="fas fa-trash" /></button>
+          </div>
+          {columnCount > 1 && (
+            <div className="cpm-blog-section-gutters" contentEditable={false}>
+              {currentSpans.slice(0, -1).map((_, i) => (
+                <span key={`gutter-${i}`} className="cpm-blog-section-gutter">
+                  <button type="button" title="Narrow the left column" onClick={() => nudge(i, -1)}>‹</button>
+                  <span className="cpm-blog-section-gutter-read">{currentSpans[i]} / {currentSpans[i + 1]}</span>
+                  <button type="button" title="Widen the left column" onClick={() => nudge(i, 1)}>›</button>
+                </span>
+              ))}
+            </div>
+          )}
+        </>
       )}
       <NodeViewContent className="cpm-blog-section-inner" />
     </NodeViewWrapper>
@@ -66,6 +152,7 @@ export const BlogSection = Node.create({
   group: 'block',
   content: '(column | block)+',
   defining: true,
+  draggable: true,
   addAttributes() {
     return {
       layout: { default: 'single' },
