@@ -181,7 +181,41 @@ function ToolbarMenu({ label, icon, title, items, closeOnSelect = true }) {
   );
 }
 
-function Toolbar({ editor, onToggleFind, onToggleSnippets, onAddSection, onToggleMarkdown, markdownMode, onShowShortcuts, toolbarOpen, onToggleToolbarOpen }) {
+// Post-level design controls (accent, font pair, width). These apply to the
+// whole post — per-selection typography lives in the Text group instead.
+function DesignMenu({ theme, onChange }) {
+  const [open, setOpen] = React.useState(false);
+  const ref = React.useRef(null);
+  React.useEffect(() => {
+    if (!open) return undefined;
+    const onDoc = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, [open]);
+  return (
+    <span className="cpm-blog-tb-menu" ref={ref}>
+      <button
+        type="button"
+        className={`cpm-blog-tb-menu-trigger${open ? ' is-open' : ''}`}
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={() => setOpen((o) => !o)}
+        title="Post design"
+      >
+        <i className="fas fa-palette" aria-hidden="true" />
+        <span className="cpm-blog-tb-menu-label">Design</span>
+        <i className="fas fa-chevron-down cpm-blog-tb-menu-caret" aria-hidden="true" />
+      </button>
+      {open && (
+        <div className="cpm-blog-tb-menu-pop cpm-blog-design-pop">
+          <BlogThemeBar theme={theme} onChange={onChange} />
+          <p className="cpm-blog-design-hint">Applies to the whole post.</p>
+        </div>
+      )}
+    </span>
+  );
+}
+
+function Toolbar({ editor, onToggleFind, onToggleSnippets, onAddSection, onToggleMarkdown, markdownMode, onShowShortcuts, toolbarOpen, onToggleToolbarOpen, theme, onThemeChange }) {
   const fileRef = React.useRef(null);
   if (!editor) return null;
   const heading = [1, 2, 3, 4, 5, 6].find((l) => editor.isActive('heading', { level: l })) ?? '';
@@ -253,105 +287,119 @@ function Toolbar({ editor, onToggleFind, onToggleSnippets, onAddSection, onToggl
           onClick={onToggleToolbarOpen}
           pinned
         />
-        <span className="cpm-blog-tb-sep" />
       </span>
 
-      <ToolbarMenu label="Format" icon="fa-font" title="Text formatting" items={formatItems} closeOnSelect={false} />
-      <select
-        className="cpm-blog-tb-select"
-        value={activeFont}
-        onChange={(e) => {
-          const v = e.target.value;
-          if (!v) editor.chain().focus().unsetFontFamily().run();
-          else editor.chain().focus().setFontFamily(v).run();
-        }}
-        title="Font for the selected text"
-      >
-        <option value="">Post font</option>
-        {POST_FONTS.map((f) => <option key={f} value={f}>{f}</option>)}
-      </select>
-      <select
-        className="cpm-blog-tb-select"
-        value={activeSize}
-        onChange={(e) => {
-          const v = e.target.value;
-          if (!v) editor.chain().focus().unsetFontSize().run();
-          else editor.chain().focus().setFontSize(`${v}px`).run();
-        }}
-        title="Size of the selected text"
-      >
-        <option value="">Size</option>
-        {POST_SIZES.map((s) => <option key={s} value={s}>{s}px</option>)}
-      </select>
-      <label className="cpm-blog-tb-color" title="Text colour">
-        <i className="fas fa-a" aria-hidden="true" />
-        <input
-          type="color"
-          value={editor.getAttributes('textStyle').color ?? '#ffffff'}
-          onChange={(e) => editor.chain().focus().setColor(e.target.value).run()}
-        />
-      </label>
-      <label className="cpm-blog-tb-color" title="Highlight">
-        <i className="fas fa-highlighter" aria-hidden="true" />
-        <input
-          type="color"
-          value={editor.getAttributes('highlight').color ?? '#f5a623'}
-          onChange={(e) => editor.chain().focus().toggleHighlight({ color: e.target.value }).run()}
-        />
-      </label>
-      <select
-        className="cpm-blog-tb-select"
-        value={heading}
-        onChange={(e) => {
-          const v = e.target.value;
-          if (!v) editor.chain().focus().setParagraph().run();
-          else editor.chain().focus().toggleHeading({ level: Number(v) }).run();
-        }}
-        title="Paragraph style"
-      >
-        <option value="">Paragraph</option>
-        <option value="1">Heading 1</option>
-        <option value="2">Heading 2</option>
-        <option value="3">Heading 3</option>
-        <option value="4">Heading 4</option>
-        <option value="5">Heading 5</option>
-        <option value="6">Heading 6</option>
-      </select>
-      <ToolbarMenu label="Lists" icon="fa-list" title="Lists" items={listItems} />
+      {/* Text */}
+      <span className="cpm-blog-tb-band">
+        <ToolbarMenu label="Format" icon="fa-font" title="Text formatting" items={formatItems} closeOnSelect={false} />
+        <select
+          className="cpm-blog-tb-select"
+          value={activeFont}
+          onChange={(e) => {
+            const v = e.target.value;
+            if (!v) editor.chain().focus().unsetFontFamily().run();
+            else editor.chain().focus().setFontFamily(v).run();
+          }}
+          title="Font for the selected text"
+        >
+          <option value="">Post font</option>
+          {POST_FONTS.map((f) => <option key={f} value={f}>{f}</option>)}
+        </select>
+        <select
+          className="cpm-blog-tb-select"
+          value={activeSize}
+          onChange={(e) => {
+            const v = e.target.value;
+            if (!v) editor.chain().focus().unsetFontSize().run();
+            else editor.chain().focus().setFontSize(`${v}px`).run();
+          }}
+          title="Size of the selected text"
+        >
+          <option value="">Size</option>
+          {POST_SIZES.map((s) => <option key={s} value={s}>{s}px</option>)}
+        </select>
+        <label className="cpm-blog-tb-color" title="Text colour">
+          <i className="fas fa-a" aria-hidden="true" />
+          <input
+            type="color"
+            value={editor.getAttributes('textStyle').color ?? '#ffffff'}
+            onChange={(e) => editor.chain().focus().setColor(e.target.value).run()}
+          />
+        </label>
+        <label className="cpm-blog-tb-color" title="Highlight">
+          <i className="fas fa-highlighter" aria-hidden="true" />
+          <input
+            type="color"
+            value={editor.getAttributes('highlight').color ?? '#f5a623'}
+            onChange={(e) => editor.chain().focus().toggleHighlight({ color: e.target.value }).run()}
+          />
+        </label>
+      </span>
 
-      <span className="cpm-blog-tb-sep" />
-      <button
-        type="button"
-        className="cpm-blog-add-section-btn cpm-blog-tb-btn--pinned"
-        onMouseDown={(e) => e.preventDefault()}
-        onClick={onAddSection}
-        title="Add a section"
-      >
-        <i className="fas fa-plus" aria-hidden="true" />
-        <span>Add Section</span>
-      </button>
-      <ToolbarMenu label="Insert" icon="fa-square-plus" title="Insert content" items={insertItems} />
-      <input ref={fileRef} type="file" accept="image/*" multiple hidden onChange={pickImage} />
+      {/* Paragraph */}
+      <span className="cpm-blog-tb-band">
+        <select
+          className="cpm-blog-tb-select"
+          value={heading}
+          onChange={(e) => {
+            const v = e.target.value;
+            if (!v) editor.chain().focus().setParagraph().run();
+            else editor.chain().focus().toggleHeading({ level: Number(v) }).run();
+          }}
+          title="Paragraph style"
+        >
+          <option value="">Paragraph</option>
+          <option value="1">Heading 1</option>
+          <option value="2">Heading 2</option>
+          <option value="3">Heading 3</option>
+          <option value="4">Heading 4</option>
+          <option value="5">Heading 5</option>
+          <option value="6">Heading 6</option>
+        </select>
+        <ToolbarMenu label="Lists" icon="fa-list" title="Lists" items={listItems} />
+      </span>
+
+      {/* Insert + Section */}
+      <span className="cpm-blog-tb-band">
+        <button
+          type="button"
+          className="cpm-blog-add-section-btn cpm-blog-tb-btn--pinned"
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={onAddSection}
+          title="Add a section"
+        >
+          <i className="fas fa-plus" aria-hidden="true" />
+          <span>Add Section</span>
+        </button>
+        <ToolbarMenu label="Insert" icon="fa-square-plus" title="Insert content" items={insertItems} />
+        <input ref={fileRef} type="file" accept="image/*" multiple hidden onChange={pickImage} />
+      </span>
 
       {inTable && (
-        <>
-          <span className="cpm-blog-tb-sep" />
+        <span className="cpm-blog-tb-band">
           <Btn title="Add column" icon="fa-table-columns" onClick={() => editor.chain().focus().addColumnAfter().run()} />
           <Btn title="Delete column" label="−col" onClick={() => editor.chain().focus().deleteColumn().run()} />
           <Btn title="Add row" label="+row" onClick={() => editor.chain().focus().addRowAfter().run()} />
           <Btn title="Delete row" label="−row" onClick={() => editor.chain().focus().deleteRow().run()} />
           <Btn title="Delete table" icon="fa-trash" onClick={() => editor.chain().focus().deleteTable().run()} />
-        </>
+        </span>
       )}
 
-      <span className="cpm-blog-tb-sep" />
-      <Btn title="Find & replace" icon="fa-magnifying-glass" onClick={onToggleFind} />
-      <span className="cpm-blog-tb-sep" />
-      <Btn title="Undo (Ctrl+Z)" icon="fa-rotate-left" disabled={!editor.can().undo()} onClick={() => editor.chain().focus().undo().run()} />
-      <Btn title="Redo (Ctrl+Y)" icon="fa-rotate-right" disabled={!editor.can().redo()} onClick={() => editor.chain().focus().redo().run()} />
-      <span className="cpm-blog-tb-sep" />
-      <Btn title={markdownMode ? 'Switch back to rich text' : 'Edit as Markdown'} icon="fa-file-code" active={markdownMode} onClick={onToggleMarkdown} pinned />
-      <Btn title="Keyboard shortcuts" icon="fa-keyboard" onClick={onShowShortcuts} pinned />
+      {/* Design */}
+      {onThemeChange && (
+        <span className="cpm-blog-tb-band">
+          <DesignMenu theme={theme} onChange={onThemeChange} />
+        </span>
+      )}
+
+      {/* Tools */}
+      <span className="cpm-blog-tb-band cpm-blog-tb-band--end">
+        <Btn title="Find & replace" icon="fa-magnifying-glass" onClick={onToggleFind} />
+        <Btn title="Undo (Ctrl+Z)" icon="fa-rotate-left" disabled={!editor.can().undo()} onClick={() => editor.chain().focus().undo().run()} />
+        <Btn title="Redo (Ctrl+Y)" icon="fa-rotate-right" disabled={!editor.can().redo()} onClick={() => editor.chain().focus().redo().run()} />
+        <Btn title={markdownMode ? 'Switch back to rich text' : 'Edit as Markdown'} icon="fa-file-code" active={markdownMode} onClick={onToggleMarkdown} pinned />
+        <Btn title="Keyboard shortcuts" icon="fa-keyboard" onClick={onShowShortcuts} pinned />
+      </span>
     </div>
   );
 }
@@ -570,8 +618,9 @@ export default function BlogEditor({ content, onChange, editable = true, onEdito
           onShowShortcuts={() => shortcutsRegistry?.setShowHelp(true)}
           toolbarOpen={toolbarOpen}
           onToggleToolbarOpen={() => setToolbarOpen((v) => !v)}
+          theme={theme}
+          onThemeChange={onThemeChange}
         />
-        {onThemeChange && <BlogThemeBar theme={theme} onChange={onThemeChange} />}
         {collab && <PresenceBar connected={connected} peers={peers} />}
       </div>
       {showFind && !markdownMode && <FindBar editor={editor} onClose={() => setShowFind(false)} />}

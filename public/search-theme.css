@@ -24052,3 +24052,18 @@ button.cpm-badge-tile:disabled { opacity: 0.7; cursor: progress; }
 
 .cpm-blog-schedule-pop { padding: 12px; min-width: 250px; }
 .cpm-blog-schedule-pop-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
+
+/* Toolbar bands — related controls sit in one pill, so the bar reads as
+   groups rather than a run of loose buttons. */
+.cpm-blog-tb-band {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 5px; border-radius: 8px;
+  background: rgba(255, 255, 255, .03); border: 1px solid transparent;
+}
+.cpm-blog-tb-band + .cpm-blog-tb-band { margin-left: 6px; }
+.cpm-blog-tb-band--end { margin-left: auto; }
+.cpm-blog-design-pop { padding: 10px; min-width: 230px; }
+.cpm-blog-design-pop .cpm-blog-themebar { display: flex; flex-wrap: wrap; gap: 8px; }
+.cpm-blog-design-hint {
+  font-size: 11px; color: var(--pm-text-muted, #97a3b6); margin: 8px 0 0;
+}
