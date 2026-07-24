@@ -23855,3 +23855,19 @@ button.cpm-badge-tile:disabled { opacity: 0.7; cursor: progress; }
   .cpm-blog-carousel-track { display: grid; grid-template-columns: 1fr 1fr; overflow: visible; }
   .cpm-blog-carousel-nav, .cpm-blog-carousel-dots { display: none; }
 }
+
+/* Carousel editing rows — editor only, never published. */
+.cpm-blog-carousel-empty-slide {
+  width: 100%; aspect-ratio: 16 / 9; border-radius: 10px;
+  border: 1px dashed rgba(255, 255, 255, .25); background: rgba(255, 255, 255, .04);
+}
+.cpm-blog-carousel-edit { margin-top: 12px; display: grid; gap: 6px; }
+.cpm-blog-carousel-edit-row { display: flex; align-items: center; gap: 7px; }
+.cpm-blog-carousel-edit-thumb {
+  width: 44px; height: 32px; object-fit: cover; border-radius: 4px; flex: 0 0 auto;
+  background: rgba(255, 255, 255, .07);
+}
+.cpm-blog-carousel-edit-input {
+  flex: 1 1 0; min-width: 0; font-size: 12px; padding: 5px 8px; border-radius: 5px;
+  border: 1px solid var(--pm-overlay, #2a2f3a); background: rgba(0, 0, 0, .25); color: #eef2f8;
+}
