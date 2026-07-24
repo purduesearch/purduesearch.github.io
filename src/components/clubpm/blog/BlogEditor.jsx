@@ -7,6 +7,8 @@ import TaskItem from '@tiptap/extension-task-item';
 import CharacterCount from '@tiptap/extension-character-count';
 import Placeholder from '@tiptap/extension-placeholder';
 import { TableKit } from '@tiptap/extension-table';
+import { TextStyle, FontFamily, FontSize, Color } from '@tiptap/extension-text-style';
+import Highlight from '@tiptap/extension-highlight';
 import Collaboration from '@tiptap/extension-collaboration';
 import CollaborationCaret from '@tiptap/extension-collaboration-caret';
 import { SearchAndReplace } from '@sereneinserenade/tiptap-search-and-replace';
@@ -55,6 +57,11 @@ export function blogExtensions(collab) {
     }),
     TaskList,
     TaskItem.configure({ nested: true }),
+    TextStyle,
+    FontFamily.configure({ types: ['textStyle'] }),
+    FontSize.configure({ types: ['textStyle'] }),
+    Color.configure({ types: ['textStyle'] }),
+    Highlight.configure({ multicolor: true }),
     BlogImage,
     BlogEmbed,
     BlogGallery,
@@ -86,6 +93,12 @@ function colorForMember(memberId) {
   for (let i = 0; i < memberId.length; i += 1) hash = (hash * 31 + memberId.charCodeAt(i)) | 0;
   return CURSOR_COLORS[Math.abs(hash) % CURSOR_COLORS.length];
 }
+
+// Restricted to the faces the site actually loads (public/index.html) and that
+// the server renderer allowlists (blogRender.ts ALLOWED_FONTS). Keep the three
+// lists in sync — a font missing from any of them silently drops on publish.
+const POST_FONTS = ['Syne', 'DM Sans', 'Oswald', 'Lato', 'Montserrat', 'Work Sans'];
+const POST_SIZES = [12, 14, 16, 18, 20, 24, 30, 36, 48];
 
 function Btn({ active, disabled, onClick, title, icon, label, pinned }) {
   return (
@@ -224,6 +237,9 @@ function Toolbar({ editor, onToggleFind, onToggleSnippets, onAddSection, onToggl
     { title: 'Snippets', icon: 'fa-clone', onClick: onToggleSnippets },
   ];
 
+  const activeFont = editor.getAttributes('textStyle').fontFamily ?? '';
+  const activeSize = String(editor.getAttributes('textStyle').fontSize ?? '').replace('px', '');
+
   return (
     <div
       className={`cpm-blog-toolbar${toolbarOpen ? '' : ' is-collapsed'}${markdownMode ? ' is-markdown-mode' : ''}`}
@@ -241,6 +257,48 @@ function Toolbar({ editor, onToggleFind, onToggleSnippets, onAddSection, onToggl
       </span>
 
       <ToolbarMenu label="Format" icon="fa-font" title="Text formatting" items={formatItems} closeOnSelect={false} />
+      <select
+        className="cpm-blog-tb-select"
+        value={activeFont}
+        onChange={(e) => {
+          const v = e.target.value;
+          if (!v) editor.chain().focus().unsetFontFamily().run();
+          else editor.chain().focus().setFontFamily(v).run();
+        }}
+        title="Font for the selected text"
+      >
+        <option value="">Post font</option>
+        {POST_FONTS.map((f) => <option key={f} value={f}>{f}</option>)}
+      </select>
+      <select
+        className="cpm-blog-tb-select"
+        value={activeSize}
+        onChange={(e) => {
+          const v = e.target.value;
+          if (!v) editor.chain().focus().unsetFontSize().run();
+          else editor.chain().focus().setFontSize(`${v}px`).run();
+        }}
+        title="Size of the selected text"
+      >
+        <option value="">Size</option>
+        {POST_SIZES.map((s) => <option key={s} value={s}>{s}px</option>)}
+      </select>
+      <label className="cpm-blog-tb-color" title="Text colour">
+        <i className="fas fa-a" aria-hidden="true" />
+        <input
+          type="color"
+          value={editor.getAttributes('textStyle').color ?? '#ffffff'}
+          onChange={(e) => editor.chain().focus().setColor(e.target.value).run()}
+        />
+      </label>
+      <label className="cpm-blog-tb-color" title="Highlight">
+        <i className="fas fa-highlighter" aria-hidden="true" />
+        <input
+          type="color"
+          value={editor.getAttributes('highlight').color ?? '#f5a623'}
+          onChange={(e) => editor.chain().focus().toggleHighlight({ color: e.target.value }).run()}
+        />
+      </label>
       <select
         className="cpm-blog-tb-select"
         value={heading}
@@ -543,7 +601,7 @@ export default function BlogEditor({ content, onChange, editable = true, onEdito
       <div className="cpm-blog-editor-footer">
         <span>{words} words</span>
         <span>{chars} characters</span>
-        {markdownMode && <span className="cpm-blog-markdown-hint">Editing raw Markdown — switch back to rich text to continue formatting.</span>}
+        {markdownMode && <span className="cpm-blog-markdown-hint">Editing raw Markdown — switch back to rich text to continue formatting. Fonts, sizes, colours and highlights are not represented in Markdown and will be lost on switching back.</span>}
       </div>
     </div>
   );
