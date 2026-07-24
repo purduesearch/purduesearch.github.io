@@ -40,5 +40,33 @@ check("passes through a normal https image",
   check("cta anchor", html.includes("cpm-blog-cta") && html.includes("Sponsor us") && html.includes('href="https://x/y"'));
 }
 
+{
+  const doc = { type: "doc", content: [
+    { type: "section", attrs: { layout: "cols2" }, content: [
+      { type: "column", attrs: { span: 5 }, content: [{ type: "paragraph", content: [{ type: "text", text: "narrow" }] }] },
+      { type: "column", attrs: { span: 7 }, content: [{ type: "paragraph", content: [{ type: "text", text: "wide" }] }] },
+    ] },
+    { type: "section", attrs: { layout: "cols2" }, content: [
+      { type: "column", content: [{ type: "paragraph", content: [{ type: "text", text: "auto" }] }] },
+    ] },
+  ] };
+  const html = _render(doc as any);
+  check("column span 5 emits grid-column", html.includes('style="grid-column:span 5"'));
+  check("column span 7 emits grid-column", html.includes('style="grid-column:span 7"'));
+  check("column without span emits no style", html.includes('<div class="cpm-blog-col">auto') || html.includes('<div class="cpm-blog-col"><p>auto</p></div>'));
+}
+
+{
+  const bad = { type: "doc", content: [
+    { type: "section", attrs: { layout: "cols2" }, content: [
+      { type: "column", attrs: { span: 99 }, content: [{ type: "paragraph" }] },
+      { type: "column", attrs: { span: "6; background:url(x)" }, content: [{ type: "paragraph" }] },
+    ] },
+  ] };
+  const html = _render(bad as any);
+  check("out-of-range span is ignored", !html.includes("span 99"));
+  check("non-numeric span cannot inject css", !html.includes("background:url"));
+}
+
 console.log(`\nblogRender: ${passed} passed, ${failed} failed`);
 if (failed > 0) process.exit(1);

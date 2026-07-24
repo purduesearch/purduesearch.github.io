@@ -265,8 +265,15 @@ function renderNode(node: PMNode, headingIds: Map<PMNode, string>): string {
       const styleAttr = styles.length ? ` style="${styles.join(";")}"` : "";
       return `<section class="${cls}"${styleAttr}><div class="cpm-blog-section-inner">${inner}</div></section>`;
     }
-    case "column":
-      return `<div class="cpm-blog-col">${renderChildren(node, headingIds)}</div>`;
+    case "column": {
+      // Optional 12-column grid span. Anything not an integer in 1..12 is
+      // dropped, so the attribute can never inject arbitrary CSS.
+      const rawSpan = node.attrs?.span;
+      const span = typeof rawSpan === "number" ? rawSpan : Number.NaN;
+      const valid = Number.isInteger(span) && span >= 1 && span <= 12;
+      const style = valid ? ` style="grid-column:span ${span}"` : "";
+      return `<div class="cpm-blog-col"${style}>${renderChildren(node, headingIds)}</div>`;
+    }
     case "hero": {
       const heading = escapeHtml(String(node.attrs?.heading ?? ""));
       const sub = escapeHtml(String(node.attrs?.subheading ?? ""));
