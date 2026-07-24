@@ -23811,3 +23811,47 @@ button.cpm-badge-tile:disabled { opacity: 0.7; cursor: progress; }
 .cpm-blog-editor-surface .cpm-blog-stat-label {
   color: #eef2f8 !important;
 }
+
+/* === Blog carousel (gallery) ==========================================
+   One markup contract shared by the editor NodeView, the preview iframe and
+   the published page. Scroll-snap does the work; src/lib/blogCarousel.js only
+   adds arrows, dots and keyboard nav on top. */
+.cpm-blog-carousel { position: relative; margin: 1.6em 0; }
+.cpm-blog-carousel-track {
+  display: flex; gap: 14px; overflow-x: auto; scroll-snap-type: x mandatory;
+  scroll-behavior: smooth; scrollbar-width: none; padding-bottom: 4px;
+}
+.cpm-blog-carousel-track::-webkit-scrollbar { display: none; }
+.cpm-blog-carousel-slide {
+  flex: 0 0 100%; scroll-snap-align: center; margin: 0; min-width: 0;
+}
+.cpm-blog-carousel-slide img {
+  width: 100%; height: auto; display: block; border-radius: 10px; object-fit: cover;
+}
+.cpm-blog-carousel-cap {
+  margin-top: 8px; font-size: 13px; line-height: 1.5; opacity: .75; text-align: center;
+}
+.cpm-blog-carousel-nav {
+  position: absolute; top: 50%; transform: translateY(-50%); z-index: 2;
+  width: 38px; height: 38px; border-radius: 50%; border: none; cursor: pointer;
+  background: rgba(0, 0, 0, .55); color: #fff; font-size: 20px; line-height: 1;
+  display: grid; place-items: center; transition: opacity .15s ease;
+}
+.cpm-blog-carousel-nav:hover { background: rgba(0, 0, 0, .75); }
+.cpm-blog-carousel-nav:disabled { opacity: .25; cursor: default; }
+.cpm-blog-carousel-prev { left: 10px; }
+.cpm-blog-carousel-next { right: 10px; }
+.cpm-blog-carousel-dots { display: flex; justify-content: center; gap: 7px; margin-top: 12px; }
+.cpm-blog-carousel-dot {
+  width: 8px; height: 8px; border-radius: 50%; border: none; padding: 0; cursor: pointer;
+  background: currentColor; opacity: .28; transition: opacity .15s ease;
+}
+.cpm-blog-carousel-dot.is-active { opacity: 1; background: var(--post-accent, #00e5cc); }
+.cpm-blog-carousel:focus-visible { outline: 2px solid var(--post-accent, #00e5cc); outline-offset: 4px; }
+
+/* The press-kit PDF is rendered by headless Chrome with no JS, so show every
+   image as a grid instead of stranding the reader on slide one. */
+@media print {
+  .cpm-blog-carousel-track { display: grid; grid-template-columns: 1fr 1fr; overflow: visible; }
+  .cpm-blog-carousel-nav, .cpm-blog-carousel-dots { display: none; }
+}
