@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import BlogEditor from '../../components/clubpm/blog/BlogEditor';
 import RevisionHistoryDrawer from '../../components/clubpm/blog/RevisionHistoryDrawer';
 import BlogMetaPanel from '../../components/clubpm/blog/BlogMetaPanel';
 import BlogAnnotationsPanel from '../../components/clubpm/blog/BlogAnnotationsPanel';
+import BlogPreviewFrame from '../../components/clubpm/blog/BlogPreviewFrame';
 import OrbitLoader from '../../components/OrbitLoader';
 import ApprovalChips from '../../components/clubpm/ApprovalChips';
 import { useClubPmAuth } from '../../clubpm/ClubPmAuth';
@@ -48,14 +49,6 @@ export default function BlogEditorPage() {
   stateRef.current = { title, contentJson };
   const autosaveTimer = useRef(null);
   const editorRef = useRef(null);
-
-  // Rendered exactly like the public page — reuses the live editor's own
-  // getHTML() output so preview stays in sync with the shared node renderHTML()s.
-  const previewHtml = useMemo(() => {
-    if (!previewMode) return '';
-    return editorRef.current?.getHTML() ?? '';
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [previewMode, contentJson]);
 
   useEffect(() => {
     let cancelled = false;
@@ -367,16 +360,7 @@ export default function BlogEditorPage() {
 
       <div className="cpm-blog-editor-body">
         {previewMode ? (
-          <div className="cpm-blog-preview">
-            <h1 className="cpm-blog-preview-title">{title || 'Untitled post'}</h1>
-            <div
-              className="pm-blog-post-body"
-              data-fontpair={theme?.fontPair || 'syne-dmsans'}
-              data-width={theme?.width || 'wide'}
-              style={theme?.accent ? { '--post-accent': theme.accent } : undefined}
-              dangerouslySetInnerHTML={{ __html: previewHtml }}
-            />
-          </div>
+          <BlogPreviewFrame postId={id} title={title} contentJson={contentJson} />
         ) : (
           <input
             className="cpm-blog-title-input"

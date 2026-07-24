@@ -21824,8 +21824,6 @@ button.cpm-badge-tile:disabled { opacity: 0.7; cursor: progress; }
   color: #fff; font-family: var(--pm-font-display, inherit); font-size: 34px;
   font-weight: 800; letter-spacing: -.5px; margin: 0 0 20px;
 }
-.cpm-blog-preview .pm-blog-post-body { color: #e7ecf3; }
-.cpm-blog-preview .pm-blog-post-body a { color: var(--pm-accent-teal, #00e5cc); }
 
 /* --- Revision history drawer -------------------------------------------- */
 .cpm-blog-revision-modal {
@@ -23955,3 +23953,20 @@ button.cpm-badge-tile:disabled { opacity: 0.7; cursor: progress; }
 .pm-blog-post-body mark, .cpm-blog-editor-surface .ProseMirror mark {
   background-color: rgba(245, 166, 35, .4); color: inherit; padding: 0 2px; border-radius: 2px;
 }
+
+/* === Preview iframe ==================================================== */
+.cpm-blog-previewframe { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.cpm-blog-previewframe-bar {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  width: 100%; padding: 8px 4px;
+}
+.cpm-blog-previewframe-lab {
+  font-size: 11px; text-transform: uppercase; letter-spacing: .09em;
+  color: var(--pm-text-muted, #97a3b6);
+}
+.cpm-blog-previewframe-frame {
+  border: 1px solid var(--pm-overlay, #2a2f3a); border-radius: 10px;
+  background: #fff; height: calc(100vh - 260px); min-height: 480px;
+  max-width: 100%; transition: width .18s ease;
+}
+.cpm-blog-previewframe-error { color: var(--pm-accent-coral, #ff6b6b); padding: 24px; }
