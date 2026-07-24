@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import toast from 'react-hot-toast';
 import AssetPicker from '../AssetPicker';
+import BlogCardPanel from './BlogCardPanel';
 import {
   listBlogTags, createBlogTag, listBlogCategories, createBlogCategory,
   setBlogTaxonomy, uploadBlogImage,
@@ -244,6 +245,16 @@ export default function BlogMetaPanel({ post, title, onUpdate, isOpen, onClose }
       </div>
 
       <div className="cpm-blog-meta-panel-body">
+        <BlogCardPanel
+          title={title}
+          coverImageUrl={coverImageUrl}
+          excerpt={excerpt}
+          authorName={authorName}
+          categoryName={allCategories.find((c) => selectedCategoryIds.has(c.id))?.name}
+          publishedAt={post?.publishedAt}
+          linkUrl={linkUrl}
+          slug={slug}
+        />
         {post?.readingTimeMin != null && (
           <div className="cpm-blog-meta-reading-time">
             <i className="fas fa-clock" aria-hidden="true" /> {post.readingTimeMin} min read

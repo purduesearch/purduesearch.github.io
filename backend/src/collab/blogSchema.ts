@@ -3,6 +3,8 @@ import StarterKit from "@tiptap/starter-kit";
 import TaskList from "@tiptap/extension-task-list";
 import TaskItem from "@tiptap/extension-task-item";
 import { TableKit } from "@tiptap/extension-table";
+import { TextStyle } from "@tiptap/extension-text-style";
+import Highlight from "@tiptap/extension-highlight";
 
 // Schema-only mirrors of the custom nodes defined for the React editor in
 // src/components/clubpm/blog/Blog{Image,Embed,Gallery,Toc,Callout}.jsx.
@@ -47,6 +49,7 @@ const BlogGalleryNode = Node.create({
   group: "block",
   atom: true,
   addAttributes() {
+    // images: { src, alt, caption }[] — rendered as a carousel.
     return { images: { default: [] } };
   },
 });
@@ -81,7 +84,15 @@ const SectionNode = Node.create({
   },
 });
 
-const ColumnNode = Node.create({ name: "column", group: "block", content: "block+" });
+const ColumnNode = Node.create({
+  name: "column",
+  group: "block",
+  content: "block+",
+  addAttributes() {
+    // 12-column grid span; null = equal share. Mirrors BlogColumn.jsx.
+    return { span: { default: null } };
+  },
+});
 
 const HeroNode = Node.create({
   name: "hero", group: "block", atom: true,
@@ -113,6 +124,8 @@ export function blogCollabExtensions() {
     }),
     TaskList,
     TaskItem.configure({ nested: true }),
+    TextStyle.configure({ mergeNestedSpanStyles: true }),
+    Highlight.configure({ multicolor: true }),
     BlogImageNode,
     BlogEmbedNode,
     BlogGalleryNode,

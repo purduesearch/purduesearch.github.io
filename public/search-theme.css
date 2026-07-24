@@ -21824,8 +21824,6 @@ button.cpm-badge-tile:disabled { opacity: 0.7; cursor: progress; }
   color: #fff; font-family: var(--pm-font-display, inherit); font-size: 34px;
   font-weight: 800; letter-spacing: -.5px; margin: 0 0 20px;
 }
-.cpm-blog-preview .pm-blog-post-body { color: #e7ecf3; }
-.cpm-blog-preview .pm-blog-post-body a { color: var(--pm-accent-teal, #00e5cc); }
 
 /* --- Revision history drawer -------------------------------------------- */
 .cpm-blog-revision-modal {
@@ -23609,9 +23607,35 @@ button.cpm-badge-tile:disabled { opacity: 0.7; cursor: progress; }
 .pm-blog-post-body, .cpm-blog-editor-surface {
   --post-accent: var(--pm-accent-teal, #00e5cc);
   --post-max: 760px;
+  /* Every pair sets BOTH faces: display for headings/hero, body for prose.
+     Previously a single font-family landed on the wrapper, so headings never
+     received the display face and the default pair had no rule at all. */
+  --post-display: 'Syne', system-ui, sans-serif;
+  --post-body: 'DM Sans', system-ui, sans-serif;
 }
-.pm-blog-post-body[data-fontpair="oswald-lato"], .cpm-blog-editor-surface[data-fontpair="oswald-lato"] { font-family: 'Lato', system-ui, sans-serif; }
-.pm-blog-post-body[data-fontpair="montserrat-worksans"], .cpm-blog-editor-surface[data-fontpair="montserrat-worksans"] { font-family: 'Work Sans', system-ui, sans-serif; }
+.pm-blog-post-body[data-fontpair="syne-dmsans"], .cpm-blog-editor-surface[data-fontpair="syne-dmsans"] {
+  --post-display: 'Syne', system-ui, sans-serif;
+  --post-body: 'DM Sans', system-ui, sans-serif;
+}
+.pm-blog-post-body[data-fontpair="oswald-lato"], .cpm-blog-editor-surface[data-fontpair="oswald-lato"] {
+  --post-display: 'Oswald', system-ui, sans-serif;
+  --post-body: 'Lato', system-ui, sans-serif;
+}
+.pm-blog-post-body[data-fontpair="montserrat-worksans"], .cpm-blog-editor-surface[data-fontpair="montserrat-worksans"] {
+  --post-display: 'Montserrat', system-ui, sans-serif;
+  --post-body: 'Work Sans', system-ui, sans-serif;
+}
+
+.pm-blog-post-body, .cpm-blog-editor-surface .ProseMirror { font-family: var(--post-body); }
+.pm-blog-post-body h1, .pm-blog-post-body h2, .pm-blog-post-body h3,
+.pm-blog-post-body h4, .pm-blog-post-body h5, .pm-blog-post-body h6,
+.pm-blog-post-body .cpm-blog-hero h1, .pm-blog-post-body .cpm-blog-stat-value,
+.cpm-blog-editor-surface .ProseMirror h1, .cpm-blog-editor-surface .ProseMirror h2,
+.cpm-blog-editor-surface .ProseMirror h3, .cpm-blog-editor-surface .ProseMirror h4,
+.cpm-blog-editor-surface .ProseMirror h5, .cpm-blog-editor-surface .ProseMirror h6,
+.cpm-blog-editor-surface .cpm-blog-hero h1, .cpm-blog-editor-surface .cpm-blog-hero-h {
+  font-family: var(--post-display);
+}
 .pm-blog-post-body[data-width="wide"], .cpm-blog-editor-surface[data-width="wide"] { --post-max: 1040px; }
 
 .cpm-blog-section { width: 100%; }
@@ -23623,17 +23647,26 @@ button.cpm-badge-tile:disabled { opacity: 0.7; cursor: progress; }
 .cpm-blog-section--pad-xl .cpm-blog-section-inner { padding: 88px 20px; }
 .cpm-blog-section--dark { background-color: #0e1116; color: #e6ebf2; }
 .cpm-blog-section--light { background-color: #ffffff; color: #14181f; }
-/* Column layouts: grid that collapses to one column on mobile */
+/* Column layouts: 12-track grid that collapses to one column on mobile */
 .cpm-blog-section--cols2 .cpm-blog-section-inner,
 .cpm-blog-section--cols3 .cpm-blog-section-inner,
-.cpm-blog-section--mediaText .cpm-blog-section-inner { display: grid; gap: 28px; align-items: start; }
-.cpm-blog-section--cols2 .cpm-blog-section-inner { grid-template-columns: 1fr 1fr; }
-.cpm-blog-section--cols3 .cpm-blog-section-inner { grid-template-columns: 1fr 1fr 1fr; }
-.cpm-blog-section--mediaText .cpm-blog-section-inner { grid-template-columns: 1fr 1fr; }
-@media (max-width: 640px) {
+.cpm-blog-section--mediaText .cpm-blog-section-inner {
+  display: grid; gap: 28px; align-items: start;
+  grid-template-columns: repeat(12, 1fr);
+}
+/* Defaults when a column carries no explicit span. An inline
+   `grid-column:span N` from the column node overrides these. */
+.cpm-blog-section--cols2 .cpm-blog-col,
+.cpm-blog-section--mediaText .cpm-blog-col { grid-column: span 6; }
+.cpm-blog-section--cols3 .cpm-blog-col { grid-column: span 4; }
+
+@media (max-width: 900px) {
   .cpm-blog-section--cols2 .cpm-blog-section-inner,
   .cpm-blog-section--cols3 .cpm-blog-section-inner,
   .cpm-blog-section--mediaText .cpm-blog-section-inner { grid-template-columns: 1fr; }
+  /* !important is required: it has to beat the inline span written by the
+     column node, which is otherwise higher specificity than any selector. */
+  .cpm-blog-col { grid-column: 1 / -1 !important; }
 }
 .cpm-blog-hero { position: relative; background-size: cover; background-position: center; padding: 96px 24px; text-align: center; }
 .cpm-blog-hero--left { text-align: left; }
@@ -23810,4 +23843,227 @@ button.cpm-badge-tile:disabled { opacity: 0.7; cursor: progress; }
 .cpm-blog-editor-surface .cpm-blog-hero-s,
 .cpm-blog-editor-surface .cpm-blog-stat-label {
   color: #eef2f8 !important;
+}
+
+/* === Blog carousel (gallery) ==========================================
+   One markup contract shared by the editor NodeView, the preview iframe and
+   the published page. Scroll-snap does the work; src/lib/blogCarousel.js only
+   adds arrows, dots and keyboard nav on top. */
+.cpm-blog-carousel { position: relative; margin: 1.6em 0; }
+.cpm-blog-carousel-track {
+  display: flex; gap: 14px; overflow-x: auto; scroll-snap-type: x mandatory;
+  scroll-behavior: smooth; scrollbar-width: none; padding-bottom: 4px;
+}
+.cpm-blog-carousel-track::-webkit-scrollbar { display: none; }
+.cpm-blog-carousel-slide {
+  flex: 0 0 100%; scroll-snap-align: center; margin: 0; min-width: 0;
+}
+.cpm-blog-carousel-slide img {
+  width: 100%; height: auto; display: block; border-radius: 10px; object-fit: cover;
+}
+.cpm-blog-carousel-cap {
+  margin-top: 8px; font-size: 13px; line-height: 1.5; opacity: .75; text-align: center;
+}
+.cpm-blog-carousel-nav {
+  position: absolute; top: 50%; transform: translateY(-50%); z-index: 2;
+  width: 38px; height: 38px; border-radius: 50%; border: none; cursor: pointer;
+  background: rgba(0, 0, 0, .55); color: #fff; font-size: 20px; line-height: 1;
+  display: grid; place-items: center; transition: opacity .15s ease;
+}
+.cpm-blog-carousel-nav:hover { background: rgba(0, 0, 0, .75); }
+.cpm-blog-carousel-nav:disabled { opacity: .25; cursor: default; }
+.cpm-blog-carousel-prev { left: 10px; }
+.cpm-blog-carousel-next { right: 10px; }
+.cpm-blog-carousel-dots { display: flex; justify-content: center; gap: 7px; margin-top: 12px; }
+.cpm-blog-carousel-dot {
+  width: 8px; height: 8px; border-radius: 50%; border: none; padding: 0; cursor: pointer;
+  background: currentColor; opacity: .28; transition: opacity .15s ease;
+}
+.cpm-blog-carousel-dot.is-active { opacity: 1; background: var(--post-accent, #00e5cc); }
+.cpm-blog-carousel:focus-visible { outline: 2px solid var(--post-accent, #00e5cc); outline-offset: 4px; }
+
+/* The press-kit PDF is rendered by headless Chrome with no JS, so show every
+   image as a grid instead of stranding the reader on slide one. */
+@media print {
+  .cpm-blog-carousel-track { display: grid; grid-template-columns: 1fr 1fr; overflow: visible; }
+  .cpm-blog-carousel-nav, .cpm-blog-carousel-dots { display: none; }
+}
+
+/* Carousel editing rows — editor only, never published. */
+.cpm-blog-carousel-empty-slide {
+  width: 100%; aspect-ratio: 16 / 9; border-radius: 10px;
+  border: 1px dashed rgba(255, 255, 255, .25); background: rgba(255, 255, 255, .04);
+}
+.cpm-blog-carousel-edit { margin-top: 12px; display: grid; gap: 6px; }
+.cpm-blog-carousel-edit-row { display: flex; align-items: center; gap: 7px; }
+.cpm-blog-carousel-edit-thumb {
+  width: 44px; height: 32px; object-fit: cover; border-radius: 4px; flex: 0 0 auto;
+  background: rgba(255, 255, 255, .07);
+}
+.cpm-blog-carousel-edit-input {
+  flex: 1 1 0; min-width: 0; font-size: 12px; padding: 5px 8px; border-radius: 5px;
+  border: 1px solid var(--pm-overlay, #2a2f3a); background: rgba(0, 0, 0, .25); color: #eef2f8;
+}
+
+/* === Section Builder: editor-only affordances =========================
+   Scoped to .cpm-blog-editor-surface so borders, grips and gutter controls
+   never reach the preview iframe or the published page. */
+.cpm-blog-editor-surface .cpm-blog-section {
+  border: 1px dashed rgba(120, 180, 255, .35);
+  border-radius: 8px;
+  margin: 10px 0;
+  transition: border-color .15s ease;
+}
+.cpm-blog-editor-surface .cpm-blog-section:hover { border-color: rgba(120, 180, 255, .65); }
+.cpm-blog-editor-surface .cpm-blog-section.is-selected { border-color: var(--pm-accent-teal, #00e5cc); border-style: solid; }
+
+.cpm-blog-section-grip {
+  position: absolute; left: -22px; top: 10px; width: 18px; height: 26px;
+  display: grid; place-items: center; cursor: grab; opacity: 0;
+  color: rgba(160, 200, 255, .85); transition: opacity .15s ease;
+}
+.cpm-blog-editor-surface .cpm-blog-section:hover .cpm-blog-section-grip { opacity: 1; }
+.cpm-blog-section-grip:active { cursor: grabbing; }
+
+.cpm-blog-section-gutters {
+  position: absolute; left: 0; right: 0; bottom: 4px;
+  display: flex; justify-content: center; gap: 12px;
+  opacity: 0; transition: opacity .15s ease; pointer-events: none;
+}
+.cpm-blog-editor-surface .cpm-blog-section:hover .cpm-blog-section-gutters { opacity: 1; pointer-events: auto; }
+.cpm-blog-section-gutter {
+  display: inline-flex; align-items: center; gap: 4px; font-size: 10px;
+  background: #0b0e13; border: 1px solid var(--pm-overlay, #2a2f3a);
+  border-radius: 999px; padding: 2px 6px;
+}
+.cpm-blog-section-gutter button {
+  background: none; border: none; color: var(--pm-accent-teal, #00e5cc);
+  cursor: pointer; font-size: 13px; line-height: 1; padding: 0 3px;
+}
+.cpm-blog-section-gutter-read { color: var(--pm-text-muted, #97a3b6); font-variant-numeric: tabular-nums; }
+
+.cpm-blog-tb-color {
+  display: inline-flex; align-items: center; gap: 4px; cursor: pointer;
+  padding: 3px 6px; border-radius: 5px; border: 1px solid var(--pm-overlay, #2a2f3a);
+  background: rgba(255, 255, 255, .04); color: #cfd7e3; font-size: 12px;
+}
+.cpm-blog-tb-color input[type="color"] {
+  width: 18px; height: 18px; padding: 0; border: none; background: none; cursor: pointer;
+}
+.pm-blog-post-body mark, .cpm-blog-editor-surface .ProseMirror mark {
+  background-color: rgba(245, 166, 35, .4); color: inherit; padding: 0 2px; border-radius: 2px;
+}
+
+/* === Preview iframe ==================================================== */
+.cpm-blog-previewframe { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.cpm-blog-previewframe-bar {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  width: 100%; padding: 8px 4px;
+}
+.cpm-blog-previewframe-lab {
+  font-size: 11px; text-transform: uppercase; letter-spacing: .09em;
+  color: var(--pm-text-muted, #97a3b6);
+}
+.cpm-blog-previewframe-frame {
+  border: 1px solid var(--pm-overlay, #2a2f3a); border-radius: 10px;
+  background: #fff; height: calc(100vh - 260px); min-height: 480px;
+  max-width: 100%; transition: width .18s ease;
+}
+.cpm-blog-previewframe-error { color: var(--pm-accent-coral, #ff6b6b); padding: 24px; }
+
+/* === Public article wrapper ===========================================
+   The article is NOT width-constrained here: each section constrains itself
+   via .cpm-blog-section-inner { max-width: var(--post-max) }, which is what
+   lets width:fullBleed sections and the theme's "wide" setting work at all.
+   Legacy posts whose content is bare blocks (no section wrappers) still need
+   a readable measure, so those are constrained individually. */
+.pm-blog-article { width: 100%; padding: 0; }
+.pm-blog-post-body > :not(.cpm-blog-section) {
+  max-width: var(--post-max, 760px);
+  margin-left: auto;
+  margin-right: auto;
+}
+.pm-blog-article-foot {
+  max-width: var(--post-max, 760px);
+  margin: 0 auto;
+  padding: 0 20px 8px;
+}
+
+/* === Blog card panel =================================================== */
+.cpm-blog-cardpanel { margin-bottom: 18px; }
+.cpm-blog-cardpanel-preview {
+  background: #f4f5f7; border-radius: 10px; padding: 10px; margin-bottom: 10px;
+}
+.cpm-blog-cardpanel-preview .blog-item { margin: 0; }
+.cpm-blog-cardpanel-warn {
+  font-size: 11.5px; line-height: 1.5; color: var(--pm-accent-amber, #f5a623);
+  margin: 0 0 8px; border-left: 2px solid currentColor; padding-left: 9px;
+}
+.cpm-blog-cardpanel-hint {
+  font-size: 11px; line-height: 1.5; color: var(--pm-text-muted, #97a3b6); margin: 0 0 6px;
+}
+
+/* Clamp the card description instead of slicing the string, so descriptions
+   are never cut mid-word. */
+.blog-desc p {
+  display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* === Blog editor header: one primary action, everything else grouped === */
+.cpm-blog-editor-header-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.cpm-blog-editor-header-actions .clubpm-btn-secondary,
+.cpm-blog-editor-header-actions .clubpm-btn-primary {
+  display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+}
+.cpm-blog-header-sep { width: 1px; align-self: stretch; background: var(--pm-overlay, #2a2f3a); margin: 0 2px; }
+
+.cpm-blog-tool-group {
+  display: inline-flex; gap: 2px; padding: 2px;
+  border: 1px solid var(--pm-overlay, #2a2f3a); border-radius: 8px; background: rgba(0, 0, 0, .18);
+}
+.cpm-blog-tool-btn {
+  width: 30px; height: 28px; display: grid; place-items: center;
+  border: none; border-radius: 6px; background: none; cursor: pointer;
+  color: var(--pm-text-muted, #97a3b6); font-size: 13px;
+}
+.cpm-blog-tool-btn:hover { background: var(--pm-overlay, #2a2f3a); color: #eef2f8; }
+.cpm-blog-tool-btn.is-active { background: rgba(0, 229, 204, .15); color: var(--pm-accent-teal, #00e5cc); }
+
+.cpm-blog-publish-wrap { position: relative; display: inline-flex; }
+.cpm-blog-publish-main { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+.cpm-blog-publish-caret { border-top-left-radius: 0; border-bottom-left-radius: 0; padding-left: 9px; padding-right: 9px; }
+.cpm-blog-publish-caret.is-solo { border-radius: 8px; }
+
+.cpm-blog-publish-pop {
+  position: absolute; top: calc(100% + 6px); right: 0; z-index: 40; min-width: 208px;
+  background: var(--pm-elevated, #1e2430); border: 1px solid var(--pm-overlay, #2a2f3a);
+  border-radius: 9px; padding: 5px; box-shadow: 0 12px 34px rgba(0, 0, 0, .45);
+}
+.cpm-blog-publish-pop button[role="menuitem"] {
+  display: flex; align-items: center; gap: 9px; width: 100%; text-align: left;
+  background: none; border: none; cursor: pointer; color: #dfe6f0;
+  font-size: 13px; padding: 8px 10px; border-radius: 6px;
+}
+.cpm-blog-publish-pop button[role="menuitem"]:hover { background: var(--pm-overlay, #2a2f3a); }
+.cpm-blog-publish-pop button[role="menuitem"]:disabled { opacity: .45; cursor: default; }
+.cpm-blog-publish-pop button.is-danger { color: var(--pm-accent-coral, #ff6b6b); }
+.cpm-blog-publish-sep { height: 1px; background: var(--pm-overlay, #2a2f3a); margin: 5px 4px; }
+
+.cpm-blog-schedule-pop { padding: 12px; min-width: 250px; }
+.cpm-blog-schedule-pop-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
+
+/* Toolbar bands — related controls sit in one pill, so the bar reads as
+   groups rather than a run of loose buttons. */
+.cpm-blog-tb-band {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 5px; border-radius: 8px;
+  background: rgba(255, 255, 255, .03); border: 1px solid transparent;
+}
+.cpm-blog-tb-band + .cpm-blog-tb-band { margin-left: 6px; }
+.cpm-blog-tb-band--end { margin-left: auto; }
+.cpm-blog-design-pop { padding: 10px; min-width: 230px; }
+.cpm-blog-design-pop .cpm-blog-themebar { display: flex; flex-wrap: wrap; gap: 8px; }
+.cpm-blog-design-hint {
+  font-size: 11px; color: var(--pm-text-muted, #97a3b6); margin: 8px 0 0;
 }

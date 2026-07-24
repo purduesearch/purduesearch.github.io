@@ -150,6 +150,36 @@ blogRouter.patch("/posts/:id", async (req: Request, res: Response) => {
   }
 });
 
+// Render the current (possibly unsaved) document exactly as publish would.
+// Preview MUST go through renderJsonToHtml so it cannot drift from the
+// published page — this is the whole point of the endpoint existing.
+blogRouter.post("/posts/:id/preview", async (req: Request, res: Response) => {
+  try {
+    const post = await requirePostAccess(req, res);
+    if (!post) return;
+
+    const { contentJson } = req.body as { contentJson?: PMDoc };
+    const doc = (contentJson ?? post.contentJson) as PMDoc;
+    const origin = `${req.protocol}://${req.get("host")}`;
+    const { renderJsonToHtml } = await import("../services/blogRender.js");
+
+    res.json({
+      html: renderJsonToHtml(doc, origin),
+      meta: {
+        title: post.title,
+        coverImageUrl: post.coverImageUrl,
+        authorName: post.authorName,
+        publishedAt: post.publishedAt,
+        readingTimeMin: post.readingTimeMin,
+        theme: post.theme,
+      },
+    });
+  } catch (error) {
+    console.error("POST /blog/posts/:id/preview error:", error);
+    res.status(500).json({ error: "Failed to render preview" });
+  }
+});
+
 blogRouter.delete("/posts/:id", async (req: Request, res: Response) => {
   try {
     if (!(await requirePostAccess(req, res))) return;

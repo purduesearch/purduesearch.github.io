@@ -116,6 +116,29 @@ export function collectHeadings(
 
 // ── Inline marks ─────────────────────────────────────────────
 
+// ── Inline typography allowlist ──────────────────────────────
+// textStyle/highlight write a style attribute into HTML served on the public
+// site, so values are matched against a fixed allowlist rather than passed
+// through. Anything unrecognised is dropped, never sanitised-and-kept.
+
+const ALLOWED_FONTS = new Set(["Syne", "DM Sans", "Oswald", "Lato", "Montserrat", "Work Sans"]);
+const HEX_COLOR = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
+
+function textStyleCss(attrs?: Record<string, unknown>): string {
+  const parts: string[] = [];
+
+  const family = String(attrs?.fontFamily ?? "").replace(/["']/g, "").trim();
+  if (ALLOWED_FONTS.has(family)) parts.push(`font-family:'${family}', system-ui, sans-serif`);
+
+  const size = Number.parseFloat(String(attrs?.fontSize ?? ""));
+  if (Number.isFinite(size)) parts.push(`font-size:${Math.min(96, Math.max(10, Math.round(size)))}px`);
+
+  const color = String(attrs?.color ?? "").trim();
+  if (HEX_COLOR.test(color)) parts.push(`color:${color}`);
+
+  return parts.join(";");
+}
+
 function wrapMarks(text: string, marks?: PMMark[]): string {
   if (!marks || marks.length === 0) return text;
   let out = text;
@@ -143,6 +166,18 @@ function wrapMarks(text: string, marks?: PMMark[]): string {
         const href = escapeAttr(String(mark.attrs?.href ?? "#"));
         const target = mark.attrs?.target ? ` target="${escapeAttr(String(mark.attrs.target))}"` : ` target="_blank"`;
         out = `<a href="${href}"${target} rel="noopener noreferrer">${out}</a>`;
+        break;
+      }
+      case "textStyle": {
+        const css = textStyleCss(mark.attrs);
+        if (css) out = `<span style="${css}">${out}</span>`;
+        break;
+      }
+      case "highlight": {
+        const color = String(mark.attrs?.color ?? "").trim();
+        out = HEX_COLOR.test(color)
+          ? `<mark style="background-color:${color}">${out}</mark>`
+          : `<mark>${out}</mark>`;
         break;
       }
       default:
@@ -232,10 +267,26 @@ function renderNode(node: PMNode, headingIds: Map<PMNode, string>): string {
     }
     case "gallery": {
       const images = Array.isArray(node.attrs?.images) ? (node.attrs!.images as Array<Record<string, unknown>>) : [];
-      const items = images
-        .map((im) => `<img src="${escapeAttr(proxyImageSrc(String(im.src ?? im.url ?? ""), IMAGE_BASE_URL))}" alt="${escapeAttr(String(im.alt ?? ""))}"/>`)
-        .join("");
-      return `<div class="cpm-blog-gallery">${items}</div>`;
+      const usable = images.filter((im) => String(im.src ?? im.url ?? "").trim());
+      if (!usable.length) return "";
+      const slides = usable.map((im) => {
+        const src = escapeAttr(proxyImageSrc(String(im.src ?? im.url ?? ""), IMAGE_BASE_URL));
+        const alt = escapeAttr(String(im.alt ?? ""));
+        const capText = String(im.caption ?? "").trim();
+        const caption = capText
+          ? `<figcaption class="cpm-blog-carousel-cap">${escapeHtml(capText)}</figcaption>`
+          : "";
+        return `<figure class="cpm-blog-carousel-slide"><img src="${src}" alt="${alt}" loading="lazy"/>${caption}</figure>`;
+      }).join("");
+      const dots = usable.map((_, i) =>
+        `<button type="button" class="cpm-blog-carousel-dot" data-index="${i}" aria-label="Go to image ${i + 1}"></button>`
+      ).join("");
+      return `<div class="cpm-blog-carousel" data-carousel>` +
+        `<div class="cpm-blog-carousel-track">${slides}</div>` +
+        `<button type="button" class="cpm-blog-carousel-nav cpm-blog-carousel-prev" aria-label="Previous image">&#8249;</button>` +
+        `<button type="button" class="cpm-blog-carousel-nav cpm-blog-carousel-next" aria-label="Next image">&#8250;</button>` +
+        `<div class="cpm-blog-carousel-dots">${dots}</div>` +
+        `</div>`;
     }
     case "callout": {
       const variant = escapeAttr(String(node.attrs?.variant ?? "info"));
@@ -265,8 +316,15 @@ function renderNode(node: PMNode, headingIds: Map<PMNode, string>): string {
       const styleAttr = styles.length ? ` style="${styles.join(";")}"` : "";
       return `<section class="${cls}"${styleAttr}><div class="cpm-blog-section-inner">${inner}</div></section>`;
     }
-    case "column":
-      return `<div class="cpm-blog-col">${renderChildren(node, headingIds)}</div>`;
+    case "column": {
+      // Optional 12-column grid span. Anything not an integer in 1..12 is
+      // dropped, so the attribute can never inject arbitrary CSS.
+      const rawSpan = node.attrs?.span;
+      const span = typeof rawSpan === "number" ? rawSpan : Number.NaN;
+      const valid = Number.isInteger(span) && span >= 1 && span <= 12;
+      const style = valid ? ` style="grid-column:span ${span}"` : "";
+      return `<div class="cpm-blog-col"${style}>${renderChildren(node, headingIds)}</div>`;
+    }
     case "hero": {
       const heading = escapeHtml(String(node.attrs?.heading ?? ""));
       const sub = escapeHtml(String(node.attrs?.subheading ?? ""));

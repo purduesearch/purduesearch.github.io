@@ -65,8 +65,14 @@ function blockToMarkdown(node, depth = 0) {
     case 'image':
       return imageToMarkdown(node);
     case 'gallery':
+      // Markdown has no carousel; each slide degrades to an image whose title
+      // attribute carries the caption, which markdownToTiptapJson reads back.
       return (node.attrs?.images || [])
-        .map((im) => `![${im.alt || ''}](${im.src || im.url || ''})`)
+        .map((im) => {
+          const src = im.src || im.url || '';
+          const cap = (im.caption || '').replace(/"/g, "'");
+          return cap ? `![${im.alt || ''}](${src} "${cap}")` : `![${im.alt || ''}](${src})`;
+        })
         .join('\n');
     case 'embed':
       return `[embed: ${node.attrs?.provider || 'link'}](${node.attrs?.url || ''})`;
