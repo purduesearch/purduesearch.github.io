@@ -23609,9 +23609,35 @@ button.cpm-badge-tile:disabled { opacity: 0.7; cursor: progress; }
 .pm-blog-post-body, .cpm-blog-editor-surface {
   --post-accent: var(--pm-accent-teal, #00e5cc);
   --post-max: 760px;
+  /* Every pair sets BOTH faces: display for headings/hero, body for prose.
+     Previously a single font-family landed on the wrapper, so headings never
+     received the display face and the default pair had no rule at all. */
+  --post-display: 'Syne', system-ui, sans-serif;
+  --post-body: 'DM Sans', system-ui, sans-serif;
 }
-.pm-blog-post-body[data-fontpair="oswald-lato"], .cpm-blog-editor-surface[data-fontpair="oswald-lato"] { font-family: 'Lato', system-ui, sans-serif; }
-.pm-blog-post-body[data-fontpair="montserrat-worksans"], .cpm-blog-editor-surface[data-fontpair="montserrat-worksans"] { font-family: 'Work Sans', system-ui, sans-serif; }
+.pm-blog-post-body[data-fontpair="syne-dmsans"], .cpm-blog-editor-surface[data-fontpair="syne-dmsans"] {
+  --post-display: 'Syne', system-ui, sans-serif;
+  --post-body: 'DM Sans', system-ui, sans-serif;
+}
+.pm-blog-post-body[data-fontpair="oswald-lato"], .cpm-blog-editor-surface[data-fontpair="oswald-lato"] {
+  --post-display: 'Oswald', system-ui, sans-serif;
+  --post-body: 'Lato', system-ui, sans-serif;
+}
+.pm-blog-post-body[data-fontpair="montserrat-worksans"], .cpm-blog-editor-surface[data-fontpair="montserrat-worksans"] {
+  --post-display: 'Montserrat', system-ui, sans-serif;
+  --post-body: 'Work Sans', system-ui, sans-serif;
+}
+
+.pm-blog-post-body, .cpm-blog-editor-surface .ProseMirror { font-family: var(--post-body); }
+.pm-blog-post-body h1, .pm-blog-post-body h2, .pm-blog-post-body h3,
+.pm-blog-post-body h4, .pm-blog-post-body h5, .pm-blog-post-body h6,
+.pm-blog-post-body .cpm-blog-hero h1, .pm-blog-post-body .cpm-blog-stat-value,
+.cpm-blog-editor-surface .ProseMirror h1, .cpm-blog-editor-surface .ProseMirror h2,
+.cpm-blog-editor-surface .ProseMirror h3, .cpm-blog-editor-surface .ProseMirror h4,
+.cpm-blog-editor-surface .ProseMirror h5, .cpm-blog-editor-surface .ProseMirror h6,
+.cpm-blog-editor-surface .cpm-blog-hero h1, .cpm-blog-editor-surface .cpm-blog-hero-h {
+  font-family: var(--post-display);
+}
 .pm-blog-post-body[data-width="wide"], .cpm-blog-editor-surface[data-width="wide"] { --post-max: 1040px; }
 
 .cpm-blog-section { width: 100%; }
