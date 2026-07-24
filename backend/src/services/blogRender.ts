@@ -232,10 +232,26 @@ function renderNode(node: PMNode, headingIds: Map<PMNode, string>): string {
     }
     case "gallery": {
       const images = Array.isArray(node.attrs?.images) ? (node.attrs!.images as Array<Record<string, unknown>>) : [];
-      const items = images
-        .map((im) => `<img src="${escapeAttr(proxyImageSrc(String(im.src ?? im.url ?? ""), IMAGE_BASE_URL))}" alt="${escapeAttr(String(im.alt ?? ""))}"/>`)
-        .join("");
-      return `<div class="cpm-blog-gallery">${items}</div>`;
+      const usable = images.filter((im) => String(im.src ?? im.url ?? "").trim());
+      if (!usable.length) return "";
+      const slides = usable.map((im) => {
+        const src = escapeAttr(proxyImageSrc(String(im.src ?? im.url ?? ""), IMAGE_BASE_URL));
+        const alt = escapeAttr(String(im.alt ?? ""));
+        const capText = String(im.caption ?? "").trim();
+        const caption = capText
+          ? `<figcaption class="cpm-blog-carousel-cap">${escapeHtml(capText)}</figcaption>`
+          : "";
+        return `<figure class="cpm-blog-carousel-slide"><img src="${src}" alt="${alt}" loading="lazy"/>${caption}</figure>`;
+      }).join("");
+      const dots = usable.map((_, i) =>
+        `<button type="button" class="cpm-blog-carousel-dot" data-index="${i}" aria-label="Go to image ${i + 1}"></button>`
+      ).join("");
+      return `<div class="cpm-blog-carousel" data-carousel>` +
+        `<div class="cpm-blog-carousel-track">${slides}</div>` +
+        `<button type="button" class="cpm-blog-carousel-nav cpm-blog-carousel-prev" aria-label="Previous image">&#8249;</button>` +
+        `<button type="button" class="cpm-blog-carousel-nav cpm-blog-carousel-next" aria-label="Next image">&#8250;</button>` +
+        `<div class="cpm-blog-carousel-dots">${dots}</div>` +
+        `</div>`;
     }
     case "callout": {
       const variant = escapeAttr(String(node.attrs?.variant ?? "info"));

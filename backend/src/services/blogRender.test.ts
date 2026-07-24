@@ -68,5 +68,29 @@ check("passes through a normal https image",
   check("non-numeric span cannot inject css", !html.includes("background:url"));
 }
 
+{
+  const doc = { type: "doc", content: [
+    { type: "gallery", attrs: { images: [
+      { src: "https://example.com/a.png", alt: "A", caption: "First <slide>" },
+      { src: "https://example.com/b.png", alt: "B" },
+      { src: "", alt: "empty" },
+    ] } },
+  ] };
+  const html = _render(doc as any);
+  check("carousel wrapper", html.includes('class="cpm-blog-carousel"') && html.includes("data-carousel"));
+  check("carousel track", html.includes('class="cpm-blog-carousel-track"'));
+  check("slide figure", html.includes('class="cpm-blog-carousel-slide"'));
+  check("caption rendered and escaped", html.includes("First &lt;slide&gt;"));
+  check("slide without caption has no figcaption text", (html.match(/figcaption/g) ?? []).length === 2);
+  check("empty src is skipped", (html.match(/<img /g) ?? []).length === 2);
+  check("prev/next controls", html.includes("cpm-blog-carousel-prev") && html.includes("cpm-blog-carousel-next"));
+  check("one dot per rendered slide", (html.match(/cpm-blog-carousel-dot"/g) ?? []).length === 2);
+}
+
+{
+  const empty = { type: "doc", content: [{ type: "gallery", attrs: { images: [] } }] };
+  check("empty gallery renders nothing", _render(empty as any).includes("cpm-blog-carousel") === false);
+}
+
 console.log(`\nblogRender: ${passed} passed, ${failed} failed`);
 if (failed > 0) process.exit(1);
