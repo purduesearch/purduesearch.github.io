@@ -163,5 +163,52 @@ function findAll(node: { content?: PMNode[] } | PMNode, type: string): PMNode[] 
   check("callout defaults to info when variant invalid", findAll(doc, "callout")[0]?.attrs?.variant === "info");
 }
 
+// Column spans and gallery captions. The model's output is untrusted: every
+// new field must be clamped or dropped before it reaches a document.
+{
+  const plan = validateSectionPlan({ sections: [
+    { type: "columns", columns: [{ markdown: "one", span: 5 }, { markdown: "two", span: 7 }] },
+  ] });
+  check("valid spans survive", plan.sections[0]?.columns?.[0]?.span === 5 && plan.sections[0]?.columns?.[1]?.span === 7);
+}
+
+{
+  const plan = validateSectionPlan({ sections: [
+    { type: "columns", columns: [{ markdown: "a", span: 99 }, { markdown: "b", span: -3 }, { markdown: "c", span: "x" }] },
+  ] });
+  const spans = plan.sections[0]?.columns?.map((c) => c.span);
+  check("out-of-range spans dropped", spans?.every((s) => s === undefined) ?? false);
+}
+
+{
+  // 9 + 9 = 18 > 12: normalised, never emitted as-is.
+  const plan = validateSectionPlan({ sections: [
+    { type: "columns", columns: [{ markdown: "a", span: 9 }, { markdown: "b", span: 9 }] },
+  ] });
+  const total = (plan.sections[0]?.columns ?? []).reduce((n, c) => n + (c.span ?? 0), 0);
+  check("oversized span row normalised to <= 12", total <= 12);
+}
+
+{
+  const doc = buildDocFromPlan(validateSectionPlan({ sections: [
+    { type: "columns", columns: [{ markdown: "left", span: 4 }, { markdown: "right", span: 8 }] },
+  ] }));
+  const section = doc.content?.[0];
+  const cols = section?.content ?? [];
+  check("built columns carry span", cols[0]?.attrs?.span === 4 && cols[1]?.attrs?.span === 8);
+}
+
+{
+  const plan = validateSectionPlan({ sections: [
+    { type: "gallery", images: [{ alt: "a", caption: "First" }, { alt: "b", caption: "Second" }] },
+  ] });
+  check("gallery captions survive validation", plan.sections[0]?.images?.[1]?.caption === "Second");
+
+  const doc = buildDocFromPlan(plan);
+  const gallery = doc.content?.[0]?.content?.find((n) => n.type === "gallery");
+  const images = (gallery?.attrs?.images ?? []) as Array<Record<string, unknown>>;
+  check("built gallery carries caption placeholders", images.length === 2 && images[1]?.caption === "Second");
+}
+
 console.log(`\nsectionPlan.test: ${passed} passed, ${failed} failed`);
 if (failed > 0) process.exit(1);

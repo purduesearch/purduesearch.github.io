@@ -96,16 +96,18 @@ Respond with ONLY a valid JSON object (no markdown):
 const BLOG_PLAN_SCHEMA = `Return ONLY a JSON object: { "sections": PlanSection[] }. Compose a rich, visually varied article — NOT a title followed by one block of text. Use a MIX of these section types:
   { "type": "hero", "heading": string, "subheading": string, "align": "center"|"left", "overlay": boolean }
   { "type": "richText", "heading": string, "markdown": string }        // USE real formatting: ## / ### sub-headings, **bold**, *italic*, bullet AND numbered lists, > blockquotes, [links](url), \`inline code\`
-  { "type": "columns", "heading": string, "columns": [{ "markdown": string }, { "markdown": string }] }   // 2–3 side-by-side columns (comparisons, pros/cons, steps)
+  { "type": "columns", "heading": string, "columns": [{ "markdown": string, "span": number }, { "markdown": string, "span": number }] }   // 2–3 side-by-side columns (comparisons, pros/cons, steps)
   { "type": "mediaText", "heading": string, "markdown": string, "imageSide": "left"|"right", "imageAlt": string, "imageCaption": string }   // text next to an image placeholder
   { "type": "image", "imageAlt": string, "imageCaption": string }      // a full-width image placeholder
-  { "type": "gallery", "heading": string }                             // an empty image-gallery placeholder
+  { "type": "gallery", "heading": string, "images": [{ "alt": string, "caption": string }] }   // a captioned image carousel placeholder
   { "type": "callout", "variant": "info"|"success"|"warning"|"tip", "markdown": string }   // a highlighted note / tip box
   { "type": "stats", "heading": string, "stats": [{ "label": string, "value": string }] }   // a "by the numbers" band — ONLY with real numbers found in the source
   { "type": "quote", "text": string, "attribution": string }           // a pull-quote
   { "type": "cta", "label": string, "href": string, "style": "solid"|"outline" }   // a call-to-action band
   { "type": "divider" }                                                // a visual break between sections
 Any section may also set "theme" ("light"|"dark"|"inherit"), "width" ("contained"|"fullBleed"), and "padding" ("s"|"m"|"l"|"xl") for visual rhythm — e.g. a "dark" hero or CTA band.
+Each entry in "columns" may include "span": an integer 1-12 on a 12-column grid. The spans in one section must sum to 12 or less; omit them for an even split. Use uneven spans (e.g. 8 and 4) when one column carries an image or a sidebar.
+A "gallery" section may include "images": an array of { "alt", "caption" } placeholders. Write real captions describing what each photo should show — a human uploads the files later.
 Image placeholders (image / mediaText / gallery) are ENCOURAGED wherever a photo, diagram, or screenshot would help — describe the intended image in imageAlt/imageCaption; the author uploads the real file later (this is not fabricating facts).`;
 
 const BLOG_PLAN_RULES = `Rules:

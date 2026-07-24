@@ -35,13 +35,14 @@ export interface PlanSection {
   // richText body
   markdown?: string;
   // columns
-  columns?: { markdown: string }[];
+  columns?: { markdown: string; span?: number }[];
   // mediaText
   imageSide?: "left" | "right";
   imageAlt?: string;
   imageCaption?: string;
   // gallery
   imageCount?: number;
+  images?: { alt?: string; caption?: string }[];
   // callout
   variant?: "info" | "success" | "warning" | "tip";
   // quote
@@ -84,6 +85,23 @@ function clampStr(v: unknown, max: number): string | undefined {
   return typeof v === "string" ? v.slice(0, max) : undefined;
 }
 
+/** A 12-column span, or undefined when absent/invalid. */
+function clampSpan(v: unknown): number | undefined {
+  if (typeof v !== "number" || !Number.isFinite(v)) return undefined;
+  const n = Math.round(v);
+  return n >= 1 && n <= 12 ? n : undefined;
+}
+
+/**
+ * Drop every span in a row when they sum above 12 — a partially-honoured row
+ * lays out worse than an evenly-split one, and equal share is the fallback.
+ */
+function normaliseSpans(cols: { markdown: string; span?: number }[]): { markdown: string; span?: number }[] {
+  const total = cols.reduce((n, c) => n + (c.span ?? 0), 0);
+  if (total <= 12) return cols;
+  return cols.map(({ markdown }) => ({ markdown }));
+}
+
 /** Coerce arbitrary model JSON into a safe SectionPlan (drops unknown types/fields). */
 export function validateSectionPlan(raw: unknown): SectionPlan {
   const root = (raw ?? {}) as Record<string, unknown>;
@@ -108,8 +126,13 @@ export function validateSectionPlan(raw: unknown): SectionPlan {
     if (typeof o.overlay === "boolean") sec.overlay = o.overlay;
     const md = clampStr(o.markdown, 8000);         if (md !== undefined) sec.markdown = md;
     if (Array.isArray(o.columns)) {
-      sec.columns = o.columns.slice(0, 3).map((c) => ({
-        markdown: clampStr((c as Record<string, unknown> | null)?.markdown, 5000) ?? "",
+      sec.columns = normaliseSpans(o.columns.slice(0, 3).map((c) => {
+        const rec = (c ?? {}) as Record<string, unknown>;
+        const span = clampSpan(rec.span);
+        return {
+          markdown: clampStr(rec.markdown, 5000) ?? "",
+          ...(span !== undefined ? { span } : {}),
+        };
       }));
     }
     if (o.imageSide === "left" || o.imageSide === "right") sec.imageSide = o.imageSide;
@@ -117,6 +140,15 @@ export function validateSectionPlan(raw: unknown): SectionPlan {
     const iCap = clampStr(o.imageCaption, 300);     if (iCap !== undefined) sec.imageCaption = iCap;
     if (typeof o.imageCount === "number" && Number.isFinite(o.imageCount)) {
       sec.imageCount = Math.max(0, Math.min(8, Math.round(o.imageCount)));
+    }
+    if (Array.isArray(o.images)) {
+      sec.images = o.images.slice(0, 12).map((x) => {
+        const rec = (x ?? {}) as Record<string, unknown>;
+        return {
+          alt: clampStr(rec.alt, 300) ?? "",
+          caption: clampStr(rec.caption, 300) ?? "",
+        };
+      });
     }
     if (typeof o.variant === "string" && CALLOUT_VARIANTS.has(o.variant)) sec.variant = o.variant as PlanSection["variant"];
     const text = clampStr(o.text, 1200);           if (text !== undefined) sec.text = text;
@@ -171,9 +203,13 @@ function imageNode(alt?: string, caption?: string): PMNode {
 }
 
 /** A column node whose content is parsed from markdown (never empty). */
-function columnNode(md: string | undefined, extra: PMNode[] = []): PMNode {
+function columnNode(md: string | undefined, extra: PMNode[] = [], span?: number): PMNode {
   const cb = [...extra, ...blocks(md)];
-  return { type: "column", content: cb.length ? cb : [{ type: "paragraph" }] };
+  return {
+    type: "column",
+    ...(span !== undefined ? { attrs: { span } } : {}),
+    content: cb.length ? cb : [{ type: "paragraph" }],
+  };
 }
 
 /**
@@ -211,11 +247,11 @@ export function buildDocFromPlan(plan: SectionPlan, data: PlanData = {}): PMDoc 
       }
       case "columns": {
         const filled = (s.columns ?? [])
-          .map((c) => (c?.markdown ?? "").trim())
-          .filter(Boolean);
+          .filter((c) => (c?.markdown ?? "").trim())
+          .map((c) => ({ markdown: c.markdown.trim(), span: c.span }));
         if (!filled.length) break;
         if (filled.length === 1) {
-          out.push(section(withStyle({ layout: "single", padding: "l" }, s), blocks(filled[0])));
+          out.push(section(withStyle({ layout: "single", padding: "l" }, s), blocks(filled[0]!.markdown)));
           break;
         }
         // A heading above a grid can't be a grid cell, so it gets its own band.
@@ -223,7 +259,7 @@ export function buildDocFromPlan(plan: SectionPlan, data: PlanData = {}): PMDoc 
         const n = Math.min(filled.length, 3);
         out.push(section(
           withStyle({ layout: n >= 3 ? "cols3" : "cols2", padding: "l" }, s),
-          filled.slice(0, n).map((md) => columnNode(md)),
+          filled.slice(0, n).map((c) => columnNode(c.markdown, [], c.span)),
         ));
         break;
       }
@@ -243,7 +279,9 @@ export function buildDocFromPlan(plan: SectionPlan, data: PlanData = {}): PMDoc 
       case "gallery": {
         const inner: PMNode[] = [];
         if (s.heading?.trim()) inner.push(h2(s.heading.trim()));
-        inner.push({ type: "gallery", attrs: { images: [] } });
+        // Placeholders with AI-authored alt/caption; src is filled by a human.
+        const seeded = (s.images ?? []).map((im) => ({ src: "", alt: im.alt ?? "", caption: im.caption ?? "" }));
+        inner.push({ type: "gallery", attrs: { images: seeded } });
         out.push(section(withStyle({ layout: "single", padding: "l" }, s), inner));
         break;
       }
