@@ -35,11 +35,23 @@ export function staggerGroup(container, childSelector, { y = 24, each = 0.08 } =
   if (!container || reduced()) return () => {};
   const items = container.querySelectorAll(childSelector);
   if (!items.length) return () => {};
-  const tween = gsap.from(items, {
-    y, autoAlpha: 0, duration: 0.55, ease: 'power3.out', stagger: each,
-    scrollTrigger: { trigger: container, start: 'top 78%', once: true },
-  });
-  return () => { tween.scrollTrigger?.kill(); tween.kill(); };
+  // fromTo, never from: a `from` tween treats the element's CURRENT value as
+  // its destination, so if the effect re-runs after a killed tween left the
+  // element at opacity 0 (StrictMode double-invoke, route remount) it would
+  // animate 0 -> 0 and the content would stay invisible forever.
+  const tween = gsap.fromTo(items,
+    { y, autoAlpha: 0 },
+    {
+      y: 0, autoAlpha: 1, duration: 0.55, ease: 'power3.out', stagger: each,
+      scrollTrigger: { trigger: container, start: 'top 78%', once: true },
+    },
+  );
+  return () => {
+    tween.scrollTrigger?.kill();
+    tween.kill();
+    // A tween killed mid-flight must never leave content hidden.
+    gsap.set(items, { clearProps: 'opacity,visibility,transform' });
+  };
 }
 
 export function marquee(track, { pxPerSec = 40 } = {}) {
@@ -65,8 +77,16 @@ export function marquee(track, { pxPerSec = 40 } = {}) {
 
 export function heroIntro(container, childSelector) {
   if (!container || reduced()) return () => {};
-  const tween = gsap.from(container.querySelectorAll(childSelector), {
-    y: 28, autoAlpha: 0, duration: 0.7, ease: 'power3.out', stagger: 0.12, delay: 0.15,
-  });
-  return () => tween.kill();
+  const items = container.querySelectorAll(childSelector);
+  if (!items.length) return () => {};
+  // fromTo + clearProps for the same reason as staggerGroup above — the hero
+  // copy is the first thing a visitor sees and must never be stuck hidden.
+  const tween = gsap.fromTo(items,
+    { y: 28, autoAlpha: 0 },
+    { y: 0, autoAlpha: 1, duration: 0.7, ease: 'power3.out', stagger: 0.12, delay: 0.15 },
+  );
+  return () => {
+    tween.kill();
+    gsap.set(items, { clearProps: 'opacity,visibility,transform' });
+  };
 }

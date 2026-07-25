@@ -73,8 +73,11 @@ Object.assign(window, mx);
   CR.registerShape('umlActor', mxActor);
 }());
 
-const XML_URL =
-  '/astrousa/interactive%20diagrams/ASTRO-USA%20Flow%20Chart%20Version%201.8.xml';
+// Path must contain no spaces. CRA's dev server decides whether to proxy a
+// request to the ClubPM backend by testing fs.existsSync() against the RAW
+// (still percent-encoded) pathname; a "%20" makes that test fail, so the
+// request was proxied to :3001 and came back HTTP 500 instead of the file.
+const XML_URL = '/astrousa/diagrams/astro-usa-flow-chart-v1.8.xml';
 
 // ── Key / legend definitions ──────────────────────────────────────────────────
 const KEY_ITEMS = [

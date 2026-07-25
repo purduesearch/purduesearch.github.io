@@ -424,7 +424,7 @@ const Home = () => {
           src="/Mars%20Video.webm"
           muted
           playsInline
-          preload="metadata"
+          preload="auto"
           poster="/home.webp"
         />
         <div className="container text-center" ref={heroContentRef}>

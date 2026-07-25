@@ -123,7 +123,7 @@ const SA2TP = () => {
           src="/sa2tp/Plane_Panorama.webm"
           muted
           playsInline
-          preload="metadata"
+          preload="auto"
           poster="/sa2tp.webp"
           style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', zIndex: 0 }}
         />
