@@ -69,8 +69,8 @@
     <!-- Preconnect to external origins (reduces connection latency) -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <!-- jsDelivr is still needed for the Bootstrap 4 CSS link below. -->
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
-    <link rel="dns-prefetch" href="https://code.jquery.com" />
 
     <!-- Google Fonts (pruned: only families that actually render win the cascade — see task-9 report for
          trace). Montserrat + Work Sans are kept for the blog "montserrat-worksans" theme font pair;
@@ -131,9 +131,9 @@
     <noscript>You need to enable JavaScript to run this app.</noscript>
     <div id="root"></div>
 
-    <!-- jQuery (required: Navbar.jsx mobile toggle uses window.$ + Bootstrap's collapse plugin) -->
-    <script defer src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <!-- Bootstrap 4 Bundle JS (includes Popper; required: data-toggle="collapse" + show/hide.bs.collapse events in Navbar.jsx) -->
-    <script defer src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- No jQuery, no Bootstrap JS bundle: the mobile navbar toggle was their only
+         consumer and Navbar.jsx now drives `.show` from React state (animation in the
+         "Mobile navbar collapse animation" section of search-theme.css). Bootstrap's
+         *CSS* is still linked above — the grid is used site-wide. -->
   </body>
 </html>

@@ -30,22 +30,28 @@ const Navbar = () => {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
-  // Sync menuOpen with Bootstrap collapse events
   useEffect(() => {
-    if (!window.$) return;
-    const $el = window.$('#navbar-nav-header');
-    $el.on('show.bs.collapse', () => setMenuOpen(true));
-    $el.on('hide.bs.collapse', () => setMenuOpen(false));
-    return () => { $el.off('show.bs.collapse hide.bs.collapse'); };
-  }, []);
-
-  useEffect(() => {
-    if (window.$ && window.$.fn.collapse) {
-      window.$('#navbar-nav-header').collapse('hide');
-    }
     setTeamsOpen(false);
     setMenuOpen(false);
   }, [pathname]);
+
+  // Escape closes the mobile menu
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onKeyDown = (e) => { if (e.key === 'Escape') setMenuOpen(false); };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [menuOpen]);
+
+  // Crossing Bootstrap's lg breakpoint while open drops back to the desktop bar,
+  // where the collapse is always visible — reset the state so it stays in sync.
+  useEffect(() => {
+    if (!menuOpen) return;
+    const mq = window.matchMedia('(min-width: 992px)');
+    const onChange = (e) => { if (e.matches) setMenuOpen(false); };
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, [menuOpen]);
 
   useEffect(() => {
     const onClickOutside = (e) => {
@@ -56,11 +62,13 @@ const Navbar = () => {
     return () => document.removeEventListener('mousedown', onClickOutside);
   }, []);
 
-  const handleTeamsLinkClick = () => setTeamsOpen(false);
-  const handleProfileLinkClick = () => setProfileOpen(false);
+  const closeMenu = () => setMenuOpen(false);
+  const handleTeamsLinkClick = () => { setTeamsOpen(false); setMenuOpen(false); };
+  const handleProfileLinkClick = () => { setProfileOpen(false); setMenuOpen(false); };
   const handleLogout = () => {
     logout();
     setProfileOpen(false);
+    setMenuOpen(false);
   };
 
   return (
@@ -83,8 +91,7 @@ const Navbar = () => {
         <button
           className="navbar-toggler ml-auto"
           type="button"
-          data-toggle="collapse"
-          data-target="#navbar-nav-header"
+          onClick={() => setMenuOpen(o => !o)}
           aria-controls="navbar-nav-header"
           aria-expanded={menuOpen}
           aria-label="Toggle navigation"
@@ -95,7 +102,7 @@ const Navbar = () => {
           }
         </button>
 
-        <div className="collapse navbar-collapse" id="navbar-nav-header">
+        <div className={`collapse navbar-collapse${menuOpen ? ' show' : ''}`} id="navbar-nav-header">
 
           {/* ── Left: logo + primary nav ── */}
           <div className="nav-section-left d-flex align-items-center">
@@ -109,7 +116,7 @@ const Navbar = () => {
                 const isActive = to === '/' ? pathname === '/' : pathname === to || pathname.startsWith(to + '/');
                 return (
                   <li key={to} className="nav-item" style={{ position: 'relative' }}>
-                    <Link className="nav-link nav-underline-target" to={to}>{label}</Link>
+                    <Link className="nav-link nav-underline-target" to={to} onClick={closeMenu}>{label}</Link>
                     {isActive && (
                       <motion.span layoutId="nav-underline" className="nav-active-indicator" />
                     )}
@@ -186,20 +193,20 @@ const Navbar = () => {
                 </li>
               ) : (
                 <li className="nav-item" style={{ position: 'relative' }}>
-                  <Link className="nav-link nav-underline-target" to="/clubpm">Constellation</Link>
+                  <Link className="nav-link nav-underline-target" to="/clubpm" onClick={closeMenu}>Constellation</Link>
                   {pathname.startsWith('/clubpm') && (
                     <motion.span layoutId="nav-underline" className="nav-active-indicator" />
                   )}
                 </li>
               )}
               <li className="nav-item" style={{ position: 'relative' }}>
-                <Link className="nav-link nav-underline-target" to="/outreach">Outreach</Link>
+                <Link className="nav-link nav-underline-target" to="/outreach" onClick={closeMenu}>Outreach</Link>
                 {pathname === '/outreach' && (
                   <motion.span layoutId="nav-underline" className="nav-active-indicator" />
                 )}
               </li>
               <li className="nav-item ml-2">
-                <Link to="/contact" className="navbar-cta-btn">Contact Us</Link>
+                <Link to="/contact" className="navbar-cta-btn" onClick={closeMenu}>Contact Us</Link>
               </li>
               <li className="nav-item ml-2">
                 <a

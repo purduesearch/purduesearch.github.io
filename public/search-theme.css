@@ -6373,3 +6373,43 @@ html.clubpm-route body {
 @media (prefers-reduced-motion: reduce) {
   .clubpm-boot-ring { animation-duration: 2.4s; }
 }
+
+/* ============================================================
+   MOBILE NAVBAR COLLAPSE ANIMATION
+   The mobile menu used to be driven by Bootstrap's collapse JS
+   plugin (jQuery + bootstrap.bundle.js). Navbar.jsx now toggles
+   `.show` from React state instead, so the ~350ms height ease the
+   plugin provided has to come from CSS. Bootstrap's own
+   `.collapse:not(.show) { display: none }` can't animate, so the
+   collapsed state is kept displayed and hidden via max-height /
+   opacity / visibility instead.
+   Desktop (>=992px) is untouched: the `min-width: 992px` rules
+   above force the collapse visible regardless of `.show`.
+   ============================================================ */
+
+@media (max-width: 991px) {
+  #header-navbar .collapse.navbar-collapse {
+    display: flex !important;
+    max-height: 0;
+    opacity: 0;
+    overflow: hidden;
+    visibility: hidden;
+    transition: max-height 0.35s ease, opacity 0.25s ease,
+                visibility 0s linear 0.35s;
+  }
+  #header-navbar .collapse.navbar-collapse.show {
+    max-height: 100vh;
+    opacity: 1;
+    visibility: visible;
+    overflow-y: auto;
+    transition: max-height 0.35s ease, opacity 0.25s ease,
+                visibility 0s linear 0s;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #header-navbar .collapse.navbar-collapse,
+  #header-navbar .collapse.navbar-collapse.show {
+    transition: none;
+  }
+}
