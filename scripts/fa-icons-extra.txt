@@ -1,0 +1,60 @@
+# Font Awesome icons that a static scan of the source CANNOT see.
+#
+# The subset build (scripts/build-fa-subset.mjs) only ships glyphs it knows are
+# used. Any icon name that is assembled at runtime must be declared here, or it
+# will render as a blank box in production.
+#
+# Format: one per line, either `fa-<name>` (assumed solid) or `<style> fa-<name>`
+# where style is fas/far/fab. `#` starts a comment.
+#
+# Run `npm run build:icons` after editing. The build fails if a name here is not
+# a real Font Awesome 6 Free icon, so typos cannot slip through.
+
+# --- Interpolated suffixes: `fas fa-chevron-${open ? 'up' : 'down'}` ---
+# TaskModal.jsx, ProjectDetail.jsx, Dashboard.jsx, MeetingNotesView.jsx,
+# InventoryPanel.jsx and others build the direction at runtime.
+fa-chevron-up
+fa-chevron-down
+fa-chevron-left
+fa-chevron-right
+
+# SafetyBadge.jsx: `fas fa-caret-${open ? 'up' : 'down'}`
+fa-caret-up
+fa-caret-down
+
+# InsightsTab.jsx: `fas fa-arrow-${isNeutral ? 'right' : isPositive ? 'up' : 'down'}`
+fa-arrow-up
+fa-arrow-down
+fa-arrow-right
+
+# --- Ternary branches inside `fas fa-${...}` ---
+# The branch values are bare strings with no `fa-` prefix, so nothing in the
+# source matches a `fa-*` grep. One entry per branch.
+fa-pause             # AstroFlowDiagram.jsx  `fa-${flowEnabled ? 'pause' : 'play'}`
+fa-play
+fa-edit              # CampaignsTab.jsx / CrmTab.jsx  `fa-${initial ? 'edit' : ...}`
+fa-plus-circle
+fa-user-plus
+fa-globe-americas    # CampaignsTab.jsx  `fa-${isPublic ? 'globe-americas' : 'lock'}`
+fa-lock
+fa-eye-slash         # ComposerTab.jsx / NewsletterEditor.jsx  `fa-${showPreview ? ... }`
+fa-eye
+fa-pen
+fa-robot             # ComposerTab.jsx  `fa-${showAiPanel ? 'chevron-right' : 'robot'}`
+fa-exclamation-circle # CrmTab.jsx  `fa-${followUpOverdue ? 'exclamation-circle' : 'clock'}`
+fa-clock
+fa-check-circle      # CrossPostBundle.jsx  `fa-${isMarked ? 'check-circle' : 'circle'}`
+fa-circle
+fa-check-double
+
+# --- Database-driven icon classes ---
+# Challenge / achievement / cosmetic rows carry an `iconClass` column. Current
+# values are seeded from backend/prisma/seed*.ts and backend/src/services/
+# shopService.ts, which the scanner already reads. These are the hard-coded
+# React fallbacks used when a row has no iconClass set.
+fa-trophy            # AchievementCard.jsx
+fa-medal             # BadgePicker.jsx
+fa-star              # DailyQuestsWidget.jsx
+fa-calendar-alt      # Dashboard.jsx / CalendarPage.jsx EVENT_TYPE_ICON fallback
+fa-user              # CrmTab.jsx contact-type fallback
+fa-question-circle   # ProjectDetail.jsx blocker-group fallback
