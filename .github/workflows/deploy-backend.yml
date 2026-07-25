@@ -20,12 +20,41 @@ jobs:
           key: ${{ secrets.ORACLE_SSH_KEY }}
           script: |
             set -e
+
+            # The press-kit PDF exporter depends on puppeteer, whose postinstall
+            # downloads ~180 MB of Chrome and unpacks it with `unzip` (or the
+            # optional `yauzl` module). This server has neither, so the postinstall
+            # exits 1 and `set -e` takes the whole deploy down with it — that is
+            # exactly what broke the blog/press-kit release. The backend drives a
+            # system Chrome/Chromium instead (installed by the "Provision PDF
+            # Export" workflow, auto-detected at runtime), so the bundled download
+            # is dead weight even when it does succeed. Skip it.
+            export PUPPETEER_SKIP_DOWNLOAD=true
+
             cd /opt/clubpm
             git fetch origin main
             git reset --hard origin/main
             cd backend
             npm ci
+            export NODE_OPTIONS=--max-old-space-size=4096
             npx prisma generate
             npm run build
             npx prisma migrate deploy
             pm2 restart clubpm-backend
+
+            # Advisory only — a missing PDF browser must never fail a deploy.
+            # Keep these paths in sync with SYSTEM_BROWSER_PATHS in
+            # backend/src/api/pressKit.ts.
+            BROWSER=""
+            for c in /usr/bin/chromium /usr/bin/chromium-browser \
+                     /usr/bin/google-chrome-stable /usr/bin/google-chrome \
+                     /snap/bin/chromium; do
+              if [ -x "$c" ]; then BROWSER="$c"; break; fi
+            done
+            if [ -n "$BROWSER" ]; then
+              echo "press-kit PDF export: browser present ($BROWSER)"
+            else
+              echo "press-kit PDF export: no system browser found — /export?format=pdf will return 503."
+              echo "  Fix: run the 'Provision PDF Export (manual)' workflow from the Actions tab."
+              echo "  Everything else (docx/md/html export and the rest of the backend) is unaffected."
+            fi

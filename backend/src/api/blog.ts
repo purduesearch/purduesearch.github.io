@@ -92,6 +92,39 @@ blogRouter.post("/posts", async (req: Request, res: Response) => {
   }
 });
 
+// POST /posts/generate — AI-generate a section-based DRAFT from raw text.
+// Body: { text (required), title? (optional override), guidance? (tone/angle) }.
+blogRouter.post("/posts/generate", async (req: Request, res: Response) => {
+  try {
+    const { text, title, guidance } = req.body as { text?: string; title?: string; guidance?: string };
+    if (!text?.trim()) {
+      res.status(400).json({ error: "text is required" });
+      return;
+    }
+    const { generateBlogFromText } = await import("../services/aiOutreachService.js");
+    const { buildDocFromPlan } = await import("../services/sectionPlan.js");
+
+    const plan = await generateBlogFromText(
+      text.trim(),
+      title?.trim() || undefined,
+      guidance?.trim() || undefined,
+    );
+    const doc = buildDocFromPlan(plan);
+    const heroHeading = plan.sections.find((s) => s.type === "hero")?.heading?.trim();
+    const finalTitle = (title?.trim() || heroHeading || "Untitled post").slice(0, 200);
+
+    const post = await blogService.createPost({
+      title: finalTitle,
+      contentJson: doc,
+      createdById: req.memberId!,
+    });
+    res.status(201).json(post);
+  } catch (error) {
+    console.error("POST /blog/posts/generate error:", error);
+    res.status(500).json({ error: "Failed to generate post" });
+  }
+});
+
 blogRouter.get("/posts/:id", async (req: Request, res: Response) => {
   try {
     const post = await blogService.getPost(req.params.id as string);
@@ -114,6 +147,36 @@ blogRouter.patch("/posts/:id", async (req: Request, res: Response) => {
   } catch (error) {
     console.error("PATCH /blog/posts/:id error:", error);
     res.status(500).json({ error: "Failed to update post" });
+  }
+});
+
+// Render the current (possibly unsaved) document exactly as publish would.
+// Preview MUST go through renderJsonToHtml so it cannot drift from the
+// published page — this is the whole point of the endpoint existing.
+blogRouter.post("/posts/:id/preview", async (req: Request, res: Response) => {
+  try {
+    const post = await requirePostAccess(req, res);
+    if (!post) return;
+
+    const { contentJson } = req.body as { contentJson?: PMDoc };
+    const doc = (contentJson ?? post.contentJson) as PMDoc;
+    const origin = `${req.protocol}://${req.get("host")}`;
+    const { renderJsonToHtml } = await import("../services/blogRender.js");
+
+    res.json({
+      html: renderJsonToHtml(doc, origin),
+      meta: {
+        title: post.title,
+        coverImageUrl: post.coverImageUrl,
+        authorName: post.authorName,
+        publishedAt: post.publishedAt,
+        readingTimeMin: post.readingTimeMin,
+        theme: post.theme,
+      },
+    });
+  } catch (error) {
+    console.error("POST /blog/posts/:id/preview error:", error);
+    res.status(500).json({ error: "Failed to render preview" });
   }
 });
 
@@ -162,7 +225,12 @@ blogRouter.post(
         res.status(502).json({ error: "Failed to upload image" });
         return;
       }
-      res.json({ url: uploaded.url, width: info.width, height: info.height });
+      const origin = `${req.protocol}://${req.get("host")}`;
+      res.json({
+        url: `${origin}/api/public/blog-image/${uploaded.fileId}`,
+        width: info.width,
+        height: info.height,
+      });
     } catch (error) {
       console.error("POST /blog/upload error:", error);
       res.status(500).json({ error: "Failed to process image" });

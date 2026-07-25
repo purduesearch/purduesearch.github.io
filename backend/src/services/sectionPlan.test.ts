@@ -1,0 +1,214 @@
+// Pure-logic tests for sectionPlan. No DB / no network required.
+// Run: cd backend && npx tsx src/services/sectionPlan.test.ts
+// Excluded from the production build (tsconfig `exclude` covers *.test.ts).
+
+import {
+  validateSectionPlan, buildDocFromPlan, planToMarkdown,
+  type SectionPlan, type PlanData,
+} from "./sectionPlan.js";
+import type { PMNode } from "./blogRender.js";
+
+let passed = 0, failed = 0;
+function check(name: string, cond: boolean) {
+  if (cond) passed++; else { failed++; console.error(`  ✗ ${name}`); }
+}
+
+// Find every node of a given type anywhere in a subtree.
+function findAll(node: { content?: PMNode[] } | PMNode, type: string): PMNode[] {
+  const hits: PMNode[] = [];
+  const walk = (n: PMNode) => {
+    if (n.type === type) hits.push(n);
+    for (const c of n.content ?? []) walk(c);
+  };
+  for (const c of (node as { content?: PMNode[] }).content ?? []) walk(c);
+  return hits;
+}
+
+// validateSectionPlan: drops unknown types, clamps fields, accepts array root
+{
+  const plan = validateSectionPlan({
+    sections: [
+      { type: "hero", heading: "Hi", subheading: "sub", align: "left", overlay: true },
+      { type: "bogus", heading: "nope" },
+      { type: "cta", label: "Go", href: "https://x/y", style: "weird" },
+      { type: "columns", columns: [{ markdown: "a" }, { markdown: "b" }, { markdown: "c" }, { markdown: "d" }] },
+    ],
+  });
+  check("drops unknown section type", plan.sections.length === 3);
+  check("keeps hero attrs", plan.sections[0].type === "hero" && plan.sections[0].align === "left" && plan.sections[0].overlay === true);
+  check("invalid cta style dropped", plan.sections[1].style === undefined);
+  check("columns clamped to 3", (plan.sections[2].columns?.length ?? 0) === 3);
+
+  const fromArray = validateSectionPlan([{ type: "richText", markdown: "x" }]);
+  check("accepts bare-array root", fromArray.sections.length === 1 && fromArray.sections[0].type === "richText");
+
+  check("garbage → empty plan", validateSectionPlan(null).sections.length === 0);
+}
+
+// buildDocFromPlan: prose sections
+{
+  const plan: SectionPlan = { sections: [
+    { type: "hero", heading: "Title", subheading: "Tag" },
+    { type: "richText", heading: "About", markdown: "This is **bold** copy." },
+    { type: "columns", heading: "Two up", columns: [{ markdown: "Left col" }, { markdown: "Right col" }] },
+    { type: "quote", text: "A memorable line.", attribution: "Someone" },
+    { type: "cta", label: "Get involved", href: "https://join", style: "outline" },
+  ] };
+  const doc = buildDocFromPlan(plan);
+
+  check("all top-level nodes are sections", (doc.content ?? []).every((n) => n.type === "section"));
+  check("hero node emitted", findAll(doc, "hero").length === 1);
+  check("hero heading carried", findAll(doc, "hero")[0].attrs?.heading === "Title");
+  check("richText heading rendered as h2", findAll(doc, "heading").some((n) => n.attrs?.level === 2));
+  const cols2 = (doc.content ?? []).find((n) => n.attrs?.layout === "cols2");
+  check("columns → cols2 layout", !!cols2);
+  check("cols2 has two column nodes", findAll(cols2 ?? { type: "x" }, "column").length === 2);
+  check("columns heading became its own band", (doc.content ?? []).some((n) => n.attrs?.layout === "single" && findAll(n, "heading").length === 1));
+  check("quote → blockquote", findAll(doc, "blockquote").length === 1);
+  check("cta → ctaButton with style", findAll(doc, "ctaButton")[0]?.attrs?.style === "outline");
+}
+
+// buildDocFromPlan: single-column fallback + empty guards
+{
+  const single = buildDocFromPlan({ sections: [{ type: "columns", columns: [{ markdown: "only one" }] }] });
+  check("one-column columns → single section", (single.content ?? [])[0]?.attrs?.layout === "single");
+
+  const emptyHero = buildDocFromPlan({ sections: [{ type: "hero" }] });
+  check("empty hero dropped → paragraph fallback", (emptyHero.content ?? [])[0]?.type === "paragraph");
+}
+
+// buildDocFromPlan: placeholder data sections
+{
+  const data: PlanData = {
+    stats: [{ label: "TEAM", value: "8" }, { label: "HOURS", value: "1240" }],
+    timeline: [{ title: "Kickoff", date: "January 1, 2026" }, { title: "Demo", date: null }],
+    team: [{ displayName: "Ada", title: "Lead Eng", isLead: true }, { displayName: "Grace", title: null, isLead: false }],
+    contributors: [{ displayName: "Ada", tasksDone: 12, hours: 40 }],
+    links: [{ label: "GitHub", url: "https://github.com/x" }],
+  };
+  const plan: SectionPlan = { sections: [
+    { type: "stats", heading: "By the numbers" },
+    { type: "timeline" },
+    { type: "team" },
+    { type: "links" },
+  ] };
+  const doc = buildDocFromPlan(plan, data);
+
+  const band = findAll(doc, "statBand")[0];
+  check("stats → statBand with data values", (band?.attrs?.stats as unknown[])?.length === 2);
+  const json = JSON.stringify(doc);
+  check("timeline renders real date", json.includes("January 1, 2026"));
+  check("team renders lead marker", json.includes("Ada") && json.includes("(Lead)"));
+  check("contributors sub-list rendered", json.includes("Top contributors"));
+  check("links render label", json.includes("GitHub"));
+}
+
+// Placeholder with absent data renders nothing (config-gating behavior)
+{
+  const doc = buildDocFromPlan({ sections: [{ type: "stats" }, { type: "team" }] }, {});
+  check("placeholders with no data → paragraph fallback only", (doc.content ?? []).length === 1 && (doc.content ?? [])[0]?.type === "paragraph");
+}
+
+// planToMarkdown: authored prose flattens; data placeholders omitted
+{
+  const md = planToMarkdown({ sections: [
+    { type: "hero", heading: "T", subheading: "S" },
+    { type: "richText", heading: "About", markdown: "Body." },
+    { type: "stats" },
+    { type: "cta", label: "Join", href: "https://j" },
+  ] });
+  check("markdown has hero H1", md.includes("# T"));
+  check("markdown has richText H2 + body", md.includes("## About") && md.includes("Body."));
+  check("markdown has cta link", md.includes("[Join](https://j)"));
+  check("markdown omits data placeholder", !md.toLowerCase().includes("stat"));
+}
+
+// New section types + section-level styling
+{
+  const plan = validateSectionPlan({ sections: [
+    { type: "hero", heading: "H", theme: "dark", width: "fullBleed" },
+    { type: "mediaText", heading: "MT", markdown: "text here", imageSide: "right", imageAlt: "a robot", imageCaption: "cap" },
+    { type: "image", imageAlt: "wide shot", imageCaption: "the team" },
+    { type: "gallery", heading: "Gallery" },
+    { type: "callout", variant: "tip", markdown: "pro tip" },
+    { type: "divider" },
+    { type: "stats", heading: "Numbers", stats: [{ label: "MEMBERS", value: "12" }] },
+  ] });
+  check("validates all new types", plan.sections.length === 7);
+  check("hero keeps theme/width", plan.sections[0].theme === "dark" && plan.sections[0].width === "fullBleed");
+  check("callout keeps variant", plan.sections[4].variant === "tip");
+  check("stats keeps explicit values", plan.sections[6].stats?.length === 1);
+
+  const doc = buildDocFromPlan(plan);
+  const heroSection = (doc.content ?? []).find((n) => findAll(n, "hero").length > 0);
+  check("hero section carries dark theme", heroSection?.attrs?.theme === "dark");
+  check("mediaText → mediaText layout with image + two columns",
+    (doc.content ?? []).some((n) => n.attrs?.layout === "mediaText" && findAll(n, "image").length === 1 && findAll(n, "column").length === 2));
+  check("image placeholder node has null src", findAll(doc, "image").some((n) => n.attrs?.src == null));
+  check("gallery node present", findAll(doc, "gallery").length === 1);
+  check("callout node with variant", findAll(doc, "callout")[0]?.attrs?.variant === "tip");
+  check("divider → horizontalRule", findAll(doc, "horizontalRule").length === 1);
+  check("explicit stats → statBand values", (findAll(doc, "statBand")[0]?.attrs?.stats as unknown[])?.length === 1);
+}
+
+// Invalid enum values are dropped / defaulted
+{
+  const plan = validateSectionPlan({ sections: [
+    { type: "callout", variant: "bogus", markdown: "x" },
+    { type: "richText", theme: "rainbow", markdown: "y" },
+  ] });
+  check("bogus callout variant dropped", plan.sections[0].variant === undefined);
+  check("bogus theme ignored", plan.sections[1].theme === undefined);
+  const doc = buildDocFromPlan(plan);
+  check("callout defaults to info when variant invalid", findAll(doc, "callout")[0]?.attrs?.variant === "info");
+}
+
+// Column spans and gallery captions. The model's output is untrusted: every
+// new field must be clamped or dropped before it reaches a document.
+{
+  const plan = validateSectionPlan({ sections: [
+    { type: "columns", columns: [{ markdown: "one", span: 5 }, { markdown: "two", span: 7 }] },
+  ] });
+  check("valid spans survive", plan.sections[0]?.columns?.[0]?.span === 5 && plan.sections[0]?.columns?.[1]?.span === 7);
+}
+
+{
+  const plan = validateSectionPlan({ sections: [
+    { type: "columns", columns: [{ markdown: "a", span: 99 }, { markdown: "b", span: -3 }, { markdown: "c", span: "x" }] },
+  ] });
+  const spans = plan.sections[0]?.columns?.map((c) => c.span);
+  check("out-of-range spans dropped", spans?.every((s) => s === undefined) ?? false);
+}
+
+{
+  // 9 + 9 = 18 > 12: normalised, never emitted as-is.
+  const plan = validateSectionPlan({ sections: [
+    { type: "columns", columns: [{ markdown: "a", span: 9 }, { markdown: "b", span: 9 }] },
+  ] });
+  const total = (plan.sections[0]?.columns ?? []).reduce((n, c) => n + (c.span ?? 0), 0);
+  check("oversized span row normalised to <= 12", total <= 12);
+}
+
+{
+  const doc = buildDocFromPlan(validateSectionPlan({ sections: [
+    { type: "columns", columns: [{ markdown: "left", span: 4 }, { markdown: "right", span: 8 }] },
+  ] }));
+  const section = doc.content?.[0];
+  const cols = section?.content ?? [];
+  check("built columns carry span", cols[0]?.attrs?.span === 4 && cols[1]?.attrs?.span === 8);
+}
+
+{
+  const plan = validateSectionPlan({ sections: [
+    { type: "gallery", images: [{ alt: "a", caption: "First" }, { alt: "b", caption: "Second" }] },
+  ] });
+  check("gallery captions survive validation", plan.sections[0]?.images?.[1]?.caption === "Second");
+
+  const doc = buildDocFromPlan(plan);
+  const gallery = doc.content?.[0]?.content?.find((n) => n.type === "gallery");
+  const images = (gallery?.attrs?.images ?? []) as Array<Record<string, unknown>>;
+  check("built gallery carries caption placeholders", images.length === 2 && images[1]?.caption === "Second");
+}
+
+console.log(`\nsectionPlan.test: ${passed} passed, ${failed} failed`);
+if (failed > 0) process.exit(1);

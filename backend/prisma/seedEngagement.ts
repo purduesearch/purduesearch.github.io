@@ -27,6 +27,7 @@ const EVENT_DEFAULTS: EventDefault[] = [
   { eventType: "KUDOS_RECEIVED",              autoApprove: true,  xpAmount: 15,  doubloonAmount: 30 },
   { eventType: "BLOG_POST_PUBLISHED",         autoApprove: true,  xpAmount: 100, doubloonAmount: 25 },
   { eventType: "EARLY_DELIVERY_BONUS",        autoApprove: true,  xpAmount: 0,   doubloonAmount: 0 },
+  { eventType: "MEETING_AVAILABILITY_SUBMITTED", autoApprove: true, xpAmount: 5, doubloonAmount: 1 },
 ];
 
 type CosmeticSeed = {

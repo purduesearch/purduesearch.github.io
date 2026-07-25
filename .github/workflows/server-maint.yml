@@ -1,0 +1,109 @@
+name: Server Maintenance (manual)
+
+# Manually-triggered maintenance over the SAME SSH channel deploy-backend.yml
+# already uses. Reuses the ORACLE_HOST / ORACLE_USER / ORACLE_SSH_KEY secrets,
+# so it works even without your personal keys. It is inert until you run it from
+# the Actions tab, and it does NOT touch backend/** so it won't trigger a deploy.
+# Safe to delete once you've regained direct SSH access.
+
+on:
+  workflow_dispatch:
+    inputs:
+      apply_nginx_fix:
+        description: "Apply nginx client_max_body_size=512M and reload (fixes vault upload 413)"
+        type: boolean
+        default: true
+      ssh_public_key:
+        description: "Public key line to append to authorized_keys (paste your .pub contents; leave blank to skip)"
+        type: string
+        required: false
+      github_step:
+        description: "GitHub App integration: diagnose (report only) or fix (repair stored install ids)"
+        type: choice
+        options:
+          - skip
+          - diagnose
+          - fix
+        default: skip
+      tail_error_log:
+        description: "Print recent backend error-log lines (debugging Drive/GitHub errors)"
+        type: boolean
+        default: false
+
+jobs:
+  maintain:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run maintenance over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          PUBKEY: ${{ inputs.ssh_public_key }}
+          APPLY_NGINX: ${{ inputs.apply_nginx_fix }}
+          GH_STEP: ${{ inputs.github_step }}
+          TAIL_LOG: ${{ inputs.tail_error_log }}
+        with:
+          host: ${{ secrets.ORACLE_HOST }}
+          username: ${{ secrets.ORACLE_USER }}
+          key: ${{ secrets.ORACLE_SSH_KEY }}
+          envs: PUBKEY,APPLY_NGINX,GH_STEP,TAIL_LOG
+          script_stop: false
+          script: |
+            set -x
+            echo "== Connected as $(whoami)@$(hostname) =="
+
+            # 1) Restore direct SSH access (optional) — PUBLIC key only
+            if [ -n "$PUBKEY" ]; then
+              mkdir -p ~/.ssh && chmod 700 ~/.ssh
+              touch ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys
+              if grep -qF "$PUBKEY" ~/.ssh/authorized_keys; then
+                echo "SSH: public key already present, skipping"
+              else
+                printf '%s\n' "$PUBKEY" >> ~/.ssh/authorized_keys
+                echo "SSH: public key appended to ~/.ssh/authorized_keys"
+              fi
+            else
+              echo "SSH: no public key provided, skipping"
+            fi
+
+            # 2) nginx upload-size fix (drops an http-level snippet; non-invasive)
+            if [ "$APPLY_NGINX" = "true" ]; then
+              if sudo -n true 2>/dev/null; then
+                printf 'client_max_body_size 512M;\n' | sudo -n tee /etc/nginx/conf.d/client-max-body.conf >/dev/null
+                if sudo -n nginx -t; then
+                  sudo -n systemctl reload nginx
+                  echo "nginx: client_max_body_size=512M applied and reloaded"
+                else
+                  echo "nginx: config test FAILED, not reloading" >&2
+                fi
+              else
+                echo "nginx: passwordless sudo unavailable, skipping (use Oracle Console Run command)" >&2
+              fi
+            else
+              echo "nginx: skipped (apply_nginx_fix=false)"
+            fi
+
+            # 3) GitHub App integration diagnostic / repair
+            if [ -n "$GH_STEP" ] && [ "$GH_STEP" != "skip" ]; then
+              echo "== GitHub App: $GH_STEP =="
+              if cd /opt/clubpm/backend; then
+                echo "-- recent getRepoStats errors from pm2 logs --"
+                grep -a "getRepoStats error\|\[githubService\]" ~/.pm2/logs/*error*.log 2>/dev/null | tail -15 || echo "(no matching log lines)"
+                if [ -f scripts/diagnose-github.mjs ]; then
+                  if [ "$GH_STEP" = "fix" ]; then export GH_APPLY=1; fi
+                  node scripts/diagnose-github.mjs || echo "diagnostic exited non-zero"
+                else
+                  echo "!! scripts/diagnose-github.mjs not on server yet; wait for 'Deploy Backend to Oracle' to finish (green), then re-run."
+                fi
+              else
+                echo "!! /opt/clubpm/backend not found" >&2
+              fi
+            else
+              echo "GitHub App: skipped (github_step=skip)"
+            fi
+
+            # 4) Tail backend error log (debugging Drive/GitHub failures)
+            if [ "$TAIL_LOG" = "true" ]; then
+              echo "== last 80 lines of backend pm2 error log =="
+              tail -n 80 ~/.pm2/logs/*error*.log 2>/dev/null || echo "(no error log found)"
+            fi
+            echo "== Done =="

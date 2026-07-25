@@ -18,7 +18,7 @@ export function clearStoredToken() {
   localStorage.removeItem(TOKEN_KEY);
 }
 
-function authHeaders() {
+export function authHeaders() {
   const token = getStoredToken();
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
@@ -296,6 +296,72 @@ export const getProjectBlockers = (projectId) => get(`/api/projects/${projectId}
 export const createBlocker      = (projectId, data) => post(`/api/projects/${projectId}/blockers`, data);
 export const updateBlocker      = (id, data) => patch(`/api/blockers/${id}`, data);
 
+// ── Vault (Constellation Vault CAD change management) ──────────
+
+export const getVault             = (projectId) => get(`/api/projects/${projectId}/vault`);
+export const getVaultItem         = (id) => get(`/api/vault/items/${id}`);
+export const patchVaultItem       = (id, body) => patch(`/api/vault/items/${id}`, body);
+export const deleteVaultItem      = (id) => del(`/api/vault/items/${id}`);
+export const checkoutVaultItem    = (id, body) => post(`/api/vault/items/${id}/checkout`, body);
+export const releaseVaultCheckout = (id) => del(`/api/vault/items/${id}/checkout`);
+export const promoteVaultItem     = (id) => post(`/api/vault/items/${id}/promote`, {});
+export const getVaultItemHistory  = (id) => get(`/api/vault/items/${id}/history`);
+export const patchVaultSettings   = (projectId, body) => patch(`/api/projects/${projectId}/vault/settings`, body);
+export const vaultDownloadUrl     = (versionId) => `${BASE_URL}/api/vault/versions/${versionId}/download`;
+
+// Multipart vault upload (new item or new version) with a live progress
+// callback. get/post/patch/del only send JSON, and fetch() has no upload
+// progress event, so this goes straight through XHR (same FormData idiom as
+// uploadBlogImage, plus xhr.upload.onprogress).
+export function uploadVaultFile(path, file, fields = {}, onProgress) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", `${BASE_URL}${path}`);
+    xhr.withCredentials = true;
+    // Bearer token for cross-origin users whose session cookie is blocked —
+    // same auth the JSON helpers and uploadBlogImage send.
+    Object.entries(authHeaders()).forEach(([k, v]) => xhr.setRequestHeader(k, v));
+    xhr.upload.onprogress = (e) => { if (e.lengthComputable && onProgress) onProgress(e.loaded / e.total); };
+    xhr.onload = () => {
+      let body = null; try { body = JSON.parse(xhr.responseText); } catch {}
+      if (xhr.status >= 200 && xhr.status < 300) resolve(body);
+      else reject(Object.assign(new Error(body?.error || `Upload failed (${xhr.status})`), { status: xhr.status, body }));
+    };
+    xhr.onerror = () => reject(new Error("Network error during upload"));
+    const fd = new FormData();
+    fd.append("file", file);
+    Object.entries(fields).forEach(([k, v]) => v != null && fd.append(k, v));
+    xhr.send(fd);   // no Content-Type header — FormData sets the multipart boundary
+  });
+}
+
+// ── Change requests (Constellation Vault CAD change management) ──
+
+export const listCrs   = (projectId, status) =>
+  get(`/api/projects/${projectId}/change-requests${status ? `?status=${encodeURIComponent(status)}` : ""}`);
+export const createCr  = (projectId, body) => post(`/api/projects/${projectId}/change-requests`, body);
+export const getCr     = (id) => get(`/api/change-requests/${id}`);
+export const patchCr   = (id, body) => patch(`/api/change-requests/${id}`, body);
+export const cancelCr  = (id) => post(`/api/change-requests/${id}/cancel`, {});
+export const approveCr = (id, body = {}) => post(`/api/change-requests/${id}/approve`, body);
+export const rejectCr  = (id, body = {}) => post(`/api/change-requests/${id}/reject`, body);
+export const getCrPendingCount = () => get(`/api/change-requests/pending/count`);
+
+// Vault BOM / where-used (Pack C)
+export const addVaultBomLink    = (itemId, body) => post(`/api/vault/items/${itemId}/bom`, body);
+export const updateVaultBomLink = (itemId, childItemId, body) => patch(`/api/vault/items/${itemId}/bom/${childItemId}`, body);
+export const removeVaultBomLink = (itemId, childItemId) => del(`/api/vault/items/${itemId}/bom/${childItemId}`);
+
+// Short-lived signed URL for <a href>/<img> access to vault binaries (those
+// elements can't carry the Bearer header). Returns { url, expiresAt }.
+export const getVaultVersionDownloadUrl = (versionId) => get(`/api/vault/versions/${versionId}/download-url`);
+
+// Vault AI copilot (Pack B)
+export const askVault             = (projectId, question) => post(`/api/projects/${projectId}/vault/ask`, { question });
+export const checkVaultDuplicates = (projectId, body) => post(`/api/projects/${projectId}/vault/check-duplicates`, body);
+export const aiCrReleaseNotes     = (id) => post(`/api/change-requests/${id}/ai-release-notes`, {});
+export const aiCrImpact           = (id) => post(`/api/change-requests/${id}/ai-impact`, {});
+
 // ── AI action plan ─────────────────────────────────────────────
 
 export const suggestActions = (projectId, goal) => post(`/api/projects/${projectId}/ai-suggest-actions`, { goal });
@@ -314,7 +380,9 @@ export const getChallengesCatalog = () => get('/api/challenges/catalog');
 export const listBlogPosts   = (params = '') => get(`/api/blog/posts${params}`);
 export const getBlogPost      = (id) => get(`/api/blog/posts/${id}`);
 export const createBlogPost   = (data) => post('/api/blog/posts', data);
+export const generateBlogPost = (data) => post('/api/blog/posts/generate', data);
 export const updateBlogPost   = (id, data) => patch(`/api/blog/posts/${id}`, data);
+export const previewBlogPost = (id, contentJson) => post(`/api/blog/posts/${id}/preview`, { contentJson });
 export const deleteBlogPost   = (id) => del(`/api/blog/posts/${id}`);
 export const publishBlogPost  = (id) => post(`/api/blog/posts/${id}/publish`, {});
 export const scheduleBlogPost = (id, scheduledAt) => post(`/api/blog/posts/${id}/schedule`, { scheduledAt });
@@ -344,6 +412,102 @@ export function getBlogCollabWsUrl() {
   return `${origin.replace(/^http/, 'ws')}/collab/blog`;
 }
 
+// ── Press Kit ────────────────────────────────────────────────
+export const getPressKit            = (projectId)         => get(`/api/projects/${projectId}/press-kit`);
+export const generatePressKit       = (projectId, config) => post(`/api/projects/${projectId}/press-kit/generate`, config);
+export const updatePressKitConfig   = (projectId, config) => patch(`/api/projects/${projectId}/press-kit`, config);
+export const publishPressKit        = (projectId)         => post(`/api/projects/${projectId}/press-kit/publish`, {});
+export const getPressKitRevisions   = (projectId)         => get(`/api/projects/${projectId}/press-kit/revisions`);
+export const restorePressKitRevision = (projectId, revId) => post(`/api/projects/${projectId}/press-kit/revisions/${revId}/restore`, {});
+// REST fallback save for the press-kit body (used when the collab WS is down).
+export const updatePressKitContent   = (projectId, contentJson) => patch(`/api/projects/${projectId}/press-kit/content`, { contentJson });
+export const deletePressKit = (projectId) => del(`/api/projects/${projectId}/press-kit`);
+
+// Authenticated file download for press-kit exports (a plain <a href> omits the
+// Bearer header). Mirrors downloadMeetingPollIcs.
+export async function downloadPressKitExport(projectId, format, projectName = 'press-kit') {
+  const ext = ({ pdf: 'pdf', docx: 'docx', md: 'md', html: 'html' })[format] || 'txt';
+  const response = await fetch(`${BASE_URL}/api/projects/${projectId}/press-kit/export?format=${format}`, {
+    credentials: 'include',
+    headers: { ...authHeaders() },
+  });
+  if (!response.ok) {
+    // Surface the server's reason — a 503 tells the user PDF is unavailable on
+    // this server but the other formats still work, which 'Export failed' hides.
+    const body = await response.json().catch(() => ({}));
+    throw new ApiError(response.status, body.error ?? 'Export failed');
+  }
+  const blob = await response.blob();
+  const safe = String(projectName).replace(/[^a-z0-9]+/gi, '-').replace(/^-+|-+$/g, '').toLowerCase() || 'press-kit';
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `${safe}.${ext}`;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+}
+
+// ws(s):// base for the press-kit Hocuspocus namespace (backend/src/collab/pressKitCollab.ts).
+export function getPressKitCollabWsUrl() {
+  const origin = BASE_URL || window.location.origin;
+  return `${origin.replace(/^http/, 'ws')}/collab/presskit`;
+}
+
+// ── Meeting scheduler (when2meet availability polls) ─────────
+
+export const listMeetingPolls = (params = {}) => {
+  const q = new URLSearchParams(
+    Object.entries(params).filter(([, v]) => v != null && v !== '')
+  ).toString();
+  return get(`/api/meeting-polls${q ? `?${q}` : ''}`);
+};
+export const getMeetingPoll        = (id)        => get(`/api/meeting-polls/${id}`);
+export const getMeetingPollByToken = (token)     => get(`/api/meeting-polls/token/${token}`);
+export const createMeetingPoll     = (data)      => post('/api/meeting-polls', data);
+export const updateMeetingPoll     = (id, data)  => patch(`/api/meeting-polls/${id}`, data);
+export const deleteMeetingPoll     = (id)        => del(`/api/meeting-polls/${id}`);
+export const submitAvailability    = (id, slots) => put(`/api/meeting-polls/${id}/response`, { slots });
+export const getMeetingPollResponses = (id)      => get(`/api/meeting-polls/${id}/responses`);
+export const remindMeetingPoll     = (id)        => post(`/api/meeting-polls/${id}/remind`, {});
+export const finalizeMeetingPoll   = (id, start, end) => post(`/api/meeting-polls/${id}/finalize`, { start, end });
+
+// Public (guest shareable link) — auth optional; a logged-in member passes
+// their Bearer token in the body so cookie-blocked browsers still identify them.
+export const getPublicPoll = (token) => get(`/api/public/polls/${token}`);
+export const submitPublicAvailability = (token, { guestName, slots, authToken }) =>
+  put(`/api/public/polls/${token}/response`, { guestName, slots, authToken });
+
+// Download the finalized meeting's .ics via authenticated fetch → blob, so it
+// works under both cookie and Bearer auth (a plain <a href> omits the header).
+export async function downloadMeetingPollIcs(id, filename = 'meeting.ics') {
+  const response = await fetch(`${BASE_URL}/api/meeting-polls/${id}/ics`, {
+    credentials: 'include',
+    headers: { ...authHeaders() },
+  });
+  if (!response.ok) throw new ApiError(response.status, 'Failed to download calendar file');
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+// Build a "Add to Google Calendar" template URL entirely client-side (no backend).
+export function googleCalendarUrl({ title, description, location, start, end }) {
+  const fmt = (d) => new Date(d).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
+  const params = new URLSearchParams({
+    action: 'TEMPLATE',
+    text: title || 'Meeting',
+    dates: `${fmt(start)}/${fmt(end)}`,
+    ...(description ? { details: description } : {}),
+    ...(location ? { location } : {}),
+  });
+  return `https://calendar.google.com/calendar/render?${params.toString()}`;
+}
+
 // Multipart image upload → { url, width, height }. Do NOT set Content-Type:
 // the browser fills in the multipart boundary from the FormData body.
 export async function uploadBlogImage(file) {
@@ -362,3 +526,29 @@ export async function uploadBlogImage(file) {
 // reads `imageUrl` from the body and ignores the :id path param.
 export const suggestBlogAltText = (imageUrl) =>
   post('/api/outreach/submissions/blog/ai/alt-text', { imageUrl });
+
+// Mirror of backend proxyImageSrc: rewrite legacy Drive image URLs so already-
+// published posts display in the editor too. New uploads are already proxied.
+const DRIVE_ID_RE = /(?:drive\.google\.com\/uc\?[^"']*?[?&]id=|drive\.google\.com\/file\/d\/|lh3\.googleusercontent\.com\/d\/)([a-zA-Z0-9_-]{10,})/;
+export function proxyImageSrc(src) {
+  if (!src) return src;
+  const m = String(src).match(DRIVE_ID_RE);
+  if (!m) return src;
+  return `${BASE_URL}/api/public/blog-image/${m[1]}`;
+}
+
+// Google Drive bot account connection (Workstream A — see
+// docs/superpowers/specs/2026-07-06-clubpm-drive-multirepo-design.md §3).
+// Connect is a full-page redirect to /auth/google (see GoogleDriveConnectButton),
+// not a fetch call, so there is no connect() helper here.
+export const getGoogleDriveStatus = () => get("/auth/google/status");
+export const disconnectGoogleDrive = () => del("/auth/google");
+
+// Multi-repo GitHub integration (Workstream B — see
+// docs/superpowers/specs/2026-07-06-clubpm-drive-multirepo-design.md §4).
+// All repos linked to a project are equal (no "primary" repo); adding a repo
+// appends a new ProjectRepo row rather than replacing a single project field.
+export const listProjectRepos  = (projectId) => get(`/api/github/projects/${projectId}/repos`);
+export const addProjectRepo    = (projectId, url) => post(`/api/github/projects/${projectId}/repos`, { url });
+export const updateProjectRepo = (repoId, body) => patch(`/api/github/repos/${repoId}`, body);
+export const removeProjectRepo = (repoId) => del(`/api/github/repos/${repoId}`);

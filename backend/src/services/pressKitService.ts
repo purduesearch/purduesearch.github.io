@@ -1,354 +1,457 @@
 import { randomBytes } from "node:crypto";
 import { prisma } from "../db/prisma.js";
-import { generatePressKitSynopsis } from "./aiService.js";
+import { generatePressKitPlan, type PressKitPlanInput } from "./aiService.js";
+import { buildDocFromPlan, type SectionPlan, type PlanData } from "./sectionPlan.js";
+import { renderJsonToHtml, type PMDoc } from "./blogRender.js";
 
-function escapeHtml(s: string | null | undefined): string {
-  if (!s) return "";
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
+// ── Config ───────────────────────────────────────────────────
+
+export type PressKitAudience = "SPONSORS" | "PRESS" | "RECRUITING" | "GENERAL";
+
+export interface PressKitConfig {
+  audience: PressKitAudience;
+  includedSections: string[];
+  accentColor: string;
+  contactEmail: string;
+  showContact: boolean;
 }
+
+export const SECTION_IDS = [
+  "masthead", "about", "aboutSearch", "stats", "building",
+  "timeline", "tech", "team", "highlights", "links", "contact", "sponsorship",
+] as const;
+
+const AUDIENCES: PressKitAudience[] = ["SPONSORS", "PRESS", "RECRUITING", "GENERAL"];
+
+export const DEFAULT_PRESS_KIT_CONFIG: PressKitConfig = {
+  audience: "GENERAL",
+  includedSections: [...SECTION_IDS].filter((s) => s !== "sponsorship"),
+  accentColor: "#00e5cc",
+  contactEmail: "",
+  showContact: true,
+};
+
+export function normalizePressKitConfig(raw: unknown): PressKitConfig {
+  const r = (raw ?? {}) as Record<string, unknown>;
+  const audience = AUDIENCES.includes(r.audience as PressKitAudience)
+    ? (r.audience as PressKitAudience) : DEFAULT_PRESS_KIT_CONFIG.audience;
+  const sections = Array.isArray(r.includedSections)
+    ? (r.includedSections as unknown[]).filter((s): s is string => typeof s === "string"
+        && (SECTION_IDS as readonly string[]).includes(s))
+    : DEFAULT_PRESS_KIT_CONFIG.includedSections;
+  const accentColor = typeof r.accentColor === "string"
+      && /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(r.accentColor)
+    ? r.accentColor : DEFAULT_PRESS_KIT_CONFIG.accentColor;
+  const contactEmail = typeof r.contactEmail === "string" ? r.contactEmail : "";
+  const showContact = typeof r.showContact === "boolean" ? r.showContact : true;
+  return {
+    audience,
+    includedSections: sections.length ? sections : DEFAULT_PRESS_KIT_CONFIG.includedSections,
+    accentColor, contactEmail, showContact,
+  };
+}
+
+// ── Data snapshot ────────────────────────────────────────────
+
+export interface PressKitContext {
+  project: { name: string; type: string; status: string; description: string | null;
+             startDate: Date | null; targetDate: Date | null; programTag: string | null;
+             githubRepo: string | null; driveLink: string | null };
+  stats: { teamSize: number; tasksDone: number; tasksTotal: number;
+           milestonesHit: number; hoursLogged: number; durationDays: number | null;
+           commentCount: number };
+  milestones: { title: string; description: string | null; completedAt: Date | null }[];
+  contributors: { displayName: string; tasksDone: number; hours: number }[];
+  timeline: { title: string; date: Date | null; kind: "milestone" | "task" }[];
+  team: { displayName: string; title: string | null; role: string | null;
+          avatarUrl: string | null; isLead: boolean }[];
+  tags: string[];
+  links: { label: string; url: string }[];
+}
+
+export interface PressKitProse { about: string; aboutSearch: string; building: string; sponsorship: string }
+
+// ── Markdown assembly (pure) ─────────────────────────────────
 
 function fmtDate(d: Date | null | undefined): string {
   if (!d) return "";
   return new Date(d).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
 }
 
-/**
- * Ensure a project has a press kit token, generating one if missing.
- */
-export async function ensurePressKitToken(projectId: string): Promise<string> {
-  const project = await prisma.project.findUnique({
-    where:  { id: projectId },
-    select: { pressKitToken: true },
-  });
-  if (!project) throw new Error("Project not found");
-  if (project.pressKitToken) return project.pressKitToken;
+export function buildPressKitMarkdown(
+  ctx: PressKitContext, config: PressKitConfig, prose: PressKitProse,
+): string {
+  const has = (id: string) => config.includedSections.includes(id);
+  const out: string[] = [];
+  const p = ctx.project;
 
-  const token = randomBytes(16).toString("hex");
-  await prisma.project.update({
-    where: { id: projectId },
-    data:  { pressKitToken: token },
-  });
-  return token;
+  if (has("masthead")) {
+    out.push(`# ${p.name}`);
+    const meta = [p.type, p.status, p.programTag ? `Program: ${p.programTag}` : ""]
+      .filter(Boolean).join(" · ");
+    if (meta) out.push(`*${meta}*`);
+    out.push("");
+  }
+  if (has("about") && prose.about) { out.push("## About This Project", prose.about, ""); }
+  if (has("aboutSearch") && prose.aboutSearch) { out.push("## About Purdue SEARCH", prose.aboutSearch, ""); }
+
+  if (has("stats")) {
+    out.push("## By the Numbers", "");
+    out.push("| Metric | Value |", "| --- | --- |");
+    out.push(`| Team members | ${ctx.stats.teamSize} |`);
+    out.push(`| Tasks completed | ${ctx.stats.tasksDone} of ${ctx.stats.tasksTotal} |`);
+    out.push(`| Milestones reached | ${ctx.stats.milestonesHit} |`);
+    out.push(`| Hours logged | ${ctx.stats.hoursLogged} |`);
+    if (ctx.stats.durationDays != null) out.push(`| Days active | ${ctx.stats.durationDays} |`);
+    out.push(`| Comments | ${ctx.stats.commentCount} |`);
+    out.push("");
+  }
+  if (has("building") && prose.building) { out.push("## What We're Building", prose.building, ""); }
+
+  if (has("timeline") && (ctx.timeline.length || p.targetDate)) {
+    out.push("## Timeline & Milestones", "");
+    for (const e of ctx.timeline) {
+      const when = e.date ? ` — ${fmtDate(e.date)}` : "";
+      out.push(`- **${e.title}**${when}`);
+    }
+    if (p.targetDate) out.push(`- **Target completion** — ${fmtDate(p.targetDate)}`);
+    out.push("");
+  }
+  if (has("tech") && ctx.tags.length) {
+    out.push("## Tech & Tools", ctx.tags.join(" · "), "");
+  }
+  if (has("team") && (ctx.team.length || ctx.contributors.length)) {
+    out.push("## Team & Leadership", "");
+    for (const t of ctx.team) {
+      const lead = t.isLead ? " *(Lead)*" : "";
+      const title = t.title ? ` — ${t.title}` : "";
+      out.push(`- **${t.displayName}**${title}${lead}`);
+    }
+    if (ctx.contributors.length) {
+      out.push("", "**Top contributors**");
+      for (const c of ctx.contributors.slice(0, 6)) {
+        out.push(`- ${c.displayName} — ${c.tasksDone} tasks, ${c.hours} h`);
+      }
+    }
+    out.push("");
+  }
+  if (has("highlights") && ctx.milestones.length) {
+    out.push("## Highlights", "");
+    for (const m of ctx.milestones.slice(0, 5)) out.push(`- ${m.title}`);
+    out.push("");
+  }
+  if (has("links") && ctx.links.length) {
+    out.push("## Links", "");
+    for (const l of ctx.links) out.push(`- [${l.label}](${l.url})`);
+    out.push("");
+  }
+  if (has("contact") && config.showContact && config.contactEmail) {
+    out.push("## Contact", `For press or partnership inquiries: ${config.contactEmail}`, "");
+  }
+  if (has("sponsorship") && config.audience === "SPONSORS" && prose.sponsorship) {
+    out.push("## Support This Project", prose.sponsorship, "");
+  }
+
+  return out.join("\n");
+}
+
+// ── Section-plan assembly ────────────────────────────────────
+
+/** Deterministic stat tiles for the `stats` placeholder (never model-dependent). */
+function buildStatTiles(ctx: PressKitContext): { label: string; value: string }[] {
+  const s = ctx.stats;
+  const tiles = [
+    { label: "TEAM", value: String(s.teamSize) },
+    { label: "TASKS DONE", value: `${s.tasksDone}/${s.tasksTotal}` },
+    { label: "MILESTONES", value: String(s.milestonesHit) },
+    { label: "HOURS", value: String(s.hoursLogged) },
+  ];
+  if (s.durationDays != null) tiles.push({ label: "DAYS ACTIVE", value: String(s.durationDays) });
+  return tiles;
+}
+
+/** Deterministic dated entries for the `timeline` placeholder. */
+function buildTimelineData(ctx: PressKitContext): { title: string; date: string | null }[] {
+  const items = ctx.timeline.map((e) => ({ title: e.title, date: fmtDate(e.date) || null }));
+  if (ctx.project.targetDate) items.push({ title: "Target completion", date: fmtDate(ctx.project.targetDate) || null });
+  return items;
 }
 
 /**
- * Build the press kit HTML for a project. Returns a self-contained HTML
- * document with print-friendly CSS — the browser's print dialog renders
- * the PDF.
+ * A structured section plan built without the AI — used when the model is
+ * unavailable or returns nothing, so generation still yields a designed,
+ * section-based kit (not a flat block). Prose is limited to what live data
+ * provides; placeholders are filled downstream from `PlanData`.
  */
-export async function buildPressKitHtml(projectId: string): Promise<string | null> {
+export function fallbackPressKitPlan(ctx: PressKitContext, config: PressKitConfig): SectionPlan {
+  const has = (id: string) => config.includedSections.includes(id);
+  const p = ctx.project;
+  const sections: SectionPlan["sections"] = [];
+
+  if (has("masthead")) {
+    sections.push({ type: "hero", heading: p.name, subheading: [p.type, p.status].filter(Boolean).join(" · "), align: "center" });
+  }
+  if (has("about") && p.description) {
+    sections.push({ type: "richText", heading: "About This Project", markdown: p.description });
+  }
+  if (has("aboutSearch")) {
+    sections.push({ type: "richText", heading: "About Purdue SEARCH",
+      markdown: "Purdue SEARCH (Students for the Exploration and Research of Space) is a student engineering organization at Purdue University building hands-on space research and hardware projects." });
+  }
+  if (has("stats")) sections.push({ type: "stats", heading: "By the Numbers" });
+  if (has("timeline")) sections.push({ type: "timeline", heading: "Timeline & Milestones" });
+  if (has("tech") && ctx.tags.length) {
+    sections.push({ type: "richText", heading: "Tech & Tools", markdown: ctx.tags.join(" · ") });
+  }
+  if (has("team")) sections.push({ type: "team", heading: "Team & Leadership" });
+  if (has("highlights") && ctx.milestones.length) {
+    sections.push({ type: "richText", heading: "Highlights",
+      markdown: ctx.milestones.slice(0, 5).map((m) => `- ${m.title}`).join("\n") });
+  }
+  if (has("links")) sections.push({ type: "links", heading: "Links" });
+  if (has("contact") && config.showContact && config.contactEmail) {
+    sections.push({ type: "richText", heading: "Contact", markdown: `For press or partnership inquiries: ${config.contactEmail}` });
+  }
+  if (has("sponsorship") && config.audience === "SPONSORS") {
+    sections.push({ type: "cta", label: "Become a sponsor",
+      href: config.contactEmail ? `mailto:${config.contactEmail}` : "", style: "solid" });
+  }
+  return { sections };
+}
+
+// ── Token ────────────────────────────────────────────────────
+
+export async function ensurePressKitToken(projectId: string): Promise<string> {
+  const project = await prisma.project.findUnique({
+    where: { id: projectId }, select: { pressKitToken: true },
+  });
+  if (!project) throw new Error("Project not found");
+  if (project.pressKitToken) return project.pressKitToken;
+  const token = randomBytes(16).toString("hex");
+  await prisma.project.update({ where: { id: projectId }, data: { pressKitToken: token } });
+  return token;
+}
+
+// ── Gather live project data into a PressKitContext ──────────
+
+export async function gatherPressKitData(projectId: string): Promise<PressKitContext | null> {
   const project = await prisma.project.findUnique({
     where: { id: projectId },
     include: {
-      milestones: {
-        where:   { status: "COMPLETED" },
-        orderBy: { completedAt: "desc" },
-        take:    6,
-      },
-      members: {
-        include: {
-          member: {
-            select: {
-              id: true, displayName: true, title: true, role: true,
-              avatarUrl: true, email: true,
-            },
-          },
-        },
-      },
+      tags: true,
+      members: { include: { member: { select: {
+        id: true, displayName: true, title: true, role: true, avatarUrl: true,
+      } } } },
+      milestones: { where: { status: "COMPLETED" }, orderBy: { completedAt: "desc" }, take: 8 },
     },
   });
-
   if (!project) return null;
 
-  // All top-level tasks with their subtasks
-  const tasks = await prisma.task.findMany({
-    where: { projectId, parentTaskId: null },
-    include: { subtasks: { orderBy: { createdAt: "asc" } } },
-    orderBy: { createdAt: "asc" },
-  });
+  const [tasksTotal, tasksDone, hoursAgg, commentCount, timeLogsByMember] = await Promise.all([
+    prisma.task.count({ where: { projectId } }),
+    prisma.task.count({ where: { projectId, status: "DONE" } }),
+    prisma.timeLog.aggregate({ where: { task: { projectId } }, _sum: { minutes: true } }),
+    prisma.taskComment.count({ where: { task: { projectId } } }),
+    prisma.timeLog.groupBy({ by: ["memberId"], where: { task: { projectId } }, _sum: { minutes: true } }).catch(() => [] as { memberId: string; _sum: { minutes: number | null } }[]),
+  ]);
 
-  // Top 4 assets uploaded by anyone associated with this project
-  const memberIds = project.members.map(m => m.member.id);
-  const assets = memberIds.length > 0
-    ? await prisma.outreachAsset.findMany({
-        where: { kind: "IMAGE", uploadedById: { in: memberIds } },
-        orderBy: { createdAt: "desc" },
-        take: 4,
-      })
-    : [];
+  const durationDays = project.startDate
+    ? Math.max(0, Math.round((Date.now() - new Date(project.startDate).getTime()) / 86_400_000))
+    : null;
 
-  // Top contributors = members with the most submissions for this project
-  const contributorRows = await prisma.outreachSubmission.groupBy({
-    by: ["authorId"],
-    where:  { projectId },
-    _count: { id: true },
-    orderBy: { _count: { id: "desc" } },
-    take: 5,
-  });
-  const contributorIds = contributorRows.map(c => c.authorId);
-  const contributors = contributorIds.length > 0
-    ? await prisma.member.findMany({
-        where:  { id: { in: contributorIds } },
-        select: { id: true, displayName: true, title: true, avatarUrl: true },
-      })
-    : [];
-
-  // AI synopsis — synthesizes project data into press-ready prose
-  const synopsis = await generatePressKitSynopsis(
-    { name: project.name, type: project.type, status: project.status, description: project.description },
-    tasks.map(t => ({
-      title: t.title,
-      description: t.description,
-      status: t.status,
-      subtasks: t.subtasks.map(s => ({ title: s.title, description: s.description })),
-    })),
-    project.milestones.map(m => ({ title: m.title }))
+  const hoursByMember = new Map<string, number>(
+    (timeLogsByMember as { memberId: string; _sum: { minutes: number | null } }[])
+      .map((r) => [r.memberId, Math.round((r._sum.minutes ?? 0) / 60)])
   );
-
-  const leads = project.members
-    .filter(m => m.projectRole?.toUpperCase() === "LEAD")
-    .map(m => m.member);
-
-  // Tasks grouped by status
-  const STATUS_ORDER = ["IN_PROGRESS", "BLOCKED", "TODO", "DONE"] as const;
-  type TaskStatus = typeof STATUS_ORDER[number];
-  const STATUS_LABEL: Record<TaskStatus, string> = {
-    IN_PROGRESS: "In Progress",
-    BLOCKED:     "Blocked",
-    TODO:        "To Do",
-    DONE:        "Done",
-  };
-  const STATUS_COLOR: Record<TaskStatus, string> = {
-    IN_PROGRESS: "#0096a8",
-    BLOCKED:     "#c0392b",
-    TODO:        "#888",
-    DONE:        "#27ae60",
-  };
-
-  function renderTaskCard(t: { title: string; description: string | null; status: string; subtasks: { title: string; description: string | null }[] }): string {
-    const status = t.status as TaskStatus;
-    const color = STATUS_COLOR[status] ?? "#888";
-    const subtasksHtml = t.subtasks.length > 0
-      ? `<ul class="subtask-list">${t.subtasks.map(s => `
-          <li class="subtask-item">
-            <span class="subtask-title">${escapeHtml(s.title)}</span>
-            ${s.description ? `<span class="subtask-desc">${escapeHtml(s.description)}</span>` : ""}
-          </li>`).join("")}</ul>`
-      : "";
-    return `<div class="task-card" style="border-left-color:${color}">
-      <div class="task-card-header">
-        <span class="task-status-pill" style="background:${color}">${escapeHtml(STATUS_LABEL[status] ?? t.status)}</span>
-        <span class="task-card-title">${escapeHtml(t.title)}</span>
-      </div>
-      ${t.description ? `<p class="task-card-desc">${escapeHtml(t.description)}</p>` : ""}
-      ${subtasksHtml}
-    </div>`;
+  const doneByMember = new Map<string, number>();
+  for (const pm of project.members) {
+    const n = await prisma.task.count({
+      where: { projectId, status: "DONE", assignees: { some: { id: pm.member.id } } },
+    });
+    if (n > 0) doneByMember.set(pm.member.id, n);
   }
+  const contributors = project.members
+    .map((pm) => ({
+      displayName: pm.member.displayName,
+      tasksDone: doneByMember.get(pm.member.id) ?? 0,
+      hours: hoursByMember.get(pm.member.id) ?? 0,
+    }))
+    .filter((c) => c.tasksDone > 0 || c.hours > 0)
+    .sort((a, b) => (b.tasksDone + b.hours) - (a.tasksDone + a.hours));
 
-  const tasksBuckets = STATUS_ORDER.map(status => {
-    const bucket = tasks.filter(t => t.status === status);
-    if (bucket.length === 0) return "";
-    return `<div class="tasks-group">
-      <div class="tasks-group-label" style="color:${STATUS_COLOR[status]}">${STATUS_LABEL[status]}</div>
-      ${bucket.map(renderTaskCard).join("")}
-    </div>`;
-  }).join("");
+  const timeline = project.milestones
+    .map((m) => ({ title: m.title, date: m.completedAt, kind: "milestone" as const }))
+    .sort((a, b) => (a.date?.getTime() ?? 0) - (b.date?.getTime() ?? 0));
 
-  const tasksHtml = tasks.length > 0
-    ? `<div class="tasks-container">${tasksBuckets}</div>`
-    : `<p class="empty">No tasks recorded.</p>`;
+  const team = project.members.map((pm) => ({
+    displayName: pm.member.displayName,
+    title: pm.member.title,
+    role: pm.member.role,
+    avatarUrl: pm.member.avatarUrl,
+    isLead: (pm.projectRole ?? "").toUpperCase() === "LEAD",
+  }));
 
-  const milestonesHtml = project.milestones.length > 0
-    ? `<ul class="milestones">${project.milestones.map(m => `
-        <li>
-          <span class="ms-title">${escapeHtml(m.title)}</span>
-          ${m.description ? `<span class="ms-desc">${escapeHtml(m.description)}</span>` : ""}
-          ${m.completedAt ? `<span class="ms-date">${fmtDate(m.completedAt)}</span>` : ""}
-        </li>`).join("")}</ul>`
-    : `<p class="empty">No milestones recorded.</p>`;
+  const links: { label: string; url: string }[] = [];
+  if (project.githubRepo) links.push({ label: "GitHub", url: `https://github.com/${project.githubRepo}` });
+  if (project.driveLink) links.push({ label: "Drive", url: project.driveLink });
+  if (project.programTag) links.push({ label: "Program page", url: `https://purduesearch.github.io/${project.programTag}` });
+  links.push({ label: "Purdue SEARCH", url: "https://purduesearch.github.io" });
 
-  const assetsHtml = assets.length > 0
-    ? `<div class="assets">${assets.map(a => `
-        <figure>
-          <img src="${escapeHtml(a.url)}" alt="${escapeHtml(a.altText ?? a.name)}" />
-          <figcaption>${escapeHtml(a.name)}</figcaption>
-        </figure>`).join("")}</div>`
-    : "";
+  return {
+    project: {
+      name: project.name, type: project.type, status: project.status,
+      description: project.description, startDate: project.startDate, targetDate: project.targetDate,
+      programTag: project.programTag, githubRepo: project.githubRepo, driveLink: project.driveLink,
+    },
+    stats: {
+      teamSize: project.members.length,
+      tasksDone, tasksTotal,
+      milestonesHit: project.milestones.length,
+      hoursLogged: Math.round((hoursAgg._sum.minutes ?? 0) / 60),
+      durationDays,
+      commentCount,
+    },
+    milestones: project.milestones.map((m) => ({
+      title: m.title, description: m.description, completedAt: m.completedAt,
+    })),
+    contributors,
+    timeline,
+    team,
+    tags: project.tags.map((t) => t.name),
+    links,
+  };
+}
 
-  const leadsHtml = leads.length > 0
-    ? `<div class="people-grid">${leads.map(p => `
-        <div class="person">
-          ${p.avatarUrl ? `<img class="person-avatar" src="${escapeHtml(p.avatarUrl)}" alt="" />` : `<div class="person-avatar person-avatar--initials">${escapeHtml((p.displayName ?? "?").slice(0, 2).toUpperCase())}</div>`}
-          <div class="person-info">
-            <div class="person-name">${escapeHtml(p.displayName)}</div>
-            ${p.title ? `<div class="person-title">${escapeHtml(p.title)}</div>` : ""}
-            ${p.email ? `<div class="person-email">${escapeHtml(p.email)}</div>` : ""}
-          </div>
-        </div>`).join("")}</div>`
-    : "";
+// ── Full generation: data + AI + markdown -> TipTap JSON ─────
 
-  const contributorsHtml = contributors.length > 0
-    ? `<div class="contributors">${contributors.map(c => `
-        <span class="contributor">${c.avatarUrl ? `<img src="${escapeHtml(c.avatarUrl)}" alt="" />` : ""}<span>${escapeHtml(c.displayName)}</span></span>
-      `).join("")}</div>`
-    : "";
+export async function generatePressKitContent(
+  projectId: string, config: PressKitConfig,
+): Promise<PMDoc | null> {
+  const ctx = await gatherPressKitData(projectId);
+  if (!ctx) return null;
 
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Press Kit — ${escapeHtml(project.name)}</title>
-<style>
+  const taskRows = await prisma.task.findMany({
+    where: { projectId, parentTaskId: null },
+    select: { title: true }, take: 50,
+  });
+
+  // Deterministic data the placeholder sections render from — gated by config so a
+  // disabled section stays empty even if the model references it.
+  const has = (id: string) => config.includedSections.includes(id);
+  const planData: PlanData = {
+    stats: has("stats") ? buildStatTiles(ctx) : undefined,
+    timeline: has("timeline") ? buildTimelineData(ctx) : undefined,
+    team: has("team") ? ctx.team.map((t) => ({ displayName: t.displayName, title: t.title, isLead: t.isLead })) : undefined,
+    contributors: has("team") ? ctx.contributors : undefined,
+    links: has("links") ? ctx.links : undefined,
+  };
+
+  // Full live snapshot for the model — grounds every generated statement in real data.
+  const input: PressKitPlanInput = {
+    name: ctx.project.name, type: ctx.project.type, status: ctx.project.status,
+    description: ctx.project.description,
+    programTag: ctx.project.programTag, githubRepo: ctx.project.githubRepo,
+    startDate: fmtDate(ctx.project.startDate) || null,
+    targetDate: fmtDate(ctx.project.targetDate) || null,
+    stats: ctx.stats,
+    milestones: ctx.milestones.map((m) => ({
+      title: m.title, date: fmtDate(m.completedAt) || null, description: m.description,
+    })),
+    contributors: ctx.contributors,
+    team: ctx.team.map((t) => ({ displayName: t.displayName, title: t.title, role: t.role, isLead: t.isLead })),
+    tags: ctx.tags,
+    taskTitles: taskRows.map((t) => t.title),
+    links: ctx.links,
+    enabledSections: config.includedSections,
+    showContact: config.showContact,
+    contactEmail: config.contactEmail,
+  };
+
+  const plan = (await generatePressKitPlan(input, config.audience)) ?? fallbackPressKitPlan(ctx, config);
+  return buildDocFromPlan(plan, planData);
+}
+
+// ── Public HTML render (print-styled shell around the doc) ───
+
+const PRINT_STYLES = `
   @page { size: letter; margin: 0.6in; }
   * { box-sizing: border-box; }
-  body {
-    font-family: 'Helvetica Neue', Arial, sans-serif;
-    color: #1a1d29;
-    line-height: 1.55;
-    margin: 0;
-    padding: 36px 48px;
-    max-width: 8.5in;
-    background: #fff;
-  }
-  .brand {
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    border-bottom: 3px solid #0096a8;
-    padding-bottom: 10px;
-    margin-bottom: 28px;
-  }
-  .brand h2 { margin: 0; font-size: 14px; letter-spacing: 1.5px; text-transform: uppercase; color: #0096a8; }
-  .brand .sub { font-size: 11px; color: #666; }
-  h1 { font-size: 32px; margin: 0 0 6px; color: #0a1929; letter-spacing: -0.5px; }
-  .meta { color: #555; font-size: 13px; margin-bottom: 24px; }
-  .meta span { margin-right: 16px; }
-  .section { margin: 24px 0; page-break-inside: avoid; }
-  .section-title { font-size: 11px; text-transform: uppercase; letter-spacing: 1.2px; color: #0096a8; font-weight: 700; margin-bottom: 8px; }
-  .description { font-size: 14px; color: #333; }
-  .milestones { list-style: none; padding: 0; margin: 0; }
-  .milestones li {
-    padding: 8px 12px;
-    border-left: 3px solid #0096a8;
-    margin-bottom: 8px;
-    background: #f6fbfc;
-    display: flex;
-    flex-direction: column;
-  }
-  .ms-title { font-weight: 700; font-size: 13px; color: #0a1929; }
-  .ms-desc { font-size: 12px; color: #555; margin-top: 2px; }
-  .ms-date { font-size: 11px; color: #888; margin-top: 3px; }
-  .assets { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 8px; }
-  .assets figure { margin: 0; }
-  .assets img { width: 100%; height: 160px; object-fit: cover; border-radius: 4px; }
-  .assets figcaption { font-size: 10px; color: #888; margin-top: 3px; }
-  .people-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-  .person { display: flex; gap: 10px; align-items: center; }
-  .person-avatar { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; }
-  .person-avatar--initials {
-    background: #0096a8; color: #fff;
-    display: flex; align-items: center; justify-content: center;
-    font-weight: 700; font-size: 13px;
-  }
-  .person-name { font-weight: 700; font-size: 13px; }
-  .person-title { font-size: 11px; color: #666; }
-  .person-email { font-size: 11px; color: #0096a8; }
-  .contributors { display: flex; flex-wrap: wrap; gap: 8px; }
-  .contributor {
-    display: inline-flex; align-items: center; gap: 5px;
-    padding: 3px 9px 3px 3px;
-    border-radius: 16px;
-    background: #f0f4f6;
-    font-size: 11px;
-  }
-  .contributor img { width: 20px; height: 20px; border-radius: 50%; }
-  .synopsis { font-size: 15px; color: #222; line-height: 1.65; }
-  .tasks-container { display: flex; flex-direction: column; gap: 0; }
-  .tasks-group { margin-bottom: 14px; }
-  .tasks-group-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; font-weight: 700; margin-bottom: 6px; }
-  .task-card {
-    border-left: 3px solid #0096a8;
-    background: #f8fbfc;
-    padding: 8px 12px;
-    margin-bottom: 6px;
-    page-break-inside: avoid;
-  }
-  .task-card-header { display: flex; align-items: center; gap: 7px; margin-bottom: 3px; }
-  .task-status-pill {
-    font-size: 9px; text-transform: uppercase; letter-spacing: 0.8px;
-    color: #fff; padding: 1px 6px; border-radius: 10px; white-space: nowrap; flex-shrink: 0;
-  }
-  .task-card-title { font-weight: 700; font-size: 12px; color: #0a1929; }
-  .task-card-desc { font-size: 11px; color: #555; margin: 2px 0 4px; }
-  .subtask-list { list-style: none; padding: 0; margin: 4px 0 0 16px; border-left: 1px solid #dde; padding-left: 10px; }
-  .subtask-item { margin-bottom: 4px; }
-  .subtask-title { font-size: 11px; font-weight: 600; color: #333; display: block; }
-  .subtask-desc { font-size: 10px; color: #666; display: block; margin-top: 1px; }
-  .empty { color: #999; font-style: italic; font-size: 12px; }
-  .footer {
-    margin-top: 40px;
-    padding-top: 14px;
-    border-top: 1px solid #ddd;
-    font-size: 10px;
-    color: #888;
-    text-align: center;
-  }
-  @media screen {
-    body { box-shadow: 0 0 24px rgba(0,0,0,0.08); margin: 20px auto; border-radius: 4px; }
-    .print-hint {
-      position: fixed; top: 10px; right: 10px;
-      background: #0096a8; color: #fff; padding: 8px 14px;
-      border-radius: 6px; font-size: 12px; font-family: sans-serif;
-      z-index: 1000;
-    }
-  }
+  body { font-family: 'Helvetica Neue', Arial, sans-serif; color: #1a1d29; line-height: 1.6;
+    margin: 0; padding: 40px 52px; max-width: 8.5in; background: #fff; }
+  h1 { font-size: 30px; margin: 0 0 4px; color: #0a1929; letter-spacing: -0.5px; }
+  h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--accent);
+    border-bottom: 2px solid var(--accent); padding-bottom: 4px; margin: 26px 0 10px; }
+  h3 { font-size: 14px; margin: 18px 0 6px; }
+  p { font-size: 13.5px; margin: 6px 0; }
+  ul, ol { font-size: 13.5px; margin: 6px 0 6px 20px; }
+  li { margin: 3px 0; }
+  a { color: var(--accent); text-decoration: none; }
+  blockquote { border-left: 3px solid var(--accent); margin: 10px 0; padding: 2px 14px; color: #444; background: #f7fbfc; }
+  hr { border: none; border-top: 1px solid #ddd; margin: 20px 0; }
+  table.cpm-blog-table { border-collapse: collapse; width: 100%; margin: 10px 0; font-size: 13px; }
+  table.cpm-blog-table td, table.cpm-blog-table th { border: 1px solid #e2e6ea; padding: 6px 10px; text-align: left; }
+  table.cpm-blog-table th { background: #f2f6f8; }
+  figure.cpm-blog-figure { margin: 12px 0; text-align: center; }
+  figure.cpm-blog-figure img { max-width: 100%; border-radius: 4px; }
+  figure.cpm-blog-figure figcaption { font-size: 11px; color: #888; margin-top: 4px; }
+  .cpm-blog-callout { border-left: 3px solid var(--accent); background: #f6fbfc; padding: 10px 14px; margin: 12px 0; border-radius: 4px; }
+  nav.cpm-blog-toc { display: none; }
+  .pk-brand { display: flex; justify-content: space-between; align-items: baseline;
+    border-bottom: 3px solid var(--accent); padding-bottom: 10px; margin-bottom: 24px; }
+  .pk-brand h2 { border: none; margin: 0; padding: 0; color: var(--accent); }
+  .pk-brand .sub { font-size: 11px; color: #666; }
+  .pk-footer { margin-top: 40px; padding-top: 14px; border-top: 1px solid #ddd; font-size: 10px; color: #888; text-align: center; }
+  @media screen { body { box-shadow: 0 0 24px rgba(0,0,0,0.08); margin: 20px auto; border-radius: 4px; }
+    .print-hint { position: fixed; top: 10px; right: 10px; background: var(--accent); color: #fff; padding: 8px 14px;
+      border-radius: 6px; font-size: 12px; z-index: 1000; } }
   @media print { .print-hint { display: none; } }
-</style>
-</head>
+  .cpm-blog-section-inner { max-width: 100%; padding: 10px 0; }
+  .cpm-blog-section--cols2 .cpm-blog-section-inner, .cpm-blog-section--cols3 .cpm-blog-section-inner,
+  .cpm-blog-section--mediaText .cpm-blog-section-inner { display: grid; gap: 18px; }
+  .cpm-blog-section--cols2 .cpm-blog-section-inner, .cpm-blog-section--mediaText .cpm-blog-section-inner { grid-template-columns: 1fr 1fr; }
+  .cpm-blog-section--cols3 .cpm-blog-section-inner { grid-template-columns: 1fr 1fr 1fr; }
+  .cpm-blog-hero { padding: 40px 10px; text-align: center; }
+  .cpm-blog-hero h1 { font-size: 26px; }
+  .cpm-blog-statband { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px,1fr)); gap: 12px; }
+  .cpm-blog-stat { border: 1px solid #e2e6ea; border-radius: 8px; padding: 10px; text-align: center; }
+  .cpm-blog-stat-value { font-size: 20px; font-weight: 800; color: var(--accent); }
+  .cpm-blog-stat-label { font-size: 9px; letter-spacing: 1px; text-transform: uppercase; color: #666; }
+  .cpm-blog-cta { text-align: center; margin: 14px 0; }
+  .cpm-blog-cta-btn { display: inline-block; padding: 8px 18px; border-radius: 6px; background: var(--accent); color: #06231f; font-weight: 700; text-decoration: none; }
+  .cpm-blog-section-toolbar, .cpm-blog-add-section { display: none; }
+`;
+
+/** Build the full public/print HTML for a project's press kit, or null if none/empty. */
+export async function buildPressKitHtml(projectId: string): Promise<string | null> {
+  const kit = await prisma.projectPressKit.findUnique({ where: { projectId } });
+  if (!kit) return null;
+  const config = normalizePressKitConfig(kit.config);
+  const inner = kit.status === "PUBLISHED" && kit.renderedHtml
+    ? kit.renderedHtml
+    : renderJsonToHtml(kit.contentJson as unknown as PMDoc | null, process.env.PUBLIC_API_BASE_URL ?? "");
+  if (!inner || !inner.trim()) return null;
+
+  const theme = (kit.theme ?? null) as { accent?: string; fontPair?: string; width?: string } | null;
+  const accentFinal = theme?.accent || config.accentColor;
+  const project = await prisma.project.findUnique({ where: { id: projectId }, select: { name: true } });
+  const title = project?.name ?? "Press Kit";
+  const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  const generated = new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+
+  return `<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Press Kit — ${esc(title)}</title>
+<style>:root{--accent:${esc(accentFinal)};}${PRINT_STYLES}</style></head>
 <body>
   <div class="print-hint">Press Ctrl/Cmd + P to save as PDF</div>
-  <div class="brand">
-    <h2>Purdue SEARCH · Press Kit</h2>
-    <span class="sub">Generated ${fmtDate(new Date())}</span>
-  </div>
+  <div class="pk-brand"><h2>Purdue SEARCH · Press Kit</h2><span class="sub">Generated ${generated}</span></div>
+  ${inner}
+  <div class="pk-footer">Purdue SEARCH · purduesearch.github.io</div>
+</body></html>`;
+}
 
-  <h1>${escapeHtml(project.name)}</h1>
-  <div class="meta">
-    <span><strong>Type:</strong> ${escapeHtml(project.type)}</span>
-    <span><strong>Status:</strong> ${escapeHtml(project.status)}</span>
-    ${project.startDate ? `<span><strong>Started:</strong> ${fmtDate(project.startDate)}</span>` : ""}
-    ${project.targetDate ? `<span><strong>Target:</strong> ${fmtDate(project.targetDate)}</span>` : ""}
-  </div>
-
-  ${synopsis ? `<div class="section"><div class="section-title">About This Project</div><p class="synopsis">${escapeHtml(synopsis)}</p></div>` : ""}
-
-  ${project.description ? `<div class="section"><div class="section-title">Overview</div><p class="description">${escapeHtml(project.description)}</p></div>` : ""}
-
-  <div class="section">
-    <div class="section-title">Tasks</div>
-    ${tasksHtml}
-  </div>
-
-  <div class="section">
-    <div class="section-title">Recent Milestones</div>
-    ${milestonesHtml}
-  </div>
-
-  ${assets.length > 0 ? `<div class="section"><div class="section-title">Imagery</div>${assetsHtml}</div>` : ""}
-
-  ${leads.length > 0 ? `<div class="section"><div class="section-title">Project Leads</div>${leadsHtml}</div>` : ""}
-
-  ${contributors.length > 0 ? `<div class="section"><div class="section-title">Top Contributors</div>${contributorsHtml}</div>` : ""}
-
-  <div class="footer">
-    Purdue SEARCH · purduesearch.github.io · For press inquiries, contact a project lead listed above.
-  </div>
-</body>
-</html>`;
+/** Render the current doc to the inner HTML snapshot stored on publish. */
+export function renderPressKitInnerHtml(doc: PMDoc | null | undefined): string {
+  return renderJsonToHtml(doc ?? null, process.env.PUBLIC_API_BASE_URL ?? "");
 }

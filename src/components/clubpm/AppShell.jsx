@@ -3,7 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import OrbitLoader from '../OrbitLoader';
 import { useLocation, Link, Navigate, useNavigate } from 'react-router-dom';
 import { useClubPmAuth } from '../../clubpm/ClubPmAuth';
-import { get, post } from '../../api/clubPmClient';
+import { get, post, getCrPendingCount } from '../../api/clubPmClient';
+import { CR_COUNT_EVENT } from './vault/vaultUtils';
 import { useShortcutsRegistry } from '../../clubpm/ShortcutsRegistry';
 import NotificationBell from './NotificationBell';
 import AICommandPalette from './AICommandPalette';
@@ -104,7 +105,6 @@ function statusDotColor(status) {
 function CreateProjectModal({ onClose, onCreate }) {
   const [name, setName] = useState('');
   const [type, setType] = useState('ENGINEERING');
-  const [driveLink, setDriveLink] = useState('');
   const [targetDate, setTargetDate] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
@@ -114,7 +114,7 @@ function CreateProjectModal({ onClose, onCreate }) {
     if (!name.trim()) return;
     setSaving(true); setError(null);
     try {
-      const project = await post('/api/projects', { name: name.trim(), type, driveLink: driveLink.trim() || undefined, targetDate: targetDate || undefined });
+      const project = await post('/api/projects', { name: name.trim(), type, targetDate: targetDate || undefined });
       onCreate(project);
       onClose();
     } catch (err) {
@@ -133,7 +133,6 @@ function CreateProjectModal({ onClose, onCreate }) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: 20 }}>
             {[
               { label: 'Project Name *', el: <input type="text" value={name} onChange={e => setName(e.target.value)} required placeholder="e.g. Lunar Rover" /> },
-              { label: 'Google Drive Link', el: <input type="url" value={driveLink} onChange={e => setDriveLink(e.target.value)} placeholder="https://drive.google.com/…" /> },
               { label: 'Target Date', el: <input type="date" value={targetDate} onChange={e => setTargetDate(e.target.value)} /> },
             ].map(({ label, el }) => (
               <div key={label}>
@@ -227,6 +226,7 @@ export default function AppShell({ children }) {
   const { celebration, clearCelebration } = useCelebrationCheck();
 
   const [pendingRewardsCount, setPendingRewardsCount] = useState(0);
+  const [pendingCrCount, setPendingCrCount] = useState(0);
 
   const fetchPendingCount = useCallback(() => {
     if (!member?.isAdmin) return;
@@ -235,14 +235,24 @@ export default function AppShell({ children }) {
       .catch(() => setPendingRewardsCount(0));
   }, [member]);
 
+  const fetchPendingCrCount = useCallback(() => {
+    if (!member?.isAdmin) return;
+    getCrPendingCount()
+      .then(res => setPendingCrCount(res.count ?? 0))
+      .catch(() => setPendingCrCount(0));
+  }, [member]);
+
   useEffect(() => {
     if (!member) return;
     fetchPendingCount();
+    fetchPendingCrCount();
     window.addEventListener('clubpm:pending-rewards-updated', fetchPendingCount);
+    window.addEventListener(CR_COUNT_EVENT, fetchPendingCrCount);
     return () => {
       window.removeEventListener('clubpm:pending-rewards-updated', fetchPendingCount);
+      window.removeEventListener(CR_COUNT_EVENT, fetchPendingCrCount);
     };
-  }, [member, fetchPendingCount]);
+  }, [member, fetchPendingCount, fetchPendingCrCount]);
 
   useEffect(() => {
     if (!member) return;
@@ -357,21 +367,18 @@ export default function AppShell({ children }) {
               </span>
               <span className="pm-nav-item-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
                 <span>Admin</span>
-                {pendingRewardsCount > 0 && (
-                  <span className="pm-admin-badge" style={{
-                    background: 'var(--pm-accent-coral, #ff7675)',
-                    color: '#fff',
-                    borderRadius: '50%',
-                    padding: '2px 6px',
-                    fontSize: '10px',
-                    fontWeight: 'bold',
-                    marginLeft: '8px',
-                    minWidth: '16px',
-                    textAlign: 'center',
-                    display: 'inline-block',
-                    lineHeight: '1.2'
-                  }}>
-                    {pendingRewardsCount}
+                {(pendingRewardsCount > 0 || pendingCrCount > 0) && (
+                  <span className="pm-admin-badge-group">
+                    {pendingRewardsCount > 0 && (
+                      <span className="pm-admin-badge" title="Pending rewards">
+                        {pendingRewardsCount}
+                      </span>
+                    )}
+                    {pendingCrCount > 0 && (
+                      <span className="pm-admin-badge" title="Open change requests">
+                        {pendingCrCount}
+                      </span>
+                    )}
                   </span>
                 )}
               </span>

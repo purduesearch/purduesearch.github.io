@@ -15,7 +15,7 @@ notificationsRouter.use(requireAuth);
 // ── GET /api/notifications ───────────────────────────────────
 notificationsRouter.get("/", async (req: Request, res: Response) => {
   try {
-    const memberId   = (req.session as any).memberId as string;
+    const memberId   = req.memberId!;
     const limit      = Math.min(parseInt(req.query.limit as string) || 20, 100);
     const cursor     = req.query.cursor as string | undefined;
     const unreadOnly = req.query.unreadOnly === "true";
@@ -31,7 +31,7 @@ notificationsRouter.get("/", async (req: Request, res: Response) => {
 // ── GET /api/notifications/unread-count ──────────────────────
 notificationsRouter.get("/unread-count", async (req: Request, res: Response) => {
   try {
-    const memberId = (req.session as any).memberId as string;
+    const memberId = req.memberId!;
     const count    = await getUnreadCount(memberId);
     res.json({ count });
   } catch (err) {
@@ -43,7 +43,7 @@ notificationsRouter.get("/unread-count", async (req: Request, res: Response) => 
 // ── PATCH /api/notifications/:id/read ───────────────────────
 notificationsRouter.patch("/:id/read", async (req: Request, res: Response) => {
   try {
-    const memberId = (req.session as any).memberId as string;
+    const memberId = req.memberId!;
     await markRead(req.params.id as string, memberId);
     res.json({ ok: true });
   } catch (err: any) {
@@ -56,7 +56,7 @@ notificationsRouter.patch("/:id/read", async (req: Request, res: Response) => {
 // ── POST /api/notifications/read-all ────────────────────────
 notificationsRouter.post("/read-all", async (req: Request, res: Response) => {
   try {
-    const memberId = (req.session as any).memberId as string;
+    const memberId = req.memberId!;
     await markAllRead(memberId);
     res.json({ ok: true });
   } catch (err) {
@@ -68,7 +68,7 @@ notificationsRouter.post("/read-all", async (req: Request, res: Response) => {
 // ── DELETE /api/notifications/:id ───────────────────────────
 notificationsRouter.delete("/:id", async (req: Request, res: Response) => {
   try {
-    const memberId = (req.session as any).memberId as string;
+    const memberId = req.memberId!;
     await deleteNotification(req.params.id as string, memberId);
     res.json({ ok: true });
   } catch (err: any) {

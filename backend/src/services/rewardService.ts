@@ -101,21 +101,24 @@ export async function grantXP(
   const { boosted } = amount > 0 ? await applyXpMultiplier(memberId, amount) : { boosted: amount };
   const grantAmount = boosted;
 
-  const updated = await prisma.member.update({
-    where: { id: memberId },
-    data:  { xp: { increment: grantAmount } },
-    select: { xp: true },
-  });
-
-  await prisma.xpEvent.create({
-    data: {
-      memberId,
-      amount: grantAmount,
-      source,
-      taskId: opts.taskId ?? null,
-      approvedById: opts.approvedById ?? null,
-    },
-  });
+  // Member.xp and the XpEvent ledger must move together — a crash between
+  // the two would drift the running total from the audit trail.
+  const [updated] = await prisma.$transaction([
+    prisma.member.update({
+      where: { id: memberId },
+      data:  { xp: { increment: grantAmount } },
+      select: { xp: true },
+    }),
+    prisma.xpEvent.create({
+      data: {
+        memberId,
+        amount: grantAmount,
+        source,
+        taskId: opts.taskId ?? null,
+        approvedById: opts.approvedById ?? null,
+      },
+    }),
+  ]);
 
   const { rankAfter } = await recalculateRank(memberId);
   return { newXp: updated.xp, xpDelta: grantAmount, rankBefore, rankAfter };
@@ -131,18 +134,20 @@ export async function grantDoubloons(
     const m = await prisma.member.findUnique({ where: { id: memberId }, select: { doubloons: true } });
     return { newBalance: m?.doubloons ?? 0, doubloonsDelta: 0 };
   }
-  const updated = await prisma.member.update({
-    where: { id: memberId },
-    data:  { doubloons: { increment: amount } },
-    select: { doubloons: true },
-  });
-  await prisma.doubloonEvent.create({
-    data: {
-      memberId, amount, source,
-      taskId: opts.taskId ?? null,
-      cosmeticId: opts.cosmeticId ?? null,
-    },
-  });
+  const [updated] = await prisma.$transaction([
+    prisma.member.update({
+      where: { id: memberId },
+      data:  { doubloons: { increment: amount } },
+      select: { doubloons: true },
+    }),
+    prisma.doubloonEvent.create({
+      data: {
+        memberId, amount, source,
+        taskId: opts.taskId ?? null,
+        cosmeticId: opts.cosmeticId ?? null,
+      },
+    }),
+  ]);
   return { newBalance: updated.doubloons, doubloonsDelta: amount };
 }
 
@@ -242,7 +247,7 @@ export async function approveReward(
   overrides: { adjustedXp?: number; adjustedDoubloons?: number } = {}
 ): Promise<void> {
   const pending = await prisma.pendingReward.findUnique({ where: { id: pendingId } });
-  if (!pending || pending.status !== "PENDING") {
+  if (!pending) {
     throw new Error("Pending reward not found or already processed");
   }
   const xpAmount = Math.min(100, overrides.adjustedXp        ?? pending.proposedXp);
@@ -251,14 +256,19 @@ export async function approveReward(
     overrides.adjustedXp        !== undefined && overrides.adjustedXp        !== pending.proposedXp ||
     overrides.adjustedDoubloons !== undefined && overrides.adjustedDoubloons !== pending.proposedDoubloons;
 
-  await prisma.pendingReward.update({
-    where: { id: pendingId },
+  // Atomic claim: only one concurrent caller can flip PENDING → APPROVED/ADJUSTED.
+  // Whoever loses the race (count === 0) must not grant XP/doubloons.
+  const claimed = await prisma.pendingReward.updateMany({
+    where: { id: pendingId, status: "PENDING" },
     data:  {
       status:       adjusted ? "ADJUSTED" : "APPROVED",
       reviewedById: adminId,
       reviewedAt:   new Date(),
     },
   });
+  if (claimed.count === 0) {
+    throw new Error("Pending reward not found or already processed");
+  }
 
   const xpSource: XpSource = eventTypeToXpSource(pending.eventType);
   const dbSource: DoubloonSource = eventTypeToDoubloonSource(pending.eventType);
@@ -290,13 +300,16 @@ export async function approveReward(
 
 export async function rejectReward(pendingId: string, adminId: string): Promise<void> {
   const pending = await prisma.pendingReward.findUnique({ where: { id: pendingId } });
-  if (!pending || pending.status !== "PENDING") {
+  if (!pending) {
     throw new Error("Pending reward not found or already processed");
   }
-  await prisma.pendingReward.update({
-    where: { id: pendingId },
+  const claimed = await prisma.pendingReward.updateMany({
+    where: { id: pendingId, status: "PENDING" },
     data:  { status: "REJECTED", reviewedById: adminId, reviewedAt: new Date() },
   });
+  if (claimed.count === 0) {
+    throw new Error("Pending reward not found or already processed");
+  }
 
   const member = await prisma.member.findUnique({ where: { id: pending.memberId }, select: { slackId: true } });
   if (member?.slackId) {
@@ -316,6 +329,7 @@ function eventTypeToXpSource(e: RewardEventType): XpSource {
     case "KUDOS_RECEIVED":               return "KUDOS";
     case "BLOG_POST_PUBLISHED":          return "BLOG_POST";
     case "EARLY_DELIVERY_BONUS":         return "EARLY_BONUS";
+    case "MEETING_AVAILABILITY_SUBMITTED": return "MEETING";
   }
 }
 
@@ -328,6 +342,7 @@ function eventTypeToDoubloonSource(e: RewardEventType): DoubloonSource {
     case "KUDOS_RECEIVED":               return "KUDOS";
     case "BLOG_POST_PUBLISHED":          return "BLOG_POST";
     case "EARLY_DELIVERY_BONUS":         return "EARLY_BONUS";
+    case "MEETING_AVAILABILITY_SUBMITTED": return "MEETING";
   }
 }
 
@@ -549,6 +564,15 @@ export async function handleBlogPostPublished(authorMemberId: string, submission
   } else {
     await queuePendingReward(authorMemberId, "BLOG_POST_PUBLISHED", undefined, { submissionId });
   }
+}
+
+export async function handleMeetingAvailabilitySubmitted(memberId: string): Promise<void> {
+  const cfg = await prisma.rewardEventConfig.findUnique({
+    where: { eventType: "MEETING_AVAILABILITY_SUBMITTED" },
+  });
+  if (!cfg || !cfg.autoApprove) return;
+  if (cfg.xpAmount       > 0) await grantXP(memberId, cfg.xpAmount, "MEETING");
+  if (cfg.doubloonAmount > 0) await grantDoubloons(memberId, cfg.doubloonAmount, "MEETING");
 }
 
 // Silence unused-import warning for logAuditEvent (reserved for future approval audit).

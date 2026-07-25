@@ -28,3 +28,9 @@ yarn-error.log*
 
 # build output — deployed via GitHub Actions artifact, not from git
 /build
+
+# vault upload temp files (streamed to Drive, then unlinked)
+backend/uploads/vault-tmp/
+
+# superpowers visual-brainstorm mockups (local only)
+.superpowers/

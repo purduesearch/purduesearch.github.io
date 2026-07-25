@@ -7,6 +7,8 @@ import TaskItem from '@tiptap/extension-task-item';
 import CharacterCount from '@tiptap/extension-character-count';
 import Placeholder from '@tiptap/extension-placeholder';
 import { TableKit } from '@tiptap/extension-table';
+import { TextStyle, FontFamily, FontSize, Color } from '@tiptap/extension-text-style';
+import Highlight from '@tiptap/extension-highlight';
 import Collaboration from '@tiptap/extension-collaboration';
 import CollaborationCaret from '@tiptap/extension-collaboration-caret';
 import { SearchAndReplace } from '@sereneinserenade/tiptap-search-and-replace';
@@ -17,9 +19,18 @@ import BlogEmbed, { buildEmbed } from './BlogEmbed';
 import BlogGallery from './BlogGallery';
 import BlogToc from './BlogToc';
 import BlogCallout from './BlogCallout';
+import BlogSection from './BlogSection';
+import BlogColumn from './BlogColumn';
+import BlogHero from './BlogHero';
+import BlogStatBand from './BlogStatBand';
+import BlogCta from './BlogCta';
 import BlogSnippetManager from './BlogSnippetManager';
+import BlogSectionLibrary from './BlogSectionLibrary';
+import BlogSectionSettings from './BlogSectionSettings';
+import BlogThemeBar from './BlogThemeBar';
 import { docToMarkdown, markdownToDoc } from './blogMarkdown';
 import { getBlogCollabWsUrl, getStoredToken } from '../../../api/clubPmClient';
+import { shouldFallbackSeed } from '../../../lib/collabFallback';
 import useKeyboardShortcuts from '../../../hooks/useKeyboardShortcuts';
 import { useShortcutsRegistry } from '../../../clubpm/ShortcutsRegistry';
 
@@ -47,11 +58,21 @@ export function blogExtensions(collab) {
     }),
     TaskList,
     TaskItem.configure({ nested: true }),
+    TextStyle,
+    FontFamily.configure({ types: ['textStyle'] }),
+    FontSize.configure({ types: ['textStyle'] }),
+    Color.configure({ types: ['textStyle'] }),
+    Highlight.configure({ multicolor: true }),
     BlogImage,
     BlogEmbed,
     BlogGallery,
     BlogToc,
     BlogCallout,
+    BlogSection,
+    BlogColumn,
+    BlogHero,
+    BlogStatBand,
+    BlogCta,
     CharacterCount,
     Placeholder.configure({ placeholder: 'Start writing your post…' }),
     TableKit.configure({ table: { resizable: true } }),
@@ -73,6 +94,12 @@ function colorForMember(memberId) {
   for (let i = 0; i < memberId.length; i += 1) hash = (hash * 31 + memberId.charCodeAt(i)) | 0;
   return CURSOR_COLORS[Math.abs(hash) % CURSOR_COLORS.length];
 }
+
+// Restricted to the faces the site actually loads (public/index.html) and that
+// the server renderer allowlists (blogRender.ts ALLOWED_FONTS). Keep the three
+// lists in sync — a font missing from any of them silently drops on publish.
+const POST_FONTS = ['Syne', 'DM Sans', 'Oswald', 'Lato', 'Montserrat', 'Work Sans'];
+const POST_SIZES = [12, 14, 16, 18, 20, 24, 30, 36, 48];
 
 function Btn({ active, disabled, onClick, title, icon, label, pinned }) {
   return (
@@ -102,7 +129,94 @@ function setLink(editor) {
   editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
 }
 
-function Toolbar({ editor, onToggleFind, onToggleSnippets, onToggleMarkdown, markdownMode, onShowShortcuts, toolbarOpen, onToggleToolbarOpen }) {
+// A dropdown that groups related toolbar actions. `items` are
+// { title, icon, active?, disabled?, onClick }. Format-style menus pass
+// closeOnSelect={false} so several toggles can be applied without reopening.
+function ToolbarMenu({ label, icon, title, items, closeOnSelect = true }) {
+  const [open, setOpen] = React.useState(false);
+  const ref = React.useRef(null);
+  React.useEffect(() => {
+    if (!open) return undefined;
+    const onDoc = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    const onKey = (e) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('mousedown', onDoc);
+    document.addEventListener('keydown', onKey);
+    return () => { document.removeEventListener('mousedown', onDoc); document.removeEventListener('keydown', onKey); };
+  }, [open]);
+  const anyActive = items.some((it) => it.active);
+  return (
+    <span className="cpm-blog-tb-menu" ref={ref}>
+      <button
+        type="button"
+        className={`cpm-blog-tb-menu-trigger${anyActive ? ' is-active' : ''}${open ? ' is-open' : ''}`}
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={() => setOpen((o) => !o)}
+        title={title || label}
+        aria-haspopup="menu"
+        aria-expanded={open}
+      >
+        {icon && <i className={`fas ${icon}`} aria-hidden="true" />}
+        <span className="cpm-blog-tb-menu-label">{label}</span>
+        <i className="fas fa-chevron-down cpm-blog-tb-menu-caret" aria-hidden="true" />
+      </button>
+      {open && (
+        <div className="cpm-blog-tb-menu-pop" role="menu">
+          {items.map((it) => (
+            <button
+              key={it.title}
+              type="button"
+              role="menuitem"
+              className={`cpm-blog-tb-menu-item${it.active ? ' is-active' : ''}`}
+              onMouseDown={(e) => e.preventDefault()}
+              disabled={it.disabled}
+              onClick={() => { it.onClick(); if (closeOnSelect) setOpen(false); }}
+            >
+              {it.icon && <i className={`fas ${it.icon}`} aria-hidden="true" />}
+              <span>{it.title}</span>
+              {it.active && <i className="fas fa-check cpm-blog-tb-menu-tick" aria-hidden="true" />}
+            </button>
+          ))}
+        </div>
+      )}
+    </span>
+  );
+}
+
+// Post-level design controls (accent, font pair, width). These apply to the
+// whole post — per-selection typography lives in the Text group instead.
+function DesignMenu({ theme, onChange }) {
+  const [open, setOpen] = React.useState(false);
+  const ref = React.useRef(null);
+  React.useEffect(() => {
+    if (!open) return undefined;
+    const onDoc = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, [open]);
+  return (
+    <span className="cpm-blog-tb-menu" ref={ref}>
+      <button
+        type="button"
+        className={`cpm-blog-tb-menu-trigger${open ? ' is-open' : ''}`}
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={() => setOpen((o) => !o)}
+        title="Post design"
+      >
+        <i className="fas fa-palette" aria-hidden="true" />
+        <span className="cpm-blog-tb-menu-label">Design</span>
+        <i className="fas fa-chevron-down cpm-blog-tb-menu-caret" aria-hidden="true" />
+      </button>
+      {open && (
+        <div className="cpm-blog-tb-menu-pop cpm-blog-design-pop">
+          <BlogThemeBar theme={theme} onChange={onChange} />
+          <p className="cpm-blog-design-hint">Applies to the whole post.</p>
+        </div>
+      )}
+    </span>
+  );
+}
+
+function Toolbar({ editor, onToggleFind, onToggleSnippets, onAddSection, onToggleMarkdown, markdownMode, onShowShortcuts, toolbarOpen, onToggleToolbarOpen, theme, onThemeChange }) {
   const fileRef = React.useRef(null);
   if (!editor) return null;
   const heading = [1, 2, 3, 4, 5, 6].find((l) => editor.isActive('heading', { level: l })) ?? '';
@@ -130,6 +244,37 @@ function Toolbar({ editor, onToggleFind, onToggleSnippets, onToggleMarkdown, mar
       content: [{ type: 'paragraph' }],
     }).run();
   };
+
+  // Grouped menu items — condense the many single-purpose buttons into three menus.
+  const formatItems = [
+    { title: 'Bold', icon: 'fa-bold', active: editor.isActive('bold'), onClick: () => editor.chain().focus().toggleBold().run() },
+    { title: 'Italic', icon: 'fa-italic', active: editor.isActive('italic'), onClick: () => editor.chain().focus().toggleItalic().run() },
+    { title: 'Underline', icon: 'fa-underline', active: editor.isActive('underline'), onClick: () => editor.chain().focus().toggleUnderline().run() },
+    { title: 'Strikethrough', icon: 'fa-strikethrough', active: editor.isActive('strike'), onClick: () => editor.chain().focus().toggleStrike().run() },
+    { title: 'Inline code', icon: 'fa-code', active: editor.isActive('code'), onClick: () => editor.chain().focus().toggleCode().run() },
+    { title: 'Link', icon: 'fa-link', active: editor.isActive('link'), onClick: () => setLink(editor) },
+  ];
+  const listItems = [
+    { title: 'Bullet list', icon: 'fa-list-ul', active: editor.isActive('bulletList'), onClick: () => editor.chain().focus().toggleBulletList().run() },
+    { title: 'Numbered list', icon: 'fa-list-ol', active: editor.isActive('orderedList'), onClick: () => editor.chain().focus().toggleOrderedList().run() },
+    { title: 'Checklist', icon: 'fa-square-check', active: editor.isActive('taskList'), onClick: () => editor.chain().focus().toggleTaskList().run() },
+  ];
+  const insertItems = [
+    { title: 'Image', icon: 'fa-image', onClick: () => fileRef.current?.click() },
+    { title: 'Embed (video / social)', icon: 'fa-photo-film', onClick: insertEmbed },
+    { title: 'Image gallery', icon: 'fa-images', onClick: insertGallery },
+    { title: 'Table', icon: 'fa-table', active: inTable, onClick: () => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run() },
+    { title: 'Table of contents', icon: 'fa-bars-staggered', onClick: insertToc },
+    { title: 'Callout', icon: 'fa-square-full', active: editor.isActive('callout'), onClick: insertCallout },
+    { title: 'Quote', icon: 'fa-quote-right', active: editor.isActive('blockquote'), onClick: () => editor.chain().focus().toggleBlockquote().run() },
+    { title: 'Code block', icon: 'fa-file-code', active: editor.isActive('codeBlock'), onClick: () => editor.chain().focus().toggleCodeBlock().run() },
+    { title: 'Divider', icon: 'fa-minus', onClick: () => editor.chain().focus().setHorizontalRule().run() },
+    { title: 'Snippets', icon: 'fa-clone', onClick: onToggleSnippets },
+  ];
+
+  const activeFont = editor.getAttributes('textStyle').fontFamily ?? '';
+  const activeSize = String(editor.getAttributes('textStyle').fontSize ?? '').replace('px', '');
+
   return (
     <div
       className={`cpm-blog-toolbar${toolbarOpen ? '' : ' is-collapsed'}${markdownMode ? ' is-markdown-mode' : ''}`}
@@ -143,66 +288,119 @@ function Toolbar({ editor, onToggleFind, onToggleSnippets, onToggleMarkdown, mar
           onClick={onToggleToolbarOpen}
           pinned
         />
-        <span className="cpm-blog-tb-sep" />
       </span>
-      <Btn title="Bold (Ctrl+B)" icon="fa-bold" active={editor.isActive('bold')} onClick={() => editor.chain().focus().toggleBold().run()} />
-      <Btn title="Italic (Ctrl+I)" icon="fa-italic" active={editor.isActive('italic')} onClick={() => editor.chain().focus().toggleItalic().run()} />
-      <Btn title="Underline (Ctrl+U)" icon="fa-underline" active={editor.isActive('underline')} onClick={() => editor.chain().focus().toggleUnderline().run()} />
-      <Btn title="Strikethrough" icon="fa-strikethrough" active={editor.isActive('strike')} onClick={() => editor.chain().focus().toggleStrike().run()} />
-      <span className="cpm-blog-tb-sep" />
-      <select
-        className="cpm-blog-tb-select"
-        value={heading}
-        onChange={(e) => {
-          const v = e.target.value;
-          if (!v) editor.chain().focus().setParagraph().run();
-          else editor.chain().focus().toggleHeading({ level: Number(v) }).run();
-        }}
-        title="Paragraph style"
-      >
-        <option value="">Paragraph</option>
-        <option value="1">Heading 1</option>
-        <option value="2">Heading 2</option>
-        <option value="3">Heading 3</option>
-        <option value="4">Heading 4</option>
-        <option value="5">Heading 5</option>
-        <option value="6">Heading 6</option>
-      </select>
-      <span className="cpm-blog-tb-sep" />
-      <Btn title="Bullet list" icon="fa-list-ul" active={editor.isActive('bulletList')} onClick={() => editor.chain().focus().toggleBulletList().run()} />
-      <Btn title="Numbered list" icon="fa-list-ol" active={editor.isActive('orderedList')} onClick={() => editor.chain().focus().toggleOrderedList().run()} />
-      <Btn title="Checklist" icon="fa-square-check" active={editor.isActive('taskList')} onClick={() => editor.chain().focus().toggleTaskList().run()} />
-      <span className="cpm-blog-tb-sep" />
-      <Btn title="Quote" icon="fa-quote-right" active={editor.isActive('blockquote')} onClick={() => editor.chain().focus().toggleBlockquote().run()} />
-      <Btn title="Code block" icon="fa-code" active={editor.isActive('codeBlock')} onClick={() => editor.chain().focus().toggleCodeBlock().run()} />
-      <Btn title="Divider" icon="fa-minus" onClick={() => editor.chain().focus().setHorizontalRule().run()} />
-      <span className="cpm-blog-tb-sep" />
-      <Btn title="Link (Ctrl+K)" icon="fa-link" active={editor.isActive('link')} onClick={() => setLink(editor)} />
-      <Btn title="Insert image" icon="fa-image" onClick={() => fileRef.current?.click()} />
-      <input ref={fileRef} type="file" accept="image/*" multiple hidden onChange={pickImage} />
-      <Btn title="Embed (video / social)" icon="fa-photo-film" onClick={insertEmbed} />
-      <Btn title="Image gallery" icon="fa-images" onClick={insertGallery} />
-      <Btn title="Insert table" icon="fa-table" active={inTable} onClick={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()} />
-      <Btn title="Insert table of contents" icon="fa-bars-staggered" onClick={insertToc} />
-      <Btn title="Insert callout" icon="fa-square-full" active={editor.isActive('callout')} onClick={insertCallout} />
-      <Btn title="Snippets" icon="fa-clone" onClick={onToggleSnippets} />
+
+      {/* Text */}
+      <span className="cpm-blog-tb-band">
+        <ToolbarMenu label="Format" icon="fa-font" title="Text formatting" items={formatItems} closeOnSelect={false} />
+        <select
+          className="cpm-blog-tb-select"
+          value={activeFont}
+          onChange={(e) => {
+            const v = e.target.value;
+            if (!v) editor.chain().focus().unsetFontFamily().run();
+            else editor.chain().focus().setFontFamily(v).run();
+          }}
+          title="Font for the selected text"
+        >
+          <option value="">Post font</option>
+          {POST_FONTS.map((f) => <option key={f} value={f}>{f}</option>)}
+        </select>
+        <select
+          className="cpm-blog-tb-select"
+          value={activeSize}
+          onChange={(e) => {
+            const v = e.target.value;
+            if (!v) editor.chain().focus().unsetFontSize().run();
+            else editor.chain().focus().setFontSize(`${v}px`).run();
+          }}
+          title="Size of the selected text"
+        >
+          <option value="">Size</option>
+          {POST_SIZES.map((s) => <option key={s} value={s}>{s}px</option>)}
+        </select>
+        <label className="cpm-blog-tb-color" title="Text colour">
+          <i className="fas fa-a" aria-hidden="true" />
+          <input
+            type="color"
+            value={editor.getAttributes('textStyle').color ?? '#ffffff'}
+            onChange={(e) => editor.chain().focus().setColor(e.target.value).run()}
+          />
+        </label>
+        <label className="cpm-blog-tb-color" title="Highlight">
+          <i className="fas fa-highlighter" aria-hidden="true" />
+          <input
+            type="color"
+            value={editor.getAttributes('highlight').color ?? '#f5a623'}
+            onChange={(e) => editor.chain().focus().toggleHighlight({ color: e.target.value }).run()}
+          />
+        </label>
+      </span>
+
+      {/* Paragraph */}
+      <span className="cpm-blog-tb-band">
+        <select
+          className="cpm-blog-tb-select"
+          value={heading}
+          onChange={(e) => {
+            const v = e.target.value;
+            if (!v) editor.chain().focus().setParagraph().run();
+            else editor.chain().focus().toggleHeading({ level: Number(v) }).run();
+          }}
+          title="Paragraph style"
+        >
+          <option value="">Paragraph</option>
+          <option value="1">Heading 1</option>
+          <option value="2">Heading 2</option>
+          <option value="3">Heading 3</option>
+          <option value="4">Heading 4</option>
+          <option value="5">Heading 5</option>
+          <option value="6">Heading 6</option>
+        </select>
+        <ToolbarMenu label="Lists" icon="fa-list" title="Lists" items={listItems} />
+      </span>
+
+      {/* Insert + Section */}
+      <span className="cpm-blog-tb-band">
+        <button
+          type="button"
+          className="cpm-blog-add-section-btn cpm-blog-tb-btn--pinned"
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={onAddSection}
+          title="Add a section"
+        >
+          <i className="fas fa-plus" aria-hidden="true" />
+          <span>Add Section</span>
+        </button>
+        <ToolbarMenu label="Insert" icon="fa-square-plus" title="Insert content" items={insertItems} />
+        <input ref={fileRef} type="file" accept="image/*" multiple hidden onChange={pickImage} />
+      </span>
+
       {inTable && (
-        <>
+        <span className="cpm-blog-tb-band">
           <Btn title="Add column" icon="fa-table-columns" onClick={() => editor.chain().focus().addColumnAfter().run()} />
           <Btn title="Delete column" label="−col" onClick={() => editor.chain().focus().deleteColumn().run()} />
           <Btn title="Add row" label="+row" onClick={() => editor.chain().focus().addRowAfter().run()} />
           <Btn title="Delete row" label="−row" onClick={() => editor.chain().focus().deleteRow().run()} />
           <Btn title="Delete table" icon="fa-trash" onClick={() => editor.chain().focus().deleteTable().run()} />
-        </>
+        </span>
       )}
-      <span className="cpm-blog-tb-sep" />
-      <Btn title="Find & replace" icon="fa-magnifying-glass" onClick={onToggleFind} />
-      <span className="cpm-blog-tb-sep" />
-      <Btn title="Undo (Ctrl+Z)" icon="fa-rotate-left" disabled={!editor.can().undo()} onClick={() => editor.chain().focus().undo().run()} />
-      <Btn title="Redo (Ctrl+Y)" icon="fa-rotate-right" disabled={!editor.can().redo()} onClick={() => editor.chain().focus().redo().run()} />
-      <span className="cpm-blog-tb-sep" />
-      <Btn title={markdownMode ? 'Switch back to rich text' : 'Edit as Markdown'} icon="fa-file-code" active={markdownMode} onClick={onToggleMarkdown} pinned />
-      <Btn title="Keyboard shortcuts" icon="fa-keyboard" onClick={onShowShortcuts} pinned />
+
+      {/* Design */}
+      {onThemeChange && (
+        <span className="cpm-blog-tb-band">
+          <DesignMenu theme={theme} onChange={onThemeChange} />
+        </span>
+      )}
+
+      {/* Tools */}
+      <span className="cpm-blog-tb-band cpm-blog-tb-band--end">
+        <Btn title="Find & replace" icon="fa-magnifying-glass" onClick={onToggleFind} />
+        <Btn title="Undo (Ctrl+Z)" icon="fa-rotate-left" disabled={!editor.can().undo()} onClick={() => editor.chain().focus().undo().run()} />
+        <Btn title="Redo (Ctrl+Y)" icon="fa-rotate-right" disabled={!editor.can().redo()} onClick={() => editor.chain().focus().redo().run()} />
+        <Btn title={markdownMode ? 'Switch back to rich text' : 'Edit as Markdown'} icon="fa-file-code" active={markdownMode} onClick={onToggleMarkdown} pinned />
+        <Btn title="Keyboard shortcuts" icon="fa-keyboard" onClick={onShowShortcuts} pinned />
+      </span>
     </div>
   );
 }
@@ -234,10 +432,18 @@ function FindBar({ editor, onClose }) {
   );
 }
 
-function PresenceBar({ connected, peers }) {
+// The dot is green only when the Yjs document has actually SYNCED — a socket
+// that is merely "connected" but never syncs (auth silently failed) is not a
+// live session, and claiming it is hides the fact that co-editing isn't working.
+function PresenceBar({ synced, connected, peers }) {
+  const title = synced
+    ? 'Live — changes sync in real time'
+    : connected
+      ? 'Connecting to the live session…'
+      : 'Offline — your edits are saved to the draft';
   return (
-    <div className="cpm-blog-presence" title={connected ? 'Live — changes sync in real time' : 'Reconnecting…'}>
-      <span className={`cpm-blog-presence-dot${connected ? ' is-live' : ''}`} aria-hidden="true" />
+    <div className="cpm-blog-presence" title={title}>
+      <span className={`cpm-blog-presence-dot${synced ? ' is-live' : ''}`} aria-hidden="true" />
       {peers.map((p) => (
         <span
           key={p.clientId}
@@ -263,10 +469,19 @@ function PresenceBar({ connected, peers }) {
  *                                 server for this post (see backend/src/collab/blogCollab.ts)
  * @param {object}   collabUser  { id, name } of the current member, used for cursor presence
  */
-export default function BlogEditor({ content, onChange, editable = true, onEditorReady, postId, collabUser }) {
+export default function BlogEditor({ content, onChange, editable = true, onEditorReady, postId, collabUser, collabWsUrl, theme, onThemeChange }) {
   const [showFind, setShowFind] = React.useState(false);
   const [showSnippets, setShowSnippets] = React.useState(false);
+  const [showSecLib, setShowSecLib] = React.useState(false);
+  const [settingsPos, setSettingsPos] = React.useState(null);
+
+  React.useEffect(() => {
+    const handler = (e) => setSettingsPos(e.detail?.pos ?? null);
+    window.addEventListener('blog-section-settings', handler);
+    return () => window.removeEventListener('blog-section-settings', handler);
+  }, []);
   const [connected, setConnected] = React.useState(false);
+  const [synced, setSynced] = React.useState(false);
   const [peers, setPeers] = React.useState([]);
   const [markdownMode, setMarkdownMode] = React.useState(false);
   const [markdownText, setMarkdownText] = React.useState('');
@@ -274,6 +489,13 @@ export default function BlogEditor({ content, onChange, editable = true, onEdito
   // title/body below the fold; users can still expand it with the chevron.
   const [toolbarOpen, setToolbarOpen] = React.useState(() => (typeof window === 'undefined' || window.innerWidth > 640));
   const shortcutsRegistry = useShortcutsRegistry();
+  // Latest values read by the fallback-seed effect without re-arming it.
+  // syncedRef tracks whether the Yjs doc has actually synced from the server
+  // (NOT merely whether the socket connected) — the fallback seed is gated on
+  // this so a connected-but-never-synced session still shows the draft.
+  const syncedRef = React.useRef(false);
+  const contentRef = React.useRef(content);
+  contentRef.current = content;
 
   // One Y.Doc + Hocuspocus connection per post. Recreated only if `postId`
   // changes — callers should `key` the editor by post id so a full remount
@@ -282,14 +504,19 @@ export default function BlogEditor({ content, onChange, editable = true, onEdito
     if (!postId) return null;
     const document = new Y.Doc();
     const provider = new HocuspocusProvider({
-      url: getBlogCollabWsUrl(),
+      url: collabWsUrl || getBlogCollabWsUrl(),
       name: postId,
       document,
       token: () => getStoredToken() ?? '',
+      // 0 = reconnect forever (built-in exponential backoff 1s→30s, jittered) so
+      // the editor auto-recovers when the collab WS returns. A finite cap made a
+      // single transient drop permanently kill collaboration in the tab until a
+      // full page reload — the backoff already prevents tight-loop console spam.
+      maxAttempts: 0,
     });
     return { document, provider };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [postId]);
+  }, [postId, collabWsUrl]);
 
   useEffect(() => () => {
     collab?.provider.destroy();
@@ -300,15 +527,24 @@ export default function BlogEditor({ content, onChange, editable = true, onEdito
   useEffect(() => {
     if (!collab) return undefined;
     const { provider } = collab;
-    const onStatus = ({ status }) => setConnected(status === 'connected');
+    const onStatus = ({ status }) => {
+      const isConnected = status === 'connected';
+      setConnected(isConnected);
+      // A dropped socket is no longer synced. The provider only emits 'synced'
+      // on the true transition, so reset here to keep the flag honest.
+      if (!isConnected) { syncedRef.current = false; setSynced(false); }
+    };
+    const onSynced = () => { syncedRef.current = true; setSynced(true); };
     const onAwareness = ({ states }) => {
       const selfId = provider.awareness?.clientID;
       setPeers(states.filter((s) => s.clientId !== selfId && s.user));
     };
     provider.on('status', onStatus);
+    provider.on('synced', onSynced);
     provider.on('awarenessUpdate', onAwareness);
     return () => {
       provider.off('status', onStatus);
+      provider.off('synced', onSynced);
       provider.off('awarenessUpdate', onAwareness);
     };
   }, [collab]);
@@ -323,6 +559,46 @@ export default function BlogEditor({ content, onChange, editable = true, onEdito
     editable,
     onUpdate: ({ editor: ed }) => { onChange?.(ed.getJSON()); },
   }, [collab]);
+
+  // ── Fallback content seeding ──────────────────────────────────
+  // In collab mode the editor starts from the shared Yjs doc, which the
+  // Hocuspocus server seeds from contentJson on connect. If that doc never
+  // SYNCS the editor stays blank — so generated/initial text never appears and
+  // there's nothing to persist. This happens in three ways, all handled here:
+  //   1. The WS is blocked (some browsers/ad-blockers) — never connects.
+  //   2. The reverse proxy drops the Upgrade headers — never connects.
+  //   3. The socket connects but auth silently fails (a missing/expired Bearer
+  //      token) — the server never delivers a document, so it's connected yet
+  //      never synced. The earlier gate keyed on "never connected" and so left
+  //      THIS case blank forever; the fix gates on !synced instead.
+  // When the server had a document, `synced` fires with the editor already
+  // populated and seedIfEmpty is a no-op. When the server had none, we seed the
+  // current draft so co-editors start from it. Non-collab editors load
+  // `content` directly, so this is inert there. emitUpdate:false so seeding
+  // never spuriously marks the doc dirty.
+  useEffect(() => {
+    if (!editor || !collab) return undefined;
+    let seeded = false;
+    const seedIfEmpty = () => {
+      if (seeded || editor.isDestroyed) return;
+      const doc = contentRef.current;
+      if (doc && editor.isEmpty) {
+        seeded = true;
+        editor.commands.setContent(doc, { emitUpdate: false });
+      }
+    };
+    const onSynced = () => seedIfEmpty();            // server had no content
+    collab.provider.on('synced', onSynced);
+    const timer = setTimeout(() => {                 // doc never arrived
+      if (shouldFallbackSeed({
+        synced: syncedRef.current,
+        editorEmpty: editor.isEmpty,
+        hasContent: !!contentRef.current,
+      })) seedIfEmpty();
+    }, 4000);
+    return () => { clearTimeout(timer); collab.provider.off('synced', onSynced); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editor, collab]);
 
   useEffect(() => {
     if (editor && onEditorReady) onEditorReady(editor);
@@ -364,16 +640,23 @@ export default function BlogEditor({ content, onChange, editable = true, onEdito
           editor={editor}
           onToggleFind={() => setShowFind((s) => !s)}
           onToggleSnippets={() => setShowSnippets(true)}
+          onAddSection={() => setShowSecLib(true)}
           onToggleMarkdown={toggleMarkdown}
           markdownMode={markdownMode}
           onShowShortcuts={() => shortcutsRegistry?.setShowHelp(true)}
           toolbarOpen={toolbarOpen}
           onToggleToolbarOpen={() => setToolbarOpen((v) => !v)}
+          theme={theme}
+          onThemeChange={onThemeChange}
         />
-        {collab && <PresenceBar connected={connected} peers={peers} />}
+        {collab && <PresenceBar synced={synced} connected={connected} peers={peers} />}
       </div>
       {showFind && !markdownMode && <FindBar editor={editor} onClose={() => setShowFind(false)} />}
       {showSnippets && !markdownMode && <BlogSnippetManager editor={editor} onClose={() => setShowSnippets(false)} />}
+      {showSecLib && !markdownMode && <BlogSectionLibrary editor={editor} onClose={() => setShowSecLib(false)} />}
+      {settingsPos != null && (
+        <BlogSectionSettings editor={editor} pos={settingsPos} onClose={() => setSettingsPos(null)} />
+      )}
       {markdownMode ? (
         <textarea
           className="cpm-blog-markdown-textarea"
@@ -383,12 +666,19 @@ export default function BlogEditor({ content, onChange, editable = true, onEdito
           placeholder="# Markdown source"
         />
       ) : (
-        <EditorContent editor={editor} className="cpm-blog-editor-surface" />
+        <div
+          className="cpm-blog-editor-surface"
+          data-fontpair={theme?.fontPair || 'syne-dmsans'}
+          data-width={theme?.width || 'wide'}
+          style={{ '--post-accent': theme?.accent || 'var(--pm-accent-teal)' }}
+        >
+          <EditorContent editor={editor} />
+        </div>
       )}
       <div className="cpm-blog-editor-footer">
         <span>{words} words</span>
         <span>{chars} characters</span>
-        {markdownMode && <span className="cpm-blog-markdown-hint">Editing raw Markdown — switch back to rich text to continue formatting.</span>}
+        {markdownMode && <span className="cpm-blog-markdown-hint">Editing raw Markdown — switch back to rich text to continue formatting. Fonts, sizes, colours and highlights are not represented in Markdown and will be lost on switching back.</span>}
       </div>
     </div>
   );

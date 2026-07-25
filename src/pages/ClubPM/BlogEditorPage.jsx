@@ -1,16 +1,17 @@
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import BlogEditor from '../../components/clubpm/blog/BlogEditor';
 import RevisionHistoryDrawer from '../../components/clubpm/blog/RevisionHistoryDrawer';
 import BlogMetaPanel from '../../components/clubpm/blog/BlogMetaPanel';
 import BlogAnnotationsPanel from '../../components/clubpm/blog/BlogAnnotationsPanel';
+import BlogPreviewFrame from '../../components/clubpm/blog/BlogPreviewFrame';
 import OrbitLoader from '../../components/OrbitLoader';
 import ApprovalChips from '../../components/clubpm/ApprovalChips';
 import { useClubPmAuth } from '../../clubpm/ClubPmAuth';
 import {
   getBlogPost, updateBlogPost, publishBlogPost,
-  scheduleBlogPost, unpublishBlogPost, archiveBlogPost, get,
+  scheduleBlogPost, unpublishBlogPost, archiveBlogPost, get, deleteBlogPost,
 } from '../../api/clubPmClient';
 
 const STATUS_LABELS = {
@@ -20,9 +21,89 @@ const STATUS_LABELS = {
   ARCHIVED: 'Archived',
 };
 
+// Publish is the single primary action; every other workflow verb lives in its
+// menu, with destructive items separated and confirmed.
+function PublishMenu({ status, disabled, onPublish, onSchedule, onUnpublish, onArchive, onDelete, approvalPending }) {
+  const [open, setOpen] = React.useState(false);
+  const [scheduleOpen, setScheduleOpen] = React.useState(false);
+  const [when, setWhen] = React.useState('');
+  const ref = React.useRef(null);
+
+  React.useEffect(() => {
+    if (!open && !scheduleOpen) return undefined;
+    const onDoc = (e) => { if (ref.current && !ref.current.contains(e.target)) { setOpen(false); setScheduleOpen(false); } };
+    const onKey = (e) => { if (e.key === 'Escape') { setOpen(false); setScheduleOpen(false); } };
+    document.addEventListener('mousedown', onDoc);
+    document.addEventListener('keydown', onKey);
+    return () => { document.removeEventListener('mousedown', onDoc); document.removeEventListener('keydown', onKey); };
+  }, [open, scheduleOpen]);
+
+  return (
+    <span className="cpm-blog-publish-wrap" ref={ref}>
+      {status !== 'PUBLISHED' && (
+        <button
+          type="button"
+          className="clubpm-btn-primary cpm-blog-publish-main"
+          onClick={onPublish}
+          disabled={disabled || approvalPending}
+          title={approvalPending ? 'Awaiting approval' : 'Publish now'}
+        >
+          Publish
+        </button>
+      )}
+      <button
+        type="button"
+        className={`clubpm-btn-primary cpm-blog-publish-caret${status === 'PUBLISHED' ? ' is-solo' : ''}`}
+        onClick={() => setOpen((o) => !o)}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label="More publishing actions"
+      >
+        <i className="fas fa-chevron-down" aria-hidden="true" />
+      </button>
+
+      {open && (
+        <div className="cpm-blog-publish-pop" role="menu">
+          <button type="button" role="menuitem" onClick={() => { setScheduleOpen(true); setOpen(false); }} disabled={approvalPending}>
+            <i className="fas fa-calendar-days" aria-hidden="true" /> Schedule…
+          </button>
+          {status === 'PUBLISHED' && (
+            <button type="button" role="menuitem" onClick={() => { setOpen(false); onUnpublish(); }}>
+              <i className="fas fa-pause" aria-hidden="true" /> Unpublish
+            </button>
+          )}
+          {status !== 'ARCHIVED' && (
+            <button type="button" role="menuitem" onClick={() => { setOpen(false); onArchive(); }}>
+              <i className="fas fa-box-archive" aria-hidden="true" /> Archive
+            </button>
+          )}
+          <div className="cpm-blog-publish-sep" />
+          <button type="button" role="menuitem" className="is-danger" onClick={() => { setOpen(false); onDelete(); }}>
+            <i className="fas fa-trash" aria-hidden="true" /> Delete post
+          </button>
+        </div>
+      )}
+
+      {scheduleOpen && (
+        <div className="cpm-blog-publish-pop cpm-blog-schedule-pop" role="dialog" aria-label="Schedule this post">
+          <label className="cpm-form-label">Publish at</label>
+          <input type="datetime-local" className="cpm-form-input" value={when} onChange={(e) => setWhen(e.target.value)} />
+          <div className="cpm-blog-schedule-pop-actions">
+            <button type="button" className="clubpm-btn-secondary" onClick={() => setScheduleOpen(false)}>Cancel</button>
+            <button type="button" className="clubpm-btn-primary" disabled={!when} onClick={() => { setScheduleOpen(false); onSchedule(when); }}>
+              Schedule
+            </button>
+          </div>
+        </div>
+      )}
+    </span>
+  );
+}
+
 export default function BlogEditorPage() {
   const { id } = useParams();
   const { member } = useClubPmAuth();
+  const navigate = useNavigate();
 
   const [post, setPost]         = useState(null);
   const [title, setTitle]       = useState('');
@@ -33,12 +114,12 @@ export default function BlogEditorPage() {
   const [lastSavedAt, setLastSavedAt] = useState(null);
   const [error, setError]       = useState(null);
   const [approval, setApproval] = useState(null); // { required, approvals, complete } or null
-  const [scheduledAtInput, setScheduledAtInput] = useState('');
   const [busyAction, setBusyAction] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [previewMode, setPreviewMode] = useState(false);
   const [metaPanelOpen, setMetaPanelOpen] = useState(false);
   const [reviewPanelOpen, setReviewPanelOpen] = useState(false);
+  const [theme, setTheme] = useState(null);
 
   // Keep the latest editable state in a ref so the debounced autosave always
   // persists current values without re-arming on every keystroke.
@@ -46,14 +127,6 @@ export default function BlogEditorPage() {
   stateRef.current = { title, contentJson };
   const autosaveTimer = useRef(null);
   const editorRef = useRef(null);
-
-  // Rendered exactly like the public page — reuses the live editor's own
-  // getHTML() output so preview stays in sync with the shared node renderHTML()s.
-  const previewHtml = useMemo(() => {
-    if (!previewMode) return '';
-    return editorRef.current?.getHTML() ?? '';
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [previewMode, contentJson]);
 
   useEffect(() => {
     let cancelled = false;
@@ -64,6 +137,7 @@ export default function BlogEditorPage() {
         setPost(p);
         setTitle(p.title ?? '');
         setContentJson(p.contentJson ?? null);
+        setTheme(p.theme ?? null);
       })
       .catch(() => { if (!cancelled) setError('Could not load this post.'); })
       .finally(() => { if (!cancelled) setLoading(false); });
@@ -101,10 +175,17 @@ export default function BlogEditorPage() {
     }
   }, [id]);
 
-  // Debounced autosave for the title only — post body content is synced in
-  // realtime by the Yjs collab server (backend/src/collab/blogCollab.ts),
-  // which persists on its own store cadence, so re-PATCHing contentJson here
-  // would just race/overwrite the live collaborative document.
+  const handleThemeChange = useCallback((next) => {
+    setTheme(next);
+    updateBlogPost(id, { theme: next }).catch(() => {});
+  }, [id]);
+
+  // Debounced autosave for title + body. When the Yjs collab server is
+  // reachable it persists the body on its own store cadence; this REST PATCH is
+  // a safety net for when it isn't (WS blocked / proxy misconfigured) so edits
+  // still save. It only writes contentJson (never contentYjs), so it can't
+  // corrupt the live CRDT, and onLoadDocument prefers contentYjs when present —
+  // meaning collab stays authoritative when up, and this wins only when it's down.
   useEffect(() => {
     if (!dirty) return undefined;
     if (autosaveTimer.current) clearTimeout(autosaveTimer.current);
@@ -160,14 +241,14 @@ export default function BlogEditorPage() {
     }
   }, [id, handleSave, approvalPending]);
 
-  const handleSchedule = useCallback(async () => {
+  const handleSchedule = useCallback(async (whenValue) => {
     if (approvalPending) { toast.error('Awaiting approval before this post can be scheduled'); return; }
-    if (!scheduledAtInput) { toast.error('Pick a date and time first'); return; }
+    if (!whenValue) { toast.error('Pick a date and time first'); return; }
     const ok = await handleSave();
     if (!ok) return;
     setBusyAction(true);
     try {
-      const updated = await scheduleBlogPost(id, new Date(scheduledAtInput).toISOString());
+      const updated = await scheduleBlogPost(id, new Date(whenValue).toISOString());
       setPost(updated);
       toast.success('Scheduled');
     } catch {
@@ -175,7 +256,7 @@ export default function BlogEditorPage() {
     } finally {
       setBusyAction(false);
     }
-  }, [id, handleSave, approvalPending, scheduledAtInput]);
+  }, [id, handleSave, approvalPending]);
 
   const handleUnpublish = useCallback(async () => {
     setBusyAction(true);
@@ -202,6 +283,19 @@ export default function BlogEditorPage() {
       setBusyAction(false);
     }
   }, [id]);
+
+  const handleDelete = useCallback(async () => {
+    if (!window.confirm('Delete this post permanently? This cannot be undone.')) return;
+    setBusyAction(true);
+    try {
+      await deleteBlogPost(id);
+      toast.success('Post deleted');
+      navigate('/clubpm/outreach');
+    } catch {
+      toast.error('Delete failed (only the author or an admin can).');
+      setBusyAction(false);
+    }
+  }, [id, navigate]);
 
   // Passed to BlogMetaPanel: `patch` set → PATCH + merge; `patch` null with
   // `already` set → merge an already-fetched post (e.g. from setBlogTaxonomy).
@@ -252,72 +346,63 @@ export default function BlogEditorPage() {
           {approvalPending && <span className="cpm-blog-status cpm-blog-status--scheduled">Awaiting approval</span>}
         </div>
         <div className="cpm-blog-editor-header-actions">
+          <div className="cpm-blog-tool-group" role="group" aria-label="Panels">
+            <button
+              type="button"
+              className="cpm-blog-tool-btn"
+              onClick={() => setHistoryOpen(true)}
+              title="Revision history"
+              aria-label="Revision history"
+            >
+              <i className="fas fa-clock-rotate-left" aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              className={`cpm-blog-tool-btn${metaPanelOpen ? ' is-active' : ''}`}
+              onClick={() => setMetaPanelOpen((v) => !v)}
+              title="Card, metadata & SEO"
+              aria-label="Card, metadata and SEO"
+            >
+              <i className="fas fa-sliders-h" aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              className={`cpm-blog-tool-btn${reviewPanelOpen ? ' is-active' : ''}`}
+              onClick={() => setReviewPanelOpen((v) => !v)}
+              title="Review notes & authors"
+              aria-label="Review notes and authors"
+            >
+              <i className="fas fa-users-viewfinder" aria-hidden="true" />
+            </button>
+          </div>
+
+          <span className="cpm-blog-header-sep" />
+
           <button
             type="button"
             className={`clubpm-btn-secondary${previewMode ? ' is-active' : ''}`}
             onClick={() => setPreviewMode((v) => !v)}
             title="Preview as it will appear on the public site"
           >
-            <i className={`fas ${previewMode ? 'fa-pen' : 'fa-eye'}`} aria-hidden="true" style={{ marginRight: 6 }} />
-            {previewMode ? 'Edit' : 'Preview'}
+            <i className={`fas ${previewMode ? 'fa-pen' : 'fa-eye'}`} aria-hidden="true" />
+            <span>{previewMode ? 'Edit' : 'Preview'}</span>
           </button>
-          <button type="button" className="clubpm-btn-secondary" onClick={() => setHistoryOpen(true)} title="Revision history">
-            <i className="fas fa-clock-rotate-left" aria-hidden="true" />
-          </button>
-          <button
-            type="button"
-            className={`clubpm-btn-secondary${metaPanelOpen ? ' is-active' : ''}`}
-            onClick={() => setMetaPanelOpen((v) => !v)}
-            title="Metadata & SEO"
-          >
-            <i className="fas fa-sliders-h" aria-hidden="true" />
-          </button>
-          <button
-            type="button"
-            className={`clubpm-btn-secondary${reviewPanelOpen ? ' is-active' : ''}`}
-            onClick={() => setReviewPanelOpen((v) => !v)}
-            title="Review notes & authors"
-          >
-            <i className="fas fa-users-viewfinder" aria-hidden="true" />
-          </button>
+
           <button type="button" className="clubpm-btn-secondary" onClick={() => handleSave()} disabled={saving}>
-            {saving ? 'Saving…' : 'Save draft'}
+            <i className="fas fa-floppy-disk" aria-hidden="true" />
+            <span>{saving ? 'Saving…' : 'Save draft'}</span>
           </button>
-          {post?.status !== 'ARCHIVED' && (
-            <>
-              <input
-                type="datetime-local"
-                className="cpm-blog-schedule-input"
-                value={scheduledAtInput}
-                onChange={(e) => setScheduledAtInput(e.target.value)}
-                title="Schedule for"
-              />
-              <button type="button" className="clubpm-btn-secondary" onClick={handleSchedule} disabled={busyAction || saving || approvalPending}>
-                Schedule
-              </button>
-            </>
-          )}
-          {post?.status === 'PUBLISHED' && (
-            <button type="button" className="clubpm-btn-secondary" onClick={handleUnpublish} disabled={busyAction}>
-              Unpublish
-            </button>
-          )}
-          {post?.status !== 'ARCHIVED' && (
-            <button type="button" className="clubpm-btn-secondary" onClick={handleArchive} disabled={busyAction}>
-              Archive
-            </button>
-          )}
-          {post?.status !== 'PUBLISHED' && (
-            <button
-              type="button"
-              className="clubpm-btn-primary"
-              onClick={handlePublish}
-              disabled={saving || busyAction || approvalPending}
-              title={approvalPending ? 'Awaiting approval' : undefined}
-            >
-              Publish
-            </button>
-          )}
+
+          <PublishMenu
+            status={post?.status}
+            disabled={saving || busyAction}
+            approvalPending={approvalPending}
+            onPublish={handlePublish}
+            onSchedule={handleSchedule}
+            onUnpublish={handleUnpublish}
+            onArchive={handleArchive}
+            onDelete={handleDelete}
+          />
         </div>
       </header>
 
@@ -334,10 +419,7 @@ export default function BlogEditorPage() {
 
       <div className="cpm-blog-editor-body">
         {previewMode ? (
-          <div className="cpm-blog-preview">
-            <h1 className="cpm-blog-preview-title">{title || 'Untitled post'}</h1>
-            <div className="pm-blog-post-body" dangerouslySetInnerHTML={{ __html: previewHtml }} />
-          </div>
+          <BlogPreviewFrame postId={id} title={title} contentJson={contentJson} />
         ) : (
           <input
             className="cpm-blog-title-input"
@@ -352,8 +434,10 @@ export default function BlogEditorPage() {
             postId={id}
             collabUser={{ id: member?.id, name: member?.displayName }}
             content={contentJson}
-            onChange={(json) => { setContentJson(json); }}
+            onChange={(json) => { setContentJson(json); setDirty(true); }}
             onEditorReady={(ed) => { editorRef.current = ed; }}
+            theme={theme}
+            onThemeChange={handleThemeChange}
           />
         </div>
       </div>

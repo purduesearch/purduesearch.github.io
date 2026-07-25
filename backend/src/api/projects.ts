@@ -51,7 +51,7 @@ projectsRouter.get("/", async (_req: Request, res: Response) => {
 
 projectsRouter.post("/", async (req: Request, res: Response) => {
   try {
-    const memberId = (req.session as any).memberId as string;
+    const memberId = req.memberId!;
     const actor = await prisma.member.findUnique({ where: { id: memberId }, select: { isAdmin: true } });
     if (!actor?.isAdmin) {
       res.status(403).json({ error: "Admin only" });
@@ -74,10 +74,9 @@ projectsRouter.post("/", async (req: Request, res: Response) => {
       return;
     }
 
-    if (!driveLink) {
-      res.status(400).json({ error: "driveLink is required" });
-      return;
-    }
+    // driveLink is optional at creation — an admin links the human-managed Files
+    // folder later; the vault provisions its own bot-owned folder on first use
+    // (see ensureVaultFolder).
 
     const project = await createProject({
       name,
@@ -205,7 +204,7 @@ projectsRouter.patch("/:id", channelAuth, async (req: Request, res: Response) =>
       const WATCHED_PROJECT_FIELDS = ["name", "status", "description", "type", "targetDate", "driveLink", "githubRepo"];
       const changes = diffObjects(before as any, project as any, WATCHED_PROJECT_FIELDS);
       if (changes.length > 0) {
-        const memberId = (req.session as any).memberId as string | undefined;
+        const memberId = req.memberId;
         logAuditEvent({
           projectId,
           memberId:  memberId ?? null,
@@ -364,7 +363,7 @@ projectsRouter.get("/:id/tags", async (req: Request, res: Response) => {
 
 projectsRouter.post("/:id/tags", async (req: Request, res: Response) => {
   try {
-    const memberId = (req.session as any).memberId as string;
+    const memberId = req.memberId!;
     const actor = await prisma.member.findUnique({ where: { id: memberId }, select: { isAdmin: true } });
     if (!actor?.isAdmin) {
       res.status(403).json({ error: "Admin only" });
@@ -389,7 +388,7 @@ projectsRouter.post("/:id/tags", async (req: Request, res: Response) => {
 
 projectsRouter.post("/:id/updates", async (req: Request, res: Response) => {
   try {
-    const memberId = (req.session as any).memberId as string;
+    const memberId = req.memberId!;
     const { content } = req.body as { content: string };
     if (!content) {
       res.status(400).json({ error: "content is required" });
@@ -438,10 +437,16 @@ projectsRouter.post("/:id/updates", async (req: Request, res: Response) => {
 
 // ── GET /api/projects/:id/drive-files ────────────────────────
 //
-// Lists files in the project's linked Drive folder using the service account.
-// Returns { folderId, folderName, files, notFolder } so the frontend can render
-// either a file grid, an "no folder linked" empty state, or a "linked item is
-// a single file, not a folder" empty state.
+// View-only listing of the project's *linked* Drive folder (`project.driveLink`,
+// the human-managed folder an admin linked in the project UI). It never
+// provisions a folder or mutates driveLink. Returns
+// { folderId, folderName, folderWebViewLink, files, notFolder, noLink } so the
+// frontend can render a link-out, a "no folder linked" empty state, or a "linked
+// item is a single file, not a folder" empty state.
+//
+// Under the bot's drive.file scope the bot can only see folders it created, so
+// `files` is typically empty for an admin-owned folder — the folder link is the
+// source of truth and members open it in Drive to browse.
 
 projectsRouter.get("/:id/drive-files", async (req: Request, res: Response) => {
   try {
@@ -452,31 +457,33 @@ projectsRouter.get("/:id/drive-files", async (req: Request, res: Response) => {
       return;
     }
 
-    const driveLink = (project as any).driveLink as string | null | undefined;
+    const driveLink = project.driveLink ?? null;
     if (!driveLink) {
-      res.json({ folderId: null, folderName: null, files: [], notFolder: false, noLink: true });
+      res.json({ folderId: null, folderName: null, folderWebViewLink: null, files: [], notFolder: false, noLink: true });
       return;
     }
 
-    const id = extractFileId(driveLink);
-    if (!id) {
-      res.json({ folderId: null, folderName: null, files: [], notFolder: false, noLink: true, invalidLink: true });
+    if (!/\/folders\//.test(driveLink)) {
+      // A linked file/doc rather than a folder — nothing to browse.
+      res.json({ folderId: extractFileId(driveLink), folderName: null, folderWebViewLink: driveLink, files: [], notFolder: true, noLink: false });
       return;
     }
 
-    const isFolderUrl = /\/folders\//.test(driveLink);
-    if (!isFolderUrl) {
-      res.json({ folderId: null, folderName: null, files: [], notFolder: true, noLink: false });
+    const folderId = extractFileId(driveLink);
+    if (!folderId) {
+      res.json({ folderId: null, folderName: null, folderWebViewLink: driveLink, files: [], notFolder: true, noLink: false });
       return;
     }
 
+    // Best-effort: under drive.file these return null/[] for folders the bot
+    // didn't create; the frontend falls back to the raw driveLink.
     const [folderMeta, files] = await Promise.all([
-      getDriveFileMeta(id),
-      listDriveFolderFiles(id),
+      getDriveFileMeta(folderId),
+      listDriveFolderFiles(folderId),
     ]);
 
     res.json({
-      folderId: id,
+      folderId,
       folderName: folderMeta?.name ?? null,
       folderWebViewLink: folderMeta?.webViewLink ?? driveLink,
       files,
@@ -812,7 +819,7 @@ tagsRouter.use(requireAuth);
 
 tagsRouter.delete("/:tagId", async (req: Request, res: Response) => {
   try {
-    const memberId = (req.session as any).memberId as string;
+    const memberId = req.memberId!;
     const actor = await prisma.member.findUnique({ where: { id: memberId }, select: { isAdmin: true } });
     if (!actor?.isAdmin) {
       res.status(403).json({ error: "Admin only" });

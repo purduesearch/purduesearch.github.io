@@ -1,5 +1,7 @@
 import { Router, type Request, type Response } from "express";
 import { prisma } from "../db/prisma.js";
+import * as pollService from "../services/pollService.js";
+import { streamDriveFile } from "../services/driveService.js";
 
 export const publicRouter = Router();
 
@@ -112,6 +114,98 @@ publicRouter.post("/events/:eventId/rsvp", async (req: Request, res: Response) =
   }
 });
 
+// ── Meeting poll (when2meet) shareable link ──────────────────
+
+type LoadedPoll = NonNullable<Awaited<ReturnType<typeof pollService.getPollByToken>>>;
+
+function publicSerializePoll(poll: LoadedPoll) {
+  const responders = pollService.respondersFrom(poll);
+  const agg = pollService.aggregate(poll.slotStarts, responders);
+  return {
+    id:               poll.id,
+    token:            poll.publicToken,
+    title:            poll.title,
+    description:      poll.description,
+    timezone:         poll.timezone,
+    slotMinutes:      poll.slotMinutes,
+    slotStarts:       poll.slotStarts,
+    responseDeadline: poll.responseDeadline,
+    audience:         poll.audience,
+    status:           poll.status,
+    finalStart:       poll.finalStart,
+    finalEnd:         poll.finalEnd,
+    organizerName:    poll.organizer?.displayName ?? null,
+    projectName:      poll.project?.name ?? null,
+    aggregate:        agg,
+    responders:       responders.map(r => ({ name: r.name, isGuest: !r.memberId, avatarUrl: r.avatarUrl ?? null })),
+    canGuestRespond:  poll.audience === "ANYONE" && poll.status === "OPEN",
+  };
+}
+
+// GET /public/polls/:token — heatmap + candidate slots (link-holders may view)
+publicRouter.get("/polls/:token", async (req: Request, res: Response) => {
+  try {
+    const poll = await pollService.getPollByToken(req.params.token as string);
+    if (!poll) { res.status(404).json({ error: "Poll not found" }); return; }
+    res.json(publicSerializePoll(poll as LoadedPoll));
+  } catch (error) {
+    console.error("GET /public/polls/:token error:", error);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// PUT /public/polls/:token/response — respond as guest, or as a member via token
+publicRouter.put("/polls/:token/response", async (req: Request, res: Response) => {
+  try {
+    const ip = (req.ip ?? req.socket.remoteAddress ?? "unknown").toString();
+    if (!rateLimit(ip)) {
+      res.status(429).json({ error: "Too many requests — try again in a minute" });
+      return;
+    }
+
+    const poll = await pollService.getPollByToken(req.params.token as string);
+    if (!poll) { res.status(404).json({ error: "Poll not found" }); return; }
+    if (poll.status !== "OPEN") { res.status(409).json({ error: "Poll is closed" }); return; }
+
+    const { authToken, guestName, slots } = req.body as {
+      authToken?: string; guestName?: string; slots?: string[];
+    };
+
+    const shape: pollService.PollAccessShape = {
+      audience: poll.audience,
+      organizerId: poll.organizerId,
+      invitedMemberIds: poll.invitedMembers.map(m => m.id),
+    };
+
+    if (authToken) {
+      // Logged-in member responding through the shared link.
+      const { verifyBearerToken } = await import("./auth.js");
+      const memberId = await verifyBearerToken(authToken);
+      if (!memberId) { res.status(401).json({ error: "Invalid or expired auth token" }); return; }
+      const ctx = await pollService.resolveContext(memberId, poll);
+      if (!pollService.canRespond(shape, ctx).ok) {
+        res.status(403).json({ error: "Not allowed to respond to this poll" });
+        return;
+      }
+      await pollService.upsertResponse(poll.id, { memberId, slots: slots ?? [] });
+    } else {
+      // Anonymous guest — only permitted on ANYONE polls, needs a name.
+      if (!pollService.canRespond(shape, { memberId: null }).ok) {
+        res.status(403).json({ error: "This poll is not open to guests" });
+        return;
+      }
+      if (!guestName?.trim()) { res.status(400).json({ error: "Name is required" }); return; }
+      await pollService.upsertResponse(poll.id, { guestName: guestName.trim(), slots: slots ?? [] });
+    }
+
+    const fresh = await pollService.getPollByToken(req.params.token as string);
+    res.json(publicSerializePoll(fresh as LoadedPoll));
+  } catch (error) {
+    console.error("PUT /public/polls/:token/response error:", error);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
 // ── GET /public/campaigns/:slug ──────────────────────────────
 
 publicRouter.get("/campaigns/:slug", async (req: Request, res: Response) => {
@@ -218,7 +312,7 @@ publicRouter.get("/blog/:slug", async (req: Request, res: Response) => {
       where: { slug: req.params.slug as string },
       select: {
         id: true, title: true, slug: true, renderedHtml: true, excerpt: true,
-        authorName: true,
+        authorName: true, theme: true,
         coverImageUrl: true, publishedAt: true, createdAt: true, readingTimeMin: true,
         status: true,
         metaDescription: true, canonicalUrl: true,
@@ -291,6 +385,19 @@ publicRouter.get("/newsletter/track/open/:sendId.png", async (req: Request, res:
   res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
   res.setHeader("Pragma", "no-cache");
   res.send(PIXEL_PNG);
+});
+
+// GET /api/public/blog-image/:fileId — proxy Drive image bytes to an <img>-safe URL.
+// Public: blog/press-kit images are public assets. Long-cached (Drive ids are stable).
+publicRouter.get("/blog-image/:fileId", async (req: Request, res: Response) => {
+  const { fileId } = req.params as { fileId: string };
+  if (!/^[a-zA-Z0-9_-]{10,}$/.test(fileId)) { res.status(400).end(); return; }
+  const file = await streamDriveFile(fileId);
+  if (!file) { res.status(404).end(); return; }
+  res.setHeader("Content-Type", file.mimeType);
+  res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+  file.stream.on("error", () => { if (!res.headersSent) res.status(502).end(); });
+  file.stream.pipe(res);
 });
 
 // ── GET /public/press-kit/:projectId/:token ──────────────────

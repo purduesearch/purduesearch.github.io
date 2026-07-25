@@ -112,6 +112,12 @@ enum NotificationType {
   GITHUB_PR_REVIEW_REQUESTED
   GITHUB_PR_MERGED
   GITHUB_CI_FAILED
+  VAULT_CR_SUBMITTED
+  VAULT_CR_DECIDED
+  VAULT_CHECKIN
+  MEETING_POLL_INVITE
+  MEETING_POLL_FINALIZED
+  MEETING_POLL_REMINDER
 }
 
 // ── Models ───────────────────────────────────────────────────
@@ -152,6 +158,9 @@ model Member {
   organizedEvents         Event[]              @relation("EventOrganizer")
   attendedEvents          Event[]              @relation("EventAttendees")
   rsvps                   EventRsvp[]          @relation("MemberRsvps")
+  organizedPolls          MeetingPoll[]        @relation("PollOrganizer")
+  invitedPolls            MeetingPoll[]        @relation("PollInvitees")
+  pollResponses           MeetingResponse[]    @relation("MemberPollResponses")
   submissions             OutreachSubmission[] @relation("SubmissionAuthor")
   reviewedSubmissions     OutreachSubmission[] @relation("SubmissionReviewer")
   outreachComments        OutreachComment[]    @relation("OutreachCommentAuthor")
@@ -166,6 +175,8 @@ model Member {
   blogRevisions           BlogRevision[]       @relation("BlogRevisionAuthor")
   blogAuthorships         BlogAuthor[]         @relation("BlogAuthorMember")
   blogSnippets            BlogSnippet[]        @relation("BlogSnippetCreator")
+  pressKitsCreated        ProjectPressKit[]    @relation("PressKitCreator")
+  pressKitRevisions       PressKitRevision[]   @relation("PressKitRevisionAuthor")
 
   // ── GitHub OAuth (per-member) ──
   // Access/refresh tokens are AES-GCM encrypted at rest (see backend/src/utils/crypto.ts).
@@ -194,14 +205,14 @@ model Member {
   dailyActivities       DailyActivity[]
   inventory             MemberInventory[]
   activeEffects         ActiveEffect[]
-  weeklyBonusSends      Int       @default(0)
+  weeklyBonusSends      Int               @default(0)
   weeklyBonusSendsWeek  DateTime? // ISO week start for which weeklyBonusSends applies
   celebrationConsumedAt DateTime? // last time the user dismissed a milestone celebration
 
   // ── Challenges / achievements ──
-  memberChallenges    MemberChallenge[]
-  memberAchievements  MemberAchievement[]
-  rewardRolls         RewardRoll[]
+  memberChallenges   MemberChallenge[]
+  memberAchievements MemberAchievement[]
+  rewardRolls        RewardRoll[]
 
   // ── Equipped rank-slot badge (separate from generic equippedSlot scheme so
   // we can render a default rank-derived SVG when null without a join). ──
@@ -216,6 +227,13 @@ model Member {
 
   tokenVersion Int      @default(0)
   createdAt    DateTime @default(now())
+
+  // ── Constellation Vault (CAD change management) ──
+  vaultCheckouts         VaultItem[]     @relation("VaultCheckout")
+  createdVaultItems      VaultItem[]     @relation("VaultItemCreator")
+  vaultVersionUploads    VaultVersion[]  @relation("VaultVersionUploader")
+  authoredChangeRequests ChangeRequest[] @relation("ChangeRequestAuthor")
+  reviewedChangeRequests ChangeRequest[] @relation("ChangeRequestReviewer")
 }
 
 model Project {
@@ -244,6 +262,7 @@ model Project {
   githubBlockDoneOnCiFail Boolean                     @default(true)
   githubLinks             GitHubLink[]
   githubMilestoneMaps     GitHubMilestoneMap[]
+  repos                   ProjectRepo[]
   tags                    Tag[]
   members                 ProjectMember[]
   tasks                   Task[]
@@ -255,9 +274,19 @@ model Project {
   notificationTargets     ProjectNotificationTarget[]
   notifications           Notification[]
   events                  Event[]
+  meetingPolls            MeetingPoll[]
   submissions             OutreachSubmission[]
+  pressKit                ProjectPressKit?
   createdAt               DateTime                    @default(now())
   updatedAt               DateTime                    @updatedAt
+
+  // ── Constellation Vault (CAD change management) ──
+  vaultFolderId    String?
+  vaultPartPrefix  String          @default("PRT")
+  vaultPartCounter Int             @default(0)
+  vaultCrCounter   Int             @default(0)
+  vaultItems       VaultItem[]
+  changeRequests   ChangeRequest[]
 }
 
 model ProjectMember {
@@ -332,6 +361,7 @@ model Task {
 
   // ── Events ──
   priorityEvents Event[] @relation("EventPriorityTasks")
+  priorityPolls  MeetingPoll[] @relation("PollPriorityTasks")
 
   activityLogs  ActivityLog[]
   notifications Notification[]
@@ -342,6 +372,9 @@ model Task {
   // Set when handleTaskComplete first fires for this task. Subsequent DONE
   // transitions skip the grant (prevents DONE→IN_PROGRESS→DONE exploit).
   rewardGrantedAt DateTime?
+
+  // ── Constellation Vault (CAD change management) ──
+  changeRequests ChangeRequest[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -486,6 +519,22 @@ enum ActivityEventType {
   MILESTONE_DELETED
   MILESTONE_TASKS_LINKED
   AI_PLAN_EXECUTED
+  VAULT_ITEM_CREATED
+  VAULT_ITEM_UPDATED
+  VAULT_ITEM_DELETED
+  VAULT_VERSION_CHECKED_IN
+  VAULT_ITEM_CHECKED_OUT
+  VAULT_CHECKOUT_RELEASED
+  VAULT_ITEM_PROMOTED
+  VAULT_REVISION_RELEASED
+  CHANGE_REQUEST_CREATED
+  CHANGE_REQUEST_UPDATED
+  CHANGE_REQUEST_APPROVED
+  CHANGE_REQUEST_REJECTED
+  CHANGE_REQUEST_CANCELLED
+  VAULT_BOM_LINK_ADDED
+  VAULT_BOM_LINK_UPDATED
+  VAULT_BOM_LINK_REMOVED
 }
 
 enum GitHubLinkKind {
@@ -497,20 +546,24 @@ enum GitHubLinkKind {
 }
 
 model ActivityLog {
-  id        String            @id @default(cuid())
-  projectId String
-  project   Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  taskId    String?
-  task      Task?             @relation(fields: [taskId], references: [id], onDelete: SetNull)
-  memberId  String?
-  member    Member?           @relation(fields: [memberId], references: [id], onDelete: SetNull)
-  source    ActivitySource
-  eventType ActivityEventType
-  payload   Json
-  createdAt DateTime          @default(now())
+  id          String            @id @default(cuid())
+  projectId   String
+  project     Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  taskId      String?
+  task        Task?             @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  memberId    String?
+  member      Member?           @relation(fields: [memberId], references: [id], onDelete: SetNull)
+  // Denormalized from payload.itemId so vault item history reads hit an index
+  // instead of a JSON-path sequential scan (set automatically by logAuditEvent).
+  vaultItemId String?
+  source      ActivitySource
+  eventType   ActivityEventType
+  payload     Json
+  createdAt   DateTime          @default(now())
 
   @@index([projectId, createdAt(sort: Desc)])
   @@index([taskId])
+  @@index([vaultItemId])
 }
 
 model ProjectNotificationTarget {
@@ -562,17 +615,39 @@ model GitHubLink {
 // repo re-link (older mappings stay queryable but inactive).
 
 model GitHubMilestoneMap {
-  id                    String    @id @default(cuid())
-  project               Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  id                    String       @id @default(cuid())
+  project               Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
   projectId             String
-  milestoneId           String    @unique
+  milestoneId           String       @unique
   githubMilestoneNumber Int
   repoFullName          String
+  // Which linked repo (ProjectRepo) this mapping targets (multi-repo phase 1).
+  // Nullable + SetNull so a repo removal doesn't cascade-delete history.
+  projectRepo           ProjectRepo? @relation(fields: [projectRepoId], references: [id], onDelete: SetNull)
+  projectRepoId         String?
   lastSyncedAt          DateTime?
-  createdAt             DateTime  @default(now())
+  createdAt             DateTime     @default(now())
 
   @@index([projectId])
   @@index([repoFullName, githubMilestoneNumber])
+}
+
+// ── Multiple GitHub repos per project (Workstream B) ──────────
+// All repos are fully equal (no "primary"). Project.githubRepo/githubInstallId/
+// githubBlockDoneOnCiFail are kept temporarily for backward compatibility until
+// all read paths move to ProjectRepo (see backend/scripts/backfillProjectRepos.ts).
+model ProjectRepo {
+  id                String               @id @default(cuid())
+  project           Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId         String
+  slug              String // "owner/repo"
+  installId         Int? // per-repo GitHub App installation
+  blockDoneOnCiFail Boolean              @default(true)
+  createdById       String?
+  createdAt         DateTime             @default(now())
+  milestoneMaps     GitHubMilestoneMap[]
+
+  @@unique([projectId, slug])
 }
 
 model Tag {
@@ -592,8 +667,8 @@ model TaskDependency {
   blockingTaskId String
   blockedTaskId  String
   reason         String?
-  blockingTask   Task   @relation("TaskDependencies_blocking", fields: [blockingTaskId], references: [id], onDelete: Cascade)
-  blockedTask    Task   @relation("TaskDependencies_blocked", fields: [blockedTaskId], references: [id], onDelete: Cascade)
+  blockingTask   Task    @relation("TaskDependencies_blocking", fields: [blockingTaskId], references: [id], onDelete: Cascade)
+  blockedTask    Task    @relation("TaskDependencies_blocked", fields: [blockedTaskId], references: [id], onDelete: Cascade)
 
   @@id([blockingTaskId, blockedTaskId])
 }
@@ -703,6 +778,7 @@ model Event {
 
   submissions OutreachSubmission[]
   rsvps       EventRsvp[]
+  pollLink    MeetingPoll? @relation("PollEvent")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -791,16 +867,16 @@ model OutreachComment {
   submissionId String?
   submission   OutreachSubmission? @relation(fields: [submissionId], references: [id], onDelete: Cascade)
   authorId     String
-  author       Member             @relation("OutreachCommentAuthor", fields: [authorId], references: [id])
+  author       Member              @relation("OutreachCommentAuthor", fields: [authorId], references: [id])
   body         String
   mentions     String[]
   parentId     String?
-  parent       OutreachComment?   @relation("CommentReplies", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  replies      OutreachComment[]  @relation("CommentReplies")
+  parent       OutreachComment?    @relation("CommentReplies", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  replies      OutreachComment[]   @relation("CommentReplies")
   // Draft annotations: a comment may instead be attached to a BlogPost (internal review notes).
   blogPostId   String?
-  blogPost     BlogPost?          @relation("BlogPostAnnotations", fields: [blogPostId], references: [id], onDelete: Cascade)
-  createdAt    DateTime           @default(now())
+  blogPost     BlogPost?           @relation("BlogPostAnnotations", fields: [blogPostId], references: [id], onDelete: Cascade)
+  createdAt    DateTime            @default(now())
 
   @@index([submissionId])
   @@index([blogPostId])
@@ -816,20 +892,21 @@ enum BlogStatus {
 }
 
 model BlogPost {
-  id           String     @id @default(cuid())
-  title        String
-  slug         String     @unique
-  excerpt      String?
-  status       BlogStatus @default(DRAFT)
+  id      String     @id @default(cuid())
+  title   String
+  slug    String     @unique
+  excerpt String?
+  status  BlogStatus @default(DRAFT)
 
   contentJson  Json // TipTap document — source of truth for editing + revision diffs
   contentYjs   Bytes? // Yjs/CRDT binary state for realtime collaboration
   renderedHtml String? // HTML snapshot written at publish time (served to the public site)
+  theme        Json?   // { accent, fontPair, width } — per-post Section Builder theme
 
   // Free-text byline (historical / non-member authors). Overrides createdBy when set.
-  authorName   String?
+  authorName String?
   // When set, this post's card links here instead of /blog/:slug (a "link post").
-  linkUrl      String?
+  linkUrl    String?
 
   coverImageUrl  String?
   readingTimeMin Int?
@@ -910,6 +987,41 @@ model BlogSnippet {
   createdBy   Member   @relation("BlogSnippetCreator", fields: [createdById], references: [id])
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+enum PressKitStatus {
+  DRAFT
+  PUBLISHED
+}
+
+model ProjectPressKit {
+  id           String         @id @default(cuid())
+  projectId    String         @unique
+  project      Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  contentJson  Json? // TipTap document — source of truth for editing
+  contentYjs   Bytes? // Yjs/CRDT binary state for realtime collaboration
+  renderedHtml String? // inner HTML snapshot written on publish (served to public)
+  theme        Json?   // { accent, fontPair, width } — per-post Section Builder theme
+  config       Json // PressKitConfig
+  status       PressKitStatus @default(DRAFT)
+  generatedAt  DateTime?
+  createdById  String
+  createdBy    Member         @relation("PressKitCreator", fields: [createdById], references: [id])
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  revisions    PressKitRevision[]
+}
+
+model PressKitRevision {
+  id          String          @id @default(cuid())
+  pressKitId  String
+  pressKit    ProjectPressKit @relation(fields: [pressKitId], references: [id], onDelete: Cascade)
+  contentJson Json
+  authorId    String
+  author      Member          @relation("PressKitRevisionAuthor", fields: [authorId], references: [id])
+  createdAt   DateTime        @default(now())
+
+  @@index([pressKitId])
 }
 
 model HashtagStat {
@@ -1114,6 +1226,79 @@ model EventRsvp {
   @@index([memberId])
 }
 
+// ── Meeting Scheduler (when2meet-style availability polls) ───
+
+enum MeetingPollStatus {
+  OPEN
+  FINALIZED
+  CANCELED
+}
+
+enum MeetingPollAudience {
+  INVITED // only invited members may respond
+  PROJECT // whole project team may respond
+  ANYONE  // anyone with the link (members + guests)
+}
+
+model MeetingPoll {
+  id          String  @id @default(cuid())
+  publicToken String  @unique @default(cuid()) // shareable /schedule/:token link
+  title       String
+  description String?
+  timezone    String  @default("America/New_York")
+
+  // Candidate slots are stored as their canonical UTC start instants. The grid
+  // is derived by grouping these by day; slotMinutes gives each slot's length.
+  slotMinutes      Int        @default(30)
+  slotStarts       DateTime[]
+  responseDeadline DateTime? // soft: drives reminders + display only
+
+  audience MeetingPollAudience @default(INVITED)
+  status   MeetingPollStatus   @default(OPEN)
+
+  organizer   Member? @relation("PollOrganizer", fields: [organizerId], references: [id], onDelete: SetNull)
+  organizerId String?
+
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  projectId String?
+
+  priorityTasks  Task[]   @relation("PollPriorityTasks")
+  invitedMembers Member[] @relation("PollInvitees")
+
+  // Finalization: the winning slot + the Event it produced (kept linked).
+  finalStart DateTime?
+  finalEnd   DateTime?
+  event      Event?    @relation("PollEvent", fields: [eventId], references: [id], onDelete: SetNull)
+  eventId    String?   @unique
+
+  reminderSentAt DateTime? // non-responder nudge idempotency
+  responses      MeetingResponse[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([projectId])
+}
+
+model MeetingResponse {
+  id       String       @id @default(cuid())
+  poll     MeetingPoll  @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  pollId   String
+  member   Member?      @relation("MemberPollResponses", fields: [memberId], references: [id], onDelete: SetNull)
+  memberId String?
+  guestName String?
+
+  slots    DateTime[] // subset of poll.slotStarts this respondent is available
+  rewarded Boolean    @default(false) // XP granted once per member per poll
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([pollId, memberId])
+  @@index([pollId])
+}
+
 // ── Engagement / Gamification ────────────────────────────────
 
 enum Rank {
@@ -1134,6 +1319,7 @@ enum RewardEventType {
   KUDOS_RECEIVED
   BLOG_POST_PUBLISHED
   EARLY_DELIVERY_BONUS
+  MEETING_AVAILABILITY_SUBMITTED
 }
 
 enum XpSource {
@@ -1144,6 +1330,7 @@ enum XpSource {
   BLOG_POST
   ADMIN_ADJUSTMENT
   EARLY_BONUS
+  MEETING
 }
 
 enum DoubloonSource {
@@ -1155,6 +1342,7 @@ enum DoubloonSource {
   SHOP_PURCHASE
   ADMIN_ADJUSTMENT
   EARLY_BONUS
+  MEETING
 }
 
 enum CosmeticCategory {
@@ -1226,7 +1414,7 @@ model Cosmetic {
   iconClass       String? // Font Awesome class for BADGE (legacy; svgUrl preferred)
   svgUrl          String? // public path to SVG artwork (e.g. /clubpm/badges/celestial.svg)
   registryKey     String? // key into CLOTHING / HAIR JS registries
-  themeTokens     Json?   // { accent, accentSoft, glow, bgOverlay } for themes + tinted borders
+  themeTokens     Json? // { accent, accentSoft, glow, bgOverlay } for themes + tinted borders
   doubloonPrice   Int              @default(0)
   xpGate          Int? // null = no xp gate
   rankGate        Rank? // null = no rank gate
@@ -1458,18 +1646,18 @@ model Challenge {
 }
 
 model MemberChallenge {
-  id          String    @id @default(cuid())
-  memberId    String
-  challengeId String
-  periodStart DateTime
-  periodEnd   DateTime
-  progress    Int       @default(0)
+  id           String    @id @default(cuid())
+  memberId     String
+  challengeId  String
+  periodStart  DateTime
+  periodEnd    DateTime
+  progress     Int       @default(0)
   progressMeta Json?
-  completedAt DateTime?
-  claimedAt   DateTime?
-  rolledItems Json?
-  member      Member    @relation(fields: [memberId], references: [id], onDelete: Cascade)
-  challenge   Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  completedAt  DateTime?
+  claimedAt    DateTime?
+  rolledItems  Json?
+  member       Member    @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  challenge    Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
 
   @@unique([memberId, challengeId, periodStart])
   @@index([memberId, periodStart])
@@ -1500,4 +1688,134 @@ model RewardRoll {
   member     Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
 
   @@index([memberId, createdAt])
+}
+
+// ── Constellation Vault (CAD change management) ──────────────
+
+enum ChangeRequestStatus {
+  OPEN
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+model VaultItem {
+  id              String              @id @default(cuid())
+  projectId       String
+  project         Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name            String
+  description     String?
+  driveFolderId   String
+  partNumber      String?
+  currentRevision String?
+  checkedOutById  String?
+  checkedOutBy    Member?             @relation("VaultCheckout", fields: [checkedOutById], references: [id], onDelete: SetNull)
+  checkedOutAt    DateTime?
+  checkoutNote    String?
+  createdById     String?
+  createdBy       Member?             @relation("VaultItemCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  deletedAt       DateTime?
+  versions        VaultVersion[]
+  crItems         ChangeRequestItem[]
+  childLinks      VaultBomEdge[]      @relation("BomParent")
+  parentLinks     VaultBomEdge[]      @relation("BomChild")
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  @@unique([projectId, partNumber])
+  @@index([projectId, deletedAt])
+}
+
+model VaultVersion {
+  id              String              @id @default(cuid())
+  itemId          String
+  item            VaultItem           @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  versionNumber   Int
+  driveFileId     String
+  fileName        String
+  mimeType        String?
+  sizeBytes       Int?
+  checksumMd5     String?
+  note            String?
+  uploadedById    String?
+  uploadedBy      Member?             @relation("VaultVersionUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
+  revision        String?
+  releasedAt      DateTime?
+  releasedByCrId  String?
+  thumbnailFileId String?
+  crItems         ChangeRequestItem[]
+  createdAt       DateTime            @default(now())
+
+  @@unique([itemId, versionNumber])
+  // DB backstop for the approveCr serializable transaction: no two released
+  // versions of one item may ever carry the same revision letter (NULLs are
+  // distinct in Postgres, so unreleased versions are unaffected).
+  @@unique([itemId, revision])
+  @@index([itemId])
+}
+
+model ChangeRequest {
+  id           String              @id @default(cuid())
+  projectId    String
+  project      Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  number       Int
+  title        String
+  description  String?
+  status       ChangeRequestStatus @default(OPEN)
+  authorId     String?
+  author       Member?             @relation("ChangeRequestAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+  reviewerId   String?
+  reviewer     Member?             @relation("ChangeRequestReviewer", fields: [reviewerId], references: [id], onDelete: SetNull)
+  reviewNote   String?
+  reviewedAt   DateTime?
+  releaseNotes String?
+  taskId       String?
+  task         Task?               @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  items        ChangeRequestItem[]
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  @@unique([projectId, number])
+  @@index([projectId, status])
+}
+
+model ChangeRequestItem {
+  id              String        @id @default(cuid())
+  changeRequestId String
+  changeRequest   ChangeRequest @relation(fields: [changeRequestId], references: [id], onDelete: Cascade)
+  itemId          String
+  item            VaultItem     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  versionId       String
+  version         VaultVersion  @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  targetRevision  String
+  note            String?
+
+  @@unique([changeRequestId, itemId])
+  @@index([itemId])
+}
+
+model VaultBomEdge {
+  parentId  String
+  parent    VaultItem @relation("BomParent", fields: [parentId], references: [id], onDelete: Cascade)
+  childId   String
+  child     VaultItem @relation("BomChild", fields: [childId], references: [id], onDelete: Cascade)
+  quantity  Int       @default(1)
+  note      String?
+  createdAt DateTime  @default(now())
+
+  @@id([parentId, childId])
+  @@index([childId])
+}
+
+// ── Google Drive bot account (Workstream A) ───────────────────
+// Singleton (id is always "singleton") holding the OAuth refresh token for
+// the single Drive "bot" account used for both viewing and uploading.
+model GoogleDriveCredential {
+  id            String   @id @default("singleton")
+  refreshToken  String // encrypted via encryptSecret
+  accountEmail  String
+  scope         String
+  connectedById String?
+  connectedAt   DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }

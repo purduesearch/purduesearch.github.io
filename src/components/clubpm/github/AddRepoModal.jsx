@@ -1,16 +1,19 @@
-// Admin-only modal to link / change / clear the GitHub repo for a project.
-// Mirrors EditDriveFolderModal. Validates by hitting GET /api/github/repo
-// before committing the PATCH so we surface "repo not found / no access" inline.
+// Admin-only modal to add a linked GitHub repo to a project (multi-repo,
+// Workstream B — see docs/superpowers/specs/2026-07-06-clubpm-drive-multirepo-design.md §4).
+// Always APPENDS a new ProjectRepo via POST /api/github/projects/:id/repos —
+// it never edits or unlinks an existing repo (see GitHubPanel's per-repo CI
+// gating toggle + remove button for that). Validates by hitting
+// GET /api/github/repo before committing the POST so we surface
+// "repo not found / no access" inline.
 
 import React, { useState } from "react";
 import { createPortal } from "react-dom";
 import toast from "react-hot-toast";
-import { get, patch } from "../../../api/clubPmClient";
+import { get, addProjectRepo } from "../../../api/clubPmClient";
 import { parseRepoInput } from "../../../utils/githubUtils";
 
-export default function LinkRepoModal({ projectId, currentRepo, currentBlockOnCiFail, onClose, onSaved }) {
-  const [input, setInput] = useState(currentRepo ?? "");
-  const [blockOnCiFail, setBlockOnCiFail] = useState(currentBlockOnCiFail ?? true);
+export default function AddRepoModal({ projectId, onClose, onSaved }) {
+  const [input, setInput] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const [validating, setValidating] = useState(false);
@@ -19,7 +22,6 @@ export default function LinkRepoModal({ projectId, currentRepo, currentBlockOnCi
   const trimmed = input.trim();
   const parsed = parseRepoInput(trimmed);
   const isEmpty = trimmed.length === 0;
-  const isUnchanged = (currentRepo ?? "") === (parsed?.slug ?? trimmed);
   const isInvalid = !isEmpty && !parsed;
 
   async function validate() {
@@ -31,7 +33,7 @@ export default function LinkRepoModal({ projectId, currentRepo, currentBlockOnCi
       setValidatedStats(stats);
     } catch (err) {
       if (err?.status === 400 && err?.message?.includes("Connect")) {
-        setError("Connect your GitHub account before linking a repo.");
+        setError("Connect your GitHub account before adding a repo.");
       } else if (err?.status === 404) {
         setError("Repo not found or your GitHub account doesn't have access.");
       } else {
@@ -43,38 +45,24 @@ export default function LinkRepoModal({ projectId, currentRepo, currentBlockOnCi
     }
   }
 
-  async function save(nextValue) {
+  async function save() {
     setSaving(true);
     setError(null);
     try {
-      const body = { githubRepo: nextValue };
-      if (blockOnCiFail !== currentBlockOnCiFail) body.githubBlockDoneOnCiFail = blockOnCiFail;
-      const updated = await patch(`/api/projects/${projectId}`, body);
-      toast.success(nextValue ? "GitHub repo linked" : "GitHub repo cleared");
-      onSaved?.(updated);
+      const created = await addProjectRepo(projectId, parsed.slug);
+      toast.success("GitHub repo added");
+      onSaved?.(created);
       onClose();
     } catch (err) {
       if (err?.status === 403) {
-        setError("Only admins can change the project's GitHub repo.");
+        setError("Only admins can add a repo to this project.");
+      } else if (err?.status === 409) {
+        setError("This repo is already linked to the project.");
+      } else if (err?.status === 404) {
+        setError("Repo not found or your GitHub account doesn't have access.");
       } else {
-        setError(err?.message ?? "Failed to update repo");
+        setError(err?.message ?? "Failed to add repo");
       }
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function toggleGating() {
-    if (saving) return;
-    setSaving(true);
-    setError(null);
-    try {
-      const updated = await patch(`/api/projects/${projectId}`, { githubBlockDoneOnCiFail: !blockOnCiFail });
-      setBlockOnCiFail(!blockOnCiFail);
-      toast.success(!blockOnCiFail ? "CI gating enabled" : "CI gating disabled");
-      onSaved?.(updated);
-    } catch (err) {
-      setError(err?.message ?? "Failed to update CI gating");
     } finally {
       setSaving(false);
     }
@@ -82,26 +70,21 @@ export default function LinkRepoModal({ projectId, currentRepo, currentBlockOnCi
 
   async function handleSubmit(e) {
     e.preventDefault();
-    if (isEmpty || isInvalid || isUnchanged || saving) return;
+    if (isEmpty || isInvalid || saving) return;
     if (!validatedStats) {
       await validate();
       return;
     }
-    save(parsed.slug);
-  }
-
-  function handleClear() {
-    if (saving) return;
-    save(null);
+    save();
   }
 
   return createPortal(
-    <div className="cpm-gh-modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="cpm-gh-modal" role="dialog" aria-label="Link GitHub repo">
+    <div className="cpm-gh-modal-overlay clubpm-portal" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="cpm-gh-modal" role="dialog" aria-label="Add GitHub repo">
         <div className="cpm-gh-modal-header">
           <span>
             <i className="fab fa-github" style={{ marginRight: 10 }} aria-hidden="true" />
-            {currentRepo ? "Change GitHub repo" : "Link GitHub repo"}
+            Add GitHub repo
           </span>
           <button onClick={onClose} aria-label="Close" className="cpm-gh-modal-close">
             <i className="fas fa-times" aria-hidden="true" />
@@ -145,30 +128,20 @@ export default function LinkRepoModal({ projectId, currentRepo, currentBlockOnCi
             <code> repo </code> scope (granted automatically during OAuth).
           </p>
 
-          {currentRepo && (
-            <div className="cpm-gh-toggle-row">
-              <label className="cpm-gh-toggle">
-                <input
-                  type="checkbox"
-                  checked={blockOnCiFail}
-                  onChange={toggleGating}
-                  disabled={saving}
-                />
-                <span>Block "Done" when linked PR has failing CI</span>
-              </label>
-              <p className="cpm-gh-hint" style={{ margin: "4px 0 0" }}>
-                When on, moving a task to Done is rejected with a 409 if its linked PR's
-                most recent check-suite conclusion is <code>failure</code>.
-              </p>
-            </div>
-          )}
+          <p className="cpm-gh-hint">
+            Don't see a newly-added repo?{" "}
+            <a
+              href="https://github.com/settings/installations"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Manage the GitHub App installation
+            </a>{" "}
+            — repos granted only through the installed app (not your personal OAuth
+            access) must be added there too.
+          </p>
 
           <div className="cpm-gh-modal-footer">
-            {currentRepo && (
-              <button type="button" className="cpm-gh-modal-clear" onClick={handleClear} disabled={saving}>
-                Unlink
-              </button>
-            )}
             <div style={{ flex: 1 }} />
             <button type="button" className="cpm-gh-modal-cancel" onClick={onClose} disabled={saving}>
               Cancel
@@ -177,13 +150,13 @@ export default function LinkRepoModal({ projectId, currentRepo, currentBlockOnCi
               <button
                 type="submit"
                 className="clubpm-btn-primary"
-                disabled={isEmpty || isInvalid || isUnchanged || validating || saving}
+                disabled={isEmpty || isInvalid || validating || saving}
               >
                 {validating ? "Checking…" : "Check repo"}
               </button>
             ) : (
               <button type="submit" className="clubpm-btn-primary" disabled={saving}>
-                {saving ? "Saving…" : "Link repo"}
+                {saving ? "Adding…" : "Add repo"}
               </button>
             )}
           </div>

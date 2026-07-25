@@ -37,6 +37,7 @@ export interface UpdatePostInput {
   authorName?: string | null;
   linkUrl?: string | null;
   publishedAt?: Date | string | null;
+  theme?: Record<string, unknown> | null;
 }
 
 export interface ListPostsFilters {
@@ -164,6 +165,9 @@ export async function updatePost(id: string, patch: UpdatePostInput) {
   if (patch.publishedAt !== undefined) {
     data.publishedAt = patch.publishedAt ? new Date(patch.publishedAt) : null;
   }
+  if (patch.theme !== undefined) {
+    data.theme = patch.theme as Prisma.InputJsonValue ?? Prisma.JsonNull;
+  }
 
   return prisma.blogPost.update({ where: { id }, data, include: postInclude });
 }
@@ -187,7 +191,7 @@ export async function publishPost(id: string, memberId: string) {
       status: "PUBLISHED",
       publishedAt: post.publishedAt ?? new Date(),
       scheduledAt: null,
-      renderedHtml: renderJsonToHtml(doc),
+      renderedHtml: renderJsonToHtml(doc, process.env.PUBLIC_API_BASE_URL ?? ""),
       readingTimeMin: computeReadingTime(doc),
     },
     include: postInclude,

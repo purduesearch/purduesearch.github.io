@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { listBlogPosts, createBlogPost } from '../../api/clubPmClient';
+import { listBlogPosts, createBlogPost, generateBlogPost, deleteBlogPost } from '../../api/clubPmClient';
 
 const STATUS_FILTERS = [
   { id: '',          label: 'All' },
@@ -16,12 +17,109 @@ function fmt(dateStr) {
   return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
+// Dialog that turns raw text (notes / brief / outline / rough draft) into a
+// designed, section-based blog draft via the AI section-plan pipeline.
+function GenerateModal({ onClose, onDone }) {
+  const [text, setText]         = useState('');
+  const [title, setTitle]       = useState('');
+  const [guidance, setGuidance] = useState('');
+  const [busy, setBusy]         = useState(false);
+
+  // Close on Escape (unless generating) and lock page scroll while open.
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape' && !busy) onClose(); };
+    document.addEventListener('keydown', onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [busy, onClose]);
+
+  const submit = async () => {
+    if (!text.trim() || busy) return;
+    setBusy(true);
+    try {
+      const payload = { text: text.trim() };
+      if (title.trim()) payload.title = title.trim();
+      if (guidance.trim()) payload.guidance = guidance.trim();
+      const postData = await generateBlogPost(payload);
+      toast.success('Draft generated');
+      onDone(postData);
+    } catch {
+      toast.error('Could not generate post');
+      setBusy(false);
+    }
+  };
+
+  return createPortal(
+    <div
+      className="cpm-modal-overlay"
+      onClick={(e) => { if (e.target === e.currentTarget && !busy) onClose(); }}
+    >
+      <div
+        className="cpm-blog-genmodal"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Generate blog post from text"
+      >
+        <div className="cpm-blog-genmodal-head">
+          <h3><i className="fas fa-wand-magic-sparkles" aria-hidden="true" /> Generate blog post from text</h3>
+          <button type="button" className="cpm-blog-genmodal-x" onClick={onClose} disabled={busy} aria-label="Close">
+            <i className="fas fa-xmark" aria-hidden="true" />
+          </button>
+        </div>
+
+        <label className="cpm-blog-genmodal-lab">Title <span>(optional — leave blank to let AI choose)</span></label>
+        <input
+          className="cpm-blog-genmodal-input"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="Post title"
+          disabled={busy}
+        />
+
+        <label className="cpm-blog-genmodal-lab">Your text, notes, or brief</label>
+        <textarea
+          className="cpm-blog-genmodal-textarea"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder="Paste the raw text, meeting notes, an outline, or a rough draft…"
+          disabled={busy}
+          autoFocus
+        />
+
+        <label className="cpm-blog-genmodal-lab">Guidance <span>(optional)</span></label>
+        <input
+          className="cpm-blog-genmodal-input"
+          value={guidance}
+          onChange={(e) => setGuidance(e.target.value)}
+          placeholder="e.g. announcement tone, focus on the technical challenges"
+          disabled={busy}
+        />
+
+        <div className="cpm-blog-genmodal-actions">
+          <button type="button" className="clubpm-btn-secondary" onClick={onClose} disabled={busy}>Cancel</button>
+          <button type="button" className="clubpm-btn-primary" onClick={submit} disabled={busy || !text.trim()}>
+            {busy
+              ? <><i className="fas fa-spinner fa-spin" aria-hidden="true" style={{ marginRight: 6 }} />Generating…</>
+              : <><i className="fas fa-wand-magic-sparkles" aria-hidden="true" style={{ marginRight: 6 }} />Generate</>}
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
 export default function BlogTab() {
   const navigate = useNavigate();
   const [posts, setPosts]     = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter]   = useState('');
   const [creating, setCreating] = useState(false);
+  const [showGen, setShowGen] = useState(false);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -45,6 +143,18 @@ export default function BlogTab() {
     }
   };
 
+  const handleDelete = async (e, postId, title) => {
+    e.stopPropagation();
+    if (!window.confirm(`Delete "${title}"? This cannot be undone.`)) return;
+    try {
+      await deleteBlogPost(postId);
+      setPosts((prev) => prev.filter((p) => p.id !== postId));
+      toast.success('Post deleted');
+    } catch {
+      toast.error('Could not delete post (only the author or an admin can).');
+    }
+  };
+
   return (
     <div className="cpm-blog-tab">
       <div className="cpm-blog-tab-header">
@@ -59,10 +169,16 @@ export default function BlogTab() {
             </button>
           ))}
         </div>
-        <button className="clubpm-btn-primary" onClick={handleNew} disabled={creating}>
-          <i className="fas fa-plus" aria-hidden="true" style={{ marginRight: 6 }} />
-          New post
-        </button>
+        <div className="cpm-blog-tab-actions">
+          <button className="clubpm-btn-secondary" onClick={() => setShowGen(true)}>
+            <i className="fas fa-wand-magic-sparkles" aria-hidden="true" style={{ marginRight: 6 }} />
+            Generate from text
+          </button>
+          <button className="clubpm-btn-primary" onClick={handleNew} disabled={creating}>
+            <i className="fas fa-plus" aria-hidden="true" style={{ marginRight: 6 }} />
+            New post
+          </button>
+        </div>
       </div>
 
       {loading ? (
@@ -99,9 +215,25 @@ export default function BlogTab() {
                   <i className="fas fa-external-link-alt" aria-hidden="true" />
                 </a>
               )}
+              <button
+                type="button"
+                className="cpm-blog-list-delete"
+                title="Delete post"
+                aria-label="Delete post"
+                onClick={(e) => handleDelete(e, p.id, p.title)}
+              >
+                <i className="fas fa-trash" aria-hidden="true" />
+              </button>
             </li>
           ))}
         </ul>
+      )}
+
+      {showGen && (
+        <GenerateModal
+          onClose={() => setShowGen(false)}
+          onDone={(post) => { setShowGen(false); navigate(`/clubpm/outreach/blog/${post.id}/edit`); }}
+        />
       )}
     </div>
   );

@@ -2,7 +2,7 @@ import React from 'react';
 import { Node, mergeAttributes } from '@tiptap/core';
 import { ReactNodeViewRenderer, NodeViewWrapper } from '@tiptap/react';
 import { Plugin } from '@tiptap/pm/state';
-import { uploadBlogImage, suggestBlogAltText } from '../../../api/clubPmClient';
+import { uploadBlogImage, suggestBlogAltText, proxyImageSrc } from '../../../api/clubPmClient';
 
 // Upload the given File and insert an image node at `pos` (or the current
 // selection when pos is null). Shows a lightweight console error on failure.
@@ -39,6 +39,22 @@ function ImageView({ node, updateAttributes, selected, editor }) {
   const { src, alt, align, width, caption, widthUnit } = node.attrs;
   const [suggesting, setSuggesting] = React.useState(false);
   const editable = editor.isEditable;
+  const fileRef = React.useRef(null);
+
+  // Fill an empty placeholder in place: upload the picked file and set src on
+  // this node (rather than inserting a new one).
+  const onPickFile = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      const { url, width: w, height: h } = await uploadBlogImage(file);
+      updateAttributes({ src: url, naturalWidth: w, naturalHeight: h });
+    } catch (err) {
+      console.error('[BlogImage] upload failed:', err);
+      window.alert('Image upload failed. Please try again.');
+    }
+  };
 
   const setAlign = (a) => updateAttributes({ align: a });
   const unit = widthUnit || 'px';
@@ -75,7 +91,7 @@ function ImageView({ node, updateAttributes, selected, editor }) {
       className={`cpm-blog-figure cpm-blog-img--${align || 'center'}${selected ? ' is-selected' : ''}`}
       as="figure"
     >
-      {editable && (
+      {editable && src && (
         <div className="cpm-blog-img-toolbar" contentEditable={false}>
           <button type="button" className={`cpm-blog-tb-btn${align === 'left' ? ' is-active' : ''}`} title="Align left" onClick={() => setAlign('left')}><i className="fas fa-align-left" aria-hidden="true" /></button>
           <button type="button" className={`cpm-blog-tb-btn${(align === 'center' || !align) ? ' is-active' : ''}`} title="Align center" onClick={() => setAlign('center')}><i className="fas fa-align-center" aria-hidden="true" /></button>
@@ -91,12 +107,28 @@ function ImageView({ node, updateAttributes, selected, editor }) {
         </div>
       )}
 
-      <img
-        src={src}
-        alt={alt || ''}
-        draggable={false}
-        style={width ? { width: `${width}${widthUnit || 'px'}` } : undefined}
-      />
+      {src ? (
+        <img
+          src={proxyImageSrc(src)}
+          alt={alt || ''}
+          draggable={false}
+          style={width ? { width: `${width}${widthUnit || 'px'}` } : undefined}
+        />
+      ) : editable ? (
+        <div className="cpm-blog-img-placeholder" contentEditable={false}>
+          <i className="fas fa-image cpm-blog-img-placeholder-icon" aria-hidden="true" />
+          <span className="cpm-blog-img-placeholder-hint">{caption || alt || 'Image placeholder'}</span>
+          <button
+            type="button"
+            className="clubpm-btn-primary cpm-blog-img-placeholder-btn"
+            onClick={() => fileRef.current?.click()}
+          >
+            <i className="fas fa-arrow-up-from-bracket" aria-hidden="true" style={{ marginRight: 6 }} />
+            Upload image
+          </button>
+          <input ref={fileRef} type="file" accept="image/*" hidden onChange={onPickFile} />
+        </div>
+      ) : null}
 
       {editable ? (
         <div className="cpm-blog-img-meta" contentEditable={false}>

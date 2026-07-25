@@ -29,7 +29,7 @@ function stateMeta(pr) {
   return { text: "Open", icon: "fa-code-pull-request", color: "var(--cpm-gh-ok, #1f883d)" };
 }
 
-export default function PrPreviewModal({ projectId, number, onClose }) {
+export default function PrPreviewModal({ repoId, number, onClose }) {
   const [pr, setPr] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -43,19 +43,19 @@ export default function PrPreviewModal({ projectId, number, onClose }) {
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    get(`/api/github/projects/${projectId}/pulls/${number}`)
+    get(`/api/github/repos/${repoId}/pulls/${number}`)
       .then(data => { if (!cancelled) setPr(data); })
       .catch(err => { if (!cancelled) setError(err?.message ?? "Failed to load PR"); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [projectId, number]);
+  }, [repoId, number]);
 
   const sMeta = pr ? stateMeta(pr) : null;
   const rMeta = pr ? REVIEW_LABEL[pr.reviewState] ?? REVIEW_LABEL.NONE : null;
   const cMeta = pr ? CHECKS_LABEL[pr.checksStatus] ?? CHECKS_LABEL.none : null;
 
   return createPortal(
-    <div className="cpm-gh-modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+    <div className="cpm-gh-modal-overlay clubpm-portal" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="cpm-gh-preview-modal" role="dialog" aria-label={`Pull request #${number}`}>
         <div className="cpm-gh-preview-header">
           <div className="cpm-gh-preview-title-row">

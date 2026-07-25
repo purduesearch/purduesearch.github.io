@@ -30,11 +30,11 @@ function relativeTime(dateStr) {
 function CommentText({ body }) {
   if (!body) return null;
   // Split on @word boundaries, rendering each @mention with a highlight span
-  const parts = body.split(/(@\w+)/g);
+  const parts = body.split(/(@[a-zA-Z0-9._-]+)/g);
   return (
     <span className="pm-comment-text">
       {parts.map((part, i) =>
-        /^@\w+$/.test(part)
+        /^@[a-zA-Z0-9._-]+$/.test(part)
           ? <span key={i} className="pm-comment-mention">{part}</span>
           : part
       )}

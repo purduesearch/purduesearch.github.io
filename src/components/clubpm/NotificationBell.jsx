@@ -1,12 +1,15 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { formatDistanceToNow } from "date-fns";
-import { get, post, patch, del } from "../../api/clubPmClient";
+import { get, post, patch, del, apiBaseUrl, getStoredToken } from "../../api/clubPmClient";
 import LottieBell from "./anim/LottieBell";
 
 const SESSION_GREETED_KEY = "cpm.bell.greeted";
 
 const POLL_INTERVAL_MS = 60_000; // fallback polling — SSE is primary
+
+const SSE_RETRY_BASE_MS = 5_000;
+const SSE_RETRY_MAX_MS = 5 * 60_000;
 
 // ── Type group definitions ────────────────────────────────────
 
@@ -119,6 +122,9 @@ export default function NotificationBell() {
   const listRef     = useRef(null);
   const sseRef      = useRef(null);
   const pollRef     = useRef(null);
+  const retryTimerRef  = useRef(null);
+  const retryDelayRef  = useRef(SSE_RETRY_BASE_MS);
+  const connectSSERef  = useRef(null);
   const navigate    = useNavigate();
 
   // ── fetch first page ─────────────────────────────────────
@@ -172,14 +178,33 @@ export default function NotificationBell() {
     }
   }, []);
 
+  // ── cancel any pending SSE reconnect timer ────────────────
+  const clearRetryTimer = useCallback(() => {
+    if (retryTimerRef.current) {
+      clearTimeout(retryTimerRef.current);
+      retryTimerRef.current = null;
+    }
+  }, []);
+
   // ── SSE connection ────────────────────────────────────────
   const connectSSE = useCallback(() => {
     if (sseRef.current) return; // already connected
 
-    const es = new EventSource("/api/notifications/stream", {
+    const token = getStoredToken();
+    const url = `${apiBaseUrl}/api/notifications/stream${
+      token ? `?token=${encodeURIComponent(token)}` : ""
+    }`;
+    const es = new EventSource(url, {
       withCredentials: true,
     });
     sseRef.current = es;
+
+    es.onopen = () => {
+      // SSE is live — stop fallback polling and reset backoff.
+      stopPolling();
+      clearRetryTimer();
+      retryDelayRef.current = SSE_RETRY_BASE_MS;
+    };
 
     es.addEventListener("notification", (e) => {
       try {
@@ -212,15 +237,28 @@ export default function NotificationBell() {
     });
 
     es.onerror = () => {
-      // SSE dropped — close, fall back to polling
+      // SSE dropped — close, fall back to polling, and schedule a retry
+      // with exponential backoff (capped) so we don't hammer the server.
       es.close();
       sseRef.current = null;
       startPolling();
-    };
 
-    // SSE is live — stop fallback polling if it was running
-    stopPolling();
-  }, [startPolling, stopPolling]);
+      if (!retryTimerRef.current) {
+        const delay = retryDelayRef.current;
+        retryTimerRef.current = setTimeout(() => {
+          retryTimerRef.current = null;
+          connectSSERef.current?.();
+        }, delay);
+        retryDelayRef.current = Math.min(delay * 2, SSE_RETRY_MAX_MS);
+      }
+    };
+  }, [startPolling, stopPolling, clearRetryTimer]);
+
+  // Keep a stable ref to the latest connectSSE so the retry timeout (which
+  // may fire long after this render) always calls the current closure.
+  useEffect(() => {
+    connectSSERef.current = connectSSE;
+  }, [connectSSE]);
 
   // mount: initial fetch + SSE
   useEffect(() => {
@@ -231,9 +269,10 @@ export default function NotificationBell() {
         sseRef.current.close();
         sseRef.current = null;
       }
+      clearRetryTimer();
       stopPolling();
     };
-  }, [fetchNotifs, connectSSE, stopPolling]);
+  }, [fetchNotifs, connectSSE, stopPolling, clearRetryTimer]);
 
   // ── click outside to close ────────────────────────────────
   useEffect(() => {
@@ -267,9 +306,10 @@ export default function NotificationBell() {
         prev.map(n => (n.id === notif.id ? { ...n, read: true } : n))
       );
       patch(`/api/notifications/${notif.id}/read`, {}).catch(() => {});
-      if (notif.projectId || notif.taskId) {
+      if (notif.projectId) {
         setOpen(false);
-        navigate(`/clubpm/projects/${notif.projectId}`);
+        const taskQuery = notif.taskId ? `?task=${notif.taskId}` : "";
+        navigate(`/clubpm/projects/${notif.projectId}${taskQuery}`);
       }
     },
     [navigate]

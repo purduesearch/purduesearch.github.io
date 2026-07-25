@@ -83,7 +83,7 @@ assetsRouter.post("/", async (req: Request, res: Response) => {
         thumbnailUrl: thumbnailUrl ?? null,
         altText: altText ?? null,
         tags: tags ?? [],
-        uploadedById: req.session.memberId!,
+        uploadedById: req.memberId!,
       },
       include: {
         uploadedBy: { select: { id: true, displayName: true, avatarUrl: true } },
@@ -107,9 +107,9 @@ assetsRouter.patch("/:id", async (req: Request, res: Response) => {
     }
 
     // Author or admin
-    if (asset.uploadedById !== req.session.memberId) {
+    if (asset.uploadedById !== req.memberId) {
       const member = await prisma.member.findUnique({
-        where: { id: req.session.memberId },
+        where: { id: req.memberId },
         select: { isAdmin: true },
       });
       if (!member?.isAdmin) {
@@ -152,9 +152,9 @@ assetsRouter.delete("/:id", async (req: Request, res: Response) => {
       return;
     }
 
-    if (asset.uploadedById !== req.session.memberId) {
+    if (asset.uploadedById !== req.memberId) {
       const member = await prisma.member.findUnique({
-        where: { id: req.session.memberId },
+        where: { id: req.memberId },
         select: { isAdmin: true },
       });
       if (!member?.isAdmin) {

@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import OrbitLoader from '../../components/OrbitLoader';
 import { Link } from 'react-router-dom';
-import { get, post } from '../../api/clubPmClient';
+import { get, post, listProjectRepos } from '../../api/clubPmClient';
 import { useClubPmAuth } from '../../clubpm/ClubPmAuth';
 import KudosButton from '../../components/clubpm/KudosButton';
 import AvatarPortrait from '../../components/clubpm/avatar/AvatarPortrait';
@@ -133,8 +133,11 @@ function MemberCard({ member, onClick }) {
 // ── ContributorImportModal ────────────────────────────────────
 
 function ContributorImportModal({ onClose, onImported }) {
-  const [projects, setProjects]       = useState([]);
-  const [projectId, setProjectId]     = useState('');
+  // Flattened list of repos across all projects: { repoId, projectId, label }.
+  // Contributor discovery is inherently per-repo (multi-repo), so the old
+  // "pick a project" selector is now "pick a repo".
+  const [repoOptions, setRepoOptions] = useState([]);
+  const [repoId, setRepoId]           = useState('');
   const [discovering, setDiscovering] = useState(false);
   const [result, setResult]           = useState(null);
   const [manualLinks, setManualLinks] = useState({});
@@ -142,10 +145,24 @@ function ContributorImportModal({ onClose, onImported }) {
   const [done, setDone]               = useState(null);
 
   useEffect(() => {
-    get('/api/projects').then(data => {
-      const withRepo = (data ?? []).filter(p => p.githubRepo);
-      setProjects(withRepo);
+    let cancelled = false;
+    get('/api/projects').then(async data => {
+      const projects = data ?? [];
+      const perProject = await Promise.all(
+        projects.map(p =>
+          listProjectRepos(p.id)
+            .then(res => (res?.repos ?? []).map(r => ({
+              repoId: r.id,
+              projectId: p.id,
+              label: `${p.name} (${r.slug})`,
+            })))
+            .catch(() => [])
+        )
+      );
+      if (cancelled) return;
+      setRepoOptions(perProject.flat());
     }).catch(() => {});
+    return () => { cancelled = true; };
   }, []);
 
   useEffect(() => {
@@ -154,12 +171,14 @@ function ContributorImportModal({ onClose, onImported }) {
     return () => document.removeEventListener('keydown', handler);
   }, [onClose]);
 
+  const selectedRepo = repoOptions.find(o => o.repoId === repoId);
+
   const handleDiscover = async () => {
-    if (!projectId) return;
+    if (!repoId) return;
     setDiscovering(true);
     setResult(null);
     try {
-      const data = await get(`/api/github/projects/${projectId}/contributors`);
+      const data = await get(`/api/github/repos/${repoId}/contributors`);
       setResult(data);
     } catch (err) {
       console.error('[contributor-import] discover failed:', err);
@@ -169,6 +188,7 @@ function ContributorImportModal({ onClose, onImported }) {
   };
 
   const handleImport = async () => {
+    if (!selectedRepo) return;
     const links = [
       ...(result?.linked ?? []).map(c => ({ memberId: c.memberId, githubLogin: c.login })),
       ...Object.entries(manualLinks)
@@ -178,7 +198,7 @@ function ContributorImportModal({ onClose, onImported }) {
     if (links.length === 0) return;
     setImporting(true);
     try {
-      const res = await post(`/api/github/projects/${projectId}/import-members`, { links });
+      const res = await post(`/api/github/projects/${selectedRepo.projectId}/import-members`, { links });
       setDone(res);
       onImported?.();
     } catch (err) {
@@ -205,12 +225,14 @@ function ContributorImportModal({ onClose, onImported }) {
           ) : (
             <>
               <div className="pm-gh-import-row">
-                <label>Project</label>
-                <select value={projectId} onChange={e => { setProjectId(e.target.value); setResult(null); }}>
-                  <option value="">Select a project with a GitHub repo…</option>
-                  {projects.map(p => <option key={p.id} value={p.id}>{p.name} ({p.githubRepo})</option>)}
+                <label>Repo</label>
+                <select value={repoId} onChange={e => { setRepoId(e.target.value); setResult(null); }}>
+                  <option value="">
+                    {repoOptions.length === 0 ? 'No projects have a linked GitHub repo' : 'Select a repo…'}
+                  </option>
+                  {repoOptions.map(o => <option key={o.repoId} value={o.repoId}>{o.label}</option>)}
                 </select>
-                <button className="clubpm-btn-secondary" onClick={handleDiscover} disabled={!projectId || discovering}>
+                <button className="clubpm-btn-secondary" onClick={handleDiscover} disabled={!repoId || discovering}>
                   {discovering ? 'Discovering…' : 'Discover'}
                 </button>
               </div>

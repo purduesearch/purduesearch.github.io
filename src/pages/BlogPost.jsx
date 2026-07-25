@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import SEOHead from '../components/SEOHead';
 import JsonLd from '../components/JsonLd';
 import { articleSchema } from '../seo/schema';
+import { initBlogCarousels } from '../lib/blogCarousel';
 
 // AOS is loaded globally; re-init so scroll-reveal works on direct navigation.
 if (typeof window !== 'undefined' && window.AOS) window.AOS.init({ once: true });
@@ -28,6 +29,14 @@ export default function BlogPost() {
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [slug]);
+
+  const bodyRef = useRef(null);
+
+  // The body is injected as raw HTML, so React never mounts the carousel —
+  // enhance it after each render of a new post.
+  useEffect(() => {
+    if (bodyRef.current) initBlogCarousels(bodyRef.current);
+  }, [post]);
 
   if (loading) {
     return (
@@ -106,13 +115,17 @@ export default function BlogPost() {
       </main>
 
       <section className="bg-white">
-        <div className="container">
-          <div className="section-content" style={{ maxWidth: 760, margin: '0 auto' }}>
-            <div
-              className="pm-blog-post-body"
-              dangerouslySetInnerHTML={{ __html: post.renderedHtml || '' }}
-            />
+        <div className="pm-blog-article">
+          <div
+            ref={bodyRef}
+            className="pm-blog-post-body"
+            data-fontpair={post.theme?.fontPair || 'syne-dmsans'}
+            data-width={post.theme?.width || 'wide'}
+            style={post.theme?.accent ? { '--post-accent': post.theme.accent } : undefined}
+            dangerouslySetInnerHTML={{ __html: post.renderedHtml || '' }}
+          />
 
+          <div className="pm-blog-article-foot">
             {post.tags?.length > 0 && (
               <div style={{ marginTop: 32, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                 {post.tags.map(t => (

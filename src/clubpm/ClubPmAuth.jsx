@@ -30,7 +30,11 @@ export function ClubPmAuthProvider({ children }) {
     })
       .then(async (res) => {
         if (res.ok) {
-          const m = await res.json();
+          // /auth/me re-issues a fresh Bearer token; persist it so the collab
+          // WebSocket (which authenticates via Bearer only) keeps working even
+          // when the previous token has expired. Strip it from member state.
+          const { authToken, ...m } = await res.json();
+          if (authToken) setStoredToken(authToken);
           setMember(m);
           return m;
         }
@@ -48,19 +52,22 @@ export function ClubPmAuthProvider({ children }) {
   useEffect(() => {
     let freshToken = false;
 
-    console.log("[ClubPmAuth] mount — href:", window.location.href);
-
     // Primary: extract Bearer token from query parameter (?lt=...).
     // Query params survive cross-origin redirects reliably in all browsers including Firefox.
     const params = new URLSearchParams(window.location.search);
     const lt = params.get("lt");
-    console.log("[ClubPmAuth] lt param:", lt ? lt.slice(0, 12) + "…" : "(none)");
     if (lt) {
       setStoredToken(lt);
       // Honor returnTo so Constellation sign-in from public pages (e.g. /rsvp/:id)
       // redirects back to the originating page instead of /clubpm.
-      const returnTo = params.get("returnTo") || "/clubpm";
-      console.log("[ClubPmAuth] fresh token stored — navigating to", returnTo);
+      // Only accept relative same-origin paths (must start with "/" and not "//",
+      // which browsers treat as a protocol-relative URL to another host) to
+      // prevent an open redirect / token-overwrite via a crafted returnTo value.
+      const rawReturnTo = params.get("returnTo");
+      const returnTo =
+        rawReturnTo && rawReturnTo.startsWith("/") && !rawReturnTo.startsWith("//")
+          ? rawReturnTo
+          : "/clubpm";
       window.location.replace(returnTo);
       return;
     }
@@ -68,18 +75,14 @@ export function ClubPmAuthProvider({ children }) {
     // Fallback: extract from hash fragment (#lt=...) for backwards compat with
     // any in-flight sessions that still use the old redirect format.
     const hash = window.location.hash;
-    console.log("[ClubPmAuth] hash:", hash ? hash.slice(0, 20) : "(none)");
     if (hash.startsWith("#lt=")) {
       setStoredToken(hash.slice(4));
       freshToken = true;
       window.history.replaceState(null, "", window.location.pathname + window.location.search);
     }
 
-    console.log("[ClubPmAuth] freshToken:", freshToken, "storedToken:", getStoredToken() ? "present" : "absent");
-
     const doAuth = (canRetry) => {
       const token = getStoredToken();
-      console.log("[ClubPmAuth] doAuth canRetry:", canRetry, "token:", token ? "present" : "absent");
       fetch(`${BASE_URL}/auth/me`, {
         credentials: "include",
         headers: {
@@ -88,9 +91,12 @@ export function ClubPmAuthProvider({ children }) {
         },
       })
         .then(async (res) => {
-          console.log("[ClubPmAuth] /auth/me status:", res.status);
           if (res.ok) {
-            const m = await res.json();
+            // Persist the freshly re-issued Bearer token (see refetchMember)
+            // so cookie-authenticated sessions still get a valid token for the
+            // collab WebSocket. Strip it before storing member state.
+            const { authToken, ...m } = await res.json();
+            if (authToken) setStoredToken(authToken);
             setMember(m);
             setLoading(false);
           } else if (res.status === 401 && canRetry && freshToken) {
@@ -113,10 +119,13 @@ export function ClubPmAuthProvider({ children }) {
   }, []);
 
   const logout = () => {
-    clearStoredToken();
+    // Call the logout endpoint first (while the Bearer token is still stored)
+    // so the server can revoke it; clearing the token before the request would
+    // send it with no Authorization header and leave the token un-revoked.
     get("/auth/logout")
       .catch(() => {})
       .finally(() => {
+        clearStoredToken();
         setMember(null);
         window.location.href = "/clubpm/login";
       });

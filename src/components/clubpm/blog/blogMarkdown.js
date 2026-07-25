@@ -65,8 +65,14 @@ function blockToMarkdown(node, depth = 0) {
     case 'image':
       return imageToMarkdown(node);
     case 'gallery':
+      // Markdown has no carousel; each slide degrades to an image whose title
+      // attribute carries the caption, which markdownToTiptapJson reads back.
       return (node.attrs?.images || [])
-        .map((im) => `![${im.alt || ''}](${im.src || im.url || ''})`)
+        .map((im) => {
+          const src = im.src || im.url || '';
+          const cap = (im.caption || '').replace(/"/g, "'");
+          return cap ? `![${im.alt || ''}](${src} "${cap}")` : `![${im.alt || ''}](${src})`;
+        })
         .join('\n');
     case 'embed':
       return `[embed: ${node.attrs?.provider || 'link'}](${node.attrs?.url || ''})`;
@@ -79,6 +85,17 @@ function blockToMarkdown(node, depth = 0) {
     }
     case 'table':
       return tableToMarkdown(node);
+    case 'hero': {
+      const h = node.attrs?.heading ? `# ${escapeText(node.attrs.heading)}` : '';
+      const s = node.attrs?.subheading ? `${h ? '\n' : ''}*${escapeText(node.attrs.subheading)}*` : '';
+      return `${h}${s}`.trim();
+    }
+    case 'statBand':
+      return (node.attrs?.stats || [])
+        .map((st) => `**${st?.value || ''}** ${st?.label || ''}`.trim())
+        .join(' · ');
+    case 'ctaButton':
+      return `[${node.attrs?.label || 'Learn more'}](${node.attrs?.href || ''})`;
     default:
       if (node.content) return (node.content || []).map((c) => blockToMarkdown(c, depth)).join('\n\n');
       return '';

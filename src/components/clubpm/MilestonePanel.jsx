@@ -1,7 +1,16 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { get, post, patch, del } from "../../api/clubPmClient";
+import { get, post, patch, del, listProjectRepos } from "../../api/clubPmClient";
 import OrbitLoader from "../OrbitLoader";
 import { pulseBadge } from "../../clubpm/anim/motion";
+
+// GitHub milestone `html_url`s always look like
+// https://github.com/{owner}/{repo}/milestone/{number} — parse the repo slug
+// back out so we can label which repo a mapping belongs to (multi-repo,
+// Workstream B) without a dedicated backend field on the progress response.
+function repoSlugFromMilestoneUrl(url) {
+  const m = /github\.com\/([^/]+\/[^/]+)\/milestone\//.exec(url ?? "");
+  return m ? m[1] : null;
+}
 
 // ── Health config ────────────────────────────────────────────
 
@@ -164,9 +173,14 @@ function MilestoneRoadmap({ milestones, onSelectMilestone }) {
 
 // ── GhProgressBar ────────────────────────────────────────────
 
-function GhProgressBar({ milestoneId }) {
+function GhProgressBar({ milestoneId, repos }) {
   const [prog, setProg] = useState(null);
   const [syncing, setSyncing] = useState(false);
+  // Target repo for the next sync. Defaults to the sole linked repo; when a
+  // milestone is already mapped, this gets locked to that repo below once
+  // `prog` resolves, so re-syncing can't accidentally target a different repo
+  // (the backend rejects that with "already synced to a different repo").
+  const [selectedRepoId, setSelectedRepoId] = useState(repos[0]?.id ?? null);
 
   useEffect(() => {
     get(`/api/github/milestones/${milestoneId}/progress`)
@@ -174,10 +188,21 @@ function GhProgressBar({ milestoneId }) {
       .catch(() => {});
   }, [milestoneId]);
 
+  const mappedSlug = repoSlugFromMilestoneUrl(prog?.url);
+
+  // Once we know which repo a mapping actually lives in, lock the selector to
+  // it so subsequent "Sync to GitHub" clicks re-sync the same repo.
+  useEffect(() => {
+    if (!mappedSlug) return;
+    const matched = repos.find(r => r.slug === mappedSlug);
+    if (matched) setSelectedRepoId(matched.id);
+  }, [mappedSlug, repos]);
+
   const handleSync = async () => {
+    if (!selectedRepoId) return;
     setSyncing(true);
     try {
-      await post(`/api/github/milestones/${milestoneId}/sync`);
+      await post(`/api/github/milestones/${milestoneId}/sync`, { repoId: selectedRepoId });
       const updated = await get(`/api/github/milestones/${milestoneId}/progress`).catch(() => null);
       if (updated) setProg(updated);
     } catch (err) {
@@ -190,7 +215,20 @@ function GhProgressBar({ milestoneId }) {
   if (!prog) {
     return (
       <div className="cpm-ms-gh-row">
-        <button className="cpm-ms-gh-sync-btn" onClick={handleSync} disabled={syncing}>
+        {repos.length > 1 && (
+          <select
+            className="clubpm-input"
+            style={{ width: "auto", padding: "3px 8px", fontSize: 11 }}
+            value={selectedRepoId ?? ""}
+            onChange={e => setSelectedRepoId(e.target.value)}
+            aria-label="Target repository for GitHub milestone sync"
+          >
+            {repos.map(r => (
+              <option key={r.id} value={r.id}>{r.slug}</option>
+            ))}
+          </select>
+        )}
+        <button className="cpm-ms-gh-sync-btn" onClick={handleSync} disabled={syncing || !selectedRepoId}>
           {syncing ? "Syncing…" : "Sync to GitHub"}
         </button>
       </div>
@@ -205,6 +243,11 @@ function GhProgressBar({ milestoneId }) {
       <div className="cpm-ms-gh-label">
         <i className="fab fa-github" aria-hidden="true" />
         <span>
+          {mappedSlug && (
+            <span style={{ opacity: 0.7, marginRight: 4 }} title="Mapped GitHub repository">
+              {mappedSlug} ·
+            </span>
+          )}
           {prog.closedIssues}/{total} issues closed ({pct}%)
         </span>
         <a href={prog.url} target="_blank" rel="noreferrer" className="cpm-ms-gh-link">view</a>
@@ -221,7 +264,7 @@ function GhProgressBar({ milestoneId }) {
 
 // ── MilestoneCard ─────────────────────────────────────────────
 
-function MilestoneCard({ milestone, projectTasks, onUpdate, onDelete, hasGitHub, previousProgress }) {
+function MilestoneCard({ milestone, projectTasks, onUpdate, onDelete, hasGitHub, repos, previousProgress }) {
   const [expanded, setExpanded] = useState(false);
   const [linkingTasks, setLinkingTasks] = useState(false);
   const [selectedTaskIds, setSelectedTaskIds] = useState(
@@ -357,7 +400,7 @@ function MilestoneCard({ milestone, projectTasks, onUpdate, onDelete, hasGitHub,
             </select>
           </div>
 
-          {hasGitHub && <GhProgressBar milestoneId={milestone.id} />}
+          {hasGitHub && <GhProgressBar milestoneId={milestone.id} repos={repos} />}
         </div>
       )}
     </div>
@@ -444,7 +487,20 @@ export default function MilestonePanel({ projectId, project, onRefresh, previous
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState("roadmap");
   const [selectedId, setSelectedId] = useState(null);
-  const hasGitHub = Boolean(project?.githubRepo);
+
+  // Multi-repo (Workstream B): a milestone maps to one of the project's
+  // ProjectRepo rows, not the legacy single `Project.githubRepo`. Fetch the
+  // linked repos so GhProgressBar can offer a repo picker on first sync.
+  const [repos, setRepos] = useState([]);
+  useEffect(() => {
+    if (!projectId) { setRepos([]); return; }
+    let cancelled = false;
+    listProjectRepos(projectId)
+      .then(d => { if (!cancelled) setRepos(d?.repos ?? []); })
+      .catch(() => { if (!cancelled) setRepos([]); });
+    return () => { cancelled = true; };
+  }, [projectId]);
+  const hasGitHub = repos.length > 0;
 
   const fetchMilestones = useCallback(() => {
     setLoading(true);
@@ -508,6 +564,7 @@ export default function MilestonePanel({ projectId, project, onRefresh, previous
                 onUpdate={handleUpdate}
                 onDelete={handleDelete}
                 hasGitHub={hasGitHub}
+                repos={repos}
               />
             ))
           )}

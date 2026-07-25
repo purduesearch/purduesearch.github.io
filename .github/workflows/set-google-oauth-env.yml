@@ -1,0 +1,147 @@
+name: Set Google OAuth env (manual)
+
+# Manually-triggered helper that writes the three Google OAuth variables into the
+# backend .env on the Oracle server, over the SAME SSH channel deploy-backend.yml
+# uses. Reuses the ORACLE_HOST / ORACLE_USER / ORACLE_SSH_KEY secrets, so it works
+# without your personal keys. It is inert until you run it from the Actions tab and
+# does NOT touch backend/**, so it won't trigger a deploy.
+#
+# It upserts (replace-or-append, idempotent) these keys into the server .env:
+#   GOOGLE_OAUTH_CLIENT_ID=<client_id input>
+#   GOOGLE_OAUTH_CLIENT_SECRET=<client_secret input>
+#   GOOGLE_OAUTH_REDIRECT_URI=<redirect_uri input, or derived from BACKEND_URL>
+#
+# The .env is backed up to .env.bak.<timestamp> before any edit. By default the
+# backend is restarted (pm2 restart clubpm-backend) so the new vars take effect —
+# env vars are only read at process start.
+#
+# SECURITY TRADEOFF: client_id / client_secret are provided as workflow_dispatch
+# inputs, not GitHub Secrets. They are masked in the run LOGS (::add-mask::), but
+# workflow_dispatch input values are recorded in the run's metadata and are NOT a
+# masked "password" field — anyone with Actions access can see them in the run
+# history. Rotate the secret if that matters, or move these to repo Secrets and
+# swap `${{ inputs.* }}` for `${{ secrets.* }}` below.
+#
+# NOTE: workflow_dispatch workflows only appear in the Actions "Run workflow" menu
+# once they exist on the default branch (main) — i.e. after this branch is merged.
+
+on:
+  workflow_dispatch:
+    inputs:
+      client_id:
+        description: "GOOGLE_OAUTH_CLIENT_ID (Client ID from the Google Cloud OAuth client)"
+        type: string
+        required: true
+      client_secret:
+        description: "GOOGLE_OAUTH_CLIENT_SECRET (Client Secret from the Google Cloud OAuth client)"
+        type: string
+        required: true
+      redirect_uri:
+        description: "GOOGLE_OAUTH_REDIRECT_URI — leave blank to derive from BACKEND_URL as <BACKEND_URL>/auth/google/callback"
+        type: string
+        required: false
+        default: ""
+      env_path:
+        description: "Absolute path to the backend .env on the server"
+        type: string
+        required: false
+        default: "/opt/clubpm/backend/.env"
+      restart:
+        description: "Restart the backend (pm2 restart clubpm-backend) so the new vars take effect"
+        type: boolean
+        default: true
+
+jobs:
+  set-oauth-env:
+    runs-on: ubuntu-latest
+    steps:
+      # Mask the credential inputs in the Actions log. They travel through env so
+      # they are never string-interpolated into a shell (avoids script injection).
+      - name: Mask credentials in logs
+        env:
+          CID: ${{ inputs.client_id }}
+          CSECRET: ${{ inputs.client_secret }}
+        run: |
+          echo "::add-mask::$CID"
+          echo "::add-mask::$CSECRET"
+
+      - name: Write Google OAuth vars to server .env over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          GOOGLE_OAUTH_CLIENT_ID: ${{ inputs.client_id }}
+          GOOGLE_OAUTH_CLIENT_SECRET: ${{ inputs.client_secret }}
+          REDIRECT_URI_INPUT: ${{ inputs.redirect_uri }}
+          ENV_FILE: ${{ inputs.env_path }}
+          DO_RESTART: ${{ inputs.restart }}
+        with:
+          host: ${{ secrets.ORACLE_HOST }}
+          username: ${{ secrets.ORACLE_USER }}
+          key: ${{ secrets.ORACLE_SSH_KEY }}
+          envs: GOOGLE_OAUTH_CLIENT_ID,GOOGLE_OAUTH_CLIENT_SECRET,REDIRECT_URI_INPUT,ENV_FILE,DO_RESTART
+          script: |
+            set -e
+            echo "== Connected as $(whoami)@$(hostname) =="
+            echo "== Target .env: $ENV_FILE =="
+
+            # Re-mask on the remote side too (belt-and-suspenders; the runner also
+            # masks these before this step runs).
+            echo "::add-mask::$GOOGLE_OAUTH_CLIENT_ID"
+            echo "::add-mask::$GOOGLE_OAUTH_CLIENT_SECRET"
+
+            if [ ! -f "$ENV_FILE" ]; then
+              echo "!! $ENV_FILE not found — refusing to create a partial .env." >&2
+              echo "   Deploy the backend first, or pass the correct env_path input." >&2
+              exit 1
+            fi
+
+            # Determine the redirect URI: explicit input wins, else derive from
+            # the BACKEND_URL already in the .env.
+            if [ -n "$REDIRECT_URI_INPUT" ]; then
+              REDIRECT="$REDIRECT_URI_INPUT"
+              echo "Redirect URI: using provided input"
+            else
+              BURL="$(grep -E '^BACKEND_URL=' "$ENV_FILE" | head -1 | cut -d= -f2- | tr -d '\r')"
+              BURL="${BURL%/}"
+              if [ -z "$BURL" ]; then
+                echo "!! No redirect_uri input given and BACKEND_URL not found in $ENV_FILE." >&2
+                echo "   Set BACKEND_URL in the .env or pass the redirect_uri input." >&2
+                exit 1
+              fi
+              REDIRECT="${BURL}/auth/google/callback"
+              echo "Redirect URI: derived from BACKEND_URL -> $REDIRECT"
+            fi
+
+            # Back up before editing.
+            BACKUP="${ENV_FILE}.bak.$(date +%Y%m%d%H%M%S)"
+            cp "$ENV_FILE" "$BACKUP"
+            echo "Backup written: $BACKUP"
+
+            # Idempotent upsert: drop any existing line for KEY, then append the
+            # new one. Value comes from an argument (never the format string), so
+            # secrets containing / & % are safe — no sed escaping needed.
+            upsert() {
+              key="$1"
+              val="$2"
+              tmp="${ENV_FILE}.tmp.$$"
+              grep -v -E "^${key}=" "$ENV_FILE" > "$tmp" || true
+              printf '%s=%s\n' "$key" "$val" >> "$tmp"
+              mv "$tmp" "$ENV_FILE"
+            }
+
+            upsert GOOGLE_OAUTH_CLIENT_ID     "$GOOGLE_OAUTH_CLIENT_ID"
+            upsert GOOGLE_OAUTH_CLIENT_SECRET "$GOOGLE_OAUTH_CLIENT_SECRET"
+            upsert GOOGLE_OAUTH_REDIRECT_URI  "$REDIRECT"
+
+            echo "== .env updated =="
+            echo "GOOGLE_OAUTH_CLIENT_ID     set (value hidden)"
+            echo "GOOGLE_OAUTH_CLIENT_SECRET set (value hidden)"
+            echo "GOOGLE_OAUTH_REDIRECT_URI  = $REDIRECT"
+
+            if [ "$DO_RESTART" = "true" ]; then
+              echo "== pm2 restart clubpm-backend =="
+              pm2 restart clubpm-backend
+            else
+              echo "== restart skipped (restart=false); vars take effect on next start =="
+            fi
+
+            echo "== Done =="

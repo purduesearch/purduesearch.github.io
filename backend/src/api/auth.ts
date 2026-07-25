@@ -75,7 +75,6 @@ export async function requireAuth(
     const memberId = await verifyToken(authHeader.slice(7));
     if (memberId) {
       req.memberId = memberId;
-      console.log(`[auth] source=bearer path=${req.path}`);
       return next();
     }
   }
@@ -85,7 +84,6 @@ export async function requireAuth(
     return;
   }
   req.memberId = req.session.memberId;
-  console.log(`[auth] source=cookie path=${req.path}`);
   next();
 }
 
@@ -269,7 +267,15 @@ authRouter.get("/slack/callback", async (req: Request, res: Response) => {
 // ── GET /auth/logout ─────────────────────────────────────────
 
 authRouter.get("/logout", async (req: Request, res: Response) => {
-  const memberId = req.session.memberId;
+  let memberId: string | undefined;
+  const authHeader = req.headers.authorization;
+  if (authHeader?.startsWith("Bearer ")) {
+    const bearerMemberId = await verifyBearerToken(authHeader.slice(7));
+    if (bearerMemberId) memberId = bearerMemberId;
+  }
+  if (!memberId) {
+    memberId = req.session.memberId;
+  }
   if (memberId) {
     await prisma.member.update({
       where: { id: memberId },
@@ -314,8 +320,19 @@ authRouter.get("/me", requireAuth, async (req: Request, res: Response) => {
     githubAccessToken: _gat,
     githubRefreshToken: _grt,
     githubTokenExpiresAt: _gte,
-    tokenVersion: _tv,
+    tokenVersion,
     ...safeMember
   } = member;
-  res.json(safeMember);
+
+  // Re-issue a fresh Bearer token on every auth check. This request already
+  // authenticated (via cookie OR an existing Bearer), so it's safe to hand back
+  // a current token — and necessary: the collab WebSocket (blog/press-kit
+  // editors) authenticates with the Bearer token ONLY, while the rest of the
+  // app also accepts the session cookie. Without this, a user whose stored
+  // token is missing or expired (7-day TTL) but whose cookie session is still
+  // valid keeps using the app fine yet silently fails collab auth — the editor
+  // connects but never syncs and shows no content. Refreshing here keeps a
+  // valid token in localStorage so collab always authenticates.
+  const authToken = signToken(member.id, tokenVersion);
+  res.json({ ...safeMember, authToken });
 });
