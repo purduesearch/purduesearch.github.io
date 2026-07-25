@@ -1,0 +1,1570 @@
+{
+  "about/About_Hero.webp": {
+    "sha256": "f6125779a1dbef115f25a0b5617555e2ca38bda631838fe3216ca6ca8ded07dd",
+    "bytes": 236940,
+    "width": 1800,
+    "height": 840,
+    "tier": "hero",
+    "sourceBytes": 3292372
+  },
+  "analogs/2022/habitat.webp": {
+    "sha256": "6459452733f89ad25345df90c6b5f73db263bbb2b0c3e70af41d34b3b8af1f26",
+    "bytes": 28558,
+    "width": 1100,
+    "height": 550,
+    "tier": "content",
+    "sourceBytes": 49944
+  },
+  "analogs/2022/mdrs.webp": {
+    "sha256": "109ebdab0abbb5392199b7c52f6aae07490e767aa918faf236015fb72aff1a5d",
+    "bytes": 54872,
+    "width": 1100,
+    "height": 619,
+    "tier": "content",
+    "sourceBytes": 264208
+  },
+  "analogs/2022/mdrs_bg.webp": {
+    "sha256": "b908c69e4a82bce2951c5f83ce0cfb46810789e4c649d211c7b9b4d81e269e3c",
+    "bytes": 54154,
+    "width": 1920,
+    "height": 1080,
+    "tier": "hero",
+    "sourceBytes": 219404
+  },
+  "analogs/2022/terrain.webp": {
+    "sha256": "5e612bb261e36dc5ad7b5378e245265ed95c2f37802441c5ea6b65e2263159c3",
+    "bytes": 29702,
+    "width": 888,
+    "height": 444,
+    "tier": "content",
+    "sourceBytes": 85382
+  },
+  "analogs/2022/view.webp": {
+    "sha256": "6b6f7b11b6210a4b3dd4d483360a9342eb6c088bab11f1e6784f25895773d252",
+    "bytes": 24038,
+    "width": 888,
+    "height": 444,
+    "tier": "content",
+    "sourceBytes": 72604
+  },
+  "analogs/BIosphere.webp": {
+    "sha256": "cb1a472c6d1ca9cb08c2d8f97857bc38df18f46a2e8912037dba2bcebc53c4e9",
+    "bytes": 154516,
+    "width": 825,
+    "height": 1100,
+    "tier": "content",
+    "sourceBytes": 597714
+  },
+  "analogs/KSC.webp": {
+    "sha256": "064df6bd0909c9ada67331771e4eed25a7b8f5f1141fbece0c4d547e6f89c8d6",
+    "bytes": 83060,
+    "width": 825,
+    "height": 1100,
+    "tier": "content",
+    "sourceBytes": 314298
+  },
+  "analogs_bg.webp": {
+    "sha256": "483d3f87fed53ea722ee8fd41243684538b081e224d53f44f2db6f1ef8859fe4",
+    "bytes": 84400,
+    "width": 1920,
+    "height": 1080,
+    "tier": "hero",
+    "sourceBytes": 1821436
+  },
+  "astrousa/2023_24/circular_interior_l1.webp": {
+    "sha256": "b9b26f145d8557379c650de81760d99a8cdbdcb6edc5fa2ed30f9209fac598ba",
+    "bytes": 40312,
+    "width": 921,
+    "height": 380,
+    "tier": "content",
+    "sourceBytes": 44894
+  },
+  "astrousa/2023_24/circular_interior_l1_1.webp": {
+    "sha256": "e39a9de5d591cf923a0ddad8d94fa4aa7845dabba19cfbdaa95d9d6bb3cce7ca",
+    "bytes": 35506,
+    "width": 689,
+    "height": 528,
+    "tier": "content",
+    "sourceBytes": 39924
+  },
+  "astrousa/2023_24/circular_interior_l1_2.webp": {
+    "sha256": "724356c9f8f0d59b29f0baf7a235951ded8c52ea826eda09343ead57c30c58d7",
+    "bytes": 31612,
+    "width": 544,
+    "height": 525,
+    "tier": "content",
+    "sourceBytes": 35680
+  },
+  "astrousa/2023_24/circular_interior_l2.webp": {
+    "sha256": "35577601a826f3de6d6f74c4e1258ebe02404a5d10c0bae9ce7160d66acc5cef",
+    "bytes": 41200,
+    "width": 925,
+    "height": 380,
+    "tier": "content",
+    "sourceBytes": 46384
+  },
+  "astrousa/2023_24/circular_interior_l2_1.webp": {
+    "sha256": "6d8e449fc19148b79da29c571718e7119a4fb666072a075f3a706315b1a5ea27",
+    "bytes": 31958,
+    "width": 618,
+    "height": 521,
+    "tier": "content",
+    "sourceBytes": 35846
+  },
+  "astrousa/2023_24/circular_interior_l2_2.webp": {
+    "sha256": "dd6cad7da1df3870587a0b22623dca9948b3add723e126f433e2b70556d72b90",
+    "bytes": 32348,
+    "width": 586,
+    "height": 528,
+    "tier": "content",
+    "sourceBytes": 36424
+  },
+  "astrousa/2023_24/circular_rvt_1.webp": {
+    "sha256": "04a0db03779fef24cd2374f3a808e641e718f1ce7b93e13f0ab2d05897167f47",
+    "bytes": 10506,
+    "width": 727,
+    "height": 549,
+    "tier": "content",
+    "sourceBytes": 13560
+  },
+  "astrousa/2023_24/circular_rvt_2.webp": {
+    "sha256": "2d789b724678a5ebe4047904657650be4577aef67f1cc5c2ff81b09f5d3b02bf",
+    "bytes": 7466,
+    "width": 757,
+    "height": 517,
+    "tier": "content",
+    "sourceBytes": 9460
+  },
+  "astrousa/2023_24/iteration_3_1.webp": {
+    "sha256": "a70486f6d0a98b2a7107d83aef1d60dcfa06018f0966fd0bd34b1ecbd09e576a",
+    "bytes": 27672,
+    "width": 470,
+    "height": 548,
+    "tier": "content",
+    "sourceBytes": 33052
+  },
+  "astrousa/2023_24/iteration_3_2.webp": {
+    "sha256": "08334bbbca4b3f36260974d0f15893d2d967af3a24ef94d164d4f3bd4e90f506",
+    "bytes": 15826,
+    "width": 420,
+    "height": 487,
+    "tier": "content",
+    "sourceBytes": 18580
+  },
+  "astrousa/2023_24/shipping_container_1.webp": {
+    "sha256": "27577f6e6084c70bafcb6c75c420198b754f461b487c1c013d0a1fd6ccddf55c",
+    "bytes": 13952,
+    "width": 481,
+    "height": 545,
+    "tier": "content",
+    "sourceBytes": 16804
+  },
+  "astrousa/2023_24/shipping_container_2.webp": {
+    "sha256": "7e9a0b5a11ce0f77694fdd8904f0b2342d3f12ff03f56531e29c08ce0e8c15fe",
+    "bytes": 13410,
+    "width": 508,
+    "height": 542,
+    "tier": "content",
+    "sourceBytes": 16554
+  },
+  "astrousa/2023_24/version_2_1_drawing_1.webp": {
+    "sha256": "a0930c412928c93534452bd84c48f2f09ed4739a9c54f99aadbba2f025cd789f",
+    "bytes": 21968,
+    "width": 557,
+    "height": 665,
+    "tier": "content",
+    "sourceBytes": 25090
+  },
+  "astrousa/2023_24/version_2_1_drawing_2.webp": {
+    "sha256": "7500c8fbbca941ba397e65a7d3d5bc730d398db2f4cf6a9a6ece17654d44db32",
+    "bytes": 13856,
+    "width": 557,
+    "height": 656,
+    "tier": "content",
+    "sourceBytes": 16370
+  },
+  "astrousa/2023_24/version_2_3_rvt_1.webp": {
+    "sha256": "eef4047e9f0ceabca622cf3568839f3f455eb875a007f0f0f98c908173feed00",
+    "bytes": 12798,
+    "width": 647,
+    "height": 644,
+    "tier": "content",
+    "sourceBytes": 14914
+  },
+  "astrousa/2023_24/version_2_3_rvt_2.webp": {
+    "sha256": "addef5cddad83ee3ae3c649d27e3cd23b02cf4858fe38a09bb61801bfc8d5304",
+    "bytes": 12846,
+    "width": 706,
+    "height": 637,
+    "tier": "content",
+    "sourceBytes": 14778
+  },
+  "astrousa/architecture_design.webp": {
+    "sha256": "3ce668aa04a2a12f356605060992cdb158fea9a9c104402e3d0a510de129ba14",
+    "bytes": 29518,
+    "width": 1024,
+    "height": 512,
+    "tier": "content",
+    "sourceBytes": 38730
+  },
+  "astrousa/astro-overview.webp": {
+    "sha256": "711b387d3b9920f041a1991585b7bf0b0c041648d042cb4e7f112b93fb8650e7",
+    "bytes": 143290,
+    "width": 1024,
+    "height": 1024,
+    "tier": "content",
+    "sourceBytes": 181936
+  },
+  "astrousa/babyPlants.webp": {
+    "sha256": "bd03ee746d8545a459b183ea7da391831ac7a06cb7b9b7a35cb69276709956a2",
+    "bytes": 162026,
+    "width": 825,
+    "height": 1100,
+    "tier": "content",
+    "sourceBytes": 1350396
+  },
+  "astrousa/Drill_Work_ASTRO.webp": {
+    "sha256": "c02b9995e5cc3b1615d5ab47dfb3fc12c2b200e7db75eaff531e44b65d6c38c2",
+    "bytes": 34166,
+    "width": 652,
+    "height": 847,
+    "tier": "content",
+    "sourceBytes": 49528
+  },
+  "astrousa/fig10_minihab_layout.webp": {
+    "sha256": "a3537dc65cc4265b7dcddc8d08511993c5e41953e3c1089d4003623d58422023",
+    "bytes": 5610,
+    "width": 624,
+    "height": 154,
+    "tier": "content",
+    "sourceBytes": 7376
+  },
+  "astrousa/fig1_flow_diagram.webp": {
+    "sha256": "ca6b23e051d2a4c802a789b3302c9ec7fdee76d4eeef642bab4b25d207336c64",
+    "bytes": 43646,
+    "width": 818,
+    "height": 1100,
+    "tier": "content",
+    "sourceBytes": 89850
+  },
+  "astrousa/fig2_floor_plan.webp": {
+    "sha256": "fac3b7a95ce7646b23e81e847e25e8bf11cc466459f2b14c29a50ffa1843fbab",
+    "bytes": 7496,
+    "width": 624,
+    "height": 187,
+    "tier": "content",
+    "sourceBytes": 9830
+  },
+  "astrousa/fig3_floor_layout.webp": {
+    "sha256": "1c6e7c7b034d4dcc583e09407949f056c7e46c13db42e4485778525f006960ae",
+    "bytes": 7176,
+    "width": 624,
+    "height": 220,
+    "tier": "content",
+    "sourceBytes": 9752
+  },
+  "astrousa/fig4_nft_towers.webp": {
+    "sha256": "ea69fdf5f64c556de181f215c6e3193eb96b74894d1ad45281f894b514ae744d",
+    "bytes": 32010,
+    "width": 1100,
+    "height": 506,
+    "tier": "content",
+    "sourceBytes": 68328
+  },
+  "astrousa/fig5_propagation.webp": {
+    "sha256": "2de97dd1c59e61a3178424c1cd5c93e993c0448bbff614f7a75d164bae471dc7",
+    "bytes": 27484,
+    "width": 1100,
+    "height": 543,
+    "tier": "content",
+    "sourceBytes": 60390
+  },
+  "astrousa/fig6_solar_diagram.webp": {
+    "sha256": "465ce4970e3251f2b139585dbe2140a7341946a0de220cc95de852b27e4662fb",
+    "bytes": 3948,
+    "width": 289,
+    "height": 236,
+    "tier": "content",
+    "sourceBytes": 4980
+  },
+  "astrousa/fig7_one_line.webp": {
+    "sha256": "034c55e9109cf1228df7a5102460c2a88c46d48f888738186714a2e8d2921405",
+    "bytes": 5106,
+    "width": 346,
+    "height": 254,
+    "tier": "content",
+    "sourceBytes": 6478
+  },
+  "astrousa/Group_Photo_ASTRO.webp": {
+    "sha256": "81925964aed67c5826ee25a6788ded1820b303f5a79d5c3884906513c64934cf",
+    "bytes": 125578,
+    "width": 1671,
+    "height": 1920,
+    "tier": "hero",
+    "sourceBytes": 448294
+  },
+  "astrousa/hydroponicsElectronics.webp": {
+    "sha256": "6ea6d1d9f00158f284c5fc32ac2c07f8eb58583a451e7b80de7434cef91eae68",
+    "bytes": 29644,
+    "width": 1100,
+    "height": 775,
+    "tier": "content",
+    "sourceBytes": 91298
+  },
+  "astrousa/Hydroponics_Work_ASTRO.webp": {
+    "sha256": "ff446de7d7d0e4119666c7a9f796f7a40ea1a4c817d52ddc0b7c15d8fc1a65bd",
+    "bytes": 86698,
+    "width": 1100,
+    "height": 514,
+    "tier": "content",
+    "sourceBytes": 534390
+  },
+  "astrousa/Mycoponics.webp": {
+    "sha256": "a354f35733cfebd2de91656e6f81e1c5eacba1a8ba70736d177f8ced8b3a4e8b",
+    "bytes": 14672,
+    "width": 685,
+    "height": 1100,
+    "tier": "content",
+    "sourceBytes": 48776
+  },
+  "astrousa/One-Line_Diagram.webp": {
+    "sha256": "545e0928074568c575b756952d1c1da20b87787e42f805fca51517c662f096e1",
+    "bytes": 21202,
+    "width": 1100,
+    "height": 796,
+    "tier": "content",
+    "sourceBytes": 51508
+  },
+  "astrousa/Overview.webp": {
+    "sha256": "7ffab1a5aac0ac33836e8389ff8d1dbea387c435bc4984271cd108aab3ea8cd8",
+    "bytes": 16726,
+    "width": 1100,
+    "height": 712,
+    "tier": "content",
+    "sourceBytes": 51418
+  },
+  "astrousa/Solar_One-Line_Diagram.webp": {
+    "sha256": "0624612c06e743dacee3d37b3e2cb521db407c95414099a3bdca749c4add1d97",
+    "bytes": 17994,
+    "width": 1100,
+    "height": 854,
+    "tier": "content",
+    "sourceBytes": 56534
+  },
+  "astrousa/Sparks_ASTRO.webp": {
+    "sha256": "a986ce95f7b04d5b43ee67dd4f3e60c8a21be8a665dcff0ab32b8791d0f08792",
+    "bytes": 55304,
+    "width": 825,
+    "height": 1100,
+    "tier": "content",
+    "sourceBytes": 127324
+  },
+  "astrousa/Wiring_Diagram.webp": {
+    "sha256": "97039bfcdef8ed934108065aac8cc347fb78cb540f394483589b0ae91db9dac8",
+    "bytes": 13164,
+    "width": 1100,
+    "height": 801,
+    "tier": "content",
+    "sourceBytes": 36400
+  },
+  "astrousa_bg.webp": {
+    "sha256": "df53f590e81e842b5c9cb43aa6de0638de839487d6ca852bef8b5c1ada71b42e",
+    "bytes": 56592,
+    "width": 1100,
+    "height": 734,
+    "tier": "content",
+    "sourceBytes": 155445
+  },
+  "bg-2.webp": {
+    "sha256": "d5e2feffc941a08ae1aefda54c98d18be46f0cd6ab63cf2c32d9ee56f9ec5a33",
+    "bytes": 135476,
+    "width": 1920,
+    "height": 897,
+    "tier": "hero",
+    "sourceBytes": 2098440
+  },
+  "bg.jpg": {
+    "sha256": "44f43698f51628b107309d2b58b307b91adc140e7981e3fd1a90eb6003216cb8",
+    "bytes": 101326,
+    "width": 1920,
+    "height": 1076,
+    "tier": "hero",
+    "sourceBytes": 151328
+  },
+  "business/buisness.webp": {
+    "sha256": "cb2a2accef6d8a7b25c90ecda0f2feee98aa40dfb4fa9ee45ad4649d11b55688",
+    "bytes": 79330,
+    "width": 1920,
+    "height": 1280,
+    "tier": "hero",
+    "sourceBytes": 647108
+  },
+  "business/heer_mehta.webp": {
+    "sha256": "eee7e17f589b7691f393db26290f29f8c6249c9e1b26f0d888a1f2c04d650f04",
+    "bytes": 38278,
+    "width": 522,
+    "height": 507,
+    "tier": "content",
+    "sourceBytes": 45742
+  },
+  "clubpm/badges/common/seagull.webp": {
+    "sha256": "430fbc96c5762a69f3c787e91b39a9fcf10aa659500f6b2a14b7920221bf7449",
+    "bytes": 104066,
+    "width": 800,
+    "height": 800,
+    "tier": "art",
+    "sourceBytes": 131944
+  },
+  "clubpm/badges/common/wooden_chair.webp": {
+    "sha256": "28c41fcfeb6cca8537f1da71a56b2807500af0b26ff8f987a48b136ec5b8d872",
+    "bytes": 21870,
+    "width": 800,
+    "height": 800,
+    "tier": "art",
+    "sourceBytes": 36158
+  },
+  "clubpm/badges/mythic/ethereal_chair.webp": {
+    "sha256": "87754cb206a4f7fcb16494babce4957d06d99a9801c54ec12d204984013eb8dc",
+    "bytes": 118476,
+    "width": 800,
+    "height": 800,
+    "tier": "art",
+    "sourceBytes": 172520
+  },
+  "clubpm/badges/mythic/john_peters.webp": {
+    "sha256": "d0a1c14b58c7e2bf26c5b7a57bbdd9cd5ff0c73b207c78fd35aa7f3ff0485eaa",
+    "bytes": 57784,
+    "width": 800,
+    "height": 800,
+    "tier": "art",
+    "sourceBytes": 65754
+  },
+  "clubpm/badges/rank/cadet.webp": {
+    "sha256": "6fe25594bebafa38e76925ca8c0587b17ed77f62ff0e127bb7cacff9e7386af2",
+    "bytes": 8156,
+    "width": 800,
+    "height": 800,
+    "tier": "art",
+    "sourceBytes": 17724
+  },
+  "clubpm/badges/rank/celestial.webp": {
+    "sha256": "20864d5c49e751be1a02e9d8a058e6901acca0c2af727c7c58bc2676dcd699c8",
+    "bytes": 8964,
+    "width": 800,
+    "height": 800,
+    "tier": "art",
+    "sourceBytes": 18184
+  },
+  "clubpm/badges/rank/cosmonaut.webp": {
+    "sha256": "59429f5758eb2a39c02795d54ae7a4bfc87cff77dfd950b5074107f9c9df2aa6",
+    "bytes": 8832,
+    "width": 800,
+    "height": 800,
+    "tier": "art",
+    "sourceBytes": 18070
+  },
+  "clubpm/badges/rank/fledgling.webp": {
+    "sha256": "0cd9ce6cac52dee2e9b9646e451bbe7b5f36a57f83950923bb0b36a32cfcf75d",
+    "bytes": 9318,
+    "width": 800,
+    "height": 800,
+    "tier": "art",
+    "sourceBytes": 18628
+  },
+  "clubpm/badges/rank/nestling.webp": {
+    "sha256": "abab37630c07cf22c53261bcadd47850331a38a9388ea2de6265a42ee7eb20e0",
+    "bytes": 7008,
+    "width": 800,
+    "height": 800,
+    "tier": "art",
+    "sourceBytes": 16454
+  },
+  "clubpm/badges/rank/pioneer.webp": {
+    "sha256": "d8a486e66dbb797931206b18926ec25f7b98d88b169e9cc1f0b7b61380e68b81",
+    "bytes": 9890,
+    "width": 800,
+    "height": 800,
+    "tier": "art",
+    "sourceBytes": 19476
+  },
+  "clubpm/badges/rank/specialist.webp": {
+    "sha256": "2d1d9bfafcf09b59b7dcfa3a4fecd90aa4d4b4643a4689247be647b86d37b8c6",
+    "bytes": 7268,
+    "width": 800,
+    "height": 800,
+    "tier": "art",
+    "sourceBytes": 16612
+  },
+  "clubpm/badges/rare/gaming_chair.webp": {
+    "sha256": "5d1c13b3f334286e0a058a34e5a409fc700f38558bf1ea2529f52bd55dab0ba4",
+    "bytes": 53994,
+    "width": 800,
+    "height": 800,
+    "tier": "art",
+    "sourceBytes": 75618
+  },
+  "clubpm/badges/streak/flame.webp": {
+    "sha256": "e3b4668a5c7895a3542acf334d4172c6787026f440f26e5fe12b7192d194189e",
+    "bytes": 11930,
+    "width": 512,
+    "height": 512,
+    "tier": "art",
+    "sourceBytes": 11930
+  },
+  "clubpm/badges/uncommon/folding_chair.webp": {
+    "sha256": "18c5ddd215e24612d125f1d8da31bdab053844c0b4b521e83e158246d1d18896",
+    "bytes": 43246,
+    "width": 800,
+    "height": 800,
+    "tier": "art",
+    "sourceBytes": 60234
+  },
+  "clubpm/badges/uncommon/smiling_thumbsup.webp": {
+    "sha256": "da6ae46600daa834503634bffcea90edac138b978aa7924ece9238f7d479b7da",
+    "bytes": 85574,
+    "width": 800,
+    "height": 800,
+    "tier": "art",
+    "sourceBytes": 114404
+  },
+  "favicon-32x32.png": {
+    "sha256": "7950300160b51255dc46b437840d505a3408f219695d9ed477e3692d41b71c5b",
+    "bytes": 448,
+    "width": 32,
+    "height": 32,
+    "tier": "content",
+    "sourceBytes": 1237
+  },
+  "home.webp": {
+    "sha256": "90f38036efa43eb660b6cf253d50031b8ba8bc26d3fbeda4aa86ac47bc54c391",
+    "bytes": 45432,
+    "width": 1100,
+    "height": 619,
+    "tier": "content",
+    "sourceBytes": 114866
+  },
+  "icons/PU-H-Full-Rev-RGB.png": {
+    "sha256": "2bfa41b723b539981f3d3c3ad836254f4d60bf131bacdf6c6d6848d371f7b3b3",
+    "bytes": 8096,
+    "width": 1257,
+    "height": 225,
+    "tier": "art",
+    "sourceBytes": 20410
+  },
+  "icons/PU-H-Full-RGB.png": {
+    "sha256": "7145673d64deda3f3ebd490445204c0610c162a44a147b890384f59332930e1e",
+    "bytes": 7936,
+    "width": 1257,
+    "height": 225,
+    "tier": "art",
+    "sourceBytes": 20966
+  },
+  "icons/PU-V-Full-Rev-RGB.png": {
+    "sha256": "71fb6e681dcad4dd1e86c8558d97fcc5b7080f2ae005c4df6c3a978187d56193",
+    "bytes": 8096,
+    "width": 782,
+    "height": 506,
+    "tier": "art",
+    "sourceBytes": 19944
+  },
+  "icons/PU-V-Full-RGB.png": {
+    "sha256": "0b4b4657ab29266f05f7053a1e156f3e23efbcfa222337abdf0695af20c31321",
+    "bytes": 8154,
+    "width": 782,
+    "height": 506,
+    "tier": "art",
+    "sourceBytes": 20838
+  },
+  "icons/purdue_search_logo.png": {
+    "sha256": "a82e7e664239359eaf32e5bcece582a07d3f45843334ba288e8420c199e260c5",
+    "bytes": 16402,
+    "width": 200,
+    "height": 200,
+    "tier": "art",
+    "sourceBytes": 35876
+  },
+  "ig/Astrousa_Meeting_ig.webp": {
+    "sha256": "e03a8bddcdf35fb583fea838887e456f04bee7abd5287597351b4af5e5da5cef",
+    "bytes": 48890,
+    "width": 617,
+    "height": 800,
+    "tier": "social",
+    "sourceBytes": 110270
+  },
+  "ig/Launch_Party_ig.webp": {
+    "sha256": "1c63db5ab85a158f816999eeef7be19cb4d4fc66039c749de68ea891d941efd2",
+    "bytes": 43846,
+    "width": 800,
+    "height": 799,
+    "tier": "social",
+    "sourceBytes": 102588
+  },
+  "ig/Meetings_ig.webp": {
+    "sha256": "84d6a0cc1df662b9958643003eeda1f839dbb8fa2fdc28495c5d4e026d96d72f",
+    "bytes": 42450,
+    "width": 660,
+    "height": 800,
+    "tier": "social",
+    "sourceBytes": 85854
+  },
+  "ig/Quincy_Spotlight_ig.webp": {
+    "sha256": "1c4e53bd09bb447babfdffefe418d8c2cdfeb1e5a8621996c6780eadd245c1ea",
+    "bytes": 20192,
+    "width": 779,
+    "height": 800,
+    "tier": "social",
+    "sourceBytes": 45178
+  },
+  "ig/SA2TP_ig.webp": {
+    "sha256": "ce87798462b41a013db2deda73b41ee237beafb6408d885e04c386356094d0b7",
+    "bytes": 40642,
+    "width": 563,
+    "height": 800,
+    "tier": "social",
+    "sourceBytes": 90060
+  },
+  "ig/Voss_ig.webp": {
+    "sha256": "6e587661deb8469f10b4445c0495da6b1cd33355e778a967328a7205fa0235e7",
+    "bytes": 61092,
+    "width": 566,
+    "height": 800,
+    "tier": "social",
+    "sourceBytes": 442008
+  },
+  "news/astrousa.jpg": {
+    "sha256": "454372d2a9dc250be6e5b83b58483acd141ebeb8e6741732dffa18835595d011",
+    "bytes": 20424,
+    "width": 540,
+    "height": 360,
+    "tier": "content",
+    "sourceBytes": 46932
+  },
+  "news/fundraising.webp": {
+    "sha256": "c480d947fe6bc6088e8007e889a38dc8734e82a451b08f49a6b75b5cbc946571",
+    "bytes": 44488,
+    "width": 960,
+    "height": 538,
+    "tier": "content",
+    "sourceBytes": 651919
+  },
+  "news/sa2tp.jpg": {
+    "sha256": "60baac3c7eeec5d0aba2ba029b83377b854559ba9db706d70f31db8e10e7318a",
+    "bytes": 51174,
+    "width": 823,
+    "height": 663,
+    "tier": "content",
+    "sourceBytes": 181312
+  },
+  "news/seti.webp": {
+    "sha256": "d8c9fc2061d092b83b1413f322b94e9f1e7423b9850f0d7f2dc6857a9468e18a",
+    "bytes": 104552,
+    "width": 1100,
+    "height": 825,
+    "tier": "content",
+    "sourceBytes": 271980
+  },
+  "news/suits.jpg": {
+    "sha256": "47169e55ac7a7562092f5d4da04e524780bc2ce78e1da0fc6cbeb756589f554a",
+    "bytes": 38526,
+    "width": 674,
+    "height": 563,
+    "tier": "content",
+    "sourceBytes": 153953
+  },
+  "obj_triangle.png": {
+    "sha256": "c268196b307a13632bb490f0d2903dfb4d0de585c8017f4a468971c08b7906da",
+    "bytes": 1720,
+    "width": 221,
+    "height": 191,
+    "tier": "content",
+    "sourceBytes": 1720
+  },
+  "officers/adhikari.webp": {
+    "sha256": "0ca5f30b51c8ee326f5c6d50c508a480b6ce3425977e928f77a2b9aee8c7334f",
+    "bytes": 14450,
+    "width": 500,
+    "height": 500,
+    "tier": "headshot",
+    "sourceBytes": 21534
+  },
+  "officers/advisors/bera.webp": {
+    "sha256": "aa80a01ea4a9552c9522ddb65dd1774d42cb106c59369784e6ad3633e72529bf",
+    "bytes": 54088,
+    "width": 500,
+    "height": 500,
+    "tier": "headshot",
+    "sourceBytes": 185728
+  },
+  "officers/advisors/cesare.webp": {
+    "sha256": "3ce4babc8c8ce2019bf0f21024a1419152f7dcf4465f78c1636c35dee19ef5de",
+    "bytes": 14372,
+    "width": 500,
+    "height": 500,
+    "tier": "headshot",
+    "sourceBytes": 17812
+  },
+  "officers/advisors/danny.webp": {
+    "sha256": "2f2645f1a57db3a8522b8ffeaea853747ef2cfab8e12ce1b2daefde6bb915aff",
+    "bytes": 12672,
+    "width": 500,
+    "height": 500,
+    "tier": "headshot",
+    "sourceBytes": 43046
+  },
+  "officers/advisors/mall.webp": {
+    "sha256": "682f478b544ce3562718950f306843f9cacf3d17ed2d569a83557d51a7b2014c",
+    "bytes": 22586,
+    "width": 500,
+    "height": 500,
+    "tier": "headshot",
+    "sourceBytes": 57730
+  },
+  "officers/advisors/porterfield.webp": {
+    "sha256": "7ed0de50b49882b15ac51046ce4147f9c2b86a7da7b4720375c66f3da5bfe1d0",
+    "bytes": 33266,
+    "width": 500,
+    "height": 500,
+    "tier": "headshot",
+    "sourceBytes": 114078
+  },
+  "officers/advisors/schmitt.webp": {
+    "sha256": "87dc4d9b1732e08e23279fec0abc627889f7bbea959e2ea80921ee0900fbe750",
+    "bytes": 27290,
+    "width": 500,
+    "height": 500,
+    "tier": "headshot",
+    "sourceBytes": 84356
+  },
+  "officers/azeem.webp": {
+    "sha256": "dd86740f26243111630837a7dc13c67f45e8c619e03ee5dc97cd3bb4a15744c3",
+    "bytes": 12244,
+    "width": 400,
+    "height": 400,
+    "tier": "headshot",
+    "sourceBytes": 15456
+  },
+  "officers/brayden.webp": {
+    "sha256": "02e6a23508ae12ce60c291a84088ef6aec10e5364ce071cee7f2868e98888620",
+    "bytes": 5866,
+    "width": 400,
+    "height": 400,
+    "tier": "headshot",
+    "sourceBytes": 7976
+  },
+  "officers/chelsea.webp": {
+    "sha256": "a021789a1e44e34340639f9e20fe48c7d7bbee86f7ecaf1145624c91a9f91c0e",
+    "bytes": 7850,
+    "width": 400,
+    "height": 400,
+    "tier": "headshot",
+    "sourceBytes": 11086
+  },
+  "officers/crivello.webp": {
+    "sha256": "4615a13e9bd9934c451238bca70b20f53dd4dd964dc6bd457835c43e5ef67673",
+    "bytes": 44214,
+    "width": 498,
+    "height": 483,
+    "tier": "headshot",
+    "sourceBytes": 52396
+  },
+  "officers/deangelis.webp": {
+    "sha256": "769e1c11beb42724bf56abe1ce3e8fab88f3b65c998b123545b7b70ce7726cff",
+    "bytes": 41270,
+    "width": 500,
+    "height": 500,
+    "tier": "headshot",
+    "sourceBytes": 63448
+  },
+  "officers/deshpande.webp": {
+    "sha256": "9a7b25fddcfd9ca4a35846581184c777512f4da0336088a1452e373da27c3dd9",
+    "bytes": 16590,
+    "width": 500,
+    "height": 500,
+    "tier": "headshot",
+    "sourceBytes": 28982
+  },
+  "officers/ethan.webp": {
+    "sha256": "7b7b7bf0df8e7dc78dac19a3a7d0c5679c235c1cfdfff0b2b99fc9f126b2feaf",
+    "bytes": 17540,
+    "width": 400,
+    "height": 400,
+    "tier": "headshot",
+    "sourceBytes": 22232
+  },
+  "officers/garcia.webp": {
+    "sha256": "bcd78a79fb6aabea4e3b8605a6a55c896d706ebe737c426b46d838d92cad8b97",
+    "bytes": 9272,
+    "width": 500,
+    "height": 500,
+    "tier": "headshot",
+    "sourceBytes": 17030
+  },
+  "officers/garg.webp": {
+    "sha256": "64ea9b42915a1f6debff509270aaad9989230b51b25f5f74f09e2ceab5779c96",
+    "bytes": 39514,
+    "width": 500,
+    "height": 500,
+    "tier": "headshot",
+    "sourceBytes": 62918
+  },
+  "officers/generic.webp": {
+    "sha256": "4ad5566f86e0f691ae1054d1245bb9d9be40e2da45e92cdeadc408c3e2b68905",
+    "bytes": 7140,
+    "width": 512,
+    "height": 512,
+    "tier": "headshot",
+    "sourceBytes": 7140
+  },
+  "officers/heer.webp": {
+    "sha256": "514784fee3598fd98e67d68708313d7823469763daf3b607d753506a103f96b5",
+    "bytes": 26470,
+    "width": 500,
+    "height": 486,
+    "tier": "headshot",
+    "sourceBytes": 45742
+  },
+  "officers/henry.webp": {
+    "sha256": "504601e8ca9f8deeb7d1ac95ae1587e91d96d7fd408a44a9d2ccc5e62e9fee2a",
+    "bytes": 20030,
+    "width": 375,
+    "height": 500,
+    "tier": "headshot",
+    "sourceBytes": 543810
+  },
+  "officers/herman.webp": {
+    "sha256": "79674df0af9a53d080e7b1f6fa009e591620962b4df21603f27184307f5fd00b",
+    "bytes": 23386,
+    "width": 500,
+    "height": 500,
+    "tier": "headshot",
+    "sourceBytes": 35468
+  },
+  "officers/jason.webp": {
+    "sha256": "49f881865b0d118842eaa3c3bc10f7218b2a8a0fb5a8449d955e0c864f6df0d1",
+    "bytes": 8892,
+    "width": 400,
+    "height": 400,
+    "tier": "headshot",
+    "sourceBytes": 11584
+  },
+  "officers/john.webp": {
+    "sha256": "abe768e6f4295c3e72b41fd401741e76c8f0cd70906823013c88429da8fdc004",
+    "bytes": 12334,
+    "width": 261,
+    "height": 262,
+    "tier": "headshot",
+    "sourceBytes": 15034
+  },
+  "officers/katie.webp": {
+    "sha256": "af1b84acc1b9867d8f1223d10e9c35a25bdfac383a74ed7c98615b1bad17aed1",
+    "bytes": 16768,
+    "width": 400,
+    "height": 400,
+    "tier": "headshot",
+    "sourceBytes": 20062
+  },
+  "officers/keegan.webp": {
+    "sha256": "182e81d54214433cbab1ca66cf2619bd0d567da87474a3042017e9833c37b7e8",
+    "bytes": 18864,
+    "width": 400,
+    "height": 400,
+    "tier": "headshot",
+    "sourceBytes": 23016
+  },
+  "officers/melissa.webp": {
+    "sha256": "f10d8f9c1f9ce2a459ff27b2fbb08471e2448fa6d1595f51f7ea631de560dc77",
+    "bytes": 8424,
+    "width": 430,
+    "height": 400,
+    "tier": "headshot",
+    "sourceBytes": 10854
+  },
+  "officers/myles.webp": {
+    "sha256": "2467b58bca1409d057994ced0616fec9e4003e2b1160e2b9ed1b3cb0f049f7da",
+    "bytes": 7270,
+    "width": 400,
+    "height": 400,
+    "tier": "headshot",
+    "sourceBytes": 8998
+  },
+  "officers/peters.webp": {
+    "sha256": "4c3d4b5c12c48ce9d446af5702ed8371fac0040e35b34ad6836d2d581380fa79",
+    "bytes": 21544,
+    "width": 500,
+    "height": 500,
+    "tier": "headshot",
+    "sourceBytes": 29866
+  },
+  "officers/sam.webp": {
+    "sha256": "c8a87c7827a4382461e49a58c3ebd56f607698caaff9bdb217e2468a7bc5e711",
+    "bytes": 9678,
+    "width": 301,
+    "height": 295,
+    "tier": "headshot",
+    "sourceBytes": 11884
+  },
+  "officers/scheer.webp": {
+    "sha256": "3f5abde51cd60798194490ca9fb9c335e8f904eb342204397eb7195870b861cb",
+    "bytes": 28026,
+    "width": 500,
+    "height": 500,
+    "tier": "headshot",
+    "sourceBytes": 49008
+  },
+  "officers/shruti.webp": {
+    "sha256": "0e90995abf39d410c4f559a793df06e3f9a2894b9153276085e3d159fc778b37",
+    "bytes": 6772,
+    "width": 400,
+    "height": 400,
+    "tier": "headshot",
+    "sourceBytes": 8798
+  },
+  "officers/singh.webp": {
+    "sha256": "2d60b29c170adfb9b89c31eeb45235be63e1fb61f7a88efa55a8eeb48421f47e",
+    "bytes": 13162,
+    "width": 262,
+    "height": 264,
+    "tier": "headshot",
+    "sourceBytes": 16028
+  },
+  "officers/swastik.webp": {
+    "sha256": "132f3a077c3f75017a9cf7877af1a1222d2b86191014f0a4850957b9b4038e85",
+    "bytes": 10998,
+    "width": 400,
+    "height": 400,
+    "tier": "headshot",
+    "sourceBytes": 13332
+  },
+  "officers/tyagi.webp": {
+    "sha256": "c1784537baf672b09ce1eeefc891c7192d8bb8243fb5fe388f72a66b1d7ecaf8",
+    "bytes": 16688,
+    "width": 291,
+    "height": 299,
+    "tier": "headshot",
+    "sourceBytes": 19800
+  },
+  "officers/vashi.webp": {
+    "sha256": "2704bde0c3ce81e2f8dd2e5ac0be099f0a4c0d7be48ec61bc23d2fd1eb0715ac",
+    "bytes": 23974,
+    "width": 500,
+    "height": 500,
+    "tier": "headshot",
+    "sourceBytes": 38150
+  },
+  "officers/vijay.webp": {
+    "sha256": "b27d0ec4b975a402ff2a311b0f0eb36bc2fba7b63b2f9c617518ae19c06c2b6e",
+    "bytes": 6050,
+    "width": 400,
+    "height": 400,
+    "tier": "headshot",
+    "sourceBytes": 7956
+  },
+  "officers/viswanath.webp": {
+    "sha256": "e1886e70f3d0026a347093403148acfaee8032bef9d4e461f4274dc1603fabea",
+    "bytes": 9606,
+    "width": 500,
+    "height": 500,
+    "tier": "headshot",
+    "sourceBytes": 19298
+  },
+  "outreach/2022/hasan.webp": {
+    "sha256": "3835b2d2357e93182f9a52cf45033b35ed45a2356af90a0c82a75280b614bc4d",
+    "bytes": 55124,
+    "width": 869,
+    "height": 788,
+    "tier": "content",
+    "sourceBytes": 63516
+  },
+  "outreach/2022/matt.webp": {
+    "sha256": "45611c6e1321d34f290554f87102dd43d13a955db4fcb0c8bcfda094dfffd9d4",
+    "bytes": 62664,
+    "width": 867,
+    "height": 864,
+    "tier": "content",
+    "sourceBytes": 73192
+  },
+  "outreach/2022/moses.webp": {
+    "sha256": "33f9913305b069875d53d6214cd4b6e494952dc06503b6dae6343944c8b6180c",
+    "bytes": 39822,
+    "width": 868,
+    "height": 862,
+    "tier": "content",
+    "sourceBytes": 49152
+  },
+  "outreach/2023/bake.webp": {
+    "sha256": "452899f974c16b23c9495b88dde827f2263b529d50304e274b0bbf9b54549431",
+    "bytes": 27108,
+    "width": 699,
+    "height": 664,
+    "tier": "content",
+    "sourceBytes": 32740
+  },
+  "outreach/2023/fagin.webp": {
+    "sha256": "76ad7bf5d9c4323bd9d15f8489342dde7df69f3cdfca963b4c6717cc6641831a",
+    "bytes": 63584,
+    "width": 889,
+    "height": 844,
+    "tier": "content",
+    "sourceBytes": 78760
+  },
+  "outreach/2023/manufacturing.webp": {
+    "sha256": "398413bca0eac37551dcd6e8bb7e967a3a12da9f07cb1b34e6b2bb495847d27e",
+    "bytes": 72170,
+    "width": 865,
+    "height": 853,
+    "tier": "content",
+    "sourceBytes": 84606
+  },
+  "outreach/2023/meetngreet.webp": {
+    "sha256": "7504553c683e6a4f7ededc34ffe332c99070ca00c2ee96efdad14d14a47a8b4b",
+    "bytes": 54484,
+    "width": 702,
+    "height": 867,
+    "tier": "content",
+    "sourceBytes": 68406
+  },
+  "outreach/2023/millionmiles.webp": {
+    "sha256": "7846a6f970cdf66e95a386172763fc699ddc2fdc9ef38a994a82c93e01b8df57",
+    "bytes": 57436,
+    "width": 736,
+    "height": 837,
+    "tier": "content",
+    "sourceBytes": 68548
+  },
+  "outreach/2023/movie.webp": {
+    "sha256": "28f9441659e6e3e9e5f140dbdd37b00c017861a22600d206751e9dfbfa80ff4f",
+    "bytes": 35238,
+    "width": 813,
+    "height": 687,
+    "tier": "content",
+    "sourceBytes": 41024
+  },
+  "outreach/2023/piyush.webp": {
+    "sha256": "ad44832cb133a945f6962210ddeccc2faf25c0e0b9d0fc1d0de6881569ec4608",
+    "bytes": 39294,
+    "width": 874,
+    "height": 687,
+    "tier": "content",
+    "sourceBytes": 47392
+  },
+  "outreach/2023/sirisha.webp": {
+    "sha256": "9e3bfdf6a70363d9a6591b972147ac7c6108e7045b06f9ef6ad493095dc92b33",
+    "bytes": 40762,
+    "width": 771,
+    "height": 760,
+    "tier": "content",
+    "sourceBytes": 49094
+  },
+  "outreach/2023/slava.webp": {
+    "sha256": "52e0faabdc1f478759172434619a63e5d21b4812d38e8a75917ed729e27d0ae1",
+    "bytes": 43468,
+    "width": 866,
+    "height": 686,
+    "tier": "content",
+    "sourceBytes": 50540
+  },
+  "outreach/2024/dune.webp": {
+    "sha256": "f01e894372f91829ab9cff8aa0781c2eb4c15f15bc760c371e35f6410aeb6e24",
+    "bytes": 45076,
+    "width": 778,
+    "height": 1100,
+    "tier": "content",
+    "sourceBytes": 122052
+  },
+  "outreach/2024/farah.webp": {
+    "sha256": "393379dbfcd3f643c97f395f1b6d25b37f560582a13bf00d60003c8e1d1011ff",
+    "bytes": 59174,
+    "width": 733,
+    "height": 925,
+    "tier": "content",
+    "sourceBytes": 71854
+  },
+  "outreach/companies/blueorigin.webp": {
+    "sha256": "abe627c0d9aa78f05f7c108cf84ea35917d50a6c913add4364e835a2959d4183",
+    "bytes": 26914,
+    "width": 1200,
+    "height": 611,
+    "tier": "art",
+    "sourceBytes": 26914
+  },
+  "outreach/companies/hiseas.webp": {
+    "sha256": "af2437162405512f062f3e5ae1643e9701840dfe1e569a4136798e2f12143f3b",
+    "bytes": 64310,
+    "width": 2500,
+    "height": 653,
+    "tier": "art",
+    "sourceBytes": 64310
+  },
+  "outreach/companies/nasa.webp": {
+    "sha256": "511a5afaefbdf5d4b5c34bcd0130551d8cc87f26382d070a815c578b87418a29",
+    "bytes": 126436,
+    "width": 2449,
+    "height": 2048,
+    "tier": "art",
+    "sourceBytes": 126436
+  },
+  "outreach/companies/PAC.webp": {
+    "sha256": "78f1a515a656ffe73067b4f2a98cd8416f93bd8d13e3720c5c8293cad2ca9a49",
+    "bytes": 12790,
+    "width": 170,
+    "height": 170,
+    "tier": "art",
+    "sourceBytes": 12790
+  },
+  "outreach/companies/psp.webp": {
+    "sha256": "5d7b88a7e9ea0fed0c851bdeff315e46289831c82d24a96e9cc7fd0f335cfbd0",
+    "bytes": 26042,
+    "width": 1532,
+    "height": 1018,
+    "tier": "art",
+    "sourceBytes": 26042
+  },
+  "outreach/companies/seti.webp": {
+    "sha256": "a6f38cfbb1b201ca554b52e194b340e263644a06f2b3e8888b00eb853b24042d",
+    "bytes": 12694,
+    "width": 400,
+    "height": 243,
+    "tier": "art",
+    "sourceBytes": 12694
+  },
+  "outreach/companies/spacex.webp": {
+    "sha256": "39c67147e67d2c10e30d478fb9a443dc0ce26b770a1bab4baca3b2ee86a0bc67",
+    "bytes": 4578,
+    "width": 1280,
+    "height": 160,
+    "tier": "art",
+    "sourceBytes": 5454
+  },
+  "outreach/Tabling2_Outreach.webp": {
+    "sha256": "1966cfb97b17c4bdfa91e1f220c025f1c49c919046ce363cc855d7520d33bdf1",
+    "bytes": 95356,
+    "width": 1100,
+    "height": 514,
+    "tier": "content",
+    "sourceBytes": 648740
+  },
+  "outreach/Tabling_Outreach.webp": {
+    "sha256": "ca993cc26d421707aea56f9a43f56ca1fe2e71e1a9250c2b704c8c76b50d0ec0",
+    "bytes": 151418,
+    "width": 1100,
+    "height": 514,
+    "tier": "content",
+    "sourceBytes": 1033698
+  },
+  "outreach.webp": {
+    "sha256": "5dbcda2a2453ca4db0509aaa5f21d94e0e07bbd7b85371f34b869737d402924e",
+    "bytes": 22736,
+    "width": 1100,
+    "height": 619,
+    "tier": "content",
+    "sourceBytes": 56700
+  },
+  "Purdue_Sky.webp": {
+    "sha256": "95481fefb7c649cab613d5eadf1973256055aff638e7abfac472f64eef0568f5",
+    "bytes": 220838,
+    "width": 1280,
+    "height": 973,
+    "tier": "hero",
+    "sourceBytes": 533406
+  },
+  "research/2022_23/mars_mission.webp": {
+    "sha256": "237db6c3a4c6c4fbd6166f77800e3a07f0b78b73e22b3ec6d4fd4cbf86d9a214",
+    "bytes": 102866,
+    "width": 1920,
+    "height": 1080,
+    "tier": "hero",
+    "sourceBytes": 519564
+  },
+  "research/2022_23/mission_architecture.webp": {
+    "sha256": "b7ef826c6d7d24b9d657a06cace07206e5787ac0f25a0405946f4c960b9a09e4",
+    "bytes": 65672,
+    "width": 1100,
+    "height": 616,
+    "tier": "content",
+    "sourceBytes": 233248
+  },
+  "research/2022_23/Team_Photo.webp": {
+    "sha256": "89b0b62f214f8dcaf90bb063f8c60907f81f2759953080dc29f730edc8bdd95d",
+    "bytes": 44230,
+    "width": 1100,
+    "height": 825,
+    "tier": "content",
+    "sourceBytes": 863180
+  },
+  "research/2023_24/hydroponics/hydro.jpg": {
+    "sha256": "f68e4bc84f8445c3eab904a3c0fd5cc63087bf69af7fbf0cba8383770b3e21a2",
+    "bytes": 43656,
+    "width": 735,
+    "height": 378,
+    "tier": "content",
+    "sourceBytes": 64211
+  },
+  "research/2023_24/rascal/astros-pup-pr-hab-horizontal4.webp": {
+    "sha256": "50cce0554edb8d779e385d2d9b6853192b26cf51c950cf76064b41c85f84c500",
+    "bytes": 42306,
+    "width": 1100,
+    "height": 619,
+    "tier": "content",
+    "sourceBytes": 393166
+  },
+  "research/2023_24/rascal/hu.webp": {
+    "sha256": "9a196c9a11f27228217e595ed9357e501dceeec31ff1e9af5502b73ba89162bf",
+    "bytes": 17602,
+    "width": 800,
+    "height": 800,
+    "tier": "content",
+    "sourceBytes": 24826
+  },
+  "research/2023_24/rascal/patel.webp": {
+    "sha256": "ea3a73dcde179e1f142170065d6a3c980599da4bc02a659e591950203c0cead3",
+    "bytes": 25006,
+    "width": 800,
+    "height": 800,
+    "tier": "content",
+    "sourceBytes": 29958
+  },
+  "research/2023_24/rascal/rascal.webp": {
+    "sha256": "70126cc8d92949a49b6a2310d25289292816d72ac7b3f992e6044e1937cb43ca",
+    "bytes": 22826,
+    "width": 768,
+    "height": 432,
+    "tier": "content",
+    "sourceBytes": 307208
+  },
+  "research/2023_24/rascal/team.webp": {
+    "sha256": "e3ef97c281b6f4612cb18d575cb48370c4acf959076ef169747787df24d26d44",
+    "bytes": 74030,
+    "width": 1100,
+    "height": 734,
+    "tier": "content",
+    "sourceBytes": 171884
+  },
+  "research/2023_24/rascal/timeline.webp": {
+    "sha256": "18035e9a8b99980f2b53ebda492df014f3858e0a98a602b1ec826ad9fe148b09",
+    "bytes": 35272,
+    "width": 1100,
+    "height": 401,
+    "tier": "content",
+    "sourceBytes": 53292
+  },
+  "research/Barker_Mugshot.webp": {
+    "sha256": "af9fb1955cb3ddd4d7c2e4d64d9169fdfaf4560f1519133616b3284b0a666cba",
+    "bytes": 17738,
+    "width": 500,
+    "height": 500,
+    "tier": "content",
+    "sourceBytes": 21992
+  },
+  "research/Biosphere_Chamber.webp": {
+    "sha256": "2616933a736cf428ff97969f5716152943da90f5f550b54f6abf46d12167e091",
+    "bytes": 65640,
+    "width": 1100,
+    "height": 514,
+    "tier": "content",
+    "sourceBytes": 363520
+  },
+  "research/group_work.webp": {
+    "sha256": "8ce43cd11213987c11d7f2a4cff323def10d39452897e2093323f8cd867932e1",
+    "bytes": 81920,
+    "width": 1100,
+    "height": 825,
+    "tier": "content",
+    "sourceBytes": 941898
+  },
+  "research/ICES2025_Research.webp": {
+    "sha256": "f26e9cf2d838e0ef6dd32b8fab96137167dbd67d81c9f82f12348f1e2f874b7c",
+    "bytes": 111858,
+    "width": 1100,
+    "height": 987,
+    "tier": "content",
+    "sourceBytes": 300270
+  },
+  "research/Labspace.webp": {
+    "sha256": "6d39bb5196c6c2eed9d8af9d19fc3fb8e79c6260b913e3e9e2261611dfea57c8",
+    "bytes": 56316,
+    "width": 1100,
+    "height": 514,
+    "tier": "content",
+    "sourceBytes": 268212
+  },
+  "research/Manisha_Mugshot.webp": {
+    "sha256": "e47880c79f5238b5be6adfc90b633d707a5fd6620f013fa14b1a23cae387f918",
+    "bytes": 7158,
+    "width": 200,
+    "height": 200,
+    "tier": "content",
+    "sourceBytes": 8966
+  },
+  "research/Mia_work.webp": {
+    "sha256": "284faf5533d876c99b3cb09f928dae4f2698f008ff2af63f2536328b011de852",
+    "bytes": 52088,
+    "width": 825,
+    "height": 1100,
+    "tier": "content",
+    "sourceBytes": 454028
+  },
+  "research/Porterfield_Mugshot.webp": {
+    "sha256": "17f77fc6e579837444b8ad949b7a64752bfd7103d58fd929ebccafdddd32145c",
+    "bytes": 63912,
+    "width": 1100,
+    "height": 733,
+    "tier": "content",
+    "sourceBytes": 115146
+  },
+  "research/Research_Hero.webp": {
+    "sha256": "207c684dd18a924f512fbdd431a513672bfca7b8e390e47ea850b06127b5ca66",
+    "bytes": 95306,
+    "width": 1920,
+    "height": 896,
+    "tier": "hero",
+    "sourceBytes": 232158
+  },
+  "sa2tp/2023/IMG_0983.webp": {
+    "sha256": "be0331aae54cd9ccbb0202d94ff2196e5764c8de8f74b115f8004a4748d20b51",
+    "bytes": 92494,
+    "width": 1100,
+    "height": 825,
+    "tier": "content",
+    "sourceBytes": 1010662
+  },
+  "sa2tp/2023/IMG_20230804_145608.webp": {
+    "sha256": "51b587772b405f6c0b557ac92292e84c9d5d216801bb50e7ffdc35db47bdb2c1",
+    "bytes": 28608,
+    "width": 1100,
+    "height": 825,
+    "tier": "content",
+    "sourceBytes": 219372
+  },
+  "sa2tp/2023/IMG_20230811_194834.webp": {
+    "sha256": "573b656e67f9e142193d45bc700e8bfe1d74bcc914377510b2e5a236793fd10d",
+    "bytes": 38060,
+    "width": 1100,
+    "height": 825,
+    "tier": "content",
+    "sourceBytes": 243180
+  },
+  "sa2tp/2023/IMG_20230812_164838.webp": {
+    "sha256": "9f3b8414fca2bb715d516b56674c92dc5331b098449df8f0910e64e513a5606c",
+    "bytes": 69050,
+    "width": 1100,
+    "height": 825,
+    "tier": "content",
+    "sourceBytes": 797436
+  },
+  "sa2tp/2023/IMG_20230813_115931.webp": {
+    "sha256": "fc8caca53ae3fe711bb79651610a154723775ee218bf43e33d8f1244620c06f1",
+    "bytes": 57926,
+    "width": 825,
+    "height": 1100,
+    "tier": "content",
+    "sourceBytes": 460244
+  },
+  "sa2tp/2023/interview_bg.webp": {
+    "sha256": "0aec3b13bdd86410742a48a70cd8be15ea504c17bc102af410409a9036811a09",
+    "bytes": 41194,
+    "width": 1100,
+    "height": 593,
+    "tier": "content",
+    "sourceBytes": 62342
+  },
+  "sa2tp/2023/logo.webp": {
+    "sha256": "01cef52071c22a735bc9ff3daa9fa2c7dbc1d905f296f77367b446ffdd8de10f",
+    "bytes": 7500,
+    "width": 288,
+    "height": 244,
+    "tier": "content",
+    "sourceBytes": 9256
+  },
+  "sa2tp/2023/PXL_20230808_201504997.webp": {
+    "sha256": "ff0fbb159f9175ed451d61436bf21b91eb5877ce515185667b25686ddec6b1b8",
+    "bytes": 50416,
+    "width": 1100,
+    "height": 619,
+    "tier": "content",
+    "sourceBytes": 845698
+  },
+  "sa2tp/2023/PXL_20230808_201645525.webp": {
+    "sha256": "067d7f3bd31760de70d070792f1e4218c493570777da46974811cea11af3269f",
+    "bytes": 48286,
+    "width": 1100,
+    "height": 619,
+    "tier": "content",
+    "sourceBytes": 521942
+  },
+  "sa2tp/2023/ROD.webp": {
+    "sha256": "d25b89d2d7838cd923ee4d3fec8b61bf70fbb51e9a765ed5827559a8bf24983c",
+    "bytes": 20752,
+    "width": 628,
+    "height": 500,
+    "tier": "content",
+    "sourceBytes": 35610
+  },
+  "sa2tp/Crew1_Patch.webp": {
+    "sha256": "d948ad2379a49ecb157258acccea5f82770e1ea2086c9be0631450bb4fd90c04",
+    "bytes": 64876,
+    "width": 1096,
+    "height": 931,
+    "tier": "content",
+    "sourceBytes": 76464
+  },
+  "sa2tp/Crew2_Patch.webp": {
+    "sha256": "e3d68486dff793c6056cf65f92445313be1441c121540f14a5324fc35ee8a929",
+    "bytes": 35706,
+    "width": 697,
+    "height": 1056,
+    "tier": "content",
+    "sourceBytes": 42958
+  },
+  "sa2tp/Crew3_Patch.webp": {
+    "sha256": "dfb873ea397ca5b03550e80bd24e0971899fe7a57b3660642c83d8dce1a69e64",
+    "bytes": 39476,
+    "width": 823,
+    "height": 793,
+    "tier": "content",
+    "sourceBytes": 46872
+  },
+  "sa2tp/Plane.webp": {
+    "sha256": "1213e4cf5718a46265b9756afcf0f5b7c3b426ab4e594e6c1d0fdac3d920b50f",
+    "bytes": 51336,
+    "width": 1100,
+    "height": 825,
+    "tier": "content",
+    "sourceBytes": 298948
+  },
+  "sa2tp/SA2TP_Logo.webp": {
+    "sha256": "4b8f566bb2f0e2526b710a59415420746e05757f403296874ed47cded00cb6bf",
+    "bytes": 41256,
+    "width": 545,
+    "height": 458,
+    "tier": "content",
+    "sourceBytes": 45756
+  },
+  "sa2tp/Scuba.webp": {
+    "sha256": "9ac90d34467b59a6e7634e9d5dda44e5c8e141aabf6acc2a3af48ae3fadccc5f",
+    "bytes": 85386,
+    "width": 1100,
+    "height": 514,
+    "tier": "content",
+    "sourceBytes": 358354
+  },
+  "sa2tp/Scuba2.webp": {
+    "sha256": "39ec37f17216613c58d2768a48c790051c83716b1a364f1cc27dca63266beb6a",
+    "bytes": 80476,
+    "width": 1100,
+    "height": 619,
+    "tier": "content",
+    "sourceBytes": 405312
+  },
+  "sa2tp.webp": {
+    "sha256": "81fc2875d23a71fc3e463258ad14d0b55a925a78566410457719505d41e77c62",
+    "bytes": 12678,
+    "width": 1100,
+    "height": 620,
+    "tier": "content",
+    "sourceBytes": 30288
+  },
+  "software/2023_24/SUITS/bg.webp": {
+    "sha256": "1424c956cb4b8b684e0ec34520cdbaca315fe4de9ba29e560675c39a8b78139e",
+    "bytes": 32234,
+    "width": 626,
+    "height": 358,
+    "tier": "hero",
+    "sourceBytes": 70886
+  },
+  "software/2023_24/SUITS/marupeddi.webp": {
+    "sha256": "43fac6a197b3098aaf1f9083b8c53ee280fc00dc8e73f876610981ffdaef1482",
+    "bytes": 34998,
+    "width": 800,
+    "height": 800,
+    "tier": "content",
+    "sourceBytes": 86772
+  },
+  "software/2023_24/SUITS/patel.webp": {
+    "sha256": "7e44d8c2c3f6afb11712eb3edf34851b3428658c51e55378e282668a2d31e3d8",
+    "bytes": 25272,
+    "width": 800,
+    "height": 800,
+    "tier": "content",
+    "sourceBytes": 63060
+  },
+  "software/2023_24/SUITS/patil.webp": {
+    "sha256": "bd080e5aa2efcf7fcaf9ca3317cb4a609b7bc06c9f846c6d1603773ea96c695f",
+    "bytes": 15850,
+    "width": 800,
+    "height": 800,
+    "tier": "content",
+    "sourceBytes": 63100
+  },
+  "software/2023_24/SUITS/puepi.webp": {
+    "sha256": "761a5e71b00b53e0640988ee8d12d72f48b0cb39019339a8c79d018826efc2bf",
+    "bytes": 20894,
+    "width": 800,
+    "height": 800,
+    "tier": "content",
+    "sourceBytes": 53968
+  },
+  "software/2023_24/SUITS/teams.webp": {
+    "sha256": "5b498c3df82adea34859b3d37978be0b8a6b5c07b8b95087984dfc948e6343bf",
+    "bytes": 63788,
+    "width": 1100,
+    "height": 619,
+    "tier": "content",
+    "sourceBytes": 291520
+  },
+  "software/Data_Monitors_Suits.webp": {
+    "sha256": "8d491daf08f4cbaa7d84be167aa4933add8cec09dc4ca7e5525217604989721e",
+    "bytes": 77262,
+    "width": 1100,
+    "height": 825,
+    "tier": "content",
+    "sourceBytes": 604170
+  },
+  "software/Meeting_SUITS.webp": {
+    "sha256": "c08b21e6c651aee853a3da082fbfb80e8d943701b4cba88a08e7cfb29c190a22",
+    "bytes": 224116,
+    "width": 1890,
+    "height": 1418,
+    "tier": "hero",
+    "sourceBytes": 641956
+  },
+  "software/Presentation_SUITS.webp": {
+    "sha256": "bc1b41c313d9db7fd1ad3ec95e0ef76738b5fd366e798bc47d464f170ecaed0c",
+    "bytes": 98642,
+    "width": 1100,
+    "height": 825,
+    "tier": "content",
+    "sourceBytes": 544352
+  },
+  "software/suits_conops.webp": {
+    "sha256": "235321e8699799cec70bc78535b4fc1b1336a4945215aa155a29aeadb520458a",
+    "bytes": 27516,
+    "width": 1100,
+    "height": 420,
+    "tier": "content",
+    "sourceBytes": 32746
+  },
+  "software/suits_rover_ui.webp": {
+    "sha256": "1fa6108bc7175d4b47664962ab4721b81fd4ff327c8a61738e9b7be8e9e3bd33",
+    "bytes": 49740,
+    "width": 1033,
+    "height": 646,
+    "tier": "content",
+    "sourceBytes": 51694
+  },
+  "software/Swastik_SUITS.webp": {
+    "sha256": "36f6e2c39b6754411fefe4c4fcc3b1a0f08210bca98642c0b4fc797a5043813a",
+    "bytes": 20324,
+    "width": 1100,
+    "height": 670,
+    "tier": "content",
+    "sourceBytes": 34478
+  },
+  "software/Win_Photo_Suits.webp": {
+    "sha256": "914ae5d4c06cdc96e83530359eba81dfd65b1f3e6b90e14d270504845a9d1131",
+    "bytes": 87042,
+    "width": 1100,
+    "height": 619,
+    "tier": "content",
+    "sourceBytes": 863080
+  }
+}

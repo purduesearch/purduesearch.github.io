@@ -80,7 +80,10 @@ async function main() {
       continue;
     }
 
-    let pipeline = sharp(abs, { animated: false });
+    // Decode from the buffer, not the path: libvips keeps a handle on a file
+    // input, and on Windows the in-place writeFileSync below then fails with
+    // UNKNOWN/EBUSY because the source is still open.
+    let pipeline = sharp(original, { animated: false });
     if (decision.maxEdge) {
       pipeline = pipeline.resize({
         width: decision.maxEdge,
