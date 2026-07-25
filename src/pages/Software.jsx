@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import SEOHead from '../components/SEOHead';
+import { staggerGroup } from '../anim/scrollFx';
 
 const Software = () => {
   useEffect(() => {
@@ -18,6 +19,12 @@ const Software = () => {
     return () => { if (document.head.contains(link)) document.head.removeChild(link); };
   }, []);
 
+  // Testing-methodology step stagger
+  useEffect(() => {
+    const cleanup = staggerGroup(document.querySelector('#suits-testing-2526 .suits-hitl-list'), 'li');
+    return () => cleanup();
+  }, []);
+
   return (
     <div>
       <SEOHead
@@ -28,7 +35,7 @@ const Software = () => {
       <Navbar />
 
       {/* ===== HERO ===== */}
-      <div
+      <main
         id="main-content"
         className="jumbotron jumbotron-single d-flex align-items-center"
         style={{ backgroundImage: 'url(/software/Meeting_SUITS.webp)' }}
@@ -40,7 +47,7 @@ const Software = () => {
             for Students (SUITS) challenge — and testing them at Johnson Space Center.
           </p>
         </div>
-      </div>
+      </main>
 
       {/* ===== THE CHALLENGE ===== */}
       <section id="suits-challenge">

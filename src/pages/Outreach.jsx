@@ -80,7 +80,7 @@ const Outreach = () => {
       <Navbar />
 
       {/* ===== SCROLL-SCRUBBED VIDEO HERO ===== */}
-      <div id="main-content" className="hero-scroll-extender" ref={heroRef}>
+      <main id="main-content" className="hero-scroll-extender" ref={heroRef}>
       <div style={{ height: '100vh', overflow: 'hidden', background: '#12121c' }}>
         <video
           ref={videoRef}
@@ -101,7 +101,7 @@ const Outreach = () => {
           </p>
         </div>
       </div>
-      </div>{/* /hero-scroll-extender */}
+      </main>{/* /hero-scroll-extender */}
 
       {/* ===== TABLING ===== */}
       <section id="outreach-tabling">
@@ -124,6 +124,7 @@ const Outreach = () => {
                 loop
                 muted
                 playsInline
+                preload="metadata"
                 style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
               />
             </div>
@@ -167,8 +168,8 @@ const Outreach = () => {
                         <div className="blog-desc"><p>All you Sci-Fi Nerds out there, Join us for a Dune 2 Pre-gaming with a Dune 1 watch Party!</p></div>
                         <div className="blog-author"><p>by Hrishikesh Viswanath</p></div>
                         <div className="blog-share-wrapper">
-                          <a className="blog-share" href="https://www.instagram.com/purdue_search/" target="_blank" rel="noopener noreferrer"><i className="fab fa-instagram" /></a>
-                          <a className="blog-share" href="https://twitter.com/purduesearch" target="_blank" rel="noopener noreferrer"><i className="fab fa-twitter-square" /></a>
+                          <a className="blog-share" aria-label="Purdue SEARCH on Instagram" href="https://www.instagram.com/purdue_search/" target="_blank" rel="noopener noreferrer"><i className="fab fa-instagram" /></a>
+                          <a className="blog-share" aria-label="Purdue SEARCH on Twitter" href="https://twitter.com/purduesearch" target="_blank" rel="noopener noreferrer"><i className="fab fa-twitter-square" /></a>
                         </div>
                       </div>
                     </div>
@@ -184,8 +185,8 @@ const Outreach = () => {
                         <div className="blog-desc"><p>Learn about the space research happening at SETI institute, how radio telescopes work. There may or may not be a live demo of operating the telescope remotely from Purdue!</p></div>
                         <div className="blog-author"><p>by Hrishikesh Viswanath</p></div>
                         <div className="blog-share-wrapper">
-                          <a className="blog-share" href="https://www.instagram.com/purdue_search/" target="_blank" rel="noopener noreferrer"><i className="fab fa-instagram" /></a>
-                          <a className="blog-share" href="https://twitter.com/purduesearch" target="_blank" rel="noopener noreferrer"><i className="fab fa-twitter-square" /></a>
+                          <a className="blog-share" aria-label="Purdue SEARCH on Instagram" href="https://www.instagram.com/purdue_search/" target="_blank" rel="noopener noreferrer"><i className="fab fa-instagram" /></a>
+                          <a className="blog-share" aria-label="Purdue SEARCH on Twitter" href="https://twitter.com/purduesearch" target="_blank" rel="noopener noreferrer"><i className="fab fa-twitter-square" /></a>
                         </div>
                       </div>
                     </div>
@@ -201,8 +202,8 @@ const Outreach = () => {
                         <div className="blog-desc"><p>Join us for a movie night on a cold January evening (Because too many people had exams in November)!</p></div>
                         <div className="blog-author"><p>by Hrishikesh Viswanath</p></div>
                         <div className="blog-share-wrapper">
-                          <a className="blog-share" href="https://www.instagram.com/purdue_search/" target="_blank" rel="noopener noreferrer"><i className="fab fa-instagram" /></a>
-                          <a className="blog-share" href="https://twitter.com/purduesearch" target="_blank" rel="noopener noreferrer"><i className="fab fa-twitter-square" /></a>
+                          <a className="blog-share" aria-label="Purdue SEARCH on Instagram" href="https://www.instagram.com/purdue_search/" target="_blank" rel="noopener noreferrer"><i className="fab fa-instagram" /></a>
+                          <a className="blog-share" aria-label="Purdue SEARCH on Twitter" href="https://twitter.com/purduesearch" target="_blank" rel="noopener noreferrer"><i className="fab fa-twitter-square" /></a>
                         </div>
                       </div>
                     </div>
@@ -223,8 +224,8 @@ const Outreach = () => {
                         <div className="blog-desc"><p>Join us for a movie night on a cold November evening!</p></div>
                         <div className="blog-author"><p>by Hrishikesh Viswanath</p></div>
                         <div className="blog-share-wrapper">
-                          <a className="blog-share" href="https://www.instagram.com/purdue_search/" target="_blank" rel="noopener noreferrer"><i className="fab fa-instagram" /></a>
-                          <a className="blog-share" href="https://twitter.com/purduesearch" target="_blank" rel="noopener noreferrer"><i className="fab fa-twitter-square" /></a>
+                          <a className="blog-share" aria-label="Purdue SEARCH on Instagram" href="https://www.instagram.com/purdue_search/" target="_blank" rel="noopener noreferrer"><i className="fab fa-instagram" /></a>
+                          <a className="blog-share" aria-label="Purdue SEARCH on Twitter" href="https://twitter.com/purduesearch" target="_blank" rel="noopener noreferrer"><i className="fab fa-twitter-square" /></a>
                         </div>
                       </div>
                     </div>
@@ -240,8 +241,8 @@ const Outreach = () => {
                         <div className="blog-desc"><p>Meet with Purdue Alumni Allison Bolinger and Ronak Dave and Learn what it means to be a NASA Flight Director</p></div>
                         <div className="blog-author"><p>by Hrishikesh Viswanath</p></div>
                         <div className="blog-share-wrapper">
-                          <a className="blog-share" href="https://www.instagram.com/purdue_search/" target="_blank" rel="noopener noreferrer"><i className="fab fa-instagram" /></a>
-                          <a className="blog-share" href="https://twitter.com/purduesearch" target="_blank" rel="noopener noreferrer"><i className="fab fa-twitter-square" /></a>
+                          <a className="blog-share" aria-label="Purdue SEARCH on Instagram" href="https://www.instagram.com/purdue_search/" target="_blank" rel="noopener noreferrer"><i className="fab fa-instagram" /></a>
+                          <a className="blog-share" aria-label="Purdue SEARCH on Twitter" href="https://twitter.com/purduesearch" target="_blank" rel="noopener noreferrer"><i className="fab fa-twitter-square" /></a>
                         </div>
                       </div>
                     </div>
@@ -257,8 +258,8 @@ const Outreach = () => {
                         <div className="blog-desc"><p>Come to Our bake sale for some delicious homemade banana bread and cookies.</p></div>
                         <div className="blog-author"><p>by Hrishikesh Viswanath</p></div>
                         <div className="blog-share-wrapper">
-                          <a className="blog-share" href="https://www.instagram.com/purdue_search/" target="_blank" rel="noopener noreferrer"><i className="fab fa-instagram" /></a>
-                          <a className="blog-share" href="https://twitter.com/purduesearch" target="_blank" rel="noopener noreferrer"><i className="fab fa-twitter-square" /></a>
+                          <a className="blog-share" aria-label="Purdue SEARCH on Instagram" href="https://www.instagram.com/purdue_search/" target="_blank" rel="noopener noreferrer"><i className="fab fa-instagram" /></a>
+                          <a className="blog-share" aria-label="Purdue SEARCH on Twitter" href="https://twitter.com/purduesearch" target="_blank" rel="noopener noreferrer"><i className="fab fa-twitter-square" /></a>
                         </div>
                       </div>
                     </div>
@@ -274,8 +275,8 @@ const Outreach = () => {
                         <div className="blog-desc"><p>Max is an aerospace engineer at Blue Origin. He will talk about the realistic future of our solar systems and the different plans for colonization, how the visions of SpaceX, Blue Origin and NASA differ</p></div>
                         <div className="blog-author"><p>by Hrishikesh Viswanath</p></div>
                         <div className="blog-share-wrapper">
-                          <a className="blog-share" href="https://www.instagram.com/purdue_search/" target="_blank" rel="noopener noreferrer"><i className="fab fa-instagram" /></a>
-                          <a className="blog-share" href="https://twitter.com/purduesearch" target="_blank" rel="noopener noreferrer"><i className="fab fa-twitter-square" /></a>
+                          <a className="blog-share" aria-label="Purdue SEARCH on Instagram" href="https://www.instagram.com/purdue_search/" target="_blank" rel="noopener noreferrer"><i className="fab fa-instagram" /></a>
+                          <a className="blog-share" aria-label="Purdue SEARCH on Twitter" href="https://twitter.com/purduesearch" target="_blank" rel="noopener noreferrer"><i className="fab fa-twitter-square" /></a>
                         </div>
                       </div>
                     </div>
@@ -291,8 +292,8 @@ const Outreach = () => {
                         <div className="blog-desc"><p>Piyush is a member of MOXIE/MARS 2020 Rover Science Team and has assisted with the design and build of NASA's 2020 MARS Perseverance Rover and contributed to first ever oxygen production on MARS</p></div>
                         <div className="blog-author"><p>by Hrishikesh Viswanath</p></div>
                         <div className="blog-share-wrapper">
-                          <a className="blog-share" href="https://www.instagram.com/purdue_search/" target="_blank" rel="noopener noreferrer"><i className="fab fa-instagram" /></a>
-                          <a className="blog-share" href="https://twitter.com/purduesearch" target="_blank" rel="noopener noreferrer"><i className="fab fa-twitter-square" /></a>
+                          <a className="blog-share" aria-label="Purdue SEARCH on Instagram" href="https://www.instagram.com/purdue_search/" target="_blank" rel="noopener noreferrer"><i className="fab fa-instagram" /></a>
+                          <a className="blog-share" aria-label="Purdue SEARCH on Twitter" href="https://twitter.com/purduesearch" target="_blank" rel="noopener noreferrer"><i className="fab fa-twitter-square" /></a>
                         </div>
                       </div>
                     </div>
@@ -308,8 +309,8 @@ const Outreach = () => {
                         <div className="blog-desc"><p>Get a general view of how composites are manufactured, in aeronautical and aerospace applications</p></div>
                         <div className="blog-author"><p>by Hrishikesh Viswanath</p></div>
                         <div className="blog-share-wrapper">
-                          <a className="blog-share" href="https://www.instagram.com/purdue_search/" target="_blank" rel="noopener noreferrer"><i className="fab fa-instagram" /></a>
-                          <a className="blog-share" href="https://twitter.com/purduesearch" target="_blank" rel="noopener noreferrer"><i className="fab fa-twitter-square" /></a>
+                          <a className="blog-share" aria-label="Purdue SEARCH on Instagram" href="https://www.instagram.com/purdue_search/" target="_blank" rel="noopener noreferrer"><i className="fab fa-instagram" /></a>
+                          <a className="blog-share" aria-label="Purdue SEARCH on Twitter" href="https://twitter.com/purduesearch" target="_blank" rel="noopener noreferrer"><i className="fab fa-twitter-square" /></a>
                         </div>
                       </div>
                     </div>
@@ -325,8 +326,8 @@ const Outreach = () => {
                         <div className="blog-desc"><p>Slava Turyshev is a Astrophysicist at the NASA Jet Propulsion Laboratory and an expert in high precision Spacecraft navigation, solar system dynamics and astrometry.</p></div>
                         <div className="blog-author"><p>by Hrishikesh Viswanath</p></div>
                         <div className="blog-share-wrapper">
-                          <a className="blog-share" href="https://www.instagram.com/purdue_search/" target="_blank" rel="noopener noreferrer"><i className="fab fa-instagram" /></a>
-                          <a className="blog-share" href="https://twitter.com/purduesearch" target="_blank" rel="noopener noreferrer"><i className="fab fa-twitter-square" /></a>
+                          <a className="blog-share" aria-label="Purdue SEARCH on Instagram" href="https://www.instagram.com/purdue_search/" target="_blank" rel="noopener noreferrer"><i className="fab fa-instagram" /></a>
+                          <a className="blog-share" aria-label="Purdue SEARCH on Twitter" href="https://twitter.com/purduesearch" target="_blank" rel="noopener noreferrer"><i className="fab fa-twitter-square" /></a>
                         </div>
                       </div>
                     </div>
@@ -342,8 +343,8 @@ const Outreach = () => {
                         <div className="blog-desc"><p>Sirisha Bandla is a Purdue Alum and the second Indian born woman Astronaut. She is the vice president of Government Affairs and Research Operations for Virgin Galactic.</p></div>
                         <div className="blog-author"><p>by Hrishikesh Viswanath</p></div>
                         <div className="blog-share-wrapper">
-                          <a className="blog-share" href="https://www.instagram.com/purdue_search/" target="_blank" rel="noopener noreferrer"><i className="fab fa-instagram" /></a>
-                          <a className="blog-share" href="https://twitter.com/purduesearch" target="_blank" rel="noopener noreferrer"><i className="fab fa-twitter-square" /></a>
+                          <a className="blog-share" aria-label="Purdue SEARCH on Instagram" href="https://www.instagram.com/purdue_search/" target="_blank" rel="noopener noreferrer"><i className="fab fa-instagram" /></a>
+                          <a className="blog-share" aria-label="Purdue SEARCH on Twitter" href="https://twitter.com/purduesearch" target="_blank" rel="noopener noreferrer"><i className="fab fa-twitter-square" /></a>
                         </div>
                       </div>
                     </div>
@@ -359,8 +360,8 @@ const Outreach = () => {
                         <div className="blog-desc"><p>Join us for an Interstellar Watch Party!</p></div>
                         <div className="blog-author"><p>by Hrishikesh Viswanath</p></div>
                         <div className="blog-share-wrapper">
-                          <a className="blog-share" href="https://www.instagram.com/purdue_search/" target="_blank" rel="noopener noreferrer"><i className="fab fa-instagram" /></a>
-                          <a className="blog-share" href="https://twitter.com/purduesearch" target="_blank" rel="noopener noreferrer"><i className="fab fa-twitter-square" /></a>
+                          <a className="blog-share" aria-label="Purdue SEARCH on Instagram" href="https://www.instagram.com/purdue_search/" target="_blank" rel="noopener noreferrer"><i className="fab fa-instagram" /></a>
+                          <a className="blog-share" aria-label="Purdue SEARCH on Twitter" href="https://twitter.com/purduesearch" target="_blank" rel="noopener noreferrer"><i className="fab fa-twitter-square" /></a>
                         </div>
                       </div>
                     </div>
@@ -381,8 +382,8 @@ const Outreach = () => {
                         <div className="blog-desc"><p>Mr. Moses is the President of Space Missions and Safety for Virgin Galactic. This is a member only Event</p></div>
                         <div className="blog-author"><p>by Hrishikesh Viswanath</p></div>
                         <div className="blog-share-wrapper">
-                          <a className="blog-share" href="https://www.instagram.com/purdue_search/" target="_blank" rel="noopener noreferrer"><i className="fab fa-instagram" /></a>
-                          <a className="blog-share" href="https://twitter.com/purduesearch" target="_blank" rel="noopener noreferrer"><i className="fab fa-twitter-square" /></a>
+                          <a className="blog-share" aria-label="Purdue SEARCH on Instagram" href="https://www.instagram.com/purdue_search/" target="_blank" rel="noopener noreferrer"><i className="fab fa-instagram" /></a>
+                          <a className="blog-share" aria-label="Purdue SEARCH on Twitter" href="https://twitter.com/purduesearch" target="_blank" rel="noopener noreferrer"><i className="fab fa-twitter-square" /></a>
                         </div>
                       </div>
                     </div>
@@ -398,8 +399,8 @@ const Outreach = () => {
                         <div className="blog-desc"><p>Dr. Greenhouse is a JWST Integrated Science Instrument Module Project Scientist at NASA Goddard Space Flight Center</p></div>
                         <div className="blog-author"><p>by Hrishikesh Viswanath</p></div>
                         <div className="blog-share-wrapper">
-                          <a className="blog-share" href="https://www.instagram.com/purdue_search/" target="_blank" rel="noopener noreferrer"><i className="fab fa-instagram" /></a>
-                          <a className="blog-share" href="https://twitter.com/purduesearch" target="_blank" rel="noopener noreferrer"><i className="fab fa-twitter-square" /></a>
+                          <a className="blog-share" aria-label="Purdue SEARCH on Instagram" href="https://www.instagram.com/purdue_search/" target="_blank" rel="noopener noreferrer"><i className="fab fa-instagram" /></a>
+                          <a className="blog-share" aria-label="Purdue SEARCH on Twitter" href="https://twitter.com/purduesearch" target="_blank" rel="noopener noreferrer"><i className="fab fa-twitter-square" /></a>
                         </div>
                       </div>
                     </div>
@@ -415,8 +416,8 @@ const Outreach = () => {
                         <div className="blog-desc"><p>Dr. Hasan is a JWST Deputy Program Scientist and Education &amp; Public Outreach Lead for Astrophysics at NASA</p></div>
                         <div className="blog-author"><p>by Hrishikesh Viswanath</p></div>
                         <div className="blog-share-wrapper">
-                          <a className="blog-share" href="https://www.instagram.com/purdue_search/" target="_blank" rel="noopener noreferrer"><i className="fab fa-instagram" /></a>
-                          <a className="blog-share" href="https://twitter.com/purduesearch" target="_blank" rel="noopener noreferrer"><i className="fab fa-twitter-square" /></a>
+                          <a className="blog-share" aria-label="Purdue SEARCH on Instagram" href="https://www.instagram.com/purdue_search/" target="_blank" rel="noopener noreferrer"><i className="fab fa-instagram" /></a>
+                          <a className="blog-share" aria-label="Purdue SEARCH on Twitter" href="https://twitter.com/purduesearch" target="_blank" rel="noopener noreferrer"><i className="fab fa-twitter-square" /></a>
                         </div>
                       </div>
                     </div>

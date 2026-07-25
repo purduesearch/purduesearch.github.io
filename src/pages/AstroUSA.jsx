@@ -4,8 +4,21 @@ import { Player } from '@lottiefiles/react-lottie-player';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import SEOHead from '../components/SEOHead';
+import SectionProgressRail from '../components/SectionProgressRail';
 
 const AstroFlowDiagram = lazy(() => import('../components/AstroFlowDiagram'));
+
+const ASTRO_RAIL_SECTIONS = [
+  { id: 'astro-mission',     label: 'Mission' },
+  { id: 'astro-fidelity',    label: 'Fidelity' },
+  { id: 'astro-crew',        label: 'Crew Ops' },
+  { id: 'astro-lifesupport', label: 'Life Support' },
+  { id: 'astro-structures',  label: 'Structures' },
+  { id: 'astro-power',       label: 'Power' },
+  { id: 'astro-loop',        label: 'Closed Loop' },
+  { id: 'astro-bio',         label: 'Bio-Systems' },
+  { id: 'astro-timeline',    label: 'Timeline' },
+];
 
 const AstroUSA = () => {
   const fidelityRef = useRef(null);
@@ -173,9 +186,10 @@ const AstroUSA = () => {
         canonical="/astrousa"
       />
       <Navbar />
+      <SectionProgressRail sections={ASTRO_RAIL_SECTIONS} />
 
       {/* ===== HERO ===== */}
-      <div
+      <main
         id="main-content"
         className="jumbotron jumbotron-single d-flex align-items-center"
         style={{ backgroundImage: 'url(/astrousa/Group_Photo_ASTRO.webp)' }}
@@ -187,7 +201,7 @@ const AstroUSA = () => {
             a fully closed-loop habitat analog being built on Purdue's campus.
           </p>
         </div>
-      </div>
+      </main>
 
       {/* ===== SECTION 0: MISSION INTRO ===== */}
       <section id="astro-mission">
@@ -761,6 +775,7 @@ const AstroUSA = () => {
           loop
           muted
           playsInline
+          preload="metadata"
         />
         <div className="section-video-overlay" style={{ background: 'linear-gradient(to right, rgba(18,18,28,0.78), rgba(18,18,28,0.45))' }} />
         <div className="section-video-content container" style={{ padding: '6rem 0' }}>
@@ -808,8 +823,8 @@ const AstroUSA = () => {
                         <div className="blog-desc"><p>Learn more about the background, goals, and designs of the ASTRO-USA habitat!</p></div>
                         <div className="blog-author"><p>by Ilina Adhikari, Brasen Garcia, Ryan DeAngelis, Nathanael Herman</p></div>
                         <div className="blog-share-wrapper">
-                          <a className="blog-share" href="https://www.instagram.com/purdue_search/" target="_blank" rel="noopener noreferrer"><i className="fab fa-instagram" /></a>
-                          <a className="blog-share" href="https://twitter.com/purduesearch" target="_blank" rel="noopener noreferrer"><i className="fab fa-twitter-square" /></a>
+                          <a className="blog-share" aria-label="Purdue SEARCH on Instagram" href="https://www.instagram.com/purdue_search/" target="_blank" rel="noopener noreferrer"><i className="fab fa-instagram" /></a>
+                          <a className="blog-share" aria-label="Purdue SEARCH on Twitter" href="https://twitter.com/purduesearch" target="_blank" rel="noopener noreferrer"><i className="fab fa-twitter-square" /></a>
                         </div>
                       </div>
                     </div>
@@ -827,8 +842,8 @@ const AstroUSA = () => {
                         <div className="blog-desc"><p>An in depth look on the design process for the ASTRO-USA habitat</p></div>
                         <div className="blog-author"><p>by Ilina Adhikari, Brasen Garcia, Ryan DeAngelis</p></div>
                         <div className="blog-share-wrapper">
-                          <a className="blog-share" href="https://www.instagram.com/purdue_search/" target="_blank" rel="noopener noreferrer"><i className="fab fa-instagram" /></a>
-                          <a className="blog-share" href="https://twitter.com/purduesearch" target="_blank" rel="noopener noreferrer"><i className="fab fa-twitter-square" /></a>
+                          <a className="blog-share" aria-label="Purdue SEARCH on Instagram" href="https://www.instagram.com/purdue_search/" target="_blank" rel="noopener noreferrer"><i className="fab fa-instagram" /></a>
+                          <a className="blog-share" aria-label="Purdue SEARCH on Twitter" href="https://twitter.com/purduesearch" target="_blank" rel="noopener noreferrer"><i className="fab fa-twitter-square" /></a>
                         </div>
                       </div>
                     </div>
@@ -846,8 +861,8 @@ const AstroUSA = () => {
                         <div className="blog-desc"><p>A team of students developing an autonomous hydroponic system at Purdue's Greenhouse for implementation in ASTRO-USA!</p></div>
                         <div className="blog-author"><p>by Ilina Adhikari</p></div>
                         <div className="blog-share-wrapper">
-                          <a className="blog-share" href="https://www.instagram.com/purdue_search/" target="_blank" rel="noopener noreferrer"><i className="fab fa-instagram" /></a>
-                          <a className="blog-share" href="https://twitter.com/purduesearch" target="_blank" rel="noopener noreferrer"><i className="fab fa-twitter-square" /></a>
+                          <a className="blog-share" aria-label="Purdue SEARCH on Instagram" href="https://www.instagram.com/purdue_search/" target="_blank" rel="noopener noreferrer"><i className="fab fa-instagram" /></a>
+                          <a className="blog-share" aria-label="Purdue SEARCH on Twitter" href="https://twitter.com/purduesearch" target="_blank" rel="noopener noreferrer"><i className="fab fa-twitter-square" /></a>
                         </div>
                       </div>
                     </div>

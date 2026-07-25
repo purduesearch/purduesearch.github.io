@@ -4,26 +4,12 @@ import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
 import Breadcrumb from '../../components/Breadcrumb';
 import SEOHead from '../../components/SEOHead';
+import JsonLd from '../../components/JsonLd';
+import { breadcrumbs } from '../../seo/schema';
 
 const AstroArchitecture = () => {
   useEffect(() => {
     if (window.AOS) window.AOS.init({ once: true });
-  }, []);
-
-  useEffect(() => {
-    const script = document.createElement('script');
-    script.type = 'application/ld+json';
-    script.text = JSON.stringify({
-      '@context': 'https://schema.org',
-      '@type': 'BreadcrumbList',
-      'itemListElement': [
-        { '@type': 'ListItem', 'position': 1, 'name': 'Home', 'item': 'https://purduesearch.github.io/' },
-        { '@type': 'ListItem', 'position': 2, 'name': 'ASTRO-USA', 'item': 'https://purduesearch.github.io/astrousa' },
-        { '@type': 'ListItem', 'position': 3, 'name': 'Architecture Design' },
-      ],
-    });
-    document.head.appendChild(script);
-    return () => { if (document.head.contains(script)) document.head.removeChild(script); };
   }, []);
 
   return (
@@ -33,13 +19,18 @@ const AstroArchitecture = () => {
         description="Design evolution of the ASTRO-USA habitat — from shipping container concepts to circular modular architecture, driven by mission constraints and crew ergonomics."
         canonical="/astrousa/architecture"
       />
+      <JsonLd data={breadcrumbs([
+        { name: 'Home', path: '/' },
+        { name: 'ASTRO-USA', path: '/astrousa' },
+        { name: 'Architecture Designs', path: '/astrousa/architecture' },
+      ])} />
       <Navbar />
       <Breadcrumb />
-      <div id="main-content" className="jumbotron-post jumbotron-single d-flex align-items-center" style={{ backgroundImage: 'url(/software/2023_24/SUITS/bg.webp)' }}>
+      <main id="main-content" className="jumbotron-post jumbotron-single d-flex align-items-center" style={{ backgroundImage: 'url(/software/2023_24/SUITS/bg.webp)' }}>
         <div className="container text-center" style={{ top: 30 }}>
           <h1 className="display-2 mb-4">Architecture Designs</h1>
         </div>
-      </div>
+      </main>
 
       <section style={{ top: 25 }}>
         <div className="shadow container" style={{ maxWidth: '83%', marginLeft: '8%', marginRight: '8%', paddingRight: 8, paddingTop: 8, marginBottom: '8%', paddingBottom: 8 }}>

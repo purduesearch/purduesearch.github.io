@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, useScroll, useTransform } from 'framer-motion';
 import { gsap } from 'gsap';
@@ -6,6 +6,12 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import SEOHead from '../components/SEOHead';
+import JsonLd from '../components/JsonLd';
+import { websiteSchema } from '../seo/schema';
+import { pressFeedback } from '../anim/motion';
+import { parallaxLayer, staggerGroup, heroIntro } from '../anim/scrollFx';
+
+const StarfieldCanvas = lazy(() => import('../components/StarfieldCanvas'));
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -152,8 +158,30 @@ const Home = () => {
   const videoRef   = useRef(null);
   const heroRef    = useRef(null);
   const statsRef   = useRef(null);
+  const heroCtaPrimaryRef   = useRef(null);
+  const heroCtaSecondaryRef = useRef(null);
+  const heroContentRef = useRef(null);
+  const clientBgRef = useRef(null);
+  const programsBgRef = useRef(null);
+  const missionPillarsRef = useRef(null);
+  const igGridRef = useRef(null);
+  const missionPillarsSectionRef = useRef(null);
+  const aboutSearchSectionRef = useRef(null);
+  const [showStars, setShowStars] = useState(false);
+  const [showDroneVideo, setShowDroneVideo] = useState(false);
   const [activeIdx, setActiveIdx] = useState(0);
   const [progIdx, setProgIdx] = useState(0);
+  const [carouselPaused, setCarouselPaused] = useState(false);
+  const testimonialStageRef = useRef(null);
+
+  // Tactile press feedback on the hero CTAs
+  useEffect(() => {
+    const cleanups = [
+      pressFeedback(heroCtaPrimaryRef.current),
+      pressFeedback(heroCtaSecondaryRef.current),
+    ];
+    return () => cleanups.forEach(fn => fn());
+  }, []);
 
   // Framer Motion scroll-driven wordmark fade
   const { scrollY } = useScroll();
@@ -259,13 +287,90 @@ const Home = () => {
     });
   }, []);
 
-  // Testimonial auto-advance
+  // GSAP scroll-effect utilities: hero intro, bg-fixed → parallax replacement,
+  // mission pillar / instagram grid stagger reveal
   useEffect(() => {
+    const cleanups = [
+      // Exclude .hero-wordmark: it already has its own Framer Motion
+      // scrollY-driven opacity/scale (useTransform above) — animating it
+      // with GSAP too would fight over the same inline `style.opacity`.
+      heroIntro(heroContentRef.current, ':scope > *:not(.hero-wordmark)'),
+      parallaxLayer(clientBgRef.current),
+      parallaxLayer(programsBgRef.current),
+      staggerGroup(missionPillarsRef.current, '.col-md-4'),
+      staggerGroup(igGridRef.current, '.ig-card'),
+    ];
+    return () => cleanups.forEach(fn => fn());
+  }, []);
+
+  // Mount the lazy WebGL starfield only once mission-pillars nears the
+  // viewport, so three.js is fetched just-in-time and never blocks the
+  // initial bundle. Fires once, then disconnects.
+  useEffect(() => {
+    const section = missionPillarsSectionRef.current;
+    if (!section) return;
+
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          setShowStars(true);
+          io.disconnect();
+        }
+      },
+      { rootMargin: '400px' }
+    );
+    io.observe(section);
+
+    return () => io.disconnect();
+  }, []);
+
+  // Mount the below-fold drone-tour video only once the About Search
+  // section approaches the viewport, so the 13 MB file isn't fetched
+  // on initial page load. Fires once, then disconnects.
+  useEffect(() => {
+    const section = aboutSearchSectionRef.current;
+    if (!section) return;
+
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          setShowDroneVideo(true);
+          io.disconnect();
+        }
+      },
+      { rootMargin: '300px' }
+    );
+    io.observe(section);
+
+    return () => io.disconnect();
+  }, []);
+
+  // Testimonial auto-advance — paused on hover or keyboard focus within the stage
+  useEffect(() => {
+    if (carouselPaused) return;
     const id = setInterval(
       () => setActiveIdx(prev => (prev + 1) % TESTIMONIALS.length),
       5000
     );
     return () => clearInterval(id);
+  }, [carouselPaused]);
+
+  // Pause/resume handlers for the testimonial carousel (hover + focus-within)
+  useEffect(() => {
+    const el = testimonialStageRef.current;
+    if (!el) return;
+    const pause = () => setCarouselPaused(true);
+    const resume = () => setCarouselPaused(false);
+    el.addEventListener('pointerenter', pause);
+    el.addEventListener('pointerleave', resume);
+    el.addEventListener('focusin', pause);
+    el.addEventListener('focusout', resume);
+    return () => {
+      el.removeEventListener('pointerenter', pause);
+      el.removeEventListener('pointerleave', resume);
+      el.removeEventListener('focusin', pause);
+      el.removeEventListener('focusout', resume);
+    };
   }, []);
 
   // Programs quote auto-advance
@@ -279,46 +384,24 @@ const Home = () => {
     if (window.AOS) window.AOS.init({ once: true });
   }, []);
 
-  // WebSite + SiteNavigationElement structured data
-  useEffect(() => {
-    const script = document.createElement('script');
-    script.type = 'application/ld+json';
-    script.text = JSON.stringify([
-      {
-        '@context': 'https://schema.org',
-        '@type': 'WebSite',
-        'url': 'https://purduesearch.github.io/',
-        'name': 'Purdue SEARCH',
-        'potentialAction': {
-          '@type': 'SearchAction',
-          'target': {
-            '@type': 'EntryPoint',
-            'urlTemplate': 'https://purduesearch.github.io/search?q={search_term_string}',
-          },
-          'query-input': 'required name=search_term_string',
-        },
-      },
-      {
-        '@context': 'https://schema.org',
-        '@type': 'ItemList',
-        'name': 'Site Navigation',
-        'itemListElement': [
-          { '@type': 'SiteLinksSearchBox', 'url': 'https://purduesearch.github.io/' },
-          { '@type': 'ListItem', 'position': 1, 'name': 'About', 'url': 'https://purduesearch.github.io/about' },
-          { '@type': 'ListItem', 'position': 2, 'name': 'Research', 'url': 'https://purduesearch.github.io/research' },
-          { '@type': 'ListItem', 'position': 3, 'name': 'SA²TP', 'url': 'https://purduesearch.github.io/sa2tp' },
-          { '@type': 'ListItem', 'position': 4, 'name': 'ASTRO-USA', 'url': 'https://purduesearch.github.io/astrousa' },
-          { '@type': 'ListItem', 'position': 5, 'name': 'Software', 'url': 'https://purduesearch.github.io/software' },
-          { '@type': 'ListItem', 'position': 6, 'name': 'Business & Operations', 'url': 'https://purduesearch.github.io/business' },
-          { '@type': 'ListItem', 'position': 7, 'name': 'Outreach', 'url': 'https://purduesearch.github.io/outreach' },
-          { '@type': 'ListItem', 'position': 8, 'name': 'Blog', 'url': 'https://purduesearch.github.io/blog' },
-          { '@type': 'ListItem', 'position': 9, 'name': 'Contact', 'url': 'https://purduesearch.github.io/contact' },
-        ],
-      },
-    ]);
-    document.head.appendChild(script);
-    return () => { document.head.removeChild(script); };
-  }, []);
+  // Site Navigation structured data (ItemList — kept alongside websiteSchema())
+  const siteNavigationSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'ItemList',
+    'name': 'Site Navigation',
+    'itemListElement': [
+      { '@type': 'SiteLinksSearchBox', 'url': 'https://purduesearch.github.io/' },
+      { '@type': 'ListItem', 'position': 1, 'name': 'About', 'url': 'https://purduesearch.github.io/about' },
+      { '@type': 'ListItem', 'position': 2, 'name': 'Research', 'url': 'https://purduesearch.github.io/research' },
+      { '@type': 'ListItem', 'position': 3, 'name': 'SA²TP', 'url': 'https://purduesearch.github.io/sa2tp' },
+      { '@type': 'ListItem', 'position': 4, 'name': 'ASTRO-USA', 'url': 'https://purduesearch.github.io/astrousa' },
+      { '@type': 'ListItem', 'position': 5, 'name': 'Software', 'url': 'https://purduesearch.github.io/software' },
+      { '@type': 'ListItem', 'position': 6, 'name': 'Business & Operations', 'url': 'https://purduesearch.github.io/business' },
+      { '@type': 'ListItem', 'position': 7, 'name': 'Outreach', 'url': 'https://purduesearch.github.io/outreach' },
+      { '@type': 'ListItem', 'position': 8, 'name': 'Blog', 'url': 'https://purduesearch.github.io/blog' },
+      { '@type': 'ListItem', 'position': 9, 'name': 'Contact', 'url': 'https://purduesearch.github.io/contact' },
+    ],
+  };
 
   return (
     <div>
@@ -328,10 +411,12 @@ const Home = () => {
         canonical="/"
         fullTitle
       />
+      <JsonLd data={websiteSchema()} />
+      <JsonLd data={siteNavigationSchema} />
       <Navbar />
 
       {/* ===== HERO ===== */}
-      <div id="main-content" className="hero-scroll-extender" ref={heroRef}>
+      <main id="main-content" className="hero-scroll-extender" ref={heroRef}>
       <div className="jumbotron d-flex align-items-center" style={{ backgroundImage: 'none', height: '100vh', overflow: 'hidden' }}>
         <video
           ref={videoRef}
@@ -342,7 +427,7 @@ const Home = () => {
           preload="auto"
           poster="/home.webp"
         />
-        <div className="container text-center">
+        <div className="container text-center" ref={heroContentRef}>
           <motion.div className="hero-wordmark" style={{ opacity: wordmarkOpacity, scale: wordmarkScale }}>SEARCH</motion.div>
           <h1 className="display-3 mb-3" style={{ color: '#fff' }}>
             Space and Earth Analogs Research<br />Chapter of Purdue
@@ -351,10 +436,10 @@ const Home = () => {
             Student-led human spaceflight research, training, and outreach — right here on Earth.
           </p>
           <div className="d-flex justify-content-center" style={{ gap: '1rem', flexWrap: 'wrap' }}>
-            <Link to="/about" className="btn-slide-white" style={{ padding: '0.65rem 2rem', fontFamily: 'var(--font-body)', fontWeight: 500 }}>
+            <Link ref={heroCtaPrimaryRef} to="/about" className="btn-slide-white" style={{ padding: '0.65rem 2rem', fontFamily: 'var(--font-body)', fontWeight: 500 }}>
               <span>Meet the Team</span>
             </Link>
-            <Link to="/contact" className="btn-slide-fill" style={{ padding: '0.65rem 2rem', fontFamily: 'var(--font-body)', fontWeight: 500 }}>
+            <Link ref={heroCtaSecondaryRef} to="/contact" className="btn-slide-fill" style={{ padding: '0.65rem 2rem', fontFamily: 'var(--font-body)', fontWeight: 500 }}>
               <span>Contact Us</span>
             </Link>
           </div>
@@ -363,9 +448,10 @@ const Home = () => {
           </div>
         </div>
       </div>
-      </div>{/* /hero-scroll-extender */}
+      </main>{/* /hero-scroll-extender */}
 
-      <section id="client" className="overlay bg-fixed" style={{ backgroundImage: 'url(/bg.jpg)' }} aria-label="Outreach partners">
+      <section id="client" className="overlay parallax-host" aria-label="Outreach partners">
+        <div className="parallax-bg" ref={clientBgRef} style={{ backgroundImage: 'url(/bg.jpg)' }} aria-hidden="true" />
         <div className="container">
           <div className="title-wrap mb-5 text-center">
             <h2 style={{ color: '#fff' }}>Our Collaborations</h2>
@@ -388,7 +474,13 @@ const Home = () => {
       </section>
 
       {/* ===== TESTIMONIAL CAROUSEL ===== */}
-      <section id="testimonial-carousel">
+      <section
+        id="testimonial-carousel"
+        ref={testimonialStageRef}
+        role="region"
+        aria-roledescription="carousel"
+        aria-label="Testimonials"
+      >
         <div className="container">
           <div className="title-wrap text-center mb-2" data-aos="fade-up">
             <h2 className="section-title">Voices from <b>Our Team</b></h2>
@@ -424,21 +516,26 @@ const Home = () => {
       </section>
 
       {/* ===== MISSION PILLARS — dark background, 3-column icon cards ===== */}
-      <section id="mission-pillars">
-        <div className="container">
+      <section id="mission-pillars" className="mission-pillars-stars-host" ref={missionPillarsSectionRef}>
+        {showStars && (
+          <Suspense fallback={null}>
+            <StarfieldCanvas />
+          </Suspense>
+        )}
+        <div className="container mission-pillars-content">
           <div className="title-wrap mb-5 text-center" data-aos="fade-up">
             <h2 className="section-title">Our <b>Mission</b></h2>
             <p style={{ color: 'rgba(245,239,230,0.65)', maxWidth: '560px', margin: '0 auto' }}>
               SEARCH advances human spaceflight readiness through three interconnected pillars.
             </p>
           </div>
-          <div className="row justify-content-center">
+          <div className="row justify-content-center" ref={missionPillarsRef}>
             {[
               { icon: '/icons/rocket-solid.svg', title: 'Research', body: 'Student-led research in bio-astronautics and hydroponics. Competing in NASA challenges such as RASC-AL and SUITS.', delay: '0' },
               { icon: '/icons/user-astronaut-solid.svg', title: 'Training', body: 'Running the Student Analog Astronaut Training Program — three weeks of fitness, flight, scuba, and NASA facility visits.', delay: '100' },
               { icon: '/icons/shuttle-space-solid.svg', title: 'Outreach', body: '3+ events per semester with speakers from NASA, SpaceX, SETI, and Blue Origin.', delay: '200' },
-            ].map(({ icon, title, body, delay }) => (
-              <div key={title} className="col-md-4 col-sm-12" data-aos="fade-up" data-aos-delay={delay}>
+            ].map(({ icon, title, body }) => (
+              <div key={title} className="col-md-4 col-sm-12">
                 <TiltCard className="pillar-card">
                   <div className="pillar-icon-wrap">
                     <img loading="lazy" src={icon} alt={title} />
@@ -528,8 +625,10 @@ const Home = () => {
       </section>
 
       {/* ===== ABOUT SEARCH — 2-column brand story ===== */}
-      <section id="about-search" className="about-video-section">
-        <video className="about-video-bg" src="/videos/drone_tour_purdue.webm" autoPlay loop muted playsInline />
+      <section id="about-search" className="about-video-section" ref={aboutSearchSectionRef}>
+        {showDroneVideo && (
+          <video className="about-video-bg" src="/videos/drone_tour_purdue.webm" autoPlay loop muted playsInline preload="metadata" />
+        )}
         <div className="container">
           <div className="row align-items-center">
             <div className="col-md-6 about-text-col" data-aos="fade-right">
@@ -573,7 +672,8 @@ const Home = () => {
         </div>
       </section>
 
-      <section id="programs-showcase" className="section-padding bg-fixed bg-white overlay" style={{ backgroundImage: 'url(/bg-white.jpg)' }}>
+      <section id="programs-showcase" className="section-padding bg-white overlay parallax-host">
+        <div className="parallax-bg" ref={programsBgRef} style={{ backgroundImage: 'url(/bg-white.jpg)' }} aria-hidden="true" />
         <div className="container">
           <div className="section-content" data-aos="fade-up">
             <div className="heading-section text-center">
@@ -619,7 +719,7 @@ const Home = () => {
               Follow Us
             </a>
           </div>
-          <div className="ig-grid" data-aos="fade-up">
+          <div className="ig-grid" ref={igGridRef}>
             {IG_POSTS.map((post, i) => (
               <a
                 key={i}

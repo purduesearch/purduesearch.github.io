@@ -3,6 +3,8 @@ import { useParams, Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import SEOHead from '../components/SEOHead';
+import JsonLd from '../components/JsonLd';
+import { articleSchema } from '../seo/schema';
 import { initBlogCarousels } from '../lib/blogCarousel';
 
 // AOS is loaded globally; re-init so scroll-reveal works on direct navigation.
@@ -79,10 +81,18 @@ export default function BlogPost() {
         canonical={`/blog/${slug}`}
         ogImage={post.ogImageUrl || post.coverImageUrl || undefined}
       />
+      <JsonLd data={articleSchema({
+        title: post.title,
+        description: post.metaDescription || post.excerpt || '',
+        datePublished: post.publishedAt || post.createdAt || undefined,
+        author: authorName,
+        url: `https://purduesearch.github.io/blog/${slug}`,
+        image: post.ogImageUrl || post.coverImageUrl || undefined,
+      })} />
       <Navbar />
 
       {/* Hero banner */}
-      <div
+      <main
         id="main-content"
         className="jumbotron jumbotron-single d-flex align-items-center"
         style={{ backgroundImage: `url(${post.coverImageUrl ?? '/Purdue_Sky.webp'})` }}
@@ -102,7 +112,7 @@ export default function BlogPost() {
             {post.readingTimeMin && <span>{post.readingTimeMin} min read</span>}
           </p>
         </div>
-      </div>
+      </main>
 
       <section className="bg-white">
         <div className="pm-blog-article">

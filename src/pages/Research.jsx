@@ -1,11 +1,13 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, lazy, Suspense } from 'react';
 import { Link } from 'react-router-dom';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
-import STLViewer from '../components/STLViewer';
 import SEOHead from '../components/SEOHead';
+import { countUpOnView } from '../anim/motion';
+
+const STLViewer = lazy(() => import('../components/STLViewer'));
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -201,6 +203,7 @@ const REFERENCES = [
 
 const Research = () => {
   const rootRailRef = useRef(null);
+  const overviewStatsRef = useRef(null);
 
   useEffect(() => {
     if (window.AOS) window.AOS.init({ once: true });
@@ -248,6 +251,18 @@ const Research = () => {
     };
   }, []);
 
+  // Count-up on project overview stats (anime.js, scroll-triggered)
+  useEffect(() => {
+    const container = overviewStatsRef.current;
+    if (!container) return;
+
+    const targets = container.querySelectorAll('[data-count]');
+    const cleanups = Array.from(targets).map(el =>
+      countUpOnView(el, parseFloat(el.dataset.count), { suffix: el.dataset.suffix || '' })
+    );
+    return () => cleanups.forEach(fn => fn());
+  }, []);
+
   return (
     <div>
       <SEOHead
@@ -258,7 +273,7 @@ const Research = () => {
       <Navbar />
 
       {/* ===== HERO ===== */}
-      <div
+      <main
         id="main-content"
         className="jumbotron jumbotron-single d-flex align-items-center"
         style={{ backgroundImage: 'url(/research/Research_Hero.webp)' }}
@@ -271,7 +286,7 @@ const Research = () => {
             uses minimal resources.
           </p>
         </div>
-      </div>
+      </main>
 
       {/* ===== MISSION BACKGROUND ===== */}
       <section id="mg-background" style={{ background: 'var(--color-bg-dark)', padding: '5rem 0' }}>
@@ -352,21 +367,21 @@ const Research = () => {
               benefit to astronauts during multi-year missions.
             </p>
           </div>
-          <div className="mg-stat-row" data-aos="fade-up" data-aos-delay="100">
+          <div className="mg-stat-row" data-aos="fade-up" data-aos-delay="100" ref={overviewStatsRef}>
             <div className="mg-stat-card">
-              <div className="mg-stat-num">3</div>
+              <div className="mg-stat-num" data-count="3">3</div>
               <div className="mg-stat-label">Sub-Groups</div>
             </div>
             <div className="mg-stat-card">
-              <div className="mg-stat-num">17</div>
+              <div className="mg-stat-num" data-count="17">17</div>
               <div className="mg-stat-label">Deliverables</div>
             </div>
             <div className="mg-stat-card">
-              <div className="mg-stat-num">5</div>
+              <div className="mg-stat-num" data-count="5">5</div>
               <div className="mg-stat-label">Project Phases</div>
             </div>
             <div className="mg-stat-card">
-              <div className="mg-stat-num">3+</div>
+              <div className="mg-stat-num" data-count="3" data-suffix="+">3+</div>
               <div className="mg-stat-label">Cross-Team Milestones</div>
             </div>
           </div>
@@ -528,7 +543,9 @@ const Research = () => {
           </div>
 
           <div className="stl-viewer-container" data-aos="fade-up" data-aos-delay="80">
-            <STLViewer url="/models/chamberAssembly.stl" height={520} color="#c8d4dc" />
+            <Suspense fallback={<div className="stl-viewer-loading" style={{ height: 520 }} aria-busy="true" />}>
+              <STLViewer url="/models/chamberAssembly.stl" height={520} color="#c8d4dc" />
+            </Suspense>
           </div>
 
           <div className="stl-hint-row" data-aos="fade-up" data-aos-delay="160">
@@ -739,8 +756,8 @@ const Research = () => {
                         <div className="blog-desc"><p>RASC-AL is NASA's design challenge for university students. SEARCH has competed multiple times in this prestigious national competition.</p></div>
                         <div className="blog-author"><p>by Hrishikesh Viswanath</p></div>
                         <div className="blog-share-wrapper">
-                          <a className="blog-share" href="https://www.instagram.com/purdue_search/" target="_blank" rel="noopener noreferrer"><i className="fab fa-instagram" /></a>
-                          <a className="blog-share" href="https://twitter.com/purduesearch" target="_blank" rel="noopener noreferrer"><i className="fab fa-twitter-square" /></a>
+                          <a className="blog-share" aria-label="Purdue SEARCH on Instagram" href="https://www.instagram.com/purdue_search/" target="_blank" rel="noopener noreferrer"><i className="fab fa-instagram" /></a>
+                          <a className="blog-share" aria-label="Purdue SEARCH on Twitter" href="https://twitter.com/purduesearch" target="_blank" rel="noopener noreferrer"><i className="fab fa-twitter-square" /></a>
                         </div>
                       </div>
                     </div>
@@ -766,8 +783,8 @@ const Research = () => {
                         <div className="blog-desc"><p>RASC-AL is NASA's design challenge for university students. SEARCH has competed multiple times in this prestigious national competition.</p></div>
                         <div className="blog-author"><p>by Hrishikesh Viswanath</p></div>
                         <div className="blog-share-wrapper">
-                          <a className="blog-share" href="https://www.instagram.com/purdue_search/" target="_blank" rel="noopener noreferrer"><i className="fab fa-instagram" /></a>
-                          <a className="blog-share" href="https://twitter.com/purduesearch" target="_blank" rel="noopener noreferrer"><i className="fab fa-twitter-square" /></a>
+                          <a className="blog-share" aria-label="Purdue SEARCH on Instagram" href="https://www.instagram.com/purdue_search/" target="_blank" rel="noopener noreferrer"><i className="fab fa-instagram" /></a>
+                          <a className="blog-share" aria-label="Purdue SEARCH on Twitter" href="https://twitter.com/purduesearch" target="_blank" rel="noopener noreferrer"><i className="fab fa-twitter-square" /></a>
                         </div>
                       </div>
                     </div>

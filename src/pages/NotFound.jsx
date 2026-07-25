@@ -13,7 +13,7 @@ const NotFound = () => (
       noindex
     />
     <Navbar />
-    <div
+    <main
       id="main-content"
       className="jumbotron jumbotron-single d-flex align-items-center"
       style={{ backgroundImage: 'url(/Purdue_Sky.webp)', minHeight: '72vh' }}
@@ -47,7 +47,7 @@ const NotFound = () => (
           </Link>
         </span>
       </div>
-    </div>
+    </main>
     <Footer />
   </div>
 );

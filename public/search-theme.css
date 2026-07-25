@@ -1,7 +1,7 @@
-@import url('https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=JetBrains+Mono:wght@400;500&display=swap');
+﻿@import url('https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=JetBrains+Mono:wght@400;500&display=swap');
 
 /*
- * SEARCH of Purdue — Design Theme
+ * SEARCH of Purdue â€” Design Theme
  * Inspired by Collider (drinkcollider.com) design language,
  * adapted for a Mars/space identity.
  *
@@ -14,18 +14,18 @@
    ============================================================ */
 :root {
   /* Color Palette */
-  --color-bg-primary:   #f5efe6;   /* cream — page body background */
-  --color-bg-secondary: #ede3d8;   /* sand — alternate section background */
-  --color-bg-dark:      #12121c;   /* dark navy — mission pillars section */
-  --color-bg-footer:    #0a0a0f;   /* near-black — footer */
-  --color-text:         #1a1a1a;   /* near-black — body text */
-  --color-text-light:   #f5efe6;   /* cream — text on dark sections */
-  --color-accent:       #b83225;   /* Mars red — buttons, links, highlights */
-  --color-accent-hover: #8f2319;   /* darker Mars red — hover state */
-  --color-muted:        #7a6f68;   /* warm grey — secondary text */
-  --color-border:       #d4c5b5;   /* warm light — card/section borders */
-  --color-card-bg:      #fff9f4;   /* very light cream — card surfaces */
-  --color-bg-card:      #1a1a2e;   /* dark navy — diagram/card dark surfaces */
+  --color-bg-primary:   #f5efe6;   /* cream â€” page body background */
+  --color-bg-secondary: #ede3d8;   /* sand â€” alternate section background */
+  --color-bg-dark:      #12121c;   /* dark navy â€” mission pillars section */
+  --color-bg-footer:    #0a0a0f;   /* near-black â€” footer */
+  --color-text:         #1a1a1a;   /* near-black â€” body text */
+  --color-text-light:   #f5efe6;   /* cream â€” text on dark sections */
+  --color-accent:       #b83225;   /* Mars red â€” buttons, links, highlights */
+  --color-accent-hover: #8f2319;   /* darker Mars red â€” hover state */
+  --color-muted:        #7a6f68;   /* warm grey â€” secondary text */
+  --color-border:       #d4c5b5;   /* warm light â€” card/section borders */
+  --color-card-bg:      #fff9f4;   /* very light cream â€” card surfaces */
+  --color-bg-card:      #1a1a2e;   /* dark navy â€” diagram/card dark surfaces */
 
   /* Typography */
   --font-heading: 'Oswald', 'Work Sans', sans-serif;
@@ -113,7 +113,7 @@ section {
 
 /* ============================================================
    C. NAVBAR OVERRIDES
-   style.min.css sets position: absolute — we force position: fixed
+   style.min.css sets position: absolute â€” we force position: fixed
    ============================================================ */
 
 #header-navbar {
@@ -208,7 +208,7 @@ section {
    D. JUMBOTRON / HERO SECTION
    ============================================================ */
 
-/* Replace the purple/magenta gradient overlay with Mars red → dark */
+/* Replace the purple/magenta gradient overlay with Mars red â†’ dark */
 .jumbotron::before,
 .jumbotron-post::before {
   background: linear-gradient(
@@ -252,7 +252,7 @@ section {
 
 /* ============================================================
    F. MISSION PILLARS SECTION  (#mission-pillars)
-   Dark background, 3-column icon cards — Collider Benefits style
+   Dark background, 3-column icon cards â€” Collider Benefits style
    ============================================================ */
 
 #mission-pillars {
@@ -315,7 +315,7 @@ section#mission-pillars {
 
 /* ============================================================
    G. ABOUT SEARCH SECTION  (#about-search)
-   2-column brand story — Collider Brand Story style
+   2-column brand story â€” Collider Brand Story style
    ============================================================ */
 
 #about-search,
@@ -426,7 +426,7 @@ footer#search-footer {
   max-width: 260px;
 }
 
-#search-footer .footer-nav-col h6 {
+#search-footer .footer-nav-col h4 {
   font-family: var(--font-body);
   font-size: 0.7rem;
   letter-spacing: 0.14em;
@@ -589,7 +589,7 @@ section#single-content .feature-item {
    L. SCROLL-TRANSPARENT NAVBAR
    ============================================================ */
 
-/* Base transition — always present so bg/shadow animate smoothly */
+/* Base transition â€” always present so bg/shadow animate smoothly */
 #header-navbar {
   transition: background-color 0.35s ease, border-color 0.35s ease,
               box-shadow 0.35s ease, backdrop-filter 0.35s ease;
@@ -629,7 +629,7 @@ section#single-content .feature-item {
   transition: opacity 0.3s ease;
 }
 
-/* Donate button — same visual style as Contact Us, amber/yellow fill */
+/* Donate button â€” same visual style as Contact Us, amber/yellow fill */
 .navbar-donate-btn {
   display: inline-block;
   background-color: #f59e0b !important;
@@ -672,7 +672,7 @@ section#single-content .feature-item {
    M. HERO WORDMARK + PARALLAX
    ============================================================ */
 
-/* Parallax bg layer — sits behind content, moves on scroll */
+/* Parallax bg layer â€” sits behind content, moves on scroll */
 .hero-bg-layer {
   position: absolute;
   inset: -20% 0;
@@ -749,7 +749,7 @@ section#single-content .feature-item {
 
 
 /* ============================================================
-   N. SLIDING FILL HOVER — .btn-slide-fill / .btn-slide-outline
+   N. SLIDING FILL HOVER â€” .btn-slide-fill / .btn-slide-outline
    ============================================================ */
 
 .btn-slide-fill,
@@ -855,7 +855,7 @@ section#single-content .feature-item {
   }
 }
 
-/* WHITE/CREAM variant — hero secondary CTA on dark backgrounds */
+/* WHITE/CREAM variant â€” hero secondary CTA on dark backgrounds */
 .btn-slide-white {
   position: relative;
   overflow: hidden;
@@ -903,7 +903,7 @@ section#single-content .feature-item {
    Q. NAVBAR TEAMS DROPDOWN
    ============================================================ */
 
-/* Toggle button — matches nav-link style exactly */
+/* Toggle button â€” matches nav-link style exactly */
 .teams-dropdown-toggle {
   background: none;
   border: none;
@@ -997,7 +997,7 @@ section#single-content .feature-item {
 
 
 /* ============================================================
-   R. ABOUT PAGE — SECTION SWEEP EFFECT
+   R. ABOUT PAGE â€” SECTION SWEEP EFFECT
    ============================================================ */
 
 .section-sweep {
@@ -1058,7 +1058,7 @@ section#single-content .feature-item {
 
 
 /* ============================================================
-   S. MICROGREENS PAGE — CONFERENCES, TRIPS, PROFESSIONALS,
+   S. MICROGREENS PAGE â€” CONFERENCES, TRIPS, PROFESSIONALS,
       PLANT ROOT
    ============================================================ */
 
@@ -1386,7 +1386,7 @@ section#single-content .feature-item {
 
 
 /* ============================================================
-   T. SA2TP PAGE — FLIGHT / SKYDIVING / SCUBA SECTIONS
+   T. SA2TP PAGE â€” FLIGHT / SKYDIVING / SCUBA SECTIONS
    ============================================================ */
 
 /* Shared section padding for SA2TP content sections */
@@ -1507,7 +1507,7 @@ section#single-content .feature-item {
 
 
 /* ============================================================
-   U. OUTREACH PAGE — TABLING SECTION
+   U. OUTREACH PAGE â€” TABLING SECTION
    ============================================================ */
 
 #outreach-tabling {
@@ -1555,7 +1555,7 @@ section#single-content .feature-item {
 
 
 /* ============================================================
-   V. PROF CARD — HOVER IMAGE SWAP (Barker GIF)
+   V. PROF CARD â€” HOVER IMAGE SWAP (Barker GIF)
    ============================================================ */
 
 .prof-img-container {
@@ -1949,7 +1949,7 @@ section#single-content .feature-item {
 }
 
 /* ============================================================
-   Y. CLS FIXES — PROGRAM QUOTES + LOGO MARQUEE
+   Y. CLS FIXES â€” PROGRAM QUOTES + LOGO MARQUEE
    ============================================================ */
 
 /* Program quotes showcase */
@@ -2033,7 +2033,7 @@ section#single-content .feature-item {
 .cal-outlook-note a { color: var(--color-accent); }
 
 /* ============================================================
-   ZA. LINK HOVER UNDERLINE — bidirectional fill (LTR in, RTL out)
+   ZA. LINK HOVER UNDERLINE â€” bidirectional fill (LTR in, RTL out)
    ============================================================ */
 
 :root {
@@ -2077,7 +2077,7 @@ a:not([class]):hover,
 }
 
 /* ============================================================
-   ZB. HERO SCROLL EXTENDER — 50% longer cinematic feel
+   ZB. HERO SCROLL EXTENDER â€” 50% longer cinematic feel
    ============================================================ */
 
 html {
@@ -2109,7 +2109,7 @@ html {
 }
 
 /* ============================================================
-   ZC. ASTRO-USA — Section animations & interactive components
+   ZC. ASTRO-USA â€” Section animations & interactive components
    ============================================================ */
 
 /* ZC-1: Mission stat row */
@@ -2529,7 +2529,7 @@ html {
 .timeline-year { font-family: var(--font-heading); font-size: 1.1rem; font-weight: 700; color: var(--color-accent); margin-bottom: 0.25rem; }
 .timeline-phase { font-size: 0.82rem; font-weight: 600; color: var(--color-text-light); margin-bottom: 0.5rem; }
 .timeline-bullets { list-style: none; padding: 0; margin: 0; font-size: 0.74rem; color: var(--color-muted); line-height: 1.6; text-align: left; }
-.timeline-bullets li::before { content: '• '; color: var(--color-accent); }
+.timeline-bullets li::before { content: 'â€¢ '; color: var(--color-accent); }
 @keyframes timeline-pulse {
   0%, 100% { box-shadow: 0 0 0 0 rgba(184,50,37,0.4); }
   50% { box-shadow: 0 0 0 8px rgba(184,50,37,0); }
@@ -2583,7 +2583,7 @@ html {
 }
 
 /* ============================================================
-   ZD. CSS QUICK-WINS — site-wide micro-interactions
+   ZD. CSS QUICK-WINS â€” site-wide micro-interactions
    ============================================================ */
 
 /* ZD-1: Ken Burns zoom on static-image hero backgrounds */
@@ -2596,9 +2596,9 @@ html {
   background-position: center;
   z-index: 0;
   /* `both` applies the 0% keyframe (scale 1.07) before the first paint,
-     preventing the scale(1.0)→scale(1.07) snap on load.
+     preventing the scale(1.0)â†’scale(1.07) snap on load.
      will-change pre-promotes this layer so the GPU compositor is ready
-     before the animation starts — eliminates the sibling-text flicker. */
+     before the animation starts â€” eliminates the sibling-text flicker. */
   animation: ken-burns 12s ease-out both;
   will-change: transform;
   pointer-events: none;
@@ -2618,7 +2618,7 @@ html {
   100% { transform: scale(1.00); }
 }
 
-/* ZD-2: Blog card hover lift — global */
+/* ZD-2: Blog card hover lift â€” global */
 .blog-item {
   transition: transform 0.25s ease, box-shadow 0.25s ease;
   will-change: transform;
@@ -2738,7 +2738,7 @@ html {
 }
 
 /* ============================================================
-   ZE. PHASE 4 — Lottie, SVG overlays, new video/image assets
+   ZE. PHASE 4 â€” Lottie, SVG overlays, new video/image assets
    ============================================================ */
 
 /* ZE-1: Constellation SVG overlay on all static-image hero jumbtrons */
@@ -2770,7 +2770,7 @@ html {
   margin-bottom: 0.5rem;
 }
 
-/* ZE-4: Lottie rocket next to CTA — float inline */
+/* ZE-4: Lottie rocket next to CTA â€” float inline */
 .cta-lottie-wrap {
   display: inline-flex;
   align-items: center;
@@ -2951,7 +2951,7 @@ html {
 .mini-hab-callout-body strong { color: var(--color-accent); }
 
 /* ============================================================
-   ZG — AstroUSA Interactive Flow Diagram (mxGraph)
+   ZG â€” AstroUSA Interactive Flow Diagram (mxGraph)
    ============================================================ */
 
 /* Outer wrapper */
@@ -3157,7 +3157,7 @@ html {
   background: rgba(0, 0, 0, 0.1);
 }
 
-/* Detail panel — slides in from right */
+/* Detail panel â€” slides in from right */
 .astro-diagram-panel {
   position: fixed;
   top: 0;
@@ -3250,7 +3250,7 @@ html {
   line-height: 1.55 !important;
 }
 
-/* Mobile — panel slides up from bottom */
+/* Mobile â€” panel slides up from bottom */
 @media (max-width: 767px) {
   .astro-diagram-key {
     gap: 0.3rem;
@@ -3287,7 +3287,7 @@ html {
   }
 }
 
-/* Reduced motion — disable spinner and panel slide */
+/* Reduced motion â€” disable spinner and panel slide */
 @media (prefers-reduced-motion: reduce) {
   .diagram-spinner {
     animation: none;
@@ -3307,7 +3307,7 @@ html {
 }
 
 /* ============================================================
-   ZH — AstroUSA Diagram Enhancements (Phases 1–3 & 5)
+   ZH â€” AstroUSA Diagram Enhancements (Phases 1â€“3 & 5)
    ============================================================ */
 
 /* 2a. Dark space background for the mxGraph canvas */
@@ -3323,7 +3323,7 @@ html {
   background: transparent !important;
 }
 
-/* 2b. Starfield canvas layer — sits behind the mxGraph SVG */
+/* 2b. Starfield canvas layer â€” sits behind the mxGraph SVG */
 .astro-diagram-starfield {
   position: absolute;
   inset: 0;
@@ -3453,7 +3453,7 @@ html {
   height: 100% !important;
 }
 .subsystem-3d-loading {
-  /* Empty placeholder while Suspense resolves — collapses silently */
+  /* Empty placeholder while Suspense resolves â€” collapses silently */
   display: none;
 }
 .subsystem-3d-fallback {
@@ -3474,14 +3474,14 @@ html {
   opacity: 0.5;
 }
 
-/* Mobile — hide flow legend on very small screens */
+/* Mobile â€” hide flow legend on very small screens */
 @media (max-width: 480px) {
   .astro-diagram-flow-legend {
     display: none;
   }
 }
 
-/* Reduced motion — disable swatch animation and starfield */
+/* Reduced motion â€” disable swatch animation and starfield */
 @media (prefers-reduced-motion: reduce) {
   .astro-flow-swatch-line {
     animation: none;
@@ -3490,10 +3490,10 @@ html {
 
 
 /* ============================================================
-   SITEWIDE IMPROVEMENTS — 2026
+   SITEWIDE IMPROVEMENTS â€” 2026
    ============================================================ */
 
-/* ── Skip Link ─────────────────────────────────────────────── */
+/* â”€â”€ Skip Link â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .skip-link {
   position: absolute;
   top: -100%;
@@ -3510,7 +3510,7 @@ html {
 }
 .skip-link:focus { top: 0; }
 
-/* ── Search Bar (Navbar) ───────────────────────────────────── */
+/* â”€â”€ Search Bar (Navbar) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .search-bar-wrap {
   position: relative;
   display: flex;
@@ -3618,7 +3618,7 @@ html {
   .search-icon-btn { color: var(--color-text) !important; }
 }
 
-/* ── Search Results Page ───────────────────────────────────── */
+/* â”€â”€ Search Results Page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .search-results-page { padding: 5rem 0 4rem; min-height: 60vh; }
 .search-results-page h1 { font-family: var(--font-heading); font-size: 2rem; margin-bottom: 0.5rem; }
 .search-results-input-wrap {
@@ -3685,7 +3685,7 @@ html {
   border-color: var(--color-accent);
 }
 
-/* ── Breadcrumb ────────────────────────────────────────────── */
+/* â”€â”€ Breadcrumb â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .breadcrumb-nav {
   position: relative;
   z-index: 10;
@@ -3710,7 +3710,7 @@ html {
 .breadcrumb-list li a:hover { color: var(--color-accent); }
 .breadcrumb-list li [aria-current="page"] { color: var(--color-text); font-weight: 500; }
 
-/* ── Footer Discord CTA ────────────────────────────────────── */
+/* â”€â”€ Footer Discord CTA â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .footer-discord-cta {
   display: flex;
   align-items: center;
@@ -3734,13 +3734,13 @@ html {
   .footer-discord-btn { margin-left: 0; }
 }
 
-/* ── Global Mobile / Overflow Fixes ───────────────────────── */
+/* â”€â”€ Global Mobile / Overflow Fixes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 :root { --section-pad: clamp(1.5rem, 5.29vw, 4rem); }
 body { overflow-x: hidden; }
 #sa2tp-crews .row { overflow-x: hidden; }
 #sa2tp-crews img { max-width: 100%; }
 
-/* ── Accessibility — Focus Rings ──────────────────────────── */
+/* â”€â”€ Accessibility â€” Focus Rings â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .search-icon-btn:focus-visible,
 .search-clear-btn:focus-visible,
 .search-result-item:focus-visible,
@@ -3752,11 +3752,11 @@ body { overflow-x: hidden; }
   outline-offset: 3px;
 }
 
-/* ── Color Contrast Fix ───────────────────────────────────── */
+/* â”€â”€ Color Contrast Fix â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 /* #7a6f68 on #f5efe6 = ~3.7:1 (fails WCAG AA). Override to #6b5f58 (~4.6:1). */
 :root { --color-muted: #6b5f58; }
 
-/* ── Standardized Card Hover Lift ─────────────────────────── */
+/* â”€â”€ Standardized Card Hover Lift â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .feature-item {
   transition: transform 0.25s ease, border-color 0.2s ease, box-shadow 0.2s ease;
   will-change: transform;
@@ -3768,19 +3768,19 @@ body { overflow-x: hidden; }
   .feature-item:hover, .pillar-card:hover { transform: none; }
 }
 
-/* ── SectionHeading light modifier ───────────────────────── */
+/* â”€â”€ SectionHeading light modifier â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .title-wrap--light .section-title { color: var(--color-text-light) !important; }
 .title-wrap--light .section-sub-title { color: rgba(245, 239, 230, 0.65); }
 .title-wrap--light .about-section-label { color: rgba(245, 239, 230, 0.6); }
 
 /* ============================================================
-   PHASE 2 IMPROVEMENTS — 2026
+   PHASE 2 IMPROVEMENTS â€” 2026
    ============================================================ */
 
-/* ── Undefined CSS variable fix ───────────────────────────── */
+/* â”€â”€ Undefined CSS variable fix â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 :root { --color-bg-sand: #f0e6d3; }
 
-/* ── prefers-reduced-motion: disable looping animations ───── */
+/* â”€â”€ prefers-reduced-motion: disable looping animations â”€â”€â”€â”€â”€ */
 @media (prefers-reduced-motion: reduce) {
   .circuit-pulse,
   .timeline-pulse,
@@ -3795,17 +3795,17 @@ body { overflow-x: hidden; }
   }
 }
 
-/* ── Officer / member circular photos ─────────────────────── */
+/* â”€â”€ Officer / member circular photos â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .officer-photo {
   border-radius: 50%;
   object-fit: cover;
 }
 
-/* ── Diagram panel title — white on dark panel background ─── */
+/* â”€â”€ Diagram panel title â€” white on dark panel background â”€â”€â”€ */
 .astro-diagram-panel .diagram-panel-title { color: #fff; }
 .astro-diagram-panel .diagram-panel-desc  { color: rgba(245,239,230,0.75); }
 
-/* ── Footer Slack CTA (replaces Discord CTA) ──────────────── */
+/* â”€â”€ Footer Slack CTA (replaces Discord CTA) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .footer-slack-cta {
   display: flex;
   align-items: center;
@@ -3826,13 +3826,13 @@ body { overflow-x: hidden; }
   .footer-slack-btn { margin-left: 0; }
 }
 
-/* ── Hide native scrollbar (ReadingProgress replaces it visually) ─ */
+/* â”€â”€ Hide native scrollbar (ReadingProgress replaces it visually) â”€ */
 html {
   scrollbar-width: none;
   -ms-overflow-style: none;
 }
 
-/* ── SUITS page ──────────────────────────────────────────────────── */
+/* â”€â”€ SUITS page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .suits-award-strip { display: flex; gap: 1.5rem; flex-wrap: wrap; justify-content: center; margin-bottom: 2.5rem; }
 .suits-award-card { flex: 1; min-width: 240px; max-width: 360px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); border-radius: 12px; padding: 2rem 1.5rem; text-align: center; }
 .suits-award-card .award-icon { font-size: 2.25rem; margin-bottom: 0.75rem; }
@@ -3867,9 +3867,9 @@ html {
 @media (max-width: 480px) { .suits-roster-grid .roster-entry { flex: 0 0 100%; } }
 html::-webkit-scrollbar { display: none; }
 
-/* ── Navbar layout overrides ──────────────────────────────────────── */
+/* â”€â”€ Navbar layout overrides â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
-/* Desktop: true flex centering — left and right sections each take 1fr,
+/* Desktop: true flex centering â€” left and right sections each take 1fr,
    SEARCH brand sits naturally in the middle */
 @media (min-width: 992px) {
   #header-navbar .collapse.navbar-collapse {
@@ -3899,7 +3899,7 @@ html::-webkit-scrollbar { display: none; }
 
 /* Mobile: expanded nav panel */
 @media (max-width: 991px) {
-  /* Solid opaque background — shown as soon as Bootstrap adds .show */
+  /* Solid opaque background â€” shown as soon as Bootstrap adds .show */
   #header-navbar .navbar-collapse.show,
   #header-navbar .navbar-collapse.collapsing {
     background-color: rgba(245, 239, 230, 0.98) !important;
@@ -3942,7 +3942,7 @@ html::-webkit-scrollbar { display: none; }
     flex-direction: column;
     align-items: flex-start;
   }
-  /* Hide the desktop logo that's inside the collapse — mobile bar already shows it */
+  /* Hide the desktop logo that's inside the collapse â€” mobile bar already shows it */
   #header-navbar .nav-section-left > img {
     display: none !important;
   }
@@ -3961,7 +3961,7 @@ html::-webkit-scrollbar { display: none; }
   }
 }
 
-/* ── Microgreen Research page ──────────────────────────────────────── */
+/* â”€â”€ Microgreen Research page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 /* History timeline */
 .mg-history-timeline { display: flex; flex-direction: column; gap: 0; max-width: 820px; margin: 0 auto; }
@@ -4028,7 +4028,7 @@ html::-webkit-scrollbar { display: none; }
 .mg-group-photo-caption { background: rgba(0,0,0,0.55); color: rgba(255,255,255,0.65); font-size: 0.8rem; line-height: 1.6; padding: 0.6rem 1rem; margin: 0; }
 @media (max-width: 768px) { .mg-group-photo-wrap img { height: 260px; } }
 
-/* ── STL 3D Viewer ──────────────────────────────────────── */
+/* â”€â”€ STL 3D Viewer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .stl-viewer-container { border-radius: 14px; overflow: hidden; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 8px 40px rgba(0,0,0,0.5); }
 .stl-viewer-wrap { position: relative; width: 100%; background: #0d1117; }
 .stl-viewer-wrap canvas { display: block; }
@@ -4040,9 +4040,9 @@ html::-webkit-scrollbar { display: none; }
 .stl-hint { font-size: 0.8rem; color: rgba(245,239,230,0.4); display: flex; align-items: center; gap: 0.4rem; }
 .stl-hint i { color: rgba(245,239,230,0.25); }
 
-/* ── Business & Operations Page ──────────────────────────────────────── */
+/* â”€â”€ Business & Operations Page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
-/* Function cards grid — "What We Do" section */
+/* Function cards grid â€” "What We Do" section */
 .biz-functions-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -4162,7 +4162,7 @@ html::-webkit-scrollbar { display: none; }
   .biz-lead-photo { width: 180px; height: 180px; }
 }
 
-/* Impact Stats — dark strip with count-up */
+/* Impact Stats â€” dark strip with count-up */
 .biz-stats-section {
   background: var(--color-bg-dark, #12121c);
   padding: 4rem 0;
@@ -4221,7 +4221,7 @@ html::-webkit-scrollbar { display: none; }
   .biz-stat-number { font-size: 2.75rem; }
 }
 
-/* Industry Partners — scrolling marquee */
+/* Industry Partners â€” scrolling marquee */
 .biz-partners-strip {
   overflow: hidden;
   padding: 1rem 0;
@@ -4438,7 +4438,7 @@ html::-webkit-scrollbar { display: none; }
   --pm-font-body:    'DM Sans', sans-serif;
   --pm-font-mono:    'JetBrains Mono', monospace;
 
-  /* Backward-compatibility aliases — keep existing code working */
+  /* Backward-compatibility aliases â€” keep existing code working */
   --clubpm-surface-50:        var(--pm-bg-base);
   --clubpm-surface-100:       var(--pm-bg-surface);
   --clubpm-surface-200:       var(--pm-bg-elevated);
@@ -4725,7 +4725,7 @@ html::-webkit-scrollbar { display: none; }
   border-left-color: var(--pm-accent-teal);
 }
 
-/* ── Modal overlay (replaces broken Tailwind classes) ───────── */
+/* â”€â”€ Modal overlay (replaces broken Tailwind classes) â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .cpm-modal-overlay {
   position: fixed;
@@ -4761,7 +4761,7 @@ html::-webkit-scrollbar { display: none; }
   background: var(--clubpm-surface-50);
 }
 
-/* ── Full Recap styles ──────────────────────────────────────── */
+/* â”€â”€ Full Recap styles â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .cpm-recap-topbar {
   position: sticky;
@@ -4910,7 +4910,7 @@ html::-webkit-scrollbar { display: none; }
   display: inline-block;
 }
 
-/* ── Filter Modal styles ────────────────────────────────────── */
+/* â”€â”€ Filter Modal styles â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .cpm-filter-modal {
   background: var(--clubpm-surface-200);
@@ -4996,7 +4996,7 @@ html::-webkit-scrollbar { display: none; }
 }
 .cpm-filter-clear-btn:hover { background: var(--clubpm-surface-300); }
 
-/* ── Add Task Modal ─────────────────────────────────────────── */
+/* â”€â”€ Add Task Modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .cpm-add-task-modal {
   background: var(--clubpm-surface-200);
@@ -5008,7 +5008,7 @@ html::-webkit-scrollbar { display: none; }
   box-shadow: 0 20px 60px rgba(0,0,0,0.5);
 }
 
-/* ── Kanban progress indicator ──────────────────────────────── */
+/* â”€â”€ Kanban progress indicator â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .cpm-kanban-progress {
   width: 14px;
@@ -5029,7 +5029,7 @@ html::-webkit-scrollbar { display: none; }
 .cpm-kanban-progress--done { color: var(--clubpm-accent-green); background: rgba(0,184,148,0.15); }
 
 
-/* ── ClubPM Dashboard Layout (Freedcamp-style) ──────────────── */
+/* â”€â”€ ClubPM Dashboard Layout (Freedcamp-style) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .cpm-dashboard-root {
   min-height: 100%;
@@ -5040,9 +5040,9 @@ html::-webkit-scrollbar { display: none; }
   grid-template-columns: 1fr 340px;
 }
 
-/* ════════════════════════════════════════════════════════════════
-   SIDEBAR — Projects
-   ════════════════════════════════════════════════════════════════ */
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+   SIDEBAR â€” Projects
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 
 .cpm-sidebar {
   border-right: 1px solid var(--clubpm-border);
@@ -5178,9 +5178,9 @@ html::-webkit-scrollbar { display: none; }
 .cpm-quick-btn--drive:hover { color: #34a853; }
 .cpm-quick-btn--disabled { opacity: 0.3; cursor: default; pointer-events: none; }
 
-/* ════════════════════════════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    SHARED PANEL HEADER
-   ════════════════════════════════════════════════════════════════ */
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 
 .cpm-panel-header {
   display: flex;
@@ -5212,7 +5212,7 @@ html::-webkit-scrollbar { display: none; }
   gap: 6px;
 }
 
-/* ── Filter bar (inline per-field dropdowns) ─────────────────── */
+/* â”€â”€ Filter bar (inline per-field dropdowns) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .cpm-filter-bar {
   display: flex;
@@ -5401,9 +5401,9 @@ html::-webkit-scrollbar { display: none; }
 }
 .cpm-panel-text-btn:hover { background: var(--clubpm-surface-300); color: var(--clubpm-text-primary); }
 
-/* ════════════════════════════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    TASK ROW (shared between Work and Agenda)
-   ════════════════════════════════════════════════════════════════ */
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 
 .cpm-task-row {
   display: flex;
@@ -5474,7 +5474,7 @@ html::-webkit-scrollbar { display: none; }
 }
 .cpm-task-due--overdue { color: var(--clubpm-accent-red); }
 
-/* ── Progress indicator ─────────────────────────────────── */
+/* â”€â”€ Progress indicator â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .cpm-progress-btn {
   width: 16px;
@@ -5523,7 +5523,7 @@ html::-webkit-scrollbar { display: none; }
   opacity: 0.5;
 }
 
-/* ── Priority bars (signal-strength) ───────────────────── */
+/* â”€â”€ Priority bars (signal-strength) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .cpm-priority-bars {
   display: flex;
@@ -5538,7 +5538,7 @@ html::-webkit-scrollbar { display: none; }
   border-radius: 1.5px;
 }
 
-/* ── Avatar stack ───────────────────────────────────────── */
+/* â”€â”€ Avatar stack â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .cpm-avatar-stack {
   display: flex;
@@ -5591,9 +5591,9 @@ html::-webkit-scrollbar { display: none; }
 
 .cpm-avatar-placeholder { display: inline-block; width: 22px; }
 
-/* ════════════════════════════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    WORK PANEL
-   ════════════════════════════════════════════════════════════════ */
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 
 .cpm-work-panel {
   display: flex;
@@ -5618,9 +5618,9 @@ html::-webkit-scrollbar { display: none; }
   padding: 32px 20px;
 }
 
-/* ════════════════════════════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    AGENDA PANEL
-   ════════════════════════════════════════════════════════════════ */
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 
 .cpm-agenda-panel {
   display: flex;
@@ -5740,7 +5740,7 @@ html::-webkit-scrollbar { display: none; }
   border-bottom: 1px solid var(--clubpm-border);
 }
 
-/* ── Responsive ─────────────────────────────────────────────── */
+/* â”€â”€ Responsive â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 @media (max-width: 960px) {
   .cpm-dashboard-layout { grid-template-columns: 1fr 300px; }
@@ -5753,7 +5753,7 @@ html::-webkit-scrollbar { display: none; }
   .cpm-work-panel { border-right: none; border-bottom: 1px solid var(--clubpm-border); }
 }
 
-/* ── ProjectDetail three-column layout ─────────────────────── */
+/* â”€â”€ ProjectDetail three-column layout â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .cpm-project-layout {
   display: flex;
@@ -5788,7 +5788,7 @@ html::-webkit-scrollbar { display: none; }
   background: var(--clubpm-surface-100);
 }
 
-/* ── Project sidebar nav ────────────────────────────────────── */
+/* â”€â”€ Project sidebar nav â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .cpm-proj-sidebar-header {
   padding: 16px;
@@ -5826,7 +5826,7 @@ html::-webkit-scrollbar { display: none; }
   font-weight: 600;
 }
 
-/* ── Progress bar ───────────────────────────────────────────── */
+/* â”€â”€ Progress bar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .cpm-progress-bar-track {
   height: 6px;
@@ -5841,7 +5841,7 @@ html::-webkit-scrollbar { display: none; }
   transition: width 0.3s ease;
 }
 
-/* ── Status bins (task list groups) ─────────────────────────── */
+/* â”€â”€ Status bins (task list groups) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .cpm-status-bin-header {
   display: flex;
@@ -5868,7 +5868,7 @@ html::-webkit-scrollbar { display: none; }
   background: rgba(0,229,204,0.04);
 }
 
-/* ── Compact task row ───────────────────────────────────────── */
+/* â”€â”€ Compact task row â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .cpm-task-row-compact {
   display: flex;
@@ -5900,7 +5900,7 @@ html::-webkit-scrollbar { display: none; }
   min-width: 0;
 }
 
-/* ── Assignee panel ─────────────────────────────────────────── */
+/* â”€â”€ Assignee panel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .cpm-assignee-panel-header {
   display: flex;
@@ -5975,7 +5975,7 @@ html::-webkit-scrollbar { display: none; }
   border-radius: 6px;
 }
 
-/* ── ProjectDetail main content area ────────────────────────── */
+/* â”€â”€ ProjectDetail main content area â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .cpm-proj-main-header {
   padding: 20px 24px 16px;
@@ -6009,7 +6009,7 @@ html::-webkit-scrollbar { display: none; }
   color: var(--clubpm-text-secondary);
 }
 
-/* ── Calendar View ──────────────────────────────────────────────── */
+/* â”€â”€ Calendar View â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .cpm-cal-root { display: flex; flex-direction: column; height: 100%; }
 
 /* Toolbar */
@@ -6071,7 +6071,7 @@ html::-webkit-scrollbar { display: none; }
 .cpm-cal-agenda-row { display: flex; align-items: center; gap: 6px; padding: 6px 8px; border-radius: 4px; margin-bottom: 2px; cursor: pointer; font-size: 12px; transition: filter 0.1s; }
 .cpm-cal-agenda-row:hover { filter: brightness(1.15); background: var(--clubpm-surface-200) !important; }
 
-/* ── TaskModal Overhaul (cpm-tmodal-*) ──────────────────────── */
+/* â”€â”€ TaskModal Overhaul (cpm-tmodal-*) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 /* Modal shell */
 .cpm-tmodal-overlay     { position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:1000; display:flex; align-items:center; justify-content:center; }
@@ -6142,7 +6142,7 @@ html::-webkit-scrollbar { display: none; }
 /* History */
 .cpm-tmodal-history-row { display:flex; align-items:center; gap:8px; padding:5px 0; font-size:12px; }
 
-/* ··· dropdown */
+/* Â·Â·Â· dropdown */
 .cpm-tmodal-menu        { position:absolute; top:100%; right:0; background:var(--clubpm-surface-200); border:1px solid var(--clubpm-border); border-radius:8px; box-shadow:0 8px 32px rgba(0,0,0,0.3); z-index:10; min-width:160px; padding:4px; }
 .cpm-tmodal-menu button { display:block; width:100%; text-align:left; padding:7px 12px; border:none; background:none; cursor:pointer; font-size:12px; color:var(--clubpm-text-primary); border-radius:5px; }
 .cpm-tmodal-menu button:hover { background:var(--clubpm-surface-300); }
@@ -6183,7 +6183,7 @@ html::-webkit-scrollbar { display: none; }
 .cpm-tmodal-history-text { flex:1; color:var(--clubpm-text-secondary); }
 .cpm-tmodal-history-time { font-size:11px; color:var(--clubpm-text-muted); white-space:nowrap; }
 
-/* ── Milestone Panel ─────────────────────────────────────── */
+/* â”€â”€ Milestone Panel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .cpm-milestone-panel { display: flex; flex-direction: column; gap: 16px; max-width: 800px; }
 .cpm-milestone-loading { display: flex; justify-content: center; padding: 48px 0; }
 .cpm-milestone-view-toggle { display: flex; gap: 8px; }
@@ -6257,7 +6257,7 @@ html::-webkit-scrollbar { display: none; }
 
 .cpm-cal-agenda-task-title { color: var(--clubpm-text-primary); font-weight: 500; }
 
-/* ── Markdown prose (updates tab) ─────────────────────────── */
+/* â”€â”€ Markdown prose (updates tab) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .clubpm-markdown p  { margin: 0 0 8px; }
 .clubpm-markdown ul { padding-left: 18px; margin: 0 0 8px; }
 .clubpm-markdown ol { padding-left: 18px; margin: 0 0 8px; }
@@ -6265,7 +6265,7 @@ html::-webkit-scrollbar { display: none; }
 .clubpm-markdown pre  { background: var(--clubpm-surface-400); padding: 10px 14px; border-radius: 6px; overflow-x: auto; margin: 0 0 8px; }
 .clubpm-markdown pre code { background: none; padding: 0; }
 
-/* ── Login Page — Mission Control ─────────────────────────────── */
+/* â”€â”€ Login Page â€” Mission Control â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .pm-login-root {
   position: relative;
@@ -6278,7 +6278,7 @@ html::-webkit-scrollbar { display: none; }
   padding: 2rem;
 }
 
-/* Star field — box-shadow trick */
+/* Star field â€” box-shadow trick */
 .pm-stars-sm,
 .pm-stars-md,
 .pm-stars-lg {
@@ -6555,7 +6555,7 @@ html::-webkit-scrollbar { display: none; }
 }
 .clubpm-markdown strong { color: var(--clubpm-text-primary); }
 
-/* ── AppShell ──────────────────────────────────────────────────── */
+/* â”€â”€ AppShell â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 /* The global `section` rule sets the cream marketing-site background.
    Override it to transparent inside the dark ClubPM application shell so
@@ -6572,7 +6572,7 @@ html::-webkit-scrollbar { display: none; }
   padding-top: 0;
 }
 
-/* Sidebar — fixed so it never participates in the block flow */
+/* Sidebar â€” fixed so it never participates in the block flow */
 .pm-sidebar {
   position: fixed;
   left: 0;
@@ -6854,7 +6854,7 @@ html::-webkit-scrollbar { display: none; }
   opacity: 1;
 }
 
-/* Shell main — offset by the fixed sidebar width */
+/* Shell main â€” offset by the fixed sidebar width */
 .pm-shell-main {
   margin-left: 64px;
   display: flex;
@@ -6960,7 +6960,7 @@ html::-webkit-scrollbar { display: none; }
   background: var(--pm-bg-base);
 }
 
-/* ── Dashboard Stats Bar ──────────────────────────────────────── */
+/* â”€â”€ Dashboard Stats Bar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .pm-stats-bar {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -6996,7 +6996,7 @@ html::-webkit-scrollbar { display: none; }
   letter-spacing: 0.5px;
 }
 
-/* ── Project Card (mission control) ─────────────────────────── */
+/* â”€â”€ Project Card (mission control) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .pm-project-card {
   display: flex;
   background: var(--pm-bg-elevated);
@@ -7225,7 +7225,7 @@ html::-webkit-scrollbar { display: none; }
 }
 .pm-drawer-submit:disabled { opacity: 0.5; cursor: not-allowed; }
 
-/* ── ProjectDetail Hero Header ──────────────────────────────── */
+/* â”€â”€ ProjectDetail Hero Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .pm-proj-hero {
   background: var(--pm-bg-surface);
@@ -7415,7 +7415,7 @@ html::-webkit-scrollbar { display: none; }
 }
 .pm-proj-tab.active .pm-proj-tab-icon { opacity: 1; }
 
-/* ── KanbanBoard ─────────────────────────────────────────────── */
+/* â”€â”€ KanbanBoard â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .pm-kanban-board {
   display: grid;
@@ -7577,7 +7577,7 @@ html::-webkit-scrollbar { display: none; }
 }
 
 
-/* ── TaskDetailModal (slide-in panel) ───────────────────────── */
+/* â”€â”€ TaskDetailModal (slide-in panel) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .pm-tdm-overlay {
   position: fixed;
@@ -7845,7 +7845,7 @@ html::-webkit-scrollbar { display: none; }
   height: 24px;
 }
 
-/* ── Phase 3D: ProjectAnalytics ───────────────────────────── */
+/* â”€â”€ Phase 3D: ProjectAnalytics â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .pm-analytics-grid {
   display: grid;
@@ -7882,7 +7882,7 @@ html::-webkit-scrollbar { display: none; }
   gap: 8px;
 }
 
-/* ── Risk dot (pulsing indicator) ── */
+/* â”€â”€ Risk dot (pulsing indicator) â”€â”€ */
 .pm-risk-dot {
   display: inline-block;
   width: 8px;
@@ -7915,7 +7915,7 @@ html::-webkit-scrollbar { display: none; }
   100% { box-shadow: 0 0 0 0 rgba(0, 200, 150, 0); }
 }
 
-/* ── Risk list items ── */
+/* â”€â”€ Risk list items â”€â”€ */
 .pm-risk-list {
   display: flex;
   flex-direction: column;
@@ -7955,7 +7955,7 @@ html::-webkit-scrollbar { display: none; }
   border-top: 1px solid var(--pm-border);
 }
 
-/* ── Responsive: single column on mobile ── */
+/* â”€â”€ Responsive: single column on mobile â”€â”€ */
 @media (max-width: 768px) {
   .pm-analytics-grid {
     grid-template-columns: 1fr;
@@ -7966,7 +7966,7 @@ html::-webkit-scrollbar { display: none; }
   }
 }
 
-/* ── Phase 5A: ActivityFeed ────────────────────────────────── */
+/* â”€â”€ Phase 5A: ActivityFeed â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .pm-activity-feed {
   display: flex;
@@ -8099,7 +8099,7 @@ html::-webkit-scrollbar { display: none; }
   to { transform: rotate(360deg); }
 }
 
-/* ── Phase 5C: NotificationBell ───────────────────────────── */
+/* â”€â”€ Phase 5C: NotificationBell â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .pm-notif-bell-btn {
   position: relative;
@@ -8267,13 +8267,13 @@ html::-webkit-scrollbar { display: none; }
   font-size: 13px;
 }
 
-/* ── Phase 4: GanttChart enhancements ──────────────────────── */
+/* â”€â”€ Phase 4: GanttChart enhancements â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .pm-gantt-toolbar { display: flex; align-items: center; gap: 6px; padding: 8px 12px; background: var(--pm-bg-surface); border-bottom: 1px solid var(--pm-border); }
 .pm-gantt-scale-btn { padding: 4px 14px; border-radius: 20px; border: 1px solid var(--pm-border); background: transparent; color: var(--pm-text-muted); font-size: 12px; font-family: var(--pm-font-body); cursor: pointer; transition: all 0.15s; }
 .pm-gantt-scale-btn:hover { border-color: var(--pm-accent-teal); color: var(--pm-accent-teal); }
 .pm-gantt-scale-btn.active { background: var(--pm-accent-teal); border-color: var(--pm-accent-teal); color: #000; font-weight: 600; }
 
-/* ── Phase 6: AICommandPalette ─────────────────────────────── */
+/* â”€â”€ Phase 6: AICommandPalette â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 @keyframes pm-palette-in {
   from { opacity: 0; transform: translateY(-8px); }
   to   { opacity: 1; transform: translateY(0); }
@@ -8421,7 +8421,7 @@ html::-webkit-scrollbar { display: none; }
   text-align: center;
 }
 
-/* ── Phase 6: AI Insight Cards ─────────────────────────────── */
+/* â”€â”€ Phase 6: AI Insight Cards â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .pm-insight-row {
   display: flex;
   gap: 12px;
@@ -8467,7 +8467,7 @@ html::-webkit-scrollbar { display: none; }
   text-overflow: ellipsis;
 }
 
-/* ── Phase 7: MembersView ───────────────────────────────────── */
+/* â”€â”€ Phase 7: MembersView â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .pm-members-page {
   padding: 24px;
@@ -8636,7 +8636,7 @@ html::-webkit-scrollbar { display: none; }
   color: var(--pm-text-muted);
 }
 
-/* ── Phase 10: Skeleton ──────────────────────────────────────── */
+/* â”€â”€ Phase 10: Skeleton â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 @keyframes pm-shimmer {
   0%   { background-position: -400px 0; }
   100% { background-position: 400px 0; }
@@ -8659,14 +8659,14 @@ html::-webkit-scrollbar { display: none; }
   flex: 1; display: flex; flex-direction: column; gap: 8px; padding-top: 4px;
 }
 
-/* ── Phase 10: ErrorBoundary ────────────────────────────────── */
+/* â”€â”€ Phase 10: ErrorBoundary â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .pm-error-boundary { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px; gap: 12px; color: var(--pm-text-muted); font-family: var(--pm-font-body); }
 .pm-error-boundary-icon { font-size: 32px; }
 .pm-error-boundary-title { font-size: 16px; font-weight: 600; color: var(--pm-text-primary); }
 .pm-error-boundary-msg { font-size: 13px; color: var(--pm-text-muted); max-width: 400px; text-align: center; }
 .pm-error-boundary-btn { margin-top: 8px; padding: 8px 20px; background: var(--pm-accent-teal); color: #000; border: none; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; }
 
-/* ── Custom dark scrollbars for Club PM ──────────────────────── */
+/* â”€â”€ Custom dark scrollbars for Club PM â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 /* Shell content (Dashboard, Members, etc. scroll here) */
 .pm-shell-content::-webkit-scrollbar        { width: 5px; }
@@ -8702,7 +8702,7 @@ html::-webkit-scrollbar { display: none; }
 .pm-sidebar-projects::-webkit-scrollbar-thumb  { background: rgba(255,255,255,0.1); border-radius: 99px; }
 .pm-sidebar-projects { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.1) transparent; }
 
-/* ── Sidebar: project-specific tabs section ──────────────────── */
+/* â”€â”€ Sidebar: project-specific tabs section â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .pm-sidebar-project-tabs {
   flex-shrink: 0;
@@ -8720,7 +8720,7 @@ html::-webkit-scrollbar { display: none; }
   justify-content: center;
 }
 
-/* ── Constellation: Sidebar Logo Mark ───────────────────────── */
+/* â”€â”€ Constellation: Sidebar Logo Mark â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 /* Override text-based sizing now that the mark holds an SVG */
 .pm-sidebar-logo-mark {
   font-size: unset;
@@ -8728,7 +8728,7 @@ html::-webkit-scrollbar { display: none; }
   padding: 3px;
 }
 
-/* ── Constellation: Skeleton shimmer — teal-tinted ──────────── */
+/* â”€â”€ Constellation: Skeleton shimmer â€” teal-tinted â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .pm-skeleton {
   background: linear-gradient(
     90deg,
@@ -8741,12 +8741,12 @@ html::-webkit-scrollbar { display: none; }
 }
 
 
-/* ── Constellation: Login page wordmark ─────────────────────── */
+/* â”€â”€ Constellation: Login page wordmark â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .pm-login-wordmark h1 {
   text-shadow: 0 0 40px rgba(0,229,204,0.5), 0 0 80px rgba(0,229,204,0.2);
 }
 
-/* ── Constellation: Star progress component ─────────────────── */
+/* â”€â”€ Constellation: Star progress component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .cpm-star-progress {
   display: flex;
   gap: 3px;
@@ -8766,7 +8766,7 @@ html::-webkit-scrollbar { display: none; }
   position: relative;
 }
 
-/* ── ClubPM: Drive folder + files UI ───────────────────────── */
+/* â”€â”€ ClubPM: Drive folder + files UI â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 /* Generic spinner reused across Drive panels */
 .cpm-spinner {
@@ -8834,7 +8834,7 @@ html::-webkit-scrollbar { display: none; }
   background: rgba(255, 255, 255, 0.03);
 }
 
-/* Files tab — folder grid */
+/* Files tab â€” folder grid */
 .cpm-drive-files {
   display: flex;
   flex-direction: column;
@@ -9394,7 +9394,7 @@ html::-webkit-scrollbar { display: none; }
 .cpm-attach-browse-empty p { margin: 4px 0; }
 .cpm-attach-browse-error { color: #e17055; }
 
-/* ── Phase 5D: Notification tabs, pulse, dismiss, center ──── */
+/* â”€â”€ Phase 5D: Notification tabs, pulse, dismiss, center â”€â”€â”€â”€ */
 
 /* Tab bar (shared: bell dropdown + center page) */
 .pm-notif-tabs {
@@ -9456,7 +9456,7 @@ html::-webkit-scrollbar { display: none; }
   color: var(--pm-text-primary);
 }
 
-/* Bell pulse animation — triggered via JS class */
+/* Bell pulse animation â€” triggered via JS class */
 @keyframes pm-notif-pulse {
   0%   { transform: scale(1); }
   25%  { transform: scale(1.18); }
@@ -9517,7 +9517,7 @@ html::-webkit-scrollbar { display: none; }
   opacity: 0.85;
 }
 
-/* ─── Comment row enhancements ──────────────────────────────── */
+/* â”€â”€â”€ Comment row enhancements â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .pm-comment-row {
   position: relative;
@@ -9604,7 +9604,7 @@ html::-webkit-scrollbar { display: none; }
   flex-direction: column;
 }
 
-/* ── Notification Preferences page ─────────────────────────── */
+/* â”€â”€ Notification Preferences page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .pm-prefs-page {
   max-width: 560px;
@@ -9750,7 +9750,7 @@ html::-webkit-scrollbar { display: none; }
   opacity: 0.88;
 }
 
-/* ── Meeting Notes View ──────────────────────────────────────── */
+/* â”€â”€ Meeting Notes View â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .pm-meeting-notes-page {
   padding: 24px 28px;
@@ -9829,7 +9829,7 @@ html::-webkit-scrollbar { display: none; }
   }
 }
 
-/* ── Left column ── */
+/* â”€â”€ Left column â”€â”€ */
 
 .pm-meeting-notes-left {
   display: flex;
@@ -10114,7 +10114,7 @@ html::-webkit-scrollbar { display: none; }
   padding: 20px 0;
 }
 
-/* ── Right column ── */
+/* â”€â”€ Right column â”€â”€ */
 
 .pm-meeting-notes-right {
   display: flex;
@@ -10222,10 +10222,10 @@ html::-webkit-scrollbar { display: none; }
 }
 
 /* ============================================================
-   OUTREACH HUB — SubmissionFormModal + OutreachHub
+   OUTREACH HUB â€” SubmissionFormModal + OutreachHub
    ============================================================ */
 
-/* ── SubmissionFormModal ───────────────────────────────────── */
+/* â”€â”€ SubmissionFormModal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .pm-submission-modal {
   background: var(--clubpm-surface-200);
@@ -10439,7 +10439,7 @@ html::-webkit-scrollbar { display: none; }
   padding-top: 4px;
 }
 
-/* ── OutreachHub page ─────────────────────────────────────── */
+/* â”€â”€ OutreachHub page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 @keyframes pm-fade-in {
   from { opacity: 0; transform: translateY(4px); }
@@ -10518,7 +10518,7 @@ html::-webkit-scrollbar { display: none; }
   animation: pm-fade-in 140ms ease;
 }
 
-/* ── Board (static kanban) ──────────────────────────────────── */
+/* â”€â”€ Board (static kanban) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .pm-outreach-board {
   display: flex;
@@ -10675,7 +10675,7 @@ html::-webkit-scrollbar { display: none; }
   color: #fab1a0;
 }
 
-/* ── Calendar tab ─────────────────────────────────────────── */
+/* â”€â”€ Calendar tab â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .pm-outreach-calendar {
   display: flex;
@@ -10743,7 +10743,7 @@ html::-webkit-scrollbar { display: none; }
   min-width: 120px;
 }
 
-/* ── Recommendations tab ──────────────────────────────────── */
+/* â”€â”€ Recommendations tab â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .pm-outreach-recs {
   display: flex;
@@ -10842,7 +10842,7 @@ html::-webkit-scrollbar { display: none; }
   border-color: var(--pm-accent-teal);
 }
 
-/* ── Shared: loading + empty states ──────────────────────── */
+/* â”€â”€ Shared: loading + empty states â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .pm-outreach-loading {
   display: flex;
@@ -10870,7 +10870,7 @@ html::-webkit-scrollbar { display: none; }
 }
 .pm-outreach-empty i { font-size: 28px; opacity: 0.4; }
 
-/* ── Enhanced Members View ─────────────────────────────────── */
+/* â”€â”€ Enhanced Members View â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .pm-members-page { padding: 0 0 40px; }
 .pm-members-header { margin-bottom: 16px; }
 .pm-members-stats-bar {
@@ -11017,7 +11017,7 @@ html::-webkit-scrollbar { display: none; }
 }
 .pm-member-drawer-save-btn:disabled { opacity: 0.6; cursor: default; }
 
-/* ── Dashboard: Upcoming Events Widget ─────────────────────── */
+/* â”€â”€ Dashboard: Upcoming Events Widget â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .pm-upcoming-events-widget {
   background: var(--clubpm-surface-200); border: 1px solid var(--clubpm-border);
   border-radius: 10px; padding: 16px 20px; margin-bottom: 20px;
@@ -11119,7 +11119,7 @@ html::-webkit-scrollbar { display: none; }
 }
 .pm-event-qr-copy-btn:hover { background: rgba(0,229,204,0.18); }
 
-/* ── Public RSVP Page ──────────────────────────────────────── */
+/* â”€â”€ Public RSVP Page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .er-wrap {
   min-height: 100vh;
   display: flex;
@@ -11358,7 +11358,7 @@ html::-webkit-scrollbar { display: none; }
 }
 .er-constellation-switch:hover { color: #e2e8f0; border-color: #484f58; }
 
-/* ── Calendar: Event chips ──────────────────────────────────── */
+/* â”€â”€ Calendar: Event chips â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .cpm-cal-event-chip {
   display: flex; align-items: center; gap: 4px; padding: 2px 6px; border-radius: 3px;
   border-left: 3px solid var(--pm-accent-teal); background: rgba(0,229,204,0.08);
@@ -11369,7 +11369,7 @@ html::-webkit-scrollbar { display: none; }
 .cpm-cal-event-chip i { font-size: 9px; flex-shrink: 0; }
 .cpm-cal-more-events { font-size: 10px; color: var(--pm-accent-teal); padding: 1px 4px; }
 
-/* ── ClubPM Form Primitives ──────────────────────────────────── */
+/* â”€â”€ ClubPM Form Primitives â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .cpm-form-field { display: flex; flex-direction: column; gap: 5px; }
 .cpm-form-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--clubpm-text-muted); }
@@ -11419,7 +11419,7 @@ html::-webkit-scrollbar { display: none; }
 }
 .cpm-link-btn:hover { text-decoration: underline; }
 
-/* ── Event Form Modal ────────────────────────────────────────── */
+/* â”€â”€ Event Form Modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .cpm-event-modal {
   background: var(--clubpm-surface-200);
@@ -11538,7 +11538,7 @@ html::-webkit-scrollbar { display: none; }
   display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600;
 }
 
-/* ── Calendar drag interactions ──────────────────────────────── */
+/* â”€â”€ Calendar drag interactions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .cpm-cal-event-chip { cursor: grab; }
 .cpm-cal-event-chip:active { cursor: grabbing; }
 .cpm-cal-event-chip.dragging { opacity: 0.4; }
@@ -11548,7 +11548,7 @@ html::-webkit-scrollbar { display: none; }
   outline-offset: -2px;
 }
 
-/* ── CommentThread (.pm-comment-*) ───────────────────────────── */
+/* â”€â”€ CommentThread (.pm-comment-*) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 /* Container */
 .pm-comment-thread {
@@ -11605,7 +11605,7 @@ html::-webkit-scrollbar { display: none; }
   padding: 4px 0;
 }
 
-/* Avatar — 28px circle, teal bg, centred initials */
+/* Avatar â€” 28px circle, teal bg, centred initials */
 .pm-comment-avatar {
   width: 28px;
   height: 28px;
@@ -11732,7 +11732,7 @@ html::-webkit-scrollbar { display: none; }
   margin-top: 6px;
 }
 
-/* Textarea — dark theme */
+/* Textarea â€” dark theme */
 .pm-comment-input {
   width: 100%;
   box-sizing: border-box;
@@ -11803,7 +11803,7 @@ html::-webkit-scrollbar { display: none; }
   background: rgba(0, 229, 204, 0.06);
 }
 
-/* ── Bulk Actions Toolbar ──────────────────────────────────────── */
+/* â”€â”€ Bulk Actions Toolbar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .pm-board-tab-wrapper {
   display: flex;
@@ -11947,7 +11947,7 @@ html::-webkit-scrollbar { display: none; }
   animation: spin 0.7s linear infinite;
 }
 
-/* ── Card checkbox & selected state ───────────────────────────── */
+/* â”€â”€ Card checkbox & selected state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .pm-card-checkbox {
   appearance: none;
@@ -11996,7 +11996,7 @@ html::-webkit-scrollbar { display: none; }
   box-shadow: 0 0 0 1px rgba(0, 229, 204, 0.18);
 }
 
-/* ── Copy Helper Modal ──────────────────────────────────────── */
+/* â”€â”€ Copy Helper Modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .pm-copy-modal-overlay {
   position: fixed;
@@ -12155,7 +12155,7 @@ html::-webkit-scrollbar { display: none; }
   color: #fff;
 }
 
-/* ── Per-platform character counters (SubmissionFormModal) ── */
+/* â”€â”€ Per-platform character counters (SubmissionFormModal) â”€â”€ */
 .pm-char-counter-row {
   display: flex;
   flex-wrap: wrap;
@@ -12194,7 +12194,7 @@ html::-webkit-scrollbar { display: none; }
   color: var(--clubpm-text-secondary, #a0aec0);
 }
 
-/* ── Hashtag autocomplete dropdown ────────────────────────────────────────── */
+/* â”€â”€ Hashtag autocomplete dropdown â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .pm-hashtag-dropdown {
   position: absolute;
@@ -12234,7 +12234,7 @@ html::-webkit-scrollbar { display: none; }
   color: var(--clubpm-text-secondary, #a0aec0);
 }
 
-/* ── Composer Tab ──────────────────────────────────────────── */
+/* â”€â”€ Composer Tab â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .pm-composer-layout {
   display: flex;
@@ -12570,7 +12570,7 @@ html::-webkit-scrollbar { display: none; }
   letter-spacing: 0.05em;
 }
 
-/* ── AI Assist Panel ─────────────────────────────────────────── */
+/* â”€â”€ AI Assist Panel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .pm-ai-panel {
   flex: 1;
@@ -12805,7 +12805,7 @@ html::-webkit-scrollbar { display: none; }
   flex-shrink: 0;
 }
 
-/* ── Platform Preview Cards ───────────────────────────────────── */
+/* â”€â”€ Platform Preview Cards â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .pm-preview-card {
   margin: 12px;
@@ -13005,7 +13005,7 @@ html::-webkit-scrollbar { display: none; }
   font-weight: 600;
 }
 
-/* ── CrossPostBundle Modal ───────────────────────────────────── */
+/* â”€â”€ CrossPostBundle Modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .pm-bundle-modal {
   background: var(--clubpm-surface, #1a1f2e);
@@ -13207,7 +13207,7 @@ html::-webkit-scrollbar { display: none; }
   color: var(--clubpm-text-secondary);
 }
 
-/* ── Asset Picker / Library ──────────────────────────────────── */
+/* â”€â”€ Asset Picker / Library â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .pm-asset-modal {
   background: var(--clubpm-surface, #1a1f2e);
@@ -13503,7 +13503,7 @@ html::-webkit-scrollbar { display: none; }
   padding: 6px 0;
 }
 
-/* ── Brand Voice Admin ───────────────────────────────────────── */
+/* â”€â”€ Brand Voice Admin â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .pm-bv-admin {
   padding: 20px 0;
@@ -13674,9 +13674,9 @@ html::-webkit-scrollbar { display: none; }
   padding-left: 4px;
 }
 
-/* ═══════════════════════════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    CAMPAIGNS TAB
-   ─────────────────────────────────────────────────────────────── */
+   â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .pm-campaigns-tab {
   padding: 0;
@@ -14073,9 +14073,9 @@ html::-webkit-scrollbar { display: none; }
   text-align: center;
 }
 
-/* ═══════════════════════════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    CALENDAR V2
-   ─────────────────────────────────────────────────────────────── */
+   â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .pm-cal-v2 {
   display: flex;
@@ -14083,7 +14083,7 @@ html::-webkit-scrollbar { display: none; }
   gap: 12px;
 }
 
-/* ── Toolbar ─────────────────────────────────────────────────── */
+/* â”€â”€ Toolbar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .pm-cal-toolbar {
   display: flex;
@@ -14154,7 +14154,7 @@ html::-webkit-scrollbar { display: none; }
   color: var(--pm-accent-teal);
 }
 
-/* ── Legend ──────────────────────────────────────────────────── */
+/* â”€â”€ Legend â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .pm-cal-legend {
   display: flex;
@@ -14179,7 +14179,7 @@ html::-webkit-scrollbar { display: none; }
   flex-shrink: 0;
 }
 
-/* ── Month grid ──────────────────────────────────────────────── */
+/* â”€â”€ Month grid â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .pm-cal-month-grid {
   display: grid;
@@ -14239,7 +14239,7 @@ html::-webkit-scrollbar { display: none; }
   line-height: 1;
 }
 
-/* ── Week grid ───────────────────────────────────────────────── */
+/* â”€â”€ Week grid â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .pm-cal-week-grid {
   display: grid;
@@ -14305,7 +14305,7 @@ html::-webkit-scrollbar { display: none; }
   padding-top: 8px;
 }
 
-/* ── Submission pill ─────────────────────────────────────────── */
+/* â”€â”€ Submission pill â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .pm-cal-pill {
   font-size: 10px;
@@ -14348,7 +14348,7 @@ html::-webkit-scrollbar { display: none; }
   line-height: 1.5;
 }
 
-/* ── Event band ──────────────────────────────────────────────── */
+/* â”€â”€ Event band â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .pm-cal-event-band {
   font-size: 10px;
@@ -14362,7 +14362,7 @@ html::-webkit-scrollbar { display: none; }
   position: relative;
 }
 
-/* ── AI auto-fill panel ──────────────────────────────────────── */
+/* â”€â”€ AI auto-fill panel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .pm-cal-autofill-panel {
   background: var(--clubpm-card-bg);
@@ -14457,7 +14457,7 @@ html::-webkit-scrollbar { display: none; }
   border-top: 1px solid var(--clubpm-border);
 }
 
-/* ── CRM Tab ──────────────────────────────────────────────────── */
+/* â”€â”€ CRM Tab â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .pm-crm-root {
   display: flex;
@@ -15113,7 +15113,7 @@ html::-webkit-scrollbar { display: none; }
   line-height: 1.5;
 }
 
-/* ── Insights Tab ─────────────────────────────────────────────── */
+/* â”€â”€ Insights Tab â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .pm-insights-root {
   display: flex;
@@ -15524,7 +15524,7 @@ html::-webkit-scrollbar { display: none; }
 .pm-insights-modal-save:hover { opacity: 0.88; }
 .pm-insights-modal-save:disabled { opacity: 0.5; cursor: not-allowed; }
 
-/* ── Keyboard Shortcuts Modal ─────────────────────────────────── */
+/* â”€â”€ Keyboard Shortcuts Modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .pm-outreach-shortcuts-hint {
   margin-left: auto;
@@ -15631,7 +15631,7 @@ html::-webkit-scrollbar { display: none; }
   padding: 0 2px 2px;
 }
 
-/* ── Activity Feed Sidebar ────────────────────────────────────── */
+/* â”€â”€ Activity Feed Sidebar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .pm-outreach-activity-btn {
   display: inline-flex;
@@ -15771,7 +15771,7 @@ html::-webkit-scrollbar { display: none; }
   margin-top: 3px;
 }
 
-/* ── Outreach Global Search ───────────────────────────────────── */
+/* â”€â”€ Outreach Global Search â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .pm-search-root {
   position: relative;
@@ -15912,7 +15912,7 @@ html::-webkit-scrollbar { display: none; }
   white-space: pre-wrap;
 }
 
-/* ── Template Library / Picker ────────────────────────────────── */
+/* â”€â”€ Template Library / Picker â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .pm-composer-template-btn {
   display: inline-flex;
@@ -16177,7 +16177,7 @@ html::-webkit-scrollbar { display: none; }
 }
 .pm-template-cron-preset:hover { background: rgba(0,229,204,0.08); color: var(--pm-accent-teal); border-color: var(--pm-accent-teal); }
 
-/* ── Suggest Best Time ──────────────────────────────────────── */
+/* â”€â”€ Suggest Best Time â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .pm-suggest-time-btn {
   display: inline-flex;
@@ -16204,7 +16204,7 @@ html::-webkit-scrollbar { display: none; }
   font-style: italic;
 }
 
-/* ── Conflict / Over-Posting Chips ───────────────────────────── */
+/* â”€â”€ Conflict / Over-Posting Chips â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .pm-conflict-chips {
   display: flex;
@@ -16227,7 +16227,7 @@ html::-webkit-scrollbar { display: none; }
 }
 .pm-conflict-chip i { font-size: 11px; }
 
-/* ── Safety Badge ────────────────────────────────────────────── */
+/* â”€â”€ Safety Badge â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .pm-safety-wrap {
   display: inline-block;
@@ -16346,7 +16346,7 @@ html::-webkit-scrollbar { display: none; }
   font-style: italic;
 }
 
-/* ── Multi-stage Approvals ───────────────────────────────────── */
+/* â”€â”€ Multi-stage Approvals â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .pm-approval-row {
   display: flex;
@@ -16531,7 +16531,7 @@ html::-webkit-scrollbar { display: none; }
 }
 .pm-campaign-public-copy:hover { color: var(--pm-accent-teal); border-color: var(--pm-accent-teal); }
 
-/* ── Public Campaign Landing Page ────────────────────────────── */
+/* â”€â”€ Public Campaign Landing Page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .pm-pubc-root {
   --pubc-accent: #00e5c3;
@@ -16754,7 +16754,7 @@ html::-webkit-scrollbar { display: none; }
   border-top: 1px solid rgba(255,255,255,0.05);
 }
 
-/* ── Public Archive ──────────────────────────────────────────── */
+/* â”€â”€ Public Archive â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .pm-archive-root {
   min-height: 100vh;
@@ -16877,7 +16877,7 @@ html::-webkit-scrollbar { display: none; }
 .pm-archive-platforms { display: flex; gap: 6px; }
 .pm-archive-platforms i { font-size: 12px; }
 
-/* ── Program Widget ──────────────────────────────────────────── */
+/* â”€â”€ Program Widget â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .pm-widget-root {
   margin: 32px 0;
@@ -16943,7 +16943,7 @@ html::-webkit-scrollbar { display: none; }
 }
 .pm-widget-date { margin-left: auto; }
 
-/* ── UTM Tracked Links card ──────────────────────────────────── */
+/* â”€â”€ UTM Tracked Links card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .pm-insights-utm-list {
   display: flex;
@@ -16986,7 +16986,7 @@ html::-webkit-scrollbar { display: none; }
   flex-shrink: 0;
 }
 
-/* ── Newsletter Editor ───────────────────────────────────────── */
+/* â”€â”€ Newsletter Editor â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .pm-newsletter-editor {
   margin-top: 16px;
@@ -17057,7 +17057,7 @@ html::-webkit-scrollbar { display: none; }
 .pm-newsletter-preview a { color: #0096a8; }
 .pm-newsletter-preview img { max-width: 100%; height: auto; }
 
-/* ── AI Image Generation panel section ───────────────────────── */
+/* â”€â”€ AI Image Generation panel section â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .pm-ai-prompt-input {
   width: 100%;
@@ -17080,7 +17080,7 @@ html::-webkit-scrollbar { display: none; }
   display: block;
 }
 
-/* AssetPicker — AI-generated badge */
+/* AssetPicker â€” AI-generated badge */
 .pm-asset-card-ai-badge {
   position: absolute;
   top: 6px;
@@ -17098,7 +17098,7 @@ html::-webkit-scrollbar { display: none; }
   z-index: 2;
 }
 
-/* ── Video Script Panel ──────────────────────────────────────── */
+/* â”€â”€ Video Script Panel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .pm-video-script {
   margin-top: 16px;
@@ -17225,7 +17225,7 @@ html::-webkit-scrollbar { display: none; }
   line-height: 1.5;
 }
 
-/* ── Blog Post Page ──────────────────────────────────────────── */
+/* â”€â”€ Blog Post Page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .pm-blog-post {
   max-width: 760px;
@@ -17327,7 +17327,7 @@ html::-webkit-scrollbar { display: none; }
   color: var(--color-accent, #00e5c3);
 }
 
-/* ── Newsletter Compose Panel ──────────────────────────────── */
+/* â”€â”€ Newsletter Compose Panel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .pm-newsletter-panel {
   margin-top: 16px;
   border: 1px solid var(--clubpm-border);
@@ -17555,7 +17555,7 @@ html::-webkit-scrollbar { display: none; }
 .pm-newsletter-send-btn:not(:disabled):hover { opacity: 0.88; }
 
 
-/* ── AI provider badge (AiAssistPanel) ─────────────────────── */
+/* â”€â”€ AI provider badge (AiAssistPanel) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .pm-ai-provider-badge {
   margin-left: auto;
   font-size: 10px;
@@ -17582,10 +17582,10 @@ html::-webkit-scrollbar { display: none; }
   font-family: monospace;
 }
 
-/* ──────────────────────────────────────────────────────────────
-   GitHub integration — Phase 1
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+   GitHub integration â€” Phase 1
    Namespace: .cpm-gh-*  (mirrors .cpm-drive-* density and tokens)
-   ────────────────────────────────────────────────────────────── */
+   â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 :root {
   --cpm-gh-open:    #1f883d;
@@ -18120,7 +18120,7 @@ html::-webkit-scrollbar { display: none; }
   color: var(--clubpm-text-secondary, #8b949e);
 }
 
-/* ── Phase 2: picker, task section, kanban adornments ─────── */
+/* â”€â”€ Phase 2: picker, task section, kanban adornments â”€â”€â”€â”€â”€â”€â”€ */
 
 /* Picker modal layout (Issue + Import) */
 .cpm-gh-picker-modal {
@@ -18326,9 +18326,9 @@ html::-webkit-scrollbar { display: none; }
   color: var(--pm-text-muted);
 }
 
-/* ─────────────────────────────────────────────
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
    Phase 4: Milestone GitHub progress
-──────────────────────────────────────────── */
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .cpm-ms-gh-row {
   display: flex;
@@ -18380,9 +18380,9 @@ html::-webkit-scrollbar { display: none; }
 }
 .cpm-ms-gh-sync-btn:disabled { opacity: 0.5; cursor: default; }
 
-/* ─────────────────────────────────────────────
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
    Phase 4: MembersView GitHub stats + import
-──────────────────────────────────────────── */
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .pm-members-header {
   display: flex;
@@ -18500,9 +18500,9 @@ html::-webkit-scrollbar { display: none; }
   text-align: center;
 }
 
-/* ─────────────────────────────────────────────
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
    Phase 4: Dashboard GitHub Activity widget
-──────────────────────────────────────────── */
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .pm-gh-activity-widget {
   background: var(--clubpm-surface-100, #13151a);
@@ -18572,9 +18572,9 @@ html::-webkit-scrollbar { display: none; }
   margin-left: auto;
 }
 
-/* ════════════════════════════════════════════════════════════ */
-/* Engagement / cosmetics — tokens, panels, themes, animations */
-/* ════════════════════════════════════════════════════════════ */
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+/* Engagement / cosmetics â€” tokens, panels, themes, animations */
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 
 :root {
   /* Rarity tokens */
@@ -18598,7 +18598,7 @@ html::-webkit-scrollbar { display: none; }
   border: 1.5px solid var(--rarity-mythic-border);
 }
 
-/* ── Admin pending-rewards panel ───────────────────────────── */
+/* â”€â”€ Admin pending-rewards panel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .cpm-pending-panel,
 .cpm-event-config-panel {
@@ -18684,7 +18684,7 @@ html::-webkit-scrollbar { display: none; }
 .cpm-pending-adjust label { display: flex; gap: 4px; align-items: center; font-size: 13px; }
 .cpm-pending-adjust input { width: 70px; padding: 3px 6px; border: 1px solid var(--clubpm-border, #e5e7eb); border-radius: 4px; }
 
-/* ── Event reward config table ─────────────────────────────── */
+/* â”€â”€ Event reward config table â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .cpm-event-config-table { width: 100%; border-collapse: collapse; margin-top: 12px; }
 .cpm-event-config-table th,
@@ -18700,7 +18700,7 @@ html::-webkit-scrollbar { display: none; }
 }
 .cpm-event-config-table button:disabled { opacity: 0.5; cursor: wait; }
 
-/* ── Rank badge ────────────────────────────────────────────── */
+/* â”€â”€ Rank badge â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 /* Explicit text + icon color per rank so FA icons (currentColor) stay
    readable when the parent table inherits a light or dark text color.
    `color` cascades to <i> and the inner <span>. */
@@ -18729,7 +18729,7 @@ html::-webkit-scrollbar { display: none; }
   border: 1px solid #ef9f27;
 }
 
-/* ── Kudos button ──────────────────────────────────────────── */
+/* â”€â”€ Kudos button â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .cpm-kudos-btn {
   display: inline-flex; align-items: center; gap: 6px;
@@ -18745,7 +18745,7 @@ html::-webkit-scrollbar { display: none; }
 .cpm-kudos-btn[data-sent="true"] { color: #e11d48; border-color: #fda4af; }
 .cpm-kudos-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-/* ── XP heatmap ────────────────────────────────────────────── */
+/* â”€â”€ XP heatmap â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .cpm-heatmap-cell[data-intensity="0"] { fill: var(--clubpm-surface-200, #f3f4f6); }
 .cpm-heatmap-cell[data-intensity="1"] { fill: #c9e5bb; }
@@ -18753,7 +18753,7 @@ html::-webkit-scrollbar { display: none; }
 .cpm-heatmap-cell[data-intensity="3"] { fill: #4ea437; }
 .cpm-heatmap-cell[data-intensity="4"] { fill: #1f6e11; }
 
-/* ── Leaderboard panel ─────────────────────────────────────── */
+/* â”€â”€ Leaderboard panel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .cpm-leaderboard-panel {
   background: var(--clubpm-surface-100, #fff);
@@ -18769,13 +18769,13 @@ html::-webkit-scrollbar { display: none; }
 .cpm-leaderboard-table td { padding: 6px 8px; text-align: left; font-size: 13px; border-bottom: 1px solid var(--clubpm-border, #e5e7eb); }
 .cpm-leaderboard-table tbody tr:hover { background: var(--clubpm-surface-200, #f9fafb); }
 
-/* ── Theme variants (apply via .theme-<slug> on document root) */
+/* â”€â”€ Theme variants (apply via .theme-<slug> on document root) */
 
 .theme-emerald    { --pm-accent: #1f6e11; --pm-accent-soft: #c9e5bb; }
 .theme-aurora     { --pm-accent: #4a3fb7; --pm-accent-soft: #eeedfe; }
 .theme-terracotta { --pm-accent: #b83225; --pm-accent-soft: #f4dcd7; }
 
-/* ── Name frames (apply via .frame-<slug> wrapper) ─────────── */
+/* â”€â”€ Name frames (apply via .frame-<slug> wrapper) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .frame-laurel   > .member-name-card { border: 2px solid var(--rarity-uncommon-fg); }
 .frame-comet    > .member-name-card { box-shadow: 0 0 12px var(--rarity-rare-fg); }
@@ -18784,7 +18784,7 @@ html::-webkit-scrollbar { display: none; }
   border: 1.5px solid var(--rarity-mythic-border);
 }
 
-/* ── Animations ────────────────────────────────────────────── */
+/* â”€â”€ Animations â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 @keyframes cpm-anim-pulse {
   0%, 100% { transform: scale(1); }
@@ -18798,7 +18798,7 @@ html::-webkit-scrollbar { display: none; }
 }
 .anim-sparkle { animation: cpm-anim-sparkle 2.2s ease-in-out infinite; }
 
-/* ── Profile / Shop layout helpers ─────────────────────────── */
+/* â”€â”€ Profile / Shop layout helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .cpm-profile-grid {
   display: grid;
@@ -18834,7 +18834,7 @@ html::-webkit-scrollbar { display: none; }
   text-shadow: 0 0 12px rgba(255,217,107,0.32);
 }
 .cpm-doubloons i { color: #ffd96b; }
-/* Any standalone coin icon → gold by default. */
+/* Any standalone coin icon â†’ gold by default. */
 i.fa-coins { color: #ffd96b; }
 .cpm-cosmetic-grid {
   display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
@@ -18847,7 +18847,7 @@ i.fa-coins { color: #ffd96b; }
 .cpm-cosmetic-chip .cpm-cosmetic-name { font-weight: 600; }
 .cpm-cosmetic-chip .cpm-cosmetic-meta { font-size: 11px; opacity: 0.75; }
 
-/* ── Shop slot grid ────────────────────────────────────────── */
+/* â”€â”€ Shop slot grid â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .cpm-shop-grid {
   display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
@@ -18873,7 +18873,7 @@ i.fa-coins { color: #ffd96b; }
 
 
 
-/* ── Streak badge (topbar) ───────────────────────────────────── */
+/* â”€â”€ Streak badge (topbar) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .pm-streak-badge {
   --flame-glow: #ff8c3a;
   position: relative;
@@ -18927,14 +18927,14 @@ i.fa-coins { color: #ffd96b; }
 .pm-streak-tooltip-row + .pm-streak-tooltip-row { margin-top: 4px; }
 .pm-streak-tooltip-sub { color: var(--pm-text-muted, #8892a4); font-size: 11px; }
 
-/* ── Dashboard streak tile ───────────────────────────────────── */
+/* â”€â”€ Dashboard streak tile â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .pm-stat-tile.is-streak {
   background: linear-gradient(135deg, rgba(255,140,58,0.10), rgba(255,140,58,0.02));
   border-color: rgba(255,140,58,0.18);
 }
 .pm-stat-tile.is-streak .pm-stat-value { color: #ff8c3a; }
 
-/* ── Profile XP heatmap (activity grid) ──────────────────────── */
+/* â”€â”€ Profile XP heatmap (activity grid) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .pm-activity-heatmap {
   display: grid;
   grid-template-columns: repeat(30, 1fr);
@@ -18957,7 +18957,7 @@ i.fa-coins { color: #ffd96b; }
 .pm-activity-cell.has-4 { background: rgba(38, 212, 154, 1.00); }
 .pm-activity-cell.is-today { box-shadow: 0 0 0 1.5px var(--flame-glow, #ff8c3a) inset; }
 
-/* Stats bar — 5 column variant (adds streak tile) */
+/* Stats bar â€” 5 column variant (adds streak tile) */
 .pm-stats-bar-5col {
   grid-template-columns: repeat(5, 1fr) !important;
 }
@@ -18968,7 +18968,7 @@ i.fa-coins { color: #ffd96b; }
   .pm-stats-bar-5col { grid-template-columns: repeat(2, 1fr) !important; }
 }
 
-/* ── Celebrate / Rank-up / Milestone modal shell ────────────── */
+/* â”€â”€ Celebrate / Rank-up / Milestone modal shell â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .pm-celebrate-backdrop {
   position: fixed; inset: 0; z-index: 5000;
   display: flex; align-items: center; justify-content: center;
@@ -19101,7 +19101,7 @@ i.fa-coins { color: #ffd96b; }
   background: linear-gradient(90deg, rgba(255,140,58,0.36), rgba(255,217,107,0.36));
 }
 
-/* ── Toast celebrate variant ─────────────────────────────────── */
+/* â”€â”€ Toast celebrate variant â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .pm-toast-celebrate {
   background: linear-gradient(120deg, rgba(38,212,154,0.18), rgba(38,212,154,0.06)) !important;
   border: 1px solid rgba(38,212,154,0.45) !important;
@@ -19110,7 +19110,7 @@ i.fa-coins { color: #ffd96b; }
   font-weight: 600 !important;
 }
 
-/* ── Shop overhaul (Phase 5) ─────────────────────────────────── */
+/* â”€â”€ Shop overhaul (Phase 5) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .pm-shop {
   display: flex;
@@ -19413,8 +19413,8 @@ i.fa-coins { color: #ffd96b; }
   margin-bottom: 6px;
 }
 
-/* ── Rank badge fallback — mute the neutral grey so missing/unknown
-   data-rank reads as the NESTLING peach instead of a dead grey. ── */
+/* â”€â”€ Rank badge fallback â€” mute the neutral grey so missing/unknown
+   data-rank reads as the NESTLING peach instead of a dead grey. â”€â”€ */
 .cpm-rank-badge:not([data-rank]),
 .cpm-rank-badge[data-rank=""],
 .cpm-rank-badge[data-rank="UNKNOWN"] {
@@ -19422,7 +19422,7 @@ i.fa-coins { color: #ffd96b; }
   color: #535048;
 }
 
-/* ── SVG badge icon slot (RankIcon component) ─────────────── */
+/* â”€â”€ SVG badge icon slot (RankIcon component) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .cpm-rank-icon {
   display: inline-block;
   width: 26px;
@@ -19439,7 +19439,7 @@ i.fa-coins { color: #ffd96b; }
   }
 }
 
-/* ── Sidebar rank slot — ensure contrast on dark bg ─────── */
+/* â”€â”€ Sidebar rank slot â€” ensure contrast on dark bg â”€â”€â”€â”€â”€â”€â”€ */
 /* The sidebar footer is always dark; force legible fallback regardless of
    rank state so members never see white-on-white or invisible text. */
 .pm-sidebar-footer .cpm-rank-badge:not([data-rank]),
@@ -19449,7 +19449,7 @@ i.fa-coins { color: #ffd96b; }
   color: #d1d5db;
 }
 
-/* ── Sidebar XP bar + doubloon counter ───────────────────── */
+/* â”€â”€ Sidebar XP bar + doubloon counter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .pm-sidebar-xp {
   display: flex; flex-direction: column; gap: 6px;
   margin: 8px 0 10px;
@@ -19500,7 +19500,7 @@ i.fa-coins { color: #ffd96b; }
   transform: translateY(-1px);
 }
 
-/* ── Rank pill inside the sidebar user row (expanded only) ── */
+/* â”€â”€ Rank pill inside the sidebar user row (expanded only) â”€â”€ */
 .pm-sidebar-rank {
   display: inline-flex;
   align-items: center;
@@ -19511,7 +19511,7 @@ i.fa-coins { color: #ffd96b; }
 }
 .pm-sidebar:hover .pm-sidebar-rank { opacity: 1; }
 
-/* ── Sidebar avatar block as a link to /clubpm/profile ──── */
+/* â”€â”€ Sidebar avatar block as a link to /clubpm/profile â”€â”€â”€â”€ */
 .pm-sidebar-user--link {
   text-decoration: none; color: inherit; cursor: pointer;
   border-radius: 8px; padding: 6px;
@@ -19520,7 +19520,7 @@ i.fa-coins { color: #ffd96b; }
 .pm-sidebar-user--link:hover { background: rgba(255,255,255,0.06); }
 .pm-sidebar-user--link:active { transform: scale(0.98); }
 
-/* ── Reward flux particles (+XP, +doubloons) ─────────────── */
+/* â”€â”€ Reward flux particles (+XP, +doubloons) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .pm-reward-flux-layer {
   position: fixed; inset: 0; pointer-events: none; z-index: 950;
 }
@@ -19549,7 +19549,7 @@ i.fa-coins { color: #ffd96b; }
   font-size: 14px;
 }
 
-/* ── Profile contact rows + inline edit + bio ─────────────── */
+/* â”€â”€ Profile contact rows + inline edit + bio â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .cpm-profile-contact {
   display: flex; flex-direction: column; gap: 4px;
   margin-top: 6px; font-size: 13px;
@@ -19608,7 +19608,7 @@ i.fa-coins { color: #ffd96b; }
   color: var(--pm-text-secondary, #94a3b8); cursor: pointer;
 }
 
-/* ── Member card quick profile button ────────────────────── */
+/* â”€â”€ Member card quick profile button â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .pm-member-card-profile-btn {
   display: inline-flex; align-items: center; justify-content: center;
   width: 28px; height: 28px; border-radius: 6px;
@@ -19621,7 +19621,7 @@ i.fa-coins { color: #ffd96b; }
   background: var(--pm-accent-teal, #2dd4bf); color: #0d0f14;
 }
 
-/* ── Members card hover lift + initial-hidden state for stagger ── */
+/* â”€â”€ Members card hover lift + initial-hidden state for stagger â”€â”€ */
 .pm-member-card {
   opacity: 0; transform: translateY(12px);
   transition: transform 0.18s ease, box-shadow 0.18s ease;
@@ -19639,7 +19639,7 @@ i.fa-coins { color: #ffd96b; }
   .pm-member-card:hover { transform: none; box-shadow: none; }
 }
 
-/* ── Dashboard card hover lift ────────────────────────────── */
+/* â”€â”€ Dashboard card hover lift â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .pm-card--liftable {
   transition: transform 0.18s ease, box-shadow 0.18s ease;
 }
@@ -19658,7 +19658,7 @@ i.fa-coins { color: #ffd96b; }
    CHALLENGE SYSTEM
    ============================================================ */
 
-/* ── Quest card (daily / weekly / monthly) ─────────────────── */
+/* â”€â”€ Quest card (daily / weekly / monthly) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .quest-card {
   display: grid;
   grid-template-columns: 44px 1fr auto;
@@ -19733,7 +19733,7 @@ i.fa-coins { color: #ffd96b; }
   .quest-progress-fill { transition: none; }
 }
 
-/* ── Reward chips ──────────────────────────────────────────── */
+/* â”€â”€ Reward chips â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .reward-chip {
   display: inline-flex;
   align-items: center;
@@ -19747,7 +19747,7 @@ i.fa-coins { color: #ffd96b; }
 .db-chip  { background: rgba(0, 229, 195, 0.12); color: var(--pm-accent-teal); }
 .roll-chip { background: rgba(176, 60, 255, 0.12); color: #b03cff; }
 
-/* ── Achievement card ──────────────────────────────────────── */
+/* â”€â”€ Achievement card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .achievement-card {
   position: relative;
   background: var(--pm-bg-elevated);
@@ -19846,7 +19846,7 @@ i.fa-coins { color: #ffd96b; }
   .achievement-card.is-unlocked.tier-mythic { animation: none; }
 }
 
-/* ── Reward roll modal ─────────────────────────────────────── */
+/* â”€â”€ Reward roll modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .reward-roll-backdrop {
   position: fixed;
   inset: 0;
@@ -19926,7 +19926,7 @@ i.fa-coins { color: #ffd96b; }
   .reward-roll-close-btn:hover { opacity: 0.88; }
 }
 
-/* ── Daily quests dashboard widget ────────────────────────── */
+/* â”€â”€ Daily quests dashboard widget â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .daily-quests-widget {
   background: var(--pm-bg-elevated);
   border: 1px solid var(--pm-border);
@@ -20014,7 +20014,7 @@ i.fa-coins { color: #ffd96b; }
   .daily-quest-mini-bar-fill { transition: none; }
 }
 
-/* ── Challenges page ───────────────────────────────────────── */
+/* â”€â”€ Challenges page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .challenges-page {
   max-width: 900px;
   margin: 0 auto;
@@ -20102,7 +20102,7 @@ i.fa-coins { color: #ffd96b; }
   .challenges-tab-btn { transition: none; }
 }
 
-/* ── MemberBadge cosmetic borders ─────────────────────────── */
+/* â”€â”€ MemberBadge cosmetic borders â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .member-badge-border {
   border-radius: 50%;
   padding: 3px;
@@ -20130,7 +20130,7 @@ i.fa-coins { color: #ffd96b; }
   .member-badge-border.border-cosmic-shimmer { animation: none; }
 }
 
-/* ── Rank badge overlays on avatars ──────────────────────────── */
+/* â”€â”€ Rank badge overlays on avatars â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .cpm-member-badge-rank-overlay,
 .pm-kanban-avatar-rank,
 .cpm-avatar-rank,
@@ -20185,7 +20185,7 @@ i.fa-coins { color: #ffd96b; }
   padding: 0.5px;
 }
 
-/* ── Streak badge: clickable WebP flame ──────────────────────── */
+/* â”€â”€ Streak badge: clickable WebP flame â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .pm-streak-badge {
   cursor: pointer;
   text-decoration: none;
@@ -20219,7 +20219,7 @@ i.fa-coins { color: #ffd96b; }
   opacity: 0;
 }
 
-/* ── Streak hub section (Challenges page) ────────────────────── */
+/* â”€â”€ Streak hub section (Challenges page) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .pm-streak-hub {
   display: flex;
   gap: 18px;
@@ -20330,7 +20330,7 @@ i.fa-coins { color: #ffd96b; }
 
 /* === ORBIT LOADER =========================================================
    Scales from a 200px inner canvas using transform: scale() on .ol-r-inner.
-   Use the OrbitLoader React component — do not author these classes manually.
+   Use the OrbitLoader React component â€” do not author these classes manually.
    ========================================================================== */
 
 .ol-r-outer {
@@ -20466,7 +20466,7 @@ i.fa-coins { color: #ffd96b; }
   .ol-r-whirl, .ol-r-orbit, .ol-r-sun, .ol-r-belt { animation-duration: 8s; }
 }
 
-/* ── ClubPM: multi-select kanban rows + bulk action bar ───────── */
+/* â”€â”€ ClubPM: multi-select kanban rows + bulk action bar â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .cpm-task-row-compact--selected {
   background: color-mix(in srgb, var(--clubpm-accent-primary) 10%, var(--clubpm-surface-100));
@@ -20659,7 +20659,7 @@ i.fa-coins { color: #ffd96b; }
   cursor: default;
 }
 
-/* ── ClubPM: BLOCKED column sub-bins ───────────────────────────── */
+/* â”€â”€ ClubPM: BLOCKED column sub-bins â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .cpm-blocked-subbin {
   border-bottom: 1px solid var(--clubpm-border);
@@ -21055,7 +21055,7 @@ i.fa-coins { color: #ffd96b; }
   color: #f0f2f7;
 }
 
-/* === CLUBPM · BADGE PICKER (profile) ============================== */
+/* === CLUBPM Â· BADGE PICKER (profile) ============================== */
 .cpm-badge-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
@@ -21141,7 +21141,7 @@ button.cpm-badge-tile:disabled { opacity: 0.7; cursor: progress; }
 }
 @keyframes cpm-badge-spin { to { transform: rotate(360deg); } }
 
-/* === CLUBPM · BADGE DROP REEL (quest reward reveal) =============== */
+/* === CLUBPM Â· BADGE DROP REEL (quest reward reveal) =============== */
 .badge-reel-wrap {
   display: flex;
   flex-direction: column;
@@ -22042,6 +22042,237 @@ button.cpm-badge-tile:disabled { opacity: 0.7; cursor: progress; }
   .cpm-blog-figure.cpm-blog-img--wrap-right { float: none; max-width: 100%; margin-right: 0; margin-left: 0; }
 }
 
+/* === AOS SHIM â€” in-bundle replacement for AOS CDN =============== */
+html:not(.aos-off) [data-aos] {
+  opacity: 0;
+  transition: opacity 0.55s cubic-bezier(0.22, 1, 0.36, 1),
+              transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+}
+html:not(.aos-off) [data-aos="fade-up"]    { transform: translateY(26px); }
+html:not(.aos-off) [data-aos="fade-left"]  { transform: translateX(26px); }
+html:not(.aos-off) [data-aos="fade-right"] { transform: translateX(-26px); }
+html:not(.aos-off) [data-aos].aos-animate  { opacity: 1; transform: none; }
+@media (prefers-reduced-motion: reduce) {
+  [data-aos] { opacity: 1 !important; transform: none !important; transition: none !important; }
+}
+
+/* === NAV UNDERLINE MICRO-INTERACTION ============================ */
+.nav-underline-target { position: relative; }
+.nav-underline-target::after {
+  content: ''; position: absolute; left: 0; bottom: -3px;
+  width: 100%; height: 2px; background: var(--color-accent);
+  transform: scaleX(0); transform-origin: left;
+  transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.nav-underline-target:hover::after,
+.nav-underline-target:focus-visible::after { transform: scaleX(1); }
+@media (prefers-reduced-motion: reduce) {
+  .nav-underline-target::after { transition: none; }
+}
+
+/* === GSAP PARALLAX (iOS-safe bg-fixed replacement) ============== */
+.parallax-host { position: relative; overflow: hidden; }
+.parallax-bg {
+  position: absolute; inset: -25% 0;
+  background-size: cover; background-position: center;
+  z-index: 0; pointer-events: none;
+}
+.parallax-host > :not(.parallax-bg) { position: relative; z-index: 1; }
+/* .overlay's ::before tint has z-index:auto by default (style.min.css /
+   search-theme.css K. MISC UTILITY OVERRIDES) â€” raise it above .parallax-bg
+   (z-index:0) so the tint still visually covers the parallax layer. */
+.parallax-host.overlay::before { z-index: 1; }
+
+/* === GSAP SCROLL REVEAL (mission pillars / instagram grid) ====== */
+/* Elements targeted by staggerGroup() start hidden pre-hydration/no-JS
+   fallback; GSAP's gsap.from() sets the initial state itself once it runs,
+   this rule only guards the reduced-motion + no-JS static case. */
+@media (prefers-reduced-motion: reduce) {
+  #mission-pillars .col-md-4,
+  .ig-grid .ig-card { opacity: 1 !important; transform: none !important; }
+}
+
+/* === POINTER-TRACKING CARD GLOW ================================= */
+.glow-track { position: relative; overflow: hidden; }
+.glow-track::before {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(220px circle at var(--mx, 50%) var(--my, 50%),
+              rgba(184, 50, 37, 0.13), transparent 65%);
+  opacity: 0; transition: opacity 0.25s ease;
+}
+.glow-track:hover::before { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .glow-track::before { display: none; } }
+
+/* === MARQUEE (JS-driven, GSAP) â€” Business partners strip ======== */
+/* Replaces the CSS keyframe animation on .biz-marquee-track with a
+   gsap.to() tween (see marquee() in src/anim/scrollFx.js) so it can pause
+   on hover/focus. The old keyframe is neutralized here rather than removed
+   from its original declaration, per CSS-append-only convention. */
+.biz-marquee-track { animation: none; }
+.marquee-dup { display: contents; }
+@media (prefers-reduced-motion: reduce) {
+  .marquee-dup { display: none; }
+}
+
+/* === HOME STARFIELD (mission pillars) ============================ */
+/* Lazy WebGL point-cloud rendered behind #mission-pillars' content.
+   Section becomes the positioned ancestor; canvas wrapper sits absolute
+   behind the content column (z-index:0), content stays above it (z-index:1). */
+.mission-pillars-stars-host { position: relative; }
+.mission-pillars-content { position: relative; z-index: 1; }
+.starfield-canvas-wrap {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+.starfield-canvas-wrap canvas { display: block; width: 100%; height: 100%; }
+
+/* === SECTION PROGRESS RAIL (program pages) ======================= */
+/* Sticky right-center rail of labeled dots; one per page section.
+   Desktop-only â€” hidden below 1100px (see SectionProgressRail.jsx). */
+.section-rail {
+  position: fixed;
+  top: 50%;
+  right: 1.75rem;
+  transform: translateY(-50%);
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.85rem;
+}
+.section-rail-dot {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  line-height: 0;
+}
+.section-rail-dot::before {
+  content: '';
+  display: block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-border);
+  border: 1px solid rgba(26,26,26,0.08);
+  transition: background-color 0.25s ease, transform 0.25s ease, box-shadow 0.25s ease;
+  flex-shrink: 0;
+}
+.section-rail-dot:hover::before,
+.section-rail-dot:focus-visible::before {
+  background: var(--color-accent);
+  transform: scale(1.25);
+}
+.section-rail-dot.active::before {
+  background: var(--color-accent);
+  transform: scale(1.35);
+  box-shadow: 0 0 0 4px rgba(184,50,37,0.16);
+}
+.section-rail-dot:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+.section-rail-label {
+  font-family: var(--font-body);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  color: var(--color-text);
+  background: var(--color-card-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 20px;
+  padding: 0.25em 0.75em;
+  opacity: 0;
+  transform: translateX(6px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  pointer-events: none;
+  box-shadow: 0 2px 8px rgba(26,26,26,0.08);
+}
+.section-rail-dot:hover .section-rail-label,
+.section-rail-dot:focus-visible .section-rail-label,
+.section-rail-dot.active .section-rail-label {
+  opacity: 1;
+  transform: translateX(0);
+}
+@media (max-width: 1100px) {
+  .section-rail { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .section-rail-dot::before,
+  .section-rail-label { transition: none; }
+}
+
+/* === FOCUS-VISIBLE ============================================== */
+/* a11y focus rings must not be silently defeated by legacy `:focus { outline: none }` rules;
+   !important guarantees the ring while the color override retunes it for ClubPM's dark surface. */
+:where(a, button, [role="button"], input, select, textarea, summary):focus-visible {
+  outline: 2px solid var(--color-accent) !important;
+  outline-offset: 2px !important;
+  border-radius: 2px;
+}
+.clubpm-app :where(a, button, input, select, textarea):focus-visible {
+  outline-color: var(--pm-accent-teal) !important;
+}
+
+/* === A11Y REMEDIATION (Lighthouse) ============================== */
+/* Footer muted text: alpha 0.45 over #0a0a0f computed to #747170 =
+   4.08:1, under the 4.5:1 AA floor. 0.55 keeps the same cream hue and
+   lifts it to ~5.5:1. Brand tokens are untouched. */
+#search-footer .footer-nav-col h4,
+#search-footer .footer-bottom-bar p {
+  color: rgba(245, 239, 230, 0.55);
+}
+
+/* Carousel dots: the visible dot stays 8-10px, but the button's hit
+   area grows to >=24px (WCAG 2.2 target-size) via padding that the
+   background does not paint into (background-clip: content-box).
+   .tc-dots gap drops to 0 so the visual spacing barely changes. */
+/* 4px gap, not 0: .tc-dot.active scales 1.25 (24px -> 30px) and would
+   otherwise obscure its neighbours' hit areas down to 22.8px. */
+.tc-dots { gap: 4px; }
+.tc-dot,
+.tc-dot.active {
+  box-sizing: content-box;
+  padding: 8px;
+  background-clip: content-box;
+}
+
+/* === CHUNK ERROR FALLBACK ======================================= */
+/* Shown only if a lazy route chunk 404s (stale tab across a deploy). */
+.chunk-error-fallback {
+  max-width: 32rem;
+  margin: 6rem auto;
+  padding: 0 1.5rem;
+  text-align: center;
+  font-family: var(--font-body);
+  color: var(--color-text);
+}
+.chunk-error-fallback h1 {
+  font-family: var(--font-heading);
+  font-size: 1.5rem;
+  margin-bottom: 0.75rem;
+}
+.chunk-error-btn {
+  margin-top: 1.25rem;
+  padding: 0.6em 1.6em;
+  font-family: var(--font-body);
+  font-weight: 600;
+  color: var(--color-text-light);
+  background: var(--color-accent);
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+}
+.chunk-error-btn:hover { background: var(--color-accent-hover); }
 /* === CLUBPM VAULT === */
 
 .cpm-vault-tab {
@@ -22313,7 +22544,7 @@ button.cpm-badge-tile:disabled { opacity: 0.7; cursor: progress; }
   color: var(--pm-accent-teal);
 }
 
-/* ── Phase 5: check-in flow + item detail panel ─────────────── */
+/* â”€â”€ Phase 5: check-in flow + item detail panel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .cpm-vault-modal-close {
   display: inline-flex;
@@ -22385,7 +22616,7 @@ button.cpm-badge-tile:disabled { opacity: 0.7; cursor: progress; }
   cursor: not-allowed;
 }
 
-/* Check-in / upload dialog (centered — reuses .cpm-modal-overlay) */
+/* Check-in / upload dialog (centered â€” reuses .cpm-modal-overlay) */
 .cpm-vault-upload-modal {
   display: flex;
   flex-direction: column;
@@ -22504,7 +22735,7 @@ button.cpm-badge-tile:disabled { opacity: 0.7; cursor: progress; }
   gap: 10px;
 }
 
-/* Item detail panel — slides in from the right, distinct z-index band below
+/* Item detail panel â€” slides in from the right, distinct z-index band below
    the generic .cpm-modal-overlay (5000+) so a check-in dialog opened from
    inside the panel always layers on top of it. */
 .cpm-vault-item-panel-overlay {
@@ -22654,7 +22885,7 @@ button.cpm-badge-tile:disabled { opacity: 0.7; cursor: progress; }
   color: var(--pm-text-muted);
 }
 
-/* ── Phase 7: change request UI ──────────────────────────────── */
+/* â”€â”€ Phase 7: change request UI â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .cpm-vault-cr-list {
   display: flex;
@@ -22771,7 +23002,7 @@ button.cpm-badge-tile:disabled { opacity: 0.7; cursor: progress; }
   margin-top: 4px;
 }
 
-/* Create/view dialog (centered — reuses .cpm-modal-overlay) */
+/* Create/view dialog (centered â€” reuses .cpm-modal-overlay) */
 .cpm-vault-cr-modal {
   display: flex;
   flex-direction: column;
@@ -22859,7 +23090,7 @@ button.cpm-badge-tile:disabled { opacity: 0.7; cursor: progress; }
   white-space: pre-wrap;
 }
 
-/* === CLUBPM VAULT — Pack A (3D previews + thumbnails) === */
+/* === CLUBPM VAULT â€” Pack A (3D previews + thumbnails) === */
 
 /* Grid-card 3D-preview snapshot, in place of the plain extension icon.
    Sized/positioned to match .cpm-vault-card-icon's footprint in the flow. */
@@ -22912,7 +23143,7 @@ button.cpm-badge-tile:disabled { opacity: 0.7; cursor: progress; }
   font-size: 22px;
 }
 
-/* === CLUBPM VAULT — Pack A (3D compare) === */
+/* === CLUBPM VAULT â€” Pack A (3D compare) === */
 
 .cpm-vault-compare-tab {
   display: flex;
@@ -22958,7 +23189,7 @@ button.cpm-badge-tile:disabled { opacity: 0.7; cursor: progress; }
   min-width: 0;
 }
 
-/* === CLUBPM VAULT — Pack B (AI copilot) === */
+/* === CLUBPM VAULT â€” Pack B (AI copilot) === */
 
 .cpm-vault-ask-panel {
   display: flex;
@@ -23046,7 +23277,7 @@ button.cpm-badge-tile:disabled { opacity: 0.7; cursor: progress; }
   flex-wrap: wrap;
 }
 
-/* === CLUBPM VAULT — Pack C (BOM / where-used) === */
+/* === CLUBPM VAULT â€” Pack C (BOM / where-used) === */
 
 .cpm-vault-bom-tab {
   display: flex;
@@ -23121,7 +23352,7 @@ button.cpm-badge-tile:disabled { opacity: 0.7; cursor: progress; }
   margin-top: 2px;
 }
 
-/* === CLUBPM VAULT — review fixes === */
+/* === CLUBPM VAULT â€” review fixes === */
 
 /* Admin sidebar count badges (rewards + open change requests). Previously
    inline styles duplicated per badge; one definition now serves both. */
@@ -23148,7 +23379,7 @@ button.cpm-badge-tile:disabled { opacity: 0.7; cursor: progress; }
    MEETING SCHEDULER (when2meet-style availability polls)
    =================================================================== */
 
-/* ── Poll status pill ── */
+/* â”€â”€ Poll status pill â”€â”€ */
 .pm-poll-status {
   display: inline-block;
   font-size: 10px;
@@ -23162,7 +23393,7 @@ button.cpm-badge-tile:disabled { opacity: 0.7; cursor: progress; }
 .pm-poll-status-finalized { background: rgba(120, 200, 120, 0.16); color: #7bd88f; }
 .pm-poll-status-canceled  { background: rgba(160, 160, 170, 0.16); color: var(--clubpm-text-muted, #8a92a0); }
 
-/* ── Calendar page "Scheduling polls" strip ── */
+/* â”€â”€ Calendar page "Scheduling polls" strip â”€â”€ */
 .pm-poll-strip {
   margin-bottom: 18px;
   padding: 14px 16px;
@@ -23191,7 +23422,7 @@ button.cpm-badge-tile:disabled { opacity: 0.7; cursor: progress; }
 .pm-poll-card-title { font-size: 13px; font-weight: 600; color: var(--clubpm-text-primary, #e8eaed); }
 .pm-poll-card-meta  { font-size: 11px; color: var(--clubpm-text-muted, #8a92a0); display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
 
-/* ── Board modal shell ── */
+/* â”€â”€ Board modal shell â”€â”€ */
 .pm-poll-board-modal {
   background: var(--clubpm-surface-200, #1a1d24);
   border: 1px solid var(--clubpm-border, #2a2f3a);
@@ -23204,7 +23435,7 @@ button.cpm-badge-tile:disabled { opacity: 0.7; cursor: progress; }
   border-top: 3px solid var(--pm-accent-teal, #00e5cc);
 }
 
-/* ── Board ── */
+/* â”€â”€ Board â”€â”€ */
 .pm-poll-board-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .pm-poll-board-title {
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
@@ -23249,7 +23480,7 @@ button.cpm-badge-tile:disabled { opacity: 0.7; cursor: progress; }
   font-size: 13px; color: var(--clubpm-text-primary, #e8eaed);
 }
 
-/* ── Grids ── */
+/* â”€â”€ Grids â”€â”€ */
 /* Stacked (not side-by-side) so every day column stays visible instead of the
    later days (e.g. Fri/Sun) being clipped in a half-width, horizontally-scrolled grid. */
 .pm-poll-grids { display: flex; flex-direction: column; gap: 18px; }
@@ -23312,7 +23543,7 @@ button.cpm-badge-tile:disabled { opacity: 0.7; cursor: progress; }
   border: 1px solid rgba(225, 112, 85, 0.35);
 }
 
-/* ── Create/edit modal extras ── */
+/* â”€â”€ Create/edit modal extras â”€â”€ */
 .pm-poll-audience-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .pm-poll-audience-btn {
   display: flex; flex-direction: column; align-items: center; gap: 4px;
@@ -23345,7 +23576,7 @@ button.cpm-badge-tile:disabled { opacity: 0.7; cursor: progress; }
 }
 .pm-poll-date-chip button:hover { opacity: 1; }
 
-/* ── Public standalone respond page ── */
+/* â”€â”€ Public standalone respond page â”€â”€ */
 .pm-public-schedule {
   min-height: 100vh;
   background: var(--pm-bg-base, #0d0f14);
@@ -23375,7 +23606,7 @@ button.cpm-badge-tile:disabled { opacity: 0.7; cursor: progress; }
   .pm-poll-grids { flex-direction: column; }
 }
 
-/* ── Meeting scheduler UI polish (avatars, calendar picker, QoL) ── */
+/* â”€â”€ Meeting scheduler UI polish (avatars, calendar picker, QoL) â”€â”€ */
 
 .pm-poll-count-pill {
   display: inline-block; margin-left: 6px; padding: 0 7px;
@@ -23570,7 +23801,7 @@ button.cpm-badge-tile:disabled { opacity: 0.7; cursor: progress; }
 .presskit-rev-author { flex: 1; color: var(--pm-text-muted); }
 
 /* Files tab: inline view-only embed of the linked Drive folder (Google's
-   embeddedfolderview — renders when the folder is shared "anyone with link"). */
+   embeddedfolderview â€” renders when the folder is shared "anyone with link"). */
 .cpm-drive-folder-embed {
   width: 100%;
   height: 460px;
@@ -23692,7 +23923,7 @@ button.cpm-badge-tile:disabled { opacity: 0.7; cursor: progress; }
 .cpm-blog-section:hover .cpm-blog-section-toolbar, .cpm-blog-section.is-selected .cpm-blog-section-toolbar { opacity: 1; }
 .cpm-blog-section-toolbar button { background: none; border: none; color: var(--pm-accent-teal, #00e5cc); cursor: pointer; padding: 2px 5px; }
 
-/* === Section node views — editor form controls (hero/statBand/cta) === */
+/* === Section node views â€” editor form controls (hero/statBand/cta) === */
 .cpm-blog-hero-h, .cpm-blog-hero-s { display:block; width:100%; background:transparent; border:none; text-align:inherit; color:inherit; }
 .cpm-blog-hero-h { font-size:2.2rem; font-weight:800; }
 .cpm-blog-hero-controls { display:flex; gap:8px; margin-top:8px; flex-wrap:wrap; font-size:12px; }
@@ -23819,7 +24050,7 @@ button.cpm-badge-tile:disabled { opacity: 0.7; cursor: progress; }
    .cpm-blog-editor-surface, so the published page (.pm-blog-post-body) and
    the Preview pane (.cpm-blog-preview) keep their real per-section theming. */
 .cpm-blog-editor-surface .cpm-blog-section--light {
-  /* A white "light" band would hide white text while editing — flatten it to
+  /* A white "light" band would hide white text while editing â€” flatten it to
      the dark canvas here; it still publishes/previews as a light band. */
   background-color: transparent;
   color: #eef2f8;
@@ -23889,7 +24120,7 @@ button.cpm-badge-tile:disabled { opacity: 0.7; cursor: progress; }
   .cpm-blog-carousel-nav, .cpm-blog-carousel-dots { display: none; }
 }
 
-/* Carousel editing rows — editor only, never published. */
+/* Carousel editing rows â€” editor only, never published. */
 .cpm-blog-carousel-empty-slide {
   width: 100%; aspect-ratio: 16 / 9; border-radius: 10px;
   border: 1px dashed rgba(255, 255, 255, .25); background: rgba(255, 255, 255, .04);
@@ -24053,7 +24284,7 @@ button.cpm-badge-tile:disabled { opacity: 0.7; cursor: progress; }
 .cpm-blog-schedule-pop { padding: 12px; min-width: 250px; }
 .cpm-blog-schedule-pop-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
 
-/* Toolbar bands — related controls sit in one pill, so the bar reads as
+/* Toolbar bands â€” related controls sit in one pill, so the bar reads as
    groups rather than a run of loose buttons. */
 .cpm-blog-tb-band {
   display: inline-flex; align-items: center; gap: 4px;

@@ -6,6 +6,7 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import SEOHead from '../components/SEOHead';
+import { staggerGroup } from '../anim/scrollFx';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -96,6 +97,15 @@ const SA2TP = () => {
     return () => observer.disconnect();
   }, []);
 
+  // Card staggers — capstone experience cards + crew legacy cards
+  useEffect(() => {
+    const cleanups = [
+      staggerGroup(document.querySelector('#sa2tp-capstones .row'), ':scope > [class*="col-"]'),
+      staggerGroup(document.getElementById('sa2tp-crews'), '.row > [class*="col-"]'),
+    ];
+    return () => cleanups.forEach(fn => fn());
+  }, []);
+
   return (
     <div>
       <SEOHead
@@ -106,7 +116,7 @@ const SA2TP = () => {
       <Navbar />
 
       {/* ===== SCROLL-SCRUBBED VIDEO HERO ===== */}
-      <div id="main-content" className="hero-scroll-extender" ref={heroRef}>
+      <main id="main-content" className="hero-scroll-extender" ref={heroRef}>
       <div className="video-scrub-hero" style={{ height: '100vh', overflow: 'hidden', background: '#12121c' }}>
         <video
           ref={videoRef}
@@ -144,7 +154,7 @@ const SA2TP = () => {
           </div>
         </div>
       </div>
-      </div>{/* /hero-scroll-extender */}
+      </main>{/* /hero-scroll-extender */}
 
       {/* ===== PROGRAM OVERVIEW ===== */}
       <section id="sa2tp-overview" className="bg-grey">
@@ -239,6 +249,7 @@ const SA2TP = () => {
           loop
           muted
           playsInline
+          preload="metadata"
         />
         <div className="section-video-overlay" />
         <div className="section-video-content container" style={{ padding: '6rem 0' }}>
@@ -323,7 +334,7 @@ const SA2TP = () => {
           <div className="row">
 
             {/* NASA Adult Space Flight Academy */}
-            <div className="col-lg-3 col-md-6 mb-4" data-aos="fade-up" data-aos-delay="0">
+            <div className="col-lg-3 col-md-6 mb-4">
               <div className="feature-item" style={{ textAlign: 'center', height: '100%' }}>
                 <div className="feature-icon" style={{ marginBottom: '1rem' }}>
                   <i className="fas fa-rocket" style={{ fontSize: '2.2rem', color: 'var(--color-accent)' }} />
@@ -338,7 +349,7 @@ const SA2TP = () => {
             </div>
 
             {/* iFly Indoor Skydiving */}
-            <div className="col-lg-3 col-md-6 mb-4" data-aos="fade-up" data-aos-delay="80">
+            <div className="col-lg-3 col-md-6 mb-4">
               <div className="feature-item" style={{ textAlign: 'center', height: '100%' }}>
                 <div className="feature-icon" style={{ marginBottom: '1rem' }}>
                   <i className="fas fa-wind" style={{ fontSize: '2.2rem', color: 'var(--color-accent)' }} />
@@ -353,7 +364,7 @@ const SA2TP = () => {
             </div>
 
             {/* Orienteering */}
-            <div className="col-lg-3 col-md-6 mb-4" data-aos="fade-up" data-aos-delay="160">
+            <div className="col-lg-3 col-md-6 mb-4">
               <div className="feature-item" style={{ textAlign: 'center', height: '100%' }}>
                 <div className="feature-icon" style={{ marginBottom: '1rem' }}>
                   <i className="fas fa-map-marked-alt" style={{ fontSize: '2.2rem', color: 'var(--color-accent)' }} />
@@ -368,7 +379,7 @@ const SA2TP = () => {
             </div>
 
             {/* ASTRO-USA Habitat */}
-            <div className="col-lg-3 col-md-6 mb-4" data-aos="fade-up" data-aos-delay="240">
+            <div className="col-lg-3 col-md-6 mb-4">
               <div className="feature-item" style={{ textAlign: 'center', height: '100%' }}>
                 <div className="feature-icon" style={{ marginBottom: '1rem' }}>
                   <i className="fas fa-home" style={{ fontSize: '2.2rem', color: 'var(--color-accent)' }} />
@@ -431,7 +442,7 @@ const SA2TP = () => {
           <div className="row justify-content-center">
 
             {/* Crew 1 */}
-            <div className="col-lg-4 col-md-6 mb-5 text-center" data-aos="fade-up" data-aos-delay="0">
+            <div className="col-lg-4 col-md-6 mb-5 text-center">
               <img
                 loading="lazy"
                 src="/sa2tp/Crew1_Patch.webp"
@@ -451,7 +462,7 @@ const SA2TP = () => {
             </div>
 
             {/* Crew 2 */}
-            <div className="col-lg-4 col-md-6 mb-5 text-center" data-aos="fade-up" data-aos-delay="100">
+            <div className="col-lg-4 col-md-6 mb-5 text-center">
               <img
                 loading="lazy"
                 src="/sa2tp/Crew2_Patch.webp"
@@ -471,7 +482,7 @@ const SA2TP = () => {
             </div>
 
             {/* Crew 3 */}
-            <div className="col-lg-4 col-md-6 mb-5 text-center" data-aos="fade-up" data-aos-delay="200">
+            <div className="col-lg-4 col-md-6 mb-5 text-center">
               <img
                 loading="lazy"
                 src="/sa2tp/Crew3_Patch.webp"
@@ -520,8 +531,8 @@ const SA2TP = () => {
                         </div>
                         <div className="blog-author"><p>by Purdue SEARCH</p></div>
                         <div className="blog-share-wrapper">
-                          <a className="blog-share" href="https://www.instagram.com/purdue_search/" target="_blank" rel="noopener noreferrer"><i className="fab fa-instagram" /></a>
-                          <a className="blog-share" href="https://twitter.com/purduesearch" target="_blank" rel="noopener noreferrer"><i className="fab fa-twitter-square" /></a>
+                          <a className="blog-share" aria-label="Purdue SEARCH on Instagram" href="https://www.instagram.com/purdue_search/" target="_blank" rel="noopener noreferrer"><i className="fab fa-instagram" /></a>
+                          <a className="blog-share" aria-label="Purdue SEARCH on Twitter" href="https://twitter.com/purduesearch" target="_blank" rel="noopener noreferrer"><i className="fab fa-twitter-square" /></a>
                         </div>
                       </div>
                     </div>
@@ -543,8 +554,8 @@ const SA2TP = () => {
                         <div className="blog-desc"><p>This is an interview by Purdue Exponent, with the members of SEARCH regarding our summer analog astronaut training program</p></div>
                         <div className="blog-author"><p>by James Kling</p></div>
                         <div className="blog-share-wrapper">
-                          <a className="blog-share" href="https://www.instagram.com/purdue_search/" target="_blank" rel="noopener noreferrer"><i className="fab fa-instagram" /></a>
-                          <a className="blog-share" href="https://twitter.com/purduesearch" target="_blank" rel="noopener noreferrer"><i className="fab fa-twitter-square" /></a>
+                          <a className="blog-share" aria-label="Purdue SEARCH on Instagram" href="https://www.instagram.com/purdue_search/" target="_blank" rel="noopener noreferrer"><i className="fab fa-instagram" /></a>
+                          <a className="blog-share" aria-label="Purdue SEARCH on Twitter" href="https://twitter.com/purduesearch" target="_blank" rel="noopener noreferrer"><i className="fab fa-twitter-square" /></a>
                         </div>
                       </div>
                     </div>
@@ -562,8 +573,8 @@ const SA2TP = () => {
                         <div className="blog-desc"><p>Our first ever student run astronaut training program happened in the summer of 2023. The program involved fitness training, flight training, scuba certification and a trip to NASA in Huntsville, Alabama</p></div>
                         <div className="blog-author"><p>by Hrishikesh Viswanath</p></div>
                         <div className="blog-share-wrapper">
-                          <a className="blog-share" href="https://www.instagram.com/purdue_search/" target="_blank" rel="noopener noreferrer"><i className="fab fa-instagram" /></a>
-                          <a className="blog-share" href="https://twitter.com/purduesearch" target="_blank" rel="noopener noreferrer"><i className="fab fa-twitter-square" /></a>
+                          <a className="blog-share" aria-label="Purdue SEARCH on Instagram" href="https://www.instagram.com/purdue_search/" target="_blank" rel="noopener noreferrer"><i className="fab fa-instagram" /></a>
+                          <a className="blog-share" aria-label="Purdue SEARCH on Twitter" href="https://twitter.com/purduesearch" target="_blank" rel="noopener noreferrer"><i className="fab fa-twitter-square" /></a>
                         </div>
                       </div>
                     </div>

@@ -25,11 +25,11 @@ const Contact = () => {
         canonical="/contact"
       />
       <Navbar />
-      <div id="main-content" className="jumbotron jumbotron-single d-flex align-items-center" style={{ backgroundImage: 'url(/Purdue_Sky.webp)' }}>
+      <main id="main-content" className="jumbotron jumbotron-single d-flex align-items-center" style={{ backgroundImage: 'url(/Purdue_Sky.webp)' }}>
         <div className="container text-center">
           <h1 className="display-2 mb-4">Contact Us</h1>
         </div>
-      </div>
+      </main>
 
       <section id="contact-form" className="bg-white">
         <div className="container">
