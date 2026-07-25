@@ -14,7 +14,10 @@ function observe(el) {
 }
 
 export function initAosShim() {
-  if (reduced()) {
+  // `aos-off` disables the CSS that hides [data-aos] elements. Anything that
+  // stops us from revealing them later MUST set it, or content stays at
+  // opacity: 0 forever.
+  if (reduced() || typeof IntersectionObserver === 'undefined') {
     document.documentElement.classList.add('aos-off');
     return;
   }
@@ -23,6 +26,9 @@ export function initAosShim() {
       if (!e.isIntersecting) continue;
       e.target.classList.add('aos-animate');
       e.target.dataset.aosDone = '1';
+      // Drop the one-shot entrance delay so it can't lag later
+      // transitions (hover borders/shadows) on the same element.
+      e.target.style.transitionDelay = '';
       io.unobserve(e.target);
     }
   }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });

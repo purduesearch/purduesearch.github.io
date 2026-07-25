@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-route
 import { AnimatePresence } from 'framer-motion';
 import { Toaster } from 'react-hot-toast';
 import ScrollToTop from './components/ScrollToTop';
+import ChunkErrorBoundary from './components/ChunkErrorBoundary';
 import ReadingProgress from './components/ReadingProgress';
 import PageWrapper from './components/PageWrapper';
 import { ClubPmAuthProvider } from './clubpm/ClubPmAuth';
@@ -75,8 +76,9 @@ function AnimatedRoutes() {
   return (
     <>
       {!isClubPm && <ReadingProgress />}
-      <Suspense fallback={null}>
-        <AnimatePresence mode="wait">
+      <ChunkErrorBoundary>
+        <Suspense fallback={null}>
+          <AnimatePresence mode="wait">
           <Routes location={location} key={location.pathname}>
             {/* Club PM routes */}
             <Route path="/clubpm/login" element={<Suspense fallback={clubPmFallback}><ClubPmLogin /></Suspense>} />
@@ -124,8 +126,9 @@ function AnimatedRoutes() {
             <Route path="/search" element={<PageWrapper><SearchResults /></PageWrapper>} />
             <Route path="*" element={<PageWrapper><NotFound /></PageWrapper>} />
           </Routes>
-        </AnimatePresence>
-      </Suspense>
+          </AnimatePresence>
+        </Suspense>
+      </ChunkErrorBoundary>
     </>
   );
 }

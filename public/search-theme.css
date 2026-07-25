@@ -22242,3 +22242,31 @@ html:not(.aos-off) [data-aos].aos-animate  { opacity: 1; transform: none; }
   padding: 8px;
   background-clip: content-box;
 }
+
+/* === CHUNK ERROR FALLBACK ======================================= */
+/* Shown only if a lazy route chunk 404s (stale tab across a deploy). */
+.chunk-error-fallback {
+  max-width: 32rem;
+  margin: 6rem auto;
+  padding: 0 1.5rem;
+  text-align: center;
+  font-family: var(--font-body);
+  color: var(--color-text);
+}
+.chunk-error-fallback h1 {
+  font-family: var(--font-heading);
+  font-size: 1.5rem;
+  margin-bottom: 0.75rem;
+}
+.chunk-error-btn {
+  margin-top: 1.25rem;
+  padding: 0.6em 1.6em;
+  font-family: var(--font-body);
+  font-weight: 600;
+  color: var(--color-text-light);
+  background: var(--color-accent);
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+}
+.chunk-error-btn:hover { background: var(--color-accent-hover); }
