@@ -179,7 +179,7 @@ section {
   color: var(--color-text);
   border-color: var(--color-border);
 }
-#header-navbar .lnr-menu {
+#header-navbar .navbar-toggler .fa-bars {
   color: var(--color-text);
   font-size: 1.4rem;
 }
@@ -615,7 +615,7 @@ section#single-content .feature-item {
 #header-navbar.nav-transparent .navbar-brand {
   color: #fff !important;
 }
-#header-navbar.nav-transparent .lnr-menu {
+#header-navbar.nav-transparent .navbar-toggler .fa-bars {
   color: #fff;
 }
 

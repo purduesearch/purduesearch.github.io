@@ -72,22 +72,22 @@ const Contact = () => {
             </div>
             <div className="row text-center mt-4">
               <div className="col-md-3" data-aos="fade-up">
-                <span className="lnr lnr-location fs-40 py-4 d-block" />
+                <i className="fas fa-map-marker-alt fs-40 py-4 d-block" aria-hidden="true" />
                 <h5>LOCATION</h5>
                 <p>Purdue University, West Lafayette, IN</p>
               </div>
               <div className="col-md-3" data-aos="fade-up" data-aos-delay={200}>
-                <span className="lnr lnr-clock fs-40 py-4 d-block" />
+                <i className="fas fa-clock fs-40 py-4 d-block" aria-hidden="true" />
                 <h5>MEETING TIME</h5>
                 <p>Weekly meetings during semester</p>
               </div>
               <div className="col-md-3" data-aos="fade-up" data-aos-delay={400}>
-                <span className="lnr lnr-phone fs-40 py-4 d-block" />
+                <i className="fas fa-phone fs-40 py-4 d-block" aria-hidden="true" />
                 <h5>SOCIAL</h5>
                 <p>@purdue_search on Instagram</p>
               </div>
               <div className="col-md-3" data-aos="fade-up" data-aos-delay={600}>
-                <span className="lnr lnr-envelope fs-40 py-4 d-block" />
+                <i className="fas fa-envelope fs-40 py-4 d-block" aria-hidden="true" />
                 <h5>EMAIL US</h5>
                 <p>
                   <a href="mailto:purduesearch@gmail.com">

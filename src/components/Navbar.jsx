@@ -91,7 +91,7 @@ const Navbar = () => {
         >
           {menuOpen
             ? <i className="fas fa-times" style={{ fontSize: '1.25rem' }} />
-            : <span className="lnr lnr-menu" />
+            : <i className="fas fa-bars" aria-hidden="true" />
           }
         </button>
 
