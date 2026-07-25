@@ -90,8 +90,10 @@
     <!-- Base template styles (must load before search-theme overrides) -->
     <link rel="stylesheet" href="%PUBLIC_URL%/style.min.css" />
 
-    <!-- SEARCH Theme Overrides — must load last -->
-    <link rel="stylesheet" href="%PUBLIC_URL%/search-theme.css?v=3" />
+    <!-- SEARCH Theme Overrides — must load last.
+         ClubPM-only rules live in clubpm-theme.css and are fetched on demand by
+         src/clubpm/loadClubPmTheme.js, so public pages never download them. -->
+    <link rel="stylesheet" href="%PUBLIC_URL%/search-theme.css?v=4" />
   </head>
   <body>
     <a class="skip-link" href="#main-content">Skip to main content</a>

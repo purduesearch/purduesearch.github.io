@@ -15,7 +15,8 @@ Static SPA for the Purdue SEARCH club, deployed to GitHub Pages at `purduesearch
 (repo root)
 ├── public/
 │   ├── index.html                  # HTML shell; Font Awesome CDN link here
-│   ├── search-theme.css            # Global + component CSS (primary CSS file)
+│   ├── search-theme.css            # Public site CSS (linked from index.html on every page)
+│   ├── clubpm-theme.css            # ClubPM-only CSS, fetched on demand by /clubpm/* routes
 │   └── <program>/                  # Static assets per program
 │       └── interactive diagrams/   # mxGraph XML source files (.xml)
 ├── src/
@@ -99,12 +100,16 @@ Static SPA for the Purdue SEARCH club, deployed to GitHub Pages at `purduesearch
 - Hooks only — no class components.
 
 ### CSS
-- **Primary global file:** `public/search-theme.css` — component and theme styles go here. No CSS modules, no Tailwind.
+- **Two stylesheets, split by audience.** No CSS modules, no Tailwind.
+  - `public/search-theme.css` — public site. Linked from `index.html`, so **every visitor downloads it**. Keep it lean.
+  - `public/clubpm-theme.css` — ClubPM only. Fetched at runtime by `src/clubpm/loadClubPmTheme.js`, which `src/App.js` wraps around every `/clubpm/*` lazy route via `lazyWithClubPmTheme()`. Public pages never request it.
+- **Which file does a new rule go in?** If the styled element can appear outside `/clubpm/*`, it belongs in `search-theme.css`. Note that `/schedule/:token` and `/rsvp/:eventId` are **public** routes that reuse the ClubPM look (`.clubpm-app`, `.cpm-form-*`, `.pm-poll-*`), and `/blog/:slug` renders stored HTML whose classes come from `backend/src/services/blogRender.ts` (`.cpm-blog-section`, `.cpm-blog-callout--*`, …) — all of that is public.
+- **Cascade:** `clubpm-theme.css` is appended to `<head>` after `search-theme.css`, so it still wins over both it and `style.min.css`. It is a verbatim tail slice of the pre-split file, which is what keeps ClubPM's cascade byte-for-byte identical; public rules that live in that tail intentionally appear in both files.
 - `src/index.css` — base reset and font styles only.
 - `src/newscarousel.scss` — carousel-specific SCSS (one-off; do not add more SCSS files).
 - Theme tokens are CSS custom properties: `--color-accent`, `--color-border`, `--color-muted`, `--color-text-muted`, `--color-bg`, etc.
 - Component class names are kebab-case, namespaced by feature (e.g., `astro-diagram-wrap`, `astro-diagram-toolbar`, `astro-key-btn`).
-- Append new component CSS to the bottom of `search-theme.css`; never inline critical styles.
+- Append new component CSS to the bottom of whichever of the two files applies; never inline critical styles.
 
 ### Animations
 - AOS for scroll entrance: `data-aos="fade-up"`, `data-aos-delay="100"` on JSX elements.
@@ -305,18 +310,20 @@ Execution is open to **any logged-in member** — `executeActionPlan` re-checks 
 
 ---
 
-## CSS Architecture (`public/search-theme.css`)
+## CSS Architecture
 
-**23,142 lines — always Grep before Reading.**
+**`public/search-theme.css` (~6,300 lines) and `public/clubpm-theme.css` (~20,500 lines) — always Grep before Reading.**
 
-Section order:
+`search-theme.css` section order:
 1. CSS custom properties (`:root`) — SEARCH branding tokens
 2. Global resets + typography
 3. Navbar / Footer
 4. Hero + home page sections
 5. Program pages (AstroUSA, SA²TP, Research, Software)
-6. Blog / News carousel
-7. **ClubPM** — starts ~line 4270, header: `/* === CLUBPM`
+6. Blog / News carousel — including the article-body styles the public `/blog/:slug` page needs
+7. Public routes that borrow the ClubPM look (`/schedule`, `/rsvp`) plus the trailing global overrides (AOS shim, GSAP, `prefers-reduced-motion`, `:focus-visible` a11y)
+
+`clubpm-theme.css` is the pre-split file from its first ClubPM rule to the end, so the ClubPM section order is unchanged from before the split — just relocated.
 
 ClubPM CSS class prefixes:
 - `clubpm-` — Full component names (`clubpm-app`, `clubpm-surface-*`, `clubpm-badge-*`, `clubpm-btn-primary`)
@@ -325,7 +332,7 @@ ClubPM CSS class prefixes:
 
 ClubPM design tokens (on `.clubpm-app`): `--pm-bg-base`, `--pm-surface`, `--pm-elevated`, `--pm-overlay`, `--pm-accent-teal` (#00e5cc), `--pm-accent-amber` (#f5a623), `--pm-accent-coral`, `--pm-accent-violet`, `--pm-font-display` (Syne), `--pm-font-body` (DM Sans), `--pm-font-mono` (JetBrains Mono).
 
-Grep: `rg "\.pm-shell" public/search-theme.css` or `rg "/\* ===" public/search-theme.css` to find section headers.
+Grep: `rg "\.pm-shell" public/clubpm-theme.css` or `rg "/\* ===" public/*.css` to find section headers. When hunting a ClubPM class, search `clubpm-theme.css` first, then `search-theme.css` — a few `pm-`/`cpm-` prefixed rules legitimately live in the public file (see the CSS conventions above).
 
 ---
 
@@ -333,7 +340,8 @@ Grep: `rg "\.pm-shell" public/search-theme.css` or `rg "/\* ===" public/search-t
 
 | File | Lines | What to Grep |
 |------|-------|-------------|
-| `public/search-theme.css` | 23,142 | class names, `/* ===` section headers |
+| `public/clubpm-theme.css` | 20,529 | class names, `/* ===` section headers |
+| `public/search-theme.css` | 6,321 | class names, `/* ===` section headers |
 | `src/pages/ClubPM/ProjectDetail.jsx` | 3,613 | component/state names, tab constants |
 | `src/components/clubpm/TaskModal.jsx` | 2,625 | section names, handler names |
 | `backend/src/api/outreach.ts` | 1,781 | route paths |

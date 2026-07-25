@@ -53,6 +53,7 @@ function buildSrcDoc({ html, meta, title, origin }) {
   return `<!doctype html><html><head><meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <link rel="stylesheet" href="${origin}/search-theme.css"/>
+<link rel="stylesheet" href="${origin}/clubpm-theme.css"/>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Montserrat:wght@400;500;700;900&family=Ubuntu:wght@400;500;700&family=Lato:wght@300;400&family=Work+Sans:wght@300;400;700&family=Syne:wght@600;700;800&family=DM+Sans:wght@400;500;700&display=swap"/>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"/>
 <style>body{margin:0;background:#fff;}</style>
