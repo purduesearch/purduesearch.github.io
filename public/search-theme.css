@@ -22233,7 +22233,9 @@ html:not(.aos-off) [data-aos].aos-animate  { opacity: 1; transform: none; }
    area grows to >=24px (WCAG 2.2 target-size) via padding that the
    background does not paint into (background-clip: content-box).
    .tc-dots gap drops to 0 so the visual spacing barely changes. */
-.tc-dots { gap: 0; }
+/* 4px gap, not 0: .tc-dot.active scales 1.25 (24px -> 30px) and would
+   otherwise obscure its neighbours' hit areas down to 22.8px. */
+.tc-dots { gap: 4px; }
 .tc-dot,
 .tc-dot.active {
   box-sizing: content-box;
