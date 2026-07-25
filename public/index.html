@@ -23,12 +23,9 @@
     <meta name="twitter:description" content="Student-led analog astronaut training, bioastronautics research, and space habitat design at Purdue University." />
     <meta name="twitter:image" content="https://purduesearch.github.io/icons/purdue_search_logo.png" />
 
-    <!-- Canonical -->
-    <link rel="canonical" href="https://purduesearch.github.io/" />
-
-    <!-- hreflang -->
-    <link rel="alternate" hreflang="en" href="https://purduesearch.github.io/" />
-    <link rel="alternate" hreflang="x-default" href="https://purduesearch.github.io/" />
+    <!-- Canonical + hreflang are emitted per-route by src/components/SEOHead.jsx
+         (React 19 hoists them into <head>). A static copy here pointed every
+         route at the homepage, producing conflicting canonicals on subpages. -->
 
     <!-- JSON-LD Organization Schema -->
     <script type="application/ld+json">
