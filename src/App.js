@@ -10,6 +10,7 @@ import { ClubPmAuthProvider } from './clubpm/ClubPmAuth';
 import { ShortcutsProvider } from './clubpm/ShortcutsRegistry';
 import GlobalShortcutsSetup from './components/clubpm/GlobalShortcutsSetup';
 import { ProjectNavProvider } from './clubpm/ProjectNavContext';
+import { lazyWithClubPmTheme } from './clubpm/loadClubPmTheme';
 import Home from './pages/Home';
 
 // ── Public site lazy routes (code-split out of the main chunk) ──
@@ -38,21 +39,24 @@ const NotFound = lazy(() => import('./pages/NotFound'));
 const SearchResults = lazy(() => import('./pages/SearchResults'));
 
 // ── ClubPM lazy routes (avoid pulling the ClubPM app shell + pages into the main bundle) ──
-const AppShell               = lazy(() => import('./components/clubpm/AppShell'));
-const ClubPmLogin            = lazy(() => import('./pages/ClubPM/Login'));
-const ClubPmDashboard        = lazy(() => import('./pages/ClubPM/Dashboard'));
-const ClubPmProjectDetail    = lazy(() => import('./pages/ClubPM/ProjectDetail'));
-const ClubPmGanttView        = lazy(() => import('./pages/ClubPM/GanttView'));
-const ClubPmMembersView      = lazy(() => import('./pages/ClubPM/MembersView'));
-const NotificationCenter     = lazy(() => import('./components/clubpm/NotificationCenter'));
-const NotificationPreferences = lazy(() => import('./components/clubpm/NotificationPreferences'));
-const CalendarPage           = lazy(() => import('./pages/ClubPM/CalendarPage'));
-const AdminView              = lazy(() => import('./pages/ClubPM/AdminView'));
-const OutreachHub            = lazy(() => import('./pages/ClubPM/OutreachHub'));
-const BlogEditorPage         = lazy(() => import('./pages/ClubPM/BlogEditorPage'));
-const ClubPmProfile  = lazy(() => import('./pages/ClubPM/Profile'));
-const ClubPmShop     = lazy(() => import('./pages/ClubPM/Shop'));
-const ChallengesPage = lazy(() => import('./pages/ClubPM/ChallengesPage'));
+// lazyWithClubPmTheme also fetches public/clubpm-theme.css alongside the chunk,
+// so ClubPM CSS never reaches public visitors and these routes still paint
+// fully styled on first render (the Suspense fallback covers both fetches).
+const AppShell               = lazy(lazyWithClubPmTheme(() => import('./components/clubpm/AppShell')));
+const ClubPmLogin            = lazy(lazyWithClubPmTheme(() => import('./pages/ClubPM/Login')));
+const ClubPmDashboard        = lazy(lazyWithClubPmTheme(() => import('./pages/ClubPM/Dashboard')));
+const ClubPmProjectDetail    = lazy(lazyWithClubPmTheme(() => import('./pages/ClubPM/ProjectDetail')));
+const ClubPmGanttView        = lazy(lazyWithClubPmTheme(() => import('./pages/ClubPM/GanttView')));
+const ClubPmMembersView      = lazy(lazyWithClubPmTheme(() => import('./pages/ClubPM/MembersView')));
+const NotificationCenter     = lazy(lazyWithClubPmTheme(() => import('./components/clubpm/NotificationCenter')));
+const NotificationPreferences = lazy(lazyWithClubPmTheme(() => import('./components/clubpm/NotificationPreferences')));
+const CalendarPage           = lazy(lazyWithClubPmTheme(() => import('./pages/ClubPM/CalendarPage')));
+const AdminView              = lazy(lazyWithClubPmTheme(() => import('./pages/ClubPM/AdminView')));
+const OutreachHub            = lazy(lazyWithClubPmTheme(() => import('./pages/ClubPM/OutreachHub')));
+const BlogEditorPage         = lazy(lazyWithClubPmTheme(() => import('./pages/ClubPM/BlogEditorPage')));
+const ClubPmProfile  = lazy(lazyWithClubPmTheme(() => import('./pages/ClubPM/Profile')));
+const ClubPmShop     = lazy(lazyWithClubPmTheme(() => import('./pages/ClubPM/Shop')));
+const ChallengesPage = lazy(lazyWithClubPmTheme(() => import('./pages/ClubPM/ChallengesPage')));
 
 // ── Club PM protected route wrapper ──────────────────────────
 
