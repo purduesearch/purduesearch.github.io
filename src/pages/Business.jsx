@@ -83,7 +83,7 @@ const Business = () => {
       <main
         id="main-content"
         className="jumbotron jumbotron-single d-flex align-items-center"
-        style={{ backgroundImage: 'url(/business/buisness.webp), url(/analogs_bg.jpg)' }}
+        style={{ backgroundImage: 'url(/business/buisness.webp), url(/analogs_bg.webp)' }}
       >
         <div className="container text-center">
           <h1 className="display-2 mb-4">Business &amp; Operations</h1>

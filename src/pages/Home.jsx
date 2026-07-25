@@ -666,7 +666,7 @@ const Home = () => {
               </div>
             </div>
             <div className="col-md-6 about-visual-col mt-4 mt-md-0" data-aos="fade-left">
-              <img loading="lazy" src="/bg-2.jpg" alt="SEARCH members at the station" />
+              <img loading="lazy" src="/bg-2.webp" alt="SEARCH members at the station" />
             </div>
           </div>
         </div>
