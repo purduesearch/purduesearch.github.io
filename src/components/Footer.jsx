@@ -24,7 +24,7 @@ const Footer = () => (
 
         {/* Programs links */}
         <div className="col-lg-2 col-md-6 mb-4 footer-nav-col">
-          <h6>Programs</h6>
+          <h4>Programs</h4>
           <ul>
             <li><Link to="/research">Research</Link></li>
             <li><Link to="/analogs">Analog Programs</Link></li>
@@ -35,7 +35,7 @@ const Footer = () => (
 
         {/* Team links */}
         <div className="col-lg-2 col-md-6 mb-4 footer-nav-col">
-          <h6>Team</h6>
+          <h4>Team</h4>
           <ul>
             <li><Link to="/software">Software</Link></li>
             <li><Link to="/outreach">Outreach</Link></li>
@@ -46,7 +46,7 @@ const Footer = () => (
 
         {/* Connect links */}
         <div className="col-lg-2 col-md-6 mb-4 footer-nav-col">
-          <h6>Connect</h6>
+          <h4>Connect</h4>
           <ul>
             <li>
               <Link to="/contact">Contact Us</Link>

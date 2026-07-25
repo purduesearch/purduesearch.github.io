@@ -426,7 +426,7 @@ footer#search-footer {
   max-width: 260px;
 }
 
-#search-footer .footer-nav-col h6 {
+#search-footer .footer-nav-col h4 {
   font-family: var(--font-body);
   font-size: 0.7rem;
   letter-spacing: 0.14em;
@@ -22218,4 +22218,25 @@ html:not(.aos-off) [data-aos].aos-animate  { opacity: 1; transform: none; }
 }
 .clubpm-app :where(a, button, input, select, textarea):focus-visible {
   outline-color: var(--pm-accent-teal) !important;
+}
+
+/* === A11Y REMEDIATION (Lighthouse) ============================== */
+/* Footer muted text: alpha 0.45 over #0a0a0f computed to #747170 =
+   4.08:1, under the 4.5:1 AA floor. 0.55 keeps the same cream hue and
+   lifts it to ~5.5:1. Brand tokens are untouched. */
+#search-footer .footer-nav-col h4,
+#search-footer .footer-bottom-bar p {
+  color: rgba(245, 239, 230, 0.55);
+}
+
+/* Carousel dots: the visible dot stays 8-10px, but the button's hit
+   area grows to >=24px (WCAG 2.2 target-size) via padding that the
+   background does not paint into (background-clip: content-box).
+   .tc-dots gap drops to 0 so the visual spacing barely changes. */
+.tc-dots { gap: 0; }
+.tc-dot,
+.tc-dot.active {
+  box-sizing: content-box;
+  padding: 8px;
+  background-clip: content-box;
 }

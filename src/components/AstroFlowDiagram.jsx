@@ -762,6 +762,7 @@ const AstroFlowDiagram = () => {
         className={`astro-diagram-panel${activeNode ? ' open' : ''}`}
         aria-label="Node details"
         aria-hidden={!activeNode}
+        inert={!activeNode}
         aria-live="polite"
       >
         <button className="astro-diagram-panel-close" onClick={closePanel} aria-label="Close details panel">
