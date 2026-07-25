@@ -68,3 +68,24 @@ test('the four conversion targets are registered', () => {
 test('tier table matches the approved spec', () => {
   assert.deepEqual(TIERS, { hero: 1920, content: 1100, social: 800, headshot: 500 });
 });
+
+import { chooseOutput } from './optimize-images.mjs';
+
+test('never-grow: a larger re-encode is discarded', () => {
+  const original = Buffer.alloc(100);
+  const encoded = Buffer.alloc(140);
+  const r = chooseOutput(original, encoded);
+  assert.equal(r.kept, 'original');
+  assert.equal(r.buf.length, 100);
+});
+
+test('never-grow: a smaller re-encode is kept', () => {
+  const r = chooseOutput(Buffer.alloc(100), Buffer.alloc(40));
+  assert.equal(r.kept, 'encoded');
+  assert.equal(r.buf.length, 40);
+});
+
+test('never-grow: an equal-size re-encode keeps the original', () => {
+  const r = chooseOutput(Buffer.alloc(100), Buffer.alloc(100));
+  assert.equal(r.kept, 'original');
+});
