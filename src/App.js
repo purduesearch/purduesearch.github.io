@@ -1,4 +1,4 @@
-import { Suspense, lazy } from 'react';
+import { Suspense, lazy, useLayoutEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import { Toaster } from 'react-hot-toast';
@@ -11,6 +11,7 @@ import { ShortcutsProvider } from './clubpm/ShortcutsRegistry';
 import GlobalShortcutsSetup from './components/clubpm/GlobalShortcutsSetup';
 import { ProjectNavProvider } from './clubpm/ProjectNavContext';
 import { lazyWithClubPmTheme } from './clubpm/loadClubPmTheme';
+import ClubPmLoading from './components/clubpm/ClubPmLoading';
 import Home from './pages/Home';
 
 // ── Public site lazy routes (code-split out of the main chunk) ──
@@ -60,7 +61,9 @@ const ChallengesPage = lazy(lazyWithClubPmTheme(() => import('./pages/ClubPM/Cha
 
 // ── Club PM protected route wrapper ──────────────────────────
 
-const clubPmFallback = <div style={{ padding: 24 }}>Loading…</div>;
+// Dark boot screen rather than a bare div: the cream body background from
+// search-theme.css is what shows through until clubpm-theme.css lands.
+const clubPmFallback = <ClubPmLoading />;
 
 function ClubPmProtectedPage({ children }) {
   return (
@@ -77,6 +80,14 @@ function ClubPmProtectedPage({ children }) {
 function AnimatedRoutes() {
   const location = useLocation();
   const isClubPm = location.pathname.startsWith('/clubpm');
+
+  // Keep the pre-paint flag from public/index.html in sync once the router
+  // takes over, so entering /clubpm goes dark before the boot screen paints
+  // and leaving it restores the cream public body. useLayoutEffect (not
+  // useEffect) so the swap lands in the same frame as the route change.
+  useLayoutEffect(() => {
+    document.documentElement.classList.toggle('clubpm-route', isClubPm);
+  }, [isClubPm]);
 
   return (
     <>
@@ -99,10 +110,10 @@ function AnimatedRoutes() {
             <Route path="/clubpm/meeting-notes" element={<Navigate to="/clubpm/admin" replace />} />
             <Route path="/clubpm/outreach" element={<ClubPmProtectedPage><OutreachHub /></ClubPmProtectedPage>} />
             <Route path="/clubpm/outreach/blog/:id/edit" element={<ClubPmProtectedPage><BlogEditorPage /></ClubPmProtectedPage>} />
-            <Route path="/clubpm/profile" element={<ClubPmProtectedPage><Suspense fallback={<div style={{ padding: 24 }}>Loading…</div>}><ClubPmProfile /></Suspense></ClubPmProtectedPage>} />
-            <Route path="/clubpm/profile/:memberId" element={<ClubPmProtectedPage><Suspense fallback={<div style={{ padding: 24 }}>Loading…</div>}><ClubPmProfile /></Suspense></ClubPmProtectedPage>} />
-            <Route path="/clubpm/shop" element={<ClubPmProtectedPage><Suspense fallback={<div style={{ padding: 24 }}>Loading…</div>}><ClubPmShop /></Suspense></ClubPmProtectedPage>} />
-            <Route path="/clubpm/challenges" element={<ClubPmProtectedPage><Suspense fallback={<div style={{ padding: 24 }}>Loading…</div>}><ChallengesPage /></Suspense></ClubPmProtectedPage>} />
+            <Route path="/clubpm/profile" element={<ClubPmProtectedPage><Suspense fallback={clubPmFallback}><ClubPmProfile /></Suspense></ClubPmProtectedPage>} />
+            <Route path="/clubpm/profile/:memberId" element={<ClubPmProtectedPage><Suspense fallback={clubPmFallback}><ClubPmProfile /></Suspense></ClubPmProtectedPage>} />
+            <Route path="/clubpm/shop" element={<ClubPmProtectedPage><Suspense fallback={clubPmFallback}><ClubPmShop /></Suspense></ClubPmProtectedPage>} />
+            <Route path="/clubpm/challenges" element={<ClubPmProtectedPage><Suspense fallback={clubPmFallback}><ChallengesPage /></Suspense></ClubPmProtectedPage>} />
 
             {/* Public outreach routes (no auth) */}
             <Route path="/rsvp/:eventId" element={<EventRsvp />} />

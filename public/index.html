@@ -93,7 +93,37 @@
     <!-- SEARCH Theme Overrides — must load last.
          ClubPM-only rules live in clubpm-theme.css and are fetched on demand by
          src/clubpm/loadClubPmTheme.js, so public pages never download them. -->
-    <link rel="stylesheet" href="%PUBLIC_URL%/search-theme.css?v=4" />
+    <link rel="stylesheet" href="%PUBLIC_URL%/search-theme.css?v=5" />
+
+    <!-- ClubPM dark boot.
+         /clubpm/* is a dark dashboard, but the body is cream until React
+         mounts and clubpm-theme.css is fetched. Stamping the route on <html>
+         from a blocking script means the first paint is already dark, so a
+         hard load or the ?lt= login redirect never flashes cream.
+         Styles: "ClubPM boot screen" section of search-theme.css.
+         Kept in sync on client-side navigation by AnimatedRoutes (src/App.js). -->
+    <script>
+      (function () {
+        var p = window.location.pathname;
+        if (p === '/clubpm' || p.lastIndexOf('/clubpm/', 0) === 0) {
+          document.documentElement.classList.add('clubpm-route');
+        }
+      })();
+    </script>
+
+    <!-- Warm the ClubPM stylesheet in parallel with the JS bundle so the boot
+         screen is not also waiting on a cold CSS fetch. Must match the href in
+         src/clubpm/loadClubPmTheme.js or the preload is wasted. -->
+    <script>
+      (function () {
+        if (!document.documentElement.classList.contains('clubpm-route')) return;
+        var l = document.createElement('link');
+        l.rel = 'preload';
+        l.as = 'style';
+        l.href = '/clubpm-theme.css?v=1';
+        document.head.appendChild(l);
+      })();
+    </script>
   </head>
   <body>
     <a class="skip-link" href="#main-content">Skip to main content</a>
