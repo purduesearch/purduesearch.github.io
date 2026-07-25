@@ -30,6 +30,7 @@ import BlogSectionSettings from './BlogSectionSettings';
 import BlogThemeBar from './BlogThemeBar';
 import { docToMarkdown, markdownToDoc } from './blogMarkdown';
 import { getBlogCollabWsUrl, getStoredToken } from '../../../api/clubPmClient';
+import { shouldFallbackSeed } from '../../../lib/collabFallback';
 import useKeyboardShortcuts from '../../../hooks/useKeyboardShortcuts';
 import { useShortcutsRegistry } from '../../../clubpm/ShortcutsRegistry';
 
@@ -431,10 +432,18 @@ function FindBar({ editor, onClose }) {
   );
 }
 
-function PresenceBar({ connected, peers }) {
+// The dot is green only when the Yjs document has actually SYNCED — a socket
+// that is merely "connected" but never syncs (auth silently failed) is not a
+// live session, and claiming it is hides the fact that co-editing isn't working.
+function PresenceBar({ synced, connected, peers }) {
+  const title = synced
+    ? 'Live — changes sync in real time'
+    : connected
+      ? 'Connecting to the live session…'
+      : 'Offline — your edits are saved to the draft';
   return (
-    <div className="cpm-blog-presence" title={connected ? 'Live — changes sync in real time' : 'Reconnecting…'}>
-      <span className={`cpm-blog-presence-dot${connected ? ' is-live' : ''}`} aria-hidden="true" />
+    <div className="cpm-blog-presence" title={title}>
+      <span className={`cpm-blog-presence-dot${synced ? ' is-live' : ''}`} aria-hidden="true" />
       {peers.map((p) => (
         <span
           key={p.clientId}
@@ -472,6 +481,7 @@ export default function BlogEditor({ content, onChange, editable = true, onEdito
     return () => window.removeEventListener('blog-section-settings', handler);
   }, []);
   const [connected, setConnected] = React.useState(false);
+  const [synced, setSynced] = React.useState(false);
   const [peers, setPeers] = React.useState([]);
   const [markdownMode, setMarkdownMode] = React.useState(false);
   const [markdownText, setMarkdownText] = React.useState('');
@@ -480,7 +490,10 @@ export default function BlogEditor({ content, onChange, editable = true, onEdito
   const [toolbarOpen, setToolbarOpen] = React.useState(() => (typeof window === 'undefined' || window.innerWidth > 640));
   const shortcutsRegistry = useShortcutsRegistry();
   // Latest values read by the fallback-seed effect without re-arming it.
-  const connectedRef = React.useRef(false);
+  // syncedRef tracks whether the Yjs doc has actually synced from the server
+  // (NOT merely whether the socket connected) — the fallback seed is gated on
+  // this so a connected-but-never-synced session still shows the draft.
+  const syncedRef = React.useRef(false);
   const contentRef = React.useRef(content);
   contentRef.current = content;
 
@@ -516,17 +529,22 @@ export default function BlogEditor({ content, onChange, editable = true, onEdito
     const { provider } = collab;
     const onStatus = ({ status }) => {
       const isConnected = status === 'connected';
-      connectedRef.current = isConnected;
       setConnected(isConnected);
+      // A dropped socket is no longer synced. The provider only emits 'synced'
+      // on the true transition, so reset here to keep the flag honest.
+      if (!isConnected) { syncedRef.current = false; setSynced(false); }
     };
+    const onSynced = () => { syncedRef.current = true; setSynced(true); };
     const onAwareness = ({ states }) => {
       const selfId = provider.awareness?.clientID;
       setPeers(states.filter((s) => s.clientId !== selfId && s.user));
     };
     provider.on('status', onStatus);
+    provider.on('synced', onSynced);
     provider.on('awarenessUpdate', onAwareness);
     return () => {
       provider.off('status', onStatus);
+      provider.off('synced', onSynced);
       provider.off('awarenessUpdate', onAwareness);
     };
   }, [collab]);
@@ -544,14 +562,20 @@ export default function BlogEditor({ content, onChange, editable = true, onEdito
 
   // ── Fallback content seeding ──────────────────────────────────
   // In collab mode the editor starts from the shared Yjs doc, which the
-  // Hocuspocus server seeds from contentJson on connect. If that server is
-  // unreachable (WS blocked / reverse proxy missing the Upgrade headers), the
-  // doc never arrives and the editor stays blank — so generated/initial text
-  // never appears and there's nothing to persist. When the doc is still empty
-  // and we either synced against an empty server doc OR never connected at all,
-  // seed it from the `content` prop so editing works regardless of the collab
-  // link. Non-collab editors already load `content` directly, so this is inert
-  // there. emitUpdate:false so seeding never spuriously marks the doc dirty.
+  // Hocuspocus server seeds from contentJson on connect. If that doc never
+  // SYNCS the editor stays blank — so generated/initial text never appears and
+  // there's nothing to persist. This happens in three ways, all handled here:
+  //   1. The WS is blocked (some browsers/ad-blockers) — never connects.
+  //   2. The reverse proxy drops the Upgrade headers — never connects.
+  //   3. The socket connects but auth silently fails (a missing/expired Bearer
+  //      token) — the server never delivers a document, so it's connected yet
+  //      never synced. The earlier gate keyed on "never connected" and so left
+  //      THIS case blank forever; the fix gates on !synced instead.
+  // When the server had a document, `synced` fires with the editor already
+  // populated and seedIfEmpty is a no-op. When the server had none, we seed the
+  // current draft so co-editors start from it. Non-collab editors load
+  // `content` directly, so this is inert there. emitUpdate:false so seeding
+  // never spuriously marks the doc dirty.
   useEffect(() => {
     if (!editor || !collab) return undefined;
     let seeded = false;
@@ -565,9 +589,13 @@ export default function BlogEditor({ content, onChange, editable = true, onEdito
     };
     const onSynced = () => seedIfEmpty();            // server had no content
     collab.provider.on('synced', onSynced);
-    const timer = setTimeout(() => {                 // server never reachable
-      if (!connectedRef.current) seedIfEmpty();
-    }, 3000);
+    const timer = setTimeout(() => {                 // doc never arrived
+      if (shouldFallbackSeed({
+        synced: syncedRef.current,
+        editorEmpty: editor.isEmpty,
+        hasContent: !!contentRef.current,
+      })) seedIfEmpty();
+    }, 4000);
     return () => { clearTimeout(timer); collab.provider.off('synced', onSynced); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editor, collab]);
@@ -621,7 +649,7 @@ export default function BlogEditor({ content, onChange, editable = true, onEdito
           theme={theme}
           onThemeChange={onThemeChange}
         />
-        {collab && <PresenceBar connected={connected} peers={peers} />}
+        {collab && <PresenceBar synced={synced} connected={connected} peers={peers} />}
       </div>
       {showFind && !markdownMode && <FindBar editor={editor} onClose={() => setShowFind(false)} />}
       {showSnippets && !markdownMode && <BlogSnippetManager editor={editor} onClose={() => setShowSnippets(false)} />}

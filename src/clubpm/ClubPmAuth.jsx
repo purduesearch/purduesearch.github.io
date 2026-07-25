@@ -30,7 +30,11 @@ export function ClubPmAuthProvider({ children }) {
     })
       .then(async (res) => {
         if (res.ok) {
-          const m = await res.json();
+          // /auth/me re-issues a fresh Bearer token; persist it so the collab
+          // WebSocket (which authenticates via Bearer only) keeps working even
+          // when the previous token has expired. Strip it from member state.
+          const { authToken, ...m } = await res.json();
+          if (authToken) setStoredToken(authToken);
           setMember(m);
           return m;
         }
@@ -88,7 +92,11 @@ export function ClubPmAuthProvider({ children }) {
       })
         .then(async (res) => {
           if (res.ok) {
-            const m = await res.json();
+            // Persist the freshly re-issued Bearer token (see refetchMember)
+            // so cookie-authenticated sessions still get a valid token for the
+            // collab WebSocket. Strip it before storing member state.
+            const { authToken, ...m } = await res.json();
+            if (authToken) setStoredToken(authToken);
             setMember(m);
             setLoading(false);
           } else if (res.status === 401 && canRetry && freshToken) {

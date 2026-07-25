@@ -320,8 +320,19 @@ authRouter.get("/me", requireAuth, async (req: Request, res: Response) => {
     githubAccessToken: _gat,
     githubRefreshToken: _grt,
     githubTokenExpiresAt: _gte,
-    tokenVersion: _tv,
+    tokenVersion,
     ...safeMember
   } = member;
-  res.json(safeMember);
+
+  // Re-issue a fresh Bearer token on every auth check. This request already
+  // authenticated (via cookie OR an existing Bearer), so it's safe to hand back
+  // a current token — and necessary: the collab WebSocket (blog/press-kit
+  // editors) authenticates with the Bearer token ONLY, while the rest of the
+  // app also accepts the session cookie. Without this, a user whose stored
+  // token is missing or expired (7-day TTL) but whose cookie session is still
+  // valid keeps using the app fine yet silently fails collab auth — the editor
+  // connects but never syncs and shows no content. Refreshing here keeps a
+  // valid token in localStorage so collab always authenticates.
+  const authToken = signToken(member.id, tokenVersion);
+  res.json({ ...safeMember, authToken });
 });
