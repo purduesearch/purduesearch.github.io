@@ -11,11 +11,8 @@ const SEMESTERS = [
   { value: "FALL_2026",   label: "Fall 2026" },
 ];
 
-const TEAMS = ["", "Software", "Outreach", "Research", "Business", "Systems"];
-
 export default function LeaderboardPanel() {
   const [semester, setSemester] = useState("");
-  const [team, setTeam] = useState("");
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -23,13 +20,12 @@ export default function LeaderboardPanel() {
     setLoading(true);
     const qs = new URLSearchParams();
     if (semester) qs.set("semester", semester);
-    if (team)     qs.set("team", team);
     const q = qs.toString();
     get(`/api/leaderboard${q ? `?${q}` : ""}`)
       .then(setRows)
       .catch(() => setRows([]))
       .finally(() => setLoading(false));
-  }, [semester, team]);
+  }, [semester]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -45,9 +41,6 @@ export default function LeaderboardPanel() {
           <select value={semester} onChange={e => setSemester(e.target.value)}>
             {SEMESTERS.map(s => <option key={s.value || "all"} value={s.value}>{s.label}</option>)}
           </select>
-          <select value={team} onChange={e => setTeam(e.target.value)}>
-            {TEAMS.map(t => <option key={t || "all"} value={t}>{t || "All teams"}</option>)}
-          </select>
         </div>
       </div>
 
@@ -62,7 +55,6 @@ export default function LeaderboardPanel() {
               <th style={{ width: 30 }}>#</th>
               <th>Member</th>
               <th>Rank</th>
-              <th>Team</th>
               <th style={{ width: "30%" }}>XP</th>
             </tr>
           </thead>
@@ -80,7 +72,6 @@ export default function LeaderboardPanel() {
                   </Link>
                 </td>
                 <td><RankBadge rank={r.rank} /></td>
-                <td>{r.team ?? "—"}</td>
                 <td>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <div style={{ flex: 1, height: 6, background: "var(--clubpm-surface-200, #f3f4f6)", borderRadius: 999, overflow: "hidden" }}>

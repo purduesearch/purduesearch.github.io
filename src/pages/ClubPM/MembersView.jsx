@@ -17,11 +17,6 @@ const ROLES = ['Admin', 'Lead', 'Member'];
 function MembersStats({ members }) {
   const total  = members.length;
   const admins = members.filter(m => m.isAdmin).length;
-  const teamMap = {};
-  members.forEach(m => {
-    const t = m.team || 'Unassigned';
-    teamMap[t] = (teamMap[t] || 0) + 1;
-  });
 
   return (
     <div className="pm-members-stats-bar">
@@ -33,21 +28,6 @@ function MembersStats({ members }) {
         <span className="pm-members-stat-num">{admins}</span>
         <span className="pm-members-stat-label">Admins</span>
       </div>
-      <div className="pm-members-stat">
-        <span className="pm-members-stat-num">{Object.keys(teamMap).filter(k => k !== 'Unassigned').length}</span>
-        <span className="pm-members-stat-label">Teams</span>
-      </div>
-      <div className="pm-members-teams-breakdown">
-        {Object.entries(teamMap)
-          .filter(([k]) => k !== 'Unassigned')
-          .sort((a, b) => b[1] - a[1])
-          .slice(0, 4)
-          .map(([team, count]) => (
-            <span key={team} className="pm-members-team-chip">
-              {team} <span className="pm-members-team-count">{count}</span>
-            </span>
-          ))}
-      </div>
     </div>
   );
 }
@@ -55,7 +35,7 @@ function MembersStats({ members }) {
 // ── Member card ───────────────────────────────────────────────
 
 function MemberCard({ member, onClick }) {
-  const { displayName, slackHandle, role, isAdmin, title, email, team, timezone, _count } = member;
+  const { displayName, slackHandle, role, isAdmin, title, email, timezone, _count } = member;
 
   const taskCount    = _count?.tasks    ?? 0;
   const projectCount = _count?.projects ?? 0;
@@ -81,7 +61,6 @@ function MemberCard({ member, onClick }) {
             <span className={`pm-member-role-badge ${isAdmin ? 'admin' : role?.toLowerCase() || 'member'}`}>
               {roleLabel}
             </span>
-            {team && <span className="pm-member-team-badge">{team}</span>}
           </div>
         </div>
       </div>
@@ -319,7 +298,6 @@ function MemberDrawer({ member, onClose, isOwnProfile }) {
             <span className={`pm-member-role-badge ${member.isAdmin ? 'admin' : 'member'}`}>
               {member.isAdmin ? 'Admin' : member.role === 'LEAD' ? 'Lead' : 'Member'}
             </span>
-            {member.team && <span className="pm-member-team-badge">{member.team}</span>}
           </div>
         </div>
 
@@ -379,7 +357,6 @@ export default function MembersView() {
   const [members, setMembers]     = useState([]);
   const [loading, setLoading]     = useState(true);
   const [search, setSearch]       = useState('');
-  const [filterTeam, setFilterTeam]         = useState('');
   const [filterRole, setFilterRole]         = useState('');
   const [selectedMember, setSelectedMember] = useState(null);
   const [showImport, setShowImport]         = useState(false);
@@ -400,22 +377,14 @@ export default function MembersView() {
         m.displayName?.toLowerCase().includes(q) ||
         m.slackHandle?.toLowerCase().includes(q) ||
         m.title?.toLowerCase().includes(q) ||
-        m.email?.toLowerCase().includes(q) ||
-        m.team?.toLowerCase().includes(q);
-
-      const matchesTeam = !filterTeam || m.team === filterTeam;
+        m.email?.toLowerCase().includes(q);
 
       const roleLabel = m.isAdmin ? 'Admin' : (m.role === 'LEAD' ? 'Lead' : 'Member');
       const matchesRole = !filterRole || roleLabel === filterRole;
 
-      return matchesSearch && matchesTeam && matchesRole;
+      return matchesSearch && matchesRole;
     });
-  }, [members, search, filterTeam, filterRole]);
-
-  const teams = useMemo(() => {
-    const t = new Set(members.map(m => m.team).filter(Boolean));
-    return [...t].sort();
-  }, [members]);
+  }, [members, search, filterRole]);
 
   const gridRef = useRef(null);
   // Only animate when loading flips true → false AFTER we've observed loading.
@@ -449,19 +418,11 @@ export default function MembersView() {
         <input
           className="pm-members-search"
           type="text"
-          placeholder="Search by name, handle, title, team…"
+          placeholder="Search by name, handle, title…"
           value={search}
           onChange={e => setSearch(e.target.value)}
         />
         <div className="pm-members-filters">
-          <select
-            className="pm-members-filter-select"
-            value={filterTeam}
-            onChange={e => setFilterTeam(e.target.value)}
-          >
-            <option value="">All teams</option>
-            {teams.map(t => <option key={t} value={t}>{t}</option>)}
-          </select>
           <select
             className="pm-members-filter-select"
             value={filterRole}
@@ -470,8 +431,8 @@ export default function MembersView() {
             <option value="">All roles</option>
             {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
           </select>
-          {(filterTeam || filterRole) && (
-            <button className="pm-members-filter-clear" onClick={() => { setFilterTeam(''); setFilterRole(''); }}>
+          {filterRole && (
+            <button className="pm-members-filter-clear" onClick={() => setFilterRole('')}>
               Clear filters
             </button>
           )}

@@ -29,5 +29,3 @@ export const activityLabels = {
   PROJECT_UPDATED: 'updated project',
   STANDUP_POSTED: 'posted standup',
 };
-
-export const TEAMS = ['Software', 'Outreach', 'Research', 'Business', 'Systems', 'Other'];

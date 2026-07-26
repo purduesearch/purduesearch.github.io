@@ -7110,13 +7110,6 @@ html::-webkit-scrollbar { display: none; }
 .pm-members-stat { display: flex; flex-direction: column; align-items: center; min-width: 60px; }
 .pm-members-stat-num { font-size: 1.4rem; font-weight: 700; color: var(--clubpm-text-primary); line-height: 1; }
 .pm-members-stat-label { font-size: 11px; color: var(--clubpm-text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-top: 3px; }
-.pm-members-teams-breakdown { display: flex; gap: 6px; flex-wrap: wrap; margin-left: auto; }
-.pm-members-team-chip {
-  font-size: 11px; padding: 3px 9px; border-radius: 10px;
-  background: rgba(0,229,204,0.1); border: 1px solid rgba(0,229,204,0.3);
-  color: var(--pm-accent-teal);
-}
-.pm-members-team-count { font-weight: 700; margin-left: 4px; }
 .pm-members-controls { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 20px; }
 .pm-members-search {
   flex: 1; min-width: 200px; padding: 8px 12px; border-radius: 8px;
@@ -7151,10 +7144,6 @@ html::-webkit-scrollbar { display: none; }
 .pm-member-role-badge.admin { background: rgba(249,202,36,0.15); border: 1px solid #f9ca24; color: #f9ca24; }
 .pm-member-role-badge.lead  { background: rgba(116,185,255,0.15); border: 1px solid #74b9ff; color: #74b9ff; }
 .pm-member-role-badge.member { background: rgba(160,160,160,0.1); border: 1px solid var(--clubpm-border); color: var(--clubpm-text-muted); }
-.pm-member-team-badge {
-  font-size: 10px; padding: 2px 7px; border-radius: 8px;
-  background: rgba(0,229,204,0.1); border: 1px solid rgba(0,229,204,0.25); color: var(--pm-accent-teal);
-}
 .pm-member-email-btn {
   display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--clubpm-text-muted);
   background: none; border: none; cursor: pointer; padding: 0; text-align: left; overflow: hidden;
@@ -19890,11 +19879,6 @@ html:not(.aos-off) [data-aos].aos-animate  { opacity: 1; transform: none; }
   border: 1px solid var(--clubpm-border, #2a2f3a); border-radius: 8px; padding: 4px;
 }
 .pm-poll-member-name { font-size: 13px; color: var(--clubpm-text-primary, #e8eaed); }
-.pm-poll-member-team {
-  margin-left: auto; font-size: 10px; padding: 1px 7px; border-radius: 999px;
-  background: var(--clubpm-surface-100, #14171d); color: var(--clubpm-text-muted, #8a92a0);
-}
-
 /* when2meet-style month picker */
 /* Namespaced pm-dpk-* to avoid colliding with CalendarView's .pm-cal-day
    (which sets min-height:90px and would blow these cells up via aspect-ratio). */

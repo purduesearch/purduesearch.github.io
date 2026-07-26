@@ -14,7 +14,7 @@ import AvatarPortrait from "../../components/clubpm/avatar/AvatarPortrait";
 import GhStatsSection from "../../components/clubpm/GhStatsSection";
 import GitHubConnectButton from "../../components/clubpm/github/GitHubConnectButton";
 import { progressToNextRank } from "../../clubpm/engagement/rankProgress";
-import { tzOffset, copyToClipboard, activityLabels, TEAMS } from "../../clubpm/members/memberShared";
+import { tzOffset, copyToClipboard, activityLabels } from "../../clubpm/members/memberShared";
 
 export default function Profile() {
   const { memberId: routeId } = useParams();
@@ -30,7 +30,6 @@ export default function Profile() {
 
   const [editMode, setEditMode] = useState(false);
   const [editBio, setEditBio] = useState("");
-  const [editTeam, setEditTeam] = useState("");
   const [editDisplayName, setEditDisplayName] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -54,7 +53,7 @@ export default function Profile() {
         getActivity(memberId, 365).catch(() => ({ activity: [] })),
       ]);
       // Merge: /profile drives identity (rank/xp/doubloons); /:id brings projects,
-      // activityLogs, email, team, bio, title, timezone, githubLogin, role.
+      // activityLogs, email, bio, title, timezone, githubLogin, role.
       setProfile({ ...detail, ...p });
       setXpHistory(h);
       setActivity(act?.activity ?? []);
@@ -71,7 +70,6 @@ export default function Profile() {
   useEffect(() => {
     if (!profile) return;
     setEditBio(profile.bio ?? "");
-    setEditTeam(profile.team ?? "");
     setEditDisplayName(profile.displayName ?? "");
   }, [profile]);
 
@@ -80,7 +78,6 @@ export default function Profile() {
     try {
       await patch("/api/members/me", {
         bio: editBio,
-        team: editTeam,
         displayName: editDisplayName,
       });
       await load();
@@ -118,7 +115,6 @@ export default function Profile() {
                 <span className={`pm-member-role-badge ${profile.isAdmin ? "admin" : (profile.role?.toLowerCase() || "member")}`}>
                   {profile.isAdmin ? "Admin" : profile.role === "LEAD" ? "Lead" : "Member"}
                 </span>
-                {profile.team && <span className="pm-member-team-badge">{profile.team}</span>}
               </div>
             </div>
           </div>
@@ -159,13 +155,6 @@ export default function Profile() {
               <label>
                 Display name
                 <input value={editDisplayName} onChange={e => setEditDisplayName(e.target.value)} />
-              </label>
-              <label>
-                Team
-                <select value={editTeam} onChange={e => setEditTeam(e.target.value)}>
-                  <option value="">Unassigned</option>
-                  {TEAMS.map(t => <option key={t} value={t}>{t}</option>)}
-                </select>
               </label>
               <label>
                 Bio
