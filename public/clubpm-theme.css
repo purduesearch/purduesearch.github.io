@@ -14932,29 +14932,34 @@ html::-webkit-scrollbar { display: none; }
 /* â”€â”€ Rank badge â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 /* Explicit text + icon color per rank so FA icons (currentColor) stay
    readable when the parent table inherits a light or dark text color.
-   `color` cascades to <i> and the inner <span>. */
+   `color` cascades to <i> and the inner <span>.
+
+   Every color here is `!important` on purpose: the blanket
+   `.clubpm-app span { color: inherit !important }` visual fix near the top of
+   this file also matches `.cpm-rank-badge` (it *is* a span), which otherwise
+   forces the pill to inherit the page's white text onto a pastel background. */
 
 .cpm-rank-badge {
   display: inline-flex; align-items: center; gap: 8px;
   padding: 4px 12px; border-radius: 999px;
   background: #ebebe5;
-  color: #2a2a2a;
+  color: #2a2a2a !important;
   font-weight: 600;
   font-size: 12px;
   line-height: 1;
   white-space: nowrap;
 }
 .cpm-rank-badge > i,
-.cpm-rank-badge > span { color: inherit; }
-.cpm-rank-badge[data-rank="NESTLING"]   { background: #f1efe8; color: #535048; }
-.cpm-rank-badge[data-rank="FLEDGLING"]  { background: #e9f1d8; color: #3d4e18; }
-.cpm-rank-badge[data-rank="CADET"]      { background: #d8e8f3; color: #1a4458; }
-.cpm-rank-badge[data-rank="SPECIALIST"] { background: #e9def3; color: #3f1853; }
-.cpm-rank-badge[data-rank="PIONEER"]    { background: #fbeed8; color: #5b3f15; }
-.cpm-rank-badge[data-rank="COSMONAUT"]  { background: #dee2fb; color: #18215c; }
+.cpm-rank-badge > span { color: inherit !important; }
+.cpm-rank-badge[data-rank="NESTLING"]   { background: #f1efe8; color: #535048 !important; }
+.cpm-rank-badge[data-rank="FLEDGLING"]  { background: #e9f1d8; color: #3d4e18 !important; }
+.cpm-rank-badge[data-rank="CADET"]      { background: #d8e8f3; color: #1a4458 !important; }
+.cpm-rank-badge[data-rank="SPECIALIST"] { background: #e9def3; color: #3f1853 !important; }
+.cpm-rank-badge[data-rank="PIONEER"]    { background: #fbeed8; color: #5b3f15 !important; }
+.cpm-rank-badge[data-rank="COSMONAUT"]  { background: #dee2fb; color: #18215c !important; }
 .cpm-rank-badge[data-rank="CELESTIAL"]  {
   background: linear-gradient(135deg, #fff7e0, #ffe49b);
-  color: #6b4500;
+  color: #6b4500 !important;
   border: 1px solid #ef9f27;
 }
 
@@ -15648,7 +15653,7 @@ i.fa-coins { color: #ffd96b; }
 .cpm-rank-badge[data-rank=""],
 .cpm-rank-badge[data-rank="UNKNOWN"] {
   background: #f1efe8;
-  color: #535048;
+  color: #535048 !important;
 }
 
 /* â”€â”€ SVG badge icon slot (RankIcon component) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
@@ -15675,7 +15680,7 @@ i.fa-coins { color: #ffd96b; }
 .pm-sidebar-footer .cpm-rank-badge[data-rank=""],
 .pm-sidebar-footer .cpm-rank-badge[data-rank="UNKNOWN"] {
   background: rgba(255,255,255,0.12);
-  color: #d1d5db;
+  color: #d1d5db !important;
 }
 
 /* â”€â”€ Sidebar XP bar + doubloon counter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
