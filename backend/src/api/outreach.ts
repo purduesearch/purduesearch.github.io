@@ -807,7 +807,7 @@ outreachRouter.post("/ai/spotlight", async (req: Request, res: Response) => {
 
     const member = await prisma.member.findUnique({
       where: { id: memberId },
-      select: { displayName: true, title: true, team: true, bio: true },
+      select: { displayName: true, title: true, bio: true },
     });
     if (!member) {
       res.status(404).json({ error: "Member not found" });
@@ -825,7 +825,6 @@ outreachRouter.post("/ai/spotlight", async (req: Request, res: Response) => {
     const draft = await aiOutreachService.generateMemberSpotlight(
       member.displayName,
       member.title ?? undefined,
-      member.team  ?? undefined,
       member.bio   ?? undefined,
       milestones.map(m => m.title)
     );

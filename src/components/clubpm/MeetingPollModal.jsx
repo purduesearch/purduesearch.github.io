@@ -212,7 +212,6 @@ export default function MeetingPollModal({ isOpen, onClose, onSave, editPoll, pr
                         ? <img src={m.avatarUrl} alt="" className="cpm-attendee-avatar" />
                         : <span className="cpm-attendee-initial">{(m.displayName ?? '?')[0].toUpperCase()}</span>}
                       <span className="pm-poll-member-name">{m.displayName}</span>
-                      {m.team && <span className="pm-poll-member-team">{m.team}</span>}
                     </div>
                   );
                 })}

@@ -1,15 +1,13 @@
 // Full-screen takeover when the member crosses a streak multiple of 10. The
-// member's own VRM character is shown front and centre, jumps/spins, and the
+// member's own avatar portrait is shown front and centre, and the
 // big number reveals with confetti. Same-day only — the celebration endpoint
 // consumes itself on first read so this never re-fires same day.
 
-import React, { Suspense, lazy, useEffect, useRef, useState } from 'react';
-import { get } from '../../../api/clubPmClient';
+import React, { useEffect, useRef } from 'react';
 import { useClubPmAuth } from '../../../clubpm/ClubPmAuth';
 import { animate, spring, springBouncy, prefersReducedMotion } from '../../../clubpm/anim/motion';
 import { bigBurst } from './confetti';
-
-const AvatarModel = lazy(() => import('../avatar/AvatarModel'));
+import AvatarPortrait from '../avatar/AvatarPortrait';
 
 const CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ#@$%&!?*';
 
@@ -38,7 +36,6 @@ function scrambleInto(el, finalText, durationMs = 800) {
 
 export default function StreakMilestoneModal({ milestone, onDismiss, freezeAwarded, longestStreak }) {
   const { member } = useClubPmAuth();
-  const [avatarConfig, setAvatarConfig] = useState(null);
   const backdropRef = useRef(null);
   const cardRef = useRef(null);
   const numberRef = useRef(null);
@@ -46,12 +43,6 @@ export default function StreakMilestoneModal({ milestone, onDismiss, freezeAward
   const subtitleRef = useRef(null);
   const continueRef = useRef(null);
   const rewardRef = useRef(null);
-  const [celebrationActive, setCelebrationActive] = useState(false);
-
-  useEffect(() => {
-    if (!member?.id) return;
-    get('/api/avatar/config').then(setAvatarConfig).catch(() => setAvatarConfig(null));
-  }, [member?.id]);
 
   // Choreograph the modal entrance + character celebration.
   useEffect(() => {
@@ -71,9 +62,6 @@ export default function StreakMilestoneModal({ milestone, onDismiss, freezeAward
         ease: springBouncy,
       });
     }
-
-    // Kick off character celebration shortly after card lands.
-    const t1 = setTimeout(() => setCelebrationActive(true), 200);
 
     // Big number reveal with spring overshoot.
     const t2 = setTimeout(() => {
@@ -140,7 +128,7 @@ export default function StreakMilestoneModal({ milestone, onDismiss, freezeAward
     window.addEventListener('keydown', onKey);
 
     return () => {
-      [t1, t2, t3, t4, t5, t6, t7].forEach(clearTimeout);
+      [t2, t3, t4, t5, t6, t7].forEach(clearTimeout);
       window.removeEventListener('keydown', onKey);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -173,21 +161,7 @@ export default function StreakMilestoneModal({ milestone, onDismiss, freezeAward
         style={{ opacity: prefersReducedMotion() ? 1 : 0 }}
       >
         <div className="pm-streak-avatar-wrap">
-          {avatarConfig ? (
-            <Suspense fallback={null}>
-              <AvatarModel
-                featureJson={avatarConfig.featureJson}
-                equippedCosmetics={avatarConfig.equippedCosmetics}
-                size={420}
-                interactive={false}
-                celebrationType={celebrationActive ? 'streak-milestone' : null}
-              />
-            </Suspense>
-          ) : (
-            <div className="pm-streak-avatar-placeholder">
-              <i className="fas fa-fire" aria-hidden="true" />
-            </div>
-          )}
+          <AvatarPortrait member={member} size={200} />
         </div>
 
         <div

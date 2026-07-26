@@ -57,7 +57,7 @@ membersRouter.patch("/me", async (req: Request, res: Response) => {
       return;
     }
 
-    const { kanbanColumnOrder, team, bio, email } = req.body;
+    const { kanbanColumnOrder, bio, email } = req.body;
 
     // Input validation
     if (email !== undefined) {
@@ -68,10 +68,6 @@ membersRouter.patch("/me", async (req: Request, res: Response) => {
     }
     if (bio !== undefined && (typeof bio !== "string" || bio.length > 500)) {
       res.status(400).json({ error: "bio must be a string of at most 500 characters" });
-      return;
-    }
-    if (team !== undefined && (typeof team !== "string" || team.length > 100)) {
-      res.status(400).json({ error: "team must be a string of at most 100 characters" });
       return;
     }
     const VALID_COLUMNS = new Set(["TODO", "IN_PROGRESS", "BLOCKED", "DONE"]);
@@ -85,13 +81,12 @@ membersRouter.patch("/me", async (req: Request, res: Response) => {
       }
     }
 
-    const profileChanged = bio !== undefined || team !== undefined || email !== undefined;
+    const profileChanged = bio !== undefined || email !== undefined;
 
     const member = await prisma.member.update({
       where: { id: req.memberId },
       data: {
         ...(kanbanColumnOrder !== undefined ? { kanbanColumnOrder } : {}),
-        ...(team  !== undefined ? { team }  : {}),
         ...(bio   !== undefined ? { bio }   : {}),
         ...(email !== undefined ? { email } : {}),
       },
@@ -213,6 +208,38 @@ membersRouter.put("/me/progress-snapshot", async (req: Request, res: Response) =
   }
 });
 
+// ── GET /api/members/cosmetic-styles ─────────────────────────
+// Compact map of memberId → equipped cosmetic css slugs, so avatar chips
+// anywhere in the app can render borders/frames/animations without every
+// task/project query having to join through MemberCosmetic.
+// MUST stay registered above `GET /:id`.
+
+const STYLE_SLOTS = ["border", "frame", "animation"] as const;
+
+membersRouter.get("/cosmetic-styles", async (_req: Request, res: Response) => {
+  try {
+    const rows = await prisma.memberCosmetic.findMany({
+      where: { equippedSlot: { in: [...STYLE_SLOTS] } },
+      select: {
+        memberId:     true,
+        equippedSlot: true,
+        cosmetic:     { select: { cssSlug: true } },
+      },
+    });
+
+    const out: Record<string, Record<string, string>> = {};
+    for (const r of rows) {
+      const slug = r.cosmetic.cssSlug;
+      if (!slug || !r.equippedSlot) continue;
+      (out[r.memberId] ??= {})[r.equippedSlot] = slug;
+    }
+    res.json(out);
+  } catch (err) {
+    console.error("Get cosmetic styles error:", err);
+    res.status(500).json({ error: "Failed to get cosmetic styles" });
+  }
+});
+
 // ── GET /api/members ─────────────────────────────────────────
 
 membersRouter.get("/", async (_req: Request, res: Response) => {
@@ -226,7 +253,6 @@ membersRouter.get("/", async (_req: Request, res: Response) => {
         projects: {
           include: { project: { select: { id: true, name: true, status: true } } },
         },
-        avatarConfig: { select: { portraitUrl: true } },
         equippedBadge: { select: { id: true, name: true, rarity: true, svgUrl: true, iconClass: true } },
       },
       orderBy: { displayName: "asc" },
@@ -264,7 +290,6 @@ membersRouter.get("/:id", async (req: Request, res: Response) => {
           take: 20,
           include: { project: { select: { id: true, name: true } } },
         },
-        avatarConfig: { select: { portraitUrl: true } },
         equippedBadge: { select: { id: true, name: true, rarity: true, svgUrl: true, iconClass: true } },
         _count: { select: { tasks: true, projects: true } },
       },
@@ -307,7 +332,6 @@ membersRouter.get("/:id/profile", async (req: Request, res: Response) => {
         xp: true, doubloons: true, rank: true,
         equippedBadgeId: true,
         equippedBadge: { select: { id: true, name: true, rarity: true, svgUrl: true, iconClass: true } },
-        avatarConfig: { select: { portraitUrl: true } },
       },
     });
     if (!member) {

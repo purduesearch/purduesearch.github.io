@@ -1,4 +1,4 @@
-// Leaderboard — top 10 members by XP, optionally filtered by team or semester.
+// Leaderboard — top 10 members by XP, optionally filtered by semester.
 // Semester is implemented as a date window: when ?semester=FALL_2025 is set we sum
 // XpEvent.amount within the window; otherwise we use Member.xp (all-time).
 
@@ -17,17 +17,15 @@ const SEMESTER_WINDOWS: Record<string, { start: Date; end: Date }> = {
 
 leaderboardRouter.get("/", requireAuth, async (req: Request, res: Response) => {
   const semester = typeof req.query.semester === "string" ? req.query.semester : null;
-  const team     = typeof req.query.team     === "string" ? req.query.team     : null;
 
   // Member filter — exclude bots
   const memberWhere: any = { isBot: false };
-  if (team) memberWhere.team = team;
 
   if (!semester || !SEMESTER_WINDOWS[semester]) {
     // All-time leaderboard from Member.xp
     const members = await prisma.member.findMany({
       where: memberWhere,
-      select: { id: true, displayName: true, avatarUrl: true, slackHandle: true, xp: true, rank: true, team: true, avatarConfig: { select: { portraitUrl: true } } },
+      select: { id: true, displayName: true, avatarUrl: true, slackHandle: true, xp: true, rank: true },
       orderBy: { xp: "desc" },
       take: 10,
     });
@@ -42,13 +40,13 @@ leaderboardRouter.get("/", requireAuth, async (req: Request, res: Response) => {
     where: { createdAt: { gte: start, lte: end } },
     _sum: { amount: true },
     orderBy: { _sum: { amount: "desc" } },
-    take: 50, // overfetch to allow team filtering after the fact
+    take: 50, // overfetch so the top 10 survives any post-filtering
   });
 
   const memberIds = events.map(e => e.memberId);
   const members = await prisma.member.findMany({
     where: { id: { in: memberIds }, ...memberWhere },
-    select: { id: true, displayName: true, avatarUrl: true, slackHandle: true, rank: true, team: true, avatarConfig: { select: { portraitUrl: true } } },
+    select: { id: true, displayName: true, avatarUrl: true, slackHandle: true, rank: true },
   });
   const byId = new Map(members.map(m => [m.id, m]));
 

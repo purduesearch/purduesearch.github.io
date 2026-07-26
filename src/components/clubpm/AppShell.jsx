@@ -24,6 +24,7 @@ import useRankWatcher from '../../hooks/useRankWatcher';
 import useCelebrationCheck from '../../hooks/useCelebrationCheck';
 import { tweenNumber, tweenWidthPercent } from '../../clubpm/anim/motion';
 import { progressToNextRank } from '../../clubpm/engagement/rankProgress';
+import CosmeticStylesProvider from '../../clubpm/cosmetics/CosmeticStylesContext';
 
 function getBreadcrumb(pathname) {
   if (pathname === '/clubpm') return [{ label: 'Dashboard' }];
@@ -260,7 +261,7 @@ export default function AppShell({ children }) {
   }, [member]);
 
   // Apply equipped dashboard theme (cosmetic) as `theme-<slug>` on documentElement.
-  // Re-applies when avatar-updated event fires (after AvatarEditor saves).
+  // Re-applies when the avatar-updated event fires.
   useEffect(() => {
     if (!member) return;
     const applyTheme = async () => {
@@ -316,6 +317,7 @@ export default function AppShell({ children }) {
   // survive route transitions and are not duplicated per route.
 
   return (
+    <CosmeticStylesProvider>
     <div className="clubpm-app pm-shell">
       {/* Sidebar */}
       <nav className="pm-sidebar">
@@ -453,6 +455,10 @@ export default function AppShell({ children }) {
             </span>
           </Link>
           {member && <SidebarXpDoubloons member={member} />}
+          <Link to="/" className="pm-backhome-btn" title="Back to the SEARCH site">
+            <i className="fas fa-house" aria-hidden="true" />
+            <span className="pm-backhome-label">Main site</span>
+          </Link>
           <button className="pm-signout-btn" onClick={logout}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
               <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
@@ -545,5 +551,6 @@ export default function AppShell({ children }) {
       <RewardQueuedToast />
       <AchievementUnlockListener />
     </div>
+    </CosmeticStylesProvider>
   );
 }

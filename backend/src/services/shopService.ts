@@ -214,7 +214,7 @@ export async function toggleWishlist(memberId: string, cosmeticId: string): Prom
   return { wishlisted: true };
 }
 
-/** Equip / unequip cosmetics by category slot. Used by AvatarEditor + Shop.
+/** Equip / unequip cosmetics by category slot. Used by the Profile cosmetic locker + Shop.
  *
  * The "rank_badge" slot is special: it's stored directly on Member.equippedBadgeId
  * (not via MemberCosmetic.equippedSlot) so the sidebar rank icon can render

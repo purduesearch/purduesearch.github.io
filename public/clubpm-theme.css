@@ -7110,13 +7110,6 @@ html::-webkit-scrollbar { display: none; }
 .pm-members-stat { display: flex; flex-direction: column; align-items: center; min-width: 60px; }
 .pm-members-stat-num { font-size: 1.4rem; font-weight: 700; color: var(--clubpm-text-primary); line-height: 1; }
 .pm-members-stat-label { font-size: 11px; color: var(--clubpm-text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-top: 3px; }
-.pm-members-teams-breakdown { display: flex; gap: 6px; flex-wrap: wrap; margin-left: auto; }
-.pm-members-team-chip {
-  font-size: 11px; padding: 3px 9px; border-radius: 10px;
-  background: rgba(0,229,204,0.1); border: 1px solid rgba(0,229,204,0.3);
-  color: var(--pm-accent-teal);
-}
-.pm-members-team-count { font-weight: 700; margin-left: 4px; }
 .pm-members-controls { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 20px; }
 .pm-members-search {
   flex: 1; min-width: 200px; padding: 8px 12px; border-radius: 8px;
@@ -7151,10 +7144,6 @@ html::-webkit-scrollbar { display: none; }
 .pm-member-role-badge.admin { background: rgba(249,202,36,0.15); border: 1px solid #f9ca24; color: #f9ca24; }
 .pm-member-role-badge.lead  { background: rgba(116,185,255,0.15); border: 1px solid #74b9ff; color: #74b9ff; }
 .pm-member-role-badge.member { background: rgba(160,160,160,0.1); border: 1px solid var(--clubpm-border); color: var(--clubpm-text-muted); }
-.pm-member-team-badge {
-  font-size: 10px; padding: 2px 7px; border-radius: 8px;
-  background: rgba(0,229,204,0.1); border: 1px solid rgba(0,229,204,0.25); color: var(--pm-accent-teal);
-}
 .pm-member-email-btn {
   display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--clubpm-text-muted);
   background: none; border: none; cursor: pointer; padding: 0; text-align: left; overflow: hidden;
@@ -15276,15 +15265,6 @@ i.fa-coins { color: #ffd96b; }
   max-height: 50vh;
   margin-bottom: 8px;
 }
-.pm-streak-avatar-placeholder {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 120px;
-  color: #ff8c3a;
-}
 .pm-streak-milestone-number {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
   font-size: 96px;
@@ -19890,11 +19870,6 @@ html:not(.aos-off) [data-aos].aos-animate  { opacity: 1; transform: none; }
   border: 1px solid var(--clubpm-border, #2a2f3a); border-radius: 8px; padding: 4px;
 }
 .pm-poll-member-name { font-size: 13px; color: var(--clubpm-text-primary, #e8eaed); }
-.pm-poll-member-team {
-  margin-left: auto; font-size: 10px; padding: 1px 7px; border-radius: 999px;
-  background: var(--clubpm-surface-100, #14171d); color: var(--clubpm-text-muted, #8a92a0);
-}
-
 /* when2meet-style month picker */
 /* Namespaced pm-dpk-* to avoid colliding with CalendarView's .pm-cal-day
    (which sets min-height:90px and would blow these cells up via aspect-ratio). */
@@ -20531,4 +20506,110 @@ html:not(.aos-off) [data-aos].aos-animate  { opacity: 1; transform: none; }
 .cpm-blog-design-pop .cpm-blog-themebar { display: flex; flex-wrap: wrap; gap: 8px; }
 .cpm-blog-design-hint {
   font-size: 11px; color: var(--pm-text-muted, #97a3b6); margin: 8px 0 0;
+}
+
+/* ── Sidebar: back to the public SEARCH site ─────────────────── */
+.pm-backhome-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 36px;
+  padding: 0 20px;
+  color: var(--pm-text-muted);
+  cursor: pointer;
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
+  font-size: 0.8rem;
+  text-decoration: none;
+  transition: color 0.2s ease;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.pm-backhome-btn:hover {
+  color: var(--pm-accent-teal);
+}
+.pm-backhome-btn i {
+  width: 16px;
+  flex-shrink: 0;
+  text-align: center;
+}
+.pm-backhome-label {
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+.pm-sidebar:hover .pm-backhome-label {
+  opacity: 1;
+}
+
+/* ── Cosmetic slugs missing from the original engagement drop ── */
+.theme-cosmic-dusk { --pm-accent: #4b3f8f; --pm-accent-soft: #e4e0f7; }
+.theme-auroral     { --pm-accent: #0f8a7a; --pm-accent-soft: #d6f2ed; }
+
+@keyframes cpm-anim-lift {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-3px); }
+}
+.anim-lift { animation: cpm-anim-lift 2.4s ease-in-out infinite; }
+
+/* ── Name frames: the plate the .frame-<slug> rules decorate ─── */
+.member-name-frame {
+  display: inline-block;
+}
+[class*="frame-"] > .member-name-card {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 6px;
+  border: 2px solid transparent;
+  line-height: 1.35;
+}
+.member-name-card { display: inline-block; }
+
+/* Equipped-cosmetic animations are decorative — never force motion on
+   someone who asked the OS not to. */
+@media (prefers-reduced-motion: reduce) {
+  .anim-lift,
+  .anim-pulse,
+  .anim-sparkle {
+    animation: none;
+  }
+}
+
+.frame-brass > .member-name-card { border-color: #b08d3f; }
+.frame-cadet > .member-name-card { border-color: var(--rarity-uncommon-fg); border-style: double; border-width: 3px; }
+
+/* ── Profile cosmetic locker ─────────────────────────────────── */
+.cpm-locker-slot + .cpm-locker-slot {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--pm-border, rgba(255,255,255,0.08));
+}
+.cpm-locker-slot-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--pm-text-muted);
+  margin-bottom: 8px;
+}
+.cpm-locker-empty {
+  font-size: 0.8rem;
+  color: var(--pm-text-muted);
+}
+.cpm-cosmetic-chip {
+  border: 1px solid transparent;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+.cpm-cosmetic-chip:disabled {
+  cursor: default;
+}
+.cpm-cosmetic-chip:not(:disabled):hover {
+  transform: translateY(-1px);
+}
+.cpm-cosmetic-chip--active {
+  border-color: var(--pm-accent-teal);
+  box-shadow: 0 0 0 1px var(--pm-accent-teal) inset;
 }

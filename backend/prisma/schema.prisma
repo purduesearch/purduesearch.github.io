@@ -131,7 +131,6 @@ model Member {
   title                   String?
   email                   String?
   timezone                String?
-  team                    String?
   bio                     String?
   role                    Role                 @default(MEMBER)
   isAdmin                 Boolean              @default(false)
@@ -194,7 +193,6 @@ model Member {
   doubloonEvents      DoubloonEvent[]
   cosmetics           MemberCosmetic[]
   pendingRewards      PendingReward[]
-  avatarConfig        AvatarConfig?
   shopRotations       ShopRotation[]
   sentKudos           Kudos[]            @relation("KudosFrom")
   receivedKudos       Kudos[]            @relation("KudosTo")
@@ -1346,8 +1344,6 @@ enum DoubloonSource {
 }
 
 enum CosmeticCategory {
-  AVATAR_FEATURE
-  CLOTHING
   NAME_FRAME
   DASHBOARD_THEME
   BADGE
@@ -1479,16 +1475,6 @@ model PendingReward {
   createdAt         DateTime            @default(now())
 
   @@index([status, createdAt])
-}
-
-model AvatarConfig {
-  id                String   @id @default(cuid())
-  memberId          String   @unique
-  member            Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
-  featureJson       Json // VRM-era: { baseModelId, faceMorphs, bodyMorphs, colors, toggles }
-  equippedCosmetics Json // { outfit, hair, theme, frame, animation } each cosmeticId|null
-  portraitUrl       String? // cached PNG snapshot, written on Save; consumed by AvatarPortrait
-  updatedAt         DateTime @updatedAt
 }
 
 model Kudos {

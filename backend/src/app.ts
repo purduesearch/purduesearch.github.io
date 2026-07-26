@@ -41,7 +41,6 @@ import { rewardsRouter } from "./api/rewards.js";
 import { eventConfigRouter } from "./api/eventConfig.js";
 import { leaderboardRouter } from "./api/leaderboard.js";
 import { shopRouter } from "./api/shop.js";
-import { avatarRouter } from "./api/avatar.js";
 import { streakRouter } from "./api/streak.js";
 import { inventoryRouter } from "./api/inventory.js";
 import { challengesRouter } from "./api/challenges.js";
@@ -142,14 +141,12 @@ app.use("/api/rewards", rewardsRouter);
 app.use("/api/event-config", eventConfigRouter);
 app.use("/api/leaderboard", leaderboardRouter);
 app.use("/api/shop", shopRouter);
-app.use("/api/avatar", avatarRouter);
 app.use("/api/inventory", inventoryRouter);
 app.use("/api/challenges", challengesRouter);
 app.use("/api", streakRouter); // /api/members/:id/streak, /api/members/me/celebration, etc.
 app.use("/r", redirectRouter);
 
-// Static uploads (portraits, etc). Avatar portraits live under uploads/portraits
-// and are referenced by their public URL from AvatarConfig.portraitUrl.
+// Static uploads (Vault files, etc), served from their public URL.
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const UPLOADS_DIR = path.resolve(__dirname, "..", "uploads");
 app.use("/uploads", express.static(UPLOADS_DIR, { fallthrough: true, maxAge: "1d" }));

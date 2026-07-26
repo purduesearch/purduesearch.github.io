@@ -1,8 +1,4 @@
 // Central exports for the cosmetic registries + shared constants.
-//
-// Hair and outfit cosmetics moved to VRM-backed registries under
-// src/clubpm/avatar/vrm/{hairAssets,outfitAssets}.js — they live with the
-// rest of the VRM tooling, not here.
 
 export { default as THEMES   } from "./themeRegistry";
 export { default as FRAMES   } from "./frameRegistry";
