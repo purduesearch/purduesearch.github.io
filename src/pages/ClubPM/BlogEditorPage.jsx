@@ -120,6 +120,8 @@ export default function BlogEditorPage() {
   const [metaPanelOpen, setMetaPanelOpen] = useState(false);
   const [reviewPanelOpen, setReviewPanelOpen] = useState(false);
   const [theme, setTheme] = useState(null);
+  const [editorInstance, setEditorInstance] = useState(null);
+  const [threadsRefreshKey, setThreadsRefreshKey] = useState(0);
 
   // Keep the latest editable state in a ref so the debounced autosave always
   // persists current values without re-arming on every keystroke.
@@ -435,7 +437,11 @@ export default function BlogEditorPage() {
             collabUser={{ id: member?.id, name: member?.displayName }}
             content={contentJson}
             onChange={(json) => { setContentJson(json); setDirty(true); }}
-            onEditorReady={(ed) => { editorRef.current = ed; }}
+            onEditorReady={(ed) => { editorRef.current = ed; setEditorInstance(ed); }}
+            docType="BLOG_POST"
+            docId={id}
+            canEditDoc
+            onThreadsChanged={() => setThreadsRefreshKey((k) => k + 1)}
             theme={theme}
             onThemeChange={handleThemeChange}
           />
@@ -465,6 +471,9 @@ export default function BlogEditorPage() {
           isOpen={reviewPanelOpen}
           onClose={() => setReviewPanelOpen(false)}
           onAuthorsChanged={() => { getBlogPost(id).then(setPost).catch(() => {}); }}
+          editor={editorInstance}
+          canEdit
+          threadsRefreshKey={threadsRefreshKey}
         />
       )}
     </div>
