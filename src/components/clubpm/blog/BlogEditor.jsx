@@ -28,6 +28,7 @@ import BlogSnippetManager from './BlogSnippetManager';
 import BlogSectionLibrary from './BlogSectionLibrary';
 import BlogSectionSettings from './BlogSectionSettings';
 import BlogThemeBar from './BlogThemeBar';
+import BlogSelectionBubble from './BlogSelectionBubble';
 import { suggestionExtensions } from './suggestionMarks';
 import { docToMarkdown, markdownToDoc } from './blogMarkdown';
 import { getBlogCollabWsUrl, getStoredToken } from '../../../api/clubPmClient';
@@ -477,7 +478,10 @@ function PresenceBar({ synced, connected, peers }) {
 export default function BlogEditor({
   content, onChange, editable = true, onEditorReady, postId, collabUser, collabWsUrl,
   theme, onThemeChange, docType = 'BLOG_POST', docId, canEditDoc = true,
+  onAskAi, onThreadsChanged,
 }) {
+  // Set by the bubble's "Ask AI"; consumed by BlogEditorPage via onAskAi.
+  const [aiSelection, setAiSelection] = React.useState(null);
   const [showFind, setShowFind] = React.useState(false);
   const [showSnippets, setShowSnippets] = React.useState(false);
   const [showSecLib, setShowSecLib] = React.useState(false);
@@ -722,12 +726,23 @@ export default function BlogEditor({
           style={{ '--post-accent': theme?.accent || 'var(--pm-accent-teal)' }}
         >
           <EditorContent editor={editor} />
+          {editable && reviewDocId && (
+            <BlogSelectionBubble
+              editor={editor}
+              docType={docType}
+              docId={reviewDocId}
+              canEdit={canEditDoc}
+              onThreadCreated={() => onThreadsChanged?.()}
+              onAskAi={(text) => { setAiSelection(text); onAskAi?.(text); }}
+            />
+          )}
         </div>
       )}
       <div className="cpm-blog-editor-footer">
         <span>{words} words</span>
         <span>{chars} characters</span>
         {markdownMode && <span className="cpm-blog-markdown-hint">Editing raw Markdown — switch back to rich text to continue formatting. Fonts, sizes, colours and highlights are not represented in Markdown and will be lost on switching back.</span>}
+        {aiSelection && <span className="cpm-blog-markdown-hint" hidden>{aiSelection.length} chars selected for AI</span>}
       </div>
     </div>
   );
