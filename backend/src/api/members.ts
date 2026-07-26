@@ -226,7 +226,6 @@ membersRouter.get("/", async (_req: Request, res: Response) => {
         projects: {
           include: { project: { select: { id: true, name: true, status: true } } },
         },
-        avatarConfig: { select: { portraitUrl: true } },
         equippedBadge: { select: { id: true, name: true, rarity: true, svgUrl: true, iconClass: true } },
       },
       orderBy: { displayName: "asc" },
@@ -264,7 +263,6 @@ membersRouter.get("/:id", async (req: Request, res: Response) => {
           take: 20,
           include: { project: { select: { id: true, name: true } } },
         },
-        avatarConfig: { select: { portraitUrl: true } },
         equippedBadge: { select: { id: true, name: true, rarity: true, svgUrl: true, iconClass: true } },
         _count: { select: { tasks: true, projects: true } },
       },
@@ -307,7 +305,6 @@ membersRouter.get("/:id/profile", async (req: Request, res: Response) => {
         xp: true, doubloons: true, rank: true,
         equippedBadgeId: true,
         equippedBadge: { select: { id: true, name: true, rarity: true, svgUrl: true, iconClass: true } },
-        avatarConfig: { select: { portraitUrl: true } },
       },
     });
     if (!member) {

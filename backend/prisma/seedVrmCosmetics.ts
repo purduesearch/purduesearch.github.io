@@ -1,15 +1,8 @@
 // Re-seed the Cosmetic catalog after 20260605030000_vrm_overhaul.
 //
 // What this seeds:
-//   - HAIR cosmetics (category=AVATAR_FEATURE)   — VRM mesh attachments
-//   - OUTFIT cosmetics (category=CLOTHING)       — VRM body-mesh swaps
 //   - THEME/FRAME/ANIMATION cosmetics            — CSS-class driven
 //   - Sample BADGE cosmetics                     — Font Awesome icons
-//
-// The hair/outfit entries' cosmeticIds are surfaced to the frontend via the
-// registries in src/clubpm/avatar/vrm/{hairAssets,outfitAssets}.js. After
-// running this seed, copy the printed JSON snippets into those files so the
-// editor can load the VRM/GLB files for each entry.
 //
 // Run: npx tsx backend/prisma/seedVrmCosmetics.ts
 
@@ -33,20 +26,6 @@ type SeedCosmetic = {
 };
 
 const COSMETICS: SeedCosmetic[] = [
-  // ── Hair (VRM attachments) ──
-  { name: "Buzz cut",      description: "Crisp and sharp.",          category: "AVATAR_FEATURE", rarity: "COMMON",   registryKey: "buzz",       doubloonPrice: 50 },
-  { name: "Long wavy",     description: "Flowing waves.",            category: "AVATAR_FEATURE", rarity: "UNCOMMON", registryKey: "long-wavy",  doubloonPrice: 120 },
-  { name: "Ponytail",      description: "Tidy and travel-ready.",    category: "AVATAR_FEATURE", rarity: "UNCOMMON", registryKey: "ponytail",   doubloonPrice: 120 },
-  { name: "Cosmic mohawk", description: "Standout volume.",          category: "AVATAR_FEATURE", rarity: "RARE",     registryKey: "mohawk",     doubloonPrice: 350, xpGate: 3500 },
-
-  // ── Outfits (VRM body-mesh swaps) ──
-  { name: "Flight jacket", description: "Leather + dark slacks.",    category: "CLOTHING", rarity: "COMMON",   registryKey: "flight-jacket", doubloonPrice: 80  },
-  { name: "Lab coat",      description: "Classic white coat.",       category: "CLOTHING", rarity: "COMMON",   registryKey: "lab-coat",      doubloonPrice: 80  },
-  { name: "Astronaut suit",description: "Helmet sold separately.",   category: "CLOTHING", rarity: "RARE",     registryKey: "astronaut-suit",doubloonPrice: 400, xpGate: 5000 },
-  { name: "Field overalls",description: "Outreach uniform.",         category: "CLOTHING", rarity: "UNCOMMON", registryKey: "overalls",      doubloonPrice: 150 },
-  { name: "Press tee",     description: "Club merch.",               category: "CLOTHING", rarity: "COMMON",   registryKey: "press-tee",     doubloonPrice: 60  },
-  { name: "Gala blazer",   description: "Dressed up.",               category: "CLOTHING", rarity: "MYTHIC",   registryKey: "gala-blazer",   doubloonPrice: 900, xpGate: 12000 },
-
   // ── Themes (CSS) ──
   { name: "Cosmic dusk",   category: "DASHBOARD_THEME", rarity: "UNCOMMON", cssSlug: "cosmic-dusk", doubloonPrice: 200 },
   { name: "Auroral",       category: "DASHBOARD_THEME", rarity: "RARE",     cssSlug: "auroral",     doubloonPrice: 450 },

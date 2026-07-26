@@ -27,7 +27,7 @@ leaderboardRouter.get("/", requireAuth, async (req: Request, res: Response) => {
     // All-time leaderboard from Member.xp
     const members = await prisma.member.findMany({
       where: memberWhere,
-      select: { id: true, displayName: true, avatarUrl: true, slackHandle: true, xp: true, rank: true, team: true, avatarConfig: { select: { portraitUrl: true } } },
+      select: { id: true, displayName: true, avatarUrl: true, slackHandle: true, xp: true, rank: true, team: true },
       orderBy: { xp: "desc" },
       take: 10,
     });
@@ -48,7 +48,7 @@ leaderboardRouter.get("/", requireAuth, async (req: Request, res: Response) => {
   const memberIds = events.map(e => e.memberId);
   const members = await prisma.member.findMany({
     where: { id: { in: memberIds }, ...memberWhere },
-    select: { id: true, displayName: true, avatarUrl: true, slackHandle: true, rank: true, team: true, avatarConfig: { select: { portraitUrl: true } } },
+    select: { id: true, displayName: true, avatarUrl: true, slackHandle: true, rank: true, team: true },
   });
   const byId = new Map(members.map(m => [m.id, m]));
 
