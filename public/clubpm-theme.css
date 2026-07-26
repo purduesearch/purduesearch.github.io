@@ -20743,7 +20743,7 @@ html:not(.aos-off) [data-aos].aos-animate  { opacity: 1; transform: none; }
   display: flex;
   gap: 2px;
   padding: 4px;
-  background: var(--pm-elevated);
+  background: var(--pm-bg-elevated, #1e2430);
   border: 1px solid var(--color-border, rgba(255, 255, 255, 0.12));
   border-radius: 10px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
@@ -20769,7 +20769,7 @@ html:not(.aos-off) [data-aos].aos-animate  { opacity: 1; transform: none; }
   gap: 6px;
   width: min(360px, 80vw);
   padding: 10px;
-  background: var(--pm-elevated);
+  background: var(--pm-bg-elevated, #1e2430);
   border: 1px solid var(--color-border, rgba(255, 255, 255, 0.12));
   border-radius: 10px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
@@ -20780,7 +20780,7 @@ html:not(.aos-off) [data-aos].aos-animate  { opacity: 1; transform: none; }
   padding: 8px;
   border-radius: 7px;
   border: 1px solid var(--color-border, rgba(255, 255, 255, 0.12));
-  background: var(--pm-surface);
+  background: var(--pm-bg-surface, #161a22);
   color: inherit;
   font: inherit;
   font-size: 0.85rem;
@@ -20816,7 +20816,7 @@ html:not(.aos-off) [data-aos].aos-animate  { opacity: 1; transform: none; }
   border-radius: 10px;
   border: 1px solid var(--color-border, rgba(255, 255, 255, 0.12));
   border-left: 3px solid var(--pm-accent-amber);
-  background: var(--pm-surface);
+  background: var(--pm-bg-surface, #161a22);
 }
 .cpm-blog-thread-card--suggestion { border-left-color: var(--pm-accent-teal); }
 .cpm-blog-thread-card--orphan { opacity: 0.62; }
@@ -20861,7 +20861,7 @@ html:not(.aos-off) [data-aos].aos-animate  { opacity: 1; transform: none; }
   padding: 6px 8px;
   border-radius: 7px;
   border: 1px solid var(--color-border, rgba(255, 255, 255, 0.12));
-  background: var(--pm-elevated);
+  background: var(--pm-bg-elevated, #1e2430);
   color: inherit;
   font: inherit;
   font-size: 0.82rem;
@@ -20894,7 +20894,7 @@ html:not(.aos-off) [data-aos].aos-animate  { opacity: 1; transform: none; }
   padding: 8px;
   border-radius: 8px;
   border: 1px solid var(--color-border, rgba(255, 255, 255, 0.12));
-  background: var(--pm-surface);
+  background: var(--pm-bg-surface, #161a22);
   color: inherit;
   font: inherit;
   font-size: 0.85rem;
@@ -20906,13 +20906,13 @@ html:not(.aos-off) [data-aos].aos-animate  { opacity: 1; transform: none; }
   white-space: pre-wrap;
   padding: 10px;
   border-radius: 8px;
-  background: var(--pm-surface);
+  background: var(--pm-bg-surface, #161a22);
 }
 .cpm-blog-ai-edit-card {
   padding: 10px;
   border-radius: 9px;
   border: 1px solid var(--color-border, rgba(255, 255, 255, 0.12));
-  background: var(--pm-surface);
+  background: var(--pm-bg-surface, #161a22);
   display: grid;
   gap: 6px;
 }
