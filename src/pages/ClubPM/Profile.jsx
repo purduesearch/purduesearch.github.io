@@ -101,6 +101,7 @@ export default function Profile() {
       setCosmetics(next);
       await load();
       refreshCosmeticStyles();
+      window.dispatchEvent(new CustomEvent("avatar-updated"));
     } catch (err) {
       toast.error(err.message ?? "Failed to equip");
     } finally {

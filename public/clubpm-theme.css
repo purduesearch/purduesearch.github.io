@@ -15265,15 +15265,6 @@ i.fa-coins { color: #ffd96b; }
   max-height: 50vh;
   margin-bottom: 8px;
 }
-.pm-streak-avatar-placeholder {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 120px;
-  color: #ff8c3a;
-}
 .pm-streak-milestone-number {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
   font-size: 96px;
@@ -20566,13 +20557,14 @@ html:not(.aos-off) [data-aos].aos-animate  { opacity: 1; transform: none; }
 .member-name-frame {
   display: inline-block;
 }
-.member-name-card {
+[class*="frame-"] > .member-name-card {
   display: inline-block;
   padding: 1px 7px;
   border-radius: 6px;
   border: 2px solid transparent;
   line-height: 1.35;
 }
+.member-name-card { display: inline-block; }
 
 /* Equipped-cosmetic animations are decorative — never force motion on
    someone who asked the OS not to. */

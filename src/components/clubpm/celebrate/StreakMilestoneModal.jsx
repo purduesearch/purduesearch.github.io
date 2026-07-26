@@ -1,9 +1,9 @@
 // Full-screen takeover when the member crosses a streak multiple of 10. The
-// member's own VRM character is shown front and centre, jumps/spins, and the
+// member's own avatar portrait is shown front and centre, and the
 // big number reveals with confetti. Same-day only — the celebration endpoint
 // consumes itself on first read so this never re-fires same day.
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useClubPmAuth } from '../../../clubpm/ClubPmAuth';
 import { animate, spring, springBouncy, prefersReducedMotion } from '../../../clubpm/anim/motion';
 import { bigBurst } from './confetti';
