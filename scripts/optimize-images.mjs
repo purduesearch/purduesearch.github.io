@@ -27,7 +27,7 @@ import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import sharp from 'sharp';
 import {
-  resolveTier, CONVERT_TO_WEBP, PHOTO_WEBP, ART_WEBP,
+  resolveTier, CONVERT_TO_WEBP, PHOTO_WEBP, ART_WEBP, ANIMATED_WEBP, ANIMATED_MAX_WIDTH,
 } from './optimize-images.config.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -83,8 +83,13 @@ async function main() {
     // Decode from the buffer, not the path: libvips keeps a handle on a file
     // input, and on Windows the in-place writeFileSync below then fails with
     // UNKNOWN/EBUSY because the source is still open.
-    let pipeline = sharp(original, { animated: false });
-    if (decision.maxEdge) {
+    const isAnimated = decision.mode === 'animated';
+    let pipeline = sharp(original, { animated: isAnimated });
+    if (isAnimated) {
+      // Width only — see ANIMATED_MAX_WIDTH: an animated buffer is a vertical
+      // filmstrip, so a height cap would squash every frame.
+      pipeline = pipeline.resize({ width: ANIMATED_MAX_WIDTH, withoutEnlargement: true });
+    } else if (decision.maxEdge) {
       pipeline = pipeline.resize({
         width: decision.maxEdge,
         height: decision.maxEdge,
@@ -92,15 +97,19 @@ async function main() {
         withoutEnlargement: true,
       });
     }
-    const encoded = await pipeline
-      .webp(decision.mode === 'art' ? ART_WEBP : PHOTO_WEBP)
-      .toBuffer();
+    let encoderOpts = PHOTO_WEBP;
+    if (decision.mode === 'art') encoderOpts = ART_WEBP;
+    else if (isAnimated) encoderOpts = ANIMATED_WEBP;
+    const encoded = await pipeline.webp(encoderOpts).toBuffer();
 
     const { buf, kept } = chooseOutput(original, encoded);
-    const converts = CONVERT_TO_WEBP.has(rel) && kept === 'encoded';
-    const outRel = converts ? rel.replace(/\.(jpe?g|png)$/i, '.webp') : rel;
+    // ANIMATED entries convert too — a .gif has to become a .webp to be worth
+    // encoding at all — so they take the same rename path as CONVERT_TO_WEBP.
+    const converts =
+      (CONVERT_TO_WEBP.has(rel) || (isAnimated && rel.endsWith('.gif'))) && kept === 'encoded';
+    const outRel = converts ? rel.replace(/\.(jpe?g|png|gif)$/i, '.webp') : rel;
     const outAbs = path.join(PUBLIC, outRel);
-    const meta = await sharp(buf).metadata();
+    const meta = await sharp(buf, { animated: isAnimated }).metadata();
 
     after += buf.length;
     rows.push({

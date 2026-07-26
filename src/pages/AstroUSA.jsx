@@ -852,7 +852,7 @@ const AstroUSA = () => {
                   <div className="col-md-4 blog-item-wrapper" data-aos="fade-up" data-aos-delay={200}>
                     <div className="blog-item">
                       <div className="blog-img">
-                        <Link to="/astrousa/hydroponics"><img loading="lazy" src="/research/2023_24/hydroponics/hydro.jpg" alt="Hydroponics" /></Link>
+                        <Link to="/astrousa/hydroponics"><img loading="lazy" src="/research/2023_24/hydroponics/hydro.webp" alt="Hydroponics" /></Link>
                       </div>
                       <div className="blog-text">
                         <div className="blog-tag"><a href="#top"><h6><small>Bio-Astronautics</small></h6></a></div>

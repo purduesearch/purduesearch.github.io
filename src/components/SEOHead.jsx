@@ -51,8 +51,11 @@ export default function SEOHead({
       {isDefaultImage && <meta property="og:image:width"  content="200" />}
       {isDefaultImage && <meta property="og:image:height" content="200" />}
 
-      {/* Twitter Card */}
-      <meta name="twitter:card"        content="summary_large_image" />
+      {/* Twitter Card. X rejects summary_large_image below 300x157 and falls back
+          to a text-only card, so the square 200x200 logo has to ship as "summary".
+          Pages that supply their own (wide) ogImage — currently only BlogPost with
+          a cover image — still get the large card. */}
+      <meta name="twitter:card"        content={isDefaultImage ? 'summary' : 'summary_large_image'} />
       <meta name="twitter:site"        content="@purduesearch" />
       <meta name="twitter:title"       content={docTitle} />
       <meta name="twitter:description" content={description} />

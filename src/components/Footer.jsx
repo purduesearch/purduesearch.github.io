@@ -27,7 +27,8 @@ const Footer = () => (
           <h4>Programs</h4>
           <ul>
             <li><Link to="/research">Research</Link></li>
-            <li><Link to="/analogs">Analog Programs</Link></li>
+            {/* No "Analog Programs" entry: /analogs has no route (the page was
+                removed in a8f763b3), so this link soft-404'd from every page. */}
             <li><Link to="/sa2tp">SA²TP</Link></li>
             <li><Link to="/astrousa">ASTRO-USA</Link></li>
           </ul>

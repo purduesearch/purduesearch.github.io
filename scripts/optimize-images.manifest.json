@@ -383,13 +383,13 @@
     "tier": "hero",
     "sourceBytes": 2098440
   },
-  "bg.jpg": {
-    "sha256": "44f43698f51628b107309d2b58b307b91adc140e7981e3fd1a90eb6003216cb8",
-    "bytes": 101326,
+  "bg.webp": {
+    "sha256": "88db5abf4d8d5200f45ee7099ccc7fd80a9c1818228eb180037a0c0944227bf5",
+    "bytes": 89292,
     "width": 1920,
     "height": 1076,
     "tier": "hero",
-    "sourceBytes": 151328
+    "sourceBytes": 101326
   },
   "business/buisness.webp": {
     "sha256": "cb2a2accef6d8a7b25c90ecda0f2feee98aa40dfb4fa9ee45ad4649d11b55688",
@@ -1191,13 +1191,13 @@
     "tier": "content",
     "sourceBytes": 863180
   },
-  "research/2023_24/hydroponics/hydro.jpg": {
-    "sha256": "f68e4bc84f8445c3eab904a3c0fd5cc63087bf69af7fbf0cba8383770b3e21a2",
-    "bytes": 43656,
+  "research/2023_24/hydroponics/hydro.webp": {
+    "sha256": "a100f427c7d0339bb9ab24361d61ed646eb3dedc36890c031bb296652854d529",
+    "bytes": 42586,
     "width": 735,
     "height": 378,
     "tier": "content",
-    "sourceBytes": 64211
+    "sourceBytes": 43656
   },
   "research/2023_24/rascal/astros-pup-pr-hab-horizontal4.webp": {
     "sha256": "50cce0554edb8d779e385d2d9b6853192b26cf51c950cf76064b41c85f84c500",
@@ -1246,6 +1246,14 @@
     "height": 401,
     "tier": "content",
     "sourceBytes": 53292
+  },
+  "research/Barker_Breakdown.webp": {
+    "sha256": "62d2d6a945d2258bd7ccd4e81d086b0db73008adda95b69ae31a850009eddb6c",
+    "bytes": 52306,
+    "width": 330,
+    "height": 1320,
+    "tier": "animated",
+    "sourceBytes": 1563721
   },
   "research/Barker_Mugshot.webp": {
     "sha256": "af9fb1955cb3ddd4d7c2e4d64d9169fdfaf4560f1519133616b3284b0a666cba",
