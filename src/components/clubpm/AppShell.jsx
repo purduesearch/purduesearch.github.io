@@ -260,7 +260,7 @@ export default function AppShell({ children }) {
   }, [member]);
 
   // Apply equipped dashboard theme (cosmetic) as `theme-<slug>` on documentElement.
-  // Re-applies when avatar-updated event fires (after AvatarEditor saves).
+  // Re-applies when the avatar-updated event fires.
   useEffect(() => {
     if (!member) return;
     const applyTheme = async () => {

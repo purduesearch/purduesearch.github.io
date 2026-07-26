@@ -1,12 +1,7 @@
-// Cached avatar portrait. Renders an <img> (NOT a WebGL canvas), so this is
-// safe to use in lists and headers. Fallback chain:
-//   1. member.avatarConfig.portraitUrl  (VRM snapshot, written on Save)
-//   2. member.avatarUrl                 (Slack profile photo)
-//   3. initials block                   (last resort)
-//
-// The portraitUrl is a path beginning with "/uploads/..." served by the
-// backend; cross-origin fetch is fine because we serve it from the same
-// origin (or with the same CORS as the API).
+// Member avatar. Renders an <img> (NOT a WebGL canvas), so this is safe to use
+// in lists and headers. Fallback chain:
+//   1. member.avatarUrl  (Slack profile photo)
+//   2. initials block    (last resort)
 
 import { useState } from "react";
 
@@ -29,10 +24,8 @@ export default function AvatarPortrait({
   style = {},
   alt,
 }) {
-  const [portraitFailed, setPortraitFailed] = useState(false);
-  const [slackFailed,    setSlackFailed]    = useState(false);
+  const [slackFailed, setSlackFailed] = useState(false);
 
-  const portraitUrl = member?.avatarConfig?.portraitUrl ?? member?.portraitUrl ?? null;
   const slackUrl    = member?.avatarUrl ?? null;
   const initials    = initialsFor(member?.displayName);
   const label       = alt ?? member?.displayName ?? "";
@@ -44,18 +37,6 @@ export default function AvatarPortrait({
     flexShrink:   0,
     ...style,
   };
-
-  if (portraitUrl && !portraitFailed) {
-    return (
-      <img
-        src={portraitUrl}
-        alt={label}
-        className={className}
-        style={{ ...baseStyle, objectFit: "cover" }}
-        onError={() => setPortraitFailed(true)}
-      />
-    );
-  }
 
   if (slackUrl && !slackFailed) {
     return (

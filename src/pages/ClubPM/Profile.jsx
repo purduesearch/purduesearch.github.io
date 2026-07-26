@@ -10,17 +10,11 @@ import RankBadge, { RANK_META } from "../../components/clubpm/RankBadge";
 import CosmeticChip from "../../components/clubpm/CosmeticChip";
 import BadgePicker from "../../components/clubpm/BadgePicker";
 import XpHeatmap from "../../components/clubpm/XpHeatmap";
-import AvatarEditor from "../../components/clubpm/avatar/AvatarEditor";
 import AvatarPortrait from "../../components/clubpm/avatar/AvatarPortrait";
-// VRM_DISABLED: AvatarModel left dormant. See src/clubpm/avatar/VRM_DISABLED.md.
-// import AvatarModel from "../../components/clubpm/avatar/AvatarModel";
 import GhStatsSection from "../../components/clubpm/GhStatsSection";
 import GitHubConnectButton from "../../components/clubpm/github/GitHubConnectButton";
 import { progressToNextRank } from "../../clubpm/engagement/rankProgress";
 import { tzOffset, copyToClipboard, activityLabels, TEAMS } from "../../clubpm/members/memberShared";
-
-// Set to true to restore the 3D VRM canvas. See src/clubpm/avatar/VRM_DISABLED.md.
-const VRM_ENABLED = false;
 
 export default function Profile() {
   const { memberId: routeId } = useParams();
@@ -32,8 +26,6 @@ export default function Profile() {
   const [xpHistory, setXpHistory] = useState([]);
   const [activity, setActivity] = useState([]);
   const [cosmetics, setCosmetics] = useState([]);
-  const [avatarConfig, setAvatarConfig] = useState(null);
-  const [editing, setEditing] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const [editMode, setEditMode] = useState(false);
@@ -44,7 +36,6 @@ export default function Profile() {
 
   useEffect(() => {
     const handler = () => {
-      get(`/api/avatar/config`).then(setAvatarConfig).catch(() => {});
       if (memberId) get(`/api/members/${memberId}/cosmetics`).then(setCosmetics).catch(() => {});
     };
     window.addEventListener("avatar-updated", handler);
@@ -68,12 +59,6 @@ export default function Profile() {
       setXpHistory(h);
       setActivity(act?.activity ?? []);
       setCosmetics(c);
-      if (memberId === authMember?.id) {
-        try {
-          const av = await get(`/api/avatar/config`);
-          setAvatarConfig(av);
-        } catch {}
-      }
     } catch (err) {
       console.error("Load profile error:", err);
     } finally {
@@ -219,30 +204,9 @@ export default function Profile() {
           </div>
         </div>
 
-        {/* Avatar — portrait fallback while VRM_ENABLED = false */}
+        {/* Avatar */}
         <div className="cpm-profile-card" style={{ position: "relative", aspectRatio: "1 / 1", display: "flex", alignItems: "center", justifyContent: "center", padding: 0, overflow: "hidden" }}>
-          {VRM_ENABLED ? (
-            /* VRM_DISABLED: restore AvatarModel here when VRM_ENABLED = true */
-            <div style={{ color: "var(--clubpm-text-muted, #636b7a)", fontSize: 12, padding: 16 }}>3D avatar disabled</div>
-          ) : (
-            <AvatarPortrait member={profile} size={260} />
-          )}
-          {isSelf && (
-            <button
-              type="button"
-              onClick={() => setEditing(true)}
-              style={{ position: "absolute", bottom: 8, right: 8, padding: "6px 12px", borderRadius: 6, border: 0, background: "var(--clubpm-accent-primary, #0ea5e9)", color: "white", cursor: "pointer", fontSize: 12 }}
-            >
-              <i className="fas fa-edit" aria-hidden="true" /> Edit
-            </button>
-          )}
-          {editing && isSelf && (
-            <AvatarEditor
-              memberId={memberId}
-              initialConfig={avatarConfig}
-              onClose={() => setEditing(false)}
-            />
-          )}
+          <AvatarPortrait member={profile} size={260} />
         </div>
       </div>
 
