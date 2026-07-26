@@ -1,4 +1,4 @@
-// Leaderboard — top 10 members by XP, optionally filtered by team or semester.
+// Leaderboard — top 10 members by XP, optionally filtered by semester.
 // Semester is implemented as a date window: when ?semester=FALL_2025 is set we sum
 // XpEvent.amount within the window; otherwise we use Member.xp (all-time).
 

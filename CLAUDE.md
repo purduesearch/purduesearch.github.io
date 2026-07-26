@@ -180,7 +180,7 @@ Deploy is manual push to the `main` branch; GitHub Pages serves from root.
 
 ### API Routes (`backend/src/api/`)
 - `tasks.ts` — Core task CRUD + comments, subtasks, dependencies, time logs, AI enrichment. See **Task API Quick Reference** below.
-- `members.ts` — Member profile, XP history, rank. Rank is a Prisma enum on `Member`.
+- `members.ts` — Member profile, XP history, rank. Rank is a Prisma enum on `Member`. Also serves `GET /api/members/cosmetic-styles` — memberId → equipped css slugs; MUST stay registered above `GET /:id`.
 - `auth.ts` / `githubAuth.ts` — Dual auth: session cookie (express-session + Slack OAuth) **plus** an HMAC-signed Bearer token (7-day TTL, `tokenVersion` revocation) delivered via `?lt=` redirect and stored in localStorage — the fallback for browsers that block cross-origin cookies (Brave etc.). `requireAuth` accepts either and sets `req.memberId`. **CONVENTION: always read `req.memberId` in handlers, never `req.session.memberId`** — session reads are `undefined` for Bearer users and silently break them (this bug class existed in 12 API files; see `~/.claude/plans/clubpm-review-fixes-dappled-heron.md`). Only `auth.ts` itself may touch `req.session`.
 - `projects.ts` — Project CRUD; also mounts `tagsRouter`.
 - `milestones.ts` — Milestone CRUD + health refresh. See **Milestones API** below.
@@ -188,7 +188,7 @@ Deploy is manual push to the `main` branch; GitHub Pages serves from root.
 - `rewards.ts` — Pending reward queue, admin approve/reject.
 - `challenges.ts` — Active challenges, claim endpoint.
 - `outreach.ts` — OutreachSubmission CRUD; sub-routers: assets, brand-voices, campaigns, contacts, insights.
-- `shop.ts` / `inventory.ts` / `avatar.ts` — Cosmetic shop, inventory, avatar slot management.
+- `shop.ts` / `inventory.ts` — Cosmetic shop, inventory.
 - `leaderboard.ts` — XP + doubloon rankings.
 - `notifications.ts` + `sse.ts` — Notification CRUD + SSE push stream.
 - `public.ts` — Unauthenticated endpoints (GitHub Pages reads these).
@@ -197,7 +197,7 @@ Deploy is manual push to the `main` branch; GitHub Pages serves from root.
 - `vault.ts` (1,096 lines) + `changeRequests.ts` — Constellation Vault CAD/PDM: items, versions, checkouts, BOM, CRs. Mounted at bare `/api` (like `blockers.ts` and `streak.ts`).
 - `blog.ts` — Blog editor CRUD, revisions, taxonomy, publish/schedule; collaborative editing WS (Hocuspocus) attaches at `/collab/blog` on the same HTTP server (`backend/src/collab/blogCollab.ts`).
 
-**Gotcha:** `app.ts` uses `express.json()` with the default **100 kb** body limit — endpoints receiving base64 images in JSON (`/api/avatar/extract-features`, `/api/tasks/create-from-image`) 413 on real photos until the limit is raised (plan phase 3). Only the GitHub webhook mounts its own 10 mb raw parser.
+**Gotcha:** `app.ts` uses `express.json()` with the default **100 kb** body limit — endpoints receiving base64 images in JSON (`/api/tasks/create-from-image`) 413 on real photos until the limit is raised (plan phase 3). Only the GitHub webhook mounts its own 10 mb raw parser.
 
 ### Services (`backend/src/services/`)
 - `rewardService.ts` — XP/doubloon ledger. Key: `grantXP()`, `grantDoubloons()`, `handleTaskComplete()`, `handleTimeLog()`, `handleMilestoneComplete()`. Task rewards are **admin-gated** via `queuePendingReward()`.
@@ -305,7 +305,7 @@ Execution is open to **any logged-in member** — `executeActionPlan` re-checks 
 - `src/pages/ClubPM/Dashboard.jsx` (1,532 lines) — Personal dashboard: StatsBar (5 stats), DailyQuestsWidget, AIInsightCards, GithubActivityWidget, UpcomingEventsWidget, WorkPanel (filterable task list), AgendaPanel (7-day), LeaderboardPanel.
 - `src/pages/ClubPM/MembersView.jsx` (491 lines) — Member roster. Supports search + team/role filters. MemberDrawer shows full profile. ContributorImportModal links GitHub logins.
 - `src/api/clubPmClient.js` (430 lines) — Fetch wrappers (get/post/patch/del/put). Base URL: `process.env.REACT_APP_API_URL || ""`. Sends session cookie **and** `Authorization: Bearer` from localStorage (`clubpm_auth_token`) on every call. Dispatches `clubpm:reward-granted`, `clubpm:achievement-unlocked`, `clubpm:challenge-progress`, `clubpm:cosmetic-unlocked`, `clubpm:reward-queued` custom events on responses. Streak cache: 5-second TTL. Also exports vault/CR helpers, blog editor helpers, `uploadVaultFile()` (XHR multipart w/ progress), and `suggestActions()` / `executePlan()`.
-- `src/clubpm/ClubPmAuth.jsx` — Auth provider: consumes the `?lt=` login token, stores it, calls `/auth/me` with Bearer + cookie. `src/clubpm/` also holds ShortcutsRegistry, avatar VRM loaders (`avatar/vrm/`), cosmetics registries, and engagement helpers.
+- `src/clubpm/ClubPmAuth.jsx` — Auth provider: consumes the `?lt=` login token, stores it, calls `/auth/me` with Bearer + cookie. `src/clubpm/` also holds ShortcutsRegistry, cosmetics registries + styles context, and engagement helpers.
 - `src/components/clubpm/ActionPlanReview.jsx` — Renders an `ActionPlan` as editable per-action cards (per-type field config, accept/decline, rationale) for the AiPanel "Action Plan" section in `ProjectDetail.jsx`. See **AI Action Plan** above for the schema.
 
 ---
