@@ -180,6 +180,16 @@ function wrapMarks(text: string, marks?: PMMark[]): string {
           : `<mark>${out}</mark>`;
         break;
       }
+      // ── Review-only marks (see suggestionMarks.js) ──────────
+      // These exist for in-editor review and must never reach the public site.
+      // commentMark / suggestInsert: keep the text, drop the annotation.
+      case "commentMark":
+      case "suggestInsert":
+        break;
+      // suggestDelete: the text itself is dropped in renderNode below, since a
+      // mark handler can only wrap text, not remove it.
+      case "suggestDelete":
+        break;
       default:
         break;
     }
@@ -213,8 +223,11 @@ function buildHeadingIdMap(doc: PMDoc): Map<PMNode, string> {
 
 function renderNode(node: PMNode, headingIds: Map<PMNode, string>): string {
   switch (node.type) {
-    case "text":
+    case "text": {
+      // A rejected-but-not-yet-cleaned suggestion must not publish its old text.
+      if (node.marks?.some((m) => m.type === "suggestDelete")) return "";
       return wrapMarks(escapeHtml(node.text ?? ""), node.marks);
+    }
     case "paragraph":
       return `<p>${renderChildren(node, headingIds)}</p>`;
     case "heading": {

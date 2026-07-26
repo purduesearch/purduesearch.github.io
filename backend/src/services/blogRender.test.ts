@@ -120,5 +120,29 @@ check("passes through a normal https image",
   check("highlight rejects non-hex colour", hlBad.includes("<mark>") && !hlBad.includes("expression"));
 }
 
+{
+  // A draft mid-review must publish as if the review never happened:
+  // insertions land as plain text, deletions vanish, comments leave no trace.
+  const doc = { type: "doc", content: [
+    { type: "paragraph", content: [
+      { type: "text", text: "We " },
+      { type: "text", text: "did testing", marks: [{ type: "suggestDelete", attrs: { threadId: "t1" } }] },
+      { type: "text", text: "ran thermal vac", marks: [{ type: "suggestInsert", attrs: { threadId: "t1" } }] },
+      { type: "text", text: " last week." },
+    ] },
+    { type: "paragraph", content: [
+      { type: "text", text: "Flagged sentence.", marks: [{ type: "commentMark", attrs: { threadId: "t2" } }] },
+    ] },
+  ] };
+  const html = _render(doc as any);
+  check("keeps suggestInsert text", html.includes("ran thermal vac"));
+  check("drops suggestDelete text", !html.includes("did testing"));
+  check("keeps commented text", html.includes("Flagged sentence."));
+  check("leaks no thread ids", !html.includes("data-thread-id"));
+  check("leaks no review classes",
+    !html.includes("cpm-blog-sugg") && !html.includes("cpm-blog-comment-mark"));
+  check("surrounding prose survives intact", html.includes("We ") && html.includes(" last week."));
+}
+
 console.log(`\nblogRender: ${passed} passed, ${failed} failed`);
 if (failed > 0) process.exit(1);
