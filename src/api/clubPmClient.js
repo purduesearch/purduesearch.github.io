@@ -412,6 +412,11 @@ export const addBlogThreadComment   = (threadId, body) => post(`/api/blog/thread
 export const editBlogThreadComment  = (threadId, commentId, body) => patch(`/api/blog/threads/${threadId}/comments/${commentId}`, { body });
 export const deleteBlogThreadComment = (threadId, commentId) => del(`/api/blog/threads/${threadId}/comments/${commentId}`);
 
+// ── Blog / press-kit AI ──────────────────────────────────────
+export const blogAiAsk      = (docType, docId, question) => post('/api/blog/ai/ask', { docType, docId, question });
+export const blogAiEdit     = (docType, docId, body) => post('/api/blog/ai/edit', { docType, docId, ...body });
+export const blogAiComplete = (docType, docId, before) => post('/api/blog/ai/complete', { docType, docId, before });
+
 // ws(s):// base for the embedded Hocuspocus collab server (backend/src/collab/blogCollab.ts,
 // mounted at /collab/blog). Mirrors BASE_URL's origin, swapping the http(s) scheme for ws(s);
 // falls back to the current page's origin so the CRA dev proxy forwards the upgrade request.
