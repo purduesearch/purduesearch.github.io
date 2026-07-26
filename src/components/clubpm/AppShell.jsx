@@ -24,6 +24,7 @@ import useRankWatcher from '../../hooks/useRankWatcher';
 import useCelebrationCheck from '../../hooks/useCelebrationCheck';
 import { tweenNumber, tweenWidthPercent } from '../../clubpm/anim/motion';
 import { progressToNextRank } from '../../clubpm/engagement/rankProgress';
+import CosmeticStylesProvider from '../../clubpm/cosmetics/CosmeticStylesContext';
 
 function getBreadcrumb(pathname) {
   if (pathname === '/clubpm') return [{ label: 'Dashboard' }];
@@ -316,6 +317,7 @@ export default function AppShell({ children }) {
   // survive route transitions and are not duplicated per route.
 
   return (
+    <CosmeticStylesProvider>
     <div className="clubpm-app pm-shell">
       {/* Sidebar */}
       <nav className="pm-sidebar">
@@ -549,5 +551,6 @@ export default function AppShell({ children }) {
       <RewardQueuedToast />
       <AchievementUnlockListener />
     </div>
+    </CosmeticStylesProvider>
   );
 }

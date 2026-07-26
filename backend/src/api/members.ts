@@ -208,6 +208,38 @@ membersRouter.put("/me/progress-snapshot", async (req: Request, res: Response) =
   }
 });
 
+// ── GET /api/members/cosmetic-styles ─────────────────────────
+// Compact map of memberId → equipped cosmetic css slugs, so avatar chips
+// anywhere in the app can render borders/frames/animations without every
+// task/project query having to join through MemberCosmetic.
+// MUST stay registered above `GET /:id`.
+
+const STYLE_SLOTS = ["border", "frame", "animation"] as const;
+
+membersRouter.get("/cosmetic-styles", async (_req: Request, res: Response) => {
+  try {
+    const rows = await prisma.memberCosmetic.findMany({
+      where: { equippedSlot: { in: [...STYLE_SLOTS] } },
+      select: {
+        memberId:     true,
+        equippedSlot: true,
+        cosmetic:     { select: { cssSlug: true } },
+      },
+    });
+
+    const out: Record<string, Record<string, string>> = {};
+    for (const r of rows) {
+      const slug = r.cosmetic.cssSlug;
+      if (!slug || !r.equippedSlot) continue;
+      (out[r.memberId] ??= {})[r.equippedSlot] = slug;
+    }
+    res.json(out);
+  } catch (err) {
+    console.error("Get cosmetic styles error:", err);
+    res.status(500).json({ error: "Failed to get cosmetic styles" });
+  }
+});
+
 // ── GET /api/members ─────────────────────────────────────────
 
 membersRouter.get("/", async (_req: Request, res: Response) => {
