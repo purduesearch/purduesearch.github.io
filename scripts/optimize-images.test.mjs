@@ -59,10 +59,28 @@ test('backslash paths are normalised', () => {
   assert.equal(resolveTier('officers\\henry.webp').maxEdge, 500);
 });
 
-test('the four conversion targets are registered', () => {
-  for (const p of ['bg-2.jpg', 'analogs_bg.jpg', 'news/seti.jpg', 'news/fundraising.png']) {
+test('the conversion targets are registered', () => {
+  for (const p of [
+    'bg-2.jpg', 'analogs_bg.jpg', 'news/seti.jpg', 'news/fundraising.png',
+    'bg.jpg', 'research/2023_24/hydroponics/hydro.jpg',
+  ]) {
     assert.ok(CONVERT_TO_WEBP.has(p), `${p} should convert`);
   }
+});
+
+test('hand-listed animated files beat the gif skip gate', () => {
+  const r = resolveTier('research/Barker_Breakdown.gif');
+  assert.equal(r.mode, 'animated');
+  assert.equal(r.maxEdge, null, 'animated frames are not resized');
+});
+
+test('the animated webp output stays in animated mode on re-runs', () => {
+  // Otherwise the next run decodes it with animated:false and flattens it.
+  assert.equal(resolveTier('research/Barker_Breakdown.webp').mode, 'animated');
+});
+
+test('unlisted gifs are still skipped', () => {
+  assert.equal(resolveTier('icons/animat-customize.gif').mode, 'skip');
 });
 
 test('tier table matches the approved spec', () => {

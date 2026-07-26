@@ -503,11 +503,11 @@ const Suits = () => {
           <div className="row justify-content-center" data-aos="fade-up">
             {[
               { name: 'Gurmehar Singh',       role: 'Team Lead',              major: 'Computer Science & Mathematics',       img: '/officers/singh.webp' },
-              { name: 'Mihir Patil',          role: 'Software Engineer',      major: 'Computer Science',                     img: '/software/2023_24/SUITS/patil.jpeg' },
-              { name: 'Vinitha Marupeddi',    role: 'UI/UX Designer',         major: 'Computer Science',                     img: '/software/2023_24/SUITS/marupeddi.jpeg' },
-              { name: 'Dipam Patel',          role: 'AI Engineer',            major: 'PhD, Computer Science',                img: '/software/2023_24/SUITS/patel.jpeg' },
+              { name: 'Mihir Patil',          role: 'Software Engineer',      major: 'Computer Science',                     img: '/software/2023_24/SUITS/patil.webp' },
+              { name: 'Vinitha Marupeddi',    role: 'UI/UX Designer',         major: 'Computer Science',                     img: '/software/2023_24/SUITS/marupeddi.webp' },
+              { name: 'Dipam Patel',          role: 'AI Engineer',            major: 'PhD, Computer Science',                img: '/software/2023_24/SUITS/patel.webp' },
               { name: 'Hrishikesh Viswanath', role: 'Systems Engineer',       major: 'PhD, Computer Science',                img: '/officers/viswanath.webp' },
-              { name: 'Jason Fotso-Puepi',    role: 'Backend Developer',      major: 'PhD, Computer Science',                img: '/software/2023_24/SUITS/puepi.jpeg' },
+              { name: 'Jason Fotso-Puepi',    role: 'Backend Developer',      major: 'PhD, Computer Science',                img: '/software/2023_24/SUITS/puepi.webp' },
             ].map(m => (
               <div key={m.name} className="col-md-4 col-sm-6 mb-4 text-center" data-aos="fade-up">
                 <div className="shadow rounded feature-item p-4">

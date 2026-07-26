@@ -22,7 +22,7 @@ const PROFESSIONALS = [
     name: 'Dr. Richard Barker',
     title: 'Research Scientist, Plant Space Biology',
     photo: '/research/Barker_Mugshot.webp',
-    hoverPhoto: '/research/Barker_Breakdown.gif',
+    hoverPhoto: '/research/Barker_Breakdown.webp',
     linkedin: 'https://www.linkedin.com/in/richard-barker-40b90530/',
   },
   {

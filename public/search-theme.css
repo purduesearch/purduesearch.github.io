@@ -1,4 +1,9 @@
-﻿@import url('https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=JetBrains+Mono:wght@400;500&display=swap');
+﻿/* Syne / DM Sans / JetBrains Mono used to be pulled in with an @import here.
+   An @import inside a render-blocking stylesheet serialises the request chain
+   (HTML -> search-theme.css -> fonts css -> woff2), so the fonts were not even
+   discovered until this file had finished downloading. They are now merged
+   into the single <link> to fonts.googleapis.com in public/index.html, which
+   the preconnect there already covers. Add new families to that link, not here. */
 
 /*
  * SEARCH of Purdue â€” Design Theme

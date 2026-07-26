@@ -162,7 +162,6 @@ const Home = () => {
   const heroCtaSecondaryRef = useRef(null);
   const heroContentRef = useRef(null);
   const clientBgRef = useRef(null);
-  const programsBgRef = useRef(null);
   const missionPillarsRef = useRef(null);
   const igGridRef = useRef(null);
   const missionPillarsSectionRef = useRef(null);
@@ -280,6 +279,11 @@ const Home = () => {
           duration: 1.6,
           ease: 'power2.out',
           snap: { innerText: isDecimal ? 0.1 : 1 },
+          // Without this, fromTo() applies the 0 start-state at mount, so the
+          // real numbers only ever appear if someone scrolls the section into
+          // view. Crawlers and LLM renderers don't scroll, and were reading the
+          // stat row as "0 / 0 / 0". Defer the from-state to the trigger.
+          immediateRender: false,
           scrollTrigger: { trigger: el, start: 'top 88%', once: true },
           onUpdate() { el.innerText = isDecimal ? parseFloat(el.innerText).toFixed(1) : Math.round(el.innerText); },
         }
@@ -296,7 +300,6 @@ const Home = () => {
       // with GSAP too would fight over the same inline `style.opacity`.
       heroIntro(heroContentRef.current, ':scope > *:not(.hero-wordmark)'),
       parallaxLayer(clientBgRef.current),
-      parallaxLayer(programsBgRef.current),
       staggerGroup(missionPillarsRef.current, '.col-md-4'),
       staggerGroup(igGridRef.current, '.ig-card'),
     ];
@@ -451,7 +454,7 @@ const Home = () => {
       </main>{/* /hero-scroll-extender */}
 
       <section id="client" className="overlay parallax-host" aria-label="Outreach partners">
-        <div className="parallax-bg" ref={clientBgRef} style={{ backgroundImage: 'url(/bg.jpg)' }} aria-hidden="true" />
+        <div className="parallax-bg" ref={clientBgRef} style={{ backgroundImage: 'url(/bg.webp)' }} aria-hidden="true" />
         <div className="container">
           <div className="title-wrap mb-5 text-center">
             <h2 style={{ color: '#fff' }}>Our Collaborations</h2>
@@ -672,8 +675,13 @@ const Home = () => {
         </div>
       </section>
 
+      {/* No .parallax-bg layer here: it pointed at /bg-white.jpg, which has never
+          existed in public/, so it 404'd on every homepage load and painted
+          nothing. The section's own .overlay.bg-white tint is the intended look.
+          .parallax-host stays on the section even with no layer to move — it is
+          what supplies `position: relative`, and .overlay::before is an inset-0
+          absolute box that would escape to the initial containing block without it. */}
       <section id="programs-showcase" className="section-padding bg-white overlay parallax-host">
-        <div className="parallax-bg" ref={programsBgRef} style={{ backgroundImage: 'url(/bg-white.jpg)' }} aria-hidden="true" />
         <div className="container">
           <div className="section-content" data-aos="fade-up">
             <div className="heading-section text-center">
