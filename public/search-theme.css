@@ -6443,3 +6443,47 @@ html.clubpm-route body {
     transition: none;
   }
 }
+
+
+/* ============================================================
+   HERO ENTRANCE — FLASH FIX
+   style.min.css gives every jumbotron child the same delayed
+   `fadeInFromTop` (opacity: 0 -> 1, animation-delay: .8s), but its
+   `.jumbotron h1` rule is missing the semicolon after `font-size`
+   (style.min.css:154), so the parser swallows that block's
+   `opacity: 0` and drops it. The heading therefore painted at full
+   opacity on first frame, then 0.8s later the animation started
+   from opacity 0 and faded it back in — the "load, flash, reload
+   alongside the subtitle" the h1's siblings never showed.
+   Fixing it in the minified vendor file is out (see the header of
+   this file), so the whole hero group is re-declared here: one
+   short entrance, no stagger delay, heading and subtitle together.
+   ============================================================ */
+
+.jumbotron h1,
+.jumbotron p,
+.jumbotron i,
+.jumbotron img,
+.jumbotron-post h1,
+.jumbotron-post p,
+.jumbotron-post i,
+.jumbotron-post img {
+  opacity: 0;
+  animation: fadeInFromTop 0.5s cubic-bezier(0.785, 0.135, 0.15, 0.86) 0s forwards;
+}
+
+/* Reduced motion: no fade, no translate — just show the hero. */
+@media (prefers-reduced-motion: reduce) {
+  .jumbotron h1,
+  .jumbotron p,
+  .jumbotron i,
+  .jumbotron img,
+  .jumbotron-post h1,
+  .jumbotron-post p,
+  .jumbotron-post i,
+  .jumbotron-post img {
+    opacity: 1;
+    animation: none;
+    transform: none;
+  }
+}
