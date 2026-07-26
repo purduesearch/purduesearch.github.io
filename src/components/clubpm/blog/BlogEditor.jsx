@@ -474,12 +474,24 @@ export default function BlogEditor({ content, onChange, editable = true, onEdito
   const [showSnippets, setShowSnippets] = React.useState(false);
   const [showSecLib, setShowSecLib] = React.useState(false);
   const [settingsPos, setSettingsPos] = React.useState(null);
+  // Section position the user explicitly closed the panel on. Suppresses the
+  // auto-open below until the caret moves to a different section, so dismissing
+  // the panel actually sticks while you keep typing in that section.
+  const dismissedSectionPos = React.useRef(null);
 
   React.useEffect(() => {
-    const handler = (e) => setSettingsPos(e.detail?.pos ?? null);
+    const handler = (e) => {
+      dismissedSectionPos.current = null;
+      setSettingsPos(e.detail?.pos ?? null);
+    };
     window.addEventListener('blog-section-settings', handler);
     return () => window.removeEventListener('blog-section-settings', handler);
   }, []);
+
+  const closeSettings = React.useCallback(() => {
+    dismissedSectionPos.current = settingsPos;
+    setSettingsPos(null);
+  }, [settingsPos]);
   const [connected, setConnected] = React.useState(false);
   const [synced, setSynced] = React.useState(false);
   const [peers, setPeers] = React.useState([]);
@@ -604,6 +616,33 @@ export default function BlogEditor({ content, onChange, editable = true, onEdito
     if (editor && onEditorReady) onEditorReady(editor);
   }, [editor, onEditorReady]);
 
+  // Clicking into a section opens that section's settings, so layout /
+  // background / padding are reachable where you're working instead of only
+  // behind the palette button on the hover toolbar. Tracking the position on
+  // every selection change also keeps the panel pointed at the right node when
+  // edits above it shift positions.
+  useEffect(() => {
+    if (!editor || !editable) return undefined;
+    const sync = () => {
+      if (editor.isDestroyed) return;
+      const { $from } = editor.state.selection;
+      let pos = null;
+      for (let depth = $from.depth; depth > 0; depth -= 1) {
+        if ($from.node(depth).type.name === 'section') { pos = $from.before(depth); break; }
+      }
+      if (pos == null) {
+        dismissedSectionPos.current = null;
+        setSettingsPos(null);
+        return;
+      }
+      if (dismissedSectionPos.current === pos) return;
+      dismissedSectionPos.current = null;
+      setSettingsPos((prev) => (prev === pos ? prev : pos));
+    };
+    editor.on('selectionUpdate', sync);
+    return () => { editor.off('selectionUpdate', sync); };
+  }, [editor, editable]);
+
   // Registered purely so these appear in the shared "?" Keyboard Shortcuts
   // modal — the key combos themselves are handled natively by TipTap's own
   // keymaps (bold/italic/underline/undo/redo) or LinkShortcut above; the
@@ -654,8 +693,8 @@ export default function BlogEditor({ content, onChange, editable = true, onEdito
       {showFind && !markdownMode && <FindBar editor={editor} onClose={() => setShowFind(false)} />}
       {showSnippets && !markdownMode && <BlogSnippetManager editor={editor} onClose={() => setShowSnippets(false)} />}
       {showSecLib && !markdownMode && <BlogSectionLibrary editor={editor} onClose={() => setShowSecLib(false)} />}
-      {settingsPos != null && (
-        <BlogSectionSettings editor={editor} pos={settingsPos} onClose={() => setSettingsPos(null)} />
+      {settingsPos != null && !markdownMode && (
+        <BlogSectionSettings editor={editor} pos={settingsPos} onClose={closeSettings} />
       )}
       {markdownMode ? (
         <textarea

@@ -11,10 +11,13 @@ const SEG = (opts, value, onPick) => (
 export default function BlogSectionSettings({ editor, pos, onClose }) {
   const [attrs, setAttrs] = React.useState(null);
 
+  // Always resolve from the current pos — the panel now follows the caret, so a
+  // stale `attrs` from a previously selected section would silently edit the
+  // wrong node. Clearing on a miss makes the panel disappear instead.
   React.useEffect(() => {
-    if (!editor || pos == null) return;
+    if (!editor || pos == null) { setAttrs(null); return; }
     const node = editor.state.doc.nodeAt(pos);
-    if (node && node.type.name === 'section') setAttrs({ ...node.attrs });
+    setAttrs(node && node.type.name === 'section' ? { ...node.attrs } : null);
   }, [editor, pos]);
 
   if (!attrs) return null;
@@ -35,8 +38,22 @@ export default function BlogSectionSettings({ editor, pos, onClose }) {
 
       <label className="cpm-blog-secset-lab">Background</label>
       {SEG([['none','None'],['color','Color'],['image','Image']], bg.kind, (v) => update({ background: { kind: v, value: v === 'none' ? '' : bg.value } }))}
-      {bg.kind === 'color' && <input type="color" value={bg.value || '#111111'} onChange={(e) => update({ background: { kind: 'color', value: e.target.value } })} />}
-      {bg.kind === 'image' && <input placeholder="Image URL" value={bg.value || ''} onChange={(e) => update({ background: { kind: 'image', value: e.target.value } })} />}
+      {bg.kind === 'color' && (
+        <input
+          type="color"
+          className="cpm-blog-secset-color"
+          value={bg.value || '#111111'}
+          onChange={(e) => update({ background: { kind: 'color', value: e.target.value } })}
+        />
+      )}
+      {bg.kind === 'image' && (
+        <input
+          className="cpm-blog-secset-input"
+          placeholder="Image URL"
+          value={bg.value || ''}
+          onChange={(e) => update({ background: { kind: 'image', value: e.target.value } })}
+        />
+      )}
 
       <label className="cpm-blog-secset-lab">Padding</label>
       {SEG([['s','S'],['m','M'],['l','L'],['xl','XL']], attrs.padding, (v) => update({ padding: v }))}

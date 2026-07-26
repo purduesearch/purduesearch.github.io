@@ -854,9 +854,51 @@ html::-webkit-scrollbar { display: none; }
   transition: all 0.2s ease;
   box-shadow: 0 4px 16px rgba(0,229,204,0.25);
 }
-.clubpm-btn-primary:hover {
+.clubpm-btn-primary:hover:not(:disabled) {
   transform: translateY(-1px);
   box-shadow: 0 6px 24px rgba(0,229,204,0.35);
+}
+
+/* The neutral counterpart to .clubpm-btn-primary. It was referenced in ~28
+   places (blog editor header, press kit, meta panel, gallery "Add images",
+   members view) but never actually defined, so all of those rendered as raw
+   browser chrome next to a fully styled primary button. */
+.clubpm-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 18px;
+  border: 1px solid var(--pm-overlay, #2a2f3a);
+  border-radius: 10px;
+  background: var(--pm-elevated, #1e2430);
+  color: var(--pm-text, #dfe6f0);
+  font-weight: 600;
+  font-size: 0.8125rem;
+  line-height: 1.25;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+}
+.clubpm-btn-secondary:hover:not(:disabled) {
+  background: var(--pm-overlay, #2a2f3a);
+  border-color: var(--pm-accent-teal, #00e5cc);
+  color: #fff;
+}
+.clubpm-btn-secondary.is-active {
+  background: rgba(0, 229, 204, 0.14);
+  border-color: var(--pm-accent-teal, #00e5cc);
+  color: var(--pm-accent-teal, #00e5cc);
+}
+/* Buttons don't inherit the page font by default — without this the two button
+   families render in the UA's default face while everything around them is DM Sans. */
+.clubpm-btn-primary,
+.clubpm-btn-secondary { font-family: inherit; }
+.clubpm-btn-primary:disabled,
+.clubpm-btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; }
+.clubpm-btn-primary:focus-visible,
+.clubpm-btn-secondary:focus-visible {
+  outline: 2px solid var(--pm-accent-teal, #00e5cc);
+  outline-offset: 2px;
 }
 
 @keyframes clubpm-fadeIn {
@@ -17787,6 +17829,18 @@ button.cpm-badge-tile:disabled { opacity: 0.7; cursor: progress; }
 .cpm-blog-tb-btn.is-active { background: var(--pm-accent-teal); color: #0d0f14; }
 .cpm-blog-tb-btn:disabled { opacity: .35; cursor: default; }
 .cpm-blog-tb-sep { width: 1px; height: 20px; background: var(--pm-overlay, #2a2f3a); margin: 0 4px; }
+/* Toolbar controls are <button>/<select>, which don't inherit the page font. */
+.cpm-blog-tb-btn, .cpm-blog-tb-select, .cpm-blog-tb-menu-trigger, .cpm-blog-tb-menu-item, .cpm-blog-seg-b {
+  font-family: inherit;
+}
+.cpm-blog-tb-btn:focus-visible, .cpm-blog-tb-select:focus-visible, .cpm-blog-seg-b:focus-visible {
+  outline: 2px solid var(--pm-accent-teal, #00e5cc); outline-offset: 1px;
+}
+/* The px/% toggle shows text, not an icon, so it can't use the square icon box. */
+.cpm-blog-tb-btn--unit {
+  width: auto; min-width: 32px; padding: 0 8px;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.04em;
+}
 .cpm-blog-tb-select {
   background: var(--pm-elevated, #1e2430); color: #fff; border: 1px solid var(--pm-overlay, #2a2f3a);
   border-radius: 7px; padding: 4px 8px; font-size: 13px; cursor: pointer;
@@ -17985,6 +18039,31 @@ button.cpm-badge-tile:disabled { opacity: 0.7; cursor: progress; }
 }
 .cpm-blog-callout-variant-btn:hover { background: var(--pm-overlay, #2a2f3a); color: #fff; }
 .cpm-blog-callout-variant-btn.is-active { background: var(--pm-accent-teal, #00e5cc); color: #0a0d12; border-color: transparent; }
+
+/* Published / preview callout (server-rendered by blogRender.ts) — kept
+   byte-identical with the copy in search-theme.css. The editor's node view has
+   its own box (.cpm-blog-callout-node); this class had ONLY a border-left, so
+   in Preview/published the text sat flush against the coloured bar. */
+.cpm-blog-callout {
+  margin: 1.6em 0;
+  padding: 16px 20px;
+  border: 1px solid rgba(0, 0, 0, 0.09);
+  border-left: 0;
+  border-radius: 0 10px 10px 0;
+  background: rgba(0, 0, 0, 0.025);
+}
+.cpm-blog-callout > *:first-child { margin-top: 0; }
+.cpm-blog-callout > *:last-child { margin-bottom: 0; }
+/* Tints are scoped with the compound selector so they apply to the published
+   callout only and leave the editor node view's own surface colour alone. */
+.cpm-blog-callout.cpm-blog-callout--info    { background: rgba(0, 229, 204, 0.07); }
+.cpm-blog-callout.cpm-blog-callout--warning { background: rgba(245, 166, 35, 0.09); }
+.cpm-blog-callout.cpm-blog-callout--success { background: rgba(124, 92, 255, 0.08); }
+.cpm-blog-callout.cpm-blog-callout--tip     { background: rgba(255, 107, 107, 0.08); }
+.cpm-blog-section--dark .cpm-blog-callout {
+  border-color: rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.05);
+}
 
 .cpm-blog-callout--info { border-left: 3px solid var(--pm-accent-teal, #00e5cc); }
 .cpm-blog-callout--info .cpm-blog-callout-icon { color: var(--pm-accent-teal, #00e5cc); }
@@ -20124,6 +20203,15 @@ html:not(.aos-off) [data-aos].aos-animate  { opacity: 1; transform: none; }
 .cpm-blog-cta-btn--outline { border: 2px solid var(--post-accent); color: var(--post-accent); }
 /* Editor affordances */
 .cpm-blog-section { position: relative; }
+/* TipTap's React node view for `section` puts its own contentDOM <div> between
+   .cpm-blog-section-inner (the 12-track grid) and the section's children. Left
+   as a normal block that wrapper is the grid's ONLY item, so every multi-column
+   layout collapsed into a single 1/12-wide track in the editor — and the gutter
+   resize buttons were no-ops, because the spans they write land on
+   .cpm-blog-col, which wasn't a grid item either. display:contents removes the
+   wrapper's box so the columns become real children of the section grid.
+   The published page (blogRender.ts) has no such wrapper and is unaffected. */
+.cpm-blog-section-inner > [data-node-view-content-react] { display: contents; }
 .cpm-blog-add-section { display: block; width: 100%; border: none; background: none; color: var(--pm-accent-teal, #00e5cc);
   padding: 6px 0; font-size: 12px; cursor: pointer; opacity: 0.55; }
 .cpm-blog-add-section:hover { opacity: 1; }
@@ -20151,10 +20239,24 @@ html:not(.aos-off) [data-aos].aos-animate  { opacity: 1; transform: none; }
 .cpm-blog-seclib-item i { font-size:18px; }
 .cpm-blog-cta-edit input, .cpm-blog-cta-edit select { background:var(--pm-elevated,#1b2130); border:1px solid var(--color-border,#2a2f3a); border-radius:6px; color:inherit; padding:6px 8px; }
 
-/* === Section settings panel === */
-.cpm-blog-secset { position:absolute; right:12px; top:64px; z-index:60; width:230px; background:var(--pm-elevated,#1b2130);
-  border:1px solid var(--color-border,#2a2f3a); border-radius:12px; padding:12px; box-shadow:0 12px 40px rgba(0,0,0,.4); }
+/* === Section settings panel ===
+   Pinned to the viewport rather than absolutely positioned: .cpm-blog-editor is
+   not a positioned ancestor, so `position:absolute` resolved against the page
+   and dropped the panel over the editor header. Now that the panel auto-opens
+   with the caret it has to land somewhere predictable every time. */
+.cpm-blog-secset { position:fixed; right:16px; top:104px; z-index:60; width:230px; background:var(--pm-elevated,#1b2130);
+  border:1px solid var(--color-border,#2a2f3a); border-radius:12px; padding:12px; box-shadow:0 12px 40px rgba(0,0,0,.4);
+  max-height:calc(100vh - 130px); overflow-y:auto; }
 .cpm-blog-secset-head { display:flex; justify-content:space-between; align-items:center; color:var(--pm-text,#e6ebf2); margin-bottom:8px; }
+.cpm-blog-secset-input, .cpm-blog-secset-color {
+  width:100%; margin-top:2px; background:var(--pm-surface,#141b26); color:var(--pm-text,#e6ebf2);
+  border:1px solid var(--color-border,#2a2f3a); border-radius:6px; padding:6px 8px; font:inherit; font-size:12px;
+}
+.cpm-blog-secset-color { height:30px; padding:2px; cursor:pointer; }
+.cpm-blog-secset-input::placeholder { color:var(--pm-text-muted,#97a3b6); }
+@media (max-width: 1100px) {
+  .cpm-blog-secset { top:auto; bottom:16px; right:16px; max-height:52vh; }
+}
 .cpm-blog-secset-lab { display:block; font-size:11px; text-transform:uppercase; letter-spacing:.05em; opacity:.7; margin:10px 0 5px; }
 .cpm-blog-seg { display:flex; gap:4px; flex-wrap:wrap; }
 .cpm-blog-seg-b { background:var(--pm-surface,#141b26); border:1px solid var(--color-border,#2a2f3a); border-radius:6px; color:var(--pm-text,#c7d0dd); padding:5px 9px; font-size:11px; cursor:pointer; }

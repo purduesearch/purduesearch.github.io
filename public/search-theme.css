@@ -5678,6 +5678,31 @@ html::-webkit-scrollbar { display: none; }
 }
 .cpm-blog-toc-item a:hover { color: var(--pm-accent-teal, #00e5cc); }
 
+/* Published / preview callout (server-rendered by blogRender.ts). The editor's
+   node view has its own box (.cpm-blog-callout-node); this class had ONLY a
+   border-left, so on the article page the text sat flush against the coloured
+   bar with no padding, background or spacing. */
+.cpm-blog-callout {
+  margin: 1.6em 0;
+  padding: 16px 20px;
+  border: 1px solid rgba(0, 0, 0, 0.09);
+  border-left: 0;
+  border-radius: 0 10px 10px 0;
+  background: rgba(0, 0, 0, 0.025);
+}
+.cpm-blog-callout > *:first-child { margin-top: 0; }
+.cpm-blog-callout > *:last-child { margin-bottom: 0; }
+/* Tints are scoped with the compound selector so they apply to the published
+   callout only and leave the editor node view's own surface colour alone. */
+.cpm-blog-callout.cpm-blog-callout--info    { background: rgba(0, 229, 204, 0.07); }
+.cpm-blog-callout.cpm-blog-callout--warning { background: rgba(245, 166, 35, 0.09); }
+.cpm-blog-callout.cpm-blog-callout--success { background: rgba(124, 92, 255, 0.08); }
+.cpm-blog-callout.cpm-blog-callout--tip     { background: rgba(255, 107, 107, 0.08); }
+.cpm-blog-section--dark .cpm-blog-callout {
+  border-color: rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.05);
+}
+
 .cpm-blog-callout--info { border-left: 3px solid var(--pm-accent-teal, #00e5cc); }
 .cpm-blog-callout--warning { border-left: 3px solid var(--pm-accent-amber, #f5a623); }
 .cpm-blog-callout--success { border-left: 3px solid var(--pm-accent-violet, #7c5cff); }

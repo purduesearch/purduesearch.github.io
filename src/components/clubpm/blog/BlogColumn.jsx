@@ -1,17 +1,4 @@
 import { Node, mergeAttributes } from '@tiptap/core';
-import { ReactNodeViewRenderer, NodeViewWrapper, NodeViewContent } from '@tiptap/react';
-
-function ColumnView({ node }) {
-  const span = node.attrs.span;
-  const style = Number.isInteger(span) && span >= 1 && span <= 12
-    ? { gridColumn: `span ${span}` }
-    : undefined;
-  return (
-    <NodeViewWrapper as="div" className="cpm-blog-col" style={style}>
-      <NodeViewContent className="cpm-blog-col-content" />
-    </NodeViewWrapper>
-  );
-}
 
 export const BlogColumn = Node.create({
   name: 'column',
@@ -39,12 +26,17 @@ export const BlogColumn = Node.create({
   },
 
   parseHTML() { return [{ tag: 'div[data-type="blog-column"]' }]; },
+  // Deliberately NO addNodeView(): a React node view would wrap this div in
+  // TipTap's own `.node-column` host element, which then — not `.cpm-blog-col` —
+  // becomes the grid item inside `.cpm-blog-section-inner`. The span written by
+  // the section's gutter controls would land on a non-grid-item and do nothing.
+  // Rendering straight from renderHTML keeps `.cpm-blog-col` as the real DOM
+  // node, carrying its `grid-column:span N` as an actual grid child.
   // A content hole (0) is required so HTML serialization (preview / copy) has a
   // toDOM; without renderHTML the ProseMirror serializer throws on `column`.
   renderHTML({ HTMLAttributes }) {
     return ['div', mergeAttributes(HTMLAttributes, { 'data-type': 'blog-column', class: 'cpm-blog-col' }), 0];
   },
-  addNodeView() { return ReactNodeViewRenderer(ColumnView); },
 });
 
 export default BlogColumn;
