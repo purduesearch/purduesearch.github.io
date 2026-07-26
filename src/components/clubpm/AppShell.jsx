@@ -453,6 +453,10 @@ export default function AppShell({ children }) {
             </span>
           </Link>
           {member && <SidebarXpDoubloons member={member} />}
+          <Link to="/" className="pm-backhome-btn" title="Back to the SEARCH site">
+            <i className="fas fa-house" aria-hidden="true" />
+            <span className="pm-backhome-label">Main site</span>
+          </Link>
           <button className="pm-signout-btn" onClick={logout}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
               <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>

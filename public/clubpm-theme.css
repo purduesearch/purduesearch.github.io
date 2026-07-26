@@ -20532,3 +20532,38 @@ html:not(.aos-off) [data-aos].aos-animate  { opacity: 1; transform: none; }
 .cpm-blog-design-hint {
   font-size: 11px; color: var(--pm-text-muted, #97a3b6); margin: 8px 0 0;
 }
+
+/* ── Sidebar: back to the public SEARCH site ─────────────────── */
+.pm-backhome-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 36px;
+  padding: 0 20px;
+  color: var(--pm-text-muted);
+  cursor: pointer;
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
+  font-size: 0.8rem;
+  text-decoration: none;
+  transition: color 0.2s ease;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.pm-backhome-btn:hover {
+  color: var(--pm-accent-teal);
+}
+.pm-backhome-btn i {
+  width: 16px;
+  flex-shrink: 0;
+  text-align: center;
+}
+.pm-backhome-label {
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+.pm-sidebar:hover .pm-backhome-label {
+  opacity: 1;
+}
