@@ -131,7 +131,6 @@ model Member {
   title                   String?
   email                   String?
   timezone                String?
-  team                    String?
   bio                     String?
   role                    Role                 @default(MEMBER)
   isAdmin                 Boolean              @default(false)

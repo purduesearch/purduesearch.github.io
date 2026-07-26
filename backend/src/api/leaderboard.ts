@@ -17,17 +17,15 @@ const SEMESTER_WINDOWS: Record<string, { start: Date; end: Date }> = {
 
 leaderboardRouter.get("/", requireAuth, async (req: Request, res: Response) => {
   const semester = typeof req.query.semester === "string" ? req.query.semester : null;
-  const team     = typeof req.query.team     === "string" ? req.query.team     : null;
 
   // Member filter — exclude bots
   const memberWhere: any = { isBot: false };
-  if (team) memberWhere.team = team;
 
   if (!semester || !SEMESTER_WINDOWS[semester]) {
     // All-time leaderboard from Member.xp
     const members = await prisma.member.findMany({
       where: memberWhere,
-      select: { id: true, displayName: true, avatarUrl: true, slackHandle: true, xp: true, rank: true, team: true },
+      select: { id: true, displayName: true, avatarUrl: true, slackHandle: true, xp: true, rank: true },
       orderBy: { xp: "desc" },
       take: 10,
     });
@@ -42,13 +40,13 @@ leaderboardRouter.get("/", requireAuth, async (req: Request, res: Response) => {
     where: { createdAt: { gte: start, lte: end } },
     _sum: { amount: true },
     orderBy: { _sum: { amount: "desc" } },
-    take: 50, // overfetch to allow team filtering after the fact
+    take: 50, // overfetch so the top 10 survives any post-filtering
   });
 
   const memberIds = events.map(e => e.memberId);
   const members = await prisma.member.findMany({
     where: { id: { in: memberIds }, ...memberWhere },
-    select: { id: true, displayName: true, avatarUrl: true, slackHandle: true, rank: true, team: true },
+    select: { id: true, displayName: true, avatarUrl: true, slackHandle: true, rank: true },
   });
   const byId = new Map(members.map(m => [m.id, m]));
 

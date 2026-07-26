@@ -58,12 +58,11 @@ export async function resolveSlackMember(
 
 export async function updateMemberProfile(
   memberId: string,
-  data: { team?: string; bio?: string; email?: string }
+  data: { bio?: string; email?: string }
 ): Promise<Member> {
   return prisma.member.update({
     where: { id: memberId },
     data: {
-      ...(data.team  !== undefined ? { team: data.team }   : {}),
       ...(data.bio   !== undefined ? { bio: data.bio }     : {}),
       ...(data.email !== undefined ? { email: data.email } : {}),
     },

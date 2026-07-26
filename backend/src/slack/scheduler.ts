@@ -419,7 +419,7 @@ export function startScheduler(app: App): void {
           slackId: { not: undefined },
         },
         orderBy: { createdAt: "asc" }, // oldest member first (fair rotation)
-        select: { id: true, displayName: true, title: true, team: true, bio: true, slackId: true },
+        select: { id: true, displayName: true, title: true, bio: true, slackId: true },
       });
       if (!candidate) return;
 
@@ -433,7 +433,6 @@ export function startScheduler(app: App): void {
       const draft = await generateMemberSpotlight(
         candidate.displayName,
         candidate.title ?? undefined,
-        candidate.team  ?? undefined,
         candidate.bio   ?? undefined,
         milestones.map(m => m.title)
       );

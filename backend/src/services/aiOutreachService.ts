@@ -540,7 +540,6 @@ Return only the digest narrative — no headers, no bullet points, plain paragra
 export async function generateMemberSpotlight(
   displayName:       string,
   title:             string | undefined,
-  team:              string | undefined,
   bio:               string | undefined,
   recentMilestones:  string[]
 ): Promise<string> {
@@ -549,7 +548,7 @@ export async function generateMemberSpotlight(
     : "";
 
   const prompt = `You are a social media writer for Purdue SEARCH, a university engineering club.
-Write an engaging "Member Spotlight" post for ${displayName}${title ? `, ${title}` : ""}${team ? ` on the ${team} team` : ""}.
+Write an engaging "Member Spotlight" post for ${displayName}${title ? `, ${title}` : ""}.
 ${bio ? `About them: ${bio}` : ""}${milestonesBlock}
 
 The post should:

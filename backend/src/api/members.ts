@@ -57,7 +57,7 @@ membersRouter.patch("/me", async (req: Request, res: Response) => {
       return;
     }
 
-    const { kanbanColumnOrder, team, bio, email } = req.body;
+    const { kanbanColumnOrder, bio, email } = req.body;
 
     // Input validation
     if (email !== undefined) {
@@ -68,10 +68,6 @@ membersRouter.patch("/me", async (req: Request, res: Response) => {
     }
     if (bio !== undefined && (typeof bio !== "string" || bio.length > 500)) {
       res.status(400).json({ error: "bio must be a string of at most 500 characters" });
-      return;
-    }
-    if (team !== undefined && (typeof team !== "string" || team.length > 100)) {
-      res.status(400).json({ error: "team must be a string of at most 100 characters" });
       return;
     }
     const VALID_COLUMNS = new Set(["TODO", "IN_PROGRESS", "BLOCKED", "DONE"]);
@@ -85,13 +81,12 @@ membersRouter.patch("/me", async (req: Request, res: Response) => {
       }
     }
 
-    const profileChanged = bio !== undefined || team !== undefined || email !== undefined;
+    const profileChanged = bio !== undefined || email !== undefined;
 
     const member = await prisma.member.update({
       where: { id: req.memberId },
       data: {
         ...(kanbanColumnOrder !== undefined ? { kanbanColumnOrder } : {}),
-        ...(team  !== undefined ? { team }  : {}),
         ...(bio   !== undefined ? { bio }   : {}),
         ...(email !== undefined ? { email } : {}),
       },
