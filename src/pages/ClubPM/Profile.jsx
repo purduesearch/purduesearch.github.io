@@ -4,10 +4,10 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { get, getActivity, patch } from "../../api/clubPmClient";
+import toast from "react-hot-toast";
+import { get, getActivity, patch, post } from "../../api/clubPmClient";
 import { useClubPmAuth } from "../../clubpm/ClubPmAuth";
 import RankBadge, { RANK_META } from "../../components/clubpm/RankBadge";
-import CosmeticChip from "../../components/clubpm/CosmeticChip";
 import BadgePicker from "../../components/clubpm/BadgePicker";
 import XpHeatmap from "../../components/clubpm/XpHeatmap";
 import AvatarPortrait from "../../components/clubpm/avatar/AvatarPortrait";
@@ -15,7 +15,7 @@ import GhStatsSection from "../../components/clubpm/GhStatsSection";
 import GitHubConnectButton from "../../components/clubpm/github/GitHubConnectButton";
 import { progressToNextRank } from "../../clubpm/engagement/rankProgress";
 import { tzOffset, copyToClipboard, activityLabels } from "../../clubpm/members/memberShared";
-import { MemberName } from "../../clubpm/cosmetics/CosmeticStylesContext";
+import { MemberName, useCosmeticStyles } from "../../clubpm/cosmetics/CosmeticStylesContext";
 
 export default function Profile() {
   const { memberId: routeId } = useParams();
@@ -90,12 +90,29 @@ export default function Profile() {
     }
   };
 
+  const { refresh: refreshCosmeticStyles } = useCosmeticStyles();
+  const [equipping, setEquipping] = useState(null);
+
+  const handleEquip = async (slot, cosmeticId) => {
+    setEquipping(cosmeticId ?? slot);
+    try {
+      await post("/api/shop/equip", { slot, cosmeticId });
+      const next = await get(`/api/members/${memberId}/cosmetics`);
+      setCosmetics(next);
+      await load();
+      refreshCosmeticStyles();
+    } catch (err) {
+      toast.error(err.message ?? "Failed to equip");
+    } finally {
+      setEquipping(null);
+    }
+  };
+
   if (loading || !profile) {
     return <div style={{ padding: 24 }}>Loading profile…</div>;
   }
 
   const rankInfo = progressToNextRank(profile.xp);
-  const equipped = Object.values(profile.equippedCosmetics ?? {}).filter(Boolean);
   const badges = profile.ownedBadges ?? [];
 
   return (
@@ -279,16 +296,53 @@ export default function Profile() {
         {/* GitHub stats — only renders if member has githubLogin AND a project with a repo */}
         {profile.githubLogin && <GhStatsSection memberId={memberId} />}
 
-        {/* Equipped cosmetics */}
+        {/* Cosmetic locker */}
         <div className="cpm-profile-card">
-          <h3 style={{ marginTop: 0 }}>Equipped</h3>
-          {equipped.length === 0
-            ? <div style={{ color: "var(--clubpm-text-muted, #636b7a)" }}>Nothing equipped yet.</div>
-            : (
-              <div className="cpm-cosmetic-grid">
-                {equipped.map(c => <CosmeticChip key={c.id} cosmetic={c} />)}
-              </div>
-            )}
+          <h3 style={{ marginTop: 0 }}>Cosmetics</h3>
+          {(() => {
+            const SLOTS = [
+              { slot: "theme",     category: "DASHBOARD_THEME", label: "Dashboard theme" },
+              { slot: "frame",     category: "NAME_FRAME",      label: "Name frame"      },
+              { slot: "border",    category: "BORDER",          label: "Avatar border"   },
+              { slot: "animation", category: "ANIMATION",       label: "Animation"       },
+            ];
+            const owned = cosmetics.map(mc => ({ ...mc.cosmetic, equippedSlot: mc.equippedSlot }));
+
+            return SLOTS.map(({ slot, category, label }) => {
+              const items   = owned.filter(c => c.category === category);
+              const current = items.find(c => c.equippedSlot === slot) ?? null;
+
+              return (
+                <div key={slot} className="cpm-locker-slot">
+                  <div className="cpm-locker-slot-label">{label}</div>
+                  {items.length === 0 ? (
+                    <div className="cpm-locker-empty">None owned — check the <Link to="/clubpm/shop">shop</Link>.</div>
+                  ) : (
+                    <div className="cpm-cosmetic-grid">
+                      {items.map(c => {
+                        const active = current?.id === c.id;
+                        return (
+                          <button
+                            key={c.id}
+                            type="button"
+                            disabled={!isSelf || equipping !== null}
+                            onClick={() => handleEquip(slot, active ? null : c.id)}
+                            title={isSelf ? (active ? "Click to unequip" : "Click to equip") : undefined}
+                            className={`cpm-cosmetic-chip cpm-rarity-${c.rarity.toLowerCase()}${active ? " cpm-cosmetic-chip--active" : ""}`}
+                          >
+                            <span className="cpm-cosmetic-name">{c.name}</span>
+                            <span className="cpm-cosmetic-meta">
+                              {active ? "equipped" : c.rarity.toLowerCase()}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            });
+          })()}
         </div>
 
         {/* Badges */}
@@ -316,20 +370,6 @@ export default function Profile() {
                 )}
               </>
             )}
-        </div>
-
-        {/* Inventory (non-badge, non-equipped) */}
-        <div className="cpm-profile-card">
-          <h3 style={{ marginTop: 0 }}>Inventory</h3>
-          {(() => {
-            const equippedIds = new Set(equipped.map(c => c.id));
-            const inv = cosmetics
-              .map(mc => mc.cosmetic)
-              .filter(c => c.category !== "BADGE" && !equippedIds.has(c.id));
-            return inv.length === 0
-              ? <div style={{ color: "var(--clubpm-text-muted, #636b7a)" }}>Empty.</div>
-              : <div className="cpm-cosmetic-grid">{inv.map(c => <CosmeticChip key={c.id} cosmetic={c} />)}</div>;
-          })()}
         </div>
       </div>
     </div>

@@ -20586,3 +20586,38 @@ html:not(.aos-off) [data-aos].aos-animate  { opacity: 1; transform: none; }
 
 .frame-brass > .member-name-card { border-color: #b08d3f; }
 .frame-cadet > .member-name-card { border-color: var(--rarity-uncommon-fg); border-style: double; border-width: 3px; }
+
+/* ── Profile cosmetic locker ─────────────────────────────────── */
+.cpm-locker-slot + .cpm-locker-slot {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--pm-border, rgba(255,255,255,0.08));
+}
+.cpm-locker-slot-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--pm-text-muted);
+  margin-bottom: 8px;
+}
+.cpm-locker-empty {
+  font-size: 0.8rem;
+  color: var(--pm-text-muted);
+}
+.cpm-cosmetic-chip {
+  border: 1px solid transparent;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+.cpm-cosmetic-chip:disabled {
+  cursor: default;
+}
+.cpm-cosmetic-chip:not(:disabled):hover {
+  transform: translateY(-1px);
+}
+.cpm-cosmetic-chip--active {
+  border-color: var(--pm-accent-teal);
+  box-shadow: 0 0 0 1px var(--pm-accent-teal) inset;
+}
