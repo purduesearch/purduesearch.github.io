@@ -33,7 +33,7 @@ export default function BlogThreadCard({ thread, editor, canEdit, currentMember,
   const run = async (fn) => {
     setBusy(true);
     try { await fn(); onChanged?.(); }
-    catch (err) { toast.error(err.message || 'That did not work'); }
+    catch (err) { toast.error(err?.message || 'That did not work'); }
     finally { setBusy(false); }
   };
 
@@ -42,9 +42,17 @@ export default function BlogThreadCard({ thread, editor, canEdit, currentMember,
   // a local transaction is broadcast and persisted no matter what the REST call
   // returns. Mutating first would let a member the server later 403s destroy
   // text in someone else's post with no way back.
+  // A truthy response is NOT confirmation: setThreadStatus is idempotent on
+  // terminal status and returns the thread unchanged (and truthy) when someone
+  // else already accepted or rejected it. Require the status we asked for, so a
+  // stale card cannot mutate a document whose outcome was already decided —
+  // refetching first so the loser of the race converges on the real status.
   const confirmThen = (status, apply) => run(async () => {
     const updated = await setBlogThreadStatus(thread.id, status);
-    if (!updated) throw new Error('The server did not confirm that change');
+    if (updated?.status !== status) {
+      onChanged?.();
+      throw new Error('Someone else already decided this one — nothing was changed');
+    }
     apply();
   });
 
