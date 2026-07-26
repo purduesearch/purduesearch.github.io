@@ -75,9 +75,16 @@ export function slugify(input: string): string {
 
 // ── Text extraction (reading time, excerpts, TOC) ────────────
 
+// Review-aware: text carrying `suggestDelete` is content marked for removal, so
+// it is skipped here exactly as renderNode skips it. Every caller (TOC labels,
+// heading anchor ids, collectHeadings, blogService's deriveExcerpt, reading
+// time) publishes its result, so all of them want the post-review text.
+// Detection is by mark *type name*, never by the rendered tag attribute — the
+// attribute spelling (`data-suggest-del`) is a client rendering detail.
 export function extractText(node: PMNode | PMDoc): string {
   const anyNode = node as PMNode;
   let out = "";
+  if (anyNode.marks?.some((m) => m.type === "suggestDelete")) return "";
   if (anyNode.text) out += anyNode.text;
   if (anyNode.content) {
     for (const child of anyNode.content) {

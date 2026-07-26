@@ -44,7 +44,25 @@ for (const file of readdirSync(editorDir).filter((f) => (f.endsWith(".jsx") || f
 }
 
 check("found the editor's review marks", markNames.size === 3);
+
+// Defining a mirror is not enough — it must also be REGISTERED in the array
+// returned by blogCollabExtensions(). Declaring the const but dropping it from
+// that array breaks the Y.Doc → TipTap conversion and silently corrupts
+// contentJson, so the guard checks the function body, not just the file.
+const extensionsBody = (() => {
+  const start = mirrorSrc.indexOf("export function blogCollabExtensions()");
+  if (start < 0) return "";
+  return mirrorSrc.slice(start);
+})();
+check("found blogCollabExtensions() body", extensionsBody.length > 0);
+
 for (const name of markNames) {
+  const mirrorDecl = new RegExp(`const\\s+([A-Za-z0-9_]+)\\s*=\\s*reviewMarkMirror\\("${name}"\\)`).exec(mirrorSrc);
+  check(`collab mirror declares an identifier for mark "${name}"`, mirrorDecl !== null);
+  if (mirrorDecl) {
+    check(`collab mirror REGISTERS mark "${name}" in blogCollabExtensions()`,
+      new RegExp(`\\b${mirrorDecl[1]!}\\b`).test(extensionsBody));
+  }
   check(`collab mirror defines mark "${name}"`, new RegExp(`reviewMarkMirror\\("${name}"\\)`).test(mirrorSrc));
   check(`renderer handles mark "${name}"`, new RegExp(`case\\s+["']${name}["']:`).test(rendererSrc));
 }

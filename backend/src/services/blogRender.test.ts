@@ -1,6 +1,6 @@
 // Pure tests for the image-proxy URL rewrite.
 // Run: cd backend && npx tsx src/services/blogRender.test.ts
-import { proxyImageSrc, renderJsonToHtml as _render } from "./blogRender.js";
+import { proxyImageSrc, renderJsonToHtml as _render, extractText as _extractText } from "./blogRender.js";
 
 let passed = 0, failed = 0;
 const check = (n: string, c: boolean) => { if (c) passed++; else { failed++; console.error(`  ✗ ${n}`); } };
@@ -142,6 +142,30 @@ check("passes through a normal https image",
   check("leaks no review classes",
     !html.includes("cpm-blog-sugg") && !html.includes("cpm-blog-comment-mark"));
   check("surrounding prose survives intact", html.includes("We ") && html.includes(" last week."));
+}
+
+{
+  // A heading mid-review must not publish its struck wording in the TOC label
+  // or bake it into the public anchor id / href.
+  const doc = { type: "doc", content: [
+    { type: "tableOfContents" },
+    { type: "heading", attrs: { level: 2 }, content: [
+      { type: "text", text: "Vibe ", marks: [{ type: "suggestDelete", attrs: { threadId: "t3" } }] },
+      { type: "text", text: "Thermal ", marks: [{ type: "suggestInsert", attrs: { threadId: "t3" } }] },
+      { type: "text", text: "testing" },
+    ] },
+  ] };
+  const html = _render(doc as any);
+  check("toc label omits deleted heading words", !html.includes(">Vibe") && html.includes("Thermal testing"));
+  check("heading anchor id omits deleted words",
+    html.includes('id="thermal-testing"') && !html.includes("vibe-thermal-testing"));
+  check("toc href matches the heading anchor", html.includes('href="#thermal-testing"'));
+
+  // extractText backs deriveExcerpt() in blogService.ts (and readingTimeMin),
+  // both of which are served publicly — deleted words must never reach them.
+  const text = _extractText(doc as any);
+  check("extractText omits deleted words", !text.includes("Vibe"));
+  check("extractText keeps accepted words", text.includes("Thermal") && text.includes("testing"));
 }
 
 console.log(`\nblogRender: ${passed} passed, ${failed} failed`);
