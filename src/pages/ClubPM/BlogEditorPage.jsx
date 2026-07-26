@@ -130,6 +130,16 @@ export default function BlogEditorPage() {
   const autosaveTimer = useRef(null);
   const editorRef = useRef(null);
 
+  // Who may accept/reject a suggestion or resolve someone else's comment:
+  // the post creator, a listed co-author, or an admin. Mirrors the server's
+  // doc-editor check so the UI does not offer document-destroying actions the
+  // server will refuse.
+  const canEditDoc = !!member?.id && (
+    member.isAdmin
+    || post?.createdById === member.id
+    || (post?.authors ?? []).some((a) => a.memberId === member.id)
+  );
+
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
@@ -440,7 +450,7 @@ export default function BlogEditorPage() {
             onEditorReady={(ed) => { editorRef.current = ed; setEditorInstance(ed); }}
             docType="BLOG_POST"
             docId={id}
-            canEditDoc
+            canEditDoc={canEditDoc}
             onThreadsChanged={() => setThreadsRefreshKey((k) => k + 1)}
             theme={theme}
             onThemeChange={handleThemeChange}
@@ -472,7 +482,7 @@ export default function BlogEditorPage() {
           onClose={() => setReviewPanelOpen(false)}
           onAuthorsChanged={() => { getBlogPost(id).then(setPost).catch(() => {}); }}
           editor={editorInstance}
-          canEdit
+          canEdit={canEditDoc}
           threadsRefreshKey={threadsRefreshKey}
         />
       )}

@@ -18,6 +18,12 @@ export default function BlogThreadCard({ thread, editor, canEdit, currentMember,
   const [reply, setReply] = useState('');
   const [busy, setBusy] = useState(false);
 
+  // `editor.storage` is NOT reactive: ThreadPositions reassigns
+  // `storage.positions` inside a plugin `view.update`, which React never sees.
+  // So `anchor` — and therefore `orphaned` and the quote button's `disabled` —
+  // is frozen at the last render of this card. That is by design here (the
+  // panel is reopened to refresh, per the task's own verification steps); do
+  // not assume liveness when building on top of this.
   const positions = editor?.storage?.blogThreadPositions?.positions;
   const anchor = positions?.get(thread.id);
   const terminal = thread.status === 'ACCEPTED' || thread.status === 'REJECTED';
@@ -27,26 +33,31 @@ export default function BlogThreadCard({ thread, editor, canEdit, currentMember,
   const run = async (fn) => {
     setBusy(true);
     try { await fn(); onChanged?.(); }
-    catch (err) { toast.error(err.message ?? 'That did not work'); }
+    catch (err) { toast.error(err.message || 'That did not work'); }
     finally { setBusy(false); }
   };
 
-  // Document change first, then status: if the PATCH fails the editor rolls
-  // back on the next collab sync, whereas a status set with no document change
-  // would leave the thread claiming an edit that never happened.
-  const accept = () => run(async () => {
+  // Status PATCH first, document mutation only after the server confirms.
+  // There is no rollback: the Yjs/Hocuspocus layer has no content authority, so
+  // a local transaction is broadcast and persisted no matter what the REST call
+  // returns. Mutating first would let a member the server later 403s destroy
+  // text in someone else's post with no way back.
+  const confirmThen = (status, apply) => run(async () => {
+    const updated = await setBlogThreadStatus(thread.id, status);
+    if (!updated) throw new Error('The server did not confirm that change');
+    apply();
+  });
+
+  const accept = () => confirmThen('ACCEPTED', () => {
     editor?.chain().focus().acceptSuggestion(thread.id).run();
-    await setBlogThreadStatus(thread.id, 'ACCEPTED');
   });
 
-  const reject = () => run(async () => {
+  const reject = () => confirmThen('REJECTED', () => {
     editor?.chain().focus().rejectSuggestion(thread.id).run();
-    await setBlogThreadStatus(thread.id, 'REJECTED');
   });
 
-  const resolve = () => run(async () => {
+  const resolve = () => confirmThen('RESOLVED', () => {
     editor?.chain().focus().removeCommentThread(thread.id).run();
-    await setBlogThreadStatus(thread.id, 'RESOLVED');
   });
 
   const scrollTo = () => {
