@@ -28,6 +28,7 @@ import BlogSnippetManager from './BlogSnippetManager';
 import BlogSectionLibrary from './BlogSectionLibrary';
 import BlogSectionSettings from './BlogSectionSettings';
 import BlogThemeBar from './BlogThemeBar';
+import { suggestionExtensions } from './suggestionMarks';
 import { docToMarkdown, markdownToDoc } from './blogMarkdown';
 import { getBlogCollabWsUrl, getStoredToken } from '../../../api/clubPmClient';
 import { shouldFallbackSeed } from '../../../lib/collabFallback';
@@ -78,6 +79,7 @@ export function blogExtensions(collab) {
     TableKit.configure({ table: { resizable: true } }),
     SearchAndReplace.configure({ disableRegex: true }),
     LinkShortcut,
+    ...suggestionExtensions(),
     ...(collab ? [
       Collaboration.configure({ document: collab.document }),
       CollaborationCaret.configure({ provider: collab.provider, user: collab.user }),
@@ -468,8 +470,14 @@ function PresenceBar({ synced, connected, peers }) {
  * @param {string}   postId      when set, enables realtime co-editing via the Hocuspocus collab
  *                                 server for this post (see backend/src/collab/blogCollab.ts)
  * @param {object}   collabUser  { id, name } of the current member, used for cursor presence
+ * @param {string}  docType   'BLOG_POST' | 'PRESS_KIT' — which review-thread namespace this editor uses
+ * @param {string}  docId     id within that namespace; falls back to postId for blog posts
+ * @param {boolean} canEditDoc  false for reviewers — hides Accept/Reject and the AI entry points
  */
-export default function BlogEditor({ content, onChange, editable = true, onEditorReady, postId, collabUser, collabWsUrl, theme, onThemeChange }) {
+export default function BlogEditor({
+  content, onChange, editable = true, onEditorReady, postId, collabUser, collabWsUrl,
+  theme, onThemeChange, docType = 'BLOG_POST', docId, canEditDoc = true,
+}) {
   const [showFind, setShowFind] = React.useState(false);
   const [showSnippets, setShowSnippets] = React.useState(false);
   const [showSecLib, setShowSecLib] = React.useState(false);
@@ -497,6 +505,8 @@ export default function BlogEditor({ content, onChange, editable = true, onEdito
   const [peers, setPeers] = React.useState([]);
   const [markdownMode, setMarkdownMode] = React.useState(false);
   const [markdownText, setMarkdownText] = React.useState('');
+  // Review-thread doc id: callers that only pass `postId` keep working.
+  const reviewDocId = docId ?? postId;
   // Collapsed by default on narrow viewports so the toolbar doesn't push the
   // title/body below the fold; users can still expand it with the chevron.
   const [toolbarOpen, setToolbarOpen] = React.useState(() => (typeof window === 'undefined' || window.innerWidth > 640));

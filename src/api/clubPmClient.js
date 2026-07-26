@@ -404,6 +404,14 @@ export const removeBlogAuthor = (id, memberId) => del(`/api/blog/posts/${id}/aut
 export const listBlogAnnotations = (id) => get(`/api/blog/posts/${id}/annotations`);
 export const addBlogAnnotation = (id, body, parentId) => post(`/api/blog/posts/${id}/annotations`, { body, parentId });
 
+// ── Blog / press-kit review threads ──────────────────────────
+export const listBlogThreads        = (docType, docId) => get(`/api/blog/docs/${docType}/${docId}/threads`);
+export const createBlogThread       = (docType, docId, body) => post(`/api/blog/docs/${docType}/${docId}/threads`, body);
+export const setBlogThreadStatus    = (threadId, status) => patch(`/api/blog/threads/${threadId}`, { status });
+export const addBlogThreadComment   = (threadId, body) => post(`/api/blog/threads/${threadId}/comments`, { body });
+export const editBlogThreadComment  = (threadId, commentId, body) => patch(`/api/blog/threads/${threadId}/comments/${commentId}`, { body });
+export const deleteBlogThreadComment = (threadId, commentId) => del(`/api/blog/threads/${threadId}/comments/${commentId}`);
+
 // ws(s):// base for the embedded Hocuspocus collab server (backend/src/collab/blogCollab.ts,
 // mounted at /collab/blog). Mirrors BASE_URL's origin, swapping the http(s) scheme for ws(s);
 // falls back to the current page's origin so the CRA dev proxy forwards the upgrade request.
