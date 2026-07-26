@@ -28,6 +28,22 @@ async function resolveDoc(req: Request, res: Response): Promise<{ ref: DocRef; e
   return { ref, editor: await threads.isDocEditor(ref, req.memberId!) };
 }
 
+/**
+ * Confirms `:cid` is a comment of the `:id` thread. Permissions are derived from
+ * the thread named in the URL, so acting on a comment that lives under a
+ * different thread would evaluate it against the wrong document's editor set.
+ * Returns false after sending a 404 — a mismatched id is indistinguishable from
+ * a nonexistent one from the caller's point of view, and deliberately so.
+ */
+async function requireCommentInThread(req: Request, res: Response): Promise<boolean> {
+  const threadId = await threads.getCommentThreadId(req.params.cid as string);
+  if (threadId !== (req.params.id as string)) {
+    res.status(404).json({ error: "Comment not found" });
+    return false;
+  }
+  return true;
+}
+
 /** Same, for routes addressed by thread id rather than doc. */
 async function resolveThreadDoc(req: Request, res: Response): Promise<{ ref: DocRef; editor: boolean } | null> {
   const ref = await threads.getThreadDocRef(req.params.id as string);
@@ -126,6 +142,7 @@ blogThreadsRouter.patch("/threads/:id/comments/:cid", async (req: Request, res: 
   try {
     const ctx = await resolveThreadDoc(req, res);
     if (!ctx) return;
+    if (!(await requireCommentInThread(req, res))) return;
     const body = req.body?.body;
     if (typeof body !== "string" || !body.trim()) {
       res.status(400).json({ error: "body is required" });
@@ -147,6 +164,7 @@ blogThreadsRouter.delete("/threads/:id/comments/:cid", async (req: Request, res:
   try {
     const ctx = await resolveThreadDoc(req, res);
     if (!ctx) return;
+    if (!(await requireCommentInThread(req, res))) return;
     const updated = await threads.deleteComment(req.params.cid as string, req.memberId!, ctx.editor);
     if (!updated) {
       res.status(403).json({ error: "Not allowed to delete that comment" });

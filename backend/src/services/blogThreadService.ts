@@ -98,6 +98,21 @@ export async function getThreadDocRef(threadId: string): Promise<DocRef | null> 
   return null;
 }
 
+/**
+ * The parent thread id of a comment, or null if no such comment exists.
+ * Route handlers use this to confirm a `:cid` actually belongs to the `:id`
+ * thread in the URL before making any permission decision — permissions are
+ * derived from the thread's document, so an uncorrelated comment id would
+ * otherwise be judged against the wrong document.
+ */
+export async function getCommentThreadId(commentId: string): Promise<string | null> {
+  const comment = await prisma.blogThreadComment.findUnique({
+    where: { id: commentId },
+    select: { threadId: true },
+  });
+  return comment?.threadId ?? null;
+}
+
 // ── Reads / writes ───────────────────────────────────────────
 
 export async function listThreads(ref: DocRef) {
