@@ -8,6 +8,11 @@ const schema = new Schema({
     text: { group: 'inline' },
   },
   marks: {
+    // Only here to differentiate the markup of two otherwise-identical text
+    // nodes: ProseMirror's Fragment joins adjacent text nodes with identical
+    // markup at construction time, so without a distinguishing mark the merge
+    // branch in findMarkRanges is unreachable from a test.
+    bold: {},
     suggestDelete: { attrs: { threadId: {} } },
     suggestInsert: { attrs: { threadId: {} } },
     commentMark: { attrs: { threadId: {} } },
@@ -41,10 +46,17 @@ test('ignores a different mark type on the same thread', () => {
 test('merges adjacent text nodes carrying the same mark', () => {
   // Two separate text nodes, same mark+thread — must come back as ONE range,
   // otherwise accept/reject would delete in pieces and corrupt positions.
-  const doc = schema.node('doc', null, [schema.node('paragraph', null, [
-    schema.text('ab', [schema.marks.suggestDelete.create({ threadId: 't1' })]),
-    schema.text('cd', [schema.marks.suggestDelete.create({ threadId: 't1' })]),
-  ])]);
+  // "ab" is bold and "cd" is not, so their markup differs and ProseMirror keeps
+  // them as two text nodes; both still carry suggestDelete/t1. This is what a
+  // suggestion spanning a bolded word looks like in production.
+  const del = schema.marks.suggestDelete.create({ threadId: 't1' });
+  const paragraph = schema.node('paragraph', null, [
+    schema.text('ab', [schema.marks.bold.create(), del]),
+    schema.text('cd', [del]),
+  ]);
+  // Guard: if ProseMirror ever joined these, the merge branch would go untested.
+  expect(paragraph.childCount).toBe(2);
+  const doc = schema.node('doc', null, [paragraph]);
   expect(findMarkRanges(doc, 'suggestDelete', 't1')).toEqual([{ from: 1, to: 5 }]);
 });
 
