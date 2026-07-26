@@ -8,6 +8,8 @@ const FRAMES = {
   laurel:   "Laurel",
   comet:    "Comet",
   stardust: "Stardust",
+  brass:    "Brass Plate",
+  cadet:    "Cadet Ribbon",
 };
 
 export default FRAMES;

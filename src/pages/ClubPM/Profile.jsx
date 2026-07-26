@@ -15,6 +15,7 @@ import GhStatsSection from "../../components/clubpm/GhStatsSection";
 import GitHubConnectButton from "../../components/clubpm/github/GitHubConnectButton";
 import { progressToNextRank } from "../../clubpm/engagement/rankProgress";
 import { tzOffset, copyToClipboard, activityLabels } from "../../clubpm/members/memberShared";
+import { MemberName } from "../../clubpm/cosmetics/CosmeticStylesContext";
 
 export default function Profile() {
   const { memberId: routeId } = useParams();
@@ -106,7 +107,9 @@ export default function Profile() {
           <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 10 }}>
             <AvatarPortrait member={profile} size={56} />
             <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 700, fontSize: 18 }}>{profile.displayName}</div>
+              <div style={{ fontWeight: 700, fontSize: 18 }}>
+                <MemberName memberId={profile.id}>{profile.displayName}</MemberName>
+              </div>
               <div style={{ color: "var(--clubpm-text-muted, #636b7a)", fontSize: 13 }}>@{profile.slackHandle}</div>
               {profile.title && (
                 <div style={{ fontSize: 12, color: "var(--pm-text-secondary)", marginTop: 2 }}>{profile.title}</div>

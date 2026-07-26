@@ -8,9 +8,11 @@
 // `theme-<slug>` to document.documentElement (see AppShell.jsx).
 
 const THEMES = {
-  emerald:    "Emerald",
-  aurora:     "Aurora",
-  terracotta: "Terracotta",
+  emerald:       "Emerald",
+  aurora:        "Aurora",
+  terracotta:    "Terracotta",
+  "cosmic-dusk": "Cosmic Dusk",
+  auroral:       "Auroral",
 };
 
 export default THEMES;

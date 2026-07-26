@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { get } from "../../api/clubPmClient";
 import RankBadge from "./RankBadge";
 import AvatarPortrait from "./avatar/AvatarPortrait";
+import { MemberName } from "../../clubpm/cosmetics/CosmeticStylesContext";
 
 const SEMESTERS = [
   { value: "",            label: "All-time" },
@@ -68,7 +69,7 @@ export default function LeaderboardPanel() {
                     style={{ color: "inherit", textDecoration: "none", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 8 }}
                   >
                     <AvatarPortrait member={r} size={24} />
-                    {r.displayName}
+                    <MemberName memberId={r.id}>{r.displayName}</MemberName>
                   </Link>
                 </td>
                 <td><RankBadge rank={r.rank} /></td>

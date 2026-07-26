@@ -58,3 +58,14 @@ export default function CosmeticStylesProvider({ children }) {
     </CosmeticStylesContext.Provider>
   );
 }
+
+/** Wraps a member's display name in the plate that `.frame-<slug>` decorates. */
+export function MemberName({ memberId, children, className = "" }) {
+  const { stylesFor } = useCosmeticStyles();
+  const frame = stylesFor(memberId).frame;
+  return (
+    <span className={frame ? `member-name-frame frame-${frame}` : "member-name-frame"}>
+      <span className={`member-name-card ${className}`.trim()}>{children}</span>
+    </span>
+  );
+}

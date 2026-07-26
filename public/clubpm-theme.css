@@ -20551,3 +20551,38 @@ html:not(.aos-off) [data-aos].aos-animate  { opacity: 1; transform: none; }
 .pm-sidebar:hover .pm-backhome-label {
   opacity: 1;
 }
+
+/* ── Cosmetic slugs missing from the original engagement drop ── */
+.theme-cosmic-dusk { --pm-accent: #4b3f8f; --pm-accent-soft: #e4e0f7; }
+.theme-auroral     { --pm-accent: #0f8a7a; --pm-accent-soft: #d6f2ed; }
+
+@keyframes cpm-anim-lift {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-3px); }
+}
+.anim-lift { animation: cpm-anim-lift 2.4s ease-in-out infinite; }
+
+/* ── Name frames: the plate the .frame-<slug> rules decorate ─── */
+.member-name-frame {
+  display: inline-block;
+}
+.member-name-card {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 6px;
+  border: 2px solid transparent;
+  line-height: 1.35;
+}
+
+/* Equipped-cosmetic animations are decorative — never force motion on
+   someone who asked the OS not to. */
+@media (prefers-reduced-motion: reduce) {
+  .anim-lift,
+  .anim-pulse,
+  .anim-sparkle {
+    animation: none;
+  }
+}
+
+.frame-brass > .member-name-card { border-color: #b08d3f; }
+.frame-cadet > .member-name-card { border-color: var(--rarity-uncommon-fg); border-style: double; border-width: 3px; }

@@ -9,6 +9,7 @@ import AvatarPortrait from '../../components/clubpm/avatar/AvatarPortrait';
 import RankIcon from '../../components/clubpm/RankIcon';
 import { tzOffset, copyToClipboard } from '../../clubpm/members/memberShared';
 import { revealStagger } from '../../clubpm/anim/motion';
+import { MemberName } from '../../clubpm/cosmetics/CosmeticStylesContext';
 
 const ROLES = ['Admin', 'Lead', 'Member'];
 
@@ -54,7 +55,9 @@ function MemberCard({ member, onClick }) {
           ) : null}
         </span>
         <div className="pm-member-info">
-          <div className="pm-member-name">{displayName}</div>
+          <div className="pm-member-name">
+            <MemberName memberId={member.id}>{displayName}</MemberName>
+          </div>
           {slackHandle && <div className="pm-member-handle">@{slackHandle}</div>}
           {title && <div className="pm-member-title">{title}</div>}
           <div className="pm-member-badges">
