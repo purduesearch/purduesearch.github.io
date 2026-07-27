@@ -44,9 +44,9 @@ test('tier 2: normalized match when the model re-punctuates', () => {
 });
 
 test('tier 3: anchored match on a long quote with a garbled middle', () => {
-  const doc = docOf('The Crew One team completed a full thermal vacuum test campaign in April.');
+  const doc = docOf('The Crew One team completed a full thermal vacuum test campaign at Purdue in April of this year.');
   const hit = findQuoteRange(doc,
-    'The Crew One team completed SOMETHING ENTIRELY WRONG HERE campaign in April.');
+    'The Crew One team completed a full SOMETHING ENTIRELY WRONG HERE at Purdue in April of this year.');
   expect(hit.tier).toBe('anchored');
   expect(doc.textBetween(hit.from, hit.to)).toContain('Crew One');
   expect(doc.textBetween(hit.from, hit.to)).toContain('April');
