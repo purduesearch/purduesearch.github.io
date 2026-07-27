@@ -3,6 +3,8 @@ import { Node, mergeAttributes } from '@tiptap/core';
 import { ReactNodeViewRenderer, NodeViewWrapper } from '@tiptap/react';
 import { Plugin } from '@tiptap/pm/state';
 import { uploadBlogImage, suggestBlogAltText, proxyImageSrc } from '../../../api/clubPmClient';
+import useImageUpload from './useImageUpload';
+import { resolveDropTarget, replacedImageAttrs, galleryImagesWithReplacement } from '../../../lib/blogImageDrop';
 
 // Upload the given File and insert an image node at `pos` (or the current
 // selection when pos is null). Shows a lightweight console error on failure.
@@ -34,26 +36,61 @@ export function uploadImageFiles(editor, list) {
   imageFilesFrom(list).forEach((file) => uploadAndInsert(editor, file, null));
 }
 
+// Map a node view's DOM element back to its document position. For the atom
+// nodes we target (image / hero / gallery), posAtDOM(el, 0) lands just before
+// the node, so nodeAfter is normally the hit; the ancestor and nodeBefore
+// checks cover node views whose wrapper reports an inside position.
+function findNodePos(view, el, typeName) {
+  let pos;
+  try { pos = view.posAtDOM(el, 0); } catch (err) { return null; }
+  if (pos == null || pos < 0) return null;
+  const $pos = view.state.doc.resolve(pos);
+  if ($pos.nodeAfter?.type.name === typeName) return pos;
+  for (let d = $pos.depth; d > 0; d -= 1) {
+    if ($pos.node(d).type.name === typeName) return $pos.before(d);
+  }
+  if ($pos.nodeBefore?.type.name === typeName) return pos - $pos.nodeBefore.nodeSize;
+  return null;
+}
+
+// Upload one file and point an existing image/hero/gallery node at it. The
+// position is resolved *after* the upload so a concurrent edit can't leave us
+// writing to a stale offset.
+async function uploadAndReplace(editor, view, target, file) {
+  let upload;
+  try {
+    upload = await uploadBlogImage(file);
+  } catch (err) {
+    console.error('[BlogImage] upload failed:', err);
+    window.alert('Image upload failed. Please try again.');
+    return;
+  }
+  const pos = findNodePos(view, target.el, target.kind);
+  if (pos == null) return;
+  const node = view.state.doc.nodeAt(pos);
+  if (!node || node.type.name !== target.kind) return;
+
+  let attrs;
+  if (target.kind === 'image') attrs = replacedImageAttrs(node.attrs, upload);
+  else if (target.kind === 'hero') attrs = { ...node.attrs, bgImage: upload.url };
+  else attrs = { ...node.attrs, images: galleryImagesWithReplacement(node.attrs.images, target.index, upload.url) };
+
+  editor.chain().command(({ tr }) => { tr.setNodeMarkup(pos, undefined, attrs); return true; }).run();
+}
+
 // React NodeView: image + alignment/width controls, caption + alt fields.
 function ImageView({ node, updateAttributes, selected, editor }) {
   const { src, alt, align, width, caption, widthUnit } = node.attrs;
   const [suggesting, setSuggesting] = React.useState(false);
   const editable = editor.isEditable;
-  const fileRef = React.useRef(null);
+  const { busy: uploading, pickImage } = useImageUpload();
 
-  // Fill an empty placeholder in place: upload the picked file and set src on
-  // this node (rather than inserting a new one).
-  const onPickFile = async (e) => {
-    const file = e.target.files?.[0];
-    e.target.value = '';
-    if (!file) return;
-    try {
-      const { url, width: w, height: h } = await uploadBlogImage(file);
-      updateAttributes({ src: url, naturalWidth: w, naturalHeight: h });
-    } catch (err) {
-      console.error('[BlogImage] upload failed:', err);
-      window.alert('Image upload failed. Please try again.');
-    }
+  // Used both to fill an empty placeholder and to swap an existing picture.
+  // replacedImageAttrs keeps align/width/caption and clears alt.
+  const replaceImage = async () => {
+    const upload = await pickImage();
+    if (!upload) return;
+    updateAttributes(replacedImageAttrs(node.attrs, upload));
   };
 
   const setAlign = (a) => updateAttributes({ align: a });
@@ -104,6 +141,8 @@ function ImageView({ node, updateAttributes, selected, editor }) {
           <button type="button" className="cpm-blog-tb-btn" title="Larger" onClick={() => resize(1)}><i className="fas fa-plus" aria-hidden="true" /></button>
           <button type="button" className="cpm-blog-tb-btn cpm-blog-tb-btn--unit" title="Toggle px / %" onClick={toggleUnit}>{unit}</button>
           <button type="button" className="cpm-blog-tb-btn" title="Reset size" onClick={() => updateAttributes({ width: null, widthUnit: 'px' })}><i className="fas fa-rotate-left" aria-hidden="true" /></button>
+          <span className="cpm-blog-tb-sep" />
+          <button type="button" className="cpm-blog-tb-btn" title="Replace image" onClick={replaceImage} disabled={uploading}><i className="fas fa-arrows-rotate" aria-hidden="true" /></button>
         </div>
       )}
 
@@ -121,12 +160,12 @@ function ImageView({ node, updateAttributes, selected, editor }) {
           <button
             type="button"
             className="clubpm-btn-primary cpm-blog-img-placeholder-btn"
-            onClick={() => fileRef.current?.click()}
+            onClick={replaceImage}
+            disabled={uploading}
           >
             <i className="fas fa-arrow-up-from-bracket" aria-hidden="true" style={{ marginRight: 6 }} />
-            Upload image
+            {uploading ? 'Uploading…' : 'Upload image'}
           </button>
-          <input ref={fileRef} type="file" accept="image/*" hidden onChange={onPickFile} />
         </div>
       ) : null}
 
@@ -227,6 +266,13 @@ export const BlogImage = Node.create({
             const files = imageFilesFrom(event.dataTransfer?.files);
             if (!files.length) return false;
             event.preventDefault();
+            // Dropped onto an existing picture? Swap that one, using the first
+            // file only. Anything else keeps the old insert-here behaviour.
+            const target = resolveDropTarget(event.target);
+            if (target) {
+              uploadAndReplace(editor, view, target, files[0]);
+              return true;
+            }
             const coords = view.posAtCoords({ left: event.clientX, top: event.clientY });
             const pos = coords?.pos ?? view.state.selection.from;
             files.forEach((file) => uploadAndInsert(editor, file, pos));

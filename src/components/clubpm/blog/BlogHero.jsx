@@ -1,11 +1,17 @@
 import React from 'react';
 import { Node } from '@tiptap/core';
 import { ReactNodeViewRenderer, NodeViewWrapper } from '@tiptap/react';
+import useImageUpload from './useImageUpload';
 
 function HeroView({ node, updateAttributes, editor }) {
   const { heading, subheading, bgImage, align, overlay } = node.attrs;
   const editable = editor.isEditable;
   const style = bgImage ? { backgroundImage: `url(${bgImage})` } : undefined;
+  const { busy: uploading, pickImage } = useImageUpload();
+  const pickBackground = async () => {
+    const upload = await pickImage();
+    if (upload) updateAttributes({ bgImage: upload.url });
+  };
   return (
     <NodeViewWrapper as="header" className={`cpm-blog-hero cpm-blog-hero--${align || 'center'}${overlay ? ' cpm-blog-hero--overlay' : ''}`} style={style}>
       <div className="cpm-blog-hero-inner" contentEditable={false}>
@@ -16,7 +22,17 @@ function HeroView({ node, updateAttributes, editor }) {
             <input className="cpm-blog-hero-s" value={subheading || ''} placeholder="Subheading"
               onChange={(e) => updateAttributes({ subheading: e.target.value })} />
             <div className="cpm-blog-hero-controls">
-              <input placeholder="Background image URL" value={bgImage || ''} onChange={(e) => updateAttributes({ bgImage: e.target.value })} />
+              <span className="cpm-blog-img-src-row">
+                <input placeholder="Background image URL" value={bgImage || ''} onChange={(e) => updateAttributes({ bgImage: e.target.value })} />
+                <button type="button" className="clubpm-btn-secondary cpm-blog-img-src-btn" onClick={pickBackground} disabled={uploading}>
+                  {uploading ? 'Uploading…' : (bgImage ? 'Replace' : 'Upload')}
+                </button>
+                {bgImage ? (
+                  <button type="button" className="cpm-blog-tb-btn" title="Remove background image" onClick={() => updateAttributes({ bgImage: '' })}>
+                    <i className="fas fa-xmark" aria-hidden="true" />
+                  </button>
+                ) : null}
+              </span>
               <select value={align || 'center'} onChange={(e) => updateAttributes({ align: e.target.value })}>
                 <option value="center">Center</option><option value="left">Left</option>
               </select>

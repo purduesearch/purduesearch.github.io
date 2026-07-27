@@ -1,4 +1,5 @@
 import React from 'react';
+import useImageUpload from './useImageUpload';
 
 const SEG = (opts, value, onPick) => (
   <div className="cpm-blog-seg">
@@ -10,6 +11,8 @@ const SEG = (opts, value, onPick) => (
 
 export default function BlogSectionSettings({ editor, pos, onClose }) {
   const [attrs, setAttrs] = React.useState(null);
+  // Must stay above the `if (!attrs) return null` early return.
+  const { busy: uploading, pickImage } = useImageUpload();
 
   // Always resolve from the current pos — the panel now follows the caret, so a
   // stale `attrs` from a previously selected section would silently edit the
@@ -27,6 +30,10 @@ export default function BlogSectionSettings({ editor, pos, onClose }) {
     editor.chain().command(({ tr }) => { tr.setNodeMarkup(pos, undefined, next); return true; }).run();
   };
   const bg = attrs.background || { kind: 'none', value: '' };
+  const pickBackground = async () => {
+    const upload = await pickImage();
+    if (upload) update({ background: { kind: 'image', value: upload.url } });
+  };
 
   return (
     <div className="cpm-blog-secset" role="dialog" aria-label="Section settings">
@@ -47,12 +54,22 @@ export default function BlogSectionSettings({ editor, pos, onClose }) {
         />
       )}
       {bg.kind === 'image' && (
-        <input
-          className="cpm-blog-secset-input"
-          placeholder="Image URL"
-          value={bg.value || ''}
-          onChange={(e) => update({ background: { kind: 'image', value: e.target.value } })}
-        />
+        <div className="cpm-blog-secset-imgrow">
+          <input
+            className="cpm-blog-secset-input"
+            placeholder="Image URL"
+            value={bg.value || ''}
+            onChange={(e) => update({ background: { kind: 'image', value: e.target.value } })}
+          />
+          <button type="button" className="clubpm-btn-secondary cpm-blog-img-src-btn" onClick={pickBackground} disabled={uploading}>
+            {uploading ? 'Uploading…' : (bg.value ? 'Replace' : 'Upload')}
+          </button>
+          {bg.value ? (
+            <button type="button" className="cpm-blog-tb-btn" title="Remove background image" onClick={() => update({ background: { kind: 'image', value: '' } })}>
+              <i className="fas fa-xmark" aria-hidden="true" />
+            </button>
+          ) : null}
+        </div>
       )}
 
       <label className="cpm-blog-secset-lab">Padding</label>

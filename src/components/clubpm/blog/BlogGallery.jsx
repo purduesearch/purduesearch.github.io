@@ -2,6 +2,8 @@ import React from 'react';
 import { Node, mergeAttributes } from '@tiptap/core';
 import { ReactNodeViewRenderer, NodeViewWrapper } from '@tiptap/react';
 import { uploadBlogImage } from '../../../api/clubPmClient';
+import useImageUpload from './useImageUpload';
+import { galleryImagesWithReplacement } from '../../../lib/blogImageDrop';
 import { initBlogCarousels } from '../../../lib/blogCarousel';
 
 function GalleryView({ node, updateAttributes, editor }) {
@@ -54,6 +56,14 @@ function GalleryView({ node, updateAttributes, editor }) {
     updateAttributes({ images: next });
   };
 
+  // `addFiles` keeps using uploadBlogImage directly — it handles a whole
+  // multi-file selection, which the single-file hook doesn't cover.
+  const { busy: uploading, pickImage } = useImageUpload();
+  const replaceAt = async (i) => {
+    const upload = await pickImage();
+    if (upload) updateAttributes({ images: galleryImagesWithReplacement(images, i, upload.url) });
+  };
+
   return (
     <NodeViewWrapper className="cpm-blog-gallery-node" as="div" ref={rootRef}>
       {editable && (
@@ -70,7 +80,7 @@ function GalleryView({ node, updateAttributes, editor }) {
       <div className="cpm-blog-carousel" data-carousel>
         <div className="cpm-blog-carousel-track">
           {images.map((im, i) => (
-            <figure key={`${im.src}-${i}`} className="cpm-blog-carousel-slide">
+            <figure key={`${im.src}-${i}`} className="cpm-blog-carousel-slide" data-index={i}>
               {im.src ? <img src={im.src} alt={im.alt || ''} /> : <div className="cpm-blog-carousel-empty-slide" />}
               {im.caption ? <figcaption className="cpm-blog-carousel-cap">{im.caption}</figcaption> : null}
             </figure>
@@ -92,7 +102,7 @@ function GalleryView({ node, updateAttributes, editor }) {
       {editable && (
         <div className="cpm-blog-carousel-edit" contentEditable={false}>
           {images.map((im, i) => (
-            <div key={`edit-${im.src}-${i}`} className="cpm-blog-carousel-edit-row">
+            <div key={`edit-${im.src}-${i}`} className="cpm-blog-carousel-edit-row" data-index={i}>
               {im.src ? <img src={im.src} alt="" className="cpm-blog-carousel-edit-thumb" /> : <div className="cpm-blog-carousel-edit-thumb" />}
               <input
                 className="cpm-blog-carousel-edit-input"
@@ -106,6 +116,7 @@ function GalleryView({ node, updateAttributes, editor }) {
                 value={im.alt || ''}
                 onChange={(e) => setField(i, 'alt', e.target.value)}
               />
+              <button type="button" className="cpm-blog-tb-btn" title="Replace image" onClick={() => replaceAt(i)} disabled={uploading || busy}><i className="fas fa-arrows-rotate" aria-hidden="true" /></button>
               <button type="button" className="cpm-blog-tb-btn" title="Move earlier" onClick={() => move(i, -1)}><i className="fas fa-chevron-up" aria-hidden="true" /></button>
               <button type="button" className="cpm-blog-tb-btn" title="Move later" onClick={() => move(i, 1)}><i className="fas fa-chevron-down" aria-hidden="true" /></button>
               <button type="button" className="cpm-blog-tb-btn" title="Remove" onClick={() => removeAt(i)}><i className="fas fa-trash" aria-hidden="true" /></button>
