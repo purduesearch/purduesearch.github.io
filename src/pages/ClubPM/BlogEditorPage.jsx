@@ -506,7 +506,7 @@ export default function BlogEditorPage() {
         docId={id}
         title={title}
         isOpen={aiPanelOpen}
-        onClose={() => setAiPanelOpen(false)}
+        onClose={() => { setAiPanelOpen(false); setAiSelection(''); }}
         initialSelection={aiSelection}
         onThreadsChanged={() => setThreadsRefreshKey((k) => k + 1)}
       />
