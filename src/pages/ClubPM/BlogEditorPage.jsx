@@ -5,6 +5,7 @@ import BlogEditor from '../../components/clubpm/blog/BlogEditor';
 import RevisionHistoryDrawer from '../../components/clubpm/blog/RevisionHistoryDrawer';
 import BlogMetaPanel from '../../components/clubpm/blog/BlogMetaPanel';
 import BlogAnnotationsPanel from '../../components/clubpm/blog/BlogAnnotationsPanel';
+import BlogAiPanel from '../../components/clubpm/blog/BlogAiPanel';
 import BlogPreviewFrame from '../../components/clubpm/blog/BlogPreviewFrame';
 import OrbitLoader from '../../components/OrbitLoader';
 import ApprovalChips from '../../components/clubpm/ApprovalChips';
@@ -119,6 +120,8 @@ export default function BlogEditorPage() {
   const [previewMode, setPreviewMode] = useState(false);
   const [metaPanelOpen, setMetaPanelOpen] = useState(false);
   const [reviewPanelOpen, setReviewPanelOpen] = useState(false);
+  const [aiPanelOpen, setAiPanelOpen] = useState(false);
+  const [aiSelection, setAiSelection] = useState('');
   const [theme, setTheme] = useState(null);
   const [editorInstance, setEditorInstance] = useState(null);
   const [threadsRefreshKey, setThreadsRefreshKey] = useState(0);
@@ -386,6 +389,15 @@ export default function BlogEditorPage() {
             >
               <i className="fas fa-users-viewfinder" aria-hidden="true" />
             </button>
+            <button
+              type="button"
+              className={`cpm-blog-tool-btn${aiPanelOpen ? ' is-active' : ''}`}
+              onClick={() => setAiPanelOpen((v) => !v)}
+              title="AI assistant"
+              aria-label="AI assistant"
+            >
+              <i className="fas fa-wand-magic-sparkles" aria-hidden="true" />
+            </button>
           </div>
 
           <span className="cpm-blog-header-sep" />
@@ -452,6 +464,7 @@ export default function BlogEditorPage() {
             docId={id}
             canEditDoc={canEditDoc}
             onThreadsChanged={() => setThreadsRefreshKey((k) => k + 1)}
+            onAskAi={(text) => { setAiSelection(text); setAiPanelOpen(true); }}
             theme={theme}
             onThemeChange={handleThemeChange}
           />
@@ -486,6 +499,17 @@ export default function BlogEditorPage() {
           threadsRefreshKey={threadsRefreshKey}
         />
       )}
+
+      <BlogAiPanel
+        editor={editorInstance}
+        docType="BLOG_POST"
+        docId={id}
+        title={title}
+        isOpen={aiPanelOpen}
+        onClose={() => setAiPanelOpen(false)}
+        initialSelection={aiSelection}
+        onThreadsChanged={() => setThreadsRefreshKey((k) => k + 1)}
+      />
     </div>
   );
 }
