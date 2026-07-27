@@ -17955,6 +17955,10 @@ button.cpm-badge-tile:disabled { opacity: 0.7; cursor: progress; }
 .cpm-blog-embed iframe { width: 100%; aspect-ratio: 16 / 9; border: 0; display: block; }
 .cpm-blog-embed .twitter-tweet,
 .cpm-blog-embed .instagram-media { margin: 0 auto !important; }
+/* The widget script swaps the blockquote for an iframe sized to the post —
+   usually portrait, so exempt it from the 16:9 video sizing above. */
+.cpm-blog-embed iframe.instagram-media,
+.cpm-blog-embed iframe[id^="twitter-widget"] { aspect-ratio: auto; }
 .cpm-blog-embed--empty {
   padding: 24px; text-align: center; border: 1px dashed var(--pm-overlay, #2a2f3a);
   color: var(--clubpm-text-muted, #9aa3b2); background: var(--pm-surface, #161a22);

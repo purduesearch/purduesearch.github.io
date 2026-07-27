@@ -40,6 +40,24 @@ document.querySelectorAll('[data-carousel]').forEach(function (root) {
   paint();
 });`;
 
+// Same story for the X / Instagram widget scripts: their embeds are empty
+// placeholder blockquotes until the provider's script rewrites them, and the
+// preview must load them or the embed shows up blank here but fine in the
+// editor. Keep in sync with src/lib/blogEmbeds.js.
+const EMBEDS_INLINE = `
+[
+  { sel: 'blockquote.instagram-media', id: 'instagram-embed-js', src: 'https://www.instagram.com/embed.js',
+    go: function () { if (window.instgrm && window.instgrm.Embeds) window.instgrm.Embeds.process(); } },
+  { sel: 'blockquote.twitter-tweet', id: 'twitter-wjs', src: 'https://platform.twitter.com/widgets.js',
+    go: function () { if (window.twttr && window.twttr.widgets) window.twttr.widgets.load(); } }
+].forEach(function (p) {
+  if (!document.querySelector(p.sel) || document.getElementById(p.id)) return;
+  var s = document.createElement('script');
+  s.id = p.id; s.async = true; s.src = p.src;
+  s.addEventListener('load', p.go);
+  document.body.appendChild(s);
+});`;
+
 function buildSrcDoc({ html, meta, title, origin }) {
   const theme = meta?.theme ?? {};
   const cover = meta?.coverImageUrl || '/Purdue_Sky.webp';
@@ -69,6 +87,7 @@ function buildSrcDoc({ html, meta, title, origin }) {
 </div></div></section>
 <script>
 ${CAROUSEL_INLINE}
+${EMBEDS_INLINE}
 </script>
 </body></html>`;
 }

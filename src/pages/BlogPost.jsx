@@ -6,6 +6,7 @@ import SEOHead from '../components/SEOHead';
 import JsonLd from '../components/JsonLd';
 import { articleSchema } from '../seo/schema';
 import { initBlogCarousels } from '../lib/blogCarousel';
+import { initBlogEmbeds } from '../lib/blogEmbeds';
 
 // AOS is loaded globally; re-init so scroll-reveal works on direct navigation.
 if (typeof window !== 'undefined' && window.AOS) window.AOS.init({ once: true });
@@ -32,10 +33,13 @@ export default function BlogPost() {
 
   const bodyRef = useRef(null);
 
-  // The body is injected as raw HTML, so React never mounts the carousel —
-  // enhance it after each render of a new post.
+  // The body is injected as raw HTML, so React never mounts the carousel and
+  // the browser never runs the X/Instagram widget scripts — enhance it after
+  // each render of a new post.
   useEffect(() => {
-    if (bodyRef.current) initBlogCarousels(bodyRef.current);
+    if (!bodyRef.current) return;
+    initBlogCarousels(bodyRef.current);
+    initBlogEmbeds(bodyRef.current);
   }, [post]);
 
   if (loading) {

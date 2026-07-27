@@ -5668,6 +5668,14 @@ html::-webkit-scrollbar { display: none; }
 .cpm-blog-img--full img { width: 100%; }
 .cpm-blog-embed { position: relative; width: 100%; border-radius: 10px; overflow: hidden; }
 .cpm-blog-embed iframe { width: 100%; aspect-ratio: 16 / 9; border: 0; display: block; }
+/* X / Instagram embeds arrive as provider blockquotes that their widget script
+   (src/lib/blogEmbeds.js) swaps for an iframe sized to the post — usually
+   portrait, so exempt them from the 16:9 video sizing above. The centring rule
+   matches the one in clubpm-theme.css, which the public article never loads. */
+.cpm-blog-embed .twitter-tweet,
+.cpm-blog-embed .instagram-media { margin: 0 auto !important; }
+.cpm-blog-embed iframe.instagram-media,
+.cpm-blog-embed iframe[id^="twitter-widget"] { aspect-ratio: auto; }
 .cpm-blog-gallery {
   display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
   gap: 10px;
