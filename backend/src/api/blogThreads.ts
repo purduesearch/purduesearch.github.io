@@ -3,6 +3,7 @@ import { requireAuth } from "./auth.js";
 import * as threads from "../services/blogThreadService.js";
 import type { DocRef, DocType } from "../services/blogThreadService.js";
 import type { BlogThreadStatus } from "@prisma/client";
+import { notifyThreadActivity } from "../services/blogThreadNotify.js";
 
 export const blogThreadsRouter = Router();
 blogThreadsRouter.use(requireAuth);
@@ -96,6 +97,15 @@ blogThreadsRouter.post("/docs/:docType/:docId/threads", async (req: Request, res
       rationale: typeof rationale === "string" ? rationale : undefined,
       origin: origin === "AI" ? "AI" : "HUMAN",
     });
+    if (thread.origin !== "AI") {
+      void notifyThreadActivity({
+        docRef: ctx.ref,
+        actorId: req.memberId!,
+        threadId: thread.id,
+        kind,
+        snippet: (typeof body === "string" && body.trim()) ? body : anchorText,
+      });
+    }
     res.status(201).json(thread);
   } catch (err) {
     console.error("[blogThreads] create error:", err);
@@ -131,7 +141,15 @@ blogThreadsRouter.post("/threads/:id/comments", async (req: Request, res: Respon
       res.status(400).json({ error: "body is required" });
       return;
     }
-    res.status(201).json(await threads.addComment(req.params.id as string, req.memberId!, body));
+    const updated = await threads.addComment(req.params.id as string, req.memberId!, body);
+    void notifyThreadActivity({
+      docRef: ctx.ref,
+      actorId: req.memberId!,
+      threadId: req.params.id as string,
+      kind: updated?.kind === "SUGGESTION" ? "SUGGESTION" : "COMMENT",
+      snippet: body,
+    });
+    res.status(201).json(updated);
   } catch (err) {
     console.error("[blogThreads] comment error:", err);
     res.status(500).json({ error: "Failed to add comment" });
