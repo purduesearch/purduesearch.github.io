@@ -392,7 +392,13 @@ export default function BlogEditorPage() {
             <button
               type="button"
               className={`cpm-blog-tool-btn${aiPanelOpen ? ' is-active' : ''}`}
-              onClick={() => setAiPanelOpen((v) => !v)}
+              onClick={() => {
+                // Closing via the toolbar never runs the panel's onClose, so
+                // clear the pending selection here too — otherwise it stays
+                // truthy and the next open force-lands on the Selection tab.
+                if (aiPanelOpen) setAiSelection('');
+                setAiPanelOpen((v) => !v);
+              }}
               title="AI assistant"
               aria-label="AI assistant"
             >
