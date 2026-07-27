@@ -49,6 +49,8 @@ export const BlogAutocomplete = Extension.create({
         },
 
         handleKeyDown(view, event) {
+          // Never mutate a read-only editor — and never swallow the keystroke either.
+          if (!view.editable) return false;
           const { pos, text } = autocompleteKey.getState(view.state);
           if (pos == null || !text) return false;
 

@@ -587,12 +587,12 @@ export default function BlogEditor({
     } : null, {
       docType,
       docId: reviewDocId,
-      enabled: canEditDoc,
+      enabled: canEditDoc && editable,
     }),
     content: collab ? undefined : (content ?? { type: 'doc', content: [{ type: 'paragraph' }] }),
     editable,
     onUpdate: ({ editor: ed }) => { onChange?.(ed.getJSON()); },
-  }, [collab, reviewDocId, docType, canEditDoc]);
+  }, [collab, reviewDocId, docType, canEditDoc, editable]);
 
   // ── Fallback content seeding ──────────────────────────────────
   // In collab mode the editor starts from the shared Yjs doc, which the
