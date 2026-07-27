@@ -30,6 +30,7 @@ import BlogSectionSettings from './BlogSectionSettings';
 import BlogThemeBar from './BlogThemeBar';
 import BlogSelectionBubble from './BlogSelectionBubble';
 import { suggestionExtensions } from './suggestionMarks';
+import BlogAutocomplete from './blogAutocomplete';
 import { docToMarkdown, markdownToDoc } from './blogMarkdown';
 import { getBlogCollabWsUrl, getStoredToken } from '../../../api/clubPmClient';
 import { shouldFallbackSeed } from '../../../lib/collabFallback';
@@ -51,7 +52,7 @@ const LinkShortcut = Extension.create({
 // collaborative editing (see backend/src/collab/blogCollab.ts) — this
 // disables StarterKit's own undo/redo since Collaboration provides its
 // own Yjs-based history instead.
-export function blogExtensions(collab) {
+export function blogExtensions(collab, autocomplete) {
   return [
     StarterKit.configure({
       heading: { levels: [1, 2, 3, 4, 5, 6] },
@@ -81,6 +82,11 @@ export function blogExtensions(collab) {
     SearchAndReplace.configure({ disableRegex: true }),
     LinkShortcut,
     ...suggestionExtensions(),
+    BlogAutocomplete.configure({
+      docType: autocomplete?.docType ?? 'BLOG_POST',
+      docId: autocomplete?.docId ?? null,
+      enabled: !!autocomplete?.enabled,
+    }),
     ...(collab ? [
       Collaboration.configure({ document: collab.document }),
       CollaborationCaret.configure({ provider: collab.provider, user: collab.user }),
@@ -578,11 +584,15 @@ export default function BlogEditor({
       document: collab.document,
       provider: collab.provider,
       user: { name: collabUser?.name || 'Anonymous', color: colorForMember(collabUser?.id) },
-    } : null),
+    } : null, {
+      docType,
+      docId: reviewDocId,
+      enabled: canEditDoc,
+    }),
     content: collab ? undefined : (content ?? { type: 'doc', content: [{ type: 'paragraph' }] }),
     editable,
     onUpdate: ({ editor: ed }) => { onChange?.(ed.getJSON()); },
-  }, [collab]);
+  }, [collab, reviewDocId, docType, canEditDoc]);
 
   // ── Fallback content seeding ──────────────────────────────────
   // In collab mode the editor starts from the shared Yjs doc, which the
@@ -667,6 +677,7 @@ export default function BlogEditor({
     { id: 'blog.link', keys: 'Ctrl/⌘+K', scope: 'page', pageId: 'Blog Editor', description: 'Add/edit link', action: () => setLink(editor) },
     { id: 'blog.undo', keys: 'Ctrl/⌘+Z', scope: 'page', pageId: 'Blog Editor', description: 'Undo', action: () => editor?.chain().focus().undo().run() },
     { id: 'blog.redo', keys: 'Ctrl/⌘+Shift+Z', scope: 'page', pageId: 'Blog Editor', description: 'Redo', action: () => editor?.chain().focus().redo().run() },
+    { id: 'blog.autocomplete', keys: 'Ctrl/⌘+\\', scope: 'page', pageId: 'Blog Editor', description: 'AI autocomplete (Tab to accept)', action: () => {} },
     { id: 'blog.save', keys: 'Ctrl/⌘+S', scope: 'page', pageId: 'Blog Editor', description: 'Save draft', action: () => {} },
   ]);
 
