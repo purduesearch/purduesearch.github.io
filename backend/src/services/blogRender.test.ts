@@ -121,8 +121,9 @@ check("passes through a normal https image",
 }
 
 {
-  // A draft mid-review must publish as if the review never happened:
-  // insertions land as plain text, deletions vanish, comments leave no trace.
+  // A draft mid-review must publish as if the review never happened: a pending
+  // suggestion publishes as REJECTED, so the proposed insertion vanishes, the
+  // struck original stands as ordinary prose, and comments leave no trace.
   const doc = { type: "doc", content: [
     { type: "paragraph", content: [
       { type: "text", text: "We " },
@@ -135,8 +136,10 @@ check("passes through a normal https image",
     ] },
   ] };
   const html = _render(doc as any);
-  check("keeps suggestInsert text", html.includes("ran thermal vac"));
-  check("drops suggestDelete text", !html.includes("did testing"));
+  check("drops unaccepted suggestInsert text", !html.includes("ran thermal vac"));
+  check("keeps suggestDelete text (deletion never accepted)", html.includes("did testing"));
+  check("struck original reads as ordinary prose",
+    html.includes("<p>We did testing last week.</p>"));
   check("keeps commented text", html.includes("Flagged sentence."));
   check("leaks no thread ids", !html.includes("data-thread-id"));
   check("leaks no review classes",
@@ -145,8 +148,8 @@ check("passes through a normal https image",
 }
 
 {
-  // A heading mid-review must not publish its struck wording in the TOC label
-  // or bake it into the public anchor id / href.
+  // A heading mid-review must publish its APPROVED wording — the pending
+  // insertion must not reach the TOC label, the public anchor id, or the href.
   const doc = { type: "doc", content: [
     { type: "tableOfContents" },
     { type: "heading", attrs: { level: 2 }, content: [
@@ -156,16 +159,49 @@ check("passes through a normal https image",
     ] },
   ] };
   const html = _render(doc as any);
-  check("toc label omits deleted heading words", !html.includes(">Vibe") && html.includes("Thermal testing"));
-  check("heading anchor id omits deleted words",
-    html.includes('id="thermal-testing"') && !html.includes("vibe-thermal-testing"));
-  check("toc href matches the heading anchor", html.includes('href="#thermal-testing"'));
+  check("toc label omits proposed heading words", !html.includes("Thermal"));
+  check("toc label uses approved wording", html.includes("Vibe") && html.includes("testing"));
+  check("heading anchor id uses approved wording",
+    html.includes('id="vibe-testing"') && !html.includes("thermal"));
+  check("toc href matches the heading anchor", html.includes('href="#vibe-testing"'));
+  check("heading leaks no review artifacts",
+    !html.includes("data-thread-id") && !html.includes("cpm-blog-sugg")
+      && !html.includes("cpm-blog-comment-mark"));
 
   // extractText backs deriveExcerpt() in blogService.ts (and readingTimeMin),
-  // both of which are served publicly — deleted words must never reach them.
+  // both of which are served publicly — unapproved words must never reach them.
   const text = _extractText(doc as any);
-  check("extractText omits deleted words", !text.includes("Vibe"));
-  check("extractText keeps accepted words", text.includes("Thermal") && text.includes("testing"));
+  check("extractText omits proposed words", !text.includes("Thermal"));
+  check("extractText keeps approved words", text.includes("Vibe") && text.includes("testing"));
+}
+
+{
+  // A heading carrying a pending pure-insertion suggestion: the label, the
+  // anchor id, and the excerpt must all read as the approved wording only.
+  const doc = { type: "doc", content: [
+    { type: "tableOfContents" },
+    { type: "heading", attrs: { level: 2 }, content: [
+      { type: "text", text: "Launch prep" },
+      { type: "text", text: " and recovery", marks: [{ type: "suggestInsert", attrs: { threadId: "t4" } }] },
+    ] },
+    { type: "paragraph", content: [
+      { type: "text", text: "Approved body." },
+      { type: "text", text: " Unapproved body.", marks: [{ type: "suggestInsert", attrs: { threadId: "t4" } }] },
+    ] },
+  ] };
+  const html = _render(doc as any);
+  const text = _extractText(doc as any);
+  check("pending-insert heading label uses approved wording",
+    html.includes("Launch prep") && !html.includes("and recovery"));
+  check("pending-insert heading anchor id uses approved wording",
+    html.includes('id="launch-prep"') && !html.includes("launch-prep-and-recovery"));
+  check("pending-insert toc href matches the heading anchor", html.includes('href="#launch-prep"'));
+  check("pending-insert excerpt text omits the proposal",
+    text.includes("Launch prep") && text.includes("Approved body.")
+      && !text.includes("and recovery") && !text.includes("Unapproved body."));
+  check("pending-insert heading leaks no review artifacts",
+    !html.includes("data-thread-id") && !html.includes("cpm-blog-sugg")
+      && !html.includes("cpm-blog-comment-mark"));
 }
 
 console.log(`\nblogRender: ${passed} passed, ${failed} failed`);

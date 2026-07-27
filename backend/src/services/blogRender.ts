@@ -75,16 +75,18 @@ export function slugify(input: string): string {
 
 // ── Text extraction (reading time, excerpts, TOC) ────────────
 
-// Review-aware: text carrying `suggestDelete` is content marked for removal, so
-// it is skipped here exactly as renderNode skips it. Every caller (TOC labels,
-// heading anchor ids, collectHeadings, blogService's deriveExcerpt, reading
-// time) publishes its result, so all of them want the post-review text.
+// Review-aware: a suggestion still pending at publish time publishes as
+// REJECTED, so text carrying `suggestInsert` is a proposal no human approved and
+// is skipped here exactly as renderNode skips it. `suggestDelete` text is kept —
+// the removal was only proposed, so the original wording stands. Every caller
+// (TOC labels, heading anchor ids, collectHeadings, blogService's deriveExcerpt,
+// reading time) publishes its result, so all of them want the last approved text.
 // Detection is by mark *type name*, never by the rendered tag attribute — the
-// attribute spelling (`data-suggest-del`) is a client rendering detail.
+// attribute spelling (`data-suggest-ins`) is a client rendering detail.
 export function extractText(node: PMNode | PMDoc): string {
   const anyNode = node as PMNode;
   let out = "";
-  if (anyNode.marks?.some((m) => m.type === "suggestDelete")) return "";
+  if (anyNode.marks?.some((m) => m.type === "suggestInsert")) return "";
   if (anyNode.text) out += anyNode.text;
   if (anyNode.content) {
     for (const child of anyNode.content) {
@@ -189,13 +191,17 @@ function wrapMarks(text: string, marks?: PMMark[]): string {
       }
       // ── Review-only marks (see suggestionMarks.js) ──────────
       // These exist for in-editor review and must never reach the public site.
-      // commentMark / suggestInsert: keep the text, drop the annotation.
+      // A pending suggestion publishes as REJECTED: the reader sees exactly the
+      // last human-approved text.
+      // commentMark / suggestDelete: keep the text, drop the annotation. The
+      // deletion was proposed, never accepted, so the original wording stands.
       case "commentMark":
-      case "suggestInsert":
-        break;
-      // suggestDelete: the text itself is dropped in renderNode below, since a
-      // mark handler can only wrap text, not remove it.
       case "suggestDelete":
+        break;
+      // suggestInsert: the proposed replacement was never accepted, so the text
+      // itself is dropped in renderNode below — a mark handler can only wrap
+      // text, not remove it.
+      case "suggestInsert":
         break;
       default:
         break;
@@ -231,8 +237,9 @@ function buildHeadingIdMap(doc: PMDoc): Map<PMNode, string> {
 function renderNode(node: PMNode, headingIds: Map<PMNode, string>): string {
   switch (node.type) {
     case "text": {
-      // A rejected-but-not-yet-cleaned suggestion must not publish its old text.
-      if (node.marks?.some((m) => m.type === "suggestDelete")) return "";
+      // A suggestion still pending at publish time must not publish its proposed
+      // replacement — no human approved it.
+      if (node.marks?.some((m) => m.type === "suggestInsert")) return "";
       return wrapMarks(escapeHtml(node.text ?? ""), node.marks);
     }
     case "paragraph":
