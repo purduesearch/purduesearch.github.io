@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
 import {
   setBlogThreadStatus, addBlogThreadComment, deleteBlogThreadComment,
@@ -14,9 +14,16 @@ function when(iso) {
  * the card still renders from the stored anchorText snapshot, but accepting is
  * meaningless because there is nothing left in the document to change.
  */
-export default function BlogThreadCard({ thread, editor, canEdit, currentMember, onChanged }) {
+export default function BlogThreadCard({ thread, editor, canEdit, currentMember, onChanged, isFocused }) {
   const [reply, setReply] = useState('');
   const [busy, setBusy] = useState(false);
+  const cardRef = useRef(null);
+
+  // Bring the card into view when the editor points at this thread; the panel
+  // body scrolls independently, so the card is often below the fold.
+  useEffect(() => {
+    if (isFocused) cardRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [isFocused]);
 
   // `editor.storage` is NOT reactive: ThreadPositions reassigns
   // `storage.positions` inside a plugin `view.update`, which React never sees.
@@ -80,10 +87,12 @@ export default function BlogThreadCard({ thread, editor, canEdit, currentMember,
 
   return (
     <div
+      ref={cardRef}
       className={[
         'cpm-blog-thread-card',
         isSuggestion ? 'cpm-blog-thread-card--suggestion' : '',
         orphaned ? 'cpm-blog-thread-card--orphan' : '',
+        isFocused ? 'is-active' : '',
       ].filter(Boolean).join(' ')}
     >
       <div className="cpm-blog-thread-head">

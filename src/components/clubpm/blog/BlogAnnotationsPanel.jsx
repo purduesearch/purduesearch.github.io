@@ -130,7 +130,7 @@ function AuthorsManager({ post, currentMemberId, onAuthorsChanged }) {
 // OutreachComment thread) and the multi-author manager.
 export default function BlogAnnotationsPanel({
   post, currentMember, isOpen, onClose, onAuthorsChanged,
-  editor, canEdit = true, threadsRefreshKey,
+  editor, canEdit = true, threadsRefreshKey, focusedThreadId,
 }) {
   const refreshAuthors = useCallback(() => { onAuthorsChanged?.(); }, [onAuthorsChanged]);
 
@@ -158,6 +158,7 @@ export default function BlogAnnotationsPanel({
             canEdit={canEdit}
             currentMember={currentMember}
             refreshKey={threadsRefreshKey}
+            focusedThreadId={focusedThreadId}
           />
         </div>
 

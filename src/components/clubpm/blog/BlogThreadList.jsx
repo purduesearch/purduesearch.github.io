@@ -3,7 +3,9 @@ import toast from 'react-hot-toast';
 import BlogThreadCard from './BlogThreadCard';
 import { listBlogThreads } from '../../../api/clubPmClient';
 
-export default function BlogThreadList({ docType, docId, editor, canEdit, currentMember, refreshKey }) {
+export default function BlogThreadList({
+  docType, docId, editor, canEdit, currentMember, refreshKey, focusedThreadId,
+}) {
   const [threads, setThreads] = useState([]);
   // Closed threads are hidden by default so the panel shows what still needs a
   // decision; the count in each header always includes them, so nothing looks lost.
@@ -39,19 +41,27 @@ export default function BlogThreadList({ docType, docId, editor, canEdit, curren
       canEdit={canEdit}
       currentMember={currentMember}
       onChanged={load}
+      isFocused={t.id === focusedThreadId}
     />
   );
 
   const section = (kind, { icon, title, empty }) => {
     const all  = threads.filter((t) => t.kind === kind);
     const open = all.filter((t) => t.status === 'OPEN');
-    const shown = showClosed ? all : open;
+    // A focused thread is always shown, even when it is closed and closed
+    // threads are hidden — otherwise clicking its text reveals nothing.
+    const shown = showClosed
+      ? all
+      : all.filter((t) => t.status === 'OPEN' || t.id === focusedThreadId);
     return (
       <section className="cpm-blog-thread-section">
         <h4 className="cpm-blog-thread-section-title">
-          <i className={`fas ${icon}`} aria-hidden="true" /> {title}
+          <i className={`fas ${icon}`} aria-hidden="true" /> {title}{' '}
+          {/* Explicit space: JSX strips the newline before <span>, so without
+              this the count reads "Comments3" whenever the flex gap doesn't
+              apply (stale cached stylesheet, narrow wrap). */}
           <span className="cpm-blog-thread-section-count">
-            {open.length}{all.length > open.length ? ` open · ${all.length - open.length} closed` : ''}
+            {open.length} open{all.length > open.length ? ` · ${all.length - open.length} closed` : ''}
           </span>
         </h4>
         {shown.length === 0

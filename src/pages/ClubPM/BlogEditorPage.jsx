@@ -127,6 +127,8 @@ export default function BlogEditorPage() {
   const reviewPanelOpen = openPanel === 'review';
   const aiPanelOpen     = openPanel === 'ai';
   const [aiSelection, setAiSelection] = useState('');
+  // Thread the editor last pointed at, highlighted in the review panel.
+  const [focusedThreadId, setFocusedThreadId] = useState(null);
 
   // Leaving the AI panel drops any pending selection, whichever way it closes:
   // a stale one forces the next open onto the Selection tab.
@@ -479,6 +481,7 @@ export default function BlogEditorPage() {
             docId={id}
             canEditDoc={canEditDoc}
             onThreadsChanged={() => setThreadsRefreshKey((k) => k + 1)}
+            onThreadFocus={(threadId) => { setFocusedThreadId(threadId); setOpenPanel('review'); }}
             onAskAi={(text) => { setAiSelection(text); setOpenPanel('ai'); }}
             theme={theme}
             onThemeChange={handleThemeChange}
@@ -512,6 +515,7 @@ export default function BlogEditorPage() {
           editor={editorInstance}
           canEdit={canEditDoc}
           threadsRefreshKey={threadsRefreshKey}
+          focusedThreadId={focusedThreadId}
         />
       )}
 

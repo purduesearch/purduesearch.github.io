@@ -467,6 +467,24 @@ function PresenceBar({ synced, connected, peers }) {
   );
 }
 
+const REVIEW_MARKS = ['commentMark', 'suggestInsert', 'suggestDelete'];
+
+/**
+ * Thread id of the review mark at `pos`, or null.
+ *
+ * Both sides of the position are checked: `$pos.marks()` reports the marks the
+ * caret would inherit (the node *before* it), which misses a click landing on
+ * the very first character of a marked range.
+ */
+function threadIdAt(state, pos) {
+  const $pos = state.doc.resolve(pos);
+  const candidates = [...$pos.marks(), ...($pos.nodeAfter?.marks ?? [])];
+  const hit = candidates.find(
+    (m) => REVIEW_MARKS.includes(m.type.name) && m.attrs?.threadId
+  );
+  return hit?.attrs.threadId ?? null;
+}
+
 /**
  * Rich-text blog editor.
  * @param {object}   content     TipTap JSON doc (or null for empty); ignored when `postId` is set —
@@ -480,34 +498,34 @@ function PresenceBar({ synced, connected, peers }) {
  * @param {string}  docType   'BLOG_POST' | 'PRESS_KIT' — which review-thread namespace this editor uses
  * @param {string}  docId     id within that namespace; falls back to postId for blog posts
  * @param {boolean} canEditDoc  false for reviewers — hides Accept/Reject and the AI entry points
+ * @param {function} onThreadFocus  called with a threadId when the caret lands on
+ *                                  commented or suggested text, so the host can
+ *                                  reveal that thread in the review panel
  */
 export default function BlogEditor({
   content, onChange, editable = true, onEditorReady, postId, collabUser, collabWsUrl,
   theme, onThemeChange, docType = 'BLOG_POST', docId, canEditDoc = true,
-  onAskAi, onThreadsChanged,
+  onAskAi, onThreadsChanged, onThreadFocus,
 }) {
   const [showFind, setShowFind] = React.useState(false);
   const [showSnippets, setShowSnippets] = React.useState(false);
   const [showSecLib, setShowSecLib] = React.useState(false);
+  const onThreadFocusRef = React.useRef(onThreadFocus);
+  onThreadFocusRef.current = onThreadFocus;
+
+  // Section settings open only on request — via the palette button on the
+  // section's hover toolbar, which fires this event. It used to also open on
+  // every selectionUpdate inside a section, which meant the panel reappeared as
+  // soon as you clicked back into your text.
   const [settingsPos, setSettingsPos] = React.useState(null);
-  // Section position the user explicitly closed the panel on. Suppresses the
-  // auto-open below until the caret moves to a different section, so dismissing
-  // the panel actually sticks while you keep typing in that section.
-  const dismissedSectionPos = React.useRef(null);
 
   React.useEffect(() => {
-    const handler = (e) => {
-      dismissedSectionPos.current = null;
-      setSettingsPos(e.detail?.pos ?? null);
-    };
+    const handler = (e) => setSettingsPos(e.detail?.pos ?? null);
     window.addEventListener('blog-section-settings', handler);
     return () => window.removeEventListener('blog-section-settings', handler);
   }, []);
 
-  const closeSettings = React.useCallback(() => {
-    dismissedSectionPos.current = settingsPos;
-    setSettingsPos(null);
-  }, [settingsPos]);
+  const closeSettings = React.useCallback(() => setSettingsPos(null), []);
   const [connected, setConnected] = React.useState(false);
   const [synced, setSynced] = React.useState(false);
   const [peers, setPeers] = React.useState([]);
@@ -592,6 +610,16 @@ export default function BlogEditor({
     content: collab ? undefined : (content ?? { type: 'doc', content: [{ type: 'paragraph' }] }),
     editable,
     onUpdate: ({ editor: ed }) => { onChange?.(ed.getJSON()); },
+    editorProps: {
+      // Clicking commented/suggested text reveals its thread. Read through a ref
+      // so a new callback identity never rebuilds the editor — that would drop
+      // the collab connection on every parent render.
+      handleClick: (view, pos) => {
+        const threadId = threadIdAt(view.state, pos);
+        if (threadId) onThreadFocusRef.current?.(threadId);
+        return false; // never swallow the click; the caret still moves
+      },
+    },
   }, [collab, reviewDocId, docType, canEditDoc, editable]);
 
   // ── Fallback content seeding ──────────────────────────────────
@@ -637,33 +665,6 @@ export default function BlogEditor({
   useEffect(() => {
     if (editor && onEditorReady) onEditorReady(editor);
   }, [editor, onEditorReady]);
-
-  // Clicking into a section opens that section's settings, so layout /
-  // background / padding are reachable where you're working instead of only
-  // behind the palette button on the hover toolbar. Tracking the position on
-  // every selection change also keeps the panel pointed at the right node when
-  // edits above it shift positions.
-  useEffect(() => {
-    if (!editor || !editable) return undefined;
-    const sync = () => {
-      if (editor.isDestroyed) return;
-      const { $from } = editor.state.selection;
-      let pos = null;
-      for (let depth = $from.depth; depth > 0; depth -= 1) {
-        if ($from.node(depth).type.name === 'section') { pos = $from.before(depth); break; }
-      }
-      if (pos == null) {
-        dismissedSectionPos.current = null;
-        setSettingsPos(null);
-        return;
-      }
-      if (dismissedSectionPos.current === pos) return;
-      dismissedSectionPos.current = null;
-      setSettingsPos((prev) => (prev === pos ? prev : pos));
-    };
-    editor.on('selectionUpdate', sync);
-    return () => { editor.off('selectionUpdate', sync); };
-  }, [editor, editable]);
 
   // Registered purely so these appear in the shared "?" Keyboard Shortcuts
   // modal — the key combos themselves are handled natively by TipTap's own
