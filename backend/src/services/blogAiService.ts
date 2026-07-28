@@ -66,7 +66,12 @@ ${docContext(args.title, args.doc)}
 
 QUESTION: ${args.question}`;
 
-  return generateTextComplex(prompt);
+  // generateTextComplex swallows every failure into "". Left alone that reaches
+  // the panel as a 200 with an empty answer, which reads as "the AI ignored me"
+  // — the symptom that hid a broken complex-model config. Surface it instead.
+  const answer = await generateTextComplex(prompt);
+  if (!answer) throw new Error("The AI service did not return an answer");
+  return answer;
 }
 
 const EDIT_RULES = `Return JSON of the form:
@@ -127,7 +132,11 @@ ${EDIT_RULES}`;
     ? await generateJson<{ edits?: AiEdit[] }>(prompt)
     : await generateJsonComplex<{ edits?: AiEdit[] }>(prompt, undefined, { maxOutputTokens: 4096 });
 
-  if (!result || !Array.isArray(result.edits)) return [];
+  // null means the call itself failed — a model that genuinely found nothing to
+  // change returns {"edits":[]}, which parses to a non-null object. Collapsing
+  // the two made a whole-post failure show the success toast "Nothing to change".
+  if (result === null) throw new Error("The AI service did not return a usable response");
+  if (!Array.isArray(result.edits)) return [];
 
   return result.edits
     .filter((e) => e && typeof e.find === "string" && e.find.trim().length > 0

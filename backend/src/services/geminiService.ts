@@ -31,8 +31,41 @@ async function rateLimitedCall<T>(fn: () => Promise<T>): Promise<T> {
 // ── Complex model (25 req/day, used for heavy tasks) ─────────
 // Reasoning-class model for safety checks, blog expansion, video scripts, etc.
 
+// Defaults to GEMINI_MODEL when GEMINI_COMPLEX_MODEL is unset, matching
+// fastModel() below. A hardcoded id here is a landmine: it is only exercised on
+// deployments that never set the var, so a wrong or retired id takes out every
+// complex-lane feature at once while the standard lane keeps working.
 function complexModel() {
-  return genai.getGenerativeModel({ model: process.env.GEMINI_COMPLEX_MODEL ?? "gemini-3.5-flash" });
+  return genai.getGenerativeModel({
+    model: process.env.GEMINI_COMPLEX_MODEL ?? process.env.GEMINI_MODEL!,
+  });
+}
+
+/**
+ * Did the request fail because the *model* is unusable (bad or retired id,
+ * not enabled for this key) rather than because of the prompt? Such a failure
+ * is permanent and total, so the caller degrades to the standard model instead
+ * of returning nothing — the same way an exhausted daily quota already does.
+ */
+function isModelUnusable(err: unknown): boolean {
+  const e = err as { status?: number; message?: string };
+  if (e?.status === 404) return true;
+  return /not ?found|is not supported|unsupported|invalid model|models\//i.test(e?.message ?? "");
+}
+
+async function complexOrStandard<T>(
+  run: (m: ReturnType<typeof model>) => Promise<T>
+): Promise<T> {
+  try {
+    return await complexRateLimitedCall(() => run(complexModel()));
+  } catch (err) {
+    if (err instanceof GeminiRateLimitError || !isModelUnusable(err)) throw err;
+    console.warn(
+      "[gemini] complex model unusable — falling back to the standard model. " +
+      "Check GEMINI_COMPLEX_MODEL:", (err as Error)?.message
+    );
+    return rateLimitedCall(() => run(model()));
+  }
 }
 
 const COMPLEX_WINDOW_MS   = 24 * 60 * 60 * 1000; // 24-hour window
@@ -204,8 +237,8 @@ export async function generateJsonComplex<T>(
     if (hit) return JSON.parse(hit) as T;
   }
   try {
-    const result = await complexRateLimitedCall(() =>
-      complexModel().generateContent({
+    const result = await complexOrStandard((m) =>
+      m.generateContent({
         contents:         [{ role: "user", parts: [{ text: prompt }] }],
         generationConfig: {
           responseMimeType: "application/json",
@@ -217,6 +250,9 @@ export async function generateJsonComplex<T>(
     if (cacheKey) setCached(cacheKey, text);
     return JSON.parse(text) as T;
   } catch (err) {
+    // Matches the standard helpers: a rate limit is a distinct, retryable
+    // condition callers map to a 429, not a null "the model had nothing".
+    if (err instanceof GeminiRateLimitError) throw err;
     console.error("[gemini] generateJsonComplex error:", err);
     return null;
   }
@@ -229,13 +265,12 @@ export async function generateTextComplex(prompt: string, cacheKey?: string): Pr
     if (hit) return hit;
   }
   try {
-    const result = await complexRateLimitedCall(() =>
-      complexModel().generateContent(prompt)
-    );
+    const result = await complexOrStandard((m) => m.generateContent(prompt));
     const text = result.response.text().trim();
     if (cacheKey) setCached(cacheKey, text);
     return text;
   } catch (err) {
+    if (err instanceof GeminiRateLimitError) throw err;
     console.error("[gemini] generateTextComplex error:", err);
     return "";
   }
