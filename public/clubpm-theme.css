@@ -20815,9 +20815,31 @@ html:not(.aos-off) [data-aos].aos-animate  { opacity: 1; transform: none; }
 .cpm-blog-bubble-form-actions { display: flex; gap: 6px; justify-content: flex-end; }
 
 /* Thread list + cards */
-.cpm-blog-threads { display: grid; gap: 10px; }
-.cpm-blog-threads-filters { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
-.cpm-blog-threads-filters button {
+.cpm-blog-threads { display: grid; gap: 18px; }
+/* Comments and suggestions are separate labelled sections, not one filtered
+   list — each is a different decision (resolve vs accept/reject). */
+.cpm-blog-thread-section { display: grid; gap: 10px; }
+.cpm-blog-thread-section-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 0.74rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  opacity: 0.8;
+}
+.cpm-blog-thread-section-count {
+  margin-left: auto;
+  font-size: 0.72rem;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  opacity: 0.7;
+}
+.cpm-blog-thread-show-closed {
+  justify-self: start;
   padding: 4px 10px;
   border-radius: 999px;
   border: 1px solid var(--color-border, rgba(255, 255, 255, 0.12));
@@ -20827,11 +20849,7 @@ html:not(.aos-off) [data-aos].aos-animate  { opacity: 1; transform: none; }
   font-size: 0.76rem;
   cursor: pointer;
 }
-.cpm-blog-threads-filters button.is-active {
-  background: var(--pm-accent-teal);
-  border-color: var(--pm-accent-teal);
-  color: #04211f;
-}
+.cpm-blog-thread-show-closed:hover { border-color: var(--pm-accent-teal); }
 .cpm-blog-thread-card {
   padding: 10px 12px;
   border-radius: 10px;

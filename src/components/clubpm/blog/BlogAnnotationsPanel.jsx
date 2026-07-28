@@ -149,9 +149,8 @@ export default function BlogAnnotationsPanel({
 
       <div className="cpm-blog-meta-panel-body">
         <div className="cpm-blog-meta-field">
-          <h3 className="cpm-blog-authors-title">
-            <i className="fas fa-comments" aria-hidden="true" /> In-text review
-          </h3>
+          {/* No wrapper heading: the list renders its own "Comments" and
+              "Suggestions" section titles, which would read as duplicates. */}
           <BlogThreadList
             docType="BLOG_POST"
             docId={post.id}

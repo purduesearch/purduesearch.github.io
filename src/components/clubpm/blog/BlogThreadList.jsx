@@ -3,25 +3,11 @@ import toast from 'react-hot-toast';
 import BlogThreadCard from './BlogThreadCard';
 import { listBlogThreads } from '../../../api/clubPmClient';
 
-const FILTERS = [
-  { id: 'open', label: 'Open' },
-  { id: 'suggestions', label: 'Suggestions' },
-  { id: 'resolved', label: 'Closed' },
-  { id: 'all', label: 'All' },
-];
-
-function matches(thread, filter) {
-  switch (filter) {
-    case 'open':        return thread.status === 'OPEN';
-    case 'suggestions': return thread.kind === 'SUGGESTION' && thread.status === 'OPEN';
-    case 'resolved':    return thread.status !== 'OPEN';
-    default:            return true;
-  }
-}
-
 export default function BlogThreadList({ docType, docId, editor, canEdit, currentMember, refreshKey }) {
   const [threads, setThreads] = useState([]);
-  const [filter, setFilter] = useState('open');
+  // Closed threads are hidden by default so the panel shows what still needs a
+  // decision; the count in each header always includes them, so nothing looks lost.
+  const [showClosed, setShowClosed] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
   // Only the first fetch shows the loading placeholder — a refresh after a reply
@@ -45,45 +31,69 @@ export default function BlogThreadList({ docType, docId, editor, canEdit, curren
   useEffect(() => { loadedOnce.current = false; }, [docType, docId]);
   useEffect(() => { load(); }, [load, refreshKey]);
 
-  const shown = threads.filter((t) => matches(t, filter));
+  const card = (t) => (
+    <BlogThreadCard
+      key={t.id}
+      thread={t}
+      editor={editor}
+      canEdit={canEdit}
+      currentMember={currentMember}
+      onChanged={load}
+    />
+  );
+
+  const section = (kind, { icon, title, empty }) => {
+    const all  = threads.filter((t) => t.kind === kind);
+    const open = all.filter((t) => t.status === 'OPEN');
+    const shown = showClosed ? all : open;
+    return (
+      <section className="cpm-blog-thread-section">
+        <h4 className="cpm-blog-thread-section-title">
+          <i className={`fas ${icon}`} aria-hidden="true" /> {title}
+          <span className="cpm-blog-thread-section-count">
+            {open.length}{all.length > open.length ? ` open · ${all.length - open.length} closed` : ''}
+          </span>
+        </h4>
+        {shown.length === 0
+          ? <p className="cpm-blog-thread-empty">{empty}</p>
+          : shown.map(card)}
+      </section>
+    );
+  };
+
+  if (loading) return <p className="cpm-blog-thread-empty">Loading review threads…</p>;
+
+  if (loadError) {
+    return (
+      <p className="cpm-blog-thread-empty">
+        <i className="fas fa-triangle-exclamation" aria-hidden="true" /> {loadError}{' '}
+        <button type="button" onClick={load}>Retry</button>
+      </p>
+    );
+  }
 
   return (
     <div className="cpm-blog-threads">
-      <div className="cpm-blog-threads-filters">
-        {FILTERS.map((f) => (
-          <button
-            key={f.id}
-            type="button"
-            className={filter === f.id ? 'is-active' : ''}
-            onClick={() => setFilter(f.id)}
-          >
-            {f.label}
-          </button>
-        ))}
-      </div>
+      {section('COMMENT', {
+        icon: 'fa-comment',
+        title: 'Comments',
+        empty: 'No comments. Select text in the post to leave one.',
+      })}
+      {section('SUGGESTION', {
+        icon: 'fa-pen-to-square',
+        title: 'Suggestions',
+        empty: 'No suggestions. Select text to propose an edit, or ask the AI assistant.',
+      })}
 
-      {loading && <p className="cpm-blog-thread-empty">Loading review threads…</p>}
-      {!loading && loadError && (
-        <p className="cpm-blog-thread-empty">
-          <i className="fas fa-triangle-exclamation" aria-hidden="true" /> {loadError}{' '}
-          <button type="button" onClick={load}>Retry</button>
-        </p>
+      {threads.some((t) => t.status !== 'OPEN') && (
+        <button
+          type="button"
+          className="cpm-blog-thread-show-closed"
+          onClick={() => setShowClosed((v) => !v)}
+        >
+          {showClosed ? 'Hide closed' : 'Show closed'}
+        </button>
       )}
-      {!loading && !loadError && shown.length === 0 && (
-        <p className="cpm-blog-thread-empty">
-          Nothing here. Select text in the post to leave a comment or suggest an edit.
-        </p>
-      )}
-      {shown.map((t) => (
-        <BlogThreadCard
-          key={t.id}
-          thread={t}
-          editor={editor}
-          canEdit={canEdit}
-          currentMember={currentMember}
-          onChanged={load}
-        />
-      ))}
     </div>
   );
 }

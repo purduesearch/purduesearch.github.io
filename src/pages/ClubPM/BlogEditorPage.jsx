@@ -118,10 +118,25 @@ export default function BlogEditorPage() {
   const [busyAction, setBusyAction] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [previewMode, setPreviewMode] = useState(false);
-  const [metaPanelOpen, setMetaPanelOpen] = useState(false);
-  const [reviewPanelOpen, setReviewPanelOpen] = useState(false);
-  const [aiPanelOpen, setAiPanelOpen] = useState(false);
+  // One slot, one panel. All three side panels are `.cpm-blog-meta-panel`,
+  // which is `position: fixed` against the same right-hand rectangle, so two
+  // open at once means the later one in DOM order silently covers the other —
+  // opening Review behind an open AI panel looked like the button did nothing.
+  const [openPanel, setOpenPanel] = useState(null); // 'meta' | 'review' | 'ai' | null
+  const metaPanelOpen   = openPanel === 'meta';
+  const reviewPanelOpen = openPanel === 'review';
+  const aiPanelOpen     = openPanel === 'ai';
   const [aiSelection, setAiSelection] = useState('');
+
+  // Leaving the AI panel drops any pending selection, whichever way it closes:
+  // a stale one forces the next open onto the Selection tab.
+  const showPanel = useCallback((id) => {
+    setOpenPanel((current) => {
+      const next = current === id ? null : id;
+      if (next !== 'ai') setAiSelection('');
+      return next;
+    });
+  }, []);
   const [theme, setTheme] = useState(null);
   const [editorInstance, setEditorInstance] = useState(null);
   const [threadsRefreshKey, setThreadsRefreshKey] = useState(0);
@@ -374,7 +389,7 @@ export default function BlogEditorPage() {
             <button
               type="button"
               className={`cpm-blog-tool-btn${metaPanelOpen ? ' is-active' : ''}`}
-              onClick={() => setMetaPanelOpen((v) => !v)}
+              onClick={() => showPanel('meta')}
               title="Card, metadata & SEO"
               aria-label="Card, metadata and SEO"
             >
@@ -383,22 +398,16 @@ export default function BlogEditorPage() {
             <button
               type="button"
               className={`cpm-blog-tool-btn${reviewPanelOpen ? ' is-active' : ''}`}
-              onClick={() => setReviewPanelOpen((v) => !v)}
-              title="Review notes & authors"
-              aria-label="Review notes and authors"
+              onClick={() => showPanel('review')}
+              title="Comments, suggestions & authors"
+              aria-label="Comments, suggestions and authors"
             >
               <i className="fas fa-users-viewfinder" aria-hidden="true" />
             </button>
             <button
               type="button"
               className={`cpm-blog-tool-btn${aiPanelOpen ? ' is-active' : ''}`}
-              onClick={() => {
-                // Closing via the toolbar never runs the panel's onClose, so
-                // clear the pending selection here too — otherwise it stays
-                // truthy and the next open force-lands on the Selection tab.
-                if (aiPanelOpen) setAiSelection('');
-                setAiPanelOpen((v) => !v);
-              }}
+              onClick={() => showPanel('ai')}
               title="AI assistant"
               aria-label="AI assistant"
             >
@@ -470,7 +479,7 @@ export default function BlogEditorPage() {
             docId={id}
             canEditDoc={canEditDoc}
             onThreadsChanged={() => setThreadsRefreshKey((k) => k + 1)}
-            onAskAi={(text) => { setAiSelection(text); setAiPanelOpen(true); }}
+            onAskAi={(text) => { setAiSelection(text); setOpenPanel('ai'); }}
             theme={theme}
             onThemeChange={handleThemeChange}
           />
@@ -489,7 +498,7 @@ export default function BlogEditorPage() {
         post={post}
         title={title}
         isOpen={metaPanelOpen}
-        onClose={() => setMetaPanelOpen(false)}
+        onClose={() => setOpenPanel(null)}
         onUpdate={handleMetaUpdate}
       />
 
@@ -498,7 +507,7 @@ export default function BlogEditorPage() {
           post={post}
           currentMember={member}
           isOpen={reviewPanelOpen}
-          onClose={() => setReviewPanelOpen(false)}
+          onClose={() => setOpenPanel(null)}
           onAuthorsChanged={() => { getBlogPost(id).then(setPost).catch(() => {}); }}
           editor={editorInstance}
           canEdit={canEditDoc}
@@ -512,7 +521,7 @@ export default function BlogEditorPage() {
         docId={id}
         title={title}
         isOpen={aiPanelOpen}
-        onClose={() => { setAiPanelOpen(false); setAiSelection(''); }}
+        onClose={() => { setOpenPanel(null); setAiSelection(''); }}
         initialSelection={aiSelection}
         onThreadsChanged={() => setThreadsRefreshKey((k) => k + 1)}
       />
