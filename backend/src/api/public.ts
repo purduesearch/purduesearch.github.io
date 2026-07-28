@@ -393,7 +393,14 @@ publicRouter.get("/blog-image/:fileId", async (req: Request, res: Response) => {
   const { fileId } = req.params as { fileId: string };
   if (!/^[a-zA-Z0-9_-]{10,}$/.test(fileId)) { res.status(400).end(); return; }
   const file = await streamDriveFile(fileId);
-  if (!file) { res.status(404).end(); return; }
+  if (!file.ok) {
+    // 503, not 404, when Drive itself is the problem: every image on the site
+    // fails together, and the status should say so instead of implying the
+    // post's images were deleted. Never cached — the outage is transient.
+    if (file.reason === "not-found") { res.status(404).end(); return; }
+    res.status(503).json({ error: "Image service unavailable", reason: file.reason, detail: file.detail });
+    return;
+  }
   res.setHeader("Content-Type", file.mimeType);
   res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
   file.stream.on("error", () => { if (!res.headersSent) res.status(502).end(); });
