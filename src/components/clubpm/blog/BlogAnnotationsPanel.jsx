@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import CommentThread from '../CommentThread';
+import BlogThreadList from './BlogThreadList';
 import { get, addBlogAuthor, removeBlogAuthor } from '../../../api/clubPmClient';
 
 // Multi-author manager: add/remove BlogAuthor rows and set each author's role.
@@ -127,7 +128,10 @@ function AuthorsManager({ post, currentMemberId, onAuthorsChanged }) {
 
 // Side panel hosting draft review notes (internal annotations reusing the
 // OutreachComment thread) and the multi-author manager.
-export default function BlogAnnotationsPanel({ post, currentMember, isOpen, onClose, onAuthorsChanged }) {
+export default function BlogAnnotationsPanel({
+  post, currentMember, isOpen, onClose, onAuthorsChanged,
+  editor, canEdit = true, threadsRefreshKey,
+}) {
   const refreshAuthors = useCallback(() => { onAuthorsChanged?.(); }, [onAuthorsChanged]);
 
   if (!isOpen) return null;
@@ -144,6 +148,20 @@ export default function BlogAnnotationsPanel({ post, currentMember, isOpen, onCl
       </div>
 
       <div className="cpm-blog-meta-panel-body">
+        <div className="cpm-blog-meta-field">
+          <h3 className="cpm-blog-authors-title">
+            <i className="fas fa-comments" aria-hidden="true" /> In-text review
+          </h3>
+          <BlogThreadList
+            docType="BLOG_POST"
+            docId={post.id}
+            editor={editor}
+            canEdit={canEdit}
+            currentMember={currentMember}
+            refreshKey={threadsRefreshKey}
+          />
+        </div>
+
         <AuthorsManager post={post} currentMemberId={currentMember?.id} onAuthorsChanged={refreshAuthors} />
 
         <div className="cpm-blog-meta-field">

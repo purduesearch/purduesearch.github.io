@@ -5,6 +5,7 @@ import BlogEditor from '../../components/clubpm/blog/BlogEditor';
 import RevisionHistoryDrawer from '../../components/clubpm/blog/RevisionHistoryDrawer';
 import BlogMetaPanel from '../../components/clubpm/blog/BlogMetaPanel';
 import BlogAnnotationsPanel from '../../components/clubpm/blog/BlogAnnotationsPanel';
+import BlogAiPanel from '../../components/clubpm/blog/BlogAiPanel';
 import BlogPreviewFrame from '../../components/clubpm/blog/BlogPreviewFrame';
 import OrbitLoader from '../../components/OrbitLoader';
 import ApprovalChips from '../../components/clubpm/ApprovalChips';
@@ -119,7 +120,11 @@ export default function BlogEditorPage() {
   const [previewMode, setPreviewMode] = useState(false);
   const [metaPanelOpen, setMetaPanelOpen] = useState(false);
   const [reviewPanelOpen, setReviewPanelOpen] = useState(false);
+  const [aiPanelOpen, setAiPanelOpen] = useState(false);
+  const [aiSelection, setAiSelection] = useState('');
   const [theme, setTheme] = useState(null);
+  const [editorInstance, setEditorInstance] = useState(null);
+  const [threadsRefreshKey, setThreadsRefreshKey] = useState(0);
 
   // Keep the latest editable state in a ref so the debounced autosave always
   // persists current values without re-arming on every keystroke.
@@ -127,6 +132,16 @@ export default function BlogEditorPage() {
   stateRef.current = { title, contentJson };
   const autosaveTimer = useRef(null);
   const editorRef = useRef(null);
+
+  // Who may accept/reject a suggestion or resolve someone else's comment:
+  // the post creator, a listed co-author, or an admin. Mirrors the server's
+  // doc-editor check so the UI does not offer document-destroying actions the
+  // server will refuse.
+  const canEditDoc = !!member?.id && (
+    member.isAdmin
+    || post?.createdById === member.id
+    || (post?.authors ?? []).some((a) => a.memberId === member.id)
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -374,6 +389,21 @@ export default function BlogEditorPage() {
             >
               <i className="fas fa-users-viewfinder" aria-hidden="true" />
             </button>
+            <button
+              type="button"
+              className={`cpm-blog-tool-btn${aiPanelOpen ? ' is-active' : ''}`}
+              onClick={() => {
+                // Closing via the toolbar never runs the panel's onClose, so
+                // clear the pending selection here too — otherwise it stays
+                // truthy and the next open force-lands on the Selection tab.
+                if (aiPanelOpen) setAiSelection('');
+                setAiPanelOpen((v) => !v);
+              }}
+              title="AI assistant"
+              aria-label="AI assistant"
+            >
+              <i className="fas fa-wand-magic-sparkles" aria-hidden="true" />
+            </button>
           </div>
 
           <span className="cpm-blog-header-sep" />
@@ -435,7 +465,12 @@ export default function BlogEditorPage() {
             collabUser={{ id: member?.id, name: member?.displayName }}
             content={contentJson}
             onChange={(json) => { setContentJson(json); setDirty(true); }}
-            onEditorReady={(ed) => { editorRef.current = ed; }}
+            onEditorReady={(ed) => { editorRef.current = ed; setEditorInstance(ed); }}
+            docType="BLOG_POST"
+            docId={id}
+            canEditDoc={canEditDoc}
+            onThreadsChanged={() => setThreadsRefreshKey((k) => k + 1)}
+            onAskAi={(text) => { setAiSelection(text); setAiPanelOpen(true); }}
             theme={theme}
             onThemeChange={handleThemeChange}
           />
@@ -465,8 +500,22 @@ export default function BlogEditorPage() {
           isOpen={reviewPanelOpen}
           onClose={() => setReviewPanelOpen(false)}
           onAuthorsChanged={() => { getBlogPost(id).then(setPost).catch(() => {}); }}
+          editor={editorInstance}
+          canEdit={canEditDoc}
+          threadsRefreshKey={threadsRefreshKey}
         />
       )}
+
+      <BlogAiPanel
+        editor={editorInstance}
+        docType="BLOG_POST"
+        docId={id}
+        title={title}
+        isOpen={aiPanelOpen}
+        onClose={() => { setAiPanelOpen(false); setAiSelection(''); }}
+        initialSelection={aiSelection}
+        onThreadsChanged={() => setThreadsRefreshKey((k) => k + 1)}
+      />
     </div>
   );
 }

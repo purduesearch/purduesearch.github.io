@@ -1,4 +1,4 @@
-import { Node } from "@tiptap/core";
+import { Node, Mark } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
 import TaskList from "@tiptap/extension-task-list";
 import TaskItem from "@tiptap/extension-task-item";
@@ -113,6 +113,24 @@ const CtaNode = Node.create({
   },
 });
 
+// Schema-only mirrors of the review marks defined for the React editor in
+// src/components/clubpm/blog/suggestionMarks.js. @hocuspocus/transformer needs
+// every mark present in the Y.Doc to exist here, or converting the shared doc
+// to TipTap JSON fails and the derived contentJson snapshot breaks.
+// Mark `name` and attributes must stay in sync with the client definitions.
+const reviewMarkMirror = (name: string) => Mark.create({
+  name,
+  inclusive: false,
+  excludes: "",
+  addAttributes() {
+    return { threadId: { default: null } };
+  },
+});
+
+const CommentMarkMirror  = reviewMarkMirror("commentMark");
+const SuggestInsertMirror = reviewMarkMirror("suggestInsert");
+const SuggestDeleteMirror = reviewMarkMirror("suggestDelete");
+
 // Mirrors blogExtensions() in BlogEditor.jsx (schema-relevant subset only —
 // CharacterCount/Placeholder/SearchAndReplace add no nodes/marks so they're
 // omitted here).
@@ -133,5 +151,6 @@ export function blogCollabExtensions() {
     BlogCalloutNode,
     SectionNode, ColumnNode, HeroNode, StatBandNode, CtaNode,
     TableKit.configure({ table: { resizable: true } }),
+    CommentMarkMirror, SuggestInsertMirror, SuggestDeleteMirror,
   ];
 }

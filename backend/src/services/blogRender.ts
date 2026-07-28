@@ -75,9 +75,18 @@ export function slugify(input: string): string {
 
 // ── Text extraction (reading time, excerpts, TOC) ────────────
 
+// Review-aware: a suggestion still pending at publish time publishes as
+// REJECTED, so text carrying `suggestInsert` is a proposal no human approved and
+// is skipped here exactly as renderNode skips it. `suggestDelete` text is kept —
+// the removal was only proposed, so the original wording stands. Every caller
+// (TOC labels, heading anchor ids, collectHeadings, blogService's deriveExcerpt,
+// reading time) publishes its result, so all of them want the last approved text.
+// Detection is by mark *type name*, never by the rendered tag attribute — the
+// attribute spelling (`data-suggest-ins`) is a client rendering detail.
 export function extractText(node: PMNode | PMDoc): string {
   const anyNode = node as PMNode;
   let out = "";
+  if (anyNode.marks?.some((m) => m.type === "suggestInsert")) return "";
   if (anyNode.text) out += anyNode.text;
   if (anyNode.content) {
     for (const child of anyNode.content) {
@@ -102,6 +111,13 @@ export function collectHeadings(
   const walk = (node: PMNode) => {
     if (node.type === "heading") {
       const text = extractText(node).trim();
+      // A heading that is entirely a pending insertion has no approved text, so
+      // it is not published at all — it must not consume a slug here either, or
+      // later headings would pick up spurious `-1` suffixes. See renderNode.
+      if (!text) {
+        node.content?.forEach(walk);
+        return;
+      }
       let id = slugify(text);
       const n = seen.get(id) ?? 0;
       seen.set(id, n + 1);
@@ -180,6 +196,20 @@ function wrapMarks(text: string, marks?: PMMark[]): string {
           : `<mark>${out}</mark>`;
         break;
       }
+      // ── Review-only marks (see suggestionMarks.js) ──────────
+      // These exist for in-editor review and must never reach the public site.
+      // A pending suggestion publishes as REJECTED: the reader sees exactly the
+      // last human-approved text.
+      // commentMark / suggestDelete: keep the text, drop the annotation. The
+      // deletion was proposed, never accepted, so the original wording stands.
+      case "commentMark":
+      case "suggestDelete":
+        break;
+      // suggestInsert: the proposed replacement was never accepted, so the text
+      // itself is dropped in renderNode below — a mark handler can only wrap
+      // text, not remove it.
+      case "suggestInsert":
+        break;
       default:
         break;
     }
@@ -199,7 +229,14 @@ function buildHeadingIdMap(doc: PMDoc): Map<PMNode, string> {
   const seen = new Map<string, number>();
   const walk = (node: PMNode) => {
     if (node.type === "heading") {
-      let id = slugify(extractText(node).trim());
+      const text = extractText(node).trim();
+      // Skipped headings (entirely a pending insertion) are never rendered, so
+      // they claim no id and shift no later heading's `-1` suffix.
+      if (!text) {
+        node.content?.forEach(walk);
+        return;
+      }
+      let id = slugify(text);
       const n = seen.get(id) ?? 0;
       seen.set(id, n + 1);
       if (n > 0) id = `${id}-${n}`;
@@ -211,13 +248,42 @@ function buildHeadingIdMap(doc: PMDoc): Map<PMNode, string> {
   return map;
 }
 
+// True when a block had content but every bit of it is text carrying a pending
+// `suggestInsert` — i.e. the block exists only because of an unaccepted
+// proposal, so publishing it would leave an empty element behind. Detection is
+// by mark *type name*, never by the rendered tag attribute.
+function emptiedByPendingInsert(node: PMNode): boolean {
+  const kids = node.content ?? [];
+  if (kids.length === 0) return false;
+  // Recurses so a list item whose only paragraph was emptied is itself omitted.
+  return kids.every((c) =>
+    c.type === "text"
+      ? Boolean(c.marks?.some((m) => m.type === "suggestInsert"))
+      : emptiedByPendingInsert(c)
+  );
+}
+
 function renderNode(node: PMNode, headingIds: Map<PMNode, string>): string {
   switch (node.type) {
-    case "text":
+    case "text": {
+      // A suggestion still pending at publish time must not publish its proposed
+      // replacement — no human approved it.
+      if (node.marks?.some((m) => m.type === "suggestInsert")) return "";
       return wrapMarks(escapeHtml(node.text ?? ""), node.marks);
-    case "paragraph":
-      return `<p>${renderChildren(node, headingIds)}</p>`;
+    }
+    case "paragraph": {
+      const inner = renderChildren(node, headingIds);
+      // A block whose entire content was a pending insertion renders empty; emit
+      // nothing rather than a stray `<p></p>`. A paragraph that was authored
+      // empty (no content at all) still publishes as before.
+      if (!inner && emptiedByPendingInsert(node)) return "";
+      return `<p>${inner}</p>`;
+    }
     case "heading": {
+      // Entirely a pending insertion → no approved text → not published at all.
+      // buildHeadingIdMap/collectHeadings skip it in lockstep, so it produces no
+      // blank TOC row and no `id="post"` fallback anchor.
+      if (!extractText(node).trim()) return "";
       const level = Math.min(6, Math.max(1, Number(node.attrs?.level ?? 1)));
       const id = headingIds.get(node) ?? slugify(extractText(node).trim());
       return `<h${level} id="${escapeAttr(id)}">${renderChildren(node, headingIds)}</h${level}>`;
@@ -234,8 +300,11 @@ function renderNode(node: PMNode, headingIds: Map<PMNode, string>): string {
       const start = node.attrs?.start && Number(node.attrs.start) !== 1 ? ` start="${Number(node.attrs.start)}"` : "";
       return `<ol${start}>${renderChildren(node, headingIds)}</ol>`;
     }
-    case "listItem":
-      return `<li>${renderChildren(node, headingIds)}</li>`;
+    case "listItem": {
+      const inner = renderChildren(node, headingIds);
+      if (!inner && emptiedByPendingInsert(node)) return "";
+      return `<li>${inner}</li>`;
+    }
     case "taskList":
       return `<ul class="cpm-blog-task-list">${renderChildren(node, headingIds)}</ul>`;
     case "taskItem": {
@@ -368,6 +437,13 @@ function renderToc(doc: PMDoc, headingIds: Map<PMNode, string>): string {
   const items: string[] = [];
   const walk = (node: PMNode) => {
     if (node.type === "heading") {
+      // Headings that are entirely a pending insertion are not published, so
+      // they get no TOC row (they are absent from headingIds for the same
+      // reason) — otherwise the TOC would show a blank clickable entry.
+      if (!extractText(node).trim()) {
+        node.content?.forEach(walk);
+        return;
+      }
       const id = headingIds.get(node) ?? slugify(extractText(node).trim());
       const level = Math.min(6, Math.max(1, Number(node.attrs?.level ?? 1)));
       items.push(

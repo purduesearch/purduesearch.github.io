@@ -48,6 +48,8 @@ import { blockersRouter } from "./api/blockers.js";
 import { vaultRouter } from "./api/vault.js";
 import { changeRequestsRouter } from "./api/changeRequests.js";
 import { blogRouter } from "./api/blog.js";
+import { blogThreadsRouter } from "./api/blogThreads.js";
+import { blogAiRouter } from "./api/blogAi.js";
 import { attachBlogCollab } from "./collab/blogCollab.js";
 import { attachPressKitCollab } from "./collab/pressKitCollab.js";
 
@@ -132,6 +134,8 @@ app.use("/api/meeting-polls", meetingPollsRouter);
 app.use("/api/outreach", outreachRouter);
 app.use("/api", pressKitRouter);
 app.use("/api/blog", blogRouter);
+app.use("/api/blog", blogThreadsRouter);
+app.use("/api/blog", blogAiRouter);
 app.use("/api/outreach/assets", assetsRouter);
 app.use("/api/outreach/brand-voices", brandVoicesRouter);
 app.use("/api/outreach/campaigns", campaignsRouter);

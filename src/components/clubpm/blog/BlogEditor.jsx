@@ -28,6 +28,9 @@ import BlogSnippetManager from './BlogSnippetManager';
 import BlogSectionLibrary from './BlogSectionLibrary';
 import BlogSectionSettings from './BlogSectionSettings';
 import BlogThemeBar from './BlogThemeBar';
+import BlogSelectionBubble from './BlogSelectionBubble';
+import { suggestionExtensions } from './suggestionMarks';
+import BlogAutocomplete from './blogAutocomplete';
 import { docToMarkdown, markdownToDoc } from './blogMarkdown';
 import { getBlogCollabWsUrl, getStoredToken } from '../../../api/clubPmClient';
 import { shouldFallbackSeed } from '../../../lib/collabFallback';
@@ -49,7 +52,7 @@ const LinkShortcut = Extension.create({
 // collaborative editing (see backend/src/collab/blogCollab.ts) — this
 // disables StarterKit's own undo/redo since Collaboration provides its
 // own Yjs-based history instead.
-export function blogExtensions(collab) {
+export function blogExtensions(collab, autocomplete) {
   return [
     StarterKit.configure({
       heading: { levels: [1, 2, 3, 4, 5, 6] },
@@ -78,6 +81,12 @@ export function blogExtensions(collab) {
     TableKit.configure({ table: { resizable: true } }),
     SearchAndReplace.configure({ disableRegex: true }),
     LinkShortcut,
+    ...suggestionExtensions(),
+    BlogAutocomplete.configure({
+      docType: autocomplete?.docType ?? 'BLOG_POST',
+      docId: autocomplete?.docId ?? null,
+      enabled: !!autocomplete?.enabled,
+    }),
     ...(collab ? [
       Collaboration.configure({ document: collab.document }),
       CollaborationCaret.configure({ provider: collab.provider, user: collab.user }),
@@ -468,8 +477,15 @@ function PresenceBar({ synced, connected, peers }) {
  * @param {string}   postId      when set, enables realtime co-editing via the Hocuspocus collab
  *                                 server for this post (see backend/src/collab/blogCollab.ts)
  * @param {object}   collabUser  { id, name } of the current member, used for cursor presence
+ * @param {string}  docType   'BLOG_POST' | 'PRESS_KIT' — which review-thread namespace this editor uses
+ * @param {string}  docId     id within that namespace; falls back to postId for blog posts
+ * @param {boolean} canEditDoc  false for reviewers — hides Accept/Reject and the AI entry points
  */
-export default function BlogEditor({ content, onChange, editable = true, onEditorReady, postId, collabUser, collabWsUrl, theme, onThemeChange }) {
+export default function BlogEditor({
+  content, onChange, editable = true, onEditorReady, postId, collabUser, collabWsUrl,
+  theme, onThemeChange, docType = 'BLOG_POST', docId, canEditDoc = true,
+  onAskAi, onThreadsChanged,
+}) {
   const [showFind, setShowFind] = React.useState(false);
   const [showSnippets, setShowSnippets] = React.useState(false);
   const [showSecLib, setShowSecLib] = React.useState(false);
@@ -497,6 +513,8 @@ export default function BlogEditor({ content, onChange, editable = true, onEdito
   const [peers, setPeers] = React.useState([]);
   const [markdownMode, setMarkdownMode] = React.useState(false);
   const [markdownText, setMarkdownText] = React.useState('');
+  // Review-thread doc id: callers that only pass `postId` keep working.
+  const reviewDocId = docId ?? postId;
   // Collapsed by default on narrow viewports so the toolbar doesn't push the
   // title/body below the fold; users can still expand it with the chevron.
   const [toolbarOpen, setToolbarOpen] = React.useState(() => (typeof window === 'undefined' || window.innerWidth > 640));
@@ -566,11 +584,15 @@ export default function BlogEditor({ content, onChange, editable = true, onEdito
       document: collab.document,
       provider: collab.provider,
       user: { name: collabUser?.name || 'Anonymous', color: colorForMember(collabUser?.id) },
-    } : null),
+    } : null, {
+      docType,
+      docId: reviewDocId,
+      enabled: canEditDoc && editable,
+    }),
     content: collab ? undefined : (content ?? { type: 'doc', content: [{ type: 'paragraph' }] }),
     editable,
     onUpdate: ({ editor: ed }) => { onChange?.(ed.getJSON()); },
-  }, [collab]);
+  }, [collab, reviewDocId, docType, canEditDoc, editable]);
 
   // ── Fallback content seeding ──────────────────────────────────
   // In collab mode the editor starts from the shared Yjs doc, which the
@@ -655,6 +677,7 @@ export default function BlogEditor({ content, onChange, editable = true, onEdito
     { id: 'blog.link', keys: 'Ctrl/⌘+K', scope: 'page', pageId: 'Blog Editor', description: 'Add/edit link', action: () => setLink(editor) },
     { id: 'blog.undo', keys: 'Ctrl/⌘+Z', scope: 'page', pageId: 'Blog Editor', description: 'Undo', action: () => editor?.chain().focus().undo().run() },
     { id: 'blog.redo', keys: 'Ctrl/⌘+Shift+Z', scope: 'page', pageId: 'Blog Editor', description: 'Redo', action: () => editor?.chain().focus().redo().run() },
+    { id: 'blog.autocomplete', keys: 'Ctrl/⌘+\\', scope: 'page', pageId: 'Blog Editor', description: 'AI autocomplete (Tab to accept)', action: () => {} },
     { id: 'blog.save', keys: 'Ctrl/⌘+S', scope: 'page', pageId: 'Blog Editor', description: 'Save draft', action: () => {} },
   ]);
 
@@ -712,6 +735,16 @@ export default function BlogEditor({ content, onChange, editable = true, onEdito
           style={{ '--post-accent': theme?.accent || 'var(--pm-accent-teal)' }}
         >
           <EditorContent editor={editor} />
+          {editable && reviewDocId && (
+            <BlogSelectionBubble
+              editor={editor}
+              docType={docType}
+              docId={reviewDocId}
+              canEdit={canEditDoc}
+              onThreadCreated={() => onThreadsChanged?.()}
+              onAskAi={(text) => onAskAi?.(text)}
+            />
+          )}
         </div>
       )}
       <div className="cpm-blog-editor-footer">

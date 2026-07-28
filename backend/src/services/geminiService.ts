@@ -52,6 +52,32 @@ async function complexRateLimitedCall<T>(fn: () => Promise<T>): Promise<T> {
   return fn();
 }
 
+// ── Fast model (inline autocomplete) ─────────────────────────
+// Its own lane so autocomplete can never eat the standard model's 30 RPM
+// budget, which every other AI feature and cron shares. Defaults to
+// GEMINI_MODEL when GEMINI_FAST_MODEL is unset, so nothing breaks unconfigured.
+
+function fastModel() {
+  return genai.getGenerativeModel({
+    model: process.env.GEMINI_FAST_MODEL ?? process.env.GEMINI_MODEL!,
+  });
+}
+
+const FAST_WINDOW_MS   = 60_000;
+const FAST_MAX_REQUESTS = 15;
+const fastRequestLog: number[] = [];
+
+async function fastRateLimitedCall<T>(fn: () => Promise<T>): Promise<T> {
+  const now = Date.now();
+  const windowStart = now - FAST_WINDOW_MS;
+  while (fastRequestLog.length && fastRequestLog[0] < windowStart) fastRequestLog.shift();
+  if (fastRequestLog.length >= FAST_MAX_REQUESTS) {
+    throw new GeminiRateLimitError();
+  }
+  fastRequestLog.push(Date.now());
+  return fn();
+}
+
 // ── Response cache ─────────────────────────────────────────────
 
 const cache = new Map<string, { value: string; expires: number }>();
@@ -211,6 +237,27 @@ export async function generateTextComplex(prompt: string, cacheKey?: string): Pr
     return text;
   } catch (err) {
     console.error("[gemini] generateTextComplex error:", err);
+    return "";
+  }
+}
+
+/**
+ * Short, low-latency completion for inline autocomplete. Deliberately
+ * uncached — a completion is specific to one caret position.
+ * Returns "" on any failure so the editor simply shows no ghost text.
+ */
+export async function generateTextFast(prompt: string): Promise<string> {
+  try {
+    const result = await fastRateLimitedCall(() =>
+      fastModel().generateContent({
+        contents:         [{ role: "user", parts: [{ text: prompt }] }],
+        generationConfig: { maxOutputTokens: 64, temperature: 0.4 },
+      })
+    );
+    return result.response.text().trim();
+  } catch (err) {
+    if (err instanceof GeminiRateLimitError) throw err;
+    console.error("[gemini] generateTextFast error:", err);
     return "";
   }
 }

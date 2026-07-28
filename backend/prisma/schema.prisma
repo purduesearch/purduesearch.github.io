@@ -118,6 +118,24 @@ enum NotificationType {
   MEETING_POLL_INVITE
   MEETING_POLL_FINALIZED
   MEETING_POLL_REMINDER
+  BLOG_COMMENTED
+}
+
+enum BlogThreadKind {
+  COMMENT
+  SUGGESTION
+}
+
+enum BlogThreadStatus {
+  OPEN
+  RESOLVED
+  ACCEPTED
+  REJECTED
+}
+
+enum BlogThreadOrigin {
+  HUMAN
+  AI
 }
 
 // ── Models ───────────────────────────────────────────────────
@@ -176,6 +194,8 @@ model Member {
   blogSnippets            BlogSnippet[]        @relation("BlogSnippetCreator")
   pressKitsCreated        ProjectPressKit[]    @relation("PressKitCreator")
   pressKitRevisions       PressKitRevision[]   @relation("PressKitRevisionAuthor")
+  blogThreadsCreated      BlogThread[]         @relation("BlogThreadCreator")
+  blogThreadComments      BlogThreadComment[]  @relation("BlogThreadCommenter")
 
   // ── GitHub OAuth (per-member) ──
   // Access/refresh tokens are AES-GCM encrypted at rest (see backend/src/utils/crypto.ts).
@@ -933,6 +953,7 @@ model BlogPost {
   tags        BlogTag[]         @relation("BlogPostTags")
   categories  BlogCategory[]    @relation("BlogPostCategories")
   annotations OutreachComment[] @relation("BlogPostAnnotations")
+  threads     BlogThread[]
 
   @@index([status])
   @@index([slug])
@@ -987,6 +1008,46 @@ model BlogSnippet {
   updatedAt   DateTime @updatedAt
 }
 
+model BlogThread {
+  id           String           @id @default(cuid())
+  // Exactly one of postId / pressKitId is set — enforced in blogThreadService.
+  postId       String?
+  post         BlogPost?        @relation(fields: [postId], references: [id], onDelete: Cascade)
+  pressKitId   String?
+  pressKit     ProjectPressKit? @relation(fields: [pressKitId], references: [id], onDelete: Cascade)
+  kind         BlogThreadKind
+  status       BlogThreadStatus @default(OPEN)
+  origin       BlogThreadOrigin @default(HUMAN)
+  // Snapshot of the quoted text. The marks in the Y.Doc are the live anchor;
+  // this lets an orphaned thread still show what it referred to.
+  anchorText   String
+  replaceWith  String? // SUGGESTION only: the proposal, denormalised for panel display
+  rationale    String? // AI's stated reason, shown on the card
+  createdById  String
+  createdBy    Member           @relation("BlogThreadCreator", fields: [createdById], references: [id])
+  resolvedById String?
+  resolvedAt   DateTime?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  comments     BlogThreadComment[]
+
+  @@index([postId, status])
+  @@index([pressKitId, status])
+}
+
+model BlogThreadComment {
+  id        String     @id @default(cuid())
+  threadId  String
+  thread    BlogThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    Member     @relation("BlogThreadCommenter", fields: [authorId], references: [id])
+  body      String
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  @@index([threadId, createdAt])
+}
+
 enum PressKitStatus {
   DRAFT
   PUBLISHED
@@ -1008,6 +1069,7 @@ model ProjectPressKit {
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
   revisions    PressKitRevision[]
+  threads      BlogThread[]
 }
 
 model PressKitRevision {
