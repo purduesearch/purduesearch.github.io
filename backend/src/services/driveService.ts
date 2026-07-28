@@ -321,28 +321,57 @@ export async function deleteDriveFile(fileId: string): Promise<boolean> {
   }
 }
 
+export type DriveStreamResult =
+  | { ok: true; stream: Readable; mimeType: string }
+  // "not-connected": no bot credential, or its refresh token won't decrypt
+  //   (INTEGRATION_TOKEN_KEY changed) — nothing on Drive is reachable.
+  // "unauthorized": the credential exists but Google rejected it (revoked or
+  //   expired refresh token, or the OAuth client id/secret was rotated).
+  // "not-found": Drive itself says this one file is gone.
+  // "drive-error": anything else (Drive 5xx, network, a DB read that failed).
+  | { ok: false; reason: "not-connected" | "unauthorized" | "not-found" | "drive-error"; detail?: string };
+
 /**
- * Stream a Drive file's raw bytes (for the public image proxy). Returns the
- * readable stream + mime type, or null if Drive is unavailable / the id is bad.
+ * Stream a Drive file's raw bytes (for the public image proxy).
+ *
+ * The reason is reported rather than collapsed into a bare null: a broken bot
+ * credential takes out *every* blog image at once, and when that is served as
+ * a plain 404 it is indistinguishable from a deleted file — which is exactly
+ * what made a site-wide cover/carousel image outage hard to place.
  */
-export async function streamDriveFile(
-  fileId: string
-): Promise<{ stream: Readable; mimeType: string } | null> {
+// Never throws: the caller is an Express 4 async route handler, where a
+// rejected promise hangs the request instead of returning an error.
+export async function streamDriveFile(fileId: string): Promise<DriveStreamResult> {
   try {
     const drive = await getBotDrive();
-    if (!drive) return null;
+    if (!drive) {
+      const cred = await prisma.googleDriveCredential.findUnique({ where: { id: "singleton" } });
+      const detail = !cred
+        ? "no Google Drive bot account is connected (visit /auth/google to connect one)"
+        : "the stored refresh token could not be decrypted — check INTEGRATION_TOKEN_KEY";
+      console.error("[driveService] streamDriveFile: Drive unavailable —", detail);
+      return { ok: false, reason: "not-connected", detail };
+    }
     const meta = await drive.files.get({ fileId, fields: "mimeType" });
-    const resp = await drive.files.get(
-      { fileId, alt: "media" },
-      { responseType: "stream" }
-    );
+    const resp = await drive.files.get({ fileId, alt: "media" }, { responseType: "stream" });
     return {
+      ok: true,
       stream: resp.data as unknown as Readable,
       mimeType: meta.data.mimeType ?? "application/octet-stream",
     };
   } catch (err) {
-    console.error("[driveService] streamDriveFile error:", err);
-    return null;
+    const status = (err as { code?: number; status?: number })?.code
+      ?? (err as { response?: { status?: number } })?.response?.status;
+    console.error(`[driveService] streamDriveFile(${fileId}) failed (status ${status ?? "n/a"}):`, err);
+    if (status === 404) return { ok: false, reason: "not-found" };
+    if (status === 401 || status === 403) {
+      return {
+        ok: false,
+        reason: "unauthorized",
+        detail: `Google rejected the bot credential (status ${status}) — reconnect Drive at /auth/google`,
+      };
+    }
+    return { ok: false, reason: "drive-error", detail: `status ${status ?? "n/a"}` };
   }
 }
 
