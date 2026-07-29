@@ -465,6 +465,66 @@ export function getPressKitCollabWsUrl() {
   return `${origin.replace(/^http/, 'ws')}/collab/presskit`;
 }
 
+// ── Courses (Outreach → Courses) ─────────────────────────────
+export const listCourses    = ()        => get('/api/outreach/courses');
+export const getCourse      = (id)      => get(`/api/outreach/courses/${id}`);
+export const createCourse   = (data)    => post('/api/outreach/courses', data);
+export const updateCourse   = (id, data) => patch(`/api/outreach/courses/${id}`, data);
+export const publishCourse  = (id)      => post(`/api/outreach/courses/${id}/publish`, {});
+export const archiveCourse  = (id)      => post(`/api/outreach/courses/${id}/archive`, {});
+export const deleteCourse   = (id)      => del(`/api/outreach/courses/${id}`);
+
+export const createCourseSection  = (courseId, data)      => post(`/api/outreach/courses/${courseId}/sections`, data);
+export const updateCourseSection  = (sectionId, data)     => patch(`/api/outreach/courses/sections/${sectionId}`, data);
+export const deleteCourseSection  = (sectionId)           => del(`/api/outreach/courses/sections/${sectionId}`);
+export const reorderCourseSections = (courseId, orderedIds) => put(`/api/outreach/courses/${courseId}/sections/order`, { orderedIds });
+
+export const listCourseQuestions   = (sectionId)            => get(`/api/outreach/courses/sections/${sectionId}/questions`);
+// `scope` bounds which family of questions the whole-set replace may delete:
+// 'quiz' = untimed only, 'popup' = in-video only, 'all' = both. The quiz editor
+// only ever loads untimed questions, so without a scope its save would delete
+// the section's in-video pop-ups as collateral.
+export const replaceCourseQuestions = (sectionId, questions, scope = 'all') =>
+  put(`/api/outreach/courses/sections/${sectionId}/questions`, { questions, scope });
+export const saveCourseQuestion    = (sectionId, question)  => post(`/api/outreach/courses/sections/${sectionId}/questions`, question);
+export const deleteCourseQuestion  = (sectionId, questionId) => del(`/api/outreach/courses/sections/${sectionId}/questions/${questionId}`);
+
+// Learner-side. The server clamps `positionSec` against wall-clock × max rate,
+// so a fabricated jump is rejected there — these are the UX half of the lock.
+export const recordCourseVideoProgress = (sectionId, positionSec) =>
+  post(`/api/outreach/courses/sections/${sectionId}/video-progress`, { positionSec });
+export const answerCoursePopup = (sectionId, questionId, answerIds) =>
+  post(`/api/outreach/courses/sections/${sectionId}/popup-answer`, { questionId, answerIds });
+
+// The gated learner payload. Locked sections arrive WITHOUT `contentJson` /
+// `videoConfig` — the player trusts that omission rather than re-deriving the gate.
+// `preview` is honoured server-side for the author/admin only: every section
+// unlocked, and no enrollment created.
+export const getLearnerCourse = (slug, { preview = false } = {}) =>
+  get(`/api/outreach/courses/${slug}/learn${preview ? '?preview=1' : ''}`);
+// Completion responses carry the reward envelope (xpDelta / progressMilestones /
+// achievementUnlocks), so `handleResponse` fires RewardFlux and the quest toasts
+// with no extra wiring on the page.
+export const completeCourseSection = (sectionId) =>
+  post(`/api/outreach/courses/sections/${sectionId}/complete`, {});
+export const submitCourseQuiz = (sectionId, responses) =>
+  post(`/api/outreach/courses/sections/${sectionId}/quiz/attempts`, { responses });
+
+export const assignCourse = (courseId, memberIds, dueDate = null) =>
+  post(`/api/outreach/courses/${courseId}/assign`, { memberIds, dueDate });
+
+// Admin reporting (author-or-admin for the first two; admin-or-self for the third).
+export const getCourseProgress     = (courseId) => get(`/api/outreach/courses/${courseId}/progress`);
+export const getCourseQuizAnalysis = (courseId) => get(`/api/outreach/courses/${courseId}/quiz-analysis`);
+export const getMemberCourseProgress = (memberId) => get(`/api/outreach/courses/progress/member/${memberId}`);
+
+// ws(s):// base for the course-section Hocuspocus namespace (backend/src/collab/courseCollab.ts).
+// The Yjs document name is a CourseSection.id.
+export function getCourseCollabWsUrl() {
+  const origin = BASE_URL || window.location.origin;
+  return `${origin.replace(/^http/, 'ws')}/collab/course`;
+}
+
 // ── Meeting scheduler (when2meet availability polls) ─────────
 
 export const listMeetingPolls = (params = {}) => {

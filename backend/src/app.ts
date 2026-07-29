@@ -32,6 +32,7 @@ import { brandVoicesRouter } from "./api/brandVoices.js";
 import { campaignsRouter } from "./api/campaigns.js";
 import { contactsRouter } from "./api/contacts.js";
 import { insightsRouter } from "./api/insights.js";
+import { coursesRouter } from "./api/courses.js";
 import { publicRouter } from "./api/public.js";
 import { githubAuthRouter } from "./api/githubAuth.js";
 import { googleAuthRouter } from "./api/googleAuth.js";
@@ -52,6 +53,7 @@ import { blogThreadsRouter } from "./api/blogThreads.js";
 import { blogAiRouter } from "./api/blogAi.js";
 import { attachBlogCollab } from "./collab/blogCollab.js";
 import { attachPressKitCollab } from "./collab/pressKitCollab.js";
+import { attachCourseCollab } from "./collab/courseCollab.js";
 
 // ── Express Setup ────────────────────────────────────────────
 
@@ -141,6 +143,7 @@ app.use("/api/outreach/brand-voices", brandVoicesRouter);
 app.use("/api/outreach/campaigns", campaignsRouter);
 app.use("/api/outreach/contacts", contactsRouter);
 app.use("/api/outreach/insights", insightsRouter);
+app.use("/api/outreach/courses", coursesRouter);
 app.use("/api/rewards", rewardsRouter);
 app.use("/api/event-config", eventConfigRouter);
 app.use("/api/leaderboard", leaderboardRouter);
@@ -198,6 +201,9 @@ async function start(): Promise<void> {
 
     attachPressKitCollab(server);
     console.log("🤝 Press kit collab (Hocuspocus) attached at /collab/presskit");
+
+    attachCourseCollab(server);
+    console.log("🤝 Course collab (Hocuspocus) attached at /collab/course");
 
     server.on("error", (err: NodeJS.ErrnoException) => {
       if (err.code === "EADDRINUSE") {

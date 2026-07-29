@@ -8,7 +8,7 @@ import { notifyThreadActivity } from "../services/blogThreadNotify.js";
 export const blogThreadsRouter = Router();
 blogThreadsRouter.use(requireAuth);
 
-const DOC_TYPES: DocType[] = ["BLOG_POST", "PRESS_KIT"];
+const DOC_TYPES: DocType[] = ["BLOG_POST", "PRESS_KIT", "COURSE_SECTION"];
 
 /**
  * Any authenticated member may read and comment on a draft — that is what makes
