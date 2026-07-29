@@ -697,23 +697,29 @@ export default function BlogEditor({
   const chars = editor?.storage.characterCount.characters() ?? 0;
 
   return (
-    <div className="cpm-blog-editor">
-      <div className="cpm-blog-toolbar-row">
-        <Toolbar
-          editor={editor}
-          onToggleFind={() => setShowFind((s) => !s)}
-          onToggleSnippets={() => setShowSnippets(true)}
-          onAddSection={() => setShowSecLib(true)}
-          onToggleMarkdown={toggleMarkdown}
-          markdownMode={markdownMode}
-          onShowShortcuts={() => shortcutsRegistry?.setShowHelp(true)}
-          toolbarOpen={toolbarOpen}
-          onToggleToolbarOpen={() => setToolbarOpen((v) => !v)}
-          theme={theme}
-          onThemeChange={onThemeChange}
-        />
-        {collab && <PresenceBar synced={synced} connected={connected} peers={peers} />}
-      </div>
+    <div className={`cpm-blog-editor${editable ? '' : ' is-readonly'}`}>
+      {/* Read-only hosts (the course player renders section prose this way, so a
+          second renderer never has to track blogRender.ts) get the document
+          only. The formatting bands are inert without an editable editor, and
+          the Markdown toggle is not — a reader must not be offered either. */}
+      {editable && (
+        <div className="cpm-blog-toolbar-row">
+          <Toolbar
+            editor={editor}
+            onToggleFind={() => setShowFind((s) => !s)}
+            onToggleSnippets={() => setShowSnippets(true)}
+            onAddSection={() => setShowSecLib(true)}
+            onToggleMarkdown={toggleMarkdown}
+            markdownMode={markdownMode}
+            onShowShortcuts={() => shortcutsRegistry?.setShowHelp(true)}
+            toolbarOpen={toolbarOpen}
+            onToggleToolbarOpen={() => setToolbarOpen((v) => !v)}
+            theme={theme}
+            onThemeChange={onThemeChange}
+          />
+          {collab && <PresenceBar synced={synced} connected={connected} peers={peers} />}
+        </div>
+      )}
       {showFind && !markdownMode && <FindBar editor={editor} onClose={() => setShowFind(false)} />}
       {showSnippets && !markdownMode && <BlogSnippetManager editor={editor} onClose={() => setShowSnippets(false)} />}
       {showSecLib && !markdownMode && <BlogSectionLibrary editor={editor} onClose={() => setShowSecLib(false)} />}
@@ -748,11 +754,13 @@ export default function BlogEditor({
           )}
         </div>
       )}
-      <div className="cpm-blog-editor-footer">
-        <span>{words} words</span>
-        <span>{chars} characters</span>
-        {markdownMode && <span className="cpm-blog-markdown-hint">Editing raw Markdown — switch back to rich text to continue formatting. Fonts, sizes, colours and highlights are not represented in Markdown and will be lost on switching back.</span>}
-      </div>
+      {editable && (
+        <div className="cpm-blog-editor-footer">
+          <span>{words} words</span>
+          <span>{chars} characters</span>
+          {markdownMode && <span className="cpm-blog-markdown-hint">Editing raw Markdown — switch back to rich text to continue formatting. Fonts, sizes, colours and highlights are not represented in Markdown and will be lost on switching back.</span>}
+        </div>
+      )}
     </div>
   );
 }

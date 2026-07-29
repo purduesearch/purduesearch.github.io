@@ -20,6 +20,7 @@ import ActivityFeedSidebar from '../../components/clubpm/ActivityFeedSidebar';
 import useKeyboardShortcuts from '../../hooks/useKeyboardShortcuts';
 import OutreachSearch from '../../components/clubpm/OutreachSearch';
 import BlogTab from '../../components/clubpm/BlogTab';
+import CoursesTab from '../../components/clubpm/courses/CoursesTab';
 import toast from 'react-hot-toast';
 
 // ── Constants ─────────────────────────────────────────────────
@@ -764,6 +765,7 @@ export default function OutreachHub() {
     { id: 'outreach.tab.4',  keys: '4', scope: 'page', pageId: 'Outreach', description: 'Campaigns tab',       action: () => setActiveTab('campaigns') },
     { id: 'outreach.tab.5',  keys: '5', scope: 'page', pageId: 'Outreach', description: 'CRM tab',             action: () => setActiveTab('crm') },
     { id: 'outreach.tab.6',  keys: '6', scope: 'page', pageId: 'Outreach', description: 'Insights tab',        action: () => setActiveTab('insights') },
+    { id: 'outreach.tab.7',  keys: '7', scope: 'page', pageId: 'Outreach', description: 'Courses tab',         action: () => setActiveTab('courses') },
   ]);
 
   const handleSave = async (payload) => {
@@ -833,6 +835,7 @@ export default function OutreachHub() {
     { id: 'crm',             label: 'CRM',             icon: 'fas fa-address-book' },
     { id: 'blog',            label: 'Blog',            icon: 'fas fa-newspaper' },
     { id: 'insights',        label: 'Insights',        icon: 'fas fa-chart-line' },
+    { id: 'courses',         label: 'Courses',         icon: 'fas fa-graduation-cap' },
   ];
 
   if (loading) {
@@ -948,6 +951,9 @@ export default function OutreachHub() {
         {activeTab === 'blog' && <BlogTab />}
         {activeTab === 'insights' && (
           <InsightsTab submissions={submissions} isAdmin={!!member?.isAdmin} />
+        )}
+        {activeTab === 'courses' && (
+          <CoursesTab isAdmin={!!member?.isAdmin} currentMemberId={member?.id} />
         )}
       </div>
 

@@ -55,6 +55,8 @@ const CalendarPage           = lazy(lazyWithClubPmTheme(() => import('./pages/Cl
 const AdminView              = lazy(lazyWithClubPmTheme(() => import('./pages/ClubPM/AdminView')));
 const OutreachHub            = lazy(lazyWithClubPmTheme(() => import('./pages/ClubPM/OutreachHub')));
 const BlogEditorPage         = lazy(lazyWithClubPmTheme(() => import('./pages/ClubPM/BlogEditorPage')));
+const CourseEditorPage       = lazy(lazyWithClubPmTheme(() => import('./pages/ClubPM/CourseEditorPage')));
+const CoursePlayerPage       = lazy(lazyWithClubPmTheme(() => import('./pages/ClubPM/CoursePlayerPage')));
 const ClubPmProfile  = lazy(lazyWithClubPmTheme(() => import('./pages/ClubPM/Profile')));
 const ClubPmShop     = lazy(lazyWithClubPmTheme(() => import('./pages/ClubPM/Shop')));
 const ChallengesPage = lazy(lazyWithClubPmTheme(() => import('./pages/ClubPM/ChallengesPage')));
@@ -110,6 +112,8 @@ function AnimatedRoutes() {
             <Route path="/clubpm/meeting-notes" element={<Navigate to="/clubpm/admin" replace />} />
             <Route path="/clubpm/outreach" element={<ClubPmProtectedPage><OutreachHub /></ClubPmProtectedPage>} />
             <Route path="/clubpm/outreach/blog/:id/edit" element={<ClubPmProtectedPage><BlogEditorPage /></ClubPmProtectedPage>} />
+            <Route path="/clubpm/outreach/courses/:id/edit" element={<ClubPmProtectedPage><CourseEditorPage /></ClubPmProtectedPage>} />
+            <Route path="/clubpm/outreach/courses/:slug/learn" element={<ClubPmProtectedPage><CoursePlayerPage /></ClubPmProtectedPage>} />
             <Route path="/clubpm/profile" element={<ClubPmProtectedPage><Suspense fallback={clubPmFallback}><ClubPmProfile /></Suspense></ClubPmProtectedPage>} />
             <Route path="/clubpm/profile/:memberId" element={<ClubPmProtectedPage><Suspense fallback={clubPmFallback}><ClubPmProfile /></Suspense></ClubPmProtectedPage>} />
             <Route path="/clubpm/shop" element={<ClubPmProtectedPage><Suspense fallback={clubPmFallback}><ClubPmShop /></Suspense></ClubPmProtectedPage>} />

@@ -264,6 +264,15 @@ const CHALLENGES: ChallengeSeed[] = [
     iconClass: "fas fa-folder",
   },
 
+  {
+    key: "weekly_ground_school",
+    type: "WEEKLY", category: "LEARNING",
+    name: "Ground School", description: "Complete 3 course sections this week.",
+    metricKey: "COURSE_SECTION_COMPLETED", target: 3,
+    xpReward: 120, doubloonReward: 65, rollTableKey: "WEEKLY_BADGE",
+    iconClass: "fas fa-graduation-cap",
+  },
+
   // ── MONTHLY ────────────────────────────────────────────────────
   {
     key: "monthly_launch_window",
@@ -404,6 +413,15 @@ const CHALLENGES: ChallengeSeed[] = [
     iconClass: "fas fa-id-badge",
   },
 
+  {
+    key: "ach_first_course",
+    type: "ACHIEVEMENT", category: "LEARNING", tier: "COMMON",
+    name: "Ground Crew", description: "Complete your first course.",
+    metricKey: "COURSE_COMPLETED", target: 1,
+    xpReward: 120, doubloonReward: 60,
+    iconClass: "fas fa-graduation-cap",
+  },
+
   // ── ACHIEVEMENTS — Uncommon ─────────────────────────────────────
   {
     key: "ach_missions_25",
@@ -453,6 +471,15 @@ const CHALLENGES: ChallengeSeed[] = [
     metricKey: "OUTREACH_SUBMITTED", target: 1,
     xpReward: 220, doubloonReward: 130,
     iconClass: "fas fa-bullhorn",
+  },
+
+  {
+    key: "ach_scholar",
+    type: "ACHIEVEMENT", category: "LEARNING", tier: "UNCOMMON",
+    name: "Scholar", description: "Complete 5 courses.",
+    metricKey: "COURSE_COMPLETED", target: 5,
+    xpReward: 300, doubloonReward: 175,
+    iconClass: "fas fa-book-open",
   },
 
   // ── ACHIEVEMENTS — Rare ─────────────────────────────────────────
@@ -505,6 +532,15 @@ const CHALLENGES: ChallengeSeed[] = [
     metricKey: "TASK_COMPLETED", target: 999,
     xpReward: 700, doubloonReward: 400,
     iconClass: "fas fa-star",
+  },
+
+  {
+    key: "ach_curriculum_complete",
+    type: "ACHIEVEMENT", category: "LEARNING", tier: "RARE",
+    name: "Curriculum Complete", description: "Complete 10 courses.",
+    metricKey: "COURSE_COMPLETED", target: 10,
+    xpReward: 900, doubloonReward: 550,
+    iconClass: "fas fa-user-graduate",
   },
 
   // ── ACHIEVEMENTS — Mythic ────────────────────────────────────────

@@ -15,7 +15,8 @@ export type ActivitySource =
   | "TASK_ADVANCE"
   | "TIME_LOG"
   | "MILESTONE_COMPLETE"
-  | "BLOG_POST_PUBLISHED";
+  | "BLOG_POST_PUBLISHED"
+  | "COURSE_SECTION_COMPLETE";
 
 export type ExtendResult = {
   previousStreak: number;

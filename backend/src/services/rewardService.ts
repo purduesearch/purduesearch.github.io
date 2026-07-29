@@ -330,6 +330,8 @@ function eventTypeToXpSource(e: RewardEventType): XpSource {
     case "BLOG_POST_PUBLISHED":          return "BLOG_POST";
     case "EARLY_DELIVERY_BONUS":         return "EARLY_BONUS";
     case "MEETING_AVAILABILITY_SUBMITTED": return "MEETING";
+    case "COURSE_SECTION_COMPLETE":
+    case "COURSE_COMPLETE":              return "COURSE";
   }
 }
 
@@ -343,6 +345,8 @@ function eventTypeToDoubloonSource(e: RewardEventType): DoubloonSource {
     case "BLOG_POST_PUBLISHED":          return "BLOG_POST";
     case "EARLY_DELIVERY_BONUS":         return "EARLY_BONUS";
     case "MEETING_AVAILABILITY_SUBMITTED": return "MEETING";
+    case "COURSE_SECTION_COMPLETE":
+    case "COURSE_COMPLETE":              return "COURSE";
   }
 }
 
@@ -535,6 +539,142 @@ export async function handleMilestoneComplete(milestoneId: string): Promise<void
     }
     void tickStreak(memberId, "MILESTONE_COMPLETE");
   }
+}
+
+// ── Courses ─────────────────────────────────────────────────
+//
+// Both handlers mirror the Task.rewardGrantedAt idempotency idiom: the gate is
+// stamped on the progress/enrollment row whether the grant fired directly or was
+// queued for admin approval, so a re-completion can never re-grant.
+
+/**
+ * Reward for finishing a single course section. Returns the summary the route
+ * merges into its JSON body (RewardFlux / rank-up modal contract), or null when
+ * there is nothing to grant (no config, not enrolled, or already granted).
+ */
+export async function handleCourseSectionComplete(
+  memberId: string,
+  sectionId: string
+): Promise<ActorRewardSummary | null> {
+  const progress = await prisma.courseSectionProgress.findFirst({
+    where:  { sectionId, enrollment: { memberId } },
+    select: {
+      id: true,
+      rewardGrantedAt: true,
+      section: { select: { title: true } },
+    },
+  });
+  if (!progress || progress.rewardGrantedAt) return null;
+
+  const cfg = await prisma.rewardEventConfig.findUnique({
+    where: { eventType: "COURSE_SECTION_COMPLETE" },
+  });
+  if (!cfg) return null;
+
+  const sectionTitle = progress.section.title;
+  let summary: ActorRewardSummary;
+
+  if (cfg.autoApprove) {
+    const xpRes = cfg.xpAmount       > 0 ? await grantXP(memberId, cfg.xpAmount, "COURSE")               : null;
+    const dbRes = cfg.doubloonAmount > 0 ? await grantDoubloons(memberId, cfg.doubloonAmount, "COURSE")  : null;
+    summary = {
+      xpDelta:        xpRes?.xpDelta        ?? 0,
+      doubloonsDelta: dbRes?.doubloonsDelta ?? 0,
+      newXp:          xpRes?.newXp          ?? null,
+      newDoubloons:   dbRes?.newBalance     ?? null,
+      rankBefore:     xpRes?.rankBefore     ?? null,
+      rankAfter:      xpRes?.rankAfter      ?? null,
+      taskTitle:      sectionTitle,
+    };
+  } else {
+    await queuePendingReward(memberId, "COURSE_SECTION_COMPLETE", undefined, {
+      sectionId,
+      taskTitle: sectionTitle,
+      proposedXp: cfg.xpAmount,
+      proposedDoubloons: cfg.doubloonAmount,
+    });
+    summary = {
+      xpDelta: 0, doubloonsDelta: 0,
+      newXp: null, newDoubloons: null,
+      rankBefore: null, rankAfter: null,
+      queued: true,
+      taskTitle: sectionTitle,
+    };
+  }
+
+  await prisma.courseSectionProgress.update({
+    where: { id: progress.id },
+    data:  { rewardGrantedAt: new Date() },
+  });
+  await tickStreak(memberId, "COURSE_SECTION_COMPLETE");
+
+  return summary;
+}
+
+/**
+ * Reward for finishing a whole course. `Course.xpOverride` / `doubloonOverride`
+ * replace the RewardEventConfig amounts when set (per the schema, these scope to
+ * course completion, not to individual sections).
+ */
+export async function handleCourseComplete(
+  memberId: string,
+  courseId: string
+): Promise<ActorRewardSummary | null> {
+  const enrollment = await prisma.courseEnrollment.findUnique({
+    where:  { courseId_memberId: { courseId, memberId } },
+    select: {
+      id: true,
+      rewardGrantedAt: true,
+      course: { select: { title: true, xpOverride: true, doubloonOverride: true } },
+    },
+  });
+  if (!enrollment || enrollment.rewardGrantedAt) return null;
+
+  const cfg = await prisma.rewardEventConfig.findUnique({
+    where: { eventType: "COURSE_COMPLETE" },
+  });
+  if (!cfg) return null;
+
+  const courseTitle = enrollment.course.title;
+  const xpAmount       = enrollment.course.xpOverride       ?? cfg.xpAmount;
+  const doubloonAmount = enrollment.course.doubloonOverride ?? cfg.doubloonAmount;
+
+  let summary: ActorRewardSummary;
+
+  if (cfg.autoApprove) {
+    const xpRes = xpAmount       > 0 ? await grantXP(memberId, xpAmount, "COURSE")              : null;
+    const dbRes = doubloonAmount > 0 ? await grantDoubloons(memberId, doubloonAmount, "COURSE") : null;
+    summary = {
+      xpDelta:        xpRes?.xpDelta        ?? 0,
+      doubloonsDelta: dbRes?.doubloonsDelta ?? 0,
+      newXp:          xpRes?.newXp          ?? null,
+      newDoubloons:   dbRes?.newBalance     ?? null,
+      rankBefore:     xpRes?.rankBefore     ?? null,
+      rankAfter:      xpRes?.rankAfter      ?? null,
+      taskTitle:      courseTitle,
+    };
+  } else {
+    await queuePendingReward(memberId, "COURSE_COMPLETE", undefined, {
+      courseId,
+      taskTitle: courseTitle,
+      proposedXp: xpAmount,
+      proposedDoubloons: doubloonAmount,
+    });
+    summary = {
+      xpDelta: 0, doubloonsDelta: 0,
+      newXp: null, newDoubloons: null,
+      rankBefore: null, rankAfter: null,
+      queued: true,
+      taskTitle: courseTitle,
+    };
+  }
+
+  await prisma.courseEnrollment.update({
+    where: { id: enrollment.id },
+    data:  { rewardGrantedAt: new Date() },
+  });
+
+  return summary;
 }
 
 export async function handleKudosReceived(toMemberId: string, fromMemberId: string): Promise<void> {
