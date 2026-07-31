@@ -13,45 +13,117 @@ import {
 const kindMeta = (kind) => SECTION_KINDS[kind] ?? SECTION_KINDS.CONTENT;
 
 /**
- * The learner rail. Locked sections render a padlock and are not clickable —
- * and they genuinely have nothing to show: the server withholds `contentJson`
- * and `videoConfig` for them, so this is a label for a real gate, not a UI-only
- * one.
+ * The learner rail, grouped by module.
+ *
+ * A locked module still shows its title, summary and counts — that teaser is
+ * author-written metadata the server sends deliberately. Its sections are still
+ * padlocked and genuinely have nothing behind them: the server withholds
+ * `contentJson` and `videoConfig` for locked sections, so this is a label for a
+ * real gate, not a UI-only one.
  */
-function LearnerRail({ sections, selectedId, onSelect }) {
+function LearnerRail({ modules, sections, selectedId, onSelect }) {
+  const selectedModuleId = modules.find(
+    (m) => m.sectionIds.includes(selectedId)
+  )?.id ?? null;
+
+  const [collapsed, setCollapsed] = useState(() => new Set());
+  const toggle = (id) => setCollapsed((prev) => {
+    const next = new Set(prev);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  });
+
+  const byId = new Map(sections.map((s) => [s.id, s]));
+
   return (
-    <nav className="pm-course-learn-rail" aria-label="Course sections">
-      <ol>
-        {sections.map((section, index) => {
-          const meta = kindMeta(section.kind);
-          const done = section.status === 'COMPLETED';
-          const locked = section.locked;
-          return (
-            <li key={section.id}>
-              <button
-                type="button"
-                className={[
-                  'pm-course-learn-rail-item',
-                  section.id === selectedId ? 'is-selected' : '',
-                  done ? 'is-done' : '',
-                  locked ? 'is-locked' : '',
-                ].filter(Boolean).join(' ')}
-                onClick={() => !locked && onSelect(section.id)}
-                disabled={locked}
-                aria-current={section.id === selectedId ? 'true' : undefined}
-                title={locked ? 'Finish the sections above to unlock this one' : section.title}
-              >
-                <span className="pm-course-learn-rail-num">{index + 1}</span>
-                <i className={meta.icon} aria-hidden="true" />
-                <span className="pm-course-learn-rail-title">{section.title}</span>
-                {locked && <i className="fas fa-lock" aria-hidden="true" title="Locked" />}
-                {!locked && done && <i className="fas fa-circle-check" aria-hidden="true" title="Completed" />}
-                {!section.isRequired && <span className="cpm-tag">Optional</span>}
-              </button>
-            </li>
-          );
-        })}
-      </ol>
+    <nav className="pm-course-learn-rail" aria-label="Course modules">
+      {modules.map((mod, moduleIndex) => {
+        // Finished modules collapse by default; the current one stays open.
+        const isOpen = !collapsed.has(mod.id)
+          && !mod.locked
+          && (mod.id === selectedModuleId || !mod.completed);
+        const own = mod.sectionIds.map((sid) => byId.get(sid)).filter(Boolean);
+
+        return (
+          <section
+            key={mod.id}
+            className={[
+              'pm-course-learn-module',
+              mod.locked ? 'is-locked' : '',
+              mod.completed ? 'is-done' : '',
+            ].filter(Boolean).join(' ')}
+          >
+            <button
+              type="button"
+              className="pm-course-learn-module-head"
+              onClick={() => !mod.locked && toggle(mod.id)}
+              disabled={mod.locked}
+              aria-expanded={mod.locked ? undefined : isOpen}
+            >
+              <span className="pm-course-learn-module-num">{moduleIndex + 1}</span>
+              <span className="pm-course-learn-module-title">{mod.title}</span>
+              {mod.locked
+                ? <i className="fas fa-lock" aria-hidden="true" title="Locked" />
+                : mod.completed
+                  ? <i className="fas fa-circle-check" aria-hidden="true" title="Completed" />
+                  : <i className={`fas ${isOpen ? 'fa-chevron-down' : 'fa-chevron-right'}`} aria-hidden="true" />}
+            </button>
+
+            {/* The teaser: shown for a locked module, which has no rows to show. */}
+            {mod.locked && (
+              <div className="pm-course-learn-module-teaser">
+                {mod.summary && <p>{mod.summary}</p>}
+                <span className="cpm-tag">
+                  {mod.sectionIds.length} section{mod.sectionIds.length === 1 ? '' : 's'}
+                  {mod.estimatedMinutes ? ` · ${mod.estimatedMinutes} min` : ''}
+                </span>
+              </div>
+            )}
+
+            {!mod.locked && (
+              <div className="pm-course-learn-module-meta">
+                <span>{mod.completedCount} of {mod.sectionIds.length}</span>
+                {!mod.sequential && <span className="cpm-tag">any order</span>}
+                {!mod.isRequired && <span className="cpm-tag">Optional</span>}
+              </div>
+            )}
+
+            {!mod.locked && isOpen && (
+              <ol>
+                {own.map((section, index) => {
+                  const meta = kindMeta(section.kind);
+                  const done = section.status === 'COMPLETED';
+                  const locked = section.locked;
+                  return (
+                    <li key={section.id}>
+                      <button
+                        type="button"
+                        className={[
+                          'pm-course-learn-rail-item',
+                          section.id === selectedId ? 'is-selected' : '',
+                          done ? 'is-done' : '',
+                          locked ? 'is-locked' : '',
+                        ].filter(Boolean).join(' ')}
+                        onClick={() => !locked && onSelect(section.id)}
+                        disabled={locked}
+                        aria-current={section.id === selectedId ? 'true' : undefined}
+                        title={locked ? 'Finish the sections above to unlock this one' : section.title}
+                      >
+                        <span className="pm-course-learn-rail-num">{index + 1}</span>
+                        <i className={meta.icon} aria-hidden="true" />
+                        <span className="pm-course-learn-rail-title">{section.title}</span>
+                        {locked && <i className="fas fa-lock" aria-hidden="true" title="Locked" />}
+                        {!locked && done && <i className="fas fa-circle-check" aria-hidden="true" title="Completed" />}
+                        {!section.isRequired && <span className="cpm-tag">Optional</span>}
+                      </button>
+                    </li>
+                  );
+                })}
+              </ol>
+            )}
+          </section>
+        );
+      })}
     </nav>
   );
 }
@@ -91,17 +163,20 @@ export default function CoursePlayerPage() {
     const sections = payload?.sections ?? [];
     if (!sections.length) return null;
 
-    const current = preserveSelection
-      ? sections.find((s) => s.id === selectedIdRef.current && !s.locked)
-      : null;
+    const currentIndex = preserveSelection
+      ? sections.findIndex((s) => s.id === selectedIdRef.current && !s.locked)
+      : -1;
 
-    if (current) {
+    if (currentIndex >= 0) {
+      const current = sections[currentIndex];
       if (!advance) return current.id;
-      // First unlocked, unfinished section after this one; stay put if the
-      // learner just finished the last thing left.
-      const onward = sections.find(
-        (s) => !s.locked && s.status !== 'COMPLETED' && s.order > current.order
-      );
+      // The server returns sections ordered by (module order, section order), so
+      // "after this one" is simply a later array index — which is what makes
+      // advancing across a module boundary land in the right place. Comparing
+      // `order` here would compare two different modules' local indices.
+      const onward = sections
+        .slice(currentIndex + 1)
+        .find((s) => !s.locked && s.status !== 'COMPLETED');
       return (onward ?? current).id;
     }
 
@@ -128,6 +203,7 @@ export default function CoursePlayerPage() {
   useEffect(() => { setLoading(true); load({ preserveSelection: false }); }, [load]);
 
   const sections = useMemo(() => course?.sections ?? [], [course]);
+  const modules = useMemo(() => course?.modules ?? [], [course]);
   const selected = useMemo(
     () => sections.find((s) => s.id === selectedId) ?? null,
     [sections, selectedId]
@@ -226,7 +302,7 @@ export default function CoursePlayerPage() {
       </header>
 
       <div className="pm-course-learn-body">
-        <LearnerRail sections={sections} selectedId={selectedId} onSelect={setSelectedId} />
+        <LearnerRail modules={modules} sections={sections} selectedId={selectedId} onSelect={setSelectedId} />
 
         <main className="pm-course-learn-main">
           {!selected ? (
