@@ -22134,3 +22134,124 @@ html:not(.aos-off) [data-aos].aos-animate  { opacity: 1; transform: none; }
    so it drops its own frame and lets the page own the spacing. */
 .cpm-blog-editor.is-readonly { border: 0; background: none; }
 .cpm-blog-editor.is-readonly .cpm-blog-editor-surface { padding-top: 0; }
+
+/* === COURSES: module groups in the editor rail ====================== */
+
+.pm-course-module-group {
+  border-radius: 12px; overflow: hidden;
+  background: var(--pm-bg-surface, #13161e);
+  border: 1px solid var(--pm-border);
+  transition: border-color .16s ease;
+}
+.pm-course-module-group.is-selected {
+  border-color: var(--pm-border-active);
+  background: rgba(0, 229, 204, 0.04);
+}
+
+.pm-course-module-head {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 9px; cursor: pointer;
+  font-family: var(--pm-font-display); font-size: 12px; font-weight: 700;
+  color: var(--pm-text-primary);
+}
+.pm-course-module-head:focus-visible { outline: 2px solid var(--pm-accent-teal); outline-offset: -2px; }
+.pm-course-module-toggle {
+  width: 20px; height: 20px; display: grid; place-items: center;
+  border-radius: 6px; cursor: pointer; font-size: 10px;
+  background: none; border: none; color: var(--pm-text-muted);
+  transition: color .16s ease;
+}
+.pm-course-module-toggle:hover { color: var(--pm-text-primary); }
+.pm-course-module-title {
+  flex: 1 1 auto; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.pm-course-module-meta {
+  display: inline-flex; align-items: center; gap: 5px; flex-shrink: 0;
+  font-family: var(--pm-font-mono); font-size: 10px;
+  color: var(--pm-text-muted);
+}
+/* Both warnings mark an authoring mistake the gate reads as "never blocks". */
+.pm-course-module-warn { flex-shrink: 0; font-size: 11px; color: var(--pm-accent-amber); }
+.pm-course-module-actions { display: inline-flex; align-items: center; gap: 2px; flex-shrink: 0; }
+
+.pm-course-module-body {
+  padding: 2px 8px 8px 20px;
+  display: flex; flex-direction: column; gap: 4px;
+  /* A real drop target even when empty — min-height is what makes an emptied
+     module reachable by drag rather than permanently unfillable. */
+  min-height: 34px;
+  transition: background-color .16s ease;
+}
+.pm-course-module-body.is-over { background: rgba(0, 229, 204, 0.08); }
+.pm-course-module-empty {
+  margin: 0; padding: 8px 4px; font-size: 11.5px; line-height: 1.45;
+  color: var(--pm-text-muted);
+}
+
+/* === COURSES: module settings panel ================================= */
+
+.pm-course-module-settings { display: flex; flex-direction: column; gap: 12px; max-width: 640px; }
+.pm-course-module-hint {
+  font-family: var(--pm-font-body); font-weight: 400; font-size: 11.5px;
+  color: var(--pm-text-muted);
+}
+.pm-course-module-toggles { display: flex; flex-direction: column; gap: 8px; }
+.pm-course-module-toggles label {
+  display: flex; align-items: center; gap: 9px; cursor: pointer;
+  font-size: 12.5px; color: var(--pm-text-secondary);
+}
+.pm-course-module-warning {
+  display: flex; align-items: flex-start; gap: 8px; margin: 0;
+  font-size: 12px; line-height: 1.45; color: var(--pm-accent-amber);
+}
+
+/* === COURSES: learner rail, grouped by module ======================= */
+
+.pm-course-learn-rail > .pm-course-learn-module + .pm-course-learn-module { margin-top: 8px; }
+.pm-course-learn-module {
+  border-radius: 12px; overflow: hidden;
+  background: var(--pm-bg-elevated, #1a1e2a);
+  border: 1px solid transparent;
+}
+/* A dimmed module is a real server-side gate: its sections' contentJson and
+   videoConfig never left the server. The title and summary below are the
+   author's own teaser copy, sent deliberately. */
+.pm-course-learn-module.is-locked { opacity: .55; }
+.pm-course-learn-module.is-done .pm-course-learn-module-head { color: var(--pm-text-secondary); }
+
+.pm-course-learn-module-head {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  padding: 10px; cursor: pointer; text-align: left;
+  background: none; border: none; color: var(--pm-text-primary);
+  font-family: var(--pm-font-display); font-size: 12.5px; font-weight: 700;
+  transition: color .16s ease;
+}
+.pm-course-learn-module-head:disabled { cursor: not-allowed; }
+.pm-course-learn-module-head:focus-visible { outline: 2px solid var(--pm-accent-teal); outline-offset: -2px; }
+.pm-course-learn-module-head .fa-lock { color: var(--pm-accent-amber); font-size: 11px; }
+.pm-course-learn-module-head .fa-circle-check { color: var(--pm-accent-teal); font-size: 11px; }
+.pm-course-learn-module-head .fa-chevron-down,
+.pm-course-learn-module-head .fa-chevron-right { color: var(--pm-text-muted); font-size: 10px; }
+.pm-course-learn-module-num {
+  flex-shrink: 0; width: 20px; height: 20px;
+  display: grid; place-items: center; border-radius: 6px;
+  font-family: var(--pm-font-mono); font-size: 10px;
+  background: var(--pm-bg-surface, #13161e); color: var(--pm-text-muted);
+}
+.pm-course-learn-module-title {
+  flex: 1 1 auto; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+.pm-course-learn-module-teaser {
+  padding: 0 10px 10px 34px;
+  font-size: 12px; line-height: 1.5; color: var(--pm-text-muted);
+}
+.pm-course-learn-module-teaser p { margin: 0 0 6px; }
+.pm-course-learn-module-meta {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  padding: 0 10px 8px 34px;
+  font-family: var(--pm-font-mono); font-size: 10px; color: var(--pm-text-muted);
+}
+.pm-course-learn-module ol { padding: 0 8px 8px; }
