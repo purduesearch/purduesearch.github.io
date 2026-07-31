@@ -1932,16 +1932,44 @@ model Course {
   updatedAt        DateTime     @updatedAt
 
   sections    CourseSection[]
+  modules     CourseModule[]
   enrollments CourseEnrollment[]
 
   @@index([status])
   @@index([createdById])
 }
 
+model CourseModule {
+  id               String   @id @default(cuid())
+  courseId         String
+  course           Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  order            Int
+  title            String
+  // The teaser line shown on a LOCKED module. Author-written, so it is safe to
+  // serialize to a learner who cannot yet open the module's sections.
+  summary          String?
+  estimatedMinutes Int?
+  isRequired       Boolean  @default(true)
+  // When false, sections inside may be completed in any order. Defaults to true
+  // so migrated courses keep their pre-module behavior exactly.
+  sequential       Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  sections CourseSection[]
+
+  // An index, NOT a unique constraint — saveStructure rewrites the whole set in
+  // one transaction, which a unique constraint would force into a two-pass
+  // shuffle. Same reasoning as CourseSection's.
+  @@index([courseId, order])
+}
+
 model CourseSection {
   id            String            @id @default(cuid())
   courseId      String
   course        Course            @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  moduleId      String
+  module        CourseModule      @relation(fields: [moduleId], references: [id], onDelete: Cascade)
   order         Int
   title         String
   kind          CourseSectionKind @default(CONTENT)
@@ -1964,7 +1992,9 @@ model CourseSection {
   // Deliberately an index, NOT a unique constraint: reorderSections rewrites the
   // whole set in one transaction, which a unique constraint would force into an
   // ugly two-pass shuffle.
-  @@index([courseId, order])
+  //
+  // `order` is order WITHIN the module, not within the course.
+  @@index([moduleId, order])
 }
 
 model CourseQuestion {
