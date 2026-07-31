@@ -26,6 +26,7 @@ export interface UpdateCourseInput {
 
 export interface CreateSectionInput {
   courseId: string;
+  moduleId: string;
   title: string;
   kind?: CourseSectionKind;
   isRequired?: boolean;
@@ -44,6 +45,36 @@ export interface UpdateSectionInput {
   passThreshold?: number | null;
   maxAttempts?: number | null;
 }
+
+export interface CreateModuleInput {
+  courseId: string;
+  title: string;
+  summary?: string | null;
+  estimatedMinutes?: number | null;
+  isRequired?: boolean;
+  sequential?: boolean;
+}
+
+export interface UpdateModuleInput {
+  title?: string;
+  summary?: string | null;
+  estimatedMinutes?: number | null;
+  isRequired?: boolean;
+  sequential?: boolean;
+}
+
+/** One module's slot in a whole-tree structure write. */
+export interface StructureModule {
+  moduleId: string;
+  sectionIds: string[];
+}
+
+/**
+ * Thrown when a structure payload is not an exact permutation of the course's
+ * modules and sections. A partial payload is a client bug, not a partial
+ * update — applying it would silently orphan whatever it omitted.
+ */
+export class StructureMismatchError extends Error {}
 
 export interface UpsertQuestionInput {
   id?: string;
@@ -70,9 +101,21 @@ const courseInclude = {
   createdBy: { select: { id: true, displayName: true, avatarUrl: true } },
 } satisfies Prisma.CourseInclude;
 
+const moduleSelect = {
+  id: true,
+  courseId: true,
+  order: true,
+  title: true,
+  summary: true,
+  estimatedMinutes: true,
+  isRequired: true,
+  sequential: true,
+} satisfies Prisma.CourseModuleSelect;
+
 const sectionSelect = {
   id: true,
   courseId: true,
+  moduleId: true,
   order: true,
   title: true,
   kind: true,
@@ -126,13 +169,11 @@ export async function listCourses(filters: ListCoursesFilters = {}) {
 }
 
 export async function getCourse(id: string) {
-  return prisma.course.findUnique({
-    where: { id },
-    include: {
-      ...courseInclude,
-      sections: { orderBy: { order: "asc" }, select: sectionSelect },
-    },
-  });
+  const course = await prisma.course.findUnique({ where: { id }, include: courseInclude });
+  if (!course) return null;
+  // The authoring view is a tree: the rail renders it and writes it back whole.
+  // The client derives its own flat list where it needs one.
+  return { ...course, modules: await listModules(id) };
 }
 
 export async function getCourseBySlug(slug: string) {
@@ -147,6 +188,9 @@ export async function getCourseBySlug(slug: string) {
 
 export async function createCourse(input: CreateCourseInput) {
   const slug = await ensureUniqueCourseSlug(input.slug ?? input.title);
+  // A course is born with one module. Without it, POST /sections could never
+  // succeed on a fresh course and the editor would need an empty-state branch
+  // that exists for exactly one click.
   return prisma.course.create({
     data: {
       title: input.title,
@@ -156,6 +200,7 @@ export async function createCourse(input: CreateCourseInput) {
       estimatedMinutes: input.estimatedMinutes ?? null,
       status: "DRAFT",
       createdById: input.createdById,
+      modules: { create: { order: 0, title: "Course content" } },
     },
     include: courseInclude,
   });
@@ -197,17 +242,129 @@ export async function deleteCourse(id: string) {
   await prisma.course.delete({ where: { id } });
 }
 
+// ── Modules ──────────────────────────────────────────────────
+
+/** The authoring tree: modules in order, each with its sections in order. */
+export async function listModules(courseId: string) {
+  return prisma.courseModule.findMany({
+    where: { courseId },
+    orderBy: { order: "asc" },
+    select: {
+      ...moduleSelect,
+      sections: { orderBy: { order: "asc" }, select: sectionSelect },
+    },
+  });
+}
+
+/** A new module always appends; authors reposition by dragging, not by index. */
+export async function createModule(input: CreateModuleInput) {
+  const last = await prisma.courseModule.findFirst({
+    where: { courseId: input.courseId },
+    orderBy: { order: "desc" },
+    select: { order: true },
+  });
+  return prisma.courseModule.create({
+    data: {
+      courseId: input.courseId,
+      order: (last?.order ?? -1) + 1,
+      title: input.title,
+      summary: input.summary ?? null,
+      estimatedMinutes: input.estimatedMinutes ?? null,
+      isRequired: input.isRequired ?? true,
+      sequential: input.sequential ?? true,
+    },
+    select: { ...moduleSelect, sections: { orderBy: { order: "asc" }, select: sectionSelect } },
+  });
+}
+
+export async function updateModule(id: string, input: UpdateModuleInput) {
+  const data: Prisma.CourseModuleUpdateInput = {};
+  if (input.title !== undefined) data.title = input.title;
+  if (input.summary !== undefined) data.summary = input.summary;
+  if (input.estimatedMinutes !== undefined) data.estimatedMinutes = input.estimatedMinutes;
+  if (input.isRequired !== undefined) data.isRequired = input.isRequired;
+  if (input.sequential !== undefined) data.sequential = input.sequential;
+  return prisma.courseModule.update({
+    where: { id },
+    data,
+    select: { ...moduleSelect, sections: { orderBy: { order: "asc" }, select: sectionSelect } },
+  });
+}
+
+/** Cascades to its sections, and through them to questions, progress and attempts. */
+export async function deleteModule(id: string) {
+  await prisma.courseModule.delete({ where: { id } });
+}
+
+/**
+ * Rewrite the whole module/section tree for a course in one transaction.
+ *
+ * A nested drag produces a whole-tree state on the client anyway, and a
+ * whole-set write is the only shape that cannot leave a section orphaned
+ * between two modules when a cross-container drop applies half its effect.
+ *
+ * The payload must be an EXACT permutation of the course's modules and
+ * sections — every id present exactly once, no strangers. Anything else throws
+ * StructureMismatchError, which the route turns into a 400.
+ */
+export async function saveStructure(courseId: string, tree: StructureModule[]) {
+  const [modules, sections] = await Promise.all([
+    prisma.courseModule.findMany({ where: { courseId }, select: { id: true } }),
+    prisma.courseSection.findMany({ where: { courseId }, select: { id: true } }),
+  ]);
+
+  const knownModules = new Set(modules.map((m) => m.id));
+  const knownSections = new Set(sections.map((s) => s.id));
+
+  const seenModules = new Set<string>();
+  const seenSections = new Set<string>();
+  for (const entry of tree) {
+    if (!knownModules.has(entry.moduleId) || seenModules.has(entry.moduleId)) {
+      throw new StructureMismatchError(`Unknown or duplicated module ${entry.moduleId}`);
+    }
+    seenModules.add(entry.moduleId);
+    for (const sid of entry.sectionIds) {
+      if (!knownSections.has(sid) || seenSections.has(sid)) {
+        throw new StructureMismatchError(`Unknown or duplicated section ${sid}`);
+      }
+      seenSections.add(sid);
+    }
+  }
+  if (seenModules.size !== knownModules.size || seenSections.size !== knownSections.size) {
+    throw new StructureMismatchError("Structure payload must list every module and section exactly once");
+  }
+
+  const writes: Prisma.PrismaPromise<unknown>[] = [];
+  tree.forEach((entry, moduleIndex) => {
+    writes.push(
+      prisma.courseModule.update({ where: { id: entry.moduleId }, data: { order: moduleIndex } })
+    );
+    entry.sectionIds.forEach((sid, sectionIndex) => {
+      writes.push(
+        prisma.courseSection.update({
+          where: { id: sid },
+          data: { moduleId: entry.moduleId, order: sectionIndex },
+        })
+      );
+    });
+  });
+  await prisma.$transaction(writes);
+
+  return listModules(courseId);
+}
+
 // ── Sections ─────────────────────────────────────────────────
 
 export async function createSection(input: CreateSectionInput) {
   const last = await prisma.courseSection.findFirst({
-    where: { courseId: input.courseId },
+    where: { moduleId: input.moduleId },
     orderBy: { order: "desc" },
     select: { order: true },
   });
   return prisma.courseSection.create({
     data: {
       courseId: input.courseId,
+      moduleId: input.moduleId,
       order: (last?.order ?? -1) + 1,
       title: input.title,
       kind: input.kind ?? "CONTENT",
@@ -238,45 +395,6 @@ export async function updateSection(id: string, input: UpdateSectionInput) {
 
 export async function deleteSection(id: string) {
   await prisma.courseSection.delete({ where: { id } });
-}
-
-/**
- * Rewrite the whole order column for a course in one transaction. `order` is a
- * plain index (not @@unique) precisely so this can be a single pass with no
- * temporary-value shuffle. Ids that don't belong to the course are ignored;
- * sections omitted from `orderedIds` keep their relative order after the listed
- * ones.
- */
-export async function reorderSections(courseId: string, orderedIds: string[]) {
-  const existing = await prisma.courseSection.findMany({
-    where: { courseId },
-    orderBy: { order: "asc" },
-    select: { id: true },
-  });
-  const known = new Set(existing.map((s) => s.id));
-  const seen = new Set<string>();
-  const finalOrder: string[] = [];
-  for (const id of orderedIds) {
-    if (known.has(id) && !seen.has(id)) {
-      seen.add(id);
-      finalOrder.push(id);
-    }
-  }
-  for (const s of existing) {
-    if (!seen.has(s.id)) finalOrder.push(s.id);
-  }
-
-  await prisma.$transaction(
-    finalOrder.map((id, index) =>
-      prisma.courseSection.update({ where: { id }, data: { order: index } })
-    )
-  );
-
-  return prisma.courseSection.findMany({
-    where: { courseId },
-    orderBy: { order: "asc" },
-    select: sectionSelect,
-  });
 }
 
 // ── Questions ────────────────────────────────────────────────
