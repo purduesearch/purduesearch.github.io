@@ -6,11 +6,13 @@ import BlogAiPanel from '../../components/clubpm/blog/BlogAiPanel';
 import CourseSectionRail, { SECTION_KINDS } from '../../components/clubpm/courses/CourseSectionRail';
 import CourseQuizBuilder from '../../components/clubpm/courses/CourseQuizBuilder';
 import CourseVideoWorkbench from '../../components/clubpm/courses/CourseVideoWorkbench';
+import CourseModuleSettings from '../../components/clubpm/courses/CourseModuleSettings';
 import OrbitLoader from '../../components/OrbitLoader';
 import { useClubPmAuth } from '../../clubpm/ClubPmAuth';
 import {
   getCourse, updateCourse, publishCourse, archiveCourse, deleteCourse,
-  createCourseSection, updateCourseSection, deleteCourseSection, reorderCourseSections,
+  createCourseSection, updateCourseSection, deleteCourseSection,
+  createCourseModule, updateCourseModule, deleteCourseModule, saveCourseStructure,
   getCourseCollabWsUrl,
 } from '../../api/clubPmClient';
 
@@ -107,8 +109,11 @@ export default function CourseEditorPage() {
   const navigate = useNavigate();
 
   const [course, setCourse]     = useState(null);
-  const [sections, setSections] = useState([]);
+  const [modules, setModules] = useState([]);
   const [selectedSectionId, setSelectedSectionId] = useState(null);
+  const [selectedModuleId, setSelectedModuleId] = useState(null);
+  // 'section' | 'module' — which of the two ids above the main column follows.
+  const [selectedKind, setSelectedKind] = useState('section');
   const [courseTitle, setCourseTitle]   = useState('');
   const [sectionTitle, setSectionTitle] = useState('');
   const [contentJson, setContentJson]   = useState(null);
@@ -147,6 +152,15 @@ export default function CourseEditorPage() {
   const autosaveTimer = useRef(null);
   const editorRef = useRef(null);
 
+  // The flat list every existing handler already reasons about, derived from the
+  // tree rather than fetched separately, so the two can never disagree.
+  const sections = useMemo(() => modules.flatMap((m) => m.sections ?? []), [modules]);
+
+  const selectedModule = useMemo(
+    () => modules.find((m) => m.id === selectedModuleId) ?? null,
+    [modules, selectedModuleId]
+  );
+
   const selectedSection = useMemo(
     () => sections.find((s) => s.id === selectedSectionId) ?? null,
     [sections, selectedSectionId]
@@ -156,7 +170,7 @@ export default function CourseEditorPage() {
   // document at all — CoursePlayerPage never renders `contentJson` for that kind
   // — so it gets neither an editor nor the AI panel that operates on one.
   const sectionKind = selectedSection?.kind ?? 'CONTENT';
-  const hasDocument = !!selectedSection && sectionKind !== 'QUIZ';
+  const hasDocument = selectedKind === 'section' && !!selectedSection && sectionKind !== 'QUIZ';
 
   // Who may edit the document (accept/reject a suggestion, resolve someone
   // else's comment). Mirrors the server's course-access check in
@@ -173,9 +187,9 @@ export default function CourseEditorPage() {
         if (cancelled) return;
         setCourse(c);
         setCourseTitle(c.title ?? '');
-        const list = c.sections ?? [];
-        setSections(list);
-        setSelectedSectionId((prev) => prev ?? list[0]?.id ?? null);
+        const list = c.modules ?? [];
+        setModules(list);
+        setSelectedSectionId((prev) => prev ?? list[0]?.sections?.[0]?.id ?? null);
       })
       .catch(() => { if (!cancelled) setError('Could not load this course.'); })
       .finally(() => { if (!cancelled) setLoading(false); });
@@ -211,7 +225,10 @@ export default function CourseEditorPage() {
         const patch = { title: st };
         if (cj) patch.contentJson = cj;
         const savedSection = await updateCourseSection(sectionId, patch);
-        setSections((prev) => prev.map((s) => (s.id === sectionId ? { ...s, ...savedSection } : s)));
+        setModules((prev) => prev.map((m) => ({
+          ...m,
+          sections: (m.sections ?? []).map((s) => (s.id === sectionId ? { ...s, ...savedSection } : s)),
+        })));
       }
       setDirty(false);
       setLastSavedAt(new Date());
@@ -270,21 +287,72 @@ export default function CourseEditorPage() {
 
   // ── Section rail actions ───────────────────────────────────
 
+  // Questions live outside the autosave, so leaving with unsaved ones would drop
+  // them silently. The autosaved fields need no prompt — they just save.
   const handleSelectSection = useCallback(async (sectionId) => {
-    if (sectionId === stateRef.current.sectionId) return;
-    // Questions live outside the autosave, so leaving with unsaved ones would
-    // drop them silently. The autosaved fields need no prompt — they just save.
+    if (selectedKind === 'section' && sectionId === stateRef.current.sectionId) return;
     if (questionsDirty && !window.confirm('This section has unsaved questions. Leave anyway?')) return;
     if (dirty) await handleSave({ silent: true });
     setQuestionsDirty(false);
+    setSelectedKind('section');
     setSelectedSectionId(sectionId);
+  }, [dirty, handleSave, questionsDirty, selectedKind]);
+
+  const handleSelectModule = useCallback(async (moduleId) => {
+    if (questionsDirty && !window.confirm('This section has unsaved questions. Leave anyway?')) return;
+    if (dirty) await handleSave({ silent: true });
+    setQuestionsDirty(false);
+    setSelectedKind('module');
+    setSelectedModuleId(moduleId);
   }, [dirty, handleSave, questionsDirty]);
 
-  const handleAddSection = useCallback(async (kind) => {
+  const handleAddModule = useCallback(async () => {
+    try {
+      const created = await createCourseModule(id, { title: 'New module' });
+      setModules((prev) => [...prev, { ...created, sections: created.sections ?? [] }]);
+      setSelectedKind('module');
+      setSelectedModuleId(created.id);
+    } catch {
+      toast.error('Could not add that module');
+    }
+  }, [id]);
+
+  const handleUpdateModule = useCallback(async (moduleId, patch) => {
+    try {
+      const updated = await updateCourseModule(moduleId, patch);
+      setModules((prev) => prev.map((m) => (
+        m.id === moduleId ? { ...m, ...updated, sections: updated.sections ?? m.sections } : m
+      )));
+    } catch {
+      toast.error('Could not update that module');
+    }
+  }, []);
+
+  const handleDeleteModule = useCallback(async (mod) => {
+    const count = (mod.sections ?? []).length;
+    const detail = count === 0
+      ? 'This module is empty.'
+      : `This deletes ${count} section${count === 1 ? '' : 's'} and all learner progress in them.`;
+    if (!window.confirm(`Delete "${mod.title}"? ${detail} This cannot be undone.`)) return;
+    try {
+      await deleteCourseModule(mod.id);
+      setModules((prev) => prev.filter((m) => m.id !== mod.id));
+      if (selectedModuleId === mod.id) { setSelectedKind('section'); setSelectedModuleId(null); }
+    } catch {
+      toast.error('Delete failed');
+    }
+  }, [selectedModuleId]);
+
+  const handleAddSection = useCallback(async (moduleId, kind) => {
     const meta = SECTION_KINDS[kind] ?? SECTION_KINDS.CONTENT;
     try {
-      const created = await createCourseSection(id, { title: `New ${meta.label.toLowerCase()} section`, kind });
-      setSections((prev) => [...prev, created]);
+      const created = await createCourseSection(id, {
+        moduleId, title: `New ${meta.label.toLowerCase()} section`, kind,
+      });
+      setModules((prev) => prev.map((m) => (
+        m.id === moduleId ? { ...m, sections: [...(m.sections ?? []), created] } : m
+      )));
+      setSelectedKind('section');
       setSelectedSectionId(created.id);
     } catch {
       toast.error('Could not add that section');
@@ -294,7 +362,10 @@ export default function CourseEditorPage() {
   const handleUpdateSection = useCallback(async (sectionId, patch) => {
     try {
       const updated = await updateCourseSection(sectionId, patch);
-      setSections((prev) => prev.map((s) => (s.id === sectionId ? { ...s, ...updated } : s)));
+      setModules((prev) => prev.map((m) => ({
+        ...m,
+        sections: (m.sections ?? []).map((s) => (s.id === sectionId ? { ...s, ...updated } : s)),
+      })));
     } catch {
       toast.error('Could not update that section');
     }
@@ -304,9 +375,13 @@ export default function CourseEditorPage() {
     if (!window.confirm(`Delete "${section.title}" and everything in it? This cannot be undone.`)) return;
     try {
       await deleteCourseSection(section.id);
-      setSections((prev) => {
-        const next = prev.filter((s) => s.id !== section.id);
-        if (section.id === stateRef.current.sectionId) setSelectedSectionId(next[0]?.id ?? null);
+      setModules((prev) => {
+        const next = prev.map((m) => ({
+          ...m, sections: (m.sections ?? []).filter((s) => s.id !== section.id),
+        }));
+        if (section.id === stateRef.current.sectionId) {
+          setSelectedSectionId(next.flatMap((m) => m.sections ?? [])[0]?.id ?? null);
+        }
         return next;
       });
     } catch {
@@ -314,19 +389,23 @@ export default function CourseEditorPage() {
     }
   }, []);
 
-  // Optimistic reorder, rolled back if the transactional re-index rejects.
-  const handleReorderSections = useCallback(async (orderedIds) => {
-    const previous = sections;
-    const byId = new Map(sections.map((s) => [s.id, s]));
-    setSections(orderedIds.map((sid) => byId.get(sid)).filter(Boolean));
+  // Optimistic whole-tree write, rolled back if the server rejects the payload.
+  const handleSaveStructure = useCallback(async (tree) => {
+    const previous = modules;
+    const byId = new Map(modules.map((m) => [m.id, m]));
+    const sectionById = new Map(modules.flatMap((m) => (m.sections ?? []).map((s) => [s.id, s])));
+    setModules(tree.map((entry) => ({
+      ...byId.get(entry.moduleId),
+      sections: entry.sectionIds.map((sid) => sectionById.get(sid)).filter(Boolean),
+    })));
     try {
-      const fresh = await reorderCourseSections(id, orderedIds);
-      if (Array.isArray(fresh)) setSections(fresh);
+      const fresh = await saveCourseStructure(id, tree);
+      if (Array.isArray(fresh)) setModules(fresh);
     } catch {
-      setSections(previous);
-      toast.error('Reorder failed');
+      setModules(previous);
+      toast.error('Could not save that move');
     }
-  }, [id, sections]);
+  }, [id, modules]);
 
   // ── Course-level actions ───────────────────────────────────
 
@@ -449,14 +528,18 @@ export default function CourseEditorPage() {
 
       <div className="pm-course-editor-body">
         <CourseSectionRail
-          sections={sections}
-          selectedId={selectedSectionId}
+          modules={modules}
+          selectedId={selectedKind === 'module' ? selectedModuleId : selectedSectionId}
+          selectedKind={selectedKind}
           canEdit={canEditDoc}
-          onSelect={handleSelectSection}
-          onReorder={handleReorderSections}
-          onAdd={handleAddSection}
-          onUpdate={handleUpdateSection}
-          onDelete={handleDeleteSection}
+          onSelectSection={handleSelectSection}
+          onSelectModule={handleSelectModule}
+          onSaveStructure={handleSaveStructure}
+          onAddModule={handleAddModule}
+          onAddSection={handleAddSection}
+          onUpdateSection={handleUpdateSection}
+          onDeleteSection={handleDeleteSection}
+          onDeleteModule={handleDeleteModule}
         />
 
         <div className="cpm-blog-editor-body pm-course-editor-main">
@@ -468,7 +551,15 @@ export default function CourseEditorPage() {
             aria-label="Course title"
           />
 
-          {selectedSection ? (
+          {selectedKind === 'module' && selectedModule ? (
+            <CourseModuleSettings
+              key={selectedModule.id}
+              module={selectedModule}
+              canEdit={canEditDoc}
+              onUpdate={handleUpdateModule}
+              sectionCount={(selectedModule.sections ?? []).length}
+            />
+          ) : selectedSection ? (
             <>
               <input
                 className="cpm-blog-title-input pm-course-section-title-input"
@@ -530,13 +621,13 @@ export default function CourseEditorPage() {
             </>
           ) : (
             <p className="pm-course-editor-empty" style={{ color: 'var(--pm-text-muted, #9aa)' }}>
-              Add a section from the rail to start authoring.
+              Add a module or section from the rail to start authoring.
             </p>
           )}
         </div>
       </div>
 
-      {hasDocument && (
+      {hasDocument && selectedSection && (
         <BlogAiPanel
           editor={editorInstance}
           docType="COURSE_SECTION"
