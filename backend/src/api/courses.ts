@@ -46,6 +46,23 @@ async function requireSectionAccess(req: Request, res: Response, sectionId: stri
   return section;
 }
 
+// Same guard, entered from a module id. Returns the module or null.
+async function requireModuleAccess(req: Request, res: Response, moduleId: string) {
+  const mod = await prisma.courseModule.findUnique({
+    where: { id: moduleId },
+    include: { course: { select: { id: true, createdById: true } } },
+  });
+  if (!mod) {
+    res.status(404).json({ error: "Module not found" });
+    return null;
+  }
+  if (mod.course.createdById !== req.memberId && !(await isAdmin(req.memberId))) {
+    res.status(403).json({ error: "Forbidden" });
+    return null;
+  }
+  return mod;
+}
+
 // ── Catalog ──────────────────────────────────────────────────
 
 // GET / — published courses plus the caller's own drafts, with their progress.
@@ -198,13 +215,93 @@ coursesRouter.delete("/:id", async (req: Request, res: Response) => {
   }
 });
 
+// ── Modules ──────────────────────────────────────────────────
+
+coursesRouter.post("/:id/modules", async (req: Request, res: Response) => {
+  try {
+    const id = req.params.id as string;
+    if (!(await requireCourseAccess(req, res, id))) return;
+    const { title, summary, estimatedMinutes, isRequired, sequential } = req.body as {
+      title?: string;
+      summary?: string | null;
+      estimatedMinutes?: number | null;
+      isRequired?: boolean;
+      sequential?: boolean;
+    };
+    if (!title?.trim()) {
+      res.status(400).json({ error: "title is required" });
+      return;
+    }
+    const created = await courseService.createModule({
+      courseId: id,
+      title: title.trim(),
+      summary,
+      estimatedMinutes,
+      isRequired,
+      sequential,
+    });
+    res.status(201).json(created);
+  } catch (error) {
+    console.error("POST /outreach/courses/:id/modules error:", error);
+    res.status(500).json({ error: "Failed to create module" });
+  }
+});
+
+coursesRouter.patch("/modules/:mid", async (req: Request, res: Response) => {
+  try {
+    const mid = req.params.mid as string;
+    if (!(await requireModuleAccess(req, res, mid))) return;
+    res.json(await courseService.updateModule(mid, req.body));
+  } catch (error) {
+    console.error("PATCH /outreach/courses/modules/:mid error:", error);
+    res.status(500).json({ error: "Failed to update module" });
+  }
+});
+
+// Deletes the module AND its sections (and their questions, progress and quiz
+// attempts, by cascade). The client confirms with the section count named.
+coursesRouter.delete("/modules/:mid", async (req: Request, res: Response) => {
+  try {
+    const mid = req.params.mid as string;
+    if (!(await requireModuleAccess(req, res, mid))) return;
+    await courseService.deleteModule(mid);
+    res.json({ ok: true });
+  } catch (error) {
+    console.error("DELETE /outreach/courses/modules/:mid error:", error);
+    res.status(500).json({ error: "Failed to delete module" });
+  }
+});
+
+// PUT /:id/structure — the whole module/section tree, one transaction. Replaces
+// the old sections-order endpoint: a cross-module drag must not half-apply.
+coursesRouter.put("/:id/structure", async (req: Request, res: Response) => {
+  try {
+    const id = req.params.id as string;
+    if (!(await requireCourseAccess(req, res, id))) return;
+    const { tree } = req.body as { tree?: courseService.StructureModule[] };
+    if (!Array.isArray(tree)) {
+      res.status(400).json({ error: "tree must be an array" });
+      return;
+    }
+    res.json(await courseService.saveStructure(id, tree));
+  } catch (error) {
+    if (error instanceof courseService.StructureMismatchError) {
+      res.status(400).json({ error: error.message });
+      return;
+    }
+    console.error("PUT /outreach/courses/:id/structure error:", error);
+    res.status(500).json({ error: "Failed to save course structure" });
+  }
+});
+
 // ── Sections ─────────────────────────────────────────────────
 
 coursesRouter.post("/:id/sections", async (req: Request, res: Response) => {
   try {
     const id = req.params.id as string;
     if (!(await requireCourseAccess(req, res, id))) return;
-    const { title, kind, isRequired, videoConfig, passThreshold, maxAttempts } = req.body as {
+    const { moduleId, title, kind, isRequired, videoConfig, passThreshold, maxAttempts } = req.body as {
+      moduleId?: string;
       title?: string;
       kind?: CourseSectionKind;
       isRequired?: boolean;
@@ -216,8 +313,21 @@ coursesRouter.post("/:id/sections", async (req: Request, res: Response) => {
       res.status(400).json({ error: "title is required" });
       return;
     }
+    if (!moduleId?.trim()) {
+      res.status(400).json({ error: "moduleId is required" });
+      return;
+    }
+    const owns = await prisma.courseModule.findFirst({
+      where: { id: moduleId, courseId: id },
+      select: { id: true },
+    });
+    if (!owns) {
+      res.status(400).json({ error: "moduleId does not belong to this course" });
+      return;
+    }
     const section = await courseService.createSection({
       courseId: id,
+      moduleId,
       title: title.trim(),
       kind,
       isRequired,
@@ -229,23 +339,6 @@ coursesRouter.post("/:id/sections", async (req: Request, res: Response) => {
   } catch (error) {
     console.error("POST /outreach/courses/:id/sections error:", error);
     res.status(500).json({ error: "Failed to create section" });
-  }
-});
-
-// PUT /:id/sections/order — transactional whole-set re-index.
-coursesRouter.put("/:id/sections/order", async (req: Request, res: Response) => {
-  try {
-    const id = req.params.id as string;
-    if (!(await requireCourseAccess(req, res, id))) return;
-    const { orderedIds } = req.body as { orderedIds?: string[] };
-    if (!Array.isArray(orderedIds)) {
-      res.status(400).json({ error: "orderedIds must be an array" });
-      return;
-    }
-    res.json(await courseService.reorderSections(id, orderedIds));
-  } catch (error) {
-    console.error("PUT /outreach/courses/:id/sections/order error:", error);
-    res.status(500).json({ error: "Failed to reorder sections" });
   }
 });
 
