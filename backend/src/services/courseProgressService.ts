@@ -217,8 +217,30 @@ function prunePings(now: number): void {
 
 // ── Learner payload ──────────────────────────────────────────
 
+/**
+ * A module as the learner sees it. Sent in FULL even when locked — that is the
+ * teaser. Every field here is either author-written (title, summary,
+ * estimatedMinutes) or a count; nothing is derived from a locked section's body,
+ * which is still withheld by omission on the section itself.
+ */
+export interface LearnerModule {
+  id: string;
+  order: number;
+  title: string;
+  summary: string | null;
+  estimatedMinutes: number | null;
+  isRequired: boolean;
+  sequential: boolean;
+  locked: boolean;
+  completed: boolean;
+  sectionIds: string[];
+  completedCount: number;
+  requiredCount: number;
+}
+
 export interface LearnerSection {
   id: string;
+  moduleId: string;
   order: number;
   title: string;
   kind: string;
@@ -268,9 +290,21 @@ export async function getLearnerCourse(
 
   const preview = !!opts.preview && isEditor;
 
-  const sections = await prisma.courseSection.findMany({
+  const modules = await prisma.courseModule.findMany({
     where: { courseId: course.id },
     orderBy: { order: "asc" },
+  });
+  const moduleOrder = new Map(modules.map((m) => [m.id, m.order]));
+
+  // Sorted by (module order, section order) so the player can treat array
+  // position as course position — which is what makes "mark complete &
+  // continue" work across a module boundary.
+  const sections = (
+    await prisma.courseSection.findMany({ where: { courseId: course.id } })
+  ).sort((a, b) => {
+    const ma = moduleOrder.get(a.moduleId) ?? 0;
+    const mb = moduleOrder.get(b.moduleId) ?? 0;
+    return ma !== mb ? ma - mb : a.order - b.order;
   });
 
   const enrollment = preview
@@ -289,8 +323,15 @@ export async function getLearnerCourse(
       })
     : [];
 
+  const gateModules: GateModule[] = modules.map((m) => ({
+    id: m.id,
+    order: m.order,
+    isRequired: m.isRequired,
+    sequential: m.sequential,
+  }));
   const gateSections: GateSection[] = sections.map((s) => ({
     id: s.id,
+    moduleId: s.moduleId,
     order: s.order,
     isRequired: s.isRequired,
   }));
@@ -300,8 +341,9 @@ export async function getLearnerCourse(
 
   const learnerSections: LearnerSection[] = sections.map((s) => {
     const progress = byId.get(s.id);
-    const unlocked = preview || isSectionUnlocked(gateSections, gateProgress, {
+    const unlocked = preview || isSectionUnlocked(gateModules, gateSections, gateProgress, {
       id: s.id,
+      moduleId: s.moduleId,
       order: s.order,
       isRequired: s.isRequired,
     });
@@ -310,6 +352,7 @@ export async function getLearnerCourse(
 
     const out: LearnerSection = {
       id: s.id,
+      moduleId: s.moduleId,
       order: s.order,
       title: s.title,
       kind: s.kind,
@@ -332,6 +375,28 @@ export async function getLearnerCourse(
     return out;
   });
 
+  const learnerModules: LearnerModule[] = modules.map((m) => {
+    const own = sections.filter((s) => s.moduleId === m.id);
+    // A module is locked when none of its sections is unlocked. A module with no
+    // sections has nothing to open, so it reads as locked=false — consistent
+    // with it never gating anything either.
+    const anyOpen = own.some((s) => !learnerSections.find((ls) => ls.id === s.id)?.locked);
+    return {
+      id: m.id,
+      order: m.order,
+      title: m.title,
+      summary: m.summary,
+      estimatedMinutes: m.estimatedMinutes,
+      isRequired: m.isRequired,
+      sequential: m.sequential,
+      locked: own.length > 0 && !anyOpen,
+      completed: isModuleComplete(gateSections, gateProgress, m.id),
+      sectionIds: own.map((s) => s.id),
+      completedCount: own.filter((s) => byId.get(s.id)?.status === "COMPLETED").length,
+      requiredCount: own.filter((s) => s.isRequired).length,
+    };
+  });
+
   return {
     id: course.id,
     slug: course.slug,
@@ -351,6 +416,7 @@ export async function getLearnerCourse(
           lastSectionId: enrollment.lastSectionId,
         }
       : null,
+    modules: learnerModules,
     sections: learnerSections,
   };
 }
@@ -366,25 +432,35 @@ export async function isSectionUnlockedForMember(
 ): Promise<boolean> {
   const section = await prisma.courseSection.findUnique({
     where: { id: sectionId },
-    select: { id: true, order: true, isRequired: true, courseId: true },
+    select: { id: true, moduleId: true, order: true, isRequired: true, courseId: true },
   });
   if (!section) return false;
 
-  const sections = await prisma.courseSection.findMany({
-    where: { courseId: section.courseId },
-    orderBy: { order: "asc" },
-    select: { id: true, order: true, isRequired: true },
-  });
-  const enrollment = await prisma.courseEnrollment.findUnique({
-    where: { courseId_memberId: { courseId: section.courseId, memberId } },
-    select: { id: true },
-  });
+  const [modules, sections, enrollment] = await Promise.all([
+    prisma.courseModule.findMany({
+      where: { courseId: section.courseId },
+      orderBy: { order: "asc" },
+      select: { id: true, order: true, isRequired: true, sequential: true },
+    }),
+    prisma.courseSection.findMany({
+      where: { courseId: section.courseId },
+      select: { id: true, moduleId: true, order: true, isRequired: true },
+    }),
+    prisma.courseEnrollment.findUnique({
+      where: { courseId_memberId: { courseId: section.courseId, memberId } },
+      select: { id: true },
+    }),
+  ]);
+
   const progressRows = enrollment
     ? await prisma.courseSectionProgress.findMany({ where: { enrollmentId: enrollment.id } })
     : [];
   const byId = new Map(progressRows.map((p) => [p.sectionId, p]));
 
+  // No sort needed here: the gate reasons about `order` fields, not array
+  // position. Only the learner payload needs a globally-sorted array.
   return isSectionUnlocked(
+    modules,
     sections,
     new Map(sections.map((s) => [s.id, byId.get(s.id)])),
     section
@@ -416,11 +492,20 @@ async function requireUnlockedSection(sectionId: string, memberId: string) {
   const section = await prisma.courseSection.findUnique({ where: { id: sectionId } });
   if (!section) return { ok: false as const, error: "Section not found", status: 404 };
 
-  const sections = await prisma.courseSection.findMany({
-    where: { courseId: section.courseId },
-    orderBy: { order: "asc" },
-    select: { id: true, order: true, isRequired: true },
-  });
+  // Module-aware, like every other entry into the gate: a section sitting in a
+  // locked module must refuse writes, not just reads.
+  const [modules, sections] = await Promise.all([
+    prisma.courseModule.findMany({
+      where: { courseId: section.courseId },
+      orderBy: { order: "asc" },
+      select: { id: true, order: true, isRequired: true, sequential: true },
+    }),
+    prisma.courseSection.findMany({
+      where: { courseId: section.courseId },
+      orderBy: { order: "asc" },
+      select: { id: true, moduleId: true, order: true, isRequired: true },
+    }),
+  ]);
   const enrollment = await ensureEnrollment(section.courseId, memberId, sections.map((s) => s.id));
   const progressRows = await prisma.courseSectionProgress.findMany({
     where: { enrollmentId: enrollment.id },
@@ -428,9 +513,15 @@ async function requireUnlockedSection(sectionId: string, memberId: string) {
   const byId = new Map(progressRows.map((p) => [p.sectionId, p]));
 
   const unlocked = isSectionUnlocked(
+    modules,
     sections,
     new Map(sections.map((s) => [s.id, byId.get(s.id)])),
-    { id: section.id, order: section.order, isRequired: section.isRequired }
+    {
+      id: section.id,
+      moduleId: section.moduleId,
+      order: section.order,
+      isRequired: section.isRequired,
+    }
   );
   if (!unlocked) return { ok: false as const, error: "Section is locked", status: 403 };
 
