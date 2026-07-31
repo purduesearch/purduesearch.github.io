@@ -7,12 +7,15 @@
 
 import {
   isSectionUnlocked,
+  isModuleComplete,
   gradeQuestion,
   computeScorePct,
   clampVideoProgress,
   VIDEO_BOOTSTRAP_GRACE_SEC,
+  type GateModule,
   type GateSection,
   type GateProgress,
+  type ProgressLookup,
   type GradableQuestion,
 } from "./courseProgressService.js";
 
@@ -25,76 +28,111 @@ function eq(name: string, a: unknown, b: unknown) {
   else { failed++; console.error(`  ✗ ${name}: got ${JSON.stringify(a)}, want ${JSON.stringify(b)}`); }
 }
 
-// ── isSectionUnlocked ────────────────────────────────────────
+// ── isSectionUnlocked / isModuleComplete ─────────────────────
 
-const sec = (id: string, order: number, isRequired = true): GateSection => ({ id, order, isRequired });
+const mod = (id: string, order: number, sequential = true, isRequired = true): GateModule =>
+  ({ id, order, sequential, isRequired });
+const sec = (id: string, moduleId: string, order: number, isRequired = true): GateSection =>
+  ({ id, moduleId, order, isRequired });
 const done = (): GateProgress => ({ status: "COMPLETED" });
 const started = (): GateProgress => ({ status: "IN_PROGRESS" });
 
-console.log("isSectionUnlocked");
+console.log("isSectionUnlocked — inside a sequential module");
 {
-  const sections = [sec("a", 0), sec("b", 1), sec("c", 2)];
+  const modules = [mod("m1", 0)];
+  const sections = [sec("a", "m1", 0), sec("b", "m1", 1), sec("c", "m1", 2)];
+  const u = (s: GateSection, p: ProgressLookup = {}) => isSectionUnlocked(modules, sections, p, s);
 
-  check("first section is always unlocked", isSectionUnlocked(sections, {}, sections[0]!));
-  check("second is locked while the first is unstarted", !isSectionUnlocked(sections, {}, sections[1]!));
+  check("first section is always unlocked", u(sections[0]!));
+  check("second is locked while the first is unstarted", !u(sections[1]!));
+  check("second is locked while the first is only in progress", !u(sections[1]!, { a: started() }));
+  check("second unlocks once the first is complete", u(sections[1]!, { a: done() }));
+  check("third stays locked while the second is incomplete", !u(sections[2]!, { a: done() }));
+  check("third unlocks once both predecessors are complete", u(sections[2]!, { a: done(), b: done() }));
+  check("a Map of progress works the same as a record", u(sections[1]!, new Map([["a", done()]])));
+  check("a section's own status never gates itself", u(sections[0]!, { a: started() }));
+}
+
+console.log("isSectionUnlocked — optional sections never block");
+{
+  const modules = [mod("m1", 0)];
+  const sections = [sec("intro", "m1", 0, false), sec("safety", "m1", 1), sec("test", "m1", 2)];
+  const u = (s: GateSection, p: ProgressLookup = {}) => isSectionUnlocked(modules, sections, p, s);
+
+  check("an unstarted optional section does not block what follows", u(sections[1]!));
+  check("a required section still blocks what follows", !u(sections[2]!));
+  check("completing the required one unlocks the rest", u(sections[2]!, { safety: done() }));
+}
+
+console.log("isSectionUnlocked — a free-order module");
+{
+  const modules = [mod("m1", 0, false)];
+  const sections = [sec("a", "m1", 0), sec("b", "m1", 1), sec("c", "m1", 2)];
+  const u = (s: GateSection) => isSectionUnlocked(modules, sections, {}, s);
+
+  check("every section of a free-order module is open at once", u(sections[0]!) && u(sections[1]!) && u(sections[2]!));
+}
+
+console.log("isSectionUnlocked — between modules");
+{
+  const modules = [mod("m1", 0), mod("m2", 1, false), mod("m3", 2)];
+  const sections = [
+    sec("a", "m1", 0), sec("b", "m1", 1),
+    sec("c", "m2", 0), sec("d", "m2", 1),
+    sec("e", "m3", 0),
+  ];
+  const u = (s: GateSection, p: ProgressLookup = {}) => isSectionUnlocked(modules, sections, p, s);
+
+  check("module 2 is locked while module 1 is unfinished", !u(sections[2]!, { a: done() }));
   check(
-    "second is locked while the first is only in progress",
-    !isSectionUnlocked(sections, { a: started() }, sections[1]!)
+    "finishing module 1 opens BOTH sections of the free-order module 2",
+    u(sections[2]!, { a: done(), b: done() }) && u(sections[3]!, { a: done(), b: done() })
   );
   check(
-    "second unlocks once the first is complete",
-    isSectionUnlocked(sections, { a: done() }, sections[1]!)
+    "module 3 is locked while module 2 is unfinished",
+    !u(sections[4]!, { a: done(), b: done(), c: done() })
   );
   check(
-    "third stays locked while the second is incomplete",
-    !isSectionUnlocked(sections, { a: done() }, sections[2]!)
-  );
-  check(
-    "third unlocks once both predecessors are complete",
-    isSectionUnlocked(sections, { a: done(), b: done() }, sections[2]!)
-  );
-  check(
-    "a Map of progress works the same as a record",
-    isSectionUnlocked(sections, new Map([["a", done()]]), sections[1]!)
-  );
-  check(
-    "a section's own status never gates itself",
-    isSectionUnlocked(sections, { a: started() }, sections[0]!)
+    "module 3 unlocks once modules 1 and 2 are complete",
+    u(sections[4]!, { a: done(), b: done(), c: done(), d: done() })
   );
 }
 
-// Non-required sections never block, no matter their status.
+console.log("isSectionUnlocked — modules that never gate");
 {
-  const sections = [sec("intro", 0, false), sec("safety", 1), sec("test", 2)];
+  const optionalMod = [mod("m1", 0, true, false), mod("m2", 1)];
+  const optionalSecs = [sec("a", "m1", 0), sec("b", "m2", 0)];
   check(
-    "an unstarted optional section does not block what follows",
-    isSectionUnlocked(sections, {}, sections[1]!)
+    "a non-required module never blocks the module after it",
+    isSectionUnlocked(optionalMod, optionalSecs, {}, optionalSecs[1]!)
   );
+
+  const allOptional = [mod("m1", 0), mod("m2", 1)];
+  const allOptionalSecs = [sec("a", "m1", 0, false), sec("b", "m1", 1, false), sec("c", "m2", 0)];
   check(
-    "an optional section skipped entirely still lets a later required one open",
-    isSectionUnlocked(sections, { safety: done() }, sections[2]!)
+    "a module whose sections are all optional never blocks",
+    isSectionUnlocked(allOptional, allOptionalSecs, {}, allOptionalSecs[2]!)
   );
+
+  const withEmpty = [mod("m1", 0), mod("m2", 1)];
+  const onlyLater = [sec("c", "m2", 0)];
   check(
-    "an incomplete required section still blocks past an optional one",
-    !isSectionUnlocked(sections, {}, sections[2]!)
+    "an empty module never blocks",
+    isSectionUnlocked(withEmpty, onlyLater, {}, onlyLater[0]!)
   );
 }
 
-// Out-of-order input: the gate reads `order`, not array position.
+console.log("isModuleComplete");
 {
-  const shuffled = [sec("c", 2), sec("a", 0), sec("b", 1)];
+  const sections = [sec("a", "m1", 0), sec("b", "m1", 1, false), sec("c", "m2", 0)];
+
+  check("incomplete while a required section is unfinished", !isModuleComplete(sections, {}, "m1"));
   check(
-    "gate is driven by order, not array position (locked)",
-    !isSectionUnlocked(shuffled, { a: done() }, shuffled[0]!)
+    "complete once every REQUIRED section is done, optional ones ignored",
+    isModuleComplete(sections, { a: done() }, "m1")
   );
-  check(
-    "gate is driven by order, not array position (unlocked)",
-    isSectionUnlocked(shuffled, { a: done(), b: done() }, shuffled[0]!)
-  );
-  check(
-    "equal orders do not gate each other",
-    isSectionUnlocked([sec("x", 5), sec("y", 5)], {}, sec("y", 5))
-  );
+  check("an empty module is vacuously complete", isModuleComplete(sections, {}, "m-none"));
+  check("sections of other modules are ignored", isModuleComplete(sections, { c: done() }, "m2"));
 }
 
 // ── clampVideoProgress ───────────────────────────────────────

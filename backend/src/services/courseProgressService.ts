@@ -14,38 +14,97 @@ import { prisma } from "../db/prisma.js";
 /** The minimum a section must expose for the gate to reason about it. */
 export interface GateSection {
   id: string;
+  moduleId: string;
+  /** Order WITHIN its module — not within the course. */
   order: number;
   isRequired: boolean;
+}
+
+/** The minimum a module must expose for the gate to reason about it. */
+export interface GateModule {
+  id: string;
+  order: number;
+  isRequired: boolean;
+  /** When true, sections inside must be completed in `order`. */
+  sequential: boolean;
 }
 
 export interface GateProgress {
   status: CourseProgressStatus;
 }
 
+export type ProgressLookup =
+  | Record<string, GateProgress | undefined>
+  | Map<string, GateProgress | undefined>;
+
+function lookup(progress: ProgressLookup, id: string): GateProgress | undefined {
+  return progress instanceof Map ? progress.get(id) : progress[id];
+}
+
 /**
- * A section is unlocked when every *required* section with a lower `order` is
- * COMPLETED. Non-required sections never block, regardless of their status.
+ * A module is complete when every *required* section in it is COMPLETED.
  *
- * Pure: `sections` is the full ordered set, `progressBySectionId` maps section
- * id → the learner's progress row (missing = NOT_STARTED). Ties on `order` do
- * not block each other — only strictly-lower orders gate.
+ * A module with no required sections — including one with no sections at all —
+ * is vacuously complete and therefore never gates. That is deliberate: a module
+ * of optional readings must not trap anyone, and an empty module is a normal
+ * mid-edit state, not an error. The editor warns about both.
+ */
+export function isModuleComplete(
+  sections: GateSection[],
+  progress: ProgressLookup,
+  moduleId: string
+): boolean {
+  for (const s of sections) {
+    if (s.moduleId !== moduleId) continue;
+    if (!s.isRequired) continue;
+    if (lookup(progress, s.id)?.status !== "COMPLETED") return false;
+  }
+  return true;
+}
+
+/**
+ * A section is unlocked when BOTH hold:
+ *
+ *   1. Between modules (always): every *required* module with a strictly lower
+ *      `order` is complete.
+ *   2. Within its module (only when the module is `sequential`): every
+ *      *required* section in the same module with a strictly lower `order` is
+ *      COMPLETED.
+ *
+ * Ties on `order` do not block each other at either level.
+ *
+ * Pure: `modules` and `sections` are the full sets for the course, `progress`
+ * maps section id → the learner's progress row (missing = NOT_STARTED).
  */
 export function isSectionUnlocked(
+  modules: GateModule[],
   sections: GateSection[],
-  progressBySectionId: Record<string, GateProgress | undefined> | Map<string, GateProgress | undefined>,
+  progress: ProgressLookup,
   section: GateSection
 ): boolean {
-  const lookup = (id: string): GateProgress | undefined =>
-    progressBySectionId instanceof Map
-      ? progressBySectionId.get(id)
-      : progressBySectionId[id];
+  const own = modules.find((m) => m.id === section.moduleId);
 
-  for (const s of sections) {
-    if (s.id === section.id) continue;
-    if (!s.isRequired) continue;
-    if (s.order >= section.order) continue;
-    if (lookup(s.id)?.status !== "COMPLETED") return false;
+  // 1. Earlier required modules must be complete.
+  if (own) {
+    for (const m of modules) {
+      if (m.id === own.id) continue;
+      if (!m.isRequired) continue;
+      if (m.order >= own.order) continue;
+      if (!isModuleComplete(sections, progress, m.id)) return false;
+    }
   }
+
+  // 2. Earlier required siblings, only when the module is sequential.
+  if (!own || own.sequential) {
+    for (const s of sections) {
+      if (s.id === section.id) continue;
+      if (s.moduleId !== section.moduleId) continue;
+      if (!s.isRequired) continue;
+      if (s.order >= section.order) continue;
+      if (lookup(progress, s.id)?.status !== "COMPLETED") return false;
+    }
+  }
+
   return true;
 }
 
