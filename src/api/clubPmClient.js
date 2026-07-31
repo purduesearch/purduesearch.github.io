@@ -477,7 +477,12 @@ export const deleteCourse   = (id)      => del(`/api/outreach/courses/${id}`);
 export const createCourseSection  = (courseId, data)      => post(`/api/outreach/courses/${courseId}/sections`, data);
 export const updateCourseSection  = (sectionId, data)     => patch(`/api/outreach/courses/sections/${sectionId}`, data);
 export const deleteCourseSection  = (sectionId)           => del(`/api/outreach/courses/sections/${sectionId}`);
-export const reorderCourseSections = (courseId, orderedIds) => put(`/api/outreach/courses/${courseId}/sections/order`, { orderedIds });
+export const createCourseModule = (courseId, data)  => post(`/api/outreach/courses/${courseId}/modules`, data);
+export const updateCourseModule = (moduleId, data)  => patch(`/api/outreach/courses/modules/${moduleId}`, data);
+export const deleteCourseModule = (moduleId)        => del(`/api/outreach/courses/modules/${moduleId}`);
+// tree: [{ moduleId, sectionIds: [] }, …] — must list EVERY module and section
+// of the course exactly once, or the server 400s rather than half-applying.
+export const saveCourseStructure = (courseId, tree) => put(`/api/outreach/courses/${courseId}/structure`, { tree });
 
 export const listCourseQuestions   = (sectionId)            => get(`/api/outreach/courses/sections/${sectionId}/questions`);
 // `scope` bounds which family of questions the whole-set replace may delete:
