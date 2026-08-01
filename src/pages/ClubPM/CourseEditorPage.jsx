@@ -11,7 +11,7 @@ import OrbitLoader from '../../components/OrbitLoader';
 import { useClubPmAuth } from '../../clubpm/ClubPmAuth';
 import {
   getCourse, updateCourse, publishCourse, archiveCourse, deleteCourse,
-  createCourseSection, updateCourseSection, deleteCourseSection,
+  getCourseSection, createCourseSection, updateCourseSection, deleteCourseSection,
   createCourseModule, updateCourseModule, deleteCourseModule, saveCourseStructure,
   getCourseCollabWsUrl,
 } from '../../api/clubPmClient';
@@ -196,9 +196,9 @@ export default function CourseEditorPage() {
     return () => { cancelled = true; };
   }, [id]);
 
-  // Switching sections resets the per-section editable state. The body itself
-  // arrives over the collab connection (BlogEditor ignores `content` when
-  // `postId` is set), so only the title needs seeding here.
+  // Switching sections resets the per-section editable state. The body normally
+  // arrives over the collab connection (BlogEditor prefers the Yjs doc over
+  // `content`), so only the title needs seeding here.
   useEffect(() => {
     setSectionTitle(selectedSection?.title ?? '');
     setContentJson(null);
@@ -208,6 +208,26 @@ export default function CourseEditorPage() {
     setEditorInstance(null);
     editorRef.current = null;
   }, [selectedSection?.id, selectedSection?.title]);
+
+  // The saved body, fetched per section because the course tree omits it.
+  //
+  // This is BlogEditor's fallback seed, not the primary load: when the collab
+  // socket syncs, the Yjs doc wins and this is never applied. It matters when
+  // the socket never syncs (blocked WS, proxy stripping Upgrade headers, or a
+  // session-cookie login with no Bearer token for the collab handshake) — the
+  // editor used to render permanently blank in that case while the learner
+  // preview, which reads contentJson server-side, still showed the text.
+  const [savedContentJson, setSavedContentJson] = useState(null);
+  useEffect(() => {
+    const sectionId = selectedSection?.id;
+    if (!sectionId) { setSavedContentJson(null); return undefined; }
+    let cancelled = false;
+    setSavedContentJson(null);
+    getCourseSection(sectionId)
+      .then((s) => { if (!cancelled) setSavedContentJson(s?.contentJson ?? null); })
+      .catch(() => { /* fallback only — the collab doc is still the primary path */ });
+    return () => { cancelled = true; };
+  }, [selectedSection?.id]);
 
   // A quiz section has nothing for the AI panel to act on, so close it rather
   // than leave an empty panel pinned open across the switch.
@@ -608,7 +628,9 @@ export default function CourseEditorPage() {
                     postId={selectedSection.id}
                     collabWsUrl={getCourseCollabWsUrl()}
                     collabUser={{ id: member?.id, name: member?.displayName }}
-                    content={null}
+                    // Fallback seed only — BlogEditor applies this solely when
+                    // the Yjs doc arrives empty or never syncs at all.
+                    content={savedContentJson}
                     onChange={(json) => { setContentJson(json); setDirty(true); }}
                     onEditorReady={(ed) => { editorRef.current = ed; setEditorInstance(ed); }}
                     docType="COURSE_SECTION"

@@ -342,6 +342,25 @@ coursesRouter.post("/:id/sections", async (req: Request, res: Response) => {
   }
 });
 
+// GET /sections/:sid — one section including `contentJson`, which the tree
+// endpoints omit. This is what the editor seeds its document from when the
+// collab socket never syncs; see courseService.getSection.
+coursesRouter.get("/sections/:sid", async (req: Request, res: Response) => {
+  try {
+    const sid = req.params.sid as string;
+    if (!(await requireSectionAccess(req, res, sid))) return;
+    const section = await courseService.getSection(sid);
+    if (!section) {
+      res.status(404).json({ error: "Section not found" });
+      return;
+    }
+    res.json(section);
+  } catch (error) {
+    console.error("GET /outreach/courses/sections/:sid error:", error);
+    res.status(500).json({ error: "Failed to load section" });
+  }
+});
+
 coursesRouter.patch("/sections/:sid", async (req: Request, res: Response) => {
   try {
     const sid = req.params.sid as string;
@@ -739,7 +758,10 @@ coursesRouter.get("/:id/progress", async (req: Request, res: Response) => {
       }),
       prisma.courseSection.findMany({
         where: { courseId: id },
-        orderBy: { order: "asc" },
+        // `order` is order WITHIN a module, so course-wide ordering has to lead
+        // with the module's own order — otherwise the matrix columns interleave
+        // the modules as soon as a course has more than one.
+        orderBy: [{ module: { order: "asc" } }, { order: "asc" }],
         select: { id: true, title: true, order: true, kind: true, isRequired: true },
       }),
       prisma.courseEnrollment.findMany({
@@ -831,7 +853,12 @@ coursesRouter.get("/:id/quiz-analysis", async (req: Request, res: Response) => {
       prisma.course.findUnique({ where: { id }, select: { id: true, slug: true, title: true } }),
       prisma.courseQuestion.findMany({
         where: { section: { courseId: id } },
-        orderBy: [{ section: { order: "asc" } }, { order: "asc" }],
+        // Module order first: a section's `order` is only meaningful inside it.
+        orderBy: [
+          { section: { module: { order: "asc" } } },
+          { section: { order: "asc" } },
+          { order: "asc" },
+        ],
         include: {
           section: { select: { id: true, title: true, order: true, kind: true, passThreshold: true } },
           answers: { orderBy: { order: "asc" }, select: { id: true, text: true, isCorrect: true } },
@@ -943,7 +970,8 @@ coursesRouter.get("/progress/member/:memberId", async (req: Request, res: Respon
             status: true,
             estimatedMinutes: true,
             sections: {
-              orderBy: { order: "asc" },
+              // Module order first — `order` alone is per-module.
+              orderBy: [{ module: { order: "asc" } }, { order: "asc" }],
               select: { id: true, title: true, order: true, kind: true, isRequired: true, passThreshold: true },
             },
           },

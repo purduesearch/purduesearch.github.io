@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import {
   DndContext,
   closestCenter,
@@ -77,13 +78,42 @@ function moveSection(modules, activeSectionId, overId) {
 
   // Dropping ON a section inserts at that section's position; dropping on a
   // module body (or the module header) appends.
+  //
+  // The index is read from the target's ORIGINAL section list, not the stripped
+  // one — that is what makes a within-module drag match arrayMove semantics. On
+  // the stripped list every downward drag lands one slot short, so dragging a
+  // section down by one would be a silent no-op. For a cross-module drag the two
+  // lists are identical, since the moving section was never in the target.
+  const targetOriginal = modules.find((m) => m.id === toModuleId)?.sections ?? [];
   const index = isSec(overId)
-    ? Math.max(0, target.sections.findIndex((s) => s.id === rawId(overId)))
+    ? Math.max(0, targetOriginal.findIndex((s) => s.id === rawId(overId)))
     : target.sections.length;
 
   const nextSections = target.sections.slice();
   nextSections.splice(index, 0, moving);
   return stripped.map((m) => (m.id === toModuleId ? { ...m, sections: nextSections } : m));
+}
+
+// Menu geometry, in viewport coordinates. Rendered through a portal because the
+// rail is `overflow-y: auto`, which clips any absolutely-positioned child — an
+// empty module has no content below it to scroll to, so the menu was simply cut
+// off. Flips above the button when there isn't room below.
+const MENU_WIDTH = 158;
+const MENU_MARGIN = 8;
+
+function menuPositionFor(button, itemCount) {
+  const rect = button.getBoundingClientRect();
+  const height = itemCount * 34 + 10;
+  const openUp = rect.bottom + height + MENU_MARGIN > window.innerHeight
+    && rect.top - height - MENU_MARGIN > 0;
+  return {
+    top: openUp ? rect.top - height - 6 : rect.bottom + 6,
+    // Right-aligned to the button, then clamped so it can never leave the viewport.
+    left: Math.max(MENU_MARGIN, Math.min(
+      rect.right - MENU_WIDTH,
+      window.innerWidth - MENU_WIDTH - MENU_MARGIN
+    )),
+  };
 }
 
 function SectionRow({ section, isSelected, canEdit, onSelect, onToggleRequired, onDelete }) {
@@ -177,16 +207,34 @@ function ModuleGroup({
   } = useSortable({ id: modId(mod.id), disabled: !canEdit });
   const { setNodeRef: setDropRef, isOver } = useDroppable({ id: dropId(mod.id) });
 
-  const [addOpen, setAddOpen] = useState(false);
+  // null when closed; {top,left} in viewport coords when open.
+  const [addMenu, setAddMenu] = useState(null);
   const addRef = useRef(null);
+  const menuRef = useRef(null);
   useEffect(() => {
-    if (!addOpen) return undefined;
-    const onDoc = (e) => { if (addRef.current && !addRef.current.contains(e.target)) setAddOpen(false); };
-    const onKey = (e) => { if (e.key === 'Escape') setAddOpen(false); };
+    if (!addMenu) return undefined;
+    const onDoc = (e) => {
+      // The menu is portalled out of the rail, so it is NOT inside addRef —
+      // both subtrees have to be checked or clicking an item closes the menu
+      // before its own handler runs.
+      if (addRef.current?.contains(e.target) || menuRef.current?.contains(e.target)) return;
+      setAddMenu(null);
+    };
+    const onKey = (e) => { if (e.key === 'Escape') setAddMenu(null); };
+    // A portalled menu is detached from the rail's scroller, so it would other-
+    // wise hang in place while the rail scrolls underneath it.
+    const onReflow = () => setAddMenu(null);
     document.addEventListener('mousedown', onDoc);
     document.addEventListener('keydown', onKey);
-    return () => { document.removeEventListener('mousedown', onDoc); document.removeEventListener('keydown', onKey); };
-  }, [addOpen]);
+    window.addEventListener('resize', onReflow);
+    window.addEventListener('scroll', onReflow, true);
+    return () => {
+      document.removeEventListener('mousedown', onDoc);
+      document.removeEventListener('keydown', onKey);
+      window.removeEventListener('resize', onReflow);
+      window.removeEventListener('scroll', onReflow, true);
+    };
+  }, [addMenu]);
 
   const sections = mod.sections ?? [];
   const ids = sections.map((s) => secId(s.id));
@@ -246,27 +294,41 @@ function ModuleGroup({
               <button
                 type="button"
                 className="pm-course-rail-add"
-                onClick={(e) => { e.stopPropagation(); setAddOpen((o) => !o); }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  // Captured before the updater: React nulls `currentTarget`
+                  // once the handler returns, and the updater runs later.
+                  const button = e.currentTarget;
+                  setAddMenu((open) => (
+                    open ? null : menuPositionFor(button, Object.keys(SECTION_KINDS).length)
+                  ));
+                }}
                 aria-haspopup="menu"
-                aria-expanded={addOpen}
+                aria-expanded={!!addMenu}
                 aria-label={`Add a section to ${mod.title}`}
                 title="Add a section to this module"
               >
                 <i className="fas fa-plus" aria-hidden="true" />
               </button>
-              {addOpen && (
-                <div className="pm-course-rail-add-pop" role="menu">
+              {addMenu && createPortal(
+                <div
+                  ref={menuRef}
+                  className="pm-course-rail-add-pop pm-course-rail-add-pop--floating"
+                  role="menu"
+                  style={{ top: addMenu.top, left: addMenu.left }}
+                >
                   {Object.entries(SECTION_KINDS).map(([kind, meta]) => (
                     <button
                       key={kind}
                       type="button"
                       role="menuitem"
-                      onClick={(e) => { e.stopPropagation(); setAddOpen(false); onAddSection(mod.id, kind); }}
+                      onClick={(e) => { e.stopPropagation(); setAddMenu(null); onAddSection(mod.id, kind); }}
                     >
                       <i className={meta.icon} aria-hidden="true" /> {meta.label}
                     </button>
                   ))}
-                </div>
+                </div>,
+                document.body
               )}
             </span>
             <button

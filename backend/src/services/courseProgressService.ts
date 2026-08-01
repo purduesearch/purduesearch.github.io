@@ -177,10 +177,22 @@ export function clampVideoProgress(opts: {
   /** Wall-clock seconds since this member's previous ping for this section. */
   elapsedSec: number;
   maxAllowedRate?: number;
+  /**
+   * The section's seek lock. Defaults to true (locked) to match the player,
+   * which reads `videoConfig.lockSeek !== false`.
+   */
+  lockSeek?: boolean;
 }): number {
   const prev = Math.max(0, Math.floor(opts.prevMaxWatchedSec));
   const next = Math.floor(opts.positionSec);
   if (!Number.isFinite(next) || next <= prev) return prev;
+
+  // Seek lock off: the author has explicitly allowed free scrubbing, so there is
+  // no claim to disbelieve and the rate budget must not apply. Enforcing it here
+  // rejected the jump, and the client answers a rejection by seeking back to the
+  // server's mark — which snapped the learner to the start of the video on the
+  // next flush. The mark still only ever moves forward.
+  if (opts.lockSeek === false) return next;
 
   const rate = opts.maxAllowedRate && opts.maxAllowedRate > 0
     ? opts.maxAllowedRate
@@ -551,7 +563,7 @@ export async function recordVideoProgress(
   lastPingAt.set(key, now);
   const elapsedSec = previous ? (now - previous) / 1000 : 0;
 
-  const config = (section.videoConfig ?? {}) as { allowedRates?: unknown };
+  const config = (section.videoConfig ?? {}) as { allowedRates?: unknown; lockSeek?: unknown };
   const rates = Array.isArray(config.allowedRates)
     ? config.allowedRates.map(Number).filter((r) => Number.isFinite(r) && r > 0)
     : [];
@@ -562,6 +574,9 @@ export async function recordVideoProgress(
     positionSec,
     elapsedSec,
     maxAllowedRate,
+    // Mirrors the player's own `config.lockSeek !== false`, so an unset flag
+    // stays locked on both sides.
+    lockSeek: config.lockSeek !== false,
   });
 
   const updated = await prisma.courseSectionProgress.update({

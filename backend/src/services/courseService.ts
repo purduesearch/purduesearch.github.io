@@ -319,6 +319,12 @@ export async function saveStructure(courseId: string, tree: StructureModule[]) {
   const seenModules = new Set<string>();
   const seenSections = new Set<string>();
   for (const entry of tree) {
+    // Shape-check before field access: a malformed entry is the same class of
+    // client bug as a partial one, and must land on the 400 path rather than
+    // throwing a TypeError the route can only report as a 500.
+    if (!entry || typeof entry !== "object" || !Array.isArray(entry.sectionIds)) {
+      throw new StructureMismatchError("Each tree entry needs a moduleId and a sectionIds array");
+    }
     if (!knownModules.has(entry.moduleId) || seenModules.has(entry.moduleId)) {
       throw new StructureMismatchError(`Unknown or duplicated module ${entry.moduleId}`);
     }
@@ -354,6 +360,22 @@ export async function saveStructure(courseId: string, tree: StructureModule[]) {
 }
 
 // ── Sections ─────────────────────────────────────────────────
+
+/**
+ * One section WITH its body.
+ *
+ * `sectionSelect` deliberately omits `contentJson` so the whole-course tree
+ * stays small, but the editor needs a real body to fall back on when the collab
+ * WS never syncs (blocked socket, stripped Upgrade headers, failed token auth).
+ * Without it the editor renders blank while the learner preview — which reads
+ * contentJson straight from the DB — still shows the text.
+ */
+export async function getSection(id: string) {
+  return prisma.courseSection.findUnique({
+    where: { id },
+    select: { ...sectionSelect, contentJson: true },
+  });
+}
 
 export async function createSection(input: CreateSectionInput) {
   const last = await prisma.courseSection.findFirst({

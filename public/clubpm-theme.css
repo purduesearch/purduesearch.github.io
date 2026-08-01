@@ -22255,3 +22255,87 @@ html:not(.aos-off) [data-aos].aos-animate  { opacity: 1; transform: none; }
   font-family: var(--pm-font-mono); font-size: 10px; color: var(--pm-text-muted);
 }
 .pm-course-learn-module ol { padding: 0 8px 8px; }
+
+/* === COURSES: floating "add section" menu =========================== */
+
+/* The rail is `overflow-y: auto`, which clips absolutely-positioned children —
+   an empty module has nothing below it to scroll to, so the menu was cut off
+   entirely. This variant is portalled to <body> and positioned against the
+   viewport instead, so it can never be clipped by an ancestor's overflow. */
+.pm-course-rail-add-pop--floating {
+  position: fixed;
+  right: auto;
+  width: 158px;
+  z-index: 1200;
+  animation: cpm-course-menu-in .13s ease-out;
+}
+@keyframes cpm-course-menu-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pm-course-rail-add-pop--floating { animation-duration: 0.001ms; }
+}
+
+/* === COURSES: video pop-up question polish ========================== */
+
+/* The modal is dismissed by hand now (a correct answer shows its explanation
+   before the video resumes), so it is on screen long enough to be worth
+   animating. The existing prefers-reduced-motion block already covers
+   `.pm-course-popup-backdrop *`, so these are neutralised there automatically. */
+.pm-course-popup {
+  animation: cpm-course-popup-in .22s cubic-bezier(.2, .8, .3, 1);
+}
+@keyframes cpm-course-popup-in {
+  from { opacity: 0; transform: translateY(10px) scale(.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Answering settles the modal: the options recede so the verdict leads. */
+.pm-course-popup.is-answered .pm-course-popup-answers {
+  opacity: .62;
+  transition: opacity .2s ease;
+}
+
+.pm-course-popup-result {
+  animation: cpm-course-result-in .26s cubic-bezier(.2, .8, .3, 1);
+}
+@keyframes cpm-course-result-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+/* A single pulse on the verdict icon — enough to draw the eye, not a loop. */
+.pm-course-popup-result strong i {
+  display: inline-block;
+  animation: cpm-course-verdict-pop .34s cubic-bezier(.2, 1.5, .4, 1) .04s both;
+}
+@keyframes cpm-course-verdict-pop {
+  from { transform: scale(.4); opacity: 0; }
+  60%  { transform: scale(1.18); opacity: 1; }
+  to   { transform: scale(1); opacity: 1; }
+}
+
+/* === COURSES: take-course action on a catalog card ================== */
+
+/* The ring and the take button share ONE grid cell — `.cpm-course-card` defines
+   three columns, so adding a fourth child would push the ring onto its own row
+   under the cover. Stacked rather than side by side to keep the card's third
+   column narrow, so the title/summary column keeps its width. */
+.cpm-course-card-actions {
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 8px;
+  /* Clears the hover-revealed delete button in the top-right corner. */
+  padding-top: 4px;
+}
+
+/* Authors/admins open a card into the editor, so this is their only route into
+   the player for a course they have been assigned. */
+.cpm-course-card-take {
+  white-space: nowrap;
+  font-size: 12px;
+  padding: 6px 12px;
+}
+.cpm-course-card-take:hover {
+  border-color: var(--pm-accent-teal);
+  color: var(--pm-accent-teal);
+}

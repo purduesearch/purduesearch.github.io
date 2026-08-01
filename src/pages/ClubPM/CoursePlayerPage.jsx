@@ -26,12 +26,11 @@ function LearnerRail({ modules, sections, selectedId, onSelect }) {
     (m) => m.sectionIds.includes(selectedId)
   )?.id ?? null;
 
-  const [collapsed, setCollapsed] = useState(() => new Set());
-  const toggle = (id) => setCollapsed((prev) => {
-    const next = new Set(prev);
-    if (next.has(id)) next.delete(id); else next.add(id);
-    return next;
-  });
+  // An explicit open/closed choice per module, which OVERRIDES the default
+  // below. A plain "collapsed" set could only ever close things, so a completed
+  // module — closed by default — could never be reopened to review it.
+  const [overrides, setOverrides] = useState(() => new Map());
+  const toggle = (id, isOpen) => setOverrides((prev) => new Map(prev).set(id, !isOpen));
 
   const byId = new Map(sections.map((s) => [s.id, s]));
 
@@ -39,9 +38,9 @@ function LearnerRail({ modules, sections, selectedId, onSelect }) {
     <nav className="pm-course-learn-rail" aria-label="Course modules">
       {modules.map((mod, moduleIndex) => {
         // Finished modules collapse by default; the current one stays open.
-        const isOpen = !collapsed.has(mod.id)
-          && !mod.locked
-          && (mod.id === selectedModuleId || !mod.completed);
+        const defaultOpen = mod.id === selectedModuleId || !mod.completed;
+        const isOpen = !mod.locked
+          && (overrides.has(mod.id) ? overrides.get(mod.id) : defaultOpen);
         const own = mod.sectionIds.map((sid) => byId.get(sid)).filter(Boolean);
 
         return (
@@ -56,7 +55,7 @@ function LearnerRail({ modules, sections, selectedId, onSelect }) {
             <button
               type="button"
               className="pm-course-learn-module-head"
-              onClick={() => !mod.locked && toggle(mod.id)}
+              onClick={() => !mod.locked && toggle(mod.id, isOpen)}
               disabled={mod.locked}
               aria-expanded={mod.locked ? undefined : isOpen}
             >

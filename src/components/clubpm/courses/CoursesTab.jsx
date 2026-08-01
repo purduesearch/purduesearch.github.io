@@ -101,6 +101,20 @@ export default function CoursesTab({ isAdmin = false, currentMemberId = null }) 
     else navigate(`/clubpm/outreach/courses/${course.slug}/learn`);
   };
 
+  const takeCourse = (e, course) => {
+    e.stopPropagation();
+    navigate(`/clubpm/outreach/courses/${course.slug}/learn`);
+  };
+
+  // Authors and admins land in the editor when they open a card, which left them
+  // with no way to actually TAKE a course they had assigned to themselves. This
+  // is that path — and for a plain learner it is a clearer target than the card.
+  const takeLabel = (course) => {
+    if (course.myProgress?.completedAt) return 'Review';
+    if (course.myProgress) return 'Continue';
+    return 'Start';
+  };
+
   const visible = filter ? courses.filter((c) => c.status === filter) : courses;
 
   if (showDashboard) {
@@ -205,7 +219,24 @@ export default function CoursesTab({ isAdmin = false, currentMemberId = null }) 
                   </div>
                 </div>
 
-                {p && <ProgressRing pct={pct} />}
+                {/* One grid item, not two: the card's template has exactly
+                    three columns, so a loose fourth child wraps onto a second
+                    row instead of sitting beside the ring. */}
+                <div className="cpm-course-card-actions">
+                  {p && <ProgressRing pct={pct} />}
+                  {(course.status === 'PUBLISHED' || p) && (
+                    <button
+                      type="button"
+                      className="clubpm-btn-secondary cpm-course-card-take"
+                      onClick={(e) => takeCourse(e, course)}
+                      title={`${takeLabel(course)} this course`}
+                      aria-label={`${takeLabel(course)} ${course.title}`}
+                    >
+                      <i className="fas fa-play" aria-hidden="true" style={{ marginRight: 6 }} />
+                      {takeLabel(course)}
+                    </button>
+                  )}
+                </div>
 
                 {course.canEdit && (
                   <button

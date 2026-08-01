@@ -474,6 +474,9 @@ export const publishCourse  = (id)      => post(`/api/outreach/courses/${id}/pub
 export const archiveCourse  = (id)      => post(`/api/outreach/courses/${id}/archive`, {});
 export const deleteCourse   = (id)      => del(`/api/outreach/courses/${id}`);
 
+// The only course endpoint that returns a section's `contentJson`; the tree
+// endpoints omit bodies to keep the whole-course payload small.
+export const getCourseSection     = (sectionId)           => get(`/api/outreach/courses/sections/${sectionId}`);
 export const createCourseSection  = (courseId, data)      => post(`/api/outreach/courses/${courseId}/sections`, data);
 export const updateCourseSection  = (sectionId, data)     => patch(`/api/outreach/courses/sections/${sectionId}`, data);
 export const deleteCourseSection  = (sectionId)           => del(`/api/outreach/courses/sections/${sectionId}`);

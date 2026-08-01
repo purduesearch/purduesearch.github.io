@@ -177,6 +177,36 @@ console.log("clampVideoProgress");
     clampVideoProgress({ prevMaxWatchedSec: 300, positionSec: 12, elapsedSec: 10 }),
     300
   );
+
+  // When the author turned the seek lock OFF there is nothing to enforce: the
+  // rate budget would reject the very scrubbing the setting exists to permit,
+  // and the client would then seek back to the server's mark — snapping the
+  // learner to the start of the video every flush.
+  eq(
+    "an unlocked section accepts a forward scrub far past the rate budget",
+    clampVideoProgress({ prevMaxWatchedSec: 5, positionSec: 2400, elapsedSec: 10, lockSeek: false }),
+    2400
+  );
+  eq(
+    "an unlocked section still never rolls the mark back on a rewind",
+    clampVideoProgress({ prevMaxWatchedSec: 300, positionSec: 12, elapsedSec: 10, lockSeek: false }),
+    300
+  );
+  eq(
+    "an unlocked section still floors a fractional position",
+    clampVideoProgress({ prevMaxWatchedSec: 0, positionSec: 42.9, elapsedSec: 0, lockSeek: false }),
+    42
+  );
+  eq(
+    "an unlocked section still rejects a non-finite claim",
+    clampVideoProgress({ prevMaxWatchedSec: 77, positionSec: Number.NaN, elapsedSec: 10, lockSeek: false }),
+    77
+  );
+  eq(
+    "lockSeek defaults to locked, so an omitted flag keeps the budget",
+    clampVideoProgress({ prevMaxWatchedSec: 5, positionSec: 2400, elapsedSec: 10 }),
+    5
+  );
   eq(
     "the very first ping of a session is bounded by the bootstrap grace",
     clampVideoProgress({ prevMaxWatchedSec: 0, positionSec: 600, elapsedSec: 0 }),

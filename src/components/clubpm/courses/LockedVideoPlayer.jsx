@@ -39,11 +39,11 @@ function clockTime(sec) {
  * payload never carries it); grading is the server's job, and the explanation
  * only exists in the grade response.
  */
-function PopupQuestionModal({ question, result, busy, selected, onToggle, onSubmit, onRewind, onRetry }) {
+function PopupQuestionModal({ question, result, busy, selected, onToggle, onSubmit, onRewind, onRetry, onContinue }) {
   const multi = question.kind === 'MULTI';
   return (
     <div className="pm-course-popup-backdrop" role="dialog" aria-modal="true" aria-label="Question">
-      <div className="pm-course-popup">
+      <div className={`pm-course-popup${result ? ' is-answered' : ''}`}>
         <div className="pm-course-popup-head">
           <i className="fas fa-circle-question" aria-hidden="true" />
           <span>{multi ? 'Select all that apply' : 'Question'}</span>
@@ -68,7 +68,11 @@ function PopupQuestionModal({ question, result, busy, selected, onToggle, onSubm
         </ul>
 
         {result && (
-          <div className={`pm-course-popup-result${result.correct ? ' is-correct' : ' is-wrong'}`}>
+          <div
+            className={`pm-course-popup-result${result.correct ? ' is-correct' : ' is-wrong'}`}
+            role="status"
+            aria-live="polite"
+          >
             <strong>
               <i className={`fas ${result.correct ? 'fa-check' : 'fa-xmark'}`} aria-hidden="true" />
               {result.correct ? ' Correct' : ' Not quite'}
@@ -86,6 +90,12 @@ function PopupQuestionModal({ question, result, busy, selected, onToggle, onSubm
               disabled={busy || selected.length === 0}
             >
               {busy ? 'Checking…' : 'Submit'}
+            </button>
+          )}
+          {result?.correct && (
+            <button type="button" className="clubpm-btn-primary" onClick={onContinue} autoFocus>
+              Continue
+              <i className="fas fa-play" aria-hidden="true" style={{ marginLeft: 6 }} />
             </button>
           )}
           {result && !result.correct && (
@@ -429,17 +439,24 @@ export default function LockedVideoPlayer({
         ? await answerCoursePopup(sectionId, question.id, selected)
         // Author preview has no grader: acknowledge and move on.
         : { correct: true, explanation: question.explanation ?? null, rewindToSec: null };
+      // A correct answer deliberately leaves the modal OPEN. Closing it here
+      // (which is what this used to do) reset `popupResult` in the same tick, so
+      // React batched the two updates and the result — including the
+      // explanation, which only exists in this response — never rendered at all.
+      // `resumeAfterCorrect` is now what dismisses it.
       setPopupResult(result);
-      if (result.correct) {
-        closeQuestion(true);
-        playerRef.current?.playVideo?.();
-        maybeComplete();
-      }
     } catch (err) {
       toast.error(err.message ?? 'Could not check that answer');
     } finally {
       setGrading(false);
     }
+  };
+
+  // Dismiss a correctly-answered pop-up and pick the video back up.
+  const resumeAfterCorrect = () => {
+    closeQuestion(true);
+    playerRef.current?.playVideo?.();
+    maybeComplete();
   };
 
   const rewind = () => {
@@ -592,6 +609,7 @@ export default function LockedVideoPlayer({
           onSubmit={submitAnswer}
           onRewind={rewind}
           onRetry={retry}
+          onContinue={resumeAfterCorrect}
         />
       )}
     </div>
