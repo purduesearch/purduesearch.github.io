@@ -257,6 +257,7 @@ model Member {
   createdCourses    Course[]           @relation("CourseCreator")
   courseEnrollments CourseEnrollment[] @relation("CourseEnrollmentMember")
   assignedCourses   CourseEnrollment[] @relation("CourseEnrollmentAssigner")
+  courseGenJobs     CourseGenJob[]     @relation("CourseGenJobCreator")
 }
 
 model Project {
@@ -2127,4 +2128,35 @@ model CourseQuestionResponse {
   @@index([attemptId])
   // Powers admin item analysis (per-question pass rates).
   @@index([questionId])
+}
+
+enum CourseGenStatus {
+  OUTLINING
+  AWAITING_REVIEW
+  GENERATING
+  DONE
+  FAILED
+}
+
+model CourseGenJob {
+  id            String          @id @default(cuid())
+  createdById   String
+  createdBy     Member          @relation("CourseGenJobCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  status        CourseGenStatus @default(OUTLINING)
+  prompt        String
+  reference     String?
+  sourcePostIds String[]        @default([])
+  // A validated CoursePlan (see coursePlan.ts), editable by the author while
+  // AWAITING_REVIEW.
+  outline       Json?
+  // Set once stage 2 has created the course — including on a cancelled run,
+  // where the partial course is deliberately kept.
+  courseId      String?
+  progress      Int             @default(0)
+  stepLabel     String?
+  error         String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@index([createdById, createdAt])
 }
