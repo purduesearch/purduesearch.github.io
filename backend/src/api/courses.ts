@@ -458,6 +458,7 @@ coursesRouter.get("/sections/:sid/questions", async (req: Request, res: Response
         kind: q.kind,
         points: q.points,
         videoTimestampSec: q.videoTimestampSec,
+        slideIndex: q.slideIndex,
         answers: q.answers.map((a) => ({ id: a.id, order: a.order, text: a.text })),
       }))
     );
@@ -481,6 +482,7 @@ coursesRouter.put("/sections/:sid/questions", async (req: Request, res: Response
         explanation?: string | null;
         points?: number;
         videoTimestampSec?: number | null;
+        slideIndex?: number | null;
         rewindToSec?: number | null;
         answers?: { order?: number; text?: string; isCorrect?: boolean }[];
       }[];
@@ -507,6 +509,7 @@ coursesRouter.put("/sections/:sid/questions", async (req: Request, res: Response
         explanation: q.explanation,
         points: q.points,
         videoTimestampSec: q.videoTimestampSec,
+        slideIndex: q.slideIndex,
         rewindToSec: q.rewindToSec,
         answers: (q.answers ?? []).map((a) => ({
           order: a.order,
@@ -527,7 +530,10 @@ coursesRouter.post("/sections/:sid/questions", async (req: Request, res: Respons
   try {
     const sid = req.params.sid as string;
     if (!(await requireSectionAccess(req, res, sid))) return;
-    const { id, order, prompt, kind, explanation, points, videoTimestampSec, rewindToSec, answers } =
+    const {
+      id, order, prompt, kind, explanation, points,
+      videoTimestampSec, slideIndex, rewindToSec, answers,
+    } =
       req.body as {
         id?: string;
         order?: number;
@@ -536,6 +542,7 @@ coursesRouter.post("/sections/:sid/questions", async (req: Request, res: Respons
         explanation?: string | null;
         points?: number;
         videoTimestampSec?: number | null;
+        slideIndex?: number | null;
         rewindToSec?: number | null;
         answers?: { id?: string; order?: number; text?: string; isCorrect?: boolean }[];
       };
@@ -556,6 +563,7 @@ coursesRouter.post("/sections/:sid/questions", async (req: Request, res: Respons
       explanation,
       points,
       videoTimestampSec,
+      slideIndex,
       rewindToSec,
       answers: answers.map((a, i) => ({
         order: a.order ?? i,
@@ -670,6 +678,125 @@ coursesRouter.post(
     }
   }
 );
+
+// Slide PNGs arrive as multipart, ONE REQUEST PER PAGE — never base64 JSON,
+// which app.ts's default 100 kb express.json() limit would reject outright.
+const slideUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 8 * 1024 * 1024, files: 1 },
+});
+const audioUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 80 * 1024 * 1024, files: 1 },
+});
+
+coursesRouter.get("/sections/:sid/slides", async (req: Request, res: Response) => {
+  try {
+    const sid = req.params.sid as string;
+    if (!(await requireSectionAccess(req, res, sid))) return;
+    const slideService = await import("../services/courseSlideService.js");
+    res.json(await slideService.listSlides(sid));
+  } catch (error) {
+    console.error("GET /outreach/courses/sections/:sid/slides error:", error);
+    res.status(500).json({ error: "Failed to list slides" });
+  }
+});
+
+// One page per request. Fields: image (file), index, text, width, height.
+coursesRouter.post(
+  "/sections/:sid/slides",
+  slideUpload.single("image"),
+  async (req: Request, res: Response) => {
+    try {
+      const sid = req.params.sid as string;
+      if (!(await requireSectionAccess(req, res, sid))) return;
+      if (!req.file) { res.status(400).json({ error: "image is required" }); return; }
+      const index = Number.parseInt(String(req.body.index ?? ""), 10);
+      if (!Number.isFinite(index) || index < 0) {
+        res.status(400).json({ error: "index is required" });
+        return;
+      }
+      const slideService = await import("../services/courseSlideService.js");
+      const slide = await slideService.addSlide({
+        sectionId: sid,
+        index,
+        imageBase64: req.file.buffer.toString("base64"),
+        text: typeof req.body.text === "string" ? req.body.text.slice(0, 20000) : null,
+        width: Number.parseInt(String(req.body.width ?? ""), 10) || null,
+        height: Number.parseInt(String(req.body.height ?? ""), 10) || null,
+      });
+      res.status(201).json(slide);
+    } catch (error) {
+      console.error("POST /outreach/courses/sections/:sid/slides error:", error);
+      res.status(500).json({ error: "Failed to store that slide" });
+    }
+  }
+);
+
+coursesRouter.put("/sections/:sid/slides", async (req: Request, res: Response) => {
+  try {
+    const sid = req.params.sid as string;
+    if (!(await requireSectionAccess(req, res, sid))) return;
+    const { slides } = req.body as {
+      slides?: { id: string; notes?: string | null; startSec?: number | null }[];
+    };
+    if (!Array.isArray(slides)) { res.status(400).json({ error: "slides must be an array" }); return; }
+    const slideService = await import("../services/courseSlideService.js");
+    res.json(await slideService.updateSlideMeta(sid, slides));
+  } catch (error) {
+    console.error("PUT /outreach/courses/sections/:sid/slides error:", error);
+    res.status(500).json({ error: "Failed to save slide details" });
+  }
+});
+
+// No body → clear the whole deck. { ids } → delete only those, which is how a
+// re-import removes the OLD pages after the new ones are safely stored.
+coursesRouter.delete("/sections/:sid/slides", async (req: Request, res: Response) => {
+  try {
+    const sid = req.params.sid as string;
+    if (!(await requireSectionAccess(req, res, sid))) return;
+    const { ids } = (req.body ?? {}) as { ids?: string[] };
+    const slideService = await import("../services/courseSlideService.js");
+    await slideService.clearDeck(sid, Array.isArray(ids) ? ids : undefined);
+    res.json({ ok: true });
+  } catch (error) {
+    console.error("DELETE /outreach/courses/sections/:sid/slides error:", error);
+    res.status(500).json({ error: "Failed to clear the deck" });
+  }
+});
+
+coursesRouter.post(
+  "/sections/:sid/audio",
+  audioUpload.single("audio"),
+  async (req: Request, res: Response) => {
+    try {
+      const sid = req.params.sid as string;
+      if (!(await requireSectionAccess(req, res, sid))) return;
+      if (!req.file) { res.status(400).json({ error: "audio is required" }); return; }
+      const { Readable } = await import("node:stream");
+      const slideService = await import("../services/courseSlideService.js");
+      res.json(await slideService.setAudio(
+        sid, Readable.from(req.file.buffer), req.file.mimetype,
+        req.file.originalname || "narration.mp3"
+      ));
+    } catch (error) {
+      console.error("POST /outreach/courses/sections/:sid/audio error:", error);
+      res.status(500).json({ error: "Failed to store that audio" });
+    }
+  }
+);
+
+coursesRouter.delete("/sections/:sid/audio", async (req: Request, res: Response) => {
+  try {
+    const sid = req.params.sid as string;
+    if (!(await requireSectionAccess(req, res, sid))) return;
+    const slideService = await import("../services/courseSlideService.js");
+    res.json(await slideService.clearAudio(sid));
+  } catch (error) {
+    console.error("DELETE /outreach/courses/sections/:sid/audio error:", error);
+    res.status(500).json({ error: "Failed to clear that audio" });
+  }
+});
 
 // ── Learner ──────────────────────────────────────────────────
 //

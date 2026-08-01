@@ -85,6 +85,9 @@ export interface UpsertQuestionInput {
   explanation?: string | null;
   points?: number;
   videoTimestampSec?: number | null;
+  // Overlay position in a SLIDES section. A row carries at most one of
+  // slideIndex / videoTimestampSec.
+  slideIndex?: number | null;
   rewindToSec?: number | null;
   answers: { id?: string; order?: number; text: string; isCorrect?: boolean }[];
 }
@@ -458,6 +461,7 @@ export async function upsertQuestion(input: UpsertQuestionInput) {
           explanation: input.explanation ?? null,
           points: input.points,
           videoTimestampSec: input.videoTimestampSec ?? null,
+          slideIndex: input.slideIndex ?? null,
           rewindToSec: input.rewindToSec ?? null,
           answers: { create: answers },
         },
@@ -480,6 +484,7 @@ export async function upsertQuestion(input: UpsertQuestionInput) {
       explanation: input.explanation ?? null,
       points: input.points ?? 1,
       videoTimestampSec: input.videoTimestampSec ?? null,
+      slideIndex: input.slideIndex ?? null,
       rewindToSec: input.rewindToSec ?? null,
       answers: { create: answers },
     },
@@ -540,6 +545,7 @@ export async function replaceQuestions(
         explanation: q.explanation ?? null,
         points: q.points ?? 1,
         videoTimestampSec: q.videoTimestampSec ?? null,
+        slideIndex: q.slideIndex ?? null,
         rewindToSec: q.rewindToSec ?? null,
       };
       const answers = q.answers.map((a, i) => ({
