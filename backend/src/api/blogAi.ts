@@ -8,7 +8,7 @@ import { GeminiRateLimitError } from "../services/geminiService.js";
 export const blogAiRouter = Router();
 blogAiRouter.use(requireAuth);
 
-const DOC_TYPES: DocType[] = ["BLOG_POST", "PRESS_KIT"];
+const DOC_TYPES: DocType[] = ["BLOG_POST", "PRESS_KIT", "COURSE_SECTION"];
 
 /** Loads the doc's title + content, but only for members who may edit it. */
 async function loadDoc(req: Request, res: Response): Promise<{ title: string; doc: unknown } | null> {
@@ -30,6 +30,14 @@ async function loadDoc(req: Request, res: Response): Promise<{ title: string; do
     });
     if (!post) { res.status(404).json({ error: "Post not found" }); return null; }
     return { title: post.title, doc: post.contentJson };
+  }
+  if (docType === "COURSE_SECTION") {
+    const section = await prisma.courseSection.findUnique({
+      where: { id: docId },
+      select: { title: true, contentJson: true, course: { select: { title: true } } },
+    });
+    if (!section) { res.status(404).json({ error: "Course section not found" }); return null; }
+    return { title: `${section.course.title} — ${section.title}`, doc: section.contentJson };
   }
   const kit = await prisma.projectPressKit.findUnique({
     where: { id: docId },

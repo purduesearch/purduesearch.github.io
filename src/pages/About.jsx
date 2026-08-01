@@ -230,28 +230,32 @@ const About = () => {
               <div className="row">
                 <div className="col-md-4 col-sm-12 text-center mt-4">
                   <div className="shadow rounded feature-item p-4 mb-4" data-aos="fade-up">
-                    <div className="my-4"><img loading="lazy" src="/officers/swastik.webp" width="150px" className="officer-photo" alt="Swastik Patel" /></div>
-                    <h4>Swastik Patel</h4><h5>Software Lead</h5>
+                    <div className="my-4"><img loading="lazy" src="/officers/azeem.webp" width="150px" className="officer-photo" alt="Azeem Ehtisham" /></div>
+                    <h4>Azeem Ehtisham</h4><h5>Software Co-Lead</h5>
                   </div>
                   <div className="shadow rounded feature-item p-4 mb-4" data-aos="fade-up">
-                    <div className="my-4"><img loading="lazy" src="/officers/heer.webp" width="150px" className="officer-photo" alt="Heer Meta" /></div>
-                    <h4>Heer Meta</h4><h5>Business Lead</h5>
+                    <div className="my-4"><img loading="lazy" src="/officers/jason.webp" width="150px" className="officer-photo" alt="Jason White" /></div>
+                    <h4>Jason White</h4><h5>Software Co-Lead</h5>
                   </div>
                 </div>
                 <div className="col-md-4 col-sm-12 text-center">
                   <div className="shadow rounded feature-item p-4 mb-4" data-aos="fade-up">
                     <div className="my-4"><img loading="lazy" src="/officers/melissa.webp" width="150px" className="officer-photo" alt="Melissa Cook" /></div>
-                    <h4>Melissa Cook</h4><h5>Outreach Lead</h5>
+                    <h4>Melissa Cook</h4><h5>Outreach Co-Lead</h5>
                   </div>
                   <div className="shadow rounded feature-item p-4 mb-4" data-aos="fade-up">
-                    <div className="my-4"><img loading="lazy" src="/officers/ethan.webp" width="150px" className="officer-photo" alt="Ethan Williamson" /></div>
-                    <h4>Ethan Williamson</h4><h5>ASTRO-USA Chief Engineer</h5>
+                    <div className="my-4"><img loading="lazy" src="/officers/katie.webp" width="150px" className="officer-photo" alt="Katie Downs" /></div>
+                    <h4>Katie Downs</h4><h5>Outreach Co-Lead</h5>
                   </div>
                 </div>
                 <div className="col-md-4 col-sm-12 text-center mt-4">
                   <div className="shadow rounded feature-item p-4 mb-4" data-aos="fade-up">
-                    <div className="my-4"><img loading="lazy" src="/officers/vijay.webp" width="150px" className="officer-photo" alt="Vijay Muthmukumar" /></div>
-                    <h4>Vijay Muthmukumar</h4><h5>ASTRO-USA Project Manager</h5>
+                    <div className="my-4"><img loading="lazy" src="/officers/chelsea.webp" width="150px" className="officer-photo" alt="Chelsea Garcia" /></div>
+                    <h4>Chelsea Garcia</h4><h5>ASTRO-USA Chief Engineer</h5>
+                  </div>
+                  <div className="shadow rounded feature-item p-4 mb-4" data-aos="fade-up">
+                    <div className="my-4"><img loading="lazy" src="/officers/keegan.webp" width="150px" className="officer-photo" alt="Keegan Breese" /></div>
+                    <h4>Keegan Breese</h4><h5>ASTRO-USA Project Manager</h5>
                   </div>
                 </div>
               </div>
@@ -261,12 +265,12 @@ const About = () => {
         </div>
       </section>
 
-      {/* ===== OFFICERS 2027–2028 ===== */}
-      <section id="officers-2027" className="bg-white" style={{ paddingTop: 0 }}>
+      {/* ===== OFFICERS 2025–2026 ===== */}
+      <section id="officers-2025" className="bg-white" style={{ paddingTop: 0 }}>
         <div className="container">
 
           <div className="title-wrap" data-aos="fade-up">
-            <h2 className="section-title">Elected Officers for <b>2027–2028</b></h2>
+            <h2 className="section-title">Officers for <b>2025–2026</b></h2>
           </div>
 
           <div className="row" style={{ top: '20px' }}>
@@ -311,32 +315,28 @@ const About = () => {
               <div className="row">
                 <div className="col-md-4 col-sm-12 text-center mt-4">
                   <div className="shadow rounded feature-item p-4 mb-4" data-aos="fade-up">
-                    <div className="my-4"><img loading="lazy" src="/officers/azeem.webp" width="150px" className="officer-photo" alt="Azeem Ehtisham" /></div>
-                    <h4>Azeem Ehtisham</h4><h5>Software Co-Lead</h5>
+                    <div className="my-4"><img loading="lazy" src="/officers/swastik.webp" width="150px" className="officer-photo" alt="Swastik Patel" /></div>
+                    <h4>Swastik Patel</h4><h5>Software Lead</h5>
                   </div>
                   <div className="shadow rounded feature-item p-4 mb-4" data-aos="fade-up">
-                    <div className="my-4"><img loading="lazy" src="/officers/jason.webp" width="150px" className="officer-photo" alt="Jason White" /></div>
-                    <h4>Jason White</h4><h5>Software Co-Lead</h5>
+                    <div className="my-4"><img loading="lazy" src="/officers/heer.webp" width="150px" className="officer-photo" alt="Heer Meta" /></div>
+                    <h4>Heer Meta</h4><h5>Business Lead</h5>
                   </div>
                 </div>
                 <div className="col-md-4 col-sm-12 text-center">
                   <div className="shadow rounded feature-item p-4 mb-4" data-aos="fade-up">
                     <div className="my-4"><img loading="lazy" src="/officers/melissa.webp" width="150px" className="officer-photo" alt="Melissa Cook" /></div>
-                    <h4>Melissa Cook</h4><h5>Outreach Co-Lead</h5>
+                    <h4>Melissa Cook</h4><h5>Outreach Lead</h5>
                   </div>
                   <div className="shadow rounded feature-item p-4 mb-4" data-aos="fade-up">
-                    <div className="my-4"><img loading="lazy" src="/officers/katie.webp" width="150px" className="officer-photo" alt="Katie Downs" /></div>
-                    <h4>Katie Downs</h4><h5>Outreach Co-Lead</h5>
+                    <div className="my-4"><img loading="lazy" src="/officers/ethan.webp" width="150px" className="officer-photo" alt="Ethan Williamson" /></div>
+                    <h4>Ethan Williamson</h4><h5>ASTRO-USA Chief Engineer</h5>
                   </div>
                 </div>
                 <div className="col-md-4 col-sm-12 text-center mt-4">
                   <div className="shadow rounded feature-item p-4 mb-4" data-aos="fade-up">
-                    <div className="my-4"><img loading="lazy" src="/officers/chelsea.webp" width="150px" className="officer-photo" alt="Chelsea Garcia" /></div>
-                    <h4>Chelsea Garcia</h4><h5>ASTRO-USA Chief Engineer</h5>
-                  </div>
-                  <div className="shadow rounded feature-item p-4 mb-4" data-aos="fade-up">
-                    <div className="my-4"><img loading="lazy" src="/officers/keegan.webp" width="150px" className="officer-photo" alt="Keegan Breese" /></div>
-                    <h4>Keegan Breese</h4><h5>ASTRO-USA Project Manager</h5>
+                    <div className="my-4"><img loading="lazy" src="/officers/vijay.webp" width="150px" className="officer-photo" alt="Vijay Muthmukumar" /></div>
+                    <h4>Vijay Muthmukumar</h4><h5>ASTRO-USA Project Manager</h5>
                   </div>
                 </div>
               </div>

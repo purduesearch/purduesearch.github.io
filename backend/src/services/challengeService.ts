@@ -688,6 +688,20 @@ async function checkAchievementUnlock(
     return count >= target;
   }
 
+  if (metric === "COURSE_COMPLETED") {
+    const count = await prisma.courseEnrollment.count({
+      where: { memberId, completedAt: { not: null } },
+    });
+    return count >= target;
+  }
+
+  if (metric === "COURSE_SECTION_COMPLETED") {
+    const count = await prisma.courseSectionProgress.count({
+      where: { enrollment: { memberId }, status: "COMPLETED" },
+    });
+    return count >= target;
+  }
+
   // Fallback: simple delta-based check (fires exactly when delta says so)
   return delta >= target;
 }

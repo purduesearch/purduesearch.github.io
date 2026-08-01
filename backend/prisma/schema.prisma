@@ -252,6 +252,11 @@ model Member {
   vaultVersionUploads    VaultVersion[]  @relation("VaultVersionUploader")
   authoredChangeRequests ChangeRequest[] @relation("ChangeRequestAuthor")
   reviewedChangeRequests ChangeRequest[] @relation("ChangeRequestReviewer")
+
+  // ── Courses ──
+  createdCourses    Course[]           @relation("CourseCreator")
+  courseEnrollments CourseEnrollment[] @relation("CourseEnrollmentMember")
+  assignedCourses   CourseEnrollment[] @relation("CourseEnrollmentAssigner")
 }
 
 model Project {
@@ -378,7 +383,7 @@ model Task {
   milestoneId String?
 
   // ── Events ──
-  priorityEvents Event[] @relation("EventPriorityTasks")
+  priorityEvents Event[]       @relation("EventPriorityTasks")
   priorityPolls  MeetingPoll[] @relation("PollPriorityTasks")
 
   activityLogs  ActivityLog[]
@@ -796,7 +801,7 @@ model Event {
 
   submissions OutreachSubmission[]
   rsvps       EventRsvp[]
-  pollLink    MeetingPoll? @relation("PollEvent")
+  pollLink    MeetingPoll?         @relation("PollEvent")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -919,7 +924,7 @@ model BlogPost {
   contentJson  Json // TipTap document — source of truth for editing + revision diffs
   contentYjs   Bytes? // Yjs/CRDT binary state for realtime collaboration
   renderedHtml String? // HTML snapshot written at publish time (served to the public site)
-  theme        Json?   // { accent, fontPair, width } — per-post Section Builder theme
+  theme        Json? // { accent, fontPair, width } — per-post Section Builder theme
 
   // Free-text byline (historical / non-member authors). Overrides createdBy when set.
   authorName String?
@@ -1009,30 +1014,34 @@ model BlogSnippet {
 }
 
 model BlogThread {
-  id           String           @id @default(cuid())
-  // Exactly one of postId / pressKitId is set — enforced in blogThreadService.
-  postId       String?
-  post         BlogPost?        @relation(fields: [postId], references: [id], onDelete: Cascade)
-  pressKitId   String?
-  pressKit     ProjectPressKit? @relation(fields: [pressKitId], references: [id], onDelete: Cascade)
+  id           String              @id @default(cuid())
+  // Exactly one of postId / pressKitId / courseSectionId is set — enforced in
+  // blogThreadService.
+  postId          String?
+  post            BlogPost?        @relation(fields: [postId], references: [id], onDelete: Cascade)
+  pressKitId      String?
+  pressKit        ProjectPressKit? @relation(fields: [pressKitId], references: [id], onDelete: Cascade)
+  courseSectionId String?
+  courseSection   CourseSection?   @relation(fields: [courseSectionId], references: [id], onDelete: Cascade)
   kind         BlogThreadKind
-  status       BlogThreadStatus @default(OPEN)
-  origin       BlogThreadOrigin @default(HUMAN)
+  status       BlogThreadStatus    @default(OPEN)
+  origin       BlogThreadOrigin    @default(HUMAN)
   // Snapshot of the quoted text. The marks in the Y.Doc are the live anchor;
   // this lets an orphaned thread still show what it referred to.
   anchorText   String
   replaceWith  String? // SUGGESTION only: the proposal, denormalised for panel display
   rationale    String? // AI's stated reason, shown on the card
   createdById  String
-  createdBy    Member           @relation("BlogThreadCreator", fields: [createdById], references: [id])
+  createdBy    Member              @relation("BlogThreadCreator", fields: [createdById], references: [id])
   resolvedById String?
   resolvedAt   DateTime?
-  createdAt    DateTime         @default(now())
-  updatedAt    DateTime         @updatedAt
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
   comments     BlogThreadComment[]
 
   @@index([postId, status])
   @@index([pressKitId, status])
+  @@index([courseSectionId, status])
 }
 
 model BlogThreadComment {
@@ -1054,20 +1063,20 @@ enum PressKitStatus {
 }
 
 model ProjectPressKit {
-  id           String         @id @default(cuid())
-  projectId    String         @unique
-  project      Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  id           String             @id @default(cuid())
+  projectId    String             @unique
+  project      Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
   contentJson  Json? // TipTap document — source of truth for editing
   contentYjs   Bytes? // Yjs/CRDT binary state for realtime collaboration
   renderedHtml String? // inner HTML snapshot written on publish (served to public)
-  theme        Json?   // { accent, fontPair, width } — per-post Section Builder theme
+  theme        Json? // { accent, fontPair, width } — per-post Section Builder theme
   config       Json // PressKitConfig
-  status       PressKitStatus @default(DRAFT)
+  status       PressKitStatus     @default(DRAFT)
   generatedAt  DateTime?
   createdById  String
-  createdBy    Member         @relation("PressKitCreator", fields: [createdById], references: [id])
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
+  createdBy    Member             @relation("PressKitCreator", fields: [createdById], references: [id])
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
   revisions    PressKitRevision[]
   threads      BlogThread[]
 }
@@ -1297,7 +1306,7 @@ enum MeetingPollStatus {
 enum MeetingPollAudience {
   INVITED // only invited members may respond
   PROJECT // whole project team may respond
-  ANYONE  // anyone with the link (members + guests)
+  ANYONE // anyone with the link (members + guests)
 }
 
 model MeetingPoll {
@@ -1342,11 +1351,11 @@ model MeetingPoll {
 }
 
 model MeetingResponse {
-  id       String       @id @default(cuid())
-  poll     MeetingPoll  @relation(fields: [pollId], references: [id], onDelete: Cascade)
-  pollId   String
-  member   Member?      @relation("MemberPollResponses", fields: [memberId], references: [id], onDelete: SetNull)
-  memberId String?
+  id        String      @id @default(cuid())
+  poll      MeetingPoll @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  pollId    String
+  member    Member?     @relation("MemberPollResponses", fields: [memberId], references: [id], onDelete: SetNull)
+  memberId  String?
   guestName String?
 
   slots    DateTime[] // subset of poll.slotStarts this respondent is available
@@ -1380,6 +1389,8 @@ enum RewardEventType {
   BLOG_POST_PUBLISHED
   EARLY_DELIVERY_BONUS
   MEETING_AVAILABILITY_SUBMITTED
+  COURSE_SECTION_COMPLETE
+  COURSE_COMPLETE
 }
 
 enum XpSource {
@@ -1391,6 +1402,7 @@ enum XpSource {
   ADMIN_ADJUSTMENT
   EARLY_BONUS
   MEETING
+  COURSE
 }
 
 enum DoubloonSource {
@@ -1403,6 +1415,7 @@ enum DoubloonSource {
   ADMIN_ADJUSTMENT
   EARLY_BONUS
   MEETING
+  COURSE
 }
 
 enum CosmeticCategory {
@@ -1638,6 +1651,7 @@ enum ChallengeCategory {
   LEADERSHIP
   ELITE
   COLLABORATION
+  LEARNING
 }
 
 enum ChallengeMetric {
@@ -1668,6 +1682,8 @@ enum ChallengeMetric {
   KANBAN_COLUMN_COMPLETION
   ALL_MONTHLY_COMPLETE
   RANK_RARE_ACHIEVEMENTS_ALL
+  COURSE_SECTION_COMPLETED
+  COURSE_COMPLETED
 }
 
 model Challenge {
@@ -1866,4 +1882,219 @@ model GoogleDriveCredential {
   connectedById String?
   connectedAt   DateTime @default(now())
   updatedAt     DateTime @updatedAt
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Courses (training / certification). Learners are club members only; sections
+// reuse the blog TipTap editor + Yjs collab, so no new document nodes exist.
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum CourseStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum CourseSectionKind {
+  CONTENT
+  VIDEO
+  QUIZ
+}
+
+enum CourseQuestionKind {
+  SINGLE
+  MULTI
+  TRUE_FALSE
+}
+
+enum CourseProgressStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+}
+
+model Course {
+  id               String       @id @default(cuid())
+  slug             String       @unique
+  title            String
+  summary          String?
+  coverImageUrl    String?
+  status           CourseStatus @default(DRAFT)
+  theme            Json?
+  estimatedMinutes Int?
+  // When set, these override the RewardEventConfig amounts for COURSE_COMPLETE.
+  xpOverride       Int?
+  doubloonOverride Int?
+  createdById      String
+  createdBy        Member       @relation("CourseCreator", fields: [createdById], references: [id])
+  publishedAt      DateTime?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  sections    CourseSection[]
+  modules     CourseModule[]
+  enrollments CourseEnrollment[]
+
+  @@index([status])
+  @@index([createdById])
+}
+
+model CourseModule {
+  id               String   @id @default(cuid())
+  courseId         String
+  course           Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  order            Int
+  title            String
+  // The teaser line shown on a LOCKED module. Author-written, so it is safe to
+  // serialize to a learner who cannot yet open the module's sections.
+  summary          String?
+  estimatedMinutes Int?
+  isRequired       Boolean  @default(true)
+  // When false, sections inside may be completed in any order. Defaults to true
+  // so migrated courses keep their pre-module behavior exactly.
+  sequential       Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  sections CourseSection[]
+
+  // An index, NOT a unique constraint — saveStructure rewrites the whole set in
+  // one transaction, which a unique constraint would force into a two-pass
+  // shuffle. Same reasoning as CourseSection's.
+  @@index([courseId, order])
+}
+
+model CourseSection {
+  id            String            @id @default(cuid())
+  courseId      String
+  course        Course            @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  moduleId      String
+  module        CourseModule      @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  order         Int
+  title         String
+  kind          CourseSectionKind @default(CONTENT)
+  isRequired    Boolean           @default(true)
+  contentJson   Json
+  contentYjs    Bytes?
+  // VIDEO: { youtubeId, allowedRates[], lockSeek, ... }
+  videoConfig   Json?
+  // QUIZ only
+  passThreshold Int?
+  maxAttempts   Int?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  questions CourseQuestion[]
+  progress  CourseSectionProgress[]
+  attempts  CourseQuizAttempt[]
+  threads   BlogThread[]
+
+  // Deliberately an index, NOT a unique constraint: reorderSections rewrites the
+  // whole set in one transaction, which a unique constraint would force into an
+  // ugly two-pass shuffle.
+  //
+  // `order` is order WITHIN the module, not within the course.
+  @@index([moduleId, order])
+}
+
+model CourseQuestion {
+  id                String             @id @default(cuid())
+  sectionId         String
+  section           CourseSection      @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  order             Int
+  prompt            String
+  kind              CourseQuestionKind @default(SINGLE)
+  explanation       String?
+  points            Int                @default(1)
+  // null → quiz-section question; non-null → in-video pop-up at this timestamp.
+  videoTimestampSec Int?
+  rewindToSec       Int?
+
+  answers   CourseAnswer[]
+  responses CourseQuestionResponse[]
+
+  @@index([sectionId, order])
+}
+
+model CourseAnswer {
+  id         String         @id @default(cuid())
+  questionId String
+  question   CourseQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  order      Int
+  text       String
+  // Never serialized into a learner-facing payload.
+  isCorrect  Boolean        @default(false)
+
+  @@index([questionId, order])
+}
+
+model CourseEnrollment {
+  id              String    @id @default(cuid())
+  courseId        String
+  course          Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  memberId        String
+  member          Member    @relation("CourseEnrollmentMember", fields: [memberId], references: [id], onDelete: Cascade)
+  assignedById    String?
+  assignedBy      Member?   @relation("CourseEnrollmentAssigner", fields: [assignedById], references: [id], onDelete: SetNull)
+  dueDate         DateTime?
+  startedAt       DateTime  @default(now())
+  completedAt     DateTime?
+  // XP idempotency gate, mirroring Task.rewardGrantedAt — never clear it or a
+  // re-completion re-grants course XP.
+  rewardGrantedAt DateTime?
+  lastSectionId   String?
+
+  sectionProgress CourseSectionProgress[]
+  quizAttempts    CourseQuizAttempt[]
+
+  @@unique([courseId, memberId])
+  @@index([memberId])
+}
+
+model CourseSectionProgress {
+  id               String               @id @default(cuid())
+  enrollmentId     String
+  enrollment       CourseEnrollment     @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  sectionId        String
+  section          CourseSection        @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  status           CourseProgressStatus @default(NOT_STARTED)
+  // Server-clamped high-water mark for VIDEO sections.
+  maxWatchedSec    Int                  @default(0)
+  answeredPopupIds String[]             @default([])
+  completedAt      DateTime?
+  // XP idempotency gate, mirroring Task.rewardGrantedAt.
+  rewardGrantedAt  DateTime?
+
+  @@unique([enrollmentId, sectionId])
+  @@index([sectionId])
+}
+
+model CourseQuizAttempt {
+  id           String           @id @default(cuid())
+  enrollmentId String
+  enrollment   CourseEnrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  sectionId    String
+  section      CourseSection    @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  startedAt    DateTime         @default(now())
+  submittedAt  DateTime?
+  scorePct     Float?
+  passed       Boolean          @default(false)
+
+  responses CourseQuestionResponse[]
+
+  @@index([enrollmentId, sectionId])
+}
+
+model CourseQuestionResponse {
+  id         String            @id @default(cuid())
+  attemptId  String
+  attempt    CourseQuizAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  questionId String
+  question   CourseQuestion    @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  answerIds  String[]          @default([])
+  isCorrect  Boolean           @default(false)
+
+  @@index([attemptId])
+  // Powers admin item analysis (per-question pass rates).
+  @@index([questionId])
 }

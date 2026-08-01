@@ -1,7 +1,7 @@
 import { prisma } from "../db/prisma.js";
 import type { BlogThreadStatus } from "@prisma/client";
 
-export type DocType = "BLOG_POST" | "PRESS_KIT";
+export type DocType = "BLOG_POST" | "PRESS_KIT" | "COURSE_SECTION";
 export type DocRef = { docType: DocType; docId: string };
 
 export type CreateThreadInput = {
@@ -54,10 +54,16 @@ export async function docExists(ref: DocRef): Promise<boolean> {
   if (ref.docType === "BLOG_POST") {
     return !!(await prisma.blogPost.findUnique({ where: { id: ref.docId }, select: { id: true } }));
   }
+  if (ref.docType === "COURSE_SECTION") {
+    return !!(await prisma.courseSection.findUnique({ where: { id: ref.docId }, select: { id: true } }));
+  }
   return !!(await prisma.projectPressKit.findUnique({ where: { id: ref.docId }, select: { id: true } }));
 }
 
-/** Creator, co-author, or admin. Press kits have no co-authors — creator or admin. */
+/**
+ * Creator, co-author, or admin. Press kits have no co-authors — creator or admin.
+ * A course section inherits its course's author: `course.createdById` or admin.
+ */
 export async function isDocEditor(ref: DocRef, memberId: string): Promise<boolean> {
   const member = await prisma.member.findUnique({ where: { id: memberId }, select: { isAdmin: true } });
   if (member?.isAdmin) return true;
@@ -76,6 +82,14 @@ export async function isDocEditor(ref: DocRef, memberId: string): Promise<boolea
     return !!coAuthor;
   }
 
+  if (ref.docType === "COURSE_SECTION") {
+    const section = await prisma.courseSection.findUnique({
+      where: { id: ref.docId },
+      select: { course: { select: { createdById: true } } },
+    });
+    return section?.course.createdById === memberId;
+  }
+
   const kit = await prisma.projectPressKit.findUnique({
     where: { id: ref.docId },
     select: { createdById: true },
@@ -84,17 +98,20 @@ export async function isDocEditor(ref: DocRef, memberId: string): Promise<boolea
 }
 
 function whereForRef(ref: DocRef) {
-  return ref.docType === "BLOG_POST" ? { postId: ref.docId } : { pressKitId: ref.docId };
+  if (ref.docType === "BLOG_POST") return { postId: ref.docId };
+  if (ref.docType === "COURSE_SECTION") return { courseSectionId: ref.docId };
+  return { pressKitId: ref.docId };
 }
 
 export async function getThreadDocRef(threadId: string): Promise<DocRef | null> {
   const thread = await prisma.blogThread.findUnique({
     where: { id: threadId },
-    select: { postId: true, pressKitId: true },
+    select: { postId: true, pressKitId: true, courseSectionId: true },
   });
   if (!thread) return null;
   if (thread.postId) return { docType: "BLOG_POST", docId: thread.postId };
   if (thread.pressKitId) return { docType: "PRESS_KIT", docId: thread.pressKitId };
+  if (thread.courseSectionId) return { docType: "COURSE_SECTION", docId: thread.courseSectionId };
   return null;
 }
 

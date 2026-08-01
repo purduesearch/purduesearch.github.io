@@ -28,6 +28,8 @@ const EVENT_DEFAULTS: EventDefault[] = [
   { eventType: "BLOG_POST_PUBLISHED",         autoApprove: true,  xpAmount: 100, doubloonAmount: 25 },
   { eventType: "EARLY_DELIVERY_BONUS",        autoApprove: true,  xpAmount: 0,   doubloonAmount: 0 },
   { eventType: "MEETING_AVAILABILITY_SUBMITTED", autoApprove: true, xpAmount: 5, doubloonAmount: 1 },
+  { eventType: "COURSE_SECTION_COMPLETE",     autoApprove: true,  xpAmount: 5,   doubloonAmount: 2 },
+  { eventType: "COURSE_COMPLETE",             autoApprove: true,  xpAmount: 50,  doubloonAmount: 25 },
 ];
 
 type CosmeticSeed = {
