@@ -33,6 +33,7 @@ import { campaignsRouter } from "./api/campaigns.js";
 import { contactsRouter } from "./api/contacts.js";
 import { insightsRouter } from "./api/insights.js";
 import { coursesRouter } from "./api/courses.js";
+import { courseGenRouter } from "./api/courseGen.js";
 import { publicRouter } from "./api/public.js";
 import { githubAuthRouter } from "./api/githubAuth.js";
 import { googleAuthRouter } from "./api/googleAuth.js";
@@ -143,6 +144,9 @@ app.use("/api/outreach/brand-voices", brandVoicesRouter);
 app.use("/api/outreach/campaigns", campaignsRouter);
 app.use("/api/outreach/contacts", contactsRouter);
 app.use("/api/outreach/insights", insightsRouter);
+// MUST stay above coursesRouter — its GET /:id would otherwise match "generate"
+// as a course id and swallow every generation route.
+app.use("/api/outreach/courses/generate", courseGenRouter);
 app.use("/api/outreach/courses", coursesRouter);
 app.use("/api/rewards", rewardsRouter);
 app.use("/api/event-config", eventConfigRouter);
@@ -186,6 +190,13 @@ async function start(): Promise<void> {
     // Start cron scheduler
     startScheduler(boltApp);
     console.log("⏰ Cron scheduler started");
+
+    // Course generation jobs run in this process, so a restart abandons anything
+    // in flight. Failing them explicitly beats a progress bar that never moves.
+    void import("./services/courseGenService.js").then(async ({ sweepStaleJobs }) => {
+      const n = await sweepStaleJobs();
+      if (n) console.log(`[courseGen] swept ${n} stale job(s) after restart`);
+    }).catch((err) => console.error("[courseGen] stale-job sweep failed:", err));
 
     // Start Express server
     const server = app.listen(PORT, () => {
