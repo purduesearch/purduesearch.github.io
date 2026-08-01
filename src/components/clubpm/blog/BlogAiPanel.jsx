@@ -56,7 +56,9 @@ function EditCard({ edit, onSuggest, busy }) {
 
 export default function BlogAiPanel({
   editor, docType, docId, title, isOpen, onClose, initialSelection, onThreadsChanged, onGenerated,
+  generateKind = 'blog', // 'blog' | 'lesson' — shapes the prompt and the copy
 }) {
+  const isLesson = generateKind === 'lesson';
   const [tab, setTab] = useState('ask'); // 'ask' | 'selection' | 'document' | 'generate'
   const [question, setQuestion] = useState('');
   const [answer, setAnswer] = useState('');
@@ -151,16 +153,21 @@ export default function BlogAiPanel({
   // the normal autosave runs, so this is undoable like any other edit.
   const generate = async () => {
     if (!genText.trim() || !editor) return;
-    if (genMode === 'replace'
-      && !window.confirm('Replace everything in this post with the generated article?')) return;
+    if (genMode === 'replace' && !window.confirm(
+      `Replace everything in this ${isLesson ? 'section' : 'post'} with the generated ${isLesson ? 'lesson' : 'article'}?`,
+    )) return;
 
     setBusy(true);
     try {
       const { title: suggestedTitle, doc } = await generateBlogDoc({
         text: genText.trim(),
+        kind: generateKind,
+        // A lesson sits under a heading the page already renders, so the title
+        // is context for the prompt, not something to restate.
+        ...(isLesson && title?.trim() ? { title: title.trim() } : {}),
         ...(genGuidance.trim() ? { guidance: genGuidance.trim() } : {}),
       });
-      if (!doc?.content?.length) { toast.error('The AI returned an empty article'); return; }
+      if (!doc?.content?.length) { toast.error('The AI returned nothing'); return; }
 
       if (genMode === 'replace') {
         editor.commands.setContent(doc);
@@ -171,7 +178,7 @@ export default function BlogAiPanel({
       }
       onGenerated?.({ title: suggestedTitle, mode: genMode });
       setGenText('');
-      toast.success('Article generated');
+      toast.success(isLesson ? 'Lesson generated' : 'Article generated');
     } catch (err) {
       toast.error(err.message ?? 'Could not generate the article');
     } finally { setBusy(false); }
@@ -228,8 +235,9 @@ export default function BlogAiPanel({
           ) : tab === 'generate' ? (
             <>
               <p className="cpm-blog-thread-rationale">
-                Paste notes, an outline, or a rough draft — the AI writes a full,
-                section-based article and drops it into this post.
+                {isLesson
+                  ? 'Paste notes, an outline, or a rough draft — the AI writes a full, section-based lesson body and drops it into this section.'
+                  : 'Paste notes, an outline, or a rough draft — the AI writes a full, section-based article and drops it into this post.'}
               </p>
               <textarea
                 className="cpm-blog-ai-input"
@@ -248,7 +256,7 @@ export default function BlogAiPanel({
               <div className="cpm-blog-ai-quick" role="radiogroup" aria-label="Where to put the generated article">
                 {[
                   { id: 'append', label: 'Add to end' },
-                  { id: 'replace', label: 'Replace post' },
+                  { id: 'replace', label: isLesson ? 'Replace section' : 'Replace post' },
                 ].map((m) => (
                   <button
                     key={m.id}
@@ -271,7 +279,7 @@ export default function BlogAiPanel({
               >
                 {busy
                   ? <><i className="fas fa-spinner fa-spin" aria-hidden="true" style={{ marginRight: 6 }} />Generating…</>
-                  : <><i className="fas fa-wand-magic-sparkles" aria-hidden="true" style={{ marginRight: 6 }} />Generate article</>}
+                  : <><i className="fas fa-wand-magic-sparkles" aria-hidden="true" style={{ marginRight: 6 }} />Generate {isLesson ? 'lesson' : 'article'}</>}
               </button>
             </>
           ) : (

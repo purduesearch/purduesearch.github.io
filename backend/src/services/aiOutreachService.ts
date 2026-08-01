@@ -170,15 +170,42 @@ ${BLOG_PLAN_RULES}`;
 export async function generateBlogFromText(
   text:      string,
   titleHint?: string,
-  guidance?:  string
+  guidance?:  string,
+  // "lesson" retargets the same pipeline at a course section body: no hero, no
+  // social CTA, and a teaching structure instead of an announcement one.
+  kind: "blog" | "lesson" = "blog"
 ): Promise<SectionPlan> {
-  const titleLine = titleHint?.trim()
-    ? `\nUse this exact title for the hero heading: "${titleHint.trim()}".`
-    : `\nNo title was provided — craft a concise, specific title for the hero heading.`;
+  const lesson = kind === "lesson";
+  const titleLine = lesson
+    ? (titleHint?.trim()
+      ? `\nThis lesson is titled "${titleHint.trim()}" — the page already shows that title, so do not repeat it as a heading.`
+      : "")
+    : (titleHint?.trim()
+      ? `\nUse this exact title for the hero heading: "${titleHint.trim()}".`
+      : `\nNo title was provided — craft a concise, specific title for the hero heading.`);
   const guidanceLine = guidance?.trim() ? `\nAuthor guidance (follow it): ${guidance.trim()}` : "";
 
-  const prompt = `You are a content writer for Purdue SEARCH, a university engineering club.
-Turn the following raw text (notes, a brief, an outline, or a rough draft) into a polished, rich, visually varied, multi-section blog article.
+  const intro = lesson
+    ? `You are an instructional designer writing course material for Purdue SEARCH, a university engineering club.
+Turn the following raw text (notes, a brief, an outline, or a rough draft) into a clear, well-structured lesson body for one section of an online course.`
+    : `You are a content writer for Purdue SEARCH, a university engineering club.
+Turn the following raw text (notes, a brief, an outline, or a rough draft) into a polished, rich, visually varied, multi-section blog article.`;
+
+  const composition = lesson
+    ? `Compose the lesson:
+- Do NOT emit a "hero" section and do NOT emit a "cta" — this body sits inside a course page that already has both.
+- Open with a short "richText" framing paragraph, then a compact list of what the learner will be able to do by the end.
+- Develop 3–6 teaching sections following the source's ideas (~500–800 words of prose), mixing richText (with formatting), a "callout" for a key idea or common pitfall, an image placeholder or mediaText where a diagram would help, and optionally columns or a stat band (only if the source has real numbers).
+- Close with a "richText" recap or a short set of practice prompts.
+- Tone: explanatory, concrete, second-person ("you"), technical-but-accessible (unless the guidance says otherwise).`
+    : `Compose the article:
+- Open with a "hero" (heading = the article title, subheading = a one-line hook); consider theme "dark".
+- Add a short "richText" intro / TL;DR.
+- Develop 3–6 body sections organized around the ideas in the source (~600–900 words of prose), mixing richText (with formatting), an image placeholder or mediaText, and optionally columns, a callout, a stat band (only if the source has real numbers), and a pull-quote.
+- End with a "cta" — label "Follow @purduesearch", href "https://instagram.com/purduesearch".
+- Default tone: celebratory, technical-but-accessible (unless the guidance says otherwise).`;
+
+  const prompt = `${intro}
 ${todayContext()}${titleLine}${guidanceLine}
 
 Source text:
@@ -186,12 +213,7 @@ ${text}
 
 ${BLOG_PLAN_SCHEMA}
 
-Compose the article:
-- Open with a "hero" (heading = the article title, subheading = a one-line hook); consider theme "dark".
-- Add a short "richText" intro / TL;DR.
-- Develop 3–6 body sections organized around the ideas in the source (~600–900 words of prose), mixing richText (with formatting), an image placeholder or mediaText, and optionally columns, a callout, a stat band (only if the source has real numbers), and a pull-quote.
-- End with a "cta" — label "Follow @purduesearch", href "https://instagram.com/purduesearch".
-- Default tone: celebratory, technical-but-accessible (unless the guidance says otherwise).
+${composition}
 
 ${BLOG_PLAN_RULES}`;
 
@@ -199,9 +221,10 @@ ${BLOG_PLAN_RULES}`;
   const plan = raw ? validateSectionPlan(raw) : { sections: [] };
   if (plan.sections.length) return plan;
 
-  // Fallback — never fail: wrap the raw text in a hero + body.
+  // Fallback — never fail: wrap the raw text in a hero + body (lessons get the
+  // body alone; the course page supplies the heading).
   return {
-    sections: [
+    sections: lesson ? [{ type: "richText", markdown: text }] : [
       { type: "hero", heading: titleHint?.trim() || "Untitled post", align: "center" },
       { type: "richText", markdown: text },
     ],

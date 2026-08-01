@@ -126,11 +126,15 @@ blogRouter.post("/posts/generate", async (req: Request, res: Response) => {
 });
 
 // POST /posts/generate-doc — same AI pipeline as /posts/generate, but returns
-// the section doc instead of persisting a new post, so the editor's AI panel can
-// drop a generated article into the post the author already has open.
+// the section doc instead of persisting a new post, so an editor's AI panel can
+// drop generated content into the document the author already has open. Serves
+// both the blog editor and the course section editor (`kind: "lesson"`), which
+// share the same section-based document format.
 blogRouter.post("/posts/generate-doc", async (req: Request, res: Response) => {
   try {
-    const { text, title, guidance } = req.body as { text?: string; title?: string; guidance?: string };
+    const { text, title, guidance, kind } = req.body as {
+      text?: string; title?: string; guidance?: string; kind?: string;
+    };
     if (!text?.trim()) {
       res.status(400).json({ error: "text is required" });
       return;
@@ -142,6 +146,7 @@ blogRouter.post("/posts/generate-doc", async (req: Request, res: Response) => {
       text.trim(),
       title?.trim() || undefined,
       guidance?.trim() || undefined,
+      kind === "lesson" ? "lesson" : "blog",
     );
     const doc = buildDocFromPlan(plan);
     const heroHeading = plan.sections.find((s) => s.type === "hero")?.heading?.trim();

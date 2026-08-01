@@ -658,6 +658,8 @@ export default function CourseEditorPage() {
           isOpen={aiPanelOpen}
           onClose={() => { setOpenPanel(null); setAiSelection(''); }}
           initialSelection={aiSelection}
+          generateKind="lesson"
+          onGenerated={() => setDirty(true)}
         />
       )}
     </div>
