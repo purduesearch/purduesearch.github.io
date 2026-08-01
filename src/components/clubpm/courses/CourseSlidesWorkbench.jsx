@@ -559,6 +559,9 @@ export default function CourseSlidesWorkbench({ section, canEdit = false, onUpda
               controls
               preload="metadata"
               onLoadedMetadata={(e) => {
+                // Guarded on canEdit: a read-only viewer's PATCH is refused, and
+                // without this every load hands them a failure toast.
+                if (!canEdit) return;
                 const d = e.currentTarget.duration;
                 if (Number.isFinite(d) && Math.round(d) !== config.audioDurationSec) {
                   patchConfig({ audioDurationSec: Math.round(d) });

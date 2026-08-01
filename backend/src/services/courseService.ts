@@ -32,6 +32,7 @@ export interface CreateSectionInput {
   isRequired?: boolean;
   contentJson?: PMDoc;
   videoConfig?: Record<string, unknown> | null;
+  slideConfig?: Record<string, unknown> | null;
   passThreshold?: number | null;
   maxAttempts?: number | null;
 }
@@ -42,6 +43,7 @@ export interface UpdateSectionInput {
   isRequired?: boolean;
   contentJson?: PMDoc;
   videoConfig?: Record<string, unknown> | null;
+  slideConfig?: Record<string, unknown> | null;
   passThreshold?: number | null;
   maxAttempts?: number | null;
 }
@@ -124,6 +126,10 @@ const sectionSelect = {
   kind: true,
   isRequired: true,
   videoConfig: true,
+  // The SLIDES workbench reads its source/narration state straight off this
+  // column, so it has to travel with every section payload the editor loads —
+  // omitting it made the workbench believe no narration was ever uploaded.
+  slideConfig: true,
   passThreshold: true,
   maxAttempts: true,
   createdAt: true,
@@ -396,6 +402,7 @@ export async function createSection(input: CreateSectionInput) {
       isRequired: input.isRequired ?? true,
       contentJson: asJson(input.contentJson ?? EMPTY_DOC),
       videoConfig: (input.videoConfig ?? undefined) as Prisma.InputJsonValue | undefined,
+      slideConfig: (input.slideConfig ?? undefined) as Prisma.InputJsonValue | undefined,
       passThreshold: input.passThreshold ?? null,
       maxAttempts: input.maxAttempts ?? null,
     },
@@ -414,6 +421,13 @@ export async function updateSection(id: string, input: UpdateSectionInput) {
   if (input.videoConfig !== undefined) {
     data.videoConfig =
       input.videoConfig === null ? Prisma.DbNull : (input.videoConfig as Prisma.InputJsonValue);
+  }
+  // The caller always sends a whole merged object (see the workbench's
+  // patchConfig, which spreads the previous value) — this column is never
+  // patched key-by-key here.
+  if (input.slideConfig !== undefined) {
+    data.slideConfig =
+      input.slideConfig === null ? Prisma.DbNull : (input.slideConfig as Prisma.InputJsonValue);
   }
   return prisma.courseSection.update({ where: { id }, data, select: sectionSelect });
 }

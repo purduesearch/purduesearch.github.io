@@ -415,6 +415,10 @@ export async function convertUploadToPdf(
   filename: string,
   folderId: string
 ): Promise<{ stream: NodeJS.ReadableStream; tempFileId: string } | null> {
+  // Tracked out here so the catch can clean up: once we return null the caller
+  // has no id to delete, and a conversion that dies at the export step would
+  // otherwise strand its Google Slides copy in Drive forever.
+  let tempFileId: string | null = null;
   try {
     const drive = await getBotDrive();
     if (!drive) return null;
@@ -424,7 +428,7 @@ export async function convertUploadToPdf(
       fields: "id",
       supportsAllDrives: true,
     });
-    const tempFileId = created.data.id;
+    tempFileId = created.data.id ?? null;
     if (!tempFileId) return null;
     const exported = await drive.files.export(
       { fileId: tempFileId, mimeType: PDF_MIME },
@@ -433,6 +437,7 @@ export async function convertUploadToPdf(
     return { stream: exported.data as unknown as NodeJS.ReadableStream, tempFileId };
   } catch (err) {
     console.error("[driveService] convertUploadToPdf error:", err);
+    if (tempFileId) void deleteDriveFile(tempFileId);
     return null;
   }
 }

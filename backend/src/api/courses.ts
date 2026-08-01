@@ -327,12 +327,15 @@ coursesRouter.post("/:id/sections", async (req: Request, res: Response) => {
   try {
     const id = req.params.id as string;
     if (!(await requireCourseAccess(req, res, id))) return;
-    const { moduleId, title, kind, isRequired, videoConfig, passThreshold, maxAttempts } = req.body as {
+    const {
+      moduleId, title, kind, isRequired, videoConfig, slideConfig, passThreshold, maxAttempts,
+    } = req.body as {
       moduleId?: string;
       title?: string;
       kind?: CourseSectionKind;
       isRequired?: boolean;
       videoConfig?: Record<string, unknown> | null;
+      slideConfig?: Record<string, unknown> | null;
       passThreshold?: number | null;
       maxAttempts?: number | null;
     };
@@ -359,6 +362,7 @@ coursesRouter.post("/:id/sections", async (req: Request, res: Response) => {
       kind,
       isRequired,
       videoConfig,
+      slideConfig,
       passThreshold,
       maxAttempts,
     });
@@ -446,9 +450,23 @@ coursesRouter.get("/sections/:sid/questions", async (req: Request, res: Response
 
     const questions = await courseService.listQuestions(sid);
     if (editor) {
+      // Unclamped on purpose: the workbench flags a slideIndex past the end of
+      // the deck, and it can only do that if it sees the stored value.
       res.json(questions);
       return;
     }
+
+    // A re-import can shorten a deck out from under a question. The row is
+    // clamped, never deleted (clampQuestionSlideIndex) — but the learner must
+    // be shown it on a slide they can actually reach, because completion
+    // requires every overlay question to be answered. Left unclamped, a stray
+    // question is unreachable and the section can never be completed.
+    let slideCount = 0;
+    if (section.kind === "SLIDES" && questions.some((q) => q.slideIndex != null)) {
+      slideCount = await prisma.courseSlide.count({ where: { sectionId: sid } });
+    }
+    const { clampQuestionSlideIndex } = await import("../services/courseSlideService.js");
+
     res.json(
       questions.map((q) => ({
         id: q.id,
@@ -458,7 +476,9 @@ coursesRouter.get("/sections/:sid/questions", async (req: Request, res: Response
         kind: q.kind,
         points: q.points,
         videoTimestampSec: q.videoTimestampSec,
-        slideIndex: q.slideIndex,
+        slideIndex: section.kind === "SLIDES"
+          ? clampQuestionSlideIndex(q.slideIndex, slideCount)
+          : q.slideIndex,
         answers: q.answers.map((a) => ({ id: a.id, order: a.order, text: a.text })),
       }))
     );
@@ -603,6 +623,20 @@ coursesRouter.delete("/sections/:sid/questions/:qid", async (req: Request, res: 
 // The capabilities probe lives further up, above GET /:id, so Express does not
 // match "slide-capabilities" as a course id.
 
+// Node's stream.pipe() does NOT forward errors, so an `error` on a Drive export
+// stream is an unhandled emitter error — an uncaught exception that takes the
+// whole process down. Every deck stream goes out through here instead.
+function pipeDeckPdf(stream: NodeJS.ReadableStream, res: Response, onDone?: () => void) {
+  res.setHeader("Content-Type", "application/pdf");
+  stream.on("error", (err) => {
+    console.error("POST /outreach/courses/sections/:sid/deck/source stream error:", err);
+    if (!res.headersSent) res.status(502).json({ error: "Could not read that deck from Drive" });
+    else res.destroy();
+  });
+  if (onDone) res.on("close", onDone);
+  stream.pipe(res);
+}
+
 // POST /sections/:sid/deck/source — normalize any deck source to a PDF and
 // stream it back. The ONLY place Drive's conversion machinery is touched;
 // everything downstream of "we have a PDF" is shared browser code.
@@ -643,11 +677,11 @@ coursesRouter.post(
           res.status(502).json({ error: "Could not convert that presentation" });
           return;
         }
-        res.setHeader("Content-Type", "application/pdf");
-        converted.stream.pipe(res);
         // The converted Google Slides copy is scratch space; leaving it behind
         // leaks one Drive file per import.
-        res.on("close", () => { void drive.deleteDriveFile(converted.tempFileId); });
+        pipeDeckPdf(converted.stream, res, () => {
+          void drive.deleteDriveFile(converted.tempFileId);
+        });
         return;
       }
 
@@ -670,8 +704,7 @@ coursesRouter.post(
         res.status(result.error === "UNAVAILABLE" ? 503 : 403).json({ error: message });
         return;
       }
-      res.setHeader("Content-Type", "application/pdf");
-      result.stream.pipe(res);
+      pipeDeckPdf(result.stream, res);
     } catch (error) {
       console.error("POST /outreach/courses/sections/:sid/deck/source error:", error);
       if (!res.headersSent) res.status(500).json({ error: "Could not load that deck" });
