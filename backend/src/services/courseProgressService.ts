@@ -160,6 +160,48 @@ export const DEFAULT_MAX_ALLOWED_RATE = 2;
 export const VIDEO_BOOTSTRAP_GRACE_SEC = 15;
 
 /**
+ * Resolve a video section's clip window from its `videoConfig`, in absolute
+ * seconds into the real video — the same units as `durationSec`, a pop-up's
+ * `videoTimestampSec` and a learner's `maxWatchedSec`. Nothing persisted is ever
+ * clip-relative; only the player's display rebases.
+ *
+ * Twin of `clipWindow` in `src/components/clubpm/courses/videoConfig.js`. The
+ * two must agree, for the same reason the `lockSeek !== false` default is
+ * mirrored on both sides: a section with neither clip key resolves to
+ * `[0, durationSec]`, which is exactly the pre-clipping behaviour.
+ *
+ * `endSec` is null only when the end is genuinely unknown — no clip end set and
+ * no duration recorded.
+ */
+export function clipWindow(config: {
+  durationSec?: unknown;
+  clipStartSec?: unknown;
+  clipEndSec?: unknown;
+}): { startSec: number; endSec: number | null } {
+  const duration = Number(config.durationSec);
+  const hasDuration = Number.isFinite(duration) && duration > 0;
+  const durationFloor = hasDuration ? Math.floor(duration) : null;
+
+  const rawStart = Number(config.clipStartSec);
+  let startSec = Number.isFinite(rawStart) && rawStart > 0 ? Math.floor(rawStart) : 0;
+
+  const rawEnd = Number(config.clipEndSec);
+  let endSec = Number.isFinite(rawEnd) && rawEnd > 0 ? Math.floor(rawEnd) : null;
+
+  // A clip end past the last frame (a stale range left by a swapped video) would
+  // put the finish line somewhere the learner can never reach.
+  if (durationFloor != null && endSec != null) endSec = Math.min(endSec, durationFloor);
+  if (endSec == null) endSec = durationFloor;
+
+  if (endSec != null && endSec <= startSec) {
+    if (durationFloor != null && startSec < durationFloor) endSec = durationFloor;
+    else { startSec = 0; endSec = durationFloor; }
+  }
+
+  return { startSec, endSec };
+}
+
+/**
  * The server-side video clamp. A new high-water mark is accepted only if it is
  * monotonically increasing *and* the jump is no larger than wall-clock time
  * could have produced at the fastest allowed playback rate (× 1.5 for timer
@@ -182,9 +224,23 @@ export function clampVideoProgress(opts: {
    * which reads `videoConfig.lockSeek !== false`.
    */
   lockSeek?: boolean;
+  /**
+   * The section's clip window, absolute seconds. The start acts as a floor: a
+   * clipped section's learner begins there, so the very first ping legitimately
+   * claims `clipStartSec` out of nowhere and the rate budget must not reject it
+   * (a rejection makes the client seek back to the server's mark, which would
+   * strand the learner before the clip). The end acts as a ceiling — no claim
+   * past the clip is worth anything.
+   */
+  clipStartSec?: number;
+  clipEndSec?: number | null;
 }): number {
-  const prev = Math.max(0, Math.floor(opts.prevMaxWatchedSec));
-  const next = Math.floor(opts.positionSec);
+  const floor = Number.isFinite(opts.clipStartSec) ? Math.max(0, Math.floor(opts.clipStartSec as number)) : 0;
+  const ceiling = Number.isFinite(opts.clipEndSec as number) ? Math.floor(opts.clipEndSec as number) : null;
+  const cap = (v: number) => (ceiling != null ? Math.min(v, ceiling) : v);
+
+  const prev = cap(Math.max(floor, Math.floor(opts.prevMaxWatchedSec)));
+  const next = cap(Math.floor(opts.positionSec));
   if (!Number.isFinite(next) || next <= prev) return prev;
 
   // Seek lock off: the author has explicitly allowed free scrubbing, so there is
@@ -563,7 +619,14 @@ export async function recordVideoProgress(
   lastPingAt.set(key, now);
   const elapsedSec = previous ? (now - previous) / 1000 : 0;
 
-  const config = (section.videoConfig ?? {}) as { allowedRates?: unknown; lockSeek?: unknown };
+  const config = (section.videoConfig ?? {}) as {
+    allowedRates?: unknown;
+    lockSeek?: unknown;
+    durationSec?: unknown;
+    clipStartSec?: unknown;
+    clipEndSec?: unknown;
+  };
+  const window = clipWindow(config);
   const rates = Array.isArray(config.allowedRates)
     ? config.allowedRates.map(Number).filter((r) => Number.isFinite(r) && r > 0)
     : [];
@@ -577,6 +640,8 @@ export async function recordVideoProgress(
     // Mirrors the player's own `config.lockSeek !== false`, so an unset flag
     // stays locked on both sides.
     lockSeek: config.lockSeek !== false,
+    clipStartSec: window.startSec,
+    clipEndSec: window.endSec,
   });
 
   const updated = await prisma.courseSectionProgress.update({
@@ -667,28 +732,40 @@ export async function completeSection(sectionId: string, memberId: string) {
   }
 
   if (section.kind === "VIDEO") {
-    const config = (section.videoConfig ?? {}) as { durationSec?: unknown; youtubeId?: unknown };
-    const duration = Number(config.durationSec);
+    const config = (section.videoConfig ?? {}) as {
+      durationSec?: unknown;
+      youtubeId?: unknown;
+      clipStartSec?: unknown;
+      clipEndSec?: unknown;
+    };
+    // The finish line is the clip's end when the section is trimmed, the whole
+    // video's when it is not — `clipWindow` collapses both to one number.
+    const window = clipWindow(config);
     const hasVideo = typeof config.youtubeId === "string" && config.youtubeId.length > 0;
     if (hasVideo) {
-      // An unknown duration used to make this whole branch a no-op, which meant
+      // An unknown end used to make this whole branch a no-op, which meant
       // POSTing to this route completed the section without watching anything.
       // Refuse loudly instead: the author's settings panel records durationSec
       // as soon as the video loads, so this only fires on a half-configured
-      // section, and it says so.
-      if (!Number.isFinite(duration) || duration <= 0) {
+      // section, and it says so. A recorded clip end satisfies it too.
+      if (window.endSec == null || window.endSec <= 0) {
         return {
           error: "This video's length has not been recorded yet — ask the course author to reopen its video settings",
           status: 409,
         } as const;
       }
-      if (progress.maxWatchedSec < duration - 2) {
+      if (progress.maxWatchedSec < window.endSec - 2) {
         return { error: "Video has not been watched to the end", status: 400 } as const;
       }
     }
-    const popups = await prisma.courseQuestion.findMany({
+    // Pop-ups outside the clip can never fire, so requiring them would make a
+    // trimmed section permanently uncompletable. The player filters identically.
+    const popups = (await prisma.courseQuestion.findMany({
       where: { sectionId, videoTimestampSec: { not: null } },
-      select: { id: true },
+      select: { id: true, videoTimestampSec: true },
+    })).filter((q) => {
+      const t = q.videoTimestampSec as number;
+      return t >= window.startSec && (window.endSec == null || t <= window.endSec);
     });
     const answered = new Set(progress.answeredPopupIds);
     if (popups.some((q) => !answered.has(q.id))) {

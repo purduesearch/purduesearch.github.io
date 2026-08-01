@@ -8,9 +8,10 @@ import { blankQuestion, serializeQuestion, validateQuestion } from './questionMo
 import LockedVideoPlayer from './LockedVideoPlayer';
 import {
   PLAYBACK_RATES, DEFAULT_RATES, parseYouTubeId, formatTimestamp, parseTimestamp,
+  clipWindow, isWithinClip,
 } from './videoConfig';
 
-function TimestampField({ label, value, hint, onCommit, disabled }) {
+function TimestampField({ label, value, hint, onCommit, onGrabPlayhead, disabled }) {
   const [text, setText] = useState(value == null ? '' : formatTimestamp(value));
 
   useEffect(() => { setText(value == null ? '' : formatTimestamp(value)); }, [value]);
@@ -30,20 +31,37 @@ function TimestampField({ label, value, hint, onCommit, disabled }) {
   return (
     <div className="cpm-blog-meta-field">
       <label className="cpm-form-label">{label}</label>
-      <input
-        className="cpm-form-input"
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        onBlur={commit}
-        placeholder="0:00"
-        disabled={disabled}
-      />
+      <div className="pm-course-timestamp-row">
+        <input
+          className="cpm-form-input"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onBlur={commit}
+          placeholder="0:00"
+          disabled={disabled}
+        />
+        {onGrabPlayhead && (
+          <button
+            type="button"
+            className="clubpm-btn-secondary pm-course-timestamp-grab"
+            onClick={onGrabPlayhead}
+            disabled={disabled}
+            title="Use the preview player’s current position"
+            aria-label={`Set ${label.toLowerCase()} from the preview player`}
+          >
+            <i className="fas fa-crosshairs" aria-hidden="true" />
+          </button>
+        )}
+      </div>
       {hint && <span className="cpm-blog-meta-hint">{hint}</span>}
     </div>
   );
 }
 
-function PopupCard({ question, index, canEdit, expanded, busy, onToggle, onChange, onSave, onDelete }) {
+function PopupCard({
+  question, index, canEdit, expanded, busy, outsideClip, clipLabel,
+  onToggle, onChange, onSave, onDelete,
+}) {
   return (
     <div className={`pm-course-question-card${expanded ? ' is-open' : ''}`}>
       <div className="pm-course-question-head">
@@ -52,6 +70,11 @@ function PopupCard({ question, index, canEdit, expanded, busy, onToggle, onChang
           <span className="pm-course-question-summary">
             {(question.prompt ?? '').trim() || <em>Untitled pop-up</em>}
           </span>
+          {outsideClip && (
+            <span className="pm-course-question-stray" title={`The clip is ${clipLabel}`}>
+              <i className="fas fa-triangle-exclamation" aria-hidden="true" /> outside the clip
+            </span>
+          )}
           {!question.id && <span className="cpm-blog-dirty">Unsaved</span>}
           <i className={`fas ${expanded ? 'fa-chevron-up' : 'fa-chevron-down'}`} aria-hidden="true" />
         </button>
@@ -128,6 +151,8 @@ export default function CourseVideoWorkbench({ section, canEdit = false, onUpdat
     Array.isArray(config.allowedRates) && config.allowedRates.length ? config.allowedRates : DEFAULT_RATES
   );
   const [lockSeek, setLockSeek] = useState(config.lockSeek !== false);
+  const [clipStartSec, setClipStartSec] = useState(config.clipStartSec ?? null);
+  const [clipEndSec, setClipEndSec] = useState(config.clipEndSec ?? null);
   const [popups, setPopups] = useState([]);
   const [expandedKey, setExpandedKey] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -143,6 +168,8 @@ export default function CourseVideoWorkbench({ section, canEdit = false, onUpdat
     setUrlInput(cfg.youtubeId ?? '');
     setRates(Array.isArray(cfg.allowedRates) && cfg.allowedRates.length ? cfg.allowedRates : DEFAULT_RATES);
     setLockSeek(cfg.lockSeek !== false);
+    setClipStartSec(cfg.clipStartSec ?? null);
+    setClipEndSec(cfg.clipEndSec ?? null);
   }, [section?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -184,6 +211,8 @@ export default function CourseVideoWorkbench({ section, canEdit = false, onUpdat
       youtubeId: parseYouTubeId(urlInput),
       allowedRates: rates,
       lockSeek,
+      clipStartSec,
+      clipEndSec,
       ...patch,
     };
     try {
@@ -191,18 +220,27 @@ export default function CourseVideoWorkbench({ section, canEdit = false, onUpdat
     } catch {
       toast.error('Could not save video settings');
     }
-  }, [sectionId, urlInput, rates, lockSeek, onUpdateSection]);
+  }, [sectionId, urlInput, rates, lockSeek, clipStartSec, clipEndSec, onUpdateSection]);
 
   const handleUrlBlur = () => {
     const trimmed = urlInput.trim();
-    if (!trimmed) { setUrlInput(''); saveConfig({ youtubeId: null, durationSec: null }); return; }
+    // A clip range describes one specific video, so swapping or clearing the
+    // source discards it along with the recorded length.
+    const clipReset = { clipStartSec: null, clipEndSec: null };
+    if (!trimmed) {
+      setUrlInput('');
+      setClipStartSec(null); setClipEndSec(null);
+      saveConfig({ youtubeId: null, durationSec: null, ...clipReset });
+      return;
+    }
     const id = parseYouTubeId(trimmed);
     if (!id) { toast.error('That is not a YouTube URL or video id'); return; }
     if (id === config.youtubeId) { setUrlInput(id); return; }
     setUrlInput(id);
+    setClipStartSec(null); setClipEndSec(null);
     // A different video means the recorded length no longer describes it; the
     // player below re-detects and re-saves it on load.
-    saveConfig({ youtubeId: id, durationSec: null });
+    saveConfig({ youtubeId: id, durationSec: null, ...clipReset });
   };
 
   // The player is what records `durationSec`. Without one mounted here nothing
@@ -226,6 +264,35 @@ export default function CourseVideoWorkbench({ section, canEdit = false, onUpdat
     const next = !lockSeek;
     setLockSeek(next);
     saveConfig({ lockSeek: next });
+  };
+
+  // ── Clip range ─────────────────────────────────────────────
+  // Both ends are validated against each other and against the detected length
+  // before they are saved, so `videoConfig` never holds a window the player
+  // would have to repair at playback time.
+  const commitClip = (which, sec) => {
+    const duration = Number(config.durationSec);
+    const hasDuration = Number.isFinite(duration) && duration > 0;
+    const start = which === 'start' ? sec : clipStartSec;
+    const end = which === 'end' ? sec : clipEndSec;
+
+    if (sec != null && hasDuration && sec > duration) {
+      toast.error(`The video is only ${formatTimestamp(duration)} long.`);
+      return;
+    }
+    if (start != null && end != null && end <= start) {
+      toast.error('The clip must end after it starts.');
+      return;
+    }
+
+    if (which === 'start') setClipStartSec(sec); else setClipEndSec(sec);
+    saveConfig({ clipStartSec: which === 'start' ? sec : clipStartSec, clipEndSec: which === 'end' ? sec : clipEndSec });
+  };
+
+  const clearClip = () => {
+    setClipStartSec(null);
+    setClipEndSec(null);
+    saveConfig({ clipStartSec: null, clipEndSec: null });
   };
 
   const addPopupAt = (sec) => {
@@ -282,6 +349,13 @@ export default function CourseVideoWorkbench({ section, canEdit = false, onUpdat
   if (!section) return null;
 
   const parsedId = parseYouTubeId(urlInput);
+  // The preview is fed the same config a learner gets, clip included, so the
+  // author watches exactly the window the course will serve.
+  const previewConfig = { ...config, youtubeId: parsedId, allowedRates: rates, clipStartSec, clipEndSec };
+  const window_ = clipWindow(previewConfig);
+  const clipLabel = window_.endSec == null
+    ? `from ${formatTimestamp(window_.startSec)}`
+    : `${formatTimestamp(window_.startSec)}–${formatTimestamp(window_.endSec)}`;
 
   return (
     <div className="pm-course-workbench pm-course-video-workbench">
@@ -312,7 +386,7 @@ export default function CourseVideoWorkbench({ section, canEdit = false, onUpdat
               // Keyed on the id so pasting a different video rebuilds the player
               // instead of leaving the previous one's duration on screen.
               key={parsedId}
-              videoConfig={{ ...config, youtubeId: parsedId, allowedRates: rates }}
+              videoConfig={previewConfig}
               questions={popups.filter((q) => q.id)}
               preview
               onDurationDetected={handleDurationDetected}
@@ -323,6 +397,41 @@ export default function CourseVideoWorkbench({ section, canEdit = false, onUpdat
                 ? `Length ${formatTimestamp(config.durationSec)} — recorded, so completion can be checked server-side.`
                 : 'Detecting length… a learner cannot complete this section until it is recorded.'}
             </span>
+
+            <div className="pm-course-clip">
+              <div className="pm-course-clip-head">
+                <span className="cpm-form-label">Clip range</span>
+                {(clipStartSec != null || clipEndSec != null) && canEdit && (
+                  <button type="button" className="pm-course-clip-clear" onClick={clearClip}>
+                    <i className="fas fa-xmark" aria-hidden="true" /> Use the full video
+                  </button>
+                )}
+              </div>
+              <div className="pm-course-clip-row">
+                <TimestampField
+                  label="Start"
+                  value={clipStartSec}
+                  onCommit={(sec) => commitClip('start', sec)}
+                  onGrabPlayhead={() => commitClip('start', Math.floor(playheadRef.current))}
+                  disabled={!canEdit}
+                />
+                <TimestampField
+                  label="End"
+                  value={clipEndSec}
+                  onCommit={(sec) => commitClip('end', sec)}
+                  onGrabPlayhead={() => commitClip('end', Math.floor(playheadRef.current))}
+                  disabled={!canEdit}
+                />
+              </div>
+              <span className="cpm-blog-meta-hint">
+                {!window_.clipped
+                  ? 'Blank on both sides plays the whole video. Set a range to show just a clip.'
+                  : window_.lengthSec != null
+                    ? `Clip length ${formatTimestamp(window_.lengthSec)} — learners see ${clipLabel} `
+                      + `as 0:00–${formatTimestamp(window_.lengthSec)}, and finish the section at its end.`
+                    : `Learners start at ${formatTimestamp(window_.startSec)}.`}
+              </span>
+            </div>
           </div>
         ) : (
           <p className="pm-course-workbench-empty">
@@ -396,6 +505,8 @@ export default function CourseVideoWorkbench({ section, canEdit = false, onUpdat
                 index={index}
                 canEdit={canEdit}
                 busy={busyKey === question._key}
+                outsideClip={window_.clipped && !isWithinClip(question.videoTimestampSec, window_)}
+                clipLabel={clipLabel}
                 expanded={expandedKey === question._key}
                 onToggle={() => setExpandedKey((k) => (k === question._key ? null : question._key))}
                 onChange={(next) => setPopups((prev) => prev.map((q) => (q._key === question._key ? next : q)))}

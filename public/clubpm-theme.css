@@ -21389,6 +21389,46 @@ html:not(.aos-off) [data-aos].aos-animate  { opacity: 1; transform: none; }
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .pm-course-question-summary em { color: var(--pm-text-muted); }
+/* A pop-up whose timestamp falls outside the clip range can never fire. It is
+   left alone rather than moved or deleted — this badge is how the author finds
+   out. The completion gate ignores these on both client and server. */
+.pm-course-question-stray {
+  flex-shrink: 0; display: inline-flex; align-items: center; gap: 5px;
+  padding: 2px 7px; border-radius: 999px;
+  font-family: var(--pm-font-body); font-size: 10px; white-space: nowrap;
+  color: var(--pm-accent-amber);
+  background: color-mix(in srgb, var(--pm-accent-amber) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--pm-accent-amber) 32%, transparent);
+}
+
+/* ── Clip range ──
+   Trims a long source video down to the window the section actually teaches.
+   Sits under the preview player so the crosshair buttons, which read that
+   player's position, are next to the thing they read from. */
+.pm-course-clip {
+  display: flex; flex-direction: column; gap: 8px;
+  margin-top: 12px; padding: 12px 14px;
+  border: 1px solid var(--pm-border); border-radius: 12px;
+  background: var(--pm-bg-elevated, #1a1e2a);
+}
+.pm-course-clip-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.pm-course-clip-head .cpm-form-label { margin: 0; }
+.pm-course-clip-clear {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 2px 6px; background: none; border: none; cursor: pointer;
+  font-family: var(--pm-font-body); font-size: 11px; color: var(--pm-text-muted);
+}
+.pm-course-clip-clear:hover { color: var(--pm-accent-teal); }
+.pm-course-clip-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+/* The input keeps the whole remaining width; the crosshair is a fixed square so
+   the two fields' inputs stay the same size as each other. */
+.pm-course-timestamp-row { display: flex; align-items: center; gap: 6px; }
+.pm-course-timestamp-row .cpm-form-input { flex: 1 1 auto; min-width: 0; }
+.pm-course-timestamp-grab { flex: 0 0 auto; padding: 7px 9px; line-height: 1; }
+
+@media (max-width: 640px) {
+  .pm-course-clip-row { grid-template-columns: minmax(0, 1fr); }
+}
 
 .pm-course-question-form {
   display: flex; flex-direction: column; gap: 12px;

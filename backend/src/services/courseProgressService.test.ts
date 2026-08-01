@@ -11,6 +11,7 @@ import {
   gradeQuestion,
   computeScorePct,
   clampVideoProgress,
+  clipWindow,
   VIDEO_BOOTSTRAP_GRACE_SEC,
   type GateModule,
   type GateSection,
@@ -328,14 +329,16 @@ console.log("computeScorePct");
 
 console.log("video completion gate");
 function videoCompletionGate(
-  config: { youtubeId?: unknown; durationSec?: unknown },
+  config: { youtubeId?: unknown; durationSec?: unknown; clipStartSec?: unknown; clipEndSec?: unknown },
   maxWatchedSec: number
 ): "ok" | "unwatched" | "unknown-duration" {
-  const duration = Number(config.durationSec);
+  // Uses the real clipWindow, so the clip cases below exercise shipped code
+  // rather than a paraphrase of it.
+  const { endSec } = clipWindow(config);
   const hasVideo = typeof config.youtubeId === "string" && config.youtubeId.length > 0;
   if (!hasVideo) return "ok";
-  if (!Number.isFinite(duration) || duration <= 0) return "unknown-duration";
-  return maxWatchedSec < duration - 2 ? "unwatched" : "ok";
+  if (endSec == null || endSec <= 0) return "unknown-duration";
+  return maxWatchedSec < endSec - 2 ? "unwatched" : "ok";
 }
 {
   eq(
@@ -370,6 +373,91 @@ function videoCompletionGate(
     "an empty youtubeId counts as no video",
     videoCompletionGate({ youtubeId: "", durationSec: 600 }, 0),
     "ok"
+  );
+}
+
+// ── Clip window ──────────────────────────────────────────────
+//
+// The window must collapse "no clip", "start only", "end only" and a stale range
+// left behind by a swapped video into one pair of absolute seconds, because both
+// the completion gate and the progress clamp read nothing else.
+
+console.log("clipWindow");
+{
+  const w = (c: object) => {
+    const r = clipWindow(c);
+    return `${r.startSec}-${r.endSec}`;
+  };
+  eq("no clip keys is the whole video", w({ durationSec: 600 }), "0-600");
+  eq("a clip range is passed through", w({ durationSec: 600, clipStartSec: 250, clipEndSec: 280 }), "250-280");
+  eq("a start alone runs to the video's end", w({ durationSec: 600, clipStartSec: 250 }), "250-600");
+  eq("an end alone starts at zero", w({ durationSec: 600, clipEndSec: 30 }), "0-30");
+  eq("nothing known at all leaves the end open", w({}), "0-null");
+  eq("a start with no duration leaves the end open", w({ clipStartSec: 250 }), "250-null");
+  eq("a clip end alone is usable before the duration lands", w({ clipEndSec: 280 }), "0-280");
+
+  // A clip end past the last frame would put the finish line where the learner
+  // can never reach it — the section would be permanently uncompletable.
+  eq("an end past the video is capped at the duration", w({ durationSec: 600, clipEndSec: 900 }), "0-600");
+  eq(
+    "an end at or before the start is discarded, not returned negative",
+    w({ durationSec: 600, clipStartSec: 300, clipEndSec: 120 }),
+    "300-600"
+  );
+  eq("zero and negative values are ignored", w({ durationSec: 600, clipStartSec: -5, clipEndSec: 0 }), "0-600");
+  eq("garbage values are ignored", w({ durationSec: 600, clipStartSec: "x", clipEndSec: null }), "0-600");
+}
+
+console.log("clip completion gate");
+{
+  const clip = { youtubeId: "dQw4w9WgXcQ", durationSec: 1200, clipStartSec: 250, clipEndSec: 280 };
+  eq("reaching the clip's end completes, well short of the video's", videoCompletionGate(clip, 279), "ok");
+  eq("...within the same 2 s slack", videoCompletionGate(clip, 278), "ok");
+  eq("stopping inside the clip refuses", videoCompletionGate(clip, 265), "unwatched");
+  eq("sitting at the clip's start refuses", videoCompletionGate(clip, 250), "unwatched");
+  // Without a duration the clip end is still a finish line, so a trimmed section
+  // is completable even before the player has reported the video's length.
+  eq(
+    "a clip end substitutes for an unrecorded duration",
+    videoCompletionGate({ youtubeId: "dQw4w9WgXcQ", clipEndSec: 280 }, 279),
+    "ok"
+  );
+}
+
+// ── Clip clamp ───────────────────────────────────────────────
+//
+// The clip start is a FLOOR, not just a starting position. A fresh learner's
+// first ping on a clip beginning at 4:10 legitimately claims 250 s out of
+// nowhere; if the rate budget rejects that, the client answers the rejection by
+// seeking back to the server's mark and strands the learner before the clip.
+
+console.log("clampVideoProgress with a clip");
+{
+  const clip = { clipStartSec: 250, clipEndSec: 280 };
+  eq(
+    "a first ping at the clip start is accepted despite the rate budget",
+    clampVideoProgress({ prevMaxWatchedSec: 0, positionSec: 250, elapsedSec: 0, ...clip }),
+    250
+  );
+  eq(
+    "a stored mark below the clip start is lifted to it",
+    clampVideoProgress({ prevMaxWatchedSec: 0, positionSec: 10, elapsedSec: 0, ...clip }),
+    250
+  );
+  eq(
+    "progress inside the clip still obeys the rate budget",
+    clampVideoProgress({ prevMaxWatchedSec: 255, positionSec: 258, elapsedSec: 2, maxAllowedRate: 2, ...clip }),
+    258
+  );
+  eq(
+    "a claim past the clip's end is capped there, not honoured",
+    clampVideoProgress({ prevMaxWatchedSec: 275, positionSec: 900, elapsedSec: 10, ...clip }),
+    280
+  );
+  eq(
+    "an unclipped section is unaffected",
+    clampVideoProgress({ prevMaxWatchedSec: 100, positionSec: 110, elapsedSec: 10, maxAllowedRate: 2 }),
+    110
   );
 }
 

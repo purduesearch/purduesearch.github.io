@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import toast from 'react-hot-toast';
 import { loadYouTubeApi } from '../../../lib/youtubeApi';
 import { recordCourseVideoProgress, answerCoursePopup } from '../../../api/clubPmClient';
-import { DEFAULT_RATES, formatTimestamp } from './videoConfig';
+import { DEFAULT_RATES, formatTimestamp, clipWindow, isWithinClip } from './videoConfig';
 
 // How far past the watch mark a position may drift before we yank it back. One
 // tick of slop plus a little: YouTube's clock is not sample-accurate, and a 2×
@@ -39,7 +39,10 @@ function clockTime(sec) {
  * payload never carries it); grading is the server's job, and the explanation
  * only exists in the grade response.
  */
-function PopupQuestionModal({ question, result, busy, selected, onToggle, onSubmit, onRewind, onRetry, onContinue }) {
+function PopupQuestionModal({
+  question, result, busy, selected, clipStart = 0,
+  onToggle, onSubmit, onRewind, onRetry, onContinue,
+}) {
   const multi = question.kind === 'MULTI';
   return (
     <div className="pm-course-popup-backdrop" role="dialog" aria-modal="true" aria-label="Question">
@@ -103,7 +106,7 @@ function PopupQuestionModal({ question, result, busy, selected, onToggle, onSubm
               {result.rewindToSec != null && (
                 <button type="button" className="clubpm-btn-primary" onClick={onRewind}>
                   <i className="fas fa-rotate-left" aria-hidden="true" />
-                  {` Rewind to ${clockTime(result.rewindToSec)}`}
+                  {` Rewind to ${clockTime(Math.max(0, result.rewindToSec - clipStart))}`}
                 </button>
               )}
               <button type="button" className="clubpm-btn-secondary" onClick={onRetry}>
@@ -132,7 +135,13 @@ function PopupQuestionModal({ question, result, busy, selected, onToggle, onSubm
  * Both are UX. The real lock is the server clamp in `recordVideoProgress`;
  * nothing here is trusted.
  *
- * @param {object}   videoConfig          { youtubeId, allowedRates, lockSeek, durationSec }
+ * When `clipStartSec` / `clipEndSec` are set, the clip *is* the video as far as
+ * this component is concerned: playback is penned into the window, the scrub bar
+ * spans it and is labelled from 0:00, and completion means reaching the clip's
+ * end. Stored values stay absolute; only the display rebases. See `clipWindow`.
+ *
+ * @param {object}   videoConfig          { youtubeId, allowedRates, lockSeek, durationSec,
+ *                                          clipStartSec, clipEndSec }
  * @param {string}   sectionId            CourseSection id — omit (or set preview) to skip server calls
  * @param {number}   initialMaxWatchedSec persisted watch mark; playback resumes here
  * @param {Array}    questions            timed pop-ups (learner-safe shape)
@@ -163,12 +172,42 @@ export default function LockedVideoPlayer({
     return valid.length ? valid : DEFAULT_RATES;
   }, [config.allowedRates]);
 
+  const [duration, setDuration] = useState(Number(config.durationSec) || 0);
+
+  // The clip window, in absolute video seconds. Recomputed against the detected
+  // duration as well as the stored one, so an unclipped section gets a real end
+  // as soon as YouTube reports the length rather than staying open-ended.
+  // Keyed on the three primitives rather than on `config`, which is rebuilt by
+  // `videoConfig ?? {}` on every render. A fresh object here would re-run this
+  // memo, then `popups`, then `dueQuestion`/`maybeComplete` — and re-arm the
+  // 250 ms tick on every render instead of letting the timer run.
+  const clipStartCfg = config.clipStartSec;
+  const clipEndCfg = config.clipEndSec;
+  const durationCfg = config.durationSec;
+  const window_ = useMemo(
+    () => clipWindow({
+      clipStartSec: clipStartCfg,
+      clipEndSec: clipEndCfg,
+      durationSec: duration || durationCfg,
+    }),
+    [clipStartCfg, clipEndCfg, durationCfg, duration]
+  );
+  const clipStart = window_.startSec;
+  const clipEnd = window_.endSec;
+  // What the learner's scrub bar spans. Falls back to the raw duration until the
+  // window has an end, so the bar is never divided by null.
+  const spanSec = window_.lengthSec != null ? window_.lengthSec : Math.max(0, duration - clipStart);
+
   const popups = useMemo(() => (
     (Array.isArray(questions) ? questions : [])
       .filter((q) => q.videoTimestampSec != null)
+      // A pop-up outside the clip can never fire, so it must not be counted as
+      // outstanding either — otherwise trimming past one makes the section
+      // permanently uncompletable. The server's completion gate agrees.
+      .filter((q) => isWithinClip(q.videoTimestampSec, window_))
       .slice()
       .sort((a, b) => a.videoTimestampSec - b.videoTimestampSec)
-  ), [questions]);
+  ), [questions, window_]);
 
   const reducedMotion = usePrefersReducedMotion();
 
@@ -178,7 +217,9 @@ export default function LockedVideoPlayer({
   const tickRef = useRef(null);
   const flushRef = useRef(null);
   // Refs mirror state the 250 ms tick reads — it must never close over stale values.
-  const maxWatchedRef = useRef(Math.max(0, Number(initialMaxWatchedSec) || 0));
+  // Floored at the clip start: a clipped section's learner has, by definition,
+  // "watched" everything before it, and the mark is what playback resumes from.
+  const maxWatchedRef = useRef(Math.max(clipStart, Number(initialMaxWatchedSec) || 0));
   const answeredRef = useRef(new Set(answeredPopupIds));
   const activeQuestionRef = useRef(null);
   const lastFlushedRef = useRef(-1);
@@ -194,7 +235,6 @@ export default function LockedVideoPlayer({
   const [playing, setPlaying] = useState(false);
   const [currentSec, setCurrentSec] = useState(maxWatchedRef.current);
   const [maxWatchedSec, setMaxWatchedSec] = useState(maxWatchedRef.current);
-  const [duration, setDuration] = useState(Number(config.durationSec) || 0);
   const [rate, setRate] = useState(rates.includes(1) ? 1 : rates[0]);
   const [volume, setVolume] = useState(100);
   const [muted, setMuted] = useState(false);
@@ -226,13 +266,14 @@ export default function LockedVideoPlayer({
   // ── Completion ─────────────────────────────────────────────
   const maybeComplete = useCallback(() => {
     if (completedRef.current || preview) return;
-    const known = duration > 0 ? duration : Number(config.durationSec) || 0;
+    // The finish line is the clip's end, not the video's.
+    const known = clipEnd != null ? clipEnd : 0;
     if (!(known > 0) || maxWatchedRef.current < known - END_SLACK_SEC) return;
     const requiredAnswered = popups.every((q) => answeredRef.current.has(q.id));
     if (!requiredAnswered) return;
     completedRef.current = true;
     onComplete?.();
-  }, [duration, config.durationSec, popups, preview, onComplete]);
+  }, [clipEnd, popups, preview, onComplete]);
 
   // ── Pop-up gating ──────────────────────────────────────────
   const openQuestion = useCallback((question) => {
@@ -269,6 +310,31 @@ export default function LockedVideoPlayer({
         }
       }
 
+      // ── Clip window ──
+      // YouTube's `start`/`end` playerVars are not used: they only apply to the
+      // initial load and are ignored by every subsequent seekTo, so the stop has
+      // to be enforced here, on the same tick that already polices the lock.
+      if (t < clipStart - DRIFT_TOLERANCE_SEC) {
+        player.seekTo(clipStart, true);
+        setCurrentSec(clipStart);
+        onTimeUpdateRef.current?.(clipStart);
+        return;
+      }
+      if (clipEnd != null && t >= clipEnd) {
+        player.pauseVideo?.();
+        player.seekTo(clipEnd, true);
+        if (clipEnd > maxWatchedRef.current) {
+          maxWatchedRef.current = clipEnd;
+          setMaxWatchedSec(clipEnd);
+        }
+        setCurrentSec(clipEnd);
+        onTimeUpdateRef.current?.(clipEnd);
+        // The clip's end is this section's ENDED event — same two calls.
+        flush(maxWatchedRef.current);
+        maybeComplete();
+        return;
+      }
+
       if (lockSeek && t > maxWatchedRef.current + DRIFT_TOLERANCE_SEC) {
         player.seekTo(maxWatchedRef.current, true);
         setCurrentSec(maxWatchedRef.current);
@@ -291,7 +357,8 @@ export default function LockedVideoPlayer({
     }, TICK_MS);
     tickRef.current = id;
     return () => window.clearInterval(id);
-  }, [ready, lockSeek, duration, config.durationSec, onDurationDetected, dueQuestion, openQuestion, maybeComplete]);
+  }, [ready, lockSeek, duration, config.durationSec, clipStart, clipEnd, flush,
+    onDurationDetected, dueQuestion, openQuestion, maybeComplete]);
 
   // ── Periodic + unload flush ────────────────────────────────
   useEffect(() => {
@@ -400,11 +467,13 @@ export default function LockedVideoPlayer({
   // The scrub bar: display-only past the watch mark. Rewind is always allowed.
   const seekFromBar = (event) => {
     const player = playerRef.current;
-    if (!player || !duration) return;
+    if (!player || !spanSec) return;
     const rect = event.currentTarget.getBoundingClientRect();
     if (!rect.width) return;
     const ratio = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
-    const target = ratio * duration;
+    // The bar spans the clip, so its ratio maps back into the window — never to
+    // an absolute position in the untrimmed video.
+    const target = clipStart + ratio * spanSec;
     if (lockSeek && target > maxWatchedRef.current) return; // no-op, deliberately silent
     player.seekTo(target, true);
     setCurrentSec(target);
@@ -460,7 +529,10 @@ export default function LockedVideoPlayer({
   };
 
   const rewind = () => {
-    const to = Math.max(0, Number(popupResult?.rewindToSec) || 0);
+    // An author can leave a rewind target from before a later trim; land inside
+    // the clip rather than somewhere the learner is not allowed to be.
+    const raw = Math.max(0, Number(popupResult?.rewindToSec) || 0);
+    const to = Math.min(clipEnd ?? raw, Math.max(clipStart, raw));
     // Clearing the flag is the point: the question must fire again on the way back.
     if (activeQuestionRef.current) answeredRef.current.delete(activeQuestionRef.current.id);
     closeQuestion(false);
@@ -480,8 +552,13 @@ export default function LockedVideoPlayer({
     );
   }
 
-  const pct = duration > 0 ? Math.min(100, (currentSec / duration) * 100) : 0;
-  const watchedPct = duration > 0 ? Math.min(100, (maxWatchedSec / duration) * 100) : 0;
+  // All bar geometry is clip-relative: a 30-second clip out of a 20-minute video
+  // reads 0:00–0:30 and fills across its whole width. The learner is never shown
+  // where in the source video the clip came from.
+  const relative = (sec) => (spanSec > 0 ? Math.min(100, Math.max(0, ((sec - clipStart) / spanSec) * 100)) : 0);
+  const pct = relative(currentSec);
+  const watchedPct = relative(maxWatchedSec);
+  const elapsedSec = Math.max(0, currentSec - clipStart);
   const barTransition = reducedMotion ? 'none' : 'width 120ms linear';
 
   return (
@@ -515,7 +592,7 @@ export default function LockedVideoPlayer({
           <i className={`fas ${playing ? 'fa-pause' : 'fa-play'}`} aria-hidden="true" />
         </button>
 
-        <span className="pm-course-player-time">{clockTime(currentSec)}</span>
+        <span className="pm-course-player-time">{clockTime(elapsedSec)}</span>
 
         <div
           className={`pm-course-scrub${lockSeek ? ' is-locked' : ''}`}
@@ -524,14 +601,14 @@ export default function LockedVideoPlayer({
           tabIndex={0}
           aria-label="Video position"
           aria-valuemin={0}
-          aria-valuemax={Math.floor(duration)}
-          aria-valuenow={Math.floor(currentSec)}
-          aria-valuetext={`${clockTime(currentSec)} of ${clockTime(duration)}`}
+          aria-valuemax={Math.floor(spanSec)}
+          aria-valuenow={Math.floor(elapsedSec)}
+          aria-valuetext={`${clockTime(elapsedSec)} of ${clockTime(spanSec)}`}
           onKeyDown={(e) => {
             // Rewind by keyboard is fine; forward is the thing being locked.
             if (e.key !== 'ArrowLeft') return;
             e.preventDefault();
-            const to = Math.max(0, currentSec - 5);
+            const to = Math.max(clipStart, currentSec - 5);
             playerRef.current?.seekTo?.(to, true);
             setCurrentSec(to);
           }}
@@ -539,18 +616,18 @@ export default function LockedVideoPlayer({
           <div className="pm-course-scrub-watched" style={{ width: `${watchedPct}%`, transition: barTransition }} />
           <div className="pm-course-scrub-played" style={{ width: `${pct}%`, transition: barTransition }} />
           {popups.map((q) => (
-            duration > 0 ? (
+            spanSec > 0 ? (
               <span
                 key={q.id}
                 className={`pm-course-scrub-marker${answeredRef.current.has(q.id) ? ' is-answered' : ''}`}
-                style={{ left: `${Math.min(100, (q.videoTimestampSec / duration) * 100)}%` }}
-                title={`Question at ${clockTime(q.videoTimestampSec)}`}
+                style={{ left: `${relative(q.videoTimestampSec)}%` }}
+                title={`Question at ${clockTime(q.videoTimestampSec - clipStart)}`}
               />
             ) : null
           ))}
         </div>
 
-        <span className="pm-course-player-time">{clockTime(duration)}</span>
+        <span className="pm-course-player-time">{clockTime(spanSec)}</span>
 
         <label className="pm-course-player-rate">
           <span className="cpm-sr-only">Playback speed</span>
@@ -605,6 +682,7 @@ export default function LockedVideoPlayer({
           result={popupResult}
           busy={grading}
           selected={selected}
+          clipStart={clipStart}
           onToggle={toggleAnswer}
           onSubmit={submitAnswer}
           onRewind={rewind}
