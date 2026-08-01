@@ -22556,3 +22556,168 @@ html:not(.aos-off) [data-aos].aos-animate  { opacity: 1; transform: none; }
   margin: 0; font-size: 13px; line-height: 1.6;
   color: var(--pm-text-secondary); white-space: pre-wrap;
 }
+
+/* ===== AI course generation (CourseGenModal / CourseOutlineReview) ===== */
+
+.pm-course-gen-modal {
+  position: fixed; z-index: 1201;
+  top: 50%; left: 50%; transform: translate(-50%, -50%);
+  width: min(880px, calc(100vw - 32px));
+  max-height: min(88vh, 920px);
+  display: flex; flex-direction: column;
+  background: var(--pm-elevated, #171b24);
+  border: 1px solid var(--pm-border); border-radius: 16px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, .55);
+}
+
+.pm-course-gen-header {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 16px 18px; border-bottom: 1px solid var(--pm-border);
+}
+.pm-course-gen-header h2 {
+  margin: 0; font-family: var(--pm-font-display); font-size: 1.05rem;
+}
+
+.pm-course-gen-body { flex: 1 1 auto; overflow-y: auto; padding: 18px; }
+
+.pm-course-gen-footer {
+  display: flex; align-items: center; justify-content: flex-end; gap: 10px;
+  padding: 14px 18px; border-top: 1px solid var(--pm-border);
+}
+.pm-course-gen-footer .pm-course-gen-hint { margin-right: auto; }
+
+.pm-course-gen-hint {
+  font-size: 12px; color: var(--clubpm-text-muted); line-height: 1.5;
+}
+.pm-course-gen-counter {
+  display: block; font-size: 11px; color: var(--clubpm-text-muted); margin: 4px 0 14px;
+}
+
+/* ── Brief screen ── */
+.pm-course-gen-brief-screen .cpm-form-label { display: block; margin: 14px 0 4px; }
+.pm-course-gen-brief-screen textarea.cpm-form-input { width: 100%; resize: vertical; }
+
+.pm-course-gen-posts {
+  list-style: none; margin: 8px 0 0; padding: 8px 10px;
+  max-height: 190px; overflow-y: auto;
+  border: 1px solid var(--pm-border); border-radius: 10px;
+}
+.pm-course-gen-posts li { padding: 3px 0; }
+.pm-course-gen-posts label {
+  display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer;
+}
+
+.pm-course-gen-actions {
+  display: flex; align-items: center; gap: 14px; margin-top: 20px; flex-wrap: wrap;
+}
+
+/* ── Waiting / outcome screens ── */
+.pm-course-gen-waiting {
+  display: flex; flex-direction: column; align-items: center; gap: 14px;
+  padding: 48px 24px; text-align: center;
+}
+.pm-course-gen-waiting p { margin: 0; max-width: 46ch; }
+.pm-course-gen-done-icon { font-size: 2.4rem; color: var(--pm-accent-teal); }
+.pm-course-gen-fail-icon { font-size: 2.4rem; color: var(--pm-accent-coral, #ff6b6b); }
+
+/* ── Progress screen ── */
+.pm-course-gen-progress { padding: 40px 8px; }
+.pm-course-gen-progress .cpm-progress-bar { height: 10px; border-radius: 5px; }
+.pm-course-gen-step {
+  margin: 14px 0 6px; font-family: var(--pm-font-mono); font-size: 13px;
+  color: var(--pm-accent-teal);
+}
+
+/* ── Outline review ── */
+.pm-course-gen-review-note {
+  margin: 0 0 14px; font-size: 13px; color: var(--clubpm-text-muted);
+}
+.pm-course-gen-outline .cpm-form-label { display: block; margin: 12px 0 4px; }
+.pm-course-gen-outline input.cpm-form-input,
+.pm-course-gen-outline textarea.cpm-form-input,
+.pm-course-gen-outline select.cpm-form-input { width: 100%; }
+.pm-course-gen-outline textarea.cpm-form-input { resize: vertical; }
+
+/* The cost signal. Deliberately loud: this is the last screen before stage 2. */
+.pm-course-gen-cost {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  margin: 16px 0 20px; padding: 12px 14px;
+  border: 1px solid var(--pm-border); border-radius: 10px;
+  background: var(--pm-surface, #12151d);
+}
+.pm-course-gen-cost .cpm-tag--accent {
+  border-color: var(--pm-accent-amber); color: var(--pm-accent-amber);
+}
+.pm-course-gen-cost-note {
+  flex: 1 0 100%; margin: 6px 0 0;
+  font-size: 12px; line-height: 1.55; color: var(--clubpm-text-muted);
+}
+
+.pm-course-gen-modules { list-style: none; margin: 0 0 14px; padding: 0; }
+.pm-course-gen-module-card { padding: 14px; margin-bottom: 14px; }
+
+.pm-course-gen-module-head { display: flex; align-items: center; gap: 8px; }
+.pm-course-gen-module-index {
+  flex: 0 0 auto; width: 24px; height: 24px; border-radius: 50%;
+  display: grid; place-items: center;
+  font-family: var(--pm-font-mono); font-size: 11px;
+  background: var(--pm-surface); border: 1px solid var(--pm-border);
+}
+.pm-course-gen-module-title { flex: 1 1 auto; font-weight: 600; }
+.pm-course-gen-move { display: flex; gap: 4px; }
+.pm-course-gen-move .clubpm-btn-secondary { padding: 5px 9px; }
+.pm-course-gen-danger:not(:disabled):hover { color: var(--pm-accent-coral, #ff6b6b); }
+
+.pm-course-gen-module-summary { margin-top: 8px; }
+
+.pm-course-gen-module-opts,
+.pm-course-gen-section-opts {
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  margin-top: 10px; font-size: 12px; color: var(--clubpm-text-muted);
+}
+.pm-course-gen-module-opts label,
+.pm-course-gen-section-opts label { display: flex; align-items: center; gap: 6px; }
+.pm-course-gen-module-opts input[type="number"],
+.pm-course-gen-section-opts input[type="number"] { width: 72px; }
+
+/* ── Section rows ── */
+.pm-course-gen-sections { list-style: none; margin: 14px 0; padding: 0; }
+.pm-course-gen-section-row {
+  padding: 12px; margin-bottom: 10px;
+  border: 1px solid var(--pm-border); border-radius: 10px;
+  background: var(--pm-surface, #12151d);
+}
+.pm-course-gen-section-head { display: flex; align-items: center; gap: 8px; }
+.pm-course-gen-section-head input.cpm-form-input { flex: 1 1 auto; }
+.pm-course-gen-section-head .clubpm-btn-secondary { padding: 5px 9px; }
+.pm-course-gen-kind { flex: 0 0 116px; }
+
+.pm-course-gen-brief-label { margin-top: 12px !important; }
+.pm-course-gen-brief-hint {
+  display: block; margin-top: 3px;
+  font-size: 11px; font-weight: 400; text-transform: none; letter-spacing: 0;
+  color: var(--pm-accent-amber); line-height: 1.5;
+}
+.pm-course-gen-brief { margin-top: 4px; }
+.pm-course-gen-kind-hint { margin-left: auto; font-style: italic; }
+.pm-course-gen-cap-note { margin-left: 10px; font-size: 12px; color: var(--clubpm-text-muted); }
+
+/* ── Resumable job rows in the catalog ── */
+.pm-course-gen-jobs { list-style: none; margin: 20px 0 0; padding: 0; }
+.pm-course-gen-job-row {
+  display: flex; align-items: center; gap: 14px;
+  padding: 12px 14px; margin-bottom: 10px;
+}
+.pm-course-gen-job-row > .fas { color: var(--pm-accent-teal); }
+.pm-course-gen-job-main { flex: 1 1 auto; min-width: 0; display: grid; gap: 4px; }
+.pm-course-gen-job-label { font-size: 13px; font-weight: 600; }
+.pm-course-gen-job-sub {
+  font-size: 12px; color: var(--clubpm-text-muted);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .pm-course-gen-modal { width: calc(100vw - 16px); max-height: 92vh; }
+  .pm-course-gen-section-head { flex-wrap: wrap; }
+  .pm-course-gen-kind { flex: 1 1 100%; }
+}

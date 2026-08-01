@@ -1,8 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { listCourses, createCourse, deleteCourse } from '../../../api/clubPmClient';
+import { listCourses, createCourse, deleteCourse, listCourseGenJobs } from '../../../api/clubPmClient';
 import CourseProgressDashboard from './CourseProgressDashboard';
+import CourseGenModal from './CourseGenModal';
+
+// A generation job keeps running server-side after its modal is closed, so the
+// catalog surfaces anything still in flight (or parked awaiting review) with a
+// way back into it. Without this row, closing the modal loses the job.
+const RESUMABLE = ['OUTLINING', 'AWAITING_REVIEW', 'GENERATING'];
 
 const STATUS_FILTERS = [
   { id: '',          label: 'All' },
@@ -57,6 +63,9 @@ export default function CoursesTab({ isAdmin = false, currentMemberId = null }) 
   const [filter, setFilter]     = useState('');
   const [creating, setCreating] = useState(false);
   const [showDashboard, setShowDashboard] = useState(false);
+  const [genOpen, setGenOpen]   = useState(false);
+  const [resumeId, setResumeId] = useState(null);
+  const [genJobs, setGenJobs]   = useState([]);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -66,7 +75,31 @@ export default function CoursesTab({ isAdmin = false, currentMemberId = null }) 
       .finally(() => setLoading(false));
   }, []);
 
+  const loadJobs = useCallback(() => {
+    listCourseGenJobs()
+      .then((j) => setGenJobs(Array.isArray(j) ? j.filter((x) => RESUMABLE.includes(x.status)) : []))
+      .catch(() => setGenJobs([]));
+  }, []);
+
   useEffect(() => { load(); }, [load]);
+  useEffect(() => { loadJobs(); }, [loadJobs]);
+
+  // While the modal is closed nothing else refreshes the row, so poll slowly —
+  // enough to notice an outline finishing, not enough to matter.
+  useEffect(() => {
+    if (genOpen || genJobs.length === 0) return undefined;
+    const t = setInterval(loadJobs, 15000);
+    return () => clearInterval(t);
+  }, [genOpen, genJobs.length, loadJobs]);
+
+  const openGen = (jobId = null) => { setResumeId(jobId); setGenOpen(true); };
+
+  const closeGen = () => {
+    setGenOpen(false);
+    setResumeId(null);
+    loadJobs();
+    load();
+  };
 
   const handleNew = async () => {
     if (creating) return;
@@ -154,6 +187,10 @@ export default function CoursesTab({ isAdmin = false, currentMemberId = null }) 
               Progress dashboard
             </button>
           )}
+          <button className="clubpm-btn-secondary" onClick={() => openGen()}>
+            <i className="fas fa-wand-magic-sparkles" aria-hidden="true" style={{ marginRight: 6 }} />
+            Generate with AI
+          </button>
           <button className="clubpm-btn-primary" onClick={handleNew} disabled={creating}>
             <i className="fas fa-plus" aria-hidden="true" style={{ marginRight: 6 }} />
             New course
@@ -254,6 +291,35 @@ export default function CoursesTab({ isAdmin = false, currentMemberId = null }) 
           })}
         </ul>
       )}
+
+      {genJobs.length > 0 && (
+        <ul className="pm-course-gen-jobs">
+          {genJobs.map((j) => (
+            <li key={j.id} className="cpm-card pm-course-gen-job-row">
+              <i
+                className={`fas ${j.status === 'AWAITING_REVIEW' ? 'fa-clipboard-check' : 'fa-wand-magic-sparkles fa-spin'}`}
+                aria-hidden="true"
+              />
+              <div className="pm-course-gen-job-main">
+                <span className="pm-course-gen-job-label">
+                  {j.status === 'AWAITING_REVIEW' ? 'Outline ready for review' : (j.stepLabel ?? 'Working…')}
+                </span>
+                <span className="pm-course-gen-job-sub">{j.prompt?.slice(0, 110)}</span>
+                {j.status === 'GENERATING' && (
+                  <div className="cpm-progress-bar">
+                    <div className="cpm-progress-bar-fill" style={{ width: `${j.progress ?? 0}%` }} />
+                  </div>
+                )}
+              </div>
+              <button type="button" className="clubpm-btn-secondary" onClick={() => openGen(j.id)}>
+                Resume
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <CourseGenModal open={genOpen} onClose={closeGen} resumeJobId={resumeId} />
     </div>
   );
 }

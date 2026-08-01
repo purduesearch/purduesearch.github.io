@@ -476,6 +476,18 @@ export const publishCourse  = (id)      => post(`/api/outreach/courses/${id}/pub
 export const archiveCourse  = (id)      => post(`/api/outreach/courses/${id}/archive`, {});
 export const deleteCourse   = (id)      => del(`/api/outreach/courses/${id}`);
 
+// ── AI course generation ─────────────────────────────────────
+// Two stages behind a CourseGenJob row: startCourseGen drafts an outline, the
+// author edits it (saveCourseGenOutline), then runCourseGen writes the bodies.
+// Both stages return immediately — poll getCourseGenJob for status/progress.
+export const startCourseGen       = (data)  => post('/api/outreach/courses/generate', data);
+export const listCourseGenJobs    = ()      => get('/api/outreach/courses/generate');
+export const getCourseGenJob      = (jobId) => get(`/api/outreach/courses/generate/${jobId}`);
+export const saveCourseGenOutline = (jobId, outline) =>
+  patch(`/api/outreach/courses/generate/${jobId}`, { outline });
+export const runCourseGen         = (jobId) => post(`/api/outreach/courses/generate/${jobId}/run`, {});
+export const cancelCourseGen      = (jobId) => del(`/api/outreach/courses/generate/${jobId}`);
+
 // The only course endpoint that returns a section's `contentJson`; the tree
 // endpoints omit bodies to keep the whole-course payload small.
 export const getCourseSection     = (sectionId)           => get(`/api/outreach/courses/sections/${sectionId}`);
