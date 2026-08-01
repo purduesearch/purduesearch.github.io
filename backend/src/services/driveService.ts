@@ -397,3 +397,77 @@ export async function getBotAccountEmail(): Promise<string | null> {
   const cred = await prisma.googleDriveCredential.findUnique({ where: { id: "singleton" } });
   return cred?.accountEmail ?? null;
 }
+
+const PDF_MIME = "application/pdf";
+const GOOGLE_SLIDES_MIME = "application/vnd.google-apps.presentation";
+
+/**
+ * Upload a .pptx and let Drive convert it to a Google Slides file, then export
+ * that as PDF. Both halves are legal under `drive.file` because the app created
+ * the file it is reading.
+ *
+ * Returns the PDF stream plus the temporary Drive file id — the caller MUST
+ * delete it (see deleteDriveFile) or every import leaks a converted copy.
+ */
+export async function convertUploadToPdf(
+  stream: NodeJS.ReadableStream,
+  mimeType: string,
+  filename: string,
+  folderId: string
+): Promise<{ stream: NodeJS.ReadableStream; tempFileId: string } | null> {
+  try {
+    const drive = await getBotDrive();
+    if (!drive) return null;
+    const created = await drive.files.create({
+      requestBody: { name: filename, parents: [folderId], mimeType: GOOGLE_SLIDES_MIME },
+      media: { mimeType, body: stream },
+      fields: "id",
+      supportsAllDrives: true,
+    });
+    const tempFileId = created.data.id;
+    if (!tempFileId) return null;
+    const exported = await drive.files.export(
+      { fileId: tempFileId, mimeType: PDF_MIME },
+      { responseType: "stream" }
+    );
+    return { stream: exported.data as unknown as NodeJS.ReadableStream, tempFileId };
+  } catch (err) {
+    console.error("[driveService] convertUploadToPdf error:", err);
+    return null;
+  }
+}
+
+/**
+ * Export an existing Drive file (a Google Slides deck the bot account can see)
+ * as PDF. Distinguishes not-found from forbidden so the caller can tell the
+ * author to share the deck with the bot account rather than showing a bare 403.
+ */
+export async function exportDriveFileAsPdf(
+  fileId: string
+): Promise<{ stream: NodeJS.ReadableStream } | { error: "NOT_FOUND" | "FORBIDDEN" | "UNAVAILABLE" }> {
+  const drive = await getBotDrive();
+  if (!drive) return { error: "UNAVAILABLE" };
+  try {
+    const exported = await drive.files.export(
+      { fileId, mimeType: PDF_MIME },
+      { responseType: "stream" }
+    );
+    return { stream: exported.data as unknown as NodeJS.ReadableStream };
+  } catch (err) {
+    const status = (err as { code?: number; status?: number }).code
+      ?? (err as { status?: number }).status;
+    if (status === 404) return { error: "NOT_FOUND" };
+    if (status === 403) return { error: "FORBIDDEN" };
+    console.error("[driveService] exportDriveFileAsPdf error:", err);
+    return { error: "UNAVAILABLE" };
+  }
+}
+
+/**
+ * Whether the stored credential was granted drive.readonly. Read from the
+ * persisted `scope` string, because a token issued before the scope was added
+ * keeps working for everything else — only the link import must be disabled.
+ */
+export function hasDriveReadonlyScope(scope: string | null | undefined): boolean {
+  return (scope ?? "").includes("https://www.googleapis.com/auth/drive.readonly");
+}

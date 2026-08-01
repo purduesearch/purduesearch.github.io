@@ -10,7 +10,16 @@ export const googleAuthRouter = Router();
 // verification: the bot can only touch files/folders IT creates. The project's
 // linked "Files" folder is human-managed (view-only, `Project.driveLink`); the
 // only bot-created folder is the vault's "CAD" folder (see ensureVaultFolder).
-const DRIVE_SCOPES = ["https://www.googleapis.com/auth/drive.file", "openid", "email"];
+// drive.readonly is needed ONLY to export a Google Slides deck the bot account
+// did not create (drive.file covers files we upload ourselves). Adding it means
+// an admin must RECONNECT the account — the stored refresh token does not carry
+// a scope granted after it was issued.
+const DRIVE_SCOPES = [
+  "https://www.googleapis.com/auth/drive.file",
+  "https://www.googleapis.com/auth/drive.readonly",
+  "openid",
+  "email",
+];
 
 // A full-page OAuth redirect can't send an Authorization header, and the
 // cross-origin session cookie (SameSite=None) may be blocked by the browser.
