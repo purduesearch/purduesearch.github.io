@@ -93,7 +93,7 @@ Respond with ONLY a valid JSON object (no markdown):
 // section theming) instead of a title over one block of text. Keep the type list
 // in sync with sectionPlan.ts.
 
-const BLOG_PLAN_SCHEMA = `Return ONLY a JSON object: { "sections": PlanSection[] }. Compose a rich, visually varied article — NOT a title followed by one block of text. Use a MIX of these section types:
+export const BLOG_PLAN_SCHEMA = `Return ONLY a JSON object: { "sections": PlanSection[] }. Compose a rich, visually varied article — NOT a title followed by one block of text. Use a MIX of these section types:
   { "type": "hero", "heading": string, "subheading": string, "align": "center"|"left", "overlay": boolean }
   { "type": "richText", "heading": string, "markdown": string }        // USE real formatting: ## / ### sub-headings, **bold**, *italic*, bullet AND numbered lists, > blockquotes, [links](url), \`inline code\`
   { "type": "columns", "heading": string, "columns": [{ "markdown": string, "span": number }, { "markdown": string, "span": number }] }   // 2–3 side-by-side columns (comparisons, pros/cons, steps)
@@ -110,7 +110,7 @@ Each entry in "columns" may include "span": an integer 1-12 on a 12-column grid.
 A "gallery" section may include "images": an array of { "alt", "caption" } placeholders. Write real captions describing what each photo should show — a human uploads the files later.
 Image placeholders (image / mediaText / gallery) are ENCOURAGED wherever a photo, diagram, or screenshot would help — describe the intended image in imageAlt/imageCaption; the author uploads the real file later (this is not fabricating facts).`;
 
-const BLOG_PLAN_RULES = `Rules:
+export const BLOG_PLAN_RULES = `Rules:
 - Build 6–10 sections total, alternating types so the page feels designed (never several identical richText blocks in a row).
 - Include at least one image placeholder (image or mediaText) AND at least one of: callout, columns, or pull-quote.
 - Use a divider or two and a "dark"-themed hero or CTA for visual rhythm.
