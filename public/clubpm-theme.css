@@ -22381,3 +22381,178 @@ html:not(.aos-off) [data-aos].aos-animate  { opacity: 1; transform: none; }
   border-color: var(--pm-accent-teal);
   color: var(--pm-accent-teal);
 }
+
+/* === COURSES: slides workbench, grid and learner stage ============== */
+
+/* The SLIDES workbench reuses `.pm-course-workbench` and its section shell —
+   only the deck-specific pieces are new here. */
+
+/* --- Source tabs ---
+   Three ways in, one pipeline out. The link tab is disabled (not hidden) when
+   the bot account lacks drive.readonly, so its title explains the gap. */
+.pm-course-slides-source {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  padding: 4px; border-radius: 11px;
+  border: 1px solid var(--pm-border);
+  background: var(--pm-bg-base, #0d0f14);
+}
+.pm-course-slides-tab {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 7px 12px; border-radius: 8px; cursor: pointer;
+  background: none; border: 1px solid transparent;
+  font-family: var(--pm-font-body); font-size: 12px;
+  color: var(--pm-text-muted);
+  transition: color .16s ease, background-color .16s ease, border-color .16s ease;
+}
+.pm-course-slides-tab > i { font-size: 11px; }
+.pm-course-slides-tab:hover:not(.is-disabled) { color: var(--pm-text-primary); }
+.pm-course-slides-tab.is-selected {
+  color: var(--pm-accent-teal);
+  border-color: var(--pm-border-active);
+  background: var(--pm-bg-elevated, #1a1e2a);
+}
+.pm-course-slides-tab.is-disabled { opacity: .45; cursor: not-allowed; }
+
+/* A `<label>` wrapping a hidden file input — it is the button, so it has to
+   carry the button's disabled look itself. */
+.pm-course-slides-pick {
+  display: inline-flex; align-items: center; gap: 7px;
+  justify-self: start; cursor: pointer;
+}
+.pm-course-slides-pick.is-disabled { opacity: .5; pointer-events: none; }
+
+.pm-course-slides-progress {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+}
+.pm-course-slides-progress .cpm-progress-bar { flex: 1 1 180px; }
+
+/* --- Thumbnail grid ---
+   Auto-fill rather than a fixed count: a 60-slide deck and a 4-slide deck both
+   read as a contact sheet at whatever width the editor column happens to be. */
+.pm-course-slide-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 10px;
+  max-height: 420px; overflow-y: auto;
+  padding: 2px;
+}
+.pm-course-slide-thumb {
+  position: relative; display: block; padding: 0; cursor: pointer;
+  border-radius: 9px; overflow: hidden;
+  border: 1px solid var(--pm-border);
+  background: var(--pm-bg-base, #0d0f14);
+  transition: border-color .16s ease, box-shadow .16s ease;
+}
+.pm-course-slide-thumb:hover { border-color: var(--pm-border-active); }
+.pm-course-slide-thumb.is-selected {
+  border-color: var(--pm-accent-teal);
+  box-shadow: 0 0 0 1px var(--pm-accent-teal);
+}
+.pm-course-slide-thumb img { display: block; width: 100%; height: auto; }
+.pm-course-slide-thumb-num {
+  position: absolute; left: 5px; bottom: 5px;
+  padding: 1px 6px; border-radius: 999px;
+  font-family: var(--pm-font-mono); font-size: 10px;
+  color: var(--pm-text-primary); background: rgba(13, 15, 20, 0.78);
+}
+.pm-course-slide-thumb-num em { font-style: normal; color: var(--pm-accent-teal); }
+
+.pm-course-slide-notes {
+  display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 14px;
+}
+
+/* The sync panel takes focus so Space can stamp a start time; it must not draw
+   a stray outline when clicked, only when reached by keyboard. */
+.pm-course-slide-sync:focus { outline: none; }
+.pm-course-slide-sync:focus-visible { outline: 2px solid var(--pm-accent-teal); outline-offset: 2px; }
+.pm-course-slide-sync audio { width: 100%; }
+
+@media (max-width: 900px) {
+  .pm-course-slide-notes { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* --- Learner stage ---
+   `position: relative` is load-bearing: the question overlay is absolutely
+   positioned and would otherwise anchor to whatever ancestor happens to be
+   positioned further up the page. The inline aspect-ratio comes from the
+   slide's stored width/height, so the box does not jump while the image loads. */
+.pm-course-slides-player {
+  display: flex; flex-direction: column; gap: 12px;
+  margin-bottom: 20px;
+}
+.pm-course-slide-stage {
+  position: relative;
+  display: grid; place-items: center;
+  width: 100%; overflow: hidden;
+  border-radius: 14px 14px 0 0;
+  border: 1px solid var(--pm-border); border-bottom: none;
+  background: #000;
+}
+.pm-course-slide-stage:focus { outline: none; }
+.pm-course-slide-stage:focus-visible { outline: 2px solid var(--pm-accent-teal); outline-offset: 2px; }
+.pm-course-slide-stage img {
+  max-width: 100%; max-height: 100%; height: auto;
+  user-select: none;
+}
+
+.pm-course-slide-bar {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  margin-top: -12px;
+  padding: 9px 12px;
+  border: 1px solid var(--pm-border); border-radius: 0 0 14px 14px;
+  background: var(--pm-bg-surface, #13161e);
+}
+.pm-course-slide-count {
+  font-family: var(--pm-font-mono); font-size: 11.5px;
+  color: var(--pm-text-secondary); white-space: nowrap;
+}
+.pm-course-slide-track { flex: 1 1 120px; }
+.pm-course-slide-blocked {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 2px 8px; border-radius: 999px;
+  font-size: 10.5px; white-space: nowrap;
+  color: var(--pm-accent-amber);
+  background: color-mix(in srgb, var(--pm-accent-amber) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--pm-accent-amber) 32%, transparent);
+}
+
+/* The overlay. Same card as the video pop-up (`.pm-course-popup`), a different
+   backdrop because this one lives inside the stage rather than the player. */
+.pm-course-slide-overlay {
+  position: absolute; inset: 0; z-index: 5;
+  display: grid; place-items: center; padding: 20px;
+  background: rgba(13, 15, 20, 0.86);
+  backdrop-filter: blur(3px);
+  animation: cpm-course-fade-in .18s ease-out;
+}
+
+.pm-course-slide-audio {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 9px 12px; border-radius: 11px;
+  border: 1px solid var(--pm-border);
+  background: var(--pm-bg-surface, #13161e);
+}
+.pm-course-slide-audio audio { flex: 1 1 240px; min-width: 0; height: 34px; }
+.pm-course-slide-autoadvance {
+  display: inline-flex; align-items: center; gap: 7px; cursor: pointer;
+  font-size: 12px; color: var(--pm-text-secondary); white-space: nowrap;
+}
+.pm-course-slide-autoadvance input { accent-color: var(--pm-accent-teal); }
+.pm-course-slide-audio-len {
+  font-family: var(--pm-font-mono); font-size: 11px; color: var(--pm-text-muted);
+}
+
+.pm-course-slide-notes-read {
+  padding: 12px 14px; border-radius: 11px;
+  border: 1px solid var(--pm-border);
+  background: var(--pm-bg-surface, #13161e);
+}
+.pm-course-slide-notes-read h4 {
+  display: flex; align-items: center; gap: 7px; margin: 0 0 6px;
+  font-family: var(--pm-font-display); font-size: 11px; font-weight: 700;
+  letter-spacing: 1px; text-transform: uppercase; color: var(--pm-text-muted);
+}
+.pm-course-slide-notes-read h4 > i { color: var(--pm-accent-amber); }
+.pm-course-slide-notes-read p {
+  margin: 0; font-size: 13px; line-height: 1.6;
+  color: var(--pm-text-secondary); white-space: pre-wrap;
+}
