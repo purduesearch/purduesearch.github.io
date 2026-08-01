@@ -1,9 +1,17 @@
 import { Router, type Request, type Response } from "express";
+import multer from "multer";
 import { requireAuth } from "./auth.js";
 import { prisma } from "../db/prisma.js";
 import * as courseService from "../services/courseService.js";
 import * as progressService from "../services/courseProgressService.js";
 import type { CourseSectionKind, CourseQuestionKind } from "@prisma/client";
+
+// Decks are streamed straight to Drive for conversion, so memory storage is
+// fine and no temp directory is needed. 60 MB covers a large slide deck.
+const deckUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 60 * 1024 * 1024, files: 1 },
+});
 
 export const coursesRouter = Router();
 coursesRouter.use(requireAuth);
@@ -134,6 +142,25 @@ coursesRouter.post("/", async (req: Request, res: Response) => {
   } catch (error) {
     console.error("POST /outreach/courses error:", error);
     res.status(500).json({ error: "Failed to create course" });
+  }
+});
+
+// GET /slide-capabilities — whether the bot account can export a linked Google
+// Slides deck. MUST be registered above any /:id route or Express matches it as
+// a course id (the same trap members.ts documents for /cosmetic-styles).
+coursesRouter.get("/slide-capabilities", async (_req: Request, res: Response) => {
+  try {
+    const cred = await prisma.googleDriveCredential.findUnique({
+      where: { id: "singleton" }, select: { scope: true },
+    });
+    const { hasDriveReadonlyScope, getBotAccountEmail } = await import("../services/driveService.js");
+    res.json({
+      canImportLink: hasDriveReadonlyScope(cred?.scope),
+      botEmail: await getBotAccountEmail(),
+    });
+  } catch (error) {
+    console.error("GET /outreach/courses/slide-capabilities error:", error);
+    res.json({ canImportLink: false, botEmail: null });
   }
 });
 
@@ -562,6 +589,87 @@ coursesRouter.delete("/sections/:sid/questions/:qid", async (req: Request, res: 
     res.status(500).json({ error: "Failed to delete question" });
   }
 });
+
+// ── Slides ───────────────────────────────────────────────────
+//
+// The capabilities probe lives further up, above GET /:id, so Express does not
+// match "slide-capabilities" as a course id.
+
+// POST /sections/:sid/deck/source — normalize any deck source to a PDF and
+// stream it back. The ONLY place Drive's conversion machinery is touched;
+// everything downstream of "we have a PDF" is shared browser code.
+//
+// Body is either multipart with a `deck` file (.pptx or .pdf) or JSON { url }.
+coursesRouter.post(
+  "/sections/:sid/deck/source",
+  deckUpload.single("deck"),
+  async (req: Request, res: Response) => {
+    try {
+      const sid = req.params.sid as string;
+      if (!(await requireSectionAccess(req, res, sid))) return;
+
+      const drive = await import("../services/driveService.js");
+
+      // A .pdf never needs the server at all, but accepting it keeps the client
+      // to one code path when the author does upload one here.
+      if (req.file && req.file.mimetype === "application/pdf") {
+        res.setHeader("Content-Type", "application/pdf");
+        res.send(req.file.buffer);
+        return;
+      }
+
+      if (req.file) {
+        const folderId = await drive.ensureClubPmRootFolder();
+        if (!folderId) {
+          res.status(503).json({ error: "Google Drive is not connected" });
+          return;
+        }
+        const { Readable } = await import("node:stream");
+        const converted = await drive.convertUploadToPdf(
+          Readable.from(req.file.buffer),
+          req.file.mimetype,
+          req.file.originalname || "deck.pptx",
+          folderId
+        );
+        if (!converted) {
+          res.status(502).json({ error: "Could not convert that presentation" });
+          return;
+        }
+        res.setHeader("Content-Type", "application/pdf");
+        converted.stream.pipe(res);
+        // The converted Google Slides copy is scratch space; leaving it behind
+        // leaks one Drive file per import.
+        res.on("close", () => { void drive.deleteDriveFile(converted.tempFileId); });
+        return;
+      }
+
+      const { url } = req.body as { url?: string };
+      if (!url?.trim()) {
+        res.status(400).json({ error: "Upload a file or provide a Google Slides link" });
+        return;
+      }
+      const fileId = drive.extractFileId(url.trim());
+      if (!fileId) {
+        res.status(400).json({ error: "That does not look like a Google Slides link" });
+        return;
+      }
+      const result = await drive.exportDriveFileAsPdf(fileId);
+      if ("error" in result) {
+        const botEmail = await drive.getBotAccountEmail();
+        const message = result.error === "FORBIDDEN" || result.error === "NOT_FOUND"
+          ? `Share that deck with ${botEmail ?? "the SEARCH bot account"} (view access is enough), then try again`
+          : "Google Drive is not available right now";
+        res.status(result.error === "UNAVAILABLE" ? 503 : 403).json({ error: message });
+        return;
+      }
+      res.setHeader("Content-Type", "application/pdf");
+      result.stream.pipe(res);
+    } catch (error) {
+      console.error("POST /outreach/courses/sections/:sid/deck/source error:", error);
+      if (!res.headersSent) res.status(500).json({ error: "Could not load that deck" });
+    }
+  }
+);
 
 // ── Learner ──────────────────────────────────────────────────
 //
