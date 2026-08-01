@@ -1899,6 +1899,7 @@ enum CourseSectionKind {
   CONTENT
   VIDEO
   QUIZ
+  SLIDES
 }
 
 enum CourseQuestionKind {
@@ -1978,6 +1979,10 @@ model CourseSection {
   contentYjs    Bytes?
   // VIDEO: { youtubeId, allowedRates[], lockSeek, ... }
   videoConfig   Json?
+  // SLIDES: { sourceKind, sourceName, audioUrl, audioFileId, audioDurationSec, autoAdvance }
+  // One JSON column, like videoConfig — every writer spreads the previous value
+  // so a partial save cannot drop keys it does not own.
+  slideConfig   Json?
   // QUIZ only
   passThreshold Int?
   maxAttempts   Int?
@@ -1985,6 +1990,7 @@ model CourseSection {
   updatedAt     DateTime          @updatedAt
 
   questions CourseQuestion[]
+  slides    CourseSlide[]
   progress  CourseSectionProgress[]
   attempts  CourseQuizAttempt[]
   threads   BlogThread[]
@@ -2008,6 +2014,9 @@ model CourseQuestion {
   points            Int                @default(1)
   // null → quiz-section question; non-null → in-video pop-up at this timestamp.
   videoTimestampSec Int?
+  // null → quiz/pop-up question; non-null → overlay on this slide of a SLIDES
+  // section. A row has at most one of slideIndex / videoTimestampSec set.
+  slideIndex        Int?
   rewindToSec       Int?
 
   answers   CourseAnswer[]
@@ -2026,6 +2035,25 @@ model CourseAnswer {
   isCorrect  Boolean        @default(false)
 
   @@index([questionId, order])
+}
+
+model CourseSlide {
+  id          String        @id @default(cuid())
+  sectionId   String
+  section     CourseSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  index       Int
+  // Drive direct-view URL. Public-but-unguessable, like every blog image; the
+  // gate protects sequencing by withholding the URL, not by ACL.
+  imageUrl    String
+  // Kept so a re-import can delete exactly what it replaces.
+  imageFileId String
+  text        String?
+  notes       String?
+  startSec    Int?
+  width       Int?
+  height      Int?
+
+  @@index([sectionId, index])
 }
 
 model CourseEnrollment {
@@ -2060,6 +2088,8 @@ model CourseSectionProgress {
   status           CourseProgressStatus @default(NOT_STARTED)
   // Server-clamped high-water mark for VIDEO sections.
   maxWatchedSec    Int                  @default(0)
+  // Server-clamped high-water mark for SLIDES sections.
+  maxSlideIndex    Int                  @default(0)
   answeredPopupIds String[]             @default([])
   completedAt      DateTime?
   // XP idempotency gate, mirroring Task.rewardGrantedAt.
