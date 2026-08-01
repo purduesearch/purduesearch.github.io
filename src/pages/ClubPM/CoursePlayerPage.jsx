@@ -3,6 +3,7 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import BlogEditor from '../../components/clubpm/blog/BlogEditor';
 import LockedVideoPlayer from '../../components/clubpm/courses/LockedVideoPlayer';
+import CourseSlidePlayer from '../../components/clubpm/courses/CourseSlidePlayer';
 import CourseQuizRunner from '../../components/clubpm/courses/CourseQuizRunner';
 import { SECTION_KINDS } from '../../components/clubpm/courses/CourseSectionRail';
 import OrbitLoader from '../../components/OrbitLoader';
@@ -208,15 +209,20 @@ export default function CoursePlayerPage() {
     [sections, selectedId]
   );
 
-  // Pop-up questions are only meaningful for a VIDEO section, and only once it
-  // is unlocked (a locked section has no videoConfig to play anyway).
+  // In-flow questions are only meaningful for a VIDEO or SLIDES section, and
+  // only once it is unlocked (a locked section has no videoConfig or slides to
+  // hang them on anyway).
   useEffect(() => {
-    if (!selected || selected.kind !== 'VIDEO' || selected.locked) { setPopups([]); return undefined; }
+    if (!selected || selected.locked) { setPopups([]); return undefined; }
+    if (selected.kind !== 'VIDEO' && selected.kind !== 'SLIDES') { setPopups([]); return undefined; }
     let cancelled = false;
     listCourseQuestions(selected.id)
       .then((rows) => {
         if (cancelled) return;
-        setPopups((Array.isArray(rows) ? rows : []).filter((q) => q.videoTimestampSec != null));
+        // Each kind anchors on its own field; an untimed row is a quiz question.
+        setPopups((Array.isArray(rows) ? rows : []).filter((q) => (
+          selected.kind === 'VIDEO' ? q.videoTimestampSec != null : q.slideIndex != null
+        )));
       })
       .catch(() => { if (!cancelled) setPopups([]); });
     return () => { cancelled = true; };
@@ -327,6 +333,20 @@ export default function CoursePlayerPage() {
                 />
               )}
 
+              {selected.kind === 'SLIDES' && (
+                <CourseSlidePlayer
+                  key={selected.id}
+                  sectionId={selected.id}
+                  slides={selected.slides ?? []}
+                  slideConfig={selected.slideConfig}
+                  initialMaxSlideIndex={selected.maxSlideIndex ?? 0}
+                  questions={popups}
+                  answeredPopupIds={selected.answeredPopupIds}
+                  preview={course.preview}
+                  onComplete={() => handleComplete(selected.id)}
+                />
+              )}
+
               {/* Prose for CONTENT sections, and the notes under a video.
                   Rendering `contentJson` through the editor read-only is what
                   keeps a second renderer from having to track blogRender.ts. */}
@@ -369,7 +389,7 @@ export default function CoursePlayerPage() {
                 </div>
               )}
 
-              {selected.kind === 'VIDEO' && selected.status === 'COMPLETED' && (
+              {(selected.kind === 'VIDEO' || selected.kind === 'SLIDES') && selected.status === 'COMPLETED' && (
                 <div className="pm-course-learn-actions">
                   <span className="cpm-tag">
                     <i className="fas fa-circle-check" aria-hidden="true" /> Completed
