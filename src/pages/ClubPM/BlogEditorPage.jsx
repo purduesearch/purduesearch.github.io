@@ -341,6 +341,18 @@ export default function BlogEditorPage() {
     return updated;
   }, [id]);
 
+  // AI panel generated a full article into the editor. The editor's onChange
+  // already marked the doc dirty; only adopt the AI's title when the author
+  // hasn't given the post one of their own.
+  const handleGenerated = useCallback(({ title: suggested }) => {
+    setDirty(true);
+    if (!suggested) return;
+    setTitle((prev) => {
+      const current = (prev ?? '').trim();
+      return (!current || current.toLowerCase() === 'untitled post') ? suggested : prev;
+    });
+  }, []);
+
   const handleRestored = (updated) => {
     setPost(updated);
     setTitle(updated.title ?? '');
@@ -528,6 +540,7 @@ export default function BlogEditorPage() {
         onClose={() => { setOpenPanel(null); setAiSelection(''); }}
         initialSelection={aiSelection}
         onThreadsChanged={() => setThreadsRefreshKey((k) => k + 1)}
+        onGenerated={handleGenerated}
       />
     </div>
   );

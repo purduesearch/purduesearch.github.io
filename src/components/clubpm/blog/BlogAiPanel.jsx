@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
-import { blogAiAsk, blogAiEdit, createBlogThread } from '../../../api/clubPmClient';
+import { blogAiAsk, blogAiEdit, createBlogThread, generateBlogDoc } from '../../../api/clubPmClient';
 import { findQuoteRange } from './aiQuoteMatch';
 
 const QUICK_ACTIONS = [
@@ -55,14 +55,18 @@ function EditCard({ edit, onSuggest, busy }) {
 }
 
 export default function BlogAiPanel({
-  editor, docType, docId, title, isOpen, onClose, initialSelection, onThreadsChanged,
+  editor, docType, docId, title, isOpen, onClose, initialSelection, onThreadsChanged, onGenerated,
 }) {
-  const [tab, setTab] = useState('ask'); // 'ask' | 'selection' | 'document'
+  const [tab, setTab] = useState('ask'); // 'ask' | 'selection' | 'document' | 'generate'
   const [question, setQuestion] = useState('');
   const [answer, setAnswer] = useState('');
   const [instruction, setInstruction] = useState('');
   const [edits, setEdits] = useState([]);
   const [busy, setBusy] = useState(false);
+  // Full-article generation (only offered when the host wires onGenerated).
+  const [genText, setGenText] = useState('');
+  const [genGuidance, setGenGuidance] = useState('');
+  const [genMode, setGenMode] = useState('append'); // 'append' | 'replace'
 
   // Arriving from the bubble's "Ask AI" means the user already has a selection
   // in mind, so open straight onto the selection tab.
@@ -142,6 +146,37 @@ export default function BlogAiPanel({
     }
   };
 
+  // Turns raw notes/brief into a full section-based article and drops it into
+  // the open post. The server only builds the doc — nothing is persisted until
+  // the normal autosave runs, so this is undoable like any other edit.
+  const generate = async () => {
+    if (!genText.trim() || !editor) return;
+    if (genMode === 'replace'
+      && !window.confirm('Replace everything in this post with the generated article?')) return;
+
+    setBusy(true);
+    try {
+      const { title: suggestedTitle, doc } = await generateBlogDoc({
+        text: genText.trim(),
+        ...(genGuidance.trim() ? { guidance: genGuidance.trim() } : {}),
+      });
+      if (!doc?.content?.length) { toast.error('The AI returned an empty article'); return; }
+
+      if (genMode === 'replace') {
+        editor.commands.setContent(doc);
+      } else {
+        editor.chain().focus()
+          .insertContentAt(editor.state.doc.content.size, doc.content)
+          .run();
+      }
+      onGenerated?.({ title: suggestedTitle, mode: genMode });
+      setGenText('');
+      toast.success('Article generated');
+    } catch (err) {
+      toast.error(err.message ?? 'Could not generate the article');
+    } finally { setBusy(false); }
+  };
+
   const locatable = edits.filter((e) => e.range).length;
 
   return (
@@ -162,6 +197,7 @@ export default function BlogAiPanel({
               { id: 'ask', label: 'Ask' },
               { id: 'selection', label: 'Selection' },
               { id: 'document', label: 'Whole post' },
+              ...(onGenerated ? [{ id: 'generate', label: 'Generate' }] : []),
             ].map((t) => (
               <button
                 key={t.id}
@@ -188,6 +224,55 @@ export default function BlogAiPanel({
                 {busy ? 'Thinking…' : 'Ask'}
               </button>
               {answer && <div className="cpm-blog-ai-answer">{answer}</div>}
+            </>
+          ) : tab === 'generate' ? (
+            <>
+              <p className="cpm-blog-thread-rationale">
+                Paste notes, an outline, or a rough draft — the AI writes a full,
+                section-based article and drops it into this post.
+              </p>
+              <textarea
+                className="cpm-blog-ai-input"
+                style={{ minHeight: 160 }}
+                value={genText}
+                onChange={(e) => setGenText(e.target.value)}
+                placeholder="Paste the raw text, meeting notes, an outline, or a rough draft…"
+              />
+              <textarea
+                className="cpm-blog-ai-input"
+                style={{ minHeight: 48 }}
+                value={genGuidance}
+                onChange={(e) => setGenGuidance(e.target.value)}
+                placeholder="Guidance (optional) — e.g. announcement tone, focus on the technical challenges"
+              />
+              <div className="cpm-blog-ai-quick" role="radiogroup" aria-label="Where to put the generated article">
+                {[
+                  { id: 'append', label: 'Add to end' },
+                  { id: 'replace', label: 'Replace post' },
+                ].map((m) => (
+                  <button
+                    key={m.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={genMode === m.id}
+                    className={genMode === m.id ? 'clubpm-btn-primary' : 'clubpm-btn-secondary'}
+                    disabled={busy}
+                    onClick={() => setGenMode(m.id)}
+                  >
+                    {m.label}
+                  </button>
+                ))}
+              </div>
+              <button
+                type="button"
+                className="clubpm-btn-primary"
+                disabled={busy || !genText.trim()}
+                onClick={generate}
+              >
+                {busy
+                  ? <><i className="fas fa-spinner fa-spin" aria-hidden="true" style={{ marginRight: 6 }} />Generating…</>
+                  : <><i className="fas fa-wand-magic-sparkles" aria-hidden="true" style={{ marginRight: 6 }} />Generate article</>}
+              </button>
             </>
           ) : (
             <>

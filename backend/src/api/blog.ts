@@ -125,6 +125,35 @@ blogRouter.post("/posts/generate", async (req: Request, res: Response) => {
   }
 });
 
+// POST /posts/generate-doc — same AI pipeline as /posts/generate, but returns
+// the section doc instead of persisting a new post, so the editor's AI panel can
+// drop a generated article into the post the author already has open.
+blogRouter.post("/posts/generate-doc", async (req: Request, res: Response) => {
+  try {
+    const { text, title, guidance } = req.body as { text?: string; title?: string; guidance?: string };
+    if (!text?.trim()) {
+      res.status(400).json({ error: "text is required" });
+      return;
+    }
+    const { generateBlogFromText } = await import("../services/aiOutreachService.js");
+    const { buildDocFromPlan } = await import("../services/sectionPlan.js");
+
+    const plan = await generateBlogFromText(
+      text.trim(),
+      title?.trim() || undefined,
+      guidance?.trim() || undefined,
+    );
+    const doc = buildDocFromPlan(plan);
+    const heroHeading = plan.sections.find((s) => s.type === "hero")?.heading?.trim();
+    const suggestedTitle = (title?.trim() || heroHeading || "").slice(0, 200);
+
+    res.json({ title: suggestedTitle, doc });
+  } catch (error) {
+    console.error("POST /blog/posts/generate-doc error:", error);
+    res.status(500).json({ error: "Failed to generate post" });
+  }
+});
+
 blogRouter.get("/posts/:id", async (req: Request, res: Response) => {
   try {
     const post = await blogService.getPost(req.params.id as string);

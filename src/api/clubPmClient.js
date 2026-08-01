@@ -381,6 +381,8 @@ export const listBlogPosts   = (params = '') => get(`/api/blog/posts${params}`);
 export const getBlogPost      = (id) => get(`/api/blog/posts/${id}`);
 export const createBlogPost   = (data) => post('/api/blog/posts', data);
 export const generateBlogPost = (data) => post('/api/blog/posts/generate', data);
+// Generates the article doc without creating a post — for the in-editor AI panel.
+export const generateBlogDoc  = (data) => post('/api/blog/posts/generate-doc', data);
 export const updateBlogPost   = (id, data) => patch(`/api/blog/posts/${id}`, data);
 export const previewBlogPost = (id, contentJson) => post(`/api/blog/posts/${id}/preview`, { contentJson });
 export const deleteBlogPost   = (id) => del(`/api/blog/posts/${id}`);

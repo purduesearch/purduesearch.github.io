@@ -20909,9 +20909,11 @@ html:not(.aos-off) [data-aos].aos-animate  { opacity: 1; transform: none; }
 
 /* AI panel */
 .cpm-blog-ai-panel { display: grid; gap: 10px; }
-.cpm-blog-ai-tabs { display: flex; gap: 6px; }
+.cpm-blog-ai-tabs { display: flex; gap: 6px; flex-wrap: wrap; }
 .cpm-blog-ai-tabs button {
-  flex: 1;
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: nowrap;
   padding: 6px 8px;
   border-radius: 8px;
   border: 1px solid var(--color-border, rgba(255, 255, 255, 0.12));
