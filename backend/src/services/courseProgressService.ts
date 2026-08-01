@@ -323,9 +323,12 @@ export interface LearnerSection {
   attemptsUsed: number;
   bestScorePct: number | null;
   passed: boolean;
+  maxSlideIndex: number;
   // Present ONLY when unlocked. Withheld from the payload, not hidden in the UI.
   contentJson?: unknown;
   videoConfig?: unknown;
+  slides?: unknown;
+  slideConfig?: unknown;
 }
 
 /**
@@ -407,6 +410,22 @@ export async function getLearnerCourse(
     sections.map((s) => [s.id, byId.get(s.id)])
   );
 
+  // One query for every SLIDES section in the course rather than one per
+  // section — this runs on every learner page load.
+  const slideSectionIds = sections.filter((s) => s.kind === "SLIDES").map((s) => s.id);
+  const slideRows = slideSectionIds.length
+    ? await prisma.courseSlide.findMany({
+        where: { sectionId: { in: slideSectionIds } },
+        orderBy: { index: "asc" },
+      })
+    : [];
+  const slidesBySection = new Map<string, typeof slideRows>();
+  for (const row of slideRows) {
+    const list = slidesBySection.get(row.sectionId) ?? [];
+    list.push(row);
+    slidesBySection.set(row.sectionId, list);
+  }
+
   const learnerSections: LearnerSection[] = sections.map((s) => {
     const progress = byId.get(s.id);
     const unlocked = preview || isSectionUnlocked(gateModules, gateSections, gateProgress, {
@@ -435,10 +454,20 @@ export async function getLearnerCourse(
       attemptsUsed: mine.length,
       bestScorePct: scores.length ? Math.max(...scores) : null,
       passed: mine.some((a) => a.passed),
+      maxSlideIndex: progress?.maxSlideIndex ?? 0,
     };
     if (unlocked) {
       out.contentJson = s.contentJson;
       out.videoConfig = s.videoConfig ?? null;
+      if (s.kind === "SLIDES") {
+        // imageFileId is an internal Drive handle with no learner use — strip it
+        // rather than hand every learner a delete target.
+        out.slides = (slidesBySection.get(s.id) ?? []).map((sl) => ({
+          id: sl.id, index: sl.index, imageUrl: sl.imageUrl, text: sl.text,
+          notes: sl.notes, startSec: sl.startSec, width: sl.width, height: sl.height,
+        }));
+        out.slideConfig = s.slideConfig ?? null;
+      }
     }
     return out;
   });
@@ -664,6 +693,45 @@ export async function recordVideoProgress(
   };
 }
 
+// ── Slide progress ───────────────────────────────────────────
+
+/**
+ * Persist a slide high-water mark. Mirrors recordVideoProgress but with the
+ * simpler clamp — monotonic and in-range, and deliberately no wall-clock budget:
+ * paging fast is reading fast, and there is no watch time to fabricate.
+ */
+export async function recordSlideProgress(
+  sectionId: string,
+  memberId: string,
+  index: number
+) {
+  const ctx = await requireUnlockedSection(sectionId, memberId);
+  if (!ctx.ok) return { error: ctx.error, status: ctx.status };
+  const { progress } = ctx;
+
+  const slideCount = await prisma.courseSlide.count({ where: { sectionId } });
+  const { clampSlideIndex } = await import("./courseSlideService.js");
+  const next = clampSlideIndex({
+    prevMaxIndex: progress.maxSlideIndex,
+    index,
+    slideCount,
+  });
+
+  const updated = await prisma.courseSectionProgress.update({
+    where: { id: progress.id },
+    data: {
+      maxSlideIndex: next,
+      status: progress.status === "COMPLETED" ? "COMPLETED" : "IN_PROGRESS",
+    },
+  });
+  await prisma.courseEnrollment.update({
+    where: { id: ctx.enrollment.id },
+    data: { lastSectionId: sectionId },
+  });
+
+  return { maxSlideIndex: updated.maxSlideIndex };
+}
+
 // ── In-video pop-up questions ────────────────────────────────
 
 /**
@@ -770,6 +838,27 @@ export async function completeSection(sectionId: string, memberId: string) {
     const answered = new Set(progress.answeredPopupIds);
     if (popups.some((q) => !answered.has(q.id))) {
       return { error: "Answer every in-video question first", status: 400 } as const;
+    }
+  }
+
+  if (section.kind === "SLIDES") {
+    const { isDeckComplete } = await import("./courseSlideService.js");
+    const [slideCount, questions] = await Promise.all([
+      prisma.courseSlide.count({ where: { sectionId } }),
+      prisma.courseQuestion.findMany({
+        where: { sectionId, slideIndex: { not: null } },
+        select: { id: true, slideIndex: true },
+      }),
+    ]);
+    // Server-side, because the client's "Complete" button is not the gate.
+    const ok = isDeckComplete({
+      maxSlideIndex: progress.maxSlideIndex,
+      slideCount,
+      questions,
+      answeredIds: progress.answeredPopupIds,
+    });
+    if (!ok) {
+      return { error: "Finish the deck and answer every question first", status: 400 } as const;
     }
   }
 

@@ -878,6 +878,29 @@ coursesRouter.post("/sections/:sid/video-progress", async (req: Request, res: Re
   }
 });
 
+coursesRouter.post("/sections/:sid/slide-progress", async (req: Request, res: Response) => {
+  try {
+    const index = Number.parseInt(String((req.body as { index?: unknown }).index ?? ""), 10);
+    if (!Number.isFinite(index)) {
+      res.status(400).json({ error: "index is required" });
+      return;
+    }
+    const result = await progressService.recordSlideProgress(
+      req.params.sid as string,
+      req.memberId!,
+      index
+    );
+    if (isServiceError(result)) {
+      res.status(result.status).json({ error: result.error });
+      return;
+    }
+    res.json(result);
+  } catch (error) {
+    console.error("POST /outreach/courses/sections/:sid/slide-progress error:", error);
+    res.status(500).json({ error: "Failed to record progress" });
+  }
+});
+
 coursesRouter.post("/sections/:sid/popup-answer", async (req: Request, res: Response) => {
   try {
     const { questionId, answerIds } = req.body as { questionId?: string; answerIds?: string[] };
