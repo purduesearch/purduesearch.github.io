@@ -22,6 +22,7 @@ export const SECTION_KINDS = {
   CONTENT: { label: 'Content', icon: 'fas fa-align-left' },
   VIDEO:   { label: 'Video',   icon: 'fas fa-video' },
   QUIZ:    { label: 'Quiz',    icon: 'fas fa-list-check' },
+  SLIDES:  { label: 'Slides',  icon: 'fas fa-file-powerpoint' },
 };
 
 const kindMeta = (kind) => SECTION_KINDS[kind] ?? SECTION_KINDS.CONTENT;

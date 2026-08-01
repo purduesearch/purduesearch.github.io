@@ -6,6 +6,7 @@ import BlogAiPanel from '../../components/clubpm/blog/BlogAiPanel';
 import CourseSectionRail, { SECTION_KINDS } from '../../components/clubpm/courses/CourseSectionRail';
 import CourseQuizBuilder from '../../components/clubpm/courses/CourseQuizBuilder';
 import CourseVideoWorkbench from '../../components/clubpm/courses/CourseVideoWorkbench';
+import CourseSlidesWorkbench from '../../components/clubpm/courses/CourseSlidesWorkbench';
 import CourseModuleSettings from '../../components/clubpm/courses/CourseModuleSettings';
 import OrbitLoader from '../../components/OrbitLoader';
 import { useClubPmAuth } from '../../clubpm/ClubPmAuth';
@@ -90,13 +91,13 @@ function PublishMenu({ status, disabled, onPublish, onArchive, onDelete }) {
  * provider every time the author collapsed the notes, dropping their presence
  * and forcing a resync on every reopen.
  */
-function CourseDocument({ collapsible, children }) {
+function CourseDocument({ collapsible, foldLabel = 'Notes shown under the video', children }) {
   if (!collapsible) return children;
   return (
     <details className="pm-course-doc-fold">
       <summary className="pm-course-doc-fold-summary">
         <i className="fas fa-align-left" aria-hidden="true" />
-        <span>Notes shown under the video</span>
+        <span>{foldLabel}</span>
       </summary>
       <div className="pm-course-doc-fold-body">{children}</div>
     </details>
@@ -613,12 +614,22 @@ export default function CourseEditorPage() {
                 />
               )}
 
+              {sectionKind === 'SLIDES' && (
+                <CourseSlidesWorkbench
+                  key={selectedSection.id}
+                  section={selectedSection}
+                  canEdit={canEditDoc}
+                  onUpdateSection={handleUpdateSection}
+                />
+              )}
+
               {hasDocument && (
                 <CourseDocument
-                  // Collapsed for VIDEO — the notes are a supporting detail
-                  // there, but they still render to learners beneath the player,
-                  // so they keep the full collaborative editor.
-                  collapsible={sectionKind === 'VIDEO'}
+                  // Collapsed for VIDEO and SLIDES — the notes are a supporting
+                  // detail there, but they still render to learners beneath the
+                  // player, so they keep the full collaborative editor.
+                  collapsible={sectionKind === 'VIDEO' || sectionKind === 'SLIDES'}
+                  foldLabel={sectionKind === 'SLIDES' ? 'Notes shown under the deck' : 'Notes shown under the video'}
                 >
                   <BlogEditor
                     // Keyed on the section id: switching sections must tear down

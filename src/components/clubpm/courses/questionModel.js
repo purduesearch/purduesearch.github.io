@@ -34,6 +34,9 @@ export function blankQuestion(kind = 'SINGLE', extra = {}) {
     explanation: '',
     points: 1,
     videoTimestampSec: null,
+    // Non-null only for a SLIDES overlay question; a row has at most one of
+    // slideIndex / videoTimestampSec set.
+    slideIndex: null,
     rewindToSec: null,
     answers: kind === 'TRUE_FALSE'
       ? [blankAnswer('True', true), blankAnswer('False', false)]
@@ -68,6 +71,7 @@ export function serializeQuestion(question, index) {
     explanation: (question.explanation ?? '').trim() || null,
     points: Number(question.points) || 1,
     videoTimestampSec: question.videoTimestampSec ?? null,
+    slideIndex: question.slideIndex ?? null,
     rewindToSec: question.rewindToSec ?? null,
     answers: (question.answers ?? []).map((a, i) => ({
       order: i,

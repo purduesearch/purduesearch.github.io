@@ -499,6 +499,64 @@ export const replaceCourseQuestions = (sectionId, questions, scope = 'all') =>
 export const saveCourseQuestion    = (sectionId, question)  => post(`/api/outreach/courses/sections/${sectionId}/questions`, question);
 export const deleteCourseQuestion  = (sectionId, questionId) => del(`/api/outreach/courses/sections/${sectionId}/questions/${questionId}`);
 
+// ── Course slides (SLIDES sections) ──────────────────────────
+// Whether the bot account still holds drive.readonly. Only the Google Slides
+// *link* import needs it; .pdf and .pptx work without.
+export const getSlideCapabilities  = ()            => get('/api/outreach/courses/slide-capabilities');
+export const listCourseSlides      = (sectionId)   => get(`/api/outreach/courses/sections/${sectionId}/slides`);
+export const saveCourseSlideMeta   = (sectionId, slides) =>
+  put(`/api/outreach/courses/sections/${sectionId}/slides`, { slides });
+
+/**
+ * No ids → clear the whole deck. With ids → delete only those, which is how a
+ * re-import removes the old pages once the new ones are safely stored.
+ *
+ * `del` above cannot carry a body, and adding one to it would change every
+ * existing caller — so this speaks to the same fetch/auth contract directly.
+ */
+export async function clearCourseDeck(sectionId, ids) {
+  const response = await fetch(
+    `${BASE_URL}/api/outreach/courses/sections/${sectionId}/slides`,
+    {
+      method: 'DELETE',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json', ...authHeaders() },
+      body: JSON.stringify(ids?.length ? { ids } : {}),
+    }
+  );
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    throw new ApiError(response.status, body.error ?? 'Could not remove those slides');
+  }
+  return response.json().catch(() => ({ ok: true }));
+}
+
+export const clearCourseAudio = (sectionId) => del(`/api/outreach/courses/sections/${sectionId}/audio`);
+export const recordCourseSlideProgress = (sectionId, index) =>
+  post(`/api/outreach/courses/sections/${sectionId}/slide-progress`, { index });
+
+/** Multipart narration upload with progress. Mirrors uploadVaultFile. */
+export function uploadCourseAudio(sectionId, file, onProgress) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', `${BASE_URL}/api/outreach/courses/sections/${sectionId}/audio`);
+    xhr.withCredentials = true;
+    Object.entries(authHeaders()).forEach(([k, v]) => xhr.setRequestHeader(k, v));
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable && onProgress) onProgress(Math.round((e.loaded / e.total) * 100));
+    };
+    xhr.onload = () => {
+      let body = null; try { body = JSON.parse(xhr.responseText); } catch {}
+      if (xhr.status >= 200 && xhr.status < 300) resolve(body);
+      else reject(new Error(body?.error || `Audio upload failed (${xhr.status})`));
+    };
+    xhr.onerror = () => reject(new Error('Network error during audio upload'));
+    const fd = new FormData();
+    fd.append('audio', file);
+    xhr.send(fd);   // no Content-Type header — FormData sets the multipart boundary
+  });
+}
+
 // Learner-side. The server clamps `positionSec` against wall-clock × max rate,
 // so a fabricated jump is rejected there — these are the UX half of the lock.
 export const recordCourseVideoProgress = (sectionId, positionSec) =>
