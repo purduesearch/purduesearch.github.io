@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
-import { recordCourseSlideProgress, answerCoursePopup } from '../../../api/clubPmClient';
+import { recordCourseSlideProgress, answerCoursePopup, proxyImageSrc } from '../../../api/clubPmClient';
 
 // The learner's deck. Structurally parallel to LockedVideoPlayer: a stage, a
 // progress ping, and question overlays that block forward movement — but with
@@ -165,7 +165,9 @@ export default function CourseSlidePlayer({
     const next = slides[index + 1];
     if (!next?.imageUrl) return;
     const img = new Image();
-    img.src = next.imageUrl;
+    // Same proxy the <img> below uses, or the preload warms a URL the stage
+    // never requests and every slide still loads cold.
+    img.src = proxyImageSrc(next.imageUrl);
   }, [index, slides]);
 
   // ── Audio-driven advance ───────────────────────────────────
@@ -294,7 +296,7 @@ export default function CourseSlidePlayer({
       >
         {slide && (
           <img
-            src={slide.imageUrl}
+            src={proxyImageSrc(slide.imageUrl)}
             alt={`Slide ${index + 1}`}
             draggable={false}
           />

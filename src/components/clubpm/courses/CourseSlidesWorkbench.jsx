@@ -4,6 +4,7 @@ import {
   listCourseSlides, saveCourseSlideMeta, clearCourseDeck, getSlideCapabilities,
   uploadCourseAudio, clearCourseAudio,
   listCourseQuestions, saveCourseQuestion, deleteCourseQuestion,
+  proxyImageSrc,
 } from '../../../api/clubPmClient';
 import QuestionForm from './QuestionForm';
 import { blankQuestion, serializeQuestion, validateQuestion } from './questionModel';
@@ -487,7 +488,7 @@ export default function CourseSlidesWorkbench({ section, canEdit = false, onUpda
                   onClick={() => setSelectedId(slide.id)}
                   aria-pressed={slide.id === selectedId}
                 >
-                  <img src={slide.imageUrl} alt={`Slide ${i + 1}`} loading="lazy" />
+                  <img src={proxyImageSrc(slide.imageUrl)} alt={`Slide ${i + 1}`} loading="lazy" />
                   <span className="pm-course-slide-thumb-num">
                     {i + 1}
                     {slide.startSec != null && (
