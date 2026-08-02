@@ -70,7 +70,7 @@
     "prebuild": "npm run build:icons",
     "build": "react-scripts build",
     "postbuild": "node -e \"require('fs').copyFileSync('build/index.html', 'build/404.html')\" && node scripts/minify-public-css.mjs",
-    "test": "react-scripts test",
+    "test": "node scripts/check-tour-anchors.js && react-scripts test",
     "test:scripts": "node --test scripts/optimize-images.test.mjs",
     "eject": "react-scripts eject"
   },
