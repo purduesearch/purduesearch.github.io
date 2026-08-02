@@ -274,6 +274,11 @@ model Project {
   targetDate       DateTime?
   programTag       String? // "astrousa" | "sa2tp" | "research" | "software" | "business" (for public archive grouping)
   pressKitToken    String?       @unique
+  // Non-null means this is that member's private training project for the
+  // onboarding course. The @unique is what makes ensureTrainingProject
+  // idempotent by construction rather than by convention. Training projects are
+  // excluded from every real listing — see Task 10.
+  trainingForMemberId String? @unique
 
   // ── GitHub link ──
   // githubRepo is "owner/repo" (mirrors driveLink). githubInstallId is the
@@ -1901,6 +1906,7 @@ enum CourseSectionKind {
   VIDEO
   QUIZ
   SLIDES
+  WALKTHROUGH
 }
 
 enum CourseQuestionKind {
@@ -1984,6 +1990,10 @@ model CourseSection {
   // One JSON column, like videoConfig — every writer spreads the previous value
   // so a partial save cannot drop keys it does not own.
   slideConfig   Json?
+  // WALKTHROUGH: { tourId, entryRoute, requiresTrainingProject, stepCount }
+  // One JSON column, same idiom as videoConfig / slideConfig — every writer
+  // spreads the previous value so a partial save cannot drop keys it does not own.
+  tourConfig    Json?
   // QUIZ only
   passThreshold Int?
   maxAttempts   Int?
@@ -2091,6 +2101,8 @@ model CourseSectionProgress {
   maxWatchedSec    Int                  @default(0)
   // Server-clamped high-water mark for SLIDES sections.
   maxSlideIndex    Int                  @default(0)
+  // Server-clamped high-water mark for WALKTHROUGH sections.
+  maxStepIndex     Int                  @default(0)
   answeredPopupIds String[]             @default([])
   completedAt      DateTime?
   // XP idempotency gate, mirroring Task.rewardGrantedAt.
