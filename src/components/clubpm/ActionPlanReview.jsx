@@ -163,6 +163,7 @@ export default function ActionPlanReview({ projectId, project, allMembers, proje
         <input
           type="text"
           className="cpm-actionplan-goal-input"
+          data-tour-id="ai.goal"
           value={goal}
           onChange={e => setGoal(e.target.value)}
           placeholder='e.g. "Get us ready for the design review next week"'

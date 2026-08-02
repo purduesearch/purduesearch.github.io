@@ -44,7 +44,7 @@ function useAuthedThumbnail(url) {
   return src;
 }
 
-export default function VaultItemCard({ item, onClick }) {
+export default function VaultItemCard({ item, onClick, tourId }) {
   const latest = item.latestVersion;
   const icon = iconForFileName(latest?.fileName);
   const checkedOutName = item.checkedOutBy?.displayName;
@@ -60,6 +60,7 @@ export default function VaultItemCard({ item, onClick }) {
   return (
     <div
       className="cpm-vault-card"
+      data-tour-id={tourId}
       onClick={clickable ? onClick : undefined}
       role={clickable ? "button" : undefined}
       tabIndex={clickable ? 0 : undefined}

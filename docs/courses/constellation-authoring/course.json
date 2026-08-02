@@ -1,0 +1,51 @@
+{
+  "slug": "constellation-authoring",
+  "title": "Constellation: Authoring Courses & Content",
+  "summary": "For whoever writes the club's training material next. How to build a course, what each section kind is good for, and where the AI generator helps versus where it doesn't.",
+  "estimatedMinutes": 20,
+  "status": "DRAFT",
+  "prerequisiteSlug": "constellation-101",
+  "xpOverride": 250,
+  "doubloonOverride": 100,
+  "modules": [
+    {
+      "order": 0,
+      "title": "Building a course",
+      "summary": "Modules, section kinds, gating, and assignment — plus the one thing you can't author in the editor.",
+      "estimatedMinutes": 20,
+      "isRequired": true,
+      "sequential": true,
+      "sections": [
+        {
+          "order": 0,
+          "title": "Building a course",
+          "kind": "VIDEO",
+          "isRequired": true,
+          "videoRef": "videos/V10-building-a-course.md",
+          "videoConfig": { "youtubeId": null, "lockSeek": true, "allowedRates": [1, 1.25, 1.5] }
+        },
+        {
+          "order": 1,
+          "title": "Build one yourself",
+          "kind": "WALKTHROUGH",
+          "isRequired": true,
+          "tourConfig": {
+            "tourId": "course-authoring",
+            "entryRoute": "/clubpm/outreach",
+            "requiresTrainingProject": false,
+            "stepCount": 7
+          }
+        },
+        {
+          "order": 2,
+          "title": "Check yourself: authoring",
+          "kind": "QUIZ",
+          "isRequired": true,
+          "quizRef": "quizzes/Q11-authoring.json",
+          "passThreshold": 75,
+          "maxAttempts": null
+        }
+      ]
+    }
+  ]
+}

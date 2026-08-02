@@ -506,6 +506,7 @@ export default function CourseProgressDashboard({
         {isAdmin && (
           <button
             className="clubpm-btn-primary"
+            data-tour-id="course.editor.assign"
             onClick={() => setAssigning(true)}
             disabled={!courseId}
             title="Enrol members in this course with a due date"

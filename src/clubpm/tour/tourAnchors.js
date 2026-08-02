@@ -32,8 +32,8 @@ export const TOUR_ANCHORS = Object.freeze({
 
   // Dashboard — src/pages/ClubPM/Dashboard.jsx
   "dash.stats":             { label: "Stat bar",             route: "/clubpm", note: "The five-tile stat bar" },
-  "dash.stats.xp":          { label: "XP tile",              route: "/clubpm", note: "" },
-  "dash.stats.rank":        { label: "Rank tile",            route: "/clubpm", note: "" },
+  "nav.xp":                 { label: "XP bar",               route: "*",       note: "Sidebar XP progress bar — the product has no XP stat tile" },
+  "nav.rank":               { label: "Rank badge",           route: "*",       note: "Sidebar rank icon" },
   "dash.quests":            { label: "Daily quests",         route: "/clubpm", note: "" },
   "dash.work":              { label: "My work",              route: "/clubpm", note: "Filterable task list" },
   "dash.agenda":            { label: "Agenda panel",         route: "/clubpm", note: "7-day agenda" },
@@ -130,8 +130,8 @@ export const TOUR_ANCHORS = Object.freeze({
   "course.editor.assign":   { label: "Assign to members",    route: "/clubpm/outreach/courses/:id/edit", note: "" },
   "admin.rewards.pending":  { label: "Pending rewards",      route: "/clubpm/admin", note: "" },
   "admin.rewards.config":   { label: "Reward config",        route: "/clubpm/admin", note: "" },
-  "admin.events":           { label: "Event config",         route: "/clubpm/admin", note: "" },
-  "admin.members":          { label: "Member admin",         route: "/clubpm/admin", note: "" },
+  "admin.integrations":     { label: "Integrations",         route: "/clubpm/admin",   note: "Drive connect card — /clubpm/admin has no separate event-config panel" },
+  "admin.members":          { label: "Member roster",        route: "/clubpm/members", note: "Member admin lives on its own route, not under /clubpm/admin" },
 });
 
 export function isKnownAnchor(id) {

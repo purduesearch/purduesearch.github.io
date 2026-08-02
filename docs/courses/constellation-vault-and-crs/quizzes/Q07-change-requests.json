@@ -1,0 +1,76 @@
+{
+  "quizId": "Q07-change-requests",
+  "title": "Check yourself: change requests",
+  "passThreshold": 75,
+  "maxAttempts": null,
+  "questions": [
+    {
+      "id": "q07-1",
+      "order": 0,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "What is the rationale field on a change request actually for?",
+      "explanation": "It's the project's memory. In six months, when someone asks why a part has a notch in it, the rationale is the only place that answer still exists — the people who knew have graduated.",
+      "answers": [
+        { "order": 0, "text": "To record why the change was made, for whoever asks in six months", "isCorrect": true },
+        { "order": 1, "text": "To justify the change to the faculty advisor", "isCorrect": false },
+        { "order": 2, "text": "To let the system estimate how long the change will take", "isCorrect": false },
+        { "order": 3, "text": "It's optional paperwork with no downstream use", "isCorrect": false }
+      ]
+    },
+    {
+      "id": "q07-2",
+      "order": 1,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "How does Constellation work out which items a change request affects?",
+      "explanation": "From the BOM. Assemblies know which parts and versions they reference, so the impact list is derived rather than remembered — which is exactly the kind of thing people get wrong under deadline pressure.",
+      "answers": [
+        { "order": 0, "text": "From the BOM — it derives what references the changed item", "isCorrect": true },
+        { "order": 1, "text": "The person raising it lists the affected items manually", "isCorrect": false },
+        { "order": 2, "text": "It notifies everyone on the project and lets them self-identify", "isCorrect": false },
+        { "order": 3, "text": "It scans the project's Drive folder for related files", "isCorrect": false }
+      ]
+    },
+    {
+      "id": "q07-3",
+      "order": 2,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "A reviewer rejects your change request. What happens to it?",
+      "explanation": "It stays, with the reason recorded. That record is the value — the next person to propose the same change can see why it was turned down, instead of relitigating a decision nobody remembers making.",
+      "answers": [
+        { "order": 0, "text": "It stays in the record with the reviewer's reason attached", "isCorrect": true },
+        { "order": 1, "text": "It's deleted so the list stays clean", "isCorrect": false },
+        { "order": 2, "text": "It reopens automatically after a week", "isCorrect": false },
+        { "order": 3, "text": "It's converted into a task assigned back to you", "isCorrect": false }
+      ]
+    },
+    {
+      "id": "q07-4",
+      "order": 3,
+      "kind": "MULTI",
+      "points": 2,
+      "prompt": "What happens when a change request is approved? Select all that apply.",
+      "explanation": "Approval is what makes a change real: the item takes its new version, the BOM updates, and holders of affected downstream parts are notified. It does not touch anyone's XP — CRs are a review process, not a reward event.",
+      "answers": [
+        { "order": 0, "text": "The affected item takes its new version", "isCorrect": true },
+        { "order": 1, "text": "Members holding affected downstream items are notified", "isCorrect": true },
+        { "order": 2, "text": "The requester is granted XP for the approval", "isCorrect": false },
+        { "order": 3, "text": "All linked tasks are automatically closed", "isCorrect": false }
+      ]
+    },
+    {
+      "id": "q07-5",
+      "order": 4,
+      "kind": "TRUE_FALSE",
+      "points": 1,
+      "prompt": "Rejecting a change request is a sign the review process has failed.",
+      "explanation": "False. \"Not until after the design review\" is a perfectly good outcome, and a team that only ever approves has stopped reviewing. Rejection with a written reason is the process working.",
+      "answers": [
+        { "order": 0, "text": "True", "isCorrect": false },
+        { "order": 1, "text": "False", "isCorrect": true }
+      ]
+    }
+  ]
+}

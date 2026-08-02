@@ -68,7 +68,7 @@ function ProgressRing({ progress, previous = null }) {
 
 // ── HealthBadge ───────────────────────────────────────────────
 
-function HealthBadge({ status }) {
+function HealthBadge({ status, tourId }) {
   const meta = HEALTH_META[status] ?? HEALTH_META.ON_TRACK;
   const ref = useRef(null);
   const prevStatusRef = useRef(status);
@@ -83,6 +83,7 @@ function HealthBadge({ status }) {
   return (
     <span
       ref={ref}
+      data-tour-id={tourId}
       className="cpm-milestone-badge"
       style={{ background: meta.color + "22", color: meta.color, border: `1px solid ${meta.color}55` }}
     >
@@ -264,7 +265,7 @@ function GhProgressBar({ milestoneId, repos }) {
 
 // ── MilestoneCard ─────────────────────────────────────────────
 
-function MilestoneCard({ milestone, projectTasks, onUpdate, onDelete, hasGitHub, repos, previousProgress }) {
+function MilestoneCard({ milestone, projectTasks, onUpdate, onDelete, hasGitHub, repos, previousProgress, healthTourId }) {
   const [expanded, setExpanded] = useState(false);
   const [linkingTasks, setLinkingTasks] = useState(false);
   const [selectedTaskIds, setSelectedTaskIds] = useState(
@@ -312,7 +313,7 @@ function MilestoneCard({ milestone, projectTasks, onUpdate, onDelete, hasGitHub,
           </div>
         </div>
         <div className="cpm-milestone-card-right">
-          <HealthBadge status={milestone.status ?? "ON_TRACK"} />
+          <HealthBadge status={milestone.status ?? "ON_TRACK"} tourId={healthTourId} />
           {milestone.owner && (
             <span className="cpm-milestone-owner" title={milestone.owner.displayName}>
               {milestone.owner.avatarUrl
@@ -443,7 +444,7 @@ function AddMilestoneForm({ projectId, projectMembers, onCreated }) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="cpm-milestone-add-form clubpm-glass-card">
+    <form onSubmit={handleSubmit} className="cpm-milestone-add-form clubpm-glass-card" data-tour-id="milestones.new">
       <div className="cpm-milestone-add-form-title">+ New Milestone</div>
       <div className="cpm-milestone-add-row">
         <input className="clubpm-input cpm-milestone-input-title"
@@ -555,10 +556,11 @@ export default function MilestonePanel({ projectId, project, onRefresh, previous
               <p className="cpm-milestone-empty-text">No milestones yet. Create one below.</p>
             </div>
           ) : (
-            milestones.map(m => (
+            milestones.map((m, index) => (
               <MilestoneCard
                 key={m.id}
                 milestone={m}
+                healthTourId={index === 0 ? "milestones.health" : undefined}
                 previousProgress={previousMilestonePcts[m.id] ?? null}
                 projectTasks={projectTasks}
                 onUpdate={handleUpdate}

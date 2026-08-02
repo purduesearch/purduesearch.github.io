@@ -1,0 +1,78 @@
+{
+  "quizId": "Q11-authoring",
+  "title": "Check yourself: authoring",
+  "passThreshold": 75,
+  "maxAttempts": null,
+  "questions": [
+    {
+      "id": "q11-1",
+      "order": 0,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "You need to teach a seven-tier rank table with XP thresholds people will look up repeatedly. Which section kind?",
+      "explanation": "Slides. Reference material has to stay scannable and re-findable — a learner coming back for one threshold can page to it. A video buries the same table in a timeline nobody wants to scrub through.",
+      "answers": [
+        { "order": 0, "text": "SLIDES — reference material stays scannable and easy to return to", "isCorrect": true },
+        { "order": 1, "text": "VIDEO — narration makes the tiers memorable", "isCorrect": false },
+        { "order": 2, "text": "QUIZ — testing the thresholds teaches them", "isCorrect": false },
+        { "order": 3, "text": "WALKTHROUGH — point at the rank badge in the app", "isCorrect": false }
+      ]
+    },
+    {
+      "id": "q11-2",
+      "order": 1,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "Why can't you author walkthrough steps in the course editor?",
+      "explanation": "Steps target UI elements by anchor id, so they must live beside the code that provides those anchors. In the repo, a rename fails the build and names the broken step; in the database, the same rename breaks a live tour with nothing in the diff to catch it.",
+      "answers": [
+        { "order": 0, "text": "Steps live in repo files so a UI rename fails the build instead of silently breaking a tour", "isCorrect": true },
+        { "order": 1, "text": "The editor can't render the tour overlay", "isCorrect": false },
+        { "order": 2, "text": "Only admins are allowed to create walkthroughs", "isCorrect": false },
+        { "order": 3, "text": "Steps are generated automatically from the anchor registry", "isCorrect": false }
+      ]
+    },
+    {
+      "id": "q11-3",
+      "order": 2,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "What should every quiz question carry besides its options?",
+      "explanation": "An explanation, shown after grading. A question that only says \"wrong\" filters people; a question that explains why gets a second attempt at teaching the thing they just demonstrated they didn't know.",
+      "answers": [
+        { "order": 0, "text": "An explanation shown after grading", "isCorrect": true },
+        { "order": 1, "text": "A difficulty rating", "isCorrect": false },
+        { "order": 2, "text": "A time limit", "isCorrect": false },
+        { "order": 3, "text": "A link to the section it came from", "isCorrect": false }
+      ]
+    },
+    {
+      "id": "q11-4",
+      "order": 3,
+      "kind": "MULTI",
+      "points": 2,
+      "prompt": "What is the AI course generator good for, and what is it not? Select the true statements.",
+      "explanation": "It's genuinely good at proposing structure and drafting bodies you then edit. It cannot write walkthrough steps — it has no knowledge of the anchor registry or what's on screen — and it will state things about Constellation confidently and wrongly, because it writes from your prompt rather than from the code.",
+      "answers": [
+        { "order": 0, "text": "Good for proposing an outline and drafting section bodies", "isCorrect": true },
+        { "order": 1, "text": "Cannot write walkthrough steps", "isCorrect": true },
+        { "order": 2, "text": "Its factual claims about Constellation can be trusted without checking", "isCorrect": false },
+        { "order": 3, "text": "It assigns the finished course to the right members automatically", "isCorrect": false }
+      ]
+    },
+    {
+      "id": "q11-5",
+      "order": 4,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "You're setting up a module and wondering whether to make it sequential. What's the default, and why?",
+      "explanation": "Sequential. Teaching has an order — later sections assume earlier ones. If the order genuinely doesn't matter, that's a signal you've written a reference document rather than a course, and it may belong somewhere other than the course system.",
+      "answers": [
+        { "order": 0, "text": "Sequential — and if order truly doesn't matter, you may have written a reference doc, not a course", "isCorrect": true },
+        { "order": 1, "text": "Any order — learners should pick what interests them", "isCorrect": false },
+        { "order": 2, "text": "Sequential only for modules containing a quiz", "isCorrect": false },
+        { "order": 3, "text": "It makes no difference; gating is set per section", "isCorrect": false }
+      ]
+    }
+  ]
+}

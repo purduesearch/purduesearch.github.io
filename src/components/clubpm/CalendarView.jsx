@@ -17,12 +17,13 @@ const EVENT_TYPE_ICON = {
   OTHER:    "fas fa-calendar-day",
 };
 
-function EventChip({ event, onClick, draggable = false, onDragStart, onDragEnd, isDragging }) {
+function EventChip({ event, onClick, draggable = false, onDragStart, onDragEnd, isDragging, tourId }) {
   const borderColor = EVENT_TYPE_COLOR[event.type] ?? EVENT_TYPE_COLOR.OTHER;
   const iconClass   = EVENT_TYPE_ICON[event.type]  ?? EVENT_TYPE_ICON.OTHER;
   return (
     <div
       className={`cpm-cal-event-chip${isDragging ? ' dragging' : ''}`}
+      data-tour-id={tourId}
       style={{ borderLeft: `3px solid ${borderColor}` }}
       draggable={draggable}
       onDragStart={onDragStart}
@@ -184,6 +185,13 @@ export default function CalendarView({ tasks, events = [], onTaskClick, onEventC
   }, {}), [events]);
 
   const todayKey  = dayKey(new Date());
+  // The tour spotlights one chip; the earliest event in view is the stable
+  // choice, since cell order changes with the month grid.
+  const firstEventId = useMemo(() => {
+    const sorted = (events || []).filter(e => e.startTime)
+      .sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
+    return sorted[0]?.id ?? null;
+  }, [events]);
   const monthGrid = useMemo(() => getMonthGrid(cursor), [cursor]);
   const weekDays  = useMemo(() => getWeekDays(cursor),  [cursor]);
 
@@ -231,7 +239,7 @@ export default function CalendarView({ tasks, events = [], onTaskClick, onEventC
 
       {/* ── Month View ──────────────────────────────────────────── */}
       {viewMode === "month" && (
-        <div className="cpm-cal-month-grid">
+        <div className="cpm-cal-month-grid" data-tour-id="calendar.grid">
           {WEEKDAY_FULL.map(d => (
             <div key={d} className="cpm-cal-month-col-header">{d}</div>
           ))}
@@ -264,6 +272,7 @@ export default function CalendarView({ tasks, events = [], onTaskClick, onEventC
                   <EventChip
                     key={ev.id}
                     event={ev}
+                    tourId={ev.id === firstEventId ? "calendar.event" : undefined}
                     onClick={onEventClick}
                     draggable={!!onEventMove}
                     isDragging={dragId === ev.id}

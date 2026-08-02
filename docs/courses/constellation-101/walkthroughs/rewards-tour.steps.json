@@ -1,0 +1,81 @@
+{
+  "tourId": "rewards-tour",
+  "title": "Quests, the shop, and your profile",
+  "entryRoute": "/clubpm/challenges",
+  "requiresTrainingProject": false,
+  "steps": [
+    {
+      "id": "active-quests",
+      "anchor": "challenges.active",
+      "route": "/clubpm/challenges",
+      "title": "Today's quests",
+      "body": "Daily, weekly, and monthly. They rotate at midnight UTC and they're the same for everyone — nobody is being handed an easier set.",
+      "placement": "right",
+      "advance": { "on": "next" }
+    },
+    {
+      "id": "claim",
+      "anchor": "challenges.claim",
+      "route": "/clubpm/challenges",
+      "title": "Claim one",
+      "body": "Completed quests aren't paid automatically — you claim them. If nothing is claimable right now, skip this step; you'll have one tomorrow.",
+      "placement": "right",
+      "advance": { "on": "api", "method": "POST", "path": "/api/challenges/:id/claim" },
+      "optional": true
+    },
+    {
+      "id": "achievements",
+      "anchor": "challenges.achievements",
+      "route": "/clubpm/challenges",
+      "title": "Achievements",
+      "body": "One-off, permanent, and mostly hidden until you trigger them. They're for the things nobody would set as a goal but everyone appreciates — like being first to review someone's change request.",
+      "placement": "top",
+      "advance": { "on": "next" }
+    },
+    {
+      "id": "to-shop",
+      "anchor": "nav.shop",
+      "route": "/clubpm/challenges",
+      "title": "Go to the shop",
+      "body": "This is where doubloons actually go.",
+      "placement": "right",
+      "advance": { "on": "click" }
+    },
+    {
+      "id": "balance",
+      "anchor": "shop.balance",
+      "route": "/clubpm/shop",
+      "title": "Your doubloons",
+      "body": "Separate from XP. Spending these never costs you rank — XP only ever goes up.",
+      "placement": "bottom",
+      "advance": { "on": "next" }
+    },
+    {
+      "id": "grid",
+      "anchor": "shop.grid",
+      "route": "/clubpm/shop",
+      "title": "Cosmetics only",
+      "body": "Frames, name styles, effects. Deliberately nothing functional — the moment doubloons buy capability, the reward system starts distorting how people pick their work.",
+      "placement": "top",
+      "advance": { "on": "next" }
+    },
+    {
+      "id": "to-profile",
+      "anchor": "nav.profile",
+      "route": "/clubpm/shop",
+      "title": "Open your profile",
+      "body": "Last stop.",
+      "placement": "right",
+      "advance": { "on": "click" }
+    },
+    {
+      "id": "rank",
+      "anchor": "profile.rank",
+      "route": "/clubpm/profile",
+      "title": "Your rank",
+      "body": "Nestling through Celestial, 0 to 21,000 XP. Worth being clear about: rank is recognition, not permission. It unlocks nothing — a Nestling and a Celestial with the same role can do exactly the same things.",
+      "placement": "bottom",
+      "advance": { "on": "next" }
+    }
+  ]
+}

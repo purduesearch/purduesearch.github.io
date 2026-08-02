@@ -447,7 +447,7 @@ export default function MembersView() {
       ) : filtered.length === 0 ? (
         <div className="pm-empty-state">No members found.</div>
       ) : (
-        <div ref={gridRef} className="pm-members-grid">
+        <div ref={gridRef} className="pm-members-grid" data-tour-id="admin.members">
           {filtered.map(m => (
             <MemberCard
               key={m.id}

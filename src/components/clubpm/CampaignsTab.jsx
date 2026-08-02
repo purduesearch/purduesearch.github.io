@@ -736,7 +736,7 @@ export default function CampaignsTab({ isAdmin }) {
           </p>
         </div>
         {isAdmin && (
-          <button className="cpm-btn cpm-btn--primary" onClick={() => { setShowForm(true); setEditing(null); }}>
+          <button className="cpm-btn cpm-btn--primary" data-tour-id="outreach.campaign.new" onClick={() => { setShowForm(true); setEditing(null); }}>
             <i className="fas fa-plus" aria-hidden="true" /> New Campaign
           </button>
         )}

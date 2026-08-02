@@ -32,12 +32,45 @@ const declared = new Set(
 );
 
 // 2. Anchors actually rendered by components.
+//
+// An attribute value is either a plain string ("nav.shop") or a JSX expression
+// container. For the container we take the whole balanced {...} and pull out
+// every anchor-shaped string literal inside it, so a conditional
+// (`{index === 0 ? "dash.project.card" : undefined}`) or an inline lookup map
+// (`{{ TODO: "board.column.TODO", ... }[status]}`) is still statically visible.
+// That is the reason components must not build ids with template interpolation:
+// `board.column.${status}` renders an anchor no static check can see, which is
+// exactly the silent breakage this script exists to prevent.
+const ANCHOR_LITERAL = /["']([A-Za-z][A-Za-z0-9]*(?:\.[A-Za-z0-9_]+)+)["']/g;
+
+/** The attribute value starting at `i` (just past `data-tour-id=`). */
+function attributeValue(src, i) {
+  if (src[i] === '"' || src[i] === "'") {
+    const end = src.indexOf(src[i], i + 1);
+    return end === -1 ? "" : src.slice(i, end + 1);
+  }
+  if (src[i] !== "{") return "";
+  let depth = 0;
+  for (let j = i; j < src.length; j++) {
+    if (src[j] === "{") depth++;
+    else if (src[j] === "}" && --depth === 0) return src.slice(i, j + 1);
+  }
+  return "";
+}
+
 const rendered = new Map(); // id -> [files]
 for (const file of walk(SRC, (p) => /\.jsx?$/.test(p))) {
   const src = fs.readFileSync(file, "utf8");
-  for (const m of src.matchAll(/data-tour-id=["'{]{1,2}\s*["']?([A-Za-z0-9._]+)["']?/g)) {
-    const rel = path.relative(ROOT, file);
-    rendered.set(m[1], [...(rendered.get(m[1]) ?? []), rel]);
+  const rel = path.relative(ROOT, file);
+  // A `*tourId=` prop counts too: a local presentational component often owns
+  // the DOM node, so the id is chosen at the call site and handed down (as
+  // `tourId`, `healthTourId`, …). The literal is what matters, not which
+  // attribute carries it.
+  for (const m of src.matchAll(/(?:data-tour-id|[A-Za-z]*[Tt]ourId)=/g)) {
+    const value = attributeValue(src, m.index + m[0].length);
+    for (const lit of value.matchAll(ANCHOR_LITERAL)) {
+      rendered.set(lit[1], [...(rendered.get(lit[1]) ?? []), rel]);
+    }
   }
 }
 

@@ -78,7 +78,7 @@ function StatsBar({ projects, myTasks }) {
   }, []);
 
   return (
-    <div className="pm-stats-bar pm-stats-bar-5col" ref={barRef}>
+    <div className="pm-stats-bar pm-stats-bar-5col" ref={barRef} data-tour-id="dash.stats">
       <StatTile value={totalProjects}    label="Total Projects" />
       <StatTile value={tasksDueThisWeek} label="Tasks Due This Week" />
       <StatTile value={completionRate}   label="Completion Rate %" />
@@ -216,7 +216,7 @@ function AIInsightCards({ projects, tasks }) {
   }, []);
 
   return (
-    <div ref={insightRowRef} className="pm-insight-row pm-project-grid-wrap">
+    <div ref={insightRowRef} className="pm-insight-row pm-project-grid-wrap" data-tour-id="dash.insights">
 
       {/* Card 1: Most Blocked */}
       <div className="pm-insight-card pm-card--liftable" style={{ borderLeftColor: mostBlocked?.count > 0 ? '#e17055' : 'var(--pm-border)' }}>
@@ -973,7 +973,7 @@ function WorkPanel({ tasks, onProgressChange, projects, onTaskCreated }) {
 
   return (
     <>
-      <section className="cpm-work-panel">
+      <section className="cpm-work-panel" data-tour-id="dash.work">
         <div className="cpm-panel-header">
           <div className="cpm-panel-header-top">
             <div className="cpm-panel-header-left">
@@ -1099,7 +1099,7 @@ function AgendaPanel({ tasks, onProgressChange }) {
     : `${MONTHS_FULL[startMonth]} – ${MONTHS_FULL[endMonth]}`;
 
   return (
-    <aside className="cpm-agenda-panel">
+    <aside className="cpm-agenda-panel" data-tour-id="dash.agenda">
       <div className="cpm-panel-header">
         <div className="cpm-panel-header-top">
           <h2 className="cpm-panel-title">Agenda</h2>
@@ -1176,7 +1176,11 @@ function ProjectsSidebar({ projects, onAddProject }) {
                 </p>
               </div>
             )
-            : projects.map(p => <ProjectCard key={p.id} project={p} />)
+            : projects.map((p, index) => (
+              <div key={p.id} data-tour-id={index === 0 ? "dash.project.card" : undefined}>
+                <ProjectCard project={p} />
+              </div>
+            ))
           }
         </div>
       )}
@@ -1510,7 +1514,7 @@ export default function Dashboard() {
   return (
     <div className="clubpm-app cpm-dashboard-root">
       <StatsBar projects={projects} myTasks={myTasks} />
-      <DailyQuestsWidget />
+      <div data-tour-id="dash.quests"><DailyQuestsWidget /></div>
       <AIInsightCards projects={projects} tasks={myTasks} />
       <GithubActivityWidget />
       <UpcomingEventsWidget events={upcomingEvents} loading={eventsLoading} />
@@ -1526,7 +1530,7 @@ export default function Dashboard() {
 
       {/* Leaderboard remains on the Dashboard. Pending rewards + reward
           config moved to /clubpm/admin. */}
-      <LeaderboardPanel />
+      <div data-tour-id="dash.leaderboard"><LeaderboardPanel /></div>
     </div>
   );
 }

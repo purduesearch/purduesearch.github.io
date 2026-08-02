@@ -1,0 +1,76 @@
+{
+  "quizId": "Q08-outreach",
+  "title": "Check yourself: outreach",
+  "passThreshold": 75,
+  "maxAttempts": null,
+  "questions": [
+    {
+      "id": "q08-1",
+      "order": 0,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "Why does the club keep contacts in Constellation rather than in a spreadsheet someone owns?",
+      "explanation": "Because the member who built a sponsor relationship graduates, and the relationship shouldn't graduate with them. A shared record with history is what makes the relationship the club's rather than one person's.",
+      "answers": [
+        { "order": 0, "text": "So the relationship and its history survive the member who built it", "isCorrect": true },
+        { "order": 1, "text": "Because spreadsheets can't store email addresses reliably", "isCorrect": false },
+        { "order": 2, "text": "So officers can see who has talked to whom for XP purposes", "isCorrect": false },
+        { "order": 3, "text": "To satisfy a university records requirement", "isCorrect": false }
+      ]
+    },
+    {
+      "id": "q08-2",
+      "order": 1,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "What makes a good follow-up on a contact record?",
+      "explanation": "A date and an owner. \"We should reach out sometime\" is not a follow-up — nothing reminds anyone, and nobody is answerable for it.",
+      "answers": [
+        { "order": 0, "text": "A specific date and a named person who owns it", "isCorrect": true },
+        { "order": 1, "text": "A note saying the club should reach out soon", "isCorrect": false },
+        { "order": 2, "text": "A high priority flag on the contact", "isCorrect": false },
+        { "order": 3, "text": "A message drafted in the composer and left unsent", "isCorrect": false }
+      ]
+    },
+    {
+      "id": "q08-3",
+      "order": 2,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "What is a campaign for?",
+      "explanation": "It groups a set of contacts you're working through together so you can see coverage — who's been contacted, who replied, and who has been sitting untouched for weeks.",
+      "answers": [
+        { "order": 0, "text": "Grouping contacts you're working through together, so you can see coverage", "isCorrect": true },
+        { "order": 1, "text": "Sending one message to every contact in the database at once", "isCorrect": false },
+        { "order": 2, "text": "Tracking how much money each sponsor has given", "isCorrect": false },
+        { "order": 3, "text": "Scheduling social media posts", "isCorrect": false }
+      ]
+    },
+    {
+      "id": "q08-4",
+      "order": 3,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "The composer drafts a message to a sponsor for you. What should you do before sending?",
+      "explanation": "Read it and edit it. Drafting tools are assistive — a sponsor can tell when nobody looked at what they were sent, and that costs the club far more than the minutes it saved.",
+      "answers": [
+        { "order": 0, "text": "Read it properly and edit it before it goes anywhere", "isCorrect": true },
+        { "order": 1, "text": "Send it as-is — it uses the club's brand voice", "isCorrect": false },
+        { "order": 2, "text": "Forward it to an officer to send on your behalf", "isCorrect": false },
+        { "order": 3, "text": "Run it through the composer a second time", "isCorrect": false }
+      ]
+    },
+    {
+      "id": "q08-5",
+      "order": 4,
+      "kind": "TRUE_FALSE",
+      "points": 1,
+      "prompt": "Constellation will remind you about overdue follow-ups without you checking the CRM.",
+      "explanation": "True. A weekday-morning Slack DM lists what has slipped. That nudge is the difference between a CRM and a list of good intentions nobody reopens.",
+      "answers": [
+        { "order": 0, "text": "True", "isCorrect": true },
+        { "order": 1, "text": "False", "isCorrect": false }
+      ]
+    }
+  ]
+}

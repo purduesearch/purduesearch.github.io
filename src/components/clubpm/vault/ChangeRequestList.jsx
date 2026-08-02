@@ -78,7 +78,7 @@ export default function ChangeRequestList({ project, member, isAdmin, mode = "al
     <div className="cpm-vault-cr-list">
       {mode === "all" && (
         <div className="cpm-vault-toolbar">
-          <button type="button" className="clubpm-btn-primary" onClick={() => setShowCreate(true)}>
+          <button type="button" className="clubpm-btn-primary" data-tour-id="cr.new" onClick={() => setShowCreate(true)}>
             <i className="fas fa-plus" aria-hidden="true" /> New change request
           </button>
         </div>
@@ -89,7 +89,7 @@ export default function ChangeRequestList({ project, member, isAdmin, mode = "al
           {mode === "review" ? "No change requests waiting for review." : "No change requests yet."}
         </div>
       ) : (
-        <div className="cpm-vault-cr-grid">
+        <div className="cpm-vault-cr-grid" data-tour-id="cr.list">
           {crs.map((cr) => {
             const itemCount = cr.items?.length ?? 0;
             return (

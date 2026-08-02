@@ -135,7 +135,7 @@ export default function NotificationPreferences() {
         </div>
 
         {/* ── Section 2: Per-event delivery channel ───────── */}
-        <div className="pm-prefs-section">
+        <div className="pm-prefs-section" data-tour-id="notifications.slack">
           <div className="pm-prefs-section-title">Delivery channel per event</div>
           <div className="pm-prefs-section-body">
             {EVENT_TYPES.map(({ key, label }) => (

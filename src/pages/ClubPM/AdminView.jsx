@@ -37,15 +37,15 @@ export default function AdminView() {
         Admin
       </h2>
 
-      <section>
+      <section data-tour-id="admin.rewards.pending">
         <PendingRewardsPanel />
       </section>
 
-      <section>
+      <section data-tour-id="admin.rewards.config">
         <EventRewardConfigPanel />
       </section>
 
-      <section>
+      <section data-tour-id="admin.integrations">
         <div className="cpm-profile-card">
           <h3 style={{ marginTop: 0 }}>Integrations</h3>
           <GoogleDriveConnectButton />

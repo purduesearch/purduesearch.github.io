@@ -1,0 +1,99 @@
+{
+  "tourId": "board-basics",
+  "title": "Reading the board",
+  "entryRoute": "/clubpm/projects/:trainingProjectId",
+  "requiresTrainingProject": true,
+  "steps": [
+    {
+      "id": "project-header",
+      "anchor": "project.header",
+      "route": "/clubpm/projects/:id",
+      "title": "This project is yours alone",
+      "body": "\"Constellation 101 — Training\" is a private practice project. Nobody else can see it, nothing you do here reaches the club's real reporting, and it's archived when you finish this course. Break whatever you like.",
+      "placement": "bottom",
+      "advance": { "on": "next" }
+    },
+    {
+      "id": "tasks-tab",
+      "anchor": "project.tab.tasks",
+      "route": "/clubpm/projects/:id",
+      "title": "Open the Tasks tab",
+      "body": "A project has several views. The board is the one you'll live in.",
+      "placement": "bottom",
+      "dim": ["nav.sidebar"],
+      "advance": { "on": "click" }
+    },
+    {
+      "id": "col-todo",
+      "anchor": "board.column.TODO",
+      "route": "/clubpm/projects/:id",
+      "title": "To-do",
+      "body": "Agreed on, not started. If it's in here, someone has decided it should happen.",
+      "placement": "right",
+      "advance": { "on": "next" }
+    },
+    {
+      "id": "col-inprogress",
+      "anchor": "board.column.IN_PROGRESS",
+      "route": "/clubpm/projects/:id",
+      "title": "In progress",
+      "body": "Someone is actively working on it right now. If a card sits here for three weeks, that's information — it usually means it's blocked and nobody said so.",
+      "placement": "right",
+      "advance": { "on": "next" }
+    },
+    {
+      "id": "col-blocked",
+      "anchor": "board.column.BLOCKED",
+      "route": "/clubpm/projects/:id",
+      "title": "Blocked",
+      "body": "Stopped by something outside the task itself. Constellation moves cards here on its own when you attach a blocker or add a dependency — you'll do both in module 3.",
+      "placement": "left",
+      "advance": { "on": "next" }
+    },
+    {
+      "id": "col-done",
+      "anchor": "board.column.DONE",
+      "route": "/clubpm/projects/:id",
+      "title": "Done",
+      "body": "Finished, by the definition written in the task — not \"mostly finished.\" Moving a card here is what triggers XP.",
+      "placement": "left",
+      "advance": { "on": "next" }
+    },
+    {
+      "id": "filters",
+      "anchor": "board.filters",
+      "route": "/clubpm/projects/:id",
+      "title": "Filter the noise",
+      "body": "On a real project this board is long. Filter by assignee, priority, milestone, or tag to get down to what you care about.",
+      "placement": "bottom",
+      "advance": { "on": "next" }
+    },
+    {
+      "id": "member-chips",
+      "anchor": "board.memberchips",
+      "route": "/clubpm/projects/:id",
+      "title": "Assign by dragging",
+      "body": "These chips are draggable. Drop one on a card to assign that person — faster than opening the task when you're triaging a dozen of them.",
+      "placement": "bottom",
+      "advance": { "on": "next" }
+    },
+    {
+      "id": "open-card",
+      "anchor": "board.card.first",
+      "route": "/clubpm/projects/:id",
+      "title": "Open a task",
+      "body": "Click this card. The board shows you a summary; the real record is inside.",
+      "placement": "right",
+      "advance": { "on": "click" }
+    },
+    {
+      "id": "description",
+      "anchor": "task.modal.description",
+      "route": "/clubpm/projects/:id",
+      "title": "This is the specification",
+      "body": "Scope, non-scope, and acceptance criteria. When you disagree with someone about whether something is finished, this is the thing you both read.",
+      "placement": "left",
+      "advance": { "on": "next" }
+    }
+  ]
+}

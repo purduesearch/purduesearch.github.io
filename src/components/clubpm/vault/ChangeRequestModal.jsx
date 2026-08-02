@@ -445,7 +445,7 @@ export default function ChangeRequestModal({ project, member, isAdmin, crId, pre
                   <button type="button" className="cpm-vault-btn-danger" onClick={handleRejectClick} disabled={busy}>
                     Reject
                   </button>
-                  <button type="button" className="clubpm-btn-primary" onClick={handleApprove} disabled={busy}>
+                  <button type="button" className="clubpm-btn-primary" data-tour-id="cr.review" onClick={handleApprove} disabled={busy}>
                     Approve
                   </button>
                 </>

@@ -199,7 +199,7 @@ export default function Shop() {
           {/* Countdown first so the digit-width changes don't shove the
               balance pill around as time ticks down. */}
           <span className="pm-shop-countdown">{formatCountdown(msLeft)}</span>
-          <span className="pm-shop-balance">
+          <span className="pm-shop-balance" data-tour-id="shop.balance">
             <i className="fas fa-coins" aria-hidden="true" />
             <span ref={balanceRef} className="pm-shop-balance-num">{data.balance}</span>
           </span>
@@ -240,7 +240,7 @@ export default function Shop() {
       {/* Today's Rotation */}
       <section className="pm-shop-section">
         <h3 className="pm-shop-section-title">Today's rotation</h3>
-        <div className="pm-shop-grid" ref={gridRef}>
+        <div className="pm-shop-grid" ref={gridRef} data-tour-id="shop.grid">
           {rotation.map((c) => (
             <ShopCard
               key={c.id}

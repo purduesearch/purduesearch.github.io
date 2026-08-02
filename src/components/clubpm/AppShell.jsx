@@ -181,7 +181,7 @@ function SidebarXpDoubloons({ member }) {
   }, [xp, doubloons, pct]);
 
   return (
-    <div className="pm-sidebar-xp" data-reward-anchor="sidebar-xp">
+    <div className="pm-sidebar-xp" data-reward-anchor="sidebar-xp" data-tour-id="nav.xp">
       <div className="pm-sidebar-xp-bar">
         <div ref={barFillRef} className="pm-sidebar-xp-bar-fill" style={{ width: `${pct}%` }} />
       </div>
@@ -194,6 +194,7 @@ function SidebarXpDoubloons({ member }) {
           type="button"
           className="pm-sidebar-doubloons pm-sidebar-doubloons--link"
           data-reward-anchor="sidebar-doubloons"
+          data-tour-id="nav.shop"
           title="Open Shop"
           onClick={() => navigate('/clubpm/shop')}
         >
@@ -320,7 +321,7 @@ export default function AppShell({ children }) {
     <CosmeticStylesProvider>
     <div className="clubpm-app pm-shell">
       {/* Sidebar */}
-      <nav className="pm-sidebar">
+      <nav className="pm-sidebar" data-tour-id="nav.sidebar">
         {/* Logo */}
         <div className="pm-sidebar-logo">
           <motion.div
@@ -351,6 +352,13 @@ export default function AppShell({ children }) {
                 key={item.href}
                 to={item.href}
                 className={`pm-nav-item${isActive ? ' active' : ''}`}
+                data-tour-id={{
+                  '/clubpm': 'nav.dashboard',
+                  '/clubpm/calendar': 'nav.calendar',
+                  '/clubpm/members': 'nav.members',
+                  '/clubpm/challenges': 'nav.challenges',
+                  '/clubpm/outreach': 'nav.outreach',
+                }[item.href]}
               >
                 <span className="pm-nav-item-icon">{item.icon}</span>
                 <span className="pm-nav-item-label">{item.label}</span>
@@ -361,6 +369,7 @@ export default function AppShell({ children }) {
             <Link
               to="/clubpm/admin"
               className={`pm-nav-item${location.pathname.startsWith('/clubpm/admin') || location.pathname === '/clubpm/meeting-notes' ? ' active' : ''}`}
+              data-tour-id="nav.admin"
             >
               <span className="pm-nav-item-icon">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -408,7 +417,7 @@ export default function AppShell({ children }) {
         )}
 
         {/* Projects section */}
-        <div className="pm-sidebar-projects">
+        <div className="pm-sidebar-projects" data-tour-id="nav.projects">
           <div className="pm-sidebar-section-header">
             <span className="pm-sidebar-section-label">Projects</span>
             {member?.isAdmin && (
@@ -444,13 +453,13 @@ export default function AppShell({ children }) {
 
         {/* Footer */}
         <div className="pm-sidebar-footer">
-          <Link to="/clubpm/profile" className="pm-sidebar-user pm-sidebar-user--link" title="Your profile">
+          <Link to="/clubpm/profile" className="pm-sidebar-user pm-sidebar-user--link" title="Your profile" data-tour-id="nav.profile">
             <AvatarPortrait member={member} size={32} className="pm-user-avatar" />
             <div className="pm-user-info">
               <div className="pm-user-name">{member.displayName}</div>
               <div className="pm-user-handle">@{member.slackHandle}</div>
             </div>
-            <span className="pm-sidebar-rank">
+            <span className="pm-sidebar-rank" data-tour-id="nav.rank">
               <RankIcon member={member} size={26} />
             </span>
           </Link>
@@ -494,7 +503,7 @@ export default function AppShell({ children }) {
             </button>
 
             {/* Cmd+K trigger */}
-            <button className="pm-cmd-k-btn" title="Search (⌘K)" onClick={() => setPaletteOpen(true)}>
+            <button className="pm-cmd-k-btn" title="Search (⌘K)" onClick={() => setPaletteOpen(true)} data-tour-id="topbar.search">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
               </svg>
@@ -502,10 +511,10 @@ export default function AppShell({ children }) {
             </button>
 
             {/* Streak badge */}
-            {member ? <StreakBadge /> : null}
+            {member ? <div data-tour-id="topbar.streak"><StreakBadge /></div> : null}
 
             {/* Notification bell */}
-            <NotificationBell />
+            <div data-tour-id="topbar.notifications"><NotificationBell /></div>
           </div>
         </header>
 

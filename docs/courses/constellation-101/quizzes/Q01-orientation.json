@@ -1,0 +1,62 @@
+{
+  "quizId": "Q01-orientation",
+  "title": "Check yourself: orientation",
+  "passThreshold": 75,
+  "maxAttempts": null,
+  "questions": [
+    {
+      "id": "q01-1",
+      "order": 0,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "What is Constellation's core job for the club?",
+      "explanation": "Constellation holds the state of the work. Chat is built to move forward; it cannot tell you the state of anything. Constellation does not replace Slack — it tells Slack when something needs you.",
+      "answers": [
+        { "order": 0, "text": "To hold the current state of the club's work somewhere that doesn't scroll away", "isCorrect": true },
+        { "order": 1, "text": "To replace Slack as the place the club talks", "isCorrect": false },
+        { "order": 2, "text": "To store the club's CAD files and documents", "isCorrect": false },
+        { "order": 3, "text": "To track attendance at meetings", "isCorrect": false }
+      ]
+    },
+    {
+      "id": "q01-2",
+      "order": 1,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "You want to know whether the hydroponics wiring is finished. Where is the authoritative answer?",
+      "explanation": "The column a task sits in is the truth about its state — not what someone said in chat and not what anyone remembers agreeing to. That is the entire premise of the board.",
+      "answers": [
+        { "order": 0, "text": "The column its task sits in on the project board", "isCorrect": true },
+        { "order": 1, "text": "The most recent message in the project's Slack channel", "isCorrect": false },
+        { "order": 2, "text": "Whoever you last spoke to about it", "isCorrect": false },
+        { "order": 3, "text": "The project's Drive folder", "isCorrect": false }
+      ]
+    },
+    {
+      "id": "q01-3",
+      "order": 2,
+      "kind": "TRUE_FALSE",
+      "points": 1,
+      "prompt": "Constellation is meant to replace Slack for club conversation.",
+      "explanation": "False. Slack stays the place you talk. What changes is that Constellation notifies you there when something actually needs you, so you do not have to remember to check a project tool.",
+      "answers": [
+        { "order": 0, "text": "True", "isCorrect": false },
+        { "order": 1, "text": "False", "isCorrect": true }
+      ]
+    },
+    {
+      "id": "q01-4",
+      "order": 3,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "Why does Constellation award XP, ranks, and doubloons?",
+      "explanation": "Club work is volunteer work, and volunteer work nobody notices is work that stops happening. The reward system is the product noticing — it is not there to pressure anyone into working more hours.",
+      "answers": [
+        { "order": 0, "text": "Because volunteer work that nobody notices tends to stop happening", "isCorrect": true },
+        { "order": 1, "text": "To rank members against each other for officer selection", "isCorrect": false },
+        { "order": 2, "text": "To pressure members into logging more hours", "isCorrect": false },
+        { "order": 3, "text": "Because the software was built on a game engine", "isCorrect": false }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,52 @@
+{
+  "slug": "constellation-admin-tools",
+  "title": "Constellation: Officer & Admin Tools",
+  "summary": "For officers. Approving rewards, configuring what things are worth, managing members and events — and the judgement that goes with each.",
+  "estimatedMinutes": 25,
+  "status": "DRAFT",
+  "prerequisiteSlug": "constellation-101",
+  "requiresAdmin": true,
+  "xpOverride": 250,
+  "doubloonOverride": 100,
+  "modules": [
+    {
+      "order": 0,
+      "title": "Running the club in Constellation",
+      "summary": "The admin surface, and the fact that most of it is judgement rather than clicking.",
+      "estimatedMinutes": 25,
+      "isRequired": true,
+      "sequential": true,
+      "sections": [
+        {
+          "order": 0,
+          "title": "What officers can do that others can't",
+          "kind": "VIDEO",
+          "isRequired": true,
+          "videoRef": "videos/V09-officer-tools.md",
+          "videoConfig": { "youtubeId": null, "lockSeek": true, "allowedRates": [1, 1.25, 1.5] }
+        },
+        {
+          "order": 1,
+          "title": "The admin surface",
+          "kind": "WALKTHROUGH",
+          "isRequired": true,
+          "tourConfig": {
+            "tourId": "admin-tour",
+            "entryRoute": "/clubpm/admin",
+            "requiresTrainingProject": false,
+            "stepCount": 8
+          }
+        },
+        {
+          "order": 2,
+          "title": "Check yourself: officer tools",
+          "kind": "QUIZ",
+          "isRequired": true,
+          "quizRef": "quizzes/Q10-admin.json",
+          "passThreshold": 75,
+          "maxAttempts": null
+        }
+      ]
+    }
+  ]
+}

@@ -883,6 +883,12 @@ export default function OutreachHub() {
             key={tab.id}
             role="tab"
             aria-selected={activeTab === tab.id}
+            data-tour-id={{
+              crm: 'outreach.tab.contacts',
+              campaigns: 'outreach.tab.campaigns',
+              blog: 'outreach.tab.blog',
+              courses: 'outreach.tab.courses',
+            }[tab.id]}
             className={`pm-outreach-tab-btn${activeTab === tab.id ? ' pm-outreach-tab-btn--active' : ''}`}
             onClick={() => setActiveTab(tab.id)}
           >

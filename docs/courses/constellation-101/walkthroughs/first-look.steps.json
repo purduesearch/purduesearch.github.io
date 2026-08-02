@@ -1,0 +1,81 @@
+{
+  "tourId": "first-look",
+  "title": "A lap around the interface",
+  "entryRoute": "/clubpm",
+  "requiresTrainingProject": false,
+  "steps": [
+    {
+      "id": "the-rail",
+      "anchor": "nav.sidebar",
+      "route": "/clubpm",
+      "title": "Start here",
+      "body": "Everything in Constellation hangs off this rail. It never moves, and it's on every screen — so if you're ever lost, you're one click from home.",
+      "placement": "right",
+      "advance": { "on": "next" }
+    },
+    {
+      "id": "dashboard-link",
+      "anchor": "nav.dashboard",
+      "route": "/clubpm",
+      "title": "You're on the dashboard",
+      "body": "This is your landing page — not the club's, yours. Everything on it is filtered to what you're actually involved in.",
+      "placement": "right",
+      "advance": { "on": "next" }
+    },
+    {
+      "id": "stats",
+      "anchor": "dash.stats",
+      "route": "/clubpm",
+      "title": "Your five numbers",
+      "body": "XP, rank, open tasks, hours logged, and your streak. We'll come back to what earns each one in module 4.",
+      "placement": "bottom",
+      "advance": { "on": "next" }
+    },
+    {
+      "id": "work-panel",
+      "anchor": "dash.work",
+      "route": "/clubpm",
+      "title": "What's on you",
+      "body": "Every task assigned to you, across every project, in one list. If you only ever look at one thing in Constellation, make it this.",
+      "placement": "left",
+      "advance": { "on": "next" }
+    },
+    {
+      "id": "agenda",
+      "anchor": "dash.agenda",
+      "route": "/clubpm",
+      "title": "The next seven days",
+      "body": "Due dates and meetings, together. This is the panel that stops a deadline from surprising you.",
+      "placement": "left",
+      "advance": { "on": "next" }
+    },
+    {
+      "id": "notifications",
+      "anchor": "topbar.notifications",
+      "route": "/clubpm",
+      "title": "Open your notifications",
+      "body": "Go ahead and click the bell. This is the complete record of everything that's wanted your attention.",
+      "placement": "bottom",
+      "advance": { "on": "click" }
+    },
+    {
+      "id": "streak",
+      "anchor": "topbar.streak",
+      "route": "/clubpm",
+      "title": "Your streak",
+      "body": "Consecutive days you've done something real in Constellation. It resets at 2am — and no, opening the app doesn't count.",
+      "placement": "bottom",
+      "advance": { "on": "next" },
+      "optional": true
+    },
+    {
+      "id": "projects-next",
+      "anchor": "nav.projects",
+      "route": "/clubpm",
+      "title": "That's the lap",
+      "body": "Projects are where the actual work lives, and that's where we're headed next — on a private practice project we'll set up just for you.",
+      "placement": "right",
+      "advance": { "on": "next" }
+    }
+  ]
+}

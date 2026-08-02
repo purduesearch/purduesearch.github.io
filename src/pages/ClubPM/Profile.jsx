@@ -190,7 +190,7 @@ export default function Profile() {
             </div>
           )}
 
-          <div style={{ marginTop: 14 }}>
+          <div style={{ marginTop: 14 }} data-tour-id="profile.rank">
             <RankBadge rank={profile.rank} />
           </div>
 
@@ -215,7 +215,7 @@ export default function Profile() {
         </div>
 
         {/* Avatar */}
-        <div className="cpm-profile-card" style={{ position: "relative", aspectRatio: "1 / 1", display: "flex", alignItems: "center", justifyContent: "center", padding: 0, overflow: "hidden" }}>
+        <div className="cpm-profile-card" data-tour-id="profile.avatar" style={{ position: "relative", aspectRatio: "1 / 1", display: "flex", alignItems: "center", justifyContent: "center", padding: 0, overflow: "hidden" }}>
           <AvatarPortrait member={profile} size={260} />
         </div>
       </div>
@@ -223,7 +223,7 @@ export default function Profile() {
       {/* ── Right column ── */}
       <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
         {/* Daily activity (XP heatmap + streak outline on kept days) */}
-        <div className="cpm-profile-card">
+        <div className="cpm-profile-card" data-tour-id="profile.history">
           <h3 style={{ marginTop: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
             Daily activity
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 500, color: '#ff8c3a' }}>

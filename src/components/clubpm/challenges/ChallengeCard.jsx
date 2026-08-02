@@ -2,7 +2,7 @@ import { useRef } from 'react';
 import ChallengeProgressBar from './ChallengeProgressBar.jsx';
 import ChallengeRewardChips from './ChallengeRewardChips.jsx';
 
-export default function ChallengeCard({ challenge, onClaim, loading }) {
+export default function ChallengeCard({ challenge, onClaim, loading, claimTourId }) {
   const { id, name, description, iconClass, progress, target, xpReward, doubloonReward, rollTableKey, completedAt, claimedAt } = challenge;
   const completed = !!completedAt;
   const claimed   = !!claimedAt;
@@ -44,6 +44,7 @@ export default function ChallengeCard({ challenge, onClaim, loading }) {
           <button
             ref={btnRef}
             className="quest-claim-btn"
+            data-tour-id={claimTourId}
             onClick={handleClaim}
             disabled={loading}
           >

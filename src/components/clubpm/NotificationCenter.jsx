@@ -271,6 +271,22 @@ export default function NotificationCenter() {
           )}
         </div>
         <div style={{ display: "flex", gap: 8 }}>
+          <button
+            data-tour-id="notifications.prefs"
+            onClick={() => navigate("/clubpm/notifications/preferences")}
+            style={{
+              background: "none",
+              border: "1px solid var(--pm-border)",
+              cursor: "pointer",
+              color: "var(--pm-text-muted)",
+              fontSize: 12,
+              padding: "6px 12px",
+              borderRadius: 6,
+              fontFamily: "var(--pm-font-body)",
+            }}
+          >
+            <i className="fas fa-sliders-h" aria-hidden="true" /> Preferences
+          </button>
           {unreadCount > 0 && (
             <button className="pm-notif-mark-all" onClick={handleMarkAll}
               style={{ fontSize: 12, padding: "6px 12px", borderRadius: 6, border: "1px solid var(--pm-border)" }}>
@@ -331,7 +347,7 @@ export default function NotificationCenter() {
           )}
         </div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column" }}>
+        <div style={{ display: "flex", flexDirection: "column" }} data-tour-id="notifications.list">
           {dateGroups.map(group => (
             <div key={group.label} className="pm-notif-date-group">
               <div className="pm-notif-date-label">{group.label}</div>

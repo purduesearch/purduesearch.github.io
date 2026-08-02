@@ -287,6 +287,7 @@ function Toolbar({ editor, onToggleFind, onToggleSnippets, onAddSection, onToggl
   return (
     <div
       className={`cpm-blog-toolbar${toolbarOpen ? '' : ' is-collapsed'}${markdownMode ? ' is-markdown-mode' : ''}`}
+      data-tour-id="blog.editor.toolbar"
       role="toolbar"
       aria-label="Formatting"
     >
@@ -451,7 +452,7 @@ function PresenceBar({ synced, connected, peers }) {
       ? 'Connecting to the live session…'
       : 'Offline — your edits are saved to the draft';
   return (
-    <div className="cpm-blog-presence" title={title}>
+    <div className="cpm-blog-presence" data-tour-id="blog.editor.presence" title={title}>
       <span className={`cpm-blog-presence-dot${synced ? ' is-live' : ''}`} aria-hidden="true" />
       {peers.map((p) => (
         <span
@@ -737,6 +738,7 @@ export default function BlogEditor({
       ) : (
         <div
           className="cpm-blog-editor-surface"
+          data-tour-id="blog.editor.body"
           data-fontpair={theme?.fontPair || 'syne-dmsans'}
           data-width={theme?.width || 'wide'}
           style={{ '--post-accent': theme?.accent || 'var(--pm-accent-teal)' }}

@@ -1,0 +1,118 @@
+{
+  "quizId": "Q05-final",
+  "title": "Constellation 101 final",
+  "passThreshold": 80,
+  "maxAttempts": 3,
+  "questions": [
+    {
+      "id": "q05-1",
+      "order": 0,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "Someone asks in Slack whether the battery mount is done. What's the right move?",
+      "explanation": "Point at the board. The column is the authoritative answer, and answering from memory in chat is exactly the habit Constellation exists to replace.",
+      "answers": [
+        { "order": 0, "text": "Check the task's column on the board and answer from that", "isCorrect": true },
+        { "order": 1, "text": "Answer from memory — you were in the meeting", "isCorrect": false },
+        { "order": 2, "text": "Ask whoever you think was assigned to it", "isCorrect": false },
+        { "order": 3, "text": "Check the project's Drive folder for a recent file", "isCorrect": false }
+      ]
+    },
+    {
+      "id": "q05-2",
+      "order": 1,
+      "kind": "MULTI",
+      "points": 2,
+      "prompt": "Which of these will stop a task from being moved to Done? Select all that apply.",
+      "explanation": "Unfinished dependencies and unresolved blockers both gate completion. Priority and empty fields do not — a CRITICAL task with no description closes as easily as any other.",
+      "answers": [
+        { "order": 0, "text": "An unfinished dependency", "isCorrect": true },
+        { "order": 1, "text": "An unresolved blocker attached to it", "isCorrect": true },
+        { "order": 2, "text": "A priority of CRITICAL", "isCorrect": false },
+        { "order": 3, "text": "An empty description field", "isCorrect": false }
+      ]
+    },
+    {
+      "id": "q05-3",
+      "order": 2,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "Three tasks are all stuck waiting for the machine shop to reopen. What models that best?",
+      "explanation": "One blocker attached to all three. It is reusable and project-scoped, and resolving it once frees every attached task and recomputes their statuses together.",
+      "answers": [
+        { "order": 0, "text": "One blocker attached to all three tasks", "isCorrect": true },
+        { "order": 1, "text": "Three dependencies on a dummy task", "isCorrect": false },
+        { "order": 2, "text": "Setting all three to CRITICAL priority", "isCorrect": false },
+        { "order": 3, "text": "A milestone named \"machine shop\"", "isCorrect": false }
+      ]
+    },
+    {
+      "id": "q05-4",
+      "order": 3,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "What does a milestone's progress bar actually measure?",
+      "explanation": "Linked tasks done over linked tasks total — arithmetic, with no forecasting in it. The health badge beside it is the part that makes a judgement.",
+      "answers": [
+        { "order": 0, "text": "Linked tasks completed, over linked tasks total", "isCorrect": true },
+        { "order": 1, "text": "Days elapsed since the milestone was created", "isCorrect": false },
+        { "order": 2, "text": "Hours logged against the milestone's tasks", "isCorrect": false },
+        { "order": 3, "text": "The system's forecast of whether it will land on time", "isCorrect": false }
+      ]
+    },
+    {
+      "id": "q05-5",
+      "order": 4,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "You log 4 hours on a task on Thursday. What happens to the reward?",
+      "explanation": "Any single entry over two hours is queued for an officer to approve before XP is granted. There is also an 8-hour daily cap on logged time. Both rules exist so the ledger stays credible.",
+      "answers": [
+        { "order": 0, "text": "It's queued for an officer to approve before XP is granted", "isCorrect": true },
+        { "order": 1, "text": "XP is granted instantly at four times the hourly rate", "isCorrect": false },
+        { "order": 2, "text": "The entry is rejected for exceeding the per-entry maximum", "isCorrect": false },
+        { "order": 3, "text": "It's recorded for reporting but never earns XP", "isCorrect": false }
+      ]
+    },
+    {
+      "id": "q05-6",
+      "order": 5,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "Constellation is getting too noisy for you. What's the right fix?",
+      "explanation": "Turn individual categories off in notification preferences. Muting the Constellation app in Slack outright makes you unreachable for assignments and mentions, which is worse for you and for everyone waiting on you.",
+      "answers": [
+        { "order": 0, "text": "Turn off the specific categories you don't need in notification preferences", "isCorrect": true },
+        { "order": 1, "text": "Mute the Constellation app in Slack entirely", "isCorrect": false },
+        { "order": 2, "text": "Stop opening the notification centre", "isCorrect": false },
+        { "order": 3, "text": "Ask an officer to remove you from the project", "isCorrect": false }
+      ]
+    },
+    {
+      "id": "q05-7",
+      "order": 6,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "Which title describes a task well enough to know when it's finished?",
+      "explanation": "A title should state what will be true when the work is done. \"Look into\" and \"stuff\" name a topic; nobody can tell you whether they're complete.",
+      "answers": [
+        { "order": 0, "text": "Publish the Q3 outreach post to the club blog", "isCorrect": true },
+        { "order": 1, "text": "Blog stuff", "isCorrect": false },
+        { "order": 2, "text": "Look into the outreach thing", "isCorrect": false },
+        { "order": 3, "text": "Outreach — ASAP!!", "isCorrect": false }
+      ]
+    },
+    {
+      "id": "q05-8",
+      "order": 7,
+      "kind": "TRUE_FALSE",
+      "points": 1,
+      "prompt": "Everything you did during this course's walkthroughs happened in your own private training project, not in a real club project.",
+      "explanation": "True. Every hands-on step ran against a seeded training project that belongs only to you. It is hidden from dashboards, leaderboards, and reports, it grants no real XP, and it is archived when you finish this course.",
+      "answers": [
+        { "order": 0, "text": "True", "isCorrect": true },
+        { "order": 1, "text": "False", "isCorrect": false }
+      ]
+    }
+  ]
+}

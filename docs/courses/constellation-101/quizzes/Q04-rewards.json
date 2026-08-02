@@ -1,0 +1,62 @@
+{
+  "quizId": "Q04-rewards",
+  "title": "Check yourself: rewards",
+  "passThreshold": 75,
+  "maxAttempts": null,
+  "questions": [
+    {
+      "id": "q04-1",
+      "order": 0,
+      "kind": "MULTI",
+      "points": 2,
+      "prompt": "Which of these earn you XP? Select all that apply.",
+      "explanation": "XP comes from work that actually moved: completing tasks, logging time, hitting milestones, receiving kudos, and publishing a blog post. Opening the app and reading the board earn nothing — attendance is not contribution.",
+      "answers": [
+        { "order": 0, "text": "Completing a task", "isCorrect": true },
+        { "order": 1, "text": "Logging time against a task", "isCorrect": true },
+        { "order": 2, "text": "Opening Constellation each day", "isCorrect": false },
+        { "order": 3, "text": "Reading a project's board", "isCorrect": false }
+      ]
+    },
+    {
+      "id": "q04-2",
+      "order": 1,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "What is the rank ladder, in order from the bottom?",
+      "explanation": "Nestling → Fledgling → Cadet → Specialist → Pioneer → Cosmonaut → Celestial, from 0 up to 21,000 XP. Rank is display and recognition; it does not change what you are allowed to do in the product.",
+      "answers": [
+        { "order": 0, "text": "Nestling, Fledgling, Cadet, Specialist, Pioneer, Cosmonaut, Celestial", "isCorrect": true },
+        { "order": 1, "text": "Cadet, Nestling, Fledgling, Pioneer, Specialist, Celestial, Cosmonaut", "isCorrect": false },
+        { "order": 2, "text": "Fledgling, Nestling, Specialist, Cadet, Cosmonaut, Pioneer, Celestial", "isCorrect": false },
+        { "order": 3, "text": "Nestling, Cadet, Fledgling, Pioneer, Specialist, Celestial, Cosmonaut", "isCorrect": false }
+      ]
+    },
+    {
+      "id": "q04-3",
+      "order": 2,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "What is the difference between XP and doubloons?",
+      "explanation": "XP is a permanent record that only goes up and drives your rank. Doubloons are a currency you spend in the shop on cosmetics. Spending doubloons never costs you rank.",
+      "answers": [
+        { "order": 0, "text": "XP is a permanent record that drives rank; doubloons are currency you spend in the shop", "isCorrect": true },
+        { "order": 1, "text": "They are the same balance shown in two units", "isCorrect": false },
+        { "order": 2, "text": "Doubloons drive rank; XP is spent on cosmetics", "isCorrect": false },
+        { "order": 3, "text": "XP expires each semester; doubloons carry over", "isCorrect": false }
+      ]
+    },
+    {
+      "id": "q04-4",
+      "order": 3,
+      "kind": "TRUE_FALSE",
+      "points": 1,
+      "prompt": "Reaching a higher rank unlocks features in Constellation that lower ranks cannot use.",
+      "explanation": "False. Rank is recognition, not permission. What you can do is governed by your role and by per-project access — a Nestling and a Celestial with the same role can do exactly the same things.",
+      "answers": [
+        { "order": 0, "text": "True", "isCorrect": false },
+        { "order": 1, "text": "False", "isCorrect": true }
+      ]
+    }
+  ]
+}

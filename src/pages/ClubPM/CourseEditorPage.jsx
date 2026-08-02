@@ -524,6 +524,7 @@ export default function CourseEditorPage() {
               // checking your own course does not enrol you in it.
               to={`/clubpm/outreach/courses/${course.slug}/learn?preview=1`}
               className="clubpm-btn-secondary"
+              data-tour-id="course.editor.preview"
               onClick={guardedNav}
               title="Open the learner view"
             >

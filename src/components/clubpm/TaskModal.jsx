@@ -1076,7 +1076,7 @@ const styles = {
 
 // ─── MetaRow ───────────────────────────────────────────────────
 
-function MetaRow({ label, children }) {
+function MetaRow({ label, children, tourId }) {
   return (
     <>
       <span style={{
@@ -1085,7 +1085,7 @@ function MetaRow({ label, children }) {
       }}>
         {label}
       </span>
-      <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+      <div data-tour-id={tourId} style={{ display:"flex", alignItems:"center", gap:6 }}>
         {children}
       </div>
     </>
@@ -1571,7 +1571,7 @@ export default function TaskModal({ task: initialTask, project, projectBlockers 
       ...styles.overlay,
       alignItems: fullscreen ? "flex-start" : "center",
     }} onClick={e => { if (!fullscreen && e.target === e.currentTarget) onClose(); }}>
-      <div style={modalStyle}>
+      <div style={modalStyle} data-tour-id="task.modal">
 
         {/* Top bar */}
         <div style={{
@@ -1621,8 +1621,10 @@ export default function TaskModal({ task: initialTask, project, projectBlockers 
                     }}>{(task.assignees?.[0]?.displayName ?? task.title ?? "?")[0].toUpperCase()}</div>
                 }
               </div>
-              <EditableTitle value={task.title}
-                onChange={val => saveField({ title: val })} />
+              <div data-tour-id="task.modal.title" style={{ flex:1, display:"flex" }}>
+                <EditableTitle value={task.title}
+                  onChange={val => saveField({ title: val })} />
+              </div>
             </div>
 
             {/* Action row */}
@@ -1725,7 +1727,7 @@ export default function TaskModal({ task: initialTask, project, projectBlockers 
               )}
             </MetaRow>
 
-            <MetaRow label="Assigned to">
+            <MetaRow label="Assigned to" tourId="task.modal.assignees">
               <AssigneeEditor
                 assignees={task.assignees ?? []}
                 projectMembers={projectMembers}
@@ -1733,7 +1735,7 @@ export default function TaskModal({ task: initialTask, project, projectBlockers 
               />
             </MetaRow>
 
-            <MetaRow label="Due Date">
+            <MetaRow label="Due Date" tourId="task.modal.due">
               {editingDueDate ? (
                 <input type="date" autoFocus defaultValue={toInputDate(task.dueDate)}
                   onBlur={e => { setEditingDueDate(false); if (e.target.value) saveField({ dueDate: new Date(e.target.value + 'T12:00:00').toISOString() }); }}
@@ -1755,12 +1757,12 @@ export default function TaskModal({ task: initialTask, project, projectBlockers 
               )}
             </MetaRow>
 
-            <MetaRow label="Priority">
+            <MetaRow label="Priority" tourId="task.modal.priority">
               <PrioritySelect value={task.priority ?? "MEDIUM"}
                 onChange={val => saveField({ priority: val })} />
             </MetaRow>
 
-            <MetaRow label="Status">
+            <MetaRow label="Status" tourId="task.modal.status">
               <StatusSelect value={task.status ?? "TODO"}
                 onChange={handleStatusChange} />
             </MetaRow>
@@ -1835,7 +1837,7 @@ export default function TaskModal({ task: initialTask, project, projectBlockers 
           </div>
 
           {/* Subtasks */}
-          <div>
+          <div data-tour-id="task.modal.subtasks">
             <SectionHeader icon="sitemap" label={`Subtasks (${subtasks.length})`}
               open={subtasksOpen} onToggle={() => setSubtasksOpen(o => !o)}
               onAction={() => setShowSubtaskModal(true)} actionIcon="plus" actionTitle="Add subtask" />
@@ -1854,7 +1856,7 @@ export default function TaskModal({ task: initialTask, project, projectBlockers 
           </div>
 
           {/* Description */}
-          <div>
+          <div data-tour-id="task.modal.description">
             <SectionHeader icon="file-alt" label="Description"
               open={descOpen} onToggle={() => setDescOpen(o => !o)}
               onAction={() => setEditingDesc(true)} actionIcon="pencil-alt" actionTitle="Edit description" />
@@ -1989,7 +1991,7 @@ export default function TaskModal({ task: initialTask, project, projectBlockers 
             const incompleteSubtasks = subtasks.filter(s => s.status !== "DONE");
             const totalBlockers = blockingTasks.length + incompleteSubtasks.length + taskBlockers.length;
             return (
-            <div>
+            <div data-tour-id="task.modal.deps">
               <SectionHeader icon="ban" label={`Dependencies${totalBlockers > 0 ? ` (${totalBlockers})` : ""}`}
                 open={depsOpen} onToggle={() => setDepsOpen(o => !o)} />
               {depsOpen && (
@@ -2092,7 +2094,7 @@ export default function TaskModal({ task: initialTask, project, projectBlockers 
           })()}
 
           {/* Blockers (category blockers, e.g. "Order delays") */}
-          <div>
+          <div data-tour-id="task.modal.blockers">
             <SectionHeader icon="tag" label={`Blockers${taskBlockers.length > 0 ? ` (${taskBlockers.length})` : ""}`}
               open={blockersOpen} onToggle={() => setBlockersOpen(o => !o)} />
             {blockersOpen && (
@@ -2180,7 +2182,7 @@ export default function TaskModal({ task: initialTask, project, projectBlockers 
           </div>
 
           {/* Time Tracking */}
-          <div>
+          <div data-tour-id="task.modal.timelog">
             <SectionHeader icon="clock" label="Time Tracking" open={timeOpen} onToggle={() => setTimeOpen(o => !o)} />
             {timeOpen && (
               <div style={{ padding:"10px 20px 16px", display:"flex", flexDirection:"column", gap:10 }}>
@@ -2255,7 +2257,9 @@ export default function TaskModal({ task: initialTask, project, projectBlockers 
                 { id:"comments", label:"Comments", count: comments.length },
                 { id:"history",  label:"History",  count: null },
               ].map(t => (
-                <button key={t.id} onClick={() => setTab(t.id)} style={{
+                <button key={t.id} onClick={() => setTab(t.id)}
+                  data-tour-id={t.id === "history" ? "task.modal.history" : undefined}
+                  style={{
                   padding:"10px 14px", border:"none", background:"none", cursor:"pointer",
                   fontSize:13, fontWeight: tab === t.id ? 600 : 400,
                   color: tab === t.id ? "var(--clubpm-accent-primary)" : "var(--clubpm-text-muted)",
@@ -2294,7 +2298,7 @@ export default function TaskModal({ task: initialTask, project, projectBlockers 
                     />
                   ))}
 
-                  <div style={{ display:"flex", alignItems:"center", gap:10, marginTop:4 }}>
+                  <div data-tour-id="task.modal.comments" style={{ display:"flex", alignItems:"center", gap:10, marginTop:4 }}>
                     {member?.avatarUrl
                       ? <img src={member.avatarUrl} alt={member.displayName} style={{ width:28, height:28, borderRadius:"50%", flexShrink:0 }} />
                       : <div style={{

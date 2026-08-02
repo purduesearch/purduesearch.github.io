@@ -1,0 +1,78 @@
+{
+  "quizId": "Q09-blog",
+  "title": "Check yourself: the blog",
+  "passThreshold": 75,
+  "maxAttempts": null,
+  "questions": [
+    {
+      "id": "q09-1",
+      "order": 0,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "Another member is editing the same post at the same time as you. What should you do?",
+      "explanation": "Nothing special — keep writing. The editor is genuinely collaborative, so both sets of changes merge live. There is no version to send anyone and nothing to reconcile afterwards.",
+      "answers": [
+        { "order": 0, "text": "Keep writing — edits merge live and you'll see their cursor", "isCorrect": true },
+        { "order": 1, "text": "Wait until they're finished so your changes aren't overwritten", "isCorrect": false },
+        { "order": 2, "text": "Duplicate the post and merge the two versions later", "isCorrect": false },
+        { "order": 3, "text": "Message them to check out the document first", "isCorrect": false }
+      ]
+    },
+    {
+      "id": "q09-2",
+      "order": 1,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "Why use the built-in headings, callouts, and quote styles instead of formatting text by hand?",
+      "explanation": "The public site renders stored structure through its own renderer. Built-in styles are what it knows how to display; hand-formatted text survives the editor but breaks on the live page, usually on mobile.",
+      "answers": [
+        { "order": 0, "text": "They're what the public site's renderer knows how to display correctly", "isCorrect": true },
+        { "order": 1, "text": "Hand formatting is slower to type", "isCorrect": false },
+        { "order": 2, "text": "The AI review panel only reads built-in styles", "isCorrect": false },
+        { "order": 3, "text": "Custom formatting increases the page's load time", "isCorrect": false }
+      ]
+    },
+    {
+      "id": "q09-3",
+      "order": 2,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "You have a 6 MB photo from competition. What should you do before inserting it?",
+      "explanation": "Nothing — images are resized, compressed, and converted on upload. Preparing them by hand wastes your time and usually produces a worse result than the pipeline.",
+      "answers": [
+        { "order": 0, "text": "Nothing — drop it straight in; it's optimised on upload", "isCorrect": true },
+        { "order": 1, "text": "Resize it to under 500 KB first", "isCorrect": false },
+        { "order": 2, "text": "Convert it to WebP manually", "isCorrect": false },
+        { "order": 3, "text": "Upload it to Drive and link to it instead", "isCorrect": false }
+      ]
+    },
+    {
+      "id": "q09-4",
+      "order": 3,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "How should you treat the AI review panel's suggestions?",
+      "explanation": "As a second reader with opinions — some good, some wrong. It has no idea which details carry meaning for the club, and it will confidently suggest cutting exactly those.",
+      "answers": [
+        { "order": 0, "text": "As a second reader whose suggestions you accept or reject on the merits", "isCorrect": true },
+        { "order": 1, "text": "Apply all of them — it's tuned to the club's voice", "isCorrect": false },
+        { "order": 2, "text": "Ignore it; it can't read the draft's context", "isCorrect": false },
+        { "order": 3, "text": "Only use it for headlines, never for body text", "isCorrect": false }
+      ]
+    },
+    {
+      "id": "q09-5",
+      "order": 4,
+      "kind": "MULTI",
+      "points": 2,
+      "prompt": "What is true about publishing a post? Select all that apply.",
+      "explanation": "Publishing puts the post on the public internet under the club's name, and it can be scheduled — the scheduler checks every few minutes and publishes at the time you set. It is not officer-gated, and it does not notify sponsors.",
+      "answers": [
+        { "order": 0, "text": "It makes the post publicly readable by anyone, under the club's name", "isCorrect": true },
+        { "order": 1, "text": "It can be scheduled for a future time rather than done immediately", "isCorrect": true },
+        { "order": 2, "text": "It requires an officer to approve before the post goes live", "isCorrect": false },
+        { "order": 3, "text": "It automatically emails every contact in the CRM", "isCorrect": false }
+      ]
+    }
+  ]
+}

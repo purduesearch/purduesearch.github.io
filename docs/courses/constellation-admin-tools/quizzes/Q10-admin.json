@@ -1,0 +1,76 @@
+{
+  "quizId": "Q10-admin",
+  "title": "Check yourself: officer tools",
+  "passThreshold": 75,
+  "maxAttempts": null,
+  "questions": [
+    {
+      "id": "q10-1",
+      "order": 0,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "Why do task completions and long time logs go to a pending queue instead of paying out immediately?",
+      "explanation": "So the XP ledger is credible. A number nobody ever checks is a number nobody believes — and the point of tracking contribution is that it means something when a member cites it on an application.",
+      "answers": [
+        { "order": 0, "text": "So the ledger stays credible enough to be worth citing", "isCorrect": true },
+        { "order": 1, "text": "Because the system can't calculate the reward until an officer confirms it", "isCorrect": false },
+        { "order": 2, "text": "To give officers a way to reward members they like", "isCorrect": false },
+        { "order": 3, "text": "To spread XP grants evenly across the semester", "isCorrect": false }
+      ]
+    },
+    {
+      "id": "q10-2",
+      "order": 1,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "A member logged eight hours in one entry against a task that plainly took two. What should you do?",
+      "explanation": "Reject it with a reason. It's almost always a mistake — wrong task, or a week logged as one entry. Rejecting silently is how you teach someone to stop logging time at all, and then the club loses the data entirely.",
+      "answers": [
+        { "order": 0, "text": "Reject it with a written reason so they can correct it", "isCorrect": true },
+        { "order": 1, "text": "Reject it without comment to avoid an awkward conversation", "isCorrect": false },
+        { "order": 2, "text": "Approve it — questioning members discourages participation", "isCorrect": false },
+        { "order": 3, "text": "Leave it in the queue until they notice and withdraw it", "isCorrect": false }
+      ]
+    },
+    {
+      "id": "q10-3",
+      "order": 2,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "You want to halve the XP awarded for logging an hour. What's the right way to do it?",
+      "explanation": "Announce it, then change it. Members plan around these numbers, and a quiet reduction reads as a punishment even when it was a bookkeeping decision. Config changes are cheap; trust is not.",
+      "answers": [
+        { "order": 0, "text": "Announce the change to the club first, then make it", "isCorrect": true },
+        { "order": 1, "text": "Change it quietly — nobody tracks the exact numbers", "isCorrect": false },
+        { "order": 2, "text": "Change it and retroactively adjust past grants to match", "isCorrect": false },
+        { "order": 3, "text": "Ask each member to opt in to the new rate", "isCorrect": false }
+      ]
+    },
+    {
+      "id": "q10-4",
+      "order": 3,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "What actually governs what a member is permitted to do in Constellation?",
+      "explanation": "Role, plus per-project membership. Rank is recognition and grants no permissions at all — a Nestling officer can do everything a Celestial officer can.",
+      "answers": [
+        { "order": 0, "text": "Their role and their project membership", "isCorrect": true },
+        { "order": 1, "text": "Their rank on the XP ladder", "isCorrect": false },
+        { "order": 2, "text": "Their total doubloon balance", "isCorrect": false },
+        { "order": 3, "text": "How long they've been a member", "isCorrect": false }
+      ]
+    },
+    {
+      "id": "q10-5",
+      "order": 4,
+      "kind": "TRUE_FALSE",
+      "points": 1,
+      "prompt": "Leaving the pending reward queue unattended for a few weeks is harmless, since nothing is lost.",
+      "explanation": "False. Nothing is lost, but the feedback loop is. A member who finishes work in week one and sees the XP in week four learns that the system doesn't notice — which is the exact failure the reward system exists to prevent.",
+      "answers": [
+        { "order": 0, "text": "True", "isCorrect": false },
+        { "order": 1, "text": "False", "isCorrect": true }
+      ]
+    }
+  ]
+}

@@ -40,7 +40,7 @@ function PublishMenu({ status, disabled, onPublish, onSchedule, onUnpublish, onA
   }, [open, scheduleOpen]);
 
   return (
-    <span className="cpm-blog-publish-wrap" ref={ref}>
+    <span className="cpm-blog-publish-wrap" data-tour-id="blog.editor.publish" ref={ref}>
       {status !== 'PUBLISHED' && (
         <button
           type="button"

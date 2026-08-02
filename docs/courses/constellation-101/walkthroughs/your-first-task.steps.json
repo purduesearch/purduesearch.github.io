@@ -1,0 +1,117 @@
+{
+  "tourId": "your-first-task",
+  "title": "Your first task",
+  "entryRoute": "/clubpm/projects/:trainingProjectId",
+  "requiresTrainingProject": true,
+  "steps": [
+    {
+      "id": "new-task",
+      "anchor": "board.newtask",
+      "route": "/clubpm/projects/:id",
+      "title": "Make a task",
+      "body": "Real one this time — real API call, real row in the database. Just in your own training project, where it can't bother anyone.",
+      "placement": "bottom",
+      "dim": ["nav.sidebar"],
+      "advance": { "on": "click" }
+    },
+    {
+      "id": "title",
+      "anchor": "task.modal.title",
+      "route": "/clubpm/projects/:id",
+      "title": "Write a title that ends",
+      "body": "Say what will be true when it's finished. Try: \"Draft the agenda for the next design review.\" Not \"agenda.\"",
+      "placement": "bottom",
+      "advance": { "on": "next" }
+    },
+    {
+      "id": "create",
+      "anchor": "task.modal",
+      "route": "/clubpm/projects/:id",
+      "title": "Save it",
+      "body": "Create the task. It'll land in the to-do column.",
+      "placement": "center",
+      "advance": { "on": "api", "method": "POST", "path": "/api/tasks" }
+    },
+    {
+      "id": "assign-self",
+      "anchor": "task.modal.assignees",
+      "route": "/clubpm/projects/:id",
+      "title": "Put your name on it",
+      "body": "Assign yourself. An unassigned task is a wish — somebody has to be answerable for it.",
+      "placement": "left",
+      "advance": { "on": "api", "method": "PATCH", "path": "/api/tasks/:id" }
+    },
+    {
+      "id": "priority",
+      "anchor": "task.modal.priority",
+      "route": "/clubpm/projects/:id",
+      "title": "Set a priority",
+      "body": "Medium is the honest default. Save CRITICAL for things that genuinely stop other people working — if everything is critical, the field stops meaning anything.",
+      "placement": "left",
+      "advance": { "on": "next" }
+    },
+    {
+      "id": "due-date",
+      "anchor": "task.modal.due",
+      "route": "/clubpm/projects/:id",
+      "title": "Give it a real date",
+      "body": "Constellation reminds you before a due date and escalates after one. So put a date you actually believe, or leave it blank — an invented deadline just trains you to ignore reminders.",
+      "placement": "left",
+      "advance": { "on": "next" }
+    },
+    {
+      "id": "describe",
+      "anchor": "task.modal.description",
+      "route": "/clubpm/projects/:id",
+      "title": "Say what done means",
+      "body": "Two lines is plenty here. The habit is what matters: write the finish line before you start running at it.",
+      "placement": "left",
+      "advance": { "on": "next" }
+    },
+    {
+      "id": "start-it",
+      "anchor": "board.column.IN_PROGRESS",
+      "route": "/clubpm/projects/:id",
+      "title": "Start work on it",
+      "body": "Close the task and drag your card into In progress. Dragging and changing the status field do exactly the same thing — use whichever is nearer.",
+      "placement": "right",
+      "advance": { "on": "api", "method": "PATCH", "path": "/api/tasks/:id" }
+    },
+    {
+      "id": "comment",
+      "anchor": "task.modal.comments",
+      "route": "/clubpm/projects/:id",
+      "title": "Leave a comment",
+      "body": "Open the task again and post anything. On a real task this is where the questions go — and where they stay findable, attached to the work instead of buried in a channel.",
+      "placement": "left",
+      "advance": { "on": "api", "method": "POST", "path": "/api/tasks/:id/comments" }
+    },
+    {
+      "id": "log-time",
+      "anchor": "task.modal.timelog",
+      "route": "/clubpm/projects/:id",
+      "title": "Log some time",
+      "body": "Log half an hour. Anything over two hours in one entry goes to an officer for approval — that gate is what keeps the XP ledger worth trusting.",
+      "placement": "left",
+      "advance": { "on": "api", "method": "POST", "path": "/api/tasks/:id/time-logs" }
+    },
+    {
+      "id": "finish-it",
+      "anchor": "board.column.DONE",
+      "route": "/clubpm/projects/:id",
+      "title": "Finish it",
+      "body": "Drag it to Done. On a real project this is the moment XP is queued for you — here it's suppressed, because practice work shouldn't pay.",
+      "placement": "left",
+      "advance": { "on": "api", "method": "PATCH", "path": "/api/tasks/:id" }
+    },
+    {
+      "id": "the-loop",
+      "anchor": "board.column.DONE",
+      "route": "/clubpm/projects/:id",
+      "title": "That's the whole loop",
+      "body": "Create, own, date, specify, start, discuss, log, finish. Every piece of work in this club goes through those eight steps, and you've now done all of them.",
+      "placement": "center",
+      "advance": { "on": "next" }
+    }
+  ]
+}

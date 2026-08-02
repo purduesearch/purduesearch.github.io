@@ -1,0 +1,90 @@
+{
+  "slug": "constellation-outreach-and-blog",
+  "title": "Constellation: Outreach & the Blog",
+  "summary": "For the comms, sponsorship, and recruiting side. How contacts and campaigns work, and how a post gets written collaboratively and onto the public site.",
+  "estimatedMinutes": 30,
+  "status": "DRAFT",
+  "prerequisiteSlug": "constellation-101",
+  "xpOverride": 300,
+  "doubloonOverride": 100,
+  "modules": [
+    {
+      "order": 0,
+      "title": "Contacts and campaigns",
+      "summary": "The CRM side: who we know, what we last said to them, and what happens next.",
+      "estimatedMinutes": 15,
+      "isRequired": true,
+      "sequential": true,
+      "sections": [
+        {
+          "order": 0,
+          "title": "Contacts, campaigns, and follow-ups",
+          "kind": "VIDEO",
+          "isRequired": true,
+          "videoRef": "videos/V07-contacts-and-campaigns.md",
+          "videoConfig": { "youtubeId": null, "lockSeek": true, "allowedRates": [1, 1.25, 1.5] }
+        },
+        {
+          "order": 1,
+          "title": "Add a contact, build a campaign",
+          "kind": "WALKTHROUGH",
+          "isRequired": true,
+          "tourConfig": {
+            "tourId": "crm-and-campaigns",
+            "entryRoute": "/clubpm/outreach",
+            "requiresTrainingProject": true,
+            "stepCount": 9
+          }
+        },
+        {
+          "order": 2,
+          "title": "Check yourself: outreach",
+          "kind": "QUIZ",
+          "isRequired": true,
+          "quizRef": "quizzes/Q08-outreach.json",
+          "passThreshold": 75,
+          "maxAttempts": null
+        }
+      ]
+    },
+    {
+      "order": 1,
+      "title": "The blog",
+      "summary": "Writing together in real time, and what publishing actually does.",
+      "estimatedMinutes": 15,
+      "isRequired": true,
+      "sequential": true,
+      "sections": [
+        {
+          "order": 0,
+          "title": "Writing and publishing a post",
+          "kind": "VIDEO",
+          "isRequired": true,
+          "videoRef": "videos/V08-writing-and-publishing.md",
+          "videoConfig": { "youtubeId": null, "lockSeek": true, "allowedRates": [1, 1.25, 1.5] }
+        },
+        {
+          "order": 1,
+          "title": "Draft, review, publish",
+          "kind": "WALKTHROUGH",
+          "isRequired": true,
+          "tourConfig": {
+            "tourId": "blog-editor",
+            "entryRoute": "/clubpm/outreach",
+            "requiresTrainingProject": false,
+            "stepCount": 8
+          }
+        },
+        {
+          "order": 2,
+          "title": "Check yourself: the blog",
+          "kind": "QUIZ",
+          "isRequired": true,
+          "quizRef": "quizzes/Q09-blog.json",
+          "passThreshold": 75,
+          "maxAttempts": null
+        }
+      ]
+    }
+  ]
+}

@@ -208,6 +208,7 @@ export default function VaultTab({ project, member, isAdmin }) {
             <button
               type="button"
               className="clubpm-btn-primary"
+              data-tour-id="vault.upload"
               onClick={() => setShowUploadModal(true)}
             >
               <i className="fas fa-file-arrow-up" aria-hidden="true" /> Check in file
@@ -243,9 +244,9 @@ export default function VaultTab({ project, member, isAdmin }) {
               {items.length === 0 ? "No items in the vault yet." : "No items match your search."}
             </div>
           ) : (
-            <div className="cpm-vault-grid">
-              {filteredItems.map(item => (
-                <VaultItemCard key={item.id} item={item} onClick={() => setSelectedItemId(item.id)} />
+            <div className="cpm-vault-grid" data-tour-id="vault.tree">
+              {filteredItems.map((item, index) => (
+                <VaultItemCard key={item.id} item={item} tourId={index === 0 ? "vault.item" : undefined} onClick={() => setSelectedItemId(item.id)} />
               ))}
             </div>
           )}

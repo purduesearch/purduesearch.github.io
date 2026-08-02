@@ -1,0 +1,239 @@
+{
+  "slug": "constellation-101",
+  "title": "Constellation 101",
+  "summary": "Everything a SEARCH member needs to work in Constellation: projects and the board, how work gets unblocked, how you earn rank, and how to stay in the loop. You'll drive the real app, on a private training project of your own.",
+  "estimatedMinutes": 45,
+  "status": "DRAFT",
+  "xpOverride": 400,
+  "doubloonOverride": 150,
+  "modules": [
+    {
+      "order": 0,
+      "title": "Landing in Constellation",
+      "summary": "What this thing is, how it relates to Slack and Drive, and a guided lap around the interface.",
+      "estimatedMinutes": 7,
+      "isRequired": true,
+      "sequential": true,
+      "sections": [
+        {
+          "order": 0,
+          "title": "What Constellation is",
+          "kind": "CONTENT",
+          "isRequired": true,
+          "bodyRef": "content/C01-what-constellation-is.md"
+        },
+        {
+          "order": 1,
+          "title": "A lap around the interface",
+          "kind": "WALKTHROUGH",
+          "isRequired": true,
+          "tourConfig": {
+            "tourId": "first-look",
+            "entryRoute": "/clubpm",
+            "requiresTrainingProject": false,
+            "stepCount": 8
+          }
+        },
+        {
+          "order": 2,
+          "title": "Why Constellation exists",
+          "kind": "VIDEO",
+          "isRequired": true,
+          "videoRef": "videos/V01-why-constellation.md",
+          "videoConfig": { "youtubeId": null, "lockSeek": true, "allowedRates": [1, 1.25, 1.5] }
+        },
+        {
+          "order": 3,
+          "title": "Check yourself: orientation",
+          "kind": "QUIZ",
+          "isRequired": true,
+          "quizRef": "quizzes/Q01-orientation.json",
+          "passThreshold": 75,
+          "maxAttempts": null
+        }
+      ]
+    },
+    {
+      "order": 1,
+      "title": "Projects, tasks, and the board",
+      "summary": "The centre of gravity. You'll read a task, then create and finish a real one.",
+      "estimatedMinutes": 14,
+      "isRequired": true,
+      "sequential": true,
+      "sections": [
+        {
+          "order": 0,
+          "title": "Anatomy of a task",
+          "kind": "VIDEO",
+          "isRequired": true,
+          "videoRef": "videos/V02-anatomy-of-a-task.md",
+          "videoConfig": { "youtubeId": null, "lockSeek": true, "allowedRates": [1, 1.25, 1.5] }
+        },
+        {
+          "order": 1,
+          "title": "Reading the board",
+          "kind": "WALKTHROUGH",
+          "isRequired": true,
+          "tourConfig": {
+            "tourId": "board-basics",
+            "entryRoute": "/clubpm/projects/:trainingProjectId",
+            "requiresTrainingProject": true,
+            "stepCount": 10
+          }
+        },
+        {
+          "order": 2,
+          "title": "Your first task",
+          "kind": "WALKTHROUGH",
+          "isRequired": true,
+          "tourConfig": {
+            "tourId": "your-first-task",
+            "entryRoute": "/clubpm/projects/:trainingProjectId",
+            "requiresTrainingProject": true,
+            "stepCount": 12
+          }
+        },
+        {
+          "order": 3,
+          "title": "Check yourself: tasks and the board",
+          "kind": "QUIZ",
+          "isRequired": true,
+          "quizRef": "quizzes/Q02-tasks.json",
+          "passThreshold": 75,
+          "maxAttempts": null
+        }
+      ]
+    },
+    {
+      "order": 2,
+      "title": "Milestones, blockers, and dependencies",
+      "summary": "Three different ways work stalls, and what each one is actually for.",
+      "estimatedMinutes": 10,
+      "isRequired": true,
+      "sequential": true,
+      "sections": [
+        {
+          "order": 0,
+          "title": "Three ways work stalls",
+          "kind": "CONTENT",
+          "isRequired": true,
+          "bodyRef": "content/C02-three-ways-work-stalls.md"
+        },
+        {
+          "order": 1,
+          "title": "Blocking and unblocking",
+          "kind": "WALKTHROUGH",
+          "isRequired": true,
+          "tourConfig": {
+            "tourId": "blocked-and-unblocked",
+            "entryRoute": "/clubpm/projects/:trainingProjectId",
+            "requiresTrainingProject": true,
+            "stepCount": 10
+          }
+        },
+        {
+          "order": 2,
+          "title": "Reading a milestone's health",
+          "kind": "VIDEO",
+          "isRequired": true,
+          "videoRef": "videos/V03-milestone-health.md",
+          "videoConfig": { "youtubeId": null, "lockSeek": true, "allowedRates": [1, 1.25, 1.5] }
+        },
+        {
+          "order": 3,
+          "title": "Check yourself: stalls and milestones",
+          "kind": "QUIZ",
+          "isRequired": true,
+          "quizRef": "quizzes/Q03-milestones.json",
+          "passThreshold": 75,
+          "maxAttempts": null
+        }
+      ]
+    },
+    {
+      "order": 3,
+      "title": "XP, ranks, quests, and doubloons",
+      "summary": "How Constellation keeps score, and what it is actually measuring.",
+      "estimatedMinutes": 7,
+      "isRequired": true,
+      "sequential": true,
+      "sections": [
+        {
+          "order": 0,
+          "title": "The rank ladder",
+          "kind": "SLIDES",
+          "isRequired": true,
+          "slideConfig": { "sourceKind": "PDF", "sourceName": "rank-ladder.pdf", "autoAdvance": false },
+          "deckRef": "slides/S01-rank-ladder.outline.md"
+        },
+        {
+          "order": 1,
+          "title": "Quests, the shop, and your profile",
+          "kind": "WALKTHROUGH",
+          "isRequired": true,
+          "tourConfig": {
+            "tourId": "rewards-tour",
+            "entryRoute": "/clubpm/challenges",
+            "requiresTrainingProject": false,
+            "stepCount": 8
+          }
+        },
+        {
+          "order": 2,
+          "title": "Check yourself: rewards",
+          "kind": "QUIZ",
+          "isRequired": true,
+          "quizRef": "quizzes/Q04-rewards.json",
+          "passThreshold": 75,
+          "maxAttempts": null
+        }
+      ]
+    },
+    {
+      "order": 4,
+      "title": "Staying in the loop",
+      "summary": "Notifications, Slack, and the calendar — so Constellation reaches you instead of waiting for you.",
+      "estimatedMinutes": 7,
+      "isRequired": true,
+      "sequential": true,
+      "sections": [
+        {
+          "order": 0,
+          "title": "Notifications and the calendar",
+          "kind": "WALKTHROUGH",
+          "isRequired": true,
+          "tourConfig": {
+            "tourId": "comms-tour",
+            "entryRoute": "/clubpm/notifications",
+            "requiresTrainingProject": false,
+            "stepCount": 9
+          }
+        },
+        {
+          "order": 1,
+          "title": "Constellation and Slack, together",
+          "kind": "VIDEO",
+          "isRequired": true,
+          "videoRef": "videos/V04-slack.md",
+          "videoConfig": { "youtubeId": null, "lockSeek": true, "allowedRates": [1, 1.25, 1.5] }
+        },
+        {
+          "order": 2,
+          "title": "Where to go next",
+          "kind": "CONTENT",
+          "isRequired": true,
+          "bodyRef": "content/C03-where-to-go-next.md"
+        },
+        {
+          "order": 3,
+          "title": "Constellation 101 final",
+          "kind": "QUIZ",
+          "isRequired": true,
+          "quizRef": "quizzes/Q05-final.json",
+          "passThreshold": 80,
+          "maxAttempts": 3
+        }
+      ]
+    }
+  ]
+}

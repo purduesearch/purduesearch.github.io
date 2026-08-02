@@ -197,6 +197,13 @@ function ProjectSidebar({ project, allProjects, activeTab, onTabChange }) {
             key={tab.id}
             className={`cpm-proj-nav-item${activeTab === tab.id ? " active" : ""}`}
             onClick={() => onTabChange(tab.id)}
+            data-tour-id={{
+              tasks: "project.tab.tasks",
+              milestones: "project.tab.milestones",
+              files: "project.tab.files",
+              reports: "project.tab.reports",
+              ai: "project.tab.ai",
+            }[tab.id]}
           >
             <span style={{ marginRight: 8 }}>{tab.icon}</span>
             {tab.label}
@@ -345,6 +352,12 @@ function StatusBin({ bin, tasks, subtasksByParent, expandedParents, onTogglePare
     <div
       ref={setNodeRef}
       data-bin-id={bin.id}
+      data-tour-id={{
+        TODO: "board.column.TODO",
+        IN_PROGRESS: "board.column.IN_PROGRESS",
+        BLOCKED: "board.column.BLOCKED",
+        DONE: "board.column.DONE",
+      }[bin.id]}
       className={`cpm-status-bin${isOver ? " cpm-status-bin--over" : ""}`}
     >
       <div className="cpm-status-bin-header">
@@ -384,6 +397,7 @@ function StatusBin({ bin, tasks, subtasksByParent, expandedParents, onTogglePare
               padding: "2px 8px",
             }}
             title="Add task"
+            data-tour-id={(bin.id === "TODO" ? "board.newtask" : undefined)}
             onClick={(e) => { e.stopPropagation(); onAddTask?.(bin.id); }}
           >
             <i className="fas fa-plus" /> Add Task
@@ -398,10 +412,11 @@ function StatusBin({ bin, tasks, subtasksByParent, expandedParents, onTogglePare
               Drop tasks here
             </div>
           ) : (
-            blockedGroups.map((group) => (
+            blockedGroups.map((group, index) => (
               <BlockedSubBin
                 key={`${group.type}-${group.id}`}
                 group={group}
+                tourId={(index === 0 ? "board.blocker.bin" : undefined)}
                 onTaskClick={onTaskClick}
                 onResolveBlocker={onResolveBlocker}
                 onRenameBlocker={onRenameBlocker}
@@ -466,13 +481,14 @@ function StatusBin({ bin, tasks, subtasksByParent, expandedParents, onTogglePare
                 </React.Fragment>
               ))
             ) : (
-              tasks.map((task) => {
+              tasks.map((task, index) => {
                 const subs = subtasksByParent?.get(task.id) ?? [];
                 const isExpanded = expandedParents?.has(task.id) ?? false;
                 return (
                   <React.Fragment key={task.id}>
                     <CompactTaskRow
                       task={task}
+                      tourId={(bin.id === "TODO" && index === 0 ? "board.card.first" : undefined)}
                       onClick={onTaskClick}
                       subtaskCount={subs.length}
                       isExpanded={isExpanded}
@@ -576,7 +592,7 @@ function BlockerOwnerPicker({ assignee, projectMembers = [], onChange, disabled 
   );
 }
 
-function BlockedSubBin({ group, onTaskClick, onResolveBlocker, onRenameBlocker, projectMembers, selectedTaskIds, canEdit, isOver }) {
+function BlockedSubBin({ group, onTaskClick, onResolveBlocker, onRenameBlocker, projectMembers, selectedTaskIds, canEdit, isOver, tourId }) {
   const [collapsed, setCollapsed] = useState(false);
   const [editing, setEditing] = useState(false);
   const isCategory = group.type === "category";
@@ -614,7 +630,7 @@ function BlockedSubBin({ group, onTaskClick, onResolveBlocker, onRenameBlocker, 
   }
 
   return (
-    <div ref={setNodeRef} className={`cpm-blocked-subbin${isOver ? " cpm-blocked-subbin--over" : ""}`}>
+    <div ref={setNodeRef} data-tour-id={(tourId)} className={`cpm-blocked-subbin${isOver ? " cpm-blocked-subbin--over" : ""}`}>
       {editing ? (
         <div className="cpm-blocked-subbin-edit" onClick={(e) => e.stopPropagation()}>
           <input
@@ -779,7 +795,7 @@ function BlockerNameModal({ count, projectMembers, onCreate, onCancel }) {
 
 // ── Compact Task Row ─────────────────────────────────────────
 
-function CompactTaskRow({ task, onClick, subtaskCount = 0, isExpanded = false, onToggleExpand, isDropTarget = false, isSelected = false }) {
+function CompactTaskRow({ task, onClick, subtaskCount = 0, isExpanded = false, onToggleExpand, isDropTarget = false, isSelected = false, tourId }) {
   const {
     attributes,
     listeners,
@@ -801,6 +817,7 @@ function CompactTaskRow({ task, onClick, subtaskCount = 0, isExpanded = false, o
       style={style}
       {...attributes}
       {...listeners}
+      data-tour-id={(tourId)}
       className={`cpm-task-row-compact${isDropTarget ? " cpm-task-row-compact--member-target" : ""}${isSelected ? " cpm-task-row-compact--selected" : ""}`}
       onClick={(e) => {
         if (!isDragging) onClick(task, e);
@@ -1013,7 +1030,7 @@ function AssigneePanel({ members, channelMemberSlackIds = [], hasLinkedChannel =
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+          <div data-tour-id="board.memberchips" style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
             {filtered.length === 0 ? (
               <p style={{ fontSize: 12, color: "var(--clubpm-text-muted)", padding: "4px 0" }}>
                 No members
@@ -2056,6 +2073,7 @@ function FilesTabContent({ project, member, isAdmin, onProjectChange }) {
             role="tab"
             aria-selected={sub === opt.id}
             onClick={() => setSub(opt.id)}
+            data-tour-id={opt.id === "vault" ? "project.tab.vault" : undefined}
             style={{
               display: "inline-flex", alignItems: "center", gap: 6,
               padding: "6px 14px", border: "none", cursor: "pointer",
@@ -2993,7 +3011,7 @@ export default function ProjectDetail() {
         onDragEnd={handleDragEnd}
       >
         <main ref={tabBodyRef} className="cpm-project-main">
-          <header className="pm-proj-hero">
+          <header className="pm-proj-hero" data-tour-id="project.header">
             {/* Breadcrumb */}
             <div className="pm-proj-breadcrumb">
               <Link to="/clubpm" style={{ color: 'var(--pm-text-muted)', fontSize: '0.8rem', textDecoration: 'none' }}>
@@ -3110,7 +3128,7 @@ export default function ProjectDetail() {
 
           {activeTab === "tasks" && (
             <div className="cpm-proj-main-body" style={{ padding: "16px 0 24px" }}>
-              <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 10, padding: "0 12px 8px" }}>
+              <div data-tour-id="board.filters" style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 10, padding: "0 12px 8px" }}>
                 <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--pm-text-secondary)", cursor: "pointer" }}>
                   <input
                     type="checkbox"
@@ -3255,12 +3273,14 @@ export default function ProjectDetail() {
 
           {activeTab === "milestones" && (
             <div className="cpm-proj-main-body" style={{ padding: "24px", display: "flex", flexDirection: "column", gap: 28 }}>
+              <div data-tour-id="milestones.panel">
               <MilestonePanel
                 projectId={project.id}
                 project={project}
                 onRefresh={fetchProject}
                 previousMilestonePcts={previousMilestonePcts}
               />
+              </div>
 
               {/* Updates feed, formerly its own tab. Shares the same scroll
                   container so milestones + updates read as one timeline. */}

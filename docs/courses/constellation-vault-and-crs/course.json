@@ -1,0 +1,90 @@
+{
+  "slug": "constellation-vault-and-crs",
+  "title": "Constellation: Vault & Change Requests",
+  "summary": "For anyone touching CAD, hardware, or anything with revisions. How the Constellation Vault keeps one authoritative version of every part, and how a change gets reviewed before it becomes real.",
+  "estimatedMinutes": 30,
+  "status": "DRAFT",
+  "prerequisiteSlug": "constellation-101",
+  "xpOverride": 300,
+  "doubloonOverride": 100,
+  "modules": [
+    {
+      "order": 0,
+      "title": "The Vault",
+      "summary": "One authoritative version of every part, and a check-out system so two people can't quietly diverge.",
+      "estimatedMinutes": 16,
+      "isRequired": true,
+      "sequential": true,
+      "sections": [
+        {
+          "order": 0,
+          "title": "What the Vault is for",
+          "kind": "VIDEO",
+          "isRequired": true,
+          "videoRef": "videos/V05-what-the-vault-is-for.md",
+          "videoConfig": { "youtubeId": null, "lockSeek": true, "allowedRates": [1, 1.25, 1.5] }
+        },
+        {
+          "order": 1,
+          "title": "Check out, change, check in",
+          "kind": "WALKTHROUGH",
+          "isRequired": true,
+          "tourConfig": {
+            "tourId": "vault-checkout",
+            "entryRoute": "/clubpm/projects/:trainingProjectId",
+            "requiresTrainingProject": true,
+            "stepCount": 9
+          }
+        },
+        {
+          "order": 2,
+          "title": "Check yourself: the Vault",
+          "kind": "QUIZ",
+          "isRequired": true,
+          "quizRef": "quizzes/Q06-vault.json",
+          "passThreshold": 75,
+          "maxAttempts": null
+        }
+      ]
+    },
+    {
+      "order": 1,
+      "title": "Change requests",
+      "summary": "How a proposed change gets reviewed, approved, and recorded — and why that is not bureaucracy.",
+      "estimatedMinutes": 14,
+      "isRequired": true,
+      "sequential": true,
+      "sections": [
+        {
+          "order": 0,
+          "title": "The life of a change request",
+          "kind": "VIDEO",
+          "isRequired": true,
+          "videoRef": "videos/V06-life-of-a-change-request.md",
+          "videoConfig": { "youtubeId": null, "lockSeek": true, "allowedRates": [1, 1.25, 1.5] }
+        },
+        {
+          "order": 1,
+          "title": "Raise and review a change request",
+          "kind": "WALKTHROUGH",
+          "isRequired": true,
+          "tourConfig": {
+            "tourId": "change-request",
+            "entryRoute": "/clubpm/projects/:trainingProjectId",
+            "requiresTrainingProject": true,
+            "stepCount": 8
+          }
+        },
+        {
+          "order": 2,
+          "title": "Check yourself: change requests",
+          "kind": "QUIZ",
+          "isRequired": true,
+          "quizRef": "quizzes/Q07-change-requests.json",
+          "passThreshold": 75,
+          "maxAttempts": null
+        }
+      ]
+    }
+  ]
+}

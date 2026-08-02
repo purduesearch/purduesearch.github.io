@@ -187,11 +187,11 @@ export default function CoursesTab({ isAdmin = false, currentMemberId = null }) 
               Progress dashboard
             </button>
           )}
-          <button className="clubpm-btn-secondary" onClick={() => openGen()}>
+          <button className="clubpm-btn-secondary" data-tour-id="courses.gen" onClick={() => openGen()}>
             <i className="fas fa-wand-magic-sparkles" aria-hidden="true" style={{ marginRight: 6 }} />
             Generate with AI
           </button>
-          <button className="clubpm-btn-primary" onClick={handleNew} disabled={creating}>
+          <button className="clubpm-btn-primary" data-tour-id="courses.new" onClick={handleNew} disabled={creating}>
             <i className="fas fa-plus" aria-hidden="true" style={{ marginRight: 6 }} />
             New course
           </button>
@@ -206,7 +206,7 @@ export default function CoursesTab({ isAdmin = false, currentMemberId = null }) 
           <p>No courses yet. Create one to start building club training.</p>
         </div>
       ) : (
-        <ul className="cpm-course-grid">
+        <ul className="cpm-course-grid" data-tour-id="courses.list">
           {visible.map((course) => {
             const p = course.myProgress;
             const total = p?.totalSections ?? course._count?.sections ?? 0;

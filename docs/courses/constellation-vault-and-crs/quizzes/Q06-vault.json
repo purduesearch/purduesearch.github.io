@@ -1,0 +1,76 @@
+{
+  "quizId": "Q06-vault",
+  "title": "Check yourself: the Vault",
+  "passThreshold": 75,
+  "maxAttempts": null,
+  "questions": [
+    {
+      "id": "q06-1",
+      "order": 0,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "Why does the Vault require you to check an item out before changing it?",
+      "explanation": "So two people cannot edit the same part in parallel. That situation does not produce two versions to reconcile — it produces one person's work silently overwritten, usually discovered days later.",
+      "answers": [
+        { "order": 0, "text": "So two people can't edit the same part at once and silently lose one of the edits", "isCorrect": true },
+        { "order": 1, "text": "So officers can approve every change before it's made", "isCorrect": false },
+        { "order": 2, "text": "To limit how many files are stored in Drive", "isCorrect": false },
+        { "order": 3, "text": "To track how long each member spends on CAD", "isCorrect": false }
+      ]
+    },
+    {
+      "id": "q06-2",
+      "order": 1,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "You upload a new version of an item. What happens to the previous one?",
+      "explanation": "It's kept. Versions append rather than replace, so the whole history stays browsable and reverting to an earlier state is a two-click operation instead of an archaeology project.",
+      "answers": [
+        { "order": 0, "text": "It's kept in the version history and stops being the current version", "isCorrect": true },
+        { "order": 1, "text": "It's deleted to save storage", "isCorrect": false },
+        { "order": 2, "text": "It's moved to the project's Drive folder", "isCorrect": false },
+        { "order": 3, "text": "It stays current until an officer promotes the new one", "isCorrect": false }
+      ]
+    },
+    {
+      "id": "q06-3",
+      "order": 2,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "What does an assembly's BOM tell you?",
+      "explanation": "Every part it's made of, the quantities, and the specific versions this assembly references. It's what you hand to whoever is ordering, and what tells you the blast radius of changing one part.",
+      "answers": [
+        { "order": 0, "text": "Every part it contains, the quantities, and the versions it references", "isCorrect": true },
+        { "order": 1, "text": "Who has worked on the assembly and for how long", "isCorrect": false },
+        { "order": 2, "text": "The order in which the parts should be assembled", "isCorrect": false },
+        { "order": 3, "text": "Which parts are currently checked out", "isCorrect": false }
+      ]
+    },
+    {
+      "id": "q06-4",
+      "order": 3,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "You need to edit a part that a teammate currently has checked out. What's the right move?",
+      "explanation": "Talk to them — the lock is visible and it names the holder, which is the point. Uploading a parallel copy outside the Vault recreates exactly the `_FINAL_actual` problem the Vault exists to prevent.",
+      "answers": [
+        { "order": 0, "text": "Message them — the lock shows who holds it — and wait or agree a hand-off", "isCorrect": true },
+        { "order": 1, "text": "Work on your own copy and upload it as a separate item", "isCorrect": false },
+        { "order": 2, "text": "Email the file to them and ask them to merge it", "isCorrect": false },
+        { "order": 3, "text": "Put your version in the project's Drive folder instead", "isCorrect": false }
+      ]
+    },
+    {
+      "id": "q06-5",
+      "order": 4,
+      "kind": "TRUE_FALSE",
+      "points": 1,
+      "prompt": "A Vault item can be linked to a task, so the part and the work on the part live together.",
+      "explanation": "True. Linking an item to a task keeps the part, the work, and the conversation about it in one place instead of scattered across three systems.",
+      "answers": [
+        { "order": 0, "text": "True", "isCorrect": true },
+        { "order": 1, "text": "False", "isCorrect": false }
+      ]
+    }
+  ]
+}

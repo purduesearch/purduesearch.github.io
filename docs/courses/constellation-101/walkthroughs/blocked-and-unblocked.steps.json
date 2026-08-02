@@ -1,0 +1,98 @@
+{
+  "tourId": "blocked-and-unblocked",
+  "title": "Blocking and unblocking",
+  "entryRoute": "/clubpm/projects/:trainingProjectId",
+  "requiresTrainingProject": true,
+  "steps": [
+    {
+      "id": "open-task",
+      "anchor": "board.card.first",
+      "route": "/clubpm/projects/:id",
+      "title": "Open a to-do task",
+      "body": "We're going to stop this task two different ways, and then unstop it. Both mechanisms exist because they model genuinely different situations.",
+      "placement": "right",
+      "advance": { "on": "click" }
+    },
+    {
+      "id": "deps-intro",
+      "anchor": "task.modal.deps",
+      "route": "/clubpm/projects/:id",
+      "title": "Dependencies",
+      "body": "A dependency says: that other task has to finish before this one can. It's a relationship between two specific pieces of work.",
+      "placement": "left",
+      "advance": { "on": "next" }
+    },
+    {
+      "id": "add-dep",
+      "anchor": "task.modal.deps",
+      "route": "/clubpm/projects/:id",
+      "title": "Add one",
+      "body": "Pick any other task in this project as a blocker of this one. Constellation refuses circular chains, so you can't accidentally build a deadlock.",
+      "placement": "left",
+      "advance": { "on": "api", "method": "POST", "path": "/api/tasks/:id/dependencies" }
+    },
+    {
+      "id": "status-gate",
+      "anchor": "task.modal.status",
+      "route": "/clubpm/projects/:id",
+      "title": "Now try to finish it",
+      "body": "Set the status to Done. It won't let you — and it tells you which task is in the way. This is enforced on the server, so nobody routes around it by dragging.",
+      "placement": "left",
+      "advance": { "on": "next" }
+    },
+    {
+      "id": "remove-dep",
+      "anchor": "task.modal.deps",
+      "route": "/clubpm/projects/:id",
+      "title": "Take it back off",
+      "body": "Remove the dependency. Notice the task frees itself immediately — you never have to remember to un-block something by hand.",
+      "placement": "left",
+      "advance": { "on": "api", "method": "DELETE", "path": "/api/tasks/:id/dependencies/:depId" }
+    },
+    {
+      "id": "attach-blocker",
+      "anchor": "task.modal.blockers",
+      "route": "/clubpm/projects/:id",
+      "title": "Now a blocker",
+      "body": "A blocker is different: it's a reusable, project-wide reason — \"waiting on the machine shop\" — that can sit on many tasks at once. Attach the seeded one.",
+      "placement": "left",
+      "advance": { "on": "api", "method": "POST", "path": "/api/tasks/:id/blockers" }
+    },
+    {
+      "id": "moved-itself",
+      "anchor": "board.column.BLOCKED",
+      "route": "/clubpm/projects/:id",
+      "title": "It moved itself",
+      "body": "Close the task and look at the board. Attaching a blocker forces the card to BLOCKED — the board can't show something as active while it's stuck.",
+      "placement": "left",
+      "advance": { "on": "next" }
+    },
+    {
+      "id": "blocker-bin",
+      "anchor": "board.blocker.bin",
+      "route": "/clubpm/projects/:id",
+      "title": "Grouped by reason",
+      "body": "Blocked cards cluster under the reason blocking them. Which turns \"why is nothing moving\" into a list of four things somebody needs to go chase.",
+      "placement": "left",
+      "advance": { "on": "next" }
+    },
+    {
+      "id": "resolve",
+      "anchor": "task.modal.blockers",
+      "route": "/clubpm/projects/:id",
+      "title": "Clear it",
+      "body": "Detach the blocker. The task recomputes: no open blockers and no unfinished dependencies means it goes back to to-do on its own.",
+      "placement": "left",
+      "advance": { "on": "api", "method": "DELETE", "path": "/api/tasks/:id/blockers/:blockerId" }
+    },
+    {
+      "id": "milestones",
+      "anchor": "project.tab.milestones",
+      "route": "/clubpm/projects/:id",
+      "title": "One level up",
+      "body": "Dependencies and blockers stop individual tasks. Milestones are how you see whether a whole date is in trouble — open the tab and the video after this explains what you're looking at.",
+      "placement": "bottom",
+      "advance": { "on": "click" }
+    }
+  ]
+}

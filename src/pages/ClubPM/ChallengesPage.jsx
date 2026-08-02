@@ -78,6 +78,9 @@ export default function ChallengesPage() {
   }, [claimingId]);
 
   const daily   = activeData.daily   ?? [];
+  // The tour points at a claim button that is actually claimable, not merely
+  // the first card — an unclaimable card has no button to spotlight.
+  const firstClaimableId = (activeData.daily ?? []).find(mc => mc.completedAt && !mc.claimedAt)?.id ?? null;
   const weekly  = activeData.weekly  ?? [];
   const monthly = activeData.monthly ?? [];
 
@@ -133,7 +136,7 @@ export default function ChallengesPage() {
               Loading challenges…
             </div>
           ) : tab === 'today' ? (
-            <div className="challenges-list">
+            <div className="challenges-list" data-tour-id="challenges.active">
               {daily.length === 0 && (
                 <p style={{ color: 'var(--pm-text-muted)', textAlign: 'center', padding: '24px 0' }}>
                   No daily quests yet. Check back tomorrow!
@@ -143,6 +146,7 @@ export default function ChallengesPage() {
                 <ChallengeCard
                   key={mc.id}
                   challenge={mc}
+                  claimTourId={mc.id === firstClaimableId ? "challenges.claim" : undefined}
                   onClaim={handleClaim}
                   loading={claimingId === mc.id}
                 />
@@ -182,7 +186,7 @@ export default function ChallengesPage() {
             </div>
           ) : (
             /* Achievements tab */
-            <div className="achievements-grid">
+            <div className="achievements-grid" data-tour-id="challenges.achievements">
               {achievements.length === 0 && (
                 <p style={{
                   color: 'var(--pm-text-muted)', textAlign: 'center',

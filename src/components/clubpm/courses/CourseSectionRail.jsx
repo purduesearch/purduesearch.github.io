@@ -450,13 +450,14 @@ export default function CourseSectionRail({
   }, [modules, onSaveStructure]);
 
   return (
-    <aside className="pm-course-rail" aria-label="Course structure">
+    <aside className="pm-course-rail" data-tour-id="course.editor.rail" aria-label="Course structure">
       <div className="pm-course-rail-head">
         <span className="pm-course-rail-heading">Structure</span>
         {canEdit && (
           <button
             type="button"
             className="pm-course-rail-add"
+            data-tour-id="course.editor.addsection"
             onClick={() => onAddModule?.()}
             title="Add a module"
             aria-label="Add a module"

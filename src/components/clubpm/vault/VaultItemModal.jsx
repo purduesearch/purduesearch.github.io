@@ -351,7 +351,7 @@ export default function VaultItemModal({ itemId, project, member, isAdmin, onClo
 
               <div className="cpm-vault-item-actions">
                 {!item.checkedOutById && (
-                  <button type="button" className="cpm-vault-btn-ghost" onClick={onClickCheckout} disabled={busy}>
+                  <button type="button" className="cpm-vault-btn-ghost" data-tour-id="vault.checkout" onClick={onClickCheckout} disabled={busy}>
                     <i className="fas fa-pen" aria-hidden="true" /> Check out
                   </button>
                 )}
@@ -388,6 +388,7 @@ export default function VaultItemModal({ itemId, project, member, isAdmin, onClo
                   type="button"
                   role="tab"
                   aria-selected={activeTab === t.id}
+                  data-tour-id={{ versions: "vault.versions", bom: "vault.bom" }[t.id]}
                   className={`cpm-vault-pill${activeTab === t.id ? " active" : ""}`}
                   onClick={() => setActiveTab(t.id)}
                 >

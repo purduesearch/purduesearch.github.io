@@ -1,0 +1,90 @@
+{
+  "quizId": "Q02-tasks",
+  "title": "Check yourself: tasks and the board",
+  "passThreshold": 75,
+  "maxAttempts": null,
+  "questions": [
+    {
+      "id": "q02-1",
+      "order": 0,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "What is the difference between a subtask and a dependency?",
+      "explanation": "A subtask is a piece of this task and closes with it. A dependency is a separate task that must finish first — and Constellation enforces it: a task with an open dependency cannot be moved to done.",
+      "answers": [
+        { "order": 0, "text": "A subtask is part of this task; a dependency is a different task that must finish before this one can proceed", "isCorrect": true },
+        { "order": 1, "text": "A subtask is assigned to someone else; a dependency is assigned to you", "isCorrect": false },
+        { "order": 2, "text": "They are the same thing shown in two places", "isCorrect": false },
+        { "order": 3, "text": "A dependency is a note for humans; a subtask is enforced by the system", "isCorrect": false }
+      ]
+    },
+    {
+      "id": "q02-2",
+      "order": 1,
+      "kind": "MULTI",
+      "points": 2,
+      "prompt": "You try to move a task to Done and Constellation refuses. Which of these could explain it? Select all that apply.",
+      "explanation": "Open dependencies and attached blockers both gate completion, and on a project with the GitHub CI setting on, a linked pull request with failing checks does too. Priority and due dates never gate anything — priority is a sorting signal for humans, and a missing due date just means no reminders.",
+      "answers": [
+        { "order": 0, "text": "It has a dependency that is not finished yet", "isCorrect": true },
+        { "order": 1, "text": "It has an unresolved blocker attached", "isCorrect": true },
+        { "order": 2, "text": "Its priority is set to CRITICAL", "isCorrect": false },
+        { "order": 3, "text": "It has no due date", "isCorrect": false }
+      ]
+    },
+    {
+      "id": "q02-3",
+      "order": 2,
+      "kind": "MULTI",
+      "points": 2,
+      "prompt": "Which of these belong in a task's description? Select all that apply.",
+      "explanation": "The description specifies the work: what is in scope, what is out, and the acceptance criteria that decide whether it is done. Status lives in the column, and the conversation belongs in comments so it stays attached to the work.",
+      "answers": [
+        { "order": 0, "text": "What is in scope and what is explicitly out", "isCorrect": true },
+        { "order": 1, "text": "Acceptance criteria — the checklist that decides it's finished", "isCorrect": true },
+        { "order": 2, "text": "A running log of who said what about it", "isCorrect": false },
+        { "order": 3, "text": "The current status of the work", "isCorrect": false }
+      ]
+    },
+    {
+      "id": "q02-4",
+      "order": 3,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "Which of these is a well-formed task title?",
+      "explanation": "A good title says what will be true when the task is finished. \"Wiring harness\" names a topic, not an outcome — you cannot tell whether it's done.",
+      "answers": [
+        { "order": 0, "text": "Route and secure the main wiring harness through bay two", "isCorrect": true },
+        { "order": 1, "text": "Wiring harness", "isCorrect": false },
+        { "order": 2, "text": "URGENT!! harness stuff", "isCorrect": false },
+        { "order": 3, "text": "Talk to Priya about the harness", "isCorrect": false }
+      ]
+    },
+    {
+      "id": "q02-5",
+      "order": 4,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "You log 3 hours against a task. What happens?",
+      "explanation": "Anything over two hours in one entry is queued for an officer to approve before the reward is granted. That gate is what keeps the XP economy believable — it is a process rule, not an accusation.",
+      "answers": [
+        { "order": 0, "text": "It's recorded, and the reward is queued for an officer to approve", "isCorrect": true },
+        { "order": 1, "text": "It's rejected — 3 hours exceeds the per-entry limit", "isCorrect": false },
+        { "order": 2, "text": "XP is granted immediately with no review", "isCorrect": false },
+        { "order": 3, "text": "It's recorded but never earns XP", "isCorrect": false }
+      ]
+    },
+    {
+      "id": "q02-6",
+      "order": 5,
+      "kind": "TRUE_FALSE",
+      "points": 1,
+      "prompt": "Typing @someone in a task comment sends them a Slack DM as well as an in-app notification.",
+      "explanation": "True. Mentions are parsed on save, matched to members, and delivered both in-app and by Slack DM. That is what makes the comment thread a real place to ask a question rather than a message in a bottle.",
+      "answers": [
+        { "order": 0, "text": "True", "isCorrect": true },
+        { "order": 1, "text": "False", "isCorrect": false }
+      ]
+    }
+  ]
+}

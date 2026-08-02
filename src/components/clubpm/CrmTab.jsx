@@ -793,7 +793,7 @@ export default function CrmTab({ isAdmin, currentMemberId, campaigns = [] }) {
           <button className="cpm-btn cpm-btn--secondary" onClick={() => setShowCsvModal(true)}>
             <i className="fas fa-file-csv" aria-hidden="true" /> Import CSV
           </button>
-          <button className="cpm-btn cpm-btn--primary" onClick={() => { setEditContact(null); setShowForm(true); }}>
+          <button className="cpm-btn cpm-btn--primary" data-tour-id="outreach.contact.new" onClick={() => { setEditContact(null); setShowForm(true); }}>
             <i className="fas fa-user-plus" aria-hidden="true" /> New Contact
           </button>
         </div>
