@@ -3,6 +3,7 @@ import React, {
 } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { recordTourProgress, reportTourBreakage } from "../../api/clubPmClient";
+import TourOverlay from "./TourOverlay";
 
 const TourContext = createContext(null);
 export const useTour = () => useContext(TourContext);
@@ -130,5 +131,10 @@ export function TourProvider({ children }) {
   }), [tour, step, stepIndex, stepCount, status,
        startTour, next, skipStep, pause, resume, stop, reportBreakage]);
 
-  return <TourContext.Provider value={value}>{children}</TourContext.Provider>;
+  return (
+    <TourContext.Provider value={value}>
+      {children}
+      <TourOverlay />
+    </TourContext.Provider>
+  );
 }
