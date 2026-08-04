@@ -12,6 +12,7 @@ import { queueDm } from "./dmBatcher.js";
 import { logAuditEvent } from "./activityService.js";
 import { recordActivity } from "./streakService.js";
 import { createNotification } from "./notificationCrud.js";
+import { isTrainingTask } from "./trainingSandboxService.js";
 
 // Streak activity hook — never throws into the caller. Returns a Promise so
 // hot paths (e.g. handleTaskComplete) can await before responding, ensuring
@@ -385,6 +386,12 @@ export async function handleTaskComplete(
   task: TaskWithRelations,
   actorId: string
 ): Promise<ActorRewardSummary | null> {
+  // Practice work must not pay. A learner who earns real XP for a fake task
+  // makes every XP number in the club slightly less meaningful.
+  // Looked up by task id rather than task.projectId: TaskWithRelations does not
+  // carry projectId, and widening it would mean touching every caller's select.
+  if (await isTrainingTask(task.id)) return null;
+
   // Determine event type from creator's role
   let eventType: RewardEventType = "TASK_COMPLETE_MEMBER_CREATED";
   if (task.createdById) {
@@ -482,6 +489,10 @@ const TIME_LOG_DAILY_HOURS_CAP = 8;
 const TIME_LOG_SINGLE_ADMIN_THRESHOLD_MIN = 120;
 
 export async function handleTimeLog(taskId: string, memberId: string, minutes: number): Promise<void> {
+  // Same rule as handleTaskComplete: no XP, and no streak credit either, for
+  // hours logged against the training sandbox.
+  if (await isTrainingTask(taskId)) return;
+
   const cfg = await prisma.rewardEventConfig.findUnique({ where: { eventType: "TIME_LOG_HOUR" } });
   void tickStreak(memberId, "TIME_LOG");
   if (!cfg || !cfg.autoApprove) return; // time-log rewards are auto-approve by default

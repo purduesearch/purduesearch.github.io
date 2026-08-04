@@ -140,6 +140,21 @@ export function startScheduler(app: App): void {
     }
   });
 
+  // ── Daily 3:45 AM — Drop training projects untouched for 30 days ──
+  cron.schedule("45 3 * * *", async () => {
+    try {
+      const cutoff = new Date(Date.now() - 30 * 86_400_000);
+      const stale = await prisma.project.findMany({
+        where: { trainingForMemberId: { not: null }, updatedAt: { lt: cutoff } },
+        select: { id: true },
+      });
+      for (const p of stale) await prisma.project.delete({ where: { id: p.id } });
+      if (stale.length) console.log(`🧹 Removed ${stale.length} stale training projects`);
+    } catch (error) {
+      console.error("❌ Training project sweep error:", error);
+    }
+  });
+
   // ── Daily 3:00 AM — Auto-archive nudges → admin + creator DMs ────
   cron.schedule("0 3 * * *", async () => {
     console.log("🗄️ Running auto-archive nudge sweep...");

@@ -11,7 +11,7 @@ import connectPgSimple from "connect-pg-simple";
 import { boltApp, startBolt } from "./slack/bolt.js";
 import { syncAdminStatus } from "./services/memberService.js";
 import { authRouter } from "./api/auth.js";
-import { projectsRouter, tagsRouter } from "./api/projects.js";
+import { projectsRouter, tagsRouter, trainingRouter } from "./api/projects.js";
 import { tasksRouter } from "./api/tasks.js";
 import { membersRouter } from "./api/members.js";
 import { activityRouter } from "./api/activity.js";
@@ -119,6 +119,7 @@ app.use("/api/tasks", tasksRouter);
 // ensures unauthenticated /api/public/* requests are handled before that.
 app.use("/api/public", publicRouter);
 app.use("/api", blockersRouter);
+app.use("/api", trainingRouter); // POST /api/training-project
 app.use("/api", vaultRouter);
 app.use("/api", changeRequestsRouter);
 app.use("/api/members", membersRouter);

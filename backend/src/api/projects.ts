@@ -29,6 +29,7 @@ import {
   analyzeProjectRisks, generateSprintPlan, generateProjectBrief,
   inferTaskDependencies, analyzeTeamCapacity, generateStakeholderEmail,
 } from "../services/projectAnalysisService.js";
+import { ensureTrainingProject } from "../services/trainingSandboxService.js";
 
 export const projectsRouter = Router();
 
@@ -813,6 +814,23 @@ projectsRouter.post("/:id/ai-execute-plan", async (req: Request, res: Response) 
 });
 
 // ── Tags router (for DELETE /api/tags/:tagId) ────────────────
+
+// ── Training sandbox ─────────────────────────────────────────
+// Its own router because the path is /api/training-project, not
+// /api/projects/*. requireAuth is per-route, never router.use() — this mounts
+// at bare "/api", where a router-level guard would run for every /api/*
+// request that reaches it.
+export const trainingRouter = Router();
+
+trainingRouter.post("/training-project", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const out = await ensureTrainingProject(req.memberId!);
+    res.json(out);
+  } catch (err) {
+    console.error("[training] ensureTrainingProject:", err);
+    res.status(500).json({ error: "Could not prepare your training project" });
+  }
+});
 
 export const tagsRouter = Router();
 tagsRouter.use(requireAuth);

@@ -4,6 +4,7 @@ import {
   clampStepIndex, isTourComplete, loadTourSteps,
   type TourConfig, type TourStep,
 } from "./tourStepService.js";
+import { archiveTrainingProject } from "./trainingSandboxService.js";
 
 // ── The gating brain ─────────────────────────────────────────
 //
@@ -1131,6 +1132,23 @@ export async function applyCourseSideEffects(
     }
   } catch (err) {
     console.error("[reward] handleCourseComplete:", err);
+  }
+
+  // The training project has done its job. Archive rather than delete: the
+  // learner may want to look back at what they did, and deleting it would
+  // cascade their practice tasks away mid-course if they resume a later module.
+  if (courseJustCompleted) {
+    try {
+      const course = await prisma.course.findUnique({
+        where: { id: opts.courseId },
+        select: { slug: true },
+      });
+      if (course?.slug === "constellation-101") {
+        await archiveTrainingProject(memberId);
+      }
+    } catch (err) {
+      console.error("[training] archiveTrainingProject:", err);
+    }
   }
 
   // Challenge hooks — awaited so the caller can surface progress toasts.
