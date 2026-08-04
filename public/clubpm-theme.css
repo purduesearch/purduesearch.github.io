@@ -22767,3 +22767,14 @@ html:not(.aos-off) [data-aos].aos-animate  { opacity: 1; transform: none; }
 @media (prefers-reduced-motion: reduce) {
   .pm-tour-ring { transition: none; }
 }
+
+/* === Course walkthrough launch card === */
+.pm-tour-launch {
+  background: var(--pm-surface); border: 1px solid var(--pm-accent-teal);
+  border-radius: 12px; padding: 20px; display: flex; flex-direction: column;
+  gap: 12px; align-items: flex-start; max-width: 620px;
+}
+.pm-tour-launch.is-locked { border-color: var(--pm-border, #2a3346); opacity: .8; }
+.pm-tour-launch h3 { font-family: var(--pm-font-display); margin: 0; }
+.pm-tour-launch p { margin: 0; font-size: .92rem; line-height: 1.55; }
+.pm-tour-launch-sandbox { color: var(--pm-accent-teal); font-size: .85rem; }

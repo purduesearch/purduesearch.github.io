@@ -360,10 +360,13 @@ export async function getLearnerCourse(
     (await prisma.course.findUnique({ where: { id: courseIdOrSlug } }));
   if (!course) return null;
 
-  const isEditor =
-    course.createdById === memberId ||
-    !!(await prisma.member.findUnique({ where: { id: memberId }, select: { isAdmin: true } }))
-      ?.isAdmin;
+  // Distinct from isEditor on purpose: a course author who is not an officer can
+  // edit this course but still cannot open the admin screens an admin-gated
+  // walkthrough drives, so the launch card must gate on the narrower flag.
+  const viewerIsAdmin = !!(
+    await prisma.member.findUnique({ where: { id: memberId }, select: { isAdmin: true } })
+  )?.isAdmin;
+  const isEditor = course.createdById === memberId || viewerIsAdmin;
   if (course.status !== "PUBLISHED" && !isEditor) return null;
 
   const preview = !!opts.preview && isEditor;
@@ -522,6 +525,9 @@ export async function getLearnerCourse(
     estimatedMinutes: course.estimatedMinutes,
     status: course.status,
     preview,
+    // Read by WalkthroughLaunchCard to lock an admin-gated tour rather than
+    // start it and dead-end the learner on a route they cannot open.
+    viewerIsAdmin,
     enrollment: enrollment
       ? {
           id: enrollment.id,

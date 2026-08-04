@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import BlogEditor from '../../components/clubpm/blog/BlogEditor';
 import LockedVideoPlayer from '../../components/clubpm/courses/LockedVideoPlayer';
 import CourseSlidePlayer from '../../components/clubpm/courses/CourseSlidePlayer';
 import CourseQuizRunner from '../../components/clubpm/courses/CourseQuizRunner';
+import WalkthroughLaunchCard from '../../components/clubpm/courses/WalkthroughLaunchCard';
 import { SECTION_KINDS } from '../../components/clubpm/courses/CourseSectionRail';
 import OrbitLoader from '../../components/OrbitLoader';
 import {
@@ -132,6 +133,7 @@ export default function CoursePlayerPage() {
   const { slug } = useParams();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const locationState = useLocation().state;
   // The editor's Preview link. Honoured server-side for the author/admin only:
   // every section unlocked, and no enrollment created — otherwise checking your
   // own course puts you in its completion matrix as a learner who never
@@ -245,6 +247,15 @@ export default function CoursePlayerPage() {
     }
   }, [completing, load]);
 
+  // A finished walkthrough navigates back here with the section it completed.
+  // The history entry is rewritten straight afterwards so a refresh — which
+  // replays location.state — cannot re-fire the completion call.
+  useEffect(() => {
+    if (!locationState?.tourCompleted) return;
+    handleComplete(locationState.tourCompleted);
+    window.history.replaceState({}, '');
+  }, [locationState, handleComplete]);
+
   const handleQuizPassed = useCallback(async () => {
     await load({ advance: true });
   }, [load]);
@@ -344,6 +355,16 @@ export default function CoursePlayerPage() {
                   answeredPopupIds={selected.answeredPopupIds}
                   preview={course.preview}
                   onComplete={() => handleComplete(selected.id)}
+                />
+              )}
+
+              {selected.kind === 'WALKTHROUGH' && (
+                <WalkthroughLaunchCard
+                  key={selected.id}
+                  section={selected}
+                  courseSlug={slug}
+                  preview={course.preview}
+                  isAdmin={course.viewerIsAdmin ?? false}
                 />
               )}
 
