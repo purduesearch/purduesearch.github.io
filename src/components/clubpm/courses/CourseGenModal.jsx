@@ -178,7 +178,7 @@ export default function CourseGenModal({ open, onClose, resumeJobId = null, onJo
 
   const openCourse = () => {
     onClose();
-    navigate(`/clubpm/outreach/courses/${job.courseId}/edit`);
+    navigate(`/clubpm/courses/${job.courseId}/edit`);
   };
 
   if (!open) return null;

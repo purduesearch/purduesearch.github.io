@@ -1441,40 +1441,42 @@ export default function TaskModal({ task: initialTask, project, projectBlockers 
     if (!btask) return;
     const newBlocking = [...blockingTasks, { ...btask, reason: reason || null }];
     setBlockingTasks(newBlocking);
-    const blockingTaskReasons = Object.fromEntries(newBlocking.map(b => [b.id, b.reason ?? null]));
     const correctedBlockedBy = newBlocking.map(b => ({
       blockingTask: { id: b.id, title: b.title, status: b.status }, reason: b.reason ?? null,
     }));
     try {
-      const result = await patch(`/api/tasks/${task.id}`, {
-        blockingTaskIds: newBlocking.map(t => t.id),
-        blockingTaskReasons,
+      // The dedicated dependency endpoint, not a whole-set PATCH: same cycle
+      // check, but it is the edge being added that gets audited, and it is the
+      // route the docs and the walkthroughs describe.
+      const result = await post(`/api/tasks/${task.id}/dependencies`, {
+        blockedById: taskId,
+        reason: reason || null,
       });
       const updatedTask = { ...task, ...result, blockedBy: correctedBlockedBy };
       setTask(updatedTask);
       onUpdate?.(updatedTask);
-    } catch {
+    } catch (err) {
       setBlockingTasks(blockingTasks);
+      // A rejected cycle is the server teaching the user something, so say it
+      // out loud instead of silently snapping the row back.
+      toast.error(err?.message || "Failed to add dependency");
     }
   }
 
   async function removeBlockingTask(taskId) {
     const newBlocking = blockingTasks.filter(t => t.id !== taskId);
     setBlockingTasks(newBlocking);
-    const blockingTaskReasons = Object.fromEntries(newBlocking.map(b => [b.id, b.reason ?? null]));
     const correctedBlockedBy = newBlocking.map(b => ({
       blockingTask: { id: b.id, title: b.title, status: b.status }, reason: b.reason ?? null,
     }));
     try {
-      const result = await patch(`/api/tasks/${task.id}`, {
-        blockingTaskIds: newBlocking.map(t => t.id),
-        blockingTaskReasons,
-      });
+      const result = await del(`/api/tasks/${task.id}/dependencies/${taskId}`);
       const updatedTask = { ...task, ...result, blockedBy: correctedBlockedBy };
       setTask(updatedTask);
       onUpdate?.(updatedTask);
-    } catch {
+    } catch (err) {
       setBlockingTasks(blockingTasks);
+      toast.error(err?.message || "Failed to remove dependency");
     }
   }
 

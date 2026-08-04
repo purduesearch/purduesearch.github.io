@@ -118,7 +118,7 @@ function CampaignFormModal({ initial, onSave, onClose }) {
 
   return (
     <div className="pm-modal-overlay" onClick={onClose}>
-      <div className="pm-modal-panel pm-campaign-modal" onClick={e => e.stopPropagation()}>
+      <div className="pm-modal-panel pm-campaign-modal" data-tour-id="outreach.campaign.form" onClick={e => e.stopPropagation()}>
         <div className="pm-modal-header">
           <h2 className="pm-modal-title">
             <i className={`fas fa-${initial ? 'edit' : 'plus-circle'}`} aria-hidden="true" />

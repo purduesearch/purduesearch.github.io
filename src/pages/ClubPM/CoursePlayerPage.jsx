@@ -133,7 +133,12 @@ export default function CoursePlayerPage() {
   const { slug } = useParams();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const locationState = useLocation().state;
+  const { pathname, search, state: locationState } = useLocation();
+  // Which walkthrough completions this mount has already sent. handleComplete's
+  // identity changes twice per call (it closes over `completing`), so the effect
+  // below re-runs after every completion — without a record of what was already
+  // handled it would re-fire against the same unchanged location state forever.
+  const handledToursRef = useRef(new Set());
   // The editor's Preview link. Honoured server-side for the author/admin only:
   // every section unlocked, and no enrollment created — otherwise checking your
   // own course puts you in its completion matrix as a learner who never
@@ -248,13 +253,20 @@ export default function CoursePlayerPage() {
   }, [completing, load]);
 
   // A finished walkthrough navigates back here with the section it completed.
-  // The history entry is rewritten straight afterwards so a refresh — which
-  // replays location.state — cannot re-fire the completion call.
+  // The router entry is then replaced without that state, so neither a refresh
+  // nor a re-run of this effect can fire the completion a second time —
+  // window.history.replaceState alone would not do it, because React Router
+  // keeps its own in-memory location and would hand us the same state again.
   useEffect(() => {
-    if (!locationState?.tourCompleted) return;
-    handleComplete(locationState.tourCompleted);
-    window.history.replaceState({}, '');
-  }, [locationState, handleComplete]);
+    const sectionId = locationState?.tourCompleted;
+    if (!sectionId || handledToursRef.current.has(sectionId)) return;
+    handledToursRef.current.add(sectionId);
+    // Preview records nothing, here as everywhere else. The tour already
+    // withholds the state in preview mode; this is the second lock, because a
+    // stale history entry could still carry it in.
+    if (!preview) handleComplete(sectionId);
+    navigate(`${pathname}${search}`, { replace: true, state: null });
+  }, [locationState, handleComplete, navigate, pathname, search, preview]);
 
   const handleQuizPassed = useCallback(async () => {
     await load({ advance: true });

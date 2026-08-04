@@ -58,3 +58,4 @@ fa-star              # DailyQuestsWidget.jsx
 fa-calendar-alt      # Dashboard.jsx / CalendarPage.jsx EVENT_TYPE_ICON fallback
 fa-user              # CrmTab.jsx contact-type fallback
 fa-question-circle   # ProjectDetail.jsx blocker-group fallback
+fa-exclamation-circle # CrmTab.jsx overdue follow-up banner (runtime-built)

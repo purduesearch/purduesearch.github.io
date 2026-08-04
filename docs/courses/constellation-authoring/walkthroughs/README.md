@@ -2,7 +2,7 @@
 
 `.steps.json` authored in the final implementation phase.
 
-## `course-authoring` — 7 steps, 3 real API calls
+## `course-authoring` — 9 steps, 3 real API calls
 
 No training project needed — a draft course is its own disposable object. The tour creates one and
 leaves it in DRAFT, which is harmless: unpublished courses are invisible to everyone but their
@@ -10,13 +10,15 @@ author.
 
 | # | Anchor | Advance | Copy |
 |---|---|---|---|
-| 1 | `outreach.tab.courses` | `click` | "Every course, draft and published. Yours will be a draft and nobody else will see it." |
+| 1 | `nav.courses` | `click` | "Every course, draft and published. Yours will be a draft and nobody else will see it." |
 | 2 | `courses.new` | `api` POST `/api/outreach/courses` | "Make one. Title it anything." |
 | 3 | `course.editor.rail` | `next` | "Modules on the left, sections inside them. Modules gate — finish one to unlock the next." |
 | 4 | `course.editor.addsection` | `api` POST `/api/outreach/courses/:id/sections` | "Add a CONTENT section. Prose is for the 'why' — the thing someone reads once." |
 | 5 | `course.editor.addsection` | `api` POST `/api/outreach/courses/:id/sections` | "Now a QUIZ. Notice WALKTHROUGH isn't offerable here — tour steps are repo files, reviewed like code." |
 | 6 | `course.editor.preview` | `next` | "Preview opens the learner view with everything unlocked and nothing recorded. Always read your own course this way before assigning it." |
-| 7 | `course.editor.assign` | `next` | "Assign with a due date and members get notified. **Don't assign this one** — leave it in draft." |
+| 7 | `nav.courses` | `click` | "Assignment isn't in the editor — it's on the catalog page, because it's about people rather than content." |
+| 8 | `courses.progress` | `click` *(optional)* | "Open the progress dashboard: who's enrolled, who's stalled, who never started. Officers only." |
+| 9 | `courses.assign` | `next` *(optional)* | "Assign with a due date and members get notified. **Don't assign this one** — leave it in draft." |
 
 **Design notes**
 
@@ -32,3 +34,9 @@ author.
   not everyone should run.
 - Step 6 is `next` rather than `click` because Preview opens a new context. Sending the learner out of
   the editor mid-tour risks stranding them; V10 already showed what preview looks like.
+
+**Correction, this pass:** the assign step used to target `course.editor.assign` on
+`/clubpm/courses/:id/edit`. That button has never existed in the course editor — it lives on the
+admin progress dashboard reached from the catalog, so the id was renamed `courses.assign` and steps
+7 and 8 were added to actually walk there. Both new steps are `optional` because the dashboard and
+the button are admin-only.

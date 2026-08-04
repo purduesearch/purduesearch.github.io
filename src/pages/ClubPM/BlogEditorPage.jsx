@@ -421,6 +421,7 @@ export default function BlogEditorPage() {
             <button
               type="button"
               className={`cpm-blog-tool-btn${aiPanelOpen ? ' is-active' : ''}`}
+              data-tour-id="blog.editor.aitoggle"
               onClick={() => showPanel('ai')}
               title="AI assistant"
               aria-label="AI assistant"
@@ -441,7 +442,7 @@ export default function BlogEditorPage() {
             <span>{previewMode ? 'Edit' : 'Preview'}</span>
           </button>
 
-          <button type="button" className="clubpm-btn-secondary" onClick={() => handleSave()} disabled={saving}>
+          <button type="button" className="clubpm-btn-secondary" data-tour-id="blog.editor.save" onClick={() => handleSave()} disabled={saving}>
             <i className="fas fa-floppy-disk" aria-hidden="true" />
             <span>{saving ? 'Saving…' : 'Save draft'}</span>
           </button>

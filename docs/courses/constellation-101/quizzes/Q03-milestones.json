@@ -37,13 +37,13 @@
       "order": 2,
       "kind": "SINGLE",
       "points": 1,
-      "prompt": "A milestone's health badge says \"at risk.\" What does that mean?",
-      "explanation": "At risk is a forecast, not a verdict: the date has not passed, but at the current rate the milestone will not make it. It is useful precisely because there is still time to move a date, add people, or cut scope.",
+      "prompt": "Where do you go to see a project's milestones?",
+      "explanation": "The Gantt view. Milestones are dates drawn against the timeline, alongside the bars for the work that has to land before them. The task board is organised by status, not by time, so it cannot show you a commitment at all.",
       "answers": [
-        { "order": 0, "text": "It hasn't missed its date yet, but at the current rate it won't make it", "isCorrect": true },
-        { "order": 1, "text": "Its date has already passed with work still open", "isCorrect": false },
-        { "order": 2, "text": "Nobody has been assigned as its owner", "isCorrect": false },
-        { "order": 3, "text": "It has fewer than three linked tasks", "isCorrect": false }
+        { "order": 0, "text": "The Gantt view, where each one is a marker on the timeline", "isCorrect": true },
+        { "order": 1, "text": "The task board, as a fifth column after Done", "isCorrect": false },
+        { "order": 2, "text": "The dashboard, under your assigned tasks", "isCorrect": false },
+        { "order": 3, "text": "The Reports tab, in the activity log", "isCorrect": false }
       ]
     },
     {
@@ -51,12 +51,12 @@
       "order": 3,
       "kind": "SINGLE",
       "points": 1,
-      "prompt": "A milestone has gone red — past its date with tasks still open. What's the right response?",
-      "explanation": "Open it, look at what's still there, and either finish the work or change the date deliberately. A milestone nobody has moved and nobody has finished stops carrying information for everyone who reads the board.",
+      "prompt": "A milestone's date has passed and the work in front of it is still open. What's the right response?",
+      "explanation": "Look at what's still there, and either finish the work or move the date deliberately. A date nobody has moved and nobody has met stops carrying information for everyone who reads the timeline.",
       "answers": [
-        { "order": 0, "text": "Open it and either finish the remaining work or move the date on purpose", "isCorrect": true },
-        { "order": 1, "text": "Delete it and create a fresh one so the board looks clean", "isCorrect": false },
-        { "order": 2, "text": "Leave it — the badge will clear itself on the next refresh", "isCorrect": false },
+        { "order": 0, "text": "Either finish the remaining work or move the date on purpose", "isCorrect": true },
+        { "order": 1, "text": "Delete it and create a fresh one so the timeline looks clean", "isCorrect": false },
+        { "order": 2, "text": "Leave it — it will clear itself on the next nightly refresh", "isCorrect": false },
         { "order": 3, "text": "Unlink the unfinished tasks from it", "isCorrect": false }
       ]
     },
@@ -65,8 +65,8 @@
       "order": 4,
       "kind": "TRUE_FALSE",
       "points": 1,
-      "prompt": "A milestone's progress bar is a judgement call made by the system.",
-      "explanation": "False. The bar is plain arithmetic — linked tasks done over linked tasks total. The health badge beside it is the judgement, and it is recalculated every morning from what's left, how much time remains, and whether anything linked is overdue or blocked.",
+      "prompt": "Tasks and milestones are the same kind of object — a milestone is just a task with a later date.",
+      "explanation": "False. A milestone has no work of its own; it is a date the club has committed to, and the tasks are what has to land before it. That is why they are drawn on the timeline rather than sitting in a board column.",
       "answers": [
         { "order": 0, "text": "True", "isCorrect": false },
         { "order": 1, "text": "False", "isCorrect": true }

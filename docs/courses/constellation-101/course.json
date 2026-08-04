@@ -90,7 +90,7 @@
             "tourId": "your-first-task",
             "entryRoute": "/clubpm/projects/:trainingProjectId",
             "requiresTrainingProject": true,
-            "stepCount": 12
+            "stepCount": 13
           }
         },
         {
@@ -128,12 +128,12 @@
             "tourId": "blocked-and-unblocked",
             "entryRoute": "/clubpm/projects/:trainingProjectId",
             "requiresTrainingProject": true,
-            "stepCount": 10
+            "stepCount": 11
           }
         },
         {
           "order": 2,
-          "title": "Reading a milestone's health",
+          "title": "Milestones on the timeline",
           "kind": "VIDEO",
           "isRequired": true,
           "videoRef": "videos/V03-milestone-health.md",

@@ -1,23 +1,22 @@
 {
   "tourId": "course-authoring",
   "title": "Building a course",
-  "entryRoute": "/clubpm/outreach",
+  "entryRoute": "/clubpm/courses",
   "requiresTrainingProject": false,
   "steps": [
     {
-      "id": "courses-tab",
-      "anchor": "outreach.tab.courses",
-      "route": "/clubpm/outreach",
+      "id": "courses-nav",
+      "anchor": "nav.courses",
+      "route": "/clubpm/courses",
       "title": "Every course, draft and published",
-      "body": "Yours will be a draft and nobody else will see it. Open the Courses tab.",
-      "placement": "bottom",
-      "dim": ["nav.sidebar"],
+      "body": "Yours will be a draft and nobody else will see it. Open Courses in the sidebar.",
+      "placement": "right",
       "advance": { "on": "click" }
     },
     {
       "id": "new-course",
       "anchor": "courses.new",
-      "route": "/clubpm/outreach",
+      "route": "/clubpm/courses",
       "title": "Make one",
       "body": "Title it anything.",
       "placement": "bottom",
@@ -26,7 +25,7 @@
     {
       "id": "rail",
       "anchor": "course.editor.rail",
-      "route": "/clubpm/outreach/courses/:id/edit",
+      "route": "/clubpm/courses/:id/edit",
       "title": "Modules on the left, sections inside them",
       "body": "Modules gate — finish one to unlock the next. That's the only structural decision that changes what a learner can reach.",
       "placement": "right",
@@ -35,7 +34,7 @@
     {
       "id": "add-content",
       "anchor": "course.editor.addsection",
-      "route": "/clubpm/outreach/courses/:id/edit",
+      "route": "/clubpm/courses/:id/edit",
       "title": "Add a CONTENT section",
       "body": "Prose is for the \"why\" — the thing someone reads once and doesn't come back to.",
       "placement": "right",
@@ -44,7 +43,7 @@
     {
       "id": "add-quiz",
       "anchor": "course.editor.addsection",
-      "route": "/clubpm/outreach/courses/:id/edit",
+      "route": "/clubpm/courses/:id/edit",
       "title": "Now a QUIZ",
       "body": "Notice WALKTHROUGH isn't offerable here. Tour steps are repo files — they target UI elements by anchor id, so they're reviewed like code and a rename fails the build instead of silently breaking a live tour.",
       "placement": "right",
@@ -53,19 +52,39 @@
     {
       "id": "preview",
       "anchor": "course.editor.preview",
-      "route": "/clubpm/outreach/courses/:id/edit",
+      "route": "/clubpm/courses/:id/edit",
       "title": "Preview opens the learner view",
       "body": "Everything unlocked, nothing recorded. Always read your own course this way before assigning it — you'll find the section that made sense only to you.",
       "placement": "bottom",
       "advance": { "on": "next" }
     },
     {
+      "id": "back-to-catalog",
+      "anchor": "nav.courses",
+      "route": "/clubpm/courses/:id/edit",
+      "title": "Assignment isn't in the editor",
+      "body": "It's on the catalog page, because it's about people rather than content. Head back to Courses.",
+      "placement": "right",
+      "advance": { "on": "click" }
+    },
+    {
+      "id": "progress-dashboard",
+      "anchor": "courses.progress",
+      "route": "/clubpm/courses",
+      "title": "Open the progress dashboard",
+      "body": "Who's enrolled, who's stalled, who never started. Officers only.",
+      "placement": "bottom",
+      "optional": true,
+      "advance": { "on": "click" }
+    },
+    {
       "id": "assign",
-      "anchor": "course.editor.assign",
-      "route": "/clubpm/outreach/courses/:id/edit",
+      "anchor": "courses.assign",
+      "route": "/clubpm/courses",
       "title": "Don't assign this one",
       "body": "Assigning sets a due date and notifies everyone you picked. Leave your practice course in draft — a draft is invisible to everyone but you.",
       "placement": "bottom",
+      "optional": true,
       "advance": { "on": "next" }
     }
   ]

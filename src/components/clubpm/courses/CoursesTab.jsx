@@ -106,7 +106,7 @@ export default function CoursesTab({ isAdmin = false, currentMemberId = null }) 
     setCreating(true);
     try {
       const course = await createCourse({ title: 'Untitled course' });
-      navigate(`/clubpm/outreach/courses/${course.id}/edit`);
+      navigate(`/clubpm/courses/${course.id}/edit`);
     } catch {
       toast.error('Could not create course');
     } finally {
@@ -130,13 +130,13 @@ export default function CoursesTab({ isAdmin = false, currentMemberId = null }) 
   };
 
   const openCourse = (course) => {
-    if (course.canEdit) navigate(`/clubpm/outreach/courses/${course.id}/edit`);
-    else navigate(`/clubpm/outreach/courses/${course.slug}/learn`);
+    if (course.canEdit) navigate(`/clubpm/courses/${course.id}/edit`);
+    else navigate(`/clubpm/courses/${course.slug}/learn`);
   };
 
   const takeCourse = (e, course) => {
     e.stopPropagation();
-    navigate(`/clubpm/outreach/courses/${course.slug}/learn`);
+    navigate(`/clubpm/courses/${course.slug}/learn`);
   };
 
   // Authors and admins land in the editor when they open a card, which left them
@@ -182,7 +182,7 @@ export default function CoursesTab({ isAdmin = false, currentMemberId = null }) 
         </div>
         <div className="cpm-course-tab-actions">
           {isAdmin && (
-            <button className="clubpm-btn-secondary" onClick={() => setShowDashboard(true)}>
+            <button className="clubpm-btn-secondary" data-tour-id="courses.progress" onClick={() => setShowDashboard(true)}>
               <i className="fas fa-chart-bar" aria-hidden="true" style={{ marginRight: 6 }} />
               Progress dashboard
             </button>

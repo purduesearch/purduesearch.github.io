@@ -90,12 +90,13 @@ export default function ChangeRequestList({ project, member, isAdmin, mode = "al
         </div>
       ) : (
         <div className="cpm-vault-cr-grid" data-tour-id="cr.list">
-          {crs.map((cr) => {
+          {crs.map((cr, index) => {
             const itemCount = cr.items?.length ?? 0;
             return (
               <div
                 key={cr.id}
                 className="cpm-vault-cr-card"
+                data-tour-id={index === 0 ? "cr.card" : undefined}
                 role="button"
                 tabIndex={0}
                 onClick={() => setSelectedCrId(cr.id)}

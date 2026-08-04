@@ -3,6 +3,7 @@ import React, {
 } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { recordTourProgress, reportTourBreakage } from "../../api/clubPmClient";
+import { findAnchor } from "./anchorDom";
 import TourOverlay from "./TourOverlay";
 
 const TourContext = createContext(null);
@@ -19,6 +20,24 @@ function routeMatches(pattern, pathname) {
   return p.every((seg, i) => seg.startsWith(":") || seg === a[i]);
 }
 
+/**
+ * Fill the project id into a step route.
+ *
+ * Returns null when a placeholder is left over — a tour that does not provision
+ * a training project still declares `:id` routes for screens it reaches by
+ * clicking (the blog editor, the course editor). Navigating there with an empty
+ * segment produces "/clubpm/outreach/blog//edit", which is a 404 the learner
+ * cannot get out of. Refusing to navigate leaves them where they are, which the
+ * anchor timeout then degrades into a skippable step.
+ */
+function resolveRoute(pattern, projectId) {
+  if (!pattern || pattern === "*") return null;
+  const filled = projectId
+    ? pattern.replace(/:(id|trainingProjectId|projectId)\b/g, projectId)
+    : pattern;
+  return /:[A-Za-z]/.test(filled) ? null : filled;
+}
+
 export function TourProvider({ children }) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -28,7 +47,9 @@ export function TourProvider({ children }) {
   const [status, setStatus] = useState("idle"); // idle | running | paused
 
   const stepIndexRef = useRef(0);
-  stepIndexRef.current = stepIndex;
+  const advancingRef = useRef(false);
+
+  useEffect(() => { stepIndexRef.current = stepIndex; }, [stepIndex]);
 
   const step = tour?.steps[stepIndex] ?? null;
   const stepCount = tour?.steps.length ?? 0;
@@ -39,44 +60,76 @@ export function TourProvider({ children }) {
     if (!raw) return;
     try {
       const saved = JSON.parse(raw);
+      if (!saved?.tour?.steps?.length) throw new Error("empty");
       setTour(saved.tour);
-      setStepIndex(saved.stepIndex);
+      setStepIndex(Math.min(saved.stepIndex ?? 0, saved.tour.steps.length - 1));
       setStatus("paused");
     } catch { sessionStorage.removeItem(RESUME_KEY); }
   }, []);
 
   useEffect(() => {
-    if (!tour) { sessionStorage.removeItem(RESUME_KEY); return; }
+    if (!tour) return;
     sessionStorage.setItem(RESUME_KEY, JSON.stringify({ tour, stepIndex }));
   }, [tour, stepIndex]);
 
   const startTour = useCallback((config) => {
-    // config.steps already has :trainingProjectId substituted by the caller.
+    advancingRef.current = false;
     setTour(config);
     setStepIndex(config.resumeAt ?? 0);
+    stepIndexRef.current = config.resumeAt ?? 0;
     setStatus("running");
-    if (config.entryRoute && !routeMatches(config.entryRoute, window.location.pathname)) {
-      navigate(config.entryRoute);
+    const entry = resolveRoute(config.entryRoute, config.projectId);
+    if (entry && !routeMatches(config.entryRoute, window.location.pathname)) {
+      navigate(entry);
     }
   }, [navigate]);
 
+  const clear = useCallback(() => {
+    sessionStorage.removeItem(RESUME_KEY);
+    advancingRef.current = false;
+    setTour(null); setStepIndex(0); setStatus("idle");
+  }, []);
+
   const finish = useCallback(() => {
     const done = tour;
-    sessionStorage.removeItem(RESUME_KEY);
-    setTour(null); setStepIndex(0); setStatus("idle");
-    if (done?.returnTo) navigate(done.returnTo, { state: { tourCompleted: done.sectionId } });
-  }, [navigate, tour]);
+    clear();
+    if (!done?.returnTo) return;
+    // An author previewing their own course must come back to the preview, not
+    // be marked as having completed a section they were only inspecting — the
+    // whole point of preview mode is that it records nothing.
+    navigate(done.returnTo, {
+      state: done.preview ? null : { tourCompleted: done.sectionId },
+    });
+  }, [clear, navigate, tour]);
 
   const goTo = useCallback((index) => {
     if (!tour) return;
     if (index >= tour.steps.length) { finish(); return; }
-    setStepIndex(index);
+    const bounded = Math.max(0, index);
+    stepIndexRef.current = bounded;
+    setStepIndex(bounded);
     if (!tour.preview) {
-      recordTourProgress(tour.sectionId, index).catch(() => {});
+      // The server clamps to a high-water mark, so stepping backwards to re-read
+      // a step cannot cost the learner the progress they already earned.
+      recordTourProgress(tour.sectionId, bounded).catch(() => {});
     }
   }, [tour, finish]);
 
-  const next = useCallback(() => goTo(stepIndexRef.current + 1), [goTo]);
+  const next = useCallback(() => {
+    // Advance signals can arrive more than once for one action — a click that
+    // both matches the anchor and triggers a navigation, say. Without this latch
+    // a single click would skip two steps.
+    if (advancingRef.current) return;
+    advancingRef.current = true;
+    window.setTimeout(() => { advancingRef.current = false; }, 350);
+    goTo(stepIndexRef.current + 1);
+  }, [goTo]);
+
+  const back = useCallback(() => {
+    if (stepIndexRef.current <= 0) return;
+    advancingRef.current = false;
+    goTo(stepIndexRef.current - 1);
+  }, [goTo]);
 
   const skipStep = useCallback(() => {
     // A skipped step still counts toward maxStepIndex. Refusing to let someone
@@ -86,10 +139,14 @@ export function TourProvider({ children }) {
 
   const pause = useCallback(() => setStatus("paused"), []);
   const resume = useCallback(() => setStatus("running"), []);
+
+  /** Exit returns to the course rather than abandoning the learner inside the
+   *  training project with no way back to where they came from. */
   const stop = useCallback(() => {
-    sessionStorage.removeItem(RESUME_KEY);
-    setTour(null); setStepIndex(0); setStatus("idle");
-  }, []);
+    const returnTo = tour?.returnTo;
+    clear();
+    if (returnTo) navigate(returnTo);
+  }, [clear, navigate, tour]);
 
   const reportBreakage = useCallback((anchor) => {
     if (!tour || tour.preview) return;
@@ -101,9 +158,9 @@ export function TourProvider({ children }) {
   // Navigate to the step's declared route before the overlay hunts for it.
   useEffect(() => {
     if (status !== "running" || !step?.route) return;
-    if (!routeMatches(step.route, location.pathname)) {
-      navigate(step.route.replace(":id", tour.projectId ?? ""));
-    }
+    if (routeMatches(step.route, location.pathname)) return;
+    const target = resolveRoute(step.route, tour?.projectId);
+    if (target) navigate(target);
   }, [status, step, location.pathname, navigate, tour]);
 
   // advance.on === "route"
@@ -111,6 +168,25 @@ export function TourProvider({ children }) {
     if (status !== "running" || step?.advance?.on !== "route") return;
     if (routeMatches(step.advance.match, location.pathname)) next();
   }, [status, step, location.pathname, next]);
+
+  // advance.on === "click"
+  //
+  // Capture phase, so a handler that stops propagation cannot hide the click
+  // from us, and deferred by a tick so the app's own handler — usually the one
+  // that opens the modal or navigates — runs against the step that asked for it
+  // rather than against the next one.
+  useEffect(() => {
+    if (status !== "running" || step?.advance?.on !== "click") return undefined;
+    const onClick = (event) => {
+      const el = findAnchor(step.anchor);
+      if (!el) return;
+      const target = event.target;
+      if (el !== target && !el.contains(target)) return;
+      window.setTimeout(next, 0);
+    };
+    document.addEventListener("click", onClick, true);
+    return () => document.removeEventListener("click", onClick, true);
+  }, [status, step, next]);
 
   // advance.on === "api"
   useEffect(() => {
@@ -127,9 +203,9 @@ export function TourProvider({ children }) {
 
   const value = useMemo(() => ({
     tour, step, stepIndex, stepCount, status,
-    startTour, next, skipStep, pause, resume, stop, reportBreakage,
+    startTour, next, back, skipStep, pause, resume, stop, reportBreakage,
   }), [tour, step, stepIndex, stepCount, status,
-       startTour, next, skipStep, pause, resume, stop, reportBreakage]);
+       startTour, next, back, skipStep, pause, resume, stop, reportBreakage]);
 
   return (
     <TourContext.Provider value={value}>

@@ -24,11 +24,11 @@ step files.
 | `nav.sidebar` | The whole sidebar, for coarse dimming | `*` |
 | `nav.dashboard` | Dashboard link | `*` |
 | `nav.projects` | Projects link | `*` |
-| `nav.members` | Members link | `*` |
+| `nav.members` | Members link — a child of the Outreach group† | `*` |
 | `nav.calendar` | Calendar link | `*` |
-| `nav.challenges` | Quests link | `*` |
+| `nav.courses` | Courses link | `*` |
 | `nav.shop` | Shop link | `*` |
-| `nav.outreach` | Outreach link | `*` |
+| `nav.outreach` | Outreach group header (collapsible, not a link) | `*` |
 | `nav.admin` | Admin link (admins only) | `*` |
 | `nav.profile` | Sidebar user / profile link | `*` |
 | `nav.xp` | Sidebar XP progress bar | `*` |
@@ -36,16 +36,21 @@ step files.
 | `topbar.notifications` | Notification bell | `*` |
 | `topbar.search` | AI command palette trigger | `*` |
 | `topbar.streak` | Streak flame counter | `*` |
+| `topbar.challenges` | Quests button (trophy icon) | `*` |
+
+† The sidebar is an icon-only rail that expands on hover, and group children are `display: none`
+until it does. The static check still sees `nav.members` because the literal is in `NAV_ITEMS`, but a
+step that targets it will measure a zero rect and degrade. Don't target a group child until the rail
+keeps its children in layout.
 
 ## Dashboard — `src/pages/ClubPM/Dashboard.jsx`
 
 | Anchor | Element | Route |
 |---|---|---|
-| `dash.stats` | The five-tile stat bar | `/clubpm` |
 | `dash.quests` | Daily quests widget | `/clubpm` |
 | `dash.work` | "My work" filterable task list | `/clubpm` |
 | `dash.agenda` | 7-day agenda panel | `/clubpm` |
-| `dash.leaderboard` | Leaderboard panel | `/clubpm` |
+| `dash.leaderboard` | Leaderboard panel, at the bottom of the member roster | `/clubpm/members` |
 | `dash.insights` | AI insight cards | `/clubpm` |
 | `dash.project.card` | First project card in the grid | `/clubpm` |
 
@@ -54,12 +59,11 @@ step files.
 | Anchor | Element | Route |
 |---|---|---|
 | `project.header` | Project title + status row | `/clubpm/projects/:id` |
-| `project.tab.tasks` | Tasks tab | `/clubpm/projects/:id` |
-| `project.tab.milestones` | Milestones tab | `/clubpm/projects/:id` |
-| `project.tab.files` | Files tab | `/clubpm/projects/:id` |
-| `project.tab.vault` | Vault tab | `/clubpm/projects/:id` |
-| `project.tab.reports` | Reports tab | `/clubpm/projects/:id` |
-| `project.tab.ai` | AI tab | `/clubpm/projects/:id` |
+| `project.tab.tasks` | Tasks tab&Dagger; | `/clubpm/projects/:id` |
+| `project.tab.files` | Files tab&Dagger; | `/clubpm/projects/:id` |
+| `project.tab.reports` | Reports tab&Dagger; | `/clubpm/projects/:id` |
+| `project.tab.ai` | AI tab&Dagger; | `/clubpm/projects/:id` |
+| `project.tab.vault` | Vault **sub**-tab, inside the Files tab | `/clubpm/projects/:id` |
 | `board.newtask` | "New task" button | `/clubpm/projects/:id` |
 | `board.filters` | Filter / search row above the board | `/clubpm/projects/:id` |
 | `board.column.TODO` | To-do column | `/clubpm/projects/:id` |
@@ -69,16 +73,31 @@ step files.
 | `board.card.first` | First card in the to-do column | `/clubpm/projects/:id` |
 | `board.memberchips` | Draggable member chip rail | `/clubpm/projects/:id` |
 | `board.blocker.bin` | Blocker sub-bin under the Blocked column | `/clubpm/projects/:id` |
-| `milestones.panel` | Milestone list | `/clubpm/projects/:id` |
-| `milestones.new` | "New milestone" button | `/clubpm/projects/:id` |
-| `milestones.health` | Health badge on the first milestone | `/clubpm/projects/:id` |
 | `ai.goal` | Action-plan goal input | `/clubpm/projects/:id` |
+
+&Dagger; The project tab bar is rendered by **AppShell** from `ProjectNavContext`; `ProjectDetail` only
+supplies the list (`NAV_TABS`, each entry carrying its `tourId`). These ids must sit on AppShell's
+buttons. They previously sat on a `ProjectSidebar` component in `ProjectDetail.jsx` that nothing
+rendered — the static check passed while every step targeting them degraded.
+
+## New-task modal — `src/pages/ClubPM/ProjectDetail.jsx` (`AddProjectTaskModal`)
+
+| Anchor | Element | Route |
+|---|---|---|
+| `task.create.modal` | The New Task panel, opened by `board.newtask` | `/clubpm/projects/:id` |
+| `task.create.title` | "Task Title" field | `/clubpm/projects/:id` |
+
+&sect; **Creating a task does not open the task modal.** The create form asks only for a title,
+priority, due date, milestone and tags, then closes; the new card lands in the column it was created
+from. A step that needs any `task.modal.*` anchor below must therefore first spotlight the card and
+wait for the learner to click it — see `your-first-task`'s `open-it` step. Skipping that leaves five
+consecutive steps hunting for a modal nobody opened.
 
 ## Task modal — `src/components/clubpm/TaskModal.jsx`
 
 | Anchor | Element | Route |
 |---|---|---|
-| `task.modal` | The modal shell | `*` |
+| `task.modal` | The modal shell (opened by clicking a card) | `*` |
 | `task.modal.title` | Title field | `*` |
 | `task.modal.status` | Status selector | `*` |
 | `task.modal.priority` | Priority selector | `*` |
@@ -119,6 +138,11 @@ step files.
 
 | Anchor | Element | Route |
 |---|---|---|
+Everything below is behind **Files &rarr; Vault**; a step must open both before it can target one.
+
+| Anchor | Element | Route |
+|---|---|---|
+| `vault.tab.crs` | "Change Requests" pill in the Vault sub-nav | `/clubpm/projects/:id` |
 | `vault.tree` | Item tree | `/clubpm/projects/:id` |
 | `vault.item` | First vault item row | `/clubpm/projects/:id` |
 | `vault.checkout` | Check-out button | `/clubpm/projects/:id` |
@@ -126,8 +150,9 @@ step files.
 | `vault.versions` | Version history | `/clubpm/projects/:id` |
 | `vault.bom` | BOM view | `/clubpm/projects/:id` |
 | `cr.new` | New change request | `/clubpm/projects/:id` |
-| `cr.list` | Change-request list | `/clubpm/projects/:id` |
-| `cr.review` | Approve / reject controls | `/clubpm/projects/:id` |
+| `cr.list` | Change-request list (under `vault.tab.crs`) | `/clubpm/projects/:id` |
+| `cr.card` | First change-request card — opens the CR modal | `/clubpm/projects/:id` |
+| `cr.review` | Approve / reject — **admins only**, inside the CR modal, CR must be OPEN | `/clubpm/projects/:id` |
 
 ## Outreach and blog — `src/pages/ClubPM/OutreachHub.jsx`, `BlogEditorPage.jsx`
 
@@ -136,29 +161,35 @@ step files.
 | `outreach.tab.contacts` | Contacts tab | `/clubpm/outreach` |
 | `outreach.tab.campaigns` | Campaigns tab | `/clubpm/outreach` |
 | `outreach.tab.blog` | Blog tab | `/clubpm/outreach` |
-| `outreach.tab.courses` | Courses tab | `/clubpm/outreach` |
 | `outreach.contact.new` | Add contact | `/clubpm/outreach` |
+| `outreach.contact.form` | New/Edit contact modal panel | `/clubpm/outreach` |
 | `outreach.campaign.new` | New campaign | `/clubpm/outreach` |
-| `outreach.contact.history` | Interaction timeline inside the contact drawer | `/clubpm/outreach` |
-| `outreach.contact.followup` | "Next follow-up" date field in the contact form | `/clubpm/outreach` |
+| `outreach.campaign.form` | New/Edit campaign modal panel | `/clubpm/outreach` |
+| `outreach.contact.card` | First card on the CRM board, in column order — opens the drawer | `/clubpm/outreach` |
+| `outreach.contact.timeline` | "Timeline" tab inside the contact drawer | `/clubpm/outreach` |
+| `outreach.contact.history` | Body of the drawer's Timeline tab — select that tab first | `/clubpm/outreach` |
+| `outreach.contact.followup` | "Next follow-up" date field — **only while the contact modal is open** | `/clubpm/outreach` |
 | `blog.new` | New-post button on the Blog tab | `/clubpm/outreach` |
 | `blog.editor.body` | Editor canvas | `/clubpm/outreach/blog/:id/edit` |
 | `blog.editor.toolbar` | Formatting toolbar | `/clubpm/outreach/blog/:id/edit` |
 | `blog.editor.presence` | Collaborator presence row | `/clubpm/outreach/blog/:id/edit` |
 | `blog.editor.publish` | Publish / schedule control | `/clubpm/outreach/blog/:id/edit` |
-| `blog.editor.ai` | AI assistant panel (shared with the course editor) | `/clubpm/outreach/blog/:id/edit` |
+| `blog.editor.save` | "Save draft" button (the editor also autosaves ~1.5s after typing stops) | `/clubpm/outreach/blog/:id/edit` |
+| `blog.editor.aitoggle` | Header wand button — **opens** `blog.editor.ai` | `/clubpm/outreach/blog/:id/edit` |
+| `blog.editor.ai` | AI assistant panel (shared with the course editor); renders nothing until the toggle is pressed | `/clubpm/outreach/blog/:id/edit` |
 
-## Courses and admin
+## Courses — `src/pages/ClubPM/CoursesPage.jsx`, `CourseEditorPage.jsx` — and admin
 
 | Anchor | Element | Route |
 |---|---|---|
-| `courses.list` | Course list | `/clubpm/outreach` |
-| `courses.new` | New course | `/clubpm/outreach` |
-| `courses.gen` | AI-generate button | `/clubpm/outreach` |
-| `course.editor.rail` | Section rail | `/clubpm/outreach/courses/:id/edit` |
-| `course.editor.addsection` | Add-section control | `/clubpm/outreach/courses/:id/edit` |
-| `course.editor.preview` | Preview link | `/clubpm/outreach/courses/:id/edit` |
-| `course.editor.assign` | Assign-to-members button | `/clubpm/outreach/courses/:id/edit` |
+| `courses.list` | Course list | `/clubpm/courses` |
+| `courses.new` | New course | `/clubpm/courses` |
+| `courses.gen` | AI-generate button | `/clubpm/courses` |
+| `courses.progress` | "Progress dashboard" button — admins only | `/clubpm/courses` |
+| `courses.assign` | Assign-to-members button, **inside** `courses.progress` — admins only | `/clubpm/courses` |
+| `course.editor.rail` | Section rail | `/clubpm/courses/:id/edit` |
+| `course.editor.addsection` | Add-section control | `/clubpm/courses/:id/edit` |
+| `course.editor.preview` | Preview link | `/clubpm/courses/:id/edit` |
 | `admin.rewards.pending` | Pending reward queue | `/clubpm/admin` |
 | `admin.rewards.config` | Reward amount config | `/clubpm/admin` |
 | `admin.integrations` | Integrations (Drive connect) card | `/clubpm/admin` |
@@ -166,7 +197,12 @@ step files.
 
 ---
 
-**Count: 102 anchors across 17 component files.**
+**Count: 106 anchors.** `node scripts/check-tour-anchors.js` prints the live number.
+
+The check script is static: it proves an id exists as a literal *somewhere* in `src/`. It cannot
+prove the element is ever mounted. Two failure modes slip past it, and both have bitten this
+repo — an id on a component nothing renders, and an id on a node that only mounts behind a tab,
+modal, or drawer the step never opens. When you add a step, walk the tour.
 
 Not every anchor is used by a step today. The registry is deliberately a little wider than the
 curriculum so that adding a step is usually a content change rather than a code change — but the

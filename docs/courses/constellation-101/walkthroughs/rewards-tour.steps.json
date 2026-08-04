@@ -18,7 +18,7 @@
       "anchor": "challenges.claim",
       "route": "/clubpm/challenges",
       "title": "Claim one",
-      "body": "Completed quests aren't paid automatically — you claim them. If nothing is claimable right now, skip this step; you'll have one tomorrow.",
+      "body": "Claim it. If nothing here is finished yet, there will be no Claim button — skip this step and come back once you have done a day of real work.",
       "placement": "right",
       "advance": { "on": "api", "method": "POST", "path": "/api/challenges/:id/claim" },
       "optional": true

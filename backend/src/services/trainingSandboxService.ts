@@ -32,6 +32,35 @@ export const TRAINING_FIXTURE = {
 export const EXCLUDE_TRAINING = { trainingForMemberId: null } as const;
 
 /**
+ * Re-seeds any fixture blocker the sandbox is missing, and un-resolves one the
+ * learner already cleared.
+ *
+ * "Blocking and unblocking" step 6 says "attach the seeded one" — but resolving
+ * a category is a one-way door (`GET /projects/:id/blockers` only returns
+ * `resolvedAt: null`), so a learner who finished module 4 once, or who pressed
+ * Resolve on the board, could never take that module again. Repairing on entry
+ * is what makes the sandbox genuinely re-runnable.
+ */
+async function ensureFixtureBlockers(projectId: string) {
+  const blockers = [];
+  for (const fixture of TRAINING_FIXTURE.blockers) {
+    const found = await prisma.blocker.findFirst({
+      where: { projectId, label: fixture.label },
+    });
+    if (!found) {
+      blockers.push(await prisma.blocker.create({ data: { projectId, ...fixture } }));
+    } else if (found.resolvedAt) {
+      blockers.push(await prisma.blocker.update({
+        where: { id: found.id }, data: { resolvedAt: null },
+      }));
+    } else {
+      blockers.push(found);
+    }
+  }
+  return blockers;
+}
+
+/**
  * Idempotent by construction: trainingForMemberId is @unique, so a second call
  * cannot create a second project even under a race.
  */
@@ -41,6 +70,7 @@ export async function ensureTrainingProject(memberId: string): Promise<{ project
     if (existing.status === "ARCHIVED") {
       await prisma.project.update({ where: { id: existing.id }, data: { status: "ACTIVE" } });
     }
+    await ensureFixtureBlockers(existing.id);
     return { projectId: existing.id };
   }
 
@@ -56,9 +86,7 @@ export async function ensureTrainingProject(memberId: string): Promise<{ project
     },
   });
 
-  const blocker = await prisma.blocker.create({
-    data: { projectId: project.id, ...TRAINING_FIXTURE.blockers[0] },
-  });
+  const [blocker] = await ensureFixtureBlockers(project.id);
 
   for (const m of TRAINING_FIXTURE.milestones) {
     await prisma.milestone.create({

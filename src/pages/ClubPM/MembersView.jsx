@@ -7,6 +7,7 @@ import { useClubPmAuth } from '../../clubpm/ClubPmAuth';
 import KudosButton from '../../components/clubpm/KudosButton';
 import AvatarPortrait from '../../components/clubpm/avatar/AvatarPortrait';
 import RankIcon from '../../components/clubpm/RankIcon';
+import LeaderboardPanel from '../../components/clubpm/LeaderboardPanel';
 import { tzOffset, copyToClipboard } from '../../clubpm/members/memberShared';
 import { revealStagger } from '../../clubpm/anim/motion';
 import { MemberName } from '../../clubpm/cosmetics/CosmeticStylesContext';
@@ -472,6 +473,10 @@ export default function MembersView() {
           onImported={fetchMembers}
         />
       )}
+
+      {/* Moved off the Dashboard — the XP/doubloon ranking reads as part of the
+          roster. LeaderboardPanel fetches its own data. */}
+      <div data-tour-id="dash.leaderboard" style={{ marginTop: 24 }}><LeaderboardPanel /></div>
     </div>
   );
 }

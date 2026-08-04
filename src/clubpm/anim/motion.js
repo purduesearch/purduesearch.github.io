@@ -82,6 +82,8 @@ export function revealStagger(targets, opts = {}) {
     return { pause() {}, cancel() {} };
   }
 
+  const list = Array.isArray(targets) ? targets : Array.from(targets);
+
   return animate(targets, {
     opacity:   [0, 1],
     scale:     [0.92, 1],
@@ -89,6 +91,21 @@ export function revealStagger(targets, opts = {}) {
     duration,
     ease: spring,
     delay: stagger(delay),
+    // The tween ends at the identity transform, but anime leaves the inline
+    // `transform: translateY(0px) scale(1)` behind — and a transform that is
+    // merely *identity* rather than `none` still makes the element a
+    // containing block for `position: fixed` descendants. Every modal and
+    // drawer rendered inside a staggered panel then anchors to that panel
+    // instead of the viewport, and pointer-position drag libraries read the
+    // wrong offsets. Wipe the residue so the element is inert once it lands.
+    onComplete: () => {
+      for (const el of list) {
+        if (!el?.style) continue;
+        el.style.transform = '';
+        el.style.translate = '';
+        el.style.scale = '';
+      }
+    },
   });
 }
 

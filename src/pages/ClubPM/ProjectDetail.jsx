@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import ReactMarkdown from "react-markdown";
 import { createPortal } from "react-dom";
 import { useParams, Link, useSearchParams, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
-import { get, post, patch, setNextRewardOrigin, getProgressSnapshot, saveProgressSnapshot, bulkArchive, unarchiveTask, getArchivedTasks, getProjectBlockers, createBlocker, updateBlocker } from "../../api/clubPmClient";
+import { get, post, patch, setNextRewardOrigin, bulkArchive, unarchiveTask, getArchivedTasks, getProjectBlockers, createBlocker, updateBlocker } from "../../api/clubPmClient";
 import MemberBadge from "../../components/clubpm/MemberBadge";
 import AvatarPortrait from "../../components/clubpm/avatar/AvatarPortrait";
 import { useClubPmAuth } from "../../clubpm/ClubPmAuth";
@@ -14,7 +13,6 @@ import ProjectActivity from "../../components/clubpm/ProjectActivity";
 import ReportingView from "../../components/clubpm/ReportingView";
 import ProjectAnalytics from "../../components/clubpm/ProjectAnalytics";
 import PressKitPanel from "../../components/clubpm/PressKitPanel";
-import MilestonePanel from "../../components/clubpm/MilestonePanel";
 import GanttChart from "../../components/clubpm/GanttChart";
 import { PriorityBars, AvatarStack } from "../../components/clubpm/TaskPrimitives";
 import DrivePreviewModal from "../../components/clubpm/DrivePreviewModal";
@@ -130,12 +128,14 @@ function getTagGroups(tasks) {
   return groups;
 }
 
+// `tourId` travels with the tab because AppShell is what actually renders this
+// bar (see the projectNav block there) — the ids must live on the node the
+// learner can click, not on a copy of the list.
 const NAV_TABS = [
-  { id: "tasks",      label: "Tasks",                  icon: "📋" },
-  { id: "milestones", label: "Milestones & Updates",   icon: "🎯" },
-  { id: "files",      label: "Files",                  icon: "📁" },
-  { id: "reports",    label: "Reports",                icon: "📊" },
-  { id: "ai",         label: "AI",                     icon: "🤖" },
+  { id: "tasks",      label: "Tasks",                  icon: "📋", tourId: "project.tab.tasks" },
+  { id: "files",      label: "Files",                  icon: "📁", tourId: "project.tab.files" },
+  { id: "reports",    label: "Reports",                icon: "📊", tourId: "project.tab.reports" },
+  { id: "ai",         label: "AI",                     icon: "🤖", tourId: "project.tab.ai" },
 ];
 
 const STATUS_BADGE = {
@@ -144,143 +144,6 @@ const STATUS_BADGE = {
   COMPLETED: "clubpm-badge-completed",
   ARCHIVED: "clubpm-badge-archived",
 };
-
-const PROJECT_DOT_CLASS = {
-  ACTIVE: "cpm-dot-active",
-  PAUSED: "cpm-dot-paused",
-  COMPLETED: "cpm-dot-done",
-  ARCHIVED: "cpm-dot-muted",
-};
-
-// ── Project Sidebar (left column) ────────────────────────────
-
-function ProjectSidebar({ project, allProjects, activeTab, onTabChange }) {
-  const [projectsCollapsed, setProjectsCollapsed] = useState(false);
-  const currentDotClass = PROJECT_DOT_CLASS[project.status] ?? "cpm-dot-muted";
-
-  return (
-    <aside className="cpm-project-sidebar">
-      <div className="cpm-proj-sidebar-header">
-        <Link
-          to="/clubpm"
-          style={{
-            fontSize: 11,
-            color: "var(--clubpm-text-muted)",
-            textDecoration: "none",
-            display: "inline-block",
-            marginBottom: 10,
-          }}
-        >
-          ← Dashboard
-        </Link>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span className={`cpm-status-dot ${currentDotClass}`} />
-          <span
-            style={{
-              fontSize: 14,
-              fontWeight: 600,
-              color: "var(--clubpm-text-primary)",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-            }}
-            title={project.name}
-          >
-            {project.name}
-          </span>
-        </div>
-      </div>
-
-      <div style={{ padding: "8px 0", display: "flex", flexDirection: "column", gap: 2 }}>
-        {NAV_TABS.map((tab) => (
-          <button
-            key={tab.id}
-            className={`cpm-proj-nav-item${activeTab === tab.id ? " active" : ""}`}
-            onClick={() => onTabChange(tab.id)}
-            data-tour-id={{
-              tasks: "project.tab.tasks",
-              milestones: "project.tab.milestones",
-              files: "project.tab.files",
-              reports: "project.tab.reports",
-              ai: "project.tab.ai",
-            }[tab.id]}
-          >
-            <span style={{ marginRight: 8 }}>{tab.icon}</span>
-            {tab.label}
-          </button>
-        ))}
-      </div>
-
-      <div
-        style={{
-          marginTop: 8,
-          paddingTop: 12,
-          borderTop: "1px solid var(--clubpm-border)",
-        }}
-      >
-        <button
-          onClick={() => setProjectsCollapsed((c) => !c)}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-            width: "100%",
-            padding: "6px 16px",
-            background: "none",
-            border: "none",
-            cursor: "pointer",
-            color: "var(--clubpm-text-muted)",
-            fontSize: 11,
-            fontWeight: 600,
-            textTransform: "uppercase",
-            letterSpacing: 0.5,
-          }}
-        >
-          <i className={`fas fa-chevron-${projectsCollapsed ? "right" : "down"}`} style={{ fontSize: 9 }} />
-          Projects
-        </button>
-        {!projectsCollapsed && (
-          <div style={{ display: "flex", flexDirection: "column", padding: "4px 0" }}>
-            {allProjects.length === 0 ? (
-              <p style={{ padding: "8px 16px", fontSize: 12, color: "var(--clubpm-text-muted)" }}>
-                No projects
-              </p>
-            ) : (
-              allProjects.map((p) => (
-                <SidebarProjectItem key={p.id} project={p} isCurrent={p.id === project.id} />
-              ))
-            )}
-          </div>
-        )}
-      </div>
-    </aside>
-  );
-}
-
-function SidebarProjectItem({ project, isCurrent }) {
-  const dotClass = PROJECT_DOT_CLASS[project.status] ?? "cpm-dot-muted";
-  return (
-    <Link
-      to={`/clubpm/projects/${project.id}`}
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 8,
-        padding: "6px 16px",
-        fontSize: 13,
-        color: isCurrent ? "var(--clubpm-text-primary)" : "var(--clubpm-text-secondary)",
-        background: isCurrent ? "var(--clubpm-surface-300)" : "transparent",
-        textDecoration: "none",
-        borderLeft: isCurrent ? "2px solid var(--clubpm-accent-primary)" : "2px solid transparent",
-      }}
-    >
-      <span className={`cpm-status-dot ${dotClass}`} />
-      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-        {project.name}
-      </span>
-    </Link>
-  );
-}
 
 // ── Progress Bar (top of tasks tab) ──────────────────────────
 
@@ -1190,7 +1053,8 @@ function AddProjectTaskModal({ projectId, initialStatus, projectMembers, onClose
         display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(2px)" }}
       onClick={e => e.target === e.currentTarget && onClose()}
     >
-      <div style={{ background: "var(--clubpm-surface-100)", borderRadius: 12, width: "min(480px, 94vw)",
+      <div data-tour-id="task.create.modal"
+        style={{ background: "var(--clubpm-surface-100)", borderRadius: 12, width: "min(480px, 94vw)",
         boxShadow: "0 24px 80px rgba(0,0,0,0.5)", border: "1px solid var(--clubpm-border)", overflow: "hidden" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between",
           padding: "14px 20px", borderBottom: "1px solid var(--clubpm-border)", background: "var(--clubpm-surface-200)" }}>
@@ -1204,7 +1068,7 @@ function AddProjectTaskModal({ projectId, initialStatus, projectMembers, onClose
 
         <form onSubmit={handleSubmit}>
           <div style={{ padding: "16px 20px", display: "flex", flexDirection: "column", gap: 14 }}>
-            <div>
+            <div data-tour-id="task.create.title">
               <label style={labelStyle}>Task Title *</label>
               <input autoFocus value={title} onChange={e => setTitle(e.target.value)}
                 placeholder="What needs to be done?" style={inputStyle} required />
@@ -2142,8 +2006,6 @@ export default function ProjectDetail() {
   const [expandedParents, setExpandedParents] = useState(new Set());
   const [sortBy, setSortBy] = useState("priority");
   const [reportTab, setReportTab] = useState("charts"); // "charts" | "activity" | "presskit"
-  const [newUpdateContent, setNewUpdateContent] = useState("");
-  const [postingUpdate, setPostingUpdate] = useState(false);
   const [headerDrivePreview, setHeaderDrivePreview] = useState(null); // { url, label }
   const [pinned, setPinned] = useState(() => {
     try {
@@ -2477,48 +2339,9 @@ export default function ProjectDetail() {
     fetchBlockers();
   }, [fetchProject, fetchBlockers]);
 
-  // Progress snapshot: the user's last-seen milestone progress for this
-  // project. Read once at mount, frozen for the lifetime of this view; saved
-  // back with the current values on unmount so the next visit can animate
-  // from these values.
-  const [previousMilestonePcts, setPreviousMilestonePcts] = useState({});
-  useEffect(() => {
-    let cancelled = false;
-    getProgressSnapshot().then(snap => {
-      if (cancelled || !snap) return;
-      const forProject = snap?.projects?.[id]?.milestones ?? {};
-      setPreviousMilestonePcts(forProject);
-    });
-    return () => { cancelled = true; };
-  }, [id]);
-
-  // Save current snapshot when leaving the project.
-  const projectMilestonesRef = useRef([]);
-  useEffect(() => {
-    projectMilestonesRef.current = project?.milestones ?? [];
-  }, [project?.milestones]);
-  useEffect(() => {
-    return () => {
-      const milestones = projectMilestonesRef.current ?? [];
-      if (!id || milestones.length === 0) return;
-      const milestonePcts = {};
-      let sum = 0; let count = 0;
-      for (const m of milestones) {
-        if (typeof m.progress === "number") {
-          milestonePcts[m.id] = m.progress;
-          sum += m.progress; count += 1;
-        }
-      }
-      const pct = count > 0 ? Math.round(sum / count) : 0;
-      // Read-modify-write: merge into existing snapshot so other projects'
-      // entries aren't blown away.
-      getProgressSnapshot().then(existing => {
-        const merged = { ...(existing ?? {}), lastSeenAt: new Date().toISOString() };
-        merged.projects = { ...(existing?.projects ?? {}), [id]: { pct, milestones: milestonePcts } };
-        saveProgressSnapshot(merged);
-      });
-    };
-  }, [id]);
+  // The milestone progress snapshot (read at mount, written on unmount) existed
+  // only to animate MilestonePanel's bars from their last-seen values. That
+  // panel and its tab are gone, so nothing consumes the snapshot any more.
 
   // Auto-expand all parent tasks that have subtasks by default
   useEffect(() => {
@@ -3267,99 +3090,6 @@ export default function ProjectDetail() {
                 >
                   <GanttChart tasks={project.tasks} milestones={project.milestones ?? []} />
                 </div>
-              </div>
-            </div>
-          )}
-
-          {activeTab === "milestones" && (
-            <div className="cpm-proj-main-body" style={{ padding: "24px", display: "flex", flexDirection: "column", gap: 28 }}>
-              <div data-tour-id="milestones.panel">
-              <MilestonePanel
-                projectId={project.id}
-                project={project}
-                onRefresh={fetchProject}
-                previousMilestonePcts={previousMilestonePcts}
-              />
-              </div>
-
-              {/* Updates feed, formerly its own tab. Shares the same scroll
-                  container so milestones + updates read as one timeline. */}
-              <div>
-                <h3 style={{ margin: "0 0 12px", fontSize: 16, fontWeight: 600, color: "var(--clubpm-text-primary)" }}>
-                  Updates
-                </h3>
-                <div style={{ display: "flex", flexDirection: "column", gap: 16, maxWidth: 640 }}>
-                {canEdit && (
-                  <div className="clubpm-glass-card" style={{ padding: 16, marginBottom: 0 }}>
-                    <textarea
-                      value={newUpdateContent}
-                      onChange={e => setNewUpdateContent(e.target.value)}
-                      placeholder="Post a project update… (Markdown supported)"
-                      rows={3}
-                      style={{ width: "100%", background: "var(--clubpm-surface-300)",
-                               border: "1px solid var(--clubpm-border)", borderRadius: 6,
-                               color: "var(--clubpm-text-primary)", fontSize: 13,
-                               padding: "8px 10px", resize: "vertical", boxSizing: "border-box" }}
-                    />
-                    <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
-                      <button
-                        disabled={!newUpdateContent.trim() || postingUpdate}
-                        onClick={async () => {
-                          setPostingUpdate(true);
-                          try {
-                            const update = await post(`/api/projects/${id}/updates`, { content: newUpdateContent.trim() });
-                            setProject(prev => ({ ...prev, updates: [update, ...(prev.updates ?? [])] }));
-                            setNewUpdateContent("");
-                          } catch (err) { console.error(err); }
-                          finally { setPostingUpdate(false); }
-                        }}
-                        className="clubpm-btn-primary"
-                        style={{ fontSize: 13, padding: "6px 16px" }}
-                      >
-                        {postingUpdate ? "Posting…" : "Post Update"}
-                      </button>
-                    </div>
-                  </div>
-                )}
-                {(!project.updates || project.updates.length === 0) ? (
-                  <p style={{ color: "var(--clubpm-text-muted)", fontSize: 13 }}>
-                    No updates yet
-                  </p>
-                ) : (
-                  project.updates.map((update) => {
-                    const initials = (update.author?.displayName ?? "?")
-                      .split(" ").map(p => p[0]).join("").slice(0, 2).toUpperCase();
-                    return (
-                      <div key={update.id} className="clubpm-glass-card" style={{ padding: 16 }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                          <div
-                            style={{
-                              width: 24, height: 24, borderRadius: "50%",
-                              background: "var(--clubpm-accent-primary)",
-                              display: "flex", alignItems: "center", justifyContent: "center",
-                              fontSize: 11, fontWeight: 700, color: "white", flexShrink: 0,
-                            }}
-                          >
-                            {initials}
-                          </div>
-                          <span style={{ fontSize: 12, fontWeight: 600, color: "var(--clubpm-text-secondary)" }}>
-                            {update.author?.displayName ?? "Unknown"}
-                          </span>
-                          <span style={{ fontSize: 11, color: "var(--clubpm-text-muted)" }}>
-                            {new Date(update.postedAt).toLocaleDateString("en-US", {
-                              month: "short", day: "numeric", hour: "numeric", minute: "2-digit",
-                            })}
-                          </span>
-                        </div>
-                        <div style={{ fontSize: 13, color: "var(--clubpm-text-secondary)" }}
-                             className="clubpm-markdown">
-                          <ReactMarkdown>{update.content}</ReactMarkdown>
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
               </div>
             </div>
           )}

@@ -45,6 +45,9 @@ const ANCHOR_LITERAL = /["']([A-Za-z][A-Za-z0-9]*(?:\.[A-Za-z0-9_]+)+)["']/g;
 
 /** The attribute value starting at `i` (just past `data-tour-id=`). */
 function attributeValue(src, i) {
+  // JSX attributes never have a space before the value, but object properties
+  // (`tourId: 'nav.shop'`) usually do.
+  while (i < src.length && (src[i] === " " || src[i] === "\t")) i++;
   if (src[i] === '"' || src[i] === "'") {
     const end = src.indexOf(src[i], i + 1);
     return end === -1 ? "" : src.slice(i, end + 1);
@@ -65,8 +68,10 @@ for (const file of walk(SRC, (p) => /\.jsx?$/.test(p))) {
   // A `*tourId=` prop counts too: a local presentational component often owns
   // the DOM node, so the id is chosen at the call site and handed down (as
   // `tourId`, `healthTourId`, …). The literal is what matters, not which
-  // attribute carries it.
-  for (const m of src.matchAll(/(?:data-tour-id|[A-Za-z]*[Tt]ourId)=/g)) {
+  // attribute carries it. `:` as well as `=` because a config array — the
+  // sidebar's NAV_ITEMS, say — carries the id as an object property and the
+  // JSX below it spreads the value in.
+  for (const m of src.matchAll(/(?:data-tour-id|[A-Za-z]*[Tt]ourId)\s*[:=]/g)) {
     const value = attributeValue(src, m.index + m[0].length);
     for (const lit of value.matchAll(ANCHOR_LITERAL)) {
       rendered.set(lit[1], [...(rendered.get(lit[1]) ?? []), rel]);

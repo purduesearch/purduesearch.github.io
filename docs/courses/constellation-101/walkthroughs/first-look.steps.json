@@ -23,12 +23,12 @@
       "advance": { "on": "next" }
     },
     {
-      "id": "stats",
-      "anchor": "dash.stats",
+      "id": "xp",
+      "anchor": "nav.xp",
       "route": "/clubpm",
-      "title": "Your five numbers",
-      "body": "XP, rank, open tasks, hours logged, and your streak. We'll come back to what earns each one in module 4.",
-      "placement": "bottom",
+      "title": "XP and doubloons",
+      "body": "Your rank progress and your spendable balance, always in the sidebar. We'll come back to what earns each one in module 4.",
+      "placement": "right",
       "advance": { "on": "next" }
     },
     {

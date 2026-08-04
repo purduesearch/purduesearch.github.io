@@ -1,86 +1,73 @@
-# V03 — Reading a milestone's health
+# V03 — Milestones on the timeline
 
 | | |
 |---|---|
-| **Course / section** | Constellation 101 · M3 · "Reading a milestone's health" |
-| **Runtime** | 2:40 |
+| **Course / section** | Constellation 101 · M3 · "Milestones on the timeline" |
+| **Runtime** | 1:50 |
 | **Format** | Screen capture + VO |
 | **Capture account** | Seeded demo member |
-| **Prerequisite on screen** | 3 milestones: one healthy, one at risk, one overdue; linked tasks with mixed statuses |
+| **Prerequisite on screen** | 3 milestones with distinct due dates; linked tasks with mixed statuses |
 | **Recorded** | ☐ |
+
+> **Rewritten.** This script used to walk the Milestones & Updates tab and its health badge. That
+> tab was removed from the project view, so the badge, the progress bar, and the expandable linked-task
+> list have no on-screen surface any more. Milestones still exist — they are created through the API
+> and they still render as markers on the Gantt — so the section now teaches the timeline instead.
+> Health is still computed nightly by `refreshMilestoneHealth`; it is simply not displayed.
 
 ## Purpose
 
-Milestones are the one part of the board a new member will look at without understanding, nod, and
-walk away from. This video makes the health badge legible — what it's computed from, and what you're
-supposed to *do* when it turns.
+A new member will read the board as a flat pile of tasks and never ask what any of it is *for*.
+This video gives them the other axis: the dates the club has committed to, and where to see them.
 
 ## Shot list
 
 | Time | Screen | Action |
 |---|---|---|
-| 00:00–00:20 | Milestones tab | Hold on the list of three |
-| 00:20–00:44 | Milestone card, healthy | Expand it, show linked tasks |
-| 00:44–01:12 | Progress bar + task counts | Hover the counts |
-| 01:12–01:44 | At-risk milestone | Expand; show overdue linked task |
-| 01:44–02:08 | Overdue milestone | Show it red, tasks still open |
-| 02:08–02:32 | Gantt view | Switch tabs, show the same milestones on a timeline |
-| 02:32–02:40 | Milestones tab | Return, hold |
+| 00:00–00:22 | Project board, tasks tab | Hold, then pan across the columns |
+| 00:22–00:50 | Gantt view | Switch views; hold on the three milestone markers |
+| 00:50–01:20 | Gantt, one marker | Point at a marker whose date is close to open work |
+| 01:20–01:44 | Gantt, full timeline | Pull back, show all three in sequence |
+| 01:44–01:50 | Gantt | Hold, fade |
 
 ## Narration
 
-**[00:00 — milestones list]**
+**[00:00 — the board]**
 
-A milestone is a date the club has committed to. Design review. Fabrication complete. Competition.
-
-*(pause)*
-
-Tasks are what you do this week. Milestones are what the tasks are *for*. Three here, and you can
-tell them apart from across the room, which is the point.
-
-**[00:20 — expand the healthy one]**
-
-Open one up and you get its linked tasks. A milestone doesn't have work of its own — it's a label on
-a set of tasks that all have to land before that date.
-
-**[00:44 — progress bar, counts]**
-
-The progress bar is just arithmetic: tasks done, over tasks linked. No judgement in it.
-
-*(beat)*
-
-The health badge next to it is the judgement. Constellation recalculates it every morning, and it's
-looking at three things — how much is left, how much time is left, and whether anything linked is
-already overdue or blocked.
-
-**[01:12 — at-risk milestone]**
-
-This one's at risk. Notice it isn't behind yet. The date hasn't passed and the bar isn't at zero.
+Everything you've seen so far is a task: a thing someone does this week.
 
 *(pause)*
 
-What it's telling you is that at the current rate, it won't make it. Which is useful precisely
-because there's still time to do something — move a deadline, pull someone onto it, or cut scope.
-"At risk" is an invitation, not a scolding.
+Tasks are what you do. Milestones are what the tasks are *for*. Design review. Fabrication complete.
+Competition. They're dates the club has committed to, and they don't live on the board.
 
-**[01:44 — overdue milestone]**
+**[00:22 — switch to Gantt]**
 
-This one is past its date with work still open. Red.
+They live here. Same project, drawn against time instead of status, and each of these markers is a
+milestone with a date on it.
 
 *(beat)*
 
-The honest thing to do with a red milestone is not to hide it. It's to open it, look at what's still
-sitting there, and either finish it or change the date on purpose. A milestone nobody has moved and
-nobody has finished stops meaning anything to everyone.
+This is the view for the question "are these three things going to collide," which a column of
+cards can't answer no matter how long you stare at it.
 
-**[02:08 — gantt]**
+**[00:50 — one marker]**
 
-Same milestones, on a timeline. This is the view for the question "are these three things going to
-collide," which the list can't show you.
+Take this one. The date is two weeks out, and the bars to its left are the work that has to land
+before it. That's the whole reading: what is committed, and what is still open in front of it.
 
-**[02:32 — back to list]**
+*(pause)*
 
-So: the bar is arithmetic, the badge is a forecast, and red is a decision waiting to be made.
+When those two disagree — a near date with a lot of open bars behind it — that's the moment to do
+something. Move the date on purpose, pull someone onto it, or cut scope. All three are honest. What
+isn't honest is letting the date pass without anyone deciding.
+
+**[01:20 — pull back]**
+
+Three commitments, in order, with the work laid against them. Check this view before you promise
+anyone anything.
+
+**[01:44 — hold]**
 
 Next, we'll check what stuck.
 
@@ -88,12 +75,10 @@ Next, we'll check what stuck.
 
 ---
 
-**Word count:** ~390 · **Target pace:** 150 wpm + written pauses ≈ 2:40
+**Word count:** ~275 · **Target pace:** 150 wpm + written pauses ≈ 1:50
 
 ## Notes for the recorder
 
-- The at-risk milestone must genuinely be at risk on the capture account — do not fake the badge in
-  devtools. If the seeded data has drifted and everything is green, adjust a due date and let the
-  08:45 health job run, or call `refreshMilestoneHealth` directly before recording.
-- "At risk is an invitation, not a scolding" is load-bearing. Members who read the badge as blame
-  start avoiding milestones entirely.
+- The seeded milestones need genuinely different due dates or the timeline reads as one clump.
+- Don't narrate a health badge or a percentage. Neither is on screen any more, and describing UI the
+  learner can't find is the fastest way to lose them.

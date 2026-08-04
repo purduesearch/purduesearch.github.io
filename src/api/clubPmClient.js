@@ -132,13 +132,28 @@ async function handleResponse(response, method = "GET", requestPath = "") {
 
   const body = await response.json();
   dispatchRewardSignals(body);
-  // Lets a walkthrough step advance on a real successful write rather than on a
-  // click that may or may not have done anything. One dispatch here covers every
-  // endpoint, because every call in this client funnels through handleResponse.
-  window.dispatchEvent(new CustomEvent("clubpm:api-success", {
-    detail: { method, path: requestPath },
-  }));
+  dispatchApiSuccess(method, requestPath);
   return body;
+}
+
+/**
+ * Lets a walkthrough step advance on a real successful write rather than on a
+ * click that may or may not have done anything. One dispatch here covers every
+ * endpoint, because every call in this client funnels through handleResponse.
+ *
+ * The path is normalised first: step files declare "/api/tasks", but the client
+ * calls "/api/tasks?projectId=…" often enough that an un-stripped query string
+ * would leave those steps waiting on a request that already succeeded.
+ */
+export function dispatchApiSuccess(method, requestPath) {
+  const path = String(requestPath ?? "").split(/[?#]/)[0];
+  // The tour's own progress pings run through this client too. They can never
+  // match a declared step path today, but a tour endpoint advancing a tour step
+  // is a feedback loop, and the cheapest place to rule it out is here.
+  if (path.includes("/tour-progress") || path.includes("/tour-breakage")) return;
+  window.dispatchEvent(new CustomEvent("clubpm:api-success", {
+    detail: { method, path },
+  }));
 }
 
 export async function get(path) {
@@ -210,11 +225,16 @@ export async function del(path) {
     );
   }
 
-  // del() parses no body (many endpoints 204), so it can't go through
-  // handleResponse — dispatch the walkthrough signal here instead.
-  window.dispatchEvent(new CustomEvent("clubpm:api-success", {
-    detail: { method: "DELETE", path },
-  }));
+  dispatchApiSuccess("DELETE", path);
+
+  // Several DELETE endpoints answer 200 with the recomputed row (detaching a
+  // blocker returns the task with its new status). Returning undefined for all
+  // of them made every such caller read a property off undefined and roll its
+  // optimistic update back as if the server had refused.
+  if (response.status === 204) return undefined;
+  const text = await response.text();
+  if (!text) return undefined;
+  try { return JSON.parse(text); } catch { return undefined; }
 }
 
 // ── Engagement: streak / inventory / shop consumables ─────────
@@ -339,9 +359,7 @@ export function uploadVaultFile(path, file, fields = {}, onProgress) {
       if (xhr.status >= 200 && xhr.status < 300) {
         // Uploads bypass handleResponse, so without this a walkthrough step that
         // advances on POST /api/vault/items/:id/versions would wait forever.
-        window.dispatchEvent(new CustomEvent("clubpm:api-success", {
-          detail: { method: "POST", path },
-        }));
+        dispatchApiSuccess("POST", path);
         resolve(body);
       }
       else reject(Object.assign(new Error(body?.error || `Upload failed (${xhr.status})`), { status: xhr.status, body }));

@@ -2,91 +2,14 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from "react"
 import { createPortal } from "react-dom";
 import { Link, useNavigate } from "react-router-dom";
 import { QRCodeCanvas } from "qrcode.react";
-import { get, post, patch, getStreak } from "../../api/clubPmClient";
+import { get, post, patch } from "../../api/clubPmClient";
 import { useClubPmAuth } from "../../clubpm/ClubPmAuth";
 import { ProgressIndicator, PriorityBars, AvatarStack } from "../../components/clubpm/TaskPrimitives";
 import ProjectCard from "../../components/clubpm/ProjectCard";
-import LeaderboardPanel from "../../components/clubpm/LeaderboardPanel";
-import { tweenNumber, revealStagger } from "../../clubpm/anim/motion";
+import { revealStagger } from "../../clubpm/anim/motion";
 import DailyQuestsWidget from "../../components/clubpm/challenges/DailyQuestsWidget";
 
 const WEB_BASE = process.env.REACT_APP_WEB_URL ?? window.location.origin;
-
-// ── StatsBar component ────────────────────────────────────────
-
-function StatTile({ value, label, variant }) {
-  const numRef = useRef(null);
-  const prevRef = useRef(0);
-  useEffect(() => {
-    if (!numRef.current) return;
-    const handle = tweenNumber(numRef.current, prevRef.current, value, { duration: 700 });
-    prevRef.current = value;
-    return () => handle?.pause?.();
-  }, [value]);
-  return (
-    <div className={`pm-stat-tile${variant ? ` ${variant}` : ''}`}>
-      <div className="pm-stat-number" ref={numRef}>0</div>
-      <div className="pm-stat-label">{label}</div>
-    </div>
-  );
-}
-
-function StatsBar({ projects, myTasks }) {
-  const { member } = useClubPmAuth();
-  const [streakValue, setStreakValue] = useState(0);
-
-  useEffect(() => {
-    if (!member?.id) return;
-    let cancelled = false;
-    getStreak(member.id).then((d) => { if (!cancelled) setStreakValue(d?.currentStreak ?? 0); }).catch(() => {});
-    const onChange = () => getStreak(member.id, { force: true }).then((d) => setStreakValue(d?.currentStreak ?? 0)).catch(() => {});
-    window.addEventListener('clubpm-streak-changed', onChange);
-    return () => { cancelled = true; window.removeEventListener('clubpm-streak-changed', onChange); };
-  }, [member?.id]);
-
-  const totalProjects = projects.length;
-
-  const now = Date.now();
-  const weekMs = 7 * 24 * 60 * 60 * 1000;
-  const tasksDueThisWeek = myTasks.filter(t =>
-    t.dueDate &&
-    t.progress !== 'COMPLETED' &&
-    new Date(t.dueDate).getTime() >= now &&
-    new Date(t.dueDate).getTime() <= now + weekMs
-  ).length;
-
-  const completionRate = projects.length > 0
-    ? Math.round(
-        projects.reduce((sum, p) => {
-          const total = p.totalTasks ?? p.tasks?.length ?? 0;
-          const done  = p.doneTasks  ?? p.tasks?.filter(t => t.progress === 'COMPLETED' || t.status === 'DONE').length ?? 0;
-          const pct   = p.completionPercent ?? (total > 0 ? Math.round((done / total) * 100) : 0);
-          return sum + pct;
-        }, 0) / projects.length
-      )
-    : 0;
-
-  const membersActive = new Set(
-    myTasks.flatMap(t => (t.assignees ?? []).map(a => a.id))
-  ).size;
-
-  const barRef = useRef(null);
-  useEffect(() => {
-    if (!barRef.current) return;
-    const tiles = barRef.current.querySelectorAll('.pm-stat-tile');
-    revealStagger(tiles, { delay: 80, fromY: 8 });
-  }, []);
-
-  return (
-    <div className="pm-stats-bar pm-stats-bar-5col" ref={barRef} data-tour-id="dash.stats">
-      <StatTile value={totalProjects}    label="Total Projects" />
-      <StatTile value={tasksDueThisWeek} label="Tasks Due This Week" />
-      <StatTile value={completionRate}   label="Completion Rate %" />
-      <StatTile value={membersActive}    label="Collaborators" />
-      <StatTile value={streakValue}      label="Day Streak"        variant="is-streak" />
-    </div>
-  );
-}
 
 // ── GithubActivityWidget ──────────────────────────────────────
 
@@ -1513,11 +1436,9 @@ export default function Dashboard() {
 
   return (
     <div className="clubpm-app cpm-dashboard-root">
-      <StatsBar projects={projects} myTasks={myTasks} />
       <div data-tour-id="dash.quests"><DailyQuestsWidget /></div>
       <AIInsightCards projects={projects} tasks={myTasks} />
       <GithubActivityWidget />
-      <UpcomingEventsWidget events={upcomingEvents} loading={eventsLoading} />
       <div className="cpm-dashboard-layout">
         <WorkPanel
           tasks={myTasks}
@@ -1528,9 +1449,10 @@ export default function Dashboard() {
         <AgendaPanel tasks={myTasks} onProgressChange={handleProgressChange} />
       </div>
 
-      {/* Leaderboard remains on the Dashboard. Pending rewards + reward
-          config moved to /clubpm/admin. */}
-      <div data-tour-id="dash.leaderboard"><LeaderboardPanel /></div>
+      {/* Upcoming events closes the page. The leaderboard moved to the bottom
+          of /clubpm/members; pending rewards + reward config are in
+          /clubpm/admin. */}
+      <UpcomingEventsWidget events={upcomingEvents} loading={eventsLoading} />
     </div>
   );
 }

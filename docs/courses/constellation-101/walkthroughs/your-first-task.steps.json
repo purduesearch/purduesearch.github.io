@@ -16,7 +16,7 @@
     },
     {
       "id": "title",
-      "anchor": "task.modal.title",
+      "anchor": "task.create.title",
       "route": "/clubpm/projects/:id",
       "title": "Write a title that ends",
       "body": "Say what will be true when it's finished. Try: \"Draft the agenda for the next design review.\" Not \"agenda.\"",
@@ -25,12 +25,21 @@
     },
     {
       "id": "create",
-      "anchor": "task.modal",
+      "anchor": "task.create.modal",
       "route": "/clubpm/projects/:id",
       "title": "Save it",
-      "body": "Create the task. It'll land in the to-do column.",
-      "placement": "center",
-      "advance": { "on": "api", "method": "POST", "path": "/api/tasks" }
+      "body": "Press Create Task. It'll land at the top of the to-do column.",
+      "placement": "right",
+      "advance": { "on": "api", "method": "POST", "path": "/api/projects/:id/tasks" }
+    },
+    {
+      "id": "open-it",
+      "anchor": "board.column.TODO",
+      "route": "/clubpm/projects/:id",
+      "title": "Now open it",
+      "body": "Creating a task doesn't open it — the form only asks for a title, a priority and a date. Click your new card to get the full task: assignees, description, comments, time.",
+      "placement": "right",
+      "advance": { "on": "click" }
     },
     {
       "id": "assign-self",
@@ -70,11 +79,11 @@
     },
     {
       "id": "start-it",
-      "anchor": "board.column.IN_PROGRESS",
+      "anchor": "task.modal.status",
       "route": "/clubpm/projects/:id",
       "title": "Start work on it",
-      "body": "Close the task and drag your card into In progress. Dragging and changing the status field do exactly the same thing — use whichever is nearer.",
-      "placement": "right",
+      "body": "Set the status to In progress. Doing it here and dragging the card between columns are the same operation — use whichever is nearer.",
+      "placement": "left",
       "advance": { "on": "api", "method": "PATCH", "path": "/api/tasks/:id" }
     },
     {
@@ -82,7 +91,7 @@
       "anchor": "task.modal.comments",
       "route": "/clubpm/projects/:id",
       "title": "Leave a comment",
-      "body": "Open the task again and post anything. On a real task this is where the questions go — and where they stay findable, attached to the work instead of buried in a channel.",
+      "body": "Post anything. On a real task this is where the questions go — and where they stay findable, attached to the work instead of buried in a channel.",
       "placement": "left",
       "advance": { "on": "api", "method": "POST", "path": "/api/tasks/:id/comments" }
     },
@@ -91,16 +100,16 @@
       "anchor": "task.modal.timelog",
       "route": "/clubpm/projects/:id",
       "title": "Log some time",
-      "body": "Log half an hour. Anything over two hours in one entry goes to an officer for approval — that gate is what keeps the XP ledger worth trusting.",
+      "body": "Open Time tracking and log half an hour. Anything over two hours in one entry goes to an officer for approval — that gate is what keeps the XP ledger worth trusting.",
       "placement": "left",
       "advance": { "on": "api", "method": "POST", "path": "/api/tasks/:id/time-logs" }
     },
     {
       "id": "finish-it",
-      "anchor": "board.column.DONE",
+      "anchor": "task.modal.status",
       "route": "/clubpm/projects/:id",
       "title": "Finish it",
-      "body": "Drag it to Done. On a real project this is the moment XP is queued for you — here it's suppressed, because practice work shouldn't pay.",
+      "body": "Set the status to Done. On a real project this is the moment XP is queued for you — here it's suppressed, because practice work shouldn't pay.",
       "placement": "left",
       "advance": { "on": "api", "method": "PATCH", "path": "/api/tasks/:id" }
     },
@@ -109,7 +118,7 @@
       "anchor": "board.column.DONE",
       "route": "/clubpm/projects/:id",
       "title": "That's the whole loop",
-      "body": "Create, own, date, specify, start, discuss, log, finish. Every piece of work in this club goes through those eight steps, and you've now done all of them.",
+      "body": "Close the task and your card is sitting in Done. Create, own, date, specify, start, discuss, log, finish — every piece of work in this club goes through those eight steps, and you've now done all of them.",
       "placement": "center",
       "advance": { "on": "next" }
     }

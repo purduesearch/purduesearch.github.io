@@ -30,7 +30,10 @@ function getBreadcrumb(pathname) {
   if (pathname === '/clubpm') return [{ label: 'Dashboard' }];
   if (pathname.match(/\/clubpm\/projects\/[^/]+\/gantt/)) return [{ label: 'Projects', href: '/clubpm' }, { label: 'Gantt' }];
   if (pathname.match(/\/clubpm\/projects\/[^/]+/)) return [{ label: 'Projects', href: '/clubpm' }, { label: 'Project Detail' }];
-  if (pathname === '/clubpm/members') return [{ label: 'Members' }];
+  if (pathname === '/clubpm/members') return [{ label: 'Outreach', href: '/clubpm/outreach' }, { label: 'Members' }];
+  if (pathname === '/clubpm/courses') return [{ label: 'Courses' }];
+  if (pathname.match(/\/clubpm\/courses\/[^/]+\/edit/)) return [{ label: 'Courses', href: '/clubpm/courses' }, { label: 'Editor' }];
+  if (pathname.match(/\/clubpm\/courses\/[^/]+\/learn/)) return [{ label: 'Courses', href: '/clubpm/courses' }, { label: 'Player' }];
   if (pathname === '/clubpm/notifications') return [{ label: 'Notifications' }];
   if (pathname === '/clubpm/notifications/preferences') return [{ label: 'Notifications', href: '/clubpm/notifications' }, { label: 'Preferences' }];
   if (pathname === '/clubpm/activity') return [{ label: 'Activity' }];
@@ -49,6 +52,7 @@ const NAV_ITEMS = [
   {
     label: 'Dashboard',
     href: '/clubpm',
+    tourId: 'nav.dashboard',
     icon: (
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
@@ -59,6 +63,7 @@ const NAV_ITEMS = [
   {
     label: 'Calendar',
     href: '/clubpm/calendar',
+    tourId: 'nav.calendar',
     icon: (
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
@@ -69,32 +74,87 @@ const NAV_ITEMS = [
     ),
   },
   {
-    label: 'Members',
-    href: '/clubpm/members',
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-        <circle cx="9" cy="7" r="4"/>
-        <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-        <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-      </svg>
-    ),
+    label: 'Courses',
+    href: '/clubpm/courses',
+    tourId: 'nav.courses',
+    icon: <i className="fas fa-graduation-cap" aria-hidden="true" style={{ fontSize: 15, width: 18, textAlign: 'center' }} />,
   },
-  {
-    label: 'Challenges',
-    href: '/clubpm/challenges',
-    icon: <i className="fas fa-trophy" aria-hidden="true" style={{ fontSize: 16, width: 18, textAlign: 'center' }} />,
-  },
+  // Outreach is a collapsible group, not a link. Its own hub sits alongside the
+  // blog and the member roster as children — see `NavGroup` below.
   {
     label: 'Outreach',
-    href: '/clubpm/outreach',
+    id: 'outreach',
+    tourId: 'nav.outreach',
     icon: (
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1.18h3a2 2 0 0 1 2 1.72c.127.96.36 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.74a16 16 0 0 0 6.29 6.29l.96-.96a2 2 0 0 1 2.11-.45c.907.34 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>
       </svg>
     ),
+    children: [
+      { label: 'Hub',     href: '/clubpm/outreach' },
+      { label: 'Blog',    href: '/clubpm/outreach?tab=blog' },
+      { label: 'Members', href: '/clubpm/members', tourId: 'nav.members' },
+    ],
   },
 ];
+
+// A child is "current" on an exact pathname match, and additionally on its own
+// `?tab=` when it carries one — /clubpm/outreach and /clubpm/outreach?tab=blog
+// are the same route but must not both light up.
+function isChildActive(child, location) {
+  const [path, query] = child.href.split('?');
+  if (location.pathname !== path) return false;
+  const wantTab = query ? new URLSearchParams(query).get('tab') : null;
+  const haveTab = new URLSearchParams(location.search).get('tab');
+  return wantTab ? haveTab === wantTab : !haveTab;
+}
+
+function NavGroup({ item, location }) {
+  const hasActiveChild = item.children.some(c => isChildActive(c, location));
+  // Collapsed by default; persist an explicit open choice, but never leave the
+  // group collapsed over a child the user is currently looking at.
+  const [open, setOpen] = useState(() => {
+    try { return window.localStorage.getItem(`clubpm_nav_open_${item.id}`) === '1'; }
+    catch { return false; }
+  });
+  useEffect(() => { if (hasActiveChild) setOpen(true); }, [hasActiveChild]);
+
+  const toggle = () => setOpen(prev => {
+    const next = !prev;
+    try { window.localStorage.setItem(`clubpm_nav_open_${item.id}`, next ? '1' : '0'); } catch { /* private mode */ }
+    return next;
+  });
+
+  return (
+    <div className="pm-nav-group">
+      <button
+        type="button"
+        className={`pm-nav-item pm-nav-group-header${hasActiveChild && !open ? ' active' : ''}`}
+        onClick={toggle}
+        aria-expanded={open}
+        data-tour-id={item.tourId}
+      >
+        <span className="pm-nav-item-icon">{item.icon}</span>
+        <span className="pm-nav-item-label">{item.label}</span>
+        <i className={`fas fa-chevron-${open ? 'down' : 'right'} pm-nav-group-chevron`} aria-hidden="true" />
+      </button>
+      {open && (
+        <div className="pm-nav-group-children">
+          {item.children.map(child => (
+            <Link
+              key={child.href}
+              to={child.href}
+              className={`pm-nav-item pm-nav-child${isChildActive(child, location) ? ' active' : ''}`}
+              data-tour-id={child.tourId}
+            >
+              <span className="pm-nav-item-label">{child.label}</span>
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function statusDotColor(status) {
   if (status === 'ACTIVE')    return 'var(--pm-accent-teal)';
@@ -345,20 +405,16 @@ export default function AppShell({ children }) {
         {/* Nav items */}
         <div className="pm-sidebar-nav">
           {NAV_ITEMS.map(item => {
+            if (item.children) return <NavGroup key={item.id} item={item} location={location} />;
             const isActive = location.pathname === item.href ||
-              (item.href === '/clubpm' && location.pathname.startsWith('/clubpm/projects'));
+              (item.href === '/clubpm' && location.pathname.startsWith('/clubpm/projects')) ||
+              (item.href === '/clubpm/courses' && location.pathname.startsWith('/clubpm/courses'));
             return (
               <Link
                 key={item.href}
                 to={item.href}
                 className={`pm-nav-item${isActive ? ' active' : ''}`}
-                data-tour-id={{
-                  '/clubpm': 'nav.dashboard',
-                  '/clubpm/calendar': 'nav.calendar',
-                  '/clubpm/members': 'nav.members',
-                  '/clubpm/challenges': 'nav.challenges',
-                  '/clubpm/outreach': 'nav.outreach',
-                }[item.href]}
+                data-tour-id={item.tourId}
               >
                 <span className="pm-nav-item-icon">{item.icon}</span>
                 <span className="pm-nav-item-label">{item.label}</span>
@@ -408,6 +464,7 @@ export default function AppShell({ children }) {
                 key={tab.id}
                 className={`pm-nav-item${projectNav.activeTab === tab.id ? ' active' : ''}`}
                 onClick={() => projectNav.onTabChange(tab.id)}
+                data-tour-id={tab.tourId}
               >
                 <span className="pm-nav-item-icon pm-nav-item-icon--emoji">{tab.icon}</span>
                 <span className="pm-nav-item-label">{tab.label}</span>
@@ -509,6 +566,17 @@ export default function AppShell({ children }) {
               </svg>
               <span style={{ fontSize: '0.7rem' }}>⌘K</span>
             </button>
+
+            {/* Quests */}
+            <Link
+              to="/clubpm/challenges"
+              className={`pm-topbar-btn${location.pathname === '/clubpm/challenges' ? ' active' : ''}`}
+              title="Quests & achievements"
+              aria-label="Quests and achievements"
+              data-tour-id="topbar.challenges"
+            >
+              <i className="fas fa-trophy" aria-hidden="true" style={{ fontSize: 14 }} />
+            </Link>
 
             {/* Streak badge */}
             {member ? <div data-tour-id="topbar.streak"><StreakBadge /></div> : null}

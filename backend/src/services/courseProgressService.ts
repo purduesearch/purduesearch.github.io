@@ -487,7 +487,17 @@ export async function getLearnerCourse(
         // ahead into a tour they have not unlocked.
         if (cfg?.tourId) {
           out.tourConfig = cfg;
-          out.tourSteps = loadTourSteps(cfg.tourId);
+          // A missing or malformed steps file must degrade to one unlaunchable
+          // section, never to a 500 that blanks the whole course — same guard
+          // the authoring path already has in courseService.getModuleTree.
+          try {
+            out.tourSteps = loadTourSteps(cfg.tourId);
+          } catch (err) {
+            console.error(
+              `learner course ${course.slug}: tour "${cfg.tourId}" failed to load`,
+              err
+            );
+          }
         }
       }
     }

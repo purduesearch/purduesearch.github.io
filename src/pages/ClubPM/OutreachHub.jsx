@@ -20,7 +20,7 @@ import ActivityFeedSidebar from '../../components/clubpm/ActivityFeedSidebar';
 import useKeyboardShortcuts from '../../hooks/useKeyboardShortcuts';
 import OutreachSearch from '../../components/clubpm/OutreachSearch';
 import BlogTab from '../../components/clubpm/BlogTab';
-import CoursesTab from '../../components/clubpm/courses/CoursesTab';
+import { useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
 // ── Constants ─────────────────────────────────────────────────
@@ -709,9 +709,32 @@ function RecommendationsTab({ submissions }) {
 
 // ── OutreachHub ───────────────────────────────────────────────
 
+// Module scope so the initial-tab check below can read it. Courses used to be
+// an eighth tab here; it now has its own route at /clubpm/courses.
+const TABS = [
+  { id: 'composer',        label: 'Composer',        icon: 'fas fa-pen-nib' },
+  { id: 'board',           label: 'Board',           icon: 'fas fa-columns' },
+  { id: 'calendar',        label: 'Calendar',        icon: 'fas fa-calendar-alt' },
+  { id: 'campaigns',       label: 'Campaigns',       icon: 'fas fa-flag' },
+  { id: 'crm',             label: 'CRM',             icon: 'fas fa-address-book' },
+  { id: 'blog',            label: 'Blog',            icon: 'fas fa-newspaper' },
+  { id: 'insights',        label: 'Insights',        icon: 'fas fa-chart-line' },
+];
+
 export default function OutreachHub() {
   const { member } = useClubPmAuth();
-  const [activeTab, setActiveTab]             = useState('board');
+  // The sidebar's Outreach > Blog child deep-links here as ?tab=blog, so the
+  // opening tab comes from the URL whenever it names a real one.
+  const [searchParams] = useSearchParams();
+  const tabParam = searchParams.get('tab');
+  const [activeTab, setActiveTab]             = useState(
+    () => TABS.some(t => t.id === tabParam) ? tabParam : 'board'
+  );
+  // Clicking Hub or Blog in the sidebar while already on this route changes the
+  // query string without remounting, so the initializer alone is not enough.
+  useEffect(() => {
+    setActiveTab(TABS.some(t => t.id === tabParam) ? tabParam : 'board');
+  }, [tabParam]);
   const [submissions, setSubmissions]         = useState([]);
   const [projects, setProjects]               = useState([]);
   const [events, setEvents]                   = useState([]);
@@ -758,14 +781,14 @@ export default function OutreachHub() {
   useKeyboardShortcuts([
     { id: 'outreach.new',    keys: 'n', scope: 'page', pageId: 'Outreach', description: 'New submission',      action: () => { setEditSubmission(null); setShowCreateModal(true); } },
     { id: 'outreach.comp',   keys: 'c', scope: 'page', pageId: 'Outreach', description: 'Switch to Composer',  action: () => setActiveTab('composer') },
-    { id: 'outreach.search', keys: '/', scope: 'page', pageId: 'Outreach', description: 'Focus search',        action: () => document.querySelector('.pm-search-input, .pm-crm-search')?.focus() },
+    { id: 'outreach.search', keys: '/', scope: 'page', pageId: 'Outreach', description: 'Focus search',        // .pm-crm-search is the field's wrapper, not the field -- focus the input.
+      action: () => document.querySelector('.pm-search-input, .pm-crm-search-input')?.focus() },
     { id: 'outreach.tab.1',  keys: '1', scope: 'page', pageId: 'Outreach', description: 'Composer tab',        action: () => setActiveTab('composer') },
     { id: 'outreach.tab.2',  keys: '2', scope: 'page', pageId: 'Outreach', description: 'Board tab',           action: () => setActiveTab('board') },
     { id: 'outreach.tab.3',  keys: '3', scope: 'page', pageId: 'Outreach', description: 'Calendar tab',        action: () => setActiveTab('calendar') },
     { id: 'outreach.tab.4',  keys: '4', scope: 'page', pageId: 'Outreach', description: 'Campaigns tab',       action: () => setActiveTab('campaigns') },
     { id: 'outreach.tab.5',  keys: '5', scope: 'page', pageId: 'Outreach', description: 'CRM tab',             action: () => setActiveTab('crm') },
     { id: 'outreach.tab.6',  keys: '6', scope: 'page', pageId: 'Outreach', description: 'Insights tab',        action: () => setActiveTab('insights') },
-    { id: 'outreach.tab.7',  keys: '7', scope: 'page', pageId: 'Outreach', description: 'Courses tab',         action: () => setActiveTab('courses') },
   ]);
 
   const handleSave = async (payload) => {
@@ -827,17 +850,6 @@ export default function OutreachHub() {
     }
   };
 
-  const TABS = [
-    { id: 'composer',        label: 'Composer',        icon: 'fas fa-pen-nib' },
-    { id: 'board',           label: 'Board',           icon: 'fas fa-columns' },
-    { id: 'calendar',        label: 'Calendar',        icon: 'fas fa-calendar-alt' },
-    { id: 'campaigns',       label: 'Campaigns',       icon: 'fas fa-flag' },
-    { id: 'crm',             label: 'CRM',             icon: 'fas fa-address-book' },
-    { id: 'blog',            label: 'Blog',            icon: 'fas fa-newspaper' },
-    { id: 'insights',        label: 'Insights',        icon: 'fas fa-chart-line' },
-    { id: 'courses',         label: 'Courses',         icon: 'fas fa-graduation-cap' },
-  ];
-
   if (loading) {
     return (
       <div className="clubpm-app" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
@@ -887,7 +899,6 @@ export default function OutreachHub() {
               crm: 'outreach.tab.contacts',
               campaigns: 'outreach.tab.campaigns',
               blog: 'outreach.tab.blog',
-              courses: 'outreach.tab.courses',
             }[tab.id]}
             className={`pm-outreach-tab-btn${activeTab === tab.id ? ' pm-outreach-tab-btn--active' : ''}`}
             onClick={() => setActiveTab(tab.id)}
@@ -957,9 +968,6 @@ export default function OutreachHub() {
         {activeTab === 'blog' && <BlogTab />}
         {activeTab === 'insights' && (
           <InsightsTab submissions={submissions} isAdmin={!!member?.isAdmin} />
-        )}
-        {activeTab === 'courses' && (
-          <CoursesTab isAdmin={!!member?.isAdmin} currentMemberId={member?.id} />
         )}
       </div>
 

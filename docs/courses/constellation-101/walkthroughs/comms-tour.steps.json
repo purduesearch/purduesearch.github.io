@@ -56,7 +56,8 @@
       "title": "RSVP means something",
       "body": "Open an event and RSVP. Officers plan around the count — food, room size, whether the meeting happens at all — so a missing RSVP is a real cost, not a formality.",
       "placement": "right",
-      "advance": { "on": "next" }
+      "advance": { "on": "next" },
+      "optional": true
     },
     {
       "id": "back-to-dash",

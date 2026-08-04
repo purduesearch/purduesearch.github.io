@@ -668,6 +668,10 @@ html::-webkit-scrollbar { display: none; }
   --pm-font-mono:    'JetBrains Mono', monospace;
 
   /* Backward-compatibility aliases â€” keep existing code working */
+  /* Short forms used by ~38 rules (CRM, campaigns, outreach modal chrome) that
+     were never declared, so every one of those rules resolved to nothing. */
+  --clubpm-surface-1:         var(--pm-bg-surface);
+  --clubpm-surface-2:         var(--pm-bg-elevated);
   --clubpm-surface-50:        var(--pm-bg-base);
   --clubpm-surface-100:       var(--pm-bg-surface);
   --clubpm-surface-200:       var(--pm-bg-elevated);
@@ -7665,6 +7669,113 @@ html::-webkit-scrollbar { display: none; }
 .cpm-btn-ghost:hover { background: var(--clubpm-surface-300); border-color: var(--clubpm-text-muted); }
 .cpm-btn-ghost:disabled { opacity: 0.45; cursor: not-allowed; }
 
+/* == cpm-btn: the BEM button family ============================= */
+/*
+   .cpm-btn plus --primary/--secondary is used about forty times across eight
+   Outreach components (CrmTab, CampaignsTab, ComposerTab, CalendarTab,
+   BrandVoiceAdmin, AssetPicker, AiAssistPanel, VideoScriptPanel) and was
+   never declared anywhere, so all of those rendered as bare user-agent
+   buttons. This is the single-dash .cpm-btn-primary / .cpm-btn-ghost pair
+   restated as a proper family.
+
+   Primary is a flat teal rather than the gradient .cpm-btn-primary carries:
+   these sit in dense toolbars and form footers where a gradient reads as
+   noise. The gradient version stays for hero calls to action.
+*/
+.cpm-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--pm-text-primary);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.3;
+  white-space: nowrap;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.15s, border-color 0.15s, color 0.15s, box-shadow 0.15s;
+}
+.cpm-btn:hover { text-decoration: none; }
+.cpm-btn:focus-visible {
+  outline: 2px solid var(--pm-accent-teal);
+  outline-offset: 2px;
+}
+.cpm-btn:disabled,
+.cpm-btn[aria-disabled='true'] { opacity: 0.45; cursor: not-allowed; }
+.cpm-btn > i { font-size: 0.92em; }
+
+.cpm-btn--primary {
+  background: var(--pm-accent-teal);
+  color: #06231f;
+}
+.cpm-btn--primary:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--pm-accent-teal) 88%, #ffffff);
+  box-shadow: 0 3px 16px rgba(0, 229, 204, 0.28);
+  color: #06231f;
+}
+
+.cpm-btn--secondary {
+  border-color: var(--pm-border);
+  background: var(--pm-bg-elevated);
+  color: var(--pm-text-secondary);
+}
+.cpm-btn--secondary:hover:not(:disabled) {
+  background: var(--pm-bg-overlay);
+  border-color: var(--pm-border-active);
+  color: var(--pm-text-primary);
+}
+
+.cpm-btn--danger {
+  border-color: color-mix(in srgb, var(--pm-accent-coral) 45%, transparent);
+  background: transparent;
+  color: var(--pm-accent-coral);
+}
+.cpm-btn--danger:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--pm-accent-coral) 14%, transparent);
+  border-color: var(--pm-accent-coral);
+  color: var(--pm-accent-coral);
+}
+
+.cpm-btn--ghost { color: var(--pm-text-secondary); }
+.cpm-btn--ghost:hover:not(:disabled) {
+  background: var(--pm-bg-elevated);
+  color: var(--pm-text-primary);
+}
+
+.cpm-btn--sm { padding: 5px 11px; font-size: 12px; border-radius: 7px; }
+.cpm-btn--block { width: 100%; }
+
+/* Form primitives the BEM markup expects alongside .cpm-form-input. */
+.cpm-form-group { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.cpm-form-hint { font-size: 11px; color: var(--pm-text-muted); }
+.cpm-form-textarea {
+  background: var(--clubpm-surface-100);
+  border: 1px solid var(--clubpm-border);
+  border-radius: 7px;
+  padding: 9px 11px;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--clubpm-text-primary);
+  width: 100%;
+  box-sizing: border-box;
+  outline: none;
+  resize: vertical;
+  min-height: 68px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.cpm-form-textarea:focus {
+  border-color: var(--clubpm-accent-cyan);
+  box-shadow: 0 0 0 3px rgba(0, 206, 201, 0.12);
+}
+.cpm-form-textarea::placeholder { color: var(--clubpm-text-muted); opacity: 1; }
+
 .cpm-icon-btn {
   display: inline-flex; align-items: center; justify-content: center;
   width: 30px; height: 30px; border-radius: 6px;
@@ -10717,660 +10828,856 @@ html::-webkit-scrollbar { display: none; }
   border-top: 1px solid var(--clubpm-border);
 }
 
-/* â”€â”€ CRM Tab â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* == CRM Tab ==================================================== */
+/*
+   Rewritten to match the markup CrmTab.jsx actually renders. The previous
+   block in this slot was written against an earlier generation of that
+   component (.pm-crm-column, .pm-crm-card.is-dragging, .pm-crm-form-input,
+   .pm-crm-drawer-backdrop); the JSX moved to BEM modifiers and a different
+   element tree and the CSS never followed, so roughly fifty class names
+   rendered with no styling at all.
 
-.pm-crm-root {
+   Structure of the redesign: a CRM board is a pipeline, not five equal
+   buckets, and the stage is the entire point of the screen. Each column
+   publishes its stage colour as `--stage`, and every child that needs to
+   express "which stage is this" reads that one variable -- the column cap
+   rule, the card's leading edge, the drop berth. One custom property, no
+   per-stage rule duplication, and the colour stays tied to real data
+   (COLD grey through ACTIVE teal) rather than being decoration.
+*/
+
+.pm-crm-tab {
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  padding: 16px 0;
+  gap: 18px;
+  padding: 18px 0 8px;
 }
 
-.pm-crm-toolbar {
+/* Numerals read as data, not prose. --pm-font-mono is already a declared
+   token and is barely used anywhere; counts are the right place for it. */
+.pm-crm-num {
+  font-family: var(--pm-font-mono);
+  font-size: 0.92em;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+/* -- Header ---------------------------------------------------- */
+
+.pm-crm-header {
   display: flex;
-  align-items: center;
-  gap: 10px;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
   flex-wrap: wrap;
 }
-
-.pm-crm-type-chips {
+.pm-crm-header-copy { min-width: 0; }
+.pm-crm-header-actions {
   display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-
-.pm-crm-type-chip {
-  display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 5px 12px;
-  border-radius: 20px;
-  border: 1px solid var(--clubpm-border);
-  background: transparent;
-  color: var(--clubpm-text-secondary);
-  font-size: 12px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background 0.15s, border-color 0.15s, color 0.15s;
-}
-.pm-crm-type-chip:hover {
-  background: rgba(255,255,255,0.06);
-  color: var(--clubpm-text-primary);
-}
-.pm-crm-type-chip.active {
-  border-color: var(--pm-accent-teal);
-  color: var(--pm-accent-teal);
-  background: rgba(0,229,204,0.1);
-}
-
-.pm-crm-search {
-  flex: 1;
-  min-width: 180px;
-  max-width: 280px;
-  padding: 7px 12px;
-  border-radius: 8px;
-  border: 1px solid var(--clubpm-border);
-  background: var(--clubpm-surface-2);
-  color: var(--clubpm-text-primary);
-  font-size: 13px;
-}
-.pm-crm-search:focus { outline: none; border-color: var(--pm-accent-teal); }
-
-.pm-crm-import-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 7px 14px;
-  border-radius: 8px;
-  border: 1px solid var(--clubpm-border);
-  background: transparent;
-  color: var(--clubpm-text-secondary);
-  font-size: 12px;
-  cursor: pointer;
-  transition: background 0.15s, color 0.15s;
-}
-.pm-crm-import-btn:hover { background: rgba(255,255,255,0.06); color: var(--clubpm-text-primary); }
-
-.pm-crm-add-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 7px 14px;
-  border-radius: 8px;
-  border: none;
-  background: var(--pm-accent-teal);
-  color: #000;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: opacity 0.15s;
-}
-.pm-crm-add-btn:hover { opacity: 0.88; }
-
-/* Kanban board */
-.pm-crm-board {
-  display: flex;
-  gap: 12px;
-  overflow-x: auto;
-  padding-bottom: 8px;
-}
-
-.pm-crm-column {
-  flex: 0 0 220px;
-  display: flex;
-  flex-direction: column;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
-.pm-crm-col-header {
+/* -- Filter row ------------------------------------------------ */
+
+.pm-crm-filters {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 6px 10px;
-  border-radius: 8px;
-  background: var(--clubpm-surface-2);
-  border: 1px solid var(--clubpm-border);
-}
-.pm-crm-col-label {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
-}
-.pm-crm-col-count {
-  font-size: 11px;
-  color: var(--clubpm-text-secondary);
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
-.pm-crm-col-cards {
+.pm-crm-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 1 300px;
+  min-width: 200px;
+  padding: 0 11px;
+  height: 34px;
+  border-radius: 8px;
+  border: 1px solid var(--pm-border);
+  background: var(--pm-bg-surface);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.pm-crm-search:focus-within {
+  border-color: var(--pm-accent-teal);
+  box-shadow: 0 0 0 3px rgba(0, 229, 204, 0.12);
+}
+.pm-crm-search > i {
+  color: var(--pm-text-muted);
+  font-size: 12px;
+  flex-shrink: 0;
+}
+.pm-crm-search-input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: none;
+  outline: none;
+  color: var(--pm-text-primary);
+  font-family: inherit;
+  font-size: 13px;
+}
+.pm-crm-search-input::placeholder { color: var(--pm-text-muted); opacity: 1; }
+.pm-crm-search-clear {
+  flex-shrink: 0;
+  border: none;
+  background: none;
+  padding: 2px 4px;
+  color: var(--pm-text-muted);
+  cursor: pointer;
+  font-size: 12px;
+  border-radius: 4px;
+  transition: color 0.15s;
+}
+.pm-crm-search-clear:hover { color: var(--pm-text-primary); }
+
+/* -- Board ----------------------------------------------------- */
+
+.pm-crm-board {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(216px, 1fr);
+  gap: 12px;
+  align-items: start;
+  overflow-x: auto;
+  padding-bottom: 10px;
+}
+
+.pm-crm-col {
+  --stage: var(--pm-text-secondary);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border-radius: 12px;
+  background: var(--pm-bg-surface);
+  border: 1px solid var(--pm-border);
+  /* The cap rule is the pipeline made visible: the stage colour sits on the
+     column edge rather than being sprinkled through its contents. */
+  border-top: 2px solid var(--stage);
+  overflow: hidden;
+}
+
+.pm-crm-col-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--pm-border);
+}
+.pm-crm-col-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--stage);
+  flex-shrink: 0;
+}
+.pm-crm-col-label {
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+  font-family: var(--pm-font-display);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--stage);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pm-crm-col-count {
+  flex-shrink: 0;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--pm-bg-elevated);
+  color: var(--pm-text-secondary);
+  font-size: 11px;
+}
+
+.pm-crm-col-body {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  min-height: 60px;
-  padding: 4px 0;
+  padding: 10px;
+  min-height: 96px;
+  transition: background 0.15s;
+}
+.pm-crm-col-body--over { background: color-mix(in srgb, var(--stage) 7%, transparent); }
+
+.pm-crm-col-empty {
+  margin: 0;
+  padding: 14px 0;
+  text-align: center;
+  font-size: 12px;
+  color: var(--pm-text-muted);
 }
 
-/* Contact card */
-.pm-crm-card {
-  background: var(--clubpm-surface-2);
-  border: 1px solid var(--clubpm-border);
+/* The berth: the one loud moment on this screen. Rather than tinting a whole
+   column and leaving you to guess, the exact slot the card will occupy is
+   drawn in the stage colour and states the consequence of dropping there. */
+.pm-crm-berth {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 62px;
+  padding: 10px;
   border-radius: 10px;
-  padding: 10px 12px;
-  cursor: pointer;
-  transition: border-color 0.15s, box-shadow 0.15s;
+  border: 1px dashed var(--stage);
+  background: color-mix(in srgb, var(--stage) 10%, transparent);
+  color: var(--stage);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-align: center;
+  animation: pmCrmBerthIn 0.16s ease-out both;
+}
+@keyframes pmCrmBerthIn {
+  from { opacity: 0; transform: scale(0.97); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+/* -- Contact card ---------------------------------------------- */
+
+.pm-crm-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 10px 12px 10px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--pm-border);
+  background: var(--pm-bg-elevated);
+  /* Stated rather than inherited: the drag overlay copy is portalled to
+     <body>, outside .clubpm-app, and would otherwise pick up the public
+     site's font mid-drag. */
+  font-family: var(--pm-font-body);
+  cursor: grab;
+  touch-action: manipulation;
+  transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+}
+/* The leading edge carries the stage colour, so a card that has been dragged
+   into a new column reads as belonging there even out of context. */
+.pm-crm-card::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 10px;
+  bottom: 10px;
+  width: 2px;
+  border-radius: 0 2px 2px 0;
+  background: var(--stage, var(--pm-text-muted));
+  opacity: 0.65;
 }
 .pm-crm-card:hover {
-  border-color: var(--pm-accent-teal);
-  box-shadow: 0 2px 12px rgba(0,229,204,0.12);
+  border-color: var(--pm-border-active);
+  box-shadow: 0 2px 14px rgba(0, 0, 0, 0.35);
 }
-.pm-crm-card.is-dragging {
-  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
-  opacity: 0.95;
+.pm-crm-card:focus-visible {
+  outline: 2px solid var(--pm-accent-teal);
+  outline-offset: 2px;
+}
+.pm-crm-card:active { cursor: grabbing; }
+
+/* The original stays in place as a dim footprint while the overlay copy
+   travels with the pointer -- you keep your bearings on where it came from. */
+.pm-crm-card--ghost {
+  opacity: 0.32;
+  box-shadow: none;
+}
+.pm-crm-card--lifted {
+  cursor: grabbing;
+  border-color: var(--stage, var(--pm-accent-teal));
+  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.55);
+  transform: rotate(1.4deg) scale(1.02);
+  width: 216px;
 }
 
 .pm-crm-card-header {
   display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  margin-bottom: 5px;
+  align-items: baseline;
+  gap: 7px;
 }
-.pm-crm-card-icon {
-  width: 28px;
-  height: 28px;
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 12px;
+.pm-crm-card-header > i {
+  color: var(--pm-accent-teal);
+  font-size: 11px;
   flex-shrink: 0;
 }
 .pm-crm-card-name {
   font-size: 13px;
   font-weight: 600;
-  color: var(--clubpm-text-primary);
   line-height: 1.3;
+  color: var(--pm-text-primary);
+  overflow-wrap: anywhere;
 }
 .pm-crm-card-org {
-  font-size: 11px;
-  color: var(--clubpm-text-secondary);
-}
-.pm-crm-card-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  margin-top: 6px;
-}
-.pm-crm-card-tag {
-  font-size: 10px;
-  padding: 2px 6px;
-  border-radius: 6px;
-  background: rgba(255,255,255,0.07);
-  color: var(--clubpm-text-secondary);
+  font-size: 11.5px;
+  color: var(--pm-text-secondary);
+  overflow-wrap: anywhere;
 }
 .pm-crm-card-footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-top: 8px;
-  font-size: 10px;
-  color: var(--clubpm-text-secondary);
+  gap: 8px;
+  margin-top: 2px;
+  font-size: 10.5px;
+  color: var(--pm-text-muted);
 }
-.pm-crm-card-followup {
+.pm-crm-card-followup,
+.pm-crm-card-int-count {
   display: inline-flex;
   align-items: center;
   gap: 4px;
 }
-.pm-crm-card-followup.overdue { color: #ff7675; }
+.pm-crm-card-followup--overdue { color: var(--pm-accent-coral); font-weight: 600; }
 
-/* Contact drawer */
-.pm-crm-drawer-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.45);
-  z-index: 200;
+/* -- Tags ------------------------------------------------------ */
+
+.pm-crm-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
 }
-.pm-crm-drawer {
-  position: fixed;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  width: 420px;
-  max-width: 95vw;
-  background: var(--clubpm-surface-1);
-  border-left: 1px solid var(--clubpm-border);
-  z-index: 201;
+.pm-crm-tags--compact { margin-top: 1px; }
+.pm-crm-tag {
+  padding: 2px 7px;
+  border-radius: 5px;
+  background: var(--pm-bg-overlay);
+  border: 1px solid var(--pm-border);
+  color: var(--pm-text-secondary);
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+.pm-crm-tag--more { color: var(--pm-text-muted); }
+
+/* -- Blank state ----------------------------------------------- */
+
+.pm-crm-blank {
   display: flex;
   flex-direction: column;
-  overflow: hidden;
-  box-shadow: -4px 0 32px rgba(0,0,0,0.3);
-}
-
-.pm-crm-drawer-header {
-  padding: 20px 20px 14px;
-  border-bottom: 1px solid var(--clubpm-border);
-  display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 12px;
+  padding: 56px 20px;
+  border: 1px dashed var(--pm-border);
+  border-radius: 14px;
+  color: var(--pm-text-secondary);
+  text-align: center;
 }
-.pm-crm-drawer-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 17px;
-  flex-shrink: 0;
-}
-.pm-crm-drawer-title { font-size: 16px; font-weight: 700; color: var(--clubpm-text-primary); }
-.pm-crm-drawer-sub { font-size: 12px; color: var(--clubpm-text-secondary); margin-top: 2px; }
-.pm-crm-drawer-close {
-  margin-left: auto;
-  background: none;
-  border: none;
-  color: var(--clubpm-text-secondary);
-  font-size: 16px;
-  cursor: pointer;
-  padding: 4px;
-  line-height: 1;
-}
-.pm-crm-drawer-close:hover { color: var(--clubpm-text-primary); }
+.pm-crm-blank > i { font-size: 28px; color: var(--pm-text-muted); }
+.pm-crm-blank > p { margin: 0; font-size: 13px; }
 
-.pm-crm-drawer-stage-bar {
-  padding: 10px 20px;
-  display: flex;
-  gap: 6px;
-  border-bottom: 1px solid var(--clubpm-border);
-  flex-wrap: wrap;
-}
-.pm-crm-stage-btn {
-  padding: 4px 10px;
-  border-radius: 16px;
-  border: 1px solid var(--clubpm-border);
-  background: transparent;
-  color: var(--clubpm-text-secondary);
-  font-size: 11px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background 0.12s, border-color 0.12s, color 0.12s;
-}
-.pm-crm-stage-btn.active {
-  background: rgba(0,229,204,0.15);
-  border-color: var(--pm-accent-teal);
-  color: var(--pm-accent-teal);
-  font-weight: 700;
-}
+/* -- Shared form chrome (modals + drawer) ---------------------- */
 
-.pm-crm-drawer-actions {
-  padding: 8px 20px;
-  display: flex;
-  gap: 8px;
-  border-bottom: 1px solid var(--clubpm-border);
-}
-.pm-crm-drawer-action-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 6px 12px;
-  border-radius: 8px;
-  border: 1px solid var(--clubpm-border);
-  background: transparent;
-  color: var(--clubpm-text-secondary);
-  font-size: 12px;
-  cursor: pointer;
-  transition: background 0.12s, color 0.12s;
-}
-.pm-crm-drawer-action-btn:hover { background: rgba(255,255,255,0.06); color: var(--clubpm-text-primary); }
-.pm-crm-drawer-action-btn.danger:hover { color: #ff7675; border-color: #ff7675; }
-
-.pm-crm-overdue-banner {
-  margin: 0 20px;
-  padding: 8px 12px;
-  border-radius: 8px;
-  background: rgba(255,118,117,0.12);
-  border: 1px solid rgba(255,118,117,0.35);
-  color: #ff7675;
-  font-size: 12px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-/* Drawer tabs */
-.pm-crm-drawer-tabs {
-  display: flex;
-  gap: 0;
-  border-bottom: 1px solid var(--clubpm-border);
-  padding: 0 20px;
-}
-.pm-crm-drawer-tab {
-  padding: 10px 14px;
-  border: none;
-  border-bottom: 2px solid transparent;
-  background: none;
-  color: var(--clubpm-text-secondary);
-  font-size: 12px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: color 0.12s, border-color 0.12s;
-}
-.pm-crm-drawer-tab.active {
-  color: var(--pm-accent-teal);
-  border-bottom-color: var(--pm-accent-teal);
-}
-
-.pm-crm-drawer-body {
-  flex: 1;
-  overflow-y: auto;
-  padding: 16px 20px;
+.pm-crm-form {
   display: flex;
   flex-direction: column;
   gap: 14px;
 }
+.pm-crm-form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.pm-crm-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 14px;
+  border-top: 1px solid var(--pm-border);
+}
 
-.pm-crm-info-row {
+/* Contact + CSV modal panel. Written as a compound selector so it beats the
+   shared .pm-modal-panel rule that lives later in this file. */
+.pm-modal-panel.pm-crm-modal {
+  max-width: 580px;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 16px;
 }
-.pm-crm-info-label {
-  font-size: 10px;
+
+.pm-crm-import-hint {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--pm-text-secondary);
+}
+.pm-crm-import-hint code {
+  font-family: var(--pm-font-mono);
+  font-size: 11px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--pm-bg-overlay);
+  color: var(--pm-accent-teal);
+}
+.pm-crm-file-input {
+  width: 100%;
+  padding: 14px;
+  border-radius: 10px;
+  border: 1px dashed var(--pm-border);
+  background: var(--pm-bg-surface);
+  color: var(--pm-text-secondary);
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.pm-crm-file-input:hover { border-color: var(--pm-accent-teal); }
+.pm-crm-file-input::file-selector-button {
+  margin-right: 12px;
+  padding: 6px 14px;
+  border: 1px solid var(--pm-border);
+  border-radius: 7px;
+  background: var(--pm-bg-elevated);
+  color: var(--pm-text-primary);
+  font-family: inherit;
+  font-size: 12px;
   font-weight: 600;
+  cursor: pointer;
+}
+.pm-crm-import-preview {
+  border: 1px solid var(--pm-border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.pm-crm-import-preview-label {
+  padding: 8px 12px;
+  background: var(--pm-bg-overlay);
+  border-bottom: 1px solid var(--pm-border);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: var(--clubpm-text-secondary);
+  color: var(--pm-text-secondary);
+}
+.pm-crm-import-preview-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 168px;
+  overflow-y: auto;
+}
+.pm-crm-import-preview-list li {
+  padding: 7px 12px;
+  font-size: 12px;
+  color: var(--pm-text-secondary);
+  border-top: 1px solid var(--pm-border);
+}
+.pm-crm-import-preview-list li:first-child { border-top: none; }
+.pm-crm-import-preview-list strong { color: var(--pm-text-primary); font-weight: 600; }
+
+/* -- Contact drawer -------------------------------------------- */
+
+/* Portalled to <body>, so it sets its own typography and colour rather than
+   inheriting from .clubpm-app. */
+.pm-crm-drawer-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 5000;
+  display: flex;
+  justify-content: flex-end;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(3px);
+  font-family: var(--pm-font-body);
+  color: var(--pm-text-primary);
+  animation: pmCrmFade 0.16s ease-out both;
+}
+@keyframes pmCrmFade { from { opacity: 0; } to { opacity: 1; } }
+
+.pm-crm-drawer {
+  --stage: var(--pm-accent-teal);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: min(460px, 100vw);
+  height: 100%;
+  background: var(--pm-bg-surface);
+  border-left: 1px solid var(--pm-border);
+  box-shadow: -8px 0 40px rgba(0, 0, 0, 0.5);
+  animation: pmCrmSlideIn 0.22s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes pmCrmSlideIn {
+  from { transform: translateX(24px); opacity: 0; }
+  to   { transform: translateX(0); opacity: 1; }
+}
+
+.pm-crm-drawer-loading {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 32px;
+}
+
+.pm-crm-drawer-header {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 20px 20px 16px;
+  border-bottom: 1px solid var(--pm-border);
+  border-top: 3px solid var(--stage);
+}
+.pm-crm-drawer-title-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.pm-crm-drawer-avatar {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 11px;
+  background: var(--pm-bg-elevated);
+  border: 1px solid var(--pm-border);
+  color: var(--pm-accent-teal);
+  font-size: 16px;
+}
+.pm-crm-drawer-name-block { flex: 1; min-width: 0; }
+.pm-crm-drawer-name {
+  margin: 0;
+  font-family: var(--pm-font-display);
+  font-size: 1.15rem;
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--pm-text-primary);
+  overflow-wrap: anywhere;
+}
+.pm-crm-drawer-subt {
+  margin: 3px 0 0;
+  font-size: 12.5px;
+  color: var(--pm-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+/* Stage rail. This is a position in a pipeline, so it is drawn as a position:
+   stages already passed stay dimly filled, the current one is solid, the ones
+   ahead are outlines. Five loose pills could not say that. */
+.pm-crm-stage-row {
+  display: flex;
+  gap: 3px;
+  padding: 3px;
+  border-radius: 9px;
+  background: var(--pm-bg-base);
+  border: 1px solid var(--pm-border);
+}
+.pm-crm-stage-btn {
+  --stage: var(--pm-text-secondary);
+  flex: 1;
+  min-width: 0;
+  padding: 6px 4px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--pm-text-muted);
+  font-family: inherit;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: background 0.15s, color 0.15s;
+}
+.pm-crm-stage-btn:hover { background: var(--pm-bg-elevated); color: var(--pm-text-secondary); }
+.pm-crm-stage-btn--passed { color: color-mix(in srgb, var(--stage) 62%, var(--pm-text-muted)); }
+.pm-crm-stage-btn--active {
+  background: color-mix(in srgb, var(--stage) 20%, transparent);
+  box-shadow: inset 0 0 0 1px var(--stage);
+  color: var(--stage);
+}
+
+.pm-crm-drawer-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.pm-crm-drawer-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 7px;
+  border: 1px solid var(--pm-border);
+  background: var(--pm-bg-elevated);
+  color: var(--pm-text-secondary);
+  font-size: 12px;
+  text-decoration: none;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: border-color 0.15s, color 0.15s;
+}
+.pm-crm-drawer-link:hover {
+  border-color: var(--pm-accent-teal);
+  color: var(--pm-accent-teal);
+  text-decoration: none;
+}
+
+.pm-crm-followup-banner {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 11px;
+  border-radius: 8px;
+  border: 1px solid var(--pm-border);
+  background: var(--pm-bg-elevated);
+  color: var(--pm-text-secondary);
+  font-size: 12px;
+}
+.pm-crm-followup-banner--overdue {
+  border-color: color-mix(in srgb, var(--pm-accent-coral) 45%, transparent);
+  background: color-mix(in srgb, var(--pm-accent-coral) 12%, transparent);
+  color: var(--pm-accent-coral);
+  font-weight: 600;
+}
+
+.pm-crm-drawer-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.pm-crm-drawer-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 18px 20px 28px;
+}
+
+/* -- Drawer: info tab ------------------------------------------ */
+
+.pm-crm-info-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.pm-crm-info-row {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+.pm-crm-info-row--full { flex-direction: column; align-items: stretch; gap: 6px; }
+.pm-crm-info-label {
+  flex-shrink: 0;
+  min-width: 92px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--pm-text-muted);
 }
 .pm-crm-info-value {
   font-size: 13px;
-  color: var(--clubpm-text-primary);
+  color: var(--pm-text-primary);
+  overflow-wrap: anywhere;
 }
-.pm-crm-info-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
-  margin-top: 2px;
+.pm-crm-notes {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.65;
+  color: var(--pm-text-secondary);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
-.pm-crm-info-tag {
-  font-size: 11px;
-  padding: 2px 8px;
-  border-radius: 8px;
-  background: rgba(255,255,255,0.07);
-  color: var(--clubpm-text-secondary);
+.pm-crm-empty-note {
+  margin: 0;
+  padding: 20px 0;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--pm-text-muted);
 }
 
-/* Timeline */
-.pm-crm-timeline {
+/* -- Drawer: timeline tab -------------------------------------- */
+
+.pm-crm-log-btn { margin-bottom: 14px; }
+
+.pm-crm-int-form {
   display: flex;
   flex-direction: column;
-  gap: 0;
+  gap: 12px;
+  margin-bottom: 18px;
+  padding: 14px;
+  border-radius: 10px;
+  border: 1px solid var(--pm-border);
+  background: var(--pm-bg-base);
+}
+.pm-crm-int-form .pm-crm-form-actions { padding-top: 0; border-top: none; }
+
+.pm-crm-timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
 }
 .pm-crm-timeline-item {
-  display: flex;
-  gap: 12px;
   position: relative;
-  padding-bottom: 16px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding-bottom: 18px;
 }
-.pm-crm-timeline-item:last-child { padding-bottom: 0; }
-.pm-crm-timeline-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: var(--pm-accent-teal);
-  flex-shrink: 0;
-  margin-top: 4px;
-}
+/* The connector stops at the last entry so the thread reads as finite. */
 .pm-crm-timeline-item::before {
   content: '';
   position: absolute;
-  left: 4px;
-  top: 14px;
+  left: 13px;
+  top: 28px;
   bottom: 0;
-  width: 2px;
-  background: var(--clubpm-border);
+  width: 1px;
+  background: var(--pm-border);
 }
+.pm-crm-timeline-item:last-child { padding-bottom: 0; }
 .pm-crm-timeline-item:last-child::before { display: none; }
-.pm-crm-timeline-content { flex: 1; }
+.pm-crm-timeline-dot {
+  position: relative;
+  z-index: 1;
+  flex-shrink: 0;
+  width: 27px;
+  height: 27px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 1px solid var(--pm-border);
+  background: var(--pm-bg-elevated);
+  color: var(--pm-accent-teal);
+  font-size: 10px;
+}
+.pm-crm-timeline-body { flex: 1; min-width: 0; }
+.pm-crm-timeline-meta {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 3px;
+}
 .pm-crm-timeline-type {
   font-size: 11px;
   font-weight: 700;
-  color: var(--pm-accent-teal);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--pm-text-primary);
+}
+.pm-crm-timeline-date,
+.pm-crm-timeline-by {
+  font-size: 11px;
+  color: var(--pm-text-muted);
 }
 .pm-crm-timeline-summary {
-  font-size: 12px;
-  color: var(--clubpm-text-primary);
-  margin-top: 2px;
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--pm-text-secondary);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
-.pm-crm-timeline-meta {
-  font-size: 10px;
-  color: var(--clubpm-text-secondary);
-  margin-top: 3px;
-}
-
-.pm-crm-add-interaction-form {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 12px;
-  border-radius: 10px;
-  border: 1px solid var(--clubpm-border);
-  background: var(--clubpm-surface-2);
-}
-.pm-crm-add-interaction-form select,
-.pm-crm-add-interaction-form input,
-.pm-crm-add-interaction-form textarea {
-  padding: 7px 10px;
-  border-radius: 7px;
-  border: 1px solid var(--clubpm-border);
-  background: var(--clubpm-surface-1);
-  color: var(--clubpm-text-primary);
-  font-size: 12px;
-  width: 100%;
-  box-sizing: border-box;
-}
-.pm-crm-add-interaction-form textarea { resize: vertical; min-height: 56px; }
-.pm-crm-add-interaction-form select:focus,
-.pm-crm-add-interaction-form input:focus,
-.pm-crm-add-interaction-form textarea:focus { outline: none; border-color: var(--pm-accent-teal); }
-.pm-crm-add-interaction-save {
-  align-self: flex-end;
-  padding: 6px 14px;
-  border-radius: 7px;
+.pm-crm-timeline-del {
+  flex-shrink: 0;
   border: none;
-  background: var(--pm-accent-teal);
-  color: #000;
-  font-size: 12px;
-  font-weight: 600;
+  background: none;
+  padding: 3px 6px;
+  border-radius: 5px;
+  color: var(--pm-text-muted);
   cursor: pointer;
+  font-size: 11px;
+  opacity: 0;
+  transition: opacity 0.15s, color 0.15s, background 0.15s;
 }
-.pm-crm-add-interaction-save:hover { opacity: 0.88; }
+.pm-crm-timeline-item:hover .pm-crm-timeline-del,
+.pm-crm-timeline-del:focus-visible { opacity: 1; }
+.pm-crm-timeline-del:hover { color: var(--pm-accent-coral); background: var(--pm-bg-elevated); }
 
-/* Email tab */
-.pm-crm-email-section {
+/* -- Drawer: email tab ----------------------------------------- */
+
+.pm-crm-email-panel {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 14px;
 }
-.pm-crm-email-intents {
+.pm-crm-email-no-addr {
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-.pm-crm-intent-btn {
-  padding: 5px 12px;
-  border-radius: 16px;
-  border: 1px solid var(--clubpm-border);
-  background: transparent;
-  color: var(--clubpm-text-secondary);
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--pm-accent-amber) 40%, transparent);
+  background: color-mix(in srgb, var(--pm-accent-amber) 10%, transparent);
+  color: var(--pm-accent-amber);
   font-size: 12px;
-  cursor: pointer;
-  transition: background 0.12s, border-color 0.12s, color 0.12s;
+  line-height: 1.55;
 }
-.pm-crm-intent-btn.active {
-  border-color: var(--pm-accent-teal);
-  color: var(--pm-accent-teal);
-  background: rgba(0,229,204,0.1);
+.pm-crm-email-result {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 10px;
+  border: 1px solid var(--pm-border);
+  background: var(--pm-bg-base);
 }
-.pm-crm-email-preview {
+.pm-crm-email-subject {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--pm-text-primary);
+  overflow-wrap: anywhere;
+}
+.pm-crm-email-body {
+  margin: 0;
+  max-height: 300px;
+  overflow-y: auto;
   padding: 12px;
   border-radius: 8px;
-  border: 1px solid var(--clubpm-border);
-  background: var(--clubpm-surface-2);
+  background: var(--pm-bg-surface);
+  border: 1px solid var(--pm-border);
+  font-family: var(--pm-font-mono);
   font-size: 12px;
-  color: var(--clubpm-text-primary);
+  line-height: 1.7;
+  color: var(--pm-text-secondary);
   white-space: pre-wrap;
-  max-height: 260px;
-  overflow-y: auto;
+  overflow-wrap: anywhere;
 }
 .pm-crm-email-actions {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
 }
-.pm-crm-email-action-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 7px 14px;
-  border-radius: 8px;
-  border: 1px solid var(--clubpm-border);
-  background: transparent;
-  color: var(--clubpm-text-secondary);
-  font-size: 12px;
-  cursor: pointer;
-  transition: background 0.12s, color 0.12s;
-  text-decoration: none;
-}
-.pm-crm-email-action-btn:hover { background: rgba(255,255,255,0.06); color: var(--clubpm-text-primary); }
-.pm-crm-email-action-btn.primary { background: var(--pm-accent-teal); color: #000; border-color: transparent; font-weight: 600; }
-.pm-crm-email-action-btn.primary:hover { opacity: 0.88; }
+.pm-crm-email-actions > * { flex: 1 1 auto; justify-content: center; }
 
-/* Contact form modal */
-.pm-crm-modal-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.5);
-  z-index: 300;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-}
-.pm-crm-modal {
-  background: var(--clubpm-surface-1);
-  border: 1px solid var(--clubpm-border);
-  border-radius: 14px;
-  width: 100%;
-  max-width: 480px;
-  max-height: 90vh;
-  overflow-y: auto;
-  padding: 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-.pm-crm-modal-title {
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--clubpm-text-primary);
-  margin-bottom: 4px;
-}
-.pm-crm-form-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-}
-.pm-crm-form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.pm-crm-form-group.full { grid-column: 1 / -1; }
-.pm-crm-form-label { font-size: 11px; font-weight: 600; color: var(--clubpm-text-secondary); }
-.pm-crm-form-input,
-.pm-crm-form-select,
-.pm-crm-form-textarea {
-  padding: 8px 10px;
-  border-radius: 8px;
-  border: 1px solid var(--clubpm-border);
-  background: var(--clubpm-surface-2);
-  color: var(--clubpm-text-primary);
-  font-size: 13px;
-  width: 100%;
-  box-sizing: border-box;
-}
-.pm-crm-form-input:focus,
-.pm-crm-form-select:focus,
-.pm-crm-form-textarea:focus { outline: none; border-color: var(--pm-accent-teal); }
-.pm-crm-form-textarea { resize: vertical; min-height: 72px; }
-.pm-crm-modal-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  padding-top: 8px;
-  border-top: 1px solid var(--clubpm-border);
-}
-.pm-crm-modal-cancel {
-  padding: 8px 16px;
-  border-radius: 8px;
-  border: 1px solid var(--clubpm-border);
-  background: transparent;
-  color: var(--clubpm-text-secondary);
-  font-size: 13px;
-  cursor: pointer;
-}
-.pm-crm-modal-cancel:hover { background: rgba(255,255,255,0.06); }
-.pm-crm-modal-save {
-  padding: 8px 18px;
-  border-radius: 8px;
-  border: none;
-  background: var(--pm-accent-teal);
-  color: #000;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-}
-.pm-crm-modal-save:hover { opacity: 0.88; }
+/* -- Responsive ------------------------------------------------ */
 
-/* CSV import modal */
-.pm-crm-import-modal { max-width: 520px; }
-.pm-crm-import-dropzone {
-  border: 2px dashed var(--clubpm-border);
-  border-radius: 10px;
-  padding: 28px;
-  text-align: center;
-  color: var(--clubpm-text-secondary);
-  font-size: 13px;
-  cursor: pointer;
-  transition: border-color 0.15s;
+@media (max-width: 720px) {
+  .pm-crm-header { align-items: flex-start; }
+  .pm-crm-header-actions { width: 100%; }
+  .pm-crm-header-actions .cpm-btn { flex: 1; justify-content: center; }
+  .pm-crm-search { flex: 1 1 100%; }
 }
-.pm-crm-import-dropzone:hover { border-color: var(--pm-accent-teal); }
-.pm-crm-import-preview {
-  max-height: 180px;
-  overflow-y: auto;
-  border: 1px solid var(--clubpm-border);
-  border-radius: 8px;
+
+@media (max-width: 640px) {
+  .pm-crm-form-row { grid-template-columns: 1fr; }
+  .pm-crm-drawer { width: 100vw; }
+  .pm-crm-stage-row { flex-wrap: wrap; }
+  .pm-crm-stage-btn { flex: 1 1 30%; }
 }
-.pm-crm-import-preview table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 11px;
-}
-.pm-crm-import-preview th {
-  padding: 5px 8px;
-  text-align: left;
-  background: var(--clubpm-surface-2);
-  color: var(--clubpm-text-secondary);
-  font-weight: 600;
-}
-.pm-crm-import-preview td {
-  padding: 4px 8px;
-  color: var(--clubpm-text-primary);
-  border-top: 1px solid var(--clubpm-border);
-}
-.pm-crm-import-note {
-  font-size: 11px;
-  color: var(--clubpm-text-secondary);
-  line-height: 1.5;
+
+@media (prefers-reduced-motion: reduce) {
+  .pm-crm-berth,
+  .pm-crm-drawer,
+  .pm-crm-drawer-overlay { animation: none; }
+  .pm-crm-card,
+  .pm-crm-card--lifted { transition: none; transform: none; }
 }
 
 /* â”€â”€ Insights Tab â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
@@ -20047,7 +20354,7 @@ html:not(.aos-off) [data-aos].aos-animate  { opacity: 1; transform: none; }
 .presskit-panel { position: relative; }
 .presskit-generate-card {
   max-width: 640px; margin: 8px auto; padding: 24px;
-  background: var(--pm-surface); border: 1px solid var(--pm-border); border-radius: 12px;
+  background: var(--pm-bg-surface, #13161e); border: 1px solid var(--pm-border); border-radius: 12px;
 }
 .presskit-generate-title { font-family: var(--pm-font-display); font-size: 20px; margin: 0 0 4px; color: var(--pm-text-primary); }
 .presskit-generate-sub { font-size: 13px; color: var(--pm-text-muted); margin: 0 0 16px; }
@@ -20085,7 +20392,7 @@ html:not(.aos-off) [data-aos].aos-animate  { opacity: 1; transform: none; }
 
 .presskit-revs-drawer {
   position: absolute; top: 44px; right: 0; width: 320px; max-height: 60vh; overflow-y: auto;
-  background: var(--pm-elevated); border: 1px solid var(--pm-border); border-radius: 10px;
+  background: var(--pm-bg-elevated, #1a1e2a); border: 1px solid var(--pm-border); border-radius: 10px;
   box-shadow: 0 12px 40px rgba(0,0,0,0.4); padding: 12px; z-index: 20;
 }
 .presskit-revs-header { display: flex; justify-content: space-between; align-items: center; font-weight: 600; font-size: 13px; margin-bottom: 8px; color: var(--pm-text-primary); }
@@ -22661,7 +22968,7 @@ html:not(.aos-off) [data-aos].aos-animate  { opacity: 1; transform: none; }
   flex: 0 0 auto; width: 24px; height: 24px; border-radius: 50%;
   display: grid; place-items: center;
   font-family: var(--pm-font-mono); font-size: 11px;
-  background: var(--pm-surface); border: 1px solid var(--pm-border);
+  background: var(--pm-bg-surface, #13161e); border: 1px solid var(--pm-border);
 }
 .pm-course-gen-module-title { flex: 1 1 auto; font-weight: 600; }
 .pm-course-gen-move { display: flex; gap: 4px; }
@@ -22731,53 +23038,168 @@ html:not(.aos-off) [data-aos].aos-animate  { opacity: 1; transform: none; }
    there fall through to the real app underneath. This is what "greys out areas
    not to go to yet" means mechanically. */
 .pm-tour-scrim-path { fill: rgba(4, 8, 16, 0.72); pointer-events: auto; }
+/* A step that waits on a real save needs the learner to reach a form the
+   spotlight does not cover, so the dim stays and the wall comes down. Lighter,
+   too — they have to read the fields they are typing into. */
+.pm-tour-scrim-path.is-passthrough { fill: rgba(4, 8, 16, 0.5); pointer-events: none; }
 
+/* The ring is the only thing telling the learner "here" — it gets a resting
+   pulse so it reads as live rather than as a static border, and a sharper one
+   when they click the dimmed area and nothing happens. */
 .pm-tour-ring {
   position: fixed; border-radius: 10px; pointer-events: none;
   box-shadow: 0 0 0 2px var(--pm-accent-teal), 0 0 24px rgba(0, 229, 204, 0.45);
-  transition: top .28s ease, left .28s ease, width .28s ease, height .28s ease;
+  transition: top .28s cubic-bezier(.22,1,.36,1), left .28s cubic-bezier(.22,1,.36,1),
+              width .28s cubic-bezier(.22,1,.36,1), height .28s cubic-bezier(.22,1,.36,1);
+  animation: pm-tour-breathe 2.6s ease-in-out infinite;
+}
+/* Fired when the learner clicks the dimmed area. Its own element so replaying
+   it never remounts the ring and interrupts the ring's position transition. */
+.pm-tour-pulse {
+  position: fixed; border-radius: 10px; pointer-events: none;
+  animation: pm-tour-nudge .55s ease-out forwards;
+}
+
+@keyframes pm-tour-breathe {
+  0%, 100% { box-shadow: 0 0 0 2px var(--pm-accent-teal), 0 0 20px rgba(0, 229, 204, 0.35); }
+  50%      { box-shadow: 0 0 0 2px var(--pm-accent-teal), 0 0 34px rgba(0, 229, 204, 0.62); }
+}
+@keyframes pm-tour-nudge {
+  0%   { box-shadow: 0 0 0 0 rgba(0, 229, 204, 0.55); }
+  100% { box-shadow: 0 0 0 20px rgba(0, 229, 204, 0); }
 }
 
 .pm-tour-card {
-  position: fixed; width: 340px; max-width: calc(100vw - 32px);
-  background: var(--pm-elevated); border: 1px solid var(--pm-accent-teal);
-  border-radius: 12px; padding: 16px; pointer-events: auto;
-  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.55);
+  position: fixed; width: 340px; max-width: calc(100vw - 24px);
+  background: var(--pm-bg-elevated, #1a1e2a); border: 1px solid var(--pm-accent-teal);
+  border-radius: 14px; padding: 0 16px 16px; pointer-events: auto;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(0, 229, 204, 0.12);
   font-family: var(--pm-font-body);
+  overflow: hidden;
+  animation: pm-tour-card-in .22s cubic-bezier(.22,1,.36,1);
+}
+@keyframes pm-tour-card-in {
+  from { opacity: 0; transform: translateY(6px) scale(.98); }
+  to   { opacity: 1; transform: none; }
 }
 .pm-tour-card.is-degraded { border-color: var(--pm-accent-amber); }
-.pm-tour-card h3 { font-family: var(--pm-font-display); font-size: 1.05rem; margin: 8px 0 6px; }
-.pm-tour-card p { font-size: .9rem; line-height: 1.5; color: var(--pm-text, #d7dde8); margin: 0 0 12px; }
-.pm-tour-card-meta { display: flex; justify-content: space-between; align-items: center; }
-.pm-tour-card-pause {
-  background: none; border: none; color: var(--pm-accent-teal); cursor: pointer; padding: 4px;
+
+/* Runs edge to edge across the top of the card: the learner's answer to "how
+   much of this is left" without a number to parse. */
+.pm-tour-card-progress {
+  height: 3px; margin: 0 -16px 12px; background: rgba(255, 255, 255, 0.08);
 }
-.pm-tour-card-degraded { color: var(--pm-accent-amber); font-size: .82rem; }
+.pm-tour-card-progress-fill {
+  display: block; height: 100%; background: var(--pm-accent-teal);
+  transition: width .3s cubic-bezier(.22,1,.36,1);
+}
+
+.pm-tour-card h3 {
+  font-family: var(--pm-font-display); font-size: 1.05rem; line-height: 1.3;
+  margin: 8px 0 6px; color: var(--pm-text-primary); outline: none;
+}
+.pm-tour-card h3:focus-visible { outline: 2px solid var(--pm-accent-teal); outline-offset: 3px; }
+.pm-tour-card p {
+  font-size: .9rem; line-height: 1.55; color: var(--pm-text-secondary); margin: 0 0 12px;
+}
+.pm-tour-card-meta { display: flex; justify-content: space-between; align-items: center; }
+.pm-tour-card-count {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-family: var(--pm-font-mono); font-size: .72rem; letter-spacing: .04em;
+  text-transform: uppercase; color: var(--pm-accent-teal);
+}
+.pm-tour-card-pause {
+  background: none; border: none; color: var(--pm-text-muted); cursor: pointer;
+  padding: 4px 6px; border-radius: 6px; line-height: 1;
+  transition: color .15s ease, background .15s ease;
+}
+.pm-tour-card-pause:hover { color: var(--pm-accent-teal); background: rgba(0, 229, 204, 0.1); }
+.pm-tour-card-degraded {
+  color: var(--pm-accent-amber); font-size: .82rem; line-height: 1.5;
+  background: rgba(245, 166, 35, 0.08); border-radius: 8px; padding: 8px 10px;
+}
 .pm-tour-card-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-.pm-tour-card-waiting { font-size: .82rem; color: var(--pm-accent-teal); }
+.pm-tour-card-waiting {
+  font-size: .82rem; color: var(--pm-accent-teal);
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.pm-tour-card-back,
+.pm-tour-card-skip {
+  background: none; border: none; cursor: pointer; padding: 6px 8px; border-radius: 6px;
+  font-family: var(--pm-font-body); font-size: .82rem; color: var(--pm-text-muted);
+  transition: color .15s ease, background .15s ease;
+}
+.pm-tour-card-back:hover,
+.pm-tour-card-skip:hover { color: var(--pm-text-primary); background: rgba(255, 255, 255, 0.06); }
+.pm-tour-card-skip { margin-left: auto; }
+
+/* Phones: side placement has nowhere to go, so the card becomes a bottom sheet
+   and the spotlight keeps the top of the screen to itself. */
+.pm-tour-card.is-docked {
+  top: auto; bottom: 0; left: 0; right: 0; width: auto; max-width: none;
+  border-radius: 16px 16px 0 0; border-bottom: none;
+  padding-bottom: max(16px, env(safe-area-inset-bottom));
+}
 
 .pm-tour-pill {
   position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
   z-index: 9000; display: flex; gap: 12px; align-items: center;
-  background: var(--pm-elevated); border: 1px solid var(--pm-accent-teal);
+  background: var(--pm-bg-elevated, #1a1e2a); border: 1px solid var(--pm-accent-teal);
   border-radius: 999px; padding: 10px 18px; pointer-events: auto;
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5); font-family: var(--pm-font-body); font-size: .86rem;
+  max-width: calc(100vw - 24px);
+}
+.pm-tour-pill i { color: var(--pm-accent-teal); }
+.pm-tour-pill-label { color: var(--pm-text-secondary); }
+
+@media (max-width: 640px) {
+  .pm-tour-pill { border-radius: 14px; flex-wrap: wrap; justify-content: center; bottom: 12px; }
+  .pm-tour-pill-label { flex: 1 1 100%; text-align: center; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .pm-tour-ring { transition: none; }
+  .pm-tour-ring { transition: none; animation: none; }
+  /* Still needs to answer "why did my click do nothing", so the feedback stays —
+     as a static outline rather than an expanding ripple. */
+  .pm-tour-pulse { animation: none; outline: 3px dashed var(--pm-accent-teal); }
+  .pm-tour-card { animation: none; }
+  .pm-tour-card-progress-fill { transition: none; }
 }
 
 /* === Course walkthrough launch card === */
 .pm-tour-launch {
-  background: var(--pm-surface); border: 1px solid var(--pm-accent-teal);
+  background: var(--pm-bg-surface, #13161e); border: 1px solid var(--pm-accent-teal);
   border-radius: 12px; padding: 20px; display: flex; flex-direction: column;
   gap: 12px; align-items: flex-start; max-width: 620px;
 }
-.pm-tour-launch.is-locked { border-color: var(--pm-border, #2a3346); opacity: .8; }
-.pm-tour-launch h3 { font-family: var(--pm-font-display); margin: 0; }
-.pm-tour-launch p { margin: 0; font-size: .92rem; line-height: 1.55; }
-.pm-tour-launch-sandbox { color: var(--pm-accent-teal); font-size: .85rem; }
+.pm-tour-launch.is-locked { border-color: var(--pm-border); opacity: .8; }
+.pm-tour-launch h3 { font-family: var(--pm-font-display); margin: 0; font-size: 1.15rem; }
+.pm-tour-launch p { margin: 0; font-size: .92rem; line-height: 1.55; color: var(--pm-text-secondary); }
+
+.pm-tour-launch-head { display: flex; gap: 14px; align-items: center; }
+.pm-tour-launch-icon {
+  flex: 0 0 44px; height: 44px; border-radius: 12px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: rgba(0, 229, 204, 0.12); color: var(--pm-accent-teal); font-size: 1.05rem;
+}
+.pm-tour-launch-facts {
+  display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 4px !important;
+  font-family: var(--pm-font-mono); font-size: .74rem; letter-spacing: .03em;
+  text-transform: uppercase; color: var(--pm-text-muted);
+}
+.pm-tour-launch-facts span { display: inline-flex; align-items: center; gap: 5px; }
+.pm-tour-launch-facts .is-done { color: var(--pm-accent-teal); }
+
+.pm-tour-launch-sandbox {
+  color: var(--pm-accent-teal) !important; font-size: .85rem;
+  background: rgba(0, 229, 204, 0.07); border-radius: 8px; padding: 10px 12px;
+}
+.pm-tour-launch kbd {
+  font-family: var(--pm-font-mono); font-size: .78em; padding: 1px 5px;
+  border: 1px solid var(--pm-border); border-radius: 4px; background: var(--pm-bg-elevated, #1a1e2a);
+}
+.pm-tour-launch-actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.pm-tour-launch-actions .clubpm-btn-primary { display: inline-flex; align-items: center; gap: 8px; }
 
 /* Walkthrough section — authoring view (read-only step list + breakage report) */
 
@@ -22787,13 +23209,13 @@ html:not(.aos-off) [data-aos].aos-animate  { opacity: 1; transform: none; }
 .pm-tour-editor-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
 .pm-tour-editor-steps li {
   display: flex; gap: 12px; align-items: flex-start;
-  background: var(--pm-surface); border: 1px solid var(--pm-border, #2a3346);
+  background: var(--pm-bg-surface, #13161e); border: 1px solid var(--pm-border, #2a3346);
   border-radius: 10px; padding: 12px 14px;
 }
 .pm-tour-editor-num {
   flex: 0 0 26px; height: 26px; border-radius: 50%;
   display: inline-flex; align-items: center; justify-content: center;
-  background: var(--pm-elevated); color: var(--pm-accent-teal);
+  background: var(--pm-bg-elevated, #1a1e2a); color: var(--pm-accent-teal);
   font-family: var(--pm-font-mono); font-size: .78rem;
 }
 .pm-tour-editor-steps strong { font-family: var(--pm-font-display); font-size: .95rem; }
@@ -22802,3 +23224,114 @@ html:not(.aos-off) [data-aos].aos-animate  { opacity: 1; transform: none; }
 
 .pm-tour-editor-breakages { border-color: var(--pm-accent-amber); }
 .pm-tour-editor-breakages ul { margin: 8px 0 0; padding-left: 18px; font-size: .85rem; line-height: 1.6; }
+
+/* === Sidebar nav groups (collapsible) ============================== */
+/* The rail is icon-only until hovered, and child rows carry no icon, so
+   they stay hidden rather than rendering as blank strips. */
+.pm-nav-group-header { justify-content: flex-start; }
+.pm-nav-group-chevron {
+  margin-left: auto;
+  font-size: 0.6rem;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+.pm-sidebar:hover .pm-nav-group-chevron { opacity: 0.6; }
+.pm-nav-group-children { display: none; }
+.pm-sidebar:hover .pm-nav-group-children { display: block; }
+.pm-nav-child {
+  height: 34px;
+  padding-left: 52px;
+  font-size: 0.82rem;
+}
+.pm-nav-child .pm-nav-item-label { font-weight: 400; }
+
+/* Topbar quest button — a Link wearing the icon-button styling, so it needs
+   the underline reset that the <button> siblings never did. */
+.pm-topbar-btn { text-decoration: none; flex-shrink: 0; }
+.pm-topbar-btn:hover { text-decoration: none; }
+.pm-topbar-btn.active {
+  color: var(--pm-accent-amber);
+  border-color: var(--pm-accent-amber);
+}
+
+/* === Outreach modal chrome (CRM + Campaigns) =====================
+   CrmTab and CampaignsTab render .pm-modal-overlay > .pm-modal-panel, a family
+   that was never styled — the CSS beside them defines .pm-crm-modal-backdrop,
+   which nothing has ever rendered. The result was a "modal" laid out inline at
+   the bottom of the tab: below the fold, no backdrop, nothing centred. The
+   panel variants (.pm-crm-modal, .pm-campaign-modal) already carry their own
+   max-width, so the shared rule deliberately sets none. */
+/* These overlays are portalled to <body>, so they are outside .clubpm-app and
+   inherit the public site's typography unless they restate it. They also sit
+   above .pm-crm-drawer-overlay (5000) so an edit form opened from a drawer
+   stacks over it. */
+.pm-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 5100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  font-family: var(--pm-font-body);
+  color: var(--pm-text-primary);
+}
+.pm-modal-panel {
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  background: var(--clubpm-surface-1);
+  border: 1px solid var(--clubpm-border);
+  border-radius: 14px;
+  padding: 24px;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.55);
+}
+.pm-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.pm-modal-title {
+  margin: 0;
+  font-family: var(--pm-font-display);
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--clubpm-text-primary);
+}
+.pm-modal-close-btn {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid var(--clubpm-border);
+  background: transparent;
+  color: var(--clubpm-text-secondary);
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+.pm-modal-close-btn:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--clubpm-text-primary);
+}
+
+/* ── Walkthrough: sidebar pinned open ─────────────────────────
+   A tour step whose anchor lives in the rail adds .is-tour-pinned (see
+   TourOverlay). The rail is 64px until hovered and 220px after, and the tour's
+   spotlight hole is measured from an element that rule resizes — hover it and
+   the hole slides out from under the pointer, which un-hovers the rail, which
+   moves the hole back. Holding the expanded width for the step breaks that
+   loop, and shows the learner the label they are being told to click.
+   Same values as the :hover rules above, deliberately: the two must not fight. */
+.pm-sidebar.is-tour-pinned { width: 220px; }
+.pm-sidebar.is-tour-pinned .pm-sidebar-logo-text,
+.pm-sidebar.is-tour-pinned .pm-nav-item-label,
+.pm-sidebar.is-tour-pinned .pm-user-info,
+.pm-sidebar.is-tour-pinned .pm-signout-label,
+.pm-sidebar.is-tour-pinned .pm-sidebar-section-label,
+.pm-sidebar.is-tour-pinned .pm-sidebar-project-add,
+.pm-sidebar.is-tour-pinned .pm-sidebar-project-name { opacity: 1; }
+.pm-sidebar.is-tour-pinned .cpm-gh-connect-label { max-width: 160px; opacity: 1; }

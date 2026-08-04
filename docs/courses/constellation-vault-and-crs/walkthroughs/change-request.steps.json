@@ -5,13 +5,40 @@
   "requiresTrainingProject": true,
   "steps": [
     {
+      "id": "open-files-tab",
+      "anchor": "project.tab.files",
+      "route": "/clubpm/projects/:id",
+      "title": "Change requests live under the Vault",
+      "body": "Which lives under Files. Open the Files tab.",
+      "placement": "right",
+      "dim": ["nav.sidebar"],
+      "advance": { "on": "click" }
+    },
+    {
+      "id": "open-vault-tab",
+      "anchor": "project.tab.vault",
+      "route": "/clubpm/projects/:id",
+      "title": "Then the Vault",
+      "body": "Open it.",
+      "placement": "bottom",
+      "advance": { "on": "click" }
+    },
+    {
+      "id": "open-crs",
+      "anchor": "vault.tab.crs",
+      "route": "/clubpm/projects/:id",
+      "title": "And its Change Requests view",
+      "body": "The Vault splits in two: the parts themselves, and the proposals to change them. Open Change Requests.",
+      "placement": "bottom",
+      "advance": { "on": "click" }
+    },
+    {
       "id": "cr-list",
       "anchor": "cr.list",
       "route": "/clubpm/projects/:id",
       "title": "Every proposed change, open and closed",
       "body": "A change request is how a modification to a vaulted part gets agreed to before it becomes the current version.",
       "placement": "right",
-      "dim": ["nav.sidebar"],
       "advance": { "on": "next" }
     },
     {
@@ -51,12 +78,22 @@
       "advance": { "on": "next" }
     },
     {
+      "id": "cr-open",
+      "anchor": "cr.card",
+      "route": "/clubpm/projects/:id",
+      "title": "Open the one you just raised",
+      "body": "Click the card. The review controls live inside it, not on the list.",
+      "placement": "right",
+      "advance": { "on": "click" }
+    },
+    {
       "id": "cr-review-intro",
       "anchor": "cr.review",
       "route": "/clubpm/projects/:id",
       "title": "Normally someone else reviews this",
-      "body": "In your training project you're both people, so you'll review your own. That is an artefact of the sandbox, not how this works on real work.",
+      "body": "In your training project you're both people, so you'll review your own. That is an artefact of the sandbox, not how this works on real work. Approve and Reject only appear for officers — if you don't see them, skip ahead.",
       "placement": "left",
+      "optional": true,
       "advance": { "on": "next" }
     },
     {

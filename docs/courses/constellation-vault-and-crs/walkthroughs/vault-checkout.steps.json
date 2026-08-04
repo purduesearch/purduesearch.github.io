@@ -5,13 +5,22 @@
   "requiresTrainingProject": true,
   "steps": [
     {
+      "id": "open-files-tab",
+      "anchor": "project.tab.files",
+      "route": "/clubpm/projects/:id",
+      "title": "Start on Files",
+      "body": "Everything a project stores hangs off this tab — Drive, GitHub, and the Vault. Open it.",
+      "placement": "right",
+      "dim": ["nav.sidebar"],
+      "advance": { "on": "click" }
+    },
+    {
       "id": "open-vault-tab",
       "anchor": "project.tab.vault",
       "route": "/clubpm/projects/:id",
-      "title": "The Vault lives on its own tab",
-      "body": "Open it.",
+      "title": "The Vault is the third source",
+      "body": "Drive holds documents, GitHub holds code, the Vault holds parts. Open it.",
       "placement": "bottom",
-      "dim": ["nav.sidebar"],
       "advance": { "on": "click" }
     },
     {

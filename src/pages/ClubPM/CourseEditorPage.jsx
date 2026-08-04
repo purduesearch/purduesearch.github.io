@@ -523,7 +523,7 @@ export default function CourseEditorPage() {
             <Link
               // ?preview=1 — unlocks every section and records nothing, so
               // checking your own course does not enrol you in it.
-              to={`/clubpm/outreach/courses/${course.slug}/learn?preview=1`}
+              to={`/clubpm/courses/${course.slug}/learn?preview=1`}
               className="clubpm-btn-secondary"
               data-tour-id="course.editor.preview"
               onClick={guardedNav}

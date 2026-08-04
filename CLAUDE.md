@@ -5,7 +5,7 @@
 
 Static SPA for the Purdue SEARCH club, deployed to GitHub Pages at `purduesearch.github.io`. The React app lives at the **repo root** (`src/`, `public/`, `package.json`). Pages are per-program (AstroUSA, SA²TP, etc.) with shared layout components and a global CSS file. A separate **ClubPM** subsystem (protected routes under `/clubpm`) provides project-management dashboards backed by a `backend/` Node.js/Express/Prisma/Slack service. A standalone Vite+TypeScript admin app lives in `frontend/` (separate build, not deployed to GitHub Pages).
 
-**Stack:** React 19, React Router 7, Framer Motion (page transitions), Font Awesome (icons), mxGraph 4.2.2 (interactive diagrams), Three.js (3D model viewer), `@lottiefiles/react-lottie-player` (Lottie animations), `@dnd-kit/core` (ProjectDetail kanban drag-and-drop), `@hello-pangea/dnd` (OutreachHub/CrmTab only — legacy), Fuse.js (fuzzy search), GSAP (scroll/flow animations), recharts (analytics charts), react-hot-toast (notifications), plain CSS custom properties.
+**Stack:** React 19, React Router 7, Framer Motion (page transitions), Font Awesome (icons), mxGraph 4.2.2 (interactive diagrams), Three.js (3D model viewer), `@lottiefiles/react-lottie-player` (Lottie animations), `@dnd-kit/core` (ProjectDetail kanban + CrmTab pipeline board), `@hello-pangea/dnd` (OutreachHub BoardTab only — legacy, migrate on next touch), Fuse.js (fuzzy search), GSAP (scroll/flow animations), recharts (analytics charts), react-hot-toast (notifications), plain CSS custom properties.
 
 ---
 
@@ -351,6 +351,35 @@ Grep: `rg "\.pm-shell" public/clubpm-theme.css` or `rg "/\* ===" public/*.css` t
 | `backend/src/api/vault.ts` | 1,096 | route paths |
 
 ---
+
+## Keeping the Constellation Course In Sync
+
+**Any change to ClubPM navigation, routes, or tab bars is also a change to the training course.** The
+Constellation courses in `docs/courses/` teach the live product by pointing at real DOM nodes; when
+the UI moves and the course doesn't, walkthroughs silently highlight nothing and videos describe
+screens that no longer exist.
+
+Three artifacts move together, **in the same commit**:
+
+1. `src/clubpm/tour/tourAnchors.js` — the machine-readable anchor registry (id → label, route, note).
+2. `docs/courses/ANCHORS.md` — the human-readable counterpart. Same ids, same routes.
+3. Every `docs/courses/**/*.steps.json` that targets an affected anchor, plus the `walkthroughs/README.md`
+   outline beside it.
+
+`node scripts/check-tour-anchors.js` (also wired into the build) enforces all three directions:
+registry ↔ rendered `data-tour-id` ↔ step files. It is a static scan, so ids must appear as string
+literals — never build one with template interpolation.
+
+Beyond the anchor check, which the script cannot catch:
+
+- **Prose goes stale silently.** Course `content/*.md`, `videos/*.md` scripts, and `quizzes/*.json`
+  name tabs, buttons, and pages in plain English. Grep `docs/courses/` for the old label whenever you
+  rename or remove one, and rewrite what you find.
+- **Removing a surface can orphan a whole section.** If a course section teaches UI that no longer
+  exists, retitle and rewrite it (or drop it from `course.json`) rather than leaving it pointing at
+  nothing. Say so in the PR — that content is someone's teaching material, not just code.
+- **Route changes propagate to `route` fields** in both the registry and every step's `route` /
+  `entryRoute`, and to the `advance.path` of any step that waits on an API call.
 
 ## Plan Conventions
 

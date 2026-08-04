@@ -52,6 +52,15 @@
       "advance": { "on": "next" }
     },
     {
+      "id": "ai-toggle",
+      "anchor": "blog.editor.aitoggle",
+      "route": "/clubpm/outreach/blog/:id/edit",
+      "title": "Open the AI assistant",
+      "body": "The wand button. The panel is closed until you ask for it — nothing reads your draft in the background.",
+      "placement": "bottom",
+      "advance": { "on": "click" }
+    },
+    {
       "id": "ai-panel",
       "anchor": "blog.editor.ai",
       "route": "/clubpm/outreach/blog/:id/edit",
@@ -71,10 +80,10 @@
     },
     {
       "id": "save-draft",
-      "anchor": "blog.editor.publish",
+      "anchor": "blog.editor.save",
       "route": "/clubpm/outreach/blog/:id/edit",
       "title": "Save it as a draft instead",
-      "body": "Drafts are free. Publish when a human has read it end to end.",
+      "body": "Press Save draft. You mostly won't need to — the editor autosaves about a second and a half after you stop typing, and the header tells you which state you're in. This button is for when you want to be certain before you walk away. Drafts are free; publish when a human has read it end to end.",
       "placement": "bottom",
       "advance": { "on": "api", "method": "PATCH", "path": "/api/blog/posts/:id" }
     }

@@ -19,43 +19,61 @@
       "anchor": "outreach.contact.new",
       "route": "/clubpm/outreach",
       "title": "Add one",
-      "body": "Click Add contact.",
+      "body": "Click New contact.",
       "placement": "bottom",
       "advance": { "on": "click" }
     },
     {
-      "id": "save-contact",
-      "anchor": "outreach.contact.new",
+      "id": "follow-up",
+      "anchor": "outreach.contact.followup",
       "route": "/clubpm/outreach",
-      "title": "Make someone up",
+      "title": "Set a follow-up before you save",
+      "body": "A date, not \"sometime.\" This field is the whole reason a contact record is worth keeping — pick a day you'd actually chase them.",
+      "placement": "left",
+      "advance": { "on": "next" }
+    },
+    {
+      "id": "save-contact",
+      "anchor": "outreach.contact.form",
+      "route": "/clubpm/outreach",
+      "title": "Make someone up, then save",
       "body": "This is your training space — name, org, email. Nobody will ever be emailed from this tour.",
       "placement": "bottom",
       "advance": { "on": "api", "method": "POST", "path": "/api/outreach/contacts" }
+    },
+    {
+      "id": "open-contact",
+      "anchor": "outreach.contact.card",
+      "route": "/clubpm/outreach",
+      "title": "Open a contact",
+      "body": "Every contact is a card on this board, and the column it sits in is how warm they are. Click this one to open it.",
+      "placement": "right",
+      "advance": { "on": "click" }
+    },
+    {
+      "id": "timeline-tab",
+      "anchor": "outreach.contact.timeline",
+      "route": "/clubpm/outreach",
+      "title": "Switch to Timeline",
+      "body": "Info is who they are. Timeline is what has actually happened. Open it.",
+      "placement": "bottom",
+      "advance": { "on": "click" }
     },
     {
       "id": "interaction-history",
       "anchor": "outreach.contact.history",
       "route": "/clubpm/outreach",
       "title": "Interaction history",
-      "body": "Who spoke to them, when, and what was promised. That last one is what gets forgotten, and it's the reason a sponsor stops replying.",
+      "body": "Who spoke to them, when, and what was promised. That last one is what gets forgotten, and it's the reason a sponsor stops replying. Log one now if you like.",
       "placement": "left",
       "advance": { "on": "next" }
-    },
-    {
-      "id": "follow-up",
-      "anchor": "outreach.contact.followup",
-      "route": "/clubpm/outreach",
-      "title": "Set a follow-up",
-      "body": "A date and an owner. Not \"sometime.\" Open the contact for editing and give it a date.",
-      "placement": "left",
-      "advance": { "on": "api", "method": "PATCH", "path": "/api/outreach/contacts/:id" }
     },
     {
       "id": "campaigns-tab",
       "anchor": "outreach.tab.campaigns",
       "route": "/clubpm/outreach",
       "title": "Campaigns group contacts you're working through together",
-      "body": "Open the Campaigns tab.",
+      "body": "Close the drawer and open the Campaigns tab.",
       "placement": "bottom",
       "advance": { "on": "click" }
     },
@@ -64,8 +82,17 @@
       "anchor": "outreach.campaign.new",
       "route": "/clubpm/outreach",
       "title": "Create one",
-      "body": "Make a campaign and add your contact to it.",
+      "body": "Click New campaign.",
       "placement": "bottom",
+      "advance": { "on": "click" }
+    },
+    {
+      "id": "campaign-form",
+      "anchor": "outreach.campaign.form",
+      "route": "/clubpm/outreach",
+      "title": "Name it after the ask, not the season",
+      "body": "\"Titanium sponsors for Rascal\" tells the next officer what it was for. \"Fall outreach\" doesn't. Fill it in and save.",
+      "placement": "right",
       "advance": { "on": "api", "method": "POST", "path": "/api/outreach/campaigns" }
     },
     {
@@ -82,7 +109,7 @@
       "anchor": "outreach.tab.campaigns",
       "route": "/clubpm/outreach",
       "title": "Overdue follow-ups DM you",
-      "body": "Every weekday morning. You won't have to remember to come back here — which is the only reason setting a real date in step 5 was worth doing.",
+      "body": "Every weekday morning. You won't have to remember to come back here — which is the only reason setting a real date on that contact was worth doing.",
       "placement": "bottom",
       "advance": { "on": "next" }
     }

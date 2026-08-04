@@ -3,15 +3,15 @@
 Why each tour is shaped the way it is. The `.steps.json` files beside this are what actually runs;
 this is the reasoning, so that whoever edits them next knows which lines are load-bearing.
 
-**6 tours · 57 steps · 10 required real API calls (plus 1 optional), all against the learner's own
+**6 tours · 59 steps · 10 required real API calls (plus 1 optional), all against the learner's own
 training project.**
 
 | Tour | Steps | Entry | Sandbox? | Real calls |
 |---|---|---|---|---|
 | `first-look` | 8 | `/clubpm` | No | 0 |
 | `board-basics` | 10 | training project | Yes | 0 |
-| `your-first-task` | 12 | training project | Yes | 6 |
-| `blocked-and-unblocked` | 10 | training project | Yes | 4 |
+| `your-first-task` | 13 | training project | Yes | 6 |
+| `blocked-and-unblocked` | 11 | training project | Yes | 4 |
 | `rewards-tour` | 8 | `/clubpm/challenges` | No | 1 (optional) |
 | `comms-tour` | 9 | `/clubpm/notifications` | No | 0 |
 
@@ -52,10 +52,20 @@ The `IN_PROGRESS` copy plants "a card that sits here for three weeks is usually 
 said so" — which is the actual failure mode this whole system is trying to catch, seeded before the
 learner has the vocabulary for it. Module 3 pays it off.
 
-### `your-first-task` — 12 steps, 6 real API calls
+### `your-first-task` — 13 steps, 6 real API calls
 
 The module the engine exists for. The learner creates, owns, dates, specifies, starts, discusses,
 logs, and finishes one task, in that order, with six of those being genuine writes.
+
+Step 4 (`open-it`) is load-bearing scaffolding, not filler. **Creating a task does not open it** —
+the New Task form takes a title, a priority and a date, then closes. Everything after it lives in a
+different component (`TaskModal`, reached by clicking the card), so without an explicit click step
+the next five steps hunt for a modal that was never opened and degrade one after another. Any step
+sequence that crosses from `task.create.*` to `task.modal.*` needs a spotlit click in between.
+
+The status changes are made in the modal rather than by dragging, for the same reason: dragging
+means closing the modal, and the steps after it need the modal open. The copy still says dragging is
+the same operation, because it is.
 
 Three copy decisions worth preserving:
 
@@ -68,7 +78,7 @@ Three copy decisions worth preserving:
 The final step advances on `next` rather than an API call, so the tour ends on a summary instead of
 on a mechanical action.
 
-### `blocked-and-unblocked` — 10 steps, 4 real API calls
+### `blocked-and-unblocked` — 11 steps, 4 real API calls
 
 Structured as a contrast, because dependency-versus-blocker is the single most confused pair in the
 product — Q02 and Q05 both test it.
@@ -80,6 +90,15 @@ where a definition wouldn't.
 
 Step 4 advances on `next`, not on the failed request — a rejected call is not a success and must not
 be wired to `api`.
+
+Steps 7–9 send the learner back to the board and then back into the task. `reopen-task` exists for
+the same reason as `your-first-task`'s `open-it`: `resolve` needs the task modal, and the two steps
+before it asked the learner to close it. A step that silently assumes a modal is open is the most
+common way these files break.
+
+The blocker this module attaches is the seeded "Waiting on the machine shop". `ensureTrainingProject`
+re-creates it, and un-resolves it, every time the sandbox is entered — resolving a category is
+otherwise a one-way door, and a learner who took this module once could never take it again.
 
 ### `rewards-tour` — 8 steps
 
@@ -105,7 +124,13 @@ undoing overconfidence later.
 
 - **Every `api` step must name a call that step actually causes.** Wiring one to a call the learner
   makes incidentally produces a tour that skips ahead on its own.
+- **Name the path the client actually calls, not the one the docs describe.** Creating a board task
+  is `POST /api/projects/:id/tasks`, not `POST /api/tasks`; the step waits forever on the wrong one
+  and the static anchor check cannot see it. Grep the client before writing an `api` step.
 - **Never wire `api` to a request you expect to fail.** Use `next` and describe the failure.
+- **If an anchor only exists after a click, spend a step on that click.** The learner gets a
+  spotlight and the following steps get their element. "Open the task again" buried in a body is not
+  a prompt — nothing is highlighted, so there is nothing to obey.
 - **Mark a step `optional` whenever its anchor depends on data you cannot guarantee** — an empty
   widget, a quest that may not exist, a repo that may not be linked.
 - **Copy is second person, present tense, and says why.** "Assign yourself. An unassigned task is a

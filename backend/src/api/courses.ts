@@ -1001,6 +1001,10 @@ coursesRouter.post("/sections/:sid/tour-breakage", async (req: Request, res: Res
 
 coursesRouter.get("/sections/:sid/tour-breakages", async (req: Request, res: Response) => {
   try {
+    // Authoring data, not learner data: it names anchor ids and the routes
+    // learners were on when a step failed. Only the course's author or an admin
+    // has any use for it, and the panel that reads it is admin-only already.
+    if (!(await requireSectionAccess(req, res, req.params.sid as string))) return;
     // Filtered in the query, not after a take(50) — otherwise busy sections
     // elsewhere would crowd this one out of the window entirely.
     const rows = await prisma.activityLog.findMany({

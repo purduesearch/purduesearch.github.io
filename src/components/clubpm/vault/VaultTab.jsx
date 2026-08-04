@@ -9,7 +9,7 @@ import ChangeRequestList from "./ChangeRequestList";
 // Sub-view pills. "Review Queue" only shows for admins.
 const SUB_VIEWS = [
   { id: "vault",          label: "Vault" },
-  { id: "changeRequests", label: "Change Requests" },
+  { id: "changeRequests", label: "Change Requests", tourId: "vault.tab.crs" },
   { id: "reviewQueue",    label: "Review Queue", adminOnly: true },
 ];
 
@@ -166,6 +166,7 @@ export default function VaultTab({ project, member, isAdmin }) {
             key={v.id}
             type="button"
             role="tab"
+            data-tour-id={v.tourId}
             aria-selected={subView === v.id}
             className={`cpm-vault-pill${subView === v.id ? " active" : ""}`}
             onClick={() => setSubView(v.id)}
