@@ -13,6 +13,7 @@
     "seed:challenges": "tsx prisma/seedChallenges.ts",
     "seed:engagement": "tsx prisma/seedEngagement.ts",
     "quests:refresh": "tsx prisma/refreshQuests.ts",
+    "seed:courses": "tsx scripts/seedCourses.ts",
     "db:studio": "prisma studio"
   },
   "prisma": {
