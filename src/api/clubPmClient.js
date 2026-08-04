@@ -112,7 +112,7 @@ function dispatchRewardSignals(payload) {
   }
 }
 
-async function handleResponse(response) {
+async function handleResponse(response, method = "GET", requestPath = "") {
   if (response.status === 401) {
     // Throw without redirecting. AppShell already redirects via React Router's
     // <Navigate> when member is null — a hard window.location redirect would
@@ -132,6 +132,12 @@ async function handleResponse(response) {
 
   const body = await response.json();
   dispatchRewardSignals(body);
+  // Lets a walkthrough step advance on a real successful write rather than on a
+  // click that may or may not have done anything. One dispatch here covers every
+  // endpoint, because every call in this client funnels through handleResponse.
+  window.dispatchEvent(new CustomEvent("clubpm:api-success", {
+    detail: { method, path: requestPath },
+  }));
   return body;
 }
 
@@ -140,7 +146,7 @@ export async function get(path) {
     credentials: "include",
     headers: { Accept: "application/json", ...authHeaders() },
   });
-  return handleResponse(response);
+  return handleResponse(response, "GET", path);
 }
 
 export async function post(path, data) {
@@ -154,7 +160,7 @@ export async function post(path, data) {
     },
     body: JSON.stringify(data),
   });
-  return handleResponse(response);
+  return handleResponse(response, "POST", path);
 }
 
 export async function put(path, data) {
@@ -168,7 +174,7 @@ export async function put(path, data) {
     },
     body: JSON.stringify(data),
   });
-  return handleResponse(response);
+  return handleResponse(response, "PUT", path);
 }
 
 export async function patch(path, data) {
@@ -182,7 +188,7 @@ export async function patch(path, data) {
     },
     body: JSON.stringify(data),
   });
-  return handleResponse(response);
+  return handleResponse(response, "PATCH", path);
 }
 
 export async function del(path) {
@@ -203,6 +209,12 @@ export async function del(path) {
       body.error ?? "Delete failed"
     );
   }
+
+  // del() parses no body (many endpoints 204), so it can't go through
+  // handleResponse — dispatch the walkthrough signal here instead.
+  window.dispatchEvent(new CustomEvent("clubpm:api-success", {
+    detail: { method: "DELETE", path },
+  }));
 }
 
 // ── Engagement: streak / inventory / shop consumables ─────────
@@ -705,3 +717,15 @@ export const listProjectRepos  = (projectId) => get(`/api/github/projects/${proj
 export const addProjectRepo    = (projectId, url) => post(`/api/github/projects/${projectId}/repos`, { url });
 export const updateProjectRepo = (repoId, body) => patch(`/api/github/repos/${repoId}`, body);
 export const removeProjectRepo = (repoId) => del(`/api/github/repos/${repoId}`);
+
+// ── Walkthrough tours ────────────────────────────────────────
+export const recordTourProgress = (sectionId, stepIndex) =>
+  post(`/api/outreach/courses/sections/${sectionId}/tour-progress`, { stepIndex });
+
+export const reportTourBreakage = (sectionId, payload) =>
+  post(`/api/outreach/courses/sections/${sectionId}/tour-breakage`, payload);
+
+export const listTourBreakages = (sectionId) =>
+  get(`/api/outreach/courses/sections/${sectionId}/tour-breakages`);
+
+export const ensureTrainingProject = () => post(`/api/training-project`, {});

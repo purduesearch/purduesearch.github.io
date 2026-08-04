@@ -11,6 +11,7 @@ import { ShortcutsProvider } from './clubpm/ShortcutsRegistry';
 import GlobalShortcutsSetup from './components/clubpm/GlobalShortcutsSetup';
 import { ProjectNavProvider } from './clubpm/ProjectNavContext';
 import { lazyWithClubPmTheme } from './clubpm/loadClubPmTheme';
+import { TourProvider } from './clubpm/tour/TourProvider';
 import ClubPmLoading from './components/clubpm/ClubPmLoading';
 import Home from './pages/Home';
 
@@ -160,7 +161,8 @@ function App() {
       <ShortcutsProvider>
         <ScrollToTop />
         <ClubPmAuthProvider>
-          <GlobalShortcutsSetup />
+          <TourProvider>
+            <GlobalShortcutsSetup />
           <Toaster
             position="bottom-right"
             toastOptions={{
@@ -178,7 +180,8 @@ function App() {
               className: '',
             }}
           />
-          <AnimatedRoutes />
+            <AnimatedRoutes />
+          </TourProvider>
         </ClubPmAuthProvider>
       </ShortcutsProvider>
     </BrowserRouter>
