@@ -33,7 +33,7 @@
             "tourId": "crm-and-campaigns",
             "entryRoute": "/clubpm/outreach",
             "requiresTrainingProject": true,
-            "stepCount": 9
+            "stepCount": 12
           }
         },
         {
@@ -72,7 +72,7 @@
             "tourId": "blog-editor",
             "entryRoute": "/clubpm/outreach",
             "requiresTrainingProject": false,
-            "stepCount": 8
+            "stepCount": 9
           }
         },
         {

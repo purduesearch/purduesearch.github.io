@@ -8,6 +8,13 @@ on:
       - '.github/workflows/deploy-backend.yml'
   workflow_dispatch:
 
+# Shared with seed-courses.yml: both `git reset --hard` /opt/clubpm and restart
+# the same pm2 process, so they must not interleave. Queue, never cancel — a
+# cancelled deploy leaves the server mid-update.
+concurrency:
+  group: oracle-clubpm
+  cancel-in-progress: false
+
 jobs:
   deploy:
     runs-on: ubuntu-latest

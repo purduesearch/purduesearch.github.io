@@ -1,0 +1,128 @@
+name: Install Courses
+
+# Installs docs/courses into the production database over the SAME SSH channel
+# deploy-backend.yml uses (ORACLE_HOST / ORACLE_USER / ORACLE_SSH_KEY).
+#
+# Runs on a push that touches course content, because course content IS the
+# deliverable — a walkthrough edited on main and never seeded is an edit nobody
+# receives. Also available manually from the Actions tab.
+#
+# Two things happen on the server and both are necessary:
+#   1. `npm run seed:courses` upserts the course/module/section/question rows.
+#   2. pm2 restart. The backend serves step bodies from docs/courses at request
+#      time (tourStepService.loadTourSteps) behind a permanent in-process Map
+#      cache, so without the restart an updated .steps.json is on disk and the
+#      old one is still being served.
+#
+# Non-destructive toward learners: the seeder never touches CourseEnrollment,
+# CourseSectionProgress or CourseQuizAttempt, and a section dropped from
+# course.json is renamed "[archived] …" rather than deleted. Safe to re-run.
+#
+# NOT automated: publishing. A newly seeded course is created DRAFT and is
+# invisible to members until an admin publishes it at /clubpm/courses/:id/edit.
+# That is a judgement call about whether the content is ready, so it stays a
+# human one.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/courses/**'
+      - 'backend/scripts/seedCourses.ts'
+      - 'backend/src/services/tourStepService.ts'
+      - '.github/workflows/seed-courses.yml'
+  workflow_dispatch:
+
+# Shared with deploy-backend.yml: both `git reset --hard` the same checkout and
+# restart the same pm2 process, so they must not interleave. Queue, never cancel
+# — a cancelled deploy leaves the server mid-update.
+concurrency:
+  group: oracle-clubpm
+  cancel-in-progress: false
+
+jobs:
+  # Catch a broken course on the runner, before it reaches the server. The
+  # seeder validates stepCount and step shape itself, but it does so after it
+  # has already upserted earlier courses; failing here keeps the database out
+  # of it entirely.
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Pure node, no dependencies — the same check the frontend build runs.
+      # Registry <-> rendered data-tour-id <-> step files, all three directions.
+      - name: Check tour anchors
+        run: node scripts/check-tour-anchors.js
+
+      # The seeder cross-checks these on the server too, but a mismatch there
+      # aborts one course mid-write. Cheaper to know now.
+      - name: Check course.json stepCount against the step files
+        run: |
+          node -e '
+            const fs = require("fs"), path = require("path");
+            const root = "docs/courses";
+            let bad = 0;
+            for (const course of fs.readdirSync(root)) {
+              const file = path.join(root, course, "course.json");
+              if (!fs.existsSync(file)) continue;
+              const doc = JSON.parse(fs.readFileSync(file, "utf8"));
+              for (const m of doc.modules ?? []) {
+                for (const s of m.sections ?? []) {
+                  if (s.kind !== "WALKTHROUGH") continue;
+                  const steps = path.join(root, course, "walkthroughs", s.tourConfig.tourId + ".steps.json");
+                  if (!fs.existsSync(steps)) {
+                    console.error(`  x ${course}: ${s.tourConfig.tourId} has no steps file`);
+                    bad++; continue;
+                  }
+                  const actual = JSON.parse(fs.readFileSync(steps, "utf8")).steps.length;
+                  if (actual !== s.tourConfig.stepCount) {
+                    console.error(`  x ${course}: ${s.tourConfig.tourId} declares stepCount ${s.tourConfig.stepCount}, file has ${actual}`);
+                    bad++;
+                  }
+                }
+              }
+            }
+            if (bad) { console.error(`\n${bad} walkthrough(s) out of sync.`); process.exit(1); }
+            console.log("course.json step counts OK");
+          '
+
+  seed:
+    needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Seed courses over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.ORACLE_HOST }}
+          username: ${{ secrets.ORACLE_USER }}
+          key: ${{ secrets.ORACLE_SSH_KEY }}
+          script: |
+            set -e
+            echo "== Connected as $(whoami)@$(hostname) =="
+
+            # The seeder reads the repo working tree, not a build artifact, so
+            # the checkout has to be current before it runs. A docs-only push
+            # does not trigger deploy-backend.yml, so nothing else does this.
+            cd /opt/clubpm
+            git fetch origin main
+            git reset --hard origin/main
+            echo "== At $(git rev-parse --short HEAD) =="
+
+            cd backend
+            # The seed talks to the database through the generated client; if a
+            # migration landed in the same push, the deployed client can be a
+            # schema behind. Cheap to regenerate, expensive to debug.
+            npx prisma generate
+
+            npm run seed:courses
+
+            # Clears the loadTourSteps cache. Do it after the seed, so a failed
+            # seed does not bounce the server for nothing.
+            pm2 restart clubpm-backend
+
+            echo
+            echo "== Installed. Newly created courses are DRAFT. =="
+            echo "   Publish at /clubpm/courses/:id/edit, then assign from"
+            echo "   Courses -> progress dashboard -> Assign to members."
+            echo "   Already-published courses keep their status."

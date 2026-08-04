@@ -33,7 +33,7 @@
             "tourId": "course-authoring",
             "entryRoute": "/clubpm/outreach",
             "requiresTrainingProject": false,
-            "stepCount": 7
+            "stepCount": 9
           }
         },
         {
