@@ -124,6 +124,14 @@ const Footer = () => (
     <div className="container">
       <div className="footer-bottom-bar">
         <p>&copy; {new Date().getFullYear()} SEARCH of Purdue University. All rights reserved.</p>
+        {/* Plain <a>, not <Link>: these are standalone static files in public/legal/,
+            not SPA routes. A <Link> would client-side navigate and hit the "*"
+            NotFound route instead of fetching the real page — and these URLs are
+            what Google's OAuth consent screen points at, so they must load. */}
+        <ul className="footer-legal-links">
+          <li><a href="/legal/privacy.html">Privacy Policy</a></li>
+          <li><a href="/legal/terms.html">Terms of Service</a></li>
+        </ul>
         <div className="social-circles">
           <a className="social-circle" href="https://twitter.com/purduesearch" target="_blank" rel="noopener noreferrer" aria-label="Twitter">
             <i className="fab fa-twitter" />

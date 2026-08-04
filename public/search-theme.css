@@ -6495,3 +6495,45 @@ html.clubpm-route body {
     transform: none;
   }
 }
+
+/* === FOOTER LEGAL LINKS ========================================= */
+/* Privacy / Terms in the footer bottom bar. These point at standalone
+   static files in public/legal/, not SPA routes (see Footer.jsx), and
+   are the URLs registered on the Google OAuth consent screen.
+   Colour: 0.7 alpha over #0a0a0f is ~7.4:1, comfortably past the AA
+   floor that the A11Y REMEDIATION block above raised muted text to. */
+#search-footer .footer-legal-links {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+#search-footer .footer-legal-links a {
+  color: rgba(245, 239, 230, 0.7);
+  font-size: 0.8rem;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+#search-footer .footer-legal-links a:hover,
+#search-footer .footer-legal-links a:focus-visible {
+  color: rgba(245, 239, 230, 1);
+  text-decoration: underline;
+}
+
+#search-footer .footer-legal-links a:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 3px;
+}
+
+/* Below the bottom-bar flex wrap point the copyright, legal links and
+   social circles stack; keep the links centred rather than left-ragged. */
+@media (max-width: 575.98px) {
+  #search-footer .footer-legal-links {
+    justify-content: center;
+    width: 100%;
+  }
+}
