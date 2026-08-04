@@ -1,0 +1,82 @@
+{
+  "tourId": "blog-editor",
+  "title": "Writing a post",
+  "entryRoute": "/clubpm/outreach",
+  "requiresTrainingProject": false,
+  "steps": [
+    {
+      "id": "blog-tab",
+      "anchor": "outreach.tab.blog",
+      "route": "/clubpm/outreach",
+      "title": "Every post, draft and published",
+      "body": "Open the Blog tab.",
+      "placement": "bottom",
+      "dim": ["nav.sidebar"],
+      "advance": { "on": "click" }
+    },
+    {
+      "id": "new-post",
+      "anchor": "blog.new",
+      "route": "/clubpm/outreach",
+      "title": "Start a draft",
+      "body": "Call it anything. Drafts are invisible to everyone outside the club until someone publishes them.",
+      "placement": "bottom",
+      "advance": { "on": "api", "method": "POST", "path": "/api/blog/posts" }
+    },
+    {
+      "id": "body",
+      "anchor": "blog.editor.body",
+      "route": "/clubpm/outreach/blog/:id/edit",
+      "title": "Write a sentence",
+      "body": "It's saving as you type — there's no save button and you won't lose it.",
+      "placement": "left",
+      "advance": { "on": "next" }
+    },
+    {
+      "id": "toolbar",
+      "anchor": "blog.editor.toolbar",
+      "route": "/clubpm/outreach/blog/:id/edit",
+      "title": "Use these styles, not hand formatting",
+      "body": "They're what the public site knows how to render. A heading you faked with bold text is a heading the site can't build a table of contents from.",
+      "placement": "bottom",
+      "advance": { "on": "next" }
+    },
+    {
+      "id": "presence",
+      "anchor": "blog.editor.presence",
+      "route": "/clubpm/outreach/blog/:id/edit",
+      "title": "Two people, one document",
+      "body": "If someone else opens this post, their cursor appears here and you both just write. No merging, no \"send me your version.\" On your own, this row is empty — that's expected.",
+      "placement": "bottom",
+      "optional": true,
+      "advance": { "on": "next" }
+    },
+    {
+      "id": "ai-panel",
+      "anchor": "blog.editor.ai",
+      "route": "/clubpm/outreach/blog/:id/edit",
+      "title": "A second reader with opinions",
+      "body": "Some of them good. It doesn't know which details matter to us, so treat it as a reader, not an editor.",
+      "placement": "left",
+      "advance": { "on": "next" }
+    },
+    {
+      "id": "publish",
+      "anchor": "blog.editor.publish",
+      "route": "/clubpm/outreach/blog/:id/edit",
+      "title": "Don't press it",
+      "body": "Read what it does instead: this puts the post on the public internet under the club's name, where it may be cached or indexed within minutes. Scheduling is behind the same control. Publishing is a decision, not a step in a sequence.",
+      "placement": "bottom",
+      "advance": { "on": "next" }
+    },
+    {
+      "id": "save-draft",
+      "anchor": "blog.editor.publish",
+      "route": "/clubpm/outreach/blog/:id/edit",
+      "title": "Save it as a draft instead",
+      "body": "Drafts are free. Publish when a human has read it end to end.",
+      "placement": "bottom",
+      "advance": { "on": "api", "method": "PATCH", "path": "/api/blog/posts/:id" }
+    }
+  ]
+}

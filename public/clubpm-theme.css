@@ -22778,3 +22778,27 @@ html:not(.aos-off) [data-aos].aos-animate  { opacity: 1; transform: none; }
 .pm-tour-launch h3 { font-family: var(--pm-font-display); margin: 0; }
 .pm-tour-launch p { margin: 0; font-size: .92rem; line-height: 1.55; }
 .pm-tour-launch-sandbox { color: var(--pm-accent-teal); font-size: .85rem; }
+
+/* Walkthrough section — authoring view (read-only step list + breakage report) */
+
+.pm-tour-editor { display: flex; flex-direction: column; gap: 16px; }
+.pm-tour-editor-empty { font-size: .9rem; color: var(--pm-text-muted, #9aa); }
+
+.pm-tour-editor-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.pm-tour-editor-steps li {
+  display: flex; gap: 12px; align-items: flex-start;
+  background: var(--pm-surface); border: 1px solid var(--pm-border, #2a3346);
+  border-radius: 10px; padding: 12px 14px;
+}
+.pm-tour-editor-num {
+  flex: 0 0 26px; height: 26px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--pm-elevated); color: var(--pm-accent-teal);
+  font-family: var(--pm-font-mono); font-size: .78rem;
+}
+.pm-tour-editor-steps strong { font-family: var(--pm-font-display); font-size: .95rem; }
+.pm-tour-editor-steps p { margin: 4px 0 8px; font-size: .86rem; line-height: 1.5; }
+.pm-tour-editor-steps .cpm-tag { margin-right: 6px; }
+
+.pm-tour-editor-breakages { border-color: var(--pm-accent-amber); }
+.pm-tour-editor-breakages ul { margin: 8px 0 0; padding-left: 18px; font-size: .85rem; line-height: 1.6; }

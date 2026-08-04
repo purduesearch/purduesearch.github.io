@@ -174,7 +174,7 @@ export default function BlogTab() {
             <i className="fas fa-wand-magic-sparkles" aria-hidden="true" style={{ marginRight: 6 }} />
             Generate from text
           </button>
-          <button className="clubpm-btn-primary" onClick={handleNew} disabled={creating}>
+          <button className="clubpm-btn-primary" data-tour-id="blog.new" onClick={handleNew} disabled={creating}>
             <i className="fas fa-plus" aria-hidden="true" style={{ marginRight: 6 }} />
             New post
           </button>

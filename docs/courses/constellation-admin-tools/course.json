@@ -34,6 +34,7 @@
             "tourId": "admin-tour",
             "entryRoute": "/clubpm/admin",
             "requiresTrainingProject": false,
+            "requiresAdmin": true,
             "stepCount": 8
           }
         },

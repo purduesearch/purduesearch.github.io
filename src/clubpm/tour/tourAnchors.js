@@ -115,10 +115,17 @@ export const TOUR_ANCHORS = Object.freeze({
   "outreach.tab.courses":   { label: "Courses tab",          route: "/clubpm/outreach", note: "" },
   "outreach.contact.new":   { label: "Add contact",          route: "/clubpm/outreach", note: "" },
   "outreach.campaign.new":  { label: "New campaign",         route: "/clubpm/outreach", note: "" },
+  "outreach.contact.history": { label: "Interaction history", route: "/clubpm/outreach", note: "Timeline tab inside the contact drawer" },
+  "outreach.contact.followup": { label: "Next follow-up field", route: "/clubpm/outreach", note: "Date field in the contact form" },
+  "blog.new":               { label: "New post",             route: "/clubpm/outreach", note: "Blog tab header action" },
   "blog.editor.body":       { label: "Editor canvas",        route: "/clubpm/outreach/blog/:id/edit", note: "" },
   "blog.editor.toolbar":    { label: "Formatting toolbar",   route: "/clubpm/outreach/blog/:id/edit", note: "" },
   "blog.editor.presence":   { label: "Collaborator presence", route: "/clubpm/outreach/blog/:id/edit", note: "" },
   "blog.editor.publish":    { label: "Publish control",      route: "/clubpm/outreach/blog/:id/edit", note: "Publish / schedule" },
+  // BlogAiPanel is shared by the blog editor and the course editor, so this id
+  // is rendered by one file but reachable from two routes. The blog one is the
+  // route a step should navigate to.
+  "blog.editor.ai":         { label: "AI assistant panel",   route: "/clubpm/outreach/blog/:id/edit", note: "Shared with the course editor" },
 
   // Courses and admin
   "courses.list":           { label: "Course list",          route: "/clubpm/outreach", note: "" },

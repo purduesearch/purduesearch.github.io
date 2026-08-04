@@ -7,6 +7,7 @@ import CourseSectionRail, { SECTION_KINDS } from '../../components/clubpm/course
 import CourseQuizBuilder from '../../components/clubpm/courses/CourseQuizBuilder';
 import CourseVideoWorkbench from '../../components/clubpm/courses/CourseVideoWorkbench';
 import CourseSlidesWorkbench from '../../components/clubpm/courses/CourseSlidesWorkbench';
+import WalkthroughSectionPanel from '../../components/clubpm/courses/WalkthroughSectionPanel';
 import CourseModuleSettings from '../../components/clubpm/courses/CourseModuleSettings';
 import OrbitLoader from '../../components/OrbitLoader';
 import { useClubPmAuth } from '../../clubpm/ClubPmAuth';
@@ -621,6 +622,16 @@ export default function CourseEditorPage() {
                   section={selectedSection}
                   canEdit={canEditDoc}
                   onUpdateSection={handleUpdateSection}
+                />
+              )}
+
+              {/* Read-only: tour steps are repo files. The AI panel and prose
+                  body below still apply — a walkthrough section has a written
+                  introduction the learner reads before launching. */}
+              {sectionKind === 'WALKTHROUGH' && (
+                <WalkthroughSectionPanel
+                  key={selectedSection.id}
+                  section={selectedSection}
                 />
               )}
 

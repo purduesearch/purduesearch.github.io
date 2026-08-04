@@ -187,7 +187,7 @@ export default function BlogAiPanel({
   const locatable = edits.filter((e) => e.range).length;
 
   return (
-    <aside className="cpm-blog-meta-panel" aria-label="AI assistant">
+    <aside className="cpm-blog-meta-panel" data-tour-id="blog.editor.ai" aria-label="AI assistant">
       <div className="cpm-blog-meta-panel-header">
         <h2 className="cpm-blog-meta-panel-title">
           <i className="fas fa-wand-magic-sparkles" aria-hidden="true" /> AI Assistant

@@ -158,7 +158,7 @@ function ContactFormModal({ initial, campaigns, onSave, onClose }) {
                 {STAGES.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
               </select>
             </div>
-            <div className="cpm-form-group">
+            <div className="cpm-form-group" data-tour-id="outreach.contact.followup">
               <label className="cpm-form-label">Next Follow-Up</label>
               <input className="cpm-form-input" type="date" value={nextFollowUp} onChange={e => setNextFollowUp(e.target.value)} />
             </div>
@@ -494,7 +494,7 @@ function ContactDrawer({ contactId, onClose, onUpdated, isAdmin, currentMemberId
 
           {/* Timeline tab */}
           {activeTab === 'timeline' && (
-            <div>
+            <div data-tour-id="outreach.contact.history">
               <button
                 className="cpm-btn cpm-btn--secondary pm-crm-log-btn"
                 onClick={() => setShowIntForm(v => !v)}

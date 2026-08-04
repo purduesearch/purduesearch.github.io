@@ -1,0 +1,90 @@
+{
+  "tourId": "crm-and-campaigns",
+  "title": "Contacts, follow-ups and campaigns",
+  "entryRoute": "/clubpm/outreach",
+  "requiresTrainingProject": true,
+  "steps": [
+    {
+      "id": "contacts-tab",
+      "anchor": "outreach.tab.contacts",
+      "route": "/clubpm/outreach",
+      "title": "Everyone the club talks to lives here",
+      "body": "Sponsors, alumni, faculty, schools. Open the Contacts tab.",
+      "placement": "bottom",
+      "dim": ["nav.sidebar"],
+      "advance": { "on": "click" }
+    },
+    {
+      "id": "add-contact",
+      "anchor": "outreach.contact.new",
+      "route": "/clubpm/outreach",
+      "title": "Add one",
+      "body": "Click Add contact.",
+      "placement": "bottom",
+      "advance": { "on": "click" }
+    },
+    {
+      "id": "save-contact",
+      "anchor": "outreach.contact.new",
+      "route": "/clubpm/outreach",
+      "title": "Make someone up",
+      "body": "This is your training space — name, org, email. Nobody will ever be emailed from this tour.",
+      "placement": "bottom",
+      "advance": { "on": "api", "method": "POST", "path": "/api/outreach/contacts" }
+    },
+    {
+      "id": "interaction-history",
+      "anchor": "outreach.contact.history",
+      "route": "/clubpm/outreach",
+      "title": "Interaction history",
+      "body": "Who spoke to them, when, and what was promised. That last one is what gets forgotten, and it's the reason a sponsor stops replying.",
+      "placement": "left",
+      "advance": { "on": "next" }
+    },
+    {
+      "id": "follow-up",
+      "anchor": "outreach.contact.followup",
+      "route": "/clubpm/outreach",
+      "title": "Set a follow-up",
+      "body": "A date and an owner. Not \"sometime.\" Open the contact for editing and give it a date.",
+      "placement": "left",
+      "advance": { "on": "api", "method": "PATCH", "path": "/api/outreach/contacts/:id" }
+    },
+    {
+      "id": "campaigns-tab",
+      "anchor": "outreach.tab.campaigns",
+      "route": "/clubpm/outreach",
+      "title": "Campaigns group contacts you're working through together",
+      "body": "Open the Campaigns tab.",
+      "placement": "bottom",
+      "advance": { "on": "click" }
+    },
+    {
+      "id": "new-campaign",
+      "anchor": "outreach.campaign.new",
+      "route": "/clubpm/outreach",
+      "title": "Create one",
+      "body": "Make a campaign and add your contact to it.",
+      "placement": "bottom",
+      "advance": { "on": "api", "method": "POST", "path": "/api/outreach/campaigns" }
+    },
+    {
+      "id": "coverage",
+      "anchor": "outreach.tab.campaigns",
+      "route": "/clubpm/outreach",
+      "title": "Coverage at a glance",
+      "body": "Contacted, replied, untouched. That middle column is the one that matters — a campaign where everyone was contacted and nobody replied is telling you something about the message, not the list.",
+      "placement": "bottom",
+      "advance": { "on": "next" }
+    },
+    {
+      "id": "reminders",
+      "anchor": "outreach.tab.campaigns",
+      "route": "/clubpm/outreach",
+      "title": "Overdue follow-ups DM you",
+      "body": "Every weekday morning. You won't have to remember to come back here — which is the only reason setting a real date in step 5 was worth doing.",
+      "placement": "bottom",
+      "advance": { "on": "next" }
+    }
+  ]
+}

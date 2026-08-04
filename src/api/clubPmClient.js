@@ -336,7 +336,14 @@ export function uploadVaultFile(path, file, fields = {}, onProgress) {
     xhr.upload.onprogress = (e) => { if (e.lengthComputable && onProgress) onProgress(e.loaded / e.total); };
     xhr.onload = () => {
       let body = null; try { body = JSON.parse(xhr.responseText); } catch {}
-      if (xhr.status >= 200 && xhr.status < 300) resolve(body);
+      if (xhr.status >= 200 && xhr.status < 300) {
+        // Uploads bypass handleResponse, so without this a walkthrough step that
+        // advances on POST /api/vault/items/:id/versions would wait forever.
+        window.dispatchEvent(new CustomEvent("clubpm:api-success", {
+          detail: { method: "POST", path },
+        }));
+        resolve(body);
+      }
       else reject(Object.assign(new Error(body?.error || `Upload failed (${xhr.status})`), { status: xhr.status, body }));
     };
     xhr.onerror = () => reject(new Error("Network error during upload"));

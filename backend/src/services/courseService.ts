@@ -1,6 +1,7 @@
 import { Prisma, type CourseSectionKind, type CourseQuestionKind } from "@prisma/client";
 import { prisma } from "../db/prisma.js";
 import { EMPTY_DOC, slugify, type PMDoc } from "./blogRender.js";
+import { loadTourSteps } from "./tourStepService.js";
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -130,6 +131,9 @@ const sectionSelect = {
   // column, so it has to travel with every section payload the editor loads —
   // omitting it made the workbench believe no narration was ever uploaded.
   slideConfig: true,
+  // Same reason as slideConfig: the WALKTHROUGH authoring panel reads tourId and
+  // stepCount straight off this column, so it has to travel with the editor tree.
+  tourConfig: true,
   passThreshold: true,
   maxAttempts: true,
   createdAt: true,
@@ -255,7 +259,7 @@ export async function deleteCourse(id: string) {
 
 /** The authoring tree: modules in order, each with its sections in order. */
 export async function listModules(courseId: string) {
-  return prisma.courseModule.findMany({
+  const modules = await prisma.courseModule.findMany({
     where: { courseId },
     orderBy: { order: "asc" },
     select: {
@@ -263,6 +267,25 @@ export async function listModules(courseId: string) {
       sections: { orderBy: { order: "asc" }, select: sectionSelect },
     },
   });
+
+  // WALKTHROUGH steps live in docs/courses, not in the database, so the
+  // authoring panel cannot read them from the section row alone. Resolved here
+  // rather than in a separate endpoint so the editor tree stays one request.
+  // A missing or malformed steps file must not 500 the whole editor — the panel
+  // renders an empty-state for it, which is also the honest signal to the author.
+  return modules.map((m) => ({
+    ...m,
+    sections: m.sections.map((s) => {
+      if (s.kind !== "WALKTHROUGH") return s;
+      const tourId = (s.tourConfig as { tourId?: string } | null)?.tourId;
+      if (!tourId) return s;
+      try {
+        return { ...s, tourSteps: loadTourSteps(tourId) };
+      } catch {
+        return s;
+      }
+    }),
+  }));
 }
 
 /** A new module always appends; authors reposition by dragging, not by index. */

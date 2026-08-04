@@ -139,10 +139,14 @@ step files.
 | `outreach.tab.courses` | Courses tab | `/clubpm/outreach` |
 | `outreach.contact.new` | Add contact | `/clubpm/outreach` |
 | `outreach.campaign.new` | New campaign | `/clubpm/outreach` |
+| `outreach.contact.history` | Interaction timeline inside the contact drawer | `/clubpm/outreach` |
+| `outreach.contact.followup` | "Next follow-up" date field in the contact form | `/clubpm/outreach` |
+| `blog.new` | New-post button on the Blog tab | `/clubpm/outreach` |
 | `blog.editor.body` | Editor canvas | `/clubpm/outreach/blog/:id/edit` |
 | `blog.editor.toolbar` | Formatting toolbar | `/clubpm/outreach/blog/:id/edit` |
 | `blog.editor.presence` | Collaborator presence row | `/clubpm/outreach/blog/:id/edit` |
 | `blog.editor.publish` | Publish / schedule control | `/clubpm/outreach/blog/:id/edit` |
+| `blog.editor.ai` | AI assistant panel (shared with the course editor) | `/clubpm/outreach/blog/:id/edit` |
 
 ## Courses and admin
 
@@ -162,7 +166,7 @@ step files.
 
 ---
 
-**Count: 98 anchors across 15 component files.**
+**Count: 102 anchors across 17 component files.**
 
 Not every anchor is used by a step today. The registry is deliberately a little wider than the
 curriculum so that adding a step is usually a content change rather than a code change — but the

@@ -1,0 +1,80 @@
+{
+  "tourId": "admin-tour",
+  "title": "The admin surface",
+  "entryRoute": "/clubpm/admin",
+  "requiresTrainingProject": false,
+  "steps": [
+    {
+      "id": "admin-link",
+      "anchor": "nav.admin",
+      "route": "*",
+      "title": "Only officers see this link",
+      "body": "Everything behind it is club-wide and real — this tour won't have you change anything. Open it.",
+      "placement": "right",
+      "advance": { "on": "click" }
+    },
+    {
+      "id": "pending-queue",
+      "anchor": "admin.rewards.pending",
+      "route": "/clubpm/admin",
+      "title": "The pending queue",
+      "body": "Task completions and time logs over two hours wait here. Clearing this often is the single most useful thing you do as an officer.",
+      "placement": "left",
+      "advance": { "on": "next" }
+    },
+    {
+      "id": "rejecting-well",
+      "anchor": "admin.rewards.pending",
+      "route": "/clubpm/admin",
+      "title": "Approve, or reject with a reason",
+      "body": "A silent rejection teaches someone to stop logging time, and then the club loses the data. The reason costs you ten seconds and keeps the record honest.",
+      "placement": "left",
+      "advance": { "on": "next" }
+    },
+    {
+      "id": "reward-config",
+      "anchor": "admin.rewards.config",
+      "route": "/clubpm/admin",
+      "title": "What every event type is worth",
+      "body": "Change these rarely, and announce it first — members plan around these numbers, and moving them quietly makes every past total mean something different.",
+      "placement": "left",
+      "advance": { "on": "next" }
+    },
+    {
+      "id": "integrations",
+      "anchor": "admin.integrations",
+      "route": "/clubpm/admin",
+      "title": "Integrations",
+      "body": "Google Drive, and the connections that let files and meeting notes flow in. Set once, then mostly left alone — but when uploads start failing club-wide, this card is the first place to look.",
+      "placement": "left",
+      "advance": { "on": "next" }
+    },
+    {
+      "id": "members",
+      "anchor": "admin.members",
+      "route": "/clubpm/members",
+      "title": "Roles, project membership, and GitHub logins",
+      "body": "Role is what governs permissions — rank never does. Someone can be a COSMONAUT and still not be an officer.",
+      "placement": "bottom",
+      "advance": { "on": "next" }
+    },
+    {
+      "id": "all-projects",
+      "anchor": "nav.projects",
+      "route": "*",
+      "title": "Officers see every project",
+      "body": "Including ones they aren't a member of. Use that to unstick things, not to browse.",
+      "placement": "right",
+      "advance": { "on": "next" }
+    },
+    {
+      "id": "two-things",
+      "anchor": "admin.rewards.pending",
+      "route": "/clubpm/admin",
+      "title": "Two things to remember",
+      "body": "Clear the queue often, and change the numbers rarely and in public. Everything else on this page can wait.",
+      "placement": "left",
+      "advance": { "on": "next" }
+    }
+  ]
+}

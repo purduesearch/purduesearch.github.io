@@ -1,0 +1,82 @@
+{
+  "tourId": "change-request",
+  "title": "Raising and reviewing a change request",
+  "entryRoute": "/clubpm/projects/:trainingProjectId",
+  "requiresTrainingProject": true,
+  "steps": [
+    {
+      "id": "cr-list",
+      "anchor": "cr.list",
+      "route": "/clubpm/projects/:id",
+      "title": "Every proposed change, open and closed",
+      "body": "A change request is how a modification to a vaulted part gets agreed to before it becomes the current version.",
+      "placement": "right",
+      "dim": ["nav.sidebar"],
+      "advance": { "on": "next" }
+    },
+    {
+      "id": "cr-new",
+      "anchor": "cr.new",
+      "route": "/clubpm/projects/:id",
+      "title": "Raise one",
+      "body": "Click New change request.",
+      "placement": "bottom",
+      "advance": { "on": "click" }
+    },
+    {
+      "id": "cr-fields",
+      "anchor": "cr.new",
+      "route": "/clubpm/projects/:id",
+      "title": "Title says what changes; rationale says why",
+      "body": "The rationale is the field that's still useful in six months, when nobody remembers the conversation that produced this.",
+      "placement": "bottom",
+      "advance": { "on": "next" }
+    },
+    {
+      "id": "cr-submit",
+      "anchor": "cr.new",
+      "route": "/clubpm/projects/:id",
+      "title": "Submit it",
+      "body": "Fill both fields and submit.",
+      "placement": "bottom",
+      "advance": { "on": "api", "method": "POST", "path": "/api/projects/:id/change-requests" }
+    },
+    {
+      "id": "cr-impact",
+      "anchor": "cr.list",
+      "route": "/clubpm/projects/:id",
+      "title": "Constellation worked out what it affects",
+      "body": "The impact came from the BOM. You didn't have to remember which assemblies use this part — that's the whole reason the BOM is worth maintaining.",
+      "placement": "right",
+      "advance": { "on": "next" }
+    },
+    {
+      "id": "cr-review-intro",
+      "anchor": "cr.review",
+      "route": "/clubpm/projects/:id",
+      "title": "Normally someone else reviews this",
+      "body": "In your training project you're both people, so you'll review your own. That is an artefact of the sandbox, not how this works on real work.",
+      "placement": "left",
+      "advance": { "on": "next" }
+    },
+    {
+      "id": "cr-reject",
+      "anchor": "cr.review",
+      "route": "/clubpm/projects/:id",
+      "title": "Reject it, with a reason",
+      "body": "Rejecting isn't rude — \"not until after the design review\" is a real answer. If your account can't review change requests, skip this step; an officer will have shown you the same screen.",
+      "placement": "left",
+      "optional": true,
+      "advance": { "on": "api", "method": "POST", "path": "/api/change-requests/:id/reject" }
+    },
+    {
+      "id": "cr-record",
+      "anchor": "cr.list",
+      "route": "/clubpm/projects/:id",
+      "title": "It's still there, with the reason attached",
+      "body": "That record is what stops the same change being re-proposed blind in a month by someone who never heard the answer.",
+      "placement": "right",
+      "advance": { "on": "next" }
+    }
+  ]
+}

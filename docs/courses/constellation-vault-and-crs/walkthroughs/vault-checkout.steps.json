@@ -1,0 +1,90 @@
+{
+  "tourId": "vault-checkout",
+  "title": "Checking a part out and back in",
+  "entryRoute": "/clubpm/projects/:trainingProjectId",
+  "requiresTrainingProject": true,
+  "steps": [
+    {
+      "id": "open-vault-tab",
+      "anchor": "project.tab.vault",
+      "route": "/clubpm/projects/:id",
+      "title": "The Vault lives on its own tab",
+      "body": "Open it.",
+      "placement": "bottom",
+      "dim": ["nav.sidebar"],
+      "advance": { "on": "click" }
+    },
+    {
+      "id": "tree",
+      "anchor": "vault.tree",
+      "route": "/clubpm/projects/:id",
+      "title": "Parts, not files",
+      "body": "Every item here has one current version and every version before it. The Vault is a record of a part over time, not a folder you drop files into.",
+      "placement": "right",
+      "advance": { "on": "next" }
+    },
+    {
+      "id": "open-item",
+      "anchor": "vault.item",
+      "route": "/clubpm/projects/:id",
+      "title": "Open this bracket",
+      "body": "Click the item to see its history.",
+      "placement": "right",
+      "advance": { "on": "click" }
+    },
+    {
+      "id": "versions",
+      "anchor": "vault.versions",
+      "route": "/clubpm/projects/:id",
+      "title": "Three versions, newest first",
+      "body": "Each one records who uploaded it and why. Nothing is ever overwritten — the old revision is still there, it just stopped being current.",
+      "placement": "left",
+      "advance": { "on": "next" }
+    },
+    {
+      "id": "checkout",
+      "anchor": "vault.checkout",
+      "route": "/clubpm/projects/:id",
+      "title": "Check it out",
+      "body": "From now until you check it back in, it's locked to you — and everyone can see that.",
+      "placement": "left",
+      "advance": { "on": "api", "method": "POST", "path": "/api/vault/items/:id/checkout" }
+    },
+    {
+      "id": "see-the-lock",
+      "anchor": "vault.item",
+      "route": "/clubpm/projects/:id",
+      "title": "Notice the lock, and your name on it",
+      "body": "That visibility is the entire mechanism. Check-out doesn't stop anyone by force — it makes the fact that you're mid-edit impossible to miss.",
+      "placement": "right",
+      "advance": { "on": "next" }
+    },
+    {
+      "id": "upload-version",
+      "anchor": "vault.upload",
+      "route": "/clubpm/projects/:id",
+      "title": "Upload a new version",
+      "body": "Anything will do here. On a real part this is where your changed model goes.",
+      "placement": "bottom",
+      "advance": { "on": "api", "method": "POST", "path": "/api/vault/items/:id/versions" }
+    },
+    {
+      "id": "versions-again",
+      "anchor": "vault.versions",
+      "route": "/clubpm/projects/:id",
+      "title": "Four now",
+      "body": "The old one didn't go anywhere — it just stopped being current. That is what makes \"go back to what we had last week\" a real option rather than a hope.",
+      "placement": "left",
+      "advance": { "on": "next" }
+    },
+    {
+      "id": "checkin-and-bom",
+      "anchor": "vault.bom",
+      "route": "/clubpm/projects/:id",
+      "title": "Check it back in, then open the BOM",
+      "body": "Check-in is the end of the edit, not a separate chore. Then open the BOM: this is what tells you what your change just touched.",
+      "placement": "left",
+      "advance": { "on": "api", "method": "DELETE", "path": "/api/vault/items/:id/checkout" }
+    }
+  ]
+}
