@@ -5,6 +5,7 @@ import { createTask, updateTask, getTask, reassignTaskFromSlack } from "../servi
 import { resolveSlackMember } from "../services/memberService.js";
 import { getProjectByChannel } from "../services/projectService.js";
 import { getMilestonesForProject } from "../services/milestoneService.js";
+import { EXCLUDE_TRAINING } from "../services/trainingSandboxService.js";
 import { buildTaskCard, buildStandupMessage, buildProjectReport, buildProjectHealth, buildMilestoneView, buildDriveTaskPreview } from "../utils/blockKit.js";
 import { fetchDriveFileAsText, extractFileId } from "../services/driveService.js";
 import { generateJsonFromImage, generateJsonFromDocument } from "../services/geminiService.js";
@@ -89,7 +90,7 @@ export async function openNewTaskModal(
 ): Promise<void> {
   // Get all active projects for the dropdown
   const projects = await prisma.project.findMany({
-    where: { status: "ACTIVE" },
+    where: { status: "ACTIVE", ...EXCLUDE_TRAINING },
     select: { id: true, name: true },
     orderBy: { name: "asc" },
   });
@@ -517,7 +518,7 @@ async function buildProjectPickerModal(
   submitLabel: string
 ) {
   const projects = await prisma.project.findMany({
-    where: { status: "ACTIVE" },
+    where: { status: "ACTIVE", ...EXCLUDE_TRAINING },
     select: { id: true, name: true },
     orderBy: { name: "asc" },
   });
@@ -1584,7 +1585,7 @@ export async function openStatusModal(
   triggerId: string
 ): Promise<void> {
   const projects = await prisma.project.findMany({
-    where: { status: "ACTIVE" },
+    where: { status: "ACTIVE", ...EXCLUDE_TRAINING },
     select: { id: true, name: true },
     orderBy: { name: "asc" },
   });
@@ -1631,7 +1632,7 @@ export async function openMilestoneModal(
 ): Promise<void> {
   const channelProject = await getProjectByChannel(channelId);
   const projects = await prisma.project.findMany({
-    where: { status: "ACTIVE" },
+    where: { status: "ACTIVE", ...EXCLUDE_TRAINING },
     select: { id: true, name: true },
     orderBy: { name: "asc" },
   });
@@ -2052,7 +2053,7 @@ export async function openEventCreateModal(
   channelId: string
 ): Promise<void> {
   const projects = await prisma.project.findMany({
-    where: { status: "ACTIVE" },
+    where: { status: "ACTIVE", ...EXCLUDE_TRAINING },
     select: { id: true, name: true },
     orderBy: { name: "asc" },
   });

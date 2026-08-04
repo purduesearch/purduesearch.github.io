@@ -7,6 +7,7 @@ import type {
 } from "@prisma/client";
 import { boltApp } from "../slack/bolt.js";
 import { resolveSlackMember } from "./memberService.js";
+import { EXCLUDE_TRAINING } from "./trainingSandboxService.js";
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -63,6 +64,7 @@ export async function getChannelMemberSlackIds(channelId: string): Promise<strin
 
 export async function listProjects(): Promise<Project[]> {
   return prisma.project.findMany({
+    where: { ...EXCLUDE_TRAINING },
     include: {
       members: { include: { member: true } },
       _count: { select: { tasks: true } },
@@ -247,6 +249,7 @@ export async function removeMemberFromProject(
 
 export async function getProjectsWithTaskStats() {
   const projects = await prisma.project.findMany({
+    where: { ...EXCLUDE_TRAINING },
     include: {
       members: { include: { member: true } },
       tasks: { where: { archivedAt: null }, select: { status: true } },

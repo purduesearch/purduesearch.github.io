@@ -14,6 +14,7 @@ import {
 import { prisma as prismaClient } from "../db/prisma.js";
 import { createNotification } from "../services/notificationCrud.js";
 import { queueDm } from "../services/dmBatcher.js";
+import { EXCLUDE_TRAINING } from "../services/trainingSandboxService.js";
 
 // ── Attachment helpers ──────────────────────────────────────
 //
@@ -67,7 +68,8 @@ tasksRouter.get("/search", async (req: Request, res: Response) => {
     const tasks = await prisma.task.findMany({
       where: {
         archivedAt: null,
-        ...(projectId ? { projectId } : {}),
+        // Global search must not turn up someone's practice tasks.
+        ...(projectId ? { projectId } : { project: { is: EXCLUDE_TRAINING } }),
         OR: [
           { title: { contains: query, mode: "insensitive" } },
           { description: { contains: query, mode: "insensitive" } },
@@ -545,6 +547,10 @@ tasksRouter.patch("/:id", channelAuth, async (req: Request, res: Response) => {
       const isForwardAdvance = !isNowDone && afterRank > beforeRank && memberId;
       if (isForwardAdvance) {
         (async () => {
+          // Dragging a fixture card across the training board is the very first
+          // thing a walkthrough asks for. It must not keep a streak alive.
+          const { isTrainingTask } = await import("../services/trainingSandboxService.js");
+          if (await isTrainingTask(taskId)) return;
           const { recordActivity } = await import("../services/streakService.js");
           await recordActivity(memberId!, "TASK_ADVANCE");
         })().catch(err => console.error("[streak] task advance:", err));

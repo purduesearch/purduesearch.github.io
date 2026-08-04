@@ -1,6 +1,7 @@
 import { prisma } from "../db/prisma.js";
 import type { Task, TaskStatus, TaskProgress, Priority, Prisma, Member, Project, RecurringInterval, Tag } from "@prisma/client";
 import { logActivity } from "./activityService.js";
+import { EXCLUDE_TRAINING } from "./trainingSandboxService.js";
 
 // ── Helpers ──────────────────────────────────────────────────
 
@@ -347,7 +348,13 @@ export async function getTasksForProject(
 
 export async function getTasksForMember(memberId: string) {
   return prisma.task.findMany({
-    where: { assignees: { some: { id: memberId } }, archivedAt: null },
+    // Backs the dashboard "my work" panel. Practice tasks a learner assigned
+    // themselves mid-tour must not sit in their real to-do list.
+    where: {
+      assignees: { some: { id: memberId } },
+      archivedAt: null,
+      project: { is: EXCLUDE_TRAINING },
+    },
     include: { project: true, assignees: true, tags: true },
     orderBy: [{ dueDate: "asc" }, { priority: "desc" }],
   });
@@ -360,6 +367,7 @@ export async function getOverdueTasks() {
       dueDate: { lt: now },
       status: { notIn: ["DONE"] },
       archivedAt: null,
+      project: { is: EXCLUDE_TRAINING },
     },
     include: { assignees: true, project: true },
   });
@@ -376,6 +384,7 @@ export async function getTasksDueToday() {
       dueDate: { gte: startOfDay, lte: endOfDay },
       status: { notIn: ["DONE"] },
       archivedAt: null,
+      project: { is: EXCLUDE_TRAINING },
     },
     include: { assignees: true, project: true },
   });
@@ -391,6 +400,9 @@ export async function getTasksDueThisWeek(memberId?: string) {
     dueDate: { gte: now, lte: endOfWeek },
     status: { notIn: ["DONE"] },
     archivedAt: null,
+    // Feeds the weekly Slack digest. Fixture tasks must not be DM'd to anyone
+    // as though they were real commitments for the week.
+    project: { is: EXCLUDE_TRAINING },
   };
   if (memberId) where.assignees = { some: { id: memberId } };
 

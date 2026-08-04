@@ -4,6 +4,7 @@
 import { prisma } from "../db/prisma.js";
 import { ChallengeMetric, ChallengeType, CosmeticRarity } from "@prisma/client";
 import { grantXP, grantDoubloons } from "./rewardService.js";
+import { EXCLUDE_TRAINING } from "./trainingSandboxService.js";
 import { rollTable, applyRollResults, RollResult } from "./rewardRollService.js";
 
 // ── Period helpers ───────────────────────────────────────────────
@@ -658,7 +659,12 @@ async function checkAchievementUnlock(
   // Generic cumulative: count relevant completed tasks/comments/etc
   if (metric === "TASK_COMPLETED") {
     const count = await prisma.task.count({
-      where: { assignees: { some: { id: memberId } }, status: "DONE" },
+      // Completing seeded fixture tasks must not satisfy a real achievement.
+      where: {
+        assignees: { some: { id: memberId } },
+        status: "DONE",
+        project: { is: EXCLUDE_TRAINING },
+      },
     });
     return count >= target;
   }
@@ -746,6 +752,7 @@ export async function runWeeklyDerivedChecks(): Promise<void> {
         assignees: { some: { id: memberId } },
         dueDate:   { lt: now },
         status:    { not: "DONE" },
+        project: { is: EXCLUDE_TRAINING },
       },
     });
     if (overdueCount === 0) {

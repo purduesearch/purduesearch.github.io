@@ -14,6 +14,7 @@ import {
   buildMilestoneAlertCard,
 } from "../utils/blockKit.js";
 import { prisma } from "../db/prisma.js";
+import { EXCLUDE_TRAINING } from "./trainingSandboxService.js";
 import {
   getOverdueTasks,
   getTasksDueToday,
@@ -223,6 +224,7 @@ export async function postAllProjectHealthSummaries(app: App): Promise<void> {
   const projects = await prisma.project.findMany({
     where: {
       status: "ACTIVE",
+      ...EXCLUDE_TRAINING,
       OR: [
         { id: { in: targetProjectIds.map(t => t.projectId) } },
         { slackChannel: { not: null } },
@@ -248,6 +250,7 @@ export async function postAllWeekAheadSummaries(app: App): Promise<void> {
   const projects = await prisma.project.findMany({
     where: {
       status: "ACTIVE",
+      ...EXCLUDE_TRAINING,
       OR: [
         { id: { in: targetProjectIds.map(t => t.projectId) } },
         { slackChannel: { not: null } },
@@ -300,6 +303,7 @@ export async function sendAllEscalations(app: App): Promise<void> {
     where: {
       status: { not: "DONE" },
       dueDate: { lt: threeDaysAgo },
+      project: { is: EXCLUDE_TRAINING },
       OR: [
         { escalatedAt: null },
         { escalatedAt: { lt: oneDayAgo } },
@@ -369,7 +373,7 @@ export async function sendStandupPrompts(app: App): Promise<void> {
     where: { notificationPrefs: { has: "standup_prompts" } },
     include: {
       projects: {
-        where: { project: { status: "ACTIVE" } },
+        where: { project: { status: "ACTIVE", ...EXCLUDE_TRAINING } },
         include: {
           project: {
             include: {
@@ -466,7 +470,7 @@ export async function sendCombinedMondayDigest(app: App): Promise<void> {
     },
     include: {
       projects: {
-        where: { project: { status: "ACTIVE" } },
+        where: { project: { status: "ACTIVE", ...EXCLUDE_TRAINING } },
         include: {
           project: {
             include: { notificationTargets: { where: { type: "CHANNEL" } } },
@@ -537,6 +541,7 @@ export async function sendAllStaleTaskWarnings(app: App): Promise<void> {
     where: {
       status: { not: "DONE" },
       updatedAt: { lt: fiveDaysAgo },
+      project: { is: EXCLUDE_TRAINING },
     },
     include: { assignees: true, project: true },
     orderBy: [{ projectId: "asc" }, { updatedAt: "asc" }],

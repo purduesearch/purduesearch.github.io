@@ -23,6 +23,15 @@ export const TRAINING_FIXTURE = {
 };
 
 /**
+ * Spread into any Prisma `where` that lists or aggregates projects.
+ *
+ * Training projects are real rows with real tasks, so every listing query sees
+ * them unless told otherwise. Import this rather than hand-writing the filter —
+ * a hand-written one is how a site gets missed.
+ */
+export const EXCLUDE_TRAINING = { trainingForMemberId: null } as const;
+
+/**
  * Idempotent by construction: trainingForMemberId is @unique, so a second call
  * cannot create a second project even under a race.
  */

@@ -1,4 +1,5 @@
 import { prisma } from "../db/prisma.js";
+import { EXCLUDE_TRAINING } from "./trainingSandboxService.js";
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -64,7 +65,7 @@ export async function generateWeeklyMeetingTemplate(
 
   // ── Fetch all active projects ────────────────────────────
   const activeProjects = await prisma.project.findMany({
-    where: { status: "ACTIVE" },
+    where: { status: "ACTIVE", ...EXCLUDE_TRAINING },
     select: { id: true, name: true },
     orderBy: { name: "asc" },
   });
@@ -212,7 +213,7 @@ export async function generateWeeklyMeetingTemplate(
     where: {
       status: "DONE",
       updatedAt: { gte: prevWeekStart, lte: prevWeekEnd },
-      project: { status: "ACTIVE" },
+      project: { status: "ACTIVE", ...EXCLUDE_TRAINING },
     },
   });
 
@@ -223,6 +224,9 @@ export async function generateWeeklyMeetingTemplate(
     where: {
       createdAt: { gte: weekStart, lte: weekEnd },
       memberId: { not: null },
+      // Practising in the sandbox must not make someone count as active for
+      // the week — that would inflate the club-wide number in every digest.
+      project: { is: EXCLUDE_TRAINING },
     },
     select: { memberId: true },
     distinct: ["memberId"],

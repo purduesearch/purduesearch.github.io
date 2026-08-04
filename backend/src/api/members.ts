@@ -3,6 +3,7 @@ import { requireAuth } from "./auth.js";
 import { prisma } from "../db/prisma.js";
 import { getTasksForMember } from "../services/taskService.js";
 import { sendKudos, getKudosCaps, KudosCapError } from "../services/kudosService.js";
+import { EXCLUDE_TRAINING } from "../services/trainingSandboxService.js";
 
 export const membersRouter = Router();
 
@@ -22,6 +23,9 @@ membersRouter.get("/me", async (req: Request, res: Response) => {
       where: { id: req.memberId },
       include: {
         projects: {
+          // A member is a member of their own training project, so without this
+          // it shows up in their own profile's project list.
+          where: { project: { is: EXCLUDE_TRAINING } },
           include: {
             project: {
               include: {
@@ -248,9 +252,15 @@ membersRouter.get("/", async (_req: Request, res: Response) => {
       where: { isBot: false },
       include: {
         _count: {
-          select: { tasks: true, projects: true },
+          // Filtered counts, not raw ones: the roster's task/project numbers are
+          // read as real workload, so a seeded sandbox would inflate them.
+          select: {
+            tasks: { where: { project: { is: EXCLUDE_TRAINING } } },
+            projects: { where: { project: { is: EXCLUDE_TRAINING } } },
+          },
         },
         projects: {
+          where: { project: { is: EXCLUDE_TRAINING } },
           include: { project: { select: { id: true, name: true, status: true } } },
         },
         equippedBadge: { select: { id: true, name: true, rarity: true, svgUrl: true, iconClass: true } },
@@ -273,6 +283,9 @@ membersRouter.get("/:id", async (req: Request, res: Response) => {
       where: { id: req.params.id as string },
       include: {
         projects: {
+          // MemberDrawer. Someone else's training project is not their work,
+          // and a member's own should not appear in their public profile either.
+          where: { project: { is: EXCLUDE_TRAINING } },
           include: {
             project: {
               include: {
@@ -286,12 +299,18 @@ membersRouter.get("/:id", async (req: Request, res: Response) => {
           },
         },
         activityLogs: {
+          where: { project: { is: EXCLUDE_TRAINING } },
           orderBy: { createdAt: "desc" },
           take: 20,
           include: { project: { select: { id: true, name: true } } },
         },
         equippedBadge: { select: { id: true, name: true, rarity: true, svgUrl: true, iconClass: true } },
-        _count: { select: { tasks: true, projects: true } },
+        _count: {
+          select: {
+            tasks: { where: { project: { is: EXCLUDE_TRAINING } } },
+            projects: { where: { project: { is: EXCLUDE_TRAINING } } },
+          },
+        },
       },
     });
 

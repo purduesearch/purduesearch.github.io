@@ -92,6 +92,11 @@ export async function buildProjectContext(
     },
   });
   if (!project) return null;
+  // A training project is fixture data. Letting the AI reason over it would put
+  // invented practice tasks into risk reports, capacity analyses and action
+  // plans as though they were real club work. Same "absent" answer as a
+  // project that does not exist — every caller already handles null.
+  if (project.trainingForMemberId) return null;
 
   const [totalTaskCount, tasksRaw, milestonesRaw, activeBlockersRaw, auditLog] = await Promise.all([
     prisma.task.count({ where: { projectId, archivedAt: null } }),

@@ -15,6 +15,7 @@ import { createNotification } from "../services/notificationCrud.js";
 import { sweepVaultTmpDir } from "../api/vault.js";
 import { remindNonResponders } from "../api/meetingPolls.js";
 import * as pollService from "../services/pollService.js";
+import { EXCLUDE_TRAINING } from "../services/trainingSandboxService.js";
 
 // ── Helper: notify admin project members via DM batcher ───────
 
@@ -111,6 +112,7 @@ export function startScheduler(app: App): void {
         where: {
           status:  { not: "DONE" },
           dueDate: { lt: threeDaysAgo },
+          project: { is: EXCLUDE_TRAINING },
           OR: [
             { escalatedAt: null },
             { escalatedAt: { lt: oneDayAgo } },
@@ -166,6 +168,7 @@ export function startScheduler(app: App): void {
           status:          "DONE",
           archivedAt:      null,
           archiveNudgedAt: null,
+          project: { is: EXCLUDE_TRAINING },
           OR: [
             { rewardGrantedAt: { lte: sevenDaysAgo } },
             { rewardGrantedAt: null, updatedAt: { lte: sevenDaysAgo } },
@@ -226,6 +229,7 @@ export function startScheduler(app: App): void {
         where: {
           status:    { not: "DONE" },
           updatedAt: { lt: fiveDaysAgo },
+          project: { is: EXCLUDE_TRAINING },
         },
         include: { project: true },
       });
@@ -287,7 +291,7 @@ export function startScheduler(app: App): void {
     try {
       const { analyzeProjectRisks } = await import("../services/projectAnalysisService.js");
       const projects = await prisma.project.findMany({
-        where:  { status: "ACTIVE" },
+        where:  { status: "ACTIVE", ...EXCLUDE_TRAINING },
         select: { id: true, name: true },
       });
 
@@ -309,7 +313,7 @@ export function startScheduler(app: App): void {
     try {
       const { analyzeTeamCapacity } = await import("../services/projectAnalysisService.js");
       const projects = await prisma.project.findMany({
-        where:  { status: "ACTIVE" },
+        where:  { status: "ACTIVE", ...EXCLUDE_TRAINING },
         select: { id: true, name: true },
       });
 
@@ -331,7 +335,7 @@ export function startScheduler(app: App): void {
     try {
       const { inferTaskDependencies } = await import("../services/projectAnalysisService.js");
       const projects = await prisma.project.findMany({
-        where:  { status: "ACTIVE" },
+        where:  { status: "ACTIVE", ...EXCLUDE_TRAINING },
         select: { id: true, name: true },
       });
 

@@ -530,6 +530,15 @@ export async function handleTimeLog(taskId: string, memberId: string, minutes: n
 }
 
 export async function handleMilestoneComplete(milestoneId: string): Promise<void> {
+  // The training fixture seeds two milestones, and a learner can link practice
+  // tasks to them mid-tour. Without this, practice work reaches the leaderboard
+  // by way of XpEvent, which carries no project relation to filter on later.
+  const milestone = await prisma.milestone.findUnique({
+    where: { id: milestoneId },
+    select: { project: { select: { trainingForMemberId: true } } },
+  });
+  if (milestone?.project?.trainingForMemberId) return;
+
   const cfg = await prisma.rewardEventConfig.findUnique({ where: { eventType: "MILESTONE_HIT" } });
   if (!cfg) return;
 

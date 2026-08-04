@@ -2,6 +2,7 @@ import { Router, type Request, type Response } from "express";
 import { requireAuth } from "./auth.js";
 import { prisma } from "../db/prisma.js";
 import { activityBus } from "../services/activityService.js";
+import { EXCLUDE_TRAINING } from "../services/trainingSandboxService.js";
 
 export const activityRouter = Router();
 
@@ -11,6 +12,8 @@ activityRouter.get("/", async (_req: Request, res: Response) => {
   try {
     // Fetch recent ProjectUpdates
     const updates = await prisma.projectUpdate.findMany({
+      // Club-wide feed: a learner's sandbox must never surface here.
+      where: { project: { is: EXCLUDE_TRAINING } },
       take: 10,
       orderBy: { postedAt: "desc" },
       include: {
@@ -39,6 +42,7 @@ activityRouter.get("/", async (_req: Request, res: Response) => {
 
     // Fetch recent TaskComments
     const comments = await prisma.taskComment.findMany({
+      where: { task: { project: { is: EXCLUDE_TRAINING } } },
       take: 10,
       orderBy: { createdAt: "desc" },
       include: {
