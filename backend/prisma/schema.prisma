@@ -564,6 +564,7 @@ enum ActivityEventType {
   VAULT_BOM_LINK_ADDED
   VAULT_BOM_LINK_UPDATED
   VAULT_BOM_LINK_REMOVED
+  TOUR_STEP_BROKEN
 }
 
 enum GitHubLinkKind {

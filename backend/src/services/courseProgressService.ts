@@ -1,5 +1,9 @@
 import type { CourseProgressStatus, CourseQuestionKind } from "@prisma/client";
 import { prisma } from "../db/prisma.js";
+import {
+  clampStepIndex, isTourComplete, loadTourSteps,
+  type TourConfig, type TourStep,
+} from "./tourStepService.js";
 
 // ── The gating brain ─────────────────────────────────────────
 //
@@ -324,11 +328,14 @@ export interface LearnerSection {
   bestScorePct: number | null;
   passed: boolean;
   maxSlideIndex: number;
+  maxStepIndex: number;
   // Present ONLY when unlocked. Withheld from the payload, not hidden in the UI.
   contentJson?: unknown;
   videoConfig?: unknown;
   slides?: unknown;
   slideConfig?: unknown;
+  tourConfig?: TourConfig;
+  tourSteps?: TourStep[];
 }
 
 /**
@@ -455,6 +462,7 @@ export async function getLearnerCourse(
       bestScorePct: scores.length ? Math.max(...scores) : null,
       passed: mine.some((a) => a.passed),
       maxSlideIndex: progress?.maxSlideIndex ?? 0,
+      maxStepIndex: progress?.maxStepIndex ?? 0,
     };
     if (unlocked) {
       out.contentJson = s.contentJson;
@@ -467,6 +475,16 @@ export async function getLearnerCourse(
           notes: sl.notes, startSec: sl.startSec, width: sl.width, height: sl.height,
         }));
         out.slideConfig = s.slideConfig ?? null;
+      }
+      if (s.kind === "WALKTHROUGH") {
+        const cfg = s.tourConfig as TourConfig | null;
+        // Same omission rule as contentJson / videoConfig / slides: a locked
+        // section carries no config and no steps, so a learner cannot read
+        // ahead into a tour they have not unlocked.
+        if (cfg?.tourId) {
+          out.tourConfig = cfg;
+          out.tourSteps = loadTourSteps(cfg.tourId);
+        }
       }
     }
     return out;
@@ -732,6 +750,44 @@ export async function recordSlideProgress(
   return { maxSlideIndex: updated.maxSlideIndex };
 }
 
+// ── Walkthrough step progress ────────────────────────────────
+
+/**
+ * Persist a walkthrough high-water mark. Same shape as recordSlideProgress:
+ * monotonic, bounded by the tour's declared stepCount, no wall-clock budget.
+ * A skipped step still counts — see clampStepIndex.
+ */
+export async function recordTourProgress(
+  sectionId: string,
+  memberId: string,
+  stepIndex: number
+) {
+  const ctx = await requireUnlockedSection(sectionId, memberId);
+  if (!ctx.ok) return { error: ctx.error, status: ctx.status };
+  const { progress, section } = ctx;
+
+  const cfg = section.tourConfig as TourConfig | null;
+  const next = clampStepIndex({
+    prevMaxIndex: progress.maxStepIndex,
+    stepIndex,
+    stepCount: cfg?.stepCount ?? 0,
+  });
+
+  const updated = await prisma.courseSectionProgress.update({
+    where: { id: progress.id },
+    data: {
+      maxStepIndex: next,
+      status: progress.status === "COMPLETED" ? "COMPLETED" : "IN_PROGRESS",
+    },
+  });
+  await prisma.courseEnrollment.update({
+    where: { id: ctx.enrollment.id },
+    data: { lastSectionId: sectionId },
+  });
+
+  return { maxStepIndex: updated.maxStepIndex };
+}
+
 // ── In-video pop-up questions ────────────────────────────────
 
 /**
@@ -859,6 +915,14 @@ export async function completeSection(sectionId: string, memberId: string) {
     });
     if (!ok) {
       return { error: "Finish the deck and answer every question first", status: 400 } as const;
+    }
+  }
+
+  if (section.kind === "WALKTHROUGH") {
+    const cfg = section.tourConfig as TourConfig | null;
+    // Server-side, same as SLIDES: the client's "Complete" button is not the gate.
+    if (!isTourComplete({ maxStepIndex: progress.maxStepIndex, stepCount: cfg?.stepCount ?? 0 })) {
+      return { error: "Finish every step of the walkthrough first", status: 400 } as const;
     }
   }
 

@@ -4,6 +4,7 @@ import { requireAuth } from "./auth.js";
 import { prisma } from "../db/prisma.js";
 import * as courseService from "../services/courseService.js";
 import * as progressService from "../services/courseProgressService.js";
+import { logAuditEvent } from "../services/activityService.js";
 import type { CourseSectionKind, CourseQuestionKind } from "@prisma/client";
 
 // Decks are streamed straight to Drive for conversion, so memory storage is
@@ -931,6 +932,89 @@ coursesRouter.post("/sections/:sid/slide-progress", async (req: Request, res: Re
   } catch (error) {
     console.error("POST /outreach/courses/sections/:sid/slide-progress error:", error);
     res.status(500).json({ error: "Failed to record progress" });
+  }
+});
+
+coursesRouter.post("/sections/:sid/tour-progress", async (req: Request, res: Response) => {
+  try {
+    const stepIndex = Number.parseInt(
+      String((req.body as { stepIndex?: unknown }).stepIndex ?? ""),
+      10
+    );
+    if (!Number.isFinite(stepIndex)) {
+      res.status(400).json({ error: "stepIndex is required" });
+      return;
+    }
+    // CONVENTION: req.memberId, never req.session.memberId — session reads are
+    // undefined for Bearer-token users and silently break them.
+    const result = await progressService.recordTourProgress(
+      req.params.sid as string,
+      req.memberId!,
+      stepIndex
+    );
+    if (isServiceError(result)) {
+      res.status(result.status).json({ error: result.error });
+      return;
+    }
+    res.json(result);
+  } catch (error) {
+    console.error("POST /outreach/courses/sections/:sid/tour-progress error:", error);
+    res.status(500).json({ error: "Failed to record progress" });
+  }
+});
+
+// A learner whose step could not be anchored reports it here. This is the only
+// signal that a UI rename broke a live tour for someone the CI gate missed, so
+// it must never surface as an error to the learner mid-tour — they are already
+// looking at the degraded card. Always 200.
+coursesRouter.post("/sections/:sid/tour-breakage", async (req: Request, res: Response) => {
+  try {
+    const { stepId, anchor, pathname } = req.body as {
+      stepId?: string; anchor?: string; pathname?: string;
+    };
+    // ActivityLog.projectId is a required FK, so a breakage is attributed to the
+    // reporter's training project. Tours that run outside the sandbox have no
+    // project to hang the row on and are counted only in the server log.
+    const training = await prisma.project.findUnique({
+      where: { trainingForMemberId: req.memberId! },
+      select: { id: true },
+    });
+    if (training) {
+      await logAuditEvent({
+        projectId: training.id,
+        memberId: req.memberId!,
+        source: "WEB",
+        eventType: "TOUR_STEP_BROKEN",
+        payload: { sectionId: req.params.sid, stepId, anchor, pathname },
+      });
+    } else {
+      console.warn(
+        `tour breakage (no training project): section=${req.params.sid} anchor=${anchor} path=${pathname}`
+      );
+    }
+    res.json({ ok: true });
+  } catch (error) {
+    console.error("POST /outreach/courses/sections/:sid/tour-breakage error:", error);
+    res.json({ ok: true });
+  }
+});
+
+coursesRouter.get("/sections/:sid/tour-breakages", async (req: Request, res: Response) => {
+  try {
+    // Filtered in the query, not after a take(50) — otherwise busy sections
+    // elsewhere would crowd this one out of the window entirely.
+    const rows = await prisma.activityLog.findMany({
+      where: {
+        eventType: "TOUR_STEP_BROKEN",
+        payload: { path: ["sectionId"], equals: req.params.sid as string },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+    });
+    res.json(rows);
+  } catch (error) {
+    console.error("GET /outreach/courses/sections/:sid/tour-breakages error:", error);
+    res.status(500).json({ error: "Failed to load breakages" });
   }
 });
 
