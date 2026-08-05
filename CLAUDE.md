@@ -3,7 +3,7 @@
 
 ## Project Overview
 
-Static SPA for the Purdue SEARCH club, deployed to GitHub Pages at `purduesearch.github.io`. The React app lives at the **repo root** (`src/`, `public/`, `package.json`). Pages are per-program (AstroUSA, SA²TP, etc.) with shared layout components and a global CSS file. A separate **ClubPM** subsystem (protected routes under `/clubpm`) provides project-management dashboards backed by a `backend/` Node.js/Express/Prisma/Slack service. A standalone Vite+TypeScript admin app lives in `frontend/` (separate build, not deployed to GitHub Pages).
+Static SPA for the Purdue SEARCH club, deployed to GitHub Pages and served at the custom domain **`purduesearch.org`** (`public/CNAME`; the old `purduesearch.github.io` URL 301-redirects to it). The backend is reached at **`api.purduesearch.org`**. The React app lives at the **repo root** (`src/`, `public/`, `package.json`). Pages are per-program (AstroUSA, SA²TP, etc.) with shared layout components and a global CSS file. A separate **ClubPM** subsystem (protected routes under `/clubpm`) provides project-management dashboards backed by a `backend/` Node.js/Express/Prisma/Slack service. A standalone Vite+TypeScript admin app lives in `frontend/` (separate build, not deployed to GitHub Pages).
 
 **Stack:** React 19, React Router 7, Framer Motion (page transitions), Font Awesome (icons), mxGraph 4.2.2 (interactive diagrams), Three.js (3D model viewer), `@lottiefiles/react-lottie-player` (Lottie animations), `@dnd-kit/core` (ProjectDetail kanban + CrmTab pipeline board), `@hello-pangea/dnd` (OutreachHub BoardTab only — legacy, migrate on next touch), Fuse.js (fuzzy search), GSAP (scroll/flow animations), recharts (analytics charts), react-hot-toast (notifications), plain CSS custom properties.
 
@@ -166,6 +166,14 @@ Deploy is manual push to the `main` branch; GitHub Pages serves from root.
 - **shape=step / process / parallelogram / umlActor are not built-in.** They must be defined by extending `mxShape` and registered via `mxCellRenderer.registerShape()` at module load time.
 - **mxGraph container div must have `position: relative`** in CSS. HTML labels are `position: absolute` and anchor to the nearest positioned ancestor; without this they misalign from SVG geometry.
 - **Fit sequence:** call `graph.refresh()`, then `await new Promise(r => setTimeout(r, 0))`, then `graph.fit()`. Calling `fit()` synchronously after decode fires before the browser has finished layout.
+
+### Domain / hostnames
+- **Never hardcode `https://purduesearch.org` in JS.** Import `SITE_URL` from `src/seo/siteUrl.js`. The non-JS assets that can't import it (`public/sitemap.xml`, `robots.txt`, `llms.txt`, `index.html`, `legal/*.html`, `constellation/index.html`) carry the literal and must be updated alongside it.
+- `public/CNAME` is **required**, not redundant with Settings → Pages. Deploy goes through `actions/upload-pages-artifact`, which publishes `build/`; the Settings field writes a CNAME to the default branch that the artifact deploy never reads.
+- **`FRONTEND_URL` must stay single-valued** — ~10 backend modules read it to build outbound links (Slack deep links, OAuth redirects), so a comma-separated value breaks all of them. Extra CORS-only origins go in `CORS_EXTRA_ORIGINS` (`backend/src/app.ts`).
+- Session cookies are `sameSite: "none"` because the old cross-site origin is still accepted. Once `CORS_EXTRA_ORIGINS` is cleared, `purduesearch.org` ↔ `api.purduesearch.org` are same-site and it can drop to `"lax"` — which fixes cookie auth in Brave/Safari.
+- `pollService.ts`'s iCal `UID:...@purduesearch.github.io` is **deliberately not migrated**. Changing an iCalendar UID duplicates events on already-subscribed calendars.
+- `provision-domain.yml` (Actions tab) adds an nginx vhost + certbot cert for a new backend hostname alongside the existing one. See `docs/superpowers/specs/2026-08-05-purduesearch-org-migration-design.md` for the full cutover runbook.
 
 ### General
 - `public/` assets are served at `/` in dev and in the GitHub Pages build. Paths in JSX must start with `/` (e.g., `/astrousa/fig1.jpg`).

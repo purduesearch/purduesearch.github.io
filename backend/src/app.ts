@@ -75,9 +75,23 @@ app.use("/api/github/webhook", githubWebhookRouter);
 app.use(express.json({ limit: "15mb" }));
 app.use(express.urlencoded({ extended: true }));
 
+// FRONTEND_URL stays SINGLE-VALUED — it is the canonical origin, and ~10 other
+// modules read it to *build* outbound links (Slack deep links, OAuth redirects).
+// A comma-separated value there would produce malformed URLs in every one of
+// them. Extra CORS-only origins go in CORS_EXTRA_ORIGINS instead, which exists
+// so a domain migration can accept the old and new origins simultaneously.
+// Clear it once the old origin is retired.
+const allowedOrigins = [
+  process.env.FRONTEND_URL ?? "http://localhost:3000",
+  ...(process.env.CORS_EXTRA_ORIGINS ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean),
+];
+
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL ?? "http://localhost:3000",
+    origin: allowedOrigins,
     credentials: true,
   })
 );

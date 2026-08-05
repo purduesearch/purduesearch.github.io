@@ -403,7 +403,7 @@ export default function AiAssistPanel({
           <input
             type="url"
             className="cpm-form-input pm-ai-utm-input"
-            placeholder="https://purduesearch.github.io/…"
+            placeholder="https://purduesearch.org/…"
             value={utmUrl}
             onChange={e => setUtmUrl(e.target.value)}
             disabled={!submissionId}

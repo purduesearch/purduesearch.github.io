@@ -9,7 +9,7 @@ import type { MeetingPollAudience } from "@prisma/client";
 export const meetingPollsRouter = Router();
 meetingPollsRouter.use(requireAuth);
 
-const APP_BASE_URL = process.env.APP_BASE_URL ?? "https://purduesearch.github.io";
+const APP_BASE_URL = process.env.APP_BASE_URL ?? "https://purduesearch.org";
 const AUDIENCES: MeetingPollAudience[] = ["INVITED", "PROJECT", "ANYONE"];
 
 function shareUrl(token: string): string {
