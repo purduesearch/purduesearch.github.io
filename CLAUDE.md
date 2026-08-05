@@ -173,7 +173,7 @@ Deploy is manual push to the `main` branch; GitHub Pages serves from root.
 - **`FRONTEND_URL` must stay single-valued** — ~10 backend modules read it to build outbound links (Slack deep links, OAuth redirects), so a comma-separated value breaks all of them. Extra CORS-only origins go in `CORS_EXTRA_ORIGINS` (`backend/src/app.ts`).
 - Session cookies are `sameSite: "none"` because the old cross-site origin is still accepted. Once `CORS_EXTRA_ORIGINS` is cleared, `purduesearch.org` ↔ `api.purduesearch.org` are same-site and it can drop to `"lax"` — which fixes cookie auth in Brave/Safari.
 - `pollService.ts`'s iCal `UID:...@purduesearch.github.io` is **deliberately not migrated**. Changing an iCalendar UID duplicates events on already-subscribed calendars.
-- `provision-domain.yml` (Actions tab) adds an nginx vhost + certbot cert for a new backend hostname alongside the existing one. See `docs/superpowers/specs/2026-08-05-purduesearch-org-migration-design.md` for the full cutover runbook.
+- `provision-domain.yml` (Actions tab) adds an nginx vhost + certbot cert for a new backend hostname alongside the existing one. Step-by-step cutover: `docs/DOMAIN-CUTOVER-RUNBOOK.md`; design rationale: `docs/superpowers/specs/2026-08-05-purduesearch-org-migration-design.md`.
 
 ### General
 - `public/` assets are served at `/` in dev and in the GitHub Pages build. Paths in JSX must start with `/` (e.g., `/astrousa/fig1.jpg`).
