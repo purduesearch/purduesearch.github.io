@@ -16,6 +16,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { prisma } from "../src/db/prisma.js";
 import { loadTourSteps } from "../src/services/tourStepService.js";
+import { courseBodyToDoc } from "../src/services/courseMarkdown.js";
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const COURSES = path.join(REPO_ROOT, "docs", "courses");
@@ -99,7 +100,13 @@ async function seedCourse(dir: string, authorId: string) {
         data.tourConfig = s.tourConfig;
       }
       if (s.kind === "CONTENT" && s.bodyRef) {
-        data.contentJson = { markdownSource: fs.readFileSync(path.join(dir, s.bodyRef), "utf8") };
+        // Must be a TipTap document, not the raw markdown: the player renders
+        // this through BlogEditor read-only and the editor loads the same
+        // shape. Storing `{ markdownSource }` here rendered every CONTENT
+        // section blank, because TipTap got an object with no doc node.
+        data.contentJson = courseBodyToDoc(
+          fs.readFileSync(path.join(dir, s.bodyRef), "utf8")
+        );
       }
       if (s.kind === "VIDEO" && s.videoConfig) data.videoConfig = s.videoConfig;
       if (s.kind === "SLIDES" && s.slideConfig) data.slideConfig = s.slideConfig;

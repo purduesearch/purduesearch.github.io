@@ -2,7 +2,7 @@
   "slug": "constellation-101",
   "title": "Constellation 101",
   "summary": "Everything a SEARCH member needs to work in Constellation: projects and the board, how work gets unblocked, how you earn rank, and how to stay in the loop. You'll drive the real app, on a private training project of your own.",
-  "estimatedMinutes": 45,
+  "estimatedMinutes": 51,
   "status": "DRAFT",
   "xpOverride": 400,
   "doubloonOverride": 150,
@@ -57,7 +57,7 @@
       "order": 1,
       "title": "Projects, tasks, and the board",
       "summary": "The centre of gravity. You'll read a task, then create and finish a real one.",
-      "estimatedMinutes": 14,
+      "estimatedMinutes": 17,
       "isRequired": true,
       "sequential": true,
       "sections": [
@@ -71,6 +71,13 @@
         },
         {
           "order": 1,
+          "title": "The task, field by field",
+          "kind": "CONTENT",
+          "isRequired": true,
+          "bodyRef": "content/C02-anatomy-of-a-task.md"
+        },
+        {
+          "order": 2,
           "title": "Reading the board",
           "kind": "WALKTHROUGH",
           "isRequired": true,
@@ -82,7 +89,7 @@
           }
         },
         {
-          "order": 2,
+          "order": 3,
           "title": "Your first task",
           "kind": "WALKTHROUGH",
           "isRequired": true,
@@ -94,7 +101,7 @@
           }
         },
         {
-          "order": 3,
+          "order": 4,
           "title": "Check yourself: tasks and the board",
           "kind": "QUIZ",
           "isRequired": true,
@@ -117,7 +124,7 @@
           "title": "Three ways work stalls",
           "kind": "CONTENT",
           "isRequired": true,
-          "bodyRef": "content/C02-three-ways-work-stalls.md"
+          "bodyRef": "content/C03-three-ways-work-stalls.md"
         },
         {
           "order": 1,
@@ -154,7 +161,7 @@
       "order": 3,
       "title": "XP, ranks, quests, and doubloons",
       "summary": "How Constellation keeps score, and what it is actually measuring.",
-      "estimatedMinutes": 7,
+      "estimatedMinutes": 10,
       "isRequired": true,
       "sequential": true,
       "sections": [
@@ -180,6 +187,13 @@
         },
         {
           "order": 2,
+          "title": "What earns recognition, and what doesn't",
+          "kind": "CONTENT",
+          "isRequired": true,
+          "bodyRef": "content/C04-what-earns-recognition.md"
+        },
+        {
+          "order": 3,
           "title": "Check yourself: rewards",
           "kind": "QUIZ",
           "isRequired": true,
@@ -222,7 +236,7 @@
           "title": "Where to go next",
           "kind": "CONTENT",
           "isRequired": true,
-          "bodyRef": "content/C03-where-to-go-next.md"
+          "bodyRef": "content/C05-where-to-go-next.md"
         },
         {
           "order": 3,

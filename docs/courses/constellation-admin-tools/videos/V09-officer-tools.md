@@ -25,6 +25,28 @@ subject is not which buttons exist — it's the judgement attached to two of the
 | 02:20–02:42 | Member admin | Show role assignment |
 | 02:42–02:50 | Admin view | Hold, fade |
 
+## Visual edits
+
+> **Before any other edit:** every name, hour figure, and avatar in the pending queue must be seeded
+> demo data. If this was recorded against anything but a demo database, do not annotate it — re-record
+> it.
+
+The two beats that carry this course are rejection wording and the config-change protocol. Give them
+the on-screen weight the runtime can't.
+
+| Time | Edit | Why |
+|---|---|---|
+| 00:08 | **Caption:** "everything here is club-wide. there is no sandbox." | The framing an inheriting officer needs before they touch anything |
+| 00:24 | **Queue counter** enlarged in the corner and held through the whole queue section | Makes the backlog a number the officer feels rather than a list they scroll |
+| 00:34 | **Split the queue visually** — time logs tinted one colour, task completions another | Two different judgement calls, easy to conflate on a uniform list |
+| 00:58 | **Approve and Reject shown side by side, equally weighted** | If Reject looks like the scary option, officers stop using it and start approving everything |
+| 01:06 | **Text overlay of an actual rejection message**, typed out on screen: *"Looks like this went on the wrong task — re-log it on the harness one and I'll approve it."* | The most valuable thirty seconds in the course. An officer who sees the wording once will reuse it |
+| 01:16 | **Caption:** "a silent rejection is how you lose the data" | Names the consequence, not just the rule |
+| 01:32 | **Highlight one config row**, then a **three-step sequence overlay**: announce → wait → change | The protocol is procedural and won't survive as voice-over alone |
+| 01:44 | **Struck-through caption:** "change it quietly" | Marks the wrong path explicitly. Q10 tests exactly this |
+| 02:24 | **Role chip and rank badge shown side by side**, then the **rank badge greys out** | "Rank is recognition. Role is access." — an edit that makes the sentence unforgettable. Worth staging the shot for |
+| 02:42 | **Two-line closing card:** "clear the queue often" / "change the numbers rarely, and in public" | These are the two takeaways. Let them sit on screen through the fade |
+
 ## Narration
 
 **[00:00 — admin view]**

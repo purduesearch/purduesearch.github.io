@@ -1,4 +1,4 @@
-# C03 — Where to go next
+# C05 — Where to go next
 
 > CONTENT section · Constellation 101 · M5 · ~2 min read
 > Last non-quiz section of the course. The final quiz follows immediately.
@@ -26,10 +26,10 @@ These are separate, shorter courses. Take the ones that match your work; ignore 
 
 | Course | Take it if you | Length |
 |---|---|---|
-| **Vault & Change Requests** | Touch CAD, hardware, or anything with revisions and a BOM | ~30 min |
-| **Outreach & the Blog** | Work on comms, sponsors, recruiting, or the public site | ~30 min |
-| **Officer & Admin Tools** | Are an officer, or approve rewards and configure the club | ~25 min |
-| **Authoring Courses & Content** | Will be writing training material or club documentation | ~20 min |
+| **Vault & Change Requests** | Touch CAD, hardware, or anything with revisions and a BOM | ~40 min |
+| **Outreach & the Blog** | Work on comms, sponsors, recruiting, or the public site | ~40 min |
+| **Officer & Admin Tools** | Are an officer, or approve rewards and configure the club | ~30 min |
+| **Authoring Courses & Content** | Will be writing training material or club documentation | ~25 min |
 
 They'll be assigned to you if your role calls for one. You can also ask for any of them.
 

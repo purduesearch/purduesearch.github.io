@@ -1,4 +1,4 @@
-# C02 — Three ways work stalls
+# C03 — Three ways work stalls
 
 > CONTENT section · Constellation 101 · M3 · ~3 min read
 

@@ -26,16 +26,20 @@ docs/courses/
     course.json              modules + section order — the seed's input
     content/                 Cnn-<slug>.md      CONTENT section bodies
     slides/                  Snn-<slug>.outline.md   deck outlines (built externally, imported as PDF)
-    videos/                  Vnn-<slug>.md      shot list + word-for-word VO
+    videos/                  Vnn-<slug>.md      shot list + visual edits + word-for-word VO
     quizzes/                 Qnn-<slug>.json    seed input (authoritative)
-                             README.md          all banks, readable, for review
+                             README.md          all banks, readable, for review (101 only)
     walkthroughs/            <tourId>.steps.json   step data, CI-checked
                              README.md             why each step is shaped that way
 ```
 
-`.json` is authoritative for quizzes; the `README.md` beside them renders every bank in prose so
-questions can be argued about without reading JSON. The check script verifies that every question id
-appears in both, so the two cannot silently drift.
+`.json` is authoritative for quizzes. `constellation-101/quizzes/README.md` additionally renders that
+course's banks in prose so questions can be argued about without reading JSON.
+
+> **Nothing checks the prose against the JSON.** `scripts/check-tour-anchors.js` validates tour
+> anchors and nothing else — not question ids, not the quiz README, not any of the content or video
+> files. Every consistency claim outside the anchor registry is maintained by hand, so edit the pair
+> together or the drift is permanent and invisible.
 
 Rationale lives in one `README.md` per directory rather than one file per asset. Per-asset notes
 fragment the reasoning that connects them — the interesting decisions are almost always about how two
@@ -45,11 +49,76 @@ tours differ, not about one in isolation.
 
 | Slug | Required? | Length | Status |
 |---|---|---|---|
-| `constellation-101` | **Yes — every member** | ~45 min | Content written · engine not built |
-| `constellation-vault-and-crs` | Role: CAD / hardware | ~30 min | Content written · engine not built |
-| `constellation-outreach-and-blog` | Role: comms | ~30 min | Content written · engine not built |
-| `constellation-admin-tools` | Role: officers (admin-gated) | ~25 min | Content written · engine not built |
-| `constellation-authoring` | Role: content authors | ~20 min | Content written · engine not built |
+| `constellation-101` | **Yes — every member** | ~50 min | Content written · engine not built |
+| `constellation-vault-and-crs` | Role: CAD / hardware | ~40 min | Content written · engine not built |
+| `constellation-outreach-and-blog` | Role: comms | ~40 min | Content written · engine not built |
+| `constellation-admin-tools` | Role: officers (admin-gated) | ~30 min | Content written · engine not built |
+| `constellation-authoring` | Role: content authors | ~25 min | Content written · engine not built |
+
+`estimatedMinutes` in each `course.json` is the sum of its modules' estimates; the lengths above are
+those totals rounded. If you add or remove a section, update the module estimate **and** the course
+total — nothing validates that for you.
+
+## Reading content
+
+11 CONTENT sections. Numbering is global and follows course-then-module order, the same convention as
+`Vnn` and `Qnn`, so `C07` always sits between `C06` and `C08` no matter which course you're in.
+
+| ID | Title | Course · module | Read |
+|---|---|---|---|
+| C01 | What Constellation is | 101 · M1 | ~2 min |
+| C02 | The task, field by field | 101 · M2 | ~3 min |
+| C03 | Three ways work stalls | 101 · M3 | ~3 min |
+| C04 | What earns recognition, and what doesn't | 101 · M4 | ~3 min |
+| C05 | Where to go next | 101 · M5 | ~2 min |
+| C06 | How the Vault is organised | Vault · M1 | ~4 min |
+| C07 | Raising and reviewing changes | Vault · M2 | ~4 min |
+| C08 | The shape of the CRM | Outreach · M1 | ~4 min |
+| C09 | From draft to public | Outreach · M2 | ~4 min |
+| C10 | The officer's handbook | Admin · M1 | ~4 min |
+| C11 | The authoring handbook | Authoring · M1 | ~4 min |
+
+Each elective article sits **between its video and its walkthrough** (except C10 and C11, which follow
+their tours — both electives teach judgement that only makes sense once you've seen the surface).
+The pattern is deliberate: the video argues why, the article is the reference you scan, the
+walkthrough builds the habit.
+
+### The authoring header is stripped at seed time
+
+Every article opens with the same three things, and **the learner sees none of them**:
+
+```markdown
+# C02 — The task, field by field          <- H1: the file's id, not the section title
+
+> CONTENT section · 101 · M2 · ~3 min     <- blockquote: notes to whoever maintains this
+> Reference companion to V02.
+
+---                                        <- the rule that ends the header
+
+You just watched a task get taken apart.   <- the body starts here
+```
+
+`stripAuthoringHeader()` removes exactly that shape — H1, optional blockquote, `---` — because the
+player already renders the section title above the body, and a maintenance memo is not teaching
+material. Keep the shape when you add an article. A body that starts with an ordinary heading or
+quote is left untouched, so the strip can't eat real content.
+
+The seed then converts the remaining markdown to a **TipTap document**. `contentJson` must be a real
+document (`{ type: "doc", content: [...] }`) — the player renders it through `BlogEditor` read-only
+and the course editor loads the same shape. Anything else displays as a blank page.
+
+Supported: headings, paragraphs, bullet/ordered/task lists, blockquotes, GFM tables, code fences,
+horizontal rules, and inline bold/italic/code/strike/link. Stick to that subset.
+
+### Two rules for editing these
+
+- **Don't restate numbers that live in code.** C04 deliberately contains no XP thresholds — they're
+  on the S01 deck, generated from the `Rank` enum, so there is exactly one place for them to rot.
+- **Prose goes stale silently.** Nothing checks that an article still describes the product. When a
+  tab, button, or route is renamed, grep this directory for the old label.
+
+`cd backend && npm run check:courses` validates the conversion for every article without needing a
+database — and asserts it stays identical to the editor's own markdown converter.
 
 ## Production status
 
@@ -60,7 +129,7 @@ installs from these files.
 |---|---|---|---|---|
 | V01 | Why Constellation exists | 101 | 2:30 | ☐ |
 | V02 | Anatomy of a task | 101 | 3:10 | ☐ |
-| V03 | Reading a milestone's health | 101 | 2:40 | ☐ |
+| V03 | Milestones on the timeline | 101 | 1:50 | ☐ |
 | V04 | Constellation and Slack, together | 101 | 2:20 | ☐ |
 | V05 | What the Vault is for | Vault | 3:00 | ☐ |
 | V06 | The life of a change request | Vault | 3:20 | ☐ |
@@ -69,7 +138,11 @@ installs from these files.
 | V09 | What officers can do that others can't | Admin | 2:50 | ☐ |
 | V10 | Building a course | Authoring | 3:00 | ☐ |
 
-**Total runtime: 29:20 across 10 videos.**
+**Total runtime: 28:30 across 10 videos.**
+
+V03 was rewritten and shortened when the Milestones & Updates tab was removed from the project view;
+the script header records why. If this table and a script header ever disagree, **the script is
+right** — it's the thing that gets recorded.
 
 ### Recording conventions
 
@@ -88,6 +161,25 @@ no music bed. Reasons: they must be re-recordable by whoever inherits this when 
 Scripts are word-for-word on purpose. Read them. Improvising against a live UI is how a 2:30 video
 becomes 5:00 and how the quiz that follows stops matching what was said.
 
+### Visual edits
+
+Every script carries a **`## Visual edits`** table between its shot list and its narration: timecoded
+post-production cues — callouts, labels, zooms, captions, comparison overlays — that annotate the
+software while the voice-over runs.
+
+They are separate from the shot list on purpose. The shot list says what to *capture*; visual edits
+say what to *add afterwards*, so a re-record can reuse the annotation plan even if the framing
+changes.
+
+- **Nothing there changes the narration**, and nothing requires a second take unless the row says so.
+- **Cues are timecoded to the shot they sit inside**, so they survive small timing drift.
+- **A few are load-bearing**, not decorative — the side-by-side title comparison in V02, the
+  simultaneous subtask/dependency colouring in V02, the radiating blast radius in V06, the greying
+  rank badge in V09, the held five-cell grid in V10. Each is flagged in its own row. Cut anything
+  else before cutting those.
+- **Restraint is the house style.** No transitions for their own sake, one accent colour at a time,
+  and red reserved for genuinely irreversible controls (there is exactly one: Publish, in V08).
+
 ## Quizzes
 
 11 quiz sections, 57 questions total. Every question carries an `explanation` shown after grading —
@@ -100,32 +192,37 @@ someone for the answers.
 
 ## Walkthroughs
 
-12 tours, 106 steps total.
+12 tours, 119 steps total.
 
 | Tour | Course | Steps | Hands-on? |
 |---|---|---|---|
 | `first-look` | 101 | 8 | No — read-only |
 | `board-basics` | 101 | 10 | No — read-only |
-| `your-first-task` | 101 | 12 | **Yes** — 6 real API calls |
-| `blocked-and-unblocked` | 101 | 10 | **Yes** — 4 real API calls |
+| `your-first-task` | 101 | 13 | **Yes** — 6 real API calls |
+| `blocked-and-unblocked` | 101 | 11 | **Yes** — 4 real API calls |
 | `rewards-tour` | 101 | 8 | Partly — claims one quest |
 | `comms-tour` | 101 | 9 | No — read-only |
-| `vault-checkout` | Vault | 9 | **Yes** |
-| `change-request` | Vault | 8 | **Yes** |
-| `crm-and-campaigns` | Outreach | 9 | **Yes** |
-| `blog-editor` | Outreach | 8 | **Yes** |
+| `vault-checkout` | Vault | 10 | **Yes** — 4 real API calls |
+| `change-request` | Vault | 12 | **Yes** — 2 real API calls |
+| `crm-and-campaigns` | Outreach | 12 | **Yes** — 2 real API calls |
+| `blog-editor` | Outreach | 9 | **Yes** — 2 real API calls |
 | `admin-tour` | Admin | 8 | No — read-only, admin-gated |
-| `course-authoring` | Authoring | 7 | **Yes** |
+| `course-authoring` | Authoring | 9 | **Yes** — 3 real API calls |
+
+Step counts here must match both the `.steps.json` file and the `stepCount` in the owning
+`course.json`. The seed enforces the second pair and fails loudly on a mismatch; this table is the
+one that can silently drift, so check it when you add a step.
 
 Every hands-on step runs against the learner's own **training project** — a seeded, private,
 throwaway project hidden from every real view in the product. Nothing a learner does inside a
 walkthrough touches club data or mints real XP.
 
-`.steps.json` files are written for `constellation-101` only — six tours, 57 steps, ready to seed. The
-six elective tours are fully specified in their `walkthroughs/README.md` (every step, its anchor, and
-how it advances); their `.steps.json` is transcribed in the final implementation phase, once the
-anchor registry has been proven against the required course.
+**All 12 `.steps.json` files are written and passing** — `node scripts/check-tour-anchors.js` reports
+108 anchors registered, 108 rendered, 90 referenced by steps. Every anchor an elective step needs is
+in `ANCHORS.md`.
 
-Three elective steps reference anchors not yet in `ANCHORS.md` — flagged in place. The registry entry
-and the step must land in the same commit, or the check script fails the build, which is the system
-working.
+The `walkthroughs/README.md` beside each set of step files is the rationale: every step, its anchor,
+how it advances, and which lines are load-bearing. The check script compares **ids, not prose**, so
+those outlines are the one thing nothing validates — when you edit a step file, edit the table too.
+(An outline had already drifted once: the admin tour's step 5 was documented as `admin.events` while
+the shipped file targets `admin.integrations`.)

@@ -29,6 +29,27 @@ video in Constellation 101 and it earns the length.
 | 02:44–03:02 | Task modal, time log | Open the log-time control |
 | 03:02–03:10 | Board, card now showing avatars | Close modal, hold |
 
+## Visual edits
+
+This is the reference video, so the edits do reference-video work: they label fields as they're
+named, and they make one comparison the narration can only describe. Everything is post-production.
+
+| Time | Edit | Why |
+|---|---|---|
+| 00:06 | **Column labels** pinned above each of the four columns for the whole wide shot | The viewer is about to leave the board for two and a half minutes; give them the map first |
+| 00:38 | **Field callout** — a thin amber outline plus a small label — on **Title**, held while it's discussed, then released | Establishes the pattern for the whole video: outline appears as the field is named, disappears as the narration moves on |
+| 00:44 | Repeat the same callout on **Status**, then **Priority** | Consistency matters more than variety here. Same colour, same weight, same dwell |
+| 00:58 | **Freeze frame + side-by-side text overlay:** `URGENT!! harness stuff` / `Route and secure the main wiring harness through bay two` | The title lesson is the one people quote back. It needs a picture, not just a sentence |
+| 01:06 | Callouts on **Assignees**, then **Due date** | — |
+| 01:20 | **Ghosted mock notification** slides in at the top-right as "reminds people before a due date" is said, then fades | Shows the consequence of the field instead of asserting it. Must be visibly a mock, not a real captured notification |
+| 01:38 | **Zoom to 1.25×** on the acceptance-criteria block and hold there for the whole beat | This is the sub-section most likely to be re-watched. Make it legible at phone size |
+| 02:02 | **Split callout:** subtasks outlined teal, dependencies outlined coral, **both on screen at once** | The single most-missed concept in the course. Two colours, simultaneous, is the whole edit — do not cut between them |
+| 02:14 | **Red strike-through animation** over the Done control as "will not let you drag it to done" lands | Enforcement is the point. Showing the refusal beats describing it |
+| 02:28 | **Zoom to 1.3×** on the `@` mention picker as it opens | It's a small UI element carrying a big idea |
+| 02:36 | **Two badge icons** (in-app bell, Slack mark) pop in beside the mention, hold 2 s | "Both places" is the payload of this beat |
+| 02:50 | **Lower third:** "over 2 hours → officer approval" during the time-log shot | The one rule in this video learners are surprised by later. Put it on screen |
+| 03:04 | **Sequential re-labelling** of the closed card — title, owner, deadline, state — timed to the closing summary | Recaps the whole video against a single card in six seconds |
+
 ## Narration
 
 **[00:00 — board, wide]**

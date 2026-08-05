@@ -2,7 +2,7 @@
   "slug": "constellation-vault-and-crs",
   "title": "Constellation: Vault & Change Requests",
   "summary": "For anyone touching CAD, hardware, or anything with revisions. How the Constellation Vault keeps one authoritative version of every part, and how a change gets reviewed before it becomes real.",
-  "estimatedMinutes": 30,
+  "estimatedMinutes": 38,
   "status": "DRAFT",
   "prerequisiteSlug": "constellation-101",
   "xpOverride": 300,
@@ -12,7 +12,7 @@
       "order": 0,
       "title": "The Vault",
       "summary": "One authoritative version of every part, and a check-out system so two people can't quietly diverge.",
-      "estimatedMinutes": 16,
+      "estimatedMinutes": 20,
       "isRequired": true,
       "sequential": true,
       "sections": [
@@ -26,6 +26,13 @@
         },
         {
           "order": 1,
+          "title": "How the Vault is organised",
+          "kind": "CONTENT",
+          "isRequired": true,
+          "bodyRef": "content/C06-how-the-vault-is-organised.md"
+        },
+        {
+          "order": 2,
           "title": "Check out, change, check in",
           "kind": "WALKTHROUGH",
           "isRequired": true,
@@ -37,7 +44,7 @@
           }
         },
         {
-          "order": 2,
+          "order": 3,
           "title": "Check yourself: the Vault",
           "kind": "QUIZ",
           "isRequired": true,
@@ -51,7 +58,7 @@
       "order": 1,
       "title": "Change requests",
       "summary": "How a proposed change gets reviewed, approved, and recorded — and why that is not bureaucracy.",
-      "estimatedMinutes": 14,
+      "estimatedMinutes": 18,
       "isRequired": true,
       "sequential": true,
       "sections": [
@@ -65,6 +72,13 @@
         },
         {
           "order": 1,
+          "title": "Raising and reviewing changes",
+          "kind": "CONTENT",
+          "isRequired": true,
+          "bodyRef": "content/C07-raising-and-reviewing-changes.md"
+        },
+        {
+          "order": 2,
           "title": "Raise and review a change request",
           "kind": "WALKTHROUGH",
           "isRequired": true,
@@ -76,7 +90,7 @@
           }
         },
         {
-          "order": 2,
+          "order": 3,
           "title": "Check yourself: change requests",
           "kind": "QUIZ",
           "isRequired": true,

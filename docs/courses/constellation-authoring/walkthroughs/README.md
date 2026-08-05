@@ -1,6 +1,6 @@
 # Authoring — walkthrough outline
 
-`.steps.json` authored in the final implementation phase.
+This outline tracks the shipped `.steps.json` beside it. Keep them in step when you edit either.
 
 ## `course-authoring` — 9 steps, 3 real API calls
 

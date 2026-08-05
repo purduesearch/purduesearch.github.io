@@ -26,6 +26,25 @@ narrative in a slide deck.
 | 02:18–02:42 | AI generation modal → outline review | Generate, then edit the outline |
 | 02:42–03:00 | Assign modal | Hold, fade |
 
+## Visual edits
+
+The section-kind rundown is the payload. Build one graphic for it, hold it, and let everything else
+be plain.
+
+| Time | Edit | Why |
+|---|---|---|
+| 00:12 | **Caption:** "a course is modules; a module is sections" over the list scroll | Two-level structure, established before anything is named |
+| 00:24 | **Nesting bracket** drawn down the rail grouping sections under their module | The rail's indentation is subtle; the bracket makes the hierarchy unmissable |
+| 00:34 | **Lock icons** animate onto the modules below the current one, then unlock in sequence | Gating is a behaviour, not a setting. Show it happening |
+| 00:52 | **Five-cell grid builds one cell at a time**, in narration order — Content · Video · Slides · Quiz · Walkthrough — and **stays on screen for the whole rundown** | This is the graphic the video exists for. Building it live and holding it lets a viewer compare kinds, which is the actual skill |
+| 01:04 | Each cell gains a **cost-to-change tag** (low / high) as it's discussed | The trade-off that should drive the choice, and the one the narration only implies |
+| 01:14 | **Highlight the Video cell in amber** as "expensive to make and expensive to change" lands | The most over-reached-for kind. Flag it |
+| 01:34 | **Toggle callouts** on `required` and `sequential`, then a **caption:** "default to sequential" | A default worth stating twice |
+| 01:58 | **Explanation field ringed**, held for the whole quiz beat | The field authors skip. Q11 tests that they didn't |
+| 02:18 | **Freeze on the generated outline**, then **strike through one invented claim in red** with the caption "verify every factual claim" | Do this with a genuinely wrong generated line if the take produces one. A staged example is acceptable; an unmarked wrong claim is not |
+| 02:34 | **Grey "not offerable here" tag** on WALKTHROUGH in the section-kind picker, plus a **caption:** "steps live in the repo, reviewed like code" | The moment an author would otherwise be confused. The walkthrough's step 5 depends on this having been explained |
+| 02:46 | **Caption:** "assignment lives on the catalog, not in the editor" | The one navigation fact authors reliably get wrong |
+
 ## Narration
 
 **[00:00 — courses list]**

@@ -1,6 +1,6 @@
 # Officer & Admin Tools — walkthrough outline
 
-`.steps.json` authored in the final implementation phase.
+This outline tracks the shipped `.steps.json` beside it. Keep them in step when you edit either.
 
 ## `admin-tour` — 8 steps, **0 real API calls**
 
@@ -17,7 +17,7 @@ So the tour points, explains, and never clicks anything that writes.
 | 2 | `admin.rewards.pending` | `next` | "Task completions and time logs over two hours wait here. Clearing this often is the single most useful thing you do as an officer." |
 | 3 | `admin.rewards.pending` | `next` | "Approve, or reject **with a reason**. A silent rejection teaches someone to stop logging time, and then the club loses the data." |
 | 4 | `admin.rewards.config` | `next` | "What every event type is worth. Change these rarely, and announce it first — members plan around these numbers." |
-| 5 | `admin.events` | `next` | "Event types, RSVP behaviour, reminder timings. Set once a year, mostly left alone." |
+| 5 | `admin.integrations` | `next` | "Google Drive, and the connections that let files and meeting notes flow in. Set once, then left alone." |
 | 6 | `admin.members` | `next` | "Roles, project membership, and GitHub logins. Role is what governs permissions — rank never does." |
 | 7 | `nav.projects` | `next` | "Officers also see every project, including ones they aren't a member of. Use that to unstick things, not to browse." |
 | 8 | `admin.rewards.pending` | `next` | "Two things to remember: clear the queue often, and change the numbers rarely and in public." |

@@ -29,6 +29,24 @@ make writing things down feel like an obligation to next year's team rather than
 | 02:12–02:38 | Slack DM: follow-up reminder | Show the 09:05 nudge |
 | 02:38–03:00 | Contact linked to a project | Hold, fade |
 
+## Visual edits
+
+> **Before any other edit:** do a frame-by-frame pass for real contact details. Fabricated data can
+> still be undone by one autocomplete dropdown or a browser tab title. If in doubt, blur it.
+
+| Time | Edit | Why |
+|---|---|---|
+| 00:00 | **Full-width caption on the first frame:** "All contacts shown are fictional." Hold 2 s | Protects the club and pre-empts the question every viewer silently asks |
+| 00:10 | **Stage column labels** pinned across the pipeline as it scrolls | Five stages is the vocabulary of the whole module. Name them on first sight |
+| 00:26 | **Field callouts** on Owner, then Stage, then Next follow-up, in narration order | The three fields that make a record useful rather than decorative |
+| 00:38 | **Timeline entries reveal bottom-to-top**, oldest first | Makes the record read as an accumulating history rather than a static list |
+| 00:44 | **Highlight the "what was promised" clause** inside one interaction summary | The one thing people fail to log. Point at a real example of it done right |
+| 00:56 | **Side-by-side text overlay:** "reach out sometime" (struck through) / "12 Aug — Dana — send capability one-pager" | The comparison the narration makes verbally. Two lines of text, held 3 s |
+| 01:22 | **Coverage bar** drawn over the campaign: contacted / replied / untouched, with the untouched segment **held a beat longer** | The untouched segment is the entire reason campaigns exist |
+| 01:52 | **Lower third:** "draft — always read before sending" pinned for the whole composer beat | This caption must not leave the screen while generated text is visible. It's the guardrail |
+| 02:16 | **Clock overlay** reading a weekday morning as the reminder DM lands | Makes "it comes to you, on a schedule" concrete without narrating the cron time |
+| 02:44 | **Connector line** from the contact record to the project it's linked to | Ties outreach back to the work — the thing that makes a sponsor conversation specific |
+
 ## Narration
 
 **[00:00 — contacts list]**

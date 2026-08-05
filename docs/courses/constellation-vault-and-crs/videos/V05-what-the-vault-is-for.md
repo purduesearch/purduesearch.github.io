@@ -25,6 +25,25 @@ ever put CAD in a Drive folder, and a member who thinks a rule is pointless rout
 | 02:16–02:44 | BOM view | Expand an assembly |
 | 02:44–03:00 | Item linked to a task | Hold, fade |
 
+## Visual edits
+
+The opening gag is carried entirely by the edit — get that right and the rest is light annotation.
+
+| Time | Edit | Why |
+|---|---|---|
+| 00:06 | **Highlight each filename in turn** as it's read, leaving the previous ones highlighted | The pile-up is the joke, and the joke is the argument. They have to accumulate on screen |
+| 00:18 | **Question-mark overlay** on the folder as "nobody is completely sure which" lands | One beat, then gone. Don't hold it into the Vault shot |
+| 00:22 | **Cross-dissolve**, slow, folder → Vault tree | The one place a soft transition is right: this is a *replacement*, not a contrast |
+| 00:34 | **Callout:** "one item = one part" anchored to a tree row | The single conceptual correction this video is making. Say it in text as well as voice |
+| 00:52 | **Number the version rows** 1 – 4 down the left as history expands | Version *ordering* is the idea; the UI shows dates, which read as a list rather than a sequence |
+| 01:04 | **Zoom to 1.3×** on the uploader name and note of one version | These two fields are why the history is useful. They're also small |
+| 01:22 | **Lock icon pulsed once**, then a **name chip** ("checked out by …") pinned beside it for the rest of the shot | The lock is the mechanism and the visible holder is the point. Pin it, don't flash it |
+| 01:40 | **Caption:** "one silently lost afternoon — usually somebody else's" | The line that sells check-out. It should exist in text too |
+| 01:56 | **Stack animation** — the new version drops on *top* of the pile, the pile stays visible | "Appending, not replacing" is a spatial idea and deserves a spatial edit |
+| 02:24 | **Quantity badges** fade in beside each BOM line as the assembly expands | Turns a list of parts into a bill of materials at a glance |
+| 02:34 | **Reverse arrows** from one child part back up to the parent assembly | Plants where-used a beat before C06 formalises it |
+| 02:50 | **Connector line** drawn between the Vault item and its linked task card | The closing idea is that these are one thing. Draw it |
+
 ## Narration
 
 **[00:00 — Drive folder]**

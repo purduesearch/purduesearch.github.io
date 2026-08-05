@@ -27,6 +27,23 @@ has accepted that Constellation is worth learning. This video is where that happ
 | 01:52–02:14 | Profile: rank bar, XP history | Scroll the XP list |
 | 02:14–02:30 | Dashboard, wide | Hold, then fade |
 
+## Visual edits
+
+Post-production only — none of this changes the narration or requires a different capture. Keep the
+treatment restrained: this video's argument is that Constellation is calmer than chat, and a busy
+edit undercuts it.
+
+| Time | Edit | Why |
+|---|---|---|
+| 00:04 | **Scroll-blur** every participant name and avatar in the Slack thread to unreadable | The thread must read as *a* club, not this one. Non-negotiable even on a fabricated workspace |
+| 00:11 | **Highlight box** (amber, 1.5 s) around the "I'll take it" message, then let it scroll away | The message physically leaving frame *is* the argument. Make the viewer watch it go |
+| 00:18 | **Hard cut**, no crossfade, into the dashboard | The tonal break from chaos to order should be abrupt. A dissolve softens the only edit in this video that's making a point |
+| 00:46 | **Sequential column labels** fade in over the four columns as the pan reaches each | Names the vocabulary — To-do, In progress, Blocked, Done — a full module before it's formally taught |
+| 01:12 | **Zoom to 1.2×** on the comment thread, hold, pull back | Ties directly to the opening shot: this is where that lost Slack message should have lived |
+| 01:34 | **Split-screen wipe**, board left, Slack right; a **connector line** draws between the changed card and the arriving DM | Makes causality visible. Without the line viewers read it as two unrelated windows |
+| 01:58 | **Lower third:** "XP · a record of what you did" over the XP list | Pre-empts "is this a game?" before the narration reaches rank in M4 |
+| 02:20 | **Slow 1.05× push in** over the final hold | Ends on settling rather than stopping |
+
 ## Narration
 
 **[00:00 — Slack, scrolling a thread]**

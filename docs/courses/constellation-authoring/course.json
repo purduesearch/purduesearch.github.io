@@ -2,7 +2,7 @@
   "slug": "constellation-authoring",
   "title": "Constellation: Authoring Courses & Content",
   "summary": "For whoever writes the club's training material next. How to build a course, what each section kind is good for, and where the AI generator helps versus where it doesn't.",
-  "estimatedMinutes": 20,
+  "estimatedMinutes": 24,
   "status": "DRAFT",
   "prerequisiteSlug": "constellation-101",
   "xpOverride": 250,
@@ -12,7 +12,7 @@
       "order": 0,
       "title": "Building a course",
       "summary": "Modules, section kinds, gating, and assignment — plus the one thing you can't author in the editor.",
-      "estimatedMinutes": 20,
+      "estimatedMinutes": 24,
       "isRequired": true,
       "sequential": true,
       "sections": [
@@ -38,6 +38,13 @@
         },
         {
           "order": 2,
+          "title": "The authoring handbook",
+          "kind": "CONTENT",
+          "isRequired": true,
+          "bodyRef": "content/C11-the-authoring-handbook.md"
+        },
+        {
+          "order": 3,
           "title": "Check yourself: authoring",
           "kind": "QUIZ",
           "isRequired": true,

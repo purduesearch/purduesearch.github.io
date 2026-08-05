@@ -2,7 +2,7 @@
   "slug": "constellation-admin-tools",
   "title": "Constellation: Officer & Admin Tools",
   "summary": "For officers. Approving rewards, configuring what things are worth, managing members and events — and the judgement that goes with each.",
-  "estimatedMinutes": 25,
+  "estimatedMinutes": 29,
   "status": "DRAFT",
   "prerequisiteSlug": "constellation-101",
   "requiresAdmin": true,
@@ -13,7 +13,7 @@
       "order": 0,
       "title": "Running the club in Constellation",
       "summary": "The admin surface, and the fact that most of it is judgement rather than clicking.",
-      "estimatedMinutes": 25,
+      "estimatedMinutes": 29,
       "isRequired": true,
       "sequential": true,
       "sections": [
@@ -40,6 +40,13 @@
         },
         {
           "order": 2,
+          "title": "The officer's handbook",
+          "kind": "CONTENT",
+          "isRequired": true,
+          "bodyRef": "content/C10-the-officers-handbook.md"
+        },
+        {
+          "order": 3,
           "title": "Check yourself: officer tools",
           "kind": "QUIZ",
           "isRequired": true,

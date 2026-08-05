@@ -2,7 +2,7 @@
   "slug": "constellation-outreach-and-blog",
   "title": "Constellation: Outreach & the Blog",
   "summary": "For the comms, sponsorship, and recruiting side. How contacts and campaigns work, and how a post gets written collaboratively and onto the public site.",
-  "estimatedMinutes": 30,
+  "estimatedMinutes": 38,
   "status": "DRAFT",
   "prerequisiteSlug": "constellation-101",
   "xpOverride": 300,
@@ -12,7 +12,7 @@
       "order": 0,
       "title": "Contacts and campaigns",
       "summary": "The CRM side: who we know, what we last said to them, and what happens next.",
-      "estimatedMinutes": 15,
+      "estimatedMinutes": 19,
       "isRequired": true,
       "sequential": true,
       "sections": [
@@ -26,6 +26,13 @@
         },
         {
           "order": 1,
+          "title": "The shape of the CRM",
+          "kind": "CONTENT",
+          "isRequired": true,
+          "bodyRef": "content/C08-the-shape-of-the-crm.md"
+        },
+        {
+          "order": 2,
           "title": "Add a contact, build a campaign",
           "kind": "WALKTHROUGH",
           "isRequired": true,
@@ -37,7 +44,7 @@
           }
         },
         {
-          "order": 2,
+          "order": 3,
           "title": "Check yourself: outreach",
           "kind": "QUIZ",
           "isRequired": true,
@@ -51,7 +58,7 @@
       "order": 1,
       "title": "The blog",
       "summary": "Writing together in real time, and what publishing actually does.",
-      "estimatedMinutes": 15,
+      "estimatedMinutes": 19,
       "isRequired": true,
       "sequential": true,
       "sections": [
@@ -65,6 +72,13 @@
         },
         {
           "order": 1,
+          "title": "From draft to public",
+          "kind": "CONTENT",
+          "isRequired": true,
+          "bodyRef": "content/C09-from-draft-to-public.md"
+        },
+        {
+          "order": 2,
           "title": "Draft, review, publish",
           "kind": "WALKTHROUGH",
           "isRequired": true,
@@ -76,7 +90,7 @@
           }
         },
         {
-          "order": 2,
+          "order": 3,
           "title": "Check yourself: the blog",
           "kind": "QUIZ",
           "isRequired": true,

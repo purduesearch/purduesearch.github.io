@@ -11,7 +11,7 @@
 Constellation is SEARCH's project system. It's where the club's work is planned, tracked, discussed,
 and recorded — and it's the answer to the question "what's the actual status of this?"
 
-You're about to spend roughly 45 minutes learning it. That's a real ask, so here's the honest return:
+You're about to spend roughly 50 minutes learning it. That's a real ask, so here's the honest return:
 you'll stop losing work in chat threads, you'll stop being the person who didn't know a deadline
 moved, and the hours you put into this club will be visible to the people writing sponsorship reports
 and recommendation letters.

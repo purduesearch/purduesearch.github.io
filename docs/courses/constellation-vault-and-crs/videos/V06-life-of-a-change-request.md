@@ -26,6 +26,26 @@ has to make that trade legible, or CRs get filed as theatre and approved unread.
 | 02:48–03:12 | Approved CR → new version | Show the item updating |
 | 03:12–03:20 | CR list | Hold, fade |
 
+## Visual edits
+
+The video's job is to make a *cost* visible — the blast radius of a change — and then make review
+look proportionate to it. The opening edit does most of that work.
+
+| Time | Edit | Why |
+|---|---|---|
+| 00:04 | **Radiating highlight**: the bracket lights first, then its four dependents in sequence, then the fixture, then the order | The blast radius has to *grow* on screen. Revealing them all at once reads as a list; revealing them one by one reads as consequence |
+| 00:18 | **Counter overlay** ticking 1 → 6 as each lights | Gives the abstract idea "this touches things" a number |
+| 00:30 | **Field callout** on **Rationale**, held for the full beat while Title gets only a brief one | The asymmetry is deliberate — it's the field people skip, and the dwell time says which one matters |
+| 00:42 | **Caption:** "in six months this is the only place the answer exists" | The argument of the entire course, in text |
+| 00:56 | **Derived-impact list animates in row by row**, with a **small "auto" tag** on the group | Viewers assume the author typed this. The tag corrects that in half a second |
+| 01:26 | **Notification badge pulse** on the reviewer's account before the CR opens | Marks the hand-off between the two demo accounts. Without it the account switch is confusing |
+| 01:34 | **Persistent corner label** — "reviewer" / "author" — whenever the account changes | Two-account videos lose people constantly. Label every switch, every time |
+| 02:00 | **Approve and Reject sit side by side, equally weighted** — no colour bias, no dimming of Reject | The whole video argues rejection is normal. An edit that makes Reject look dangerous contradicts the narration |
+| 02:26 | **Zoom to 1.25×** on the recorded rejection reason | The reason text *is* the artefact the beat is about |
+| 02:36 | **Caption:** "rejected ≠ deleted" over the rejected CR | Directly answers the misconception Q07 tests |
+| 02:54 | **Revision letter animates in** on the released version — `—` → `B` — and the item's current revision updates to match | The one moment a revision letter is minted anywhere in the product. It should be visible, because C07 spends a page on it |
+| 03:06 | **Downstream notification badges** pop on the affected items | Closes the loop opened by the 00:04 radiating highlight — same items, now being told |
+
 ## Narration
 
 **[00:00 — BOM with one part highlighted]**

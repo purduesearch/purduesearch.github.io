@@ -26,6 +26,27 @@ live, and they don't realise publishing puts something on the public internet un
 | 02:52–03:20 | Public site, the live post | Load `/blog/:slug` |
 | 03:20–03:30 | Editor | Hold, fade |
 
+## Visual edits
+
+Two ideas need pictures: that other people are in the document with you, and that publishing crosses
+a line into public. Everything else is light labelling.
+
+| Time | Edit | Why |
+|---|---|---|
+| 00:08 | **Status chips** (Draft · Scheduled · Published) pinned as each group scrolls past | Four states, introduced before they're needed |
+| 00:24 | **Colour-code the two cursors** and pin a **name label** to each for the whole collaborative shot | Without labels, two cursors look like one glitchy cursor. This is the shot the whole beat rests on |
+| 00:34 | **Picture-in-picture** of the second browser window, bottom-right, while both are typing | Proves the two views are simultaneous and not cut together |
+| 00:44 | **Caption:** "no checkout. no merge. just write." | Directly overwrites the instinct a Vault-trained member brings in. Q09 tests it |
+| 01:00 | **Toolbar buttons highlighted** as each style is used | — |
+| 01:12 | **Split comparison:** the same paragraph as a real callout vs. hand-formatted, **with the hand-formatted version shown squeezed at phone width** | The abstract warning becomes obvious the moment you see it break. Worth the extra capture |
+| 01:30 | **File-size overlay** — `6.2 MB → 210 KB` — animating during the image upload | One number does the entire job of this beat |
+| 02:00 | **Suggestion cards tagged** as they appear: two marked "useful", one marked "would cut the interesting detail" | Teaches the judgement rather than asserting it. Pick the cut-detail example deliberately when capturing |
+| 02:24 | **Publish button ringed in red**, and the ring **stays** for the rest of the shot | The only red in this video, on the only irreversible control in the course |
+| 02:32 | **Caption:** "public. indexed. under the club's name." — three lines, one at a time | Slow reveal so each lands. This is the sentence the walkthrough's "don't press it" step depends on |
+| 02:44 | **Calendar overlay** on the scheduler showing the chosen future time | Distinguishes scheduling from publishing-now visually |
+| 02:56 | **Browser chrome deliberately left visible** on the public-site shot, URL readable | The one shot where chrome should *not* be cropped — the public URL is the payload |
+| 03:20 | **Fade all annotation** except the ring on Publish, which is the last thing to go | Ends on the thing to be careful about |
+
 ## Narration
 
 **[00:00 — blog list]**
