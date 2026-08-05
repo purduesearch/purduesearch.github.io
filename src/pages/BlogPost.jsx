@@ -5,6 +5,7 @@ import Footer from '../components/Footer';
 import SEOHead from '../components/SEOHead';
 import JsonLd from '../components/JsonLd';
 import { articleSchema } from '../seo/schema';
+import { SITE_URL } from '../seo/siteUrl';
 import { initBlogCarousels } from '../lib/blogCarousel';
 import { initBlogEmbeds } from '../lib/blogEmbeds';
 
@@ -90,7 +91,7 @@ export default function BlogPost() {
         description: post.metaDescription || post.excerpt || '',
         datePublished: post.publishedAt || post.createdAt || undefined,
         author: authorName,
-        url: `https://purduesearch.github.io/blog/${slug}`,
+        url: `${SITE_URL}/blog/${slug}`,
         image: post.ogImageUrl || post.coverImageUrl || undefined,
       })} />
       <Navbar />

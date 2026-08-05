@@ -8,6 +8,7 @@ import Footer from '../components/Footer';
 import SEOHead from '../components/SEOHead';
 import JsonLd from '../components/JsonLd';
 import { websiteSchema } from '../seo/schema';
+import { SITE_URL } from '../seo/siteUrl';
 import { pressFeedback } from '../anim/motion';
 import { parallaxLayer, staggerGroup, heroIntro } from '../anim/scrollFx';
 
@@ -393,16 +394,16 @@ const Home = () => {
     '@type': 'ItemList',
     'name': 'Site Navigation',
     'itemListElement': [
-      { '@type': 'SiteLinksSearchBox', 'url': 'https://purduesearch.github.io/' },
-      { '@type': 'ListItem', 'position': 1, 'name': 'About', 'url': 'https://purduesearch.github.io/about' },
-      { '@type': 'ListItem', 'position': 2, 'name': 'Research', 'url': 'https://purduesearch.github.io/research' },
-      { '@type': 'ListItem', 'position': 3, 'name': 'SA²TP', 'url': 'https://purduesearch.github.io/sa2tp' },
-      { '@type': 'ListItem', 'position': 4, 'name': 'ASTRO-USA', 'url': 'https://purduesearch.github.io/astrousa' },
-      { '@type': 'ListItem', 'position': 5, 'name': 'Software', 'url': 'https://purduesearch.github.io/software' },
-      { '@type': 'ListItem', 'position': 6, 'name': 'Business & Operations', 'url': 'https://purduesearch.github.io/business' },
-      { '@type': 'ListItem', 'position': 7, 'name': 'Outreach', 'url': 'https://purduesearch.github.io/outreach' },
-      { '@type': 'ListItem', 'position': 8, 'name': 'Blog', 'url': 'https://purduesearch.github.io/blog' },
-      { '@type': 'ListItem', 'position': 9, 'name': 'Contact', 'url': 'https://purduesearch.github.io/contact' },
+      { '@type': 'SiteLinksSearchBox', 'url': `${SITE_URL}/` },
+      { '@type': 'ListItem', 'position': 1, 'name': 'About', 'url': `${SITE_URL}/about` },
+      { '@type': 'ListItem', 'position': 2, 'name': 'Research', 'url': `${SITE_URL}/research` },
+      { '@type': 'ListItem', 'position': 3, 'name': 'SA²TP', 'url': `${SITE_URL}/sa2tp` },
+      { '@type': 'ListItem', 'position': 4, 'name': 'ASTRO-USA', 'url': `${SITE_URL}/astrousa` },
+      { '@type': 'ListItem', 'position': 5, 'name': 'Software', 'url': `${SITE_URL}/software` },
+      { '@type': 'ListItem', 'position': 6, 'name': 'Business & Operations', 'url': `${SITE_URL}/business` },
+      { '@type': 'ListItem', 'position': 7, 'name': 'Outreach', 'url': `${SITE_URL}/outreach` },
+      { '@type': 'ListItem', 'position': 8, 'name': 'Blog', 'url': `${SITE_URL}/blog` },
+      { '@type': 'ListItem', 'position': 9, 'name': 'Contact', 'url': `${SITE_URL}/contact` },
     ],
   };
 

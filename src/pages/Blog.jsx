@@ -5,6 +5,7 @@ import BlogCard from '../components/BlogCard';
 import SEOHead from '../components/SEOHead';
 import JsonLd from '../components/JsonLd';
 import { breadcrumbs } from '../seo/schema';
+import { SITE_URL } from '../seo/siteUrl';
 
 const BLOG_API_BASE = process.env.REACT_APP_API_URL || '';
 
@@ -41,12 +42,12 @@ const Blog = () => {
       '@context': 'https://schema.org',
       '@type': 'Blog',
       'name': 'Purdue SEARCH Blog',
-      'url': 'https://purduesearch.github.io/blog',
+      'url': `${SITE_URL}/blog`,
       'description': 'Latest news and updates from Purdue SEARCH — student-led space analog research at Purdue University.',
       'publisher': {
         '@type': 'Organization',
         'name': 'Purdue SEARCH',
-        'url': 'https://purduesearch.github.io/',
+        'url': `${SITE_URL}/`,
       },
     });
     document.head.appendChild(script);

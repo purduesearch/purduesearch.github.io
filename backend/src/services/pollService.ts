@@ -151,6 +151,12 @@ export function buildIcs(evt: {
     "CALSCALE:GREGORIAN",
     "METHOD:PUBLISH",
     "BEGIN:VEVENT",
+    // Deliberately still @purduesearch.github.io after the move to
+    // purduesearch.org. An iCalendar UID is an opaque global identifier, never
+    // resolved as a URL — the domain is only a uniqueness convention. Changing
+    // the suffix would make every already-subscribed calendar client treat
+    // existing events as brand-new ones, duplicating them on real calendars
+    // with no way to retract. Leave it alone.
     `UID:${evt.uid}@purduesearch.github.io`,
     `DTSTAMP:${icsStamp(new Date())}`,
     `DTSTART:${icsStamp(evt.start)}`,

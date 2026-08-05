@@ -1,4 +1,6 @@
-const BASE = 'https://purduesearch.github.io';
+import { SITE_URL } from './siteUrl';
+
+const BASE = SITE_URL;
 
 export const breadcrumbs = (items) => ({
   '@context': 'https://schema.org',

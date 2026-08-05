@@ -1,4 +1,6 @@
-const BASE_URL = 'https://purduesearch.github.io';
+import { SITE_URL } from '../seo/siteUrl';
+
+const BASE_URL = SITE_URL;
 const DEFAULT_IMAGE = '/icons/purdue_search_logo.png';
 
 /**

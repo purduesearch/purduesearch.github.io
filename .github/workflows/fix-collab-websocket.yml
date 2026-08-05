@@ -30,6 +30,10 @@ on:
         description: "Backend port (auto = detect from nginx proxy_pass, fallback 3000)"
         type: string
         default: auto
+      domain:
+        description: "Backend hostname to probe (the old DuckDNS name still works during the cutover)"
+        type: string
+        default: api.purduesearch.org
 
 concurrency:
   group: fix-collab-websocket
@@ -44,18 +48,19 @@ jobs:
         env:
           MODE: ${{ inputs.mode }}
           BACKEND_PORT_INPUT: ${{ inputs.backend_port }}
+          DOMAIN_INPUT: ${{ inputs.domain }}
         with:
           host: ${{ secrets.ORACLE_HOST }}
           username: ${{ secrets.ORACLE_USER }}
           key: ${{ secrets.ORACLE_SSH_KEY }}
           command_timeout: 5m
-          envs: MODE,BACKEND_PORT_INPUT
+          envs: MODE,BACKEND_PORT_INPUT,DOMAIN_INPUT
           script_stop: false
           script: |
             set -uo pipefail
             MODE="${MODE:-diagnose}"
             PORT_INPUT="${BACKEND_PORT_INPUT:-auto}"
-            DOMAIN="search-constellation.duckdns.org"
+            DOMAIN="${DOMAIN_INPUT:-api.purduesearch.org}"
             BACKEND_DIR="/opt/clubpm/backend"
 
             echo "=================================================================="

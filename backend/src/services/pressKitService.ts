@@ -294,8 +294,8 @@ export async function gatherPressKitData(projectId: string): Promise<PressKitCon
   const links: { label: string; url: string }[] = [];
   if (project.githubRepo) links.push({ label: "GitHub", url: `https://github.com/${project.githubRepo}` });
   if (project.driveLink) links.push({ label: "Drive", url: project.driveLink });
-  if (project.programTag) links.push({ label: "Program page", url: `https://purduesearch.github.io/${project.programTag}` });
-  links.push({ label: "Purdue SEARCH", url: "https://purduesearch.github.io" });
+  if (project.programTag) links.push({ label: "Program page", url: `https://purduesearch.org/${project.programTag}` });
+  links.push({ label: "Purdue SEARCH", url: "https://purduesearch.org" });
 
   return {
     project: {
@@ -447,7 +447,7 @@ export async function buildPressKitHtml(projectId: string): Promise<string | nul
   <div class="print-hint">Press Ctrl/Cmd + P to save as PDF</div>
   <div class="pk-brand"><h2>Purdue SEARCH · Press Kit</h2><span class="sub">Generated ${generated}</span></div>
   ${inner}
-  <div class="pk-footer">Purdue SEARCH · purduesearch.github.io</div>
+  <div class="pk-footer">Purdue SEARCH · purduesearch.org</div>
 </body></html>`;
 }
 

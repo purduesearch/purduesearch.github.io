@@ -106,7 +106,7 @@ const SearchResults = () => {
                         >
                           <div className="src-title">{r.item.title}</div>
                           <div className="src-path">
-                            purduesearch.github.io{r.item.path}
+                            purduesearch.org{r.item.path}
                           </div>
                           <div className="src-excerpt">{r.item.excerpt}</div>
                         </Link>

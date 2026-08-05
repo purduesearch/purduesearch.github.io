@@ -197,7 +197,7 @@ export default function PlatformPreview({ platform, content, mediaUrls = [] }) {
           <div className="pm-preview-card-header">
             <div className="pm-preview-avatar pm-preview-avatar--website" />
             <div className="pm-preview-username">
-              <span className="pm-preview-handle">purduesearch.github.io</span>
+              <span className="pm-preview-handle">purduesearch.org</span>
               <span className="pm-preview-platform-label">
                 <i className="fas fa-globe" aria-hidden="true" /> Website / Blog
               </span>

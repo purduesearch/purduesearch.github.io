@@ -254,7 +254,7 @@ export default function EventRsvp() {
           </button>
         </form>
 
-        <p className="er-footer">Purdue SEARCH Club · purduesearch.github.io</p>
+        <p className="er-footer">Purdue SEARCH Club · purduesearch.org</p>
       </div>
     </div>
   );
