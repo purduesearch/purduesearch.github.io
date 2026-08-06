@@ -23353,13 +23353,18 @@ html:not(.aos-off) [data-aos].aos-animate  { opacity: 1; transform: none; }
 
 /* === Share dialog (document access) ============================== */
 /* Portaled to <body> by ShareDialog.jsx and sits inside the shared
-   .cpm-modal-overlay. Never nest it under a transformed panel. */
+   .cpm-modal-overlay. Never nest it under a transformed panel.
+   Because it lives outside .clubpm-app, the font and text colour that class
+   supplies do not reach it — set both here, or the dialog renders in the
+   public site's serif on near-black text. */
 .cpm-share-dialog {
   width: min(520px, calc(100vw - 32px));
   max-height: min(80vh, 640px);
   display: flex;
   flex-direction: column;
-  background: var(--pm-surface);
+  font-family: var(--pm-font-body);
+  color: var(--pm-text-primary);
+  background: var(--pm-bg-surface);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 14px;
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
@@ -23415,7 +23420,7 @@ html:not(.aos-off) [data-aos].aos-animate  { opacity: 1; transform: none; }
   padding: 10px 12px 10px 32px;
   border-radius: 10px;
   border: 1px solid rgba(255, 255, 255, 0.1);
-  background: var(--pm-elevated);
+  background: var(--pm-bg-elevated, #1a1e2a);
   color: inherit;
   font-family: var(--pm-font-body);
   font-size: 0.88rem;
@@ -23434,7 +23439,7 @@ html:not(.aos-off) [data-aos].aos-animate  { opacity: 1; transform: none; }
   margin: 0;
   padding: 4px;
   list-style: none;
-  background: var(--pm-elevated);
+  background: var(--pm-bg-elevated, #1a1e2a);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 10px;
   box-shadow: 0 12px 28px rgba(0, 0, 0, 0.4);
@@ -23473,7 +23478,7 @@ html:not(.aos-off) [data-aos].aos-animate  { opacity: 1; transform: none; }
   gap: 10px;
   padding: 8px 10px;
   border-radius: 10px;
-  background: var(--pm-elevated);
+  background: var(--pm-bg-elevated, #1a1e2a);
 }
 
 .cpm-share-club {
@@ -23520,11 +23525,17 @@ html:not(.aos-off) [data-aos].aos-animate  { opacity: 1; transform: none; }
   padding: 6px 8px;
   border-radius: 8px;
   border: 1px solid rgba(255, 255, 255, 0.12);
-  background: var(--pm-surface);
+  background: var(--pm-bg-surface, #13161e);
   color: inherit;
   font-family: var(--pm-font-body);
   font-size: 0.8rem;
   cursor: pointer;
+}
+/* The popup list is UA-rendered and does not inherit the closed control's
+   colours on Windows — state them or the options come back white-on-white. */
+.cpm-share-level option {
+  background: var(--pm-bg-elevated, #1a1e2a);
+  color: var(--pm-text-primary, #f0f2f7);
 }
 .cpm-share-level:focus {
   outline: none;
