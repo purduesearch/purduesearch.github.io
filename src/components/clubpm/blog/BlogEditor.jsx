@@ -29,10 +29,17 @@ import BlogSectionLibrary from './BlogSectionLibrary';
 import BlogSectionSettings from './BlogSectionSettings';
 import BlogThemeBar from './BlogThemeBar';
 import BlogSelectionBubble from './BlogSelectionBubble';
-import { suggestionExtensions } from './suggestionMarks';
+import { suggestionExtensions, findMarkRanges } from './suggestionMarks';
+import {
+  SuggestingMode, modesFor, defaultMode, MODE_LABELS, MODE_ICONS,
+} from './SuggestingMode';
+import { ThreadDecorations, threadDecorationsKey } from './ThreadDecorations';
+import { anchorFromSelection } from './threadAnchors';
 import BlogAutocomplete from './blogAutocomplete';
 import { docToMarkdown, markdownToDoc } from './blogMarkdown';
-import { getBlogCollabWsUrl, getStoredToken } from '../../../api/clubPmClient';
+import {
+  getBlogCollabWsUrl, getStoredToken, listBlogThreads, setBlogThreadAnchor,
+} from '../../../api/clubPmClient';
 import { shouldFallbackSeed } from '../../../lib/collabFallback';
 import useKeyboardShortcuts from '../../../hooks/useKeyboardShortcuts';
 import { useShortcutsRegistry } from '../../../clubpm/ShortcutsRegistry';
@@ -52,7 +59,7 @@ const LinkShortcut = Extension.create({
 // collaborative editing (see backend/src/collab/blogCollab.ts) — this
 // disables StarterKit's own undo/redo since Collaboration provides its
 // own Yjs-based history instead.
-export function blogExtensions(collab, autocomplete) {
+export function blogExtensions(collab, autocomplete, threadDecorations) {
   return [
     StarterKit.configure({
       heading: { levels: [1, 2, 3, 4, 5, 6] },
@@ -82,16 +89,67 @@ export function blogExtensions(collab, autocomplete) {
     SearchAndReplace.configure({ disableRegex: true }),
     LinkShortcut,
     ...suggestionExtensions(),
+    // Always present, inert until the header's mode control turns it on — the
+    // toggle is a command, not a re-configure, so switching modes never
+    // rebuilds the editor and drops the collab connection.
+    SuggestingMode.configure({ enabled: false, authorId: collab?.user?.id ?? null }),
     BlogAutocomplete.configure({
       docType: autocomplete?.docType ?? 'BLOG_POST',
       docId: autocomplete?.docId ?? null,
       enabled: !!autocomplete?.enabled,
     }),
+    // Comment anchors are decorations, not marks: they resolve Yjs relative
+    // positions at render time and never enter the document. Only meaningful
+    // alongside collab, which is what supplies the Yjs binding they resolve
+    // against.
+    ...(collab && threadDecorations ? [
+      ThreadDecorations.configure({
+        threads: threadDecorations.threads ?? [],
+        onPositions: threadDecorations.onPositions ?? null,
+        focusedThreadId: threadDecorations.focusedThreadId ?? null,
+      }),
+    ] : []),
     ...(collab ? [
       Collaboration.configure({ document: collab.document }),
-      CollaborationCaret.configure({ provider: collab.provider, user: collab.user }),
+      CollaborationCaret.configure({
+        provider: collab.provider,
+        user: collab.user,
+        render: renderCaret,
+      }),
     ] : []),
   ];
+}
+
+// How long a remote collaborator's name label stays visible after their caret
+// moves. Permanent labels are unreadable once three people share a paragraph.
+const CARET_LABEL_MS = 2500;
+
+/**
+ * Caret DOM for one remote collaborator.
+ *
+ * The extension calls this every time that peer's cursor is redrawn, i.e. on
+ * every movement — so arming the fade here is exactly the "show on move, fade
+ * after 2.5s" behaviour, and a new movement replaces the element (and its
+ * timer) outright.
+ *
+ * `data-user-id` is what follow mode scrolls to; awareness has no other handle
+ * on the rendered caret.
+ */
+function renderCaret(user) {
+  const caret = document.createElement('span');
+  caret.className = 'collaboration-carets__caret is-active';
+  caret.style.setProperty('--caret-color', user?.color || '#00e5cc');
+  if (user?.id) caret.setAttribute('data-user-id', user.id);
+
+  const label = document.createElement('div');
+  label.className = 'collaboration-carets__label';
+  label.textContent = user?.name || 'Anonymous';
+  caret.appendChild(label);
+
+  // Fires once against this element only; if the peer moves again the element is
+  // replaced, so there is nothing to reset and nothing left holding a reference.
+  setTimeout(() => caret.classList.remove('is-active'), CARET_LABEL_MS);
+  return caret;
 }
 
 // Deterministic per-member cursor color so the same person always renders
@@ -445,24 +503,69 @@ function FindBar({ editor, onClose }) {
 // The dot is green only when the Yjs document has actually SYNCED — a socket
 // that is merely "connected" but never syncs (auth silently failed) is not a
 // live session, and claiming it is hides the fact that co-editing isn't working.
-function PresenceBar({ synced, connected, peers }) {
+const MAX_VISIBLE_PEERS = 5;
+
+function PresenceBar({ synced, connected, peers, followedClientId, onToggleFollow }) {
   const title = synced
     ? 'Live — changes sync in real time'
     : connected
       ? 'Connecting to the live session…'
       : 'Offline — your edits are saved to the draft';
+  const visible = peers.slice(0, MAX_VISIBLE_PEERS);
+  const overflow = peers.length - visible.length;
   return (
     <div className="cpm-blog-presence" data-tour-id="blog.editor.presence" title={title}>
       <span className={`cpm-blog-presence-dot${synced ? ' is-live' : ''}`} aria-hidden="true" />
-      {peers.map((p) => (
-        <span
-          key={p.clientId}
-          className="cpm-blog-presence-avatar"
-          style={{ background: p.user?.color }}
-          title={`${p.user?.name || 'Someone'} is editing`}
+      {visible.map((p) => {
+        const name = p.user?.name || 'Someone';
+        const following = p.clientId === followedClientId;
+        return (
+          <button
+            key={p.clientId}
+            type="button"
+            className={`cpm-blog-presence-avatar${following ? ' is-following' : ''}`}
+            style={{ background: p.user?.color, '--caret-color': p.user?.color }}
+            title={following ? `Following ${name} — click to stop` : `${name} is editing — click to follow`}
+            onClick={() => onToggleFollow?.(p.clientId)}
+          >
+            {p.user?.avatarUrl ? (
+              <img src={p.user.avatarUrl} alt="" className="cpm-blog-presence-img" />
+            ) : (
+              name.charAt(0).toUpperCase()
+            )}
+          </button>
+        );
+      })}
+      {overflow > 0 && (
+        <span className="cpm-blog-presence-more" title={`${overflow} more editing`}>{`+${overflow}`}</span>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Three-position Editing / Suggesting / Viewing control.
+ *
+ * Which positions exist comes from the resolved access level (see
+ * SuggestingMode.js) — a level with only one mode renders nothing, since a
+ * one-position switch is just noise.
+ */
+function ModeControl({ modes, mode, onChange }) {
+  if (modes.length < 2) return null;
+  return (
+    <div className="cpm-blog-mode" role="group" aria-label="Document mode">
+      {modes.map((m) => (
+        <button
+          key={m}
+          type="button"
+          className={`cpm-blog-mode-btn${m === mode ? ' is-active' : ''}`}
+          aria-pressed={m === mode}
+          title={MODE_LABELS[m]}
+          onClick={() => onChange(m)}
         >
-          {(p.user?.name || '?').charAt(0).toUpperCase()}
-        </span>
+          <i className={`fas ${MODE_ICONS[m]}`} aria-hidden="true" />
+          <span className="cpm-blog-mode-label">{MODE_LABELS[m]}</span>
+        </button>
       ))}
     </div>
   );
@@ -499,20 +602,30 @@ function threadIdAt(state, pos) {
  * @param {string}  docType   'BLOG_POST' | 'PRESS_KIT' — which review-thread namespace this editor uses
  * @param {string}  docId     id within that namespace; falls back to postId for blog posts
  * @param {boolean} canEditDoc  false for reviewers — hides Accept/Reject and the AI entry points
+ * @param {string}  accessLevel  resolved DocAccessLevel for the current member; decides which
+ *                               modes the header offers. Defaults to 'EDIT' so hosts that do not
+ *                               resolve access keep today's behaviour.
+ * @param {number}  threadsRefreshKey  bump to re-fetch threads (and their anchors) for the decorations
+ * @param {function} onThreadPositions  receives Map<threadId, { from, to }> for the comment rail;
+ *                                      threads absent from the map are orphaned
+ * @param {string}  focusedThreadId  thread whose anchored text is highlighted in the canvas
  * @param {function} onThreadFocus  called with a threadId when the caret lands on
  *                                  commented or suggested text, so the host can
  *                                  reveal that thread in the review panel
  */
 export default function BlogEditor({
   content, onChange, editable = true, onEditorReady, postId, collabUser, collabWsUrl,
-  theme, onThemeChange, docType = 'BLOG_POST', docId, canEditDoc = true,
-  onAskAi, onThreadsChanged, onThreadFocus,
+  theme, onThemeChange, docType = 'BLOG_POST', docId, canEditDoc = true, accessLevel = 'EDIT',
+  onAskAi, onThreadsChanged, onThreadFocus, threadsRefreshKey = 0, onThreadPositions,
+  focusedThreadId = null,
 }) {
   const [showFind, setShowFind] = React.useState(false);
   const [showSnippets, setShowSnippets] = React.useState(false);
   const [showSecLib, setShowSecLib] = React.useState(false);
   const onThreadFocusRef = React.useRef(onThreadFocus);
   onThreadFocusRef.current = onThreadFocus;
+  const onThreadsChangedRef = React.useRef(onThreadsChanged);
+  onThreadsChangedRef.current = onThreadsChanged;
 
   // Section settings open only on request — via the palette button on the
   // section's hover toolbar, which fires this event. It used to also open on
@@ -545,6 +658,32 @@ export default function BlogEditor({
   const syncedRef = React.useRef(false);
   const contentRef = React.useRef(content);
   contentRef.current = content;
+
+  // ── Follow mode ───────────────────────────────────────────────
+  // Click a presence avatar to keep that peer's caret centred. Read through a
+  // ref inside the awareness handler so following never re-arms that effect
+  // (re-arming it would tear down the collab listeners).
+  const [followedClientId, setFollowedClientId] = React.useState(null);
+  const followedRef = React.useRef(null);
+  followedRef.current = followedClientId;
+  const editorRef = React.useRef(null);
+
+  const stopFollowing = React.useCallback(() => {
+    followedRef.current = null;
+    setFollowedClientId(null);
+  }, []);
+
+  // Awareness gives no handle on the rendered caret, so follow targets the
+  // `data-user-id` renderCaret() stamps on it. rAF lets the decoration for this
+  // awareness update land before we measure.
+  const scrollToPeerCaret = React.useCallback((userId) => {
+    if (!userId) return;
+    requestAnimationFrame(() => {
+      const dom = editorRef.current?.view?.dom;
+      const caret = dom?.querySelector(`.collaboration-carets__caret[data-user-id="${CSS.escape(userId)}"]`);
+      caret?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+  }, []);
 
   // One Y.Doc + Hocuspocus connection per post. Recreated only if `postId`
   // changes — callers should `key` the editor by post id so a full remount
@@ -586,7 +725,15 @@ export default function BlogEditor({
     const onSynced = () => { syncedRef.current = true; setSynced(true); };
     const onAwareness = ({ states }) => {
       const selfId = provider.awareness?.clientID;
-      setPeers(states.filter((s) => s.clientId !== selfId && s.user));
+      const visible = states.filter((s) => s.clientId !== selfId && s.user);
+      setPeers(visible);
+
+      const followed = followedRef.current;
+      if (followed == null) return;
+      const peer = visible.find((s) => s.clientId === followed);
+      // A followed peer who leaves must release the viewport, not freeze it.
+      if (!peer) { stopFollowing(); return; }
+      scrollToPeerCaret(peer.user?.id);
     };
     provider.on('status', onStatus);
     provider.on('synced', onSynced);
@@ -596,18 +743,47 @@ export default function BlogEditor({
       provider.off('synced', onSynced);
       provider.off('awarenessUpdate', onAwareness);
     };
-  }, [collab]);
+  }, [collab, stopFollowing, scrollToPeerCaret]);
+
+  // ── Comment threads (anchors only) ────────────────────────────
+  // Threads are fetched here purely so their anchors can be turned into
+  // decorations; the review panel keeps its own copy for display.
+  const [threads, setThreads] = React.useState([]);
+  const onThreadPositionsRef = React.useRef(onThreadPositions);
+  onThreadPositionsRef.current = onThreadPositions;
+
+  // Stable across renders so it never re-arms useEditor — a rebuilt editor
+  // would drop the collab connection.
+  const threadDecoOptions = React.useRef({
+    threads: [],
+    focusedThreadId: null,
+    onPositions: (positions) => onThreadPositionsRef.current?.(positions),
+  }).current;
+
+  React.useEffect(() => {
+    if (!collab || !reviewDocId) return undefined;
+    let cancelled = false;
+    listBlogThreads(docType, reviewDocId)
+      .then((rows) => { if (!cancelled) setThreads(rows ?? []); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [collab, docType, reviewDocId, threadsRefreshKey]);
 
   const editor = useEditor({
     extensions: blogExtensions(collab ? {
       document: collab.document,
       provider: collab.provider,
-      user: { name: collabUser?.name || 'Anonymous', color: colorForMember(collabUser?.id) },
+      user: {
+        id: collabUser?.id ?? null,
+        name: collabUser?.name || 'Anonymous',
+        color: colorForMember(collabUser?.id),
+        avatarUrl: collabUser?.avatarUrl ?? null,
+      },
     } : null, {
       docType,
       docId: reviewDocId,
       enabled: canEditDoc && editable,
-    }),
+    }, threadDecoOptions),
     content: collab ? undefined : (content ?? { type: 'doc', content: [{ type: 'paragraph' }] }),
     editable,
     onUpdate: ({ editor: ed }) => { onChange?.(ed.getJSON()); },
@@ -615,13 +791,63 @@ export default function BlogEditor({
       // Clicking commented/suggested text reveals its thread. Read through a ref
       // so a new callback identity never rebuilds the editor — that would drop
       // the collab connection on every parent render.
-      handleClick: (view, pos) => {
-        const threadId = threadIdAt(view.state, pos);
+      handleClick: (view, pos, event) => {
+        // Comment anchors are decorations, so the mark scan below cannot see
+        // them — read the decoration's data attribute off the DOM first.
+        const el = event?.target?.closest?.('[data-thread-id]');
+        const threadId = el?.getAttribute('data-thread-id') ?? threadIdAt(view.state, pos);
         if (threadId) onThreadFocusRef.current?.(threadId);
         return false; // never swallow the click; the caret still moves
       },
     },
   }, [collab, reviewDocId, docType, canEditDoc, editable]);
+
+  // Anchors resolve against the Yjs binding, so the decoration set is only
+  // valid once the doc has synced — and must be rebuilt whenever the thread set
+  // changes. Between those, ProseMirror maps the existing set through each
+  // transaction, which is what keeps typing cheap with many threads open.
+  // Focus is in this dependency list because the focused thread's decoration
+  // carries an extra class — highlighting the anchored text is what tells the
+  // reader which sentence the card they just clicked is actually about.
+  React.useEffect(() => {
+    if (!editor || editor.isDestroyed || !collab) return;
+    const ext = editor.extensionManager.extensions.find((e) => e.name === 'threadDecorations');
+    if (!ext) return;
+    ext.options.threads = threads;
+    ext.options.focusedThreadId = focusedThreadId ?? null;
+    editor.view.dispatch(editor.state.tr.setMeta(threadDecorationsKey, { recompute: true }));
+  }, [editor, collab, synced, threads, focusedThreadId]);
+
+  // ── One-shot migration off commentMark ────────────────────────
+  // Legacy comments anchored via commentMark predate relative positions.
+  // Convert them on first open by an editor, then strip the marks. Documents
+  // only ever opened by commenters keep their marks, which is why the
+  // commentMark render path stays as a fallback — do not delete it.
+  const migratedRef = React.useRef(false);
+  React.useEffect(() => {
+    if (!editor || editor.isDestroyed || !collab || !synced || !canEditDoc) return;
+    if (migratedRef.current) return;
+    const pending = threads.filter((t) => t.kind === 'COMMENT' && !t.anchorStart);
+    if (!pending.length) return;
+
+    const tr = editor.state.tr;
+    let touched = false;
+    for (const thread of pending) {
+      const ranges = findMarkRanges(editor.state.doc, 'commentMark', thread.id);
+      if (!ranges.length) continue;
+      const { from, to } = ranges[0];
+      const anchor = anchorFromSelection(editor, from, to);
+      if (!anchor) continue;
+      setBlogThreadAnchor(thread.id, anchor.anchorStart, anchor.anchorEnd).catch(() => {});
+      tr.removeMark(from, to, editor.schema.marks.commentMark);
+      touched = true;
+    }
+    if (touched) {
+      migratedRef.current = true;
+      editor.view.dispatch(tr);
+      onThreadsChangedRef.current?.();
+    }
+  }, [editor, collab, synced, canEditDoc, threads]);
 
   // ── Fallback content seeding ──────────────────────────────────
   // In collab mode the editor starts from the shared Yjs doc, which the
@@ -667,6 +893,26 @@ export default function BlogEditor({
     if (editor && onEditorReady) onEditorReady(editor);
   }, [editor, onEditorReady]);
 
+  editorRef.current = editor ?? null;
+
+  // Following ends on Esc or on any manual scroll gesture — being dragged
+  // around the document with no way out is worse than no follow at all.
+  React.useEffect(() => {
+    if (followedClientId == null) return undefined;
+    const onKey = (e) => { if (e.key === 'Escape') stopFollowing(); };
+    const surface = editorRef.current?.view?.dom;
+    window.addEventListener('keydown', onKey);
+    surface?.addEventListener('wheel', stopFollowing, { passive: true });
+    surface?.addEventListener('touchmove', stopFollowing, { passive: true });
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      surface?.removeEventListener('wheel', stopFollowing);
+      surface?.removeEventListener('touchmove', stopFollowing);
+    };
+  }, [followedClientId, stopFollowing]);
+
+  const followedPeer = peers.find((p) => p.clientId === followedClientId) ?? null;
+
   // Registered purely so these appear in the shared "?" Keyboard Shortcuts
   // modal — the key combos themselves are handled natively by TipTap's own
   // keymaps (bold/italic/underline/undo/redo) or LinkShortcut above; the
@@ -694,6 +940,20 @@ export default function BlogEditor({
     }
   };
 
+  // ── Document mode ─────────────────────────────────────────────
+  // 'viewing' calls setEditable(false). That is a UI affordance only: the real
+  // enforcement is the server-side readOnly Hocuspocus connection, which drops
+  // writes regardless of what this flag says.
+  const modes = useMemo(() => modesFor(accessLevel), [accessLevel]);
+  const [mode, setMode] = React.useState(() => defaultMode(accessLevel));
+  useEffect(() => { setMode(defaultMode(accessLevel)); }, [accessLevel]);
+
+  useEffect(() => {
+    if (!editor || editor.isDestroyed) return;
+    editor.setEditable(editable && mode !== 'viewing');
+    editor.commands.setSuggesting(mode === 'suggesting');
+  }, [editor, editable, mode]);
+
   const words = editor?.storage.characterCount.words() ?? 0;
   const chars = editor?.storage.characterCount.characters() ?? 0;
 
@@ -718,7 +978,21 @@ export default function BlogEditor({
             theme={theme}
             onThemeChange={onThemeChange}
           />
-          {collab && <PresenceBar synced={synced} connected={connected} peers={peers} />}
+          <ModeControl modes={modes} mode={mode} onChange={setMode} />
+          {collab && (
+            <PresenceBar
+              synced={synced}
+              connected={connected}
+              peers={peers}
+              followedClientId={followedClientId}
+              onToggleFollow={(clientId) => {
+                if (clientId === followedRef.current) { stopFollowing(); return; }
+                followedRef.current = clientId;
+                setFollowedClientId(clientId);
+                scrollToPeerCaret(peers.find((p) => p.clientId === clientId)?.user?.id);
+              }}
+            />
+          )}
         </div>
       )}
       {showFind && !markdownMode && <FindBar editor={editor} onClose={() => setShowFind(false)} />}
@@ -743,6 +1017,15 @@ export default function BlogEditor({
           data-width={theme?.width || 'wide'}
           style={{ '--post-accent': theme?.accent || 'var(--pm-accent-teal)' }}
         >
+          {followedPeer && (
+            <div className="cpm-blog-follow-chip" style={{ '--caret-color': followedPeer.user?.color }}>
+              <i className="fas fa-eye" aria-hidden="true" />
+              {`Following ${followedPeer.user?.name || 'Someone'} — Esc to stop`}
+              <button type="button" className="cpm-blog-follow-stop" onClick={stopFollowing} aria-label="Stop following">
+                <i className="fas fa-xmark" aria-hidden="true" />
+              </button>
+            </div>
+          )}
           <EditorContent editor={editor} />
           {editable && reviewDocId && (
             <BlogSelectionBubble

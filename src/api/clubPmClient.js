@@ -429,6 +429,7 @@ export const unpublishBlogPost = (id) => post(`/api/blog/posts/${id}/unpublish`,
 export const archiveBlogPost  = (id) => post(`/api/blog/posts/${id}/archive`, {});
 export const listBlogRevisions = (id) => get(`/api/blog/posts/${id}/revisions`);
 export const rollbackBlogRevision = (id, revId) => post(`/api/blog/posts/${id}/revisions/${revId}/rollback`, {});
+export const renameBlogRevision = (id, revId, name) => patch(`/api/blog/posts/${id}/revisions/${revId}`, { name });
 export const listBlogTags     = () => get('/api/blog/tags');
 export const createBlogTag    = (name) => post('/api/blog/tags', { name });
 export const listBlogCategories = () => get('/api/blog/categories');
@@ -438,7 +439,7 @@ export const listBlogSnippets = () => get('/api/blog/snippets');
 export const createBlogSnippet = (name, contentJson) => post('/api/blog/snippets', { name, contentJson });
 export const updateBlogSnippet = (id, data) => patch(`/api/blog/snippets/${id}`, data);
 export const deleteBlogSnippet = (id) => del(`/api/blog/snippets/${id}`);
-export const addBlogAuthor    = (id, memberId, role) => post(`/api/blog/posts/${id}/authors`, { memberId, role });
+export const addBlogAuthor    = (id, memberId) => post(`/api/blog/posts/${id}/authors`, { memberId });
 export const removeBlogAuthor = (id, memberId) => del(`/api/blog/posts/${id}/authors/${memberId}`);
 export const listBlogAnnotations = (id) => get(`/api/blog/posts/${id}/annotations`);
 export const addBlogAnnotation = (id, body, parentId) => post(`/api/blog/posts/${id}/annotations`, { body, parentId });
@@ -450,6 +451,9 @@ export const setBlogThreadStatus    = (threadId, status) => patch(`/api/blog/thr
 export const addBlogThreadComment   = (threadId, body) => post(`/api/blog/threads/${threadId}/comments`, { body });
 export const editBlogThreadComment  = (threadId, commentId, body) => patch(`/api/blog/threads/${threadId}/comments/${commentId}`, { body });
 export const deleteBlogThreadComment = (threadId, commentId) => del(`/api/blog/threads/${threadId}/comments/${commentId}`);
+// Base64-encoded Yjs relative positions. Comment anchors live here rather than
+// in the document — see src/components/clubpm/blog/threadAnchors.js.
+export const setBlogThreadAnchor    = (threadId, anchorStart, anchorEnd) => patch(`/api/blog/threads/${threadId}/anchor`, { anchorStart, anchorEnd });
 
 // ── Blog / press-kit AI ──────────────────────────────────────
 export const blogAiAsk      = (docType, docId, question) => post('/api/blog/ai/ask', { docType, docId, question });
@@ -754,3 +758,13 @@ export const listTourBreakages = (sectionId) =>
   get(`/api/outreach/courses/sections/${sectionId}/tour-breakages`);
 
 export const ensureTrainingProject = () => post(`/api/training-project`, {});
+
+// ── Document access (share dialog) ───────────────────────────
+export const listDocAccess = (docType, docId) =>
+  get(`/api/docs/${docType}/${docId}/access`);
+export const setDocAccess = (docType, docId, memberId, level) =>
+  put(`/api/docs/${docType}/${docId}/access/${memberId}`, { level });
+export const removeDocAccess = (docType, docId, memberId) =>
+  del(`/api/docs/${docType}/${docId}/access/${memberId}`);
+export const setDocClubAccess = (docType, docId, level) =>
+  put(`/api/docs/${docType}/${docId}/club-access`, { level });

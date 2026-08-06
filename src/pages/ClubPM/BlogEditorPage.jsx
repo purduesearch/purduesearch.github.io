@@ -7,12 +7,15 @@ import BlogMetaPanel from '../../components/clubpm/blog/BlogMetaPanel';
 import BlogAnnotationsPanel from '../../components/clubpm/blog/BlogAnnotationsPanel';
 import BlogAiPanel from '../../components/clubpm/blog/BlogAiPanel';
 import BlogPreviewFrame from '../../components/clubpm/blog/BlogPreviewFrame';
+import BlogCommentRail from '../../components/clubpm/blog/BlogCommentRail';
 import OrbitLoader from '../../components/OrbitLoader';
 import ApprovalChips from '../../components/clubpm/ApprovalChips';
+import ShareDialog from '../../components/clubpm/ShareDialog';
 import { useClubPmAuth } from '../../clubpm/ClubPmAuth';
 import {
   getBlogPost, updateBlogPost, publishBlogPost,
   scheduleBlogPost, unpublishBlogPost, archiveBlogPost, get, deleteBlogPost,
+  listBlogThreads, listDocAccess,
 } from '../../api/clubPmClient';
 
 const STATUS_LABELS = {
@@ -117,6 +120,7 @@ export default function BlogEditorPage() {
   const [approval, setApproval] = useState(null); // { required, approvals, complete } or null
   const [busyAction, setBusyAction] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
   const [previewMode, setPreviewMode] = useState(false);
   // One slot, one panel. All three side panels are `.cpm-blog-meta-panel`,
   // which is `position: fixed` against the same right-hand rectangle, so two
@@ -142,6 +146,19 @@ export default function BlogEditorPage() {
   const [theme, setTheme] = useState(null);
   const [editorInstance, setEditorInstance] = useState(null);
   const [threadsRefreshKey, setThreadsRefreshKey] = useState(0);
+  // The rail needs the threads themselves plus where each one currently
+  // resolves to. BlogEditor fetches its own copy for the decorations; this one
+  // is for display, and re-fetches on the same refresh key.
+  const [threads, setThreads] = useState([]);
+  const [threadPositions, setThreadPositions] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    listBlogThreads('BLOG_POST', id)
+      .then((rows) => { if (!cancelled) setThreads(rows ?? []); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [id, threadsRefreshKey]);
 
   // Keep the latest editable state in a ref so the debounced autosave always
   // persists current values without re-arming on every keystroke.
@@ -159,6 +176,20 @@ export default function BlogEditorPage() {
     || post?.createdById === member.id
     || (post?.authors ?? []).some((a) => a.memberId === member.id)
   );
+
+  // The resolved level decides which document modes the editor header offers.
+  // The endpoint 403s below EDIT, so a commenter never resolves one — which is
+  // why the fallback is canEditDoc, the same doc-editor check the server makes.
+  // That also avoids an Editing switch flashing in (or out) mid-load.
+  const [accessLevel, setAccessLevel] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    listDocAccess('BLOG_POST', id)
+      .then((data) => { if (!cancelled) setAccessLevel(data?.myLevel ?? null); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [id]);
 
   useEffect(() => {
     let cancelled = false;
@@ -434,6 +465,15 @@ export default function BlogEditorPage() {
 
           <button
             type="button"
+            className="cpm-blog-tool-btn"
+            onClick={() => setShareOpen(true)}
+            title="Share"
+          >
+            <i className="fas fa-user-plus" aria-hidden="true" /> Share
+          </button>
+
+          <button
+            type="button"
             className={`clubpm-btn-secondary${previewMode ? ' is-active' : ''}`}
             onClick={() => setPreviewMode((v) => !v)}
             title="Preview as it will appear on the public site"
@@ -471,7 +511,8 @@ export default function BlogEditorPage() {
         </div>
       )}
 
-      <div className="cpm-blog-editor-body">
+      <div className={`cpm-blog-editor-body${previewMode ? '' : ' has-rail'}`}>
+        <div>
         {previewMode ? (
           <BlogPreviewFrame postId={id} title={title} contentJson={contentJson} />
         ) : (
@@ -486,21 +527,45 @@ export default function BlogEditorPage() {
           <BlogEditor
             key={id}
             postId={id}
-            collabUser={{ id: member?.id, name: member?.displayName }}
+            collabUser={{ id: member?.id, name: member?.displayName, avatarUrl: member?.avatarUrl }}
             content={contentJson}
             onChange={(json) => { setContentJson(json); setDirty(true); }}
             onEditorReady={(ed) => { editorRef.current = ed; setEditorInstance(ed); }}
             docType="BLOG_POST"
             docId={id}
             canEditDoc={canEditDoc}
+            accessLevel={accessLevel ?? (canEditDoc ? 'EDIT' : 'COMMENT')}
+            threadsRefreshKey={threadsRefreshKey}
             onThreadsChanged={() => setThreadsRefreshKey((k) => k + 1)}
             onThreadFocus={(threadId) => { setFocusedThreadId(threadId); setOpenPanel('review'); }}
+            onThreadPositions={setThreadPositions}
+            focusedThreadId={focusedThreadId}
             onAskAi={(text) => { setAiSelection(text); setOpenPanel('ai'); }}
             theme={theme}
             onThemeChange={handleThemeChange}
           />
         </div>
+        </div>
+
+        {!previewMode && (
+          <BlogCommentRail
+            threads={threads}
+            positions={threadPositions}
+            editor={editorInstance}
+            focusedThreadId={focusedThreadId}
+            onFocus={setFocusedThreadId}
+            currentMember={member}
+            canEdit={canEditDoc}
+            onChanged={() => setThreadsRefreshKey((k) => k + 1)}
+            docType="BLOG_POST"
+            docId={id}
+          />
+        )}
       </div>
+
+      {shareOpen && (
+        <ShareDialog docType="BLOG_POST" docId={id} onClose={() => setShareOpen(false)} />
+      )}
 
       {historyOpen && (
         <RevisionHistoryDrawer

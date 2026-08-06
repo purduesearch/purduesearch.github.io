@@ -258,6 +258,11 @@ model Member {
   courseEnrollments CourseEnrollment[] @relation("CourseEnrollmentMember")
   assignedCourses   CourseEnrollment[] @relation("CourseEnrollmentAssigner")
   courseGenJobs     CourseGenJob[]     @relation("CourseGenJobCreator")
+
+  // ── Per-document access control ──
+  docAccessGrants  DocAccessGrant[]   @relation("DocAccessMember")
+  docAccessGranted DocAccessGrant[]   @relation("DocAccessGranter")
+  docShareSet      DocShareSettings[] @relation("DocShareSetter")
 }
 
 model Project {
@@ -967,6 +972,9 @@ model BlogPost {
   annotations OutreachComment[] @relation("BlogPostAnnotations")
   threads     BlogThread[]
 
+  docAccessGrants  DocAccessGrant[]
+  docShareSettings DocShareSettings?
+
   @@index([status])
   @@index([slug])
 }
@@ -977,6 +985,9 @@ model BlogRevision {
   post        BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
   contentJson Json
   title       String
+  // Optional human label ("Pre-launch draft"). When set it is what the history
+  // drawer shows; the timestamp stays beneath it.
+  name        String?
   authorId    String
   author      Member   @relation("BlogRevisionAuthor", fields: [authorId], references: [id])
   createdAt   DateTime @default(now())
@@ -990,7 +1001,6 @@ model BlogAuthor {
   post     BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
   memberId String
   member   Member   @relation("BlogAuthorMember", fields: [memberId], references: [id])
-  role     String? // e.g. "author", "editor"
 
   @@unique([postId, memberId])
   @@index([memberId])
@@ -1036,6 +1046,12 @@ model BlogThread {
   // Snapshot of the quoted text. The marks in the Y.Doc are the live anchor;
   // this lets an orphaned thread still show what it referred to.
   anchorText   String
+  // COMMENT threads anchor here, as encoded Yjs relative positions, instead of
+  // via a commentMark in the document: a comment is metadata ABOUT content, so
+  // it must never reach contentJson, revisions, or markdown export. SUGGESTION
+  // threads keep their marks — proposed text is content and belongs in the CRDT.
+  anchorStart  Bytes?
+  anchorEnd    Bytes?
   replaceWith  String? // SUGGESTION only: the proposal, denormalised for panel display
   rationale    String? // AI's stated reason, shown on the card
   createdById  String
@@ -1086,6 +1102,9 @@ model ProjectPressKit {
   updatedAt    DateTime           @updatedAt
   revisions    PressKitRevision[]
   threads      BlogThread[]
+
+  docAccessGrants  DocAccessGrant[]
+  docShareSettings DocShareSettings?
 }
 
 model PressKitRevision {
@@ -2007,6 +2026,9 @@ model CourseSection {
   attempts  CourseQuizAttempt[]
   threads   BlogThread[]
 
+  docAccessGrants  DocAccessGrant[]
+  docShareSettings DocShareSettings?
+
   // Deliberately an index, NOT a unique constraint: reorderSections rewrites the
   // whole set in one transaction, which a unique constraint would force into an
   // ugly two-pass shuffle.
@@ -2172,4 +2194,54 @@ model CourseGenJob {
   updatedAt     DateTime        @updatedAt
 
   @@index([createdById, createdAt])
+}
+
+// ── Per-document access control ───────────────────────────────────────────
+// One grant/settings row targets exactly one document. Prisma cannot express
+// "exactly one FK set", so a num_nonnulls CHECK constraint in the migration
+// enforces it — see prisma/migrations/*_doc_access/migration.sql.
+
+enum DocAccessLevel {
+  VIEW
+  COMMENT
+  EDIT
+  OWNER
+}
+
+model DocAccessGrant {
+  id              String           @id @default(cuid())
+  postId          String?
+  post            BlogPost?        @relation(fields: [postId], references: [id], onDelete: Cascade)
+  pressKitId      String?
+  pressKit        ProjectPressKit? @relation(fields: [pressKitId], references: [id], onDelete: Cascade)
+  courseSectionId String?
+  courseSection   CourseSection?   @relation(fields: [courseSectionId], references: [id], onDelete: Cascade)
+
+  memberId    String
+  member      Member         @relation("DocAccessMember", fields: [memberId], references: [id], onDelete: Cascade)
+  level       DocAccessLevel
+  grantedById String
+  grantedBy   Member         @relation("DocAccessGranter", fields: [grantedById], references: [id])
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@unique([postId, memberId])
+  @@unique([pressKitId, memberId])
+  @@unique([courseSectionId, memberId])
+  @@index([memberId])
+}
+
+model DocShareSettings {
+  id              String           @id @default(cuid())
+  postId          String?          @unique
+  post            BlogPost?        @relation(fields: [postId], references: [id], onDelete: Cascade)
+  pressKitId      String?          @unique
+  pressKit        ProjectPressKit? @relation(fields: [pressKitId], references: [id], onDelete: Cascade)
+  courseSectionId String?          @unique
+  courseSection   CourseSection?   @relation(fields: [courseSectionId], references: [id], onDelete: Cascade)
+
+  clubLevel DocAccessLevel
+  setById   String
+  setBy     Member         @relation("DocShareSetter", fields: [setById], references: [id])
+  updatedAt DateTime       @updatedAt
 }

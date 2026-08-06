@@ -5,8 +5,9 @@ import { requireAuth } from "./auth.js";
 import { prisma } from "../db/prisma.js";
 import * as blogService from "../services/blogService.js";
 import { uploadImageToDrive } from "../services/driveService.js";
-import type { BlogStatus } from "@prisma/client";
+import type { BlogStatus, DocAccessLevel } from "@prisma/client";
 import type { PMDoc } from "../services/blogRender.js";
+import { resolveDocAccess, atLeast } from "../services/docAccessService.js";
 
 export const blogRouter = Router();
 blogRouter.use(requireAuth);
@@ -20,29 +21,25 @@ const imageUpload = multer({
   },
 });
 
-async function isAdmin(memberId?: string): Promise<boolean> {
-  if (!memberId) return false;
-  const m = await prisma.member.findUnique({ where: { id: memberId }, select: { isAdmin: true } });
-  return !!m?.isAdmin;
-}
-
-// Author-or-admin guard for a post; returns the post or null (and sends the response).
-async function requirePostAccess(req: Request, res: Response) {
+// Resolves the caller's access to the post named by :id, sending 404/403 and
+// returning null when they may not proceed. `required` defaults to EDIT since
+// most routes here mutate.
+async function requirePostAccess(
+  req: Request,
+  res: Response,
+  required: DocAccessLevel = "EDIT",
+) {
   const post = await prisma.blogPost.findUnique({ where: { id: req.params.id as string } });
   if (!post) {
     res.status(404).json({ error: "Post not found" });
     return null;
   }
-  if (post.createdById !== req.memberId && !(await isAdmin(req.memberId))) {
-    // Co-authors may also edit.
-    const isAuthor = await prisma.blogAuthor.findUnique({
-      where: { postId_memberId: { postId: post.id, memberId: req.memberId! } },
-      select: { id: true },
-    });
-    if (!isAuthor) {
-      res.status(403).json({ error: "Forbidden" });
-      return null;
-    }
+  const level = await resolveDocAccess(req.memberId!, { postId: post.id });
+  if (!atLeast(level, required)) {
+    // 404 rather than 403 when they have no access at all: revealing that a
+    // draft exists is itself a leak.
+    res.status(level ? 403 : 404).json({ error: level ? "Forbidden" : "Post not found" });
+    return null;
   }
   return post;
 }
@@ -52,10 +49,23 @@ async function requirePostAccess(req: Request, res: Response) {
 blogRouter.get("/posts", async (req: Request, res: Response) => {
   try {
     const { status, mine, q } = req.query as { status?: string; mine?: string; q?: string };
+    // A member sees only posts they can actually open: their own, ones granted
+    // to them, and ones shared club-wide. Admins see everything.
+    const me = await prisma.member.findUnique({
+      where: { id: req.memberId! }, select: { isAdmin: true },
+    });
+    const visibility = me?.isAdmin ? undefined : {
+      OR: [
+        { createdById: req.memberId! },
+        { docAccessGrants: { some: { memberId: req.memberId! } } },
+        { docShareSettings: { isNot: null } },
+      ],
+    };
     const posts = await blogService.listPosts({
       status: status as BlogStatus | undefined,
       createdById: mine === "1" ? req.memberId : undefined,
       q: typeof q === "string" ? q : undefined,
+      visibility,
     });
     res.json(posts);
   } catch (error) {
@@ -161,6 +171,7 @@ blogRouter.post("/posts/generate-doc", async (req: Request, res: Response) => {
 
 blogRouter.get("/posts/:id", async (req: Request, res: Response) => {
   try {
+    if (!(await requirePostAccess(req, res, "VIEW"))) return;
     const post = await blogService.getPost(req.params.id as string);
     if (!post) {
       res.status(404).json({ error: "Post not found" });
@@ -189,7 +200,7 @@ blogRouter.patch("/posts/:id", async (req: Request, res: Response) => {
 // published page — this is the whole point of the endpoint existing.
 blogRouter.post("/posts/:id/preview", async (req: Request, res: Response) => {
   try {
-    const post = await requirePostAccess(req, res);
+    const post = await requirePostAccess(req, res, "VIEW");
     if (!post) return;
 
     const { contentJson } = req.body as { contentJson?: PMDoc };
@@ -326,10 +337,39 @@ blogRouter.post("/posts/:id/archive", async (req: Request, res: Response) => {
 
 blogRouter.get("/posts/:id/revisions", async (req: Request, res: Response) => {
   try {
+    if (!(await requirePostAccess(req, res, "VIEW"))) return;
     res.json(await blogService.listRevisions(req.params.id as string));
   } catch (error) {
     console.error("GET /blog/posts/:id/revisions error:", error);
     res.status(500).json({ error: "Failed to list revisions" });
+  }
+});
+
+// Names a snapshot ("Pre-launch draft"). An empty or whitespace-only name
+// clears it, which is how the drawer un-names a version.
+blogRouter.patch("/posts/:id/revisions/:revId", async (req: Request, res: Response) => {
+  try {
+    const post = await requirePostAccess(req, res);
+    if (!post) return;
+    const raw = req.body?.name;
+    const name = typeof raw === "string" ? raw.trim().slice(0, 120) : null;
+    // Scoped to the post from the URL, not just the revision id: EDIT on one
+    // post must not let anyone rename another post's history.
+    const { count } = await prisma.blogRevision.updateMany({
+      where: { id: String(req.params.revId), postId: post.id },
+      data: { name: name || null },
+    });
+    if (count === 0) {
+      res.status(404).json({ error: "Revision not found" });
+      return;
+    }
+    res.json(await prisma.blogRevision.findUnique({
+      where: { id: String(req.params.revId) },
+      include: { author: { select: { id: true, displayName: true, avatarUrl: true } } },
+    }));
+  } catch (error) {
+    console.error("PATCH /blog/posts/:id/revisions/:revId error:", error);
+    res.status(500).json({ error: "Failed to rename revision" });
   }
 });
 
@@ -446,12 +486,12 @@ blogRouter.delete("/snippets/:id", async (req: Request, res: Response) => {
 blogRouter.post("/posts/:id/authors", async (req: Request, res: Response) => {
   try {
     if (!(await requirePostAccess(req, res))) return;
-    const { memberId, role } = req.body as { memberId?: string; role?: string };
+    const { memberId } = req.body as { memberId?: string };
     if (!memberId) {
       res.status(400).json({ error: "memberId is required" });
       return;
     }
-    res.status(201).json(await blogService.addAuthor(req.params.id as string, memberId, role));
+    res.status(201).json(await blogService.addAuthor(req.params.id as string, memberId));
   } catch (error) {
     console.error("POST /blog/posts/:id/authors error:", error);
     res.status(500).json({ error: "Failed to add author" });
@@ -473,6 +513,7 @@ blogRouter.delete("/posts/:id/authors/:memberId", async (req: Request, res: Resp
 
 blogRouter.get("/posts/:id/annotations", async (req: Request, res: Response) => {
   try {
+    if (!(await requirePostAccess(req, res, "VIEW"))) return;
     res.json(await blogService.listAnnotations(req.params.id as string));
   } catch (error) {
     console.error("GET /blog/posts/:id/annotations error:", error);
@@ -482,6 +523,7 @@ blogRouter.get("/posts/:id/annotations", async (req: Request, res: Response) => 
 
 blogRouter.post("/posts/:id/annotations", async (req: Request, res: Response) => {
   try {
+    if (!(await requirePostAccess(req, res, "COMMENT"))) return;
     const { body, mentions, parentId } = req.body as {
       body?: string;
       mentions?: string[];

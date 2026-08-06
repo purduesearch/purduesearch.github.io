@@ -3,7 +3,11 @@ import { requireAuth } from "./auth.js";
 import * as threads from "../services/blogThreadService.js";
 import type { DocRef, DocType } from "../services/blogThreadService.js";
 import type { BlogThreadStatus } from "@prisma/client";
-import { notifyThreadActivity } from "../services/blogThreadNotify.js";
+import { notifyThreadActivity, notifyMentions } from "../services/blogThreadNotify.js";
+import { findMentionedMembers } from "../services/mentionService.js";
+import {
+  resolveDocAccess, atLeast, type DocRef as AccessRef,
+} from "../services/docAccessService.js";
 
 export const blogThreadsRouter = Router();
 blogThreadsRouter.use(requireAuth);
@@ -132,6 +136,45 @@ blogThreadsRouter.patch("/threads/:id", async (req: Request, res: Response) => {
   }
 });
 
+/** The docAccessService view of a review-thread DocRef. */
+function toAccessRef(ref: DocRef): AccessRef {
+  if (ref.docType === "BLOG_POST") return { postId: ref.docId };
+  if (ref.docType === "PRESS_KIT") return { pressKitId: ref.docId };
+  return { courseSectionId: ref.docId };
+}
+
+/**
+ * Writes a thread's relative-position anchor. Used both when a comment is
+ * created and by the one-shot client-side migration off commentMark. The
+ * anchor is metadata about the document, never part of it — nothing here
+ * touches contentJson or the Y.Doc.
+ */
+blogThreadsRouter.patch("/threads/:id/anchor", async (req: Request, res: Response) => {
+  try {
+    const ctx = await resolveThreadDoc(req, res);
+    if (!ctx) return;
+
+    const level = await resolveDocAccess(req.memberId!, toAccessRef(ctx.ref));
+    if (!atLeast(level, "COMMENT")) {
+      res.status(403).json({ error: "Forbidden" });
+      return;
+    }
+
+    const { anchorStart, anchorEnd } = req.body ?? {};
+    if (typeof anchorStart !== "string" || typeof anchorEnd !== "string") {
+      res.status(400).json({ error: "anchorStart and anchorEnd are required" });
+      return;
+    }
+    const updated = await threads.setThreadAnchor(
+      req.params.id as string, anchorStart, anchorEnd,
+    );
+    res.json({ id: updated.id });
+  } catch (err) {
+    console.error("[blogThreads] anchor error:", err);
+    res.status(500).json({ error: "Failed to save the anchor" });
+  }
+});
+
 blogThreadsRouter.post("/threads/:id/comments", async (req: Request, res: Response) => {
   try {
     const ctx = await resolveThreadDoc(req, res);
@@ -149,7 +192,36 @@ blogThreadsRouter.post("/threads/:id/comments", async (req: Request, res: Respon
       kind: updated?.kind === "SUGGESTION" ? "SUGGESTION" : "COMMENT",
       snippet: body,
     });
-    res.status(201).json(updated);
+
+    // @mentions are notified separately from the draft's owners, and answered
+    // with whoever cannot actually open the document so the client can offer a
+    // one-click grant. That offer is only actionable by someone who holds EDIT
+    // or better, so a commenter is told nothing — they could not grant anyway.
+    const mentioned = (await findMentionedMembers(body))
+      .filter((m) => m.id !== req.memberId);
+    void notifyMentions({
+      docRef: ctx.ref,
+      actorId: req.memberId!,
+      threadId: req.params.id as string,
+      members: mentioned,
+      snippet: body,
+    });
+
+    const accessRef = toAccessRef(ctx.ref);
+    let mentionedWithoutAccess: { id: string; displayName: string }[] = [];
+    if (mentioned.length > 0) {
+      const myLevel = await resolveDocAccess(req.memberId!, accessRef);
+      if (atLeast(myLevel, "EDIT")) {
+        const levels = await Promise.all(
+          mentioned.map((m) => resolveDocAccess(m.id, accessRef)),
+        );
+        mentionedWithoutAccess = mentioned
+          .filter((_, i) => levels[i] === null)
+          .map((m) => ({ id: m.id, displayName: m.displayName }));
+      }
+    }
+
+    res.status(201).json({ ...updated, mentionedWithoutAccess });
   } catch (err) {
     console.error("[blogThreads] comment error:", err);
     res.status(500).json({ error: "Failed to add comment" });

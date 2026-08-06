@@ -13,6 +13,7 @@ import {
 } from "../utils/aiPrompts.js";
 import { prisma as prismaClient } from "../db/prisma.js";
 import { createNotification } from "../services/notificationCrud.js";
+import { parseMentionHandles } from "../services/mentionService.js";
 import { queueDm } from "../services/dmBatcher.js";
 import { EXCLUDE_TRAINING } from "../services/trainingSandboxService.js";
 
@@ -978,8 +979,7 @@ tasksRouter.post("/:id/comments", requireAuth, channelAuth, async (req: Request,
     }
 
     // Handle @mentions
-    const mentionRegex = /@([a-zA-Z0-9._-]+)/g;
-    const mentions = [...content.matchAll(mentionRegex)].map(m => m[1].replace(/\.$/, ""));
+    const mentions = parseMentionHandles(content);
 
     if (mentions.length > 0) {
       const mentionedMembers = await prisma.member.findMany({

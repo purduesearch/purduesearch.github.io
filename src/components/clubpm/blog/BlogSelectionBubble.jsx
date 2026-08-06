@@ -1,7 +1,8 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { BubbleMenu } from '@tiptap/react/menus';
 import toast from 'react-hot-toast';
-import { createBlogThread } from '../../../api/clubPmClient';
+import { createBlogThread, setBlogThreadAnchor } from '../../../api/clubPmClient';
+import { anchorFromSelection } from './threadAnchors';
 
 // Floating actions on a non-empty selection. Comment and Suggest are open to
 // any member; Ask AI is author-only (see the permission table in the spec) —
@@ -97,13 +98,15 @@ export default function BlogSelectionBubble({ editor, docType, docId, canEdit, o
           .applySuggestion({ threadId: thread.id, from: range.from, to: range.to, replace })
           .run();
       } else {
-        // setCommentThread applies setMark to the selection, so point the
-        // selection at the mapped range first rather than trusting whatever
-        // happens to be selected now.
-        editor.chain().focus()
-          .setTextSelection({ from: range.from, to: range.to })
-          .setCommentThread(thread.id)
-          .run();
+        // A comment is metadata ABOUT the content, so it is stored as a Yjs
+        // relative position rather than a mark: no document write at all, which
+        // is also what lets a COMMENT-level user on a readOnly connection
+        // comment. Suggestions above keep their marks — proposed text is
+        // content and must stay in the CRDT so concurrent edits merge.
+        const anchor = anchorFromSelection(editor, range.from, range.to);
+        if (anchor) {
+          await setBlogThreadAnchor(thread.id, anchor.anchorStart, anchor.anchorEnd);
+        }
       }
       onThreadCreated?.(thread);
       reset();

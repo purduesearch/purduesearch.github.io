@@ -320,7 +320,7 @@ publicRouter.get("/blog/:slug", async (req: Request, res: Response) => {
         tags: { select: { name: true, slug: true } },
         categories: { select: { name: true, slug: true } },
         createdBy: { select: { displayName: true, avatarUrl: true } },
-        authors: { select: { role: true, member: { select: { displayName: true, avatarUrl: true } } } },
+        authors: { select: { member: { select: { displayName: true, avatarUrl: true } } } },
       },
     });
     if (!post || post.status !== "PUBLISHED" || !post.renderedHtml) {
