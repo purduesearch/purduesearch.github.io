@@ -2542,23 +2542,37 @@ html::-webkit-scrollbar { display: none; }
 
 /* â”€â”€ Login Page â€” Mission Control â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
+/* The page is now the sign-in panel *plus* the Constellation application home
+   page merged beneath it (what the app is, what members use it for, how it uses
+   Google Drive, who operates it). So the root scrolls and only the hero is
+   pinned to the viewport; it used to be the root itself that was 100vh-centred. */
 .pm-login-root {
   position: relative;
   min-height: 100vh;
   background: var(--pm-bg-base);
+  overflow-x: hidden;
+}
+
+.pm-login-hero {
+  position: relative;
+  z-index: 1;
+  min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  overflow: hidden;
   padding: 2rem;
 }
 
-/* Star field â€” box-shadow trick */
+/* Star field â€” box-shadow trick.
+   Fixed, not absolute: the box-shadow offsets are literal pixel coordinates
+   covering roughly the first 830px, so an absolutely-positioned layer on a
+   now-tall page would leave the document sections on bare background. */
 .pm-stars-sm,
 .pm-stars-md,
 .pm-stars-lg {
-  position: absolute;
+  position: fixed;
   inset: 0;
+  z-index: 0;
   pointer-events: none;
 }
 
@@ -23987,4 +24001,285 @@ html:not(.aos-off) [data-aos].aos-animate  { opacity: 1; transform: none; }
   /* The tether still has to be drawn, just not drawn *in*. */
   .cpm-blog-rail-card.is-focused::before { transform: scaleX(1); }
   .cpm-blog-presence-avatar:hover { transform: none; }
+}
+
+/* ── Login page · merged Constellation application home page ────────────────
+   Formerly the standalone static page at /constellation/. It exists to state
+   what the application is, who runs it, and exactly how it uses Google Drive
+   data — the content a Google OAuth reviewer reads. It now lives below the
+   sign-in panel so members and reviewers land on the same URL.
+
+   Restyled from the cream public palette onto the ClubPM dark tokens rather
+   than ported verbatim: the content moved into Constellation, so it should
+   look like Constellation.
+   ────────────────────────────────────────────────────────────────────────── */
+
+.pm-login-doc {
+  position: relative;
+  z-index: 1;
+  max-width: 56rem;
+  margin: 0 auto;
+  padding: 0 1.5rem 4rem;
+  font-family: var(--pm-font-body);
+  color: var(--pm-text-primary);
+  line-height: 1.7;
+}
+
+/* Scroll affordance: without it the 100vh hero reads as the whole page. */
+.pm-login-scroll-cue {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin-top: -2.5rem;
+  padding-bottom: 3rem;
+  color: var(--pm-text-secondary) !important;
+  font-family: var(--pm-font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  text-decoration: none;
+  transition: color 0.18s ease;
+}
+
+.pm-login-scroll-cue:hover { color: var(--pm-accent-teal) !important; }
+
+/* The jump lands on a heading, not flush against the viewport edge. */
+.pm-login-doc { scroll-margin-top: 2rem; }
+
+@keyframes pm-login-cue-bob {
+  0%, 100% { transform: translateY(0);   opacity: 0.55; }
+  50%      { transform: translateY(5px); opacity: 1; }
+}
+
+.pm-login-scroll-cue svg { animation: pm-login-cue-bob 2.4s ease-in-out infinite; }
+
+.pm-login-doc-section { padding: 3.25rem 0; }
+.pm-login-doc-section + .pm-login-doc-section { border-top: 1px solid var(--pm-border); }
+
+/* The `!important` on every colour below is not decoration. The "Club PM Visual
+   Fixes" block sets `.clubpm-app h1,h2,h3,p,span { color: inherit !important }`,
+   which outranks ordinary declarations *and* inline styles, so without it this
+   whole document flattens to one shade of white. */
+.pm-login-doc-section h2 {
+  font-family: var(--pm-font-display);
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin: 0 0 1.25rem;
+  color: var(--pm-text-primary) !important;
+}
+
+.pm-login-doc-section p  { margin: 0 0 1rem; color: var(--pm-text-secondary) !important; }
+.pm-login-doc-section ul { padding-left: 1.3rem; margin: 0 0 1rem; color: var(--pm-text-secondary); }
+.pm-login-doc-section li { margin-bottom: 0.45rem; }
+.pm-login-doc-section strong { color: var(--pm-text-primary); font-weight: 600; }
+
+.pm-login-doc-section a {
+  color: var(--pm-accent-teal);
+  text-decoration: none;
+  border-bottom: 1px solid rgba(0, 229, 204, 0.3);
+  transition: border-color 0.18s ease;
+}
+.pm-login-doc-section a:hover { border-bottom-color: var(--pm-accent-teal); }
+
+/* Qualified with the section class: a bare `.pm-login-lede` ties `.clubpm-app p`
+   on specificity and loses to the `.pm-login-doc-section p` rule above, so the
+   lede came out the same grey as body copy. */
+.pm-login-doc-section p.pm-login-lede {
+  font-size: 1.1rem;
+  color: var(--pm-text-primary) !important;
+}
+
+/* Needs `.clubpm-app` in front to outrank `.clubpm-app span` — two `!important`
+   declarations are settled on specificity, and a lone class loses to
+   class-plus-type. Without it the eyebrow renders plain white. */
+.clubpm-app .pm-login-eyebrow {
+  display: block;
+  font-family: var(--pm-font-mono);
+  font-size: 0.68rem;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--pm-accent-teal) !important;
+  margin-bottom: 0.75rem;
+}
+
+/* ── Integration figure ──────────────────────────────────────────────────── */
+
+.pm-login-figure {
+  display: block;
+  width: 100%;
+  max-width: 34rem;
+  height: auto;
+  margin: 0 auto 1.5rem;
+}
+
+.pm-login-figure .pm-cst-edge     { stroke: rgba(255, 255, 255, 0.2); stroke-width: 1; }
+.pm-login-figure .pm-cst-node-ring{ fill: none; stroke: rgba(255, 255, 255, 0.45); stroke-width: 1; }
+.pm-login-figure .pm-cst-node-core{ fill: var(--pm-text-primary); }
+.pm-login-figure .pm-cst-hub-ring { fill: none; stroke: var(--pm-accent-teal); stroke-width: 1.5; }
+.pm-login-figure .pm-cst-hub-core { fill: var(--pm-accent-teal); }
+.pm-login-figure .pm-cst-star     { fill: rgba(255, 255, 255, 0.45); }
+
+.pm-login-figure .pm-cst-label {
+  font-family: var(--pm-font-mono);
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  fill: var(--pm-text-secondary);
+}
+
+.pm-login-figure .pm-cst-label-hub {
+  font-family: var(--pm-font-display);
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  fill: var(--pm-text-primary);
+}
+
+/* Edges draw outward from the hub, then nodes and stars settle in behind. */
+@media (prefers-reduced-motion: no-preference) {
+  .pm-login-figure .pm-cst-edge {
+    stroke-dasharray: 260;
+    stroke-dashoffset: 260;
+    animation: pm-cst-draw 1.1s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  }
+  .pm-login-figure .pm-cst-edge:nth-of-type(2) { animation-delay: 0.12s; }
+  .pm-login-figure .pm-cst-edge:nth-of-type(3) { animation-delay: 0.24s; }
+
+  .pm-login-figure .pm-cst-node,
+  .pm-login-figure .pm-cst-star {
+    opacity: 0;
+    animation: pm-cst-fade 0.7s ease forwards;
+  }
+  .pm-login-figure .pm-cst-node:nth-of-type(1) { animation-delay: 0.55s; }
+  .pm-login-figure .pm-cst-node:nth-of-type(2) { animation-delay: 0.68s; }
+  .pm-login-figure .pm-cst-node:nth-of-type(3) { animation-delay: 0.81s; }
+  .pm-login-figure .pm-cst-star { animation-delay: 0.9s; animation-duration: 1.2s; }
+}
+
+@keyframes pm-cst-draw { to { stroke-dashoffset: 0; } }
+@keyframes pm-cst-fade { to { opacity: 1; } }
+
+/* ── Capability list ─────────────────────────────────────────────────────── */
+
+/* <div> wrappers, not <li>: a <dl> may only contain dt/dd pairs, optionally
+   grouped in divs. */
+.pm-login-does {
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 1.4rem;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+}
+
+.pm-login-does > div { margin: 0; }
+
+.pm-login-does dt {
+  font-family: var(--pm-font-display);
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--pm-text-primary);
+  margin-bottom: 0.25rem;
+}
+
+.pm-login-does dd {
+  margin: 0;
+  font-size: 0.94rem;
+  color: var(--pm-text-secondary);
+}
+
+/* ── Scope table ─────────────────────────────────────────────────────────── */
+
+/* Wide tables scroll in their own container; the page body never does. */
+.pm-login-table-wrap {
+  overflow-x: auto;
+  margin: 1.25rem 0 1.5rem;
+  border: 1px solid var(--pm-border);
+  border-radius: 8px;
+}
+
+.pm-login-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+  min-width: 36rem;
+}
+
+.pm-login-table th,
+.pm-login-table td {
+  border-bottom: 1px solid var(--pm-border);
+  padding: 0.8rem 1rem;
+  text-align: left;
+  vertical-align: top;
+  color: var(--pm-text-secondary);
+}
+
+.pm-login-table tbody tr:last-child th,
+.pm-login-table tbody tr:last-child td { border-bottom: 0; }
+
+.pm-login-table th {
+  background: var(--pm-bg-elevated);
+  font-family: var(--pm-font-display);
+  font-weight: 700;
+  color: var(--pm-text-primary);
+}
+
+.pm-login-table code {
+  font-family: var(--pm-font-mono);
+  font-size: 0.8rem;
+  word-break: break-all;
+  color: var(--pm-accent-teal);
+}
+
+.pm-login-callout {
+  background: var(--pm-bg-surface);
+  border: 1px solid var(--pm-border);
+  border-left: 3px solid var(--pm-accent-teal);
+  border-radius: 6px;
+  padding: 1.15rem 1.4rem;
+  margin: 1.5rem 0;
+}
+
+.pm-login-callout p:last-child { margin-bottom: 0; }
+
+/* ── Footer ──────────────────────────────────────────────────────────────── */
+
+.pm-login-footer {
+  position: relative;
+  z-index: 1;
+  border-top: 1px solid var(--pm-border);
+  background: rgba(13, 15, 20, 0.72);
+  padding: 2.25rem 1.5rem;
+  font-size: 0.86rem;
+  color: var(--pm-text-muted);
+}
+
+.pm-login-footer-inner {
+  max-width: 56rem;
+  margin: 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.5rem;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.pm-login-footer a {
+  color: var(--pm-text-secondary);
+  margin-right: 1.25rem;
+  text-decoration: none;
+}
+
+.pm-login-footer a:hover { color: var(--pm-text-primary); text-decoration: underline; }
+.pm-login-footer p { margin: 0; color: var(--pm-text-muted) !important; }
+
+@media (max-width: 640px) {
+  .pm-login-doc { padding-bottom: 2.5rem; }
+  .pm-login-doc-section { padding: 2.5rem 0; }
+  .pm-login-footer-inner { flex-direction: column; align-items: flex-start; }
 }

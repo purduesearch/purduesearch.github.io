@@ -5,7 +5,7 @@
 // Must stay in sync with public/CNAME (what GitHub Pages serves the site as)
 // and with the hostnames baked into the non-JS assets that can't import this:
 // public/sitemap.xml, public/robots.txt, public/llms.txt, public/index.html,
-// public/legal/*.html, public/constellation/index.html.
+// public/legal/*.html, public/constellation/index.html (redirect stub).
 export const SITE_URL = 'https://purduesearch.org';
 
 export default SITE_URL;

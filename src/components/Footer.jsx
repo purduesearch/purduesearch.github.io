@@ -129,7 +129,10 @@ const Footer = () => (
             NotFound route instead of fetching the real page — and these URLs are
             what Google's OAuth consent screen points at, so they must load. */}
         <ul className="footer-legal-links">
-          <li><a href="/constellation/">About Constellation</a></li>
+          {/* SPA route, but kept as a plain <a> alongside its siblings: it is the
+              URL on Google's OAuth consent screen, so a full page load is what
+              guarantees the application home page content actually renders. */}
+          <li><a href="/clubpm/login">About Constellation</a></li>
           <li><a href="/legal/privacy.html">Privacy Policy</a></li>
           <li><a href="/legal/terms.html">Terms of Service</a></li>
         </ul>

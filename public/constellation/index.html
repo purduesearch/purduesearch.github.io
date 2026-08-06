@@ -3,262 +3,40 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Constellation — project system for SEARCH at Purdue University</title>
-  <meta name="description" content="Constellation is the project-management system used by SEARCH, a registered student organization at Purdue University. It connects Slack, Google Drive, and GitHub so club project work has one recorded state." />
+  <title>Constellation — moved to /clubpm/login</title>
+
+  <!-- The Constellation application home page was merged into the sign-in page
+       at /clubpm/login. GitHub Pages serves static files only and cannot issue a
+       301, so this stub carries the redirect three ways: canonical + meta
+       refresh for crawlers, location.replace for browsers (replace, not assign,
+       so Back doesn't bounce), and a visible link if neither runs. -->
+  <link rel="canonical" href="https://purduesearch.org/clubpm/login" />
+  <meta name="robots" content="noindex, follow" />
+  <meta http-equiv="refresh" content="0; url=/clubpm/login" />
+
   <link rel="icon" href="/favicon.ico" />
-  <link rel="canonical" href="https://purduesearch.org/constellation/" />
+  <script>window.location.replace('/clubpm/login');</script>
 
-  <meta property="og:type" content="website" />
-  <meta property="og:title" content="Constellation — project system for SEARCH at Purdue University" />
-  <meta property="og:description" content="The project-management system used by SEARCH, a registered student organization at Purdue University." />
-  <meta property="og:url" content="https://purduesearch.org/constellation/" />
-
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Lato:wght@300;400;700&family=Oswald:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/search-theme.css" />
-  <link rel="stylesheet" href="/constellation/constellation.css" />
+  <style>
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #0d0f14;
+      color: #8892a4;
+      font-family: system-ui, sans-serif;
+      text-align: center;
+      padding: 2rem;
+    }
+    a { color: #00e5cc; }
+  </style>
 </head>
-
-<body class="cst-page">
-
-  <header class="cst-hero">
-    <div class="cst-brandbar">
-      <a href="/">
-        <img src="/icons/purdue_search_logo.png" alt="" />
-        <span class="cst-eyebrow">SEARCH · Purdue University</span>
-      </a>
-    </div>
-
-    <div class="cst-hero-inner">
-      <div>
-        <span class="cst-eyebrow">Application home page</span>
-        <h1>Constellation</h1>
-        <p class="cst-tagline">SEARCH's project system.</p>
-        <p class="cst-hero-body">
-          Constellation is where the club's work is planned, tracked, discussed, and
-          recorded. It doesn't replace Slack, Google Drive, or GitHub — it connects them,
-          so the state of a project lives in one place instead of four.
-        </p>
-        <p class="cst-access">
-          <strong>Private application.</strong> Constellation is used only by members of
-          SEARCH, who sign in with the club's Slack workspace. It is not a public service
-          and has no public sign-up.
-        </p>
-      </div>
-
-      <!-- The integration map, drawn as a constellation: the club's three existing
-           tools connected to the system that links them. Edges exist only where a
-           real integration does. -->
-      <svg class="cst-figure" viewBox="0 0 620 380" role="img"
-           aria-label="Diagram: Constellation at the centre, connected to Slack, Google Drive, and GitHub.">
-        <g class="cst-edges">
-          <line class="cst-edge" x1="300" y1="200" x2="95"  y2="105" />
-          <line class="cst-edge" x1="300" y1="200" x2="525" y2="130" />
-          <line class="cst-edge" x1="300" y1="200" x2="365" y2="330" />
-        </g>
-
-        <g aria-hidden="true">
-          <circle class="cst-star" cx="60"  cy="250" r="1.6" />
-          <circle class="cst-star" cx="170" cy="320" r="1.2" />
-          <circle class="cst-star" cx="245" cy="60"  r="1.4" />
-          <circle class="cst-star" cx="430" cy="45"  r="1.2" />
-          <circle class="cst-star" cx="580" cy="230" r="1.5" />
-          <circle class="cst-star" cx="500" cy="300" r="1.2" />
-          <circle class="cst-star" cx="120" cy="180" r="1.1" />
-          <circle class="cst-star" cx="390" cy="150" r="1.3" />
-          <circle class="cst-star" cx="215" cy="255" r="1.2" />
-          <circle class="cst-star" cx="555" cy="75"  r="1.1" />
-        </g>
-
-        <g class="cst-nodes">
-          <g class="cst-node">
-            <circle class="cst-node-ring" cx="95" cy="105" r="9" />
-            <circle class="cst-node-core" cx="95" cy="105" r="3.5" />
-            <text class="cst-label" x="95" y="80" text-anchor="middle">Slack</text>
-          </g>
-          <g class="cst-node">
-            <circle class="cst-node-ring" cx="525" cy="130" r="9" />
-            <circle class="cst-node-core" cx="525" cy="130" r="3.5" />
-            <text class="cst-label" x="525" y="105" text-anchor="middle">Google Drive</text>
-          </g>
-          <g class="cst-node">
-            <circle class="cst-node-ring" cx="365" cy="330" r="9" />
-            <circle class="cst-node-core" cx="365" cy="330" r="3.5" />
-            <text class="cst-label" x="365" y="357" text-anchor="middle">GitHub</text>
-          </g>
-        </g>
-
-        <g class="cst-hub">
-          <circle class="cst-hub-ring" cx="300" cy="200" r="15" />
-          <circle class="cst-hub-core" cx="300" cy="200" r="5.5" />
-          <text class="cst-label-hub" x="300" y="243" text-anchor="middle">Constellation</text>
-        </g>
-      </svg>
-    </div>
-  </header>
-
-  <main class="cst-main">
-
-    <section class="cst-section">
-      <h2>What Constellation is</h2>
-      <p class="cst-lede">
-        SEARCH (Space and Earth Analogs Research Chapter) is a registered student
-        organization at Purdue University. Its members run analog astronaut training,
-        bioastronautics research, space habitat design, and outreach programs — work that
-        spans dozens of people, several semesters, and a constant turnover of students.
-      </p>
-      <p>
-        Constellation is the internal web application SEARCH built to manage that work. One
-        idea sits underneath it: <strong>work has a state, and the state lives in one
-        place</strong> — not in someone's memory, not in a Slack thread from three weeks
-        ago, and not in a Drive folder that four people have a different version of.
-      </p>
-      <p>
-        It is operated by the student organization for its own members. There is no paid
-        tier, no advertising, and no public sign-up.
-      </p>
-    </section>
-
-    <section class="cst-section">
-      <h2>What members use it for</h2>
-      <dl class="cst-does">
-        <div>
-          <dt>Projects and tasks</dt>
-          <dd>A board per project, with assignments, priorities, due dates, dependencies,
-            and a record of who changed what.</dd>
-        </div>
-        <div>
-          <dt>Milestones and blockers</dt>
-          <dd>Marking why something is stuck in a way the system understands, so it shows
-            up in reports instead of being rediscovered later.</dd>
-        </div>
-        <div>
-          <dt>Files and CAD parts</dt>
-          <dd>A parts vault with version history, check-out, and change requests, backed by
-            the club's Google Drive.</dd>
-        </div>
-        <div>
-          <dt>Events and scheduling</dt>
-          <dd>Meeting polls, RSVPs, and a shared calendar for club activities.</dd>
-        </div>
-        <div>
-          <dt>Outreach and writing</dt>
-          <dd>Drafting and publishing the club's blog posts and press material, and keeping
-            track of sponsor and partner relationships.</dd>
-        </div>
-        <div>
-          <dt>Training</dt>
-          <dd>Internal courses that teach new members how the club works, with progress
-            tracked per person.</dd>
-        </div>
-      </dl>
-    </section>
-
-    <section class="cst-section">
-      <h2>How Constellation uses Google Drive</h2>
-
-      <div class="cst-callout">
-        <p>
-          <strong>Constellation connects one Google account, owned and controlled by the
-          club.</strong> Individual members never connect personal Google accounts, and
-          Constellation does not offer "sign in with Google" — members authenticate through
-          the club's Slack workspace. A club administrator connects the shared account once,
-          and can disconnect it at any time.
-        </p>
-      </div>
-
-      <p>
-        SEARCH keeps its documents, CAD files, images, and presentation decks in Google
-        Drive. Constellation reads and writes those files so that a part in the vault, an
-        image in a blog post, or a deck in a training course is the same file the club
-        already has in Drive — rather than a second copy that drifts out of date.
-      </p>
-
-      <div class="cst-table-wrap">
-        <table class="cst-table">
-          <thead>
-            <tr>
-              <th scope="col">Permission requested</th>
-              <th scope="col">What it is used for</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td><code>https://www.googleapis.com/auth/drive</code></td>
-              <td>
-                Create and organize the club's project folders in Drive; upload and
-                download CAD files and their revisions in the parts vault; store images
-                used in published blog posts; read presentation decks that members link
-                to a training course and convert them for display; and list the contents
-                of a project's Drive folder inside the project's Files tab.
-              </td>
-            </tr>
-            <tr>
-              <td><code>openid</code>, <code>email</code></td>
-              <td>
-                Read the email address of the connected account, so administrators can
-                confirm which Google account Constellation is using and detect if the
-                wrong one was connected.
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <p>
-        Constellation reaches only files the connected club account can already access.
-        Data received from Google APIs is used solely for the features described above. It
-        is not sold, not used for advertising, and not used to train generalized artificial
-        intelligence models. The full commitments, including the Google API Services User
-        Data Policy Limited Use requirements, are set out in the
-        <a href="/legal/privacy.html#google-data">Privacy Policy</a>.
-      </p>
-    </section>
-
-    <section class="cst-section">
-      <h2>Who operates Constellation</h2>
-      <p>
-        Constellation is built and operated by <strong>SEARCH — Space and Earth Analogs
-        Research Chapter</strong>, a registered student organization at Purdue University in
-        West Lafayette, Indiana, United States.
-      </p>
-      <div class="cst-callout">
-        <p>
-          SEARCH is student-run. Constellation is not an official service of Purdue
-          University, and the University does not operate or administer it.
-        </p>
-      </div>
-      <p>
-        Questions about the application, including requests from reviewers who need a guided
-        walkthrough of an account they cannot sign up for, can be sent to
-        <a href="mailto:purduesearch@gmail.com">purduesearch@gmail.com</a>.
-      </p>
-    </section>
-
-    <section class="cst-section">
-      <h2>Policies</h2>
-      <ul>
-        <li><a href="/legal/privacy.html">Privacy Policy</a> — what Constellation collects,
-          how it is used, and how to have it removed.</li>
-        <li><a href="/legal/terms.html">Terms of Service</a> — the terms that govern use of
-          Constellation and the SEARCH website.</li>
-      </ul>
-    </section>
-
-  </main>
-
-  <footer class="cst-footer">
-    <div class="cst-footer-inner">
-      <div>
-        <a href="/">SEARCH home</a>
-        <a href="/legal/privacy.html">Privacy Policy</a>
-        <a href="/legal/terms.html">Terms of Service</a>
-        <a href="/contact">Contact</a>
-      </div>
-      <p>© 2026 SEARCH of Purdue University</p>
-    </div>
-  </footer>
-
+<body>
+  <p>
+    The Constellation application home page has moved to
+    <a href="/clubpm/login">purduesearch.org/clubpm/login</a>.
+  </p>
 </body>
 </html>
