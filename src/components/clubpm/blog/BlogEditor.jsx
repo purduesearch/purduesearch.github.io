@@ -31,6 +31,7 @@ import BlogSectionLibrary from './BlogSectionLibrary';
 import BlogSectionSettings from './BlogSectionSettings';
 import BlogThemeBar from './BlogThemeBar';
 import BlogSelectionBubble from './BlogSelectionBubble';
+import AvatarPortrait from '../avatar/AvatarPortrait';
 import { suggestionExtensions, findMarkRanges } from './suggestionMarks';
 import {
   SuggestingMode, modesFor, storedMode, rememberMode, MODE_LABELS, MODE_ICONS,
@@ -567,38 +568,27 @@ function useMemberAvatars() {
 }
 
 /**
- * One collaborator's face. The initial is a fallback for two cases only: a
- * member with no Slack image at all, and an image that fails to load — a broken
- * <img> in a 24px circle is worse than a letter.
+ * One collaborator's face, drawn by the same component as the assignee tokens
+ * on the project board (AvatarPortrait): Slack photo, initials only when there
+ * genuinely isn't one, and an onError fallback so a dead URL never leaves a
+ * broken image in a 24px circle.
  */
-function PresenceFace({ peer, avatarUrl, following, onToggle }) {
-  const [broken, setBroken] = useState(false);
-  const name = peer.user?.name || 'Someone';
-  const src = avatarUrl || peer.user?.avatarUrl;
+function PresenceFace({ member, color, following, onToggle, title }) {
   return (
     <button
       type="button"
       className={`cpm-blog-presence-avatar${following ? ' is-following' : ''}`}
-      style={{ background: peer.user?.color, '--caret-color': peer.user?.color }}
-      title={following ? `Following ${name} — click to stop` : `${name} is editing — click to follow`}
+      style={{ '--caret-color': color }}
+      title={title}
       onClick={onToggle}
+      disabled={!onToggle}
     >
-      {src && !broken ? (
-        <img
-          src={src}
-          alt=""
-          className="cpm-blog-presence-img"
-          referrerPolicy="no-referrer"
-          onError={() => setBroken(true)}
-        />
-      ) : (
-        name.charAt(0).toUpperCase()
-      )}
+      <AvatarPortrait member={member} size={20} />
     </button>
   );
 }
 
-function PresenceBar({ synced, connected, peers, followedClientId, onToggleFollow }) {
+function PresenceBar({ synced, connected, peers, self, followedClientId, onToggleFollow }) {
   const title = synced
     ? 'Live — changes sync in real time'
     : connected
@@ -610,13 +600,29 @@ function PresenceBar({ synced, connected, peers, followedClientId, onToggleFollo
   return (
     <div className="cpm-blog-presence" data-tour-id="blog.editor.presence" title={title}>
       <span className={`cpm-blog-presence-dot${synced ? ' is-live' : ''}`} aria-hidden="true" />
+      {/* You, first — as in Docs. Also the one face that is always resolvable,
+          since it comes from the auth context rather than a peer's broadcast. */}
+      {self?.id && (
+        <PresenceFace
+          member={{ id: self.id, displayName: self.name, avatarUrl: self.avatarUrl || avatars.get(self.id) }}
+          color={colorForMember(self.id)}
+          title={`${self.name || 'You'} (you)`}
+        />
+      )}
       {visible.map((p) => (
         <PresenceFace
           key={p.clientId}
-          peer={p}
-          avatarUrl={avatars.get(p.user?.id)}
+          member={{
+            id: p.user?.id,
+            displayName: p.user?.name || 'Someone',
+            avatarUrl: avatars.get(p.user?.id) || p.user?.avatarUrl,
+          }}
+          color={p.user?.color}
           following={p.clientId === followedClientId}
           onToggle={() => onToggleFollow?.(p.clientId)}
+          title={p.clientId === followedClientId
+            ? `Following ${p.user?.name || 'Someone'} — click to stop`
+            : `${p.user?.name || 'Someone'} is editing — click to follow`}
         />
       ))}
       {overflow > 0 && (
@@ -1146,6 +1152,7 @@ export default function BlogEditor({
                 synced={synced}
                 connected={connected}
                 peers={peers}
+                self={collabUser}
                 followedClientId={followedClientId}
                 onToggleFollow={(clientId) => {
                   if (clientId === followedRef.current) { stopFollowing(); return; }
@@ -1196,6 +1203,8 @@ export default function BlogEditor({
               docType={docType}
               docId={reviewDocId}
               canEdit={canEditDoc}
+              docMode={mode}
+              modeIsChoice={modes.length > 1}
               onThreadCreated={() => onThreadsChanged?.()}
               onAskAi={(text) => onAskAi?.(text)}
             />

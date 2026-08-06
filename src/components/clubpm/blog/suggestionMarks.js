@@ -59,6 +59,34 @@ export function findMarkRanges(doc, markName, threadId) {
   return ranges;
 }
 
+/**
+ * Every suggestion currently in the document, read back off its marks.
+ *
+ * Suggestions made by TYPING in Suggesting mode exist only as marks — unlike
+ * "Suggest edit" from the selection bubble, nothing creates a Postgres thread
+ * for them. Without this they had no representation anywhere in the UI: no
+ * card, nothing to accept or reject, just coloured text.
+ *
+ * @returns {{ id: string, deleted: string, inserted: string }[]}
+ */
+export function collectSuggestionThreads(doc) {
+  const byId = new Map();
+  doc.descendants((node) => {
+    if (!node.isText) return;
+    node.marks.forEach((m) => {
+      const name = m.type.name;
+      if (name !== 'suggestInsert' && name !== 'suggestDelete') return;
+      const id = m.attrs.threadId;
+      if (!id) return;
+      const entry = byId.get(id) ?? { id, deleted: '', inserted: '' };
+      if (name === 'suggestInsert') entry.inserted += node.text ?? '';
+      else entry.deleted += node.text ?? '';
+      byId.set(id, entry);
+    });
+  });
+  return [...byId.values()];
+}
+
 export const SuggestionCommands = Extension.create({
   name: 'suggestionCommands',
 

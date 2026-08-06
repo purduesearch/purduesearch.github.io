@@ -49,6 +49,10 @@ export default function BlogThreadCard({
   const terminal = thread.status === 'ACCEPTED' || thread.status === 'REJECTED';
   const orphaned = !anchor && !terminal;
   const isSuggestion = thread.kind === 'SUGGESTION';
+  // A suggestion made by typing in Suggesting mode: marks in the document, no
+  // Postgres row. Accepting or rejecting it is a pure document operation, and
+  // there is nothing for a reply to hang off.
+  const isLocal = !!thread.local;
 
   const run = async (fn) => {
     setBusy(true);
@@ -76,13 +80,19 @@ export default function BlogThreadCard({
     apply();
   });
 
-  const accept = () => confirmThen('ACCEPTED', () => {
-    editor?.chain().focus().acceptSuggestion(thread.id).run();
-  });
+  // For a local suggestion the document IS the record, so there is no status to
+  // confirm first — applying it is the whole operation.
+  const accept = () => (isLocal
+    ? run(async () => { editor?.chain().focus().acceptSuggestion(thread.id).run(); })
+    : confirmThen('ACCEPTED', () => {
+      editor?.chain().focus().acceptSuggestion(thread.id).run();
+    }));
 
-  const reject = () => confirmThen('REJECTED', () => {
-    editor?.chain().focus().rejectSuggestion(thread.id).run();
-  });
+  const reject = () => (isLocal
+    ? run(async () => { editor?.chain().focus().rejectSuggestion(thread.id).run(); })
+    : confirmThen('REJECTED', () => {
+      editor?.chain().focus().rejectSuggestion(thread.id).run();
+    }));
 
   const resolve = () => confirmThen('RESOLVED', () => {
     editor?.chain().focus().removeCommentThread(thread.id).run();
@@ -133,18 +143,24 @@ export default function BlogThreadCard({
         {thread.origin === 'AI' && <span className="cpm-blog-thread-badge cpm-blog-thread-badge--ai">AI</span>}
         {thread.status !== 'OPEN' && <span className="cpm-blog-thread-badge">{thread.status.toLowerCase()}</span>}
         {orphaned && <span className="cpm-blog-thread-badge">anchor removed</span>}
-        <span style={{ marginLeft: 'auto' }}>{thread.createdBy?.displayName ?? 'Someone'}</span>
+        <span style={{ marginLeft: 'auto' }}>
+          {isLocal ? 'You (unsaved)' : (thread.createdBy?.displayName ?? 'Someone')}
+        </span>
       </div>
 
-      <button
-        type="button"
-        className="cpm-blog-thread-quote"
-        onClick={scrollTo}
-        disabled={!anchor}
-        style={{ display: 'block', textAlign: 'left', background: 'none', border: 0, color: 'inherit', cursor: anchor ? 'pointer' : 'default', font: 'inherit' }}
-      >
-        “{thread.anchorText}”
-      </button>
+      {/* A pure insertion has no original text to quote — the diff below is the
+          whole story, and “” reads as a bug. */}
+      {!!thread.anchorText && (
+        <button
+          type="button"
+          className="cpm-blog-thread-quote"
+          onClick={scrollTo}
+          disabled={!anchor}
+          style={{ display: 'block', textAlign: 'left', background: 'none', border: 0, color: 'inherit', cursor: anchor ? 'pointer' : 'default', font: 'inherit' }}
+        >
+          “{thread.anchorText}”
+        </button>
+      )}
 
       {isSuggestion && (
         <div className="cpm-blog-thread-diff">
@@ -200,13 +216,15 @@ export default function BlogThreadCard({
 
       {!terminal && (
         <>
-          <input
-            className="cpm-blog-thread-reply"
-            value={reply}
-            placeholder="Reply…"
-            onChange={(e) => setReply(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); send(); } }}
-          />
+          {!isLocal && (
+            <input
+              className="cpm-blog-thread-reply"
+              value={reply}
+              placeholder="Reply…"
+              onChange={(e) => setReply(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); send(); } }}
+            />
+          )}
           <div className="cpm-blog-thread-actions">
             {isSuggestion && canEdit && (
               <>

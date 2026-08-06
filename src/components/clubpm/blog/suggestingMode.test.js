@@ -2,7 +2,7 @@ import { Editor } from '@tiptap/core';
 import Document from '@tiptap/extension-document';
 import Paragraph from '@tiptap/extension-paragraph';
 import Text from '@tiptap/extension-text';
-import { suggestionExtensions } from './suggestionMarks';
+import { suggestionExtensions, collectSuggestionThreads } from './suggestionMarks';
 import { modesFor, defaultMode, SuggestingMode } from './SuggestingMode';
 
 // COMMENT users ride a readOnly connection, so their suggestions — which are
@@ -92,6 +92,53 @@ describe('setSuggesting', () => {
       node.marks.forEach((m) => marks.push(m.type.name));
     });
     expect(marks).toEqual([]);
+    editor.destroy();
+  });
+});
+
+// A transaction is roughly one keystroke, so a fresh id per transaction turned
+// typing one word into one suggestion per character — a column of single-letter
+// cards in the rail, each needing its own accept.
+describe('suggestion grouping', () => {
+  const makeEditor = () => new Editor({
+    extensions: [
+      Document, Paragraph, Text,
+      ...suggestionExtensions(),
+      SuggestingMode.configure({ enabled: false, authorId: 'm1' }),
+    ],
+    content: '<p>Hello world</p>',
+  });
+
+  it('groups a burst of typing into one suggestion', () => {
+    const editor = makeEditor();
+    editor.commands.setSuggesting(true);
+    // One transaction per character, as real typing produces.
+    'brave '.split('').forEach((ch, i) => {
+      editor.commands.insertContentAt(6 + i, ch);
+    });
+
+    const found = collectSuggestionThreads(editor.state.doc);
+    expect(found).toHaveLength(1);
+    expect(found[0].inserted).toBe('brave ');
+    editor.destroy();
+  });
+
+  it('reads a replacement back as its deleted and inserted halves', () => {
+    const editor = makeEditor();
+    editor.commands.setSuggesting(true);
+    editor.commands.insertContentAt({ from: 7, to: 12 }, 'there');
+
+    const found = collectSuggestionThreads(editor.state.doc);
+    expect(found).toHaveLength(1);
+    expect(found[0].deleted).toBe('world');
+    expect(found[0].inserted).toBe('there');
+    editor.destroy();
+  });
+
+  it('finds nothing in a document with no suggestions', () => {
+    const editor = makeEditor();
+    editor.commands.insertContentAt(6, 'brave ');
+    expect(collectSuggestionThreads(editor.state.doc)).toEqual([]);
     editor.destroy();
   });
 });

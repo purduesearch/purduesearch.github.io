@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import BlogThreadCard from './BlogThreadCard';
 import { layoutCards } from './railLayout';
+import { collectSuggestionThreads } from './suggestionMarks';
 
 /**
  * The right-hand comment gutter. Each open thread's card sits level with the
@@ -30,17 +31,43 @@ export default function BlogCommentRail({
   // Bumped by anything that can move text on screen; the measure effect keys off it.
   const [tick, setTick] = useState(0);
 
-  // Comments only. Suggestions are still anchored by marks and have no relative
-  // position, so they would land in every partition below as false orphans —
-  // they stay in the review panel, which is built to accept/reject them.
-  const open = threads.filter((t) => t.status === 'OPEN' && t.kind !== 'SUGGESTION');
-  const anchored = open.filter((t) => positions?.has?.(t.id));
+  // Comments resolve through the decoration set (Yjs relative positions);
+  // suggestions are anchored by MARKS and resolve through the mark index that
+  // suggestionMarks.js keeps. The rail carries both, so it needs both maps.
+  const markPositions = editor?.storage?.blogThreadPositions?.positions;
+  const rangeFor = (id) => positions?.get?.(id) ?? markPositions?.get?.(id) ?? null;
+
+  const stored = threads.filter((t) => t.status === 'OPEN');
+  const storedIds = new Set(stored.map((t) => t.id));
+
+  // Suggestions made by typing in Suggesting mode have marks but no stored
+  // thread, so they are synthesised from the document. `local: true` tells the
+  // card there is no server row behind it: accept/reject act on the document
+  // alone, and there is nothing to reply to.
+  const typed = (editor && !editor.isDestroyed)
+    ? collectSuggestionThreads(editor.state.doc)
+      .filter((s) => !storedIds.has(s.id))
+      .map((s) => ({
+        id: s.id,
+        kind: 'SUGGESTION',
+        status: 'OPEN',
+        local: true,
+        anchorText: s.deleted,
+        replaceWith: s.inserted,
+        comments: [],
+      }))
+    : [];
+
+  const open = [...stored, ...typed];
+  const anchored = open.filter((t) => rangeFor(t.id));
   // Everything else. A thread with an `anchorStart` that no longer resolves is
   // genuinely orphaned; one that never got an anchor is simply awaiting the
   // lazy commentMark migration (BlogEditor runs it on first open by an editor)
   // and its text is still in the document — so the group is labelled for what
   // is actually true of both, rather than calling either of them deleted.
-  const unplaced = open.filter((t) => !positions?.has?.(t.id));
+  const unplaced = open.filter((t) => !rangeFor(t.id));
+  // Identity of the placed set: which cards, and where each one starts.
+  const anchoredKey = anchored.map((t) => `${t.id}@${rangeFor(t.id)?.from}`).join('|');
 
   const measure = useCallback(() => {
     const rail = railRef.current;
@@ -50,7 +77,7 @@ export default function BlogCommentRail({
     const railTop = rail.getBoundingClientRect().top;
     const cards = [];
     for (const thread of anchored) {
-      const range = positions.get(thread.id);
+      const range = rangeFor(thread.id);
       let coords;
       try { coords = editor.view.coordsAtPos(range.from); } catch { continue; }
       const el = cardRefs.current.get(thread.id);
@@ -61,10 +88,13 @@ export default function BlogCommentRail({
       });
     }
     setTops(layoutCards(cards, focusedThreadId));
-    // `anchored`/`positions` are derived fresh each render; the effect below
-    // re-arms whenever they can have changed.
+    // `anchored` and `rangeFor` are derived fresh every render, so the memo has
+    // to be keyed on their CONTENT, not on the inputs they happen to come from.
+    // Keying on `threads`/`positions` alone left the closure stale for anything
+    // derived from the document instead — typed suggestions appeared in the
+    // rail but never got a top, so they sat at opacity 0 forever.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editor, positions, focusedThreadId, threads]);
+  }, [editor, focusedThreadId, anchoredKey]);
 
   // Measure after paint so the cards have their real heights, and in a frame so
   // ProseMirror has finished laying the document out.
@@ -109,11 +139,11 @@ export default function BlogCommentRail({
           <BlogThreadCard
             thread={thread}
             editor={editor}
-            // The rail's anchor comes from the decoration set, which is where a
-            // migrated comment now lives. Without this the card falls back to
-            // the mark index, finds nothing, and badges every comment
-            // "anchor removed".
-            anchor={positions.get(thread.id)}
+            // The rail already resolved this one — pass it in rather than
+            // letting the card re-look-it-up in the mark index, which knows
+            // nothing about decoration-anchored comments and would badge every
+            // one of them "anchor removed".
+            anchor={rangeFor(thread.id)}
             canEdit={canEdit}
             currentMember={currentMember}
             onChanged={onChanged}

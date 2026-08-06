@@ -63,11 +63,39 @@ export const MODE_ICONS = {
 
 export const suggestingModeKey = new PluginKey('blogSuggestingMode');
 
-/** Ids are per-edit-run, so one accept/reject covers a contiguous typing burst. */
+const SUGGESTION_MARKS = ['suggestInsert', 'suggestDelete'];
+
 let counter = 0;
 function newSuggestionId(prefix) {
   counter += 1;
   return `sugg-${prefix || 'local'}-${Date.now().toString(36)}-${counter}`;
+}
+
+/**
+ * The suggestion already under the caret, if any.
+ *
+ * `appendTransaction` runs per transaction and a transaction is roughly one
+ * keystroke, so minting a fresh id each time made typing "hello" into five
+ * separate suggestions — five cards in the rail, five things to accept. Joining
+ * an adjacent run instead is what actually delivers the "one accept/reject per
+ * contiguous burst" this always claimed.
+ *
+ * Both sides of the position are checked: `$pos.marks()` reports the marks the
+ * caret would inherit (the node *before* it), which misses typing at the very
+ * start of an existing run.
+ */
+function adjacentSuggestionId(state, pos) {
+  const clamped = Math.min(Math.max(pos, 0), state.doc.content.size);
+  const $pos = state.doc.resolve(clamped);
+  const candidates = [
+    ...$pos.marks(),
+    ...($pos.nodeAfter?.marks ?? []),
+    ...($pos.nodeBefore?.marks ?? []),
+  ];
+  const hit = candidates.find(
+    (m) => SUGGESTION_MARKS.includes(m.type.name) && m.attrs?.threadId
+  );
+  return hit?.attrs.threadId ?? null;
 }
 
 /**
@@ -149,7 +177,11 @@ export const SuggestingMode = Extension.create({
 
         const tr = newState.tr;
         let touched = false;
-        const threadId = newSuggestionId(ext.options.authorId);
+        // Join the run the caret is already in, so a burst of typing is one
+        // suggestion rather than one per keystroke.
+        const firstStep = transactions.find((t) => t.docChanged)?.steps?.[0];
+        const threadId = (firstStep && adjacentSuggestionId(oldState, firstStep.from))
+          || newSuggestionId(ext.options.authorId);
 
         for (const source of transactions) {
           if (!source.docChanged) continue;
