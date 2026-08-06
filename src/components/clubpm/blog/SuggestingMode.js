@@ -22,6 +22,33 @@ export function defaultMode(level) {
   return (level === 'EDIT' || level === 'OWNER') ? 'editing' : 'viewing';
 }
 
+const MODE_STORAGE_PREFIX = 'clubpm_doc_mode:';
+
+/**
+ * The mode is a working preference, not a document property: someone reviewing
+ * in Suggesting should still be in Suggesting after a reload. Stored per
+ * document, and always re-checked against the access level the server resolved
+ * this session — a stored 'editing' must never survive losing edit rights.
+ */
+export function storedMode(docKey, level) {
+  const allowed = modesFor(level);
+  try {
+    const saved = window.localStorage?.getItem(MODE_STORAGE_PREFIX + docKey);
+    if (saved && allowed.includes(saved)) return saved;
+  } catch {
+    // Private-mode / disabled storage: fall through to the default.
+  }
+  return defaultMode(level);
+}
+
+export function rememberMode(docKey, mode) {
+  try {
+    window.localStorage?.setItem(MODE_STORAGE_PREFIX + docKey, mode);
+  } catch {
+    // Nothing to do — the mode still applies for this session.
+  }
+}
+
 export const MODE_LABELS = {
   editing: 'Editing',
   suggesting: 'Suggesting',
@@ -76,11 +103,15 @@ export const SuggestingMode = Extension.create({
     return { enabled: false, authorId: null };
   },
 
+  // The flag lives in plugin state, NOT in `options`. It used to be written
+  // through `editor.extensionManager.extensions.find(...)`, whose `options` is
+  // a different object from the one `addProseMirrorPlugins` closes over (see
+  // threadDecorations.test.js) — so `appendTransaction` always read the
+  // default `false` and Suggesting mode never did anything at all.
   addCommands() {
     return {
-      setSuggesting: (enabled) => ({ editor }) => {
-        editor.extensionManager.extensions
-          .find((e) => e.name === 'suggestingMode').options.enabled = !!enabled;
+      setSuggesting: (enabled) => ({ tr, dispatch }) => {
+        if (dispatch) tr.setMeta(suggestingModeKey, { enabled: !!enabled });
         return true;
       },
     };
@@ -92,8 +123,18 @@ export const SuggestingMode = Extension.create({
     return [new Plugin({
       key: suggestingModeKey,
 
+      state: {
+        init: () => !!ext.options.enabled,
+        apply: (tr, enabled) => {
+          const meta = tr.getMeta(suggestingModeKey);
+          // `setMeta(key, true)` is this plugin marking its OWN output below;
+          // only an { enabled } payload is a mode change.
+          return typeof meta?.enabled === 'boolean' ? meta.enabled : enabled;
+        },
+      },
+
       appendTransaction: (transactions, oldState, newState) => {
-        if (!ext.options.enabled) return null;
+        if (!suggestingModeKey.getState(newState)) return null;
         if (!transactions.some((t) => t.docChanged)) return null;
         // Remote Yjs updates and our own rewrite must pass through untouched —
         // re-marking a co-editor's text would attribute their edit to us and

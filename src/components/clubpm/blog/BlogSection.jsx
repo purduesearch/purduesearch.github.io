@@ -2,10 +2,11 @@ import React from 'react';
 import { Node } from '@tiptap/core';
 import { ReactNodeViewRenderer, NodeViewWrapper, NodeViewContent } from '@tiptap/react';
 import { defaultSpans, resizePair, spansAfterAdd, spansAfterRemove } from '../../../lib/columnSpans';
+import { useIsEditable } from './useIsEditable';
 
 function SectionView({ node, editor, getPos, selected }) {
   const { layout, background, padding, width, theme } = node.attrs;
-  const editable = editor.isEditable;
+  const editable = useIsEditable(editor);
   const bgStyle = background?.kind === 'color' && background.value ? { backgroundColor: background.value }
     : background?.kind === 'image' && background.value ? { backgroundImage: `url(${background.value})`, backgroundSize: 'cover', backgroundPosition: 'center' }
     : undefined;

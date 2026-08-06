@@ -5,13 +5,14 @@ import { uploadBlogImage } from '../../../api/clubPmClient';
 import useImageUpload from './useImageUpload';
 import { galleryImagesWithReplacement } from '../../../lib/blogImageDrop';
 import { initBlogCarousels } from '../../../lib/blogCarousel';
+import { useIsEditable } from './useIsEditable';
 
 function GalleryView({ node, updateAttributes, editor }) {
   const images = Array.isArray(node.attrs.images) ? node.attrs.images : [];
   const [busy, setBusy] = React.useState(false);
   const fileRef = React.useRef(null);
   const rootRef = React.useRef(null);
-  const editable = editor.isEditable;
+  const editable = useIsEditable(editor);
 
   // Re-run the enhancer whenever the slide count changes so arrows and dots
   // stay wired to the current DOM.

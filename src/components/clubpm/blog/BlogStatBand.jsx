@@ -1,10 +1,11 @@
 import React from 'react';
 import { Node } from '@tiptap/core';
 import { ReactNodeViewRenderer, NodeViewWrapper } from '@tiptap/react';
+import { useIsEditable } from './useIsEditable';
 
 function StatBandView({ node, updateAttributes, editor }) {
   const stats = Array.isArray(node.attrs.stats) ? node.attrs.stats : [];
-  const editable = editor.isEditable;
+  const editable = useIsEditable(editor);
   const setStat = (i, patch) => updateAttributes({ stats: stats.map((s, j) => (j === i ? { ...s, ...patch } : s)) });
   const add = () => updateAttributes({ stats: [...stats, { label: 'LABEL', value: '0' }] });
   const remove = (i) => updateAttributes({ stats: stats.filter((_, j) => j !== i) });

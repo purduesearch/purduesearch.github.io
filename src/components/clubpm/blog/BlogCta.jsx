@@ -1,10 +1,11 @@
 import React from 'react';
 import { Node } from '@tiptap/core';
 import { ReactNodeViewRenderer, NodeViewWrapper } from '@tiptap/react';
+import { useIsEditable } from './useIsEditable';
 
 function CtaView({ node, updateAttributes, editor }) {
   const { label, href, style, align } = node.attrs;
-  const editable = editor.isEditable;
+  const editable = useIsEditable(editor);
   return (
     <NodeViewWrapper as="div" className={`cpm-blog-cta cpm-blog-cta--${align || 'center'}`} contentEditable={false}>
       {editable ? (

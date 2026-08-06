@@ -2,10 +2,11 @@ import React from 'react';
 import { Node } from '@tiptap/core';
 import { ReactNodeViewRenderer, NodeViewWrapper } from '@tiptap/react';
 import useImageUpload from './useImageUpload';
+import { useIsEditable } from './useIsEditable';
 
 function HeroView({ node, updateAttributes, editor }) {
   const { heading, subheading, bgImage, align, overlay } = node.attrs;
-  const editable = editor.isEditable;
+  const editable = useIsEditable(editor);
   const style = bgImage ? { backgroundImage: `url(${bgImage})` } : undefined;
   const { busy: uploading, pickImage } = useImageUpload();
   const pickBackground = async () => {

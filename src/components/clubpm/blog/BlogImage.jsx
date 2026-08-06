@@ -5,6 +5,7 @@ import { Plugin } from '@tiptap/pm/state';
 import { uploadBlogImage, suggestBlogAltText, proxyImageSrc } from '../../../api/clubPmClient';
 import useImageUpload from './useImageUpload';
 import { resolveDropTarget, replacedImageAttrs, galleryImagesWithReplacement } from '../../../lib/blogImageDrop';
+import { useIsEditable } from './useIsEditable';
 
 // Upload the given File and insert an image node at `pos` (or the current
 // selection when pos is null). Shows a lightweight console error on failure.
@@ -82,7 +83,7 @@ async function uploadAndReplace(editor, view, target, file) {
 function ImageView({ node, updateAttributes, selected, editor }) {
   const { src, alt, align, width, caption, widthUnit } = node.attrs;
   const [suggesting, setSuggesting] = React.useState(false);
-  const editable = editor.isEditable;
+  const editable = useIsEditable(editor);
   const { busy: uploading, pickImage } = useImageUpload();
 
   // Used both to fill an empty placeholder and to swap an existing picture.

@@ -9,6 +9,13 @@ export const threadDecorationsKey = new PluginKey('threadDecorations');
  * Renders comment anchors as view-layer decorations resolved from Yjs relative
  * positions. Nothing here touches the document, so a COMMENT-level user on a
  * readOnly connection can still see and create anchors.
+ *
+ * The thread set arrives through transaction meta — see `setThreadDecorations`.
+ * It deliberately does NOT arrive by mutating `extension.options`: the object
+ * reachable via `editor.extensionManager.extensions.find(...)` is not the one
+ * the running plugin closed over (verified in threadDecorations.test.js), so
+ * writes to it never reach `build` and every comment silently resolved to no
+ * decoration at all.
  */
 export const ThreadDecorations = Extension.create({
   name: 'threadDecorations',
@@ -35,10 +42,9 @@ export const ThreadDecorations = Extension.create({
       extension.options.onPositions?.(positions);
     };
 
-    const build = (state) => {
+    const build = (state, threads, focusedId) => {
       const decos = [];
-      const focusedId = extension.options.focusedThreadId;
-      for (const thread of extension.options.threads ?? []) {
+      for (const thread of threads ?? []) {
         if (thread.status !== 'OPEN') continue;
         const range = resolveAnchor(extension.editor, thread);
         if (!range) continue;                    // orphaned — no decoration
@@ -63,26 +69,47 @@ export const ThreadDecorations = Extension.create({
       new Plugin({
         key: threadDecorationsKey,
         state: {
-          init: (_, state) => build(state),
+          init: (_, state) => ({
+            set: build(state, extension.options.threads, extension.options.focusedThreadId),
+            threads: extension.options.threads ?? [],
+            focusedThreadId: extension.options.focusedThreadId ?? null,
+          }),
           apply(tr, old, _oldState, newState) {
-            // A full recompute is only needed when the thread set, the focused
-            // thread, or the Yjs binding changes; ordinary keystrokes just map
-            // the existing set, which keeps typing cheap with many threads open.
-            if (tr.getMeta(threadDecorationsKey)?.recompute) return build(newState);
+            // A full recompute is only needed when the thread set or the
+            // focused thread changes; ordinary keystrokes just map the existing
+            // set, which keeps typing cheap with many threads open.
+            const meta = tr.getMeta(threadDecorationsKey);
+            if (meta) {
+              const threads = meta.threads ?? old.threads;
+              const focusedThreadId = 'focusedThreadId' in meta ? meta.focusedThreadId : old.focusedThreadId;
+              return { set: build(newState, threads, focusedThreadId), threads, focusedThreadId };
+            }
             if (!tr.docChanged) return old;
-            const mapped = old.map(tr.mapping, tr.doc);
+            const mapped = old.set.map(tr.mapping, tr.doc);
             // `DecorationSet.map` returns the receiver unchanged for an empty
             // set, so an editor with no comments never re-renders the rail.
-            if (mapped !== old) emit(mapped);
-            return mapped;
+            if (mapped !== old.set) emit(mapped);
+            return { ...old, set: mapped };
           },
         },
         props: {
-          decorations(state) { return threadDecorationsKey.getState(state); },
+          decorations(state) { return threadDecorationsKey.getState(state)?.set; },
         },
       }),
     ];
   },
 });
+
+/**
+ * Push the current thread set (and which one is focused) into the editor.
+ * Anchors resolve against the Yjs binding, so callers must re-send after the
+ * document syncs as well as whenever the threads change.
+ */
+export function setThreadDecorations(editor, { threads, focusedThreadId = null }) {
+  if (!editor || editor.isDestroyed) return;
+  editor.view.dispatch(
+    editor.state.tr.setMeta(threadDecorationsKey, { threads, focusedThreadId })
+  );
+}
 
 export default ThreadDecorations;

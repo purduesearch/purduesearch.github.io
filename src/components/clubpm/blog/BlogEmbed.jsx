@@ -1,6 +1,7 @@
 import React from 'react';
 import { Node, mergeAttributes } from '@tiptap/core';
 import { ReactNodeViewRenderer, NodeViewWrapper } from '@tiptap/react';
+import { useIsEditable } from './useIsEditable';
 
 // Resolve a pasted URL into sanitized embed HTML. YouTube/Vimeo/CodePen use
 // iframes; X and Instagram use their free widget blockquotes (rendered by the
@@ -56,7 +57,7 @@ function hydrateWidget(provider) {
 function EmbedView({ node, updateAttributes, editor }) {
   const { url, html, provider } = node.attrs;
   const [draft, setDraft] = React.useState(url || '');
-  const editable = editor.isEditable;
+  const editable = useIsEditable(editor);
 
   React.useEffect(() => {
     if (html && (provider === 'twitter' || provider === 'instagram')) hydrateWidget(provider);
