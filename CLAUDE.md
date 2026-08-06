@@ -1,4 +1,4 @@
-<!-- last synced: 2026-07-05 -->
+<!-- last synced: 2026-08-05 -->
 # CLAUDE.md — SEARCH Club Website
 
 ## Project Overview
@@ -145,7 +145,7 @@ npm run dev        # ts-node-dev watch mode
 npm run build      # tsc compile
 ```
 
-Deploy is manual push to the `main` branch; GitHub Pages serves from root.
+Deploy is manual push to the `main` branch; GitHub Pages serves from root at `purduesearch.org`. The bundle's backend URL comes from the `REACT_APP_API_URL` repo secret and is **baked in at build time** — changing the secret does nothing until the Pages workflow re-runs.
 
 ---
 
@@ -169,15 +169,16 @@ Deploy is manual push to the `main` branch; GitHub Pages serves from root.
 
 ### Domain / hostnames
 - **Never hardcode `https://purduesearch.org` in JS.** Import `SITE_URL` from `src/seo/siteUrl.js`. The non-JS assets that can't import it (`public/sitemap.xml`, `robots.txt`, `llms.txt`, `index.html`, `legal/*.html`, `constellation/index.html`) carry the literal and must be updated alongside it.
-- `public/CNAME` is **required**, not redundant with Settings → Pages. Deploy goes through `actions/upload-pages-artifact`, which publishes `build/`; the Settings field writes a CNAME to the default branch that the artifact deploy never reads.
+- **Set the custom domain in Settings → Pages *and* keep `public/CNAME`.** Neither alone works: the Settings field is what triggers GitHub's certificate issuance, while the file is what reaches the served site (deploys go through `actions/upload-pages-artifact`, which publishes `build/`, so the CNAME the Settings UI writes to the default branch is never read). The field does **not** self-populate from the artifact — set it by hand or the domain serves a `*.github.io` cert and every browser shows a privacy error.
 - **`FRONTEND_URL` must stay single-valued** — ~10 backend modules read it to build outbound links (Slack deep links, OAuth redirects), so a comma-separated value breaks all of them. Extra CORS-only origins go in `CORS_EXTRA_ORIGINS` (`backend/src/app.ts`).
-- Session cookies are `sameSite: "none"` because the old cross-site origin is still accepted. Once `CORS_EXTRA_ORIGINS` is cleared, `purduesearch.org` ↔ `api.purduesearch.org` are same-site and it can drop to `"lax"` — which fixes cookie auth in Brave/Safari.
+- Session cookies are `sameSite: "none"` and **must stay that way** while `CORS_EXTRA_ORIGINS` still carries `https://purduesearch.github.io`. Once that is cleared (see pending cleanup below), `purduesearch.org` ↔ `api.purduesearch.org` are same-site and the cookie can drop to `"lax"` — restoring real cookie auth in Brave/Safari and demoting the `auth.ts` Bearer-token fallback. Worth its own PR with auth testing.
 - `pollService.ts`'s iCal `UID:...@purduesearch.github.io` is **deliberately not migrated**. Changing an iCalendar UID duplicates events on already-subscribed calendars.
-- `provision-domain.yml` (Actions tab) adds an nginx vhost + certbot cert for a new backend hostname alongside the existing one. Step-by-step cutover: `docs/DOMAIN-CUTOVER-RUNBOOK.md`; design rationale: `docs/superpowers/specs/2026-08-05-purduesearch-org-migration-design.md`.
+- **Cutover completed 2026-08-05, with cleanup deliberately deferred ~2 weeks.** Still live and still to be removed: `CORS_EXTRA_ORIGINS`, the DuckDNS nginx vhost + cert (`search-constellation.duckdns.org`), and the old OAuth redirect URLs in the Slack/GitHub apps. They are the rollback path — don't remove them opportunistically. Checklist in `docs/DOMAIN-CUTOVER-RUNBOOK.md` Phase 8.
+- `provision-domain.yml` (Actions tab) adds an nginx vhost + certbot cert for a hostname alongside the existing ones. Run `diagnose` first; `apply` refuses to call certbot until DNS resolves to the box, because Let's Encrypt allows only 5 validation failures per hostname per hour. Design rationale: `docs/superpowers/specs/2026-08-05-purduesearch-org-migration-design.md`.
 
 ### General
 - `public/` assets are served at `/` in dev and in the GitHub Pages build. Paths in JSX must start with `/` (e.g., `/astrousa/fig1.jpg`).
-- There is no `.env` file; no environment variables are required for dev or build.
+- No `.env` is needed for frontend dev or build. `REACT_APP_API_URL` is optional locally (CRA's `proxy` field forwards to `localhost:3001`) and is supplied as a repo secret in CI.
 - `mxgraph` is an npm dependency in `package.json`; do not remove it or switch to a CDN reference.
 
 ---
@@ -199,7 +200,7 @@ Deploy is manual push to the `main` branch; GitHub Pages serves from root.
 - `shop.ts` / `inventory.ts` — Cosmetic shop, inventory.
 - `leaderboard.ts` — XP + doubloon rankings.
 - `notifications.ts` + `sse.ts` — Notification CRUD + SSE push stream.
-- `public.ts` — Unauthenticated endpoints (GitHub Pages reads these).
+- `public.ts` — Unauthenticated endpoints (the public site reads these).
 - `github.ts` / `githubWebhook.ts` — GitHub integration + webhook (raw body handler).
 - `reporting.ts`, `activity.ts`, `events.ts`, `eventConfig.ts`, `streak.ts` — Ancillary data.
 - `vault.ts` (1,096 lines) + `changeRequests.ts` — Constellation Vault CAD/PDM: items, versions, checkouts, BOM, CRs. Mounted at bare `/api` (like `blockers.ts` and `streak.ts`).

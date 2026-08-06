@@ -127,18 +127,22 @@ git push origin main
 
 This triggers **Deploy to GitHub Pages**. Watch it finish in the Actions tab.
 
-### 2.2 Confirm the custom domain registered
+### 2.2 Set the custom domain
 
-Go to **Settings → Pages**. Because `public/CNAME` ships inside the published artifact,
-the Custom domain field should now read `purduesearch.org` on its own.
+Go to **Settings → Pages**, type `purduesearch.org` into **Custom domain**, and click
+**Save**.
 
-If it's empty, type `purduesearch.org` and click **Save**.
+Do this by hand. The field does **not** self-populate from the artifact's `CNAME` file —
+until you set it, Pages still reports the site as living at `purduesearch.github.io`, and
+`https://purduesearch.org` serves GitHub's `*.github.io` certificate, so every browser
+shows a privacy/certificate error. That error is the expected pre-Save state, not a
+symptom of bad DNS.
 
-> **Why the file matters:** deployment goes through `actions/upload-pages-artifact`, which
-> publishes `build/`. Typing the domain into the Settings field writes a `CNAME` file to
-> the *default branch* — which an artifact-based deploy never reads. The file in
-> `public/` is what actually reaches the served site. Both paths existing is fine; the
-> file is the one doing the work.
+> **Why you need both the field and the file:** the Settings field is what triggers
+> certificate issuance. The `public/CNAME` file is what reaches the *served site* —
+> deployment goes through `actions/upload-pages-artifact`, which publishes `build/`, so
+> the `CNAME` that the Settings UI writes to the default branch is never read. Drop the
+> file and a later deploy can leave the domain unclaimed.
 
 ### 2.3 Wait for the certificate
 
