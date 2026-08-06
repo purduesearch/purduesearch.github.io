@@ -18118,6 +18118,13 @@ button.cpm-badge-tile:disabled { opacity: 0.7; cursor: progress; }
   display: flex; align-items: center; gap: 2px; flex-wrap: wrap; flex: 1 1 auto; min-width: 0;
   padding: 0; border-radius: 0; background: none; border: 0;
 }
+/* Viewing mode: the formatting tools cannot change anything (ViewingGuard
+   refuses their transactions), so they must not look as though they can. The
+   mode switch and presence strip are deliberately untouched. */
+.cpm-blog-toolbar-row.is-viewing > .cpm-blog-toolbar {
+  opacity: .4;
+  pointer-events: none;
+}
 /* Top-aligned, not centred: the formatting bar beside it wraps, and a cluster
    centred against a four-line neighbour is exactly the drift this replaced. */
 .cpm-blog-toolbar-aside {

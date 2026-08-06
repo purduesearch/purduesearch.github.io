@@ -1,6 +1,7 @@
 import React from 'react';
 import { Node, mergeAttributes } from '@tiptap/core';
 import { ReactNodeViewRenderer, NodeViewWrapper, NodeViewContent } from '@tiptap/react';
+import { useIsEditable } from './useIsEditable';
 
 const VARIANTS = [
   { value: 'info', label: 'Info', icon: 'fa-circle-info' },
@@ -11,7 +12,7 @@ const VARIANTS = [
 
 function CalloutView({ node, updateAttributes, editor }) {
   const variant = node.attrs.variant || 'info';
-  const editable = editor.isEditable;
+  const editable = useIsEditable(editor);
   const active = VARIANTS.find((v) => v.value === variant) || VARIANTS[0];
 
   return (

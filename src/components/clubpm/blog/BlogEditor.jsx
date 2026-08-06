@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import { Extension } from '@tiptap/core';
+import { Plugin, PluginKey } from '@tiptap/pm/state';
+import { ySyncPluginKey } from '@tiptap/y-tiptap';
 import StarterKit from '@tiptap/starter-kit';
 import TaskList from '@tiptap/extension-task-list';
 import TaskItem from '@tiptap/extension-task-item';
@@ -31,14 +33,14 @@ import BlogThemeBar from './BlogThemeBar';
 import BlogSelectionBubble from './BlogSelectionBubble';
 import { suggestionExtensions, findMarkRanges } from './suggestionMarks';
 import {
-  SuggestingMode, modesFor, defaultMode, MODE_LABELS, MODE_ICONS,
+  SuggestingMode, modesFor, storedMode, rememberMode, MODE_LABELS, MODE_ICONS,
 } from './SuggestingMode';
-import { ThreadDecorations, threadDecorationsKey } from './ThreadDecorations';
+import { ThreadDecorations, setThreadDecorations } from './ThreadDecorations';
 import { anchorFromSelection } from './threadAnchors';
 import BlogAutocomplete from './blogAutocomplete';
 import { docToMarkdown, markdownToDoc } from './blogMarkdown';
 import {
-  getBlogCollabWsUrl, getStoredToken, listBlogThreads, setBlogThreadAnchor,
+  get, getBlogCollabWsUrl, getStoredToken, listBlogThreads, setBlogThreadAnchor,
 } from '../../../api/clubPmClient';
 import { shouldFallbackSeed } from '../../../lib/collabFallback';
 import useKeyboardShortcuts from '../../../hooks/useKeyboardShortcuts';
@@ -50,6 +52,38 @@ const LinkShortcut = Extension.create({
   name: 'linkShortcut',
   addKeyboardShortcuts() {
     return { 'Mod-k': () => { setLink(this.editor); return true; } };
+  },
+});
+
+/**
+ * Viewing mode means viewing.
+ *
+ * `setEditable(false)` only stops ProseMirror's own input handling — it does
+ * nothing about node-view buttons and drag handles, which run as ordinary React
+ * and dispatch their own transactions. So a viewer could still move, duplicate,
+ * delete and re-column sections. Hiding those controls (see useIsEditable) is
+ * the visible half; this is the half that makes it true.
+ *
+ * The server is still the real authority: a below-EDIT member rides a readOnly
+ * Hocuspocus connection whose writes are dropped. This stops the local document
+ * diverging from what the server will accept.
+ */
+const ViewingGuard = Extension.create({
+  name: 'viewingGuard',
+  addProseMirrorPlugins() {
+    const { editor } = this;
+    return [new Plugin({
+      key: new PluginKey('viewingGuard'),
+      filterTransaction: (tr, state) => {
+        if (!tr.docChanged || editor.isEditable) return true;
+        // Co-editors must still appear — only LOCAL writes are refused.
+        if (tr.getMeta(ySyncPluginKey)) return true;
+        // The fallback seed fills a blank editor from the saved draft when the
+        // collab doc never syncs (see below). A viewer has to be able to read
+        // the post, so a write into an empty document is let through.
+        return state.doc.content.size <= 2;
+      },
+    })];
   },
 });
 
@@ -88,6 +122,7 @@ export function blogExtensions(collab, autocomplete, threadDecorations) {
     TableKit.configure({ table: { resizable: true } }),
     SearchAndReplace.configure({ disableRegex: true }),
     LinkShortcut,
+    ViewingGuard,
     ...suggestionExtensions(),
     // Always present, inert until the header's mode control turns it on — the
     // toggle is a command, not a re-configure, so switching modes never
@@ -283,7 +318,7 @@ function DesignMenu({ theme, onChange }) {
   );
 }
 
-function Toolbar({ editor, onToggleFind, onToggleSnippets, onAddSection, onToggleMarkdown, markdownMode, onShowShortcuts, toolbarOpen, onToggleToolbarOpen, theme, onThemeChange }) {
+function Toolbar({ editor, onToggleFind, onToggleSnippets, onAddSection, onToggleMarkdown, markdownMode, onShowShortcuts, toolbarOpen, onToggleToolbarOpen, theme, onThemeChange, inert }) {
   const fileRef = React.useRef(null);
   if (!editor) return null;
   const heading = [1, 2, 3, 4, 5, 6].find((l) => editor.isActive('heading', { level: l })) ?? '';
@@ -348,6 +383,7 @@ function Toolbar({ editor, onToggleFind, onToggleSnippets, onAddSection, onToggl
       data-tour-id="blog.editor.toolbar"
       role="toolbar"
       aria-label="Formatting"
+      inert={inert || undefined}
     >
       <span className="cpm-blog-tb-toggle-wrap">
         <Btn
@@ -506,16 +542,39 @@ function FindBar({ editor, onClose }) {
 const MAX_VISIBLE_PEERS = 5;
 
 /**
- * One collaborator's face. The Slack avatar (Member.avatarUrl, set from the
- * Slack profile on every login) travels in the awareness payload, so this is
- * the same picture the rest of ClubPM shows. The initial is a fallback for two
- * cases only: a member with no Slack image, and an image that fails to load —
- * a broken <img> in a 24px circle is worse than a letter.
+ * memberId → Slack avatar URL, fetched once per mount.
+ *
+ * The awareness payload carries an avatarUrl too, but it is only as good as
+ * what the peer's tab knew when IT connected: a peer whose auth context had not
+ * resolved yet broadcasts a null avatar and never corrects it, which is what
+ * left collaborators rendering as bare initials. The roster is the same source
+ * the rest of ClubPM reads (Member.avatarUrl, refreshed from Slack on every
+ * login), so resolving by id here is correct no matter what a peer sent.
  */
-function PresenceFace({ peer, following, onToggle }) {
+function useMemberAvatars() {
+  const [byId, setById] = useState(() => new Map());
+  useEffect(() => {
+    let cancelled = false;
+    get('/api/members')
+      .then((rows) => {
+        if (cancelled || !Array.isArray(rows)) return;
+        setById(new Map(rows.filter((m) => m.avatarUrl).map((m) => [m.id, m.avatarUrl])));
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+  return byId;
+}
+
+/**
+ * One collaborator's face. The initial is a fallback for two cases only: a
+ * member with no Slack image at all, and an image that fails to load — a broken
+ * <img> in a 24px circle is worse than a letter.
+ */
+function PresenceFace({ peer, avatarUrl, following, onToggle }) {
   const [broken, setBroken] = useState(false);
   const name = peer.user?.name || 'Someone';
-  const src = peer.user?.avatarUrl;
+  const src = avatarUrl || peer.user?.avatarUrl;
   return (
     <button
       type="button"
@@ -545,6 +604,7 @@ function PresenceBar({ synced, connected, peers, followedClientId, onToggleFollo
     : connected
       ? 'Connecting to the live session…'
       : 'Offline — your edits are saved to the draft';
+  const avatars = useMemberAvatars();
   const visible = peers.slice(0, MAX_VISIBLE_PEERS);
   const overflow = peers.length - visible.length;
   return (
@@ -554,6 +614,7 @@ function PresenceBar({ synced, connected, peers, followedClientId, onToggleFollo
         <PresenceFace
           key={p.clientId}
           peer={p}
+          avatarUrl={avatars.get(p.user?.id)}
           following={p.clientId === followedClientId}
           onToggle={() => onToggleFollow?.(p.clientId)}
         />
@@ -882,11 +943,7 @@ export default function BlogEditor({
   // reader which sentence the card they just clicked is actually about.
   React.useEffect(() => {
     if (!editor || editor.isDestroyed || !collab) return;
-    const ext = editor.extensionManager.extensions.find((e) => e.name === 'threadDecorations');
-    if (!ext) return;
-    ext.options.threads = threads;
-    ext.options.focusedThreadId = focusedThreadId ?? null;
-    editor.view.dispatch(editor.state.tr.setMeta(threadDecorationsKey, { recompute: true }));
+    setThreadDecorations(editor, { threads, focusedThreadId: focusedThreadId ?? null });
   }, [editor, collab, synced, threads, focusedThreadId]);
 
   // ── One-shot migration off commentMark ────────────────────────
@@ -1028,12 +1085,22 @@ export default function BlogEditor({
   };
 
   // ── Document mode ─────────────────────────────────────────────
-  // 'viewing' calls setEditable(false). That is a UI affordance only: the real
-  // enforcement is the server-side readOnly Hocuspocus connection, which drops
-  // writes regardless of what this flag says.
+  // 'viewing' calls setEditable(false), which stops ProseMirror's input
+  // handling; ViewingGuard above refuses the local transactions that would
+  // otherwise still get through from node-view buttons. The server-side
+  // readOnly Hocuspocus connection remains the real enforcement.
+  const modeKey = `${docType}:${reviewDocId ?? 'none'}`;
   const modes = useMemo(() => modesFor(accessLevel), [accessLevel]);
-  const [mode, setMode] = React.useState(() => defaultMode(accessLevel));
-  useEffect(() => { setMode(defaultMode(accessLevel)); }, [accessLevel]);
+  // Restored per document, so a reviewer who chose Suggesting is still in
+  // Suggesting after a reload. `storedMode` re-validates against the access
+  // level, so a stale choice can never grant more than the server allows.
+  const [mode, setMode] = React.useState(() => storedMode(modeKey, accessLevel));
+  useEffect(() => { setMode(storedMode(modeKey, accessLevel)); }, [modeKey, accessLevel]);
+
+  const chooseMode = React.useCallback((next) => {
+    setMode(next);
+    rememberMode(modeKey, next);
+  }, [modeKey]);
 
   useEffect(() => {
     if (!editor || editor.isDestroyed) return;
@@ -1050,8 +1117,12 @@ export default function BlogEditor({
           second renderer never has to track blogRender.ts) get the document
           only. The formatting bands are inert without an editable editor, and
           the Markdown toggle is not — a reader must not be offered either. */}
+      {/* In Viewing the formatting tools are inert (ViewingGuard refuses the
+          transactions), so they are dimmed and taken out of the tab order
+          rather than left looking live. The mode switch and presence stay
+          reachable — that is how you get back out. */}
       {editable && (
-        <div className="cpm-blog-toolbar-row">
+        <div className={`cpm-blog-toolbar-row${mode === 'viewing' ? ' is-viewing' : ''}`}>
           <Toolbar
             editor={editor}
             onToggleFind={() => setShowFind((s) => !s)}
@@ -1064,11 +1135,12 @@ export default function BlogEditor({
             onToggleToolbarOpen={() => setToolbarOpen((v) => !v)}
             theme={theme}
             onThemeChange={onThemeChange}
+            inert={mode === 'viewing'}
           />
           {/* Mode and presence read as one right-hand cluster rather than two
               islands drifting in whatever width the formatting bar leaves. */}
           <div className="cpm-blog-toolbar-aside">
-            <ModeControl modes={modes} mode={mode} onChange={setMode} />
+            <ModeControl modes={modes} mode={mode} onChange={chooseMode} />
             {collab && (
               <PresenceBar
                 synced={synced}
