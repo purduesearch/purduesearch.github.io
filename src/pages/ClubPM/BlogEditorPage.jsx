@@ -7,6 +7,7 @@ import BlogMetaPanel from '../../components/clubpm/blog/BlogMetaPanel';
 import BlogAnnotationsPanel from '../../components/clubpm/blog/BlogAnnotationsPanel';
 import BlogAiPanel from '../../components/clubpm/blog/BlogAiPanel';
 import BlogPreviewFrame from '../../components/clubpm/blog/BlogPreviewFrame';
+import BlogCommentRail from '../../components/clubpm/blog/BlogCommentRail';
 import OrbitLoader from '../../components/OrbitLoader';
 import ApprovalChips from '../../components/clubpm/ApprovalChips';
 import ShareDialog from '../../components/clubpm/ShareDialog';
@@ -14,6 +15,7 @@ import { useClubPmAuth } from '../../clubpm/ClubPmAuth';
 import {
   getBlogPost, updateBlogPost, publishBlogPost,
   scheduleBlogPost, unpublishBlogPost, archiveBlogPost, get, deleteBlogPost,
+  listBlogThreads,
 } from '../../api/clubPmClient';
 
 const STATUS_LABELS = {
@@ -144,6 +146,19 @@ export default function BlogEditorPage() {
   const [theme, setTheme] = useState(null);
   const [editorInstance, setEditorInstance] = useState(null);
   const [threadsRefreshKey, setThreadsRefreshKey] = useState(0);
+  // The rail needs the threads themselves plus where each one currently
+  // resolves to. BlogEditor fetches its own copy for the decorations; this one
+  // is for display, and re-fetches on the same refresh key.
+  const [threads, setThreads] = useState([]);
+  const [threadPositions, setThreadPositions] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    listBlogThreads('BLOG_POST', id)
+      .then((rows) => { if (!cancelled) setThreads(rows ?? []); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [id, threadsRefreshKey]);
 
   // Keep the latest editable state in a ref so the debounced autosave always
   // persists current values without re-arming on every keystroke.
@@ -482,7 +497,8 @@ export default function BlogEditorPage() {
         </div>
       )}
 
-      <div className="cpm-blog-editor-body">
+      <div className={`cpm-blog-editor-body${previewMode ? '' : ' has-rail'}`}>
+        <div>
         {previewMode ? (
           <BlogPreviewFrame postId={id} title={title} contentJson={contentJson} />
         ) : (
@@ -497,7 +513,7 @@ export default function BlogEditorPage() {
           <BlogEditor
             key={id}
             postId={id}
-            collabUser={{ id: member?.id, name: member?.displayName }}
+            collabUser={{ id: member?.id, name: member?.displayName, avatarUrl: member?.avatarUrl }}
             content={contentJson}
             onChange={(json) => { setContentJson(json); setDirty(true); }}
             onEditorReady={(ed) => { editorRef.current = ed; setEditorInstance(ed); }}
@@ -507,11 +523,26 @@ export default function BlogEditorPage() {
             threadsRefreshKey={threadsRefreshKey}
             onThreadsChanged={() => setThreadsRefreshKey((k) => k + 1)}
             onThreadFocus={(threadId) => { setFocusedThreadId(threadId); setOpenPanel('review'); }}
+            onThreadPositions={setThreadPositions}
             onAskAi={(text) => { setAiSelection(text); setOpenPanel('ai'); }}
             theme={theme}
             onThemeChange={handleThemeChange}
           />
         </div>
+        </div>
+
+        {!previewMode && (
+          <BlogCommentRail
+            threads={threads}
+            positions={threadPositions}
+            editor={editorInstance}
+            focusedThreadId={focusedThreadId}
+            onFocus={setFocusedThreadId}
+            currentMember={member}
+            canEdit={canEditDoc}
+            onChanged={() => setThreadsRefreshKey((k) => k + 1)}
+          />
+        )}
       </div>
 
       {shareOpen && (

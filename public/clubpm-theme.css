@@ -23529,3 +23529,105 @@ html:not(.aos-off) [data-aos].aos-animate  { opacity: 1; transform: none; }
 .cpm-blog-comment-hl.is-focused {
   background: color-mix(in srgb, var(--pm-accent-amber) 38%, transparent);
 }
+
+/* ── Comment rail ──────────────────────────────────────────────
+   Canvas keeps its existing max-width; the rail is a gutter beside it, so the
+   body widens by exactly the rail plus the gap. Below 1100px the grid never
+   applies and the rail is hidden — BlogAnnotationsPanel's overlay stays the
+   narrow-screen path. */
+@media (min-width: 1100px) {
+  .cpm-blog-editor-body.has-rail {
+    display: grid;
+    grid-template-columns: minmax(0, 820px) 300px;
+    gap: 24px;
+    align-items: start;
+    max-width: 1144px;
+  }
+}
+@media (max-width: 1099px) {
+  .cpm-blog-rail { display: none; }
+}
+/* Stretched to the canvas's height so the orphan group can sit at its foot;
+   the anchored cards are absolute and contribute no height of their own. */
+.cpm-blog-rail { position: relative; align-self: stretch; }
+.cpm-blog-rail-card {
+  position: absolute;
+  top: 0;
+  width: 100%;
+  transition: transform 160ms ease;
+}
+.cpm-blog-rail-orphans {
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  margin-top: 12px;
+  font-size: 12px;
+  color: var(--pm-text-dim, #8b93a7);
+}
+.cpm-blog-rail-orphans > summary { cursor: pointer; padding: 6px 0; }
+.cpm-blog-rail-orphan { margin-bottom: 10px; }
+.cpm-blog-rail-orphan-quote { display: block; margin-bottom: 4px; font-style: italic; }
+
+/* ── Remote collaborator carets / presence / follow mode ───────── */
+/* CollaborationCaret already emits these class names; without these rules the
+   carets render at zero width and remote cursors are invisible. --caret-color
+   is set per element by renderCaret() in BlogEditor.jsx. */
+.collaboration-carets__caret {
+  position: relative;
+  border-left: 2px solid var(--caret-color, var(--pm-accent-teal));
+  margin-left: -1px;
+  pointer-events: none;
+  word-break: normal;
+}
+.collaboration-carets__label {
+  position: absolute;
+  top: -1.4em;
+  left: -2px;
+  padding: 1px 6px;
+  border-radius: 4px 4px 4px 0;
+  background: var(--caret-color, var(--pm-accent-teal));
+  color: #04121a;
+  font: 600 11px/1.5 var(--pm-font-body);
+  white-space: nowrap;
+  user-select: none;
+  opacity: 0;
+  transition: opacity 140ms ease;
+}
+/* Labels appear on movement then fade — permanent labels are unreadable with
+   three people in one paragraph. */
+.collaboration-carets__caret.is-active .collaboration-carets__label,
+.collaboration-carets__caret:hover .collaboration-carets__label { opacity: 1; }
+
+.collaboration-carets__selection {
+  background: color-mix(in srgb, var(--caret-color, var(--pm-accent-teal)) 26%, transparent);
+  pointer-events: none;
+}
+
+/* Presence avatars are buttons now (click to follow); keep the chip geometry. */
+.cpm-blog-presence-avatar { padding: 0; cursor: pointer; overflow: hidden; }
+.cpm-blog-presence-avatar.is-following {
+  box-shadow: 0 0 0 2px var(--caret-color, var(--pm-accent-teal));
+}
+.cpm-blog-presence-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.cpm-blog-presence-more {
+  margin-left: 2px; font-size: 11px; font-weight: 700;
+  color: var(--clubpm-text-muted, #9aa4b2);
+}
+
+.cpm-blog-follow-chip {
+  position: sticky; top: 8px; z-index: 6;
+  display: inline-flex; align-items: center; gap: 8px;
+  margin: 0 auto 8px; width: fit-content;
+  padding: 5px 6px 5px 12px; border-radius: 999px;
+  background: var(--pm-elevated, #1c212b);
+  border: 1px solid var(--caret-color, var(--pm-accent-teal));
+  color: var(--clubpm-text, #e6e9ef);
+  font: 600 12px/1.4 var(--pm-font-body);
+}
+.cpm-blog-follow-chip .fa-eye { color: var(--caret-color, var(--pm-accent-teal)); }
+.cpm-blog-follow-stop {
+  background: transparent; border: none; cursor: pointer; font-size: 12px;
+  color: var(--clubpm-text-muted, #9aa4b2);
+  width: 22px; height: 22px; border-radius: 50%;
+}
+.cpm-blog-follow-stop:hover { color: var(--clubpm-text, #e6e9ef); background: var(--pm-overlay, #2a2f3a); }
