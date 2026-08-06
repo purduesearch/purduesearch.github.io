@@ -4,7 +4,11 @@
   "private": true,
   "jest": {
     "moduleNameMapper": {
-      "^@tiptap/pm/(.*)$": "<rootDir>/node_modules/@tiptap/pm/dist/$1/index.cjs"
+      "^@tiptap/pm/(.*)$": "<rootDir>/node_modules/@tiptap/pm/dist/$1/index.cjs",
+      "^lib0/hash/([a-z0-9.]+)$": "<rootDir>/node_modules/lib0/dist/$1.cjs",
+      "^y-protocols/([a-z]+)$": "<rootDir>/node_modules/y-protocols/dist/$1.cjs",
+      "^lib0/webcrypto$": "<rootDir>/node_modules/lib0/dist/webcrypto.node.cjs",
+      "^lib0/([a-z0-9.]+)$": "<rootDir>/node_modules/lib0/dist/$1.cjs"
     }
   },
   "proxy": "http://localhost:3001",
