@@ -450,6 +450,9 @@ export const setBlogThreadStatus    = (threadId, status) => patch(`/api/blog/thr
 export const addBlogThreadComment   = (threadId, body) => post(`/api/blog/threads/${threadId}/comments`, { body });
 export const editBlogThreadComment  = (threadId, commentId, body) => patch(`/api/blog/threads/${threadId}/comments/${commentId}`, { body });
 export const deleteBlogThreadComment = (threadId, commentId) => del(`/api/blog/threads/${threadId}/comments/${commentId}`);
+// Base64-encoded Yjs relative positions. Comment anchors live here rather than
+// in the document — see src/components/clubpm/blog/threadAnchors.js.
+export const setBlogThreadAnchor    = (threadId, anchorStart, anchorEnd) => patch(`/api/blog/threads/${threadId}/anchor`, { anchorStart, anchorEnd });
 
 // ── Blog / press-kit AI ──────────────────────────────────────
 export const blogAiAsk      = (docType, docId, question) => post('/api/blog/ai/ask', { docType, docId, question });
@@ -754,3 +757,13 @@ export const listTourBreakages = (sectionId) =>
   get(`/api/outreach/courses/sections/${sectionId}/tour-breakages`);
 
 export const ensureTrainingProject = () => post(`/api/training-project`, {});
+
+// ── Document access (share dialog) ───────────────────────────
+export const listDocAccess = (docType, docId) =>
+  get(`/api/docs/${docType}/${docId}/access`);
+export const setDocAccess = (docType, docId, memberId, level) =>
+  put(`/api/docs/${docType}/${docId}/access/${memberId}`, { level });
+export const removeDocAccess = (docType, docId, memberId) =>
+  del(`/api/docs/${docType}/${docId}/access/${memberId}`);
+export const setDocClubAccess = (docType, docId, level) =>
+  put(`/api/docs/${docType}/${docId}/club-access`, { level });

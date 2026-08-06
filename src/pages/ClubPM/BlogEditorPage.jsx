@@ -9,6 +9,7 @@ import BlogAiPanel from '../../components/clubpm/blog/BlogAiPanel';
 import BlogPreviewFrame from '../../components/clubpm/blog/BlogPreviewFrame';
 import OrbitLoader from '../../components/OrbitLoader';
 import ApprovalChips from '../../components/clubpm/ApprovalChips';
+import ShareDialog from '../../components/clubpm/ShareDialog';
 import { useClubPmAuth } from '../../clubpm/ClubPmAuth';
 import {
   getBlogPost, updateBlogPost, publishBlogPost,
@@ -117,6 +118,7 @@ export default function BlogEditorPage() {
   const [approval, setApproval] = useState(null); // { required, approvals, complete } or null
   const [busyAction, setBusyAction] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
   const [previewMode, setPreviewMode] = useState(false);
   // One slot, one panel. All three side panels are `.cpm-blog-meta-panel`,
   // which is `position: fixed` against the same right-hand rectangle, so two
@@ -434,6 +436,15 @@ export default function BlogEditorPage() {
 
           <button
             type="button"
+            className="cpm-blog-tool-btn"
+            onClick={() => setShareOpen(true)}
+            title="Share"
+          >
+            <i className="fas fa-user-plus" aria-hidden="true" /> Share
+          </button>
+
+          <button
+            type="button"
             className={`clubpm-btn-secondary${previewMode ? ' is-active' : ''}`}
             onClick={() => setPreviewMode((v) => !v)}
             title="Preview as it will appear on the public site"
@@ -493,6 +504,7 @@ export default function BlogEditorPage() {
             docType="BLOG_POST"
             docId={id}
             canEditDoc={canEditDoc}
+            threadsRefreshKey={threadsRefreshKey}
             onThreadsChanged={() => setThreadsRefreshKey((k) => k + 1)}
             onThreadFocus={(threadId) => { setFocusedThreadId(threadId); setOpenPanel('review'); }}
             onAskAi={(text) => { setAiSelection(text); setOpenPanel('ai'); }}
@@ -501,6 +513,10 @@ export default function BlogEditorPage() {
           />
         </div>
       </div>
+
+      {shareOpen && (
+        <ShareDialog docType="BLOG_POST" docId={id} onClose={() => setShareOpen(false)} />
+      )}
 
       {historyOpen && (
         <RevisionHistoryDrawer

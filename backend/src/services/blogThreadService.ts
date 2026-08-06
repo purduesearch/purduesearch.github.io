@@ -132,16 +132,48 @@ export async function getCommentThreadId(commentId: string): Promise<string | nu
 
 // ── Reads / writes ───────────────────────────────────────────
 
+/**
+ * Anchors are `Bytes`, which JSON.stringify would emit as `{type:"Buffer",…}`.
+ * The client decodes base64, so every thread leaving this service converts.
+ */
+function serializeThread<T extends { anchorStart: Uint8Array | null; anchorEnd: Uint8Array | null }>(
+  thread: T,
+) {
+  return {
+    ...thread,
+    anchorStart: thread.anchorStart ? Buffer.from(thread.anchorStart).toString("base64") : null,
+    anchorEnd: thread.anchorEnd ? Buffer.from(thread.anchorEnd).toString("base64") : null,
+  };
+}
+
 export async function listThreads(ref: DocRef) {
-  return prisma.blogThread.findMany({
+  const rows = await prisma.blogThread.findMany({
     where: whereForRef(ref),
     include: THREAD_INCLUDE,
     orderBy: { createdAt: "asc" },
   });
+  return rows.map(serializeThread);
 }
 
-function threadById(id: string) {
-  return prisma.blogThread.findUnique({ where: { id }, include: THREAD_INCLUDE });
+async function threadById(id: string) {
+  const thread = await prisma.blogThread.findUnique({ where: { id }, include: THREAD_INCLUDE });
+  return thread ? serializeThread(thread) : null;
+}
+
+/**
+ * Stores a comment thread's Yjs relative-position anchor. Suggestion threads
+ * never call this — their anchors are marks inside the CRDT, where proposed
+ * text belongs.
+ */
+export async function setThreadAnchor(id: string, anchorStart: string, anchorEnd: string) {
+  return prisma.blogThread.update({
+    where: { id },
+    data: {
+      anchorStart: Buffer.from(anchorStart, "base64"),
+      anchorEnd: Buffer.from(anchorEnd, "base64"),
+    },
+    select: { id: true },
+  });
 }
 
 export async function createThread(ref: DocRef, memberId: string, input: CreateThreadInput) {
@@ -162,7 +194,7 @@ export async function createThread(ref: DocRef, memberId: string, input: CreateT
     },
     include: THREAD_INCLUDE,
   });
-  return thread;
+  return serializeThread(thread);
 }
 
 export async function addComment(threadId: string, memberId: string, body: string) {

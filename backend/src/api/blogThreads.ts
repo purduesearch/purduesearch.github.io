@@ -4,6 +4,9 @@ import * as threads from "../services/blogThreadService.js";
 import type { DocRef, DocType } from "../services/blogThreadService.js";
 import type { BlogThreadStatus } from "@prisma/client";
 import { notifyThreadActivity } from "../services/blogThreadNotify.js";
+import {
+  resolveDocAccess, atLeast, type DocRef as AccessRef,
+} from "../services/docAccessService.js";
 
 export const blogThreadsRouter = Router();
 blogThreadsRouter.use(requireAuth);
@@ -129,6 +132,45 @@ blogThreadsRouter.patch("/threads/:id", async (req: Request, res: Response) => {
   } catch (err) {
     console.error("[blogThreads] status error:", err);
     res.status(500).json({ error: "Failed to update thread" });
+  }
+});
+
+/** The docAccessService view of a review-thread DocRef. */
+function toAccessRef(ref: DocRef): AccessRef {
+  if (ref.docType === "BLOG_POST") return { postId: ref.docId };
+  if (ref.docType === "PRESS_KIT") return { pressKitId: ref.docId };
+  return { courseSectionId: ref.docId };
+}
+
+/**
+ * Writes a thread's relative-position anchor. Used both when a comment is
+ * created and by the one-shot client-side migration off commentMark. The
+ * anchor is metadata about the document, never part of it — nothing here
+ * touches contentJson or the Y.Doc.
+ */
+blogThreadsRouter.patch("/threads/:id/anchor", async (req: Request, res: Response) => {
+  try {
+    const ctx = await resolveThreadDoc(req, res);
+    if (!ctx) return;
+
+    const level = await resolveDocAccess(req.memberId!, toAccessRef(ctx.ref));
+    if (!atLeast(level, "COMMENT")) {
+      res.status(403).json({ error: "Forbidden" });
+      return;
+    }
+
+    const { anchorStart, anchorEnd } = req.body ?? {};
+    if (typeof anchorStart !== "string" || typeof anchorEnd !== "string") {
+      res.status(400).json({ error: "anchorStart and anchorEnd are required" });
+      return;
+    }
+    const updated = await threads.setThreadAnchor(
+      req.params.id as string, anchorStart, anchorEnd,
+    );
+    res.json({ id: updated.id });
+  } catch (err) {
+    console.error("[blogThreads] anchor error:", err);
+    res.status(500).json({ error: "Failed to save the anchor" });
   }
 });
 
