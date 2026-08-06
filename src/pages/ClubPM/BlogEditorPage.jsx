@@ -18,6 +18,12 @@ import {
   listBlogThreads, listDocAccess,
 } from '../../api/clubPmClient';
 
+// The comment rail is the primary home for comments, but CSS hides it below
+// this width (see the matching breakpoint in clubpm-theme.css) and falls back
+// to BlogAnnotationsPanel's overlay. Kept in sync by hand — there is no way to
+// ask the stylesheet which of the two is currently on screen.
+const RAIL_MEDIA = '(min-width: 1100px)';
+
 const STATUS_LABELS = {
   DRAFT: 'Draft',
   SCHEDULED: 'Scheduled',
@@ -131,8 +137,20 @@ export default function BlogEditorPage() {
   const reviewPanelOpen = openPanel === 'review';
   const aiPanelOpen     = openPanel === 'ai';
   const [aiSelection, setAiSelection] = useState('');
-  // Thread the editor last pointed at, highlighted in the review panel.
+  // Thread the editor last pointed at, highlighted in the rail (or the review
+  // panel on narrow screens, where the rail is not rendered).
   const [focusedThreadId, setFocusedThreadId] = useState(null);
+  const [railVisible, setRailVisible] = useState(
+    () => typeof window !== 'undefined' && !!window.matchMedia?.(RAIL_MEDIA).matches
+  );
+
+  useEffect(() => {
+    const mq = window.matchMedia?.(RAIL_MEDIA);
+    if (!mq) return undefined;
+    const onChange = (e) => setRailVisible(e.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
 
   // Leaving the AI panel drops any pending selection, whichever way it closes:
   // a stale one forces the next open onto the Selection tab.
@@ -465,11 +483,12 @@ export default function BlogEditorPage() {
 
           <button
             type="button"
-            className="cpm-blog-tool-btn"
+            className="clubpm-btn-secondary"
             onClick={() => setShareOpen(true)}
             title="Share"
           >
-            <i className="fas fa-user-plus" aria-hidden="true" /> Share
+            <i className="fas fa-user-plus" aria-hidden="true" />
+            <span>Share</span>
           </button>
 
           <button
@@ -537,7 +556,13 @@ export default function BlogEditorPage() {
             accessLevel={accessLevel ?? (canEditDoc ? 'EDIT' : 'COMMENT')}
             threadsRefreshKey={threadsRefreshKey}
             onThreadsChanged={() => setThreadsRefreshKey((k) => k + 1)}
-            onThreadFocus={(threadId) => { setFocusedThreadId(threadId); setOpenPanel('review'); }}
+            // Clicking commented text must NOT open the review panel when the
+            // rail is up: the panel is `position: fixed` over that same gutter,
+            // so it covers the card the click was meant to reveal.
+            onThreadFocus={(threadId) => {
+              setFocusedThreadId(threadId);
+              if (!railVisible) setOpenPanel('review');
+            }}
             onThreadPositions={setThreadPositions}
             focusedThreadId={focusedThreadId}
             onAskAi={(text) => { setAiSelection(text); setOpenPanel('ai'); }}

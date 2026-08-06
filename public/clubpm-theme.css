@@ -18102,20 +18102,32 @@ button.cpm-badge-tile:disabled { opacity: 0.7; cursor: progress; }
 }
 .cpm-blog-title-input::placeholder { color: var(--clubpm-text-muted); opacity: .5; }
 
-/* Toolbar */
+/* Toolbar
+   ONE bar with two zones: the formatting tools take whatever width is going,
+   and the mode switch + presence strip sit together at its right edge. These
+   were three separately-bordered boxes in a flex row — which left the
+   formatting tools wrapping to four lines inside the leftover ~330px while the
+   other two floated in the middle of the empty space beside them. */
 .cpm-blog-toolbar-row {
-  display: flex; align-items: center; gap: 10px;
+  display: flex; align-items: flex-start; gap: 8px;
   position: sticky; top: 56px; z-index: 4; margin-bottom: 10px;
-}
-.cpm-blog-toolbar {
-  display: flex; align-items: center; gap: 2px; flex-wrap: wrap; flex: 1; min-width: 0;
   padding: 6px; border-radius: 10px;
   background: var(--pm-surface, #161a22); border: 1px solid var(--pm-overlay, #2a2f3a);
 }
+.cpm-blog-toolbar {
+  display: flex; align-items: center; gap: 2px; flex-wrap: wrap; flex: 1 1 auto; min-width: 0;
+  padding: 0; border-radius: 0; background: none; border: 0;
+}
+/* Top-aligned, not centred: the formatting bar beside it wraps, and a cluster
+   centred against a four-line neighbour is exactly the drift this replaced. */
+.cpm-blog-toolbar-aside {
+  display: flex; align-items: center; gap: 6px;
+  flex-shrink: 0; align-self: flex-start; min-height: 32px;
+  padding-left: 8px; border-left: 1px solid var(--pm-overlay, #2a2f3a);
+}
 .cpm-blog-presence {
   display: flex; align-items: center; gap: 4px; flex-shrink: 0;
-  padding: 6px 10px; border-radius: 10px;
-  background: var(--pm-surface, #161a22); border: 1px solid var(--pm-overlay, #2a2f3a);
+  padding: 0 2px; background: none; border: 0;
 }
 .cpm-blog-presence-dot {
   width: 8px; height: 8px; border-radius: 50%; background: var(--pm-accent-coral, #ff6b6b); flex-shrink: 0;
@@ -23763,39 +23775,78 @@ html:not(.aos-off) [data-aos].aos-animate  { opacity: 1; transform: none; }
    …). The short forms --pm-surface / --pm-elevated / --pm-text are not declared
    anywhere; rules written against them only ever showed their literal
    fallbacks and stopped responding to the theme. */
-.cpm-blog-mode {
-  display: inline-flex; align-items: center; gap: 2px; flex-shrink: 0;
-  padding: 3px; border-radius: 10px;
+.cpm-blog-mode { position: relative; flex-shrink: 0; }
+/* Shows the mode you are in; the other two live in the menu. The trigger is
+   sized to its own label, so it costs roughly a third of the three-button
+   segmented control it replaced. */
+.cpm-blog-mode-trigger {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 8px 5px 10px; border-radius: 8px; cursor: pointer;
   background: var(--pm-bg-surface, #13161e);
   border: 1px solid var(--pm-border, rgba(255, 255, 255, 0.07));
-}
-.cpm-blog-mode-btn {
-  position: relative;
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 5px 10px; border: 0; border-radius: 8px; cursor: pointer;
-  background: transparent; color: var(--pm-text-secondary, #8892a4);
-  font: 600 12px/1 var(--pm-font-body, 'DM Sans', sans-serif);
-  letter-spacing: 0.01em;
-  transition: background 140ms ease, color 140ms ease;
-}
-.cpm-blog-mode-btn:hover {
   color: var(--pm-text-primary, #f0f2f7);
+  font: 600 12px/1 var(--pm-font-body, 'DM Sans', sans-serif);
+  letter-spacing: 0.01em; white-space: nowrap;
+  transition: background 140ms ease, border-color 140ms ease;
+}
+.cpm-blog-mode-trigger:hover,
+.cpm-blog-mode.is-open .cpm-blog-mode-trigger {
   background: var(--pm-bg-elevated, #1a1e2a);
+  border-color: var(--pm-border-active, rgba(0, 229, 204, 0.3));
 }
-.cpm-blog-mode-btn.is-active {
-  background: var(--pm-bg-elevated, #1a1e2a);
-  color: var(--pm-accent-teal, #00e5cc);
-  box-shadow: inset 0 0 0 1px var(--pm-border-active, rgba(0, 229, 204, 0.3));
-}
-/* The mode you are in is a live state, not a selected tab — the icon carries a
-   faint teal glow so it reads as switched on at a glance. */
-.cpm-blog-mode-btn.is-active .fas {
-  filter: drop-shadow(0 0 5px rgba(0, 229, 204, 0.55));
-}
-.cpm-blog-mode-btn:focus-visible {
+.cpm-blog-mode-trigger:focus-visible {
   outline: 2px solid var(--pm-accent-teal, #00e5cc);
   outline-offset: 1px;
 }
+/* The mode is a live state, not a selected tab — the leading icon carries the
+   accent (and a faint glow while you hold the pen) so the bar answers "what
+   happens when I type?" without being read. */
+.cpm-blog-mode-trigger > .fas:first-child { color: var(--pm-accent-teal, #00e5cc); }
+.cpm-blog-mode-trigger.is-editing > .fas:first-child {
+  filter: drop-shadow(0 0 5px rgba(0, 229, 204, 0.55));
+}
+.cpm-blog-mode-trigger.is-suggesting > .fas:first-child { color: var(--pm-accent-amber, #f5a623); }
+.cpm-blog-mode-trigger.is-viewing   > .fas:first-child { color: var(--pm-text-secondary, #8892a4); }
+.cpm-blog-mode-caret {
+  font-size: 9px; color: var(--pm-text-secondary, #8892a4);
+  transition: transform 140ms ease;
+}
+.cpm-blog-mode.is-open .cpm-blog-mode-caret { transform: rotate(180deg); }
+
+.cpm-blog-mode-pop {
+  position: absolute; top: calc(100% + 6px); right: 0; z-index: 20;
+  min-width: 244px; padding: 4px; border-radius: 10px;
+  background: var(--pm-bg-elevated, #1a1e2a);
+  border: 1px solid var(--pm-border, rgba(255, 255, 255, 0.07));
+  box-shadow: var(--pm-shadow-card, 0 4px 24px rgba(0, 0, 0, 0.4));
+  animation: cpm-blog-mode-pop-in 140ms cubic-bezier(0.22, 0.68, 0.32, 1);
+}
+@keyframes cpm-blog-mode-pop-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: none; }
+}
+.cpm-blog-mode-option {
+  display: flex; align-items: flex-start; gap: 9px; width: 100%;
+  padding: 8px 9px; border: 0; border-radius: 7px; cursor: pointer;
+  background: transparent; text-align: left;
+  color: var(--pm-text-primary, #f0f2f7);
+  font: 600 12px/1.2 var(--pm-font-body, 'DM Sans', sans-serif);
+  transition: background 120ms ease;
+}
+.cpm-blog-mode-option:hover { background: var(--pm-bg-overlay, #222636); }
+.cpm-blog-mode-option:focus-visible {
+  outline: 2px solid var(--pm-accent-teal, #00e5cc);
+  outline-offset: -2px;
+}
+.cpm-blog-mode-option-icon { margin-top: 1px; color: var(--pm-text-secondary, #8892a4); width: 13px; text-align: center; }
+.cpm-blog-mode-option.is-active .cpm-blog-mode-option-icon { color: var(--pm-accent-teal, #00e5cc); }
+.cpm-blog-mode-option-text { display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 0; }
+.cpm-blog-mode-option-text small {
+  font-weight: 400; font-size: 11px; line-height: 1.35;
+  color: var(--pm-text-secondary, #8892a4);
+}
+.cpm-blog-mode-check { margin-top: 2px; font-size: 10px; color: var(--pm-accent-teal, #00e5cc); }
+
 /* The label is the affordance; below the toolbar's wrap point the icon carries it. */
 @media (max-width: 900px) {
   .cpm-blog-mode-label { display: none; }
@@ -23898,7 +23949,9 @@ html:not(.aos-off) [data-aos].aos-animate  { opacity: 1; transform: none; }
   .cpm-blog-rail-card::before,
   .cpm-blog-rail-card .cpm-blog-thread-card,
   .cpm-blog-comment-hl,
-  .cpm-blog-mode-btn,
+  .cpm-blog-mode-trigger,
+  .cpm-blog-mode-caret,
+  .cpm-blog-mode-option,
   .cpm-blog-presence-avatar,
   .cpm-blog-follow-stop,
   .cpm-blog-revision-rename-btn,
@@ -23909,6 +23962,7 @@ html:not(.aos-off) [data-aos].aos-animate  { opacity: 1; transform: none; }
   .cpm-blog-comment-hl.is-focused,
   .cpm-blog-thread-grant,
   .cpm-blog-follow-chip,
+  .cpm-blog-mode-pop,
   .cpm-blog-presence-avatar.is-following {
     animation: none;
   }

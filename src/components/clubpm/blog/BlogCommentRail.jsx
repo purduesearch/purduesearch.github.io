@@ -11,9 +11,10 @@ import { layoutCards } from './railLayout';
  * DOM — a decoration may be split across several spans, and the rail only cares
  * about where the range starts.
  *
- * Threads absent from `positions` are orphaned: their anchor text is gone from
- * the document, so they get no coordinate at all. They are collected in a
- * collapsed group instead of silently disappearing.
+ * Threads absent from `positions` have no coordinate to sit level with — either
+ * their anchor text is gone or they never got an anchor. Both land in a
+ * collapsed group at the foot of the rail rather than silently disappearing:
+ * every open comment on the document is reachable from here.
  *
  * Below 1100px the CSS hides this entirely and BlogAnnotationsPanel's overlay
  * remains the narrow-screen path.
@@ -34,11 +35,12 @@ export default function BlogCommentRail({
   // they stay in the review panel, which is built to accept/reject them.
   const open = threads.filter((t) => t.status === 'OPEN' && t.kind !== 'SUGGESTION');
   const anchored = open.filter((t) => positions?.has?.(t.id));
-  // A thread is orphaned only if it HAS an anchor that no longer resolves. One
-  // that never got an anchor is simply awaiting the lazy commentMark migration
-  // (BlogEditor runs it on first open by an editor) — its text is still in the
-  // document, so calling it deleted would be a lie.
-  const orphans = open.filter((t) => t.anchorStart && !positions?.has?.(t.id));
+  // Everything else. A thread with an `anchorStart` that no longer resolves is
+  // genuinely orphaned; one that never got an anchor is simply awaiting the
+  // lazy commentMark migration (BlogEditor runs it on first open by an editor)
+  // and its text is still in the document — so the group is labelled for what
+  // is actually true of both, rather than calling either of them deleted.
+  const unplaced = open.filter((t) => !positions?.has?.(t.id));
 
   const measure = useCallback(() => {
     const rail = railRef.current;
@@ -107,6 +109,11 @@ export default function BlogCommentRail({
           <BlogThreadCard
             thread={thread}
             editor={editor}
+            // The rail's anchor comes from the decoration set, which is where a
+            // migrated comment now lives. Without this the card falls back to
+            // the mark index, finds nothing, and badges every comment
+            // "anchor removed".
+            anchor={positions.get(thread.id)}
             canEdit={canEdit}
             currentMember={currentMember}
             onChanged={onChanged}
@@ -117,13 +124,13 @@ export default function BlogCommentRail({
         </div>
       ))}
 
-      {orphans.length > 0 && (
+      {unplaced.length > 0 && (
         <details className="cpm-blog-rail-orphans">
           <summary>
             <i className="fas fa-unlink" aria-hidden="true" />{' '}
-            No longer in the document ({orphans.length})
+            Not anchored to text ({unplaced.length})
           </summary>
-          {orphans.map((thread) => (
+          {unplaced.map((thread) => (
             <div key={thread.id} className="cpm-blog-rail-orphan">
               <span className="cpm-blog-rail-orphan-quote">“{thread.anchorText}”</span>
               <BlogThreadCard
