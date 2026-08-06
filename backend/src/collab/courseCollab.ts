@@ -3,11 +3,11 @@ import { Hocuspocus, type onAuthenticatePayload, type onLoadDocumentPayload, typ
 import * as Y from "yjs";
 import { TiptapTransformer } from "@hocuspocus/transformer";
 import { prisma } from "../db/prisma.js";
-import { verifyBearerToken } from "../api/auth.js";
 import type { PMDoc } from "../services/blogRender.js";
 import type { Prisma } from "@prisma/client";
 import { blogCollabExtensions } from "./blogSchema.js";
 import { attachCollab } from "./collabUpgrade.js";
+import { authenticateCollab } from "./collabAuth.js";
 
 // The path the Hocuspocus WS endpoint is mounted at. The Yjs document name
 // (== CourseSection.id) is carried by the Yjs/Hocuspocus wire protocol itself
@@ -19,26 +19,11 @@ const COLLAB_PATH_PREFIX = "/collab/course";
 // match on both sides for the Yjs<->TipTap-JSON transform to line up.
 const YJS_FIELD = "default";
 
-async function canAccessCourseSection(memberId: string, sectionId: string): Promise<boolean> {
-  const section = await prisma.courseSection.findUnique({
-    where: { id: sectionId },
-    select: { course: { select: { createdById: true } } },
-  });
-  if (!section) return false;
-  if (section.course.createdById === memberId) return true;
-  const me = await prisma.member.findUnique({ where: { id: memberId }, select: { isAdmin: true } });
-  return !!me?.isAdmin;
-}
-
 const transformer = TiptapTransformer.extensions(blogCollabExtensions());
 
 const hocuspocus = new Hocuspocus({
-  async onAuthenticate({ token, documentName }: onAuthenticatePayload) {
-    if (!token) throw new Error("Not authenticated");
-    const memberId = await verifyBearerToken(token);
-    if (!memberId) throw new Error("Not authenticated");
-    if (!(await canAccessCourseSection(memberId, documentName))) throw new Error("Forbidden");
-    return { memberId };
+  async onAuthenticate({ token, documentName, connectionConfig }: onAuthenticatePayload) {
+    return authenticateCollab(token, { courseSectionId: documentName }, connectionConfig);
   },
 
   async onLoadDocument({ documentName, document }: onLoadDocumentPayload) {

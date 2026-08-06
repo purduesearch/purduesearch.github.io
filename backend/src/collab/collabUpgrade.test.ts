@@ -14,11 +14,15 @@ import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { WebSocket } from "ws";
 import { Hocuspocus } from "@hocuspocus/server";
-import { createEncoder, toUint8Array, writeVarString, writeVarUint } from "lib0/encoding";
+import * as Y from "yjs";
+import { createEncoder, toUint8Array, writeVarString, writeVarUint, writeVarUint8Array } from "lib0/encoding";
 import { createDecoder, readVarString, readVarUint } from "lib0/decoding";
 import { attachCollab } from "./collabUpgrade.js";
 
+const MESSAGE_TYPE_SYNC = 0;
 const MESSAGE_TYPE_AUTH = 2;
+// y-protocols/sync: the sub-type carrying a raw document update.
+const SYNC_UPDATE = 2;
 const AUTH_TOKEN = 0;
 const AUTH_PERMISSION_DENIED = 1;
 const AUTH_AUTHENTICATED = 2;
@@ -105,6 +109,87 @@ async function handshake(token: string): Promise<"authenticated" | "denied" | "t
   }
 }
 
+// Mirrors @hocuspocus/provider's UpdateMessage:
+//   varString(documentName) varUint(Sync) varUint(SyncUpdate) varUint8Array(update)
+function updateMessage(documentName: string, update: Uint8Array): Uint8Array {
+  const encoder = createEncoder();
+  writeVarString(encoder, documentName);
+  writeVarUint(encoder, MESSAGE_TYPE_SYNC);
+  writeVarUint(encoder, SYNC_UPDATE);
+  writeVarUint8Array(encoder, update);
+  return toUint8Array(encoder);
+}
+
+/**
+ * Drives a real provider-shaped session against `hocuspocus`: authenticate,
+ * push one Yjs update produced by `mutate`, then read the server's own copy of
+ * the document back. Returns the server-side text of the "seed" field.
+ */
+async function connectAndPush(
+  hocuspocus: Hocuspocus,
+  port: number,
+  docName: string,
+  mutate: (text: Y.Text) => void,
+): Promise<string> {
+  const local = new Y.Doc();
+  mutate(local.getText("seed"));
+  const update = Y.encodeStateAsUpdate(local);
+
+  await new Promise<void>((resolve) => {
+    const ws = new WebSocket(`ws://127.0.0.1:${port}/collab/test`);
+    const done = () => { clearTimeout(timer); ws.close(); resolve(); };
+    const timer = setTimeout(done, 3000);
+
+    ws.binaryType = "arraybuffer";
+    ws.on("open", () => ws.send(authMessage(docName, "valid-token")));
+    ws.on("message", (data: ArrayBuffer | Buffer) => {
+      const bytes = data instanceof ArrayBuffer ? new Uint8Array(data) : new Uint8Array(data);
+      if (readAuthReply(bytes) !== AUTH_AUTHENTICATED) return;
+      ws.send(updateMessage(docName, update));
+      // Give the server a beat to apply the frame before we read its copy.
+      setTimeout(done, 300);
+    });
+    ws.on("error", () => done());
+  });
+
+  return hocuspocus.documents.get(docName)?.getText("seed").toString() ?? "";
+}
+
+/**
+ * A readOnly connection must not be able to change the document. This is the
+ * guarantee VIEW/COMMENT access depends on; if Hocuspocus ever stopped
+ * honouring connectionConfig.readOnly, every commenter would silently become
+ * an editor.
+ */
+async function readOnlyCannotWrite(): Promise<boolean> {
+  const hocuspocus = new Hocuspocus({
+    async onAuthenticate({ connectionConfig }) {
+      connectionConfig.readOnly = true;
+      return { memberId: "viewer" };
+    },
+    async onLoadDocument({ document }) {
+      document.getText("seed").insert(0, "original");
+      return document;
+    },
+    quiet: true,
+  });
+
+  const httpServer = createServer();
+  attachCollab(httpServer, "/collab/test", hocuspocus);
+  await new Promise<void>((r) => httpServer.listen(0, "127.0.0.1", r));
+  const { port } = httpServer.address() as AddressInfo;
+
+  try {
+    const text = await connectAndPush(hocuspocus, port, "test-doc", (t) => t.insert(0, "HACKED"));
+    // Sanity: the document really was loaded, so an empty string cannot pass
+    // this check by accident.
+    return text.includes("original") && !text.includes("HACKED");
+  } finally {
+    httpServer.closeAllConnections();
+    await new Promise<void>((r) => httpServer.close(() => r()));
+  }
+}
+
 console.log("collab WebSocket upgrade wiring");
 
 const good = await handshake("valid-token");
@@ -121,6 +206,8 @@ check(
   "an invalid token gets a PermissionDenied reply (auth actually runs)",
   bad === "denied",
 );
+
+check("a readOnly connection cannot modify the document", await readOnlyCannotWrite());
 
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed > 0 ? 1 : 0);
