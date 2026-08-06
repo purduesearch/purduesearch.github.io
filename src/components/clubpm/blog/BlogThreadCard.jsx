@@ -16,6 +16,7 @@ function when(iso) {
  */
 export default function BlogThreadCard({
   thread, editor, canEdit, currentMember, onChanged, isFocused, docType, docId,
+  anchor: anchorOverride,
 }) {
   const [reply, setReply] = useState('');
   const [busy, setBusy] = useState(false);
@@ -38,8 +39,13 @@ export default function BlogThreadCard({
   // is frozen at the last render of this card. That is by design here (the
   // panel is reopened to refresh, per the task's own verification steps); do
   // not assume liveness when building on top of this.
+  //
+  // `anchorOverride` is the escape hatch: comment anchors migrated off
+  // commentMark are decorations, so the mark index above never sees them. A
+  // host that already resolved the range (the comment rail does, from the
+  // decoration set) passes it in rather than letting the lookup fail.
   const positions = editor?.storage?.blogThreadPositions?.positions;
-  const anchor = positions?.get(thread.id);
+  const anchor = anchorOverride ?? positions?.get(thread.id);
   const terminal = thread.status === 'ACCEPTED' || thread.status === 'REJECTED';
   const orphaned = !anchor && !terminal;
   const isSuggestion = thread.kind === 'SUGGESTION';

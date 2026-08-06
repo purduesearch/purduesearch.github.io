@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import { Extension } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
@@ -505,6 +505,40 @@ function FindBar({ editor, onClose }) {
 // live session, and claiming it is hides the fact that co-editing isn't working.
 const MAX_VISIBLE_PEERS = 5;
 
+/**
+ * One collaborator's face. The Slack avatar (Member.avatarUrl, set from the
+ * Slack profile on every login) travels in the awareness payload, so this is
+ * the same picture the rest of ClubPM shows. The initial is a fallback for two
+ * cases only: a member with no Slack image, and an image that fails to load —
+ * a broken <img> in a 24px circle is worse than a letter.
+ */
+function PresenceFace({ peer, following, onToggle }) {
+  const [broken, setBroken] = useState(false);
+  const name = peer.user?.name || 'Someone';
+  const src = peer.user?.avatarUrl;
+  return (
+    <button
+      type="button"
+      className={`cpm-blog-presence-avatar${following ? ' is-following' : ''}`}
+      style={{ background: peer.user?.color, '--caret-color': peer.user?.color }}
+      title={following ? `Following ${name} — click to stop` : `${name} is editing — click to follow`}
+      onClick={onToggle}
+    >
+      {src && !broken ? (
+        <img
+          src={src}
+          alt=""
+          className="cpm-blog-presence-img"
+          referrerPolicy="no-referrer"
+          onError={() => setBroken(true)}
+        />
+      ) : (
+        name.charAt(0).toUpperCase()
+      )}
+    </button>
+  );
+}
+
 function PresenceBar({ synced, connected, peers, followedClientId, onToggleFollow }) {
   const title = synced
     ? 'Live — changes sync in real time'
@@ -516,26 +550,14 @@ function PresenceBar({ synced, connected, peers, followedClientId, onToggleFollo
   return (
     <div className="cpm-blog-presence" data-tour-id="blog.editor.presence" title={title}>
       <span className={`cpm-blog-presence-dot${synced ? ' is-live' : ''}`} aria-hidden="true" />
-      {visible.map((p) => {
-        const name = p.user?.name || 'Someone';
-        const following = p.clientId === followedClientId;
-        return (
-          <button
-            key={p.clientId}
-            type="button"
-            className={`cpm-blog-presence-avatar${following ? ' is-following' : ''}`}
-            style={{ background: p.user?.color, '--caret-color': p.user?.color }}
-            title={following ? `Following ${name} — click to stop` : `${name} is editing — click to follow`}
-            onClick={() => onToggleFollow?.(p.clientId)}
-          >
-            {p.user?.avatarUrl ? (
-              <img src={p.user.avatarUrl} alt="" className="cpm-blog-presence-img" />
-            ) : (
-              name.charAt(0).toUpperCase()
-            )}
-          </button>
-        );
-      })}
+      {visible.map((p) => (
+        <PresenceFace
+          key={p.clientId}
+          peer={p}
+          following={p.clientId === followedClientId}
+          onToggle={() => onToggleFollow?.(p.clientId)}
+        />
+      ))}
       {overflow > 0 && (
         <span className="cpm-blog-presence-more" title={`${overflow} more editing`}>{`+${overflow}`}</span>
       )}
@@ -543,30 +565,79 @@ function PresenceBar({ synced, connected, peers, followedClientId, onToggleFollo
   );
 }
 
+const MODE_HINTS = {
+  editing: 'Your changes go straight into the post',
+  suggesting: 'Your changes become suggestions someone accepts',
+  viewing: 'Read only — nothing you type reaches the post',
+};
+
 /**
- * Three-position Editing / Suggesting / Viewing control.
+ * Editing / Suggesting / Viewing.
+ *
+ * Shows the mode you are in and opens the other two on click, the way Google
+ * Docs does it. It was three side-by-side buttons, which cost ~200px of a
+ * toolbar row that has none to spare — and spent that width restating two
+ * modes you are not in.
  *
  * Which positions exist comes from the resolved access level (see
  * SuggestingMode.js) — a level with only one mode renders nothing, since a
  * one-position switch is just noise.
  */
 function ModeControl({ modes, mode, onChange }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const onDoc = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    const onKey = (e) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('mousedown', onDoc);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDoc);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+
   if (modes.length < 2) return null;
+
   return (
-    <div className="cpm-blog-mode" role="group" aria-label="Document mode">
-      {modes.map((m) => (
-        <button
-          key={m}
-          type="button"
-          className={`cpm-blog-mode-btn${m === mode ? ' is-active' : ''}`}
-          aria-pressed={m === mode}
-          title={MODE_LABELS[m]}
-          onClick={() => onChange(m)}
-        >
-          <i className={`fas ${MODE_ICONS[m]}`} aria-hidden="true" />
-          <span className="cpm-blog-mode-label">{MODE_LABELS[m]}</span>
-        </button>
-      ))}
+    <div className={`cpm-blog-mode${open ? ' is-open' : ''}`} ref={ref}>
+      <button
+        type="button"
+        className={`cpm-blog-mode-trigger is-${mode}`}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label={`Document mode: ${MODE_LABELS[mode]}`}
+        title={`${MODE_LABELS[mode]} — click to change mode`}
+        onClick={() => setOpen((o) => !o)}
+      >
+        <i className={`fas ${MODE_ICONS[mode]}`} aria-hidden="true" />
+        <span className="cpm-blog-mode-label">{MODE_LABELS[mode]}</span>
+        <i className="fas fa-chevron-down cpm-blog-mode-caret" aria-hidden="true" />
+      </button>
+
+      {open && (
+        <div className="cpm-blog-mode-pop" role="menu">
+          {modes.map((m) => (
+            <button
+              key={m}
+              type="button"
+              role="menuitemradio"
+              aria-checked={m === mode}
+              className={`cpm-blog-mode-option${m === mode ? ' is-active' : ''}`}
+              onClick={() => { onChange(m); setOpen(false); }}
+            >
+              <i className={`fas ${MODE_ICONS[m]} cpm-blog-mode-option-icon`} aria-hidden="true" />
+              <span className="cpm-blog-mode-option-text">
+                <strong>{MODE_LABELS[m]}</strong>
+                <small>{MODE_HINTS[m]}</small>
+              </span>
+              {m === mode && <i className="fas fa-check cpm-blog-mode-check" aria-hidden="true" />}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -889,6 +960,22 @@ export default function BlogEditor({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editor, collab]);
 
+  // The awareness payload is baked in when `useEditor` builds the extensions,
+  // and `collabUser` is NOT in its dependency list (rebuilding the editor would
+  // drop the collab connection). So the member arriving from the auth context a
+  // beat after mount — the normal case — used to be broadcast forever as
+  // "Anonymous" with no avatar, which is what left peers rendering as initials
+  // instead of their Slack picture. Push it through awareness instead.
+  useEffect(() => {
+    if (!editor || editor.isDestroyed || !collab || !collabUser?.id) return;
+    editor.commands.updateUser({
+      id: collabUser.id,
+      name: collabUser.name || 'Anonymous',
+      color: colorForMember(collabUser.id),
+      avatarUrl: collabUser.avatarUrl ?? null,
+    });
+  }, [editor, collab, collabUser?.id, collabUser?.name, collabUser?.avatarUrl]);
+
   useEffect(() => {
     if (editor && onEditorReady) onEditorReady(editor);
   }, [editor, onEditorReady]);
@@ -978,21 +1065,25 @@ export default function BlogEditor({
             theme={theme}
             onThemeChange={onThemeChange}
           />
-          <ModeControl modes={modes} mode={mode} onChange={setMode} />
-          {collab && (
-            <PresenceBar
-              synced={synced}
-              connected={connected}
-              peers={peers}
-              followedClientId={followedClientId}
-              onToggleFollow={(clientId) => {
-                if (clientId === followedRef.current) { stopFollowing(); return; }
-                followedRef.current = clientId;
-                setFollowedClientId(clientId);
-                scrollToPeerCaret(peers.find((p) => p.clientId === clientId)?.user?.id);
-              }}
-            />
-          )}
+          {/* Mode and presence read as one right-hand cluster rather than two
+              islands drifting in whatever width the formatting bar leaves. */}
+          <div className="cpm-blog-toolbar-aside">
+            <ModeControl modes={modes} mode={mode} onChange={setMode} />
+            {collab && (
+              <PresenceBar
+                synced={synced}
+                connected={connected}
+                peers={peers}
+                followedClientId={followedClientId}
+                onToggleFollow={(clientId) => {
+                  if (clientId === followedRef.current) { stopFollowing(); return; }
+                  followedRef.current = clientId;
+                  setFollowedClientId(clientId);
+                  scrollToPeerCaret(peers.find((p) => p.clientId === clientId)?.user?.id);
+                }}
+              />
+            )}
+          </div>
         </div>
       )}
       {showFind && !markdownMode && <FindBar editor={editor} onClose={() => setShowFind(false)} />}
