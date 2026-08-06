@@ -4,7 +4,8 @@ import CommentThread from '../CommentThread';
 import BlogThreadList from './BlogThreadList';
 import { get, addBlogAuthor, removeBlogAuthor } from '../../../api/clubPmClient';
 
-// Multi-author manager: add/remove BlogAuthor rows and set each author's role.
+// Multi-author manager: add/remove BlogAuthor rows. Authors are a byline only —
+// who may edit the post is governed by DocAccessGrant (the Share dialog).
 function AuthorsManager({ post, currentMemberId, onAuthorsChanged }) {
   const [allMembers, setAllMembers] = useState([]);
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -22,7 +23,7 @@ function AuthorsManager({ post, currentMemberId, onAuthorsChanged }) {
   const handleAdd = async (memberId) => {
     setBusy(true);
     try {
-      await addBlogAuthor(post.id, memberId, 'author');
+      await addBlogAuthor(post.id, memberId);
       toast.success('Author added');
       onAuthorsChanged();
       setPickerOpen(false);
@@ -30,15 +31,6 @@ function AuthorsManager({ post, currentMemberId, onAuthorsChanged }) {
       toast.error(err.message ?? 'Failed to add author');
     } finally {
       setBusy(false);
-    }
-  };
-
-  const handleRoleChange = async (memberId, role) => {
-    try {
-      await addBlogAuthor(post.id, memberId, role);
-      onAuthorsChanged();
-    } catch (err) {
-      toast.error(err.message ?? 'Failed to update role');
     }
   };
 
@@ -103,14 +95,6 @@ function AuthorsManager({ post, currentMemberId, onAuthorsChanged }) {
               ? <img src={a.member.avatarUrl} alt="" className="cpm-blog-authors-avatar" />
               : <span className="cpm-blog-authors-avatar cpm-blog-authors-avatar--empty"><i className="fas fa-user" aria-hidden="true" /></span>}
             <span className="cpm-blog-authors-name">{a.member?.displayName ?? 'Unknown'}</span>
-            <input
-              className="cpm-blog-authors-role-input"
-              defaultValue={a.role ?? 'author'}
-              onBlur={(e) => {
-                const role = e.target.value.trim() || 'author';
-                if (role !== a.role) handleRoleChange(a.memberId, role);
-              }}
-            />
             <button
               type="button"
               className="cpm-blog-authors-remove"

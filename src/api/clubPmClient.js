@@ -438,7 +438,7 @@ export const listBlogSnippets = () => get('/api/blog/snippets');
 export const createBlogSnippet = (name, contentJson) => post('/api/blog/snippets', { name, contentJson });
 export const updateBlogSnippet = (id, data) => patch(`/api/blog/snippets/${id}`, data);
 export const deleteBlogSnippet = (id) => del(`/api/blog/snippets/${id}`);
-export const addBlogAuthor    = (id, memberId, role) => post(`/api/blog/posts/${id}/authors`, { memberId, role });
+export const addBlogAuthor    = (id, memberId) => post(`/api/blog/posts/${id}/authors`, { memberId });
 export const removeBlogAuthor = (id, memberId) => del(`/api/blog/posts/${id}/authors/${memberId}`);
 export const listBlogAnnotations = (id) => get(`/api/blog/posts/${id}/annotations`);
 export const addBlogAnnotation = (id, body, parentId) => post(`/api/blog/posts/${id}/annotations`, { body, parentId });

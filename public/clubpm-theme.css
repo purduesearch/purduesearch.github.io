@@ -18570,10 +18570,6 @@ button.cpm-badge-tile:disabled { opacity: 0.7; cursor: progress; }
 }
 .cpm-blog-authors-name { flex: 1; font-size: 13px; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cpm-blog-authors-role { font-size: 11px; color: var(--clubpm-text-muted, #9aa3b2); }
-.cpm-blog-authors-role-input {
-  width: 72px; background: var(--pm-surface, #161a22); border: 1px solid var(--pm-overlay, #2a2f3a);
-  border-radius: 6px; color: #fff; font-size: 11px; padding: 3px 6px;
-}
 .cpm-blog-authors-remove {
   background: none; border: none; color: var(--clubpm-text-muted, #9aa3b2); cursor: pointer; padding: 4px;
   border-radius: 6px; flex-shrink: 0;

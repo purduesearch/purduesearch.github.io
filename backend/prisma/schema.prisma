@@ -998,7 +998,6 @@ model BlogAuthor {
   post     BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
   memberId String
   member   Member   @relation("BlogAuthorMember", fields: [memberId], references: [id])
-  role     String? // e.g. "author", "editor"
 
   @@unique([postId, memberId])
   @@index([memberId])

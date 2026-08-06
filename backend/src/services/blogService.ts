@@ -44,6 +44,11 @@ export interface ListPostsFilters {
   status?: BlogStatus;
   createdById?: string;
   q?: string;
+  /**
+   * Extra clause restricting the list to posts the caller may reach. Applied
+   * under AND so it cannot be swallowed by the `q` search OR.
+   */
+  visibility?: Prisma.BlogPostWhereInput;
 }
 
 const asJson = (doc: PMDoc): Prisma.InputJsonValue => doc as unknown as Prisma.InputJsonValue;
@@ -95,7 +100,7 @@ export async function createPost(input: CreatePostInput) {
       readingTimeMin: computeReadingTime(contentJson),
       sourceSubmissionId: input.sourceSubmissionId ?? null,
       createdById: input.createdById,
-      authors: { create: { memberId: input.createdById, role: "author" } },
+      authors: { create: { memberId: input.createdById } },
     },
     include: postInclude,
   });
@@ -134,6 +139,7 @@ export async function listPosts(filters: ListPostsFilters = {}) {
       ...(filters.q
         ? { OR: [{ title: { contains: filters.q, mode: "insensitive" } }, { excerpt: { contains: filters.q, mode: "insensitive" } }] }
         : {}),
+      ...(filters.visibility ? { AND: [filters.visibility] } : {}),
     },
     orderBy: { updatedAt: "desc" },
     include: postInclude,
@@ -319,11 +325,12 @@ export async function deleteSnippet(id: string) {
 
 // ── Multi-author ─────────────────────────────────────────────
 
-export async function addAuthor(postId: string, memberId: string, role = "author") {
+// BlogAuthor is the byline only. Edit rights live in DocAccessGrant.
+export async function addAuthor(postId: string, memberId: string) {
   return prisma.blogAuthor.upsert({
     where: { postId_memberId: { postId, memberId } },
-    create: { postId, memberId, role },
-    update: { role },
+    create: { postId, memberId },
+    update: {},
     include: { member: { select: { id: true, displayName: true, avatarUrl: true } } },
   });
 }
