@@ -7,7 +7,10 @@ import { anchorFromSelection } from './threadAnchors';
 // Floating actions on a non-empty selection. Comment and Suggest are open to
 // any member; Ask AI is author-only (see the permission table in the spec) —
 // which also bounds Gemini spend to the people who own the post.
-export default function BlogSelectionBubble({ editor, docType, docId, canEdit, onThreadCreated, onAskAi }) {
+export default function BlogSelectionBubble({
+  editor, docType, docId, canEdit, onThreadCreated, onAskAi,
+  docMode = 'editing', modeIsChoice = true,
+}) {
   const [mode, setMode] = useState(null); // null | 'comment' | 'suggest'
   const [body, setBody] = useState('');
   const [replace, setReplace] = useState('');
@@ -126,6 +129,19 @@ export default function BlogSelectionBubble({ editor, docType, docId, canEdit, o
 
   if (!editor) return null;
 
+  // Viewing means viewing. Someone with Editing and Suggesting available who
+  // chose Viewing asked to just read, so the bubble does not appear at all.
+  //
+  // A member whose ONLY mode is Viewing (COMMENT or VIEW access — see
+  // modesFor) is a different case: commenting is their entire way of taking
+  // part in the document, and there is no other mode to switch to. They keep
+  // Comment, and lose Suggest (a document write their connection would drop
+  // anyway) and Ask AI (author-only regardless).
+  const viewing = docMode === 'viewing';
+  if (viewing && modeIsChoice) return null;
+  const allowSuggest = !viewing;
+  const allowAi = canEdit && !viewing;
+
   return (
     <BubbleMenu
       editor={editor}
@@ -137,10 +153,12 @@ export default function BlogSelectionBubble({ editor, docType, docId, canEdit, o
           <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={openComment}>
             <i className="fas fa-comment" aria-hidden="true" /> Comment
           </button>
-          <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={openSuggest}>
-            <i className="fas fa-pen-to-square" aria-hidden="true" /> Suggest edit
-          </button>
-          {canEdit && (
+          {allowSuggest && (
+            <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={openSuggest}>
+              <i className="fas fa-pen-to-square" aria-hidden="true" /> Suggest edit
+            </button>
+          )}
+          {allowAi && (
             <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={askAi}>
               <i className="fas fa-wand-magic-sparkles" aria-hidden="true" /> Ask AI
             </button>
