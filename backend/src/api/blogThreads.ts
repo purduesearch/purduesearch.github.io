@@ -3,7 +3,8 @@ import { requireAuth } from "./auth.js";
 import * as threads from "../services/blogThreadService.js";
 import type { DocRef, DocType } from "../services/blogThreadService.js";
 import type { BlogThreadStatus } from "@prisma/client";
-import { notifyThreadActivity } from "../services/blogThreadNotify.js";
+import { notifyThreadActivity, notifyMentions } from "../services/blogThreadNotify.js";
+import { findMentionedMembers } from "../services/mentionService.js";
 import {
   resolveDocAccess, atLeast, type DocRef as AccessRef,
 } from "../services/docAccessService.js";
@@ -191,7 +192,36 @@ blogThreadsRouter.post("/threads/:id/comments", async (req: Request, res: Respon
       kind: updated?.kind === "SUGGESTION" ? "SUGGESTION" : "COMMENT",
       snippet: body,
     });
-    res.status(201).json(updated);
+
+    // @mentions are notified separately from the draft's owners, and answered
+    // with whoever cannot actually open the document so the client can offer a
+    // one-click grant. That offer is only actionable by someone who holds EDIT
+    // or better, so a commenter is told nothing — they could not grant anyway.
+    const mentioned = (await findMentionedMembers(body))
+      .filter((m) => m.id !== req.memberId);
+    void notifyMentions({
+      docRef: ctx.ref,
+      actorId: req.memberId!,
+      threadId: req.params.id as string,
+      members: mentioned,
+      snippet: body,
+    });
+
+    const accessRef = toAccessRef(ctx.ref);
+    let mentionedWithoutAccess: { id: string; displayName: string }[] = [];
+    if (mentioned.length > 0) {
+      const myLevel = await resolveDocAccess(req.memberId!, accessRef);
+      if (atLeast(myLevel, "EDIT")) {
+        const levels = await Promise.all(
+          mentioned.map((m) => resolveDocAccess(m.id, accessRef)),
+        );
+        mentionedWithoutAccess = mentioned
+          .filter((_, i) => levels[i] === null)
+          .map((m) => ({ id: m.id, displayName: m.displayName }));
+      }
+    }
+
+    res.status(201).json({ ...updated, mentionedWithoutAccess });
   } catch (err) {
     console.error("[blogThreads] comment error:", err);
     res.status(500).json({ error: "Failed to add comment" });

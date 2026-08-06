@@ -345,6 +345,34 @@ blogRouter.get("/posts/:id/revisions", async (req: Request, res: Response) => {
   }
 });
 
+// Names a snapshot ("Pre-launch draft"). An empty or whitespace-only name
+// clears it, which is how the drawer un-names a version.
+blogRouter.patch("/posts/:id/revisions/:revId", async (req: Request, res: Response) => {
+  try {
+    const post = await requirePostAccess(req, res);
+    if (!post) return;
+    const raw = req.body?.name;
+    const name = typeof raw === "string" ? raw.trim().slice(0, 120) : null;
+    // Scoped to the post from the URL, not just the revision id: EDIT on one
+    // post must not let anyone rename another post's history.
+    const { count } = await prisma.blogRevision.updateMany({
+      where: { id: String(req.params.revId), postId: post.id },
+      data: { name: name || null },
+    });
+    if (count === 0) {
+      res.status(404).json({ error: "Revision not found" });
+      return;
+    }
+    res.json(await prisma.blogRevision.findUnique({
+      where: { id: String(req.params.revId) },
+      include: { author: { select: { id: true, displayName: true, avatarUrl: true } } },
+    }));
+  } catch (error) {
+    console.error("PATCH /blog/posts/:id/revisions/:revId error:", error);
+    res.status(500).json({ error: "Failed to rename revision" });
+  }
+});
+
 blogRouter.post("/posts/:id/revisions/:revId/rollback", async (req: Request, res: Response) => {
   try {
     if (!(await requirePostAccess(req, res))) return;

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
 import {
-  setBlogThreadStatus, addBlogThreadComment, deleteBlogThreadComment,
+  setBlogThreadStatus, addBlogThreadComment, deleteBlogThreadComment, setDocAccess,
 } from '../../../api/clubPmClient';
 
 function when(iso) {
@@ -14,9 +14,16 @@ function when(iso) {
  * the card still renders from the stored anchorText snapshot, but accepting is
  * meaningless because there is nothing left in the document to change.
  */
-export default function BlogThreadCard({ thread, editor, canEdit, currentMember, onChanged, isFocused }) {
+export default function BlogThreadCard({
+  thread, editor, canEdit, currentMember, onChanged, isFocused, docType, docId,
+}) {
   const [reply, setReply] = useState('');
   const [busy, setBusy] = useState(false);
+  // Members this card's author just @mentioned who cannot open the document.
+  // The server only ever populates this for a commenter who holds EDIT or
+  // better, so its presence is itself the permission to act on it.
+  const [needAccess, setNeedAccess] = useState([]);
+  const [granting, setGranting] = useState(null);
   const cardRef = useRef(null);
 
   // Bring the card into view when the editor points at this thread; the panel
@@ -82,7 +89,26 @@ export default function BlogThreadCard({ thread, editor, canEdit, currentMember,
 
   const send = () => {
     if (!reply.trim()) return;
-    run(async () => { await addBlogThreadComment(thread.id, reply); setReply(''); });
+    run(async () => {
+      const result = await addBlogThreadComment(thread.id, reply);
+      setReply('');
+      setNeedAccess(result?.mentionedWithoutAccess ?? []);
+    });
+  };
+
+  // COMMENT, not EDIT: the point is to let the person read the draft and reply,
+  // not to hand them the document because they were named once.
+  const grant = async (target) => {
+    setGranting(target.id);
+    try {
+      await setDocAccess(docType, docId, target.id, 'COMMENT');
+      setNeedAccess((rows) => rows.filter((r) => r.id !== target.id));
+      toast.success(`${target.displayName} can comment on this document now`);
+    } catch (err) {
+      toast.error(err?.message || 'Could not give access');
+    } finally {
+      setGranting(null);
+    }
   };
 
   return (
@@ -142,6 +168,29 @@ export default function BlogThreadCard({ thread, editor, canEdit, currentMember,
           </div>
         ))}
       </div>
+
+      {docType && docId && needAccess.map((m) => (
+        <div key={m.id} className="cpm-blog-thread-grant">
+          <i className="fas fa-user-lock" aria-hidden="true" />
+          <span>{m.displayName} can&rsquo;t see this document.</span>
+          <button
+            type="button"
+            className="clubpm-btn-secondary"
+            disabled={granting === m.id}
+            onClick={() => grant(m)}
+          >
+            {granting === m.id ? 'Giving access…' : 'Give access'}
+          </button>
+          <button
+            type="button"
+            className="cpm-blog-thread-grant-dismiss"
+            aria-label="Dismiss"
+            onClick={() => setNeedAccess((rows) => rows.filter((r) => r.id !== m.id))}
+          >
+            <i className="fas fa-times" aria-hidden="true" />
+          </button>
+        </div>
+      ))}
 
       {!terminal && (
         <>

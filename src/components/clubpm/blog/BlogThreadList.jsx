@@ -42,6 +42,8 @@ export default function BlogThreadList({
       currentMember={currentMember}
       onChanged={load}
       isFocused={t.id === focusedThreadId}
+      docType={docType}
+      docId={docId}
     />
   );
 

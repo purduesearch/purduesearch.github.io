@@ -23520,14 +23520,29 @@ html:not(.aos-off) [data-aos].aos-animate  { opacity: 1; transform: none; }
   border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-/* Comment anchor highlight — a decoration, never a mark in the document. */
+/* Comment anchor highlight — a decoration, never a mark in the document.
+   Unfocused it is a quiet wash under the prose: a draft with twenty comments
+   must still read as prose. Focus is what turns one of them into a signal. */
 .cpm-blog-comment-hl {
-  background: color-mix(in srgb, var(--pm-accent-amber) 22%, transparent);
-  border-bottom: 2px solid var(--pm-accent-amber);
+  background: color-mix(in srgb, var(--pm-accent-amber) 14%, transparent);
+  border-bottom: 2px solid color-mix(in srgb, var(--pm-accent-amber) 55%, transparent);
+  border-radius: 2px;
   cursor: pointer;
+  transition: background 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+.cpm-blog-comment-hl:hover {
+  background: color-mix(in srgb, var(--pm-accent-amber) 24%, transparent);
 }
 .cpm-blog-comment-hl.is-focused {
-  background: color-mix(in srgb, var(--pm-accent-amber) 38%, transparent);
+  background: color-mix(in srgb, var(--pm-accent-amber) 34%, transparent);
+  border-bottom-color: var(--pm-accent-amber);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--pm-accent-amber) 30%, transparent);
+  /* One-shot, not a loop: it points, then gets out of the way of reading. */
+  animation: cpm-blog-anchor-strike 420ms cubic-bezier(0.22, 0.68, 0.32, 1);
+}
+@keyframes cpm-blog-anchor-strike {
+  0%   { background: color-mix(in srgb, var(--pm-accent-amber) 62%, transparent); }
+  100% { background: color-mix(in srgb, var(--pm-accent-amber) 34%, transparent); }
 }
 
 /* ── Comment rail ──────────────────────────────────────────────
@@ -23543,6 +23558,9 @@ html:not(.aos-off) [data-aos].aos-animate  { opacity: 1; transform: none; }
     align-items: start;
     max-width: 1144px;
   }
+  /* The float-clearing ::after becomes a grid item here and opens an empty
+     third cell. Nothing floats inside the grid, so it has no job left. */
+  .cpm-blog-editor-body.has-rail::after { display: none; }
 }
 @media (max-width: 1099px) {
   .cpm-blog-rail { display: none; }
@@ -23554,19 +23572,100 @@ html:not(.aos-off) [data-aos].aos-animate  { opacity: 1; transform: none; }
   position: absolute;
   top: 0;
   width: 100%;
-  transition: transform 160ms ease;
+  /* Declared on the wrapper so the tether pseudo-elements and the card inside
+     it draw from one accent. Amber is the comment colour throughout the editor;
+     the rail carries comments only. */
+  --thread-accent: var(--pm-accent-amber);
+  transition:
+    transform 220ms cubic-bezier(0.22, 0.68, 0.32, 1),
+    opacity 160ms ease;
 }
+
+/* ── The anchor tether ──────────────────────────────────────────
+   The signature of this feature. layoutCards pins the focused card level with
+   the text it annotates, so a hairline drawn straight across the 24px gutter
+   lands on that text by construction — no coordinates, no overlay. Line plus
+   terminal node: the same figure the rest of Constellation draws between
+   stars. It exists only on focus, where it answers the one question a rail
+   raises — which sentence is this about? */
+.cpm-blog-rail-card::before,
+.cpm-blog-rail-card::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 140ms ease;
+}
+.cpm-blog-rail-card::before {          /* the line */
+  top: 15px;
+  left: -24px;
+  width: 24px;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--thread-accent) 20%, transparent),
+    var(--thread-accent)
+  );
+  transform: scaleX(0);
+  transform-origin: right center;
+  transition: transform 220ms cubic-bezier(0.22, 0.68, 0.32, 1), opacity 140ms ease;
+}
+.cpm-blog-rail-card::after {           /* the node it terminates in */
+  top: 12px;
+  left: -27px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--thread-accent);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--thread-accent) 70%, transparent);
+}
+.cpm-blog-rail-card.is-focused::before { opacity: 1; transform: scaleX(1); }
+.cpm-blog-rail-card.is-focused::after  { opacity: 1; }
+
+/* Focus also lifts the card off the gutter — the tether says which text, the
+   elevation says which card. The ring uses the rail's amber so a focused card
+   never wears two colours at once; .is-active's flat teal outline — right in
+   the review panel, wrong beside amber-anchored text — is what it replaces. */
+.cpm-blog-rail-card .cpm-blog-thread-card {
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+.cpm-blog-rail-card.is-focused .cpm-blog-thread-card.is-active {
+  outline: none;
+  border-color: color-mix(in srgb, var(--thread-accent) 55%, transparent);
+  box-shadow:
+    var(--pm-shadow-card, 0 4px 24px rgba(0, 0, 0, 0.4)),
+    0 0 0 1px color-mix(in srgb, var(--thread-accent) 30%, transparent);
+}
+
+/* Orphans sit at the foot of the rail, deliberately quiet: they are history,
+   not work in progress. */
 .cpm-blog-rail-orphans {
   position: absolute;
   bottom: 0;
   width: 100%;
   margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--pm-border, rgba(255, 255, 255, 0.07));
   font-size: 12px;
-  color: var(--pm-text-dim, #8b93a7);
+  color: var(--pm-text-secondary, #8892a4);
 }
-.cpm-blog-rail-orphans > summary { cursor: pointer; padding: 6px 0; }
+.cpm-blog-rail-orphans > summary {
+  cursor: pointer;
+  padding: 6px 0;
+  font-family: var(--pm-font-body, 'DM Sans', sans-serif);
+  letter-spacing: 0.02em;
+  transition: color 140ms ease;
+}
+.cpm-blog-rail-orphans > summary:hover { color: var(--pm-text-primary, #f0f2f7); }
+.cpm-blog-rail-orphans[open] > summary { color: var(--pm-text-primary, #f0f2f7); }
 .cpm-blog-rail-orphan { margin-bottom: 10px; }
-.cpm-blog-rail-orphan-quote { display: block; margin-bottom: 4px; font-style: italic; }
+.cpm-blog-rail-orphan-quote {
+  display: block;
+  margin-bottom: 4px;
+  font-style: italic;
+  opacity: 0.75;
+  overflow-wrap: anywhere;
+}
 
 /* ── Remote collaborator carets / presence / follow mode ───────── */
 /* CollaborationCaret already emits these class names; without these rules the
@@ -23604,9 +23703,26 @@ html:not(.aos-off) [data-aos].aos-animate  { opacity: 1; transform: none; }
 }
 
 /* Presence avatars are buttons now (click to follow); keep the chip geometry. */
-.cpm-blog-presence-avatar { padding: 0; cursor: pointer; overflow: hidden; }
+.cpm-blog-presence-avatar {
+  padding: 0; cursor: pointer; overflow: hidden;
+  transition: transform 140ms cubic-bezier(0.22, 0.68, 0.32, 1), box-shadow 140ms ease;
+}
+.cpm-blog-presence-avatar:hover { transform: translateY(-1px); }
+.cpm-blog-presence-avatar:focus-visible {
+  outline: 2px solid var(--pm-accent-teal, #00e5cc);
+  outline-offset: 2px;
+}
+/* Following is an ongoing state, not a selection, so the ring breathes. It is
+   the only looping animation in the editor — that is what makes it readable
+   as "still live" rather than decoration. */
 .cpm-blog-presence-avatar.is-following {
   box-shadow: 0 0 0 2px var(--caret-color, var(--pm-accent-teal));
+  animation: cpm-blog-follow-breathe 2.6s ease-in-out infinite;
+}
+@keyframes cpm-blog-follow-breathe {
+  0%, 100% { box-shadow: 0 0 0 2px var(--caret-color, var(--pm-accent-teal)); }
+  50%      { box-shadow: 0 0 0 2px var(--caret-color, var(--pm-accent-teal)),
+                         0 0 10px color-mix(in srgb, var(--caret-color, #00e5cc) 55%, transparent); }
 }
 .cpm-blog-presence-img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .cpm-blog-presence-more {
@@ -23619,15 +23735,184 @@ html:not(.aos-off) [data-aos].aos-animate  { opacity: 1; transform: none; }
   display: inline-flex; align-items: center; gap: 8px;
   margin: 0 auto 8px; width: fit-content;
   padding: 5px 6px 5px 12px; border-radius: 999px;
-  background: var(--pm-elevated, #1c212b);
+  background: var(--pm-bg-elevated, #1a1e2a);
   border: 1px solid var(--caret-color, var(--pm-accent-teal));
-  color: var(--clubpm-text, #e6e9ef);
+  color: var(--pm-text-primary, #f0f2f7);
+  box-shadow: var(--pm-shadow-card, 0 4px 24px rgba(0, 0, 0, 0.4));
+  animation: cpm-blog-follow-chip-in 200ms cubic-bezier(0.22, 0.68, 0.32, 1);
   font: 600 12px/1.4 var(--pm-font-body);
+}
+@keyframes cpm-blog-follow-chip-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: none; }
 }
 .cpm-blog-follow-chip .fa-eye { color: var(--caret-color, var(--pm-accent-teal)); }
 .cpm-blog-follow-stop {
   background: transparent; border: none; cursor: pointer; font-size: 12px;
-  color: var(--clubpm-text-muted, #9aa4b2);
+  color: var(--pm-text-secondary, #8892a4);
   width: 22px; height: 22px; border-radius: 50%;
+  transition: color 140ms ease, background 140ms ease;
 }
-.cpm-blog-follow-stop:hover { color: var(--clubpm-text, #e6e9ef); background: var(--pm-overlay, #2a2f3a); }
+.cpm-blog-follow-stop:hover {
+  color: var(--pm-text-primary, #f0f2f7);
+  background: var(--pm-bg-overlay, #222636);
+}
+
+/* === Blog editor: document mode control (Editing / Suggesting / Viewing) ===
+   Token names here are the declared ones (--pm-bg-surface, --pm-text-secondary
+   …). The short forms --pm-surface / --pm-elevated / --pm-text are not declared
+   anywhere; rules written against them only ever showed their literal
+   fallbacks and stopped responding to the theme. */
+.cpm-blog-mode {
+  display: inline-flex; align-items: center; gap: 2px; flex-shrink: 0;
+  padding: 3px; border-radius: 10px;
+  background: var(--pm-bg-surface, #13161e);
+  border: 1px solid var(--pm-border, rgba(255, 255, 255, 0.07));
+}
+.cpm-blog-mode-btn {
+  position: relative;
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 10px; border: 0; border-radius: 8px; cursor: pointer;
+  background: transparent; color: var(--pm-text-secondary, #8892a4);
+  font: 600 12px/1 var(--pm-font-body, 'DM Sans', sans-serif);
+  letter-spacing: 0.01em;
+  transition: background 140ms ease, color 140ms ease;
+}
+.cpm-blog-mode-btn:hover {
+  color: var(--pm-text-primary, #f0f2f7);
+  background: var(--pm-bg-elevated, #1a1e2a);
+}
+.cpm-blog-mode-btn.is-active {
+  background: var(--pm-bg-elevated, #1a1e2a);
+  color: var(--pm-accent-teal, #00e5cc);
+  box-shadow: inset 0 0 0 1px var(--pm-border-active, rgba(0, 229, 204, 0.3));
+}
+/* The mode you are in is a live state, not a selected tab — the icon carries a
+   faint teal glow so it reads as switched on at a glance. */
+.cpm-blog-mode-btn.is-active .fas {
+  filter: drop-shadow(0 0 5px rgba(0, 229, 204, 0.55));
+}
+.cpm-blog-mode-btn:focus-visible {
+  outline: 2px solid var(--pm-accent-teal, #00e5cc);
+  outline-offset: 1px;
+}
+/* The label is the affordance; below the toolbar's wrap point the icon carries it. */
+@media (max-width: 900px) {
+  .cpm-blog-mode-label { display: none; }
+}
+
+/* Mention access offer — shown on a thread card after a comment @mentions
+   someone who cannot open the document. Only rendered for a commenter the
+   server confirmed holds EDIT or better, so the button always has authority. */
+.cpm-blog-thread-grant {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 8px 10px;
+  border: 1px solid color-mix(in srgb, var(--pm-accent-amber) 45%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--pm-accent-amber) 12%, transparent);
+  font-size: 12px;
+  line-height: 1.4;
+  /* Arrives as a consequence of sending a comment, so it enters rather than
+     appears — the movement is what draws the eye back down to it. */
+  animation: cpm-blog-grant-in 220ms cubic-bezier(0.22, 0.68, 0.32, 1);
+}
+@keyframes cpm-blog-grant-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: none; }
+}
+.cpm-blog-thread-grant .fa-user-lock { color: var(--pm-accent-amber); }
+.cpm-blog-thread-grant > span { flex: 1; min-width: 0; }
+.cpm-blog-thread-grant .clubpm-btn-secondary {
+  padding: 3px 10px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.cpm-blog-thread-grant-dismiss {
+  background: none;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  opacity: 0.7;
+}
+.cpm-blog-thread-grant-dismiss:hover { opacity: 1; }
+
+/* Named versions — the revision drawer's rename affordance and filter. */
+.cpm-blog-revision-filter {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 2px 10px;
+  color: var(--color-text-muted, #9aa7b2);
+  font-size: 12px;
+  cursor: pointer;
+  user-select: none;
+}
+.cpm-blog-revision-filter:hover { color: var(--pm-text-primary, #f0f2f7); }
+/* A named version is a deliberate marker in an otherwise automatic list, so it
+   gets the accent the rest of the list does not. */
+.cpm-blog-revision-named {
+  margin-left: 6px;
+  color: var(--pm-accent-teal);
+  font-size: 10px;
+  filter: drop-shadow(0 0 5px rgba(0, 229, 204, 0.5));
+}
+.cpm-blog-revision-rename-btn {
+  flex: 0 0 auto;
+  padding: 4px 6px;
+  background: none;
+  border: 0;
+  border-radius: 6px;
+  color: inherit;
+  cursor: pointer;
+  /* Quiet, never hidden — hover-to-reveal would put renaming out of reach on
+     touch, and this is the only way to name a version. */
+  opacity: 0.45;
+  transition: opacity 140ms ease, color 140ms ease;
+}
+.cpm-blog-revision-rename-btn:hover { color: var(--pm-accent-teal, #00e5cc); }
+.cpm-blog-revision-item:hover .cpm-blog-revision-rename-btn,
+.cpm-blog-revision-rename-btn:focus-visible { opacity: 1; }
+.cpm-blog-revision-rename {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 4px 8px;
+  border: 1px solid var(--pm-accent-teal);
+  border-radius: 6px;
+  /* --pm-bg-elevated, not --pm-elevated: the short form is never declared, so
+     it resolved to nothing and the input drew transparent over the drawer. */
+  background: var(--pm-bg-elevated, #1a1e2a);
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+}
+
+/* ── Collaborative editing: reduced motion ─────────────────────
+   Everything the editor animates is either an entrance or a state change that
+   also reads statically, so all of it can be dropped outright. The tether and
+   the focus highlight stay — they carry meaning, they just stop moving. */
+@media (prefers-reduced-motion: reduce) {
+  .cpm-blog-rail-card,
+  .cpm-blog-rail-card::before,
+  .cpm-blog-rail-card .cpm-blog-thread-card,
+  .cpm-blog-comment-hl,
+  .cpm-blog-mode-btn,
+  .cpm-blog-presence-avatar,
+  .cpm-blog-follow-stop,
+  .cpm-blog-revision-rename-btn,
+  .cpm-blog-rail-orphans > summary,
+  .collaboration-carets__label {
+    transition: none;
+  }
+  .cpm-blog-comment-hl.is-focused,
+  .cpm-blog-thread-grant,
+  .cpm-blog-follow-chip,
+  .cpm-blog-presence-avatar.is-following {
+    animation: none;
+  }
+  /* The tether still has to be drawn, just not drawn *in*. */
+  .cpm-blog-rail-card.is-focused::before { transform: scaleX(1); }
+  .cpm-blog-presence-avatar:hover { transform: none; }
+}

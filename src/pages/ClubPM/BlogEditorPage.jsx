@@ -15,7 +15,7 @@ import { useClubPmAuth } from '../../clubpm/ClubPmAuth';
 import {
   getBlogPost, updateBlogPost, publishBlogPost,
   scheduleBlogPost, unpublishBlogPost, archiveBlogPost, get, deleteBlogPost,
-  listBlogThreads,
+  listBlogThreads, listDocAccess,
 } from '../../api/clubPmClient';
 
 const STATUS_LABELS = {
@@ -176,6 +176,20 @@ export default function BlogEditorPage() {
     || post?.createdById === member.id
     || (post?.authors ?? []).some((a) => a.memberId === member.id)
   );
+
+  // The resolved level decides which document modes the editor header offers.
+  // The endpoint 403s below EDIT, so a commenter never resolves one — which is
+  // why the fallback is canEditDoc, the same doc-editor check the server makes.
+  // That also avoids an Editing switch flashing in (or out) mid-load.
+  const [accessLevel, setAccessLevel] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    listDocAccess('BLOG_POST', id)
+      .then((data) => { if (!cancelled) setAccessLevel(data?.myLevel ?? null); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [id]);
 
   useEffect(() => {
     let cancelled = false;
@@ -520,10 +534,12 @@ export default function BlogEditorPage() {
             docType="BLOG_POST"
             docId={id}
             canEditDoc={canEditDoc}
+            accessLevel={accessLevel ?? (canEditDoc ? 'EDIT' : 'COMMENT')}
             threadsRefreshKey={threadsRefreshKey}
             onThreadsChanged={() => setThreadsRefreshKey((k) => k + 1)}
             onThreadFocus={(threadId) => { setFocusedThreadId(threadId); setOpenPanel('review'); }}
             onThreadPositions={setThreadPositions}
+            focusedThreadId={focusedThreadId}
             onAskAi={(text) => { setAiSelection(text); setOpenPanel('ai'); }}
             theme={theme}
             onThemeChange={handleThemeChange}
@@ -541,6 +557,8 @@ export default function BlogEditorPage() {
             currentMember={member}
             canEdit={canEditDoc}
             onChanged={() => setThreadsRefreshKey((k) => k + 1)}
+            docType="BLOG_POST"
+            docId={id}
           />
         )}
       </div>

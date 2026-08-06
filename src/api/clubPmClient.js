@@ -429,6 +429,7 @@ export const unpublishBlogPost = (id) => post(`/api/blog/posts/${id}/unpublish`,
 export const archiveBlogPost  = (id) => post(`/api/blog/posts/${id}/archive`, {});
 export const listBlogRevisions = (id) => get(`/api/blog/posts/${id}/revisions`);
 export const rollbackBlogRevision = (id, revId) => post(`/api/blog/posts/${id}/revisions/${revId}/rollback`, {});
+export const renameBlogRevision = (id, revId, name) => patch(`/api/blog/posts/${id}/revisions/${revId}`, { name });
 export const listBlogTags     = () => get('/api/blog/tags');
 export const createBlogTag    = (name) => post('/api/blog/tags', { name });
 export const listBlogCategories = () => get('/api/blog/categories');

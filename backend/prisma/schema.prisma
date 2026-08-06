@@ -985,6 +985,9 @@ model BlogRevision {
   post        BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
   contentJson Json
   title       String
+  // Optional human label ("Pre-launch draft"). When set it is what the history
+  // drawer shows; the timestamp stays beneath it.
+  name        String?
   authorId    String
   author      Member   @relation("BlogRevisionAuthor", fields: [authorId], references: [id])
   createdAt   DateTime @default(now())

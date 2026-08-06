@@ -14,27 +14,49 @@ export const ThreadDecorations = Extension.create({
   name: 'threadDecorations',
 
   addOptions() {
-    return { threads: [], onPositions: null };
+    return { threads: [], onPositions: null, focusedThreadId: null };
   },
 
   addProseMirrorPlugins() {
     const extension = this;
 
+    /**
+     * Positions are read back off the decoration set rather than kept in a
+     * parallel Map, so they stay correct after ProseMirror maps the set through
+     * an edit. Reporting only on rebuild would leave the rail measuring from
+     * pre-edit offsets, and every card would drift the moment anyone typed
+     * above it.
+     */
+    const emit = (set) => {
+      const positions = new Map();
+      for (const deco of set.find()) {
+        if (deco.spec?.threadId) positions.set(deco.spec.threadId, { from: deco.from, to: deco.to });
+      }
+      extension.options.onPositions?.(positions);
+    };
+
     const build = (state) => {
       const decos = [];
-      const positions = new Map();
+      const focusedId = extension.options.focusedThreadId;
       for (const thread of extension.options.threads ?? []) {
         if (thread.status !== 'OPEN') continue;
         const range = resolveAnchor(extension.editor, thread);
         if (!range) continue;                    // orphaned — no decoration
-        positions.set(thread.id, range);
-        decos.push(Decoration.inline(range.from, range.to, {
-          class: 'cpm-blog-comment-hl',
-          'data-thread-id': thread.id,
-        }));
+        decos.push(Decoration.inline(
+          range.from,
+          range.to,
+          {
+            class: `cpm-blog-comment-hl${thread.id === focusedId ? ' is-focused' : ''}`,
+            'data-thread-id': thread.id,
+          },
+          // The spec is what makes the set self-describing; `emit` and the
+          // focus rebuild both read the thread id back out of it.
+          { threadId: thread.id },
+        ));
       }
-      extension.options.onPositions?.(positions);
-      return DecorationSet.create(state.doc, decos);
+      const set = DecorationSet.create(state.doc, decos);
+      emit(set);
+      return set;
     };
 
     return [
@@ -43,11 +65,16 @@ export const ThreadDecorations = Extension.create({
         state: {
           init: (_, state) => build(state),
           apply(tr, old, _oldState, newState) {
-            // A full recompute is only needed when the thread set changes or
-            // Yjs syncs; ordinary keystrokes just map the existing set, which
-            // keeps typing cheap with many threads open.
+            // A full recompute is only needed when the thread set, the focused
+            // thread, or the Yjs binding changes; ordinary keystrokes just map
+            // the existing set, which keeps typing cheap with many threads open.
             if (tr.getMeta(threadDecorationsKey)?.recompute) return build(newState);
-            return tr.docChanged ? old.map(tr.mapping, tr.doc) : old;
+            if (!tr.docChanged) return old;
+            const mapped = old.map(tr.mapping, tr.doc);
+            // `DecorationSet.map` returns the receiver unchanged for an empty
+            // set, so an editor with no comments never re-renders the rail.
+            if (mapped !== old) emit(mapped);
+            return mapped;
           },
         },
         props: {

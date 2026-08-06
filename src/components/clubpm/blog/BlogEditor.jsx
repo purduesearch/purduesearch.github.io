@@ -30,6 +30,9 @@ import BlogSectionSettings from './BlogSectionSettings';
 import BlogThemeBar from './BlogThemeBar';
 import BlogSelectionBubble from './BlogSelectionBubble';
 import { suggestionExtensions, findMarkRanges } from './suggestionMarks';
+import {
+  SuggestingMode, modesFor, defaultMode, MODE_LABELS, MODE_ICONS,
+} from './SuggestingMode';
 import { ThreadDecorations, threadDecorationsKey } from './ThreadDecorations';
 import { anchorFromSelection } from './threadAnchors';
 import BlogAutocomplete from './blogAutocomplete';
@@ -86,6 +89,10 @@ export function blogExtensions(collab, autocomplete, threadDecorations) {
     SearchAndReplace.configure({ disableRegex: true }),
     LinkShortcut,
     ...suggestionExtensions(),
+    // Always present, inert until the header's mode control turns it on — the
+    // toggle is a command, not a re-configure, so switching modes never
+    // rebuilds the editor and drops the collab connection.
+    SuggestingMode.configure({ enabled: false, authorId: collab?.user?.id ?? null }),
     BlogAutocomplete.configure({
       docType: autocomplete?.docType ?? 'BLOG_POST',
       docId: autocomplete?.docId ?? null,
@@ -99,6 +106,7 @@ export function blogExtensions(collab, autocomplete, threadDecorations) {
       ThreadDecorations.configure({
         threads: threadDecorations.threads ?? [],
         onPositions: threadDecorations.onPositions ?? null,
+        focusedThreadId: threadDecorations.focusedThreadId ?? null,
       }),
     ] : []),
     ...(collab ? [
@@ -535,6 +543,34 @@ function PresenceBar({ synced, connected, peers, followedClientId, onToggleFollo
   );
 }
 
+/**
+ * Three-position Editing / Suggesting / Viewing control.
+ *
+ * Which positions exist comes from the resolved access level (see
+ * SuggestingMode.js) — a level with only one mode renders nothing, since a
+ * one-position switch is just noise.
+ */
+function ModeControl({ modes, mode, onChange }) {
+  if (modes.length < 2) return null;
+  return (
+    <div className="cpm-blog-mode" role="group" aria-label="Document mode">
+      {modes.map((m) => (
+        <button
+          key={m}
+          type="button"
+          className={`cpm-blog-mode-btn${m === mode ? ' is-active' : ''}`}
+          aria-pressed={m === mode}
+          title={MODE_LABELS[m]}
+          onClick={() => onChange(m)}
+        >
+          <i className={`fas ${MODE_ICONS[m]}`} aria-hidden="true" />
+          <span className="cpm-blog-mode-label">{MODE_LABELS[m]}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
 const REVIEW_MARKS = ['commentMark', 'suggestInsert', 'suggestDelete'];
 
 /**
@@ -566,17 +602,22 @@ function threadIdAt(state, pos) {
  * @param {string}  docType   'BLOG_POST' | 'PRESS_KIT' — which review-thread namespace this editor uses
  * @param {string}  docId     id within that namespace; falls back to postId for blog posts
  * @param {boolean} canEditDoc  false for reviewers — hides Accept/Reject and the AI entry points
+ * @param {string}  accessLevel  resolved DocAccessLevel for the current member; decides which
+ *                               modes the header offers. Defaults to 'EDIT' so hosts that do not
+ *                               resolve access keep today's behaviour.
  * @param {number}  threadsRefreshKey  bump to re-fetch threads (and their anchors) for the decorations
  * @param {function} onThreadPositions  receives Map<threadId, { from, to }> for the comment rail;
  *                                      threads absent from the map are orphaned
+ * @param {string}  focusedThreadId  thread whose anchored text is highlighted in the canvas
  * @param {function} onThreadFocus  called with a threadId when the caret lands on
  *                                  commented or suggested text, so the host can
  *                                  reveal that thread in the review panel
  */
 export default function BlogEditor({
   content, onChange, editable = true, onEditorReady, postId, collabUser, collabWsUrl,
-  theme, onThemeChange, docType = 'BLOG_POST', docId, canEditDoc = true,
+  theme, onThemeChange, docType = 'BLOG_POST', docId, canEditDoc = true, accessLevel = 'EDIT',
   onAskAi, onThreadsChanged, onThreadFocus, threadsRefreshKey = 0, onThreadPositions,
+  focusedThreadId = null,
 }) {
   const [showFind, setShowFind] = React.useState(false);
   const [showSnippets, setShowSnippets] = React.useState(false);
@@ -715,6 +756,7 @@ export default function BlogEditor({
   // would drop the collab connection.
   const threadDecoOptions = React.useRef({
     threads: [],
+    focusedThreadId: null,
     onPositions: (positions) => onThreadPositionsRef.current?.(positions),
   }).current;
 
@@ -764,13 +806,17 @@ export default function BlogEditor({
   // valid once the doc has synced — and must be rebuilt whenever the thread set
   // changes. Between those, ProseMirror maps the existing set through each
   // transaction, which is what keeps typing cheap with many threads open.
+  // Focus is in this dependency list because the focused thread's decoration
+  // carries an extra class — highlighting the anchored text is what tells the
+  // reader which sentence the card they just clicked is actually about.
   React.useEffect(() => {
     if (!editor || editor.isDestroyed || !collab) return;
     const ext = editor.extensionManager.extensions.find((e) => e.name === 'threadDecorations');
     if (!ext) return;
     ext.options.threads = threads;
+    ext.options.focusedThreadId = focusedThreadId ?? null;
     editor.view.dispatch(editor.state.tr.setMeta(threadDecorationsKey, { recompute: true }));
-  }, [editor, collab, synced, threads]);
+  }, [editor, collab, synced, threads, focusedThreadId]);
 
   // ── One-shot migration off commentMark ────────────────────────
   // Legacy comments anchored via commentMark predate relative positions.
@@ -894,6 +940,20 @@ export default function BlogEditor({
     }
   };
 
+  // ── Document mode ─────────────────────────────────────────────
+  // 'viewing' calls setEditable(false). That is a UI affordance only: the real
+  // enforcement is the server-side readOnly Hocuspocus connection, which drops
+  // writes regardless of what this flag says.
+  const modes = useMemo(() => modesFor(accessLevel), [accessLevel]);
+  const [mode, setMode] = React.useState(() => defaultMode(accessLevel));
+  useEffect(() => { setMode(defaultMode(accessLevel)); }, [accessLevel]);
+
+  useEffect(() => {
+    if (!editor || editor.isDestroyed) return;
+    editor.setEditable(editable && mode !== 'viewing');
+    editor.commands.setSuggesting(mode === 'suggesting');
+  }, [editor, editable, mode]);
+
   const words = editor?.storage.characterCount.words() ?? 0;
   const chars = editor?.storage.characterCount.characters() ?? 0;
 
@@ -918,6 +978,7 @@ export default function BlogEditor({
             theme={theme}
             onThemeChange={onThemeChange}
           />
+          <ModeControl modes={modes} mode={mode} onChange={setMode} />
           {collab && (
             <PresenceBar
               synced={synced}

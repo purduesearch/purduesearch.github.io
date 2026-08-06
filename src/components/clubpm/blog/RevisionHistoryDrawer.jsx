@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import toast from 'react-hot-toast';
 import { EditorContent, useEditor } from '@tiptap/react';
-import { listBlogRevisions, rollbackBlogRevision } from '../../../api/clubPmClient';
+import { listBlogRevisions, rollbackBlogRevision, renameBlogRevision } from '../../../api/clubPmClient';
 import { blogExtensions } from './BlogEditor';
 
 function RevisionPreview({ revision }) {
@@ -29,6 +29,12 @@ export default function RevisionHistoryDrawer({ postId, onClose, onRestored }) {
   const [error, setError] = useState(null);
   const [viewing, setViewing] = useState(null);
   const [restoringId, setRestoringId] = useState(null);
+  // Snapshots are taken automatically before every publish and rollback, so the
+  // list gets long fast. Naming one is how a member marks the handful that
+  // matter; this filter is how they find them again.
+  const [namedOnly, setNamedOnly] = useState(false);
+  const [renamingId, setRenamingId] = useState(null);
+  const [draftName, setDraftName] = useState('');
 
   useEffect(() => {
     let cancelled = false;
@@ -39,8 +45,25 @@ export default function RevisionHistoryDrawer({ postId, onClose, onRestored }) {
     return () => { cancelled = true; };
   }, [postId]);
 
+  const startRename = (rev) => { setRenamingId(rev.id); setDraftName(rev.name ?? ''); };
+
+  const commitRename = async (rev) => {
+    const next = draftName.trim();
+    setRenamingId(null);
+    if (next === (rev.name ?? '')) return;
+    // Optimistic: the row is a label, and a failed rename puts the old one back
+    // rather than leaving the list blanked while the request is in flight.
+    setRevisions((rows) => rows.map((r) => (r.id === rev.id ? { ...r, name: next || null } : r)));
+    try {
+      await renameBlogRevision(postId, rev.id, next);
+    } catch (err) {
+      setRevisions((rows) => rows.map((r) => (r.id === rev.id ? { ...r, name: rev.name ?? null } : r)));
+      toast.error(err?.message ?? 'Could not rename this version');
+    }
+  };
+
   const handleRestore = async (revision) => {
-    if (!window.confirm(`Restore the post to the "${revision.title}" snapshot from ${new Date(revision.createdAt).toLocaleString()}? The current version will be saved as a new snapshot first.`)) return;
+    if (!window.confirm(`Restore the post to the "${revision.name || revision.title}" snapshot from ${new Date(revision.createdAt).toLocaleString()}? The current version will be saved as a new snapshot first.`)) return;
     setRestoringId(revision.id);
     try {
       const updated = await rollbackBlogRevision(postId, revision.id);
@@ -53,6 +76,8 @@ export default function RevisionHistoryDrawer({ postId, onClose, onRestored }) {
       setRestoringId(null);
     }
   };
+
+  const shown = namedOnly ? revisions.filter((r) => r.name) : revisions;
 
   return createPortal(
     <div className="cpm-blog-snippet-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
@@ -67,25 +92,67 @@ export default function RevisionHistoryDrawer({ postId, onClose, onRestored }) {
         <div className="cpm-blog-revision-body">
           <div className="cpm-blog-revision-list-col">
             {error && <p className="cpm-gh-error">{error}</p>}
+            {!loading && revisions.length > 0 && (
+              <label className="cpm-blog-revision-filter">
+                <input
+                  type="checkbox"
+                  checked={namedOnly}
+                  onChange={(e) => setNamedOnly(e.target.checked)}
+                />
+                Named versions only
+              </label>
+            )}
             {loading ? (
               <div className="cpm-blog-snippet-empty">Loading…</div>
             ) : revisions.length === 0 ? (
               <div className="cpm-blog-snippet-empty">No snapshots yet — one is saved automatically before each publish or rollback.</div>
+            ) : shown.length === 0 ? (
+              <div className="cpm-blog-snippet-empty">No named versions yet — name a snapshot to pin it here.</div>
             ) : (
               <ul className="cpm-blog-revision-list">
-                {revisions.map((rev) => (
+                {shown.map((rev) => (
                   <li key={rev.id} className={`cpm-blog-revision-item${viewing?.id === rev.id ? ' is-active' : ''}`}>
                     <button type="button" className="cpm-blog-revision-item-main" onClick={() => setViewing(rev)}>
                       {rev.author?.avatarUrl
                         ? <img src={rev.author.avatarUrl} alt="" className="cpm-blog-revision-avatar" />
                         : <span className="cpm-blog-revision-avatar cpm-blog-revision-avatar--empty"><i className="fas fa-user" aria-hidden="true" /></span>}
                       <span className="cpm-blog-revision-item-text">
-                        <span className="cpm-blog-revision-item-title">{rev.title}</span>
+                        {/* A name, once given, is the label people look for. The
+                            timestamp never goes away — it is what actually
+                            distinguishes two snapshots from the same day. */}
+                        <span className="cpm-blog-revision-item-title">
+                          {rev.name || rev.title}
+                          {rev.name && <i className="fas fa-bookmark cpm-blog-revision-named" aria-label="Named version" />}
+                        </span>
                         <span className="cpm-blog-revision-item-meta">
                           {rev.author?.displayName ?? 'Unknown'} · {new Date(rev.createdAt).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                         </span>
                       </span>
                     </button>
+                    {renamingId === rev.id ? (
+                      <input
+                        className="cpm-blog-revision-rename"
+                        autoFocus
+                        value={draftName}
+                        placeholder="Name this version…"
+                        onChange={(e) => setDraftName(e.target.value)}
+                        onBlur={() => commitRename(rev)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') { e.preventDefault(); commitRename(rev); }
+                          if (e.key === 'Escape') { e.preventDefault(); setRenamingId(null); }
+                        }}
+                      />
+                    ) : (
+                      <button
+                        type="button"
+                        className="cpm-blog-revision-rename-btn"
+                        onClick={() => startRename(rev)}
+                        title={rev.name ? 'Rename this version' : 'Name this version'}
+                        aria-label={rev.name ? 'Rename this version' : 'Name this version'}
+                      >
+                        <i className="fas fa-pen" aria-hidden="true" />
+                      </button>
+                    )}
                     <button
                       type="button"
                       className="clubpm-btn-secondary cpm-blog-revision-restore"
