@@ -57,16 +57,18 @@ and by the following Tuesday nobody can find the message.
 Nothing here is anyone's fault. Chat is built to move forward. It is not built to tell you the state
 of anything.
 
-**[00:18 — fade to Constellation dashboard]**
+**[00:18 — fade to Henry]**
 
-This is Constellation. It's SEARCH's project system, and it exists for exactly one reason: to hold
-the state of the club's work somewhere that doesn't scroll away.
+Hello folks, my name is Henry Ewald, SEARCH's research lead. 
+You may recognize me from this Purdue LinkedIn post, as background footage from this video glazing Dr. Porterfield, or from 50 shades of grey where I played this shade of grey.
+This is Constellation. It's SEARCH's project managmenet system, and it exists for exactly one reason: to hold
+the state of the club's work somewhere that doesn't go away.
 
 **[00:40 — pan across the board]**
 
 Every piece of work is a task. Every task sits in one of four columns, and that column is the truth
 about it — not what someone said in chat, not what you remember agreeing to. To-do, in progress,
-blocked, done.
+blocked, and done.
 
 *(pause)*
 

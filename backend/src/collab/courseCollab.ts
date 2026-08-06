@@ -1,5 +1,4 @@
-import type { Server as HttpServer, IncomingMessage } from "node:http";
-import { WebSocketServer } from "ws";
+import type { Server as HttpServer } from "node:http";
 import { Hocuspocus, type onAuthenticatePayload, type onLoadDocumentPayload, type onStoreDocumentPayload } from "@hocuspocus/server";
 import * as Y from "yjs";
 import { TiptapTransformer } from "@hocuspocus/transformer";
@@ -8,6 +7,7 @@ import { verifyBearerToken } from "../api/auth.js";
 import type { PMDoc } from "../services/blogRender.js";
 import type { Prisma } from "@prisma/client";
 import { blogCollabExtensions } from "./blogSchema.js";
+import { attachCollab } from "./collabUpgrade.js";
 
 // The path the Hocuspocus WS endpoint is mounted at. The Yjs document name
 // (== CourseSection.id) is carried by the Yjs/Hocuspocus wire protocol itself
@@ -98,16 +98,5 @@ export async function replaceCourseSectionContent(sectionId: string, doc: PMDoc)
 }
 
 export function attachCourseCollab(httpServer: HttpServer): void {
-  const wss = new WebSocketServer({ noServer: true });
-
-  httpServer.on("upgrade", (request: IncomingMessage, socket, head) => {
-    const url = request.url ?? "";
-    if (!url.startsWith(COLLAB_PATH_PREFIX)) return;
-    wss.handleUpgrade(request, socket, head, (ws) => {
-      // Hocuspocus only reads `request.url` (see getParameters()) to pull
-      // query params — a raw Node IncomingMessage is fine at runtime even
-      // though its types expect a WHATWG Request.
-      hocuspocus.handleConnection(ws, request as unknown as Request);
-    });
-  });
+  attachCollab(httpServer, COLLAB_PATH_PREFIX, hocuspocus);
 }
