@@ -258,6 +258,11 @@ model Member {
   courseEnrollments CourseEnrollment[] @relation("CourseEnrollmentMember")
   assignedCourses   CourseEnrollment[] @relation("CourseEnrollmentAssigner")
   courseGenJobs     CourseGenJob[]     @relation("CourseGenJobCreator")
+
+  // ── Per-document access control ──
+  docAccessGrants  DocAccessGrant[]   @relation("DocAccessMember")
+  docAccessGranted DocAccessGrant[]   @relation("DocAccessGranter")
+  docShareSet      DocShareSettings[] @relation("DocShareSetter")
 }
 
 model Project {
@@ -967,6 +972,9 @@ model BlogPost {
   annotations OutreachComment[] @relation("BlogPostAnnotations")
   threads     BlogThread[]
 
+  docAccessGrants  DocAccessGrant[]
+  docShareSettings DocShareSettings?
+
   @@index([status])
   @@index([slug])
 }
@@ -1086,6 +1094,9 @@ model ProjectPressKit {
   updatedAt    DateTime           @updatedAt
   revisions    PressKitRevision[]
   threads      BlogThread[]
+
+  docAccessGrants  DocAccessGrant[]
+  docShareSettings DocShareSettings?
 }
 
 model PressKitRevision {
@@ -2007,6 +2018,9 @@ model CourseSection {
   attempts  CourseQuizAttempt[]
   threads   BlogThread[]
 
+  docAccessGrants  DocAccessGrant[]
+  docShareSettings DocShareSettings?
+
   // Deliberately an index, NOT a unique constraint: reorderSections rewrites the
   // whole set in one transaction, which a unique constraint would force into an
   // ugly two-pass shuffle.
@@ -2172,4 +2186,54 @@ model CourseGenJob {
   updatedAt     DateTime        @updatedAt
 
   @@index([createdById, createdAt])
+}
+
+// ── Per-document access control ───────────────────────────────────────────
+// One grant/settings row targets exactly one document. Prisma cannot express
+// "exactly one FK set", so a num_nonnulls CHECK constraint in the migration
+// enforces it — see prisma/migrations/*_doc_access/migration.sql.
+
+enum DocAccessLevel {
+  VIEW
+  COMMENT
+  EDIT
+  OWNER
+}
+
+model DocAccessGrant {
+  id              String           @id @default(cuid())
+  postId          String?
+  post            BlogPost?        @relation(fields: [postId], references: [id], onDelete: Cascade)
+  pressKitId      String?
+  pressKit        ProjectPressKit? @relation(fields: [pressKitId], references: [id], onDelete: Cascade)
+  courseSectionId String?
+  courseSection   CourseSection?   @relation(fields: [courseSectionId], references: [id], onDelete: Cascade)
+
+  memberId    String
+  member      Member         @relation("DocAccessMember", fields: [memberId], references: [id], onDelete: Cascade)
+  level       DocAccessLevel
+  grantedById String
+  grantedBy   Member         @relation("DocAccessGranter", fields: [grantedById], references: [id])
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@unique([postId, memberId])
+  @@unique([pressKitId, memberId])
+  @@unique([courseSectionId, memberId])
+  @@index([memberId])
+}
+
+model DocShareSettings {
+  id              String           @id @default(cuid())
+  postId          String?          @unique
+  post            BlogPost?        @relation(fields: [postId], references: [id], onDelete: Cascade)
+  pressKitId      String?          @unique
+  pressKit        ProjectPressKit? @relation(fields: [pressKitId], references: [id], onDelete: Cascade)
+  courseSectionId String?          @unique
+  courseSection   CourseSection?   @relation(fields: [courseSectionId], references: [id], onDelete: Cascade)
+
+  clubLevel DocAccessLevel
+  setById   String
+  setBy     Member         @relation("DocShareSetter", fields: [setById], references: [id])
+  updatedAt DateTime       @updatedAt
 }
