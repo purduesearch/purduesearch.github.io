@@ -24,6 +24,29 @@ const COURSES = path.join(REPO_ROOT, "docs", "courses");
 const ARCHIVED_PREFIX = "[archived] ";
 
 /**
+ * Refs a course.json points at that nobody has written yet, across every course.
+ *
+ * A course is scaffolded before it is written: `ares-101`'s course.json lands
+ * with all 52 sections up front so eleven independently-authored modules cannot
+ * drift on section order or asset numbering, which means most of its refs dangle
+ * until each module task fills one in. Seeding installs the section anyway, with
+ * an empty body — the shape a section with no bodyRef at all already takes — so
+ * the modules that ARE written can be opened in the player as they land.
+ *
+ * Skipped, never silent: an unwritten article and a mistyped ref look identical
+ * from here, so every one is printed at the end of the run.
+ */
+const pendingRefs: string[] = [];
+
+/** Resolve a ref against its course dir, or record it as pending and return null. */
+function resolveRef(dir: string, slug: string, ref: string): string | null {
+  const file = path.join(dir, ref);
+  if (fs.existsSync(file)) return file;
+  pendingRefs.push(`${slug}/${ref}`);
+  return null;
+}
+
+/**
  * Read a `lit/Lnn-*.md` file into a litConfig.
  *
  * The file's frontmatter is the section config; its body is the annotated
@@ -167,18 +190,19 @@ async function seedCourse(dir: string, authorId: string) {
         // this through BlogEditor read-only and the editor loads the same
         // shape. Storing `{ markdownSource }` here rendered every CONTENT
         // section blank, because TipTap got an object with no doc node.
-        data.contentJson = courseBodyToDoc(
-          fs.readFileSync(path.join(dir, s.bodyRef), "utf8")
-        );
+        const file = resolveRef(dir, doc.slug, s.bodyRef);
+        if (file) data.contentJson = courseBodyToDoc(fs.readFileSync(file, "utf8"));
       }
       if (s.kind === "VIDEO" && s.videoConfig) data.videoConfig = s.videoConfig;
       if (s.kind === "SLIDES" && s.slideConfig) data.slideConfig = s.slideConfig;
       if (s.kind === "LIT_REVIEW" && s.litRef) {
-        data.litConfig = readLitConfig(path.join(dir, s.litRef));
+        const file = resolveRef(dir, doc.slug, s.litRef);
+        if (file) data.litConfig = readLitConfig(file);
       }
       if (s.kind === "LIT_REVIEW" && s.bodyRef) {
         // Intro prose above the paper, same conversion as a CONTENT body.
-        data.contentJson = courseBodyToDoc(fs.readFileSync(path.join(dir, s.bodyRef), "utf8"));
+        const file = resolveRef(dir, doc.slug, s.bodyRef);
+        if (file) data.contentJson = courseBodyToDoc(fs.readFileSync(file, "utf8"));
       }
 
       const existing = await prisma.courseSection.findFirst({
@@ -192,7 +216,8 @@ async function seedCourse(dir: string, authorId: string) {
       seenSectionIds.push(section.id);
 
       if (s.kind === "QUIZ" && s.quizRef) {
-        await seedQuiz(section.id, path.join(dir, s.quizRef));
+        const file = resolveRef(dir, doc.slug, s.quizRef);
+        if (file) await seedQuiz(section.id, file);
       }
     }
   }
@@ -269,6 +294,11 @@ async function main() {
       failures.push(`${e.name}: ${err instanceof Error ? err.message : String(err)}`);
       console.error(`  ✗ ${e.name}: ${err instanceof Error ? err.message : String(err)}`);
     }
+  }
+
+  if (pendingRefs.length) {
+    console.log(`\n${pendingRefs.length} ref(s) not written yet — those sections installed empty:`);
+    for (const p of pendingRefs) console.log(`  · ${p}`);
   }
 
   if (failures.length) {

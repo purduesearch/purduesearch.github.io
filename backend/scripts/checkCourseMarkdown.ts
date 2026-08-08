@@ -51,7 +51,20 @@ function loadFrontendConverter(): (md: string) => unknown {
   return fn as (md: string) => unknown;
 }
 
-/** Every CONTENT body referenced by a course.json, as [label, markdown]. */
+/** Refs a course.json points at that nobody has written yet. */
+const pending: string[] = [];
+
+/**
+ * Every CONTENT body referenced by a course.json, as [label, markdown].
+ *
+ * A ref with no file behind it is recorded as pending rather than thrown on. A
+ * course is scaffolded before it is written — `ares-101`'s course.json lands
+ * with all 52 sections so eleven independently-written modules cannot drift on
+ * section order or asset numbering, which means its bodyRefs necessarily dangle
+ * until each module task fills one in. Crashing here would make this script
+ * unrunnable for the whole time the course is being authored, and every module
+ * task in the plan is supposed to run it.
+ */
 function courseBodies(): [string, string][] {
   const out: [string, string][] = [];
   for (const entry of fs.readdirSync(COURSES, { withFileTypes: true })) {
@@ -63,10 +76,13 @@ function courseBodies(): [string, string][] {
     for (const mod of doc.modules) {
       for (const section of mod.sections) {
         if (section.kind !== "CONTENT" || !section.bodyRef) continue;
-        out.push([
-          `${doc.slug}/${section.bodyRef}`,
-          fs.readFileSync(path.join(dir, section.bodyRef), "utf8"),
-        ]);
+        const label = `${doc.slug}/${section.bodyRef}`;
+        const file = path.join(dir, section.bodyRef);
+        if (!fs.existsSync(file)) {
+          pending.push(label);
+          continue;
+        }
+        out.push([label, fs.readFileSync(file, "utf8")]);
       }
     }
   }
@@ -160,6 +176,14 @@ if (failures.length) {
       "Fix both — the seed and the editor must agree on what a course body becomes."
   );
   process.exit(1);
+}
+
+// Named, not silent. An unwritten article and a mistyped bodyRef look identical
+// from here, so the only safe thing is to print every one of them.
+if (pending.length) {
+  console.log(`check-course-markdown: ${pending.length} bodyRef(s) not written yet`);
+  for (const p of pending) console.log(`  · ${p}`);
+  console.log("");
 }
 
 console.log(
