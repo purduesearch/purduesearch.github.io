@@ -55,10 +55,17 @@ tours differ, not about one in isolation.
 | `constellation-outreach-and-blog` | Role: comms | ~40 min | Content written · installed by seed:courses |
 | `constellation-admin-tools` | Role: officers (admin-gated) | ~30 min | Content written · installed by seed:courses |
 | `constellation-authoring` | Role: content authors | ~25 min | Content written · installed by seed:courses |
+| `ares-101` | Role: ARES team | ~3 h 40 m | Scaffolded · modules in progress |
 
 `estimatedMinutes` in each `course.json` is the sum of its modules' estimates; the lengths above are
 those totals rounded. If you add or remove a section, update the module estimate **and** the course
 total — nothing validates that for you.
+
+`ares-101` is the first course here about a **subject** rather than about Constellation. Its assets
+(C12–C22, V11–V17, S02–S05, Q12–Q22, L01–L11, E01–E08) continue the global numbering but are tracked
+in [`ares-101/README.md`](ares-101/README.md) while they are written, so the per-asset tables below
+still describe only the Constellation courses. Its glossary is binding on all eleven of its modules —
+read [`ares-101/GLOSSARY.md`](ares-101/GLOSSARY.md) before authoring one.
 
 ## Reading content
 
