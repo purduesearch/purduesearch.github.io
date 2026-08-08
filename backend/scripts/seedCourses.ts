@@ -23,6 +23,69 @@ const COURSES = path.join(REPO_ROOT, "docs", "courses");
 
 const ARCHIVED_PREFIX = "[archived] ";
 
+/**
+ * Read a `lit/Lnn-*.md` file into a litConfig.
+ *
+ * The file's frontmatter is the section config; its body is the annotated
+ * bibliography and synthesis, which is author material and is NOT installed.
+ * One file holds both because the reference summary is a distillation of the
+ * synthesis directly below it, and split across two files they drift.
+ *
+ * `referenceSummary` is the frontmatter's last key and runs to the `---`, so it
+ * can be several paragraphs without any escaping.
+ */
+function readLitConfig(file: string): Record<string, unknown> {
+  const raw = fs.readFileSync(file, "utf8");
+  const match = raw.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+  if (!match) throw new Error(`${path.basename(file)}: no frontmatter block`);
+  const front = match[1]!;
+
+  const scalar = (key: string): string => {
+    const m = front.match(new RegExp(`^${key}:[ \\t]*(.*)$`, "m"));
+    return m ? m[1]!.trim().replace(/^["']|["']$/g, "") : "";
+  };
+
+  // rubric:
+  //   - id: claim
+  //     point: States the central claim
+  //     weight: 2
+  const rubric: { id: string; point: string; weight: number }[] = [];
+  const rubricBlock = front.match(/^rubric:\r?\n([\s\S]*?)(?=^\S|\Z)/m)?.[1] ?? "";
+  for (const chunk of rubricBlock.split(/^\s*-\s+/m).slice(1)) {
+    const id = chunk.match(/id:[ \t]*(.*)/)?.[1]?.trim() ?? "";
+    const point = chunk.match(/point:[ \t]*(.*)/)?.[1]?.trim() ?? "";
+    const weight = Number(chunk.match(/weight:[ \t]*(.*)/)?.[1]?.trim() ?? 1);
+    if (id && point) rubric.push({ id, point, weight: Number.isFinite(weight) && weight > 0 ? weight : 1 });
+  }
+
+  // referenceSummary is a block scalar: everything after `referenceSummary: |`
+  // to the end of the frontmatter, with two-space indentation stripped.
+  const summaryBlock = front.match(/^referenceSummary:[ \t]*\|\r?\n([\s\S]*)$/m)?.[1] ?? "";
+  const referenceSummary = summaryBlock
+    .split(/\r?\n/)
+    .map((line) => line.replace(/^ {2}/, ""))
+    .join("\n")
+    .trim();
+
+  const minWords = Number(scalar("minWords"));
+  const config = {
+    pdfDriveFileId: scalar("pdfDriveFileId"),
+    pdfTitle: scalar("pdfTitle"),
+    citation: scalar("citation"),
+    promptText: scalar("promptText"),
+    minWords: Number.isFinite(minWords) && minWords > 0 ? minWords : 150,
+    referenceSummary,
+    rubric,
+  };
+
+  // Fail the seed loudly rather than install a section that grades against
+  // nothing — a learner would submit, get no feedback, and never know why.
+  if (!config.pdfDriveFileId) throw new Error(`${path.basename(file)}: pdfDriveFileId is required`);
+  if (!config.referenceSummary) throw new Error(`${path.basename(file)}: referenceSummary is required`);
+  if (!config.rubric.length) throw new Error(`${path.basename(file)}: at least one rubric point is required`);
+  return config;
+}
+
 async function seedCourse(dir: string, authorId: string) {
   const doc = JSON.parse(fs.readFileSync(path.join(dir, "course.json"), "utf8"));
 
@@ -110,6 +173,13 @@ async function seedCourse(dir: string, authorId: string) {
       }
       if (s.kind === "VIDEO" && s.videoConfig) data.videoConfig = s.videoConfig;
       if (s.kind === "SLIDES" && s.slideConfig) data.slideConfig = s.slideConfig;
+      if (s.kind === "LIT_REVIEW" && s.litRef) {
+        data.litConfig = readLitConfig(path.join(dir, s.litRef));
+      }
+      if (s.kind === "LIT_REVIEW" && s.bodyRef) {
+        // Intro prose above the paper, same conversion as a CONTENT body.
+        data.contentJson = courseBodyToDoc(fs.readFileSync(path.join(dir, s.bodyRef), "utf8"));
+      }
 
       const existing = await prisma.courseSection.findFirst({
         where: { courseId: course.id, moduleId: mod.id, title: s.title },

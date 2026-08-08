@@ -29,6 +29,7 @@ docs/courses/
     videos/                  Vnn-<slug>.md      shot list + visual edits + word-for-word VO
     quizzes/                 Qnn-<slug>.json    seed input (authoritative)
                              README.md          all banks, readable, for review (101 only)
+    lit/                     Lnn-<slug>.md      LIT_REVIEW config (frontmatter) + bibliography (body)
     walkthroughs/            <tourId>.steps.json   step data, CI-checked
                              README.md             why each step is shaped that way
 ```
@@ -49,11 +50,11 @@ tours differ, not about one in isolation.
 
 | Slug | Required? | Length | Status |
 |---|---|---|---|
-| `constellation-101` | **Yes — every member** | ~50 min | Content written · engine not built |
-| `constellation-vault-and-crs` | Role: CAD / hardware | ~40 min | Content written · engine not built |
-| `constellation-outreach-and-blog` | Role: comms | ~40 min | Content written · engine not built |
-| `constellation-admin-tools` | Role: officers (admin-gated) | ~30 min | Content written · engine not built |
-| `constellation-authoring` | Role: content authors | ~25 min | Content written · engine not built |
+| `constellation-101` | **Yes — every member** | ~50 min | Content written · installed by seed:courses |
+| `constellation-vault-and-crs` | Role: CAD / hardware | ~40 min | Content written · installed by seed:courses |
+| `constellation-outreach-and-blog` | Role: comms | ~40 min | Content written · installed by seed:courses |
+| `constellation-admin-tools` | Role: officers (admin-gated) | ~30 min | Content written · installed by seed:courses |
+| `constellation-authoring` | Role: content authors | ~25 min | Content written · installed by seed:courses |
 
 `estimatedMinutes` in each `course.json` is the sum of its modules' estimates; the lengths above are
 those totals rounded. If you add or remove a section, update the module estimate **and** the course
