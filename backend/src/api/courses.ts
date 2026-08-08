@@ -1101,6 +1101,62 @@ coursesRouter.post("/sections/:sid/quiz/attempts", async (req: Request, res: Res
   }
 });
 
+// A learner's written summary of a LIT_REVIEW section's paper. Completion is
+// recorded by the service before grading runs — see submitLitReview.
+coursesRouter.post("/sections/:sid/lit-review", async (req: Request, res: Response) => {
+  const requestStartedAt = new Date();
+  try {
+    const { text } = req.body as { text?: string };
+    if (typeof text !== "string") {
+      res.status(400).json({ error: "text is required" });
+      return;
+    }
+    const result = await progressService.submitLitReview(
+      req.params.sid as string,
+      req.memberId!,
+      text
+    );
+    if (isServiceError(result)) {
+      res.status(result.status).json({ error: result.error });
+      return;
+    }
+    res.json(
+      await withRewardEnvelope(
+        req.memberId!,
+        requestStartedAt,
+        {
+          ok: true,
+          submission: result.submission,
+          feedback: result.feedback,
+          gradingPending: result.gradingPending,
+          alreadyComplete: result.alreadyComplete,
+        },
+        result
+      )
+    );
+  } catch (error) {
+    console.error("POST /outreach/courses/sections/:sid/lit-review error:", error);
+    res.status(500).json({ error: "Failed to submit summary" });
+  }
+});
+
+coursesRouter.get("/sections/:sid/lit-review", async (req: Request, res: Response) => {
+  try {
+    const result = await progressService.listLitSubmissions(
+      req.params.sid as string,
+      req.memberId!
+    );
+    if (isServiceError(result)) {
+      res.status(result.status).json({ error: result.error });
+      return;
+    }
+    res.json(result);
+  } catch (error) {
+    console.error("GET /outreach/courses/sections/:sid/lit-review error:", error);
+    res.status(500).json({ error: "Failed to load submissions" });
+  }
+});
+
 // ── Admin reporting ──────────────────────────────────────────
 //
 // Gated with `requireCourseAccess` (author-or-admin) rather than a bare admin
@@ -1157,9 +1213,39 @@ coursesRouter.get("/:id/progress", async (req: Request, res: Response) => {
 
     const requiredCount = sections.filter((s) => s.isRequired).length || sections.length;
 
+    // Newest first, so the FIRST row seen for a (member, section) pair is that
+    // member's latest attempt and every later row is a prior revision.
+    const litSectionIds = sections.filter((s) => s.kind === "LIT_REVIEW").map((s) => s.id);
+    const litRows = litSectionIds.length
+      ? await prisma.courseLitSubmission.findMany({
+          where: { sectionId: { in: litSectionIds } },
+          orderBy: { createdAt: "desc" },
+          select: { sectionId: true, memberId: true, feedbackJson: true },
+        })
+      : [];
+    const latestLit = new Map<string, { scorePct: number | null; attempts: number }>();
+    for (const r of litRows) {
+      const key = `${r.memberId}:${r.sectionId}`;
+      const seen = latestLit.get(key);
+      if (seen) { seen.attempts += 1; continue; }
+      const fb = r.feedbackJson as { scorePct?: number } | null;
+      latestLit.set(key, {
+        // Null when grading never ran. Distinct from a score of 0, and the UI
+        // must not conflate them — one is "not graded", the other is "graded badly".
+        scorePct: typeof fb?.scorePct === "number" ? fb.scorePct : null,
+        attempts: 1,
+      });
+    }
+
     const rows = enrollments
       .map((e) => {
-        const cells: Record<string, { status: string; completedAt: Date | null; maxWatchedSec: number }> = {};
+        const cells: Record<string, {
+          status: string;
+          completedAt: Date | null;
+          maxWatchedSec: number;
+          litScorePct?: number | null;
+          litAttempts?: number;
+        }> = {};
         for (const p of e.sectionProgress) {
           cells[p.sectionId] = {
             status: p.status,
@@ -1171,6 +1257,14 @@ coursesRouter.get("/:id/progress", async (req: Request, res: Response) => {
         // created lazily, so its absence is meaningful rather than an error.
         for (const s of sections) {
           if (!cells[s.id]) cells[s.id] = { status: "NOT_STARTED", completedAt: null, maxWatchedSec: 0 };
+        }
+        for (const s of sections) {
+          if (s.kind !== "LIT_REVIEW") continue;
+          const lit = latestLit.get(`${e.memberId}:${s.id}`);
+          if (lit) {
+            cells[s.id]!.litScorePct = lit.scorePct;
+            cells[s.id]!.litAttempts = lit.attempts;
+          }
         }
         const completedSections = sections.filter((s) => cells[s.id]!.status === "COMPLETED").length;
         const completedRequired = sections.filter(

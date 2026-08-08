@@ -269,14 +269,21 @@ function CompletionMatrix({ data, onSelectMember }) {
                 {sections.map((s) => {
                   const cell = r.cells[s.id] ?? { status: 'NOT_STARTED' };
                   const st = CELL_STATUS[cell.status] ?? CELL_STATUS.NOT_STARTED;
+                  // Lit reviews complete on effort, so a completed cell says
+                  // nothing about quality. The score is the officer's only signal.
+                  const lit = s.kind === 'LIT_REVIEW' && cell.litAttempts
+                    ? cell.litScorePct == null
+                      ? ' · not graded'
+                      : ` · ${cell.litScorePct}%${cell.litAttempts > 1 ? ` over ${cell.litAttempts} attempts` : ''}`
+                    : '';
                   return (
                     <td key={s.id} className={`cpm-course-matrix-cell ${st.cls}`}>
                       <i
                         className={st.icon}
                         aria-hidden="true"
-                        title={`${s.title}: ${st.label}${cell.completedAt ? ` (${fmtDate(cell.completedAt)})` : ''}`}
+                        title={`${s.title}: ${st.label}${cell.completedAt ? ` (${fmtDate(cell.completedAt)})` : ''}${lit}`}
                       />
-                      <span className="cpm-sr-only">{`${s.title}: ${st.label}`}</span>
+                      <span className="cpm-sr-only">{`${s.title}: ${st.label}${lit}`}</span>
                     </td>
                   );
                 })}
