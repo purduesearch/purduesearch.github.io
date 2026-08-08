@@ -258,6 +258,7 @@ model Member {
   courseEnrollments CourseEnrollment[] @relation("CourseEnrollmentMember")
   assignedCourses   CourseEnrollment[] @relation("CourseEnrollmentAssigner")
   courseGenJobs     CourseGenJob[]     @relation("CourseGenJobCreator")
+  litSubmissions    CourseLitSubmission[]
 
   // ── Per-document access control ──
   docAccessGrants  DocAccessGrant[]   @relation("DocAccessMember")
@@ -1927,6 +1928,7 @@ enum CourseSectionKind {
   QUIZ
   SLIDES
   WALKTHROUGH
+  LIT_REVIEW
 }
 
 enum CourseQuestionKind {
@@ -2014,6 +2016,16 @@ model CourseSection {
   // One JSON column, same idiom as videoConfig / slideConfig — every writer
   // spreads the previous value so a partial save cannot drop keys it does not own.
   tourConfig    Json?
+  // LIT_REVIEW: { pdfDriveFileId, pdfTitle, citation, promptText, minWords,
+  //               referenceSummary, rubric: [{ id, point, weight }] }
+  // Same one-column idiom as videoConfig / slideConfig / tourConfig: every
+  // writer spreads the previous value so a partial save cannot drop keys it
+  // does not own.
+  //
+  // `referenceSummary` and `rubric` are AUTHOR-ONLY. The learner payload builds
+  // its own object from the safe keys (see sanitizeLitConfig) rather than
+  // deleting the secret ones off this column.
+  litConfig     Json?
   // QUIZ only
   passThreshold Int?
   maxAttempts   Int?
@@ -2025,6 +2037,8 @@ model CourseSection {
   progress  CourseSectionProgress[]
   attempts  CourseQuizAttempt[]
   threads   BlogThread[]
+
+  litSubmissions CourseLitSubmission[]
 
   docAccessGrants  DocAccessGrant[]
   docShareSettings DocShareSettings?
@@ -2088,6 +2102,26 @@ model CourseSlide {
   height      Int?
 
   @@index([sectionId, index])
+}
+
+model CourseLitSubmission {
+  id           String        @id @default(cuid())
+  sectionId    String
+  section      CourseSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  memberId     String
+  member       Member        @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  text         String
+  wordCount    Int
+  // Null means grading has not run — a PENDING grade, never a failed one. The
+  // submission counted for completion the moment it was written.
+  feedbackJson Json?
+  gradedAt     DateTime?
+  createdAt    DateTime      @default(now())
+
+  // One row PER ATTEMPT, never updated in place. A member who resubmits after
+  // reading their feedback produces a second row; that revision history is the
+  // most interesting thing this section produces.
+  @@index([sectionId, memberId])
 }
 
 model CourseEnrollment {
