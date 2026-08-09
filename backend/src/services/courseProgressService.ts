@@ -1,10 +1,14 @@
-import type { CourseProgressStatus, CourseQuestionKind } from "@prisma/client";
+import { Prisma, type CourseProgressStatus, type CourseQuestionKind } from "@prisma/client";
 import { prisma } from "../db/prisma.js";
 import {
   clampStepIndex, isTourComplete, loadTourSteps,
   type TourConfig, type TourStep,
 } from "./tourStepService.js";
 import { archiveTrainingProject } from "./trainingSandboxService.js";
+import {
+  sanitizeLitConfig, countWords, gradeSubmission, DEFAULT_MIN_WORDS,
+  type LearnerLitConfig, type LitFeedback,
+} from "./litReviewService.js";
 
 // ── The gating brain ─────────────────────────────────────────
 //
@@ -337,6 +341,7 @@ export interface LearnerSection {
   slideConfig?: unknown;
   tourConfig?: TourConfig;
   tourSteps?: TourStep[];
+  litConfig?: LearnerLitConfig | null;
 }
 
 /**
@@ -499,6 +504,12 @@ export async function getLearnerCourse(
             );
           }
         }
+      }
+      if (s.kind === "LIT_REVIEW") {
+        // Built by construction from the five safe keys — referenceSummary and
+        // rubric are to this column what isCorrect is to CourseAnswer, and a
+        // locked section carries no config at all.
+        out.litConfig = sanitizeLitConfig(s.litConfig);
       }
     }
     return out;
@@ -870,6 +881,13 @@ export async function completeSection(sectionId: string, memberId: string) {
 
   if (section.kind === "QUIZ") {
     return { error: "Quiz sections complete by passing an attempt", status: 400 } as const;
+  }
+
+  if (section.kind === "LIT_REVIEW") {
+    return {
+      error: "Literature review sections complete by submitting a summary",
+      status: 400,
+    } as const;
   }
 
   if (section.kind === "VIDEO") {
@@ -1275,4 +1293,122 @@ export async function collectAchievementUnlocks(memberId: string, since: Date) {
     console.error("[challenge] achievement unlock surface:", err);
     return [];
   }
+}
+
+// ── Literature review ────────────────────────────────────────
+
+export interface LitSubmissionView {
+  id: string;
+  text: string;
+  wordCount: number;
+  feedback: LitFeedback | null;
+  gradedAt: Date | null;
+  createdAt: Date;
+}
+
+/**
+ * Record a learner's written summary of the section's paper, then grade it.
+ *
+ * ORDER MATTERS. The submission is written and the section is marked COMPLETED
+ * *before* Gemini is called, and grading runs inside a try/catch that swallows
+ * everything. Completion is gated on effort by design; if a third-party model
+ * outage could hold it up, the score would be a gate after all.
+ *
+ * A resubmission writes a NEW row and re-grades, but does not re-fire rewards —
+ * `firstCompletion` is false the second time through.
+ */
+export async function submitLitReview(sectionId: string, memberId: string, text: string) {
+  const ctx = await requireUnlockedSection(sectionId, memberId);
+  if (!ctx.ok) return { error: ctx.error, status: ctx.status };
+  const { section, enrollment, progress } = ctx;
+
+  if (section.kind !== "LIT_REVIEW") {
+    return { error: "Section is not a literature review", status: 400 } as const;
+  }
+
+  const config = section.litConfig ?? {};
+  const minWords = sanitizeLitConfig(config)?.minWords ?? DEFAULT_MIN_WORDS;
+  const body = typeof text === "string" ? text.trim() : "";
+  const wordCount = countWords(body);
+  if (wordCount < minWords) {
+    // Refused before spending a Gemini call, and the message carries both
+    // numbers so the composer does not have to guess what it is short by.
+    return {
+      error: `Write at least ${minWords} words — you have ${wordCount}.`,
+      status: 400,
+    } as const;
+  }
+
+  const submission = await prisma.courseLitSubmission.create({
+    data: { sectionId, memberId, text: body, wordCount },
+  });
+
+  const firstCompletion = progress.status !== "COMPLETED";
+  if (firstCompletion) {
+    await prisma.courseSectionProgress.update({
+      where: { id: progress.id },
+      data: { status: "COMPLETED", completedAt: new Date() },
+    });
+  }
+  await prisma.courseEnrollment.update({
+    where: { id: enrollment.id },
+    data: { lastSectionId: sectionId },
+  });
+
+  let feedback: LitFeedback | null = null;
+  try {
+    feedback = await gradeSubmission(config, body);
+  } catch (err) {
+    // Rate limit, quota, network, malformed JSON — all the same outcome. The
+    // submission already counted; this only decides whether feedback exists yet.
+    console.error("[lit-review] grading failed:", err);
+  }
+  if (feedback) {
+    await prisma.courseLitSubmission.update({
+      where: { id: submission.id },
+      data: { feedbackJson: feedback as unknown as Prisma.InputJsonValue, gradedAt: new Date() },
+    });
+  }
+
+  const effects = firstCompletion
+    ? await applyCourseSideEffects(memberId, { courseId: section.courseId, sectionId })
+    : { actorReward: null, progressMilestones: [] as CourseProgressMilestone[] };
+
+  return {
+    submission: {
+      id: submission.id,
+      text: submission.text,
+      wordCount: submission.wordCount,
+      feedback,
+      gradedAt: feedback ? new Date() : null,
+      createdAt: submission.createdAt,
+    } satisfies LitSubmissionView,
+    feedback,
+    // True when the submission landed but feedback did not. The UI says
+    // "Feedback pending" and offers a retry; it does not say "failed".
+    gradingPending: !feedback,
+    alreadyComplete: !firstCompletion,
+    ...effects,
+  };
+}
+
+/** This member's own attempts on this section, newest first. */
+export async function listLitSubmissions(sectionId: string, memberId: string) {
+  const ctx = await requireUnlockedSection(sectionId, memberId);
+  if (!ctx.ok) return { error: ctx.error, status: ctx.status };
+
+  const rows = await prisma.courseLitSubmission.findMany({
+    where: { sectionId, memberId },
+    orderBy: { createdAt: "desc" },
+  });
+  return {
+    submissions: rows.map((r) => ({
+      id: r.id,
+      text: r.text,
+      wordCount: r.wordCount,
+      feedback: (r.feedbackJson ?? null) as LitFeedback | null,
+      gradedAt: r.gradedAt,
+      createdAt: r.createdAt,
+    })) satisfies LitSubmissionView[],
+  };
 }

@@ -8,6 +8,7 @@ import CourseQuizBuilder from '../../components/clubpm/courses/CourseQuizBuilder
 import CourseVideoWorkbench from '../../components/clubpm/courses/CourseVideoWorkbench';
 import CourseSlidesWorkbench from '../../components/clubpm/courses/CourseSlidesWorkbench';
 import WalkthroughSectionPanel from '../../components/clubpm/courses/WalkthroughSectionPanel';
+import LitReviewBuilder from '../../components/clubpm/courses/LitReviewBuilder';
 import CourseModuleSettings from '../../components/clubpm/courses/CourseModuleSettings';
 import OrbitLoader from '../../components/OrbitLoader';
 import { useClubPmAuth } from '../../clubpm/ClubPmAuth';
@@ -632,6 +633,17 @@ export default function CourseEditorPage() {
                 <WalkthroughSectionPanel
                   key={selectedSection.id}
                   section={selectedSection}
+                />
+              )}
+
+              {/* The paper, the prompt, and the author-only grading material.
+                  Saves through handleUpdateSection like every other builder —
+                  one patch path, so local tree state stays in step. */}
+              {sectionKind === 'LIT_REVIEW' && (
+                <LitReviewBuilder
+                  key={selectedSection.id}
+                  section={selectedSection}
+                  onSave={(litConfig) => handleUpdateSection(selectedSection.id, { litConfig })}
                 />
               )}
 

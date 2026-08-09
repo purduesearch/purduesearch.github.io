@@ -34,6 +34,7 @@ export interface CreateSectionInput {
   contentJson?: PMDoc;
   videoConfig?: Record<string, unknown> | null;
   slideConfig?: Record<string, unknown> | null;
+  litConfig?: Record<string, unknown> | null;
   passThreshold?: number | null;
   maxAttempts?: number | null;
 }
@@ -45,6 +46,7 @@ export interface UpdateSectionInput {
   contentJson?: PMDoc;
   videoConfig?: Record<string, unknown> | null;
   slideConfig?: Record<string, unknown> | null;
+  litConfig?: Record<string, unknown> | null;
   passThreshold?: number | null;
   maxAttempts?: number | null;
 }
@@ -134,6 +136,11 @@ const sectionSelect = {
   // Same reason as slideConfig: the WALKTHROUGH authoring panel reads tourId and
   // stepCount straight off this column, so it has to travel with the editor tree.
   tourConfig: true,
+  // Same reason as slideConfig / tourConfig: the LIT_REVIEW builder reads the
+  // reference summary and rubric straight off this column. This select feeds the
+  // AUTHORING tree only — the learner payload is built separately, by
+  // construction, in courseProgressService.
+  litConfig: true,
   passThreshold: true,
   maxAttempts: true,
   createdAt: true,
@@ -426,6 +433,7 @@ export async function createSection(input: CreateSectionInput) {
       contentJson: asJson(input.contentJson ?? EMPTY_DOC),
       videoConfig: (input.videoConfig ?? undefined) as Prisma.InputJsonValue | undefined,
       slideConfig: (input.slideConfig ?? undefined) as Prisma.InputJsonValue | undefined,
+      litConfig: (input.litConfig ?? undefined) as Prisma.InputJsonValue | undefined,
       passThreshold: input.passThreshold ?? null,
       maxAttempts: input.maxAttempts ?? null,
     },
@@ -451,6 +459,12 @@ export async function updateSection(id: string, input: UpdateSectionInput) {
   if (input.slideConfig !== undefined) {
     data.slideConfig =
       input.slideConfig === null ? Prisma.DbNull : (input.slideConfig as Prisma.InputJsonValue);
+  }
+  // Whole merged object, like slideConfig — the builder spreads the previous
+  // value, so this column is never patched key-by-key here.
+  if (input.litConfig !== undefined) {
+    data.litConfig =
+      input.litConfig === null ? Prisma.DbNull : (input.litConfig as Prisma.InputJsonValue);
   }
   return prisma.courseSection.update({ where: { id }, data, select: sectionSelect });
 }

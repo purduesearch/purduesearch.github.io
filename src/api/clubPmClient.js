@@ -630,6 +630,12 @@ export const completeCourseSection = (sectionId) =>
   post(`/api/outreach/courses/sections/${sectionId}/complete`, {});
 export const submitCourseQuiz = (sectionId, responses) =>
   post(`/api/outreach/courses/sections/${sectionId}/quiz/attempts`, { responses });
+// Lit-review submissions carry the reward envelope like every other completion,
+// so `handleResponse` fires RewardFlux and the quest toasts with no extra wiring.
+export const submitLitReview   = (sectionId, text) =>
+  post(`/api/outreach/courses/sections/${sectionId}/lit-review`, { text });
+export const listLitSubmissions = (sectionId) =>
+  get(`/api/outreach/courses/sections/${sectionId}/lit-review`);
 
 export const assignCourse = (courseId, memberIds, dueDate = null) =>
   post(`/api/outreach/courses/${courseId}/assign`, { memberIds, dueDate });

@@ -24365,3 +24365,33 @@ html:not(.aos-off) [data-aos].aos-animate  { opacity: 1; transform: none; }
   .pm-lit-point { grid-template-columns: 1fr; gap: 0.25rem; }
   .pm-lit-composer-foot { flex-direction: column; align-items: stretch; }
 }
+
+/* === Course · literature review builder ===================== */
+
+.pm-lit-builder { display: flex; flex-direction: column; gap: 1rem; max-width: 60rem; }
+.pm-lit-builder label { display: flex; flex-direction: column; gap: 0.3rem; font-size: 0.9rem; }
+.pm-lit-builder input,
+.pm-lit-builder textarea {
+  padding: 0.55rem 0.7rem;
+  font: inherit;
+  color: inherit;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--pm-border, rgba(255, 255, 255, 0.12));
+  border-radius: 8px;
+}
+.pm-lit-builder small { color: var(--color-text-muted, #9aa4b2); font-size: 0.78rem; }
+.pm-lit-builder hr { width: 100%; border: 0; border-top: 1px solid var(--pm-border, rgba(255, 255, 255, 0.12)); }
+.pm-lit-builder-warn {
+  margin: 0;
+  padding: 0.6rem 0.8rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  color: var(--pm-accent-amber, #f5a623);
+  background: rgba(245, 166, 35, 0.1);
+}
+.pm-lit-builder-rubric { border: 1px solid var(--pm-border, rgba(255, 255, 255, 0.12)); border-radius: 10px; padding: 0.9rem; }
+.pm-lit-builder-point { display: grid; grid-template-columns: 1fr 5rem auto; gap: 0.5rem; margin-bottom: 0.5rem; }
+
+@media (max-width: 640px) {
+  .pm-lit-builder-point { grid-template-columns: 1fr; }
+}
