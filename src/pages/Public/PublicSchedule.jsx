@@ -1,7 +1,9 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import MeetingPollBoard from '../../components/clubpm/MeetingPollBoard';
-import { getPublicPoll, submitPublicAvailability, googleCalendarUrl } from '../../api/clubPmClient';
+import {
+  getPublicPoll, submitPublicAvailability, googleCalendarUrl, getAvailabilitySuggestion,
+} from '../../api/clubPmClient';
 
 const API_BASE  = process.env.REACT_APP_API_URL ?? '';
 const TOKEN_KEY = 'clubpm_auth_token';
@@ -17,6 +19,7 @@ export default function PublicSchedule() {
   const [guestName, setGuestName] = useState('');
   const [mySlots, setMySlots]   = useState([]);
   const [error, setError]       = useState('');
+  const [suggestion, setSuggestion] = useState(null);
 
   // Load the poll (public, no auth required).
   useEffect(() => {
@@ -41,6 +44,15 @@ export default function PublicSchedule() {
 
   const loggedIn = !!member;
   const myResponse = useMemo(() => ({ slots: mySlots }), [mySlots]);
+
+  // Suggested availability is personal, so it only exists for a signed-in
+  // member — guests on the share link never see a ghost overlay.
+  useEffect(() => {
+    if (!loggedIn || !poll?.id) return;
+    getAvailabilitySuggestion(poll.id)
+      .then(s => setSuggestion(s?.slots?.length ? s : null))
+      .catch(() => {});
+  }, [loggedIn, poll?.id]);
 
   const boardPoll = useMemo(() => {
     if (!poll) return null;
@@ -117,6 +129,7 @@ export default function PublicSchedule() {
             <div className="pm-poll-board-modal pm-public-board">
               <MeetingPollBoard
                 poll={boardPoll}
+                suggestion={suggestion}
                 onSaveAvailability={handleSave}
                 googleUrl={poll.finalStart ? googleCalendarUrl({
                   title: poll.title,

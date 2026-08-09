@@ -661,6 +661,9 @@ export const updateMeetingPoll     = (id, data)  => patch(`/api/meeting-polls/${
 export const deleteMeetingPoll     = (id)        => del(`/api/meeting-polls/${id}`);
 export const submitAvailability    = (id, slots) => put(`/api/meeting-polls/${id}/response`, { slots });
 export const getMeetingPollResponses = (id)      => get(`/api/meeting-polls/${id}/responses`);
+// Availability suggested from the caller's own answers to past polls. Requires
+// auth (the habits are personal), so guests never call it.
+export const getAvailabilitySuggestion = (id)    => get(`/api/meeting-polls/${id}/suggestion`);
 export const remindMeetingPoll     = (id)        => post(`/api/meeting-polls/${id}/remind`, {});
 export const finalizeMeetingPoll   = (id, start, end) => post(`/api/meeting-polls/${id}/finalize`, { start, end });
 

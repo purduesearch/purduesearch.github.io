@@ -39,6 +39,7 @@ export default function MeetingPollBoard({
   onDownloadIcs,        // () => void
   googleUrl,            // string | null
   guestName,            // when responding as guest
+  suggestion,           // { slots: string[], sampleSize, summary } | null
 }) {
   const tz = poll.timezone || 'America/New_York';
   const perms = poll.permissions ?? {};
@@ -77,9 +78,30 @@ export default function MeetingPollBoard({
   const [saving, setSaving] = useState(false);
   const [busy, setBusy] = useState('');
   const [hoverSlot, setHoverSlot] = useState(null);
+  // Touch has no hover, so a tapped slot is "pinned" open instead.
+  const [pinnedSlot, setPinnedSlot] = useState(null);
   const [copied, setCopied] = useState(false);
   const [finalizeMode, setFinalizeMode] = useState(false);
   const [finalizeSlot, setFinalizeSlot] = useState(null);
+  const [ghostDismissed, setGhostDismissed] = useState(false);
+
+  const detailSlot = pinnedSlot ?? hoverSlot;
+
+  // The two grids are separate scrolling tables; mirror them so a sideways drag
+  // can never leave "your availability" and the heatmap showing different days.
+  const mineScrollRef = useRef(null);
+  const heatScrollRef = useRef(null);
+  const syncingRef = useRef(false);
+  const syncScroll = useCallback((fromRef, toRef) => {
+    if (syncingRef.current) return;
+    const from = fromRef.current;
+    const to = toRef.current;
+    if (!from || !to || from.scrollLeft === to.scrollLeft) return;
+    syncingRef.current = true;
+    to.scrollLeft = from.scrollLeft;
+    // Release after the mirrored element has fired its own scroll event.
+    requestAnimationFrame(() => { syncingRef.current = false; });
+  }, []);
 
   // All real slot keys inside the rectangle spanning two (day,time) cells.
   const rectIsos = useCallback((di1, ti1, di2, ti2) => {
@@ -148,9 +170,42 @@ export default function MeetingPollBoard({
 
   function cellDown(di, ti, key) {
     if (!canRespond || status !== 'OPEN') return;
+    setGhostDismissed(true);
     const mode = selectedRef.current.has(key) ? 'remove' : 'add';
     dragRef.current = { anchorDi: di, anchorTi: ti, mode, baseline: new Set(selectedRef.current) };
     applyRect(di, ti);
+  }
+
+  // ── Suggested availability ─────────────────────────────────
+  // Suggested slots render as a dashed "ghost" over the editable grid. Nothing
+  // is stored until the member accepts; the ghost clears on accept or on the
+  // first grid click, since from then on the selection is theirs.
+  const suggestedSet = useMemo(
+    () => new Set((suggestion?.slots ?? []).map(norm)),
+    [suggestion]
+  );
+  const hasSavedResponse = (poll.myResponse?.slots?.length ?? 0) > 0;
+  const showGhost =
+    !ghostDismissed &&
+    suggestedSet.size > 0 &&
+    status === 'OPEN' &&
+    canRespond &&
+    !hasSavedResponse;
+
+  useEffect(() => { setGhostDismissed(false); }, [poll.id]);
+
+  async function useSuggestion() {
+    const next = new Set(suggestedSet);
+    setSelected(next);
+    selectedRef.current = next;
+    setGhostDismissed(true);
+    setSaving(true);
+    try {
+      await onSaveAvailability([...next]);
+      baselineRef.current = new Set(next);
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function clearMine() {
@@ -187,11 +242,15 @@ export default function MeetingPollBoard({
   const organizerName = poll.organizer?.displayName ?? poll.organizerName ?? null;
   const projectName   = poll.project?.name ?? poll.projectName ?? null;
 
-  const hoverAvailable = hoverSlot ? (agg.perSlot[norm(hoverSlot)] ?? []) : [];
-  const hoverMissing = hoverSlot
+  const hoverAvailable = detailSlot ? (agg.perSlot[norm(detailSlot)] ?? []) : [];
+  const hoverMissing = detailSlot
     ? (poll.responders ?? []).map(r => r.name).filter(n => !hoverAvailable.includes(n))
     : [];
   const mineCount = selected.size;
+
+  // Who the share link actually admits, given audience + the link override.
+  const linkOpen = poll.allowLinkResponses || poll.audience === 'ANYONE';
+  const audienceNoun = poll.audience === 'PROJECT' ? 'the project team' : 'invited members';
 
   return (
     <div className="pm-poll-board">
@@ -276,6 +335,16 @@ export default function MeetingPollBoard({
         )}
       </div>
 
+      {poll.shareUrl && (
+        <p className="pm-poll-hint pm-poll-link-note">
+          {linkOpen ? (
+            <><i className="fas fa-link" /> Anyone with this link can submit availability — no sign-in needed.</>
+          ) : (
+            <><i className="fas fa-lock" /> Link-holders can see the results, but only {audienceNoun} can respond.</>
+          )}
+        </p>
+      )}
+
       {/* Finalized banner */}
       {status === 'FINALIZED' && poll.finalStart && (
         <div className="pm-poll-final-banner">
@@ -330,19 +399,39 @@ export default function MeetingPollBoard({
                 <button type="button" className="cpm-link-btn pm-poll-clear" onClick={clearMine}>Clear</button>
               )}
             </div>
+            {showGhost && (
+              <div className="pm-poll-suggest-banner">
+                <i className="fas fa-wand-magic-sparkles" />
+                <span className="pm-poll-suggest-text">
+                  From your last {suggestion.sampleSize} poll{suggestion.sampleSize === 1 ? '' : 's'},
+                  {' '}{suggestion.summary || 'these are your usual times'}. Previewed below.
+                </span>
+                <button type="button" className="cpm-btn cpm-btn-primary" disabled={saving}
+                  onClick={useSuggestion}>
+                  <i className="fas fa-check" /> Use suggestion
+                </button>
+                <button type="button" className="cpm-btn cpm-btn-ghost"
+                  onClick={() => setGhostDismissed(true)}>
+                  Dismiss
+                </button>
+              </div>
+            )}
             <GridTable
               className="pm-poll-grid-mine"
               grid={grid}
+              scrollRef={mineScrollRef}
+              onScroll={() => syncScroll(mineScrollRef, heatScrollRef)}
               renderCell={(iso, di, ti) => {
                 const key = norm(iso);
                 const on = selected.has(key);
+                const ghost = showGhost && !on && suggestedSet.has(key);
                 return (
                   <td key={iso}
                     data-iso={key}
                     data-mine="1"
                     data-di={di}
                     data-ti={ti}
-                    className={`pm-poll-cell pm-poll-cell-mine ${on ? 'is-on' : ''}`}
+                    className={`pm-poll-cell pm-poll-cell-mine ${on ? 'is-on' : ''} ${ghost ? 'is-ghost' : ''}`}
                     onPointerDown={(e) => { e.preventDefault(); cellDown(di, ti, key); }}
                   />
                 );
@@ -363,33 +452,53 @@ export default function MeetingPollBoard({
           </div>
           <GridTable
             grid={grid}
+            scrollRef={heatScrollRef}
+            onScroll={() => syncScroll(heatScrollRef, mineScrollRef)}
             renderCell={(iso) => {
               const key = norm(iso);
               const count = agg.counts[key] ?? 0;
               const best = bestSet.has(key);
               const clickable = finalizeMode && canManage;
               const names = agg.perSlot[key] ?? [];
+              const pinned = pinnedSlot && norm(pinnedSlot) === key;
               return (
                 <td key={iso}
-                  className={`pm-poll-cell pm-poll-cell-heat ${best ? 'is-best' : ''} ${clickable ? 'is-clickable' : ''} ${finalizeSlot && norm(finalizeSlot) === key ? 'is-picked' : ''}`}
+                  className={`pm-poll-cell pm-poll-cell-heat ${best ? 'is-best' : ''} ${clickable ? 'is-clickable' : ''} ${pinned ? 'is-pinned' : ''} ${finalizeSlot && norm(finalizeSlot) === key ? 'is-picked' : ''}`}
                   style={{ background: heatColor(count, total) }}
                   title={`${fmtInstant(iso, tz)}\n${count}/${total} available${names.length ? `: ${names.join(', ')}` : ''}`}
-                  onMouseEnter={() => setHoverSlot(iso)}
-                  onMouseLeave={() => setHoverSlot(prev => (prev === iso ? null : prev))}
-                  onClick={() => { if (clickable) setFinalizeSlot(iso); }}
+                  // Gated to a real mouse: a tap synthesises enter/leave too,
+                  // which would fight the pin toggle below.
+                  onPointerEnter={(e) => { if (e.pointerType === 'mouse') setHoverSlot(iso); }}
+                  onPointerLeave={(e) => {
+                    if (e.pointerType === 'mouse') setHoverSlot(prev => (prev === iso ? null : prev));
+                  }}
+                  onClick={() => {
+                    if (clickable) setFinalizeSlot(iso);
+                    else setPinnedSlot(prev => (prev && norm(prev) === key ? null : iso));
+                  }}
                 >
                   {count > 0 && <span className="pm-poll-cell-count">{count}</span>}
                 </td>
               );
             }}
           />
+          <div className="pm-poll-grid-hint">
+            <i className="fas fa-hand-pointer" /> Tap a slot to see who&apos;s free. On a phone,
+            swipe this grid sideways — both grids move together.
+          </div>
         </div>
       </div>
 
       {/* Hover detail */}
-      {hoverSlot && total > 0 && (
+      {detailSlot && total > 0 && (
         <div className="pm-poll-hover-detail">
-          <strong>{fmtInstant(hoverSlot, tz)}</strong>
+          <strong>{fmtInstant(detailSlot, tz)}</strong>
+          {pinnedSlot && (
+            <button type="button" className="cpm-icon-btn pm-poll-hover-close"
+              onClick={() => setPinnedSlot(null)} aria-label="Close slot details">
+              <i className="fas fa-times" />
+            </button>
+          )}
           <div className="pm-poll-hover-cols">
             <div>
               <span className="pm-poll-hover-h pm-poll-hover-yes">Available ({hoverAvailable.length})</span>
@@ -425,9 +534,11 @@ export default function MeetingPollBoard({
 }
 
 // Shared day × time table. `renderCell(iso)` returns a <td> for a real slot.
-function GridTable({ grid, renderCell, className = '' }) {
+// `scrollRef`/`onScroll` let the caller mirror horizontal scroll between the two
+// grids so they never show different days.
+function GridTable({ grid, renderCell, className = '', scrollRef, onScroll }) {
   return (
-    <div className={`pm-poll-grid-scroll ${className}`}>
+    <div className={`pm-poll-grid-scroll ${className}`} ref={scrollRef} onScroll={onScroll}>
       <table className="pm-poll-grid-table">
         <thead>
           <tr>

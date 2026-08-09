@@ -138,7 +138,10 @@ function publicSerializePoll(poll: LoadedPoll) {
     projectName:      poll.project?.name ?? null,
     aggregate:        agg,
     responders:       responders.map(r => ({ name: r.name, isGuest: !r.memberId, avatarUrl: r.avatarUrl ?? null })),
-    canGuestRespond:  poll.audience === "ANYONE" && poll.status === "OPEN",
+    // Link-holders may also respond when the organizer opted into it, whatever
+    // the audience — that is the whole point of allowLinkResponses.
+    canGuestRespond:  (poll.audience === "ANYONE" || poll.allowLinkResponses) && poll.status === "OPEN",
+    allowLinkResponses: poll.allowLinkResponses,
   };
 }
 
@@ -175,6 +178,7 @@ publicRouter.put("/polls/:token/response", async (req: Request, res: Response) =
       audience: poll.audience,
       organizerId: poll.organizerId,
       invitedMemberIds: poll.invitedMembers.map(m => m.id),
+      allowLinkResponses: poll.allowLinkResponses,
     };
 
     if (authToken) {

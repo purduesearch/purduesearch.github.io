@@ -24283,3 +24283,67 @@ html:not(.aos-off) [data-aos].aos-animate  { opacity: 1; transform: none; }
   .pm-login-doc-section { padding: 2.5rem 0; }
   .pm-login-footer-inner { flex-direction: column; align-items: flex-start; }
 }
+
+/* == Meeting scheduler: mobile board, link sharing, suggested availability == */
+
+/* border-collapse:collapse leaves the sticky time column with no visible right
+   edge once cells scroll underneath it -- draw one with a shadow instead. */
+.pm-poll-timecol { box-shadow: 1px 0 0 var(--clubpm-border, #2a2f3a); }
+.pm-poll-grid-scroll { overscroll-behavior-x: contain; }
+
+/* Pinned (tapped) slot in the group heatmap: the touch stand-in for hover. */
+.pm-poll-cell-heat.is-pinned { outline: 2px solid var(--pm-accent-teal, #00e5cc); outline-offset: -2px; }
+.pm-poll-hover-detail { position: relative; padding-right: 40px; }
+.pm-poll-hover-close { position: absolute; top: 6px; right: 6px; }
+
+/* Suggested availability: dashed "ghost" over slots the member has not
+   accepted yet. Cleared on accept, on dismiss, or on the first grid click. */
+.pm-poll-cell-mine.is-ghost {
+  background:
+    repeating-linear-gradient(45deg, rgba(0, 229, 204, 0.22) 0 3px, transparent 3px 7px),
+    var(--clubpm-surface-200, #1a1d24);
+  box-shadow: inset 0 0 0 1px rgba(0, 229, 204, 0.55);
+}
+.pm-poll-suggest-banner {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  margin: 0 0 10px; padding: 10px 12px; border-radius: 8px;
+  background: rgba(0, 229, 204, 0.08);
+  border: 1px dashed rgba(0, 229, 204, 0.45);
+  font-size: 12px; color: var(--clubpm-text-primary, #e8eaed);
+}
+.pm-poll-suggest-banner > i { color: var(--pm-accent-teal, #00e5cc); }
+.pm-poll-suggest-text { flex: 1; min-width: 180px; line-height: 1.45; }
+
+/* "Anyone with the link" toggle in the poll create/edit form. */
+.pm-poll-link-toggle {
+  display: flex; align-items: flex-start; gap: 9px; cursor: pointer;
+  margin-top: 10px; padding: 9px 11px; border-radius: 8px;
+  border: 1px solid var(--clubpm-border, #2a2f3a);
+  background: var(--clubpm-surface-100, #14171d);
+}
+.pm-poll-link-toggle input {
+  margin-top: 2px; flex-shrink: 0; accent-color: var(--pm-accent-teal, #00e5cc);
+}
+.pm-poll-link-toggle-label {
+  display: block; font-size: 12px; font-weight: 600;
+  color: var(--clubpm-text-primary, #e8eaed);
+}
+.pm-poll-link-toggle-label i { margin-right: 5px; color: var(--pm-accent-teal, #00e5cc); }
+.pm-poll-link-toggle-hint {
+  display: block; margin-top: 2px; font-size: 11px; line-height: 1.45;
+  color: var(--clubpm-text-muted, #8a92a0);
+}
+.pm-poll-link-note { margin: -6px 0 10px; }
+.pm-poll-link-note i { margin-right: 5px; }
+
+@media (max-width: 640px) {
+  .pm-poll-board-modal { padding: 16px 12px; }
+  /* Real touch targets. The two grids scroll in lockstep, so the extra width
+     costs nothing: swiping either one moves both. */
+  .pm-poll-cell { width: 44px; height: 30px; }
+  .pm-poll-timecol { font-size: 9px; padding: 3px 5px; }
+  .pm-poll-dayhead { font-size: 10px; padding: 6px 4px; }
+  .pm-poll-grids { gap: 14px; }
+  .pm-poll-hover-cols { gap: 14px; }
+  .pm-poll-suggest-banner .cpm-btn { flex: 1; justify-content: center; }
+}

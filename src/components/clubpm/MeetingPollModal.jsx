@@ -24,7 +24,7 @@ function toLocalDatetime(iso) {
 
 const EMPTY = {
   title: '', description: '', projectId: '',
-  audience: 'INVITED', invitedMemberIds: [],
+  audience: 'INVITED', invitedMemberIds: [], allowLinkResponses: false,
   dates: [], startMin: 540, endMin: 1020, slotMinutes: 30,
   responseDeadline: '',
 };
@@ -48,6 +48,7 @@ export default function MeetingPollModal({ isOpen, onClose, onSave, editPoll, pr
         projectId: editPoll.projectId ?? editPoll.project?.id ?? '',
         audience: editPoll.audience ?? 'INVITED',
         invitedMemberIds: (editPoll.invitedMembers ?? []).map(m => m.id ?? m),
+        allowLinkResponses: editPoll.allowLinkResponses ?? false,
         dates,
         startMin,
         endMin,
@@ -88,6 +89,9 @@ export default function MeetingPollModal({ isOpen, onClose, onSave, editPoll, pr
       description: form.description.trim() || undefined,
       projectId: form.projectId || null,
       audience: form.audience,
+      // Redundant on ANYONE polls (everyone may already respond), so it is never
+      // sent from there — keeps the stored flag honest if the audience changes.
+      allowLinkResponses: form.audience !== 'ANYONE' && form.allowLinkResponses,
       invitedMemberIds: form.audience === 'INVITED' ? form.invitedMemberIds : [],
       slotStarts,
       slotMinutes,
@@ -170,6 +174,26 @@ export default function MeetingPollModal({ isOpen, onClose, onSave, editPoll, pr
                 );
               })}
             </div>
+
+            {/* Escape hatch: assign people *and* keep a working share link. */}
+            {form.audience !== 'ANYONE' && (
+              <label className="pm-poll-link-toggle">
+                <input
+                  type="checkbox"
+                  checked={form.allowLinkResponses}
+                  onChange={e => set('allowLinkResponses', e.target.checked)}
+                />
+                <span>
+                  <span className="pm-poll-link-toggle-label">
+                    <i className="fas fa-link" /> Also let anyone with the link respond
+                  </span>
+                  <span className="pm-poll-link-toggle-hint">
+                    Guests can add their name without signing in. Invited members still get
+                    the notification and see it on their calendar.
+                  </span>
+                </span>
+              </label>
+            )}
           </div>
 
           {/* Invited members (INVITED only) */}

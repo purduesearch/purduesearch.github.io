@@ -78,10 +78,162 @@ export function aggregate(
   return { totalResponders: responders.length, perSlot, counts, bestSlotStarts, maxCount };
 }
 
+// ── Suggested availability (pure) ────────────────────────────
+//
+// A member's habits are learned as a (weekday, time-of-day) profile rather than
+// as concrete instants: past polls cover dates that will never recur, but "free
+// Tuesday mornings" carries over. Each historical poll is bucketed in *its own*
+// timezone, since that is the grid the member actually clicked.
+
+/** Minutes per time-of-day bucket. Coarser than the smallest slot size (15m) so
+ *  a member who answered a 15m poll still matches a 30m one. */
+const PROFILE_BUCKET_MINUTES = 30;
+
+const WEEKDAY_INDEX: Record<string, number> = {
+  Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6,
+};
+
+// Intl formatters are expensive to construct; one per timezone is plenty.
+const zoneFormatters = new Map<string, Intl.DateTimeFormat>();
+function zoneFormatter(timeZone: string): Intl.DateTimeFormat {
+  let f = zoneFormatters.get(timeZone);
+  if (!f) {
+    f = new Intl.DateTimeFormat("en-US", {
+      timeZone, weekday: "short", hour: "2-digit", minute: "2-digit", hourCycle: "h23",
+    });
+    zoneFormatters.set(timeZone, f);
+  }
+  return f;
+}
+
+/** Weekday (0=Sun) and minutes-past-midnight of an instant, in a timezone. */
+export function zonedWeekdayMinutes(
+  d: Date | string,
+  timeZone: string
+): { dow: number; minutes: number } {
+  const parts = Object.fromEntries(
+    zoneFormatter(timeZone).formatToParts(d instanceof Date ? d : new Date(d)).map(p => [p.type, p.value])
+  ) as Record<string, string>;
+  return {
+    dow: WEEKDAY_INDEX[parts.weekday as string] ?? 0,
+    minutes: Number(parts.hour) * 60 + Number(parts.minute),
+  };
+}
+
+/** Profile key for an instant: "<weekday>:<bucket start minute>". */
+export function profileKey(d: Date | string, timeZone: string): string {
+  const { dow, minutes } = zonedWeekdayMinutes(d, timeZone);
+  return `${dow}:${Math.floor(minutes / PROFILE_BUCKET_MINUTES) * PROFILE_BUCKET_MINUTES}`;
+}
+
+/** One past answer: what the poll offered, what the member picked, in which zone. */
+export interface HistoricalResponse {
+  timezone: string;
+  slotStarts: Array<Date | string>;
+  slots: Array<Date | string>;
+}
+
+/** profileKey → how often that bucket was offered, and how often taken. */
+export type AvailabilityProfile = Record<string, { offered: number; chosen: number }>;
+
+/**
+ * Fold past answers into a hit-rate profile. A bucket is counted once per poll
+ * that offered it, so a poll with four 15-minute slots inside one bucket does
+ * not outvote a poll with one.
+ */
+export function buildAvailabilityProfile(history: HistoricalResponse[]): AvailabilityProfile {
+  const profile: AvailabilityProfile = {};
+  for (const entry of history) {
+    const tz = entry.timezone || "America/New_York";
+    const chosenKeys = new Set(entry.slots.map(slotKey));
+    const offeredThisPoll = new Set<string>();
+    const chosenThisPoll = new Set<string>();
+    for (const start of entry.slotStarts) {
+      const key = profileKey(start, tz);
+      offeredThisPoll.add(key);
+      if (chosenKeys.has(slotKey(start))) chosenThisPoll.add(key);
+    }
+    for (const key of offeredThisPoll) {
+      const cell = profile[key] ?? (profile[key] = { offered: 0, chosen: 0 });
+      cell.offered += 1;
+      if (chosenThisPoll.has(key)) cell.chosen += 1;
+    }
+  }
+  return profile;
+}
+
+export interface SuggestOptions {
+  /** Ignore buckets seen fewer times than this — one data point is noise. */
+  minOffered?: number;
+  /** Minimum chosen/offered hit rate to suggest a bucket. */
+  minRatio?: number;
+}
+
+/**
+ * Candidate slots of the current poll whose (weekday, time-of-day) bucket the
+ * member has reliably marked free before. Returns canonical ISO strings.
+ */
+export function suggestSlots(
+  profile: AvailabilityProfile,
+  slotStarts: Array<Date | string>,
+  timeZone: string,
+  opts: SuggestOptions = {}
+): string[] {
+  const minOffered = opts.minOffered ?? 2;
+  const minRatio = opts.minRatio ?? 0.5;
+  const out: string[] = [];
+  for (const start of slotStarts) {
+    const cell = profile[profileKey(start, timeZone)];
+    if (!cell || cell.offered < minOffered) continue;
+    if (cell.chosen / cell.offered < minRatio) continue;
+    out.push(slotKey(start));
+  }
+  return out.sort();
+}
+
+const WEEKDAY_LABEL = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+function partOfDay(minutes: number): string {
+  if (minutes < 12 * 60) return "mornings";
+  if (minutes < 17 * 60) return "afternoons";
+  return "evenings";
+}
+
+/**
+ * Plain-English gloss of a suggestion, e.g. "you're usually free Tue & Wed
+ * mornings". Returns "" when there is nothing worth summarising.
+ */
+export function summarizeSuggestion(slots: Array<Date | string>, timeZone: string): string {
+  if (slots.length === 0) return "";
+  const tally = new Map<string, { dow: number; part: string; n: number }>();
+  for (const s of slots) {
+    const { dow, minutes } = zonedWeekdayMinutes(s, timeZone);
+    const part = partOfDay(minutes);
+    const key = `${dow}:${part}`;
+    const cell = tally.get(key) ?? { dow, part, n: 0 };
+    cell.n += 1;
+    tally.set(key, cell);
+  }
+  const top = [...tally.values()].sort((a, b) => b.n - a.n || a.dow - b.dow).slice(0, 2);
+  if (top.length === 0) return "";
+  // Same part of day on both days reads better collapsed: "Tue & Wed mornings".
+  const phrase =
+    top.length === 2 && top[0].part === top[1].part
+      ? `${[top[0].dow, top[1].dow].sort((a, b) => a - b).map(d => WEEKDAY_LABEL[d]).join(" & ")} ${top[0].part}`
+      : top.map(t => `${WEEKDAY_LABEL[t.dow]} ${t.part}`).join(" & ");
+  return `you're usually free ${phrase}`;
+}
+
 export interface PollAccessShape {
   audience: MeetingPollAudience;
   organizerId: string | null;
   invitedMemberIds: string[];
+  /**
+   * Escape hatch layered on top of `audience`: when true, holding the share link
+   * is itself sufficient to respond. Optional so existing callers that predate
+   * the flag keep compiling; absent behaves as `false`.
+   */
+  allowLinkResponses?: boolean;
 }
 
 export interface AccessContext {
@@ -98,16 +250,19 @@ export function canManage(poll: PollAccessShape, ctx: AccessContext): boolean {
 
 /**
  * Whether the viewer may submit availability, and whether they do so as a guest.
- * Guests (no memberId) are permitted only when the audience is ANYONE.
+ * Guests (no memberId) are permitted when the audience is ANYONE, or when the
+ * organizer opened the poll up to link-holders. `allowLinkResponses` widens each
+ * audience but never narrows it.
  */
 export function canRespond(
   poll: PollAccessShape,
   ctx: AccessContext
 ): { ok: boolean; asGuest: boolean } {
   const isMember = !!ctx.memberId;
+  const viaLink = poll.allowLinkResponses === true;
 
   if (!isMember) {
-    return { ok: poll.audience === "ANYONE", asGuest: true };
+    return { ok: poll.audience === "ANYONE" || viaLink, asGuest: true };
   }
 
   // Members always respond as themselves.
@@ -117,11 +272,11 @@ export function canRespond(
     case "ANYONE":
       return { ok: true, asGuest: false };
     case "INVITED":
-      return { ok: poll.invitedMemberIds.includes(ctx.memberId!), asGuest: false };
+      return { ok: viaLink || poll.invitedMemberIds.includes(ctx.memberId!), asGuest: false };
     case "PROJECT":
-      return { ok: !!ctx.isProjectMember, asGuest: false };
+      return { ok: viaLink || !!ctx.isProjectMember, asGuest: false };
     default:
-      return { ok: false, asGuest: false };
+      return { ok: viaLink, asGuest: false };
   }
 }
 
@@ -195,6 +350,7 @@ export interface CreatePollInput {
   slotStarts: Array<Date | string>;
   responseDeadline?: Date | null;
   audience?: MeetingPollAudience;
+  allowLinkResponses?: boolean;
   organizerId: string;
   projectId?: string | null;
   priorityTaskIds?: string[];
@@ -209,6 +365,7 @@ export interface UpdatePollInput {
   slotStarts?: Array<Date | string>;
   responseDeadline?: Date | null;
   audience?: MeetingPollAudience;
+  allowLinkResponses?: boolean;
   projectId?: string | null;
   priorityTaskIds?: string[];
   invitedMemberIds?: string[];
@@ -226,6 +383,7 @@ export async function createPoll(data: CreatePollInput) {
       slotStarts:       (data.slotStarts ?? []).map(s => new Date(s)),
       responseDeadline: data.responseDeadline ?? null,
       audience:         data.audience ?? "INVITED",
+      allowLinkResponses: data.allowLinkResponses ?? false,
       organizer:        { connect: { id: data.organizerId } },
       ...(data.projectId ? { project: { connect: { id: data.projectId } } } : {}),
       ...(data.priorityTaskIds?.length
@@ -248,6 +406,7 @@ export async function updatePoll(id: string, data: UpdatePollInput) {
   if (data.slotStarts       !== undefined) d.slotStarts       = data.slotStarts.map(s => new Date(s));
   if (data.responseDeadline !== undefined) d.responseDeadline = data.responseDeadline;
   if (data.audience         !== undefined) d.audience         = data.audience;
+  if (data.allowLinkResponses !== undefined) d.allowLinkResponses = data.allowLinkResponses;
   if (data.projectId !== undefined) {
     d.project = data.projectId ? { connect: { id: data.projectId } } : { disconnect: true };
   }
@@ -299,11 +458,30 @@ export interface ListFilters {
   organizerId?: string;
 }
 
-export async function listPolls(filters: ListFilters = {}) {
+/** Who is asking. Non-admins only ever see polls that name them. */
+export interface ListViewer {
+  memberId: string;
+  isAdmin: boolean;
+}
+
+/**
+ * List polls visible to `viewer`. A poll is listed only when the viewer
+ * organized it or is one of its invitedMembers — audience alone never surfaces a
+ * poll in someone's list, so PROJECT/ANYONE polls stay reachable by share link
+ * only. Admins see everything. Omitting `viewer` returns the unscoped list and
+ * must not be used to serve an end user.
+ */
+export async function listPolls(filters: ListFilters = {}, viewer?: ListViewer) {
   const where: any = {};
   if (filters.projectId)   where.projectId   = filters.projectId;
   if (filters.status)      where.status      = filters.status;
   if (filters.organizerId) where.organizerId = filters.organizerId;
+  if (viewer && !viewer.isAdmin) {
+    where.OR = [
+      { organizerId: viewer.memberId },
+      { invitedMembers: { some: { id: viewer.memberId } } },
+    ];
+  }
   return prisma.meetingPoll.findMany({
     where,
     include: pollInclude,
@@ -406,6 +584,49 @@ export async function getResponseRoster(pollId: string) {
 export async function getNonResponders(pollId: string) {
   const roster = await getResponseRoster(pollId);
   return roster?.notResponded ?? [];
+}
+
+// ── Suggested availability (DB wrapper) ──────────────────────
+
+/** How many past answers to learn from. Recent habits beat ancient ones. */
+const SUGGESTION_HISTORY_LIMIT = 10;
+
+export interface AvailabilitySuggestion {
+  /** Canonical ISO starts, a subset of the poll's slotStarts. */
+  slots: string[];
+  /** How many past polls the suggestion was learned from. */
+  sampleSize: number;
+  /** Plain-English gloss, or "" when there is nothing to say. */
+  summary: string;
+}
+
+/**
+ * Suggest availability for `memberId` on `poll`, learned from their answers to
+ * other polls. Empty (and cheap) for anyone without history — callers render
+ * nothing in that case.
+ */
+export async function getSuggestedAvailability(
+  memberId: string,
+  poll: { id: string; slotStarts: Array<Date | string>; timezone: string }
+): Promise<AvailabilitySuggestion> {
+  const rows = await prisma.meetingResponse.findMany({
+    where: { memberId, pollId: { not: poll.id }, slots: { isEmpty: false } },
+    select: { slots: true, poll: { select: { slotStarts: true, timezone: true } } },
+    orderBy: { updatedAt: "desc" },
+    take: SUGGESTION_HISTORY_LIMIT,
+  });
+  if (rows.length === 0) return { slots: [], sampleSize: 0, summary: "" };
+
+  const profile = buildAvailabilityProfile(
+    rows.map(r => ({
+      timezone: r.poll.timezone,
+      slotStarts: r.poll.slotStarts,
+      slots: r.slots,
+    }))
+  );
+  const tz = poll.timezone || "America/New_York";
+  const slots = suggestSlots(profile, poll.slotStarts, tz);
+  return { slots, sampleSize: rows.length, summary: summarizeSuggestion(slots, tz) };
 }
 
 // ── Finalize → Event ─────────────────────────────────────────

@@ -1351,6 +1351,11 @@ model MeetingPoll {
   audience MeetingPollAudience @default(INVITED)
   status   MeetingPollStatus   @default(OPEN)
 
+  // Escape hatch on top of `audience`: when true, anyone holding the share link
+  // may submit availability (as a guest, or as themselves if signed in) even
+  // though they are not in invitedMembers / not on the project.
+  allowLinkResponses Boolean @default(false)
+
   organizer   Member? @relation("PollOrganizer", fields: [organizerId], references: [id], onDelete: SetNull)
   organizerId String?
 

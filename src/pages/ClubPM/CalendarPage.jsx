@@ -10,6 +10,7 @@ import {
   get, post, patch,
   listMeetingPolls, createMeetingPoll, updateMeetingPoll, deleteMeetingPoll,
   getMeetingPoll, submitAvailability, finalizeMeetingPoll, remindMeetingPoll,
+  getAvailabilitySuggestion,
   downloadMeetingPollIcs, googleCalendarUrl,
 } from '../../api/clubPmClient';
 import { useClubPmAuth } from '../../clubpm/ClubPmAuth';
@@ -240,6 +241,7 @@ export default function CalendarPage() {
   const [showPollForm, setShowPollForm] = useState(false);
   const [editingPoll, setEditingPoll]   = useState(null);
   const [activePoll, setActivePoll]     = useState(null); // full serialized poll for the board
+  const [pollSuggestion, setPollSuggestion] = useState(null); // availability learned from past polls
 
   // Client-side filters. Selecting nothing means "show everything" for that
   // dimension. `showTaskDeadlines` defaults on so the global view still covers
@@ -345,6 +347,11 @@ export default function CalendarPage() {
     try {
       const full = await getMeetingPoll(id);
       setActivePoll(full);
+      setPollSuggestion(null);
+      // Suggestion is advisory — a failure just means no ghost overlay.
+      getAvailabilitySuggestion(id)
+        .then(s => setPollSuggestion(s?.slots?.length ? s : null))
+        .catch(() => {});
     } catch { /* ignore */ }
   }, []);
 
@@ -617,6 +624,7 @@ export default function CalendarPage() {
           <div className="pm-poll-board-modal" onClick={e => e.stopPropagation()}>
             <MeetingPollBoard
               poll={activePoll}
+              suggestion={pollSuggestion}
               onClose={() => setActivePoll(null)}
               onSaveAvailability={handleRespond}
               onFinalize={handleFinalizePoll}

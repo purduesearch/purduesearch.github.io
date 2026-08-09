@@ -4,7 +4,10 @@
 // Excluded from the production build (tsconfig `exclude`). Uses a tiny inline
 // assertion harness so no test framework dependency is needed.
 
-import { aggregate, canRespond, canManage, buildIcs, slotKey } from "./pollService.js";
+import {
+  aggregate, canRespond, canManage, buildIcs, slotKey,
+  profileKey, buildAvailabilityProfile, suggestSlots, summarizeSuggestion,
+} from "./pollService.js";
 import type { PollAccessShape } from "./pollService.js";
 
 let passed = 0;
@@ -100,6 +103,70 @@ const slots = [s(9), s(10), s(11)];
   const mem = canRespond(poll, { memberId: "a" });
   check("member allowed on ANYONE", mem.ok);
   check("member not asGuest",      !mem.asGuest);
+}
+
+// ── canRespond: allowLinkResponses widens each audience ──────
+{
+  const invited: PollAccessShape = {
+    audience: "INVITED", organizerId: "org1", invitedMemberIds: ["a"], allowLinkResponses: true,
+  };
+  const guest = canRespond(invited, { memberId: null });
+  check("link guest allowed on INVITED", guest.ok);
+  check("link guest flagged asGuest",    guest.asGuest);
+  check("link member allowed on INVITED", canRespond(invited, { memberId: "z" }).ok);
+  check("link member not asGuest",       !canRespond(invited, { memberId: "z" }).asGuest);
+
+  const project: PollAccessShape = {
+    audience: "PROJECT", organizerId: "org1", invitedMemberIds: [], allowLinkResponses: true,
+  };
+  check("link non-project member allowed", canRespond(project, { memberId: "z", isProjectMember: false }).ok);
+  check("link guest allowed on PROJECT",   canRespond(project, { memberId: null }).ok);
+
+  // Absent flag must behave exactly as before (it is optional on the shape).
+  const off: PollAccessShape = { audience: "INVITED", organizerId: "org1", invitedMemberIds: ["a"] };
+  check("no flag → uninvited still blocked", !canRespond(off, { memberId: "z" }).ok);
+  check("flag false → guest still blocked",
+    !canRespond({ ...off, allowLinkResponses: false }, { memberId: null }).ok);
+  check("link flag never grants management", !canManage(invited, { memberId: "z" }));
+}
+
+// ── Suggested availability ───────────────────────────────────
+// 2026-07-07 / -14 / -21 / -28 are all Tuesdays; times below are UTC and the
+// polls are rendered in UTC, so weekday/bucket math is exact.
+{
+  const at = (day: number, h: number, m = 0) =>
+    `2026-07-${String(day).padStart(2, "0")}T${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:00.000Z`;
+
+  eq("profileKey Tue 14:00 → 2:840", profileKey(at(21, 14), "UTC"), "2:840");
+  eq("profileKey buckets to 30m",    profileKey(at(21, 14, 45), "UTC"), "2:870");
+
+  // Two past polls, each offering 09:00 and 10:00; Ana took 09:00 both times.
+  const history = [7, 14].map(day => ({
+    timezone: "UTC",
+    slotStarts: [at(day, 9), at(day, 10)],
+    slots: [at(day, 9)],
+  }));
+  const profile = buildAvailabilityProfile(history);
+  eq("09:00 bucket offered twice", profile["2:540"], { offered: 2, chosen: 2 });
+  eq("10:00 bucket never taken",   profile["2:600"], { offered: 2, chosen: 0 });
+
+  const target = [at(28, 9), at(28, 10)];
+  eq("suggests the habitual slot only", suggestSlots(profile, target, "UTC"), [slotKey(at(28, 9))]);
+  eq("summary names the day + part", summarizeSuggestion([at(28, 9)], "UTC"), "you're usually free Tue mornings");
+
+  // One data point is noise, not a habit.
+  const thin = buildAvailabilityProfile([history[0]]);
+  eq("single past poll suggests nothing", suggestSlots(thin, target, "UTC"), []);
+
+  // A bucket is counted once per poll however many slots fall inside it, so a
+  // 15-minute grid cannot outvote a 30-minute one.
+  const fine = buildAvailabilityProfile([
+    { timezone: "UTC", slotStarts: [at(7, 9), at(7, 9, 15)], slots: [at(7, 9), at(7, 9, 15)] },
+  ]);
+  eq("15m slots collapse into one bucket", fine["2:540"], { offered: 1, chosen: 1 });
+
+  eq("no history → no suggestion", suggestSlots(buildAvailabilityProfile([]), target, "UTC"), []);
+  eq("empty summary when nothing suggested", summarizeSuggestion([], "UTC"), "");
 }
 
 // ── buildIcs ─────────────────────────────────────────────────

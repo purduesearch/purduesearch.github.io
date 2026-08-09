@@ -25,6 +25,7 @@ function accessShape(poll: LoadedPoll): pollService.PollAccessShape {
     audience: poll.audience,
     organizerId: poll.organizerId,
     invitedMemberIds: poll.invitedMembers.map(m => m.id),
+    allowLinkResponses: poll.allowLinkResponses,
   };
 }
 
@@ -50,6 +51,7 @@ export function serializePoll(poll: LoadedPoll, ctx: pollService.AccessContext) 
     slotStarts: poll.slotStarts,
     responseDeadline: poll.responseDeadline,
     audience: poll.audience,
+    allowLinkResponses: poll.allowLinkResponses,
     status: poll.status,
     organizer: poll.organizer,
     project: poll.project,
@@ -75,15 +77,26 @@ export function serializePoll(poll: LoadedPoll, ctx: pollService.AccessContext) 
 
 meetingPollsRouter.get("/", async (req: Request, res: Response) => {
   try {
+    const memberId = req.memberId as string;
     const { projectId, status, mine } = req.query as {
       projectId?: string; status?: string; mine?: string;
     };
-    const polls = await pollService.listPolls({
-      projectId: projectId || undefined,
-      status: (status as any) || undefined,
-      organizerId: mine === "true" ? (req.memberId as string) : undefined,
-    });
-    const ctx: pollService.AccessContext = { memberId: req.memberId, isAdmin: false };
+    const me = await prisma.member.findUnique({ where: { id: memberId }, select: { isAdmin: true } });
+    const isAdmin = !!me?.isAdmin;
+
+    // Scoped to polls that name the viewer — audience alone never lists a poll.
+    const polls = await pollService.listPolls(
+      {
+        projectId: projectId || undefined,
+        status: (status as any) || undefined,
+        organizerId: mine === "true" ? memberId : undefined,
+      },
+      { memberId, isAdmin }
+    );
+
+    // `isProjectMember` is not resolved per row here (it would be a query each);
+    // the card only opens the board, which refetches with the full context.
+    const ctx: pollService.AccessContext = { memberId, isAdmin };
     res.json(polls.map(p => serializePoll(p as LoadedPoll, ctx)));
   } catch (error) {
     console.error("List meeting polls error:", error);
@@ -104,6 +117,7 @@ meetingPollsRouter.post("/", async (req: Request, res: Response) => {
       slotStarts?: string[];
       responseDeadline?: string | null;
       audience?: MeetingPollAudience;
+      allowLinkResponses?: boolean;
       projectId?: string | null;
       priorityTaskIds?: string[];
       invitedMemberIds?: string[];
@@ -126,6 +140,7 @@ meetingPollsRouter.post("/", async (req: Request, res: Response) => {
       slotStarts: b.slotStarts,
       responseDeadline: b.responseDeadline ? new Date(b.responseDeadline) : null,
       audience: b.audience,
+      allowLinkResponses: b.allowLinkResponses === true,
       organizerId: memberId,
       projectId: b.projectId ?? null,
       priorityTaskIds: b.priorityTaskIds,
@@ -194,6 +209,7 @@ meetingPollsRouter.patch("/:id", async (req: Request, res: Response) => {
         ? (b.responseDeadline ? new Date(b.responseDeadline) : null)
         : undefined,
       audience: b.audience,
+      allowLinkResponses: b.allowLinkResponses,
       projectId: b.projectId,
       priorityTaskIds: b.priorityTaskIds,
       invitedMemberIds: b.invitedMemberIds,
@@ -245,6 +261,27 @@ meetingPollsRouter.put("/:id/response", async (req: Request, res: Response) => {
   } catch (error) {
     console.error("Submit availability error:", error);
     res.status(500).json({ error: "Failed to submit availability" });
+  }
+});
+
+// ── GET /api/meeting-polls/:id/suggestion — my suggested availability ─
+// Learned from the caller's own past responses, so no poll-level permission is
+// required beyond being signed in: the payload contains nothing but the
+// caller's own habits mapped onto this poll's candidate slots.
+
+meetingPollsRouter.get("/:id/suggestion", async (req: Request, res: Response) => {
+  try {
+    const poll = await pollService.getPoll(req.params.id as string);
+    if (!poll) { res.status(404).json({ error: "Poll not found" }); return; }
+    const suggestion = await pollService.getSuggestedAvailability(req.memberId as string, {
+      id: poll.id,
+      slotStarts: poll.slotStarts,
+      timezone: poll.timezone,
+    });
+    res.json(suggestion);
+  } catch (error) {
+    console.error("Poll suggestion error:", error);
+    res.status(500).json({ error: "Failed to build suggestion" });
   }
 });
 
