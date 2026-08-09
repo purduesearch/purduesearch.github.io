@@ -1,0 +1,90 @@
+{
+  "quizId": "Q12-buoyancy",
+  "title": "Check yourself: buoyancy and diffusion",
+  "passThreshold": 75,
+  "maxAttempts": null,
+  "questions": [
+    {
+      "id": "q12-1",
+      "order": 0,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "What physically drives the human thermal body plume (HTBP)?",
+      "explanation": "Metabolic heat warms the thin layer of air touching the skin. Warm air is less dense, and a less dense parcel in a gravitational field feels a net upward force, so the layer rises and is replaced from below. That mechanism is biothermal convection (BTC); the HTBP is the flow structure it produces. Breathing does not drive it — the plume is fully developed before the first breath in the paper's own simulation.",
+      "answers": [
+        { "order": 0, "text": "Metabolic heat makes the air touching the skin less dense, so gravity buoys it upward", "isCorrect": true },
+        { "order": 1, "text": "The pressure of exhaled breath pushes air up past the face", "isCorrect": false },
+        { "order": 2, "text": "Body movement drags a wake of air upward along the torso", "isCorrect": false },
+        { "order": 3, "text": "Water vapour from the skin is lighter than air and rises", "isCorrect": false }
+      ]
+    },
+    {
+      "id": "q12-2",
+      "order": 1,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "In microgravity, what happens to the transport of exhaled CO₂ away from the face?",
+      "explanation": "This is the misconception the module exists to break. Diffusivity is a molecular property — it is completely unaffected by gravity. What stops is the bulk air motion that was doing the carrying. Transport degrades to diffusion alone, which Dutta et al. call indirect biophysical diffusion (IBD). Diffusion clears a 0.2 m breathing zone in about 42 minutes; the plume did it in under a second. Microgravity does not stop the CO₂ from moving. It stops the air from moving.",
+      "answers": [
+        { "order": 0, "text": "Convection stops, but diffusion continues — it is just far too slow to clear the region between breaths", "isCorrect": true },
+        { "order": 1, "text": "All transport stops, so the CO₂ stays exactly where it was exhaled", "isCorrect": false },
+        { "order": 2, "text": "Diffusion slows down because there is no gravity to drive it", "isCorrect": false },
+        { "order": 3, "text": "Transport is unaffected, because diffusion replaces convection at a similar rate", "isCorrect": false }
+      ]
+    },
+    {
+      "id": "q12-3",
+      "order": 2,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "V11 computes Gr ≈ 9.1 × 10⁹ for a standing human using L = 1.7 m. A classmate redoes the calculation with L = 0.17 m and gets a much smaller number, then says one of you must have made an arithmetic mistake. Who is right?",
+      "explanation": "Neither made a mistake. Gr scales as L³, so a factor of ten in L is a factor of a thousand in Gr — 9.1 × 10⁹ becomes 9.1 × 10⁶. Both are correct answers to different questions: 1.7 m is the whole-body plume, and a 0.17 m scale would be asking about a head-sized region. This is why the glossary insists that a Grashof or Rayleigh number quoted without its characteristic length is meaningless. State the L, every time.",
+      "answers": [
+        { "order": 0, "text": "Neither made a mistake; Gr goes as L³, so a 10× smaller length gives a 1,000× smaller Gr, and both are valid once you state which L you used", "isCorrect": true },
+        { "order": 1, "text": "The classmate made an arithmetic error; changing L by 10× should change Gr by 10×, not more", "isCorrect": false },
+        { "order": 2, "text": "You are right — 1.7 m is the only physically meaningful length for a human", "isCorrect": false },
+        { "order": 3, "text": "The classmate is right — Gr should always use the smallest relevant length scale", "isCorrect": false }
+      ]
+    },
+    {
+      "id": "q12-4",
+      "order": 3,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "The Péclet number for the breathing zone works out to about 3,750 on Earth. What does that number mean?",
+      "explanation": "Pe = VL/D is the ratio of advective to diffusive mass transport, and it is equivalently the ratio of the two timescales: diffusion needs L²/D ≈ 2,500 s to clear a 0.2 m region, while the plume does it in L/V ≈ 0.7 s. 2,500 / 0.67 = 3,750. Pe says nothing about how much CO₂ there is or how well-mixed the room is — only which mechanism is doing the work.",
+      "answers": [
+        { "order": 0, "text": "The flow clears the breathing zone about 3,750 times faster than diffusion alone would", "isCorrect": true },
+        { "order": 1, "text": "The CO₂ concentration at the face is 3,750 times lower than it would be with no plume", "isCorrect": false },
+        { "order": 2, "text": "The plume is 3,750 times faster than the speed of diffusing CO₂ molecules", "isCorrect": false },
+        { "order": 3, "text": "The room's air is exchanged 3,750 times per breathing cycle", "isCorrect": false }
+      ]
+    },
+    {
+      "id": "q12-5",
+      "order": 4,
+      "kind": "TRUE_FALSE",
+      "points": 1,
+      "prompt": "Because ISS life support holds bulk cabin CO₂ within its operational limit, the CO₂ concentration at a stationary crew member's face is also within that limit.",
+      "explanation": "False, and this is the entire reason ARES exists. On Earth the two are the same number because the plume guarantees that the air at your face is the room's air. In microgravity the plume is gone and the two quantities come apart: Dutta et al. put transient face-level exposure above 2.5 % against below 1.5 % at 1g. Bulk ECLSS — CDRA, Vozdukh, CAMRAS — measures and scrubs the cabin. Nothing on board measures the twenty centimetres in front of a face.",
+      "answers": [
+        { "order": 0, "text": "True", "isCorrect": false },
+        { "order": 1, "text": "False", "isCorrect": true }
+      ]
+    },
+    {
+      "id": "q12-6",
+      "order": 5,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "Dutta et al. report that respiratory conditions at 1g in a 37 °C room are equivalent to those in microgravity. Why does raising the room temperature reproduce a microgravity effect?",
+      "explanation": "Gravity and ΔT enter the buoyancy driving term as a product — you can see it in Gr = gβΔTL³/ν², where g and ΔT multiply. Driving either one to zero kills the plume. At 37 °C the air matches body temperature, there is no density difference to buoy, and the plume collapses at full Earth gravity. This is also what makes the claim testable at Purdue: you cannot rent a microgravity chamber, but you can heat a room.",
+      "answers": [
+        { "order": 0, "text": "Because g and ΔT appear as a product in the buoyancy term, so removing the temperature difference kills the plume just as removing gravity does", "isCorrect": true },
+        { "order": 1, "text": "Because hot air is less dense overall, so gravity has less effect on it", "isCorrect": false },
+        { "order": 2, "text": "Because CO₂ diffuses faster at higher temperature, overwhelming the plume", "isCorrect": false },
+        { "order": 3, "text": "Because at 37 °C the body stops producing metabolic heat", "isCorrect": false }
+      ]
+    }
+  ]
+}

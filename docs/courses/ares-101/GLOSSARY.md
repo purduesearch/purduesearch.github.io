@@ -122,9 +122,9 @@ Notes that prevent the two most likely mistakes:
   `T_film` too. A derivation that evaluates β at ambient and ν at film temperature is not wrong by
   much, but it is not reproducible, so do it the same way every time.
 - **L is the characteristic length and it is a choice.** State it. M1 uses body height (1.7 m) for
-  the whole-body plume; M3 uses the paper's `Lc = 0.15 m` (head width) because that is what the paper
-  non-dimensionalised on. Gr scales as `L³`, so the choice moves the answer by orders of magnitude
-  and a number quoted without its `L` is meaningless.
+  the whole-body plume; M3 uses the paper's `Lc = 1/6 m ≈ 0.1667 m` (average head width) because that
+  is what the paper non-dimensionalised on. Gr scales as `L³`, so the choice moves the answer by
+  orders of magnitude and a number quoted without its `L` is meaningless.
 
 ---
 
@@ -236,7 +236,15 @@ mole fraction has not changed. Say which one you mean.
 | `A`, `B`, `n` | King's-law constants | per-probe |
 
 Paper-specific symbols that appear in M3 keep the paper's own notation and are defined at first use
-in that module: `Lc = 0.15 m`, `Vc = 0.2816 m/s`.
+in that module: `Lc = 1/6 m ≈ 0.1667 m`, `Vc = 0.2816 m/s`.
+
+> **Corrected 2026-08-09.** Both this table and §3 previously gave `Lc = 0.15 m`, which the
+> curriculum plan also carries. The paper's Materials and Methods states `Lc = 1/6 m`, and two
+> independent checks against the paper's own reported values confirm it: `Re = Vc·Lc/ν` with
+> `ν = 1.52 × 10⁻⁵ m²/s` gives **3087.7** against the paper's stated `Re = 3087.71` (0.15 m would
+> give 2779), and `Vc = √(g_c·Lc)` with `g_c = |ρ_o − ρ_∞|/ρ_∞ · g = 0.4745 m/s²` gives **0.2812 m/s**
+> against the paper's stated 0.2816 (0.15 m would give 0.2668). M3 must use 1/6 m or its Reynolds
+> number will not reproduce the paper's.
 
 ---
 
