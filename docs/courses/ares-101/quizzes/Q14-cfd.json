@@ -1,0 +1,106 @@
+{
+  "quizId": "Q14-cfd",
+  "title": "Check yourself: method versus result",
+  "passThreshold": 75,
+  "maxAttempts": null,
+  "questions": [
+    {
+      "id": "q14-1",
+      "order": 0,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "Someone tells you that Dutta et al. \"found that face-level CO₂ roughly doubles in microgravity\". What kind of study produced that result?",
+      "explanation": "A computational fluid dynamics study, and nothing else. Specifically a two-dimensional direct numerical simulation of the incompressible Navier–Stokes equations under the Boussinesq approximation, coupled to two advection–diffusion equations — one for heat, one for CO₂ — solved with a high-order spectral element method in Nek5000. No human subject, no mannequin and no physical instrument was measured anywhere in the work. Its only contact with real-world data is at its inputs (a published breathing waveform, a published 5.0 % exhaled concentration, body surface temperatures, air properties) and at one qualitative Schlieren comparison at 1g. So the verb is wrong: the simulation predicted a roughly two-fold difference in transient peaks. Nobody found it.",
+      "answers": [
+        { "order": 0, "text": "A simulation — 2D direct numerical simulation of the Navier–Stokes equations plus two advection–diffusion equations, with no human subject measured at any point", "isCorrect": true },
+        { "order": 1, "text": "A ground-based human study in a sealed chamber, with CFD used to interpret the measurements", "isCorrect": false },
+        { "order": 2, "text": "A reanalysis of ISS atmospheric monitoring data from ECLSS sensors", "isCorrect": false },
+        { "order": 3, "text": "A parabolic-flight experiment with a small crew of volunteers", "isCorrect": false }
+      ]
+    },
+    {
+      "id": "q14-2",
+      "order": 1,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "The paper models CO₂ as a passive scalar. What does that assume?",
+      "explanation": "That the flow transports the CO₂ but the CO₂ does nothing back to the flow. It is a standard, cheap and mostly defensible choice — the paper argues that at these concentrations CO₂ does not measurably change air density. But notice what it commits you to: in this model the exhaled breath is buoyant only because it is warm, and its composition contributes nothing at all. Real breath is also saturated with water vapour, which is lighter than air, and enriched in CO₂, which is heavier. Neither is in the model, and whether they cancel is not addressed. That is what \"assumption\" means — something the model asserts rather than computes, which you should be able to name.",
+      "answers": [
+        { "order": 0, "text": "That the flow carries the CO₂ but the CO₂ has no effect on the flow, so the exhalate is buoyant only because it is warm", "isCorrect": true },
+        { "order": 1, "text": "That CO₂ diffuses at the same rate as heat, so one equation can serve for both", "isCorrect": false },
+        { "order": 2, "text": "That CO₂ concentration is uniform throughout the domain at the start of each breathing cycle", "isCorrect": false },
+        { "order": 3, "text": "That CO₂ is chemically inert and does not react with anything in the room", "isCorrect": false }
+      ]
+    },
+    {
+      "id": "q14-3",
+      "order": 2,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "The authors treat the mouth boundary condition as their own contribution. Suppose they had instead prescribed clean ambient air at the mouth on every inhalation. What would that have done to the study?",
+      "explanation": "It would have assumed the conclusion away. A mouth is two boundary conditions depending on the second: on exhalation a source, with prescribed velocity, 37 °C and 5.0 % CO₂; on inhalation a sink, where prescribing anything is precisely wrong, because what the arriving air contains is the entire question. Their solution is to set the inhalation values by averaging the temperature and CO₂ fields at multiple points in front of the mouth, so the model breathes back whatever it previously deposited there. That is what turns a plume simulation into a rebreathing simulation. Prescribe fresh air instead and there is no bubble — not because the physics says so, but because you told it there wasn't one. This is the load-bearing choice in the whole paper, and every Results number about inhaled CO₂ traces back to it.",
+      "answers": [
+        { "order": 0, "text": "It would have made rebreathing impossible to observe — the CO₂ bubble would have been assumed away rather than computed", "isCorrect": true },
+        { "order": 1, "text": "It would have made the simulation less numerically stable but would not have changed the physics", "isCorrect": false },
+        { "order": 2, "text": "It would have overestimated rebreathing, because fresh air at the mouth increases the concentration gradient", "isCorrect": false },
+        { "order": 3, "text": "Nothing important — the plume, not the mouth condition, is what sets the concentration at the face", "isCorrect": false }
+      ]
+    },
+    {
+      "id": "q14-4",
+      "order": 3,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "The paper runs the same case as 2D DNS, 2D RANS and 3D RANS, and reports no significant difference in the CO₂ concentration at the mouth. What does that comparison establish?",
+      "explanation": "That the numerics are consistent with each other, and specifically that collapsing the domain to two dimensions is not distorting the answer — which is a real and worthwhile check, since 3D DNS would have been unaffordable at the roughly thirty simulations this study needed. What it is not is a validation. It is code against code. Two simulations agreeing tells you nothing about whether either one matches a person. The paper's only comparison against something physical is the qualitative match of its 1g flow field to previously published Schlieren imaging of human subjects, and that covers the 1g half only.",
+      "answers": [
+        { "order": 0, "text": "That the 2D simplification is not distorting the answer — a numerical consistency check, not a validation against anything physical", "isCorrect": true },
+        { "order": 1, "text": "That the microgravity predictions have been validated, since three independent methods agree on them", "isCorrect": false },
+        { "order": 2, "text": "That RANS turbulence modelling is unnecessary at any Reynolds number in this problem", "isCorrect": false },
+        { "order": 3, "text": "That the model reproduces the Schlieren measurements in three dimensions as well as two", "isCorrect": false }
+      ]
+    },
+    {
+      "id": "q14-5",
+      "order": 4,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "Fig. 5A is the source of the paper's most-quoted number: an approximately 14 % reduction. A reduction in what, exactly?",
+      "explanation": "In net simulated CO₂ exhalation — the cumulative CO₂ that actually left the breathing zone over the simulated breathing cycles, measured against a theoretical maximum with no transport inefficiency at all. It is the model's own accounting of how much of what it exhaled it then re-inhaled. It is not a measured drop in anybody's gas exchange, not a change in lung function or alveolar diffusion, and not a physiological measurement of any kind, because no person and no mannequin was measured in this study. The same discipline applies to the other number on that figure: the approximately 0.38g threshold is a value read off a curve in a two-dimensional simulation, with no uncertainty band and no stated criterion for \"Earth-normal\". Say \"the simulation predicts approximately 0.38g\". The extra three words are the difference between describing this project accurately and overselling it.",
+      "answers": [
+        { "order": 0, "text": "In net simulated CO₂ exhalation, against a theoretical maximum with no transport inefficiency — a model output, not a physiological measurement", "isCorrect": true },
+        { "order": 1, "text": "In measured pulmonary gas exchange efficiency in astronauts on the ISS", "isCorrect": false },
+        { "order": 2, "text": "In the accuracy of bulk ECLSS CO₂ sensors when face-level gradients are present", "isCorrect": false },
+        { "order": 3, "text": "In oxygen uptake, measured by indirect calorimetry on subjects in a heated chamber", "isCorrect": false }
+      ]
+    },
+    {
+      "id": "q14-6",
+      "order": 5,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "Why can the paper report a 1g room at 37 °C as equivalent to microgravity at 22 °C?",
+      "explanation": "Because after non-dimensionalisation there is only one gravitational parameter left. Choosing the characteristic velocity as Vc = √(gc·Lc) makes the buoyancy coefficient exactly 1, and everything gravitational collapses into a single effective gravity between 0 and 1: ĝ_eff = (g/g_Earth) × (T_body − T_ambient)/15 K, with the 15 K reference range held fixed even when the room is warmed. At 37 °C ambient the temperature factor is zero, so ĝ_eff is zero — the same value as switching gravity off. Worth holding two things at once here: the equivalence is substantially built into the scaling rather than being an independent empirical discovery, and what the simulations genuinely add is that the CO₂ fields agree too, which depends on the mouth boundary condition and the breathing waveform rather than on the momentum balance alone.",
+      "answers": [
+        { "order": 0, "text": "Because gravity and the body-to-ambient temperature difference enter the scaled equations as a single effective gravity, which is zero in both cases", "isCorrect": true },
+        { "order": 1, "text": "Because air's kinematic viscosity at 37 °C happens to match the microgravity case's effective viscosity", "isCorrect": false },
+        { "order": 2, "text": "Because both conditions were run as separate simulations and the CO₂ fields came out identical by coincidence", "isCorrect": false },
+        { "order": 3, "text": "Because at 37 °C the Boussinesq approximation breaks down, which is mathematically the same as removing gravity", "isCorrect": false }
+      ]
+    },
+    {
+      "id": "q14-7",
+      "order": 6,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "With Lc = 1/6 m and Vc = 0.2816 m/s, the paper reports Re = 3,087.71 — about 3,100. Beyond describing the flow, what did that number determine about the study itself?",
+      "explanation": "That the turbulence could be resolved directly rather than modelled, which is what makes this a direct numerical simulation. At Re ≈ 3,100 the range of scales is small enough that about 11,000 spectral elements and a million grid points suffice; push Re up two orders of magnitude and this paper does not exist in this form. The physical reading is worth having too: 1/Re ≈ 3 × 10⁻⁴, so the viscous term is a small correction almost everywhere and dominant only in the thin layers against the body. And one warning from V13 — Re is meaningless without its length scale. Using Lc = 0.15 m, which this course's own glossary carried in two early drafts, gives 2,779, ten percent off. Reproducing a paper's stated number is how you catch that.",
+      "answers": [
+        { "order": 0, "text": "It put the flow in a regime where the turbulence could be resolved directly, which is what made a direct numerical simulation affordable", "isCorrect": true },
+        { "order": 1, "text": "It confirmed the flow was laminar, so no turbulence treatment was needed at all", "isCorrect": false },
+        { "order": 2, "text": "It set the 0.38g threshold, since the threshold is where Re falls below the transition value", "isCorrect": false },
+        { "order": 3, "text": "It fixed the size of the computational domain, which must scale with Re to avoid wall effects", "isCorrect": false }
+      ]
+    }
+  ]
+}
