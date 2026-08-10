@@ -115,8 +115,15 @@
     <script>
       (function () {
         var p = window.location.pathname;
-        if (p === '/clubpm' || p.lastIndexOf('/clubpm/', 0) === 0) {
+        var clubpm = p === '/clubpm' || p.lastIndexOf('/clubpm/', 0) === 0;
+        if (clubpm) {
           document.documentElement.classList.add('clubpm-route');
+        }
+        // /schedule/:token and /rsvp/:eventId are public but paint the dark
+        // ClubPM look, so they need the dark body without the theme preload
+        // below. Keep in sync with AnimatedRoutes in src/App.js.
+        if (clubpm || p.lastIndexOf('/schedule/', 0) === 0 || p.lastIndexOf('/rsvp/', 0) === 0) {
+          document.documentElement.classList.add('pm-dark-route');
         }
       })();
     </script>

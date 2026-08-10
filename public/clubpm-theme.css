@@ -24347,3 +24347,18 @@ html:not(.aos-off) [data-aos].aos-animate  { opacity: 1; transform: none; }
   .pm-poll-hover-cols { gap: 14px; }
   .pm-poll-suggest-banner .cpm-btn { flex: 1; justify-content: center; }
 }
+
+/* This project has no global `box-sizing: border-box` reset (see .pm-dpk, which
+   carries its own for the same reason), so the board shell's `width: 100%` plus
+   22/24px padding and a 1px border made it ~50px wider than its parent. On the
+   public /schedule page that pushed the whole document sideways, which is what
+   exposed the cream body background to the right of the dark panel.
+   min-width:0 additionally lets it shrink inside the flex-centred ClubPM modal
+   overlay, where a flex item's default min-width:auto refuses to go below its
+   content width. */
+.pm-poll-board-modal { box-sizing: border-box; min-width: 0; }
+
+/* Belt and braces: the grid has its own horizontal scroller, so nothing inside
+   the board ever needs to widen the page. overflow-x:clip (not hidden/auto)
+   leaves the vertical axis visible and creates no nested scroll container. */
+.pm-poll-board { min-width: 0; overflow-x: clip; }

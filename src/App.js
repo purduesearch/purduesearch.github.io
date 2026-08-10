@@ -91,6 +91,12 @@ function ClubPmProtectedPage({ children }) {
 function AnimatedRoutes() {
   const location = useLocation();
   const isClubPm = location.pathname.startsWith('/clubpm');
+  // Public routes that render ClubPM components (and so need the dark body)
+  // without ever loading clubpm-theme.css. Keep in sync with the pre-paint
+  // script in public/index.html.
+  const isDarkRoute = isClubPm
+    || location.pathname.startsWith('/schedule/')
+    || location.pathname.startsWith('/rsvp/');
 
   // Keep the pre-paint flag from public/index.html in sync once the router
   // takes over, so entering /clubpm goes dark before the boot screen paints
@@ -98,7 +104,8 @@ function AnimatedRoutes() {
   // useEffect) so the swap lands in the same frame as the route change.
   useLayoutEffect(() => {
     document.documentElement.classList.toggle('clubpm-route', isClubPm);
-  }, [isClubPm]);
+    document.documentElement.classList.toggle('pm-dark-route', isDarkRoute);
+  }, [isClubPm, isDarkRoute]);
 
   return (
     <>

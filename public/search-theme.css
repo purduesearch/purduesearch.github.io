@@ -6367,9 +6367,20 @@ html:not(.aos-off) [data-aos].aos-animate  { opacity: 1; transform: none; }
 
    The inline script in public/index.html stamps .clubpm-route on <html>
    before first paint on a hard load; AnimatedRoutes in src/App.js keeps it
-   in sync across client-side navigation. */
+   in sync across client-side navigation.
+
+   .pm-dark-route is the wider set: every route that paints the dark ClubPM
+   look, including the *public* /schedule/:token and /rsvp/:eventId pages,
+   which render ClubPM components but never fetch clubpm-theme.css. Without
+   it those pages inherit `body { background: #f5efe6; color: #1a1a1a }` from
+   the public theme above, which shows as cream behind any overflow and as
+   near-black text on every ClubPM surface that has no explicit colour.
+   Kept separate from .clubpm-route because that class also triggers the
+   clubpm-theme.css preload, which public routes must not do. */
 html.clubpm-route,
-html.clubpm-route body {
+html.clubpm-route body,
+html.pm-dark-route,
+html.pm-dark-route body {
   background-color: #0d0f14 !important;   /* --pm-bg-base */
   color: #e6e8f0 !important;
 }
@@ -6601,3 +6612,18 @@ html.clubpm-route body {
   .pm-poll-hover-cols { gap: 14px; }
   .pm-poll-suggest-banner .cpm-btn { flex: 1; justify-content: center; }
 }
+
+/* This project has no global `box-sizing: border-box` reset (see .pm-dpk, which
+   carries its own for the same reason), so the board shell's `width: 100%` plus
+   22/24px padding and a 1px border made it ~50px wider than its parent. On the
+   public /schedule page that pushed the whole document sideways, which is what
+   exposed the cream body background to the right of the dark panel.
+   min-width:0 additionally lets it shrink inside the flex-centred ClubPM modal
+   overlay, where a flex item's default min-width:auto refuses to go below its
+   content width. */
+.pm-poll-board-modal { box-sizing: border-box; min-width: 0; }
+
+/* Belt and braces: the grid has its own horizontal scroller, so nothing inside
+   the board ever needs to widen the page. overflow-x:clip (not hidden/auto)
+   leaves the vertical axis visible and creates no nested scroll container. */
+.pm-poll-board { min-width: 0; overflow-x: clip; }
