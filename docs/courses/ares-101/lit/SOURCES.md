@@ -18,12 +18,13 @@ quietly presented as complete.
 | M1 | Dutta et al., *Gravity and Human Respiration* — the claim | `dutta2026` | `10.1038/s44341-026-00033-x` | `1RHGKt4JX2oV6wd0HcGDySoXoZepTHW5c` | In Drive · **preprint copy, see note A** · **not shared, see note E** |
 | M2 | Fabregat et al., DNS of a violent expiratory event | `fabregat2021` | `10.1063/5.0042086` | `1kt_zRc-ugKDe71h8mcj4JNMmceWDxYR5` | In Drive · **not shared** |
 | M3 | Dutta et al. — the method (same PDF as M1) | `dutta2026` | `10.1038/s44341-026-00033-x` | `1RHGKt4JX2oV6wd0HcGDySoXoZepTHW5c` | In Drive · **preprint copy, see note A** · **not shared** |
-| M4 | Satish et al., CO₂ and decision-making performance | `satish2012` | `10.1289/ehp.1104789` | — **upload needed** | Verified · **not uploaded** |
+| M4 | Herbig et al., CO₂/VOC/pressure and cognitive performance | `herbig2026` | `10.1016/j.ijheh.2026.114809` | `1FltLyBTHNxa_TEIeK2zGTu6q4GeCEV-8` | In Drive · **assigned to L04, see note F** · **not shared** |
+| M4 | Satish et al., CO₂ and decision-making performance | `satish2012` | `10.1289/ehp.1104789` | — **upload needed** | Verified · **optional reading only, see note F** |
 | M5 | Sanders et al., PTLS on ISS, ICES-2026-75 | `sanders2026` | ICES-2026-75 | `1vcpQGZnoja8l6ctQH7Ed1-RlYkC4wXAV` | In Drive · **not shared** |
 | M6 | Deming et al., delays of gas-phase compounds in tubing | `deming2019` | `10.5194/amt-12-3453-2019` | — **upload needed** | Verified · **not uploaded** |
-| M7 | Zhou et al., hot-wire calibration facility at 0.1–1.0 m/s | `zhou2024` | `10.3390/app14041587` | — **upload needed** | Verified · **not uploaded** |
+| M7 | Zhou et al., hot-wire calibration facility at 0.1–1.0 m/s | `zhou2024` | `10.3390/app14041587` | — **upload needed** | Verified · **not uploaded** · **L07 written against a placeholder id, see note G** |
 | M8 | Campbell et al., ICWTS, ICES-2026-499 | `campbell2026` | ICES-2026-499 | `1OzdK0KPj9i87jCsERj-UPJKayFQvmgXq` | In Drive · **not shared** |
-| M9 | Toptsis et al., embedded software architectures for multi-sensor wearables | `toptsis2026` | `10.3390/electronics15020295` | — **upload needed** | Verified · **not uploaded** |
+| M9 | Toptsis et al., embedded software architectures for multi-sensor wearables | `toptsis2026` | `10.3390/electronics15020295` | — **upload needed** | Verified · **not uploaded** · **L09 written against a placeholder id, see note H** |
 | M10 | Martin et al., evaluation and correction of a low-cost NDIR sensor | `martin2017` | `10.5194/amt-10-2383-2017` | — **upload needed** | Verified · **not uploaded** |
 | M11 | *Herrick Labs Research Protocol* (internal) | `herrick2026` | internal working document | `1kjHjWjdENSDzMKbvTvvgtEIz3sPBPgXvoWk7cXvtVlg` | In Drive · **Google Doc, not a PDF, see note D** · **not shared** |
 
@@ -53,6 +54,12 @@ https://doi.org/10.1063/5.0042086
 Streufert, S., & Fisk, W. J. (2012). Is CO₂ an indoor pollutant? Direct effects of
 low-to-moderate CO₂ concentrations on human decision-making performance. *Environmental
 Health Perspectives*, 120(12), 1671–1677. https://doi.org/10.1289/ehp.1104789
+
+**`herbig2026`** — Herbig, B., Mayer, F., Norrefeldt, V., & Wargocki, P. (2026). Do carbon
+dioxide, volatile organic compounds and atmospheric pressure affect the cognitive performance of
+occupants in indoor environments? Results of a large-scale experiment with simulated flights.
+*International Journal of Hygiene and Environmental Health*, 275, 114809.
+https://doi.org/10.1016/j.ijheh.2026.114809
 
 **`sanders2026`** — Sanders, I. C., Christensen, L. E., Ryan, S. R., Zhong, F., Silver,
 J., Reyes-Newell, A., Hovde, C., & Opsahl, P. (2026). Portable Tunable Laser Spectrometer
@@ -102,6 +109,7 @@ it is the paper the citation claims and that it teaches the module's topic. A DO
 | `dutta2026` | yes → nature.com | yes, PDF read | yes, CC BY 4.0 | yes — Figs. 1–6, the 0.38 g threshold at Fig. 5A |
 | `fabregat2021` | yes → pubs.aip.org | yes, in Drive | via Drive copy | yes — DNS of a violent expiratory event |
 | `satish2012` | yes → EHP/ACS | yes, PDF read | yes, EHP is US public domain | yes — 600/1,000/2,500 ppm, nine decision-making scales |
+| `herbig2026` | yes → Elsevier (via Crossref) | yes, read via Drive | yes, CC BY 4.0 | yes — RCT, N = 398, 11 arms, CO₂ to 4,200 ppm, 8 cognitive domains |
 | `sanders2026` | n/a (conference no.) | yes, in Drive | via Drive copy | yes — open-path TLS, ±0.003 mmHg at 2 Hz, 13 × 8 × 8 cm, <3 W |
 | `deming2019` | yes → amt.copernicus.org | yes, PDF read | yes, CC BY 4.0 | yes — step-change delay measurement, 14 tubing materials |
 | `zhou2024` | yes → mdpi.com | yes, PDF read | yes, CC BY 4.0 | yes — 0.10–1.0 m/s rig, modified King's law fits |
@@ -132,6 +140,12 @@ the co-varying ventilation changes that accompany it in a real cabin.
 Chosen over a SANS review because the module already covers SANS from the deck and the
 Dutta discussion, and because a cognitive-outcome study gives a learner something concrete
 to argue with.
+
+**Superseded when M4 was written — see note F.** `satish2012` was never uploaded, so it has
+no Drive id, and the seeder rejects a `LIT_REVIEW` section without one. `herbig2026` was
+already in the Drive `Papers` tree, is squarely on the module's topic, and turned out to
+make the section teach considerably more. `L04` assigns Herbig and lists Satish as optional
+reading; both are cited in `C15`.
 
 ### M6 — `deming2019`
 
@@ -258,7 +272,85 @@ a single `owner` entry and no `type: anyone` permission for the folder and for e
 in it, and an unauthenticated request to each
 `https://drive.google.com/file/d/<id>/preview` returns HTTP 401 with a sign-in page. As
 things stand, every `LIT_REVIEW` section in this course would show a learner a Google
-login screen.
+login screen. Re-checked for `herbig2026` on 2026-08-09: owner only, same as the rest.
+
+**F. M4's assigned paper changed from `satish2012` to `herbig2026` when the module was
+written (2026-08-09).** Two reasons, one practical and one about teaching.
+
+The practical one: `readLitConfig()` in `backend/scripts/seedCourses.ts` throws if
+`pdfDriveFileId` is empty, so a `LIT_REVIEW` section cannot be seeded against a paper that
+is not in Drive. `satish2012` is verified and legally redistributable but is still on the
+upload list below, and inventing or placeholder-ing an id would defeat the point of this
+file.
+
+The teaching one, which is the better reason: `herbig2026` was already in the Drive tree —
+`Papers / CO2 and VOCs / CO2-and-VOC-cognitive-effects-indoor-environment.pdf` — and it is
+the largest controlled test of the CO₂-and-cognition claim ever run. It found nothing
+systematic up to 4,200 ppm in 398 people, which **contradicts the dose–response tiers `C15`
+teaches**. That disagreement is the module's most valuable half-hour: a member who can hold
+both results, say what each design establishes, and still explain why ARES is worth
+building is a member who can describe this project to a reviewer without overclaiming.
+`L04`'s rubric is built on exactly that reconciliation, and its `limitation` point turns on
+the observation that Herbig measured **bulk** cabin air and therefore says nothing about
+face-level exposure.
+
+Note also that `herbig2026` lives in the `CO2 and VOCs` subfolder
+(`1AMAWOSN5oJaZaMtZDTS5lUEo67fyr_iY`) rather than directly in `Papers`. Folder-level
+sharing on `Papers` propagates down, so open action 1 below still covers it.
+
+Metadata was cross-checked against the Crossref record for
+`10.1016/j.ijheh.2026.114809` — title, four authors in order, *International Journal of
+Hygiene and Environmental Health* 275, article 114809, 2026, CC BY 4.0 — so the `citation`
+field in `L04` is not written from the PDF cover alone.
+
+If `satish2012` is later uploaded, **do not swap back.** Add it as a second, optional
+`LIT_REVIEW` document or leave it where it is in `L04`'s annotated bibliography. The
+disagreement is the asset.
+
+**G. M7's `L07` was written before `zhou2024` was uploaded, and carries a deliberate placeholder
+id (2026-08-10).** `readLitConfig()` in `backend/scripts/seedCourses.ts` only checks that
+`pdfDriveFileId` is **non-empty** — it cannot tell a real Drive id from a fake one. So an empty value
+fails the seed loudly and a plausible-looking wrong value fails silently in the player, months later,
+in front of a learner.
+
+`L07` therefore carries `pdfDriveFileId: PENDING_UPLOAD_SEE_SOURCES_MD_OPEN_ACTION_2`, which is chosen
+to be **impossible to mistake for an id**. The module seeds, the rubric and reference summary are
+installed and will grade correctly the moment the id lands, and the gap is loud rather than hidden.
+
+Two things follow. The swap performed for M4 in note F — reassigning the module to a paper that was
+already in Drive — was **not** repeated here: `zhou2024` is squarely the right paper for this module
+(0.10–1.0 m/s brackets the plume; it fits King's law rather than only asserting it; §6.2 is the
+result the ARES team most needs), and nothing else in the Drive tree comes close. And the fix is one
+token: upload the PDF per open action 2, then replace that string in `L07`'s frontmatter and this
+row's **Drive file id** cell in the same commit.
+
+Until then M7's `LIT_REVIEW` section is not shippable — which is true of all eleven rows for the
+separate reasons in note E, so this does not make M7 the odd one out.
+
+**H. M9's `L09` carries the same deliberate placeholder id, for the same reason (2026-08-10).**
+`toptsis2026` was not uploaded when M9 was written, so `L09` carries
+`pdfDriveFileId: PENDING_UPLOAD_SEE_SOURCES_MD_OPEN_ACTION_2`, exactly as `L07` does. The reasoning in
+note G applies unchanged: `readLitConfig()` only checks that the field is non-empty, so a plausible-looking
+wrong id fails silently in front of a learner months later, and a loud non-id fails visibly to whoever
+next reads this file. The module seeds; the rubric and reference summary are installed and will grade
+correctly the moment the id lands.
+
+No reassignment was considered. Unlike M4 (note F), there is no substitute already sitting in the Drive
+tree — the section on M9 above explains why `toptsis2026` is squarely the right paper, and the
+`CLAUDE.md` fallback the plan permits was declined on the same grounds. Fix by open action 2, then
+replace the string in `L09`'s frontmatter and this row's **Drive file id** cell in the same commit.
+
+One practical note for whoever does the upload. `https://www.mdpi.com/2079-9292/15/2/295/pdf` returns
+HTTP 403 to non-browser clients (it is served behind a bot check), so it must be fetched from a real
+browser. The same PDF is also served directly, without the check, from
+`https://mdpi-res.com/d_attachment/electronics/electronics-15-00295/article_deploy/electronics-15-00295.pdf`
+— 2.26 MB, verified to be the published CC BY version. Either is fine; the second is the one that works
+from a script.
+
+`L09` was written against the full text, not the abstract: the load-bearing citations in its rubric are
+Table 3 (real-time pipeline styles), Table 4 (SPI/I²C/UART/BLE characteristics), Table 8 (bare-metal
+versus RTOS), §5.1's two sentences about super-loops, and §2's high-resolution-timestamping
+prescription. If a future maintainer needs to check a quoted phrase, those are the places to look.
 
 ---
 

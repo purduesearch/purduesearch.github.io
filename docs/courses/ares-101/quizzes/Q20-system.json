@@ -1,0 +1,106 @@
+{
+  "quizId": "Q20-system",
+  "title": "Check yourself: buses, timing, and the contract",
+  "passThreshold": 75,
+  "maxAttempts": null,
+  "questions": [
+    {
+      "id": "q20-1",
+      "order": 0,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "`updateSensorReadings()` reads exactly one sensor per call and returns, advancing `sensorStep` 0 → 5 and wrapping. A member proposes replacing it with a simple sequence that reads all six sensors and writes a row, arguing it would be far easier to read. What does the state machine actually buy, and what does it not buy?",
+      "explanation": "It bounds how much of the program one misbehaving sensor can hold hostage. A CO₂ read gives the sensor `CO2_RESP_TIMEOUT_MS` = 500 ms to answer and `readCO2WithRetry()` tries three times with 50 ms gaps, plus a 25 ms settle after re-pinning the shared port — so one unplugged CO₂ sensor costs roughly 3 × (25 + 500) + 2 × 50 ≈ **1.7 s**. Three of them in a single iteration is about five seconds during which nothing else in `loop()` runs: no BLE notify, no SD write, no button debounce, no pump tick. With the state machine the worst iteration is one sensor's worst case rather than six, and everything else gets a turn in between. Now the part people get wrong: this does **not** make the firmware non-blocking. Each step still blocks, for exactly as long as it would have. Nothing is asynchronous, there is no scheduler, and there are no threads in the sensor path — it is a super-loop with cooperative interleaving, in which every slice must be voluntarily short and nothing enforces that. The firmware knows it and instruments it: `loop()` prints a `[SLOW LOOP]` breakdown whenever an iteration exceeds 100 ms.",
+      "answers": [
+        { "order": 0, "text": "It bounds the worst iteration to one sensor's failure cost (~1.7 s) instead of six (~5 s), so everything else in `loop()` still gets a turn — but each individual read still blocks, so nothing becomes asynchronous", "isCorrect": true },
+        { "order": 1, "text": "It makes the sensor reads non-blocking, so `loop()` never waits on a UART or I²C transaction and the iteration time becomes essentially constant", "isCorrect": false },
+        { "order": 2, "text": "It raises the effective sampling rate, because one sensor per iteration means the firmware completes six times as many cycles per second as reading all six together would", "isCorrect": false },
+        { "order": 3, "text": "It lets the three CO₂ sensors be read concurrently, which is what makes sharing a single UART between sensors 2 and 3 possible in the first place", "isCorrect": false }
+      ]
+    },
+    {
+      "id": "q20-2",
+      "order": 1,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "CO₂ sensors 2 and 3 share one UART. Before every single access, `co2Port()` calls `end()`, re-`begin()`s on the target sensor's pins, waits 25 ms, and then drains everything sitting in the receive buffer. Two SHT45s also share an I²C bus and get no equivalent drain. Why does one bus need this and the other does not?",
+      "explanation": "Because I²C has addressing and UART has none. Every I²C transaction opens with a 7-bit address, so a dozen parts can share two wires and each responds only when it is the one being spoken to. UART is two wires, one direction each, with no header, no address, and no arbitration — a byte on the line is simply *there*, and a receiver has no way of knowing it was not meant for it. GSS SprintIR parts have no bus addressing of any kind, so they are strictly point to point, and the firmware has to guarantee by hand that only one of the two is ever live on the shared port. The drain is what makes that guarantee recoverable: bytes from the *other* sensor may still be sitting in the buffer, and a stale ` Z 00185` parses perfectly as this sensor's answer. The most damaging version of this is at boot rather than during polling — GSS parts ship in streaming mode, and a sensor left streaming does not corrupt its own channel, it corrupts its **neighbour's**, which is why `probeAndInitCO2()` sends `K 0` before anything else and retries it up to three times (`C16`). Note that the I²C sensors *are* torn down and re-inited each read, but for a different reason: they are on different pin pairs, and omitting `Wire.end()` before reconfiguring causes an I²C lockup.",
+      "answers": [
+        { "order": 0, "text": "UART carries no addressing, so bytes from the other sensor cannot be distinguished from this one's and must be discarded; I²C transactions carry a 7-bit device address, so a part only answers when addressed", "isCorrect": true },
+        { "order": 1, "text": "UART is asynchronous and therefore has no clock line to resynchronise on, so the buffer must be cleared to re-establish framing between the two sensors", "isCorrect": false },
+        { "order": 2, "text": "The SprintIR's receive buffer is much larger than the SHT45's, so it accumulates stale data over a full six-step cycle while the SHT45 cannot", "isCorrect": false },
+        { "order": 3, "text": "The drain compensates for the SprintIR's 32-sample digital filter, which continues emitting buffered averages for a short period after the port is re-pinned", "isCorrect": false }
+      ]
+    },
+    {
+      "id": "q20-3",
+      "order": 2,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "Every CSV row carries a `boot` column: a `uint16` read from NVS at startup, incremented, and written back. The `timestamp` column beside it is `HH:MM:SS` elapsed since power-on. What problem does the boot counter solve, and why is it not made redundant by the `epoch` column?",
+      "explanation": "It makes rows from different runs distinguishable and orderable **with no clock anywhere in the system**. `timestamp` restarts from zero on every power cycle, so two sessions that both begin at `00:00:05` are indistinguishable once their rows are in the same file, and a plot of one experiment can silently contain rows from another. With the boot counter, `(boot, timestamp)` is a unique key and a total order: sort by boot, then by elapsed time, and you have the true sequence of every row ever written. It costs two bytes per row and one flash write per power cycle, and it needs no phone, no network and no RTC. That last clause is why `epoch` does not replace it. `epoch` is only populated when a phone is connected and its data is fresh within 10 s — a headset that ran alone all afternoon produces a file with a full `boot` column and an entirely `null` `epoch` column, which is the honest description of what that headset knows. The two are complementary: the boot counter gives you ordering and separation for free and always; the epoch gives you an absolute date and only when somebody was there with a phone. The boot counter's honest limits are that it wraps at 65,535 power cycles, and that it tells you runs are *different* and in what *order*, never how much time passed between them.",
+      "answers": [
+        { "order": 0, "text": "It separates and orders runs when the elapsed timestamp restarts at zero, and it works with no phone, network or clock — which `epoch` does not, since `epoch` is `null` whenever no phone is connected", "isCorrect": true },
+        { "order": 1, "text": "It counts brownouts and unexpected resets so that data quality can be assessed afterwards, which the epoch cannot show because it is continuous across a reboot", "isCorrect": false },
+        { "order": 2, "text": "It gives each row a unique identifier for deduplication when the same file is synced over both WiFi and BLE, which the epoch cannot do because two rows can share a second", "isCorrect": false },
+        { "order": 3, "text": "It is a legacy field from before the epoch column existed and is now redundant, kept only so that pre-existing column indices do not move", "isCorrect": false }
+      ]
+    },
+    {
+      "id": "q20-4",
+      "order": 3,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "The Unix epoch in the CSV does not come from the headset. It arrives in bytes 33–36 of the `PHONE` characteristic, written by the app once a second, and the firmware reconstructs the current wall clock at row-write time as `phoneEpoch + (millis() − phoneEpochRxMs) / 1000`. Why is the clock imported rather than kept on the device, and what is the role of `millis()` in that expression?",
+      "explanation": "An ESP32-S3 has no real-time clock and no backup battery to keep one running. All it has is `millis()`, a count of milliseconds since power-on — a **monotonic** clock, excellent for measuring intervals and completely useless for identifying an instant, because its zero point is arbitrary and moves on every reset. A phone's clock is network-synchronised and continuously disciplined, so the wall clock is taken from the device that actually has one. The expression then uses each clock for what it is good at: the imported epoch supplies the **absolute offset**, and `millis()` supplies the **elapsed interval** since that offset arrived. Crucially the arithmetic uses a *difference* of `millis()` values and never an absolute one, so it is immune to the fact that zero means nothing. Because the phone rewrites every second, the accumulated drift is one second's worth of crystal error — microseconds — and the real resolution limit on the file is the 5-second row spacing, not the oscillator. The failure mode is also explicit rather than silent: `phoneFreshUntilMs` marks phone data stale 10 s after the last write, and a row written with stale data puts `null` in the `epoch` column rather than extrapolating from an old anchor.",
+      "answers": [
+        { "order": 0, "text": "The ESP32-S3 has no RTC, so `millis()` is monotonic but has no zero point; the imported epoch supplies the absolute offset and a `millis()` *difference* supplies the elapsed interval since it arrived", "isCorrect": true },
+        { "order": 1, "text": "The ESP32-S3's RTC exists but drifts by minutes per day, so the phone's value is used to correct it, and `millis()` measures how far the RTC has drifted since the last correction", "isCorrect": false },
+        { "order": 2, "text": "BLE cannot carry a timestamp in the outbound `LIVE` notify, so the inbound `PHONE` write is the only characteristic with room for it, and `millis()` is used to reject packets that arrived out of order", "isCorrect": false },
+        { "order": 3, "text": "The epoch is imported so that phone and headset agree on a shared time base for the physiology models, and `millis()` converts the phone's local time zone into UTC before it is written to the file", "isCorrect": false }
+      ]
+    },
+    {
+      "id": "q20-5",
+      "order": 4,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "The BLE `LIVE` notify fires at about 1 Hz and `logData()` writes a CSV row every 5 s. A member wants to reconstruct breathing rate from `data.csv` files recorded last semester, reasoning that the data is all there and only needs better filtering. What is wrong with that plan?",
+      "explanation": "Breathing is not in the file. A resting adult breathes at roughly 0.25 Hz, and Nyquist requires sampling above **twice** the frequency you want to reconstruct. The 5-second CSV row spacing is 0.2 Hz, which gives about 0.8 samples per breath — below Nyquist, so the breathing component is not merely noisy, it is unrecoverable, and no filter, however good, can put back information that was never sampled. Worse, it does not simply vanish: a 0.25 Hz signal sampled at 0.2 Hz **aliases**, reappearing as a slow ~0.05 Hz wander that looks exactly like a genuine physiological trend and will be interpreted as one by anybody who does not know where it came from. The 1 Hz BLE stream is a different matter — about four samples per breath, thin but above Nyquist, so a breathing signal is in principle recoverable there. That is why `C19`'s respiration model reads the live stream rather than the log. Note that this is a consequence of a single constant: the 5,000 in `logData()`'s throttle. Nothing about the sensor prevents a faster row; the sampling rate the analysis gets to keep was fixed by a logging decision.",
+      "answers": [
+        { "order": 0, "text": "0.2 Hz sampling is below Nyquist for a ~0.25 Hz breathing signal, so it is absent rather than noisy — and it aliases into a slow drift that can be mistaken for a real trend", "isCorrect": true },
+        { "order": 1, "text": "The CSV stores CO₂ as an integer in ppm, and the quantisation to 10 ppm steps destroys the breath-scale modulation regardless of the sampling rate used", "isCorrect": false },
+        { "order": 2, "text": "The rows are timestamped only to the second, so the jitter between rows exceeds a breath period and the signal cannot be phase-aligned across pods", "isCorrect": false },
+        { "order": 3, "text": "Nothing is wrong — 0.2 Hz is above the 0.1 Hz Nyquist limit for 0.25 Hz breathing, so the signal is present and only needs a band-pass filter to recover", "isCorrect": false }
+      ]
+    },
+    {
+      "id": "q20-6",
+      "order": 5,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "The pump's enable state, power, mode and setpoint are persisted to NVS and restored on boot. A member argues this is a convenience feature and should be dropped to save flash wear. What is the actual argument for it?",
+      "explanation": "It is a data-integrity mechanism, not a convenience. Follow what happens without it. A session is running at 60 % pump power; a battery is swapped or a brownout resets the board, and the pump comes back at its default. The sampling flow rate has changed, which changes the transport delay through the tubing (`C17`), which changes the phase relationship between the pods, which is precisely the quantity `C19`'s airflow model infers direction from. Every measurement after that reset was taken by a **different instrument** than the ones before it — and unless something records the change, the file contains an invisible discontinuity that nobody, including the person who took the data, can find afterwards. That is not an annoyance; it is a result that cannot be reproduced. In this particular case a careful analyst could still catch it, because `pump_mw` is written on every row on the reasoning that airflow is a covariate for every other channel. Note that persistence and recording are two separate defences and this system does not have both everywhere: the nine calibration offsets persist in NVS and are applied to every reading before it is logged, and **no column records which offsets were in force** — so two runs with different calibrations produce structurally identical, non-comparable files. Flash wear is a non-issue by comparison: these are a handful of writes per power cycle, not per row.",
+      "answers": [
+        { "order": 0, "text": "A setting that silently resets changes the instrument mid-study — here the sampling flow rate, and therefore the transport delay the airflow model depends on — leaving an invisible discontinuity in the data", "isCorrect": true },
+        { "order": 1, "text": "The Lee driver board loses its own configuration on power-down and will not accept commands until a complete setting set has been rewritten, so the NVS copy is required for the pump to start at all", "isCorrect": false },
+        { "order": 2, "text": "It avoids a current surge at boot, since restoring the previous power level is gentler on the piezoelectric actuator than ramping from zero to the commanded setpoint", "isCorrect": false },
+        { "order": 3, "text": "It keeps the firmware and the app in sync, since the app has no way to read the pump's current state and relies on the persisted values being echoed in the `PUMP` notify", "isCorrect": false }
+      ]
+    },
+    {
+      "id": "q20-7",
+      "order": 6,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "The inbound `PHONE` payload grew from 17 bytes to 33 to 37 to 47 as GNSS, an event string, a clock and then watch biometrics were added. There is no version byte anywhere in it. The next-generation pod adds oxygen and VOC channels, which will need to go into the outbound `LIVE` payload and the CSV. What rule are both of those changes bound by, and why does it work?",
+      "explanation": "New fields go on the **end**, and only on the end. On the BLE side the firmware never checks a version — it checks a **length**, parsing each block only if the packet is long enough to contain it (`if (val.size() >= 33)`, `>= 37`, `>= 47`). An old phone talking to new firmware sends 17 bytes and works; a new phone talking to old firmware sends 47 and the surplus is ignored. That only holds because every earlier field keeps its offset, which in turn is why absent values are carried as fixed-width sentinels — `NAN`, `INT16_MIN`, `0xFF`, `0xFFFFFFFF` — rather than by omitting the field, since omission would make every offset depend on the data. The CSV has the same rule for the same reason: once a format has escaped into SD cards, spreadsheets and analysis scripts, its **column indices are load-bearing**, and inserting a column in the middle does not crash a script that says 'column 14 is latitude' — it plots longitude as latitude and produces a perfectly convincing picture. This is why the three pump columns were appended last, explicitly so that no pre-existing index moved. It is the one place in this course where a design decision has visibly already paid for itself, since the roadmap on slide 13 of the 7/30 deck is about to exercise it. Note the residual risk the rule does not cover: the CSV header is written only when the file does not already exist, so a card can carry an old header above new-format rows, with nothing in the file to say so.",
+      "answers": [
+        { "order": 0, "text": "New fields are appended, never inserted — the parser gates on payload length rather than a version number, and fixed-width sentinels keep every earlier offset and column index stable", "isCorrect": true },
+        { "order": 1, "text": "New fields must be added to both sides in the same release, since a length mismatch causes the characteristic write to be rejected by the GATT stack before the callback runs", "isCorrect": false },
+        { "order": 2, "text": "New fields replace unused sentinel values in the existing payload, keeping the packet at a fixed 47 bytes so the negotiated MTU of 64 never has to change", "isCorrect": false },
+        { "order": 3, "text": "New fields are inserted next to related ones for readability, and consumers locate them by name from the CSV header row rather than by fixed offset", "isCorrect": false }
+      ]
+    }
+  ]
+}
