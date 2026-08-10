@@ -25,7 +25,7 @@ quietly presented as complete.
 | M7 | Zhou et al., hot-wire calibration facility at 0.1–1.0 m/s | `zhou2024` | `10.3390/app14041587` | — **upload needed** | Verified · **not uploaded** · **L07 written against a placeholder id, see note G** |
 | M8 | Campbell et al., ICWTS, ICES-2026-499 | `campbell2026` | ICES-2026-499 | `1OzdK0KPj9i87jCsERj-UPJKayFQvmgXq` | In Drive · **not shared** |
 | M9 | Toptsis et al., embedded software architectures for multi-sensor wearables | `toptsis2026` | `10.3390/electronics15020295` | — **upload needed** | Verified · **not uploaded** · **L09 written against a placeholder id, see note H** |
-| M10 | Martin et al., evaluation and correction of a low-cost NDIR sensor | `martin2017` | `10.5194/amt-10-2383-2017` | — **upload needed** | Verified · **not uploaded** |
+| M10 | Martin et al., evaluation and correction of a low-cost NDIR sensor | `martin2017` | `10.5194/amt-10-2383-2017` | — **upload needed** | Verified · **not uploaded** · **L10 written against a placeholder id, see note I** |
 | M11 | *Herrick Labs Research Protocol* (internal) | `herrick2026` | internal working document | `1kjHjWjdENSDzMKbvTvvgtEIz3sPBPgXvoWk7cXvtVlg` | In Drive · **Google Doc, not a PDF, see note D** · **not shared** |
 
 **No row is ready to render in the course yet.** Two things must happen in a browser
@@ -351,6 +351,29 @@ from a script.
 Table 3 (real-time pipeline styles), Table 4 (SPI/I²C/UART/BLE characteristics), Table 8 (bare-metal
 versus RTOS), §5.1's two sentences about super-loops, and §2's high-resolution-timestamping
 prescription. If a future maintainer needs to check a quoted phrase, those are the places to look.
+
+**I. M10's `L10` carries the same deliberate placeholder id, for the same reason (2026-08-10).**
+`martin2017` was not uploaded when M10 was written, so `L10` carries
+`pdfDriveFileId: PENDING_UPLOAD_SEE_SOURCES_MD_OPEN_ACTION_2`, exactly as `L07` and `L09` do. The
+reasoning in note G applies unchanged. Fix by open action 2, then replace the string in `L10`'s
+frontmatter and this row's **Drive file id** cell in the same commit. Unlike `toptsis2026` (note H),
+this PDF has no bot check —
+`https://amt.copernicus.org/articles/10/2383/2017/amt-10-2383-2017.pdf` is served directly, 5.3 MB,
+verified to be the published CC BY 3.0 version.
+
+`L10` was written against the full text. The load-bearing citations in its rubric and reference
+summary are **Table 1** (per-sensor RMSE at each correction step), **§6.3** (generalised coefficients
+giving 3.1–23.9 ppm, sometimes worse than uncorrected), **§6.2** (the ~2-week regression period and
+the "not known at this time" statement about drift beyond one month), **§2.1** (the Allan variance
+optimum near 3 minutes), **§4** (per-unit zero offsets up to 20 ppm, and the diurnal/synoptic
+periodicity in the residuals), and **§6.1** (the sunrise sign changes attributed to 1–2 m of
+separation from the reference inlet). §2 is where the **GSS COZIR** appears — evaluated at ±50 ppm
+±3 % and set aside in favour of the K30 — which is the only place in the paper the ARES sensor's
+manufacturer is mentioned, and it is one sentence.
+
+The ABC gap recorded in the M10 section above was handled rather than worked around: `L10` has
+**five** rubric points, four of which a learner can reach from the paper alone, and the fifth (`abc`)
+is graded against `C21` and the firmware with the `promptText` saying so explicitly.
 
 ---
 
