@@ -615,8 +615,12 @@ export default function CalendarPage() {
         members={members}
       />
 
-      {/* Meeting poll board modal */}
-      {activePoll && (
+      {/* Meeting poll board modal.
+          Portalled to <body> like every other modal here: .cpm-modal-overlay is
+          position:fixed, but a transformed ancestor (the reveal-stagger
+          animation on the page) makes it resolve against that ancestor instead
+          of the viewport, so rendered inline it scrolled away with the page. */}
+      {activePoll && createPortal(
         <div
           className="cpm-modal-overlay"
           onClick={e => { if (e.target === e.currentTarget) setActivePoll(null); }}
@@ -640,7 +644,8 @@ export default function CalendarPage() {
               }) : null}
             />
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

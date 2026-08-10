@@ -490,8 +490,18 @@ export default function MeetingPollBoard({
       </div>
 
       {/* Hover detail */}
-      {detailSlot && total > 0 && (
-        <div className="pm-poll-hover-detail">
+      {/* Always mounted, empty until a slot is chosen. Rendering it on demand
+          made the page jump every time the pointer entered or left a cell. */}
+      <div className={`pm-poll-hover-detail ${detailSlot && total > 0 ? '' : 'is-empty'}`}>
+        {!(detailSlot && total > 0) ? (
+          <span className="pm-poll-hover-placeholder">
+            <i className="fas fa-hand-pointer" />
+            {total > 0
+              ? ' Hover or tap a slot to see who is available.'
+              : ' No availability submitted yet.'}
+          </span>
+        ) : (
+        <>
           <strong>{fmtInstant(detailSlot, tz)}</strong>
           {pinnedSlot && (
             <button type="button" className="cpm-icon-btn pm-poll-hover-close"
@@ -521,8 +531,9 @@ export default function MeetingPollBoard({
               </div>
             )}
           </div>
-        </div>
-      )}
+        </>
+        )}
+      </div>
 
       {!canRespond && status === 'OPEN' && (
         <p className="pm-poll-hint" style={{ marginTop: 12 }}>
