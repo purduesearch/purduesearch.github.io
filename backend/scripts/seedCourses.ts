@@ -72,8 +72,14 @@ function readLitConfig(file: string): Record<string, unknown> {
   //   - id: claim
   //     point: States the central claim
   //     weight: 2
+  //
+  // Consume indented lines only, and stop at the first line that starts in
+  // column 0 (the next frontmatter key). Do NOT use `\Z` here: JavaScript has no
+  // such escape, so it is a literal "Z" and any capital Z in a rubric point —
+  // "send Z", "Van der Hegge Zijnen" — silently truncates the block and drops
+  // every point after it.
   const rubric: { id: string; point: string; weight: number }[] = [];
-  const rubricBlock = front.match(/^rubric:\r?\n([\s\S]*?)(?=^\S|\Z)/m)?.[1] ?? "";
+  const rubricBlock = front.match(/^rubric:\r?\n((?:[ \t]+.*(?:\r?\n)?)*)/m)?.[1] ?? "";
   for (const chunk of rubricBlock.split(/^\s*-\s+/m).slice(1)) {
     const id = chunk.match(/id:[ \t]*(.*)/)?.[1]?.trim() ?? "";
     const point = chunk.match(/point:[ \t]*(.*)/)?.[1]?.trim() ?? "";
