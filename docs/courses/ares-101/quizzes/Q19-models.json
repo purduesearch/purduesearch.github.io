@@ -1,0 +1,106 @@
+{
+  "quizId": "Q19-models",
+  "title": "Check yourself: the ten models",
+  "passThreshold": 75,
+  "maxAttempts": null,
+  "questions": [
+    {
+      "id": "q19-1",
+      "order": 0,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "Slide 10 of the 7/30 deck describes all ten models as producing \"validated, research-grounded metrics\". Two of them are PMV/PPD thermal comfort and the fatigue correlation. What is the actual difference in their grounding, and what does that difference let you do?",
+      "explanation": "PMV/PPD is a **standard**: `pmv.dart` implements Fanger's thermal-load equation from **ISO 7730:2005 Annex A**, including the PPD expression and its 5 % floor. There is an external, versioned document with a number on it. That is what \"grounded\" buys you — **if the code disagreed with the standard, the code would be wrong, and you could prove it in an afternoon with the standard open.** The fatigue model is a **heuristic**: `isFatigueCorrelated()` returns true when body-battery drain is at least 10 units/hour and average CO₂ is at least 1,500 ppm. Both constants live in the file. There is nothing outside the repository to check them against, so the only way to find out whether they are right is to measure fatigue directly and compare — which nobody has done. That is the test that separates the rungs: not how sophisticated a model is, but **what you would have to do to prove it wrong.** Note the distractor about unit tests. Every one of the ten models is unit-tested, including fatigue. A test confirms the code computes what the author intended; it says nothing about whether the intent was right. And note the one about complexity: PMV runs a 150-iteration bisection and fatigue is two comparisons, but a heuristic does not become grounded by being complicated, nor a standard ungrounded by being simple — the dosimeter's trapezoidal integration is three lines and sits on the top rung, because ppm·hours is a definition rather than a hypothesis.",
+      "answers": [
+        { "order": 0, "text": "PMV implements a published external specification you could check the code against, ISO 7730:2005; the fatigue thresholds are constants somebody chose, with nothing outside the repo to check them against", "isCorrect": true },
+        { "order": 1, "text": "PMV has unit tests covering its full input range and the fatigue model does not, so only PMV's behaviour has been verified", "isCorrect": false },
+        { "order": 2, "text": "PMV solves an implicit equation by iteration while fatigue applies two fixed thresholds, and a model is grounded to the extent that it models a mechanism rather than a correlation", "isCorrect": false },
+        { "order": 3, "text": "PMV's inputs are all measured by the headset's own sensors while fatigue depends on a Garmin value, and a model is grounded to the extent that its inputs are first-party", "isCorrect": false }
+      ]
+    },
+    {
+      "id": "q19-2",
+      "order": 1,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "`pmv.dart` is a faithful implementation of ISO 7730:2005 — the full thermal-load equation, the standard's own PPD expression, and a numerically stable solve for clothing surface temperature. A member reports a session's PPD figure to a sponsor as an ISO 7730 result. What is wrong with that?",
+      "explanation": "**A standard implemented correctly on estimated inputs is not a standard-grade result.** PMV takes six inputs and the headset measures one and a half of them cleanly. Air temperature and relative humidity come from the SHT45 in each pod — those are real. **Mean radiant temperature** requires a globe thermometer, which the headset does not have, so the function's own documentation says to pass the air temperature when it is unknown, which is the correct fallback and is also a guess. **Air velocity** defaults to a hardcoded 0.1 m/s until M7's anemometers land. **Metabolic rate** comes from `computeMets()`, which is on the bottom rung of C19's ladder — a `220 − age` rule of thumb, a resting heart rate hardcoded at 60 bpm, and a straight line drawn between two points. And **clothing insulation** is a number somebody types in about what the subject appeared to be wearing. So the algorithm is ISO 7730 and the answer is not: the chain is only as strong as the guess in it, and the guess is not in the standard. This is the single most transferable idea in M8, because it generalises past this model — the provenance of a number is the provenance of its **weakest input**, not of its formula. Note the distractor about the clamps: PMV is clamped to [−3, +3] and PPD floors at 5 %, but both of those are *in* ISO 7730, not deviations from it.",
+      "answers": [
+        { "order": 0, "text": "Four of PMV's six inputs are guesses, defaults, or outputs of a heuristic model — so the algorithm is ISO 7730 and the result is not", "isCorrect": true },
+        { "order": 1, "text": "The clamping of PMV to [−3, +3] and the 5 % floor on PPD are simplifications the app adds, so its output diverges from the standard at the extremes", "isCorrect": false },
+        { "order": 2, "text": "ISO 7730 is written for whole-room occupant comfort over long exposures, so a single-subject reading over one session falls outside the standard's stated scope", "isCorrect": false },
+        { "order": 3, "text": "Nothing is wrong — the implementation is faithful and unit-tested, so its outputs are ISO 7730 results by construction", "isCorrect": false }
+      ]
+    },
+    {
+      "id": "q19-3",
+      "order": 2,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "The deck labels one model \"Wells-Riley\" and the file is called `wells_riley.dart`. What does the file actually compute, and what is the general failure this is an example of?",
+      "explanation": "It bins the rebreathed fraction into three tiers at 0.5 % and 2 %, and separately returns a score of `1 − exp(−k·f)` with `k = ln 2 / 0.01`, chosen so the score reads 0.5 at 1 % rebreathing. **That is not the Wells-Riley equation.** Wells-Riley relates infection probability to an infector's quanta emission rate, the ventilation rate, the number of susceptibles and the exposure duration — and none of those quantities appears anywhere in the file, nor could they, because the headset does not know whether anybody in the room is infectious. What the file *does* is defensible and its docstring is accurate: it cites the **Rudnick & Milton (2003) CO₂ model**, which is the standard route from a rebreathed fraction to a ventilation judgement. The saturating curve beside it is a presentation choice — a way to fill a progress bar gracefully — with a constant picked to land on a round number. So the code is honest, the filename is loose, and the deck label is an overclaim. **The general failure is naming a model after a famous equation you did not implement.** Nobody lied; somebody reached for a recognisable label, and by the time it reaches a slide the provenance is gone. The fix costs four words: \"ventilation tier from rebreathed fraction, thresholds after Rudnick & Milton\".",
+      "answers": [
+        { "order": 0, "text": "It bins rebreathed fraction into three ventilation tiers after Rudnick & Milton, plus a saturating display score — the failure is naming a model after a famous equation it does not implement", "isCorrect": true },
+        { "order": 1, "text": "It implements Wells-Riley with the quanta emission rate fixed at a population default — the failure is hiding a critical assumption inside a constant", "isCorrect": false },
+        { "order": 2, "text": "It implements Wells-Riley correctly but is fed a rebreathed fraction rather than a measured ventilation rate — the failure is substituting a proxy for the model's real input", "isCorrect": false },
+        { "order": 3, "text": "It computes an infection probability over the session duration — the failure is that infection risk is not a quantity a CO₂ headset has any business reporting", "isCorrect": false }
+      ]
+    },
+    {
+      "id": "q19-4",
+      "order": 3,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "In `V16`, chin 1,850 ppm and top 700 ppm give a rebreathed fraction of 3.083 % using the app's shipped `kExhaledCo2Ppm = 38,000`, and 2.926 % using `V12`'s 40,000. The label bands put the High/Moderate boundary at 3 %. Which constant is correct, and how much does the disagreement actually move things?",
+      "explanation": "**Neither is correct, and that is the answer.** Both are plausible mixed-expired concentrations — end-tidal CO₂ in a healthy adult is around 5 %, and mixed expired gas is lower because the last of a breath is diluted by anatomical deadspace, so anything from roughly 3.5 % to 4.5 % is defensible. Neither was measured on the subject whose data is being processed, and for one of them to be *correct* you would need a capnograph on that person — at which point you would not need the constant. So `f_rb` is a fraction computed against an **assumed** reference and should never be quoted without saying which. On the size: solving `0.03 = (C_chin − 700)/(C_exhaled − 700)` puts the High/Moderate boundary at a chin reading of **1,819 ppm** at 38,000 and **1,879 ppm** at 40,000 — a shift of **60 ppm**, which at the SprintIR's 10 ppm quantisation (`C16`) is **six sensor counts**. The label is a finer-grained judgement than the choice of constant supports. One thing that does *not* move: `classifyVentilationRisk` puts its top boundary at 2 %, and both fractions clear it, so that tier reads high either way. The same assumption is load-bearing in one model and irrelevant in another, and you cannot tell which without checking.",
+      "answers": [
+        { "order": 0, "text": "Neither — both are defensible unmeasured assumptions; the disagreement shifts the label boundary by 60 ppm of chin reading, which is six of the sensor's 10 ppm counts", "isCorrect": true },
+        { "order": 1, "text": "38,000, because it is the shipped constant and the code is the source of truth; V12's figure is a documentation error that should be corrected to match", "isCorrect": false },
+        { "order": 2, "text": "40,000, because it is closer to the physiological end-tidal value of about 5 %; the shipped constant biases every reported fraction high and should be raised", "isCorrect": false },
+        { "order": 3, "text": "It does not matter which — the constant appears in both numerator and denominator, so it cancels out of the ratio and only affects the absolute scale", "isCorrect": false }
+      ]
+    },
+    {
+      "id": "q19-5",
+      "order": 4,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "`V16` shows a subject breathing at 18 BrPM and the respiration card reporting 12.0 BrPM at 74 % confidence — the identical output it gives for a subject genuinely breathing at 12. Where does that come from, and why does a better algorithm not fix it?",
+      "explanation": "`live_history.dart` enforces a **2.000-second minimum interval** between stored samples, so the respiration model's input arrives at **0.5 Hz** no matter what the BLE stream is doing. Nyquist for a 0.5 Hz acquisition is **0.25 Hz, which is exactly 15.0 breaths per minute.** A real rate above 15 cannot be represented; it folds back down, and 18 BrPM is 0.3 Hz, which folds to |0.3 − 0.5| = 0.2 Hz = 12 BrPM. Run the whole normal adult range and the reported rate is a **mirror hinged at 15**: 16 reports 14.0, 18 reports 12.0, 20 reports 10.0, 24 reports 6.1. The direction of the error is the worst possible one — a subject in respiratory distress is breathing fast and this instrument reports them as calm. And no algorithm recovers it, because **once the signal is sampled at 0.5 Hz the information is not in the file.** The two cases are genuinely identical data; that is also why the confidence figure matches to the percentage point and cannot flag it. Note that resampling internally to 4 Hz does not help — you cannot create information by interpolating. None of this is a defect in `respiration.dart`: the transform is correct, its own docstring says the outputs are experimental until fast CO₂ sensors land, and the card prints EXPERIMENTAL. The fix is a faster sample, not better maths.",
+      "answers": [
+        { "order": 0, "text": "The 2 s live-history interval makes Nyquist 0.25 Hz = 15 BrPM, so 18 BrPM folds to 12 — and once sampled that slowly the two signals are identical data, so nothing can separate them", "isCorrect": true },
+        { "order": 1, "text": "The 0.1–0.7 Hz search band excludes 0.3 Hz, so the model falls back to the largest in-band peak, which is the breathing signal's subharmonic at half the true rate", "isCorrect": false },
+        { "order": 2, "text": "Zero-padding to 2,048 points spreads the peak across neighbouring bins, and a windowing function such as Hann would recover the correct bin", "isCorrect": false },
+        { "order": 3, "text": "The linear detrend removes the low-frequency component of a fast breather's trace, leaving the first harmonic dominant; detrending with a higher-order polynomial would fix it", "isCorrect": false }
+      ]
+    },
+    {
+      "id": "q19-6",
+      "order": 5,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "A subject holds their breath for 148 seconds in the middle of a 5-minute window. The respiration card reports 12.0 BrPM, 59 % confidence, status OK. NASA's answer to the same class of problem was ICARUS, a learned breath detector. What is the structural difference, and why does it matter more than the detector being learned?",
+      "explanation": "**A transform integrates over a window; a detector counts events in time.** An FFT tells you which frequencies were present *somewhere* in the window — it does not tell you *when*, and it was never going to. The periodicity genuinely was there, for half the window, so the reported 12.0 BrPM is not even wrong in the way a bug is wrong. A breath detector finds each breath as an event with a timestamp, so \"no breaths in the last 148 seconds\" is something it can express. There is a second, sharper version of the same point: **the FFT model cannot output zero at all.** Its result is a bin index times a bin width, and the lowest in-band bin over a 5-minute window is **6.09 BrPM**. It returns null only when all 307 in-band bins hold *exactly* zero energy, which requires a mathematically perfect constant and never happens to real air read by a real sensor. So a full-window apnea produces a confident-looking 6.1 BrPM rather than a blank — and apnea detection is the entire point of the Herrick sleep study. That the detector is a neural network is almost incidental: the architecture is what buys you the capability, and a much simpler event detector would buy most of it. Note NASA's own caveat, from ICES-2026-499: their detector over-counted good breaths at resting metabolic rates, traced to a sample port sitting an eighth of an inch proud of the mouthguard's oral plane. A learned detector inherits the geometry of the rig that trained it, which is why ARES could adopt the approach but not the model.",
+      "answers": [
+        { "order": 0, "text": "A transform reports what frequencies were present somewhere in the window with no timing; a detector counts breaths as timestamped events, so it can report zero — which the FFT model, whose floor is 6.09 BrPM, structurally cannot", "isCorrect": true },
+        { "order": 1, "text": "A neural network is trained on real corrupted waveforms rather than assuming a sinusoid, so it tolerates non-sinusoidal breaths that break an FFT's underlying model", "isCorrect": false },
+        { "order": 2, "text": "A detector runs on each incoming sample rather than on a buffered window, so it reports in real time while the FFT is always up to five minutes behind", "isCorrect": false },
+        { "order": 3, "text": "A detector is not bandwidth-limited, so unlike the FFT it is unaffected by the acquisition Nyquist limit and works correctly at any sample rate", "isCorrect": false }
+      ]
+    },
+    {
+      "id": "q19-7",
+      "order": 6,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "ICES-2026-499's abstract and objectives are built around the Flow Weighted Average — a convolution of bidirectional flow with inspired CO₂, which NASA built the MG-220 mouthguard flow sensor specifically to enable. What does Section IV conclude about it, and what should ARES take from that?",
+      "explanation": "**They recommend dropping the flow sensor.** The mouthguard flow sensors were especially sensitive to moisture in the flow path and had to be replaced frequently through the test series; post-test data reduction confirmed that a simpler baseline measurement — the 20–80 % portion of the inspiratory trough — gave a similar and acceptable result to the FWA computed from the flow sensors; and the authors conclude the benefit does not offset the fabrication, calibration and replacement overhead or the difficulty of deploying it to the community at large. All three configurations they recommend in Table 3 use the baseline method and none carries a flow sensor. **Both halves of the paper are correct and they are not in tension.** FWA *is* the physiologically meaningful quantity, for exactly the reason `C13` gives — what loads the blood is the CO₂ you actually inhale, and a time average charges you equally for gas you never breathed. It is also, on this hardware in this environment, not worth what it costs, and the way they established that was to build it, run twenty subjects through it, and compare. For ARES the immediate consequence is concrete: M7 is putting an FS7 in every pod and somebody will propose flow-weighting the rebreathed fraction with it. **The FS7 reads speed with no directional discrimination** (`C18`), and flow weighting needs to know which way the gas is going, so it is the wrong sensor for the job. That is a hardware gap, and finding it before somebody spends a semester on firmware is what this reading is for.",
+      "answers": [
+        { "order": 0, "text": "That the flow sensors kept failing on moisture and a simpler baseline measurement gave an acceptable answer, so all three deployed configurations drop them — a methods trade settled by measurement, not argument", "isCorrect": true },
+        { "order": 1, "text": "That FWA gave significantly different results from TWA and is therefore mandatory, so ARES should treat a bidirectional flow sensor in each pod as a requirement rather than an upgrade", "isCorrect": false },
+        { "order": 2, "text": "That FWA could not be computed at all because the fiber-coupled laser spectrometer failed on condensation, so the method remains unvalidated and untested", "isCorrect": false },
+        { "order": 3, "text": "That FWA is only meaningful inside a suit's closed ventilation volume, so it is mathematically undefined for an open-air measurement like ARES's and cannot be ported", "isCorrect": false }
+      ]
+    }
+  ]
+}
