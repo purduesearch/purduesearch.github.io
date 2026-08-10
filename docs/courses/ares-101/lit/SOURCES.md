@@ -26,7 +26,7 @@ quietly presented as complete.
 | M8 | Campbell et al., ICWTS, ICES-2026-499 | `campbell2026` | ICES-2026-499 | `1OzdK0KPj9i87jCsERj-UPJKayFQvmgXq` | In Drive · **not shared** |
 | M9 | Toptsis et al., embedded software architectures for multi-sensor wearables | `toptsis2026` | `10.3390/electronics15020295` | — **upload needed** | Verified · **not uploaded** · **L09 written against a placeholder id, see note H** |
 | M10 | Martin et al., evaluation and correction of a low-cost NDIR sensor | `martin2017` | `10.5194/amt-10-2383-2017` | — **upload needed** | Verified · **not uploaded** · **L10 written against a placeholder id, see note I** |
-| M11 | *Herrick Labs Research Protocol* (internal) | `herrick2026` | internal working document | `1kjHjWjdENSDzMKbvTvvgtEIz3sPBPgXvoWk7cXvtVlg` | In Drive · **Google Doc, not a PDF, see note D** · **not shared** |
+| M11 | *Herrick Labs Research Protocol* (internal) | `herrick2026` | internal working document | `1kjHjWjdENSDzMKbvTvvgtEIz3sPBPgXvoWk7cXvtVlg` | In Drive · **Google Doc, not a PDF, see note D** · **not shared** · **L11 written against a placeholder id, see note J** |
 
 **No row is ready to render in the course yet.** Two things must happen in a browser
 before any `LIT_REVIEW` section works — see *Open actions* at the bottom. They are not
@@ -374,6 +374,35 @@ manufacturer is mentioned, and it is one sentence.
 The ABC gap recorded in the M10 section above was handled rather than worked around: `L10` has
 **five** rubric points, four of which a learner can reach from the paper alone, and the fifth (`abc`)
 is graded against `C21` and the firmware with the `promptText` saying so explicitly.
+
+**J. M11's `L11` carries a placeholder id too, but for a different reason from notes G–I (2026-08-10).**
+The other three placeholders are waiting on an upload. This one is waiting on an **export**, because the
+document is a native Google Doc rather than a PDF — see note D. `L11` therefore carries
+`pdfDriveFileId: PENDING_PDF_EXPORT_SEE_SOURCES_MD_NOTE_D`, which names the note that fixes it rather
+than open action 2, since open action 2 is about the five papers and does not cover this file.
+
+The reasoning about *why* a placeholder rather than the real id is identical to note G: the real id
+(`1kjHjWjdENSDzMKbvTvvgtEIz3sPBPgXvoWk7cXvtVlg`) is a genuine Drive id, so `readLitConfig()` would
+accept it and the module would seed — and then fail in the player, because `drive.google.com/file/d/<id>/preview`
+is the wrong URL form for `application/vnd.google-apps.document` and would not render the protocol. An id
+that is real but structurally wrong for the renderer is the worst of the three cases: it passes every check
+and fails in front of a learner. Fix by note D's export-and-upload, then replace the string in `L11`'s
+frontmatter and this row's **Drive file id** cell in the same commit.
+
+`L11` was written against the full text, read via Drive on 2026-08-10. The load-bearing content in its
+rubric and reference summary is §2 "Calibration" (the 25 °C / 1013 mbar / 0.2 L/min factory point, the
+fixed 0.5 L/min, the one-point Aranet calibration repeated at every temperature setpoint, and the
+two-point future work), §2 "Facility Criteria" (the closed-room ~400 ppm reference condition, the ≥10 °C
+adjustable range, the rectangular-room preference, and the corner outflow boundary explicitly not
+required), and §3 (the paired one-minute anemometer baseline, and the 2–5 minute controlled
+mouth-breathing collection across a proposed 20–30 °C range under Purdue's below-35 °C guidance pending
+IRB). §1 is background and restates `C12`'s physics.
+
+Two things a future maintainer should know. The protocol writes **HBTP** where this course writes
+**HTBP**; `L11`'s reference summary flags it so a learner is not marked down for either. And this is a
+**living internal document** — `L11`'s rubric quotes its numbers directly, so a revision to the protocol
+means re-reading all four rubric points against it in the same commit. That fragility is called out in
+`L11`'s own maintainer note as well as here.
 
 ---
 
