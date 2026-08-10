@@ -24362,3 +24362,22 @@ html:not(.aos-off) [data-aos].aos-animate  { opacity: 1; transform: none; }
    the board ever needs to widen the page. overflow-x:clip (not hidden/auto)
    leaves the vertical axis visible and creates no nested scroll container. */
 .pm-poll-board { min-width: 0; overflow-x: clip; }
+
+/* Native form-control internals -- the picker indicator on input[type=time] and
+   input[type=datetime-local], number spinners, scrollbars -- are painted by the
+   browser in its *light* palette unless the page declares a colour scheme. That
+   is why the poll creator showed black clock and calendar glyphs sitting on its
+   dark inputs: no CSS of ours draws them, so no colour of ours applied.
+   Declared on the root because the create/edit modal is portalled to
+   document.body and therefore renders outside .clubpm-app. */
+html.pm-dark-route { color-scheme: dark; }
+.clubpm-app { color-scheme: dark; }
+
+/* <button> does not inherit `color`: the UA assigns it `buttontext`, i.e. black.
+   Making the body light (what .pm-dark-route does) therefore cannot reach a
+   button -- its text stays black on the dark surface until the colour is stated
+   outright. These are the poll buttons that never declared one.
+   Kept to single-class specificity so they cannot outrank a modifier such as
+   .cpm-btn-primary, which sets its own colour deliberately. */
+.pm-poll-card { color: var(--clubpm-text-primary, #f0f2f7); }
+.pm-poll-selected-avatar { color: var(--clubpm-text-primary, #f0f2f7); }
