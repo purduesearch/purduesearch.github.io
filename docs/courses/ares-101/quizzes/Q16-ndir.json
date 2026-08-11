@@ -1,0 +1,106 @@
+{
+  "quizId": "Q16-ndir",
+  "title": "Check yourself: NDIR and the SprintIR",
+  "passThreshold": 75,
+  "maxAttempts": null,
+  "questions": [
+    {
+      "id": "q16-1",
+      "order": 0,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "You send `Z` to a SprintIR-6S-20 % and the sensor replies with the line ` Z 00040`. What is the CO₂ concentration, and where did the conversion factor come from?",
+      "explanation": "400 ppm, and the factor was read out of the sensor itself at boot. `Z` does not return ppm — it returns raw counts. The firmware multiplies by a per-sensor multiplier that it obtained by sending `.` during `probeAndInitCO2()`, and a 0–20 % part answers 10. So 40 × 10 = 400 ppm, which is outdoor ambient. Two details matter. First, the multiplier is probed rather than hardcoded, so the same firmware runs on a 0–5 % part (multiplier 1, ppm reported directly) or a 0–100 % part (multiplier 100), and a mis-shipped variant is caught at boot instead of producing readings wrong by a factor of ten. Second, the `.` query doubles as the presence probe — a valid reply proves the sensor is physically there and tells the firmware how to scale it in the same round trip, which is why the headset runs happily with any subset of its sensors fitted. Note also the leading space on the response line: every GSS reply has one, and the firmware's parser skips it explicitly.",
+      "answers": [
+        { "order": 0, "text": "400 ppm — `Z` returns raw counts, and the firmware multiplies by a multiplier it read from the sensor with `.` at boot (10 for the 0–20 % part)", "isCorrect": true },
+        { "order": 1, "text": "40 ppm — the response is already in ppm, and 40 ppm is a plausible reading for a sensor in clean gas", "isCorrect": false },
+        { "order": 2, "text": "400 ppm — the firmware applies a fixed ×10 scaling compiled in for the SprintIR-6S-20 %", "isCorrect": false },
+        { "order": 3, "text": "4,000 ppm — the leading space is a decimal placeholder, so the field reads 000400 at ppm/10", "isCorrect": false }
+      ]
+    },
+    {
+      "id": "q16-2",
+      "order": 1,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "At boot, `probeAndInitCO2()` sends `K 0` before it sends anything else — before the multiplier query, the filter setting, or the ABC command. Why does that command have to go first?",
+      "explanation": "Because GSS sensors ship in streaming mode, and CO₂ sensors 2 and 3 share one UART. `K 1` is streaming mode: the sensor transmits measurement lines continuously, unprompted. GSS parts have no bus addressing of any kind, so sensors 2 and 3 can never both be live on the port they share — `co2Port()` calls `end()`, then `begin()` with the target sensor's pins, and drains the receive buffer before every single access. Now add a streaming sensor to that arrangement. Its unsolicited lines are already sitting in the buffer when the firmware re-pins the port and asks the *other* sensor a question, so the reply the parser reads belongs to the wrong sensor. `K 0` puts the part into command mode and shuts it up, and it is retried up to three times because a streaming sensor is mid-line when you start and a command has to land on a clean boundary. Only then does the rest of the sequence run: `.`, `A 32`, `@ 0`, `K 2`. The same rule applies at the bench — `K 0` first, or the sensor talks over your terminal exactly the way it talks over the shared UART.",
+      "answers": [
+        { "order": 0, "text": "GSS sensors ship in streaming mode, and one streaming sensor floods the UART that sensors 2 and 3 share, corrupting the other sensor's replies", "isCorrect": true },
+        { "order": 1, "text": "`K 0` resets the sensor's internal calibration to factory defaults, which every other command depends on", "isCorrect": false },
+        { "order": 2, "text": "It assigns the sensor a bus address, without which the shared UART cannot distinguish sensor 2 from sensor 3", "isCorrect": false },
+        { "order": 3, "text": "It starts the warm-up timer, and readings taken before it are not suppressed", "isCorrect": false }
+      ]
+    },
+    {
+      "id": "q16-3",
+      "order": 2,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "A pod is sitting in air at exactly 400 ppm. The concentration rises to 405 ppm. What does the SprintIR-6S-20 % report?",
+      "explanation": "Nothing changes — it reports 400 (or 410), because there is no code for 405. The multiplier is 10, so the representable values are 390, 400, 410 and so on: raw count 40 is 400 ppm and raw count 41 is 410 ppm, with nothing in between. At 10 ppm resolution, a 5 ppm real change is invisible — not noisy, not hard to see, absent from the output. Worth tracing where the 10 came from, because it was not a decision anybody made about resolution. The multiplier is 10 because the part is the 0–20 % variant, and the 0–20 % variant exists because Beer–Lambert forces a trade: a path long enough to resolve small changes near ambient leaves almost no light at 200,000 ppm, and a path short enough to work at full scale can barely see 400 ppm at all. Somebody ordered a 200,000 ppm range and the 10 ppm step came in the same box. One consequence for this project: the rebreathing measurement is a difference of two quantised readings, so it carries √2 times the quantisation noise of either — about 4.1 ppm on a 10 ppm grid.",
+      "answers": [
+        { "order": 0, "text": "No change — 405 ppm is not representable at a multiplier of 10, so the reading stays on 400 (or steps to 410)", "isCorrect": true },
+        { "order": 1, "text": "405 ppm — the multiplier scales the reported value but the sensor's internal resolution is 1 ppm", "isCorrect": false },
+        { "order": 2, "text": "It reports 405 ppm, but only once the `A 32` digital filter has averaged enough samples to resolve it", "isCorrect": false },
+        { "order": 3, "text": "The reading becomes unstable, alternating between 400 and 410 as the value sits on a boundary", "isCorrect": false }
+      ]
+    },
+    {
+      "id": "q16-4",
+      "order": 3,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "Why does the firmware derive the CO₂ warm-up window from uptime — `millis() < 30000` — rather than asking the sensor whether it is ready?",
+      "explanation": "Because there is nothing to ask. The SenseAir parts ARES 1 used exposed a status register with a warm-up bit, so the firmware could query readiness directly. GSS exposes no such bit, so `co2WarmingUp()` counts instead. The 30-second figure is two things added together — the part's quoted sub-30-second start-up, and the digital filter needing roughly its own setting in seconds to converge, with the filter set to 32. Neither has been measured on this hardware, which is worth knowing before you trust the window. Note what the firmware does during it: readings are **suppressed**, `co2Warmup[i]` is set, and the UI shows \"warming up\" rather than a number. That is the right call and the reason is worth carrying — an unconverged filter output is not obviously bad data, it is a *plausible* reading that happens to be wrong, and a blank labelled \"warming up\" cannot be mistaken for a measurement while a plausible number can.",
+      "answers": [
+        { "order": 0, "text": "GSS sensors expose no warm-up status bit — the SenseAir parts ARES 1 used did, and the uptime counter replaces it", "isCorrect": true },
+        { "order": 1, "text": "Querying the status register on every poll would flood the UART that sensors 2 and 3 share", "isCorrect": false },
+        { "order": 2, "text": "The sensor's status bit clears before the digital filter has converged, so it reports ready too early to be useful", "isCorrect": false },
+        { "order": 3, "text": "Uptime is more reliable because the status bit resets whenever the shared UART is re-pinned by `co2Port()`", "isCorrect": false }
+      ]
+    },
+    {
+      "id": "q16-5",
+      "order": 4,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "You have been asked to measure T90 for the headset's CO₂ sensors. Which setup actually measures T90, rather than something else?",
+      "explanation": "A bare sensor with the gas applied directly at its inlet, polled from a serial terminal. T90 is the time for the *sensor's* reading to reach 90 % of its new value after a step change in the gas at its inlet — a property of the sensor's optics, internal volume, electronics and digital filter. Two setups quietly measure something else. Leave the tubing fitted and you measure transport delay plus T90, because the gas now has to travel from the sampling inlet to the sensor first; that is a property of the plumbing, it is M6's subject, and the two are corrected differently. Log through the headset and you measure your own sample rate, because the BLE `LIVE` stream runs at about 1 Hz and the CSV writes a row every 5 seconds — if the true T90 is around 1.6 seconds neither can resolve it. At the terminal a `Z` round trip is about 14 ms of wire time at 9600 baud, so 10–20 Hz polling is comfortable. This is deliverable subtask 2.5.5, and it is worth doing because the answer is genuinely unknown to this team: the two plausible readings of what `A 32` means differ by roughly fifteen times in how much of a breath-rate signal survives the filter.",
+      "answers": [
+        { "order": 0, "text": "A bare sensor on the bench, gas applied at its own inlet, polled from a serial terminal at 10–20 Hz", "isCorrect": true },
+        { "order": 1, "text": "The assembled headset with tubing fitted, logging to the CSV, so the measurement reflects the system as it is actually used", "isCorrect": false },
+        { "order": 2, "text": "A bare sensor polled over the BLE `LIVE` characteristic, which is the fastest stream the firmware provides", "isCorrect": false },
+        { "order": 3, "text": "The assembled headset, reading the step off the `A 32` filter's settling curve rather than off the gas", "isCorrect": false }
+      ]
+    },
+    {
+      "id": "q16-6",
+      "order": 5,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "At a field site where ambient pressure is 950 hPa, a chin pod calibrated at sea level reports 1,890 ppm. Which of these is true?",
+      "explanation": "All of it hangs on what an NDIR sensor physically counts: absorbing molecules in its optical path, which is a number density, x·P/(k_B·T). At 950 hPa there are about 6 % fewer molecules of everything, so a sensor calibrated at 1013.25 hPa and reporting mole fraction reads low. The true mole fraction is 1,890 × 1013.25/950 = 2,016 ppm — and note the app's danger threshold is 2,000 ppm, so the correction is the difference between the wearer being alerted and not. Say the size of it carefully: the correction adds 6.7 % to the reading, and the reading is 6.2 % below the truth. Same correction, two denominators, and people quote them interchangeably. Then the part that surprises everyone. If the quantity you wanted was partial pressure — which M4 argues is the physiologically meaningful one — the raw reading already gave it to you: p = C_reported × P_calibration = 1,890 × 10⁻⁶ × 760 = 1.436 mmHg, and the long way round gives 2,016 × 10⁻⁶ × 712.6 = 1.436 mmHg, identically, because the actual ambient pressure cancels. Correcting first and then converting double-counts the pressure. The firmware, meanwhile, does neither: ambient pressure arrives from the phone, lands in the CSV's `press_hpa` column, and is never applied to a CO₂ reading.",
+      "answers": [
+        { "order": 0, "text": "The true mole fraction is about 2,016 ppm, and the raw 1,890 ppm reading already gives the correct partial pressure of 1.436 mmHg without any correction", "isCorrect": true },
+        { "order": 1, "text": "The reading is about 6 % high, because lower ambient pressure concentrates the gas in the sensor's optical path", "isCorrect": false },
+        { "order": 2, "text": "The true mole fraction is about 2,016 ppm, and the partial pressure must then be computed from that corrected figure and the local 712.6 mmHg", "isCorrect": false },
+        { "order": 3, "text": "Nothing needs correcting — ppm is a mole fraction, so it is independent of total pressure by definition", "isCorrect": false }
+      ]
+    },
+    {
+      "id": "q16-7",
+      "order": 6,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "NDIR CO₂ sensors look at a band centred near 4.26 µm. What makes that wavelength the right choice?",
+      "explanation": "Two things, and the second one is the one people forget. First, 4.26 µm is the CO₂ molecule's asymmetric stretch — both oxygens moving one way while the carbon moves the other — and it is the strongest CO₂ absorption feature in the accessible infrared, so it gives the largest signal per molecule. Second, and just as important, the rest of the air is transparent there. Nitrogen and oxygen are homonuclear diatomics: two identical atoms, a symmetric charge distribution, no dipole moment to change when they vibrate, and therefore essentially no infrared absorption at all. So 99 % of the gas in front of the sensor does nothing at 4.26 µm and the measurement sits on a nearly empty background. Water is the one real neighbour, and 4.26 µm falls in the gap between its bending mode near 6.3 µm and its stretching modes near 2.7 µm — good separation, but not perfect, which is why humidity is on every NDIR cross-sensitivity list along with N₂O near 4.5 µm and CO near 4.6 µm. \"Non-dispersive\" is a separate claim: it means there is no grating or prism, and the wavelength is selected by a fixed bandpass filter.",
+      "answers": [
+        { "order": 0, "text": "It is CO₂'s strongest infrared band, and N₂ and O₂ have no dipole moment to change when they vibrate, so the bulk of the air is transparent there", "isCorrect": true },
+        { "order": 1, "text": "It is the only wavelength at which CO₂ absorbs and water vapour does not, which removes the humidity cross-sensitivity entirely", "isCorrect": false },
+        { "order": 2, "text": "It is where cheap infrared LEDs and detectors happen to be most efficient, so the band was chosen for cost rather than for the molecule", "isCorrect": false },
+        { "order": 3, "text": "It is the wavelength a grating spreads CO₂ furthest from the other cabin gases, which is what \"non-dispersive\" refers to", "isCorrect": false }
+      ]
+    }
+  ]
+}

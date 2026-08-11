@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Course / section** | ARES 101 · M1 · "Worked problem: is the plume buoyant?" |
-| **Runtime** | 7:05 |
+| **Runtime** | 7:20 |
 | **Format** | Tablet handwriting over slide backdrop + VO |
 | **Backdrop** | Static slide: standing human silhouette, left third of frame; writing area is the right two thirds |
 | **Prerequisite on screen** | Nothing — every value used is written out before it is used |
@@ -51,7 +51,7 @@ Results the narration states, each recomputed at review:
 | `t_adv = L/V` | 0.667 s | 0.7 s |
 | `t_diff = L²/D` | 2,500 s | 42 min |
 | `Gr` at Mars (0.378 g) | 3.4572 × 10⁹ | 3.5 × 10⁹ |
-| `V_buoy` ratio at Mars, `√(g_M/g)` | 0.6150 | 0.62 |
+| `V_buoy` ratio at Mars, `√(g_M/g)` | 0.6150 | 0.61 |
 
 ## Shot list
 
@@ -66,7 +66,7 @@ Results the narration states, each recomputed at review:
 | 03:44–04:36 | Fresh board | `Pe = VL/D`, substitution, `Pe = 3,750`; then the two timescales side by side |
 | 04:36–04:56 | **PAUSE CARD 2** over dimmed board | "Set g = 0. What happens to Gr, to Ra, and to Pe? Answer all three." |
 | 04:56–05:52 | Board, three-column answer | `Gr → 0`, `Ra → 0`, `V → 0` so `Pe → 0`; `D` untouched, ringed |
-| 05:52–06:40 | Backdrop + small Mars glyph | `g_M/g = 0.378`, `Gr_M ≈ 3.5 × 10⁹`, `√0.378 = 0.62`, plume 0.35 → 0.215 m/s |
+| 05:52–06:40 | Backdrop + small Mars glyph | `g_M/g = 0.378`, `Gr_M ≈ 3.5 × 10⁹`, `√0.378 = 0.615`, plume 0.35 → 0.215 m/s |
 | 06:40–07:05 | Everything wiped; one line remains | `t_diff / t_adv = Pe` |
 
 ## Visual edits
@@ -254,7 +254,7 @@ five billion. Still large. Still turbulent.
 *(beat)*
 
 But the plume speed does not scale with g. It scales with the square root of g, because the buoyant
-velocity scale is the square root of g beta delta-T L. Root of 0.378 is 0.62.
+velocity scale is the square root of g beta delta-T L. Root of 0.378 is 0.615.
 
 So a plume that runs at 0.35 metres per second here runs at about 0.215 on Mars. Not gone. Weaker.
 
@@ -273,14 +273,20 @@ t-diffusive over t-advective equals Péclet.
 That is not a new formula. It is the same Péclet number, read as a question: how many times faster
 does the flow clear this space than diffusion would on its own?
 
-On Earth, four thousand. In orbit, one.
+On Earth, four thousand.
+
+*(beat)*
+
+In orbit, zero — and be careful with that, because zero here does not mean "nothing gets cleared". It
+means there is no advective time left to divide by. The flow contributes nothing, so diffusion is the
+whole budget, and the whole budget is forty-two minutes.
 
 *(hold, fade)*
 
 ---
 
-**Word count:** ~1,030 · **Target pace:** 150 wpm + two 20-second pauses + written-arithmetic dwell
-≈ 7:05
+**Word count:** ~1,070 · **Target pace:** 150 wpm + two 20-second pauses + written-arithmetic dwell
+≈ 7:20
 
 ## Notes for the recorder
 

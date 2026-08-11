@@ -159,7 +159,7 @@ And the two error magnitudes on one line, for `f_rb` = 3.083 %:
 | | Effect on `f_rb` |
 |---|---|
 | Quantisation noise, σ = 2.9 ppm per pod | ±0.011 pp — **0.35 % of the answer** |
-| Sensor noise at five times that, σ = 5 ppm | ±0.019 pp — **0.61 % of the answer** |
+| Sensor noise at 1.7× that, σ = 5 ppm | ±0.019 pp — **0.61 % of the answer** |
 | Two uncalibrated pods | **+11.5 % of the answer** |
 | Ratio | **about nineteen times** |
 
@@ -228,8 +228,9 @@ The sensitivity used for those: `∂f/∂C_chin = 1/37300 = 2.681 × 10⁻⁵` p
 
 **[00:00 — three numbers]**
 
-Three sensor pods. One above the crown, one at the brow, one under the chin. They are eight
-centimetres apart on the same headset, and right now they are all sampling the same air.
+Three sensor pods. One above the crown, one at the brow, one under the chin. They are about ten
+centimetres apart on the same headset — twenty-two from crown to chin, the separation `V15` uses —
+and right now they are all sampling the same air.
 
 *(writing, one box at a time)*
 
@@ -455,8 +456,9 @@ One number to kill an objection.
 
 The sensor quantises to ten parts per million, so each pod carries about two point nine of
 quantisation noise; through this formula that is about **one hundredth of a percentage point** on an
-answer of three point oh eight. Give it five ppm per pod instead — five times the quantisation floor
-— and it is two hundredths.
+answer of three point oh eight. Give it five ppm per pod instead — a bit under twice the quantisation
+floor, which is a fair guess at what the real part does once you add drift and thermal noise — and it
+is two hundredths.
 
 *(the ratio written between them)*
 

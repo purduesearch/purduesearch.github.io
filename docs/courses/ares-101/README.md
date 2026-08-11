@@ -202,6 +202,26 @@ Beyond that, three things nothing automates:
    `https://drive.google.com/file/d/<id>/preview`. An unshared file renders as a sign-in wall inside
    the course, not as the paper.
 
+### Status as of 2026-08-11
+
+`check:courses` passes, `seed:courses` installs `✓ ares-101: 11 modules`, `npm run build` passes, and
+`estimatedMinutes` sums to 220. **Item 1 above is done** — every number in `V11`–`V17` was recomputed
+against `GLOSSARY.md` §4 and the four corrections that came out of it are in those files.
+
+Two things still block a learner taking this course end to end, and both are unfinished work from
+earlier tasks rather than anything wrong with the modules that are written:
+
+- **M6 is three files short.** `lit/L06-sample-line-response.md`, `exercises/E03-measure-the-delay.md`
+  and `quizzes/Q17-sampling.json` do not exist. `course.json` already points at all three, so the
+  seeder installs those sections **empty** and says so on every run. `C17` and `V15` are written and
+  correct. Because modules are `sequential`, an empty Q17 means nobody gets past M6.
+- **No `LIT_REVIEW` PDF is viewable by a learner.** The Drive `Papers` folder and its files are
+  owner-only, so all eleven sections render a Google sign-in wall; five PDFs were never uploaded, and
+  `L07`, `L09`, `L10` and `L11` still carry literal `PENDING_…` strings where a file id belongs. The
+  fix is [`lit/SOURCES.md`](lit/SOURCES.md) *Open actions* 1–3, which need a human in a browser.
+
+Until both are cleared the course should stay `"status": "DRAFT"`.
+
 ---
 
 ## Published readings
@@ -210,16 +230,25 @@ Each `content/Cnn` file is publish-quality prose by design and can be posted to 
 `purduesearch.org`. **Publishing is per-module and is the author's call** — these were written for a
 new ARES engineer and several read as too technical for the public site.
 
-| Module | Reading | Published? | Slug |
-|---|---|---|---|
-| M1 | C12 — How gravity moves air | ☐ | — |
-| M2 | C13 — The plume and the bubble | ☐ | — |
-| M3 | C14 — Reading the CFD paper | ☐ | — |
-| M4 | C15 — What CO₂ does to you | ☐ | — |
-| M5 | C16 — NDIR sensing | ☐ | — |
-| M6 | C17 — Sampling | ☐ | — |
-| M7 | C18 — Anemometry | ☐ | — |
-| M8 | C19 — Signal to science | ☐ | — |
-| M9 | C20 — The system | ☐ | — |
-| M10 | C21 — Calibration | ☐ | — |
-| M11 | C22 — Doing the science | ☐ | — |
+Reviewed 2026-08-11. Nothing has been posted yet: the two selected readings are cleared for
+publication and are waiting on someone to paste them into the blog editor. Tick the box and fill the
+slug when that happens.
+
+| Module | Reading | Published? | Slug | Decision |
+|---|---|---|---|---|
+| M1 | C12 — How gravity moves air | ☐ **selected** | — | Publish. General fluid mechanics, no ARES-internal detail anywhere in it, and the one reading that stands entirely on its own for a lay audience. |
+| M2 | C13 — The plume and the bubble | ☐ **selected** | — | Publish. Plume structure and the pod rationale are interesting to a general reader and disclose nothing sensitive. |
+| M3 | C14 — Reading the CFD paper | ☐ | — | Internal. Teaches how to read one specific paper; no standalone value off the course. |
+| M4 | C15 — What CO₂ does to you | ☐ **hold — author's call** | — | **Not cleared.** The physiology is excellent public writing, but the reading discusses a named NASA astronaut's January 2026 **undiagnosed** medical event at length. The section handles it responsibly and explicitly refuses to treat it as evidence — but that is a real, identifiable person's health on the club's public site, next to a CO₂ hypothesis. Publish only with that section cut, or not at all. Not a call to make by default. |
+| M5 | C16 — NDIR sensing | ☐ | — | Internal. Firmware protocol detail. |
+| M6 | C17 — Sampling | ☐ | — | Internal. Hardware detail. |
+| M7 | C18 — Anemometry | ☐ | — | Internal. Circuit detail and three open questions. |
+| M8 | C19 — Signal to science | ☐ | — | Internal. Model-by-model tour of the app. |
+| M9 | C20 — The system | ☐ | — | Internal. This *is* the data contract. |
+| M10 | C21 — Calibration | ☐ | — | Internal. Bench procedure. |
+| M11 | C22 — Doing the science | ☐ **hold** | — | **Not cleared.** The experimental-design and research-ethics half is the best public writing in the course, but "Current state" airs live operational problems: IRB approval outstanding against a slipping schedule, component orders "repeatedly cancelled or misplaced", and a workaround that routes purchasing through the capstone team. That is internal candour and should not go out under the club's public brand. Publishable only as an extract of the first two thirds. |
+
+**Why this differs from the plan.** Task 14 nominated M1, M2, M4 and M11 as the strongest candidates.
+M1 and M2 hold up. M4 and M11 do not survive review for the reasons above — both are excellent
+*internal* writing, and in both cases what disqualifies them is a specific section rather than the
+piece as a whole.
