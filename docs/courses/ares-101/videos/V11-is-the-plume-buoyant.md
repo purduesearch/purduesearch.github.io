@@ -50,7 +50,7 @@ Results the narration states, each recomputed at review:
 | `Pe` (V = 0.3 m/s, L = 0.2 m) | 3,750 | ≈ 4 × 10³ |
 | `t_adv = L/V` | 0.667 s | 0.7 s |
 | `t_diff = L²/D` | 2,500 s | 42 min |
-| `Gr` at Mars (0.378 g) | 3.4572 × 10⁹ | 3.5 × 10⁹ |
+| `Gr` at Mars (0.378 g) | 3.4554 × 10⁹ | 3.5 × 10⁹ |
 | `V_buoy` ratio at Mars, `√(g_M/g)` | 0.6150 | 0.61 |
 
 ## Shot list

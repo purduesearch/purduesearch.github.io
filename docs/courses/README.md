@@ -55,7 +55,7 @@ tours differ, not about one in isolation.
 | `constellation-outreach-and-blog` | Role: comms | ~40 min | Content written · installed by seed:courses |
 | `constellation-admin-tools` | Role: officers (admin-gated) | ~30 min | Content written · installed by seed:courses |
 | `constellation-authoring` | Role: content authors | ~25 min | Content written · installed by seed:courses |
-| `ares-101` | Role: ARES team | ~3 h 40 m | 10 of 11 modules written · M6 short 3 files · lit-review PDFs unshared · DRAFT |
+| `ares-101` | Role: ARES team | ~3 h 40 m | 10 of 11 modules written · **decks not built, so it dead-ends at M4** · no video recorded · M6 short 3 files · lit-review PDFs unshared · DRAFT |
 
 `estimatedMinutes` in each `course.json` is the sum of its modules' estimates; the lengths above are
 those totals rounded. If you add or remove a section, update the module estimate **and** the course
@@ -130,8 +130,25 @@ database — and asserts it stays identical to the editor's own markdown convert
 
 ## Production status
 
-Videos are the only part of this curriculum that a human must physically produce. Everything else
-installs from these files.
+**Two** parts of this curriculum must be physically produced by a human, and neither is a file in
+this tree. Everything else installs from these files.
+
+- A `VIDEO` section needs a recording, uploaded and pasted into `videoConfig.youtubeId`. The
+  `videos/Vnn-*.md` script is what someone records *from*.
+- A `SLIDES` section needs a deck, built from its `slides/Snn-*.outline.md` and imported as a PDF
+  through the slides workbench. The outline is not the deck.
+
+**An un-imported deck is a hard stop, not a blank section.** `isDeckComplete()` returns false when a
+section has zero slides, so a required `SLIDES` section inside a `sequential` module can never be
+completed and every module after it stays locked — for every learner, silently. An unset `youtubeId`
+is milder: the section says "No video has been set for this section yet" and completes on one click,
+so the learner is only taught nothing.
+
+Neither is visible to `seed:courses` or `check:courses`. The outline and the script both exist as
+files; what is missing is database state. **The only check is taking the course end to end in the
+player on a non-admin account.** Do that before marking any course `PUBLISHED`. `ares-101` shipped
+four un-imported decks and dead-ended at its fourth module because this step was skipped; the same
+applies to `S01` in `constellation-101`, which sits in exactly the same position.
 
 | ID | Title | Course | Runtime | Recorded? |
 |---|---|---|---|---|

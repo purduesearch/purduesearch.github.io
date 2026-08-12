@@ -189,38 +189,72 @@ members against a document they cannot find.
 cd backend && npm run check:courses && npm run seed:courses
 ```
 
-`check:courses` validates that every CONTENT body converts to a real TipTap document, without needing
-a database. `seed:courses` installs the course; expect `✓ ares-101: 11 modules`.
+`check:courses` validates that every markdown body converts to a real TipTap document, and existence-
+checks every ref in `course.json`, without needing a database. `seed:courses` installs the course;
+expect `✓ ares-101: 11 modules`.
 
-Beyond that, three things nothing automates:
+Beyond that, **four** things nothing automates. The first is the one this course keeps tripping over:
 
-1. **Every number spoken in V11–V17 must be recomputed at review time.** A derivation with a wrong
+1. **Every VIDEO section needs a recorded video, and every SLIDES section needs an imported deck.**
+   Neither is a file in this directory and neither is seeded. `videos/Vnn-*.md` is the script someone
+   records from; the section only plays once a `youtubeId` is set in the video workbench.
+   `slides/Snn-*.outline.md` is the outline someone builds a deck from; the section only works once
+   that deck's PDF is imported through the slides workbench. **A SLIDES section with no imported
+   slides cannot be completed at all** — `isDeckComplete()` returns false at a slide count of zero —
+   so an un-imported deck inside a `sequential` module locks every module after it. `check:courses`
+   cannot see this: the outline file exists, the slides live in the database.
+2. **Every number spoken in V11–V17 must be recomputed at review time.** A derivation with a wrong
    constant reads perfectly and teaches the wrong thing. Use the property table in `GLOSSARY.md`.
-2. **Every quiz answer must be findable in that module's own content.** If it is not, the question is
+3. **Every quiz answer must be findable in that module's own content.** If it is not, the question is
    wrong, not the learner.
-3. **Every `pdfDriveFileId` must render in a private browser window** at
+4. **Every `pdfDriveFileId` must render in a private browser window** at
    `https://drive.google.com/file/d/<id>/preview`. An unshared file renders as a sign-in wall inside
    the course, not as the paper.
 
 ### Status as of 2026-08-11
 
 `check:courses` passes, `seed:courses` installs `✓ ares-101: 11 modules`, `npm run build` passes, and
-`estimatedMinutes` sums to 220. **Item 1 above is done** — every number in `V11`–`V17` was recomputed
+`estimatedMinutes` sums to 220. **Item 2 above is done** — every number in `V11`–`V17` was recomputed
 against `GLOSSARY.md` §4 and the four corrections that came out of it are in those files.
 
-Two things still block a learner taking this course end to end, and both are unfinished work from
-earlier tasks rather than anything wrong with the modules that are written:
+The written material is complete for ten of eleven modules. What is missing is production and
+distribution — assets that do not live in this directory — and it stops a learner earlier than the
+first version of this section said. In the order a learner hits them:
 
+- **The four decks have not been built or imported, so the course dead-ends at M4.** `S02`
+  (M4), `S03` (M7), `S04` (M9) and `S05` (M11) are outlines; no deck PDF has been imported for any of
+  them, so each section has zero slides in the database. `isDeckComplete()` returns false at a slide
+  count of zero, every SLIDES section is `isRequired` inside a `sequential` module, and M4 is module
+  order 3 — so a learner completes M1–M3, opens `S02`, and cannot get past it. **This is the first
+  hard stop in the course, three modules before the M6 gap below.** Fix by producing each deck from
+  its outline and importing the PDF through the slides workbench.
+- **No video has been recorded, so seven sections teach nothing.** `V11`–`V17` all carry
+  `videoConfig.youtubeId: null`. The player shows "No video has been set for this section yet" and
+  the section completes on one click. Not a blocker, but it is not a small gap either: M1–M3 have no
+  exercise **because their video carries the practice**, so until these are recorded those three
+  modules are a reading, a paper, and a quiz.
 - **M6 is three files short.** `lit/L06-sample-line-response.md`, `exercises/E03-measure-the-delay.md`
   and `quizzes/Q17-sampling.json` do not exist. `course.json` already points at all three, so the
-  seeder installs those sections **empty** and says so on every run. `C17` and `V15` are written and
-  correct. Because modules are `sequential`, an empty Q17 means nobody gets past M6.
+  seeder installs those sections **empty** and `check:courses` now names all three on every run
+  (it previously reported only `E03`, because it existence-checked `bodyRef` alone). `C17` and `V15`
+  are written and correct. Because modules are `sequential` and `submitQuiz` refuses a quiz with no
+  questions, an empty `Q17` means nobody gets past M6 either.
 - **No `LIT_REVIEW` PDF is viewable by a learner.** The Drive `Papers` folder and its files are
   owner-only, so all eleven sections render a Google sign-in wall; five PDFs were never uploaded, and
   `L07`, `L09`, `L10` and `L11` still carry literal `PENDING_…` strings where a file id belongs. The
   fix is [`lit/SOURCES.md`](lit/SOURCES.md) *Open actions* 1–3, which need a human in a browser.
+  A lit-review section with no paper is still *completable* — the composer works and the word count
+  is the only gate — so this degrades the teaching rather than blocking progress.
 
-Until both are cleared the course should stay `"status": "DRAFT"`.
+Until all four are cleared the course should stay `"status": "DRAFT"`.
+
+**The lesson for the next course scaffolded this way.** Three of these four were invisible to
+`check:courses` when the modules were written, because it only checked the refs that happen to be
+markdown bodies. It now checks every ref the seeder reads and reports what a missing one costs. The
+two that remain invisible — an unrecorded video and an un-imported deck — are database state, not
+files, and there is no static check that can catch them. Take the course end to end in the player on
+a non-admin account before calling it finished. That is Task 14 step 1, and it is the step that would
+have caught all four.
 
 ---
 
