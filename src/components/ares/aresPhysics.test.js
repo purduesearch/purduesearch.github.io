@@ -126,6 +126,18 @@ describe('dimensionless numbers (GLOSSARY §3)', () => {
     const re = reynolds({ V: 0.2816, L: 1 / 6, nu: 1.52e-5 });
     expect(re).toBeCloseTo(3087.7, 0);
   });
+
+  test('Grashof, Rayleigh and Reynolds return null rather than throw on a non-finite tFilmK', () => {
+    expect(grashof({ dT: 10, L: 1.7, tFilmK: NaN })).toBeNull();
+    expect(rayleigh({ dT: 10, L: 1.7, tFilmK: NaN })).toBeNull();
+    expect(reynolds({ V: 0.3, L: 1.7, tFilmK: NaN })).toBeNull();
+  });
+
+  test('an explicit nu override keeps Reynolds working even with a garbage tFilmK', () => {
+    // Proves the override path never consults airPropertiesAt.
+    const re = reynolds({ V: 0.2816, L: 1 / 6, nu: 1.52e-5, tFilmK: NaN });
+    expect(re).toBeCloseTo(3087.7, 0);
+  });
 });
 
 describe('rebreathed fraction (GLOSSARY §2)', () => {

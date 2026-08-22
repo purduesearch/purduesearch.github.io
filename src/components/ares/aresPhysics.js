@@ -118,17 +118,30 @@ export function mmHgToPpm(mmHg, pressureHpa = STANDARD_PRESSURE_HPA) {
  * so tFilmK is a required argument rather than something derived silently.
  *
  * L is a CHOICE and must be stated by the caller. Gr scales as L^3.
+ *
+ * Returns null (never throws) when tFilmK is non-finite, propagating
+ * airPropertiesAt's null rather than crashing on the destructure.
  */
 export function grashof({ dT, L, tFilmK, g = GRAVITY.earth }) {
-  const { nu } = airPropertiesAt(tFilmK);
+  const props = airPropertiesAt(tFilmK);
+  if (props === null) return null;
+  const { nu } = props;
   const beta = 1 / tFilmK;
   return (g * beta * dT * Math.pow(L, 3)) / (nu * nu);
 }
 
-/** Ra = Gr * Pr. GLOSSARY §3. */
+/**
+ * Ra = Gr * Pr. GLOSSARY §3.
+ *
+ * Returns null (never throws, never silently multiplies by 0) when tFilmK is
+ * non-finite, propagating airPropertiesAt's/grashof's null.
+ */
 export function rayleigh({ dT, L, tFilmK, g = GRAVITY.earth }) {
-  const { Pr } = airPropertiesAt(tFilmK);
-  return grashof({ dT, L, tFilmK, g }) * Pr;
+  const props = airPropertiesAt(tFilmK);
+  if (props === null) return null;
+  const gr = grashof({ dT, L, tFilmK, g });
+  if (gr === null) return null;
+  return gr * props.Pr;
 }
 
 /**
@@ -140,10 +153,19 @@ export function peclet({ V, L }) {
   return (V * L) / DIFFUSIVITY_CO2;
 }
 
-/** Re = V*L / nu. GLOSSARY §3. nu overridable so M3's paper value reproduces. */
+/**
+ * Re = V*L / nu. GLOSSARY §3. nu overridable so M3's paper value reproduces.
+ *
+ * An explicit nu short-circuits entirely — airPropertiesAt is never consulted,
+ * so a garbage tFilmK cannot affect the result. Without an explicit nu, returns
+ * null (never throws) when tFilmK is non-finite, propagating airPropertiesAt's
+ * null rather than crashing on the property read.
+ */
 export function reynolds({ V, L, tFilmK = 300, nu }) {
-  const viscosity = nu ?? airPropertiesAt(tFilmK).nu;
-  return (V * L) / viscosity;
+  if (nu != null) return (V * L) / nu;
+  const props = airPropertiesAt(tFilmK);
+  if (props === null) return null;
+  return (V * L) / props.nu;
 }
 
 /**
