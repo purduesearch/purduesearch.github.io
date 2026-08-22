@@ -11,7 +11,7 @@ const NAV_LINKS = [
   { label: 'Business', to: '/business' },
 ];
 
-const TEAMS_PATHS = ['/research', '/sa2tp', '/software', '/astrousa'];
+const TEAMS_PATHS = ['/research', '/sa2tp', '/software', '/astrousa', '/ares'];
 
 const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -143,6 +143,7 @@ const Navbar = () => {
                     <Link className="teams-dropdown-item" to="/sa2tp"     onClick={handleTeamsLinkClick}>Astronaut Training</Link>
                     <Link className="teams-dropdown-item" to="/software"  onClick={handleTeamsLinkClick}>SUITS</Link>
                     <Link className="teams-dropdown-item" to="/astrousa"  onClick={handleTeamsLinkClick}>ASTRO-USA</Link>
+                    <Link className="teams-dropdown-item" to="/ares"      onClick={handleTeamsLinkClick}>ARES</Link>
                   </div>
                 )}
               </li>

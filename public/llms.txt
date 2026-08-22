@@ -10,6 +10,7 @@ Purdue SEARCH (Space and Earth Analogs Research Chapter) is a student organizati
 
 - [SA²TP — Student Analog Astronaut Training Program](https://purduesearch.org/sa2tp): Semester-long analog astronaut mission simulations including EVA training, crew resource management, and life support operations. Crew 1 completed in Summer 2023.
 - [ASTRO-USA Habitat Project](https://purduesearch.org/astrousa): Deep-space habitat engineering project covering systems architecture, hydroponics, and life support design for long-duration spaceflight.
+- [ARES — Atmospheric Research and Experiment System](https://purduesearch.org/ares): A wearable CO₂ and biophysical sensing headset built to detect the localized zone of rebreathed air that forms in front of the face when buoyancy-driven convection collapses.
 - [Research](https://purduesearch.org/research): Bioastronautics and life-support research including NASA RASC-AL 2023 competition entry (RASCAL project).
 - [Software — SUITS](https://purduesearch.org/software): Augmented-reality software (JARVIS) developed for the NASA SUITS (Spacesuit User Interface Technologies for Students) challenge.
 - [Outreach](https://purduesearch.org/outreach): Campus tabling events, speaker series, and film screenings. Past speakers include representatives from NASA JPL, Blue Origin, SETI Institute, and Virgin Galactic.
@@ -31,6 +32,8 @@ Purdue SEARCH (Space and Earth Analogs Research Chapter) is a student organizati
 - [ASTRO-USA Overview](https://purduesearch.org/astrousa/overview)
 - [ASTRO-USA Architecture](https://purduesearch.org/astrousa/architecture)
 - [ASTRO-USA Hydroponics](https://purduesearch.org/astrousa/hydroponics)
+- [ARES — The Science](https://purduesearch.org/ares/the-science)
+- [ARES — The Headset](https://purduesearch.org/ares/the-headset)
 
 ## Organization Details
 

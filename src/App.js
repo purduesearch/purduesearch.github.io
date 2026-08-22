@@ -11,6 +11,7 @@ import { ShortcutsProvider } from './clubpm/ShortcutsRegistry';
 import GlobalShortcutsSetup from './components/clubpm/GlobalShortcutsSetup';
 import { ProjectNavProvider } from './clubpm/ProjectNavContext';
 import { lazyWithClubPmTheme } from './clubpm/loadClubPmTheme';
+import { lazyWithTheme } from './theme/loadTheme';
 import { TourProvider } from './clubpm/tour/TourProvider';
 import ClubPmLoading from './components/clubpm/ClubPmLoading';
 import Home from './pages/Home';
@@ -27,6 +28,11 @@ const SA2TP = lazy(() => import('./pages/SA2TP'));
 const Software = lazy(() => import('./pages/Software'));
 const Business = lazy(() => import('./pages/Business'));
 const AstroUSA = lazy(() => import('./pages/AstroUSA'));
+
+const ARES_THEME = ['/ares-theme.css?v=1', 'data-ares-theme'];
+const Ares           = lazy(lazyWithTheme(...ARES_THEME)(() => import('./pages/Ares')));
+const AresScience    = lazy(lazyWithTheme(...ARES_THEME)(() => import('./pages/Ares/TheScience')));
+const AresHeadset    = lazy(lazyWithTheme(...ARES_THEME)(() => import('./pages/Ares/TheHeadset')));
 const Outreach = lazy(() => import('./pages/Outreach'));
 const Contact = lazy(() => import('./pages/Contact'));
 const Blog = lazy(() => import('./pages/Blog'));
@@ -156,6 +162,9 @@ function AnimatedRoutes() {
             <Route path="/astrousa/overview" element={<PageWrapper><AstroOverview /></PageWrapper>} />
             <Route path="/astrousa/architecture" element={<PageWrapper><AstroArchitecture /></PageWrapper>} />
             <Route path="/astrousa/hydroponics" element={<PageWrapper><AstroHydroponics /></PageWrapper>} />
+            <Route path="/ares" element={<PageWrapper><Ares /></PageWrapper>} />
+            <Route path="/ares/the-science" element={<PageWrapper><AresScience /></PageWrapper>} />
+            <Route path="/ares/the-headset" element={<PageWrapper><AresHeadset /></PageWrapper>} />
             <Route path="/outreach" element={<PageWrapper><Outreach /></PageWrapper>} />
             <Route path="/contact" element={<PageWrapper><Contact /></PageWrapper>} />
             <Route path="/blog" element={<PageWrapper><Blog /></PageWrapper>} />
