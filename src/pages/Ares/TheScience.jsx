@@ -21,7 +21,7 @@ const TheScience = () => {
     <div className="ares-page">
       <SEOHead
         title="ARES — The Science"
-        description="A wearable CO₂ and biophysical sensing headset built to detect the localized zone of rebreathed air that forms in front of the face when buoyancy-driven convection collapses."
+        description="Buoyancy, diffusion, and the dimensionless numbers that decide which one moves a gas. How to read a simulation result, and what the rebreathed fraction actually assumes."
         canonical="/ares/the-science"
       />
       <Navbar />

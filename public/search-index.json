@@ -121,21 +121,21 @@
   {
     "title": "ARES",
     "path": "/ares",
-    "section": "Teams",
+    "section": "Programs",
     "excerpt": "A wearable CO₂ and biophysical sensing headset. On Earth a rising plume of body-warmed air continuously clears exhaled breath away from your face; when that convection collapses, the CO₂ stays where it was produced. ARES measures it.",
     "tags": ["ares", "co2", "carbon dioxide", "sensor", "wearable", "headset", "bioastronautics", "hypercapnia", "plume", "microgravity", "rebreathing"]
   },
   {
     "title": "ARES — The Science",
     "path": "/ares/the-science",
-    "section": "Teams",
+    "section": "Programs",
     "excerpt": "Buoyancy, diffusion, and the dimensionless numbers that decide which one moves a gas. How to read a simulation result, and what the rebreathed fraction actually assumes.",
     "tags": ["ares", "physics", "buoyancy", "grashof", "rayleigh", "peclet", "reynolds", "cfd", "diffusion", "convection", "schlieren"]
   },
   {
     "title": "ARES — The Headset",
     "path": "/ares/the-headset",
-    "section": "Teams",
+    "section": "Programs",
     "excerpt": "Three sensor pods, an infrared absorption measurement, and the difference between how long air takes to reach a sensor and how long the sensor takes to respond.",
     "tags": ["ares", "hardware", "ndir", "infrared", "anemometry", "calibration", "sensor pods", "transport delay"]
   }

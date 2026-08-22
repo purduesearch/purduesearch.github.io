@@ -21,7 +21,7 @@ const TheHeadset = () => {
     <div className="ares-page">
       <SEOHead
         title="ARES — The Headset"
-        description="A wearable CO₂ and biophysical sensing headset built to detect the localized zone of rebreathed air that forms in front of the face when buoyancy-driven convection collapses."
+        description="Three sensor pods, an infrared absorption measurement, and the difference between how long air takes to reach a sensor and how long the sensor takes to respond."
         canonical="/ares/the-headset"
       />
       <Navbar />
