@@ -26,6 +26,12 @@ describe('unit conversions (GLOSSARY §5)', () => {
     const atAltitude = ppmToMmHg(1_000_000, 950);
     expect(atAltitude).toBeCloseTo(712.6, 0);
   });
+
+  test('non-physical pressure returns null rather than Infinity/NaN', () => {
+    expect(ppmToMmHg(400, 0)).toBeNull();
+    expect(mmHgToPpm(4, 0)).toBeNull();
+    expect(mmHgToPpm(4, -10)).toBeNull();
+  });
 });
 
 describe('property table (GLOSSARY §4)', () => {
@@ -39,6 +45,24 @@ describe('property table (GLOSSARY §4)', () => {
     expect(row.alpha).toBeCloseTo(2.15e-5, 9);
     expect(row.Pr).toBeCloseTo(0.712, 4);
     expect(row.beta).toBeCloseTo(3.39e-3, 6);
+  });
+
+  test('300 K row matches the glossary exactly', () => {
+    // GLOSSARY §4: 300 K | 1.59e-5 | 2.25e-5 | 0.707 | 3.33e-3
+    const row = AIR_PROPERTIES.find(r => r.tempK === 300);
+    expect(row.nu).toBeCloseTo(1.59e-5, 9);
+    expect(row.alpha).toBeCloseTo(2.25e-5, 9);
+    expect(row.Pr).toBeCloseTo(0.707, 4);
+    expect(row.beta).toBeCloseTo(3.33e-3, 6);
+  });
+
+  test('305 K row matches the glossary exactly', () => {
+    // GLOSSARY §4: 305 K | 1.64e-5 | 2.32e-5 | 0.707 | 3.28e-3
+    const row = AIR_PROPERTIES.find(r => r.tempK === 305);
+    expect(row.nu).toBeCloseTo(1.64e-5, 9);
+    expect(row.alpha).toBeCloseTo(2.32e-5, 9);
+    expect(row.Pr).toBeCloseTo(0.707, 4);
+    expect(row.beta).toBeCloseTo(3.28e-3, 6);
   });
 
   test('binary diffusivity of CO2 in air', () => {
@@ -55,6 +79,10 @@ describe('property table (GLOSSARY §4)', () => {
     // The course only covers 295-305 K; do not extrapolate silently.
     expect(airPropertiesAt(250).nu).toBeCloseTo(1.53e-5, 9);
     expect(airPropertiesAt(400).nu).toBeCloseTo(1.64e-5, 9);
+  });
+
+  test('airPropertiesAt returns null for a non-finite temperature', () => {
+    expect(airPropertiesAt(NaN)).toBeNull();
   });
 
   test('Mars gravity is 3.71 and orbit is 0', () => {

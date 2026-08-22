@@ -44,7 +44,7 @@ export const PLUME = {
   developmentLengthM: 1.7,
 };
 
-/** GLOSSARY §1 — the CO2 absorption band NDIR selects with a bandpass filter. */
+/** C16 ("Why 4.26 µm") — the CO2 absorption band NDIR selects with a bandpass filter. */
 export const NDIR_BAND_M = 4.26e-6;
 
 /** GLOSSARY §5 — the velocity regime the anemometry has to resolve. */
@@ -68,6 +68,9 @@ const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
  * past the table from inventing physics.
  */
 export function airPropertiesAt(tempK) {
+  // Returns null rather than silently handing back the last row for a
+  // non-finite input, so callers render "—" instead of a nonsense number.
+  if (!Number.isFinite(tempK)) return null;
   const rows = AIR_PROPERTIES;
   const t = clamp(tempK, rows[0].tempK, rows[rows.length - 1].tempK);
   for (let i = 0; i < rows.length - 1; i += 1) {
@@ -92,11 +95,17 @@ export function airPropertiesAt(tempK) {
  * pressure, and it is pressure-dependent for real — GLOSSARY §5.
  */
 export function ppmToMmHg(ppm, pressureHpa = STANDARD_PRESSURE_HPA) {
+  // Returns null rather than a sign-flipped or zeroed result for a
+  // non-physical pressure, so callers render "—" instead of a nonsense number.
+  if (pressureHpa <= 0) return null;
   const totalMmHg = STANDARD_PRESSURE_MMHG * (pressureHpa / STANDARD_PRESSURE_HPA);
   return (ppm / 1e6) * totalMmHg;
 }
 
 export function mmHgToPpm(mmHg, pressureHpa = STANDARD_PRESSURE_HPA) {
+  // Returns null rather than Infinity/NaN for a non-physical pressure, so
+  // callers render "—" instead of a nonsense number.
+  if (pressureHpa <= 0) return null;
   const totalMmHg = STANDARD_PRESSURE_MMHG * (pressureHpa / STANDARD_PRESSURE_HPA);
   return (mmHg / totalMmHg) * 1e6;
 }
