@@ -39,3 +39,123 @@
      without it the gravity-drain effect silently does nothing. */
   --ares-drift: 1;
 }
+
+/*
+ * Shared primitives — AresStat (sourced stat tile) and AresTerm (glossary
+ * tooltip). Every later ARES page/component composes these two, so their
+ * treatment sets the instrument-panel vocabulary for the rest of the site:
+ * sunk panel surfaces, hairline grid borders, mono numerals, Mars-red accent.
+ */
+
+/* ---- AresStat ---------------------------------------------------------- */
+
+.ares-page .ares-stat {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  background: var(--ares-panel-sunk);
+  border: 1px solid var(--ares-grid-line);
+  border-radius: 10px;
+  padding: 1.1rem 1.25rem;
+  min-width: 0;
+}
+
+.ares-page .ares-stat-value {
+  font-family: var(--ares-mono);
+  font-size: clamp(1.5rem, 1.1rem + 1.4vw, 2.1rem);
+  font-weight: 600;
+  line-height: 1.1;
+  color: var(--color-text);
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.ares-page .ares-stat-unit {
+  font-family: var(--ares-mono);
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--color-muted);
+}
+
+.ares-page .ares-stat-label {
+  font-size: 0.82rem;
+  color: var(--color-muted);
+  letter-spacing: 0.01em;
+}
+
+.ares-page .ares-stat-source {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--ares-trace-fore);
+  font-size: 0.75rem;
+  cursor: help;
+}
+
+.ares-page .ares-stat-source i {
+  font-size: 0.78rem;
+}
+
+/* Visually hidden until the tile is hovered or a child receives focus — the
+   icon alone signals "this number is sourced"; the citation text itself only
+   needs to be perceivable on demand (and always to a screen reader). */
+.ares-page .ares-stat-source-text {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.ares-page .ares-stat:hover .ares-stat-source-text,
+.ares-page .ares-stat:focus-within .ares-stat-source-text {
+  position: static;
+  width: auto;
+  height: auto;
+  padding: 0.15rem 0.5rem;
+  margin: 0;
+  overflow: visible;
+  clip: auto;
+  white-space: normal;
+  background: var(--ares-panel);
+  border: 1px solid var(--ares-grid-line);
+  border-radius: 5px;
+  color: var(--color-muted);
+  font-size: 0.68rem;
+  line-height: 1.3;
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ares-page .ares-stat-source-text {
+    transition: none;
+  }
+}
+
+/* ---- AresTerm ----------------------------------------------------------- */
+
+/* Complements .abbr-tip (search-theme.css) rather than redefining it — the
+   ::after tooltip rendering stays exactly as-is; this only re-tints the
+   underline to the ARES accent and strengthens the keyboard-focus signal,
+   since AresTerm is reached with tabIndex={0} and .abbr-tip alone relies on
+   the site-wide :focus-visible outline. */
+.ares-page .ares-term {
+  border-bottom-color: var(--ares-trace-chin);
+}
+
+.ares-page .ares-term:focus-visible {
+  outline-offset: 3px;
+  border-radius: 2px;
+}
