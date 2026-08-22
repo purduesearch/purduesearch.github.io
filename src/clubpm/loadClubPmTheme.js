@@ -1,62 +1,25 @@
 /**
- * Loads the ClubPM stylesheet on demand.
+ * ClubPM stylesheet loading. The mechanism now lives in src/theme/loadTheme.js
+ * and is shared with the ARES public pages; this file keeps the ClubPM-specific
+ * href and marker, and the call signatures ~20 sites in App.js already use.
  *
  * public/search-theme.css used to carry every ClubPM rule too, so visitors who
  * only ever saw the marketing pages still downloaded ~65 kB (gzip) of dashboard
- * CSS. The ClubPM-only rules now live in public/clubpm-theme.css, which is
- * fetched here the first time a /clubpm/* route loads.
+ * CSS. The ClubPM-only rules live in public/clubpm-theme.css, fetched here the
+ * first time a /clubpm/* route loads.
  *
- * Why a runtime <link> rather than `import './clubpm-theme.css'`:
- *   - search-theme.css is itself a static <link> in public/index.html, not a
- *     webpack import, so there is no CSS chunk graph to piggyback on.
- *   - Appending to <head> puts this sheet after style.min.css and
- *     search-theme.css, preserving the cascade order ClubPM rules rely on.
- *   - It keeps a stable public URL, which BlogPreviewFrame's iframe needs.
- *
- * The returned promise resolves once the sheet has actually applied, so callers
- * can hold rendering until then and avoid a flash of unstyled ClubPM UI.
+ * The href is a stable public URL because BlogPreviewFrame's iframe links it
+ * directly. Do not change it.
  */
+import { loadTheme, lazyWithTheme } from '../theme/loadTheme';
 
 const HREF = '/clubpm-theme.css?v=1';
-
-let pending = null;
+const MARKER = 'data-clubpm-theme';
 
 export function loadClubPmTheme() {
-  if (pending) return pending;
-
-  pending = new Promise((resolve) => {
-    if (typeof document === 'undefined') {
-      resolve();
-      return;
-    }
-
-    const existing = document.querySelector(`link[data-clubpm-theme]`);
-    if (existing) {
-      resolve();
-      return;
-    }
-
-    const link = document.createElement('link');
-    link.rel = 'stylesheet';
-    link.href = HREF;
-    link.setAttribute('data-clubpm-theme', '');
-
-    // Resolve on error too: a missing stylesheet should degrade to unstyled
-    // ClubPM rather than hang the route behind a Suspense fallback forever.
-    link.onload = () => resolve();
-    link.onerror = () => resolve();
-
-    document.head.appendChild(link);
-  });
-
-  return pending;
+  return loadTheme(HREF, MARKER);
 }
 
-/**
- * Wraps a React.lazy loader so the chunk resolves only after the ClubPM
- * stylesheet is in place. Both fetches run in parallel; the existing Suspense
- * fallback covers the wait.
- */
 export function lazyWithClubPmTheme(load) {
-  return () => Promise.all([load(), loadClubPmTheme()]).then(([mod]) => mod);
+  return lazyWithTheme(HREF, MARKER)(load);
 }

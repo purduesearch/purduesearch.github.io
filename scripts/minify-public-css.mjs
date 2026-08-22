@@ -31,6 +31,7 @@ const TARGETS = [
   'clubpm-theme.css',
   'style.min.css',
   'fa-subset.css',
+  'ares-theme.css',
 ];
 
 const cleaner = new CleanCSS({

@@ -1,0 +1,41 @@
+/*
+ * ARES public pages — /ares, /ares/the-science, /ares/the-headset.
+ *
+ * Fetched on demand by src/theme/loadTheme.js, NOT linked from index.html, so
+ * visitors who never open an ARES page never download it. That is why this file
+ * exists separately from search-theme.css, which every visitor pays for.
+ *
+ * SCOPING RULE, and it is load-bearing: every selector below is nested under
+ * .ares-page. Both runtime-loaded themes land in <head> in visit order, so
+ * /ares -> /clubpm and /clubpm -> /ares produce opposite cascade orders, and
+ * clubpm-theme.css is a broad verbatim tail slice of the pre-split stylesheet.
+ * Scoping makes the order irrelevant. No bare element selectors. No unscoped
+ * utility classes. Tokens on .ares-page, never on :root.
+ *
+ * Palette note: the SEARCH site is warm — cream, sand, Mars red. ARES reads as
+ * a warm-toned instrument, not the usual cyan-on-black telemetry look.
+ */
+
+.ares-page {
+  /* Instrument surfaces */
+  --ares-panel:        #fff9f4;
+  --ares-panel-sunk:   #ede3d8;
+  --ares-grid-line:    rgba(122, 111, 104, 0.18);
+  --ares-trace-chin:   #b83225;
+  --ares-trace-top:    #3a5a78;
+  --ares-trace-fore:   #c98a2b;
+
+  /* Concentration ramp — cream to warm ochre, used by the tint effect */
+  --ares-conc-0:       #f5efe6;
+  --ares-conc-1:       #efe2cd;
+  --ares-conc-2:       #e6d0ac;
+
+  --ares-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+  /* Scroll-coupled drift, 1 = full buoyancy. GSAP tweens this to 0 as the hero
+     scrolls away (see src/hooks/useAresScrollEffects.js), and PlumeSimulator
+     multiplies its buoyancy term by it. GSAP can only animate a custom property
+     that has a declared starting value, so this declaration is load-bearing:
+     without it the gravity-drain effect silently does nothing. */
+  --ares-drift: 1;
+}
