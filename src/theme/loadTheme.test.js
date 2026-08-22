@@ -22,9 +22,14 @@ describe('loadTheme', () => {
     await expect(promise).resolves.toBeUndefined();
   });
 
-  test('appends only one link for repeated calls on the same href', async () => {
+  test('appends only one link for repeated calls on the same href, and serves the same memoized promise', async () => {
     const first = loadTheme('/ares-theme.css?v=1', 'data-ares-theme');
-    loadTheme('/ares-theme.css?v=1', 'data-ares-theme');
+    const second = loadTheme('/ares-theme.css?v=1', 'data-ares-theme');
+    // Identity, not just equal resolution: only true if the pending Map served
+    // the second call. A DOM-guard-only implementation (no memo) would still
+    // pass the "one link" assertion below but would return a *different*
+    // promise object each time, so this line alone is the memo's regression test.
+    expect(second).toBe(first);
     document.head.querySelector('link[data-ares-theme]').onload();
     await first;
     expect(document.head.querySelectorAll('link[data-ares-theme]')).toHaveLength(1);
@@ -35,6 +40,40 @@ describe('loadTheme', () => {
     loadTheme('/clubpm-theme.css?v=1', 'data-clubpm-theme');
     expect(document.head.querySelector('link[data-ares-theme]')).not.toBeNull();
     expect(document.head.querySelector('link[data-clubpm-theme]')).not.toBeNull();
+  });
+
+  test('bumping the href under the same marker (a cache-bust) appends a second link and actually loads', async () => {
+    const first = loadTheme('/ares-theme.css?v=1', 'data-ares-theme');
+    document.head.querySelector('link[data-ares-theme][href="/ares-theme.css?v=1"]').onload();
+    await first;
+
+    const second = loadTheme('/ares-theme.css?v=2', 'data-ares-theme');
+    const links = document.head.querySelectorAll('link[data-ares-theme]');
+    expect(links).toHaveLength(2);
+    const v2Link = document.head.querySelector('link[data-ares-theme][href="/ares-theme.css?v=2"]');
+    expect(v2Link).not.toBeNull();
+
+    // The new promise must not already be resolved by the stale v=1 link
+    // sitting in <head> under the same marker — it must wait for v=2's own
+    // load event.
+    let resolved = false;
+    second.then(() => {
+      resolved = true;
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(resolved).toBe(false);
+
+    v2Link.onload();
+    await expect(second).resolves.toBeUndefined();
+  });
+
+  test('the same href under a different marker gets its own link', async () => {
+    loadTheme('/shared.css?v=1', 'data-ares-theme');
+    loadTheme('/shared.css?v=1', 'data-other-theme');
+    expect(document.head.querySelectorAll('link[href="/shared.css?v=1"]')).toHaveLength(2);
+    expect(document.head.querySelector('link[data-ares-theme][href="/shared.css?v=1"]')).not.toBeNull();
+    expect(document.head.querySelector('link[data-other-theme][href="/shared.css?v=1"]')).not.toBeNull();
   });
 
   test('lazyWithTheme resolves to the module', async () => {
