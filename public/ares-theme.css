@@ -808,3 +808,186 @@
   border-radius: 8px;
   padding: 0.75rem 1rem;
 }
+
+/* === Task 8: DelayVsT90 (transport delay vs. sensor T90 step response) === */
+
+.ares-page .ares-delay-vs-t90 {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1.25rem;
+  border: 1px solid var(--ares-grid-line);
+  border-radius: 10px;
+  background: var(--ares-panel);
+}
+
+.ares-page .ares-dvt90-controls {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem 1.5rem;
+  align-items: end;
+}
+
+@media (max-width: 640px) {
+  .ares-page .ares-dvt90-controls {
+    grid-template-columns: 1fr;
+  }
+}
+
+.ares-page .ares-dvt90-slider {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.ares-page .ares-dvt90-slider label {
+  font-family: var(--ares-mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.ares-page .ares-dvt90-slider input[type='range'] {
+  width: 100%;
+  accent-color: var(--color-accent);
+}
+
+.ares-page .ares-dvt90-slider-value {
+  font-family: var(--ares-mono);
+  font-size: 0.85rem;
+  color: var(--ares-trace-fore, var(--color-text-muted));
+}
+
+.ares-page .ares-dvt90-flow-note {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.82rem;
+  color: var(--color-text-muted);
+}
+
+.ares-page .ares-dvt90-flow-note i {
+  color: var(--color-accent);
+}
+
+.ares-page .ares-dvt90-plot {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.ares-page .ares-dvt90-zone-transit {
+  fill: var(--ares-panel-sunk);
+}
+
+.ares-page .ares-dvt90-zone-arrived {
+  fill: transparent;
+}
+
+.ares-page .ares-dvt90-grid {
+  stroke: var(--ares-grid-line);
+  stroke-width: 1;
+  stroke-dasharray: 2 3;
+}
+
+.ares-page .ares-dvt90-axis-label {
+  font-family: var(--ares-mono);
+  font-size: 10px;
+  fill: var(--color-text-muted);
+}
+
+.ares-page .ares-dvt90-trace-flat {
+  fill: none;
+  stroke: var(--ares-trace-chin);
+  stroke-width: 2.5;
+  stroke-dasharray: 5 4;
+  stroke-linecap: round;
+}
+
+.ares-page .ares-dvt90-trace-rise {
+  fill: none;
+  stroke: var(--ares-trace-fore);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.ares-page .ares-dvt90-landmark line {
+  stroke-width: 1.5;
+  stroke-dasharray: 3 3;
+}
+
+.ares-page .ares-dvt90-landmark circle {
+  stroke: var(--ares-panel);
+  stroke-width: 1.5;
+}
+
+.ares-page .ares-dvt90-landmark text {
+  font-family: var(--ares-mono);
+  font-size: 10px;
+}
+
+.ares-page .ares-dvt90-landmark-delay line,
+.ares-page .ares-dvt90-landmark-delay circle,
+.ares-page .ares-dvt90-landmark-delay rect {
+  stroke: var(--ares-trace-chin);
+  fill: var(--ares-trace-chin);
+}
+
+.ares-page .ares-dvt90-landmark-delay text {
+  fill: var(--ares-trace-chin);
+}
+
+.ares-page .ares-dvt90-landmark-fifty line,
+.ares-page .ares-dvt90-landmark-fifty circle,
+.ares-page .ares-dvt90-landmark-fifty rect {
+  stroke: var(--color-accent);
+  fill: var(--color-accent);
+}
+
+.ares-page .ares-dvt90-landmark-fifty text {
+  fill: var(--color-accent);
+}
+
+.ares-page .ares-dvt90-landmark-ninety line,
+.ares-page .ares-dvt90-landmark-ninety circle,
+.ares-page .ares-dvt90-landmark-ninety rect {
+  stroke: var(--ares-trace-fore);
+  fill: var(--ares-trace-fore);
+}
+
+.ares-page .ares-dvt90-landmark-ninety text {
+  fill: var(--ares-trace-fore);
+}
+
+.ares-page .ares-dvt90-playhead line {
+  stroke: var(--ares-drift);
+  stroke-width: 1.5;
+}
+
+.ares-page .ares-dvt90-playhead circle {
+  fill: var(--ares-drift);
+  stroke: var(--ares-panel);
+  stroke-width: 1.5;
+}
+
+.ares-page .ares-dvt90-readout {
+  margin: 0;
+  font-size: 0.92rem;
+  color: var(--color-text-muted);
+}
+
+.ares-page .ares-delay-vs-t90 .ares-caption {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--color-text-muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ares-page .ares-dvt90-playhead {
+    display: none;
+  }
+}
