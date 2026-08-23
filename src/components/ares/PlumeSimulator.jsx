@@ -47,6 +47,27 @@ const MAX_ALPHA = 0.88;
 
 const lerp = (a, b, t) => a + (b - a) * t;
 
+/**
+ * Reads --ares-drift (the scroll-coupling scalar useAresScrollEffects tweens
+ * from 1 to 0 as the hero scrolls away — see public/ares-theme.css). Since
+ * buoyancy in plumeModel.js is exactly proportional to g (buoyancy = (g /
+ * GRAVITY.earth) * BUOYANCY_GAIN), scaling g by this factor before it reaches
+ * stepParticles has the identical effect to scaling the buoyancy term itself,
+ * without plumeModel.js needing to know about the CSS token at all.
+ *
+ * getPropertyValue returns '' for an undeclared property and may return a
+ * value with leading/trailing whitespace, so both are handled: an empty or
+ * unparseable string falls back to 1 (full buoyancy, i.e. a no-op), which is
+ * also the correct behaviour under prefers-reduced-motion — the scroll hook
+ * never runs, so --ares-drift keeps its CSS-declared value of 1.
+ */
+function parseDrift(rawValue) {
+  const trimmed = typeof rawValue === 'string' ? rawValue.trim() : '';
+  if (trimmed === '') return 1;
+  const parsed = Number.parseFloat(trimmed);
+  return Number.isFinite(parsed) ? parsed : 1;
+}
+
 function concentrationColor(co2) {
   const t = Math.min(1, Math.max(0, co2));
   return [
@@ -197,10 +218,15 @@ export default function PlumeSimulator() {
     let running = false;
 
     const loop = () => {
+      // Read once per frame, not per particle — getComputedStyle forces a
+      // style recalculation, so this stays outside stepParticles' internal
+      // per-particle map.
+      const drift = parseDrift(getComputedStyle(canvas).getPropertyValue('--ares-drift'));
+
       // No rng passed — the live component wants real randomness. Only the
       // tests seed it.
       particlesRef.current = stepParticles(particlesRef.current, {
-        g: gRef.current,
+        g: gRef.current * drift,
         dt: 1 / 60,
         width: WIDTH,
         height: HEIGHT,

@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
@@ -8,6 +8,7 @@ import AresStat from '../components/ares/AresStat';
 import AresTerm from '../components/ares/AresTerm';
 import { PLUME, CO2_TIERS } from '../components/ares/aresPhysics';
 import { POD_POSITIONS } from '../lib/ares/breathModel';
+import useAresScrollEffects from '../hooks/useAresScrollEffects';
 
 const PlumeSimulator  = lazy(() => import('../components/ares/PlumeSimulator'));
 const ExposureDial    = lazy(() => import('../components/ares/ExposureDial'));
@@ -73,9 +74,18 @@ function AresFigure({ src, alt, caption, credit }) {
 }
 
 const Ares = () => {
+  const heroRef = useRef(null);
+  const tintRef = useRef(null);
+
   useEffect(() => {
     if (window.AOS) window.AOS.init({ once: true });
   }, []);
+
+  // The two signature scroll effects: hero drift dying as gravity "drains"
+  // out of the page, and the bubble section's background walking toward
+  // warm ochre as concentration accumulates. Disabled entirely under
+  // prefers-reduced-motion — see useAresScrollEffects.js.
+  useAresScrollEffects(heroRef, tintRef);
 
   return (
     <div className="ares-page">
@@ -88,7 +98,7 @@ const Ares = () => {
       <SectionProgressRail sections={ARES_RAIL_SECTIONS} />
 
       <main id="main-content">
-        <div className="ares-hero">
+        <div className="ares-hero" ref={heroRef}>
           <div className="container text-center">
             <h1 className="display-2 mb-4">ARES</h1>
             <p className="header-sub-title">
@@ -197,7 +207,7 @@ const Ares = () => {
         </section>
 
         {/* ===== SECTION 3: THE BUBBLE ===== */}
-        <section id="ares-bubble">
+        <section id="ares-bubble" ref={tintRef}>
           <div className="container">
             <div className="title-wrap mb-4" data-aos="fade-up">
               <h2 className="section-title">The Plume <b>and the Bubble</b></h2>
