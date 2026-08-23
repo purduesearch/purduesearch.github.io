@@ -181,7 +181,7 @@ export default function PodDisagreement() {
       </div>
 
       <svg
-        className="ares-pod-chart"
+        className="ares-pod-disagreement-chart"
         viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
         role="img"
         aria-labelledby={titleId}
@@ -210,7 +210,7 @@ export default function PodDisagreement() {
         ))}
       </svg>
 
-      <p aria-live="polite" className="ares-pod-readout">
+      <p aria-live="polite" className="ares-pod-disagreement-readout">
         {summary}
       </p>
 

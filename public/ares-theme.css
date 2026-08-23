@@ -1261,3 +1261,344 @@
   color: var(--color-text-muted);
   margin: 0.75rem 0;
 }
+
+/* ============================================================
+   Task 10 — SystemDiagram (src/components/ares/SystemDiagram.jsx)
+   and PodDisagreement (src/components/ares/PodDisagreement.jsx)
+   Every selector scoped under .ares-page, per GLOBAL-CONSTRAINTS §3.
+
+   Naming note: PodDisagreement's SVG and its aria-live summary use
+   .ares-pod-disagreement-chart / .ares-pod-disagreement-readout rather
+   than the shorter .ares-pod-chart / .ares-pod-readout — those two names
+   are already used by the merged PodReadout component (Task 6) for a
+   different chart shape and for its whole-card wrapper respectively.
+   Reusing them here would have silently pulled in that component's
+   unrelated styling, so the two classNames were renamed in the .jsx
+   (see task-10-report.md) before writing this fragment.
+   ============================================================ */
+
+/* ---- PodDisagreement: outer panel --------------------------------------- */
+
+.ares-page .ares-pod-disagreement {
+  display: grid;
+  gap: 1.1rem;
+  background: var(--ares-panel);
+  border: 1px solid var(--ares-grid-line);
+  border-radius: 12px;
+  padding: 1.5rem;
+}
+
+/* ---- Noise slider -------------------------------------------------------- */
+
+.ares-page .ares-pod-slider-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-bottom: 0.25rem;
+}
+
+.ares-page .ares-pod-slider-field label {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  font-family: var(--ares-mono);
+}
+
+.ares-page .ares-pod-slider-field input[type='range'] {
+  width: 100%;
+  accent-color: var(--ares-trace-chin);
+}
+
+.ares-page .ares-pod-slider-note {
+  margin: 0.15rem 0 0;
+  font-size: 0.78rem;
+  color: var(--color-muted);
+  line-height: 1.4;
+}
+
+/* ---- Error-bar chart ------------------------------------------------------
+   Own class (not the shared .ares-pod-chart) so this component's sizing is
+   independent of PodReadout's trace chart. Capped max-width keeps the SVG's
+   user-unit font sizes from scaling up past comfortable reading size on wide
+   viewports; on narrow viewports it shrinks with the panel like any other
+   responsive image (no horizontal scroll needed at this aspect ratio — see
+   SystemDiagram below for the diagram that DOES need one). */
+
+.ares-page .ares-pod-disagreement-chart {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-width: 28rem;
+  margin: 0.25rem 0;
+  background: var(--ares-panel-sunk);
+  border-radius: 8px;
+}
+
+.ares-page .ares-pod-axis {
+  stroke: var(--color-border);
+  stroke-width: 1.5;
+}
+
+.ares-page .ares-pod-row-highlight {
+  fill: color-mix(in srgb, var(--ares-trace-chin) 14%, var(--ares-panel-sunk));
+  stroke: var(--ares-trace-chin);
+  stroke-width: 1.5;
+}
+
+.ares-page .ares-pod-row-label {
+  font-family: var(--ares-mono);
+  font-size: 13px;
+  fill: var(--color-text-muted);
+}
+
+.ares-page .ares-pod-row-difference .ares-pod-row-label {
+  font-weight: 700;
+  fill: var(--ares-trace-chin);
+}
+
+.ares-page .ares-pod-row-value {
+  font-family: var(--ares-mono);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  fill: var(--color-text-muted);
+}
+
+.ares-page .ares-pod-row-difference .ares-pod-row-value {
+  font-weight: 700;
+  font-size: 12px;
+  fill: var(--ares-trace-chin);
+}
+
+/* Bars: top/forehead/chin get the same trace colors used for these pods
+   elsewhere on the site (PodReadout's legend and markers); the difference
+   bar is always Mars red regardless of position, so it reads as "the odd
+   one out" rather than as a fourth pod color. Rows render in a fixed
+   literal order (top, forehead, chin, difference) in the component, so
+   nth-of-type is stable here. */
+
+.ares-page .ares-pod-bar {
+  fill: var(--ares-trace-top);
+}
+
+.ares-page .ares-pod-disagreement-chart > g.ares-pod-row:nth-of-type(2) .ares-pod-bar {
+  fill: var(--ares-trace-fore);
+}
+
+.ares-page .ares-pod-disagreement-chart > g.ares-pod-row:nth-of-type(3) .ares-pod-bar {
+  fill: var(--ares-trace-chin);
+}
+
+.ares-page .ares-pod-row-difference .ares-pod-bar {
+  fill: var(--ares-trace-chin);
+}
+
+/* Whiskers: the entire teaching point. The difference row's whisker is
+   already geometrically longer (propagateDifference adds in quadrature);
+   doubling its stroke width and switching it to solid Mars red on top of
+   that makes the size difference unmissable before anyone reads a label. */
+
+.ares-page .ares-pod-whisker,
+.ares-page .ares-pod-whisker-cap {
+  stroke: var(--color-text-muted);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.ares-page .ares-pod-row-difference .ares-pod-whisker,
+.ares-page .ares-pod-row-difference .ares-pod-whisker-cap {
+  stroke: var(--ares-trace-chin);
+  stroke-width: 4;
+}
+
+/* ---- Live difference readout --------------------------------------------
+   Mirrors ExposureDial's .ares-exposure-summary treatment (mono, sunk
+   panel) — the house pattern for a live prose readout of computed values. */
+
+.ares-page .ares-pod-disagreement-readout {
+  margin: 0;
+  font-family: var(--ares-mono);
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--color-text-muted);
+  background: var(--ares-panel-sunk);
+  border: 1px solid var(--ares-grid-line);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+}
+
+/* ---- Baseline-correction aside -------------------------------------------
+   Distinct from the chart above it: amber top accent (vs. the chart's Mars
+   red) and its own panel so it reads as a second, separate note rather than
+   a continuation of the error-bar teaching. */
+
+.ares-page .ares-pod-baseline {
+  margin-top: 0.25rem;
+  padding: 1rem 1.1rem;
+  background: var(--ares-panel-sunk);
+  border: 1px solid var(--ares-grid-line);
+  border-top: 3px solid var(--ares-trace-fore);
+  border-radius: 8px;
+  display: grid;
+  gap: 0.6rem;
+}
+
+.ares-page .ares-pod-baseline-lead {
+  margin: 0;
+  font-size: 0.92rem;
+  line-height: 1.6;
+  color: var(--color-text);
+}
+
+.ares-page .ares-pod-baseline-lead strong {
+  color: var(--ares-trace-fore);
+}
+
+.ares-page .ares-pod-baseline p:not(.ares-pod-baseline-lead) {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.6;
+  color: var(--color-text-muted);
+}
+
+/* .ares-caption is already defined (shared primitive) and used verbatim by
+   PodDisagreement's closing paragraph — intentionally not redeclared here. */
+
+/* ============================================================
+   SystemDiagram
+   ============================================================ */
+
+.ares-page .ares-system-diagram {
+  margin: 0;
+  display: grid;
+  gap: 0.9rem;
+  background: var(--ares-panel);
+  border: 1px solid var(--ares-grid-line);
+  border-radius: 12px;
+  padding: 1.5rem;
+}
+
+/* The diagram is six columns wide by design (three pods feeding a single
+   downstream chain) — it cannot be squeezed to 360px without either
+   overflowing or shrinking its text past legibility. Rather than force
+   width:100% scaling (which would shrink node labels to near-unreadable
+   size on a phone), the SVG keeps a floor width and the figure scrolls
+   horizontally below that, the same pattern used for wide tables. */
+
+.ares-page .ares-system-diagram {
+  overflow-x: auto;
+}
+
+.ares-page .ares-diagram-svg {
+  display: block;
+  height: auto;
+  min-width: 46rem;
+  max-width: 68rem;
+}
+
+.ares-page .ares-diagram-block {
+  cursor: pointer;
+}
+
+.ares-page .ares-diagram-block rect {
+  fill: var(--ares-panel-sunk);
+  stroke: var(--ares-grid-line);
+  stroke-width: 1.5;
+  transition: fill 0.15s ease, stroke 0.15s ease;
+}
+
+.ares-page .ares-diagram-block text {
+  font-family: var(--ares-mono);
+  font-size: 17px;
+  font-weight: 600;
+  fill: var(--color-text);
+}
+
+.ares-page .ares-diagram-block-active rect {
+  fill: var(--ares-panel);
+  stroke: var(--ares-trace-chin);
+  stroke-width: 2.5;
+}
+
+.ares-page .ares-diagram-block-active text {
+  fill: var(--ares-trace-chin);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ares-page .ares-diagram-block rect {
+    transition: none;
+  }
+}
+
+/* ---- Edges: travelling dash on scroll-into-view, gated in the component
+   by prefers-reduced-motion (ares-diagram-edge-live is only ever applied
+   when motion is allowed) — the media query below is a defensive second
+   layer so a static build never ships an animating edge either. */
+
+.ares-page .ares-diagram-edge {
+  fill: none;
+  stroke: var(--ares-trace-chin);
+  stroke-width: 2;
+}
+
+.ares-page .ares-diagram-arrowhead {
+  fill: var(--ares-trace-chin);
+}
+
+.ares-page .ares-diagram-edge-live {
+  stroke-dasharray: 6 6;
+  animation: ares-diagram-flow 1.1s linear infinite;
+}
+
+@keyframes ares-diagram-flow {
+  to {
+    stroke-dashoffset: -24;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ares-page .ares-diagram-edge-live {
+    animation: none;
+    stroke-dasharray: none;
+  }
+}
+
+/* ---- Hover/focus description readout -------------------------------------- */
+
+.ares-page .ares-diagram-desc {
+  margin: 0;
+  min-height: 1.6em;
+  font-size: 0.92rem;
+  line-height: 1.5;
+  color: var(--color-text-muted);
+  background: var(--ares-panel-sunk);
+  border-radius: 8px;
+  padding: 0.65rem 0.9rem;
+}
+
+/* ---- Caption --------------------------------------------------------------
+   figcaption has no className in the markup; scoped via the figure's class
+   rather than a bare element selector. */
+
+.ares-page .ares-system-diagram figcaption {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: var(--color-text-muted);
+  border-left: 3px solid var(--ares-trace-chin);
+  padding-left: 1rem;
+}
+
+/* The visually-hidden <ol> uses the shared .ares-visually-hidden utility
+   (clip-based, already defined above in the merged file) — intentionally
+   not redeclared here. Never display:none; it stays in the accessibility
+   tree. */
+
+/* ---- Narrow-viewport spacing ----------------------------------------------
+   Reclaim padding at 360px so the panels don't eat into the already-tight
+   width budget for the chart / diagram scroll area. */
+
+@media (max-width: 480px) {
+  .ares-page .ares-pod-disagreement,
+  .ares-page .ares-system-diagram {
+    padding: 1rem;
+  }
+}
