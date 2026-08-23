@@ -555,3 +555,256 @@
   line-height: 1.55;
   color: var(--color-text-muted);
 }
+
+/* ==========================================================================
+   Task 7 — ExposureDial (src/components/ares/ExposureDial.jsx)
+   Concentration/session-length dial reading out ppm, mmHg, % and cumulative
+   dose against the GLOSSARY §5 tier bands. Every selector scoped under
+   .ares-page per the CSS conventions; no new tokens on the .ares-page block.
+   ========================================================================== */
+
+.ares-page .ares-exposure-dial {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  background: var(--ares-panel);
+  border: 1px solid var(--ares-grid-line);
+  border-radius: 12px;
+  padding: 1.5rem;
+
+  /* Escalating warm severity ramp for the tier bands/legend below, built
+     from tokens already declared on .ares-page plus two literal warm-red
+     steps toward Mars red — scoped to this component, not the shared
+     token block. */
+  --ares-tier-color-0: var(--ares-conc-0);
+  --ares-tier-color-1: var(--ares-conc-1);
+  --ares-tier-color-2: var(--ares-conc-2);
+  --ares-tier-color-3: var(--ares-trace-fore);
+  --ares-tier-color-4: #c1512b;
+  --ares-tier-color-5: var(--ares-trace-chin);
+}
+
+/* ---- Controls ------------------------------------------------------------ */
+
+.ares-page .ares-exposure-controls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: 1.25rem;
+}
+
+.ares-page .ares-exposure-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  background: var(--ares-panel-sunk);
+  border: 1px solid var(--ares-grid-line);
+  border-radius: 8px;
+  padding: 0.9rem 1rem;
+}
+
+.ares-page .ares-exposure-field label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-text);
+  letter-spacing: 0.01em;
+}
+
+.ares-page .ares-exposure-field input[type='range'] {
+  width: 100%;
+  accent-color: var(--ares-trace-chin);
+}
+
+.ares-page .ares-exposure-field-value {
+  font-family: var(--ares-mono);
+  font-size: 0.95rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text);
+}
+
+.ares-page .ares-exposure-field-toggle {
+  gap: 0.6rem;
+}
+
+.ares-page .ares-exposure-field-toggle input[type='checkbox'] {
+  width: 2.4rem;
+  height: 1.3rem;
+  accent-color: var(--ares-trace-chin);
+}
+
+.ares-page .ares-exposure-pressure-note {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: var(--color-text-muted);
+}
+
+/* ---- Decorative proportional strip ---------------------------------------
+   aria-hidden in the markup; purely a visual echo of the legend below. */
+
+.ares-page .ares-tier-bar {
+  position: relative;
+  height: 0.85rem;
+  border-radius: 999px;
+  overflow: hidden;
+  border: 1px solid var(--ares-grid-line);
+  background: var(--ares-panel-sunk);
+}
+
+.ares-page .ares-tier-bar-band {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+}
+
+.ares-page .ares-tier-bar-band-0 { background: var(--ares-tier-color-0); }
+.ares-page .ares-tier-bar-band-1 { background: var(--ares-tier-color-1); }
+.ares-page .ares-tier-bar-band-2 { background: var(--ares-tier-color-2); }
+.ares-page .ares-tier-bar-band-3 { background: var(--ares-tier-color-3); }
+.ares-page .ares-tier-bar-band-4 { background: var(--ares-tier-color-4); }
+.ares-page .ares-tier-bar-band-5 { background: var(--ares-tier-color-5); }
+
+.ares-page .ares-tier-bar-band-current {
+  outline: 2px solid var(--color-text);
+  outline-offset: -2px;
+}
+
+.ares-page .ares-tier-marker {
+  position: absolute;
+  top: -0.2rem;
+  bottom: -0.2rem;
+  width: 3px;
+  background: var(--color-text);
+  transform: translateX(-50%);
+  transition: left 0.2s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ares-page .ares-tier-marker {
+    transition: none;
+  }
+}
+
+/* ---- Accessible tier legend ------------------------------------------------
+   The actual "marked band" content: every CO2_TIERS entry as a labeled row.
+   Colour (the swatch) is never the only channel — the ppm/label text and,
+   for the active tier, the explicit "Current reading" flag carry the same
+   information without hue. */
+
+.ares-page .ares-tier-legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.ares-page .ares-tier-legend-item {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  padding: 0.45rem 0.65rem;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  font-size: 0.85rem;
+  color: var(--color-text);
+}
+
+.ares-page .ares-tier-legend-item-current {
+  border-color: var(--ares-trace-chin);
+  background: var(--ares-panel-sunk);
+  font-weight: 600;
+}
+
+.ares-page .ares-tier-swatch {
+  flex: 0 0 auto;
+  width: 0.85rem;
+  height: 0.85rem;
+  border-radius: 999px;
+  border: 1px solid var(--ares-grid-line);
+}
+
+.ares-page .ares-tier-legend-item-0 .ares-tier-swatch { background: var(--ares-tier-color-0); }
+.ares-page .ares-tier-legend-item-1 .ares-tier-swatch { background: var(--ares-tier-color-1); }
+.ares-page .ares-tier-legend-item-2 .ares-tier-swatch { background: var(--ares-tier-color-2); }
+.ares-page .ares-tier-legend-item-3 .ares-tier-swatch { background: var(--ares-tier-color-3); }
+.ares-page .ares-tier-legend-item-4 .ares-tier-swatch { background: var(--ares-tier-color-4); }
+.ares-page .ares-tier-legend-item-5 .ares-tier-swatch { background: var(--ares-tier-color-5); }
+
+.ares-page .ares-tier-legend-text {
+  flex: 1 1 auto;
+}
+
+.ares-page .ares-tier-legend-flag {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.78rem;
+  color: var(--ares-trace-chin);
+}
+
+/* ---- Unit + dose readouts ------------------------------------------------- */
+
+.ares-page .ares-exposure-readouts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: 1rem;
+}
+
+.ares-page .ares-exposure-readout {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  background: var(--ares-panel-sunk);
+  border: 1px solid var(--ares-grid-line);
+  border-radius: 8px;
+  padding: 0.85rem 1rem;
+}
+
+.ares-page .ares-exposure-readout-label {
+  font-size: 0.75rem;
+  color: var(--color-muted);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.ares-page .ares-exposure-readout-value {
+  font-family: var(--ares-mono);
+  font-size: 1.35rem;
+  font-weight: 600;
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.ares-page .ares-exposure-readout-dose {
+  grid-column: 1 / -1;
+}
+
+.ares-page .ares-exposure-readout-note {
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+}
+
+/* ---- Argument caption + live summary --------------------------------------- */
+
+.ares-page .ares-exposure-dial .ares-caption {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.55;
+  color: var(--color-text);
+  border-left: 3px solid var(--ares-trace-chin);
+  padding-left: 1rem;
+}
+
+.ares-page .ares-exposure-summary {
+  font-family: var(--ares-mono);
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--color-text-muted);
+  background: var(--ares-panel-sunk);
+  border: 1px solid var(--ares-grid-line);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+}
