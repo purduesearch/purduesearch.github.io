@@ -1602,3 +1602,137 @@
     padding: 1rem;
   }
 }
+
+/* ============================================================
+   Task 5 — PlumeSimulator (the gravity-slider hero interactive)
+   Every selector scoped under .ares-page; the slider/readout/ticks class
+   names are generic-sounding, so they are further scoped under
+   .ares-plume-sim to keep them from colliding with any other component that
+   reuses the same names. Per GLOBAL-CONSTRAINTS §3 / PARALLEL-WAVE §2.
+   ============================================================ */
+
+.ares-page .ares-plume-sim {
+  background: var(--ares-panel);
+  border: 1px solid var(--ares-grid-line);
+  border-radius: 12px;
+  padding: 1.5rem;
+}
+
+.ares-page .ares-plume-visual {
+  position: relative;
+  max-width: 400px;
+  margin: 0 auto 1.25rem;
+}
+
+.ares-page .ares-plume-canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 400 / 500;
+  background: var(--ares-panel);
+  border: 1px solid var(--ares-grid-line);
+  border-radius: 10px;
+}
+
+/* Hidden by default; the narrow-viewport media query below swaps it in for
+   the canvas. Mirrors the loop-ring-wrap / loop-ring-fallback pattern in
+   src/pages/AstroUSA.jsx. */
+.ares-page .ares-plume-fallback {
+  display: none;
+  padding: 1rem 1.1rem;
+  background: var(--ares-panel-sunk);
+  border: 1px solid var(--ares-grid-line);
+  border-radius: 10px;
+}
+
+.ares-page .ares-plume-fallback-intro {
+  margin: 0 0 0.75rem;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--color-text-muted);
+}
+
+.ares-page .ares-plume-fallback-list {
+  margin: 0;
+  display: grid;
+  gap: 0.65rem;
+}
+
+.ares-page .ares-plume-fallback-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding-bottom: 0.55rem;
+  border-bottom: 1px dashed var(--ares-grid-line);
+}
+
+.ares-page .ares-plume-fallback-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.ares-page .ares-plume-fallback-row dt {
+  font-family: var(--ares-mono);
+  font-size: 0.85rem;
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.ares-page .ares-plume-fallback-g {
+  font-weight: 400;
+  color: var(--color-muted);
+}
+
+.ares-page .ares-plume-fallback-row dd {
+  margin: 0.1rem 0 0;
+  font-family: var(--ares-mono);
+  font-size: 0.82rem;
+  color: var(--ares-trace-chin);
+}
+
+.ares-page .ares-plume-sim .ares-slider-label {
+  display: block;
+  font-family: var(--ares-mono);
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  margin-bottom: 0.35rem;
+}
+
+.ares-page .ares-plume-sim input[type='range'] {
+  width: 100%;
+  accent-color: var(--ares-trace-chin);
+}
+
+.ares-page .ares-plume-sim .ares-slider-ticks {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--ares-mono);
+  font-size: 0.75rem;
+  color: var(--color-muted);
+  margin-top: 0.3rem;
+}
+
+.ares-page .ares-plume-sim .ares-readout {
+  margin-top: 1rem;
+  padding: 0.65rem 0.85rem;
+  background: var(--ares-panel-sunk);
+  border-radius: 6px;
+  font-family: var(--ares-mono);
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text);
+  line-height: 1.5;
+}
+
+.ares-page .ares-plume-sim .ares-readout p {
+  margin: 0;
+}
+
+@media (max-width: 480px) {
+  .ares-page .ares-plume-canvas {
+    display: none;
+  }
+  .ares-page .ares-plume-fallback {
+    display: block;
+  }
+}
