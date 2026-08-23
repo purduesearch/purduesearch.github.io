@@ -991,3 +991,273 @@
     display: none;
   }
 }
+
+/* ============================================================
+   Task 9 — RegimePlayground and NdirBeam
+   Shared slider field + caption primitives, then per-component rules.
+   Every selector scoped under .ares-page, per GLOBAL-CONSTRAINTS §3.
+   ============================================================ */
+
+/* ---- Shared: slider fields & caption ----------------------------------- */
+
+.ares-page .ares-slider-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-bottom: 1rem;
+}
+
+.ares-page .ares-slider-field label {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  font-family: var(--ares-mono);
+}
+
+.ares-page .ares-slider-field input[type='range'] {
+  width: 100%;
+  accent-color: var(--ares-trace-chin);
+}
+
+.ares-page .ares-slider-note {
+  margin: 0.15rem 0 0;
+  font-size: 0.78rem;
+  color: var(--color-muted);
+  line-height: 1.4;
+}
+
+.ares-page .ares-caption {
+  margin-top: 1rem;
+  padding: 0.85rem 1rem;
+  background: var(--ares-panel-sunk);
+  border-left: 3px solid var(--ares-trace-chin);
+  border-radius: 4px;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: var(--color-text-muted);
+}
+
+/* ---- RegimePlayground ---------------------------------------------------
+   The lesson is the layout: both length presets computed and displayed
+   side by side, never a toggle that hides the previous value. */
+
+.ares-page .ares-regime-playground {
+  background: var(--ares-panel);
+  border: 1px solid var(--ares-grid-line);
+  border-radius: 12px;
+  padding: 1.5rem;
+}
+
+.ares-page .ares-regime-controls {
+  display: grid;
+  gap: 0.5rem;
+  margin-bottom: 1.25rem;
+}
+
+.ares-page .ares-length-choice {
+  border: 1px solid var(--ares-grid-line);
+  border-radius: 8px;
+  padding: 0.85rem 1rem;
+  margin: 0.5rem 0 0;
+}
+
+.ares-page .ares-length-choice legend {
+  font-family: var(--ares-mono);
+  font-size: 0.82rem;
+  color: var(--color-text);
+  padding: 0 0.4rem;
+}
+
+.ares-page .ares-length-choice-hint {
+  margin: 0.2rem 0 0.6rem;
+  font-size: 0.8rem;
+  color: var(--color-muted);
+}
+
+.ares-page .ares-length-choice-list {
+  margin: 0;
+  padding-left: 1.2rem;
+  font-size: 0.88rem;
+  color: var(--color-text);
+  display: grid;
+  gap: 0.3rem;
+}
+
+.ares-page .ares-regime-table {
+  display: grid;
+  gap: 0.35rem;
+  overflow-x: auto;
+}
+
+.ares-page .ares-regime-row {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 1fr;
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0.55rem 0.75rem;
+  background: var(--ares-panel-sunk);
+  border-radius: 6px;
+  min-width: 26rem;
+}
+
+.ares-page .ares-regime-row-header {
+  background: transparent;
+  font-size: 0.78rem;
+  color: var(--color-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.ares-page .ares-regime-row-label {
+  font-size: 0.88rem;
+  color: var(--color-text);
+}
+
+.ares-page .ares-regime-row-value {
+  font-family: var(--ares-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.95rem;
+  color: var(--ares-trace-chin);
+}
+
+.ares-page .ares-regime-row-header .ares-regime-row-value {
+  color: var(--color-muted);
+  font-size: 0.78rem;
+}
+
+.ares-page .ares-regime-pe-note {
+  margin-top: 0.75rem;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: var(--color-muted);
+}
+
+.ares-page .ares-regime-pe-note code {
+  font-family: var(--ares-mono);
+  background: var(--ares-panel-sunk);
+  padding: 0.05rem 0.35rem;
+  border-radius: 3px;
+}
+
+.ares-page .ares-regime-summary {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px dashed var(--ares-grid-line);
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  font-family: var(--ares-mono);
+  line-height: 1.5;
+}
+
+/* ---- NdirBeam ------------------------------------------------------------ */
+
+.ares-page .ares-ndir-beam {
+  background: var(--ares-panel);
+  border: 1px solid var(--ares-grid-line);
+  border-radius: 12px;
+  padding: 1.5rem;
+}
+
+.ares-page .ares-ndir-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.ares-page .ares-ndir-source circle {
+  fill: var(--ares-trace-fore);
+}
+
+.ares-page .ares-ndir-detector rect {
+  fill: var(--ares-panel-sunk);
+  stroke: var(--ares-grid-line);
+  stroke-width: 1.5;
+}
+
+.ares-page .ares-ndir-filter rect {
+  fill: var(--ares-trace-top);
+}
+
+.ares-page .ares-ndir-gas-cell rect {
+  fill: var(--ares-conc-1);
+  fill: color-mix(
+    in srgb,
+    var(--ares-conc-0) calc((1 - var(--ares-ndir-conc, 0)) * 100%),
+    var(--ares-conc-2) calc(var(--ares-ndir-conc, 0) * 100%)
+  );
+  stroke: var(--ares-grid-line);
+  stroke-width: 1.5;
+  transition: fill 0.2s ease;
+}
+
+.ares-page .ares-ndir-beam-line {
+  stroke: var(--ares-trace-chin);
+  stroke-width: 3;
+  transition: opacity 0.2s ease;
+}
+
+.ares-page .ares-ndir-label {
+  font-family: var(--ares-mono);
+  font-size: 10px;
+  fill: var(--color-text-muted);
+}
+
+.ares-page .ares-ndir-svg-animated .ares-ndir-beam-line {
+  stroke-dasharray: 6 6;
+  animation: ares-ndir-flow 1s linear infinite;
+}
+
+@keyframes ares-ndir-flow {
+  to {
+    stroke-dashoffset: -24;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ares-page .ares-ndir-svg-animated .ares-ndir-beam-line {
+    animation: none;
+  }
+}
+
+.ares-page .ares-ndir-detector-bar {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--ares-panel-sunk);
+  overflow: hidden;
+  margin: 0.75rem 0 1.1rem;
+}
+
+.ares-page .ares-ndir-detector-bar-fill {
+  height: 100%;
+  background: var(--ares-trace-fore);
+  transition: width 0.2s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ares-page .ares-ndir-detector-bar-fill {
+    transition: none;
+  }
+}
+
+.ares-page .ares-ndir-controls {
+  display: grid;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.ares-page .ares-ndir-readout {
+  font-family: var(--ares-mono);
+  font-size: 0.85rem;
+  color: var(--color-text);
+  background: var(--ares-panel-sunk);
+  border-radius: 6px;
+  padding: 0.65rem 0.85rem;
+  margin: 0.5rem 0;
+  line-height: 1.5;
+}
+
+.ares-page .ares-ndir-prose {
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: var(--color-text-muted);
+  margin: 0.75rem 0;
+}
