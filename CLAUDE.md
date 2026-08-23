@@ -17,6 +17,7 @@ Static SPA for the Purdue SEARCH club, deployed to GitHub Pages and served at th
 │   ├── index.html                  # HTML shell; Font Awesome CDN link here
 │   ├── search-theme.css            # Public site CSS (linked from index.html on every page)
 │   ├── clubpm-theme.css            # ClubPM-only CSS, fetched on demand by /clubpm/* routes
+│   ├── ares-theme.css              # ARES-only CSS, fetched on demand by /ares/* routes — every selector scoped under .ares-page
 │   └── <program>/                  # Static assets per program
 │       └── interactive diagrams/   # mxGraph XML source files (.xml)
 ├── src/
@@ -32,6 +33,10 @@ Static SPA for the Purdue SEARCH club, deployed to GitHub Pages and served at th
 │   ├── hooks/
 │   │   ├── useFlowAnimations.js
 │   │   └── useSearch.js
+│   ├── theme/
+│   │   └── loadTheme.js            # Generic runtime <link> loader (href, marker) — ares-theme.css and clubpm-theme.css both go through it
+│   ├── lib/
+│   │   └── ares/                   # Pure physics/model helpers backing the ARES interactives (stepResponseModel, beerLambert, breathModel, exposureModel, plumeModel, noisyDifference — each with a test file)
 │   ├── pages/                      # One file (or folder) per route
 │   │   ├── Home.jsx
 │   │   ├── About.jsx
@@ -45,6 +50,7 @@ Static SPA for the Purdue SEARCH club, deployed to GitHub Pages and served at th
 │   │   ├── Research.jsx + Research/   # Rascal
 │   │   ├── SA2TP.jsx + SA2TP/         # Crew1, RodInterview
 │   │   ├── Software.jsx + Software/   # Suits
+│   │   ├── Ares.jsx + Ares/           # TheScience, TheHeadset — public ARES subteam page; see docs/superpowers/specs/2026-08-22-ares-public-subteam-page-design.md §1 for the publication-clearance rule before editing any prose here
 │   │   └── ClubPM/                    # Protected PM dashboards
 │   │       ├── Dashboard.jsx
 │   │       ├── ProjectDetail.jsx      # Main PM view (kanban/milestones/files/vault/ai)
@@ -71,6 +77,7 @@ Static SPA for the Purdue SEARCH club, deployed to GitHub Pages and served at th
 │       ├── SearchBar.jsx
 │       ├── SEOHead.jsx
 │       ├── STLViewer.jsx
+│       ├── ares/                   # ARES interactives (PlumeSimulator, PodReadout, ExposureDial, DelayVsT90, RegimePlayground, NdirBeam, SystemDiagram, PodDisagreement, AresStat, AresTerm) + aresPhysics.js (single source of truth for every physical constant on /ares)
 │       └── clubpm/                 # ClubPM UI components
 │           ├── AppShell.jsx        # Protected layout shell
 │           ├── GanttChart.jsx
@@ -100,16 +107,18 @@ Static SPA for the Purdue SEARCH club, deployed to GitHub Pages and served at th
 - Hooks only — no class components.
 
 ### CSS
-- **Two stylesheets, split by audience.** No CSS modules, no Tailwind.
+- **Three stylesheets, split by audience.** No CSS modules, no Tailwind.
   - `public/search-theme.css` — public site. Linked from `index.html`, so **every visitor downloads it**. Keep it lean.
   - `public/clubpm-theme.css` — ClubPM only. Fetched at runtime by `src/clubpm/loadClubPmTheme.js`, which `src/App.js` wraps around every `/clubpm/*` lazy route via `lazyWithClubPmTheme()`. Public pages never request it.
-- **Which file does a new rule go in?** If the styled element can appear outside `/clubpm/*`, it belongs in `search-theme.css`. Note that `/schedule/:token` and `/rsvp/:eventId` are **public** routes that reuse the ClubPM look (`.clubpm-app`, `.cpm-form-*`, `.pm-poll-*`), and `/blog/:slug` renders stored HTML whose classes come from `backend/src/services/blogRender.ts` (`.cpm-blog-section`, `.cpm-blog-callout--*`, …) — all of that is public.
-- **Cascade:** `clubpm-theme.css` is appended to `<head>` after `search-theme.css`, so it still wins over both it and `style.min.css`. It is a verbatim tail slice of the pre-split file, which is what keeps ClubPM's cascade byte-for-byte identical; public rules that live in that tail intentionally appear in both files.
+  - `public/ares-theme.css` — ARES only. Fetched at runtime by `src/theme/loadTheme.js` (the same generic `loadTheme(href, marker)` loader `loadClubPmTheme.js` now wraps), gated to every `/ares/*` lazy route. **Every selector must be nested under `.ares-page`** — no bare element selectors, no `:root` block, no unscoped utility classes. This is load-bearing, not stylistic: `ares-theme.css` and `clubpm-theme.css` are both appended to `<head>` at runtime in *visit order*, so `/ares → /clubpm/login` and `/clubpm/login → /ares` produce opposite cascade orders, and `clubpm-theme.css` is a broad verbatim tail slice of the pre-split stylesheet with no scoping of its own. `.ares-page` scoping is what makes that visit-order difference harmless; do not add an ARES rule that skips it.
+- **Which file does a new rule go in?** If the styled element can appear outside `/clubpm/*` and outside `/ares/*`, it belongs in `search-theme.css`. If it only ever renders under `/ares/*` (the hub, the two deep-dives, or any `src/components/ares/*` component), it belongs in `ares-theme.css`, scoped under `.ares-page`. Note that `/schedule/:token` and `/rsvp/:eventId` are **public** routes that reuse the ClubPM look (`.clubpm-app`, `.cpm-form-*`, `.pm-poll-*`), and `/blog/:slug` renders stored HTML whose classes come from `backend/src/services/blogRender.ts` (`.cpm-blog-section`, `.cpm-blog-callout--*`, …) — all of that is public.
+- **Cascade:** `clubpm-theme.css` is appended to `<head>` after `search-theme.css`, so it still wins over both it and `style.min.css`. It is a verbatim tail slice of the pre-split file, which is what keeps ClubPM's cascade byte-for-byte identical; public rules that live in that tail intentionally appear in both files. `ares-theme.css` loads/unloads the same way on `/ares/*` visits; its `.ares-page` scoping (rather than load order) is what keeps it from colliding with either of the other two.
 - `src/index.css` — base reset and font styles only.
 - `src/newscarousel.scss` — carousel-specific SCSS (one-off; do not add more SCSS files).
-- Theme tokens are CSS custom properties: `--color-accent`, `--color-border`, `--color-muted`, `--color-text-muted`, `--color-bg`, etc.
-- Component class names are kebab-case, namespaced by feature (e.g., `astro-diagram-wrap`, `astro-diagram-toolbar`, `astro-key-btn`).
-- Append new component CSS to the bottom of whichever of the two files applies; never inline critical styles.
+- **Theme tokens — check the file before assuming a name is global.** Only these `--color-*` tokens have a real `:root` declaration in `search-theme.css` and are safe to use anywhere on the public site: `--color-text`, `--color-muted`, `--color-border`, `--color-accent`, `--color-bg-sand` (plus the `--color-bg-*` family — `--color-bg-primary`, `--color-bg-secondary`, `--color-bg-dark`, `--color-bg-footer`, `--color-bg-card`; there is no bare `--color-bg`). **`--color-text-muted` is NOT global** — it is declared only inside the `.clubpm-app` block (`public/search-theme.css` ~line 4296, sourced from `--pm-text-muted`) and silently resolves to nothing (transparent/inherit, not an error) anywhere outside ClubPM, including on `/ares/*`. This one line being wrong in an earlier revision of this file cost the ARES build two invisible SVG strokes across six independent agent passes before it was caught — grep the actual `:root { … }` block in `public/search-theme.css` before trusting a token name from memory, here or anywhere else.
+- Component class names are kebab-case, namespaced by feature (e.g., `astro-diagram-wrap`, `astro-diagram-toolbar`, `astro-key-btn`, `ares-plume-canvas`).
+- Append new component CSS to the bottom of whichever of the three files applies; never inline critical styles.
+- `scripts/minify-public-css.mjs` carries a **hardcoded `TARGETS` array** (`search-theme.css`, `clubpm-theme.css`, `style.min.css`, `fa-subset.css`, `ares-theme.css`) — any new public stylesheet must be added to it by hand or it silently ships unminified. The script **warns and skips** a target that isn't in `build/` rather than failing the build, so a missing entry will not surface as a build error; check the `[minify-css]` log lines after `npm run build`.
 
 ### Animations
 - AOS for scroll entrance: `data-aos="fade-up"`, `data-aos-delay="100"` on JSX elements.
