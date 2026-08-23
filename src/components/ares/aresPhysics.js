@@ -47,6 +47,14 @@ export const PLUME = {
 /** C16 ("Why 4.26 µm") — the CO2 absorption band NDIR selects with a bandpass filter. */
 export const NDIR_BAND_M = 4.26e-6;
 
+/**
+ * NDIR_BAND_M in micrometres — the instrument-panel convention every on-page
+ * figure uses for this value. Exported so the metre->micrometre conversion
+ * happens exactly once, here, rather than being repeated as a bare *1e6 in
+ * every component that displays the band.
+ */
+export const NDIR_BAND_UM = NDIR_BAND_M * 1e6;
+
 /** GLOSSARY §5 — the velocity regime the anemometry has to resolve. */
 export const ANEMOMETRY_RANGE = { min: 0.05, max: 0.4 };
 
@@ -59,6 +67,21 @@ export const CO2_TIERS = [
   { ppm: 5300, label: "NASA's 2010 operational limit",   note: '4.0 mmHg' },
   { ppm: 6600, label: "NASA's 2006 operational limit",   note: '5.0 mmHg' },
 ];
+
+/**
+ * Outdoor ambient CO2, ppm — CO2_TIERS[0] ("Outdoor ambient"), read by label
+ * rather than re-typed, so the breath model's baseline and the conversion
+ * table's baseline can never drift apart the way a second literal invites.
+ */
+export const AMBIENT_PPM = CO2_TIERS.find((tier) => tier.label === 'Outdoor ambient').ppm;
+
+/**
+ * A full exhaled breath, ppm — an illustrative physiological magnitude used by
+ * the breath-cycle model (breathModel.js), NOT a measured ARES figure. Lives
+ * here rather than in breathModel.js so every consumer of "what does a full
+ * exhale look like" reads the same number.
+ */
+export const EXHALED_PPM = 40000;
 
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 

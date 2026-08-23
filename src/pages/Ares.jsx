@@ -50,7 +50,7 @@ function AresFigure({ src, alt, caption, credit }) {
 
   if (failed) {
     return (
-      <figure className="ares-figure ares-figure-empty">
+      <figure className="ares-figure ares-figure--standalone">
         <div className="ares-figure-placeholder" role="img" aria-label={alt}>
           <i className="fas fa-chart-area" aria-hidden="true" />
           <span>{alt}</span>
@@ -61,7 +61,7 @@ function AresFigure({ src, alt, caption, credit }) {
   }
 
   return (
-    <figure className="ares-figure">
+    <figure className="ares-figure ares-figure--standalone">
       <img loading="lazy" src={src} alt={alt} onError={() => setFailed(true)} />
       {caption && (
         <figcaption>
@@ -358,11 +358,11 @@ const Ares = () => {
             <div className="title-wrap mb-4" data-aos="fade-up">
               <h2 className="section-title">What’s <b>Next</b></h2>
               <p className="section-sub-title">
-                Three changes, all aimed at making the reference sensor honest.
+                Two changes, both aimed at making the reference sensor honest.
               </p>
             </div>
-            <div className="row" data-aos="fade-up">
-              <div className="col-md-4 mb-4">
+            <div className="row justify-content-center" data-aos="fade-up">
+              <div className="col-md-6 mb-4">
                 <div className="ares-next-card">
                   <div className="ares-next-card-icon"><i className="fas fa-arrows-alt" aria-hidden="true" /></div>
                   <h3 className="ares-next-card-title">Move the top pod</h3>
@@ -372,25 +372,13 @@ const Ares = () => {
                   </p>
                 </div>
               </div>
-              <div className="col-md-4 mb-4">
+              <div className="col-md-6 mb-4">
                 <div className="ares-next-card">
                   <div className="ares-next-card-icon"><i className="fas fa-compress-alt" aria-hidden="true" /></div>
                   <h3 className="ares-next-card-title">Lower its profile</h3>
                   <p className="ares-next-card-body">
                     Cut the physical height of the pod itself, so it stops standing tall
                     enough to shadow the very airflow it's trying to sample.
-                  </p>
-                </div>
-              </div>
-              <div className="col-md-4 mb-4">
-                <div className="ares-next-card">
-                  <div className="ares-next-card-icon"><i className="fas fa-share-alt" aria-hidden="true" /></div>
-                  <h3 className="ares-next-card-title">Room-reference nodes</h3>
-                  <p className="ares-next-card-body">
-                    Even a perfectly placed headset pod is still within arm's reach of a
-                    CO₂ source — the wearer's own breath. Fixed sensors placed around a
-                    subject, rather than on them, would give a room baseline no amount of
-                    headset repositioning ever could.
                   </p>
                 </div>
               </div>

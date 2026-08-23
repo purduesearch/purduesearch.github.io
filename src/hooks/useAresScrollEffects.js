@@ -3,9 +3,19 @@ import { useEffect } from 'react';
 /**
  * The two scroll effects specific to the ARES hub.
  *
- * 1. GRAVITY DRAIN — the hero's background particle drift is coupled to scroll
- *    position, so crossing out of the opening sections kills the upward motion.
- *    The page performs its own subject rather than describing it.
+ * 1. GRAVITY DRAIN — tweens the CSS custom property --ares-drift from 1 to 0
+ *    as the hero scrolls out of view. This is currently a standalone token:
+ *    no component reads it. It was briefly wired into PlumeSimulator's
+ *    particle gravity, but that coupling was wrong — PlumeSimulator lives two
+ *    full sections below the hero behind its own IntersectionObserver gate,
+ *    so by the time its canvas could ever be on screen the tween had already
+ *    been clamped at drift = 0 for hundreds of pixels of scroll, silencing
+ *    the interactive at every gravity setting. That coupling has been
+ *    removed (see PlumeSimulator.jsx, which now drives its particle sim from
+ *    the gravity slider's own state only). The intended subject of this
+ *    effect is a hero-local background particle field that has not been
+ *    built yet; until it exists, --ares-drift keeps tweening harmlessly and
+ *    unconsumed. Do not re-wire it onto PlumeSimulator.
  *
  * 2. CONCENTRATION TINT — section backgrounds walk from cream toward warm
  *    ochre through the bubble and exposure sections, reading as accumulation.

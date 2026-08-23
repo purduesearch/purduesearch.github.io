@@ -11,15 +11,17 @@ import {
  * and Gr ~ L^3 means that choice dominates the answer.
  *
  * BODY_HEIGHT_M: what the whole-body plume analysis (M1) non-dimensionalises
- * on. HEAD_WIDTH_M: what the CFD paper (M3 / GLOSSARY §6) non-dimensionalises
- * on instead. Both are physically legitimate length scales for the same body;
- * they just answer different questions.
+ * on — the same buoyant path length aresPhysics.js exports as
+ * PLUME.developmentLengthM, reused here rather than retyped. HEAD_WIDTH_M:
+ * what the CFD paper (M3 / GLOSSARY §6) non-dimensionalises on instead. Both
+ * are physically legitimate length scales for the same body; they just
+ * answer different questions.
  */
-const BODY_HEIGHT_M = 1.7;
+const BODY_HEIGHT_M = PLUME.developmentLengthM;
 const HEAD_WIDTH_M = 1 / 6;
 
 const LENGTH_PRESETS = [
-  { id: 'body', label: 'Body height — 1.7 m', L: BODY_HEIGHT_M },
+  { id: 'body', label: `Body height — ${BODY_HEIGHT_M.toFixed(1)} m`, L: BODY_HEIGHT_M },
   { id: 'head', label: 'Head width — 1/6 m', L: HEAD_WIDTH_M },
 ];
 

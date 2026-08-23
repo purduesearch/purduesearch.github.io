@@ -1,6 +1,7 @@
-import { useEffect, useId, useState } from 'react';
-import { NDIR_BAND_M } from './aresPhysics';
+import { useId, useState } from 'react';
+import { NDIR_BAND_UM } from './aresPhysics';
 import { absorbedFraction, detectorSignal } from '../../lib/ares/beerLambert';
+import usePrefersReducedMotion from '../../hooks/usePrefersReducedMotion';
 
 /**
  * Slider ranges are UI parameters chosen for this component, not physical
@@ -21,28 +22,9 @@ const PATH_LENGTH_MM_MAX = 200;
  */
 const ABSORPTIVITY_DISPLAY = 1.2e-4;
 
-// NDIR_BAND_M is metres; the instrument-panel convention for this figure is
-// microns, so the conversion happens once here rather than as a bare 1e6
-// dropped into JSX.
-const BAND_UM = (NDIR_BAND_M * 1e6).toFixed(2);
-
-const usePrefersReducedMotion = () => {
-  const [reduced, setReduced] = useState(
-    () =>
-      typeof window !== 'undefined' &&
-      window.matchMedia('(prefers-reduced-motion: reduce)').matches,
-  );
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return undefined;
-    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
-    const onChange = () => setReduced(mq.matches);
-    mq.addEventListener('change', onChange);
-    return () => mq.removeEventListener('change', onChange);
-  }, []);
-
-  return reduced;
-};
+// NDIR_BAND_UM (aresPhysics.js) is already the metre->micron conversion,
+// computed once there; this just formats it for display.
+const BAND_UM = NDIR_BAND_UM.toFixed(2);
 
 const pct = (v) => (Number.isFinite(v) ? `${(v * 100).toFixed(1)} %` : '—');
 

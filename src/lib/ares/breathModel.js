@@ -8,12 +8,14 @@
  * GLOSSARY §1: the firmware indices and the physical positions are not
  * guaranteed to correspond.
  */
-import { rebreathedFraction } from '../../components/ares/aresPhysics';
+import { rebreathedFraction, AMBIENT_PPM, EXHALED_PPM } from '../../components/ares/aresPhysics';
 
-/** A full exhaled breath, ppm. Used as C_exhaled in the mixing model. */
-export const EXHALED_PPM = 40000;
+// EXHALED_PPM (C_exhaled) and AMBIENT_PPM (outdoor ambient, reused as the
+// breath cycle's baseline) both live in aresPhysics.js now — see the
+// comments there. Re-exported so existing callers importing them from this
+// module keep working.
+export { EXHALED_PPM };
 
-const AMBIENT_PPM = 420;
 /** How much a top pod standing in the rising plume over-reads. C13. */
 const PLUME_CONTAMINATION_PPM = 520;
 const BREATH_PERIOD_SAMPLES = 60;

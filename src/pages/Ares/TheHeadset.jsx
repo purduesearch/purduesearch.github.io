@@ -6,7 +6,7 @@ import SEOHead from '../../components/SEOHead';
 import SectionProgressRail from '../../components/SectionProgressRail';
 import AresStat from '../../components/ares/AresStat';
 import AresTerm from '../../components/ares/AresTerm';
-import { NDIR_BAND_M } from '../../components/ares/aresPhysics';
+import { NDIR_BAND_UM } from '../../components/ares/aresPhysics';
 
 const SystemDiagram = lazy(() => import('../../components/ares/SystemDiagram'));
 const NdirBeam = lazy(() => import('../../components/ares/NdirBeam'));
@@ -62,7 +62,7 @@ function AresFigure({ src, alt, caption, credit }) {
 
   if (failed) {
     return (
-      <figure className="ares-figure ares-figure-empty">
+      <figure className="ares-figure">
         <div className="ares-figure-placeholder" role="img" aria-label={alt}>
           <i className="fas fa-camera" aria-hidden="true" />
           <span>{alt}</span>
@@ -154,14 +154,6 @@ const TheHeadset = () => {
                 </li>
               ))}
             </ol>
-
-            <p data-aos="fade-up">
-              Every block above updates on its own schedule and by its own means — a companion
-              application updates whenever an app store pushes a new version, the headset updates
-              whenever somebody finds a cable. There is no moment at which both halves are guaranteed
-              to be running the same version, so every value that crosses the boundary between them has
-              to mean the same thing on both sides regardless of which side updated last.
-            </p>
           </div>
         </section>
 
@@ -208,7 +200,7 @@ const TheHeadset = () => {
 
             <div className="ares-stat-row" data-aos="fade-up">
               <AresStat
-                value={NDIR_BAND_M * 1e6}
+                value={NDIR_BAND_UM}
                 decimals={2}
                 unit="µm"
                 label="CO₂ absorption band the filter selects"

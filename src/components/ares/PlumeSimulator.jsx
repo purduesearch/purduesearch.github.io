@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { createParticles, stepParticles, regimeFor } from '../../lib/ares/plumeModel';
 import { GRAVITY } from './aresPhysics';
+import { prefersReducedMotion } from '../../hooks/usePrefersReducedMotion';
 
 /**
  * PlumeSimulator — the hero interactive on /ares, and the component that
@@ -46,27 +47,6 @@ const MIN_ALPHA = 0.07;
 const MAX_ALPHA = 0.88;
 
 const lerp = (a, b, t) => a + (b - a) * t;
-
-/**
- * Reads --ares-drift (the scroll-coupling scalar useAresScrollEffects tweens
- * from 1 to 0 as the hero scrolls away — see public/ares-theme.css). Since
- * buoyancy in plumeModel.js is exactly proportional to g (buoyancy = (g /
- * GRAVITY.earth) * BUOYANCY_GAIN), scaling g by this factor before it reaches
- * stepParticles has the identical effect to scaling the buoyancy term itself,
- * without plumeModel.js needing to know about the CSS token at all.
- *
- * getPropertyValue returns '' for an undeclared property and may return a
- * value with leading/trailing whitespace, so both are handled: an empty or
- * unparseable string falls back to 1 (full buoyancy, i.e. a no-op), which is
- * also the correct behaviour under prefers-reduced-motion — the scroll hook
- * never runs, so --ares-drift keeps its CSS-declared value of 1.
- */
-function parseDrift(rawValue) {
-  const trimmed = typeof rawValue === 'string' ? rawValue.trim() : '';
-  if (trimmed === '') return 1;
-  const parsed = Number.parseFloat(trimmed);
-  return Number.isFinite(parsed) ? parsed : 1;
-}
 
 function concentrationColor(co2) {
   const t = Math.min(1, Math.max(0, co2));
@@ -136,9 +116,10 @@ function drawFrame(ctx, particles) {
   }
 }
 
-const reduceMotion = () =>
-  typeof window !== 'undefined' &&
-  window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+// Aliased: this component only needs the preference's value at the moment
+// each effect runs, not a re-render when it changes mid-session — see
+// usePrefersReducedMotion.js's doc comment on why that's a separate export.
+const reduceMotion = prefersReducedMotion;
 
 // Simulated steps to run, unrendered, before drawing the reduced-motion still
 // frame. Every particle starts at co2: 0 (createParticles), so a single
@@ -183,6 +164,7 @@ export default function PlumeSimulator() {
   const particlesRef = useRef(createParticles(COUNT));
   const gRef = useRef(g);
   gRef.current = g;
+  const settledOnceRef = useRef(false);
   const gravityInputId = useId();
   const gravityReadoutId = useId();
 
@@ -218,15 +200,10 @@ export default function PlumeSimulator() {
     let running = false;
 
     const loop = () => {
-      // Read once per frame, not per particle — getComputedStyle forces a
-      // style recalculation, so this stays outside stepParticles' internal
-      // per-particle map.
-      const drift = parseDrift(getComputedStyle(canvas).getPropertyValue('--ares-drift'));
-
       // No rng passed — the live component wants real randomness. Only the
       // tests seed it.
       particlesRef.current = stepParticles(particlesRef.current, {
-        g: gRef.current * drift,
+        g: gRef.current,
         dt: 1 / 60,
         width: WIDTH,
         height: HEIGHT,
@@ -270,17 +247,44 @@ export default function PlumeSimulator() {
   // allowed — the animated effect above owns drawing in that case. Depends
   // on `g` so dragging the gravity slider still teaches something: each
   // change re-settles a fresh particle field at the new gravity and redraws.
+  //
+  // settledParticles is SETTLE_STEPS (240) * COUNT (320) particle updates,
+  // run synchronously, and the range input fires an onChange per pixel of
+  // drag or per auto-repeated arrow keypress — so this is guarded two ways:
+  //   1. Below 480px, public/ares-theme.css swaps this canvas out entirely
+  //      for .ares-plume-fallback (aria-hidden anyway; see below). Settling
+  //      a field nobody can see is pure waste, so skip the work whenever the
+  //      canvas is actually display:none.
+  //   2. Beyond the very first paint, the recompute is debounced rather than
+  //      run once per input event — a held arrow key or a fast drag settles
+  //      once after the user pauses, not dozens of times mid-gesture. The
+  //      first paint (mount, or motion preference flipping on mid-session)
+  //      still happens immediately so there is no blank delay before the
+  //      first reduced-motion frame.
   useEffect(() => {
     if (!reduceMotion()) return undefined;
     const canvas = canvasRef.current;
     if (!canvas) return undefined;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return undefined;
 
-    const settled = settledParticles(g);
-    particlesRef.current = settled;
-    drawFrame(ctx, settled);
-    return undefined;
+    const paint = () => {
+      const canvasEl = canvasRef.current;
+      if (!canvasEl) return;
+      if (getComputedStyle(canvasEl).display === 'none') return;
+      const ctx = canvasEl.getContext('2d');
+      if (!ctx) return;
+      const settled = settledParticles(g);
+      particlesRef.current = settled;
+      drawFrame(ctx, settled);
+    };
+
+    if (!settledOnceRef.current) {
+      settledOnceRef.current = true;
+      paint();
+      return undefined;
+    }
+
+    const timer = setTimeout(paint, 120);
+    return () => clearTimeout(timer);
   }, [g]);
 
   return (

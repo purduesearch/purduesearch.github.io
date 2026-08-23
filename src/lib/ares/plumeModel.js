@@ -10,13 +10,13 @@
  * Coordinates are canvas coordinates: y grows DOWNWARD, so rising air has
  * negative vy.
  */
-import { grashof, rayleigh, GRAVITY } from '../../components/ares/aresPhysics';
+import { grashof, rayleigh, GRAVITY, PLUME } from '../../components/ares/aresPhysics';
 
 /** Film temperature for a ~33 °C skin surface in a ~22 °C room. GLOSSARY §3. */
 const T_FILM_K = 300;
 const DELTA_T = 11;
 /** Body height as the characteristic length. C13; GLOSSARY §3 requires stating it. */
-const L_BODY = 1.7;
+const L_BODY = PLUME.developmentLengthM;
 
 const BUOYANCY_GAIN = 0.9;
 /**

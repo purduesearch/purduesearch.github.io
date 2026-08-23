@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react';
+import usePrefersReducedMotion from '../../hooks/usePrefersReducedMotion';
 
 /**
  * SystemDiagram — a hand-rolled SVG block diagram of the ARES data path,
@@ -102,24 +103,6 @@ const EDGES = [
 ];
 
 const nodeById = Object.fromEntries(NODES.map((n) => [n.id, n]));
-
-const usePrefersReducedMotion = () => {
-  const [reduced, setReduced] = useState(
-    () =>
-      typeof window !== 'undefined' &&
-      window.matchMedia('(prefers-reduced-motion: reduce)').matches,
-  );
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return undefined;
-    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
-    const onChange = () => setReduced(mq.matches);
-    mq.addEventListener('change', onChange);
-    return () => mq.removeEventListener('change', onChange);
-  }, []);
-
-  return reduced;
-};
 
 export default function SystemDiagram() {
   const idBase = useId();
@@ -225,8 +208,14 @@ export default function SystemDiagram() {
         </g>
       </svg>
 
+      {/* The blocks above are mouse-only (onMouseEnter/onMouseLeave) — a
+          previous fix round deliberately removed tabIndex/role="button" from
+          them because the <svg role="img"> already made them silent tab
+          stops. So this copy says "Hover", not "Hover or focus": a keyboard
+          user gets the same information from the visually-hidden <ol> below
+          instead. */}
       <p className="ares-diagram-desc" aria-live="polite">
-        {activeNode ? activeNode.desc : 'Hover or focus a block to see what it does.'}
+        {activeNode ? activeNode.desc : 'Hover a block to see what it does.'}
       </p>
 
       <figcaption>

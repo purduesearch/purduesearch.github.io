@@ -1,5 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { transportDelay, stepResponse } from '../../lib/ares/stepResponseModel';
+import usePrefersReducedMotion from '../../hooks/usePrefersReducedMotion';
 
 /**
  * Transport delay vs. T90 — the two quantities that get conflated constantly.
@@ -23,30 +24,6 @@ const PLOT_W = VIEW_W - PAD.left - PAD.right;
 const PLOT_H = VIEW_H - PAD.top - PAD.bottom;
 const SAMPLES = 300;
 const SWEEP_PERIOD_MS = 4000;
-
-const hasMatchMedia = () => (
-  typeof window !== 'undefined' && typeof window.matchMedia === 'function'
-);
-
-function usePrefersReducedMotion() {
-  const [reduced, setReduced] = useState(() => (
-    hasMatchMedia() && window.matchMedia('(prefers-reduced-motion: reduce)').matches
-  ));
-
-  useEffect(() => {
-    if (!hasMatchMedia()) return undefined;
-    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
-    const onChange = () => setReduced(mq.matches);
-    if (mq.addEventListener) mq.addEventListener('change', onChange);
-    else mq.addListener(onChange);
-    return () => {
-      if (mq.removeEventListener) mq.removeEventListener('change', onChange);
-      else mq.removeListener(onChange);
-    };
-  }, []);
-
-  return reduced;
-}
 
 const fmtSeconds = (n) => (
   Number.isFinite(n)

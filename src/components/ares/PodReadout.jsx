@@ -1,5 +1,6 @@
 import { useId, useMemo, useState } from 'react';
 import { POD_POSITIONS, breathTrace, sampleAt } from '../../lib/ares/breathModel';
+import { PLUME } from './aresPhysics';
 
 /**
  * PodReadout — the three-pod head diagram, the scrubbable breath cycle, and
@@ -247,10 +248,11 @@ export default function PodReadout() {
 
       <p className="ares-caption">
         On the current headset the top pod sits at the crown — the top of a plume
-        that has spent 1.7 m gathering everything it swept off the body. A reference
-        standing in the exhaust does not add noise. It produces a clean, stable,
-        confidently wrong number, biased low. The next revision moves it behind the
-        crown. Illustrative waveforms, not recorded data.
+        that has spent {PLUME.developmentLengthM.toFixed(1)} m gathering everything
+        it swept off the body. A reference standing in the exhaust does not add
+        noise. It produces a clean, stable, confidently wrong number, biased low.
+        The next revision moves it behind the crown. Illustrative waveforms, not
+        recorded data.
       </p>
     </div>
   );

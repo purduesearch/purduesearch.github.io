@@ -321,18 +321,11 @@ const TheScience = () => {
             <p data-aos="fade-up">
               The numerator is how far the chin reading sits above the untouched reference. The
               denominator is the largest that gap could ever be — a full exhale, diluted by nothing at
-              all. The ratio is what fraction of the air at the chin is air that has already been
-              breathed.
+              all. The model behind the readout above assumes a full exhale sits around{' '}
+              {EXHALED_PPM.toLocaleString('en-US')} ppm — an illustrative magnitude, not a measured
+              figure — for C<sub>exhaled</sub>. The ratio is what fraction of the air at the chin is
+              air that has already been breathed.
             </p>
-
-            <div className="ares-stat-row" data-aos="fade-up">
-              <AresStat
-                value={EXHALED_PPM}
-                unit="ppm"
-                label="C_exhaled — a full exhaled breath"
-                source="ARES breath model"
-              />
-            </div>
 
             <p data-aos="fade-up">Three caveats travel with this formula everywhere it is used:</p>
 

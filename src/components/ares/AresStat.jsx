@@ -1,8 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-
-const prefersReducedMotion = () =>
-  typeof window !== 'undefined' &&
-  window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+import { useEffect, useId, useRef, useState } from 'react';
+import { prefersReducedMotion } from '../../hooks/usePrefersReducedMotion';
 
 /**
  * Instrument-panel stat tile. Counts up when scrolled into view, and exposes
@@ -16,6 +13,7 @@ export default function AresStat({ value, unit, label, source, decimals = 0 }) {
   const numeric = typeof value === 'number';
   const [shown, setShown] = useState(numeric ? 0 : value);
   const ref = useRef(null);
+  const sourceDescId = useId();
 
   useEffect(() => {
     if (!numeric) return undefined;
@@ -63,9 +61,18 @@ export default function AresStat({ value, unit, label, source, decimals = 0 }) {
       </div>
       <div className="ares-stat-label">{label}</div>
       {source && (
-        <div className="ares-stat-source" title={source}>
+        // tabIndex + aria-describedby (not a `title` attribute, which a
+        // keyboard or touch user can never trigger) — same idiom AresTerm
+        // uses for its own on-demand citation, so :focus-within
+        // (public/ares-theme.css) has a focusable descendant to fire on.
+        <div
+          className="ares-stat-source"
+          tabIndex={0}
+          aria-label="Source"
+          aria-describedby={sourceDescId}
+        >
           <i className="fas fa-book" aria-hidden="true" />
-          <span className="ares-stat-source-text">{source}</span>
+          <span id={sourceDescId} className="ares-stat-source-text">{source}</span>
         </div>
       )}
     </div>
