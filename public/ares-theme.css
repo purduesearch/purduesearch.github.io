@@ -1922,3 +1922,401 @@
     padding: 1.1rem 1.25rem;
   }
 }
+
+/* ============================================================
+   Task 12 — /ares/the-science and /ares/the-headset page composition
+   (src/pages/Ares/TheScience.jsx, src/pages/Ares/TheHeadset.jsx)
+   Every selector scoped under .ares-page per the CSS conventions; no new
+   tokens on the .ares-page block. Warm instrument palette throughout —
+   sunk-panel surfaces, hairline grid borders, mono numerals, Mars-red accent.
+   ============================================================ */
+
+/* ---- Suspense fallback for lazy-loaded interactives ---------------------
+   Mirrors AstroFlowDiagram's astro-diagram-lazy-shell / diagram-spinner
+   idiom (search-theme.css), reimplemented under .ares-page so this file
+   never depends on an unscoped public/search-theme.css class. */
+
+.ares-page .ares-lazy-shell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  min-height: 220px;
+  padding: 2rem;
+  background: var(--ares-panel);
+  border: 1px solid var(--ares-grid-line);
+  border-radius: 12px;
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+}
+
+.ares-page .ares-spinner {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 3px solid var(--ares-grid-line);
+  border-top-color: var(--ares-trace-chin);
+  animation: ares-spinner-spin 0.9s linear infinite;
+}
+
+@keyframes ares-spinner-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ares-page .ares-spinner {
+    animation: none;
+  }
+}
+
+/* ---- Section-level prose primitives -------------------------------------- */
+
+.ares-page .ares-section-lead {
+  font-size: 1.1rem;
+  line-height: 1.65;
+  color: var(--color-text);
+  max-width: 62em;
+}
+
+.ares-page .ares-stat-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 0.9rem;
+  margin: 1.25rem 0;
+}
+
+/* ---- sci-regimes: the "what stops / what doesn't" comparison ------------- */
+
+.ares-page .ares-compare-grid {
+  margin-top: 1.5rem;
+}
+
+.ares-page .ares-compare-col {
+  height: 100%;
+  background: var(--ares-panel);
+  border: 1px solid var(--ares-grid-line);
+  border-radius: 12px;
+  padding: 1.25rem 1.4rem;
+  margin-bottom: 1rem;
+}
+
+.ares-page .ares-compare-col h3 {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--ares-mono);
+  font-size: 1rem;
+  margin: 0 0 0.75rem;
+  color: var(--ares-trace-chin);
+}
+
+.ares-page .ares-compare-col ul {
+  margin: 0;
+  padding-left: 1.1rem;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.ares-page .ares-compare-col li {
+  line-height: 1.5;
+  color: var(--color-text);
+}
+
+/* ---- sci-numbers: the ratio-meaning list ---------------------------------- */
+
+.ares-page .ares-ratio-list {
+  list-style: none;
+  margin: 1.5rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.ares-page .ares-ratio-list li {
+  background: var(--ares-panel);
+  border: 1px solid var(--ares-grid-line);
+  border-left: 3px solid var(--ares-trace-fore);
+  border-radius: 6px;
+  padding: 0.75rem 1rem;
+  line-height: 1.55;
+  color: var(--color-text);
+}
+
+/* ---- sci-reading: the numbered method ------------------------------------- */
+
+.ares-page .ares-method-steps {
+  list-style: none;
+  margin: 1.5rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 1rem;
+}
+
+.ares-page .ares-method-step {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 1rem;
+  align-items: start;
+  background: var(--ares-panel);
+  border: 1px solid var(--ares-grid-line);
+  border-radius: 12px;
+  padding: 1.1rem 1.3rem;
+}
+
+.ares-page .ares-method-step-num {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.1rem;
+  height: 2.1rem;
+  border-radius: 50%;
+  background: var(--ares-panel-sunk);
+  border: 1px solid var(--ares-grid-line);
+  font-family: var(--ares-mono);
+  font-weight: 600;
+  color: var(--ares-trace-chin);
+}
+
+.ares-page .ares-method-step-body h3 {
+  margin: 0 0 0.4rem;
+  font-size: 1.05rem;
+  color: var(--color-text);
+}
+
+.ares-page .ares-method-step-body p {
+  margin: 0;
+  line-height: 1.6;
+  color: var(--color-text-muted);
+}
+
+/* ---- sci-rebreath: pod-role list, formula block, caveats ------------------ */
+
+.ares-page .ares-pod-role-list {
+  list-style: none;
+  margin: 1.25rem 0;
+  padding: 0;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.ares-page .ares-pod-role {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  align-items: baseline;
+  gap: 0.35rem 0.75rem;
+  background: var(--ares-panel);
+  border: 1px solid var(--ares-grid-line);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+}
+
+.ares-page .ares-pod-role-tag {
+  font-family: var(--ares-mono);
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  color: var(--ares-conc-0);
+  background: var(--ares-trace-fore);
+  white-space: nowrap;
+}
+
+.ares-page .ares-pod-role-tag--top {
+  background: var(--ares-trace-top);
+}
+
+.ares-page .ares-pod-role-tag--chin {
+  background: var(--ares-trace-chin);
+}
+
+.ares-page .ares-pod-role-where {
+  font-size: 0.82rem;
+  color: var(--color-muted);
+}
+
+.ares-page .ares-pod-role p {
+  grid-column: 1 / -1;
+  margin: 0.15rem 0 0;
+  line-height: 1.55;
+  color: var(--color-text);
+}
+
+.ares-page .ares-formula-block {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  background: var(--ares-panel-sunk);
+  border: 1px solid var(--ares-grid-line);
+  border-radius: 10px;
+  padding: 1.25rem 1.5rem;
+  margin: 1.5rem 0;
+  width: fit-content;
+  max-width: 100%;
+  overflow-x: auto;
+  font-family: var(--ares-mono);
+  font-size: 1.1rem;
+  color: var(--color-text);
+}
+
+.ares-page .ares-formula-lhs {
+  white-space: nowrap;
+}
+
+.ares-page .ares-formula-frac {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.ares-page .ares-formula-num {
+  padding: 0 0.25rem 0.3rem;
+  border-bottom: 2px solid var(--ares-trace-chin);
+}
+
+.ares-page .ares-formula-den {
+  padding: 0.3rem 0.25rem 0;
+}
+
+.ares-page .ares-caveat-list {
+  margin: 1rem 0 0;
+  padding-left: 1.2rem;
+  display: grid;
+  gap: 0.85rem;
+}
+
+.ares-page .ares-caveat-list li {
+  line-height: 1.6;
+  color: var(--color-text);
+}
+
+/* ---- sci-validation: the honest-limit callout ----------------------------- */
+
+.ares-page .ares-open-question {
+  display: flex;
+  gap: 0.9rem;
+  align-items: flex-start;
+  margin-top: 1.5rem;
+  background: var(--ares-panel);
+  border: 1px dashed var(--ares-trace-chin);
+  border-radius: 12px;
+  padding: 1.25rem 1.4rem;
+}
+
+.ares-page .ares-open-question > i {
+  flex: none;
+  margin-top: 0.2rem;
+  color: var(--ares-trace-chin);
+  font-size: 1.1rem;
+}
+
+.ares-page .ares-open-question-label {
+  margin: 0 0 0.35rem;
+  font-family: var(--ares-mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ares-trace-chin);
+}
+
+.ares-page .ares-open-question p:last-child {
+  margin: 0;
+  line-height: 1.6;
+  color: var(--color-text);
+}
+
+/* ---- hs-system: the block-by-block walkthrough ---------------------------- */
+
+.ares-page .ares-block-walk {
+  margin: 1.5rem 0;
+  padding-left: 1.2rem;
+  display: grid;
+  gap: 0.7rem;
+}
+
+.ares-page .ares-block-walk li {
+  line-height: 1.6;
+  color: var(--color-text);
+}
+
+/* ---- hs-gallery: AresFigure and its placeholder --------------------------- */
+
+.ares-page .ares-gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1.25rem;
+  margin-top: 1.5rem;
+}
+
+.ares-page .ares-figure {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.ares-page .ares-figure img {
+  width: 100%;
+  height: auto;
+  border-radius: 10px;
+  border: 1px solid var(--ares-grid-line);
+  display: block;
+}
+
+/* A deliberate dashed-border instrument-panel treatment, not an error
+   state — this is what a cleared-but-not-yet-shot figure slot looks like. */
+.ares-page .ares-figure-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  min-height: 180px;
+  padding: 1.5rem;
+  background: var(--ares-panel-sunk);
+  border: 2px dashed var(--ares-grid-line);
+  border-radius: 10px;
+  text-align: center;
+  color: var(--color-muted);
+}
+
+.ares-page .ares-figure-placeholder i {
+  font-size: 1.6rem;
+  color: var(--ares-trace-fore);
+}
+
+.ares-page .ares-figure-placeholder span {
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+.ares-page .ares-figure figcaption {
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--color-text-muted);
+}
+
+.ares-page .ares-figure-credit {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 0.75rem;
+  color: var(--color-muted);
+}
+
+/* ---- Narrow-viewport spacing ------------------------------------------- */
+
+@media (max-width: 480px) {
+  .ares-page .ares-formula-block {
+    font-size: 0.95rem;
+    padding: 1rem 1.1rem;
+  }
+
+  .ares-page .ares-method-step {
+    grid-template-columns: 1fr;
+  }
+
+  .ares-page .ares-pod-role {
+    grid-template-columns: auto 1fr;
+  }
+}
