@@ -32,6 +32,15 @@
 
   --ares-mono: 'JetBrains Mono', ui-monospace, monospace;
 
+  /* --color-text-muted is NOT a global token despite CLAUDE.md's token list
+     implying otherwise: it is declared exactly once in the whole codebase,
+     inside the .clubpm-app block in search-theme.css, so it resolves to
+     nothing on every ARES page (color inherits, silently flattening the
+     secondary-text hierarchy; stroke inherits `none`, silently hiding
+     required graphical elements). ARES declares its own here so both the
+     ~37 `color:` uses and the `stroke:`/`fill:` uses below actually resolve. */
+  --color-text-muted: #7a6f68;
+
   /* Scroll-coupled drift, 1 = full buoyancy. GSAP tweens this to 0 as the hero
      scrolls away (see src/hooks/useAresScrollEffects.js), and PlumeSimulator
      multiplies its buoyancy term by it. GSAP can only animate a custom property
@@ -258,6 +267,10 @@
   height: 0.6rem;
   border-radius: 50%;
   flex-shrink: 0;
+}
+
+.ares-page .ares-pod-marker-label {
+  white-space: nowrap;
 }
 
 .ares-page .ares-pod-marker--top .ares-pod-marker-dot {
@@ -963,12 +976,16 @@
 }
 
 .ares-page .ares-dvt90-playhead line {
-  stroke: var(--ares-drift);
+  /* NOT --ares-drift: that token is a unitless scroll-coupling scalar (see
+     .ares-page above), not a paint value. --ares-trace-top is unused
+     elsewhere in this chart (delay/fifty use red, rise/ninety use ochre),
+     so the moving playhead reads as its own distinct color. */
+  stroke: var(--ares-trace-top);
   stroke-width: 1.5;
 }
 
 .ares-page .ares-dvt90-playhead circle {
-  fill: var(--ares-drift);
+  fill: var(--ares-trace-top);
   stroke: var(--ares-panel);
   stroke-width: 1.5;
 }
@@ -1025,16 +1042,8 @@
   line-height: 1.4;
 }
 
-.ares-page .ares-caption {
-  margin-top: 1rem;
-  padding: 0.85rem 1rem;
-  background: var(--ares-panel-sunk);
-  border-left: 3px solid var(--ares-trace-chin);
-  border-radius: 4px;
-  font-size: 0.9rem;
-  line-height: 1.55;
-  color: var(--color-text-muted);
-}
+/* .ares-caption is already defined (shared primitive, see above) — not
+   redeclared here; this section used it verbatim before this cleanup. */
 
 /* ---- RegimePlayground ---------------------------------------------------
    The lesson is the layout: both length presets computed and displayed
@@ -1082,10 +1091,23 @@
   gap: 0.3rem;
 }
 
+/* .ares-regime-table is a real <table> (a11y finding: an ARIA role="table"
+   whose data rows were plain, roleless <div>s announced as a one-row table,
+   destroying the Gr/Ra/Pe/Re column association). The grid layout below is
+   unchanged visually; thead/tbody go display: contents so .ares-regime-row
+   (<tr>) is a direct grid item of the table's grid, and th/td are forced to
+   display: block so the grid controls their box instead of native table
+   layout — the standard "CSS grid table" pattern. */
 .ares-page .ares-regime-table {
   display: grid;
   gap: 0.35rem;
   overflow-x: auto;
+  border-collapse: collapse;
+}
+
+.ares-page .ares-regime-table thead,
+.ares-page .ares-regime-table tbody {
+  display: contents;
 }
 
 .ares-page .ares-regime-row {
@@ -1108,13 +1130,19 @@
 }
 
 .ares-page .ares-regime-row-label {
+  display: block;
   font-size: 0.88rem;
+  font-weight: 400;
+  text-align: left;
   color: var(--color-text);
 }
 
 .ares-page .ares-regime-row-value {
+  display: block;
   font-family: var(--ares-mono);
   font-variant-numeric: tabular-nums;
+  font-weight: 400;
+  text-align: left;
   font-size: 0.95rem;
   color: var(--ares-trace-chin);
 }
@@ -1732,6 +1760,16 @@
   .ares-page .ares-plume-canvas {
     display: none;
   }
+  .ares-page .ares-plume-fallback {
+    display: block;
+  }
+}
+
+/* A reduced-motion visitor gets a settled, non-blank canvas frame (see
+   PlumeSimulator.jsx), but the labelled three-state text is strictly more
+   informative, so surface it at every width for that visitor rather than
+   only below 480px. */
+@media (prefers-reduced-motion: reduce) {
   .ares-page .ares-plume-fallback {
     display: block;
   }

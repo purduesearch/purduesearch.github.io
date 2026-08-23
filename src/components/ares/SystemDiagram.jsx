@@ -213,13 +213,8 @@ export default function SystemDiagram() {
               className={`ares-diagram-block${
                 activeId === node.id ? ' ares-diagram-block-active' : ''
               }`}
-              tabIndex={0}
-              role="button"
-              aria-label={node.label}
               onMouseEnter={() => setActiveId(node.id)}
               onMouseLeave={() => clearActive(node.id)}
-              onFocus={() => setActiveId(node.id)}
-              onBlur={() => clearActive(node.id)}
             >
               <rect x={node.x} y={node.y} width={BLOCK_W} height={BLOCK_H} rx={8} />
               <text x={node.x + BLOCK_W / 2} y={node.y + BLOCK_H / 2 + 5} textAnchor="middle">

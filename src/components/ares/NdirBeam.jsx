@@ -44,7 +44,7 @@ const usePrefersReducedMotion = () => {
   return reduced;
 };
 
-const pct = (v) => (Number.isFinite(v) ? `${(v * 100).toFixed(1)}%` : '—');
+const pct = (v) => (Number.isFinite(v) ? `${(v * 100).toFixed(1)} %` : '—');
 
 export default function NdirBeam() {
   const idBase = useId();

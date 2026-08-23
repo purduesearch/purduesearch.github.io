@@ -40,9 +40,24 @@ describe('stepResponse', () => {
   });
 
   test('reaches 90 % exactly T90 after the gas arrives, not after t = 0', () => {
-    // The distinction the whole component exists to teach.
+    // The distinction the whole component exists to teach. Assert against the
+    // SAMPLED CURVE, not against `tNinety - tDelay === t90Seconds`: that
+    // algebraic form is true by construction (tNinety is literally
+    // `tDelay + t90Seconds`) regardless of what tau the curve actually uses,
+    // so it would still pass a model whose reading never really hits 90 % at
+    // that time — e.g. a wrong tau of `t90Seconds` instead of
+    // `t90Seconds / Math.log(10)`, which hits 90 % at about 2.3x T90 instead.
     const r = stepResponse(opts);
-    expect(r.tNinety - r.tDelay).toBeCloseTo(opts.t90Seconds, 1);
+    let nearestIndex = 0;
+    let nearestDist = Infinity;
+    for (let i = 0; i < r.t.length; i += 1) {
+      const dist = Math.abs(r.t[i] - r.tNinety);
+      if (dist < nearestDist) {
+        nearestDist = dist;
+        nearestIndex = i;
+      }
+    }
+    expect(r.value[nearestIndex]).toBeCloseTo(0.9, 2);
   });
 
   test('approaches but does not exceed the final value', () => {

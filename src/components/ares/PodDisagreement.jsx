@@ -153,7 +153,7 @@ export default function PodDisagreement() {
   ];
 
   const relativeErrorText =
-    budget.relativeError === null ? '—' : `${numberFmt(budget.relativeError * 100, 1)}%`;
+    budget.relativeError === null ? '—' : `${numberFmt(budget.relativeError * 100, 1)} %`;
 
   const summary =
     `At ${noise} ppm of per-pod noise: chin minus top differs by ` +

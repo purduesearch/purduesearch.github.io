@@ -39,4 +39,13 @@ describe('describeExposure', () => {
     expect(altitude.ppm).toBe(sea.ppm);
     expect(altitude.mmHg).toBeLessThan(sea.mmHg);
   });
+
+  test('a non-physical pressure does not throw and renders a dash for mmHg', () => {
+    // ppmToMmHg returns null for pressureHpa <= 0; describeExposure must not
+    // call .toFixed() on that null unguarded.
+    const r = describeExposure({ ppm: 5000, hours: 1, pressureHpa: 0 });
+    expect(r.mmHg).toBeNull();
+    expect(r.summary).toMatch(/—/);
+    expect(() => describeExposure({ ppm: 5000, hours: 1, pressureHpa: -10 })).not.toThrow();
+  });
 });

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { createParticles, stepParticles, regimeFor } from '../../lib/ares/plumeModel';
 import { GRAVITY } from './aresPhysics';
 
@@ -119,6 +119,30 @@ const reduceMotion = () =>
   typeof window !== 'undefined' &&
   window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+// Simulated steps to run, unrendered, before drawing the reduced-motion still
+// frame. Every particle starts at co2: 0 (createParticles), so a single
+// drawn frame is a uniform faint speckle with no concentration gradient — a
+// silhouette in noise, not a meaningful static rendering. 240 steps at the
+// model's dt = 1/60 is 4 simulated seconds, long enough for the near-source
+// particles to pick up real co2 and for buoyancy (or its absence) to shape
+// where they end up before the frame is ever painted.
+const SETTLE_STEPS = 240;
+
+function settledParticles(g) {
+  let particles = createParticles(COUNT);
+  for (let i = 0; i < SETTLE_STEPS; i += 1) {
+    particles = stepParticles(particles, {
+      g,
+      dt: 1 / 60,
+      width: WIDTH,
+      height: HEIGHT,
+      sourceX: SOURCE.x,
+      sourceY: SOURCE.y,
+    });
+  }
+  return particles;
+}
+
 const verdictLabel = (v) => v.charAt(0).toUpperCase() + v.slice(1);
 
 // Precomputed once at module load — used only by the static fallback below,
@@ -138,9 +162,16 @@ export default function PlumeSimulator() {
   const particlesRef = useRef(createParticles(COUNT));
   const gRef = useRef(g);
   gRef.current = g;
+  const gravityInputId = useId();
+  const gravityReadoutId = useId();
 
   const regime = regimeFor({ g });
 
+  // Canvas setup + the animated path. Deps intentionally [] — this effect,
+  // including the rAF loop and its IntersectionObserver gating, is the
+  // reviewed animated path and is not restructured here. Under reduced
+  // motion it only performs the one-time DPR setup and leaves drawing to the
+  // settle effect below, which re-runs on every gravity change.
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return undefined;
@@ -157,8 +188,8 @@ export default function PlumeSimulator() {
     ctx.scale(dpr, dpr);
 
     if (reduceMotion()) {
-      // Draw one settled frame and stop. No loop at all.
-      drawFrame(ctx, particlesRef.current);
+      // No loop at all; the settle effect below owns drawing so it can also
+      // redraw when the gravity slider changes.
       return undefined;
     }
 
@@ -209,6 +240,23 @@ export default function PlumeSimulator() {
     };
   }, []);
 
+  // Reduced-motion still frame. No-ops (and does no work) when motion is
+  // allowed — the animated effect above owns drawing in that case. Depends
+  // on `g` so dragging the gravity slider still teaches something: each
+  // change re-settles a fresh particle field at the new gravity and redraws.
+  useEffect(() => {
+    if (!reduceMotion()) return undefined;
+    const canvas = canvasRef.current;
+    if (!canvas) return undefined;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return undefined;
+
+    const settled = settledParticles(g);
+    particlesRef.current = settled;
+    drawFrame(ctx, settled);
+    return undefined;
+  }, [g]);
+
   return (
     <div className="ares-plume-sim">
       <div className="ares-plume-visual">
@@ -243,18 +291,18 @@ export default function PlumeSimulator() {
         </div>
       </div>
 
-      <label className="ares-slider-label" htmlFor="ares-gravity">
+      <label className="ares-slider-label" htmlFor={gravityInputId}>
         Gravity
       </label>
       <input
-        id="ares-gravity"
+        id={gravityInputId}
         type="range"
         min={GRAVITY.orbit}
         max={GRAVITY.earth}
         step="0.01"
         value={g}
         onChange={(e) => setG(Number(e.target.value))}
-        aria-describedby="ares-gravity-readout"
+        aria-describedby={gravityReadoutId}
       />
       <div className="ares-slider-ticks" aria-hidden="true">
         <span>Orbit</span>
@@ -262,7 +310,7 @@ export default function PlumeSimulator() {
         <span>Earth</span>
       </div>
 
-      <div id="ares-gravity-readout" className="ares-readout" aria-live="polite">
+      <div id={gravityReadoutId} className="ares-readout" aria-live="polite">
         <p>
           {g.toFixed(2)} m/s². Grashof {fmtExp(regime.gr)}, Rayleigh {fmtExp(regime.ra)} —{' '}
           {regime.verdict}.

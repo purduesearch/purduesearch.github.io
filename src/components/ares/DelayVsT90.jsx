@@ -126,14 +126,31 @@ export default function DelayVsT90() {
     return idx === -1 ? t.length - 1 : idx;
   }, [t, tDelay]);
 
-  const flatPoints = t
-    .slice(0, splitIndex + 1)
-    .map((tt, i) => `${xScale(tt)},${yScale(value[i])}`)
-    .join(' ');
-  const risePoints = t
-    .slice(splitIndex)
-    .map((tt, i) => `${xScale(tt)},${yScale(value[splitIndex + i])}`)
-    .join(' ');
+  // Memoized on the data they actually depend on (t/value from the fixed
+  // `result` memo, splitIndex, duration) — NOT on the xScale/yScale closures
+  // above, which are new function identities every render. The sweeping
+  // playhead calls setPlayheadT every animation frame (~60/s), so without
+  // this these two 300-point slice+map+join passes, plus the SVG diffing a
+  // 300-point `points` string, would redo on every frame even though the
+  // curve itself hasn't changed. Scale math is inlined from `duration` alone
+  // so the memo doesn't need to depend on those unstable closures.
+  const flatPoints = useMemo(() => {
+    const scaleX = (tt) => PAD.left + (tt / duration) * PLOT_W;
+    const scaleY = (vv) => PAD.top + (1 - vv) * PLOT_H;
+    return t
+      .slice(0, splitIndex + 1)
+      .map((tt, i) => `${scaleX(tt)},${scaleY(value[i])}`)
+      .join(' ');
+  }, [t, value, splitIndex, duration]);
+
+  const risePoints = useMemo(() => {
+    const scaleX = (tt) => PAD.left + (tt / duration) * PLOT_W;
+    const scaleY = (vv) => PAD.top + (1 - vv) * PLOT_H;
+    return t
+      .slice(splitIndex)
+      .map((tt, i) => `${scaleX(tt)},${scaleY(value[splitIndex + i])}`)
+      .join(' ');
+  }, [t, value, splitIndex, duration]);
 
   const playheadIndex = duration > 0
     ? Math.min(SAMPLES - 1, Math.max(0, Math.round((playheadT / duration) * (SAMPLES - 1))))

@@ -22,12 +22,18 @@ export function describeExposure({ ppm, hours, pressureHpa = STANDARD_PRESSURE_H
   const tier = tierFor(ppm);
   const dose = dosePpmHours(ppm, hours);
 
+  // ppmToMmHg returns null for a non-physical pressure (pressureHpa <= 0)
+  // rather than a sign-flipped or zeroed number. ExposureDial.jsx already
+  // guards its own mmHg display for null, but that guard is unreachable if
+  // this function throws first — so guard here too, at the source.
+  const mmHgDisplay = mmHg == null ? '—' : mmHg.toFixed(2);
+
   // GLOSSARY §2 requires the averaging interval to travel with the dose:
   // 5,000 ppm for one hour and 1,000 ppm for five hours are the same dose and
   // are not the same exposure.
   const summary =
     `${comma(ppm)} ppm — ${tier.label}. ` +
-    `That is ${mmHg.toFixed(2)} mmHg partial pressure, or ${percent.toFixed(2)} %. ` +
+    `That is ${mmHgDisplay} mmHg partial pressure, or ${percent.toFixed(2)} %. ` +
     `Over ${comma(hours, hours % 1 ? 1 : 0)} hours the cumulative dose is ` +
     `${comma(dose)} ppm·hours.`;
 

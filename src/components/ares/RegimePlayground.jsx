@@ -44,14 +44,14 @@ const fmtExp = (v) => (Number.isFinite(v) ? v.toExponential(2) : '—');
 
 function ReadoutRow({ label, values }) {
   return (
-    <div className="ares-regime-row">
-      <div className="ares-regime-row-label">{label}</div>
+    <tr className="ares-regime-row">
+      <th className="ares-regime-row-label" scope="row">{label}</th>
       {values.map((v) => (
-        <div className="ares-regime-row-value" key={v.key}>
+        <td className="ares-regime-row-value" key={v.key}>
           {v.value}
-        </div>
+        </td>
       ))}
-    </div>
+    </tr>
   );
 }
 
@@ -168,35 +168,38 @@ export default function RegimePlayground() {
         </fieldset>
       </div>
 
-      <div className="ares-regime-table" role="table">
-        <div className="ares-regime-row ares-regime-row-header" role="row">
-          <div className="ares-regime-row-label" role="columnheader">
-            Dimensionless number
-          </div>
-          {results.map((r) => (
-            <div className="ares-regime-row-value" role="columnheader" key={r.id}>
-              {r.label}
-            </div>
-          ))}
-        </div>
-
-        <ReadoutRow
-          label="Grashof (Gr)"
-          values={results.map((r) => ({ key: r.id, value: fmtExp(r.Gr) }))}
-        />
-        <ReadoutRow
-          label="Rayleigh (Ra)"
-          values={results.map((r) => ({ key: r.id, value: fmtExp(r.Ra) }))}
-        />
-        <ReadoutRow
-          label="Péclet (Pe, mass transport)"
-          values={results.map((r) => ({ key: r.id, value: fmtExp(r.Pe) }))}
-        />
-        <ReadoutRow
-          label="Reynolds (Re)"
-          values={results.map((r) => ({ key: r.id, value: fmtExp(r.Re) }))}
-        />
-      </div>
+      <table className="ares-regime-table">
+        <thead>
+          <tr className="ares-regime-row ares-regime-row-header">
+            <th className="ares-regime-row-label" scope="col">
+              Dimensionless number
+            </th>
+            {results.map((r) => (
+              <th className="ares-regime-row-value" scope="col" key={r.id}>
+                {r.label}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          <ReadoutRow
+            label="Grashof (Gr)"
+            values={results.map((r) => ({ key: r.id, value: fmtExp(r.Gr) }))}
+          />
+          <ReadoutRow
+            label="Rayleigh (Ra)"
+            values={results.map((r) => ({ key: r.id, value: fmtExp(r.Ra) }))}
+          />
+          <ReadoutRow
+            label="Péclet (Pe, mass transport)"
+            values={results.map((r) => ({ key: r.id, value: fmtExp(r.Pe) }))}
+          />
+          <ReadoutRow
+            label="Reynolds (Re)"
+            values={results.map((r) => ({ key: r.id, value: fmtExp(r.Re) }))}
+          />
+        </tbody>
+      </table>
 
       <p className="ares-caption">
         Grashof scales as the cube of the characteristic length, so choosing
