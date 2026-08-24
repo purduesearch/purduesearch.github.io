@@ -24418,3 +24418,157 @@ html:not(.aos-off) [data-aos].aos-animate  { opacity: 1; transform: none; }
 @media (prefers-reduced-motion: reduce) {
   .cpm-blog-editor-loading .cpm-spinner { animation: none; }
 }
+
+/* === Course · assignment sections =========================== */
+/* Deliberately the same visual language as .pm-lit-* above: both kinds render
+   inside the same player, one after the other in a course, and a learner should
+   not have to relearn where the feedback lives. Tokens used here are the ones
+   actually declared in the :root block near line 643 — --pm-bg-elevated and
+   --pm-text-secondary, NOT the --pm-surface / --pm-elevated short forms, which
+   are never declared anywhere in this file. */
+
+.pm-assign { display: flex; flex-direction: column; gap: 1.25rem; }
+
+/* The handout reads as a thing you take away, so it is a card rather than a
+   link in a paragraph — it is the first action on the section. */
+.pm-assign-handout {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  align-self: flex-start;
+  padding: 0.7rem 1rem;
+  border: 1px solid var(--pm-border, rgba(255, 255, 255, 0.12));
+  border-radius: 10px;
+  background: var(--pm-bg-elevated, #1a1e2a);
+  color: var(--pm-accent-teal, #00e5cc);
+  text-decoration: none;
+  font-size: 0.9rem;
+}
+.pm-assign-handout:hover { border-color: var(--pm-accent-teal, #00e5cc); }
+
+.pm-assign-prompt {
+  margin: 0;
+  padding: 0.85rem 1rem;
+  border-left: 3px solid var(--pm-accent-amber, #f5a623);
+  background: rgba(245, 166, 35, 0.08);
+  border-radius: 0 8px 8px 0;
+}
+
+/* Shown only on a gated section, and teal rather than red: the bar is a
+   requirement, not a warning. */
+.pm-assign-gate,
+.pm-lit-gate {
+  margin: 0;
+  padding: 0.7rem 0.9rem;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  color: var(--pm-accent-teal, #00e5cc);
+  background: rgba(0, 229, 204, 0.08);
+}
+
+.pm-assign-tabs { display: flex; gap: 0.4rem; margin-bottom: 0.7rem; }
+.pm-assign-tabs button {
+  padding: 0.45rem 0.85rem;
+  font: inherit;
+  font-size: 0.85rem;
+  color: var(--pm-text-secondary, #8892a4);
+  background: transparent;
+  border: 1px solid var(--pm-border, rgba(255, 255, 255, 0.12));
+  border-radius: 999px;
+  cursor: pointer;
+}
+.pm-assign-tabs button.is-active {
+  color: var(--pm-accent-teal, #00e5cc);
+  border-color: var(--pm-accent-teal, #00e5cc);
+  background: rgba(0, 229, 204, 0.08);
+}
+
+.pm-assign-drop {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1.1rem;
+  border: 1px dashed var(--pm-border, rgba(255, 255, 255, 0.12));
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.03);
+}
+.pm-assign-drop input[type="file"] { font: inherit; font-size: 0.9rem; color: inherit; }
+.pm-assign-drop small { color: var(--pm-text-secondary, #8892a4); font-size: 0.78rem; }
+
+.pm-assign-composer textarea {
+  width: 100%;
+  resize: vertical;
+  padding: 0.9rem 1rem;
+  font: inherit;
+  line-height: 1.6;
+  color: inherit;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--pm-border, rgba(255, 255, 255, 0.12));
+  border-radius: 10px;
+}
+.pm-assign-composer textarea:focus-visible {
+  outline: 2px solid var(--pm-accent-teal, #00e5cc);
+  outline-offset: 1px;
+}
+.pm-assign-composer > .clubpm-btn-primary { margin-top: 0.7rem; }
+
+.pm-assign-count {
+  display: inline-block;
+  margin-top: 0.4rem;
+  font-family: var(--pm-font-mono, monospace);
+  font-size: 0.85rem;
+}
+.pm-assign-count.is-short { color: var(--pm-accent-amber, #f5a623); }
+
+.pm-assign-feedback h3 { margin: 0 0 0.6rem; font-size: 1rem; }
+
+/* Rendered only under a gate. Amber, not coral, when the bar was missed —
+   revisions are unlimited, so a miss is a "not yet", not an error. */
+.pm-assign-score,
+.pm-lit-score {
+  margin: 0 0 0.8rem;
+  padding: 0.6rem 0.85rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  background: rgba(255, 255, 255, 0.03);
+  border-left: 3px solid transparent;
+}
+.pm-assign-score.is-pass,
+.pm-lit-score.is-pass {
+  border-left-color: var(--pm-accent-teal, #00e5cc);
+  color: var(--pm-accent-teal, #00e5cc);
+}
+.pm-assign-score.is-short,
+.pm-lit-score.is-short {
+  border-left-color: var(--pm-accent-amber, #f5a623);
+  color: var(--pm-accent-amber, #f5a623);
+}
+
+.pm-assign-overall { margin: 0 0 0.9rem; }
+.pm-assign-points { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.5rem; }
+.pm-assign-point {
+  display: grid;
+  grid-template-columns: minmax(7rem, auto) 1fr;
+  gap: 0.75rem;
+  align-items: baseline;
+  padding: 0.7rem 0.9rem;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  border-left: 3px solid transparent;
+}
+.pm-assign-point.is-caught  { border-left-color: var(--pm-accent-teal, #00e5cc); }
+.pm-assign-point.is-partial { border-left-color: var(--pm-accent-amber, #f5a623); }
+.pm-assign-point.is-missed  { border-left-color: var(--pm-accent-coral, #ff6b6b); }
+.pm-assign-point-verdict { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; }
+
+.pm-assign-history summary { cursor: pointer; font-size: 0.9rem; }
+.pm-assign-history article { padding: 0.75rem 0; border-top: 1px solid var(--pm-border, rgba(255, 255, 255, 0.12)); }
+.pm-assign-history h4 { margin: 0 0 0.35rem; font-size: 0.8rem; color: var(--pm-text-secondary, #8892a4); }
+.pm-assign-history p { margin: 0; white-space: pre-wrap; }
+
+.pm-assign-empty { color: var(--pm-text-secondary, #8892a4); font-size: 0.9rem; }
+
+@media (max-width: 640px) {
+  .pm-assign-point { grid-template-columns: 1fr; gap: 0.25rem; }
+  .pm-assign-tabs { flex-direction: column; }
+}
