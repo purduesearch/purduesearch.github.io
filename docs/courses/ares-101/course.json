@@ -211,9 +211,9 @@
         {
           "order": 3,
           "title": "Exercise: bench-test a sensor",
-          "kind": "CONTENT",
+          "kind": "ASSIGNMENT",
           "isRequired": true,
-          "bodyRef": "exercises/E02-bench-test-a-sensor.md"
+          "assignmentRef": "exercises/E02-bench-test-a-sensor.md"
         },
         {
           "order": 4,
