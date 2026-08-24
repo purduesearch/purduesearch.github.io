@@ -7,8 +7,17 @@ import {
 import { archiveTrainingProject } from "./trainingSandboxService.js";
 import {
   sanitizeLitConfig, countWords, gradeSubmission, DEFAULT_MIN_WORDS,
-  type LearnerLitConfig, type LitFeedback,
+  type LearnerLitConfig,
 } from "./litReviewService.js";
+import {
+  sanitizeAssignmentConfig,
+  gradeAssignment,
+  decideCompletion,
+  DEFAULT_ASSIGNMENT_MIN_WORDS,
+} from "./assignmentService.js";
+// Same type as `LitFeedback` above — that alias exists only so the existing
+// lit-review code keeps reading naturally. New code in this file uses this one.
+import type { RubricFeedback } from "./rubricGrading.js";
 
 // ── The gating brain ─────────────────────────────────────────
 //
@@ -1295,40 +1304,56 @@ export async function collectAchievementUnlocks(memberId: string, since: Date) {
   }
 }
 
-// ── Literature review ────────────────────────────────────────
+// ── Written work: literature reviews and assignments ─────────
 
-export interface LitSubmissionView {
+export interface WorkSubmissionView {
   id: string;
   text: string;
   wordCount: number;
-  feedback: LitFeedback | null;
+  fileName: string | null;
+  fileMimeType: string | null;
+  feedback: RubricFeedback | null;
   gradedAt: Date | null;
   createdAt: Date;
 }
 
 /**
- * Record a learner's written summary of the section's paper, then grade it.
+ * Record a learner's submission for a LIT_REVIEW or ASSIGNMENT section, grade
+ * it, and decide whether it completes the section.
  *
- * ORDER MATTERS. The submission is written and the section is marked COMPLETED
- * *before* Gemini is called, and grading runs inside a try/catch that swallows
- * everything. Completion is gated on effort by design; if a third-party model
- * outage could hold it up, the score would be a gate after all.
+ * ORDER MATTERS, and it is the same order as before this feature existed: the
+ * submission row is written BEFORE Gemini is called, and grading runs inside a
+ * try/catch that swallows everything. That is what makes the score gate's
+ * fail-open case real — a third-party outage lands on COMPLETE_UNGRADED rather
+ * than holding a learner at BLOCKED. Do not move the grading call above the
+ * create, and do not let a grading throw escape.
  *
  * A resubmission writes a NEW row and re-grades, but does not re-fire rewards —
- * `firstCompletion` is false the second time through.
+ * `firstCompletion` is false the second time through. Retries are unlimited:
+ * `maxAttempts` is deliberately NOT honoured here, because a capped gate can
+ * strand a learner permanently.
  */
-export async function submitLitReview(sectionId: string, memberId: string, text: string) {
+export async function submitWork(
+  sectionId: string,
+  memberId: string,
+  input: { text: string; fileName?: string | null; fileMimeType?: string | null }
+) {
   const ctx = await requireUnlockedSection(sectionId, memberId);
   if (!ctx.ok) return { error: ctx.error, status: ctx.status };
   const { section, enrollment, progress } = ctx;
 
-  if (section.kind !== "LIT_REVIEW") {
-    return { error: "Section is not a literature review", status: 400 } as const;
+  const isLit = section.kind === "LIT_REVIEW";
+  const isAssignment = section.kind === "ASSIGNMENT";
+  if (!isLit && !isAssignment) {
+    return { error: "Section does not accept submissions", status: 400 } as const;
   }
 
-  const config = section.litConfig ?? {};
-  const minWords = sanitizeLitConfig(config)?.minWords ?? DEFAULT_MIN_WORDS;
-  const body = typeof text === "string" ? text.trim() : "";
+  const config = (isLit ? section.litConfig : section.assignmentConfig) ?? {};
+  const minWords = isLit
+    ? sanitizeLitConfig(config)?.minWords ?? DEFAULT_MIN_WORDS
+    : sanitizeAssignmentConfig(config)?.minWords ?? DEFAULT_ASSIGNMENT_MIN_WORDS;
+
+  const body = typeof input.text === "string" ? input.text.trim() : "";
   const wordCount = countWords(body);
   if (wordCount < minWords) {
     // Refused before spending a Gemini call, and the message carries both
@@ -1340,28 +1365,26 @@ export async function submitLitReview(sectionId: string, memberId: string, text:
   }
 
   const submission = await prisma.courseWorkSubmission.create({
-    data: { sectionId, memberId, text: body, wordCount },
+    data: {
+      sectionId,
+      memberId,
+      text: body,
+      wordCount,
+      fileName: input.fileName ?? null,
+      fileMimeType: input.fileMimeType ?? null,
+    },
   });
 
-  const firstCompletion = progress.status !== "COMPLETED";
-  if (firstCompletion) {
-    await prisma.courseSectionProgress.update({
-      where: { id: progress.id },
-      data: { status: "COMPLETED", completedAt: new Date() },
-    });
-  }
-  await prisma.courseEnrollment.update({
-    where: { id: enrollment.id },
-    data: { lastSectionId: sectionId },
-  });
-
-  let feedback: LitFeedback | null = null;
+  let feedback: RubricFeedback | null = null;
   try {
-    feedback = await gradeSubmission(config, body);
+    feedback = isLit
+      ? await gradeSubmission(config, body)
+      : await gradeAssignment(config, body);
   } catch (err) {
     // Rate limit, quota, network, malformed JSON — all the same outcome. The
-    // submission already counted; this only decides whether feedback exists yet.
-    console.error("[lit-review] grading failed:", err);
+    // submission already counted; this only decides whether feedback exists yet,
+    // and under a gate it decides fail-open rather than blocked.
+    console.error(`[course-work] grading failed for ${section.kind} ${sectionId}:`, err);
   }
   if (feedback) {
     await prisma.courseWorkSubmission.update({
@@ -1369,6 +1392,29 @@ export async function submitLitReview(sectionId: string, memberId: string, text:
       data: { feedbackJson: feedback as unknown as Prisma.InputJsonValue, gradedAt: new Date() },
     });
   }
+
+  const outcome = decideCompletion({
+    passThreshold: section.passThreshold,
+    hasFeedback: !!feedback,
+    scorePct: feedback?.scorePct ?? null,
+  });
+
+  const firstCompletion = outcome !== "BLOCKED" && progress.status !== "COMPLETED";
+  if (firstCompletion) {
+    await prisma.courseSectionProgress.update({
+      where: { id: progress.id },
+      data: { status: "COMPLETED", completedAt: new Date() },
+    });
+  } else if (outcome === "BLOCKED" && progress.status === "NOT_STARTED") {
+    await prisma.courseSectionProgress.update({
+      where: { id: progress.id },
+      data: { status: "IN_PROGRESS" },
+    });
+  }
+  await prisma.courseEnrollment.update({
+    where: { id: enrollment.id },
+    data: { lastSectionId: sectionId },
+  });
 
   const effects = firstCompletion
     ? await applyCourseSideEffects(memberId, { courseId: section.courseId, sectionId })
@@ -1379,21 +1425,28 @@ export async function submitLitReview(sectionId: string, memberId: string, text:
       id: submission.id,
       text: submission.text,
       wordCount: submission.wordCount,
+      fileName: submission.fileName,
+      fileMimeType: submission.fileMimeType,
       feedback,
       gradedAt: feedback ? new Date() : null,
       createdAt: submission.createdAt,
-    } satisfies LitSubmissionView,
+    } satisfies WorkSubmissionView,
     feedback,
     // True when the submission landed but feedback did not. The UI says
     // "Feedback pending" and offers a retry; it does not say "failed".
     gradingPending: !feedback,
-    alreadyComplete: !firstCompletion,
+    outcome,
+    // Only meaningful when the section is gated; the learner UI shows the score
+    // and threshold exactly when passThreshold is non-null.
+    passThreshold: section.passThreshold,
+    scorePct: feedback?.scorePct ?? null,
+    alreadyComplete: !firstCompletion && outcome !== "BLOCKED",
     ...effects,
   };
 }
 
 /** This member's own attempts on this section, newest first. */
-export async function listLitSubmissions(sectionId: string, memberId: string) {
+export async function listWorkSubmissions(sectionId: string, memberId: string) {
   const ctx = await requireUnlockedSection(sectionId, memberId);
   if (!ctx.ok) return { error: ctx.error, status: ctx.status };
 
@@ -1402,13 +1455,16 @@ export async function listLitSubmissions(sectionId: string, memberId: string) {
     orderBy: { createdAt: "desc" },
   });
   return {
+    passThreshold: ctx.section.passThreshold,
     submissions: rows.map((r) => ({
       id: r.id,
       text: r.text,
       wordCount: r.wordCount,
-      feedback: (r.feedbackJson ?? null) as LitFeedback | null,
+      fileName: r.fileName,
+      fileMimeType: r.fileMimeType,
+      feedback: (r.feedbackJson ?? null) as RubricFeedback | null,
       gradedAt: r.gradedAt,
       createdAt: r.createdAt,
-    })) satisfies LitSubmissionView[],
+    })) satisfies WorkSubmissionView[],
   };
 }
