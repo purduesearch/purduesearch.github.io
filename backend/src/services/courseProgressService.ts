@@ -1339,7 +1339,7 @@ export async function submitLitReview(sectionId: string, memberId: string, text:
     } as const;
   }
 
-  const submission = await prisma.courseLitSubmission.create({
+  const submission = await prisma.courseWorkSubmission.create({
     data: { sectionId, memberId, text: body, wordCount },
   });
 
@@ -1364,7 +1364,7 @@ export async function submitLitReview(sectionId: string, memberId: string, text:
     console.error("[lit-review] grading failed:", err);
   }
   if (feedback) {
-    await prisma.courseLitSubmission.update({
+    await prisma.courseWorkSubmission.update({
       where: { id: submission.id },
       data: { feedbackJson: feedback as unknown as Prisma.InputJsonValue, gradedAt: new Date() },
     });
@@ -1397,7 +1397,7 @@ export async function listLitSubmissions(sectionId: string, memberId: string) {
   const ctx = await requireUnlockedSection(sectionId, memberId);
   if (!ctx.ok) return { error: ctx.error, status: ctx.status };
 
-  const rows = await prisma.courseLitSubmission.findMany({
+  const rows = await prisma.courseWorkSubmission.findMany({
     where: { sectionId, memberId },
     orderBy: { createdAt: "desc" },
   });

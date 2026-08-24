@@ -1280,7 +1280,7 @@ coursesRouter.get("/:id/progress", async (req: Request, res: Response) => {
     // member's latest attempt and every later row is a prior revision.
     const litSectionIds = sections.filter((s) => s.kind === "LIT_REVIEW").map((s) => s.id);
     const litRows = litSectionIds.length
-      ? await prisma.courseLitSubmission.findMany({
+      ? await prisma.courseWorkSubmission.findMany({
           where: { sectionId: { in: litSectionIds } },
           orderBy: { createdAt: "desc" },
           select: { sectionId: true, memberId: true, feedbackJson: true },
