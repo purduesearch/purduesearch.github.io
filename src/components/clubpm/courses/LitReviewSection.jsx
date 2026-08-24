@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
-import { submitLitReview, listLitSubmissions } from '../../../api/clubPmClient';
+import { submitWork, listWorkSubmissions } from '../../../api/clubPmClient';
 
 const wordsIn = (text) => String(text ?? '').trim().split(/\s+/).filter(Boolean).length;
 
@@ -13,14 +13,18 @@ const VERDICT_META = {
 /**
  * A paper, a composer, and the feedback on what the learner wrote.
  *
- * The score is deliberately NOT rendered. Completion is gated on effort, and a
- * visible number re-establishes the gate the design removed — a member who saw
- * "48%" would read it as a fail no matter what the copy said. Officers see the
- * score in the course progress view.
+ * The score is rendered ONLY when the section is gated (`passThreshold` is set).
+ * On an ungated section it stays hidden, because completion is gated on effort
+ * and a visible number would re-establish a gate the design deliberately does
+ * not have — a member who saw "48%" would read it as a fail no matter what the
+ * copy said. Under a real gate the opposite is true: withholding the number
+ * leaves a learner told "not yet" with no way to know how far off they are.
+ * Officers see the score for both cases in the course progress view.
  */
 export default function LitReviewSection({ section, preview, onSubmitted }) {
   const config = section.litConfig ?? {};
   const minWords = config.minWords ?? 150;
+  const gated = section.passThreshold != null;
 
   const [text, setText] = useState('');
   const [submissions, setSubmissions] = useState([]);
@@ -30,7 +34,7 @@ export default function LitReviewSection({ section, preview, onSubmitted }) {
   const load = useCallback(async () => {
     if (preview) { setLoading(false); return; }
     try {
-      const res = await listLitSubmissions(section.id);
+      const res = await listWorkSubmissions(section.id);
       setSubmissions(res?.submissions ?? []);
     } catch {
       // A history that will not load must not block a first submission.
@@ -49,11 +53,17 @@ export default function LitReviewSection({ section, preview, onSubmitted }) {
     if (short || saving) return;
     setSaving(true);
     try {
-      const res = await submitLitReview(section.id, text);
+      const res = await submitWork(section.id, { text });
       setText('');
       await load();
-      if (res?.gradingPending) {
+      if (res?.outcome === 'BLOCKED') {
+        // Neutral, never toast.error — the learner did the work, it just did not
+        // clear the bar yet, and there are unlimited revisions.
+        toast('Not quite yet — read the feedback below and submit a revision.');
+      } else if (res?.outcome === 'COMPLETE_UNGRADED') {
         toast('Summary saved. Feedback is still pending — this section is complete either way.');
+      } else if (gated) {
+        toast.success('Summary saved — you have passed this section.');
       } else {
         toast.success('Summary saved — feedback below.');
       }
@@ -66,6 +76,8 @@ export default function LitReviewSection({ section, preview, onSubmitted }) {
   };
 
   const latest = submissions[0] ?? null;
+  const score = latest?.feedback?.scorePct ?? null;
+  const passed = gated && typeof score === 'number' && score >= section.passThreshold;
 
   return (
     <div className="pm-lit">
@@ -96,6 +108,14 @@ export default function LitReviewSection({ section, preview, onSubmitted }) {
       )}
 
       {config.promptText && <p className="pm-lit-prompt">{config.promptText}</p>}
+
+      {gated && (
+        <p className="pm-lit-gate">
+          <i className="fas fa-lock" aria-hidden="true" />
+          {' '}You need {section.passThreshold}% to continue. Revise and resubmit as many times as
+          you like — every attempt is kept.
+        </p>
+      )}
 
       {preview ? (
         <p className="pm-lit-empty">
@@ -134,6 +154,14 @@ export default function LitReviewSection({ section, preview, onSubmitted }) {
               <h3>
                 <i className="fas fa-comment-dots" aria-hidden="true" /> Feedback on your latest summary
               </h3>
+
+              {gated && typeof score === 'number' && (
+                <p className={passed ? 'pm-lit-score is-pass' : 'pm-lit-score is-short'}>
+                  <strong>{score}%</strong> · {section.passThreshold}% to pass
+                  {!passed && ' — not yet. The points below are where the marks are.'}
+                </p>
+              )}
+
               {!latest.feedback ? (
                 <p className="pm-lit-empty">
                   Feedback is still pending. This section is already complete — submit a
