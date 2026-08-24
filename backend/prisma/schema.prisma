@@ -259,7 +259,7 @@ model Member {
   courseEnrollments CourseEnrollment[] @relation("CourseEnrollmentMember")
   assignedCourses   CourseEnrollment[] @relation("CourseEnrollmentAssigner")
   courseGenJobs     CourseGenJob[]     @relation("CourseGenJobCreator")
-  litSubmissions    CourseLitSubmission[]
+  workSubmissions   CourseWorkSubmission[]
 
   // ── Per-document access control ──
   docAccessGrants  DocAccessGrant[]   @relation("DocAccessMember")
@@ -1930,6 +1930,7 @@ enum CourseSectionKind {
   SLIDES
   WALKTHROUGH
   LIT_REVIEW
+  ASSIGNMENT
 }
 
 enum CourseQuestionKind {
@@ -2027,6 +2028,16 @@ model CourseSection {
   // its own object from the safe keys (see sanitizeLitConfig) rather than
   // deleting the secret ones off this column.
   litConfig     Json?
+  // ASSIGNMENT: { promptText, handoutDriveFileId, handoutName, handoutMimeType,
+  //               minWords, referenceAnswer, rubric: [{ id, point, weight }] }
+  // Same one-column idiom as videoConfig / slideConfig / tourConfig / litConfig:
+  // every writer spreads the previous value so a partial save cannot drop keys
+  // it does not own.
+  //
+  // `referenceAnswer` and `rubric` are AUTHOR-ONLY. The learner payload builds
+  // its own object from the safe keys (see sanitizeAssignmentConfig) rather than
+  // deleting the secret ones off this column.
+  assignmentConfig Json?
   // QUIZ only
   passThreshold Int?
   maxAttempts   Int?
@@ -2040,7 +2051,7 @@ model CourseSection {
   threads   BlogThread[]
   revisions CourseSectionRevision[]
 
-  litSubmissions CourseLitSubmission[]
+  workSubmissions CourseWorkSubmission[]
 
   docAccessGrants  DocAccessGrant[]
   docShareSettings DocShareSettings?
@@ -2131,7 +2142,14 @@ model CourseSlide {
   @@index([sectionId, index])
 }
 
-model CourseLitSubmission {
+/// One learner's attempt at a LIT_REVIEW or ASSIGNMENT section.
+///
+/// Named for "work submitted", not for the literature review it started as:
+/// ASSIGNMENT sections write rows here too, so one grading pipeline, one
+/// history drawer, and one officer progress column serve both kinds.
+///
+/// @@map pins the original table name, so the rename emits no DDL.
+model CourseWorkSubmission {
   id           String        @id @default(cuid())
   sectionId    String
   section      CourseSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
@@ -2139,16 +2157,22 @@ model CourseLitSubmission {
   member       Member        @relation(fields: [memberId], references: [id], onDelete: Cascade)
   text         String
   wordCount    Int
-  // Null means grading has not run — a PENDING grade, never a failed one. The
-  // submission counted for completion the moment it was written.
+  // Null for a pasted answer. The uploaded file itself is discarded after
+  // extraction — these two keep a record of WHAT was turned in.
+  fileName     String?
+  fileMimeType String?
+  // Null means grading has not run — a PENDING grade, never a failed one. Under
+  // a score gate this is the fail-open case: the section completes anyway and is
+  // flagged to officers. See the design doc §5.
   feedbackJson Json?
   gradedAt     DateTime?
   createdAt    DateTime      @default(now())
 
   // One row PER ATTEMPT, never updated in place. A member who resubmits after
   // reading their feedback produces a second row; that revision history is the
-  // most interesting thing this section produces.
+  // most interesting thing these sections produce.
   @@index([sectionId, memberId])
+  @@map("CourseLitSubmission")
 }
 
 model CourseEnrollment {
