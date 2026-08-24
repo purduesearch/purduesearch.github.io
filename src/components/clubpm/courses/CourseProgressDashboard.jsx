@@ -32,6 +32,10 @@ const KIND_ICON = {
   CONTENT: 'fas fa-file-lines',
   VIDEO:   'fas fa-play',
   QUIZ:    'fas fa-list-check',
+  SLIDES:  'fas fa-file-powerpoint',
+  WALKTHROUGH: 'fas fa-hand-pointer',
+  LIT_REVIEW:  'fas fa-book-open',
+  ASSIGNMENT:  'fas fa-file-pen',
 };
 
 function fmtDate(d) {
@@ -269,21 +273,35 @@ function CompletionMatrix({ data, onSelectMember }) {
                 {sections.map((s) => {
                   const cell = r.cells[s.id] ?? { status: 'NOT_STARTED' };
                   const st = CELL_STATUS[cell.status] ?? CELL_STATUS.NOT_STARTED;
-                  // Lit reviews complete on effort, so a completed cell says
-                  // nothing about quality. The score is the officer's only signal.
-                  const lit = s.kind === 'LIT_REVIEW' && cell.litAttempts
-                    ? cell.litScorePct == null
-                      ? ' · not graded'
-                      : ` · ${cell.litScorePct}%${cell.litAttempts > 1 ? ` over ${cell.litAttempts} attempts` : ''}`
+                  // Ungated submissions complete on effort, so a completed cell
+                  // says nothing about quality. The score is the officer's only
+                  // signal. `null` is "never graded" and renders as —; 0 is
+                  // "graded badly" and renders as 0%. Collapsing the two would
+                  // hide exactly the rows worth reading.
+                  const isWork = s.kind === 'LIT_REVIEW' || s.kind === 'ASSIGNMENT';
+                  const work = isWork && cell.workAttempts
+                    ? cell.workScorePct == null
+                      ? ' · —'
+                      : ` · ${cell.workScorePct}%${cell.workAttempts > 1 ? ` over ${cell.workAttempts} attempts` : ''}`
                     : '';
                   return (
                     <td key={s.id} className={`cpm-course-matrix-cell ${st.cls}`}>
                       <i
                         className={st.icon}
                         aria-hidden="true"
-                        title={`${s.title}: ${st.label}${cell.completedAt ? ` (${fmtDate(cell.completedAt)})` : ''}${lit}`}
+                        title={`${s.title}: ${st.label}${cell.completedAt ? ` (${fmtDate(cell.completedAt)})` : ''}${work}`}
                       />
-                      <span className="cpm-sr-only">{`${s.title}: ${st.label}${lit}`}</span>
+                      {cell.workUngraded && (
+                        <span
+                          className="pm-assign-ungraded"
+                          title="Passed without a score — AI grading was unavailable. Worth a manual read."
+                        >
+                          <i className="fas fa-triangle-exclamation" aria-hidden="true" /> Ungraded
+                        </span>
+                      )}
+                      <span className="cpm-sr-only">
+                        {`${s.title}: ${st.label}${work}${cell.workUngraded ? ' · ungraded, passed through' : ''}`}
+                      </span>
                     </td>
                   );
                 })}

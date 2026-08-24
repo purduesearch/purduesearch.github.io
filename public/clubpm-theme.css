@@ -22263,6 +22263,24 @@ html:not(.aos-off) [data-aos].aos-animate  { opacity: 1; transform: none; }
 .cpm-course-matrix-cell.is-partial i { color: var(--pm-accent-amber); }
 .cpm-course-matrix-cell.is-empty i { color: var(--pm-text-muted); opacity: .45; font-size: 8px; }
 
+/* Fail-open flag: the section completed but AI grading never ran, so nobody
+   can tell a real pass from a passed-through one without this. Scoped to the
+   cell and placed after `.is-complete i` so it beats the teal the completed
+   state paints on every descendant icon — the badge must not read as a pass. */
+.cpm-course-matrix-cell .pm-assign-ungraded,
+.cpm-course-matrix-cell .pm-assign-ungraded i {
+  color: var(--pm-accent-amber);
+}
+.pm-assign-ungraded {
+  display: block;
+  margin-top: 2px;
+  font-size: 9px;
+  line-height: 1.2;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  cursor: help;
+}
+
 .cpm-course-matrix-progress { min-width: 130px; }
 .cpm-course-matrix-progress .cpm-progress-bar { margin-bottom: 4px; }
 .cpm-course-matrix-progress span {
