@@ -114,9 +114,14 @@ eq("parse scores an empty rubric as 0, not NaN",
 
 // ── buildGradingPrompt ───────────────────────────────────────
 
+// The prompt builder moved to rubricGrading.ts and took its nouns as parameters
+// so ASSIGNMENT sections could share it; litReviewService re-exports it. These
+// are the values gradeSubmission supplies for a lit review.
 const prompt = buildGradingPrompt({
-  citation: "Dutta, S., et al. (2025).",
-  referenceSummary: "The HTBP collapses in microgravity.",
+  workDescription: "a student's written summary of a research paper",
+  subject: "Paper: Dutta, S., et al. (2025).",
+  referenceLabel: "REFERENCE SUMMARY",
+  referenceText: "The HTBP collapses in microgravity.",
   rubric,
   submission: "A learner wrote this.",
 });
