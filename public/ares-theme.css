@@ -177,6 +177,27 @@
   border-radius: 2px;
 }
 
+/* .abbr-tip::after (search-theme.css) is `white-space: nowrap`, which is fine
+   for the short expansions the rest of the site uses it for. ARES glossary
+   definitions are full sentences, so on /ares those tooltips laid out as
+   single lines up to ~1,100px wide. An absolutely positioned box still
+   contributes to its ancestors' scrollable overflow, and .abbr-tip is its own
+   containing block with visible overflow, so each one pushed the document's
+   scroll width past the viewport: at 390px the whole page scrolled sideways by
+   ~150px and every fixed element stretched with it. Measured on the built
+   site, not theorised.
+
+   Wrapping and capping the box fixes it without touching the shared rule that
+   the rest of the site depends on. `width: max-content` keeps short tips from
+   being padded out to the full cap. */
+.ares-page .ares-term::after {
+  white-space: normal;
+  width: max-content;
+  max-width: min(20rem, 70vw);
+  text-align: center;
+  line-height: 1.4;
+}
+
 /* Same clip-based visually-hidden technique as .ares-stat-source-text's
    hidden state, factored out as a utility: AresTerm's definition is rendered
    a second time for aria-describedby (screen readers do not reliably
@@ -215,7 +236,10 @@
 .ares-page .ares-pod-head-wrap {
   position: relative;
   width: 100%;
-  max-width: 220px;
+  /* Wider than the old 220px: the schematic is now a profile in a 200x270
+     viewBox, and the three marker chips sit outside the head outline rather
+     than on top of it. */
+  max-width: 300px;
   margin: 0 auto;
 }
 
@@ -223,19 +247,66 @@
   display: block;
   width: 100%;
   height: auto;
+  overflow: visible;
 }
 
 .ares-page .ares-pod-head-outline {
   fill: var(--ares-panel-sunk);
   stroke: var(--color-border);
-  stroke-width: 2;
+  stroke-width: 1.6;
+  stroke-linejoin: round;
 }
 
-.ares-page .ares-pod-head-neck,
-.ares-page .ares-pod-head-shoulder {
-  stroke: var(--color-border);
-  stroke-width: 2;
+.ares-page .ares-pod-head-feature {
   fill: none;
+  stroke: var(--color-border);
+  stroke-width: 1.3;
+  stroke-linecap: round;
+}
+
+/* ---- Plume overlay, shown only while the top pod is in the plume -------- */
+
+.ares-page .ares-pod-head-plume-line {
+  fill: none;
+  stroke: var(--ares-trace-fore);
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  stroke-dasharray: 5 7;
+  opacity: 0.75;
+  animation: ares-plume-rise 1.6s linear infinite;
+}
+
+@keyframes ares-plume-rise {
+  to { stroke-dashoffset: -12; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ares-page .ares-pod-head-plume-line {
+    animation: none;
+  }
+}
+
+/* ---- Pod hardware, drawn where each unit physically sits --------------- */
+
+.ares-page .ares-pod-head-unit {
+  stroke: var(--ares-panel);
+  stroke-width: 1.5;
+  transition: fill 0.15s ease;
+}
+
+.ares-page .ares-pod-head-unit--top { fill: var(--ares-trace-top); }
+.ares-page .ares-pod-head-unit--forehead { fill: var(--ares-trace-fore); }
+.ares-page .ares-pod-head-unit--chin { fill: var(--ares-trace-chin); }
+
+.ares-page .ares-pod-head-unit.is-selected {
+  stroke: var(--color-accent);
+  stroke-width: 2.5;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ares-page .ares-pod-head-unit {
+    transition: none;
+  }
 }
 
 .ares-page .ares-pod-marker {
@@ -249,11 +320,18 @@
   border-radius: 999px;
   padding: 0.3rem 0.6rem 0.3rem 0.3rem;
   font-family: var(--ares-mono);
-  font-size: 0.7rem;
+  font-size: 0.72rem;
   color: var(--color-text-muted);
   cursor: pointer;
-  min-height: 1.9rem;
+  min-height: 2rem;
+  white-space: nowrap;
+  box-shadow: 0 1px 3px rgba(26, 26, 26, 0.08);
   transition: border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.ares-page .ares-pod-marker:hover {
+  border-color: var(--color-accent);
+  color: var(--color-text);
 }
 
 .ares-page .ares-pod-marker.is-selected {
@@ -285,19 +363,33 @@
   background: var(--ares-trace-chin);
 }
 
+/* Chip positions are percentages of .ares-pod-head-wrap, which is exactly as
+   tall as the 200x270 schematic inside it — so these track the POD_ANCHORS
+   coordinates in AresHeadProfile.jsx and must be moved with them. Each chip
+   sits clear of the head outline rather than on top of it: the top chip to the
+   left of the crown (the space to its right is where the plume overlay
+   renders), the other two out on the empty right of the frame. */
 .ares-page .ares-pod-marker--top {
-  left: 50%;
-  top: 7%;
+  left: 20%;
+  top: 10%;
 }
 
 .ares-page .ares-pod-marker--forehead {
-  left: 73%;
-  top: 21%;
+  left: 80%;
+  top: 32%;
 }
 
 .ares-page .ares-pod-marker--chin {
-  left: 50%;
-  top: 66%;
+  left: 79%;
+  top: 68.5%;
+}
+
+@media (max-width: 420px) {
+  .ares-page .ares-pod-marker {
+    font-size: 0.66rem;
+    padding: 0.25rem 0.5rem 0.25rem 0.25rem;
+    min-height: 1.7rem;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1659,6 +1751,45 @@
   border-radius: 10px;
 }
 
+/* Reading key for the canvas. The drawing encodes two independent channels —
+   how warm a parcel of air is and how much of it has already been breathed —
+   and a viewer cannot recover that from the picture. Swatch colours mirror the
+   AIR/WARM/CO2 ramp hardcoded in PlumeSimulator.jsx (a canvas 2D context
+   cannot read custom properties), so the two must move together. */
+.ares-page .ares-plume-key {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.4rem 1.1rem;
+  margin: 0.6rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ares-page .ares-plume-key-item {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.78rem;
+  font-family: var(--ares-mono);
+  color: var(--color-text-muted);
+}
+
+.ares-page .ares-plume-key-swatch {
+  width: 0.9rem;
+  height: 0.55rem;
+  border-radius: 2px;
+  border: 1px solid var(--ares-grid-line);
+}
+
+.ares-page .ares-plume-key-item--warm .ares-plume-key-swatch {
+  background: var(--ares-trace-fore);
+}
+
+.ares-page .ares-plume-key-item--co2 .ares-plume-key-swatch {
+  background: var(--ares-trace-chin);
+}
+
 /* Hidden by default; the narrow-viewport media query below swaps it in for
    the canvas. Mirrors the loop-ring-wrap / loop-ring-fallback pattern in
    src/pages/AstroUSA.jsx. */
@@ -1754,7 +1885,9 @@
 }
 
 @media (max-width: 480px) {
-  .ares-page .ares-plume-canvas {
+  .ares-page .ares-plume-canvas,
+  /* The key explains the canvas; with the canvas gone it explains nothing. */
+  .ares-page .ares-plume-key {
     display: none;
   }
   .ares-page .ares-plume-fallback {
@@ -2291,4 +2424,483 @@
   .ares-page .ares-pod-role {
     grid-template-columns: auto 1fr;
   }
+}
+
+/* ============================================================
+   Shared range-input treatment for every /ares/* slider.
+
+   WHY THIS EXISTS: the native control is a ~16px-tall box whose track is 4px
+   and whose thumb is about 12px. Five of these carry the entire interactive
+   argument of the ARES pages — gravity, concentration, session length, breath
+   phase, per-pod noise — and a 4px target is a poor one on a trackpad and a
+   bad one on touch. (They were also completely unclickable for a while, but
+   that was a separate bug: a full-viewport-width .section-rail overlay eating
+   the clicks. See the comment on .section-rail in search-theme.css. Enlarging
+   the target does not fix an overlay, and the overlay fix does not make a 4px
+   track easy to hit — both were needed.)
+
+   `touch-action: pan-y` is deliberate: vertical drags still scroll the page,
+   so a visitor can swipe past a slider on a phone, while horizontal drags go
+   to the slider instead of being interpreted as a scroll gesture.
+
+   Base specificity is (0,1,1), below the per-component rules further up that
+   set `width` and `accent-color`, so those still win where they apply — which
+   is fine, since `accent-color` has no effect once appearance is none.
+   ============================================================ */
+
+.ares-page input[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  /* A 40px hit box around an 8px track. background: transparent so the box
+     itself is invisible and only the track reads. */
+  height: 2.5rem;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+  touch-action: pan-y;
+}
+
+.ares-page input[type='range']:focus {
+  outline: none;
+}
+
+/* ---- Track ---- */
+
+.ares-page input[type='range']::-webkit-slider-runnable-track {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--ares-panel-sunk);
+  border: 1px solid var(--ares-grid-line);
+}
+
+.ares-page input[type='range']::-moz-range-track {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--ares-panel-sunk);
+  border: 1px solid var(--ares-grid-line);
+}
+
+/* Firefox only: the filled portion behind the thumb. WebKit has no equivalent
+   pseudo-element, so the track reads unfilled there — an acceptable
+   difference, not something to fake with a background-image gradient that
+   would have to be recomputed from JS on every input event. */
+.ares-page input[type='range']::-moz-range-progress {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--ares-trace-chin);
+}
+
+/* ---- Thumb ---- */
+
+.ares-page input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--ares-trace-chin);
+  border: 3px solid var(--ares-panel);
+  box-shadow: 0 1px 4px rgba(26, 26, 26, 0.28);
+  /* Centre the 22px thumb on the 10px track box (8px + 2px border):
+     (10 - 22) / 2 = -6px. WebKit anchors the thumb to the track's top edge. */
+  margin-top: -6px;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+.ares-page input[type='range']::-moz-range-thumb {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--ares-trace-chin);
+  border: 3px solid var(--ares-panel);
+  box-shadow: 0 1px 4px rgba(26, 26, 26, 0.28);
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+.ares-page input[type='range']:hover::-webkit-slider-thumb,
+.ares-page input[type='range']:active::-webkit-slider-thumb {
+  transform: scale(1.12);
+}
+
+.ares-page input[type='range']:hover::-moz-range-thumb,
+.ares-page input[type='range']:active::-moz-range-thumb {
+  transform: scale(1.12);
+}
+
+/* Keyboard focus has to be visible on the thumb itself — the input's own
+   outline is suppressed above so the 40px hit box does not draw a ring around
+   empty space. */
+.ares-page input[type='range']:focus-visible::-webkit-slider-thumb {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 45%, transparent),
+              0 1px 4px rgba(26, 26, 26, 0.28);
+}
+
+.ares-page input[type='range']:focus-visible::-moz-range-thumb {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 45%, transparent),
+              0 1px 4px rgba(26, 26, 26, 0.28);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ares-page input[type='range']::-webkit-slider-thumb,
+  .ares-page input[type='range']::-moz-range-thumb {
+    transition: none;
+  }
+  .ares-page input[type='range']:hover::-webkit-slider-thumb,
+  .ares-page input[type='range']:active::-webkit-slider-thumb,
+  .ares-page input[type='range']:hover::-moz-range-thumb,
+  .ares-page input[type='range']:active::-moz-range-thumb {
+    transform: none;
+  }
+}
+
+/* ============================================================
+   PlumeAnatomy — the labelled breathing envelope
+   (src/components/ares/PlumeAnatomy.jsx)
+   ============================================================ */
+
+.ares-page .ares-anatomy {
+  display: grid;
+  grid-template-columns: minmax(260px, 380px) 1fr;
+  gap: 1.5rem 2rem;
+  align-items: center;
+  margin: 2rem auto 0;
+  max-width: 900px;
+  padding: 1.5rem;
+  background: var(--ares-panel);
+  border: 1px solid var(--ares-grid-line);
+  border-radius: 12px;
+}
+
+.ares-page .ares-anatomy-figure svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.ares-page .ares-anatomy-body path,
+.ares-page .ares-anatomy-body ellipse {
+  fill: var(--ares-panel-sunk);
+  stroke: var(--color-border);
+  stroke-width: 1.6;
+  stroke-linejoin: round;
+}
+
+.ares-page .ares-anatomy-feature {
+  fill: none !important;
+  stroke-width: 1.3 !important;
+  stroke-linecap: round;
+}
+
+.ares-page .ares-anatomy-band {
+  fill: url(#ares-anatomy-band);
+  stroke: var(--ares-trace-fore);
+  stroke-width: 1;
+  stroke-opacity: 0.35;
+}
+
+.ares-page .ares-anatomy-flow {
+  fill: none;
+  stroke: var(--ares-trace-chin);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-dasharray: 9 11;
+  opacity: 0.8;
+  animation: ares-anatomy-march 1.4s linear infinite;
+}
+
+@keyframes ares-anatomy-march {
+  to { stroke-dashoffset: -20; }
+}
+
+.ares-page .ares-anatomy-arrow {
+  fill: var(--ares-trace-chin);
+  opacity: 0.8;
+}
+
+.ares-page .ares-anatomy-pin circle {
+  fill: var(--ares-trace-chin);
+  stroke: var(--ares-panel);
+  stroke-width: 2;
+}
+
+.ares-page .ares-anatomy-pin text {
+  fill: var(--ares-conc-0);
+  font-family: var(--ares-mono);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.ares-page .ares-anatomy-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 1rem;
+  counter-reset: none;
+}
+
+.ares-page .ares-anatomy-steps li {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.75rem;
+  align-items: start;
+}
+
+.ares-page .ares-anatomy-step-n {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 50%;
+  background: var(--ares-trace-chin);
+  color: var(--ares-conc-0);
+  font-family: var(--ares-mono);
+  font-size: 0.8rem;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.ares-page .ares-anatomy-steps h4 {
+  margin: 0 0 0.2rem;
+  font-family: var(--font-heading);
+  font-size: 0.98rem;
+  color: var(--color-text);
+}
+
+.ares-page .ares-anatomy-steps p {
+  margin: 0;
+  font-size: 0.86rem;
+  line-height: 1.55;
+  color: var(--color-text-muted);
+}
+
+.ares-page .ares-anatomy figcaption {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding-top: 1rem;
+  border-top: 1px solid var(--ares-grid-line);
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: var(--color-muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ares-page .ares-anatomy-flow { animation: none; }
+}
+
+@media (max-width: 820px) {
+  .ares-page .ares-anatomy {
+    grid-template-columns: 1fr;
+  }
+  .ares-page .ares-anatomy-figure {
+    max-width: 340px;
+    margin: 0 auto;
+  }
+}
+
+/* ============================================================
+   CandleComparison — the same candle at 1 g and 0 g
+   (src/components/ares/CandleComparison.jsx)
+   ============================================================ */
+
+.ares-page .ares-candles {
+  margin: 2rem auto 0;
+  max-width: 720px;
+  padding: 1.5rem;
+  background: var(--ares-panel);
+  border: 1px solid var(--ares-grid-line);
+  border-radius: 12px;
+}
+
+.ares-page .ares-candles-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1.25rem;
+}
+
+.ares-page .ares-candle-panel {
+  position: relative;
+  padding: 1.1rem 1.1rem 1.2rem;
+  border-radius: 10px;
+  border: 1px solid var(--ares-grid-line);
+  background: var(--ares-conc-0);
+}
+
+/* The one asymmetry between the panels, and it is doing work: the 1 g panel is
+   lit from within, the 0 g panel is flat. Take gravity away and the picture
+   literally loses its light source. */
+.ares-page .ares-candle-panel--earth {
+  background:
+    radial-gradient(ellipse 55% 40% at 50% 32%, rgba(201, 138, 43, 0.14), transparent 70%),
+    var(--ares-conc-0);
+}
+
+.ares-page .ares-candle-panel svg {
+  display: block;
+  width: 100%;
+  max-width: 190px;
+  height: auto;
+  margin: 0 auto;
+}
+
+.ares-page .ares-candle-tag {
+  position: absolute;
+  top: 0.7rem;
+  right: 0.8rem;
+  font-family: var(--ares-mono);
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--color-muted);
+}
+
+.ares-page .ares-candle-body rect {
+  fill: var(--ares-panel-sunk);
+  stroke: var(--color-border);
+  stroke-width: 1.4;
+}
+
+.ares-page .ares-candle-rim {
+  fill: var(--ares-conc-1);
+  stroke: var(--color-border);
+  stroke-width: 1.4;
+}
+
+.ares-page .ares-candle-wick {
+  stroke: var(--color-text);
+  stroke-width: 2.4;
+  stroke-linecap: round;
+}
+
+.ares-page .ares-flame--earth {
+  transform-origin: 80px 138px;
+  animation: ares-candle-flicker 2.6s ease-in-out infinite;
+}
+
+@keyframes ares-candle-flicker {
+  0%, 100% { transform: scaleY(1) scaleX(1); }
+  35%      { transform: scaleY(1.05) scaleX(0.97); }
+  70%      { transform: scaleY(0.97) scaleX(1.02); }
+}
+
+/* No flicker on the 0 g flame, deliberately. The still panel next to the
+   moving one is the comparison. */
+@media (prefers-reduced-motion: reduce) {
+  .ares-page .ares-flame--earth { animation: none; }
+}
+
+.ares-page .ares-candle-diffusion {
+  fill: none;
+  stroke: var(--ares-trace-top);
+  stroke-width: 1;
+  stroke-dasharray: 3 5;
+  opacity: 0.5;
+}
+
+.ares-page .ares-candle-flow path {
+  fill: none;
+  stroke: var(--ares-trace-chin);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  opacity: 0.75;
+}
+
+/* Same element depth as the rule above, so it has to out-specify it on its own
+   terms — `.ares-candle-head` alone lost the `fill` cascade and the heads
+   rendered as hollow outlines. */
+.ares-page .ares-candle-flow path.ares-candle-head {
+  fill: var(--ares-trace-chin);
+  stroke: none;
+}
+
+.ares-page .ares-candle-flow--isotropic path {
+  stroke: var(--ares-trace-top);
+  opacity: 0.6;
+}
+
+.ares-page .ares-candle-flow--isotropic path.ares-candle-head {
+  fill: var(--ares-trace-top);
+  stroke: none;
+}
+
+.ares-page .ares-candle-verdict {
+  margin: 0.9rem 0 0.35rem;
+  font-family: var(--ares-mono);
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--color-text);
+}
+
+.ares-page .ares-candle-panel--orbit .ares-candle-verdict {
+  color: var(--ares-trace-top);
+}
+
+.ares-page .ares-candle-panel--earth .ares-candle-verdict {
+  color: var(--ares-trace-chin);
+}
+
+.ares-page .ares-candle-caption {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.55;
+  color: var(--color-text-muted);
+}
+
+.ares-page .ares-candles figcaption {
+  margin-top: 1.1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--ares-grid-line);
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: var(--color-muted);
+}
+
+/* ---- Wide figure variant (full-width CFD grids) ------------------------ */
+
+.ares-page .ares-figure--wide {
+  max-width: 860px;
+}
+
+/* ============================================================
+   Companion-app screenshot strip (TheHeadset, hs-system)
+   Four portrait phone screens in a row. Capped narrow: these are 171px-wide
+   captures, so letting a grid track stretch them past native width would
+   upscale a screenshot into mush.
+   ============================================================ */
+
+.ares-page .ares-app-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 180px));
+  justify-content: center;
+  gap: 1.25rem;
+  margin-top: 1.5rem;
+}
+
+.ares-page .ares-app-screen {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.ares-page .ares-app-screen img {
+  width: 100%;
+  height: auto;
+  display: block;
+  border-radius: 12px;
+  /* These are dark-UI screenshots on a cream page; a hairline alone reads as a
+     hole punched in the sheet, so they get a lifted card treatment instead. */
+  border: 1px solid var(--ares-grid-line);
+  box-shadow: 0 4px 14px rgba(26, 26, 26, 0.14);
+}
+
+.ares-page .ares-app-screen figcaption {
+  margin: 0;
+  font-size: 0.76rem;
+  line-height: 1.45;
+  color: var(--color-text-muted);
 }

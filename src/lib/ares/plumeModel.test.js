@@ -66,15 +66,49 @@ describe('stepParticles', () => {
     expect(mars).toBeGreaterThan(orbit);
   });
 
-  test('CO2 accumulates near the source in orbit and clears at 1 g', () => {
+  /**
+   * CONCENTRATION, NOT TOTAL MASS.
+   *
+   * This assertion used to sum p.co2 over the particles inside the disc. That
+   * proxy only worked while buoyancy was a uniform field force that left the
+   * particle *distribution* roughly alone. Now that the model produces a real
+   * column with entrainment, 1 g actively concentrates particles onto the
+   * plume axis — the source sits on that axis, so the 1 g disc holds ~99
+   * particles against orbit's ~7, and a sum over them inverts even though each
+   * individual parcel is six times cleaner. A summed count is a measure of how
+   * many particles are in the disc as much as of how loaded they are, which is
+   * not what "CO2 accumulates" means for a gas.
+   *
+   * Mean load per parcel is the concentration, and that is the quantity the
+   * page's whole argument is about: at 1 g a breath is swept out and diluted
+   * before the next one arrives; at 0 g the same parcels sit in front of the
+   * face and saturate.
+   */
+  test('CO2 reaches a far higher concentration near the source in orbit than at 1 g', () => {
     const nearSource = (g) => {
       let ps = createParticles(300, () => 0.5);
       for (let i = 0; i < 80; i += 1) ps = stepParticles(ps, { ...bounds, g });
-      return ps
-        .filter(p => Math.hypot(p.x - bounds.sourceX, p.y - bounds.sourceY) < 60)
-        .reduce((s, p) => s + p.co2, 0);
+      const near = ps.filter(
+        p => Math.hypot(p.x - bounds.sourceX, p.y - bounds.sourceY) < 60,
+      );
+      return {
+        count: near.length,
+        mean: near.length ? near.reduce((s, p) => s + p.co2, 0) / near.length : 0,
+        peak: ps.reduce((m, p) => Math.max(m, p.co2), 0),
+      };
     };
-    expect(nearSource(GRAVITY.orbit)).toBeGreaterThan(nearSource(GRAVITY.earth));
+    const orbit = nearSource(GRAVITY.orbit);
+    const earth = nearSource(GRAVITY.earth);
+
+    // Guard the mean against being read off an empty or near-empty disc.
+    expect(orbit.count).toBeGreaterThan(3);
+    expect(earth.count).toBeGreaterThan(3);
+
+    // Measured ~0.28 vs ~0.044; assert a 2x margin so the test fails on a real
+    // regression rather than on tuning noise.
+    expect(orbit.mean).toBeGreaterThan(earth.mean * 2);
+    // And the worst pocket anywhere in the frame is far worse in orbit.
+    expect(orbit.peak).toBeGreaterThan(earth.peak);
   });
 
   test('particles stay inside the bounds', () => {

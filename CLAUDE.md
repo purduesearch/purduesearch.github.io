@@ -18,6 +18,10 @@ Static SPA for the Purdue SEARCH club, deployed to GitHub Pages and served at th
 │   ├── search-theme.css            # Public site CSS (linked from index.html on every page)
 │   ├── clubpm-theme.css            # ClubPM-only CSS, fetched on demand by /clubpm/* routes
 │   ├── ares-theme.css              # ARES-only CSS, fetched on demand by /ares/* routes — every selector scoped under .ares-page
+│   ├── ares/                       # ARES photography + CFD figures (webp). Two are ARES's own
+│   │                               # (headset-assembly, pod-interior), four are companion-app
+│   │                               # screenshots, and three are published Dutta et al. figures that
+│   │                               # MUST keep their visible credit string — see spec §1/§7.
 │   └── <program>/                  # Static assets per program
 │       └── interactive diagrams/   # mxGraph XML source files (.xml)
 ├── src/
@@ -66,6 +70,7 @@ Static SPA for the Purdue SEARCH club, deployed to GitHub Pages and served at th
 │   │       ├── Shop.jsx               # Cosmetic shop (doubloons)
 │   │       └── BlogEditorPage.jsx     # Collaborative blog editor (Hocuspocus WS)
 │   └── components/
+│       ├── SectionProgressRail.jsx # Fixed right-edge section dots — see gotchas before restyling
 │       ├── AstroFlowDiagram.jsx    # mxGraph interactive diagram (complex — see gotchas)
 │       ├── AstroSubsystem3D.jsx    # Three.js 3D model viewer
 │       ├── Footer.jsx
@@ -78,6 +83,9 @@ Static SPA for the Purdue SEARCH club, deployed to GitHub Pages and served at th
 │       ├── SEOHead.jsx
 │       ├── STLViewer.jsx
 │       ├── ares/                   # ARES interactives (PlumeSimulator, PodReadout, ExposureDial, DelayVsT90, RegimePlayground, NdirBeam, SystemDiagram, PodDisagreement, AresStat, AresTerm) + aresPhysics.js (single source of truth for every physical constant on /ares)
+│       │                           #   Static figures: AresFigure (shared image slot + placeholder; all three pages),
+│       │                           #   AresHeadProfile (head schematic; exports HEAD_PATH etc. so PlumeAnatomy draws the same person),
+│       │                           #   PlumeAnatomy + CandleComparison (original explanatory SVGs, no external assets)
 │       └── clubpm/                 # ClubPM UI components
 │           ├── AppShell.jsx        # Protected layout shell
 │           ├── GanttChart.jsx
@@ -185,6 +193,30 @@ Deploy is manual push to the `main` branch; GitHub Pages serves from root at `pu
 - `pollService.ts`'s iCal `UID:...@purduesearch.github.io` is **deliberately not migrated**. Changing an iCalendar UID duplicates events on already-subscribed calendars.
 - **Cutover completed 2026-08-05, with cleanup deliberately deferred ~2 weeks.** Still live and still to be removed: `CORS_EXTRA_ORIGINS`, the DuckDNS nginx vhost + cert (`search-constellation.duckdns.org`), and the old OAuth redirect URLs in the Slack/GitHub apps. They are the rollback path — don't remove them opportunistically. Checklist in `docs/DOMAIN-CUTOVER-RUNBOOK.md` Phase 8.
 - `provision-domain.yml` (Actions tab) adds an nginx vhost + certbot cert for a hostname alongside the existing ones. Run `diagnose` first; `apply` refuses to call certbot until DNS resolves to the box, because Let's Encrypt allows only 5 validation failures per hostname per hour. Design rationale: `docs/superpowers/specs/2026-08-05-purduesearch-org-migration-design.md`.
+
+### SectionProgressRail — a fixed box that is wider than it looks
+`.section-rail` (search-theme.css) is `position: fixed` with only `right` set. Its width is therefore
+shrink-to-fit resolved against its *static* position at the left edge of the page, so Chrome lays the
+`<nav>` out at the **full viewport width** even though every dot inside it hugs the right edge —
+measured 1440x159 at a 1440px viewport. It is invisible and `z-index: 40`, so for a long time it
+silently swallowed every click in a ~160px horizontal band across the vertical middle of every
+program page. On `/ares` that meant all five range sliders were dead whenever they were scrolled to
+centre (i.e. whenever you were about to drag one) and the pod markers were unclickable; it read as an
+intermittent bug because whether a control worked depended purely on where it sat in the viewport.
+
+Two rules keep it harmless, and both are load-bearing:
+1. `.section-rail` is `pointer-events: none`; only `.section-rail-dot` opts back in.
+2. `.section-rail-label` is `position: absolute`, out of flow. In flow it sized every dot button to
+   its longest label (60-134px), because labels occupy layout even at `opacity: 0`.
+
+If you restyle the rail, re-check with `document.elementFromPoint()` over page content, not by eye.
+
+### Images
+- `scripts/optimize-images.config.mjs` has a **`figure` tier** (`FIGURE_DIRS = ['ares/']`, q88) on top
+  of photo/art/animated. Plotted figures and UI screenshots carry small hard-edged type that the
+  default q75 photo profile visibly rings around. Drop a new plotted figure anywhere else under
+  `public/` and it gets q75 — put it in `public/ares/` or extend `FIGURE_DIRS`.
+- Always `npm run optimize:images -- --report` before the real run.
 
 ### General
 - `public/` assets are served at `/` in dev and in the GitHub Pages build. Paths in JSX must start with `/` (e.g., `/astrousa/fig1.jpg`).

@@ -17,103 +17,264 @@ import { prefersReducedMotion } from '../../hooks/usePrefersReducedMotion';
  * source course teaches against. The Grashof/Rayleigh numbers next to it are
  * real (regimeFor() calls the same grashof()/rayleigh() used everywhere else
  * on the site); only the particle motion is illustrative.
+ *
+ * RENDERING NOTE — why this does not draw flat dots any more. The previous
+ * version ramped every particle between #f5efe6 and #e6d0ac and painted it on
+ * a #fff9f4 canvas. Those three values are within about ten levels per channel
+ * of each other, so the plume was measurably invisible: a browser probe of the
+ * live canvas found only 0.8% of pixels differing perceptibly from the
+ * background or the silhouette, and the largest non-background colour block on
+ * screen was the silhouette itself. The page's central animation was, in
+ * practice, a blank cream rectangle. Legibility here is not decoration — it is
+ * the entire function of the component.
  */
 
 const WIDTH = 400;
 const HEIGHT = 500;
-const SOURCE = { x: 200, y: 380 };
-const COUNT = 320;
+/** The mouth: where exhaled CO2 enters the field. On the face, not the axis. */
+const SOURCE = { x: 237, y: 373 };
+/** The body's vertical centreline, which is what the warm column forms around. */
+const BODY_AXIS_X = 196;
+const COUNT = 340;
 
-// Concentration ramp — mirrors --ares-conc-0 -> --ares-conc-2 in
-// public/ares-theme.css. A canvas 2D context cannot read CSS custom
-// properties, so the ramp is hardcoded here as literals and must be kept in
-// sync with the tokens by hand if the palette ever moves.
-const CONC_0_RGB = [245, 239, 230]; // --ares-conc-0 #f5efe6
-const CONC_2_RGB = [230, 208, 172]; // --ares-conc-2 #e6d0ac
+/*
+ * Palette. A canvas 2D context cannot read CSS custom properties, so these
+ * mirror public/ares-theme.css by hand and must be kept in sync with it.
+ *
+ *   AIR_RGB   near --ares-panel-sunk — unheated room air, barely a tint
+ *   WARM_RGB  --ares-trace-fore  #c98a2b — air the body has warmed
+ *   CO2_RGB   --ares-trace-chin  #b83225 — air that has been through lungs
+ *
+ * Particles are composited with `multiply` onto the cream panel, so overlapping
+ * parcels darken rather than flatly overwriting each other. That is what gives
+ * the field depth and makes a dense plume core read as denser than its edges —
+ * the same reason a Schlieren plate, which is what this figure is standing in
+ * for, shows structure at all.
+ */
+const AIR_RGB = [205, 191, 178];
+const WARM_RGB = [201, 138, 43];
+const CO2_RGB = [184, 50, 37];
 
-// Backdrop + silhouette colours. Also canvas literals for the same reason,
-// chosen from the --ares-panel / --ares-panel-sunk / --ares-grid-line family
-// so the drawing reads as part of the same warm instrument, not a separate
-// visual language.
-const BG_FILL = '#fff9f4'; // mirrors --ares-panel
-const SILHOUETTE_FILL = '#d9c8ac'; // warm sand, between --ares-panel-sunk and --ares-conc-2
-const SILHOUETTE_STROKE = 'rgba(122, 111, 104, 0.4)'; // mirrors --ares-grid-line
+const BG_FILL = '#fff9f4';          // --ares-panel
+const GRID_LINE = 'rgba(122, 111, 104, 0.10)';
+const SILHOUETTE_FILL = '#e6dbcd';  // between --ares-panel-sunk and --ares-conc-1
+const SILHOUETTE_STROKE = 'rgba(122, 111, 104, 0.45)';
+const STREAK_STROKE = 'rgba(184, 138, 74, 0.30)';
 
-// Visual tuning only — not physical constants, so aresPhysics.js has no
-// equivalents for these. Dot radius and the alpha floor/ceiling control how
-// strongly co2 reads as visible pooling versus background air.
-const DOT_RADIUS = 2.1;
-const MIN_ALPHA = 0.07;
-const MAX_ALPHA = 0.88;
+/** Soft-blob sprite geometry, in logical px. Visual tuning, not physics. */
+const SPRITE_R = 13;
+const SPRITE_SIZE = SPRITE_R * 2;
+/** Tint lookup resolution: HEAT_STEPS x CO2_STEPS pre-tinted sprites. */
+const HEAT_STEPS = 6;
+const CO2_STEPS = 6;
+/** A parcel moving faster than this leaves a motion streak. */
+const STREAK_MIN_SPEED = 1.2;
+const STREAK_LENGTH = 3.2;
 
 const lerp = (a, b, t) => a + (b - a) * t;
+const mixRgb = (a, b, t) => [
+  Math.round(lerp(a[0], b[0], t)),
+  Math.round(lerp(a[1], b[1], t)),
+  Math.round(lerp(a[2], b[2], t)),
+];
 
-function concentrationColor(co2) {
-  const t = Math.min(1, Math.max(0, co2));
-  return [
-    Math.round(lerp(CONC_0_RGB[0], CONC_2_RGB[0], t)),
-    Math.round(lerp(CONC_0_RGB[1], CONC_2_RGB[1], t)),
-    Math.round(lerp(CONC_0_RGB[2], CONC_2_RGB[2], t)),
-  ];
+/**
+ * Tint for a parcel: room air warms toward ochre as it picks up body heat,
+ * then swings toward Mars red as it picks up exhaled CO2. Two channels, so the
+ * viewer can tell "warm air the body is moving" from "air you have breathed" —
+ * a distinction the whole page rests on.
+ */
+function tintFor(heat, co2) {
+  return mixRgb(mixRgb(AIR_RGB, WARM_RGB, heat), CO2_RGB, co2);
 }
 
 /**
- * A readable head-and-shoulders reference shape, not portraiture — just
- * enough geometry that "plume rises past the chin and off the crown" reads
- * at a glance. Coordinates are canvas layout values in the fixed WIDTH x
- * HEIGHT frame, not physical constants.
+ * Opacity for a parcel. CO2 is weighted far above heat so a small pocket of
+ * rebreathed air stays readable against a large body of merely-warm air.
  */
-function drawSilhouette(ctx) {
-  ctx.fillStyle = SILHOUETTE_FILL;
-  ctx.strokeStyle = SILHOUETTE_STROKE;
-  ctx.lineWidth = 1.5;
+function alphaFor(heat, co2) {
+  return Math.min(0.9, 0.04 + heat * 0.2 + co2 * 0.78);
+}
 
-  // Shoulders
+/**
+ * Pre-render one soft radial sprite per (heat, co2) bucket. Built once per
+ * canvas, then blitted with drawImage — a per-particle createRadialGradient
+ * would be a new gradient object 340 times a frame at 60 fps.
+ */
+function buildSprites() {
+  const sprites = [];
+  for (let h = 0; h < HEAT_STEPS; h += 1) {
+    for (let c = 0; c < CO2_STEPS; c += 1) {
+      const heat = h / (HEAT_STEPS - 1);
+      const co2 = c / (CO2_STEPS - 1);
+      const [r, g, b] = tintFor(heat, co2);
+      const off = document.createElement('canvas');
+      off.width = SPRITE_SIZE;
+      off.height = SPRITE_SIZE;
+      const octx = off.getContext('2d');
+      const grad = octx.createRadialGradient(
+        SPRITE_R, SPRITE_R, 0, SPRITE_R, SPRITE_R, SPRITE_R,
+      );
+      grad.addColorStop(0, `rgba(${r}, ${g}, ${b}, 1)`);
+      grad.addColorStop(0.45, `rgba(${r}, ${g}, ${b}, 0.55)`);
+      grad.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
+      octx.fillStyle = grad;
+      octx.fillRect(0, 0, SPRITE_SIZE, SPRITE_SIZE);
+      sprites[h * CO2_STEPS + c] = off;
+    }
+  }
+  return sprites;
+}
+
+/**
+ * Head-and-shoulders in profile, facing right.
+ *
+ * Profile rather than the previous front-on ellipse for two reasons that are
+ * both about legibility: it is the view every published Schlieren photograph
+ * and CFD figure of a body plume uses, so the drawing matches the figures
+ * further down the page, and it is the only view in which "the plume leaves
+ * the face up and outward at about 45 degrees" is a visible statement rather
+ * than a sentence the reader has to take on trust. Coordinates are canvas
+ * layout values in the fixed WIDTH x HEIGHT frame, not physical constants.
+ */
+/**
+ * Head and neck as one continuous outline, from the crown forward over the
+ * face, down the throat, and back up the nape and around the skull.
+ *
+ * One path rather than a head plus a separate neck box: stroking two
+ * overlapping subpaths draws the boundary between them, which read as a jar
+ * lid across the throat. Landmarks in order: forehead, brow ridge, nasion (the
+ * dip above the nose), nose ridge, tip, subnasale, philtrum, upper lip, mouth,
+ * lower lip, mentolabial crease, chin, submental line, throat, base of the
+ * neck, nape, jaw angle, mastoid, occiput, crown.
+ *
+ * The base of the neck runs below where the shoulders are drawn, so that edge
+ * is covered rather than visible.
+ */
+function traceHeadAndNeck(ctx) {
   ctx.beginPath();
-  ctx.moveTo(84, HEIGHT + 4);
-  ctx.lineTo(118, 428);
-  ctx.quadraticCurveTo(200, 400, 282, 428);
-  ctx.lineTo(316, HEIGHT + 4);
+  ctx.moveTo(193, 262);
+  ctx.bezierCurveTo(216, 262, 233, 275, 236, 296);
+  ctx.bezierCurveTo(238, 306, 238, 314, 237, 319);
+  ctx.bezierCurveTo(233, 324, 229, 327, 230, 332);
+  ctx.bezierCurveTo(236, 337, 249, 344, 250, 351);
+  ctx.bezierCurveTo(250, 356, 243, 357, 235, 358);
+  ctx.bezierCurveTo(234, 362, 234, 364, 233, 366);
+  ctx.bezierCurveTo(238, 368, 239, 370, 234, 372);
+  ctx.bezierCurveTo(239, 375, 238, 379, 233, 381);
+  ctx.bezierCurveTo(230, 384, 231, 388, 233, 392);
+  ctx.bezierCurveTo(229, 399, 223, 403, 217, 406);
+  ctx.bezierCurveTo(220, 428, 223, 450, 224, 472);
+  ctx.lineTo(168, 472);
+  ctx.bezierCurveTo(170, 448, 173, 422, 175, 398);
+  ctx.bezierCurveTo(167, 387, 160, 372, 155, 356);
+  ctx.bezierCurveTo(148, 336, 148, 306, 162, 288);
+  ctx.bezierCurveTo(171, 272, 181, 262, 193, 262);
   ctx.closePath();
-  ctx.fill();
-  ctx.stroke();
+}
 
-  // Neck
+/** Shoulders and upper chest, drawn over the base of the neck. */
+function traceShoulders(ctx) {
   ctx.beginPath();
-  ctx.rect(181, 386, 38, 48);
-  ctx.fill();
-
-  // Head — SOURCE sits just under the chin, roughly where this ellipse's
-  // base meets the neck, since that is where the model emits CO2.
-  ctx.beginPath();
-  ctx.ellipse(200, 332, 54, 64, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.stroke();
+  ctx.moveTo(112, HEIGHT + 4);
+  ctx.bezierCurveTo(118, 480, 138, 462, 172, 456);
+  ctx.bezierCurveTo(208, 450, 246, 456, 268, 469);
+  ctx.bezierCurveTo(284, 479, 290, 490, 296, HEIGHT + 4);
+  ctx.closePath();
 }
 
 /**
- * Module-level and pure: clear, paint the backdrop, draw the silhouette,
- * draw every particle as a dot whose alpha comes from p.co2 and whose colour
- * ramps toward the CO2 tokens. Called once for the reduced-motion still
- * frame and once per animation tick; never touches React state.
+ * The static backdrop — panel, instrument grid, silhouette — rendered once
+ * into an offscreen canvas and blitted per frame. Nothing here changes with
+ * gravity, so redrawing it 60 times a second is pure waste.
  */
-function drawFrame(ctx, particles) {
-  ctx.clearRect(0, 0, WIDTH, HEIGHT);
+function buildBackdrop() {
+  const off = document.createElement('canvas');
+  off.width = WIDTH;
+  off.height = HEIGHT;
+  const ctx = off.getContext('2d');
+
   ctx.fillStyle = BG_FILL;
   ctx.fillRect(0, 0, WIDTH, HEIGHT);
 
-  drawSilhouette(ctx);
+  ctx.strokeStyle = GRID_LINE;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (let x = 50; x < WIDTH; x += 50) {
+    ctx.moveTo(x + 0.5, 0);
+    ctx.lineTo(x + 0.5, HEIGHT);
+  }
+  for (let y = 50; y < HEIGHT; y += 50) {
+    ctx.moveTo(0, y + 0.5);
+    ctx.lineTo(WIDTH, y + 0.5);
+  }
+  ctx.stroke();
 
+  ctx.fillStyle = SILHOUETTE_FILL;
+  ctx.strokeStyle = SILHOUETTE_STROKE;
+  ctx.lineWidth = 1.5;
+  // Head first, shoulders over it — see traceHeadAndNeck.
+  traceHeadAndNeck(ctx);
+  ctx.fill();
+  ctx.stroke();
+  traceShoulders(ctx);
+  ctx.fill();
+  ctx.stroke();
+
+  // Ear and brow, so the profile reads as a head rather than a shape.
+  ctx.beginPath();
+  ctx.ellipse(184, 349, 7, 10, -0.2, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(213, 322);
+  ctx.quadraticCurveTo(224, 318, 232, 322);
+  ctx.stroke();
+
+  return off;
+}
+
+/**
+ * Paint one frame: backdrop, then every parcel as a soft tinted blob, then a
+ * single batched stroke for the motion streaks. Module-level and pure; called
+ * once for the reduced-motion still frame and once per animation tick, and it
+ * never touches React state.
+ */
+function drawFrame(ctx, particles, backdrop, sprites) {
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.globalAlpha = 1;
+  ctx.clearRect(0, 0, WIDTH, HEIGHT);
+  ctx.drawImage(backdrop, 0, 0);
+
+  ctx.globalCompositeOperation = 'multiply';
   for (let i = 0; i < particles.length; i += 1) {
     const p = particles[i];
-    const t = Math.min(1, Math.max(0, p.co2));
-    const alpha = MIN_ALPHA + (MAX_ALPHA - MIN_ALPHA) * t;
-    const [r, g, b] = concentrationColor(p.co2);
-    ctx.beginPath();
-    ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${alpha.toFixed(3)})`;
-    ctx.arc(p.x, p.y, DOT_RADIUS, 0, Math.PI * 2);
-    ctx.fill();
+    const heat = p.heat > 1 ? 1 : p.heat < 0 ? 0 : p.heat;
+    const co2 = p.co2 > 1 ? 1 : p.co2 < 0 ? 0 : p.co2;
+    const h = Math.round(heat * (HEAT_STEPS - 1));
+    const c = Math.round(co2 * (CO2_STEPS - 1));
+    ctx.globalAlpha = alphaFor(heat, co2);
+    ctx.drawImage(sprites[h * CO2_STEPS + c], p.x - SPRITE_R, p.y - SPRITE_R);
   }
+
+  // Motion streaks. One path for the whole field: this is what makes a still
+  // screenshot of the canvas still say "this air is moving", and what makes
+  // the difference between 1 g and 0 g legible at a glance rather than only
+  // to someone who watches for a few seconds.
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.globalAlpha = 1;
+  ctx.strokeStyle = STREAK_STROKE;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  let any = false;
+  for (let i = 0; i < particles.length; i += 1) {
+    const p = particles[i];
+    const speed = Math.hypot(p.vx, p.vy);
+    if (speed < STREAK_MIN_SPEED) continue;
+    any = true;
+    ctx.moveTo(p.x - p.vx * STREAK_LENGTH, p.y - p.vy * STREAK_LENGTH);
+    ctx.lineTo(p.x, p.y);
+  }
+  if (any) ctx.stroke();
 }
 
 // Aliased: this component only needs the preference's value at the moment
@@ -122,25 +283,29 @@ function drawFrame(ctx, particles) {
 const reduceMotion = prefersReducedMotion;
 
 // Simulated steps to run, unrendered, before drawing the reduced-motion still
-// frame. Every particle starts at co2: 0 (createParticles), so a single
-// drawn frame is a uniform faint speckle with no concentration gradient — a
+// frame. Every particle starts at co2: 0 and heat: 0 (createParticles), so a
+// single drawn frame is a uniform faint speckle with no structure at all — a
 // silhouette in noise, not a meaningful static rendering. 240 steps at the
-// model's dt = 1/60 is 4 simulated seconds, long enough for the near-source
-// particles to pick up real co2 and for buoyancy (or its absence) to shape
-// where they end up before the frame is ever painted.
+// model's dt = 1/60 is 4 simulated seconds, long enough for the column to form
+// (or, at low gravity, visibly fail to) before the frame is ever painted.
 const SETTLE_STEPS = 240;
+
+function stepArgs(g) {
+  return {
+    g,
+    dt: 1 / 60,
+    width: WIDTH,
+    height: HEIGHT,
+    sourceX: SOURCE.x,
+    sourceY: SOURCE.y,
+    axisX: BODY_AXIS_X,
+  };
+}
 
 function settledParticles(g) {
   let particles = createParticles(COUNT);
   for (let i = 0; i < SETTLE_STEPS; i += 1) {
-    particles = stepParticles(particles, {
-      g,
-      dt: 1 / 60,
-      width: WIDTH,
-      height: HEIGHT,
-      sourceX: SOURCE.x,
-      sourceY: SOURCE.y,
-    });
+    particles = stepParticles(particles, stepArgs(g));
   }
   return particles;
 }
@@ -181,7 +346,7 @@ export default function PlumeSimulator() {
     const ctx = canvas.getContext('2d');
     if (!ctx) return undefined;
 
-    // DPR handling: back the canvas at device-pixel resolution so the dots
+    // DPR handling: back the canvas at device-pixel resolution so the blobs
     // and silhouette stay crisp, then draw entirely in the fixed logical
     // WIDTH x HEIGHT frame that stepParticles also uses. Set once, outside
     // the loop — calling ctx.scale per frame would compound.
@@ -190,9 +355,15 @@ export default function PlumeSimulator() {
     canvas.height = HEIGHT * dpr;
     ctx.scale(dpr, dpr);
 
+    const backdrop = buildBackdrop();
+    const sprites = buildSprites();
+
     if (reduceMotion()) {
       // No loop at all; the settle effect below owns drawing so it can also
-      // redraw when the gravity slider changes.
+      // redraw when the gravity slider changes. It reads these two off the
+      // refs rather than rebuilding them.
+      canvas.__aresBackdrop = backdrop;
+      canvas.__aresSprites = sprites;
       return undefined;
     }
 
@@ -202,15 +373,8 @@ export default function PlumeSimulator() {
     const loop = () => {
       // No rng passed — the live component wants real randomness. Only the
       // tests seed it.
-      particlesRef.current = stepParticles(particlesRef.current, {
-        g: gRef.current,
-        dt: 1 / 60,
-        width: WIDTH,
-        height: HEIGHT,
-        sourceX: SOURCE.x,
-        sourceY: SOURCE.y,
-      });
-      drawFrame(ctx, particlesRef.current);
+      particlesRef.current = stepParticles(particlesRef.current, stepArgs(gRef.current));
+      drawFrame(ctx, particlesRef.current, backdrop, sprites);
       raf = requestAnimationFrame(loop);
     };
 
@@ -248,7 +412,7 @@ export default function PlumeSimulator() {
   // on `g` so dragging the gravity slider still teaches something: each
   // change re-settles a fresh particle field at the new gravity and redraws.
   //
-  // settledParticles is SETTLE_STEPS (240) * COUNT (320) particle updates,
+  // settledParticles is SETTLE_STEPS (240) * COUNT (340) particle updates,
   // run synchronously, and the range input fires an onChange per pixel of
   // drag or per auto-repeated arrow keypress — so this is guarded two ways:
   //   1. Below 480px, public/ares-theme.css swaps this canvas out entirely
@@ -272,9 +436,11 @@ export default function PlumeSimulator() {
       if (getComputedStyle(canvasEl).display === 'none') return;
       const ctx = canvasEl.getContext('2d');
       if (!ctx) return;
+      const backdrop = canvasEl.__aresBackdrop || buildBackdrop();
+      const sprites = canvasEl.__aresSprites || buildSprites();
       const settled = settledParticles(g);
       particlesRef.current = settled;
-      drawFrame(ctx, settled);
+      drawFrame(ctx, settled, backdrop, sprites);
     };
 
     if (!settledOnceRef.current) {
@@ -297,6 +463,20 @@ export default function PlumeSimulator() {
           height={HEIGHT}
           aria-hidden="true"
         />
+
+        {/* Reading key for the canvas. Two channels are encoded in the
+            drawing — warmth and rebreathed load — and neither is guessable
+            from the picture alone. */}
+        <ul className="ares-plume-key" aria-hidden="true">
+          <li className="ares-plume-key-item ares-plume-key-item--warm">
+            <span className="ares-plume-key-swatch" />
+            Air the body has warmed
+          </li>
+          <li className="ares-plume-key-item ares-plume-key-item--co2">
+            <span className="ares-plume-key-swatch" />
+            Air that has been breathed
+          </li>
+        </ul>
 
         {/* Narrow-viewport / non-canvas fallback: the same regime figures the
             live readout below shows, computed for three fixed gravities and

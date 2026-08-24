@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
@@ -6,6 +6,9 @@ import SEOHead from '../components/SEOHead';
 import SectionProgressRail from '../components/SectionProgressRail';
 import AresStat from '../components/ares/AresStat';
 import AresTerm from '../components/ares/AresTerm';
+import AresFigure from '../components/ares/AresFigure';
+import CandleComparison from '../components/ares/CandleComparison';
+import PlumeAnatomy from '../components/ares/PlumeAnatomy';
 import { PLUME, CO2_TIERS } from '../components/ares/aresPhysics';
 import { POD_POSITIONS } from '../lib/ares/breathModel';
 import useAresScrollEffects from '../hooks/useAresScrollEffects';
@@ -37,41 +40,6 @@ const LOADING_FALLBACK = (
     <span>Loading…</span>
   </div>
 );
-
-/**
- * Graceful figure slot — mirrors the pattern the deep-dive pages use for
- * hardware photography. No CFD figure ships with this task: it is a
- * third-party figure and spec §7's copyright check has not happened yet, so
- * `src` stays unset and the slot renders as an intentional placeholder
- * rather than a broken image icon.
- */
-function AresFigure({ src, alt, caption, credit }) {
-  const [failed, setFailed] = useState(!src);
-
-  if (failed) {
-    return (
-      <figure className="ares-figure ares-figure--standalone">
-        <div className="ares-figure-placeholder" role="img" aria-label={alt}>
-          <i className="fas fa-chart-area" aria-hidden="true" />
-          <span>{alt}</span>
-        </div>
-        {caption && <figcaption>{caption}</figcaption>}
-      </figure>
-    );
-  }
-
-  return (
-    <figure className="ares-figure ares-figure--standalone">
-      <img loading="lazy" src={src} alt={alt} onError={() => setFailed(true)} />
-      {caption && (
-        <figcaption>
-          {caption}
-          {credit && <span className="ares-figure-credit">{credit}</span>}
-        </figcaption>
-      )}
-    </figure>
-  );
-}
 
 const Ares = () => {
   const heroRef = useRef(null);
@@ -198,6 +166,13 @@ const Ares = () => {
                 your face for the better part of an hour once convection stops.
               </p>
             </div>
+            {/* The candle is already the analogy the paragraph above reaches
+                for; this is that sentence drawn. It also breaks up two heavy
+                interactives back to back. */}
+            <div data-aos="fade-up">
+              <CandleComparison />
+            </div>
+
             <div className="ares-interactive-frame" data-aos="fade-up">
               <Suspense fallback={LOADING_FALLBACK}>
                 <PlumeSimulator />
@@ -243,10 +218,20 @@ const Ares = () => {
                 close.
               </p>
             </div>
-            <AresFigure
-              alt="CFD comparison of the 1g breathing envelope against the collapsed microgravity plume"
-              caption="1g plume vs. microgravity plume — figure pending third-party copyright clearance."
-            />
+            <div data-aos="fade-up">
+              <PlumeAnatomy />
+            </div>
+
+            <div data-aos="fade-up">
+              <AresFigure
+                standalone
+                src="/ares/plume-1g-vs-0g.webp"
+                alt="Side-by-side simulation frames of a standing person. At 1 g a red CO₂ plume rises from the face in a teardrop and leaves upward. In microgravity a blue CO₂ cloud stays as a rounded bubble directly in front of the face."
+                caption="The same person, the same breath, the same 22 °C. Only gravity differs. On the left CO₂ rises away from the face as a teardrop plume; on the right it is trapped in front of the face as a bubble. The inset compares a candle flame under the same two conditions."
+                credit="Figure: Dutta et al. (2026), Gravity and Human Respiration."
+                icon="fa-chart-area"
+              />
+            </div>
           </div>
         </section>
 
@@ -316,6 +301,15 @@ const Ares = () => {
                 exists to detect. Toggle the switch below to see it happen.
               </p>
             </div>
+            <div data-aos="fade-up">
+              <AresFigure
+                standalone
+                src="/ares/headset-assembly.webp"
+                alt="The ARES headset held in one hand: a black 3D-printed frame carrying three sensor pods, wired together with a loom of red, yellow, blue and black cable."
+                caption="The headset as currently assembled — three pods on a printed frame, wired to a shared loom. The pod above the crown is the reference sensor the section above is about."
+              />
+            </div>
+
             <div className="ares-interactive-frame" data-aos="fade-up">
               <Suspense fallback={LOADING_FALLBACK}>
                 <PodReadout />

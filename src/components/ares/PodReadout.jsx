@@ -1,5 +1,6 @@
 import { useId, useMemo, useState } from 'react';
 import { POD_POSITIONS, breathTrace, sampleAt } from '../../lib/ares/breathModel';
+import AresHeadProfile from './AresHeadProfile';
 import { PLUME } from './aresPhysics';
 
 /**
@@ -94,28 +95,7 @@ export default function PodReadout() {
   return (
     <div className="ares-pod-readout">
       <div className="ares-pod-head-wrap">
-        <svg
-          className="ares-pod-head-svg"
-          viewBox="0 0 200 220"
-          aria-hidden="true"
-          focusable="false"
-        >
-          <path
-            className="ares-pod-head-outline"
-            d="M100,18
-               C132,18 152,42 156,72
-               C158,84 154,92 146,96
-               C150,102 148,110 140,116
-               C136,126 126,132 114,134
-               L108,134
-               C110,142 106,150 96,152
-               L82,152
-               C58,150 42,132 38,104
-               C34,72 44,32 100,18 Z"
-          />
-          <line className="ares-pod-head-neck" x1="82" y1="152" x2="82" y2="196" />
-          <line className="ares-pod-head-shoulder" x1="46" y1="196" x2="118" y2="196" />
-        </svg>
+        <AresHeadProfile contaminatedTop={contaminatedTop} selectedPod={selectedPod} />
 
         {POD_POSITIONS.map((pod) => (
           <button

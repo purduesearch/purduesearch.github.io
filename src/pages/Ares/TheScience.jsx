@@ -6,6 +6,8 @@ import SEOHead from '../../components/SEOHead';
 import SectionProgressRail from '../../components/SectionProgressRail';
 import AresStat from '../../components/ares/AresStat';
 import AresTerm from '../../components/ares/AresTerm';
+import AresFigure from '../../components/ares/AresFigure';
+import CandleComparison from '../../components/ares/CandleComparison';
 import { PLUME } from '../../components/ares/aresPhysics';
 import { EXHALED_PPM, POD_POSITIONS } from '../../lib/ares/breathModel';
 
@@ -135,6 +137,10 @@ const TheScience = () => {
               changed. What changed is which transport mechanism was doing the work.
             </p>
 
+            <div data-aos="fade-up">
+              <CandleComparison />
+            </div>
+
             <div className="row ares-compare-grid" data-aos="fade-up">
               <div className="col-md-6">
                 <div className="ares-compare-col">
@@ -191,6 +197,30 @@ const TheScience = () => {
                 unit="m"
                 label="Plume development length"
                 source="Dutta et al."
+              />
+            </div>
+
+            <div data-aos="fade-up">
+              <AresFigure
+                standalone
+                wide
+                src="/ares/cfd-regime-comparison.webp"
+                alt="Six simulation panels in two rows of three, each showing a grey human silhouette. The columns are labelled 1 g at 22 °C, microgravity at 22 °C, and 1 g at 37 °C. In the first column a narrow structure rises from the face; in the other two the field is broken into scattered eddies. The lower-left panel is annotated 'Breathing Envelope'."
+                caption="Three conditions, one body. Only the first column — Earth gravity in a cool room — produces the coherent structure the lower-left panel labels the breathing envelope. Remove gravity (centre) or remove the temperature difference (right) and it is gone, by two completely different routes."
+                credit="Figure: Dutta et al. (2026), Gravity and Human Respiration."
+                icon="fa-chart-area"
+              />
+            </div>
+
+            <div data-aos="fade-up">
+              <AresFigure
+                standalone
+                wide
+                src="/ares/cfd-temperature-sweep.webp"
+                alt="Eight simulation panels in two rows of four, at ambient temperatures of 22, 27, 32 and 37 °C. The top row is temperature field, the bottom row vertical air velocity. The plume above the head weakens from left to right and has vanished at 37 °C."
+                caption="Gravity is not the only way to switch the plume off. Walk the room temperature up toward body temperature and the same collapse happens at 1 g: at 37 °C there is no surface-to-air difference left to drive buoyancy, so the vertical velocity field goes flat and the column disappears. Buoyancy needs a temperature difference and a gravity field, and losing either one is enough."
+                credit="Figure: Dutta et al. (2026), Gravity and Human Respiration."
+                icon="fa-chart-area"
               />
             </div>
 
@@ -371,6 +401,18 @@ const TheScience = () => {
               the underlying simulations predict — a genuine, if qualitative, agreement in structure
               between a model and a photograph of a real body.
             </p>
+
+            <div data-aos="fade-up">
+              <AresFigure
+                standalone
+                wide
+                src="/ares/preliminary-cfd.webp"
+                alt="Four panels from an ARES preliminary CFD run: the temperature field over the full domain showing a plume rising off a body, a zoomed view of the head with velocity vectors, the velocity component projected toward the mouth, and the CO₂ concentration field. A green star marks the sampling point."
+                caption="A preliminary run of our own, at 34 non-dimensional time units. The green star is the virtual sampling point — the model's stand-in for a pod. Reproducing a published result before extending it is the cheapest way to find out whether you have understood it, and this is what the section above means by checking a modelling claim rather than accepting one."
+                credit="ARES preliminary simulation, Purdue SEARCH."
+                icon="fa-chart-area"
+              />
+            </div>
 
             <div className="ares-open-question" data-aos="fade-up">
               <i className="fas fa-triangle-exclamation" aria-hidden="true" />

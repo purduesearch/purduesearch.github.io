@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
@@ -6,6 +6,7 @@ import SEOHead from '../../components/SEOHead';
 import SectionProgressRail from '../../components/SectionProgressRail';
 import AresStat from '../../components/ares/AresStat';
 import AresTerm from '../../components/ares/AresTerm';
+import AresFigure from '../../components/ares/AresFigure';
 import { NDIR_BAND_UM } from '../../components/ares/aresPhysics';
 
 const SystemDiagram = lazy(() => import('../../components/ares/SystemDiagram'));
@@ -49,54 +50,30 @@ const SYSTEM_STEPS = [
 ];
 
 /**
- * Figure slot that degrades gracefully to an intentional placeholder when no
- * image exists yet. public/ares/ is empty and no ARES image exists anywhere
- * in the repo — the onError fallback (and the failed-by-default state when
- * src is omitted) is what keeps that from rendering a broken-image icon.
- * Every third-party figure must carry a credit string, and no photograph may
- * be committed until a human has done the copyright check (spec §7) — these
- * slots ship empty on purpose; the files land later.
+ * Companion-app screens, in the order the SYSTEM_STEPS walk reaches them:
+ * live capture, the recorded traces, the derived readings, and the session
+ * map. These are screenshots of the app as it stands, not mockups.
  */
-function AresFigure({ src, alt, caption, credit }) {
-  const [failed, setFailed] = useState(!src);
-
-  if (failed) {
-    return (
-      <figure className="ares-figure">
-        <div className="ares-figure-placeholder" role="img" aria-label={alt}>
-          <i className="fas fa-camera" aria-hidden="true" />
-          <span>{alt}</span>
-        </div>
-        {caption && <figcaption>{caption}</figcaption>}
-      </figure>
-    );
-  }
-
-  return (
-    <figure className="ares-figure">
-      <img loading="lazy" src={src} alt={alt} onError={() => setFailed(true)} />
-      {caption && (
-        <figcaption>
-          {caption}
-          {credit && <span className="ares-figure-credit">{credit}</span>}
-        </figcaption>
-      )}
-    </figure>
-  );
-}
-
-const GALLERY_SLOTS = [
+const APP_SCREENS = [
   {
-    alt: 'The ARES headset, front view',
-    caption: 'The headset as currently assembled — three pods on a wearable frame.',
+    src: '/ares/app-live.webp',
+    alt: 'App home screen, recording live. A biometrics card reads 70 bpm, and pod cards below it read 446 ppm at the top pod and 500 ppm at the forehead pod.',
+    caption: 'Live capture. Each pod reports separately — no combined number.',
   },
   {
-    alt: 'A single sensor pod, detail view',
-    caption: 'One of the three pods. Each houses its own CO₂ sensing element.',
+    src: '/ares/app-graphs.webp',
+    alt: 'App graphs screen with three stacked time series labelled TOP, FORE and CHIN, each trending over a five-minute window.',
+    caption: 'The three traces, kept apart. A difference is only meaningful if you can still see both terms.',
   },
   {
-    alt: 'The headset worn during a bench test',
-    caption: 'A bench test of the full system, pods and companion app together.',
+    src: '/ares/app-insights.webp',
+    alt: 'App insights screen listing thermal comfort at −0.71 PMV, rebreathing at 0.00 percent, infection risk low, hydration −1.4 percent, and CO₂ dose 4 ppm-hours today.',
+    caption: 'Derived readings, each labelled with what it was derived from.',
+  },
+  {
+    src: '/ares/app-map.webp',
+    alt: 'App map screen showing a cluster of coloured sample points along a street, with a timeline scrubber at the bottom.',
+    caption: 'Session playback against location, for walked outdoor runs.',
   },
 ];
 
@@ -154,6 +131,24 @@ const TheHeadset = () => {
                 </li>
               ))}
             </ol>
+
+            <p data-aos="fade-up">
+              The last two blocks in that chain are a phone. The companion app is where a stored
+              session stops being a file and starts being something a person can read, and its layout
+              follows the same rule the hardware does: the three pods stay separate all the way
+              through. Nothing in the app shows you a single &ldquo;CO₂ number&rdquo; for the
+              headset, because there isn&rsquo;t one — the measurement that matters is a difference,
+              and a difference needs both of its terms visible.
+            </p>
+
+            <div className="ares-app-strip" data-aos="fade-up">
+              {APP_SCREENS.map((screen) => (
+                <figure className="ares-app-screen" key={screen.src}>
+                  <img loading="lazy" src={screen.src} alt={screen.alt} />
+                  <figcaption>{screen.caption}</figcaption>
+                </figure>
+              ))}
+            </div>
           </div>
         </section>
 
@@ -197,6 +192,16 @@ const TheHeadset = () => {
               transparent at this wavelength, so the sensor is looking at a nearly empty background with
               CO₂ as almost the only thing in the way.
             </p>
+
+            <div data-aos="fade-up">
+              <AresFigure
+                standalone
+                wide
+                src="/ares/pod-interior.webp"
+                alt="A 3D-printed white pod shell held open, showing a black cylindrical gas sensor with two ported inlets on its face, seated next to a small circuit board wired with blue, yellow, black and red leads."
+                caption="Inside one pod. The black cylinder is the sensing element; the two ports on its face are where air enters and leaves the optical path described above. Everything else in the shell exists to hold it still and get its readings out."
+              />
+            </div>
 
             <div className="ares-stat-row" data-aos="fade-up">
               <AresStat
@@ -321,14 +326,18 @@ const TheHeadset = () => {
             </div>
 
             <p className="ares-section-lead" data-aos="fade-up">
-              <i className="fas fa-images" aria-hidden="true" /> Photographs land here once each one has
-              cleared copyright review. The layout is already built for them.
+              What the system above actually looks like on a bench. This is a working prototype, not
+              a product photo: the cable loom is hand-terminated, the pod shells are printed, and the
+              reference pod is still sitting where the rest of this site argues it should not.
             </p>
 
-            <div className="ares-gallery-grid" data-aos="fade-up">
-              {GALLERY_SLOTS.map((slot) => (
-                <AresFigure key={slot.alt} alt={slot.alt} caption={slot.caption} />
-              ))}
+            <div data-aos="fade-up">
+              <AresFigure
+                standalone
+                src="/ares/headset-assembly.webp"
+                alt="The ARES headset held up in one hand. A black printed frame carries three sensor pods, joined by a loom of red, yellow, blue and black wires with connectors at several points."
+                caption="The full assembly. Three pods on a printed frame, wired to a shared loom, with connectors at each pod so a unit can be swapped out without recutting the harness."
+              />
             </div>
           </div>
         </section>

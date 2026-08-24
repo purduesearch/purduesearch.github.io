@@ -50,6 +50,20 @@ export const ART_DIRS = ['clubpm/badges/', 'outreach/companies/', 'icons/'];
 export const HEADSHOT_DIRS = ['officers/'];
 export const SOCIAL_DIRS = ['ig/'];
 
+/**
+ * Plotted figures, CFD output, and UI screenshots: photographic in the sense
+ * that they are dense and full-frame, but carrying small hard-edged type
+ * (axis labels, colourbar ticks, on-screen readouts) that the default q75
+ * photo profile visibly rings around and smears. Encoded lossy but at a
+ * higher quality, at the normal content cap.
+ *
+ * Directory-scoped rather than file-listed. public/ares/ also holds two actual
+ * photographs, and q88 on a photograph costs a few kB over q75 and nothing
+ * else — cheaper than a hand-maintained list that silently mis-tiers the next
+ * figure someone drops in beside them.
+ */
+export const FIGURE_DIRS = ['ares/'];
+
 /** Whitelist, not a blocklist: an unrecognised format is skipped, never mangled. */
 export const RASTER_EXT = new Set(['.webp', '.jpg', '.jpeg', '.png']);
 
@@ -98,10 +112,12 @@ export const ANIMATED_MAX_WIDTH = 330;
 /** Encoder settings. */
 export const PHOTO_WEBP = { quality: 75, effort: 6 };
 export const ART_WEBP = { nearLossless: true, quality: 80, effort: 6 };
+/** See FIGURE_DIRS — lossy, but high enough to keep small axis type readable. */
+export const FIGURE_WEBP = { quality: 88, effort: 6 };
 
 /**
  * @param {string} relPath path relative to public/, any separator style
- * @returns {{mode:'photo'|'art'|'skip', tier?:string, maxEdge?:number|null, reason?:string}}
+ * @returns {{mode:'photo'|'art'|'figure'|'animated'|'skip', tier?:string, maxEdge?:number|null, reason?:string}}
  */
 export function resolveTier(relPath) {
   const p = relPath.replace(/\\/g, '/');
@@ -122,6 +138,10 @@ export function resolveTier(relPath) {
 
   if (ART_DIRS.some((d) => p.startsWith(d))) {
     return { mode: 'art', tier: 'art', maxEdge: null };
+  }
+
+  if (FIGURE_DIRS.some((d) => p.startsWith(d))) {
+    return { mode: 'figure', tier: 'figure', maxEdge: TIERS.content };
   }
 
   let tier;
