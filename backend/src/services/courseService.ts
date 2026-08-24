@@ -35,6 +35,7 @@ export interface CreateSectionInput {
   videoConfig?: Record<string, unknown> | null;
   slideConfig?: Record<string, unknown> | null;
   litConfig?: Record<string, unknown> | null;
+  assignmentConfig?: Record<string, unknown> | null;
   passThreshold?: number | null;
   maxAttempts?: number | null;
 }
@@ -47,6 +48,7 @@ export interface UpdateSectionInput {
   videoConfig?: Record<string, unknown> | null;
   slideConfig?: Record<string, unknown> | null;
   litConfig?: Record<string, unknown> | null;
+  assignmentConfig?: Record<string, unknown> | null;
   passThreshold?: number | null;
   maxAttempts?: number | null;
 }
@@ -141,6 +143,11 @@ const sectionSelect = {
   // AUTHORING tree only — the learner payload is built separately, by
   // construction, in courseProgressService.
   litConfig: true,
+  // Same reason as slideConfig / tourConfig / litConfig: the ASSIGNMENT builder
+  // reads the reference answer and rubric straight off this column. This select
+  // feeds the AUTHORING tree only — the learner payload is built separately, by
+  // construction, in courseProgressService.
+  assignmentConfig: true,
   passThreshold: true,
   maxAttempts: true,
   createdAt: true,
@@ -434,6 +441,7 @@ export async function createSection(input: CreateSectionInput) {
       videoConfig: (input.videoConfig ?? undefined) as Prisma.InputJsonValue | undefined,
       slideConfig: (input.slideConfig ?? undefined) as Prisma.InputJsonValue | undefined,
       litConfig: (input.litConfig ?? undefined) as Prisma.InputJsonValue | undefined,
+      assignmentConfig: (input.assignmentConfig ?? undefined) as Prisma.InputJsonValue | undefined,
       passThreshold: input.passThreshold ?? null,
       maxAttempts: input.maxAttempts ?? null,
     },
@@ -472,6 +480,14 @@ export async function updateSection(id: string, input: UpdateSectionInput, actor
   if (input.litConfig !== undefined) {
     data.litConfig =
       input.litConfig === null ? Prisma.DbNull : (input.litConfig as Prisma.InputJsonValue);
+  }
+  // Whole merged object, like litConfig — the builder spreads the previous
+  // value, so this column is never patched key-by-key here.
+  if (input.assignmentConfig !== undefined) {
+    data.assignmentConfig =
+      input.assignmentConfig === null
+        ? Prisma.DbNull
+        : (input.assignmentConfig as Prisma.InputJsonValue);
   }
   return prisma.courseSection.update({ where: { id }, data, select: sectionSelect });
 }
