@@ -14,6 +14,7 @@ import {
   gradeAssignment,
   decideCompletion,
   DEFAULT_ASSIGNMENT_MIN_WORDS,
+  type LearnerAssignmentConfig,
 } from "./assignmentService.js";
 // Same type as `LitFeedback` above — that alias exists only so the existing
 // lit-review code keeps reading naturally. New code in this file uses this one.
@@ -351,6 +352,7 @@ export interface LearnerSection {
   tourConfig?: TourConfig;
   tourSteps?: TourStep[];
   litConfig?: LearnerLitConfig | null;
+  assignmentConfig?: LearnerAssignmentConfig | null;
 }
 
 /**
@@ -451,6 +453,26 @@ export async function getLearnerCourse(
     slidesBySection.set(row.sectionId, list);
   }
 
+  // One query for every submission-bearing section in the course rather than one
+  // per section — this runs on every learner page load, same reasoning as the
+  // SLIDES query above.
+  const workSectionIds = sections
+    .filter((s) => s.kind === "LIT_REVIEW" || s.kind === "ASSIGNMENT")
+    .map((s) => s.id);
+  const workRows = workSectionIds.length && enrollment
+    ? await prisma.courseWorkSubmission.findMany({
+        where: { sectionId: { in: workSectionIds }, memberId },
+        select: { sectionId: true, feedbackJson: true },
+      })
+    : [];
+  const bestWorkScore = new Map<string, number | null>();
+  for (const r of workRows) {
+    const score = (r.feedbackJson as { scorePct?: number } | null)?.scorePct;
+    if (typeof score !== "number") continue;
+    const seen = bestWorkScore.get(r.sectionId);
+    if (seen == null || score > seen) bestWorkScore.set(r.sectionId, score);
+  }
+
   const learnerSections: LearnerSection[] = sections.map((s) => {
     const progress = byId.get(s.id);
     const unlocked = preview || isSectionUnlocked(gateModules, gateSections, gateProgress, {
@@ -476,8 +498,10 @@ export async function getLearnerCourse(
       maxWatchedSec: progress?.maxWatchedSec ?? 0,
       answeredPopupIds: progress?.answeredPopupIds ?? [],
       completedAt: progress?.completedAt ?? null,
-      attemptsUsed: mine.length,
-      bestScorePct: scores.length ? Math.max(...scores) : null,
+      attemptsUsed: mine.length || workRows.filter((r) => r.sectionId === s.id).length,
+      bestScorePct: scores.length
+        ? Math.max(...scores)
+        : bestWorkScore.get(s.id) ?? null,
       passed: mine.some((a) => a.passed),
       maxSlideIndex: progress?.maxSlideIndex ?? 0,
       maxStepIndex: progress?.maxStepIndex ?? 0,
@@ -519,6 +543,12 @@ export async function getLearnerCourse(
         // rubric are to this column what isCorrect is to CourseAnswer, and a
         // locked section carries no config at all.
         out.litConfig = sanitizeLitConfig(s.litConfig);
+      }
+      if (s.kind === "ASSIGNMENT") {
+        // Built by construction from the five safe keys — referenceAnswer and
+        // rubric are to this column what isCorrect is to CourseAnswer, and a
+        // locked section carries no config at all.
+        out.assignmentConfig = sanitizeAssignmentConfig(s.assignmentConfig);
       }
     }
     return out;
