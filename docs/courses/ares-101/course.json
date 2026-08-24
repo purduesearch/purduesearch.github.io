@@ -307,9 +307,9 @@
         {
           "order": 3,
           "title": "Exercise: when does the pump disturb the anemometer?",
-          "kind": "CONTENT",
+          "kind": "ASSIGNMENT",
           "isRequired": true,
-          "bodyRef": "exercises/E04-pump-disturbance-threshold.md"
+          "assignmentRef": "exercises/E04-pump-disturbance-threshold.md"
         },
         {
           "order": 4,
