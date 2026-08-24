@@ -74,7 +74,7 @@ team built things in.
 | **M4 · Hypercapnia and the body** | Why the number matters at all. The only module about the human rather than the air. Cut from M1–M3 because physiology has no overlap with fluid mechanics in either sources or prerequisites. |
 | **M5 · NDIR gas sensing** | How the concentration becomes a voltage becomes an integer. The first module where the firmware becomes real. |
 | **M6 · Sampling — pumps, tubing, and transport delay** | Everything between the air and the sensor. Separated from M5 because sensor response time and transport delay are different quantities that get conflated constantly, and separating them into two modules is what forces the distinction. |
-| **M7 · Anemometry and the CTA circuit** | The other sensor. A different physical principle, a different circuit, and a different open question — and its exercise answers a live question from the 7/30 deck rather than teaching one. |
+| **M7 · Anemometry and the CTA circuit** | The other sensor. A different physical principle, a different circuit, and a different open question — and its exercise answers a live question from the 7/30 deck rather than teaching one. Now that exercises are submitted work, that answer actually arrives somewhere: `E04` is open question 3 handed over unmodified, and what a member writes goes back to the team. |
 | **M8 · From signal to science** | Where readings become physiology: the ten models. This is the module that shows why the previous four mattered. |
 | **M9 · The system and the data contract** | Architecture: buses, timing, characteristics, CSV columns. Split from M5 and M8 because it is the module someone re-opens while writing code, and it should be findable on its own. |
 | **M10 · Calibration, error, and trusting a number** | The discipline that decides whether any of the above produces a result. Deliberately late: it lands hardest once the learner has seen how many stages a reading passes through. |
@@ -101,12 +101,47 @@ Every module is these sections, in this order:
 | 0 | `CONTENT` | `content/Cnn-<slug>.md` | 5 | The reading. Publish-quality prose — this *is* the blog post. |
 | 1 | `VIDEO` or `SLIDES` | `videos/Vnn-<slug>.md` / `slides/Snn-<slug>.outline.md` | 5 | Worked problem, or reference deck. Never both. |
 | 2 | `LIT_REVIEW` | `lit/Lnn-<slug>.md` | 6 — **8 for M1–M3** | The paper, its bibliography, the reference summary and rubric. |
-| 3 | `CONTENT` | `exercises/Enn-<slug>.md` | 2 | The hands-on. **Omitted for M1–M3.** |
+| 3 | `ASSIGNMENT` | `exercises/Enn-<slug>.md` | 2 | The hands-on. **Submitted and graded.** **Omitted for M1–M3.** |
 | 4 | `QUIZ` | `quizzes/Qnn-<slug>.json` | 2 | 5–7 questions. |
 
 Every module totals **20 minutes** either way: 5 + 5 + 8 + 2 for M1–M3, and 5 + 5 + 6 + 2 + 2 for
 M4–M11. That is **52 sections** across eleven modules, not 55 — M1–M3 carry their practice in the
 video, and there is no hardware to touch yet at that point in the course.
+
+### Exercises are work that is handed in, not pages that are read
+
+This changed in August 2026 and it changes what an exercise file *is*. An `Enn` file used to be a
+`CONTENT` section: the learner opened it, read it, clicked once, and moved on, and nothing they
+produced ever left their own notebook. It is now an `ASSIGNMENT` — the learner writes or uploads a
+deliverable, it is stored as a submission, and it is graded by AI against a rubric the file itself
+carries. Every attempt is kept as its own row, so a member who resubmits after reading their feedback
+leaves a revision history, which on several of these is the most interesting thing the section
+produces.
+
+**The 2 minutes in the table is the budget for reading the brief, not for doing the work.** It always
+was — the exercises have carried their own honest estimates in their headers since they were written,
+and those run from about fifteen minutes of arithmetic (`E01`) to ninety minutes with two
+repositories open (`E06`) or an hour outdoors with the headset (`E07`). Keep the table figure at 2 so
+the `estimatedMinutes` arithmetic above still closes; the real cost is stated in each file.
+
+**Three of the eight are score-gated, and five are not.** `E06`, `E07` and `E08` carry
+`passThreshold: 70`: a submission below 70 % against the rubric leaves the section incomplete and,
+inside a `sequential` module, holds the learner there. `E01`, `E02`, `E04` and `E05` are ungated
+(`passThreshold` simply absent) — **not** because they matter less, but because each of them publishes
+its answer key in the learner-facing body on purpose, so a gate would be a control that controls
+nothing. `E01`'s own header states the reasoning: *"Do not move them to a second file; a learner who
+has to go looking will not check their work."* That decision stands, and the gate split is what lets
+it stand. (`E03` is not written; see the status section below.)
+
+**Answer keys are copied into `referenceAnswer`, never moved out of the body.** Grading needs ground
+truth even on an ungated section, because feedback is the whole point there. The body keeps its key
+for self-check and the frontmatter gets a copy — so anyone editing one must edit the other. That
+duplication is deliberate; do not "fix" it by deleting either.
+
+**A missing or empty rubric fails open, not closed.** A section that grades to `null` completes
+anyway and is flagged for officer review, so a half-reviewed rubric degrades to the pre-August
+behaviour rather than stranding a cohort. That is the safety net behind verification item 5 below —
+it is not permission to ship the rubrics unreviewed.
 
 `course.json`'s course-level `estimatedMinutes` (220) must equal the sum of its modules' (11 × 20).
 **Nothing validates that sum.** If you add or remove a section, update the module estimate *and* the
@@ -144,10 +179,19 @@ referenced by `course.json`, so a module task fills in files that are pointed at
 
 ## File formats
 
-- **`content/Cnn-*.md` and `exercises/Enn-*.md`** — open with the authoring header that
-  `stripAuthoringHeader()` removes: an H1 carrying the file's id, an optional blockquote of
-  maintainer notes, then a `---` rule. See `../constellation-101/content/C01-what-constellation-is.md`.
-  The learner sees none of it.
+- **`content/Cnn-*.md`** — opens with the authoring header that `stripAuthoringHeader()` removes: an
+  H1 carrying the file's id, an optional blockquote of maintainer notes, then a `---` rule. See
+  `../constellation-101/content/C01-what-constellation-is.md`. The learner sees none of it.
+- **`exercises/Enn-*.md`** — YAML frontmatter is the section's `assignmentConfig`; the body is the
+  learner-facing brief and **is** installed, below the same authoring header `Cnn` files use. This is
+  the one place the exercise format differs from the lit-review format it otherwise copies: `Lnn`
+  bodies are author material and are not installed at all, while an `Enn` body is the context the
+  learner works from. `referenceAnswer` **must be the last key in the frontmatter** — the seeder reads
+  a block scalar to the closing `---`, so nothing may follow it and no line inside it may be `---`.
+  `promptText` and each rubric `point` are read one line at a time, so neither may wrap. Set
+  `passThreshold` only where the body contains no answer key. `referenceAnswer` and `rubric` are
+  author-only and are **never** serialized to a learner; `promptText`, `minWords` and the handout keys
+  are the only ones that are.
 - **`videos/Vnn-*.md`** — the format is set by `../constellation-101/videos/V02-anatomy-of-a-task.md`:
   metadata table, Purpose, shot list, Visual edits, word-for-word Narration. **ARES videos differ in
   one way:** the format is *tablet handwriting over a slide backdrop + VO*, not screen capture — there
@@ -174,7 +218,11 @@ members against a document they cannot find.
 - **No walkthroughs.** There is no ARES UI inside Constellation to tour, so
   `scripts/check-tour-anchors.js` has nothing to check here and `tourAnchors.js` / `ANCHORS.md` are
   untouched.
-- **No AI generation.** The modules are researched and written, not generated.
+- **No AI generation.** The modules are researched and written, not generated. This is about the
+  *course material* and it is unchanged by the assignment migration: exercise submissions are graded
+  by AI against a human-written rubric and a human-written reference answer, which is the opposite
+  arrangement — a model reading work against ground truth somebody wrote, not a model writing the
+  ground truth.
 - **Not a replacement for the papers.** The course teaches someone to read them, then hands them over.
 - **Not a hardware build guide, and not a Flutter or ESP32 tutorial.** M8 and M9 teach the
   architecture and the data contract, not Dart or the Arduino framework.
@@ -193,7 +241,7 @@ cd backend && npm run check:courses && npm run seed:courses
 checks every ref in `course.json`, without needing a database. `seed:courses` installs the course;
 expect `✓ ares-101: 11 modules`.
 
-Beyond that, **four** things nothing automates. The first is the one this course keeps tripping over:
+Beyond that, **five** things nothing automates. The first is the one this course keeps tripping over:
 
 1. **Every VIDEO section needs a recorded video, and every SLIDES section needs an imported deck.**
    Neither is a file in this directory and neither is seeded. `videos/Vnn-*.md` is the script someone
@@ -210,12 +258,28 @@ Beyond that, **four** things nothing automates. The first is the one this course
 4. **Every `pdfDriveFileId` must render in a private browser window** at
    `https://drive.google.com/file/d/<id>/preview`. An unshared file renders as a sign-in wall inside
    the course, not as the paper.
+5. **Every exercise rubric and `referenceAnswer` must be reviewed by the ARES team before the course
+   is published.** All eight were drafted from each exercise's own prose and from the course
+   readings, by someone working from the text rather than from the hardware, and they encode
+   subject-matter claims about ARES physics and firmware that will be wrong in places. Each one says
+   so in its own first line. This matters most on `E06`, `E07` and `E08`, because those three are
+   score-gated: a wrong rubric point there does not merely mislead, it holds a member at a section.
+   Two known soft spots are flagged in the reference answers themselves — `E06`'s BLE byte offsets
+   are not stated anywhere in this course and the rubric asks only for internal consistency, and
+   `E04` has no correct answer at all by design and the rubric judges the argument.
 
-### Status as of 2026-08-11
+### Status as of 2026-08-24
 
 `check:courses` passes, `seed:courses` installs `✓ ares-101: 11 modules`, `npm run build` passes, and
 `estimatedMinutes` sums to 220. **Item 2 above is done** — every number in `V11`–`V17` was recomputed
 against `GLOSSARY.md` §4 and the four corrections that came out of it are in those files.
+
+**All seven written exercises are now `ASSIGNMENT` sections** (`E01`, `E02`, `E04`–`E08`; `E03` is
+still unwritten). Each carries a rubric and a `referenceAnswer` in its frontmatter, and `E06`, `E07`
+and `E08` are gated at 70. **Item 5 above is not done** — every one of those rubrics is a first draft
+and none has been through the ARES team. Nothing is blocked on it, because an unreviewed rubric still
+grades and a broken one fails open, but the gated three should be read before anyone is asked to pass
+them.
 
 The written material is complete for ten of eleven modules. What is missing is production and
 distribution — assets that do not live in this directory — and it stops a learner earlier than the
@@ -238,7 +302,12 @@ first version of this section said. In the order a learner hits them:
   seeder installs those sections **empty** and `check:courses` now names all three on every run
   (it previously reported only `E03`, because it existence-checked `bodyRef` alone). `C17` and `V15`
   are written and correct. Because modules are `sequential` and `submitQuiz` refuses a quiz with no
-  questions, an empty `Q17` means nobody gets past M6 either.
+  questions, an empty `Q17` means nobody gets past M6 either. **`E03` is the one exercise section
+  still declared `CONTENT` with a `bodyRef`**, and that is deliberate: the August 2026 assignment
+  migration deliberately did not touch a dangling reference to a file nobody has written. Whoever
+  writes `E03` converts it in the same commit — frontmatter, `kind: "ASSIGNMENT"`, `assignmentRef` —
+  and decides its gate by the rule above, which for a transport-delay measurement with a worked key
+  in the body will almost certainly mean no gate.
 - **No `LIT_REVIEW` PDF is viewable by a learner.** The Drive `Papers` folder and its files are
   owner-only, so all eleven sections render a Google sign-in wall; five PDFs were never uploaded, and
   `L07`, `L09`, `L10` and `L11` still carry literal `PENDING_…` strings where a file id belongs. The
