@@ -786,6 +786,12 @@ const audioUpload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 80 * 1024 * 1024, files: 1 },
 });
+// Assignment documents arrive as multipart, never base64 JSON — app.ts's
+// default 100 kb express.json() limit would reject a real PDF outright.
+const submissionUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 15 * 1024 * 1024, files: 1 },
+});
 
 coursesRouter.get("/sections/:sid/slides", async (req: Request, res: Response) => {
   try {
@@ -1164,48 +1170,81 @@ coursesRouter.post("/sections/:sid/quiz/attempts", async (req: Request, res: Res
   }
 });
 
-// A learner's written summary of a LIT_REVIEW section's paper. Completion is
-// recorded by the service before grading runs — see submitLitReview.
-coursesRouter.post("/sections/:sid/lit-review", async (req: Request, res: Response) => {
-  const requestStartedAt = new Date();
-  try {
-    const { text } = req.body as { text?: string };
-    if (typeof text !== "string") {
-      res.status(400).json({ error: "text is required" });
-      return;
-    }
-    const result = await progressService.submitLitReview(
-      req.params.sid as string,
-      req.memberId!,
-      text
-    );
-    if (isServiceError(result)) {
-      res.status(result.status).json({ error: result.error });
-      return;
-    }
-    res.json(
-      await withRewardEnvelope(
-        req.memberId!,
-        requestStartedAt,
-        {
-          ok: true,
-          submission: result.submission,
-          feedback: result.feedback,
-          gradingPending: result.gradingPending,
-          alreadyComplete: result.alreadyComplete,
-        },
-        result
-      )
-    );
-  } catch (error) {
-    console.error("POST /outreach/courses/sections/:sid/lit-review error:", error);
-    res.status(500).json({ error: "Failed to submit summary" });
-  }
-});
+// A learner's submission for a LIT_REVIEW or ASSIGNMENT section. Accepts either
+// multipart (a document, extracted to text here) or JSON ({ text }) for a pasted
+// answer. Completion and the score gate are decided by the service — see
+// submitWork and the design doc §5.
+coursesRouter.post(
+  "/sections/:sid/work",
+  submissionUpload.single("file"),
+  async (req: Request, res: Response) => {
+    const requestStartedAt = new Date();
+    try {
+      let text: string;
+      let fileName: string | null = null;
+      let fileMimeType: string | null = null;
 
-coursesRouter.get("/sections/:sid/lit-review", async (req: Request, res: Response) => {
+      if (req.file) {
+        const { extractText } = await import("../services/documentTextService.js");
+        const extracted = await extractText(
+          req.file.buffer,
+          req.file.mimetype,
+          req.file.originalname
+        );
+        if (!extracted.ok) {
+          // The service's message names the likely cause and the way out; pass it
+          // through verbatim rather than flattening it to "bad file".
+          res.status(400).json({ error: extracted.message, reason: extracted.reason });
+          return;
+        }
+        text = extracted.text;
+        fileName = req.file.originalname;
+        fileMimeType = req.file.mimetype;
+      } else {
+        const body = req.body as { text?: string };
+        if (typeof body?.text !== "string") {
+          res.status(400).json({ error: "Attach a file or write an answer" });
+          return;
+        }
+        text = body.text;
+      }
+
+      const result = await progressService.submitWork(req.params.sid as string, req.memberId!, {
+        text,
+        fileName,
+        fileMimeType,
+      });
+      if (isServiceError(result)) {
+        res.status(result.status).json({ error: result.error });
+        return;
+      }
+      res.json(
+        await withRewardEnvelope(
+          req.memberId!,
+          requestStartedAt,
+          {
+            ok: true,
+            submission: result.submission,
+            feedback: result.feedback,
+            gradingPending: result.gradingPending,
+            outcome: result.outcome,
+            passThreshold: result.passThreshold,
+            scorePct: result.scorePct,
+            alreadyComplete: result.alreadyComplete,
+          },
+          result
+        )
+      );
+    } catch (error) {
+      console.error("POST /outreach/courses/sections/:sid/work error:", error);
+      res.status(500).json({ error: "Failed to save your submission" });
+    }
+  }
+);
+
+coursesRouter.get("/sections/:sid/work", async (req: Request, res: Response) => {
   try {
-    const result = await progressService.listLitSubmissions(
+    const result = await progressService.listWorkSubmissions(
       req.params.sid as string,
       req.memberId!
     );
@@ -1215,8 +1254,8 @@ coursesRouter.get("/sections/:sid/lit-review", async (req: Request, res: Respons
     }
     res.json(result);
   } catch (error) {
-    console.error("GET /outreach/courses/sections/:sid/lit-review error:", error);
-    res.status(500).json({ error: "Failed to load submissions" });
+    console.error("GET /outreach/courses/sections/:sid/work error:", error);
+    res.status(500).json({ error: "Failed to load your submissions" });
   }
 });
 
