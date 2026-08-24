@@ -683,6 +683,9 @@ export default function CourseEditorPage() {
                   key={selectedSection.id}
                   section={selectedSection}
                   onSave={(litConfig) => handleUpdateSection(selectedSection.id, { litConfig })}
+                  // `passThreshold` is a column on the section, not a key
+                  // inside litConfig, so it takes the plain-patch path.
+                  onSaveSection={(patch) => handleUpdateSection(selectedSection.id, patch)}
                 />
               )}
 
