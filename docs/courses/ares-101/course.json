@@ -403,9 +403,9 @@
         {
           "order": 3,
           "title": "Exercise: trace a reading end to end",
-          "kind": "CONTENT",
+          "kind": "ASSIGNMENT",
           "isRequired": true,
-          "bodyRef": "exercises/E06-trace-a-reading.md"
+          "assignmentRef": "exercises/E06-trace-a-reading.md"
         },
         {
           "order": 4,
@@ -451,9 +451,9 @@
         {
           "order": 3,
           "title": "Exercise: run a fresh-air calibration",
-          "kind": "CONTENT",
+          "kind": "ASSIGNMENT",
           "isRequired": true,
-          "bodyRef": "exercises/E07-run-a-calibration.md"
+          "assignmentRef": "exercises/E07-run-a-calibration.md"
         },
         {
           "order": 4,
