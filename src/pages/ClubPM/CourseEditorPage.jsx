@@ -10,6 +10,7 @@ import CourseVideoWorkbench from '../../components/clubpm/courses/CourseVideoWor
 import CourseSlidesWorkbench from '../../components/clubpm/courses/CourseSlidesWorkbench';
 import WalkthroughSectionPanel from '../../components/clubpm/courses/WalkthroughSectionPanel';
 import LitReviewBuilder from '../../components/clubpm/courses/LitReviewBuilder';
+import AssignmentBuilder from '../../components/clubpm/courses/AssignmentBuilder';
 import CourseModuleSettings from '../../components/clubpm/courses/CourseModuleSettings';
 import OrbitLoader from '../../components/OrbitLoader';
 import { useClubPmAuth } from '../../clubpm/ClubPmAuth';
@@ -685,6 +686,18 @@ export default function CourseEditorPage() {
                   onSave={(litConfig) => handleUpdateSection(selectedSection.id, { litConfig })}
                   // `passThreshold` is a column on the section, not a key
                   // inside litConfig, so it takes the plain-patch path.
+                  onSaveSection={(patch) => handleUpdateSection(selectedSection.id, patch)}
+                />
+              )}
+
+              {/* Same shape as LIT_REVIEW: prompt, optional handout, and the
+                  author-only reference answer and rubric. Saves through
+                  handleUpdateSection so local tree state stays in step. */}
+              {sectionKind === 'ASSIGNMENT' && (
+                <AssignmentBuilder
+                  key={selectedSection.id}
+                  section={selectedSection}
+                  onSave={(assignmentConfig) => handleUpdateSection(selectedSection.id, { assignmentConfig })}
                   onSaveSection={(patch) => handleUpdateSection(selectedSection.id, patch)}
                 />
               )}

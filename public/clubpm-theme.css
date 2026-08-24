@@ -24396,6 +24396,31 @@ html:not(.aos-off) [data-aos].aos-animate  { opacity: 1; transform: none; }
   .pm-lit-builder-point { grid-template-columns: 1fr; }
 }
 
+/* === Course · assignment builder (handout slot) ============= */
+/* Not a <label> like its neighbours: the handout saves on pick rather than on
+   Save, so it reads as its own bordered thing rather than another field in the
+   column. Tokens are the declared ones — --pm-border, --pm-text-secondary. */
+
+.pm-assign-builder-handout {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.8rem 0.9rem;
+  border: 1px solid var(--pm-border, rgba(255, 255, 255, 0.12));
+  border-radius: 10px;
+}
+.pm-assign-builder-handout-label { font-size: 0.9rem; }
+.pm-assign-builder-handout input[type="file"] { font: inherit; font-size: 0.88rem; color: inherit; }
+.pm-assign-builder-handout small { color: var(--pm-text-secondary, #8892a4); font-size: 0.78rem; }
+.pm-assign-builder-handout-row {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-size: 0.9rem;
+  color: var(--pm-accent-teal, #00e5cc);
+}
+.pm-assign-builder-handout-row > span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+
 /* === Editor: document still loading ================================= */
 /* A collab editor is empty between mount and the arrival of its body. That
    blank surface is indistinguishable from an empty section, so it says so —
