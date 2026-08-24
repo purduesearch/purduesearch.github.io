@@ -355,9 +355,9 @@
         {
           "order": 3,
           "title": "Exercise: run the models",
-          "kind": "CONTENT",
+          "kind": "ASSIGNMENT",
           "isRequired": true,
-          "bodyRef": "exercises/E05-run-the-models.md"
+          "assignmentRef": "exercises/E05-run-the-models.md"
         },
         {
           "order": 4,
