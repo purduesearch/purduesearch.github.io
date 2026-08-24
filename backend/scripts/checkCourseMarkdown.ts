@@ -51,7 +51,51 @@ function loadFrontendConverter(): (md: string) => unknown {
   return fn as (md: string) => unknown;
 }
 
-/** Every CONTENT body referenced by a course.json, as [label, markdown]. */
+/**
+ * Refs a course.json points at that nobody has written yet, split by what the
+ * gap actually costs a learner.
+ *
+ * `installsEmpty` — the seeder reads this ref (`resolveRef` in seedCourses.ts)
+ * and installs the section with no body, no paper, or no questions when the file
+ * is missing. A missing quizRef is the expensive one: `submitQuiz` refuses a
+ * question-less quiz outright, so a required QUIZ section in a `sequential`
+ * module becomes permanently uncompletable and every later module stays locked.
+ *
+ * `danglingAuthorRef` — `videoRef` and `deckRef` are never read by the seeder;
+ * they point at the script or outline someone records the video or builds the
+ * deck from. A missing one costs a learner nothing today and costs whoever
+ * produces the asset everything.
+ */
+const pending: { installsEmpty: string[]; danglingAuthorRef: string[] } = {
+  installsEmpty: [],
+  danglingAuthorRef: [],
+};
+
+/** Refs the seeder resolves, by the section kind that carries them. */
+const SEEDED_REFS: Record<string, string[]> = {
+  CONTENT: ["bodyRef"],
+  LIT_REVIEW: ["bodyRef", "litRef"],
+  QUIZ: ["quizRef"],
+  ASSIGNMENT: ["assignmentRef"],
+};
+
+/**
+ * Every markdown body referenced by a course.json, as [label, markdown], plus
+ * an existence sweep over every other ref on the way past.
+ *
+ * A ref with no file behind it is recorded as pending rather than thrown on. A
+ * course is scaffolded before it is written — `ares-101`'s course.json lands
+ * with all 52 sections so eleven independently-written modules cannot drift on
+ * section order or asset numbering, which means its refs necessarily dangle
+ * until each module task fills one in. Crashing here would make this script
+ * unrunnable for the whole time the course is being authored, and every module
+ * task in the plan is supposed to run it.
+ *
+ * Sweeping ALL of them matters: checking `bodyRef` alone reported ares-101 as
+ * one file short when it was three, because a missing `litRef` and a missing
+ * `quizRef` were invisible here — and the quizRef was the one that had locked
+ * the back half of the course.
+ */
 function courseBodies(): [string, string][] {
   const out: [string, string][] = [];
   for (const entry of fs.readdirSync(COURSES, { withFileTypes: true })) {
@@ -62,11 +106,29 @@ function courseBodies(): [string, string][] {
     const doc = JSON.parse(fs.readFileSync(courseFile, "utf8"));
     for (const mod of doc.modules) {
       for (const section of mod.sections) {
-        if (section.kind !== "CONTENT" || !section.bodyRef) continue;
-        out.push([
-          `${doc.slug}/${section.bodyRef}`,
-          fs.readFileSync(path.join(dir, section.bodyRef), "utf8"),
-        ]);
+        for (const key of SEEDED_REFS[section.kind] ?? []) {
+          const ref = section[key];
+          if (!ref) continue;
+          const label = `${doc.slug}/${ref}`;
+          const file = path.join(dir, ref);
+          if (!fs.existsSync(file)) {
+            pending.installsEmpty.push(`${label}  (${section.kind} · ${key})`);
+            continue;
+          }
+          // Only markdown bodies go through the converter. litRef frontmatter is
+          // the seeder's business and quizRef is JSON. An assignmentRef IS
+          // converted by the seeder, but only after its frontmatter is split
+          // off — feeding the whole file here would compare a document nobody
+          // installs, so it gets the existence sweep only.
+          if (key === "bodyRef") out.push([label, fs.readFileSync(file, "utf8")]);
+        }
+        for (const key of ["videoRef", "deckRef"]) {
+          const ref = section[key];
+          if (!ref) continue;
+          if (!fs.existsSync(path.join(dir, ref))) {
+            pending.danglingAuthorRef.push(`${doc.slug}/${ref}  (${section.kind} · ${key})`);
+          }
+        }
       }
     }
   }
@@ -102,7 +164,12 @@ for (const [label, markdown] of bodies) {
   });
 
   check(`${label} drops its authoring header`, () => {
-    assert.ok(!/^#\s+C\d\d\s+—/.test(body), "authoring H1 survived the strip");
+    // Any asset prefix, not just C. Exercise bodies are `E01`, `E02`, … and are
+    // seeded as CONTENT sections exactly like the readings, so a `C`-only
+    // pattern left every one of them unguarded — a malformed exercise header
+    // would have shipped to a learner as a visible "# E03 — …" plus its
+    // authoring blockquote.
+    assert.ok(!/^#\s+[A-Z]\d\d\s+—/.test(body), "authoring H1 survived the strip");
   });
 }
 
@@ -160,6 +227,28 @@ if (failures.length) {
       "Fix both — the seed and the editor must agree on what a course body becomes."
   );
   process.exit(1);
+}
+
+// Named, not silent. An unwritten asset and a mistyped ref look identical from
+// here, so the only safe thing is to print every one of them.
+if (pending.installsEmpty.length) {
+  console.log(
+    `check-course-markdown: ${pending.installsEmpty.length} seeded ref(s) not written yet — ` +
+      `those sections install EMPTY:`
+  );
+  for (const p of pending.installsEmpty) console.log(`  · ${p}`);
+  console.log(
+    "  A missing quizRef is not cosmetic: a required QUIZ section with no questions\n" +
+      "  cannot be completed, so a sequential module containing one locks every module after it.\n"
+  );
+}
+if (pending.danglingAuthorRef.length) {
+  console.log(
+    `check-course-markdown: ${pending.danglingAuthorRef.length} author ref(s) point at a missing file ` +
+      `(the script or outline the asset is produced from):`
+  );
+  for (const p of pending.danglingAuthorRef) console.log(`  · ${p}`);
+  console.log("");
 }
 
 console.log(

@@ -1,0 +1,92 @@
+{
+  "quizId": "Q15-hypercapnia",
+  "title": "Check yourself: dose and units",
+  "passThreshold": 75,
+  "maxAttempts": null,
+  "questions": [
+    {
+      "id": "q15-1",
+      "order": 0,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "A pod reads 2,500 ppm. What CO₂ partial pressure is that at sea level?",
+      "explanation": "1.9 mmHg. ppm is a mole fraction and mmHg is a partial pressure, so converting between them needs a total pressure — one standard atmosphere, 760 mmHg, is this course's default. p_CO₂ = (2,500 / 1,000,000) × 760 = 1.9 mmHg, or equivalently 2,500 × 7.60 × 10⁻⁴. Two sanity checks worth carrying: 1 mmHg is about 1,316 ppm, so a figure in the low thousands of ppm should land in the low single digits of mmHg; and NASA's operational limit of 4 mmHg is about 5,300 ppm, so 2,500 ppm must come out well under 4. The conversion is also pressure-dependent — the same 2,500 ppm at 950 hPa is 1.78 mmHg, because there are fewer molecules of everything and therefore fewer CO₂ molecules reaching a lung.",
+      "answers": [
+        { "order": 0, "text": "1.9 mmHg", "isCorrect": true },
+        { "order": 1, "text": "0.19 mmHg", "isCorrect": false },
+        { "order": 2, "text": "19 mmHg", "isCorrect": false },
+        { "order": 3, "text": "3.3 mmHg", "isCorrect": false }
+      ]
+    },
+    {
+      "id": "q15-2",
+      "order": 1,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "A prospective sponsor asks what the Fincke incident tells us about the CO₂ bubble. What is the accurate answer?",
+      "explanation": "That it is an undiagnosed medical event, and it motivates the question rather than answering it. On 7 January 2026 Mike Fincke abruptly lost the ability to speak for about twenty minutes aboard the ISS; Crew-11 returned on 15 January in NASA's first ISS medical evacuation, a heart attack was ruled out, and there is still no diagnosis. That last fact is decisive. No cause has been established, and no CO₂ measurement exists from the air in front of his face — no instrument was there, which is the entire point of this project. Symptom alignment is not evidence of cause: many conditions produce sudden transient aphasia, most of them far more common than hypercapnia, and the ARES deck's own tier table places sudden speech difficulty above 5,000 ppm, which is above the bulk range the ISS operates in. What the incident is good for is making the absence of data intolerable. Presenting it as support for the hypothesis will get you corrected in public, and deservedly.",
+      "answers": [
+        { "order": 0, "text": "Nothing yet — it is undiagnosed, so it cannot support any mechanism. It is the open question that motivates measuring an exposure nobody has measured.", "isCorrect": true },
+        { "order": 1, "text": "It is strong supporting evidence, because sudden speech difficulty is a documented effect of acute CO₂ exposure", "isCorrect": false },
+        { "order": 2, "text": "It confirms that ISS bulk CO₂ levels are unsafe, which is why NASA lowered the limit", "isCorrect": false },
+        { "order": 3, "text": "Nothing — a heart attack was ruled out and the cause was later determined to be unrelated to cabin atmosphere", "isCorrect": false }
+      ]
+    },
+    {
+      "id": "q15-3",
+      "order": 2,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "ISS bulk CO₂ reads 3,000 ppm — comfortably inside NASA's operational limit, with the ECLSS working as designed. What does that tell you about the CO₂ the crew member anchored at a workstation is actually inhaling?",
+      "explanation": "Very little. CDRA, Vozdukh and CAMRAS are bulk systems: they scrub the cabin atmosphere, and a cabin-mounted sensor reports the cabin. The Dutta discussion's argument is that even inside a perfectly regulated O₂/CO₂ balance, the localized deadspace immediately in front of the face is not addressed by bulk removal — so respiration can be impaired inside an atmosphere that is, by every instrument aboard, within limits. The simulation puts face-level transient peaks at roughly twice bulk cabin levels in microgravity. The paper's reasons for expecting this to be common are mundane rather than exotic: crew spend most of the day deliberately anchored in one position — foot restraints at a workstation, arms inside a glovebox for hours, harnessed to a treadmill, six people around a dinner table for ninety minutes, seven to eight hours zipped into a crew quarter about the size of a phone box. \"The cabin is within limits\" and \"this person's air is within limits\" are two different claims, and only the first has ever been checked.",
+      "answers": [
+        { "order": 0, "text": "Very little — bulk removal does not reach the localized deadspace in front of the face, which is modelled at roughly twice bulk levels and has never been measured", "isCorrect": true },
+        { "order": 1, "text": "That face-level CO₂ is also about 3,000 ppm, since a well-mixed cabin has no significant gradients", "isCorrect": false },
+        { "order": 2, "text": "That face-level CO₂ is lower, because exhaled breath is warm and rises away from the face", "isCorrect": false },
+        { "order": 3, "text": "That the ECLSS sensors need recalibrating, since 3,000 ppm is above the mild tier", "isCorrect": false }
+      ]
+    },
+    {
+      "id": "q15-4",
+      "order": 3,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "Two sessions record the same 2,000 ppm, one at sea level and one at a field site at 800 hPa. Has the subject's CO₂ exposure changed?",
+      "explanation": "Yes — the mole fraction is identical and the exposure is not. Symptoms track PaCO₂, the partial pressure of CO₂ in arterial blood, which equilibrates against alveolar gas, which is set by the partial pressure of the air arriving at the lung. At 800 hPa the total pressure is about 600 mmHg, so 2,000 ppm is 1.20 mmHg against 1.52 mmHg at sea level — about 21 % less CO₂ arriving per breath. This is the reason the course insists you say which unit you mean. It is also why an NDIR sensor drifts with ambient pressure even when nothing about the gas mixture has changed: the sensor counts absorbing molecules in its optical path, so it responds to partial pressure, and M10 turns that into a correction. Note the direction of the naive error — treating ppm as if it were the physiological quantity overstates the exposure at altitude and understates it in a pressurised environment.",
+      "answers": [
+        { "order": 0, "text": "Yes — the partial pressure falls from about 1.52 to about 1.20 mmHg, and PaCO₂ tracks partial pressure, not mole fraction", "isCorrect": true },
+        { "order": 1, "text": "No — ppm is a concentration, so 2,000 ppm is the same exposure wherever it is measured", "isCorrect": false },
+        { "order": 2, "text": "Yes — the exposure is higher at altitude, because reduced ventilation raises PaCO₂", "isCorrect": false },
+        { "order": 3, "text": "No, but the sensor will read differently, so the recorded number needs a pressure correction", "isCorrect": false }
+      ]
+    },
+    {
+      "id": "q15-5",
+      "order": 4,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "A subject partway through a long session reports feeling completely fine. How much weight should that carry as evidence that their CO₂ exposure is acceptable?",
+      "explanation": "Almost none, and the reason is the most operationally important fact in this module. Astronauts reported not realising CO₂ had been elevated until the scrubbers came back on and they suddenly felt better. Chronic exposure blunts the subjective signal: the headache and the fog become the baseline, and the comparison that would reveal them is unavailable, because you cannot compare yourself against a version of yourself you have not been for three weeks. Treat a self-report the way you would treat an instrument — as a sensor with a slow, unknown, downward-drifting baseline, which is precisely the failure mode M10 spends a whole module teaching you to distrust in a $50 NDIR part. This is not a claim that subjects are unreliable people. It is a claim about what adaptation does to a measurement, and it is why the instrument exists.",
+      "answers": [
+        { "order": 0, "text": "Very little — adaptation blunts the subjective signal, which is why crews only noticed once the scrubbers came back on", "isCorrect": true },
+        { "order": 1, "text": "It is strong evidence, since the symptoms of hypercapnia are distinctive and hard to miss", "isCorrect": false },
+        { "order": 2, "text": "It is reliable below 2,500 ppm and unreliable above it, which is what the tier boundary marks", "isCorrect": false },
+        { "order": 3, "text": "It is reliable for headache but not for cognitive effects, which are only detectable by testing", "isCorrect": false }
+      ]
+    },
+    {
+      "id": "q15-6",
+      "order": 5,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "Herbig et al. (2026) exposed 398 adults to CO₂ up to about 4,200 ppm across eleven conditions and found no systematic effect on any of eight cognitive domains. What does that result license you to conclude?",
+      "explanation": "That a large cognitive effect of bulk CO₂ at those exposures, in that population, over about three hours, is unlikely — and nothing beyond it. It is a well-powered failure to detect an effect, not proof that no effect exists, and it is real evidence that has to be taken seriously against the smaller crossover studies, Satish et al. (2012) among them, that report decrements from 1,000 ppm. Two boundaries on it matter here. First, it measures bulk cabin air: CO₂ dosed into a supply duct, read by a room analyser, with subjects seated an empty seat apart at 9.4 L/s per person of ventilation and free to move. That is the opposite of the anchored, restrained posture the CO₂-bubble argument is about, and no instrument in the study went near a face. Second, convert its exposures: the highest group average, roughly 3,750 ppm at 940 hPa, is about 2.6 mmHg — a third below NASA's own 4 mmHg operational limit. The honest position is narrower than either headline: CO₂'s vascular effects are not in doubt, and the size and threshold of cognitive effects below about 5,000 ppm are.",
+      "answers": [
+        { "order": 0, "text": "That a large cognitive effect of bulk CO₂ at those exposures is unlikely — it is a well-powered null about bulk cabin air, not proof that no effect exists and not a measurement of face-level exposure", "isCorrect": true },
+        { "order": 1, "text": "That CO₂ has no effect on human cognition, so the dose–response tiers in the reading are wrong and should be removed", "isCorrect": false },
+        { "order": 2, "text": "Nothing — the study was funded by aerospace companies, so its null result can be set aside", "isCorrect": false },
+        { "order": 3, "text": "That the CO₂ bubble does not matter, since the study tested concentrations higher than a face-level peak would reach", "isCorrect": false }
+      ]
+    }
+  ]
+}

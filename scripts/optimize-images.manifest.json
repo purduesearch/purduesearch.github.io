@@ -71,6 +71,86 @@
     "tier": "hero",
     "sourceBytes": 1821436
   },
+  "ares/app-graphs.webp": {
+    "sha256": "4f3afb0a092df46c01f94177ba58c5f186450c8c330f345c2b394c99850fcc17",
+    "bytes": 5392,
+    "width": 171,
+    "height": 331,
+    "tier": "figure",
+    "sourceBytes": 5622
+  },
+  "ares/app-insights.webp": {
+    "sha256": "baed7d149e4ca966ca07ead4c5ddc6e425b70f46d2b3a8ca54f21d25a63d7c20",
+    "bytes": 5188,
+    "width": 171,
+    "height": 330,
+    "tier": "figure",
+    "sourceBytes": 5414
+  },
+  "ares/app-live.webp": {
+    "sha256": "9d5cf118cf05bc8b32840cd0e8772b644c685b889f8137ebd2dbdf025dc56505",
+    "bytes": 5742,
+    "width": 171,
+    "height": 331,
+    "tier": "figure",
+    "sourceBytes": 5968
+  },
+  "ares/app-map.webp": {
+    "sha256": "4cff945f7eb26c90c806d642fdbe6492a3053df96c0e87861fc6c5855f4755aa",
+    "bytes": 5188,
+    "width": 165,
+    "height": 322,
+    "tier": "figure",
+    "sourceBytes": 5438
+  },
+  "ares/cfd-regime-comparison.webp": {
+    "sha256": "f2aca5bb0367d2e05d1bd19fe47f9881c6f1956838a1a3e9babf4d05842fdbb1",
+    "bytes": 51796,
+    "width": 576,
+    "height": 609,
+    "tier": "figure",
+    "sourceBytes": 52676
+  },
+  "ares/cfd-temperature-sweep.webp": {
+    "sha256": "9059951012cfe486f1e2bf496ab6c0ab9db414bc3f0e6b43a1a225a315b683cc",
+    "bytes": 36250,
+    "width": 693,
+    "height": 586,
+    "tier": "figure",
+    "sourceBytes": 37464
+  },
+  "ares/headset-assembly.webp": {
+    "sha256": "b0e871ce36e4d4856ba5c7b245105cf26e74b3536da9d79dd45707ea83d57753",
+    "bytes": 27928,
+    "width": 426,
+    "height": 473,
+    "tier": "figure",
+    "sourceBytes": 27928
+  },
+  "ares/plume-1g-vs-0g.webp": {
+    "sha256": "9acaca511afbd7b0cd8a0a4f22e210a617ca2d866e168cb4b283435717147aba",
+    "bytes": 28184,
+    "width": 994,
+    "height": 543,
+    "tier": "figure",
+    "sourceBytes": 29782
+  },
+  "ares/pod-interior.webp": {
+    "sha256": "ead8bf6ab187aba763d24710b714ab4f4d75379e72baedef03df8b466b2e3e31",
+    "bytes": 24794,
+    "width": 1100,
+    "height": 546,
+    "tier": "figure",
+    "sourceBytes": 24794
+  },
+  "ares/preliminary-cfd.webp": {
+    "sha256": "390bbfc4c081d108c189a46ce14a4fcb30fec51442dbddea9ce16a8164b6e15b",
+    "bytes": 62980,
+    "width": 1100,
+    "height": 931,
+    "tier": "figure",
+    "sourceBytes": 67094
+  },
   "astrousa/2023_24/circular_interior_l1.webp": {
     "sha256": "b9b26f145d8557379c650de81760d99a8cdbdcb6edc5fa2ed30f9209fac598ba",
     "bytes": 40312,

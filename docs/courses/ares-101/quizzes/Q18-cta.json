@@ -1,0 +1,92 @@
+{
+  "quizId": "Q18-cta",
+  "title": "Check yourself: King's law and the bridge",
+  "passThreshold": 75,
+  "maxAttempts": null,
+  "questions": [
+    {
+      "id": "q18-1",
+      "order": 0,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "You need to measure the human thermal body plume, which peaks at 0.3–0.4 m/s. Somebody suggests a pitot tube and a sensitive manometer. Why is that not going to work, and what does thermal anemometry do instead?",
+      "explanation": "A pitot tube measures dynamic pressure, and at 0.3 m/s there is essentially none to measure. Dynamic pressure is ½ρV², which for air at 0.3 m/s is 0.5 × 1.2 × 0.09 = **0.054 Pa** — about half a millionth of an atmosphere. That is not a matter of buying a better manometer; it is why Zhou et al. state that a wind tunnel is not an appropriate calibration facility below about 1 m/s, since the pressure difference the whole method rests on has fallen into the noise, and since low-speed tunnel flow pulsates and is not steady or uniform enough to serve as a standard anyway. Thermal anemometry sidesteps the problem entirely by measuring a different physical quantity: heat a small element, and the rate at which passing air steals that heat is a measure of velocity. There is no pressure in the measurement chain at all. Note the two distractors that are true but irrelevant — the plume *is* unsteady and the pod *is* small, but a pitot tube would fail on a steady 0.3 m/s flow in an open room for the reason above.",
+      "answers": [
+        { "order": 0, "text": "Dynamic pressure at 0.3 m/s is about 0.054 Pa — far too small to read — so instead you heat an element and measure how fast the air carries the heat away", "isCorrect": true },
+        { "order": 1, "text": "The plume is too unsteady for a pitot tube to average, so instead you measure the pressure fluctuation spectrum and integrate it", "isCorrect": false },
+        { "order": 2, "text": "A pitot tube must face directly into the flow and the plume's direction is unknown, so instead you use a heated element, which is omnidirectional and therefore needs no alignment", "isCorrect": false },
+        { "order": 3, "text": "A pitot tube large enough to read 0.3 m/s would not fit on the headset arm, so instead a thermal element gives the same measurement in a smaller package", "isCorrect": false }
+      ]
+    },
+    {
+      "id": "q18-2",
+      "order": 1,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "The trim pot on the ARES CTA board sets the overheat — how much hotter than the surrounding air the FS7's heater is held. Raising it increases sensitivity and signal-to-noise. What are you trading away, and which limit bites first in this application?",
+      "explanation": "Three things get worse. **You heat the air you are measuring:** a hot element in slow-moving air generates its own buoyant plume, and in a module whose entire subject is a buoyant plume that is not a detail. At the datasheet's nominal ΔT = 30 K, the buoyant velocity scale √(g·β·ΔT·L) comes out around 0.08 m/s for the FS7's 6.9 mm length, and the same crossover arrives from Gr/Re² ≈ 1. Below roughly 0.04–0.08 m/s — the spread depends on which heated length you take, and nobody has measured it — the sensor is reading its own plume more than yours. That matters because this course quotes an anemometry range of 0.05–0.4 m/s, so the bottom of the stated range sits below the crossover. **You can burn the part:** IST give a maximum heater voltage of 3 V at 0 m/s, and still air is the dangerous case because nothing is carrying the heat away, so a trim set for good sensitivity at 0.3 m/s can be past the still-air limit without showing it. **And you push the air properties further from the ones the calibration assumed.** The seductive wrong answer is that a higher overheat improves temperature immunity — it does put more distance between signal and ambient, but Zhou et al. measure 5.672 % per °C of residual error on a research-grade instrument, so it does not make the problem go away.",
+      "answers": [
+        { "order": 0, "text": "A hotter element generates its own buoyant plume — around 0.04–0.08 m/s, which is inside the quoted measurement range — and risks exceeding the FS7's 3 V still-air heater limit", "isCorrect": true },
+        { "order": 1, "text": "A hotter element responds more slowly, because its greater stored heat lengthens the thermal time constant and reduces the bandwidth below breathing rate", "isCorrect": false },
+        { "order": 2, "text": "A hotter element draws more current, and the 1.5 MΩ feedback resistor limits how much the TL071 can supply before the loop saturates", "isCorrect": false },
+        { "order": 3, "text": "Nothing significant is traded — a higher overheat improves temperature immunity as well as sensitivity, which is why the trim is normally set as high as the supply allows", "isCorrect": false }
+      ]
+    },
+    {
+      "id": "q18-3",
+      "order": 2,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "King's law is `E² = A + B·Vⁿ`. A member calibrating the ARES anemometer fixes `n` at 0.5 because that is the textbook value, and fits only `A` and `B`. What is wrong with that, and what does the exponent actually do to the sensitivity at the low end?",
+      "explanation": "`n = 0.5` is a high-velocity idealisation from the classical cylinder-in-cross-flow correlation, and it is not what you get below 1 m/s. Zhou et al. fit ten calibration points from 0.1 to 1.0 m/s across three temperatures and three humidities and obtain `n` between **0.5578 and 0.7074**, consistent with the standing recommendation that below 1 m/s values from 0.5 to 1 are more appropriate. The insidious part is that fixing `n` does not produce an obviously bad fit — `A` and `B` will absorb most of the error over the fitted range and the curve will look fine, so the error is invisible in exactly the way that matters. On sensitivity: differentiating gives `dE²/dV ∝ V^(n−1)`, and because `n < 1` the exponent is negative, so sensitivity *grows* as velocity falls. This is the one piece of good news in the module — a thermal anemometer is most sensitive precisely in the regime ARES cares about. It also means the curve is steepest at the left, which is why an error in `A`, the still-air term, costs you most at the velocities you care about.",
+      "answers": [
+        { "order": 0, "text": "Below 1 m/s the fitted `n` is nearer 0.56–0.71, and because `n < 1` the sensitivity `dE²/dV ∝ V^(n−1)` actually rises as velocity falls", "isCorrect": true },
+        { "order": 1, "text": "Below 1 m/s the fitted `n` rises above 1, so sensitivity collapses at the low end and the anemometer is least useful where ARES needs it most", "isCorrect": false },
+        { "order": 2, "text": "Nothing is wrong — `n` is a property of the fluid rather than the probe, so 0.5 is correct for air and only `A` and `B` need fitting", "isCorrect": false },
+        { "order": 3, "text": "Fixing `n` is acceptable, but `A` must then be forced to zero, since a non-zero still-air term and a fixed exponent cannot both be satisfied by the same fit", "isCorrect": false }
+      ]
+    },
+    {
+      "id": "q18-4",
+      "order": 3,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "On the ARES CTA board, one arm of the bridge is a 1.2 kΩ resistor feeding a node held down by the FS7's own 1,200 Ω platinum reference element in parallel with a 10 kΩ resistor. That node drives the op-amp's non-inverting input. What does putting the sensor's *own* reference element in the bridge accomplish?",
+      "explanation": "The reference element sits on the same die as the heater and sees the same air, so its resistance tracks **ambient** temperature. Because it forms the divider that sets the loop's target, the temperature the loop drives the heater to moves with the room — which means the loop holds a roughly constant **overheat**, ΔT above ambient, rather than a constant absolute temperature. That is what keeps King's law constants meaningful as the room changes, and it is the same reason CTA beats CCA in the first place: in CCA the overheat wanders as you traverse the velocity range, so the curve you fitted is a fit to a moving target. Two things this does **not** do. It does not make the instrument temperature-independent — the air's density, conductivity and viscosity still change, and Zhou et al. measure up to 5.672 % of velocity error per °C of mismatch between calibration and application, on a research-grade CTA. And it is not a second flow sensor: it is a temperature element, and the flow signal comes from the heater arm. Note also that the loop's *speed* comes from the feedback around the op-amp, not from this arm.",
+      "answers": [
+        { "order": 0, "text": "It makes the loop hold a constant overheat above ambient rather than a constant absolute temperature, which is what keeps the fitted King's-law constants meaningful as the room temperature changes", "isCorrect": true },
+        { "order": 1, "text": "It makes the anemometer independent of air temperature, so a single calibration curve is valid at any ambient temperature the headset is used at", "isCorrect": false },
+        { "order": 2, "text": "It provides a second, independent flow measurement that the firmware differences against the heater arm to cancel common-mode noise", "isCorrect": false },
+        { "order": 3, "text": "It sets the loop bandwidth, since the reference element's thermal time constant is what the feedback network is compensated against", "isCorrect": false }
+      ]
+    },
+    {
+      "id": "q18-5",
+      "order": 4,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "A CTA is bench-calibrated at 22 °C. It is then worn on a head during a 37 °C thermal-stress session, and the recorded air speed drifts upward over the session. A member concludes the plume strengthened as the subject heated up. What is the problem with that conclusion?",
+      "explanation": "A CTA's output responds to the air's ability to carry heat away from the element. It has no way to know whether that ability changed because the air moved faster or because the air got warmer — Zhou et al. put it plainly: in non-isothermal flows, the responses of a hot wire to changes in velocity and temperature are indistinguishable. So a rising trace during a session in which the air temperature is also rising is exactly the ambiguous case, and the size of the confound is not small: using a curve fitted at one air temperature to read velocities at another costs up to **5.672 % per degree Celsius**, with a humidity mismatch costing up to 1.2676 % per percentage point of relative humidity. A fifteen-degree mismatch is not a corner case in this application; it is the design condition. The remedy is not to distrust the instrument but to record an air temperature beside every reading — which ARES already gets for free, since every pod carries an SHT45 — and to recalibrate, or correct, against it. Note the distractor about the reference arm: the on-die reference element holds the *overheat* roughly constant, which removes the first-order term, and the 5.672 % figure is the residual measured on a research-grade instrument that also compensates.",
+      "answers": [
+        { "order": 0, "text": "A CTA cannot distinguish a velocity change from a temperature change — both alter how fast heat leaves the element — and a calibration used at the wrong temperature costs up to 5.672 % per °C", "isCorrect": true },
+        { "order": 1, "text": "The on-die reference element compensates the ambient shift completely, so the drift must be electrical and the conclusion is wrong for that reason", "isCorrect": false },
+        { "order": 2, "text": "The conclusion is sound in direction but not in size — a hotter body does drive a stronger plume, and the temperature effect on the CTA is under 0.1 %/K by datasheet", "isCorrect": false },
+        { "order": 3, "text": "The problem is the FS7's 200 ms response time, which cannot resolve a change that develops over a whole session", "isCorrect": false }
+      ]
+    },
+    {
+      "id": "q18-6",
+      "order": 5,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "In `E04` you compute that the sampling pump pulls air through a 3.0 mm inlet at **1.58 m/s** at the inlet face — five times the plume velocity the anemometer is trying to measure. Yet the exercise concludes the problem is marginal rather than hopeless. Why?",
+      "explanation": "Because an inlet is a **sink**, and a sink is not a jet run backwards. Air leaving a nozzle carries momentum in a direction, so it stays collimated and travels: a round jet holds roughly its exit velocity for about six diameters and then decays like 1/x. Air entering an inlet arrives from every direction at once, so the same volumetric flow is spread over a surface growing as r², and the induced velocity falls as **Q/(2πr²)** — an inverse-square law. At 10 mm from a 0.67 L/min inlet that is about 0.018 m/s, roughly 90 times smaller than the same hole would produce as a jet at the same distance. This is the reason you can blow a candle out from across a table and cannot suck it out from an inch away. It is also why the answer hinges entirely on the standoff `r`, which nobody has written down: the disturbance scales as 1/r², so halving the assumed standoff quadruples the answer. And it is why the exercise's conclusion is *marginal* rather than clean — at a 10 mm standoff the threshold ambient velocity works out to about 0.36 m/s, which lands inside the 0.3–0.4 m/s plume band the instrument exists to measure.",
+      "answers": [
+        { "order": 0, "text": "An inlet draws from all directions, so the induced velocity falls as an inverse square, Q/(2πr²) — unlike a jet, which stays collimated and carries its exit velocity for several diameters", "isCorrect": true },
+        { "order": 1, "text": "The 1.58 m/s figure is inside the tube rather than outside it, and flow outside an inlet is limited to the speed of the ambient air by continuity", "isCorrect": false },
+        { "order": 2, "text": "The pump's contribution is steady while the plume is unsteady, so a high-pass filter removes the pump entirely regardless of its magnitude", "isCorrect": false },
+        { "order": 3, "text": "The FS7 reads speed rather than velocity, so a steady inflow of any magnitude adds a constant offset that the calibration's `A` term absorbs", "isCorrect": false }
+      ]
+    }
+  ]
+}

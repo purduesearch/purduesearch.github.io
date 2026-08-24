@@ -1,10 +1,24 @@
-import type { CourseProgressStatus, CourseQuestionKind } from "@prisma/client";
+import { Prisma, type CourseProgressStatus, type CourseQuestionKind } from "@prisma/client";
 import { prisma } from "../db/prisma.js";
 import {
   clampStepIndex, isTourComplete, loadTourSteps,
   type TourConfig, type TourStep,
 } from "./tourStepService.js";
 import { archiveTrainingProject } from "./trainingSandboxService.js";
+import {
+  sanitizeLitConfig, countWords, gradeSubmission, DEFAULT_MIN_WORDS,
+  type LearnerLitConfig,
+} from "./litReviewService.js";
+import {
+  sanitizeAssignmentConfig,
+  gradeAssignment,
+  decideCompletion,
+  DEFAULT_ASSIGNMENT_MIN_WORDS,
+  type LearnerAssignmentConfig,
+} from "./assignmentService.js";
+// Same type as `LitFeedback` above — that alias exists only so the existing
+// lit-review code keeps reading naturally. New code in this file uses this one.
+import type { RubricFeedback } from "./rubricGrading.js";
 
 // ── The gating brain ─────────────────────────────────────────
 //
@@ -337,6 +351,8 @@ export interface LearnerSection {
   slideConfig?: unknown;
   tourConfig?: TourConfig;
   tourSteps?: TourStep[];
+  litConfig?: LearnerLitConfig | null;
+  assignmentConfig?: LearnerAssignmentConfig | null;
 }
 
 /**
@@ -437,6 +453,26 @@ export async function getLearnerCourse(
     slidesBySection.set(row.sectionId, list);
   }
 
+  // One query for every submission-bearing section in the course rather than one
+  // per section — this runs on every learner page load, same reasoning as the
+  // SLIDES query above.
+  const workSectionIds = sections
+    .filter((s) => s.kind === "LIT_REVIEW" || s.kind === "ASSIGNMENT")
+    .map((s) => s.id);
+  const workRows = workSectionIds.length && enrollment
+    ? await prisma.courseWorkSubmission.findMany({
+        where: { sectionId: { in: workSectionIds }, memberId },
+        select: { sectionId: true, feedbackJson: true },
+      })
+    : [];
+  const bestWorkScore = new Map<string, number | null>();
+  for (const r of workRows) {
+    const score = (r.feedbackJson as { scorePct?: number } | null)?.scorePct;
+    if (typeof score !== "number") continue;
+    const seen = bestWorkScore.get(r.sectionId);
+    if (seen == null || score > seen) bestWorkScore.set(r.sectionId, score);
+  }
+
   const learnerSections: LearnerSection[] = sections.map((s) => {
     const progress = byId.get(s.id);
     const unlocked = preview || isSectionUnlocked(gateModules, gateSections, gateProgress, {
@@ -462,8 +498,10 @@ export async function getLearnerCourse(
       maxWatchedSec: progress?.maxWatchedSec ?? 0,
       answeredPopupIds: progress?.answeredPopupIds ?? [],
       completedAt: progress?.completedAt ?? null,
-      attemptsUsed: mine.length,
-      bestScorePct: scores.length ? Math.max(...scores) : null,
+      attemptsUsed: mine.length || workRows.filter((r) => r.sectionId === s.id).length,
+      bestScorePct: scores.length
+        ? Math.max(...scores)
+        : bestWorkScore.get(s.id) ?? null,
       passed: mine.some((a) => a.passed),
       maxSlideIndex: progress?.maxSlideIndex ?? 0,
       maxStepIndex: progress?.maxStepIndex ?? 0,
@@ -499,6 +537,18 @@ export async function getLearnerCourse(
             );
           }
         }
+      }
+      if (s.kind === "LIT_REVIEW") {
+        // Built by construction from the five safe keys — referenceSummary and
+        // rubric are to this column what isCorrect is to CourseAnswer, and a
+        // locked section carries no config at all.
+        out.litConfig = sanitizeLitConfig(s.litConfig);
+      }
+      if (s.kind === "ASSIGNMENT") {
+        // Built by construction from the five safe keys — referenceAnswer and
+        // rubric are to this column what isCorrect is to CourseAnswer, and a
+        // locked section carries no config at all.
+        out.assignmentConfig = sanitizeAssignmentConfig(s.assignmentConfig);
       }
     }
     return out;
@@ -870,6 +920,13 @@ export async function completeSection(sectionId: string, memberId: string) {
 
   if (section.kind === "QUIZ") {
     return { error: "Quiz sections complete by passing an attempt", status: 400 } as const;
+  }
+
+  if (section.kind === "LIT_REVIEW") {
+    return {
+      error: "Literature review sections complete by submitting a summary",
+      status: 400,
+    } as const;
   }
 
   if (section.kind === "VIDEO") {
@@ -1275,4 +1332,169 @@ export async function collectAchievementUnlocks(memberId: string, since: Date) {
     console.error("[challenge] achievement unlock surface:", err);
     return [];
   }
+}
+
+// ── Written work: literature reviews and assignments ─────────
+
+export interface WorkSubmissionView {
+  id: string;
+  text: string;
+  wordCount: number;
+  fileName: string | null;
+  fileMimeType: string | null;
+  feedback: RubricFeedback | null;
+  gradedAt: Date | null;
+  createdAt: Date;
+}
+
+/**
+ * Record a learner's submission for a LIT_REVIEW or ASSIGNMENT section, grade
+ * it, and decide whether it completes the section.
+ *
+ * ORDER MATTERS, and it is the same order as before this feature existed: the
+ * submission row is written BEFORE Gemini is called, and grading runs inside a
+ * try/catch that swallows everything. That is what makes the score gate's
+ * fail-open case real — a third-party outage lands on COMPLETE_UNGRADED rather
+ * than holding a learner at BLOCKED. Do not move the grading call above the
+ * create, and do not let a grading throw escape.
+ *
+ * A resubmission writes a NEW row and re-grades, but does not re-fire rewards —
+ * `firstCompletion` is false the second time through. Retries are unlimited:
+ * `maxAttempts` is deliberately NOT honoured here, because a capped gate can
+ * strand a learner permanently.
+ */
+export async function submitWork(
+  sectionId: string,
+  memberId: string,
+  input: { text: string; fileName?: string | null; fileMimeType?: string | null }
+) {
+  const ctx = await requireUnlockedSection(sectionId, memberId);
+  if (!ctx.ok) return { error: ctx.error, status: ctx.status };
+  const { section, enrollment, progress } = ctx;
+
+  const isLit = section.kind === "LIT_REVIEW";
+  const isAssignment = section.kind === "ASSIGNMENT";
+  if (!isLit && !isAssignment) {
+    return { error: "Section does not accept submissions", status: 400 } as const;
+  }
+
+  const config = (isLit ? section.litConfig : section.assignmentConfig) ?? {};
+  const minWords = isLit
+    ? sanitizeLitConfig(config)?.minWords ?? DEFAULT_MIN_WORDS
+    : sanitizeAssignmentConfig(config)?.minWords ?? DEFAULT_ASSIGNMENT_MIN_WORDS;
+
+  const body = typeof input.text === "string" ? input.text.trim() : "";
+  const wordCount = countWords(body);
+  if (wordCount < minWords) {
+    // Refused before spending a Gemini call, and the message carries both
+    // numbers so the composer does not have to guess what it is short by.
+    return {
+      error: `Write at least ${minWords} words — you have ${wordCount}.`,
+      status: 400,
+    } as const;
+  }
+
+  const submission = await prisma.courseWorkSubmission.create({
+    data: {
+      sectionId,
+      memberId,
+      text: body,
+      wordCount,
+      fileName: input.fileName ?? null,
+      fileMimeType: input.fileMimeType ?? null,
+    },
+  });
+
+  let feedback: RubricFeedback | null = null;
+  try {
+    feedback = isLit
+      ? await gradeSubmission(config, body)
+      : await gradeAssignment(config, body);
+  } catch (err) {
+    // Rate limit, quota, network, malformed JSON — all the same outcome. The
+    // submission already counted; this only decides whether feedback exists yet,
+    // and under a gate it decides fail-open rather than blocked.
+    console.error(`[course-work] grading failed for ${section.kind} ${sectionId}:`, err);
+  }
+  if (feedback) {
+    await prisma.courseWorkSubmission.update({
+      where: { id: submission.id },
+      data: { feedbackJson: feedback as unknown as Prisma.InputJsonValue, gradedAt: new Date() },
+    });
+  }
+
+  const outcome = decideCompletion({
+    passThreshold: section.passThreshold,
+    hasFeedback: !!feedback,
+    scorePct: feedback?.scorePct ?? null,
+  });
+
+  const firstCompletion = outcome !== "BLOCKED" && progress.status !== "COMPLETED";
+  if (firstCompletion) {
+    await prisma.courseSectionProgress.update({
+      where: { id: progress.id },
+      data: { status: "COMPLETED", completedAt: new Date() },
+    });
+  } else if (outcome === "BLOCKED" && progress.status === "NOT_STARTED") {
+    await prisma.courseSectionProgress.update({
+      where: { id: progress.id },
+      data: { status: "IN_PROGRESS" },
+    });
+  }
+  await prisma.courseEnrollment.update({
+    where: { id: enrollment.id },
+    data: { lastSectionId: sectionId },
+  });
+
+  const effects = firstCompletion
+    ? await applyCourseSideEffects(memberId, { courseId: section.courseId, sectionId })
+    : { actorReward: null, progressMilestones: [] as CourseProgressMilestone[] };
+
+  return {
+    submission: {
+      id: submission.id,
+      text: submission.text,
+      wordCount: submission.wordCount,
+      fileName: submission.fileName,
+      fileMimeType: submission.fileMimeType,
+      feedback,
+      gradedAt: feedback ? new Date() : null,
+      createdAt: submission.createdAt,
+    } satisfies WorkSubmissionView,
+    feedback,
+    // True when the submission landed but feedback did not. The UI says
+    // "Feedback pending" and offers a retry; it does not say "failed".
+    gradingPending: !feedback,
+    outcome,
+    // Only meaningful when the section is gated; the learner UI shows the score
+    // and threshold exactly when passThreshold is non-null.
+    passThreshold: section.passThreshold,
+    scorePct: feedback?.scorePct ?? null,
+    alreadyComplete: !firstCompletion && outcome !== "BLOCKED",
+    ...effects,
+  };
+}
+
+/** This member's own attempts on this section, newest first. */
+export async function listWorkSubmissions(sectionId: string, memberId: string) {
+  const ctx = await requireUnlockedSection(sectionId, memberId);
+  if (!ctx.ok) return { error: ctx.error, status: ctx.status };
+
+  const rows = await prisma.courseWorkSubmission.findMany({
+    where: { sectionId, memberId },
+    orderBy: { createdAt: "desc" },
+  });
+  return {
+    passThreshold: ctx.section.passThreshold,
+    submissions: rows.map((r) => ({
+      id: r.id,
+      text: r.text,
+      wordCount: r.wordCount,
+      fileName: r.fileName,
+      fileMimeType: r.fileMimeType,
+      feedback: (r.feedbackJson ?? null) as RubricFeedback | null,
+      gradedAt: r.gradedAt,
+      createdAt: r.createdAt,
+    })) satisfies WorkSubmissionView[],
+  };
 }

@@ -27,7 +27,8 @@ import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import sharp from 'sharp';
 import {
-  resolveTier, CONVERT_TO_WEBP, PHOTO_WEBP, ART_WEBP, ANIMATED_WEBP, ANIMATED_MAX_WIDTH,
+  resolveTier, CONVERT_TO_WEBP, PHOTO_WEBP, ART_WEBP, FIGURE_WEBP, ANIMATED_WEBP,
+  ANIMATED_MAX_WIDTH,
 } from './optimize-images.config.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -99,6 +100,7 @@ async function main() {
     }
     let encoderOpts = PHOTO_WEBP;
     if (decision.mode === 'art') encoderOpts = ART_WEBP;
+    else if (decision.mode === 'figure') encoderOpts = FIGURE_WEBP;
     else if (isAnimated) encoderOpts = ANIMATED_WEBP;
     const encoded = await pipeline.webp(encoderOpts).toBuffer();
 

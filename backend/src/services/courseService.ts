@@ -34,6 +34,8 @@ export interface CreateSectionInput {
   contentJson?: PMDoc;
   videoConfig?: Record<string, unknown> | null;
   slideConfig?: Record<string, unknown> | null;
+  litConfig?: Record<string, unknown> | null;
+  assignmentConfig?: Record<string, unknown> | null;
   passThreshold?: number | null;
   maxAttempts?: number | null;
 }
@@ -45,6 +47,8 @@ export interface UpdateSectionInput {
   contentJson?: PMDoc;
   videoConfig?: Record<string, unknown> | null;
   slideConfig?: Record<string, unknown> | null;
+  litConfig?: Record<string, unknown> | null;
+  assignmentConfig?: Record<string, unknown> | null;
   passThreshold?: number | null;
   maxAttempts?: number | null;
 }
@@ -134,6 +138,16 @@ const sectionSelect = {
   // Same reason as slideConfig: the WALKTHROUGH authoring panel reads tourId and
   // stepCount straight off this column, so it has to travel with the editor tree.
   tourConfig: true,
+  // Same reason as slideConfig / tourConfig: the LIT_REVIEW builder reads the
+  // reference summary and rubric straight off this column. This select feeds the
+  // AUTHORING tree only — the learner payload is built separately, by
+  // construction, in courseProgressService.
+  litConfig: true,
+  // Same reason as slideConfig / tourConfig / litConfig: the ASSIGNMENT builder
+  // reads the reference answer and rubric straight off this column. This select
+  // feeds the AUTHORING tree only — the learner payload is built separately, by
+  // construction, in courseProgressService.
+  assignmentConfig: true,
   passThreshold: true,
   maxAttempts: true,
   createdAt: true,
@@ -426,6 +440,8 @@ export async function createSection(input: CreateSectionInput) {
       contentJson: asJson(input.contentJson ?? EMPTY_DOC),
       videoConfig: (input.videoConfig ?? undefined) as Prisma.InputJsonValue | undefined,
       slideConfig: (input.slideConfig ?? undefined) as Prisma.InputJsonValue | undefined,
+      litConfig: (input.litConfig ?? undefined) as Prisma.InputJsonValue | undefined,
+      assignmentConfig: (input.assignmentConfig ?? undefined) as Prisma.InputJsonValue | undefined,
       passThreshold: input.passThreshold ?? null,
       maxAttempts: input.maxAttempts ?? null,
     },
@@ -433,12 +449,19 @@ export async function createSection(input: CreateSectionInput) {
   });
 }
 
-export async function updateSection(id: string, input: UpdateSectionInput) {
+export async function updateSection(id: string, input: UpdateSectionInput, actorId?: string) {
   const data: Prisma.CourseSectionUpdateInput = {};
   if (input.title !== undefined) data.title = input.title;
   if (input.kind !== undefined) data.kind = input.kind;
   if (input.isRequired !== undefined) data.isRequired = input.isRequired;
-  if (input.contentJson !== undefined) data.contentJson = asJson(input.contentJson);
+  if (input.contentJson !== undefined) {
+    // Snapshot the OUTGOING body before it is replaced. This is the safety net
+    // for the bug that destroyed two ares-101 articles: an editor that had not
+    // finished loading reported an empty document and the autosave wrote it
+    // straight over the real one, with no history to recover from.
+    await snapshotSection(id, actorId ?? null);
+    data.contentJson = asJson(input.contentJson);
+  }
   if (input.passThreshold !== undefined) data.passThreshold = input.passThreshold;
   if (input.maxAttempts !== undefined) data.maxAttempts = input.maxAttempts;
   if (input.videoConfig !== undefined) {
@@ -452,11 +475,133 @@ export async function updateSection(id: string, input: UpdateSectionInput) {
     data.slideConfig =
       input.slideConfig === null ? Prisma.DbNull : (input.slideConfig as Prisma.InputJsonValue);
   }
+  // Whole merged object, like slideConfig — the builder spreads the previous
+  // value, so this column is never patched key-by-key here.
+  if (input.litConfig !== undefined) {
+    data.litConfig =
+      input.litConfig === null ? Prisma.DbNull : (input.litConfig as Prisma.InputJsonValue);
+  }
+  // Whole merged object, like litConfig — the builder spreads the previous
+  // value, so this column is never patched key-by-key here.
+  if (input.assignmentConfig !== undefined) {
+    data.assignmentConfig =
+      input.assignmentConfig === null
+        ? Prisma.DbNull
+        : (input.assignmentConfig as Prisma.InputJsonValue);
+  }
   return prisma.courseSection.update({ where: { id }, data, select: sectionSelect });
 }
 
 export async function deleteSection(id: string) {
   await prisma.courseSection.delete({ where: { id } });
+}
+
+// ── Section revisions ────────────────────────────────────────
+//
+// Mirrors BlogRevision (see blogService.snapshotRevision) so the editor can
+// reuse the same history drawer. The trigger differs because a section has no
+// publish event: snapshots are taken before `contentJson` is overwritten, and
+// before a rollback so the rollback is itself reversible.
+
+// The editor autosaves 1.5s after typing stops, so one snapshot per write
+// would add a row every few seconds of drafting. One per section per five
+// minutes keeps the table small while still bounding how much work a bad
+// write can destroy.
+const SNAPSHOT_THROTTLE_MS = 5 * 60 * 1000;
+
+const revisionAuthor = {
+  author: { select: { id: true, displayName: true, avatarUrl: true } },
+} satisfies Prisma.CourseSectionRevisionInclude;
+
+/**
+ * Snapshot a section's CURRENT body, before the caller replaces it.
+ *
+ * Throttled per section, with two deliberate exceptions to the throttle:
+ * `force` (used by rollback), and the case where the most recent snapshot is
+ * within the window but the live body is *non-empty while that snapshot is
+ * empty* — otherwise a burst of empty writes inside one window could leave
+ * only the blank version on record, which is precisely the state we need to be
+ * able to escape.
+ */
+export async function snapshotSection(sectionId: string, authorId: string | null, force = false) {
+  const section = await prisma.courseSection.findUnique({
+    where: { id: sectionId },
+    select: { title: true, contentJson: true },
+  });
+  if (!section) return null;
+  // Nothing to preserve: a section that has never had a body would otherwise
+  // seed the history with a row that can only ever restore emptiness.
+  if (!force && isEmptyDoc(section.contentJson)) return null;
+
+  if (!force) {
+    const latest = await prisma.courseSectionRevision.findFirst({
+      where: { sectionId },
+      orderBy: { createdAt: "desc" },
+      select: { createdAt: true, contentJson: true },
+    });
+    const withinWindow =
+      !!latest && Date.now() - latest.createdAt.getTime() < SNAPSHOT_THROTTLE_MS;
+    if (withinWindow && !isEmptyDoc(latest.contentJson)) return null;
+  }
+
+  return prisma.courseSectionRevision.create({
+    data: {
+      sectionId,
+      authorId,
+      title: section.title,
+      contentJson: section.contentJson as Prisma.InputJsonValue,
+    },
+    include: revisionAuthor,
+  });
+}
+
+export async function listSectionRevisions(sectionId: string) {
+  return prisma.courseSectionRevision.findMany({
+    where: { sectionId },
+    orderBy: { createdAt: "desc" },
+    include: revisionAuthor,
+  });
+}
+
+export async function renameSectionRevision(sectionId: string, revisionId: string, name: string | null) {
+  // Scoped to the section from the URL, not just the revision id: EDIT on one
+  // section must not let anyone rename another section's history.
+  const { count } = await prisma.courseSectionRevision.updateMany({
+    where: { id: revisionId, sectionId },
+    data: { name: name || null },
+  });
+  if (count === 0) return null;
+  return prisma.courseSectionRevision.findUnique({
+    where: { id: revisionId },
+    include: revisionAuthor,
+  });
+}
+
+export async function rollbackSectionRevision(sectionId: string, revisionId: string, actorId: string) {
+  const rev = await prisma.courseSectionRevision.findUnique({ where: { id: revisionId } });
+  if (!rev || rev.sectionId !== sectionId) throw new Error("Revision not found");
+  // Snapshot the current state first so a rollback is itself reversible, and
+  // force it past the throttle — a restore is exactly when someone is most
+  // likely to want the thing they just replaced back.
+  await snapshotSection(sectionId, actorId, true);
+  return prisma.courseSection.update({
+    where: { id: sectionId },
+    data: { contentJson: rev.contentJson as Prisma.InputJsonValue },
+    select: { ...sectionSelect, contentJson: true },
+  });
+}
+
+/**
+ * A TipTap doc with no text in it — `{}` (never seeded), or the single empty
+ * paragraph a freshly-mounted editor reports. Treated as "nothing worth
+ * snapshotting", and as the marker of the write this whole mechanism exists
+ * to survive.
+ */
+function isEmptyDoc(doc: Prisma.JsonValue | null): boolean {
+  if (!doc || typeof doc !== "object" || Array.isArray(doc)) return true;
+  const content = (doc as { content?: unknown }).content;
+  if (!Array.isArray(content) || content.length === 0) return true;
+  return !JSON.stringify(content).includes('"text"');
 }
 
 // ── Questions ────────────────────────────────────────────────

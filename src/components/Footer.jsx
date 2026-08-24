@@ -31,6 +31,7 @@ const Footer = () => (
                 removed in a8f763b3), so this link soft-404'd from every page. */}
             <li><Link to="/sa2tp">SA²TP</Link></li>
             <li><Link to="/astrousa">ASTRO-USA</Link></li>
+            <li><Link to="/ares">ARES</Link></li>
           </ul>
         </div>
 

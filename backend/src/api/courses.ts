@@ -5,6 +5,8 @@ import { prisma } from "../db/prisma.js";
 import * as courseService from "../services/courseService.js";
 import * as progressService from "../services/courseProgressService.js";
 import { logAuditEvent } from "../services/activityService.js";
+import { replaceCourseSectionContent } from "../collab/courseCollab.js";
+import type { PMDoc } from "../services/blogRender.js";
 import type { CourseSectionKind, CourseQuestionKind } from "@prisma/client";
 
 // Decks are streamed straight to Drive for conversion, so memory storage is
@@ -397,10 +399,71 @@ coursesRouter.patch("/sections/:sid", async (req: Request, res: Response) => {
   try {
     const sid = req.params.sid as string;
     if (!(await requireSectionAccess(req, res, sid))) return;
-    res.json(await courseService.updateSection(sid, req.body));
+    // req.memberId, never req.session.memberId — Bearer-token users have no
+    // session, and this is what stamps the pre-overwrite snapshot's author.
+    res.json(await courseService.updateSection(sid, req.body, req.memberId));
   } catch (error) {
     console.error("PATCH /outreach/courses/sections/:sid error:", error);
     res.status(500).json({ error: "Failed to update section" });
+  }
+});
+
+// ── Section revisions ────────────────────────────────────────
+// Same surface as the blog's (GET list / PATCH name / POST rollback) so the
+// editor reuses RevisionHistoryDrawer rather than growing a second one.
+
+coursesRouter.get("/sections/:sid/revisions", async (req: Request, res: Response) => {
+  try {
+    const sid = req.params.sid as string;
+    if (!(await requireSectionAccess(req, res, sid))) return;
+    res.json(await courseService.listSectionRevisions(sid));
+  } catch (error) {
+    console.error("GET /outreach/courses/sections/:sid/revisions error:", error);
+    res.status(500).json({ error: "Failed to list revisions" });
+  }
+});
+
+// An empty or whitespace-only name clears it, which is how the drawer un-names
+// a version.
+coursesRouter.patch("/sections/:sid/revisions/:revId", async (req: Request, res: Response) => {
+  try {
+    const sid = req.params.sid as string;
+    if (!(await requireSectionAccess(req, res, sid))) return;
+    const raw = req.body?.name;
+    const name = typeof raw === "string" ? raw.trim().slice(0, 120) : null;
+    const updated = await courseService.renameSectionRevision(sid, String(req.params.revId), name);
+    if (!updated) {
+      res.status(404).json({ error: "Revision not found" });
+      return;
+    }
+    res.json(updated);
+  } catch (error) {
+    console.error("PATCH /outreach/courses/sections/:sid/revisions/:revId error:", error);
+    res.status(500).json({ error: "Failed to rename revision" });
+  }
+});
+
+coursesRouter.post("/sections/:sid/revisions/:revId/rollback", async (req: Request, res: Response) => {
+  try {
+    const sid = req.params.sid as string;
+    if (!(await requireSectionAccess(req, res, sid))) return;
+    const section = await courseService.rollbackSectionRevision(
+      sid,
+      String(req.params.revId),
+      req.memberId!
+    );
+    // The live Yjs document is authoritative while anyone has the section open,
+    // so a DB-only write would be invisible (and then overwritten by the next
+    // collab store). Push the restored body into the live doc as well.
+    await replaceCourseSectionContent(sid, section.contentJson as unknown as PMDoc);
+    res.json(section);
+  } catch (error) {
+    if (error instanceof Error && error.message === "Revision not found") {
+      res.status(404).json({ error: error.message });
+      return;
+    }
+    console.error("POST /outreach/courses/sections/:sid/revisions/:revId/rollback error:", error);
+    res.status(500).json({ error: "Failed to roll back" });
   }
 });
 
@@ -723,6 +786,12 @@ const audioUpload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 80 * 1024 * 1024, files: 1 },
 });
+// Assignment documents arrive as multipart, never base64 JSON — app.ts's
+// default 100 kb express.json() limit would reject a real PDF outright.
+const submissionUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 15 * 1024 * 1024, files: 1 },
+});
 
 coursesRouter.get("/sections/:sid/slides", async (req: Request, res: Response) => {
   try {
@@ -829,6 +898,85 @@ coursesRouter.delete("/sections/:sid/audio", async (req: Request, res: Response)
   } catch (error) {
     console.error("DELETE /outreach/courses/sections/:sid/audio error:", error);
     res.status(500).json({ error: "Failed to clear that audio" });
+  }
+});
+
+const handoutUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 25 * 1024 * 1024, files: 1 },
+});
+
+// The optional download on an ASSIGNMENT section — a rubric, a dataset, a
+// starter template. Uploaded through the bot account and made link-readable
+// server-side, which is the failure mode LitReviewBuilder's pasted-file-id
+// field has today: an author who forgets to share the file ships every learner
+// a sign-in wall.
+coursesRouter.post(
+  "/sections/:sid/handout",
+  handoutUpload.single("file"),
+  async (req: Request, res: Response) => {
+    try {
+      const sid = req.params.sid as string;
+      if (!(await requireSectionAccess(req, res, sid))) return;
+      if (!req.file) { res.status(400).json({ error: "file is required" }); return; }
+
+      const { Readable } = await import("node:stream");
+      const drive = await import("../services/driveService.js");
+      const folderId = await drive.ensureClubPmRootFolder();
+      if (!folderId) { res.status(503).json({ error: "Drive is not configured" }); return; }
+
+      const uploaded = await drive.uploadStreamToDrive(
+        Readable.from(req.file.buffer),
+        req.file.mimetype,
+        req.file.originalname,
+        folderId
+      );
+      if (!uploaded) { res.status(502).json({ error: "Could not upload to Drive" }); return; }
+      await drive.makeDriveFilePublic(uploaded.fileId);
+
+      const section = await prisma.courseSection.findUnique({
+        where: { id: sid },
+        select: { assignmentConfig: true },
+      });
+      // Spread the previous value — this column is never patched key-by-key.
+      const next = {
+        ...((section?.assignmentConfig ?? {}) as Record<string, unknown>),
+        handoutDriveFileId: uploaded.fileId,
+        handoutName: req.file.originalname,
+        handoutMimeType: req.file.mimetype,
+      };
+      const saved = await courseService.updateSection(sid, { assignmentConfig: next });
+      res.json(saved);
+    } catch (error) {
+      console.error("POST /outreach/courses/sections/:sid/handout error:", error);
+      res.status(500).json({ error: "Failed to attach that handout" });
+    }
+  }
+);
+
+coursesRouter.delete("/sections/:sid/handout", async (req: Request, res: Response) => {
+  try {
+    const sid = req.params.sid as string;
+    if (!(await requireSectionAccess(req, res, sid))) return;
+    const section = await prisma.courseSection.findUnique({
+      where: { id: sid },
+      select: { assignmentConfig: true },
+    });
+    const prev = (section?.assignmentConfig ?? {}) as Record<string, unknown>;
+    const fileId = typeof prev.handoutDriveFileId === "string" ? prev.handoutDriveFileId : "";
+    if (fileId) {
+      const drive = await import("../services/driveService.js");
+      // Best-effort: a Drive delete that fails must not block clearing the
+      // reference, or the section is stuck pointing at a file forever.
+      await drive.deleteDriveFile(fileId).catch(() => false);
+    }
+    const saved = await courseService.updateSection(sid, {
+      assignmentConfig: { ...prev, handoutDriveFileId: "", handoutName: "", handoutMimeType: "" },
+    });
+    res.json(saved);
+  } catch (error) {
+    console.error("DELETE /outreach/courses/sections/:sid/handout error:", error);
+    res.status(500).json({ error: "Failed to remove that handout" });
   }
 });
 
@@ -1101,6 +1249,95 @@ coursesRouter.post("/sections/:sid/quiz/attempts", async (req: Request, res: Res
   }
 });
 
+// A learner's submission for a LIT_REVIEW or ASSIGNMENT section. Accepts either
+// multipart (a document, extracted to text here) or JSON ({ text }) for a pasted
+// answer. Completion and the score gate are decided by the service — see
+// submitWork and the design doc §5.
+coursesRouter.post(
+  "/sections/:sid/work",
+  submissionUpload.single("file"),
+  async (req: Request, res: Response) => {
+    const requestStartedAt = new Date();
+    try {
+      let text: string;
+      let fileName: string | null = null;
+      let fileMimeType: string | null = null;
+
+      if (req.file) {
+        const { extractText } = await import("../services/documentTextService.js");
+        const extracted = await extractText(
+          req.file.buffer,
+          req.file.mimetype,
+          req.file.originalname
+        );
+        if (!extracted.ok) {
+          // The service's message names the likely cause and the way out; pass it
+          // through verbatim rather than flattening it to "bad file".
+          res.status(400).json({ error: extracted.message, reason: extracted.reason });
+          return;
+        }
+        text = extracted.text;
+        fileName = req.file.originalname;
+        fileMimeType = req.file.mimetype;
+      } else {
+        const body = req.body as { text?: string };
+        if (typeof body?.text !== "string") {
+          res.status(400).json({ error: "Attach a file or write an answer" });
+          return;
+        }
+        text = body.text;
+      }
+
+      const result = await progressService.submitWork(req.params.sid as string, req.memberId!, {
+        text,
+        fileName,
+        fileMimeType,
+      });
+      if (isServiceError(result)) {
+        res.status(result.status).json({ error: result.error });
+        return;
+      }
+      res.json(
+        await withRewardEnvelope(
+          req.memberId!,
+          requestStartedAt,
+          {
+            ok: true,
+            submission: result.submission,
+            feedback: result.feedback,
+            gradingPending: result.gradingPending,
+            outcome: result.outcome,
+            passThreshold: result.passThreshold,
+            scorePct: result.scorePct,
+            alreadyComplete: result.alreadyComplete,
+          },
+          result
+        )
+      );
+    } catch (error) {
+      console.error("POST /outreach/courses/sections/:sid/work error:", error);
+      res.status(500).json({ error: "Failed to save your submission" });
+    }
+  }
+);
+
+coursesRouter.get("/sections/:sid/work", async (req: Request, res: Response) => {
+  try {
+    const result = await progressService.listWorkSubmissions(
+      req.params.sid as string,
+      req.memberId!
+    );
+    if (isServiceError(result)) {
+      res.status(result.status).json({ error: result.error });
+      return;
+    }
+    res.json(result);
+  } catch (error) {
+    console.error("GET /outreach/courses/sections/:sid/work error:", error);
+    res.status(500).json({ error: "Failed to load your submissions" });
+  }
+});
+
 // ── Admin reporting ──────────────────────────────────────────
 //
 // Gated with `requireCourseAccess` (author-or-admin) rather than a bare admin
@@ -1141,7 +1378,14 @@ coursesRouter.get("/:id/progress", async (req: Request, res: Response) => {
         // with the module's own order — otherwise the matrix columns interleave
         // the modules as soon as a course has more than one.
         orderBy: [{ module: { order: "asc" } }, { order: "asc" }],
-        select: { id: true, title: true, order: true, kind: true, isRequired: true },
+        select: {
+          id: true,
+          title: true,
+          order: true,
+          kind: true,
+          isRequired: true,
+          passThreshold: true,
+        },
       }),
       prisma.courseEnrollment.findMany({
         where: { courseId: id },
@@ -1157,9 +1401,44 @@ coursesRouter.get("/:id/progress", async (req: Request, res: Response) => {
 
     const requiredCount = sections.filter((s) => s.isRequired).length || sections.length;
 
+    // Newest first, so the FIRST row seen for a (member, section) pair is that
+    // member's latest attempt and every later row is a prior revision.
+    const workSectionIds = sections
+      .filter((s) => s.kind === "LIT_REVIEW" || s.kind === "ASSIGNMENT")
+      .map((s) => s.id);
+    const workRows = workSectionIds.length
+      ? await prisma.courseWorkSubmission.findMany({
+          where: { sectionId: { in: workSectionIds } },
+          orderBy: { createdAt: "desc" },
+          select: { sectionId: true, memberId: true, feedbackJson: true },
+        })
+      : [];
+    const latestWork = new Map<string, { scorePct: number | null; attempts: number }>();
+    for (const r of workRows) {
+      const key = `${r.memberId}:${r.sectionId}`;
+      const seen = latestWork.get(key);
+      if (seen) { seen.attempts += 1; continue; }
+      const fb = r.feedbackJson as { scorePct?: number } | null;
+      latestWork.set(key, {
+        // Null when grading never ran. Distinct from a score of 0, and the UI
+        // must not conflate them — one is "not graded", the other is "graded
+        // badly". Under a score gate the null case is the fail-open path: the
+        // learner was passed through unscored and an officer should look.
+        scorePct: typeof fb?.scorePct === "number" ? fb.scorePct : null,
+        attempts: 1,
+      });
+    }
+
     const rows = enrollments
       .map((e) => {
-        const cells: Record<string, { status: string; completedAt: Date | null; maxWatchedSec: number }> = {};
+        const cells: Record<string, {
+          status: string;
+          completedAt: Date | null;
+          maxWatchedSec: number;
+          workScorePct?: number | null;
+          workAttempts?: number;
+          workUngraded?: boolean;
+        }> = {};
         for (const p of e.sectionProgress) {
           cells[p.sectionId] = {
             status: p.status,
@@ -1171,6 +1450,19 @@ coursesRouter.get("/:id/progress", async (req: Request, res: Response) => {
         // created lazily, so its absence is meaningful rather than an error.
         for (const s of sections) {
           if (!cells[s.id]) cells[s.id] = { status: "NOT_STARTED", completedAt: null, maxWatchedSec: 0 };
+        }
+        for (const s of sections) {
+          if (s.kind !== "LIT_REVIEW" && s.kind !== "ASSIGNMENT") continue;
+          const work = latestWork.get(`${e.memberId}:${s.id}`);
+          if (!work) continue;
+          cells[s.id]!.workScorePct = work.scorePct;
+          cells[s.id]!.workAttempts = work.attempts;
+          // Completed on a gated section with no score = fail-open. Officers
+          // review these; nobody else can tell them apart from a real pass.
+          cells[s.id]!.workUngraded =
+            s.passThreshold != null &&
+            work.scorePct == null &&
+            cells[s.id]!.status === "COMPLETED";
         }
         const completedSections = sections.filter((s) => cells[s.id]!.status === "COMPLETED").length;
         const completedRequired = sections.filter(

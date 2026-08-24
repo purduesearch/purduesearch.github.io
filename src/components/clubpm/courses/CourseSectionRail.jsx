@@ -24,6 +24,8 @@ export const SECTION_KINDS = {
   QUIZ:    { label: 'Quiz',    icon: 'fas fa-list-check' },
   SLIDES:  { label: 'Slides',  icon: 'fas fa-file-powerpoint' },
   WALKTHROUGH: { label: 'Walkthrough', icon: 'fas fa-hand-pointer' },
+  LIT_REVIEW:  { label: 'Paper review', icon: 'fas fa-book-open' },
+  ASSIGNMENT:  { label: 'Assignment', icon: 'fas fa-file-pen' },
 };
 
 const kindMeta = (kind) => SECTION_KINDS[kind] ?? SECTION_KINDS.CONTENT;

@@ -40,6 +40,18 @@ test('alpha artwork is routed to the art tier at native size', () => {
   }
 });
 
+test('ares figures get the figure tier at the content cap', () => {
+  for (const p of [
+    'ares/cfd-regime-comparison.webp',
+    'ares/app-graphs.webp',
+    'ares/headset-assembly.webp',
+  ]) {
+    const r = resolveTier(p);
+    assert.equal(r.mode, 'figure', `${p} should be figure`);
+    assert.equal(r.maxEdge, TIERS.content);
+  }
+});
+
 test('svg and gif are skipped before any decode', () => {
   for (const p of ['icons/atom-solid.svg', 'icons/animat-checkmark.gif']) {
     assert.equal(resolveTier(p).mode, 'skip', `${p} must be skipped`);

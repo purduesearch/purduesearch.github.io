@@ -17,6 +17,11 @@ Static SPA for the Purdue SEARCH club, deployed to GitHub Pages and served at th
 │   ├── index.html                  # HTML shell; Font Awesome CDN link here
 │   ├── search-theme.css            # Public site CSS (linked from index.html on every page)
 │   ├── clubpm-theme.css            # ClubPM-only CSS, fetched on demand by /clubpm/* routes
+│   ├── ares-theme.css              # ARES-only CSS, fetched on demand by /ares/* routes — every selector scoped under .ares-page
+│   ├── ares/                       # ARES photography + CFD figures (webp). Two are ARES's own
+│   │                               # (headset-assembly, pod-interior), four are companion-app
+│   │                               # screenshots, and three are published Dutta et al. figures that
+│   │                               # MUST keep their visible credit string — see spec §1/§7.
 │   └── <program>/                  # Static assets per program
 │       └── interactive diagrams/   # mxGraph XML source files (.xml)
 ├── src/
@@ -32,6 +37,10 @@ Static SPA for the Purdue SEARCH club, deployed to GitHub Pages and served at th
 │   ├── hooks/
 │   │   ├── useFlowAnimations.js
 │   │   └── useSearch.js
+│   ├── theme/
+│   │   └── loadTheme.js            # Generic runtime <link> loader (href, marker) — ares-theme.css and clubpm-theme.css both go through it
+│   ├── lib/
+│   │   └── ares/                   # Pure physics/model helpers backing the ARES interactives (stepResponseModel, beerLambert, breathModel, exposureModel, plumeModel, noisyDifference — each with a test file)
 │   ├── pages/                      # One file (or folder) per route
 │   │   ├── Home.jsx
 │   │   ├── About.jsx
@@ -45,6 +54,7 @@ Static SPA for the Purdue SEARCH club, deployed to GitHub Pages and served at th
 │   │   ├── Research.jsx + Research/   # Rascal
 │   │   ├── SA2TP.jsx + SA2TP/         # Crew1, RodInterview
 │   │   ├── Software.jsx + Software/   # Suits
+│   │   ├── Ares.jsx + Ares/           # TheScience, TheHeadset — public ARES subteam page; see docs/superpowers/specs/2026-08-22-ares-public-subteam-page-design.md §1 for the publication-clearance rule before editing any prose here
 │   │   └── ClubPM/                    # Protected PM dashboards
 │   │       ├── Dashboard.jsx
 │   │       ├── ProjectDetail.jsx      # Main PM view (kanban/milestones/files/vault/ai)
@@ -60,6 +70,7 @@ Static SPA for the Purdue SEARCH club, deployed to GitHub Pages and served at th
 │   │       ├── Shop.jsx               # Cosmetic shop (doubloons)
 │   │       └── BlogEditorPage.jsx     # Collaborative blog editor (Hocuspocus WS)
 │   └── components/
+│       ├── SectionProgressRail.jsx # Fixed right-edge section dots — see gotchas before restyling
 │       ├── AstroFlowDiagram.jsx    # mxGraph interactive diagram (complex — see gotchas)
 │       ├── AstroSubsystem3D.jsx    # Three.js 3D model viewer
 │       ├── Footer.jsx
@@ -71,6 +82,10 @@ Static SPA for the Purdue SEARCH club, deployed to GitHub Pages and served at th
 │       ├── SearchBar.jsx
 │       ├── SEOHead.jsx
 │       ├── STLViewer.jsx
+│       ├── ares/                   # ARES interactives (PlumeSimulator, PodReadout, ExposureDial, DelayVsT90, RegimePlayground, NdirBeam, SystemDiagram, PodDisagreement, AresStat, AresTerm) + aresPhysics.js (single source of truth for every physical constant on /ares)
+│       │                           #   Static figures: AresFigure (shared image slot + placeholder; all three pages),
+│       │                           #   AresHeadProfile (head schematic; exports HEAD_PATH etc. so PlumeAnatomy draws the same person),
+│       │                           #   PlumeAnatomy + CandleComparison (original explanatory SVGs, no external assets)
 │       └── clubpm/                 # ClubPM UI components
 │           ├── AppShell.jsx        # Protected layout shell
 │           ├── GanttChart.jsx
@@ -100,16 +115,18 @@ Static SPA for the Purdue SEARCH club, deployed to GitHub Pages and served at th
 - Hooks only — no class components.
 
 ### CSS
-- **Two stylesheets, split by audience.** No CSS modules, no Tailwind.
+- **Three stylesheets, split by audience.** No CSS modules, no Tailwind.
   - `public/search-theme.css` — public site. Linked from `index.html`, so **every visitor downloads it**. Keep it lean.
   - `public/clubpm-theme.css` — ClubPM only. Fetched at runtime by `src/clubpm/loadClubPmTheme.js`, which `src/App.js` wraps around every `/clubpm/*` lazy route via `lazyWithClubPmTheme()`. Public pages never request it.
-- **Which file does a new rule go in?** If the styled element can appear outside `/clubpm/*`, it belongs in `search-theme.css`. Note that `/schedule/:token` and `/rsvp/:eventId` are **public** routes that reuse the ClubPM look (`.clubpm-app`, `.cpm-form-*`, `.pm-poll-*`), and `/blog/:slug` renders stored HTML whose classes come from `backend/src/services/blogRender.ts` (`.cpm-blog-section`, `.cpm-blog-callout--*`, …) — all of that is public.
-- **Cascade:** `clubpm-theme.css` is appended to `<head>` after `search-theme.css`, so it still wins over both it and `style.min.css`. It is a verbatim tail slice of the pre-split file, which is what keeps ClubPM's cascade byte-for-byte identical; public rules that live in that tail intentionally appear in both files.
+  - `public/ares-theme.css` — ARES only. Fetched at runtime by `src/theme/loadTheme.js` (the same generic `loadTheme(href, marker)` loader `loadClubPmTheme.js` now wraps), gated to every `/ares/*` lazy route. **Every selector must be nested under `.ares-page`** — no bare element selectors, no `:root` block, no unscoped utility classes. This is load-bearing, not stylistic: `ares-theme.css` and `clubpm-theme.css` are both appended to `<head>` at runtime in *visit order*, so `/ares → /clubpm/login` and `/clubpm/login → /ares` produce opposite cascade orders, and `clubpm-theme.css` is a broad verbatim tail slice of the pre-split stylesheet with no scoping of its own. `.ares-page` scoping is what makes that visit-order difference harmless; do not add an ARES rule that skips it.
+- **Which file does a new rule go in?** If the styled element can appear outside `/clubpm/*` and outside `/ares/*`, it belongs in `search-theme.css`. If it only ever renders under `/ares/*` (the hub, the two deep-dives, or any `src/components/ares/*` component), it belongs in `ares-theme.css`, scoped under `.ares-page`. Note that `/schedule/:token` and `/rsvp/:eventId` are **public** routes that reuse the ClubPM look (`.clubpm-app`, `.cpm-form-*`, `.pm-poll-*`), and `/blog/:slug` renders stored HTML whose classes come from `backend/src/services/blogRender.ts` (`.cpm-blog-section`, `.cpm-blog-callout--*`, …) — all of that is public.
+- **Cascade:** `clubpm-theme.css` is appended to `<head>` after `search-theme.css`, so it still wins over both it and `style.min.css`. It is a verbatim tail slice of the pre-split file, which is what keeps ClubPM's cascade byte-for-byte identical; public rules that live in that tail intentionally appear in both files. `ares-theme.css` loads/unloads the same way on `/ares/*` visits; its `.ares-page` scoping (rather than load order) is what keeps it from colliding with either of the other two.
 - `src/index.css` — base reset and font styles only.
 - `src/newscarousel.scss` — carousel-specific SCSS (one-off; do not add more SCSS files).
-- Theme tokens are CSS custom properties: `--color-accent`, `--color-border`, `--color-muted`, `--color-text-muted`, `--color-bg`, etc.
-- Component class names are kebab-case, namespaced by feature (e.g., `astro-diagram-wrap`, `astro-diagram-toolbar`, `astro-key-btn`).
-- Append new component CSS to the bottom of whichever of the two files applies; never inline critical styles.
+- **Theme tokens — check the file before assuming a name is global.** Only these `--color-*` tokens have a real `:root` declaration in `search-theme.css` and are safe to use anywhere on the public site: `--color-text`, `--color-muted`, `--color-border`, `--color-accent`, `--color-bg-sand` (plus the `--color-bg-*` family — `--color-bg-primary`, `--color-bg-secondary`, `--color-bg-dark`, `--color-bg-footer`, `--color-bg-card`; there is no bare `--color-bg`). **`--color-text-muted` is NOT declared in `search-theme.css`'s `:root`** — it is declared only inside the `.clubpm-app` block there (`public/search-theme.css` ~line 4296, sourced from `--pm-text-muted`) and silently resolves to nothing (transparent/inherit, not an error) for any public page that isn't ClubPM and doesn't declare it itself. This one line being wrong in an earlier revision of this file cost the ARES build two invisible SVG strokes across six independent agent passes before it was caught — grep the actual `:root { … }` block of the stylesheet in play before trusting a token name from memory, here or anywhere else. **Exception: `/ares/*` is now safe.** `public/ares-theme.css` declares its own `--color-text-muted` on `.ares-page` (~line 42) specifically so ARES's own uses resolve — added after the incident above. The token is still not global; it now independently exists in two places (`.clubpm-app` and `.ares-page`) with the same value, which is deliberate, not drift to "fix" by deleting either.
+- Component class names are kebab-case, namespaced by feature (e.g., `astro-diagram-wrap`, `astro-diagram-toolbar`, `astro-key-btn`, `ares-plume-canvas`).
+- Append new component CSS to the bottom of whichever of the three files applies; never inline critical styles.
+- `scripts/minify-public-css.mjs` carries a **hardcoded `TARGETS` array** (`search-theme.css`, `clubpm-theme.css`, `style.min.css`, `fa-subset.css`, `ares-theme.css`) — any new public stylesheet must be added to it by hand or it silently ships unminified. The script **warns and skips** a target that isn't in `build/` rather than failing the build, so a missing entry will not surface as a build error; check the `[minify-css]` log lines after `npm run build`.
 
 ### Animations
 - AOS for scroll entrance: `data-aos="fade-up"`, `data-aos-delay="100"` on JSX elements.
@@ -177,6 +194,30 @@ Deploy is manual push to the `main` branch; GitHub Pages serves from root at `pu
 - **Cutover completed 2026-08-05, with cleanup deliberately deferred ~2 weeks.** Still live and still to be removed: `CORS_EXTRA_ORIGINS`, the DuckDNS nginx vhost + cert (`search-constellation.duckdns.org`), and the old OAuth redirect URLs in the Slack/GitHub apps. They are the rollback path — don't remove them opportunistically. Checklist in `docs/DOMAIN-CUTOVER-RUNBOOK.md` Phase 8.
 - `provision-domain.yml` (Actions tab) adds an nginx vhost + certbot cert for a hostname alongside the existing ones. Run `diagnose` first; `apply` refuses to call certbot until DNS resolves to the box, because Let's Encrypt allows only 5 validation failures per hostname per hour. Design rationale: `docs/superpowers/specs/2026-08-05-purduesearch-org-migration-design.md`.
 
+### SectionProgressRail — a fixed box that is wider than it looks
+`.section-rail` (search-theme.css) is `position: fixed` with only `right` set. Its width is therefore
+shrink-to-fit resolved against its *static* position at the left edge of the page, so Chrome lays the
+`<nav>` out at the **full viewport width** even though every dot inside it hugs the right edge —
+measured 1440x159 at a 1440px viewport. It is invisible and `z-index: 40`, so for a long time it
+silently swallowed every click in a ~160px horizontal band across the vertical middle of every
+program page. On `/ares` that meant all five range sliders were dead whenever they were scrolled to
+centre (i.e. whenever you were about to drag one) and the pod markers were unclickable; it read as an
+intermittent bug because whether a control worked depended purely on where it sat in the viewport.
+
+Two rules keep it harmless, and both are load-bearing:
+1. `.section-rail` is `pointer-events: none`; only `.section-rail-dot` opts back in.
+2. `.section-rail-label` is `position: absolute`, out of flow. In flow it sized every dot button to
+   its longest label (60-134px), because labels occupy layout even at `opacity: 0`.
+
+If you restyle the rail, re-check with `document.elementFromPoint()` over page content, not by eye.
+
+### Images
+- `scripts/optimize-images.config.mjs` has a **`figure` tier** (`FIGURE_DIRS = ['ares/']`, q88) on top
+  of photo/art/animated. Plotted figures and UI screenshots carry small hard-edged type that the
+  default q75 photo profile visibly rings around. Drop a new plotted figure anywhere else under
+  `public/` and it gets q75 — put it in `public/ares/` or extend `FIGURE_DIRS`.
+- Always `npm run optimize:images -- --report` before the real run.
+
 ### General
 - `public/` assets are served at `/` in dev and in the GitHub Pages build. Paths in JSX must start with `/` (e.g., `/astrousa/fig1.jpg`).
 - No `.env` is needed for frontend dev or build. `REACT_APP_API_URL` is optional locally (CRA's `proxy` field forwards to `localhost:3001`) and is supplied as a repo secret in CI.
@@ -221,6 +262,9 @@ Deploy is manual push to the `main` branch; GitHub Pages serves from root at `pu
 - `dmBatcher.ts` — Slack DM queue: `queueDm()`.
 - `streakService.ts` — `recordActivity()`, daily reset sweep.
 - `notificationCrud.ts` — `createNotification()`.
+- `rubricGrading.ts` — the shared AI grading path for `LIT_REVIEW` **and** `ASSIGNMENT` sections: `buildGradingPrompt()`, `parseGradingResponse()`, `normalizeRubric()`, `countWords()`, `gradeAgainstRubric()`. `litReviewService.ts` re-exports these under its old `Lit*` names so existing importers keep compiling. **Uses `generateJson`, never `generateJsonComplex`** — the complex lane is 25 requests *per day* and shared with every other AI feature, so one cohort working through a module would starve it. `parseGradingResponse` iterates the *author's* rubric rather than the model's array: an id the model invented is dropped and a point it skipped is scored `missed`, never free credit.
+- `assignmentService.ts` — `ASSIGNMENT` pure logic: `sanitizeAssignmentConfig()`, `gradeAssignment()`, `decideCompletion()`, `DEFAULT_ASSIGNMENT_MIN_WORDS`. `sanitizeAssignmentConfig` builds the learner payload **by construction from the five safe keys, never by spreading the column and deleting secrets** — `referenceAnswer` and `rubric` are author-only, and a future author-side key would otherwise ship to every learner by default. `decideCompletion` is the whole of the score gate: `isSectionUnlocked` is untouched, so gating is purely a question of when `COMPLETED` is written, and a gated section whose grading produced no score returns `COMPLETE_UNGRADED` — **fail-open is load-bearing**, a Gemini outage must not strand a cohort.
+- `documentTextService.ts` — `extractText(buffer, mimeType, fileName)` turns an uploaded PDF / `.docx` / text file into plain text for grading. Every failure is a typed result, never a throw. **`pdf-parse` must be imported from the deep path `pdf-parse/lib/pdf-parse.js`** — importing the package root runs a bundled debug harness that reads a test PDF off disk and throws in production. Trusts the file extension when the MIME type is generic, because browsers send `application/octet-stream` for `.md`. A file that parses to nothing is `EMPTY`, never ok-with-an-empty-string: that is the scanned-PDF path, and returning ok would grade a scan as a zero and strand a gated learner.
 
 ### Slack (`backend/src/slack/`)
 - `scheduler.ts` — All cron jobs (node-cron), **~30 of them**: shop rotation + daily quests (00:00 UTC), streak reset (02:00), vault temp sweep + notification cleanup + auto-archive nudges (03:00-03:30), due-date reminders (08:00), escalations (08:30), milestone health (08:45), Monday digest (09:00), standup prompts (09:15 Tue-Fri), CRM follow-ups (09:05), stale-task warnings (10:00 weekdays), several AI reports (risk Fri 15:45, capacity Wed 10:30, dependency inference Sun 20:00), hourly outreach auto-publish, blog scheduled-publish every 5 min, admin re-sync every 6 h. **Add new crons here only.**
@@ -235,6 +279,7 @@ Key enums:
 - `RewardEventType` — TIME_LOG_HOUR, TASK_COMPLETE_MEMBER_CREATED, TASK_COMPLETE_ADMIN_CREATED, MILESTONE_HIT, KUDOS_RECEIVED, BLOG_POST_PUBLISHED, EARLY_DELIVERY_BONUS
 - `ChallengeMetric` — TASK_COMPLETED, COMMENT_WRITTEN, TIME_LOG_HOURS, UNIQUE_ASSIGNEES, FILE_ATTACHED, etc.
 - `ChallengeType` — DAILY, WEEKLY, MONTHLY, ACHIEVEMENT
+- `CourseSectionKind` — CONTENT, VIDEO, QUIZ, SLIDES, WALKTHROUGH, LIT_REVIEW, **ASSIGNMENT**. One `Json?` config column per kind on `CourseSection` (`videoConfig` / `slideConfig` / `tourConfig` / `litConfig` / `assignmentConfig`); **every writer spreads the previous value and writes the column whole**, never key-by-key. `LIT_REVIEW` and `ASSIGNMENT` both write learner attempts to `CourseWorkSubmission` — one model, `@@map`'d to the original `CourseLitSubmission` table so the rename emitted no DDL. One row **per attempt**, never updated in place; the revision history is the point. Opt-in score gating on either kind reuses the existing `CourseSection.passThreshold` column.
 - `ActivityEventType` — `ActivityLog` event types (see `logAuditEvent`/`getProjectAuditLog`/`getTaskAuditLog`). Task/project/GitHub lifecycle values (`TASK_CREATED`, `TASK_UPDATED`, `TASK_COMPLETED`, `TASK_DELETED`, `TASK_ASSIGNED`, `GITHUB_PR_MERGED`, etc.) plus the audit-sync additions: `TASK_DEPENDENCY_ADDED`/`TASK_DEPENDENCY_REMOVED`, `TASK_BLOCKER_ATTACHED`/`TASK_BLOCKER_DETACHED`, `BLOCKER_RESOLVED`, `COMMENT_ADDED`/`COMMENT_EDITED`/`COMMENT_DELETED`, `TIME_LOGGED`, `MILESTONE_CREATED`/`MILESTONE_UPDATED`/`MILESTONE_DELETED`/`MILESTONE_TASKS_LINKED`, and `AI_PLAN_EXECUTED` (one summary event per AI action-plan execution, in addition to the specific event type logged per executed action).
 
 Member XP lives in **two places kept in sync by `grantXP()`**: a `Member.xp` running-total column (read for display/rank) and `XpEvent` ledger rows (audit/history). Never increment one without the other — go through `rewardService.grantXP()`.

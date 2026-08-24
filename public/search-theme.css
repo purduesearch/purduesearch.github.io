@@ -5830,7 +5830,29 @@ html:not(.aos-off) [data-aos].aos-animate  { opacity: 1; transform: none; }
 
 /* === SECTION PROGRESS RAIL (program pages) ======================= */
 /* Sticky right-center rail of labeled dots; one per page section.
-   Desktop-only â€” hidden below 1100px (see SectionProgressRail.jsx). */
+   Desktop-only â€” hidden below 1100px (see SectionProgressRail.jsx).
+
+   POINTER-EVENTS IS LOAD-BEARING HERE, not a micro-optimisation. This is a
+   `position: fixed` box with `left: auto` and only `right` set, so its width
+   is shrink-to-fit resolved against its *static* position — which is the left
+   edge of the page, because SectionProgressRail renders as a plain block child
+   of the page root. Chrome therefore lays the <nav> out at the FULL viewport
+   width (measured: 1440px wide x 159px tall at 1440px viewport) even though
+   every dot inside it hugs the right edge. With the default
+   `pointer-events: auto` and `z-index: 40`, that invisible box swallowed every
+   click in a ~160px horizontal band across the vertical middle of the page:
+   range sliders scrolled to centre (exactly where you put one to drag it) were
+   completely dead, and the /ares pod markers were unclickable. It read as an
+   intermittent bug because whether a control was dead depended purely on where
+   it happened to sit in the viewport, and scrolling or reloading moved it.
+
+   Fix is two-part and both halves are needed:
+     1. the nav is transparent to the pointer; only the dots opt back in, and
+     2. the label is taken OUT OF FLOW, so an opted-in dot is a compact ~22px
+        target instead of a 60-134px wide bar (labels occupy layout even at
+        opacity: 0, so every dot was that wide, not just the active one).
+   Do not restore `pointer-events` on .section-rail or put .section-rail-label
+   back in flow. */
 .section-rail {
   position: fixed;
   top: 50%;
@@ -5840,18 +5862,28 @@ html:not(.aos-off) [data-aos].aos-animate  { opacity: 1; transform: none; }
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 0.85rem;
+  /* Was 0.85rem between 8px-tall buttons (21.6px centre-to-centre). The
+     buttons are 22px now, so the gap shrinks to keep the rail visually
+     compact while the targets stay comfortably separated. */
+  gap: 0.35rem;
+  pointer-events: none;
 }
 .section-rail-dot {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 0.6rem;
+  justify-content: center;
+  /* A real 22px target rather than the 8px visual dot — Fitts's law, and the
+     previous width came from the label sitting in flow beside it. */
+  width: 22px;
+  height: 22px;
   background: none;
   border: none;
   padding: 0;
   margin: 0;
   cursor: pointer;
   line-height: 0;
+  pointer-events: auto;
 }
 .section-rail-dot::before {
   content: '';
@@ -5879,11 +5911,20 @@ html:not(.aos-off) [data-aos].aos-animate  { opacity: 1; transform: none; }
   outline-offset: 4px;
   border-radius: 4px;
 }
+/* Out of flow (see the .section-rail comment): in flow it made every dot
+   button as wide as its longest label, which is half of why the rail was
+   eating clicks meant for the page. `right: 100%` anchors it to the left of
+   the 22px dot, matching the old flex `gap: 0.6rem` spacing. */
 .section-rail-label {
+  position: absolute;
+  right: 100%;
+  top: 50%;
+  margin-right: 0.35rem;
   font-family: var(--font-body);
   font-size: 0.72rem;
   font-weight: 600;
   letter-spacing: 0.02em;
+  line-height: 1.4;
   white-space: nowrap;
   color: var(--color-text);
   background: var(--color-card-bg);
@@ -5891,7 +5932,7 @@ html:not(.aos-off) [data-aos].aos-animate  { opacity: 1; transform: none; }
   border-radius: 20px;
   padding: 0.25em 0.75em;
   opacity: 0;
-  transform: translateX(6px);
+  transform: translate(6px, -50%);
   transition: opacity 0.2s ease, transform 0.2s ease;
   pointer-events: none;
   box-shadow: 0 2px 8px rgba(26,26,26,0.08);
@@ -5900,7 +5941,7 @@ html:not(.aos-off) [data-aos].aos-animate  { opacity: 1; transform: none; }
 .section-rail-dot:focus-visible .section-rail-label,
 .section-rail-dot.active .section-rail-label {
   opacity: 1;
-  transform: translateX(0);
+  transform: translate(0, -50%);
 }
 @media (max-width: 1100px) {
   .section-rail { display: none; }

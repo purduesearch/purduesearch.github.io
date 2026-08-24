@@ -1,0 +1,92 @@
+{
+  "quizId": "Q21-calibration",
+  "title": "Check yourself: calibration and error",
+  "passThreshold": 75,
+  "maxAttempts": null,
+  "questions": [
+    {
+      "id": "q21-1",
+      "order": 0,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "`probeAndInitCO2()` sends `@ 0` to every CO₂ sensor at every boot, unconditionally, with no setting anywhere to change it. Automatic baseline correction is a genuinely good feature — it is what keeps a wall-mounted CO₂ sensor calibrated for years without anyone touching it. Why is it disabled on a headset, and which way does the resulting error run if it is left on?",
+      "explanation": "ABC is the sensor performing its own single-point calibration on a timer. Over a multi-day window it records the lowest concentration it has seen, **assumes that minimum was well-mixed outdoor air at about 400 ppm**, and shifts its zero so that the minimum reads 400. In a ventilated office on a continuously powered sensor that assumption holds — buildings really do reach outdoor concentration overnight. A headset does not: it is powered during sessions, worn indoors, and sitting inside the plume of the person wearing it, so the window's minimum is not 400 but something closer to 600 or 700. ABC assumes that 700 was 400 and subtracts the difference from everything afterwards. The error is **one-directional** for a structural reason worth being able to state: the observed minimum is always *above* the assumed value, never below, so the correction is always downward. The symptom the team recorded on slide 6 of the 7/30 deck is exactly what that predicts — indoor readings drifting **below 300 ppm**, which is below any real ambient concentration anywhere on Earth and is therefore the tell. A reading of 280 ppm in a room is not a low-CO₂ room; it is a sensor that has re-zeroed itself against rebreathed air. The comparison that makes it click: `G` and ABC make the *same* assumption about the air. The difference is who guarantees it — the fresh-air zero is triggered by a person standing outdoors holding the headset, and ABC is triggered by a timer that trusts a statistic. Note two practical consequences. The op to re-enable it exists (`abc_on` sends `@ 1.0 8.0`) and is reachable from both the app and the web dashboard. And because ABC lives inside the sensor, a part fresh from the factory arrives with it enabled — `@ 0` at every boot is what makes a new sensor safe, in the same way `K 0` at every boot is what makes it quiet.",
+      "answers": [
+        { "order": 0, "text": "ABC re-zeroes the lowest reading in a multi-day window to 400 ppm, assuming the sensor saw fresh air; on a headset that minimum is elevated indoor and rebreathed air, so the shift is always downward and readings drift below any real ambient — the recorded symptom is sub-300 ppm indoors", "isCorrect": true },
+        { "order": 1, "text": "ABC fires on a fixed timer that can land in the middle of a recording session and put a step discontinuity into the data; the direction of the shift depends on when the timer happens to fire and is therefore unpredictable", "isCorrect": false },
+        { "order": 2, "text": "ABC writes its correction to the same NVS keys the per-pod software offsets use, so leaving it enabled would silently overwrite `co2Offset[]` between sessions, and the error runs in whichever direction the last write went", "isCorrect": false },
+        { "order": 3, "text": "ABC needs the sensor to stay powered continuously for its full 8-day interval, and a headset switched off between sessions never completes one — so ABC never actually fires, the factory zero stays in place, and the readings stay biased high", "isCorrect": false }
+      ]
+    },
+    {
+      "id": "q21-2",
+      "order": 1,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "Standing in genuinely well-mixed outdoor air, the three pods read 480, 455 and 610 ppm. A member proposes calibrating all three to the **mean of the three**, 515 ppm, on the grounds that no external standard is needed and the pods end up agreeing. Taking the true concentration to be 400 ppm, how much does that choice actually cost the rebreathed fraction — and what does it cost that is not the rebreathed fraction?",
+      "explanation": "Almost nothing, and this is the most counter-intuitive result in the module. Calibrating to the mean leaves every pod reading 115 ppm high. But 115 ppm is **common to all three**, and a shared additive error cancels in a difference: `C_chin − C_top` is `(1850 + 115) − (700 + 115)` = 1,150 ppm, exactly as before. The error survives only in the denominator, which becomes `38000 − 815` = 37,185 instead of 37,300, so `f_rb` goes from 3.083 % to 3.093 % — a shift of **0.31 %**, which is smaller than the quantisation noise. The numerator does not know. What it does cost is everything that depends on an **absolute** concentration, and that list is long: the app's dosimeter integrates ppm over time, `M4`'s exposure tiers are absolute thresholds at 1,000 / 2,500 / 5,000 ppm, the ventilation model reads a room concentration, and nobody else's data is comparable with yours. A headset calibrated to its own mean is internally consistent and externally meaningless. The right way to hold both halves: **for a difference, what matters is that the pods agree with each other; for a concentration, what matters is that they agree with the world.** ARES needs both, which is why the calibration uses an external claim (400 ppm) rather than an internal one, and why `C21` says a stale baseline value — 400 when the truth is 425 — is a much smaller problem than two pods disagreeing by 130.",
+      "answers": [
+        { "order": 0, "text": "Almost nothing — the 115 ppm is common to all pods so it cancels in the numerator and survives only in the denominator, moving `f_rb` by about 0.3 %. What it destroys is every absolute quantity: dose, the exposure tiers, and comparability with anyone else's data", "isCorrect": true },
+        { "order": 1, "text": "About 10 % — the 115 ppm lands in the numerator exactly as an uncalibrated per-pod offset does, and 115 ppm out of a 1,150 ppm signal is a 10 % overstatement", "isCorrect": false },
+        { "order": 2, "text": "Nothing at all, in any respect — the rebreathed fraction is a ratio, so a constant added to every reading cancels between the numerator and the denominator and leaves the answer identical", "isCorrect": false },
+        { "order": 3, "text": "About 6.7 %, the same as the pressure correction at 950 hPa, since both are errors applied identically to every pod and common-mode errors of either kind scale a difference by the same proportion", "isCorrect": false }
+      ]
+    },
+    {
+      "id": "q21-3",
+      "order": 2,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "After calibration the top pod's stored offset is −80 ppm and the chin pod's is −210 ppm. Somebody runs a session with the offsets cleared. How much error lands in the numerator of `f_rb`, and why is that number not either sensor's error?",
+      "explanation": "130 ppm — the **difference** of the two biases, not their sum, not their quadrature sum, and not the larger of the two. Write it out: `(C_chin + b_chin) − (C_top + b_top) = (C_chin − C_top) + (b_chin − b_top)`, so with the offsets cleared the numerator carries `b_top − b_chin` = `−80 − (−210)` = **+130 ppm**. Three consequences follow and you should be able to give all three without looking. If the two pods happened to share a bias it would **cancel exactly** — which is why `Q21`'s mean-calibration question costs almost nothing, and why the two-channel NDIR design in `C16` works at all. If the biases differ, the error is the gap between them and it describes **neither sensor**: one pod is off by 80, one by 210, and the number that lands in your result is 130. And if the biases have **opposite signs**, the error is larger than either — a +100 pod against a −100 pod gives you 200 ppm of error out of two sensors that individually look tolerable. The quadrature rule people reach for here (`√(210² + 80²)` = 225) is for **random** errors, which are independent and zero-mean and different every sample; it is the right rule for quantisation noise, where each pod's 2.9 ppm becomes 4.1 ppm in the difference. Applying it to fixed biases is the single most common mistake in this module.",
+      "answers": [
+        { "order": 0, "text": "130 ppm — the difference of the two biases. Systematic errors subtract rather than adding in quadrature, so shared biases cancel exactly and opposite-signed biases produce an error larger than either one", "isCorrect": true },
+        { "order": 1, "text": "About 225 ppm — the two sensors are independent, so their errors add in quadrature: `√(210² + 80²)`", "isCorrect": false },
+        { "order": 2, "text": "290 ppm — errors from two independent instruments accumulate, so a subtraction carries the sum of the two magnitudes", "isCorrect": false },
+        { "order": 3, "text": "210 ppm — the numerator error is set by the worse of the two sensors, since the top pod's smaller error falls inside the chin pod's and does not add anything to it", "isCorrect": false }
+      ]
+    },
+    {
+      "id": "q21-4",
+      "order": 3,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "That 130 ppm of numerator error is the same number whether the subject is rebreathing heavily or not at all. At a true chin-minus-top difference of 1,150 ppm it overstates the rebreathed fraction by 11.5 %. What does it do at a 50 ppm difference — an upright subject in a well-ventilated room — and why should that worry you more than the 11.5 % does?",
+      "explanation": "It overstates by a factor of **3.6**. The true fraction is `50/37300` = 0.134 %, which the app labels **None**; the uncalibrated pair gives `180/37220` = 0.484 %, which it labels **Low**. The band boundary is crossed, and a subject with essentially no rebreathing is reported as having some. The general form is `f_uncal / f_cal = (Δ + 130)/Δ × 1.0021`, so the relative damage grows without limit as Δ shrinks — 11.5 % at Δ = 1,150, 29 % at Δ = 450, a factor of 3.6 at Δ = 50. **A fixed error in a difference does its worst damage where the signal is smallest.** And the reason that matters more than the peak case is what the small signal *is*: it is the control. It is the upright baseline you subtract the supine session from, the fresh-air night you compare the cave night against, the pre-exposure period every protocol in `M11` opens with. The condition your experiment draws its meaning from is precisely the condition this defect ruins. Compare it with a **span** error, which behaves completely differently: a shared 3 % span error costs 3 % of the difference at every signal level — 34.5 ppm at Δ = 1,150 and 1.5 ppm at Δ = 50. A zero error is a fixed number of ppm and explodes as the signal shrinks; a span error is a fixed fraction and does not. A fresh-air calibration removes the one that explodes.",
+      "answers": [
+        { "order": 0, "text": "It overstates by a factor of 3.6, taking 0.134 % to 0.484 % and crossing from the app's \"None\" band into \"Low\" — and the smallest signal is the control condition every experiment subtracts from", "isCorrect": true },
+        { "order": 1, "text": "It stays at 11.5 %, because the 130 ppm was itself derived from these two pods and scales with what they read, so the error and the signal shrink together", "isCorrect": false },
+        { "order": 2, "text": "It falls to well under 1 %, because a 50 ppm difference is only five quantisation steps and the sensor's 32-sample digital filter averages a small fixed offset away over its window", "isCorrect": false },
+        { "order": 3, "text": "It rises to about 26 %, since 130 ppm now sits against a 500 ppm denominator — but this matters less than the 11.5 % case, because a fraction that small falls below the app's reporting threshold either way", "isCorrect": false }
+      ]
+    },
+    {
+      "id": "q21-5",
+      "order": 4,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "Model a sensor as `reading = (1 + s)·C_true + b`, with `b` an offset in ppm and `s` a dimensionless span error. A fresh-air calibration exposes it to one known concentration, 400 ppm. Which of `b` and `s` does that fix, and for a sensor with `s` = +0.03 and no zero error at all, what is left at 1,850 ppm?",
+      "explanation": "A single-point calibration fits **one number**, so it can correct exactly one of the two. It measures the discrepancy at one concentration and applies a constant shift that makes the reading right *there*; that removes `b` exactly and leaves `s` completely untouched. Work the arithmetic. At 400 ppm the sensor reads `1.03 × 400` = 412, so the calibration applies a shift of **−12 ppm**. At 1,850 ppm it reads `1.03 × 1850` = 1,905.5 — an error of 55.5 ppm — and the −12 ppm shift leaves **1,893.5 ppm, a residual of +43.5 ppm**. The calibration removed 12 ppm of a 55.5 ppm error, which is not a failure of the procedure but the procedure working exactly as designed on a problem it was never able to address. Fixing `s` requires a **second** known concentration, because two points determine a line — which is ARES deliverable 2.5.2, exposing all three sensors to a certified reference gas and recording measured against known. One mercy specific to this project: a span error is *proportional*, so if both pods share it, it costs a fixed percentage of the difference rather than a fixed number of ppm. With `s` = 0.03 on both pods a true 1,150 ppm difference measures 1,184.5, which is 3 % high, and it stays 3 % high at any signal level. That is a much better-behaved error than the zero error a single-point calibration exists to remove.",
+      "answers": [
+        { "order": 0, "text": "It fixes `b` and leaves `s`. Zeroing at 400 ppm applies a −12 ppm shift, which removes 12 ppm of the 55.5 ppm error at 1,850 ppm and leaves +43.5 ppm; determining `s` needs a second known concentration", "isCorrect": true },
+        { "order": 1, "text": "It fixes `s` and leaves `b`, because a single-point calibration is a multiplicative gain correction — the residual at 1,850 ppm is the sensor's fixed 12 ppm zero error", "isCorrect": false },
+        { "order": 2, "text": "It fixes both, because at one point `b` and `s` are indistinguishable and the fitted shift necessarily absorbs the whole 55.5 ppm error; nothing measurable remains at 1,850 ppm", "isCorrect": false },
+        { "order": 3, "text": "It fixes `b` and leaves `s`, and the full 55.5 ppm remains, because a shift derived at 400 ppm is only valid at 400 ppm and has no effect on a reading taken at 1,850 ppm", "isCorrect": false }
+      ]
+    },
+    {
+      "id": "q21-6",
+      "order": 5,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "At 950 hPa an uncorrected NDIR reading is low, and the correction to sea-level-equivalent mole fraction is a multiply by `1013.25 / 950` = 1.0666. Both pods get the identical factor. A member argues that since it is applied identically to both, it must cancel in `C_chin − C_top` — the same common-mode argument that makes a shared zero error harmless. What actually happens?",
+      "explanation": "It does not cancel. A common **additive** error cancels in a difference; a common **multiplicative** factor scales it. `(k·C_chin) − (k·C_top) = k·(C_chin − C_top)`, so the 1,150 ppm difference becomes `1150 × 1.0666` = **1,226.6 ppm**, up 76.6 ppm — more than half the size of the 130 ppm calibration error the rest of this module is about. Through the formula, `f_rb` goes from 3.083 % to `1226.6/37253` = **3.293 %**, a change of **+6.79 %**. Note that the two percentages deliberately differ: the correction is +6.66 % on each *reading* and +6.79 % on `f_rb`, because the denominator's `− C_top` term grows as well. Being able to say which errors cancel in a difference and which do not is the whole of `C21`'s error budget: a shared zero error cancels exactly, unequal zero errors survive at full size as their difference, and any shared multiplicative factor — span error or pressure correction — scales the difference by that factor. And the reason this one is a data-contract problem as well as an arithmetic one: the correction exists **only in the app's display layer**, in `co2_correction.dart`, applied to the pod cards when a toggle is on. The firmware has the pressure number, logs it in `press_hpa`, and never applies it. So the card and the CSV can differ by several percent for the same instant, and nothing in the payload, the file, or the UI records which convention a given number was taken under.",
+      "answers": [
+        { "order": 0, "text": "It does not cancel — a common additive error cancels in a difference but a common multiplicative factor scales it. The 1,150 ppm difference becomes 1,226.6, and `f_rb` moves from 3.083 % to 3.293 %", "isCorrect": true },
+        { "order": 1, "text": "It cancels exactly, as claimed — any operation applied identically to both readings leaves their difference unchanged, which is the same argument that makes a stale 400 ppm baseline value harmless", "isCorrect": false },
+        { "order": 2, "text": "It cancels in the numerator but not in the denominator, so `f_rb` moves by about 0.2 % — the same size as the denominator term in the uncalibrated-pods calculation", "isCorrect": false },
+        { "order": 3, "text": "It does not cancel, but the effect is negligible: the difference grows by 6.7 % of 1,150 ppm, which is 7.7 ppm — smaller than one quantisation step of the sensor", "isCorrect": false }
+      ]
+    }
+  ]
+}

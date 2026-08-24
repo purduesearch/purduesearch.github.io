@@ -1,0 +1,90 @@
+{
+  "quizId": "Q13-plume",
+  "title": "Check yourself: the plume and the pods",
+  "passThreshold": 75,
+  "maxAttempts": null,
+  "questions": [
+    {
+      "id": "q13-1",
+      "order": 0,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "Dutta et al.'s simulation puts the plume's peak velocity of 0.3–0.4 m/s at the top of the head. Why is the maximum there rather than at the chest or the ankles?",
+      "explanation": "Three things stack up at the crown. Buoyancy accumulates — every element of warm surface adds force to a layer that is already moving, so the velocity scale grows with the distance climbed. The warmest surfaces are near the top (35–37 °C at head, neck and chest against 30–33 °C at the legs). And the body narrows toward the crown, so flow gathered from the whole torso leaves through a smaller area. Breathing has nothing to do with it: in the paper's own simulation the plume is fully developed before the first breath is taken.",
+      "answers": [
+        { "order": 0, "text": "The plume has been accumulating buoyancy over the whole body, the warmest skin is near the top, and the body's cross-section narrows toward the crown", "isCorrect": true },
+        { "order": 1, "text": "Exhaled breath adds momentum to the plume as it passes the face", "isCorrect": false },
+        { "order": 2, "text": "Air is thinner above the head, so the same buoyant force produces more speed", "isCorrect": false },
+        { "order": 3, "text": "The scalp loses more heat than any other part of the body", "isCorrect": false }
+      ]
+    },
+    {
+      "id": "q13-2",
+      "order": 1,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "Why is the top pod, and not the forehead pod, used as the ambient reference in the rebreathed-fraction calculation?",
+      "explanation": "The reference has to be air that has not been breathed. The forehead sits inside the region the breathing envelope sweeps and is close to the mouth, so it is not a clean baseline — its job is humidity and thermal load, which feed M8's hydration and comfort models. The crown is the furthest point on the headset from the mouth, which is why it was chosen. Whether it is actually clean is a separate question, and the answer is no — see the next question.",
+      "answers": [
+        { "order": 0, "text": "The crown is the furthest point on the headset from the mouth; the forehead pod measures humidity and thermal load instead", "isCorrect": true },
+        { "order": 1, "text": "The forehead pod has no CO₂ sensor fitted", "isCorrect": false },
+        { "order": 2, "text": "The forehead pod is reserved as a backup in case the chin pod fails", "isCorrect": false },
+        { "order": 3, "text": "Forehead readings are too noisy because of skin contact", "isCorrect": false }
+      ]
+    },
+    {
+      "id": "q13-3",
+      "order": 2,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "A headset's top pod is sitting inside the plume, so it reads 1,100 ppm when the true un-rebreathed ambient is 700 ppm. The chin pod correctly reads 1,850 ppm and the assumed exhaled concentration is 40,000 ppm. What happens to the computed rebreathed fraction?",
+      "explanation": "It comes out low, and by a lot. With a clean reference: (1,850 − 700)/(40,000 − 700) = 1,150/39,300 = 2.93 %. With the contaminated one: (1,850 − 1,100)/(40,000 − 1,100) = 750/38,900 = 1.93 %. That is 34 % below the true value. The direction is not luck — raising C_top takes a third out of a numerator that was only 1,150, while barely touching a denominator near 40,000. A contaminated reference does not add noise; it biases the answer low, in the one measurement the project exists to make.",
+      "answers": [
+        { "order": 0, "text": "It is biased low — 1.93 % instead of 2.93 %, about 34 % under the true value", "isCorrect": true },
+        { "order": 1, "text": "It is biased high, because the top pod reading appears in the numerator", "isCorrect": false },
+        { "order": 2, "text": "It becomes noisier but stays correct on average", "isCorrect": false },
+        { "order": 3, "text": "It is unaffected, because C_top appears in both the numerator and the denominator and cancels", "isCorrect": false }
+      ]
+    },
+    {
+      "id": "q13-4",
+      "order": 3,
+      "kind": "TRUE_FALSE",
+      "points": 1,
+      "prompt": "Dutta et al. validated their microgravity results against Schlieren imaging of human subjects.",
+      "explanation": "False, and the distinction matters. The Schlieren comparison validates the 1g case only — that is real photography of real people, and it is the strongest evidence in the paper. Nobody has flown a Schlieren rig and a volunteer, so the microgravity half of the paper is a model extrapolated past the range where its validation exists. That gap is precisely what ARES was built to close, and M3 makes 'what was this validated against?' an explicit reading skill.",
+      "answers": [
+        { "order": 0, "text": "True", "isCorrect": false },
+        { "order": 1, "text": "False", "isCorrect": true }
+      ]
+    },
+    {
+      "id": "q13-5",
+      "order": 4,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "The rebreathed fraction is f_rb = (C_chin − C_top)/(C_exhaled − C_top). Which of these is an assumption the formula makes, rather than something it measures?",
+      "explanation": "It is a two-compartment mixing model: the air at the chin is treated as exactly reference air plus your own exhalate, and nothing else. A third source — another person, a vent, a scrubber outlet — is not represented, and the formula silently attributes it to the subject's own breath. C_exhaled is also assumed rather than measured, which is why V12 shows the answer moving from 2.93 % to 2.33 % when you swap 40,000 ppm for the paper's 50,000 ppm.",
+      "answers": [
+        { "order": 0, "text": "That the air at the chin is a mixture of exactly two things — reference air and the subject's own exhalate", "isCorrect": true },
+        { "order": 1, "text": "That the chin pod reads higher than the top pod", "isCorrect": false },
+        { "order": 2, "text": "That all three concentrations are expressed in ppm", "isCorrect": false },
+        { "order": 3, "text": "That the subject is breathing through the mouth rather than the nose", "isCorrect": false }
+      ]
+    },
+    {
+      "id": "q13-6",
+      "order": 5,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "Fabregat et al. resolve a single violent exhalation and find a jet at roughly 4.8 m/s that becomes a buoyant puff about a second later. How does that fit with M1's steady plume at 0.3–0.4 m/s?",
+      "explanation": "Both are right, at different timescales, and they nest. At the mouth the exhalate carries real momentum — the Richardson number is about 5.6 × 10⁻⁴, so inertia beats buoyancy by roughly three orders of magnitude and the flow is a directed jet that does not care which way is up. Once the mouth stops pushing, the jet decays to a puff, the momentum bleeds away, and the buoyancy that was always there takes over and turns it upward. The crossover is around a second; a breath is four seconds; so both regimes occur in every cycle you measure.",
+      "answers": [
+        { "order": 0, "text": "They describe different timescales — momentum dominates for the first fraction of a second, then decays until buoyancy takes over and the puff rises", "isCorrect": true },
+        { "order": 1, "text": "They contradict each other; the DNS is a cough, so the plume result must be wrong for breathing", "isCorrect": false },
+        { "order": 2, "text": "The 4.8 m/s jet is the plume, measured closer to its source", "isCorrect": false },
+        { "order": 3, "text": "The two apply to different people — the jet to an exercising subject, the plume to a resting one", "isCorrect": false }
+      ]
+    }
+  ]
+}

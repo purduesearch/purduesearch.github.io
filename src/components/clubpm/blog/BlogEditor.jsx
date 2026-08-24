@@ -43,7 +43,7 @@ import { docToMarkdown, markdownToDoc } from './blogMarkdown';
 import {
   get, getBlogCollabWsUrl, getStoredToken, listBlogThreads, setBlogThreadAnchor,
 } from '../../../api/clubPmClient';
-import { shouldFallbackSeed } from '../../../lib/collabFallback';
+import { shouldFallbackSeed, isDocHydrated } from '../../../lib/collabFallback';
 import useKeyboardShortcuts from '../../../hooks/useKeyboardShortcuts';
 import { useShortcutsRegistry } from '../../../clubpm/ShortcutsRegistry';
 
@@ -796,6 +796,9 @@ export default function BlogEditor({
   const syncedRef = React.useRef(false);
   const contentRef = React.useRef(content);
   contentRef.current = content;
+  // Set once the fallback-seed window has expired; see the hydration note below
+  // (declared here because that effect lives further down than its first read).
+  const [fallbackElapsed, setFallbackElapsed] = React.useState(false);
 
   // ── Follow mode ───────────────────────────────────────────────
   // Click a presence avatar to keep that peer's caret centred. Read through a
@@ -883,6 +886,20 @@ export default function BlogEditor({
     };
   }, [collab, stopFollowing, scrollToPeerCaret]);
 
+  // ── Document hydration ────────────────────────────────────────
+  // A collab editor is EMPTY between mount and the arrival of its body, and
+  // that empty state must never reach the host's `onChange`: the course
+  // editor's 1.5s debounced autosave persisted it over the stored article
+  // while the fallback seed below was still waiting out its 4s window, which
+  // is how ares-101 lost two written sections to nothing more than opening
+  // them. Until this is true the editor is read-only, shows a loading row in
+  // place of the absent body, and reports no changes at all.
+  const docHydrated = isDocHydrated({ collab: !!collab, synced, fallbackElapsed });
+  // `onUpdate` is captured when useEditor builds the editor and cannot close
+  // over the value above, so it reads this ref instead.
+  const hydratedRef = React.useRef(false);
+  hydratedRef.current = docHydrated;
+
   // ── Comment threads (anchors only) ────────────────────────────
   // Threads are fetched here purely so their anchors can be turned into
   // decorations; the review panel keeps its own copy for display.
@@ -924,7 +941,14 @@ export default function BlogEditor({
     }, threadDecoOptions),
     content: collab ? undefined : (content ?? { type: 'doc', content: [{ type: 'paragraph' }] }),
     editable,
-    onUpdate: ({ editor: ed }) => { onChange?.(ed.getJSON()); },
+    // Nothing that happens before the document has loaded is an edit. The Yjs
+    // sync itself dispatches transactions, and every one of them reports an
+    // empty doc until the body actually arrives — forwarding those is what let
+    // a host autosave overwrite stored content with a blank document.
+    onUpdate: ({ editor: ed }) => {
+      if (!hydratedRef.current) return;
+      onChange?.(ed.getJSON());
+    },
     editorProps: {
       // Clicking commented/suggested text reveals its thread. Read through a ref
       // so a new callback identity never rebuilds the editor — that would drop
@@ -1001,6 +1025,10 @@ export default function BlogEditor({
   // never spuriously marks the doc dirty.
   useEffect(() => {
     if (!editor || !collab) return undefined;
+    // Per-document, not per-mount: switching sections swaps `collab` without
+    // unmounting, and a stale `true` here would mark the incoming document
+    // hydrated while it is still empty — exactly the wipe this guards.
+    setFallbackElapsed(false);
     let seeded = false;
     const seedIfEmpty = () => {
       if (seeded || editor.isDestroyed) return;
@@ -1018,6 +1046,11 @@ export default function BlogEditor({
         editorEmpty: editor.isEmpty,
         hasContent: !!contentRef.current,
       })) seedIfEmpty();
+      // Release the editor either way. Seeding is best-effort — there may have
+      // been no draft to fall back to — but a socket that never syncs must not
+      // leave the editor read-only forever, or a blocked WS would trade lost
+      // content for content that can never be written.
+      setFallbackElapsed(true);
     }, 4000);
     return () => { clearTimeout(timer); collab.provider.off('synced', onSynced); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1108,11 +1141,14 @@ export default function BlogEditor({
     rememberMode(modeKey, next);
   }, [modeKey]);
 
+  // A document that has not loaded is read-only too. ViewingGuard passes Yjs
+  // sync transactions (they carry ySyncPluginKey) and writes into an empty doc,
+  // so this blocks local typing without blocking the very sync being waited on.
   useEffect(() => {
     if (!editor || editor.isDestroyed) return;
-    editor.setEditable(editable && mode !== 'viewing');
+    editor.setEditable(editable && mode !== 'viewing' && docHydrated);
     editor.commands.setSuggesting(mode === 'suggesting');
-  }, [editor, editable, mode]);
+  }, [editor, editable, mode, docHydrated]);
 
   const words = editor?.storage.characterCount.words() ?? 0;
   const chars = editor?.storage.characterCount.characters() ?? 0;
@@ -1181,12 +1217,23 @@ export default function BlogEditor({
         />
       ) : (
         <div
-          className="cpm-blog-editor-surface"
+          className={`cpm-blog-editor-surface${docHydrated ? '' : ' is-loading'}`}
           data-tour-id="blog.editor.body"
           data-fontpair={theme?.fontPair || 'syne-dmsans'}
           data-width={theme?.width || 'wide'}
           style={{ '--post-accent': theme?.accent || 'var(--pm-accent-teal)' }}
         >
+          {/* Until the body arrives the surface is blank for a reason no reader
+              can distinguish from "this section is empty" — the same misreading
+              that made a wiped article look intentional. In flow rather than
+              overlaid: the document is empty while this shows, so there is
+              nothing underneath to cover. */}
+          {!docHydrated && (
+            <div className="cpm-blog-editor-loading" role="status" aria-live="polite">
+              <span className="cpm-spinner" aria-hidden="true" />
+              <span>Loading content…</span>
+            </div>
+          )}
           {followedPeer && (
             <div className="cpm-blog-follow-chip" style={{ '--caret-color': followedPeer.user?.color }}>
               <i className="fas fa-eye" aria-hidden="true" />

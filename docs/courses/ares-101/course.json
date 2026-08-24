@@ -1,0 +1,518 @@
+{
+  "slug": "ares-101",
+  "title": "ARES 101",
+  "summary": "Why a CO₂ bubble forms in front of an astronaut's face, how the ARES headset measures it, and what the team is building next. Eleven modules: the physics, the physiology, the sensors, the system, and the science.",
+  "estimatedMinutes": 220,
+  "status": "DRAFT",
+  "xpOverride": 600,
+  "doubloonOverride": 200,
+  "modules": [
+    {
+      "order": 0,
+      "title": "Gravity, buoyancy, and mass transport",
+      "summary": "Why warm air rises, what carries a gas when it doesn't, and why any of this is a spaceflight problem.",
+      "estimatedMinutes": 20,
+      "isRequired": true,
+      "sequential": true,
+      "sections": [
+        {
+          "order": 0,
+          "title": "How gravity moves air",
+          "kind": "CONTENT",
+          "isRequired": true,
+          "bodyRef": "content/C12-how-gravity-moves-air.md"
+        },
+        {
+          "order": 1,
+          "title": "Worked problem: is the plume buoyant?",
+          "kind": "VIDEO",
+          "isRequired": true,
+          "videoRef": "videos/V11-is-the-plume-buoyant.md",
+          "videoConfig": { "youtubeId": null, "lockSeek": true, "allowedRates": [1, 1.25, 1.5] }
+        },
+        {
+          "order": 2,
+          "title": "Read: Gravity and Human Respiration (the claim)",
+          "kind": "LIT_REVIEW",
+          "isRequired": true,
+          "litRef": "lit/L01-gravity-and-human-respiration-claim.md"
+        },
+        {
+          "order": 3,
+          "title": "Check yourself: buoyancy and diffusion",
+          "kind": "QUIZ",
+          "isRequired": true,
+          "quizRef": "quizzes/Q12-buoyancy.json",
+          "passThreshold": 75,
+          "maxAttempts": null
+        }
+      ]
+    },
+    {
+      "order": 1,
+      "title": "The human thermal body plume and the CO₂ bubble",
+      "summary": "The flow that rises off a body, the deadspace it leaves in front of the face, and why the headset has three pods in those three places.",
+      "estimatedMinutes": 20,
+      "isRequired": true,
+      "sequential": true,
+      "sections": [
+        {
+          "order": 0,
+          "title": "The plume and the bubble",
+          "kind": "CONTENT",
+          "isRequired": true,
+          "bodyRef": "content/C13-the-plume-and-the-bubble.md"
+        },
+        {
+          "order": 1,
+          "title": "Worked problem: rebreathed fraction",
+          "kind": "VIDEO",
+          "isRequired": true,
+          "videoRef": "videos/V12-rebreathed-fraction.md",
+          "videoConfig": { "youtubeId": null, "lockSeek": true, "allowedRates": [1, 1.25, 1.5] }
+        },
+        {
+          "order": 2,
+          "title": "Read: the anatomy of an exhaled jet",
+          "kind": "LIT_REVIEW",
+          "isRequired": true,
+          "litRef": "lit/L02-expiratory-flow.md"
+        },
+        {
+          "order": 3,
+          "title": "Check yourself: the plume and the pods",
+          "kind": "QUIZ",
+          "isRequired": true,
+          "quizRef": "quizzes/Q13-plume.json",
+          "passThreshold": 75,
+          "maxAttempts": null
+        }
+      ]
+    },
+    {
+      "order": 2,
+      "title": "Reading the CFD paper",
+      "summary": "How to read the paper every new member is handed on day one: what it models, what it assumes, and what its figures actually claim.",
+      "estimatedMinutes": 20,
+      "isRequired": true,
+      "sequential": true,
+      "sections": [
+        {
+          "order": 0,
+          "title": "How to read this paper",
+          "kind": "CONTENT",
+          "isRequired": true,
+          "bodyRef": "content/C14-reading-the-cfd-paper.md"
+        },
+        {
+          "order": 1,
+          "title": "Worked problem: non-dimensionalise it",
+          "kind": "VIDEO",
+          "isRequired": true,
+          "videoRef": "videos/V13-nondimensionalise.md",
+          "videoConfig": { "youtubeId": null, "lockSeek": true, "allowedRates": [1, 1.25, 1.5] }
+        },
+        {
+          "order": 2,
+          "title": "Read: Gravity and Human Respiration (the method)",
+          "kind": "LIT_REVIEW",
+          "isRequired": true,
+          "litRef": "lit/L03-gravity-and-human-respiration-method.md"
+        },
+        {
+          "order": 3,
+          "title": "Check yourself: method versus result",
+          "kind": "QUIZ",
+          "isRequired": true,
+          "quizRef": "quizzes/Q14-cfd.json",
+          "passThreshold": 75,
+          "maxAttempts": null
+        }
+      ]
+    },
+    {
+      "order": 3,
+      "title": "Hypercapnia and the body",
+      "summary": "What elevated CO₂ actually does to a person, the three units it gets quoted in, and why a cabin within limits is not a face within limits.",
+      "estimatedMinutes": 20,
+      "isRequired": true,
+      "sequential": true,
+      "sections": [
+        {
+          "order": 0,
+          "title": "What CO₂ does to you",
+          "kind": "CONTENT",
+          "isRequired": true,
+          "bodyRef": "content/C15-what-co2-does.md"
+        },
+        {
+          "order": 1,
+          "title": "Hypercapnia reference deck",
+          "kind": "SLIDES",
+          "isRequired": true,
+          "slideConfig": { "sourceKind": "PDF", "sourceName": "hypercapnia-reference.pdf", "autoAdvance": false },
+          "deckRef": "slides/S02-hypercapnia-reference.outline.md"
+        },
+        {
+          "order": 2,
+          "title": "Read: CO₂ and cognitive performance",
+          "kind": "LIT_REVIEW",
+          "isRequired": true,
+          "litRef": "lit/L04-co2-and-cognition.md"
+        },
+        {
+          "order": 3,
+          "title": "Exercise: exposure from a session",
+          "kind": "ASSIGNMENT",
+          "isRequired": true,
+          "assignmentRef": "exercises/E01-exposure-from-a-session.md"
+        },
+        {
+          "order": 4,
+          "title": "Check yourself: dose and units",
+          "kind": "QUIZ",
+          "isRequired": true,
+          "quizRef": "quizzes/Q15-hypercapnia.json",
+          "passThreshold": 75,
+          "maxAttempts": null
+        }
+      ]
+    },
+    {
+      "order": 4,
+      "title": "NDIR gas sensing",
+      "summary": "How a concentration becomes a voltage becomes an integer — Beer-Lambert, the 4.26 µm band, and the SprintIR protocol the firmware actually speaks.",
+      "estimatedMinutes": 20,
+      "isRequired": true,
+      "sequential": true,
+      "sections": [
+        {
+          "order": 0,
+          "title": "How an NDIR sensor sees CO₂",
+          "kind": "CONTENT",
+          "isRequired": true,
+          "bodyRef": "content/C16-ndir-sensing.md"
+        },
+        {
+          "order": 1,
+          "title": "Worked problem: decoding a reading",
+          "kind": "VIDEO",
+          "isRequired": true,
+          "videoRef": "videos/V14-decoding-a-reading.md",
+          "videoConfig": { "youtubeId": null, "lockSeek": true, "allowedRates": [1, 1.25, 1.5] }
+        },
+        {
+          "order": 2,
+          "title": "Read: a portable tunable laser spectrometer",
+          "kind": "LIT_REVIEW",
+          "isRequired": true,
+          "litRef": "lit/L05-portable-laser-spectrometer.md"
+        },
+        {
+          "order": 3,
+          "title": "Exercise: bench-test a sensor",
+          "kind": "ASSIGNMENT",
+          "isRequired": true,
+          "assignmentRef": "exercises/E02-bench-test-a-sensor.md"
+        },
+        {
+          "order": 4,
+          "title": "Check yourself: NDIR and the SprintIR",
+          "kind": "QUIZ",
+          "isRequired": true,
+          "quizRef": "quizzes/Q16-ndir.json",
+          "passThreshold": 75,
+          "maxAttempts": null
+        }
+      ]
+    },
+    {
+      "order": 5,
+      "title": "Sampling: pumps, tubing, and transport delay",
+      "summary": "Everything between the air and the sensor — and why the delay through a tube is a different quantity from how fast the sensor responds.",
+      "estimatedMinutes": 20,
+      "isRequired": true,
+      "sequential": true,
+      "sections": [
+        {
+          "order": 0,
+          "title": "Getting the air to the sensor",
+          "kind": "CONTENT",
+          "isRequired": true,
+          "bodyRef": "content/C17-sampling.md"
+        },
+        {
+          "order": 1,
+          "title": "Worked problem: transport delay",
+          "kind": "VIDEO",
+          "isRequired": true,
+          "videoRef": "videos/V15-transport-delay.md",
+          "videoConfig": { "youtubeId": null, "lockSeek": true, "allowedRates": [1, 1.25, 1.5] }
+        },
+        {
+          "order": 2,
+          "title": "Read: sample-line response time",
+          "kind": "LIT_REVIEW",
+          "isRequired": true,
+          "litRef": "lit/L06-sample-line-response.md"
+        },
+        {
+          "order": 3,
+          "title": "Exercise: measure the delay",
+          "kind": "CONTENT",
+          "isRequired": true,
+          "bodyRef": "exercises/E03-measure-the-delay.md"
+        },
+        {
+          "order": 4,
+          "title": "Check yourself: pumps, tubing, and lag",
+          "kind": "QUIZ",
+          "isRequired": true,
+          "quizRef": "quizzes/Q17-sampling.json",
+          "passThreshold": 75,
+          "maxAttempts": null
+        }
+      ]
+    },
+    {
+      "order": 6,
+      "title": "Anemometry and the CTA circuit",
+      "summary": "Measuring air you cannot see, in the 0.05-0.4 m/s regime where the interesting velocities live and where calibration is hardest.",
+      "estimatedMinutes": 20,
+      "isRequired": true,
+      "sequential": true,
+      "sections": [
+        {
+          "order": 0,
+          "title": "Measuring air you cannot see",
+          "kind": "CONTENT",
+          "isRequired": true,
+          "bodyRef": "content/C18-anemometry.md"
+        },
+        {
+          "order": 1,
+          "title": "CTA circuit reference deck",
+          "kind": "SLIDES",
+          "isRequired": true,
+          "slideConfig": { "sourceKind": "PDF", "sourceName": "cta-reference.pdf", "autoAdvance": false },
+          "deckRef": "slides/S03-cta-reference.outline.md"
+        },
+        {
+          "order": 2,
+          "title": "Read: anemometry at low velocity",
+          "kind": "LIT_REVIEW",
+          "isRequired": true,
+          "litRef": "lit/L07-cta-low-velocity.md"
+        },
+        {
+          "order": 3,
+          "title": "Exercise: when does the pump disturb the anemometer?",
+          "kind": "ASSIGNMENT",
+          "isRequired": true,
+          "assignmentRef": "exercises/E04-pump-disturbance-threshold.md"
+        },
+        {
+          "order": 4,
+          "title": "Check yourself: King's law and the bridge",
+          "kind": "QUIZ",
+          "isRequired": true,
+          "quizRef": "quizzes/Q18-cta.json",
+          "passThreshold": 75,
+          "maxAttempts": null
+        }
+      ]
+    },
+    {
+      "order": 7,
+      "title": "From signal to science",
+      "summary": "The ten physiology models the app computes, what each one is grounded in, and which are standards and which are heuristics.",
+      "estimatedMinutes": 20,
+      "isRequired": true,
+      "sequential": true,
+      "sections": [
+        {
+          "order": 0,
+          "title": "The ten models, and what each is grounded in",
+          "kind": "CONTENT",
+          "isRequired": true,
+          "bodyRef": "content/C19-signal-to-science.md"
+        },
+        {
+          "order": 1,
+          "title": "Worked problem: rebreathing and respiration rate",
+          "kind": "VIDEO",
+          "isRequired": true,
+          "videoRef": "videos/V16-rebreathing-and-respiration.md",
+          "videoConfig": { "youtubeId": null, "lockSeek": true, "allowedRates": [1, 1.25, 1.5] }
+        },
+        {
+          "order": 2,
+          "title": "Read: in-suit CO₂ washout at NASA",
+          "kind": "LIT_REVIEW",
+          "isRequired": true,
+          "litRef": "lit/L08-in-suit-co2-washout.md"
+        },
+        {
+          "order": 3,
+          "title": "Exercise: run the models",
+          "kind": "ASSIGNMENT",
+          "isRequired": true,
+          "assignmentRef": "exercises/E05-run-the-models.md"
+        },
+        {
+          "order": 4,
+          "title": "Check yourself: the ten models",
+          "kind": "QUIZ",
+          "isRequired": true,
+          "quizRef": "quizzes/Q19-models.json",
+          "passThreshold": 75,
+          "maxAttempts": null
+        }
+      ]
+    },
+    {
+      "order": 8,
+      "title": "The system and the data contract",
+      "summary": "Three devices, two buses, one CSV schema: the architecture, and the contract two codebases agree on.",
+      "estimatedMinutes": 20,
+      "isRequired": true,
+      "sequential": true,
+      "sections": [
+        {
+          "order": 0,
+          "title": "Sensor to screen, end to end",
+          "kind": "CONTENT",
+          "isRequired": true,
+          "bodyRef": "content/C20-the-system.md"
+        },
+        {
+          "order": 1,
+          "title": "Data contract reference deck",
+          "kind": "SLIDES",
+          "isRequired": true,
+          "slideConfig": { "sourceKind": "PDF", "sourceName": "data-contract.pdf", "autoAdvance": false },
+          "deckRef": "slides/S04-data-contract.outline.md"
+        },
+        {
+          "order": 2,
+          "title": "Read: a wearable multi-sensor architecture",
+          "kind": "LIT_REVIEW",
+          "isRequired": true,
+          "litRef": "lit/L09-wearable-architecture.md"
+        },
+        {
+          "order": 3,
+          "title": "Exercise: trace a reading end to end",
+          "kind": "ASSIGNMENT",
+          "isRequired": true,
+          "assignmentRef": "exercises/E06-trace-a-reading.md"
+        },
+        {
+          "order": 4,
+          "title": "Check yourself: buses, timing, and the contract",
+          "kind": "QUIZ",
+          "isRequired": true,
+          "quizRef": "quizzes/Q20-system.json",
+          "passThreshold": 75,
+          "maxAttempts": null
+        }
+      ]
+    },
+    {
+      "order": 9,
+      "title": "Calibration, error, and trusting a number",
+      "summary": "Why three sensors disagreeing is normal, why a difference of two noisy readings is noisier than either, and what calibration actually fixes.",
+      "estimatedMinutes": 20,
+      "isRequired": true,
+      "sequential": true,
+      "sections": [
+        {
+          "order": 0,
+          "title": "Trusting a number",
+          "kind": "CONTENT",
+          "isRequired": true,
+          "bodyRef": "content/C21-calibration.md"
+        },
+        {
+          "order": 1,
+          "title": "Worked problem: three pods disagree",
+          "kind": "VIDEO",
+          "isRequired": true,
+          "videoRef": "videos/V17-three-pods-disagree.md",
+          "videoConfig": { "youtubeId": null, "lockSeek": true, "allowedRates": [1, 1.25, 1.5] }
+        },
+        {
+          "order": 2,
+          "title": "Read: NDIR drift and baseline correction",
+          "kind": "LIT_REVIEW",
+          "isRequired": true,
+          "litRef": "lit/L10-ndir-calibration-drift.md"
+        },
+        {
+          "order": 3,
+          "title": "Exercise: run a fresh-air calibration",
+          "kind": "ASSIGNMENT",
+          "isRequired": true,
+          "assignmentRef": "exercises/E07-run-a-calibration.md"
+        },
+        {
+          "order": 4,
+          "title": "Check yourself: calibration and error",
+          "kind": "QUIZ",
+          "isRequired": true,
+          "quizRef": "quizzes/Q21-calibration.json",
+          "passThreshold": 75,
+          "maxAttempts": null
+        }
+      ]
+    },
+    {
+      "order": 10,
+      "title": "Doing the science",
+      "summary": "Experimental design, human-subjects ethics, the four summer tracks, and why the analysis plan is written before the data exists.",
+      "estimatedMinutes": 20,
+      "isRequired": true,
+      "sequential": true,
+      "sections": [
+        {
+          "order": 0,
+          "title": "Designing an experiment you can trust",
+          "kind": "CONTENT",
+          "isRequired": true,
+          "bodyRef": "content/C22-doing-the-science.md"
+        },
+        {
+          "order": 1,
+          "title": "Roadmap and deliverables deck",
+          "kind": "SLIDES",
+          "isRequired": true,
+          "slideConfig": { "sourceKind": "PDF", "sourceName": "roadmap.pdf", "autoAdvance": false },
+          "deckRef": "slides/S05-roadmap.outline.md"
+        },
+        {
+          "order": 2,
+          "title": "Read: the Herrick Lab testing protocol",
+          "kind": "LIT_REVIEW",
+          "isRequired": true,
+          "litRef": "lit/L11-herrick-protocol.md"
+        },
+        {
+          "order": 3,
+          "title": "Exercise: write an analysis plan",
+          "kind": "ASSIGNMENT",
+          "isRequired": true,
+          "assignmentRef": "exercises/E08-write-an-analysis-plan.md"
+        },
+        {
+          "order": 4,
+          "title": "ARES 101 final",
+          "kind": "QUIZ",
+          "isRequired": true,
+          "quizRef": "quizzes/Q22-final.json",
+          "passThreshold": 80,
+          "maxAttempts": 3
+        }
+      ]
+    }
+  ]
+}

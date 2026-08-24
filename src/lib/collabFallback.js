@@ -15,3 +15,23 @@
 export function shouldFallbackSeed({ synced, editorEmpty, hasContent }) {
   return !synced && editorEmpty && hasContent;
 }
+
+// Has the editor's document actually LOADED yet?
+//
+// A collab editor is empty between mount and the moment its body arrives, and
+// every ProseMirror transaction in that window reports an empty document. That
+// window is not a document state anyone may act on: CourseEditorPage's 1.5s
+// debounced autosave persisted it straight over `contentJson`, while the
+// fallback seed that would have filled the editor waits 4s. Opening a section
+// was therefore enough to destroy it — ares-101 lost two written articles that
+// way, and with no revision table there was nothing to roll back to.
+//
+// So the editor stays read-only, and reports no changes, until this is true.
+// Both terms are needed: `synced` is the normal path, and `fallbackElapsed`
+// (the seed window having passed) releases the editor when the socket never
+// syncs at all — otherwise a blocked WS would trade lost content for an editor
+// that can never save.
+export function isDocHydrated({ collab, synced, fallbackElapsed }) {
+  if (!collab) return true; // loads its `content` prop synchronously
+  return !!(synced || fallbackElapsed);
+}
