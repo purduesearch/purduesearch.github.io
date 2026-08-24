@@ -165,15 +165,19 @@ export async function get(path) {
 }
 
 export async function post(path, data) {
+  // FormData goes through untouched and WITHOUT a Content-Type header — the
+  // browser has to set it so the multipart boundary is included. Same idiom as
+  // uploadVaultFile / uploadBlogImage, just without the progress plumbing.
+  const isForm = typeof FormData !== "undefined" && data instanceof FormData;
   const response = await fetch(`${BASE_URL}${path}`, {
     method: "POST",
     credentials: "include",
     headers: {
-      "Content-Type": "application/json",
+      ...(isForm ? {} : { "Content-Type": "application/json" }),
       Accept: "application/json",
       ...authHeaders(),
     },
-    body: JSON.stringify(data),
+    body: isForm ? data : JSON.stringify(data),
   });
   return handleResponse(response, "POST", path);
 }
@@ -635,12 +639,35 @@ export const completeCourseSection = (sectionId) =>
   post(`/api/outreach/courses/sections/${sectionId}/complete`, {});
 export const submitCourseQuiz = (sectionId, responses) =>
   post(`/api/outreach/courses/sections/${sectionId}/quiz/attempts`, { responses });
-// Lit-review submissions carry the reward envelope like every other completion,
-// so `handleResponse` fires RewardFlux and the quest toasts with no extra wiring.
-export const submitLitReview   = (sectionId, text) =>
-  post(`/api/outreach/courses/sections/${sectionId}/lit-review`, { text });
-export const listLitSubmissions = (sectionId) =>
-  get(`/api/outreach/courses/sections/${sectionId}/lit-review`);
+// A LIT_REVIEW or ASSIGNMENT submission. A File goes up as multipart so the
+// backend can extract its text; a pasted answer goes up as JSON. Never base64 —
+// the backend's express.json() limit is 100 kb.
+// These carry the reward envelope like every other completion, so
+// `handleResponse` fires RewardFlux and the quest toasts with no extra wiring.
+export const submitWork = (sectionId, { text, file } = {}) => {
+  if (file) {
+    const form = new FormData();
+    form.append('file', file);
+    return post(`/api/outreach/courses/sections/${sectionId}/work`, form);
+  }
+  return post(`/api/outreach/courses/sections/${sectionId}/work`, { text });
+};
+export const listWorkSubmissions = (sectionId) =>
+  get(`/api/outreach/courses/sections/${sectionId}/work`);
+
+// DEPRECATED shims so LitReviewSection keeps working until it moves to
+// submitWork/listWorkSubmissions. The /lit-review routes are gone; only these
+// names survive. Delete both once no component imports them.
+export const submitLitReview = (sectionId, text) => submitWork(sectionId, { text });
+export const listLitSubmissions = (sectionId) => listWorkSubmissions(sectionId);
+
+export const uploadAssignmentHandout = (sectionId, file) => {
+  const form = new FormData();
+  form.append('file', file);
+  return post(`/api/outreach/courses/sections/${sectionId}/handout`, form);
+};
+export const deleteAssignmentHandout = (sectionId) =>
+  del(`/api/outreach/courses/sections/${sectionId}/handout`);
 
 export const assignCourse = (courseId, memberIds, dueDate = null) =>
   post(`/api/outreach/courses/${courseId}/assign`, { memberIds, dueDate });
