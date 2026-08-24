@@ -499,9 +499,9 @@
         {
           "order": 3,
           "title": "Exercise: write an analysis plan",
-          "kind": "CONTENT",
+          "kind": "ASSIGNMENT",
           "isRequired": true,
-          "bodyRef": "exercises/E08-write-an-analysis-plan.md"
+          "assignmentRef": "exercises/E08-write-an-analysis-plan.md"
         },
         {
           "order": 4,
