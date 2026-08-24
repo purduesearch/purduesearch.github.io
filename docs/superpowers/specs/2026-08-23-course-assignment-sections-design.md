@@ -263,6 +263,41 @@ frontmatter parser rather than copying it — that parser's comments document a 
 (no such escape in JavaScript) silently truncated a rubric at any capital Z, and duplicating the regex
 duplicates the hazard.
 
+### 8.1 Which exercises get a gate, and why not all of them
+
+Five of the seven exercises publish their answers **in the learner-facing body, deliberately**:
+
+| File | Answer section | Nature |
+|---|---|---|
+| `E01-exposure-from-a-session.md` | `## Answers` | full worked key |
+| `E02-bench-test-a-sensor.md` | `## Answers — the worked example` | full worked key |
+| `E04-pump-disturbance-threshold.md` | `## One worked attempt` | shown on purpose — no key exists |
+| `E05-run-the-models.md` | `## Answers` | full worked key |
+| `E08-write-an-analysis-plan.md` | `## Self-check — synthetic outcomes` | data, behind a "do not read yet" instruction |
+| `E06`, `E07` | — | none |
+
+E01's header states the reasoning: *"Do not move them to a second file; a learner who has to go looking
+will not check their work."* That is a considered pedagogical decision and this feature does not get to
+reverse it for its own convenience.
+
+A score gate on a section whose answers sit two screens below the composer is not a gate. So the
+migration splits:
+
+- **Gated** (`passThreshold` set): `E06`, `E07`, `E08` — argued deliverables that go back to the team,
+  with no key in the body.
+- **Ungated** (`passThreshold: null`): `E01`, `E02`, `E04`, `E05` — self-check computations. They still
+  become `ASSIGNMENT` sections: the submission is recorded, the file is extracted, AI feedback is
+  returned. There is simply no gate to game, so the visible keys stay exactly where their authors put
+  them.
+
+This is what the opt-in gate in §3.4 is *for*. A course where every section is gated was never the
+goal; a course where the author chooses per section is.
+
+**Answer keys are COPIED into `referenceAnswer`, never moved.** Grading needs ground truth even on an
+ungated section, because feedback is the point there. The body keeps its key for self-check; the config
+gets a copy. Anyone editing one must edit the other — that duplication is deliberate, and noted here so
+a later reader does not "fix" it by deleting one.
+
 **Scope note.** Seven files exist; `course.json` references eight. `exercises/E03-measure-the-delay.md`
 was never written. The dangling reference is left exactly as it is — writing a missing exercise is a
 separate content task, not part of this one.

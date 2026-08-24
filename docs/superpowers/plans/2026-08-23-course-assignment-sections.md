@@ -2150,11 +2150,15 @@ Read `E08-write-an-analysis-plan.md` end to end, plus `content/C22-*.md` (the ar
 and `lit/L11-herrick-protocol.md` (whose rubric shape you are matching). E08 is the best-suited of the
 seven: its deliverable is a one-page written analysis plan, which is exactly what an ASSIGNMENT grades.
 
-- [ ] **Step 2: Check the body for author-only material**
+- [ ] **Step 2: Copy the self-check section into `referenceAnswer` — do not move it**
 
-E08 deliberately places synthetic data at the bottom with a "do not read until your plan is written"
-instruction — that is **learner-facing and stays**. Confirm nothing else in the body is an answer key.
-If something is, move it into `referenceAnswer` rather than deleting it.
+E08's `## Self-check — synthetic outcomes` (line ~196) is **learner-facing and stays in the body**,
+behind its "do not read until your plan is written" instruction. Copy it into `referenceAnswer` as
+ground truth for grading, alongside a prose statement of what a good plan contains.
+
+This duplication is deliberate — see spec §8.1. The body keeps its self-check; the config gets a copy
+so grading has something to judge against. Never *move* an answer section out of a body: E01's header
+states the reasoning for keeping them in place, and it applies to all of them.
 
 - [ ] **Step 3: Add the frontmatter**
 
@@ -2208,6 +2212,16 @@ the course text alone. They must be reviewed by the ARES team before the course 
 whose rubric is empty grades as `null`, which under a gate means fail-open — so a half-reviewed
 migration degrades to today's behaviour rather than blocking anyone.
 
+**Four of these six get NO gate.** See spec §8.1. E01, E02, E04 and E05 publish their answers in the
+learner-facing body by design, so a `passThreshold` on them would be a control that controls nothing.
+They still become `ASSIGNMENT` sections — submission recorded, feedback returned — with
+`passThreshold: null`. Only E06 and E07 are gated.
+
+**Answer keys are COPIED into `referenceAnswer`, never moved.** Grading needs ground truth even on an
+ungated section, because feedback is the whole point there. The body keeps its key; the config gets a
+copy. E01's header states why the keys stay put: *"Do not move them to a second file; a learner who has
+to go looking will not check their work."*
+
 **`E03-measure-the-delay.md` does not exist.** `course.json:264` references it. Leave both alone —
 writing a missing exercise is a separate content task.
 
@@ -2215,20 +2229,43 @@ writing a missing exercise is a separate content task.
 
 Repeat Task 7.2's steps for each, in this order. Each is its own task and its own commit.
 
-| Task | File | Course module | Notes for the rubric |
-|---|---|---|---|
-| 8.1 | `E01-exposure-from-a-session.md` | M1 | Computed exposure from session data; rubric should weight the *method* and stated assumptions over the arithmetic |
-| 8.2 | `E02-bench-test-a-sensor.md` | M2 | A test procedure; weight repeatability and what each step controls for |
-| 8.3 | `E04-pump-disturbance-threshold.md` | M4 | A threshold argument; weight the paired-baseline reasoning |
-| 8.4 | `E05-run-the-models.md` | M5 | Model outputs plus interpretation; weight interpretation over the numbers |
-| 8.5 | `E06-trace-a-reading.md` | M6 | An end-to-end trace; weight completeness of the chain and naming where error enters |
-| 8.6 | `E07-run-a-calibration.md` | M7 | A calibration run; weight the drift and reference-condition reasoning |
+| Task | File | Module | Depends on | Gate | Answer section in body |
+|---|---|---|---|---|---|
+| 8.1 | `E01-exposure-from-a-session.md` | M4 | `C15`, `GLOSSARY.md` §5 | none | `## Answers` (~111) |
+| 8.2 | `E02-bench-test-a-sensor.md` | M5 | `C16`, `V14` | none | `## Answers — the worked example` (~252) |
+| 8.3 | `E04-pump-disturbance-threshold.md` | M7 | `C18`, `C17`, `C13` | none | `## One worked attempt` (~186) |
+| 8.4 | `E05-run-the-models.md` | M8 | `C19`, `C13` | none | `## Answers` (~232) |
+| 8.5 | `E06-trace-a-reading.md` | M9 | `C20`, `C16` | **70** | none |
+| 8.6 | `E07-run-a-calibration.md` | M10 | `C21`, `V17`, `C16` | **70** | none |
+
+Rubric guidance, drawn from each exercise's own stated purpose:
+
+- **E01** — dosimetry arithmetic against `C15`'s tiers and thresholds. Weight the *method* and the
+  stated assumptions above the arithmetic; a right number from a wrong method is not the skill.
+- **E02** — a real bench procedure (deliverable subtasks 2.3.7 and 2.5.2) written to be run. Weight
+  whether a reader could audit a session against what was written, and whether the warm-up window and
+  the `.` multiplier from `C16` are handled.
+- **E04** — **open question 3 from `ARES_7_30_26.pptx` slide 11, handed over unmodified. Nobody on the
+  ARES team has answered it, and there is no correct number.** The rubric judges the *argument*: does
+  it engage `C17`'s 0.67 L/min per-pod split and 3.0 mm bore, does it compare against `C13`'s
+  0.3–0.4 m/s plume, does it state its assumptions and their direction of error. `referenceAnswer` is
+  a copy of the file's "one worked attempt" plus a statement of what makes an attempt defensible —
+  explicitly *not* a key. The answer goes back to the ARES team; say so in `promptText`.
+- **E05** — three paths, and everybody does the hand computation regardless of which they took, because
+  the hand computation is the exercise. Weight interpretation over the numbers.
+- **E06** — a pure reading exercise across two repos (`ARES2ESP32` `src/main.cpp` and `app/lib/`, plus
+  this course). No code is written or run. Weight completeness of the chain from sensor to screen, and
+  naming where error enters at each hop.
+- **E07** — requires the headset, a paired phone, and physically going outside. Weight the offset-versus-
+  span distinction and the fresh-air assumption from `C21`. The rubric should treat pressing **ABC ON**
+  as a substantive error, not a slip: `C21` explains why, and the exercise warns about it twice.
 
 For each:
 
-- [ ] Read the exercise in full, plus the `content/C*.md` article its header names as a dependency
-- [ ] Check the body for author-only material; move anything that is an answer key into `referenceAnswer`
+- [ ] Read the exercise in full, plus every `content/C*.md` article named in the dependency table above
+- [ ] **Copy** any answer section into `referenceAnswer`; leave the body untouched
 - [ ] Add the frontmatter block, matching `L11`'s formatting exactly
+- [ ] Set `passThreshold` per the Gate column — omit the key entirely for the ungated four
 - [ ] Flip `kind` to `ASSIGNMENT` and `bodyRef` to `assignmentRef` in `course.json`
 - [ ] Run `cd backend && npm run seed:courses` and confirm the section installs with no pending-ref warning
 - [ ] Commit: `git commit -m "feat(ares-101): convert E0n to an assignment section"`
