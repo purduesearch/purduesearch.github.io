@@ -47,27 +47,27 @@ function resolveRef(dir: string, slug: string, ref: string): string | null {
 }
 
 /**
- * Read a `lit/Lnn-*.md` file into a litConfig.
+ * Split a course markdown file into its frontmatter block and its body.
  *
- * The file's frontmatter is the section config; its body is the annotated
- * bibliography and synthesis, which is author material and is NOT installed.
- * One file holds both because the reference summary is a distillation of the
- * synthesis directly below it, and split across two files they drift.
- *
- * `referenceSummary` is the frontmatter's last key and runs to the `---`, so it
- * can be several paragraphs without any escaping.
+ * The body is everything after the closing `---`. `readLitConfig` discards it —
+ * a lit review's body is author material — but `readAssignmentConfig` installs
+ * it, because an assignment's body is the learner-facing context.
  */
-function readLitConfig(file: string): Record<string, unknown> {
+function parseFrontmatter(file: string): { front: string; body: string } {
   const raw = fs.readFileSync(file, "utf8");
   const match = raw.match(/^---\r?\n([\s\S]*?)\r?\n---/);
   if (!match) throw new Error(`${path.basename(file)}: no frontmatter block`);
-  const front = match[1]!;
+  return { front: match[1]!, body: raw.slice(match[0].length).replace(/^\r?\n/, "") };
+}
 
-  const scalar = (key: string): string => {
-    const m = front.match(new RegExp(`^${key}:[ \\t]*(.*)$`, "m"));
-    return m ? m[1]!.trim().replace(/^["']|["']$/g, "") : "";
-  };
+/** One `key: value` line from a frontmatter block, unquoted. */
+function readScalar(front: string, key: string): string {
+  const m = front.match(new RegExp(`^${key}:[ \\t]*(.*)$`, "m"));
+  return m ? m[1]!.trim().replace(/^["']|["']$/g, "") : "";
+}
 
+/** Parse the `rubric:` list out of a frontmatter block. Shared by both kinds. */
+function parseRubricBlock(front: string): { id: string; point: string; weight: number }[] {
   // rubric:
   //   - id: claim
   //     point: States the central claim
@@ -86,15 +86,39 @@ function readLitConfig(file: string): Record<string, unknown> {
     const weight = Number(chunk.match(/weight:[ \t]*(.*)/)?.[1]?.trim() ?? 1);
     if (id && point) rubric.push({ id, point, weight: Number.isFinite(weight) && weight > 0 ? weight : 1 });
   }
+  return rubric;
+}
 
-  // referenceSummary is a block scalar: everything after `referenceSummary: |`
-  // to the end of the frontmatter, with two-space indentation stripped.
-  const summaryBlock = front.match(/^referenceSummary:[ \t]*\|\r?\n([\s\S]*)$/m)?.[1] ?? "";
-  const referenceSummary = summaryBlock
+/**
+ * Read a `key: |` block scalar: everything after the marker line to the end of
+ * the frontmatter, with two-space indentation stripped. Such a key must be the
+ * frontmatter's LAST, so it can run to the `---` without any escaping.
+ */
+function parseBlockScalar(front: string, key: string): string {
+  const block = front.match(new RegExp(`^${key}:[ \\t]*\\|\\r?\\n([\\s\\S]*)$`, "m"))?.[1] ?? "";
+  return block
     .split(/\r?\n/)
     .map((line) => line.replace(/^ {2}/, ""))
     .join("\n")
     .trim();
+}
+
+/**
+ * Read a `lit/Lnn-*.md` file into a litConfig.
+ *
+ * The file's frontmatter is the section config; its body is the annotated
+ * bibliography and synthesis, which is author material and is NOT installed.
+ * One file holds both because the reference summary is a distillation of the
+ * synthesis directly below it, and split across two files they drift.
+ *
+ * `referenceSummary` is the frontmatter's last key and runs to the `---`, so it
+ * can be several paragraphs without any escaping.
+ */
+function readLitConfig(file: string): Record<string, unknown> {
+  const { front } = parseFrontmatter(file);
+  const scalar = (key: string): string => readScalar(front, key);
+  const rubric = parseRubricBlock(front);
+  const referenceSummary = parseBlockScalar(front, "referenceSummary");
 
   const minWords = Number(scalar("minWords"));
   const config = {
@@ -113,6 +137,47 @@ function readLitConfig(file: string): Record<string, unknown> {
   if (!config.referenceSummary) throw new Error(`${path.basename(file)}: referenceSummary is required`);
   if (!config.rubric.length) throw new Error(`${path.basename(file)}: at least one rubric point is required`);
   return config;
+}
+
+/**
+ * Read an `exercises/E0n-*.md` file into an assignmentConfig plus its body.
+ *
+ * Unlike readLitConfig, the BODY IS INSTALLED: for an assignment it is the
+ * learner-facing context that sets up the work, not author material. Only the
+ * frontmatter's referenceAnswer and rubric are withheld, and they are withheld
+ * by courseProgressService building the learner payload from safe keys — not by
+ * anything here.
+ */
+function readAssignmentConfig(file: string): {
+  config: Record<string, unknown>;
+  body: string;
+  passThreshold: number | null;
+} {
+  const { front, body } = parseFrontmatter(file);
+  const scalar = (key: string) => readScalar(front, key);
+  const minWords = Number(scalar("minWords"));
+  const threshold = Number(scalar("passThreshold"));
+  const rubric = parseRubricBlock(front);
+  const referenceAnswer = parseBlockScalar(front, "referenceAnswer");
+
+  // Fail the seed loudly rather than install a section that grades against
+  // nothing — same rule as readLitConfig.
+  if (!rubric.length) throw new Error(`${path.basename(file)}: no rubric points`);
+  if (!referenceAnswer) throw new Error(`${path.basename(file)}: no referenceAnswer`);
+
+  return {
+    config: {
+      promptText: scalar("promptText"),
+      handoutDriveFileId: scalar("handoutDriveFileId"),
+      handoutName: scalar("handoutName"),
+      handoutMimeType: scalar("handoutMimeType"),
+      minWords: Number.isFinite(minWords) && minWords > 0 ? minWords : 150,
+      referenceAnswer,
+      rubric,
+    },
+    body,
+    passThreshold: Number.isFinite(threshold) && threshold > 0 ? threshold : null,
+  };
 }
 
 async function seedCourse(dir: string, authorId: string) {
@@ -209,6 +274,18 @@ async function seedCourse(dir: string, authorId: string) {
         // Intro prose above the paper, same conversion as a CONTENT body.
         const file = resolveRef(dir, doc.slug, s.bodyRef);
         if (file) data.contentJson = courseBodyToDoc(fs.readFileSync(file, "utf8"));
+      }
+      if (s.kind === "ASSIGNMENT" && s.assignmentRef) {
+        const file = resolveRef(dir, doc.slug, s.assignmentRef);
+        if (file) {
+          const { config, body, passThreshold } = readAssignmentConfig(file);
+          data.assignmentConfig = config;
+          data.contentJson = courseBodyToDoc(body);
+          // course.json's explicit passThreshold wins; the file's is the default.
+          if (s.passThreshold == null && passThreshold != null) {
+            data.passThreshold = passThreshold;
+          }
+        }
       }
 
       const existing = await prisma.courseSection.findFirst({

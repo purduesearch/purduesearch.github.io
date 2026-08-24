@@ -76,6 +76,7 @@ const SEEDED_REFS: Record<string, string[]> = {
   CONTENT: ["bodyRef"],
   LIT_REVIEW: ["bodyRef", "litRef"],
   QUIZ: ["quizRef"],
+  ASSIGNMENT: ["assignmentRef"],
 };
 
 /**
@@ -115,7 +116,10 @@ function courseBodies(): [string, string][] {
             continue;
           }
           // Only markdown bodies go through the converter. litRef frontmatter is
-          // the seeder's business and quizRef is JSON.
+          // the seeder's business and quizRef is JSON. An assignmentRef IS
+          // converted by the seeder, but only after its frontmatter is split
+          // off — feeding the whole file here would compare a document nobody
+          // installs, so it gets the existence sweep only.
           if (key === "bodyRef") out.push([label, fs.readFileSync(file, "utf8")]);
         }
         for (const key of ["videoRef", "deckRef"]) {
