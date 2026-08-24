@@ -5,6 +5,8 @@ import { prisma } from "../db/prisma.js";
 import * as courseService from "../services/courseService.js";
 import * as progressService from "../services/courseProgressService.js";
 import { logAuditEvent } from "../services/activityService.js";
+import { replaceCourseSectionContent } from "../collab/courseCollab.js";
+import type { PMDoc } from "../services/blogRender.js";
 import type { CourseSectionKind, CourseQuestionKind } from "@prisma/client";
 
 // Decks are streamed straight to Drive for conversion, so memory storage is
@@ -397,10 +399,71 @@ coursesRouter.patch("/sections/:sid", async (req: Request, res: Response) => {
   try {
     const sid = req.params.sid as string;
     if (!(await requireSectionAccess(req, res, sid))) return;
-    res.json(await courseService.updateSection(sid, req.body));
+    // req.memberId, never req.session.memberId — Bearer-token users have no
+    // session, and this is what stamps the pre-overwrite snapshot's author.
+    res.json(await courseService.updateSection(sid, req.body, req.memberId));
   } catch (error) {
     console.error("PATCH /outreach/courses/sections/:sid error:", error);
     res.status(500).json({ error: "Failed to update section" });
+  }
+});
+
+// ── Section revisions ────────────────────────────────────────
+// Same surface as the blog's (GET list / PATCH name / POST rollback) so the
+// editor reuses RevisionHistoryDrawer rather than growing a second one.
+
+coursesRouter.get("/sections/:sid/revisions", async (req: Request, res: Response) => {
+  try {
+    const sid = req.params.sid as string;
+    if (!(await requireSectionAccess(req, res, sid))) return;
+    res.json(await courseService.listSectionRevisions(sid));
+  } catch (error) {
+    console.error("GET /outreach/courses/sections/:sid/revisions error:", error);
+    res.status(500).json({ error: "Failed to list revisions" });
+  }
+});
+
+// An empty or whitespace-only name clears it, which is how the drawer un-names
+// a version.
+coursesRouter.patch("/sections/:sid/revisions/:revId", async (req: Request, res: Response) => {
+  try {
+    const sid = req.params.sid as string;
+    if (!(await requireSectionAccess(req, res, sid))) return;
+    const raw = req.body?.name;
+    const name = typeof raw === "string" ? raw.trim().slice(0, 120) : null;
+    const updated = await courseService.renameSectionRevision(sid, String(req.params.revId), name);
+    if (!updated) {
+      res.status(404).json({ error: "Revision not found" });
+      return;
+    }
+    res.json(updated);
+  } catch (error) {
+    console.error("PATCH /outreach/courses/sections/:sid/revisions/:revId error:", error);
+    res.status(500).json({ error: "Failed to rename revision" });
+  }
+});
+
+coursesRouter.post("/sections/:sid/revisions/:revId/rollback", async (req: Request, res: Response) => {
+  try {
+    const sid = req.params.sid as string;
+    if (!(await requireSectionAccess(req, res, sid))) return;
+    const section = await courseService.rollbackSectionRevision(
+      sid,
+      String(req.params.revId),
+      req.memberId!
+    );
+    // The live Yjs document is authoritative while anyone has the section open,
+    // so a DB-only write would be invisible (and then overwritten by the next
+    // collab store). Push the restored body into the live doc as well.
+    await replaceCourseSectionContent(sid, section.contentJson as unknown as PMDoc);
+    res.json(section);
+  } catch (error) {
+    if (error instanceof Error && error.message === "Revision not found") {
+      res.status(404).json({ error: error.message });
+      return;
+    }
+    console.error("POST /outreach/courses/sections/:sid/revisions/:revId/rollback error:", error);
+    res.status(500).json({ error: "Failed to roll back" });
   }
 });
 

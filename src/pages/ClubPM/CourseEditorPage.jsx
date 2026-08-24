@@ -3,6 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import BlogEditor from '../../components/clubpm/blog/BlogEditor';
 import BlogAiPanel from '../../components/clubpm/blog/BlogAiPanel';
+import RevisionHistoryDrawer from '../../components/clubpm/blog/RevisionHistoryDrawer';
 import CourseSectionRail, { SECTION_KINDS } from '../../components/clubpm/courses/CourseSectionRail';
 import CourseQuizBuilder from '../../components/clubpm/courses/CourseQuizBuilder';
 import CourseVideoWorkbench from '../../components/clubpm/courses/CourseVideoWorkbench';
@@ -17,12 +18,22 @@ import {
   getCourseSection, createCourseSection, updateCourseSection, deleteCourseSection,
   createCourseModule, updateCourseModule, deleteCourseModule, saveCourseStructure,
   getCourseCollabWsUrl,
+  listCourseSectionRevisions, rollbackCourseSectionRevision, renameCourseSectionRevision,
 } from '../../api/clubPmClient';
 
 const STATUS_LABELS = {
   DRAFT: 'Draft',
   PUBLISHED: 'Published',
   ARCHIVED: 'Archived',
+};
+
+// Section history reuses the blog's drawer; only the endpoints differ. Defined
+// at module scope so its identity is stable — the drawer refetches when `api`
+// changes, and a fresh object each render would refetch forever.
+const SECTION_REVISION_API = {
+  list: listCourseSectionRevisions,
+  rename: renameCourseSectionRevision,
+  rollback: rollbackCourseSectionRevision,
 };
 
 // Publish is the single primary action; every other workflow verb lives in its
@@ -123,6 +134,7 @@ export default function CourseEditorPage() {
   const [loading, setLoading]   = useState(true);
   const [saving, setSaving]     = useState(false);
   const [dirty, setDirty]       = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState(null);
   const [error, setError]       = useState(null);
   const [busyAction, setBusyAction] = useState(false);
@@ -206,6 +218,9 @@ export default function CourseEditorPage() {
     setSectionTitle(selectedSection?.title ?? '');
     setContentJson(null);
     setDirty(false);
+    // History is per section; leaving it open across a switch would show the
+    // new section's snapshots under the old one's heading.
+    setHistoryOpen(false);
     // The previous section's editor is torn down on switch; holding its instance
     // would leave BlogAiPanel operating on a dead ProseMirror view.
     setEditorInstance(null);
@@ -382,6 +397,21 @@ export default function CourseEditorPage() {
     }
   }, [id]);
 
+  const handleRestored = useCallback((updated) => {
+    const doc = updated?.contentJson ?? null;
+    setSavedContentJson(doc);
+    setContentJson(null);
+    setDirty(false);
+    setLastSavedAt(new Date());
+    // The server also pushed the restored body into the live Yjs document, which
+    // is what updates anyone else with the section open. That delivers nothing
+    // to THIS editor when the socket isn't syncing — the very case that made the
+    // restore necessary — so apply it locally as well. A full replace either
+    // way, so the two paths converge on the same document rather than fight.
+    const ed = editorRef.current;
+    if (ed && !ed.isDestroyed && doc) ed.commands.setContent(doc, { emitUpdate: false });
+  }, []);
+
   const handleUpdateSection = useCallback(async (sectionId, patch) => {
     try {
       const updated = await updateCourseSection(sectionId, patch);
@@ -505,6 +535,15 @@ export default function CourseEditorPage() {
           {hasDocument && (
             <>
               <div className="cpm-blog-tool-group" role="group" aria-label="Panels">
+                <button
+                  type="button"
+                  className="cpm-blog-tool-btn"
+                  onClick={() => setHistoryOpen(true)}
+                  title="Section history"
+                  aria-label="Section history"
+                >
+                  <i className="fas fa-clock-rotate-left" aria-hidden="true" />
+                </button>
                 <button
                   type="button"
                   className={`cpm-blog-tool-btn${aiPanelOpen ? ' is-active' : ''}`}
@@ -683,6 +722,16 @@ export default function CourseEditorPage() {
           )}
         </div>
       </div>
+
+      {historyOpen && selectedSection && (
+        <RevisionHistoryDrawer
+          postId={selectedSection.id}
+          api={SECTION_REVISION_API}
+          label="section"
+          onClose={() => setHistoryOpen(false)}
+          onRestored={handleRestored}
+        />
+      )}
 
       {hasDocument && selectedSection && (
         <BlogAiPanel

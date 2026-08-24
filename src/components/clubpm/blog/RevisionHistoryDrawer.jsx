@@ -20,10 +20,22 @@ function RevisionPreview({ revision }) {
   );
 }
 
-// Drawer for viewing / restoring past snapshots of a post's content.
+// The blog endpoints, used when no `api` prop is given. A course section keeps
+// its own history at a different URL but the identical shape, so it passes its
+// three functions in rather than forking this component.
+const BLOG_API = {
+  list: listBlogRevisions,
+  rename: renameBlogRevision,
+  rollback: rollbackBlogRevision,
+};
+
+// Drawer for viewing / restoring past snapshots of a document's content.
 // Opened from the editor header; "View" renders a read-only copy of the
-// snapshot in place, "Restore" rolls the live post back to it.
-export default function RevisionHistoryDrawer({ postId, onClose, onRestored }) {
+// snapshot in place, "Restore" rolls the live document back to it.
+//
+// `postId` is the owning document's id — a blog post, or a course section when
+// `api` points at the course endpoints.
+export default function RevisionHistoryDrawer({ postId, onClose, onRestored, api = BLOG_API, label = 'post' }) {
   const [revisions, setRevisions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -38,12 +50,13 @@ export default function RevisionHistoryDrawer({ postId, onClose, onRestored }) {
 
   useEffect(() => {
     let cancelled = false;
-    listBlogRevisions(postId)
+    setLoading(true);
+    api.list(postId)
       .then((list) => { if (!cancelled) setRevisions(Array.isArray(list) ? list : []); })
       .catch((err) => { if (!cancelled) setError(err?.message ?? 'Failed to load revisions'); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [postId]);
+  }, [postId, api]);
 
   const startRename = (rev) => { setRenamingId(rev.id); setDraftName(rev.name ?? ''); };
 
@@ -55,7 +68,7 @@ export default function RevisionHistoryDrawer({ postId, onClose, onRestored }) {
     // rather than leaving the list blanked while the request is in flight.
     setRevisions((rows) => rows.map((r) => (r.id === rev.id ? { ...r, name: next || null } : r)));
     try {
-      await renameBlogRevision(postId, rev.id, next);
+      await api.rename(postId, rev.id, next);
     } catch (err) {
       setRevisions((rows) => rows.map((r) => (r.id === rev.id ? { ...r, name: rev.name ?? null } : r)));
       toast.error(err?.message ?? 'Could not rename this version');
@@ -63,10 +76,10 @@ export default function RevisionHistoryDrawer({ postId, onClose, onRestored }) {
   };
 
   const handleRestore = async (revision) => {
-    if (!window.confirm(`Restore the post to the "${revision.name || revision.title}" snapshot from ${new Date(revision.createdAt).toLocaleString()}? The current version will be saved as a new snapshot first.`)) return;
+    if (!window.confirm(`Restore the ${label} to the "${revision.name || revision.title}" snapshot from ${new Date(revision.createdAt).toLocaleString()}? The current version will be saved as a new snapshot first.`)) return;
     setRestoringId(revision.id);
     try {
-      const updated = await rollbackBlogRevision(postId, revision.id);
+      const updated = await api.rollback(postId, revision.id);
       toast.success('Restored');
       onRestored?.(updated);
       onClose();

@@ -24395,3 +24395,26 @@ html:not(.aos-off) [data-aos].aos-animate  { opacity: 1; transform: none; }
 @media (max-width: 640px) {
   .pm-lit-builder-point { grid-template-columns: 1fr; }
 }
+
+/* === Editor: document still loading ================================= */
+/* A collab editor is empty between mount and the arrival of its body. That
+   blank surface is indistinguishable from an empty section, so it says so —
+   and while it shows, the editor is read-only and reports no changes (see
+   isDocHydrated in src/lib/collabFallback.js). */
+
+.cpm-blog-editor-loading {
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+  padding: 1.25rem 0;
+  font-family: var(--pm-font-body, 'DM Sans', system-ui, sans-serif);
+  font-size: 0.9rem;
+  color: var(--pm-text-muted, rgba(255, 255, 255, 0.55));
+}
+
+/* The caret would otherwise blink in a document nobody may type into. */
+.cpm-blog-editor-surface.is-loading .ProseMirror { caret-color: transparent; }
+
+@media (prefers-reduced-motion: reduce) {
+  .cpm-blog-editor-loading .cpm-spinner { animation: none; }
+}

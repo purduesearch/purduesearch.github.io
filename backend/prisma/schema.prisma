@@ -190,6 +190,7 @@ model Member {
   submissionApprovals     ApprovalRecord[]     @relation("SubmissionApprover")
   blogPosts               BlogPost[]           @relation("BlogPostCreator")
   blogRevisions           BlogRevision[]       @relation("BlogRevisionAuthor")
+  courseSectionRevisions  CourseSectionRevision[] @relation("CourseSectionRevisionAuthor")
   blogAuthorships         BlogAuthor[]         @relation("BlogAuthorMember")
   blogSnippets            BlogSnippet[]        @relation("BlogSnippetCreator")
   pressKitsCreated        ProjectPressKit[]    @relation("PressKitCreator")
@@ -2037,6 +2038,7 @@ model CourseSection {
   progress  CourseSectionProgress[]
   attempts  CourseQuizAttempt[]
   threads   BlogThread[]
+  revisions CourseSectionRevision[]
 
   litSubmissions CourseLitSubmission[]
 
@@ -2049,6 +2051,31 @@ model CourseSection {
   //
   // `order` is order WITHIN the module, not within the course.
   @@index([moduleId, order])
+}
+
+/// Point-in-time snapshot of a section's body, mirroring BlogRevision.
+///
+/// Course sections had no history at all, which is why a bug that overwrote
+/// `contentJson` with an empty document destroyed two written ares-101
+/// articles with nothing to roll back to. `updateSection` now snapshots the
+/// OUTGOING body before replacing it (throttled — see SNAPSHOT_THROTTLE_MS),
+/// so the same class of accident is recoverable rather than terminal.
+model CourseSectionRevision {
+  id          String        @id @default(cuid())
+  sectionId   String
+  section     CourseSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  contentJson Json
+  title       String
+  /// Optional human label ("Before the rewrite"). When set it is what the
+  /// history drawer shows, with the timestamp beneath it.
+  name        String?
+  /// Nullable, unlike BlogRevision.authorId: a snapshot can be taken by the
+  /// seeder or a scheduled job, which is not a member.
+  authorId    String?
+  author      Member?       @relation("CourseSectionRevisionAuthor", fields: [authorId], references: [id])
+  createdAt   DateTime      @default(now())
+
+  @@index([sectionId, createdAt])
 }
 
 model CourseQuestion {

@@ -535,6 +535,11 @@ export const getCourseSection     = (sectionId)           => get(`/api/outreach/
 export const createCourseSection  = (courseId, data)      => post(`/api/outreach/courses/${courseId}/sections`, data);
 export const updateCourseSection  = (sectionId, data)     => patch(`/api/outreach/courses/sections/${sectionId}`, data);
 export const deleteCourseSection  = (sectionId)           => del(`/api/outreach/courses/sections/${sectionId}`);
+// Section history — same shape as the blog's revision endpoints above, so both
+// feed the same RevisionHistoryDrawer.
+export const listCourseSectionRevisions   = (sectionId)               => get(`/api/outreach/courses/sections/${sectionId}/revisions`);
+export const rollbackCourseSectionRevision = (sectionId, revId)       => post(`/api/outreach/courses/sections/${sectionId}/revisions/${revId}/rollback`, {});
+export const renameCourseSectionRevision   = (sectionId, revId, name) => patch(`/api/outreach/courses/sections/${sectionId}/revisions/${revId}`, { name });
 export const createCourseModule = (courseId, data)  => post(`/api/outreach/courses/${courseId}/modules`, data);
 export const updateCourseModule = (moduleId, data)  => patch(`/api/outreach/courses/modules/${moduleId}`, data);
 export const deleteCourseModule = (moduleId)        => del(`/api/outreach/courses/modules/${moduleId}`);
