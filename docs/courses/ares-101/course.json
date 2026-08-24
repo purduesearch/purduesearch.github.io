@@ -163,9 +163,9 @@
         {
           "order": 3,
           "title": "Exercise: exposure from a session",
-          "kind": "CONTENT",
+          "kind": "ASSIGNMENT",
           "isRequired": true,
-          "bodyRef": "exercises/E01-exposure-from-a-session.md"
+          "assignmentRef": "exercises/E01-exposure-from-a-session.md"
         },
         {
           "order": 4,
