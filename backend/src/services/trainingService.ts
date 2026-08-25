@@ -262,3 +262,99 @@ export async function listCertificates(trainingId: string, memberId: string) {
     include: { reviewedBy: { select: { id: true, displayName: true } } },
   });
 }
+
+/** Everything awaiting review, oldest first — a queue, not a feed. */
+export async function listPendingCertificates() {
+  return prisma.trainingCertificate.findMany({
+    where: { status: "PENDING" },
+    orderBy: { createdAt: "asc" },
+    include: {
+      training: { select: { id: true, name: true, providerName: true, renewalMonths: true } },
+      member: { select: { id: true, displayName: true, avatarUrl: true } },
+      section: { select: { id: true, title: true, courseId: true } },
+    },
+  });
+}
+
+export async function countPendingCertificates() {
+  return prisma.trainingCertificate.count({ where: { status: "PENDING" } });
+}
+
+/**
+ * Approve or reject one certificate.
+ *
+ * On APPROVE the admin may correct `completedOn` — the member typed it off a
+ * scan and the admin is looking at the same scan. Correcting it recomputes
+ * `expiresOn` from the registry's CURRENT renewalMonths, which is the one place
+ * a re-derivation is right: someone is deliberately re-deciding this row.
+ */
+export async function reviewCertificate(
+  certificateId: string,
+  reviewerId: string,
+  decision: "APPROVED" | "REJECTED",
+  note: string | null,
+  correctedCompletedOn: Date | null
+) {
+  const cert = await prisma.trainingCertificate.findUnique({
+    where: { id: certificateId },
+    include: { training: { select: { renewalMonths: true, name: true } } },
+  });
+  if (!cert) return { error: "Certificate not found", status: 404 } as const;
+  if (cert.status !== "PENDING") {
+    return { error: "That certificate has already been reviewed", status: 409 } as const;
+  }
+  if (decision === "REJECTED" && !note) {
+    return { error: "Say why you are rejecting it — the member sees this", status: 400 } as const;
+  }
+
+  const completedOn = correctedCompletedOn ?? cert.completedOn;
+  const updated = await prisma.trainingCertificate.update({
+    where: { id: certificateId },
+    data: {
+      status: decision,
+      reviewedById: reviewerId,
+      reviewedAt: new Date(),
+      reviewNote: note,
+      completedOn,
+      expiresOn:
+        decision === "APPROVED"
+          ? computeExpiry(completedOn, cert.training.renewalMonths)
+          : cert.expiresOn,
+      // A fresh decision starts a fresh reminder cycle.
+      lastRemindedAt: null,
+    },
+  });
+  return { certificate: updated, trainingName: cert.training.name };
+}
+
+/** Every live training with this member's derived standing. */
+export async function getMemberTrainingStatuses(memberId: string) {
+  const [trainings, certs] = await Promise.all([
+    prisma.training.findMany({ where: { archivedAt: null }, orderBy: { name: "asc" } }),
+    prisma.trainingCertificate.findMany({
+      where: { memberId },
+      select: { trainingId: true, status: true, expiresOn: true, createdAt: true },
+    }),
+  ]);
+  const now = new Date();
+  const byTraining = new Map<string, CertLike[]>();
+  for (const c of certs) {
+    const list = byTraining.get(c.trainingId) ?? [];
+    list.push(c);
+    byTraining.set(c.trainingId, list);
+  }
+  return trainings.map((t) => {
+    const mine = byTraining.get(t.id) ?? [];
+    const newestApproved = mine
+      .filter((c) => c.status === "APPROVED")
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0];
+    return {
+      trainingId: t.id,
+      name: t.name,
+      providerName: t.providerName,
+      renewalMonths: t.renewalMonths,
+      status: deriveStatus(mine, now),
+      expiresOn: newestApproved?.expiresOn ?? null,
+    };
+  });
+}

@@ -1590,6 +1590,113 @@ coursesRouter.get("/sections/:sid/certificates", async (req: Request, res: Respo
   }
 });
 
+// ── Certificate review (admin) ───────────────────────────────
+
+coursesRouter.get("/certificates/pending", async (req: Request, res: Response) => {
+  try {
+    if (!(await isAdmin(req.memberId))) { res.status(403).json({ error: "Forbidden" }); return; }
+    const rows = await trainingService.listPendingCertificates();
+    res.json({ certificates: rows, count: rows.length });
+  } catch (error) {
+    console.error("GET /outreach/courses/certificates/pending error:", error);
+    res.status(500).json({ error: "Failed to load the review queue" });
+  }
+});
+
+coursesRouter.post("/certificates/:cid/review", async (req: Request, res: Response) => {
+  try {
+    if (!(await isAdmin(req.memberId))) { res.status(403).json({ error: "Forbidden" }); return; }
+    const body = req.body as { decision?: string; note?: string; completedOn?: string };
+    if (body.decision !== "APPROVED" && body.decision !== "REJECTED") {
+      res.status(400).json({ error: "decision must be APPROVED or REJECTED" });
+      return;
+    }
+    const corrected = body.completedOn
+      ? new Date(`${String(body.completedOn).slice(0, 10)}T00:00:00.000Z`)
+      : null;
+    if (corrected && Number.isNaN(corrected.getTime())) {
+      res.status(400).json({ error: "completedOn is not a date" });
+      return;
+    }
+
+    const result = await trainingService.reviewCertificate(
+      req.params.cid as string,
+      req.memberId!,
+      body.decision,
+      body.note?.trim() || null,
+      corrected
+    );
+    if (isServiceError(result)) {
+      res.status(result.status).json({ error: result.error });
+      return;
+    }
+
+    const cert = result.certificate;
+    if (body.decision === "REJECTED" && cert.sectionId) {
+      await progressService.reopenSectionForMember(cert.sectionId, cert.memberId);
+    }
+
+    // Tell the member either way. An approval that lands silently reads as "still
+    // waiting" and generates a Slack question a week later.
+    const { createNotification } = await import("../services/notificationCrud.js");
+    const message =
+      body.decision === "APPROVED"
+        ? `Your ${result.trainingName} certificate was approved.`
+        : `Your ${result.trainingName} certificate needs another look: ${cert.reviewNote}`;
+    await createNotification({
+      type: "TRAINING_CERT_REVIEWED",
+      recipientId: cert.memberId,
+      actorId: req.memberId!,
+      message,
+      metadata: { certificateId: cert.id, sectionId: cert.sectionId, decision: body.decision },
+    });
+    const member = await prisma.member.findUnique({
+      where: { id: cert.memberId },
+      select: { slackId: true },
+    });
+    if (member?.slackId) {
+      const { queueDm } = await import("../services/dmBatcher.js");
+      queueDm(member.slackId, message);
+    }
+
+    res.json({ certificate: cert });
+  } catch (error) {
+    console.error("POST /outreach/courses/certificates/:cid/review error:", error);
+    res.status(500).json({ error: "Failed to record that decision" });
+  }
+});
+
+// The authenticated proxy. This is the ONLY way a certificate file is served —
+// the Drive file is never made public, so a leaked URL is not a leaked
+// certificate.
+coursesRouter.get("/certificates/:cid/file", async (req: Request, res: Response) => {
+  try {
+    const cert = await prisma.trainingCertificate.findUnique({
+      where: { id: req.params.cid as string },
+      select: { memberId: true, driveFileId: true, fileName: true },
+    });
+    if (!cert) { res.status(404).json({ error: "Certificate not found" }); return; }
+    // Re-read the admin flag from the database; never trust the client's claim.
+    const allowed = cert.memberId === req.memberId || (await isAdmin(req.memberId));
+    if (!allowed) { res.status(403).json({ error: "Forbidden" }); return; }
+    await streamDriveFileToResponse(res, cert.driveFileId, cert.fileName);
+  } catch (error) {
+    console.error("GET /outreach/courses/certificates/:cid/file error:", error);
+    res.status(500).json({ error: "Failed to load that certificate" });
+  }
+});
+
+// The caller's own standing across every live training. Backs the Profile strip.
+coursesRouter.get("/trainings/my-status", async (req: Request, res: Response) => {
+  try {
+    const rows = await trainingService.getMemberTrainingStatuses(req.memberId!);
+    res.json({ trainings: rows });
+  } catch (error) {
+    console.error("GET /outreach/courses/trainings/my-status error:", error);
+    res.status(500).json({ error: "Failed to load your training status" });
+  }
+});
+
 // ── Admin reporting ──────────────────────────────────────────
 //
 // Gated with `requireCourseAccess` (author-or-admin) rather than a bare admin

@@ -1570,6 +1570,34 @@ export async function submitCertificate(
   return { certificate, alreadyComplete: !firstCompletion, ...effects };
 }
 
+/**
+ * Flip a completed section back to IN_PROGRESS so it accepts a new submission.
+ *
+ * Used when a certificate is rejected and when one expires.
+ *
+ * IT DOES NOT TOUCH `rewardGrantedAt`, on the progress row or the enrollment.
+ * Those are idempotency gates exactly like Task.rewardGrantedAt — clearing one
+ * would re-grant course XP on every annual renewal, forever. `status` and
+ * `completedAt` are the only fields this is allowed to write.
+ */
+export async function reopenSectionForMember(sectionId: string, memberId: string) {
+  const enrollment = await prisma.courseEnrollment.findFirst({
+    where: { memberId, course: { sections: { some: { id: sectionId } } } },
+    select: { id: true },
+  });
+  if (!enrollment) return false;
+  const progress = await prisma.courseSectionProgress.findUnique({
+    where: { enrollmentId_sectionId: { enrollmentId: enrollment.id, sectionId } },
+    select: { id: true, status: true },
+  });
+  if (!progress || progress.status !== "COMPLETED") return false;
+  await prisma.courseSectionProgress.update({
+    where: { id: progress.id },
+    data: { status: "IN_PROGRESS", completedAt: null },
+  });
+  return true;
+}
+
 /** This member's own attempts on this section, newest first. */
 export async function listWorkSubmissions(sectionId: string, memberId: string) {
   const ctx = await requireUnlockedSection(sectionId, memberId);
