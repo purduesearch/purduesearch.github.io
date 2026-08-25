@@ -119,6 +119,8 @@ enum NotificationType {
   MEETING_POLL_FINALIZED
   MEETING_POLL_REMINDER
   BLOG_COMMENTED
+  TRAINING_CERT_REVIEWED
+  TRAINING_EXPIRING
 }
 
 enum BlogThreadKind {
@@ -269,6 +271,11 @@ model Member {
   assignedCourses   CourseEnrollment[] @relation("CourseEnrollmentAssigner")
   courseGenJobs     CourseGenJob[]     @relation("CourseGenJobCreator")
   workSubmissions   CourseWorkSubmission[]
+
+  // ── Safety trainings (NOT the walkthrough "training project") ──
+  trainingsCreated      Training[]            @relation("TrainingCreator")
+  trainingCertificates  TrainingCertificate[] @relation("TrainingCertificateMember")
+  trainingCertsReviewed TrainingCertificate[] @relation("TrainingCertificateReviewer")
 
   // ── Per-document access control ──
   docAccessGrants  DocAccessGrant[]   @relation("DocAccessMember")
@@ -1945,6 +1952,16 @@ enum CourseSectionKind {
   WALKTHROUGH
   LIT_REVIEW
   ASSIGNMENT
+  /// An externally-hosted training (CITI, Purdue EHS/HSI). Constellation cannot
+  /// host these, so the section explains the training, links out to it, and
+  /// collects the certificate as proof.
+  TRAINING
+}
+
+enum TrainingCertStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
 
 enum CourseQuestionKind {
@@ -2052,6 +2069,13 @@ model CourseSection {
   // its own object from the safe keys (see sanitizeAssignmentConfig) rather than
   // deleting the secret ones off this column.
   assignmentConfig Json?
+  // TRAINING: a foreign key into the shared Training registry, deliberately NOT
+  // a `trainingConfig` JSON column like the kinds above. Those columns hold
+  // per-section configuration; a Training row is shared BETWEEN sections and
+  // courses, so it has to be relational. Required-vs-optional rides on the
+  // existing `isRequired`, so a TRAINING section needs no config column at all.
+  trainingId    String?
+  training      Training?         @relation(fields: [trainingId], references: [id])
   // QUIZ only
   passThreshold Int?
   maxAttempts   Int?
@@ -2067,6 +2091,8 @@ model CourseSection {
 
   workSubmissions CourseWorkSubmission[]
 
+  trainingCertificates TrainingCertificate[]
+
   docAccessGrants  DocAccessGrant[]
   docShareSettings DocShareSettings?
 
@@ -2076,6 +2102,7 @@ model CourseSection {
   //
   // `order` is order WITHIN the module, not within the course.
   @@index([moduleId, order])
+  @@index([trainingId])
 }
 
 /// Point-in-time snapshot of a section's body, mirroring BlogRevision.
@@ -2187,6 +2214,100 @@ model CourseWorkSubmission {
   // most interesting thing these sections produce.
   @@index([sectionId, memberId])
   @@map("CourseLitSubmission")
+}
+
+/// A safety-training catalog entry, shared across courses.
+///
+/// NOT the "training project" — that is the sandbox project the Constellation
+/// 101 walkthroughs drive (`POST /api/training-project`,
+/// `tourConfig.requiresTrainingProject`, `EXCLUDE_TRAINING` in scheduler.ts).
+/// The two are unrelated; do not consolidate them.
+///
+/// Shared on purpose: one Bloodborne Pathogens entry serves every course that
+/// requires it, so a member's certificate satisfies it everywhere. The cost is
+/// that editing an entry edits it in every course — TrainingBuilder warns.
+model Training {
+  id              String    @id @default(cuid())
+  slug            String    @unique
+  name            String
+  /// Free text, e.g. "CITI Program" or "Purdue EHS — HSI Platform". Deliberately
+  /// not an enum: a third provider must not require a migration.
+  providerName    String
+  providerUrl     String?
+  /// Direct link to the training itself.
+  courseUrl       String?
+  /// Separate from courseUrl on purpose. CITI's registration instructions are a
+  /// PDF that is not the course, and HSI courses are found by catalog search
+  /// rather than by URL, so for those this is the only usable link.
+  registrationUrl String?
+  description     String?
+  /// null → never expires. 12 → annual.
+  renewalMonths   Int?
+  /// The author-uploaded sample certificate, so a learner knows what to submit.
+  /// Lives in the bot's Drive; served through the same authenticated proxy as a
+  /// real certificate so there is one code path.
+  exampleFileId   String?
+  exampleFileName String?
+  exampleMimeType String?
+  createdById     String
+  createdBy       Member    @relation("TrainingCreator", fields: [createdById], references: [id])
+  /// Soft delete. An entry referenced by a historical certificate must never be
+  /// hard-deleted, or the certificate loses the name of what it certifies.
+  archivedAt      DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  sections     CourseSection[]
+  certificates TrainingCertificate[]
+
+  @@index([archivedAt])
+}
+
+/// One learner's certificate submission.
+///
+/// One row PER ATTEMPT — the same idiom as CourseWorkSubmission. Review updates
+/// `status` on an existing row, but a resubmission always creates a new one, so
+/// the attempt history survives a disputed rejection.
+model TrainingCertificate {
+  id             String             @id @default(cuid())
+  trainingId     String
+  training       Training           @relation(fields: [trainingId], references: [id])
+  memberId       String
+  member         Member             @relation("TrainingCertificateMember", fields: [memberId], references: [id], onDelete: Cascade)
+  /// Which course section it was uploaded from, if any. Nullable so a
+  /// certificate can outlive the course that collected it.
+  sectionId      String?
+  section        CourseSection?     @relation(fields: [sectionId], references: [id], onDelete: SetNull)
+
+  /// The file is RETAINED, unlike CourseWorkSubmission which discards it after
+  /// text extraction. It stays private in the bot's Drive — this fileId is NEVER
+  /// passed to makeDriveFilePublic. Serving goes through the authenticated proxy.
+  driveFileId    String
+  fileName       String
+  fileMimeType   String
+  fileSize       Int
+
+  /// The date printed on the certificate, entered by the member.
+  completedOn    DateTime
+  /// Server-computed at submission: completedOn + training.renewalMonths. Null
+  /// when the training never expires. SNAPSHOTTED, not derived on read — editing
+  /// a registry entry's renewalMonths later must not silently re-date every
+  /// certificate already issued under the old period.
+  expiresOn      DateTime?
+
+  status         TrainingCertStatus @default(PENDING)
+  reviewedById   String?
+  reviewedBy     Member?            @relation("TrainingCertificateReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewedAt     DateTime?
+  /// Required on REJECTED — the member is told why.
+  reviewNote     String?
+  /// Set by the expiry cron so one threshold crossing nags exactly once.
+  lastRemindedAt DateTime?
+  createdAt      DateTime           @default(now())
+
+  @@index([trainingId, memberId])
+  @@index([status])
+  @@index([status, expiresOn])
 }
 
 model CourseEnrollment {
