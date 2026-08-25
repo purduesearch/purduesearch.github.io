@@ -4,6 +4,7 @@ import { requireAuth } from "./auth.js";
 import { prisma } from "../db/prisma.js";
 import * as courseService from "../services/courseService.js";
 import * as progressService from "../services/courseProgressService.js";
+import * as trainingService from "../services/trainingService.js";
 import { logAuditEvent } from "../services/activityService.js";
 import { replaceCourseSectionContent } from "../collab/courseCollab.js";
 import type { PMDoc } from "../services/blogRender.js";
@@ -14,6 +15,13 @@ import type { CourseSectionKind, CourseQuestionKind } from "@prisma/client";
 const deckUpload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 60 * 1024 * 1024, files: 1 },
+});
+
+// Certificates and example certificates are PDFs or photos of a printed page.
+// 25 MB matches the handout route; nobody's certificate is larger.
+const certUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 25 * 1024 * 1024, files: 1 },
 });
 
 export const coursesRouter = Router();
@@ -73,6 +81,165 @@ async function requireModuleAccess(req: Request, res: Response, moduleId: string
   }
   return mod;
 }
+
+/**
+ * Stream a private Drive file to the client.
+ *
+ * `inline` rather than `attachment` so a PDF opens in the browser's viewer —
+ * an admin reviewing twenty certificates should not end up with twenty
+ * downloads. The caller is responsible for authorization BEFORE calling this.
+ */
+async function streamDriveFileToResponse(res: Response, fileId: string, fileName: string) {
+  const drive = await import("../services/driveService.js");
+  const result = await drive.streamDriveFile(fileId);
+  if (!result.ok) {
+    // The reason is reported rather than collapsed to a bare 404: a broken bot
+    // credential takes out every certificate at once, and as a plain 404 that is
+    // indistinguishable from one deleted file.
+    const status = result.reason === "not-found" ? 404 : 502;
+    res.status(status).json({ error: "Could not load that file", reason: result.reason });
+    return;
+  }
+  res.setHeader("Content-Type", result.mimeType);
+  res.setHeader(
+    "Content-Disposition",
+    `inline; filename="${fileName.replace(/["\r\n]/g, "")}"`
+  );
+  result.stream.on("error", (err) => {
+    console.error(`[courses] certificate stream ${fileId} failed mid-flight:`, err);
+    res.destroy();
+  });
+  result.stream.pipe(res);
+}
+
+// ── Training registry ────────────────────────────────────────
+//
+// ROUTE ORDER: these literal `/trainings...` paths MUST stay above `GET /:id`
+// and `GET /:slug/learn`, or Express matches "trainings" as an id.
+//
+// Registry writes are author-or-admin — the same bar as creating a course
+// section, since creating a registry entry is something you do while authoring
+// one. Reads are open to any signed-in member: a learner has to see the name and
+// the link of the training they are being asked to complete.
+
+coursesRouter.get("/trainings", async (_req: Request, res: Response) => {
+  try {
+    const rows = await trainingService.listTrainings();
+    res.json(rows);
+  } catch (error) {
+    console.error("GET /outreach/courses/trainings error:", error);
+    res.status(500).json({ error: "Failed to load trainings" });
+  }
+});
+
+coursesRouter.post("/trainings", async (req: Request, res: Response) => {
+  try {
+    const parsed = trainingService.sanitizeTrainingInput(req.body);
+    if (!parsed.ok) { res.status(400).json({ error: parsed.error }); return; }
+    const row = await trainingService.createTraining(parsed.value, req.memberId!);
+    res.status(201).json(row);
+  } catch (error) {
+    console.error("POST /outreach/courses/trainings error:", error);
+    res.status(500).json({ error: "Failed to create that training" });
+  }
+});
+
+coursesRouter.patch("/trainings/:tid", async (req: Request, res: Response) => {
+  try {
+    const parsed = trainingService.sanitizeTrainingInput(req.body);
+    if (!parsed.ok) { res.status(400).json({ error: parsed.error }); return; }
+    const row = await trainingService.updateTraining(req.params.tid as string, parsed.value);
+    res.json(row);
+  } catch (error) {
+    console.error("PATCH /outreach/courses/trainings/:tid error:", error);
+    res.status(500).json({ error: "Failed to update that training" });
+  }
+});
+
+// The author's sample certificate. Uploaded through the bot account and served
+// through the proxy below — never made public, so there is one serving path for
+// both example and real certificates.
+coursesRouter.post(
+  "/trainings/:tid/example",
+  certUpload.single("file"),
+  async (req: Request, res: Response) => {
+    try {
+      if (!req.file) { res.status(400).json({ error: "file is required" }); return; }
+      const { Readable } = await import("node:stream");
+      const drive = await import("../services/driveService.js");
+      const folderId = await drive.ensureClubPmRootFolder();
+      if (!folderId) { res.status(503).json({ error: "Drive is not configured" }); return; }
+
+      const uploaded = await drive.uploadStreamToDrive(
+        Readable.from(req.file.buffer),
+        req.file.mimetype,
+        `example-${req.file.originalname}`,
+        folderId
+      );
+      if (!uploaded) { res.status(502).json({ error: "Could not upload to Drive" }); return; }
+      // Deliberately NOT makeDriveFilePublic — see the proxy route.
+
+      const prev = await prisma.training.findUnique({
+        where: { id: req.params.tid as string },
+        select: { exampleFileId: true },
+      });
+      const row = await prisma.training.update({
+        where: { id: req.params.tid as string },
+        data: {
+          exampleFileId: uploaded.fileId,
+          exampleFileName: req.file.originalname,
+          exampleMimeType: req.file.mimetype,
+        },
+      });
+      // Best-effort cleanup of the file we just replaced. A failure here must not
+      // fail the request — the row already points at the new file.
+      if (prev?.exampleFileId) await drive.deleteDriveFile(prev.exampleFileId).catch(() => false);
+      res.json(row);
+    } catch (error) {
+      console.error("POST /outreach/courses/trainings/:tid/example error:", error);
+      res.status(500).json({ error: "Failed to attach that example" });
+    }
+  }
+);
+
+coursesRouter.delete("/trainings/:tid/example", async (req: Request, res: Response) => {
+  try {
+    const prev = await prisma.training.findUnique({
+      where: { id: req.params.tid as string },
+      select: { exampleFileId: true },
+    });
+    if (prev?.exampleFileId) {
+      const drive = await import("../services/driveService.js");
+      // Best-effort: a Drive delete that fails must not block clearing the
+      // reference, or the row points at a file forever.
+      await drive.deleteDriveFile(prev.exampleFileId).catch(() => false);
+    }
+    const row = await prisma.training.update({
+      where: { id: req.params.tid as string },
+      data: { exampleFileId: null, exampleFileName: null, exampleMimeType: null },
+    });
+    res.json(row);
+  } catch (error) {
+    console.error("DELETE /outreach/courses/trainings/:tid/example error:", error);
+    res.status(500).json({ error: "Failed to remove that example" });
+  }
+});
+
+// Any signed-in member — an example certificate is teaching material, and a
+// learner has to see it to know what to submit.
+coursesRouter.get("/trainings/:tid/example-file", async (req: Request, res: Response) => {
+  try {
+    const row = await prisma.training.findUnique({
+      where: { id: req.params.tid as string },
+      select: { exampleFileId: true, exampleFileName: true },
+    });
+    if (!row?.exampleFileId) { res.status(404).json({ error: "No example certificate" }); return; }
+    await streamDriveFileToResponse(res, row.exampleFileId, row.exampleFileName ?? "example");
+  } catch (error) {
+    console.error("GET /outreach/courses/trainings/:tid/example-file error:", error);
+    res.status(500).json({ error: "Failed to load that example" });
+  }
+});
 
 // ── Catalog ──────────────────────────────────────────────────
 

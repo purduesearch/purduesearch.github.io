@@ -172,3 +172,44 @@ export function sanitizeTrainingInput(body: unknown): SanitizeResult {
     },
   };
 }
+
+// ── Persistence ──────────────────────────────────────────────
+//
+// Everything below touches Prisma and is therefore not unit-tested. Keep the
+// logic here thin — anything worth testing belongs above the divider.
+
+import { prisma } from "../db/prisma.js";
+
+/** Live registry entries, alphabetical. Archived entries are excluded. */
+export async function listTrainings() {
+  return prisma.training.findMany({
+    where: { archivedAt: null },
+    orderBy: { name: "asc" },
+  });
+}
+
+export async function createTraining(input: TrainingInput, createdById: string) {
+  // Slug collisions are real: "Laser Safety Training" and "Laser Safety
+  // Training " slugify identically. Suffix rather than fail, so an author is
+  // never blocked by an invisible duplicate.
+  let slug = input.slug || "training";
+  const existing = await prisma.training.findMany({
+    where: { slug: { startsWith: slug } },
+    select: { slug: true },
+  });
+  const taken = new Set(existing.map((t) => t.slug));
+  if (taken.has(slug)) {
+    let n = 2;
+    while (taken.has(`${slug}-${n}`)) n++;
+    slug = `${slug}-${n}`;
+  }
+  return prisma.training.create({ data: { ...input, slug, createdById } });
+}
+
+export async function updateTraining(id: string, input: TrainingInput) {
+  // The slug is identity once created — a course section points at the row by
+  // id, but the seed script matches on slug, so churning it would make reseeding
+  // create duplicates.
+  const { slug: _ignored, ...rest } = input;
+  return prisma.training.update({ where: { id }, data: rest });
+}
