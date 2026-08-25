@@ -115,27 +115,35 @@ export default function VaultTab({ project, member, isAdmin }) {
     );
   }
 
+  // The vault lives in a bot-owned "ClubPM Projects / <project> / CAD" folder,
+  // NOT in the project's linked Drive folder — so none of these are fixed by
+  // sharing that folder with anyone. They are all about the connected account.
   if (health?.status === "no-link") {
     return (
       <div className="cpm-vault-setup-card">
         <i className="fas fa-folder-open" aria-hidden="true" />
         <p>
-          This project has no linked Drive folder yet. Link one from the <strong>Files</strong> tab
-          to start the Vault.
+          No Google Drive account is connected for the Vault yet. An admin needs to connect one
+          before files can be checked in.
         </p>
       </div>
     );
   }
 
-  if (health?.status === "not-folder" || health?.status === "not-shared") {
+  if (health?.status === "unauthorized" || health?.status === "drive-error" ||
+      health?.status === "not-folder" || health?.status === "not-shared") {
+    const isTransient = health.status === "drive-error";
     return (
       <div className="cpm-vault-setup-card">
         <i className="fas fa-triangle-exclamation" aria-hidden="true" />
         <p>
-          {health.status === "not-folder"
-            ? "The linked Drive URL isn't a folder link. Update it from the Files tab."
-            : "The linked Drive folder isn't shared with the Constellation service account yet."}
+          {health.status === "unauthorized"
+            ? "Google rejected the Vault's Drive account — its access was revoked or expired."
+            : isTransient
+              ? "Google Drive couldn't be reached. This is usually temporary."
+              : "The Vault's Drive folder isn't writable by the connected account."}
         </p>
+        {health.detail && <p className="cpm-vault-setup-hint">{health.detail}</p>}
         {health.serviceAccountEmail && (
           <div className="cpm-vault-sa-row">
             <code className="cpm-vault-sa-email">{health.serviceAccountEmail}</code>
@@ -144,13 +152,17 @@ export default function VaultTab({ project, member, isAdmin }) {
               className="cpm-vault-copy-btn"
               onClick={handleCopySaEmail}
               title="Copy to clipboard"
-              aria-label="Copy service account email"
+              aria-label="Copy connected Drive account email"
             >
               <i className="fas fa-copy" aria-hidden="true" />
             </button>
           </div>
         )}
-        <p className="cpm-vault-setup-hint">Share the linked folder with this address as Editor, then retry.</p>
+        {!isTransient && (
+          <p className="cpm-vault-setup-hint">
+            An admin needs to reconnect Google Drive in ClubPM admin settings, then retry.
+          </p>
+        )}
         <button type="button" className="clubpm-btn-primary" onClick={load}>
           <i className="fas fa-rotate-right" aria-hidden="true" /> Retry
         </button>

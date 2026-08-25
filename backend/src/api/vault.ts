@@ -19,11 +19,11 @@ import {
   getDriveFileStream,
   renameDriveFile,
   deleteDriveFile,
-  getBotAccountEmail,
 } from "../services/driveService.js";
 import {
   ensureVaultFolder,
   getVaultHealth,
+  driveFailureHealth,
   allocatePartNumber,
   sanitizeFileName,
   wouldCreateBomCycle,
@@ -113,14 +113,23 @@ function cleanupTempFile(filePath?: string): void {
   });
 }
 
+// The vault does NOT live in the project's linked Drive folder — it lives in a
+// bot-owned "ClubPM Projects / <project> / CAD" tree (see ensureVaultFolder).
+// These messages used to tell users to share their linked folder with a service
+// account, which has been unable to fix anything since that changed and sent
+// people chasing Drive permissions while the real fault was the bot credential.
 function healthErrorMessage(health: VaultHealth): string {
   switch (health.status) {
     case "no-link":
-      return "This project has no linked Drive folder yet. Link one from the Files tab first.";
+      return "No Google Drive account is connected for the vault. An admin needs to connect one in ClubPM admin settings.";
+    case "unauthorized":
+      return "Google rejected the vault's Drive account. An admin needs to reconnect it in ClubPM admin settings.";
+    case "drive-error":
+      return `Google Drive could not be reached${health.detail ? ` (${health.detail})` : ""}. This is usually temporary — try again in a minute.`;
     case "not-folder":
-      return "The linked Drive URL is not a folder link.";
+      return "The configured Drive location is not a folder.";
     case "not-shared":
-      return "The linked Drive folder is not shared with the service account.";
+      return "The vault's Drive folder is not writable by the connected account.";
     default:
       return "Vault is not ready.";
   }
@@ -185,10 +194,14 @@ vaultRouter.post(
       const sanitizedFile = sanitizeFileName(req.file.originalname) || "file";
 
       const itemFolder = await createDriveFolder(itemName, folder.folderId);
-      if (!itemFolder) {
-        res.status(400).json({
-          error: "Could not create the item folder in Drive.",
-          health: { status: "not-shared", serviceAccountEmail: await getBotAccountEmail() },
+      if (!itemFolder.ok) {
+        // Report what actually failed. This used to hardcode "not-shared" plus a
+        // service-account email regardless of cause, so a revoked token, a full
+        // Drive and a vanished folder were indistinguishable to the user.
+        const health = await driveFailureHealth(itemFolder.reason, itemFolder.detail);
+        res.status(itemFolder.reason === "drive-error" ? 502 : 400).json({
+          error: healthErrorMessage(health),
+          health,
         });
         return;
       }
@@ -197,7 +210,7 @@ vaultRouter.post(
         fs.createReadStream(req.file.path),
         req.file.mimetype,
         `v1 — ${sanitizedFile}`,
-        itemFolder.id
+        itemFolder.value.id
       );
       if (!uploaded) {
         res.status(502).json({ error: "Upload to Drive failed" });
@@ -211,7 +224,7 @@ vaultRouter.post(
           data: {
             projectId,
             name: itemName,
-            driveFolderId: itemFolder.id,
+            driveFolderId: itemFolder.value.id,
             createdById: req.memberId ?? null,
           },
         });

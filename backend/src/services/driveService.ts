@@ -24,6 +24,72 @@ async function getBotDrive() {
 }
 
 /**
+ * Why a Drive call failed, in the only flavours callers act on differently.
+ *  "not-connected": no bot credential, or its refresh token won't decrypt
+ *    (INTEGRATION_TOKEN_KEY changed) — nothing on Drive is reachable.
+ *  "unauthorized":  the credential exists but Google rejected it (revoked or
+ *    expired refresh token, or the OAuth client id/secret was rotated).
+ *  "not-found":     Drive says this id is gone — or, under the drive.file
+ *    scope, was never visible to THIS app+account pair to begin with.
+ *  "drive-error":   anything else (Drive 5xx, quota, network).
+ */
+export type DriveFailureReason = "not-connected" | "unauthorized" | "not-found" | "drive-error";
+
+export type DriveResult<T> =
+  | { ok: true; value: T }
+  | { ok: false; reason: DriveFailureReason; detail?: string };
+
+const NOT_CONNECTED: DriveResult<never> = {
+  ok: false,
+  reason: "not-connected",
+  detail: "no Google Drive bot account is connected, or its refresh token could not be decrypted",
+};
+
+/**
+ * Map a googleapis/gaxios rejection onto a DriveFailureReason.
+ *
+ * Two cases resist the obvious `status` switch and are the whole reason this
+ * exists: `invalid_grant` surfaces as a 400 from the *token* endpoint rather
+ * than a 401 from Drive, and a 403 is either a real permission problem or a
+ * full Drive — which is not an auth failure and must not be reported as one.
+ */
+function classifyDriveError(err: unknown): { reason: DriveFailureReason; detail: string } {
+  const e = err as {
+    code?: number | string;
+    status?: number;
+    message?: string;
+    response?: {
+      status?: number;
+      data?: { error?: unknown; error_description?: string };
+    };
+  };
+  const status = typeof e?.code === "number" ? e.code : e?.status ?? e?.response?.status;
+  const message = e?.message ?? String(err);
+  const data = e?.response?.data;
+  const oauthError = typeof data?.error === "string" ? data.error : undefined;
+  const apiReason = (data?.error as { errors?: Array<{ reason?: string }> } | undefined)
+    ?.errors?.[0]?.reason;
+
+  if (oauthError === "invalid_grant" || message.includes("invalid_grant")) {
+    return {
+      reason: "unauthorized",
+      detail: "invalid_grant — the bot refresh token is revoked or expired; reconnect at /auth/google",
+    };
+  }
+  if (status === 404) return { reason: "not-found", detail: message };
+  if (apiReason === "storageQuotaExceeded") {
+    return { reason: "drive-error", detail: "the bot account's Drive is full" };
+  }
+  if (status === 401 || status === 403) {
+    return {
+      reason: "unauthorized",
+      detail: `Google rejected the bot credential (status ${status}${apiReason ? `, ${apiReason}` : ""})`,
+    };
+  }
+  return { reason: "drive-error", detail: `status ${status ?? "n/a"}: ${message}` };
+}
+
+/**
  * Upload a base64-encoded image to Google Drive and make it publicly readable.
  * Returns the file ID and a direct-view URL, or null on error.
  */
@@ -176,14 +242,63 @@ export async function fetchDriveFileAsBase64(fileId: string): Promise<{ base64: 
   }
 }
 
-/** Create a Drive folder. With no parentId it is created in the bot's own root. */
+export type DriveFolderMeta = {
+  id: string;
+  name: string;
+  trashed: boolean;
+  canAddChildren: boolean;
+};
+
+/**
+ * Read a folder's metadata to answer one question: can we still put files in it?
+ *
+ * Under `drive.file` a folder created by a different app+account pair is not
+ * merely unwritable, it is invisible — Drive answers 404, indistinguishable
+ * from deleted. Callers must therefore treat "not-found" as "provision a new
+ * one", and must NOT treat "unauthorized"/"drive-error" the same way: those say
+ * nothing about the folder, only about the token or the network.
+ */
+export async function probeDriveFolder(folderId: string): Promise<DriveResult<DriveFolderMeta>> {
+  const drive = await getBotDrive();
+  if (!drive) return NOT_CONNECTED;
+  try {
+    const res = await drive.files.get({
+      fileId: folderId,
+      fields: "id,name,trashed,capabilities(canAddChildren)",
+      supportsAllDrives: true,
+    });
+    return {
+      ok: true,
+      value: {
+        id: res.data.id ?? folderId,
+        name: res.data.name ?? "",
+        trashed: res.data.trashed === true,
+        // Absent capabilities means Drive didn't say no; assume writable rather
+        // than throwing away a working folder on a missing field.
+        canAddChildren: res.data.capabilities?.canAddChildren !== false,
+      },
+    };
+  } catch (err) {
+    const { reason, detail } = classifyDriveError(err);
+    console.error(`[driveService] probeDriveFolder(${folderId}) ${reason}: ${detail}`);
+    return { ok: false, reason, detail };
+  }
+}
+
+/**
+ * Create a Drive folder. With no parentId it is created in the bot's own root.
+ *
+ * Returns a typed result rather than null: every failure mode used to collapse
+ * into the same bare null, which the vault then reported as "the linked folder
+ * is not shared" no matter what had actually gone wrong.
+ */
 export async function createDriveFolder(
   name: string,
   parentId?: string
-): Promise<{ id: string; webViewLink?: string } | null> {
+): Promise<DriveResult<{ id: string; webViewLink?: string }>> {
+  const drive = await getBotDrive();
+  if (!drive) return NOT_CONNECTED;
   try {
-    const drive = await getBotDrive();
-    if (!drive) return null;
     const requestBody: Record<string, unknown> = {
       name,
       mimeType: "application/vnd.google-apps.folder",
@@ -194,10 +309,11 @@ export async function createDriveFolder(
       fields: "id,webViewLink",
       supportsAllDrives: true,
     });
-    return { id: res.data.id!, webViewLink: res.data.webViewLink ?? undefined };
+    return { ok: true, value: { id: res.data.id!, webViewLink: res.data.webViewLink ?? undefined } };
   } catch (err) {
-    console.error("[driveService] createDriveFolder error:", err);
-    return null;
+    const { reason, detail } = classifyDriveError(err);
+    console.error(`[driveService] createDriveFolder("${name}", parent=${parentId ?? "root"}) ${reason}: ${detail}`);
+    return { ok: false, reason, detail };
   }
 }
 
@@ -323,13 +439,8 @@ export async function deleteDriveFile(fileId: string): Promise<boolean> {
 
 export type DriveStreamResult =
   | { ok: true; stream: Readable; mimeType: string }
-  // "not-connected": no bot credential, or its refresh token won't decrypt
-  //   (INTEGRATION_TOKEN_KEY changed) — nothing on Drive is reachable.
-  // "unauthorized": the credential exists but Google rejected it (revoked or
-  //   expired refresh token, or the OAuth client id/secret was rotated).
-  // "not-found": Drive itself says this one file is gone.
-  // "drive-error": anything else (Drive 5xx, network, a DB read that failed).
-  | { ok: false; reason: "not-connected" | "unauthorized" | "not-found" | "drive-error"; detail?: string };
+  // Reasons are shared with every other Drive call — see DriveFailureReason.
+  | { ok: false; reason: DriveFailureReason; detail?: string };
 
 /**
  * Stream a Drive file's raw bytes (for the public image proxy).

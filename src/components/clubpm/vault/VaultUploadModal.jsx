@@ -24,11 +24,11 @@ export default function VaultUploadModal({ project, item, onClose, onDone }) {
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState(null);
-  // Set when the backend reports the linked Drive folder isn't shared with
-  // the service account — the email the user must share with lives in the
-  // 400 body, and this is the only place that failure actually surfaces
-  // (the vault health probe is read-only and can't detect it).
-  const [notSharedEmail, setNotSharedEmail] = useState(null);
+  // Set when the backend reports the Vault's Drive account is broken (revoked
+  // or expired). The vault does NOT use the project's linked Drive folder — it
+  // uses a bot-owned folder — so the fix is always "an admin reconnects Drive",
+  // never "share a folder with this address".
+  const [driveAccountEmail, setDriveAccountEmail] = useState(null);
   // AI duplicate detection (Pack B): in new-item mode a file select triggers a
   // metadata-only duplicate check; picking a candidate flips this modal into
   // new-version mode for that item instead.
@@ -87,16 +87,18 @@ export default function VaultUploadModal({ project, item, onClose, onDone }) {
     } catch (err) {
       setError(err.message || "Upload failed");
       const health = err.body?.health;
-      setNotSharedEmail(
-        health?.status === "not-shared" ? health.serviceAccountEmail ?? null : null
+      setDriveAccountEmail(
+        health?.status === "unauthorized" || health?.status === "not-shared"
+          ? health.serviceAccountEmail ?? null
+          : null
       );
       setUploading(false);
     }
   }
 
   function handleCopySaEmail() {
-    if (!notSharedEmail) return;
-    navigator.clipboard?.writeText(notSharedEmail)
+    if (!driveAccountEmail) return;
+    navigator.clipboard?.writeText(driveAccountEmail)
       .then(() => toast.success("Copied to clipboard"))
       .catch(() => toast.error("Could not copy — copy it manually"));
   }
@@ -231,20 +233,20 @@ export default function VaultUploadModal({ project, item, onClose, onDone }) {
 
         {error && <div className="cpm-vault-upload-error">{error}</div>}
 
-        {notSharedEmail && (
+        {driveAccountEmail && (
           <div className="cpm-vault-sa-row">
-            <code className="cpm-vault-sa-email">{notSharedEmail}</code>
+            <code className="cpm-vault-sa-email">{driveAccountEmail}</code>
             <button
               type="button"
               className="cpm-vault-copy-btn"
               onClick={handleCopySaEmail}
               title="Copy to clipboard"
-              aria-label="Copy service account email"
+              aria-label="Copy connected Drive account email"
             >
               <i className="fas fa-copy" aria-hidden="true" />
             </button>
             <span className="cpm-vault-setup-hint">
-              Share the project's linked Drive folder with this address as Editor, then retry.
+              An admin needs to reconnect this Google account for the Vault, then retry.
             </span>
           </div>
         )}
