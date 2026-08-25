@@ -268,7 +268,17 @@ membersRouter.get("/", async (_req: Request, res: Response) => {
       orderBy: { displayName: "asc" },
     });
 
-    res.json(members);
+    // Strip the encrypted OAuth tokens from every row — the roster is readable
+    // by any signed-in member and has no use for them.
+    res.json(
+      members.map(({
+        githubAccessToken: _gat,
+        githubRefreshToken: _grt,
+        slackUserToken: _sut,
+        tokenVersion: _tv,
+        ...rest
+      }) => rest)
+    );
   } catch (error) {
     console.error("List members error:", error);
     res.status(500).json({ error: "Failed to list members" });
@@ -328,6 +338,8 @@ membersRouter.get("/:id", async (req: Request, res: Response) => {
       githubAccessToken: _gat,
       githubRefreshToken: _grt,
       githubTokenExpiresAt: _gte,
+      slackUserToken: _sut,
+      slackUserTokenAt: _suta,
       tokenVersion: _tv,
       ...publicMember
     } = member;

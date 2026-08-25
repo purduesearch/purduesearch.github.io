@@ -25,6 +25,10 @@ on:
           - diagnose
           - fix
         default: skip
+      slack_channels_step:
+        description: "Slack channel picker: diagnose why the linked-channel dropdown is empty (read-only)"
+        type: boolean
+        default: false
       tail_error_log:
         description: "Print recent backend error-log lines (debugging Drive/GitHub errors)"
         type: boolean
@@ -40,12 +44,13 @@ jobs:
           PUBKEY: ${{ inputs.ssh_public_key }}
           APPLY_NGINX: ${{ inputs.apply_nginx_fix }}
           GH_STEP: ${{ inputs.github_step }}
+          SLACK_STEP: ${{ inputs.slack_channels_step }}
           TAIL_LOG: ${{ inputs.tail_error_log }}
         with:
           host: ${{ secrets.ORACLE_HOST }}
           username: ${{ secrets.ORACLE_USER }}
           key: ${{ secrets.ORACLE_SSH_KEY }}
-          envs: PUBKEY,APPLY_NGINX,GH_STEP,TAIL_LOG
+          envs: PUBKEY,APPLY_NGINX,GH_STEP,SLACK_STEP,TAIL_LOG
           script_stop: false
           script: |
             set -x
@@ -99,6 +104,24 @@ jobs:
               fi
             else
               echo "GitHub App: skipped (github_step=skip)"
+            fi
+
+            # 3b) Slack channel-picker diagnostic (read-only, prints no tokens)
+            if [ "$SLACK_STEP" = "true" ]; then
+              echo "== Slack channel picker: diagnose =="
+              if cd /opt/clubpm/backend; then
+                if [ -f scripts/diagnose-slack-channels.mjs ]; then
+                  node scripts/diagnose-slack-channels.mjs || echo "diagnostic exited non-zero"
+                else
+                  echo "!! scripts/diagnose-slack-channels.mjs not on server yet; wait for 'Deploy Backend to Oracle' to finish (green), then re-run."
+                fi
+                echo "-- recent /api/slack/channels failures from pm2 logs --"
+                grep -a "List Slack channels error\|Invite bot to channel error" ~/.pm2/logs/*error*.log 2>/dev/null | tail -20 || echo "(no matching log lines — consistent with a silent 401, not a 500)"
+              else
+                echo "!! /opt/clubpm/backend not found" >&2
+              fi
+            else
+              echo "Slack channel picker: skipped (slack_channels_step=false)"
             fi
 
             # 4) Tail backend error log (debugging Drive/GitHub failures)

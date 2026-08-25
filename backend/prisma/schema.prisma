@@ -198,6 +198,15 @@ model Member {
   blogThreadsCreated      BlogThread[]         @relation("BlogThreadCreator")
   blogThreadComments      BlogThreadComment[]  @relation("BlogThreadCommenter")
 
+  // ── Slack user OAuth (per-member) ──
+  // The user-scoped token minted by the Slack sign-in flow, AES-GCM encrypted at
+  // rest (see backend/src/utils/crypto.ts). It lives here and NOT only in the
+  // express-session because the session is unavailable to Bearer-authenticated
+  // clients and expires after 7 days while the Bearer token self-renews — which
+  // silently emptied the project "linked Slack channel" picker for everyone.
+  slackUserToken       String?
+  slackUserTokenAt     DateTime?
+
   // ── GitHub OAuth (per-member) ──
   // Access/refresh tokens are AES-GCM encrypted at rest (see backend/src/utils/crypto.ts).
   githubLogin          String?      @unique

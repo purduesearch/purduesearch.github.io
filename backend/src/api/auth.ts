@@ -2,6 +2,7 @@ import { Router, type Request, type Response, type NextFunction } from "express"
 import { createHmac } from "crypto";
 import { prisma } from "../db/prisma.js";
 import { getSessionSecret } from "../config/env.js";
+import { storeSlackUserToken } from "../services/slackUserTokenService.js";
 
 export const authRouter = Router();
 
@@ -235,6 +236,12 @@ authRouter.get("/slack/callback", async (req: Request, res: Response) => {
       },
     });
 
+    // Persist the Slack user token on the member (encrypted) as well as in the
+    // session. The session copy is unreadable by Bearer-authenticated clients
+    // and dies after 7 days, so it cannot be the only copy — see
+    // services/slackUserTokenService.ts.
+    await storeSlackUserToken(member.id, accessToken);
+
     // Set session and wait for it to be written to the store before redirecting.
     // Without save(), the redirect can race ahead of the async PostgreSQL write.
     req.session.memberId = member.id;
@@ -320,6 +327,7 @@ authRouter.get("/me", requireAuth, async (req: Request, res: Response) => {
     githubAccessToken: _gat,
     githubRefreshToken: _grt,
     githubTokenExpiresAt: _gte,
+    slackUserToken: _sut,
     tokenVersion,
     ...safeMember
   } = member;

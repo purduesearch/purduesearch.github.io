@@ -1185,20 +1185,41 @@ function AddProjectTaskModal({ projectId, initialStatus, projectMembers, onClose
 
 // ── Slack Channel Picker ─────────────────────────────────────
 
-function SlackChannelPicker({ project, channels, onSaved }) {
+function SlackChannelPicker({ project, channels, channelsState, onSaved }) {
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
   const [selected, setSelected] = useState(project.slackChannelId ?? "");
 
+  useEffect(() => {
+    setSelected(project.slackChannelId ?? "");
+  }, [project.slackChannelId]);
+
+  const { loaded, error: loadError, warning, needsAuth } = channelsState ?? {};
+
+  // The linked channel may not be in the list the current viewer can see (e.g.
+  // a private channel linked by someone else). Show it anyway so the picker
+  // never renders blank for a project that IS linked.
+  const options = useMemo(() => {
+    const list = [...channels];
+    if (project.slackChannelId && !list.some(c => c.id === project.slackChannelId)) {
+      list.unshift({
+        id: project.slackChannelId,
+        name: project.slackChannelName ?? "linked channel",
+        botIsMember: true,
+      });
+    }
+    return list;
+  }, [channels, project.slackChannelId, project.slackChannelName]);
+
   const handleChange = async (e) => {
     const channelId = e.target.value;
-    const ch = channels.find(c => c.id === channelId);
+    const ch = options.find(c => c.id === channelId);
     setSelected(channelId);
     setError("");
     setSaving(true);
     try {
-      if (channelId && ch && !ch.botIsMember) {
+      if (channelId && ch && ch.botIsMember === false) {
         setStatus("Inviting bot…");
         try {
           await post(`/api/slack/channels/${channelId}/invite-bot`, {});
@@ -1243,8 +1264,10 @@ function SlackChannelPicker({ project, channels, onSaved }) {
             cursor: "pointer",
           }}
         >
-          <option value="">— Link Slack channel —</option>
-          {channels.map(ch => (
+          <option value="">
+            {!loaded ? "Loading channels…" : "— Link Slack channel —"}
+          </option>
+          {options.map(ch => (
             <option key={ch.id} value={ch.id}>
               #{ch.name}{ch.botIsMember === false ? " (bot not in channel)" : ""}
             </option>
@@ -1254,6 +1277,25 @@ function SlackChannelPicker({ project, channels, onSaved }) {
       </div>
       {error && (
         <span style={{ fontSize: 10, color: "var(--clubpm-accent-danger, #e06c75)" }}>{error}</span>
+      )}
+      {!error && loaded && loadError && (
+        <span style={{ fontSize: 10, color: "var(--clubpm-accent-danger, #e06c75)" }}>
+          {loadError}
+        </span>
+      )}
+      {!error && loaded && !loadError && warning && (
+        <span style={{ fontSize: 10, color: "var(--pm-accent-amber)" }}>{warning}</span>
+      )}
+      {loaded && needsAuth && (
+        <a
+          href={
+            `${process.env.REACT_APP_API_URL || ""}/auth/slack` +
+            `?returnTo=${encodeURIComponent(`/clubpm/projects/${project.id}`)}`
+          }
+          style={{ fontSize: 10, color: "var(--pm-accent-teal)" }}
+        >
+          Reconnect Slack
+        </a>
       )}
     </div>
   );
@@ -1982,6 +2024,12 @@ export default function ProjectDetail() {
   const [allProjects, setAllProjects] = useState([]);
   const [allMembers, setAllMembers] = useState([]);
   const [slackChannels, setSlackChannels] = useState([]);
+  const [slackChannelsState, setSlackChannelsState] = useState({
+    loaded: false,
+    error: "",
+    warning: "",
+    needsAuth: false,
+  });
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("tasks");
   const tabBodyRef = useRef(null);
@@ -2422,9 +2470,36 @@ export default function ProjectDetail() {
   }, []);
 
   useEffect(() => {
+    // Never swallow this. When it failed silently, the picker rendered an empty
+    // dropdown with no explanation anywhere — the bug that hid a broken token
+    // path for weeks.
     get("/api/slack/channels")
-      .then(setSlackChannels)
-      .catch(() => {});
+      .then(data => {
+        // Response is { channels, needsSlackAuth, warning }; tolerate the older
+        // bare-array shape while a stale backend is still deployed.
+        if (Array.isArray(data)) {
+          setSlackChannels(data);
+          setSlackChannelsState({ loaded: true, error: "", warning: "", needsAuth: false });
+          return;
+        }
+        setSlackChannels(data?.channels ?? []);
+        setSlackChannelsState({
+          loaded: true,
+          error: "",
+          warning: data?.warning ?? "",
+          needsAuth: !!data?.needsSlackAuth,
+        });
+      })
+      .catch(err => {
+        console.error("Failed to load Slack channels", err);
+        setSlackChannels([]);
+        setSlackChannelsState({
+          loaded: true,
+          error: err?.message ?? "Could not load Slack channels",
+          warning: "",
+          needsAuth: true,
+        });
+      });
   }, []);
 
   useEffect(() => {
@@ -2853,7 +2928,12 @@ export default function ProjectDetail() {
                     {project.status}
                   </span>
                   <span className="pm-proj-type-chip">{project.type}</span>
-                  <SlackChannelPicker project={project} channels={slackChannels} onSaved={fetchProject} />
+                  <SlackChannelPicker
+                    project={project}
+                    channels={slackChannels}
+                    channelsState={slackChannelsState}
+                    onSaved={fetchProject}
+                  />
                   <DriveFolderPill
                     project={project}
                     isAdmin={!!member?.isAdmin}
