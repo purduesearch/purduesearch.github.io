@@ -29,6 +29,14 @@ on:
         description: "Slack channel picker: diagnose why the linked-channel dropdown is empty (read-only)"
         type: boolean
         default: false
+      drive_step:
+        description: "Drive bot: diagnose vault check-in 400s. 'diagnose' is read-only; 'write-test' also creates+deletes a scratch folder to reproduce the exact error"
+        type: choice
+        options:
+          - skip
+          - diagnose
+          - write-test
+        default: skip
       tail_error_log:
         description: "Print recent backend error-log lines (debugging Drive/GitHub errors)"
         type: boolean
@@ -45,12 +53,13 @@ jobs:
           APPLY_NGINX: ${{ inputs.apply_nginx_fix }}
           GH_STEP: ${{ inputs.github_step }}
           SLACK_STEP: ${{ inputs.slack_channels_step }}
+          DRIVE_STEP: ${{ inputs.drive_step }}
           TAIL_LOG: ${{ inputs.tail_error_log }}
         with:
           host: ${{ secrets.ORACLE_HOST }}
           username: ${{ secrets.ORACLE_USER }}
           key: ${{ secrets.ORACLE_SSH_KEY }}
-          envs: PUBKEY,APPLY_NGINX,GH_STEP,SLACK_STEP,TAIL_LOG
+          envs: PUBKEY,APPLY_NGINX,GH_STEP,SLACK_STEP,DRIVE_STEP,TAIL_LOG
           script_stop: false
           script: |
             set -x
@@ -122,6 +131,25 @@ jobs:
               fi
             else
               echo "Slack channel picker: skipped (slack_channels_step=false)"
+            fi
+
+            # 3c) Drive bot diagnostic (vault check-in 400s)
+            if [ -n "$DRIVE_STEP" ] && [ "$DRIVE_STEP" != "skip" ]; then
+              echo "== Drive bot: $DRIVE_STEP =="
+              if cd /opt/clubpm/backend; then
+                echo "-- recent driveService errors from pm2 logs --"
+                grep -a "\[driveService\]" ~/.pm2/logs/*error*.log 2>/dev/null | tail -20 || echo "(no matching log lines)"
+                if [ -f scripts/diagnose-drive.mjs ]; then
+                  if [ "$DRIVE_STEP" = "write-test" ]; then export DRIVE_WRITE_TEST=1; fi
+                  node scripts/diagnose-drive.mjs || echo "diagnostic exited non-zero"
+                else
+                  echo "!! scripts/diagnose-drive.mjs not on server yet; wait for 'Deploy Backend to Oracle' to finish (green), then re-run."
+                fi
+              else
+                echo "!! /opt/clubpm/backend not found" >&2
+              fi
+            else
+              echo "Drive bot: skipped (drive_step=skip)"
             fi
 
             # 4) Tail backend error log (debugging Drive/GitHub failures)
