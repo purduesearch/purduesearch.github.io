@@ -1,4 +1,9 @@
-import { Prisma, type CourseProgressStatus, type CourseQuestionKind } from "@prisma/client";
+import {
+  Prisma,
+  type CourseProgressStatus,
+  type CourseQuestionKind,
+  type Training,
+} from "@prisma/client";
 import { prisma } from "../db/prisma.js";
 import {
   clampStepIndex, isTourComplete, loadTourSteps,
@@ -353,6 +358,9 @@ export interface LearnerSection {
   tourSteps?: TourStep[];
   litConfig?: LearnerLitConfig | null;
   assignmentConfig?: LearnerAssignmentConfig | null;
+  // The whole registry row — every field on it is learner-safe. See the
+  // TRAINING branch in getLearnerCourse for why there is no sanitizer.
+  training?: Training | null;
 }
 
 /**
@@ -398,7 +406,10 @@ export async function getLearnerCourse(
   // position as course position — which is what makes "mark complete &
   // continue" work across a module boundary.
   const sections = (
-    await prisma.courseSection.findMany({ where: { courseId: course.id } })
+    await prisma.courseSection.findMany({
+      where: { courseId: course.id },
+      include: { training: true },
+    })
   ).sort((a, b) => {
     const ma = moduleOrder.get(a.moduleId) ?? 0;
     const mb = moduleOrder.get(b.moduleId) ?? 0;
@@ -549,6 +560,15 @@ export async function getLearnerCourse(
         // rubric are to this column what isCorrect is to CourseAnswer, and a
         // locked section carries no config at all.
         out.assignmentConfig = sanitizeAssignmentConfig(s.assignmentConfig);
+      }
+      if (s.kind === "TRAINING") {
+        // Every registry field is learner-safe — unlike litConfig and
+        // assignmentConfig there is NO author-only secret on a Training row, so
+        // there is deliberately no sanitizer here. Do not add one "for
+        // symmetry"; the reference answer this would be hiding does not exist.
+        // `exampleFileId` is included because the learner needs it to build the
+        // example-file URL; the file itself is still gated by the proxy route.
+        out.training = s.training ?? null;
       }
     }
     return out;
@@ -925,6 +945,13 @@ export async function completeSection(sectionId: string, memberId: string) {
   if (section.kind === "LIT_REVIEW") {
     return {
       error: "Literature review sections complete by submitting a summary",
+      status: 400,
+    } as const;
+  }
+
+  if (section.kind === "TRAINING") {
+    return {
+      error: "Training sections complete by uploading a certificate",
       status: 400,
     } as const;
   }
@@ -1473,6 +1500,74 @@ export async function submitWork(
     alreadyComplete: !firstCompletion && outcome !== "BLOCKED",
     ...effects,
   };
+}
+
+/**
+ * Record a certificate for a TRAINING section and complete it.
+ *
+ * The section completes on UPLOAD, not on approval — a slow admin must never
+ * block a member's course progress. The certificate stays PENDING and the
+ * member's compliance status reads PENDING_REVIEW until someone reviews it, so
+ * the roster still tells the truth. See design doc §2.
+ */
+export async function submitCertificate(
+  sectionId: string,
+  memberId: string,
+  input: {
+    driveFileId: string;
+    fileName: string;
+    fileMimeType: string;
+    fileSize: number;
+    completedOn: Date;
+  }
+) {
+  const ctx = await requireUnlockedSection(sectionId, memberId);
+  if (!ctx.ok) return { error: ctx.error, status: ctx.status };
+  const { section, enrollment, progress } = ctx;
+
+  if (section.kind !== "TRAINING") {
+    return { error: "Section does not accept certificates", status: 400 } as const;
+  }
+  if (!section.trainingId) {
+    return {
+      error: "This section has no training attached yet — ask the course author to pick one",
+      status: 409,
+    } as const;
+  }
+
+  const now = new Date();
+  if (Number.isNaN(input.completedOn.getTime())) {
+    return { error: "Enter the completion date printed on your certificate", status: 400 } as const;
+  }
+  if (input.completedOn.getTime() > now.getTime()) {
+    return { error: "That completion date is in the future", status: 400 } as const;
+  }
+
+  const trainingService = await import("./trainingService.js");
+  const certificate = await trainingService.recordCertificate(
+    section.trainingId,
+    memberId,
+    sectionId,
+    input
+  );
+
+  const firstCompletion = progress.status !== "COMPLETED";
+  if (firstCompletion) {
+    await prisma.courseSectionProgress.update({
+      where: { id: progress.id },
+      data: { status: "COMPLETED", completedAt: now },
+    });
+  }
+  await prisma.courseEnrollment.update({
+    where: { id: enrollment.id },
+    data: { lastSectionId: sectionId },
+  });
+
+  const effects = firstCompletion
+    ? await applyCourseSideEffects(memberId, { courseId: section.courseId, sectionId })
+    : { actorReward: null, progressMilestones: [] as CourseProgressMilestone[] };
+
+  return { certificate, alreadyComplete: !firstCompletion, ...effects };
 }
 
 /** This member's own attempts on this section, newest first. */

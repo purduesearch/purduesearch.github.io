@@ -213,3 +213,52 @@ export async function updateTraining(id: string, input: TrainingInput) {
   const { slug: _ignored, ...rest } = input;
   return prisma.training.update({ where: { id }, data: rest });
 }
+
+export interface CertificateInput {
+  driveFileId: string;
+  fileName: string;
+  fileMimeType: string;
+  fileSize: number;
+  completedOn: Date;
+}
+
+/**
+ * Write one certificate row.
+ *
+ * `expiresOn` is SNAPSHOTTED from the registry's renewalMonths at submission
+ * time. Deriving it on read instead would mean an author editing renewalMonths
+ * silently re-dates every certificate ever issued under the old period.
+ */
+export async function recordCertificate(
+  trainingId: string,
+  memberId: string,
+  sectionId: string | null,
+  input: CertificateInput
+) {
+  const training = await prisma.training.findUnique({
+    where: { id: trainingId },
+    select: { renewalMonths: true },
+  });
+  return prisma.trainingCertificate.create({
+    data: {
+      trainingId,
+      memberId,
+      sectionId,
+      driveFileId: input.driveFileId,
+      fileName: input.fileName,
+      fileMimeType: input.fileMimeType,
+      fileSize: input.fileSize,
+      completedOn: input.completedOn,
+      expiresOn: computeExpiry(input.completedOn, training?.renewalMonths ?? null),
+    },
+  });
+}
+
+/** This member's attempts for one training, newest first. */
+export async function listCertificates(trainingId: string, memberId: string) {
+  return prisma.trainingCertificate.findMany({
+    where: { trainingId, memberId },
+    orderBy: { createdAt: "desc" },
+    include: { reviewedBy: { select: { id: true, displayName: true } } },
+  });
+}

@@ -1505,6 +1505,91 @@ coursesRouter.get("/sections/:sid/work", async (req: Request, res: Response) => 
   }
 });
 
+// A TRAINING certificate. Multipart because the file is retained, and the
+// completion date rides alongside it as a form field.
+//
+// Carries the reward envelope like every other completion route, so RewardFlux
+// and the quest toasts fire with no extra frontend wiring.
+coursesRouter.post(
+  "/sections/:sid/certificate",
+  certUpload.single("file"),
+  async (req: Request, res: Response) => {
+    const requestStartedAt = new Date();
+    try {
+      if (!req.file) { res.status(400).json({ error: "Attach your certificate" }); return; }
+      const completedOnRaw = (req.body as { completedOn?: string })?.completedOn;
+      if (!completedOnRaw) {
+        res.status(400).json({ error: "Enter the completion date printed on your certificate" });
+        return;
+      }
+      // Parsed as UTC midnight so a member in Indiana and the server agree on
+      // which day the certificate says.
+      const completedOn = new Date(`${String(completedOnRaw).slice(0, 10)}T00:00:00.000Z`);
+
+      const { Readable } = await import("node:stream");
+      const drive = await import("../services/driveService.js");
+      const folderId = await drive.ensureClubPmRootFolder();
+      if (!folderId) { res.status(503).json({ error: "Drive is not configured" }); return; }
+
+      const uploaded = await drive.uploadStreamToDrive(
+        Readable.from(req.file.buffer),
+        req.file.mimetype,
+        `cert-${req.memberId}-${Date.now()}-${req.file.originalname}`,
+        folderId
+      );
+      if (!uploaded) { res.status(502).json({ error: "Could not upload to Drive" }); return; }
+      // Deliberately NOT makeDriveFilePublic: a certificate carries the member's
+      // real name and is served only through GET /certificates/:cid/file.
+
+      const result = await progressService.submitCertificate(
+        req.params.sid as string,
+        req.memberId!,
+        {
+          driveFileId: uploaded.fileId,
+          fileName: req.file.originalname,
+          fileMimeType: req.file.mimetype,
+          fileSize: req.file.size,
+          completedOn,
+        }
+      );
+      if (isServiceError(result)) {
+        // The row was never written, so the uploaded file is garbage. Clean it up
+        // rather than leaving an orphan in the bot's Drive on every bad request.
+        await drive.deleteDriveFile(uploaded.fileId).catch(() => false);
+        res.status(result.status).json({ error: result.error });
+        return;
+      }
+      res.json(
+        await withRewardEnvelope(
+          req.memberId!,
+          requestStartedAt,
+          { ok: true, certificate: result.certificate, alreadyComplete: result.alreadyComplete },
+          result
+        )
+      );
+    } catch (error) {
+      console.error("POST /outreach/courses/sections/:sid/certificate error:", error);
+      res.status(500).json({ error: "Failed to save your certificate" });
+    }
+  }
+);
+
+// The caller's own attempts for this section's training.
+coursesRouter.get("/sections/:sid/certificates", async (req: Request, res: Response) => {
+  try {
+    const section = await prisma.courseSection.findUnique({
+      where: { id: req.params.sid as string },
+      select: { trainingId: true },
+    });
+    if (!section?.trainingId) { res.json({ certificates: [] }); return; }
+    const rows = await trainingService.listCertificates(section.trainingId, req.memberId!);
+    res.json({ certificates: rows });
+  } catch (error) {
+    console.error("GET /outreach/courses/sections/:sid/certificates error:", error);
+    res.status(500).json({ error: "Failed to load your certificates" });
+  }
+});
+
 // ── Admin reporting ──────────────────────────────────────────
 //
 // Gated with `requireCourseAccess` (author-or-admin) rather than a bare admin
