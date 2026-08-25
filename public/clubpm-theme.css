@@ -24541,6 +24541,17 @@ html.pm-dark-route { color-scheme: dark; }
   color: var(--pm-accent-amber, #f5a623);
   background: rgba(245, 166, 35, 0.1);
 }
+/* Readiness note, not an error: these surfaces save continuously with the rest
+   of the page, so an incomplete one is a normal draft state. Deliberately
+   quieter than -warn, which marks the author-only material below it. */
+.pm-lit-builder-todo {
+  margin: 0;
+  padding: 0.6rem 0.8rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  color: var(--color-text-muted, #9aa4b2);
+  background: rgba(255, 255, 255, 0.04);
+}
 .pm-lit-builder-rubric { border: 1px solid var(--pm-border, rgba(255, 255, 255, 0.12)); border-radius: 10px; padding: 0.9rem; }
 .pm-lit-builder-point { display: grid; grid-template-columns: 1fr 5rem auto; gap: 0.5rem; margin-bottom: 0.5rem; }
 

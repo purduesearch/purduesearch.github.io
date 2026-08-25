@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
 import RubricEditor, { emptyPoint } from './RubricEditor';
 import { uploadAssignmentHandout, deleteAssignmentHandout } from '../../../api/clubPmClient';
@@ -10,15 +10,22 @@ import { uploadAssignmentHandout, deleteAssignmentHandout } from '../../../api/c
  * withheld from learners by the server, which builds their payload from the
  * safe keys rather than stripping these off. Nothing here is hidden by CSS.
  *
- * `onSave` writes `assignmentConfig`; `onSaveSection` writes plain columns.
- * `passThreshold` is a column, not a config key, so it goes through the second
- * one — the same path the rail uses to rename a section.
+ * Like LitReviewBuilder, this surface has no save button of its own: every edit
+ * stages a whole-section patch with the page through `onChange`, and the page's
+ * autosave / Save draft / Ctrl+S / section-switch save writes it with the
+ * titles. The patch carries `assignmentConfig` (a whole merged object) and
+ * `passThreshold`, which is a plain column rather than a config key.
+ *
+ * The handout is the exception and still saves on its own: it goes to Drive
+ * through a dedicated route that writes three keys into this column
+ * server-side, so it is already persisted by the time the picker closes.
  */
-export default function AssignmentBuilder({ section, onSave, onSaveSection }) {
-  // The last config we know is persisted. The handout routes write three keys
-  // into this column server-side and hand the whole section back, so this is
-  // what a save spreads — not the mount-time snapshot, which would clobber a
-  // handout uploaded since.
+export default function AssignmentBuilder({ section, onChange }) {
+  const sectionId = section.id;
+  // The last config we know is persisted. The handout routes write into this
+  // column server-side and hand the whole section back, so this is what a save
+  // spreads — not the mount-time snapshot, which would clobber a handout
+  // uploaded since.
   const [base, setBase] = useState(section.assignmentConfig ?? {});
   const [passThreshold, setPassThreshold] = useState(section.passThreshold ?? null);
   const [cfg, setCfg] = useState(() => {
@@ -30,10 +37,33 @@ export default function AssignmentBuilder({ section, onSave, onSaveSection }) {
       rubric: Array.isArray(initial.rubric) && initial.rubric.length ? initial.rubric : [emptyPoint()],
     };
   });
-  const [saving, setSaving] = useState(false);
   const [handoutBusy, setHandoutBusy] = useState(false);
 
   const set = (key, value) => setCfg((prev) => ({ ...prev, [key]: value }));
+
+  // Read through a ref so a handout upload does not itself stage a patch — it
+  // has already been written server-side — while the next real edit still
+  // spreads the keys it added.
+  const baseRef = useRef(base);
+  baseRef.current = base;
+
+  // Identity of the mount-time state; see LitReviewBuilder for why this is a
+  // comparison rather than a first-run flag.
+  const pristineCfg = useRef(cfg);
+  const pristineThreshold = useRef(passThreshold);
+
+  useEffect(() => {
+    if (cfg === pristineCfg.current && passThreshold === pristineThreshold.current) return;
+    onChange?.(sectionId, {
+      assignmentConfig: {
+        ...baseRef.current,
+        ...cfg,
+        minWords: Number(cfg.minWords) || 150,
+        rubric: cfg.rubric.filter((p) => p.point.trim()),
+      },
+      passThreshold,
+    });
+  }, [cfg, passThreshold, sectionId, onChange]);
 
   const handleHandoutUpload = async (file) => {
     if (!file) return;
@@ -62,29 +92,12 @@ export default function AssignmentBuilder({ section, onSave, onSaveSection }) {
     }
   };
 
-  const handleSave = async () => {
-    if (!cfg.promptText.trim()) { toast.error('A prompt is required'); return; }
-    if (!cfg.referenceAnswer.trim()) { toast.error('A reference answer is required'); return; }
-    const rubric = cfg.rubric.filter((p) => p.point.trim());
-    if (!rubric.length) { toast.error('Add at least one rubric point'); return; }
-    setSaving(true);
-    try {
-      // Spread the previous value, like every other *Config writer: a partial
-      // save must not drop the handout keys the upload route owns.
-      const next = { ...base, ...cfg, rubric, minWords: Number(cfg.minWords) || 150 };
-      await onSave(next);
-      setBase(next);
-      // A column, not a config key — a separate patch on the section itself.
-      if (onSaveSection && passThreshold !== (section.passThreshold ?? null)) {
-        await onSaveSection({ passThreshold });
-      }
-      toast.success('Assignment settings saved');
-    } catch (err) {
-      toast.error(err?.message ?? 'Could not save');
-    } finally {
-      setSaving(false);
-    }
-  };
+  // A readiness note, not a save gate — a draft may sit incomplete.
+  const missing = [
+    !cfg.promptText.trim() && 'a prompt',
+    !cfg.referenceAnswer.trim() && 'a reference answer',
+    !cfg.rubric.some((p) => p.point.trim()) && 'at least one rubric point',
+  ].filter(Boolean);
 
   return (
     <div className="pm-lit-builder">
@@ -121,7 +134,7 @@ export default function AssignmentBuilder({ section, onSave, onSaveSection }) {
         )}
         <small>
           Uploaded through the club Drive and shared server-side, so a learner never lands on a
-          sign-in wall. Saved the moment you pick it — no need to press Save below.
+          sign-in wall. Saved the moment you pick it.
         </small>
       </div>
 
@@ -154,6 +167,13 @@ export default function AssignmentBuilder({ section, onSave, onSaveSection }) {
         </small>
       </label>
 
+      {missing.length > 0 && (
+        <p className="pm-lit-builder-todo">
+          <i className="fas fa-circle-info" aria-hidden="true" />
+          {' '}Saved as a draft. Still needs {missing.join(', ')} before learners can be graded.
+        </p>
+      )}
+
       <hr />
       <p className="pm-lit-builder-warn">
         <i className="fas fa-user-shield" aria-hidden="true" />
@@ -175,10 +195,6 @@ export default function AssignmentBuilder({ section, onSave, onSaveSection }) {
         onChange={(rubric) => set('rubric', rubric)}
         placeholder="e.g. Sizes the pump from the head loss, not the flow rate alone"
       />
-
-      <button type="button" className="clubpm-btn-primary" onClick={handleSave} disabled={saving}>
-        {saving ? 'Saving…' : 'Save assignment settings'}
-      </button>
     </div>
   );
 }

@@ -1,5 +1,4 @@
-import React, { useState } from 'react';
-import toast from 'react-hot-toast';
+import React, { useState, useEffect, useRef } from 'react';
 import RubricEditor, { emptyPoint } from './RubricEditor';
 
 /**
@@ -9,47 +8,72 @@ import RubricEditor, { emptyPoint } from './RubricEditor';
  * withheld from learners by the server, which builds their payload from five
  * safe keys rather than stripping these off. Nothing here is hidden by CSS.
  *
- * `onSave` writes `litConfig`; `onSaveSection` writes plain columns on the
- * section. `passThreshold` is a column, not a config key, so it goes through
- * the second one — the same path the rail uses to rename a section.
+ * This surface has no save button of its own. Every edit stages a whole-section
+ * patch with the page through `onChange`, and the page's normal save path —
+ * autosave, Save draft, Ctrl+S, and the save that runs before a section switch
+ * — writes it with the titles. An author editing one field at the top of a long
+ * form should never have to scroll to the bottom to find out whether it stuck.
+ *
+ * The patch carries `litConfig` (a whole merged object, like every other
+ * *Config writer — a partial save must not drop keys this form does not own)
+ * and `passThreshold`, which is a plain column on the section rather than a key
+ * inside the config.
  */
-export default function LitReviewBuilder({ section, onSave, onSaveSection }) {
-  const initial = section.litConfig ?? {};
+export default function LitReviewBuilder({ section, onChange }) {
+  const sectionId = section.id;
   const [passThreshold, setPassThreshold] = useState(section.passThreshold ?? null);
-  const [cfg, setCfg] = useState({
-    pdfDriveFileId: initial.pdfDriveFileId ?? '',
-    pdfTitle: initial.pdfTitle ?? '',
-    citation: initial.citation ?? '',
-    promptText: initial.promptText ?? '',
-    minWords: initial.minWords ?? 150,
-    referenceSummary: initial.referenceSummary ?? '',
-    rubric: Array.isArray(initial.rubric) && initial.rubric.length ? initial.rubric : [emptyPoint()],
+  const [cfg, setCfg] = useState(() => {
+    const initial = section.litConfig ?? {};
+    return {
+      pdfDriveFileId: initial.pdfDriveFileId ?? '',
+      pdfTitle: initial.pdfTitle ?? '',
+      citation: initial.citation ?? '',
+      promptText: initial.promptText ?? '',
+      minWords: initial.minWords ?? 150,
+      referenceSummary: initial.referenceSummary ?? '',
+      rubric: Array.isArray(initial.rubric) && initial.rubric.length ? initial.rubric : [emptyPoint()],
+    };
   });
-  const [saving, setSaving] = useState(false);
 
   const set = (key, value) => setCfg((prev) => ({ ...prev, [key]: value }));
 
-  const handleSave = async () => {
-    if (!cfg.pdfDriveFileId.trim()) { toast.error('A Drive file id is required'); return; }
-    if (!cfg.referenceSummary.trim()) { toast.error('A reference summary is required'); return; }
-    const rubric = cfg.rubric.filter((p) => p.point.trim());
-    if (!rubric.length) { toast.error('Add at least one rubric point'); return; }
-    setSaving(true);
-    try {
-      // Spread the previous value, like every other *Config writer: a partial
-      // save must not drop keys this form does not own.
-      await onSave({ ...initial, ...cfg, rubric, minWords: Number(cfg.minWords) || 150 });
-      // A column, not a config key — a separate patch on the section itself.
-      if (onSaveSection && passThreshold !== (section.passThreshold ?? null)) {
-        await onSaveSection({ passThreshold });
-      }
-      toast.success('Paper review settings saved');
-    } catch (err) {
-      toast.error(err?.message ?? 'Could not save');
-    } finally {
-      setSaving(false);
-    }
-  };
+  // Keys this form does not own — nothing writes into litConfig from elsewhere
+  // today, but a save that silently dropped such a key would be very hard to
+  // spot, so the spread stays.
+  const carriedRef = useRef(null);
+  carriedRef.current = section.litConfig ?? {};
+
+  // Identity of the mount-time state. Comparing against it (rather than a
+  // "first run" flag) is what keeps the mount from staging a patch and marking
+  // the page dirty on every section visit — including under StrictMode's
+  // double-invoked effects, where a flag would emit on the second run.
+  const pristineCfg = useRef(cfg);
+  const pristineThreshold = useRef(passThreshold);
+
+  useEffect(() => {
+    if (cfg === pristineCfg.current && passThreshold === pristineThreshold.current) return;
+    onChange?.(sectionId, {
+      litConfig: {
+        ...carriedRef.current,
+        ...cfg,
+        minWords: Number(cfg.minWords) || 150,
+        // Half-typed rubric rows stay in local state but are not persisted —
+        // an empty point would otherwise reach the grader as a scoreable item.
+        rubric: cfg.rubric.filter((p) => p.point.trim()),
+      },
+      passThreshold,
+    });
+  }, [cfg, passThreshold, sectionId, onChange]);
+
+  // What grading needs. A draft may sit incomplete for as long as the author
+  // likes — this is a readiness note, not a save gate, because refusing to save
+  // an unfinished form is what forced the author to keep a second copy of their
+  // work in the box.
+  const missing = [
+    !cfg.pdfDriveFileId.trim() && 'a Drive file id',
+    !cfg.referenceSummary.trim() && 'a reference summary',
+    !cfg.rubric.some((p) => p.point.trim()) && 'at least one rubric point',
+  ].filter(Boolean);
 
   return (
     <div className="pm-lit-builder">
@@ -106,6 +130,13 @@ export default function LitReviewBuilder({ section, onSave, onSaveSection }) {
         </small>
       </label>
 
+      {missing.length > 0 && (
+        <p className="pm-lit-builder-todo">
+          <i className="fas fa-circle-info" aria-hidden="true" />
+          {' '}Saved as a draft. Still needs {missing.join(', ')} before learners can be graded.
+        </p>
+      )}
+
       <hr />
       <p className="pm-lit-builder-warn">
         <i className="fas fa-user-shield" aria-hidden="true" />
@@ -123,10 +154,6 @@ export default function LitReviewBuilder({ section, onSave, onSaveSection }) {
       </label>
 
       <RubricEditor points={cfg.rubric} onChange={(rubric) => set('rubric', rubric)} />
-
-      <button type="button" className="clubpm-btn-primary" onClick={handleSave} disabled={saving}>
-        {saving ? 'Saving…' : 'Save paper review settings'}
-      </button>
     </div>
   );
 }

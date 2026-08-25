@@ -150,6 +150,19 @@ export default function CourseEditorPage() {
   // The quiz builder saves questions explicitly, outside the page's autosave, so
   // it reports its own dirtiness for the section-switch guard below.
   const [questionsDirty, setQuestionsDirty] = useState(false);
+  // The LIT_REVIEW and ASSIGNMENT builders edit JSON config columns rather than
+  // the collaborative document, so they cannot ride the Yjs path. They stage a
+  // whole-section patch here instead and the page's normal save writes it with
+  // the titles — those surfaces have no save button of their own, because one
+  // at the bottom of a long form is one the author has to go looking for.
+  // `{ sectionId, patch }`, so a save triggered by a section switch can tell
+  // whether the staged patch still belongs to the section being written.
+  const [pendingSectionPatch, setPendingSectionPatch] = useState(null);
+
+  const stageSectionPatch = useCallback((sectionId, patch) => {
+    setPendingSectionPatch({ sectionId, patch });
+    setDirty(true);
+  }, []);
 
   // Leaving the AI panel drops any pending selection, whichever way it closes:
   // a stale one forces the next open onto the Selection tab.
@@ -164,7 +177,9 @@ export default function CourseEditorPage() {
   // Keep the latest editable state in a ref so the debounced autosave always
   // persists current values without re-arming on every keystroke.
   const stateRef = useRef({ courseTitle: '', sectionTitle: '', contentJson: null, sectionId: null });
-  stateRef.current = { courseTitle, sectionTitle, contentJson, sectionId: selectedSectionId };
+  stateRef.current = {
+    courseTitle, sectionTitle, contentJson, sectionId: selectedSectionId, pendingSectionPatch,
+  };
   const autosaveTimer = useRef(null);
   const editorRef = useRef(null);
 
@@ -257,17 +272,24 @@ export default function CourseEditorPage() {
   const handleSave = useCallback(async ({ silent = false } = {}) => {
     if (!silent) setSaving(true);
     try {
-      const { courseTitle: ct, sectionTitle: st, contentJson: cj, sectionId } = stateRef.current;
+      const {
+        courseTitle: ct, sectionTitle: st, contentJson: cj, sectionId, pendingSectionPatch: staged,
+      } = stateRef.current;
       const updated = await updateCourse(id, { title: ct });
       setCourse((prev) => ({ ...prev, ...updated }));
       if (sectionId) {
         const patch = { title: st };
         if (cj) patch.contentJson = cj;
+        // Config staged by a builder surface, applied only to the section it was
+        // typed on: the save that runs before a section switch fires while the
+        // selection is still the old one, but a later save must not carry it.
+        if (staged && staged.sectionId === sectionId) Object.assign(patch, staged.patch);
         const savedSection = await updateCourseSection(sectionId, patch);
         setModules((prev) => prev.map((m) => ({
           ...m,
           sections: (m.sections ?? []).map((s) => (s.id === sectionId ? { ...s, ...savedSection } : s)),
         })));
+        setPendingSectionPatch((p) => (p && p.sectionId === sectionId ? null : p));
       }
       setDirty(false);
       setLastSavedAt(new Date());
@@ -290,7 +312,10 @@ export default function CourseEditorPage() {
     if (autosaveTimer.current) clearTimeout(autosaveTimer.current);
     autosaveTimer.current = setTimeout(() => { handleSave({ silent: true }); }, 1500);
     return () => { if (autosaveTimer.current) clearTimeout(autosaveTimer.current); };
-  }, [dirty, courseTitle, sectionTitle, handleSave]);
+    // `pendingSectionPatch` is in the dep list for the same reason the titles
+    // are: without it the debounce would not re-arm as the author keeps typing
+    // in a builder, and the first keystroke would decide when the write lands.
+  }, [dirty, courseTitle, sectionTitle, pendingSectionPatch, handleSave]);
 
   // Warn before leaving (browser navigation / tab close) with unsaved edits.
   useEffect(() => {
@@ -413,16 +438,17 @@ export default function CourseEditorPage() {
     if (ed && !ed.isDestroyed && doc) ed.commands.setContent(doc, { emitUpdate: false });
   }, []);
 
+  // Rejects on failure, which is the contract every workbench documents and
+  // wraps in its own try/catch. Swallowing the error here made those catch
+  // blocks dead code: a builder would report a save the server had refused,
+  // and the field would silently revert to the tree value on the next switch.
   const handleUpdateSection = useCallback(async (sectionId, patch) => {
-    try {
-      const updated = await updateCourseSection(sectionId, patch);
-      setModules((prev) => prev.map((m) => ({
-        ...m,
-        sections: (m.sections ?? []).map((s) => (s.id === sectionId ? { ...s, ...updated } : s)),
-      })));
-    } catch {
-      toast.error('Could not update that section');
-    }
+    const updated = await updateCourseSection(sectionId, patch);
+    setModules((prev) => prev.map((m) => ({
+      ...m,
+      sections: (m.sections ?? []).map((s) => (s.id === sectionId ? { ...s, ...updated } : s)),
+    })));
+    return updated;
   }, []);
 
   const handleDeleteSection = useCallback(async (section) => {
@@ -601,7 +627,10 @@ export default function CourseEditorPage() {
           onSaveStructure={handleSaveStructure}
           onAddModule={handleAddModule}
           onAddSection={handleAddSection}
-          onUpdateSection={handleUpdateSection}
+          // The rail toggles `isRequired` fire-and-forget, so the rejection is
+          // handled here rather than at its call site.
+          onUpdateSection={(sid, patch) => handleUpdateSection(sid, patch)
+            .catch(() => toast.error('Could not update that section'))}
           onDeleteSection={handleDeleteSection}
           onDeleteModule={handleDeleteModule}
         />
@@ -677,28 +706,25 @@ export default function CourseEditorPage() {
               )}
 
               {/* The paper, the prompt, and the author-only grading material.
-                  Saves through handleUpdateSection like every other builder —
-                  one patch path, so local tree state stays in step. */}
+                  Unlike the video and slides workbenches, this one does not
+                  save itself: it stages its patch with the page, so Save draft,
+                  Ctrl+S, the autosave and the section-switch save all cover it. */}
               {sectionKind === 'LIT_REVIEW' && (
                 <LitReviewBuilder
                   key={selectedSection.id}
                   section={selectedSection}
-                  onSave={(litConfig) => handleUpdateSection(selectedSection.id, { litConfig })}
-                  // `passThreshold` is a column on the section, not a key
-                  // inside litConfig, so it takes the plain-patch path.
-                  onSaveSection={(patch) => handleUpdateSection(selectedSection.id, patch)}
+                  onChange={stageSectionPatch}
                 />
               )}
 
               {/* Same shape as LIT_REVIEW: prompt, optional handout, and the
-                  author-only reference answer and rubric. Saves through
-                  handleUpdateSection so local tree state stays in step. */}
+                  author-only reference answer and rubric. Stages its patch the
+                  same way; only the handout saves on its own, server-side. */}
               {sectionKind === 'ASSIGNMENT' && (
                 <AssignmentBuilder
                   key={selectedSection.id}
                   section={selectedSection}
-                  onSave={(assignmentConfig) => handleUpdateSection(selectedSection.id, { assignmentConfig })}
-                  onSaveSection={(patch) => handleUpdateSection(selectedSection.id, patch)}
+                  onChange={stageSectionPatch}
                 />
               )}
 
