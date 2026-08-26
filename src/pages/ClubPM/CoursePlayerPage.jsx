@@ -8,6 +8,7 @@ import CourseQuizRunner from '../../components/clubpm/courses/CourseQuizRunner';
 import WalkthroughLaunchCard from '../../components/clubpm/courses/WalkthroughLaunchCard';
 import LitReviewSection from '../../components/clubpm/courses/LitReviewSection';
 import AssignmentSection from '../../components/clubpm/courses/AssignmentSection';
+import TrainingSection from '../../components/clubpm/courses/TrainingSection';
 import { SECTION_KINDS } from '../../components/clubpm/courses/CourseSectionRail';
 import OrbitLoader from '../../components/OrbitLoader';
 import {
@@ -431,10 +432,33 @@ export default function CoursePlayerPage() {
                 />
               )}
 
+              {/* A training's prose is the "why you have to take this" copy, so
+                  it renders ABOVE the card, same as an assignment's brief. */}
+              {selected.kind === 'TRAINING' && selected.contentJson && (
+                <div className="pm-course-learn-reader">
+                  <BlogEditor
+                    key={`reader-${selected.id}`}
+                    content={selected.contentJson}
+                    editable={false}
+                    theme={course.theme}
+                  />
+                </div>
+              )}
+
+              {selected.kind === 'TRAINING' && (
+                <TrainingSection
+                  key={selected.id}
+                  section={selected}
+                  // Uploading completes the section server-side, so the rail has
+                  // to be refetched for the next one to unlock.
+                  onCompleted={() => load()}
+                />
+              )}
+
               {/* Prose for CONTENT sections, and the notes under a video.
                   Rendering `contentJson` through the editor read-only is what
                   keeps a second renderer from having to track blogRender.ts. */}
-              {selected.kind !== 'QUIZ' && selected.kind !== 'LIT_REVIEW' && selected.kind !== 'ASSIGNMENT' && selected.contentJson && (
+              {selected.kind !== 'QUIZ' && selected.kind !== 'LIT_REVIEW' && selected.kind !== 'ASSIGNMENT' && selected.kind !== 'TRAINING' && selected.contentJson && (
                 <div className="pm-course-learn-reader">
                   <BlogEditor
                     key={`reader-${selected.id}`}

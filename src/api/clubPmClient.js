@@ -669,6 +669,48 @@ export const uploadAssignmentHandout = (sectionId, file) => {
 export const deleteAssignmentHandout = (sectionId) =>
   del(`/api/outreach/courses/sections/${sectionId}/handout`);
 
+// ── Safety-training registry and certificates ────────────────
+// NOTE: unrelated to `ensureTrainingProject` below, which is the walkthrough
+// sandbox project. Same word, different feature.
+export const listTrainings   = ()          => get('/api/outreach/courses/trainings');
+export const createTraining  = (body)      => post('/api/outreach/courses/trainings', body);
+export const updateTraining  = (id, body)  => patch(`/api/outreach/courses/trainings/${id}`, body);
+export const myTrainingStatus = ()         => get('/api/outreach/courses/trainings/my-status');
+
+export const uploadTrainingExample = (trainingId, file) => {
+  const form = new FormData();
+  form.append('file', file);
+  return post(`/api/outreach/courses/trainings/${trainingId}/example`, form);
+};
+export const deleteTrainingExample = (trainingId) =>
+  del(`/api/outreach/courses/trainings/${trainingId}/example`);
+
+// Carries the reward envelope like every other completion, so `handleResponse`
+// fires RewardFlux and the quest toasts with no extra wiring on the page.
+export const submitCertificate = (sectionId, { file, completedOn }) => {
+  const form = new FormData();
+  form.append('file', file);
+  form.append('completedOn', completedOn);
+  return post(`/api/outreach/courses/sections/${sectionId}/certificate`, form);
+};
+export const listMyCertificates = (sectionId) =>
+  get(`/api/outreach/courses/sections/${sectionId}/certificates`);
+
+export const listPendingCertificates = () =>
+  get('/api/outreach/courses/certificates/pending');
+export const reviewCertificate = (certificateId, body) =>
+  post(`/api/outreach/courses/certificates/${certificateId}/review`, body);
+
+// These two build URLs rather than fetching, because they are used as <iframe>
+// and <a href> targets. Both routes are authenticated — the browser sends the
+// session cookie, which is why this works without the Bearer header. A member
+// whose browser blocks the cross-origin cookie sees the fallback download link
+// that TrainingSection renders beside the preview.
+export const certificateFileUrl = (certificateId) =>
+  `${BASE_URL}/api/outreach/courses/certificates/${certificateId}/file`;
+export const trainingExampleUrl = (trainingId) =>
+  `${BASE_URL}/api/outreach/courses/trainings/${trainingId}/example-file`;
+
 export const assignCourse = (courseId, memberIds, dueDate = null) =>
   post(`/api/outreach/courses/${courseId}/assign`, { memberIds, dueDate });
 
