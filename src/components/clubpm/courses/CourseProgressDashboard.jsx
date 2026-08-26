@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import AvatarPortrait from '../avatar/AvatarPortrait';
 import RankIcon from '../RankIcon';
 import CourseAssignModal from './CourseAssignModal';
+import CertificateReviewPanel from './CertificateReviewPanel';
 import {
   getCourseProgress,
   getCourseQuizAnalysis,
@@ -20,6 +21,7 @@ import {
 const VIEWS = [
   { id: 'matrix',   label: 'Completion matrix', icon: 'fas fa-table-cells' },
   { id: 'analysis', label: 'Quiz item analysis', icon: 'fas fa-clipboard-question' },
+  { id: 'certs',    label: 'Certificates', icon: 'fas fa-certificate' },
 ];
 
 const CELL_STATUS = {
@@ -547,7 +549,12 @@ export default function CourseProgressDashboard({
         </button>
       </div>
 
-      {!courseId ? (
+      {/* The certificate queue is not course-scoped — a reviewer works a queue,
+          not a course — so it sits ahead of the courseId/loading/error guards
+          the other two views need. */}
+      {view === 'certs' ? (
+        <CertificateReviewPanel />
+      ) : !courseId ? (
         <div className="cpm-course-empty">
           <i className="fas fa-chart-bar" aria-hidden="true" />
           <p>Create a course to see progress here.</p>

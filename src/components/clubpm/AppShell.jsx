@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import OrbitLoader from '../OrbitLoader';
 import { useLocation, Link, Navigate, useNavigate } from 'react-router-dom';
 import { useClubPmAuth } from '../../clubpm/ClubPmAuth';
-import { get, post, getCrPendingCount } from '../../api/clubPmClient';
+import { get, post, getCrPendingCount, listPendingCertificates } from '../../api/clubPmClient';
 import { CR_COUNT_EVENT } from './vault/vaultUtils';
 import { useShortcutsRegistry } from '../../clubpm/ShortcutsRegistry';
 import NotificationBell from './NotificationBell';
@@ -289,6 +289,7 @@ export default function AppShell({ children }) {
 
   const [pendingRewardsCount, setPendingRewardsCount] = useState(0);
   const [pendingCrCount, setPendingCrCount] = useState(0);
+  const [pendingCertCount, setPendingCertCount] = useState(0);
 
   const fetchPendingCount = useCallback(() => {
     if (!member?.isAdmin) return;
@@ -304,17 +305,25 @@ export default function AppShell({ children }) {
       .catch(() => setPendingCrCount(0));
   }, [member]);
 
+  const fetchPendingCertCount = useCallback(() => {
+    if (!member?.isAdmin) return;
+    listPendingCertificates()
+      .then(res => setPendingCertCount(res?.count ?? 0))
+      .catch(() => setPendingCertCount(0));
+  }, [member]);
+
   useEffect(() => {
     if (!member) return;
     fetchPendingCount();
     fetchPendingCrCount();
+    fetchPendingCertCount();
     window.addEventListener('clubpm:pending-rewards-updated', fetchPendingCount);
     window.addEventListener(CR_COUNT_EVENT, fetchPendingCrCount);
     return () => {
       window.removeEventListener('clubpm:pending-rewards-updated', fetchPendingCount);
       window.removeEventListener(CR_COUNT_EVENT, fetchPendingCrCount);
     };
-  }, [member, fetchPendingCount, fetchPendingCrCount]);
+  }, [member, fetchPendingCount, fetchPendingCrCount, fetchPendingCertCount]);
 
   useEffect(() => {
     if (!member) return;
@@ -434,7 +443,7 @@ export default function AppShell({ children }) {
               </span>
               <span className="pm-nav-item-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
                 <span>Admin</span>
-                {(pendingRewardsCount > 0 || pendingCrCount > 0) && (
+                {(pendingRewardsCount > 0 || pendingCrCount > 0 || pendingCertCount > 0) && (
                   <span className="pm-admin-badge-group">
                     {pendingRewardsCount > 0 && (
                       <span className="pm-admin-badge" title="Pending rewards">
@@ -444,6 +453,11 @@ export default function AppShell({ children }) {
                     {pendingCrCount > 0 && (
                       <span className="pm-admin-badge" title="Open change requests">
                         {pendingCrCount}
+                      </span>
+                    )}
+                    {pendingCertCount > 0 && (
+                      <span className="pm-admin-badge" title="Certificates awaiting review">
+                        {pendingCertCount}
                       </span>
                     )}
                   </span>
