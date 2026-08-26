@@ -4,7 +4,12 @@
 // Excluded from the production build (tsconfig `exclude` covers *.test.ts).
 // Same inline assertion harness as assignmentService.test.ts.
 
-import { computeExpiry, deriveStatus, sanitizeTrainingInput } from "./trainingService.js";
+import {
+  computeExpiry,
+  deriveStatus,
+  dueReminder,
+  sanitizeTrainingInput,
+} from "./trainingService.js";
 
 let passed = 0, failed = 0;
 function check(name: string, cond: boolean) {
@@ -111,6 +116,31 @@ console.log("sanitizeTrainingInput — validation");
   check("absurd renewal rejected", clamped.ok === false);
   const zero = sanitizeTrainingInput({ name: "X", providerName: "Y", renewalMonths: 0 });
   check("zero renewal becomes null", zero.ok === true && zero.value.renewalMonths === null);
+}
+
+console.log("dueReminder — each threshold fires exactly once");
+{
+  const DAY = 86_400_000;
+  const now = utc("2026-08-25");
+  const inDays = (n: number) => new Date(now.getTime() + n * DAY);
+
+  check("far from expiry is silent", dueReminder(inDays(60), null, now) === null);
+  check("30 days out fires T30", dueReminder(inDays(29), null, now) === "T30");
+  check("7 days out fires T7", dueReminder(inDays(6), null, now) === "T7");
+  check("already past fires LAPSED", dueReminder(inDays(-1), null, now) === "LAPSED");
+
+  // The whole point: a reminder already sent for this threshold does not repeat.
+  const expires = inDays(29);
+  const t30CrossedAt = new Date(expires.getTime() - 30 * DAY);
+  check("T30 already sent stays silent",
+    dueReminder(expires, new Date(t30CrossedAt.getTime() + 1000), now) === null);
+
+  // ...but the NEXT threshold still fires, even though a reminder was sent.
+  const soon = inDays(6);
+  check("T7 fires even after T30 was sent",
+    dueReminder(soon, new Date(soon.getTime() - 30 * DAY + 1000), now) === "T7");
+  check("LAPSED fires even after T7 was sent",
+    dueReminder(inDays(-1), new Date(now.getTime() - 3 * DAY), now) === "LAPSED");
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);

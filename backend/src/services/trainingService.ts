@@ -173,6 +173,43 @@ export function sanitizeTrainingInput(body: unknown): SanitizeResult {
   };
 }
 
+export type ExpiryThreshold = "T30" | "T7" | "LAPSED";
+
+/**
+ * Which reminder, if any, this certificate is due for.
+ *
+ * Pure so the threshold arithmetic can be reasoned about without a database.
+ * `lastRemindedAt` is compared against the moment the threshold was CROSSED, not
+ * against "now": that is what makes each threshold fire exactly once, rather
+ * than every morning for thirty days running.
+ */
+export function dueReminder(
+  expiresOn: Date,
+  lastRemindedAt: Date | null,
+  now: Date
+): ExpiryThreshold | null {
+  const DAY = 86_400_000;
+  const msLeft = expiresOn.getTime() - now.getTime();
+
+  let threshold: ExpiryThreshold;
+  let crossedAt: number;
+  if (msLeft <= 0) {
+    threshold = "LAPSED";
+    crossedAt = expiresOn.getTime();
+  } else if (msLeft <= 7 * DAY) {
+    threshold = "T7";
+    crossedAt = expiresOn.getTime() - 7 * DAY;
+  } else if (msLeft <= 30 * DAY) {
+    threshold = "T30";
+    crossedAt = expiresOn.getTime() - 30 * DAY;
+  } else {
+    return null;
+  }
+
+  if (lastRemindedAt && lastRemindedAt.getTime() >= crossedAt) return null;
+  return threshold;
+}
+
 // ── Persistence ──────────────────────────────────────────────
 //
 // Everything below touches Prisma and is therefore not unit-tested. Keep the
@@ -357,4 +394,31 @@ export async function getMemberTrainingStatuses(memberId: string) {
       expiresOn: newestApproved?.expiresOn ?? null,
     };
   });
+}
+
+/**
+ * Approved certificates inside the 30-day window, one per (member, training).
+ *
+ * The newest-per-pair filter is not cosmetic: a member who has renewed four
+ * years running has four approved rows, three of them long expired, and without
+ * it every one of them would generate a "lapsed" DM every single morning.
+ */
+export async function findExpiringCertificates(now: Date) {
+  const horizon = new Date(now.getTime() + 30 * 86_400_000);
+  const rows = await prisma.trainingCertificate.findMany({
+    where: { status: "APPROVED", expiresOn: { not: null, lte: horizon } },
+    orderBy: { createdAt: "desc" },
+    include: {
+      training: { select: { id: true, name: true } },
+      member: { select: { id: true, slackId: true } },
+    },
+  });
+
+  const newestPerPair = new Map<string, (typeof rows)[number]>();
+  for (const r of rows) {
+    const key = `${r.memberId}:${r.trainingId}`;
+    // rows are newest-first, so the first one wins.
+    if (!newestPerPair.has(key)) newestPerPair.set(key, r);
+  }
+  return [...newestPerPair.values()];
 }

@@ -101,6 +101,58 @@ export function startScheduler(app: App): void {
     }
   });
 
+  // ── Daily 8:15 AM — Safety-training certificate expiry ───────────
+  //
+  // Nags at 30 days out, 7 days out, and once lapsed. A lapsed certificate also
+  // reopens its course section so the member can upload the new one where they
+  // uploaded the last one.
+  cron.schedule("15 8 * * *", async () => {
+    console.log("📜 Checking safety-training certificate expiry...");
+    try {
+      const trainingService = await import("../services/trainingService.js");
+      const progressService = await import("../services/courseProgressService.js");
+
+      const now = new Date();
+      const candidates = await trainingService.findExpiringCertificates(now);
+      let sent = 0;
+
+      for (const cert of candidates) {
+        if (!cert.expiresOn) continue;
+        const threshold = trainingService.dueReminder(cert.expiresOn, cert.lastRemindedAt, now);
+        if (!threshold) continue;
+
+        const when = cert.expiresOn.toISOString().slice(0, 10);
+        const message =
+          threshold === "LAPSED"
+            ? `Your ${cert.training.name} training expired on ${when}. Upload a new certificate to get back to current.`
+            : `Your ${cert.training.name} training expires on ${when}. Renew it and upload the new certificate.`;
+
+        await createNotification({
+          type: "TRAINING_EXPIRING",
+          recipientId: cert.memberId,
+          message,
+          metadata: { certificateId: cert.id, sectionId: cert.sectionId, threshold },
+        });
+        if (cert.member.slackId) queueDm(cert.member.slackId, message);
+
+        // Only a lapse reopens the section — a 30-day warning must not undo
+        // someone's course completion while they are still compliant.
+        if (threshold === "LAPSED" && cert.sectionId) {
+          await progressService.reopenSectionForMember(cert.sectionId, cert.memberId);
+        }
+
+        await prisma.trainingCertificate.update({
+          where: { id: cert.id },
+          data: { lastRemindedAt: now },
+        });
+        sent++;
+      }
+      console.log(`✅ Training expiry: ${sent} reminder(s) sent`);
+    } catch (error) {
+      console.error("❌ Training expiry check error:", error);
+    }
+  });
+
   // ── Daily 8:30 AM — Escalation notices → admin DMs only ──────────
   cron.schedule("30 8 * * *", async () => {
     console.log("🚨 Running escalation checks (admin DMs)...");
