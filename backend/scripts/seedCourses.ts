@@ -180,6 +180,54 @@ function readAssignmentConfig(file: string): {
   };
 }
 
+/**
+ * Upsert a course's trainings.json into the Training registry.
+ *
+ * Matched on `slug`, which is why trainingService.updateTraining refuses to
+ * change one: reseeding after a slug churn would create duplicates rather than
+ * updating in place.
+ *
+ * Never clears exampleFileId — an author uploads the sample certificate through
+ * the UI, and reseeding must not throw it away.
+ */
+async function seedTrainings(dir: string, authorId: string): Promise<Map<string, string>> {
+  const file = path.join(dir, "trainings.json");
+  const bySlug = new Map<string, string>();
+  if (!fs.existsSync(file)) return bySlug;
+
+  const entries = JSON.parse(fs.readFileSync(file, "utf8")) as Array<{
+    slug: string;
+    name: string;
+    providerName: string;
+    providerUrl?: string;
+    courseUrl?: string;
+    registrationUrl?: string;
+    description?: string;
+    renewalMonths?: number | null;
+  }>;
+
+  for (const t of entries) {
+    const data = {
+      name: t.name,
+      providerName: t.providerName,
+      providerUrl: t.providerUrl ?? null,
+      courseUrl: t.courseUrl ?? null,
+      registrationUrl: t.registrationUrl ?? null,
+      description: t.description ?? null,
+      renewalMonths: t.renewalMonths ?? null,
+      archivedAt: null,
+    };
+    const row = await prisma.training.upsert({
+      where: { slug: t.slug },
+      update: data,
+      create: { ...data, slug: t.slug, createdById: authorId },
+    });
+    bySlug.set(t.slug, row.id);
+  }
+  console.log(`  ✓ ${entries.length} training(s) in the registry`);
+  return bySlug;
+}
+
 async function seedCourse(dir: string, authorId: string) {
   const doc = JSON.parse(fs.readFileSync(path.join(dir, "course.json"), "utf8"));
 
@@ -203,6 +251,8 @@ async function seedCourse(dir: string, authorId: string) {
       createdById: authorId,
     },
   });
+
+  const trainingIds = await seedTrainings(dir, authorId);
 
   const seenSectionIds: string[] = [];
 
@@ -274,6 +324,16 @@ async function seedCourse(dir: string, authorId: string) {
         // Intro prose above the paper, same conversion as a CONTENT body.
         const file = resolveRef(dir, doc.slug, s.bodyRef);
         if (file) data.contentJson = courseBodyToDoc(fs.readFileSync(file, "utf8"));
+      }
+      if (s.kind === "TRAINING" && s.trainingSlug) {
+        const id = trainingIds.get(s.trainingSlug);
+        if (id) {
+          data.trainingId = id;
+        } else {
+          // Same treatment as a dangling bodyRef: install the section anyway so
+          // the rest of the course opens, and print it at the end of the run.
+          pendingRefs.push(`${doc.slug}: no training "${s.trainingSlug}" in trainings.json`);
+        }
       }
       if (s.kind === "ASSIGNMENT" && s.assignmentRef) {
         const file = resolveRef(dir, doc.slug, s.assignmentRef);

@@ -1,0 +1,120 @@
+{
+  "slug": "porterfield-lab-trainings",
+  "title": "Porterfield Lab Safety Trainings",
+  "summary": "The trainings you need before you work in the lab, where to take them, and where to put the certificate when you're done. Four required, eight recommended, and the annual ones will remind you themselves.",
+  "estimatedMinutes": 20,
+  "status": "DRAFT",
+  "modules": [
+    {
+      "order": 0,
+      "title": "Required",
+      "summary": "Finish all four before you begin laboratory work. Three of them renew every year.",
+      "estimatedMinutes": 10,
+      "isRequired": true,
+      "sequential": false,
+      "sections": [
+        {
+          "order": 0,
+          "title": "Before you start",
+          "kind": "CONTENT",
+          "isRequired": true,
+          "bodyRef": "content/C01-before-you-start.md"
+        },
+        {
+          "order": 1,
+          "title": "Biosafety for Principal Investigators",
+          "kind": "TRAINING",
+          "isRequired": true,
+          "trainingSlug": "biosafety-for-principal-investigators"
+        },
+        {
+          "order": 2,
+          "title": "Bloodborne Pathogens",
+          "kind": "TRAINING",
+          "isRequired": true,
+          "trainingSlug": "bloodborne-pathogens"
+        },
+        {
+          "order": 3,
+          "title": "Hazard Communication Awareness Training",
+          "kind": "TRAINING",
+          "isRequired": true,
+          "trainingSlug": "hazard-communication-awareness"
+        },
+        {
+          "order": 4,
+          "title": "Laboratory Safety Fundamentals",
+          "kind": "TRAINING",
+          "isRequired": true,
+          "trainingSlug": "laboratory-safety-fundamentals"
+        }
+      ]
+    },
+    {
+      "order": 1,
+      "title": "Recommended",
+      "summary": "Optional in general. Human Subjects Research and Laser Safety are mandatory if that kind of work applies to you.",
+      "estimatedMinutes": 10,
+      "isRequired": false,
+      "sequential": false,
+      "sections": [
+        {
+          "order": 0,
+          "title": "Responsible Conduct of Research (RCR)",
+          "kind": "TRAINING",
+          "isRequired": false,
+          "trainingSlug": "responsible-conduct-of-research"
+        },
+        {
+          "order": 1,
+          "title": "Biosafety & Biosecurity (BSS) Comprehensive",
+          "kind": "TRAINING",
+          "isRequired": false,
+          "trainingSlug": "biosafety-and-biosecurity"
+        },
+        {
+          "order": 2,
+          "title": "Human Subjects Research (HSR)",
+          "kind": "TRAINING",
+          "isRequired": false,
+          "trainingSlug": "human-subjects-research"
+        },
+        {
+          "order": 3,
+          "title": "Shipping and Transport of Regulated Biological Materials",
+          "kind": "TRAINING",
+          "isRequired": false,
+          "trainingSlug": "shipping-regulated-biological-materials"
+        },
+        {
+          "order": 4,
+          "title": "Laser Safety Training",
+          "kind": "TRAINING",
+          "isRequired": false,
+          "trainingSlug": "laser-safety"
+        },
+        {
+          "order": 5,
+          "title": "Biological Safety Review",
+          "kind": "TRAINING",
+          "isRequired": false,
+          "trainingSlug": "biological-safety-review"
+        },
+        {
+          "order": 6,
+          "title": "Building Emergency Plan (BEP)",
+          "kind": "TRAINING",
+          "isRequired": false,
+          "trainingSlug": "building-emergency-plan"
+        },
+        {
+          "order": 7,
+          "title": "Office Ergonomics Overview",
+          "kind": "TRAINING",
+          "isRequired": false,
+          "trainingSlug": "office-ergonomics"
+        }
+      ]
+    }
+  ]
+}
