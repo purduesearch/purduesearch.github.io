@@ -104,7 +104,7 @@ function ReviewRow({ cert, onDone }) {
           {rejecting ? (
             <>
               <button
-                className="clubpm-btn-ghost"
+                className="clubpm-btn-secondary"
                 type="button"
                 disabled={busy}
                 onClick={() => decide('REJECTED')}
@@ -112,7 +112,7 @@ function ReviewRow({ cert, onDone }) {
                 <i className="fas fa-paper-plane" aria-hidden="true" /> Send back
               </button>
               <button
-                className="clubpm-btn-ghost"
+                className="clubpm-btn-secondary"
                 type="button"
                 disabled={busy}
                 onClick={() => { setRejecting(false); setNote(''); }}
@@ -122,7 +122,7 @@ function ReviewRow({ cert, onDone }) {
             </>
           ) : (
             <button
-              className="clubpm-btn-ghost"
+              className="clubpm-btn-secondary"
               type="button"
               disabled={busy}
               onClick={() => setRejecting(true)}

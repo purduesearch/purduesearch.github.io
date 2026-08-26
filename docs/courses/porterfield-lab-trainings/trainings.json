@@ -3,104 +3,119 @@
     "slug": "biosafety-for-principal-investigators",
     "name": "Biosafety for Principal Investigators",
     "providerName": "CITI Program",
-    "providerUrl": "https://www.citiprogram.org/",
-    "registrationUrl": "https://www.purdue.edu/research/oevprp/regulatory-affairs/docs/CITI%20Registration%20Instruction%20Sheet%20IBC%2010.2020.pdf",
+    "providerUrl": "https://about.citiprogram.org/",
+    "courseUrl": "https://about.citiprogram.org/series/biosafety-and-biosecurity-bss/",
+    "registrationUrl": "https://research.purdue.edu/resources-for-researchers/compliance-and-security/biosafety-and-rdna/biosafety-training/",
     "renewalMonths": null,
-    "description": "Foundational biosafety training required by the Purdue Institutional Biosafety Committee (IBC) for all PIs. Covers risk assessment, containment practices, regulatory compliance, and NIH guidelines for recombinant DNA research."
+    "description": "Foundational biosafety training required by the Purdue Institutional Biosafety Committee (IBC) before an IBC application can be submitted. Covers risk assessment, containment practices, regulatory compliance, and NIH guidelines for recombinant DNA research. Log in at citiprogram.org with \"Log In Through My Institution\" → Purdue University (career account + Duo), then take \"Biosafety for Principal Investigators, Lab Personnel, and IBC Members\". You need 80% to pass."
   },
   {
     "slug": "bloodborne-pathogens",
-    "name": "Bloodborne Pathogens",
+    "name": "Bloodborne Pathogens: Lab-Based",
     "providerName": "Purdue EHS — HSI Platform",
-    "providerUrl": "https://www.purdue.edu/ehps/rem/training/index.html",
-    "courseUrl": "https://www.purdue.edu/ehps/rem/laboratory/personal/Bloodborne%20Pathogens%20Program.html",
+    "providerUrl": "https://www.purdue.edu/operations/ehs/training/",
+    "courseUrl": "https://www.purdue.edu/operations/ehs/training/bloodborne-lab/",
+    "registrationUrl": "https://otis.osmanager4.com/#/saml/login/255930",
     "renewalMonths": 12,
-    "description": "Annual OSHA-mandated training covering exposure risks, prevention strategies, personal protective equipment, decontamination procedures, and post-exposure protocols. Must be completed within 10 working days of starting lab work and renewed annually."
+    "description": "Annual OSHA-mandated training covering exposure risks, prevention strategies, personal protective equipment, decontamination procedures, and post-exposure protocols. Take the lab-based version — there is a separate general version for non-laboratory staff. Must be completed within 10 working days of starting lab work and renewed annually. Self-enrol in HSI: log in, open your training page, click \"View Catalog\" at the bottom, and search for the course."
   },
   {
     "slug": "hazard-communication-awareness",
-    "name": "Hazard Communication Awareness Training",
+    "name": "Hazard Communication: Awareness",
     "providerName": "Purdue EHS — HSI Platform",
-    "providerUrl": "https://www.purdue.edu/ehps/rem/training/index.html",
-    "courseUrl": "https://www.purdue.edu/ehps/rem/laboratory/hazmat/hazcom.html",
+    "providerUrl": "https://www.purdue.edu/operations/ehs/training/",
+    "courseUrl": "https://www.purdue.edu/operations/ehs/training/hazcom-awareness/",
+    "registrationUrl": "https://otis.osmanager4.com/#/saml/login/255930",
     "renewalMonths": 12,
-    "description": "Covers OSHA Hazard Communication Standards (HazCom/GHS), Safety Data Sheets (SDS), chemical labeling requirements, and employee rights. Required for personnel working with or around hazardous chemicals. Two separate modules are available — take the one matching your role (lab vs. non-lab)."
+    "description": "Covers OSHA Hazard Communication Standards (HazCom/GHS), Safety Data Sheets (SDS), chemical labeling requirements, and employee rights. Awareness is the right level when you use chemical products for their intended purpose in roughly consumer quantities; Comprehensive is for routine or significant chemical work outside a laboratory. Self-enrol through HSI's catalog."
   },
   {
     "slug": "laboratory-safety-fundamentals",
-    "name": "Laboratory Safety Fundamentals (LSF) — or Refresher",
+    "name": "Lab Safety: Fundamentals Curriculum (LSF)",
     "providerName": "Purdue EHS — HSI Platform",
-    "providerUrl": "https://www.purdue.edu/ehps/rem/training/index.html",
+    "providerUrl": "https://www.purdue.edu/operations/ehs/training/",
+    "courseUrl": "https://www.purdue.edu/operations/ehs/training/lab-safety-fundamentals/",
+    "registrationUrl": "https://otis.osmanager4.com/#/saml/login/255930",
     "renewalMonths": 12,
-    "description": "Comprehensive lab safety training covering chemical hygiene, physical hazards, waste disposal, emergency procedures, and PPE. Search HSI for \"Purdue – Lab Safety Fundamentals (W/Haz Waste Disposal)\". If you completed LSF in a prior year, take the Laboratory Safety Refresher instead. Required annually."
+    "description": "Comprehensive lab safety training covering chemical hygiene, physical hazards, waste disposal, emergency procedures, and PPE. Complete it before you start work in the laboratory. The old single LSF module is now several smaller units delivered as a curriculum in HSI — search the catalog for \"Purdue – Lab Safety Fundamentals\" and take the whole curriculum. A refresher is required every year after that."
   },
   {
     "slug": "responsible-conduct-of-research",
     "name": "Responsible Conduct of Research (RCR)",
     "providerName": "CITI Program",
-    "providerUrl": "https://www.citiprogram.org/",
-    "courseUrl": "https://about.citiprogram.org/series/responsible-conduct-of-research/",
+    "providerUrl": "https://about.citiprogram.org/",
+    "courseUrl": "https://about.citiprogram.org/series/responsible-conduct-of-research-rcr/",
+    "registrationUrl": "https://research.purdue.edu/resources-for-researchers/support-and-recognition/researcher-training-what-do-i-need-to-do/",
     "renewalMonths": null,
-    "description": "Covers research integrity, authorship, peer review, data management, conflicts of interest, and mentoring responsibilities. Often required by federal funding agencies (NSF, NIH) for graduate students and postdocs."
+    "description": "Covers research integrity, authorship, peer review, data management, conflicts of interest, and mentoring responsibilities. Every Purdue researcher is required to complete the General RCR course in CITI — pick the one matching your career stage — plus field-specific RCR instruction from your department. Often also required directly by NSF and NIH."
   },
   {
     "slug": "biosafety-and-biosecurity",
     "name": "Biosafety & Biosecurity (BSS) Comprehensive",
     "providerName": "CITI Program",
-    "providerUrl": "https://www.citiprogram.org/",
+    "providerUrl": "https://about.citiprogram.org/",
     "courseUrl": "https://about.citiprogram.org/series/biosafety-and-biosecurity-bss/",
+    "registrationUrl": "https://research.purdue.edu/resources-for-researchers/compliance-and-security/biosafety-and-rdna/biosafety-training/",
     "renewalMonths": null,
-    "description": "Advanced biosafety training covering BSL-1 through BSL-3 practices, dual-use research of concern, NIH rDNA guidelines, gene transfer, select agents, incident response, and animal biosafety. Recommended for labs handling Risk Group 2+ agents."
+    "description": "Advanced biosafety training covering BSL-1 through BSL-3 practices, dual-use research of concern, NIH rDNA guidelines, gene transfer, select agents, incident response, and animal biosafety. Recommended for labs handling Risk Group 2+ agents. Same CITI login as the PI course — this is the wider series that course sits inside."
   },
   {
     "slug": "human-subjects-research",
     "name": "Human Subjects Research (HSR)",
     "providerName": "CITI Program",
-    "providerUrl": "https://www.citiprogram.org/",
+    "providerUrl": "https://about.citiprogram.org/",
     "courseUrl": "https://about.citiprogram.org/series/human-subjects-research-hsr/",
-    "renewalMonths": null,
-    "description": "REQUIRED IF APPLICABLE — mandatory for any research involving human participants, optional otherwise. Covers informed consent, IRB regulations, vulnerable populations, privacy, and the ethical principles of the Belmont Report. Available in Biomedical and Social-Behavioral-Educational tracks."
+    "registrationUrl": "https://research.purdue.edu/resources-for-researchers/compliance-and-security/hrpp/training-hrpp/",
+    "renewalMonths": 48,
+    "description": "REQUIRED IF APPLICABLE — mandatory for anyone engaged in research involving human participants, optional otherwise. Covers informed consent, IRB regulations, vulnerable populations, privacy, and the ethical principles of the Belmont Report. Take either \"Biomedical Research for Investigators and Key Personnel\" or \"Social Behavioral Research for Investigators and Key Personnel\". You need a cumulative 80%; Purdue certification lasts four years, then a refresher course."
   },
   {
     "slug": "shipping-regulated-biological-materials",
     "name": "Shipping and Transport of Regulated Biological Materials",
     "providerName": "CITI Program",
-    "providerUrl": "https://www.citiprogram.org/",
+    "providerUrl": "https://about.citiprogram.org/",
     "courseUrl": "https://about.citiprogram.org/course/shipping-and-transport-of-regulated-biological-materials/",
+    "registrationUrl": "https://research.purdue.edu/resources-for-researchers/compliance-and-security/biosafety-and-rdna/biosafety-training/",
     "renewalMonths": null,
-    "description": "Covers IATA and U.S. DOT packaging and labeling requirements for Category B (UN 3373) biological materials and exempt human/animal specimens. Recommended for labs that ship samples to collaborators or other facilities."
+    "description": "Covers IATA and U.S. DOT packaging and labeling requirements for Category B (UN 3373) biological materials and exempt human/animal specimens. Recommended for labs that ship samples to collaborators or other facilities. Note CITI's own caveat: this is introductory awareness training and is not full IATA shipper certification for infectious substances."
   },
   {
     "slug": "laser-safety",
-    "name": "Laser Safety Training",
+    "name": "Laser Safety: Class 3B and Class 4 Lasers",
     "providerName": "Purdue EHS — HSI Platform",
-    "providerUrl": "https://www.purdue.edu/ehps/rem/training/index.html",
+    "providerUrl": "https://www.purdue.edu/operations/ehs/training/",
+    "courseUrl": "https://www.purdue.edu/operations/ehs/training/laser/",
+    "registrationUrl": "https://otis.osmanager4.com/#/saml/login/255930",
     "renewalMonths": null,
-    "description": "REQUIRED IF APPLICABLE — mandatory for anyone working with Class 3B or Class 4 lasers, optional otherwise. Covers laser classifications, biological effects on eyes and skin, control measures, protective equipment, and Purdue's Laser Safety Program. A separate Laser Safety Retraining module is available for renewal."
+    "description": "REQUIRED IF APPLICABLE — mandatory for anyone working with Class 3B or Class 4 laser systems, and not required for lower classes. Covers laser classifications, biological effects on eyes and skin, control measures, protective equipment, and the topics ANSI Z136.1–2022 requires. Any Class 3B or Class 4 laser at Purdue must also be registered with the laser safety program. Self-enrol through HSI's catalog."
   },
   {
     "slug": "biological-safety-review",
-    "name": "Biological Safety Review",
+    "name": "Biological Safety Awareness Review",
     "providerName": "Purdue EHS — HSI Platform",
-    "providerUrl": "https://www.purdue.edu/ehps/rem/training/index.html",
+    "providerUrl": "https://www.purdue.edu/operations/ehs/training/",
+    "courseUrl": "https://www.purdue.edu/operations/ehs/hazardous-waste-materials/hazardous-materials/biological/",
+    "registrationUrl": "https://otis.osmanager4.com/#/saml/login/255930",
     "renewalMonths": null,
-    "description": "Self-paced slide review covering biosafety cabinets, PPE for biological work, waste handling, biohazard spills, and laminar flow clean bench operation. Recommended for anyone working with biological materials at BSL-1 or BSL-2."
+    "description": "Awareness review covering biosafety cabinets, PPE for biological work, waste handling, biohazard spills, and laminar flow clean bench operation. Recommended for anyone working with biological materials at BSL-1 or BSL-2. There is no standalone EHS course page for this one — search HSI's catalog for \"biological safety\", or contact biosafety@purdue.edu, which also runs the Biological Exposure Occupational Health Program required at BSL-2 and above."
   },
   {
     "slug": "building-emergency-plan",
     "name": "Building Emergency Plan (BEP)",
-    "providerName": "Purdue EHS — HSI Platform",
-    "providerUrl": "https://www.purdue.edu/ehps/rem/training/index.html",
-    "courseUrl": "https://www.purdue.edu/ehps/rem/training/index.html#B",
+    "providerName": "Purdue Office of Emergency Preparedness",
+    "providerUrl": "https://www.purdue.edu/operations/emergency-preparedness/",
+    "courseUrl": "https://www.purdue.edu/operations/emergency-preparedness/have-a-plan/building-emergency-plans/",
     "renewalMonths": null,
-    "description": "Covers emergency procedures specific to your building, including fire evacuation routes, tornado shelter-in-place, and lockdown protocols. Search for your building name in HSI. Strongly recommended for everyone, especially anyone new to campus."
+    "description": "Your building's own emergency procedures: fire evacuation routes, tornado shelter-in-place, and lockdown protocols. This is not an HSI course — find your building in the West Lafayette BEP list and read its plan (career account login required). Every building occupied by 10 or more people has one. Strongly recommended for everyone, especially anyone new to campus."
   },
   {
     "slug": "office-ergonomics",
     "name": "Office Ergonomics Overview",
     "providerName": "Purdue EHS — HSI Platform",
-    "providerUrl": "https://www.purdue.edu/ehps/rem/training/index.html",
+    "providerUrl": "https://www.purdue.edu/operations/ehs/training/",
+    "courseUrl": "https://www.purdue.edu/operations/ehs/safety/personal/ergonomics/",
+    "registrationUrl": "https://otis.osmanager4.com/#/saml/login/255930",
     "renewalMonths": null,
-    "description": "Introduces ergonomic principles for workstation setup, posture, and repetitive-strain injury prevention. Particularly useful if you split time between the bench and a computer."
+    "description": "Ergonomic principles for workstation setup, posture, and repetitive-strain injury prevention. Particularly useful if you split time between the bench and a computer. The EHS ergonomics page has the self-assessment guidance and a form to request a free professional assessment of your own workstation; search HSI's catalog for \"ergonomics\" for the course itself."
   }
 ]

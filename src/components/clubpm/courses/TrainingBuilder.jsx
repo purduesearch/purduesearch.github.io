@@ -176,7 +176,7 @@ export default function TrainingBuilder({ section, onChange }) {
           <button className="clubpm-btn-primary" type="submit" disabled={saving}>
             {saving ? 'Saving…' : 'Save training'}
           </button>
-          <button className="clubpm-btn-ghost" type="button" onClick={() => setMode('pick')}>
+          <button className="clubpm-btn-secondary" type="button" onClick={() => setMode('pick')}>
             Cancel
           </button>
         </div>
@@ -198,11 +198,11 @@ export default function TrainingBuilder({ section, onChange }) {
       </select>
 
       <div className="cpm-training-builder-actions">
-        <button className="clubpm-btn-ghost" type="button" onClick={startNew}>
+        <button className="clubpm-btn-secondary" type="button" onClick={startNew}>
           <i className="fas fa-plus" aria-hidden="true" /> New training
         </button>
         {selected && (
-          <button className="clubpm-btn-ghost" type="button" onClick={startEdit}>
+          <button className="clubpm-btn-secondary" type="button" onClick={startEdit}>
             <i className="fas fa-pen" aria-hidden="true" /> Edit “{selected.name}”
           </button>
         )}
@@ -217,11 +217,11 @@ export default function TrainingBuilder({ section, onChange }) {
           </p>
           {selected.exampleFileId ? (
             <div className="cpm-training-builder-actions">
-              <a className="clubpm-btn-ghost" href={trainingExampleUrl(selected.id)}
+              <a className="clubpm-btn-secondary" href={trainingExampleUrl(selected.id)}
                  target="_blank" rel="noopener noreferrer">
                 <i className="fas fa-eye" aria-hidden="true" /> {selected.exampleFileName}
               </a>
-              <button className="clubpm-btn-ghost" type="button" onClick={removeExample}>
+              <button className="clubpm-btn-secondary" type="button" onClick={removeExample}>
                 <i className="fas fa-trash" aria-hidden="true" /> Remove
               </button>
             </div>

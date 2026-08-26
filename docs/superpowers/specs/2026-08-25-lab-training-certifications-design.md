@@ -376,6 +376,18 @@ modules, both `sequential: false` so trainings can be worked in any order:
 
 URLs taken from the source document:
 
+> **Superseded 2026-08-25 — every `purdue.edu/ehps/rem/*` URL below is dead, and
+> not in a way a link checker catches.** Purdue moved EHS from `/ehps/rem/` to
+> `/operations/ehs/`, and the old paths still answer **HTTP 200** with a
+> JavaScript stub whose canonical is `https://www.purdue.edu/home/` — so all six
+> of them silently dropped the member on Purdue's homepage. `www.citiprogram.org`
+> and the RCR series URL 301 elsewhere, and the IBC registration PDF 301s to a
+> generic compliance index. Four trainings also shipped with no `courseUrl` at
+> all. The corrected, status-checked set is in
+> `docs/courses/porterfield-lab-trainings/trainings.json`; treat that file as the
+> source of truth and this list as history. **If you re-verify these, check the
+> response body, not the status code.**
+
 - CITI Program: `https://www.citiprogram.org/`
 - CITI registration instructions (PDF):
   `https://www.purdue.edu/research/oevprp/regulatory-affairs/docs/CITI%20Registration%20Instruction%20Sheet%20IBC%2010.2020.pdf`

@@ -7640,6 +7640,23 @@ html::-webkit-scrollbar { display: none; }
 
 /* â”€â”€ ClubPM Form Primitives â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
+/* The base panel surface. Used by CoursesTab, CourseOutlineReview,
+   WalkthroughSectionPanel, TrainingSection, TrainingBuilder and
+   TrainingStatusStrip, and — like .clubpm-btn-secondary before it — never
+   actually declared, so all six rendered as transparent unpadded blocks that
+   ran straight into whatever sat above them.
+
+   Declared HERE, ahead of every consumer, so a modifier alongside it
+   (.pm-course-gen-module-card's padding, .cpm-training-card's flex column) wins
+   on source order rather than needing extra specificity. Deliberately sets no
+   `display` for the same reason. */
+.cpm-card {
+  background: var(--clubpm-surface-200);
+  border: 1px solid var(--clubpm-border);
+  border-radius: 10px;
+  padding: 16px;
+}
+
 .cpm-form-field { display: flex; flex-direction: column; gap: 5px; }
 .cpm-form-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--clubpm-text-muted); }
 .cpm-form-input,
@@ -7662,6 +7679,46 @@ html::-webkit-scrollbar { display: none; }
 }
 .cpm-form-input::placeholder { color: var(--clubpm-text-muted); opacity: 1; }
 .cpm-form-input:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* `<input type="file" class="cpm-form-input">`. The rules above style the field
+   BOX; the "Choose File" control inside it is a shadow-DOM pseudo-element that
+   inherits none of them, so without this it renders as raw grey OS chrome in the
+   middle of a dark panel. Matches .pm-crm-file-input's treatment, which is the
+   only other styled file input in the app. */
+.cpm-form-input[type="file"] {
+  padding: 5px 7px;
+  line-height: 1.9;
+  cursor: pointer;
+}
+.cpm-form-input[type="file"]::file-selector-button {
+  margin-right: 11px;
+  padding: 5px 13px;
+  border: 1px solid var(--clubpm-border);
+  border-radius: 7px;
+  background: var(--clubpm-surface-300);
+  color: var(--clubpm-text-secondary);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.cpm-form-input[type="file"]:hover::file-selector-button {
+  background: var(--clubpm-surface-200);
+  border-color: var(--clubpm-accent-cyan);
+  color: var(--clubpm-text-primary);
+}
+/* Date and time fields have the same problem in the other direction: the picker
+   icon is drawn by the UA in near-black and disappears against the dark field. */
+.cpm-form-input[type="date"]::-webkit-calendar-picker-indicator,
+.cpm-form-input[type="time"]::-webkit-calendar-picker-indicator {
+  filter: invert(1) opacity(0.65);
+  cursor: pointer;
+}
+.cpm-form-input[type="date"]:hover::-webkit-calendar-picker-indicator,
+.cpm-form-input[type="time"]:hover::-webkit-calendar-picker-indicator {
+  filter: invert(1) opacity(1);
+}
 
 .cpm-btn-ghost {
   display: inline-flex; align-items: center; gap: 7px;

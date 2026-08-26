@@ -10,6 +10,7 @@ import LitReviewSection from '../../components/clubpm/courses/LitReviewSection';
 import AssignmentSection from '../../components/clubpm/courses/AssignmentSection';
 import TrainingSection from '../../components/clubpm/courses/TrainingSection';
 import { SECTION_KINDS } from '../../components/clubpm/courses/CourseSectionRail';
+import { hasReadableContent } from '../../lib/pmDoc';
 import OrbitLoader from '../../components/OrbitLoader';
 import {
   getLearnerCourse, completeCourseSection, listCourseQuestions,
@@ -385,7 +386,11 @@ export default function CoursePlayerPage() {
 
               {/* A lit review's prose is intro copy for the paper, so it renders
                   ABOVE the reader below rather than after it like video notes. */}
-              {selected.kind === 'LIT_REVIEW' && selected.contentJson && (
+              {/* `hasReadableContent`, never a bare truthiness check on
+                  contentJson: every section is seeded with `{}`, which is
+                  truthy, and the read-only surface keeps its 320px min-height
+                  whether or not there is anything inside it. */}
+              {selected.kind === 'LIT_REVIEW' && hasReadableContent(selected.contentJson) && (
                 <div className="pm-course-learn-reader">
                   <BlogEditor
                     key={`reader-${selected.id}`}
@@ -410,7 +415,7 @@ export default function CoursePlayerPage() {
               {/* An assignment's prose is the context you need before you can do
                   the work, so it renders ABOVE the composer, same as a lit
                   review's intro copy. */}
-              {selected.kind === 'ASSIGNMENT' && selected.contentJson && (
+              {selected.kind === 'ASSIGNMENT' && hasReadableContent(selected.contentJson) && (
                 <div className="pm-course-learn-reader">
                   <BlogEditor
                     key={`reader-${selected.id}`}
@@ -433,8 +438,10 @@ export default function CoursePlayerPage() {
               )}
 
               {/* A training's prose is the "why you have to take this" copy, so
-                  it renders ABOVE the card, same as an assignment's brief. */}
-              {selected.kind === 'TRAINING' && selected.contentJson && (
+                  it renders ABOVE the card, same as an assignment's brief. Most
+                  TRAINING sections have none — the copy lives on the registry
+                  entry — so this branch is usually skipped entirely. */}
+              {selected.kind === 'TRAINING' && hasReadableContent(selected.contentJson) && (
                 <div className="pm-course-learn-reader">
                   <BlogEditor
                     key={`reader-${selected.id}`}
@@ -458,7 +465,7 @@ export default function CoursePlayerPage() {
               {/* Prose for CONTENT sections, and the notes under a video.
                   Rendering `contentJson` through the editor read-only is what
                   keeps a second renderer from having to track blogRender.ts. */}
-              {selected.kind !== 'QUIZ' && selected.kind !== 'LIT_REVIEW' && selected.kind !== 'ASSIGNMENT' && selected.kind !== 'TRAINING' && selected.contentJson && (
+              {selected.kind !== 'QUIZ' && selected.kind !== 'LIT_REVIEW' && selected.kind !== 'ASSIGNMENT' && selected.kind !== 'TRAINING' && hasReadableContent(selected.contentJson) && (
                 <div className="pm-course-learn-reader">
                   <BlogEditor
                     key={`reader-${selected.id}`}

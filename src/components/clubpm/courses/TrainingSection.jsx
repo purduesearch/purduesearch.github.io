@@ -124,13 +124,13 @@ export default function TrainingSection({ section, onCompleted }) {
           </a>
         )}
         {training.registrationUrl && (
-          <a className="clubpm-btn-ghost" href={training.registrationUrl}
+          <a className="clubpm-btn-secondary" href={training.registrationUrl}
              target="_blank" rel="noopener noreferrer">
             <i className="fas fa-file-lines" aria-hidden="true" /> Registration instructions
           </a>
         )}
         {training.exampleFileId && (
-          <button type="button" className="clubpm-btn-ghost"
+          <button type="button" className="clubpm-btn-secondary"
                   onClick={() => setShowExample((v) => !v)}>
             <i className="fas fa-image" aria-hidden="true" />{' '}
             {showExample ? 'Hide example' : 'What should it look like?'}
