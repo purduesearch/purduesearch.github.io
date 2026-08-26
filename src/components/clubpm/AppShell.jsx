@@ -480,7 +480,7 @@ export default function AppShell({ children }) {
                 onClick={() => projectNav.onTabChange(tab.id)}
                 data-tour-id={tab.tourId}
               >
-                <span className="pm-nav-item-icon pm-nav-item-icon--emoji">{tab.icon}</span>
+                <span className="pm-nav-item-icon">{tab.icon}</span>
                 <span className="pm-nav-item-label">{tab.label}</span>
               </button>
             ))}

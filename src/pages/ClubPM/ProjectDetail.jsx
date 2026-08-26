@@ -131,11 +131,63 @@ function getTagGroups(tasks) {
 // `tourId` travels with the tab because AppShell is what actually renders this
 // bar (see the projectNav block there) — the ids must live on the node the
 // learner can click, not on a copy of the list.
+// Icons match the sidebar's own nav items (AppShell `NAV_ITEMS`): 18x18,
+// currentColor stroke, no fill — not emoji.
+function TabIcon({ children }) {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+         strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      {children}
+    </svg>
+  );
+}
+
+// Shared so the AI tab and the AI panel's own heading can't drift apart.
+const AI_TAB_ICON = (
+  <TabIcon>
+    <rect x="6" y="8" width="12" height="11" rx="2" />
+    <path d="M12 5V8" />
+    <circle cx="12" cy="3.5" r="1.5" />
+    <line x1="3" y1="12" x2="6" y2="12" />
+    <line x1="18" y1="12" x2="21" y2="12" />
+    <line x1="10" y1="12.5" x2="10" y2="13.5" />
+    <line x1="14" y1="12.5" x2="14" y2="13.5" />
+  </TabIcon>
+);
+
 const NAV_TABS = [
-  { id: "tasks",      label: "Tasks",                  icon: "📋", tourId: "project.tab.tasks" },
-  { id: "files",      label: "Files",                  icon: "📁", tourId: "project.tab.files" },
-  { id: "reports",    label: "Reports",                icon: "📊", tourId: "project.tab.reports" },
-  { id: "ai",         label: "AI",                     icon: "🤖", tourId: "project.tab.ai" },
+  {
+    id: "tasks", label: "Tasks", tourId: "project.tab.tasks",
+    icon: (
+      <TabIcon>
+        <path d="M9 11l3 3L22 4" />
+        <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+      </TabIcon>
+    ),
+  },
+  {
+    id: "files", label: "Files", tourId: "project.tab.files",
+    icon: (
+      <TabIcon>
+        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+      </TabIcon>
+    ),
+  },
+  {
+    id: "reports", label: "Reports", tourId: "project.tab.reports",
+    icon: (
+      <TabIcon>
+        <line x1="18" y1="20" x2="18" y2="10" />
+        <line x1="12" y1="20" x2="12" y2="4" />
+        <line x1="6" y1="20" x2="6" y2="14" />
+        <line x1="3" y1="20" x2="21" y2="20" />
+      </TabIcon>
+    ),
+  },
+  {
+    id: "ai", label: "AI", tourId: "project.tab.ai",
+    icon: AI_TAB_ICON,
+  },
 ];
 
 const STATUS_BADGE = {
@@ -1495,8 +1547,12 @@ function AiPanel({ project, allMembers, projectBlockers, onActionPlanExecuted })
 
   return (
     <div className="cpm-proj-main-body" style={{ padding: "24px", maxWidth: 780 }}>
-      <h3 style={{ fontSize: 15, fontWeight: 700, color: "var(--clubpm-text-primary)", marginBottom: 20 }}>
-        🤖 AI Assistant
+      <h3 style={{
+        fontSize: 15, fontWeight: 700, color: "var(--clubpm-text-primary)", marginBottom: 20,
+        display: "flex", alignItems: "center", gap: 8,
+      }}>
+        {AI_TAB_ICON}
+        AI Assistant
       </h3>
 
       {/* Section 1: Project Q&A */}

@@ -5000,15 +5000,6 @@ html::-webkit-scrollbar { display: none; }
   overflow: hidden;
 }
 
-/* Emoji icons in nav items need slightly different sizing than SVG */
-.pm-nav-item-icon--emoji {
-  font-size: 14px;
-  line-height: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
 /* â”€â”€ Constellation: Sidebar Logo Mark â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 /* Override text-based sizing now that the mark holds an SVG */
 .pm-sidebar-logo-mark {
