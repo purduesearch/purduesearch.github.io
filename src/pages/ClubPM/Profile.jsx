@@ -13,6 +13,7 @@ import XpHeatmap from "../../components/clubpm/XpHeatmap";
 import AvatarPortrait from "../../components/clubpm/avatar/AvatarPortrait";
 import GhStatsSection from "../../components/clubpm/GhStatsSection";
 import GitHubConnectButton from "../../components/clubpm/github/GitHubConnectButton";
+import TrainingStatusStrip from "../../components/clubpm/courses/TrainingStatusStrip";
 import { progressToNextRank } from "../../clubpm/engagement/rankProgress";
 import { tzOffset, copyToClipboard, activityLabels } from "../../clubpm/members/memberShared";
 import { MemberName, useCosmeticStyles } from "../../clubpm/cosmetics/CosmeticStylesContext";
@@ -222,6 +223,9 @@ export default function Profile() {
 
       {/* ── Right column ── */}
       <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        {/* Your own safety-training standing; renders nothing on someone else's profile */}
+        <TrainingStatusStrip isSelf={isSelf} />
+
         {/* Daily activity (XP heatmap + streak outline on kept days) */}
         <div className="cpm-profile-card" data-tour-id="profile.history">
           <h3 style={{ marginTop: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
