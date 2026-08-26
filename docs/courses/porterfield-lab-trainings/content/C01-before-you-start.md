@@ -7,16 +7,20 @@ looks like, and hold onto yours once you have it.
 
 ## The two platforms
 
-**CITI Program** ([citiprogram.org](https://www.citiprogram.org/)) hosts the research-ethics
-and biosafety courses. If you have never used it, register through Purdue rather than as an
-independent learner — the registration guide is linked on the first training below, and
-registering the wrong way is the single most common reason a certificate does not count.
+**CITI Program** ([citiprogram.org](https://about.citiprogram.org/)) hosts the research-ethics
+and biosafety courses. Register through Purdue rather than as an independent learner: choose
+**Log In Through My Institution**, pick Purdue University, and sign in with your career account
+and Duo. Registering the wrong way is the single most common reason a certificate does not
+count, and CITI will happily let you pay for a course that then does not.
 
-**Purdue EHS**, delivered through the **HSI platform**, hosts everything else. If you do not
-have an HSI account, create one using the self-registration group at
-[purdue.edu/ehps/rem/training](https://www.purdue.edu/ehps/rem/training/index.html). Once you
-are in, click **View Catalog** and search for the course by name — most HSI courses have no
-direct link, which is why the trainings below tell you what to search for.
+**Purdue EHS**, delivered through the **HSI platform**, hosts everything else. Start from
+[the EHS training page](https://www.purdue.edu/operations/ehs/training/) and use its **Log Into
+HSI** link. Once you are in, open your training page, click **View Catalog** at the bottom, and
+search for the course by name — most HSI courses have no direct link, which is why the
+trainings below tell you what to search for.
+
+One exception: the **Building Emergency Plan** is not a course at all. It is a document for
+your building, and the link on that section goes straight to the list of them.
 
 ## What to submit
 
