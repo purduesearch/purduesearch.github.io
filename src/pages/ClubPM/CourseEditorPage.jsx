@@ -11,6 +11,7 @@ import CourseSlidesWorkbench from '../../components/clubpm/courses/CourseSlidesW
 import WalkthroughSectionPanel from '../../components/clubpm/courses/WalkthroughSectionPanel';
 import LitReviewBuilder from '../../components/clubpm/courses/LitReviewBuilder';
 import AssignmentBuilder from '../../components/clubpm/courses/AssignmentBuilder';
+import TrainingBuilder from '../../components/clubpm/courses/TrainingBuilder';
 import CourseModuleSettings from '../../components/clubpm/courses/CourseModuleSettings';
 import OrbitLoader from '../../components/OrbitLoader';
 import { useClubPmAuth } from '../../clubpm/ClubPmAuth';
@@ -722,6 +723,18 @@ export default function CourseEditorPage() {
                   same way; only the handout saves on its own, server-side. */}
               {sectionKind === 'ASSIGNMENT' && (
                 <AssignmentBuilder
+                  key={selectedSection.id}
+                  section={selectedSection}
+                  onChange={stageSectionPatch}
+                />
+              )}
+
+              {/* Stages its patch the same way, but only the section's
+                  `trainingId` — a plain column, so it patches like
+                  passThreshold. The registry rows behind the picker are shared
+                  across courses and save on their own, immediately. */}
+              {sectionKind === 'TRAINING' && (
+                <TrainingBuilder
                   key={selectedSection.id}
                   section={selectedSection}
                   onChange={stageSectionPatch}

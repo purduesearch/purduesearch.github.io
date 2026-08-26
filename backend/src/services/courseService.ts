@@ -51,6 +51,9 @@ export interface UpdateSectionInput {
   assignmentConfig?: Record<string, unknown> | null;
   passThreshold?: number | null;
   maxAttempts?: number | null;
+  /// A plain FK, not a JSON config column: null clears it, and there is no
+  /// previous value for the caller to spread.
+  trainingId?: string | null;
 }
 
 export interface CreateModuleInput {
@@ -150,6 +153,9 @@ const sectionSelect = {
   assignmentConfig: true,
   passThreshold: true,
   maxAttempts: true,
+  // The TRAINING builder seeds its registry picker from this, so it has to
+  // travel with the editor tree the same way the config columns do.
+  trainingId: true,
   createdAt: true,
   updatedAt: true,
 } satisfies Prisma.CourseSectionSelect;
@@ -464,6 +470,12 @@ export async function updateSection(id: string, input: UpdateSectionInput, actor
   }
   if (input.passThreshold !== undefined) data.passThreshold = input.passThreshold;
   if (input.maxAttempts !== undefined) data.maxAttempts = input.maxAttempts;
+  // Written through the relation rather than the scalar because `data` is the
+  // checked update input. Clearing the picker disconnects rather than writing
+  // null, which is the same thing on a nullable FK.
+  if (input.trainingId !== undefined) {
+    data.training = input.trainingId ? { connect: { id: input.trainingId } } : { disconnect: true };
+  }
   if (input.videoConfig !== undefined) {
     data.videoConfig =
       input.videoConfig === null ? Prisma.DbNull : (input.videoConfig as Prisma.InputJsonValue);
