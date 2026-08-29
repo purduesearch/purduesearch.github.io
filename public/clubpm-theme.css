@@ -22529,11 +22529,17 @@ html:not(.aos-off) [data-aos].aos-animate  { opacity: 1; transform: none; }
 .pm-course-assign-head i { color: var(--pm-accent-teal); }
 
 .pm-course-assign-controls {
-  display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: end;
+  display: grid; grid-template-columns: 1fr minmax(150px, 0.7fr) auto; gap: 12px; align-items: end;
   padding: 14px 18px 10px;
 }
-.pm-course-assign-due { display: flex; flex-direction: column; gap: 4px; }
-.pm-course-assign-due .cpm-form-label { margin: 0; }
+.pm-course-assign-due,
+.pm-course-assign-team { display: flex; flex-direction: column; gap: 4px; }
+.pm-course-assign-due .cpm-form-label,
+.pm-course-assign-team .cpm-form-label { margin: 0; }
+
+@media (max-width: 620px) {
+  .pm-course-assign-controls { grid-template-columns: 1fr; }
+}
 
 .pm-course-assign-toolbar {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;

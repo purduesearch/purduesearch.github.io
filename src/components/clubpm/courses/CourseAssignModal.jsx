@@ -6,6 +6,12 @@ import { get, assignCourse } from '../../../api/clubPmClient';
 
 // Admin assignment: enrol members in a course with an optional due date.
 //
+// The team picker is a pure convenience over the same flow: choosing a project
+// filters the roster to that project's members AND ticks them, so "everyone on
+// Microgreens does the microgreens course" is one click. It sends the same flat
+// memberIds[] as hand-picking does — no project is stored on the enrollment, so
+// someone joining the team later is not enrolled retroactively.
+//
 // `POST /:id/assign` upserts, so re-assigning someone who has already started
 // only updates their due date and assigner — it never resets their progress.
 // Nothing acts on `dueDate` automatically (no overdue cron, no Slack nudge —
@@ -20,6 +26,8 @@ export default function CourseAssignModal({
   onAssigned,
 }) {
   const [members, setMembers]   = useState([]);
+  const [projects, setProjects] = useState([]);
+  const [teamId, setTeamId]     = useState('');
   const [loading, setLoading]   = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [query, setQuery]       = useState('');
@@ -38,6 +46,35 @@ export default function CourseAssignModal({
     return () => { cancelled = true; };
   }, []);
 
+  // Projects are a soft dependency — the roster still works if this 403s or
+  // fails, the team picker just stays empty.
+  useEffect(() => {
+    let cancelled = false;
+    get('/api/projects')
+      .then((data) => { if (!cancelled) setProjects(Array.isArray(data) ? data : []); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+
+  // projectId → Set of its members' ids. `/api/projects` returns members as
+  // ProjectMember join rows ({ memberId, member }).
+  const teamMemberIds = useMemo(() => {
+    const map = new Map();
+    projects.forEach((p) => {
+      map.set(p.id, new Set((p.members ?? []).map((pm) => pm.memberId ?? pm.member?.id).filter(Boolean)));
+    });
+    return map;
+  }, [projects]);
+
+  const pickTeam = useCallback((id) => {
+    setTeamId(id);
+    const ids = teamMemberIds.get(id);
+    if (!ids?.size) return;
+    // Filtering alone would still leave every box unticked, so tick them here —
+    // that is the whole point of the control. Unwanted people can be unticked.
+    setPicked((prev) => new Set([...prev, ...ids]));
+  }, [teamMemberIds]);
+
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', onKey);
@@ -46,13 +83,15 @@ export default function CourseAssignModal({
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
+    const team = teamId ? teamMemberIds.get(teamId) : null;
+    const pool = team ? members.filter((m) => team.has(m.id)) : members;
     const rows = q
-      ? members.filter((m) => (
+      ? pool.filter((m) => (
         (m.displayName ?? '').toLowerCase().includes(q)
           || (m.slackHandle ?? '').toLowerCase().includes(q)
           || (m.title ?? '').toLowerCase().includes(q)
       ))
-      : members;
+      : pool;
     // Members who still need assigning float to the top.
     return [...rows].sort((a, b) => {
       const ea = enrolled.has(a.id) ? 1 : 0;
@@ -60,7 +99,7 @@ export default function CourseAssignModal({
       if (ea !== eb) return ea - eb;
       return (a.displayName ?? '').localeCompare(b.displayName ?? '');
     });
-  }, [members, query, enrolled]);
+  }, [members, query, enrolled, teamId, teamMemberIds]);
 
   const toggle = useCallback((id) => {
     setPicked((prev) => {
@@ -122,6 +161,21 @@ export default function CourseAssignModal({
             placeholder="Search members"
             aria-label="Search members"
           />
+          <label className="pm-course-assign-team">
+            <span className="cpm-form-label">Team</span>
+            <select
+              className="cpm-form-select"
+              value={teamId}
+              onChange={(e) => pickTeam(e.target.value)}
+            >
+              <option value="">All members</option>
+              {projects.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name} ({teamMemberIds.get(p.id)?.size ?? 0})
+                </option>
+              ))}
+            </select>
+          </label>
           <label className="pm-course-assign-due">
             <span className="cpm-form-label">Due date</span>
             <input
@@ -174,7 +228,13 @@ export default function CourseAssignModal({
                 );
               })}
               {visible.length === 0 && (
-                <li><p className="cpm-course-drawer-note">No members match “{query}”.</p></li>
+                <li>
+                  <p className="cpm-course-drawer-note">
+                    {query
+                      ? `No members match “${query}”.`
+                      : 'That team has no members yet.'}
+                  </p>
+                </li>
               )}
             </ul>
           </>
