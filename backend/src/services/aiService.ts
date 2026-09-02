@@ -1,5 +1,4 @@
-import { todayContext } from "./geminiService.js";
-import { runJson } from "./ai/aiRouter.js";
+import { runJson, todayContext } from "./ai/aiRouter.js";
 import { validateSectionPlan, type SectionPlan } from "./sectionPlan.js";
 
 export interface ParsedTask {

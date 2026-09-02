@@ -7,7 +7,8 @@ import { updateTask, deleteTask, getTask, createSubtask, getSubtasks, addDepende
 import { assertCiGatePasses, applyCompletionSideEffects } from "../services/taskCompletionService.js";
 import { logAuditEvent, diffObjects, getTaskAuditLog } from "../services/activityService.js";
 import type { TaskStatus, TaskProgress, Priority, NotificationType } from "@prisma/client";
-import { generateJson, generateJsonFromImage, GeminiRateLimitError } from "../services/geminiService.js";
+import { GeminiRateLimitError } from "../services/geminiService.js";
+import { runJson } from "../services/ai/aiRouter.js";
 import {
   duplicateDetectionPrompt, enrichTaskPrompt, deadlineSuggestionPrompt, nlToTaskPrompt, imageToTaskPrompt,
 } from "../utils/aiPrompts.js";
@@ -109,7 +110,10 @@ tasksRouter.post("/check-duplicates", requireAuth, aiRateLimit, async (req: Requ
       select: { id: true, title: true, description: true },
     });
 
-    const result = await generateJson(duplicateDetectionPrompt(title, description ?? "", existingTasks));
+    const result = await runJson({ memberId: req.memberId }, "medium", {
+      prompt: duplicateDetectionPrompt(title, description ?? "", existingTasks),
+      json: true,
+    });
     res.json(result);
   } catch (error) {
     if (error instanceof GeminiRateLimitError) { res.status(429).json({ error: "AI service busy — try again shortly" }); return; }
@@ -141,13 +145,16 @@ tasksRouter.post("/create-from-nl", requireAuth, aiRateLimit, async (req: Reques
     const memberNames = project.members.map((pm: any) => pm.member.displayName as string);
     const today = new Date().toISOString().split("T")[0];
 
-    const parsed = await generateJson<{
+    const parsed = await runJson<{
       title: string;
       description?: string | null;
       priority?: Priority;
       dueDate?: string | null;
       assigneeName?: string | null;
-    }>(nlToTaskPrompt(input, project.name, memberNames, today));
+    }>({ memberId: req.memberId }, "medium", {
+      prompt: nlToTaskPrompt(input, project.name, memberNames, today),
+      json: true,
+    });
 
     if (!parsed) {
       res.status(500).json({ error: "AI failed to parse task" });
@@ -205,13 +212,17 @@ tasksRouter.post("/create-from-image", requireAuth, aiRateLimit, async (req: Req
       return;
     }
 
-    const result = await generateJsonFromImage<{
+    const result = await runJson<{
       hasTask: boolean;
       title: string;
       description: string;
       priority: Priority;
       screenshotDescription: string;
-    }>(imageBase64, mimeType, imageToTaskPrompt(project.name, userNote ?? ""));
+    }>({ memberId: req.memberId }, "medium", {
+      prompt: imageToTaskPrompt(project.name, userNote ?? ""),
+      json: true,
+      image: { base64: imageBase64, mimeType },
+    });
 
     if (!result) {
       res.status(500).json({ error: "AI failed to analyze image" });
@@ -1390,12 +1401,15 @@ tasksRouter.post("/:id/ai-enrich", requireAuth, requireTaskEdit, aiRateLimit, as
       return;
     }
 
-    const enriched = await generateJson<{
+    const enriched = await runJson<{
       description: string;
       acceptanceCriteria: string[];
       technicalNotes: string | null;
       definitionOfDone: string;
-    }>(enrichTaskPrompt((task as any).title, (task as any).description ?? "", projectType ?? "engineering"));
+    }>({ memberId: req.memberId }, "medium", {
+      prompt: enrichTaskPrompt((task as any).title, (task as any).description ?? "", projectType ?? "engineering"),
+      json: true,
+    });
 
     if (!enriched) {
       res.status(500).json({ error: "AI enrichment failed" });
@@ -1447,15 +1461,20 @@ tasksRouter.post("/:id/suggest-deadline", requireAuth, aiRateLimit, async (req: 
 
     const today = new Date().toISOString().split("T")[0];
 
-    const result = await generateJson<{ suggestedDueDate: string; reasoning: string }>(
-      deadlineSuggestionPrompt(
-        (task as any).title,
-        (task as any).description ?? "",
-        (task as any).storyPoints ?? null,
-        velocity,
-        (project as any)?.targetDate?.toISOString().split("T")[0] ?? null,
-        today,
-      ),
+    const result = await runJson<{ suggestedDueDate: string; reasoning: string }>(
+      { memberId: req.memberId },
+      "medium",
+      {
+        prompt: deadlineSuggestionPrompt(
+          (task as any).title,
+          (task as any).description ?? "",
+          (task as any).storyPoints ?? null,
+          velocity,
+          (project as any)?.targetDate?.toISOString().split("T")[0] ?? null,
+          today,
+        ),
+        json: true,
+      },
     );
 
     if (!result) {

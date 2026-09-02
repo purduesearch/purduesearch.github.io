@@ -15,6 +15,13 @@ import {
 } from "./credentialService.js";
 import { AiAuthError, type AiCall, type AiCtx, type AiTier } from "./types.js";
 
+// Prompt-building helper, not a generation call: it only stamps the real current
+// date into a prompt so the model stops guessing from its training cutoff. It is
+// re-exported here so a migrated call site imports from this module alone — the
+// `ai/` package is the boundary, and geminiService stays an implementation detail
+// behind it rather than something every prompt builder reaches past the router for.
+export { todayContext } from "../geminiService.js";
+
 // ── Response cache ───────────────────────────────────────────
 // Separate from geminiService's cache, and namespaced by provider+model. Without
 // the namespace a member who picked Claude would read another member's
