@@ -239,7 +239,7 @@ insightsRouter.get("/source-mix", async (_req: Request, res: Response) => {
 
 // ── GET /insights/gaps — AI content gap analysis ──────────────
 
-insightsRouter.get("/gaps", async (_req: Request, res: Response) => {
+insightsRouter.get("/gaps", async (req: Request, res: Response) => {
   try {
     const now = new Date();
     const thirtyDaysOut = new Date(now.getTime() + 30 * 86_400_000);
@@ -276,7 +276,8 @@ insightsRouter.get("/gaps", async (_req: Request, res: Response) => {
 
     const gaps = await aiOutreachService.generateGapAnalysis(
       uncoveredEvents.map(e => ({ title: e.title, startTime: e.startTime?.toISOString() ?? null, type: e.type })),
-      uncoveredMilestones.map(m => ({ title: m.title, projectName: m.project?.name ?? null, completedAt: m.completedAt?.toISOString() ?? null }))
+      uncoveredMilestones.map(m => ({ title: m.title, projectName: m.project?.name ?? null, completedAt: m.completedAt?.toISOString() ?? null })),
+      req.memberId
     );
 
     res.json({ gaps, uncoveredEventCount: uncoveredEvents.length, uncoveredMilestoneCount: uncoveredMilestones.length });
@@ -288,7 +289,7 @@ insightsRouter.get("/gaps", async (_req: Request, res: Response) => {
 
 // ── GET /insights/digest — AI weekly digest narrative ─────────
 
-insightsRouter.get("/digest", async (_req: Request, res: Response) => {
+insightsRouter.get("/digest", async (req: Request, res: Response) => {
   try {
     const oneWeekAgo = new Date(Date.now() - 7 * 86_400_000);
 
@@ -313,7 +314,8 @@ insightsRouter.get("/digest", async (_req: Request, res: Response) => {
         comments: m.comments ?? 0,
         shares: m.shares ?? 0,
       })),
-      contacts.reduce((acc, g) => ({ ...acc, [g.stage]: g._count.id }), {} as Record<string, number>)
+      contacts.reduce((acc, g) => ({ ...acc, [g.stage]: g._count.id }), {} as Record<string, number>),
+      req.memberId
     );
 
     res.json({ digest });
