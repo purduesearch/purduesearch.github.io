@@ -1,6 +1,8 @@
-import {
-  generateTextComplex, generateJson, generateJsonComplex, generateTextFast, todayContext,
-} from "./geminiService.js";
+// generateJson (the selection-scoped edit path) is still a direct geminiService call
+// until the Phase 8 standard-lane migration. Everything else routes through aiRouter,
+// which spends the editing member's own linked key when they have one.
+import { generateJson, todayContext } from "./geminiService.js";
+import { runJson, runText } from "./ai/aiRouter.js";
 
 export type AiEdit = { find: string; replace: string; rationale: string };
 
@@ -54,7 +56,9 @@ function docContext(title: string, doc: unknown): string {
   return `TITLE: ${title || "(untitled)"}\n\nPOST BODY:\n${clipped}`;
 }
 
-export async function askAboutDoc(args: { title: string; doc: unknown; question: string }): Promise<string> {
+export async function askAboutDoc(
+  args: { title: string; doc: unknown; question: string; memberId?: string | null }
+): Promise<string> {
   const prompt = `${todayContext()}
 
 You are an editorial assistant for the Purdue SEARCH student club's blog. Answer the
@@ -66,10 +70,11 @@ ${docContext(args.title, args.doc)}
 
 QUESTION: ${args.question}`;
 
-  // generateTextComplex swallows every failure into "". Left alone that reaches
-  // the panel as a 200 with an empty answer, which reads as "the AI ignored me"
-  // — the symptom that hid a broken complex-model config. Surface it instead.
-  const answer = await generateTextComplex(prompt);
+  // runText swallows every failure into "" (same contract generateTextComplex had).
+  // Left alone that reaches the panel as a 200 with an empty answer, which reads as
+  // "the AI ignored me" — the symptom that hid a broken complex-model config.
+  // Surface it instead.
+  const answer = await runText({ memberId: args.memberId }, "high", { prompt, json: false });
   if (!answer) throw new Error("The AI service did not return an answer");
   return answer;
 }
@@ -95,6 +100,7 @@ export async function suggestEdits(args: {
   instruction: string;
   scope: "selection" | "document";
   selection?: string;
+  memberId?: string | null;
 }): Promise<AiEdit[]> {
   const isSelection = args.scope === "selection";
 
@@ -130,7 +136,9 @@ ${EDIT_RULES}`;
   // enough for the standard lane.
   const result = isSelection
     ? await generateJson<{ edits?: AiEdit[] }>(prompt)
-    : await generateJsonComplex<{ edits?: AiEdit[] }>(prompt, undefined, { maxOutputTokens: 4096 });
+    : await runJson<{ edits?: AiEdit[] }>({ memberId: args.memberId }, "high", {
+        prompt, json: true, maxOutputTokens: 4096,
+      });
 
   // null means the call itself failed — a model that genuinely found nothing to
   // change returns {"edits":[]}, which parses to a non-null object. Collapsing
@@ -149,7 +157,9 @@ ${EDIT_RULES}`;
     }));
 }
 
-export async function completeText(args: { title: string; before: string }): Promise<string> {
+export async function completeText(
+  args: { title: string; before: string; memberId?: string | null }
+): Promise<string> {
   const prompt = `Continue this blog draft for the Purdue SEARCH student club.
 
 Write ONLY the continuation — no preamble, no quotes, no markdown, no explanation.
@@ -162,7 +172,9 @@ TITLE: ${args.title || "(untitled)"}
 TEXT SO FAR:
 ${args.before}`;
 
-  const out = await generateTextFast(prompt);
+  // Tier "low" — the inline autocomplete lane. It fires on every keystroke pause, so
+  // it must stay the cheapest model the member has configured, never the high tier.
+  const out = await runText({ memberId: args.memberId }, "low", { prompt, json: false });
   // Models sometimes wrap the continuation in quotes or restate the prompt tail.
   return out.replace(/^["'“”]+|["'“”]+$/g, "").trim();
 }

@@ -1074,7 +1074,7 @@ vaultRouter.post("/projects/:projectId/vault/ask", async (req: Request, res: Res
       return;
     }
 
-    const answer = await askVault(projectId, question.trim());
+    const answer = await askVault(projectId, question.trim(), req.memberId);
     if (answer === null) {
       res.status(404).json({ error: "Project not found" });
       return;

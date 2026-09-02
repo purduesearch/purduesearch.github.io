@@ -1,5 +1,7 @@
 import { prisma } from "../db/prisma.js";
-import { generateText, generateTextComplex, generateJson, todayContext } from "./geminiService.js";
+// generateText / generateJson stay direct until the Phase 8 standard-lane migration.
+import { generateText, generateJson, todayContext } from "./geminiService.js";
+import { runText } from "./ai/aiRouter.js";
 import type { ActivityEventType, ChangeRequestStatus } from "@prisma/client";
 
 // ── Vault Context Service ────────────────────────────────────
@@ -143,7 +145,9 @@ export async function buildVaultContext(projectId: string): Promise<VaultContext
 // ── Q&A over the vault ───────────────────────────────────────
 
 /** Returns the answer string, or null if the project doesn't exist. */
-export async function askVault(projectId: string, question: string): Promise<string | null> {
+export async function askVault(
+  projectId: string, question: string, memberId?: string | null
+): Promise<string | null> {
   const context = await buildVaultContext(projectId);
   if (!context) return null;
 
@@ -163,7 +167,7 @@ ${JSON.stringify({ items: context.items, bomEdges: context.bomEdges, changeReque
 
 QUESTION: ${question}`;
 
-  return generateTextComplex(prompt);
+  return runText({ memberId }, "high", { prompt, json: false });
 }
 
 // ── Duplicate detection (heuristic + semantic, metadata only) ─
