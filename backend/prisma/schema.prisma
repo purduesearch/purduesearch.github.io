@@ -123,6 +123,17 @@ enum NotificationType {
   TRAINING_EXPIRING
 }
 
+enum AiProvider {
+  GEMINI
+  ANTHROPIC
+  OPENAI
+}
+
+enum AiCredentialStatus {
+  ACTIVE
+  INVALID
+}
+
 enum BlogThreadKind {
   COMMENT
   SUGGESTION
@@ -216,6 +227,13 @@ model Member {
   githubRefreshToken   String?
   githubTokenExpiresAt DateTime?
   createdGithubLinks   GitHubLink[] @relation("GitHubLinkActor")
+
+  // ── Bring-your-own AI provider ──
+  // Per-tier model preference: { high|medium|low: { provider, model } }.
+  // Null, a missing tier, or provider "GEMINI" all mean "use the built-in lane",
+  // so every pre-existing member is already in a valid state.
+  aiModelPrefs   Json?
+  aiCredentials  MemberAiCredential[]
 
   // ── Engagement (XP / doubloons / rank) ──
   xp                  Int                @default(0)
@@ -2464,4 +2482,26 @@ model DocShareSettings {
   setById   String
   setBy     Member         @relation("DocShareSetter", fields: [setById], references: [id])
   updatedAt DateTime       @updatedAt
+}
+
+// A member's own third-party AI API key, AES-GCM encrypted at rest (see
+// backend/src/utils/crypto.ts). Personal only: a key is used exclusively for AI
+// calls the owning member triggers. There is deliberately no sharing path and no
+// admin read path — nobody's card gets charged by a teammate's click.
+model MemberAiCredential {
+  id             String             @id @default(cuid())
+  memberId       String
+  provider       AiProvider         // never GEMINI — that is the built-in, keyless provider
+  apiKey         String             // encrypted; never returned by any endpoint
+  keyHint        String             // last 4 chars, plaintext, for the UI only
+  status         AiCredentialStatus @default(ACTIVE)
+  lastError      String?
+  lastVerifiedAt DateTime?
+  lastNotifiedAt DateTime?          // throttles the "your key failed" notification
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  member         Member             @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([memberId, provider])
+  @@index([memberId])
 }
