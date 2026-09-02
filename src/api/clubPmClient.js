@@ -840,6 +840,16 @@ export const reportTourBreakage = (sectionId, payload) =>
 export const listTourBreakages = (sectionId) =>
   get(`/api/outreach/courses/sections/${sectionId}/tour-breakages`);
 
+// ── Bring-your-own AI provider ───────────────────────────────
+// The API never returns a stored key — only a 4-character hint — so nothing here
+// ever holds a key beyond the linkAiProvider() call itself.
+
+export const getAiProviders    = ()                 => get("/api/ai/providers");
+export const linkAiProvider    = (provider, apiKey) => post("/api/ai/providers", { provider, apiKey });
+export const unlinkAiProvider  = (provider)         => del(`/api/ai/providers/${provider}`);
+export const getAiModels       = (provider)         => get(`/api/ai/providers/${provider}/models`);
+export const saveAiPreferences = (preferences)      => put("/api/ai/preferences", preferences);
+
 export const ensureTrainingProject = () => post(`/api/training-project`, {});
 
 // ── Document access (share dialog) ───────────────────────────
