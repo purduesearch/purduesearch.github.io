@@ -19,7 +19,10 @@ import type { ProjectType, ProjectStatus, TaskStatus, Priority, ActivityEventTyp
 import { createNotification } from "../services/notificationCrud.js";
 import { queueDm } from "../services/dmBatcher.js";
 import { fetchDriveFileAsText, extractFileId, listDriveFolderFiles, getDriveFileMeta } from "../services/driveService.js";
-import { generateJsonFromDocument, generateTextComplex, todayContext } from "../services/geminiService.js";
+// generateJsonFromDocument remains a direct geminiService call until the Phase 8
+// standard-lane migration; the complex-lane Ask below now goes through aiRouter.
+import { generateJsonFromDocument, todayContext } from "../services/geminiService.js";
+import { runText } from "../services/ai/aiRouter.js";
 import {
   driveToTasksPrompt, meetingNotesToTasksPrompt, projectContextPrompt,
 } from "../utils/aiPrompts.js";
@@ -637,7 +640,7 @@ projectsRouter.post("/:id/parse-meeting-notes", async (req: Request, res: Respon
 projectsRouter.post("/:id/ai-risks", async (req: Request, res: Response) => {
   try {
     const projectId = req.params.id as string;
-    const result = await analyzeProjectRisks(projectId);
+    const result = await analyzeProjectRisks(projectId, req.memberId);
     if (!result) {
       res.status(404).json({ error: "Project not found or analysis failed" });
       return;
@@ -658,7 +661,7 @@ projectsRouter.post("/:id/sprint-plan", async (req: Request, res: Response) => {
       capacityPoints?: number;
       sprintDays?: number;
     };
-    const result = await generateSprintPlan(projectId, capacityPoints, sprintDays);
+    const result = await generateSprintPlan(projectId, capacityPoints, sprintDays, req.memberId);
     if (!result) {
       res.status(404).json({ error: "Project not found or planning failed" });
       return;
@@ -675,7 +678,7 @@ projectsRouter.post("/:id/sprint-plan", async (req: Request, res: Response) => {
 projectsRouter.post("/:id/generate-brief", async (req: Request, res: Response) => {
   try {
     const projectId = req.params.id as string;
-    const result = await generateProjectBrief(projectId);
+    const result = await generateProjectBrief(projectId, req.memberId);
     if (!result) {
       res.status(404).json({ error: "Project not found or brief generation failed" });
       return;
@@ -692,7 +695,7 @@ projectsRouter.post("/:id/generate-brief", async (req: Request, res: Response) =
 projectsRouter.post("/:id/infer-dependencies", async (req: Request, res: Response) => {
   try {
     const projectId = req.params.id as string;
-    const result = await inferTaskDependencies(projectId);
+    const result = await inferTaskDependencies(projectId, req.memberId);
     if (!result) {
       res.status(404).json({ error: "Project not found or inference failed" });
       return;
@@ -709,7 +712,7 @@ projectsRouter.post("/:id/infer-dependencies", async (req: Request, res: Respons
 projectsRouter.post("/:id/capacity-analysis", async (req: Request, res: Response) => {
   try {
     const projectId = req.params.id as string;
-    const result = await analyzeTeamCapacity(projectId);
+    const result = await analyzeTeamCapacity(projectId, undefined, req.memberId);
     if (!result) {
       res.status(404).json({ error: "Project not found or analysis failed" });
       return;
@@ -726,7 +729,7 @@ projectsRouter.post("/:id/capacity-analysis", async (req: Request, res: Response
 projectsRouter.post("/:id/stakeholder-email", async (req: Request, res: Response) => {
   try {
     const projectId = req.params.id as string;
-    const result = await generateStakeholderEmail(projectId);
+    const result = await generateStakeholderEmail(projectId, req.memberId);
     if (!result) {
       res.status(404).json({ error: "Project not found or email generation failed" });
       return;
@@ -757,9 +760,10 @@ projectsRouter.post("/:id/ask", async (req: Request, res: Response) => {
       return;
     }
 
-    const answer = await generateTextComplex(
-      projectContextPrompt(question, todayContext(), context),
-    );
+    const answer = await runText({ memberId: req.memberId }, "high", {
+      prompt: projectContextPrompt(question, todayContext(), context),
+      json: false,
+    });
 
     res.json({ answer });
   } catch (error) {
@@ -780,7 +784,7 @@ projectsRouter.post("/:id/ai-suggest-actions", async (req: Request, res: Respons
       return;
     }
 
-    const actions = await suggestProjectActions(projectId, goal);
+    const actions = await suggestProjectActions(projectId, goal, req.memberId);
     if (actions === null) {
       res.status(404).json({ error: "Project not found" });
       return;
