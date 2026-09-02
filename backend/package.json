@@ -21,6 +21,7 @@
     "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.123.0",
     "@google/genai": "^2.6.0",
     "@google/generative-ai": "^0.24.1",
     "@hocuspocus/server": "^4.3.0",
