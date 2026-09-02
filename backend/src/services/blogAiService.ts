@@ -70,10 +70,10 @@ ${docContext(args.title, args.doc)}
 
 QUESTION: ${args.question}`;
 
-  // runText swallows every failure into "" (same contract generateTextComplex had).
-  // Left alone that reaches the panel as a 200 with an empty answer, which reads as
-  // "the AI ignored me" — the symptom that hid a broken complex-model config.
-  // Surface it instead.
+  // runText swallows every failure into "" — the same contract the previous direct
+  // complex-lane call had. Left alone that reaches the panel as a 200 with an empty
+  // answer, which reads as "the AI ignored me" — the symptom that hid a broken
+  // complex-model config. Surface it instead.
   const answer = await runText({ memberId: args.memberId }, "high", { prompt, json: false });
   if (!answer) throw new Error("The AI service did not return an answer");
   return answer;

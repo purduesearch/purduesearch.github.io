@@ -1,10 +1,12 @@
 import { createHash } from "node:crypto";
+// generateJson / generateText stay direct until the Phase 8 standard-lane migration.
+// The reasoning-class calls below now go through aiRouter at tier "high".
 import {
   generateJson,
   generateText,
-  generateJsonComplex,
   todayContext,
 } from "./geminiService.js";
+import { runJson } from "./ai/aiRouter.js";
 import { validateSectionPlan, type SectionPlan } from "./sectionPlan.js";
 
 // ── Safety / brand-compliance check ──────────────────────────
@@ -34,7 +36,11 @@ export interface SafetyReport {
 export async function checkSafety(
   content: string,
   platformContent?: Record<string, { caption?: string }> | null,
-  brandVoice?: { name?: string; description?: string } | null
+  brandVoice?: { name?: string; description?: string } | null,
+  // Optional throughout this module: the hourly outreach auto-publish cron passes
+  // nothing and stays on the built-in Gemini lane, since it has no member whose
+  // key could be spent and no consent to rely on.
+  memberId?: string | null
 ): Promise<SafetyReport> {
   if (!content?.trim()) return { safe: true, issues: [] };
 
@@ -77,7 +83,9 @@ Respond with ONLY a valid JSON object (no markdown):
 "safe" should be false if there are any BLOCK-severity issues, true otherwise. Issues array can be empty.`;
 
   const hash   = createHash("sha1").update(content + (platformBlock ?? "") + (voiceBlock ?? "")).digest("hex");
-  const result = await generateJsonComplex<SafetyReport>(prompt, `safety:${hash}`);
+  const result = await runJson<SafetyReport>({ memberId }, "high", {
+    prompt, json: true, cacheKey: `safety:${hash}`,
+  });
   if (!result || typeof result.safe !== "boolean" || !Array.isArray(result.issues)) {
     return { safe: true, issues: [] };
   }
@@ -126,7 +134,8 @@ export const BLOG_PLAN_RULES = `Rules:
 export async function expandToBlog(
   title:       string,
   content:     string,
-  projectName?: string
+  projectName?: string,
+  memberId?: string | null
 ): Promise<SectionPlan> {
   const context = projectName ? `\nProject: ${projectName}` : "";
   const prompt  = `You are a content writer for Purdue SEARCH, a university engineering club.
@@ -148,7 +157,7 @@ Compose the article:
 
 ${BLOG_PLAN_RULES}`;
 
-  const raw  = await generateJsonComplex<unknown>(prompt, undefined, { maxOutputTokens: 8192 });
+  const raw  = await runJson<unknown>({ memberId }, "high", { prompt, json: true, maxOutputTokens: 8192 });
   const plan = raw ? validateSectionPlan(raw) : { sections: [] };
   if (plan.sections.length) return plan;
 
@@ -173,7 +182,8 @@ export async function generateBlogFromText(
   guidance?:  string,
   // "lesson" retargets the same pipeline at a course section body: no hero, no
   // social CTA, and a teaching structure instead of an announcement one.
-  kind: "blog" | "lesson" = "blog"
+  kind: "blog" | "lesson" = "blog",
+  memberId?: string | null
 ): Promise<SectionPlan> {
   const lesson = kind === "lesson";
   const titleLine = lesson
@@ -217,7 +227,7 @@ ${composition}
 
 ${BLOG_PLAN_RULES}`;
 
-  const raw  = await generateJsonComplex<unknown>(prompt, undefined, { maxOutputTokens: 8192 });
+  const raw  = await runJson<unknown>({ memberId }, "high", { prompt, json: true, maxOutputTokens: 8192 });
   const plan = raw ? validateSectionPlan(raw) : { sections: [] };
   if (plan.sections.length) return plan;
 
@@ -250,7 +260,8 @@ export interface VideoScript {
 export async function generateVideoScript(
   topic:       string,
   durationSec: number = 30,
-  platform:    string = "instagram"
+  platform:    string = "instagram",
+  memberId?: string | null
 ): Promise<VideoScript> {
   const prompt = `You are a producer creating short-form video content for Purdue SEARCH, a university engineering club.
 ${todayContext()}
@@ -277,7 +288,7 @@ Respond with ONLY a valid JSON object (no markdown):
   "caption": "..."
 }`;
 
-  const result = await generateJsonComplex<VideoScript>(prompt);
+  const result = await runJson<VideoScript>({ memberId }, "high", { prompt, json: true });
   if (!result || !Array.isArray(result.shots) || result.shots.length === 0) {
     return { shots: [], caption: "" };
   }
@@ -408,7 +419,8 @@ export async function generateCalendarAutofill(
   from:       Date,
   to:         Date,
   events:     { title: string; startTime: string | null; type: string }[],
-  milestones: { title: string; projectName: string | null; completedAt: string | null }[]
+  milestones: { title: string; projectName: string | null; completedAt: string | null }[],
+  memberId?: string | null
 ): Promise<AutoFillDraft[]> {
   if (events.length === 0 && milestones.length === 0) return [];
 
@@ -457,7 +469,7 @@ Respond with ONLY a valid JSON array, no markdown:
   }
 ]`;
 
-  const result = await generateJsonComplex<AutoFillDraft[]>(prompt);
+  const result = await runJson<AutoFillDraft[]>({ memberId }, "high", { prompt, json: true });
   if (!result || !Array.isArray(result)) return [];
   return result.filter(d => d.title && d.content && d.scheduledAt);
 }

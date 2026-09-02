@@ -147,7 +147,7 @@ export function parseGradingResponse(
  * Grade one submission. Returns null when grading could not run — a missing
  * rubric, missing ground truth, or a Gemini response that would not parse.
  *
- * Uses `generateJson` (standard model, 30 RPM) rather than `generateJsonComplex`
+ * Uses `generateJson` (standard model, 30 RPM) rather than the reasoning-class lane
  * (25 requests PER DAY). A cohort working through one module would exhaust the
  * complex lane in an afternoon and starve every other AI feature sharing it.
  *

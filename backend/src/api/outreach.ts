@@ -648,6 +648,7 @@ outreachRouter.post("/ai/calendar-autofill", async (req: Request, res: Response)
       toDate,
       events.map(e => ({ title: e.title, startTime: e.startTime?.toISOString() ?? null, type: e.type })),
       recentMilestones.map(m => ({ title: m.title, projectName: m.project?.name ?? null, completedAt: m.completedAt?.toISOString() ?? null })),
+      req.memberId,
     );
 
     res.json({ drafts });
@@ -1077,7 +1078,8 @@ outreachRouter.post("/submissions/:id/ai/expand-blog", async (req: Request, res:
     const plan = await aiOutreachService.expandToBlog(
       submission.title,
       submission.content,
-      submission.project?.name ?? undefined
+      submission.project?.name ?? undefined,
+      req.memberId
     );
 
     // Build a designed, section-based document from the plan. The submission keeps
@@ -1140,7 +1142,8 @@ outreachRouter.post("/ai/video-script", async (req: Request, res: Response) => {
     const script = await aiOutreachService.generateVideoScript(
       topic.trim(),
       durationSec ?? 30,
-      platform ?? "instagram"
+      platform ?? "instagram",
+      req.memberId
     );
 
     // Optionally persist to a submission
@@ -1444,7 +1447,8 @@ outreachRouter.post("/submissions/:id/ai/safety-check", async (req: Request, res
     const report = await aiOutreachService.checkSafety(
       submission.content,
       submission.platformContent as Record<string, { caption?: string }> | null,
-      defaultVoice
+      defaultVoice,
+      req.memberId
     );
 
     const updated = await prisma.outreachSubmission.update({

@@ -1,4 +1,5 @@
-import { generateJsonComplex, todayContext } from "./geminiService.js";
+import { todayContext } from "./geminiService.js";
+import { runJson } from "./ai/aiRouter.js";
 import { validateSectionPlan, type SectionPlan } from "./sectionPlan.js";
 
 export interface ParsedTask {
@@ -154,7 +155,8 @@ const SECTION_INSTRUCTIONS: Record<string, string> = {
  */
 export async function generatePressKitPlan(
   input: PressKitPlanInput,
-  audience: PressKitAudience
+  audience: PressKitAudience,
+  memberId?: string | null
 ): Promise<SectionPlan | null> {
   if (!process.env.GEMINI_API_KEY) return null;
 
@@ -210,7 +212,7 @@ FACTS (JSON):
 ${JSON.stringify(facts, null, 2)}`;
 
   try {
-    const raw = await generateJsonComplex<unknown>(prompt, undefined, { maxOutputTokens: 8192 });
+    const raw = await runJson<unknown>({ memberId }, "high", { prompt, json: true, maxOutputTokens: 8192 });
     if (!raw) return null;
     const plan = validateSectionPlan(raw);
     return plan.sections.length ? plan : null;
