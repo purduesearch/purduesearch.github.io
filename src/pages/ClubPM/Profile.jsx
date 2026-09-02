@@ -5,7 +5,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import toast from "react-hot-toast";
-import { get, getActivity, patch, post } from "../../api/clubPmClient";
+import {
+  get, getActivity, patch, post,
+  getAiProviders, linkAiProvider, unlinkAiProvider, getAiModels, saveAiPreferences,
+} from "../../api/clubPmClient";
 import { useClubPmAuth } from "../../clubpm/ClubPmAuth";
 import RankBadge, { RANK_META } from "../../components/clubpm/RankBadge";
 import BadgePicker from "../../components/clubpm/BadgePicker";
@@ -17,6 +20,201 @@ import TrainingStatusStrip from "../../components/clubpm/courses/TrainingStatusS
 import { progressToNextRank } from "../../clubpm/engagement/rankProgress";
 import { tzOffset, copyToClipboard, activityLabels } from "../../clubpm/members/memberShared";
 import { MemberName, useCosmeticStyles } from "../../clubpm/cosmetics/CosmeticStylesContext";
+
+const AI_PROVIDERS = [
+  { id: "ANTHROPIC", label: "Anthropic", icon: "fa-brain", hint: "Claude models" },
+  { id: "OPENAI",    label: "OpenAI",    icon: "fa-robot", hint: "GPT models" },
+];
+
+const AI_TIER_ROWS = [
+  { id: "high",   label: "High complexity",
+    blurb: "Project Ask, AI action plans, blog expansion, course generation, AI reports." },
+  { id: "medium", label: "Medium complexity",
+    blurb: "Task enrichment, duplicate detection, natural-language and image task creation, grading." },
+  { id: "low",    label: "Low complexity",
+    blurb: "Inline autocomplete in the blog editor." },
+];
+
+// Bring-your-own AI provider. Own profile only — a key is personal, and there is no
+// sharing path by design. The key itself is never read back from the API, so it only
+// lives in state for as long as the link form is open.
+function AiModelsSection() {
+  const [credentials, setCredentials] = useState([]);
+  const [preferences, setPreferences] = useState(null);
+  const [modelsByProvider, setModelsByProvider] = useState({});
+  const [linking, setLinking] = useState(null);   // provider id or null
+  const [keyInput, setKeyInput] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const loadModels = useCallback(async (provider) => {
+    try {
+      const { models } = await getAiModels(provider);
+      setModelsByProvider((prev) => ({ ...prev, [provider]: models }));
+    } catch {
+      setModelsByProvider((prev) => ({ ...prev, [provider]: [] }));
+    }
+  }, []);
+
+  const refresh = useCallback(async () => {
+    const data = await getAiProviders();
+    setCredentials(data.credentials || []);
+    setPreferences(data.preferences || null);
+    for (const c of data.credentials || []) {
+      if (c.status === "ACTIVE") loadModels(c.provider);
+    }
+  }, [loadModels]);
+
+  useEffect(() => { refresh().catch(() => {}); }, [refresh]);
+
+  const linked = (provider) => credentials.find((c) => c.provider === provider);
+
+  async function handleLink(provider) {
+    setBusy(true);
+    try {
+      await linkAiProvider(provider, keyInput.trim());
+      setKeyInput("");
+      setLinking(null);
+      await refresh();
+      toast.success(`${provider === "ANTHROPIC" ? "Anthropic" : "OpenAI"} account linked`);
+    } catch (err) {
+      toast.error(err?.message || "Could not link that key");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleUnlink(provider) {
+    setBusy(true);
+    try {
+      await unlinkAiProvider(provider);
+      await refresh();
+      toast.success("Account unlinked");
+    } catch {
+      toast.error("Could not unlink that account");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleTierChange(tier, patchValue) {
+    const next = { ...preferences, [tier]: { ...preferences[tier], ...patchValue } };
+    // Switching provider clears the model — a Claude id is meaningless to OpenAI.
+    if (patchValue.provider) {
+      next[tier].model = patchValue.provider === "GEMINI"
+        ? null
+        : (modelsByProvider[patchValue.provider]?.[0]?.id ?? null);
+    }
+    setPreferences(next);
+    try {
+      const { preferences: saved } = await saveAiPreferences(next);
+      setPreferences(saved);
+    } catch (err) {
+      toast.error(err?.message || "Could not save that preference");
+      refresh().catch(() => {});
+    }
+  }
+
+  return (
+    <div className="cpm-profile-card pm-ai-models">
+      <h3 className="pm-ai-models-title">
+        <i className="fas fa-microchip" aria-hidden="true" /> AI Models
+      </h3>
+      <p className="pm-ai-models-intro">
+        By default every AI feature runs on the club's shared Gemini key, which has a
+        small daily budget for the heaviest features. Link your own account to use it
+        instead — it is used only for AI you trigger, and never by anyone else.
+      </p>
+
+      <div className="pm-ai-provider-grid">
+        {AI_PROVIDERS.map((p) => {
+          const cred = linked(p.id);
+          return (
+            <div key={p.id} className="pm-ai-provider-card">
+              <div className="pm-ai-provider-head">
+                <i className={`fas ${p.icon}`} aria-hidden="true" />
+                <span className="pm-ai-provider-name">{p.label}</span>
+                {cred && (
+                  <span className={`pm-ai-badge pm-ai-badge--${cred.status.toLowerCase()}`}>
+                    {cred.status === "ACTIVE" ? "Linked" : "Key rejected"}
+                  </span>
+                )}
+              </div>
+              <p className="pm-ai-provider-hint">{p.hint}</p>
+
+              {cred ? (
+                <div className="pm-ai-provider-actions">
+                  <code className="pm-ai-key-hint">sk-…{cred.keyHint}</code>
+                  <button type="button" className="clubpm-btn-ghost"
+                          disabled={busy} onClick={() => handleUnlink(p.id)}>
+                    Unlink
+                  </button>
+                </div>
+              ) : linking === p.id ? (
+                <form className="pm-ai-link-form"
+                      onSubmit={(e) => { e.preventDefault(); handleLink(p.id); }}>
+                  <input type="password" className="cpm-form-input" autoComplete="off"
+                         placeholder={`Paste your ${p.label} API key`}
+                         value={keyInput} onChange={(e) => setKeyInput(e.target.value)} />
+                  <p className="pm-ai-consent">
+                    Project data included in AI prompts will be sent to {p.label} under
+                    your own account, and billed to it.
+                  </p>
+                  <div className="pm-ai-provider-actions">
+                    <button type="submit" className="clubpm-btn-primary"
+                            disabled={busy || !keyInput.trim()}>Save key</button>
+                    <button type="button" className="clubpm-btn-ghost"
+                            onClick={() => { setLinking(null); setKeyInput(""); }}>Cancel</button>
+                  </div>
+                </form>
+              ) : (
+                <button type="button" className="clubpm-btn-primary"
+                        onClick={() => setLinking(p.id)}>Link account</button>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {preferences && (
+        <div className="pm-ai-tiers">
+          <h4 className="pm-ai-tiers-title">Model per task type</h4>
+          {AI_TIER_ROWS.map((tier) => {
+            const pref = preferences[tier.id] || { provider: "GEMINI", model: null };
+            const models = modelsByProvider[pref.provider] || [];
+            return (
+              <div key={tier.id} className="pm-ai-tier-row">
+                <div className="pm-ai-tier-meta">
+                  <span className="pm-ai-tier-label">{tier.label}</span>
+                  <span className="pm-ai-tier-blurb">{tier.blurb}</span>
+                </div>
+                <div className="pm-ai-tier-controls">
+                  <select className="cpm-form-input" value={pref.provider}
+                          onChange={(e) => handleTierChange(tier.id, { provider: e.target.value })}>
+                    <option value="GEMINI">Built-in (Gemini)</option>
+                    {credentials.filter((c) => c.status === "ACTIVE").map((c) => (
+                      <option key={c.provider} value={c.provider}>
+                        {c.provider === "ANTHROPIC" ? "Anthropic" : "OpenAI"}
+                      </option>
+                    ))}
+                  </select>
+                  {pref.provider !== "GEMINI" && (
+                    <select className="cpm-form-input" value={pref.model || ""}
+                            onChange={(e) => handleTierChange(tier.id, { model: e.target.value })}>
+                      {models.length === 0 && <option value="">Loading models…</option>}
+                      {models.map((m) => (
+                        <option key={m.id} value={m.id}>{m.displayName}</option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function Profile() {
   const { memberId: routeId } = useParams();
@@ -297,6 +495,9 @@ export default function Profile() {
             <GitHubConnectButton />
           </div>
         )}
+
+        {/* Bring-your-own AI provider — own profile only; keys are personal */}
+        {isSelf && <AiModelsSection />}
 
         {/* GitHub stats — only renders if member has githubLogin AND a project with a repo */}
         {profile.githubLogin && <GhStatsSection memberId={memberId} />}
