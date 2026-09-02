@@ -53,6 +53,7 @@ import { blogRouter } from "./api/blog.js";
 import { blogThreadsRouter } from "./api/blogThreads.js";
 import { blogAiRouter } from "./api/blogAi.js";
 import { docAccessRouter } from "./api/docAccess.js";
+import { aiRouter } from "./api/ai.js";
 import { attachBlogCollab } from "./collab/blogCollab.js";
 import { attachPressKitCollab } from "./collab/pressKitCollab.js";
 import { attachCourseCollab } from "./collab/courseCollab.js";
@@ -172,6 +173,7 @@ app.use("/api/shop", shopRouter);
 app.use("/api/inventory", inventoryRouter);
 app.use("/api/challenges", challengesRouter);
 app.use("/api", streakRouter); // /api/members/:id/streak, /api/members/me/celebration, etc.
+app.use("/api/ai", aiRouter);
 app.use("/r", redirectRouter);
 
 // Static uploads (Vault files, etc), served from their public URL.
