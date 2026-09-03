@@ -1,5 +1,5 @@
 import type { ProjectContext } from "../services/projectContextService.js";
-import { todayContext } from "../services/geminiService.js";
+import { todayContext } from "../services/ai/aiRouter.js";
 
 // ── Task extraction from documents ────────────────────────────
 

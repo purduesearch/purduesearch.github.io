@@ -145,13 +145,18 @@ export function parseGradingResponse(
 
 /**
  * Grade one submission. Returns null when grading could not run — a missing
- * rubric, missing ground truth, or a Gemini response that would not parse.
+ * rubric, missing ground truth, or a model response that would not parse.
  *
- * Uses `generateJson` (standard model, 30 RPM) rather than the reasoning-class lane
- * (25 requests PER DAY). A cohort working through one module would exhaust the
- * complex lane in an afternoon and starve every other AI feature sharing it.
+ * Runs at tier "medium" (the standard 30 RPM lane) rather than the reasoning-class
+ * lane (25 requests PER DAY). A cohort working through one module would exhaust the
+ * complex lane in an afternoon and starve every other AI feature sharing it. That
+ * stays true even now that a member on a linked key is not competing for the shared
+ * quota at all — the tier is what the built-in path falls back to.
  *
- * Throws only if Gemini itself throws; the caller treats that identically to a
+ * `memberId` is the submitting learner: grading runs on submit, so theirs is the
+ * right key to spend. Omitted, it routes to the built-in lane.
+ *
+ * Throws only if the router itself throws; the caller treats that identically to a
  * null return. It must never abort the submission.
  */
 export async function gradeAgainstRubric(opts: {
@@ -161,10 +166,14 @@ export async function gradeAgainstRubric(opts: {
   referenceText: string;
   rubric: RubricPoint[];
   submission: string;
+  memberId?: string | null;
 }): Promise<RubricFeedback | null> {
   if (!opts.rubric.length) return null;
   if (!opts.referenceText.trim()) return null;
-  const { generateJson } = await import("./geminiService.js");
-  const raw = await generateJson<unknown>(buildGradingPrompt(opts));
+  const { runJson } = await import("./ai/aiRouter.js");
+  const raw = await runJson<unknown>({ memberId: opts.memberId }, "medium", {
+    prompt: buildGradingPrompt(opts),
+    json: true,
+  });
   return parseGradingResponse(raw, opts.rubric);
 }

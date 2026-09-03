@@ -62,7 +62,9 @@ export function sanitizeAssignmentConfig(raw: unknown): LearnerAssignmentConfig 
 /** Grade one assignment submission. Null when grading could not run. */
 export async function gradeAssignment(
   config: unknown,
-  submission: string
+  submission: string,
+  /** The submitting learner, whose linked AI key (if any) grading runs on. */
+  memberId?: string | null
 ): Promise<RubricFeedback | null> {
   const c = (config ?? {}) as Partial<AssignmentConfig>;
   return gradeAgainstRubric({
@@ -72,6 +74,7 @@ export async function gradeAssignment(
     referenceText: typeof c.referenceAnswer === "string" ? c.referenceAnswer : "",
     rubric: normalizeRubric(c.rubric),
     submission,
+    memberId,
   });
 }
 

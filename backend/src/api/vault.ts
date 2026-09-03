@@ -1100,7 +1100,9 @@ vaultRouter.post("/projects/:projectId/vault/check-duplicates", async (req: Requ
       return;
     }
 
-    const candidates = await findDuplicateCandidates(projectId, fileName.trim(), name ?? null);
+    const candidates = await findDuplicateCandidates(
+      projectId, fileName.trim(), name ?? null, req.memberId
+    );
     res.json({ candidates });
   } catch (error) {
     console.error("Vault check-duplicates error:", error);

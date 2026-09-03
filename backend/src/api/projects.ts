@@ -19,10 +19,7 @@ import type { ProjectType, ProjectStatus, TaskStatus, Priority, ActivityEventTyp
 import { createNotification } from "../services/notificationCrud.js";
 import { queueDm } from "../services/dmBatcher.js";
 import { fetchDriveFileAsText, extractFileId, listDriveFolderFiles, getDriveFileMeta } from "../services/driveService.js";
-// generateJsonFromDocument remains a direct geminiService call until the Phase 8
-// standard-lane migration; the complex-lane Ask below now goes through aiRouter.
-import { generateJsonFromDocument, todayContext } from "../services/geminiService.js";
-import { runText } from "../services/ai/aiRouter.js";
+import { runJson, runText, todayContext } from "../services/ai/aiRouter.js";
 import {
   driveToTasksPrompt, meetingNotesToTasksPrompt, projectContextPrompt,
 } from "../utils/aiPrompts.js";
@@ -537,10 +534,13 @@ projectsRouter.post("/:id/parse-drive", async (req: Request, res: Response) => {
     const existingTaskTitles = existingTasks.map(t => t.title);
     const today = new Date().toISOString().split("T")[0];
 
-    const result = await generateJsonFromDocument<{ tasks: any[] }>(
-      fileResult.text,
-      driveToTasksPrompt((project as any).name, (project as any).description ?? "", existingTaskTitles, today, suggestedTaskCount),
-    );
+    // Truncation lives in the router now (truncateForAdapter), keyed to the selected
+    // adapter's ceiling rather than Gemini's fixed 3.6M — Anthropic's is lower and
+    // OpenAI's lower still, so a long Drive doc must not be pre-cut for Gemini here.
+    const result = await runJson<{ tasks: any[] }>({ memberId: req.memberId }, "medium", {
+      json: true,
+      prompt: `${driveToTasksPrompt((project as any).name, (project as any).description ?? "", existingTaskTitles, today, suggestedTaskCount)}\n\n---DOCUMENT---\n${fileResult.text}`,
+    });
 
     res.json({ tasks: result?.tasks ?? [], sourceFileName: fileResult.name });
   } catch (error) {
@@ -623,10 +623,10 @@ projectsRouter.post("/:id/parse-meeting-notes", async (req: Request, res: Respon
     }
 
     const today = new Date().toISOString().split("T")[0];
-    const result = await generateJsonFromDocument(
-      notes,
-      meetingNotesToTasksPrompt((project as any).name, attendees ?? [], today, suggestedTaskCount),
-    );
+    const result = await runJson({ memberId: req.memberId }, "medium", {
+      json: true,
+      prompt: `${meetingNotesToTasksPrompt((project as any).name, attendees ?? [], today, suggestedTaskCount)}\n\n---DOCUMENT---\n${notes}`,
+    });
 
     res.json(result);
   } catch (error) {

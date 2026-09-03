@@ -1413,7 +1413,7 @@ export async function submitWork(
   const body = typeof input.text === "string" ? input.text.trim() : "";
   const wordCount = countWords(body);
   if (wordCount < minWords) {
-    // Refused before spending a Gemini call, and the message carries both
+    // Refused before spending an AI call, and the message carries both
     // numbers so the composer does not have to guess what it is short by.
     return {
       error: `Write at least ${minWords} words — you have ${wordCount}.`,
@@ -1435,8 +1435,8 @@ export async function submitWork(
   let feedback: RubricFeedback | null = null;
   try {
     feedback = isLit
-      ? await gradeSubmission(config, body)
-      : await gradeAssignment(config, body);
+      ? await gradeSubmission(config, body, memberId)
+      : await gradeAssignment(config, body, memberId);
   } catch (err) {
     // Rate limit, quota, network, malformed JSON — all the same outcome. The
     // submission already counted; this only decides whether feedback exists yet,

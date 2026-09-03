@@ -1,7 +1,5 @@
 import { prisma } from "../db/prisma.js";
-// generateText / generateJson stay direct until the Phase 8 standard-lane migration.
-import { generateText, generateJson, todayContext } from "./geminiService.js";
-import { runText } from "./ai/aiRouter.js";
+import { runJson, runText, todayContext } from "./ai/aiRouter.js";
 import type { ActivityEventType, ChangeRequestStatus } from "@prisma/client";
 
 // ── Vault Context Service ────────────────────────────────────
@@ -217,7 +215,8 @@ const SEMANTIC_ONLY_SCORE = 0.5;
 export async function findDuplicateCandidates(
   projectId: string,
   fileName: string,
-  name?: string | null
+  name?: string | null,
+  memberId?: string | null
 ): Promise<DuplicateCandidate[]> {
   const items = await prisma.vaultItem.findMany({
     where: { projectId, deletedAt: null },
@@ -242,8 +241,10 @@ export async function findDuplicateCandidates(
   }
 
   // Semantic pass: metadata only (names + descriptions), soft signal.
-  const semantic = await generateJson<{ candidates: { itemId: string; reason: string }[] }>(
-    `A member is checking a new file into a CAD vault.
+  const semantic = await runJson<{ candidates: { itemId: string; reason: string }[] }>(
+    { memberId },
+    "medium",
+    { json: true, prompt: `A member is checking a new file into a CAD vault.
 New file name: "${fileName}"${name ? `, proposed item name: "${name}"` : ""}.
 
 Existing vault items (JSON):
@@ -253,7 +254,7 @@ Based ONLY on names and descriptions (you cannot see any geometry), list up to 3
 items this new file might be a duplicate or a new version of. Only include genuinely
 plausible matches — an empty list is a fine answer.
 
-Respond with JSON: { "candidates": [{ "itemId": "...", "reason": "<one short sentence>" }] }`
+Respond with JSON: { "candidates": [{ "itemId": "...", "reason": "<one short sentence>" }] }` }
   );
 
   for (const cand of semantic?.candidates ?? []) {
@@ -306,7 +307,10 @@ async function recentItemHistory(itemId: string, take = 10) {
 }
 
 /** Draft release notes for a CR. Returns null if the CR doesn't exist. Not persisted. */
-export async function draftCrReleaseNotes(crId: string): Promise<string | null> {
+export async function draftCrReleaseNotes(
+  crId: string,
+  memberId?: string | null
+): Promise<string | null> {
   const cr = await prisma.changeRequest.findUnique({ where: { id: crId }, include: CR_AI_INCLUDE });
   if (!cr) return null;
 
@@ -334,7 +338,7 @@ Reason: ${cr.description ?? "(none given)"}
 ITEMS (JSON, including check-in notes and recent history):
 ${JSON.stringify(itemsWithHistory, null, 2)}`;
 
-  return generateText(prompt);
+  return runText({ memberId }, "medium", { prompt, json: false });
 }
 
 type AncestorEdge = { parentId: string; parentLabel: string; quantity: number };
@@ -391,7 +395,10 @@ function buildWhereUsedChains(itemId: string, itemName: string, edgesByChild: Ma
 }
 
 /** Summarize the impact of approving a CR. Returns null if the CR doesn't exist. */
-export async function summarizeCrImpact(crId: string): Promise<string | null> {
+export async function summarizeCrImpact(
+  crId: string,
+  memberId?: string | null
+): Promise<string | null> {
   const cr = await prisma.changeRequest.findUnique({ where: { id: crId }, include: CR_AI_INCLUDE });
   if (!cr) return null;
 
@@ -443,5 +450,5 @@ ${chains.length > 0 ? chains.map((c) => `- ${c}`).join("\n") : "(none — no ass
 OPEN TASKS MENTIONING THESE ITEMS:
 ${mentioningTasks.length > 0 ? JSON.stringify(mentioningTasks, null, 2) : "(none)"}`;
 
-  return generateText(prompt);
+  return runText({ memberId }, "medium", { prompt, json: false });
 }

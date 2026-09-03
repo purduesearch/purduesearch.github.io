@@ -1,8 +1,6 @@
-// generateJson (the selection-scoped edit path) is still a direct geminiService call
-// until the Phase 8 standard-lane migration. Everything else routes through aiRouter,
-// which spends the editing member's own linked key when they have one.
-import { generateJson, todayContext } from "./geminiService.js";
-import { runJson, runText } from "./ai/aiRouter.js";
+// Every call here routes through aiRouter, which spends the editing member's own
+// linked key when they have one.
+import { runJson, runText, todayContext } from "./ai/aiRouter.js";
 
 export type AiEdit = { find: string; replace: string; rationale: string };
 
@@ -135,7 +133,9 @@ ${EDIT_RULES}`;
   // standard model when the daily quota is spent); selection edits are small
   // enough for the standard lane.
   const result = isSelection
-    ? await generateJson<{ edits?: AiEdit[] }>(prompt)
+    ? await runJson<{ edits?: AiEdit[] }>({ memberId: args.memberId }, "medium", {
+        prompt, json: true,
+      })
     : await runJson<{ edits?: AiEdit[] }>({ memberId: args.memberId }, "high", {
         prompt, json: true, maxOutputTokens: 4096,
       });

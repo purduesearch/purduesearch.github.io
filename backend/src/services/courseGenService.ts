@@ -1,6 +1,5 @@
 import { prisma } from "../db/prisma.js";
-import { todayContext } from "./geminiService.js";
-import { runJson } from "./ai/aiRouter.js";
+import { runJson, todayContext } from "./ai/aiRouter.js";
 import { validateCoursePlan, planSectionCount } from "./coursePlan.js";
 import { docToPlainText } from "./blogAiService.js";
 import * as courseService from "./courseService.js";
