@@ -21,6 +21,7 @@
     "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.123.0",
     "@google/genai": "^2.6.0",
     "@google/generative-ai": "^0.24.1",
     "@hocuspocus/server": "^4.3.0",
@@ -53,6 +54,7 @@
     "marked": "^18.0.5",
     "multer": "^2.1.1",
     "node-cron": "^3.0.3",
+    "openai": "^7.9.0",
     "pdf-parse": "^1.1.1",
     "puppeteer": "^25.3.0",
     "resend": "^6.12.3",

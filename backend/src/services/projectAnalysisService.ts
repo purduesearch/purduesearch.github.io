@@ -1,12 +1,20 @@
 import { prisma } from "../db/prisma.js";
-import { generateJson } from "./geminiService.js";
+import { runJson } from "./ai/aiRouter.js";
 import {
   riskAnalysisPrompt, sprintPlanPrompt, projectBriefPrompt,
   standupSynthesisPrompt, standupSentimentPrompt,
   inferDependenciesPrompt, capacityAnalysisPrompt, stakeholderEmailPrompt
 } from "../utils/aiPrompts.js";
 
-export async function analyzeProjectRisks(projectId: string) {
+// Every exported function takes an OPTIONAL trailing `memberId`. API handlers pass
+// `req.memberId` so the call spends that member's own linked key; the scheduler in
+// slack/scheduler.ts passes nothing, so cron-driven reports stay on the built-in
+// Gemini lane — there is no member whose key could be spent and no consent to rely on.
+//
+// Tier is "medium" throughout: these were `generateJson` (the 30 RPM standard lane),
+// and the tiers map 1:1 onto geminiService's lanes, so this is a relabelling that
+// leaves built-in behaviour byte-for-byte unchanged.
+export async function analyzeProjectRisks(projectId: string, memberId?: string | null) {
   const project = await prisma.project.findUnique({
     where: { id: projectId },
     include: { tasks: { where: { archivedAt: null }, include: { assignees: { select: { displayName: true } } } } },
@@ -17,10 +25,14 @@ export async function analyzeProjectRisks(projectId: string) {
     title: t.title, status: t.status, dueDate: t.dueDate?.toISOString().split("T")[0] ?? null,
     priority: t.priority, assignees: t.assignees.map(a => a.displayName),
   }));
-  return generateJson(riskAnalysisPrompt({ name: project.name, targetDate: project.targetDate?.toISOString().split("T")[0] }, tasks, today), `risk:${projectId}`);
+  return runJson({ memberId }, "medium", {
+    prompt: riskAnalysisPrompt({ name: project.name, targetDate: project.targetDate?.toISOString().split("T")[0] }, tasks, today),
+    json: true,
+    cacheKey: `risk:${projectId}`,
+  });
 }
 
-export async function generateSprintPlan(projectId: string, capacityPoints = 40, sprintDays = 14) {
+export async function generateSprintPlan(projectId: string, capacityPoints = 40, sprintDays = 14, memberId?: string | null) {
   const project = await prisma.project.findUnique({
     where: { id: projectId },
     include: { tasks: { where: { archivedAt: null }, include: { assignees: { select: { displayName: true } } } } },
@@ -31,10 +43,13 @@ export async function generateSprintPlan(projectId: string, capacityPoints = 40,
     storyPoints: t.storyPoints, assignees: t.assignees.map(a => a.displayName),
     dueDate: t.dueDate?.toISOString().split("T")[0] ?? null,
   }));
-  return generateJson(sprintPlanPrompt(tasks, capacityPoints, sprintDays, new Date().toISOString().split("T")[0]));
+  return runJson({ memberId }, "medium", {
+    prompt: sprintPlanPrompt(tasks, capacityPoints, sprintDays, new Date().toISOString().split("T")[0]),
+    json: true,
+  });
 }
 
-export async function generateProjectBrief(projectId: string) {
+export async function generateProjectBrief(projectId: string, memberId?: string | null) {
   const { getMilestonesForProject } = await import("./milestoneService.js");
   const [project, milestones] = await Promise.all([
     prisma.project.findUnique({
@@ -44,34 +59,42 @@ export async function generateProjectBrief(projectId: string) {
     getMilestonesForProject(projectId),
   ]);
   if (!project) return null;
-  return generateJson(projectBriefPrompt(
-    { name: project.name, description: project.description, type: project.type, targetDate: project.targetDate?.toISOString().split("T")[0] ?? null },
-    project.tasks.map(t => ({ title: t.title, status: t.status, priority: t.priority })),
-    (milestones as any[]).map((m: any) => ({ name: m.title, targetDate: m.dueDate?.toISOString().split("T")[0] ?? null, status: m.status })),
-    (project.updates as any[]).map(u => u.content.slice(0, 100)),
-  ), `brief:${projectId}`);
+  return runJson({ memberId }, "medium", {
+    prompt: projectBriefPrompt(
+      { name: project.name, description: project.description, type: project.type, targetDate: project.targetDate?.toISOString().split("T")[0] ?? null },
+      project.tasks.map(t => ({ title: t.title, status: t.status, priority: t.priority })),
+      (milestones as any[]).map((m: any) => ({ name: m.title, targetDate: m.dueDate?.toISOString().split("T")[0] ?? null, status: m.status })),
+      (project.updates as any[]).map(u => u.content.slice(0, 100)),
+    ),
+    json: true,
+    cacheKey: `brief:${projectId}`,
+  });
 }
 
-export async function synthesizeStandups(responses: Array<{ memberName: string; yesterday: string; today: string; blockers: string }>, projectName: string) {
+export async function synthesizeStandups(responses: Array<{ memberName: string; yesterday: string; today: string; blockers: string }>, projectName: string, memberId?: string | null) {
   if (responses.length === 0) return null;
-  return generateJson(standupSynthesisPrompt(responses, projectName));
+  return runJson({ memberId }, "medium", { prompt: standupSynthesisPrompt(responses, projectName), json: true });
 }
 
-export async function analyzeStandupSentiment(responses: Array<{ memberName: string; text: string }>) {
+export async function analyzeStandupSentiment(responses: Array<{ memberName: string; text: string }>, memberId?: string | null) {
   if (responses.length === 0) return null;
-  return generateJson(standupSentimentPrompt(responses));
+  return runJson({ memberId }, "medium", { prompt: standupSentimentPrompt(responses), json: true });
 }
 
-export async function inferTaskDependencies(projectId: string) {
+export async function inferTaskDependencies(projectId: string, memberId?: string | null) {
   const tasks = await prisma.task.findMany({
     where: { projectId, status: { not: "DONE" }, parentTaskId: null, archivedAt: null },
     select: { id: true, title: true, description: true },
   });
   if (tasks.length < 2) return { dependencies: [] };
-  return generateJson(inferDependenciesPrompt(tasks), `deps:${projectId}`);
+  return runJson({ memberId }, "medium", {
+    prompt: inferDependenciesPrompt(tasks),
+    json: true,
+    cacheKey: `deps:${projectId}`,
+  });
 }
 
-export async function analyzeTeamCapacity(projectId: string, sprintDays = 14) {
+export async function analyzeTeamCapacity(projectId: string, sprintDays = 14, memberId?: string | null) {
   const project = await prisma.project.findUnique({
     where: { id: projectId },
     include: {
@@ -94,10 +117,13 @@ export async function analyzeTeamCapacity(projectId: string, sprintDays = 14) {
       });
     }
   }
-  return generateJson(capacityAnalysisPrompt([...byMember.values()], sprintDays));
+  return runJson({ memberId }, "medium", {
+    prompt: capacityAnalysisPrompt([...byMember.values()], sprintDays),
+    json: true,
+  });
 }
 
-export async function generateStakeholderEmail(projectId: string) {
+export async function generateStakeholderEmail(projectId: string, memberId?: string | null) {
   const oneWeekAgo = new Date(); oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
   const project = await prisma.project.findUnique({
     where: { id: projectId },
@@ -112,8 +138,11 @@ export async function generateStakeholderEmail(projectId: string) {
   const blockers = project.tasks.filter(t => t.status === "BLOCKED").map(t => t.title);
   const done = project.tasks.filter(t => t.status === "DONE").length;
   const healthScore = project.tasks.length > 0 ? Math.round((done / project.tasks.length) * 100) : 0;
-  return generateJson(stakeholderEmailPrompt(
-    { name: project.name, targetDate: project.targetDate?.toISOString().split("T")[0] ?? null },
-    completedThisWeek, inProgress, blockers, healthScore,
-  ));
+  return runJson({ memberId }, "medium", {
+    prompt: stakeholderEmailPrompt(
+      { name: project.name, targetDate: project.targetDate?.toISOString().split("T")[0] ?? null },
+      completedThisWeek, inProgress, blockers, healthScore,
+    ),
+    json: true,
+  });
 }

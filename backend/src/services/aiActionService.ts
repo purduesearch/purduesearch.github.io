@@ -2,7 +2,7 @@ import { prisma } from "../db/prisma.js";
 import type { Priority, TaskStatus } from "@prisma/client";
 import { buildProjectContext, type ProjectContext } from "./projectContextService.js";
 import { suggestActionsPrompt } from "../utils/aiPrompts.js";
-import { generateJsonComplex } from "./geminiService.js";
+import { runJson } from "./ai/aiRouter.js";
 import { getTaskPermissions } from "../middleware/taskAccess.js";
 import { logAuditEvent, diffObjects } from "./activityService.js";
 import { recomputeBlockedStatus } from "../api/blockers.js";
@@ -63,13 +63,20 @@ const VALID_PRIORITIES = new Set(["LOW", "MEDIUM", "HIGH", "CRITICAL"]);
 
 // ── Suggest ──────────────────────────────────────────────────────
 
-export async function suggestProjectActions(projectId: string, goal: string): Promise<ActionPlan | null> {
+/** `memberId` is optional so any future non-member caller keeps compiling and routes
+ *  to the built-in Gemini lane; the `/ai-suggest-actions` handler passes `req.memberId`
+ *  so a member who linked their own key spends that instead of the club-wide quota. */
+export async function suggestProjectActions(
+  projectId: string, goal: string, memberId?: string | null
+): Promise<ActionPlan | null> {
   const context = await buildProjectContext(projectId);
   if (!context) return null;
 
   const prompt = suggestActionsPrompt(goal, context);
   const cacheKey = `ai-plan:${projectId}:${goal}`;
-  const raw = await generateJsonComplex<{ actions?: unknown[] }>(prompt, cacheKey, { maxOutputTokens: 8192 });
+  const raw = await runJson<{ actions?: unknown[] }>({ memberId }, "high", {
+    prompt, json: true, cacheKey, maxOutputTokens: 8192,
+  });
   if (!raw) return [];
 
   return normalizeActionPlan(raw.actions, context);

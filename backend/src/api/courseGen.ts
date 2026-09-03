@@ -40,7 +40,7 @@ courseGenRouter.post("/", async (req: Request, res: Response) => {
     });
     // Fire and forget: the work outlives this request, and its only report
     // channel is the job row.
-    void gen.runOutline(job.id);
+    void gen.runOutline(job.id, req.memberId);
     res.status(202).json({ id: job.id });
   } catch (error) {
     console.error("POST /outreach/courses/generate error:", error);
@@ -98,7 +98,7 @@ courseGenRouter.post("/:jobId/run", async (req: Request, res: Response) => {
       where: { id: jobId },
       data: { status: "GENERATING", progress: 1, stepLabel: "Creating the course…", error: null },
     });
-    void gen.runGeneration(jobId);
+    void gen.runGeneration(jobId, req.memberId);
     res.status(202).json({ ok: true });
   } catch (error) {
     console.error("POST /outreach/courses/generate/:jobId/run error:", error);

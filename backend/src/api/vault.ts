@@ -1074,7 +1074,7 @@ vaultRouter.post("/projects/:projectId/vault/ask", async (req: Request, res: Res
       return;
     }
 
-    const answer = await askVault(projectId, question.trim());
+    const answer = await askVault(projectId, question.trim(), req.memberId);
     if (answer === null) {
       res.status(404).json({ error: "Project not found" });
       return;
@@ -1100,7 +1100,9 @@ vaultRouter.post("/projects/:projectId/vault/check-duplicates", async (req: Requ
       return;
     }
 
-    const candidates = await findDuplicateCandidates(projectId, fileName.trim(), name ?? null);
+    const candidates = await findDuplicateCandidates(
+      projectId, fileName.trim(), name ?? null, req.memberId
+    );
     res.json({ candidates });
   } catch (error) {
     console.error("Vault check-duplicates error:", error);

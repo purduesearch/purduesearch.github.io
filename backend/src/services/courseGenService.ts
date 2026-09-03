@@ -1,5 +1,5 @@
 import { prisma } from "../db/prisma.js";
-import { generateJsonComplex, todayContext } from "./geminiService.js";
+import { runJson, todayContext } from "./ai/aiRouter.js";
 import { validateCoursePlan, planSectionCount } from "./coursePlan.js";
 import { docToPlainText } from "./blogAiService.js";
 import * as courseService from "./courseService.js";
@@ -49,7 +49,10 @@ export async function startOutline(input: {
  * author approves. Never throws — a failure is recorded on the row, because the
  * caller is a fire-and-forget `void` and has nowhere to report to.
  */
-export async function runOutline(jobId: string): Promise<void> {
+// `memberId` is the author who started the job, threaded from the route handler so
+// the generation spends their own linked key rather than the club-wide Gemini quota.
+// Optional: omitted, the whole job routes to the built-in lane.
+export async function runOutline(jobId: string, memberId?: string | null): Promise<void> {
   try {
     const job = await prisma.courseGenJob.findUnique({ where: { id: jobId } });
     if (!job || job.status !== "OUTLINING") return;
@@ -96,7 +99,7 @@ Rules:
   partnerships, or club history.
 - Avoid filler adjectives ("cutting-edge", "comprehensive", "exciting").`;
 
-    const raw = await generateJsonComplex<unknown>(prompt, undefined, { maxOutputTokens: 8192 });
+    const raw = await runJson<unknown>({ memberId }, "high", { prompt, json: true, maxOutputTokens: 8192 });
     const plan = validateCoursePlan(raw);
 
     if (!plan.modules.length || planSectionCount(plan) === 0) {
@@ -188,6 +191,8 @@ interface SectionContext {
   courseTitle: string;
   moduleTitle: string;
   reference: string;
+  /** The author who approved the outline; null for any keyless caller. */
+  memberId?: string | null;
 }
 
 /** CONTENT — the blog generator pointed at a section brief. */
@@ -212,7 +217,7 @@ Compose the section:
 
 ${BLOG_PLAN_RULES}`;
 
-  const raw = await generateJsonComplex<unknown>(prompt, undefined, { maxOutputTokens: 8192 });
+  const raw = await runJson<unknown>({ memberId: ctx.memberId }, "high", { prompt, json: true, maxOutputTokens: 8192 });
   const plan = raw ? validateSectionPlan(raw) : { sections: [] };
   // Never leave a section empty: an author would rather edit thin prose than
   // stare at a blank editor wondering whether generation ran.
@@ -240,8 +245,8 @@ Return ONLY a JSON object: { "slides": [{ "title": string, "bullets": string[], 
 - "notes" is what the presenter says for that slide: 2-3 sentences.
 - Ground everything in the brief and reference. Do NOT invent facts or numbers.`;
 
-  const raw = await generateJsonComplex<{ slides?: { title?: string; bullets?: string[]; notes?: string }[] }>(
-    prompt, undefined, { maxOutputTokens: 8192 }
+  const raw = await runJson<{ slides?: { title?: string; bullets?: string[]; notes?: string }[] }>(
+    { memberId: ctx.memberId }, "high", { prompt, json: true, maxOutputTokens: 8192 }
   );
   const slides = Array.isArray(raw?.slides) ? raw!.slides!.slice(0, 60) : [];
   if (!slides.length) return markdownToTiptapJson(`## ${sec.title}\n\n${sec.brief}`);
@@ -294,8 +299,8 @@ Rules:
 - Wrong options must be plausible, not filler. No "none of the above".
 - points is 1 unless a question is genuinely harder, then 2.`;
 
-  const raw = await generateJsonComplex<{ questions?: unknown[] }>(
-    prompt, undefined, { maxOutputTokens: 8192 }
+  const raw = await runJson<{ questions?: unknown[] }>(
+    { memberId: ctx.memberId }, "high", { prompt, json: true, maxOutputTokens: 8192 }
   );
   const rows = Array.isArray(raw?.questions) ? raw!.questions! : [];
 
@@ -342,7 +347,7 @@ Rules:
  *
  * Never throws — it is invoked as fire-and-forget and records failure on the row.
  */
-export async function runGeneration(jobId: string): Promise<void> {
+export async function runGeneration(jobId: string, memberId?: string | null): Promise<void> {
   let calls = 0;
   try {
     const job = await prisma.courseGenJob.findUnique({ where: { id: jobId } });
@@ -415,7 +420,7 @@ export async function runGeneration(jobId: string): Promise<void> {
         });
 
         const ctx: SectionContext = {
-          courseTitle: plan.title, moduleTitle: planModule.title, reference,
+          courseTitle: plan.title, moduleTitle: planModule.title, reference, memberId,
         };
 
         if (planSection.kind === "CONTENT") {

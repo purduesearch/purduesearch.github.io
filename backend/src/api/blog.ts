@@ -118,6 +118,8 @@ blogRouter.post("/posts/generate", async (req: Request, res: Response) => {
       text.trim(),
       title?.trim() || undefined,
       guidance?.trim() || undefined,
+      "blog",
+      req.memberId,
     );
     const doc = buildDocFromPlan(plan);
     const heroHeading = plan.sections.find((s) => s.type === "hero")?.heading?.trim();
@@ -157,6 +159,7 @@ blogRouter.post("/posts/generate-doc", async (req: Request, res: Response) => {
       title?.trim() || undefined,
       guidance?.trim() || undefined,
       kind === "lesson" ? "lesson" : "blog",
+      req.memberId,
     );
     const doc = buildDocFromPlan(plan);
     const heroHeading = plan.sections.find((s) => s.type === "hero")?.heading?.trim();

@@ -325,7 +325,7 @@ export async function gatherPressKitData(projectId: string): Promise<PressKitCon
 // ── Full generation: data + AI + markdown -> TipTap JSON ─────
 
 export async function generatePressKitContent(
-  projectId: string, config: PressKitConfig,
+  projectId: string, config: PressKitConfig, memberId?: string | null,
 ): Promise<PMDoc | null> {
   const ctx = await gatherPressKitData(projectId);
   if (!ctx) return null;
@@ -367,7 +367,7 @@ export async function generatePressKitContent(
     contactEmail: config.contactEmail,
   };
 
-  const plan = (await generatePressKitPlan(input, config.audience)) ?? fallbackPressKitPlan(ctx, config);
+  const plan = (await generatePressKitPlan(input, config.audience, memberId)) ?? fallbackPressKitPlan(ctx, config);
   return buildDocFromPlan(plan, planData);
 }
 

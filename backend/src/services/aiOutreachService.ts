@@ -1,10 +1,7 @@
 import { createHash } from "node:crypto";
-import {
-  generateJson,
-  generateText,
-  generateJsonComplex,
-  todayContext,
-} from "./geminiService.js";
+// Every call in this module goes through aiRouter: the reasoning-class ones at tier
+// "high", the copywriting ones at tier "medium" (the old standard lane).
+import { runJson, runText, todayContext } from "./ai/aiRouter.js";
 import { validateSectionPlan, type SectionPlan } from "./sectionPlan.js";
 
 // ── Safety / brand-compliance check ──────────────────────────
@@ -34,7 +31,11 @@ export interface SafetyReport {
 export async function checkSafety(
   content: string,
   platformContent?: Record<string, { caption?: string }> | null,
-  brandVoice?: { name?: string; description?: string } | null
+  brandVoice?: { name?: string; description?: string } | null,
+  // Optional throughout this module: the hourly outreach auto-publish cron passes
+  // nothing and stays on the built-in Gemini lane, since it has no member whose
+  // key could be spent and no consent to rely on.
+  memberId?: string | null
 ): Promise<SafetyReport> {
   if (!content?.trim()) return { safe: true, issues: [] };
 
@@ -77,7 +78,9 @@ Respond with ONLY a valid JSON object (no markdown):
 "safe" should be false if there are any BLOCK-severity issues, true otherwise. Issues array can be empty.`;
 
   const hash   = createHash("sha1").update(content + (platformBlock ?? "") + (voiceBlock ?? "")).digest("hex");
-  const result = await generateJsonComplex<SafetyReport>(prompt, `safety:${hash}`);
+  const result = await runJson<SafetyReport>({ memberId }, "high", {
+    prompt, json: true, cacheKey: `safety:${hash}`,
+  });
   if (!result || typeof result.safe !== "boolean" || !Array.isArray(result.issues)) {
     return { safe: true, issues: [] };
   }
@@ -126,7 +129,8 @@ export const BLOG_PLAN_RULES = `Rules:
 export async function expandToBlog(
   title:       string,
   content:     string,
-  projectName?: string
+  projectName?: string,
+  memberId?: string | null
 ): Promise<SectionPlan> {
   const context = projectName ? `\nProject: ${projectName}` : "";
   const prompt  = `You are a content writer for Purdue SEARCH, a university engineering club.
@@ -148,7 +152,7 @@ Compose the article:
 
 ${BLOG_PLAN_RULES}`;
 
-  const raw  = await generateJsonComplex<unknown>(prompt, undefined, { maxOutputTokens: 8192 });
+  const raw  = await runJson<unknown>({ memberId }, "high", { prompt, json: true, maxOutputTokens: 8192 });
   const plan = raw ? validateSectionPlan(raw) : { sections: [] };
   if (plan.sections.length) return plan;
 
@@ -173,7 +177,8 @@ export async function generateBlogFromText(
   guidance?:  string,
   // "lesson" retargets the same pipeline at a course section body: no hero, no
   // social CTA, and a teaching structure instead of an announcement one.
-  kind: "blog" | "lesson" = "blog"
+  kind: "blog" | "lesson" = "blog",
+  memberId?: string | null
 ): Promise<SectionPlan> {
   const lesson = kind === "lesson";
   const titleLine = lesson
@@ -217,7 +222,7 @@ ${composition}
 
 ${BLOG_PLAN_RULES}`;
 
-  const raw  = await generateJsonComplex<unknown>(prompt, undefined, { maxOutputTokens: 8192 });
+  const raw  = await runJson<unknown>({ memberId }, "high", { prompt, json: true, maxOutputTokens: 8192 });
   const plan = raw ? validateSectionPlan(raw) : { sections: [] };
   if (plan.sections.length) return plan;
 
@@ -250,7 +255,8 @@ export interface VideoScript {
 export async function generateVideoScript(
   topic:       string,
   durationSec: number = 30,
-  platform:    string = "instagram"
+  platform:    string = "instagram",
+  memberId?: string | null
 ): Promise<VideoScript> {
   const prompt = `You are a producer creating short-form video content for Purdue SEARCH, a university engineering club.
 ${todayContext()}
@@ -277,7 +283,7 @@ Respond with ONLY a valid JSON object (no markdown):
   "caption": "..."
 }`;
 
-  const result = await generateJsonComplex<VideoScript>(prompt);
+  const result = await runJson<VideoScript>({ memberId }, "high", { prompt, json: true });
   if (!result || !Array.isArray(result.shots) || result.shots.length === 0) {
     return { shots: [], caption: "" };
   }
@@ -299,7 +305,8 @@ export async function generateCaptionVariants(
   brief:           string,
   platform:        string = "general",
   voiceName?:      string,
-  existingContent?: string
+  existingContent?: string,
+  memberId?: string | null
 ): Promise<string[]> {
   const voiceInstruction = voiceName
     ? `Write in a "${voiceName}" brand voice.`
@@ -320,9 +327,9 @@ Each variant should be suitable for ${platform} and feel fresh and engaging.
 Respond with ONLY a valid JSON array of 3 strings, no markdown, no explanation:
 ["variant 1", "variant 2", "variant 3"]`;
 
-  const result = await generateJson<string[]>(prompt);
+  const result = await runJson<string[]>({ memberId }, "medium", { prompt, json: true });
   if (!result || !Array.isArray(result) || result.length === 0) {
-    throw new Error("[aiOutreachService] generateCaptionVariants: Gemini returned null or invalid response");
+    throw new Error("[aiOutreachService] generateCaptionVariants: model returned null or invalid response");
   }
   const variants = result.slice(0, 3).map(String);
   while (variants.length < 3) variants.push(variants[0] ?? "");
@@ -333,7 +340,8 @@ Respond with ONLY a valid JSON array of 3 strings, no markdown, no explanation:
 
 export async function suggestHashtags(
   content:     string,
-  topExisting: string[]
+  topExisting: string[],
+  memberId?: string | null
 ): Promise<string[]> {
   const existingList = topExisting.length > 0
     ? `\nFrequently used hashtags in our community (prefer these when relevant): ${topExisting.join(", ")}`
@@ -350,9 +358,9 @@ ${content}
 Respond with ONLY a valid JSON array of up to 10 hashtag strings (without the # symbol), no markdown, no explanation:
 ["tag1", "tag2", "tag3"]`;
 
-  const result = await generateJson<string[]>(prompt);
+  const result = await runJson<string[]>({ memberId }, "medium", { prompt, json: true });
   if (!result || !Array.isArray(result)) {
-    throw new Error("[aiOutreachService] suggestHashtags: Gemini returned null or invalid response");
+    throw new Error("[aiOutreachService] suggestHashtags: model returned null or invalid response");
   }
   return result.slice(0, 10).map(t => t.replace(/^#/, "").trim()).filter(Boolean);
 }
@@ -375,7 +383,8 @@ export async function generateEmailTemplate(
   organization:  string | undefined,
   contactType:   string,
   intent:        string,
-  campaignName?: string
+  campaignName?: string,
+  memberId?: string | null
 ): Promise<string> {
   const orgLine  = organization ? ` at ${organization}` : "";
   const campLine = campaignName ? ` as part of our "${campaignName}" initiative` : "";
@@ -388,8 +397,8 @@ Keep the email to 3-4 short paragraphs. Include a clear call-to-action.
 Sign off as "The Purdue SEARCH Team".
 Return ONLY the plain-text email body — no subject line, no markdown.`;
 
-  const result = await generateText(prompt);
-  if (!result) throw new Error("[aiOutreachService] generateEmailTemplate: Gemini returned empty response");
+  const result = await runText({ memberId }, "medium", { prompt, json: false });
+  if (!result) throw new Error("[aiOutreachService] generateEmailTemplate: model returned empty response");
   return result;
 }
 
@@ -408,7 +417,8 @@ export async function generateCalendarAutofill(
   from:       Date,
   to:         Date,
   events:     { title: string; startTime: string | null; type: string }[],
-  milestones: { title: string; projectName: string | null; completedAt: string | null }[]
+  milestones: { title: string; projectName: string | null; completedAt: string | null }[],
+  memberId?: string | null
 ): Promise<AutoFillDraft[]> {
   if (events.length === 0 && milestones.length === 0) return [];
 
@@ -457,7 +467,7 @@ Respond with ONLY a valid JSON array, no markdown:
   }
 ]`;
 
-  const result = await generateJsonComplex<AutoFillDraft[]>(prompt);
+  const result = await runJson<AutoFillDraft[]>({ memberId }, "high", { prompt, json: true });
   if (!result || !Array.isArray(result)) return [];
   return result.filter(d => d.title && d.content && d.scheduledAt);
 }
@@ -473,7 +483,8 @@ interface GapItem {
 
 export async function generateGapAnalysis(
   events:     { title: string; startTime: string | null; type: string }[],
-  milestones: { title: string; projectName: string | null; completedAt: string | null }[]
+  milestones: { title: string; projectName: string | null; completedAt: string | null }[],
+  memberId?: string | null
 ): Promise<GapItem[]> {
   if (events.length === 0 && milestones.length === 0) return [];
 
@@ -511,7 +522,7 @@ Return ONLY a valid JSON array (no markdown) of up to 8 items, each with:
 
 [{"title":"...","reason":"...","priority":"HIGH","suggestedType":"EVENT_PROMO"}]`;
 
-  const result = await generateJson<GapItem[]>(prompt);
+  const result = await runJson<GapItem[]>({ memberId }, "medium", { prompt, json: true });
   if (!result || !Array.isArray(result)) return [];
   return result.slice(0, 8).filter(g => g.title && g.reason);
 }
@@ -521,7 +532,8 @@ Return ONLY a valid JSON array (no markdown) of up to 8 items, each with:
 export async function generateWeeklyDigest(
   published:  { title: string; type: string; platforms: string[] }[],
   metrics:    { platform: string; impressions: number; likes: number; comments: number; shares: number }[],
-  crmFunnel:  Record<string, number>
+  crmFunnel:  Record<string, number>,
+  memberId?: string | null
 ): Promise<string> {
   const pubList = published.length > 0
     ? published.map(p => `- "${p.title}" (${p.type}) on ${p.platforms.join(", ")}`).join("\n")
@@ -553,7 +565,7 @@ ${funnelStr}
 
 Return only the digest narrative — no headers, no bullet points, plain paragraphs.`;
 
-  const result = await generateText(prompt);
+  const result = await runText({ memberId }, "medium", { prompt, json: false });
   if (!result) throw new Error("[aiOutreachService] generateWeeklyDigest: empty response");
   return result;
 }
@@ -564,7 +576,8 @@ export async function generateMemberSpotlight(
   displayName:       string,
   title:             string | undefined,
   bio:               string | undefined,
-  recentMilestones:  string[]
+  recentMilestones:  string[],
+  memberId?: string | null
 ): Promise<string> {
   const milestonesBlock = recentMilestones.length > 0
     ? `\nRecent contributions:\n${recentMilestones.map(m => `- ${m}`).join("\n")}`
@@ -582,7 +595,7 @@ The post should:
 
 Return only the post text — no extra commentary.`;
 
-  const result = await generateText(prompt);
+  const result = await runText({ memberId }, "medium", { prompt, json: false });
   if (!result) throw new Error("[aiOutreachService] generateMemberSpotlight: empty response");
   return result;
 }
@@ -598,7 +611,8 @@ interface SyndicationPost {
 export async function generateSyndicationPosts(
   milestoneTitle:       string,
   projectName:          string | undefined,
-  milestoneDescription: string | undefined
+  milestoneDescription: string | undefined,
+  memberId?: string | null
 ): Promise<SyndicationPost[]> {
   const context = [
     projectName          ? `Project: ${projectName}` : "",
@@ -626,7 +640,7 @@ Respond with ONLY a valid JSON array (no markdown):
   }
 ]`;
 
-  const result = await generateJson<SyndicationPost[]>(prompt);
+  const result = await runJson<SyndicationPost[]>({ memberId }, "medium", { prompt, json: true });
   if (!result || !Array.isArray(result)) return [];
   return result.slice(0, 3).filter(p => p.audience && p.caption);
 }
@@ -636,7 +650,8 @@ Respond with ONLY a valid JSON array (no markdown):
 export async function rewriteInVoice(
   content:       string,
   voiceName:     string,
-  voiceExamples: string[]
+  voiceExamples: string[],
+  memberId?: string | null
 ): Promise<string> {
   const examplesBlock = voiceExamples.length > 0
     ? `\nExamples of the "${voiceName}" voice:\n${voiceExamples.map((e, i) => `${i + 1}. ${e}`).join("\n")}`
@@ -650,7 +665,7 @@ Maintain the original meaning and key information. Return only the rewritten tex
 Content to rewrite:
 ${content}`;
 
-  const result = await generateText(prompt);
-  if (!result) throw new Error("[aiOutreachService] rewriteInVoice: Gemini returned empty response");
+  const result = await runText({ memberId }, "medium", { prompt, json: false });
+  if (!result) throw new Error("[aiOutreachService] rewriteInVoice: model returned empty response");
   return result;
 }

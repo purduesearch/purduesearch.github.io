@@ -84,7 +84,9 @@ export function sanitizeLitConfig(raw: unknown): LearnerLitConfig | null {
  */
 export async function gradeSubmission(
   config: unknown,
-  submission: string
+  submission: string,
+  /** The submitting learner, whose linked AI key (if any) grading runs on. */
+  memberId?: string | null
 ): Promise<RubricFeedback | null> {
   const c = (config ?? {}) as Partial<LitConfig>;
   return gradeAgainstRubric({
@@ -94,5 +96,6 @@ export async function gradeSubmission(
     referenceText: typeof c.referenceSummary === "string" ? c.referenceSummary : "",
     rubric: normalizeRubric(c.rubric),
     submission,
+    memberId,
   });
 }

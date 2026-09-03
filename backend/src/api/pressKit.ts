@@ -105,7 +105,7 @@ pressKitRouter.post("/projects/:projectId/press-kit/generate", async (req: Reque
     const kit = await getOrCreateKit(projectId, req.memberId!);
     const config = normalizePressKitConfig({ ...normalizePressKitConfig(kit.config), ...(req.body ?? {}) });
 
-    const doc = await generatePressKitContent(projectId, config);
+    const doc = await generatePressKitContent(projectId, config, req.memberId);
     if (!doc) { res.status(404).json({ error: "Project not found" }); return; }
 
     // Snapshot the prior doc before overwriting (only after we know we have a new one).

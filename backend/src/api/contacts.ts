@@ -346,7 +346,8 @@ contactsRouter.post("/:id/email-template", async (req: Request, res: Response) =
       contact.organization ?? undefined,
       contact.contactType,
       intent,
-      contact.campaign?.name
+      contact.campaign?.name,
+      req.memberId
     );
 
     const subjectMap: Record<string, string> = {

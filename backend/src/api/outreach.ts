@@ -5,6 +5,7 @@ import * as outreachService from "../services/outreachService.js";
 import * as aiOutreachService from "../services/aiOutreachService.js";
 import * as utmService from "../services/utmService.js";
 import { queueDm } from "../services/dmBatcher.js";
+import { runJson } from "../services/ai/aiRouter.js";
 import type { SubmissionStatus, SubmissionType } from "@prisma/client";
 
 export const outreachRouter = Router();
@@ -468,7 +469,9 @@ outreachRouter.post("/submissions/:id/ai/draft", async (req: Request, res: Respo
     const variants = await aiOutreachService.generateCaptionVariants(
       brief,
       platform,
-      voiceName
+      voiceName,
+      undefined,
+      req.memberId
     );
     res.json({ variants });
   } catch (error) {
@@ -490,7 +493,7 @@ outreachRouter.post("/submissions/:id/ai/hashtags", async (req: Request, res: Re
     const topTags = topHashtagStats.slice(0, 20).map((h) => h.tag);
 
     const content = submission.content ?? submission.title;
-    const hashtags = await aiOutreachService.suggestHashtags(content, topTags);
+    const hashtags = await aiOutreachService.suggestHashtags(content, topTags, req.memberId);
     res.json({ hashtags });
   } catch (error) {
     console.error("POST /submissions/:id/ai/hashtags error:", error);
@@ -542,7 +545,8 @@ outreachRouter.post("/submissions/:id/ai/voice", async (req: Request, res: Respo
     const rewritten = await aiOutreachService.rewriteInVoice(
       content,
       brandVoice.name,
-      brandVoice.examples
+      brandVoice.examples,
+      req.memberId
     );
     res.json({ content: rewritten });
   } catch (error) {
@@ -565,7 +569,9 @@ outreachRouter.post("/ai/draft", async (req: Request, res: Response) => {
       res.status(400).json({ error: "content is required" });
       return;
     }
-    const variants = await aiOutreachService.generateCaptionVariants(content, platform, voiceName);
+    const variants = await aiOutreachService.generateCaptionVariants(
+      content, platform, voiceName, undefined, req.memberId
+    );
     res.json({ variants });
   } catch (error) {
     console.error("POST /ai/draft error:", error);
@@ -583,7 +589,7 @@ outreachRouter.post("/ai/hashtags", async (req: Request, res: Response) => {
     }
     const topHashtagStats = await outreachService.listHashtags();
     const topTags = topHashtagStats.slice(0, 20).map((h) => h.tag);
-    const hashtags = await aiOutreachService.suggestHashtags(content, topTags);
+    const hashtags = await aiOutreachService.suggestHashtags(content, topTags, req.memberId);
     res.json({ hashtags });
   } catch (error) {
     console.error("POST /ai/hashtags error:", error);
@@ -604,7 +610,9 @@ outreachRouter.post("/ai/voice", async (req: Request, res: Response) => {
       res.status(404).json({ error: `Brand voice "${voiceName}" not found` });
       return;
     }
-    const rewritten = await aiOutreachService.rewriteInVoice(content, brandVoice.name, brandVoice.examples);
+    const rewritten = await aiOutreachService.rewriteInVoice(
+      content, brandVoice.name, brandVoice.examples, req.memberId
+    );
     res.json({ content: rewritten });
   } catch (error) {
     console.error("POST /ai/voice error:", error);
@@ -648,6 +656,7 @@ outreachRouter.post("/ai/calendar-autofill", async (req: Request, res: Response)
       toDate,
       events.map(e => ({ title: e.title, startTime: e.startTime?.toISOString() ?? null, type: e.type })),
       recentMilestones.map(m => ({ title: m.title, projectName: m.project?.name ?? null, completedAt: m.completedAt?.toISOString() ?? null })),
+      req.memberId,
     );
 
     res.json({ drafts });
@@ -826,7 +835,10 @@ outreachRouter.post("/ai/spotlight", async (req: Request, res: Response) => {
       member.displayName,
       member.title ?? undefined,
       member.bio   ?? undefined,
-      milestones.map(m => m.title)
+      milestones.map(m => m.title),
+      // The requester's key, not the spotlight subject's — `memberId` above is the
+      // member being written about, who never asked for this call.
+      req.memberId
     );
 
     res.json({ draft, member: { displayName: member.displayName, title: member.title } });
@@ -858,7 +870,8 @@ outreachRouter.post("/ai/syndicate", async (req: Request, res: Response) => {
     const posts = await aiOutreachService.generateSyndicationPosts(
       milestone.title,
       milestone.project?.name ?? undefined,
-      milestone.description  ?? undefined
+      milestone.description  ?? undefined,
+      req.memberId
     );
 
     res.json({ posts, milestone: { title: milestone.title, projectName: milestone.project?.name } });
@@ -1077,7 +1090,8 @@ outreachRouter.post("/submissions/:id/ai/expand-blog", async (req: Request, res:
     const plan = await aiOutreachService.expandToBlog(
       submission.title,
       submission.content,
-      submission.project?.name ?? undefined
+      submission.project?.name ?? undefined,
+      req.memberId
     );
 
     // Build a designed, section-based document from the plan. The submission keeps
@@ -1140,7 +1154,8 @@ outreachRouter.post("/ai/video-script", async (req: Request, res: Response) => {
     const script = await aiOutreachService.generateVideoScript(
       topic.trim(),
       durationSec ?? 30,
-      platform ?? "instagram"
+      platform ?? "instagram",
+      req.memberId
     );
 
     // Optionally persist to a submission
@@ -1444,7 +1459,8 @@ outreachRouter.post("/submissions/:id/ai/safety-check", async (req: Request, res
     const report = await aiOutreachService.checkSafety(
       submission.content,
       submission.platformContent as Record<string, { caption?: string }> | null,
-      defaultVoice
+      defaultVoice,
+      req.memberId
     );
 
     const updated = await prisma.outreachSubmission.update({
@@ -1699,8 +1715,6 @@ outreachRouter.post("/newsletters/generate", async (req: Request, res: Response)
       extraContent?: string;
     };
 
-    const { generateJson } = await import("../services/geminiService.js");
-
     const prompt = `You are a newsletter writer for Purdue SEARCH, a university engineering club.
 Generate a well-formatted HTML newsletter from the provided meeting notes.
 
@@ -1718,7 +1732,9 @@ ${(meetingTemplate ?? "").slice(0, 4000)}
 
 ${extraContent ? `Additional context:\n${extraContent.slice(0, 2000)}` : ""}`;
 
-    const result = await generateJson<{ subject: string; html: string }>(prompt);
+    const result = await runJson<{ subject: string; html: string }>(
+      { memberId: req.memberId }, "medium", { prompt, json: true }
+    );
     if (!result?.subject || !result?.html) {
       res.status(500).json({ error: "Failed to generate newsletter content" });
       return;
@@ -1756,8 +1772,6 @@ outreachRouter.post("/newsletters/parse-document", async (req: Request, res: Res
       return;
     }
 
-    const { generateJson } = await import("../services/geminiService.js");
-
     const prompt = `Parse the following document into structured sections for a newsletter.
 Return ONLY valid JSON: { "sections": [{ "heading": "...", "bullets": ["..."] }], "highlights": ["..."] }
 "highlights" should be 2-3 key takeaways as short strings.
@@ -1765,10 +1779,10 @@ Return ONLY valid JSON: { "sections": [{ "heading": "...", "bullets": ["..."] }]
 Document:
 ${text.slice(0, 6000)}`;
 
-    const result = await generateJson<{
+    const result = await runJson<{
       sections: Array<{ heading: string; bullets: string[] }>;
       highlights: string[];
-    }>(prompt);
+    }>({ memberId: req.memberId }, "medium", { prompt, json: true });
 
     if (!result) {
       res.status(500).json({ error: "Failed to parse document" });

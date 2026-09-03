@@ -146,7 +146,7 @@ changeRequestsRouter.post("/change-requests/:id/reject", requireAdmin, async (re
 
 changeRequestsRouter.post("/change-requests/:id/ai-release-notes", async (req: Request, res: Response) => {
   try {
-    const draft = await draftCrReleaseNotes(req.params.id as string);
+    const draft = await draftCrReleaseNotes(req.params.id as string, req.memberId);
     if (draft === null) {
       res.status(404).json({ error: "Change request not found" });
       return;
@@ -163,7 +163,7 @@ changeRequestsRouter.post("/change-requests/:id/ai-release-notes", async (req: R
 
 changeRequestsRouter.post("/change-requests/:id/ai-impact", async (req: Request, res: Response) => {
   try {
-    const summary = await summarizeCrImpact(req.params.id as string);
+    const summary = await summarizeCrImpact(req.params.id as string, req.memberId);
     if (summary === null) {
       res.status(404).json({ error: "Change request not found" });
       return;

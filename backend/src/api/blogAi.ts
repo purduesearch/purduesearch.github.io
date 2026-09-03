@@ -65,7 +65,7 @@ blogAiRouter.post("/ai/ask", async (req: Request, res: Response) => {
       res.status(400).json({ error: "question is required" });
       return;
     }
-    const answer = await ai.askAboutDoc({ title: ctx.title, doc: ctx.doc, question });
+    const answer = await ai.askAboutDoc({ title: ctx.title, doc: ctx.doc, question, memberId: req.memberId });
     res.json({ answer });
   } catch (err) { handleErr(res, err, "ask"); }
 });
@@ -90,6 +90,7 @@ blogAiRouter.post("/ai/edit", async (req: Request, res: Response) => {
     const edits = await ai.suggestEdits({
       title: ctx.title, doc: ctx.doc, instruction, scope,
       selection: typeof selection === "string" ? selection : undefined,
+      memberId: req.memberId,
     });
     res.json({ edits });
   } catch (err) { handleErr(res, err, "edit"); }
@@ -105,7 +106,7 @@ blogAiRouter.post("/ai/complete", async (req: Request, res: Response) => {
       return;
     }
     // Only the tail matters, and a short prompt is what keeps this lane cheap.
-    const completion = await ai.completeText({ title: ctx.title, before: before.slice(-1500) });
+    const completion = await ai.completeText({ title: ctx.title, before: before.slice(-1500), memberId: req.memberId });
     res.json({ completion });
   } catch (err) { handleErr(res, err, "complete"); }
 });
