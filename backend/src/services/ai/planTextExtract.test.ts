@@ -2,6 +2,8 @@
 // Run: cd backend && npx tsx src/services/ai/planTextExtract.test.ts
 
 import { extractJsonBlock, parsePastedPlan } from "./planTextExtract.js";
+import { normalizeActionPlan, type DroppedAction } from "../aiActionService.js";
+import type { ProjectContext } from "../projectContextService.js";
 
 let passed = 0, failed = 0;
 function check(name: string, cond: boolean) {
@@ -67,6 +69,40 @@ console.log("parsePastedPlan — accept every shape a chat model actually return
   check("empty actions is an empty array, not null", (parsePastedPlan('{"actions":[]}') ?? null)?.length === 0);
   check("valid JSON that is not a plan is null", parsePastedPlan('{"hello":"world"}') === null);
   check("unparseable is null", parsePastedPlan("nope") === null);
+}
+
+console.log("normalizeActionPlan — every dropped action reports why");
+{
+  const context = {
+    project: { id: "p1", name: "Test", description: null, type: "SOFTWARE", targetDate: null },
+    tasks: [{
+      id: "task-real", title: "Real task", description: null, status: "TODO",
+      priority: "MEDIUM", assignees: [], dueDate: null, milestoneTitle: null,
+      blockedByOpenDependencies: false, activeCategoryBlockers: [],
+      subtaskCounts: { total: 0, done: 0 },
+    }],
+    milestones: [],
+    members: [{ id: "member-real", displayName: "Ada", projectRole: "LEAD", openTaskCount: 0 }],
+    recentActivity: [],
+    activeBlockers: [],
+    truncated: false,
+  } as unknown as ProjectContext;
+
+  const dropped: DroppedAction[] = [];
+  const actions = normalizeActionPlan([
+    { type: "CREATE_TASK", params: { title: "Keep me" }, rationale: "ok" },
+    { type: "SET_STATUS", targetTaskId: "task-gone", params: { status: "DONE" }, rationale: "stale" },
+    { type: "NOT_A_TYPE", params: {}, rationale: "junk" },
+    { type: "ASSIGN", targetTaskId: "task-real", params: { assigneeIds: ["member-typo"] }, rationale: "typo" },
+  ], context, dropped);
+
+  check("valid action survives", actions.length === 2);
+  check("stale target is dropped", dropped.some(d => d.index === 1 && /no longer exists|not in this project/i.test(d.reason)));
+  check("unknown type is dropped", dropped.some(d => d.index === 2 && /type/i.test(d.reason)));
+  check("drop records its index", dropped.every(d => typeof d.index === "number"));
+  // An unknown member id is scrubbed from params rather than dropping the action —
+  // the card renders with an empty assignee list the member can fix by hand.
+  check("bad assignee id is scrubbed, not dropped", actions[1]!.params.assigneeIds.length === 0);
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);

@@ -24,7 +24,7 @@ import {
   driveToTasksPrompt, meetingNotesToTasksPrompt, projectContextPrompt,
 } from "../utils/aiPrompts.js";
 import { buildProjectContext } from "../services/projectContextService.js";
-import { suggestProjectActions, executeActionPlan, buildPlanPrompt, type ActionPlanAction } from "../services/aiActionService.js";
+import { suggestProjectActions, executeActionPlan, buildPlanPrompt, importActionPlan, type ActionPlanAction } from "../services/aiActionService.js";
 import {
   analyzeProjectRisks, generateSprintPlan, generateProjectBrief,
   inferTaskDependencies, analyzeTeamCapacity, generateStakeholderEmail,
@@ -821,6 +821,38 @@ projectsRouter.post("/:id/ai-plan-prompt", async (req: Request, res: Response) =
   } catch (error) {
     console.error("AI plan prompt error:", error);
     res.status(500).json({ error: "Failed to build plan prompt" });
+  }
+});
+
+// ── POST /api/projects/:id/ai-plan-import ────────────────────
+// Accepts a pasted chat reply. Validation is identical to the generated path —
+// and executeActionPlan re-checks permissions per action regardless — so a plan
+// from the clipboard is exactly as safe as one from the model.
+
+projectsRouter.post("/:id/ai-plan-import", async (req: Request, res: Response) => {
+  try {
+    const projectId = req.params.id as string;
+    const { raw } = req.body as { raw: string };
+
+    if (typeof raw !== "string" || !raw.trim()) {
+      res.status(400).json({ error: "raw is required" });
+      return;
+    }
+
+    const result = await importActionPlan(projectId, raw);
+    if (!result.ok) {
+      if (result.reason === "PROJECT_NOT_FOUND") {
+        res.status(404).json({ error: "Project not found" });
+        return;
+      }
+      res.status(400).json({ error: "No action plan JSON was found in that text. Paste the whole reply, including the ```json block." });
+      return;
+    }
+
+    res.json({ actions: result.actions, dropped: result.dropped });
+  } catch (error) {
+    console.error("AI plan import error:", error);
+    res.status(500).json({ error: "Failed to import action plan" });
   }
 });
 
