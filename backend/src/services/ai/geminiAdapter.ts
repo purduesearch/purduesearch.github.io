@@ -3,7 +3,7 @@
 // its 25/day complex-quota fallback, and its isModelUnusable degradation all keep
 // working exactly as before for every member who links nothing.
 
-import type { AiAdapter, AiCall, AiTier, AiModelInfo } from "./types.js";
+import type { AiAdapter, AiCall, AiTier } from "./types.js";
 import {
   generateJson,
   generateText,
@@ -17,7 +17,6 @@ import {
 const GEMINI_MAX_PROMPT_CHARS = 3_600_000;
 
 export const geminiAdapter: AiAdapter = {
-  provider: "GEMINI",
   maxPromptChars: GEMINI_MAX_PROMPT_CHARS,
 
   async run(call: AiCall, tier: AiTier): Promise<string> {
@@ -46,11 +45,5 @@ export const geminiAdapter: AiAdapter = {
       return parsed === null ? "" : JSON.stringify(parsed);
     }
     return generateText(call.prompt);
-  },
-
-  // The built-in provider is not model-selectable — its three models come from
-  // GEMINI_MODEL / GEMINI_COMPLEX_MODEL / GEMINI_FAST_MODEL, per lane.
-  async listModels(): Promise<AiModelInfo[]> {
-    return [];
   },
 };

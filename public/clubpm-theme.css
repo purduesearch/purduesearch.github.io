@@ -25037,87 +25037,259 @@ html.pm-dark-route { color-scheme: dark; }
   .cpm-training-strip-expiry { grid-column: auto; }
 }
 
-/* === AI Models (Profile → bring-your-own provider) ========== */
+/* === Action plan — clipboard planning lane ================== */
 
-.pm-ai-models-title {
-  font-family: var(--pm-font-display);
-  font-size: 1.15rem;
-  display: flex; align-items: center; gap: .5rem;
-  margin-top: 0;
-  margin-bottom: .35rem;
+/* Two traps are baked into the markup this block styles, both load-bearing:
+
+   1. `.clubpm-app p, .clubpm-app span { color: inherit !important }` (~line 969,
+      "Club PM Visual Fixes") means a `color` set on ANY <p> or <span> inside
+      ClubPM is a dead declaration — !important beats specificity, so there is no
+      selector that wins. Every element below that needs its own colour is a
+      <div>, <li>, <label>, or <code> for exactly that reason. Do not "tidy" one
+      back to a <p> or <span>: it will silently render inherited white.
+      (`.cpm-actionplan-hint` further up this file is a <p> and has been losing
+      its muted colour this way for as long as it has existed.)
+
+   2. Tokens here are the --clubpm-* aliases, matching the .cpm-actionplan-*
+      block further up. The short --pm- names that look right (--pm-text,
+      --pm-surface) are not declared anywhere; an undeclared custom property
+      resolves to nothing rather than erroring, so a typo there ships
+      transparent text on a transparent panel instead of a build failure. */
+
+.cpm-actionplan-mode-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
 }
-.pm-ai-models-intro {
-  color: var(--pm-text-muted);
-  font-size: .875rem;
-  max-width: 62ch;
-  margin-bottom: 1rem;
+.cpm-actionplan-mode-btn {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 9px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--clubpm-border);
+  background: var(--clubpm-surface-300);
+  color: var(--clubpm-text-secondary);
+  font-family: var(--pm-font-body);
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.cpm-actionplan-mode-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.cpm-actionplan-mode-sub {
+  font-size: 11px;
+  line-height: 1.35;
+  opacity: 0.8;
+}
+.cpm-actionplan-mode-btn:hover {
+  border-color: var(--clubpm-accent-green);
+  color: var(--clubpm-text-primary);
+}
+.cpm-actionplan-mode-btn.active {
+  background: color-mix(in srgb, var(--clubpm-accent-green) 14%, transparent);
+  border-color: var(--clubpm-accent-green);
+  color: var(--clubpm-accent-green);
+}
+.cpm-actionplan-mode-btn:focus-visible {
+  outline: 2px solid var(--clubpm-accent-green);
+  outline-offset: 2px;
 }
 
-.pm-ai-provider-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 1rem;
-  margin-bottom: 1.75rem;
-}
-.pm-ai-provider-card {
-  background: var(--pm-surface);
-  border: 1px solid var(--pm-border, rgba(255,255,255,.08));
-  border-radius: 12px;
-  padding: 1rem;
-}
-.pm-ai-provider-head {
-  display: flex; align-items: center; gap: .5rem;
-  margin-bottom: .25rem;
-}
-.pm-ai-provider-name { font-weight: 600; }
-.pm-ai-provider-hint {
-  color: var(--pm-text-muted);
-  font-size: .8rem;
-  margin-bottom: .75rem;
-}
-.pm-ai-badge {
-  margin-left: auto;
-  font-size: .7rem; text-transform: uppercase; letter-spacing: .04em;
-  padding: .15rem .5rem; border-radius: 999px;
-}
-.pm-ai-badge--active  { background: rgba(0,229,204,.15); color: var(--pm-accent-teal); }
-.pm-ai-badge--invalid { background: rgba(245,166,35,.15); color: var(--pm-accent-amber); }
+/* ── Clipboard steps ─────────────────────────────────────── */
 
-.pm-ai-provider-actions { display: flex; align-items: center; gap: .5rem; }
-.pm-ai-key-hint {
+.cpm-actionplan-manual {
+  margin-top: 12px;
+  padding: 14px;
+  border-radius: 10px;
+  background: var(--clubpm-surface-300);
+  border: 1px solid var(--clubpm-border);
+}
+.cpm-actionplan-manual-help {
+  display: flex;
+  gap: 8px;
+  margin: 0 0 14px;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--clubpm-text-secondary);
+}
+.cpm-actionplan-manual-help i {
+  flex: 0 0 auto;
+  margin-top: 2px;
+  color: var(--clubpm-accent-yellow);
+}
+
+.cpm-actionplan-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.cpm-actionplan-step {
+  position: relative;
+  display: flex;
+  gap: 12px;
+  padding-bottom: 16px;
+}
+.cpm-actionplan-step:last-child { padding-bottom: 0; }
+
+/* Hairline connecting the step numbers, so the three read as one procedure
+   rather than three unrelated panels. Stops at the last step. */
+.cpm-actionplan-step:not(:last-child)::before {
+  content: "";
+  position: absolute;
+  left: 11px;
+  top: 26px;
+  bottom: 4px;
+  width: 1px;
+  background: var(--clubpm-border);
+}
+.cpm-actionplan-step-num {
+  flex: 0 0 auto;
+  z-index: 1;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--clubpm-border);
+  background: var(--clubpm-surface-200);
+  color: var(--clubpm-text-secondary);
   font-family: var(--pm-font-mono);
-  font-size: .8rem;
-  color: var(--pm-text-muted);
-  margin-right: auto;
+  font-size: 11px;
+  line-height: 1;
 }
-.pm-ai-link-form { display: flex; flex-direction: column; gap: .5rem; }
-.pm-ai-consent {
-  font-size: .75rem;
-  color: var(--pm-text-muted);
-  line-height: 1.4;
+.cpm-actionplan-step-body {
+  flex: 1 1 auto;
+  min-width: 0;
 }
-
-.pm-ai-tiers-title {
+.cpm-actionplan-step-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.cpm-actionplan-step-title {
+  display: block;
   font-family: var(--pm-font-display);
-  font-size: 1rem;
-  margin-top: 0;
-  margin-bottom: .75rem;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  color: var(--clubpm-text-primary);
+  margin-bottom: 6px;
 }
-.pm-ai-tier-row {
-  display: flex; align-items: flex-start; gap: 1rem;
-  padding: .85rem 0;
-  border-top: 1px solid var(--pm-border, rgba(255,255,255,.08));
+.cpm-actionplan-step-head .cpm-actionplan-step-title { margin-bottom: 0; }
+.cpm-actionplan-step-note {
+  margin: 0 0 8px;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--clubpm-text-secondary);
 }
-.pm-ai-tier-meta { display: flex; flex-direction: column; flex: 1 1 auto; min-width: 0; }
-.pm-ai-tier-label { font-weight: 600; font-size: .9rem; }
-.pm-ai-tier-blurb { color: var(--pm-text-muted); font-size: .78rem; line-height: 1.4; }
-.pm-ai-tier-controls {
-  display: flex; gap: .5rem; flex: 0 0 auto; flex-wrap: wrap;
-  justify-content: flex-end;
+.cpm-actionplan-step-note i { margin-right: 4px; }
+.cpm-actionplan-step-note.is-stale { color: var(--clubpm-accent-yellow); }
+.cpm-actionplan-step-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
 }
-.pm-ai-tier-controls .cpm-form-input { min-width: 150px; }
+.cpm-actionplan-step-head .cpm-actionplan-step-actions { margin-top: 0; }
+/* The "Open Claude" affordance is an <a> so it opens a real tab; give it the
+   same box the sibling <button> gets. */
+.cpm-actionplan-step-actions a.clubpm-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  text-decoration: none;
+}
 
-@media (max-width: 640px) {
-  .pm-ai-tier-row { flex-direction: column; gap: .5rem; }
-  .pm-ai-tier-controls { justify-content: flex-start; }
+/* Steps 2 and 3 stay visible before the prompt exists — the shape of the flow
+   is the instruction — but read as not-yet-yours. */
+.cpm-actionplan-step.is-locked { opacity: 0.5; }
+
+.cpm-actionplan-prompt-box,
+.cpm-actionplan-paste-box {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px;
+  border-radius: 6px;
+  border: 1px solid var(--clubpm-border);
+  background: var(--clubpm-surface-100);
+  color: var(--clubpm-text-primary);
+  font-family: var(--pm-font-mono);
+  font-size: 11.5px;
+  line-height: 1.5;
+  resize: vertical;
+}
+.cpm-actionplan-prompt-box:focus-visible,
+.cpm-actionplan-paste-box:focus-visible {
+  outline: 2px solid var(--clubpm-accent-green);
+  outline-offset: -1px;
+}
+.cpm-actionplan-prompt-box { cursor: text; }
+.cpm-actionplan-prompt-box.is-stale {
+  border-color: var(--clubpm-accent-yellow);
+}
+.cpm-actionplan-paste-box:disabled {
+  cursor: not-allowed;
+}
+
+/* ── Skipped-action report ───────────────────────────────── */
+
+.cpm-actionplan-dropped {
+  margin-top: 14px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border-left: 3px solid var(--clubpm-accent-yellow);
+  background: color-mix(in srgb, var(--clubpm-accent-yellow) 9%, transparent);
+  font-size: 12px;
+}
+.cpm-actionplan-dropped-head {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  font-weight: 600;
+  color: var(--clubpm-text-primary);
+}
+.cpm-actionplan-dropped-head i { color: var(--clubpm-accent-yellow); }
+.cpm-actionplan-dropped ul {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.cpm-actionplan-dropped li {
+  display: flex;
+  gap: 8px;
+  padding: 3px 0;
+  line-height: 1.45;
+  color: var(--clubpm-text-secondary);
+}
+.cpm-actionplan-dropped-type {
+  flex: 0 0 auto;
+  font-family: var(--pm-font-mono);
+  font-size: 10.5px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--clubpm-surface-300);
+  color: var(--clubpm-text-primary);
+  white-space: nowrap;
+}
+
+@media (max-width: 560px) {
+  .cpm-actionplan-mode-row { flex-direction: column; }
+  .cpm-actionplan-dropped li { flex-direction: column; gap: 2px; }
+  .cpm-actionplan-dropped-type { align-self: flex-start; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cpm-actionplan-mode-btn { transition: none; }
 }

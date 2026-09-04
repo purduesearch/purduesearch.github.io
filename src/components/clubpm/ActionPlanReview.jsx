@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import toast from "react-hot-toast";
-import { suggestActions, executePlan } from "../../api/clubPmClient";
+import { suggestActions, executePlan, getAiPlanPrompt, importAiPlan } from "../../api/clubPmClient";
 
 const TYPE_LABELS = {
   CREATE_TASK: "Create Task",
@@ -56,11 +56,26 @@ function toDateInputValue(v) {
   return String(v).slice(0, 10);
 }
 
+// Where "Plan with Claude" sends people in step 2. A plain link, not an
+// integration — the whole point of this lane is that the club holds no key.
+const CLAUDE_URL = "https://claude.ai/new";
+
 export default function ActionPlanReview({ projectId, project, allMembers, projectBlockers, onExecuted }) {
   const [goal, setGoal] = useState("");
   const [suggesting, setSuggesting] = useState(false);
   const [planItems, setPlanItems] = useState(null); // null = no plan generated yet
   const [executing, setExecuting] = useState(false);
+  const [manualMode, setManualMode] = useState(false);
+  const [promptText, setPromptText] = useState("");
+  // The goal the current promptText was built from. Without this, editing the
+  // goal after building leaves a prompt for the OLD goal sitting under a "copy
+  // this" heading — the user pastes it and gets a plan for something else.
+  const [promptGoal, setPromptGoal] = useState("");
+  const [pasteText, setPasteText] = useState("");
+  const [loadingPrompt, setLoadingPrompt] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [droppedNotes, setDroppedNotes] = useState([]);
 
   const members = useMemo(() => {
     const src = allMembers?.length ? allMembers : (project?.members || []);
@@ -73,21 +88,99 @@ export default function ActionPlanReview({ projectId, project, allMembers, proje
 
   const taskTitleById = useMemo(() => new Map(tasks.map(t => [t.id, t.title])), [tasks]);
 
+  // Both the generated and pasted paths produce the same card list — keep one
+  // adapter so the two never drift in shape.
+  function toPlanItems(actions) {
+    return (actions || []).map((a, i) => ({
+      type: a.type,
+      targetTaskId: a.targetTaskId ?? null,
+      params: { ...(a.params || {}) },
+      rationale: a.rationale || "",
+      _id: `${Date.now()}-${i}`,
+      _accepted: true,
+      _result: null,
+    }));
+  }
+
+  // Switching lanes clears the other lane's output. Leaving a built-in plan on
+  // screen under the clipboard steps (or vice versa) makes it ambiguous which
+  // lane produced the cards you are about to execute.
+  function switchMode(next) {
+    if (next === manualMode) return;
+    setManualMode(next);
+    setPlanItems(null);
+    setDroppedNotes([]);
+    setPromptText("");
+    setPromptGoal("");
+    setPasteText("");
+    setCopied(false);
+  }
+
+  async function handleBuildPrompt(e) {
+    e.preventDefault();
+    if (!goal.trim()) return;
+    setLoadingPrompt(true);
+    try {
+      const { prompt } = await getAiPlanPrompt(projectId, goal.trim());
+      setPromptText(prompt);
+      setPromptGoal(goal.trim());
+      setCopied(false);
+      setDroppedNotes([]);
+    } catch (err) {
+      toast.error(err.message ?? "Couldn't build the prompt. Try again.");
+    } finally {
+      setLoadingPrompt(false);
+    }
+  }
+
+  async function handleCopyPrompt() {
+    try {
+      await navigator.clipboard.writeText(promptText);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    } catch {
+      // navigator.clipboard is undefined outside a secure context, and the
+      // permission can be denied outright — both land here.
+      toast.error("Couldn't copy. Select the prompt text and copy it manually.");
+    }
+  }
+
+  async function handleImport() {
+    if (!pasteText.trim()) return;
+    setImporting(true);
+    try {
+      const { actions, dropped } = await importAiPlan(projectId, pasteText);
+      setPlanItems(toPlanItems(actions));
+      setDroppedNotes(dropped || []);
+      if (actions?.length) {
+        toast.success(`Loaded ${actions.length} action${actions.length === 1 ? "" : "s"}`);
+      } else {
+        toast.error("That reply had no actions this project can apply.");
+      }
+    } catch (err) {
+      toast.error(err.message ?? "Couldn't read that reply.");
+    } finally {
+      setImporting(false);
+    }
+  }
+
+  function handleStartOver() {
+    setPromptText("");
+    setPromptGoal("");
+    setPasteText("");
+    setPlanItems(null);
+    setDroppedNotes([]);
+    setCopied(false);
+  }
+
   async function handleSuggest(e) {
     e.preventDefault();
     if (!goal.trim()) return;
     setSuggesting(true);
     try {
       const { actions } = await suggestActions(projectId, goal.trim());
-      setPlanItems((actions || []).map((a, i) => ({
-        type: a.type,
-        targetTaskId: a.targetTaskId ?? null,
-        params: { ...(a.params || {}) },
-        rationale: a.rationale || "",
-        _id: `${Date.now()}-${i}`,
-        _accepted: true,
-        _result: null,
-      })));
+      setPlanItems(toPlanItems(actions));
+      setDroppedNotes([]);
       if (!actions?.length) toast.error("AI found no concrete actions for that goal.");
     } catch (err) {
       toast.error(err.message ?? "Failed to generate action plan");
@@ -149,6 +242,8 @@ export default function ActionPlanReview({ projectId, project, allMembers, proje
   }
 
   const acceptedCount = planItems?.filter(it => it._accepted && !it._result?.ok).length ?? 0;
+  const promptStale = Boolean(promptText) && goal.trim() !== promptGoal;
+  const stepsUnlocked = Boolean(promptText);
 
   return (
     <div className="cpm-actionplan-section">
@@ -157,21 +252,198 @@ export default function ActionPlanReview({ projectId, project, allMembers, proje
         Action Plan
       </div>
       <p className="cpm-actionplan-hint">
-        Describe a goal and the AI will propose a concrete, editable set of actions across tasks, milestones, and blockers.
+        Describe a goal and get a concrete, editable set of actions across tasks, milestones, and blockers.
+        Nothing is applied until you review the cards and choose Execute.
       </p>
-      <form className="cpm-actionplan-goal-form" onSubmit={handleSuggest}>
+
+      <div className="cpm-actionplan-mode-row" role="group" aria-label="How to build the plan">
+        <button
+          type="button"
+          className={`cpm-actionplan-mode-btn${manualMode ? "" : " active"}`}
+          aria-pressed={!manualMode}
+          onClick={() => switchMode(false)}
+        >
+          <span className="cpm-actionplan-mode-name">
+            <i className="fas fa-wand-magic-sparkles" aria-hidden="true" /> Built-in AI
+          </span>
+          <span className="cpm-actionplan-mode-sub">Writes the plan for you, on the club's quota</span>
+        </button>
+        <button
+          type="button"
+          className={`cpm-actionplan-mode-btn${manualMode ? " active" : ""}`}
+          aria-pressed={manualMode}
+          onClick={() => switchMode(true)}
+        >
+          <span className="cpm-actionplan-mode-name">
+            <i className="fas fa-clipboard" aria-hidden="true" /> Plan with Claude
+          </span>
+          <span className="cpm-actionplan-mode-sub">You run the prompt in your own chat, then paste it back</span>
+        </button>
+      </div>
+
+      <form
+        className="cpm-actionplan-goal-form"
+        onSubmit={manualMode ? handleBuildPrompt : handleSuggest}
+      >
         <input
           type="text"
           className="cpm-actionplan-goal-input"
           data-tour-id="ai.goal"
+          aria-label="Goal"
           value={goal}
           onChange={e => setGoal(e.target.value)}
           placeholder='e.g. "Get us ready for the design review next week"'
         />
-        <button type="submit" className="clubpm-btn-primary" disabled={suggesting || !goal.trim()}>
-          {suggesting ? <><i className="fas fa-spinner fa-spin" aria-hidden="true" /> Thinking…</> : <><i className="fas fa-wand-magic-sparkles" aria-hidden="true" /> Suggest Plan</>}
-        </button>
+        {manualMode ? (
+          <button type="submit" className="clubpm-btn-primary" disabled={loadingPrompt || !goal.trim()}>
+            {loadingPrompt
+              ? <><i className="fas fa-spinner fa-spin" aria-hidden="true" /> Building…</>
+              : <><i className="fas fa-file-lines" aria-hidden="true" /> {promptText ? "Rebuild prompt" : "Build prompt"}</>}
+          </button>
+        ) : (
+          <button type="submit" className="clubpm-btn-primary" disabled={suggesting || !goal.trim()}>
+            {suggesting
+              ? <><i className="fas fa-spinner fa-spin" aria-hidden="true" /> Thinking…</>
+              : <><i className="fas fa-wand-magic-sparkles" aria-hidden="true" /> Suggest plan</>}
+          </button>
+        )}
       </form>
+
+      {manualMode && (
+        <div className="cpm-actionplan-manual">
+          {/* <div>, not <p>: `.clubpm-app p, .clubpm-app span { color: inherit
+              !important }` (clubpm-theme.css ~969) makes a colour set on any p
+              or span inside ClubPM a dead declaration, whatever its specificity.
+              Same reason the step note below is a div and the type chips in the
+              skipped-action list are <code>. */}
+          <div className="cpm-actionplan-manual-help">
+            <i className="fas fa-circle-info" aria-hidden="true" />
+            <span>
+              ClubPM makes no AI call in this mode, so it spends none of the club's quota. The prompt
+              carries this project's task titles, descriptions, and member names — you are handing that
+              to whichever chat app you paste it into.
+            </span>
+          </div>
+
+          <ol className="cpm-actionplan-steps">
+            <li className="cpm-actionplan-step">
+              <span className="cpm-actionplan-step-num" aria-hidden="true">1</span>
+              <div className="cpm-actionplan-step-body">
+                <div className="cpm-actionplan-step-title">Build the prompt</div>
+                <div
+                  className={`cpm-actionplan-step-note${promptStale ? " is-stale" : ""}`}
+                  role="status"
+                >
+                  {promptStale
+                    ? <><i className="fas fa-triangle-exclamation" aria-hidden="true" /> The goal changed since this prompt was built. Choose Rebuild prompt to match it.</>
+                    : promptText
+                      ? <><i className="fas fa-circle-check" aria-hidden="true" /> Ready — built for “{promptGoal}”.</>
+                      : "Type a goal above, then choose Build prompt."}
+                </div>
+              </div>
+            </li>
+
+            <li className={`cpm-actionplan-step${stepsUnlocked ? "" : " is-locked"}`}>
+              <span className="cpm-actionplan-step-num" aria-hidden="true">2</span>
+              <div className="cpm-actionplan-step-body">
+                <div className="cpm-actionplan-step-head">
+                  <label className="cpm-actionplan-step-title" htmlFor="cpm-ap-prompt">
+                    Run it in your chat
+                  </label>
+                  {stepsUnlocked && (
+                    <div className="cpm-actionplan-step-actions">
+                      <button
+                        type="button"
+                        className="clubpm-btn-secondary"
+                        onClick={handleCopyPrompt}
+                        disabled={promptStale}
+                      >
+                        {copied
+                          ? <><i className="fas fa-check" aria-hidden="true" /> Copied</>
+                          : <><i className="fas fa-copy" aria-hidden="true" /> Copy prompt</>}
+                      </button>
+                      <a
+                        className="clubpm-btn-secondary"
+                        href={CLAUDE_URL}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <i className="fas fa-arrow-up-right-from-square" aria-hidden="true" /> Open Claude
+                      </a>
+                    </div>
+                  )}
+                </div>
+                <textarea
+                  id="cpm-ap-prompt"
+                  className={`cpm-actionplan-prompt-box${promptStale ? " is-stale" : ""}`}
+                  readOnly
+                  spellCheck={false}
+                  value={promptText}
+                  onFocus={e => e.target.select()}
+                  rows={stepsUnlocked ? 7 : 2}
+                  placeholder="Your prompt appears here once you build it."
+                />
+              </div>
+            </li>
+
+            <li className={`cpm-actionplan-step${stepsUnlocked ? "" : " is-locked"}`}>
+              <span className="cpm-actionplan-step-num" aria-hidden="true">3</span>
+              <div className="cpm-actionplan-step-body">
+                <label className="cpm-actionplan-step-title" htmlFor="cpm-ap-paste">
+                  Paste the reply back
+                </label>
+                <textarea
+                  id="cpm-ap-paste"
+                  className="cpm-actionplan-paste-box"
+                  value={pasteText}
+                  spellCheck={false}
+                  onChange={e => setPasteText(e.target.value)}
+                  rows={stepsUnlocked ? 5 : 2}
+                  disabled={!stepsUnlocked}
+                  placeholder="Paste the whole reply, prose and all — the JSON block is found for you."
+                />
+                <div className="cpm-actionplan-step-actions">
+                  <button
+                    type="button"
+                    className="clubpm-btn-primary"
+                    disabled={importing || !pasteText.trim()}
+                    onClick={handleImport}
+                  >
+                    {importing
+                      ? <><i className="fas fa-spinner fa-spin" aria-hidden="true" /> Reading…</>
+                      : <><i className="fas fa-download" aria-hidden="true" /> Load plan</>}
+                  </button>
+                  {stepsUnlocked && (
+                    <button type="button" className="clubpm-btn-secondary" onClick={handleStartOver}>
+                      <i className="fas fa-rotate-left" aria-hidden="true" /> Start over
+                    </button>
+                  )}
+                </div>
+              </div>
+            </li>
+          </ol>
+        </div>
+      )}
+
+      {droppedNotes.length > 0 && (
+        <div className="cpm-actionplan-dropped" role="status" aria-live="polite">
+          <div className="cpm-actionplan-dropped-head">
+            <i className="fas fa-filter-circle-xmark" aria-hidden="true" />
+            <span>
+              {droppedNotes.length} action{droppedNotes.length === 1 ? "" : "s"} couldn't be used.
+              {" "}The rest loaded below.
+            </span>
+          </div>
+          <ul>
+            {droppedNotes.map((d, i) => (
+              <li key={`${d.index}-${i}`}>
+                <code className="cpm-actionplan-dropped-type">{TYPE_LABELS[d.type] ?? d.type}</code>
+                {d.reason}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {Array.isArray(planItems) && planItems.length > 0 && (
         <>
@@ -200,14 +472,18 @@ export default function ActionPlanReview({ projectId, project, allMembers, proje
             >
               {executing
                 ? <><i className="fas fa-spinner fa-spin" aria-hidden="true" /> Executing…</>
-                : <><i className="fas fa-play" aria-hidden="true" /> Execute Accepted ({acceptedCount})</>}
+                : <><i className="fas fa-play" aria-hidden="true" /> Execute {acceptedCount} action{acceptedCount === 1 ? "" : "s"}</>}
             </button>
           </div>
         </>
       )}
 
       {Array.isArray(planItems) && planItems.length === 0 && (
-        <div className="cpm-actionplan-empty">No concrete actions were proposed for that goal — try being more specific.</div>
+        <div className="cpm-actionplan-empty">
+          {manualMode
+            ? "Nothing in that reply could be applied to this project. Rebuild the prompt so the reply uses current task ids, then try again."
+            : "No concrete actions were proposed for that goal — try being more specific."}
+        </div>
       )}
     </div>
   );

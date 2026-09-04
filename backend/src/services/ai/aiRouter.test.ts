@@ -1,37 +1,14 @@
-// Pure-logic unit tests for aiRouter's decision-making. No DB, no network.
+// Pure-logic unit tests for aiRouter. No DB, no network.
 // Run: cd backend && npx tsx src/services/ai/aiRouter.test.ts
 
-import { cacheKeyFor, classifyFailure, truncateForAdapter, parseJsonLoose } from "./aiRouter.js";
-import { AiAuthError } from "./types.js";
+import { truncateForAdapter, parseJsonLoose } from "./aiRouter.js";
 
 let passed = 0, failed = 0;
 function check(name: string, cond: boolean) {
   if (cond) passed++; else { failed++; console.error(`  ✗ ${name}`); }
 }
 
-console.log("cacheKeyFor — a Claude member must never be served a Gemini-cached answer");
-{
-  const g = cacheKeyFor("GEMINI",    null,             "project:1:ask");
-  const a = cacheKeyFor("ANTHROPIC", "claude-opus-5",  "project:1:ask");
-  const s = cacheKeyFor("ANTHROPIC", "claude-sonnet-5","project:1:ask");
-  check("provider namespaced",  g !== a);
-  check("model namespaced",     a !== s);
-  check("same inputs are stable", a === cacheKeyFor("ANTHROPIC", "claude-opus-5", "project:1:ask"));
-  check("caller key preserved", a.endsWith("project:1:ask"));
-}
-
-console.log("classifyFailure — auth failures are permanent, everything else is transient");
-{
-  check("AiAuthError is auth",  classifyFailure(new AiAuthError("bad key")) === "auth");
-  check("429 is transient",     classifyFailure({ status: 429 }) === "transient");
-  check("500 is transient",     classifyFailure({ status: 500 }) === "transient");
-  check("network is transient", classifyFailure(new Error("ECONNRESET")) === "transient");
-  // A bare 401 that did not pass through an adapter must still park the credential.
-  check("raw 401 is auth",      classifyFailure({ status: 401 }) === "auth");
-  check("raw 403 is auth",      classifyFailure({ status: 403 }) === "auth");
-}
-
-console.log("truncateForAdapter — each provider has its own ceiling");
+console.log("truncateForAdapter — the provider ceiling is enforced before the call");
 {
   const long = "x".repeat(500);
   check("under the limit is untouched", truncateForAdapter(long, 1000) === long);

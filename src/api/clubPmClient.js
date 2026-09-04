@@ -408,6 +408,11 @@ export const aiCrImpact           = (id) => post(`/api/change-requests/${id}/ai-
 export const suggestActions = (projectId, goal) => post(`/api/projects/${projectId}/ai-suggest-actions`, { goal });
 export const executePlan    = (projectId, actions) => post(`/api/projects/${projectId}/ai-execute-plan`, { actions });
 
+// Clipboard planning lane: build the prompt locally, paste the reply back.
+// Neither call spends AI quota — see backend/src/services/aiActionService.ts.
+export const getAiPlanPrompt = (projectId, goal) => post(`/api/projects/${projectId}/ai-plan-prompt`, { goal });
+export const importAiPlan    = (projectId, raw)  => post(`/api/projects/${projectId}/ai-plan-import`, { raw });
+
 // ── Challenges / Achievements ─────────────────────────────────
 
 export const getActiveChallenges  = () => get('/api/challenges/active');
@@ -841,16 +846,6 @@ export const reportTourBreakage = (sectionId, payload) =>
 
 export const listTourBreakages = (sectionId) =>
   get(`/api/outreach/courses/sections/${sectionId}/tour-breakages`);
-
-// ── Bring-your-own AI provider ───────────────────────────────
-// The API never returns a stored key — only a 4-character hint — so nothing here
-// ever holds a key beyond the linkAiProvider() call itself.
-
-export const getAiProviders    = ()                 => get("/api/ai/providers");
-export const linkAiProvider    = (provider, apiKey) => post("/api/ai/providers", { provider, apiKey });
-export const unlinkAiProvider  = (provider)         => del(`/api/ai/providers/${provider}`);
-export const getAiModels       = (provider)         => get(`/api/ai/providers/${provider}/models`);
-export const saveAiPreferences = (preferences)      => put("/api/ai/preferences", preferences);
 
 export const ensureTrainingProject = () => post(`/api/training-project`, {});
 
