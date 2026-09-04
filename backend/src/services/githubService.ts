@@ -65,13 +65,198 @@ export function octokitForInstallation(installationId: number): Octokit | null {
   });
 }
 
-/** Octokit authenticated as a specific ClubPM member via stored OAuth token. */
+// ── User-token refresh ───────────────────────────────────────
+//
+// A GitHub App with "Expire user authorization tokens" enabled issues access
+// tokens that die after 8 hours, alongside a refresh token good for 6 months.
+// api/githubAuth.ts has always persisted both, but nothing ever read them back,
+// so a member's connection went dead overnight and the only cure was re-running
+// the whole OAuth dance. This is the missing half — the same job googleapis
+// does for the Drive credential in driveService.ts.
+//
+// GitHub ROTATES the refresh token on every use and retires the old one, so two
+// refreshes started concurrently for one member would break that member's
+// connection: the second presents a token GitHub just invalidated.
+// `inFlightRefresh` keeps at most one refresh per member in flight. That is
+// process-local, which holds because the backend runs as a single Node
+// instance; more than one would need a DB-level lock here instead.
+
+/** Refresh slightly early so a token can't die mid-request. */
+const REFRESH_SKEW_MS = 60_000;
+
+/**
+ * Should we refresh before using this access token? A null expiry means the App
+ * isn't configured to expire user tokens, so there is nothing to refresh.
+ */
+export function needsRefresh(
+  expiresAt: Date | null | undefined,
+  now: number = Date.now()
+): boolean {
+  if (!expiresAt) return false;
+  return expiresAt.getTime() - REFRESH_SKEW_MS <= now;
+}
+
+export type RefreshResponseBody = {
+  access_token?: string;
+  refresh_token?: string;
+  expires_in?: number;
+  error?: string;
+  error_description?: string;
+};
+
+export type RefreshOutcome =
+  | { kind: "ok"; accessToken: string; refreshToken: string | null; expiresAt: Date | null }
+  | { kind: "dead"; error: string }
+  | { kind: "transient"; error: string };
+
+// Errors meaning the grant itself is gone: the member revoked the app, the
+// 6-month refresh token lapsed, or a rotation already retired this one. Only
+// these clear the stored credential — anything else is retried on the next call
+// rather than logging the member out over a blip.
+const DEAD_REFRESH_ERRORS = new Set([
+  "bad_refresh_token",
+  "invalid_grant",
+  "unauthorized_client",
+  "access_denied",
+]);
+
+/**
+ * GitHub answers a *failed* refresh with HTTP 200 and an `error` field, so the
+ * status code tells us nothing — the body is the only signal.
+ */
+export function classifyRefreshResponse(
+  body: RefreshResponseBody,
+  now: number = Date.now()
+): RefreshOutcome {
+  if (body.access_token) {
+    return {
+      kind: "ok",
+      accessToken: body.access_token,
+      refreshToken: body.refresh_token ?? null,
+      expiresAt: body.expires_in ? new Date(now + body.expires_in * 1000) : null,
+    };
+  }
+  const error = body.error ?? "no_access_token";
+  return DEAD_REFRESH_ERRORS.has(error)
+    ? { kind: "dead", error }
+    : { kind: "transient", error: body.error_description ?? error };
+}
+
+export type MemberTokenRefresh =
+  | { ok: true; accessToken: string }
+  | { ok: false; disconnected: boolean };
+
+const inFlightRefresh = new Map<string, Promise<MemberTokenRefresh>>();
+
+/** Writes the rotated pair without touching githubLogin (which is @unique). */
+async function persistRefreshedToken(
+  memberId: string,
+  accessToken: string,
+  refreshToken: string,
+  expiresAt: Date | null
+): Promise<void> {
+  await prisma.member.update({
+    where: { id: memberId },
+    data: {
+      githubAccessToken: encryptSecret(accessToken),
+      githubRefreshToken: encryptSecret(refreshToken),
+      githubTokenExpiresAt: expiresAt,
+    },
+  });
+}
+
+async function runRefresh(memberId: string, refreshToken: string): Promise<MemberTokenRefresh> {
+  const clientId = process.env.GITHUB_APP_CLIENT_ID;
+  const clientSecret = process.env.GITHUB_APP_CLIENT_SECRET;
+  if (!clientId || !clientSecret) {
+    console.error("[githubService] cannot refresh: GITHUB_APP_CLIENT_ID/SECRET not configured");
+    return { ok: false, disconnected: false };
+  }
+
+  let body: RefreshResponseBody;
+  try {
+    const res = await fetch("https://github.com/login/oauth/access_token", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({
+        client_id: clientId,
+        client_secret: clientSecret,
+        grant_type: "refresh_token",
+        refresh_token: refreshToken,
+      }),
+    });
+    body = (await res.json()) as RefreshResponseBody;
+  } catch (err) {
+    console.error("[githubService] refresh request failed:", err);
+    return { ok: false, disconnected: false };
+  }
+
+  const outcome = classifyRefreshResponse(body);
+  if (outcome.kind === "ok") {
+    // If GitHub withheld a rotated refresh token, the old one stays valid.
+    await persistRefreshedToken(
+      memberId,
+      outcome.accessToken,
+      outcome.refreshToken ?? refreshToken,
+      outcome.expiresAt
+    );
+    return { ok: true, accessToken: outcome.accessToken };
+  }
+
+  if (outcome.kind === "dead") {
+    console.warn(
+      `[githubService] refresh token dead for member ${memberId} (${outcome.error}) — clearing`
+    );
+    await clearMemberGithubAuth(memberId);
+    return { ok: false, disconnected: true };
+  }
+
+  console.error(`[githubService] refresh failed (transient): ${outcome.error}`);
+  return { ok: false, disconnected: false };
+}
+
+/** Refresh a member's GitHub token, collapsing concurrent callers onto one call. */
+export async function refreshMemberGithubToken(
+  memberId: string,
+  refreshToken: string
+): Promise<MemberTokenRefresh> {
+  const existing = inFlightRefresh.get(memberId);
+  if (existing) return existing;
+  const pending = runRefresh(memberId, refreshToken).finally(() => {
+    inFlightRefresh.delete(memberId);
+  });
+  inFlightRefresh.set(memberId, pending);
+  return pending;
+}
+
+/**
+ * Octokit authenticated as a specific ClubPM member via stored OAuth token,
+ * refreshing it first when it is expired or about to be.
+ */
 export async function octokitForMember(memberId: string): Promise<Octokit | null> {
   const member = await prisma.member.findUnique({
     where: { id: memberId },
-    select: { githubAccessToken: true },
+    select: {
+      githubAccessToken: true,
+      githubRefreshToken: true,
+      githubTokenExpiresAt: true,
+    },
   });
-  const token = decryptSecret(member?.githubAccessToken);
+  if (!member) return null;
+
+  let token = decryptSecret(member.githubAccessToken);
+
+  if (needsRefresh(member.githubTokenExpiresAt)) {
+    const refreshToken = decryptSecret(member.githubRefreshToken);
+    if (refreshToken) {
+      const result = await refreshMemberGithubToken(memberId, refreshToken);
+      if (result.ok) token = result.accessToken;
+      else if (result.disconnected) token = null;
+      // Transient failure: fall through on the stale token so the caller's own
+      // 401 surfaces as it did before, rather than silently disconnecting.
+    }
+  }
+
   if (!token) return null;
   return new Octokit({ auth: token });
 }
