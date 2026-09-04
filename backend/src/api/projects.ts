@@ -24,7 +24,7 @@ import {
   driveToTasksPrompt, meetingNotesToTasksPrompt, projectContextPrompt,
 } from "../utils/aiPrompts.js";
 import { buildProjectContext } from "../services/projectContextService.js";
-import { suggestProjectActions, executeActionPlan, type ActionPlanAction } from "../services/aiActionService.js";
+import { suggestProjectActions, executeActionPlan, buildPlanPrompt, type ActionPlanAction } from "../services/aiActionService.js";
 import {
   analyzeProjectRisks, generateSprintPlan, generateProjectBrief,
   inferTaskDependencies, analyzeTeamCapacity, generateStakeholderEmail,
@@ -794,6 +794,33 @@ projectsRouter.post("/:id/ai-suggest-actions", async (req: Request, res: Respons
   } catch (error) {
     console.error("AI suggest actions error:", error);
     res.status(500).json({ error: "Failed to suggest actions" });
+  }
+});
+
+// ── POST /api/projects/:id/ai-plan-prompt ────────────────────
+// Returns prompt text for the member to paste into their own chat session.
+// Deliberately makes no AI call — see buildPlanPrompt.
+
+projectsRouter.post("/:id/ai-plan-prompt", async (req: Request, res: Response) => {
+  try {
+    const projectId = req.params.id as string;
+    const { goal } = req.body as { goal: string };
+
+    if (!goal || !goal.trim()) {
+      res.status(400).json({ error: "goal is required" });
+      return;
+    }
+
+    const prompt = await buildPlanPrompt(projectId, goal.trim());
+    if (prompt === null) {
+      res.status(404).json({ error: "Project not found" });
+      return;
+    }
+
+    res.json({ prompt });
+  } catch (error) {
+    console.error("AI plan prompt error:", error);
+    res.status(500).json({ error: "Failed to build plan prompt" });
   }
 });
 

@@ -82,6 +82,20 @@ export async function suggestProjectActions(
   return normalizeActionPlan(raw.actions, context);
 }
 
+/**
+ * The exact prompt text a member pastes into their own Claude / ChatGPT session.
+ *
+ * Makes no AI call: no key, no quota, no tier, no aiRouter. This is
+ * `suggestProjectActions` with the network hop replaced by a human, and it is
+ * how a member with a Claude Pro subscription (which grants no API access) uses
+ * the action-plan feature at full model quality.
+ */
+export async function buildPlanPrompt(projectId: string, goal: string): Promise<string | null> {
+  const context = await buildProjectContext(projectId);
+  if (!context) return null;
+  return suggestActionsPrompt(goal, context);
+}
+
 function normalizeActionPlan(rawActions: unknown, context: ProjectContext): ActionPlan {
   const taskIds = new Set(context.tasks.map(t => t.id));
   const memberIds = new Set(context.members.map(m => m.id));
