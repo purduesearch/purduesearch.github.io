@@ -71,9 +71,10 @@ const VALID_PRIORITIES = new Set(["LOW", "MEDIUM", "HIGH", "CRITICAL"]);
 
 // ── Suggest ──────────────────────────────────────────────────────
 
-/** `memberId` is optional so any future non-member caller keeps compiling and routes
- *  to the built-in Gemini lane; the `/ai-suggest-actions` handler passes `req.memberId`
- *  so a member who linked their own key spends that instead of the club-wide quota. */
+/** `memberId` is optional and now purely informational to the router — the
+ *  per-member provider lane it used to select is gone, so every call here runs
+ *  on the club-wide Gemini quota. A member who wants a stronger model uses
+ *  `buildPlanPrompt` instead, which spends no quota at all. */
 export async function suggestProjectActions(
   projectId: string, goal: string, memberId?: string | null
 ): Promise<ActionPlan | null> {
@@ -101,8 +102,21 @@ export async function suggestProjectActions(
 export async function buildPlanPrompt(projectId: string, goal: string): Promise<string | null> {
   const context = await buildProjectContext(projectId);
   if (!context) return null;
-  return suggestActionsPrompt(goal, context);
+  return suggestActionsPrompt(goal, context) + CLIPBOARD_OUTPUT_RULE;
 }
+
+/**
+ * Appended only on the clipboard path. The shared prompt closes with
+ * "Return ONLY: { actions: [...] }", which is correct for the API lane because
+ * that call runs in JSON mode — but a chat UI has no JSON mode, so a model told
+ * to return only JSON still opens with "Here's the plan:" and closes with an
+ * offer to revise. planTextExtract copes with that either way; asking for the
+ * fence just makes the extractor's happy path the model's default instead of
+ * its fallback.
+ */
+const CLIPBOARD_OUTPUT_RULE = `
+
+Put the JSON object in a single \`\`\`json fenced code block. Any explanation you want to add goes outside the fence — do not split the JSON across more than one block.`;
 
 export type ImportPlanResult =
   | { ok: false; reason: "PROJECT_NOT_FOUND" }
@@ -149,6 +163,18 @@ export function normalizeActionPlan(
   const actions = Array.isArray(rawActions) ? rawActions : [];
   const result: ActionPlan = [];
 
+  // Drop reasons are read by a member in the UI, not by a developer in a log.
+  // Raw values reach them, so render defensively: a model that put an object
+  // where a status string belongs must not produce "[object Object] is not a
+  // valid status".
+  const show = (v: unknown): string => {
+    if (v === undefined) return "nothing";
+    if (v === null) return "null";
+    if (typeof v === "string") return v.length > 40 ? `${v.slice(0, 40)}…` : v;
+    if (typeof v === "number" || typeof v === "boolean") return String(v);
+    return Array.isArray(v) ? "a list" : "an object";
+  };
+
   for (let index = 0; index < actions.length; index++) {
     const raw = actions[index];
     const rawType = (raw && typeof raw === "object")
@@ -156,24 +182,24 @@ export function normalizeActionPlan(
       : "unknown";
     const drop = (reason: string) => { dropped?.push({ index, type: rawType, reason }); };
 
-    if (!raw || typeof raw !== "object") { drop("Not an object"); continue; }
+    if (!raw || typeof raw !== "object") { drop("Not a readable action."); continue; }
     const a = raw as Record<string, unknown>;
     const type = a.type as ActionType;
-    if (!VALID_TYPES.has(type)) { drop(`Unknown action type "${rawType}"`); continue; }
+    if (!VALID_TYPES.has(type)) { drop(`"${show(rawType)}" is not something ClubPM can do.`); continue; }
 
     const rationale = typeof a.rationale === "string" ? a.rationale : "";
     const params: Record<string, any> = (a.params && typeof a.params === "object") ? { ...(a.params as object) } : {};
     let targetTaskId: string | null = typeof a.targetTaskId === "string" ? a.targetTaskId : null;
 
     if (REQUIRES_TARGET.has(type)) {
-      if (!targetTaskId) { drop("targetTaskId is required for this action type"); continue; }
-      if (!taskIds.has(targetTaskId)) { drop(`Task ${targetTaskId} is not in this project (it may have been deleted)`); continue; }
+      if (!targetTaskId) { drop("No target task was named."); continue; }
+      if (!taskIds.has(targetTaskId)) { drop("Points at a task that is not in this project any more. Rebuild the prompt so the plan uses current tasks."); continue; }
     } else if (type !== "LINK_MILESTONE") {
       targetTaskId = null;
     }
 
     if (type === "CREATE_TASK") {
-      if (typeof params.title !== "string" || !params.title.trim()) { drop("CREATE_TASK needs a non-empty title"); continue; }
+      if (typeof params.title !== "string" || !params.title.trim()) { drop("No title was given for the new task."); continue; }
       if (params.assigneeIds !== undefined) {
         params.assigneeIds = Array.isArray(params.assigneeIds)
           ? params.assigneeIds.filter((id: unknown) => typeof id === "string" && memberIds.has(id))
@@ -196,46 +222,46 @@ export function normalizeActionPlan(
       delete params.priority;
     }
 
-    if (type === "SET_STATUS" && !VALID_STATUSES.has(params.status)) { drop(`"${params.status}" is not a valid status`); continue; }
-    if (type === "SET_PRIORITY" && !VALID_PRIORITIES.has(params.priority)) { drop(`"${params.priority}" is not a valid priority`); continue; }
-    if (type === "SET_DUE" && !("dueDate" in params)) { drop("SET_DUE needs a dueDate"); continue; }
+    if (type === "SET_STATUS" && !VALID_STATUSES.has(params.status)) { drop(`"${show(params.status)}" is not a status. Use To do, In progress, Blocked, or Done.`); continue; }
+    if (type === "SET_PRIORITY" && !VALID_PRIORITIES.has(params.priority)) { drop(`"${show(params.priority)}" is not a priority. Use Low, Medium, High, or Critical.`); continue; }
+    if (type === "SET_DUE" && !("dueDate" in params)) { drop("No due date was given."); continue; }
 
     if ((type === "ASSIGN" || type === "CREATE_SUBTASK") && params.assigneeIds !== undefined) {
-      if (!Array.isArray(params.assigneeIds)) { drop("assigneeIds must be an array"); continue; }
+      if (!Array.isArray(params.assigneeIds)) { drop("The assignee list was not readable."); continue; }
       params.assigneeIds = params.assigneeIds.filter((id: unknown) => typeof id === "string" && memberIds.has(id));
     }
-    if (type === "ASSIGN" && !Array.isArray(params.assigneeIds)) { drop("ASSIGN needs an assigneeIds array"); continue; }
-    if (type === "CREATE_SUBTASK" && (typeof params.title !== "string" || !params.title.trim())) { drop("CREATE_SUBTASK needs a non-empty title"); continue; }
+    if (type === "ASSIGN" && !Array.isArray(params.assigneeIds)) { drop("No assignees were named."); continue; }
+    if (type === "CREATE_SUBTASK" && (typeof params.title !== "string" || !params.title.trim())) { drop("No title was given for the subtask."); continue; }
 
     if (type === "ADD_DEPENDENCY") {
       if (typeof params.blockingTaskId !== "string" || !taskIds.has(params.blockingTaskId)) {
-        drop(`Blocking task ${params.blockingTaskId} is not in this project`); continue;
+        drop("The task it would depend on is not in this project."); continue;
       }
     }
 
     if ((type === "ATTACH_BLOCKER" || type === "RESOLVE_BLOCKER")) {
       if (typeof params.blockerId !== "string" || !blockerIds.has(params.blockerId)) {
-        drop(`Blocker ${params.blockerId} is not an active blocker in this project`); continue;
+        drop("That blocker is not active in this project."); continue;
       }
     }
 
-    if (type === "ADD_COMMENT" && (typeof params.content !== "string" || !params.content.trim())) { drop("ADD_COMMENT needs non-empty content"); continue; }
+    if (type === "ADD_COMMENT" && (typeof params.content !== "string" || !params.content.trim())) { drop("The comment had no text."); continue; }
 
     if (type === "CREATE_MILESTONE") {
-      if (typeof params.title !== "string" || !params.title.trim()) { drop("CREATE_MILESTONE needs a non-empty title"); continue; }
+      if (typeof params.title !== "string" || !params.title.trim()) { drop("No title was given for the milestone."); continue; }
       if (params.ownerId !== undefined && !memberIds.has(params.ownerId)) delete params.ownerId;
     }
 
     if (type === "LINK_MILESTONE") {
       if (typeof params.milestoneId !== "string" || !milestoneIds.has(params.milestoneId)) {
-        drop(`Milestone ${params.milestoneId} is not in this project`); continue;
+        drop("That milestone is not in this project."); continue;
       }
       if (targetTaskId && !taskIds.has(targetTaskId)) targetTaskId = null;
       const extraIds = Array.isArray(params.taskIds)
         ? params.taskIds.filter((id: unknown) => typeof id === "string" && taskIds.has(id))
         : [];
       params.taskIds = extraIds;
-      if (!targetTaskId && extraIds.length === 0) { drop("LINK_MILESTONE names no task that exists in this project"); continue; }
+      if (!targetTaskId && extraIds.length === 0) { drop("None of the tasks it would link are in this project."); continue; }
     }
 
     result.push({ type, targetTaskId, params, rationale });
