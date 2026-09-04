@@ -9,6 +9,7 @@ import {
 import QuestionForm from './QuestionForm';
 import { blankQuestion, serializeQuestion, validateQuestion } from './questionModel';
 import { importDeck } from './deckImport';
+import useSectionConfigWriter from './useSectionConfigWriter';
 
 const SOURCE_TABS = [
   { key: 'PDF',     label: 'Upload PDF',        icon: 'fas fa-file-pdf',        accept: 'application/pdf' },
@@ -110,7 +111,7 @@ function SlideQuestionCard({
  */
 export default function CourseSlidesWorkbench({ section, canEdit = false, onUpdateSection }) {
   const sectionId = section?.id;
-  const config = section?.slideConfig ?? {};
+  const { config, patchConfig: writeConfig } = useSectionConfigWriter(section, 'slideConfig', onUpdateSection);
 
   const [slides, setSlides] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
@@ -131,18 +132,17 @@ export default function CourseSlidesWorkbench({ section, canEdit = false, onUpda
 
   // `slideConfig` is one JSON column written by both the source row and the
   // audio row, so every write must spread whatever the other one put there.
-  const configRef = useRef(config);
-  configRef.current = config;
-
+  // useSectionConfigWriter does that against the last server-confirmed value and
+  // serializes the writes — the audio element's `loadedmetadata` fires right
+  // after an upload, so those two writers really do overlap, and what the loser
+  // used to drop was `audioUrl`.
   const patchConfig = useCallback(async (patch) => {
     try {
-      await onUpdateSection?.(sectionId, {
-        slideConfig: { ...(configRef.current ?? {}), ...patch },
-      });
+      await writeConfig(patch);
     } catch {
       toast.error('Could not save slide settings');
     }
-  }, [sectionId, onUpdateSection]);
+  }, [writeConfig]);
 
   // ── Load ───────────────────────────────────────────────────
 

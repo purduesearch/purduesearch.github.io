@@ -518,6 +518,8 @@ export const getCourse      = (id)      => get(`/api/outreach/courses/${id}`);
 export const createCourse   = (data)    => post('/api/outreach/courses', data);
 export const updateCourse   = (id, data) => patch(`/api/outreach/courses/${id}`, data);
 export const publishCourse  = (id)      => post(`/api/outreach/courses/${id}/publish`, {});
+// Back to DRAFT, keeping enrollments and progress — see courseService.unpublishCourse.
+export const unpublishCourse = (id)     => post(`/api/outreach/courses/${id}/unpublish`, {});
 export const archiveCourse  = (id)      => post(`/api/outreach/courses/${id}/archive`, {});
 export const deleteCourse   = (id)      => del(`/api/outreach/courses/${id}`);
 

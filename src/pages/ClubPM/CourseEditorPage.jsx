@@ -16,7 +16,7 @@ import CourseModuleSettings from '../../components/clubpm/courses/CourseModuleSe
 import OrbitLoader from '../../components/OrbitLoader';
 import { useClubPmAuth } from '../../clubpm/ClubPmAuth';
 import {
-  getCourse, updateCourse, publishCourse, archiveCourse, deleteCourse,
+  getCourse, updateCourse, publishCourse, unpublishCourse, archiveCourse, deleteCourse,
   getCourseSection, createCourseSection, updateCourseSection, deleteCourseSection,
   createCourseModule, updateCourseModule, deleteCourseModule, saveCourseStructure,
   getCourseCollabWsUrl,
@@ -40,9 +40,9 @@ const SECTION_REVISION_API = {
 
 // Publish is the single primary action; every other workflow verb lives in its
 // menu, with destructive items separated and confirmed. Mirrors
-// BlogEditorPage's PublishMenu, minus Schedule/Unpublish — courses have no
+// BlogEditorPage's PublishMenu, minus Schedule — courses have no
 // scheduled-publish endpoint.
-function PublishMenu({ status, disabled, onPublish, onArchive, onDelete }) {
+function PublishMenu({ status, disabled, onPublish, onUnpublish, onArchive, onDelete }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
 
@@ -81,6 +81,11 @@ function PublishMenu({ status, disabled, onPublish, onArchive, onDelete }) {
 
       {open && (
         <div className="cpm-blog-publish-pop" role="menu">
+          {status === 'PUBLISHED' && (
+            <button type="button" role="menuitem" onClick={() => { setOpen(false); onUnpublish(); }}>
+              <i className="fas fa-pause" aria-hidden="true" /> Unpublish
+            </button>
+          )}
           {status !== 'ARCHIVED' && (
             <button type="button" role="menuitem" onClick={() => { setOpen(false); onArchive(); }}>
               <i className="fas fa-box-archive" aria-hidden="true" /> Archive
@@ -505,6 +510,26 @@ export default function CourseEditorPage() {
     }
   }, [id, handleSave]);
 
+  // Confirmed, because it takes a live course away from everyone mid-module.
+  // Their progress survives (the server keeps enrollments), so the warning says
+  // what is actually at stake: access, not work.
+  const handleUnpublish = useCallback(async () => {
+    if (!window.confirm(
+      'Unpublish this course? It leaves the catalog and learners lose access until you publish again. '
+      + 'Their progress is kept.'
+    )) return;
+    setBusyAction(true);
+    try {
+      const updated = await unpublishCourse(id);
+      setCourse((prev) => ({ ...prev, ...updated }));
+      toast.success('Unpublished — back to draft');
+    } catch {
+      toast.error('Unpublish failed');
+    } finally {
+      setBusyAction(false);
+    }
+  }, [id]);
+
   const handleArchive = useCallback(async () => {
     setBusyAction(true);
     try {
@@ -611,6 +636,7 @@ export default function CourseEditorPage() {
             status={course?.status}
             disabled={saving || busyAction}
             onPublish={handlePublish}
+            onUnpublish={handleUnpublish}
             onArchive={handleArchive}
             onDelete={handleDelete}
           />

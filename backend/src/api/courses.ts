@@ -389,6 +389,19 @@ coursesRouter.post("/:id/publish", async (req: Request, res: Response) => {
   }
 });
 
+// Same surface as POST /blog/posts/:id/unpublish: back to DRAFT, keeping
+// enrollments and progress. See courseService.unpublishCourse.
+coursesRouter.post("/:id/unpublish", async (req: Request, res: Response) => {
+  try {
+    const id = req.params.id as string;
+    if (!(await requireCourseAccess(req, res, id))) return;
+    res.json(await courseService.unpublishCourse(id));
+  } catch (error) {
+    console.error("POST /outreach/courses/:id/unpublish error:", error);
+    res.status(500).json({ error: "Failed to unpublish course" });
+  }
+});
+
 coursesRouter.post("/:id/archive", async (req: Request, res: Response) => {
   try {
     const id = req.params.id as string;

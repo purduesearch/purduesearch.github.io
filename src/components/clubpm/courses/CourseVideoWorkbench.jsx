@@ -6,6 +6,7 @@ import {
 import QuestionForm from './QuestionForm';
 import { blankQuestion, serializeQuestion, validateQuestion } from './questionModel';
 import LockedVideoPlayer from './LockedVideoPlayer';
+import useSectionConfigWriter from './useSectionConfigWriter';
 import {
   PLAYBACK_RATES, DEFAULT_RATES, parseYouTubeId, formatTimestamp, parseTimestamp,
   clipWindow, isWithinClip,
@@ -144,7 +145,7 @@ function PopupCard({
  */
 export default function CourseVideoWorkbench({ section, canEdit = false, onUpdateSection }) {
   const sectionId = section?.id;
-  const config = section?.videoConfig ?? {};
+  const { config, patchConfig } = useSectionConfigWriter(section, 'videoConfig', onUpdateSection);
 
   const [urlInput, setUrlInput] = useState(config.youtubeId ?? '');
   const [rates, setRates] = useState(
@@ -201,26 +202,21 @@ export default function CourseVideoWorkbench({ section, canEdit = false, onUpdat
   // `videoConfig` is one JSON column, so every write must carry the keys this
   // surface does not edit — `durationSec` above all. Rebuilding the object from
   // the three local fields silently dropped it, and the server's "watched to the
-  // end" check reads exactly that key.
-  const configRef = useRef(config);
-  configRef.current = config;
-
+  // end" check reads exactly that key. useSectionConfigWriter does the spreading,
+  // against the last server-confirmed value; see the note there.
+  //
+  // Every caller below passes exactly the keys it changes, and nothing else.
+  // This used to also re-derive `youtubeId` from the URL text box on every
+  // write, including the ones the player fires by itself — so a save that landed
+  // while that box held anything unparseable wrote `youtubeId: null` and the
+  // video link was gone.
   const saveConfig = useCallback(async (patch) => {
-    const next = {
-      ...(configRef.current ?? {}),
-      youtubeId: parseYouTubeId(urlInput),
-      allowedRates: rates,
-      lockSeek,
-      clipStartSec,
-      clipEndSec,
-      ...patch,
-    };
     try {
-      await onUpdateSection?.(sectionId, { videoConfig: next });
+      await patchConfig(patch);
     } catch {
       toast.error('Could not save video settings');
     }
-  }, [sectionId, urlInput, rates, lockSeek, clipStartSec, clipEndSec, onUpdateSection]);
+  }, [patchConfig]);
 
   const handleUrlBlur = () => {
     const trimmed = urlInput.trim();
@@ -228,6 +224,13 @@ export default function CourseVideoWorkbench({ section, canEdit = false, onUpdat
     // source discards it along with the recorded length.
     const clipReset = { clipStartSec: null, clipEndSec: null };
     if (!trimmed) {
+      // Emptying the box used to remove the video on blur alone, with no way
+      // back — this was the single easiest way to lose a link. Confirmed now,
+      // and recoverable from section history either way.
+      if (config.youtubeId && !window.confirm('Remove the video from this section?')) {
+        setUrlInput(config.youtubeId);
+        return;
+      }
       setUrlInput('');
       setClipStartSec(null); setClipEndSec(null);
       saveConfig({ youtubeId: null, durationSec: null, ...clipReset });

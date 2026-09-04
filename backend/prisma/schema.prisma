@@ -2136,6 +2136,18 @@ model CourseSectionRevision {
   section     CourseSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
   contentJson Json
   title       String
+  /// The section's non-document settings at snapshot time:
+  /// { videoConfig, slideConfig, tourConfig, litConfig, assignmentConfig,
+  ///   trainingId, passThreshold, maxAttempts }.
+  ///
+  /// One column rather than a mirror of CourseSection's eight, so adding a
+  /// section kind does not need a migration here to stay recoverable.
+  ///
+  /// Nullable because every row written before this column existed has no
+  /// settings recorded. Rollback treats null as "this revision says nothing
+  /// about settings" and leaves the live ones alone — restoring a pre-existing
+  /// revision must not wipe a video link that revision never captured.
+  configJson  Json?
   /// Optional human label ("Before the rewrite"). When set it is what the
   /// history drawer shows, with the timestamp beneath it.
   name        String?

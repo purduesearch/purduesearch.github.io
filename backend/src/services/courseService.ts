@@ -2,6 +2,11 @@ import { Prisma, type CourseSectionKind, type CourseQuestionKind } from "@prisma
 import { prisma } from "../db/prisma.js";
 import { EMPTY_DOC, slugify, type PMDoc } from "./blogRender.js";
 import { loadTourSteps } from "./tourStepService.js";
+import {
+  CONFIG_KEYS,
+  pickSectionConfig,
+  shouldSnapshotSection,
+} from "./courseRevisionPolicy.js";
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -262,6 +267,26 @@ export async function publishCourse(id: string) {
   });
 }
 
+/**
+ * Back to DRAFT, which takes the course out of the catalog and out of every
+ * learner's view (courseProgressService returns null for a non-PUBLISHED course
+ * unless the caller is its author).
+ *
+ * Enrollments and per-section progress are deliberately untouched: unpublishing
+ * is how an author pulls a course back to fix it, and a learner who was halfway
+ * through must still be halfway through when it returns.
+ *
+ * `publishedAt` is kept for the same reason blogService.unpublishPost keeps it —
+ * it records when the course first went out, which is still true.
+ */
+export async function unpublishCourse(id: string) {
+  return prisma.course.update({
+    where: { id },
+    data: { status: "DRAFT" },
+    include: courseInclude,
+  });
+}
+
 export async function archiveCourse(id: string) {
   return prisma.course.update({
     where: { id },
@@ -455,17 +480,37 @@ export async function createSection(input: CreateSectionInput) {
   });
 }
 
+// Writes that a revision can restore, and therefore writes that must snapshot
+// first. `kind` and `isRequired` are deliberately absent: neither is captured in
+// a revision, so taking one for them would record a row a rollback could not
+// honour.
+// Widened to string rather than `keyof UpdateSectionInput` so it can stay
+// derived from CONFIG_KEYS: `tourConfig` is a snapshotted column that this input
+// deliberately cannot write (walkthrough steps are repo files). Listing the
+// writable subset by hand instead would silently stop covering the next config
+// column someone adds.
+const VERSIONED_INPUT_KEYS: readonly string[] = ["title", "contentJson", ...CONFIG_KEYS];
+
 export async function updateSection(id: string, input: UpdateSectionInput, actorId?: string) {
+  // Snapshot the OUTGOING state before it is replaced. This is the safety net
+  // for the bug that destroyed two ares-101 articles: an editor that had not
+  // finished loading reported an empty document and the autosave wrote it
+  // straight over the real one, with no history to recover from.
+  //
+  // Gated on the whole versioned set, not just `contentJson`. It used to be
+  // contentJson only, which meant a write that changed a video's youtubeId or a
+  // deck's audioUrl — whole-object overwrites assembled in the browser, so quite
+  // capable of dropping a key — left no history at all.
+  const patch = input as Record<string, unknown>;
+  if (VERSIONED_INPUT_KEYS.some((key) => patch[key] !== undefined)) {
+    await snapshotSection(id, actorId ?? null);
+  }
+
   const data: Prisma.CourseSectionUpdateInput = {};
   if (input.title !== undefined) data.title = input.title;
   if (input.kind !== undefined) data.kind = input.kind;
   if (input.isRequired !== undefined) data.isRequired = input.isRequired;
   if (input.contentJson !== undefined) {
-    // Snapshot the OUTGOING body before it is replaced. This is the safety net
-    // for the bug that destroyed two ares-101 articles: an editor that had not
-    // finished loading reported an empty document and the autosave wrote it
-    // straight over the real one, with no history to recover from.
-    await snapshotSection(id, actorId ?? null);
     data.contentJson = asJson(input.contentJson);
   }
   if (input.passThreshold !== undefined) data.passThreshold = input.passThreshold;
@@ -515,46 +560,55 @@ export async function deleteSection(id: string) {
 // publish event: snapshots are taken before `contentJson` is overwritten, and
 // before a rollback so the rollback is itself reversible.
 
-// The editor autosaves 1.5s after typing stops, so one snapshot per write
-// would add a row every few seconds of drafting. One per section per five
-// minutes keeps the table small while still bounding how much work a bad
-// write can destroy.
-const SNAPSHOT_THROTTLE_MS = 5 * 60 * 1000;
-
 const revisionAuthor = {
   author: { select: { id: true, displayName: true, avatarUrl: true } },
 } satisfies Prisma.CourseSectionRevisionInclude;
 
 /**
- * Snapshot a section's CURRENT body, before the caller replaces it.
- *
- * Throttled per section, with two deliberate exceptions to the throttle:
- * `force` (used by rollback), and the case where the most recent snapshot is
- * within the window but the live body is *non-empty while that snapshot is
- * empty* — otherwise a burst of empty writes inside one window could leave
- * only the blank version on record, which is precisely the state we need to be
- * able to escape.
+ * Snapshot a section's CURRENT body AND settings, before the caller replaces
+ * them. See courseRevisionPolicy for when a snapshot is taken and why settings
+ * bypass the prose throttle.
  */
 export async function snapshotSection(sectionId: string, authorId: string | null, force = false) {
   const section = await prisma.courseSection.findUnique({
     where: { id: sectionId },
-    select: { title: true, contentJson: true },
+    select: {
+      title: true,
+      contentJson: true,
+      videoConfig: true,
+      slideConfig: true,
+      tourConfig: true,
+      litConfig: true,
+      assignmentConfig: true,
+      trainingId: true,
+      passThreshold: true,
+      maxAttempts: true,
+    },
   });
   if (!section) return null;
-  // Nothing to preserve: a section that has never had a body would otherwise
-  // seed the history with a row that can only ever restore emptiness.
-  if (!force && isEmptyDoc(section.contentJson)) return null;
 
-  if (!force) {
-    const latest = await prisma.courseSectionRevision.findFirst({
-      where: { sectionId },
-      orderBy: { createdAt: "desc" },
-      select: { createdAt: true, contentJson: true },
-    });
-    const withinWindow =
-      !!latest && Date.now() - latest.createdAt.getTime() < SNAPSHOT_THROTTLE_MS;
-    if (withinWindow && !isEmptyDoc(latest.contentJson)) return null;
-  }
+  const latest = await prisma.courseSectionRevision.findFirst({
+    where: { sectionId },
+    orderBy: { createdAt: "desc" },
+    select: { createdAt: true, contentJson: true, configJson: true },
+  });
+
+  const config = pickSectionConfig(section);
+  const shouldSnapshot = shouldSnapshotSection({
+    live: { contentJson: section.contentJson, config },
+    latest: latest
+      ? {
+          contentJson: latest.contentJson,
+          // `null` means "written before this column existed", which the policy
+          // treats as saying nothing about settings rather than as empty ones.
+          config: latest.configJson === null ? null : pickSectionConfig(latest.configJson as Record<string, unknown>),
+          createdAt: latest.createdAt,
+        }
+      : null,
+    force,
+    now: Date.now(),
+  });
+  if (!shouldSnapshot) return null;
 
   return prisma.courseSectionRevision.create({
     data: {
@@ -562,6 +616,7 @@ export async function snapshotSection(sectionId: string, authorId: string | null
       authorId,
       title: section.title,
       contentJson: section.contentJson as Prisma.InputJsonValue,
+      configJson: config as Prisma.InputJsonValue,
     },
     include: revisionAuthor,
   });
@@ -596,24 +651,36 @@ export async function rollbackSectionRevision(sectionId: string, revisionId: str
   // force it past the throttle — a restore is exactly when someone is most
   // likely to want the thing they just replaced back.
   await snapshotSection(sectionId, actorId, true);
+
+  // Unchecked, so `trainingId` can be restored as the scalar FK it is recorded
+  // as rather than through a connect/disconnect.
+  const data: Prisma.CourseSectionUncheckedUpdateInput = {
+    contentJson: rev.contentJson as Prisma.InputJsonValue,
+  };
+
+  // A revision written before `configJson` existed says nothing about settings,
+  // so leave the live ones alone — restoring an old prose version must not wipe
+  // a video link that revision never captured. A revision that DID record
+  // settings is authoritative, including about the keys it holds nothing for.
+  if (rev.configJson !== null) {
+    const config = pickSectionConfig(rev.configJson as Record<string, unknown>);
+    for (const key of CONFIG_KEYS) {
+      const value = config[key];
+      if (key === "trainingId") {
+        data.trainingId = (value as string | undefined) ?? null;
+      } else if (key === "passThreshold" || key === "maxAttempts") {
+        data[key] = (value as number | undefined) ?? null;
+      } else {
+        data[key] = value === undefined ? Prisma.DbNull : (value as Prisma.InputJsonValue);
+      }
+    }
+  }
+
   return prisma.courseSection.update({
     where: { id: sectionId },
-    data: { contentJson: rev.contentJson as Prisma.InputJsonValue },
+    data,
     select: { ...sectionSelect, contentJson: true },
   });
-}
-
-/**
- * A TipTap doc with no text in it — `{}` (never seeded), or the single empty
- * paragraph a freshly-mounted editor reports. Treated as "nothing worth
- * snapshotting", and as the marker of the write this whole mechanism exists
- * to survive.
- */
-function isEmptyDoc(doc: Prisma.JsonValue | null): boolean {
-  if (!doc || typeof doc !== "object" || Array.isArray(doc)) return true;
-  const content = (doc as { content?: unknown }).content;
-  if (!Array.isArray(content) || content.length === 0) return true;
-  return !JSON.stringify(content).includes('"text"');
 }
 
 // ── Questions ────────────────────────────────────────────────
