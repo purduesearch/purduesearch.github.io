@@ -24542,33 +24542,13 @@ html.pm-dark-route { color-scheme: dark; }
 .pm-lit-count { font-family: var(--pm-font-mono, monospace); font-size: 0.85rem; }
 .pm-lit-count.is-short { color: var(--pm-accent-amber, #f5a623); }
 
-.pm-lit-feedback h3 { margin: 0 0 0.6rem; font-size: 1rem; }
-.pm-lit-overall { margin: 0 0 0.9rem; }
-.pm-lit-points { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.5rem; }
-.pm-lit-point {
-  display: grid;
-  grid-template-columns: minmax(7rem, auto) 1fr;
-  gap: 0.75rem;
-  align-items: baseline;
-  padding: 0.7rem 0.9rem;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.03);
-  border-left: 3px solid transparent;
-}
-.pm-lit-point.is-caught  { border-left-color: var(--pm-accent-teal, #00e5cc); }
-.pm-lit-point.is-partial { border-left-color: var(--pm-accent-amber, #f5a623); }
-.pm-lit-point.is-missed  { border-left-color: var(--pm-accent-coral, #ff6b6b); }
-.pm-lit-point-verdict { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; }
-
-.pm-lit-history summary { cursor: pointer; font-size: 0.9rem; }
-.pm-lit-history article { padding: 0.75rem 0; border-top: 1px solid var(--pm-border, rgba(255, 255, 255, 0.12)); }
-.pm-lit-history h4 { margin: 0 0 0.35rem; font-size: 0.8rem; color: var(--color-text-muted, #9aa4b2); }
-.pm-lit-history p { margin: 0; white-space: pre-wrap; }
+/* Feedback and attempt-history rules used to live here, duplicated verbatim in
+   the .pm-assign-* block below. Both sections now render that region through
+   WorkSubmissionHistory.jsx — see the .pm-work-* block further down. */
 
 .pm-lit-empty { color: var(--color-text-muted, #9aa4b2); font-size: 0.9rem; }
 
 @media (max-width: 640px) {
-  .pm-lit-point { grid-template-columns: 1fr; gap: 0.25rem; }
   .pm-lit-composer-foot { flex-direction: column; align-items: stretch; }
 }
 
@@ -24762,12 +24742,32 @@ html.pm-dark-route { color-scheme: dark; }
 }
 .pm-assign-count.is-short { color: var(--pm-accent-amber, #f5a623); }
 
-.pm-assign-feedback h3 { margin: 0 0 0.6rem; font-size: 1rem; }
+.pm-assign-empty { color: var(--pm-text-secondary, #8892a4); font-size: 0.9rem; }
+
+@media (max-width: 640px) {
+  .pm-assign-tabs { flex-direction: column; }
+}
+
+/* === Course · work submission history (lit review + assignment) ======== */
+/* Rendered by WorkSubmissionHistory.jsx for BOTH section kinds. It replaced a
+   pair of byte-identical .pm-lit-* / .pm-assign-* rule sets; the visual
+   language below is carried over from those unchanged. Do not re-fork it per
+   kind — the two sections are meant to look the same. */
+
+.pm-work-history { display: flex; flex-direction: column; gap: 1.5rem; }
+
+.pm-work-feedback-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+.pm-work-feedback-head h3 { margin: 0 0 0.6rem; font-size: 1rem; }
 
 /* Rendered only under a gate. Amber, not coral, when the bar was missed —
    revisions are unlimited, so a miss is a "not yet", not an error. */
-.pm-assign-score,
-.pm-lit-score {
+.pm-work-score {
   margin: 0 0 0.8rem;
   padding: 0.6rem 0.85rem;
   border-radius: 8px;
@@ -24775,20 +24775,18 @@ html.pm-dark-route { color-scheme: dark; }
   background: rgba(255, 255, 255, 0.03);
   border-left: 3px solid transparent;
 }
-.pm-assign-score.is-pass,
-.pm-lit-score.is-pass {
+.pm-work-score.is-pass {
   border-left-color: var(--pm-accent-teal, #00e5cc);
   color: var(--pm-accent-teal, #00e5cc);
 }
-.pm-assign-score.is-short,
-.pm-lit-score.is-short {
+.pm-work-score.is-short {
   border-left-color: var(--pm-accent-amber, #f5a623);
   color: var(--pm-accent-amber, #f5a623);
 }
 
-.pm-assign-overall { margin: 0 0 0.9rem; }
-.pm-assign-points { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.5rem; }
-.pm-assign-point {
+.pm-work-overall { margin: 0 0 0.9rem; }
+.pm-work-points { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.5rem; }
+.pm-work-point {
   display: grid;
   grid-template-columns: minmax(7rem, auto) 1fr;
   gap: 0.75rem;
@@ -24798,21 +24796,115 @@ html.pm-dark-route { color-scheme: dark; }
   background: rgba(255, 255, 255, 0.03);
   border-left: 3px solid transparent;
 }
-.pm-assign-point.is-caught  { border-left-color: var(--pm-accent-teal, #00e5cc); }
-.pm-assign-point.is-partial { border-left-color: var(--pm-accent-amber, #f5a623); }
-.pm-assign-point.is-missed  { border-left-color: var(--pm-accent-coral, #ff6b6b); }
-.pm-assign-point-verdict { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; }
+.pm-work-point.is-caught  { border-left-color: var(--pm-accent-teal, #00e5cc); }
+.pm-work-point.is-partial { border-left-color: var(--pm-accent-amber, #f5a623); }
+.pm-work-point.is-missed  { border-left-color: var(--pm-accent-coral, #ff6b6b); }
+.pm-work-point-verdict { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; }
 
-.pm-assign-history summary { cursor: pointer; font-size: 0.9rem; }
-.pm-assign-history article { padding: 0.75rem 0; border-top: 1px solid var(--pm-border, rgba(255, 255, 255, 0.12)); }
-.pm-assign-history h4 { margin: 0 0 0.35rem; font-size: 0.8rem; color: var(--pm-text-secondary, #8892a4); }
-.pm-assign-history p { margin: 0; white-space: pre-wrap; }
+.pm-work-text { margin-top: 0.9rem; }
+.pm-work-text summary {
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: var(--color-text-muted, #9aa4b2);
+}
+.pm-work-text p {
+  margin: 0.6rem 0 0;
+  white-space: pre-wrap;
+  padding: 0.75rem 0.9rem;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+}
 
-.pm-assign-empty { color: var(--pm-text-secondary, #8892a4); font-size: 0.9rem; }
+.pm-work-earlier h4 {
+  margin: 0 0 0.6rem;
+  font-size: 0.9rem;
+  color: var(--color-text-muted, #9aa4b2);
+}
+.pm-work-attempts { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.5rem; }
+.pm-work-attempt {
+  border: 1px solid var(--pm-border, rgba(255, 255, 255, 0.12));
+  border-radius: 10px;
+  overflow: hidden;
+}
+.pm-work-attempt-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.15rem 0.6rem 0.15rem 0;
+}
+/* The toggle carries the row's padding and stretches, so the whole strip left
+   of the restore button is the click target rather than just the caret. */
+.pm-work-attempt-toggle {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  padding: 0.7rem 0.9rem;
+  background: none;
+  border: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.pm-work-attempt-toggle:hover { background: rgba(255, 255, 255, 0.03); }
+.pm-work-attempt-no { font-weight: 600; font-size: 0.9rem; white-space: nowrap; }
+.pm-work-attempt-meta {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.8rem;
+  color: var(--color-text-muted, #9aa4b2);
+  overflow-wrap: anywhere;
+}
+.pm-work-attempt-score {
+  font-family: var(--pm-font-mono, monospace);
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+.pm-work-attempt-score.is-pass    { color: var(--pm-accent-teal, #00e5cc); }
+.pm-work-attempt-score.is-short   { color: var(--pm-accent-amber, #f5a623); }
+.pm-work-attempt-score.is-pending { color: var(--color-text-muted, #9aa4b2); }
+
+.pm-work-attempt-body {
+  padding: 0 0.9rem 0.9rem;
+  border-top: 1px solid var(--pm-border, rgba(255, 255, 255, 0.12));
+  padding-top: 0.9rem;
+}
+
+.pm-work-restore {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.7rem;
+  border-radius: 999px;
+  border: 1px solid var(--pm-border, rgba(255, 255, 255, 0.12));
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+.pm-work-restore:hover {
+  border-color: var(--pm-accent-teal, #00e5cc);
+  color: var(--pm-accent-teal, #00e5cc);
+}
+
+/* Same vertical rhythm as .pm-work-overall — these two swap places depending on
+   whether an attempt was graded, and a default paragraph margin here made the
+   ungraded row sit lower than the graded one next to it. */
+.pm-work-empty { margin: 0 0 0.9rem; color: var(--color-text-muted, #9aa4b2); font-size: 0.9rem; }
 
 @media (max-width: 640px) {
-  .pm-assign-point { grid-template-columns: 1fr; gap: 0.25rem; }
-  .pm-assign-tabs { flex-direction: column; }
+  .pm-work-point { grid-template-columns: 1fr; gap: 0.25rem; }
+  .pm-work-attempt-head { flex-wrap: wrap; padding-bottom: 0.6rem; }
+  .pm-work-attempt-toggle { flex-wrap: wrap; }
+  /* Full-basis so the timestamp drops to its own line under the attempt number
+     and score. Left flexing, it loses the fight for width against them and
+     wraps into a ~6ch column. */
+  .pm-work-attempt-meta { flex-basis: 100%; }
+  .pm-work-restore { margin-left: 0.9rem; }
 }
 
 /* === Safety trainings and certificates ================================= */

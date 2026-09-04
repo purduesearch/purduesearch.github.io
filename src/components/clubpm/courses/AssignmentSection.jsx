@@ -1,24 +1,19 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import { submitWork, listWorkSubmissions } from '../../../api/clubPmClient';
+import WorkSubmissionHistory from './WorkSubmissionHistory';
 
 const wordsIn = (text) => String(text ?? '').trim().split(/\s+/).filter(Boolean).length;
-
-const VERDICT_META = {
-  caught:  { label: 'Caught it', icon: 'fas fa-circle-check' },
-  partial: { label: 'Partly',    icon: 'fas fa-circle-half-stroke' },
-  missed:  { label: 'Missed',    icon: 'fas fa-circle-xmark' },
-};
 
 const ACCEPT = '.pdf,.docx,.txt,.md';
 
 /**
- * Context, an optional handout, and a place to turn work in.
+ * Context, an optional handout, a place to turn work in, and every attempt so
+ * far.
  *
- * The score is rendered ONLY when the section is gated (`passThreshold` is set),
- * matching LitReviewSection. Ungated, a visible number would invent a pass/fail
- * the design does not have; gated, withholding it would leave a learner told
- * "not yet" with no idea how far off they are.
+ * Feedback rendering and the attempt history live in WorkSubmissionHistory,
+ * shared with LitReviewSection — including the rule that the score is shown
+ * only when `passThreshold` is set. See that file's ScoreLine comment.
  */
 export default function AssignmentSection({ section, preview, onSubmitted }) {
   const config = section.assignmentConfig ?? {};
@@ -31,6 +26,7 @@ export default function AssignmentSection({ section, preview, onSubmitted }) {
   const [submissions, setSubmissions] = useState([]);
   const [loading, setLoading] = useState(!preview);
   const [saving, setSaving] = useState(false);
+  const textareaRef = useRef(null);
 
   const load = useCallback(async () => {
     if (preview) { setLoading(false); return; }
@@ -79,9 +75,35 @@ export default function AssignmentSection({ section, preview, onSubmitted }) {
     }
   };
 
+  /**
+   * Pull an earlier attempt back into the composer to revise from.
+   *
+   * Always lands in the 'paste' tab, because the restored value is text. For an
+   * attempt that was originally uploaded, `text` is what the server extracted
+   * out of the file — which is exactly the editable form of it, and the only
+   * copy that still exists (the upload itself is discarded after extraction).
+   */
+  const handleRestore = (submission) => {
+    const pending = mode === 'paste' ? text.trim() : '';
+    if (pending && pending !== submission.text.trim()) {
+      const ok = window.confirm(
+        'Replace what is in the editor with this earlier attempt? What you have typed will be lost.'
+      );
+      if (!ok) return;
+    }
+    setMode('paste');
+    setFile(null);
+    setText(submission.text);
+    requestAnimationFrame(() => {
+      const el = textareaRef.current;
+      if (!el) return;
+      el.focus();
+      el.setSelectionRange(el.value.length, el.value.length);
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+  };
+
   const latest = submissions[0] ?? null;
-  const score = latest?.feedback?.scorePct ?? null;
-  const passed = gated && typeof score === 'number' && score >= section.passThreshold;
 
   return (
     <div className="pm-assign">
@@ -144,6 +166,7 @@ export default function AssignmentSection({ section, preview, onSubmitted }) {
             ) : (
               <>
                 <textarea
+                  ref={textareaRef}
                   value={text}
                   onChange={(e) => setText(e.target.value)}
                   rows={16}
@@ -166,65 +189,13 @@ export default function AssignmentSection({ section, preview, onSubmitted }) {
             </button>
           </div>
 
-          {loading && <p className="pm-assign-empty">Loading your submissions…</p>}
-
-          {!loading && latest && (
-            <div className="pm-assign-feedback">
-              <h3>
-                <i className="fas fa-comment-dots" aria-hidden="true" /> Feedback on your latest submission
-              </h3>
-
-              {gated && typeof score === 'number' && (
-                <p className={passed ? 'pm-assign-score is-pass' : 'pm-assign-score is-short'}>
-                  <strong>{score}%</strong> · {section.passThreshold}% to pass
-                  {!passed && ' — not yet. The points below are where the marks are.'}
-                </p>
-              )}
-
-              {!latest.feedback ? (
-                <p className="pm-assign-empty">
-                  Feedback is still pending. This section is already complete — submit a
-                  revision later to try again.
-                </p>
-              ) : (
-                <>
-                  {latest.feedback.overall && (
-                    <p className="pm-assign-overall">{latest.feedback.overall}</p>
-                  )}
-                  <ul className="pm-assign-points">
-                    {latest.feedback.points.map((p) => {
-                      const meta = VERDICT_META[p.verdict] ?? VERDICT_META.missed;
-                      return (
-                        <li key={p.id} className={`pm-assign-point is-${p.verdict}`}>
-                          <span className="pm-assign-point-verdict">
-                            <i className={meta.icon} aria-hidden="true" /> {meta.label}
-                          </span>
-                          <span className="pm-assign-point-comment">{p.comment}</span>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </>
-              )}
-            </div>
-          )}
-
-          {!loading && submissions.length > 1 && (
-            <details className="pm-assign-history">
-              <summary>
-                {submissions.length - 1} earlier submission{submissions.length === 2 ? '' : 's'}
-              </summary>
-              {submissions.slice(1).map((s) => (
-                <article key={s.id}>
-                  <h4>
-                    {new Date(s.createdAt).toLocaleString()} · {s.wordCount} words
-                    {s.fileName ? ` · ${s.fileName}` : ''}
-                  </h4>
-                  <p>{s.text}</p>
-                </article>
-              ))}
-            </details>
-          )}
+          <WorkSubmissionHistory
+            submissions={submissions}
+            passThreshold={section.passThreshold}
+            loading={loading}
+            onRestore={handleRestore}
+            noun="submission"
+          />
         </>
       )}
     </div>

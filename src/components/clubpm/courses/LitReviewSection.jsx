@@ -1,25 +1,16 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import { submitWork, listWorkSubmissions } from '../../../api/clubPmClient';
+import WorkSubmissionHistory from './WorkSubmissionHistory';
 
 const wordsIn = (text) => String(text ?? '').trim().split(/\s+/).filter(Boolean).length;
 
-const VERDICT_META = {
-  caught:  { label: 'Caught it', icon: 'fas fa-circle-check' },
-  partial: { label: 'Partly',    icon: 'fas fa-circle-half-stroke' },
-  missed:  { label: 'Missed',    icon: 'fas fa-circle-xmark' },
-};
-
 /**
- * A paper, a composer, and the feedback on what the learner wrote.
+ * A paper, a composer, and every draft the learner has turned in.
  *
- * The score is rendered ONLY when the section is gated (`passThreshold` is set).
- * On an ungated section it stays hidden, because completion is gated on effort
- * and a visible number would re-establish a gate the design deliberately does
- * not have — a member who saw "48%" would read it as a fail no matter what the
- * copy said. Under a real gate the opposite is true: withholding the number
- * leaves a learner told "not yet" with no way to know how far off they are.
- * Officers see the score for both cases in the course progress view.
+ * Feedback rendering and the attempt history live in WorkSubmissionHistory,
+ * shared with AssignmentSection — including the rule that the score is shown
+ * only when `passThreshold` is set. See that file's ScoreLine comment.
  */
 export default function LitReviewSection({ section, preview, onSubmitted }) {
   const config = section.litConfig ?? {};
@@ -30,6 +21,7 @@ export default function LitReviewSection({ section, preview, onSubmitted }) {
   const [submissions, setSubmissions] = useState([]);
   const [loading, setLoading] = useState(!preview);
   const [saving, setSaving] = useState(false);
+  const textareaRef = useRef(null);
 
   const load = useCallback(async () => {
     if (preview) { setLoading(false); return; }
@@ -75,9 +67,34 @@ export default function LitReviewSection({ section, preview, onSubmitted }) {
     }
   };
 
+  /**
+   * Pull an earlier draft back into the composer to revise from.
+   *
+   * Submitting clears the textarea, so without this the only way to build on
+   * what you last wrote is to retype it or copy it out of the history by hand.
+   * Confirms first when it would destroy unsaved text.
+   */
+  const handleRestore = (submission) => {
+    const pending = text.trim();
+    if (pending && pending !== submission.text.trim()) {
+      const ok = window.confirm(
+        'Replace what is in the editor with this earlier draft? What you have typed will be lost.'
+      );
+      if (!ok) return;
+    }
+    setText(submission.text);
+    // After the value lands, put the caret at the end and bring the composer
+    // into view — the history can be well below the fold on a long section.
+    requestAnimationFrame(() => {
+      const el = textareaRef.current;
+      if (!el) return;
+      el.focus();
+      el.setSelectionRange(el.value.length, el.value.length);
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+  };
+
   const latest = submissions[0] ?? null;
-  const score = latest?.feedback?.scorePct ?? null;
-  const passed = gated && typeof score === 'number' && score >= section.passThreshold;
 
   return (
     <div className="pm-lit">
@@ -125,6 +142,7 @@ export default function LitReviewSection({ section, preview, onSubmitted }) {
         <>
           <div className="pm-lit-composer">
             <textarea
+              ref={textareaRef}
               value={text}
               onChange={(e) => setText(e.target.value)}
               rows={14}
@@ -147,60 +165,13 @@ export default function LitReviewSection({ section, preview, onSubmitted }) {
             </div>
           </div>
 
-          {loading && <p className="pm-lit-empty">Loading your submissions…</p>}
-
-          {!loading && latest && (
-            <div className="pm-lit-feedback">
-              <h3>
-                <i className="fas fa-comment-dots" aria-hidden="true" /> Feedback on your latest summary
-              </h3>
-
-              {gated && typeof score === 'number' && (
-                <p className={passed ? 'pm-lit-score is-pass' : 'pm-lit-score is-short'}>
-                  <strong>{score}%</strong> · {section.passThreshold}% to pass
-                  {!passed && ' — not yet. The points below are where the marks are.'}
-                </p>
-              )}
-
-              {!latest.feedback ? (
-                <p className="pm-lit-empty">
-                  Feedback is still pending. This section is already complete — submit a
-                  revision later to try again.
-                </p>
-              ) : (
-                <>
-                  {latest.feedback.overall && (
-                    <p className="pm-lit-overall">{latest.feedback.overall}</p>
-                  )}
-                  <ul className="pm-lit-points">
-                    {latest.feedback.points.map((p) => {
-                      const meta = VERDICT_META[p.verdict] ?? VERDICT_META.missed;
-                      return (
-                        <li key={p.id} className={`pm-lit-point is-${p.verdict}`}>
-                          <span className="pm-lit-point-verdict">
-                            <i className={meta.icon} aria-hidden="true" /> {meta.label}
-                          </span>
-                          <span className="pm-lit-point-comment">{p.comment}</span>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </>
-              )}
-            </div>
-          )}
-
-          {!loading && submissions.length > 1 && (
-            <details className="pm-lit-history">
-              <summary>{submissions.length - 1} earlier submission{submissions.length === 2 ? '' : 's'}</summary>
-              {submissions.slice(1).map((s) => (
-                <article key={s.id}>
-                  <h4>{new Date(s.createdAt).toLocaleString()} · {s.wordCount} words</h4>
-                  <p>{s.text}</p>
-                </article>
-              ))}
-            </details>
-          )}
+          <WorkSubmissionHistory
+            submissions={submissions}
+            passThreshold={section.passThreshold}
+            loading={loading}
+            onRestore={handleRestore}
+            noun="summary"
+          />
         </>
       )}
     </div>

@@ -27,7 +27,13 @@ export function ShortcutsProvider({ children }) {
       const inInput = ['input', 'textarea', 'select'].includes(tag) || isEditable;
 
       if (e.metaKey || e.ctrlKey || e.altKey) return;
-      if (inInput && e.key !== '?' && e.key !== 'Escape') return;
+      // Escape is the ONLY key that still dispatches while the caret is in a
+      // field — it closes things, which is what a typist reaching for it wants.
+      // '?' used to be exempt too, so typing any question mark inside a course
+      // summary, a task comment, or any other textarea popped the shortcuts
+      // help over the top of the work. A literal character can never be a
+      // global shortcut while the user is composing text.
+      if (inInput && e.key !== 'Escape') return;
 
       // Second key of a chord
       if (chordBuffer.current !== null) {
