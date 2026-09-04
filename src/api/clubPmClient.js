@@ -408,6 +408,11 @@ export const aiCrImpact           = (id) => post(`/api/change-requests/${id}/ai-
 export const suggestActions = (projectId, goal) => post(`/api/projects/${projectId}/ai-suggest-actions`, { goal });
 export const executePlan    = (projectId, actions) => post(`/api/projects/${projectId}/ai-execute-plan`, { actions });
 
+// Clipboard planning lane: build the prompt locally, paste the reply back.
+// Neither call spends AI quota — see backend/src/services/aiActionService.ts.
+export const getAiPlanPrompt = (projectId, goal) => post(`/api/projects/${projectId}/ai-plan-prompt`, { goal });
+export const importAiPlan    = (projectId, raw)  => post(`/api/projects/${projectId}/ai-plan-import`, { raw });
+
 // ── Challenges / Achievements ─────────────────────────────────
 
 export const getActiveChallenges  = () => get('/api/challenges/active');

@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import toast from "react-hot-toast";
-import { suggestActions, executePlan } from "../../api/clubPmClient";
+import { suggestActions, executePlan, getAiPlanPrompt, importAiPlan } from "../../api/clubPmClient";
 
 const TYPE_LABELS = {
   CREATE_TASK: "Create Task",
@@ -61,6 +61,12 @@ export default function ActionPlanReview({ projectId, project, allMembers, proje
   const [suggesting, setSuggesting] = useState(false);
   const [planItems, setPlanItems] = useState(null); // null = no plan generated yet
   const [executing, setExecuting] = useState(false);
+  const [manualMode, setManualMode] = useState(false);
+  const [promptText, setPromptText] = useState("");
+  const [pasteText, setPasteText] = useState("");
+  const [loadingPrompt, setLoadingPrompt] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [droppedNotes, setDroppedNotes] = useState([]);
 
   const members = useMemo(() => {
     const src = allMembers?.length ? allMembers : (project?.members || []);
@@ -73,21 +79,67 @@ export default function ActionPlanReview({ projectId, project, allMembers, proje
 
   const taskTitleById = useMemo(() => new Map(tasks.map(t => [t.id, t.title])), [tasks]);
 
+  // Both the generated and pasted paths produce the same card list — keep one
+  // adapter so the two never drift in shape.
+  function toPlanItems(actions) {
+    return (actions || []).map((a, i) => ({
+      type: a.type,
+      targetTaskId: a.targetTaskId ?? null,
+      params: { ...(a.params || {}) },
+      rationale: a.rationale || "",
+      _id: `${Date.now()}-${i}`,
+      _accepted: true,
+      _result: null,
+    }));
+  }
+
+  async function handleBuildPrompt(e) {
+    e.preventDefault();
+    if (!goal.trim()) return;
+    setLoadingPrompt(true);
+    try {
+      const { prompt } = await getAiPlanPrompt(projectId, goal.trim());
+      setPromptText(prompt);
+      setDroppedNotes([]);
+    } catch (err) {
+      toast.error(err.message ?? "Failed to build the prompt");
+    } finally {
+      setLoadingPrompt(false);
+    }
+  }
+
+  async function handleCopyPrompt() {
+    try {
+      await navigator.clipboard.writeText(promptText);
+      toast.success("Prompt copied — paste it into Claude");
+    } catch {
+      toast.error("Could not copy. Select the text and copy manually.");
+    }
+  }
+
+  async function handleImport() {
+    if (!pasteText.trim()) return;
+    setImporting(true);
+    try {
+      const { actions, dropped } = await importAiPlan(projectId, pasteText);
+      setPlanItems(toPlanItems(actions));
+      setDroppedNotes(dropped || []);
+      if (!actions?.length) toast.error("No usable actions were found in that reply.");
+    } catch (err) {
+      toast.error(err.message ?? "Could not read that reply");
+    } finally {
+      setImporting(false);
+    }
+  }
+
   async function handleSuggest(e) {
     e.preventDefault();
     if (!goal.trim()) return;
     setSuggesting(true);
     try {
       const { actions } = await suggestActions(projectId, goal.trim());
-      setPlanItems((actions || []).map((a, i) => ({
-        type: a.type,
-        targetTaskId: a.targetTaskId ?? null,
-        params: { ...(a.params || {}) },
-        rationale: a.rationale || "",
-        _id: `${Date.now()}-${i}`,
-        _accepted: true,
-        _result: null,
-      })));
+      setPlanItems(toPlanItems(actions));
+      setDroppedNotes([]);
       if (!actions?.length) toast.error("AI found no concrete actions for that goal.");
     } catch (err) {
       toast.error(err.message ?? "Failed to generate action plan");
@@ -157,9 +209,30 @@ export default function ActionPlanReview({ projectId, project, allMembers, proje
         Action Plan
       </div>
       <p className="cpm-actionplan-hint">
-        Describe a goal and the AI will propose a concrete, editable set of actions across tasks, milestones, and blockers.
+        Describe a goal and get a concrete, editable set of actions across tasks, milestones, and blockers.
       </p>
-      <form className="cpm-actionplan-goal-form" onSubmit={handleSuggest}>
+
+      <div className="cpm-actionplan-mode-row">
+        <button
+          type="button"
+          className={`cpm-actionplan-mode-btn${manualMode ? "" : " active"}`}
+          onClick={() => setManualMode(false)}
+        >
+          <i className="fas fa-wand-magic-sparkles" aria-hidden="true" /> Built-in AI
+        </button>
+        <button
+          type="button"
+          className={`cpm-actionplan-mode-btn${manualMode ? " active" : ""}`}
+          onClick={() => setManualMode(true)}
+        >
+          <i className="fas fa-clipboard" aria-hidden="true" /> Plan with Claude
+        </button>
+      </div>
+
+      <form
+        className="cpm-actionplan-goal-form"
+        onSubmit={manualMode ? handleBuildPrompt : handleSuggest}
+      >
         <input
           type="text"
           className="cpm-actionplan-goal-input"
@@ -168,10 +241,76 @@ export default function ActionPlanReview({ projectId, project, allMembers, proje
           onChange={e => setGoal(e.target.value)}
           placeholder='e.g. "Get us ready for the design review next week"'
         />
-        <button type="submit" className="clubpm-btn-primary" disabled={suggesting || !goal.trim()}>
-          {suggesting ? <><i className="fas fa-spinner fa-spin" aria-hidden="true" /> Thinking…</> : <><i className="fas fa-wand-magic-sparkles" aria-hidden="true" /> Suggest Plan</>}
-        </button>
+        {manualMode ? (
+          <button type="submit" className="clubpm-btn-primary" disabled={loadingPrompt || !goal.trim()}>
+            {loadingPrompt
+              ? <><i className="fas fa-spinner fa-spin" aria-hidden="true" /> Building…</>
+              : <><i className="fas fa-file-lines" aria-hidden="true" /> Build Prompt</>}
+          </button>
+        ) : (
+          <button type="submit" className="clubpm-btn-primary" disabled={suggesting || !goal.trim()}>
+            {suggesting
+              ? <><i className="fas fa-spinner fa-spin" aria-hidden="true" /> Thinking…</>
+              : <><i className="fas fa-wand-magic-sparkles" aria-hidden="true" /> Suggest Plan</>}
+          </button>
+        )}
       </form>
+
+      {manualMode && (
+        <div className="cpm-actionplan-manual">
+          <p className="cpm-actionplan-manual-help">
+            Build the prompt, paste it into your own Claude or ChatGPT session, then paste the whole
+            reply back below. Nothing is sent to an AI provider from here — this uses your own
+            subscription, so it costs the club no quota.
+          </p>
+
+          {promptText && (
+            <>
+              <div className="cpm-actionplan-manual-head">
+                <span className="cpm-actionplan-manual-label">Step 1 — copy this prompt</span>
+                <button type="button" className="clubpm-btn-secondary" onClick={handleCopyPrompt}>
+                  <i className="fas fa-copy" aria-hidden="true" /> Copy
+                </button>
+              </div>
+              <textarea className="cpm-actionplan-prompt-box" readOnly value={promptText} rows={8} />
+
+              <div className="cpm-actionplan-manual-head">
+                <span className="cpm-actionplan-manual-label">Step 2 — paste the reply</span>
+              </div>
+              <textarea
+                className="cpm-actionplan-paste-box"
+                value={pasteText}
+                onChange={e => setPasteText(e.target.value)}
+                rows={6}
+                placeholder="Paste the entire reply here, including the ```json block."
+              />
+              <button
+                type="button"
+                className="clubpm-btn-primary"
+                disabled={importing || !pasteText.trim()}
+                onClick={handleImport}
+              >
+                {importing
+                  ? <><i className="fas fa-spinner fa-spin" aria-hidden="true" /> Reading…</>
+                  : <><i className="fas fa-download" aria-hidden="true" /> Load Plan</>}
+              </button>
+            </>
+          )}
+        </div>
+      )}
+
+      {droppedNotes.length > 0 && (
+        <div className="cpm-actionplan-dropped">
+          <strong>
+            {droppedNotes.length} action{droppedNotes.length === 1 ? " was" : "s were"} skipped:
+          </strong>
+          <ul>
+            {droppedNotes.map((d, i) => (
+              <li key={i}>{d.type} — {d.reason}</li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {Array.isArray(planItems) && planItems.length > 0 && (
         <>

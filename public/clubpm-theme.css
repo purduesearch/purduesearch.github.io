@@ -25029,3 +25029,102 @@ html.pm-dark-route { color-scheme: dark; }
   .pm-ai-tier-row { flex-direction: column; gap: .5rem; }
   .pm-ai-tier-controls { justify-content: flex-start; }
 }
+
+/* === Action plan — clipboard planning lane ================== */
+
+/* Token note: --pm-text and --pm-surface are NOT declared anywhere in this
+   stylesheet — the declared names are --pm-text-primary and --pm-bg-surface
+   (see the :root block above). An undeclared custom property resolves to
+   nothing rather than erroring, so the short forms would have shipped
+   transparent text on a transparent panel. Fallbacks are literal for the
+   same reason. */
+.cpm-actionplan-mode-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.cpm-actionplan-mode-btn {
+  flex: 1;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--pm-border, rgba(255, 255, 255, 0.12));
+  background: transparent;
+  color: var(--pm-text-secondary, #8892a4);
+  font-family: var(--pm-font-body);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.cpm-actionplan-mode-btn:hover {
+  border-color: var(--pm-accent-teal);
+  color: var(--pm-text-primary, #f0f2f7);
+}
+.cpm-actionplan-mode-btn.active {
+  background: color-mix(in srgb, var(--pm-accent-teal) 16%, transparent);
+  border-color: var(--pm-accent-teal);
+  color: var(--pm-accent-teal);
+}
+.cpm-actionplan-manual {
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 10px;
+  background: var(--pm-bg-surface, #13161e);
+  border: 1px solid var(--pm-border, rgba(255, 255, 255, 0.1));
+}
+.cpm-actionplan-manual-help {
+  margin: 0 0 12px;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: var(--pm-text-secondary, #8892a4);
+}
+.cpm-actionplan-manual-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 12px 0 6px;
+}
+.cpm-actionplan-manual-label {
+  font-family: var(--pm-font-display);
+  font-size: 0.8rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--pm-text-secondary, #8892a4);
+}
+.cpm-actionplan-prompt-box,
+.cpm-actionplan-paste-box {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid var(--pm-border, rgba(255, 255, 255, 0.12));
+  background: var(--pm-bg-base, #0d0f14);
+  color: var(--pm-text-primary, #f0f2f7);
+  font-family: var(--pm-font-mono);
+  font-size: 0.76rem;
+  line-height: 1.45;
+  resize: vertical;
+}
+.cpm-actionplan-prompt-box {
+  opacity: 0.85;
+}
+.cpm-actionplan-paste-box {
+  margin-bottom: 10px;
+}
+.cpm-actionplan-dropped {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border-left: 3px solid var(--pm-accent-amber);
+  background: color-mix(in srgb, var(--pm-accent-amber) 10%, transparent);
+  font-size: 0.8rem;
+  color: var(--pm-text-primary, #f0f2f7);
+}
+.cpm-actionplan-dropped ul {
+  margin: 6px 0 0;
+  padding-left: 18px;
+}
+.cpm-actionplan-dropped li {
+  margin-bottom: 3px;
+  color: var(--pm-text-secondary, #8892a4);
+}
