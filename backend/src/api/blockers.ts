@@ -150,7 +150,8 @@ blockersRouter.post("/tasks/:id/blockers", requireTaskEdit, async (req: Request,
       update: { reason: reason ?? null },
     });
 
-    await prisma.task.update({ where: { id: taskId }, data: { status: "BLOCKED" } });
+    // completedAt: null — leaving DONE clears it; a no-op when already null.
+    await prisma.task.update({ where: { id: taskId }, data: { status: "BLOCKED", completedAt: null } });
 
     const task = await prisma.task.findUnique({
       where: { id: taskId },
@@ -264,7 +265,8 @@ export async function recomputeBlockedStatus(taskIds: string[]): Promise<void> {
     const hasOpenDep = task.blockedBy.some((d) => d.blockingTask.status !== "DONE");
     const hasOpenCategory = task.blockers.some((b) => b.blocker.resolvedAt === null);
     if (!hasOpenDep && !hasOpenCategory) {
-      await prisma.task.update({ where: { id: taskId }, data: { status: "TODO" } });
+      // completedAt: null — leaving DONE clears it; a no-op when already null.
+      await prisma.task.update({ where: { id: taskId }, data: { status: "TODO", completedAt: null } });
     }
   }
 }

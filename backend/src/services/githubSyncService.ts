@@ -890,13 +890,22 @@ export async function handlePullRequestEvent(payload: any): Promise<void> {
         ) {
           await prisma.task.update({
             where: { id: linkedTaskId },
-            data: { status: "IN_PROGRESS", progress: "IN_PROGRESS" },
+            // Leaving DONE clears completedAt; a no-op when it was already null.
+            data: { status: "IN_PROGRESS", progress: "IN_PROGRESS", completedAt: null },
           });
         }
         if (action === "closed" && pr.merged) {
+          const prev = await prisma.task.findUnique({
+            where: { id: linkedTaskId },
+            select: { completedAt: true },
+          });
           await prisma.task.update({
             where: { id: linkedTaskId },
-            data: { status: "DONE", progress: "COMPLETED" },
+            data: {
+              status: "DONE",
+              progress: "COMPLETED",
+              completedAt: prev?.completedAt ?? new Date(),
+            },
           });
           notifyTaskAssignees(linkedTaskId, {
             type: "GITHUB_PR_MERGED",
@@ -1039,9 +1048,17 @@ export async function handlePushEvent(payload: any): Promise<void> {
             },
           });
           if (!issueLink?.taskId) continue;
+          const prevIssueTask = await prisma.task.findUnique({
+            where: { id: issueLink.taskId },
+            select: { completedAt: true },
+          });
           await prisma.task.update({
             where: { id: issueLink.taskId },
-            data: { status: "DONE", progress: "COMPLETED" },
+            data: {
+              status: "DONE",
+              progress: "COMPLETED",
+              completedAt: prevIssueTask?.completedAt ?? new Date(),
+            },
           });
           logAuditEvent({
             projectId: proj.id,

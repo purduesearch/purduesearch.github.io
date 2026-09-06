@@ -357,6 +357,7 @@ model Task {
   title       String
   description String?
   status      TaskStatus    @default(TODO)
+  completedAt DateTime?
   priority    Priority      @default(MEDIUM)
   dueDate     DateTime?
   project     Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
@@ -436,6 +437,7 @@ model Task {
   @@index([parentTaskId])
   @@index([milestoneId])
   @@index([archivedAt])
+  @@index([projectId, completedAt])
 }
 
 model TaskComment {

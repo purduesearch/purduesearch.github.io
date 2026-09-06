@@ -130,6 +130,26 @@ export async function createTask(
   return task;
 }
 
+/**
+ * Decide what `completedAt` should become for a status write.
+ *
+ * `completedAt` answers "when did this last become done" — it is deliberately
+ * NOT an idempotency gate. Re-writing DONE over DONE preserves the original
+ * stamp; `rewardGrantedAt` remains the sole guard against the
+ * DONE→IN_PROGRESS→DONE re-grant exploit.
+ *
+ * Returns `undefined` when the column should be left alone.
+ */
+export function resolveCompletedAt(
+  nextStatus: TaskStatus,
+  current: { status: TaskStatus; completedAt: Date | null } | null,
+  now: Date = new Date()
+): Date | null | undefined {
+  if (nextStatus === "DONE") return current?.completedAt ?? now;
+  if (current?.status === "DONE") return null;
+  return undefined;
+}
+
 export async function updateTask(
   id: string,
   data: UpdateTaskInput
@@ -137,17 +157,26 @@ export async function updateTask(
   // ── Airtight completion gate ──
   // Enforce the open-blocker check at the data-mutation layer so EVERY
   // completion path (web single/bulk PATCH, Slack completion, future callers)
-  // is gated, not just the HTTP routes. Only fires on the →DONE transition.
-  if (data.status === "DONE") {
-    const current = await prisma.task.findUnique({
+  // is gated, not just the HTTP routes. The blocker check itself only fires on
+  // the →DONE transition, but we read `current` for ANY status write so the
+  // completedAt bookkeeping below knows what we are transitioning away from.
+  let current: {
+    status: TaskStatus;
+    completedAt: Date | null;
+    blockedBy: { blockingTask: { title: string; status: TaskStatus } }[];
+    blockers: { blocker: { label: string; resolvedAt: Date | null } }[];
+  } | null = null;
+  if (data.status !== undefined) {
+    current = await prisma.task.findUnique({
       where: { id },
       select: {
         status: true,
+        completedAt: true,
         blockedBy: { include: { blockingTask: { select: { title: true, status: true } } } },
         blockers: { include: { blocker: { select: { label: true, resolvedAt: true } } } },
       },
     });
-    if (current && current.status !== "DONE") {
+    if (data.status === "DONE" && current && current.status !== "DONE") {
       const blockerError = assertCanComplete(current);
       if (blockerError) throw new Error(blockerError);
     }
@@ -158,7 +187,11 @@ export async function updateTask(
   // Copy simple scalar fields
   if (data.title !== undefined) updateData.title = data.title;
   if (data.description !== undefined) updateData.description = data.description;
-  if (data.status !== undefined) updateData.status = data.status;
+  if (data.status !== undefined) {
+    updateData.status = data.status;
+    const nextCompletedAt = resolveCompletedAt(data.status, current);
+    if (nextCompletedAt !== undefined) updateData.completedAt = nextCompletedAt;
+  }
   if (data.progress !== undefined) updateData.progress = data.progress;
   if (data.priority !== undefined) updateData.priority = data.priority;
   if (data.dueDate !== undefined) updateData.dueDate = safeParseDate(data.dueDate, "dueDate") ?? null;
