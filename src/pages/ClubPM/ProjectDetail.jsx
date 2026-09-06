@@ -2505,6 +2505,16 @@ export default function ProjectDetail() {
     setSelectedTask(task);
   }, [lastClickedId, flatTaskOrder]);
 
+  // Activity rows carry a task id only; resolve it against the loaded project and
+  // reuse the single TaskModal opener rather than introducing a second one.
+  const handleActivityOpenTask = useCallback((taskId) => {
+    const tasks = project?.tasks ?? [];
+    const found =
+      tasks.find(t => t.id === taskId) ??
+      tasks.flatMap(t => t.subtasks ?? []).find(s => s.id === taskId);
+    if (found) setSelectedTask(found);
+  }, [project]);
+
   useEffect(() => {
     if (!project) return;
     setProjectNav({
@@ -3257,7 +3267,13 @@ export default function ProjectDetail() {
               </div>
               {reportTab === "charts" && <ProjectAnalytics project={project} />}
               {reportTab === "activity" && (
-                <div style={{ paddingTop: 8 }}><ProjectActivity projectId={project.id} /></div>
+                <div style={{ paddingTop: 8 }}>
+                  <ProjectActivity
+                    projectId={project.id}
+                    members={project.members ?? []}
+                    onOpenTask={handleActivityOpenTask}
+                  />
+                </div>
               )}
               {reportTab === "presskit" && <PressKitPanel project={project} canEdit={canEdit} />}
             </div>
