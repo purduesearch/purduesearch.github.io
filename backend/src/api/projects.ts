@@ -15,7 +15,7 @@ import {
   createTask,
 } from "../services/taskService.js";
 import { logAuditEvent, diffObjects, getProjectAuditLog } from "../services/activityService.js";
-import type { ProjectType, ProjectStatus, TaskStatus, Priority, ActivityEventType, NotificationType } from "@prisma/client";
+import type { ProjectType, ProjectStatus, TaskStatus, Priority, NotificationType } from "@prisma/client";
 import { createNotification } from "../services/notificationCrud.js";
 import { queueDm } from "../services/dmBatcher.js";
 import { fetchDriveFileAsText, extractFileId, listDriveFolderFiles, getDriveFileMeta } from "../services/driveService.js";
@@ -240,9 +240,12 @@ projectsRouter.get("/:id/activity", async (req: Request, res: Response) => {
     const projectId = req.params.id as string;
     const cursor    = req.query.cursor as string | undefined;
     const limit     = Number(req.query.limit) || 50;
-    const eventType = req.query.eventType as ActivityEventType | undefined;
+    const eventTypes = req.query.eventType
+      ? String(req.query.eventType).split(",").map(s => s.trim()).filter(Boolean)
+      : undefined;
+    const memberId  = req.query.memberId as string | undefined;
 
-    const result = await getProjectAuditLog(projectId, cursor, limit, eventType);
+    const result = await getProjectAuditLog(projectId, { cursor, limit, eventTypes, memberId });
     res.json(result);
   } catch (error) {
     console.error("Get project activity error:", error);
