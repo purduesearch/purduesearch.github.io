@@ -4,12 +4,18 @@
   "private": true,
   "jest": {
     "moduleNameMapper": {
+      "^react-router-dom$": "<rootDir>/node_modules/react-router-dom/dist/index.js",
+      "^react-router/dom$": "<rootDir>/node_modules/react-router/dist/development/dom-export.js",
       "^@tiptap/pm/(.*)$": "<rootDir>/node_modules/@tiptap/pm/dist/$1/index.cjs",
       "^lib0/hash/([a-z0-9.]+)$": "<rootDir>/node_modules/lib0/dist/$1.cjs",
       "^y-protocols/([a-z]+)$": "<rootDir>/node_modules/y-protocols/dist/$1.cjs",
       "^lib0/webcrypto$": "<rootDir>/node_modules/lib0/dist/webcrypto.node.cjs",
       "^lib0/([a-z0-9.]+)$": "<rootDir>/node_modules/lib0/dist/$1.cjs"
-    }
+    },
+    "transformIgnorePatterns": [
+      "[/\\\\]node_modules[/\\\\](?!gsap[/\\\\]).+\\.(js|jsx|mjs|cjs|ts|tsx)$",
+      "^.+\\.module\\.(css|sass|scss)$"
+    ]
   },
   "proxy": "http://localhost:3001",
   "dependencies": {
