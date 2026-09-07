@@ -4134,126 +4134,6 @@ html::-webkit-scrollbar { display: none; }
   height: 24px;
 }
 
-/* â”€â”€ Phase 3D: ProjectAnalytics â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
-
-.pm-analytics-grid {
-  display: grid;
-  grid-template-columns: 2fr 1fr;
-  gap: 20px;
-}
-
-.pm-analytics-card {
-  background: var(--pm-bg-surface);
-  border: 1px solid var(--pm-border);
-  border-radius: 12px;
-  padding: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.pm-analytics-card--burndown {
-  grid-column: 1;
-}
-
-.pm-analytics-card-title {
-  font-family: var(--pm-font-display);
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--pm-accent-teal);
-}
-
-.pm-analytics-card-title--risk {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-/* â”€â”€ Risk dot (pulsing indicator) â”€â”€ */
-.pm-risk-dot {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  flex-shrink: 0;
-  animation: pm-risk-pulse 2s ease-in-out infinite;
-}
-
-.pm-risk-dot--amber {
-  background: var(--pm-accent-amber);
-  box-shadow: 0 0 0 0 rgba(245, 166, 35, 0.6);
-}
-
-.pm-risk-dot--green {
-  background: #00c896;
-  box-shadow: 0 0 0 0 rgba(0, 200, 150, 0.6);
-  animation: pm-risk-pulse-green 2s ease-in-out infinite;
-}
-
-@keyframes pm-risk-pulse {
-  0%   { box-shadow: 0 0 0 0 rgba(245, 166, 35, 0.6); }
-  70%  { box-shadow: 0 0 0 6px rgba(245, 166, 35, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(245, 166, 35, 0); }
-}
-
-@keyframes pm-risk-pulse-green {
-  0%   { box-shadow: 0 0 0 0 rgba(0, 200, 150, 0.6); }
-  70%  { box-shadow: 0 0 0 6px rgba(0, 200, 150, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(0, 200, 150, 0); }
-}
-
-/* â”€â”€ Risk list items â”€â”€ */
-.pm-risk-list {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  flex: 1;
-}
-
-.pm-risk-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  padding: 8px 10px;
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.03);
-  font-family: var(--pm-font-body);
-  font-size: 0.8rem;
-  line-height: 1.4;
-}
-
-.pm-risk-item--clear {
-  background: rgba(0, 200, 150, 0.05);
-}
-
-.pm-risk-icon {
-  flex-shrink: 0;
-  font-size: 0.85rem;
-  line-height: 1.4;
-}
-
-.pm-risk-text {
-  flex: 1;
-}
-
-.pm-risk-footer {
-  margin-top: auto;
-  padding-top: 8px;
-  border-top: 1px solid var(--pm-border);
-}
-
-/* â”€â”€ Responsive: single column on mobile â”€â”€ */
-@media (max-width: 768px) {
-  .pm-analytics-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .pm-analytics-card--burndown {
-    grid-column: 1;
-  }
-}
 
 /* â”€â”€ Phase 5A: ActivityFeed â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
@@ -25492,4 +25372,444 @@ html.pm-dark-route { color-scheme: dark; }
   }
 
   .pm-activity .pm-activity-actors::-webkit-scrollbar { display: none; }
+}
+
+/* === Project Analytics (Reports / Charts) ================================== */
+/* Every class rendered by src/components/clubpm/analytics/. ClubPM-only file:
+   loaded at runtime on /clubpm/* routes, so nothing here reaches the public site.
+   Cards carry their own layout inline (recharts needs concrete heights); this block
+   owns the chrome - grid, card shell, toolbar, KPI strip, menu, risk meter. */
+
+.pm-an-root {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  font-family: var(--pm-font-body);
+}
+
+/* -- Toolbar -------------------------------------------------------------- */
+
+.pm-an-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 20px;
+  padding: 12px 14px;
+  background: var(--pm-bg-surface);
+  border: 1px solid var(--pm-border);
+  border-radius: 12px;
+}
+
+.pm-an-toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.pm-an-toolbar-label {
+  font-family: var(--pm-font-display);
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--pm-text-secondary);
+  white-space: nowrap;
+}
+
+/* Segmented control - also used inside card headers (velocity metric, donut
+   dimension), which is why it is not nested under .pm-an-toolbar. */
+.pm-an-seg {
+  display: inline-flex;
+  padding: 2px;
+  gap: 2px;
+  background: var(--pm-bg-elevated);
+  border: 1px solid var(--pm-border);
+  border-radius: 8px;
+}
+
+.pm-an-seg-btn {
+  padding: 4px 10px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--pm-text-secondary);
+  font-family: var(--pm-font-body);
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.4;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.pm-an-seg-btn:hover { color: var(--pm-text-primary); }
+
+.pm-an-seg-btn.is-active {
+  background: rgba(0, 229, 204, 0.12);
+  color: var(--pm-accent-teal);
+}
+
+.pm-an-seg-btn:focus-visible,
+.pm-an-toggle input:focus-visible,
+.pm-an-select:focus-visible,
+.pm-an-card-menu-btn:focus-visible,
+.pm-an-card-menu-item:focus-visible,
+.pm-an-risk-factor-row:focus-visible,
+.pm-an-risk-task:focus-visible {
+  outline: 2px solid var(--pm-accent-teal);
+  outline-offset: 2px;
+}
+
+.pm-an-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  color: var(--pm-text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.pm-an-toggle input {
+  width: 14px;
+  height: 14px;
+  accent-color: var(--pm-accent-teal);
+  cursor: pointer;
+}
+
+.pm-an-toggle:hover { color: var(--pm-text-primary); }
+
+.pm-an-select {
+  max-width: 190px;
+  padding: 5px 8px;
+  background: var(--pm-bg-elevated);
+  border: 1px solid var(--pm-border);
+  border-radius: 8px;
+  color: var(--pm-text-primary);
+  font-family: var(--pm-font-body);
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.pm-an-select:focus { outline: none; border-color: var(--pm-border-active); }
+
+/* -- KPI strip ------------------------------------------------------------ */
+
+.pm-an-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+}
+
+.pm-an-kpi {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  background: var(--pm-bg-surface);
+  border: 1px solid var(--pm-border);
+  border-radius: 12px;
+  min-width: 0;
+}
+
+.pm-an-kpi-label {
+  font-family: var(--pm-font-display);
+  font-size: 0.64rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--pm-text-secondary);
+}
+
+.pm-an-kpi-value {
+  font-family: var(--pm-font-display);
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--pm-text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.pm-an-kpi-delta {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: var(--pm-text-secondary);
+}
+
+.pm-an-kpi-delta i { font-size: 0.6rem; }
+.pm-an-kpi-delta.is-good { color: var(--pm-accent-teal); }
+.pm-an-kpi-delta.is-bad  { color: var(--pm-accent-coral); }
+.pm-an-kpi-delta.is-flat { color: var(--pm-text-secondary); }
+
+/* -- Card grid ------------------------------------------------------------ */
+
+.pm-an-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+  gap: 20px;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .pm-an-grid { grid-template-columns: 1fr; }
+}
+
+/* -- Card shell ----------------------------------------------------------- */
+
+.pm-an-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px 18px 14px;
+  background: var(--pm-bg-surface);
+  border: 1px solid var(--pm-border);
+  border-radius: 12px;
+  min-width: 0;
+  /* .pm-an-card-menu is absolutely positioned and overflows the card. Grid items
+     paint in source order, so without a stacking context here the next card in the
+     grid draws over an open menu. Raised further while the menu is open, below. */
+  z-index: 1;
+}
+
+.pm-an-card:hover { border-color: rgba(255, 255, 255, 0.12); }
+
+.pm-an-card-head {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-height: 28px;
+}
+
+.pm-an-card-head > :first-child { min-width: 0; flex: 1 1 auto; }
+
+.pm-an-card-title {
+  margin: 0;
+  font-family: var(--pm-font-display);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--pm-accent-teal);
+}
+
+.pm-an-card-sub {
+  margin: 4px 0 0;
+  font-size: 0.72rem;
+  line-height: 1.45;
+  color: var(--pm-text-secondary);
+}
+
+.pm-an-card-aside {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.pm-an-card-body {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+}
+
+/* -- Overflow menu -------------------------------------------------------- */
+
+.pm-an-card-menu-btn {
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--pm-text-secondary);
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.pm-an-card-menu-btn:hover {
+  background: var(--pm-bg-elevated);
+  border-color: var(--pm-border);
+  color: var(--pm-text-primary);
+}
+
+.pm-an-card-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 30;
+  min-width: 178px;
+  display: flex;
+  flex-direction: column;
+  padding: 4px;
+  background: var(--pm-bg-elevated);
+  border: 1px solid var(--pm-border);
+  border-radius: 10px;
+  box-shadow: var(--pm-shadow-card, 0 4px 24px rgba(0, 0, 0, 0.4));
+}
+
+/* Lift the whole card while its menu is mounted so the menu cannot be painted over
+   by the following grid item. Progressive enhancement - the base z-index above
+   already handles the common case in browsers without :has(). */
+.pm-an-card:has(.pm-an-card-menu) { z-index: 20; }
+
+.pm-an-card-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 7px 9px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: var(--pm-text-primary);
+  font-family: var(--pm-font-body);
+  font-size: 0.78rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.pm-an-card-menu-item > i:first-child {
+  width: 14px;
+  color: var(--pm-text-secondary);
+  font-size: 0.75rem;
+}
+
+.pm-an-card-menu-item > span { flex: 1 1 auto; }
+
+.pm-an-card-menu-item .fa-check { color: var(--pm-accent-teal); font-size: 0.7rem; }
+
+.pm-an-card-menu-item:hover:not(:disabled) { background: rgba(255, 255, 255, 0.05); }
+
+.pm-an-card-menu-item:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* -- Empty states --------------------------------------------------------- */
+
+.pm-an-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 100%;
+  min-height: 120px;
+  padding: 12px;
+  text-align: center;
+  color: var(--pm-text-secondary);
+}
+
+.pm-an-empty i {
+  font-size: 1.5rem;
+  color: var(--pm-text-muted);
+}
+
+.pm-an-empty p {
+  margin: 0;
+  max-width: 32ch;
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+/* -- Donut centre label --------------------------------------------------- */
+
+.pm-an-donut-center {
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  text-align: center;
+}
+
+.pm-an-donut-center strong {
+  font-family: var(--pm-font-display);
+  font-size: 1.4rem;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--pm-text-primary);
+}
+
+.pm-an-donut-center span {
+  font-size: 0.66rem;
+  letter-spacing: 0.04em;
+  color: var(--pm-text-secondary);
+}
+
+/* "+N more members with less open work" and friends. */
+.pm-an-more {
+  color: var(--pm-text-secondary);
+  font-size: 0.68rem;
+}
+
+/* -- Risk radar ----------------------------------------------------------- */
+
+.pm-an-risk-band { white-space: nowrap; }
+
+.pm-an-risk-meter { flex: 0 0 auto; }
+
+.pm-an-risk-factors {
+  /* Thin scrollbar: the list is seven fixed rows and rarely scrolls, so a full-width
+     one would read as chrome rather than affordance. */
+  scrollbar-width: thin;
+  scrollbar-color: var(--pm-border) transparent;
+}
+
+.pm-an-risk-factors::-webkit-scrollbar { width: 6px; }
+.pm-an-risk-factors::-webkit-scrollbar-thumb {
+  background: var(--pm-border);
+  border-radius: 999px;
+}
+
+.pm-an-risk-factor + .pm-an-risk-factor {
+  border-top: 1px solid var(--pm-border);
+}
+
+.pm-an-risk-factor-row {
+  font-family: var(--pm-font-body);
+  font-size: 0.78rem;
+  border-radius: 6px;
+}
+
+button.pm-an-risk-factor-row:hover { background: rgba(255, 255, 255, 0.04); }
+
+.pm-an-risk-tasks li { min-width: 0; }
+
+.pm-an-risk-task:hover {
+  color: var(--pm-accent-teal);
+  text-decoration: underline;
+}
+
+/* -- Motion --------------------------------------------------------------- */
+
+@media (prefers-reduced-motion: no-preference) {
+  .pm-an-seg-btn,
+  .pm-an-select,
+  .pm-an-toggle,
+  .pm-an-card,
+  .pm-an-card-menu-btn,
+  .pm-an-card-menu-item,
+  .pm-an-risk-factor-row,
+  .pm-an-risk-task {
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  }
+
+  .pm-an-card-menu {
+    animation: pm-an-menu-in 0.12s ease-out;
+  }
+
+  @keyframes pm-an-menu-in {
+    from { opacity: 0; transform: translateY(-4px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
 }

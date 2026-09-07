@@ -11,7 +11,7 @@ import TaskModal from "../../components/clubpm/TaskModal";
 import BulkActionBar from "../../components/clubpm/BulkActionBar";
 import ProjectActivity from "../../components/clubpm/ProjectActivity";
 import ReportingView from "../../components/clubpm/ReportingView";
-import ProjectAnalytics from "../../components/clubpm/ProjectAnalytics";
+import ProjectAnalytics from "../../components/clubpm/analytics";
 import PressKitPanel from "../../components/clubpm/PressKitPanel";
 import GanttChart from "../../components/clubpm/GanttChart";
 import { PriorityBars, AvatarStack } from "../../components/clubpm/TaskPrimitives";
@@ -2515,6 +2515,12 @@ export default function ProjectDetail() {
     if (found) setSelectedTask(found);
   }, [project]);
 
+  // RiskRadarCard hands back the whole task object; ProjectActivity hands back an id.
+  // Normalise here so both surfaces share one opener.
+  const handleAnalyticsOpenTask = useCallback((task) => {
+    handleActivityOpenTask(typeof task === "string" ? task : task?.id);
+  }, [handleActivityOpenTask]);
+
   useEffect(() => {
     if (!project) return;
     setProjectNav({
@@ -3265,7 +3271,9 @@ export default function ProjectDetail() {
                   </button>
                 ))}
               </div>
-              {reportTab === "charts" && <ProjectAnalytics project={project} />}
+              {reportTab === "charts" && (
+                <ProjectAnalytics project={project} onOpenTask={handleAnalyticsOpenTask} />
+              )}
               {reportTab === "activity" && (
                 <div style={{ paddingTop: 8 }}>
                   <ProjectActivity
