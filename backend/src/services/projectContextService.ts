@@ -124,7 +124,7 @@ export async function buildProjectContext(
         tasks: { include: { task: { select: { title: true } } } },
       },
     }),
-    getProjectAuditLog(projectId, undefined, activityLimit),
+    getProjectAuditLog(projectId, { limit: activityLimit }),
   ]);
 
   const openTaskCounts = await Promise.all(

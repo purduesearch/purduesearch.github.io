@@ -4134,126 +4134,6 @@ html::-webkit-scrollbar { display: none; }
   height: 24px;
 }
 
-/* â”€â”€ Phase 3D: ProjectAnalytics â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
-
-.pm-analytics-grid {
-  display: grid;
-  grid-template-columns: 2fr 1fr;
-  gap: 20px;
-}
-
-.pm-analytics-card {
-  background: var(--pm-bg-surface);
-  border: 1px solid var(--pm-border);
-  border-radius: 12px;
-  padding: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.pm-analytics-card--burndown {
-  grid-column: 1;
-}
-
-.pm-analytics-card-title {
-  font-family: var(--pm-font-display);
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--pm-accent-teal);
-}
-
-.pm-analytics-card-title--risk {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-/* â”€â”€ Risk dot (pulsing indicator) â”€â”€ */
-.pm-risk-dot {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  flex-shrink: 0;
-  animation: pm-risk-pulse 2s ease-in-out infinite;
-}
-
-.pm-risk-dot--amber {
-  background: var(--pm-accent-amber);
-  box-shadow: 0 0 0 0 rgba(245, 166, 35, 0.6);
-}
-
-.pm-risk-dot--green {
-  background: #00c896;
-  box-shadow: 0 0 0 0 rgba(0, 200, 150, 0.6);
-  animation: pm-risk-pulse-green 2s ease-in-out infinite;
-}
-
-@keyframes pm-risk-pulse {
-  0%   { box-shadow: 0 0 0 0 rgba(245, 166, 35, 0.6); }
-  70%  { box-shadow: 0 0 0 6px rgba(245, 166, 35, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(245, 166, 35, 0); }
-}
-
-@keyframes pm-risk-pulse-green {
-  0%   { box-shadow: 0 0 0 0 rgba(0, 200, 150, 0.6); }
-  70%  { box-shadow: 0 0 0 6px rgba(0, 200, 150, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(0, 200, 150, 0); }
-}
-
-/* â”€â”€ Risk list items â”€â”€ */
-.pm-risk-list {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  flex: 1;
-}
-
-.pm-risk-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  padding: 8px 10px;
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.03);
-  font-family: var(--pm-font-body);
-  font-size: 0.8rem;
-  line-height: 1.4;
-}
-
-.pm-risk-item--clear {
-  background: rgba(0, 200, 150, 0.05);
-}
-
-.pm-risk-icon {
-  flex-shrink: 0;
-  font-size: 0.85rem;
-  line-height: 1.4;
-}
-
-.pm-risk-text {
-  flex: 1;
-}
-
-.pm-risk-footer {
-  margin-top: auto;
-  padding-top: 8px;
-  border-top: 1px solid var(--pm-border);
-}
-
-/* â”€â”€ Responsive: single column on mobile â”€â”€ */
-@media (max-width: 768px) {
-  .pm-analytics-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .pm-analytics-card--burndown {
-    grid-column: 1;
-  }
-}
 
 /* â”€â”€ Phase 5A: ActivityFeed â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
@@ -25292,4 +25172,894 @@ html.pm-dark-route { color-scheme: dark; }
 
 @media (prefers-reduced-motion: reduce) {
   .cpm-actionplan-mode-btn { transition: none; }
+}
+
+/* === Project Activity Timeline === */
+/* Reports -> Activity sub-tab (src/components/clubpm/ProjectActivity.jsx).
+   Every selector here is scoped under .pm-activity on purpose: older, unrelated
+   .pm-activity-* rules for the dashboard feed and the activity sidebar live
+   earlier in this file and must keep their own styling. */
+
+.pm-activity {
+  /* Tone palette -- declared once, derived from the ClubPM accent tokens. */
+  --pm-act-create:    var(--pm-accent-teal);
+  --pm-act-update:    var(--pm-accent-violet);
+  --pm-act-done:      color-mix(in srgb, var(--pm-accent-teal) 60%, var(--pm-accent-amber));
+  --pm-act-danger:    var(--pm-accent-coral);
+  --pm-act-warn:      var(--pm-accent-amber);
+  --pm-act-muted:     color-mix(in srgb, var(--pm-text-muted) 45%, var(--pm-text-primary));
+  --pm-act-github:    color-mix(in srgb, var(--pm-text-primary) 70%, var(--pm-accent-violet));
+  --pm-act-ai:        var(--pm-accent-violet);
+  --pm-act-comment:   color-mix(in srgb, var(--pm-accent-teal) 50%, var(--pm-accent-violet));
+  --pm-act-time:      color-mix(in srgb, var(--pm-accent-amber) 65%, var(--pm-accent-coral));
+  --pm-act-milestone: color-mix(in srgb, var(--pm-accent-coral) 50%, var(--pm-accent-violet));
+
+  /* Opaque backdrop for the sticky day header and the icon discs -- the rail
+     line must not show through either of them. */
+  --pm-act-surface: var(--pm-bg-base);
+
+  display: flex;
+  flex-direction: column;
+  font-family: var(--pm-font-body);
+  color: var(--pm-text-primary);
+}
+
+/* -- Filter bar -- */
+
+.pm-activity .pm-activity-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 0 0 12px;
+  border-bottom: 1px solid var(--pm-border);
+}
+
+.pm-activity .pm-activity-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
+.pm-activity .pm-activity-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border: 1px solid var(--pm-border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--pm-text-secondary);
+  font-family: inherit;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.pm-activity .pm-activity-chip i { font-size: 11px; }
+
+.pm-activity .pm-activity-chip:hover {
+  color: var(--pm-text-primary);
+  border-color: var(--pm-border-active);
+}
+
+.pm-activity .pm-activity-chip.is-active {
+  background: color-mix(in srgb, var(--pm-accent-teal) 12%, transparent);
+  border-color: color-mix(in srgb, var(--pm-accent-teal) 45%, transparent);
+  color: var(--pm-accent-teal);
+}
+
+.pm-activity .pm-activity-chip:focus-visible,
+.pm-activity .pm-activity-actor:focus-visible,
+.pm-activity .pm-activity-search:focus-visible {
+  outline: 2px solid var(--pm-accent-teal);
+  outline-offset: 2px;
+}
+
+.pm-activity .pm-activity-actors {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.pm-activity .pm-activity-actor {
+  position: relative;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid transparent;
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+  flex-shrink: 0;
+  opacity: 0.65;
+}
+
+/* The badge is clipped to the portrait itself: MemberBadge trails a tooltip div
+   whose Tailwind classes never resolve, so it would otherwise render as a plain
+   block of the member's name. */
+.pm-activity .pm-activity-actor > * {
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  height: 24px;
+  overflow: hidden;
+}
+
+.pm-activity .pm-activity-actor:hover { opacity: 1; }
+
+.pm-activity .pm-activity-actor.is-active {
+  opacity: 1;
+  border-color: var(--pm-accent-teal);
+}
+
+.pm-activity .pm-activity-search {
+  flex: 1 1 180px;
+  min-width: 140px;
+  padding: 6px 10px;
+  border: 1px solid var(--pm-border);
+  border-radius: 6px;
+  background: var(--pm-bg-surface);
+  color: var(--pm-text-primary);
+  font-family: inherit;
+  font-size: 12px;
+}
+
+.pm-activity .pm-activity-search::placeholder { color: var(--pm-text-muted); }
+
+/* -- Day header -- */
+
+.pm-activity .pm-activity-day {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  margin: 0;
+  padding: 10px 0 6px;
+  background: var(--pm-act-surface);
+  color: var(--pm-text-secondary);
+  font-family: var(--pm-font-display);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.pm-activity .pm-activity-group { display: block; }
+
+/* -- Row -- */
+
+.pm-activity .pm-activity-row {
+  display: grid;
+  grid-template-columns: 32px 28px 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-radius: 8px;
+}
+
+.pm-activity .pm-activity-rail {
+  position: relative;
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+}
+
+/* Vertical connector, behind the icon disc, bridging the 10px row padding. */
+.pm-activity .pm-activity-rail::before {
+  content: "";
+  position: absolute;
+  top: -10px;
+  bottom: -10px;
+  left: 50%;
+  width: 1px;
+  margin-left: -0.5px;
+  background: var(--pm-border);
+}
+
+.pm-activity .pm-activity-row.is-last .pm-activity-rail::before { display: none; }
+
+.pm-activity .pm-activity-icon {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid transparent;
+  border-radius: 50%;
+  background: var(--pm-act-surface);
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+/* `color` carries !important because `.clubpm-app span { color: inherit
+   !important }` (near the top of this file) would otherwise flatten every icon
+   to the body colour; two !important declarations are settled on specificity,
+   and .pm-activity + class + class outranks class-plus-type. */
+.pm-activity .pm-activity-icon.is-create {
+  color: var(--pm-act-create) !important;
+  background: color-mix(in srgb, var(--pm-act-create) 14%, var(--pm-act-surface));
+  border-color: color-mix(in srgb, var(--pm-act-create) 38%, transparent);
+}
+.pm-activity .pm-activity-icon.is-update {
+  color: var(--pm-act-update) !important;
+  background: color-mix(in srgb, var(--pm-act-update) 14%, var(--pm-act-surface));
+  border-color: color-mix(in srgb, var(--pm-act-update) 38%, transparent);
+}
+.pm-activity .pm-activity-icon.is-done {
+  color: var(--pm-act-done) !important;
+  background: color-mix(in srgb, var(--pm-act-done) 14%, var(--pm-act-surface));
+  border-color: color-mix(in srgb, var(--pm-act-done) 38%, transparent);
+}
+.pm-activity .pm-activity-icon.is-danger {
+  color: var(--pm-act-danger) !important;
+  background: color-mix(in srgb, var(--pm-act-danger) 14%, var(--pm-act-surface));
+  border-color: color-mix(in srgb, var(--pm-act-danger) 38%, transparent);
+}
+.pm-activity .pm-activity-icon.is-warn {
+  color: var(--pm-act-warn) !important;
+  background: color-mix(in srgb, var(--pm-act-warn) 14%, var(--pm-act-surface));
+  border-color: color-mix(in srgb, var(--pm-act-warn) 38%, transparent);
+}
+.pm-activity .pm-activity-icon.is-muted {
+  color: var(--pm-act-muted) !important;
+  background: color-mix(in srgb, var(--pm-act-muted) 14%, var(--pm-act-surface));
+  border-color: color-mix(in srgb, var(--pm-act-muted) 38%, transparent);
+}
+.pm-activity .pm-activity-icon.is-github {
+  color: var(--pm-act-github) !important;
+  background: color-mix(in srgb, var(--pm-act-github) 14%, var(--pm-act-surface));
+  border-color: color-mix(in srgb, var(--pm-act-github) 38%, transparent);
+}
+.pm-activity .pm-activity-icon.is-ai {
+  color: var(--pm-act-ai) !important;
+  background: color-mix(in srgb, var(--pm-act-ai) 14%, var(--pm-act-surface));
+  border-color: color-mix(in srgb, var(--pm-act-ai) 38%, transparent);
+}
+.pm-activity .pm-activity-icon.is-comment {
+  color: var(--pm-act-comment) !important;
+  background: color-mix(in srgb, var(--pm-act-comment) 14%, var(--pm-act-surface));
+  border-color: color-mix(in srgb, var(--pm-act-comment) 38%, transparent);
+}
+.pm-activity .pm-activity-icon.is-time {
+  color: var(--pm-act-time) !important;
+  background: color-mix(in srgb, var(--pm-act-time) 14%, var(--pm-act-surface));
+  border-color: color-mix(in srgb, var(--pm-act-time) 38%, transparent);
+}
+.pm-activity .pm-activity-icon.is-milestone {
+  color: var(--pm-act-milestone) !important;
+  background: color-mix(in srgb, var(--pm-act-milestone) 14%, var(--pm-act-surface));
+  border-color: color-mix(in srgb, var(--pm-act-milestone) 38%, transparent);
+}
+
+/* The avatar cell clips MemberBadge's tooltip div, whose Tailwind utility
+   classes do not resolve in ClubPM -- without this the member's display name
+   renders as an opaque block that overflows into the neighbouring rows. */
+.pm-activity .pm-activity-avatar {
+  position: relative;
+  width: 28px;
+  height: 28px;
+  overflow: hidden;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* Absolute so the clipped tooltip cannot push the avatar out of the disc, and
+   height-capped to the 24px portrait so no part of the tooltip's line box can
+   reach inside the 28px clipping cell. */
+.pm-activity .pm-activity-avatar > * {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  height: 24px;
+  overflow: hidden;
+}
+
+.pm-activity .pm-activity-body {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+
+.pm-activity .pm-activity-text {
+  min-width: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--pm-text-primary);
+}
+
+.pm-activity .pm-activity-text strong { font-weight: 600; }
+.pm-activity .pm-activity-text em {
+  font-style: normal;
+  color: var(--pm-accent-teal);
+}
+.pm-activity .pm-activity-text code {
+  font-family: var(--pm-font-mono);
+  font-size: 11px;
+  color: var(--pm-text-secondary);
+}
+
+.pm-activity .pm-activity-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.pm-activity .pm-activity-time {
+  color: var(--pm-text-secondary);
+  font-size: 11px;
+}
+
+.pm-activity .pm-activity-source {
+  padding: 2px 6px;
+  border: 1px solid var(--pm-border);
+  border-radius: 4px;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--pm-text-secondary) !important;
+}
+
+.pm-activity .pm-activity-source.is-slack {
+  color: var(--pm-accent-violet) !important;
+  border-color: color-mix(in srgb, var(--pm-accent-violet) 35%, transparent);
+}
+
+/* -- Clickable rows -- */
+
+.pm-activity .pm-activity-row--clickable {
+  cursor: pointer;
+  padding-left: 6px;
+  padding-right: 6px;
+  margin-left: -6px;
+  margin-right: -6px;
+}
+
+.pm-activity .pm-activity-row--clickable:hover {
+  background: color-mix(in srgb, var(--pm-text-primary) 6%, transparent);
+}
+
+.pm-activity .pm-activity-row--clickable:focus-visible {
+  outline: 2px solid var(--pm-accent-teal);
+  outline-offset: -2px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .pm-activity .pm-activity-row--clickable { transition: background 140ms ease; }
+  .pm-activity .pm-activity-chip { transition: color 140ms ease, border-color 140ms ease; }
+  .pm-activity .pm-activity-actor { transition: opacity 140ms ease; }
+}
+
+/* -- Loading / empty / footer -- */
+
+.pm-activity .pm-activity-skeleton {
+  height: 48px;
+  margin-top: 8px;
+  border-radius: 8px;
+  background: var(--pm-bg-surface);
+}
+
+@keyframes pm-activity-shimmer {
+  0%   { background-position: -320px 0; }
+  100% { background-position: 320px 0; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .pm-activity .pm-activity-skeleton {
+    background-image: linear-gradient(
+      90deg,
+      transparent 0%,
+      color-mix(in srgb, var(--pm-text-primary) 7%, transparent) 50%,
+      transparent 100%
+    );
+    background-repeat: no-repeat;
+    background-size: 320px 100%;
+    animation: pm-activity-shimmer 1.2s ease-in-out infinite;
+  }
+}
+
+.pm-activity .pm-activity-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 48px 16px;
+  color: var(--pm-text-secondary);
+  text-align: center;
+  font-size: 13px;
+}
+
+.pm-activity .pm-activity-empty i {
+  font-size: 22px;
+  color: var(--pm-text-muted);
+}
+
+.pm-activity .pm-activity-empty p { margin: 0; color: inherit; }
+
+.pm-activity .pm-activity-sentinel { height: 1px; }
+
+.pm-activity .pm-activity-more,
+.pm-activity .pm-activity-end {
+  padding: 14px 0;
+  color: var(--pm-text-secondary);
+  font-size: 11px;
+  text-align: center;
+}
+
+/* -- Narrow viewports -- */
+
+@media (max-width: 640px) {
+  .pm-activity .pm-activity-row {
+    grid-template-columns: 28px 24px 1fr;
+    grid-template-rows: auto auto;
+    align-items: start;
+    gap: 8px 10px;
+  }
+
+  .pm-activity .pm-activity-rail { width: 28px; }
+
+  .pm-activity .pm-activity-body {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+
+  .pm-activity .pm-activity-actors {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .pm-activity .pm-activity-actors::-webkit-scrollbar { display: none; }
+}
+
+/* === Project Analytics (Reports / Charts) ================================== */
+/* Every class rendered by src/components/clubpm/analytics/. ClubPM-only file:
+   loaded at runtime on /clubpm/* routes, so nothing here reaches the public site.
+   Cards carry their own layout inline (recharts needs concrete heights); this block
+   owns the chrome - grid, card shell, toolbar, KPI strip, menu, risk meter. */
+
+.pm-an-root {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  font-family: var(--pm-font-body);
+}
+
+/* -- Toolbar -------------------------------------------------------------- */
+
+.pm-an-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 20px;
+  padding: 12px 14px;
+  background: var(--pm-bg-surface);
+  border: 1px solid var(--pm-border);
+  border-radius: 12px;
+}
+
+.pm-an-toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.pm-an-toolbar-label {
+  font-family: var(--pm-font-display);
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--pm-text-secondary);
+  white-space: nowrap;
+}
+
+/* Segmented control - also used inside card headers (velocity metric, donut
+   dimension), which is why it is not nested under .pm-an-toolbar. */
+.pm-an-seg {
+  display: inline-flex;
+  padding: 2px;
+  gap: 2px;
+  background: var(--pm-bg-elevated);
+  border: 1px solid var(--pm-border);
+  border-radius: 8px;
+}
+
+.pm-an-seg-btn {
+  padding: 4px 10px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--pm-text-secondary);
+  font-family: var(--pm-font-body);
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.4;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.pm-an-seg-btn:hover { color: var(--pm-text-primary); }
+
+.pm-an-seg-btn.is-active {
+  background: rgba(0, 229, 204, 0.12);
+  color: var(--pm-accent-teal);
+}
+
+.pm-an-seg-btn:focus-visible,
+.pm-an-toggle input:focus-visible,
+.pm-an-select:focus-visible,
+.pm-an-card-menu-btn:focus-visible,
+.pm-an-card-menu-item:focus-visible,
+.pm-an-risk-factor-row:focus-visible,
+.pm-an-risk-task:focus-visible {
+  outline: 2px solid var(--pm-accent-teal);
+  outline-offset: 2px;
+}
+
+.pm-an-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  color: var(--pm-text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.pm-an-toggle input {
+  width: 14px;
+  height: 14px;
+  accent-color: var(--pm-accent-teal);
+  cursor: pointer;
+}
+
+.pm-an-toggle:hover { color: var(--pm-text-primary); }
+
+.pm-an-select {
+  max-width: 190px;
+  padding: 5px 8px;
+  background: var(--pm-bg-elevated);
+  border: 1px solid var(--pm-border);
+  border-radius: 8px;
+  color: var(--pm-text-primary);
+  font-family: var(--pm-font-body);
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.pm-an-select:focus { outline: none; border-color: var(--pm-border-active); }
+
+/* -- KPI strip ------------------------------------------------------------ */
+
+.pm-an-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+}
+
+.pm-an-kpi {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  background: var(--pm-bg-surface);
+  border: 1px solid var(--pm-border);
+  border-radius: 12px;
+  min-width: 0;
+}
+
+.pm-an-kpi-label {
+  font-family: var(--pm-font-display);
+  font-size: 0.64rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--pm-text-secondary);
+}
+
+.pm-an-kpi-value {
+  font-family: var(--pm-font-display);
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--pm-text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.pm-an-kpi-delta {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: var(--pm-text-secondary);
+}
+
+.pm-an-kpi-delta i { font-size: 0.6rem; }
+.pm-an-kpi-delta.is-good { color: var(--pm-accent-teal); }
+.pm-an-kpi-delta.is-bad  { color: var(--pm-accent-coral); }
+.pm-an-kpi-delta.is-flat { color: var(--pm-text-secondary); }
+
+/* -- Card grid ------------------------------------------------------------ */
+
+.pm-an-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+  gap: 20px;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .pm-an-grid { grid-template-columns: 1fr; }
+}
+
+/* -- Card shell ----------------------------------------------------------- */
+
+.pm-an-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px 18px 14px;
+  background: var(--pm-bg-surface);
+  border: 1px solid var(--pm-border);
+  border-radius: 12px;
+  min-width: 0;
+  /* .pm-an-card-menu is absolutely positioned and overflows the card. Grid items
+     paint in source order, so without a stacking context here the next card in the
+     grid draws over an open menu. Raised further while the menu is open, below. */
+  z-index: 1;
+}
+
+.pm-an-card:hover { border-color: rgba(255, 255, 255, 0.12); }
+
+.pm-an-card-head {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-height: 28px;
+}
+
+.pm-an-card-head > :first-child { min-width: 0; flex: 1 1 auto; }
+
+.pm-an-card-title {
+  margin: 0;
+  font-family: var(--pm-font-display);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--pm-accent-teal);
+}
+
+.pm-an-card-sub {
+  margin: 4px 0 0;
+  font-size: 0.72rem;
+  line-height: 1.45;
+  color: var(--pm-text-secondary);
+}
+
+.pm-an-card-aside {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.pm-an-card-body {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+}
+
+/* -- Overflow menu -------------------------------------------------------- */
+
+.pm-an-card-menu-btn {
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--pm-text-secondary);
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.pm-an-card-menu-btn:hover {
+  background: var(--pm-bg-elevated);
+  border-color: var(--pm-border);
+  color: var(--pm-text-primary);
+}
+
+.pm-an-card-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 30;
+  min-width: 178px;
+  display: flex;
+  flex-direction: column;
+  padding: 4px;
+  background: var(--pm-bg-elevated);
+  border: 1px solid var(--pm-border);
+  border-radius: 10px;
+  box-shadow: var(--pm-shadow-card, 0 4px 24px rgba(0, 0, 0, 0.4));
+}
+
+/* Lift the whole card while its menu is mounted so the menu cannot be painted over
+   by the following grid item. Progressive enhancement - the base z-index above
+   already handles the common case in browsers without :has(). */
+.pm-an-card:has(.pm-an-card-menu) { z-index: 20; }
+
+.pm-an-card-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 7px 9px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: var(--pm-text-primary);
+  font-family: var(--pm-font-body);
+  font-size: 0.78rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.pm-an-card-menu-item > i:first-child {
+  width: 14px;
+  color: var(--pm-text-secondary);
+  font-size: 0.75rem;
+}
+
+.pm-an-card-menu-item > span { flex: 1 1 auto; }
+
+.pm-an-card-menu-item .fa-check { color: var(--pm-accent-teal); font-size: 0.7rem; }
+
+.pm-an-card-menu-item:hover:not(:disabled) { background: rgba(255, 255, 255, 0.05); }
+
+.pm-an-card-menu-item:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* -- Empty states --------------------------------------------------------- */
+
+.pm-an-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 100%;
+  min-height: 120px;
+  padding: 12px;
+  text-align: center;
+  color: var(--pm-text-secondary);
+}
+
+.pm-an-empty i {
+  font-size: 1.5rem;
+  color: var(--pm-text-muted);
+}
+
+.pm-an-empty p {
+  margin: 0;
+  max-width: 32ch;
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+/* -- Donut centre label --------------------------------------------------- */
+
+.pm-an-donut-center {
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  text-align: center;
+}
+
+.pm-an-donut-center strong {
+  font-family: var(--pm-font-display);
+  font-size: 1.4rem;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--pm-text-primary);
+}
+
+.pm-an-donut-center span {
+  font-size: 0.66rem;
+  letter-spacing: 0.04em;
+  color: var(--pm-text-secondary);
+}
+
+/* "+N more members with less open work" and friends. */
+.pm-an-more {
+  color: var(--pm-text-secondary);
+  font-size: 0.68rem;
+}
+
+/* -- Risk radar ----------------------------------------------------------- */
+
+.pm-an-risk-band { white-space: nowrap; }
+
+.pm-an-risk-meter { flex: 0 0 auto; }
+
+.pm-an-risk-factors {
+  /* Thin scrollbar: the list is seven fixed rows and rarely scrolls, so a full-width
+     one would read as chrome rather than affordance. */
+  scrollbar-width: thin;
+  scrollbar-color: var(--pm-border) transparent;
+}
+
+.pm-an-risk-factors::-webkit-scrollbar { width: 6px; }
+.pm-an-risk-factors::-webkit-scrollbar-thumb {
+  background: var(--pm-border);
+  border-radius: 999px;
+}
+
+.pm-an-risk-factor + .pm-an-risk-factor {
+  border-top: 1px solid var(--pm-border);
+}
+
+.pm-an-risk-factor-row {
+  font-family: var(--pm-font-body);
+  font-size: 0.78rem;
+  border-radius: 6px;
+}
+
+button.pm-an-risk-factor-row:hover { background: rgba(255, 255, 255, 0.04); }
+
+.pm-an-risk-tasks li { min-width: 0; }
+
+.pm-an-risk-task:hover {
+  color: var(--pm-accent-teal);
+  text-decoration: underline;
+}
+
+/* -- Motion --------------------------------------------------------------- */
+
+@media (prefers-reduced-motion: no-preference) {
+  .pm-an-seg-btn,
+  .pm-an-select,
+  .pm-an-toggle,
+  .pm-an-card,
+  .pm-an-card-menu-btn,
+  .pm-an-card-menu-item,
+  .pm-an-risk-factor-row,
+  .pm-an-risk-task {
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  }
+
+  .pm-an-card-menu {
+    animation: pm-an-menu-in 0.12s ease-out;
+  }
+
+  @keyframes pm-an-menu-in {
+    from { opacity: 0; transform: translateY(-4px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
 }

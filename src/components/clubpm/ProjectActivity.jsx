@@ -1,62 +1,99 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { startOfDay, isToday, isYesterday, differenceInCalendarDays, format } from "date-fns";
 import { get } from "../../api/clubPmClient";
 import MemberBadge from "./MemberBadge";
 
 // ── Event type metadata ──────────────────────────────────────
+// `tone` is a token name only; Phase A2 maps tones to colors in clubpm-theme.css.
 
 const EVENT_META = {
-  TASK_CREATED:         { icon: "✨", color: "var(--clubpm-accent-primary)",  label: "Created"    },
-  TASK_UPDATED:         { icon: "✏️", color: "var(--clubpm-text-secondary)",  label: "Updated"    },
-  TASK_COMPLETED:       { icon: "✅", color: "var(--clubpm-accent-green)",    label: "Completed"  },
-  TASK_DELETED:         { icon: "🗑",  color: "#e17055",                       label: "Deleted"    },
-  TASK_ASSIGNED:        { icon: "👤", color: "var(--clubpm-accent-primary)",  label: "Assigned"   },
-  TASK_REASSIGNED:      { icon: "🔁", color: "var(--clubpm-accent-yellow)",   label: "Reassigned" },
-  TASK_SNOOZED:         { icon: "💤", color: "var(--clubpm-text-muted)",      label: "Snoozed"    },
-  TASK_NOTE_ADDED:      { icon: "📝", color: "var(--clubpm-accent-primary)",  label: "Note"       },
-  TASK_SUBTASK_CREATED: { icon: "🔗", color: "var(--clubpm-accent-primary)",  label: "Subtask"    },
-  PROJECT_CREATED:      { icon: "🚀", color: "var(--clubpm-accent-green)",    label: "Project"    },
-  PROJECT_UPDATED:      { icon: "⚙️", color: "var(--clubpm-text-secondary)",  label: "Project"    },
-  PROJECT_MEMBER_ADDED: { icon: "👥", color: "var(--clubpm-accent-primary)",  label: "Member"     },
-  STANDUP_POSTED:       { icon: "📋", color: "var(--clubpm-accent-yellow)",   label: "Standup"    },
-  GITHUB_REPO_LINKED:       { icon: "🔗", color: "var(--cpm-gh-folder, #54aeff)",  label: "GitHub"     },
-  GITHUB_ISSUE_LINKED:      { icon: "🔵", color: "var(--cpm-gh-open, #1f883d)",    label: "Issue"      },
-  GITHUB_ISSUE_IMPORTED:    { icon: "⬇️", color: "var(--cpm-gh-open, #1f883d)",    label: "Import"     },
-  GITHUB_ISSUE_SYNCED:      { icon: "🔄", color: "var(--clubpm-text-secondary)",   label: "Sync"       },
-  GITHUB_BRANCH_CREATED:    { icon: "🌿", color: "var(--cpm-gh-folder, #54aeff)",  label: "Branch"     },
-  GITHUB_PR_LINKED:         { icon: "🔀", color: "var(--cpm-gh-ok, #1f883d)",      label: "PR"         },
-  GITHUB_PR_OPENED:         { icon: "🟢", color: "var(--cpm-gh-ok, #1f883d)",      label: "PR open"    },
-  GITHUB_PR_MERGED:         { icon: "🟣", color: "var(--cpm-gh-merged, #8957e5)",  label: "PR merged"  },
-  GITHUB_PR_CLOSED:         { icon: "⚫", color: "var(--cpm-gh-bad, #cf222e)",     label: "PR closed"  },
-  GITHUB_PR_REVIEW:         { icon: "👁", color: "var(--cpm-gh-mid, #9a6700)",     label: "Review"     },
-  GITHUB_CI_PASSED:         { icon: "✔️", color: "var(--cpm-gh-ok, #1f883d)",      label: "CI"         },
-  GITHUB_CI_FAILED:         { icon: "✖️", color: "var(--cpm-gh-bad, #cf222e)",     label: "CI fail"    },
-  GITHUB_PUSH:              { icon: "⬆️", color: "var(--clubpm-text-secondary)",   label: "Push"       },
-  GITHUB_COMMIT_REFERENCED: { icon: "📌", color: "var(--clubpm-text-secondary)",   label: "Commit"     },
-  COMMENT_ADDED:          { icon: "💬", color: "var(--clubpm-accent-primary)",  label: "Comment"    },
-  COMMENT_EDITED:         { icon: "✏️", color: "var(--clubpm-text-secondary)",  label: "Comment"    },
-  COMMENT_DELETED:        { icon: "🗑",  color: "#e17055",                       label: "Comment"    },
-  TASK_DEPENDENCY_ADDED:   { icon: "🔗", color: "var(--clubpm-accent-primary)",  label: "Dependency" },
-  TASK_DEPENDENCY_REMOVED: { icon: "🔗", color: "var(--clubpm-text-muted)",      label: "Dependency" },
-  TASK_BLOCKER_ATTACHED:   { icon: "🚧", color: "var(--clubpm-accent-yellow)",   label: "Blocker"    },
-  TASK_BLOCKER_DETACHED:   { icon: "🚧", color: "var(--clubpm-text-muted)",      label: "Blocker"    },
-  BLOCKER_RESOLVED:        { icon: "✅", color: "var(--clubpm-accent-green)",    label: "Blocker"    },
-  BLOCKER_ASSIGNED:        { icon: "🚧", color: "var(--clubpm-accent-primary)",  label: "Blocker"    },
-  TIME_LOGGED:            { icon: "⏱",  color: "var(--clubpm-accent-primary)",  label: "Time"       },
-  MILESTONE_CREATED:       { icon: "🎯", color: "var(--clubpm-accent-green)",    label: "Milestone"  },
-  MILESTONE_UPDATED:       { icon: "🎯", color: "var(--clubpm-text-secondary)",  label: "Milestone"  },
-  MILESTONE_DELETED:       { icon: "🎯", color: "#e17055",                       label: "Milestone"  },
-  MILESTONE_TASKS_LINKED:  { icon: "🎯", color: "var(--clubpm-accent-primary)",  label: "Milestone"  },
-  AI_PLAN_EXECUTED:        { icon: "🤖", color: "var(--clubpm-accent-primary)",  label: "AI Plan"    },
+  TASK_CREATED:         { icon: "fas fa-plus",            tone: "create",    label: "Created"    },
+  TASK_UPDATED:         { icon: "fas fa-pen",             tone: "update",    label: "Updated"    },
+  TASK_COMPLETED:       { icon: "fas fa-check",           tone: "done",      label: "Completed"  },
+  TASK_DELETED:         { icon: "fas fa-trash",           tone: "danger",    label: "Deleted"    },
+  TASK_ASSIGNED:        { icon: "fas fa-user",            tone: "create",    label: "Assigned"   },
+  TASK_REASSIGNED:      { icon: "fas fa-rotate",          tone: "warn",      label: "Reassigned" },
+  TASK_SNOOZED:         { icon: "fas fa-clock-rotate-left", tone: "muted",   label: "Snoozed"    },
+  TASK_NOTE_ADDED:      { icon: "fas fa-note-sticky",     tone: "create",    label: "Note"       },
+  TASK_SUBTASK_CREATED: { icon: "fas fa-diagram-project", tone: "create",    label: "Subtask"    },
+  PROJECT_CREATED:      { icon: "fas fa-rocket",          tone: "done",      label: "Project"    },
+  PROJECT_UPDATED:      { icon: "fas fa-gear",            tone: "update",    label: "Project"    },
+  PROJECT_MEMBER_ADDED: { icon: "fas fa-user-plus",       tone: "create",    label: "Member"     },
+  STANDUP_POSTED:       { icon: "fas fa-clipboard-list",  tone: "warn",      label: "Standup"    },
+  GITHUB_REPO_LINKED:       { icon: "fas fa-code-branch",     tone: "github",  label: "GitHub"    },
+  GITHUB_ISSUE_LINKED:      { icon: "fas fa-circle-dot",      tone: "github",  label: "Issue"     },
+  GITHUB_ISSUE_IMPORTED:    { icon: "fas fa-file-import",     tone: "github",  label: "Import"    },
+  GITHUB_ISSUE_SYNCED:      { icon: "fas fa-rotate",          tone: "github",  label: "Sync"      },
+  GITHUB_BRANCH_CREATED:    { icon: "fas fa-code-branch",     tone: "github",  label: "Branch"    },
+  GITHUB_PR_LINKED:         { icon: "fas fa-code-pull-request", tone: "github", label: "PR"       },
+  GITHUB_PR_OPENED:         { icon: "fas fa-code-pull-request", tone: "done",  label: "PR open"   },
+  GITHUB_PR_MERGED:         { icon: "fas fa-code-merge",      tone: "ai",      label: "PR merged" },
+  GITHUB_PR_CLOSED:         { icon: "fas fa-circle-xmark",    tone: "danger",  label: "PR closed" },
+  GITHUB_PR_REVIEW:         { icon: "fas fa-eye",             tone: "warn",    label: "Review"    },
+  GITHUB_CI_PASSED:         { icon: "fas fa-circle-check",    tone: "done",    label: "CI"        },
+  GITHUB_CI_FAILED:         { icon: "fas fa-circle-exclamation", tone: "danger", label: "CI fail" },
+  GITHUB_PUSH:              { icon: "fas fa-arrow-up",        tone: "github",  label: "Push"      },
+  GITHUB_COMMIT_REFERENCED: { icon: "fas fa-thumbtack",       tone: "github",  label: "Commit"    },
+  COMMENT_ADDED:          { icon: "fas fa-comment",        tone: "comment",   label: "Comment"    },
+  COMMENT_EDITED:         { icon: "fas fa-comment-dots",   tone: "update",    label: "Comment"    },
+  COMMENT_DELETED:        { icon: "fas fa-comment-slash",  tone: "danger",    label: "Comment"    },
+  TASK_DEPENDENCY_ADDED:   { icon: "fas fa-link",          tone: "create",    label: "Dependency" },
+  TASK_DEPENDENCY_REMOVED: { icon: "fas fa-link-slash",    tone: "muted",     label: "Dependency" },
+  TASK_BLOCKER_ATTACHED:   { icon: "fas fa-ban",           tone: "warn",      label: "Blocker"    },
+  TASK_BLOCKER_DETACHED:   { icon: "fas fa-ban",           tone: "muted",     label: "Blocker"    },
+  BLOCKER_RESOLVED:        { icon: "fas fa-circle-check",  tone: "done",      label: "Blocker"    },
+  BLOCKER_ASSIGNED:        { icon: "fas fa-triangle-exclamation", tone: "warn", label: "Blocker"   },
+  TIME_LOGGED:            { icon: "fas fa-stopwatch",      tone: "time",      label: "Time"       },
+  MILESTONE_CREATED:       { icon: "fas fa-flag-checkered", tone: "milestone", label: "Milestone" },
+  MILESTONE_UPDATED:       { icon: "fas fa-flag",           tone: "update",    label: "Milestone" },
+  MILESTONE_DELETED:       { icon: "fas fa-flag",           tone: "danger",    label: "Milestone" },
+  MILESTONE_TASKS_LINKED:  { icon: "fas fa-link",           tone: "milestone", label: "Milestone" },
+  AI_PLAN_EXECUTED:        { icon: "fas fa-robot",          tone: "ai",        label: "AI Plan"    },
 };
 
-const FILTER_OPTIONS = [
-  { value: "",                 label: "All activity"  },
-  { value: "TASK_CREATED",     label: "Created"       },
-  { value: "TASK_UPDATED",     label: "Updated"       },
-  { value: "TASK_COMPLETED",   label: "Completed"     },
-  { value: "TASK_ASSIGNED",    label: "Assigned"      },
-  { value: "STANDUP_POSTED",   label: "Standups"      },
-  { value: "PROJECT_UPDATED",  label: "Project edits" },
+// ── Filter groups ────────────────────────────────────────────
+// Every `types` entry is a key of EVENT_META; joined with "," for the query string.
+
+const FILTER_GROUPS = [
+  { id: "all", label: "All", icon: "fas fa-list", types: [] },
+  {
+    id: "tasks", label: "Tasks", icon: "fas fa-square-check",
+    types: [
+      "TASK_CREATED", "TASK_UPDATED", "TASK_ASSIGNED", "TASK_REASSIGNED",
+      "TASK_SNOOZED", "TASK_NOTE_ADDED", "TASK_SUBTASK_CREATED", "TASK_DELETED",
+    ],
+  },
+  { id: "completed", label: "Completed", icon: "fas fa-check", types: ["TASK_COMPLETED"] },
+  {
+    id: "comments", label: "Comments", icon: "fas fa-comment",
+    types: ["COMMENT_ADDED", "COMMENT_EDITED", "COMMENT_DELETED"],
+  },
+  {
+    id: "blockers", label: "Blockers & deps", icon: "fas fa-ban",
+    types: [
+      "TASK_DEPENDENCY_ADDED", "TASK_DEPENDENCY_REMOVED", "TASK_BLOCKER_ATTACHED",
+      "TASK_BLOCKER_DETACHED", "BLOCKER_RESOLVED", "BLOCKER_ASSIGNED",
+    ],
+  },
+  {
+    id: "milestones", label: "Milestones", icon: "fas fa-flag-checkered",
+    types: ["MILESTONE_CREATED", "MILESTONE_UPDATED", "MILESTONE_DELETED", "MILESTONE_TASKS_LINKED"],
+  },
+  {
+    id: "github", label: "GitHub", icon: "fab fa-github",
+    types: [
+      "GITHUB_REPO_LINKED", "GITHUB_ISSUE_LINKED", "GITHUB_ISSUE_IMPORTED", "GITHUB_ISSUE_SYNCED",
+      "GITHUB_BRANCH_CREATED", "GITHUB_PR_LINKED", "GITHUB_PR_OPENED", "GITHUB_PR_MERGED",
+      "GITHUB_PR_CLOSED", "GITHUB_PR_REVIEW", "GITHUB_CI_PASSED", "GITHUB_CI_FAILED",
+      "GITHUB_PUSH", "GITHUB_COMMIT_REFERENCED",
+    ],
+  },
+  { id: "standups", label: "Standups", icon: "fas fa-clipboard-list", types: ["STANDUP_POSTED"] },
+  {
+    id: "project", label: "Project", icon: "fas fa-gear",
+    types: ["PROJECT_CREATED", "PROJECT_UPDATED", "PROJECT_MEMBER_ADDED", "TIME_LOGGED"],
+  },
+  { id: "ai", label: "AI", icon: "fas fa-robot", types: ["AI_PLAN_EXECUTED"] },
 ];
 
 // ── Human-readable descriptions ──────────────────────────────
@@ -226,6 +263,40 @@ function describeEvent(log) {
   }
 }
 
+// ── Plain-text flattening (for client-side search) ───────────
+
+function flattenNode(node) {
+  if (node === null || node === undefined || node === false || node === true) return "";
+  if (typeof node === "string" || typeof node === "number") return String(node);
+  if (Array.isArray(node)) return node.map(flattenNode).join("");
+  if (node.props) return flattenNode(node.props.children);
+  return "";
+}
+
+// ── Day grouping ─────────────────────────────────────────────
+
+function dayLabel(date) {
+  if (isToday(date))     return "Today";
+  if (isYesterday(date)) return "Yesterday";
+  if (differenceInCalendarDays(new Date(), date) < 7) return format(date, "EEEE");
+  return format(date, "MMM d, yyyy");
+}
+
+function groupByDay(logs) {
+  const groups = [];
+  let current  = null;
+
+  for (const log of logs) {
+    const day = startOfDay(new Date(log.createdAt)).getTime();
+    if (!current || current.day !== day) {
+      current = { day, label: dayLabel(new Date(day)), logs: [] };
+      groups.push(current);
+    }
+    current.logs.push(log);
+  }
+  return groups;
+}
+
 // ── Timestamp ────────────────────────────────────────────────
 
 function RelativeTime({ iso }) {
@@ -246,59 +317,66 @@ function RelativeTime({ iso }) {
     return abs;
   })();
 
-  return (
-    <time dateTime={iso} title={abs}
-      style={{ fontSize: 11, color: "var(--clubpm-text-muted)", whiteSpace: "nowrap" }}>
-      {rel}
-    </time>
-  );
+  return <time className="pm-activity-time" dateTime={iso} title={abs}>{rel}</time>;
 }
 
 // ── Source Badge ─────────────────────────────────────────────
 
 function SourceBadge({ source }) {
+  const slack = source === "SLACK";
   return (
-    <span title={source === "SLACK" ? "Via Slack" : "Via Dashboard"}
-      style={{
-        fontSize: 9, padding: "1px 5px", borderRadius: 3,
-        background: source === "SLACK" ? "rgba(74,21,75,0.3)" : "rgba(0,122,255,0.15)",
-        color: source === "SLACK" ? "#b388ff" : "var(--clubpm-accent-primary)",
-        fontWeight: 600, letterSpacing: 0.3, textTransform: "uppercase",
-        flexShrink: 0,
-      }}>
-      {source === "SLACK" ? "Slack" : "Web"}
+    <span
+      className={`pm-activity-source ${slack ? "is-slack" : "is-web"}`}
+      title={slack ? "Via Slack" : "Via Dashboard"}
+    >
+      {slack ? "Slack" : "Web"}
     </span>
   );
 }
 
 // ── Activity Row ─────────────────────────────────────────────
 
-function ActivityRow({ log }) {
-  const meta = EVENT_META[log.eventType] ?? EVENT_META.TASK_UPDATED;
+function ActivityRow({ log, isLast, onOpenTask }) {
+  const meta      = EVENT_META[log.eventType] ?? EVENT_META.TASK_UPDATED;
+  const clickable = Boolean(log.taskId && onOpenTask);
+
+  const open = () => { if (clickable) onOpenTask(log.taskId); };
+
+  const handleKeyDown = e => {
+    if (!clickable) return;
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      open();
+    }
+  };
+
+  const className = [
+    "pm-activity-row",
+    clickable ? "pm-activity-row--clickable" : "",
+    isLast ? "is-last" : "",
+  ].filter(Boolean).join(" ");
 
   return (
-    <div style={{
-      display: "flex", alignItems: "center", gap: 14,
-      padding: "10px 0", borderBottom: "1px solid var(--clubpm-border)",
-    }}>
-      <div style={{
-        flexShrink: 0, width: 32, height: 32,
-        display: "flex", alignItems: "center", justifyContent: "center",
-      }}>
-        {log.member
-          ? <MemberBadge member={log.member} size="sm" />
-          : <span style={{ fontSize: 16 }}>{meta.icon}</span>
-        }
+    <div
+      className={className}
+      role={clickable ? "button" : undefined}
+      tabIndex={clickable ? 0 : undefined}
+      onClick={clickable ? open : undefined}
+      onKeyDown={clickable ? handleKeyDown : undefined}
+    >
+      <div className="pm-activity-rail">
+        <span className={`pm-activity-icon is-${meta.tone}`}>
+          <i className={meta.icon} aria-hidden="true" />
+        </span>
       </div>
 
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 13, color: "var(--clubpm-text-secondary)", lineHeight: 1.5 }}>
-          {log.member && (
-            <span style={{ fontSize: 14, marginRight: 4 }}>{meta.icon}</span>
-          )}
-          {describeEvent(log)}
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 3 }}>
+      <div className="pm-activity-avatar" title={log.member?.displayName ?? ""}>
+        {log.member && <MemberBadge member={log.member} size="sm" />}
+      </div>
+
+      <div className="pm-activity-body">
+        <div className="pm-activity-text">{describeEvent(log)}</div>
+        <div className="pm-activity-meta">
           <RelativeTime iso={log.createdAt} />
           <SourceBadge source={log.source} />
         </div>
@@ -309,19 +387,31 @@ function ActivityRow({ log }) {
 
 // ── Main Component ───────────────────────────────────────────
 
-export default function ProjectActivity({ projectId }) {
+export default function ProjectActivity({ projectId, members = [], onOpenTask }) {
   const [logs,        setLogs]        = useState([]);
   const [nextCursor,  setNextCursor]  = useState(null);
   const [loading,     setLoading]     = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [filter,      setFilter]      = useState("");
+  const [activeGroup, setActiveGroup] = useState("all");
+  const [memberId,    setMemberId]    = useState("");
+  const [search,      setSearch]      = useState("");
+  const [debounced,   setDebounced]   = useState("");
   const loaderRef = useRef(null);
+
+  // Search filters the already-loaded rows only — the payload is JSON and the feed is
+  // cursor-paginated, so a server-side search would need its own endpoint and index.
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(search.trim().toLowerCase()), 250);
+    return () => clearTimeout(t);
+  }, [search]);
 
   const fetchLogs = useCallback(async (cursor = null, append = false) => {
     if (!projectId) return;
+    const group = FILTER_GROUPS.find(g => g.id === activeGroup) ?? FILTER_GROUPS[0];
     const qs = new URLSearchParams({ limit: "50" });
-    if (cursor) qs.set("cursor", cursor);
-    if (filter) qs.set("eventType", filter);
+    if (cursor)             qs.set("cursor", cursor);
+    if (group.types.length) qs.set("eventType", group.types.join(","));
+    if (memberId)           qs.set("memberId", memberId);
 
     try {
       const data = await get(`/api/projects/${projectId}/activity?${qs}`);
@@ -331,7 +421,7 @@ export default function ProjectActivity({ projectId }) {
       setLoading(false);
       setLoadingMore(false);
     }
-  }, [projectId, filter]);
+  }, [projectId, activeGroup, memberId]);
 
   useEffect(() => {
     setLoading(true);
@@ -351,50 +441,100 @@ export default function ProjectActivity({ projectId }) {
     return () => obs.disconnect();
   }, [nextCursor, loadingMore, fetchLogs]);
 
+  const visibleLogs = useMemo(() => {
+    if (!debounced) return logs;
+    return logs.filter(log => flattenNode(describeEvent(log)).toLowerCase().includes(debounced));
+  }, [logs, debounced]);
+
+  const dayGroups     = useMemo(() => groupByDay(visibleLogs), [visibleLogs]);
+  const filtersActive = activeGroup !== "all" || Boolean(memberId) || Boolean(search);
+
+  const clearFilters = () => {
+    setActiveGroup("all");
+    setMemberId("");
+    setSearch("");
+  };
+
+  const actors = members.map(pm => pm.member).filter(Boolean);
+
   return (
-    <div style={{ maxWidth: 680 }}>
-      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 16 }}>
-        {FILTER_OPTIONS.map(opt => (
-          <button key={opt.value}
-            onClick={() => setFilter(opt.value)}
-            style={{
-              padding: "4px 10px", borderRadius: 20, fontSize: 12, cursor: "pointer",
-              border: "1px solid var(--clubpm-border)",
-              background: filter === opt.value ? "var(--clubpm-accent-primary)" : "var(--clubpm-surface-300)",
-              color: filter === opt.value ? "#fff" : "var(--clubpm-text-secondary)",
-              fontWeight: filter === opt.value ? 600 : 400,
-            }}>
-            {opt.label}
-          </button>
-        ))}
+    <div className="pm-activity">
+      <div className="pm-activity-filters">
+        <div className="pm-activity-chips">
+          {FILTER_GROUPS.map(group => (
+            <button
+              key={group.id}
+              type="button"
+              className={`pm-activity-chip${activeGroup === group.id ? " is-active" : ""}`}
+              onClick={() => setActiveGroup(group.id)}
+            >
+              <i className={group.icon} aria-hidden="true" />
+              {group.label}
+            </button>
+          ))}
+        </div>
+
+        {actors.length > 0 && (
+          <div className="pm-activity-actors">
+            {actors.map(member => (
+              <button
+                key={member.id}
+                type="button"
+                title={member.displayName}
+                aria-label={`Filter by ${member.displayName}`}
+                className={`pm-activity-actor${memberId === member.id ? " is-active" : ""}`}
+                onClick={() => setMemberId(prev => (prev === member.id ? "" : member.id))}
+              >
+                <MemberBadge member={member} size="sm" />
+              </button>
+            ))}
+          </div>
+        )}
+
+        <input
+          type="search"
+          className="pm-activity-search"
+          placeholder="Search loaded activity…"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+        />
       </div>
 
       {loading ? (
-        <div style={{ padding: "32px 0", textAlign: "center" }}>
-          <div style={{
-            width: 24, height: 24, margin: "0 auto",
-            borderRadius: "50%", border: "2px solid var(--clubpm-accent-primary)",
-            borderTopColor: "transparent", animation: "clubpm-spin 0.8s linear infinite",
-          }} />
+        <>
+          {[0, 1, 2, 3, 4].map(i => <div key={i} className="pm-activity-skeleton" />)}
+        </>
+      ) : visibleLogs.length === 0 ? (
+        <div className="pm-activity-empty">
+          <i className="fas fa-wave-square" aria-hidden="true" />
+          <p>{filtersActive ? "No activity matches these filters" : "No activity yet"}</p>
+          {debounced && <p>No match in the loaded activity — scroll to load more.</p>}
+          {filtersActive && (
+            <button type="button" className="clubpm-btn-secondary" onClick={clearFilters}>
+              Clear filters
+            </button>
+          )}
         </div>
-      ) : logs.length === 0 ? (
-        <p style={{ fontSize: 13, color: "var(--clubpm-text-muted)", padding: "24px 0" }}>
-          No activity yet{filter ? " for this filter" : ""}.
-        </p>
       ) : (
         <>
-          {logs.map(log => <ActivityRow key={log.id} log={log} />)}
-          <div ref={loaderRef} style={{ height: 1 }} />
-          {loadingMore && (
-            <div style={{ padding: "12px 0", textAlign: "center", fontSize: 12, color: "var(--clubpm-text-muted)" }}>
-              Loading more…
-            </div>
-          )}
-          {!nextCursor && logs.length > 0 && (
-            <p style={{ textAlign: "center", fontSize: 11, color: "var(--clubpm-text-muted)", padding: "16px 0 0" }}>
-              — All activity loaded —
-            </p>
-          )}
+          {dayGroups.map(group => (
+            <section key={group.day}>
+              <h4 className="pm-activity-day">{group.label}</h4>
+              <div className="pm-activity-group">
+                {group.logs.map((log, i) => (
+                  <ActivityRow
+                    key={log.id}
+                    log={log}
+                    isLast={i === group.logs.length - 1}
+                    onOpenTask={onOpenTask}
+                  />
+                ))}
+              </div>
+            </section>
+          ))}
+          <div ref={loaderRef} className="pm-activity-sentinel" />
+          {loadingMore && <div className="pm-activity-more">Loading more…</div>}
+          {!nextCursor && <p className="pm-activity-end">All activity loaded</p>}
         </>
       )}
     </div>

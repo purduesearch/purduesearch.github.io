@@ -509,7 +509,8 @@ async function dispatchAction(projectId: string, memberId: string, action: Actio
         create: { taskId, blockerId, reason: reason ?? null },
         update: { reason: reason ?? null },
       });
-      const task = await prisma.task.update({ where: { id: taskId }, data: { status: "BLOCKED" } });
+      // completedAt: null — leaving DONE clears it; a no-op when already null.
+      const task = await prisma.task.update({ where: { id: taskId }, data: { status: "BLOCKED", completedAt: null } });
       await logAuditEvent({
         taskId, projectId, memberId, source: "WEB",
         eventType: "TASK_BLOCKER_ATTACHED",

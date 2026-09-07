@@ -11,7 +11,7 @@ import TaskModal from "../../components/clubpm/TaskModal";
 import BulkActionBar from "../../components/clubpm/BulkActionBar";
 import ProjectActivity from "../../components/clubpm/ProjectActivity";
 import ReportingView from "../../components/clubpm/ReportingView";
-import ProjectAnalytics from "../../components/clubpm/ProjectAnalytics";
+import ProjectAnalytics from "../../components/clubpm/analytics";
 import PressKitPanel from "../../components/clubpm/PressKitPanel";
 import GanttChart from "../../components/clubpm/GanttChart";
 import { PriorityBars, AvatarStack } from "../../components/clubpm/TaskPrimitives";
@@ -2505,6 +2505,22 @@ export default function ProjectDetail() {
     setSelectedTask(task);
   }, [lastClickedId, flatTaskOrder]);
 
+  // Activity rows carry a task id only; resolve it against the loaded project and
+  // reuse the single TaskModal opener rather than introducing a second one.
+  const handleActivityOpenTask = useCallback((taskId) => {
+    const tasks = project?.tasks ?? [];
+    const found =
+      tasks.find(t => t.id === taskId) ??
+      tasks.flatMap(t => t.subtasks ?? []).find(s => s.id === taskId);
+    if (found) setSelectedTask(found);
+  }, [project]);
+
+  // RiskRadarCard hands back the whole task object; ProjectActivity hands back an id.
+  // Normalise here so both surfaces share one opener.
+  const handleAnalyticsOpenTask = useCallback((task) => {
+    handleActivityOpenTask(typeof task === "string" ? task : task?.id);
+  }, [handleActivityOpenTask]);
+
   useEffect(() => {
     if (!project) return;
     setProjectNav({
@@ -3255,9 +3271,17 @@ export default function ProjectDetail() {
                   </button>
                 ))}
               </div>
-              {reportTab === "charts" && <ProjectAnalytics project={project} />}
+              {reportTab === "charts" && (
+                <ProjectAnalytics project={project} onOpenTask={handleAnalyticsOpenTask} />
+              )}
               {reportTab === "activity" && (
-                <div style={{ paddingTop: 8 }}><ProjectActivity projectId={project.id} /></div>
+                <div style={{ paddingTop: 8 }}>
+                  <ProjectActivity
+                    projectId={project.id}
+                    members={project.members ?? []}
+                    onOpenTask={handleActivityOpenTask}
+                  />
+                </div>
               )}
               {reportTab === "presskit" && <PressKitPanel project={project} canEdit={canEdit} />}
             </div>

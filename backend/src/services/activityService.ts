@@ -1,6 +1,7 @@
 import { EventEmitter } from "events";
 import { prisma } from "../db/prisma.js";
-import type { ActivityType, ActivitySource, ActivityEventType } from "@prisma/client";
+import { ActivityEventType } from "@prisma/client";
+import type { ActivityType, ActivitySource } from "@prisma/client";
 
 // ── Activity Event Bus ───────────────────────────────────────
 // Used by the SSE stream endpoint to push activity to connected clients.
@@ -113,15 +114,32 @@ export function diffObjects(
 
 export async function getProjectAuditLog(
   projectId: string,
-  cursor?: string,
-  limit = 50,
-  eventType?: ActivityEventType
+  opts: {
+    cursor?: string;
+    limit?: number;
+    eventTypes?: string[];
+    memberId?: string;
+  } = {}
 ) {
-  const take = Math.min(limit, 100);
+  const { cursor, limit, eventTypes, memberId } = opts;
+
+  // An unvalidated string reaching a Prisma enum filter throws a 500, so unknown
+  // values are dropped rather than forwarded.
+  const validTypes = (eventTypes ?? []).filter(
+    (t): t is ActivityEventType => Object.prototype.hasOwnProperty.call(ActivityEventType, t)
+  );
+
+  const eventTypeFilter =
+    validTypes.length === 0 ? {}
+    : validTypes.length === 1 ? { eventType: validTypes[0] }
+    : { eventType: { in: validTypes } };
+
+  const take = Math.min(limit ?? 50, 100);
   const logs = await prisma.activityLog.findMany({
     where: {
       projectId,
-      ...(eventType ? { eventType } : {}),
+      ...eventTypeFilter,
+      ...(memberId ? { memberId } : {}),
     },
     orderBy: { createdAt: "desc" },
     take: take + 1,
