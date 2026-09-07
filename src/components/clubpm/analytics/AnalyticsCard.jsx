@@ -88,6 +88,7 @@ export default function AnalyticsCard({
   chartTypes,
   chartType,
   onChartTypeChange,
+  headerAside,
   csv,
   height = 240,
   children,
@@ -164,6 +165,11 @@ export default function AnalyticsCard({
           <h3 className="pm-an-card-title">{title}</h3>
           {subtitle ? <p className="pm-an-card-sub">{subtitle}</p> : null}
         </div>
+
+        {/* Controls that change what the chart *means* (a metric switcher, say) belong
+            here rather than buried in the overflow menu, where the reader would have no
+            standing cue that the axis is showing hours instead of tasks. */}
+        {headerAside ? <div className="pm-an-card-aside">{headerAside}</div> : null}
 
         <button
           type="button"
