@@ -614,11 +614,6 @@ export async function generatePressKitContent(
   const ctx = await gatherPressKitData(projectId);
   if (!ctx) return null;
 
-  const taskRows = await prisma.task.findMany({
-    where: { projectId, parentTaskId: null },
-    select: { title: true }, take: 50,
-  });
-
   // Deterministic data the placeholder sections render from — gated by config so a
   // disabled section stays empty even if the model references it.
   const has = (id: string) => config.includedSections.includes(id);
@@ -640,11 +635,31 @@ export async function generatePressKitContent(
     stats: ctx.stats,
     milestones: ctx.milestones.map((m) => ({
       title: m.title, date: fmtDate(m.completedAt) || null, description: m.description,
+      dueDate: fmtDate(m.dueDate) || null, status: m.status,
+      taskCount: m.taskCount, doneCount: m.doneCount,
     })),
+    tasks: ctx.tasks.map((t) => ({
+      title: t.title, description: t.description, status: t.status, priority: t.priority,
+      assignees: t.assignees, completedAt: fmtDate(t.completedAt) || null,
+      isSubtask: t.isSubtask, parentTitle: t.parentTitle,
+    })),
+    blockers: ctx.blockers,
+    dependencies: ctx.dependencies,
+    github: ctx.github,
+    updates: ctx.updates.map((u) => ({
+      kind: u.kind, text: u.text, author: u.author, at: fmtDate(u.at) || null,
+    })),
+    timeByMonth: ctx.timeByMonth,
+    topTimeTasks: ctx.topTimeTasks,
+    velocity: ctx.velocity,
+    deliverables: ctx.deliverables,
     contributors: ctx.contributors,
-    team: ctx.team.map((t) => ({ displayName: t.displayName, title: t.title, role: t.role, isLead: t.isLead })),
+    team: ctx.team.map((t) => ({
+      displayName: t.displayName, title: t.title, role: t.role, isLead: t.isLead,
+      rank: t.rank, projectRole: t.projectRole, joinedAt: fmtDate(t.joinedAt) || null,
+    })),
     tags: ctx.tags,
-    taskTitles: taskRows.map((t) => t.title),
+    tagUsage: ctx.tagUsage,
     links: ctx.links,
     enabledSections: config.includedSections,
     showContact: config.showContact,

@@ -111,11 +111,30 @@ export interface PressKitPlanInput {
     teamSize: number; tasksDone: number; tasksTotal: number;
     milestonesHit: number; hoursLogged: number; durationDays: number | null; commentCount: number;
   };
-  milestones: { title: string; date: string | null; description?: string | null }[];
+  /** ALL statuses — in-flight milestones tell the model where the project is headed. */
+  milestones: { title: string; date: string | null; description?: string | null;
+                dueDate?: string | null; status?: string | null;
+                taskCount?: number; doneCount?: number }[];
+  /** Up to 200 tasks incl. subtasks, newest-completed first; descriptions pre-trimmed. */
+  tasks: { title: string; description: string | null; status: string; priority: string;
+           assignees: string[]; completedAt: string | null;
+           isSubtask: boolean; parentTitle: string | null }[];
+  blockers: { label: string; resolved: boolean; taskCount: number }[];
+  dependencies: { openCount: number; examples: { blocker: string; blocked: string }[] };
+  github: { repo: string | null; mergedPrCount: number; openPrCount: number;
+            recentMergedPrs: string[]; branchCount: number };
+  updates: { kind: "update" | "standup"; text: string; author: string | null; at: string | null }[];
+  timeByMonth: { month: string; hours: number }[];
+  topTimeTasks: { title: string; hours: number }[];
+  velocity: { byMonth: { month: string; completed: number }[];
+              pacePerMonth: number; daysToTarget: number | null };
+  deliverables: { vaultItemCount: number; vaultItemNames: string[]; attachmentCount: number };
   contributors: { displayName: string; tasksDone: number; hours: number }[];
-  team: { displayName: string; title: string | null; role: string | null; isLead: boolean }[];
+  team: { displayName: string; title: string | null; role: string | null; isLead: boolean;
+          rank?: string | null; projectRole?: string | null; joinedAt?: string | null }[];
   tags: string[];
-  taskTitles: string[];
+  /** Same tags as `tags`, with how many tasks carry each. */
+  tagUsage: { name: string; count: number }[];
   links: { label: string; url: string }[];
   enabledSections: string[];   // config.includedSections (gates which blocks the AI plans)
   showContact: boolean;
@@ -134,14 +153,14 @@ const AUDIENCE_TONE: Record<PressKitAudience, string> = {
 // structure. Data placeholders (stats/timeline/team/links) never carry their data.
 const SECTION_INSTRUCTIONS: Record<string, string> = {
   masthead:    '"masthead" → one `hero` section: heading = the project name, subheading = a short factual tagline from the type/description.',
-  about:       '"about" → a `richText` section, heading "About This Project": 2–4 sentences on what this project is and its current state.',
+  about:       '"about" → a `richText` section, heading "About This Project": 4–6 sentences on what this project is and its current state. Name the technical domain it works in and the phase it is currently in.',
   aboutSearch: '"aboutSearch" → a `richText` section, heading "About Purdue SEARCH": 2–3 sentences of boilerplate about the SEARCH club (a space research & engineering student org at Purdue).',
   stats:       '"stats" → a `stats` placeholder section. Do NOT write any numbers; set only a heading like "By the Numbers".',
-  building:    '"building" → a `richText` section, heading "What We\'re Building": 3–5 sentences naming the specific subsystems / areas of work, inferred from the task titles and tags.',
+  building:    '"building" → a `richText` section, heading "What We\'re Building": 6–10 sentences naming the specific subsystems / areas of work, inferred from the task titles, task descriptions and tags. Name at least three distinct workstreams and give each a concrete detail.',
   timeline:    '"timeline" → a `timeline` placeholder section. Do NOT list milestones or dates; set only a heading.',
-  tech:        '"tech" → a `richText` section, heading "Tech & Tools": one or two sentences highlighting the technologies, drawn from the tags list.',
+  tech:        '"tech" → a `richText` section, heading "Tech & Tools": 3–5 sentences highlighting the technologies actually in use, drawn from the tags list AND the task titles/descriptions — not the tags alone.',
   team:        '"team" → a `team` placeholder section. Do NOT list members; set only a heading.',
-  highlights:  '"highlights" → a `richText` section, heading "Highlights": a short markdown bullet list of the most notable achievements, drawn from the completed milestones.',
+  highlights:  '"highlights" → a `richText` section, heading "Highlights": a markdown bullet list of 5–8 of the most notable achievements. Each bullet must cite a specific milestone, a merged PR, or a number.',
   links:       '"links" → a `links` placeholder section. Do NOT list URLs; set only a heading.',
   contact:     '"contact" → a `richText` section, heading "Contact": one line inviting press / partnership inquiries at the contact email in the facts.',
   sponsorship: '"sponsorship" → a short `richText` section (2–3 sentences on the impact of support) followed by a `cta` section (label e.g. "Become a sponsor", href = a mailto: to the contact email).',
@@ -175,12 +194,32 @@ export async function generatePressKitPlan(
       startDate: input.startDate ?? null, targetDate: input.targetDate ?? null,
     },
     stats: input.stats,
-    completedMilestones: input.milestones.slice(0, 12).map((m) => ({
+    milestones: input.milestones.slice(0, 25).map((m) => ({
       title: m.title, date: m.date ?? null, description: m.description ?? null,
+      dueDate: m.dueDate ?? null, status: m.status ?? null,
+      taskCount: m.taskCount ?? null, doneCount: m.doneCount ?? null,
     })),
-    taskTitles: input.taskTitles.slice(0, 50),
+    tasks: input.tasks.slice(0, 200),
+    blockers: input.blockers.slice(0, 20),
+    dependencies: {
+      openCount: input.dependencies.openCount,
+      examples: input.dependencies.examples.slice(0, 5),
+    },
+    github: { ...input.github, recentMergedPrs: input.github.recentMergedPrs.slice(0, 15) },
+    updates: input.updates.slice(0, 15),
+    timeByMonth: input.timeByMonth.slice(-24),
+    topTimeTasks: input.topTimeTasks.slice(0, 10),
+    velocity: { ...input.velocity, byMonth: input.velocity.byMonth.slice(-12) },
+    deliverables: {
+      ...input.deliverables,
+      vaultItemNames: input.deliverables.vaultItemNames.slice(0, 20),
+    },
     tags: input.tags,
-    team: input.team.map((t) => ({ name: t.displayName, title: t.title ?? null, isLead: t.isLead })),
+    tagUsage: input.tagUsage.slice(0, 40),
+    team: input.team.map((t) => ({
+      name: t.displayName, title: t.title ?? null, isLead: t.isLead,
+      rank: t.rank ?? null, projectRole: t.projectRole ?? null, joinedAt: t.joinedAt ?? null,
+    })),
     topContributors: input.contributors.slice(0, 6),
     links: input.links,
     contactEmail: input.showContact ? input.contactEmail : "",
@@ -201,8 +240,14 @@ Return ONLY a JSON object: { "sections": PlanSection[] }. Each PlanSection is ex
 Include EACH of these content blocks exactly once, ordered for maximum impact for this audience:
 ${checklist}
 
+Depth:
+- Prioritize specificity over polish. Every paragraph must contain at least one concrete detail drawn from FACTS: a component name, a subsystem, a number, a date, a tool, or a named person's contribution.
+- A sentence that would read identically for a different engineering project is a failure. Rewrite it with specifics or cut it.
+- Name the actual workstreams. Infer them by clustering the task titles and descriptions, and refer to them the way the team does in their own task text.
+- Prefer the specific number to the vague quantifier: write "41 of 63 tasks complete", never "significant progress".
+
 Rules:
-- Ground every statement ONLY in the facts below. Do NOT invent numbers, names, dates, partnerships, or claims.
+- Ground every statement ONLY in FACTS. If a fact is absent, omit the claim entirely — never estimate, round up, or infer a number that is not present. Do not invent partnerships, awards, funding, or external interest.
 - For placeholder types (stats/timeline/team/links) provide only a heading — never the underlying data.
 - Avoid filler adjectives ("cutting-edge", "revolutionary", "exciting"); be concrete and factual.
 - Keep prose tight and skimmable.
@@ -211,7 +256,7 @@ FACTS (JSON):
 ${JSON.stringify(facts, null, 2)}`;
 
   try {
-    const raw = await runJson<unknown>({ memberId }, "high", { prompt, json: true, maxOutputTokens: 8192 });
+    const raw = await runJson<unknown>({ memberId }, "high", { prompt, json: true, maxOutputTokens: 16384 });
     if (!raw) return null;
     const plan = validateSectionPlan(raw);
     return plan.sections.length ? plan : null;
