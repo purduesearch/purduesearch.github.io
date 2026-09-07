@@ -29,11 +29,30 @@ function check(name: string, cond: boolean) {
       startDate: new Date("2026-01-01"), targetDate: new Date("2026-09-01"), programTag: "astrousa",
       githubRepo: "purduesearch/astrousa", driveLink: null },
     stats: { teamSize: 12, tasksDone: 30, tasksTotal: 47, milestonesHit: 6, hoursLogged: 210, durationDays: 200, commentCount: 0 },
-    milestones: [{ title: "First flight", description: null, completedAt: new Date("2026-05-01") }],
+    tasks: [{ title: "Wire the avionics harness", description: "Route and strain-relieve.",
+      status: "DONE", priority: "HIGH", assignees: ["Ana Lee"], completedAt: new Date("2026-04-02"),
+      isSubtask: false, parentTitle: null }],
+    milestones: [
+      { title: "First flight", description: null, completedAt: new Date("2026-05-01"),
+        dueDate: new Date("2026-05-01"), status: "COMPLETED", taskCount: 8, doneCount: 8 },
+      { title: "Second flight", description: null, completedAt: null,
+        dueDate: new Date("2026-08-01"), status: "ON_TRACK", taskCount: 5, doneCount: 1 },
+    ],
+    blockers: [{ label: "Order delays", resolved: false, taskCount: 3 }],
+    dependencies: { openCount: 2, examples: [{ blocker: "Machine bracket", blocked: "Fit check" }] },
+    github: { repo: "purduesearch/astrousa", mergedPrCount: 14, openPrCount: 2,
+      recentMergedPrs: ["Add telemetry parser"], branchCount: 5 },
+    updates: [{ kind: "update", text: "Harness done.", author: "Ana Lee", at: new Date("2026-04-03") }],
+    timeByMonth: [{ month: "2026-04", hours: 40 }],
+    topTimeTasks: [{ title: "Wire the avionics harness", hours: 22 }],
+    velocity: { byMonth: [{ month: "2026-04", completed: 9 }], pacePerMonth: 9, daysToTarget: 120 },
     contributors: [],
     timeline: [{ title: "First flight", date: new Date("2026-05-01"), kind: "milestone" }],
-    team: [{ displayName: "Ana Lee", title: "Lead", role: null, avatarUrl: null, isLead: true }],
+    team: [{ displayName: "Ana Lee", title: "Lead", role: null, avatarUrl: null, isLead: true,
+      rank: "CADET", projectRole: "Lead", joinedAt: new Date("2026-01-05") }],
+    deliverables: { vaultItemCount: 12, vaultItemNames: ["Nose cone"], attachmentCount: 30 },
     tags: ["Avionics", "Structures"],
+    tagUsage: [{ name: "Avionics", count: 9 }, { name: "Structures", count: 4 }],
     links: [{ label: "GitHub", url: "https://github.com/purduesearch/astrousa" }],
   };
   const prose = { about: "About body.", aboutSearch: "About SEARCH body.", building: "Building body.", sponsorship: "Sponsor body." };
@@ -81,6 +100,14 @@ function check(name: string, cond: boolean) {
     includedSections: ["stats"],
   }), prose);
   check("omits Days active when durationDays is null", !mdNoDuration.includes("Days active"));
+
+  // (e) ctx.milestones carries every status so the model can see in-flight work,
+  // but Highlights is an achievements section and must stay completed-only.
+  const mdHighlights = buildPressKitMarkdown(ctx, normalizePressKitConfig({
+    includedSections: ["highlights"],
+  }), prose);
+  check("highlights include a completed milestone", mdHighlights.includes("First flight"));
+  check("highlights exclude an in-flight milestone", !mdHighlights.includes("Second flight"));
 }
 
 // (d) normalizePressKitConfig: an includedSections array that is entirely
