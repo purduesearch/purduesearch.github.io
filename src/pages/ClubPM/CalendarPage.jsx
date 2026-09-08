@@ -49,11 +49,16 @@ function formatDatetime(isoStr) {
   return `${date} at ${time}`;
 }
 
-function getMonthRange(date) {
-  const year  = date.getFullYear();
-  const month = date.getMonth();
-  const from  = new Date(year, month, 1).toISOString();
-  const to    = new Date(year, month + 1, 0, 23, 59, 59).toISOString();
+// The fetched window must cover everything the grid paints, not just the
+// calendar month: month view shows leading/trailing days from the adjacent
+// months, and agenda spans three. Over-fetching by a month each way is far
+// cheaper than an event that silently isn't there.
+function getFetchRange(date, viewMode) {
+  const y = date.getFullYear();
+  const m = date.getMonth();
+  const span = viewMode === 'agenda' ? 3 : 1;
+  const from = new Date(y, m - 1, 1).toISOString();
+  const to   = new Date(y, m + span, 0, 23, 59, 59).toISOString();
   return { from, to };
 }
 
@@ -234,6 +239,7 @@ export default function CalendarPage() {
   const isAdmin = member?.role === 'ADMIN' || member?.isAdmin;
 
   const [cursor, setCursor] = useState(new Date());
+  const [viewMode, setViewMode] = useState('month');
   const [events, setEvents]   = useState([]);
   const [tasks, setTasks]     = useState([]);
   const [projects, setProjects] = useState([]);
@@ -311,9 +317,9 @@ export default function CalendarPage() {
     });
   }, [eventsLoading]);
 
-  // Fetch events for visible month whenever cursor month changes
-  const fetchEvents = useCallback(async (date) => {
-    const { from, to } = getMonthRange(date);
+  // Fetch events for the painted window whenever the cursor or view changes
+  const fetchEvents = useCallback(async (date, mode) => {
+    const { from, to } = getFetchRange(date, mode);
     setEventsLoading(true);
     setEventsError(null);
     try {
@@ -340,8 +346,8 @@ export default function CalendarPage() {
   }, []);
 
   useEffect(() => {
-    fetchEvents(cursor);
-  }, [cursor, fetchEvents]);
+    fetchEvents(cursor, viewMode);
+  }, [cursor, viewMode, fetchEvents]);
 
   // ── Meeting polls ────────────────────────────────────────────
   const refreshPolls = useCallback(async () => {
@@ -386,7 +392,7 @@ export default function CalendarPage() {
     const updated = await finalizeMeetingPoll(activePoll.id, startIso, endIso);
     setActivePoll(updated);
     refreshPolls();
-    fetchEvents(cursor); // the new Event shows on the calendar
+    fetchEvents(cursor, viewMode); // the new Event shows on the calendar
   }
 
   async function handleRemindPoll() {
@@ -408,7 +414,7 @@ export default function CalendarPage() {
     } else {
       await post('/api/events', formData);
     }
-    await fetchEvents(cursor);
+    await fetchEvents(cursor, viewMode);
   }
 
   async function handleDeleteEvent(event) {
@@ -419,7 +425,7 @@ export default function CalendarPage() {
       await deleteEvent(event.id);
     } catch (err) {
       setEventsError(err.message ?? 'Failed to delete event');
-      fetchEvents(cursor);
+      fetchEvents(cursor, viewMode);
     }
   }
 
@@ -458,21 +464,9 @@ export default function CalendarPage() {
         ...(newEnd !== undefined ? { endTime: newEnd } : {}),
       });
     } catch {
-      fetchEvents(cursor); // revert on failure
+      fetchEvents(cursor, viewMode); // revert on failure
     }
   }
-
-  // CalendarView raises cursor changes via internal state; we need to intercept
-  // month changes to re-fetch events. We do this by watching a synthetic cursor
-  // exposed through a key prop — simpler: lift cursor into CalendarPage and
-  // pass it down. CalendarView currently manages cursor internally, so we keep
-  // a parallel month cursor here updated when the user can trigger navigation
-  // via our wrapper. A lightweight approach: re-fetch whenever cursor month
-  // changes. Since CalendarView owns its own cursor, we sync via a callback
-  // passed as onMonthChange. Because CalendarView does not yet support
-  // onMonthChange, we instead re-fetch at a coarser granularity: we watch the
-  // cursor state here (which is only used for range queries) and let CalendarView
-  // be self-contained. The page-level cursor is solely for the API fetch range.
 
   return (
     <div className="clubpm-animate-fade-in" style={{ padding: '0 0 40px' }}>
@@ -487,29 +481,6 @@ export default function CalendarPage() {
           <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--clubpm-text-muted)' }}>
             Tasks, deadlines, and club events in one view
           </p>
-        </div>
-
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <button
-            type="button"
-            className="cpm-btn cpm-btn-ghost"
-            onClick={() => { setEditingPoll(null); setShowPollForm(true); }}
-            style={{ display: 'flex', alignItems: 'center', gap: 8 }}
-          >
-            <i className="fas fa-calendar-check" />
-            New Poll
-          </button>
-          {isAdmin && (
-            <button
-              type="button"
-              className="cpm-btn cpm-btn-primary"
-              onClick={() => setShowEventForm(true)}
-              style={{ display: 'flex', alignItems: 'center', gap: 8 }}
-            >
-              <i className="fas fa-plus" />
-              New Event
-            </button>
-          )}
         </div>
       </div>
 
@@ -551,7 +522,7 @@ export default function CalendarPage() {
             type="button"
             className="cpm-link-btn"
             style={{ marginLeft: 'auto', fontSize: 12 }}
-            onClick={() => fetchEvents(cursor)}
+            onClick={() => fetchEvents(cursor, viewMode)}
           >
             Retry
           </button>
@@ -585,28 +556,36 @@ export default function CalendarPage() {
         <CalendarView
           tasks={filteredTasks}
           events={filteredEvents}
+          cursor={cursor}
+          viewMode={viewMode}
+          onCursorChange={setCursor}
+          onViewModeChange={setViewMode}
           onEventClick={setSelectedEvent}
           onEventMove={isAdmin ? handleEventMove : undefined}
+          toolbarActions={
+            <>
+              <button
+                type="button"
+                className="cpm-btn cpm-btn-ghost"
+                onClick={() => { setEditingPoll(null); setShowPollForm(true); }}
+              >
+                <i className="fas fa-calendar-check" style={{ marginRight: 6 }} />
+                New Poll
+              </button>
+              {isAdmin && (
+                <button
+                  type="button"
+                  className="cpm-btn cpm-btn-primary"
+                  onClick={() => setShowEventForm(true)}
+                >
+                  <i className="fas fa-plus" style={{ marginRight: 6 }} />
+                  New Event
+                </button>
+              )}
+            </>
+          }
         />
       </div>
-
-      {/* FAB for mobile / alternate entry point */}
-      {isAdmin && (
-        <button
-          type="button"
-          aria-label="Add event"
-          onClick={() => setShowEventForm(true)}
-          style={{
-            position: 'fixed', bottom: 28, right: 28, zIndex: 200,
-            width: 52, height: 52, borderRadius: '50%',
-            background: 'var(--clubpm-accent-cyan)',
-            border: 'none', cursor: 'pointer', boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, color: '#fff',
-          }}
-        >
-          <i className="fas fa-plus" />
-        </button>
-      )}
 
       {/* Event form modal */}
       <EventFormModal

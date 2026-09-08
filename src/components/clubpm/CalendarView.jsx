@@ -115,9 +115,10 @@ function TaskChip({ task, onClick }) {
   );
 }
 
-export default function CalendarView({ tasks, events = [], onTaskClick, onEventClick, onEventMove }) {
-  const [viewMode, setViewMode]     = useState("month");
-  const [cursor, setCursor]         = useState(new Date());
+export default function CalendarView({
+  tasks, events = [], onTaskClick, onEventClick, onEventMove,
+  cursor, viewMode, onCursorChange, onViewModeChange, toolbarActions = null,
+}) {
   const [showFullDay, setShowFullDay] = useState(false);
   const [dragId, setDragId]         = useState(null);
   const [dropDay, setDropDay]       = useState(null);
@@ -157,7 +158,7 @@ export default function CalendarView({ tasks, events = [], onTaskClick, onEventC
     if (id && onEventMove) onEventMove(id, k);
   }
 
-  const snapToToday = () => setCursor(new Date());
+  const snapToToday = () => onCursorChange(new Date());
 
   const navigate = (dir) => {
     const d = new Date(cursor);
@@ -166,8 +167,9 @@ export default function CalendarView({ tasks, events = [], onTaskClick, onEventC
       case "week":   d.setDate(d.getDate() + dir * 7);      break;
       case "month":  d.setMonth(d.getMonth() + dir, 1);     break;
       case "agenda": d.setMonth(d.getMonth() + dir * 3);    break;
+      default: break;
     }
-    setCursor(d);
+    onCursorChange(d);
   };
 
   const tasksByDay = useMemo(() => (tasks || []).reduce((acc, t) => {
@@ -229,12 +231,15 @@ export default function CalendarView({ tasks, events = [], onTaskClick, onEventC
             <button
               key={v}
               className={`cpm-cal-view-btn${viewMode === v ? " active" : ""}`}
-              onClick={() => setViewMode(v)}
+              onClick={() => onViewModeChange(v)}
             >
               {v.charAt(0).toUpperCase() + v.slice(1)}
             </button>
           ))}
         </div>
+        {toolbarActions && (
+          <div className="cpm-cal-toolbar-actions">{toolbarActions}</div>
+        )}
       </div>
 
       {/* ── Month View ──────────────────────────────────────────── */}

@@ -26148,3 +26148,18 @@ button.pm-an-risk-factor-row:hover { background: rgba(255, 255, 255, 0.04); }
   font-weight: 600;
   white-space: nowrap;
 }
+
+/* Toolbar actions slot — page-level buttons living inside the calendar's
+   own toolbar row, so there is one control bar instead of three. */
+.cpm-cal-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 720px) {
+  .cpm-cal-toolbar-actions { margin-left: 0; width: 100%; }
+  .cpm-cal-toolbar-actions .cpm-btn { flex: 1; justify-content: center; }
+}
