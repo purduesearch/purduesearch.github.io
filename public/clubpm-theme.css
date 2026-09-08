@@ -16607,6 +16607,46 @@ i.fa-coins { color: #ffd96b; }
   .challenges-tab-btn { transition: none; }
 }
 
+/* MemberBadge's tooltip is written with Tailwind utilities, which never resolve
+   here — there is no Tailwind build in this app. Untamed, it renders as an
+   always-visible block of the member's display name, which is why call sites
+   used to wrap the badge in an overflow:hidden cell to clip it away. That clip
+   also crushed .member-badge-border below into a sliver, so the fix belongs
+   here rather than at each call site. Hidden by default, revealed on hover of
+   the badge; pointer-events stay off so it never eats a click on the avatar. */
+.clubpm-member-badge-tip {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-bottom: 6px;
+  padding: 3px 7px;
+  border-radius: 6px;
+  background: var(--clubpm-surface-400, var(--pm-elevated));
+  color: var(--pm-text-primary) !important;
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.4;
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.clubpm-member-badge:hover > .clubpm-member-badge-tip {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* The little arrow under the tooltip is a Tailwind-only border triangle; with
+   no Tailwind it is a stray 0x0 box, so hide it and let the bubble stand alone. */
+.clubpm-member-badge-tip > div { display: none; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .clubpm-member-badge-tip { transition: opacity 120ms ease, visibility 120ms ease; }
+}
+
 /* â”€â”€ MemberBadge cosmetic borders â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .member-badge-border {
   border-radius: 50%;
@@ -25264,36 +25304,33 @@ html.pm-dark-route { color-scheme: dark; }
   min-width: 0;
 }
 
+/* No overflow:hidden and no absolute offset on the child: the tooltip is handled
+   by .clubpm-member-badge-tip now, so the badge can lay out normally and a
+   member's cosmetic border frame (30px with its 3px ring) renders intact.
+   Sized by content so framed and unframed badges both sit centred. */
 .pm-activity .pm-activity-actor {
   position: relative;
-  width: 28px;
-  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
   padding: 0;
-  overflow: hidden;
-  border: 1px solid transparent;
+  border: 0;
   border-radius: 50%;
   background: transparent;
   cursor: pointer;
-  flex-shrink: 0;
+  flex: 0 0 auto;
   opacity: 0.65;
-}
-
-/* The badge is clipped to the portrait itself: MemberBadge trails a tooltip div
-   whose Tailwind classes never resolve, so it would otherwise render as a plain
-   block of the member's name. */
-.pm-activity .pm-activity-actor > * {
-  position: absolute;
-  top: 1px;
-  left: 1px;
-  height: 24px;
-  overflow: hidden;
 }
 
 .pm-activity .pm-activity-actor:hover { opacity: 1; }
 
+/* box-shadow rather than a border: a ring that does not change the box size,
+   so selecting an actor cannot reflow the strip. */
 .pm-activity .pm-activity-actor.is-active {
   opacity: 1;
-  border-color: var(--pm-accent-teal);
+  box-shadow: 0 0 0 2px var(--pm-accent-teal);
 }
 
 .pm-activity .pm-activity-search {
@@ -25331,37 +25368,40 @@ html.pm-dark-route { color-scheme: dark; }
 
 /* -- Row -- */
 
+/* Columns: avatar | content | change indicator. The indicator trails the row so
+   the text column gets the full remaining width; the avatar leads and carries
+   the timeline connector. Padding is horizontal too, so the hover/focus
+   background reads as a card rather than bleeding to the panel edge. */
 .pm-activity .pm-activity-row {
   display: grid;
-  grid-template-columns: 32px 28px 1fr auto;
+  grid-template-columns: 30px 1fr auto;
   align-items: center;
   gap: 12px;
-  padding: 10px 0;
+  padding: 10px;
   border-radius: 8px;
 }
 
 .pm-activity .pm-activity-rail {
-  position: relative;
-  align-self: stretch;
   display: flex;
   align-items: center;
-  justify-content: center;
-  width: 32px;
+  justify-content: flex-end;
+  flex-shrink: 0;
 }
 
-/* Vertical connector, behind the icon disc, bridging the 10px row padding. */
-.pm-activity .pm-activity-rail::before {
+/* Vertical connector, behind the avatar disc, bridging the row padding. */
+.pm-activity .pm-activity-avatar::before {
   content: "";
   position: absolute;
-  top: -10px;
-  bottom: -10px;
+  top: -14px;
+  bottom: -14px;
   left: 50%;
   width: 1px;
   margin-left: -0.5px;
   background: var(--pm-border);
+  z-index: 0;
 }
 
-.pm-activity .pm-activity-row.is-last .pm-activity-rail::before { display: none; }
+.pm-activity .pm-activity-row.is-last .pm-activity-avatar::before { display: none; }
 
 .pm-activity .pm-activity-icon {
   position: relative;
@@ -25437,27 +25477,42 @@ html.pm-dark-route { color-scheme: dark; }
   border-color: color-mix(in srgb, var(--pm-act-milestone) 38%, transparent);
 }
 
-/* The avatar cell clips MemberBadge's tooltip div, whose Tailwind utility
-   classes do not resolve in ClubPM -- without this the member's display name
-   renders as an opaque block that overflows into the neighbouring rows. */
+/* Must NOT clip: the timeline connector is this element's ::before and
+   deliberately overflows top and bottom, and clipping is also what used to
+   crush the cosmetic border frames. 30px fits a framed badge (24px portrait +
+   the 3px ring on each side); an unframed 24px badge centres inside it. */
 .pm-activity .pm-activity-avatar {
   position: relative;
-  width: 28px;
-  height: 28px;
-  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
   border-radius: 50%;
   flex-shrink: 0;
+  /* Opaque, so the connector line does not show through the gap around an
+     unframed badge. */
+  background: var(--pm-act-surface);
 }
 
-/* Absolute so the clipped tooltip cannot push the avatar out of the disc, and
-   height-capped to the 24px portrait so no part of the tooltip's line box can
-   reach inside the 28px clipping cell. */
+/* Above the connector line, so the disc reads as a node on the timeline. */
 .pm-activity .pm-activity-avatar > * {
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  height: 24px;
-  overflow: hidden;
+  position: relative;
+  z-index: 1;
+}
+
+/* System-authored events (cron sweeps, webhooks) carry no member. */
+.pm-activity .pm-activity-avatar-system {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--pm-act-surface);
+  border: 1px solid var(--pm-border);
+  color: var(--pm-text-secondary) !important;
+  font-size: 11px;
 }
 
 .pm-activity .pm-activity-body {
@@ -25517,12 +25572,10 @@ html.pm-dark-route { color-scheme: dark; }
 
 /* -- Clickable rows -- */
 
+/* Padding/margin now live on .pm-activity-row itself so clickable and
+   non-clickable rows share one alignment; this only adds the affordance. */
 .pm-activity .pm-activity-row--clickable {
   cursor: pointer;
-  padding-left: 6px;
-  padding-right: 6px;
-  margin-left: -6px;
-  margin-right: -6px;
 }
 
 .pm-activity .pm-activity-row--clickable:hover {
@@ -25599,14 +25652,17 @@ html.pm-dark-route { color-scheme: dark; }
 /* -- Narrow viewports -- */
 
 @media (max-width: 640px) {
+  /* Same avatar | content | indicator order, just tighter. The indicator aligns
+     to the first line of text rather than centring against a body that can now
+     wrap to several lines. */
   .pm-activity .pm-activity-row {
-    grid-template-columns: 28px 24px 1fr;
-    grid-template-rows: auto auto;
+    grid-template-columns: 30px 1fr auto;
     align-items: start;
-    gap: 8px 10px;
+    gap: 10px;
+    padding: 10px 8px;
   }
 
-  .pm-activity .pm-activity-rail { width: 28px; }
+  .pm-activity .pm-activity-rail { align-items: flex-start; }
 
   .pm-activity .pm-activity-body {
     flex-direction: column;

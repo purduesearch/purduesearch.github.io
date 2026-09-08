@@ -364,14 +364,15 @@ function ActivityRow({ log, isLast, onOpenTask }) {
       onClick={clickable ? open : undefined}
       onKeyDown={clickable ? handleKeyDown : undefined}
     >
-      <div className="pm-activity-rail">
-        <span className={`pm-activity-icon is-${meta.tone}`}>
-          <i className={meta.icon} aria-hidden="true" />
-        </span>
-      </div>
-
-      <div className="pm-activity-avatar" title={log.member?.displayName ?? ""}>
-        {log.member && <MemberBadge member={log.member} size="sm" />}
+      {/* Avatar leads the row and carries the timeline connector. MemberBadge is
+          safe here now that .clubpm-member-badge-tip styles its tooltip: the
+          cell no longer has to clip, so equipped cosmetic border frames survive. */}
+      <div className="pm-activity-avatar">
+        {log.member
+          ? <MemberBadge member={log.member} size="sm" />
+          : <span className="pm-activity-avatar-system" title="System" aria-label="System">
+              <i className="fas fa-gear" aria-hidden="true" />
+            </span>}
       </div>
 
       <div className="pm-activity-body">
@@ -380,6 +381,13 @@ function ActivityRow({ log, isLast, onOpenTask }) {
           <RelativeTime iso={log.createdAt} />
           <SourceBadge source={log.source} />
         </div>
+      </div>
+
+      {/* Change indicator, trailing — keeps the full row width for the text. */}
+      <div className="pm-activity-rail">
+        <span className={`pm-activity-icon is-${meta.tone}`} title={meta.label}>
+          <i className={meta.icon} aria-hidden="true" />
+        </span>
       </div>
     </div>
   );

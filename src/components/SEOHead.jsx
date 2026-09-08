@@ -64,9 +64,12 @@ export default function SEOHead({
       <meta name="twitter:image"       content={fullImage} />
       <meta name="twitter:image:alt"   content={ogImageAlt} />
 
-      {/* hreflang — English-only site */}
-      <link rel="alternate" hreflang="en"        href={fullUrl} />
-      <link rel="alternate" hreflang="x-default" href={fullUrl} />
+      {/* hreflang — English-only site. The JSX prop must be camelCase
+          `hrefLang`: React rejects a lowercase `hreflang` as an unknown DOM
+          property and drops it, emitting a bare <link rel="alternate"> with no
+          hreflang at all (it only warns in development). */}
+      <link rel="alternate" hrefLang="en"        href={fullUrl} />
+      <link rel="alternate" hrefLang="x-default" href={fullUrl} />
 
       {noindex && <meta name="robots" content="noindex, follow" />}
     </>

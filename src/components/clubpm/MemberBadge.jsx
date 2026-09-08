@@ -42,8 +42,14 @@ export default function MemberBadge({ member, size = "md", border, nameFrame, sh
           <RankIcon member={member} size={resolvedRankSize} />
         </span>
       ) : null}
-      {/* Tooltip */}
-      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 rounded-md bg-[var(--clubpm-surface-400)] text-[var(--clubpm-text-primary)] text-[10px] font-medium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+      {/* Tooltip. The Tailwind utilities below never resolve in ClubPM (no
+          Tailwind build), so clubpm-theme.css styles .clubpm-member-badge-tip
+          and does the actual hiding/positioning. Without that class the div
+          rendered as a plain visible block of text, and every call site had to
+          clip it away with overflow:hidden — which also crushed the cosmetic
+          border frames. Keep the class; the utilities are left only so this
+          still works if a Tailwind build is ever added. */}
+      <div className="clubpm-member-badge-tip absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 rounded-md bg-[var(--clubpm-surface-400)] text-[var(--clubpm-text-primary)] text-[10px] font-medium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
         {member.displayName}
         {frameLabel && (
           <span style={{ marginLeft: 5, opacity: 0.7, fontSize: '0.65rem' }}>{frameLabel}</span>
