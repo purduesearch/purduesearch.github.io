@@ -5,13 +5,14 @@ import CalendarFilters from '../../components/clubpm/CalendarFilters';
 import EventFormModal from '../../components/clubpm/EventFormModal';
 import MeetingPollModal from '../../components/clubpm/MeetingPollModal';
 import MeetingPollBoard from '../../components/clubpm/MeetingPollBoard';
+import ConfirmInline from '../../components/clubpm/ConfirmInline';
 import AvatarPortrait from '../../components/clubpm/avatar/AvatarPortrait';
 import {
   get, post, patch,
   listMeetingPolls, createMeetingPoll, updateMeetingPoll, deleteMeetingPoll,
   getMeetingPoll, submitAvailability, finalizeMeetingPoll, remindMeetingPoll,
   getAvailabilitySuggestion,
-  downloadMeetingPollIcs, googleCalendarUrl,
+  downloadMeetingPollIcs, googleCalendarUrl, deleteEvent,
 } from '../../api/clubPmClient';
 import { useClubPmAuth } from '../../clubpm/ClubPmAuth';
 import { revealStagger } from '../../clubpm/anim/motion';
@@ -58,7 +59,7 @@ function getMonthRange(date) {
 
 // ── Event Detail Modal ────────────────────────────────────────────
 
-function EventDetailModal({ event, onClose, onEdit, isAdmin, projects }) {
+function EventDetailModal({ event, onClose, onEdit, onDelete, isAdmin, projects }) {
   if (!event) return null;
 
   const borderColor = EVENT_TYPE_COLOR[event.type] ?? EVENT_TYPE_COLOR.OTHER;
@@ -184,7 +185,16 @@ function EventDetailModal({ event, onClose, onEdit, isAdmin, projects }) {
 
         </div>
 
-        <div style={{ marginTop: 20, display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+        <div className="pm-cal-modal-footer">
+          {isAdmin && (
+            <ConfirmInline
+              label="Delete"
+              prompt="Delete this event?"
+              onConfirm={async () => { await onDelete(event); onClose(); }}
+              className="cpm-btn cpm-btn-ghost pm-cal-delete-btn"
+            />
+          )}
+          <span style={{ flex: 1 }} />
           {isAdmin && (
             <button
               type="button"
@@ -401,6 +411,18 @@ export default function CalendarPage() {
     await fetchEvents(cursor);
   }
 
+  async function handleDeleteEvent(event) {
+    // Optimistic: the modal closes immediately after this resolves, so a
+    // failed delete must put the event back rather than leave a hole.
+    setEvents(prev => prev.filter(e => e.id !== event.id));
+    try {
+      await deleteEvent(event.id);
+    } catch (err) {
+      setEventsError(err.message ?? 'Failed to delete event');
+      fetchEvents(cursor);
+    }
+  }
+
   async function handleEventMove(eventId, targetDayKey) {
     const event = events.find(e => e.id === eventId);
     if (!event) return;
@@ -601,6 +623,7 @@ export default function CalendarPage() {
         event={selectedEvent}
         onClose={() => setSelectedEvent(null)}
         onEdit={(ev) => { setEditingEvent(ev); setShowEventForm(true); }}
+        onDelete={handleDeleteEvent}
         isAdmin={isAdmin}
         projects={projects}
       />
