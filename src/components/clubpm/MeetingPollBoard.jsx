@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { buildGrid, fmtDayLabel, fmtTimeLabel, fmtInstant } from './meetingPollUtils';
+import { getPollIcsConflicts } from '../../api/clubPmClient';
 
 const norm = (iso) => new Date(iso).toISOString();
 
@@ -84,6 +85,31 @@ export default function MeetingPollBoard({
   const [finalizeMode, setFinalizeMode] = useState(false);
   const [finalizeSlot, setFinalizeSlot] = useState(null);
   const [ghostDismissed, setGhostDismissed] = useState(false);
+
+  // Busy slots from the member's connected calendar. Advisory only — nothing
+  // is selected or submitted without an explicit click.
+  const [conflicts, setConflicts]       = useState(null); // Set<iso> | null
+  const [conflictBusy, setConflictBusy] = useState(false);
+  const [feedMissing, setFeedMissing]   = useState(false);
+
+  // `guestName` is undefined only for a signed-in member: the public page
+  // passes it (possibly '') for every guest, and the ClubPM modal never does.
+  // The conflicts endpoint needs a member record, so guests never see this.
+  const canUseCalendar = guestName === undefined && status === 'OPEN' && canRespond;
+
+  async function loadConflicts() {
+    setConflictBusy(true);
+    try {
+      const data = await getPollIcsConflicts(poll.id);
+      if (data.feedMissing) { setFeedMissing(true); return; }
+      setFeedMissing(false);
+      setConflicts(new Set(data.slots.filter(s => s.busy).map(s => norm(s.start))));
+    } catch {
+      setFeedMissing(false);
+    } finally {
+      setConflictBusy(false);
+    }
+  }
 
   const detailSlot = pinnedSlot ?? hoverSlot;
 
@@ -311,6 +337,12 @@ export default function MeetingPollBoard({
             <i className={copied ? 'fas fa-check' : 'fas fa-link'} /> {copied ? 'Copied!' : 'Copy link'}
           </button>
         )}
+        {canUseCalendar && !conflicts && !feedMissing && (
+          <button type="button" className="cpm-btn cpm-btn-ghost" onClick={loadConflicts} disabled={conflictBusy}>
+            <i className={conflictBusy ? 'fas fa-spinner fa-spin' : 'fas fa-calendar-alt'} style={{ marginRight: 6 }} />
+            Use my calendar
+          </button>
+        )}
         {canManage && status === 'OPEN' && (
           <>
             <button type="button" className="cpm-btn cpm-btn-ghost" disabled={busy === 'remind'}
@@ -385,6 +417,43 @@ export default function MeetingPollBoard({
         </div>
       )}
 
+      {feedMissing && (
+        <div className="pm-poll-conflict-bar">
+          <i className="fas fa-circle-info" />
+          <span>Connect your calendar in your profile to shade the times you&apos;re busy.</span>
+          <a className="cpm-link-btn" href="/clubpm/profile">Open profile</a>
+          <button type="button" className="cpm-icon-btn" onClick={() => setFeedMissing(false)} aria-label="Dismiss">
+            <i className="fas fa-times" />
+          </button>
+        </div>
+      )}
+
+      {conflicts && (
+        <div className="pm-poll-conflict-bar">
+          <i className="fas fa-calendar-alt" />
+          <span>
+            <strong>{conflicts.size}</strong> of {poll.slotStarts?.length ?? 0} slots conflict with your calendar
+          </span>
+          <button
+            type="button"
+            className="cpm-link-btn"
+            onClick={() => setSelected(new Set((poll.slotStarts ?? []).map(norm).filter(k => !conflicts.has(k))))}
+          >
+            Select all free slots
+          </button>
+          <button
+            type="button"
+            className="cpm-link-btn"
+            onClick={() => setSelected(prev => new Set([...prev].filter(k => !conflicts.has(k))))}
+          >
+            Clear conflicts
+          </button>
+          <button type="button" className="cpm-icon-btn" onClick={() => setConflicts(null)} aria-label="Dismiss">
+            <i className="fas fa-times" />
+          </button>
+        </div>
+      )}
+
       {/* Grids */}
       <div className="pm-poll-grids">
         {/* Your availability (editable) */}
@@ -431,7 +500,7 @@ export default function MeetingPollBoard({
                     data-mine="1"
                     data-di={di}
                     data-ti={ti}
-                    className={`pm-poll-cell pm-poll-cell-mine ${on ? 'is-on' : ''} ${ghost ? 'is-ghost' : ''}`}
+                    className={`pm-poll-cell pm-poll-cell-mine ${on ? 'is-on' : ''} ${ghost ? 'is-ghost' : ''}${conflicts?.has(key) ? ' is-conflict' : ''}`}
                     onPointerDown={(e) => { e.preventDefault(); cellDown(di, ti, key); }}
                   />
                 );

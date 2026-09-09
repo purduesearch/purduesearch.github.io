@@ -6723,3 +6723,43 @@ html.pm-dark-route { color-scheme: dark; }
   .pm-poll-hover-detail { min-height: 74px; }
   .pm-poll-hover-names { max-height: 96px; }
 }
+
+/* === Meeting poll — calendar conflict overlay =====================
+   Lives here rather than clubpm-theme.css because MeetingPollBoard also
+   renders on the PUBLIC /schedule/:token route, which never fetches the
+   ClubPM stylesheet. search-theme.css is linked on every page, so one
+   copy serves both. */
+
+.pm-poll-conflict-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 0 0 10px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  background: rgba(225, 112, 85, 0.10);
+  border: 1px solid rgba(225, 112, 85, 0.30);
+  color: var(--color-text, #1f2933);
+}
+
+.pm-poll-conflict-bar > i { color: #e17055; }
+.pm-poll-conflict-bar .cpm-icon-btn { margin-left: auto; }
+
+/* Diagonal hatch reads as "blocked" without competing with the heat map's
+   fill, which already encodes how many people are free.
+   Three classes, not two: on /clubpm/* this file loads BEFORE
+   clubpm-theme.css, whose `.pm-poll-cell-mine` and `.pm-poll-cell-mine.is-on`
+   set the `background` shorthand — at equal specificity those would land
+   later and blank the hatch out. The extra class wins on specificity, so the
+   overlay survives in both load orders. */
+.pm-poll-cell.pm-poll-cell-mine.is-conflict {
+  background-image: repeating-linear-gradient(
+    45deg,
+    rgba(225, 112, 85, 0.28) 0,
+    rgba(225, 112, 85, 0.28) 3px,
+    transparent 3px,
+    transparent 7px
+  );
+}

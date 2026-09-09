@@ -760,6 +760,11 @@ export const getMeetingPollResponses = (id)      => get(`/api/meeting-polls/${id
 // Availability suggested from the caller's own answers to past polls. Requires
 // auth (the habits are personal), so guests never call it.
 export const getAvailabilitySuggestion = (id)    => get(`/api/meeting-polls/${id}/suggestion`);
+// Slots that clash with the caller's connected calendar. Computed server-side
+// so the feed URL never reaches the browser; requires auth, so guests never
+// call it.
+export const getPollIcsConflicts = (id, includeAllDay = false) =>
+  get(`/api/meeting-polls/${id}/ics-conflicts?includeAllDay=${includeAllDay}`);
 export const remindMeetingPoll     = (id)        => post(`/api/meeting-polls/${id}/remind`, {});
 export const finalizeMeetingPoll   = (id, start, end) => post(`/api/meeting-polls/${id}/finalize`, { start, end });
 
