@@ -257,6 +257,7 @@ export default function CalendarPage() {
   const [showPollForm, setShowPollForm] = useState(false);
   const [editingPoll, setEditingPoll]   = useState(null);
   const [activePoll, setActivePoll]     = useState(null); // full serialized poll for the board
+  const [pollPanelOpen, setPollPanelOpen] = useState(true);
   const [pollSuggestion, setPollSuggestion] = useState(null); // availability learned from past polls
 
   // Client-side filters. Selecting nothing means "show everything" for that
@@ -400,12 +401,15 @@ export default function CalendarPage() {
     await remindMeetingPoll(activePoll.id);
   }
 
+  async function deletePollById(id) {
+    await deleteMeetingPoll(id);
+    setActivePoll(prev => (prev?.id === id ? null : prev));
+    refreshPolls();
+  }
+
   async function handleDeletePoll() {
     if (!activePoll) return;
-    if (!window.confirm('Delete this meeting poll? This cannot be undone.')) return;
-    await deleteMeetingPoll(activePoll.id);
-    setActivePoll(null);
-    refreshPolls();
+    await deletePollById(activePoll.id);
   }
 
   async function handleSaveEvent(formData) {
@@ -484,28 +488,52 @@ export default function CalendarPage() {
         </div>
       </div>
 
-      {/* Scheduling polls strip */}
+      {/* Scheduling polls panel */}
       {polls.length > 0 && (
-        <div className="pm-poll-strip">
-          <div className="pm-poll-strip-head">
+        <div className={`pm-poll-panel${pollPanelOpen ? '' : ' is-collapsed'}`}>
+          <button
+            type="button"
+            className="pm-poll-panel-head"
+            onClick={() => setPollPanelOpen(o => !o)}
+            aria-expanded={pollPanelOpen}
+          >
             <i className="fas fa-calendar-check" style={{ color: 'var(--pm-accent-teal, #00e5cc)' }} />
-            Scheduling polls
-          </div>
-          <div className="pm-poll-strip-cards">
-            {polls.map(p => (
-              <button key={p.id} type="button" className="pm-poll-card" onClick={() => openPollBoard(p.id)}>
-                <span className={`pm-poll-status pm-poll-status-${p.status?.toLowerCase()}`}>{p.status}</span>
-                <span className="pm-poll-card-title">{p.title}</span>
-                <span className="pm-poll-card-meta">
-                  <i className="fas fa-users" /> {p.responderCount ?? 0}
-                  {p.status === 'FINALIZED' && p.finalStart && (
-                    <> · <i className="fas fa-clock" /> {new Date(p.finalStart).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</>
-                  )}
-                  {p.project?.name && <> · {p.project.name}</>}
-                </span>
-              </button>
-            ))}
-          </div>
+            <span>Scheduling polls</span>
+            <span className="pm-poll-panel-count">{polls.length}</span>
+            <i className={`fas fa-chevron-${pollPanelOpen ? 'up' : 'down'} pm-poll-panel-caret`} />
+          </button>
+
+          {pollPanelOpen && (
+            <div className="pm-poll-panel-cards">
+              {polls.map(p => {
+                const canDelete = isAdmin || p.organizerId === member?.id;
+                return (
+                  <div key={p.id} className="pm-poll-card-row">
+                    <button type="button" className="pm-poll-card" onClick={() => openPollBoard(p.id)}>
+                      <span className={`pm-poll-status pm-poll-status-${p.status?.toLowerCase()}`}>{p.status}</span>
+                      <span className="pm-poll-card-title">{p.title}</span>
+                      <span className="pm-poll-card-meta">
+                        <i className="fas fa-users" /> {p.responderCount ?? 0}
+                        {p.status === 'FINALIZED' && p.finalStart && (
+                          <> · <i className="fas fa-clock" /> {new Date(p.finalStart).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</>
+                        )}
+                        {p.project?.name && <> · {p.project.name}</>}
+                      </span>
+                    </button>
+                    {canDelete && (
+                      <ConfirmInline
+                        label=""
+                        icon="fas fa-trash"
+                        prompt="Delete poll?"
+                        onConfirm={() => deletePollById(p.id)}
+                        className="cpm-icon-btn pm-poll-card-delete"
+                      />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 

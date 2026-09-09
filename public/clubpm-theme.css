@@ -26163,3 +26163,63 @@ button.pm-an-risk-factor-row:hover { background: rgba(255, 255, 255, 0.04); }
   .cpm-cal-toolbar-actions { margin-left: 0; width: 100%; }
   .cpm-cal-toolbar-actions .cpm-btn { flex: 1; justify-content: center; }
 }
+
+/* === Calendar page — scheduling poll panel ======================== */
+
+.pm-poll-panel {
+  margin-bottom: 16px;
+  border: 1px solid var(--pm-border, rgba(255,255,255,0.08));
+  border-radius: 10px;
+  background: var(--pm-surface, rgba(255,255,255,0.03));
+  overflow: hidden;
+}
+
+.pm-poll-panel-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 14px;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--pm-text, #e9edf1);
+  text-align: left;
+}
+
+.pm-poll-panel-count {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: rgba(0, 229, 204, 0.15);
+  color: var(--pm-accent-teal, #00e5cc);
+}
+
+.pm-poll-panel-caret { margin-left: auto; font-size: 11px; opacity: 0.6; }
+
+.pm-poll-panel-cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 0 12px 12px;
+}
+
+.pm-poll-card-row {
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+}
+
+.pm-poll-card-delete {
+  align-self: center;
+  color: var(--pm-accent-coral, #e17055);
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.pm-poll-card-row:hover .pm-poll-card-delete,
+.pm-poll-card-delete:focus-visible { opacity: 1; }
