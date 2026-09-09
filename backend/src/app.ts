@@ -23,6 +23,7 @@ import { notificationsRouter } from "./api/notifications.js";
 import { sseRouter } from "./api/sse.js";
 import { initDmBatcher } from "./services/dmBatcher.js";
 import { eventsRouter } from "./api/events.js";
+import { eventImportRouter } from "./api/eventImport.js";
 import { meetingPollsRouter } from "./api/meetingPolls.js";
 import { outreachRouter } from "./api/outreach.js";
 import { pressKitRouter } from "./api/pressKit.js";
@@ -148,6 +149,7 @@ app.use("/api/slack", slackRouter);
 // (no cookie, no Authorization header) before it reached the /stream handler.
 app.use("/api/notifications", sseRouter);
 app.use("/api/notifications", notificationsRouter);
+app.use("/api/events/import", eventImportRouter);
 app.use("/api/events", eventsRouter);
 app.use("/api/meeting-polls", meetingPollsRouter);
 app.use("/api/outreach", outreachRouter);
