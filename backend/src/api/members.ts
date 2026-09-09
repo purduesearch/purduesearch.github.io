@@ -4,6 +4,11 @@ import { prisma } from "../db/prisma.js";
 import { getTasksForMember } from "../services/taskService.js";
 import { sendKudos, getKudosCaps, KudosCapError } from "../services/kudosService.js";
 import { EXCLUDE_TRAINING } from "../services/trainingSandboxService.js";
+import { encryptSecret, decryptSecret } from "../utils/crypto.js";
+import {
+  assertSafeFeedUrl, fetchIcs, parseIcs, IcsFeedError, ICS_ERROR_MESSAGE,
+  invalidateMemberCalendar, checkRateLimit,
+} from "../services/icsFeedService.js";
 
 export const membersRouter = Router();
 
@@ -210,6 +215,87 @@ membersRouter.put("/me/progress-snapshot", async (req: Request, res: Response) =
     console.error("Save progress snapshot error:", error);
     res.status(500).json({ error: "Failed to save progress snapshot" });
   }
+});
+
+// ── Member iCal feed ─────────────────────────────────────────
+//
+// The feed URL is a bearer secret: anyone holding it can read the member's
+// calendar. It is encrypted at rest and NEVER returned to any client,
+// including its owner — only the host is displayed.
+// MUST stay registered above `GET /:id`.
+
+membersRouter.get("/me/ics-feed", async (req: Request, res: Response) => {
+  const member = await prisma.member.findUnique({
+    where: { id: req.memberId },
+    select: { icsFeedUrl: true, icsFeedLabel: true, icsFeedCheckedAt: true, icsFeedStatus: true },
+  });
+
+  const url = decryptSecret(member?.icsFeedUrl);
+  let host: string | null = null;
+  if (url) { try { host = new URL(url).host; } catch { host = null; } }
+
+  res.json({
+    connected: Boolean(url),
+    label: member?.icsFeedLabel ?? null,
+    host,
+    checkedAt: member?.icsFeedCheckedAt ?? null,
+    status: member?.icsFeedStatus ?? null,
+  });
+});
+
+membersRouter.put("/me/ics-feed", async (req: Request, res: Response) => {
+  const { url, label } = req.body as { url?: string; label?: string };
+  if (!url || typeof url !== "string") {
+    res.status(400).json({ error: "url is required" });
+    return;
+  }
+
+  try {
+    checkRateLimit(req.memberId!);
+    const safe = await assertSafeFeedUrl(url);
+    // Test-fetch before storing: a URL that never worked is worse than none.
+    const text = await fetchIcs(safe.toString());
+    const now = new Date();
+    const eventCount = parseIcs(text, {
+      from: now,
+      to: new Date(now.getTime() + 60 * 86400000),
+    }).length;
+
+    const encrypted = encryptSecret(safe.toString());
+    if (!encrypted) {
+      res.status(500).json({ error: "Failed to secure the feed URL" });
+      return;
+    }
+
+    await prisma.member.update({
+      where: { id: req.memberId },
+      data: {
+        icsFeedUrl: encrypted,
+        icsFeedLabel: label?.trim() || safe.host,
+        icsFeedCheckedAt: now,
+        icsFeedStatus: "OK",
+      },
+    });
+    invalidateMemberCalendar(req.memberId!);
+
+    res.json({ connected: true, host: safe.host, label: label?.trim() || safe.host, eventCount, status: "OK" });
+  } catch (err) {
+    if (err instanceof IcsFeedError) {
+      res.status(400).json({ error: ICS_ERROR_MESSAGE[err.code], code: err.code });
+      return;
+    }
+    console.error("[ics-feed] save error:", err);
+    res.status(500).json({ error: "Failed to save calendar feed" });
+  }
+});
+
+membersRouter.delete("/me/ics-feed", async (req: Request, res: Response) => {
+  await prisma.member.update({
+    where: { id: req.memberId },
+    data: { icsFeedUrl: null, icsFeedLabel: null, icsFeedCheckedAt: null, icsFeedStatus: null },
+  });
+  invalidateMemberCalendar(req.memberId!);
+  res.json({ ok: true });
 });
 
 // ── GET /api/members/cosmetic-styles ─────────────────────────

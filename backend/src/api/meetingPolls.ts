@@ -5,6 +5,11 @@ import * as pollService from "../services/pollService.js";
 import { createNotification } from "../services/notificationCrud.js";
 import { queueDm } from "../services/dmBatcher.js";
 import type { MeetingPollAudience } from "@prisma/client";
+import { decryptSecret } from "../utils/crypto.js";
+import {
+  loadMemberCalendar, busyIntervals, IcsFeedError, ICS_ERROR_MESSAGE,
+} from "../services/icsFeedService.js";
+import { conflictingSlots } from "../services/slotConflicts.js";
 
 export const meetingPollsRouter = Router();
 meetingPollsRouter.use(requireAuth);
@@ -282,6 +287,75 @@ meetingPollsRouter.get("/:id/suggestion", async (req: Request, res: Response) =>
   } catch (error) {
     console.error("Poll suggestion error:", error);
     res.status(500).json({ error: "Failed to build suggestion" });
+  }
+});
+
+// ── GET /api/meeting-polls/:id/ics-conflicts ─────────────────
+//
+// Conflicts are computed server-side so the feed URL never reaches the
+// browser. Titles are returned for the preview but never persisted.
+
+meetingPollsRouter.get("/:id/ics-conflicts", async (req: Request, res: Response) => {
+  try {
+    const poll = await prisma.meetingPoll.findUnique({
+      where: { id: req.params.id as string },
+      select: { slotStarts: true, slotMinutes: true },
+    });
+    if (!poll) {
+      res.status(404).json({ error: "Poll not found" });
+      return;
+    }
+
+    const member = await prisma.member.findUnique({
+      where: { id: req.memberId },
+      select: { icsFeedUrl: true },
+    });
+    const feedUrl = decryptSecret(member?.icsFeedUrl);
+    if (!feedUrl) {
+      res.json({ feedMissing: true, slots: [], allDayHits: 0 });
+      return;
+    }
+
+    if (poll.slotStarts.length === 0) {
+      res.json({ feedMissing: false, slots: [], allDayHits: 0 });
+      return;
+    }
+
+    const sorted = [...poll.slotStarts].sort((a, b) => a.getTime() - b.getTime());
+    const window = {
+      from: new Date(sorted[0]!.getTime() - 86400000),
+      to: new Date(sorted[sorted.length - 1]!.getTime() + 2 * 86400000),
+    };
+
+    const includeAllDay = req.query.includeAllDay === "true";
+    const { events, intervals } = await loadMemberCalendar(req.memberId!, feedUrl, window);
+    const busy = includeAllDay ? busyIntervals(events, { includeAllDay: true }) : intervals;
+
+    const slotIsos = poll.slotStarts.map(d => d.toISOString());
+    const hit = conflictingSlots(slotIsos, poll.slotMinutes, busy);
+
+    res.json({
+      feedMissing: false,
+      allDayHits: events.filter(e => e.allDay).length,
+      slots: slotIsos.map(iso => ({
+        start: iso,
+        busy: hit.has(iso),
+        title: hit.has(iso)
+          ? (events.find(e =>
+              !e.allDay &&
+              new Date(iso).getTime() < e.end.getTime() &&
+              new Date(iso).getTime() + poll.slotMinutes * 60000 > e.start.getTime()
+            )?.title ?? null)
+          : null,
+      })),
+    });
+  } catch (err) {
+    if (err instanceof IcsFeedError) {
+      res.status(400).json({ error: ICS_ERROR_MESSAGE[err.code], code: err.code });
+      return;
+    }
+    console.error("[ics-conflicts] error:", err);
+    res.status(500).json({ error: "Failed to read your calendar" });
   }
 });
 
