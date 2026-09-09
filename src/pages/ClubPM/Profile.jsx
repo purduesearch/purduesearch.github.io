@@ -15,6 +15,7 @@ import XpHeatmap from "../../components/clubpm/XpHeatmap";
 import AvatarPortrait from "../../components/clubpm/avatar/AvatarPortrait";
 import GhStatsSection from "../../components/clubpm/GhStatsSection";
 import GitHubConnectButton from "../../components/clubpm/github/GitHubConnectButton";
+import IcsFeedConnect from "../../components/clubpm/IcsFeedConnect";
 import TrainingStatusStrip from "../../components/clubpm/courses/TrainingStatusStrip";
 import { progressToNextRank } from "../../clubpm/engagement/rankProgress";
 import { tzOffset, copyToClipboard, activityLabels } from "../../clubpm/members/memberShared";
@@ -297,6 +298,7 @@ export default function Profile() {
           <div className="cpm-profile-card">
             <h3 style={{ marginTop: 0 }}>Integrations</h3>
             <GitHubConnectButton />
+            <IcsFeedConnect />
           </div>
         )}
 

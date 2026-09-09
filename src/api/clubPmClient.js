@@ -319,6 +319,15 @@ export function saveProgressSnapshot(payload) {
   });
 }
 
+// ── Member iCal feed ────────────────────────────────────────────
+//
+// The URL is write-only from here: the server stores it encrypted and returns
+// only the host, so nothing ever repopulates the input after a reload.
+
+export const getIcsFeed    = ()           => get('/api/members/me/ics-feed');
+export const saveIcsFeed   = (url, label) => put('/api/members/me/ics-feed', { url, label });
+export const removeIcsFeed = ()           => del('/api/members/me/ics-feed');
+
 // ── Task archiving ──────────────────────────────────────────────
 
 export const archiveTask       = (id) => post(`/api/tasks/${id}/archive`, {});
