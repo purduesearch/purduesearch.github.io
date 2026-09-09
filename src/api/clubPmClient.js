@@ -795,6 +795,9 @@ export async function downloadMeetingPollIcs(id, filename = 'meeting.ics') {
 
 export const deleteEvent = (id) => del(`/api/events/${id}`);
 
+export const previewEventImport = (url)            => post('/api/events/import/preview', { url });
+export const importEvents       = (events, source) => post('/api/events/import', { events, source });
+
 // Build a "Add to Google Calendar" template URL entirely client-side (no backend).
 export function googleCalendarUrl({ title, description, location, start, end }) {
   const fmt = (d) => new Date(d).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');

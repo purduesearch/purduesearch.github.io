@@ -6,6 +6,7 @@ import EventFormModal from '../../components/clubpm/EventFormModal';
 import MeetingPollModal from '../../components/clubpm/MeetingPollModal';
 import MeetingPollBoard from '../../components/clubpm/MeetingPollBoard';
 import ConfirmInline from '../../components/clubpm/ConfirmInline';
+import CalendarImportModal from '../../components/clubpm/CalendarImportModal';
 import AvatarPortrait from '../../components/clubpm/avatar/AvatarPortrait';
 import {
   get, post, patch,
@@ -237,6 +238,7 @@ export default function CalendarPage() {
 
   const [selectedEvent, setSelectedEvent]     = useState(null);
   const [showEventForm, setShowEventForm]     = useState(false);
+  const [showImport, setShowImport]           = useState(false);
   const [editingEvent, setEditingEvent]       = useState(null);
 
   // Meeting scheduler (when2meet polls)
@@ -579,6 +581,12 @@ export default function CalendarPage() {
                 New Poll
               </button>
               {isAdmin && (
+                <button type="button" className="cpm-btn cpm-btn-ghost" onClick={() => setShowImport(true)}>
+                  <i className="fas fa-file-import" style={{ marginRight: 6 }} />
+                  Import
+                </button>
+              )}
+              {isAdmin && (
                 <button
                   type="button"
                   className="cpm-btn cpm-btn-primary"
@@ -602,6 +610,15 @@ export default function CalendarPage() {
         projects={projects}
         members={members}
       />
+
+      {/* iCal feed import modal (admins only) */}
+      {isAdmin && (
+        <CalendarImportModal
+          isOpen={showImport}
+          onClose={() => setShowImport(false)}
+          onImported={() => fetchEvents(cursor, viewMode)}
+        />
+      )}
 
       {/* Event detail modal */}
       <EventDetailModal
