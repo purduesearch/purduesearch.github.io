@@ -49,6 +49,7 @@
     "googleapis": "^171.4.0",
     "helmet": "^8.2.0",
     "html-to-docx": "^1.8.0",
+    "ical.js": "^2.2.1",
     "mammoth": "^1.8.0",
     "marked": "^18.0.5",
     "multer": "^2.1.1",
