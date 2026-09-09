@@ -1,10 +1,12 @@
-// Pure-logic unit tests for icsFeedService. No network, no DB.
+// Unit tests for icsFeedService. No DB. Mostly pure logic; the SSRF-gate
+// cases below deliberately hit real DNS (a mocked resolver would not prove
+// the gate works).
 // Run: cd backend && npx tsx src/services/icsFeedService.test.ts
 //
 // Excluded from the production build (tsconfig `exclude` covers *.test.ts).
 // Same inline assertion harness as assignmentService.test.ts.
 
-import { parseIcs, busyIntervals } from "./icsFeedService.js";
+import { parseIcs, busyIntervals, assertSafeFeedUrl, isBlockedAddress, IcsFeedError } from "./icsFeedService.js";
 
 let passed = 0, failed = 0;
 function check(name: string, cond: boolean) {
@@ -128,6 +130,37 @@ console.log("busyIntervals");
     busyIntervals([ev(0, 23, { allDay: true })], { includeAllDay: true }).length === 1);
 
   check("empty input yields no intervals", busyIntervals([], { includeAllDay: false }).length === 0);
+}
+
+console.log("assertSafeFeedUrl — SSRF gate");
+{
+  const rejects = async (url: string, why: string) => {
+    try { await assertSafeFeedUrl(url); check(why, false); }
+    catch (err) { check(why, err instanceof IcsFeedError && err.code === "UNSAFE_URL"); }
+  };
+
+  await rejects("http://example.com/cal.ics", "plain http rejected");
+  await rejects("file:///etc/passwd", "file:// rejected");
+  await rejects("https://127.0.0.1/cal.ics", "loopback rejected");
+  await rejects("https://localhost/cal.ics", "localhost rejected");
+  await rejects("https://10.0.0.5/cal.ics", "private 10/8 rejected");
+  await rejects("https://192.168.1.20/cal.ics", "private 192.168/16 rejected");
+  await rejects("https://172.16.4.4/cal.ics", "private 172.16/12 rejected");
+  await rejects("https://169.254.169.254/latest/meta-data", "link-local (cloud metadata) rejected");
+  await rejects("https://100.64.0.1/cal.ics", "CGNAT rejected");
+  await rejects("https://[::1]/cal.ics", "IPv6 loopback rejected");
+
+  // webcal:// is what Google's "secret address" copy button often yields.
+  const normalized = await assertSafeFeedUrl("webcal://calendar.google.com/calendar/ical/x/basic.ics");
+  check("webcal:// normalizes to https", normalized.protocol === "https:");
+}
+
+console.log("isBlockedAddress");
+{
+  check("public address allowed", isBlockedAddress("142.250.72.14") === false);
+  check("public IPv6 allowed", isBlockedAddress("2607:f8b0::1") === false);
+  check("0.0.0.0 blocked", isBlockedAddress("0.0.0.0") === true);
+  check("IPv4-mapped IPv6 loopback blocked", isBlockedAddress("::ffff:127.0.0.1") === true);
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);
