@@ -78,34 +78,21 @@ function EventDetailModal({ event, onClose, onEdit, onDelete, isAdmin, projects 
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div
-        style={{
-          background: 'var(--clubpm-surface-200)',
-          border: '1px solid var(--clubpm-border)',
-          borderRadius: 12,
-          width: '100%',
-          maxWidth: 520,
-          maxHeight: '88vh',
-          overflowY: 'auto',
-          padding: '24px 28px',
-          position: 'relative',
-          borderTop: `3px solid ${borderColor}`,
-        }}
+        className="pm-cal-detail"
+        style={{ borderTop: `3px solid ${borderColor}` }}
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20, gap: 12 }}>
+        <div className="pm-cal-detail-head">
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-            <span style={{
-              width: 36, height: 36, borderRadius: 8, flexShrink: 0,
-              background: borderColor, display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              <i className={iconClass} style={{ color: '#fff', fontSize: 15 }} />
+            <span className="pm-cal-detail-icon" style={{ background: borderColor }}>
+              <i className={iconClass} />
             </span>
             <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--clubpm-text-primary)', wordBreak: 'break-word' }}>
+              <div className="pm-cal-detail-title">
                 {event.title}
               </div>
-              <div style={{ fontSize: 11, color: borderColor, fontWeight: 500, marginTop: 2, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              <div className="pm-cal-detail-type" style={{ color: borderColor }}>
                 {event.type}
               </div>
             </div>
@@ -121,7 +108,7 @@ function EventDetailModal({ event, onClose, onEdit, onDelete, isAdmin, projects 
           </button>
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div className="pm-cal-detail-body">
 
           {/* Date/time */}
           <DetailRow icon="fas fa-clock" label="Starts">
@@ -172,7 +159,7 @@ function EventDetailModal({ event, onClose, onEdit, onDelete, isAdmin, projects 
             <DetailRow icon="fas fa-users" label={`Attendees (${event.attendees.length})`}>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 2 }}>
                 {event.attendees.map(a => (
-                  <span key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'var(--clubpm-surface-100)', borderRadius: 20, padding: '2px 8px 2px 3px', fontSize: 12 }}>
+                  <span key={a.id} className="pm-cal-attendee">
                     <AvatarPortrait member={a} size={16} />
                     <span style={{ color: 'var(--clubpm-text-secondary)' }}>{a.displayName}</span>
                   </span>
@@ -222,11 +209,11 @@ function EventDetailModal({ event, onClose, onEdit, onDelete, isAdmin, projects 
 
 function DetailRow({ icon, label, children }) {
   return (
-    <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', fontSize: 13 }}>
-      <i className={icon} style={{ color: 'var(--clubpm-text-muted)', fontSize: 13, marginTop: 1, width: 14, flexShrink: 0 }} />
+    <div className="pm-cal-row">
+      <i className={icon} />
       <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
-        <span style={{ fontSize: 11, color: 'var(--clubpm-text-muted)', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{label}</span>
-        <div style={{ color: 'var(--clubpm-text-primary)' }}>{children}</div>
+        <span className="pm-cal-row-label">{label}</span>
+        <div className="pm-cal-row-value">{children}</div>
       </div>
     </div>
   );
@@ -476,16 +463,12 @@ export default function CalendarPage() {
     <div className="clubpm-animate-fade-in" style={{ padding: '0 0 40px' }}>
 
       {/* Page header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
-        <div>
-          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: 'var(--clubpm-text-primary)' }}>
-            <i className="fas fa-calendar-alt" style={{ marginRight: 10, color: 'var(--clubpm-accent-cyan)' }} />
-            Club Calendar
-          </h1>
-          <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--clubpm-text-muted)' }}>
-            Tasks, deadlines, and club events in one view
-          </p>
-        </div>
+      <div className="pm-cal-header">
+        <h1>
+          <i className="fas fa-calendar-alt" />
+          Club Calendar
+        </h1>
+        <p>Tasks, deadlines, and club events in one view</p>
       </div>
 
       {/* Scheduling polls panel */}
@@ -539,17 +522,12 @@ export default function CalendarPage() {
 
       {/* Error banner */}
       {eventsError && (
-        <div style={{
-          padding: '10px 16px', marginBottom: 16, borderRadius: 8,
-          background: 'rgba(225, 112, 85, 0.12)', border: '1px solid var(--clubpm-accent-red, #e17055)',
-          fontSize: 13, color: 'var(--clubpm-accent-red, #e17055)', display: 'flex', alignItems: 'center', gap: 8,
-        }}>
+        <div className="pm-cal-banner">
           <i className="fas fa-exclamation-triangle" />
           {eventsError}
           <button
             type="button"
             className="cpm-link-btn"
-            style={{ marginLeft: 'auto', fontSize: 12 }}
             onClick={() => fetchEvents(cursor, viewMode)}
           >
             Retry
@@ -559,7 +537,7 @@ export default function CalendarPage() {
 
       {/* Loading indicator for events */}
       {eventsLoading && (
-        <div style={{ fontSize: 12, color: 'var(--clubpm-text-muted)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div className="pm-cal-loading">
           <i className="fas fa-spinner fa-spin" />
           Loading events…
         </div>
