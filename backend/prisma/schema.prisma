@@ -209,6 +209,14 @@ model Member {
   slackUserToken       String?
   slackUserTokenAt     DateTime?
 
+  // ── Private iCal feed (Google/Outlook/Apple "secret address") ──
+  // AES-GCM at rest via encryptSecret, exactly like slackUserToken. Never
+  // returned to any client, including its owner — only the host is displayed.
+  icsFeedUrl           String?
+  icsFeedLabel         String?
+  icsFeedCheckedAt     DateTime?
+  icsFeedStatus        String?
+
   // ── GitHub OAuth (per-member) ──
   // Access/refresh tokens are AES-GCM encrypted at rest (see backend/src/utils/crypto.ts).
   githubLogin          String?      @unique
@@ -827,6 +835,12 @@ model Event {
 
   notes String?
 
+  // Set when the event came from an imported calendar feed. Kept even though
+  // import is one-shot: it is what makes a re-import show "already imported"
+  // instead of silently duplicating every event.
+  externalUid    String?
+  externalSource String?
+
   isRecurring       Boolean   @default(false)
   recurrencePattern String?
   recurrenceEndDate DateTime?
@@ -841,6 +855,7 @@ model Event {
   @@index([startTime])
   @@index([projectId])
   @@index([organizerId])
+  @@index([externalUid])
 }
 
 // ── Outreach ─────────────────────────────────────────────────
