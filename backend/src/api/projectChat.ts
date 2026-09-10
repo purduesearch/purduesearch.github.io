@@ -5,6 +5,7 @@ import { requireProjectChatRead, getProjectChatAccess } from "../middleware/proj
 import { prisma } from "../db/prisma.js";
 import { formatSlackText, type FormatContext } from "../services/slackMessageFormat.js";
 import { resolveFileStream, getStorageHealth, getCustomEmoji } from "../services/slackFileService.js";
+import { startBackfill, getBackfillStatus } from "../services/slackBackfillService.js";
 
 export const projectChatRouter = Router();
 
@@ -288,6 +289,45 @@ projectChatRouter.get(
     } catch (error) {
       console.error("chat/storage-health error:", error);
       res.status(500).json({ error: "Failed to read storage health" });
+    }
+  }
+);
+
+// ── POST /api/projects/:projectId/chat/backfill ──────────────
+projectChatRouter.post(
+  "/:projectId/chat/backfill",
+  requireAuth,
+  requireProjectChatRead,
+  async (req: Request, res: Response) => {
+    if (!req.chatIsAdmin) return void res.status(403).json({ error: "Admin only" });
+    try {
+      const channelId = typeof req.body?.channelId === "string" ? req.body.channelId : null;
+      if (!channelId || !(req.chatChannelIds ?? []).includes(channelId)) {
+        return void res.status(400).json({ error: "channelId is not linked to this project" });
+      }
+      res.json(await startBackfill(channelId));
+    } catch (error) {
+      console.error("chat/backfill error:", error);
+      res.status(500).json({ error: "Failed to start backfill" });
+    }
+  }
+);
+
+// ── GET /api/projects/:projectId/chat/backfill/:channelId ────
+projectChatRouter.get(
+  "/:projectId/chat/backfill/:channelId",
+  requireAuth,
+  requireProjectChatRead,
+  async (req: Request, res: Response) => {
+    try {
+      const channelId = req.params.channelId as string;
+      if (!(req.chatChannelIds ?? []).includes(channelId)) {
+        return void res.status(404).json({ error: "Not found" });
+      }
+      res.json(await getBackfillStatus(channelId));
+    } catch (error) {
+      console.error("chat/backfill status error:", error);
+      res.status(500).json({ error: "Failed to read backfill status" });
     }
   }
 );
