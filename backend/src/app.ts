@@ -142,6 +142,13 @@ app.use("/api/tasks", tasksRouter);
 // for every /api/* request that reaches them — mounting publicRouter first
 // ensures unauthenticated /api/public/* requests are handled before that.
 app.use("/api/public", publicRouter);
+// sseRouter MUST come before both the bare "/api" routers below AND
+// notificationsRouter: the SSE stream authenticates via a `?token=` query param
+// for cookie-blocked EventSource clients (Brave, Safari), and any pathless
+// requireAuth ahead of it — blockersRouter's runs for every /api/* request —
+// 401s that request (no cookie, no Authorization header) before it reaches the
+// /stream handler. Guarded by src/appMountOrder.test.ts.
+app.use("/api/notifications", sseRouter);
 app.use("/api", blockersRouter);
 app.use("/api", trainingRouter); // POST /api/training-project
 app.use("/api", vaultRouter);
@@ -151,12 +158,7 @@ app.use("/api/activity", activityRouter);
 app.use("/api/milestones", milestonesRouter);
 app.use("/api/reporting", reportingRouter);
 app.use("/api/slack", slackRouter);
-// sseRouter MUST come before notificationsRouter: the SSE stream authenticates
-// via a `?token=` query param for cookie-blocked EventSource clients, and
-// notificationsRouter's pathless requireAuth would otherwise 401 that request
-// (no cookie, no Authorization header) before it reached the /stream handler.
-app.use("/api/notifications", sseRouter);
-app.use("/api/notifications", notificationsRouter);
+app.use("/api/notifications", notificationsRouter); // sseRouter is mounted above — see there
 app.use("/api/events/import", eventImportRouter);
 app.use("/api/events", eventsRouter);
 app.use("/api/meeting-polls", meetingPollsRouter);

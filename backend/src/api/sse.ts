@@ -16,9 +16,10 @@ export const sseRouter = Router();
 // Scoped to the /stream route (not a pathless router.use) so non-stream
 // /api/notifications/* requests fall straight through this router to
 // notificationsRouter without a second auth pass. NOTE: sseRouter MUST be
-// mounted BEFORE notificationsRouter in app.ts — notificationsRouter attaches
-// its own pathless requireAuth, which would 401 a valid ?token= EventSource
-// (no cookie, no header) before it ever reached this handler.
+// mounted in app.ts BEFORE notificationsRouter AND before every bare
+// app.use("/api", …) router — each of those attaches a pathless requireAuth
+// that would 401 a valid ?token= EventSource (no cookie, no header) before it
+// ever reached this handler. src/appMountOrder.test.ts enforces both.
 async function streamAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
   const queryToken = typeof req.query.token === "string" ? req.query.token : undefined;
   if (queryToken) {
