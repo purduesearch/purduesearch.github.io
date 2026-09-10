@@ -2495,3 +2495,119 @@ model DocShareSettings {
   updatedAt DateTime       @updatedAt
 }
 
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Slack chat archive
+//
+// Keyed on slackChannelId, never projectId: getProjectsForChannel() returns an
+// ARRAY — one Slack channel can be linked to several projects. Channel-keying
+// means both projects render the same conversation, re-linking never duplicates
+// history, and unlinking a channel does not orphan its archive.
+// Project scoping happens at READ time, by resolving a project's channel ids.
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum SlackBackfillStatus {
+  NOT_STARTED
+  RUNNING
+  COMPLETE
+  FAILED
+}
+
+/// Mixes storage LOCATIONS with OUTCOMES. MIRROR_FAILED still streams from
+/// Slack (the copy failed; the file is still there) — see slackFileService.
+enum SlackFileStorage {
+  SLACK_ONLY
+  DRIVE
+  LOCAL
+  MIRROR_FAILED
+  UNAVAILABLE
+}
+
+model SlackChannelArchive {
+  id               String  @id @default(cuid())
+  slackChannelId   String  @unique
+  slackChannelName String?
+  isPrivate        Boolean @default(false)
+  archiveEnabled   Boolean @default(true)
+
+  /// Drive folder holding this channel's mirrored attachments.
+  driveFolderId    String?
+
+  backfillStatus   SlackBackfillStatus @default(NOT_STARTED)
+  /// Slack ts paginated back to — makes backfill resumable after a crash.
+  backfillCursor   String?
+  backfillOldestTs String?
+  backfillError    String?
+  backfilledAt     DateTime?
+
+  lastMessageAt    DateTime?
+  messageCount     Int      @default(0)
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model SlackMessage {
+  id              String @id @default(cuid())
+  slackChannelId  String
+  /// Slack's message ts — the natural key.
+  ts              String
+  /// Parent ts when this is a reply.
+  threadTs        String?
+  /// Maintained on the PARENT row; recomputed, never incremented.
+  replyCount      Int    @default(0)
+
+  authorSlackId   String?
+  /// Null for non-members and deactivated users. Ingest never creates Members.
+  memberId        String?
+  /// Snapshot of the display name at post time.
+  authorName      String
+  authorAvatarUrl String?
+
+  /// Raw Slack mrkdwn — the source of truth. Rendered to tokens on read.
+  text            String    @db.Text
+  editedAt        DateTime?
+  /// Tombstone. The row and its files are kept.
+  deletedAt       DateTime?
+  /// { ":emoji:": { count: number, slackIds: string[] } }
+  reactions       Json?
+
+  postedAt        DateTime
+  files           SlackMessageFile[]
+
+  @@unique([slackChannelId, ts])
+  @@index([slackChannelId, postedAt])
+  @@index([threadTs])
+  @@index([memberId])
+}
+
+model SlackMessageFile {
+  id             String       @id @default(cuid())
+  messageId      String
+  message        SlackMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  slackFileId    String  @unique
+  name           String
+  mimeType       String?
+  sizeBytes      Int?
+  isImage        Boolean @default(false)
+  /// So the UI can reserve layout space without fetching the bytes.
+  width          Int?
+  height         Int?
+
+  storage        SlackFileStorage @default(SLACK_ONLY)
+  driveFileId    String?
+  localPath      String?
+  mirrorAttempts Int      @default(0)
+  mirrorError    String?
+  mirroredAt     DateTime?
+
+  /// Denormalized from SlackMessage.postedAt so the nightly sweep is a single
+  /// index scan instead of a join.
+  postedAt       DateTime
+
+  createdAt      DateTime @default(now())
+
+  @@index([storage, postedAt])
+  @@index([messageId])
+}
