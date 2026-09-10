@@ -10,6 +10,7 @@ import {
 import { parseTaskFromMessage, type TaskContext } from "../services/aiService.js";
 import { storeAiTask } from "../utils/aiTaskCache.js";
 import { prisma } from "../db/prisma.js";
+import { ingestSlackMessage, applyReaction } from "../services/slackArchiveService.js";
 
 // ── Helpers ──────────────────────────────────────────────────
 
@@ -240,8 +241,18 @@ export function registerEvents(app: App): void {
     }
   });
 
-  // ── Message: Auto-detect TODO/ACTION ─────────────────────
-  app.message(async ({ message, say }) => {
+  // ── Message: archive + auto-detect TODO/ACTION ────────────
+  // The archive call runs FIRST and in its own try/catch. The two concerns get
+  // independent error boundaries in both directions: an archive bug must not
+  // break the TODO prompt that works today, and a failure in the TODO logic
+  // must not lose a message from the archive.
+  app.message(async ({ message, say, client }) => {
+    try {
+      await ingestSlackMessage(message as never, client);
+    } catch (error) {
+      console.error("[slackArchive] ingest failed:", error);
+    }
+
     try {
       // Only handle regular user messages with text
       if (message.subtype) return;
@@ -273,6 +284,13 @@ export function registerEvents(app: App): void {
       if (event.item.type !== "message") return;
 
       const { channel, ts } = event.item as { channel: string; ts: string };
+
+      // Mirror the reaction into the archive before the clipboard/✅ flows below.
+      try {
+        await applyReaction(channel, ts, `:${event.reaction}:`, event.user, true);
+      } catch (error) {
+        console.error("[slackArchive] reaction_added failed:", error);
+      }
 
       if (event.reaction === "clipboard") {
         // Fetch the original message text
@@ -353,6 +371,17 @@ export function registerEvents(app: App): void {
       }
     } catch (error) {
       console.error("reaction_added event error:", error);
+    }
+  });
+
+  // ── Reaction Removed: keep the archive in sync ────────────
+  app.event("reaction_removed", async ({ event }) => {
+    try {
+      if (event.item.type !== "message") return;
+      const { channel, ts } = event.item as { channel: string; ts: string };
+      await applyReaction(channel, ts, `:${event.reaction}:`, event.user, false);
+    } catch (error) {
+      console.error("reaction_removed event error:", error);
     }
   });
 

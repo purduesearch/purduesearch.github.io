@@ -31,6 +31,7 @@ oauth_config:
       - groups:history
       - reactions:read
       - files:read
+      - emoji:read
     user:
       - users:read
       - users:read.email
@@ -52,6 +53,7 @@ settings:
       - member_joined_channel
       - member_left_channel
       - reaction_added
+      - reaction_removed
       - file_shared
   interactivity:
     is_enabled: true
