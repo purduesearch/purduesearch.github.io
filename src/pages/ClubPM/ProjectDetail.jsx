@@ -2788,7 +2788,9 @@ export default function ProjectDetail() {
           }
         : p
     );
-    setSelectedTask(updatedTask);
+    // Updates can arrive from a nested subtask modal; only re-seed the open
+    // modal when the edit is actually for the task it is showing.
+    setSelectedTask(prev => (prev && prev.id === updatedTask.id ? updatedTask : prev));
     // Full refetch captures parent-change restructuring and other server-side side effects.
     fetchProject();
   };

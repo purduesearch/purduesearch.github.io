@@ -2421,7 +2421,11 @@ export default function TaskModal({ task: initialTask, project, projectBlockers 
           task={nestedTask}
           onClose={() => setNestedTask(null)}
           onUpdate={updated => {
-            if (updated.id === task.id) { setTask(updated); onUpdate?.(updated); }
+            if (updated.id === task.id) setTask(updated);
+            else setSubtasks(prev => prev.map(s => (s.id === updated.id ? { ...s, ...updated } : s)));
+            // Always bubble up: the nested task is a subtask, so its id never
+            // matches this modal's task, and gating on that dropped every edit.
+            onUpdate?.(updated);
           }}
           onDelete={t => {
             if (t.id === task.id) { onDelete?.(t); onClose(); }

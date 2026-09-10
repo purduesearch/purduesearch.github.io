@@ -106,8 +106,21 @@ export default function AssigneeWorkloadCard({ data = [] }) {
                 <Tooltip {...tooltipProps()} />
                 <Legend {...legendProps()} />
 
+                {/*
+                  `fill` is set on the Bar as well as on every Cell. The Cells are what
+                  paint the bars (they carry the per-row muting); the Bar's own `fill` is
+                  what recharts copies into the legend and tooltip payload, and without it
+                  every swatch falls back to SVG's default black.
+                */}
                 {SERIES.map(s => (
-                  <Bar key={s.key} dataKey={s.key} name={s.label} stackId="workload" maxBarSize={22}>
+                  <Bar
+                    key={s.key}
+                    dataKey={s.key}
+                    name={s.label}
+                    stackId="workload"
+                    maxBarSize={22}
+                    fill={STATUS_COLORS[s.key] || c.textSecondary}
+                  >
                     {rows.map(row => (
                       <Cell
                         key={row.memberId || row.member}
