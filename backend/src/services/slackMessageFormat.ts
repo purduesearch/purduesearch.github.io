@@ -13,7 +13,8 @@ export type SlackToken =
   | { type: "link"; href: string; label: string }
   | { type: "code"; value: string }
   | { type: "codeblock"; value: string }
-  | { type: "emoji"; name: string; url?: string };
+  | { type: "emoji"; name: string; url?: string }
+  | { type: "bold" | "italic" | "strike"; children: SlackToken[] };
 
 export interface FormatContext {
   /** slackId → display name, for <@U123> resolution. */
@@ -108,17 +109,101 @@ function tokenizePlain(seg: string, ctx: FormatContext): SlackToken[] {
   return out;
 }
 
-/** Collapse consecutive text tokens and drop empty ones. */
-function mergeText(tokens: SlackToken[]): SlackToken[] {
-  const out: SlackToken[] = [];
-  for (const t of tokens) {
-    if (t.type !== "text") { out.push(t); continue; }
-    if (t.value === "") continue;
-    const prev = out[out.length - 1];
-    if (prev && prev.type === "text") prev.value += t.value;
-    else out.push({ ...t });
+// ── Emphasis: *bold*, _italic_, ~strike~ ─────────────────────
+
+const EMPHASIS = { "*": "bold", _: "italic", "~": "strike" } as const;
+type Delim = keyof typeof EMPHASIS;
+
+/**
+ * One unit of the emphasis pass: a single character of plain text, or a whole
+ * already-parsed token. Code, links, mentions and emoji are opaque atoms, so a
+ * delimiter inside one can never open or close a span — `*` in inline code or
+ * `_` in a URL stays literal without any special casing.
+ */
+type Atom = string | SlackToken;
+
+const isDelim = (a: Atom | undefined): a is Delim => a === "*" || a === "_" || a === "~";
+const isSpace = (a: Atom | undefined) => typeof a === "string" && /\s/.test(a);
+/** Line start/end, whitespace, punctuation, or an entity token. */
+const isEdge = (a: Atom | undefined) => typeof a !== "string" || !/[\p{L}\p{N}]/u.test(a);
+/** Spans never cross a line break or a code block, matching Slack. */
+const isBarrier = (a: Atom) => a === "\n" || (typeof a !== "string" && a.type === "codeblock");
+
+/**
+ * Slack's flanking rules: an opener follows an edge and precedes non-space; a
+ * closer follows non-space and precedes an edge. This is what keeps
+ * `snake_case_names` and `2*3*4` literal.
+ */
+function isOpener(atoms: Atom[], k: number): boolean {
+  const next = atoms[k + 1];
+  return isEdge(atoms[k - 1]) && next !== undefined && !isSpace(next) && next !== atoms[k];
+}
+function isCloser(atoms: Atom[], k: number): boolean {
+  const prev = atoms[k - 1];
+  return prev !== undefined && !isSpace(prev) && prev !== atoms[k] && isEdge(atoms[k + 1]);
+}
+
+/** Index of the first element of an ascending list greater than x, or -1. */
+function firstAfter(sorted: number[], x: number): number {
+  let lo = 0, hi = sorted.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (sorted[mid] <= x) lo = mid + 1; else hi = mid;
   }
-  return out;
+  return lo < sorted.length ? sorted[lo] : -1;
+}
+
+/**
+ * Wrap *bold*, _italic_ and ~strike~ spans, nesting as written. Each opener
+ * pairs with the first valid closer of the same delimiter; one with no closer
+ * stays literal text. Also collapses consecutive text and drops empty text.
+ */
+function emphasize(tokens: SlackToken[]): SlackToken[] {
+  const atoms: Atom[] = [];
+  for (const t of tokens) {
+    // A loop, not push(...chars): spreading a 40k-char message overflows the stack.
+    if (t.type === "text") for (const ch of t.value) atoms.push(ch);
+    else atoms.push(t);
+  }
+  const n = atoms.length;
+
+  // First barrier at or after each index.
+  const barrier = new Int32Array(n + 1);
+  barrier[n] = n;
+  for (let k = n - 1; k >= 0; k--) barrier[k] = isBarrier(atoms[k]) ? k : barrier[k + 1];
+
+  // Closer positions per delimiter, ascending, so each opener finds its closer
+  // by binary search — a message of thousands of unmatched `*`s stays fast.
+  const closers: Record<Delim, number[]> = { "*": [], _: [], "~": [] };
+  for (let k = 0; k < n; k++) {
+    const a = atoms[k];
+    if (isDelim(a) && isCloser(atoms, k)) closers[a].push(k);
+  }
+
+  const build = (from: number, to: number): SlackToken[] => {
+    const out: SlackToken[] = [];
+    let text = "";
+    const flush = () => { if (text) { out.push({ type: "text", value: text }); text = ""; } };
+
+    for (let k = from; k < to; k++) {
+      const a = atoms[k];
+      if (isDelim(a) && isOpener(atoms, k)) {
+        const c = firstAfter(closers[a], k + 1);
+        if (c !== -1 && c < to && c < barrier[k]) {
+          flush();
+          out.push({ type: EMPHASIS[a], children: build(k + 1, c) });
+          k = c;
+          continue;
+        }
+      }
+      if (typeof a === "string") text += a;
+      else { flush(); out.push(a); }
+    }
+    flush();
+    return out;
+  };
+
+  return build(0, n);
 }
 
 export function formatSlackText(raw: string, ctx: FormatContext): SlackToken[] {
@@ -136,5 +221,5 @@ export function formatSlackText(raw: string, ctx: FormatContext): SlackToken[] {
     }
   }
 
-  return mergeText(tokens);
+  return emphasize(tokens);
 }

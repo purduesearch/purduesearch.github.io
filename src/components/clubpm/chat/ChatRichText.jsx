@@ -1,3 +1,4 @@
+
 /**
  * Renders the token array from GET .../chat/messages.
  *
@@ -11,51 +12,61 @@
 export default function ChatRichText({ tokens }) {
   if (!tokens || tokens.length === 0) return null;
 
-  return (
-    <div className="cpm-chat-text">
-      {tokens.map((t, i) => {
-        switch (t.type) {
-          case "mention":
-            return <b key={i} className="cpm-chat-mention">@{t.label}</b>;
+  return <div className="cpm-chat-text">{renderTokens(tokens)}</div>;
+}
 
-          case "channel":
-            return <b key={i} className="cpm-chat-channel">#{t.label}</b>;
+/** bold / italic / strike carry `children`, so this recurses for them. */
+function renderTokens(tokens) {
+  return tokens.map((t, i) => {
+    switch (t.type) {
+      case "bold":
+        return <b key={i}>{renderTokens(t.children ?? [])}</b>;
 
-          case "link":
-            return (
-              <a
-                key={i}
-                className="cpm-chat-link"
-                href={t.href}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                {t.label}
-              </a>
-            );
+      case "italic":
+        return <i key={i}>{renderTokens(t.children ?? [])}</i>;
 
-          case "code":
-            return <code key={i} className="cpm-chat-code">{t.value}</code>;
+      case "strike":
+        return <s key={i}>{renderTokens(t.children ?? [])}</s>;
 
-          case "codeblock":
-            return (
-              <code key={i} className="cpm-chat-codeblock">
-                {t.value}
-              </code>
-            );
+      case "mention":
+        return <b key={i} className="cpm-chat-mention">@{t.label}</b>;
 
-          case "emoji":
-            return t.url
-              ? <img key={i} className="cpm-chat-emoji" src={t.url} alt={`:${t.name}:`} title={`:${t.name}:`} />
-              : <code key={i} className="cpm-chat-emoji-name">:{t.name}:</code>;
+      case "channel":
+        return <b key={i} className="cpm-chat-channel">#{t.label}</b>;
 
-          case "text":
-          default:
-            // A <label> is the only inline text element the blanket !important
-            // rule above leaves alone.
-            return <label key={i} className="cpm-chat-plain">{t.value}</label>;
-        }
-      })}
-    </div>
-  );
+      case "link":
+        return (
+          <a
+            key={i}
+            className="cpm-chat-link"
+            href={t.href}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {t.label}
+          </a>
+        );
+
+      case "code":
+        return <code key={i} className="cpm-chat-code">{t.value}</code>;
+
+      case "codeblock":
+        return (
+          <code key={i} className="cpm-chat-codeblock">
+            {t.value}
+          </code>
+        );
+
+      case "emoji":
+        return t.url
+          ? <img key={i} className="cpm-chat-emoji" src={t.url} alt={`:${t.name}:`} title={`:${t.name}:`} />
+          : <code key={i} className="cpm-chat-emoji-name">:{t.name}:</code>;
+
+      case "text":
+      default:
+        // A <label> is the only inline text element the blanket !important
+        // rule above leaves alone.
+        return <label key={i} className="cpm-chat-plain">{t.value}</label>;
+    }
+  });
 }

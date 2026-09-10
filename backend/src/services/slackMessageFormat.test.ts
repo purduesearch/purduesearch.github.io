@@ -87,5 +87,67 @@ console.log("formatSlackText");
   check("empty string yields no tokens", formatSlackText("", ctx).length === 0);
 }
 
+console.log("emphasis");
+/** Flatten a token tree to a compact string so structure is easy to assert. */
+function show(tokens: SlackToken[]): string {
+  return tokens.map((t) => {
+    switch (t.type) {
+      case "bold": return `B(${show(t.children)})`;
+      case "italic": return `I(${show(t.children)})`;
+      case "strike": return `S(${show(t.children)})`;
+      case "text": return t.value;
+      case "mention": return `@${t.label}`;
+      case "code": return `\`${t.value}\``;
+      case "codeblock": return `[${t.value}]`;
+      case "emoji": return `:${t.name}:`;
+      default: return `<${t.type}>`;
+    }
+  }).join("|");
+}
+const fmt = (s: string) => show(formatSlackText(s, ctx));
+{
+  check("bold", fmt("a *bold* b") === "a |B(bold)| b");
+  check("italic", fmt("a _it_ b") === "a |I(it)| b");
+  check("strike", fmt("a ~st~ b") === "a |S(st)| b");
+  check("whole message bold", fmt("*bold*") === "B(bold)");
+  check("multi-word bold", fmt("*two words*") === "B(two words)");
+  check("all three in one message", fmt("*b* _i_ ~s~") === "B(b)| |I(i)| |S(s)");
+}
+{
+  check("nested bold italic", fmt("*_both_*") === "B(I(both))");
+  check("italic inside bold", fmt("*very _much_ so*") === "B(very |I(much)| so)");
+  check("bold wraps a mention", fmt("*hey <@U123>*") === "B(hey |@Henry Ewald)");
+  check("bold wraps inline code", fmt("*run `npm test` now*") === "B(run |`npm test`| now)");
+  check("emphasis beside punctuation", fmt("(*yes*), _no_.") === "(|B(yes)|), |I(no)|.");
+}
+{
+  // Slack's flanking rules: these are all literal, not formatting.
+  check("snake_case stays literal", fmt("use snake_case_names here") === "use snake_case_names here");
+  check("arithmetic stays literal", fmt("2*3*4") === "2*3*4");
+  check("space after opener stays literal", fmt("a * b * c") === "a * b * c");
+  check("space before closer stays literal", fmt("*a *") === "*a *");
+  check("empty pair stays literal", fmt("**") === "**");
+  check("unmatched opener stays literal", fmt("*open only") === "*open only");
+  check("emphasis does not cross a line break", fmt("*one\ntwo*") === "*one\ntwo*");
+  check("each line formats independently", fmt("*one*\n_two_") === "B(one)|\n|I(two)");
+}
+{
+  // Delimiters inside code are code, and code must never be reformatted.
+  check("delimiters inside inline code are literal", fmt("`*not bold*`") === "`*not bold*`");
+  check("delimiters inside a code block are literal", fmt("```_x_```") === "[_x_]");
+  check("emphasis does not cross a code block", fmt("*a ```b``` c*") === "*a |[b]| c*");
+  check("url-ish text inside a link is untouched",
+    fmt("<https://x.dev/a_b_c|a_b_c>") === "<link>");
+}
+{
+  // Overlapping pairs: the first valid pair wins, the other stays literal.
+  check("overlapping pairs don't interleave", fmt("*a _b* c_") === "B(a _b)| c_");
+  // Pathological input must stay linear-ish, not quadratic.
+  const big = "*a ".repeat(20000);
+  const t0 = Date.now();
+  formatSlackText(big, ctx);
+  check("20k unmatched openers parse quickly", Date.now() - t0 < 1000);
+}
+
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed > 0) process.exit(1);
