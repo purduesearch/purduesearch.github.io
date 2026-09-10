@@ -3,7 +3,7 @@ import StarterKit from "@tiptap/starter-kit";
 import TaskList from "@tiptap/extension-task-list";
 import TaskItem from "@tiptap/extension-task-item";
 import { TableKit } from "@tiptap/extension-table";
-import { TextStyle } from "@tiptap/extension-text-style";
+import { TextStyle, FontFamily, FontSize, Color } from "@tiptap/extension-text-style";
 import Highlight from "@tiptap/extension-highlight";
 
 // Schema-only mirrors of the custom nodes defined for the React editor in
@@ -143,6 +143,12 @@ export function blogCollabExtensions() {
     TaskList,
     TaskItem.configure({ nested: true }),
     TextStyle.configure({ mergeNestedSpanStyles: true }),
+    // Without these the textStyle mark parses with no attributes, so every
+    // colour / font / size a writer applied was silently stripped from the
+    // derived contentJson snapshot (and therefore from the published post).
+    FontFamily.configure({ types: ["textStyle"] }),
+    FontSize.configure({ types: ["textStyle"] }),
+    Color.configure({ types: ["textStyle"] }),
     Highlight.configure({ multicolor: true }),
     BlogImageNode,
     BlogEmbedNode,

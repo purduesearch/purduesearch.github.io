@@ -478,10 +478,46 @@ function stripHtml(s: string): string {
   return s.replace(/<[^>]*>/g, "");
 }
 
-function inlineTokensToNodes(tokens: Token[] | undefined, marks: PMMark[] = []): PMNode[] {
+// Markdown has no syntax for underline, highlight, or text colour, so the AI
+// prompts ask for these three inline HTML tags instead. marked emits each open
+// and close tag as its own token, which is what lets them become marks here.
+// Colours are hex-only for the same reason as textStyleCss above.
+// `mark` is null for an opening tag we recognise but refuse (a <span> with a
+// non-hex colour): it still takes a stack slot so its own </span> closes it
+// rather than an enclosing, valid span.
+type InlineHtmlTag = { tag: string; close: boolean; mark: PMMark | null };
+
+function inlineHtmlMark(raw: string): InlineHtmlTag | null {
+  const close = raw.match(/^<\/(u|mark|span)\s*>$/i);
+  if (close) return { tag: close[1]!.toLowerCase(), close: true, mark: null };
+  if (/^<u>$/i.test(raw)) return { tag: "u", close: false, mark: { type: "underline" } };
+  const mark = raw.match(/^<mark(?:\s+style="\s*background(?:-color)?\s*:\s*([^";]+?)\s*;?\s*")?\s*>$/i);
+  if (mark) {
+    const color = mark[1] && HEX_COLOR.test(mark[1]) ? mark[1] : null;
+    return { tag: "mark", close: false, mark: { type: "highlight", attrs: { color } } };
+  }
+  if (/^<span[\s>]/i.test(raw)) {
+    const span = raw.match(/^<span\s+style="\s*color\s*:\s*([^";]+?)\s*;?\s*"\s*>$/i);
+    const color = span?.[1];
+    return {
+      tag: "span", close: false,
+      mark: color && HEX_COLOR.test(color) ? { type: "textStyle", attrs: { color } } : null,
+    };
+  }
+  return null;
+}
+
+function inlineTokensToNodes(tokens: Token[] | undefined, outerMarks: PMMark[] = []): PMNode[] {
   if (!tokens) return [];
   const out: PMNode[] = [];
+  // Marks opened by inline HTML tags earlier in this run; unclosed ones simply
+  // end with the run.
+  const open: InlineHtmlTag[] = [];
+  let marks = outerMarks;
   for (const t of tokens) {
+    marks = open.length
+      ? [...outerMarks, ...open.flatMap((o) => (o.mark ? [o.mark] : []))]
+      : outerMarks;
     switch (t.type) {
       case "text": {
         const tok = t as Tokens.Text;
@@ -520,6 +556,15 @@ function inlineTokensToNodes(tokens: Token[] | undefined, marks: PMMark[] = []):
           out.push({ type: "hardBreak" });
           break;
         }
+        const tag = inlineHtmlMark(raw);
+        if (tag) {
+          if (!tag.close) open.push(tag);
+          else {
+            const i = open.map((o) => o.tag).lastIndexOf(tag.tag);
+            if (i !== -1) open.splice(i, 1);
+          }
+          break;
+        }
         const text = stripHtml(raw);
         if (text) out.push({ type: "text", text, ...(marks.length ? { marks } : {}) });
         break;
@@ -550,12 +595,13 @@ function inlineTokensToNodes(tokens: Token[] | undefined, marks: PMMark[] = []):
 // BlogImage / blogSchema.ts). Empty input yields no blocks.
 function inlineTokensToBlocks(tokens: Token[] | undefined): PMNode[] {
   const blocks: PMNode[] = [];
-  let buffer: PMNode[] = [];
+  // Whole runs go to inlineTokensToNodes at once, not token by token: an inline
+  // <u>…</u> pair spans several tokens and its mark state lives in that call.
+  let run: Token[] = [];
   const flush = () => {
-    if (buffer.length) {
-      blocks.push({ type: "paragraph", content: buffer });
-      buffer = [];
-    }
+    const nodes = inlineTokensToNodes(run);
+    if (nodes.length) blocks.push({ type: "paragraph", content: nodes });
+    run = [];
   };
   for (const t of tokens ?? []) {
     if (t.type === "image") {
@@ -566,7 +612,7 @@ function inlineTokensToBlocks(tokens: Token[] | undefined): PMNode[] {
         attrs: { src: im.href, alt: im.text ?? "", align: "center", caption: im.title ?? "" },
       });
     } else {
-      buffer.push(...inlineTokensToNodes([t]));
+      run.push(t);
     }
   }
   flush();
@@ -634,6 +680,21 @@ function blockTokenToNodes(token: Token): PMNode[] {
     }
     case "list": {
       const t = token as Tokens.List;
+      // GFM "- [ ] item" → the editor's checklist. marked puts a `checkbox`
+      // token first in each item, which blockTokenToNodes turns into nothing.
+      if (t.items.some((i) => i.task)) {
+        return [{
+          type: "taskList",
+          content: t.items.map((item) => {
+            const children = blockTokensToNodes(item.tokens);
+            return {
+              type: "taskItem",
+              attrs: { checked: Boolean(item.checked) },
+              content: children.length ? children : [{ type: "paragraph" }],
+            };
+          }),
+        }];
+      }
       return [{
         type: t.ordered ? "orderedList" : "bulletList",
         ...(t.ordered && t.start && t.start !== 1 ? { attrs: { start: t.start } } : {}),
