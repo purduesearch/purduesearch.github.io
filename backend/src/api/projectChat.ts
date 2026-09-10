@@ -331,3 +331,23 @@ projectChatRouter.get(
     }
   }
 );
+
+// ── GET /api/slack-archive/health ────────────────────────────
+// Global counts for the admin page. Exported separately from the
+// project-scoped route because the numbers are workspace-wide, and the admin
+// page should not have to name an arbitrary project to see them.
+export const slackArchiveAdminRouter = Router();
+
+slackArchiveAdminRouter.get("/health", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const member = await prisma.member.findUnique({
+      where: { id: req.memberId! },
+      select: { isAdmin: true },
+    });
+    if (!member?.isAdmin) return void res.status(403).json({ error: "Admin only" });
+    res.json(await getStorageHealth());
+  } catch (error) {
+    console.error("slack-archive/health error:", error);
+    res.status(500).json({ error: "Failed to read storage health" });
+  }
+});

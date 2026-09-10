@@ -912,6 +912,10 @@ export function getChatStorageHealth(projectId) {
   return get(`/api/projects/${projectId}/chat/storage-health`);
 }
 
+export function getSlackArchiveHealth() {
+  return get("/api/slack-archive/health");
+}
+
 /**
  * URL for an archived Slack attachment.
  *

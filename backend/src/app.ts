@@ -12,7 +12,7 @@ import { boltApp, startBolt } from "./slack/bolt.js";
 import { syncAdminStatus } from "./services/memberService.js";
 import { authRouter } from "./api/auth.js";
 import { projectsRouter, tagsRouter, trainingRouter } from "./api/projects.js";
-import { projectChatRouter } from "./api/projectChat.js";
+import { projectChatRouter, slackArchiveAdminRouter } from "./api/projectChat.js";
 import { tasksRouter } from "./api/tasks.js";
 import { membersRouter } from "./api/members.js";
 import { activityRouter } from "./api/activity.js";
@@ -134,6 +134,7 @@ app.use("/api/github", githubRouter);
 // notificationsRouter below.
 app.use("/api/projects", projectChatRouter);
 app.use("/api/projects", projectsRouter);
+app.use("/api/slack-archive", slackArchiveAdminRouter);
 app.use("/api/tags", tagsRouter);
 app.use("/api/tasks", tasksRouter);
 // Mounted before the bare "/api" routers below (blockersRouter, streakRouter):
