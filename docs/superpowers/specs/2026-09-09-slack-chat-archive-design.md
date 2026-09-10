@@ -348,6 +348,12 @@ which point the proxy stops trying.
    club Drive       → uploads/slack/     error recorded      file_not_found
 ```
 
+`MIRROR_FAILED → SLACK_ONLY` is the one backward edge, and only an admin takes it:
+`POST /api/slack-archive/retry-failed` (the **Retry** button on the Admin page's Slack archive panel)
+resets `storage` **and** `mirrorAttempts = 0` — without the counter reset the next failure would
+re-fail the row immediately — keeps `mirrorError`, and starts a sweep in the background. Sweeps are
+single-flight, so an on-demand sweep cannot race the 03:40 cron into double-uploading a file.
+
 ### 6.3 Sweep
 
 New cron in `backend/src/slack/scheduler.ts` at **03:40 daily** — clear of the existing 03:00–03:30

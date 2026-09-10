@@ -271,10 +271,23 @@ export async function mirrorFile(slackFileId: string): Promise<Storage> {
   }
 }
 
-export async function sweepExpiringFiles(
-  cutoffDays = MIRROR_CUTOFF_DAYS,
-  batchSize = 200
-): Promise<{ swept: number; drive: number; local: number; failed: number; unavailable: number }> {
+export type SweepTally = { swept: number; drive: number; local: number; failed: number; unavailable: number };
+
+let sweepInFlight: Promise<SweepTally> | null = null;
+
+/**
+ * One sweep at a time. The admin retry starts a sweep on demand, and two
+ * overlapping sweeps would both select the same SLACK_ONLY rows and upload
+ * each one to Drive twice. A caller that arrives mid-sweep shares its result.
+ */
+export function sweepExpiringFiles(cutoffDays = MIRROR_CUTOFF_DAYS, batchSize = 200): Promise<SweepTally> {
+  if (!sweepInFlight) {
+    sweepInFlight = runSweep(cutoffDays, batchSize).finally(() => { sweepInFlight = null; });
+  }
+  return sweepInFlight;
+}
+
+async function runSweep(cutoffDays: number, batchSize: number): Promise<SweepTally> {
   const cutoff = new Date(Date.now() - cutoffDays * 86_400_000);
   const due = await prisma.slackMessageFile.findMany({
     where: { storage: "SLACK_ONLY", postedAt: { lt: cutoff } },
@@ -283,7 +296,7 @@ export async function sweepExpiringFiles(
     select: { slackFileId: true },
   });
 
-  const tally = { swept: 0, drive: 0, local: 0, failed: 0, unavailable: 0 };
+  const tally: SweepTally = { swept: 0, drive: 0, local: 0, failed: 0, unavailable: 0 };
   for (const f of due) {
     const result = await mirrorFile(f.slackFileId);
     tally.swept++;
@@ -293,6 +306,29 @@ export async function sweepExpiringFiles(
     else tally.failed++;
   }
   return tally;
+}
+
+/**
+ * What an admin retry writes to a MIRROR_FAILED row. Both fields matter: the
+ * sweep only selects SLACK_ONLY, and without zeroing the counter the row's next
+ * failure (attempts 4 ≥ MAX_MIRROR_ATTEMPTS) would re-fail it immediately.
+ * mirrorError is deliberately kept — it is the only record of why it failed.
+ */
+export const MIRROR_RETRY_RESET = { storage: "SLACK_ONLY", mirrorAttempts: 0 } as const;
+
+/**
+ * Un-stick MIRROR_FAILED rows so the sweep retries them. Without this nothing
+ * ever does: the sweep skips MIRROR_FAILED, so those files are served from
+ * Slack until Slack expires them (~90 days) and are then lost. Rows past the
+ * 60-day cutoff — which every MIRROR_FAILED row is — are picked up by the very
+ * next sweep, oldest first.
+ */
+export async function requeueFailedMirrors(): Promise<number> {
+  const { count } = await prisma.slackMessageFile.updateMany({
+    where: { storage: "MIRROR_FAILED" },
+    data: MIRROR_RETRY_RESET,
+  });
+  return count;
 }
 
 export async function getStorageHealth(): Promise<{ counts: Record<string, number>; driveConnected: boolean }> {

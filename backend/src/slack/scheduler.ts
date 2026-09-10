@@ -228,7 +228,7 @@ export function startScheduler(app: App): void {
       if (t.failed > 0) {
         console.error(
           `❌ [slackArchive] ${t.failed} file(s) failed to mirror — see SlackMessageFile.mirrorError; ` +
-          "rows retry nightly until MIRROR_FAILED, then only storage-health surfaces them"
+          "rows retry nightly until MIRROR_FAILED, then wait for an admin to hit Retry on the Admin page"
         );
       }
     } catch (err) {

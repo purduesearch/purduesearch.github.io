@@ -916,6 +916,11 @@ export function getSlackArchiveHealth() {
   return get("/api/slack-archive/health");
 }
 
+/** Requeue every MIRROR_FAILED attachment and start a mirror sweep. → { requeued } */
+export function retryFailedSlackMirrors() {
+  return post("/api/slack-archive/retry-failed", {});
+}
+
 /**
  * URL for an archived Slack attachment.
  *

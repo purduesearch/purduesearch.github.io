@@ -4,7 +4,13 @@ import { requireAuth, verifyBearerToken } from "./auth.js";
 import { requireProjectChatRead, getProjectChatAccess } from "../middleware/projectChatAccess.js";
 import { prisma } from "../db/prisma.js";
 import { formatSlackText, type FormatContext } from "../services/slackMessageFormat.js";
-import { resolveFileStream, getStorageHealth, getCustomEmoji } from "../services/slackFileService.js";
+import {
+  resolveFileStream,
+  getStorageHealth,
+  getCustomEmoji,
+  requeueFailedMirrors,
+  sweepExpiringFiles,
+} from "../services/slackFileService.js";
 import { startBackfill, getBackfillStatus } from "../services/slackBackfillService.js";
 
 export const projectChatRouter = Router();
@@ -338,16 +344,49 @@ projectChatRouter.get(
 // page should not have to name an arbitrary project to see them.
 export const slackArchiveAdminRouter = Router();
 
-slackArchiveAdminRouter.get("/health", requireAuth, async (req: Request, res: Response) => {
+async function requireArchiveAdmin(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const member = await prisma.member.findUnique({
       where: { id: req.memberId! },
       select: { isAdmin: true },
     });
     if (!member?.isAdmin) return void res.status(403).json({ error: "Admin only" });
+    next();
+  } catch (error) {
+    console.error("slack-archive admin check error:", error);
+    res.status(500).json({ error: "Failed to verify admin" });
+  }
+}
+
+slackArchiveAdminRouter.get("/health", requireAuth, requireArchiveAdmin, async (_req: Request, res: Response) => {
+  try {
     res.json(await getStorageHealth());
   } catch (error) {
     console.error("slack-archive/health error:", error);
     res.status(500).json({ error: "Failed to read storage health" });
+  }
+});
+
+// ── POST /api/slack-archive/retry-failed ─────────────────────
+// Requeue every MIRROR_FAILED row and start a sweep now rather than at 03:40,
+// so an admin who just fixed the cause (reconnected Drive, freed quota) sees
+// the result on refresh. The sweep runs in the background — a 200-file batch
+// would outlive the proxy's request timeout — and is single-flight, so this
+// cannot race the nightly cron into double-uploading.
+slackArchiveAdminRouter.post("/retry-failed", requireAuth, requireArchiveAdmin, async (_req: Request, res: Response) => {
+  try {
+    const requeued = await requeueFailedMirrors();
+    if (requeued > 0) {
+      sweepExpiringFiles()
+        .then((t) => console.log(
+          `📦 [slackArchive] retry sweep: ${t.swept} file(s) — ${t.drive} to Drive, ` +
+          `${t.local} to disk, ${t.unavailable} already gone, ${t.failed} failed`
+        ))
+        .catch((err) => console.error("[slackArchive] retry sweep failed:", err));
+    }
+    res.json({ requeued });
+  } catch (error) {
+    console.error("slack-archive/retry-failed error:", error);
+    res.status(500).json({ error: "Failed to requeue mirrors" });
   }
 });
