@@ -3,6 +3,7 @@ import { createHmac } from "crypto";
 import { prisma } from "../db/prisma.js";
 import { getSessionSecret } from "../config/env.js";
 import { storeSlackUserToken } from "../services/slackUserTokenService.js";
+import { buildSlackAuthorizeUrl, resolveSlackWorkspace } from "../services/slackOAuthUrl.js";
 
 export const authRouter = Router();
 
@@ -119,7 +120,7 @@ export async function requireAdmin(
 
 // ── GET /auth/slack — Redirect to Slack OAuth ────────────────
 
-authRouter.get("/slack", (req: Request, res: Response) => {
+authRouter.get("/slack", async (req: Request, res: Response) => {
   const clientId = process.env.SLACK_CLIENT_ID;
   const redirectUri = `${process.env.BACKEND_URL ?? "http://localhost:3001"}/auth/slack/callback`;
 
@@ -138,15 +139,21 @@ authRouter.get("/slack", (req: Request, res: Response) => {
     "groups:write.invites",
   ].join(",");
 
-  const url = new URL("https://slack.com/oauth/v2/authorize");
-  url.searchParams.set("client_id", clientId ?? "");
-  url.searchParams.set("user_scope", scopes);
-  url.searchParams.set("redirect_uri", redirectUri);
-  if (state) url.searchParams.set("state", state);
-  // Required for non-distributed apps: tells Slack which workspace to authorize against.
-  if (process.env.SLACK_TEAM_ID) url.searchParams.set("team", process.env.SLACK_TEAM_ID);
+  // Served from the workspace's own subdomain so signed-out users get "Sign in to
+  // <workspace>" rather than Slack's "Find your workspace" — see slackOAuthUrl.ts.
+  const workspace = await resolveSlackWorkspace();
 
-  res.redirect(url.toString());
+  res.redirect(
+    buildSlackAuthorizeUrl({
+      clientId: clientId ?? "",
+      redirectUri,
+      userScope: scopes,
+      state,
+      // Tells Slack which workspace to authorize against (non-distributed app).
+      teamId: process.env.SLACK_TEAM_ID || workspace?.teamId,
+      workspaceUrl: workspace?.url,
+    })
+  );
 });
 
 // ── GET /auth/slack/callback — Handle OAuth callback ─────────
