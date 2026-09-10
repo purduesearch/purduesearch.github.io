@@ -17,6 +17,7 @@ import GanttChart from "../../components/clubpm/GanttChart";
 import { PriorityBars, AvatarStack } from "../../components/clubpm/TaskPrimitives";
 import DrivePreviewModal from "../../components/clubpm/DrivePreviewModal";
 import EditDriveFolderModal from "../../components/clubpm/EditDriveFolderModal";
+import EditProjectModal from "../../components/clubpm/EditProjectModal";
 import GitHubPanel from "../../components/clubpm/github/GitHubPanel";
 import ActionPlanReview from "../../components/clubpm/ActionPlanReview";
 import VaultTab from "../../components/clubpm/vault/VaultTab";
@@ -2120,6 +2121,7 @@ export default function ProjectDetail() {
   const [sortBy, setSortBy] = useState("priority");
   const [reportTab, setReportTab] = useState("charts"); // "charts" | "activity" | "presskit"
   const [headerDrivePreview, setHeaderDrivePreview] = useState(null); // { url, label }
+  const [showEditProject, setShowEditProject] = useState(false);
   const [pinned, setPinned] = useState(() => {
     try {
       const stored = JSON.parse(localStorage.getItem('pm-starred-projects') || '[]');
@@ -3030,6 +3032,17 @@ export default function ProjectDetail() {
                   )}
                 </div>
               </div>
+              <div className="pm-proj-hero-actions">
+              {canEdit && (
+                <button
+                  className="pm-proj-edit-btn"
+                  onClick={() => setShowEditProject(true)}
+                  title="Edit project"
+                  aria-label="Edit project"
+                >
+                  <i className="fas fa-pencil-alt" aria-hidden="true" />
+                </button>
+              )}
               <button
                 className={`pm-pin-btn${pinned ? ' active' : ''}`}
                 onClick={() => setPinned(p => {
@@ -3050,6 +3063,7 @@ export default function ProjectDetail() {
                   <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
                 </svg>
               </button>
+              </div>
             </div>
 
             {/* Progress bar */}
@@ -3433,6 +3447,19 @@ export default function ProjectDetail() {
           url={headerDrivePreview.url}
           label={headerDrivePreview.label}
           onClose={() => setHeaderDrivePreview(null)}
+        />
+      )}
+
+      {showEditProject && (
+        <EditProjectModal
+          project={project}
+          isAdmin={!!member?.isAdmin}
+          onClose={() => setShowEditProject(false)}
+          onSaved={updated => {
+            // PATCH returns the bare row (no tasks/members), so merge rather than replace.
+            setProject(prev => ({ ...prev, ...updated }));
+            window.dispatchEvent(new CustomEvent("pm-project-updated", { detail: updated }));
+          }}
         />
       )}
 

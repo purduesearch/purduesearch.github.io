@@ -32,8 +32,10 @@ interface UpdateProjectInput {
   slackChannelId?: string | null;
   slackChannelName?: string | null;
   status?: ProjectStatus;
-  startDate?: Date;
-  targetDate?: Date;
+  type?: ProjectType;
+  programTag?: string | null;
+  startDate?: Date | null;
+  targetDate?: Date | null;
 }
 
 // ── Channel membership cache (60s TTL) ──────────────────────

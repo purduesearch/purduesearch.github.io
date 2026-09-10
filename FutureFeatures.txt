@@ -4,8 +4,6 @@ Performance improvements
 
 LinkedIn Api integration for quick posting
 
-Reworked/improved blog/presskit system:
--readd expand to blog post option
--export options for presskit
--ability to delete
--fix image on blog post
+Calendar integration into the main website (on the home page)
+
+ctrl + Z to undo

@@ -330,6 +330,17 @@ export default function AppShell({ children }) {
     get('/api/projects').then(setSidebarProjects).catch(() => {});
   }, [member]);
 
+  // EditProjectModal broadcasts saves so a rename shows up in the sidebar immediately.
+  useEffect(() => {
+    const handler = (e) => {
+      const updated = e.detail;
+      if (!updated?.id) return;
+      setSidebarProjects(prev => prev.map(p => (p.id === updated.id ? { ...p, ...updated } : p)));
+    };
+    window.addEventListener('pm-project-updated', handler);
+    return () => window.removeEventListener('pm-project-updated', handler);
+  }, []);
+
   // Apply equipped dashboard theme (cosmetic) as `theme-<slug>` on documentElement.
   // Re-applies when the avatar-updated event fires.
   useEffect(() => {

@@ -33,6 +33,11 @@ import { ensureTrainingProject } from "../services/trainingSandboxService.js";
 
 export const projectsRouter = Router();
 
+const PROJECT_STATUSES: ProjectStatus[] = ["ACTIVE", "PAUSED", "COMPLETED", "ARCHIVED"];
+const PROJECT_TYPES: ProjectType[] = ["ENGINEERING", "RESEARCH", "HYBRID"];
+// Public program pages a project can be filed under (/api/public ?program= filter).
+const PROGRAM_TAGS = ["astrousa", "sa2tp", "research", "software", "business"];
+
 // All routes require authentication
 projectsRouter.use(requireAuth);
 
@@ -143,7 +148,7 @@ projectsRouter.get("/:id", async (req: Request, res: Response) => {
 projectsRouter.patch("/:id", channelAuth, async (req: Request, res: Response) => {
   try {
     const projectId = req.params.id as string;
-    const { name, description, driveLink, githubRepo, githubInstallId, githubBlockDoneOnCiFail, slackChannel, slackChannelId, slackChannelName, status, startDate, targetDate } =
+    const { name, description, driveLink, githubRepo, githubInstallId, githubBlockDoneOnCiFail, slackChannel, slackChannelId, slackChannelName, status, type, programTag, startDate, targetDate } =
       req.body as {
         name?: string;
         description?: string;
@@ -155,11 +160,45 @@ projectsRouter.patch("/:id", channelAuth, async (req: Request, res: Response) =>
         slackChannelId?: string | null;
         slackChannelName?: string | null;
         status?: ProjectStatus;
-        startDate?: string;
-        targetDate?: string;
+        type?: ProjectType;
+        programTag?: string | null;
+        // null (or "") clears the date; omitted leaves it untouched.
+        startDate?: string | null;
+        targetDate?: string | null;
       };
 
+    const trimmedName = typeof name === "string" ? name.trim() : undefined;
+    if (name !== undefined && !trimmedName) {
+      res.status(400).json({ error: "Project name cannot be empty" });
+      return;
+    }
+    if (status !== undefined && !PROJECT_STATUSES.includes(status)) {
+      res.status(400).json({ error: `Invalid status "${status}"` });
+      return;
+    }
+    if (type !== undefined && !PROJECT_TYPES.includes(type)) {
+      res.status(400).json({ error: `Invalid type "${type}"` });
+      return;
+    }
+    const nextProgramTag = programTag === undefined ? undefined : (programTag || null);
+    const parseDate = (v: string | null | undefined): Date | null | undefined => {
+      if (v === undefined) return undefined;
+      if (!v) return null;
+      const d = new Date(v);
+      return Number.isNaN(d.getTime()) ? undefined : d;
+    };
+    const nextStartDate = parseDate(startDate);
+    const nextTargetDate = parseDate(targetDate);
+    if ((startDate && nextStartDate === undefined) || (targetDate && nextTargetDate === undefined)) {
+      res.status(400).json({ error: "Invalid date" });
+      return;
+    }
+
     const before = await getProject(projectId);
+    if (!before) {
+      res.status(404).json({ error: "Project not found" });
+      return;
+    }
 
     const mutatorId = req.memberId as string | undefined;
     const actor = mutatorId
@@ -185,9 +224,20 @@ projectsRouter.patch("/:id", channelAuth, async (req: Request, res: Response) =>
         return;
       }
     }
+    // programTag files the project under a public program page, so it's admin-only.
+    if (nextProgramTag !== undefined && (before.programTag ?? null) !== nextProgramTag) {
+      if (!actor?.isAdmin) {
+        res.status(403).json({ error: "Only admins can change the project's program" });
+        return;
+      }
+      if (nextProgramTag && !PROGRAM_TAGS.includes(nextProgramTag)) {
+        res.status(400).json({ error: `Invalid program "${nextProgramTag}"` });
+        return;
+      }
+    }
 
     const project = await updateProject(projectId, {
-      name,
+      name: trimmedName,
       description,
       driveLink: driveLink === undefined ? undefined : (driveLink ?? null),
       githubRepo: githubRepo === undefined ? undefined : (githubRepo ?? null),
@@ -197,12 +247,14 @@ projectsRouter.patch("/:id", channelAuth, async (req: Request, res: Response) =>
       slackChannelId,
       slackChannelName,
       status,
-      startDate: startDate ? new Date(startDate) : undefined,
-      targetDate: targetDate ? new Date(targetDate) : undefined,
+      type,
+      programTag: nextProgramTag,
+      startDate: nextStartDate,
+      targetDate: nextTargetDate,
     });
 
-    if (before) {
-      const WATCHED_PROJECT_FIELDS = ["name", "status", "description", "type", "targetDate", "driveLink", "githubRepo"];
+    {
+      const WATCHED_PROJECT_FIELDS = ["name", "status", "description", "type", "programTag", "startDate", "targetDate", "driveLink", "githubRepo"];
       const changes = diffObjects(before as any, project as any, WATCHED_PROJECT_FIELDS);
       if (changes.length > 0) {
         const memberId = req.memberId;
