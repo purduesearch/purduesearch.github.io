@@ -1,8 +1,10 @@
-import { Router, type Request, type Response } from "express";
-import { requireAuth } from "./auth.js";
-import { requireProjectChatRead } from "../middleware/projectChatAccess.js";
+import { pipeline } from "node:stream/promises";
+import { Router, type Request, type Response, type NextFunction } from "express";
+import { requireAuth, verifyBearerToken } from "./auth.js";
+import { requireProjectChatRead, getProjectChatAccess } from "../middleware/projectChatAccess.js";
 import { prisma } from "../db/prisma.js";
 import { formatSlackText, type FormatContext } from "../services/slackMessageFormat.js";
+import { resolveFileStream, getStorageHealth, getCustomEmoji } from "../services/slackFileService.js";
 
 export const projectChatRouter = Router();
 
@@ -28,8 +30,7 @@ async function buildFormatContext(): Promise<FormatContext> {
   const memberNames: Record<string, string> = {};
   for (const m of members) if (m.slackId) memberNames[m.slackId] = m.displayName;
 
-  // Custom emoji urls arrive in Task 5 (slackFileService.getCustomEmoji()).
-  return { memberNames, emojiUrls: {} };
+  return { memberNames, emojiUrls: await getCustomEmoji() };
 }
 
 type MessageRow = Awaited<ReturnType<typeof loadMessages>>[number];
@@ -198,6 +199,95 @@ projectChatRouter.get(
     } catch (error) {
       console.error("chat/search error:", error);
       res.status(500).json({ error: "Search failed" });
+    }
+  }
+);
+
+// ── GET /api/projects/:projectId/chat/files/:slackFileId ─────
+// An <img> tag cannot set an Authorization header, so Bearer-token users
+// (Brave, Safari — the exact browsers the Bearer fallback exists for) would
+// find EVERY image in the archive broken while it worked fine in Chrome.
+// The signed `?token=` query param is the same escape hatch sse.ts uses.
+//
+// Deliberately NOT behind a bare requireAuth: that would 401 a valid ?token=
+// request carrying no cookie and no header before this route ever ran. And
+// req.memberId is only ever set by auth middleware, so the route cannot simply
+// "check req.memberId first" without one — it would always be undefined here.
+// Same shape as sse.ts's streamAuth: a valid query token wins, otherwise
+// requireAuth resolves the Authorization header or session cookie as usual.
+async function fileProxyAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
+  const queryToken = typeof req.query.token === "string" ? req.query.token : undefined;
+  if (queryToken) {
+    const memberId = await verifyBearerToken(queryToken);
+    if (memberId) {
+      req.memberId = memberId;
+      return next();
+    }
+  }
+  return requireAuth(req, res, next);
+}
+
+projectChatRouter.get(
+  "/:projectId/chat/files/:slackFileId",
+  fileProxyAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const memberId = req.memberId;
+      if (!memberId) return void res.status(401).json({ error: "Not authenticated" });
+
+      const projectId = req.params.projectId as string;
+      const { canRead, channelIds } = await getProjectChatAccess(memberId, projectId);
+      if (!canRead) return void res.status(403).json({ error: "No access" });
+
+      const slackFileId = req.params.slackFileId as string;
+      const file = await prisma.slackMessageFile.findUnique({
+        where: { slackFileId },
+        select: { message: { select: { slackChannelId: true } } },
+      });
+      // Scope the proxy to the project's own channels — this route serves the
+      // actual private content, so it gets the same check as the read routes.
+      if (!file || !channelIds.includes(file.message.slackChannelId)) {
+        return void res.status(404).json({ error: "Not found" });
+      }
+
+      const resolved = await resolveFileStream(slackFileId);
+      if (!resolved.ok) {
+        return void res.status(resolved.status).json({ error: resolved.detail });
+      }
+
+      res.setHeader("Content-Type", resolved.mimeType);
+      res.setHeader("Cache-Control", "private, max-age=3600");
+      res.setHeader("Content-Disposition", `inline; filename="${encodeURIComponent(resolved.fileName)}"`);
+      // Anyone in a linked channel can upload an .html/.svg/.js file, and this
+      // serves it inline from the API origin where the session cookie lives.
+      // Helmet's default CSP still allows script-src 'self', so without this a
+      // pair of uploads is stored XSS. `sandbox` gives the document an opaque
+      // origin; <img> embedding is unaffected.
+      res.setHeader("Content-Security-Policy", "default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; sandbox");
+      res.setHeader("X-Content-Type-Options", "nosniff");
+      // pipeline, not pipe: a Drive/Slack stream erroring mid-body would
+      // otherwise be an unhandled 'error' event and take the process down.
+      await pipeline(resolved.stream, res);
+    } catch (error) {
+      console.error("chat/files error:", error);
+      if (!res.headersSent) res.status(500).json({ error: "Failed to load file" });
+      else res.destroy();
+    }
+  }
+);
+
+// ── GET /api/projects/:projectId/chat/storage-health ─────────
+projectChatRouter.get(
+  "/:projectId/chat/storage-health",
+  requireAuth,
+  requireProjectChatRead,
+  async (req: Request, res: Response) => {
+    if (!req.chatIsAdmin) return void res.status(403).json({ error: "Admin only" });
+    try {
+      res.json(await getStorageHealth());
+    } catch (error) {
+      console.error("chat/storage-health error:", error);
+      res.status(500).json({ error: "Failed to read storage health" });
     }
   }
 );
