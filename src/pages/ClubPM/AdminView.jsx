@@ -10,6 +10,7 @@ import { useClubPmAuth } from "../../clubpm/ClubPmAuth";
 import PendingRewardsPanel from "../../components/clubpm/PendingRewardsPanel";
 import EventRewardConfigPanel from "../../components/clubpm/EventRewardConfigPanel";
 import GoogleDriveConnectButton from "../../components/clubpm/GoogleDriveConnectButton";
+import SlackArchivePanel from "../../components/clubpm/SlackArchivePanel";
 import MeetingNotesView from "./MeetingNotesView";
 
 export default function AdminView() {
@@ -50,6 +51,10 @@ export default function AdminView() {
           <h3 style={{ marginTop: 0 }}>Integrations</h3>
           <GoogleDriveConnectButton />
         </div>
+      </section>
+
+      <section>
+        <SlackArchivePanel />
       </section>
 
       <section>

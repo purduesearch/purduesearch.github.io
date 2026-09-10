@@ -209,6 +209,44 @@ export function startScheduler(app: App): void {
     }
   });
 
+  // ── 03:40 daily — mirror Slack attachments before Slack expires them ──
+  // Clear of the 03:00–03:30 cluster (vault temp sweep, notification cleanup,
+  // auto-archive nudges).
+  cron.schedule("40 3 * * *", async () => {
+    try {
+      const { sweepExpiringFiles, MIRROR_CUTOFF_DAYS } = await import("../services/slackFileService.js");
+      const t = await sweepExpiringFiles();
+      if (t.swept > 0) {
+        console.log(
+          `📦 [slackArchive] swept ${t.swept} file(s) older than ${MIRROR_CUTOFF_DAYS}d — ` +
+          `${t.drive} to Drive, ${t.local} to disk, ${t.unavailable} already gone, ${t.failed} failed`
+        );
+      }
+      if (t.local > 0) {
+        console.warn("⚠️ [slackArchive] files fell back to local disk — is Google Drive connected?");
+      }
+      if (t.failed > 0) {
+        console.error(
+          `❌ [slackArchive] ${t.failed} file(s) failed to mirror — see SlackMessageFile.mirrorError; ` +
+          "rows retry nightly until MIRROR_FAILED, then wait for an admin to hit Retry on the Admin page"
+        );
+      }
+    } catch (err) {
+      console.error("[slackArchive] mirror sweep failed:", err);
+    }
+  });
+
+  // ── 03:50 daily — refresh the workspace custom-emoji cache ──
+  cron.schedule("50 3 * * *", async () => {
+    try {
+      const { refreshCustomEmoji } = await import("../services/slackFileService.js");
+      const n = await refreshCustomEmoji();
+      console.log(`😀 [slackArchive] cached ${n} custom emoji`);
+    } catch (err) {
+      console.error("[slackArchive] emoji refresh failed:", err);
+    }
+  });
+
   // ── Daily 3:00 AM — Auto-archive nudges → admin + creator DMs ────
   cron.schedule("0 3 * * *", async () => {
     console.log("🗄️ Running auto-archive nudge sweep...");

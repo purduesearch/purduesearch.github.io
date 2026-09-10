@@ -48,6 +48,7 @@ export const TOUR_ANCHORS = Object.freeze({
   // AppShell's buttons or they exist in the source and never in the DOM.
   "project.tab.tasks":      { label: "Tasks tab",            route: "/clubpm/projects/:id", note: "Sidebar project tab (AppShell)" },
   "project.tab.files":      { label: "Files tab",            route: "/clubpm/projects/:id", note: "Sidebar project tab (AppShell)" },
+  "project.tab.chat":       { label: "Chat tab",             route: "/clubpm/projects/:id", note: "Sidebar project tab (AppShell)" },
   "project.tab.reports":    { label: "Reports tab",          route: "/clubpm/projects/:id", note: "Sidebar project tab (AppShell)" },
   "project.tab.ai":         { label: "AI tab",               route: "/clubpm/projects/:id", note: "Sidebar project tab (AppShell)" },
   "project.tab.vault":      { label: "Vault sub-tab",        route: "/clubpm/projects/:id", note: "Inside the Files tab — open project.tab.files first" },

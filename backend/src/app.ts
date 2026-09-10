@@ -12,6 +12,7 @@ import { boltApp, startBolt } from "./slack/bolt.js";
 import { syncAdminStatus } from "./services/memberService.js";
 import { authRouter } from "./api/auth.js";
 import { projectsRouter, tagsRouter, trainingRouter } from "./api/projects.js";
+import { projectChatRouter, slackArchiveAdminRouter } from "./api/projectChat.js";
 import { tasksRouter } from "./api/tasks.js";
 import { membersRouter } from "./api/members.js";
 import { activityRouter } from "./api/activity.js";
@@ -126,7 +127,14 @@ app.use("/auth", authRouter);
 app.use("/auth/github", githubAuthRouter);
 app.use("/auth/google", googleAuthRouter);
 app.use("/api/github", githubRouter);
+// MUST be mounted before projectsRouter. projectsRouter attaches a pathless
+// requireAuth (api/projects.ts:37), which would 401 the chat file proxy's
+// `?token=` requests — an <img> tag cannot send an Authorization header — before
+// they ever reached this router. Same ordering hazard as sseRouter vs
+// notificationsRouter below.
+app.use("/api/projects", projectChatRouter);
 app.use("/api/projects", projectsRouter);
+app.use("/api/slack-archive", slackArchiveAdminRouter);
 app.use("/api/tags", tagsRouter);
 app.use("/api/tasks", tasksRouter);
 // Mounted before the bare "/api" routers below (blockersRouter, streakRouter):
@@ -134,6 +142,13 @@ app.use("/api/tasks", tasksRouter);
 // for every /api/* request that reaches them — mounting publicRouter first
 // ensures unauthenticated /api/public/* requests are handled before that.
 app.use("/api/public", publicRouter);
+// sseRouter MUST come before both the bare "/api" routers below AND
+// notificationsRouter: the SSE stream authenticates via a `?token=` query param
+// for cookie-blocked EventSource clients (Brave, Safari), and any pathless
+// requireAuth ahead of it — blockersRouter's runs for every /api/* request —
+// 401s that request (no cookie, no Authorization header) before it reaches the
+// /stream handler. Guarded by src/appMountOrder.test.ts.
+app.use("/api/notifications", sseRouter);
 app.use("/api", blockersRouter);
 app.use("/api", trainingRouter); // POST /api/training-project
 app.use("/api", vaultRouter);
@@ -143,12 +158,7 @@ app.use("/api/activity", activityRouter);
 app.use("/api/milestones", milestonesRouter);
 app.use("/api/reporting", reportingRouter);
 app.use("/api/slack", slackRouter);
-// sseRouter MUST come before notificationsRouter: the SSE stream authenticates
-// via a `?token=` query param for cookie-blocked EventSource clients, and
-// notificationsRouter's pathless requireAuth would otherwise 401 that request
-// (no cookie, no Authorization header) before it reached the /stream handler.
-app.use("/api/notifications", sseRouter);
-app.use("/api/notifications", notificationsRouter);
+app.use("/api/notifications", notificationsRouter); // sseRouter is mounted above — see there
 app.use("/api/events/import", eventImportRouter);
 app.use("/api/events", eventsRouter);
 app.use("/api/meeting-polls", meetingPollsRouter);
