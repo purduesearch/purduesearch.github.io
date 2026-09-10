@@ -20,6 +20,7 @@ import EditDriveFolderModal from "../../components/clubpm/EditDriveFolderModal";
 import GitHubPanel from "../../components/clubpm/github/GitHubPanel";
 import ActionPlanReview from "../../components/clubpm/ActionPlanReview";
 import VaultTab from "../../components/clubpm/vault/VaultTab";
+import ChatTab from "../../components/clubpm/chat/ChatTab";
 import { parseDriveUrl, getTypeMeta, getPreviewUrl } from "../../utils/driveUtils";
 import {
   DndContext,
@@ -170,6 +171,14 @@ const NAV_TABS = [
     icon: (
       <TabIcon>
         <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+      </TabIcon>
+    ),
+  },
+  {
+    id: "chat", label: "Chat", tourId: "project.tab.chat",
+    icon: (
+      <TabIcon>
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
       </TabIcon>
     ),
   },
@@ -3256,6 +3265,12 @@ export default function ProjectDetail() {
                 isAdmin={!!member?.isAdmin}
                 onProjectChange={updated => setProject(prev => ({ ...prev, ...updated }))}
               />
+            </div>
+          )}
+
+          {activeTab === "chat" && (
+            <div className="cpm-proj-main-body" style={{ padding: "16px 24px 24px" }}>
+              <ChatTab project={project} isAdmin={!!member?.isAdmin} />
             </div>
           )}
 

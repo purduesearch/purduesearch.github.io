@@ -61,6 +61,7 @@ keeps its children in layout.
 | `project.header` | Project title + status row | `/clubpm/projects/:id` |
 | `project.tab.tasks` | Tasks tab&Dagger; | `/clubpm/projects/:id` |
 | `project.tab.files` | Files tab&Dagger; | `/clubpm/projects/:id` |
+| `project.tab.chat` | Chat tab&Dagger; | `/clubpm/projects/:id` |
 | `project.tab.reports` | Reports tab&Dagger; | `/clubpm/projects/:id` |
 | `project.tab.ai` | AI tab&Dagger; | `/clubpm/projects/:id` |
 | `project.tab.vault` | Vault **sub**-tab, inside the Files tab | `/clubpm/projects/:id` |
