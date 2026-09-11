@@ -121,6 +121,11 @@ enum NotificationType {
   BLOG_COMMENTED
   TRAINING_CERT_REVIEWED
   TRAINING_EXPIRING
+  // Slack pings mirrored into Constellation (slack portal). Never DM'd back to Slack.
+  SLACK_DM
+  SLACK_MENTION
+  SLACK_THREAD_REPLY
+  SLACK_BROADCAST
 }
 
 enum BlogThreadKind {
@@ -199,6 +204,7 @@ model Member {
   pressKitRevisions       PressKitRevision[]   @relation("PressKitRevisionAuthor")
   blogThreadsCreated      BlogThread[]         @relation("BlogThreadCreator")
   blogThreadComments      BlogThreadComment[]  @relation("BlogThreadCommenter")
+  slackReadCursors        SlackReadCursor[]
 
   // ── Slack user OAuth (per-member) ──
   // The user-scoped token minted by the Slack sign-in flow, AES-GCM encrypted at
@@ -208,6 +214,12 @@ model Member {
   // silently emptied the project "linked Slack channel" picker for everyone.
   slackUserToken       String?
   slackUserTokenAt     DateTime?
+  /// Slack USER scopes granted at sign-in (oauth.v2.access authed_user.scope).
+  /// Drives which portal features the UI offers — see services/slackScopes.ts.
+  slackUserScopes      String[]  @default([])
+  /// Conversations muted in Constellation. Slack's own mute has no API, so this
+  /// is a separate, Constellation-only mute (it silences mirrored pings).
+  mutedSlackChannelIds String[]  @default([])
 
   // ── Private iCal feed (Google/Outlook/Apple "secret address") ──
   // AES-GCM at rest via encryptSecret, exactly like slackUserToken. Never
@@ -782,11 +794,15 @@ model Notification {
   read        Boolean          @default(false)
   readAt      DateTime?
   metadata    Json?
+  /// Set only on SLACK_* notifications: the conversation and message that pinged.
+  slackChannelId String?
+  slackTs        String?
   createdAt   DateTime         @default(now())
 
   @@index([recipientId, read, createdAt(sort: Desc)])
   @@index([recipientId, createdAt(sort: Desc)])
   @@index([projectId])
+  @@index([recipientId, slackChannelId, read])
 }
 
 model TimeLog {
@@ -2529,6 +2545,9 @@ model SlackChannelArchive {
   slackChannelName String?
   isPrivate        Boolean @default(false)
   archiveEnabled   Boolean @default(true)
+  /// Who may read this conversation is decided by kind + SlackConversationMember
+  /// (services/slackConversationAccess.ts). isPrivate is kept for old readers.
+  kind             SlackConversationKind @default(CHANNEL)
 
   /// Drive folder holding this channel's mirrored attachments.
   driveFolderId    String?
@@ -2571,6 +2590,11 @@ model SlackMessage {
   deletedAt       DateTime?
   /// { ":emoji:": { count: number, slackIds: string[] } }
   reactions       Json?
+  /// Bot/app message. Archived since the portal pass (previously dropped).
+  isBot           Boolean   @default(false)
+  /// Raw { blocks, attachments } for bot messages. Rendered on READ by
+  /// services/slackBlocks.ts, so improving the renderer never needs a backfill.
+  botPayload      Json?
 
   postedAt        DateTime
   files           SlackMessageFile[]
@@ -2610,4 +2634,41 @@ model SlackMessageFile {
 
   @@index([storage, postedAt])
   @@index([messageId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Slack portal
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum SlackConversationKind {
+  CHANNEL          // public channel — any club member may read
+  PRIVATE_CHANNEL  // participants only
+  IM               // 1:1 DM — participants only, admins included in "not allowed"
+  MPIM             // group DM — participants only
+}
+
+/// Mirror of Slack conversation membership, and the SOURCE OF TRUTH for who
+/// may read a private channel, DM or group DM through Constellation. Keyed on
+/// Slack user id rather than Member id, because a DM partner may have no
+/// Member row at all.
+model SlackConversationMember {
+  slackChannelId String
+  slackUserId    String
+  addedAt        DateTime @default(now())
+
+  @@id([slackChannelId, slackUserId])
+  @@index([slackUserId])
+}
+
+/// A member's read position in one conversation. Advanced from Constellation
+/// (viewing), from Slack (polled last_read), and implicitly when they post.
+model SlackReadCursor {
+  memberId       String
+  member         Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  slackChannelId String
+  lastReadTs     String
+  lastReadAt     DateTime
+  updatedAt      DateTime @updatedAt
+
+  @@id([memberId, slackChannelId])
 }
