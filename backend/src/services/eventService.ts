@@ -11,6 +11,7 @@ interface CreateEventInput {
   endTime?: Date;
   location?: string;
   isVirtual?: boolean;
+  isPublic?: boolean;
   projectId?: string;
   priorityTaskIds?: string[];
   organizerId?: string;
@@ -29,6 +30,7 @@ interface UpdateEventInput {
   endTime?: Date;
   location?: string;
   isVirtual?: boolean;
+  isPublic?: boolean;
   projectId?: string;
   priorityTaskIds?: string[];
   organizerId?: string;
@@ -82,6 +84,14 @@ function buildRecurringCopies(base: RecurrenceCopy, pattern: string): Date[] {
   }
 }
 
+// DEADLINE events are never published, whatever the caller asked for. The
+// public API also filters DEADLINE out, but storing false keeps the eye icon
+// in ClubPM honest.
+function resolveIsPublic(type: EventType | undefined, requested: boolean | undefined): boolean {
+  if (type === "DEADLINE") return false;
+  return requested ?? false;
+}
+
 // ── Service ──────────────────────────────────────────────────
 
 export async function createEvent(data: CreateEventInput) {
@@ -94,6 +104,7 @@ export async function createEvent(data: CreateEventInput) {
       endTime:            data.endTime,
       location:           data.location,
       isVirtual:          data.isVirtual,
+      isPublic:           resolveIsPublic(data.type, data.isPublic),
       notes:              data.notes,
       isRecurring:        data.isRecurring,
       recurrencePattern:  data.recurrencePattern,
@@ -134,6 +145,10 @@ export async function createEvent(data: CreateEventInput) {
               type:              data.type,
               startTime,
               endTime,
+              description:       data.description,
+              location:          data.location,
+              isVirtual:         data.isVirtual,
+              isPublic:          resolveIsPublic(data.type, data.isPublic),
               isRecurring:       true,
               recurrencePattern: data.recurrencePattern,
               recurrenceEndDate: data.recurrenceEndDate,
@@ -166,6 +181,10 @@ export async function updateEvent(id: string, data: UpdateEventInput) {
   if (data.endTime           !== undefined) updateData.endTime           = data.endTime;
   if (data.location          !== undefined) updateData.location          = data.location;
   if (data.isVirtual         !== undefined) updateData.isVirtual         = data.isVirtual;
+  if (data.isPublic !== undefined) updateData.isPublic = resolveIsPublic(data.type, data.isPublic);
+  // Switching an existing event to DEADLINE unpublishes it even if the caller
+  // didn't mention isPublic.
+  if (data.type === "DEADLINE") updateData.isPublic = false;
   if (data.notes             !== undefined) updateData.notes             = data.notes;
   if (data.isRecurring       !== undefined) updateData.isRecurring       = data.isRecurring;
   if (data.recurrencePattern !== undefined) updateData.recurrencePattern = data.recurrencePattern;
