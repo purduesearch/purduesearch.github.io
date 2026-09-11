@@ -1,5 +1,6 @@
 import type { Request, Response, NextFunction } from "express";
 import { prisma } from "../db/prisma.js";
+import { filterReadableChannels } from "./conversationAccess.js";
 
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
@@ -34,7 +35,7 @@ export function unionChannelIds(
 }
 
 /**
- * Read access to a project's Slack archive: admin OR project member.
+ * Read access to a project's chat tab: admin OR project member — and then only the linked channels Slack lets this member see.
  *
  * Returns the project's linked channel ids from the SAME call, so every read
  * route is scoped by construction and cannot accidentally serve another
@@ -64,8 +65,12 @@ export async function getProjectChatAccess(
 
   const isAdmin = member?.isAdmin ?? false;
   const canRead = isAdmin || !!membership;
-
-  return { canRead, isAdmin, channelIds: unionChannelIds(targets, project) };
+  // D3: project membership decides where a channel SHOWS UP, never who may
+  // read it. A private linked channel is listed only for its Slack members —
+  // admins included. Admin still gates the project-level tools (backfill,
+  // storage health), which expose no message content.
+  const channelIds = canRead ? await filterReadableChannels(memberId, unionChannelIds(targets, project)) : [];
+  return { canRead, isAdmin, channelIds };
 }
 
 export async function requireProjectChatRead(
