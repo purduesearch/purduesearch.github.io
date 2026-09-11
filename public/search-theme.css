@@ -6906,3 +6906,63 @@ button.home-events-day[aria-pressed="true"] .home-events-dot { background: #fff 
   .home-events-menu-caret,
   .home-events-menu-btn { transition: none; }
 }
+
+/* HOME — Public events calendar: section shell, header, filters, states */
+.home-events { padding: 80px 0; background: var(--color-bg-secondary, #ede3d8); }
+.home-events-header {
+  display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between;
+  gap: 1rem 2rem; margin-bottom: 2rem;
+}
+.home-events-heading { max-width: 640px; text-align: left; }
+.home-events-heading .section-title,
+.home-events-heading .section-sub-title { text-align: left; }
+.home-events-heading .section-sub-title { margin-bottom: 0; }
+.home-events-filters { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem; }
+.home-events-chip {
+  padding: 0.3rem 0.85rem; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--color-border, #d4c5b5); background: #fff;
+  font-size: 0.8rem; font-weight: 700; color: var(--color-text, #1a1a1a);
+}
+.home-events-chip[aria-pressed="true"] {
+  background: var(--color-text, #1a1a1a); border-color: var(--color-text, #1a1a1a); color: #fff;
+}
+.home-events-day-banner {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem;
+  margin-bottom: 1rem; padding: 0.55rem 0.9rem; border-radius: 8px;
+  background: rgba(184, 50, 37, 0.08); font-size: 0.85rem; color: var(--color-text, #1a1a1a);
+}
+.home-events-link-btn {
+  padding: 0; border: 0; background: none; cursor: pointer;
+  font-weight: 700; color: var(--color-accent, #b83225); text-decoration: underline;
+}
+.home-events-show-more { align-self: center; margin-top: 0.25rem; }
+.home-events-state {
+  margin: 0; padding: 2rem 1.25rem; text-align: center;
+  border: 1px dashed var(--color-border, #d4c5b5); border-radius: 12px;
+  color: var(--color-muted, #7a6f68); background: rgba(255, 255, 255, 0.5);
+}
+.home-events-skeleton {
+  height: 96px; border-radius: 12px;
+  background: linear-gradient(90deg, rgba(0, 0, 0, 0.04) 25%, rgba(0, 0, 0, 0.08) 37%, rgba(0, 0, 0, 0.04) 63%);
+  background-size: 400% 100%;
+  animation: home-events-shimmer 1.4s ease infinite;
+}
+@keyframes home-events-shimmer {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0 50%; }
+}
+/* Right-anchored dropdowns hang off-screen once their toggle wraps to the left
+   edge: the header wraps below lg, and card actions take their own row below sm. */
+@media (max-width: 991.98px) {
+  .home-events-header .home-events-menu-list--right { right: auto; left: 0; }
+}
+@media (max-width: 575.98px) {
+  .home-events-card-actions .home-events-menu-list--right { right: auto; left: 0; }
+}
+@media (max-width: 767.98px) {
+  .home-events { padding: 56px 0; }
+  .home-events-header { align-items: flex-start; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .home-events-skeleton { animation: none; }
+}

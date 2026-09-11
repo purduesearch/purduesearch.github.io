@@ -7,6 +7,7 @@ import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import SEOHead from '../components/SEOHead';
 import JsonLd from '../components/JsonLd';
+import PublicEventsCalendar from '../components/events/PublicEventsCalendar';
 import { websiteSchema } from '../seo/schema';
 import { SITE_URL } from '../seo/siteUrl';
 import { pressFeedback } from '../anim/motion';
@@ -627,6 +628,9 @@ const Home = () => {
           </div>
         </div>
       </section>
+
+      {/* ===== UPCOMING EVENTS — public Constellation events (isPublic, non-deadline) ===== */}
+      <PublicEventsCalendar />
 
       {/* ===== ABOUT SEARCH — 2-column brand story ===== */}
       <section id="about-search" className="about-video-section" ref={aboutSearchSectionRef}>
