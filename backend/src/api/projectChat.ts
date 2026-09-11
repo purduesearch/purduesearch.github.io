@@ -10,7 +10,9 @@ import {
   requeueFailedMirrors,
   sweepExpiringFiles,
 } from "../services/slackFileService.js";
-import { startBackfill, getBackfillStatus } from "../services/slackBackfillService.js";
+import { startBackfill, getBackfillStatus, backfillAllPublicChannels } from "../services/slackBackfillService.js";
+import { joinAllPublicChannels } from "../services/slackMembershipService.js";
+import { boltApp } from "../slack/bolt.js";
 
 export const projectChatRouter = Router();
 
@@ -160,7 +162,7 @@ projectChatRouter.get(
 // "check req.memberId first" without one — it would always be undefined here.
 // Same shape as sse.ts's streamAuth: a valid query token wins, otherwise
 // requireAuth resolves the Authorization header or session cookie as usual.
-async function fileProxyAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function fileProxyAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
   const queryToken = typeof req.query.token === "string" ? req.query.token : undefined;
   if (queryToken) {
     const memberId = await verifyBearerToken(queryToken);
@@ -326,5 +328,22 @@ slackArchiveAdminRouter.post("/retry-failed", requireAuth, requireArchiveAdmin, 
   } catch (error) {
     console.error("slack-archive/retry-failed error:", error);
     res.status(500).json({ error: "Failed to requeue mirrors" });
+  }
+});
+
+// ── POST /api/slack-archive/backfill-public ──────────────────
+// Join every public channel, then import each one's history with the bot
+// token. Both run in the background; each channel's backfill status shows
+// progress. Operator step 3 in the portal plan.
+slackArchiveAdminRouter.post("/backfill-public", requireAuth, requireArchiveAdmin, async (_req: Request, res: Response) => {
+  try {
+    void joinAllPublicChannels(boltApp.client)
+      .then(() => backfillAllPublicChannels())
+      .then((r) => console.log(`📚 [slackPortal] queued ${r.queued} public channel backfill(s)`))
+      .catch((err) => console.error("[slackPortal] public backfill failed:", err));
+    res.json({ started: true });
+  } catch (error) {
+    console.error("slack-archive/backfill-public error:", error);
+    res.status(500).json({ error: "Failed to start public backfill" });
   }
 });

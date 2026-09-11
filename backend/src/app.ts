@@ -13,6 +13,7 @@ import { syncAdminStatus } from "./services/memberService.js";
 import { authRouter } from "./api/auth.js";
 import { projectsRouter, tagsRouter, trainingRouter } from "./api/projects.js";
 import { projectChatRouter, slackArchiveAdminRouter } from "./api/projectChat.js";
+import { chatRouter } from "./api/chat.js";
 import { tasksRouter } from "./api/tasks.js";
 import { membersRouter } from "./api/members.js";
 import { activityRouter } from "./api/activity.js";
@@ -135,6 +136,9 @@ app.use("/api/github", githubRouter);
 app.use("/api/projects", projectChatRouter);
 app.use("/api/projects", projectsRouter);
 app.use("/api/slack-archive", slackArchiveAdminRouter);
+// Above every bare "/api" router: the chat file proxy authenticates with a
+// `?token=` query param, which a pathless requireAuth would 401 first.
+app.use("/api/chat", chatRouter);
 app.use("/api/tags", tagsRouter);
 app.use("/api/tasks", tasksRouter);
 // Mounted before the bare "/api" routers below (blockersRouter, streakRouter):
