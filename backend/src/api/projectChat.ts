@@ -257,7 +257,7 @@ projectChatRouter.get(
         return void res.status(404).json({ error: "Not found" });
       }
 
-      const resolved = await resolveFileStream(slackFileId);
+      const resolved = await resolveFileStream(slackFileId, memberId);
       if (!resolved.ok) {
         return void res.status(resolved.status).json({ error: resolved.detail });
       }
@@ -311,7 +311,7 @@ projectChatRouter.post(
       if (!channelId || !(req.chatChannelIds ?? []).includes(channelId)) {
         return void res.status(400).json({ error: "channelId is not linked to this project" });
       }
-      res.json(await startBackfill(channelId));
+      res.json(await startBackfill(channelId, { requesterMemberId: req.memberId }));
     } catch (error) {
       console.error("chat/backfill error:", error);
       res.status(500).json({ error: "Failed to start backfill" });

@@ -1,7 +1,7 @@
 // Pure-logic unit tests for the slackFileService state machine. No DB, no I/O.
 // Run: cd backend && npx tsx src/services/slackFileService.test.ts
 
-import { nextStorageState, streamSourceFor, MAX_MIRROR_ATTEMPTS, MIRROR_RETRY_RESET } from "./slackFileService.js";
+import { nextStorageState, streamSourceFor, mirrorTargetFor, MAX_MIRROR_ATTEMPTS, MIRROR_RETRY_RESET } from "./slackFileService.js";
 
 let passed = 0, failed = 0;
 function check(name: string, cond: boolean) {
@@ -53,6 +53,15 @@ console.log("\nstreamSourceFor");
   check("DRIVE streams from drive", streamSourceFor("DRIVE") === "drive");
   check("LOCAL streams from disk", streamSourceFor("LOCAL") === "disk");
   check("UNAVAILABLE streams from nowhere", streamSourceFor("UNAVAILABLE") === "none");
+}
+
+console.log("\nmirrorTargetFor");
+{
+  // D5: only PUBLIC channel files may land in the human-browsed club Drive.
+  check("public channel → drive", mirrorTargetFor("CHANNEL") === "drive");
+  check("private channel → disk", mirrorTargetFor("PRIVATE_CHANNEL") === "disk");
+  check("DM → disk", mirrorTargetFor("IM") === "disk");
+  check("group DM → disk", mirrorTargetFor("MPIM") === "disk");
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);

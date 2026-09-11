@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
+import type { WebClient } from "@slack/web-api";
 import { prisma } from "../db/prisma.js";
 import {
   ensureClubPmRootFolder,
@@ -10,6 +11,7 @@ import {
   uploadStreamToDrive,
   streamDriveFile,
 } from "./driveService.js";
+import type { ConversationKind } from "./slackConversationAccess.js";
 
 /**
  * Slack never announces expiry — on the free plan, history simply stops being
@@ -47,6 +49,11 @@ export function streamSourceFor(storage: Storage): "slack" | "drive" | "disk" | 
   if (storage === "LOCAL") return "disk";
   if (storage === "UNAVAILABLE") return "none";
   return "slack"; // SLACK_ONLY and MIRROR_FAILED
+}
+
+/** Pure: where a mirrored copy may live. Only PUBLIC channel files go to the shared Drive (D5). */
+export function mirrorTargetFor(kind: ConversationKind): "drive" | "disk" {
+  return kind === "CHANNEL" ? "drive" : "disk";
 }
 
 const UPLOADS_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "uploads");
@@ -94,10 +101,27 @@ export async function getCustomEmoji(): Promise<Record<string, string>> {
 
 // ── Slack fetch ──────────────────────────────────────────────
 
+type Reader = { client: WebClient; token: string };
+
+/**
+ * A token that can see the file's conversation. The bot token alone is wrong
+ * for DMs: the bot is not in them, files.info answers file_not_found, and the
+ * file would be written off as expired on first view.
+ */
+async function readerFor(slackFileId: string, requesterMemberId?: string): Promise<Reader | null> {
+  const row = await prisma.slackMessageFile.findUnique({
+    where: { slackFileId },
+    select: { message: { select: { slackChannelId: true } } },
+  });
+  if (!row) return null;
+  const { resolveReadClient } = await import("./slackMembershipService.js");
+  return resolveReadClient(row.message.slackChannelId, requesterMemberId);
+}
+
 /** Fresh url_private at use time — a stored URL may have rotated. */
-async function slackFileUrl(slackFileId: string): Promise<{ url: string; mimeType: string } | "gone"> {
+async function slackFileUrl(slackFileId: string, reader: Reader): Promise<{ url: string; mimeType: string } | "gone"> {
   try {
-    const info = await (await slackClient()).files.info({ file: slackFileId });
+    const info = await reader.client.files.info({ file: slackFileId });
     const f = info.file as { url_private?: string; mimetype?: string } | undefined;
     if (!f?.url_private) return "gone";
     return { url: f.url_private, mimeType: f.mimetype ?? "application/octet-stream" };
@@ -108,11 +132,9 @@ async function slackFileUrl(slackFileId: string): Promise<{ url: string; mimeTyp
   }
 }
 
-/** url_private requires the bot token in a header — a browser can never do this. */
-async function fetchSlackFile(url: string): Promise<Response> {
-  const res = await fetch(url, {
-    headers: { Authorization: `Bearer ${process.env.SLACK_BOT_TOKEN}` },
-  });
+/** url_private requires the reading token in a header — a browser can never do this. */
+async function fetchSlackFile(url: string, token: string): Promise<Response> {
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
   if (!res.ok || !res.body) throw new Error(`Slack file fetch failed: ${res.status}`);
   return res;
 }
@@ -127,7 +149,7 @@ export type ResolvedFile =
   | { ok: true; stream: Readable; mimeType: string; fileName: string }
   | { ok: false; status: 404 | 410 | 502; detail: string };
 
-export async function resolveFileStream(slackFileId: string): Promise<ResolvedFile> {
+export async function resolveFileStream(slackFileId: string, requesterMemberId?: string): Promise<ResolvedFile> {
   const row = await prisma.slackMessageFile.findUnique({ where: { slackFileId } });
   if (!row) return { ok: false, status: 404, detail: "unknown file" };
 
@@ -150,7 +172,12 @@ export async function resolveFileStream(slackFileId: string): Promise<ResolvedFi
     return { ok: true, stream: fs.createReadStream(abs), mimeType, fileName: row.name };
   }
 
-  const url = await slackFileUrl(slackFileId);
+  const reader = await readerFor(slackFileId, requesterMemberId);
+  // Nobody who can see this conversation has a usable token right now. That is
+  // NOT evidence the file is gone — never mark UNAVAILABLE here.
+  if (!reader) return { ok: false, status: 502, detail: "Nobody in this conversation has connected Slack yet" };
+
+  const url = await slackFileUrl(slackFileId, reader);
   if (url === "gone") {
     await prisma.slackMessageFile.update({
       where: { slackFileId },
@@ -158,7 +185,7 @@ export async function resolveFileStream(slackFileId: string): Promise<ResolvedFi
     });
     return { ok: false, status: 410, detail: "This file expired in Slack before it could be archived" };
   }
-  const res = await fetchSlackFile(url.url);
+  const res = await fetchSlackFile(url.url, reader.token);
   return { ok: true, stream: webBodyToNode(res), mimeType: url.mimeType, fileName: row.name };
 }
 
@@ -214,7 +241,18 @@ export async function mirrorFile(slackFileId: string): Promise<Storage> {
   const channelId = row.message.slackChannelId;
 
   try {
-    const url = await slackFileUrl(slackFileId);
+    const reader = await readerFor(slackFileId);
+    if (!reader) {
+      // Retry later — a member may connect Slack before the file expires.
+      const storage = nextStorageState({ outcome: "error", attempts });
+      await prisma.slackMessageFile.update({
+        where: { slackFileId },
+        data: { storage, mirrorAttempts: attempts, mirrorError: "no Slack token can read this conversation" },
+      });
+      return storage;
+    }
+
+    const url = await slackFileUrl(slackFileId, reader);
     if (url === "gone") {
       const storage = nextStorageState({ outcome: "gone", attempts });
       await prisma.slackMessageFile.update({
@@ -224,10 +262,16 @@ export async function mirrorFile(slackFileId: string): Promise<Storage> {
       return storage;
     }
 
-    const folderId = await ensureChannelDriveFolder(channelId);
+    const archive = await prisma.slackChannelArchive.findUnique({
+      where: { slackChannelId: channelId },
+      select: { kind: true },
+    });
+    // Unknown kind fails closed to disk.
+    const target = mirrorTargetFor(archive?.kind ?? "PRIVATE_CHANNEL");
+    const folderId = target === "drive" ? await ensureChannelDriveFolder(channelId) : null;
 
     if (folderId) {
-      const res = await fetchSlackFile(url.url);
+      const res = await fetchSlackFile(url.url, reader.token);
       const uploaded = await uploadStreamToDrive(webBodyToNode(res), url.mimeType, row.name, folderId);
       if (uploaded) {
         await prisma.slackMessageFile.update({
@@ -244,11 +288,10 @@ export async function mirrorFile(slackFileId: string): Promise<Storage> {
       }
     }
 
-    // Drive unavailable (no credential, or the upload returned null). Falling
-    // back to disk matters: every driveService call returns null on error rather
-    // than throwing, so without this the sweep would no-op SILENTLY and files
-    // would die at day 90 with nothing in the logs saying why.
-    const res = await fetchSlackFile(url.url);
+    // Disk: by design for private conversations (D5), or as the fallback when
+    // Drive is unavailable. Only the fallback records a mirrorError, which is
+    // how the sweep tells the two apart.
+    const res = await fetchSlackFile(url.url, reader.token);
     const localPath = await mirrorToDisk(channelId, slackFileId, row.name, res);
     await prisma.slackMessageFile.update({
       where: { slackFileId },
@@ -257,7 +300,7 @@ export async function mirrorFile(slackFileId: string): Promise<Storage> {
         localPath,
         mirroredAt: new Date(),
         mirrorAttempts: attempts,
-        mirrorError: folderId ? "Drive upload returned null" : "no Drive account connected",
+        mirrorError: target === "disk" ? null : folderId ? "Drive upload returned null" : "no Drive account connected",
       },
     });
     return "LOCAL";
@@ -271,7 +314,7 @@ export async function mirrorFile(slackFileId: string): Promise<Storage> {
   }
 }
 
-export type SweepTally = { swept: number; drive: number; local: number; failed: number; unavailable: number };
+export type SweepTally = { swept: number; drive: number; local: number; privateLocal: number; failed: number; unavailable: number };
 
 let sweepInFlight: Promise<SweepTally> | null = null;
 
@@ -296,12 +339,15 @@ async function runSweep(cutoffDays: number, batchSize: number): Promise<SweepTal
     select: { slackFileId: true },
   });
 
-  const tally: SweepTally = { swept: 0, drive: 0, local: 0, failed: 0, unavailable: 0 };
+  const tally: SweepTally = { swept: 0, drive: 0, local: 0, privateLocal: 0, failed: 0, unavailable: 0 };
   for (const f of due) {
     const result = await mirrorFile(f.slackFileId);
     tally.swept++;
     if (result === "DRIVE") tally.drive++;
-    else if (result === "LOCAL") tally.local++;
+    else if (result === "LOCAL") {
+      const r = await prisma.slackMessageFile.findUnique({ where: { slackFileId: f.slackFileId }, select: { mirrorError: true } });
+      if (r?.mirrorError) tally.local++; else tally.privateLocal++;
+    }
     else if (result === "UNAVAILABLE") tally.unavailable++;
     else tally.failed++;
   }

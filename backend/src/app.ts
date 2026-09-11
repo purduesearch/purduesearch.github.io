@@ -189,6 +189,13 @@ app.use("/r", redirectRouter);
 // Static uploads (Vault files, etc), served from their public URL.
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const UPLOADS_DIR = path.resolve(__dirname, "..", "uploads");
+
+// Slack archive mirrors (uploads/slack/**) hold private-channel and DM files.
+// They are served ONLY through the access-checked proxy (/api/chat/files/:id);
+// the static handler below would otherwise hand them to anyone who knows a
+// channel id and a file id. MUST stay above the static mount.
+app.use("/uploads/slack", (_req, res) => { res.status(404).end(); });
+
 app.use("/uploads", express.static(UPLOADS_DIR, { fallthrough: true, maxAge: "1d" }));
 
 // Health check
