@@ -4,6 +4,7 @@ import { prisma } from "../db/prisma.js";
 import { getSessionSecret } from "../config/env.js";
 import { storeSlackUserToken } from "../services/slackUserTokenService.js";
 import { buildSlackAuthorizeUrl, resolveSlackWorkspace } from "../services/slackOAuthUrl.js";
+import { SLACK_USER_SCOPES, parseScopes, capabilitiesOf, needsReconnect } from "../services/slackScopes.js";
 
 export const authRouter = Router();
 
@@ -129,15 +130,8 @@ authRouter.get("/slack", async (req: Request, res: Response) => {
   const returnTo = typeof req.query.returnTo === "string" ? req.query.returnTo : "";
   const state = returnTo ? Buffer.from(returnTo).toString("base64url") : "";
 
-  const scopes = [
-    "users:read",
-    "users:read.email",
-    "channels:read",
-    "groups:read",
-    "mpim:read",
-    "channels:write.invites",
-    "groups:write.invites",
-  ].join(",");
+  // One definition shared with /auth/me and every portal write path.
+  const scopes = SLACK_USER_SCOPES.join(",");
 
   // Served from the workspace's own subdomain so signed-out users get "Sign in to
   // <workspace>" rather than Slack's "Find your workspace" — see slackOAuthUrl.ts.
@@ -190,6 +184,7 @@ authRouter.get("/slack/callback", async (req: Request, res: Response) => {
       authed_user?: {
         id: string;
         access_token: string;
+        scope?: string;
       };
       error?: string;
     };
@@ -247,7 +242,7 @@ authRouter.get("/slack/callback", async (req: Request, res: Response) => {
     // session. The session copy is unreadable by Bearer-authenticated clients
     // and dies after 7 days, so it cannot be the only copy — see
     // services/slackUserTokenService.ts.
-    await storeSlackUserToken(member.id, accessToken);
+    await storeSlackUserToken(member.id, accessToken, parseScopes(tokenData.authed_user.scope));
 
     // Set session and wait for it to be written to the store before redirecting.
     // Without save(), the redirect can race ahead of the async PostgreSQL write.
@@ -349,5 +344,13 @@ authRouter.get("/me", requireAuth, async (req: Request, res: Response) => {
   // connects but never syncs and shows no content. Refreshing here keeps a
   // valid token in localStorage so collab always authenticates.
   const authToken = signToken(member.id, tokenVersion);
-  res.json({ ...safeMember, authToken });
+  // Capabilities, never the token. A member with no stored token has none,
+  // whatever scopes were recorded before it was cleared.
+  const grantedScopes = member.slackUserToken ? member.slackUserScopes : [];
+  res.json({
+    ...safeMember,
+    authToken,
+    slackCapabilities: capabilitiesOf(grantedScopes),
+    slackNeedsReconnect: needsReconnect(grantedScopes),
+  });
 });

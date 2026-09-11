@@ -1,4 +1,5 @@
 import type { Request } from "express";
+import { WebClient } from "@slack/web-api";
 import { prisma } from "../db/prisma.js";
 import { encryptSecret, decryptSecret } from "../utils/crypto.js";
 
@@ -27,7 +28,8 @@ import { encryptSecret, decryptSecret } from "../utils/crypto.js";
  */
 export async function storeSlackUserToken(
   memberId: string,
-  token: string | null | undefined
+  token: string | null | undefined,
+  scopes?: string[]
 ): Promise<void> {
   if (!token) return;
   try {
@@ -35,7 +37,11 @@ export async function storeSlackUserToken(
     if (!encrypted) return;
     await prisma.member.update({
       where: { id: memberId },
-      data: { slackUserToken: encrypted, slackUserTokenAt: new Date() },
+      data: {
+        slackUserToken: encrypted,
+        slackUserTokenAt: new Date(),
+        ...(scopes ? { slackUserScopes: scopes } : {}),
+      },
     });
   } catch (err) {
     console.warn(
@@ -50,7 +56,7 @@ export async function clearSlackUserToken(memberId: string): Promise<void> {
   try {
     await prisma.member.update({
       where: { id: memberId },
-      data: { slackUserToken: null, slackUserTokenAt: null },
+      data: { slackUserToken: null, slackUserTokenAt: null, slackUserScopes: [] },
     });
   } catch {
     // Best effort — a failed clear just means we retry the dead token once more.
@@ -116,4 +122,28 @@ export function isDeadTokenError(code: string | undefined): boolean {
 export function slackErrorCode(err: unknown): string {
   const e = err as { data?: { error?: string }; message?: string };
   return e?.data?.error ?? e?.message ?? "unknown_error";
+}
+
+/**
+ * A Slack client acting AS the member, for services with no Request in hand.
+ *
+ * `interactive` clients fail fast on rate limits instead of retrying for up to
+ * half an hour (the WebClient default) — a user waiting on "Send" must get an
+ * error, not a hung request. Background jobs (backfill, read sync) keep the
+ * default retries.
+ */
+export async function userClientFor(
+  memberId: string,
+  opts: { interactive?: boolean } = {}
+): Promise<{ client: WebClient; token: string; scopes: string[]; slackId: string } | null> {
+  const m = await prisma.member.findUnique({
+    where: { id: memberId },
+    select: { slackId: true, slackUserToken: true, slackUserScopes: true },
+  });
+  const token = decryptSecret(m?.slackUserToken);
+  if (!m || !token) return null;
+  const client = opts.interactive
+    ? new WebClient(token, { rejectRateLimitedCalls: true, retryConfig: { retries: 0 } })
+    : new WebClient(token);
+  return { client, token, scopes: m.slackUserScopes, slackId: m.slackId };
 }
