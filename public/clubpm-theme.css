@@ -26835,3 +26835,50 @@ button.pm-an-risk-factor-row:hover { background: rgba(255, 255, 255, 0.04); }
   .cpm-blog-genmodal-meta { grid-template-columns: 1fr; }
   .cpm-blog-genmodal-meta dd { margin-bottom: 6px; }
 }
+
+/* ===== Public events (isPublic) — eye icon, badge, EventFormModal publish confirm ===== */
+.cpm-public-eye {
+  font-size: 9px;
+  margin-left: 4px;
+  color: var(--pm-accent-teal, #00e5cc);
+  opacity: 0.85;
+  flex-shrink: 0;
+}
+.cpm-public-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  vertical-align: middle;
+  color: var(--pm-accent-teal, #00e5cc);
+  background: rgba(0, 229, 204, 0.12);
+  border: 1px solid rgba(0, 229, 204, 0.35);
+}
+.cpm-public-hint {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--clubpm-text-muted, #8b93a7);
+}
+.cpm-event-modal-footer.is-confirming { flex-wrap: wrap; }
+.cpm-event-public-confirm {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  flex: 1 1 100%;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--clubpm-text-secondary, #c8cfdc);
+  background: rgba(245, 166, 35, 0.1);
+  border: 1px solid rgba(245, 166, 35, 0.4);
+}
+.cpm-event-public-confirm i { margin-top: 2px; color: var(--pm-accent-amber, #f5a623); }
