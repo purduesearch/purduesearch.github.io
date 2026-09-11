@@ -249,6 +249,15 @@ export default function NotificationBell() {
       }
     });
 
+    // A new DM or channel membership — lets inbox/sidebars refresh without polling.
+    es.addEventListener("slack-membership", (e) => {
+      try {
+        window.dispatchEvent(new CustomEvent("clubpm:slack-membership", { detail: JSON.parse(e.data) }));
+      } catch {
+        // malformed event — ignore
+      }
+    });
+
     es.onerror = () => {
       // SSE dropped — close, fall back to polling, and schedule a retry
       // with exponential backoff (capped) so we don't hammer the server.

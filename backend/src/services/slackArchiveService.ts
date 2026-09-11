@@ -272,9 +272,13 @@ export interface ChatEvent {
   kind: ChatEventKind;
 }
 
-/** The ONE place the archive announces a change. Ids only, never text. */
+/**
+ * The ONE place the archive announces a change. Ids only, never text: sse.ts
+ * filters each event per connection, and the client re-fetches through the
+ * access-checked API.
+ */
 export function emitChat(e: ChatEvent): void {
-  activityBus.emit(`slack-chat:${e.channelId}`, e);
+  activityBus.emit("slack-chat", e);
 }
 
 export interface IngestResult {
