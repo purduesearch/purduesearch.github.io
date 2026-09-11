@@ -302,7 +302,8 @@ blogRouter.delete("/posts/:id", async (req: Request, res: Response) => {
 });
 
 // ── Media upload ─────────────────────────────────────────────
-// Multipart field `image`; recompresses to webp (max 1600px wide) and stores on
+// Multipart field `image`; recompresses to webp (max 1600px wide, animation
+// preserved) and stores on
 // Google Drive. Returns { url, width, height } for the editor image node.
 
 blogRouter.post(
@@ -314,7 +315,9 @@ blogRouter.post(
         res.status(400).json({ error: "image file is required" });
         return;
       }
-      const { data, info } = await sharp(req.file.buffer)
+      // `animated` decodes every frame (GIF/animated WebP) — sharp's default
+      // reads only the first, which silently flattened uploaded GIFs.
+      const { data, info } = await sharp(req.file.buffer, { animated: true })
         .rotate() // honor EXIF orientation before stripping metadata
         .resize({ width: 1600, withoutEnlargement: true })
         .webp({ quality: 82 })
@@ -339,7 +342,8 @@ blogRouter.post(
       res.json({
         url: `${origin}/api/public/blog-image/${uploaded.fileId}`,
         width: info.width,
-        height: info.height,
+        // Animated output is a vertical strip of frames; pageHeight is one frame.
+        height: info.pageHeight ?? info.height,
       });
     } catch (error) {
       console.error("POST /blog/upload error:", error);
