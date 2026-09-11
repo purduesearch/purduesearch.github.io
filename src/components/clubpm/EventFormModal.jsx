@@ -117,8 +117,11 @@ export default function EventFormModal({ isOpen, onClose, onSave, editEvent, pro
       notes: form.notes.trim() || undefined,
       isRecurring: form.isRecurring,
       recurrencePattern: form.isRecurring ? form.recurrencePattern : undefined,
+      // End of the chosen day in local time. `new Date('YYYY-MM-DD')` parses as
+      // UTC midnight, which is the previous evening in Indiana — that dropped
+      // an occurrence falling on the end date and showed the day before on edit.
       recurrenceEndDate: form.isRecurring && form.recurrenceEndDate
-        ? new Date(form.recurrenceEndDate).toISOString() : undefined,
+        ? combineDatetime(form.recurrenceEndDate, '23:59') : undefined,
       attendeeIds: form.attendeeIds,
     };
   }
@@ -377,14 +380,16 @@ export default function EventFormModal({ isOpen, onClose, onSave, editEvent, pro
             />
           </div>
 
-          {/* Recurring toggle */}
+          {/* Recurring toggle. preventDefault is load-bearing: without it a
+              click on the label also fires a synthetic click on the checkbox
+              inside, which bubbles back here and toggles the value off again. */}
           <div>
             <label
               className="cpm-toggle-row"
-              onClick={() => set('isRecurring', !form.isRecurring)}
+              onClick={e => { e.preventDefault(); set('isRecurring', !form.isRecurring); }}
             >
               <span className="cpm-toggle-row-label">
-                <i className="fas fa-redo" style={{ color: 'var(--clubpm-text-muted)', fontSize: 12 }} />
+                <i className="fas fa-redo" style={{ color: 'var(--clubpm-text-muted)', fontSize: 12 }} aria-hidden="true" />
                 Recurring event
               </span>
               <input
@@ -392,6 +397,7 @@ export default function EventFormModal({ isOpen, onClose, onSave, editEvent, pro
                 className="cpm-toggle-switch"
                 checked={form.isRecurring}
                 onChange={() => {}}
+                aria-label="Recurring event"
               />
             </label>
 

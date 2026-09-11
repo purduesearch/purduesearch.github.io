@@ -1,5 +1,6 @@
 import { prisma } from "../db/prisma.js";
 import type { EventType } from "@prisma/client";
+import { recurrenceStarts } from "./eventRecurrence.js";
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -59,29 +60,57 @@ const eventInclude = {
 
 // ── Recurrence Helpers ───────────────────────────────────────
 
-function offsetDays(date: Date, days: number): Date {
-  const d = new Date(date);
-  d.setDate(d.getDate() + days);
-  return d;
-}
-
-interface RecurrenceCopy {
+interface SeriesBase {
   title: string;
-  type: EventType;
+  description?: string | null;
+  type?: EventType;
   startTime: Date;
-  endTime?: Date;
-  organizerId?: string;
+  endTime?: Date | null;
+  location?: string | null;
+  isVirtual?: boolean;
+  isPublic: boolean;
+  recurrencePattern: string;
+  recurrenceEndDate?: Date | null;
+  projectId?: string | null;
+  organizerId?: string | null;
   attendeeIds?: string[];
 }
 
-function buildRecurringCopies(base: RecurrenceCopy, pattern: string): Date[] {
-  // Returns array of startTime offsets for child events (not including the original)
-  switch (pattern) {
-    case "weekly":   return Array.from({ length: 8  }, (_, i) => offsetDays(base.startTime, 7  * (i + 1)));
-    case "biweekly": return Array.from({ length: 4  }, (_, i) => offsetDays(base.startTime, 14 * (i + 1)));
-    case "monthly":  return Array.from({ length: 2  }, (_, i) => offsetDays(base.startTime, 30 * (i + 1)));
-    default:         return [];
-  }
+// Creates the future copies of a recurring event (not the original itself).
+// Occurrence dates come from eventRecurrence.ts, which honours the series end
+// date and keeps the local wall-clock time across DST.
+async function spawnOccurrences(base: SeriesBase) {
+  const starts = recurrenceStarts(base.startTime, base.recurrencePattern, base.recurrenceEndDate);
+  const duration = base.endTime ? base.endTime.getTime() - base.startTime.getTime() : null;
+
+  await Promise.all(
+    starts.map(startTime =>
+      prisma.event.create({
+        data: {
+          title:             base.title,
+          type:              base.type,
+          startTime,
+          endTime:           duration !== null ? new Date(startTime.getTime() + duration) : undefined,
+          description:       base.description ?? undefined,
+          location:          base.location ?? undefined,
+          isVirtual:         base.isVirtual,
+          isPublic:          base.isPublic,
+          isRecurring:       true,
+          recurrencePattern: base.recurrencePattern,
+          recurrenceEndDate: base.recurrenceEndDate ?? undefined,
+          ...(base.projectId
+            ? { project: { connect: { id: base.projectId } } }
+            : {}),
+          ...(base.organizerId
+            ? { organizer: { connect: { id: base.organizerId } } }
+            : {}),
+          ...(base.attendeeIds?.length
+            ? { attendees: { connect: base.attendeeIds.map(id => ({ id })) } }
+            : {}),
+        },
+      })
+    )
+  );
 }
 
 // DEADLINE events are never published, whatever the caller asked for. The
@@ -127,45 +156,11 @@ export async function createEvent(data: CreateEventInput) {
 
   // Spawn recurring child events if applicable
   if (data.isRecurring && data.recurrencePattern) {
-    const offsets = buildRecurringCopies(
-      { title: data.title, type: data.type ?? "MEETING", startTime: data.startTime, endTime: data.endTime },
-      data.recurrencePattern
-    );
-
-    if (offsets.length > 0) {
-      await Promise.all(
-        offsets.map(startTime => {
-          const endTime = data.endTime
-            ? new Date(startTime.getTime() + (data.endTime!.getTime() - data.startTime.getTime()))
-            : undefined;
-
-          return prisma.event.create({
-            data: {
-              title:             data.title,
-              type:              data.type,
-              startTime,
-              endTime,
-              description:       data.description,
-              location:          data.location,
-              isVirtual:         data.isVirtual,
-              isPublic:          resolveIsPublic(data.type, data.isPublic),
-              isRecurring:       true,
-              recurrencePattern: data.recurrencePattern,
-              recurrenceEndDate: data.recurrenceEndDate,
-              ...(data.projectId
-                ? { project: { connect: { id: data.projectId } } }
-                : {}),
-              ...(data.organizerId
-                ? { organizer: { connect: { id: data.organizerId } } }
-                : {}),
-              ...(data.attendeeIds?.length
-                ? { attendees: { connect: data.attendeeIds.map(id => ({ id })) } }
-                : {}),
-            },
-          });
-        })
-      );
-    }
+    await spawnOccurrences({
+      ...data,
+      isPublic:          event.isPublic,
+      recurrencePattern: data.recurrencePattern,
+    });
   }
 
   return event;
@@ -207,11 +202,28 @@ export async function updateEvent(id: string, data: UpdateEventInput) {
     updateData.priorityTasks = { set: data.priorityTaskIds.map(id => ({ id })) };
   }
 
-  return prisma.event.update({
+  // Turning recurrence on for an existing one-off event creates its future
+  // occurrences, same as creating it recurring would have. Already-recurring
+  // events are left alone so re-saving a series never duplicates it.
+  const wasRecurring = data.isRecurring
+    ? (await prisma.event.findUnique({ where: { id }, select: { isRecurring: true } }))?.isRecurring ?? false
+    : true;
+
+  const updated = await prisma.event.update({
     where: { id },
     data:  updateData,
     include: eventInclude,
   });
+
+  if (!wasRecurring && updated.isRecurring && updated.recurrencePattern) {
+    await spawnOccurrences({
+      ...updated,
+      recurrencePattern: updated.recurrencePattern,
+      attendeeIds:       updated.attendees.map(a => a.id),
+    });
+  }
+
+  return updated;
 }
 
 export async function deleteEvent(id: string) {
