@@ -247,6 +247,18 @@ export function startScheduler(app: App): void {
     }
   });
 
+  // ── 03:55 daily — Slack portal: join new public channels, repair membership drift ──
+  cron.schedule("55 3 * * *", async () => {
+    try {
+      const { joinAllPublicChannels, reconcileMemberships } = await import("../services/slackMembershipService.js");
+      const j = await joinAllPublicChannels(app.client);
+      const n = await reconcileMemberships();
+      console.log(`👥 [slackPortal] joined ${j.joined}/${j.seen} public channels; reconciled ${n} member list(s)`);
+    } catch (err) {
+      console.error("[slackPortal] membership reconcile failed:", err);
+    }
+  });
+
   // ── Daily 3:00 AM — Auto-archive nudges → admin + creator DMs ────
   cron.schedule("0 3 * * *", async () => {
     console.log("🗄️ Running auto-archive nudge sweep...");

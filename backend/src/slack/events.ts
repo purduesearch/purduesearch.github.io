@@ -1,7 +1,10 @@
 import type { App } from "@slack/bolt";
 import type { WebClient } from "@slack/web-api";
 import { getProjectByChannel, getProjectsForChannel, addMemberToProject } from "../services/projectService.js";
-import { resolveSlackMember, getLeadershipChannelId } from "../services/memberService.js";
+import { resolveSlackMember, getLeadershipChannelId, getBotUserId } from "../services/memberService.js";
+import {
+  ensureMembersKnown, addConversationMember, removeConversationMember, joinAndSyncPublicChannel,
+} from "../services/slackMembershipService.js";
 import {
   buildTodoPrompt,
   buildAiTaskSuggestion,
@@ -246,9 +249,16 @@ export function registerEvents(app: App): void {
   // independent error boundaries in both directions: an archive bug must not
   // break the TODO prompt that works today, and a failure in the TODO logic
   // must not lose a message from the archive.
-  app.message(async ({ message, say, client }) => {
+  app.message(async ({ message, say, client, body }) => {
+    // Whose authorization delivered this event. For a DM, or a private channel
+    // the bot is not in, theirs is the only token that can see the conversation.
+    const authorizedUserId = (body as { authorizations?: { user_id?: string }[] }).authorizations?.[0]?.user_id;
+
     try {
-      await ingestSlackMessage(message as never, client);
+      const result = await ingestSlackMessage(message as never, client);
+      if (result?.event === "new") {
+        await ensureMembersKnown(result.channelId, result.convKind, authorizedUserId);
+      }
     } catch (error) {
       console.error("[slackArchive] ingest failed:", error);
     }
@@ -256,6 +266,9 @@ export function registerEvents(app: App): void {
     try {
       // Only handle regular user messages with text
       if (message.subtype) return;
+      // ignoreSelf is off (bolt.ts). Never let a bot message — ours or another
+      // app's — trigger the TODO prompt.
+      if ((message as { bot_id?: string }).bot_id) return;
       if (!("text" in message) || !message.text) return;
 
       const text = message.text.trim();
@@ -291,6 +304,9 @@ export function registerEvents(app: App): void {
       } catch (error) {
         console.error("[slackArchive] reaction_added failed:", error);
       }
+
+      // Our own bot's reactions now reach this handler (ignoreSelf: false).
+      if (event.user === (await getBotUserId(client))) return;
 
       if (event.reaction === "clipboard") {
         // Fetch the original message text
@@ -388,6 +404,14 @@ export function registerEvents(app: App): void {
   // ── Channel Created: proj-* naming convention ────────────
   app.event("channel_created", async ({ event, client }) => {
     try {
+      // Portal: the bot joins every new public channel so it can read it.
+      // channel_created only fires for public channels.
+      try {
+        await joinAndSyncPublicChannel(event.channel.id, client, event.channel.name);
+      } catch (err) {
+        console.error("[slackPortal] auto-join failed:", err);
+      }
+
       const channel = event.channel;
       const channelName = channel.name;
 
@@ -416,6 +440,8 @@ export function registerEvents(app: App): void {
   app.event("member_joined_channel", async ({ event, client }) => {
     try {
       const { user: slackUserId, channel: channelId } = event;
+
+      await addConversationMember(channelId, slackUserId);
 
       // Grant admin if this is the leadership channel
       const leadershipId = await getLeadershipChannelId(client);
@@ -452,6 +478,8 @@ export function registerEvents(app: App): void {
   app.event("member_left_channel", async ({ event, client }) => {
     try {
       const { user: slackUserId, channel: channelId } = event;
+
+      await removeConversationMember(channelId, slackUserId);
 
       const leadershipId = await getLeadershipChannelId(client);
       if (!leadershipId || channelId !== leadershipId) return;
