@@ -15,6 +15,13 @@ const RECURRENCE_OPTIONS = [
   { value: 'monthly',  label: 'Monthly'  },
 ];
 
+// Which occurrences an edit to a recurring event applies to (PATCH `scope`).
+const SCOPE_OPTIONS = [
+  { value: 'one',       label: 'This event'         },
+  { value: 'following', label: 'This and following' },
+  { value: 'all',       label: 'All events'         },
+];
+
 function toLocalDateString(iso) {
   if (!iso) return '';
   const d = new Date(iso);
@@ -53,9 +60,11 @@ export default function EventFormModal({ isOpen, onClose, onSave, editEvent, pro
   // Non-null while the "this will be public" confirmation is showing. Holds
   // the exact payload that Publish will send.
   const [pendingPayload, setPendingPayload] = useState(null);
+  const [scope, setScope]       = useState('all');
 
   useEffect(() => {
     if (!isOpen) return;
+    setScope('all');
     if (editEvent) {
       setForm({
         title: editEvent.title ?? '',
@@ -86,6 +95,9 @@ export default function EventFormModal({ isOpen, onClose, onSave, editEvent, pro
   if (!isOpen) return null;
 
   const typeCfg = EVENT_TYPE_CONFIG[form.type] ?? EVENT_TYPE_CONFIG.OTHER;
+  // Only for an occurrence of an existing series that stays recurring —
+  // turning recurrence off is always a single-event edit on the server.
+  const editingSeries = !!(editEvent?.seriesId && editEvent.isRecurring && form.isRecurring);
 
   function set(field, value) {
     setPendingPayload(null);
@@ -123,6 +135,7 @@ export default function EventFormModal({ isOpen, onClose, onSave, editEvent, pro
       recurrenceEndDate: form.isRecurring && form.recurrenceEndDate
         ? combineDatetime(form.recurrenceEndDate, '23:59') : undefined,
       attendeeIds: form.attendeeIds,
+      ...(editingSeries ? { scope } : {}),
     };
   }
 
@@ -188,6 +201,30 @@ export default function EventFormModal({ isOpen, onClose, onSave, editEvent, pro
 
         {/* Body */}
         <form id="event-form" onSubmit={handleSubmit} className="cpm-event-modal-body">
+
+          {/* Series scope — first, so it's seen before any field is changed */}
+          {editingSeries && (
+            <div className="cpm-form-field">
+              <label className="cpm-form-label" id="event-scope-label">
+                <i className="fas fa-redo" style={{ marginRight: 6 }} aria-hidden="true" />
+                Apply changes to
+              </label>
+              <div className="cpm-series-scope" role="radiogroup" aria-labelledby="event-scope-label">
+                {SCOPE_OPTIONS.map(o => (
+                  <button
+                    key={o.value}
+                    type="button"
+                    role="radio"
+                    aria-checked={scope === o.value}
+                    className={`cpm-event-type-btn${scope === o.value ? ' active' : ''}`}
+                    onClick={() => { setPendingPayload(null); setScope(o.value); }}
+                  >
+                    {o.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Title */}
           <div className="cpm-form-field">

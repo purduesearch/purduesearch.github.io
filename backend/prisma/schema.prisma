@@ -849,6 +849,10 @@ model Event {
   isRecurring       Boolean   @default(false)
   recurrencePattern String?
   recurrenceEndDate DateTime?
+  // Shared by every occurrence of one recurring series (each occurrence is its
+  // own row). An opaque group key, not a foreign key, so deleting the first
+  // occurrence doesn't orphan the rest. Null for one-off events.
+  seriesId          String?
 
   submissions OutreachSubmission[]
   rsvps       EventRsvp[]
@@ -859,6 +863,7 @@ model Event {
 
   @@index([startTime])
   @@index([isPublic, startTime])
+  @@index([seriesId])
   @@index([projectId])
   @@index([organizerId])
   @@index([externalUid])

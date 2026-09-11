@@ -53,6 +53,29 @@ function fromWallClock(w: WallClock, timeZone: string): Date {
   return new Date(naive - zoneOffset(first, timeZone));
 }
 
+// Wall-clock time at `t`, read as if it were UTC. Differences between two of
+// these are wall-clock differences, immune to the zone's DST offset.
+function naiveWallClock(t: number, timeZone: string): number {
+  const w = wallClock(t, timeZone);
+  return Date.UTC(w.y, w.mo, w.d, w.h, w.mi, w.s, w.ms);
+}
+
+/**
+ * Applies to `t` the same local-time change that took `from` to `to`, e.g.
+ * "an hour later" or "a day later at 19:30". Used when editing a whole series:
+ * every occurrence moves the way the edited one did, and an occurrence on the
+ * other side of a DST change still reads the same new local time.
+ */
+export function shiftWallClock(t: Date, from: Date, to: Date, timeZone: string = CLUB_TIME_ZONE): Date {
+  const delta = naiveWallClock(to.getTime(), timeZone) - naiveWallClock(from.getTime(), timeZone);
+  if (delta === 0) return new Date(t);
+  const d = new Date(naiveWallClock(t.getTime(), timeZone) + delta);
+  return fromWallClock({
+    y: d.getUTCFullYear(), mo: d.getUTCMonth(), d: d.getUTCDate(),
+    h: d.getUTCHours(), mi: d.getUTCMinutes(), s: d.getUTCSeconds(), ms: d.getUTCMilliseconds(),
+  }, timeZone);
+}
+
 function daysInMonth(y: number, mo: number): number {
   return new Date(Date.UTC(y, mo + 1, 0)).getUTCDate();
 }

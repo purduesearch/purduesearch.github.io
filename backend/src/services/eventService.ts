@@ -1,6 +1,7 @@
+import { randomUUID } from "node:crypto";
 import { prisma } from "../db/prisma.js";
 import type { EventType } from "@prisma/client";
-import { recurrenceStarts } from "./eventRecurrence.js";
+import { recurrenceStarts, shiftWallClock } from "./eventRecurrence.js";
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -42,6 +43,10 @@ interface UpdateEventInput {
   recurrenceEndDate?: Date;
 }
 
+// Which occurrences of a recurring series an edit applies to. "following"
+// means the edited occurrence and every later one.
+type EditScope = "one" | "following" | "all";
+
 interface EventFilters {
   from?: Date;
   to?: Date;
@@ -69,6 +74,7 @@ interface SeriesBase {
   location?: string | null;
   isVirtual?: boolean;
   isPublic: boolean;
+  seriesId: string;
   recurrencePattern: string;
   recurrenceEndDate?: Date | null;
   projectId?: string | null;
@@ -96,6 +102,7 @@ async function spawnOccurrences(base: SeriesBase) {
           isVirtual:         base.isVirtual,
           isPublic:          base.isPublic,
           isRecurring:       true,
+          seriesId:          base.seriesId,
           recurrencePattern: base.recurrencePattern,
           recurrenceEndDate: base.recurrenceEndDate ?? undefined,
           ...(base.projectId
@@ -124,6 +131,8 @@ function resolveIsPublic(type: EventType | undefined, requested: boolean | undef
 // ── Service ──────────────────────────────────────────────────
 
 export async function createEvent(data: CreateEventInput) {
+  const seriesId = data.isRecurring && data.recurrencePattern ? randomUUID() : undefined;
+
   const event = await prisma.event.create({
     data: {
       title:              data.title,
@@ -136,6 +145,7 @@ export async function createEvent(data: CreateEventInput) {
       isPublic:           resolveIsPublic(data.type, data.isPublic),
       notes:              data.notes,
       isRecurring:        data.isRecurring,
+      seriesId,
       recurrencePattern:  data.recurrencePattern,
       recurrenceEndDate:  data.recurrenceEndDate,
       ...(data.projectId
@@ -155,9 +165,10 @@ export async function createEvent(data: CreateEventInput) {
   });
 
   // Spawn recurring child events if applicable
-  if (data.isRecurring && data.recurrencePattern) {
+  if (seriesId && data.recurrencePattern) {
     await spawnOccurrences({
       ...data,
+      seriesId,
       isPublic:          event.isPublic,
       recurrencePattern: data.recurrencePattern,
     });
@@ -166,7 +177,149 @@ export async function createEvent(data: CreateEventInput) {
   return event;
 }
 
-export async function updateEvent(id: string, data: UpdateEventInput) {
+function findForEdit(id: string) {
+  return prisma.event.findUnique({
+    where: { id },
+    include: {
+      attendees:     { select: { id: true } },
+      priorityTasks: { select: { id: true } },
+    },
+  });
+}
+type EventForEdit = NonNullable<Awaited<ReturnType<typeof findForEdit>>>;
+
+export async function updateEvent(id: string, data: UpdateEventInput, scope: EditScope = "one") {
+  const updateData = buildUpdateData(data);
+
+  const before = await findForEdit(id);
+  if (!before) throw new Error(`Event ${id} not found`);
+
+  // Turning recurrence off is a single-occurrence edit whatever the scope.
+  if (scope !== "one" && before.seriesId && before.isRecurring && data.isRecurring !== false) {
+    return updateSeries(before, data, updateData, scope);
+  }
+
+  // Turning recurrence on for an existing one-off event creates its future
+  // occurrences, same as creating it recurring would have. Already-recurring
+  // events are left alone so re-saving a series never duplicates it.
+  const startsSeries = !before.isRecurring && data.isRecurring === true;
+  if (startsSeries) updateData.seriesId = before.seriesId ?? randomUUID();
+
+  const updated = await prisma.event.update({
+    where: { id },
+    data:  updateData,
+    include: eventInclude,
+  });
+
+  if (startsSeries && updated.seriesId && updated.recurrencePattern) {
+    await spawnOccurrences({
+      ...updated,
+      seriesId:          updated.seriesId,
+      recurrencePattern: updated.recurrencePattern,
+      attendeeIds:       updated.attendees.map(a => a.id),
+    });
+  }
+
+  return updated;
+}
+
+// Applies an edit to several occurrences of a series. Each occurrence keeps
+// its own date: a time or day change moves every occurrence the way the edited
+// one moved (in club-local time, so DST doesn't knock them an hour off).
+async function updateSeries(
+  before: EventForEdit,
+  data: UpdateEventInput,
+  updateData: Record<string, unknown>,
+  scope: "following" | "all",
+) {
+  const shared = seriesChanges(before, data, updateData);
+
+  const newStart = data.startTime ?? before.startTime;
+  const newEnd   = data.endTime   ?? before.endTime;
+  const timeChanged = newStart.getTime() !== before.startTime.getTime()
+    || newEnd?.getTime() !== before.endTime?.getTime();
+  const duration = newEnd ? newEnd.getTime() - newStart.getTime() : null;
+
+  // "This and following" splits the series in two, as Google Calendar does,
+  // so a later edit to the earlier half doesn't undo this one.
+  const seriesId = scope === "following" ? randomUUID() : before.seriesId!;
+  const rows = await prisma.event.findMany({
+    where: {
+      seriesId: before.seriesId,
+      ...(scope === "following" ? { startTime: { gte: before.startTime } } : {}),
+    },
+    select: { id: true, startTime: true, endTime: true },
+  });
+
+  const writes = rows.flatMap(row => {
+    const rowData: Record<string, unknown> = { ...shared };
+    if (scope === "following") rowData.seriesId = seriesId;
+    if (timeChanged) {
+      const start = shiftWallClock(row.startTime, before.startTime, newStart);
+      rowData.startTime = start;
+      if (duration !== null) rowData.endTime = new Date(start.getTime() + duration);
+      else if (row.endTime) rowData.endTime = shiftWallClock(row.endTime, before.startTime, newStart);
+    }
+    return Object.keys(rowData).length
+      ? [prisma.event.update({ where: { id: row.id }, data: rowData })]
+      : [];
+  });
+  await prisma.$transaction(writes);
+
+  // A new pattern or end date invalidates the later occurrences' dates, so
+  // recreate them from the edited one. RSVPs on the removed rows go with them.
+  if ("recurrencePattern" in shared || "recurrenceEndDate" in shared) {
+    const anchor = await prisma.event.findUniqueOrThrow({
+      where: { id: before.id },
+      include: { attendees: { select: { id: true } } },
+    });
+    if (anchor.recurrencePattern) {
+      await prisma.event.deleteMany({ where: { seriesId, startTime: { gt: anchor.startTime } } });
+      await spawnOccurrences({
+        ...anchor,
+        seriesId,
+        recurrencePattern: anchor.recurrencePattern,
+        attendeeIds:       anchor.attendees.map(a => a.id),
+      });
+    }
+  }
+
+  return prisma.event.findUniqueOrThrow({ where: { id: before.id }, include: eventInclude });
+}
+
+// The subset of an update that actually changes the edited occurrence. The
+// edit form sends every field, so without this a series edit that only
+// renamed the event would also overwrite a room someone changed on one week.
+function seriesChanges(before: EventForEdit, data: UpdateEventInput, updateData: Record<string, unknown>) {
+  const norm = (v: unknown) =>
+    v instanceof Date ? v.getTime() : v === "" || v === undefined ? null : v;
+  const sameIds = (ids: string[], rows: { id: string }[]) =>
+    ids.length === rows.length && rows.every(r => ids.includes(r.id));
+
+  const out: Record<string, unknown> = {};
+  const scalars = [
+    "title", "description", "type", "location", "isVirtual", "isPublic", "notes",
+    "recurrencePattern", "recurrenceEndDate",
+  ] as const;
+  for (const k of scalars) {
+    if (k in updateData && norm(updateData[k]) !== norm(before[k])) out[k] = updateData[k];
+  }
+  if (data.projectId !== undefined && norm(data.projectId) !== before.projectId) {
+    out.project = updateData.project;
+  }
+  if (data.organizerId !== undefined && norm(data.organizerId) !== before.organizerId) {
+    out.organizer = updateData.organizer;
+  }
+  if (data.attendeeIds !== undefined && !sameIds(data.attendeeIds, before.attendees)) {
+    out.attendees = updateData.attendees;
+  }
+  if (data.priorityTaskIds !== undefined && !sameIds(data.priorityTaskIds, before.priorityTasks)) {
+    out.priorityTasks = updateData.priorityTasks;
+  }
+  return out;
+}
+
+function buildUpdateData(data: UpdateEventInput): Record<string, any> {
   const updateData: any = {};
 
   if (data.title             !== undefined) updateData.title             = data.title;
@@ -202,28 +355,7 @@ export async function updateEvent(id: string, data: UpdateEventInput) {
     updateData.priorityTasks = { set: data.priorityTaskIds.map(id => ({ id })) };
   }
 
-  // Turning recurrence on for an existing one-off event creates its future
-  // occurrences, same as creating it recurring would have. Already-recurring
-  // events are left alone so re-saving a series never duplicates it.
-  const wasRecurring = data.isRecurring
-    ? (await prisma.event.findUnique({ where: { id }, select: { isRecurring: true } }))?.isRecurring ?? false
-    : true;
-
-  const updated = await prisma.event.update({
-    where: { id },
-    data:  updateData,
-    include: eventInclude,
-  });
-
-  if (!wasRecurring && updated.isRecurring && updated.recurrencePattern) {
-    await spawnOccurrences({
-      ...updated,
-      recurrencePattern: updated.recurrencePattern,
-      attendeeIds:       updated.attendees.map(a => a.id),
-    });
-  }
-
-  return updated;
+  return updateData;
 }
 
 export async function deleteEvent(id: string) {
@@ -295,4 +427,4 @@ export async function getEvent(id: string) {
   });
 }
 
-export type { CreateEventInput, UpdateEventInput, EventFilters };
+export type { CreateEventInput, UpdateEventInput, EditScope, EventFilters };

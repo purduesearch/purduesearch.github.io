@@ -4,7 +4,7 @@
 // Excluded from the production build (tsconfig `exclude` covers *.test.ts).
 // Same inline assertion harness as icsFeedService.test.ts.
 
-import { recurrenceStarts, MAX_OCCURRENCES } from "./eventRecurrence.js";
+import { recurrenceStarts, shiftWallClock, MAX_OCCURRENCES } from "./eventRecurrence.js";
 
 let passed = 0, failed = 0;
 function check(name: string, cond: boolean) {
@@ -69,6 +69,27 @@ console.log("recurrenceStarts — calendar months");
 
   const dec = recurrenceStarts(new Date("2026-12-10T15:00:00Z"), "monthly");
   check("monthly rolls over the year", wall(dec[0]).startsWith("2027-01-10"));
+}
+
+console.log("shiftWallClock — editing a whole series");
+{
+  // The edited occurrence moves 19:00 → 20:00 on a September (EDT) date.
+  const from = START;                               // Thu 2026-09-17 19:00 EDT
+  const to   = new Date("2026-09-18T00:00:00Z");    // Thu 2026-09-17 20:00 EDT
+  check("same occurrence lands on the new time",
+    wall(shiftWallClock(from, from, to)) === "2026-09-17 20:00");
+  // A November occurrence is in EST; it must also read 20:00, not 19:00.
+  const nov = new Date("2026-11-19T00:00:00Z");     // Wed 2026-11-18 19:00 EST
+  check("occurrence across DST keeps the local-time change",
+    wall(shiftWallClock(nov, from, to)) === "2026-11-18 20:00");
+
+  // Moving the edited occurrence to the next day moves every occurrence by a day.
+  const nextDay = new Date("2026-09-18T23:30:00Z"); // Fri 2026-09-18 19:30 EDT
+  check("day and time change both carry over",
+    wall(shiftWallClock(nov, from, nextDay)) === "2026-11-19 19:30");
+
+  check("no change leaves the time alone",
+    shiftWallClock(nov, from, from).getTime() === nov.getTime());
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);

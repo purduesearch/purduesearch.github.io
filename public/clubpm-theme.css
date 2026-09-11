@@ -26882,3 +26882,12 @@ button.pm-an-risk-factor-row:hover { background: rgba(255, 255, 255, 0.04); }
   border: 1px solid rgba(245, 166, 35, 0.4);
 }
 .cpm-event-public-confirm i { margin-top: 2px; color: var(--pm-accent-amber, #f5a623); }
+
+/* Event form — "Apply changes to" choice when editing a recurring series */
+.cpm-series-scope { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.cpm-series-scope .cpm-event-type-btn { padding: 9px 6px; text-transform: none; letter-spacing: 0; font-size: 12px; }
+.cpm-series-scope .cpm-event-type-btn.active {
+  border-color: var(--pm-accent-teal, #00e5cc);
+  background: rgba(0, 229, 204, 0.09);
+  color: var(--pm-accent-teal, #00e5cc);
+}
