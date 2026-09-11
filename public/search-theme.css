@@ -6966,3 +6966,6 @@ button.home-events-day[aria-pressed="true"] .home-events-dot { background: #fff 
 @media (prefers-reduced-motion: reduce) {
   .home-events-skeleton { animation: none; }
 }
+
+/* Contact page — no hero, so clear the fixed navbar. */
+.contact-page { padding-top: var(--navbar-height); }

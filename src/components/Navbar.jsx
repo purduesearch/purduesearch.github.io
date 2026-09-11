@@ -13,7 +13,9 @@ const NAV_LINKS = [
 
 const TEAMS_PATHS = ['/research', '/sa2tp', '/software', '/astrousa', '/ares'];
 
-const Navbar = () => {
+// `solid` keeps the opaque bar at scrollY 0 — for pages with no dark hero
+// behind the navbar, where the transparent state's white links vanish.
+const Navbar = ({ solid = false }) => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [teamsOpen, setTeamsOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -72,7 +74,7 @@ const Navbar = () => {
   };
 
   return (
-    <nav id="header-navbar" className={`navbar navbar-expand-lg${(isScrolled || menuOpen) ? '' : ' nav-transparent'}`}>
+    <nav id="header-navbar" className={`navbar navbar-expand-lg${(solid || isScrolled || menuOpen) ? '' : ' nav-transparent'}`}>
       <div className="container">
 
         {/* ── Mobile: brand + toggler come FIRST so they stay in the top row

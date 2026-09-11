@@ -455,6 +455,9 @@ const Home = () => {
       </div>
       </main>{/* /hero-scroll-extender */}
 
+      {/* ===== UPCOMING EVENTS — public Constellation events (isPublic, non-deadline) ===== */}
+      <PublicEventsCalendar />
+
       <section id="client" className="overlay parallax-host" aria-label="Outreach partners">
         <div className="parallax-bg" ref={clientBgRef} style={{ backgroundImage: 'url(/bg.webp)' }} aria-hidden="true" />
         <div className="container">
@@ -628,9 +631,6 @@ const Home = () => {
           </div>
         </div>
       </section>
-
-      {/* ===== UPCOMING EVENTS — public Constellation events (isPublic, non-deadline) ===== */}
-      <PublicEventsCalendar />
 
       {/* ===== ABOUT SEARCH — 2-column brand story ===== */}
       <section id="about-search" className="about-video-section" ref={aboutSearchSectionRef}>
