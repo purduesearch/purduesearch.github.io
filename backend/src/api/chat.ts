@@ -1,5 +1,6 @@
 import { pipeline } from "node:stream/promises";
 import { Router, type Request, type Response } from "express";
+import multer from "multer";
 import { requireAuth } from "./auth.js";
 import { fileProxyAuth } from "./projectChat.js";
 import { prisma } from "../db/prisma.js";
@@ -8,6 +9,11 @@ import { canReadConversation, type ConversationKind } from "../services/slackCon
 import { buildFormatContext, loadMessages, toDto, previewText } from "../services/chatDto.js";
 import { unreadCounts, markConversationRead } from "../services/slackReadService.js";
 import { resolveFileStream } from "../services/slackFileService.js";
+import { validateOutgoingText, validateDmTargets, normalizeEmojiName } from "../services/slackSendRules.js";
+import {
+  SendError, sendMessage, editMessage, deleteMessage, react, uploadFile, openDm, joinChannel,
+} from "../services/slackSendService.js";
+import { importMemberDms } from "../services/slackBackfillService.js";
 
 /**
  * /api/chat — the conversation-scoped Slack portal API.
@@ -263,5 +269,137 @@ chatRouter.get("/files/:slackFileId", fileProxyAuth, async (req: Request, res: R
     console.error("chat/files error:", error);
     if (!res.headersSent) res.status(500).json({ error: "Failed to load file" });
     else res.destroy();
+  }
+});
+
+// ── Writes (all as the member's own Slack identity) ──────────
+
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024, files: 1 } });
+
+function fail(res: Response, err: unknown, label: string): void {
+  if (err instanceof SendError) {
+    if (err.failure.status === 200) return void res.json({ ok: true });
+    return void res.status(err.failure.status).json({ error: err.failure.message, code: err.failure.code });
+  }
+  console.error(`chat/${label} error:`, err);
+  res.status(500).json({ error: "Something went wrong talking to Slack" });
+}
+
+/** Posting needs real membership; a public channel you haven't joined offers "Join". */
+function requireParticipant(req: Request, res: Response): boolean {
+  if (req.conversation?.canPost) return true;
+  res.status(403).json({
+    error: req.conversation?.kind === "CHANNEL" ? "Join this channel to post in it." : "You are not in this conversation.",
+    code: "not_in_channel",
+  });
+  return false;
+}
+
+const optionalTs = (v: unknown): string | undefined => (typeof v === "string" && TS_RE.test(v) ? v : undefined);
+
+chatRouter.post("/conversations/:channelId/messages", requireAuth, requireConversationRead, async (req: Request, res: Response) => {
+  if (!requireParticipant(req, res)) return;
+  const v = validateOutgoingText(req.body?.text);
+  if (!v.ok) return void res.status(v.failure.status).json({ error: v.failure.message, code: v.failure.code });
+  try {
+    const c = req.conversation!;
+    res.json(await sendMessage(req.memberId!, c.channelId, c.kind!, {
+      text: v.text,
+      threadTs: optionalTs(req.body?.threadTs),
+      broadcast: req.body?.broadcast === true,
+    }));
+  } catch (err) {
+    fail(res, err, "send");
+  }
+});
+
+chatRouter.patch("/conversations/:channelId/messages/:ts", requireAuth, requireConversationRead, async (req: Request, res: Response) => {
+  if (!requireParticipant(req, res)) return;
+  const ts = optionalTs(req.params.ts);
+  if (!ts) return void res.status(400).json({ error: "Bad ts" });
+  const v = validateOutgoingText(req.body?.text);
+  if (!v.ok) return void res.status(v.failure.status).json({ error: v.failure.message, code: v.failure.code });
+  try {
+    const c = req.conversation!;
+    await editMessage(req.memberId!, c.channelId, c.kind!, ts, v.text);
+    res.json({ ok: true });
+  } catch (err) {
+    fail(res, err, "edit");
+  }
+});
+
+chatRouter.delete("/conversations/:channelId/messages/:ts", requireAuth, requireConversationRead, async (req: Request, res: Response) => {
+  if (!requireParticipant(req, res)) return;
+  const ts = optionalTs(req.params.ts);
+  if (!ts) return void res.status(400).json({ error: "Bad ts" });
+  try {
+    const c = req.conversation!;
+    await deleteMessage(req.memberId!, c.channelId, c.kind!, ts);
+    res.json({ ok: true });
+  } catch (err) {
+    fail(res, err, "delete");
+  }
+});
+
+chatRouter.post("/conversations/:channelId/messages/:ts/reactions", requireAuth, requireConversationRead, async (req: Request, res: Response) => {
+  if (!requireParticipant(req, res)) return;
+  const ts = optionalTs(req.params.ts);
+  const name = normalizeEmojiName(req.body?.emoji);
+  if (!ts || !name) return void res.status(400).json({ error: "Bad reaction" });
+  try {
+    await react(req.memberId!, req.conversation!.channelId, ts, name, req.body?.add !== false);
+    res.json({ ok: true });
+  } catch (err) {
+    fail(res, err, "react");
+  }
+});
+
+chatRouter.post("/conversations/:channelId/files", requireAuth, requireConversationRead, upload.single("file"), async (req: Request, res: Response) => {
+  if (!requireParticipant(req, res)) return;
+  const file = req.file;
+  if (!file) return void res.status(400).json({ error: "No file" });
+  const comment = typeof req.body?.comment === "string" && req.body.comment.trim() ? req.body.comment.trim().slice(0, 4000) : undefined;
+  try {
+    await uploadFile(req.memberId!, req.conversation!.channelId, { buffer: file.buffer, filename: file.originalname }, {
+      threadTs: optionalTs(req.body?.threadTs),
+      comment,
+    });
+    res.json({ ok: true });
+  } catch (err) {
+    fail(res, err, "upload");
+  }
+});
+
+chatRouter.post("/conversations/:channelId/join", requireAuth, requireConversationRead, async (req: Request, res: Response) => {
+  const c = req.conversation!;
+  if (c.kind !== "CHANNEL") return void res.status(400).json({ error: "Only public channels can be joined" });
+  if (c.isParticipant) return void res.json({ ok: true });
+  try {
+    await joinChannel(req.memberId!, c.channelId);
+    res.json({ ok: true });
+  } catch (err) {
+    fail(res, err, "join");
+  }
+});
+
+chatRouter.post("/dms", requireAuth, async (req: Request, res: Response) => {
+  const v = validateDmTargets(req.memberId!, req.body?.memberIds);
+  if (!v.ok) return void res.status(v.failure.status).json({ error: v.failure.message, code: v.failure.code });
+  try {
+    res.json(await openDm(req.memberId!, v.ids));
+  } catch (err) {
+    fail(res, err, "open-dm");
+  }
+});
+
+chatRouter.post("/dms/import", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const r = await importMemberDms(req.memberId!);
+    if (!r.started && r.reason === "reconnect") {
+      return void res.status(409).json({ error: "Reconnect Slack to import your DMs.", code: "reconnect" });
+    }
+    res.json(r);
+  } catch (err) {
+    fail(res, err, "import-dms");
   }
 });
