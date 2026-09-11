@@ -3,11 +3,10 @@ import { Router, type Request, type Response, type NextFunction } from "express"
 import { requireAuth, verifyBearerToken } from "./auth.js";
 import { requireProjectChatRead, getProjectChatAccess } from "../middleware/projectChatAccess.js";
 import { prisma } from "../db/prisma.js";
-import { formatSlackText, type FormatContext } from "../services/slackMessageFormat.js";
+import { buildFormatContext, loadMessages, toDto } from "../services/chatDto.js";
 import {
   resolveFileStream,
   getStorageHealth,
-  getCustomEmoji,
   requeueFailedMirrors,
   sweepExpiringFiles,
 } from "../services/slackFileService.js";
@@ -23,67 +22,6 @@ function requestedChannel(req: Request): string | null {
   const allowed = req.chatChannelIds ?? [];
   if (wanted) return allowed.includes(wanted) ? wanted : null;
   return allowed[0] ?? null;
-}
-
-/**
- * Build the mention/emoji lookup for a page of messages. One query per page
- * rather than one per message — the reason this project parses on read.
- */
-async function buildFormatContext(): Promise<FormatContext> {
-  // Member.slackId is non-nullable in this schema, so every row carries one.
-  const members = await prisma.member.findMany({
-    select: { slackId: true, displayName: true },
-  });
-  const memberNames: Record<string, string> = {};
-  for (const m of members) if (m.slackId) memberNames[m.slackId] = m.displayName;
-
-  return { memberNames, emojiUrls: await getCustomEmoji() };
-}
-
-type MessageRow = Awaited<ReturnType<typeof loadMessages>>[number];
-
-async function loadMessages(where: Record<string, unknown>, take: number, asc = false) {
-  return prisma.slackMessage.findMany({
-    where,
-    orderBy: { postedAt: asc ? "asc" : "desc" },
-    take,
-    include: {
-      files: {
-        select: {
-          id: true, slackFileId: true, name: true, mimeType: true, sizeBytes: true,
-          isImage: true, width: true, height: true, storage: true,
-        },
-      },
-    },
-  });
-}
-
-function toDto(row: MessageRow, ctx: FormatContext) {
-  const reactions = (row.reactions as Record<string, { count: number }> | null) ?? {};
-  return {
-    id: row.id,
-    ts: row.ts,
-    threadTs: row.threadTs,
-    replyCount: row.replyCount,
-    authorName: row.authorName,
-    authorAvatarUrl: row.authorAvatarUrl,
-    memberId: row.memberId,
-    tokens: row.deletedAt ? [] : formatSlackText(row.text, ctx),
-    editedAt: row.editedAt,
-    deletedAt: row.deletedAt,
-    postedAt: row.postedAt,
-    reactions: Object.entries(reactions).map(([emoji, v]) => ({ emoji, count: v.count })),
-    files: row.deletedAt ? [] : row.files.map((f) => ({
-      id: f.slackFileId,
-      name: f.name,
-      mimeType: f.mimeType,
-      sizeBytes: f.sizeBytes,
-      isImage: f.isImage,
-      width: f.width,
-      height: f.height,
-      storage: f.storage,
-    })),
-  };
 }
 
 // ── GET /api/projects/:projectId/chat/channels ───────────────
