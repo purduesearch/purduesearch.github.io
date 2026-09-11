@@ -71,3 +71,22 @@ export function parsePastedPlan(raw: string): unknown[] | null {
   }
   return null;
 }
+
+/**
+ * Pull a blog section plan out of a pasted reply: `{ sections, meta? }` or a
+ * bare sections array. Returns the parsed root for validateSectionPlan (which
+ * accepts both shapes), or null when nothing section-plan-shaped was found.
+ */
+export function parsePastedSectionPlan(raw: string): unknown | null {
+  const block = extractJsonBlock(raw);
+  if (!block) return null;
+
+  let parsed: unknown;
+  try { parsed = JSON.parse(block); } catch { return null; }
+
+  if (Array.isArray(parsed)) return parsed;
+  if (parsed && typeof parsed === "object" && Array.isArray((parsed as Record<string, unknown>).sections)) {
+    return parsed;
+  }
+  return null;
+}

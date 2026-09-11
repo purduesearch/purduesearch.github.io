@@ -2,7 +2,11 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { listBlogPosts, createBlogPost, generateBlogPost, deleteBlogPost } from '../../api/clubPmClient';
+import {
+  listBlogPosts, createBlogPost, generateBlogPost, deleteBlogPost,
+  getBlogPlanPrompt, importBlogPlan, createBlogPostFromPlan,
+} from '../../api/clubPmClient';
+import ClaudePromptSteps from './ClaudePromptSteps';
 
 const STATUS_FILTERS = [
   { id: '',          label: 'All' },
@@ -17,17 +21,133 @@ function fmt(dateStr) {
   return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
+// How each section type reads in the pasted-plan outline. Mirrors PLAN_TYPES in
+// backend/src/services/sectionPlan.ts (the press-kit-only data placeholders are
+// dropped server-side before a blog outline ever reaches here).
+const SECTION_LABELS = {
+  hero:      { label: 'Hero',           icon: 'fa-heading' },
+  richText:  { label: 'Text',           icon: 'fa-align-left' },
+  columns:   { label: 'Columns',        icon: 'fa-table-columns' },
+  mediaText: { label: 'Media + text',   icon: 'fa-photo-film' },
+  image:     { label: 'Image',          icon: 'fa-image' },
+  gallery:   { label: 'Gallery',        icon: 'fa-images' },
+  callout:   { label: 'Callout',        icon: 'fa-circle-info' },
+  quote:     { label: 'Quote',          icon: 'fa-quote-left' },
+  cta:       { label: 'Call to action', icon: 'fa-bullhorn' },
+  divider:   { label: 'Divider',        icon: 'fa-minus' },
+  embed:     { label: 'Embed',          icon: 'fa-play' },
+  toc:       { label: 'Contents',       icon: 'fa-list-ol' },
+  stats:     { label: 'Stats',          icon: 'fa-chart-simple' },
+};
+
+// One line of human-readable summary for an outline row.
+function sectionSummary(s) {
+  const firstLine = (md) => (md || '').split('\n').map((l) => l.replace(/^(?:[#>*\-|\s]|\d+\.|\[[ x]\])+/i, '').trim()).find(Boolean) || '';
+  const pick = s.heading || s.label || s.text || s.imageCaption || s.imageAlt || s.url
+    || firstLine(s.markdown) || firstLine(s.columns?.[0]?.markdown)
+    || (s.stats?.length ? s.stats.map((x) => `${x.value} ${x.label}`).join(' · ') : '');
+  return pick.length > 90 ? `${pick.slice(0, 89)}…` : pick;
+}
+
 // Dialog that turns raw text (notes / brief / outline / rough draft) into a
-// designed, section-based blog draft via the AI section-plan pipeline.
+// designed, section-based blog draft. Two lanes, same pipeline:
+//  - Built-in AI: the server runs the prompt on the club's quota.
+//  - Plan with Claude: the member runs the same prompt in their own chat, pastes
+//    the reply back, reviews the outline, then creates the draft. Mirrors the
+//    project Action Plan's clipboard lane (ActionPlanReview.jsx).
 function GenerateModal({ onClose, onDone }) {
+  const [mode, setMode]         = useState('builtin'); // 'builtin' | 'claude'
   const [text, setText]         = useState('');
   const [title, setTitle]       = useState('');
   const [guidance, setGuidance] = useState('');
   const [busy, setBusy]         = useState(false);
 
-  // Close on Escape (unless generating) and lock page scroll while open.
+  // Clipboard lane
+  const [promptText, setPromptText]   = useState('');
+  // The inputs the current prompt was built from — editing any of them after
+  // building leaves a prompt for different notes under "copy this".
+  const [promptKey, setPromptKey]     = useState('');
+  const [loadingPrompt, setLoadingPrompt] = useState(false);
+  const [pasteText, setPasteText]     = useState('');
+  const [importing, setImporting]     = useState(false);
+  const [imported, setImported]       = useState(null); // { plan, dropped, title }
+  const [draftTitle, setDraftTitle]   = useState('');
+  const [creating, setCreating]       = useState(false);
+
+  const claude = mode === 'claude';
+  const inputKey = JSON.stringify([text.trim(), title.trim(), guidance.trim()]);
+  const promptStale = Boolean(promptText) && inputKey !== promptKey;
+  const locked = busy || loadingPrompt || importing || creating;
+
+  function switchMode(next) {
+    if (next === mode || locked) return;
+    setMode(next);
+    setPromptText('');
+    setPromptKey('');
+    setPasteText('');
+    setImported(null);
+  }
+
+  function resetClipboard() {
+    setPromptText('');
+    setPromptKey('');
+    setPasteText('');
+    setImported(null);
+  }
+
+  const buildPrompt = async () => {
+    if (!text.trim() || loadingPrompt) return;
+    setLoadingPrompt(true);
+    try {
+      const payload = { text: text.trim() };
+      if (title.trim()) payload.title = title.trim();
+      if (guidance.trim()) payload.guidance = guidance.trim();
+      const { prompt } = await getBlogPlanPrompt(payload);
+      setPromptText(prompt);
+      setPromptKey(inputKey);
+    } catch (err) {
+      toast.error(err.message ?? "Couldn't build the prompt. Try again.");
+    } finally {
+      setLoadingPrompt(false);
+    }
+  };
+
+  const loadReply = async () => {
+    if (!pasteText.trim() || importing) return;
+    setImporting(true);
+    try {
+      const result = await importBlogPlan(pasteText);
+      setImported(result);
+      setDraftTitle(title.trim() || result.title || '');
+      if (result.plan?.sections?.length) {
+        const n = result.plan.sections.length;
+        toast.success(`Loaded ${n} section${n === 1 ? '' : 's'}`);
+      } else {
+        toast.error('That reply had no sections the editor can use.');
+      }
+    } catch (err) {
+      toast.error(err.message ?? "Couldn't read that reply.");
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const createDraft = async () => {
+    if (!imported?.plan?.sections?.length || creating) return;
+    setCreating(true);
+    try {
+      const post = await createBlogPostFromPlan(imported.plan, draftTitle.trim() || undefined);
+      toast.success('Draft created');
+      onDone(post);
+    } catch (err) {
+      toast.error(err.message ?? 'Could not create the draft');
+      setCreating(false);
+    }
+  };
+
+  // Close on Escape (unless a request is in flight) and lock page scroll while open.
   useEffect(() => {
-    const onKey = (e) => { if (e.key === 'Escape' && !busy) onClose(); };
+    const onKey = (e) => { if (e.key === 'Escape' && !locked) onClose(); };
     document.addEventListener('keydown', onKey);
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
@@ -35,7 +155,7 @@ function GenerateModal({ onClose, onDone }) {
       document.removeEventListener('keydown', onKey);
       document.body.style.overflow = prevOverflow;
     };
-  }, [busy, onClose]);
+  }, [locked, onClose]);
 
   const submit = async () => {
     if (!text.trim() || busy) return;
@@ -53,21 +173,52 @@ function GenerateModal({ onClose, onDone }) {
     }
   };
 
+  const sections = imported?.plan?.sections ?? [];
+  const meta = imported?.plan?.meta;
+  const dropped = imported?.dropped ?? [];
+
   return createPortal(
     <div
       className="cpm-modal-overlay"
-      onClick={(e) => { if (e.target === e.currentTarget && !busy) onClose(); }}
+      onClick={(e) => { if (e.target === e.currentTarget && !locked) onClose(); }}
     >
       <div
-        className="cpm-blog-genmodal"
+        className={`cpm-blog-genmodal${claude ? ' cpm-blog-genmodal--wide' : ''}`}
         role="dialog"
         aria-modal="true"
         aria-label="Generate blog post from text"
       >
         <div className="cpm-blog-genmodal-head">
           <h3><i className="fas fa-wand-magic-sparkles" aria-hidden="true" /> Generate blog post from text</h3>
-          <button type="button" className="cpm-blog-genmodal-x" onClick={onClose} disabled={busy} aria-label="Close">
+          <button type="button" className="cpm-blog-genmodal-x" onClick={onClose} disabled={locked} aria-label="Close">
             <i className="fas fa-xmark" aria-hidden="true" />
+          </button>
+        </div>
+
+        <div className="cpm-actionplan-mode-row" role="group" aria-label="How to write the draft">
+          <button
+            type="button"
+            className={`cpm-actionplan-mode-btn${claude ? '' : ' active'}`}
+            aria-pressed={!claude}
+            onClick={() => switchMode('builtin')}
+            disabled={locked}
+          >
+            <span className="cpm-actionplan-mode-name">
+              <i className="fas fa-wand-magic-sparkles" aria-hidden="true" /> Built-in AI
+            </span>
+            <span className="cpm-actionplan-mode-sub">Writes the draft for you, on the club's quota</span>
+          </button>
+          <button
+            type="button"
+            className={`cpm-actionplan-mode-btn${claude ? ' active' : ''}`}
+            aria-pressed={claude}
+            onClick={() => switchMode('claude')}
+            disabled={locked}
+          >
+            <span className="cpm-actionplan-mode-name">
+              <i className="fas fa-clipboard" aria-hidden="true" /> Plan with Claude
+            </span>
+            <span className="cpm-actionplan-mode-sub">You run the prompt in your own chat, then paste it back</span>
           </button>
         </div>
 
@@ -77,16 +228,16 @@ function GenerateModal({ onClose, onDone }) {
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Post title"
-          disabled={busy}
+          disabled={locked}
         />
 
         <label className="cpm-blog-genmodal-lab">Your text, notes, or brief</label>
         <textarea
-          className="cpm-blog-genmodal-textarea"
+          className={`cpm-blog-genmodal-textarea${claude ? ' cpm-blog-genmodal-textarea--short' : ''}`}
           value={text}
           onChange={(e) => setText(e.target.value)}
           placeholder="Paste the raw text, meeting notes, an outline, or a rough draft…"
-          disabled={busy}
+          disabled={locked}
           autoFocus
         />
 
@@ -96,16 +247,128 @@ function GenerateModal({ onClose, onDone }) {
           value={guidance}
           onChange={(e) => setGuidance(e.target.value)}
           placeholder="e.g. announcement tone, focus on the technical challenges"
-          disabled={busy}
+          disabled={locked}
         />
 
+        {claude && (
+          <ClaudePromptSteps
+            help={<>
+              ClubPM makes no AI call in this mode, so it spends none of the club's quota. The prompt
+              carries the text above plus the blog's tag and category names, and describes every
+              section, layout, and formatting option the editor supports — you are handing that to
+              whichever chat app you paste it into.
+            </>}
+            step1={<>
+              {/* <div>, not <p> — see the colour note in ClaudePromptSteps. */}
+              <div className={`cpm-actionplan-step-note${promptStale ? ' is-stale' : ''}`} role="status">
+                {promptStale
+                  ? <><i className="fas fa-triangle-exclamation" aria-hidden="true" /> The text changed since this prompt was built. Rebuild it to match.</>
+                  : promptText
+                    ? <><i className="fas fa-circle-check" aria-hidden="true" /> Ready — built from the text above.</>
+                    : 'Fill in your text above, then build the prompt.'}
+              </div>
+              <button
+                type="button"
+                className="clubpm-btn-primary"
+                onClick={buildPrompt}
+                disabled={loadingPrompt || !text.trim()}
+              >
+                {loadingPrompt
+                  ? <><i className="fas fa-spinner fa-spin" aria-hidden="true" /> Building…</>
+                  : <><i className="fas fa-file-lines" aria-hidden="true" /> {promptText ? 'Rebuild prompt' : 'Build prompt'}</>}
+              </button>
+            </>}
+            promptText={promptText}
+            stale={promptStale}
+            pasteText={pasteText}
+            onPasteChange={setPasteText}
+            onImport={loadReply}
+            importing={importing}
+            importLabel="Load draft"
+            onStartOver={resetClipboard}
+          />
+        )}
+
+        {claude && dropped.length > 0 && (
+          <div className="cpm-actionplan-dropped" role="status" aria-live="polite">
+            <div className="cpm-actionplan-dropped-head">
+              <i className="fas fa-filter-circle-xmark" aria-hidden="true" />
+              <span>
+                {dropped.length} section{dropped.length === 1 ? '' : 's'} couldn't be used.
+                {sections.length ? ' The rest loaded below.' : ''}
+              </span>
+            </div>
+            <ul>
+              {dropped.map((d, i) => (
+                <li key={`${d.index}-${i}`}>
+                  <code className="cpm-actionplan-dropped-type">{SECTION_LABELS[d.type]?.label ?? d.type}</code>
+                  {d.reason}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {claude && sections.length > 0 && (
+          <div className="cpm-blog-genmodal-review">
+            <label className="cpm-blog-genmodal-lab" htmlFor="cpm-blog-genmodal-draft-title">Draft title</label>
+            <input
+              id="cpm-blog-genmodal-draft-title"
+              className="cpm-blog-genmodal-input"
+              value={draftTitle}
+              onChange={(e) => setDraftTitle(e.target.value)}
+              placeholder="Untitled post"
+              disabled={creating}
+            />
+
+            <div className="cpm-blog-genmodal-lab">
+              Outline <span>({sections.length} section{sections.length === 1 ? '' : 's'} — edit anything in the editor afterwards)</span>
+            </div>
+            <ol className="cpm-blog-genmodal-outline">
+              {sections.map((s, i) => {
+                const info = SECTION_LABELS[s.type] ?? { label: s.type, icon: 'fa-square' };
+                const summary = sectionSummary(s);
+                return (
+                  <li key={i} className="cpm-blog-genmodal-outline-row">
+                    <i className={`fas ${info.icon}`} aria-hidden="true" />
+                    <code className="cpm-blog-genmodal-outline-type">{info.label}</code>
+                    {summary && <div className="cpm-blog-genmodal-outline-text">{summary}</div>}
+                  </li>
+                );
+              })}
+            </ol>
+
+            {meta && (meta.excerpt || meta.metaDescription || meta.tags?.length || meta.categories?.length) && (
+              <dl className="cpm-blog-genmodal-meta">
+                {meta.excerpt && <><dt>Excerpt</dt><dd>{meta.excerpt}</dd></>}
+                {meta.metaDescription && <><dt>SEO description</dt><dd>{meta.metaDescription}</dd></>}
+                {meta.tags?.length > 0 && <><dt>Tags</dt><dd>{meta.tags.join(', ')}</dd></>}
+                {meta.categories?.length > 0 && <><dt>Categories</dt><dd>{meta.categories.join(', ')}</dd></>}
+              </dl>
+            )}
+          </div>
+        )}
+
         <div className="cpm-blog-genmodal-actions">
-          <button type="button" className="clubpm-btn-secondary" onClick={onClose} disabled={busy}>Cancel</button>
-          <button type="button" className="clubpm-btn-primary" onClick={submit} disabled={busy || !text.trim()}>
-            {busy
-              ? <><i className="fas fa-spinner fa-spin" aria-hidden="true" style={{ marginRight: 6 }} />Generating…</>
-              : <><i className="fas fa-wand-magic-sparkles" aria-hidden="true" style={{ marginRight: 6 }} />Generate</>}
-          </button>
+          <button type="button" className="clubpm-btn-secondary" onClick={onClose} disabled={locked}>Cancel</button>
+          {claude ? (
+            <button
+              type="button"
+              className="clubpm-btn-primary"
+              onClick={createDraft}
+              disabled={creating || !sections.length}
+            >
+              {creating
+                ? <><i className="fas fa-spinner fa-spin" aria-hidden="true" style={{ marginRight: 6 }} />Creating…</>
+                : <><i className="fas fa-file-circle-plus" aria-hidden="true" style={{ marginRight: 6 }} />Create draft</>}
+            </button>
+          ) : (
+            <button type="button" className="clubpm-btn-primary" onClick={submit} disabled={busy || !text.trim()}>
+              {busy
+                ? <><i className="fas fa-spinner fa-spin" aria-hidden="true" style={{ marginRight: 6 }} />Generating…</>
+                : <><i className="fas fa-wand-magic-sparkles" aria-hidden="true" style={{ marginRight: 6 }} />Generate</>}
+            </button>
+          )}
         </div>
       </div>
     </div>,
