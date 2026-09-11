@@ -82,6 +82,7 @@ eventsRouter.post("/", async (req: Request, res: Response) => {
       endTime,
       location,
       isVirtual,
+      isPublic,
       projectId,
       priorityTaskIds,
       organizerId,
@@ -98,6 +99,7 @@ eventsRouter.post("/", async (req: Request, res: Response) => {
       endTime?: string;
       location?: string;
       isVirtual?: boolean;
+      isPublic?: boolean;
       projectId?: string;
       priorityTaskIds?: string[];
       organizerId?: string;
@@ -121,6 +123,7 @@ eventsRouter.post("/", async (req: Request, res: Response) => {
       endTime:           endTime           ? new Date(endTime)           : undefined,
       location,
       isVirtual,
+      isPublic,
       projectId,
       priorityTaskIds,
       organizerId,
@@ -159,6 +162,7 @@ eventsRouter.patch("/:id", async (req: Request, res: Response) => {
       endTime,
       location,
       isVirtual,
+      isPublic,
       projectId,
       priorityTaskIds,
       organizerId,
@@ -175,6 +179,7 @@ eventsRouter.patch("/:id", async (req: Request, res: Response) => {
       endTime?: string;
       location?: string;
       isVirtual?: boolean;
+      isPublic?: boolean;
       projectId?: string;
       priorityTaskIds?: string[];
       organizerId?: string;
@@ -193,6 +198,7 @@ eventsRouter.patch("/:id", async (req: Request, res: Response) => {
       endTime:           endTime           ? new Date(endTime)           : undefined,
       location,
       isVirtual,
+      isPublic,
       projectId,
       priorityTaskIds,
       organizerId,

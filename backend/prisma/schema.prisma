@@ -822,6 +822,11 @@ model Event {
   endTime     DateTime?
   location    String?
   isVirtual   Boolean   @default(false)
+  // Opt-in publication to purduesearch.org + the public .ics feed. The DB
+  // default is false on purpose: only the ClubPM event form and the Slack
+  // /event modal opt in. Poll-finalized and imported events stay private.
+  // DEADLINE events are never public (eventService forces false).
+  isPublic    Boolean   @default(false)
 
   project   Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
   projectId String?
@@ -853,6 +858,7 @@ model Event {
   updatedAt DateTime @updatedAt
 
   @@index([startTime])
+  @@index([isPublic, startTime])
   @@index([projectId])
   @@index([organizerId])
   @@index([externalUid])
