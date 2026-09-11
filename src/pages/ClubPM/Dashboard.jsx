@@ -1304,7 +1304,12 @@ function UpcomingEventsWidget({ events, loading }) {
                   onClick={() => setExpandedId(isExpanded ? null : ev.id)}
                   style={{ cursor: 'pointer', flex: 1 }}
                 >
-                  <div className="pm-upcoming-event-title">{ev.title}</div>
+                  <div className="pm-upcoming-event-title">
+                    {ev.title}
+                    {ev.isPublic && (
+                      <i className="fas fa-eye cpm-public-eye" title="Public on purduesearch.org" aria-label="Public on purduesearch.org" />
+                    )}
+                  </div>
                   <div className="pm-upcoming-event-meta">
                     <span>{fmtEventDate(ev.startTime)}</span>
                     {ev.location && <span> · {ev.location}</span>}
