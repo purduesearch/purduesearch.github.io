@@ -13,8 +13,11 @@ const SSE_RETRY_MAX_MS = 5 * 60_000;
 
 // ── Type group definitions ────────────────────────────────────
 
+const SLACK_TYPES = ["SLACK_DM", "SLACK_MENTION", "SLACK_THREAD_REPLY", "SLACK_BROADCAST"];
+
 const TYPE_GROUPS = {
-  Mentions: ["TASK_MENTIONED", "COMMENT_REPLY"],
+  Mentions: ["TASK_MENTIONED", "COMMENT_REPLY", "SLACK_MENTION", "SLACK_THREAD_REPLY"],
+  Slack: SLACK_TYPES,
   Tasks: [
     "TASK_ASSIGNED",
     "TASK_COMPLETED",
@@ -32,7 +35,7 @@ const TYPE_GROUPS = {
   ],
 };
 
-const TABS = ["All", "Mentions", "Tasks", "Projects"];
+const TABS = ["All", "Mentions", "Slack", "Tasks", "Projects"];
 
 function matchesTab(notif, tab) {
   if (tab === "All") return true;
@@ -209,7 +212,8 @@ export default function NotificationBell() {
     es.addEventListener("notification", (e) => {
       try {
         const notif = JSON.parse(e.data);
-        setNotifications(prev => [notif, ...prev]);
+        // Slack DM pings are UPDATED in place ("3 new messages") — replace by id.
+        setNotifications(prev => [notif, ...prev.filter(n => n.id !== notif.id)]);
         if (!notif.read) {
           setPulsing(true);
           setTimeout(() => setPulsing(false), 2000);
@@ -253,6 +257,25 @@ export default function NotificationBell() {
     es.addEventListener("slack-membership", (e) => {
       try {
         window.dispatchEvent(new CustomEvent("clubpm:slack-membership", { detail: JSON.parse(e.data) }));
+      } catch {
+        // malformed event — ignore
+      }
+    });
+
+    // Read in Slack, in another tab, or by posting — sync without a refetch.
+    es.addEventListener("notification-read", (e) => {
+      try {
+        const ids = new Set(JSON.parse(e.data).ids ?? []);
+        setNotifications(prev => prev.map(n => (ids.has(n.id) ? { ...n, read: true } : n)));
+      } catch {
+        // malformed event — ignore
+      }
+    });
+    // The pinging message was deleted in Slack.
+    es.addEventListener("notification-removed", (e) => {
+      try {
+        const ids = new Set(JSON.parse(e.data).ids ?? []);
+        setNotifications(prev => prev.filter(n => !ids.has(n.id)));
       } catch {
         // malformed event — ignore
       }
@@ -328,6 +351,11 @@ export default function NotificationBell() {
         prev.map(n => (n.id === notif.id ? { ...n, read: true } : n))
       );
       patch(`/api/notifications/${notif.id}/read`, {}).catch(() => {});
+      if (notif.metadata?.link) {
+        setOpen(false);
+        navigate(notif.metadata.link);
+        return;
+      }
       if (notif.projectId) {
         setOpen(false);
         const taskQuery = notif.taskId ? `?task=${notif.taskId}` : "";

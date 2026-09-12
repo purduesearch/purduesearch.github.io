@@ -6,8 +6,11 @@ import { get, post, patch, del } from "../../api/clubPmClient";
 
 // ── Type group definitions ────────────────────────────────────
 
+const SLACK_TYPES = ["SLACK_DM", "SLACK_MENTION", "SLACK_THREAD_REPLY", "SLACK_BROADCAST"];
+
 const TYPE_GROUPS = {
-  Mentions: ["TASK_MENTIONED", "COMMENT_REPLY"],
+  Mentions: ["TASK_MENTIONED", "COMMENT_REPLY", "SLACK_MENTION", "SLACK_THREAD_REPLY"],
+  Slack: SLACK_TYPES,
   Tasks: [
     "TASK_ASSIGNED",
     "TASK_COMPLETED",
@@ -25,11 +28,15 @@ const TYPE_GROUPS = {
   ],
 };
 
-const TABS = ["All", "Mentions", "Tasks", "Projects"];
+const TABS = ["All", "Mentions", "Slack", "Tasks", "Projects"];
 
 const TYPE_LABELS = {
   TASK_MENTIONED:      "Mentioned",
   COMMENT_REPLY:       "Reply",
+  SLACK_DM:            "Slack DM",
+  SLACK_MENTION:       "Slack mention",
+  SLACK_THREAD_REPLY:  "Slack thread",
+  SLACK_BROADCAST:     "Slack @channel",
   TASK_ASSIGNED:       "Assigned",
   TASK_COMPLETED:      "Task Done",
   TASK_UPDATED:        "Updated",
@@ -46,6 +53,10 @@ const TYPE_LABELS = {
 const TYPE_BADGE_COLORS = {
   TASK_MENTIONED:      "var(--pm-accent-violet)",
   COMMENT_REPLY:       "var(--pm-accent-violet)",
+  SLACK_DM:            "var(--pm-accent-violet)",
+  SLACK_MENTION:       "var(--pm-accent-violet)",
+  SLACK_THREAD_REPLY:  "var(--pm-accent-teal)",
+  SLACK_BROADCAST:     "var(--pm-accent-amber)",
   TASK_ASSIGNED:       "var(--pm-accent-teal)",
   TASK_COMPLETED:      "var(--pm-accent-teal)",
   TASK_UPDATED:        "var(--pm-text-muted)",
@@ -213,6 +224,10 @@ export default function NotificationCenter() {
       prev.map(n => (n.id === notif.id ? { ...n, read: true } : n))
     );
     patch(`/api/notifications/${notif.id}/read`, {}).catch(() => {});
+    if (notif.metadata?.link) {
+      navigate(notif.metadata.link);
+      return;
+    }
     if (notif.projectId || notif.taskId) {
       navigate(`/clubpm/projects/${notif.projectId}`);
     }

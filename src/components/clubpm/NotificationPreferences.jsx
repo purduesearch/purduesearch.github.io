@@ -29,6 +29,21 @@ const EVENT_TYPES = [
   { key: 'MILESTONE_COMPLETED', label: 'Milestone completed' },
 ];
 
+// Slack pings mirrored into Constellation. They are never sent back to Slack
+// as a DM — the ping already happened there — so the only choices are
+// "show it here" or "don't".
+const SLACK_EVENT_TYPES = [
+  { key: 'SLACK_DM',           label: 'Slack direct and group messages' },
+  { key: 'SLACK_MENTION',      label: 'Mentioned in Slack' },
+  { key: 'SLACK_THREAD_REPLY', label: 'Replies in Slack threads I’m in' },
+  { key: 'SLACK_BROADCAST',    label: '@channel, @here and @everyone' },
+];
+
+const SLACK_CHANNEL_OPTIONS = [
+  { value: 'dashboard', label: 'Constellation' },
+  { value: 'off',       label: 'Off' },
+];
+
 // ── Component ────────────────────────────────────────────────
 
 export default function NotificationPreferences() {
@@ -152,6 +167,31 @@ export default function NotificationPreferences() {
                 </select>
               </div>
             ))}
+          </div>
+        </div>
+
+        {/* ── Section 2b: Slack pings mirrored here ───────── */}
+        <div className="pm-prefs-section">
+          <div className="pm-prefs-section-title">Slack pings in Constellation</div>
+          <div className="pm-prefs-section-body">
+            {SLACK_EVENT_TYPES.map(({ key, label }) => (
+              <div key={key} className="pm-prefs-row">
+                <span className="pm-prefs-label">{label}</span>
+                <select
+                  className="pm-prefs-select"
+                  value={notificationChannels[key] === 'off' ? 'off' : 'dashboard'}
+                  onChange={e => setChannel(key, e.target.value)}
+                >
+                  {SLACK_CHANNEL_OPTIONS.map(opt => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+              </div>
+            ))}
+            <p className="pm-prefs-hint">
+              Slack's own mute and keyword settings can't be read by Constellation. To silence one
+              conversation here, use the bell button in that conversation.
+            </p>
           </div>
         </div>
 

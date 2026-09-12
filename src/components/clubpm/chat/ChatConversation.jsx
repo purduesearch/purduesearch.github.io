@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import toast from "react-hot-toast";
 import {
-  getConversationMessages, searchConversation, markConversationRead,
+  getConversationMessages, searchConversation, markConversationRead, muteConversation,
 } from "../../../api/clubPmClient";
 import ChatMessage from "./ChatMessage";
 import ChatThreadDrawer from "./ChatThreadDrawer";
@@ -45,6 +46,19 @@ export default function ChatConversation({
   const [query, setQuery] = useState("");
   const [results, setResults] = useState(null);
   const [threadTs, setThreadTs] = useState(initialThreadTs);
+  const [muted, setMuted] = useState(!!conversation?.muted);
+  useEffect(() => { setMuted(!!conversation?.muted); }, [conversation?.muted]);
+
+  const toggleMute = async () => {
+    const next = !muted;
+    setMuted(next);
+    try {
+      await muteConversation(channelId, next);
+    } catch {
+      setMuted(!next);
+      toast.error("Could not change notifications for this conversation.");
+    }
+  };
 
   const scrollRef = useRef(null);
   const lastMarkedRef = useRef(null);
@@ -177,6 +191,18 @@ export default function ChatConversation({
             <i className="fas fa-magnifying-glass" aria-hidden="true" />
           </button>
         </form>
+        {conversation?.isParticipant && (
+          <button
+            type="button"
+            className="cpm-chat-backfill-btn"
+            onClick={toggleMute}
+            aria-pressed={muted}
+            title={muted ? "Unmute — get Constellation notifications from this conversation again" : "Mute — no Constellation notifications from this conversation"}
+          >
+            <i className={muted ? "fas fa-bell-slash" : "fas fa-bell"} aria-hidden="true" />
+            {muted ? "Muted" : "Mute"}
+          </button>
+        )}
       </div>
 
       {results && (
