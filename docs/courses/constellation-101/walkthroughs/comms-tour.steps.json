@@ -9,7 +9,7 @@
       "anchor": "notifications.list",
       "route": "/clubpm/notifications",
       "title": "The complete record",
-      "body": "Every mention, assignment, unblock, and due-date warning. Slack DMs can be missed or muted; this list never loses one.",
+      "body": "Every mention, assignment, and unblock. Slack DMs can be missed or muted; this list never loses one.",
       "placement": "right",
       "advance": { "on": "next" }
     },

@@ -24,7 +24,7 @@
       "kind": "MULTI",
       "points": 2,
       "prompt": "You try to move a task to Done and Constellation refuses. Which of these could explain it? Select all that apply.",
-      "explanation": "Open dependencies and attached blockers both gate completion, and on a project with the GitHub CI setting on, a linked pull request with failing checks does too. Priority and due dates never gate anything — priority is a sorting signal for humans, and a missing due date just means no reminders.",
+      "explanation": "Open dependencies and attached blockers both gate completion, and on a project with the GitHub CI setting on, a linked pull request with failing checks does too. Priority and due dates never gate anything — priority is a sorting signal for humans, and a missing due date just means there is nothing to plan around.",
       "answers": [
         { "order": 0, "text": "It has a dependency that is not finished yet", "isCorrect": true },
         { "order": 1, "text": "It has an unresolved blocker attached", "isCorrect": true },

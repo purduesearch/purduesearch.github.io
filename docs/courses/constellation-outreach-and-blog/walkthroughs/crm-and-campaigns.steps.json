@@ -108,8 +108,8 @@
       "id": "reminders",
       "anchor": "outreach.tab.campaigns",
       "route": "/clubpm/outreach",
-      "title": "Overdue follow-ups DM you",
-      "body": "Every weekday morning. You won't have to remember to come back here — which is the only reason setting a real date on that contact was worth doing.",
+      "title": "Nothing reminds you — come back here",
+      "body": "Constellation doesn't message you about follow-ups. A contact whose date has passed is flagged on its card, so check this tab regularly — which is only useful if you set a real date on that contact.",
       "placement": "bottom",
       "advance": { "on": "next" }
     }

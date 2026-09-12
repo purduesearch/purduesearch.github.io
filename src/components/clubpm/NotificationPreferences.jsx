@@ -5,13 +5,6 @@ import OrbitLoader from '../OrbitLoader';
 
 // ── Constants ────────────────────────────────────────────────
 
-const DIGEST_OPTIONS = [
-  { key: 'daily_reminders',  label: 'Daily reminders (overdue + due today)' },
-  { key: 'weekly_digest',    label: 'Monday weekly digest' },
-  { key: 'project_updates',  label: 'Project health summaries' },
-  { key: 'standup_prompts',  label: 'Daily standup prompts (weekdays)' },
-];
-
 const CHANNEL_OPTIONS = [
   { value: 'both',      label: 'Both' },
   { value: 'dashboard', label: 'Dashboard only' },
@@ -52,7 +45,6 @@ export default function NotificationPreferences() {
   const [error, setError]       = useState(null);
 
   // Form state
-  const [notificationPrefs, setNotificationPrefs]       = useState([]);
   const [notificationChannels, setNotificationChannels] = useState({});
   const [quietEnabled, setQuietEnabled]                 = useState(false);
   const [quietStart, setQuietStart]                     = useState(22);
@@ -62,7 +54,6 @@ export default function NotificationPreferences() {
   useEffect(() => {
     get('/auth/me')
       .then(member => {
-        setNotificationPrefs(member.notificationPrefs ?? []);
         setNotificationChannels(member.notificationChannels ?? {});
         const hasQuiet = member.quietHoursStart != null && member.quietHoursEnd != null;
         setQuietEnabled(hasQuiet);
@@ -74,13 +65,6 @@ export default function NotificationPreferences() {
       .catch(err => setError(err.message ?? 'Failed to load preferences'))
       .finally(() => setLoading(false));
   }, []);
-
-  // Digest checkbox handler
-  function toggleDigest(key) {
-    setNotificationPrefs(prev =>
-      prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]
-    );
-  }
 
   // Channel select handler
   function setChannel(eventType, value) {
@@ -99,7 +83,6 @@ export default function NotificationPreferences() {
 
     // Send null explicitly when disabling quiet hours so Prisma clears the Int? fields
     const payload = {
-      notificationPrefs,
       notificationChannels,
       quietHoursStart: quietEnabled ? Number(quietStart) : null,
       quietHoursEnd:   quietEnabled ? Number(quietEnd)   : null,
@@ -131,25 +114,7 @@ export default function NotificationPreferences() {
 
       <form onSubmit={handleSave}>
 
-        {/* ── Section 1: Scheduled Digests ────────────────── */}
-        <div className="pm-prefs-section">
-          <div className="pm-prefs-section-title">Scheduled digests</div>
-          <div className="pm-prefs-section-body">
-            {DIGEST_OPTIONS.map(({ key, label }) => (
-              <label key={key} className="pm-prefs-row pm-prefs-row--check">
-                <input
-                  type="checkbox"
-                  className="pm-prefs-checkbox"
-                  checked={notificationPrefs.includes(key)}
-                  onChange={() => toggleDigest(key)}
-                />
-                <span className="pm-prefs-label">{label}</span>
-              </label>
-            ))}
-          </div>
-        </div>
-
-        {/* ── Section 2: Per-event delivery channel ───────── */}
+        {/* ── Section 1: Per-event delivery channel ───────── */}
         <div className="pm-prefs-section" data-tour-id="notifications.slack">
           <div className="pm-prefs-section-title">Delivery channel per event</div>
           <div className="pm-prefs-section-body">
@@ -170,7 +135,7 @@ export default function NotificationPreferences() {
           </div>
         </div>
 
-        {/* ── Section 2b: Slack pings mirrored here ───────── */}
+        {/* ── Section 2: Slack pings mirrored here ────────── */}
         <div className="pm-prefs-section">
           <div className="pm-prefs-section-title">Slack pings in Constellation</div>
           <div className="pm-prefs-section-body">

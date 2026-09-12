@@ -70,8 +70,8 @@ the same operation, because it is.
 Three copy decisions worth preserving:
 
 - **"Not 'agenda.'"** — the title lesson lands only if the counter-example is right there.
-- **"an invented deadline just trains you to ignore reminders"** — the honest reason not to fill in a
-  due date reflexively. This is the habit that quietly ruins a board.
+- **"an invented deadline just misleads the people planning around it"** — the honest reason not to
+  fill in a due date reflexively. This is the habit that quietly ruins a board.
 - **"here it's suppressed, because practice work shouldn't pay"** — the learner *will* notice no XP
   arrived. Saying so is better than letting them conclude the reward system is broken.
 

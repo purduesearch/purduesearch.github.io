@@ -26,7 +26,7 @@ make writing things down feel like an obligation to next year's team rather than
 | 00:48–01:16 | Follow-up field | Show a date and an owner |
 | 01:16–01:44 | Campaigns tab | Open a campaign, show its contact set |
 | 01:44–02:12 | Brand voice / composer | Draft a message |
-| 02:12–02:38 | Slack DM: follow-up reminder | Show the 09:05 nudge |
+| 02:12–02:38 | Contacts list | Show the overdue follow-up flag on a card |
 | 02:38–03:00 | Contact linked to a project | Hold, fade |
 
 ## Visual edits
@@ -44,7 +44,7 @@ make writing things down feel like an obligation to next year's team rather than
 | 00:56 | **Side-by-side text overlay:** "reach out sometime" (struck through) / "12 Aug — Dana — send capability one-pager" | The comparison the narration makes verbally. Two lines of text, held 3 s |
 | 01:22 | **Coverage bar** drawn over the campaign: contacted / replied / untouched, with the untouched segment **held a beat longer** | The untouched segment is the entire reason campaigns exist |
 | 01:52 | **Lower third:** "draft — always read before sending" pinned for the whole composer beat | This caption must not leave the screen while generated text is visible. It's the guardrail |
-| 02:16 | **Clock overlay** reading a weekday morning as the reminder DM lands | Makes "it comes to you, on a schedule" concrete without narrating the cron time |
+| 02:16 | **Highlight** the overdue flag on one contact card, dim the rest | The flag is the only reminder there is. Point at it |
 | 02:44 | **Connector line** from the contact record to the project it's linked to | Ties outreach back to the work — the thing that makes a sponsor conversation specific |
 
 ## Narration
@@ -95,13 +95,14 @@ Messages are drafted here, and the club's brand voices keep the tone consistent 
 Worth saying plainly: these are assistive. Read what you're about to send. A sponsor can tell when
 nobody looked at it, and that costs more than the time it saved.
 
-**[02:12 — Slack reminder]**
+**[02:12 — overdue flag]**
 
-Overdue follow-ups come find you. Every weekday morning, a DM listing what's slipped.
+Nothing reminds you about follow-ups. When a date passes, the contact's card flags it — so come back
+here and look.
 
 *(beat)*
 
-That nudge is the whole difference between a CRM and a graveyard of good intentions.
+That habit is the whole difference between a CRM and a graveyard of good intentions.
 
 **[02:38 — contact linked to project]**
 

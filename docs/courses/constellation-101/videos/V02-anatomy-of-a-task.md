@@ -82,8 +82,8 @@ answer "who is actually doing this," so two is usually the ceiling.
 
 *(pause)*
 
-Due date. Constellation reminds people before a due date and escalates after one, so a due date you
-invented to look organised will come back and find you. Put a real one, or leave it empty.
+Due date. Your teammates plan around it, and nothing chases it for you, so a due date you invented
+to look organised just misleads them. Put a real one, or leave it empty.
 
 **[01:30 — description, acceptance criteria]**
 

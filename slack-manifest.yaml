@@ -10,7 +10,7 @@ features:
   slash_commands:
     - command: /pm
       description: Manage projects and tasks
-      usage_hint: "task | status [project] | standup | help"
+      usage_hint: "task | standup | report | help"
       should_escape: false
 
 oauth_config:
@@ -19,7 +19,6 @@ oauth_config:
     - https://YOUR_ORACLE_DOMAIN/auth/slack/callback
   scopes:
     bot:
-      - app_mentions:read
       - chat:write
       - commands
       - channels:read
@@ -61,7 +60,6 @@ settings:
   token_rotation_enabled: false
   event_subscriptions:
     bot_events:
-      - app_mention
       - message.channels
       - message.groups
       - channel_created

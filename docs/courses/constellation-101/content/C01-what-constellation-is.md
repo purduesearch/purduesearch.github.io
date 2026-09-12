@@ -32,7 +32,7 @@ Everything else in this course is a consequence of that idea.
 
 | Tool | Still used for | What Constellation adds |
 |---|---|---|
-| **Slack** | All conversation | DMs you when something needs you; posts milestones and completions to project channels |
+| **Slack** | All conversation | DMs you when something needs you |
 | **Google Drive** | Documents, CAD, media | Links files to the task or project they belong to |
 | **GitHub** | Code | Links pull requests to tasks; can block "done" on failing checks |
 

@@ -1,9 +1,7 @@
 import type { App } from "@slack/bolt";
-import { claimTaskFromSlack, getTask, updateTask, spawnNextOccurrence } from "../services/taskService.js";
+import { getTask, updateTask } from "../services/taskService.js";
 import { isAdminBySlackId } from "../services/memberService.js";
 import { resolveSlackMember } from "../services/memberService.js";
-import { logAuditEvent } from "../services/activityService.js";
-import { buildTaskCard } from "../utils/blockKit.js";
 import { openAddNoteModal, openNewTaskModal, openSnoozeModal, openSubtaskModal, openStandupModal, openImageTaskModal } from "./modals.js";
 import { prisma } from "../db/prisma.js";
 import { retrieveAiTask } from "../utils/aiTaskCache.js";
@@ -12,87 +10,6 @@ import { refreshAppHome } from "./home.js";
 // ── Action Registration ──────────────────────────────────────
 
 export function registerActions(app: App): void {
-  // ── Mark Done ────────────────────────────────────────────
-  app.action("mark_done", async ({ action, ack, respond, body, client }) => {
-    await ack();
-
-    try {
-      if (!("value" in action) || !action.value) {
-        await respond({ text: "❌ Missing task ID", response_type: "ephemeral" });
-        return;
-      }
-
-      const taskId = action.value;
-      const task = await getTask(taskId);
-
-      if (!task) {
-        await respond({
-          text: `❌ Task not found: \`${taskId}\``,
-          response_type: "ephemeral",
-        });
-        return;
-      }
-
-      // Block completion if any open dependencies remain
-      const openBlockers = (task.blockedBy ?? []).filter(b => b.blockingTask.status !== "DONE");
-      if (openBlockers.length > 0) {
-        const blockerList = openBlockers.map(b => `• *${b.blockingTask.title}*`).join("\n");
-        await respond({
-          text: `⚠️ This task is blocked by ${openBlockers.length} open task${openBlockers.length > 1 ? "s" : ""}:\n${blockerList}\n\nResolve those first before marking this task done.`,
-          response_type: "ephemeral",
-        });
-        return;
-      }
-
-      await updateTask(taskId, { status: "DONE" });
-
-      if (task.isRecurring) {
-        const fullTask = await getTask(taskId); // re-fetch with assignees + tags included
-        if (fullTask) await spawnNextOccurrence(fullTask as any).catch(console.error);
-      }
-
-      const markDoneActor = await resolveSlackMember(body.user.id).catch(() => null);
-      logAuditEvent({
-        taskId:   taskId,
-        memberId: markDoneActor?.id ?? null,
-        source:   "SLACK",
-        eventType: "TASK_COMPLETED",
-        payload:  { taskTitle: task.title },
-      }).catch(console.error);
-
-      await respond({
-        response_type: "in_channel",
-        replace_original: true,
-        text: `✅ ~${task.title}~ — marked complete by <@${body.user.id}>`,
-      });
-
-      // Post completion as a thread reply on the original task announcement
-      if (task.slackMsgTs) {
-        const msgChannel =
-          "channel" in body && body.channel
-            ? (body.channel as { id: string }).id
-            : null;
-        if (msgChannel) {
-          try {
-            await client.chat.postMessage({
-              channel: msgChannel,
-              text: `✅ *${task.title}* marked complete by <@${body.user.id}>`,
-              thread_ts: task.slackMsgTs,
-            });
-          } catch (err) {
-            console.error("thread reply error:", err);
-          }
-        }
-      }
-    } catch (error) {
-      console.error("mark_done error:", error);
-      await respond({
-        text: "❌ Failed to mark task as done. Please try again.",
-        response_type: "ephemeral",
-      });
-    }
-  });
-
   // ── Add Note ─────────────────────────────────────────────
   app.action("add_note", async ({ action, ack, body, client }) => {
     await ack();
@@ -236,38 +153,6 @@ export function registerActions(app: App): void {
     }
   );
 
-  // ── Claim Task ─────────────────────────────────────────────
-  app.action("claim_task", async ({ action, ack, respond, body }) => {
-    await ack();
-
-    try {
-      if (!("value" in action) || !action.value) return;
-      const taskId = action.value;
-      const slackUserId = body.user.id;
-
-      const member = await resolveSlackMember(slackUserId);
-      const task = await claimTaskFromSlack(taskId, member.id);
-
-      logAuditEvent({
-        taskId:   taskId,
-        memberId: member.id,
-        source:   "SLACK",
-        eventType: "TASK_ASSIGNED",
-        payload:  { taskTitle: task?.title ?? "", assigneeNames: [member.displayName] },
-      }).catch(console.error);
-
-      if (task && task.project) {
-        await respond({
-          replace_original: true,
-          blocks: buildTaskCard(task, task.project),
-          text: `✅ Task claimed by <@${slackUserId}>`,
-        });
-      }
-    } catch (error) {
-      console.error("claim_task error:", error);
-    }
-  });
-
   // ── Snooze Task ────────────────────────────────────────────
   app.action("snooze_task", async ({ action, ack, body, client }) => {
     await ack();
@@ -281,88 +166,6 @@ export function registerActions(app: App): void {
       }
     } catch (error) {
       console.error("snooze_task error:", error);
-    }
-  });
-
-  // ── Update Status ──────────────────────────────────────────
-  app.action("update_status", async ({ action, ack, respond, body }) => {
-    await ack();
-
-    try {
-      if (!("selected_option" in action) || !action.selected_option?.value) return;
-
-      // The value is formatted as "STATUS|taskId"
-      const [newStatus, taskId] = action.selected_option.value.split("|");
-      if (!newStatus || !taskId) return;
-
-      const taskBefore = await getTask(taskId);
-      await updateTask(taskId, { status: newStatus as any });
-      const task = await getTask(taskId);
-
-      if (newStatus === "DONE" && taskBefore?.isRecurring) {
-        const fullTask = await getTask(taskId); // re-fetch with assignees + tags included
-        if (fullTask) await spawnNextOccurrence(fullTask as any).catch(console.error);
-      }
-
-      const statusActor = await resolveSlackMember(body.user.id).catch(() => null);
-      const isCompleted = newStatus === "DONE";
-      logAuditEvent({
-        taskId:   taskId,
-        memberId: statusActor?.id ?? null,
-        source:   "SLACK",
-        eventType: isCompleted ? "TASK_COMPLETED" : "TASK_UPDATED",
-        payload:  isCompleted
-          ? { taskTitle: taskBefore?.title ?? "" }
-          : { taskTitle: taskBefore?.title ?? "", changes: [{ field: "status", from: taskBefore?.status, to: newStatus }] },
-      }).catch(console.error);
-
-      if (task && task.project) {
-        await respond({
-          replace_original: true,
-          blocks: buildTaskCard(task, task.project),
-          text: `✅ Status updated to ${newStatus.replace("_", " ")}`,
-        });
-      }
-    } catch (error) {
-      console.error("update_status error:", error);
-    }
-  });
-
-  // ── Show Subtasks ──────────────────────────────────────────
-  app.action("show_subtasks", async ({ action, ack, respond }) => {
-    await ack();
-
-    try {
-      if (!("value" in action) || !action.value) return;
-      const task = await getTask(action.value);
-      if (!task || !task.project) return;
-
-      await respond({
-        replace_original: true,
-        blocks: buildTaskCard(task, task.project, { showSubtasks: true }),
-        text: `Task: ${task.title}`,
-      });
-    } catch (error) {
-      console.error("show_subtasks error:", error);
-    }
-  });
-
-  // ── Hide Subtasks ──────────────────────────────────────────
-  app.action("hide_subtasks", async ({ action, ack, respond }) => {
-    await ack();
-
-    try {
-      if (!("value" in action) || !action.value) return;
-      const task = await getTask(action.value);
-      if (!task || !task.project) return;
-
-      await respond({
-        replace_original: true,
-        blocks: buildTaskCard(task, task.project),
-        text: `Task: ${task.title}`,
-      });
-    } catch (error) {
-      console.error("hide_subtasks error:", error);
     }
   });
 
@@ -449,19 +252,6 @@ export function registerActions(app: App): void {
       );
     } catch (error) {
       console.error("ai_create_task error:", error);
-    }
-  });
-
-  // ── Standup from DM Prompt ─────────────────────────────────
-  app.action("standup_from_dm", async ({ action, ack, body, client }) => {
-    await ack();
-    try {
-      if (!("value" in action) || !action.value) return;
-      if ("trigger_id" in body && body.trigger_id) {
-        await openStandupModal(client, body.trigger_id, action.value);
-      }
-    } catch (error) {
-      console.error("standup_from_dm error:", error);
     }
   });
 

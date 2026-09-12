@@ -97,19 +97,6 @@ export async function sendKudos(
   };
 }
 
-/** All kudos sent during the current ISO week, with from/to display names. */
-export async function getWeeklyKudos() {
-  const weekStart = startOfWeek();
-  return prisma.kudos.findMany({
-    where: { createdAt: { gte: weekStart } },
-    include: {
-      from: { select: { id: true, displayName: true, slackHandle: true } },
-      to:   { select: { id: true, displayName: true, slackHandle: true } },
-    },
-    orderBy: { createdAt: "desc" },
-  });
-}
-
 /** Caps remaining for a specific (sender, recipient) pair, used by GET handler. */
 export async function getKudosCaps(fromId: string, toId: string): Promise<{
   sendCapRemaining: number;

@@ -393,59 +393,6 @@ export async function getTasksForMember(memberId: string) {
   });
 }
 
-export async function getOverdueTasks() {
-  const now = new Date();
-  return prisma.task.findMany({
-    where: {
-      dueDate: { lt: now },
-      status: { notIn: ["DONE"] },
-      archivedAt: null,
-      project: { is: EXCLUDE_TRAINING },
-    },
-    include: { assignees: true, project: true },
-  });
-}
-
-export async function getTasksDueToday() {
-  const startOfDay = new Date();
-  startOfDay.setHours(0, 0, 0, 0);
-  const endOfDay = new Date();
-  endOfDay.setHours(23, 59, 59, 999);
-
-  return prisma.task.findMany({
-    where: {
-      dueDate: { gte: startOfDay, lte: endOfDay },
-      status: { notIn: ["DONE"] },
-      archivedAt: null,
-      project: { is: EXCLUDE_TRAINING },
-    },
-    include: { assignees: true, project: true },
-  });
-}
-
-export async function getTasksDueThisWeek(memberId?: string) {
-  const now = new Date();
-  const endOfWeek = new Date();
-  endOfWeek.setDate(now.getDate() + (7 - now.getDay()));
-  endOfWeek.setHours(23, 59, 59, 999);
-
-  const where: any = {
-    dueDate: { gte: now, lte: endOfWeek },
-    status: { notIn: ["DONE"] },
-    archivedAt: null,
-    // Feeds the weekly Slack digest. Fixture tasks must not be DM'd to anyone
-    // as though they were real commitments for the week.
-    project: { is: EXCLUDE_TRAINING },
-  };
-  if (memberId) where.assignees = { some: { id: memberId } };
-
-  return prisma.task.findMany({
-    where,
-    include: { assignees: true, project: true },
-    orderBy: { dueDate: "asc" },
-  });
-}
-
 // ── Subtask Helpers ─────────────────────────────────────────
 
 export async function getSubtasks(taskId: string) {
@@ -641,16 +588,6 @@ export async function spawnNextOccurrence(task: Task & { assignees: Member[]; ta
 
 export async function completeTaskFromSlack(taskId: string): Promise<Task & { assignees: Member[]; project: Project }> {
   return updateTask(taskId, { status: "DONE" });
-}
-
-export async function claimTaskFromSlack(
-  taskId: string,
-  memberId: string
-): Promise<Task & { assignees: Member[]; project: Project }> {
-  const task = await getTask(taskId);
-  const existingIds = task?.assignees.map(a => a.id) ?? [];
-  if (!existingIds.includes(memberId)) existingIds.push(memberId);
-  return updateTask(taskId, { assigneeIds: existingIds });
 }
 
 export async function createTaskFromSlackMessage(data: {

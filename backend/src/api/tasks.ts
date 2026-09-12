@@ -1047,31 +1047,6 @@ tasksRouter.post("/:id/comments", requireAuth, channelAuth, async (req: Request,
       }
     }
 
-    // Sync comment to Slack thread (if task has a Slack announcement)
-    if (populatedComment?.task?.slackMsgTs) {
-      (async () => {
-        try {
-          const { boltApp } = await import("../slack/bolt.js");
-          const { prisma: db } = await import("../db/prisma.js");
-          const target = await db.projectNotificationTarget.findFirst({
-            where: { projectId: populatedComment.task.projectId },
-            select: { slackChannelId: true },
-          });
-          const channelId = target?.slackChannelId ?? populatedComment.task.project?.slackChannel;
-          if (!channelId) return;
-
-          const frontendUrl = process.env.FRONTEND_URL ?? "http://localhost:3000";
-          await boltApp.client.chat.postMessage({
-            channel: channelId,
-            thread_ts: populatedComment.task.slackMsgTs!,
-            text: `💬 *${populatedComment.author.displayName}* commented: ${content.slice(0, 300)}${content.length > 300 ? "…" : ""}\n<${frontendUrl}/clubpm/projects/${populatedComment.task.projectId}|View on Dashboard>`,
-          });
-        } catch (err) {
-          console.error("Comment Slack thread sync error:", err);
-        }
-      })();
-    }
-
     logAuditEvent({
       taskId, memberId: memberId ?? null, source: "WEB",
       eventType: "COMMENT_ADDED",
