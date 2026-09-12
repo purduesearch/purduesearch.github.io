@@ -884,22 +884,6 @@ export function getChatChannels(projectId) {
   return get(`/api/projects/${projectId}/chat/channels`);
 }
 
-export function getChatMessages(projectId, channelId, before) {
-  const q = new URLSearchParams({ channelId });
-  if (before) q.set("before", before);
-  return get(`/api/projects/${projectId}/chat/messages?${q}`);
-}
-
-export function getChatThread(projectId, channelId, ts) {
-  return get(`/api/projects/${projectId}/chat/thread/${ts}?channelId=${encodeURIComponent(channelId)}`);
-}
-
-export function searchChat(projectId, channelId, q) {
-  const params = new URLSearchParams({ q });
-  if (channelId) params.set("channelId", channelId);
-  return get(`/api/projects/${projectId}/chat/search?${params}`);
-}
-
 export function startChatBackfill(projectId, channelId) {
   return post(`/api/projects/${projectId}/chat/backfill`, { channelId });
 }
@@ -919,20 +903,6 @@ export function getSlackArchiveHealth() {
 /** Requeue every MIRROR_FAILED attachment and start a mirror sweep. → { requeued } */
 export function retryFailedSlackMirrors() {
   return post("/api/slack-archive/retry-failed", {});
-}
-
-/**
- * URL for an archived Slack attachment.
- *
- * An <img> tag cannot send an Authorization header, so the Bearer token rides
- * along as a signed query param — the same escape hatch EventSource uses. Never
- * build this URL by hand in a component, or images silently break for every
- * cookie-blocked browser (Brave, Safari).
- */
-export function chatFileUrl(projectId, slackFileId) {
-  const token = getStoredToken();
-  const base = `${BASE_URL}/api/projects/${projectId}/chat/files/${encodeURIComponent(slackFileId)}`;
-  return token ? `${base}?token=${encodeURIComponent(token)}` : base;
 }
 
 // ── Slack portal: conversation-scoped chat (/api/chat) ───────

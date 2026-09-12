@@ -1,11 +1,8 @@
-import { pipeline } from "node:stream/promises";
 import { Router, type Request, type Response, type NextFunction } from "express";
 import { requireAuth, verifyBearerToken } from "./auth.js";
-import { requireProjectChatRead, getProjectChatAccess } from "../middleware/projectChatAccess.js";
+import { requireProjectChatRead } from "../middleware/projectChatAccess.js";
 import { prisma } from "../db/prisma.js";
-import { buildFormatContext, loadMessages, toDto } from "../services/chatDto.js";
 import {
-  resolveFileStream,
   getStorageHealth,
   requeueFailedMirrors,
   sweepExpiringFiles,
@@ -15,16 +12,6 @@ import { joinAllPublicChannels } from "../services/slackMembershipService.js";
 import { boltApp } from "../slack/bolt.js";
 
 export const projectChatRouter = Router();
-
-const PAGE_SIZE = 50;
-
-/** Reject a channelId that isn't one of the project's own. */
-function requestedChannel(req: Request): string | null {
-  const wanted = typeof req.query.channelId === "string" ? req.query.channelId : null;
-  const allowed = req.chatChannelIds ?? [];
-  if (wanted) return allowed.includes(wanted) ? wanted : null;
-  return allowed[0] ?? null;
-}
 
 // ── GET /api/projects/:projectId/chat/channels ───────────────
 projectChatRouter.get(
@@ -61,96 +48,10 @@ projectChatRouter.get(
   }
 );
 
-// ── GET /api/projects/:projectId/chat/messages ───────────────
-// Reverse-chronological page of TOP-LEVEL messages. `before` is a Slack ts.
-projectChatRouter.get(
-  "/:projectId/chat/messages",
-  requireAuth,
-  requireProjectChatRead,
-  async (req: Request, res: Response) => {
-    try {
-      const channelId = requestedChannel(req);
-      if (!channelId) { res.json({ messages: [], hasMore: false, channelId: null }); return; }
-
-      const before = typeof req.query.before === "string" ? req.query.before : null;
-      const where: Record<string, unknown> = { slackChannelId: channelId, threadTs: null };
-      if (before) where.postedAt = { lt: new Date(Math.round(parseFloat(before) * 1000)) };
-
-      const rows = await loadMessages(where, PAGE_SIZE + 1);
-      const hasMore = rows.length > PAGE_SIZE;
-      const page = hasMore ? rows.slice(0, PAGE_SIZE) : rows;
-      const ctx = await buildFormatContext();
-
-      // Oldest-first for rendering; the client prepends older pages.
-      res.json({
-        channelId,
-        hasMore,
-        messages: page.map((r) => toDto(r, ctx)).reverse(),
-      });
-    } catch (error) {
-      console.error("chat/messages error:", error);
-      res.status(500).json({ error: "Failed to load messages" });
-    }
-  }
-);
-
-// ── GET /api/projects/:projectId/chat/thread/:ts ─────────────
-projectChatRouter.get(
-  "/:projectId/chat/thread/:ts",
-  requireAuth,
-  requireProjectChatRead,
-  async (req: Request, res: Response) => {
-    try {
-      const channelId = requestedChannel(req);
-      if (!channelId) { res.status(404).json({ error: "No channel" }); return; }
-
-      const ts = req.params.ts as string;
-      const rows = await loadMessages(
-        { slackChannelId: channelId, OR: [{ ts }, { threadTs: ts }] },
-        200,
-        true
-      );
-      const ctx = await buildFormatContext();
-      res.json({ messages: rows.map((r) => toDto(r, ctx)) });
-    } catch (error) {
-      console.error("chat/thread error:", error);
-      res.status(500).json({ error: "Failed to load thread" });
-    }
-  }
-);
-
-// ── GET /api/projects/:projectId/chat/search ─────────────────
-projectChatRouter.get(
-  "/:projectId/chat/search",
-  requireAuth,
-  requireProjectChatRead,
-  async (req: Request, res: Response) => {
-    try {
-      const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
-      if (q.length < 2) { res.json({ messages: [] }); return; }
-
-      const channelId = requestedChannel(req);
-      const ids = channelId ? [channelId] : (req.chatChannelIds ?? []);
-      if (ids.length === 0) { res.json({ messages: [] }); return; }
-
-      const rows = await loadMessages(
-        {
-          slackChannelId: { in: ids },
-          deletedAt: null,
-          text: { contains: q, mode: "insensitive" },
-        },
-        50
-      );
-      const ctx = await buildFormatContext();
-      res.json({ messages: rows.map((r) => toDto(r, ctx)) });
-    } catch (error) {
-      console.error("chat/search error:", error);
-      res.status(500).json({ error: "Search failed" });
-    }
-  }
-);
-
-// ── GET /api/projects/:projectId/chat/files/:slackFileId ─────
+// ── fileProxyAuth — used by chat.ts's GET /api/chat/files/:slackFileId ──
+// The project-scoped file route that used to live here was superseded by the
+// conversation-scoped proxy in chat.ts; only its auth middleware remains.
+//
 // An <img> tag cannot set an Authorization header, so Bearer-token users
 // (Brave, Safari — the exact browsers the Bearer fallback exists for) would
 // find EVERY image in the archive broken while it worked fine in Chrome.
@@ -173,55 +74,6 @@ export async function fileProxyAuth(req: Request, res: Response, next: NextFunct
   }
   return requireAuth(req, res, next);
 }
-
-projectChatRouter.get(
-  "/:projectId/chat/files/:slackFileId",
-  fileProxyAuth,
-  async (req: Request, res: Response) => {
-    try {
-      const memberId = req.memberId;
-      if (!memberId) return void res.status(401).json({ error: "Not authenticated" });
-
-      const projectId = req.params.projectId as string;
-      const { canRead, channelIds } = await getProjectChatAccess(memberId, projectId);
-      if (!canRead) return void res.status(403).json({ error: "No access" });
-
-      const slackFileId = req.params.slackFileId as string;
-      const file = await prisma.slackMessageFile.findUnique({
-        where: { slackFileId },
-        select: { message: { select: { slackChannelId: true } } },
-      });
-      // Scope the proxy to the project's own channels — this route serves the
-      // actual private content, so it gets the same check as the read routes.
-      if (!file || !channelIds.includes(file.message.slackChannelId)) {
-        return void res.status(404).json({ error: "Not found" });
-      }
-
-      const resolved = await resolveFileStream(slackFileId, memberId);
-      if (!resolved.ok) {
-        return void res.status(resolved.status).json({ error: resolved.detail });
-      }
-
-      res.setHeader("Content-Type", resolved.mimeType);
-      res.setHeader("Cache-Control", "private, max-age=3600");
-      res.setHeader("Content-Disposition", `inline; filename="${encodeURIComponent(resolved.fileName)}"`);
-      // Anyone in a linked channel can upload an .html/.svg/.js file, and this
-      // serves it inline from the API origin where the session cookie lives.
-      // Helmet's default CSP still allows script-src 'self', so without this a
-      // pair of uploads is stored XSS. `sandbox` gives the document an opaque
-      // origin; <img> embedding is unaffected.
-      res.setHeader("Content-Security-Policy", "default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; sandbox");
-      res.setHeader("X-Content-Type-Options", "nosniff");
-      // pipeline, not pipe: a Drive/Slack stream erroring mid-body would
-      // otherwise be an unhandled 'error' event and take the process down.
-      await pipeline(resolved.stream, res);
-    } catch (error) {
-      console.error("chat/files error:", error);
-      if (!res.headersSent) res.status(500).json({ error: "Failed to load file" });
-      else res.destroy();
-    }
-  }
-);
 
 // ── GET /api/projects/:projectId/chat/storage-health ─────────
 projectChatRouter.get(

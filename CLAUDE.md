@@ -58,7 +58,8 @@ Static SPA for the Purdue SEARCH club, deployed to GitHub Pages and served at th
 │   │   └── ClubPM/                    # Protected PM dashboards
 │   │       ├── Dashboard.jsx
 │   │       ├── ProjectDetail.jsx      # Main PM view (kanban/milestones/files/vault/ai)
-│   │       ├── MembersView.jsx
+│   │       ├── MembersView.jsx        # Roster + DMs (club-wide, and filtered per project in the Members tab)
+│   │       ├── ChatPage.jsx           # /clubpm/chat — every Slack channel you can read; browse + join public ones
 │   │       ├── GanttView.jsx
 │   │       ├── Login.jsx
 │   │       ├── AdminView.jsx          # Pending rewards, reward config, admin tools
@@ -93,6 +94,10 @@ Static SPA for the Purdue SEARCH club, deployed to GitHub Pages and served at th
 │           ├── KanbanBoard.jsx     # DEAD CODE — nothing imports it; the live board is in ProjectDetail.jsx (@dnd-kit)
 │           ├── MilestonePanel.jsx
 │           ├── vault/              # Constellation Vault CAD/PDM UI (VaultTab + friends)
+│           ├── chat/               # Slack portal: ChatConversation (one conversation, any kind), ChatComposer
+│           │                       #   (mentions/uploads/reconnect prompt), ChatBlocks (bot Block Kit), ChatTab,
+│           │                       #   ChatMessage, ChatThreadDrawer — NEVER emit <span>/<p> here (see invariants)
+│           ├── members/            # DmInbox + DmPanel — DMs live on the Members page; ?dm=<channelId> is URL state
 │           └── ...
 ├── backend/                        # Node.js / Express / Prisma / Slack Bolt
 │   ├── src/
@@ -223,6 +228,19 @@ If you restyle the rail, re-check with `document.elementFromPoint()` over page c
 - No `.env` is needed for frontend dev or build. `REACT_APP_API_URL` is optional locally (CRA's `proxy` field forwards to `localhost:3001`) and is supplied as a repo secret in CI.
 - `mxgraph` is an npm dependency in `package.json`; do not remove it or switch to a CDN reference.
 
+### Slack portal invariants
+Constellation is a two-way portal to the Slack workspace (plan: `docs/superpowers/plans/2026-09-10-slack-portal.md`, decisions D1–D14). Each rule below is load-bearing:
+1. **No admin bypass for private conversations.** `canReadConversation` has no admin input at all, and static tests fail if either access module (`slackConversationAccess.ts`, `middleware/conversationAccess.ts`) mentions `isAdmin` — DMs are readable only by their participants (D2).
+2. **Private-channel, DM and group-DM files never go to Google Drive** (`mirrorTargetFor` in `slackFileService.ts`) — the Drive bot account is browsed by humans (D5).
+3. **`/uploads/slack` must never be served statically** — files there are served only through the access-checked `/api/chat/files` proxy; `appMountOrder.test.ts` asserts the guard sits above `express.static` (D6).
+4. **Backfill never notifies; pings come only from `slack/events.ts`** — importing 90 days of history must not fire hundreds of notifications (D10).
+5. **`SLACK_*` notifications are never DM'd back to Slack, and our own bot's posts never ping** — two loop guards; the Slack ping already happened, and Constellation notifies natively for everything the bot posts (D9).
+6. **HTTP 409 from `/api/chat` means exactly "reconnect Slack"** — the UI keys its reconnect prompt off the status alone (`slackSendRules.ts`); never return 409 for anything else there.
+7. **Any Slack read of a specific conversation goes through `resolveReadClient()`, never the bot token directly** — the bot isn't in most private channels or any DM, so a bot-token read silently returns nothing or fails.
+8. **`ignoreSelf` is off in `slack/bolt.ts`; every reactive Slack handler must guard against bot authors** — the bot's own posts are archived (D4), so a handler that replies to messages without a guard will loop on itself.
+9. **Slack user events are delivered once per event, however many members can see it** — which member's token an event arrived under says nothing about who else can see it; derive recipients and access from `SlackConversationMember`, never from the delivery.
+10. **`notificationChannels` is now enforced** — `createNotification` routes by the member's per-type preference (D14); a call site opts in to the Slack DM by passing `slackText`, never by calling `queueDm` alongside it.
+
 ---
 
 ## ClubPM Backend Architecture
@@ -247,6 +265,7 @@ If you restyle the rail, re-check with `document.elementFromPoint()` over page c
 - `reporting.ts`, `activity.ts`, `events.ts`, `eventConfig.ts`, `streak.ts` — Ancillary data.
 - `vault.ts` (1,096 lines) + `changeRequests.ts` — Constellation Vault CAD/PDM: items, versions, checkouts, BOM, CRs. Mounted at bare `/api` (like `blockers.ts` and `streak.ts`).
 - `blog.ts` — Blog editor CRUD, revisions, taxonomy, publish/schedule; collaborative editing WS (Hocuspocus) attaches at `/collab/blog` on the same HTTP server (`backend/src/collab/blogCollab.ts`).
+- `chat.ts` — `/api/chat/*`, the conversation-scoped Slack portal API: conversation list, reads (messages, thread, search), file proxy (`/files/:slackFileId`), read marks, mute, and every write *as the member* with their own user token (post, edit, delete, react, upload, join, open/import DMs). Access goes through `middleware/conversationAccess.ts`. **Mounted above every bare `/api` router** because its file proxy authenticates with a `?token=` query param (an `<img>` can't send a header) that a pathless `requireAuth` would 401 first; `appMountOrder.test.ts` guards it. `projectChat.ts` now keeps only the project's channel list, backfill, storage-health and the `/api/slack-archive` admin routes — its old read/file routes were superseded by this file.
 
 **Gotcha:** `app.ts` uses `express.json()` with the default **100 kb** body limit — endpoints receiving base64 images in JSON (`/api/tasks/create-from-image`) 413 on real photos until the limit is raised (plan phase 3). Only the GitHub webhook mounts its own 10 mb raw parser.
 
@@ -261,7 +280,15 @@ If you restyle the rail, re-check with `document.elementFromPoint()` over page c
 - `aiActionService.ts` — Agentic action-plan engine; see **AI Action Plan** below.
 - `dmBatcher.ts` — Slack DM queue: `queueDm()`.
 - `streakService.ts` — `recordActivity()`, daily reset sweep.
-- `notificationCrud.ts` — `createNotification()`.
+- `notificationCrud.ts` — `createNotification()`, which now routes by the recipient's per-type `notificationChannels` preference; pass `slackText` to opt a call site in to the Slack DM (see Slack portal invariants).
+- `notificationRouting.ts` — Pure. `routeFor(type, pref)` → `{ inApp, slack }`; missing/unknown preference means "both", and `SLACK_*` types never route to Slack.
+- `slackMembershipService.ts` — Mirror of Slack conversation membership (`SlackConversationMember`), the table every access check reads. `resolveReadClient()` picks a token that can actually see a conversation; `joinAllPublicChannels()` + nightly `reconcileMemberships()` (03:55).
+- `slackReadService.ts` — `compareTs()` (the only safe way to order Slack ts), unread counts, read cursors, `markConversationRead()` → Slack `conversations.mark`.
+- `slackSendService.ts` — Post / edit / delete / react / upload / open DM / join, all as the member (D1); writes the archive row itself from Slack's response (D7). Throws `SendError` carrying a `slackSendRules.ts` mapping.
+- `slackNotifyService.ts` — `deliverSlackPings()`: turns one ingested message into Constellation notifications; retracts them on delete; builds deep links. Called only from `slack/events.ts`.
+- `slackReadSyncService.ts` — `syncReadStateFromSlack()`: every 2 min, polls `conversations.info.last_read` for conversations with unread Slack notifications and clears them here.
+- `slackBlocks.ts` — Pure. Bot Block Kit + legacy attachments → a small render tree, rendered on read. Buttons become inert labels; image URLs dropped.
+- `slackPings.ts` — Pure. `computePings()`: who one message pings and how (DM, mention, thread reply, broadcast), mirroring Slack's default rules; strongest reason wins.
 - `rubricGrading.ts` — the shared AI grading path for `LIT_REVIEW` **and** `ASSIGNMENT` sections: `buildGradingPrompt()`, `parseGradingResponse()`, `normalizeRubric()`, `countWords()`, `gradeAgainstRubric()`. `litReviewService.ts` re-exports these under its old `Lit*` names so existing importers keep compiling. **Uses `generateJson`, never `generateJsonComplex`** — the complex lane is 25 requests *per day* and shared with every other AI feature, so one cohort working through a module would starve it. `parseGradingResponse` iterates the *author's* rubric rather than the model's array: an id the model invented is dropped and a point it skipped is scored `missed`, never free credit.
 - `assignmentService.ts` — `ASSIGNMENT` pure logic: `sanitizeAssignmentConfig()`, `gradeAssignment()`, `decideCompletion()`, `DEFAULT_ASSIGNMENT_MIN_WORDS`. `sanitizeAssignmentConfig` builds the learner payload **by construction from the five safe keys, never by spreading the column and deleting secrets** — `referenceAnswer` and `rubric` are author-only, and a future author-side key would otherwise ship to every learner by default. `decideCompletion` is the whole of the score gate: `isSectionUnlocked` is untouched, so gating is purely a question of when `COMPLETED` is written, and a gated section whose grading produced no score returns `COMPLETE_UNGRADED` — **fail-open is load-bearing**, a Gemini outage must not strand a cohort.
 - `documentTextService.ts` — `extractText(buffer, mimeType, fileName)` turns an uploaded PDF / `.docx` / text file into plain text for grading. Every failure is a typed result, never a throw. **`pdf-parse` must be imported from the deep path `pdf-parse/lib/pdf-parse.js`** — importing the package root runs a bundled debug harness that reads a test PDF off disk and throws in production. Trusts the file extension when the MIME type is generic, because browsers send `application/octet-stream` for `.md`. A file that parses to nothing is `EMPTY`, never ok-with-an-empty-string: that is the scanned-PDF path, and returning ok would grade a scan as a zero and strand a gated learner.

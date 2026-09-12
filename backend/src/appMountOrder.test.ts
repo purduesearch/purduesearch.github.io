@@ -1,7 +1,8 @@
 // Regression guard for the dead live-notification stream in Brave/Safari.
 //
 // EventSource and <img> cannot send an Authorization header, so sseRouter and
-// projectChatRouter accept a signed `?token=` query param instead. Any router
+// chatRouter (the /api/chat file proxy) accept a signed `?token=` query param
+// instead. Any router
 // mounted AHEAD of them whose pathless `router.use(requireAuth)` covers their
 // path 401s that request (no cookie, no header) before it ever arrives. The
 // bare `app.use("/api", …)` routers are the widest such trap: blockersRouter's
@@ -31,13 +32,12 @@ const indexOf = (router: string) => mounts.findIndex((m) => m.router === router)
 check("found the app.use mounts", mounts.length > 20);
 
 // Routers whose routes authenticate via a `?token=` query param.
-const QUERY_TOKEN_ROUTERS = ["sseRouter", "projectChatRouter", "chatRouter"];
+const QUERY_TOKEN_ROUTERS = ["sseRouter", "chatRouter"];
 
 // Routers that attach a pathless requireAuth, keyed to a mount path that
 // shadows a query-token router. Bare "/api" mounts are checked generically.
 const SHADOWS: Record<string, string> = {
   sseRouter: "notificationsRouter",
-  projectChatRouter: "projectsRouter",
 };
 
 const bareApi = mounts

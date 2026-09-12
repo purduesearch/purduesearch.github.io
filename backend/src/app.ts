@@ -128,11 +128,9 @@ app.use("/auth", authRouter);
 app.use("/auth/github", githubAuthRouter);
 app.use("/auth/google", googleAuthRouter);
 app.use("/api/github", githubRouter);
-// MUST be mounted before projectsRouter. projectsRouter attaches a pathless
-// requireAuth (api/projects.ts:37), which would 401 the chat file proxy's
-// `?token=` requests — an <img> tag cannot send an Authorization header — before
-// they ever reached this router. Same ordering hazard as sseRouter vs
-// notificationsRouter below.
+// Kept above projectsRouter only for its channel-list and backfill routes, which
+// authenticate normally. The chat file proxy — the `?token=` route that made
+// this order load-bearing — moved to /api/chat (chatRouter, below).
 app.use("/api/projects", projectChatRouter);
 app.use("/api/projects", projectsRouter);
 app.use("/api/slack-archive", slackArchiveAdminRouter);
