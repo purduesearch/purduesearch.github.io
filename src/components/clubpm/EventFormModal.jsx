@@ -15,6 +15,13 @@ const RECURRENCE_OPTIONS = [
   { value: 'monthly',  label: 'Monthly'  },
 ];
 
+// Which occurrences an edit to a recurring event applies to (PATCH `scope`).
+const SCOPE_OPTIONS = [
+  { value: 'one',       label: 'This event'         },
+  { value: 'following', label: 'This and following' },
+  { value: 'all',       label: 'All events'         },
+];
+
 function toLocalDateString(iso) {
   if (!iso) return '';
   const d = new Date(iso);
@@ -33,13 +40,16 @@ function combineDatetime(dateStr, timeStr) {
 }
 
 const EMPTY = {
-  title: '', type: 'MEETING',
+  title: '', type: 'MEETING', description: '',
   startDate: '', startTime: '',
   endDate: '', endTime: '',
   location: '', isVirtual: false,
   projectId: '', notes: '',
   isRecurring: false, recurrencePattern: 'weekly', recurrenceEndDate: '',
   attendeeIds: [],
+  // New events are public by default (decided 2026-09-11); saving a public
+  // event always goes through the confirmation step below.
+  isPublic: true,
 };
 
 export default function EventFormModal({ isOpen, onClose, onSave, editEvent, projects = [], members = [] }) {
@@ -47,13 +57,20 @@ export default function EventFormModal({ isOpen, onClose, onSave, editEvent, pro
   const [showAll, setShowAll]   = useState(false);
   const [saving, setSaving]     = useState(false);
   const [search, setSearch]     = useState('');
+  // Non-null while the "this will be public" confirmation is showing. Holds
+  // the exact payload that Publish will send.
+  const [pendingPayload, setPendingPayload] = useState(null);
+  const [scope, setScope]       = useState('all');
 
   useEffect(() => {
     if (!isOpen) return;
+    setScope('all');
     if (editEvent) {
       setForm({
         title: editEvent.title ?? '',
         type: editEvent.type ?? 'MEETING',
+        description: editEvent.description ?? '',
+        isPublic: editEvent.isPublic ?? false,
         startDate: toLocalDateString(editEvent.startTime),
         startTime: toLocalTimeString(editEvent.startTime),
         endDate: toLocalDateString(editEvent.endTime),
@@ -72,17 +89,23 @@ export default function EventFormModal({ isOpen, onClose, onSave, editEvent, pro
     }
     setShowAll(false);
     setSearch('');
+    setPendingPayload(null);
   }, [isOpen, editEvent]);
 
   if (!isOpen) return null;
 
   const typeCfg = EVENT_TYPE_CONFIG[form.type] ?? EVENT_TYPE_CONFIG.OTHER;
+  // Only for an occurrence of an existing series that stays recurring —
+  // turning recurrence off is always a single-event edit on the server.
+  const editingSeries = !!(editEvent?.seriesId && editEvent.isRecurring && form.isRecurring);
 
   function set(field, value) {
+    setPendingPayload(null);
     setForm(prev => ({ ...prev, [field]: value }));
   }
 
   function toggleAttendee(id) {
+    setPendingPayload(null);
     setForm(prev => ({
       ...prev,
       attendeeIds: prev.attendeeIds.includes(id)
@@ -91,31 +114,52 @@ export default function EventFormModal({ isOpen, onClose, onSave, editEvent, pro
     }));
   }
 
-  async function handleSubmit(e) {
-    e.preventDefault();
-    if (!form.title.trim() || !form.startDate) return;
-    const payload = {
+  function buildPayload() {
+    return {
       title: form.title.trim(),
       type: form.type,
+      // '' (not undefined) on edit so clearing the field actually clears it.
+      description: form.description.trim() || (editEvent ? '' : undefined),
       startTime: combineDatetime(form.startDate, form.startTime),
       endTime: form.endDate ? combineDatetime(form.endDate, form.endTime) : undefined,
       location: form.isVirtual ? undefined : (form.location.trim() || undefined),
       isVirtual: form.isVirtual,
+      isPublic: form.type !== 'DEADLINE' && form.isPublic,
       projectId: form.projectId || undefined,
       notes: form.notes.trim() || undefined,
       isRecurring: form.isRecurring,
       recurrencePattern: form.isRecurring ? form.recurrencePattern : undefined,
+      // End of the chosen day in local time. `new Date('YYYY-MM-DD')` parses as
+      // UTC midnight, which is the previous evening in Indiana — that dropped
+      // an occurrence falling on the end date and showed the day before on edit.
       recurrenceEndDate: form.isRecurring && form.recurrenceEndDate
-        ? new Date(form.recurrenceEndDate).toISOString() : undefined,
+        ? combineDatetime(form.recurrenceEndDate, '23:59') : undefined,
       attendeeIds: form.attendeeIds,
+      ...(editingSeries ? { scope } : {}),
     };
+  }
+
+  async function save(payload) {
     setSaving(true);
     try {
       await onSave(payload);
+      setPendingPayload(null);
       onClose();
     } finally {
       setSaving(false);
     }
+  }
+
+  function handleSubmit(e) {
+    e.preventDefault();
+    if (!form.title.trim() || !form.startDate) return;
+    const payload = buildPayload();
+    // Every save of a public event is confirmed — create or edit.
+    if (payload.isPublic) {
+      setPendingPayload(payload);
+      return;
+    }
+    save(payload);
   }
 
   const filteredMembers = members.filter(m =>
@@ -158,6 +202,30 @@ export default function EventFormModal({ isOpen, onClose, onSave, editEvent, pro
         {/* Body */}
         <form id="event-form" onSubmit={handleSubmit} className="cpm-event-modal-body">
 
+          {/* Series scope — first, so it's seen before any field is changed */}
+          {editingSeries && (
+            <div className="cpm-form-field">
+              <label className="cpm-form-label" id="event-scope-label">
+                <i className="fas fa-redo" style={{ marginRight: 6 }} aria-hidden="true" />
+                Apply changes to
+              </label>
+              <div className="cpm-series-scope" role="radiogroup" aria-labelledby="event-scope-label">
+                {SCOPE_OPTIONS.map(o => (
+                  <button
+                    key={o.value}
+                    type="button"
+                    role="radio"
+                    aria-checked={scope === o.value}
+                    className={`cpm-event-type-btn${scope === o.value ? ' active' : ''}`}
+                    onClick={() => { setPendingPayload(null); setScope(o.value); }}
+                  >
+                    {o.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Title */}
           <div className="cpm-form-field">
             <label className="cpm-form-label">
@@ -199,6 +267,37 @@ export default function EventFormModal({ isOpen, onClose, onSave, editEvent, pro
               })}
             </div>
           </div>
+
+          {/* Public visibility — hidden for deadlines, which are never public */}
+          {form.type !== 'DEADLINE' && (
+            <div>
+              <label
+                className="cpm-toggle-row"
+                onClick={e => { e.preventDefault(); set('isPublic', !form.isPublic); }}
+              >
+                <span className="cpm-toggle-row-label">
+                  <i
+                    className={form.isPublic ? 'fas fa-eye' : 'fas fa-eye-slash'}
+                    style={{ color: form.isPublic ? 'var(--pm-accent-teal, #00e5cc)' : 'var(--clubpm-text-muted)', fontSize: 12 }}
+                    aria-hidden="true"
+                  />
+                  Show on purduesearch.org
+                </span>
+                <input
+                  type="checkbox"
+                  className="cpm-toggle-switch"
+                  checked={form.isPublic}
+                  onChange={() => {}}
+                  aria-label="Show on purduesearch.org"
+                />
+              </label>
+              <span className="cpm-public-hint">
+                {form.isPublic
+                  ? 'Title, time, location, and description appear on the public site and calendar feed. Notes and attendees stay private.'
+                  : 'Only visible inside Constellation.'}
+              </span>
+            </div>
+          )}
 
           {/* Start */}
           <div className="cpm-form-field">
@@ -266,6 +365,24 @@ export default function EventFormModal({ isOpen, onClose, onSave, editEvent, pro
             </div>
           </div>
 
+          {/* Description — the public-facing blurb (Notes stays members-only) */}
+          <div className="cpm-form-field">
+            <label className="cpm-form-label">
+              Description{' '}
+              <span style={{ color: 'var(--clubpm-text-muted)', fontWeight: 400 }}>
+                (optional{form.isPublic && form.type !== 'DEADLINE' ? ' · shown publicly' : ''})
+              </span>
+            </label>
+            <textarea
+              className="cpm-form-input"
+              value={form.description}
+              onChange={e => set('description', e.target.value)}
+              rows={3}
+              placeholder="What should attendees know? Who is it for?"
+              style={{ resize: 'vertical', fontFamily: 'inherit' }}
+            />
+          </div>
+
           {/* Project */}
           {projects.length > 0 && (
             <div className="cpm-form-field">
@@ -288,7 +405,7 @@ export default function EventFormModal({ isOpen, onClose, onSave, editEvent, pro
           {/* Notes */}
           <div className="cpm-form-field">
             <label className="cpm-form-label">
-              Notes <span style={{ color: 'var(--clubpm-text-muted)', fontWeight: 400 }}>(optional)</span>
+              Notes <span style={{ color: 'var(--clubpm-text-muted)', fontWeight: 400 }}>(optional · members only)</span>
             </label>
             <textarea
               className="cpm-form-input"
@@ -300,14 +417,16 @@ export default function EventFormModal({ isOpen, onClose, onSave, editEvent, pro
             />
           </div>
 
-          {/* Recurring toggle */}
+          {/* Recurring toggle. preventDefault is load-bearing: without it a
+              click on the label also fires a synthetic click on the checkbox
+              inside, which bubbles back here and toggles the value off again. */}
           <div>
             <label
               className="cpm-toggle-row"
-              onClick={() => set('isRecurring', !form.isRecurring)}
+              onClick={e => { e.preventDefault(); set('isRecurring', !form.isRecurring); }}
             >
               <span className="cpm-toggle-row-label">
-                <i className="fas fa-redo" style={{ color: 'var(--clubpm-text-muted)', fontSize: 12 }} />
+                <i className="fas fa-redo" style={{ color: 'var(--clubpm-text-muted)', fontSize: 12 }} aria-hidden="true" />
                 Recurring event
               </span>
               <input
@@ -315,6 +434,7 @@ export default function EventFormModal({ isOpen, onClose, onSave, editEvent, pro
                 className="cpm-toggle-switch"
                 checked={form.isRecurring}
                 onChange={() => {}}
+                aria-label="Recurring event"
               />
             </label>
 
@@ -429,28 +549,61 @@ export default function EventFormModal({ isOpen, onClose, onSave, editEvent, pro
         </form>
 
         {/* Footer */}
-        <div className="cpm-event-modal-footer">
-          <button
-            type="button"
-            className="cpm-btn-ghost"
-            onClick={onClose}
-            disabled={saving}
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            form="event-form"
-            className="cpm-btn-primary"
-            disabled={!canSubmit}
-            style={{ padding: '9px 20px', fontSize: 13 }}
-          >
-            {saving
-              ? <><i className="fas fa-spinner fa-spin" style={{ marginRight: 6 }} />Saving…</>
-              : <><i className="fas fa-check" style={{ marginRight: 6 }} />{editEvent ? 'Save Changes' : 'Create Event'}</>
-            }
-          </button>
-        </div>
+        {pendingPayload ? (
+          <div className="cpm-event-modal-footer is-confirming">
+            <div className="cpm-event-public-confirm" role="alert">
+              <i className="fas fa-eye" aria-hidden="true" />
+              <span>
+                This event will be visible to <strong>anyone</strong> on purduesearch.org and in the
+                public calendar feed — its title, time, location, and description. Publish it?
+              </span>
+            </div>
+            <button
+              type="button"
+              className="cpm-btn-ghost"
+              onClick={() => setPendingPayload(null)}
+              disabled={saving}
+            >
+              Back
+            </button>
+            <button
+              type="button"
+              className="cpm-btn-primary"
+              onClick={() => save(pendingPayload)}
+              disabled={saving}
+              style={{ padding: '9px 20px', fontSize: 13 }}
+              autoFocus
+            >
+              {saving
+                ? <><i className="fas fa-spinner fa-spin" style={{ marginRight: 6 }} />Publishing…</>
+                : <><i className="fas fa-globe" style={{ marginRight: 6 }} />Publish</>
+              }
+            </button>
+          </div>
+        ) : (
+          <div className="cpm-event-modal-footer">
+            <button
+              type="button"
+              className="cpm-btn-ghost"
+              onClick={onClose}
+              disabled={saving}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              form="event-form"
+              className="cpm-btn-primary"
+              disabled={!canSubmit}
+              style={{ padding: '9px 20px', fontSize: 13 }}
+            >
+              {saving
+                ? <><i className="fas fa-spinner fa-spin" style={{ marginRight: 6 }} />Saving…</>
+                : <><i className="fas fa-check" style={{ marginRight: 6 }} />{editEvent ? 'Save Changes' : 'Create Event'}</>
+              }
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

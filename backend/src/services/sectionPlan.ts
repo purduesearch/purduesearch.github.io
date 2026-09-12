@@ -2,7 +2,8 @@
 //
 // The AI never emits raw TipTap JSON. Instead it returns a validated, high-level
 // SectionPlan — an ordered list of typed sections it authored (hero / rich text /
-// columns / media+text / image / gallery / callout / quote / cta / divider) plus
+// columns / media+text / image / gallery / callout / quote / cta / divider /
+// embed / table of contents) plus
 // placeholder references (stats / timeline / team / links) whose data is filled in
 // deterministically from live project data. `buildDocFromPlan` maps every entry
 // into a schema-valid `section` node set, so output is always well-formed and
@@ -18,8 +19,10 @@ import { markdownToTiptapJson, type PMDoc, type PMNode } from "./blogRender.js";
 
 export type PlanSectionType =
   | "hero" | "richText" | "columns" | "mediaText" | "image" | "gallery"
-  | "callout" | "quote" | "cta" | "divider"
+  | "callout" | "quote" | "cta" | "divider" | "embed" | "toc"
   | "stats" | "timeline" | "team" | "links";
+
+export type PlanImageAlign = "left" | "center" | "right" | "full" | "wrap-left" | "wrap-right";
 
 export interface PlanSection {
   type: PlanSectionType;
@@ -27,10 +30,13 @@ export interface PlanSection {
   theme?: "inherit" | "light" | "dark";
   width?: "contained" | "fullBleed";
   padding?: "s" | "m" | "l" | "xl";
+  /** Solid section background, hex only (it lands in a public style attribute). */
+  background?: string;
   // hero
   heading?: string;
   subheading?: string;
-  align?: "left" | "center";
+  /** hero: left|center. cta: left|center|right. */
+  align?: "left" | "center" | "right";
   overlay?: boolean;
   // richText body
   markdown?: string;
@@ -40,6 +46,10 @@ export interface PlanSection {
   imageSide?: "left" | "right";
   imageAlt?: string;
   imageCaption?: string;
+  // image
+  imageAlign?: PlanImageAlign;
+  /** Percent of the content width, 10-100. */
+  imageWidth?: number;
   // gallery
   imageCount?: number;
   images?: { alt?: string; caption?: string }[];
@@ -52,12 +62,35 @@ export interface PlanSection {
   label?: string;
   href?: string;
   style?: "solid" | "outline";
+  // embed
+  url?: string;
   // stats (explicit, AI-authored — falls back to PlanData when absent)
   stats?: { label: string; value: string }[];
 }
 
+/**
+ * Post-level fields that live outside the document (the editor's meta panel).
+ * Only the blog paths read these; lessons and press kits ignore them.
+ */
+export interface PlanMeta {
+  title?: string;
+  excerpt?: string;
+  metaDescription?: string;
+  /** Names, matched case-insensitively against existing taxonomy by the caller. */
+  tags?: string[];
+  categories?: string[];
+}
+
 export interface SectionPlan {
   sections: PlanSection[];
+  meta?: PlanMeta;
+}
+
+/** A plan entry validation refused, reported on the paste-back path. */
+export interface DroppedSection {
+  index: number;
+  type: string;
+  reason: string;
 }
 
 // Deterministic live data the placeholder sections render from. Every field is
@@ -73,16 +106,72 @@ export interface PlanData {
 
 const PLAN_TYPES: readonly PlanSectionType[] = [
   "hero", "richText", "columns", "mediaText", "image", "gallery",
-  "callout", "quote", "cta", "divider",
+  "callout", "quote", "cta", "divider", "embed", "toc",
   "stats", "timeline", "team", "links",
 ];
 
 const CALLOUT_VARIANTS = new Set(["info", "success", "warning", "tip"]);
 const PADS = new Set(["s", "m", "l", "xl"]);
+const IMAGE_ALIGNS = new Set<PlanImageAlign>(["left", "center", "right", "full", "wrap-left", "wrap-right"]);
+const HEX_COLOR = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
 const MAX_SECTIONS = 30;
 
 function clampStr(v: unknown, max: number): string | undefined {
   return typeof v === "string" ? v.slice(0, max) : undefined;
+}
+
+/**
+ * A link target safe to put in a published `href`: http(s), mailto, or a
+ * site-relative path / fragment. The renderer only escapes attributes, so a
+ * `javascript:` URL from a pasted plan would otherwise ship as a live link.
+ */
+export function safeHref(v: unknown): string | undefined {
+  if (typeof v !== "string") return undefined;
+  const s = v.trim().slice(0, 500);
+  if (!s) return "";
+  return /^(?:https?:\/\/|mailto:|\/(?!\/)|#)/i.test(s) ? s : undefined;
+}
+
+function clampNames(v: unknown, maxItems: number): string[] | undefined {
+  if (!Array.isArray(v)) return undefined;
+  const out = v
+    .filter((x): x is string => typeof x === "string")
+    .map((x) => x.trim().slice(0, 60))
+    .filter(Boolean);
+  return [...new Set(out)].slice(0, maxItems);
+}
+
+function escapeHtmlAttr(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+/**
+ * Server-side twin of `buildEmbed` in src/components/clubpm/blog/BlogEmbed.jsx —
+ * keep the provider list in sync. The embed node's `html` is emitted verbatim on
+ * the public site, so it is only ever built here from an id the regex captured;
+ * a plan can supply a URL, never markup.
+ */
+export function buildEmbedAttrs(rawUrl: string): { url: string; html: string; provider: string } {
+  const url = (rawUrl || "").trim();
+  if (!url) return { url: "", html: "", provider: "link" };
+
+  const yt = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([\w-]{11})/);
+  if (yt) return { url, provider: "youtube", html: `<iframe src="https://www.youtube.com/embed/${yt[1]}" title="YouTube video" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>` };
+
+  const vm = url.match(/vimeo\.com\/(\d+)/);
+  if (vm) return { url, provider: "vimeo", html: `<iframe src="https://player.vimeo.com/video/${vm[1]}" title="Vimeo video" frameborder="0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>` };
+
+  const cp = url.match(/codepen\.io\/([\w-]+)\/pen\/([\w-]+)/);
+  if (cp) return { url, provider: "codepen", html: `<iframe src="https://codepen.io/${cp[1]}/embed/${cp[2]}?default-tab=result" title="CodePen embed" frameborder="0" scrolling="no" allowfullscreen></iframe>` };
+
+  const safe = escapeHtmlAttr(url);
+  if (/^https:\/\/(?:www\.)?(?:twitter\.com|x\.com)\/[^/\s]+\/status\/\d+/.test(url)) {
+    return { url, provider: "twitter", html: `<blockquote class="twitter-tweet"><a href="${safe}"></a></blockquote>` };
+  }
+  if (/^https:\/\/(?:www\.)?instagram\.com\/(?:p|reel|tv)\//.test(url)) {
+    return { url, provider: "instagram", html: `<blockquote class="instagram-media" data-instgrm-permalink="${safe}" data-instgrm-version="14"><a href="${safe}"></a></blockquote>` };
+  }
+  return { url, provider: "link", html: "" };
 }
 
 /** A 12-column span, or undefined when absent/invalid. */
@@ -102,27 +191,42 @@ function normaliseSpans(cols: { markdown: string; span?: number }[]): { markdown
   return cols.map(({ markdown }) => ({ markdown }));
 }
 
-/** Coerce arbitrary model JSON into a safe SectionPlan (drops unknown types/fields). */
-export function validateSectionPlan(raw: unknown): SectionPlan {
+/**
+ * Coerce arbitrary model JSON into a safe SectionPlan (drops unknown types/fields).
+ *
+ * `dropped` is an optional sink, mirroring normalizeActionPlan: the generated
+ * path ignores it, the paste-back path shows it, because a member who watched a
+ * chat model write twelve sections must not be handed nine with no explanation.
+ */
+export function validateSectionPlan(raw: unknown, dropped?: DroppedSection[]): SectionPlan {
   const root = (raw ?? {}) as Record<string, unknown>;
   const list: unknown[] = Array.isArray(root.sections)
     ? root.sections
     : Array.isArray(raw) ? (raw as unknown[]) : [];
 
   const sections: PlanSection[] = [];
-  for (const item of list.slice(0, MAX_SECTIONS)) {
+  list.forEach((item, index) => {
     const o = (item ?? {}) as Record<string, unknown>;
-    if (!PLAN_TYPES.includes(o.type as PlanSectionType)) continue;
+    const rawType = typeof o.type === "string" ? o.type : "(none)";
+    if (index >= MAX_SECTIONS) {
+      dropped?.push({ index, type: rawType, reason: `Only the first ${MAX_SECTIONS} sections are used.` });
+      return;
+    }
+    if (!PLAN_TYPES.includes(o.type as PlanSectionType)) {
+      dropped?.push({ index, type: rawType, reason: "Not a section type the editor supports." });
+      return;
+    }
     const sec: PlanSection = { type: o.type as PlanSectionType };
 
     // Section-level styling
     if (o.theme === "light" || o.theme === "dark" || o.theme === "inherit") sec.theme = o.theme;
     if (o.width === "contained" || o.width === "fullBleed") sec.width = o.width;
     if (typeof o.padding === "string" && PADS.has(o.padding)) sec.padding = o.padding as PlanSection["padding"];
+    if (typeof o.background === "string" && HEX_COLOR.test(o.background.trim())) sec.background = o.background.trim();
 
     const heading = clampStr(o.heading, 200);      if (heading !== undefined) sec.heading = heading;
     const sub = clampStr(o.subheading, 300);       if (sub !== undefined) sec.subheading = sub;
-    if (o.align === "left" || o.align === "center") sec.align = o.align;
+    if (o.align === "left" || o.align === "center" || o.align === "right") sec.align = o.align;
     if (typeof o.overlay === "boolean") sec.overlay = o.overlay;
     const md = clampStr(o.markdown, 8000);         if (md !== undefined) sec.markdown = md;
     if (Array.isArray(o.columns)) {
@@ -138,6 +242,12 @@ export function validateSectionPlan(raw: unknown): SectionPlan {
     if (o.imageSide === "left" || o.imageSide === "right") sec.imageSide = o.imageSide;
     const iAlt = clampStr(o.imageAlt, 300);         if (iAlt !== undefined) sec.imageAlt = iAlt;
     const iCap = clampStr(o.imageCaption, 300);     if (iCap !== undefined) sec.imageCaption = iCap;
+    if (typeof o.imageAlign === "string" && IMAGE_ALIGNS.has(o.imageAlign as PlanImageAlign)) {
+      sec.imageAlign = o.imageAlign as PlanImageAlign;
+    }
+    if (typeof o.imageWidth === "number" && Number.isFinite(o.imageWidth)) {
+      sec.imageWidth = Math.max(10, Math.min(100, Math.round(o.imageWidth)));
+    }
     if (typeof o.imageCount === "number" && Number.isFinite(o.imageCount)) {
       sec.imageCount = Math.max(0, Math.min(8, Math.round(o.imageCount)));
     }
@@ -154,8 +264,16 @@ export function validateSectionPlan(raw: unknown): SectionPlan {
     const text = clampStr(o.text, 1200);           if (text !== undefined) sec.text = text;
     const attr = clampStr(o.attribution, 200);     if (attr !== undefined) sec.attribution = attr;
     const label = clampStr(o.label, 120);          if (label !== undefined) sec.label = label;
-    const href = clampStr(o.href, 500);            if (href !== undefined) sec.href = href;
+    const href = safeHref(o.href);                 if (href !== undefined) sec.href = href;
     if (o.style === "outline" || o.style === "solid") sec.style = o.style;
+    if (typeof o.url === "string") {
+      const url = o.url.trim().slice(0, 500);
+      if (/^https?:\/\//i.test(url)) sec.url = url;
+    }
+    if (sec.type === "embed" && !sec.url) {
+      dropped?.push({ index, type: rawType, reason: "An embed needs a full http(s) URL." });
+      return;
+    }
     if (Array.isArray(o.stats)) {
       sec.stats = o.stats.slice(0, 8)
         .map((x) => ({
@@ -166,8 +284,22 @@ export function validateSectionPlan(raw: unknown): SectionPlan {
     }
 
     sections.push(sec);
+  });
+
+  const plan: SectionPlan = { sections };
+  const m = (!Array.isArray(raw) && root.meta && typeof root.meta === "object")
+    ? root.meta as Record<string, unknown>
+    : null;
+  if (m) {
+    const meta: PlanMeta = {};
+    const title = clampStr(m.title, 200)?.trim();             if (title) meta.title = title;
+    const excerpt = clampStr(m.excerpt, 300)?.trim();         if (excerpt) meta.excerpt = excerpt;
+    const desc = clampStr(m.metaDescription, 300)?.trim();    if (desc) meta.metaDescription = desc;
+    const tags = clampNames(m.tags, 10);                      if (tags?.length) meta.tags = tags;
+    const cats = clampNames(m.categories, 5);                 if (cats?.length) meta.categories = cats;
+    if (Object.keys(meta).length) plan.meta = meta;
   }
-  return { sections };
+  return plan;
 }
 
 // ── Plan → PMDoc ─────────────────────────────────────────────
@@ -185,6 +317,7 @@ function withStyle(base: Record<string, unknown>, s: PlanSection): Record<string
   if (s.theme === "light" || s.theme === "dark" || s.theme === "inherit") out.theme = s.theme;
   if (s.width === "contained" || s.width === "fullBleed") out.width = s.width;
   if (s.padding && PADS.has(s.padding)) out.padding = s.padding;
+  if (s.background && HEX_COLOR.test(s.background)) out.background = { kind: "color", value: s.background };
   return out;
 }
 
@@ -195,10 +328,10 @@ function blocks(md: string | undefined): PMNode[] {
 }
 
 /** An image node with no source — renders as an upload placeholder in the editor. */
-function imageNode(alt?: string, caption?: string): PMNode {
+function imageNode(alt?: string, caption?: string, align?: PlanImageAlign, widthPct?: number): PMNode {
   return { type: "image", attrs: {
-    src: null, alt: (alt ?? "").slice(0, 300), align: "center",
-    width: null, widthUnit: "px", caption: (caption ?? "").slice(0, 300),
+    src: null, alt: (alt ?? "").slice(0, 300), align: align && IMAGE_ALIGNS.has(align) ? align : "center",
+    width: widthPct ?? null, widthUnit: widthPct ? "%" : "px", caption: (caption ?? "").slice(0, 300),
   } };
 }
 
@@ -273,7 +406,25 @@ export function buildDocFromPlan(plan: SectionPlan, data: PlanData = {}): PMDoc 
         break;
       }
       case "image": {
-        out.push(section(withStyle({ layout: "single", padding: "m" }, s), [imageNode(s.imageAlt, s.imageCaption)]));
+        out.push(section(
+          withStyle({ layout: "single", padding: "m" }, s),
+          [imageNode(s.imageAlt, s.imageCaption, s.imageAlign, s.imageWidth)],
+        ));
+        break;
+      }
+      case "embed": {
+        if (!s.url) break;
+        const inner: PMNode[] = [];
+        if (s.heading?.trim()) inner.push(h2(s.heading.trim()));
+        inner.push({ type: "embed", attrs: buildEmbedAttrs(s.url) });
+        out.push(section(withStyle({ layout: "single", padding: "m" }, s), inner));
+        break;
+      }
+      case "toc": {
+        const inner: PMNode[] = [];
+        if (s.heading?.trim()) inner.push(h2(s.heading.trim()));
+        inner.push({ type: "tableOfContents" });
+        out.push(section(withStyle({ layout: "single", padding: "s" }, s), inner));
         break;
       }
       case "gallery": {
@@ -313,7 +464,7 @@ export function buildDocFromPlan(plan: SectionPlan, data: PlanData = {}): PMDoc 
           label,
           href: (s.href ?? "").trim(),
           style: s.style === "outline" ? "outline" : "solid",
-          align: "center",
+          align: s.align === "left" || s.align === "right" ? s.align : "center",
         } }]));
         break;
       }
@@ -428,6 +579,10 @@ export function planToMarkdown(plan: SectionPlan): string {
         break;
       case "divider":
         out.push("---", "");
+        break;
+      case "embed":
+        if (s.heading?.trim()) out.push(`## ${s.heading.trim()}`);
+        if (s.url) out.push(`[${s.url}](${s.url})`, "");
         break;
       default:
         break;

@@ -32,6 +32,9 @@ function EventChip({ event, onClick, draggable = false, onDragStart, onDragEnd, 
     >
       <i className={iconClass} style={{ fontSize: 9, marginRight: 3, color: borderColor, flexShrink: 0 }} />
       <span className="cpm-cal-chip-title">{event.title}</span>
+      {event.isPublic && (
+        <i className="fas fa-eye cpm-public-eye" title="Public on purduesearch.org" aria-label="Public on purduesearch.org" />
+      )}
     </div>
   );
 }
@@ -441,6 +444,9 @@ export default function CalendarView({
                         >
                           <i className={iconClass} style={{ fontSize: 11, marginRight: 6, color: borderColor, flexShrink: 0 }} />
                           <span className="cpm-cal-agenda-task-title">{ev.title}</span>
+                          {ev.isPublic && (
+                            <i className="fas fa-eye cpm-public-eye" title="Public on purduesearch.org" aria-label="Public on purduesearch.org" />
+                          )}
                           <span style={{ marginLeft: "auto", fontSize: 11, color: "var(--clubpm-text-muted)", flexShrink: 0 }}>
                             {timeLabel}
                           </span>

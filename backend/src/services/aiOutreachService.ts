@@ -98,17 +98,20 @@ Respond with ONLY a valid JSON object (no markdown):
 
 export const BLOG_PLAN_SCHEMA = `Return ONLY a JSON object: { "sections": PlanSection[] }. Compose a rich, visually varied article — NOT a title followed by one block of text. Use a MIX of these section types:
   { "type": "hero", "heading": string, "subheading": string, "align": "center"|"left", "overlay": boolean }
-  { "type": "richText", "heading": string, "markdown": string }        // USE real formatting: ## / ### sub-headings, **bold**, *italic*, bullet AND numbered lists, > blockquotes, [links](url), \`inline code\`
+  { "type": "richText", "heading": string, "markdown": string }        // USE real formatting (see MARKDOWN below)
   { "type": "columns", "heading": string, "columns": [{ "markdown": string, "span": number }, { "markdown": string, "span": number }] }   // 2–3 side-by-side columns (comparisons, pros/cons, steps)
   { "type": "mediaText", "heading": string, "markdown": string, "imageSide": "left"|"right", "imageAlt": string, "imageCaption": string }   // text next to an image placeholder
-  { "type": "image", "imageAlt": string, "imageCaption": string }      // a full-width image placeholder
+  { "type": "image", "imageAlt": string, "imageCaption": string, "imageAlign": "center"|"left"|"right"|"full"|"wrap-left"|"wrap-right", "imageWidth": number }   // an image placeholder; imageWidth is a percent (10-100) of the content width, omit for natural size
   { "type": "gallery", "heading": string, "images": [{ "alt": string, "caption": string }] }   // a captioned image carousel placeholder
   { "type": "callout", "variant": "info"|"success"|"warning"|"tip", "markdown": string }   // a highlighted note / tip box
   { "type": "stats", "heading": string, "stats": [{ "label": string, "value": string }] }   // a "by the numbers" band — ONLY with real numbers found in the source
   { "type": "quote", "text": string, "attribution": string }           // a pull-quote
-  { "type": "cta", "label": string, "href": string, "style": "solid"|"outline" }   // a call-to-action band
+  { "type": "cta", "label": string, "href": string, "style": "solid"|"outline", "align": "center"|"left"|"right" }   // a call-to-action band; href must be https://, mailto:, or a site path like /contact
   { "type": "divider" }                                                // a visual break between sections
-Any section may also set "theme" ("light"|"dark"|"inherit"), "width" ("contained"|"fullBleed"), and "padding" ("s"|"m"|"l"|"xl") for visual rhythm — e.g. a "dark" hero or CTA band.
+  { "type": "embed", "heading": string, "url": string }                // an embedded YouTube / Vimeo / CodePen / X post / Instagram post (any other URL shows as a link card) — ONLY URLs that appear in the source
+  { "type": "toc", "heading": string }                                 // an auto-generated table of contents built from the article's headings — worth it for long, multi-heading pieces
+Any section may also set "theme" ("light"|"dark"|"inherit"), "width" ("contained"|"fullBleed"), "padding" ("s"|"m"|"l"|"xl"), and "background" (a hex colour like "#0f1729") for visual rhythm — e.g. a "dark" hero or CTA band.
+MARKDOWN (richText, columns, mediaText, callout): ## to ###### headings, **bold**, *italic*, ~~strikethrough~~, \`inline code\`, [links](https://…), bullet lists, numbered lists, checklists ("- [ ] step" / "- [x] done"), > blockquotes, fenced code blocks with a language (\`\`\`python), GFM tables (| a | b |), and --- rules. Three inline HTML tags are also understood and nothing else: <u>underline</u>, <mark>highlight</mark> (optionally <mark style="background-color:#fde68a">), and <span style="color:#e11d48">coloured text</span> — hex colours only, used sparingly. Never write markdown images ![](…); use an image placeholder section instead.
 Each entry in "columns" may include "span": an integer 1-12 on a 12-column grid. The spans in one section must sum to 12 or less; omit them for an even split. Use uneven spans (e.g. 8 and 4) when one column carries an image or a sidebar.
 A "gallery" section may include "images": an array of { "alt", "caption" } placeholders. Write real captions describing what each photo should show — a human uploads the files later.
 Image placeholders (image / mediaText / gallery) are ENCOURAGED wherever a photo, diagram, or screenshot would help — describe the intended image in imageAlt/imageCaption; the author uploads the real file later (this is not fabricating facts).`;
@@ -117,7 +120,7 @@ export const BLOG_PLAN_RULES = `Rules:
 - Build 6–10 sections total, alternating types so the page feels designed (never several identical richText blocks in a row).
 - Include at least one image placeholder (image or mediaText) AND at least one of: callout, columns, or pull-quote.
 - Use a divider or two and a "dark"-themed hero or CTA for visual rhythm.
-- Do NOT fabricate specific numbers, names, dates, partnerships, or claims not present in the source. Image placeholders are allowed; a "stats" band is allowed only with real numbers from the source.
+- Do NOT fabricate specific numbers, names, dates, partnerships, links, or claims not present in the source. Image placeholders are allowed; a "stats" band is allowed only with real numbers from the source; an "embed" only with a URL from the source.
 - Avoid filler adjectives ("cutting-edge", "revolutionary", "exciting"); write with substance.`;
 
 // ── Blog expansion ───────────────────────────────────────────
@@ -171,15 +174,47 @@ ${BLOG_PLAN_RULES}`;
 // AI-derived and the caller can pass free-form guidance (tone / angle). Returns a
 // SectionPlan; content stays grounded in the supplied text.
 
-export async function generateBlogFromText(
-  text:      string,
-  titleHint?: string,
-  guidance?:  string,
+/** Existing taxonomy names the model may choose from for post metadata. */
+export interface BlogTaxonomyNames {
+  tags: string[];
+  categories: string[];
+}
+
+/**
+ * The post-level fields the editor's meta panel holds. Blog-only: a lesson body
+ * has no excerpt, SEO description, or taxonomy of its own.
+ */
+function blogMetaBlock(taxonomy?: BlogTaxonomyNames): string {
+  const list = (names: string[] | undefined) =>
+    names?.length ? names.map((n) => `"${n.replace(/"/g, "'")}"`).join(", ") : "(none exist yet — omit this field)";
+  return `Also include a top-level "meta" object beside "sections":
+  "meta": { "title": string, "excerpt": string, "metaDescription": string, "tags": string[], "categories": string[] }
+- "title": the post title (match the hero heading).
+- "excerpt": 1–2 sentences for the blog list card, max 300 characters.
+- "metaDescription": a search-result description, 140–160 characters.
+- "tags": up to 5, chosen ONLY from these existing tags: ${list(taxonomy?.tags)}
+- "categories": up to 2, chosen ONLY from these existing categories: ${list(taxonomy?.categories)}
+Names not on those lists are discarded, so do not invent new ones.`;
+}
+
+export interface BlogFromTextPromptInput {
+  text: string;
+  titleHint?: string;
+  guidance?: string;
   // "lesson" retargets the same pipeline at a course section body: no hero, no
   // social CTA, and a teaching structure instead of an announcement one.
-  kind: "blog" | "lesson" = "blog",
-  memberId?: string | null
-): Promise<SectionPlan> {
+  kind?: "blog" | "lesson";
+  taxonomy?: BlogTaxonomyNames;
+}
+
+/**
+ * The prompt behind generateBlogFromText. Pure and exported because the
+ * "Plan with Claude" lane (blogPlanService.buildBlogPlanPrompt) hands this exact
+ * text to a member's own chat session — one prompt, two runners, so the two
+ * lanes can't drift in what the model is told the editor supports.
+ */
+export function buildBlogFromTextPrompt(input: BlogFromTextPromptInput): string {
+  const { text, titleHint, guidance, kind = "blog", taxonomy } = input;
   const lesson = kind === "lesson";
   const titleLine = lesson
     ? (titleHint?.trim()
@@ -210,17 +245,29 @@ Turn the following raw text (notes, a brief, an outline, or a rough draft) into 
 - End with a "cta" — label "Follow @purduesearch", href "https://instagram.com/purduesearch".
 - Default tone: celebratory, technical-but-accessible (unless the guidance says otherwise).`;
 
-  const prompt = `${intro}
+  return `${intro}
 ${todayContext()}${titleLine}${guidanceLine}
 
 Source text:
 ${text}
 
 ${BLOG_PLAN_SCHEMA}
-
+${lesson ? "" : `\n${blogMetaBlock(taxonomy)}\n`}
 ${composition}
 
 ${BLOG_PLAN_RULES}`;
+}
+
+export async function generateBlogFromText(
+  text:      string,
+  titleHint?: string,
+  guidance?:  string,
+  kind: "blog" | "lesson" = "blog",
+  memberId?: string | null,
+  taxonomy?: BlogTaxonomyNames
+): Promise<SectionPlan> {
+  const lesson = kind === "lesson";
+  const prompt = buildBlogFromTextPrompt({ text, titleHint, guidance, kind, taxonomy });
 
   const raw  = await runJson<unknown>({ memberId }, "high", { prompt, json: true, maxOutputTokens: 8192 });
   const plan = raw ? validateSectionPlan(raw) : { sections: [] };

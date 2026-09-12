@@ -3,8 +3,8 @@
 // Excluded from the production build (tsconfig `exclude` covers *.test.ts).
 
 import {
-  validateSectionPlan, buildDocFromPlan, planToMarkdown,
-  type SectionPlan, type PlanData,
+  validateSectionPlan, buildDocFromPlan, planToMarkdown, safeHref,
+  type SectionPlan, type PlanData, type DroppedSection,
 } from "./sectionPlan.js";
 import type { PMNode } from "./blogRender.js";
 
@@ -208,6 +208,77 @@ function findAll(node: { content?: PMNode[] } | PMNode, type: string): PMNode[] 
   const gallery = doc.content?.[0]?.content?.find((n) => n.type === "gallery");
   const images = (gallery?.attrs?.images ?? []) as Array<Record<string, unknown>>;
   check("built gallery carries caption placeholders", images.length === 2 && images[1]?.caption === "Second");
+}
+
+// dropped sink: unknown types and URL-less embeds are reported, not silently lost
+{
+  const dropped: DroppedSection[] = [];
+  const plan = validateSectionPlan({ sections: [
+    { type: "hero", heading: "H" },
+    { type: "marquee" },
+    { type: "embed" },
+    { type: "embed", url: "javascript:alert(1)" },
+    { type: "toc" },
+  ] }, dropped);
+  check("dropped: valid sections kept", plan.sections.map((s) => s.type).join(",") === "hero,toc");
+  check("dropped: three reported", dropped.length === 3);
+  check("dropped: carries original index and type", dropped[0]?.index === 1 && dropped[0]?.type === "marquee");
+}
+
+// safeHref: only http(s) / mailto / site-relative survive into a published href
+{
+  check("safeHref https", safeHref("https://x.org/a") === "https://x.org/a");
+  check("safeHref mailto", safeHref("mailto:a@b.c") === "mailto:a@b.c");
+  check("safeHref relative", safeHref("/contact") === "/contact");
+  check("safeHref rejects javascript:", safeHref("javascript:alert(1)") === undefined);
+  check("safeHref rejects protocol-relative", safeHref("//evil.com") === undefined);
+  const plan = validateSectionPlan({ sections: [{ type: "cta", label: "Go", href: "javascript:alert(1)" }] });
+  check("cta with unsafe href keeps no href", plan.sections[0]?.href === undefined);
+}
+
+// styling: hex-only background, image align/width, cta align
+{
+  const plan = validateSectionPlan({ sections: [
+    { type: "richText", markdown: "x", background: "#0f1729" },
+    { type: "richText", markdown: "y", background: "red;background-image:url(x)" },
+    { type: "image", imageAlt: "a", imageAlign: "wrap-right", imageWidth: 250 },
+    { type: "cta", label: "Go", href: "/x", align: "right" },
+  ] });
+  check("hex background kept", plan.sections[0]?.background === "#0f1729");
+  check("non-hex background dropped", plan.sections[1]?.background === undefined);
+  check("imageWidth clamped to 100", plan.sections[2]?.imageWidth === 100);
+  const doc = buildDocFromPlan(plan);
+  check("background becomes section attr", JSON.stringify(doc.content?.[0]?.attrs?.background) === JSON.stringify({ kind: "color", value: "#0f1729" }));
+  const img = findAll(doc, "image")[0];
+  check("image align + % width applied", img?.attrs?.align === "wrap-right" && img?.attrs?.width === 100 && img?.attrs?.widthUnit === "%");
+  check("cta align applied", findAll(doc, "ctaButton")[0]?.attrs?.align === "right");
+}
+
+// embed + toc sections; embed html is built server-side from the URL only
+{
+  const plan = validateSectionPlan({ sections: [
+    { type: "toc", heading: "Contents" },
+    { type: "embed", url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ", html: "<script>x</script>" },
+    { type: "embed", url: "https://x.com/a/status/1\"><script>" },
+  ] });
+  const doc = buildDocFromPlan(plan);
+  check("toc node emitted", findAll(doc, "tableOfContents").length === 1);
+  const embeds = findAll(doc, "embed");
+  check("youtube embed resolved", embeds[0]?.attrs?.provider === "youtube" && String(embeds[0]?.attrs?.html).includes("youtube.com/embed/dQw4w9WgXcQ"));
+  check("plan-supplied html ignored", !String(embeds[0]?.attrs?.html).includes("<script>"));
+  check("tweet url escaped inside widget markup", !String(embeds[1]?.attrs?.html).includes("<script>"));
+}
+
+// meta: clamped, deduped, only from an object root
+{
+  const plan = validateSectionPlan({
+    sections: [{ type: "richText", markdown: "x" }],
+    meta: { title: " T ", excerpt: "E", tags: ["Rover", "rover ", "Rover", 5], categories: "nope" },
+  });
+  check("meta title trimmed", plan.meta?.title === "T");
+  check("meta tags deduped after trim", JSON.stringify(plan.meta?.tags) === JSON.stringify(["Rover", "rover"]));
+  check("meta non-array categories dropped", plan.meta?.categories === undefined);
+  check("array root has no meta", validateSectionPlan([{ type: "divider" }]).meta === undefined);
 }
 
 console.log(`\nsectionPlan.test: ${passed} passed, ${failed} failed`);

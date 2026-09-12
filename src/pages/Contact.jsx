@@ -2,19 +2,11 @@ import React, { useEffect } from 'react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import SEOHead from '../components/SEOHead';
+import PublicEventsCalendar from '../components/events/PublicEventsCalendar';
 
 const Contact = () => {
   useEffect(() => {
     if (window.AOS) window.AOS.init({ once: true });
-  }, []);
-
-  useEffect(() => {
-    const link = document.createElement('link');
-    link.rel = 'preload';
-    link.as = 'image';
-    link.href = '/Purdue_Sky.webp';
-    document.head.appendChild(link);
-    return () => { if (document.head.contains(link)) document.head.removeChild(link); };
   }, []);
 
   return (
@@ -24,12 +16,9 @@ const Contact = () => {
         description="Get in touch with Purdue SEARCH. Reach out to join our team, ask about research collaborations, or learn about upcoming events."
         canonical="/contact"
       />
-      <Navbar />
-      <main id="main-content" className="jumbotron jumbotron-single d-flex align-items-center" style={{ backgroundImage: 'url(/Purdue_Sky.webp)' }}>
-        <div className="container text-center">
-          <h1 className="display-2 mb-4">Contact Us</h1>
-        </div>
-      </main>
+      <Navbar solid />
+      <main id="main-content" className="contact-page">
+      <h1 className="sr-only">Contact Us</h1>
 
       <section id="contact-form" className="bg-white">
         <div className="container">
@@ -109,6 +98,9 @@ const Contact = () => {
           </div>
         </div>
       </section>
+
+      <PublicEventsCalendar />
+      </main>
 
       <Footer />
     </div>

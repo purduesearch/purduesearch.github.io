@@ -401,6 +401,8 @@ export function registerActions(app: App): void {
         organizerId: member.id,
         isRecurring: !!recPat,
         recurrencePattern: recPat,
+        // Matches the ClubPM form default. eventService forces DEADLINE → false.
+        isPublic: true,
       });
     } catch (err) {
       console.error("event_create_submit error:", err);

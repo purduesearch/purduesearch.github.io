@@ -95,6 +95,11 @@ function EventDetailModal({ event, onClose, onEdit, onDelete, isAdmin, projects 
               </div>
               <div className="pm-cal-detail-type" style={{ color: borderColor }}>
                 {event.type}
+                {event.isPublic && (
+                  <span className="cpm-public-badge" title="Visible on purduesearch.org and the public calendar feed">
+                    <i className="fas fa-eye" aria-hidden="true" /> Public
+                  </span>
+                )}
               </div>
             </div>
           </div>
@@ -118,6 +123,13 @@ function EventDetailModal({ event, onClose, onEdit, onDelete, isAdmin, projects 
           {event.endTime && (
             <DetailRow icon="fas fa-clock" label="Ends">
               {formatDatetime(event.endTime)}
+            </DetailRow>
+          )}
+
+          {/* Description (public-facing when the event is public) */}
+          {event.description && (
+            <DetailRow icon="fas fa-align-left" label="Description">
+              <span style={{ whiteSpace: 'pre-wrap', color: 'var(--clubpm-text-secondary)' }}>{event.description}</span>
             </DetailRow>
           )}
 

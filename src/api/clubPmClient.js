@@ -438,6 +438,10 @@ export const createBlogPost   = (data) => post('/api/blog/posts', data);
 export const generateBlogPost = (data) => post('/api/blog/posts/generate', data);
 // Generates the article doc without creating a post — for the in-editor AI panel.
 export const generateBlogDoc  = (data) => post('/api/blog/posts/generate-doc', data);
+// "Plan with Claude" clipboard lane: build prompt → validate pasted reply → create draft.
+export const getBlogPlanPrompt      = (data)        => post('/api/blog/posts/plan-prompt', data);
+export const importBlogPlan         = (raw)         => post('/api/blog/posts/plan-import', { raw });
+export const createBlogPostFromPlan = (plan, title) => post('/api/blog/posts/from-plan', { plan, title });
 export const updateBlogPost   = (id, data) => patch(`/api/blog/posts/${id}`, data);
 export const previewBlogPost = (id, contentJson) => post(`/api/blog/posts/${id}/preview`, { contentJson });
 export const deleteBlogPost   = (id) => del(`/api/blog/posts/${id}`);

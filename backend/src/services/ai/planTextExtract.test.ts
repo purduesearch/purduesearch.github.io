@@ -1,7 +1,7 @@
 // Pure-logic unit tests for the pasted-plan extractor. No DB, no network.
 // Run: cd backend && npx tsx src/services/ai/planTextExtract.test.ts
 
-import { extractJsonBlock, parsePastedPlan } from "./planTextExtract.js";
+import { extractJsonBlock, parsePastedPlan, parsePastedSectionPlan } from "./planTextExtract.js";
 import { normalizeActionPlan, type DroppedAction } from "../aiActionService.js";
 import type { ProjectContext } from "../projectContextService.js";
 
@@ -103,6 +103,17 @@ console.log("normalizeActionPlan — every dropped action reports why");
   // An unknown member id is scrubbed from params rather than dropping the action —
   // the card renders with an empty assignee list the member can fix by hand.
   check("bad assignee id is scrubbed, not dropped", actions[1]!.params.assigneeIds.length === 0);
+}
+
+// parsePastedSectionPlan — the blog "Plan with Claude" paste-back
+{
+  const reply = 'Here is your post:\n```json\n{ "sections": [{ "type": "hero", "heading": "H" }], "meta": { "title": "H" } }\n```\nWant changes?';
+  const root = parsePastedSectionPlan(reply) as { sections?: unknown[]; meta?: unknown } | null;
+  check("section plan: object root found in prose", Array.isArray(root?.sections) && root?.sections?.length === 1);
+  check("section plan: meta survives extraction", Boolean(root?.meta));
+  check("section plan: bare array accepted", Array.isArray(parsePastedSectionPlan('[{"type":"divider"}]')));
+  check("section plan: action plan is not a section plan", parsePastedSectionPlan('{"actions":[]}') === null);
+  check("section plan: no JSON → null", parsePastedSectionPlan("sorry, I can't") === null);
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);

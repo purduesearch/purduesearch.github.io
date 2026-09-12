@@ -82,6 +82,7 @@ eventsRouter.post("/", async (req: Request, res: Response) => {
       endTime,
       location,
       isVirtual,
+      isPublic,
       projectId,
       priorityTaskIds,
       organizerId,
@@ -98,6 +99,7 @@ eventsRouter.post("/", async (req: Request, res: Response) => {
       endTime?: string;
       location?: string;
       isVirtual?: boolean;
+      isPublic?: boolean;
       projectId?: string;
       priorityTaskIds?: string[];
       organizerId?: string;
@@ -121,6 +123,7 @@ eventsRouter.post("/", async (req: Request, res: Response) => {
       endTime:           endTime           ? new Date(endTime)           : undefined,
       location,
       isVirtual,
+      isPublic,
       projectId,
       priorityTaskIds,
       organizerId,
@@ -159,6 +162,7 @@ eventsRouter.patch("/:id", async (req: Request, res: Response) => {
       endTime,
       location,
       isVirtual,
+      isPublic,
       projectId,
       priorityTaskIds,
       organizerId,
@@ -167,6 +171,7 @@ eventsRouter.patch("/:id", async (req: Request, res: Response) => {
       isRecurring,
       recurrencePattern,
       recurrenceEndDate,
+      scope,
     } = req.body as {
       title?: string;
       description?: string;
@@ -175,6 +180,7 @@ eventsRouter.patch("/:id", async (req: Request, res: Response) => {
       endTime?: string;
       location?: string;
       isVirtual?: boolean;
+      isPublic?: boolean;
       projectId?: string;
       priorityTaskIds?: string[];
       organizerId?: string;
@@ -183,7 +189,13 @@ eventsRouter.patch("/:id", async (req: Request, res: Response) => {
       isRecurring?: boolean;
       recurrencePattern?: string;
       recurrenceEndDate?: string;
+      scope?: eventService.EditScope;
     };
+
+    if (scope !== undefined && !["one", "following", "all"].includes(scope)) {
+      res.status(400).json({ error: 'scope must be "one", "following", or "all"' });
+      return;
+    }
 
     const event = await eventService.updateEvent(req.params.id as string, {
       title,
@@ -193,6 +205,7 @@ eventsRouter.patch("/:id", async (req: Request, res: Response) => {
       endTime:           endTime           ? new Date(endTime)           : undefined,
       location,
       isVirtual,
+      isPublic,
       projectId,
       priorityTaskIds,
       organizerId,
@@ -201,7 +214,7 @@ eventsRouter.patch("/:id", async (req: Request, res: Response) => {
       isRecurring,
       recurrencePattern,
       recurrenceEndDate: recurrenceEndDate ? new Date(recurrenceEndDate) : undefined,
-    });
+    }, scope);
 
     res.json(event);
   } catch (error) {

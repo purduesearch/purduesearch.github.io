@@ -1,5 +1,7 @@
+import { randomUUID } from "node:crypto";
 import { prisma } from "../db/prisma.js";
 import type { EventType } from "@prisma/client";
+import { recurrenceStarts, shiftWallClock } from "./eventRecurrence.js";
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -11,6 +13,7 @@ interface CreateEventInput {
   endTime?: Date;
   location?: string;
   isVirtual?: boolean;
+  isPublic?: boolean;
   projectId?: string;
   priorityTaskIds?: string[];
   organizerId?: string;
@@ -29,6 +32,7 @@ interface UpdateEventInput {
   endTime?: Date;
   location?: string;
   isVirtual?: boolean;
+  isPublic?: boolean;
   projectId?: string;
   priorityTaskIds?: string[];
   organizerId?: string;
@@ -38,6 +42,10 @@ interface UpdateEventInput {
   recurrencePattern?: string;
   recurrenceEndDate?: Date;
 }
+
+// Which occurrences of a recurring series an edit applies to. "following"
+// means the edited occurrence and every later one.
+type EditScope = "one" | "following" | "all";
 
 interface EventFilters {
   from?: Date;
@@ -57,34 +65,74 @@ const eventInclude = {
 
 // ── Recurrence Helpers ───────────────────────────────────────
 
-function offsetDays(date: Date, days: number): Date {
-  const d = new Date(date);
-  d.setDate(d.getDate() + days);
-  return d;
-}
-
-interface RecurrenceCopy {
+interface SeriesBase {
   title: string;
-  type: EventType;
+  description?: string | null;
+  type?: EventType;
   startTime: Date;
-  endTime?: Date;
-  organizerId?: string;
+  endTime?: Date | null;
+  location?: string | null;
+  isVirtual?: boolean;
+  isPublic: boolean;
+  seriesId: string;
+  recurrencePattern: string;
+  recurrenceEndDate?: Date | null;
+  projectId?: string | null;
+  organizerId?: string | null;
   attendeeIds?: string[];
 }
 
-function buildRecurringCopies(base: RecurrenceCopy, pattern: string): Date[] {
-  // Returns array of startTime offsets for child events (not including the original)
-  switch (pattern) {
-    case "weekly":   return Array.from({ length: 8  }, (_, i) => offsetDays(base.startTime, 7  * (i + 1)));
-    case "biweekly": return Array.from({ length: 4  }, (_, i) => offsetDays(base.startTime, 14 * (i + 1)));
-    case "monthly":  return Array.from({ length: 2  }, (_, i) => offsetDays(base.startTime, 30 * (i + 1)));
-    default:         return [];
-  }
+// Creates the future copies of a recurring event (not the original itself).
+// Occurrence dates come from eventRecurrence.ts, which honours the series end
+// date and keeps the local wall-clock time across DST.
+async function spawnOccurrences(base: SeriesBase) {
+  const starts = recurrenceStarts(base.startTime, base.recurrencePattern, base.recurrenceEndDate);
+  const duration = base.endTime ? base.endTime.getTime() - base.startTime.getTime() : null;
+
+  await Promise.all(
+    starts.map(startTime =>
+      prisma.event.create({
+        data: {
+          title:             base.title,
+          type:              base.type,
+          startTime,
+          endTime:           duration !== null ? new Date(startTime.getTime() + duration) : undefined,
+          description:       base.description ?? undefined,
+          location:          base.location ?? undefined,
+          isVirtual:         base.isVirtual,
+          isPublic:          base.isPublic,
+          isRecurring:       true,
+          seriesId:          base.seriesId,
+          recurrencePattern: base.recurrencePattern,
+          recurrenceEndDate: base.recurrenceEndDate ?? undefined,
+          ...(base.projectId
+            ? { project: { connect: { id: base.projectId } } }
+            : {}),
+          ...(base.organizerId
+            ? { organizer: { connect: { id: base.organizerId } } }
+            : {}),
+          ...(base.attendeeIds?.length
+            ? { attendees: { connect: base.attendeeIds.map(id => ({ id })) } }
+            : {}),
+        },
+      })
+    )
+  );
+}
+
+// DEADLINE events are never published, whatever the caller asked for. The
+// public API also filters DEADLINE out, but storing false keeps the eye icon
+// in ClubPM honest.
+function resolveIsPublic(type: EventType | undefined, requested: boolean | undefined): boolean {
+  if (type === "DEADLINE") return false;
+  return requested ?? false;
 }
 
 // ── Service ──────────────────────────────────────────────────
 
 export async function createEvent(data: CreateEventInput) {
+  const seriesId = data.isRecurring && data.recurrencePattern ? randomUUID() : undefined;
+
   const event = await prisma.event.create({
     data: {
       title:              data.title,
@@ -94,8 +142,10 @@ export async function createEvent(data: CreateEventInput) {
       endTime:            data.endTime,
       location:           data.location,
       isVirtual:          data.isVirtual,
+      isPublic:           resolveIsPublic(data.type, data.isPublic),
       notes:              data.notes,
       isRecurring:        data.isRecurring,
+      seriesId,
       recurrencePattern:  data.recurrencePattern,
       recurrenceEndDate:  data.recurrenceEndDate,
       ...(data.projectId
@@ -115,48 +165,161 @@ export async function createEvent(data: CreateEventInput) {
   });
 
   // Spawn recurring child events if applicable
-  if (data.isRecurring && data.recurrencePattern) {
-    const offsets = buildRecurringCopies(
-      { title: data.title, type: data.type ?? "MEETING", startTime: data.startTime, endTime: data.endTime },
-      data.recurrencePattern
-    );
-
-    if (offsets.length > 0) {
-      await Promise.all(
-        offsets.map(startTime => {
-          const endTime = data.endTime
-            ? new Date(startTime.getTime() + (data.endTime!.getTime() - data.startTime.getTime()))
-            : undefined;
-
-          return prisma.event.create({
-            data: {
-              title:             data.title,
-              type:              data.type,
-              startTime,
-              endTime,
-              isRecurring:       true,
-              recurrencePattern: data.recurrencePattern,
-              recurrenceEndDate: data.recurrenceEndDate,
-              ...(data.projectId
-                ? { project: { connect: { id: data.projectId } } }
-                : {}),
-              ...(data.organizerId
-                ? { organizer: { connect: { id: data.organizerId } } }
-                : {}),
-              ...(data.attendeeIds?.length
-                ? { attendees: { connect: data.attendeeIds.map(id => ({ id })) } }
-                : {}),
-            },
-          });
-        })
-      );
-    }
+  if (seriesId && data.recurrencePattern) {
+    await spawnOccurrences({
+      ...data,
+      seriesId,
+      isPublic:          event.isPublic,
+      recurrencePattern: data.recurrencePattern,
+    });
   }
 
   return event;
 }
 
-export async function updateEvent(id: string, data: UpdateEventInput) {
+function findForEdit(id: string) {
+  return prisma.event.findUnique({
+    where: { id },
+    include: {
+      attendees:     { select: { id: true } },
+      priorityTasks: { select: { id: true } },
+    },
+  });
+}
+type EventForEdit = NonNullable<Awaited<ReturnType<typeof findForEdit>>>;
+
+export async function updateEvent(id: string, data: UpdateEventInput, scope: EditScope = "one") {
+  const updateData = buildUpdateData(data);
+
+  const before = await findForEdit(id);
+  if (!before) throw new Error(`Event ${id} not found`);
+
+  // Turning recurrence off is a single-occurrence edit whatever the scope.
+  if (scope !== "one" && before.seriesId && before.isRecurring && data.isRecurring !== false) {
+    return updateSeries(before, data, updateData, scope);
+  }
+
+  // Turning recurrence on for an existing one-off event creates its future
+  // occurrences, same as creating it recurring would have. Already-recurring
+  // events are left alone so re-saving a series never duplicates it.
+  const startsSeries = !before.isRecurring && data.isRecurring === true;
+  if (startsSeries) updateData.seriesId = before.seriesId ?? randomUUID();
+
+  const updated = await prisma.event.update({
+    where: { id },
+    data:  updateData,
+    include: eventInclude,
+  });
+
+  if (startsSeries && updated.seriesId && updated.recurrencePattern) {
+    await spawnOccurrences({
+      ...updated,
+      seriesId:          updated.seriesId,
+      recurrencePattern: updated.recurrencePattern,
+      attendeeIds:       updated.attendees.map(a => a.id),
+    });
+  }
+
+  return updated;
+}
+
+// Applies an edit to several occurrences of a series. Each occurrence keeps
+// its own date: a time or day change moves every occurrence the way the edited
+// one moved (in club-local time, so DST doesn't knock them an hour off).
+async function updateSeries(
+  before: EventForEdit,
+  data: UpdateEventInput,
+  updateData: Record<string, unknown>,
+  scope: "following" | "all",
+) {
+  const shared = seriesChanges(before, data, updateData);
+
+  const newStart = data.startTime ?? before.startTime;
+  const newEnd   = data.endTime   ?? before.endTime;
+  const timeChanged = newStart.getTime() !== before.startTime.getTime()
+    || newEnd?.getTime() !== before.endTime?.getTime();
+  const duration = newEnd ? newEnd.getTime() - newStart.getTime() : null;
+
+  // "This and following" splits the series in two, as Google Calendar does,
+  // so a later edit to the earlier half doesn't undo this one.
+  const seriesId = scope === "following" ? randomUUID() : before.seriesId!;
+  const rows = await prisma.event.findMany({
+    where: {
+      seriesId: before.seriesId,
+      ...(scope === "following" ? { startTime: { gte: before.startTime } } : {}),
+    },
+    select: { id: true, startTime: true, endTime: true },
+  });
+
+  const writes = rows.flatMap(row => {
+    const rowData: Record<string, unknown> = { ...shared };
+    if (scope === "following") rowData.seriesId = seriesId;
+    if (timeChanged) {
+      const start = shiftWallClock(row.startTime, before.startTime, newStart);
+      rowData.startTime = start;
+      if (duration !== null) rowData.endTime = new Date(start.getTime() + duration);
+      else if (row.endTime) rowData.endTime = shiftWallClock(row.endTime, before.startTime, newStart);
+    }
+    return Object.keys(rowData).length
+      ? [prisma.event.update({ where: { id: row.id }, data: rowData })]
+      : [];
+  });
+  await prisma.$transaction(writes);
+
+  // A new pattern or end date invalidates the later occurrences' dates, so
+  // recreate them from the edited one. RSVPs on the removed rows go with them.
+  if ("recurrencePattern" in shared || "recurrenceEndDate" in shared) {
+    const anchor = await prisma.event.findUniqueOrThrow({
+      where: { id: before.id },
+      include: { attendees: { select: { id: true } } },
+    });
+    if (anchor.recurrencePattern) {
+      await prisma.event.deleteMany({ where: { seriesId, startTime: { gt: anchor.startTime } } });
+      await spawnOccurrences({
+        ...anchor,
+        seriesId,
+        recurrencePattern: anchor.recurrencePattern,
+        attendeeIds:       anchor.attendees.map(a => a.id),
+      });
+    }
+  }
+
+  return prisma.event.findUniqueOrThrow({ where: { id: before.id }, include: eventInclude });
+}
+
+// The subset of an update that actually changes the edited occurrence. The
+// edit form sends every field, so without this a series edit that only
+// renamed the event would also overwrite a room someone changed on one week.
+function seriesChanges(before: EventForEdit, data: UpdateEventInput, updateData: Record<string, unknown>) {
+  const norm = (v: unknown) =>
+    v instanceof Date ? v.getTime() : v === "" || v === undefined ? null : v;
+  const sameIds = (ids: string[], rows: { id: string }[]) =>
+    ids.length === rows.length && rows.every(r => ids.includes(r.id));
+
+  const out: Record<string, unknown> = {};
+  const scalars = [
+    "title", "description", "type", "location", "isVirtual", "isPublic", "notes",
+    "recurrencePattern", "recurrenceEndDate",
+  ] as const;
+  for (const k of scalars) {
+    if (k in updateData && norm(updateData[k]) !== norm(before[k])) out[k] = updateData[k];
+  }
+  if (data.projectId !== undefined && norm(data.projectId) !== before.projectId) {
+    out.project = updateData.project;
+  }
+  if (data.organizerId !== undefined && norm(data.organizerId) !== before.organizerId) {
+    out.organizer = updateData.organizer;
+  }
+  if (data.attendeeIds !== undefined && !sameIds(data.attendeeIds, before.attendees)) {
+    out.attendees = updateData.attendees;
+  }
+  if (data.priorityTaskIds !== undefined && !sameIds(data.priorityTaskIds, before.priorityTasks)) {
+    out.priorityTasks = updateData.priorityTasks;
+  }
+  return out;
+}
+
+function buildUpdateData(data: UpdateEventInput): Record<string, any> {
   const updateData: any = {};
 
   if (data.title             !== undefined) updateData.title             = data.title;
@@ -166,6 +329,10 @@ export async function updateEvent(id: string, data: UpdateEventInput) {
   if (data.endTime           !== undefined) updateData.endTime           = data.endTime;
   if (data.location          !== undefined) updateData.location          = data.location;
   if (data.isVirtual         !== undefined) updateData.isVirtual         = data.isVirtual;
+  if (data.isPublic !== undefined) updateData.isPublic = resolveIsPublic(data.type, data.isPublic);
+  // Switching an existing event to DEADLINE unpublishes it even if the caller
+  // didn't mention isPublic.
+  if (data.type === "DEADLINE") updateData.isPublic = false;
   if (data.notes             !== undefined) updateData.notes             = data.notes;
   if (data.isRecurring       !== undefined) updateData.isRecurring       = data.isRecurring;
   if (data.recurrencePattern !== undefined) updateData.recurrencePattern = data.recurrencePattern;
@@ -188,11 +355,7 @@ export async function updateEvent(id: string, data: UpdateEventInput) {
     updateData.priorityTasks = { set: data.priorityTaskIds.map(id => ({ id })) };
   }
 
-  return prisma.event.update({
-    where: { id },
-    data:  updateData,
-    include: eventInclude,
-  });
+  return updateData;
 }
 
 export async function deleteEvent(id: string) {
@@ -264,4 +427,4 @@ export async function getEvent(id: string) {
   });
 }
 
-export type { CreateEventInput, UpdateEventInput, EventFilters };
+export type { CreateEventInput, UpdateEventInput, EditScope, EventFilters };

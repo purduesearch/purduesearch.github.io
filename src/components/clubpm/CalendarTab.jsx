@@ -127,6 +127,9 @@ function EventBand({ event }) {
     >
       <i className="fas fa-calendar-day" aria-hidden="true" style={{ fontSize: 9, marginRight: 3, color }} />
       <span style={{ color, fontSize: 10 }}>{event.title}</span>
+      {event.isPublic && (
+        <i className="fas fa-eye cpm-public-eye" title="Public on purduesearch.org" aria-label="Public on purduesearch.org" />
+      )}
       {tip && (
         <div className="pm-cal-pill-tooltip">
           <strong>{event.title}</strong>

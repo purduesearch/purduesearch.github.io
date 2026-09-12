@@ -5,6 +5,7 @@ import {
   renderJsonToHtml as _render,
   extractText as _extractText,
   collectHeadings as _collectHeadings,
+  markdownToTiptapJson,
 } from "./blogRender.js";
 
 let passed = 0, failed = 0;
@@ -289,6 +290,28 @@ check("passes through a normal https image",
   check("emptied blocks leak no review artifacts",
     !html.includes("data-thread-id") && !html.includes("cpm-blog-sugg")
       && !html.includes("cpm-blog-comment-mark"));
+}
+
+// markdownToTiptapJson: checklists and the three inline HTML tags the AI prompts allow
+{
+  const doc = markdownToTiptapJson("- [ ] todo\n- [x] done");
+  const list = doc.content?.[0];
+  check("md: task list becomes taskList", list?.type === "taskList");
+  check("md: checked state carried", list?.content?.[0]?.attrs?.checked === false && list?.content?.[1]?.attrs?.checked === true);
+  check("md: checkbox marker not left as text", !JSON.stringify(list).includes("[ ]"));
+
+  const para = markdownToTiptapJson(
+    'a <u>u</u> <mark>m</mark> <mark style="background-color:#fde68a">c</mark> ' +
+    '<span style="color:#e11d48">r <span style="color:red">bad</span> still</span> <b>x</b>',
+  ).content?.[0]?.content ?? [];
+  const marksOf = (text: string) => para.find((n) => n.text === text)?.marks ?? [];
+  check("md: <u> → underline", marksOf("u")[0]?.type === "underline");
+  check("md: <mark> → highlight", marksOf("m")[0]?.type === "highlight");
+  check("md: <mark style> keeps hex colour", marksOf("c")[0]?.attrs?.color === "#fde68a");
+  check("md: <span color> → textStyle", marksOf("r ")[0]?.attrs?.color === "#e11d48");
+  check("md: non-hex inner span adds no mark", marksOf("bad").length === 1);
+  check("md: inner </span> closes only the inner span", marksOf(" still")[0]?.attrs?.color === "#e11d48");
+  check("md: unknown tags stripped, text kept", marksOf("x").length === 0 && !JSON.stringify(para).includes("<b>"));
 }
 
 console.log(`\nblogRender: ${passed} passed, ${failed} failed`);

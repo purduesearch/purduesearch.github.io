@@ -87,6 +87,7 @@ Static SPA for the Purdue SEARCH club, deployed to GitHub Pages and served at th
 │       │                           #   Static figures: AresFigure (shared image slot + placeholder; all three pages),
 │       │                           #   AresHeadProfile (head schematic; exports HEAD_PATH etc. so PlumeAnatomy draws the same person),
 │       │                           #   PlumeAnatomy + CandleComparison (original explanatory SVGs, no external assets)
+│       ├── events/                 # Public homepage events calendar (PublicEventsCalendar + MonthGrid + EventCard + CalendarMenu); pure logic in src/lib/publicEvents.js + calendarLinks.js
 │       └── clubpm/                 # ClubPM UI components
 │           ├── AppShell.jsx        # Protected layout shell
 │           ├── GanttChart.jsx
@@ -227,6 +228,7 @@ If you restyle the rail, re-check with `document.elementFromPoint()` over page c
 - `public/` assets are served at `/` in dev and in the GitHub Pages build. Paths in JSX must start with `/` (e.g., `/astrousa/fig1.jpg`).
 - No `.env` is needed for frontend dev or build. `REACT_APP_API_URL` is optional locally (CRA's `proxy` field forwards to `localhost:3001`) and is supplied as a repo secret in CI.
 - `mxgraph` is an npm dependency in `package.json`; do not remove it or switch to a CDN reference.
+- **`Event.isPublic` defaults to `false` in the DB on purpose.** Only the ClubPM event form and the Slack `/event` modal opt in (UI default on, with a confirm step in `EventFormModal`). Any new event-creating path stays private unless it deliberately passes `isPublic`. `eventService` forces `DEADLINE` events to `false`.
 
 ### Slack portal invariants
 Constellation is a two-way portal to the Slack workspace (plan: `docs/superpowers/plans/2026-09-10-slack-portal.md`, decisions D1–D14). Each rule below is load-bearing:
@@ -260,7 +262,7 @@ Constellation is a two-way portal to the Slack workspace (plan: `docs/superpower
 - `shop.ts` / `inventory.ts` — Cosmetic shop, inventory.
 - `leaderboard.ts` — XP + doubloon rankings.
 - `notifications.ts` + `sse.ts` — Notification CRUD + SSE push stream.
-- `public.ts` — Unauthenticated endpoints (the public site reads these).
+- `public.ts` — Unauthenticated endpoints (the public site reads these). Includes the homepage events calendar: `GET /api/public/events` (JSON, `isPublic` + non-DEADLINE only, payload built by construction in `services/publicEventService.ts`), `GET /api/public/events.ics` (subscribable feed; UIDs `evt-<id>@purduesearch.org` — never change them once shipped, same reason as the poll UID), `GET /api/public/events/:eventId/ics` (single-event download).
 - `github.ts` / `githubWebhook.ts` — GitHub integration + webhook (raw body handler).
 - `reporting.ts`, `activity.ts`, `events.ts`, `eventConfig.ts`, `streak.ts` — Ancillary data.
 - `vault.ts` (1,096 lines) + `changeRequests.ts` — Constellation Vault CAD/PDM: items, versions, checkouts, BOM, CRs. Mounted at bare `/api` (like `blockers.ts` and `streak.ts`).

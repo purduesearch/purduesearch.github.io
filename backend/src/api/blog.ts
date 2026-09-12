@@ -112,7 +112,7 @@ blogRouter.post("/posts/generate", async (req: Request, res: Response) => {
       return;
     }
     const { generateBlogFromText } = await import("../services/aiOutreachService.js");
-    const { buildDocFromPlan } = await import("../services/sectionPlan.js");
+    const { createPostFromPlan, loadBlogTaxonomyNames } = await import("../services/blogPlanService.js");
 
     const plan = await generateBlogFromText(
       text.trim(),
@@ -120,20 +120,82 @@ blogRouter.post("/posts/generate", async (req: Request, res: Response) => {
       guidance?.trim() || undefined,
       "blog",
       req.memberId,
+      await loadBlogTaxonomyNames(),
     );
-    const doc = buildDocFromPlan(plan);
-    const heroHeading = plan.sections.find((s) => s.type === "hero")?.heading?.trim();
-    const finalTitle = (title?.trim() || heroHeading || "Untitled post").slice(0, 200);
-
-    const post = await blogService.createPost({
-      title: finalTitle,
-      contentJson: doc,
-      createdById: req.memberId!,
-    });
+    const post = await createPostFromPlan(plan, { title, memberId: req.memberId! });
     res.status(201).json(post);
   } catch (error) {
     console.error("POST /blog/posts/generate error:", error);
     res.status(500).json({ error: "Failed to generate post" });
+  }
+});
+
+// ── "Plan with Claude" (clipboard lane) ──────────────────────
+// The same pipeline as /posts/generate with the model call replaced by a human:
+// plan-prompt returns the prompt, plan-import validates the pasted reply into a
+// reviewable outline, from-plan creates the draft. No AI call anywhere here.
+
+// POST /posts/plan-prompt — { text, title?, guidance? } → { prompt }
+blogRouter.post("/posts/plan-prompt", async (req: Request, res: Response) => {
+  try {
+    const { text, title, guidance } = req.body as { text?: string; title?: string; guidance?: string };
+    if (!text?.trim()) {
+      res.status(400).json({ error: "text is required" });
+      return;
+    }
+    const { buildBlogPlanPrompt } = await import("../services/blogPlanService.js");
+    const prompt = await buildBlogPlanPrompt({
+      text: text.trim(),
+      title: title?.trim() || undefined,
+      guidance: guidance?.trim() || undefined,
+    });
+    res.json({ prompt });
+  } catch (error) {
+    console.error("POST /blog/posts/plan-prompt error:", error);
+    res.status(500).json({ error: "Failed to build prompt" });
+  }
+});
+
+// POST /posts/plan-import — { raw } → { plan, dropped, title }. Persists nothing.
+blogRouter.post("/posts/plan-import", async (req: Request, res: Response) => {
+  try {
+    const { raw } = req.body as { raw?: string };
+    if (typeof raw !== "string" || !raw.trim()) {
+      res.status(400).json({ error: "raw is required" });
+      return;
+    }
+    const { importBlogPlan, loadBlogTaxonomyNames } = await import("../services/blogPlanService.js");
+    const result = importBlogPlan(raw, await loadBlogTaxonomyNames());
+    if (!result.ok) {
+      res.status(400).json({ error: "No post plan JSON was found in that text. Paste the whole reply, including the ```json block." });
+      return;
+    }
+    res.json({ plan: result.plan, dropped: result.dropped, title: result.title });
+  } catch (error) {
+    console.error("POST /blog/posts/plan-import error:", error);
+    res.status(500).json({ error: "Failed to read that reply" });
+  }
+});
+
+// POST /posts/from-plan — { plan, title? } → the created DRAFT. The plan is
+// re-validated server-side; the client copy is never trusted.
+blogRouter.post("/posts/from-plan", async (req: Request, res: Response) => {
+  try {
+    const { plan, title } = req.body as { plan?: unknown; title?: string };
+    if (!plan || typeof plan !== "object") {
+      res.status(400).json({ error: "plan is required" });
+      return;
+    }
+    const { createPostFromPlan } = await import("../services/blogPlanService.js");
+    const post = await createPostFromPlan(plan, { title, memberId: req.memberId! });
+    res.status(201).json(post);
+  } catch (error) {
+    if (error instanceof Error && error.message === "EMPTY_PLAN") {
+      res.status(400).json({ error: "That plan has no sections the editor can use." });
+      return;
+    }
+    console.error("POST /blog/posts/from-plan error:", error);
+    res.status(500).json({ error: "Failed to create post" });
   }
 });
 
@@ -240,7 +302,8 @@ blogRouter.delete("/posts/:id", async (req: Request, res: Response) => {
 });
 
 // ── Media upload ─────────────────────────────────────────────
-// Multipart field `image`; recompresses to webp (max 1600px wide) and stores on
+// Multipart field `image`; recompresses to webp (max 1600px wide, animation
+// preserved) and stores on
 // Google Drive. Returns { url, width, height } for the editor image node.
 
 blogRouter.post(
@@ -252,7 +315,9 @@ blogRouter.post(
         res.status(400).json({ error: "image file is required" });
         return;
       }
-      const { data, info } = await sharp(req.file.buffer)
+      // `animated` decodes every frame (GIF/animated WebP) — sharp's default
+      // reads only the first, which silently flattened uploaded GIFs.
+      const { data, info } = await sharp(req.file.buffer, { animated: true })
         .rotate() // honor EXIF orientation before stripping metadata
         .resize({ width: 1600, withoutEnlargement: true })
         .webp({ quality: 82 })
@@ -277,7 +342,8 @@ blogRouter.post(
       res.json({
         url: `${origin}/api/public/blog-image/${uploaded.fileId}`,
         width: info.width,
-        height: info.height,
+        // Animated output is a vertical strip of frames; pageHeight is one frame.
+        height: info.pageHeight ?? info.height,
       });
     } catch (error) {
       console.error("POST /blog/upload error:", error);

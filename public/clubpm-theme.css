@@ -27007,3 +27007,138 @@ button.cpm-chat-reaction:disabled { cursor: default; }
   .cpm-dm-inbox { position: static; max-height: 280px; }
   .cpm-dm-panel { position: static; height: 75vh; }
 }
+
+/* === Blog: generate modal — "Plan with Claude" lane === */
+/* BlogTab.jsx GenerateModal. The mode toggle, clipboard steps, and skipped-
+   section report reuse the .cpm-actionplan-* rules (bare selectors on :root
+   tokens, so they reach this <body> portal outside .clubpm-app). Only what the
+   blog lane adds lives here. */
+.cpm-blog-genmodal--wide { width: min(720px, 96vw); }
+.cpm-blog-genmodal .cpm-actionplan-mode-btn:disabled { opacity: .55; cursor: default; }
+.cpm-blog-genmodal-textarea--short { min-height: 120px; }
+.cpm-blog-genmodal .cpm-actionplan-manual { margin-top: 16px; }
+.cpm-blog-genmodal .cpm-actionplan-step-note + .clubpm-btn-primary {
+  display: inline-flex; align-items: center; gap: 6px;
+}
+
+.cpm-blog-genmodal-review {
+  margin-top: 16px;
+  padding: 4px 14px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--clubpm-border);
+  background: var(--clubpm-surface-300);
+}
+.cpm-blog-genmodal-outline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 260px;
+  overflow-y: auto;
+  border-radius: 8px;
+  border: 1px solid var(--clubpm-border);
+  background: var(--clubpm-surface-100);
+}
+.cpm-blog-genmodal-outline-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 7px 10px;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--clubpm-text-secondary);
+}
+.cpm-blog-genmodal-outline-row + .cpm-blog-genmodal-outline-row { border-top: 1px solid var(--clubpm-border); }
+.cpm-blog-genmodal-outline-row > i {
+  flex: 0 0 14px;
+  text-align: center;
+  color: var(--clubpm-accent-green);
+}
+/* <code> and <div>, not <span>/<p>: the .clubpm-app colour-inherit override
+   (clubpm-theme.css ~969) doesn't reach this portal today, but the modal
+   must keep reading right if it is ever rendered inline. */
+.cpm-blog-genmodal-outline-type {
+  flex: 0 0 auto;
+  font-family: var(--pm-font-mono);
+  font-size: 10.5px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--clubpm-surface-300);
+  color: var(--clubpm-text-primary);
+  white-space: nowrap;
+}
+.cpm-blog-genmodal-outline-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cpm-blog-genmodal-meta {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 6px 12px;
+  margin: 12px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.cpm-blog-genmodal-meta dt { font-weight: 600; color: var(--clubpm-text-primary); }
+.cpm-blog-genmodal-meta dd { margin: 0; color: var(--clubpm-text-secondary); }
+@media (max-width: 560px) {
+  .cpm-blog-genmodal-meta { grid-template-columns: 1fr; }
+  .cpm-blog-genmodal-meta dd { margin-bottom: 6px; }
+}
+
+/* ===== Public events (isPublic) — eye icon, badge, EventFormModal publish confirm ===== */
+.cpm-public-eye {
+  font-size: 9px;
+  margin-left: 4px;
+  color: var(--pm-accent-teal, #00e5cc);
+  opacity: 0.85;
+  flex-shrink: 0;
+}
+.cpm-public-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  vertical-align: middle;
+  color: var(--pm-accent-teal, #00e5cc);
+  background: rgba(0, 229, 204, 0.12);
+  border: 1px solid rgba(0, 229, 204, 0.35);
+}
+.cpm-public-hint {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--clubpm-text-muted, #8b93a7);
+}
+.cpm-event-modal-footer.is-confirming { flex-wrap: wrap; }
+.cpm-event-public-confirm {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  flex: 1 1 100%;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--clubpm-text-secondary, #c8cfdc);
+  background: rgba(245, 166, 35, 0.1);
+  border: 1px solid rgba(245, 166, 35, 0.4);
+}
+.cpm-event-public-confirm i { margin-top: 2px; color: var(--pm-accent-amber, #f5a623); }
+
+/* Event form — "Apply changes to" choice when editing a recurring series */
+.cpm-series-scope { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.cpm-series-scope .cpm-event-type-btn { padding: 9px 6px; text-transform: none; letter-spacing: 0; font-size: 12px; }
+.cpm-series-scope .cpm-event-type-btn.active {
+  border-color: var(--pm-accent-teal, #00e5cc);
+  background: rgba(0, 229, 204, 0.09);
+  color: var(--pm-accent-teal, #00e5cc);
+}

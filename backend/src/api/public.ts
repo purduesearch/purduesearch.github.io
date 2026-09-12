@@ -2,6 +2,10 @@ import { Router, type Request, type Response } from "express";
 import { prisma } from "../db/prisma.js";
 import * as pollService from "../services/pollService.js";
 import { streamDriveFile } from "../services/driveService.js";
+import {
+  PUBLIC_EVENT_WHERE, PUBLIC_EVENT_SELECT, serializePublicEvent,
+  parsePublicRange, buildPublicIcsFeed, icsFileName,
+} from "../services/publicEventService.js";
 
 export const publicRouter = Router();
 
@@ -27,6 +31,80 @@ function rateLimit(ip: string): boolean {
   }
   return true;
 }
+
+// ── Public events calendar (homepage + subscribable feed) ────
+// Only events with isPublic=true and type≠DEADLINE; payload is built by
+// construction in publicEventService (never notes/attendees/organizer).
+
+const PUBLIC_SITE_URL = process.env.FRONTEND_URL || "https://purduesearch.org";
+const DAY_MS = 86_400_000;
+
+publicRouter.get("/events", async (req: Request, res: Response) => {
+  const range = parsePublicRange(req.query as { from?: unknown; to?: unknown }, new Date());
+  if ("error" in range) {
+    res.status(400).json({ error: range.error });
+    return;
+  }
+  try {
+    const rows = await prisma.event.findMany({
+      where:   { ...PUBLIC_EVENT_WHERE, startTime: { gte: range.from, lte: range.to } },
+      select:  PUBLIC_EVENT_SELECT,
+      orderBy: { startTime: "asc" },
+      take:    500,
+    });
+    res.setHeader("Cache-Control", "public, max-age=300");
+    res.json(rows.map(serializePublicEvent));
+  } catch (error) {
+    console.error("GET /public/events error:", error);
+    res.status(500).json({ error: "Failed to load events" });
+  }
+});
+
+// Subscribable feed. Google/Outlook/Apple poll this URL; keep it stable.
+publicRouter.get("/events.ics", async (_req: Request, res: Response) => {
+  try {
+    const now = new Date();
+    const rows = await prisma.event.findMany({
+      where: {
+        ...PUBLIC_EVENT_WHERE,
+        startTime: { gte: new Date(now.getTime() - 60 * DAY_MS), lte: new Date(now.getTime() + 365 * DAY_MS) },
+      },
+      select:  PUBLIC_EVENT_SELECT,
+      orderBy: { startTime: "asc" },
+      take:    2000,
+    });
+    const body = buildPublicIcsFeed(rows, { now, siteUrl: PUBLIC_SITE_URL, mode: "feed" });
+    res.setHeader("Content-Type", "text/calendar; charset=utf-8");
+    res.setHeader("Content-Disposition", 'inline; filename="purdue-search-events.ics"');
+    res.setHeader("Cache-Control", "public, max-age=900");
+    res.send(body);
+  } catch (error) {
+    console.error("GET /public/events.ics error:", error);
+    res.status(500).type("text/plain").send("Failed to build calendar feed");
+  }
+});
+
+// One-off "Download .ics" for a single public event.
+publicRouter.get("/events/:eventId/ics", async (req: Request, res: Response) => {
+  try {
+    const row = await prisma.event.findFirst({
+      where:  { ...PUBLIC_EVENT_WHERE, id: req.params.eventId as string },
+      select: PUBLIC_EVENT_SELECT,
+    });
+    if (!row) {
+      res.status(404).type("text/plain").send("Event not found");
+      return;
+    }
+    const body = buildPublicIcsFeed([row], { now: new Date(), siteUrl: PUBLIC_SITE_URL, mode: "single" });
+    res.setHeader("Content-Type", "text/calendar; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="${icsFileName(row.title)}"`);
+    res.setHeader("Cache-Control", "public, max-age=300");
+    res.send(body);
+  } catch (error) {
+    console.error("GET /public/events/:eventId/ics error:", error);
+    res.status(500).type("text/plain").send("Failed to build calendar file");
+  }
+});
 
 // ── RSVP endpoints (no auth required) ───────────────────────
 
