@@ -3,6 +3,7 @@ import toast from "react-hot-toast";
 import { reactToChatMessage, editChatMessage, deleteChatMessage } from "../../../api/clubPmClient";
 import { useClubPmAuth } from "../../../clubpm/ClubPmAuth";
 import ChatRichText from "./ChatRichText";
+import ChatBlocks from "./ChatBlocks";
 import ChatFileAttachment from "./ChatFileAttachment";
 import { emojiChar, QUICK_REACTIONS } from "./emojiShortcodes";
 import { encodeOutgoing, decodeForEdit } from "./encodeOutgoing";
@@ -127,7 +128,9 @@ export default function ChatMessage({
             </div>
           </div>
         ) : (
-          <ChatRichText tokens={message.tokens} />
+          message.isBot && message.blocks?.length > 0
+            ? <ChatBlocks blocks={message.blocks} />
+            : <ChatRichText tokens={message.tokens} />
         )}
 
         {message.files?.length > 0 && (
