@@ -18,6 +18,7 @@ export const TOUR_ANCHORS = Object.freeze({
   // Shell and navigation — src/components/clubpm/AppShell.jsx
   "nav.sidebar":            { label: "Sidebar",              route: "*", note: "Whole rail, for coarse dimming" },
   "nav.dashboard":          { label: "Dashboard link",       route: "*", note: "" },
+  "nav.chat":               { label: "Chat link",            route: "*", note: "Every Slack channel; DMs live on Members" },
   "nav.projects":           { label: "Projects link",        route: "*", note: "" },
   "nav.members":            { label: "Members link",         route: "*", note: "Child of the Outreach group — expand it first" },
   "nav.calendar":           { label: "Calendar link",        route: "*", note: "" },

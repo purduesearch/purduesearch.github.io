@@ -23,6 +23,7 @@ step files.
 |---|---|---|
 | `nav.sidebar` | The whole sidebar, for coarse dimming | `*` |
 | `nav.dashboard` | Dashboard link | `*` |
+| `nav.chat` | Chat link | `*` |
 | `nav.projects` | Projects link | `*` |
 | `nav.members` | Members link — a child of the Outreach group† | `*` |
 | `nav.calendar` | Calendar link | `*` |
