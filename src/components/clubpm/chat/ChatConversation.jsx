@@ -4,6 +4,7 @@ import {
 } from "../../../api/clubPmClient";
 import ChatMessage from "./ChatMessage";
 import ChatThreadDrawer from "./ChatThreadDrawer";
+import ChatComposer from "./ChatComposer";
 
 // How close to the bottom (px) still counts as "reading the latest", so a live
 // message keeps the view pinned instead of yanking someone reading history.
@@ -216,6 +217,15 @@ export default function ChatConversation({
               />
             ))}
           </div>
+          {!results && (
+            <ChatComposer
+              channelId={channelId}
+              conversation={conversation}
+              placeholder={composerPlaceholder}
+              onSent={() => refreshLatest(true)}
+              onJoined={onJoined}
+            />
+          )}
         </div>
 
         {threadTs && (
