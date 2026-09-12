@@ -22,6 +22,7 @@ import GitHubPanel from "../../components/clubpm/github/GitHubPanel";
 import ActionPlanReview from "../../components/clubpm/ActionPlanReview";
 import VaultTab from "../../components/clubpm/vault/VaultTab";
 import ChatTab from "../../components/clubpm/chat/ChatTab";
+import MembersView from "./MembersView";
 import { parseDriveUrl, getTypeMeta, getPreviewUrl } from "../../utils/driveUtils";
 import {
   DndContext,
@@ -180,6 +181,17 @@ const NAV_TABS = [
     icon: (
       <TabIcon>
         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+      </TabIcon>
+    ),
+  },
+  {
+    id: "members", label: "Members", tourId: "project.tab.members",
+    icon: (
+      <TabIcon>
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+        <circle cx="9" cy="7" r="4" />
+        <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
       </TabIcon>
     ),
   },
@@ -2081,7 +2093,7 @@ function FilesTabContent({ project, member, isAdmin, onProjectChange }) {
 
 export default function ProjectDetail() {
   const { id } = useParams();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { member } = useClubPmAuth();
   const { setProjectNav, clearProjectNav } = useProjectNav();
   const notifyStreak = useStreakWatcher();
@@ -2098,6 +2110,26 @@ export default function ProjectDetail() {
   });
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("tasks");
+
+  // Deep links (notifications): ?tab=members&dm=…, ?tab=chat&channel=…&thread=…
+  const tabParam = searchParams.get("tab");
+  useEffect(() => {
+    if (tabParam && NAV_TABS.some(t => t.id === tabParam)) setActiveTab(tabParam);
+  }, [tabParam]);
+
+  // Tab clicks keep the URL in step, and drop params that belong to other tabs.
+  const changeTab = useCallback((id) => {
+    setActiveTab(id);
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      if (id === "tasks") next.delete("tab");
+      else next.set("tab", id);
+      if (id !== "members") next.delete("dm");
+      if (id !== "chat") { next.delete("channel"); next.delete("thread"); }
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
+
   const tabBodyRef = useRef(null);
   useEffect(() => {
     if (!tabBodyRef.current) return;
@@ -2538,9 +2570,9 @@ export default function ProjectDetail() {
       projectName: project.name,
       tabs: NAV_TABS,
       activeTab,
-      onTabChange: setActiveTab,
+      onTabChange: changeTab,
     });
-  }, [project?.name, activeTab, setProjectNav]);
+  }, [project?.name, activeTab, setProjectNav, changeTab]);
 
   useEffect(() => {
     return () => clearProjectNav();
@@ -3284,7 +3316,18 @@ export default function ProjectDetail() {
 
           {activeTab === "chat" && (
             <div className="cpm-proj-main-body" style={{ padding: "16px 24px 24px" }}>
-              <ChatTab project={project} isAdmin={!!member?.isAdmin} />
+              <ChatTab
+                project={project}
+                isAdmin={!!member?.isAdmin}
+                initialChannelId={searchParams.get("channel")}
+                initialThreadTs={searchParams.get("thread")}
+              />
+            </div>
+          )}
+
+          {activeTab === "members" && (
+            <div className="cpm-proj-main-body" style={{ padding: "16px 24px 24px" }}>
+              <MembersView projectId={project.id} />
             </div>
           )}
 

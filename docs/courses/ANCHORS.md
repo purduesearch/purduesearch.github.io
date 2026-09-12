@@ -63,6 +63,7 @@ keeps its children in layout.
 | `project.tab.tasks` | Tasks tab&Dagger; | `/clubpm/projects/:id` |
 | `project.tab.files` | Files tab&Dagger; | `/clubpm/projects/:id` |
 | `project.tab.chat` | Chat tab&Dagger; | `/clubpm/projects/:id` |
+| `project.tab.members` | Members tab&Dagger; | `/clubpm/projects/:id` |
 | `project.tab.reports` | Reports tab&Dagger; | `/clubpm/projects/:id` |
 | `project.tab.ai` | AI tab&Dagger; | `/clubpm/projects/:id` |
 | `project.tab.vault` | Vault **sub**-tab, inside the Files tab | `/clubpm/projects/:id` |
