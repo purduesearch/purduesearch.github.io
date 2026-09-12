@@ -156,3 +156,81 @@ export async function deleteOldNotifications(olderThanDays: number): Promise<num
 
   return count;
 }
+
+// ── Slack ping mirror (slack portal) ─────────────────────────
+
+/**
+ * Create or merge one mirrored Slack ping.
+ * - Never twice for the same (recipient, conversation, message, type): Slack
+ *   redelivers events on retry.
+ * - DMs aggregate: while an earlier DM notification from the same conversation
+ *   is still unread, it is updated ("3 new messages") and bumped to the top
+ *   instead of stacking one row per message.
+ * SLACK_* notifications carry no projectId, so the member-project filter in
+ * getNotificationsForMember never hides them.
+ */
+export async function upsertSlackNotification(data: {
+  type: NotificationType;
+  recipientId: string;
+  actorId: string | null;
+  slackChannelId: string;
+  slackTs: string;
+  message: string;
+  aggregateMessage: (count: number) => string;
+  link: string;
+}): Promise<Notification | null> {
+  const dupe = await prisma.notification.findFirst({
+    where: { recipientId: data.recipientId, slackChannelId: data.slackChannelId, slackTs: data.slackTs, type: data.type },
+    select: { id: true },
+  });
+  if (dupe) return null;
+
+  if (data.type === "SLACK_DM") {
+    const open = await prisma.notification.findFirst({
+      where: { recipientId: data.recipientId, slackChannelId: data.slackChannelId, type: "SLACK_DM", read: false },
+      orderBy: { createdAt: "desc" },
+    });
+    if (open) {
+      const count = Number((open.metadata as { count?: number } | null)?.count ?? 1) + 1;
+      const updated = await prisma.notification.update({
+        where: { id: open.id },
+        data: {
+          message: data.aggregateMessage(count),
+          slackTs: data.slackTs,
+          actorId: data.actorId,
+          createdAt: new Date(),
+          metadata: { link: data.link, count },
+        },
+      });
+      activityBus.emit(`notification:${data.recipientId}`, updated);
+      return updated;
+    }
+  }
+
+  const created = await prisma.notification.create({
+    data: {
+      type: data.type,
+      recipientId: data.recipientId,
+      actorId: data.actorId,
+      slackChannelId: data.slackChannelId,
+      slackTs: data.slackTs,
+      message: data.message,
+      metadata: { link: data.link, count: 1 },
+    },
+  });
+  activityBus.emit(`notification:${data.recipientId}`, created);
+  return created;
+}
+
+/** A message was deleted in Slack: its unread pings go with it (Slack does the same). */
+export async function retractSlackNotifications(slackChannelId: string, slackTs: string): Promise<void> {
+  const rows = await prisma.notification.findMany({
+    where: { slackChannelId, slackTs, read: false },
+    select: { id: true, recipientId: true },
+  });
+  if (rows.length === 0) return;
+  await prisma.notification.deleteMany({ where: { id: { in: rows.map((r) => r.id) } } });
+  const byRecipient = new Map<string, string[]>();
+  for (const r of rows) byRecipient.set(r.recipientId, [...(byRecipient.get(r.recipientId) ?? []), r.id]);
+  for (const [recipientId, ids] of byRecipient) activityBus.emit(`notification-removed:${recipientId}`, { ids });
+}

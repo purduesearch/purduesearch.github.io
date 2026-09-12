@@ -14,6 +14,7 @@ import { parseTaskFromMessage, type TaskContext } from "../services/aiService.js
 import { storeAiTask } from "../utils/aiTaskCache.js";
 import { prisma } from "../db/prisma.js";
 import { ingestSlackMessage, applyReaction } from "../services/slackArchiveService.js";
+import { deliverSlackPings } from "../services/slackNotifyService.js";
 
 // ── Helpers ──────────────────────────────────────────────────
 
@@ -254,13 +255,25 @@ export function registerEvents(app: App): void {
     // the bot is not in, theirs is the only token that can see the conversation.
     const authorizedUserId = (body as { authorizations?: { user_id?: string }[] }).authorizations?.[0]?.user_id;
 
+    let result: Awaited<ReturnType<typeof ingestSlackMessage>> = null;
     try {
-      const result = await ingestSlackMessage(message as never, client);
+      result = await ingestSlackMessage(message as never, client);
       if (result?.event === "new") {
         await ensureMembersKnown(result.channelId, result.convKind, authorizedUserId);
       }
     } catch (error) {
       console.error("[slackArchive] ingest failed:", error);
+    }
+
+    // Mirror Slack's pings into Constellation. Live path ONLY — backfill never
+    // notifies (D10). Separate error boundary: a ping bug must not lose the
+    // archive row, and an archive bug must not block the TODO prompt below.
+    if (result) {
+      try {
+        await deliverSlackPings(result, client);
+      } catch (error) {
+        console.error("[slackPortal] ping delivery failed:", error);
+      }
     }
 
     try {

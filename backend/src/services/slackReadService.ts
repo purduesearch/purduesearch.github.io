@@ -1,6 +1,7 @@
 import { prisma } from "../db/prisma.js";
 import { userClientFor, clearSlackUserToken, isDeadTokenError, slackErrorCode } from "./slackUserTokenService.js";
 import { hasCapability } from "./slackScopes.js";
+import { activityBus } from "./activityService.js";
 
 /**
  * Pure. Order two Slack ts strings exactly. Seconds are compared as numbers
@@ -82,6 +83,9 @@ export async function markConversationRead(
   opts: { pushToSlack: boolean }
 ): Promise<{ advanced: boolean }> {
   const advanced = await advanceCursor(memberId, channelId, ts);
+  // Reading a conversation clears its pings, whether or not the cursor moved —
+  // a ping can be at or behind a cursor set by the member's own post.
+  await markSlackNotificationsRead(memberId, channelId, ts);
   if (advanced && opts.pushToSlack) {
     const uc = await userClientFor(memberId, { interactive: true });
     if (uc && hasCapability(uc.scopes, "mark")) {
@@ -95,4 +99,22 @@ export async function markConversationRead(
     }
   }
   return { advanced };
+}
+
+const SLACK_NOTIFICATION_TYPES = ["SLACK_DM", "SLACK_MENTION", "SLACK_THREAD_REPLY", "SLACK_BROADCAST"] as const;
+
+/**
+ * Mark a member's Slack notifications in one conversation read, up to `uptoTs`,
+ * and tell their open tabs (SSE `notification-read`). Returns the ids cleared.
+ */
+export async function markSlackNotificationsRead(recipientId: string, slackChannelId: string, uptoTs: string): Promise<string[]> {
+  const unread = await prisma.notification.findMany({
+    where: { recipientId, slackChannelId, read: false, type: { in: [...SLACK_NOTIFICATION_TYPES] } },
+    select: { id: true, slackTs: true },
+  });
+  const ids = idsReadUpTo(unread, uptoTs);
+  if (ids.length === 0) return [];
+  await prisma.notification.updateMany({ where: { id: { in: ids } }, data: { read: true, readAt: new Date() } });
+  activityBus.emit(`notification-read:${recipientId}`, { ids });
+  return ids;
 }
