@@ -1,8 +1,8 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import OrbitLoader from '../../components/OrbitLoader';
-import { Link } from 'react-router-dom';
-import { get, post, listProjectRepos } from '../../api/clubPmClient';
+import { Link, useSearchParams } from 'react-router-dom';
+import { get, post, listProjectRepos, openDm } from '../../api/clubPmClient';
 import { useClubPmAuth } from '../../clubpm/ClubPmAuth';
 import KudosButton from '../../components/clubpm/KudosButton';
 import AvatarPortrait from '../../components/clubpm/avatar/AvatarPortrait';
@@ -11,6 +11,10 @@ import LeaderboardPanel from '../../components/clubpm/LeaderboardPanel';
 import { tzOffset, copyToClipboard } from '../../clubpm/members/memberShared';
 import { revealStagger } from '../../clubpm/anim/motion';
 import { MemberName } from '../../clubpm/cosmetics/CosmeticStylesContext';
+import toast from 'react-hot-toast';
+import DmInbox from '../../components/clubpm/members/DmInbox';
+import DmPanel from '../../components/clubpm/members/DmPanel';
+import { SlackReconnectNotice } from '../../components/clubpm/chat/ChatComposer';
 
 const ROLES = ['Admin', 'Lead', 'Member'];
 
@@ -36,7 +40,7 @@ function MembersStats({ members }) {
 
 // ── Member card ───────────────────────────────────────────────
 
-function MemberCard({ member, onClick }) {
+function MemberCard({ member, onClick, onMessage, selectable = false, selected = false, onToggleSelect }) {
   const { displayName, slackHandle, role, isAdmin, title, email, timezone, _count } = member;
 
   const taskCount    = _count?.tasks    ?? 0;
@@ -45,7 +49,19 @@ function MemberCard({ member, onClick }) {
   const offset       = tzOffset(timezone);
 
   return (
-    <div className="pm-member-card pm-member-card--enriched" onClick={onClick} role="button" tabIndex={0} onKeyDown={e => e.key === 'Enter' && onClick()}>
+    <div
+      className={`pm-member-card pm-member-card--enriched${selected ? ' pm-member-card--selected' : ''}`}
+      onClick={() => (selectable ? onToggleSelect?.(member) : onClick())}
+      role="button"
+      tabIndex={0}
+      aria-pressed={selectable ? selected : undefined}
+      onKeyDown={e => e.key === 'Enter' && (selectable ? onToggleSelect?.(member) : onClick())}
+    >
+      {selectable && (
+        <div className={`pm-member-select${selected ? ' selected' : ''}`} aria-hidden="true">
+          {selected && <i className="fas fa-check" />}
+        </div>
+      )}
       <div className="pm-member-top">
         <span className="pm-member-avatar-wrap">
           <AvatarPortrait member={member} size={56} className="pm-member-avatar" />
@@ -108,6 +124,17 @@ function MemberCard({ member, onClick }) {
           <i className="fas fa-user" />
         </Link>
         <KudosButton memberId={member.id} displayName={displayName} />
+        {onMessage && (
+          <button
+            type="button"
+            className="pm-member-card-message-btn"
+            title={`Message ${displayName}`}
+            aria-label={`Message ${displayName}`}
+            onClick={() => onMessage(member)}
+          >
+            <i className="fas fa-comment" aria-hidden="true" />
+          </button>
+        )}
       </div>
     </div>
   );
@@ -278,7 +305,7 @@ function ContributorImportModal({ onClose, onImported }) {
 
 // ── Member detail drawer ──────────────────────────────────────
 
-function MemberDrawer({ member, onClose, isOwnProfile }) {
+function MemberDrawer({ member, onClose, isOwnProfile, onMessage }) {
   const offset = tzOffset(member.timezone);
 
   return createPortal(
@@ -348,6 +375,11 @@ function MemberDrawer({ member, onClose, isOwnProfile }) {
             <i className="fas fa-external-link-alt" /> View full profile
           </Link>
         )}
+        {!isOwnProfile && onMessage && (
+          <button type="button" className="pm-member-edit-profile-btn" onClick={() => onMessage(member)}>
+            <i className="fas fa-comment" aria-hidden="true" /> Message
+          </button>
+        )}
       </div>
     </>,
     document.body
@@ -356,23 +388,78 @@ function MemberDrawer({ member, onClose, isOwnProfile }) {
 
 // ── Main view ─────────────────────────────────────────────────
 
-export default function MembersView() {
+export default function MembersView({ projectId = null }) {
   const { member: currentMember } = useClubPmAuth();
+  const canDm = !!currentMember?.slackCapabilities?.dm;
+  const [searchParams, setSearchParams] = useSearchParams();
+  const dmChannelId = searchParams.get('dm');
+
   const [members, setMembers]     = useState([]);
   const [loading, setLoading]     = useState(true);
   const [search, setSearch]       = useState('');
   const [filterRole, setFilterRole]         = useState('');
   const [selectedMember, setSelectedMember] = useState(null);
   const [showImport, setShowImport]         = useState(false);
+  const [selecting, setSelecting]           = useState(false);
+  const [selectedIds, setSelectedIds]       = useState(() => new Set());
+  const [showReconnect, setShowReconnect]   = useState(false);
+  const [opening, setOpening]               = useState(false);
 
+  // GET /api/members already carries each member's projects, so the project
+  // version is a filter, not a second endpoint.
   const fetchMembers = useCallback(() => {
     get('/api/members')
-      .then(data => setMembers(data))
+      .then(data => setMembers(
+        projectId ? data.filter(m => m.projects?.some(pm => pm.project?.id === projectId)) : data
+      ))
       .catch(err => console.error('Failed to load members:', err))
       .finally(() => setLoading(false));
-  }, []);
+  }, [projectId]);
 
   useEffect(() => { fetchMembers(); }, [fetchMembers]);
+
+  // The open DM is URL state (?dm=) so notifications can deep-link to it (D12).
+  const setDm = useCallback((channelId) => {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      if (channelId) next.set('dm', channelId);
+      else next.delete('dm');
+      return next;
+    });
+  }, [setSearchParams]);
+
+  const startDm = async (memberIds) => {
+    if (!canDm) { setShowReconnect(true); return; }
+    setOpening(true);
+    try {
+      const { channelId } = await openDm(memberIds);
+      setSelecting(false);
+      setSelectedIds(new Set());
+      setSelectedMember(null);
+      setDm(channelId);
+    } catch (err) {
+      if (err?.status === 409) setShowReconnect(true);
+      else toast.error(err?.message || 'Could not open that conversation.');
+    } finally {
+      setOpening(false);
+    }
+  };
+
+  const toggleSelect = (m) => {
+    if (m.id === currentMember?.id) return;
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(m.id)) next.delete(m.id);
+      else if (next.size < 8) next.add(m.id);
+      else toast.error('Group messages are limited to 8 other people — use a channel for larger groups.');
+      return next;
+    });
+  };
+
+  const rosterSlackIds = useMemo(
+    () => (projectId ? new Set(members.map(m => m.slackId)) : null),
+    [projectId, members]
+  );
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
@@ -407,55 +494,98 @@ export default function MembersView() {
     if (cards.length) revealStagger(cards, { delay: 50, duration: 480 });
   }, [loading]);
 
+  const messageFn = (m) => (m.id === currentMember?.id ? undefined : (target) => startDm([target.id]));
+
   return (
-    <div className="pm-members-page">
+    <div className={`pm-members-page${projectId ? ' pm-members-page--project' : ''}`}>
       <div className="pm-members-header">
-        <h1 className="pm-page-title">Members</h1>
-        <button className="clubpm-btn-secondary pm-gh-import-contrib-btn" onClick={() => setShowImport(true)}>
-          <i className="fab fa-github" aria-hidden="true" /> Import Contributors
-        </button>
-      </div>
-
-      {!loading && <MembersStats members={members} />}
-
-      <div className="pm-members-controls">
-        <input
-          className="pm-members-search"
-          type="text"
-          placeholder="Search by name, handle, title…"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-        />
-        <div className="pm-members-filters">
-          <select
-            className="pm-members-filter-select"
-            value={filterRole}
-            onChange={e => setFilterRole(e.target.value)}
+        <h1 className="pm-page-title">{projectId ? 'Project members' : 'Members'}</h1>
+        <div className="pm-members-header-actions">
+          <button
+            type="button"
+            className="clubpm-btn-secondary"
+            aria-pressed={selecting}
+            onClick={() => { setSelecting(s => !s); setSelectedIds(new Set()); }}
           >
-            <option value="">All roles</option>
-            {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
-          </select>
-          {filterRole && (
-            <button className="pm-members-filter-clear" onClick={() => setFilterRole('')}>
-              Clear filters
+            <i className="fas fa-user-group" aria-hidden="true" /> {selecting ? 'Cancel' : 'Group message'}
+          </button>
+          {!projectId && (
+            <button className="clubpm-btn-secondary pm-gh-import-contrib-btn" onClick={() => setShowImport(true)}>
+              <i className="fab fa-github" aria-hidden="true" /> Import Contributors
             </button>
           )}
         </div>
       </div>
 
-      {loading ? (
-        <div style={{ display: 'flex', justifyContent: 'center', padding: '48px 0' }}><OrbitLoader size={80} /></div>
-      ) : filtered.length === 0 ? (
-        <div className="pm-empty-state">No members found.</div>
-      ) : (
-        <div ref={gridRef} className="pm-members-grid" data-tour-id="admin.members">
-          {filtered.map(m => (
-            <MemberCard
-              key={m.id}
-              member={m}
-              onClick={() => setSelectedMember(m)}
+      {showReconnect && <SlackReconnectNotice />}
+
+      <div className={`pm-members-layout${dmChannelId ? ' pm-members-layout--dm' : ''}`}>
+        <DmInbox activeChannelId={dmChannelId} onOpen={setDm} slackIdFilter={rosterSlackIds} />
+
+        <div className="pm-members-roster">
+          {!loading && <MembersStats members={members} />}
+
+          <div className="pm-members-controls">
+            <input
+              className="pm-members-search"
+              type="text"
+              placeholder="Search by name, handle, title…"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
             />
-          ))}
+            <div className="pm-members-filters">
+              <select
+                className="pm-members-filter-select"
+                value={filterRole}
+                onChange={e => setFilterRole(e.target.value)}
+              >
+                <option value="">All roles</option>
+                {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+              </select>
+              {filterRole && (
+                <button className="pm-members-filter-clear" onClick={() => setFilterRole('')}>
+                  Clear filters
+                </button>
+              )}
+            </div>
+          </div>
+
+          {loading ? (
+            <div style={{ display: 'flex', justifyContent: 'center', padding: '48px 0' }}><OrbitLoader size={80} /></div>
+          ) : filtered.length === 0 ? (
+            <div className="pm-empty-state">No members found.</div>
+          ) : (
+            <div ref={gridRef} className="pm-members-grid" data-tour-id={projectId ? undefined : "admin.members"}>
+              {filtered.map(m => (
+                <MemberCard
+                  key={m.id}
+                  member={m}
+                  onClick={() => setSelectedMember(m)}
+                  onMessage={messageFn(m)}
+                  selectable={selecting && m.id !== currentMember?.id}
+                  selected={selectedIds.has(m.id)}
+                  onToggleSelect={toggleSelect}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
+        {dmChannelId && <DmPanel channelId={dmChannelId} onClose={() => setDm(null)} />}
+      </div>
+
+      {selecting && selectedIds.size > 0 && (
+        <div className="pm-members-groupbar" role="region" aria-label="Group message">
+          <label>{selectedIds.size} selected</label>
+          <button
+            type="button"
+            className="clubpm-btn-primary"
+            disabled={opening}
+            onClick={() => startDm([...selectedIds])}
+          >
+            <i className="fas fa-paper-plane" aria-hidden="true" />{' '}
+            Message {selectedIds.size === 1 ? '1 person' : `${selectedIds.size} people`}
+          </button>
         </div>
       )}
 
@@ -464,10 +594,11 @@ export default function MembersView() {
           member={selectedMember}
           onClose={() => setSelectedMember(null)}
           isOwnProfile={currentMember?.id === selectedMember.id}
+          onMessage={(m) => startDm([m.id])}
         />
       )}
 
-      {showImport && (
+      {showImport && !projectId && (
         <ContributorImportModal
           onClose={() => setShowImport(false)}
           onImported={fetchMembers}
@@ -475,8 +606,10 @@ export default function MembersView() {
       )}
 
       {/* Moved off the Dashboard — the XP/doubloon ranking reads as part of the
-          roster. LeaderboardPanel fetches its own data. */}
-      <div data-tour-id="dash.leaderboard" style={{ marginTop: 24 }}><LeaderboardPanel /></div>
+          roster. LeaderboardPanel fetches its own data. Club-wide page only. */}
+      {!projectId && (
+        <div data-tour-id="dash.leaderboard" style={{ marginTop: 24 }}><LeaderboardPanel /></div>
+      )}
     </div>
   );
 }
