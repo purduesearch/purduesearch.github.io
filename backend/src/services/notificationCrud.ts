@@ -1,10 +1,19 @@
 import { prisma } from "../db/prisma.js";
 import { activityBus } from "./activityService.js";
 import { addPing, removePing, newestPing, pingCount, type PingEntry } from "./slackPingAggregate.js";
+import { queueDm } from "./dmBatcher.js";
+import { routeFor } from "./notificationRouting.js";
 import type { Notification, NotificationType } from "@prisma/client";
 
 // ── Create ───────────────────────────────────────────────────
 
+/**
+ * Create one notification, delivered per the recipient's preference for its
+ * type (D14). `slackText` opts a call site in to the Slack DM; a caller that
+ * passes none keeps its pre-portal behaviour (in-app only). No caller uses the
+ * return value, which is null when the member turned this type off or chose
+ * Slack-only.
+ */
 export async function createNotification(data: {
   type: NotificationType;
   recipientId: string;
@@ -14,23 +23,36 @@ export async function createNotification(data: {
   commentId?: string;
   message: string;
   metadata?: Record<string, any>;
-}): Promise<Notification> {
-  const notification = await prisma.notification.create({
-    data: {
-      type:        data.type,
-      recipientId: data.recipientId,
-      actorId:     data.actorId     ?? null,
-      projectId:   data.projectId   ?? null,
-      taskId:      data.taskId      ?? null,
-      commentId:   data.commentId   ?? null,
-      message:     data.message,
-      metadata:    (data.metadata as any) ?? undefined,
-    },
+  slackText?: string;
+}): Promise<Notification | null> {
+  const recipient = await prisma.member.findUnique({
+    where: { id: data.recipientId },
+    select: { slackId: true, notificationChannels: true },
   });
+  const prefs = (recipient?.notificationChannels ?? {}) as Record<string, unknown>;
+  const route = routeFor(data.type, prefs[data.type]);
 
-  // Push to SSE stream for the recipient
-  activityBus.emit(`notification:${data.recipientId}`, notification);
+  let notification: Notification | null = null;
+  if (route.inApp) {
+    notification = await prisma.notification.create({
+      data: {
+        type:        data.type,
+        recipientId: data.recipientId,
+        actorId:     data.actorId     ?? null,
+        projectId:   data.projectId   ?? null,
+        taskId:      data.taskId      ?? null,
+        commentId:   data.commentId   ?? null,
+        message:     data.message,
+        metadata:    (data.metadata as any) ?? undefined,
+      },
+    });
+    // Push to SSE stream for the recipient
+    activityBus.emit(`notification:${data.recipientId}`, notification);
+  }
 
+  if (route.slack && data.slackText && recipient?.slackId) {
+    queueDm(recipient.slackId, data.slackText);
+  }
   return notification;
 }
 
@@ -46,6 +68,7 @@ export async function batchCreateNotifications(
     commentId?: string;
     message: string;
     metadata?: Record<string, any>;
+    slackText?: string;
   }>
 ): Promise<void> {
   if (notifications.length === 0) return;

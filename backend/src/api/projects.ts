@@ -17,7 +17,6 @@ import {
 import { logAuditEvent, diffObjects, getProjectAuditLog } from "../services/activityService.js";
 import type { ProjectType, ProjectStatus, TaskStatus, Priority, NotificationType } from "@prisma/client";
 import { createNotification } from "../services/notificationCrud.js";
-import { queueDm } from "../services/dmBatcher.js";
 import { fetchDriveFileAsText, extractFileId, listDriveFolderFiles, getDriveFileMeta } from "../services/driveService.js";
 import { runJson, runText, todayContext } from "../services/ai/aiRouter.js";
 import {
@@ -478,8 +477,8 @@ projectsRouter.post("/:id/updates", async (req: Request, res: Response) => {
             actorId,
             projectId,
             message: `New update in project ${projectWithMembers.name}: ${content.slice(0, 100)}`,
+            slackText: `📢 New update in *${projectWithMembers.name}*:\n> ${content.slice(0, 200)}`,
           });
-          if (recipient.slackId) queueDm(recipient.slackId, `📢 New update in *${projectWithMembers.name}*:\n> ${content.slice(0, 200)}`);
         }
       })();
     })().catch(console.error);

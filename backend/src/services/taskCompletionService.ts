@@ -2,7 +2,6 @@ import type { NotificationType } from "@prisma/client";
 import { prisma } from "../db/prisma.js";
 import { logAuditEvent } from "./activityService.js";
 import { createNotification } from "./notificationCrud.js";
-import { queueDm } from "./dmBatcher.js";
 import { getTask, updateTask } from "./taskService.js";
 import { octokitForRepo, parseRepoUrl, getPull } from "./githubService.js";
 
@@ -128,8 +127,8 @@ export async function applyCompletionSideEffects(opts: {
         projectId: updatedTask.projectId,
         taskId,
         message: `Task "${updatedTask.title}" was marked done`,
+        slackText: `✅ Task *${updatedTask.title}* was marked done`,
       });
-      if ((assignee as any).slackId) queueDm((assignee as any).slackId, `✅ Task *${updatedTask.title}* was marked done`);
     }
   })().catch(console.error);
 

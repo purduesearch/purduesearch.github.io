@@ -15,7 +15,6 @@ import {
 import { prisma as prismaClient } from "../db/prisma.js";
 import { createNotification } from "../services/notificationCrud.js";
 import { parseMentionHandles } from "../services/mentionService.js";
-import { queueDm } from "../services/dmBatcher.js";
 import { EXCLUDE_TRAINING } from "../services/trainingSandboxService.js";
 
 // ── Attachment helpers ──────────────────────────────────────
@@ -623,8 +622,8 @@ tasksRouter.patch("/:id", channelAuth, async (req: Request, res: Response) => {
               projectId: task.projectId,
               taskId,
               message: `${actor?.displayName ?? "Someone"} assigned you to "${task.title}" in ${proj?.name ?? "a project"}`,
+              slackText: `📋 *${actor?.displayName ?? "Someone"}* assigned you to *${task.title}* in ${proj?.name ?? "a project"}`,
             });
-            if (assignee.slackId) queueDm(assignee.slackId, `📋 *${actor?.displayName ?? "Someone"}* assigned you to *${task.title}* in ${proj?.name ?? "a project"}`);
           }
         }
         // Completed-notification fan-out for the DONE transition is handled
@@ -985,6 +984,7 @@ tasksRouter.post("/:id/comments", requireAuth, channelAuth, async (req: Request,
           taskId,
           commentId: comment.id,
           message: `${populatedComment.author.displayName} replied to your comment on task "${populatedComment.task.title}"`,
+          slackText: `↩️ *${populatedComment.author.displayName}* replied to your comment on *${populatedComment.task.title}*`,
         }).catch(console.error);
       }
     }
@@ -1042,8 +1042,8 @@ tasksRouter.post("/:id/comments", requireAuth, channelAuth, async (req: Request,
           projectId: taskForNotif.projectId,
           taskId,
           message: `${author?.displayName ?? "Someone"} commented on "${taskForNotif.title}"`,
+          slackText: `💬 *${author?.displayName ?? "Someone"}* commented on *${taskForNotif.title}* (${(taskForNotif as any).project.name}):\n> ${content.slice(0, 200)}`,
         }).catch(console.error);
-        if ((assignee as any).slackId) queueDm((assignee as any).slackId, `💬 *${author?.displayName ?? "Someone"}* commented on *${taskForNotif.title}* (${(taskForNotif as any).project.name}):\n> ${content.slice(0, 200)}`);
       }
     }
 
