@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import { getChatThread } from "../../../api/clubPmClient";
+import { getConversationThread } from "../../../api/clubPmClient";
 import ChatMessage from "./ChatMessage";
 
-export default function ChatThreadDrawer({ projectId, channelId, ts, onClose }) {
+export default function ChatThreadDrawer({ channelId, ts, onClose }) {
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -14,13 +14,13 @@ export default function ChatThreadDrawer({ projectId, channelId, ts, onClose }) 
     setLoading(true);
     setError(null);
 
-    getChatThread(projectId, channelId, ts)
+    getConversationThread(channelId, ts)
       .then(data => { if (!cancelled) setMessages(data.messages ?? []); })
       .catch(() => { if (!cancelled) setError("Could not load this thread."); })
       .finally(() => { if (!cancelled) setLoading(false); });
 
     return () => { cancelled = true; };
-  }, [projectId, channelId, ts]);
+  }, [channelId, ts]);
 
   // In-flow flex column beside the message list (styled in Task 11), not
   // position: fixed — so the transformed ClubPM panel ancestors can't capture it.
@@ -37,7 +37,7 @@ export default function ChatThreadDrawer({ projectId, channelId, ts, onClose }) 
         {loading && <div className="cpm-spinner" aria-label="Loading" />}
         {error && <div className="cpm-chat-empty">{error}</div>}
         {!loading && !error && messages.map(m => (
-          <ChatMessage key={m.id} message={m} projectId={projectId} compact />
+          <ChatMessage key={m.id} message={m} compact />
         ))}
       </div>
     </aside>

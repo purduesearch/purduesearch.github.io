@@ -8,7 +8,7 @@ function timeLabel(iso) {
   });
 }
 
-export default function ChatMessage({ message, projectId, compact = false, onOpenThread }) {
+export default function ChatMessage({ message, compact = false, onOpenThread }) {
   // Deleted messages keep their row on purpose: the archive records that
   // something was said and removed, rather than quietly losing the turn.
   if (message.deletedAt) {
@@ -42,7 +42,7 @@ export default function ChatMessage({ message, projectId, compact = false, onOpe
         {message.files?.length > 0 && (
           <div className="cpm-chat-files">
             {message.files.map(f => (
-              <ChatFileAttachment key={f.id} file={f} projectId={projectId} />
+              <ChatFileAttachment key={f.id} file={f} />
             ))}
           </div>
         )}

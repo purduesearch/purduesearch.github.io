@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { chatFileUrl } from "../../../api/clubPmClient";
+import { conversationFileUrl } from "../../../api/clubPmClient";
 
 /** Human-readable byte count. */
 function sizeLabel(bytes) {
@@ -9,7 +9,7 @@ function sizeLabel(bytes) {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
-export default function ChatFileAttachment({ file, projectId }) {
+export default function ChatFileAttachment({ file }) {
   const [broken, setBroken] = useState(false);
 
   // The archive's whole point is that this stays rare — but when Slack expired
@@ -27,7 +27,7 @@ export default function ChatFileAttachment({ file, projectId }) {
     );
   }
 
-  const href = chatFileUrl(projectId, file.id);
+  const href = conversationFileUrl(file.id);
 
   if (file.isImage && !broken) {
     return (
