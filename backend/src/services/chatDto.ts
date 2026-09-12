@@ -1,6 +1,7 @@
 import { prisma } from "../db/prisma.js";
 import { formatSlackText, type FormatContext, type SlackToken } from "./slackMessageFormat.js";
 import { getCustomEmoji } from "./slackFileService.js";
+import { renderBotPayload } from "./slackBlocks.js";
 
 /**
  * Mention names, channel names and custom emoji for one page of messages, in
@@ -54,6 +55,9 @@ export function toDto(row: MessageRow, ctx: FormatContext, viewerSlackId?: strin
     authorSlackId: row.authorSlackId,
     memberId: row.memberId,
     isBot: row.isBot,
+    // Bot messages render from their Block Kit; `tokens` (from the fallback
+    // text) stays as the plain-text version for search results and previews.
+    blocks: row.isBot && !row.deletedAt ? renderBotPayload(row.botPayload, ctx) : [],
     tokens: row.deletedAt ? [] : formatSlackText(row.text, ctx),
     editedAt: row.editedAt,
     deletedAt: row.deletedAt,
