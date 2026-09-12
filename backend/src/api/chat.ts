@@ -403,3 +403,25 @@ chatRouter.post("/dms/import", requireAuth, async (req: Request, res: Response) 
     fail(res, err, "import-dms");
   }
 });
+
+// ── POST /api/chat/conversations/:channelId/mute ─────────────
+// Constellation-only mute (D8): silences mirrored pings from this
+// conversation. Slack's own mute has no API, so it can't be read or set.
+chatRouter.post("/conversations/:channelId/mute", requireAuth, requireConversationRead, async (req: Request, res: Response) => {
+  try {
+    const muted = req.body?.muted === true;
+    const channelId = req.conversation!.channelId;
+    const me = await prisma.member.findUnique({ where: { id: req.memberId! }, select: { mutedSlackChannelIds: true } });
+    const set = new Set(me?.mutedSlackChannelIds ?? []);
+    if (muted) set.add(channelId);
+    else set.delete(channelId);
+    await prisma.member.update({
+      where: { id: req.memberId! },
+      data: { mutedSlackChannelIds: [...set].slice(0, 1000) },
+    });
+    res.json({ muted });
+  } catch (error) {
+    console.error("chat/mute error:", error);
+    res.status(500).json({ error: "Failed to update mute" });
+  }
+});

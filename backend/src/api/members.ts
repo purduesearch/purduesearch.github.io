@@ -361,6 +361,8 @@ membersRouter.get("/", async (_req: Request, res: Response) => {
         githubAccessToken: _gat,
         githubRefreshToken: _grt,
         slackUserToken: _sut,
+        mutedSlackChannelIds: _msc,
+        slackUserScopes: _sus,
         tokenVersion: _tv,
         ...rest
       }) => rest)
@@ -426,6 +428,8 @@ membersRouter.get("/:id", async (req: Request, res: Response) => {
       githubTokenExpiresAt: _gte,
       slackUserToken: _sut,
       slackUserTokenAt: _suta,
+      mutedSlackChannelIds: _msc,
+      slackUserScopes: _sus,
       tokenVersion: _tv,
       ...publicMember
     } = member;

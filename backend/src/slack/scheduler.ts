@@ -259,6 +259,17 @@ export function startScheduler(app: App): void {
     }
   });
 
+  // ── Every 2 min — Slack portal: clear notifications members already read in Slack ──
+  cron.schedule("*/2 * * * *", async () => {
+    try {
+      const { syncReadStateFromSlack } = await import("../services/slackReadSyncService.js");
+      const r = await syncReadStateFromSlack();
+      if (r.cleared > 0) console.log(`👁️ [slackPortal] read sync cleared ${r.cleared} notification(s) across ${r.checked} conversation(s)`);
+    } catch (err) {
+      console.error("[slackPortal] read sync failed:", err);
+    }
+  });
+
   // ── Daily 3:00 AM — Auto-archive nudges → admin + creator DMs ────
   cron.schedule("0 3 * * *", async () => {
     console.log("🗄️ Running auto-archive nudge sweep...");
