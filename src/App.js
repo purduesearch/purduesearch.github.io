@@ -56,6 +56,7 @@ const ClubPmDashboard        = lazy(lazyWithClubPmTheme(() => import('./pages/Cl
 const ClubPmProjectDetail    = lazy(lazyWithClubPmTheme(() => import('./pages/ClubPM/ProjectDetail')));
 const ClubPmGanttView        = lazy(lazyWithClubPmTheme(() => import('./pages/ClubPM/GanttView')));
 const ClubPmMembersView      = lazy(lazyWithClubPmTheme(() => import('./pages/ClubPM/MembersView')));
+const ClubPmChatPage          = lazy(lazyWithClubPmTheme(() => import('./pages/ClubPM/ChatPage')));
 const NotificationCenter     = lazy(lazyWithClubPmTheme(() => import('./components/clubpm/NotificationCenter')));
 const NotificationPreferences = lazy(lazyWithClubPmTheme(() => import('./components/clubpm/NotificationPreferences')));
 const CalendarPage           = lazy(lazyWithClubPmTheme(() => import('./pages/ClubPM/CalendarPage')));
@@ -126,6 +127,8 @@ function AnimatedRoutes() {
             <Route path="/clubpm/projects/:id" element={<ClubPmProtectedPage><ClubPmProjectDetail /></ClubPmProtectedPage>} />
             <Route path="/clubpm/projects/:id/gantt" element={<ClubPmProtectedPage><ClubPmGanttView /></ClubPmProtectedPage>} />
             <Route path="/clubpm/members" element={<ClubPmProtectedPage><ClubPmMembersView /></ClubPmProtectedPage>} />
+            <Route path="/clubpm/chat" element={<ClubPmProtectedPage><ClubPmChatPage /></ClubPmProtectedPage>} />
+            <Route path="/clubpm/chat/:channelId" element={<ClubPmProtectedPage><ClubPmChatPage /></ClubPmProtectedPage>} />
             <Route path="/clubpm/notifications" element={<ClubPmProtectedPage><NotificationCenter /></ClubPmProtectedPage>} />
             <Route path="/clubpm/notifications/preferences" element={<ClubPmProtectedPage><NotificationPreferences /></ClubPmProtectedPage>} />
             <Route path="/clubpm/calendar" element={<ClubPmProtectedPage><CalendarPage /></ClubPmProtectedPage>} />

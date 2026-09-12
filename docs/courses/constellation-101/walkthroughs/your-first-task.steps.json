@@ -64,7 +64,7 @@
       "anchor": "task.modal.due",
       "route": "/clubpm/projects/:id",
       "title": "Give it a real date",
-      "body": "Constellation reminds you before a due date and escalates after one. So put a date you actually believe, or leave it blank — an invented deadline just trains you to ignore reminders.",
+      "body": "Your teammates plan around this date, and nothing chases it for you. So put a date you actually believe, or leave it blank — an invented deadline just misleads the people planning around it.",
       "placement": "left",
       "advance": { "on": "next" }
     },

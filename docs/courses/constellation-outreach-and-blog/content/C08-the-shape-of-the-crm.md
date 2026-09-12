@@ -64,11 +64,12 @@ That log is the part that survives you. Three rules:
 > **"We should reach out sometime" is not a follow-up.** Nothing reminds anyone, nobody is
 > answerable, and it will be true and unactioned for the rest of the year.
 
-A follow-up needs exactly two things: a **date** and a **named owner**. With both, Constellation
-carries it for you — overdue follow-ups arrive as a Slack DM on weekday mornings, so the CRM comes to
-you rather than waiting to be reopened.
+A follow-up needs exactly two things: a **date** and a **named owner**. Constellation does not send
+reminders about them, so the owner has to open the CRM, where a contact whose follow-up has passed
+is flagged on its card. With a date on every record, those flags are a to-do list. Without one, the
+record never gets flagged and nobody notices.
 
-That nudge is the entire difference between a CRM and a list of good intentions. It's also why
+That habit is the entire difference between a CRM and a list of good intentions. It's also why
 setting a slightly wrong date beats setting none: a date you have to push back is a decision, and a
 blank field is an absence nobody ever notices.
 

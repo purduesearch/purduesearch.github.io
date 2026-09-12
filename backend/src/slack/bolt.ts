@@ -13,6 +13,10 @@ export const boltApp = new App({
   // Socket Mode for local development (no public URL needed)
   socketMode: true,
   appToken: process.env.SLACK_APP_TOKEN,
+  // OFF so the archive records our own bot's posts (digests, task cards) like
+  // any other message (D4). Every handler that reacts to messages or reactions
+  // therefore guards against bot authors itself — see slack/events.ts.
+  ignoreSelf: false,
   logLevel:
     process.env.NODE_ENV === "development" ? LogLevel.DEBUG : LogLevel.INFO,
 });

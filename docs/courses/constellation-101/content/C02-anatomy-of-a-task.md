@@ -19,7 +19,7 @@ useful skill is knowing which field to reach for, and that comes from having rea
 | **Status** | TODO · IN_PROGRESS · BLOCKED · DONE | It *is* the column. Dragging the card and changing it here are the same operation |
 | **Priority** | LOW · MEDIUM · HIGH · CRITICAL | Sorting and filtering only. Priority never blocks or forces anything |
 | **Assignees** | Who is doing it | Puts it on their dashboard; they get notified when assigned |
-| **Due date** | A real commitment | Reminders before, escalation after. Leave it empty rather than invent one |
+| **Due date** | A real commitment | Teammates plan around it. Leave it empty rather than invent one |
 | **Description** | Scope, non-scope, acceptance criteria | Read by teammates *and* by every AI feature in the project |
 | **Subtasks** | Pieces of this task | Close with the parent. A progress count appears on the card |
 | **Dependencies** | Other tasks that must finish first | **Enforced** — an open dependency prevents Done |
@@ -36,9 +36,10 @@ useful skill is knowing which field to reach for, and that comes from having rea
 sorts identically to a board with no priorities at all, except now nobody trusts the field. Most
 tasks should be MEDIUM and stay there.
 
-**A due date is a promise the system will hold you to.** Constellation reminds people before one and
-escalates after one. A date you typed to look organised produces a notification you learn to ignore,
-and once you're ignoring those you're ignoring the real ones too.
+**A due date is a promise other people plan around.** Nothing in Constellation chases it for you,
+so the date is only as good as the person who typed it. A date you typed to look organised gets
+planned around anyway, and once the dates on a board stop meaning anything nobody trusts the real ones
+either.
 
 **The description is read by more than humans.** Project Q&A, action-plan suggestions, and deadline
 suggestions all build their prompts from task descriptions — not titles. A task with an empty
@@ -88,7 +89,7 @@ title isn't finished yet.
 
 **Change the state when the state changes**, not when someone asks.
 
-Everything else in Constellation — the board, the milestone health, the reminders, the reports an
+Everything else in Constellation — the board, the milestone health, the reports an
 officer writes at the end of a semester — is downstream of tasks being honest about where they are.
 A board is only worth reading if the people on it move their cards.
 

@@ -23,7 +23,7 @@ Requires the training project so the created contact and campaign are scoped to 
 | 9 | `outreach.campaign.new` | `click` | "Create one." |
 | 10 | `outreach.campaign.form` | `api` POST `/api/outreach/campaigns` | "Name it after the ask, not the season." |
 | 11 | `outreach.tab.campaigns` | `next` | "Coverage at a glance: contacted, replied, untouched. That middle column is the one that matters." |
-| 12 | `outreach.tab.campaigns` | `next` | "Overdue follow-ups DM you every weekday morning. You won't have to remember to come back here." |
+| 12 | `outreach.tab.campaigns` | `next` | "Nothing reminds you. A passed follow-up is flagged on its card, so come back here regularly." |
 
 **Design notes**
 

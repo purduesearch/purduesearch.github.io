@@ -1,105 +1,22 @@
 import cron from "node-cron";
 import type { App } from "@slack/bolt";
-import {
-  sendAllDueDateReminders,
-  postAllProjectHealthSummaries,
-  postAllWeekAheadSummaries,
-  sendStandupPrompts,
-  sendMilestoneAlerts,
-  sendCombinedMondayDigest,
-} from "../services/notificationService.js";
 import { syncAdminStatus } from "../services/memberService.js";
 import { prisma } from "../db/prisma.js";
-import { queueDm } from "../services/dmBatcher.js";
 import { createNotification } from "../services/notificationCrud.js";
 import { sweepVaultTmpDir } from "../api/vault.js";
 import { remindNonResponders } from "../api/meetingPolls.js";
 import * as pollService from "../services/pollService.js";
 import { EXCLUDE_TRAINING } from "../services/trainingSandboxService.js";
 
-// ── Helper: notify admin project members via DM batcher ───────
-
-async function notifyProjectAdmins(
-  projectId: string,
-  eventTypeKey: string,
-  messageText: string
-): Promise<void> {
-  // Check if this event type is enabled for this project.
-  // Empty eventTypes array = all enabled (backward compatible).
-  const target = await prisma.projectNotificationTarget.findFirst({
-    where: { projectId },
-  });
-  if (
-    target &&
-    target.eventTypes.length > 0 &&
-    !target.eventTypes.includes(eventTypeKey)
-  ) {
-    return;
-  }
-
-  // Find all admin members of the project
-  const adminMembers = await prisma.projectMember.findMany({
-    where: { projectId, member: { isAdmin: true } },
-    include: { member: { select: { slackId: true, displayName: true } } },
-  });
-
-  for (const pm of adminMembers) {
-    if (pm.member.slackId) {
-      queueDm(pm.member.slackId, messageText);
-    }
-  }
-}
-
 // ── Scheduler ────────────────────────────────────────────────
+//
+// No job here posts to Slack. Scheduled Slack DMs and channel posts (digests,
+// standup prompts, reminders, escalations, AI reports, weekly summaries) were
+// removed 2026-09-12; the bot now speaks in Slack only in direct response to
+// someone using it there, plus the web-triggered DMs routed by
+// createNotification. Do not add a scheduled Slack send back here.
 
 export function startScheduler(app: App): void {
-
-  // ── Monday 9:00 AM — Combined weekly digest + standup prompt DMs ──
-  // Merges the personal task digest with the standup prompt into one message.
-  cron.schedule("0 9 * * 1", async () => {
-    console.log("📬 Running Monday combined digest + standup prompt...");
-    try {
-      await sendCombinedMondayDigest(app);
-      console.log("✅ Monday combined digest sent");
-    } catch (error) {
-      console.error("❌ Monday digest error:", error);
-    }
-  });
-
-  // ── Tue–Fri 9:15 AM — Standup prompts only (not Monday, covered above) ──
-  cron.schedule("15 9 * * 2-5", async () => {
-    console.log("📋 Sending standup prompts...");
-    try {
-      await sendStandupPrompts(app);
-      console.log("✅ Standup prompts sent");
-    } catch (error) {
-      console.error("❌ Standup prompt error:", error);
-    }
-  });
-
-  // ── Sunday 6:00 PM — Combined project health + week-ahead summaries ──
-  // Merged from Friday 4PM (health) + Sunday 6PM (week-ahead) into one Sunday send.
-  cron.schedule("0 18 * * 0", async () => {
-    console.log("📊📅 Running Sunday combined health + week-ahead summaries...");
-    try {
-      await postAllProjectHealthSummaries(app);
-      await postAllWeekAheadSummaries(app);
-      console.log("✅ Combined health + week-ahead summaries posted");
-    } catch (error) {
-      console.error("❌ Combined health/week-ahead error:", error);
-    }
-  });
-
-  // ── Daily 8:00 AM — Due today / overdue reminders (to individual members) ──
-  cron.schedule("0 8 * * *", async () => {
-    console.log("⏰ Running daily due date reminders...");
-    try {
-      await sendAllDueDateReminders(app);
-      console.log("✅ Due date reminders sent");
-    } catch (error) {
-      console.error("❌ Due date reminder error:", error);
-    }
-  });
 
   // ── Daily 8:15 AM — Safety-training certificate expiry ───────────
   //
@@ -133,8 +50,6 @@ export function startScheduler(app: App): void {
           message,
           metadata: { certificateId: cert.id, sectionId: cert.sectionId, threshold },
         });
-        if (cert.member.slackId) queueDm(cert.member.slackId, message);
-
         // Only a lapse reopens the section — a 30-day warning must not undo
         // someone's course completion while they are still compliant.
         if (threshold === "LAPSED" && cert.sectionId) {
@@ -150,37 +65,6 @@ export function startScheduler(app: App): void {
       console.log(`✅ Training expiry: ${sent} reminder(s) sent`);
     } catch (error) {
       console.error("❌ Training expiry check error:", error);
-    }
-  });
-
-  // ── Daily 8:30 AM — Escalation notices → admin DMs only ──────────
-  cron.schedule("30 8 * * *", async () => {
-    console.log("🚨 Running escalation checks (admin DMs)...");
-    try {
-      const threeDaysAgo = new Date(Date.now() - 3 * 86_400_000);
-      const oneDayAgo    = new Date(Date.now() - 86_400_000);
-
-      const tasks = await prisma.task.findMany({
-        where: {
-          status:  { not: "DONE" },
-          dueDate: { lt: threeDaysAgo },
-          project: { is: EXCLUDE_TRAINING },
-          OR: [
-            { escalatedAt: null },
-            { escalatedAt: { lt: oneDayAgo } },
-          ],
-        },
-        include: { project: true },
-      });
-
-      for (const task of tasks) {
-        const msg = `🚨 *Escalation:* "${task.title}" is overdue by 3+ days in *${task.project.name}*. No recent activity.`;
-        await notifyProjectAdmins(task.projectId, "escalations", msg);
-        await prisma.task.update({ where: { id: task.id }, data: { escalatedAt: new Date() } });
-      }
-      console.log(`✅ Escalation notices queued for ${tasks.length} task(s)`);
-    } catch (error) {
-      console.error("❌ Escalation error:", error);
     }
   });
 
@@ -247,7 +131,30 @@ export function startScheduler(app: App): void {
     }
   });
 
-  // ── Daily 3:00 AM — Auto-archive nudges → admin + creator DMs ────
+  // ── 03:55 daily — Slack portal: join new public channels, repair membership drift ──
+  cron.schedule("55 3 * * *", async () => {
+    try {
+      const { joinAllPublicChannels, reconcileMemberships } = await import("../services/slackMembershipService.js");
+      const j = await joinAllPublicChannels(app.client);
+      const n = await reconcileMemberships();
+      console.log(`👥 [slackPortal] joined ${j.joined}/${j.seen} public channels; reconciled ${n} member list(s)`);
+    } catch (err) {
+      console.error("[slackPortal] membership reconcile failed:", err);
+    }
+  });
+
+  // ── Every 2 min — Slack portal: clear notifications members already read in Slack ──
+  cron.schedule("*/2 * * * *", async () => {
+    try {
+      const { syncReadStateFromSlack } = await import("../services/slackReadSyncService.js");
+      const r = await syncReadStateFromSlack();
+      if (r.cleared > 0) console.log(`👁️ [slackPortal] read sync cleared ${r.cleared} notification(s) across ${r.checked} conversation(s)`);
+    } catch (err) {
+      console.error("[slackPortal] read sync failed:", err);
+    }
+  });
+
+  // ── Daily 3:00 AM — Auto-archive nudges → creator in-app notification ────
   cron.schedule("0 3 * * *", async () => {
     console.log("🗄️ Running auto-archive nudge sweep...");
     try {
@@ -264,29 +171,10 @@ export function startScheduler(app: App): void {
             { rewardGrantedAt: null, updatedAt: { lte: sevenDaysAgo } },
           ],
         },
-        include: { project: true, createdBy: true },
+        select: { id: true, title: true, projectId: true, createdById: true },
       });
 
-      // Group by project
-      const byProject = new Map<string, typeof tasks>();
       for (const task of tasks) {
-        const bucket = byProject.get(task.projectId) ?? [];
-        bucket.push(task);
-        byProject.set(task.projectId, bucket);
-      }
-
-      for (const [projectId, projectTasks] of byProject) {
-        const project = projectTasks[0].project;
-        const list = projectTasks.slice(0, 5).map(t => `• ${t.title}`).join("\n");
-        const extra = projectTasks.length > 5 ? `\n_…and ${projectTasks.length - 5} more_` : "";
-        const msg = `🗄️ *${projectTasks.length} task${projectTasks.length > 1 ? "s" : ""} in ${project.name}* have been DONE for 7+ days and can be archived:\n${list}${extra}`;
-        await notifyProjectAdmins(projectId, "auto_archive", msg);
-      }
-
-      for (const task of tasks) {
-        if (task.createdBy?.slackId) {
-          queueDm(task.createdBy.slackId, `🗄️ Your task *"${task.title}"* in *${task.project.name}* has been DONE for 7+ days. Consider archiving it.`);
-        }
         if (task.createdById) {
           await createNotification({
             type:        "SYSTEM",
@@ -303,202 +191,21 @@ export function startScheduler(app: App): void {
         data:  { archiveNudgedAt: new Date() },
       });
 
-      console.log(`✅ Auto-archive nudges queued for ${tasks.length} task(s) across ${byProject.size} project(s)`);
+      console.log(`✅ Auto-archive nudges sent for ${tasks.length} task(s)`);
     } catch (error) {
       console.error("❌ Auto-archive nudge error:", error);
     }
   });
 
-  // ── Weekdays 10:00 AM — Stale task warnings → admin DMs only ─────
-  cron.schedule("0 10 * * 1-5", async () => {
-    console.log("⚠️ Checking for stale tasks (admin DMs)...");
-    try {
-      const fiveDaysAgo = new Date(Date.now() - 5 * 86_400_000);
-
-      const staleTasks = await prisma.task.findMany({
-        where: {
-          status:    { not: "DONE" },
-          updatedAt: { lt: fiveDaysAgo },
-          project: { is: EXCLUDE_TRAINING },
-        },
-        include: { project: true },
-      });
-
-      // Group by project
-      const byProject = new Map<string, typeof staleTasks>();
-      for (const task of staleTasks) {
-        const bucket = byProject.get(task.projectId) ?? [];
-        bucket.push(task);
-        byProject.set(task.projectId, bucket);
-      }
-
-      for (const [projectId, tasks] of byProject) {
-        const project = tasks[0].project;
-        const list = tasks.slice(0, 5).map(t => `• ${t.title}`).join("\n");
-        const extra = tasks.length > 5 ? `\n_…and ${tasks.length - 5} more_` : "";
-        const msg = `⚠️ *${tasks.length} stale task${tasks.length > 1 ? "s" : ""} in ${project.name}* (no updates in 5+ days):\n${list}${extra}`;
-        await notifyProjectAdmins(projectId, "stale_tasks", msg);
-      }
-      console.log(`✅ Stale task warnings queued for ${byProject.size} project(s)`);
-    } catch (error) {
-      console.error("❌ Stale task warning error:", error);
-    }
-  });
-
-  // ── Daily 8:45 AM — Milestone health sweep → admin DMs ───────────
+  // ── Daily 8:45 AM — Milestone health refresh ─────────────────────
+  // Recomputes the health status the dashboard reads. It no longer alerts anyone.
   cron.schedule("45 8 * * *", async () => {
-    console.log("🎯 Running milestone health sweep (admin DMs)...");
     try {
       const { refreshAllMilestoneHealth } = await import("../services/milestoneService.js");
       const changed = await refreshAllMilestoneHealth();
-
-      for (const m of changed) {
-        let msg: string;
-        if (m.status === "COMPLETED") {
-          msg = `🎉 Milestone *${m.title}* has been completed!`;
-        } else if (m.status === "AT_RISK" || m.status === "BEHIND") {
-          const icon = m.status === "BEHIND" ? "🚨" : "⚠️";
-          msg = `${icon} Milestone *${m.title}* is ${m.status.toLowerCase().replace("_", " ")}.`;
-        } else {
-          continue;
-        }
-        await notifyProjectAdmins(m.projectId, "milestone_alerts", msg);
-      }
-
-      // Also send Slack channel celebration for completions (existing behavior)
-      if (changed.length > 0) {
-        await sendMilestoneAlerts(app, changed);
-      }
       console.log(`✅ Milestone health: ${changed.length} status change(s)`);
     } catch (error) {
       console.error("❌ Milestone health error:", error);
-    }
-  });
-
-  // ── Friday 3:45 PM — AI risk report → admin DMs ──────────────────
-  cron.schedule("45 15 * * 5", async () => {
-    console.log("🤖 Running AI risk analysis (admin DMs)...");
-    try {
-      const { analyzeProjectRisks } = await import("../services/projectAnalysisService.js");
-      const projects = await prisma.project.findMany({
-        where:  { status: "ACTIVE", ...EXCLUDE_TRAINING },
-        select: { id: true, name: true },
-      });
-
-      for (const project of projects) {
-        const risks = await analyzeProjectRisks(project.id) as any;
-        if (!risks || risks.overallRisk === "LOW") continue;
-
-        const msg = `🤖 *AI Risk Report — ${project.name}*\nRisk level: *${risks.overallRisk}*\n${risks.summary ?? ""}`;
-        await notifyProjectAdmins(project.id, "ai_risk", msg);
-      }
-    } catch (err) {
-      console.error("AI risk report error:", err);
-    }
-  });
-
-  // ── Wednesday 10:30 AM — AI capacity check → admin DMs ───────────
-  cron.schedule("30 10 * * 3", async () => {
-    console.log("📊 Running capacity analysis (admin DMs)...");
-    try {
-      const { analyzeTeamCapacity } = await import("../services/projectAnalysisService.js");
-      const projects = await prisma.project.findMany({
-        where:  { status: "ACTIVE", ...EXCLUDE_TRAINING },
-        select: { id: true, name: true },
-      });
-
-      for (const project of projects) {
-        const cap = await analyzeTeamCapacity(project.id) as any;
-        if (!cap || cap.balanceScore > 75) continue;
-
-        const msg = `⚖️ *Capacity Check — ${project.name}*\n${cap.summary ?? "Balance score below threshold."}`;
-        await notifyProjectAdmins(project.id, "ai_capacity", msg);
-      }
-    } catch (err) {
-      console.error("Capacity analysis error:", err);
-    }
-  });
-
-  // ── Sunday 8:00 PM — AI dependency inference → admin DMs ─────────
-  cron.schedule("0 20 * * 0", async () => {
-    console.log("🔗 Inferring task dependencies (admin DMs)...");
-    try {
-      const { inferTaskDependencies } = await import("../services/projectAnalysisService.js");
-      const projects = await prisma.project.findMany({
-        where:  { status: "ACTIVE", ...EXCLUDE_TRAINING },
-        select: { id: true, name: true },
-      });
-
-      for (const project of projects) {
-        const result = await inferTaskDependencies(project.id) as any;
-        if (!result?.dependencies?.length) continue;
-        const highConf = result.dependencies.filter((d: any) => d.confidence >= 0.85);
-        if (!highConf.length) continue;
-
-        const deps = highConf.slice(0, 5).map((d: any) => `• ${d.summary ?? d.taskTitle}`).join("\n");
-        const msg = `🔗 *AI detected ${highConf.length} likely task dependenc${highConf.length > 1 ? "ies" : "y"} in ${project.name}*\n${deps}`;
-        await notifyProjectAdmins(project.id, "ai_deps", msg);
-      }
-    } catch (err) {
-      console.error("Dependency inference error:", err);
-    }
-  });
-
-  // ── Tuesday 6:30 AM — Auto-generate and DM meeting template to admins ──
-  cron.schedule("30 6 * * 2", async () => {
-    console.log("📋 Generating Tuesday meeting template for admins...");
-    try {
-      const { generateWeeklyMeetingTemplate } = await import("../services/meetingNotesService.js");
-      const template = await generateWeeklyMeetingTemplate();
-
-      const admins = await prisma.member.findMany({
-        where: { isAdmin: true, isBot: false },
-        select: { slackId: true, displayName: true },
-      });
-
-      for (const admin of admins) {
-        if (!admin.slackId) continue;
-        queueDm(admin.slackId, `*📋 Leadership Meeting Template — ${new Date().toLocaleDateString("en-US", { month: "long", day: "numeric" })}*\n\n${template.agendaTemplate.slice(0, 2900)}`);
-      }
-      console.log(`✅ Meeting template DMed to ${admins.length} admin(s)`);
-    } catch (error) {
-      console.error("❌ Meeting template error:", error);
-    }
-  });
-
-  // ── Daily 9:00 AM — DM event reminders for today's meetings to attendees ──
-  cron.schedule("0 9 * * *", async () => {
-    console.log("📅 Sending event reminders for today...");
-    try {
-      const startOfDay = new Date(); startOfDay.setHours(0, 0, 0, 0);
-      const endOfDay   = new Date(); endOfDay.setHours(23, 59, 59, 999);
-
-      const events = await prisma.event.findMany({
-        where: { startTime: { gte: startOfDay, lte: endOfDay } },
-        include: {
-          attendees: { select: { slackId: true } },
-          organizer: { select: { slackId: true } },
-          project:   { select: { name: true } },
-        },
-      });
-
-      for (const ev of events) {
-        const time = ev.startTime.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
-        const location = ev.isVirtual ? "Virtual" : (ev.location ?? "TBD");
-        const projectNote = ev.project ? ` · _${ev.project.name}_` : "";
-        const msg = `📅 *Reminder:* "${ev.title}" is today at *${time}* (${location})${projectNote}`;
-
-        const recipients = new Set<string>();
-        ev.attendees.forEach(a => a.slackId && recipients.add(a.slackId));
-        if (ev.organizer?.slackId) recipients.add(ev.organizer.slackId);
-
-        for (const slackId of recipients) {
-          queueDm(slackId, msg);
-        }
-      }
-      console.log(`✅ Event reminders sent for ${events.length} event(s) today`);
-    } catch (error) {
-      console.error("❌ Event reminder error:", error);
     }
   });
 
@@ -510,121 +217,6 @@ export function startScheduler(app: App): void {
   // `orderBy: createdAt asc` re-picked the same oldest member every week.
   // Spotlights are manual only now, via the Member Spotlight card in
   // Outreach Hub → Insights (POST /api/outreach/ai/spotlight).
-
-  // ── Monday 10:00 AM — Outreach Weekly Slack post (AI narrative) ──
-  cron.schedule("0 10 * * 1", async () => {
-    const channelId = process.env.OUTREACH_CHANNEL_ID;
-    if (!channelId) return; // Skip if no outreach channel configured
-
-    console.log("📊 Generating Outreach Weekly Slack digest...");
-    try {
-      const oneWeekAgo = new Date(Date.now() - 7 * 86_400_000);
-
-      const [published, metrics, contacts, upcoming] = await Promise.all([
-        prisma.outreachSubmission.findMany({
-          where: { status: "PUBLISHED", publishedAt: { gte: oneWeekAgo } },
-          select: { title: true, type: true, platform: true },
-        }),
-        prisma.postMetric.findMany({
-          where: { recordedAt: { gte: oneWeekAgo } },
-          select: { platform: true, impressions: true, likes: true, comments: true, shares: true },
-        }),
-        prisma.outreachContact.groupBy({ by: ["stage"], _count: { id: true } }),
-        prisma.outreachSubmission.findMany({
-          where: {
-            status:      { in: ["APPROVED", "IN_REVIEW", "SUBMITTED"] },
-            scheduledAt: { gte: new Date(), lte: new Date(Date.now() + 7 * 86_400_000) },
-          },
-          select: { title: true, scheduledAt: true, platform: true },
-          orderBy: { scheduledAt: "asc" },
-          take: 5,
-        }),
-      ]);
-
-      const { generateWeeklyDigest } = await import("../services/aiOutreachService.js");
-
-      const funnel = contacts.reduce<Record<string, number>>(
-        (acc, g) => ({ ...acc, [g.stage]: g._count.id }),
-        {}
-      );
-
-      const narrative = await generateWeeklyDigest(
-        published.map(s => ({ title: s.title, type: s.type, platforms: s.platform })),
-        metrics.map(m => ({
-          platform:    m.platform,
-          impressions: m.impressions ?? 0,
-          likes:       m.likes       ?? 0,
-          comments:    m.comments    ?? 0,
-          shares:      m.shares      ?? 0,
-        })),
-        funnel
-      );
-
-      const upcomingBlock = upcoming.length > 0
-        ? `\n\n*📅 This week's planned posts:*\n${upcoming.map(s => {
-            const date = s.scheduledAt ? new Date(s.scheduledAt).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }) : "TBD";
-            return `• "${s.title}" — ${date} (${s.platform.join(", ")})`;
-          }).join("\n")}`
-        : "";
-
-      const message = `*📣 Outreach Weekly — ${new Date().toLocaleDateString("en-US", { month: "long", day: "numeric" })}*\n\n${narrative}${upcomingBlock}`;
-
-      await app.client.chat.postMessage({
-        channel: channelId,
-        text:    message,
-      });
-
-      console.log("✅ Outreach Weekly Slack digest posted");
-    } catch (err) {
-      console.error("❌ Outreach Weekly digest error:", err);
-    }
-  });
-
-  // ── Daily 9:05 AM — CRM follow-up reminders → contact owners ────
-  cron.schedule("5 9 * * *", async () => {
-    console.log("📇 Sending CRM follow-up reminders...");
-    try {
-      const endOfToday = new Date();
-      endOfToday.setHours(23, 59, 59, 999);
-
-      const contacts = await prisma.outreachContact.findMany({
-        where: {
-          nextFollowUpAt: { lte: endOfToday },
-          owner: { isNot: null },
-        },
-        include: {
-          owner: { select: { slackId: true, displayName: true } },
-        },
-      });
-
-      // Group by owner slackId
-      const byOwner = new Map<string, typeof contacts>();
-      for (const c of contacts) {
-        const sid = c.owner?.slackId;
-        if (!sid) continue;
-        const bucket = byOwner.get(sid) ?? [];
-        bucket.push(c);
-        byOwner.set(sid, bucket);
-      }
-
-      for (const [slackId, ownerContacts] of byOwner) {
-        const lines = ownerContacts.slice(0, 8).map(c => {
-          const due = c.nextFollowUpAt!;
-          const today = new Date(); today.setHours(0, 0, 0, 0);
-          const isOverdue = due < today;
-          const label = isOverdue ? "overdue" : "today";
-          const org = c.organization ? ` (${c.organization})` : "";
-          return `• *${c.name}*${org} — follow-up ${label}`;
-        });
-        const extra = ownerContacts.length > 8 ? `\n_…and ${ownerContacts.length - 8} more_` : "";
-        const msg = `📇 *CRM Follow-up Reminders* — you have ${ownerContacts.length} contact${ownerContacts.length > 1 ? "s" : ""} to follow up with:\n${lines.join("\n")}${extra}\n\n_Open the Outreach Hub → CRM tab to log interactions._`;
-        queueDm(slackId, msg);
-      }
-      console.log(`✅ CRM follow-up reminders sent to ${byOwner.size} member(s) for ${contacts.length} contact(s)`);
-    } catch (err) {
-      console.error("❌ CRM follow-up reminder error:", err);
-    }
-  });
 
   // ── Every 6 hours — Re-sync admin status from leadership channel ──
   cron.schedule("0 */6 * * *", async () => {
@@ -655,9 +247,7 @@ export function startScheduler(app: App): void {
           status:      "APPROVED",
           scheduledAt: { lte: now },
         },
-        include: {
-          author: { select: { slackId: true, displayName: true } },
-        },
+        select: { id: true, authorId: true },
       });
       if (due.length === 0) return;
 
@@ -668,12 +258,6 @@ export function startScheduler(app: App): void {
 
       const { handleBlogPostPublished } = await import("../services/rewardService.js");
       for (const submission of due) {
-        if (submission.author?.slackId) {
-          queueDm(
-            submission.author.slackId,
-            `✅ Your post *"${submission.title}"* has been auto-published. Time to cross-post!`
-          );
-        }
         // Engagement: BLOG_POST_PUBLISHED reward fires for every published submission's author
         if (submission.authorId) {
           handleBlogPostPublished(submission.authorId, submission.id).catch(err =>
@@ -700,10 +284,7 @@ export function startScheduler(app: App): void {
           active: true,
           nextRunAt: { lte: now },
         },
-        include: {
-          templateSubmission: true,
-          owner: { select: { slackId: true } },
-        },
+        include: { templateSubmission: true },
       });
       if (due.length === 0) return;
 
@@ -748,10 +329,6 @@ export function startScheduler(app: App): void {
             where: { id: rec.id },
             data:  { lastRunAt: now, nextRunAt },
           });
-
-          if (rec.owner?.slackId) {
-            queueDm(rec.owner.slackId, `🔁 Recurring template *${tmpl.title}* spawned a new DRAFT in Outreach Hub. Review & schedule it.`);
-          }
         } catch (err) {
           console.error(`❌ Recurring template ${rec.id} failed:`, err);
         }
@@ -835,7 +412,7 @@ export function startScheduler(app: App): void {
           // Find first admin to own the draft
           const admin = await prisma.member.findFirst({
             where: { isAdmin: true, isBot: false },
-            select: { id: true, slackId: true },
+            select: { id: true },
           });
           if (!admin) continue;
 
@@ -854,13 +431,6 @@ export function startScheduler(app: App): void {
               eventId:  event.id,
             },
           });
-
-          if (admin.slackId) {
-            queueDm(
-              admin.slackId,
-              `📣 Auto-created an EVENT_PROMO draft for *${event.title}* (${days} day${days !== 1 ? "s" : ""} away). Please review and submit it in the Outreach Hub.`
-            );
-          }
         }
       }
       console.log("✅ Event promo draft check complete");
@@ -869,25 +439,13 @@ export function startScheduler(app: App): void {
     }
   });
 
-  console.log("  📅 Scheduled: Monday 9AM         — Combined digest + standup DMs");
-  console.log("  📅 Scheduled: Tue–Fri 9:15AM     — Standup prompt DMs");
-  console.log("  📅 Scheduled: Sunday 6PM          — Combined health + week-ahead (channels)");
-  console.log("  📅 Scheduled: Daily 8AM           — Due date reminder DMs");
-  console.log("  📅 Scheduled: Daily 8:30AM        — Escalation → admin DMs");
-  console.log("  📅 Scheduled: Daily 3AM           — Auto-archive nudges → admin + creator DMs");
-  console.log("  📅 Scheduled: Weekdays 10AM       — Stale tasks → admin DMs");
-  console.log("  📅 Scheduled: Daily 8:45AM        — Milestone health → admin DMs");
-  console.log("  📅 Scheduled: Friday 3:45PM       — AI risk → admin DMs");
-  console.log("  📅 Scheduled: Wednesday 10:30AM   — AI capacity → admin DMs");
-  console.log("  📅 Scheduled: Sunday 8PM          — AI dependency → admin DMs");
+  console.log("  📅 Scheduled: Daily 8:15AM        — Training certificate expiry (in-app)");
+  console.log("  📅 Scheduled: Daily 3AM           — Auto-archive nudges → creator (in-app)");
+  console.log("  📅 Scheduled: Daily 8:45AM        — Milestone health refresh");
   console.log("  📅 Scheduled: Daily 3AM           — Notification cleanup (90 days)");
-  console.log("  📅 Scheduled: Tuesday 6:30AM      — Meeting template DMs → admins");
-  console.log("  📅 Scheduled: Daily 9AM           — Event reminders → attendees");
   console.log("  📅 Scheduled: Hourly              — Auto-publish APPROVED outreach submissions");
   console.log("  📅 Scheduled: Hourly :05          — Instantiate recurring template DRAFTs");
   console.log("  📅 Scheduled: Daily 8:10AM        — Auto-create EVENT_PROMO drafts (7/3/1 day lead)");
-  console.log("  📅 Scheduled: Monday 10AM         — Outreach Weekly Slack digest (AI narrative)");
-  console.log("  📅 Scheduled: Daily 9:05AM        — CRM follow-up reminders → contact owners");
 
   // ── Engagement crons ──────────────────────────────────────
 
@@ -900,28 +458,6 @@ export function startScheduler(app: App): void {
       console.log("✅ Shop rotation complete");
     } catch (err) {
       console.error("❌ Shop rotation error:", err);
-    }
-  });
-
-  // Friday 5:00 PM — Kudos digest to the club channel
-  cron.schedule("0 17 * * 5", async () => {
-    if (!process.env.SLACK_CLUB_CHANNEL_ID) return;
-    try {
-      const { getWeeklyKudos } = await import("../services/kudosService.js");
-      const kudos = await getWeeklyKudos();
-      if (kudos.length === 0) return;
-      const lines = kudos
-        .slice(0, 30) // cap message length
-        .map((k: any) => `❤️ *${k.from.displayName}* → *${k.to.displayName}*`)
-        .join("\n");
-      const extra = kudos.length > 30 ? `\n…and ${kudos.length - 30} more` : "";
-      await app.client.chat.postMessage({
-        channel: process.env.SLACK_CLUB_CHANNEL_ID,
-        text:    `*Kudos this week (${kudos.length})*\n${lines}${extra}`,
-      });
-      console.log(`✅ Kudos digest posted: ${kudos.length} kudos`);
-    } catch (err) {
-      console.error("❌ Kudos digest error:", err);
     }
   });
 
@@ -938,7 +474,6 @@ export function startScheduler(app: App): void {
   });
 
   console.log("  📅 Scheduled: Midnight UTC        — Shop rotation refresh");
-  console.log("  📅 Scheduled: Friday 5PM          — Kudos weekly digest to club channel");
   console.log("  📅 Scheduled: 02:00 UTC daily     — Streak reset sweep");
 
   // ── Quest crons ───────────────────────────────────────────────

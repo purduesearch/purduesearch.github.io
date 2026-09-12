@@ -1,7 +1,8 @@
 // Regression guard for the dead live-notification stream in Brave/Safari.
 //
 // EventSource and <img> cannot send an Authorization header, so sseRouter and
-// projectChatRouter accept a signed `?token=` query param instead. Any router
+// chatRouter (the /api/chat file proxy) accept a signed `?token=` query param
+// instead. Any router
 // mounted AHEAD of them whose pathless `router.use(requireAuth)` covers their
 // path 401s that request (no cookie, no header) before it ever arrives. The
 // bare `app.use("/api", …)` routers are the widest such trap: blockersRouter's
@@ -31,13 +32,12 @@ const indexOf = (router: string) => mounts.findIndex((m) => m.router === router)
 check("found the app.use mounts", mounts.length > 20);
 
 // Routers whose routes authenticate via a `?token=` query param.
-const QUERY_TOKEN_ROUTERS = ["sseRouter", "projectChatRouter"];
+const QUERY_TOKEN_ROUTERS = ["sseRouter", "chatRouter"];
 
 // Routers that attach a pathless requireAuth, keyed to a mount path that
 // shadows a query-token router. Bare "/api" mounts are checked generically.
 const SHADOWS: Record<string, string> = {
   sseRouter: "notificationsRouter",
-  projectChatRouter: "projectsRouter",
 };
 
 const bareApi = mounts
@@ -52,8 +52,14 @@ for (const router of QUERY_TOKEN_ROUTERS) {
     check(`${router} is mounted above app.use("/api", ${bare.router})`, at < bare.i);
   }
   const shadow = SHADOWS[router];
-  check(`${router} is mounted above ${shadow}`, at < indexOf(shadow));
+  if (shadow) check(`${router} is mounted above ${shadow}`, at < indexOf(shadow));
 }
+
+// D6: the Slack mirror directory must never be served statically.
+const guardAt = src.indexOf('app.use("/uploads/slack"');
+const staticAt = src.indexOf('app.use("/uploads", express.static');
+check("uploads/slack guard exists", guardAt !== -1);
+check("uploads/slack guard is above the static /uploads mount", guardAt !== -1 && guardAt < staticAt);
 
 console.log(`${passed} passed, ${failed} failed`);
 if (failed > 0) process.exit(1);

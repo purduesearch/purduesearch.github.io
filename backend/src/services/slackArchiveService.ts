@@ -1,58 +1,51 @@
 import type { WebClient } from "@slack/web-api";
+import { Prisma } from "@prisma/client";
 import { prisma } from "../db/prisma.js";
 import { activityBus } from "./activityService.js";
 import { shouldArchive, type RawSlackMessage } from "./slackArchivePolicy.js";
 import { getBotUserId } from "./memberService.js";
+import {
+  kindFromChannelType, kindFromConversation, kindFromChannelId, type ConversationKind,
+} from "./slackConversationAccess.js";
 
 // ── Caches ───────────────────────────────────────────────────
-// Ingest runs on every message in every channel the bot is in, so both of these
-// hot paths are cached rather than hitting Postgres/Slack per message.
+// Ingest runs on every message in every conversation, so both hot paths are
+// cached rather than hitting Postgres/Slack per message.
 
-const LINK_TTL_MS = 5 * 60_000;
+const ENABLED_TTL_MS = 5 * 60_000;
 const AUTHOR_TTL_MS = 30 * 60_000;
 
-const linkCache = new Map<string, { linked: boolean; at: number }>();
-type Author = { authorName: string; authorAvatarUrl: string | null; memberId: string | null };
+const enabledCache = new Map<string, { enabled: boolean; at: number }>();
+export type Author = { authorName: string; authorAvatarUrl: string | null; memberId: string | null };
 const authorCache = new Map<string, Author & { at: number }>();
 
-/** Test seam + a way for the channel picker to invalidate after a link change. */
+/** Test seam + a way for an admin toggle to take effect before the TTL. */
 export function clearSlackArchiveCaches(): void {
-  linkCache.clear();
+  enabledCache.clear();
   authorCache.clear();
 }
 
 /**
- * Is this channel linked to a project? Scope is "project-linked channels only",
- * and a channel is linked either through a notification target (primary) or the
- * legacy Project.slackChannelId / slackChannel fields.
+ * Since the portal pass the scope is EVERY conversation. An admin can still
+ * switch one off by setting archiveEnabled = false on its row. No row yet
+ * means enabled.
  */
-export async function isArchivedChannel(channelId: string): Promise<boolean> {
-  const hit = linkCache.get(channelId);
-  if (hit && Date.now() - hit.at < LINK_TTL_MS) return hit.linked;
-
-  const [target, legacy] = await Promise.all([
-    prisma.projectNotificationTarget.findFirst({
-      where: { slackChannelId: channelId },
-      select: { id: true },
-    }),
-    prisma.project.findFirst({
-      where: { OR: [{ slackChannelId: channelId }, { slackChannel: channelId }] },
-      select: { id: true },
-    }),
-  ]);
-
-  const linked = !!(target || legacy);
-  linkCache.set(channelId, { linked, at: Date.now() });
-  return linked;
+export async function isIngestEnabled(channelId: string): Promise<boolean> {
+  const hit = enabledCache.get(channelId);
+  if (hit && Date.now() - hit.at < ENABLED_TTL_MS) return hit.enabled;
+  const row = await prisma.slackChannelArchive.findUnique({
+    where: { slackChannelId: channelId },
+    select: { archiveEnabled: true },
+  });
+  const enabled = row?.archiveEnabled ?? true;
+  enabledCache.set(channelId, { enabled, at: Date.now() });
+  return enabled;
 }
 
 /**
  * Resolve a Slack user to a display name + avatar, WITHOUT creating a Member.
- *
- * memberService.resolveSlackMember() creates a Member row when one is missing.
- * That is correct for member_joined_channel and wrong here: archiving a message
- * from a guest or a non-member would silently add them to the club roster,
- * where they would then show up in assignee pickers.
+ * (memberService.resolveSlackMember() creates one — wrong here: a guest's
+ * message would silently add them to the roster and the assignee pickers.)
  */
 export async function resolveAuthor(slackId: string, client: WebClient): Promise<Author> {
   const hit = authorCache.get(slackId);
@@ -86,30 +79,60 @@ export async function resolveAuthor(slackId: string, client: WebClient): Promise
   return author;
 }
 
-/** Find or create the per-channel archive row, refreshing its cached name. */
+/** Display identity for a bot/app message — from the payload, never a Member lookup. */
+export function botAuthor(msg: RawSlackMessage): Author {
+  return {
+    authorName: msg.bot_profile?.name || msg.username || "App",
+    authorAvatarUrl: msg.bot_profile?.icons?.image_48 ?? null,
+    memberId: null,
+  };
+}
+
+const UNKNOWN_AUTHOR: Author = { authorName: "Unknown", authorAvatarUrl: null, memberId: null };
+
+type ConversationInfo = {
+  name?: string; is_im?: boolean; is_mpim?: boolean; is_private?: boolean; is_group?: boolean; is_channel?: boolean;
+};
+
+/**
+ * Find or create the conversation's archive row.
+ *
+ * `hint.kind` (from the event's channel_type) is preferred: the bot cannot call
+ * conversations.info on a member's DM. With nothing known, kind falls back to
+ * kindFromChannelId, which fails CLOSED (private). upsert rather than create,
+ * because two events for a brand-new channel can race here.
+ */
 export async function ensureChannelArchive(
   channelId: string,
-  client: WebClient
-): Promise<{ id: string; slackChannelName: string | null }> {
+  client: WebClient,
+  hint: { kind?: ConversationKind; name?: string | null } = {}
+): Promise<{ id: string; slackChannelName: string | null; kind: ConversationKind }> {
   const existing = await prisma.slackChannelArchive.findUnique({
     where: { slackChannelId: channelId },
-    select: { id: true, slackChannelName: true },
+    select: { id: true, slackChannelName: true, kind: true },
   });
   if (existing) return existing;
 
-  let name: string | null = null;
-  let isPrivate = false;
-  try {
-    const info = await client.conversations.info({ channel: channelId });
-    name = (info.channel as { name?: string } | undefined)?.name ?? null;
-    isPrivate = !!(info.channel as { is_private?: boolean } | undefined)?.is_private;
-  } catch {
-    // Missing scope or archived channel — the row is still worth creating.
+  let kind: ConversationKind | null = hint.kind ?? null;
+  let name: string | null = hint.name ?? null;
+  const isDm = kind === "IM" || kind === "MPIM";
+  if (!isDm && (!kind || !name)) {
+    try {
+      const info = await client.conversations.info({ channel: channelId });
+      const c = (info.channel ?? {}) as ConversationInfo;
+      kind = kind ?? kindFromConversation(c);
+      name = name ?? c.name ?? null;
+    } catch {
+      // Bot not in it, or a DM — keep whatever we have.
+    }
   }
+  const finalKind = kind ?? kindFromChannelId(channelId);
 
-  return prisma.slackChannelArchive.create({
-    data: { slackChannelId: channelId, slackChannelName: name, isPrivate },
-    select: { id: true, slackChannelName: true },
+  return prisma.slackChannelArchive.upsert({
+    where: { slackChannelId: channelId },
+    create: { slackChannelId: channelId, slackChannelName: name, isPrivate: finalKind !== "CHANNEL", kind: finalKind },
+    update: {},
+    select: { id: true, slackChannelName: true, kind: true },
   });
 }
 
@@ -119,13 +142,7 @@ function tsToDate(ts: string): Date {
 }
 
 type SlackFilePayload = {
-  id?: string;
-  name?: string;
-  title?: string;
-  mimetype?: string;
-  size?: number;
-  original_w?: number;
-  original_h?: number;
+  id?: string; name?: string; title?: string; mimetype?: string; size?: number; original_w?: number; original_h?: number;
 };
 
 async function upsertFiles(messageId: string, postedAt: Date, files: unknown[]): Promise<void> {
@@ -147,16 +164,13 @@ async function upsertFiles(messageId: string, postedAt: Date, files: unknown[]):
         postedAt,
       },
       // Metadata only. Never reset `storage` — a re-delivered event must not
-      // undo a completed Drive mirror.
+      // undo a completed mirror.
       update: { name: f.name || f.title || f.id, mimeType: f.mimetype ?? null },
     });
   }
 }
 
-/**
- * Recompute (never increment) the parent's reply count. Live ingest and backfill
- * can both touch the same parent, so this has to be idempotent under replay.
- */
+/** Recompute (never increment) a parent's reply count — replay-safe. */
 async function refreshReplyCount(slackChannelId: string, threadTs: string): Promise<void> {
   const count = await prisma.slackMessage.count({
     where: { slackChannelId, threadTs, deletedAt: null, NOT: { ts: threadTs } },
@@ -167,53 +181,37 @@ async function refreshReplyCount(slackChannelId: string, threadTs: string): Prom
   });
 }
 
+function botPayloadOf(m: { blocks?: unknown[]; attachments?: unknown[] }): Prisma.InputJsonValue | null {
+  const blocks = Array.isArray(m.blocks) ? m.blocks : [];
+  const attachments = Array.isArray(m.attachments) ? m.attachments : [];
+  if (blocks.length === 0 && attachments.length === 0) return null;
+  return { blocks, attachments } as Prisma.InputJsonValue;
+}
+
 /**
- * Persist one Slack message event. Safe to call for every message in every
- * channel — it returns early for unlinked channels and filtered messages.
+ * Upsert one message row plus its files. Shared by live ingest, backfill, and
+ * the send path so all three write identical rows.
+ *
+ * overwrite  — live ingest and the send path refresh text/payload; backfill
+ *              never clobbers a live-ingested row.
+ * forceHuman — the send path KNOWS a human wrote this (D7), whatever flags
+ *              Slack's echo carries, so it pins isBot = false.
+ * The archive row must already exist (ensureChannelArchive).
  */
-export async function ingestSlackMessage(
-  msg: RawSlackMessage & { channel?: string },
-  client: WebClient
-): Promise<void> {
-  const channelId = msg.channel;
-  if (!channelId) return;
-  if (!(await isArchivedChannel(channelId))) return;
-
-  const botUserId = (await getBotUserId(client)) ?? undefined;
-  const decision = shouldArchive(msg, botUserId);
-  if (!decision.archive) return;
-
-  if (decision.kind === "delete") {
-    const ts = msg.deleted_ts || msg.previous_message?.ts;
-    if (!ts) return;
-    await prisma.slackMessage.updateMany({
-      where: { slackChannelId: channelId, ts },
-      data: { deletedAt: new Date() },
-    });
-    activityBus.emit(`slack-chat:${channelId}`, { channelId, ts, kind: "delete" });
-    return;
-  }
-
-  if (decision.kind === "edit") {
-    const inner = msg.message!;
-    if (!inner.ts) return;
-    await prisma.slackMessage.updateMany({
-      where: { slackChannelId: channelId, ts: inner.ts },
-      data: { text: inner.text ?? "", editedAt: new Date() },
-    });
-    activityBus.emit(`slack-chat:${channelId}`, { channelId, ts: inner.ts, kind: "edit" });
-    return;
-  }
-
+export async function storeArchivedMessage(
+  channelId: string,
+  msg: RawSlackMessage,
+  isBot: boolean,
+  client: WebClient,
+  opts: { overwrite: boolean; forceHuman?: boolean }
+): Promise<{ id: string; ts: string; threadTs: string | null; postedAt: Date } | null> {
   const ts = msg.ts;
-  if (!ts) return;
+  if (!ts) return null;
 
-  await ensureChannelArchive(channelId, client);
-  const author = msg.user
-    ? await resolveAuthor(msg.user, client)
-    : { authorName: "Unknown", authorAvatarUrl: null, memberId: null };
+  const author = isBot ? botAuthor(msg) : msg.user ? await resolveAuthor(msg.user, client) : UNKNOWN_AUTHOR;
   const postedAt = tsToDate(ts);
   const threadTs = msg.thread_ts && msg.thread_ts !== ts ? msg.thread_ts : null;
+  const botPayload = isBot ? botPayloadOf(msg) : null;
 
   const row = await prisma.slackMessage.upsert({
     where: { slackChannelId_ts: { slackChannelId: channelId, ts } },
@@ -227,8 +225,18 @@ export async function ingestSlackMessage(
       authorAvatarUrl: author.authorAvatarUrl,
       text: msg.text ?? "",
       postedAt,
+      isBot,
+      ...(botPayload ? { botPayload } : {}),
     },
-    update: { text: msg.text ?? "" },
+    // isBot is set on CREATE only (plus forceHuman), so a late echo can never
+    // flip a human row to bot.
+    update: opts.overwrite
+      ? {
+          text: msg.text ?? "",
+          ...(opts.forceHuman ? { isBot: false } : {}),
+          ...(botPayload ? { botPayload } : {}),
+        }
+      : {},
     select: { id: true },
   });
 
@@ -237,15 +245,121 @@ export async function ingestSlackMessage(
   }
   if (threadTs) await refreshReplyCount(channelId, threadTs);
 
-  await prisma.slackChannelArchive.update({
-    where: { slackChannelId: channelId },
-    data: {
-      lastMessageAt: postedAt,
-      messageCount: await prisma.slackMessage.count({ where: { slackChannelId: channelId } }),
-    },
+  // Forward-only: backfill walks BACKWARDS through history and must not drag
+  // lastMessageAt into the past.
+  await prisma.slackChannelArchive.updateMany({
+    where: { slackChannelId: channelId, OR: [{ lastMessageAt: null }, { lastMessageAt: { lt: postedAt } }] },
+    data: { lastMessageAt: postedAt },
   });
+  if (opts.overwrite) {
+    await prisma.slackChannelArchive.update({
+      where: { slackChannelId: channelId },
+      data: { messageCount: await prisma.slackMessage.count({ where: { slackChannelId: channelId } }) },
+    });
+  }
 
-  activityBus.emit(`slack-chat:${channelId}`, { channelId, ts, threadTs, kind: "new" });
+  return { id: row.id, ts, threadTs, postedAt };
+}
+
+// ── Live events ──────────────────────────────────────────────
+
+export type ChatEventKind = "new" | "edit" | "delete" | "reaction";
+export interface ChatEvent {
+  channelId: string;
+  convKind: ConversationKind;
+  ts: string;
+  threadTs?: string | null;
+  kind: ChatEventKind;
+}
+
+/**
+ * The ONE place the archive announces a change. Ids only, never text: sse.ts
+ * filters each event per connection, and the client re-fetches through the
+ * access-checked API.
+ */
+export function emitChat(e: ChatEvent): void {
+  activityBus.emit("slack-chat", e);
+}
+
+export interface IngestResult {
+  channelId: string;
+  convKind: ConversationKind;
+  event: "new" | "edit" | "delete";
+  ts: string;
+  threadTs: string | null;
+  isBot: boolean;
+  authorSlackId: string | null;
+  /** The message's bot_id, if any — lets ping delivery recognise our OWN bot (D9). */
+  botId: string | null;
+  text: string;
+}
+
+/**
+ * Persist one Slack message event. Safe to call for every message in every
+ * conversation. Returns what happened so the caller (slack/events.ts) can run
+ * membership and ping delivery after it — ingest itself never notifies (D10).
+ */
+export async function ingestSlackMessage(
+  msg: RawSlackMessage & { channel?: string },
+  client: WebClient
+): Promise<IngestResult | null> {
+  const channelId = msg.channel;
+  if (!channelId) return null;
+  if (!(await isIngestEnabled(channelId))) return null;
+
+  const botUserId = (await getBotUserId(client)) ?? undefined;
+  const decision = shouldArchive(msg, botUserId);
+  if (!decision.archive) return null;
+
+  const archive = await ensureChannelArchive(channelId, client, {
+    kind: msg.channel_type ? kindFromChannelType(msg.channel_type) : undefined,
+  });
+  const convKind = archive.kind;
+
+  if (decision.kind === "delete") {
+    const ts = msg.deleted_ts || msg.previous_message?.ts;
+    if (!ts) return null;
+    await prisma.slackMessage.updateMany({
+      where: { slackChannelId: channelId, ts },
+      data: { deletedAt: new Date() },
+    });
+    const gone = await prisma.slackMessage.findUnique({
+      where: { slackChannelId_ts: { slackChannelId: channelId, ts } },
+      select: { threadTs: true },
+    });
+    if (gone?.threadTs) await refreshReplyCount(channelId, gone.threadTs);
+    emitChat({ channelId, convKind, ts, kind: "delete" });
+    return { channelId, convKind, event: "delete", ts, threadTs: gone?.threadTs ?? null, isBot: false, authorSlackId: null, botId: null, text: "" };
+  }
+
+  if (decision.kind === "edit") {
+    const inner = msg.message!;
+    const ts = inner.ts!;
+    const botPayload = decision.isBot ? botPayloadOf(inner) : null;
+    await prisma.slackMessage.updateMany({
+      where: { slackChannelId: channelId, ts },
+      data: {
+        text: inner.text ?? "",
+        // message_changed also fires for link unfurls; only a real edit carries `edited`.
+        ...(inner.edited ? { editedAt: new Date() } : {}),
+        ...(botPayload ? { botPayload } : {}),
+      },
+    });
+    const threadTs = inner.thread_ts && inner.thread_ts !== ts ? inner.thread_ts : null;
+    emitChat({ channelId, convKind, ts, threadTs, kind: "edit" });
+    return {
+      channelId, convKind, event: "edit", ts, threadTs, isBot: decision.isBot,
+      authorSlackId: inner.user ?? null, botId: inner.bot_id ?? null, text: inner.text ?? "",
+    };
+  }
+
+  const stored = await storeArchivedMessage(channelId, msg, decision.isBot, client, { overwrite: true });
+  if (!stored) return null;
+  emitChat({ channelId, convKind, ts: stored.ts, threadTs: stored.threadTs, kind: "new" });
+  return {
+    channelId, convKind, event: "new", ts: stored.ts, threadTs: stored.threadTs,
+    isBot: decision.isBot, authorSlackId: msg.user ?? null, botId: msg.bot_id ?? null, text: msg.text ?? "",
+  };
 }
 
 /**
@@ -259,13 +373,13 @@ export async function applyReaction(
   slackId: string,
   added: boolean
 ): Promise<void> {
-  if (!(await isArchivedChannel(channelId))) return;
+  if (!(await isIngestEnabled(channelId))) return;
 
   const row = await prisma.slackMessage.findUnique({
     where: { slackChannelId_ts: { slackChannelId: channelId, ts } },
     select: { id: true, reactions: true },
   });
-  if (!row) return; // never archived (e.g. a bot message) — nothing to react to
+  if (!row) return; // never archived — nothing to react to
 
   const reactions = (row.reactions as Record<string, { count: number; slackIds: string[] }> | null) ?? {};
   const entry = reactions[emoji] ?? { count: 0, slackIds: [] };
@@ -280,5 +394,9 @@ export async function applyReaction(
   else reactions[emoji] = entry;
 
   await prisma.slackMessage.update({ where: { id: row.id }, data: { reactions } });
-  activityBus.emit(`slack-chat:${channelId}`, { channelId, ts, kind: "reaction" });
+  const archive = await prisma.slackChannelArchive.findUnique({
+    where: { slackChannelId: channelId },
+    select: { kind: true },
+  });
+  emitChat({ channelId, convKind: archive?.kind ?? "PRIVATE_CHANNEL", ts, kind: "reaction" });
 }

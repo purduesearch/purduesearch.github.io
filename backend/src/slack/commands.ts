@@ -1,8 +1,8 @@
 import type { App } from "@slack/bolt";
 import { prisma } from "../db/prisma.js";
 import { buildHelpCard, buildProjectReport, buildProjectHealth, buildMilestoneView } from "../utils/blockKit.js";
-import { openStandupModal, openNewTaskModal, openNewProjectModal, openTaskDoneModal, openStatusModal, openSubtaskModal, openNotifyModal, openReportModal, openHealthModal, openMilestonesModal, openDriveParseModal, openMeetingNotesModal, openSprintPlanModal } from "./modals.js";
-import { analyzeProjectRisks, generateProjectBrief, generateStakeholderEmail, analyzeTeamCapacity } from "../services/projectAnalysisService.js";
+import { openStandupModal, openNewTaskModal, openNewProjectModal, openTaskDoneModal, openSubtaskModal, openDriveParseModal, openMeetingNotesModal, openSprintPlanModal } from "./modals.js";
+import { analyzeProjectRisks, generateStakeholderEmail, analyzeTeamCapacity } from "../services/projectAnalysisService.js";
 import { generateText } from "../services/geminiService.js";
 import { buildRiskReport, buildCapacityReport } from "../utils/blockKit.js";
 import { getProjectByChannel } from "../services/projectService.js";
@@ -32,12 +32,6 @@ export function registerCommands(app: App): void {
           break;
         }
 
-        case "status": {
-          // Open modal with project picker
-          await openStatusModal(client, command.trigger_id);
-          break;
-        }
-
         case "standup": {
           await openStandupModal(client, command.trigger_id, command.channel_id);
           break;
@@ -58,45 +52,24 @@ export function registerCommands(app: App): void {
           break;
         }
 
-        case "notify": {
-          const member = await prisma.member.findUnique({
-            where: { slackId: command.user_id },
-          });
-          if (!member) {
-            await respond({ response_type: "ephemeral", text: "❌ You are not registered as a member yet." });
-            break;
-          }
-          await openNotifyModal(client, command.trigger_id, member);
-          break;
-        }
-
         case "report": {
           const project = await getProjectByChannel(command.channel_id);
-          if (project) {
-            await handleReport(project.id, respond);
-          } else {
-            await openReportModal(client, command.trigger_id);
-          }
+          if (!project) { await respond({ response_type: "ephemeral", text: "❌ No project linked to this channel." }); break; }
+          await handleReport(project.id, respond);
           break;
         }
 
         case "health": {
           const project = await getProjectByChannel(command.channel_id);
-          if (project) {
-            await handleHealth(project.id, respond);
-          } else {
-            await openHealthModal(client, command.trigger_id);
-          }
+          if (!project) { await respond({ response_type: "ephemeral", text: "❌ No project linked to this channel." }); break; }
+          await handleHealth(project.id, respond);
           break;
         }
 
         case "milestones": {
           const project = await getProjectByChannel(command.channel_id);
-          if (project) {
-            await handleMilestones(project.id, respond);
-          } else {
-            await openMilestonesModal(client, command.trigger_id);
-          }
+          if (!project) { await respond({ response_type: "ephemeral", text: "❌ No project linked to this channel." }); break; }
+          await handleMilestones(project.id, respond);
           break;
         }
 
@@ -109,23 +82,6 @@ export function registerCommands(app: App): void {
         case "drive": {
           const url = args[1];
           await openDriveParseModal(client, command.trigger_id, command.channel_id, url);
-          break;
-        }
-
-        case "brief": {
-          const project = await getProjectByChannel(command.channel_id);
-          if (!project) { await respond({ response_type: "ephemeral", text: "❌ No project linked to this channel." }); break; }
-          await respond({ response_type: "ephemeral", text: "⏳ Generating project brief…" });
-          const brief = await generateProjectBrief(project.id) as any;
-          if (!brief) { await respond({ response_type: "ephemeral", text: "❌ Failed to generate brief." }); break; }
-          await client.chat.postMessage({
-            channel: command.channel_id,
-            blocks: [
-              { type: "section", text: { type: "mrkdwn", text: `*📄 Project Brief — ${project.name}*\n> ${brief.tldr}` } },
-              { type: "section", text: { type: "mrkdwn", text: (brief.markdown as string).slice(0, 2900) } },
-            ],
-            text: brief.tldr,
-          });
           break;
         }
 

@@ -66,10 +66,10 @@
       "kind": "TRUE_FALSE",
       "points": 1,
       "prompt": "Constellation will remind you about overdue follow-ups without you checking the CRM.",
-      "explanation": "True. A weekday-morning Slack DM lists what has slipped. That nudge is the difference between a CRM and a list of good intentions nobody reopens.",
+      "explanation": "False. Nothing reminds you. The owner has to open the CRM, where overdue follow-ups are flagged on each contact card — which is exactly why every record needs a date and an owner.",
       "answers": [
-        { "order": 0, "text": "True", "isCorrect": true },
-        { "order": 1, "text": "False", "isCorrect": false }
+        { "order": 0, "text": "True", "isCorrect": false },
+        { "order": 1, "text": "False", "isCorrect": true }
       ]
     }
   ]

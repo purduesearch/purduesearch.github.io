@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { getSlackArchiveHealth, retryFailedSlackMirrors } from "../../api/clubPmClient";
+import { getSlackArchiveHealth, retryFailedSlackMirrors, backfillPublicChannels } from "../../api/clubPmClient";
 
 const LABELS = {
   SLACK_ONLY:    "Still in Slack",
@@ -14,6 +14,7 @@ export default function SlackArchivePanel() {
   const [error, setError] = useState(null);
   const [retrying, setRetrying] = useState(false);
   const [retryNote, setRetryNote] = useState(null);
+  const [publicNote, setPublicNote] = useState(null);
 
   const load = useCallback(() => {
     return getSlackArchiveHealth().then(setHealth).catch(() => setError("Could not load archive health."));
@@ -37,6 +38,16 @@ export default function SlackArchivePanel() {
       setRetryNote({ ok: false, text: "Could not requeue the failed mirrors." });
     } finally {
       setRetrying(false);
+    }
+  }
+
+  async function backfillPublic() {
+    setPublicNote(null);
+    try {
+      await backfillPublicChannels();
+      setPublicNote({ ok: true, text: "Joining every public channel and importing its history in the background. This can take a while on a large workspace." });
+    } catch {
+      setPublicNote({ ok: false, text: "Could not start the public-channel import." });
     }
   }
 
@@ -96,9 +107,22 @@ export default function SlackArchivePanel() {
           {retryNote.text}
         </div>
       )}
-      {local > 0 && health.driveConnected && (
+      {local > 0 && (
         <div className="cpm-chat-banner" style={{ marginBottom: 12 }}>
-          {local} attachment{local === 1 ? " is" : "s are"} on local disk from a period when Drive was unavailable.
+          {local} attachment{local === 1 ? " is" : "s are"} stored on the server's disk. Private channels
+          and DMs always are — they never go to the shared Drive — plus any public-channel files from a
+          period when Drive was unavailable.
+        </div>
+      )}
+
+      <div style={{ marginBottom: 12 }}>
+        <button type="button" className="cpm-chat-backfill-btn" onClick={backfillPublic}>
+          <i className="fas fa-clock-rotate-left" aria-hidden="true" /> Import all public channels
+        </button>
+      </div>
+      {publicNote && (
+        <div className={`cpm-chat-banner${publicNote.ok ? "" : " cpm-chat-banner--error"}`} style={{ marginBottom: 12 }} role="status">
+          {publicNote.text}
         </div>
       )}
 

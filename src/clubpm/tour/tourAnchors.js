@@ -18,6 +18,7 @@ export const TOUR_ANCHORS = Object.freeze({
   // Shell and navigation — src/components/clubpm/AppShell.jsx
   "nav.sidebar":            { label: "Sidebar",              route: "*", note: "Whole rail, for coarse dimming" },
   "nav.dashboard":          { label: "Dashboard link",       route: "*", note: "" },
+  "nav.chat":               { label: "Chat link",            route: "*", note: "Every Slack channel; DMs live on Members" },
   "nav.projects":           { label: "Projects link",        route: "*", note: "" },
   "nav.members":            { label: "Members link",         route: "*", note: "Child of the Outreach group — expand it first" },
   "nav.calendar":           { label: "Calendar link",        route: "*", note: "" },
@@ -49,6 +50,7 @@ export const TOUR_ANCHORS = Object.freeze({
   "project.tab.tasks":      { label: "Tasks tab",            route: "/clubpm/projects/:id", note: "Sidebar project tab (AppShell)" },
   "project.tab.files":      { label: "Files tab",            route: "/clubpm/projects/:id", note: "Sidebar project tab (AppShell)" },
   "project.tab.chat":       { label: "Chat tab",             route: "/clubpm/projects/:id", note: "Sidebar project tab (AppShell)" },
+  "project.tab.members":    { label: "Members tab",          route: "/clubpm/projects/:id", note: "Sidebar project tab (AppShell) — roster + DMs" },
   "project.tab.reports":    { label: "Reports tab",          route: "/clubpm/projects/:id", note: "Sidebar project tab (AppShell)" },
   "project.tab.ai":         { label: "AI tab",               route: "/clubpm/projects/:id", note: "Sidebar project tab (AppShell)" },
   "project.tab.vault":      { label: "Vault sub-tab",        route: "/clubpm/projects/:id", note: "Inside the Files tab — open project.tab.files first" },

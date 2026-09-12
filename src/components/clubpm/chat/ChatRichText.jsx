@@ -9,6 +9,8 @@
  * every mention, link, and code fragment would silently read as body text.
  * Use <a>, <code>, <b>, <i>, <s>, <div>, <label> instead.
  */
+import { emojiChar } from "./emojiShortcodes";
+
 export default function ChatRichText({ tokens }) {
   if (!tokens || tokens.length === 0) return null;
 
@@ -57,10 +59,15 @@ function renderTokens(tokens) {
           </code>
         );
 
-      case "emoji":
-        return t.url
-          ? <img key={i} className="cpm-chat-emoji" src={t.url} alt={`:${t.name}:`} title={`:${t.name}:`} />
+      case "emoji": {
+        if (t.url) {
+          return <img key={i} className="cpm-chat-emoji" src={t.url} alt={`:${t.name}:`} title={`:${t.name}:`} />;
+        }
+        const ch = emojiChar(t.name);
+        return ch
+          ? <label key={i} className="cpm-chat-plain cpm-chat-emoji-char" title={`:${t.name}:`}>{ch}</label>
           : <code key={i} className="cpm-chat-emoji-name">:{t.name}:</code>;
+      }
 
       case "text":
       default:

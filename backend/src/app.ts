@@ -13,6 +13,7 @@ import { syncAdminStatus } from "./services/memberService.js";
 import { authRouter } from "./api/auth.js";
 import { projectsRouter, tagsRouter, trainingRouter } from "./api/projects.js";
 import { projectChatRouter, slackArchiveAdminRouter } from "./api/projectChat.js";
+import { chatRouter } from "./api/chat.js";
 import { tasksRouter } from "./api/tasks.js";
 import { membersRouter } from "./api/members.js";
 import { activityRouter } from "./api/activity.js";
@@ -127,14 +128,15 @@ app.use("/auth", authRouter);
 app.use("/auth/github", githubAuthRouter);
 app.use("/auth/google", googleAuthRouter);
 app.use("/api/github", githubRouter);
-// MUST be mounted before projectsRouter. projectsRouter attaches a pathless
-// requireAuth (api/projects.ts:37), which would 401 the chat file proxy's
-// `?token=` requests — an <img> tag cannot send an Authorization header — before
-// they ever reached this router. Same ordering hazard as sseRouter vs
-// notificationsRouter below.
+// Kept above projectsRouter only for its channel-list and backfill routes, which
+// authenticate normally. The chat file proxy — the `?token=` route that made
+// this order load-bearing — moved to /api/chat (chatRouter, below).
 app.use("/api/projects", projectChatRouter);
 app.use("/api/projects", projectsRouter);
 app.use("/api/slack-archive", slackArchiveAdminRouter);
+// Above every bare "/api" router: the chat file proxy authenticates with a
+// `?token=` query param, which a pathless requireAuth would 401 first.
+app.use("/api/chat", chatRouter);
 app.use("/api/tags", tagsRouter);
 app.use("/api/tasks", tasksRouter);
 // Mounted before the bare "/api" routers below (blockersRouter, streakRouter):
@@ -189,6 +191,13 @@ app.use("/r", redirectRouter);
 // Static uploads (Vault files, etc), served from their public URL.
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const UPLOADS_DIR = path.resolve(__dirname, "..", "uploads");
+
+// Slack archive mirrors (uploads/slack/**) hold private-channel and DM files.
+// They are served ONLY through the access-checked proxy (/api/chat/files/:id);
+// the static handler below would otherwise hand them to anyone who knows a
+// channel id and a file id. MUST stay above the static mount.
+app.use("/uploads/slack", (_req, res) => { res.status(404).end(); });
+
 app.use("/uploads", express.static(UPLOADS_DIR, { fallthrough: true, maxAge: "1d" }));
 
 // Health check

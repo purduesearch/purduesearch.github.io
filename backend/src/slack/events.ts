@@ -1,16 +1,19 @@
 import type { App } from "@slack/bolt";
 import type { WebClient } from "@slack/web-api";
 import { getProjectByChannel, getProjectsForChannel, addMemberToProject } from "../services/projectService.js";
-import { resolveSlackMember, getLeadershipChannelId } from "../services/memberService.js";
+import { resolveSlackMember, getLeadershipChannelId, getBotUserId } from "../services/memberService.js";
+import {
+  ensureMembersKnown, addConversationMember, removeConversationMember, joinAndSyncPublicChannel,
+} from "../services/slackMembershipService.js";
 import {
   buildTodoPrompt,
   buildAiTaskSuggestion,
-  buildMarkDoneFromReactionCard,
 } from "../utils/blockKit.js";
 import { parseTaskFromMessage, type TaskContext } from "../services/aiService.js";
 import { storeAiTask } from "../utils/aiTaskCache.js";
 import { prisma } from "../db/prisma.js";
 import { ingestSlackMessage, applyReaction } from "../services/slackArchiveService.js";
+import { deliverSlackPings } from "../services/slackNotifyService.js";
 
 // ── Helpers ──────────────────────────────────────────────────
 
@@ -140,122 +143,43 @@ function extractSuggestedAssignees(text: string, members: MemberStub[]): string[
 // ── Event Registration ───────────────────────────────────────
 
 export function registerEvents(app: App): void {
-  // ── App Mention: AI task parsing ──────────────────────────
-  app.event("app_mention", async ({ event, client }) => {
-    try {
-      // Strip the @mention prefix (<@BOTID> or <@BOTID|name>)
-      const text = event.text.replace(/<@[A-Z0-9]+(?:\|[^>]+)?>/g, "").trim();
-
-      if (!text) {
-        await client.chat.postMessage({
-          channel: event.channel,
-          thread_ts: event.ts,
-          text: "👋 Hi! Try: `@bot fix the login bug by Friday` and I'll suggest a task.",
-        });
-        return;
-      }
-
-      // Check channel is linked to a project
-      const project = await getProjectByChannel(event.channel);
-      if (!project) {
-        await client.chat.postMessage({
-          channel: event.channel,
-          thread_ts: event.ts,
-          text: "⚠️ This channel isn't linked to a project. Use `/pm task` to create a task.",
-        });
-        return;
-      }
-
-      const today = new Date().toISOString().split("T")[0];
-
-      // Status/health query detection — answer with risk analysis instead of task suggestion
-      const lowerText = text.toLowerCase();
-      const isStatusQuery = /\b(status|health|risks?|how.*(project|going)|what.*(missing|blocking|behind))\b/.test(lowerText);
-      if (isStatusQuery) {
-        try {
-          const { analyzeProjectRisks } = await import("../services/projectAnalysisService.js");
-          const { buildRiskReport } = await import("../utils/blockKit.js");
-          const risks = await analyzeProjectRisks(project.id) as any;
-          if (risks) {
-            await client.chat.postMessage({
-              channel: event.channel,
-              thread_ts: event.ts,
-              blocks: buildRiskReport(project, risks),
-              text: `Risk level: ${risks.overallRisk}`,
-            });
-            return;
-          }
-        } catch (riskErr) {
-          console.error("app_mention risk analysis error:", riskErr);
-        }
-      }
-
-      const taskContext: TaskContext = {
-        projectName: project.name,
-        projectDescription: project.description ?? undefined,
-        projectType: (project as any).type ?? undefined,
-        existingTasks: (project.tasks ?? [])
-          .filter((t: any) => t.status !== "DONE")
-          .map((t: any) => ({ id: t.id, title: t.title, description: t.description })),
-      };
-      const parsed = await parseTaskFromMessage(text, today, taskContext);
-
-      if (!parsed || !parsed.title) {
-        await client.chat.postMessage({
-          channel: event.channel,
-          thread_ts: event.ts,
-          text: "❌ Couldn't parse a task from that. Try `/pm task` to create one manually.",
-        });
-        return;
-      }
-
-      // Prefer channel members (full roster) over project-only members
-      const channelMembers = await getChannelMembers(client, event.channel);
-      const memberPool: MemberStub[] = channelMembers.length > 0
-        ? channelMembers
-        : (project.members ?? []).map((pm: any) => pm.member as MemberStub);
-
-      const suggestedAssigneeSlackIds = extractSuggestedAssignees(
-        event.text, // use original text (includes @mentions before stripping)
-        memberPool
-      );
-
-      const cacheKey = storeAiTask({
-        title: parsed.title,
-        description: parsed.description,
-        priority: parsed.priority,
-        dueDate: parsed.dueDate,
-        parentTaskId: parsed.parentTaskId,
-        suggestedAssigneeSlackIds,
-        channelId: event.channel,
-      });
-
-      await client.chat.postMessage({
-        channel: event.channel,
-        thread_ts: event.ts,
-        blocks: buildAiTaskSuggestion(parsed, event.channel, cacheKey, suggestedAssigneeSlackIds),
-        text: `Suggested task: ${parsed.title}`,
-      });
-    } catch (error) {
-      console.error("app_mention event error:", error);
-    }
-  });
-
   // ── Message: archive + auto-detect TODO/ACTION ────────────
   // The archive call runs FIRST and in its own try/catch. The two concerns get
   // independent error boundaries in both directions: an archive bug must not
   // break the TODO prompt that works today, and a failure in the TODO logic
   // must not lose a message from the archive.
-  app.message(async ({ message, say, client }) => {
+  app.message(async ({ message, say, client, body }) => {
+    // Whose authorization delivered this event. For a DM, or a private channel
+    // the bot is not in, theirs is the only token that can see the conversation.
+    const authorizedUserId = (body as { authorizations?: { user_id?: string }[] }).authorizations?.[0]?.user_id;
+
+    let result: Awaited<ReturnType<typeof ingestSlackMessage>> = null;
     try {
-      await ingestSlackMessage(message as never, client);
+      result = await ingestSlackMessage(message as never, client);
+      if (result?.event === "new") {
+        await ensureMembersKnown(result.channelId, result.convKind, authorizedUserId);
+      }
     } catch (error) {
       console.error("[slackArchive] ingest failed:", error);
+    }
+
+    // Mirror Slack's pings into Constellation. Live path ONLY — backfill never
+    // notifies (D10). Separate error boundary: a ping bug must not lose the
+    // archive row, and an archive bug must not block the TODO prompt below.
+    if (result) {
+      try {
+        await deliverSlackPings(result, client);
+      } catch (error) {
+        console.error("[slackPortal] ping delivery failed:", error);
+      }
     }
 
     try {
       // Only handle regular user messages with text
       if (message.subtype) return;
+      // ignoreSelf is off (bolt.ts). Never let a bot message — ours or another
+      // app's — trigger the TODO prompt.
+      if ((message as { bot_id?: string }).bot_id) return;
       if (!("text" in message) || !message.text) return;
 
       const text = message.text.trim();
@@ -291,6 +215,9 @@ export function registerEvents(app: App): void {
       } catch (error) {
         console.error("[slackArchive] reaction_added failed:", error);
       }
+
+      // Our own bot's reactions now reach this handler (ignoreSelf: false).
+      if (event.user === (await getBotUserId(client))) return;
 
       if (event.reaction === "clipboard") {
         // Fetch the original message text
@@ -355,19 +282,6 @@ export function registerEvents(app: App): void {
             text: "Create a task from this message?",
           });
         }
-      } else if (event.reaction === "white_check_mark") {
-        // Look up task by its announcement message timestamp
-        const task = await prisma.task.findFirst({
-          where: { slackMsgTs: ts, status: { not: "DONE" } },
-        });
-        if (!task) return;
-
-        await client.chat.postEphemeral({
-          channel,
-          user: event.user,
-          blocks: buildMarkDoneFromReactionCard(task),
-          text: `Mark "${task.title}" as done?`,
-        });
       }
     } catch (error) {
       console.error("reaction_added event error:", error);
@@ -385,30 +299,14 @@ export function registerEvents(app: App): void {
     }
   });
 
-  // ── Channel Created: proj-* naming convention ────────────
+  // ── Channel Created: portal auto-join ────────────────────
   app.event("channel_created", async ({ event, client }) => {
+    // Portal: the bot joins every new public channel so it can read it.
+    // channel_created only fires for public channels.
     try {
-      const channel = event.channel;
-      const channelName = channel.name;
-
-      // Check if the channel matches proj-* naming
-      if (channelName.startsWith("proj-")) {
-        await client.chat.postMessage({
-          channel: channel.id,
-          text: `👋 This channel matches the project naming convention (\`proj-*\`).`,
-          blocks: [
-            {
-              type: "section",
-              text: {
-                type: "mrkdwn",
-                text: `👋 Welcome to *#${channelName}*!\n\nThis channel matches the project naming convention (\`proj-*\`). Would you like to link it to a project?\n\nVisit the dashboard to link this channel to a new or existing project, or use \`/pm help\` to get started.`,
-              },
-            },
-          ],
-        });
-      }
-    } catch (error) {
-      console.error("channel_created event error:", error);
+      await joinAndSyncPublicChannel(event.channel.id, client, event.channel.name);
+    } catch (err) {
+      console.error("[slackPortal] auto-join failed:", err);
     }
   });
 
@@ -416,6 +314,8 @@ export function registerEvents(app: App): void {
   app.event("member_joined_channel", async ({ event, client }) => {
     try {
       const { user: slackUserId, channel: channelId } = event;
+
+      await addConversationMember(channelId, slackUserId);
 
       // Grant admin if this is the leadership channel
       const leadershipId = await getLeadershipChannelId(client);
@@ -452,6 +352,8 @@ export function registerEvents(app: App): void {
   app.event("member_left_channel", async ({ event, client }) => {
     try {
       const { user: slackUserId, channel: channelId } = event;
+
+      await removeConversationMember(channelId, slackUserId);
 
       const leadershipId = await getLeadershipChannelId(client);
       if (!leadershipId || channelId !== leadershipId) return;

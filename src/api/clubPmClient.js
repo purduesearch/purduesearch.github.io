@@ -888,22 +888,6 @@ export function getChatChannels(projectId) {
   return get(`/api/projects/${projectId}/chat/channels`);
 }
 
-export function getChatMessages(projectId, channelId, before) {
-  const q = new URLSearchParams({ channelId });
-  if (before) q.set("before", before);
-  return get(`/api/projects/${projectId}/chat/messages?${q}`);
-}
-
-export function getChatThread(projectId, channelId, ts) {
-  return get(`/api/projects/${projectId}/chat/thread/${ts}?channelId=${encodeURIComponent(channelId)}`);
-}
-
-export function searchChat(projectId, channelId, q) {
-  const params = new URLSearchParams({ q });
-  if (channelId) params.set("channelId", channelId);
-  return get(`/api/projects/${projectId}/chat/search?${params}`);
-}
-
 export function startChatBackfill(projectId, channelId) {
   return post(`/api/projects/${projectId}/chat/backfill`, { channelId });
 }
@@ -925,16 +909,67 @@ export function retryFailedSlackMirrors() {
   return post("/api/slack-archive/retry-failed", {});
 }
 
+// ── Slack portal: conversation-scoped chat (/api/chat) ───────
+// Everything the chat UI needs, keyed on the Slack conversation id rather than
+// a project. HTTP 409 from any write means "reconnect Slack" (plan Task 11).
+
+const chatPath = (channelId, rest = "") => `/api/chat/conversations/${encodeURIComponent(channelId)}${rest}`;
+
+export const listConversations = () => get("/api/chat/conversations");
+export const getConversation = (channelId) => get(chatPath(channelId));
+
+export function getConversationMessages(channelId, before) {
+  return get(chatPath(channelId, `/messages${before ? `?before=${encodeURIComponent(before)}` : ""}`));
+}
+export const getConversationThread = (channelId, ts) => get(chatPath(channelId, `/thread/${encodeURIComponent(ts)}`));
+export const searchConversation = (channelId, q) => get(chatPath(channelId, `/search?q=${encodeURIComponent(q)}`));
+export const markConversationRead = (channelId, ts) => post(chatPath(channelId, "/read"), { ts });
+
+export const sendChatMessage = (channelId, { text, threadTs, broadcast } = {}) =>
+  post(chatPath(channelId, "/messages"), { text, threadTs, broadcast });
+export const editChatMessage = (channelId, ts, text) =>
+  patch(chatPath(channelId, `/messages/${encodeURIComponent(ts)}`), { text });
+export const deleteChatMessage = (channelId, ts) =>
+  del(chatPath(channelId, `/messages/${encodeURIComponent(ts)}`));
+export const reactToChatMessage = (channelId, ts, emoji, add) =>
+  post(chatPath(channelId, `/messages/${encodeURIComponent(ts)}/reactions`), { emoji, add });
+export const joinConversation = (channelId) => post(chatPath(channelId, "/join"), {});
+/** Constellation-side mute (D8) — silences mirrored pings; Slack's own mute has no API. */
+export const muteConversation = (channelId, muted) => post(chatPath(channelId, "/mute"), { muted });
+
+/** Open (or find) a DM / group DM with these Member ids → { channelId, kind }. */
+export const openDm = (memberIds) => post("/api/chat/dms", { memberIds });
+/** Import the signed-in member's DM history (idempotent server-side). */
+export const importMyDms = () => post("/api/chat/dms/import", {});
+/** Admin: join + import every public channel. */
+export const backfillPublicChannels = () => post("/api/slack-archive/backfill-public", {});
+
+/** Multipart upload — `post()` is JSON-only. */
+export async function uploadChatFile(channelId, file, { threadTs, comment } = {}) {
+  const fd = new FormData();
+  fd.append("file", file);
+  if (threadTs) fd.append("threadTs", threadTs);
+  if (comment) fd.append("comment", comment);
+  const response = await fetch(`${BASE_URL}${chatPath(channelId, "/files")}`, {
+    method: "POST",
+    credentials: "include",
+    headers: { ...authHeaders() },
+    body: fd,
+  });
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    throw new ApiError(response.status, body.error ?? "Upload failed");
+  }
+  return response.json();
+}
+
 /**
- * URL for an archived Slack attachment.
- *
- * An <img> tag cannot send an Authorization header, so the Bearer token rides
- * along as a signed query param — the same escape hatch EventSource uses. Never
- * build this URL by hand in a component, or images silently break for every
- * cookie-blocked browser (Brave, Safari).
+ * URL for an archived attachment in ANY conversation. The Bearer token rides
+ * along as `?token=` because an <img> cannot send headers (Brave/Safari).
+ * Never build this URL by hand in a component.
  */
-export function chatFileUrl(projectId, slackFileId) {
+export function conversationFileUrl(slackFileId) {
   const token = getStoredToken();
-  const base = `${BASE_URL}/api/projects/${projectId}/chat/files/${encodeURIComponent(slackFileId)}`;
+  const base = `${BASE_URL}/api/chat/files/${encodeURIComponent(slackFileId)}`;
   return token ? `${base}?token=${encodeURIComponent(token)}` : base;
 }

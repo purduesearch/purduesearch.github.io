@@ -26757,6 +26757,257 @@ button.pm-an-risk-factor-row:hover { background: rgba(255, 255, 255, 0.04); }
   .cpm-proj-edit-row { grid-template-columns: 1fr; }
 }
 
+/* ═══════════════════════════════════════════════════════════════════
+   Slack portal — conversation view, composer, actions, Block Kit
+   ═══════════════════════════════════════════════════════════════════ */
+.cpm-chat-conv { display: flex; flex-direction: column; gap: 10px; flex: 1; min-height: 0; }
+.cpm-chat-main { display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0; }
+
+.cpm-chat-composer {
+  position: relative; display: flex; align-items: flex-end; gap: 8px;
+  margin-top: 10px; padding: 8px;
+  background: var(--pm-bg-elevated); border: 1px solid var(--pm-border); border-radius: 10px;
+}
+.cpm-chat-composer:focus-within { border-color: var(--pm-border-active); }
+.cpm-chat-composer-input {
+  flex: 1; min-width: 0; max-height: 160px; resize: none;
+  background: transparent; border: 0; outline: none; padding: 6px 4px;
+  color: var(--pm-text-primary); font-family: var(--pm-font-body); font-size: 14px; line-height: 1.45;
+}
+.cpm-chat-composer-btn, .cpm-chat-composer-send {
+  flex: none; width: 34px; height: 34px; border: 0; border-radius: 8px; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: transparent; color: var(--pm-text-secondary);
+}
+.cpm-chat-composer-btn:hover { background: var(--pm-bg-overlay); color: var(--pm-text-primary); }
+.cpm-chat-composer-send { background: var(--pm-accent-teal); color: var(--pm-bg-base); }
+.cpm-chat-composer-send:disabled { opacity: 0.4; cursor: default; }
+
+.cpm-chat-suggest {
+  position: absolute; left: 8px; right: 8px; bottom: calc(100% + 6px); z-index: 5; padding: 4px;
+  background: var(--pm-bg-elevated); border: 1px solid var(--pm-border); border-radius: 10px;
+  box-shadow: var(--pm-shadow-card);
+}
+.cpm-chat-suggest-item {
+  display: flex; align-items: baseline; gap: 8px; width: 100%; padding: 6px 10px;
+  border: 0; border-radius: 6px; background: transparent; color: var(--pm-text-primary);
+  text-align: left; cursor: pointer;
+}
+.cpm-chat-suggest-item.active, .cpm-chat-suggest-item:hover { background: var(--pm-bg-overlay); }
+.cpm-chat-suggest-handle { color: var(--pm-text-muted); font-size: 12px; }
+
+.cpm-chat-reconnect {
+  display: flex; flex-direction: column; gap: 8px; margin-top: 10px; padding: 14px;
+  background: var(--pm-bg-elevated); border: 1px dashed var(--pm-border-active); border-radius: 10px;
+  color: var(--pm-text-primary);
+}
+.cpm-chat-reconnect--compact { padding: 10px; font-size: 13px; }
+.cpm-chat-reconnect-sub { color: var(--pm-text-secondary); font-size: 12px; line-height: 1.5; }
+.cpm-chat-reconnect-btn { align-self: flex-start; display: inline-flex; align-items: center; gap: 8px; text-decoration: none; }
+
+.cpm-chat-join {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  margin-top: 10px; padding: 10px 12px; color: var(--pm-text-secondary);
+  background: var(--pm-bg-elevated); border: 1px solid var(--pm-border); border-radius: 10px;
+}
+
+.cpm-chat-msg { position: relative; }
+.cpm-chat-msg-actions {
+  position: absolute; top: 4px; right: 8px; display: none; gap: 2px; padding: 2px;
+  background: var(--pm-bg-elevated); border: 1px solid var(--pm-border); border-radius: 8px;
+  box-shadow: var(--pm-shadow-card);
+}
+.cpm-chat-msg:hover .cpm-chat-msg-actions,
+.cpm-chat-msg:focus-within .cpm-chat-msg-actions { display: flex; }
+.cpm-chat-msg-actions > button {
+  width: 28px; height: 28px; border: 0; border-radius: 6px; cursor: pointer;
+  background: transparent; color: var(--pm-text-secondary);
+}
+.cpm-chat-msg-actions > button:hover { background: var(--pm-bg-overlay); color: var(--pm-text-primary); }
+.cpm-chat-react-picker {
+  position: absolute; top: calc(100% + 4px); right: 0; z-index: 4; display: flex; gap: 2px; padding: 4px;
+  background: var(--pm-bg-elevated); border: 1px solid var(--pm-border); border-radius: 8px;
+  box-shadow: var(--pm-shadow-card);
+}
+.cpm-chat-react-picker > button {
+  width: 32px; height: 32px; border: 0; border-radius: 6px; background: transparent; cursor: pointer; font-size: 18px;
+}
+.cpm-chat-react-picker > button:hover { background: var(--pm-bg-overlay); }
+button.cpm-chat-reaction { color: inherit; font-family: inherit; cursor: pointer; }
+button.cpm-chat-reaction:disabled { cursor: default; }
+.cpm-chat-reaction--mine {
+  border-color: var(--pm-accent-teal);
+  background: color-mix(in srgb, var(--pm-accent-teal) 14%, var(--pm-bg-elevated));
+}
+.cpm-chat-emoji-char { font-size: 1.15em; line-height: 1; }
+
+.cpm-chat-edit { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
+.cpm-chat-edit .cpm-chat-composer-input {
+  min-height: 60px; padding: 8px;
+  background: var(--pm-bg-elevated); border: 1px solid var(--pm-border-active); border-radius: 8px;
+}
+.cpm-chat-edit-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.cpm-chat-app-badge {
+  padding: 1px 5px; border-radius: 4px; font-size: 10px; font-weight: 700; letter-spacing: 0.06em;
+  background: var(--pm-bg-overlay); color: var(--pm-text-secondary);
+}
+.cpm-chat-drawer .cpm-chat-composer, .cpm-chat-drawer .cpm-chat-reconnect { margin: 8px; }
+
+.cpm-chat-blocks {
+  display: flex; flex-direction: column; gap: 6px; padding-left: 10px;
+  border-left: 3px solid var(--pm-border-active);
+}
+.cpm-chat-block-header { display: block; font-family: var(--pm-font-display); font-size: 15px; color: var(--pm-text-primary); }
+.cpm-chat-block-fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 4px 16px; margin-top: 4px; }
+.cpm-chat-block-context { font-size: 12px; color: var(--pm-text-muted); }
+.cpm-chat-block-divider { width: 100%; margin: 2px 0; border: 0; border-top: 1px solid var(--pm-border); }
+.cpm-chat-block-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.cpm-chat-block-chip {
+  padding: 3px 10px; border: 1px solid var(--pm-border); border-radius: 999px;
+  font-size: 12px; color: var(--pm-text-secondary); cursor: not-allowed;
+}
+.cpm-chat-block-image { font-size: 12px; color: var(--pm-text-muted); }
+
+/* /clubpm/chat */
+.cpm-chatpage {
+  display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 16px;
+  height: calc(100vh - 140px); min-height: 480px;
+}
+.cpm-chatpage-side {
+  display: flex; flex-direction: column; gap: 2px; overflow-y: auto; padding: 12px;
+  background: var(--pm-bg-surface); border: 1px solid var(--pm-border); border-radius: 12px;
+}
+.cpm-chatpage-filter {
+  margin-bottom: 8px; padding: 7px 10px; border-radius: 8px;
+  border: 1px solid var(--pm-border); background: var(--pm-bg-elevated); color: var(--pm-text-primary);
+}
+.cpm-chatpage-group {
+  margin: 8px 6px 4px; font-size: 11px; font-weight: 700; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--pm-text-muted);
+}
+.cpm-chatpage-item {
+  display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 7px;
+  color: var(--pm-text-secondary); text-decoration: none;
+}
+.cpm-chatpage-item:hover { background: var(--pm-bg-overlay); color: var(--pm-text-primary); }
+.cpm-chatpage-item.active { background: var(--pm-bg-elevated); color: var(--pm-text-primary); }
+.cpm-chatpage-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cpm-chatpage-item.unread .cpm-chatpage-name { color: var(--pm-text-primary); font-weight: 700; }
+.cpm-chatpage-badge, .cpm-dm-badge {
+  min-width: 20px; padding: 1px 6px; border-radius: 999px; text-align: center;
+  background: var(--pm-accent-coral); color: #fff; font-size: 11px;
+}
+.cpm-chatpage-muted { color: var(--pm-text-muted); font-size: 11px; }
+.cpm-chatpage-browse-toggle {
+  display: flex; align-items: center; gap: 8px; margin-top: 10px; padding: 6px 8px;
+  border: 0; background: transparent; color: var(--pm-text-muted); text-align: left; cursor: pointer;
+}
+.cpm-chatpage-hint { padding: 4px 8px; font-size: 12px; color: var(--pm-text-muted); }
+.cpm-chatpage-dmlink {
+  display: flex; align-items: center; gap: 8px; margin-top: auto; padding: 10px 8px 2px;
+  font-size: 12px; color: var(--pm-accent-teal); text-decoration: none;
+}
+.cpm-chatpage-main {
+  display: flex; flex-direction: column; min-width: 0; min-height: 0; padding: 12px 16px;
+  background: var(--pm-bg-surface); border: 1px solid var(--pm-border); border-radius: 12px;
+}
+.cpm-chatpage-head {
+  display: flex; align-items: center; gap: 8px; padding-bottom: 10px; margin-bottom: 8px;
+  border-bottom: 1px solid var(--pm-border); color: var(--pm-text-primary); font-family: var(--pm-font-display);
+}
+.cpm-chatpage-preview { margin-left: auto; font-size: 12px; color: var(--pm-accent-amber); }
+@media (max-width: 860px) {
+  .cpm-chatpage { grid-template-columns: 1fr; height: auto; }
+  .cpm-chatpage-side { max-height: 260px; }
+  .cpm-chatpage-main { min-height: 70vh; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   Slack portal — DMs on the Members page
+   ═══════════════════════════════════════════════════════════════════ */
+.pm-members-header-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.pm-members-layout { display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 16px; align-items: start; }
+.pm-members-layout--dm { grid-template-columns: 280px minmax(0, 1fr) minmax(360px, 440px); }
+.pm-members-roster { min-width: 0; }
+
+.cpm-dm-inbox {
+  position: sticky; top: 12px; display: flex; flex-direction: column; gap: 2px;
+  max-height: calc(100vh - 160px); overflow-y: auto; padding: 12px;
+  background: var(--pm-bg-surface); border: 1px solid var(--pm-border); border-radius: 12px;
+}
+.cpm-dm-inbox-head { padding: 0 6px 8px; color: var(--pm-text-primary); font-family: var(--pm-font-display); }
+.cpm-dm-row {
+  display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px;
+  border: 0; border-radius: 8px; background: transparent; color: var(--pm-text-secondary);
+  text-align: left; cursor: pointer;
+}
+.cpm-dm-row:hover { background: var(--pm-bg-overlay); }
+.cpm-dm-row.active { background: var(--pm-bg-elevated); }
+.cpm-dm-row.unread .cpm-dm-name { color: var(--pm-text-primary); font-weight: 700; }
+.cpm-dm-avatar {
+  flex: none; width: 32px; height: 32px; overflow: hidden; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--pm-bg-overlay); color: var(--pm-text-muted);
+}
+.cpm-dm-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.cpm-dm-row-body { flex: 1; min-width: 0; }
+.cpm-dm-row-top { display: flex; justify-content: space-between; gap: 8px; }
+.cpm-dm-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+.cpm-dm-time { flex: none; font-size: 11px; color: var(--pm-text-muted); }
+.cpm-dm-preview { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--pm-text-muted); }
+.cpm-dm-empty { padding: 8px; font-size: 12px; line-height: 1.5; color: var(--pm-text-muted); }
+
+.cpm-dm-panel {
+  position: sticky; top: 12px; display: flex; flex-direction: column;
+  height: calc(100vh - 160px); min-height: 420px; padding: 12px;
+  background: var(--pm-bg-surface); border: 1px solid var(--pm-border); border-radius: 12px;
+}
+.cpm-dm-panel-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding-bottom: 10px; margin-bottom: 8px; border-bottom: 1px solid var(--pm-border); color: var(--pm-text-primary);
+}
+.cpm-dm-panel-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--pm-font-display); }
+.cpm-dm-panel-close {
+  width: 30px; height: 30px; border: 0; border-radius: 6px; cursor: pointer;
+  background: transparent; color: var(--pm-text-secondary);
+}
+.cpm-dm-panel-close:hover { background: var(--pm-bg-overlay); }
+/* A 340px thread drawer beside messages doesn't fit a docked panel: overlay it
+   instead (absolute, not fixed — transformed ancestors would capture fixed). */
+.cpm-dm-panel .cpm-chat-layout { position: relative; }
+.cpm-dm-panel .cpm-chat-drawer { position: absolute; inset: 0; z-index: 3; width: auto; flex: none; }
+
+.pm-member-card--enriched { position: relative; }
+.pm-member-card-message-btn {
+  width: 32px; height: 32px; border: 0; border-radius: 8px; cursor: pointer;
+  background: transparent; color: var(--pm-text-secondary);
+}
+.pm-member-card-message-btn:hover { background: var(--pm-bg-overlay); color: var(--pm-accent-teal); }
+.pm-member-card--selected { outline: 2px solid var(--pm-accent-teal); outline-offset: -2px; }
+.pm-member-select {
+  position: absolute; top: 10px; right: 10px; width: 22px; height: 22px; border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  border: 2px solid var(--pm-border-active); color: var(--pm-bg-base);
+}
+.pm-member-select.selected { background: var(--pm-accent-teal); border-color: var(--pm-accent-teal); }
+.pm-members-groupbar {
+  position: sticky; bottom: 16px; z-index: 20; width: fit-content; margin: 16px auto 0;
+  display: flex; align-items: center; gap: 14px; padding: 10px 14px; border-radius: 999px;
+  background: var(--pm-bg-elevated); border: 1px solid var(--pm-border-active);
+  box-shadow: var(--pm-shadow-card); color: var(--pm-text-primary);
+}
+
+/* Narrow: an open DM replaces the roster rather than squeezing three columns. */
+@media (max-width: 1200px) {
+  .pm-members-layout--dm { grid-template-columns: 240px minmax(0, 1fr); }
+  .pm-members-layout--dm .pm-members-roster { display: none; }
+}
+@media (max-width: 860px) {
+  .pm-members-layout, .pm-members-layout--dm { grid-template-columns: 1fr; }
+  .cpm-dm-inbox { position: static; max-height: 280px; }
+  .cpm-dm-panel { position: static; height: 75vh; }
+}
+
 /* === Blog: generate modal — "Plan with Claude" lane === */
 /* BlogTab.jsx GenerateModal. The mode toggle, clipboard steps, and skipped-
    section report reuse the .cpm-actionplan-* rules (bare selectors on :root

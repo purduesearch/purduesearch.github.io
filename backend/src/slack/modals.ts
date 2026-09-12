@@ -4,9 +4,8 @@ import { prisma } from "../db/prisma.js";
 import { createTask, updateTask, getTask, reassignTaskFromSlack } from "../services/taskService.js";
 import { resolveSlackMember } from "../services/memberService.js";
 import { getProjectByChannel } from "../services/projectService.js";
-import { getMilestonesForProject } from "../services/milestoneService.js";
 import { EXCLUDE_TRAINING } from "../services/trainingSandboxService.js";
-import { buildTaskCard, buildStandupMessage, buildProjectReport, buildProjectHealth, buildMilestoneView, buildDriveTaskPreview } from "../utils/blockKit.js";
+import { buildDriveTaskPreview } from "../utils/blockKit.js";
 import { fetchDriveFileAsText, extractFileId } from "../services/driveService.js";
 import { generateJsonFromImage, generateJsonFromDocument } from "../services/geminiService.js";
 import { driveToTasksPrompt, meetingNotesToTasksPrompt, imageToTaskPrompt } from "../utils/aiPrompts.js";
@@ -509,72 +508,11 @@ export async function openAddNoteModal(
   });
 }
 
-// ── Report / Health / Milestones Picker ──────────────────────
-
-async function buildProjectPickerModal(
-  triggerId: string,
-  callbackId: string,
-  title: string,
-  submitLabel: string
-) {
-  const projects = await prisma.project.findMany({
-    where: { status: "ACTIVE", ...EXCLUDE_TRAINING },
-    select: { id: true, name: true },
-    orderBy: { name: "asc" },
-  });
-
-  const options = projects.map(p => ({
-    text: { type: "plain_text" as const, text: p.name },
-    value: p.id,
-  }));
-  if (options.length === 0) {
-    options.push({ text: { type: "plain_text", text: "No active projects" }, value: "none" });
-  }
-
-  return {
-    trigger_id: triggerId,
-    view: {
-      type: "modal" as const,
-      callback_id: callbackId,
-      title: { type: "plain_text" as const, text: title },
-      submit: { type: "plain_text" as const, text: submitLabel },
-      blocks: [
-        {
-          type: "input" as const,
-          block_id: "project_block",
-          label: { type: "plain_text" as const, text: "Select a project" },
-          element: {
-            type: "static_select" as const,
-            action_id: "project_id",
-            placeholder: { type: "plain_text" as const, text: "Choose a project..." },
-            options,
-          },
-        },
-      ],
-    },
-  };
-}
-
-export async function openReportModal(client: WebClient, triggerId: string): Promise<void> {
-  const payload = await buildProjectPickerModal(triggerId, "report_submit", "Project Report", "View Report 📊");
-  await client.views.open(payload);
-}
-
-export async function openHealthModal(client: WebClient, triggerId: string): Promise<void> {
-  const payload = await buildProjectPickerModal(triggerId, "health_submit", "Health Check", "Check Health 🏥");
-  await client.views.open(payload);
-}
-
-export async function openMilestonesModal(client: WebClient, triggerId: string): Promise<void> {
-  const payload = await buildProjectPickerModal(triggerId, "milestones_submit", "Milestones", "View Milestones 🏁");
-  await client.views.open(payload);
-}
-
 // ── Modal Registration ───────────────────────────────────────
 
 export function registerModals(app: App): void {
   // ── Standup Submission ────────────────────────────────────
-  app.view("standup_submit", async ({ ack, body, view, client }) => {
+  app.view("standup_submit", async ({ ack, body, view }) => {
     await ack();
 
     try {
@@ -586,21 +524,6 @@ export function registerModals(app: App): void {
       const today = view.state.values.today_block?.today?.value ?? "";
       const blockers =
         view.state.values.blockers_block?.blockers?.value ?? "None";
-
-      // Post standup message to channel (skip if no channel, e.g. from home tab)
-      const blocks = buildStandupMessage(userId, {
-        yesterday,
-        today,
-        blockers,
-      });
-
-      if (channelId) {
-        await client.chat.postMessage({
-          channel: channelId,
-          blocks,
-          text: `Standup update from <@${userId}>`,
-        });
-      }
 
       // Log as ProjectUpdate if channel is linked
       const project = await getProjectByChannel(channelId);
@@ -633,8 +556,7 @@ export function registerModals(app: App): void {
     await ack();
 
     try {
-      const meta = (() => { try { return JSON.parse(view.private_metadata); } catch { return { channelId: view.private_metadata }; } })();
-      const channelId: string = meta.channelId ?? view.private_metadata;
+      const meta = (() => { try { return JSON.parse(view.private_metadata); } catch { return {}; } })();
       const values = view.state.values;
 
       const title = values.title_block?.title?.value ?? "Untitled";
@@ -706,26 +628,7 @@ export function registerModals(app: App): void {
         refreshMilestoneHealth(task.milestoneId).catch(console.error);
       }
 
-      // Fetch full task with relations for the card
       const fullTask = await getTask(task.id);
-      if (fullTask) {
-        const project = await prisma.project.findUnique({
-          where: { id: projectId },
-        });
-        if (project) {
-          const result = await client.chat.postMessage({
-            channel: channelId,
-            blocks: buildTaskCard(fullTask, project),
-            text: `✅ New task created: ${title}`,
-          });
-          if (result.ts) {
-            await prisma.task.update({
-              where: { id: task.id },
-              data: { slackMsgTs: result.ts as string },
-            });
-          }
-        }
-      }
 
       logAuditEvent({
         projectId,
@@ -1018,143 +921,11 @@ export function registerModals(app: App): void {
     }
   });
 
-  // ── Status View Submission ────────────────────────────────
-  app.view("status_view_submit", async ({ ack, view, client, body }) => {
-    await ack();
-    try {
-      const projectId = view.state.values.project_block?.project_id?.selected_option?.value;
-      if (!projectId || projectId === "none") return;
-
-      const project = await prisma.project.findUnique({
-        where: { id: projectId },
-        include: {
-          tasks: { include: { assignees: true } },
-          members: { include: { member: true } },
-        },
-      });
-      if (!project) return;
-
-      const { buildProjectStatusCard } = await import("../utils/blockKit.js");
-      await client.chat.postMessage({
-        channel: body.user.id,
-        blocks: buildProjectStatusCard(project, project.tasks),
-        text: `Status for ${project.name}`,
-      });
-    } catch (error) {
-      console.error("status_view_submit error:", error);
-    }
-  });
-
-  // ── Notify Preferences Submission ────────────────────────
-  app.view("notify_submit", async ({ ack, body, view }) => {
-    await ack();
-    try {
-      const selected: { value: string }[] =
-        view.state.values.prefs_block?.prefs?.selected_options ?? [];
-      const prefs = selected.map(o => o.value);
-
-      await prisma.member.update({
-        where: { slackId: body.user.id },
-        data: { notificationPrefs: prefs },
-      });
-    } catch (error) {
-      console.error("notify_submit error:", error);
-    }
-  });
-
-  // ── Report Submission ─────────────────────────────────────
-  app.view("report_submit", async ({ ack, view, client, body }) => {
-    await ack();
-    try {
-      const projectId = view.state.values.project_block?.project_id?.selected_option?.value;
-      if (!projectId || projectId === "none") return;
-
-      const [project, milestones] = await Promise.all([
-        prisma.project.findUnique({
-          where: { id: projectId },
-          include: { tasks: { include: { assignees: true } } },
-        }),
-        getMilestonesForProject(projectId),
-      ]);
-      if (!project) return;
-
-      const now = new Date();
-      const topLevel = project.tasks.filter(t => !t.parentTaskId);
-      const statusCounts: Record<string, number> = { TODO: 0, IN_PROGRESS: 0, BLOCKED: 0, DONE: 0 };
-      for (const t of topLevel) statusCounts[t.status] = (statusCounts[t.status] ?? 0) + 1;
-      const overdueCount = topLevel.filter(t => t.status !== "DONE" && t.dueDate && t.dueDate < now).length;
-
-      await client.chat.postMessage({
-        channel: body.user.id,
-        blocks: buildProjectReport(project, project.tasks, milestones, statusCounts, overdueCount),
-        text: `Report for ${project.name}`,
-      });
-    } catch (error) {
-      console.error("report_submit error:", error);
-    }
-  });
-
-  // ── Health Submission ─────────────────────────────────────
-  app.view("health_submit", async ({ ack, view, client, body }) => {
-    await ack();
-    try {
-      const projectId = view.state.values.project_block?.project_id?.selected_option?.value;
-      if (!projectId || projectId === "none") return;
-
-      const [project, milestones] = await Promise.all([
-        prisma.project.findUnique({
-          where: { id: projectId },
-          include: { tasks: { include: { assignees: true } } },
-        }),
-        getMilestonesForProject(projectId),
-      ]);
-      if (!project) return;
-
-      const now = new Date();
-      const topLevel = project.tasks.filter(t => !t.parentTaskId);
-      const statusCounts: Record<string, number> = { TODO: 0, IN_PROGRESS: 0, BLOCKED: 0, DONE: 0 };
-      for (const t of topLevel) statusCounts[t.status] = (statusCounts[t.status] ?? 0) + 1;
-      const overdueCount = topLevel.filter(t => t.status !== "DONE" && t.dueDate && t.dueDate < now).length;
-
-      await client.chat.postMessage({
-        channel: body.user.id,
-        blocks: buildProjectHealth(project, project.tasks, milestones, statusCounts, overdueCount),
-        text: `Health check for ${project.name}`,
-      });
-    } catch (error) {
-      console.error("health_submit error:", error);
-    }
-  });
-
-  // ── Milestones Submission ──────────────────────────────────
-  app.view("milestones_submit", async ({ ack, view, client, body }) => {
-    await ack();
-    try {
-      const projectId = view.state.values.project_block?.project_id?.selected_option?.value;
-      if (!projectId || projectId === "none") return;
-
-      const [project, milestones] = await Promise.all([
-        prisma.project.findUnique({ where: { id: projectId } }),
-        getMilestonesForProject(projectId),
-      ]);
-      if (!project) return;
-
-      await client.chat.postMessage({
-        channel: body.user.id,
-        blocks: buildMilestoneView(project, milestones),
-        text: `Milestones for ${project.name}`,
-      });
-    } catch (error) {
-      console.error("milestones_submit error:", error);
-    }
-  });
-
   // ── Subtask Submission ────────────────────────────────────
   app.view("subtask_submit", async ({ ack, body, view, client }) => {
     await ack();
 
     try {
-      const channelId = view.private_metadata;
       const values = view.state.values;
       const parentTaskId = values.parent_block?.parent_task?.selected_option?.value;
       const title = values.title_block?.title?.value ?? "Untitled";
@@ -1181,7 +952,7 @@ export function registerModals(app: App): void {
       const dueDate = dueDateStr ? new Date(dueDateStr) : undefined;
       const actor = await resolveSlackMember(body.user.id).catch(() => null);
 
-      const subtask = await createTask({
+      await createTask({
         title,
         description,
         projectId: parentTask.projectId,
@@ -1194,15 +965,6 @@ export function registerModals(app: App): void {
         storyPoints,
         createdById: actor?.id,
       });
-
-      const fullSubtask = await getTask(subtask.id);
-      if (fullSubtask && channelId) {
-        await client.chat.postMessage({
-          channel: channelId,
-          blocks: buildTaskCard(fullSubtask, fullSubtask.project),
-          text: `✅ Subtask created: ${title}`,
-        });
-      }
     } catch (error) {
       console.error("subtask_submit error:", error);
     }
@@ -1212,7 +974,6 @@ export function registerModals(app: App): void {
   app.view("milestone_submit", async ({ ack, view, client }) => {
     await ack();
     try {
-      const channelId = view.private_metadata;
       const v = view.state.values;
       const projectId = v.project_block?.project?.selected_option?.value;
       const title = v.title_block?.title?.value ?? "Untitled Milestone";
@@ -1240,53 +1001,6 @@ export function registerModals(app: App): void {
           dueDate: new Date(dueDateStr),
           ownerId,
         },
-      });
-
-      const project = await prisma.project.findUnique({
-        where: { id: projectId },
-        include: { notificationTargets: { where: { type: "CHANNEL" } } },
-      });
-      const targetChannel =
-        project?.notificationTargets?.[0]?.slackChannelId ?? channelId;
-
-      const frontendUrl = process.env.FRONTEND_URL ?? "http://localhost:5173";
-      const dateStr = new Date(dueDateStr).toLocaleDateString("en-US", {
-        month: "long",
-        day: "numeric",
-        year: "numeric",
-      });
-
-      await client.chat.postMessage({
-        channel: targetChannel,
-        text: `🎯 New milestone: *${title}* — target ${dateStr}`,
-        blocks: [
-          {
-            type: "section",
-            text: {
-              type: "mrkdwn",
-              text: [
-                `🎯 *New Milestone Created*`,
-                `*${title}*`,
-                description ? `_${description}_` : null,
-                `Target: *${dateStr}*`,
-                ownerSlackId ? `Owner: <@${ownerSlackId}>` : null,
-              ]
-                .filter(Boolean)
-                .join("\n"),
-            },
-          },
-          {
-            type: "actions",
-            elements: [
-              {
-                type: "button",
-                text: { type: "plain_text", text: "View Dashboard" },
-                url: `${frontendUrl}/clubpm/projects/${projectId}?tab=milestones`,
-                action_id: "view_milestone_project",
-              },
-            ],
-          },
-        ],
       });
     } catch (error) {
       console.error("milestone_submit error:", error);
@@ -1434,51 +1148,6 @@ export async function openSubtaskModal(
   });
 }
 
-// ── Notify Preferences Modal ─────────────────────────────────
-
-export async function openNotifyModal(
-  client: WebClient,
-  triggerId: string,
-  member: { notificationPrefs: string[] }
-): Promise<void> {
-  const allOptions = [
-    { text: { type: "plain_text" as const, text: "⏰ Daily reminders (overdue + due today)" }, value: "daily_reminders" },
-    { text: { type: "plain_text" as const, text: "📋 Monday weekly digest" }, value: "weekly_digest" },
-    { text: { type: "plain_text" as const, text: "📊 Project health summaries" }, value: "project_updates" },
-    { text: { type: "plain_text" as const, text: "🧍 Daily standup prompts (weekdays 9:15 AM)" }, value: "standup_prompts" },
-  ];
-
-  const initialOptions = allOptions.filter(o => member.notificationPrefs.includes(o.value));
-
-  await client.views.open({
-    trigger_id: triggerId,
-    view: {
-      type: "modal",
-      callback_id: "notify_submit",
-      title: { type: "plain_text", text: "Notification Settings" },
-      submit: { type: "plain_text", text: "Save" },
-      blocks: [
-        {
-          type: "section",
-          text: { type: "mrkdwn", text: "Choose which notifications to receive:" },
-        },
-        {
-          type: "input",
-          block_id: "prefs_block",
-          optional: true,
-          label: { type: "plain_text", text: "Notification types" },
-          element: {
-            type: "checkboxes",
-            action_id: "prefs",
-            options: allOptions,
-            ...(initialOptions.length > 0 ? { initial_options: initialOptions } : {}),
-          },
-        },
-      ],
-    },
-  });
-}
-
 // ── Snooze Modal Builder ─────────────────────────────────────
 
 export async function openSnoozeModal(
@@ -1570,51 +1239,6 @@ export async function openTaskDoneModal(
             type: "static_select",
             action_id: "task_id",
             placeholder: { type: "plain_text", text: "Choose a task..." },
-            options,
-          },
-        },
-      ],
-    },
-  });
-}
-
-// ── Status Picker Modal ───────────────────────────────────────
-
-export async function openStatusModal(
-  client: WebClient,
-  triggerId: string
-): Promise<void> {
-  const projects = await prisma.project.findMany({
-    where: { status: "ACTIVE", ...EXCLUDE_TRAINING },
-    select: { id: true, name: true },
-    orderBy: { name: "asc" },
-  });
-
-  const options = projects.map(p => ({
-    text: { type: "plain_text" as const, text: p.name },
-    value: p.id,
-  }));
-
-  if (options.length === 0) {
-    options.push({ text: { type: "plain_text", text: "No active projects" }, value: "none" });
-  }
-
-  await client.views.open({
-    trigger_id: triggerId,
-    view: {
-      type: "modal",
-      callback_id: "status_view_submit",
-      title: { type: "plain_text", text: "Project Status" },
-      submit: { type: "plain_text", text: "View Status 📊" },
-      blocks: [
-        {
-          type: "input",
-          block_id: "project_block",
-          label: { type: "plain_text", text: "Select a project" },
-          element: {
-            type: "static_select",
-            action_id: "project_id",
-            placeholder: { type: "plain_text", text: "Choose a project..." },
             options,
           },
         },

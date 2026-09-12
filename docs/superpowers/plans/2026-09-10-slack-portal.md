@@ -1,7 +1,7 @@
 # Slack Portal Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
-> Paste-able per-session prompts: [`2026-09-10-slack-portal-SESSIONS.md`](./2026-09-10-slack-portal-SESSIONS.md).
+> Paste-able prompts: one per phase in [`2026-09-10-slack-portal-PHASES.md`](./2026-09-10-slack-portal-PHASES.md) (a controller session drives a subagent per task), or one per task in [`2026-09-10-slack-portal-SESSIONS.md`](./2026-09-10-slack-portal-SESSIONS.md).
 
 **Goal:** Make Constellation a two-way portal to the SEARCH Slack workspace — every channel and DM readable (per Slack's own visibility rules), posting/replying/reacting/editing/uploading *as the member*, DMs run from the Members page (club-wide and a per-project version), and every Slack ping mirrored as a Constellation notification with read state synced both ways.
 
@@ -9,7 +9,7 @@
 
 **Tech Stack:** Node 20 / Express / Prisma 6 / PostgreSQL / `@slack/bolt` 4 (Socket Mode) / `@slack/web-api` 7 (`filesUploadV2`) / React 19 / React Router 7 / plain CSS custom properties.
 
-**Branch:** create `feat/slack-portal` from the tip of `feat/slack-chat-archive` (which is not merged yet). Merge the archive branch first if possible; otherwise this branch stacks on it.
+**Branch:** `feat/slack-portal`, cut from `main` with this plan as its first commit. The read-only archive is merged (PR #38), so no stacking is needed.
 
 ---
 
@@ -39,6 +39,7 @@
 - **Nothing in `src/components/clubpm/chat/` may emit `<span>` or `<p>`.** `public/clubpm-theme.css` has `.clubpm-app p, .clubpm-app span { color: inherit !important }`. Use `<a> <code> <b> <i> <s> <div> <label> <button>`.
 - **Declared CSS tokens only** (verified in `:root` at `public/clubpm-theme.css:643-670`): `--pm-bg-base --pm-bg-surface --pm-bg-elevated --pm-bg-overlay --pm-accent-teal --pm-accent-amber --pm-accent-coral --pm-accent-violet --pm-text-primary --pm-text-secondary --pm-text-muted --pm-border --pm-border-active --pm-shadow-card --pm-font-display --pm-font-body --pm-font-mono`. `--pm-surface` / `--pm-elevated` do **not** exist.
 - **Icons are Font Awesome only.** Emoji characters appear only as *message content* (reactions, `:shortcode:` rendering), never as UI icons.
+- **Font Awesome ships as a generated subset.** `npm run build` runs `prebuild` → `npm run build:icons`, which scans the source for `fa-*` class names and regenerates `public/fa-subset.css` and `public/webfonts/`. Write icon classes as **string literals** (the scan is static; a class built by interpolation needs a line in `scripts/fa-icons-extra.txt`). Any task that adds an icon must commit the regenerated `public/fa-subset.css` (and `public/webfonts/` if it changed) alongside its components.
 - **Backend tests are standalone `tsx` scripts** using the inline `check()` harness: `cd backend && npx tsx src/<path>.test.ts`. Frontend tests are Jest: `npx react-scripts test --watchAll=false <path>`.
 - **Never Read these in full — Grep first:** `backend/prisma/schema.prisma` (~2,600 lines), `public/clubpm-theme.css` (~26,600), `src/pages/ClubPM/ProjectDetail.jsx` (~3,600), `backend/src/api/tasks.ts`, `backend/src/slack/scheduler.ts`.
 - **Tour/course sync:** adding a nav item or project tab means `src/clubpm/tour/tourAnchors.js` + `docs/courses/ANCHORS.md` change **in the same commit**. `node scripts/check-tour-anchors.js` enforces it, and `npm test` runs it first.
@@ -1212,6 +1213,8 @@ export interface IngestResult {
   threadTs: string | null;
   isBot: boolean;
   authorSlackId: string | null;
+  /** The message's bot_id, if any — lets ping delivery recognise our OWN bot (D9). */
+  botId: string | null;
   text: string;
 }
 
@@ -1250,7 +1253,7 @@ export async function ingestSlackMessage(
     });
     if (gone?.threadTs) await refreshReplyCount(channelId, gone.threadTs);
     emitChat({ channelId, convKind, ts, kind: "delete" });
-    return { channelId, convKind, event: "delete", ts, threadTs: gone?.threadTs ?? null, isBot: false, authorSlackId: null, text: "" };
+    return { channelId, convKind, event: "delete", ts, threadTs: gone?.threadTs ?? null, isBot: false, authorSlackId: null, botId: null, text: "" };
   }
 
   if (decision.kind === "edit") {
@@ -1268,7 +1271,10 @@ export async function ingestSlackMessage(
     });
     const threadTs = inner.thread_ts && inner.thread_ts !== ts ? inner.thread_ts : null;
     emitChat({ channelId, convKind, ts, threadTs, kind: "edit" });
-    return { channelId, convKind, event: "edit", ts, threadTs, isBot: decision.isBot, authorSlackId: inner.user ?? null, text: inner.text ?? "" };
+    return {
+      channelId, convKind, event: "edit", ts, threadTs, isBot: decision.isBot,
+      authorSlackId: inner.user ?? null, botId: inner.bot_id ?? null, text: inner.text ?? "",
+    };
   }
 
   const stored = await storeArchivedMessage(channelId, msg, decision.isBot, client, { overwrite: true });
@@ -1276,7 +1282,7 @@ export async function ingestSlackMessage(
   emitChat({ channelId, convKind, ts: stored.ts, threadTs: stored.threadTs, kind: "new" });
   return {
     channelId, convKind, event: "new", ts: stored.ts, threadTs: stored.threadTs,
-    isBot: decision.isBot, authorSlackId: msg.user ?? null, text: msg.text ?? "",
+    isBot: decision.isBot, authorSlackId: msg.user ?? null, botId: msg.bot_id ?? null, text: msg.text ?? "",
   };
 }
 
@@ -2364,4 +2370,5215 @@ git commit -m "feat(slack-portal): one filtered live topic for every conversatio
 
 ---
 
-<!-- PART C -->
+# Part C — Conversation API
+
+## Task 8: Conversation access middleware and the project chat filter
+
+**Files:**
+- Create: `backend/src/middleware/conversationAccess.ts`
+- Create: `backend/src/middleware/conversationAccess.test.ts`
+- Modify: `backend/src/middleware/projectChatAccess.ts`
+
+**Interfaces produced:** `ConversationAccess`, `getConversationAccess(memberId, channelId)`, `filterReadableChannels(memberId, channelIds)`, `requireConversationRead` (sets `req.conversation = { channelId, canRead, canPost, kind, isParticipant, slackId }`).
+
+- [ ] **Step 1: Failing static test**
+
+`backend/src/middleware/conversationAccess.test.ts`:
+
+```ts
+// Static guard, like appMountOrder.test.ts — importing the middleware would
+// open a Prisma client. Run: cd backend && npx tsx src/middleware/conversationAccess.test.ts
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
+
+let passed = 0, failed = 0;
+const check = (n: string, c: boolean) => { if (c) passed++; else { failed++; console.error(`  ✗ ${n}`); } };
+
+const src = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "conversationAccess.ts"), "utf8");
+
+// D2: no admin bypass, ever. The rule lives in the pure module, which has no
+// admin input; this file must not reintroduce one by loading the flag.
+check("never mentions isAdmin", !/isAdmin/.test(src));
+check("delegates the read rule to the pure module", /canReadConversation\(/.test(src));
+// Whether a particular DM exists is itself private: deny as 404, never 403.
+check("denies with 404", /status\(404\)/.test(src));
+check("never answers 403", !/status\(403\)/.test(src));
+
+console.log(`conversationAccess: ${passed} passed, ${failed} failed`);
+if (failed > 0) process.exit(1);
+```
+
+Run it → FAIL (`ENOENT`).
+
+- [ ] **Step 2: Implement the middleware**
+
+`backend/src/middleware/conversationAccess.ts`:
+
+```ts
+import type { Request, Response, NextFunction } from "express";
+import { prisma } from "../db/prisma.js";
+import {
+  canReadConversation, canPostToConversation, type ConversationKind,
+} from "../services/slackConversationAccess.js";
+
+export interface ConversationAccess {
+  canRead: boolean;
+  canPost: boolean;
+  kind: ConversationKind | null;
+  isParticipant: boolean;
+  slackId: string | null;
+}
+
+declare global {
+  // eslint-disable-next-line @typescript-eslint/no-namespace
+  namespace Express {
+    interface Request {
+      conversation?: ConversationAccess & { channelId: string };
+    }
+  }
+}
+
+/**
+ * The database side of the access rules. It deliberately loads nothing about
+ * the member's roles: the rule (services/slackConversationAccess.ts) has no
+ * admin input, and this wrapper must not smuggle one in (D2).
+ */
+export async function getConversationAccess(memberId: string, channelId: string): Promise<ConversationAccess> {
+  const [member, archive] = await Promise.all([
+    prisma.member.findUnique({ where: { id: memberId }, select: { slackId: true } }),
+    prisma.slackChannelArchive.findUnique({ where: { slackChannelId: channelId }, select: { kind: true } }),
+  ]);
+  if (!member || !archive) {
+    return { canRead: false, canPost: false, kind: archive?.kind ?? null, isParticipant: false, slackId: member?.slackId ?? null };
+  }
+  const row = await prisma.slackConversationMember.findUnique({
+    where: { slackChannelId_slackUserId: { slackChannelId: channelId, slackUserId: member.slackId } },
+    select: { slackUserId: true },
+  });
+  const input = { kind: archive.kind, isParticipant: !!row };
+  return {
+    canRead: canReadConversation(input),
+    canPost: canPostToConversation(input),
+    kind: archive.kind,
+    isParticipant: input.isParticipant,
+    slackId: member.slackId,
+  };
+}
+
+/** Narrow a list of channel ids to those this member may read. Three queries total. */
+export async function filterReadableChannels(memberId: string, channelIds: string[]): Promise<string[]> {
+  if (channelIds.length === 0) return [];
+  const member = await prisma.member.findUnique({ where: { id: memberId }, select: { slackId: true } });
+  if (!member) return [];
+  const [archives, memberships] = await Promise.all([
+    prisma.slackChannelArchive.findMany({
+      where: { slackChannelId: { in: channelIds } },
+      select: { slackChannelId: true, kind: true },
+    }),
+    prisma.slackConversationMember.findMany({
+      where: { slackUserId: member.slackId, slackChannelId: { in: channelIds } },
+      select: { slackChannelId: true },
+    }),
+  ]);
+  const kinds = new Map(archives.map((a) => [a.slackChannelId, a.kind]));
+  const mine = new Set(memberships.map((m) => m.slackChannelId));
+  // No archive row → kind unknown → not readable (fail closed).
+  return channelIds.filter((id) => {
+    const kind = kinds.get(id);
+    return !!kind && canReadConversation({ kind, isParticipant: mine.has(id) });
+  });
+}
+
+export async function requireConversationRead(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const channelId = req.params.channelId as string;
+    const access = await getConversationAccess(req.memberId!, channelId);
+    // 404 rather than "forbidden": whether a given DM exists is itself private.
+    if (!access.canRead) {
+      res.status(404).json({ error: "Conversation not found" });
+      return;
+    }
+    req.conversation = { ...access, channelId };
+    next();
+  } catch (err) {
+    console.error("conversation access check failed:", err);
+    res.status(500).json({ error: "Failed to check access" });
+  }
+}
+```
+
+Run the test → `4 passed, 0 failed`.
+
+- [ ] **Step 3: Filter project chat by Slack visibility (D3)**
+
+In `backend/src/middleware/projectChatAccess.ts`, add the import:
+
+```ts
+import { filterReadableChannels } from "./conversationAccess.js";
+```
+
+Replace the last three statements of `getProjectChatAccess` (from `const isAdmin = member?.isAdmin ?? false;` to its `return`) with:
+
+```ts
+  const isAdmin = member?.isAdmin ?? false;
+  const canRead = isAdmin || !!membership;
+  // D3: project membership decides where a channel SHOWS UP, never who may
+  // read it. A private linked channel is listed only for its Slack members —
+  // admins included. Admin still gates the project-level tools (backfill,
+  // storage health), which expose no message content.
+  const channelIds = canRead ? await filterReadableChannels(memberId, unionChannelIds(targets, project)) : [];
+  return { canRead, isAdmin, channelIds };
+```
+
+Update the first line of the function's doc comment to: `Read access to a project's chat tab: admin OR project member — and then only the linked channels Slack lets this member see.`
+
+Side effect: a linked channel with no archive row yet (no message since the portal pass, and the bot hasn't joined it) drops out of the Chat tab until it gets one. Public channels get a row within a day via the 03:55 join. A private one gets its row on its first message.
+
+- [ ] **Step 4: Gate + commit**
+
+Run: `cd backend && npx tsx src/middleware/conversationAccess.test.ts && npx tsx src/middleware/projectChatAccess.test.ts`, then the gate.
+
+```bash
+git add backend/src/middleware/conversationAccess.ts backend/src/middleware/conversationAccess.test.ts backend/src/middleware/projectChatAccess.ts
+git commit -m "feat(slack-portal): conversation access middleware; project chat follows Slack visibility"
+```
+
+---
+
+## Task 9: Shared message DTO and the read service
+
+**Files:**
+- Create: `backend/src/services/chatDto.ts`
+- Modify: `backend/src/api/projectChat.ts` (import from `chatDto`)
+- Create: `backend/src/services/slackReadService.ts`
+- Create: `backend/src/services/slackReadService.test.ts`
+
+**Interfaces produced:** `buildFormatContext`, `loadMessages`, `toDto(row, ctx, viewerSlackId?)` (adds `authorSlackId`, `isBot`, `reactions[].name/mine/url`), `MessageDto`, `tokensToPlain`, `previewText`. `compareTs`, `idsReadUpTo`, `tsToDate`, `unreadCounts`, `advanceCursor`, `markConversationRead(memberId, channelId, ts, { pushToSlack })`.
+
+- [ ] **Step 1: Create `chatDto.ts`**
+
+```ts
+import { prisma } from "../db/prisma.js";
+import { formatSlackText, type FormatContext, type SlackToken } from "./slackMessageFormat.js";
+import { getCustomEmoji } from "./slackFileService.js";
+
+/**
+ * Mention names, channel names and custom emoji for one page of messages, in
+ * one pass rather than per message — the reason the archive parses on read.
+ * Only PUBLIC channel names are offered for <#C…> fallback labels, so a message
+ * can never reveal a private channel's name to someone outside it.
+ */
+export async function buildFormatContext(): Promise<FormatContext> {
+  const [members, channels] = await Promise.all([
+    prisma.member.findMany({ select: { slackId: true, displayName: true } }),
+    prisma.slackChannelArchive.findMany({
+      where: { kind: "CHANNEL", slackChannelName: { not: null } },
+      select: { slackChannelId: true, slackChannelName: true },
+    }),
+  ]);
+  const memberNames: Record<string, string> = {};
+  for (const m of members) if (m.slackId) memberNames[m.slackId] = m.displayName;
+  const channelNames: Record<string, string> = {};
+  for (const c of channels) if (c.slackChannelName) channelNames[c.slackChannelId] = c.slackChannelName;
+  return { memberNames, channelNames, emojiUrls: await getCustomEmoji() };
+}
+
+export async function loadMessages(where: Record<string, unknown>, take: number, asc = false) {
+  return prisma.slackMessage.findMany({
+    where,
+    orderBy: { postedAt: asc ? "asc" : "desc" },
+    take,
+    include: {
+      files: {
+        select: {
+          id: true, slackFileId: true, name: true, mimeType: true, sizeBytes: true,
+          isImage: true, width: true, height: true, storage: true,
+        },
+      },
+    },
+  });
+}
+
+export type MessageRow = Awaited<ReturnType<typeof loadMessages>>[number];
+
+/** `viewerSlackId` lets each reaction say whether the viewer is on it (for toggling). */
+export function toDto(row: MessageRow, ctx: FormatContext, viewerSlackId?: string | null) {
+  const reactions = (row.reactions as Record<string, { count: number; slackIds?: string[] }> | null) ?? {};
+  return {
+    id: row.id,
+    ts: row.ts,
+    threadTs: row.threadTs,
+    replyCount: row.replyCount,
+    authorName: row.authorName,
+    authorAvatarUrl: row.authorAvatarUrl,
+    authorSlackId: row.authorSlackId,
+    memberId: row.memberId,
+    isBot: row.isBot,
+    tokens: row.deletedAt ? [] : formatSlackText(row.text, ctx),
+    editedAt: row.editedAt,
+    deletedAt: row.deletedAt,
+    postedAt: row.postedAt,
+    reactions: Object.entries(reactions).map(([emoji, v]) => {
+      const name = emoji.replace(/^:+|:+$/g, "");
+      return {
+        emoji,
+        name,
+        count: v.count,
+        mine: !!viewerSlackId && (v.slackIds ?? []).includes(viewerSlackId),
+        url: ctx.emojiUrls?.[name.split("::")[0]] ?? null,
+      };
+    }),
+    files: row.deletedAt ? [] : row.files.map((f) => ({
+      id: f.slackFileId,
+      name: f.name,
+      mimeType: f.mimeType,
+      sizeBytes: f.sizeBytes,
+      isImage: f.isImage,
+      width: f.width,
+      height: f.height,
+      storage: f.storage,
+    })),
+  };
+}
+
+export type MessageDto = ReturnType<typeof toDto>;
+
+export function tokensToPlain(tokens: SlackToken[]): string {
+  return tokens
+    .map((t) => {
+      switch (t.type) {
+        case "text":
+        case "code":
+        case "codeblock":
+          return t.value;
+        case "mention": return `@${t.label}`;
+        case "channel": return `#${t.label}`;
+        case "link": return t.label;
+        case "emoji": return `:${t.name}:`;
+        case "bold":
+        case "italic":
+        case "strike":
+          return tokensToPlain(t.children);
+      }
+    })
+    .join("");
+}
+
+/** One-line plain-text preview (inbox rows, notification text). */
+export function previewText(raw: string, ctx: FormatContext, max = 140): string {
+  const plain = tokensToPlain(formatSlackText(raw, ctx)).replace(/\s+/g, " ").trim();
+  return plain.length > max ? `${plain.slice(0, max - 1)}…` : plain;
+}
+```
+
+If `tsc` reports that `FormatContext` has no `channelNames`, grep `export interface FormatContext` in `slackMessageFormat.ts`. The formatter already reads `ctx.channelNames?.[…]`, so add `channelNames?: Record<string, string>;` to the interface if it's missing.
+
+- [ ] **Step 2: Point `projectChat.ts` at `chatDto`**
+
+In `backend/src/api/projectChat.ts`, delete the local `buildFormatContext`, `MessageRow`, `loadMessages` and `toDto` definitions and the now-unused imports (`formatSlackText`, `FormatContext`, `getCustomEmoji`). Add:
+
+```ts
+import { buildFormatContext, loadMessages, toDto } from "../services/chatDto.js";
+```
+
+Every existing `toDto(r, ctx)` call stays unchanged.
+
+- [ ] **Step 3: Failing read-service test**
+
+`backend/src/services/slackReadService.test.ts`:
+
+```ts
+// Pure-logic tests for slackReadService. Run: cd backend && npx tsx src/services/slackReadService.test.ts
+import { compareTs, idsReadUpTo } from "./slackReadService.js";
+
+let passed = 0, failed = 0;
+function check(name: string, cond: boolean) {
+  if (cond) passed++; else { failed++; console.error(`  ✗ ${name}`); }
+}
+
+check("equal ts compare 0", compareTs("1725900000.001200", "1725900000.001200") === 0);
+check("earlier second sorts first", compareTs("1725900000.999999", "1725900001.000000") < 0);
+check("fraction compared by digits", compareTs("1725900000.000200", "1725900000.001000") < 0);
+check("short fraction is padded", compareTs("1725900000.1", "1725900000.099999") > 0);
+// The reason this function exists: string comparison gets this one wrong.
+check("numeric seconds, not string order", compareTs("10.000000", "9.000000") > 0);
+
+const notifs = [
+  { id: "a", slackTs: "100.000001" },
+  { id: "b", slackTs: "100.000002" },
+  { id: "c", slackTs: "100.000003" },
+  { id: "d", slackTs: null },
+];
+check("read up to b covers a and b", JSON.stringify(idsReadUpTo(notifs, "100.000002")) === JSON.stringify(["a", "b"]));
+check("rows without a ts are never auto-read", !idsReadUpTo(notifs, "999.0").includes("d"));
+check("nothing read before the first", idsReadUpTo(notifs, "99.0").length === 0);
+
+console.log(`\nslackReadService: ${passed} passed, ${failed} failed`);
+if (failed > 0) process.exit(1);
+```
+
+Run it → FAIL (`Cannot find module`).
+
+- [ ] **Step 4: Implement `slackReadService.ts`**
+
+```ts
+import { prisma } from "../db/prisma.js";
+import { userClientFor, clearSlackUserToken, isDeadTokenError, slackErrorCode } from "./slackUserTokenService.js";
+import { hasCapability } from "./slackScopes.js";
+
+/**
+ * Pure. Order two Slack ts strings exactly. Seconds are compared as numbers
+ * (string order puts "10" before "9"); the microsecond fraction as zero-padded
+ * digits (a float would round the last digits away).
+ */
+export function compareTs(a: string, b: string): number {
+  const [as, af = ""] = a.split(".");
+  const [bs, bf = ""] = b.split(".");
+  const sa = Number(as) || 0;
+  const sb = Number(bs) || 0;
+  if (sa !== sb) return sa < sb ? -1 : 1;
+  const fa = af.padEnd(6, "0");
+  const fb = bf.padEnd(6, "0");
+  return fa === fb ? 0 : fa < fb ? -1 : 1;
+}
+
+/** Pure. The notifications a read position at `lastReadTs` covers. */
+export function idsReadUpTo(notifs: { id: string; slackTs: string | null }[], lastReadTs: string): string[] {
+  return notifs.filter((n) => !!n.slackTs && compareTs(n.slackTs, lastReadTs) <= 0).map((n) => n.id);
+}
+
+export function tsToDate(ts: string): Date {
+  return new Date(Math.round(parseFloat(ts) * 1000));
+}
+
+/**
+ * Unread top-level messages per conversation, by others, after the member's
+ * read cursor. Nothing before the moment they connected Slack counts
+ * (slackUserTokenAt) — otherwise a fresh DM import would show 90 days unread.
+ */
+export async function unreadCounts(
+  member: { id: string; slackId: string; slackUserTokenAt: Date | null },
+  channelIds: string[]
+): Promise<Record<string, number>> {
+  if (!member.slackUserTokenAt || channelIds.length === 0) return {};
+  const floor = member.slackUserTokenAt;
+  const rows = await prisma.$queryRaw<{ slackChannelId: string; unread: number }[]>`
+    SELECT m."slackChannelId", COUNT(*)::int AS unread
+    FROM "SlackMessage" m
+    LEFT JOIN "SlackReadCursor" c
+      ON c."slackChannelId" = m."slackChannelId" AND c."memberId" = ${member.id}
+    WHERE m."slackChannelId" = ANY(${channelIds})
+      AND m."threadTs" IS NULL
+      AND m."deletedAt" IS NULL
+      AND (m."authorSlackId" IS NULL OR m."authorSlackId" <> ${member.slackId})
+      AND m."postedAt" > GREATEST(COALESCE(c."lastReadAt", ${floor}), ${floor})
+    GROUP BY m."slackChannelId"`;
+  const out: Record<string, number> = {};
+  for (const r of rows) out[r.slackChannelId] = r.unread;
+  return out;
+}
+
+/** Move a read cursor forward only. True if it moved. */
+export async function advanceCursor(memberId: string, channelId: string, ts: string): Promise<boolean> {
+  const where = { memberId_slackChannelId: { memberId, slackChannelId: channelId } };
+  const cur = await prisma.slackReadCursor.findUnique({ where, select: { lastReadTs: true } });
+  if (cur && compareTs(ts, cur.lastReadTs) <= 0) return false;
+  const at = tsToDate(ts);
+  await prisma.slackReadCursor.upsert({
+    where,
+    create: { memberId, slackChannelId: channelId, lastReadTs: ts, lastReadAt: at },
+    update: { lastReadTs: ts, lastReadAt: at },
+  });
+  return true;
+}
+
+/**
+ * The member has seen `channelId` up to `ts`.
+ *
+ * pushToSlack — also move Slack's own read cursor, which clears the Slack
+ * unread badge (D11). False when the read CAME from Slack, or when the
+ * member's own post already marked it read there.
+ */
+export async function markConversationRead(
+  memberId: string,
+  channelId: string,
+  ts: string,
+  opts: { pushToSlack: boolean }
+): Promise<{ advanced: boolean }> {
+  const advanced = await advanceCursor(memberId, channelId, ts);
+  if (advanced && opts.pushToSlack) {
+    const uc = await userClientFor(memberId, { interactive: true });
+    if (uc && hasCapability(uc.scopes, "mark")) {
+      try {
+        await uc.client.conversations.mark({ channel: channelId, ts });
+      } catch (err) {
+        const code = slackErrorCode(err);
+        if (isDeadTokenError(code)) await clearSlackUserToken(memberId);
+        else console.warn(`[slackPortal] conversations.mark failed for ${channelId}: ${code}`);
+      }
+    }
+  }
+  return { advanced };
+}
+```
+
+Run the test → `8 passed, 0 failed`.
+
+- [ ] **Step 5: Gate + commit**
+
+```bash
+git add backend/src/services/chatDto.ts backend/src/api/projectChat.ts backend/src/services/slackReadService.ts backend/src/services/slackReadService.test.ts
+git commit -m "feat(slack-portal): shared chat DTO, exact ts ordering, unread counts and read cursors"
+```
+
+---
+
+## Task 10: `/api/chat` read routes, mount, admin public backfill
+
+**Files:**
+- Create: `backend/src/api/chat.ts`
+- Modify: `backend/src/app.ts`
+- Modify: `backend/src/appMountOrder.test.ts`
+- Modify: `backend/src/api/projectChat.ts` (export `fileProxyAuth`; admin `backfill-public` route)
+
+**Routes produced:**
+
+```
+GET  /api/chat/conversations                       → { channels: [...], dms: [...] }
+GET  /api/chat/conversations/:channelId            → header: name, kind, isParticipant, canPost, muted, participants
+GET  /api/chat/conversations/:channelId/messages?before=<ts>
+GET  /api/chat/conversations/:channelId/thread/:ts
+GET  /api/chat/conversations/:channelId/search?q=
+POST /api/chat/conversations/:channelId/read       { ts } → { advanced }
+GET  /api/chat/files/:slackFileId[?token=]
+POST /api/slack-archive/backfill-public            [admin] → { started }
+```
+
+- [ ] **Step 1: Export the query-token auth from `projectChat.ts`**
+
+Grep `async function fileProxyAuth(` and prefix it with `export `.
+
+- [ ] **Step 2: Create `chat.ts` with the read routes**
+
+`backend/src/api/chat.ts`:
+
+```ts
+import { pipeline } from "node:stream/promises";
+import { Router, type Request, type Response } from "express";
+import { requireAuth } from "./auth.js";
+import { fileProxyAuth } from "./projectChat.js";
+import { prisma } from "../db/prisma.js";
+import { requireConversationRead, getConversationAccess } from "../middleware/conversationAccess.js";
+import { canReadConversation, type ConversationKind } from "../services/slackConversationAccess.js";
+import { buildFormatContext, loadMessages, toDto, previewText } from "../services/chatDto.js";
+import { unreadCounts, markConversationRead } from "../services/slackReadService.js";
+import { resolveFileStream } from "../services/slackFileService.js";
+
+/**
+ * /api/chat — the conversation-scoped Slack portal API.
+ *
+ * No pathless requireAuth on this router: the file proxy authenticates with a
+ * `?token=` query param (an <img> cannot send headers), and app.ts mounts this
+ * router above every bare /api router for the same reason. Every other route
+ * names requireAuth explicitly. Every handler reads req.memberId, never
+ * req.session.
+ */
+export const chatRouter = Router();
+
+const PAGE_SIZE = 50;
+const TS_RE = /^\d+\.\d+$/;
+const isDmKind = (k: ConversationKind) => k === "IM" || k === "MPIM";
+
+type Person = { memberId: string | null; slackId: string; displayName: string; avatarUrl: string | null };
+
+/** Display identity for Slack user ids — Members first, else the last name they posted under. */
+async function peopleFor(slackIds: string[]): Promise<Map<string, Person>> {
+  const out = new Map<string, Person>();
+  if (slackIds.length === 0) return out;
+  const members = await prisma.member.findMany({
+    where: { slackId: { in: slackIds } },
+    select: { id: true, slackId: true, displayName: true, avatarUrl: true },
+  });
+  for (const m of members) out.set(m.slackId, { memberId: m.id, slackId: m.slackId, displayName: m.displayName, avatarUrl: m.avatarUrl });
+  for (const id of slackIds) {
+    if (out.has(id)) continue;
+    const last = await prisma.slackMessage.findFirst({
+      where: { authorSlackId: id },
+      orderBy: { postedAt: "desc" },
+      select: { authorName: true, authorAvatarUrl: true },
+    });
+    out.set(id, { memberId: null, slackId: id, displayName: last?.authorName ?? id, avatarUrl: last?.authorAvatarUrl ?? null });
+  }
+  return out;
+}
+
+/** Newest top-level message per conversation, one query. */
+async function latestPreviews(channelIds: string[]): Promise<Map<string, { text: string; authorName: string; postedAt: Date }>> {
+  if (channelIds.length === 0) return new Map();
+  const rows = await prisma.$queryRaw<{ slackChannelId: string; text: string; authorName: string; postedAt: Date }[]>`
+    SELECT DISTINCT ON ("slackChannelId") "slackChannelId", "text", "authorName", "postedAt"
+    FROM "SlackMessage"
+    WHERE "slackChannelId" = ANY(${channelIds}) AND "deletedAt" IS NULL AND "threadTs" IS NULL
+    ORDER BY "slackChannelId", "postedAt" DESC`;
+  const ctx = await buildFormatContext();
+  return new Map(rows.map((r) => [r.slackChannelId, { text: previewText(r.text, ctx, 90), authorName: r.authorName, postedAt: r.postedAt }]));
+}
+
+// ── GET /api/chat/conversations ──────────────────────────────
+// Every conversation the member may read: all public channels (joined or not),
+// plus private channels, DMs and group DMs they are in.
+chatRouter.get("/conversations", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const me = await prisma.member.findUnique({
+      where: { id: req.memberId! },
+      select: { id: true, slackId: true, slackUserTokenAt: true, mutedSlackChannelIds: true },
+    });
+    if (!me) return void res.status(401).json({ error: "Not authenticated" });
+
+    const myRows = await prisma.slackConversationMember.findMany({
+      where: { slackUserId: me.slackId },
+      select: { slackChannelId: true },
+    });
+    const mine = new Set(myRows.map((r) => r.slackChannelId));
+
+    const archives = await prisma.slackChannelArchive.findMany({
+      where: { archiveEnabled: true, OR: [{ kind: "CHANNEL" }, { slackChannelId: { in: [...mine] } }] },
+      select: { slackChannelId: true, slackChannelName: true, kind: true, lastMessageAt: true },
+      orderBy: { lastMessageAt: { sort: "desc", nulls: "last" } },
+    });
+    // Defense in depth: the query scopes, the pure rule decides.
+    const readable = archives.filter((a) => canReadConversation({ kind: a.kind, isParticipant: mine.has(a.slackChannelId) }));
+    const unread = await unreadCounts(me, readable.filter((a) => mine.has(a.slackChannelId)).map((a) => a.slackChannelId));
+    const muted = new Set(me.mutedSlackChannelIds);
+
+    const dmArchives = readable.filter((a) => isDmKind(a.kind));
+    const dmIds = dmArchives.map((a) => a.slackChannelId);
+    const parts = dmIds.length
+      ? await prisma.slackConversationMember.findMany({
+          where: { slackChannelId: { in: dmIds } },
+          select: { slackChannelId: true, slackUserId: true },
+        })
+      : [];
+    const people = await peopleFor([...new Set(parts.map((p) => p.slackUserId))]);
+    const latest = await latestPreviews(dmIds);
+
+    res.json({
+      channels: readable
+        .filter((a) => !isDmKind(a.kind))
+        .map((a) => ({
+          slackChannelId: a.slackChannelId,
+          name: a.slackChannelName ?? a.slackChannelId,
+          kind: a.kind,
+          isMember: mine.has(a.slackChannelId),
+          unread: unread[a.slackChannelId] ?? 0,
+          lastMessageAt: a.lastMessageAt,
+          muted: muted.has(a.slackChannelId),
+        })),
+      dms: dmArchives.map((a) => ({
+        slackChannelId: a.slackChannelId,
+        kind: a.kind,
+        participants: parts
+          .filter((p) => p.slackChannelId === a.slackChannelId && p.slackUserId !== me.slackId)
+          .map((p) => people.get(p.slackUserId)!)
+          .filter(Boolean),
+        unread: unread[a.slackChannelId] ?? 0,
+        lastMessageAt: a.lastMessageAt,
+        preview: latest.get(a.slackChannelId) ?? null,
+        muted: muted.has(a.slackChannelId),
+      })),
+    });
+  } catch (error) {
+    console.error("chat/conversations error:", error);
+    res.status(500).json({ error: "Failed to list conversations" });
+  }
+});
+
+// ── GET /api/chat/conversations/:channelId ───────────────────
+chatRouter.get("/conversations/:channelId", requireAuth, requireConversationRead, async (req: Request, res: Response) => {
+  try {
+    const c = req.conversation!;
+    const [archive, me] = await Promise.all([
+      prisma.slackChannelArchive.findUnique({
+        where: { slackChannelId: c.channelId },
+        select: { slackChannelName: true, backfillStatus: true },
+      }),
+      prisma.member.findUnique({ where: { id: req.memberId! }, select: { mutedSlackChannelIds: true } }),
+    ]);
+    let participants: Person[] = [];
+    if (c.kind && isDmKind(c.kind)) {
+      const parts = await prisma.slackConversationMember.findMany({
+        where: { slackChannelId: c.channelId },
+        select: { slackUserId: true },
+      });
+      const people = await peopleFor(parts.map((p) => p.slackUserId).filter((id) => id !== c.slackId));
+      participants = [...people.values()];
+    }
+    res.json({
+      slackChannelId: c.channelId,
+      name: archive?.slackChannelName ?? null,
+      kind: c.kind,
+      isParticipant: c.isParticipant,
+      canPost: c.canPost,
+      muted: (me?.mutedSlackChannelIds ?? []).includes(c.channelId),
+      backfillStatus: archive?.backfillStatus ?? "NOT_STARTED",
+      participants,
+    });
+  } catch (error) {
+    console.error("chat/conversation error:", error);
+    res.status(500).json({ error: "Failed to load conversation" });
+  }
+});
+
+// ── GET /api/chat/conversations/:channelId/messages ──────────
+// Reverse-chronological page of TOP-LEVEL messages, returned oldest-first.
+chatRouter.get("/conversations/:channelId/messages", requireAuth, requireConversationRead, async (req: Request, res: Response) => {
+  try {
+    const c = req.conversation!;
+    const before = typeof req.query.before === "string" && TS_RE.test(req.query.before) ? req.query.before : null;
+    const where: Record<string, unknown> = { slackChannelId: c.channelId, threadTs: null };
+    if (before) where.postedAt = { lt: new Date(Math.round(parseFloat(before) * 1000)) };
+
+    const rows = await loadMessages(where, PAGE_SIZE + 1);
+    const hasMore = rows.length > PAGE_SIZE;
+    const page = hasMore ? rows.slice(0, PAGE_SIZE) : rows;
+    const ctx = await buildFormatContext();
+    res.json({ channelId: c.channelId, hasMore, messages: page.map((r) => toDto(r, ctx, c.slackId)).reverse() });
+  } catch (error) {
+    console.error("chat/messages error:", error);
+    res.status(500).json({ error: "Failed to load messages" });
+  }
+});
+
+// ── GET /api/chat/conversations/:channelId/thread/:ts ────────
+chatRouter.get("/conversations/:channelId/thread/:ts", requireAuth, requireConversationRead, async (req: Request, res: Response) => {
+  try {
+    const c = req.conversation!;
+    const ts = req.params.ts as string;
+    if (!TS_RE.test(ts)) return void res.status(400).json({ error: "Bad ts" });
+    const rows = await loadMessages({ slackChannelId: c.channelId, OR: [{ ts }, { threadTs: ts }] }, 500, true);
+    const ctx = await buildFormatContext();
+    res.json({ messages: rows.map((r) => toDto(r, ctx, c.slackId)) });
+  } catch (error) {
+    console.error("chat/thread error:", error);
+    res.status(500).json({ error: "Failed to load thread" });
+  }
+});
+
+// ── GET /api/chat/conversations/:channelId/search ────────────
+chatRouter.get("/conversations/:channelId/search", requireAuth, requireConversationRead, async (req: Request, res: Response) => {
+  try {
+    const c = req.conversation!;
+    const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
+    if (q.length < 2) return void res.json({ messages: [] });
+    const rows = await loadMessages(
+      { slackChannelId: c.channelId, deletedAt: null, text: { contains: q, mode: "insensitive" } },
+      50
+    );
+    const ctx = await buildFormatContext();
+    res.json({ messages: rows.map((r) => toDto(r, ctx, c.slackId)) });
+  } catch (error) {
+    console.error("chat/search error:", error);
+    res.status(500).json({ error: "Search failed" });
+  }
+});
+
+// ── POST /api/chat/conversations/:channelId/read ─────────────
+// The member has seen the conversation up to `ts`. Moves our cursor and
+// Slack's (D11). Reading a public channel you are not in has no cursor.
+chatRouter.post("/conversations/:channelId/read", requireAuth, requireConversationRead, async (req: Request, res: Response) => {
+  try {
+    const c = req.conversation!;
+    const ts = typeof req.body?.ts === "string" ? req.body.ts : "";
+    if (!TS_RE.test(ts)) return void res.status(400).json({ error: "Bad ts" });
+    if (!c.isParticipant) return void res.json({ advanced: false });
+    res.json(await markConversationRead(req.memberId!, c.channelId, ts, { pushToSlack: true }));
+  } catch (error) {
+    console.error("chat/read error:", error);
+    res.status(500).json({ error: "Failed to mark read" });
+  }
+});
+
+// ── GET /api/chat/files/:slackFileId ─────────────────────────
+// Streams an attachment after checking the viewer may read its conversation.
+// `?token=` for <img> tags (Brave/Safari Bearer users) — see fileProxyAuth.
+chatRouter.get("/files/:slackFileId", fileProxyAuth, async (req: Request, res: Response) => {
+  try {
+    const memberId = req.memberId;
+    if (!memberId) return void res.status(401).json({ error: "Not authenticated" });
+    const slackFileId = req.params.slackFileId as string;
+    const file = await prisma.slackMessageFile.findUnique({
+      where: { slackFileId },
+      select: { message: { select: { slackChannelId: true } } },
+    });
+    if (!file) return void res.status(404).json({ error: "Not found" });
+    const access = await getConversationAccess(memberId, file.message.slackChannelId);
+    if (!access.canRead) return void res.status(404).json({ error: "Not found" });
+
+    const resolved = await resolveFileStream(slackFileId, memberId);
+    if (!resolved.ok) return void res.status(resolved.status).json({ error: resolved.detail });
+
+    res.setHeader("Content-Type", resolved.mimeType);
+    res.setHeader("Cache-Control", "private, max-age=3600");
+    res.setHeader("Content-Disposition", `inline; filename="${encodeURIComponent(resolved.fileName)}"`);
+    // Uploaded .html/.svg would otherwise be stored XSS on the API origin.
+    res.setHeader("Content-Security-Policy", "default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; sandbox");
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    await pipeline(resolved.stream, res);
+  } catch (error) {
+    console.error("chat/files error:", error);
+    if (!res.headersSent) res.status(500).json({ error: "Failed to load file" });
+    else res.destroy();
+  }
+});
+```
+
+- [ ] **Step 3: Mount it above the bare `/api` routers**
+
+In `backend/src/app.ts`, add `import { chatRouter } from "./api/chat.js";` next to the `projectChat` import. Directly below `app.use("/api/slack-archive", slackArchiveAdminRouter);` add:
+
+```ts
+// Above every bare "/api" router: the chat file proxy authenticates with a
+// `?token=` query param, which a pathless requireAuth would 401 first.
+app.use("/api/chat", chatRouter);
+```
+
+- [ ] **Step 4: Extend the mount-order guard**
+
+In `backend/src/appMountOrder.test.ts`:
+
+1. Change `const QUERY_TOKEN_ROUTERS = ["sseRouter", "projectChatRouter"];` to `["sseRouter", "projectChatRouter", "chatRouter"];`.
+2. Replace the two lines `const shadow = SHADOWS[router];` and `check(\`${router} is mounted above ${shadow}\`, at < indexOf(shadow));` with:
+
+```ts
+  const shadow = SHADOWS[router];
+  if (shadow) check(`${router} is mounted above ${shadow}`, at < indexOf(shadow));
+```
+
+3. Above the final `console.log`, add:
+
+```ts
+// D6: the Slack mirror directory must never be served statically.
+const guardAt = src.indexOf('app.use("/uploads/slack"');
+const staticAt = src.indexOf('app.use("/uploads", express.static');
+check("uploads/slack guard exists", guardAt !== -1);
+check("uploads/slack guard is above the static /uploads mount", guardAt !== -1 && guardAt < staticAt);
+```
+
+Run: `cd backend && npx tsx src/appMountOrder.test.ts` → all pass.
+
+- [ ] **Step 5: Admin "backfill public channels" route**
+
+In `backend/src/api/projectChat.ts`, change the backfill import to `import { startBackfill, getBackfillStatus, backfillAllPublicChannels } from "../services/slackBackfillService.js";`. Add `import { joinAllPublicChannels } from "../services/slackMembershipService.js";` and `import { boltApp } from "../slack/bolt.js";`. Then append:
+
+```ts
+// ── POST /api/slack-archive/backfill-public ──────────────────
+// Join every public channel, then import each one's history with the bot
+// token. Both run in the background; each channel's backfill status shows
+// progress. Operator step 3 in the portal plan.
+slackArchiveAdminRouter.post("/backfill-public", requireAuth, requireArchiveAdmin, async (_req: Request, res: Response) => {
+  try {
+    void joinAllPublicChannels(boltApp.client)
+      .then(() => backfillAllPublicChannels())
+      .then((r) => console.log(`📚 [slackPortal] queued ${r.queued} public channel backfill(s)`))
+      .catch((err) => console.error("[slackPortal] public backfill failed:", err));
+    res.json({ started: true });
+  } catch (error) {
+    console.error("slack-archive/backfill-public error:", error);
+    res.status(500).json({ error: "Failed to start public backfill" });
+  }
+});
+```
+
+- [ ] **Step 6: Gate + commit**
+
+```bash
+git add backend/src/api/chat.ts backend/src/app.ts backend/src/appMountOrder.test.ts backend/src/api/projectChat.ts
+git commit -m "feat(slack-portal): conversation-scoped read API, unread counts, file proxy, public backfill"
+```
+
+---
+
+## Task 11: Send service and write routes
+
+**Files:**
+- Create: `backend/src/services/slackSendRules.ts`
+- Create: `backend/src/services/slackSendRules.test.ts`
+- Create: `backend/src/services/slackSendService.ts`
+- Modify: `backend/src/api/chat.ts` (append write routes)
+
+**Routes produced:**
+
+```
+POST   /api/chat/conversations/:channelId/messages               { text, threadTs?, broadcast? } → { ts }
+PATCH  /api/chat/conversations/:channelId/messages/:ts           { text }
+DELETE /api/chat/conversations/:channelId/messages/:ts
+POST   /api/chat/conversations/:channelId/messages/:ts/reactions  { emoji, add }
+POST   /api/chat/conversations/:channelId/files                  multipart: file, threadTs?, comment?
+POST   /api/chat/conversations/:channelId/join                   (public channels)
+POST   /api/chat/dms                                              { memberIds } → { channelId, kind }
+POST   /api/chat/dms/import                                       → { started, conversations? }
+```
+
+**Error contract (the UI depends on it): HTTP 409 means exactly one thing, "reconnect Slack".** Never use 409 for anything else in these routes.
+
+- [ ] **Step 1: Failing rules test**
+
+`backend/src/services/slackSendRules.test.ts`:
+
+```ts
+// Run: cd backend && npx tsx src/services/slackSendRules.test.ts
+import {
+  mapSlackError, validateOutgoingText, validateDmTargets, normalizeEmojiName, MAX_TEXT,
+} from "./slackSendRules.js";
+
+let passed = 0, failed = 0;
+function check(name: string, cond: boolean) {
+  if (cond) passed++; else { failed++; console.error(`  ✗ ${name}`); }
+}
+
+check("dead token → 409 reconnect", mapSlackError("token_revoked").status === 409 && mapSlackError("token_revoked").code === "reconnect");
+check("missing_scope → 409 reconnect", mapSlackError("missing_scope").status === 409);
+check("not_in_channel → 403", mapSlackError("not_in_channel").status === 403);
+check("ratelimited → 429", mapSlackError("ratelimited").status === 429);
+check("already_reacted is a no-op", mapSlackError("already_reacted").code === "noop");
+check("unknown → 502", mapSlackError("something_new").status === 502);
+check("only reconnect uses 409", ["not_in_channel", "is_archived", "msg_too_long", "cant_delete_message", "x"].every((c) => mapSlackError(c).status !== 409));
+
+check("empty text rejected", !validateOutgoingText("   ").ok);
+check("non-string text rejected", !validateOutgoingText(42).ok);
+check("text trimmed", (validateOutgoingText("  hi  ") as any).text === "hi");
+check("over-long text rejected", !validateOutgoingText("x".repeat(MAX_TEXT + 1)).ok);
+
+check("DM targets dedupe and drop self", JSON.stringify((validateDmTargets("me", ["a", "a", "me", "b"]) as any).ids) === JSON.stringify(["a", "b"]));
+check("DM with only self rejected", !validateDmTargets("me", ["me"]).ok);
+check("DM to 8 others allowed", validateDmTargets("me", ["1", "2", "3", "4", "5", "6", "7", "8"]).ok);
+check("DM to 9 others rejected", !validateDmTargets("me", ["1", "2", "3", "4", "5", "6", "7", "8", "9"]).ok);
+check("DM targets must be an array", !validateDmTargets("me", "a").ok);
+
+check("emoji colons stripped", normalizeEmojiName(":tada:") === "tada");
+check("skin tone kept", normalizeEmojiName("+1::skin-tone-3") === "+1::skin-tone-3");
+check("junk emoji rejected", normalizeEmojiName("<script>") === null);
+
+console.log(`\nslackSendRules: ${passed} passed, ${failed} failed`);
+if (failed > 0) process.exit(1);
+```
+
+Run it → FAIL.
+
+- [ ] **Step 2: Implement `slackSendRules.ts`**
+
+```ts
+import { isDeadTokenError } from "./slackUserTokenService.js";
+
+/** Pure rules for the portal's write path. */
+
+export const MAX_TEXT = 4000;
+/** Slack's conversations.open accepts up to 8 other people (D13). */
+export const MAX_DM_OTHERS = 8;
+
+export interface SlackFailure { status: number; code: string; message: string }
+
+/**
+ * Slack error code → HTTP status + a sentence the UI can show.
+ * 409 means exactly one thing — "reconnect Slack" — and the UI keys off it.
+ */
+export function mapSlackError(code: string): SlackFailure {
+  if (isDeadTokenError(code) || code === "missing_scope" || code === "not_allowed_token_type") {
+    return { status: 409, code: "reconnect", message: "Reconnect Slack to keep messaging from Constellation." };
+  }
+  switch (code) {
+    case "not_in_channel": return { status: 403, code, message: "Join this channel to post in it." };
+    case "channel_not_found": return { status: 404, code, message: "Slack can't find that conversation." };
+    case "is_archived": return { status: 410, code, message: "This channel is archived in Slack." };
+    case "msg_too_long": return { status: 400, code, message: "That message is too long for Slack." };
+    case "ratelimited": return { status: 429, code, message: "Slack is rate-limiting — try again in a moment." };
+    case "restricted_action": return { status: 403, code, message: "Your Slack workspace doesn't allow that." };
+    case "cant_update_message":
+    case "cant_delete_message":
+    case "edit_window_closed":
+    case "message_not_found":
+      return { status: 403, code, message: "Slack won't let you change that message." };
+    case "already_reacted":
+    case "no_reaction":
+      return { status: 200, code: "noop", message: "" };
+    default:
+      return { status: 502, code, message: "Slack rejected the request." };
+  }
+}
+
+export function validateOutgoingText(text: unknown): { ok: true; text: string } | { ok: false; failure: SlackFailure } {
+  if (typeof text !== "string" || !text.trim()) {
+    return { ok: false, failure: { status: 400, code: "empty", message: "Message is empty." } };
+  }
+  const t = text.trim();
+  if (t.length > MAX_TEXT) {
+    return { ok: false, failure: { status: 400, code: "too_long", message: `Messages are limited to ${MAX_TEXT} characters.` } };
+  }
+  return { ok: true, text: t };
+}
+
+export function validateDmTargets(meId: string, ids: unknown): { ok: true; ids: string[] } | { ok: false; failure: SlackFailure } {
+  if (!Array.isArray(ids)) {
+    return { ok: false, failure: { status: 400, code: "bad_targets", message: "Pick who to message." } };
+  }
+  const unique = [...new Set(ids.filter((x): x is string => typeof x === "string" && x.length > 0))].filter((id) => id !== meId);
+  if (unique.length === 0) {
+    return { ok: false, failure: { status: 400, code: "bad_targets", message: "Pick at least one other person." } };
+  }
+  if (unique.length > MAX_DM_OTHERS) {
+    return { ok: false, failure: { status: 400, code: "too_many", message: "Group messages are limited to 8 other people — use a channel for larger groups." } };
+  }
+  return { ok: true, ids: unique };
+}
+
+/** Slack reaction names carry no colons; the UI may send ":tada:". */
+export function normalizeEmojiName(raw: unknown): string | null {
+  if (typeof raw !== "string") return null;
+  const name = raw.trim().replace(/^:+|:+$/g, "");
+  return /^[a-z0-9_+\-']+(::skin-tone-[2-6])?$/i.test(name) ? name : null;
+}
+```
+
+Run the test → `19 passed, 0 failed`.
+
+- [ ] **Step 3: Implement `slackSendService.ts`**
+
+```ts
+import type { WebClient } from "@slack/web-api";
+import { prisma } from "../db/prisma.js";
+import { userClientFor, clearSlackUserToken, isDeadTokenError, slackErrorCode } from "./slackUserTokenService.js";
+import { hasCapability, type SlackCapability } from "./slackScopes.js";
+import { ensureChannelArchive, storeArchivedMessage, applyReaction, emitChat } from "./slackArchiveService.js";
+import { setConversationMembers, addConversationMember } from "./slackMembershipService.js";
+import { markConversationRead } from "./slackReadService.js";
+import { startBackfill } from "./slackBackfillService.js";
+import { mapSlackError, type SlackFailure } from "./slackSendRules.js";
+import type { ConversationKind } from "./slackConversationAccess.js";
+import type { RawSlackMessage } from "./slackArchivePolicy.js";
+
+/** Everything here acts AS the member with their own user token (D1). */
+
+export class SendError extends Error {
+  constructor(public readonly failure: SlackFailure) {
+    super(failure.message);
+  }
+}
+
+type Actor = { client: WebClient; slackId: string };
+
+async function actAs(memberId: string, caps: SlackCapability[]): Promise<Actor> {
+  // interactive: fail fast on a rate limit — the member is waiting on a button.
+  const uc = await userClientFor(memberId, { interactive: true });
+  if (!uc || !caps.every((c) => hasCapability(uc.scopes, c))) throw new SendError(mapSlackError("missing_scope"));
+  return { client: uc.client, slackId: uc.slackId };
+}
+
+async function call<T>(memberId: string, fn: () => Promise<T>): Promise<T> {
+  try {
+    return await fn();
+  } catch (err) {
+    const code = (err as { code?: string }).code === "slack_webapi_rate_limited_error" ? "ratelimited" : slackErrorCode(err);
+    if (isDeadTokenError(code)) await clearSlackUserToken(memberId);
+    throw new SendError(mapSlackError(code));
+  }
+}
+
+export async function sendMessage(
+  memberId: string,
+  channelId: string,
+  convKind: ConversationKind,
+  input: { text: string; threadTs?: string; broadcast?: boolean }
+): Promise<{ ts: string }> {
+  const me = await actAs(memberId, ["post"]);
+  const args = input.threadTs
+    ? { channel: channelId, text: input.text, thread_ts: input.threadTs, reply_broadcast: !!input.broadcast, unfurl_links: true }
+    : { channel: channelId, text: input.text, unfurl_links: true };
+  const res = await call(memberId, () => me.client.chat.postMessage(args));
+  const ts = res.ts as string;
+  const posted = (res.message ?? {}) as RawSlackMessage;
+
+  // D7: write the row from Slack's answer now. The echo event upserts the same
+  // (channel, ts), so this is idempotent; forceHuman pins isBot = false
+  // whatever flags the echo carries.
+  await storeArchivedMessage(
+    channelId,
+    { ...posted, ts, user: me.slackId, text: posted.text ?? input.text, thread_ts: input.threadTs },
+    false,
+    me.client,
+    { overwrite: true, forceHuman: true }
+  );
+  emitChat({ channelId, convKind, ts, threadTs: input.threadTs ?? null, kind: "new" });
+  // Slack treats your own post as read; mirror that without a second API call.
+  await markConversationRead(memberId, channelId, ts, { pushToSlack: false });
+  return { ts };
+}
+
+async function ownRow(channelId: string, ts: string, slackId: string) {
+  const row = await prisma.slackMessage.findUnique({
+    where: { slackChannelId_ts: { slackChannelId: channelId, ts } },
+    select: { id: true, authorSlackId: true, deletedAt: true, threadTs: true },
+  });
+  if (!row || row.deletedAt) throw new SendError({ status: 404, code: "not_found", message: "That message no longer exists." });
+  if (row.authorSlackId !== slackId) throw new SendError({ status: 403, code: "not_yours", message: "You can only change your own messages." });
+  return row;
+}
+
+export async function editMessage(memberId: string, channelId: string, convKind: ConversationKind, ts: string, text: string): Promise<void> {
+  const me = await actAs(memberId, ["post"]);
+  const row = await ownRow(channelId, ts, me.slackId);
+  await call(memberId, () => me.client.chat.update({ channel: channelId, ts, text }));
+  await prisma.slackMessage.update({ where: { id: row.id }, data: { text, editedAt: new Date() } });
+  emitChat({ channelId, convKind, ts, threadTs: row.threadTs, kind: "edit" });
+}
+
+export async function deleteMessage(memberId: string, channelId: string, convKind: ConversationKind, ts: string): Promise<void> {
+  const me = await actAs(memberId, ["post"]);
+  const row = await ownRow(channelId, ts, me.slackId);
+  await call(memberId, () => me.client.chat.delete({ channel: channelId, ts }));
+  // Tombstone now; the message_deleted echo also recomputes reply counts and
+  // retracts notifications (Task 24).
+  await prisma.slackMessage.update({ where: { id: row.id }, data: { deletedAt: new Date() } });
+  emitChat({ channelId, convKind, ts, threadTs: row.threadTs, kind: "delete" });
+}
+
+export async function react(memberId: string, channelId: string, ts: string, name: string, add: boolean): Promise<void> {
+  const me = await actAs(memberId, ["react"]);
+  try {
+    await call(memberId, () =>
+      add
+        ? me.client.reactions.add({ channel: channelId, timestamp: ts, name })
+        : me.client.reactions.remove({ channel: channelId, timestamp: ts, name })
+    );
+  } catch (err) {
+    // already_reacted / no_reaction: Slack is already in the state we want.
+    if (!(err instanceof SendError && err.failure.code === "noop")) throw err;
+  }
+  await applyReaction(channelId, ts, `:${name}:`, me.slackId, add);
+}
+
+export async function uploadFile(
+  memberId: string,
+  channelId: string,
+  file: { buffer: Buffer; filename: string },
+  opts: { threadTs?: string; comment?: string }
+): Promise<void> {
+  const me = await actAs(memberId, ["post", "files"]);
+  await call(memberId, () =>
+    me.client.filesUploadV2({
+      channel_id: channelId,
+      file: file.buffer,
+      filename: file.filename,
+      initial_comment: opts.comment,
+      thread_ts: opts.threadTs,
+    } as Parameters<WebClient["filesUploadV2"]>[0])
+  );
+  // The file_share message arrives through the normal event path, which
+  // archives it and its attachment like any other message.
+}
+
+export async function openDm(memberId: string, otherMemberIds: string[]): Promise<{ channelId: string; kind: ConversationKind }> {
+  const me = await actAs(memberId, ["dm"]);
+  const others = await prisma.member.findMany({
+    where: { id: { in: otherMemberIds }, isBot: false },
+    select: { slackId: true },
+  });
+  if (others.length !== otherMemberIds.length) {
+    throw new SendError({ status: 404, code: "unknown_member", message: "One of those people isn't a club member." });
+  }
+  const users = others.map((o) => o.slackId);
+  const res = await call(memberId, () => me.client.conversations.open({ users: users.join(","), return_im: true }));
+  const channelId = (res.channel as { id?: string } | undefined)?.id;
+  if (!channelId) throw new SendError({ status: 502, code: "open_failed", message: "Slack didn't open the conversation." });
+
+  const kind: ConversationKind = users.length === 1 ? "IM" : "MPIM";
+  await ensureChannelArchive(channelId, me.client, { kind });
+  await setConversationMembers(channelId, [me.slackId, ...users]);
+
+  // First open of a conversation that already has Slack history: import it
+  // with the opener's own token. No-op once imported.
+  const a = await prisma.slackChannelArchive.findUnique({
+    where: { slackChannelId: channelId },
+    select: { backfillStatus: true },
+  });
+  if (a?.backfillStatus === "NOT_STARTED") await startBackfill(channelId, { requesterMemberId: memberId });
+  return { channelId, kind };
+}
+
+export async function joinChannel(memberId: string, channelId: string): Promise<void> {
+  const me = await actAs(memberId, ["join"]);
+  await call(memberId, () => me.client.conversations.join({ channel: channelId }));
+  await addConversationMember(channelId, me.slackId);
+}
+```
+
+- [ ] **Step 4: Append the write routes to `chat.ts`**
+
+Add these imports at the top of `backend/src/api/chat.ts`:
+
+```ts
+import multer from "multer";
+import { validateOutgoingText, validateDmTargets, normalizeEmojiName } from "../services/slackSendRules.js";
+import {
+  SendError, sendMessage, editMessage, deleteMessage, react, uploadFile, openDm, joinChannel,
+} from "../services/slackSendService.js";
+import { importMemberDms } from "../services/slackBackfillService.js";
+```
+
+Append to the end of the file:
+
+```ts
+// ── Writes (all as the member's own Slack identity) ──────────
+
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024, files: 1 } });
+
+function fail(res: Response, err: unknown, label: string): void {
+  if (err instanceof SendError) {
+    if (err.failure.status === 200) return void res.json({ ok: true });
+    return void res.status(err.failure.status).json({ error: err.failure.message, code: err.failure.code });
+  }
+  console.error(`chat/${label} error:`, err);
+  res.status(500).json({ error: "Something went wrong talking to Slack" });
+}
+
+/** Posting needs real membership; a public channel you haven't joined offers "Join". */
+function requireParticipant(req: Request, res: Response): boolean {
+  if (req.conversation?.canPost) return true;
+  res.status(403).json({
+    error: req.conversation?.kind === "CHANNEL" ? "Join this channel to post in it." : "You are not in this conversation.",
+    code: "not_in_channel",
+  });
+  return false;
+}
+
+const optionalTs = (v: unknown): string | undefined => (typeof v === "string" && TS_RE.test(v) ? v : undefined);
+
+chatRouter.post("/conversations/:channelId/messages", requireAuth, requireConversationRead, async (req: Request, res: Response) => {
+  if (!requireParticipant(req, res)) return;
+  const v = validateOutgoingText(req.body?.text);
+  if (!v.ok) return void res.status(v.failure.status).json({ error: v.failure.message, code: v.failure.code });
+  try {
+    const c = req.conversation!;
+    res.json(await sendMessage(req.memberId!, c.channelId, c.kind!, {
+      text: v.text,
+      threadTs: optionalTs(req.body?.threadTs),
+      broadcast: req.body?.broadcast === true,
+    }));
+  } catch (err) {
+    fail(res, err, "send");
+  }
+});
+
+chatRouter.patch("/conversations/:channelId/messages/:ts", requireAuth, requireConversationRead, async (req: Request, res: Response) => {
+  if (!requireParticipant(req, res)) return;
+  const ts = optionalTs(req.params.ts);
+  if (!ts) return void res.status(400).json({ error: "Bad ts" });
+  const v = validateOutgoingText(req.body?.text);
+  if (!v.ok) return void res.status(v.failure.status).json({ error: v.failure.message, code: v.failure.code });
+  try {
+    const c = req.conversation!;
+    await editMessage(req.memberId!, c.channelId, c.kind!, ts, v.text);
+    res.json({ ok: true });
+  } catch (err) {
+    fail(res, err, "edit");
+  }
+});
+
+chatRouter.delete("/conversations/:channelId/messages/:ts", requireAuth, requireConversationRead, async (req: Request, res: Response) => {
+  if (!requireParticipant(req, res)) return;
+  const ts = optionalTs(req.params.ts);
+  if (!ts) return void res.status(400).json({ error: "Bad ts" });
+  try {
+    const c = req.conversation!;
+    await deleteMessage(req.memberId!, c.channelId, c.kind!, ts);
+    res.json({ ok: true });
+  } catch (err) {
+    fail(res, err, "delete");
+  }
+});
+
+chatRouter.post("/conversations/:channelId/messages/:ts/reactions", requireAuth, requireConversationRead, async (req: Request, res: Response) => {
+  if (!requireParticipant(req, res)) return;
+  const ts = optionalTs(req.params.ts);
+  const name = normalizeEmojiName(req.body?.emoji);
+  if (!ts || !name) return void res.status(400).json({ error: "Bad reaction" });
+  try {
+    await react(req.memberId!, req.conversation!.channelId, ts, name, req.body?.add !== false);
+    res.json({ ok: true });
+  } catch (err) {
+    fail(res, err, "react");
+  }
+});
+
+chatRouter.post("/conversations/:channelId/files", requireAuth, requireConversationRead, upload.single("file"), async (req: Request, res: Response) => {
+  if (!requireParticipant(req, res)) return;
+  const file = req.file;
+  if (!file) return void res.status(400).json({ error: "No file" });
+  const comment = typeof req.body?.comment === "string" && req.body.comment.trim() ? req.body.comment.trim().slice(0, 4000) : undefined;
+  try {
+    await uploadFile(req.memberId!, req.conversation!.channelId, { buffer: file.buffer, filename: file.originalname }, {
+      threadTs: optionalTs(req.body?.threadTs),
+      comment,
+    });
+    res.json({ ok: true });
+  } catch (err) {
+    fail(res, err, "upload");
+  }
+});
+
+chatRouter.post("/conversations/:channelId/join", requireAuth, requireConversationRead, async (req: Request, res: Response) => {
+  const c = req.conversation!;
+  if (c.kind !== "CHANNEL") return void res.status(400).json({ error: "Only public channels can be joined" });
+  if (c.isParticipant) return void res.json({ ok: true });
+  try {
+    await joinChannel(req.memberId!, c.channelId);
+    res.json({ ok: true });
+  } catch (err) {
+    fail(res, err, "join");
+  }
+});
+
+chatRouter.post("/dms", requireAuth, async (req: Request, res: Response) => {
+  const v = validateDmTargets(req.memberId!, req.body?.memberIds);
+  if (!v.ok) return void res.status(v.failure.status).json({ error: v.failure.message, code: v.failure.code });
+  try {
+    res.json(await openDm(req.memberId!, v.ids));
+  } catch (err) {
+    fail(res, err, "open-dm");
+  }
+});
+
+chatRouter.post("/dms/import", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const r = await importMemberDms(req.memberId!);
+    if (!r.started && r.reason === "reconnect") {
+      return void res.status(409).json({ error: "Reconnect Slack to import your DMs.", code: "reconnect" });
+    }
+    res.json(r);
+  } catch (err) {
+    fail(res, err, "import-dms");
+  }
+});
+```
+
+- [ ] **Step 5: Gate + commit**
+
+Run the rules test and the gate, then:
+
+```bash
+git add backend/src/services/slackSendRules.ts backend/src/services/slackSendRules.test.ts backend/src/services/slackSendService.ts backend/src/api/chat.ts
+git commit -m "feat(slack-portal): post, edit, delete, react, upload, open DMs and join channels as the member"
+```
+
+---
+
+# Part D — Chat UI
+
+Frontend tasks never read `ProjectDetail.jsx` or `clubpm-theme.css` in full. Grep the anchors given.
+
+## Task 12: Client functions and conversation-scoped leaf components
+
+**Files:**
+- Modify: `src/api/clubPmClient.js` (append)
+- Modify: `src/components/clubpm/chat/ChatFileAttachment.jsx`
+- Modify: `src/components/clubpm/chat/ChatThreadDrawer.jsx`
+- Modify: `src/components/clubpm/chat/ChatMessage.jsx`
+
+**Interfaces produced (client):** `listConversations`, `getConversation`, `getConversationMessages`, `getConversationThread`, `searchConversation`, `markConversationRead`, `sendChatMessage`, `editChatMessage`, `deleteChatMessage`, `reactToChatMessage`, `joinConversation`, `muteConversation` (its route lands in Task 25), `openDm`, `importMyDms`, `backfillPublicChannels`, `uploadChatFile`, `conversationFileUrl`.
+
+- [ ] **Step 1: Append the client functions**
+
+Append to `src/api/clubPmClient.js`:
+
+```js
+// ── Slack portal: conversation-scoped chat (/api/chat) ───────
+// Everything the chat UI needs, keyed on the Slack conversation id rather than
+// a project. HTTP 409 from any write means "reconnect Slack" (plan Task 11).
+
+const chatPath = (channelId, rest = "") => `/api/chat/conversations/${encodeURIComponent(channelId)}${rest}`;
+
+export const listConversations = () => get("/api/chat/conversations");
+export const getConversation = (channelId) => get(chatPath(channelId));
+
+export function getConversationMessages(channelId, before) {
+  return get(chatPath(channelId, `/messages${before ? `?before=${encodeURIComponent(before)}` : ""}`));
+}
+export const getConversationThread = (channelId, ts) => get(chatPath(channelId, `/thread/${encodeURIComponent(ts)}`));
+export const searchConversation = (channelId, q) => get(chatPath(channelId, `/search?q=${encodeURIComponent(q)}`));
+export const markConversationRead = (channelId, ts) => post(chatPath(channelId, "/read"), { ts });
+
+export const sendChatMessage = (channelId, { text, threadTs, broadcast } = {}) =>
+  post(chatPath(channelId, "/messages"), { text, threadTs, broadcast });
+export const editChatMessage = (channelId, ts, text) =>
+  patch(chatPath(channelId, `/messages/${encodeURIComponent(ts)}`), { text });
+export const deleteChatMessage = (channelId, ts) =>
+  del(chatPath(channelId, `/messages/${encodeURIComponent(ts)}`));
+export const reactToChatMessage = (channelId, ts, emoji, add) =>
+  post(chatPath(channelId, `/messages/${encodeURIComponent(ts)}/reactions`), { emoji, add });
+export const joinConversation = (channelId) => post(chatPath(channelId, "/join"), {});
+/** Constellation-side mute (D8) — silences mirrored pings; Slack's own mute has no API. */
+export const muteConversation = (channelId, muted) => post(chatPath(channelId, "/mute"), { muted });
+
+/** Open (or find) a DM / group DM with these Member ids → { channelId, kind }. */
+export const openDm = (memberIds) => post("/api/chat/dms", { memberIds });
+/** Import the signed-in member's DM history (idempotent server-side). */
+export const importMyDms = () => post("/api/chat/dms/import", {});
+/** Admin: join + import every public channel. */
+export const backfillPublicChannels = () => post("/api/slack-archive/backfill-public", {});
+
+/** Multipart upload — `post()` is JSON-only. */
+export async function uploadChatFile(channelId, file, { threadTs, comment } = {}) {
+  const fd = new FormData();
+  fd.append("file", file);
+  if (threadTs) fd.append("threadTs", threadTs);
+  if (comment) fd.append("comment", comment);
+  const response = await fetch(`${BASE_URL}${chatPath(channelId, "/files")}`, {
+    method: "POST",
+    credentials: "include",
+    headers: { ...authHeaders() },
+    body: fd,
+  });
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    throw new ApiError(response.status, body.error ?? "Upload failed");
+  }
+  return response.json();
+}
+
+/**
+ * URL for an archived attachment in ANY conversation. The Bearer token rides
+ * along as `?token=` because an <img> cannot send headers (Brave/Safari).
+ * Never build this URL by hand in a component.
+ */
+export function conversationFileUrl(slackFileId) {
+  const token = getStoredToken();
+  const base = `${BASE_URL}/api/chat/files/${encodeURIComponent(slackFileId)}`;
+  return token ? `${base}?token=${encodeURIComponent(token)}` : base;
+}
+```
+
+- [ ] **Step 2: `ChatFileAttachment` uses the conversation-scoped proxy**
+
+In `src/components/clubpm/chat/ChatFileAttachment.jsx`:
+- change the import to `import { conversationFileUrl } from "../../../api/clubPmClient";`
+- change the signature to `export default function ChatFileAttachment({ file }) {`
+- change `const href = chatFileUrl(projectId, file.id);` to `const href = conversationFileUrl(file.id);`
+
+- [ ] **Step 3: `ChatThreadDrawer` reads through `/api/chat`**
+
+In `src/components/clubpm/chat/ChatThreadDrawer.jsx`:
+- change the import to `import { getConversationThread } from "../../../api/clubPmClient";`
+- change the signature to `export default function ChatThreadDrawer({ channelId, ts, onClose }) {`
+- change `getChatThread(projectId, channelId, ts)` to `getConversationThread(channelId, ts)` and the effect's dependency list to `[channelId, ts]`
+- change `<ChatMessage key={m.id} message={m} projectId={projectId} compact />` to `<ChatMessage key={m.id} message={m} compact />`
+
+- [ ] **Step 4: `ChatMessage` drops `projectId`**
+
+In `src/components/clubpm/chat/ChatMessage.jsx`:
+- change the signature to `export default function ChatMessage({ message, compact = false, onOpenThread }) {`
+- change `<ChatFileAttachment key={f.id} file={f} projectId={projectId} />` to `<ChatFileAttachment key={f.id} file={f} />`
+
+`ChatTab.jsx` still passes `projectId` to these two components until Task 13. The extra prop is harmless.
+
+- [ ] **Step 5: Gate + commit**
+
+`npm run build` (root) must compile with no new warnings.
+
+```bash
+git add src/api/clubPmClient.js src/components/clubpm/chat/ChatFileAttachment.jsx src/components/clubpm/chat/ChatThreadDrawer.jsx src/components/clubpm/chat/ChatMessage.jsx
+git commit -m "feat(slack-portal): conversation-scoped chat client and leaf components"
+```
+
+---
+
+## Task 13: `ChatConversation` and the `ChatTab` refactor
+
+**Files:**
+- Create: `src/components/clubpm/chat/ChatConversation.jsx`
+- Modify: `src/components/clubpm/chat/ChatTab.jsx` (full replacement)
+
+**Interfaces produced:** `<ChatConversation channelId conversation initialThreadTs? emptyHint? onJoined? composerPlaceholder? />`, the one conversation view shared by the Chat tab, `/clubpm/chat`, and DMs. It dispatches a `clubpm:conversation-read` window event (`{ channelId }`) after each read mark. `<ChatTab project isAdmin initialChannelId? initialThreadTs? />`.
+
+- [ ] **Step 1: Create `ChatConversation.jsx`**
+
+```jsx
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  getConversationMessages, searchConversation, markConversationRead,
+} from "../../../api/clubPmClient";
+import ChatMessage from "./ChatMessage";
+import ChatThreadDrawer from "./ChatThreadDrawer";
+
+// How close to the bottom (px) still counts as "reading the latest", so a live
+// message keeps the view pinned instead of yanking someone reading history.
+const PIN_THRESHOLD = 80;
+// A read mark waits this long, so scrolling past a conversation doesn't clear it.
+const READ_DEBOUNCE_MS = 1200;
+
+function isPinnedEl(el) {
+  return !el || el.scrollHeight - el.scrollTop - el.clientHeight < PIN_THRESHOLD;
+}
+function pinToBottom(ref) {
+  requestAnimationFrame(() => {
+    if (ref.current) ref.current.scrollTop = ref.current.scrollHeight;
+  });
+}
+
+/**
+ * One Slack conversation: paginated history, live updates, search, threads,
+ * and read marking. Shared by the project Chat tab, /clubpm/chat, and DMs on
+ * the Members page, so all three behave identically.
+ *
+ * `conversation` is the header from GET /api/chat/conversations/:id
+ * ({ kind, canPost, isParticipant, ... }); null while it loads.
+ */
+export default function ChatConversation({
+  channelId,
+  conversation = null,
+  initialThreadTs = null,
+  emptyHint = null,
+  onJoined = null,
+  composerPlaceholder = "Message",
+}) {
+  const [messages, setMessages] = useState([]);
+  const [hasMore, setHasMore] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [error, setError] = useState(null);
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState(null);
+  const [threadTs, setThreadTs] = useState(initialThreadTs);
+
+  const scrollRef = useRef(null);
+  const lastMarkedRef = useRef(null);
+  const markTimerRef = useRef(null);
+
+  useEffect(() => {
+    setResults(null);
+    setQuery("");
+    setThreadTs(initialThreadTs);
+    lastMarkedRef.current = null;
+  }, [channelId, initialThreadTs]);
+
+  // ── History ────────────────────────────────────────────────
+  const load = useCallback(async () => {
+    if (!channelId) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await getConversationMessages(channelId);
+      setMessages(data.messages ?? []);
+      setHasMore(!!data.hasMore);
+    } catch {
+      setError("Could not load messages.");
+    } finally {
+      setLoading(false);
+    }
+  }, [channelId]);
+
+  useEffect(() => { load(); }, [load]);
+  useEffect(() => { if (!loading) pinToBottom(scrollRef); }, [loading, channelId]);
+
+  const loadOlder = async () => {
+    if (!hasMore || loadingMore || messages.length === 0) return;
+    setLoadingMore(true);
+    const el = scrollRef.current;
+    const prevHeight = el?.scrollHeight ?? 0;
+    try {
+      const data = await getConversationMessages(channelId, messages[0].ts);
+      setMessages(prev => [...(data.messages ?? []), ...prev]);
+      setHasMore(!!data.hasMore);
+      requestAnimationFrame(() => { if (el) el.scrollTop = el.scrollHeight - prevHeight; });
+    } catch {
+      setError("Could not load older messages.");
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
+  // Silent refresh of the newest page. Keeps older pages the reader pulled in.
+  const refreshLatest = useCallback(async (forcePin = false) => {
+    if (!channelId) return;
+    const wasPinned = forcePin || isPinnedEl(scrollRef.current);
+    try {
+      const data = await getConversationMessages(channelId);
+      const latest = data.messages ?? [];
+      const oldest = latest.length ? parseFloat(latest[0].ts) : Infinity;
+      setMessages(prev => [...prev.filter(m => parseFloat(m.ts) < oldest), ...latest]);
+      if (wasPinned) pinToBottom(scrollRef);
+    } catch {
+      // A missed live update is recovered by the next one or a reload.
+    }
+  }, [channelId]);
+
+  // ── Live ───────────────────────────────────────────────────
+  useEffect(() => {
+    const onLive = (e) => {
+      // Refetch rather than rebuild a DTO client-side: the server owns token
+      // rendering, reaction shape, and reply counts.
+      if (e.detail?.channelId === channelId) refreshLatest();
+    };
+    window.addEventListener("clubpm:slack-message", onLive);
+    return () => window.removeEventListener("clubpm:slack-message", onLive);
+  }, [channelId, refreshLatest]);
+
+  // ── Read marking (D11) ─────────────────────────────────────
+  // Only a participant has a read cursor, and only what is actually on screen
+  // counts: tab visible, view pinned to the newest message, not in search.
+  const newestTs = messages.length ? messages[messages.length - 1].ts : null;
+  const isParticipant = !!conversation?.isParticipant;
+  const scheduleMark = useCallback(() => {
+    if (!isParticipant || !newestTs || results) return;
+    if (document.visibilityState !== "visible" || !isPinnedEl(scrollRef.current)) return;
+    if (lastMarkedRef.current === newestTs) return;
+    clearTimeout(markTimerRef.current);
+    markTimerRef.current = setTimeout(() => {
+      lastMarkedRef.current = newestTs;
+      markConversationRead(channelId, newestTs)
+        .then(() => window.dispatchEvent(new CustomEvent("clubpm:conversation-read", { detail: { channelId } })))
+        .catch(() => { lastMarkedRef.current = null; });
+    }, READ_DEBOUNCE_MS);
+  }, [channelId, isParticipant, newestTs, results]);
+
+  useEffect(() => { scheduleMark(); }, [scheduleMark]);
+  useEffect(() => {
+    document.addEventListener("visibilitychange", scheduleMark);
+    return () => {
+      document.removeEventListener("visibilitychange", scheduleMark);
+      clearTimeout(markTimerRef.current);
+    };
+  }, [scheduleMark]);
+
+  // ── Search ─────────────────────────────────────────────────
+  const runSearch = async (e) => {
+    e.preventDefault();
+    const q = query.trim();
+    if (q.length < 2) { setResults(null); return; }
+    try {
+      const data = await searchConversation(channelId, q);
+      setResults(data.messages ?? []);
+    } catch {
+      setError("Search failed.");
+    }
+  };
+
+  const shown = results ?? messages;
+  const canPost = !!conversation?.canPost;
+
+  return (
+    <div className="cpm-chat-conv">
+      <div className="cpm-chat-toolbar">
+        <form className="cpm-chat-search" onSubmit={runSearch}>
+          <input
+            type="search"
+            placeholder="Search this conversation…"
+            aria-label="Search this conversation"
+            value={query}
+            onChange={e => { setQuery(e.target.value); if (!e.target.value) setResults(null); }}
+          />
+          <button type="submit" aria-label="Search">
+            <i className="fas fa-magnifying-glass" aria-hidden="true" />
+          </button>
+        </form>
+      </div>
+
+      {results && (
+        <div className="cpm-chat-banner">
+          {results.length} result{results.length === 1 ? "" : "s"} ·{" "}
+          <button type="button" className="cpm-chat-linkbtn" onClick={() => { setResults(null); setQuery(""); }}>
+            back to the conversation
+          </button>
+        </div>
+      )}
+
+      <div className="cpm-chat-layout">
+        <div className="cpm-chat-main">
+          <div className="cpm-chat-scroll" ref={scrollRef} onScroll={scheduleMark}>
+            {loading && <div className="cpm-spinner" aria-label="Loading" />}
+            {error && <div className="cpm-chat-banner cpm-chat-banner--error">{error}</div>}
+
+            {!loading && !results && hasMore && (
+              <button type="button" className="cpm-chat-older" onClick={loadOlder} disabled={loadingMore}>
+                {loadingMore ? "Loading…" : "Load older messages"}
+              </button>
+            )}
+
+            {!loading && shown.length === 0 && !error && (
+              <div className="cpm-chat-empty">
+                <div>{emptyHint ?? "Nothing here yet."}</div>
+              </div>
+            )}
+
+            {shown.map(m => (
+              <ChatMessage
+                key={m.id}
+                message={m}
+                channelId={channelId}
+                canPost={canPost}
+                onOpenThread={setThreadTs}
+                onChanged={() => refreshLatest()}
+              />
+            ))}
+          </div>
+        </div>
+
+        {threadTs && (
+          <ChatThreadDrawer
+            channelId={channelId}
+            ts={threadTs}
+            conversation={conversation}
+            onClose={() => setThreadTs(null)}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+```
+
+`onJoined` and `composerPlaceholder` are consumed by the composer mounted in Task 14. The `canPost`/`onChanged`/`conversation` props passed to children are consumed in Task 15; React ignores them until then.
+
+- [ ] **Step 2: Replace `ChatTab.jsx`**
+
+```jsx
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  getChatChannels, getConversation, startChatBackfill, getChatBackfillStatus,
+} from "../../../api/clubPmClient";
+import ChatConversation from "./ChatConversation";
+
+/**
+ * The project Chat tab: a picker over the project's linked channels (already
+ * filtered server-side to what Slack lets this member see, D3), the admin
+ * history import, and the shared conversation view.
+ */
+export default function ChatTab({ project, isAdmin, initialChannelId = null, initialThreadTs = null }) {
+  const projectId = project?.id;
+
+  const [channels, setChannels] = useState([]);
+  const [channelsLoaded, setChannelsLoaded] = useState(false);
+  const [channelId, setChannelId] = useState(null);
+  const [conversation, setConversation] = useState(null);
+  const [error, setError] = useState(null);
+  const [backfill, setBackfill] = useState(null);
+  const [reloadKey, setReloadKey] = useState(0);
+
+  const pollRef = useRef(null);
+  const activeChannelRef = useRef(null);
+
+  const stopPolling = () => {
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+  };
+
+  // ── Channels ───────────────────────────────────────────────
+  useEffect(() => {
+    if (!projectId) return;
+    let cancelled = false;
+    setChannelsLoaded(false);
+    getChatChannels(projectId)
+      .then(data => {
+        if (cancelled) return;
+        const list = data.channels ?? [];
+        setChannels(list);
+        setChannelId(prev => {
+          if (list.some(c => c.slackChannelId === prev)) return prev;
+          if (initialChannelId && list.some(c => c.slackChannelId === initialChannelId)) return initialChannelId;
+          return list[0]?.slackChannelId ?? null;
+        });
+      })
+      .catch(() => { if (!cancelled) setError("Could not load channels."); })
+      .finally(() => { if (!cancelled) setChannelsLoaded(true); });
+    return () => { cancelled = true; };
+  }, [projectId, initialChannelId]);
+
+  // ── Header: canPost / isParticipant for the selected channel ──
+  const loadConversation = useCallback(() => {
+    if (!channelId) { setConversation(null); return; }
+    getConversation(channelId).then(setConversation).catch(() => setConversation(null));
+  }, [channelId]);
+
+  useEffect(() => { loadConversation(); }, [loadConversation]);
+  useEffect(() => {
+    const onMembership = (e) => { if (e.detail?.channelId === channelId) loadConversation(); };
+    window.addEventListener("clubpm:slack-membership", onMembership);
+    return () => window.removeEventListener("clubpm:slack-membership", onMembership);
+  }, [channelId, loadConversation]);
+
+  // ── Backfill ───────────────────────────────────────────────
+  // The poll belongs to one channel; stop it on channel switch and unmount.
+  useEffect(() => {
+    activeChannelRef.current = channelId;
+    setBackfill(null);
+    return () => {
+      activeChannelRef.current = null;
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    };
+  }, [channelId]);
+
+  const runBackfill = async () => {
+    if (!channelId || backfill?.status === "RUNNING") return;
+    const target = channelId;
+    stopPolling();
+    setBackfill({ status: "RUNNING" });
+    try {
+      await startChatBackfill(projectId, target);
+      if (activeChannelRef.current !== target) return;
+      pollRef.current = setInterval(async () => {
+        try {
+          const s = await getChatBackfillStatus(projectId, target);
+          setBackfill(s);
+          if (s.status === "COMPLETE" || s.status === "FAILED") {
+            stopPolling();
+            setReloadKey(k => k + 1);
+          }
+        } catch {
+          stopPolling();
+          setBackfill({ status: "FAILED", error: "Lost track of the import — reload to check its status." });
+        }
+      }, 3000);
+    } catch {
+      setBackfill({ status: "FAILED", error: "Could not start backfill." });
+    }
+  };
+
+  if (channelsLoaded && channels.length === 0 && !error) {
+    return (
+      <div className="cpm-chat-empty">
+        <i className="fab fa-slack" aria-hidden="true" />
+        <div>No Slack channel you can see is linked to this project.</div>
+        <div className="cpm-chat-empty-sub">Link one from the project settings, or ask to be added to its private channel in Slack.</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="cpm-chat-wrap">
+      <div className="cpm-chat-toolbar">
+        <select
+          className="cpm-chat-channel-select"
+          aria-label="Slack channel"
+          value={channelId ?? ""}
+          onChange={e => setChannelId(e.target.value)}
+        >
+          {channels.map(c => (
+            <option key={c.slackChannelId} value={c.slackChannelId}>
+              #{c.name} ({c.messageCount})
+            </option>
+          ))}
+        </select>
+
+        {isAdmin && (
+          <button
+            type="button"
+            className="cpm-chat-backfill-btn"
+            onClick={runBackfill}
+            disabled={!channelId || backfill?.status === "RUNNING"}
+          >
+            <i className="fas fa-clock-rotate-left" aria-hidden="true" />
+            {backfill?.status === "RUNNING" ? "Importing…" : "Import history"}
+          </button>
+        )}
+      </div>
+
+      {error && <div className="cpm-chat-banner cpm-chat-banner--error">{error}</div>}
+      {backfill?.status === "FAILED" && (
+        <div className="cpm-chat-banner cpm-chat-banner--error">
+          History import failed{backfill.error ? `: ${backfill.error}` : "."}
+        </div>
+      )}
+
+      {channelId && (
+        <ChatConversation
+          key={`${channelId}:${reloadKey}`}
+          channelId={channelId}
+          conversation={conversation}
+          initialThreadTs={channelId === initialChannelId ? initialThreadTs : null}
+          emptyHint={isAdmin ? "Nothing archived here yet — use “Import history” to pull in what Slack still has." : "Nothing archived here yet."}
+          onJoined={loadConversation}
+        />
+      )}
+    </div>
+  );
+}
+```
+
+- [ ] **Step 3: Gate + commit**
+
+`npm run build` → compiles with no warnings. Open a project's Chat tab in `npm start` and confirm messages load, "Load older" works, and a thread opens.
+
+```bash
+git add src/components/clubpm/chat/ChatConversation.jsx src/components/clubpm/chat/ChatTab.jsx
+git commit -m "feat(slack-portal): shared ChatConversation view; Chat tab reads through /api/chat"
+```
+
+---
+
+## Task 14: Composer and the outgoing encoder
+
+**Files:**
+- Create: `src/components/clubpm/chat/encodeOutgoing.js`
+- Create: `src/components/clubpm/chat/encodeOutgoing.test.js`
+- Create: `src/components/clubpm/chat/ChatComposer.jsx`
+- Modify: `src/components/clubpm/chat/ChatConversation.jsx` (mount the composer)
+
+**Interfaces produced:** `encodeOutgoing(text, mentions) → mrkdwn`, `decodeForEdit(tokens) → { text, mentions }`; `<ChatComposer channelId conversation threadTs? placeholder? onSent? onJoined? />`; `reconnectHref()`; `<SlackReconnectNotice compact? />`.
+
+- [ ] **Step 1: Failing encoder test**
+
+`src/components/clubpm/chat/encodeOutgoing.test.js`:
+
+```js
+import { encodeOutgoing, decodeForEdit } from './encodeOutgoing';
+
+describe('encodeOutgoing', () => {
+  test('escapes Slack control characters', () => {
+    expect(encodeOutgoing('a < b && c > d')).toBe('a &lt; b &amp;&amp; c &gt; d');
+  });
+  test('turns an autocompleted mention into <@U…>', () => {
+    expect(encodeOutgoing('hi @Ann Lee!', { 'Ann Lee': 'U1' })).toBe('hi <@U1>!');
+  });
+  test('longest label wins', () => {
+    expect(encodeOutgoing('@Ann and @Ann Lee', { Ann: 'U1', 'Ann Lee': 'U2' })).toBe('<@U1> and <@U2>');
+  });
+  test('does not match inside a word or an email', () => {
+    expect(encodeOutgoing('bob@Ann @Annie', { Ann: 'U1' })).toBe('bob@Ann @Annie');
+  });
+  test('labels with regex characters are literal', () => {
+    expect(encodeOutgoing('cc @Dr. Who', { 'Dr. Who': 'U9' })).toBe('cc <@U9>');
+  });
+  test('broadcast keywords become special mentions', () => {
+    expect(encodeOutgoing('@here and @channel, not @everyoneelse')).toBe('<!here> and <!channel>, not @everyoneelse');
+  });
+  test('an unknown @word stays plain text', () => {
+    expect(encodeOutgoing('ping @nobody')).toBe('ping @nobody');
+  });
+});
+
+describe('decodeForEdit', () => {
+  test('round-trips mentions and formatting', () => {
+    const tokens = [
+      { type: 'text', value: 'hi ' },
+      { type: 'mention', slackId: 'U1', label: 'Ann' },
+      { type: 'text', value: ' ' },
+      { type: 'bold', children: [{ type: 'text', value: 'x' }] },
+      { type: 'text', value: ' ' },
+      { type: 'code', value: 'a<b' },
+    ];
+    const { text, mentions } = decodeForEdit(tokens);
+    expect(text).toBe('hi @Ann *x* `a<b`');
+    expect(mentions).toEqual({ Ann: 'U1' });
+    expect(encodeOutgoing(text, mentions)).toBe('hi <@U1> *x* `a&lt;b`');
+  });
+  test('broadcast mentions decode to their keyword', () => {
+    const { text } = decodeForEdit([{ type: 'mention', slackId: '!here', label: '@here' }]);
+    expect(text).toBe('@here');
+  });
+});
+```
+
+Run: `npx react-scripts test --watchAll=false src/components/clubpm/chat/encodeOutgoing.test.js` → FAIL (module not found).
+
+- [ ] **Step 2: Implement `encodeOutgoing.js`**
+
+```js
+/**
+ * Composer text ⇄ Slack mrkdwn.
+ *
+ * Slack requires &, < and > escaped in message text — they are the control
+ * characters of <@U…>, <#C…> and <url|label> — and a mention only pings when it
+ * is sent as <@U…>. Plain "@Name" is inert text.
+ *
+ * `mentions` maps the exact label autocomplete inserted (without the "@") to a
+ * Slack user id. Longest labels are replaced first so "@Ann Lee" beats "@Ann".
+ */
+const escapeRegExp = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const escapeSlack = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+export function encodeOutgoing(text, mentions = {}) {
+  let out = escapeSlack(text);
+  const labels = Object.keys(mentions).filter(Boolean).sort((a, b) => b.length - a.length);
+  for (const label of labels) {
+    const re = new RegExp(`(^|[^\\w@])@${escapeRegExp(escapeSlack(label))}(?![\\w])`, 'g');
+    out = out.replace(re, (_m, pre) => `${pre}<@${mentions[label]}>`);
+  }
+  return out.replace(/(^|[^\w@])@(channel|here|everyone)(?![\w])/g, (_m, pre, kw) => `${pre}<!${kw}>`);
+}
+
+const BROADCAST = new Set(['channel', 'here', 'everyone']);
+
+/** A message's rendered tokens → editable composer text + its mention map. */
+export function decodeForEdit(tokens) {
+  const mentions = {};
+  const walk = (list) => (list ?? []).map((t) => {
+    switch (t.type) {
+      case 'text': return t.value;
+      case 'mention': {
+        const bare = String(t.label ?? '').replace(/^@+/, '');
+        if (String(t.slackId).startsWith('!')) {
+          const kw = String(t.slackId).slice(1).split('^')[0];
+          return `@${BROADCAST.has(kw) ? kw : bare}`;
+        }
+        mentions[bare] = t.slackId;
+        return `@${bare}`;
+      }
+      case 'channel': return `#${t.label}`;
+      case 'link': return t.href;
+      case 'code': return `\`${t.value}\``;
+      case 'codeblock': return `\`\`\`\n${t.value}\n\`\`\``;
+      case 'emoji': return `:${t.name}:`;
+      case 'bold': return `*${walk(t.children)}*`;
+      case 'italic': return `_${walk(t.children)}_`;
+      case 'strike': return `~${walk(t.children)}~`;
+      default: return '';
+    }
+  }).join('');
+  return { text: walk(tokens), mentions };
+}
+```
+
+Run the test → PASS (9 tests).
+
+- [ ] **Step 3: Create `ChatComposer.jsx`**
+
+```jsx
+import { useEffect, useMemo, useRef, useState } from "react";
+import toast from "react-hot-toast";
+import { get, apiBaseUrl, sendChatMessage, uploadChatFile, joinConversation } from "../../../api/clubPmClient";
+import { useClubPmAuth } from "../../../clubpm/ClubPmAuth";
+import { encodeOutgoing } from "./encodeOutgoing";
+
+// One roster fetch per page load, shared by every composer on the page.
+let rosterPromise = null;
+function loadRoster() {
+  if (!rosterPromise) {
+    rosterPromise = get("/api/members").catch(() => {
+      rosterPromise = null;
+      return [];
+    });
+  }
+  return rosterPromise;
+}
+
+/** Sign in with Slack again (for the portal scopes) and come back to this page. */
+export function reconnectHref() {
+  const back = window.location.pathname + window.location.search;
+  return `${apiBaseUrl}/auth/slack?returnTo=${encodeURIComponent(back)}`;
+}
+
+/** Shown wherever a portal feature needs scopes the member hasn't granted yet. */
+export function SlackReconnectNotice({ compact = false }) {
+  return (
+    <div className={`cpm-chat-reconnect${compact ? " cpm-chat-reconnect--compact" : ""}`}>
+      <div><b>Connect Slack to send and read DMs from Constellation.</b></div>
+      <div className="cpm-chat-reconnect-sub">
+        Constellation archives your Slack DMs so you can read them here. Only the people in each
+        conversation can see them — admins can't.
+      </div>
+      <a className="clubpm-btn-primary cpm-chat-reconnect-btn" href={reconnectHref()}>
+        <i className="fab fa-slack" aria-hidden="true" /> Connect Slack
+      </a>
+    </div>
+  );
+}
+
+export default function ChatComposer({
+  channelId,
+  conversation,
+  threadTs = null,
+  placeholder = "Message",
+  onSent = null,
+  onJoined = null,
+}) {
+  const { member } = useClubPmAuth();
+  const caps = member?.slackCapabilities ?? {};
+
+  const [text, setText] = useState("");
+  const [mentions, setMentions] = useState({});
+  const [sending, setSending] = useState(false);
+  const [needsReconnect, setNeedsReconnect] = useState(false);
+  const [roster, setRoster] = useState([]);
+  const [suggest, setSuggest] = useState(null); // { query, start }
+  const [highlight, setHighlight] = useState(0);
+  const areaRef = useRef(null);
+  const fileRef = useRef(null);
+
+  useEffect(() => {
+    let alive = true;
+    loadRoster().then(r => { if (alive) setRoster(Array.isArray(r) ? r : []); });
+    return () => { alive = false; };
+  }, []);
+
+  useEffect(() => { setText(""); setMentions({}); setSuggest(null); }, [channelId, threadTs]);
+
+  const myId = member?.id;
+  const matches = useMemo(() => {
+    if (!suggest) return [];
+    const q = suggest.query.toLowerCase();
+    return roster
+      .filter(m => m.id !== myId && (m.displayName?.toLowerCase().includes(q) || m.slackHandle?.toLowerCase().includes(q)))
+      .slice(0, 6);
+  }, [suggest, roster, myId]);
+
+  // HTTP 409 means exactly "reconnect Slack" (plan Task 11).
+  const handleError = (err) => {
+    if (err?.status === 409) setNeedsReconnect(true);
+    else toast.error(err?.message || "Could not send to Slack.");
+  };
+
+  const join = async () => {
+    setSending(true);
+    try {
+      await joinConversation(channelId);
+      onJoined?.();
+    } catch (err) {
+      handleError(err);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const onChange = (e) => {
+    const value = e.target.value;
+    setText(value);
+    const caret = e.target.selectionStart ?? value.length;
+    const m = /(^|\s)@([^\s@]{0,30})$/.exec(value.slice(0, caret));
+    setSuggest(m ? { query: m[2], start: caret - m[2].length - 1 } : null);
+    setHighlight(0);
+  };
+
+  const pick = (person) => {
+    const el = areaRef.current;
+    const caret = el?.selectionStart ?? text.length;
+    const before = text.slice(0, suggest.start);
+    const after = text.slice(caret);
+    const label = person.displayName;
+    setText(`${before}@${label} ${after}`);
+    setMentions(prev => ({ ...prev, [label]: person.slackId }));
+    setSuggest(null);
+    const pos = before.length + label.length + 2;
+    requestAnimationFrame(() => { el?.focus(); el?.setSelectionRange(pos, pos); });
+  };
+
+  const submit = async () => {
+    const body = text.trim();
+    if (!body || sending) return;
+    setSending(true);
+    try {
+      const res = await sendChatMessage(channelId, { text: encodeOutgoing(body, mentions), threadTs: threadTs ?? undefined });
+      setText("");
+      setMentions({});
+      onSent?.(res?.ts ?? null);
+    } catch (err) {
+      handleError(err);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const onKeyDown = (e) => {
+    if (suggest && matches.length > 0) {
+      if (e.key === "ArrowDown") { e.preventDefault(); setHighlight(h => (h + 1) % matches.length); return; }
+      if (e.key === "ArrowUp") { e.preventDefault(); setHighlight(h => (h - 1 + matches.length) % matches.length); return; }
+      if (e.key === "Enter" || e.key === "Tab") { e.preventDefault(); pick(matches[highlight]); return; }
+      if (e.key === "Escape") { setSuggest(null); return; }
+    }
+    if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+      e.preventDefault();
+      submit();
+    }
+  };
+
+  const onFile = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (!caps.files) { setNeedsReconnect(true); return; }
+    setSending(true);
+    try {
+      const body = text.trim();
+      await uploadChatFile(channelId, file, {
+        threadTs: threadTs ?? undefined,
+        comment: body ? encodeOutgoing(body, mentions) : undefined,
+      });
+      setText("");
+      setMentions({});
+      toast.success("Uploaded — it appears here once Slack shares it.");
+      onSent?.(null);
+    } catch (err) {
+      handleError(err);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  if (!conversation) return null;
+  if (!caps.post || needsReconnect) return <SlackReconnectNotice compact={!!threadTs} />;
+  if (!conversation.canPost) {
+    if (conversation.kind !== "CHANNEL") return null;
+    return (
+      <div className="cpm-chat-join">
+        <label className="cpm-chat-plain">You're previewing this channel.</label>
+        <button type="button" className="clubpm-btn-primary" onClick={join} disabled={sending}>
+          <i className="fas fa-right-to-bracket" aria-hidden="true" /> Join channel
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="cpm-chat-composer">
+      {suggest && matches.length > 0 && (
+        <div className="cpm-chat-suggest" role="listbox" aria-label="Mention someone">
+          {matches.map((m, i) => (
+            <button
+              key={m.id}
+              type="button"
+              role="option"
+              aria-selected={i === highlight}
+              className={`cpm-chat-suggest-item${i === highlight ? " active" : ""}`}
+              onMouseDown={(e) => { e.preventDefault(); pick(m); }}
+            >
+              <b>{m.displayName}</b>
+              {m.slackHandle && <label className="cpm-chat-plain cpm-chat-suggest-handle">@{m.slackHandle}</label>}
+            </button>
+          ))}
+        </div>
+      )}
+      <button
+        type="button"
+        className="cpm-chat-composer-btn"
+        title="Attach a file"
+        aria-label="Attach a file"
+        onClick={() => fileRef.current?.click()}
+        disabled={sending}
+      >
+        <i className="fas fa-paperclip" aria-hidden="true" />
+      </button>
+      <input ref={fileRef} type="file" hidden onChange={onFile} />
+      <textarea
+        ref={areaRef}
+        className="cpm-chat-composer-input"
+        rows={Math.min(6, Math.max(1, text.split("\n").length))}
+        value={text}
+        placeholder={placeholder}
+        aria-label={placeholder}
+        onChange={onChange}
+        onKeyDown={onKeyDown}
+        onBlur={() => setTimeout(() => setSuggest(null), 150)}
+        disabled={sending}
+      />
+      <button
+        type="button"
+        className="cpm-chat-composer-send"
+        onClick={submit}
+        disabled={sending || !text.trim()}
+        aria-label="Send"
+      >
+        <i className="fas fa-paper-plane" aria-hidden="true" />
+      </button>
+    </div>
+  );
+}
+```
+
+- [ ] **Step 4: Mount the composer in `ChatConversation`**
+
+In `ChatConversation.jsx`, add `import ChatComposer from "./ChatComposer";`. Directly after the closing `</div>` of `<div className="cpm-chat-scroll" …>` (still inside `.cpm-chat-main`), add:
+
+```jsx
+          {!results && (
+            <ChatComposer
+              channelId={channelId}
+              conversation={conversation}
+              placeholder={composerPlaceholder}
+              onSent={() => refreshLatest(true)}
+              onJoined={onJoined}
+            />
+          )}
+```
+
+- [ ] **Step 5: Gate + commit**
+
+Run the encoder test, then `npm run build`. It regenerates the icon subset for `fa-paperclip`, `fa-paper-plane` and `fa-right-to-bracket`. Manually: send a message with an `@mention` from the Chat tab. It must appear in Slack **as you**, and the mentioned person must get a Slack ping.
+
+```bash
+git add src/components/clubpm/chat/encodeOutgoing.js src/components/clubpm/chat/encodeOutgoing.test.js src/components/clubpm/chat/ChatComposer.jsx src/components/clubpm/chat/ChatConversation.jsx public/fa-subset.css public/webfonts
+git commit -m "feat(slack-portal): composer with mentions, uploads, join, and reconnect prompt"
+```
+
+---
+
+## Task 15: Message actions, emoji, thread replies
+
+**Files:**
+- Create: `src/components/clubpm/chat/emojiShortcodes.js`
+- Modify: `src/components/clubpm/chat/ChatRichText.jsx` (emoji branch)
+- Modify: `src/components/clubpm/chat/ChatMessage.jsx` (full replacement)
+- Modify: `src/components/clubpm/chat/ChatThreadDrawer.jsx` (full replacement)
+
+- [ ] **Step 1: Create `emojiShortcodes.js`**
+
+```js
+/**
+ * Common Slack shortcodes → Unicode, for rendering message CONTENT (reactions
+ * and :shortcode: text). Not an icon set — UI icons stay Font Awesome.
+ * Unknown names fall back to their :name: text; workspace custom emoji come
+ * from the server as image URLs.
+ */
+const MAP = {
+  '+1': '👍', thumbsup: '👍', '-1': '👎', thumbsdown: '👎',
+  white_check_mark: '✅', heavy_check_mark: '✔️', x: '❌', eyes: '👀',
+  tada: '🎉', partying_face: '🥳', heart: '❤️', white_heart: '🤍',
+  joy: '😂', smile: '😄', grinning: '😀', laughing: '😆', slightly_smiling_face: '🙂',
+  wink: '😉', upside_down_face: '🙃', sweat_smile: '😅', sob: '😭', heart_eyes: '😍',
+  thinking_face: '🤔', facepalm: '🤦', shrug: '🤷', saluting_face: '🫡',
+  pray: '🙏', clap: '👏', raised_hands: '🙌', wave: '👋', ok_hand: '👌', muscle: '💪',
+  fire: '🔥', rocket: '🚀', star: '⭐', sparkles: '✨', '100': '💯', bulb: '💡', memo: '📝',
+  warning: '⚠️', rotating_light: '🚨', question: '❓', exclamation: '❗', hourglass_flowing_sand: '⏳',
+};
+
+/** "+1::skin-tone-3" → 👍 (skin tones fall back to the base glyph). */
+export function emojiChar(name) {
+  if (!name) return null;
+  return MAP[String(name).split('::')[0]] ?? null;
+}
+
+export const QUICK_REACTIONS = ['+1', 'white_check_mark', 'eyes', 'tada', 'heart', 'joy'];
+```
+
+- [ ] **Step 2: Render standard emoji as characters**
+
+In `ChatRichText.jsx`, add `import { emojiChar } from "./emojiShortcodes";` and replace the `case "emoji":` branch with:
+
+```jsx
+      case "emoji": {
+        if (t.url) {
+          return <img key={i} className="cpm-chat-emoji" src={t.url} alt={`:${t.name}:`} title={`:${t.name}:`} />;
+        }
+        const ch = emojiChar(t.name);
+        return ch
+          ? <label key={i} className="cpm-chat-plain cpm-chat-emoji-char" title={`:${t.name}:`}>{ch}</label>
+          : <code key={i} className="cpm-chat-emoji-name">:{t.name}:</code>;
+      }
+```
+
+Run: `npx react-scripts test --watchAll=false src/components/clubpm/chat/ChatRichText.test.jsx` → still passes.
+
+- [ ] **Step 3: Replace `ChatMessage.jsx`**
+
+```jsx
+import { useState } from "react";
+import toast from "react-hot-toast";
+import { reactToChatMessage, editChatMessage, deleteChatMessage } from "../../../api/clubPmClient";
+import { useClubPmAuth } from "../../../clubpm/ClubPmAuth";
+import ChatRichText from "./ChatRichText";
+import ChatFileAttachment from "./ChatFileAttachment";
+import { emojiChar, QUICK_REACTIONS } from "./emojiShortcodes";
+import { encodeOutgoing, decodeForEdit } from "./encodeOutgoing";
+
+function timeLabel(iso) {
+  const d = new Date(iso);
+  return d.toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+}
+
+function ReactionFace({ name, url }) {
+  if (url) return <img className="cpm-chat-emoji" src={url} alt={`:${name}:`} />;
+  return <label className="cpm-chat-plain">{emojiChar(name) ?? `:${name}:`}</label>;
+}
+
+// 409 means exactly "reconnect Slack" (plan Task 11).
+const errorText = (err) =>
+  err?.status === 409 ? "Reconnect Slack to do that from Constellation." : (err?.message || "Slack rejected that.");
+
+export default function ChatMessage({
+  message,
+  channelId = null,
+  canPost = false,
+  compact = false,
+  onOpenThread,
+  onChanged,
+}) {
+  const { member } = useClubPmAuth();
+  const [editing, setEditing] = useState(null); // { text, mentions }
+  const [busy, setBusy] = useState(false);
+  const [picker, setPicker] = useState(false);
+
+  // Deleted messages keep their row on purpose: the archive records that
+  // something was said and removed, rather than quietly losing the turn.
+  if (message.deletedAt) {
+    return (
+      <div className="cpm-chat-msg cpm-chat-msg--deleted">
+        <div className="cpm-chat-msg-body">
+          <i className="fas fa-trash-can" aria-hidden="true" />
+          <label className="cpm-chat-plain"> This message was deleted</label>
+        </div>
+      </div>
+    );
+  }
+
+  const canAct = canPost && !!channelId;
+  const mine = !!member?.slackId && message.authorSlackId === member.slackId && !message.isBot;
+
+  const toggleReaction = async (name, currentlyMine) => {
+    if (!canAct || busy) return;
+    setBusy(true);
+    setPicker(false);
+    try {
+      await reactToChatMessage(channelId, message.ts, name, !currentlyMine);
+      onChanged?.();
+    } catch (err) {
+      toast.error(errorText(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const saveEdit = async () => {
+    const text = editing.text.trim();
+    if (!text || busy) return;
+    setBusy(true);
+    try {
+      await editChatMessage(channelId, message.ts, encodeOutgoing(text, editing.mentions));
+      setEditing(null);
+      onChanged?.();
+    } catch (err) {
+      toast.error(errorText(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const remove = async () => {
+    if (!window.confirm("Delete this message? It is deleted in Slack too.")) return;
+    setBusy(true);
+    try {
+      await deleteChatMessage(channelId, message.ts);
+      onChanged?.();
+    } catch (err) {
+      toast.error(errorText(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className={`cpm-chat-msg${compact ? " cpm-chat-msg--compact" : ""}${message.isBot ? " cpm-chat-msg--bot" : ""}`}>
+      <div className="cpm-chat-avatar" aria-hidden="true">
+        {message.authorAvatarUrl
+          ? <img src={message.authorAvatarUrl} alt="" />
+          : <i className={message.isBot ? "fas fa-robot" : "fas fa-user"} />}
+      </div>
+
+      <div className="cpm-chat-msg-body">
+        <div className="cpm-chat-msg-head">
+          <b className="cpm-chat-author">{message.authorName}</b>
+          {message.isBot && <label className="cpm-chat-app-badge">APP</label>}
+          <label className="cpm-chat-time">{timeLabel(message.postedAt)}</label>
+          {message.editedAt && <label className="cpm-chat-edited">(edited)</label>}
+        </div>
+
+        {editing ? (
+          <div className="cpm-chat-edit">
+            <textarea
+              className="cpm-chat-composer-input"
+              value={editing.text}
+              autoFocus
+              aria-label="Edit message"
+              onChange={e => setEditing({ ...editing, text: e.target.value })}
+              onKeyDown={e => {
+                if (e.key === "Escape") setEditing(null);
+                if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); saveEdit(); }
+              }}
+            />
+            <div className="cpm-chat-edit-actions">
+              <button type="button" className="cpm-chat-linkbtn" onClick={() => setEditing(null)}>Cancel</button>
+              <button type="button" className="clubpm-btn-primary" onClick={saveEdit} disabled={busy}>Save</button>
+            </div>
+          </div>
+        ) : (
+          <ChatRichText tokens={message.tokens} />
+        )}
+
+        {message.files?.length > 0 && (
+          <div className="cpm-chat-files">
+            {message.files.map(f => <ChatFileAttachment key={f.id} file={f} />)}
+          </div>
+        )}
+
+        {message.reactions?.length > 0 && (
+          <div className="cpm-chat-reactions">
+            {message.reactions.map(r => (
+              <button
+                key={r.emoji}
+                type="button"
+                className={`cpm-chat-reaction${r.mine ? " cpm-chat-reaction--mine" : ""}`}
+                title={r.emoji}
+                disabled={!canAct || busy}
+                onClick={() => toggleReaction(r.name, r.mine)}
+              >
+                <ReactionFace name={r.name} url={r.url} />
+                <label className="cpm-chat-reaction-count">{r.count}</label>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {message.replyCount > 0 && onOpenThread && (
+          <button type="button" className="cpm-chat-thread-btn" onClick={() => onOpenThread(message.ts)}>
+            <i className="fas fa-comments" aria-hidden="true" />
+            {message.replyCount} {message.replyCount === 1 ? "reply" : "replies"}
+          </button>
+        )}
+      </div>
+
+      {canAct && !editing && (
+        <div className="cpm-chat-msg-actions" role="toolbar" aria-label="Message actions">
+          <button type="button" title="Add reaction" aria-label="Add reaction" onClick={() => setPicker(p => !p)}>
+            <i className="fas fa-face-smile" aria-hidden="true" />
+          </button>
+          {onOpenThread && !message.threadTs && (
+            <button type="button" title="Reply in thread" aria-label="Reply in thread" onClick={() => onOpenThread(message.ts)}>
+              <i className="fas fa-reply" aria-hidden="true" />
+            </button>
+          )}
+          {mine && (
+            <button type="button" title="Edit" aria-label="Edit" onClick={() => setEditing(decodeForEdit(message.tokens))}>
+              <i className="fas fa-pen" aria-hidden="true" />
+            </button>
+          )}
+          {mine && (
+            <button type="button" title="Delete" aria-label="Delete" onClick={remove}>
+              <i className="fas fa-trash-can" aria-hidden="true" />
+            </button>
+          )}
+          {picker && (
+            <div className="cpm-chat-react-picker">
+              {QUICK_REACTIONS.map(n => (
+                <button
+                  key={n}
+                  type="button"
+                  title={`:${n}:`}
+                  onClick={() => toggleReaction(n, message.reactions?.some(r => r.name === n && r.mine))}
+                >
+                  <ReactionFace name={n} />
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+```
+
+- [ ] **Step 4: Replace `ChatThreadDrawer.jsx`**
+
+```jsx
+import { useCallback, useEffect, useRef, useState } from "react";
+import { getConversationThread, markConversationRead } from "../../../api/clubPmClient";
+import ChatMessage from "./ChatMessage";
+import ChatComposer from "./ChatComposer";
+
+export default function ChatThreadDrawer({ channelId, ts, conversation = null, onClose }) {
+  const [messages, setMessages] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  // Opening a second thread before the first responds must not let the slower
+  // response overwrite the newer one.
+  const reqRef = useRef(0);
+
+  const load = useCallback(async (quiet = false) => {
+    const id = ++reqRef.current;
+    if (!quiet) { setLoading(true); setError(null); }
+    try {
+      const data = await getConversationThread(channelId, ts);
+      if (id === reqRef.current) setMessages(data.messages ?? []);
+    } catch {
+      if (id === reqRef.current && !quiet) setError("Could not load this thread.");
+    } finally {
+      if (id === reqRef.current && !quiet) setLoading(false);
+    }
+  }, [channelId, ts]);
+
+  useEffect(() => { load(false); }, [load]);
+
+  useEffect(() => {
+    const onLive = (e) => {
+      const d = e.detail;
+      if (d?.channelId === channelId && (d.threadTs === ts || d.ts === ts)) load(true);
+    };
+    window.addEventListener("clubpm:slack-message", onLive);
+    return () => window.removeEventListener("clubpm:slack-message", onLive);
+  }, [channelId, ts, load]);
+
+  // Viewing a thread clears its reply pings (D11) — the notification's ts is
+  // the reply's, which a top-level read mark would not reach.
+  const newest = messages.length ? messages[messages.length - 1].ts : null;
+  const isParticipant = !!conversation?.isParticipant;
+  useEffect(() => {
+    if (!isParticipant || !newest) return;
+    markConversationRead(channelId, newest)
+      .then(() => window.dispatchEvent(new CustomEvent("clubpm:conversation-read", { detail: { channelId } })))
+      .catch(() => {});
+  }, [channelId, newest, isParticipant]);
+
+  const canPost = !!conversation?.canPost;
+
+  // In-flow flex column beside the message list, not position: fixed — so the
+  // transformed ClubPM panel ancestors can't capture it.
+  return (
+    <aside className="cpm-chat-drawer" role="complementary" aria-label="Thread">
+      <div className="cpm-chat-drawer-head">
+        <b>Thread</b>
+        <button type="button" className="cpm-chat-drawer-close" onClick={onClose} aria-label="Close thread">
+          <i className="fas fa-xmark" aria-hidden="true" />
+        </button>
+      </div>
+
+      <div className="cpm-chat-drawer-body">
+        {loading && <div className="cpm-spinner" aria-label="Loading" />}
+        {error && <div className="cpm-chat-empty">{error}</div>}
+        {!loading && !error && messages.map(m => (
+          <ChatMessage key={m.id} message={m} channelId={channelId} canPost={canPost} compact onChanged={() => load(true)} />
+        ))}
+      </div>
+
+      {canPost && (
+        <ChatComposer
+          channelId={channelId}
+          conversation={conversation}
+          threadTs={ts}
+          placeholder="Reply…"
+          onSent={() => load(true)}
+        />
+      )}
+    </aside>
+  );
+}
+```
+
+- [ ] **Step 5: Gate + commit**
+
+Run both chat Jest tests, then `npm run build`, which regenerates the icon subset. Manual check: react, un-react, reply in a thread, edit and delete your own message. Each must mirror into Slack within a second.
+
+```bash
+git add src/components/clubpm/chat/emojiShortcodes.js src/components/clubpm/chat/ChatRichText.jsx src/components/clubpm/chat/ChatMessage.jsx src/components/clubpm/chat/ChatThreadDrawer.jsx public/fa-subset.css public/webfonts
+git commit -m "feat(slack-portal): reactions, thread replies, edit and delete from Constellation"
+```
+
+---
+
+## Task 16: Block Kit renderer (backend)
+
+**Files:**
+- Create: `backend/src/services/slackBlocks.ts`
+- Create: `backend/src/services/slackBlocks.test.ts`
+- Modify: `backend/src/services/chatDto.ts` (`toDto` gains `blocks`)
+
+**Interfaces produced:** `RenderedBlock`, `renderBotPayload(payload, ctx) → RenderedBlock[]`. `toDto(...).blocks` (empty for humans).
+
+- [ ] **Step 1: Failing test**
+
+`backend/src/services/slackBlocks.test.ts`:
+
+```ts
+// Run: cd backend && npx tsx src/services/slackBlocks.test.ts
+import { renderBotPayload } from "./slackBlocks.js";
+
+let passed = 0, failed = 0;
+function check(name: string, cond: boolean) {
+  if (cond) passed++; else { failed++; console.error(`  ✗ ${name}`); }
+}
+const ctx = { memberNames: { U1: "Ann" }, channelNames: {}, emojiUrls: {} };
+const r = (blocks: unknown[], attachments: unknown[] = []) => renderBotPayload({ blocks, attachments }, ctx) as any[];
+
+check("null payload → []", renderBotPayload(null, ctx).length === 0);
+check("header", r([{ type: "header", text: { type: "plain_text", text: "Standup" } }])[0].text === "Standup");
+{
+  const [s] = r([{ type: "section", text: { type: "mrkdwn", text: "*hi* <@U1>" } }]);
+  check("section mrkdwn parses bold", s.tokens[0].type === "bold");
+  check("section mrkdwn resolves mention", s.tokens.some((t: any) => t.type === "mention" && t.label === "Ann"));
+}
+{
+  const [s] = r([{ type: "section", fields: [{ type: "mrkdwn", text: "*Due*" }, { type: "plain_text", text: "Fri" }] }]);
+  check("section fields", s.fields.length === 2 && s.fields[1][0].value === "Fri");
+}
+check("divider", r([{ type: "divider" }])[0].type === "divider");
+{
+  const [c] = r([{ type: "context", elements: [{ type: "image", image_url: "x" }, { type: "mrkdwn", text: "via bot" }] }]);
+  check("context skips images, keeps text", c.type === "context" && c.tokens.length > 0);
+}
+{
+  const [a] = r([{ type: "actions", elements: [{ type: "button", text: { type: "plain_text", text: "Approve" } }, { type: "static_select", placeholder: { type: "plain_text", text: "Pick" } }] }]);
+  check("actions become inert labels", a.type === "actions" && a.labels.join("|") === "Approve|Pick");
+}
+{
+  const out = r([{ type: "section", text: { type: "mrkdwn", text: "x" }, accessory: { type: "button", text: { type: "plain_text", text: "Open" } } }]);
+  check("section accessory button becomes a label row", out[1]?.type === "actions" && out[1].labels[0] === "Open");
+}
+check("image keeps only alt text", r([{ type: "image", image_url: "https://t", alt_text: "chart" }])[0].alt === "chart");
+{
+  const [s] = r([{ type: "rich_text", elements: [{ type: "rich_text_section", elements: [
+    { type: "text", text: "bold", style: { bold: true } },
+    { type: "link", url: "https://ok.example", text: "ok" },
+    { type: "link", url: "javascript:alert(1)", text: "evil" },
+    { type: "user", user_id: "U1" },
+  ] }] }]);
+  check("rich_text bold", s.tokens[0].type === "bold");
+  check("rich_text safe link kept", s.tokens.some((t: any) => t.type === "link" && t.href === "https://ok.example"));
+  check("rich_text javascript: link neutralized", !s.tokens.some((t: any) => t.type === "link" && String(t.href).startsWith("javascript")));
+  check("rich_text user mention", s.tokens.some((t: any) => t.type === "mention" && t.label === "Ann"));
+}
+check("unknown block skipped", r([{ type: "video" }]).length === 0);
+{
+  const out = r([], [{ pretext: "Heads up", title: "Build failed", text: "main is red", fields: [{ title: "Repo", value: "site" }] }]);
+  check("legacy attachment → section + header + section", out.length === 3 && out[1].type === "header");
+  check("legacy attachment fields", out[2].fields.length === 1);
+}
+
+console.log(`\nslackBlocks: ${passed} passed, ${failed} failed`);
+if (failed > 0) process.exit(1);
+```
+
+Run it → FAIL.
+
+- [ ] **Step 2: Implement `slackBlocks.ts`**
+
+```ts
+import { formatSlackText, type FormatContext, type SlackToken } from "./slackMessageFormat.js";
+
+/**
+ * Pure. A bot message's raw { blocks, attachments } → a small render tree the
+ * UI can draw with ChatRichText. Rendered on READ, like message text, so a
+ * better renderer never needs a backfill.
+ *
+ * Interactive elements (buttons, selects) become inert labels: only the app
+ * that owns them receives the click, and that is not us (plan: known limits).
+ * Image URLs are dropped (alt text only) so a bot cannot make every viewer
+ * fetch a tracking pixel. Links are limited to http(s)/mailto.
+ */
+export type RenderedBlock =
+  | { type: "header"; text: string }
+  | { type: "section"; tokens: SlackToken[]; fields: SlackToken[][] }
+  | { type: "context"; tokens: SlackToken[] }
+  | { type: "divider" }
+  | { type: "actions"; labels: string[] }
+  | { type: "image"; alt: string };
+
+type Obj = Record<string, any>;
+const MAX_BLOCKS = 50;
+
+const safeHref = (href: unknown): string | null =>
+  typeof href === "string" && /^(https?:|mailto:)/i.test(href) ? href : null;
+
+function textTokens(t: unknown, ctx: FormatContext): SlackToken[] {
+  const o = t as Obj | undefined;
+  if (!o || typeof o.text !== "string" || !o.text) return [];
+  return o.type === "mrkdwn" ? formatSlackText(o.text, ctx) : [{ type: "text", value: o.text }];
+}
+
+function plain(t: unknown): string {
+  const o = t as Obj | undefined;
+  return typeof o?.text === "string" ? o.text : "";
+}
+
+function richElement(el: Obj, ctx: FormatContext): SlackToken[] {
+  switch (el?.type) {
+    case "text": {
+      const value = String(el.text ?? "");
+      let tok: SlackToken = el.style?.code ? { type: "code", value } : { type: "text", value };
+      if (el.style?.bold) tok = { type: "bold", children: [tok] };
+      if (el.style?.italic) tok = { type: "italic", children: [tok] };
+      if (el.style?.strike) tok = { type: "strike", children: [tok] };
+      return [tok];
+    }
+    case "link": {
+      const href = safeHref(el.url);
+      const label = String(el.text ?? el.url ?? "");
+      return href ? [{ type: "link", href, label }] : [{ type: "text", value: label }];
+    }
+    case "user": {
+      const id = String(el.user_id ?? "");
+      return [{ type: "mention", slackId: id, label: ctx.memberNames[id] ?? id }];
+    }
+    case "channel": {
+      const id = String(el.channel_id ?? "");
+      return [{ type: "channel", slackId: id, label: ctx.channelNames?.[id] ?? id }];
+    }
+    case "emoji": {
+      const name = String(el.name ?? "");
+      return [{ type: "emoji", name, url: ctx.emojiUrls?.[name] }];
+    }
+    case "broadcast": return [{ type: "text", value: `@${el.range ?? "channel"}` }];
+    default: return [];
+  }
+}
+
+function richContainer(el: Obj, ctx: FormatContext): SlackToken[] {
+  const kids: Obj[] = Array.isArray(el?.elements) ? el.elements : [];
+  switch (el?.type) {
+    case "rich_text_section":
+      return kids.flatMap((k) => richElement(k, ctx));
+    case "rich_text_preformatted":
+      return [{ type: "codeblock", value: kids.map((k) => String(k.text ?? "")).join("") }];
+    case "rich_text_quote":
+      return [{ type: "italic", children: kids.flatMap((k) => richElement(k, ctx)) }];
+    case "rich_text_list":
+      return kids.flatMap((item, i): SlackToken[] => [
+        { type: "text", value: `${i ? "\n" : ""}• ` },
+        ...richContainer(item, ctx),
+      ]);
+    default:
+      return [];
+  }
+}
+
+function actionLabel(el: Obj): string {
+  return plain(el?.text) || plain(el?.placeholder) || "";
+}
+
+function renderBlock(b: Obj, ctx: FormatContext): RenderedBlock[] {
+  switch (b?.type) {
+    case "header": {
+      const text = plain(b.text);
+      return text ? [{ type: "header", text }] : [];
+    }
+    case "section": {
+      const out: RenderedBlock[] = [{
+        type: "section",
+        tokens: textTokens(b.text, ctx),
+        fields: Array.isArray(b.fields) ? b.fields.map((f: unknown) => textTokens(f, ctx)) : [],
+      }];
+      const label = b.accessory ? actionLabel(b.accessory) : "";
+      if (label) out.push({ type: "actions", labels: [label] });
+      return out;
+    }
+    case "context": {
+      const tokens = (Array.isArray(b.elements) ? b.elements : [])
+        .filter((e: Obj) => e?.type === "mrkdwn" || e?.type === "plain_text")
+        .flatMap((e: Obj, i: number): SlackToken[] => [
+          ...(i ? [{ type: "text", value: " · " } as SlackToken] : []),
+          ...textTokens(e, ctx),
+        ]);
+      return tokens.length ? [{ type: "context", tokens }] : [];
+    }
+    case "divider":
+      return [{ type: "divider" }];
+    case "actions": {
+      const labels = (Array.isArray(b.elements) ? b.elements : []).map(actionLabel).filter(Boolean);
+      return labels.length ? [{ type: "actions", labels }] : [];
+    }
+    case "image":
+      return [{ type: "image", alt: String(b.alt_text ?? plain(b.title) ?? "") }];
+    case "rich_text": {
+      const tokens = (Array.isArray(b.elements) ? b.elements : []).flatMap((e: Obj) => richContainer(e, ctx));
+      return tokens.length ? [{ type: "section", tokens, fields: [] }] : [];
+    }
+    default:
+      return [];
+  }
+}
+
+function renderAttachment(a: Obj, ctx: FormatContext): RenderedBlock[] {
+  const out: RenderedBlock[] = [];
+  if (a?.pretext) out.push({ type: "section", tokens: formatSlackText(String(a.pretext), ctx), fields: [] });
+  if (a?.title) out.push({ type: "header", text: String(a.title) });
+  const fields: SlackToken[][] = (Array.isArray(a?.fields) ? a.fields : []).map((f: Obj): SlackToken[] => [
+    { type: "bold", children: [{ type: "text", value: `${f.title ?? ""} ` }] },
+    ...formatSlackText(String(f.value ?? ""), ctx),
+  ]);
+  if (a?.text || fields.length) {
+    out.push({ type: "section", tokens: a?.text ? formatSlackText(String(a.text), ctx) : [], fields });
+  }
+  if (Array.isArray(a?.blocks)) out.push(...a.blocks.flatMap((b: Obj) => renderBlock(b, ctx)));
+  const labels = (Array.isArray(a?.actions) ? a.actions : []).map((x: Obj) => String(x.text ?? x.name ?? "")).filter(Boolean);
+  if (labels.length) out.push({ type: "actions", labels });
+  if (a?.footer) out.push({ type: "context", tokens: [{ type: "text", value: String(a.footer) }] });
+  return out;
+}
+
+export function renderBotPayload(payload: unknown, ctx: FormatContext): RenderedBlock[] {
+  const p = payload as Obj | null;
+  if (!p || typeof p !== "object") return [];
+  const blocks: Obj[] = Array.isArray(p.blocks) ? p.blocks : [];
+  const attachments: Obj[] = Array.isArray(p.attachments) ? p.attachments : [];
+  return [
+    ...blocks.flatMap((b) => renderBlock(b, ctx)),
+    ...attachments.flatMap((a) => renderAttachment(a, ctx)),
+  ].slice(0, MAX_BLOCKS);
+}
+```
+
+The legacy attachment test expects `pretext` + `title` + a `section` holding both `text` and `fields`, which is three blocks. Run the test → `17 passed, 0 failed`.
+
+- [ ] **Step 3: Add `blocks` to the DTO**
+
+In `backend/src/services/chatDto.ts`, add `import { renderBotPayload } from "./slackBlocks.js";`. In `toDto`'s returned object, directly after `isBot: row.isBot,` add:
+
+```ts
+    // Bot messages render from their Block Kit; `tokens` (from the fallback
+    // text) stays as the plain-text version for search results and previews.
+    blocks: row.isBot && !row.deletedAt ? renderBotPayload(row.botPayload, ctx) : [],
+```
+
+- [ ] **Step 4: Gate + commit**
+
+```bash
+git add backend/src/services/slackBlocks.ts backend/src/services/slackBlocks.test.ts backend/src/services/chatDto.ts
+git commit -m "feat(slack-portal): render bot Block Kit and legacy attachments on read"
+```
+
+---
+
+## Task 17: Block Kit renderer (frontend)
+
+**Files:**
+- Create: `src/components/clubpm/chat/ChatBlocks.jsx`
+- Modify: `src/components/clubpm/chat/ChatMessage.jsx`
+
+- [ ] **Step 1: Create `ChatBlocks.jsx`**
+
+```jsx
+import ChatRichText from "./ChatRichText";
+
+/**
+ * Draws the render tree from backend/src/services/slackBlocks.ts.
+ * NO SPAN AND NO PARAGRAPH ELEMENTS (see ChatRichText.jsx for why).
+ * Buttons from other apps are inert labels: only the app that owns a button
+ * receives its click, and that happens inside Slack.
+ */
+export default function ChatBlocks({ blocks }) {
+  if (!blocks?.length) return null;
+  return (
+    <div className="cpm-chat-blocks">
+      {blocks.map((b, i) => {
+        switch (b.type) {
+          case "header":
+            return <b key={i} className="cpm-chat-block-header">{b.text}</b>;
+          case "section":
+            return (
+              <div key={i} className="cpm-chat-block-section">
+                <ChatRichText tokens={b.tokens} />
+                {b.fields?.length > 0 && (
+                  <div className="cpm-chat-block-fields">
+                    {b.fields.map((f, j) => <ChatRichText key={j} tokens={f} />)}
+                  </div>
+                )}
+              </div>
+            );
+          case "context":
+            return <div key={i} className="cpm-chat-block-context"><ChatRichText tokens={b.tokens} /></div>;
+          case "divider":
+            return <hr key={i} className="cpm-chat-block-divider" />;
+          case "actions":
+            return (
+              <div key={i} className="cpm-chat-block-actions" title="App buttons only work inside Slack">
+                {b.labels.map((l, j) => <label key={j} className="cpm-chat-block-chip">{l}</label>)}
+              </div>
+            );
+          case "image":
+            return (
+              <div key={i} className="cpm-chat-block-image">
+                <i className="fas fa-image" aria-hidden="true" />
+                <label className="cpm-chat-plain"> {b.alt || "Image"}</label>
+              </div>
+            );
+          default:
+            return null;
+        }
+      })}
+    </div>
+  );
+}
+```
+
+- [ ] **Step 2: Use it for bot messages**
+
+In `ChatMessage.jsx`, add `import ChatBlocks from "./ChatBlocks";` and replace `<ChatRichText tokens={message.tokens} />` (the non-editing branch) with:
+
+```jsx
+          message.isBot && message.blocks?.length > 0
+            ? <ChatBlocks blocks={message.blocks} />
+            : <ChatRichText tokens={message.tokens} />
+```
+
+- [ ] **Step 3: Gate + commit**
+
+`npm run build` (regenerates the icon subset for `fa-image` and `fa-robot`). Manual: a Monday digest or task card in a channel renders as structured blocks with an APP badge.
+
+```bash
+git add src/components/clubpm/chat/ChatBlocks.jsx src/components/clubpm/chat/ChatMessage.jsx public/fa-subset.css public/webfonts
+git commit -m "feat(slack-portal): draw bot messages from their Block Kit"
+```
+
+---
+
+## Task 18: `/clubpm/chat` page, nav, anchors
+
+**Files:**
+- Create: `src/pages/ClubPM/ChatPage.jsx`
+- Modify: `src/App.js`
+- Modify: `src/components/clubpm/AppShell.jsx`
+- Modify: `src/clubpm/tour/tourAnchors.js`
+- Modify: `docs/courses/ANCHORS.md`
+
+**This is a deliberate 5-file task:** `check-tour-anchors.js` fails the build unless the nav item, the registry and `ANCHORS.md` land in one commit.
+
+- [ ] **Step 1: Create `ChatPage.jsx`**
+
+```jsx
+import { useCallback, useEffect, useState } from "react";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { listConversations, getConversation } from "../../api/clubPmClient";
+import ChatConversation from "../../components/clubpm/chat/ChatConversation";
+
+function ChannelLink({ c, active }) {
+  const unread = c.unread > 0 && !c.muted;
+  return (
+    <Link
+      to={`/clubpm/chat/${c.slackChannelId}`}
+      className={`cpm-chatpage-item${active ? " active" : ""}${unread ? " unread" : ""}`}
+    >
+      <i className={c.kind === "PRIVATE_CHANNEL" ? "fas fa-lock" : "fas fa-hashtag"} aria-hidden="true" />
+      <label className="cpm-chat-plain cpm-chatpage-name">{c.name}</label>
+      {c.muted && <i className="fas fa-bell-slash cpm-chatpage-muted" aria-label="Muted" />}
+      {unread && <b className="cpm-chatpage-badge">{c.unread}</b>}
+    </Link>
+  );
+}
+
+/**
+ * Every Slack channel the member may read: the ones they're in, plus a
+ * "browse" list of public channels they can preview and join. DMs live on the
+ * Members page (D12).
+ */
+export default function ChatPage() {
+  const { channelId } = useParams();
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+
+  const [data, setData] = useState(null);
+  const [error, setError] = useState(null);
+  const [filter, setFilter] = useState("");
+  const [showBrowse, setShowBrowse] = useState(false);
+  const [conversation, setConversation] = useState(null);
+  const [convError, setConvError] = useState(null);
+
+  const refresh = useCallback(() => {
+    listConversations().then(setData).catch(() => setError("Could not load channels."));
+  }, []);
+  useEffect(() => { refresh(); }, [refresh]);
+
+  // Badges stay live without polling. Debounced: a busy workspace fires many events.
+  useEffect(() => {
+    let t;
+    const bump = () => { clearTimeout(t); t = setTimeout(refresh, 1500); };
+    const events = ["clubpm:slack-message", "clubpm:slack-membership", "clubpm:conversation-read"];
+    events.forEach(e => window.addEventListener(e, bump));
+    return () => { clearTimeout(t); events.forEach(e => window.removeEventListener(e, bump)); };
+  }, [refresh]);
+
+  const channels = data?.channels ?? [];
+  const mine = channels.filter(c => c.isMember);
+  const browse = channels.filter(c => !c.isMember);
+  const q = filter.trim().toLowerCase();
+  const matches = (c) => !q || c.name.toLowerCase().includes(q);
+
+  // No channel in the URL: open the most recently active one you're in.
+  const firstMine = mine[0]?.slackChannelId;
+  useEffect(() => {
+    if (!channelId && firstMine) navigate(`/clubpm/chat/${firstMine}`, { replace: true });
+  }, [channelId, firstMine, navigate]);
+
+  const loadConversation = useCallback(() => {
+    if (!channelId) return;
+    setConvError(null);
+    getConversation(channelId)
+      .then(setConversation)
+      .catch(() => { setConversation(null); setConvError("That channel isn't available to you."); });
+  }, [channelId]);
+
+  useEffect(() => { setConversation(null); loadConversation(); }, [loadConversation]);
+  useEffect(() => {
+    const onMembership = (e) => { if (e.detail?.channelId === channelId) loadConversation(); };
+    window.addEventListener("clubpm:slack-membership", onMembership);
+    return () => window.removeEventListener("clubpm:slack-membership", onMembership);
+  }, [channelId, loadConversation]);
+
+  return (
+    <div className="cpm-chatpage">
+      <aside className="cpm-chatpage-side" aria-label="Channels">
+        <input
+          className="cpm-chatpage-filter"
+          type="search"
+          placeholder="Find a channel…"
+          aria-label="Find a channel"
+          value={filter}
+          onChange={e => setFilter(e.target.value)}
+        />
+        {error && <div className="cpm-chat-banner cpm-chat-banner--error">{error}</div>}
+        {!data && !error && <div className="cpm-spinner" aria-label="Loading" />}
+
+        <div className="cpm-chatpage-group">Channels</div>
+        {mine.filter(matches).map(c => (
+          <ChannelLink key={c.slackChannelId} c={c} active={c.slackChannelId === channelId} />
+        ))}
+        {data && mine.length === 0 && <div className="cpm-chatpage-hint">You haven't joined any channels yet.</div>}
+
+        <button type="button" className="cpm-chatpage-browse-toggle" onClick={() => setShowBrowse(v => !v)} aria-expanded={showBrowse}>
+          <i className={showBrowse ? "fas fa-chevron-down" : "fas fa-chevron-right"} aria-hidden="true" />
+          Browse public channels ({browse.length})
+        </button>
+        {showBrowse && browse.filter(matches).map(c => (
+          <ChannelLink key={c.slackChannelId} c={c} active={c.slackChannelId === channelId} />
+        ))}
+
+        <Link to="/clubpm/members" className="cpm-chatpage-dmlink">
+          <i className="fas fa-user-group" aria-hidden="true" /> Direct messages are on the Members page
+        </Link>
+      </aside>
+
+      <section className="cpm-chatpage-main">
+        {convError && <div className="cpm-chat-empty">{convError}</div>}
+        {conversation && (
+          <>
+            <header className="cpm-chatpage-head">
+              <i className={conversation.kind === "PRIVATE_CHANNEL" ? "fas fa-lock" : "fas fa-hashtag"} aria-hidden="true" />
+              <b>{conversation.name ?? channelId}</b>
+              {!conversation.isParticipant && <label className="cpm-chat-plain cpm-chatpage-preview">Previewing — join to post</label>}
+            </header>
+            <ChatConversation
+              key={channelId}
+              channelId={channelId}
+              conversation={conversation}
+              initialThreadTs={searchParams.get("thread")}
+              composerPlaceholder={`Message #${conversation.name ?? "channel"}`}
+              onJoined={() => { loadConversation(); refresh(); }}
+            />
+          </>
+        )}
+        {!channelId && data && mine.length === 0 && (
+          <div className="cpm-chat-empty">Pick a public channel on the left to preview it.</div>
+        )}
+      </section>
+    </div>
+  );
+}
+```
+
+- [ ] **Step 2: Routes**
+
+In `src/App.js`, next to `const ClubPmMembersView = lazy(...)`, add:
+
+```js
+const ClubPmChatPage          = lazy(lazyWithClubPmTheme(() => import('./pages/ClubPM/ChatPage')));
+```
+
+and next to the `/clubpm/members` route:
+
+```jsx
+            <Route path="/clubpm/chat" element={<ClubPmProtectedPage><ClubPmChatPage /></ClubPmProtectedPage>} />
+            <Route path="/clubpm/chat/:channelId" element={<ClubPmProtectedPage><ClubPmChatPage /></ClubPmProtectedPage>} />
+```
+
+- [ ] **Step 3: Sidebar item, active state, breadcrumb**
+
+In `src/components/clubpm/AppShell.jsx`:
+
+1. In `NAV_ITEMS`, directly after the Dashboard entry's closing `},`, insert:
+
+```js
+  {
+    label: 'Chat',
+    href: '/clubpm/chat',
+    tourId: 'nav.chat',
+    icon: <i className="fas fa-comments" aria-hidden="true" style={{ fontSize: 15, width: 18, textAlign: 'center' }} />,
+  },
+```
+
+2. Grep `const isActive = location.pathname === item.href ||` and add a clause to the expression:
+
+```js
+              (item.href === '/clubpm/chat' && location.pathname.startsWith('/clubpm/chat')) ||
+```
+
+3. In `getBreadcrumb`, above the final `return [{ label: 'Constellation' }];`:
+
+```js
+  if (pathname.startsWith('/clubpm/chat')) return [{ label: 'Chat' }];
+```
+
+- [ ] **Step 4: Tour anchor, registry and doc together**
+
+In `src/clubpm/tour/tourAnchors.js`, below the `"nav.dashboard"` line:
+
+```js
+  "nav.chat":               { label: "Chat link",            route: "*", note: "Every Slack channel; DMs live on Members" },
+```
+
+In `docs/courses/ANCHORS.md`, below the `| \`nav.dashboard\` | Dashboard link | \`*\` |` row:
+
+```markdown
+| `nav.chat` | Chat link | `*` |
+```
+
+Then: `rg -n "sidebar" docs/courses --glob "*.md"`. Any sentence that lists the sidebar's items in prose must mention Chat. Rewrite those sentences in this commit.
+
+- [ ] **Step 5: Gate + commit**
+
+`node scripts/check-tour-anchors.js` → passes. Then `npm run build`, which regenerates the icon subset for `fa-hashtag`, `fa-lock`, `fa-bell-slash` and `fa-user-group`.
+
+```bash
+git add src/pages/ClubPM/ChatPage.jsx src/App.js src/components/clubpm/AppShell.jsx src/clubpm/tour/tourAnchors.js docs/courses public/fa-subset.css public/webfonts
+git commit -m "feat(slack-portal): /clubpm/chat — every channel you can read, browse and join"
+```
+
+---
+
+# Part E — DMs on the Members page
+
+## Task 19: `DmInbox` and `DmPanel`
+
+**Files:**
+- Create: `src/components/clubpm/members/DmInbox.jsx`
+- Create: `src/components/clubpm/members/DmPanel.jsx`
+- Modify: `src/components/clubpm/SlackArchivePanel.jsx` (public-backfill button; fix the disk banner's wording)
+
+**Interfaces produced:** `<DmInbox activeChannelId onOpen(channelId) slackIdFilter? />` and `<DmPanel channelId onClose />`. The inbox triggers the member's one-per-session DM history import (operator step 3).
+
+- [ ] **Step 1: Create `DmInbox.jsx`**
+
+```jsx
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { formatDistanceToNowStrict } from "date-fns";
+import { listConversations, importMyDms } from "../../../api/clubPmClient";
+import { useClubPmAuth } from "../../../clubpm/ClubPmAuth";
+import { SlackReconnectNotice } from "../chat/ChatComposer";
+
+const IMPORT_KEY = "cpm.dms.imported";
+const DM_KINDS = new Set(["IM", "MPIM"]);
+
+/**
+ * The member's DMs and group DMs, newest first, with unread badges (D12).
+ * `slackIdFilter` (a Set of Slack user ids) narrows it to conversations that
+ * include at least one of those people — the project Members tab passes its
+ * roster.
+ */
+export default function DmInbox({ activeChannelId, onOpen, slackIdFilter = null }) {
+  const { member } = useClubPmAuth();
+  const canRead = !!member?.slackCapabilities?.read;
+  const [dms, setDms] = useState(null);
+  const [error, setError] = useState(null);
+
+  const refresh = useCallback(() => {
+    listConversations()
+      .then(d => { setDms(d.dms ?? []); setError(null); })
+      .catch(() => setError("Could not load your messages."));
+  }, []);
+
+  useEffect(() => { if (canRead) refresh(); }, [canRead, refresh]);
+
+  // Import DM history once per browser session. The server skips conversations
+  // already imported, so this is cheap after the first time.
+  useEffect(() => {
+    if (!canRead) return;
+    try {
+      if (sessionStorage.getItem(IMPORT_KEY) === "1") return;
+      sessionStorage.setItem(IMPORT_KEY, "1");
+    } catch {
+      // sessionStorage unavailable — importing again is harmless
+    }
+    importMyDms()
+      .then(r => { if (r?.conversations) setTimeout(refresh, 4000); })
+      .catch(() => {});
+  }, [canRead, refresh]);
+
+  // Live: new DM messages, new conversations, and reads elsewhere.
+  useEffect(() => {
+    let t;
+    const bump = (e) => {
+      if (e.type === "clubpm:slack-message" && !DM_KINDS.has(e.detail?.convKind)) return;
+      clearTimeout(t);
+      t = setTimeout(refresh, 600);
+    };
+    const events = ["clubpm:slack-message", "clubpm:slack-membership", "clubpm:conversation-read"];
+    events.forEach(ev => window.addEventListener(ev, bump));
+    return () => { clearTimeout(t); events.forEach(ev => window.removeEventListener(ev, bump)); };
+  }, [refresh]);
+
+  const shown = useMemo(
+    () => (dms ?? []).filter(d => !slackIdFilter || d.participants.some(p => slackIdFilter.has(p.slackId))),
+    [dms, slackIdFilter]
+  );
+
+  if (!canRead) {
+    return (
+      <aside className="cpm-dm-inbox" aria-label="Direct messages">
+        <div className="cpm-dm-inbox-head"><b>Messages</b></div>
+        <SlackReconnectNotice compact />
+      </aside>
+    );
+  }
+
+  return (
+    <aside className="cpm-dm-inbox" aria-label="Direct messages">
+      <div className="cpm-dm-inbox-head"><b>Messages</b></div>
+      {error && <div className="cpm-chat-banner cpm-chat-banner--error">{error}</div>}
+      {dms === null && !error && <div className="cpm-spinner" aria-label="Loading" />}
+      {dms && shown.length === 0 && (
+        <div className="cpm-dm-empty">No conversations yet — use <b>Message</b> on anyone's card.</div>
+      )}
+      {shown.map(d => {
+        const names = d.participants.map(p => p.displayName).join(", ") || "Just you";
+        const first = d.participants[0];
+        const unread = d.unread > 0 && !d.muted;
+        return (
+          <button
+            key={d.slackChannelId}
+            type="button"
+            className={`cpm-dm-row${d.slackChannelId === activeChannelId ? " active" : ""}${unread ? " unread" : ""}`}
+            onClick={() => onOpen(d.slackChannelId)}
+          >
+            <div className="cpm-dm-avatar" aria-hidden="true">
+              {first?.avatarUrl
+                ? <img src={first.avatarUrl} alt="" />
+                : <i className={d.kind === "MPIM" ? "fas fa-user-group" : "fas fa-user"} />}
+            </div>
+            <div className="cpm-dm-row-body">
+              <div className="cpm-dm-row-top">
+                <b className="cpm-dm-name">{names}</b>
+                {d.lastMessageAt && (
+                  <label className="cpm-dm-time">{formatDistanceToNowStrict(new Date(d.lastMessageAt))}</label>
+                )}
+              </div>
+              <div className="cpm-dm-preview">
+                {d.preview ? `${d.preview.authorName}: ${d.preview.text}` : "No messages yet"}
+              </div>
+            </div>
+            {d.muted && <i className="fas fa-bell-slash cpm-chatpage-muted" aria-label="Muted" />}
+            {unread && <b className="cpm-dm-badge">{d.unread}</b>}
+          </button>
+        );
+      })}
+    </aside>
+  );
+}
+```
+
+- [ ] **Step 2: Create `DmPanel.jsx`**
+
+```jsx
+import { useCallback, useEffect, useState } from "react";
+import { getConversation } from "../../../api/clubPmClient";
+import ChatConversation from "../chat/ChatConversation";
+
+/** One open DM or group DM, docked beside the roster. URL state is `?dm=`. */
+export default function DmPanel({ channelId, onClose }) {
+  const [conversation, setConversation] = useState(null);
+  const [error, setError] = useState(null);
+
+  const load = useCallback(() => {
+    setError(null);
+    getConversation(channelId)
+      .then(setConversation)
+      .catch(err => setError(err?.status === 404 ? "This conversation isn't available to you." : "Could not load this conversation."));
+  }, [channelId]);
+
+  useEffect(() => { setConversation(null); load(); }, [load]);
+
+  const names = conversation?.participants?.map(p => p.displayName).join(", ");
+
+  return (
+    <section className="cpm-dm-panel" aria-label={names ? `Conversation with ${names}` : "Conversation"}>
+      <header className="cpm-dm-panel-head">
+        <b className="cpm-dm-panel-title">
+          <i className={conversation?.kind === "MPIM" ? "fas fa-user-group" : "fas fa-comment"} aria-hidden="true" />{" "}
+          {names || "Conversation"}
+        </b>
+        <button type="button" className="cpm-dm-panel-close" onClick={onClose} aria-label="Close conversation">
+          <i className="fas fa-xmark" aria-hidden="true" />
+        </button>
+      </header>
+      {error && <div className="cpm-chat-empty">{error}</div>}
+      {!error && !conversation && <div className="cpm-spinner" aria-label="Loading" />}
+      {conversation && (
+        <ChatConversation
+          key={channelId}
+          channelId={channelId}
+          conversation={conversation}
+          emptyHint="No messages yet — say hi."
+          composerPlaceholder={names ? `Message ${names}` : "Message"}
+        />
+      )}
+    </section>
+  );
+}
+```
+
+- [ ] **Step 3: Admin panel — public backfill, honest disk wording**
+
+In `src/components/clubpm/SlackArchivePanel.jsx`:
+
+1. Change the import to `import { getSlackArchiveHealth, retryFailedSlackMirrors, backfillPublicChannels } from "../../api/clubPmClient";`.
+2. Add state `const [publicNote, setPublicNote] = useState(null);` beside the others, and this handler below `retry()`:
+
+```jsx
+  async function backfillPublic() {
+    setPublicNote(null);
+    try {
+      await backfillPublicChannels();
+      setPublicNote({ ok: true, text: "Joining every public channel and importing its history in the background. This can take a while on a large workspace." });
+    } catch {
+      setPublicNote({ ok: false, text: "Could not start the public-channel import." });
+    }
+  }
+```
+
+3. Replace the `{local > 0 && health.driveConnected && ( … )}` banner with:
+
+```jsx
+      {local > 0 && (
+        <div className="cpm-chat-banner" style={{ marginBottom: 12 }}>
+          {local} attachment{local === 1 ? " is" : "s are"} stored on the server's disk. Private channels
+          and DMs always are — they never go to the shared Drive — plus any public-channel files from a
+          period when Drive was unavailable.
+        </div>
+      )}
+```
+
+4. Directly above the counts grid (`<div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>`), add:
+
+```jsx
+      <div style={{ marginBottom: 12 }}>
+        <button type="button" className="cpm-chat-backfill-btn" onClick={backfillPublic}>
+          <i className="fas fa-clock-rotate-left" aria-hidden="true" /> Import all public channels
+        </button>
+      </div>
+      {publicNote && (
+        <div className={`cpm-chat-banner${publicNote.ok ? "" : " cpm-chat-banner--error"}`} style={{ marginBottom: 12 }} role="status">
+          {publicNote.text}
+        </div>
+      )}
+```
+
+- [ ] **Step 4: Gate + commit**
+
+```bash
+git add src/components/clubpm/members/DmInbox.jsx src/components/clubpm/members/DmPanel.jsx src/components/clubpm/SlackArchivePanel.jsx
+git commit -m "feat(slack-portal): DM inbox and DM panel; admin public-channel import"
+```
+
+(The two new components are not rendered until Task 20, so the build won't pick up their icons yet. Task 20 commits the regenerated subset.)
+
+---
+
+## Task 20: `MembersView` — project scope, Message buttons, group DMs
+
+**Files:**
+- Modify: `src/pages/ClubPM/MembersView.jsx`
+
+**Interfaces produced:** `<MembersView projectId? />`. With a `projectId` it shows only that project's roster, hides Import Contributors and the leaderboard, and filters the DM inbox to conversations involving the roster. The open DM is `?dm=<channelId>` in the URL.
+
+- [ ] **Step 1: Imports**
+
+- `import { Link } from 'react-router-dom';` → `import { Link, useSearchParams } from 'react-router-dom';`
+- `import { get, post, listProjectRepos } from '../../api/clubPmClient';` → `import { get, post, listProjectRepos, openDm } from '../../api/clubPmClient';`
+- add:
+
+```js
+import toast from 'react-hot-toast';
+import DmInbox from '../../components/clubpm/members/DmInbox';
+import DmPanel from '../../components/clubpm/members/DmPanel';
+import { SlackReconnectNotice } from '../../components/clubpm/chat/ChatComposer';
+```
+
+- [ ] **Step 2: `MemberCard` — Message button and selection**
+
+Change the signature to:
+
+```jsx
+function MemberCard({ member, onClick, onMessage, selectable = false, selected = false, onToggleSelect }) {
+```
+
+Replace the root `<div className="pm-member-card pm-member-card--enriched" onClick={onClick} ...>` opening tag with:
+
+```jsx
+    <div
+      className={`pm-member-card pm-member-card--enriched${selected ? ' pm-member-card--selected' : ''}`}
+      onClick={() => (selectable ? onToggleSelect?.(member) : onClick())}
+      role="button"
+      tabIndex={0}
+      aria-pressed={selectable ? selected : undefined}
+      onKeyDown={e => e.key === 'Enter' && (selectable ? onToggleSelect?.(member) : onClick())}
+    >
+      {selectable && (
+        <div className={`pm-member-select${selected ? ' selected' : ''}`} aria-hidden="true">
+          {selected && <i className="fas fa-check" />}
+        </div>
+      )}
+```
+
+Inside `pm-member-card-actions`, after `<KudosButton … />`, add:
+
+```jsx
+        {onMessage && (
+          <button
+            type="button"
+            className="pm-member-card-message-btn"
+            title={`Message ${displayName}`}
+            aria-label={`Message ${displayName}`}
+            onClick={() => onMessage(member)}
+          >
+            <i className="fas fa-comment" aria-hidden="true" />
+          </button>
+        )}
+```
+
+- [ ] **Step 3: `MemberDrawer` — Message button**
+
+Change the signature to `function MemberDrawer({ member, onClose, isOwnProfile, onMessage }) {`. After the closing `)}` of the `isOwnProfile ? … : …` profile-link expression, add:
+
+```jsx
+        {!isOwnProfile && onMessage && (
+          <button type="button" className="pm-member-edit-profile-btn" onClick={() => onMessage(member)}>
+            <i className="fas fa-comment" aria-hidden="true" /> Message
+          </button>
+        )}
+```
+
+- [ ] **Step 4: Replace the `MembersView` component**
+
+Replace everything from `export default function MembersView() {` to the end of the file with:
+
+```jsx
+export default function MembersView({ projectId = null }) {
+  const { member: currentMember } = useClubPmAuth();
+  const canDm = !!currentMember?.slackCapabilities?.dm;
+  const [searchParams, setSearchParams] = useSearchParams();
+  const dmChannelId = searchParams.get('dm');
+
+  const [members, setMembers]     = useState([]);
+  const [loading, setLoading]     = useState(true);
+  const [search, setSearch]       = useState('');
+  const [filterRole, setFilterRole]         = useState('');
+  const [selectedMember, setSelectedMember] = useState(null);
+  const [showImport, setShowImport]         = useState(false);
+  const [selecting, setSelecting]           = useState(false);
+  const [selectedIds, setSelectedIds]       = useState(() => new Set());
+  const [showReconnect, setShowReconnect]   = useState(false);
+  const [opening, setOpening]               = useState(false);
+
+  // GET /api/members already carries each member's projects, so the project
+  // version is a filter, not a second endpoint.
+  const fetchMembers = useCallback(() => {
+    get('/api/members')
+      .then(data => setMembers(
+        projectId ? data.filter(m => m.projects?.some(pm => pm.project?.id === projectId)) : data
+      ))
+      .catch(err => console.error('Failed to load members:', err))
+      .finally(() => setLoading(false));
+  }, [projectId]);
+
+  useEffect(() => { fetchMembers(); }, [fetchMembers]);
+
+  // The open DM is URL state (?dm=) so notifications can deep-link to it (D12).
+  const setDm = useCallback((channelId) => {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      if (channelId) next.set('dm', channelId);
+      else next.delete('dm');
+      return next;
+    });
+  }, [setSearchParams]);
+
+  const startDm = async (memberIds) => {
+    if (!canDm) { setShowReconnect(true); return; }
+    setOpening(true);
+    try {
+      const { channelId } = await openDm(memberIds);
+      setSelecting(false);
+      setSelectedIds(new Set());
+      setSelectedMember(null);
+      setDm(channelId);
+    } catch (err) {
+      if (err?.status === 409) setShowReconnect(true);
+      else toast.error(err?.message || 'Could not open that conversation.');
+    } finally {
+      setOpening(false);
+    }
+  };
+
+  const toggleSelect = (m) => {
+    if (m.id === currentMember?.id) return;
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(m.id)) next.delete(m.id);
+      else if (next.size < 8) next.add(m.id);
+      else toast.error('Group messages are limited to 8 other people — use a channel for larger groups.');
+      return next;
+    });
+  };
+
+  const rosterSlackIds = useMemo(
+    () => (projectId ? new Set(members.map(m => m.slackId)) : null),
+    [projectId, members]
+  );
+
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase();
+    return members.filter(m => {
+      const matchesSearch = !q ||
+        m.displayName?.toLowerCase().includes(q) ||
+        m.slackHandle?.toLowerCase().includes(q) ||
+        m.title?.toLowerCase().includes(q) ||
+        m.email?.toLowerCase().includes(q);
+
+      const roleLabel = m.isAdmin ? 'Admin' : (m.role === 'LEAD' ? 'Lead' : 'Member');
+      const matchesRole = !filterRole || roleLabel === filterRole;
+
+      return matchesSearch && matchesRole;
+    });
+  }, [members, search, filterRole]);
+
+  const gridRef = useRef(null);
+  // Only animate when loading flips true → false AFTER we've observed loading.
+  // Initial mount (before fetch starts) must NOT animate, and filter/search
+  // changes (which only mutate `filtered`) also must not re-trigger.
+  const sawLoadingRef = useRef(false);
+  useEffect(() => {
+    if (loading) {
+      sawLoadingRef.current = true;
+      return;
+    }
+    if (!sawLoadingRef.current) return;
+    sawLoadingRef.current = false;
+    if (!gridRef.current) return;
+    const cards = gridRef.current.querySelectorAll('.pm-member-card');
+    if (cards.length) revealStagger(cards, { delay: 50, duration: 480 });
+  }, [loading]);
+
+  const messageFn = (m) => (m.id === currentMember?.id ? undefined : (target) => startDm([target.id]));
+
+  return (
+    <div className={`pm-members-page${projectId ? ' pm-members-page--project' : ''}`}>
+      <div className="pm-members-header">
+        <h1 className="pm-page-title">{projectId ? 'Project members' : 'Members'}</h1>
+        <div className="pm-members-header-actions">
+          <button
+            type="button"
+            className="clubpm-btn-secondary"
+            aria-pressed={selecting}
+            onClick={() => { setSelecting(s => !s); setSelectedIds(new Set()); }}
+          >
+            <i className="fas fa-user-group" aria-hidden="true" /> {selecting ? 'Cancel' : 'Group message'}
+          </button>
+          {!projectId && (
+            <button className="clubpm-btn-secondary pm-gh-import-contrib-btn" onClick={() => setShowImport(true)}>
+              <i className="fab fa-github" aria-hidden="true" /> Import Contributors
+            </button>
+          )}
+        </div>
+      </div>
+
+      {showReconnect && <SlackReconnectNotice />}
+
+      <div className={`pm-members-layout${dmChannelId ? ' pm-members-layout--dm' : ''}`}>
+        <DmInbox activeChannelId={dmChannelId} onOpen={setDm} slackIdFilter={rosterSlackIds} />
+
+        <div className="pm-members-roster">
+          {!loading && <MembersStats members={members} />}
+
+          <div className="pm-members-controls">
+            <input
+              className="pm-members-search"
+              type="text"
+              placeholder="Search by name, handle, title…"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+            />
+            <div className="pm-members-filters">
+              <select
+                className="pm-members-filter-select"
+                value={filterRole}
+                onChange={e => setFilterRole(e.target.value)}
+              >
+                <option value="">All roles</option>
+                {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+              </select>
+              {filterRole && (
+                <button className="pm-members-filter-clear" onClick={() => setFilterRole('')}>
+                  Clear filters
+                </button>
+              )}
+            </div>
+          </div>
+
+          {loading ? (
+            <div style={{ display: 'flex', justifyContent: 'center', padding: '48px 0' }}><OrbitLoader size={80} /></div>
+          ) : filtered.length === 0 ? (
+            <div className="pm-empty-state">No members found.</div>
+          ) : (
+            <div ref={gridRef} className="pm-members-grid" data-tour-id={projectId ? undefined : "admin.members"}>
+              {filtered.map(m => (
+                <MemberCard
+                  key={m.id}
+                  member={m}
+                  onClick={() => setSelectedMember(m)}
+                  onMessage={messageFn(m)}
+                  selectable={selecting && m.id !== currentMember?.id}
+                  selected={selectedIds.has(m.id)}
+                  onToggleSelect={toggleSelect}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
+        {dmChannelId && <DmPanel channelId={dmChannelId} onClose={() => setDm(null)} />}
+      </div>
+
+      {selecting && selectedIds.size > 0 && (
+        <div className="pm-members-groupbar" role="region" aria-label="Group message">
+          <label>{selectedIds.size} selected</label>
+          <button
+            type="button"
+            className="clubpm-btn-primary"
+            disabled={opening}
+            onClick={() => startDm([...selectedIds])}
+          >
+            <i className="fas fa-paper-plane" aria-hidden="true" />{' '}
+            Message {selectedIds.size === 1 ? '1 person' : `${selectedIds.size} people`}
+          </button>
+        </div>
+      )}
+
+      {selectedMember && (
+        <MemberDrawer
+          member={selectedMember}
+          onClose={() => setSelectedMember(null)}
+          isOwnProfile={currentMember?.id === selectedMember.id}
+          onMessage={(m) => startDm([m.id])}
+        />
+      )}
+
+      {showImport && !projectId && (
+        <ContributorImportModal
+          onClose={() => setShowImport(false)}
+          onImported={fetchMembers}
+        />
+      )}
+
+      {/* Moved off the Dashboard — the XP/doubloon ranking reads as part of the
+          roster. LeaderboardPanel fetches its own data. Club-wide page only. */}
+      {!projectId && (
+        <div data-tour-id="dash.leaderboard" style={{ marginTop: 24 }}><LeaderboardPanel /></div>
+      )}
+    </div>
+  );
+}
+```
+
+`data-tour-id={projectId ? undefined : "admin.members"}` keeps the literal `"admin.members"` in source for the static anchor check, while rendering it only on the club-wide page it is registered for.
+
+- [ ] **Step 5: Gate + commit**
+
+`node scripts/check-tour-anchors.js` → passes. Then `npm run build`, which regenerates the icon subset for `fa-comment`, `fa-check`, `fa-xmark` and the inbox icons. Manual: open `/clubpm/members`, hit **Message** on someone, and send. It must arrive in their Slack DMs **from you**. Reload with `?dm=` still in the URL and the panel reopens.
+
+```bash
+git add src/pages/ClubPM/MembersView.jsx public/fa-subset.css public/webfonts
+git commit -m "feat(slack-portal): DMs from the Members page — message buttons, group DMs, inbox"
+```
+
+---
+
+## Task 21: Project Members tab and deep links
+
+**Files:**
+- Modify: `src/pages/ClubPM/ProjectDetail.jsx`
+- Modify: `src/clubpm/tour/tourAnchors.js`
+- Modify: `docs/courses/ANCHORS.md`
+
+**Never read `ProjectDetail.jsx` in full.** Every edit below is anchored by a grep.
+
+- [ ] **Step 1: Import and tab entry**
+
+Below `import ChatTab from "../../components/clubpm/chat/ChatTab";` add:
+
+```js
+import MembersView from "./MembersView";
+```
+
+In `const NAV_TABS = [`, directly after the `chat` entry's closing `},`, insert:
+
+```jsx
+  {
+    id: "members", label: "Members", tourId: "project.tab.members",
+    icon: (
+      <TabIcon>
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+        <circle cx="9" cy="7" r="4" />
+        <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+      </TabIcon>
+    ),
+  },
+```
+
+- [ ] **Step 2: `?tab=` deep links**
+
+Grep `const [searchParams] = useSearchParams();` inside `export default function ProjectDetail()` and change it to:
+
+```js
+  const [searchParams, setSearchParams] = useSearchParams();
+```
+
+Directly below `const [activeTab, setActiveTab] = useState("tasks");`, add:
+
+```js
+  // Deep links (notifications): ?tab=members&dm=…, ?tab=chat&channel=…&thread=…
+  const tabParam = searchParams.get("tab");
+  useEffect(() => {
+    if (tabParam && NAV_TABS.some(t => t.id === tabParam)) setActiveTab(tabParam);
+  }, [tabParam]);
+
+  // Tab clicks keep the URL in step, and drop params that belong to other tabs.
+  const changeTab = useCallback((id) => {
+    setActiveTab(id);
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      if (id === "tasks") next.delete("tab");
+      else next.set("tab", id);
+      if (id !== "members") next.delete("dm");
+      if (id !== "chat") { next.delete("channel"); next.delete("thread"); }
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
+```
+
+In the `setProjectNav({ … })` effect (grep `onTabChange: setActiveTab,`), change `onTabChange: setActiveTab,` to `onTabChange: changeTab,` and that effect's dependency array from `[project?.name, activeTab, setProjectNav]` to `[project?.name, activeTab, setProjectNav, changeTab]`.
+
+- [ ] **Step 3: Render the tab, and pass chat deep links through**
+
+Grep `<ChatTab project={project} isAdmin={!!member?.isAdmin} />` and replace it with:
+
+```jsx
+              <ChatTab
+                project={project}
+                isAdmin={!!member?.isAdmin}
+                initialChannelId={searchParams.get("channel")}
+                initialThreadTs={searchParams.get("thread")}
+              />
+```
+
+Directly after the closing `)}` of the `{activeTab === "chat" && ( … )}` block, add:
+
+```jsx
+          {activeTab === "members" && (
+            <div className="cpm-proj-main-body" style={{ padding: "16px 24px 24px" }}>
+              <MembersView projectId={project.id} />
+            </div>
+          )}
+```
+
+- [ ] **Step 4: Anchors, same commit**
+
+In `src/clubpm/tour/tourAnchors.js`, below the `"project.tab.chat"` line:
+
+```js
+  "project.tab.members":    { label: "Members tab",          route: "/clubpm/projects/:id", note: "Sidebar project tab (AppShell) — roster + DMs" },
+```
+
+In `docs/courses/ANCHORS.md`, below the `project.tab.chat` row:
+
+```markdown
+| `project.tab.members` | Members tab&Dagger; | `/clubpm/projects/:id` |
+```
+
+Then run `rg -n "project tabs|Tasks, Files" docs/courses --glob "*.md"`. Any prose that enumerates the project tabs must list Members.
+
+- [ ] **Step 5: Gate + commit**
+
+`node scripts/check-tour-anchors.js` → passes; `npm run build` → compiles. Manual: `/clubpm/projects/<id>?tab=members` opens the Members tab showing only that project's roster. **Message** works there too, and switching back to Tasks removes `dm` from the URL.
+
+```bash
+git add src/pages/ClubPM/ProjectDetail.jsx src/clubpm/tour/tourAnchors.js docs/courses
+git commit -m "feat(slack-portal): per-project Members tab with DMs; ?tab= deep links"
+```
+
+---
+
+## Task 22: Styling
+
+**Files:**
+- Modify: `public/clubpm-theme.css` (append only)
+
+**Do not read the stylesheet.** Existing chat rules sit around lines 26481–26620 (`.cpm-chat-wrap`, `.cpm-chat-layout`, `.cpm-chat-scroll`, `.cpm-chat-msg`, `.cpm-chat-reaction`, `.cpm-chat-drawer` at 340px). The rules below extend them and win by source order. Every element here is a ClubPM-only surface, so `clubpm-theme.css` is the correct file.
+
+- [ ] **Step 1: Append**
+
+```css
+/* ═══════════════════════════════════════════════════════════════════
+   Slack portal — conversation view, composer, actions, Block Kit
+   ═══════════════════════════════════════════════════════════════════ */
+.cpm-chat-conv { display: flex; flex-direction: column; gap: 10px; flex: 1; min-height: 0; }
+.cpm-chat-main { display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0; }
+
+.cpm-chat-composer {
+  position: relative; display: flex; align-items: flex-end; gap: 8px;
+  margin-top: 10px; padding: 8px;
+  background: var(--pm-bg-elevated); border: 1px solid var(--pm-border); border-radius: 10px;
+}
+.cpm-chat-composer:focus-within { border-color: var(--pm-border-active); }
+.cpm-chat-composer-input {
+  flex: 1; min-width: 0; max-height: 160px; resize: none;
+  background: transparent; border: 0; outline: none; padding: 6px 4px;
+  color: var(--pm-text-primary); font-family: var(--pm-font-body); font-size: 14px; line-height: 1.45;
+}
+.cpm-chat-composer-btn, .cpm-chat-composer-send {
+  flex: none; width: 34px; height: 34px; border: 0; border-radius: 8px; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: transparent; color: var(--pm-text-secondary);
+}
+.cpm-chat-composer-btn:hover { background: var(--pm-bg-overlay); color: var(--pm-text-primary); }
+.cpm-chat-composer-send { background: var(--pm-accent-teal); color: var(--pm-bg-base); }
+.cpm-chat-composer-send:disabled { opacity: 0.4; cursor: default; }
+
+.cpm-chat-suggest {
+  position: absolute; left: 8px; right: 8px; bottom: calc(100% + 6px); z-index: 5; padding: 4px;
+  background: var(--pm-bg-elevated); border: 1px solid var(--pm-border); border-radius: 10px;
+  box-shadow: var(--pm-shadow-card);
+}
+.cpm-chat-suggest-item {
+  display: flex; align-items: baseline; gap: 8px; width: 100%; padding: 6px 10px;
+  border: 0; border-radius: 6px; background: transparent; color: var(--pm-text-primary);
+  text-align: left; cursor: pointer;
+}
+.cpm-chat-suggest-item.active, .cpm-chat-suggest-item:hover { background: var(--pm-bg-overlay); }
+.cpm-chat-suggest-handle { color: var(--pm-text-muted); font-size: 12px; }
+
+.cpm-chat-reconnect {
+  display: flex; flex-direction: column; gap: 8px; margin-top: 10px; padding: 14px;
+  background: var(--pm-bg-elevated); border: 1px dashed var(--pm-border-active); border-radius: 10px;
+  color: var(--pm-text-primary);
+}
+.cpm-chat-reconnect--compact { padding: 10px; font-size: 13px; }
+.cpm-chat-reconnect-sub { color: var(--pm-text-secondary); font-size: 12px; line-height: 1.5; }
+.cpm-chat-reconnect-btn { align-self: flex-start; display: inline-flex; align-items: center; gap: 8px; text-decoration: none; }
+
+.cpm-chat-join {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  margin-top: 10px; padding: 10px 12px; color: var(--pm-text-secondary);
+  background: var(--pm-bg-elevated); border: 1px solid var(--pm-border); border-radius: 10px;
+}
+
+.cpm-chat-msg { position: relative; }
+.cpm-chat-msg-actions {
+  position: absolute; top: 4px; right: 8px; display: none; gap: 2px; padding: 2px;
+  background: var(--pm-bg-elevated); border: 1px solid var(--pm-border); border-radius: 8px;
+  box-shadow: var(--pm-shadow-card);
+}
+.cpm-chat-msg:hover .cpm-chat-msg-actions,
+.cpm-chat-msg:focus-within .cpm-chat-msg-actions { display: flex; }
+.cpm-chat-msg-actions > button {
+  width: 28px; height: 28px; border: 0; border-radius: 6px; cursor: pointer;
+  background: transparent; color: var(--pm-text-secondary);
+}
+.cpm-chat-msg-actions > button:hover { background: var(--pm-bg-overlay); color: var(--pm-text-primary); }
+.cpm-chat-react-picker {
+  position: absolute; top: calc(100% + 4px); right: 0; z-index: 4; display: flex; gap: 2px; padding: 4px;
+  background: var(--pm-bg-elevated); border: 1px solid var(--pm-border); border-radius: 8px;
+  box-shadow: var(--pm-shadow-card);
+}
+.cpm-chat-react-picker > button {
+  width: 32px; height: 32px; border: 0; border-radius: 6px; background: transparent; cursor: pointer; font-size: 18px;
+}
+.cpm-chat-react-picker > button:hover { background: var(--pm-bg-overlay); }
+button.cpm-chat-reaction { color: inherit; font-family: inherit; cursor: pointer; }
+button.cpm-chat-reaction:disabled { cursor: default; }
+.cpm-chat-reaction--mine {
+  border-color: var(--pm-accent-teal);
+  background: color-mix(in srgb, var(--pm-accent-teal) 14%, var(--pm-bg-elevated));
+}
+.cpm-chat-emoji-char { font-size: 1.15em; line-height: 1; }
+
+.cpm-chat-edit { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
+.cpm-chat-edit .cpm-chat-composer-input {
+  min-height: 60px; padding: 8px;
+  background: var(--pm-bg-elevated); border: 1px solid var(--pm-border-active); border-radius: 8px;
+}
+.cpm-chat-edit-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.cpm-chat-app-badge {
+  padding: 1px 5px; border-radius: 4px; font-size: 10px; font-weight: 700; letter-spacing: 0.06em;
+  background: var(--pm-bg-overlay); color: var(--pm-text-secondary);
+}
+.cpm-chat-drawer .cpm-chat-composer, .cpm-chat-drawer .cpm-chat-reconnect { margin: 8px; }
+
+.cpm-chat-blocks {
+  display: flex; flex-direction: column; gap: 6px; padding-left: 10px;
+  border-left: 3px solid var(--pm-border-active);
+}
+.cpm-chat-block-header { display: block; font-family: var(--pm-font-display); font-size: 15px; color: var(--pm-text-primary); }
+.cpm-chat-block-fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 4px 16px; margin-top: 4px; }
+.cpm-chat-block-context { font-size: 12px; color: var(--pm-text-muted); }
+.cpm-chat-block-divider { width: 100%; margin: 2px 0; border: 0; border-top: 1px solid var(--pm-border); }
+.cpm-chat-block-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.cpm-chat-block-chip {
+  padding: 3px 10px; border: 1px solid var(--pm-border); border-radius: 999px;
+  font-size: 12px; color: var(--pm-text-secondary); cursor: not-allowed;
+}
+.cpm-chat-block-image { font-size: 12px; color: var(--pm-text-muted); }
+
+/* /clubpm/chat */
+.cpm-chatpage {
+  display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 16px;
+  height: calc(100vh - 140px); min-height: 480px;
+}
+.cpm-chatpage-side {
+  display: flex; flex-direction: column; gap: 2px; overflow-y: auto; padding: 12px;
+  background: var(--pm-bg-surface); border: 1px solid var(--pm-border); border-radius: 12px;
+}
+.cpm-chatpage-filter {
+  margin-bottom: 8px; padding: 7px 10px; border-radius: 8px;
+  border: 1px solid var(--pm-border); background: var(--pm-bg-elevated); color: var(--pm-text-primary);
+}
+.cpm-chatpage-group {
+  margin: 8px 6px 4px; font-size: 11px; font-weight: 700; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--pm-text-muted);
+}
+.cpm-chatpage-item {
+  display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 7px;
+  color: var(--pm-text-secondary); text-decoration: none;
+}
+.cpm-chatpage-item:hover { background: var(--pm-bg-overlay); color: var(--pm-text-primary); }
+.cpm-chatpage-item.active { background: var(--pm-bg-elevated); color: var(--pm-text-primary); }
+.cpm-chatpage-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cpm-chatpage-item.unread .cpm-chatpage-name { color: var(--pm-text-primary); font-weight: 700; }
+.cpm-chatpage-badge, .cpm-dm-badge {
+  min-width: 20px; padding: 1px 6px; border-radius: 999px; text-align: center;
+  background: var(--pm-accent-coral); color: #fff; font-size: 11px;
+}
+.cpm-chatpage-muted { color: var(--pm-text-muted); font-size: 11px; }
+.cpm-chatpage-browse-toggle {
+  display: flex; align-items: center; gap: 8px; margin-top: 10px; padding: 6px 8px;
+  border: 0; background: transparent; color: var(--pm-text-muted); text-align: left; cursor: pointer;
+}
+.cpm-chatpage-hint { padding: 4px 8px; font-size: 12px; color: var(--pm-text-muted); }
+.cpm-chatpage-dmlink {
+  display: flex; align-items: center; gap: 8px; margin-top: auto; padding: 10px 8px 2px;
+  font-size: 12px; color: var(--pm-accent-teal); text-decoration: none;
+}
+.cpm-chatpage-main {
+  display: flex; flex-direction: column; min-width: 0; min-height: 0; padding: 12px 16px;
+  background: var(--pm-bg-surface); border: 1px solid var(--pm-border); border-radius: 12px;
+}
+.cpm-chatpage-head {
+  display: flex; align-items: center; gap: 8px; padding-bottom: 10px; margin-bottom: 8px;
+  border-bottom: 1px solid var(--pm-border); color: var(--pm-text-primary); font-family: var(--pm-font-display);
+}
+.cpm-chatpage-preview { margin-left: auto; font-size: 12px; color: var(--pm-accent-amber); }
+@media (max-width: 860px) {
+  .cpm-chatpage { grid-template-columns: 1fr; height: auto; }
+  .cpm-chatpage-side { max-height: 260px; }
+  .cpm-chatpage-main { min-height: 70vh; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   Slack portal — DMs on the Members page
+   ═══════════════════════════════════════════════════════════════════ */
+.pm-members-header-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.pm-members-layout { display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 16px; align-items: start; }
+.pm-members-layout--dm { grid-template-columns: 280px minmax(0, 1fr) minmax(360px, 440px); }
+.pm-members-roster { min-width: 0; }
+
+.cpm-dm-inbox {
+  position: sticky; top: 12px; display: flex; flex-direction: column; gap: 2px;
+  max-height: calc(100vh - 160px); overflow-y: auto; padding: 12px;
+  background: var(--pm-bg-surface); border: 1px solid var(--pm-border); border-radius: 12px;
+}
+.cpm-dm-inbox-head { padding: 0 6px 8px; color: var(--pm-text-primary); font-family: var(--pm-font-display); }
+.cpm-dm-row {
+  display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px;
+  border: 0; border-radius: 8px; background: transparent; color: var(--pm-text-secondary);
+  text-align: left; cursor: pointer;
+}
+.cpm-dm-row:hover { background: var(--pm-bg-overlay); }
+.cpm-dm-row.active { background: var(--pm-bg-elevated); }
+.cpm-dm-row.unread .cpm-dm-name { color: var(--pm-text-primary); font-weight: 700; }
+.cpm-dm-avatar {
+  flex: none; width: 32px; height: 32px; overflow: hidden; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--pm-bg-overlay); color: var(--pm-text-muted);
+}
+.cpm-dm-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.cpm-dm-row-body { flex: 1; min-width: 0; }
+.cpm-dm-row-top { display: flex; justify-content: space-between; gap: 8px; }
+.cpm-dm-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+.cpm-dm-time { flex: none; font-size: 11px; color: var(--pm-text-muted); }
+.cpm-dm-preview { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--pm-text-muted); }
+.cpm-dm-empty { padding: 8px; font-size: 12px; line-height: 1.5; color: var(--pm-text-muted); }
+
+.cpm-dm-panel {
+  position: sticky; top: 12px; display: flex; flex-direction: column;
+  height: calc(100vh - 160px); min-height: 420px; padding: 12px;
+  background: var(--pm-bg-surface); border: 1px solid var(--pm-border); border-radius: 12px;
+}
+.cpm-dm-panel-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding-bottom: 10px; margin-bottom: 8px; border-bottom: 1px solid var(--pm-border); color: var(--pm-text-primary);
+}
+.cpm-dm-panel-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--pm-font-display); }
+.cpm-dm-panel-close {
+  width: 30px; height: 30px; border: 0; border-radius: 6px; cursor: pointer;
+  background: transparent; color: var(--pm-text-secondary);
+}
+.cpm-dm-panel-close:hover { background: var(--pm-bg-overlay); }
+/* A 340px thread drawer beside messages doesn't fit a docked panel: overlay it
+   instead (absolute, not fixed — transformed ancestors would capture fixed). */
+.cpm-dm-panel .cpm-chat-layout { position: relative; }
+.cpm-dm-panel .cpm-chat-drawer { position: absolute; inset: 0; z-index: 3; width: auto; flex: none; }
+
+.pm-member-card--enriched { position: relative; }
+.pm-member-card-message-btn {
+  width: 32px; height: 32px; border: 0; border-radius: 8px; cursor: pointer;
+  background: transparent; color: var(--pm-text-secondary);
+}
+.pm-member-card-message-btn:hover { background: var(--pm-bg-overlay); color: var(--pm-accent-teal); }
+.pm-member-card--selected { outline: 2px solid var(--pm-accent-teal); outline-offset: -2px; }
+.pm-member-select {
+  position: absolute; top: 10px; right: 10px; width: 22px; height: 22px; border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  border: 2px solid var(--pm-border-active); color: var(--pm-bg-base);
+}
+.pm-member-select.selected { background: var(--pm-accent-teal); border-color: var(--pm-accent-teal); }
+.pm-members-groupbar {
+  position: sticky; bottom: 16px; z-index: 20; width: fit-content; margin: 16px auto 0;
+  display: flex; align-items: center; gap: 14px; padding: 10px 14px; border-radius: 999px;
+  background: var(--pm-bg-elevated); border: 1px solid var(--pm-border-active);
+  box-shadow: var(--pm-shadow-card); color: var(--pm-text-primary);
+}
+
+/* Narrow: an open DM replaces the roster rather than squeezing three columns. */
+@media (max-width: 1200px) {
+  .pm-members-layout--dm { grid-template-columns: 240px minmax(0, 1fr); }
+  .pm-members-layout--dm .pm-members-roster { display: none; }
+}
+@media (max-width: 860px) {
+  .pm-members-layout, .pm-members-layout--dm { grid-template-columns: 1fr; }
+  .cpm-dm-inbox { position: static; max-height: 280px; }
+  .cpm-dm-panel { position: static; height: 75vh; }
+}
+```
+
+- [ ] **Step 2: Verify tokens, then look at it**
+
+Run `rg -o "var\(--[a-z-]+\)" public/clubpm-theme.css | tail -400 | sort -u` and confirm every token in the new block is one of the Global-constraint tokens. Then `npm start` and check, at 1440px, 1100px and 800px wide:
+
+- `/clubpm/chat`
+- `/clubpm/members` with a DM open
+- a project's Members tab
+- a thread open inside a DM panel (it overlays the conversation)
+- the hover actions on a message
+- the mention suggestions above the composer
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add public/clubpm-theme.css
+git commit -m "style(slack-portal): composer, message actions, Block Kit, chat page, DM inbox and panel"
+```
+
+---
+
+# Part F — Notification sync
+
+## Task 23: Pure ping rules
+
+**Files:**
+- Create: `backend/src/services/slackPings.ts`
+- Create: `backend/src/services/slackPings.test.ts`
+
+**Interfaces produced:** `PingType`, `Ping`, `PingInput`, `stripCode`, `extractMentions`, `computePings`.
+
+- [ ] **Step 1: Failing test**
+
+`backend/src/services/slackPings.test.ts`:
+
+```ts
+// Run: cd backend && npx tsx src/services/slackPings.test.ts
+import { computePings, type PingInput } from "./slackPings.js";
+
+let passed = 0, failed = 0;
+function check(name: string, cond: boolean) {
+  if (cond) passed++; else { failed++; console.error(`  ✗ ${name}`); }
+}
+
+const base: PingInput = {
+  convKind: "CHANNEL", authorSlackId: "UA", isOwnBot: false, text: "",
+  threadTs: null, conversationMemberIds: ["UA", "U1", "U2", "U3"],
+  threadParticipantIds: [], userGroupMembers: {},
+};
+const pings = (over: Partial<PingInput>) => computePings({ ...base, ...over });
+const typeFor = (ps: ReturnType<typeof computePings>, id: string) => ps.find((p) => p.slackUserId === id)?.type;
+
+{
+  const ps = pings({ convKind: "IM", conversationMemberIds: ["UA", "U1"], text: "hey" });
+  check("DM pings the other participant", typeFor(ps, "U1") === "SLACK_DM");
+  check("DM never pings its author", !typeFor(ps, "UA"));
+}
+check("group DM pings every other participant",
+  pings({ convKind: "MPIM", conversationMemberIds: ["UA", "U1", "U2"], text: "x" }).length === 2);
+check("our own bot never pings (D9)",
+  pings({ convKind: "IM", conversationMemberIds: ["UBOT", "U1"], authorSlackId: "UBOT", isOwnBot: true, text: "<@U1>" }).length === 0);
+check("another app's DM does ping",
+  typeFor(pings({ convKind: "IM", conversationMemberIds: ["UAPP", "U1"], authorSlackId: "UAPP", text: "build done" }), "U1") === "SLACK_DM");
+check("plain channel message pings nobody", pings({ text: "hello all" }).length === 0);
+check("channel mention of a member", typeFor(pings({ text: "hi <@U1>" }), "U1") === "SLACK_MENTION");
+check("labelled mention form", typeFor(pings({ text: "hi <@U1|ann>" }), "U1") === "SLACK_MENTION");
+check("mention of a non-member pings nobody", pings({ text: "hi <@U9>" }).length === 0);
+check("mention inside inline code is inert", pings({ text: "run `<@U1>`" }).length === 0);
+check("mention inside a code block is inert", pings({ text: "```\n<@U1>\n```" }).length === 0);
+check("author mentioning themselves", pings({ text: "note to <@UA>" }).length === 0);
+{
+  const ps = pings({ text: "<!channel> standup" });
+  check("@channel pings every member but the author", ps.length === 3 && ps.every((p) => p.type === "SLACK_BROADCAST"));
+}
+check("@here is a broadcast too", pings({ text: "<!here>" }).length === 3);
+check("direct mention beats broadcast", typeFor(pings({ text: "<!channel> esp. <@U1>" }), "U1") === "SLACK_MENTION");
+{
+  const ps = pings({ threadTs: "1.0", threadParticipantIds: ["U1", "UA", "U9"], text: "reply" });
+  check("thread reply pings participants", typeFor(ps, "U1") === "SLACK_THREAD_REPLY");
+  check("thread reply skips its author", !typeFor(ps, "UA"));
+  check("thread participant who left the channel is skipped", !typeFor(ps, "U9"));
+}
+check("mention beats thread reply",
+  typeFor(pings({ threadTs: "1.0", threadParticipantIds: ["U1"], text: "<@U1> ok" }), "U1") === "SLACK_MENTION");
+{
+  const ps = pings({ text: "<!subteam^S1|@leads> look", userGroupMembers: { S1: ["U2", "U9"] } });
+  check("user-group mention reaches its members in the channel", typeFor(ps, "U2") === "SLACK_MENTION" && !typeFor(ps, "U9"));
+}
+
+console.log(`\nslackPings: ${passed} passed, ${failed} failed`);
+if (failed > 0) process.exit(1);
+```
+
+Run it → FAIL.
+
+- [ ] **Step 2: Implement `slackPings.ts`**
+
+```ts
+import type { ConversationKind } from "./slackConversationAccess.js";
+
+/**
+ * Pure. Who one Slack message pings, and how — mirroring Slack's default
+ * notification rules (D8). One ping per recipient; the strongest reason wins.
+ *
+ * Slack's per-user mute and keyword settings have no API, so they can't be
+ * mirrored; Constellation's own mute is applied by the caller.
+ */
+export type PingType = "SLACK_DM" | "SLACK_MENTION" | "SLACK_THREAD_REPLY" | "SLACK_BROADCAST";
+export interface Ping { slackUserId: string; type: PingType }
+
+export interface PingInput {
+  convKind: ConversationKind;
+  authorSlackId: string | null;
+  /** Our own Club PM bot. Constellation already notified natively for its posts (D9). */
+  isOwnBot: boolean;
+  /** Raw mrkdwn. */
+  text: string;
+  /** Parent ts when this message is a thread reply. */
+  threadTs: string | null;
+  /** Slack members of the conversation (SlackConversationMember). */
+  conversationMemberIds: string[];
+  /** People following the thread: its parent's author, prior repliers, and people mentioned in it. */
+  threadParticipantIds: string[];
+  /** Expanded user groups, for <!subteam^S…> mentions. */
+  userGroupMembers: Record<string, string[]>;
+}
+
+const STRENGTH: Record<PingType, number> = {
+  SLACK_DM: 0, SLACK_MENTION: 1, SLACK_THREAD_REPLY: 2, SLACK_BROADCAST: 3,
+};
+
+/** Slack does not ping for mentions inside code. */
+export function stripCode(text: string): string {
+  return text.replace(/```[\s\S]*?```/g, " ").replace(/`[^`\n]*`/g, " ");
+}
+
+export function extractMentions(text: string): { users: string[]; groups: string[]; broadcast: boolean } {
+  const t = stripCode(text);
+  const users = [...t.matchAll(/<@([UW][A-Z0-9]+)(?:\|[^>]*)?>/g)].map((m) => m[1]);
+  const groups = [...t.matchAll(/<!subteam\^([A-Z0-9]+)(?:\|[^>]*)?>/g)].map((m) => m[1]);
+  const broadcast = /<!(channel|here|everyone)(?:\|[^>]*)?>/.test(t);
+  return { users: [...new Set(users)], groups: [...new Set(groups)], broadcast };
+}
+
+export function computePings(input: PingInput): Ping[] {
+  if (input.isOwnBot) return [];
+  const isDm = input.convKind === "IM" || input.convKind === "MPIM";
+  const members = new Set(input.conversationMemberIds);
+  const out = new Map<string, PingType>();
+  const give = (id: string, type: PingType) => {
+    if (!id || id === input.authorSlackId) return;
+    const prev = out.get(id);
+    if (!prev || STRENGTH[type] < STRENGTH[prev]) out.set(id, type);
+  };
+
+  if (isDm) for (const id of members) give(id, "SLACK_DM");
+
+  const m = extractMentions(input.text);
+  // Slack doesn't notify someone mentioned in a conversation they're not in.
+  for (const id of m.users) if (members.has(id)) give(id, "SLACK_MENTION");
+  for (const g of m.groups) {
+    for (const id of input.userGroupMembers[g] ?? []) if (members.has(id)) give(id, "SLACK_MENTION");
+  }
+  // @here is treated like @channel: we cannot see who is "active".
+  if (m.broadcast && !isDm) for (const id of members) give(id, "SLACK_BROADCAST");
+  if (input.threadTs) {
+    for (const id of input.threadParticipantIds) if (members.has(id)) give(id, "SLACK_THREAD_REPLY");
+  }
+
+  return [...out].map(([slackUserId, type]) => ({ slackUserId, type }));
+}
+```
+
+Run the test → `20 passed, 0 failed`.
+
+- [ ] **Step 3: Gate + commit**
+
+```bash
+git add backend/src/services/slackPings.ts backend/src/services/slackPings.test.ts
+git commit -m "feat(slack-portal): pure Slack ping rules"
+```
+
+---
+
+## Task 24: Ping delivery, retraction, and read-on-post
+
+**Files:**
+- Create: `backend/src/services/slackNotifyService.ts`
+- Modify: `backend/src/services/notificationCrud.ts` (append two functions)
+- Modify: `backend/src/services/slackReadService.ts` (notification read-marking)
+- Modify: `backend/src/slack/events.ts` (call delivery after ingest)
+
+**Import graph (keep it acyclic):** `slackNotifyService` → `notificationCrud`, `slackReadService`, `chatDto`. `slackReadService` must **not** import `notificationCrud` or `slackNotifyService`; it owns Slack-notification read state itself.
+
+- [ ] **Step 1: Upsert and retract in `notificationCrud.ts`**
+
+Append:
+
+```ts
+// ── Slack ping mirror (slack portal) ─────────────────────────
+
+/**
+ * Create or merge one mirrored Slack ping.
+ * - Never twice for the same (recipient, conversation, message, type): Slack
+ *   redelivers events on retry.
+ * - DMs aggregate: while an earlier DM notification from the same conversation
+ *   is still unread, it is updated ("3 new messages") and bumped to the top
+ *   instead of stacking one row per message.
+ * SLACK_* notifications carry no projectId, so the member-project filter in
+ * getNotificationsForMember never hides them.
+ */
+export async function upsertSlackNotification(data: {
+  type: NotificationType;
+  recipientId: string;
+  actorId: string | null;
+  slackChannelId: string;
+  slackTs: string;
+  message: string;
+  aggregateMessage: (count: number) => string;
+  link: string;
+}): Promise<Notification | null> {
+  const dupe = await prisma.notification.findFirst({
+    where: { recipientId: data.recipientId, slackChannelId: data.slackChannelId, slackTs: data.slackTs, type: data.type },
+    select: { id: true },
+  });
+  if (dupe) return null;
+
+  if (data.type === "SLACK_DM") {
+    const open = await prisma.notification.findFirst({
+      where: { recipientId: data.recipientId, slackChannelId: data.slackChannelId, type: "SLACK_DM", read: false },
+      orderBy: { createdAt: "desc" },
+    });
+    if (open) {
+      const count = Number((open.metadata as { count?: number } | null)?.count ?? 1) + 1;
+      const updated = await prisma.notification.update({
+        where: { id: open.id },
+        data: {
+          message: data.aggregateMessage(count),
+          slackTs: data.slackTs,
+          actorId: data.actorId,
+          createdAt: new Date(),
+          metadata: { link: data.link, count },
+        },
+      });
+      activityBus.emit(`notification:${data.recipientId}`, updated);
+      return updated;
+    }
+  }
+
+  const created = await prisma.notification.create({
+    data: {
+      type: data.type,
+      recipientId: data.recipientId,
+      actorId: data.actorId,
+      slackChannelId: data.slackChannelId,
+      slackTs: data.slackTs,
+      message: data.message,
+      metadata: { link: data.link, count: 1 },
+    },
+  });
+  activityBus.emit(`notification:${data.recipientId}`, created);
+  return created;
+}
+
+/** A message was deleted in Slack: its unread pings go with it (Slack does the same). */
+export async function retractSlackNotifications(slackChannelId: string, slackTs: string): Promise<void> {
+  const rows = await prisma.notification.findMany({
+    where: { slackChannelId, slackTs, read: false },
+    select: { id: true, recipientId: true },
+  });
+  if (rows.length === 0) return;
+  await prisma.notification.deleteMany({ where: { id: { in: rows.map((r) => r.id) } } });
+  const byRecipient = new Map<string, string[]>();
+  for (const r of rows) byRecipient.set(r.recipientId, [...(byRecipient.get(r.recipientId) ?? []), r.id]);
+  for (const [recipientId, ids] of byRecipient) activityBus.emit(`notification-removed:${recipientId}`, { ids });
+}
+```
+
+- [ ] **Step 2: Read state for Slack notifications in `slackReadService.ts`**
+
+Add `import { activityBus } from "./activityService.js";` and append:
+
+```ts
+const SLACK_NOTIFICATION_TYPES = ["SLACK_DM", "SLACK_MENTION", "SLACK_THREAD_REPLY", "SLACK_BROADCAST"] as const;
+
+/**
+ * Mark a member's Slack notifications in one conversation read, up to `uptoTs`,
+ * and tell their open tabs (SSE `notification-read`). Returns the ids cleared.
+ */
+export async function markSlackNotificationsRead(recipientId: string, slackChannelId: string, uptoTs: string): Promise<string[]> {
+  const unread = await prisma.notification.findMany({
+    where: { recipientId, slackChannelId, read: false, type: { in: [...SLACK_NOTIFICATION_TYPES] } },
+    select: { id: true, slackTs: true },
+  });
+  const ids = idsReadUpTo(unread, uptoTs);
+  if (ids.length === 0) return [];
+  await prisma.notification.updateMany({ where: { id: { in: ids } }, data: { read: true, readAt: new Date() } });
+  activityBus.emit(`notification-read:${recipientId}`, { ids });
+  return ids;
+}
+```
+
+In `markConversationRead`, directly after `const advanced = await advanceCursor(memberId, channelId, ts);`, add:
+
+```ts
+  // Reading a conversation clears its pings, whether or not the cursor moved —
+  // a ping can be at or behind a cursor set by the member's own post.
+  await markSlackNotificationsRead(memberId, channelId, ts);
+```
+
+- [ ] **Step 3: Create `slackNotifyService.ts`**
+
+```ts
+import type { WebClient } from "@slack/web-api";
+import type { NotificationType } from "@prisma/client";
+import { prisma } from "../db/prisma.js";
+import { getBotUserId } from "./memberService.js";
+import { computePings, extractMentions, type PingType } from "./slackPings.js";
+import { upsertSlackNotification, retractSlackNotifications } from "./notificationCrud.js";
+import { markConversationRead } from "./slackReadService.js";
+import { buildFormatContext, previewText } from "./chatDto.js";
+import { getProjectsForChannel } from "./projectService.js";
+import type { IngestResult } from "./slackArchiveService.js";
+
+/**
+ * Slack → Constellation notification mirror (D8–D10).
+ *
+ * Called ONLY from the live event path (slack/events.ts). Backfill never calls
+ * this, so importing history can't fire notifications (D10).
+ */
+
+const GROUP_TTL_MS = 30 * 60_000;
+const groupCache = new Map<string, { ids: string[]; at: number }>();
+let ownBotId: string | null | undefined;
+
+/** Our app's bot_id, from auth.test — the reliable way to spot our own posts. */
+async function getOwnBotId(client: WebClient): Promise<string | null> {
+  if (ownBotId !== undefined) return ownBotId;
+  try {
+    const res = await client.auth.test();
+    ownBotId = (res.bot_id as string | undefined) ?? null;
+  } catch {
+    ownBotId = null;
+  }
+  return ownBotId;
+}
+
+async function userGroupMembers(groupIds: string[], client: WebClient): Promise<Record<string, string[]>> {
+  const out: Record<string, string[]> = {};
+  for (const g of groupIds) {
+    const hit = groupCache.get(g);
+    if (hit && Date.now() - hit.at < GROUP_TTL_MS) { out[g] = hit.ids; continue; }
+    try {
+      const res = await client.usergroups.users.list({ usergroup: g });
+      const ids = (res.users ?? []) as string[];
+      groupCache.set(g, { ids, at: Date.now() });
+      out[g] = ids;
+    } catch {
+      out[g] = []; // usergroups:read missing until the app is reinstalled
+    }
+  }
+  return out;
+}
+
+/** Slack's "following": the parent's author, prior repliers, and people mentioned in the thread. */
+async function threadParticipants(channelId: string, threadTs: string, excludeTs: string): Promise<string[]> {
+  const rows = await prisma.slackMessage.findMany({
+    where: { slackChannelId: channelId, OR: [{ ts: threadTs }, { threadTs }], NOT: { ts: excludeTs }, isBot: false, deletedAt: null },
+    select: { authorSlackId: true, text: true },
+  });
+  const ids = new Set<string>();
+  for (const r of rows) {
+    if (r.authorSlackId) ids.add(r.authorSlackId);
+    for (const u of extractMentions(r.text).users) ids.add(u);
+  }
+  return [...ids];
+}
+
+function messageFor(type: PingType, author: string, where: string, preview: string, isGroup: boolean): string {
+  const q = preview ? `: “${preview}”` : "";
+  switch (type) {
+    case "SLACK_DM": return isGroup ? `${author} in a group message${q}` : `${author} sent you a message${q}`;
+    case "SLACK_MENTION": return `${author} mentioned you in ${where}${q}`;
+    case "SLACK_THREAD_REPLY": return `${author} replied in a thread in ${where}${q}`;
+    case "SLACK_BROADCAST": return `${author} posted to everyone in ${where}${q}`;
+  }
+}
+
+/**
+ * Where a click goes (D12): DMs → the Members page; a channel → the Chat tab of
+ * a project the recipient is on, else /clubpm/chat.
+ */
+function linkFor(r: IngestResult, projectIdForRecipient: string | null): string {
+  const c = encodeURIComponent(r.channelId);
+  if (r.convKind === "IM" || r.convKind === "MPIM") return `/clubpm/members?dm=${c}`;
+  const thread = r.threadTs ? encodeURIComponent(r.threadTs) : null;
+  if (projectIdForRecipient) {
+    return `/clubpm/projects/${projectIdForRecipient}?tab=chat&channel=${c}${thread ? `&thread=${thread}` : ""}`;
+  }
+  return `/clubpm/chat/${c}${thread ? `?thread=${thread}` : ""}`;
+}
+
+export async function deliverSlackPings(r: IngestResult, client: WebClient): Promise<number> {
+  if (r.event === "delete") {
+    await retractSlackNotifications(r.channelId, r.ts);
+    return 0;
+  }
+  if (r.event !== "new") return 0; // edits never re-ping; Slack doesn't either
+
+  // Posting in a conversation means you've read it — Slack behaves the same.
+  const author = r.authorSlackId
+    ? await prisma.member.findUnique({ where: { slackId: r.authorSlackId }, select: { id: true } })
+    : null;
+  if (author && !r.isBot) await markConversationRead(author.id, r.channelId, r.ts, { pushToSlack: false });
+
+  const [botUserId, botId] = await Promise.all([getBotUserId(client), getOwnBotId(client)]);
+  const isOwnBot = r.isBot && ((!!botUserId && r.authorSlackId === botUserId) || (!!botId && r.botId === botId));
+
+  const mentions = extractMentions(r.text);
+  const [memberRows, archive, row] = await Promise.all([
+    prisma.slackConversationMember.findMany({ where: { slackChannelId: r.channelId }, select: { slackUserId: true } }),
+    prisma.slackChannelArchive.findUnique({ where: { slackChannelId: r.channelId }, select: { slackChannelName: true } }),
+    prisma.slackMessage.findUnique({
+      where: { slackChannelId_ts: { slackChannelId: r.channelId, ts: r.ts } },
+      select: { authorName: true },
+    }),
+  ]);
+
+  const pings = computePings({
+    convKind: r.convKind,
+    authorSlackId: r.authorSlackId,
+    isOwnBot,
+    text: r.text,
+    threadTs: r.threadTs,
+    conversationMemberIds: memberRows.map((m) => m.slackUserId),
+    threadParticipantIds: r.threadTs ? await threadParticipants(r.channelId, r.threadTs, r.ts) : [],
+    userGroupMembers: mentions.groups.length ? await userGroupMembers(mentions.groups, client) : {},
+  });
+  if (pings.length === 0) return 0;
+
+  const recipients = await prisma.member.findMany({
+    where: { slackId: { in: pings.map((p) => p.slackUserId) }, isBot: false },
+    select: { id: true, slackId: true, mutedSlackChannelIds: true, notificationChannels: true },
+  });
+  if (recipients.length === 0) return 0;
+
+  // One project lookup for everyone, not one per recipient.
+  const isChannel = r.convKind === "CHANNEL" || r.convKind === "PRIVATE_CHANNEL";
+  const projectIds = isChannel ? (await getProjectsForChannel(r.channelId)).map((p: { id: string }) => p.id) : [];
+  const memberships = projectIds.length
+    ? await prisma.projectMember.findMany({
+        where: { projectId: { in: projectIds }, memberId: { in: recipients.map((m) => m.id) } },
+        select: { projectId: true, memberId: true },
+      })
+    : [];
+  const projectFor = new Map(memberships.map((m) => [m.memberId, m.projectId]));
+
+  const ctx = await buildFormatContext();
+  const preview = previewText(r.text, ctx, 120);
+  const authorName = row?.authorName ?? "Someone";
+  const where = archive?.slackChannelName ? `#${archive.slackChannelName}` : "a channel";
+  const isGroup = r.convKind === "MPIM";
+  const typeOf = new Map(pings.map((p) => [p.slackUserId, p.type]));
+
+  let delivered = 0;
+  for (const m of recipients) {
+    const type = typeOf.get(m.slackId);
+    if (!type) continue;
+    if (m.mutedSlackChannelIds.includes(r.channelId)) continue;
+    const prefs = (m.notificationChannels ?? {}) as Record<string, unknown>;
+    if (prefs[type] === "off") continue;
+
+    const n = await upsertSlackNotification({
+      type: type as NotificationType,
+      recipientId: m.id,
+      actorId: author?.id ?? null,
+      slackChannelId: r.channelId,
+      slackTs: r.ts,
+      message: messageFor(type, authorName, where, preview, isGroup),
+      aggregateMessage: (count) =>
+        isGroup ? `${count} new messages in a group message — latest from ${authorName}` : `${authorName} sent you ${count} messages`,
+      link: linkFor(r, projectFor.get(m.id) ?? null),
+    });
+    if (n) delivered++;
+  }
+  return delivered;
+}
+```
+
+If `tsc` complains about the `getProjectsForChannel` element type, grep `export async function getProjectsForChannel` in `projectService.ts` and use its real return type. It returns project rows that carry `id`.
+
+- [ ] **Step 4: Deliver from the live event path**
+
+In `backend/src/slack/events.ts`, add `import { deliverSlackPings } from "../services/slackNotifyService.js";`. Then replace the first `try { … } catch` block of `app.message` (the one Task 5 wrote, calling `ingestSlackMessage` and `ensureMembersKnown`) with:
+
+```ts
+    let result: Awaited<ReturnType<typeof ingestSlackMessage>> = null;
+    try {
+      result = await ingestSlackMessage(message as never, client);
+      if (result?.event === "new") {
+        await ensureMembersKnown(result.channelId, result.convKind, authorizedUserId);
+      }
+    } catch (error) {
+      console.error("[slackArchive] ingest failed:", error);
+    }
+
+    // Mirror Slack's pings into Constellation. Live path ONLY — backfill never
+    // notifies (D10). Separate error boundary: a ping bug must not lose the
+    // archive row, and an archive bug must not block the TODO prompt below.
+    if (result) {
+      try {
+        await deliverSlackPings(result, client);
+      } catch (error) {
+        console.error("[slackPortal] ping delivery failed:", error);
+      }
+    }
+```
+
+Membership is ensured **before** pings are computed, because pings need the member list.
+
+- [ ] **Step 5: Gate + commit**
+
+Run every backend test file touched so far, then the gate. Manual, with two accounts:
+
+- A DMs B in Slack → B's Constellation bell rings with "A sent you a message". A second DM from A updates that same row to "A sent you 2 messages".
+- A `@`-mentions B in a channel → B gets a mention notification.
+- A deletes the message → B's unread notification disappears.
+- The Monday digest (our bot) produces **no** Slack notifications.
+
+```bash
+git add backend/src/services/slackNotifyService.ts backend/src/services/notificationCrud.ts backend/src/services/slackReadService.ts backend/src/slack/events.ts
+git commit -m "feat(slack-portal): mirror Slack pings as Constellation notifications"
+```
+
+---
+
+## Task 25: Slack→Constellation read sync, mute, roster hygiene
+
+**Files:**
+- Create: `backend/src/services/slackReadSyncService.ts`
+- Modify: `backend/src/slack/scheduler.ts`
+- Modify: `backend/src/api/chat.ts` (mute route)
+- Modify: `backend/src/api/members.ts` (strip new per-member fields from roster responses)
+
+- [ ] **Step 1: Create `slackReadSyncService.ts`**
+
+```ts
+import { prisma } from "../db/prisma.js";
+import { userClientFor, clearSlackUserToken, isDeadTokenError, slackErrorCode } from "./slackUserTokenService.js";
+import { hasCapability } from "./slackScopes.js";
+import { advanceCursor, markSlackNotificationsRead } from "./slackReadService.js";
+
+const SLACK_TYPES = ["SLACK_DM", "SLACK_MENTION", "SLACK_THREAD_REPLY", "SLACK_BROADCAST"] as const;
+const MAX_PAIRS = 40;
+/** conversations.info is Tier 3 (~50/min). 40 × 1.2s fits well inside the 2-minute cron. */
+const PACE_MS = 1_200;
+
+let running = false;
+
+/**
+ * Slack → Constellation read sync (D11).
+ *
+ * The Events API never reports that someone read a message in Slack
+ * (channel_marked/im_marked are RTM-only), so this polls instead: for each
+ * (member, conversation) that still has unread Slack notifications, ask Slack
+ * for that member's last_read, then clear everything up to it. Bounded and
+ * single-flight, so a slow Slack can't stack runs.
+ */
+export async function syncReadStateFromSlack(): Promise<{ checked: number; cleared: number }> {
+  if (running) return { checked: 0, cleared: 0 };
+  running = true;
+  try {
+    const pairs = await prisma.notification.findMany({
+      where: { read: false, type: { in: [...SLACK_TYPES] }, slackChannelId: { not: null } },
+      select: { recipientId: true, slackChannelId: true },
+      distinct: ["recipientId", "slackChannelId"],
+      take: MAX_PAIRS,
+    });
+
+    let checked = 0;
+    let cleared = 0;
+    for (const p of pairs) {
+      const channelId = p.slackChannelId!;
+      const uc = await userClientFor(p.recipientId);
+      if (!uc || !hasCapability(uc.scopes, "read")) continue;
+      try {
+        const info = await uc.client.conversations.info({ channel: channelId });
+        const lastRead = (info.channel as { last_read?: string } | undefined)?.last_read;
+        checked++;
+        // Slack omits last_read for some conversation types; nothing to sync then.
+        if (lastRead && !/^0+\.0+$/.test(lastRead)) {
+          await advanceCursor(p.recipientId, channelId, lastRead);
+          cleared += (await markSlackNotificationsRead(p.recipientId, channelId, lastRead)).length;
+        }
+      } catch (err) {
+        const code = slackErrorCode(err);
+        if (isDeadTokenError(code)) await clearSlackUserToken(p.recipientId);
+      }
+      await new Promise((res) => setTimeout(res, PACE_MS));
+    }
+    return { checked, cleared };
+  } finally {
+    running = false;
+  }
+}
+```
+
+- [ ] **Step 2: Every two minutes**
+
+In `scheduler.ts`, after the 03:55 block from Task 5:
+
+```ts
+  // ── Every 2 min — Slack portal: clear notifications members already read in Slack ──
+  cron.schedule("*/2 * * * *", async () => {
+    try {
+      const { syncReadStateFromSlack } = await import("../services/slackReadSyncService.js");
+      const r = await syncReadStateFromSlack();
+      if (r.cleared > 0) console.log(`👁️ [slackPortal] read sync cleared ${r.cleared} notification(s) across ${r.checked} conversation(s)`);
+    } catch (err) {
+      console.error("[slackPortal] read sync failed:", err);
+    }
+  });
+```
+
+- [ ] **Step 3: Mute route**
+
+Append to `backend/src/api/chat.ts`:
+
+```ts
+// ── POST /api/chat/conversations/:channelId/mute ─────────────
+// Constellation-only mute (D8): silences mirrored pings from this
+// conversation. Slack's own mute has no API, so it can't be read or set.
+chatRouter.post("/conversations/:channelId/mute", requireAuth, requireConversationRead, async (req: Request, res: Response) => {
+  try {
+    const muted = req.body?.muted === true;
+    const channelId = req.conversation!.channelId;
+    const me = await prisma.member.findUnique({ where: { id: req.memberId! }, select: { mutedSlackChannelIds: true } });
+    const set = new Set(me?.mutedSlackChannelIds ?? []);
+    if (muted) set.add(channelId);
+    else set.delete(channelId);
+    await prisma.member.update({
+      where: { id: req.memberId! },
+      data: { mutedSlackChannelIds: [...set].slice(0, 1000) },
+    });
+    res.json({ muted });
+  } catch (error) {
+    console.error("chat/mute error:", error);
+    res.status(500).json({ error: "Failed to update mute" });
+  }
+});
+```
+
+- [ ] **Step 4: Keep per-member Slack state out of the roster**
+
+The roster (`GET /api/members`, `GET /api/members/:id`) is readable by every member. A muted-conversation list names DM channel ids, so it is personal. In `backend/src/api/members.ts`, in **both** destructuring strip-lists (grep `slackUserToken: _sut,`; there are two), add:
+
+```ts
+        mutedSlackChannelIds: _msc,
+        slackUserScopes: _sus,
+```
+
+- [ ] **Step 5: Gate + commit**
+
+Manual: get a DM ping in Constellation, read the DM in the Slack app, and within about 2 minutes the Constellation notification turns read. Mute a conversation via `POST …/mute` and its next ping is suppressed.
+
+```bash
+git add backend/src/services/slackReadSyncService.ts backend/src/slack/scheduler.ts backend/src/api/chat.ts backend/src/api/members.ts
+git commit -m "feat(slack-portal): clear notifications read in Slack; Constellation-side mute"
+```
+
+---
+
+## Task 26: Notification UI
+
+**Files:**
+- Modify: `src/components/clubpm/NotificationBell.jsx`
+- Modify: `src/components/clubpm/NotificationCenter.jsx`
+- Modify: `src/components/clubpm/NotificationPreferences.jsx`
+- Modify: `src/components/clubpm/chat/ChatConversation.jsx` (mute toggle)
+
+- [ ] **Step 1: Bell**
+
+In `NotificationBell.jsx`:
+
+1. Replace `TYPE_GROUPS` and `TABS` with:
+
+```js
+const SLACK_TYPES = ["SLACK_DM", "SLACK_MENTION", "SLACK_THREAD_REPLY", "SLACK_BROADCAST"];
+
+const TYPE_GROUPS = {
+  Mentions: ["TASK_MENTIONED", "COMMENT_REPLY", "SLACK_MENTION", "SLACK_THREAD_REPLY"],
+  Slack: SLACK_TYPES,
+  Tasks: [
+    "TASK_ASSIGNED",
+    "TASK_COMPLETED",
+    "TASK_UPDATED",
+    "TASK_COMMENTED",
+    "TASK_DUE_SOON",
+    "TASK_OVERDUE",
+  ],
+  Projects: [
+    "PROJECT_UPDATE",
+    "MILESTONE_COMPLETED",
+    "MILESTONE_AT_RISK",
+    "STANDUP_POSTED",
+    "SYSTEM",
+  ],
+};
+
+const TABS = ["All", "Mentions", "Slack", "Tasks", "Projects"];
+```
+
+2. In the `"notification"` SSE handler, replace `setNotifications(prev => [notif, ...prev]);` with:
+
+```js
+        // Slack DM pings are UPDATED in place ("3 new messages") — replace by id.
+        setNotifications(prev => [notif, ...prev.filter(n => n.id !== notif.id)]);
+```
+
+3. After the `"slack-membership"` listener (Task 7), add:
+
+```js
+    // Read in Slack, in another tab, or by posting — sync without a refetch.
+    es.addEventListener("notification-read", (e) => {
+      try {
+        const ids = new Set(JSON.parse(e.data).ids ?? []);
+        setNotifications(prev => prev.map(n => (ids.has(n.id) ? { ...n, read: true } : n)));
+      } catch {
+        // malformed event — ignore
+      }
+    });
+    // The pinging message was deleted in Slack.
+    es.addEventListener("notification-removed", (e) => {
+      try {
+        const ids = new Set(JSON.parse(e.data).ids ?? []);
+        setNotifications(prev => prev.filter(n => !ids.has(n.id)));
+      } catch {
+        // malformed event — ignore
+      }
+    });
+```
+
+4. In `handleRead`, directly after the `patch(...)` call, add:
+
+```js
+      if (notif.metadata?.link) {
+        setOpen(false);
+        navigate(notif.metadata.link);
+        return;
+      }
+```
+
+- [ ] **Step 2: Notification center**
+
+In `NotificationCenter.jsx`: apply the same `TYPE_GROUPS`/`TABS` replacement as the bell. Add these entries to `TYPE_LABELS`:
+
+```js
+  SLACK_DM:            "Slack DM",
+  SLACK_MENTION:       "Slack mention",
+  SLACK_THREAD_REPLY:  "Slack thread",
+  SLACK_BROADCAST:     "Slack @channel",
+```
+
+and to `TYPE_BADGE_COLORS`:
+
+```js
+  SLACK_DM:            "var(--pm-accent-violet)",
+  SLACK_MENTION:       "var(--pm-accent-violet)",
+  SLACK_THREAD_REPLY:  "var(--pm-accent-teal)",
+  SLACK_BROADCAST:     "var(--pm-accent-amber)",
+```
+
+In its `handleRead`, directly after the `patch(...)` call, add:
+
+```js
+    if (notif.metadata?.link) {
+      navigate(notif.metadata.link);
+      return;
+    }
+```
+
+- [ ] **Step 3: Preferences**
+
+In `NotificationPreferences.jsx`, below `EVENT_TYPES`, add:
+
+```js
+// Slack pings mirrored into Constellation. They are never sent back to Slack
+// as a DM — the ping already happened there — so the only choices are
+// "show it here" or "don't".
+const SLACK_EVENT_TYPES = [
+  { key: 'SLACK_DM',           label: 'Slack direct and group messages' },
+  { key: 'SLACK_MENTION',      label: 'Mentioned in Slack' },
+  { key: 'SLACK_THREAD_REPLY', label: 'Replies in Slack threads I’m in' },
+  { key: 'SLACK_BROADCAST',    label: '@channel, @here and @everyone' },
+];
+
+const SLACK_CHANNEL_OPTIONS = [
+  { value: 'dashboard', label: 'Constellation' },
+  { value: 'off',       label: 'Off' },
+];
+```
+
+Directly after the closing `</div>` of Section 2 (the "Delivery channel per event" section), add a sibling section:
+
+```jsx
+        {/* ── Section 2b: Slack pings mirrored here ───────── */}
+        <div className="pm-prefs-section">
+          <div className="pm-prefs-section-title">Slack pings in Constellation</div>
+          <div className="pm-prefs-section-body">
+            {SLACK_EVENT_TYPES.map(({ key, label }) => (
+              <div key={key} className="pm-prefs-row">
+                <span className="pm-prefs-label">{label}</span>
+                <select
+                  className="pm-prefs-select"
+                  value={notificationChannels[key] === 'off' ? 'off' : 'dashboard'}
+                  onChange={e => setChannel(key, e.target.value)}
+                >
+                  {SLACK_CHANNEL_OPTIONS.map(opt => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+              </div>
+            ))}
+            <p className="pm-prefs-hint">
+              Slack's own mute and keyword settings can't be read by Constellation. To silence one
+              conversation here, use the bell button in that conversation.
+            </p>
+          </div>
+        </div>
+```
+
+(`<span>` is fine here: this file isn't in `chat/`, and it matches the section above.)
+
+- [ ] **Step 4: Mute toggle in `ChatConversation`**
+
+In `ChatConversation.jsx`, add `muteConversation` to the client import and `import toast from "react-hot-toast";`. Add this below the other `useState` calls:
+
+```jsx
+  const [muted, setMuted] = useState(!!conversation?.muted);
+  useEffect(() => { setMuted(!!conversation?.muted); }, [conversation?.muted]);
+
+  const toggleMute = async () => {
+    const next = !muted;
+    setMuted(next);
+    try {
+      await muteConversation(channelId, next);
+    } catch {
+      setMuted(!next);
+      toast.error("Could not change notifications for this conversation.");
+    }
+  };
+```
+
+Inside `.cpm-chat-toolbar`, after the search `</form>`, add:
+
+```jsx
+        {conversation?.isParticipant && (
+          <button
+            type="button"
+            className="cpm-chat-backfill-btn"
+            onClick={toggleMute}
+            aria-pressed={muted}
+            title={muted ? "Unmute — get Constellation notifications from this conversation again" : "Mute — no Constellation notifications from this conversation"}
+          >
+            <i className={muted ? "fas fa-bell-slash" : "fas fa-bell"} aria-hidden="true" />
+            {muted ? "Muted" : "Mute"}
+          </button>
+        )}
+```
+
+- [ ] **Step 5: Gate + commit**
+
+`npm run build` (regenerates the subset for `fa-bell`). Manual:
+
+- A Slack DM ping appears under the bell's **Slack** tab. Clicking it opens `/clubpm/members?dm=…` with the conversation docked.
+- Reading it there clears the Slack unread badge in the Slack app too (`conversations.mark`).
+- A mention in a project channel links to that project's Chat tab with the channel selected.
+
+```bash
+git add src/components/clubpm/NotificationBell.jsx src/components/clubpm/NotificationCenter.jsx src/components/clubpm/NotificationPreferences.jsx src/components/clubpm/chat/ChatConversation.jsx public/fa-subset.css public/webfonts
+git commit -m "feat(slack-portal): Slack pings in the bell, deep links, read/remove sync, mute"
+```
+
+---
+
+## Task 27: Constellation→Slack parity (`notificationChannels` made real)
+
+**Files (deliberate 6-file mechanical task):**
+- Create: `backend/src/services/notificationRouting.ts`
+- Create: `backend/src/services/notificationRouting.test.ts`
+- Modify: `backend/src/services/notificationCrud.ts` (`createNotification`)
+- Modify: `backend/src/api/tasks.ts`, `backend/src/api/projects.ts`, `backend/src/services/taskCompletionService.ts` (five call sites)
+
+**Background (D14).** The preferences page has always offered "Both / Dashboard only / Slack DM / Off" for seven event types. Nothing on the server has ever read the setting. Instead, the call sites for those types pair `createNotification(...)` with a hand-written `queueDm(...)`, so every member gets both, whatever they chose. After this task `createNotification` routes by preference, and those call sites pass `slackText` instead of calling `queueDm`.
+
+**Behavior change:** `COMMENT_REPLY` gains a Slack DM by default, matching what the preferences UI has always claimed ("Both"). Note it in the PR.
+
+- [ ] **Step 1: Failing routing test**
+
+`backend/src/services/notificationRouting.test.ts`:
+
+```ts
+// Run: cd backend && npx tsx src/services/notificationRouting.test.ts
+import { routeFor } from "./notificationRouting.js";
+
+let passed = 0, failed = 0;
+function check(name: string, cond: boolean) {
+  if (cond) passed++; else { failed++; console.error(`  ✗ ${name}`); }
+}
+const eq = (a: object, b: object) => JSON.stringify(a) === JSON.stringify(b);
+
+check("no preference → both", eq(routeFor("TASK_ASSIGNED", undefined), { inApp: true, slack: true }));
+check("dashboard → in-app only", eq(routeFor("TASK_ASSIGNED", "dashboard"), { inApp: true, slack: false }));
+check("slack → Slack only", eq(routeFor("TASK_ASSIGNED", "slack"), { inApp: false, slack: true }));
+check("off → nothing", eq(routeFor("TASK_ASSIGNED", "off"), { inApp: false, slack: false }));
+check("garbage preference → both", eq(routeFor("TASK_ASSIGNED", 42), { inApp: true, slack: true }));
+// D9 loop guard: a mirrored Slack ping must never be DM'd back to Slack.
+check("SLACK_DM default → in-app, never Slack", eq(routeFor("SLACK_DM", undefined), { inApp: true, slack: false }));
+check("SLACK_MENTION 'slack' → still never Slack", eq(routeFor("SLACK_MENTION", "slack"), { inApp: true, slack: false }));
+check("SLACK_BROADCAST off → nothing", eq(routeFor("SLACK_BROADCAST", "off"), { inApp: false, slack: false }));
+
+console.log(`\nnotificationRouting: ${passed} passed, ${failed} failed`);
+if (failed > 0) process.exit(1);
+```
+
+- [ ] **Step 2: Implement `notificationRouting.ts`**
+
+```ts
+/** Pure. How one notification reaches a member. */
+
+export const SLACK_MIRROR_TYPES: ReadonlySet<string> = new Set([
+  "SLACK_DM", "SLACK_MENTION", "SLACK_THREAD_REPLY", "SLACK_BROADCAST",
+]);
+
+type ChannelPref = "both" | "dashboard" | "slack" | "off";
+
+/**
+ * `pref` is Member.notificationChannels[type]; anything missing or unknown is
+ * "both" (the preferences UI's default). SLACK_* types NEVER go to Slack —
+ * they came from there (D9 loop guard).
+ */
+export function routeFor(type: string, pref: unknown): { inApp: boolean; slack: boolean } {
+  const p: ChannelPref = pref === "dashboard" || pref === "slack" || pref === "off" ? pref : "both";
+  if (SLACK_MIRROR_TYPES.has(type)) return { inApp: p !== "off", slack: false };
+  return { inApp: p === "both" || p === "dashboard", slack: p === "both" || p === "slack" };
+}
+```
+
+Run the test → `8 passed, 0 failed`.
+
+- [ ] **Step 3: Route inside `createNotification`**
+
+In `backend/src/services/notificationCrud.ts`, add:
+
+```ts
+import { queueDm } from "./dmBatcher.js";
+import { routeFor } from "./notificationRouting.js";
+```
+
+Replace the whole `createNotification` function with:
+
+```ts
+/**
+ * Create one notification, delivered per the recipient's preference for its
+ * type (D14). `slackText` opts a call site in to the Slack DM; a caller that
+ * passes none keeps its pre-portal behaviour (in-app only). No caller uses the
+ * return value, which is null when the member turned this type off or chose
+ * Slack-only.
+ */
+export async function createNotification(data: {
+  type: NotificationType;
+  recipientId: string;
+  actorId?: string;
+  projectId?: string;
+  taskId?: string;
+  commentId?: string;
+  message: string;
+  metadata?: Record<string, any>;
+  slackText?: string;
+}): Promise<Notification | null> {
+  const recipient = await prisma.member.findUnique({
+    where: { id: data.recipientId },
+    select: { slackId: true, notificationChannels: true },
+  });
+  const prefs = (recipient?.notificationChannels ?? {}) as Record<string, unknown>;
+  const route = routeFor(data.type, prefs[data.type]);
+
+  let notification: Notification | null = null;
+  if (route.inApp) {
+    notification = await prisma.notification.create({
+      data: {
+        type:        data.type,
+        recipientId: data.recipientId,
+        actorId:     data.actorId     ?? null,
+        projectId:   data.projectId   ?? null,
+        taskId:      data.taskId      ?? null,
+        commentId:   data.commentId   ?? null,
+        message:     data.message,
+        metadata:    (data.metadata as any) ?? undefined,
+      },
+    });
+    // Push to SSE stream for the recipient
+    activityBus.emit(`notification:${data.recipientId}`, notification);
+  }
+
+  if (route.slack && data.slackText && recipient?.slackId) {
+    queueDm(recipient.slackId, data.slackText);
+  }
+  return notification;
+}
+```
+
+Also change `batchCreateNotifications`' parameter element type to include `slackText?: string;`, so it stays a pass-through.
+
+- [ ] **Step 4: Move the five call sites onto `slackText`**
+
+For each site: add a `slackText:` property to the `createNotification({ … })` call, using the **exact** string the adjacent `queueDm` sends today, then delete the `queueDm` line.
+
+| File | Grep | Change |
+|---|---|---|
+| `backend/src/api/tasks.ts` | `type: "TASK_ASSIGNED"` | `slackText: \`📋 *${actor?.displayName ?? "Someone"}* assigned you to *${task.title}* in ${proj?.name ?? "a project"}\``, then delete the `if (assignee.slackId) queueDm(…)` line below |
+| `backend/src/api/tasks.ts` | `type: "COMMENT_REPLY"` | add `slackText: \`↩️ *${populatedComment.author.displayName}* replied to your comment on *${populatedComment.task.title}*\`` (no `queueDm` to delete — this is the behavior change) |
+| `backend/src/api/tasks.ts` | `type: "TASK_COMMENTED"` | move the `queueDm` string into `slackText`, delete `if ((assignee as any).slackId) queueDm(…)` |
+| `backend/src/api/projects.ts` | `type: "PROJECT_UPDATE"` | `slackText: \`📢 New update in *${projectWithMembers.name}*:\n> ${content.slice(0, 200)}\``, delete `if (recipient.slackId) queueDm(…)` |
+| `backend/src/services/taskCompletionService.ts` | `type: "TASK_COMPLETED"` | `slackText: \`✅ Task *${updatedTask.title}* was marked done\``, delete the `queueDm` line |
+
+After the edits, grep each of the three files for `queueDm(`. If a file has none left, delete its `import { queueDm } …` line. Other `queueDm` users (the scheduler, vault, courses, and so on) are untouched: they send DMs that have no in-app twin.
+
+- [ ] **Step 5: Gate + commit**
+
+Run the routing test and the gate. Manual: set "Task assigned to me" to **Dashboard only**, get assigned, and you see the bell notification but **no** Slack DM. Set it to **Slack DM**: you get the DM, and no bell notification.
+
+```bash
+git add backend/src/services/notificationRouting.ts backend/src/services/notificationRouting.test.ts backend/src/services/notificationCrud.ts backend/src/api/tasks.ts backend/src/api/projects.ts backend/src/services/taskCompletionService.ts
+git commit -m "feat(notifications): honour per-event delivery preferences; Slack mirrors never echo back"
+```
+
+---
+
+# Part G — Close-out
+
+## Task 28: End-to-end verification, cleanup, docs
+
+**Files:**
+- Modify: `backend/src/api/projectChat.ts` (delete superseded read routes)
+- Modify: `src/api/clubPmClient.js` (delete superseded functions)
+- Modify: `backend/src/appMountOrder.test.ts`
+- Modify: `CLAUDE.md`
+
+- [ ] **Step 1: Delete what `/api/chat` superseded**
+
+First confirm nothing uses them: `rg -n "getChatMessages|getChatThread|searchChat|chatFileUrl" src` must list only their definitions in `clubPmClient.js`. Then:
+
+- In `backend/src/api/projectChat.ts`, delete the `GET /:projectId/chat/messages`, `/chat/thread/:ts`, `/chat/search` and `/chat/files/:slackFileId` routes, plus any import only they used. Keep `fileProxyAuth` (exported, used by `chat.ts`), `channels`, `backfill`, `backfill/:channelId`, `storage-health` and the admin router.
+- In `src/api/clubPmClient.js`, delete `getChatMessages`, `getChatThread`, `searchChat` and `chatFileUrl`.
+- In `backend/src/appMountOrder.test.ts`, remove `"projectChatRouter"` from `QUERY_TOKEN_ROUTERS` and from `SHADOWS`: it no longer serves a `?token=` route. In `app.ts`, update the comment above `app.use("/api/projects", projectChatRouter);` to say the order is kept only for backfill routes, and that the file proxy moved to `/api/chat`.
+
+- [ ] **Step 2: `CLAUDE.md`**
+
+- **API Routes:** add `chat.ts`, the conversation-scoped Slack portal API (reads, writes as the member, file proxy, read marks, mute). Note it is mounted above the bare `/api` routers for its `?token=` proxy.
+- **Services:** add one line each for `slackMembershipService`, `slackReadService`, `slackSendService`, `slackNotifyService`, `slackReadSyncService`, `slackBlocks`, `slackPings`, `notificationRouting`.
+- **File structure:** `src/components/clubpm/chat/` (`ChatConversation`, `ChatComposer`, `ChatBlocks`), `src/components/clubpm/members/` (`DmInbox`, `DmPanel`), `src/pages/ClubPM/ChatPage.jsx`.
+- **New gotcha section, "Slack portal invariants"**, each one line with its reason:
+  1. No admin bypass for private conversations. The rule has no admin input, and static tests guard both access modules.
+  2. Private/DM files never go to Drive (`mirrorTargetFor`).
+  3. `/uploads/slack` must never be served statically (mount-order test).
+  4. Backfill never notifies; pings come only from `events.ts`.
+  5. `SLACK_*` notifications are never DM'd back, and our own bot's posts never ping.
+  6. HTTP 409 from `/api/chat` means exactly "reconnect Slack".
+  7. Any Slack read of a specific conversation goes through `resolveReadClient()`, never the bot token directly.
+  8. `ignoreSelf` is off; every reactive Slack handler must guard against bot authors.
+  9. Slack user events are delivered once per event, however many members can see it.
+  10. `notificationChannels` is now enforced; `slackText` opts a call site in to the DM.
+
+- [ ] **Step 3: End-to-end verification (real workspace, two members A and B, plus one admin C not in the test DM)**
+
+Record pass/fail for each in the PR description:
+
+1. A reconnects Slack. The consent screen lists the new scopes and `/auth/me` shows `slackCapabilities.post: true`.
+2. A sends a message from a project Chat tab. It appears in Slack **as A**, with no APP badge, exactly once in Constellation (no duplicate from the echo).
+3. A opens `/clubpm/members`, clicks **Message** on B and sends. B receives a Slack DM from A **and** a Constellation notification.
+4. B replies **in Slack**. The reply appears live in A's DM panel.
+5. B reads A's message **in Slack**. Within 2 min, B's Constellation notification turns read.
+6. B opens the DM **in Constellation**. B's Slack unread badge for that DM clears.
+7. Group DM of A + B + one more, from the project Members tab.
+8. React, un-react, thread reply, edit, delete from Constellation. Each mirrors to Slack, and the deleted message's unread notification disappears for its recipient.
+9. Upload an image in a DM. It renders through the proxy in **Brave** (Bearer-only) and in Chrome.
+10. **Privacy:** as admin C, `curl -H "Authorization: Bearer <C's token>" $API/api/chat/conversations/<A–B DM id>/messages` → **404**. Also `…/api/chat/files/<that DM's file id>` → 404, and `$API/uploads/slack/<channel>/<file>` → 404.
+11. The Monday digest renders as Block Kit with an APP badge in its channel, and creates no Slack notifications.
+12. `@channel` in a public channel pings its members in Constellation. Muting that channel in Constellation stops the next one.
+13. `/clubpm/chat` lists joined channels with unread badges. **Browse** previews an unjoined public channel, and **Join channel** works.
+14. Set "Task assigned to me" to Dashboard only: bell notification, no Slack DM.
+
+- [ ] **Step 4: Final gate + commit**
+
+All backend test files pass:
+
+```
+cd backend && for f in src/services/slackScopes.test.ts src/services/slackConversationAccess.test.ts src/services/slackArchivePolicy.test.ts src/services/slackFileService.test.ts src/services/slackReadService.test.ts src/services/slackSendRules.test.ts src/services/slackBlocks.test.ts src/services/slackPings.test.ts src/services/notificationRouting.test.ts src/middleware/conversationAccess.test.ts src/appMountOrder.test.ts src/services/slackUserTokenService.test.ts; do npx tsx $f || exit 1; done
+```
+
+Then `npx tsc --noEmit`, and at the root `npm test -- --watchAll=false` and `npm run build`.
+
+```bash
+git add backend/src/api/projectChat.ts src/api/clubPmClient.js backend/src/appMountOrder.test.ts backend/src/app.ts CLAUDE.md
+git commit -m "chore(slack-portal): remove superseded project chat reads; document portal invariants"
+```
+
+Then open the PR against `main`. List every D-numbered decision and the two behavior changes: D3 (private linked channels follow Slack membership) and COMMENT_REPLY gaining a Slack DM. Include the Step 3 results.

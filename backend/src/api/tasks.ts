@@ -15,7 +15,6 @@ import {
 import { prisma as prismaClient } from "../db/prisma.js";
 import { createNotification } from "../services/notificationCrud.js";
 import { parseMentionHandles } from "../services/mentionService.js";
-import { queueDm } from "../services/dmBatcher.js";
 import { EXCLUDE_TRAINING } from "../services/trainingSandboxService.js";
 
 // ── Attachment helpers ──────────────────────────────────────
@@ -623,8 +622,8 @@ tasksRouter.patch("/:id", channelAuth, async (req: Request, res: Response) => {
               projectId: task.projectId,
               taskId,
               message: `${actor?.displayName ?? "Someone"} assigned you to "${task.title}" in ${proj?.name ?? "a project"}`,
+              slackText: `📋 *${actor?.displayName ?? "Someone"}* assigned you to *${task.title}* in ${proj?.name ?? "a project"}`,
             });
-            if (assignee.slackId) queueDm(assignee.slackId, `📋 *${actor?.displayName ?? "Someone"}* assigned you to *${task.title}* in ${proj?.name ?? "a project"}`);
           }
         }
         // Completed-notification fan-out for the DONE transition is handled
@@ -985,6 +984,7 @@ tasksRouter.post("/:id/comments", requireAuth, channelAuth, async (req: Request,
           taskId,
           commentId: comment.id,
           message: `${populatedComment.author.displayName} replied to your comment on task "${populatedComment.task.title}"`,
+          slackText: `↩️ *${populatedComment.author.displayName}* replied to your comment on *${populatedComment.task.title}*`,
         }).catch(console.error);
       }
     }
@@ -1042,34 +1042,9 @@ tasksRouter.post("/:id/comments", requireAuth, channelAuth, async (req: Request,
           projectId: taskForNotif.projectId,
           taskId,
           message: `${author?.displayName ?? "Someone"} commented on "${taskForNotif.title}"`,
+          slackText: `💬 *${author?.displayName ?? "Someone"}* commented on *${taskForNotif.title}* (${(taskForNotif as any).project.name}):\n> ${content.slice(0, 200)}`,
         }).catch(console.error);
-        if ((assignee as any).slackId) queueDm((assignee as any).slackId, `💬 *${author?.displayName ?? "Someone"}* commented on *${taskForNotif.title}* (${(taskForNotif as any).project.name}):\n> ${content.slice(0, 200)}`);
       }
-    }
-
-    // Sync comment to Slack thread (if task has a Slack announcement)
-    if (populatedComment?.task?.slackMsgTs) {
-      (async () => {
-        try {
-          const { boltApp } = await import("../slack/bolt.js");
-          const { prisma: db } = await import("../db/prisma.js");
-          const target = await db.projectNotificationTarget.findFirst({
-            where: { projectId: populatedComment.task.projectId },
-            select: { slackChannelId: true },
-          });
-          const channelId = target?.slackChannelId ?? populatedComment.task.project?.slackChannel;
-          if (!channelId) return;
-
-          const frontendUrl = process.env.FRONTEND_URL ?? "http://localhost:3000";
-          await boltApp.client.chat.postMessage({
-            channel: channelId,
-            thread_ts: populatedComment.task.slackMsgTs!,
-            text: `💬 *${populatedComment.author.displayName}* commented: ${content.slice(0, 300)}${content.length > 300 ? "…" : ""}\n<${frontendUrl}/clubpm/projects/${populatedComment.task.projectId}|View on Dashboard>`,
-          });
-        } catch (err) {
-          console.error("Comment Slack thread sync error:", err);
-        }
-      })();
     }
 
     logAuditEvent({

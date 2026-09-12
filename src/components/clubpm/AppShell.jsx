@@ -45,6 +45,7 @@ function getBreadcrumb(pathname) {
   if (pathname.startsWith('/clubpm/profile/')) return [{ label: 'Members', href: '/clubpm/members' }, { label: 'Profile' }];
   if (pathname === '/clubpm/shop') return [{ label: 'Shop' }];
   if (pathname === '/clubpm/challenges') return [{ label: 'Challenges' }];
+  if (pathname.startsWith('/clubpm/chat')) return [{ label: 'Chat' }];
   return [{ label: 'Constellation' }];
 }
 
@@ -59,6 +60,12 @@ const NAV_ITEMS = [
         <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
       </svg>
     ),
+  },
+  {
+    label: 'Chat',
+    href: '/clubpm/chat',
+    tourId: 'nav.chat',
+    icon: <i className="fas fa-comments" aria-hidden="true" style={{ fontSize: 15, width: 18, textAlign: 'center' }} />,
   },
   {
     label: 'Calendar',
@@ -428,7 +435,8 @@ export default function AppShell({ children }) {
             if (item.children) return <NavGroup key={item.id} item={item} location={location} />;
             const isActive = location.pathname === item.href ||
               (item.href === '/clubpm' && location.pathname.startsWith('/clubpm/projects')) ||
-              (item.href === '/clubpm/courses' && location.pathname.startsWith('/clubpm/courses'));
+              (item.href === '/clubpm/courses' && location.pathname.startsWith('/clubpm/courses')) ||
+              (item.href === '/clubpm/chat' && location.pathname.startsWith('/clubpm/chat'));
             return (
               <Link
                 key={item.href}

@@ -8,7 +8,6 @@ import {
   XpSource,
   DoubloonSource,
 } from "@prisma/client";
-import { queueDm } from "./dmBatcher.js";
 import { logAuditEvent } from "./activityService.js";
 import { recordActivity } from "./streakService.js";
 import { createNotification } from "./notificationCrud.js";
@@ -290,13 +289,6 @@ export async function approveReward(
       taskTitle,
     },
   }).catch(err => console.error("[reward] createNotification:", err));
-
-  // Slack DM to recipient
-  const member = await prisma.member.findUnique({ where: { id: pending.memberId }, select: { slackId: true, displayName: true } });
-  if (member?.slackId) {
-    queueDm(member.slackId,
-      `✅ Reward approved for *${taskTitle}* — +${xpAmount} XP, +${dbAmount} doubloons.`);
-  }
 }
 
 export async function rejectReward(pendingId: string, adminId: string): Promise<void> {
@@ -310,12 +302,6 @@ export async function rejectReward(pendingId: string, adminId: string): Promise<
   });
   if (claimed.count === 0) {
     throw new Error("Pending reward not found or already processed");
-  }
-
-  const member = await prisma.member.findUnique({ where: { id: pending.memberId }, select: { slackId: true } });
-  if (member?.slackId) {
-    const taskTitle = (pending.metadata as any)?.taskTitle ?? "your contribution";
-    queueDm(member.slackId, `ℹ️ A pending reward for *${taskTitle}* was not granted by an admin.`);
   }
 }
 
