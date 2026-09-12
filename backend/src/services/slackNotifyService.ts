@@ -164,8 +164,8 @@ export async function deliverSlackPings(r: IngestResult, client: WebClient): Pro
       slackChannelId: r.channelId,
       slackTs: r.ts,
       message: messageFor(type, authorName, where, preview, isGroup),
-      aggregateMessage: (count) =>
-        isGroup ? `${count} new messages in a group message — latest from ${authorName}` : `${authorName} sent you ${count} messages`,
+      authorName,
+      isGroup,
       link: linkFor(r, projectFor.get(m.id) ?? null),
     });
     if (n) delivered++;

@@ -1,5 +1,6 @@
 import { prisma } from "../db/prisma.js";
 import { activityBus } from "./activityService.js";
+import { addPing, removePing, newestPing, pingCount, type PingEntry } from "./slackPingAggregate.js";
 import type { Notification, NotificationType } from "@prisma/client";
 
 // ── Create ───────────────────────────────────────────────────
@@ -160,12 +161,39 @@ export async function deleteOldNotifications(olderThanDays: number): Promise<num
 // ── Slack ping mirror (slack portal) ─────────────────────────
 
 /**
+ * The JSON `metadata` shape kept on an unread SLACK_DM notification. `pings`
+ * holds every aggregated message it still covers, so retracting one (Slack
+ * delete) can shrink the aggregate instead of wiping the whole row — see
+ * upsertSlackNotification / retractSlackNotifications.
+ */
+interface SlackDmMetadata {
+  link: string;
+  count: number;
+  isGroup: boolean;
+  pings: PingEntry[];
+}
+
+function renderAggregateMessage(count: number, authorName: string, isGroup: boolean): string {
+  return isGroup
+    ? `${count} new messages in a group message — latest from ${authorName}`
+    : `${authorName} sent you ${count} messages`;
+}
+
+/** Rows written before `pings` existed (none should, but be safe) — treat as a single-message list. */
+function pingsOf(row: { slackTs: string | null; message: string; metadata: unknown }, fallbackAuthorName: string): PingEntry[] {
+  const meta = row.metadata as Partial<SlackDmMetadata> | null;
+  if (meta?.pings) return meta.pings;
+  return [{ ts: row.slackTs ?? "", message: row.message, authorName: fallbackAuthorName }];
+}
+
+/**
  * Create or merge one mirrored Slack ping.
  * - Never twice for the same (recipient, conversation, message, type): Slack
  *   redelivers events on retry.
  * - DMs aggregate: while an earlier DM notification from the same conversation
  *   is still unread, it is updated ("3 new messages") and bumped to the top
- *   instead of stacking one row per message.
+ *   instead of stacking one row per message. A message already in the
+ *   aggregate's list (Slack retry) is a no-op — no count bump.
  * SLACK_* notifications carry no projectId, so the member-project filter in
  * getNotificationsForMember never hides them.
  */
@@ -176,7 +204,10 @@ export async function upsertSlackNotification(data: {
   slackChannelId: string;
   slackTs: string;
   message: string;
-  aggregateMessage: (count: number) => string;
+  /** The message's sender — needed to re-render the aggregate form later, after a sibling is retracted. */
+  authorName: string;
+  /** Group DM vs 1:1 — only meaningful for SLACK_DM; carried in metadata so a later retract can re-render correctly. */
+  isGroup: boolean;
   link: string;
 }): Promise<Notification | null> {
   const dupe = await prisma.notification.findFirst({
@@ -191,15 +222,21 @@ export async function upsertSlackNotification(data: {
       orderBy: { createdAt: "desc" },
     });
     if (open) {
-      const count = Number((open.metadata as { count?: number } | null)?.count ?? 1) + 1;
+      const existing = pingsOf(open, data.authorName);
+      const added = addPing(existing, { ts: data.slackTs, message: data.message, authorName: data.authorName });
+      if (added === null) return null; // Slack redelivered a message we already have — no bump, no re-render.
+
+      const newest = newestPing(added)!;
+      const count = pingCount(added);
+      const message = count === 1 ? newest.message : renderAggregateMessage(count, newest.authorName, data.isGroup);
       const updated = await prisma.notification.update({
         where: { id: open.id },
         data: {
-          message: data.aggregateMessage(count),
-          slackTs: data.slackTs,
+          message,
+          slackTs: newest.ts,
           actorId: data.actorId,
           createdAt: new Date(),
-          metadata: { link: data.link, count },
+          metadata: ({ link: data.link, count, isGroup: data.isGroup, pings: added } satisfies SlackDmMetadata) as any,
         },
       });
       activityBus.emit(`notification:${data.recipientId}`, updated);
@@ -215,22 +252,75 @@ export async function upsertSlackNotification(data: {
       slackChannelId: data.slackChannelId,
       slackTs: data.slackTs,
       message: data.message,
-      metadata: { link: data.link, count: 1 },
+      metadata: (data.type === "SLACK_DM"
+        ? ({
+            link: data.link,
+            count: 1,
+            isGroup: data.isGroup,
+            pings: [{ ts: data.slackTs, message: data.message, authorName: data.authorName }],
+          } satisfies SlackDmMetadata)
+        : { link: data.link, count: 1 }) as any,
     },
   });
   activityBus.emit(`notification:${data.recipientId}`, created);
   return created;
 }
 
-/** A message was deleted in Slack: its unread pings go with it (Slack does the same). */
+/**
+ * A message was deleted in Slack.
+ * - Non-DM: its unread notification (matched by slackTs) goes with it, same as before.
+ * - SLACK_DM: only the one aggregated message is retracted. If others in the
+ *   aggregate are still unread, the row survives with its count and message
+ *   re-rendered around the newest remaining message; only an aggregate that
+ *   drops to zero is deleted.
+ */
 export async function retractSlackNotifications(slackChannelId: string, slackTs: string): Promise<void> {
   const rows = await prisma.notification.findMany({
-    where: { slackChannelId, slackTs, read: false },
-    select: { id: true, recipientId: true },
+    where: { slackChannelId, read: false },
+    select: { id: true, recipientId: true, type: true, slackTs: true, message: true, metadata: true },
   });
   if (rows.length === 0) return;
-  await prisma.notification.deleteMany({ where: { id: { in: rows.map((r) => r.id) } } });
-  const byRecipient = new Map<string, string[]>();
-  for (const r of rows) byRecipient.set(r.recipientId, [...(byRecipient.get(r.recipientId) ?? []), r.id]);
-  for (const [recipientId, ids] of byRecipient) activityBus.emit(`notification-removed:${recipientId}`, { ids });
+
+  const removedByRecipient = new Map<string, string[]>();
+  const toDelete: string[] = [];
+
+  for (const row of rows) {
+    if (row.type !== "SLACK_DM") {
+      if (row.slackTs === slackTs) {
+        toDelete.push(row.id);
+        removedByRecipient.set(row.recipientId, [...(removedByRecipient.get(row.recipientId) ?? []), row.id]);
+      }
+      continue;
+    }
+
+    const meta = row.metadata as Partial<SlackDmMetadata> | null;
+    const existing = pingsOf(row, "");
+    if (!existing.some((p) => p.ts === slackTs)) continue; // this delete doesn't touch this aggregate
+
+    const remaining = removePing(existing, slackTs);
+    if (remaining.length === 0) {
+      toDelete.push(row.id);
+      removedByRecipient.set(row.recipientId, [...(removedByRecipient.get(row.recipientId) ?? []), row.id]);
+      continue;
+    }
+
+    const newest = newestPing(remaining)!;
+    const count = pingCount(remaining);
+    const isGroup = meta?.isGroup ?? false;
+    const message = count === 1 ? newest.message : renderAggregateMessage(count, newest.authorName, isGroup);
+    const updated = await prisma.notification.update({
+      where: { id: row.id },
+      data: {
+        message,
+        slackTs: newest.ts,
+        metadata: ({ link: meta?.link ?? "", count, isGroup, pings: remaining } satisfies SlackDmMetadata) as any,
+      },
+    });
+    activityBus.emit(`notification:${row.recipientId}`, updated);
+  }
+
+  if (toDelete.length > 0) {
+    await prisma.notification.deleteMany({ where: { id: { in: toDelete } } });
+    for (const [recipientId, ids] of removedByRecipient) activityBus.emit(`notification-removed:${recipientId}`, { ids });
+  }
 }
