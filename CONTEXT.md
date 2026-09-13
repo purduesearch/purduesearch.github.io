@@ -44,7 +44,7 @@ This file routes Claude to the correct files for common website tasks. Load only
 | **Add static images / assets** | `public/<program>/` folder (served at `/<program>/filename`) |
 | **Change Font Awesome icon set** | `public/index.html` (CDN link in `<head>`) |
 | **Edit ClubPM dashboard / project views** | `src/pages/ClubPM/<View>.jsx`, `src/components/clubpm/<Component>.jsx` |
-| **Edit Kanban board** | `src/components/clubpm/KanbanBoard.jsx` (`@hello-pangea/dnd`) |
+| **Edit project task board** | `src/pages/ClubPM/ProjectDetail.jsx` (`@dnd-kit/core`) |
 | **Edit Gantt chart** | `src/components/clubpm/GanttChart.jsx` |
 | **Edit ClubPM auth / route protection** | `src/clubpm/ClubPmAuth.jsx`, `src/App.js` |
 | **Edit ClubPM API calls** | `src/api/clubPmClient.js` |
