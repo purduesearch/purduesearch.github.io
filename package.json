@@ -81,7 +81,9 @@
     "build": "react-scripts build",
     "postbuild": "node -e \"require('fs').copyFileSync('build/index.html', 'build/404.html')\" && node scripts/minify-public-css.mjs",
     "test": "node scripts/check-tour-anchors.js && react-scripts test",
+    "test:ci": "react-scripts test --watchAll=false",
     "test:scripts": "node --test scripts/optimize-images.test.mjs",
+    "lint": "eslint src --ext .js,.jsx",
     "eject": "react-scripts eject"
   },
   "eslintConfig": {
