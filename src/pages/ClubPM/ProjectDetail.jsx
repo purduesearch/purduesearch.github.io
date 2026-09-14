@@ -145,7 +145,7 @@ function TabIcon({ children }) {
   );
 }
 
-// Shared so the AI tab and the AI panel's own heading can't drift apart.
+// Shared by the Insights subtab and the AI panel heading.
 const AI_TAB_ICON = (
   <TabIcon>
     <rect x="6" y="8" width="12" height="11" rx="2" />
@@ -185,18 +185,7 @@ const NAV_TABS = [
     ),
   },
   {
-    id: "members", label: "Members", tourId: "project.tab.members",
-    icon: (
-      <TabIcon>
-        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-        <circle cx="9" cy="7" r="4" />
-        <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-      </TabIcon>
-    ),
-  },
-  {
-    id: "reports", label: "Reports", tourId: "project.tab.reports",
+    id: "insights", label: "Insights", tourId: "project.tab.insights",
     icon: (
       <TabIcon>
         <line x1="18" y1="20" x2="18" y2="10" />
@@ -205,10 +194,6 @@ const NAV_TABS = [
         <line x1="3" y1="20" x2="21" y2="20" />
       </TabIcon>
     ),
-  },
-  {
-    id: "ai", label: "AI", tourId: "project.tab.ai",
-    icon: AI_TAB_ICON,
   },
 ];
 
@@ -1568,7 +1553,7 @@ function AiPanel({ project, allMembers, projectBlockers, onActionPlanExecuted })
   };
 
   return (
-    <div className="cpm-proj-main-body" style={{ padding: "24px", maxWidth: 780 }}>
+    <div className="cpm-ai-panel" style={{ padding: "24px", maxWidth: 780 }}>
       <h3 style={{
         fontSize: 15, fontWeight: 700, color: "var(--clubpm-text-primary)", marginBottom: 20,
         display: "flex", alignItems: "center", gap: 8,
@@ -2110,22 +2095,79 @@ export default function ProjectDetail() {
   });
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("tasks");
+  const [chatSection, setChatSection] = useState("messages");
+  const [reportTab, setReportTab] = useState("charts");
 
-  // Deep links (notifications): ?tab=members&dm=…, ?tab=chat&channel=…&thread=…
+  // Preserve old project deep links while routing them into the merged tabs.
   const tabParam = searchParams.get("tab");
   useEffect(() => {
-    if (tabParam && NAV_TABS.some(t => t.id === tabParam)) setActiveTab(tabParam);
-  }, [tabParam]);
+    if (tabParam === "members") {
+      setActiveTab("chat");
+      setChatSection("members");
+      setSearchParams(prev => {
+        const next = new URLSearchParams(prev);
+        next.set("tab", "chat");
+        next.set("view", "members");
+        return next;
+      }, { replace: true });
+    } else if (tabParam === "reports" || tabParam === "ai") {
+      setActiveTab("insights");
+      setReportTab(tabParam === "ai" ? "ai" : "charts");
+      setSearchParams(prev => {
+        const next = new URLSearchParams(prev);
+        next.set("tab", "insights");
+        if (tabParam === "ai") next.set("view", "ai");
+        else next.delete("view");
+        return next;
+      }, { replace: true });
+    } else if (tabParam && NAV_TABS.some(t => t.id === tabParam)) {
+      setActiveTab(tabParam);
+      const view = searchParams.get("view");
+      if (tabParam === "chat") setChatSection(view === "members" || searchParams.get("dm") ? "members" : "messages");
+      if (tabParam === "insights") setReportTab(["activity", "presskit", "ai"].includes(view) ? view : "charts");
+    }
+  }, [tabParam, searchParams, setSearchParams]);
 
   // Tab clicks keep the URL in step, and drop params that belong to other tabs.
   const changeTab = useCallback((id) => {
     setActiveTab(id);
+    if (id === "chat") setChatSection("messages");
+    if (id === "insights") setReportTab("charts");
     setSearchParams(prev => {
       const next = new URLSearchParams(prev);
       if (id === "tasks") next.delete("tab");
       else next.set("tab", id);
-      if (id !== "members") next.delete("dm");
       if (id !== "chat") { next.delete("channel"); next.delete("thread"); }
+      next.delete("dm");
+      next.delete("view");
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
+
+  const changeChatSection = useCallback((section) => {
+    setChatSection(section);
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      next.set("tab", "chat");
+      if (section === "members") {
+        next.set("view", "members");
+        next.delete("channel");
+        next.delete("thread");
+      } else {
+        next.delete("view");
+        next.delete("dm");
+      }
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
+
+  const changeInsightSection = useCallback((section) => {
+    setReportTab(section);
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      next.set("tab", "insights");
+      if (section === "charts") next.delete("view");
+      else next.set("view", section);
       return next;
     }, { replace: true });
   }, [setSearchParams]);
@@ -2151,7 +2193,6 @@ export default function ProjectDetail() {
   const navigate = useNavigate();
   const [expandedParents, setExpandedParents] = useState(new Set());
   const [sortBy, setSortBy] = useState("priority");
-  const [reportTab, setReportTab] = useState("charts"); // "charts" | "activity" | "presskit"
   const [headerDrivePreview, setHeaderDrivePreview] = useState(null); // { url, label }
   const [showEditProject, setShowEditProject] = useState(false);
   const [pinned, setPinned] = useState(() => {
@@ -3016,7 +3057,7 @@ export default function ProjectDetail() {
     (project.channelMemberSlackIds ?? []).includes(member?.slackId);
 
   return (
-    <div className="clubpm-app">
+    <div className="clubpm-app cpm-project-page">
     <div className="cpm-project-layout">
       <DndContext
         sensors={sensors}
@@ -3315,31 +3356,41 @@ export default function ProjectDetail() {
           )}
 
           {activeTab === "chat" && (
-            <div className="cpm-proj-main-body" style={{ padding: "16px 24px 24px" }}>
-              <ChatTab
-                project={project}
-                isAdmin={!!member?.isAdmin}
-                initialChannelId={searchParams.get("channel")}
-                initialThreadTs={searchParams.get("thread")}
-              />
+            <div className={`cpm-proj-main-body${chatSection === "messages" ? " cpm-proj-main-body--chat" : ""}`} style={{ padding: "16px 24px 24px" }}>
+              <div className="presskit-report-subtabs cpm-project-merged-subtabs">
+                {[["messages", "Chat"], ["members", "Members"]].map(([section, label]) => (
+                  <button
+                    key={section}
+                    type="button"
+                    className={`presskit-subtab${chatSection === section ? " is-active" : ""}`}
+                    onClick={() => changeChatSection(section)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              {chatSection === "messages" ? (
+                <ChatTab
+                  project={project}
+                  isAdmin={!!member?.isAdmin}
+                  initialChannelId={searchParams.get("channel")}
+                  initialThreadTs={searchParams.get("thread")}
+                />
+              ) : (
+                <MembersView projectId={project.id} />
+              )}
             </div>
           )}
 
-          {activeTab === "members" && (
-            <div className="cpm-proj-main-body" style={{ padding: "16px 24px 24px" }}>
-              <MembersView projectId={project.id} />
-            </div>
-          )}
-
-          {activeTab === "reports" && (
+          {activeTab === "insights" && (
             <div className="cpm-proj-main-body" style={{ padding: "16px 24px 24px" }}>
               <div className="presskit-report-subtabs">
-                {[["charts", "Charts"], ["activity", "Activity"], ["presskit", "Press Kit"]].map(([id, label]) => (
+                {[["charts", "Charts"], ["activity", "Activity"], ["presskit", "Press Kit"], ["ai", "AI"]].map(([id, label]) => (
                   <button
                     key={id}
                     type="button"
                     className={`presskit-subtab${reportTab === id ? " is-active" : ""}`}
-                    onClick={() => setReportTab(id)}
+                    onClick={() => changeInsightSection(id)}
                   >
                     {label}
                   </button>
@@ -3358,16 +3409,15 @@ export default function ProjectDetail() {
                 </div>
               )}
               {reportTab === "presskit" && <PressKitPanel project={project} canEdit={canEdit} />}
+              {reportTab === "ai" && (
+                <AiPanel
+                  project={project}
+                  allMembers={allMembers}
+                  projectBlockers={projectBlockers}
+                  onActionPlanExecuted={fetchProject}
+                />
+              )}
             </div>
-          )}
-
-          {activeTab === "ai" && (
-            <AiPanel
-              project={project}
-              allMembers={allMembers}
-              projectBlockers={projectBlockers}
-              onActionPlanExecuted={fetchProject}
-            />
           )}
         </main>
 

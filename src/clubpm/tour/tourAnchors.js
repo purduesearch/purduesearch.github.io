@@ -18,14 +18,15 @@ export const TOUR_ANCHORS = Object.freeze({
   // Shell and navigation — src/components/clubpm/AppShell.jsx
   "nav.sidebar":            { label: "Sidebar",              route: "*", note: "Whole rail, for coarse dimming" },
   "nav.dashboard":          { label: "Dashboard link",       route: "*", note: "" },
-  "nav.chat":               { label: "Chat link",            route: "*", note: "Every Slack channel; DMs live on Members" },
+  "nav.chat.group":         { label: "Chat group",           route: "*", note: "Collapsible group containing Chat, Members, and Social" },
+  "nav.chat":               { label: "Chat link",            route: "*", note: "Child of the Chat group; every readable Slack channel" },
   "nav.projects":           { label: "Projects link",        route: "*", note: "" },
-  "nav.members":            { label: "Members link",         route: "*", note: "Child of the Outreach group — expand it first" },
-  "nav.calendar":           { label: "Calendar link",        route: "*", note: "" },
-  "nav.courses":            { label: "Courses link",         route: "*", note: "" },
+  "nav.members":            { label: "Members link",         route: "*", note: "Child of the Chat group — expand it first" },
+  "nav.calendar":           { label: "Social link",          route: "*", note: "Child of the Chat group; opens the shared calendar" },
+  "nav.courses":            { label: "Courses link",         route: "*", note: "Child of the Other group" },
   "nav.shop":               { label: "Shop link",            route: "*", note: "" },
-  "nav.outreach":           { label: "Outreach group",       route: "*", note: "Collapsible group header, not a link" },
-  "nav.admin":              { label: "Admin link",           route: "*", note: "Admins only — absent for other members" },
+  "nav.other":              { label: "Other group",          route: "*", note: "Collapsed by default; contains Outreach Hub, Blog, Courses, and Admin" },
+  "nav.admin":              { label: "Admin link",           route: "*", note: "Admins only — child of Other and absent for other members" },
   "nav.profile":            { label: "Profile link",         route: "*", note: "Sidebar user block" },
   "topbar.notifications":   { label: "Notification bell",    route: "*", note: "" },
   "topbar.search":          { label: "Command palette",      route: "*", note: "AI command palette trigger" },
@@ -49,10 +50,8 @@ export const TOUR_ANCHORS = Object.freeze({
   // AppShell's buttons or they exist in the source and never in the DOM.
   "project.tab.tasks":      { label: "Tasks tab",            route: "/clubpm/projects/:id", note: "Sidebar project tab (AppShell)" },
   "project.tab.files":      { label: "Files tab",            route: "/clubpm/projects/:id", note: "Sidebar project tab (AppShell)" },
-  "project.tab.chat":       { label: "Chat tab",             route: "/clubpm/projects/:id", note: "Sidebar project tab (AppShell)" },
-  "project.tab.members":    { label: "Members tab",          route: "/clubpm/projects/:id", note: "Sidebar project tab (AppShell) — roster + DMs" },
-  "project.tab.reports":    { label: "Reports tab",          route: "/clubpm/projects/:id", note: "Sidebar project tab (AppShell)" },
-  "project.tab.ai":         { label: "AI tab",               route: "/clubpm/projects/:id", note: "Sidebar project tab (AppShell)" },
+  "project.tab.chat":       { label: "Chat tab",             route: "/clubpm/projects/:id", note: "Sidebar project tab (AppShell) — contains Chat and Members" },
+  "project.tab.insights":   { label: "Insights tab",         route: "/clubpm/projects/:id", note: "Sidebar project tab (AppShell) — charts, activity, press kit, and AI" },
   "project.tab.vault":      { label: "Vault sub-tab",        route: "/clubpm/projects/:id", note: "Inside the Files tab — open project.tab.files first" },
   "board.newtask":          { label: "New task button",      route: "/clubpm/projects/:id", note: "" },
   "board.filters":          { label: "Board filters",        route: "/clubpm/projects/:id", note: "Filter / search row above the board" },
@@ -65,7 +64,7 @@ export const TOUR_ANCHORS = Object.freeze({
   "board.card.first":       { label: "First task card",      route: "/clubpm/projects/:id", note: "First card of the TODO column only" },
   "board.memberchips":      { label: "Member chip rail",     route: "/clubpm/projects/:id", note: "Draggable onto tasks" },
   "board.blocker.bin":      { label: "Blocker sub-bin",      route: "/clubpm/projects/:id", note: "Under the Blocked column" },
-  "ai.goal":                { label: "Action-plan goal",     route: "/clubpm/projects/:id", note: "Goal input in the AI tab" },
+  "ai.goal":                { label: "Action-plan goal",     route: "/clubpm/projects/:id", note: "Goal input in Insights → AI" },
 
   // New-task modal — src/pages/ClubPM/ProjectDetail.jsx (AddProjectTaskModal).
   // A different component from the task modal below, with a different and much

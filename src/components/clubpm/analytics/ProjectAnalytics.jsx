@@ -61,7 +61,7 @@ function sanitizeOptions(raw) {
  *
  * `localStorage` is touched inside try/catch because *access itself* throws in a
  * private window or with site data blocked — it does not merely return `null` — and an
- * exception in a state initializer would take the whole Reports tab down.
+ * exception in a state initializer would take the whole Insights tab down.
  */
 function readStored(projectId) {
   if (!projectId || typeof window === 'undefined') return { ...DEFAULT_OPTIONS };

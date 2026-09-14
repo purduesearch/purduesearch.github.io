@@ -10,7 +10,7 @@ const DM_KINDS = new Set(["IM", "MPIM"]);
 /**
  * The member's DMs and group DMs, newest first, with unread badges (D12).
  * `slackIdFilter` (a Set of Slack user ids) narrows it to conversations that
- * include at least one of those people — the project Members tab passes its
+ * include at least one of those people — the project Chat → Members view passes its
  * roster.
  */
 export default function DmInbox({ activeChannelId, onOpen, slackIdFilter = null }) {

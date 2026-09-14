@@ -1,5 +1,5 @@
 /**
- * analyticsTheme — the ONLY file in the Reports tab where a chart color is written.
+ * analyticsTheme — the ONLY file in the Insights tab where a chart color is written.
  *
  * recharts cannot consume `var(--pm-accent-teal)` in every prop position (stroke on an
  * SVG element is fine; a gradient stop or a canvas-bound fill is not), so the ClubPM

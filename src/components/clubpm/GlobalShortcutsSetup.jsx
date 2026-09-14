@@ -10,7 +10,7 @@ export default function GlobalShortcutsSetup() {
   useKeyboardShortcuts([
     { id: 'global.nav.dashboard', keys: ['g', 'd'], scope: 'global', description: 'Go to Dashboard',     action: () => navigate('/clubpm') },
     { id: 'global.nav.events',    keys: ['g', 'e'], scope: 'global', description: 'Go to Calendar',      action: () => navigate('/clubpm/calendar') },
-    { id: 'global.nav.outreach',  keys: ['g', 'o'], scope: 'global', description: 'Go to Outreach',      action: () => navigate('/clubpm/outreach') },
+    { id: 'global.nav.outreach',  keys: ['g', 'o'], scope: 'global', description: 'Go to Outreach Hub',  action: () => navigate('/clubpm/outreach') },
     { id: 'global.nav.members',   keys: ['g', 'm'], scope: 'global', description: 'Go to Members',       action: () => navigate('/clubpm/members') },
     { id: 'global.nav.notes',     keys: ['g', 'n'], scope: 'global', description: 'Go to Meeting Notes', action: () => navigate('/clubpm/meeting-notes') },
     { id: 'global.help',          keys: '?',        scope: 'global', description: 'Show keyboard shortcuts', action: () => setShowHelp(s => !s) },

@@ -43,7 +43,7 @@
         { "order": 0, "text": "The Gantt view, where each one is a marker on the timeline", "isCorrect": true },
         { "order": 1, "text": "The task board, as a fifth column after Done", "isCorrect": false },
         { "order": 2, "text": "The dashboard, under your assigned tasks", "isCorrect": false },
-        { "order": 3, "text": "The Reports tab, in the activity log", "isCorrect": false }
+        { "order": 3, "text": "The Insights tab, in the activity log", "isCorrect": false }
       ]
     },
     {

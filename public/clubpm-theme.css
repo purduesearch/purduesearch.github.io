@@ -2032,9 +2032,14 @@ html::-webkit-scrollbar { display: none; }
 
 .cpm-project-layout {
   display: flex;
-  height: calc(100vh - 56px);
+  height: 100%;
   overflow: hidden;
   background: var(--clubpm-surface-50);
+}
+
+.cpm-project-page {
+  height: 100%;
+  min-height: 0;
 }
 
 .cpm-project-sidebar {
@@ -2051,8 +2056,9 @@ html::-webkit-scrollbar { display: none; }
   flex: 1;
   display: flex;
   flex-direction: column;
-  overflow-y: auto;
+  overflow: hidden;
   min-width: 0;
+  min-height: 0;
 }
 
 .cpm-assignee-panel {
@@ -2260,7 +2266,25 @@ html::-webkit-scrollbar { display: none; }
 
 .cpm-proj-main-body {
   flex: 1;
+  min-height: 0;
   padding: 0;
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+
+.cpm-proj-main-body--chat {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.cpm-project-merged-subtabs {
+  flex: 0 0 auto;
+}
+
+.cpm-proj-main-body--chat > .cpm-chat-wrap {
+  flex: 1;
+  height: auto;
 }
 
 .cpm-proj-progress-row {
@@ -3523,6 +3547,7 @@ html::-webkit-scrollbar { display: none; }
   position: sticky;
   top: 0;
   z-index: 40;
+  flex-shrink: 0;
 }
 .pm-proj-breadcrumb {
   display: flex;
@@ -26514,7 +26539,7 @@ button.pm-an-risk-factor-row:hover { background: rgba(255, 255, 255, 0.04); }
   overflow-y: auto;
   display: flex; flex-direction: column; gap: 2px;
   padding-right: 4px;
-  max-height: 64vh;
+  min-height: 0;
 }
 
 .cpm-chat-msg { display: flex; gap: 10px; padding: 7px 8px; border-radius: 8px; }

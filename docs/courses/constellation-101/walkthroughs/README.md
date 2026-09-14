@@ -3,7 +3,7 @@
 Why each tour is shaped the way it is. The `.steps.json` files beside this are what actually runs;
 this is the reasoning, so that whoever edits them next knows which lines are load-bearing.
 
-**6 tours · 59 steps · 10 required real API calls (plus 1 optional), all against the learner's own
+**6 tours · 60 steps · 10 required real API calls (plus 1 optional), all against the learner's own
 training project.**
 
 | Tour | Steps | Entry | Sandbox? | Real calls |
@@ -13,7 +13,7 @@ training project.**
 | `your-first-task` | 13 | training project | Yes | 6 |
 | `blocked-and-unblocked` | 11 | training project | Yes | 4 |
 | `rewards-tour` | 8 | `/clubpm/challenges` | No | 1 (optional) |
-| `comms-tour` | 9 | `/clubpm/notifications` | No | 0 |
+| `comms-tour` | 10 | `/clubpm/notifications` | No | 0 |
 
 ## The shape of the arc
 
@@ -110,11 +110,14 @@ The two lines that matter here are both about limits — "cosmetics only," and "
 not permission." Members who believe rank gates features start optimising for XP instead of for work,
 which is the exact failure this system is trying to avoid.
 
-### `comms-tour` — 9 steps
+### `comms-tour` — 10 steps
 
 Ends the course by closing V01's loop: Constellation comes to you. The preferences step deliberately
 argues *against* muting rather than just describing the toggles, because the member who mutes
 everything is the member who quietly stops being asked to do things.
+
+The tour opens the Chat group before pointing to Social because both groups in the sidebar start
+collapsed. Social is the shared calendar route; the name reflects that it holds meetings and events.
 
 The last step introduces AI insights with "treat them as a colleague's opinion: often useful,
 occasionally wrong, never the final word." Setting that expectation once, early, is cheaper than

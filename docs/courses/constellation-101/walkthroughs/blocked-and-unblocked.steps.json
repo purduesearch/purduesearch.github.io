@@ -96,10 +96,10 @@
     },
     {
       "id": "one-level-up",
-      "anchor": "project.tab.reports",
+      "anchor": "project.tab.insights",
       "route": "/clubpm/projects/:id",
       "title": "One level up",
-      "body": "Dependencies and blockers stop individual tasks. Reports are how you see whether a whole date is in trouble — open the tab and the video after this explains what you're looking at.",
+      "body": "Dependencies and blockers stop individual tasks. Insights show whether a whole date is in trouble — open the tab and the video after this explains what you're looking at.",
       "placement": "bottom",
       "advance": { "on": "click" }
     }

@@ -23,14 +23,15 @@ step files.
 |---|---|---|
 | `nav.sidebar` | The whole sidebar, for coarse dimming | `*` |
 | `nav.dashboard` | Dashboard link | `*` |
-| `nav.chat` | Chat link | `*` |
+| `nav.chat.group` | Chat group header (collapsible, not a link) | `*` |
+| `nav.chat` | Chat link — a child of the Chat group† | `*` |
 | `nav.projects` | Projects link | `*` |
-| `nav.members` | Members link — a child of the Outreach group† | `*` |
-| `nav.calendar` | Calendar link | `*` |
-| `nav.courses` | Courses link | `*` |
+| `nav.members` | Members link — a child of the Chat group† | `*` |
+| `nav.calendar` | Social link — a child of the Chat group† | `*` |
+| `nav.courses` | Courses link — a child of the Other group† | `*` |
 | `nav.shop` | Shop link | `*` |
-| `nav.outreach` | Outreach group header (collapsible, not a link) | `*` |
-| `nav.admin` | Admin link (admins only) | `*` |
+| `nav.other` | Other group header (collapsed by default, not a link) | `*` |
+| `nav.admin` | Admin link — an admins-only child of the Other group† | `*` |
 | `nav.profile` | Sidebar user / profile link | `*` |
 | `nav.xp` | Sidebar XP progress bar | `*` |
 | `nav.rank` | Sidebar rank badge | `*` |
@@ -62,10 +63,8 @@ keeps its children in layout.
 | `project.header` | Project title + status row | `/clubpm/projects/:id` |
 | `project.tab.tasks` | Tasks tab&Dagger; | `/clubpm/projects/:id` |
 | `project.tab.files` | Files tab&Dagger; | `/clubpm/projects/:id` |
-| `project.tab.chat` | Chat tab&Dagger; | `/clubpm/projects/:id` |
-| `project.tab.members` | Members tab&Dagger; | `/clubpm/projects/:id` |
-| `project.tab.reports` | Reports tab&Dagger; | `/clubpm/projects/:id` |
-| `project.tab.ai` | AI tab&Dagger; | `/clubpm/projects/:id` |
+| `project.tab.chat` | Chat tab (Chat + Members)&Dagger; | `/clubpm/projects/:id` |
+| `project.tab.insights` | Insights tab (Charts + Activity + Press Kit + AI)&Dagger; | `/clubpm/projects/:id` |
 | `project.tab.vault` | Vault **sub**-tab, inside the Files tab | `/clubpm/projects/:id` |
 | `board.newtask` | "New task" button | `/clubpm/projects/:id` |
 | `board.filters` | Filter / search row above the board | `/clubpm/projects/:id` |

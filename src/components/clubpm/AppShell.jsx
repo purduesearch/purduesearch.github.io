@@ -30,17 +30,17 @@ function getBreadcrumb(pathname) {
   if (pathname === '/clubpm') return [{ label: 'Dashboard' }];
   if (pathname.match(/\/clubpm\/projects\/[^/]+\/gantt/)) return [{ label: 'Projects', href: '/clubpm' }, { label: 'Gantt' }];
   if (pathname.match(/\/clubpm\/projects\/[^/]+/)) return [{ label: 'Projects', href: '/clubpm' }, { label: 'Project Detail' }];
-  if (pathname === '/clubpm/members') return [{ label: 'Outreach', href: '/clubpm/outreach' }, { label: 'Members' }];
-  if (pathname === '/clubpm/courses') return [{ label: 'Courses' }];
-  if (pathname.match(/\/clubpm\/courses\/[^/]+\/edit/)) return [{ label: 'Courses', href: '/clubpm/courses' }, { label: 'Editor' }];
-  if (pathname.match(/\/clubpm\/courses\/[^/]+\/learn/)) return [{ label: 'Courses', href: '/clubpm/courses' }, { label: 'Player' }];
+  if (pathname === '/clubpm/members') return [{ label: 'Chat', href: '/clubpm/chat' }, { label: 'Members' }];
+  if (pathname === '/clubpm/courses') return [{ label: 'Other' }, { label: 'Courses' }];
+  if (pathname.match(/\/clubpm\/courses\/[^/]+\/edit/)) return [{ label: 'Other' }, { label: 'Courses', href: '/clubpm/courses' }, { label: 'Editor' }];
+  if (pathname.match(/\/clubpm\/courses\/[^/]+\/learn/)) return [{ label: 'Other' }, { label: 'Courses', href: '/clubpm/courses' }, { label: 'Player' }];
   if (pathname === '/clubpm/notifications') return [{ label: 'Notifications' }];
   if (pathname === '/clubpm/notifications/preferences') return [{ label: 'Notifications', href: '/clubpm/notifications' }, { label: 'Preferences' }];
   if (pathname === '/clubpm/activity') return [{ label: 'Activity' }];
-  if (pathname === '/clubpm/calendar') return [{ label: 'Calendar' }];
-  if (pathname === '/clubpm/admin') return [{ label: 'Admin' }];
-  if (pathname === '/clubpm/meeting-notes') return [{ label: 'Admin' }];
-  if (pathname === '/clubpm/outreach') return [{ label: 'Outreach' }];
+  if (pathname === '/clubpm/calendar') return [{ label: 'Chat', href: '/clubpm/chat' }, { label: 'Social' }];
+  if (pathname === '/clubpm/admin') return [{ label: 'Other' }, { label: 'Admin' }];
+  if (pathname === '/clubpm/meeting-notes') return [{ label: 'Other' }, { label: 'Admin', href: '/clubpm/admin' }, { label: 'Meeting Notes' }];
+  if (pathname === '/clubpm/outreach') return [{ label: 'Other' }, { label: 'Outreach Hub' }];
   if (pathname === '/clubpm/profile') return [{ label: 'Profile' }];
   if (pathname.startsWith('/clubpm/profile/')) return [{ label: 'Members', href: '/clubpm/members' }, { label: 'Profile' }];
   if (pathname === '/clubpm/shop') return [{ label: 'Shop' }];
@@ -63,44 +63,31 @@ const NAV_ITEMS = [
   },
   {
     label: 'Chat',
-    href: '/clubpm/chat',
-    tourId: 'nav.chat',
+    id: 'chat',
+    tourId: 'nav.chat.group',
     icon: <i className="fas fa-comments" aria-hidden="true" style={{ fontSize: 15, width: 18, textAlign: 'center' }} />,
+    children: [
+      { label: 'Chat',    href: '/clubpm/chat', tourId: 'nav.chat' },
+      { label: 'Members', href: '/clubpm/members', tourId: 'nav.members' },
+      { label: 'Social',  href: '/clubpm/calendar', tourId: 'nav.calendar' },
+    ],
   },
   {
-    label: 'Calendar',
-    href: '/clubpm/calendar',
-    tourId: 'nav.calendar',
+    label: 'Other',
+    id: 'other',
+    tourId: 'nav.other',
     icon: (
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-        <line x1="16" y1="2" x2="16" y2="6"/>
-        <line x1="8" y1="2" x2="8" y2="6"/>
-        <line x1="3" y1="10" x2="21" y2="10"/>
-      </svg>
-    ),
-  },
-  {
-    label: 'Courses',
-    href: '/clubpm/courses',
-    tourId: 'nav.courses',
-    icon: <i className="fas fa-graduation-cap" aria-hidden="true" style={{ fontSize: 15, width: 18, textAlign: 'center' }} />,
-  },
-  // Outreach is a collapsible group, not a link. Its own hub sits alongside the
-  // blog and the member roster as children — see `NavGroup` below.
-  {
-    label: 'Outreach',
-    id: 'outreach',
-    tourId: 'nav.outreach',
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1.18h3a2 2 0 0 1 2 1.72c.127.96.36 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.74a16 16 0 0 0 6.29 6.29l.96-.96a2 2 0 0 1 2.11-.45c.907.34 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>
+        <circle cx="5" cy="12" r="1" fill="currentColor" stroke="none" />
+        <circle cx="12" cy="12" r="1" fill="currentColor" stroke="none" />
+        <circle cx="19" cy="12" r="1" fill="currentColor" stroke="none" />
       </svg>
     ),
     children: [
-      { label: 'Hub',     href: '/clubpm/outreach' },
-      { label: 'Blog',    href: '/clubpm/outreach?tab=blog' },
-      { label: 'Members', href: '/clubpm/members', tourId: 'nav.members' },
+      { label: 'Outreach Hub', href: '/clubpm/outreach' },
+      { label: 'Blog',         href: '/clubpm/outreach?tab=blog', activePrefixes: ['/clubpm/outreach/blog/'] },
+      { label: 'Courses',      href: '/clubpm/courses', tourId: 'nav.courses', activePrefixes: ['/clubpm/courses/'] },
+      { label: 'Admin',        href: '/clubpm/admin', tourId: 'nav.admin', adminOnly: true, activePrefixes: ['/clubpm/meeting-notes'] },
     ],
   },
 ];
@@ -109,6 +96,7 @@ const NAV_ITEMS = [
 // `?tab=` when it carries one — /clubpm/outreach and /clubpm/outreach?tab=blog
 // are the same route but must not both light up.
 function isChildActive(child, location) {
+  if (child.activePrefixes?.some(prefix => location.pathname.startsWith(prefix))) return true;
   const [path, query] = child.href.split('?');
   if (location.pathname !== path) return false;
   const wantTab = query ? new URLSearchParams(query).get('tab') : null;
@@ -116,21 +104,14 @@ function isChildActive(child, location) {
   return wantTab ? haveTab === wantTab : !haveTab;
 }
 
-function NavGroup({ item, location }) {
-  const hasActiveChild = item.children.some(c => isChildActive(c, location));
-  // Collapsed by default; persist an explicit open choice, but never leave the
-  // group collapsed over a child the user is currently looking at.
-  const [open, setOpen] = useState(() => {
-    try { return window.localStorage.getItem(`clubpm_nav_open_${item.id}`) === '1'; }
-    catch { return false; }
-  });
+function NavGroup({ item, location, isAdmin, adminCounts }) {
+  const children = item.children.filter(child => !child.adminOnly || isAdmin);
+  const hasActiveChild = children.some(c => isChildActive(c, location));
+  // Groups start collapsed on every mount, then reveal the current destination.
+  const [open, setOpen] = useState(false);
   useEffect(() => { if (hasActiveChild) setOpen(true); }, [hasActiveChild]);
 
-  const toggle = () => setOpen(prev => {
-    const next = !prev;
-    try { window.localStorage.setItem(`clubpm_nav_open_${item.id}`, next ? '1' : '0'); } catch { /* private mode */ }
-    return next;
-  });
+  const toggle = () => setOpen(prev => !prev);
 
   return (
     <div className="pm-nav-group">
@@ -147,14 +128,23 @@ function NavGroup({ item, location }) {
       </button>
       {open && (
         <div className="pm-nav-group-children">
-          {item.children.map(child => (
+          {children.map(child => (
             <Link
               key={child.href}
               to={child.href}
               className={`pm-nav-item pm-nav-child${isChildActive(child, location) ? ' active' : ''}`}
               data-tour-id={child.tourId}
             >
-              <span className="pm-nav-item-label">{child.label}</span>
+              <span className="pm-nav-item-label" style={child.adminOnly ? { display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' } : undefined}>
+                <span>{child.label}</span>
+                {child.adminOnly && (adminCounts.rewards > 0 || adminCounts.crs > 0 || adminCounts.certificates > 0) && (
+                  <span className="pm-admin-badge-group">
+                    {adminCounts.rewards > 0 && <span className="pm-admin-badge" title="Pending rewards">{adminCounts.rewards}</span>}
+                    {adminCounts.crs > 0 && <span className="pm-admin-badge" title="Open change requests">{adminCounts.crs}</span>}
+                    {adminCounts.certificates > 0 && <span className="pm-admin-badge" title="Certificates awaiting review">{adminCounts.certificates}</span>}
+                  </span>
+                )}
+              </span>
             </Link>
           ))}
         </div>
@@ -278,7 +268,6 @@ export default function AppShell({ children }) {
   const { setShowHelp } = useShortcutsRegistry() ?? {};
   const { projectNav } = useProjectNav() ?? {};
   const location = useLocation();
-  const navigate = useNavigate();
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [sidebarProjects, setSidebarProjects] = useState([]);
   const [showCreateProject, setShowCreateProject] = useState(false);
@@ -432,7 +421,15 @@ export default function AppShell({ children }) {
         {/* Nav items */}
         <div className="pm-sidebar-nav">
           {NAV_ITEMS.map(item => {
-            if (item.children) return <NavGroup key={item.id} item={item} location={location} />;
+            if (item.children) return (
+              <NavGroup
+                key={item.id}
+                item={item}
+                location={location}
+                isAdmin={!!member?.isAdmin}
+                adminCounts={{ rewards: pendingRewardsCount, crs: pendingCrCount, certificates: pendingCertCount }}
+              />
+            );
             const isActive = location.pathname === item.href ||
               (item.href === '/clubpm' && location.pathname.startsWith('/clubpm/projects')) ||
               (item.href === '/clubpm/courses' && location.pathname.startsWith('/clubpm/courses')) ||
@@ -449,41 +446,6 @@ export default function AppShell({ children }) {
               </Link>
             );
           })}
-          {member?.isAdmin && (
-            <Link
-              to="/clubpm/admin"
-              className={`pm-nav-item${location.pathname.startsWith('/clubpm/admin') || location.pathname === '/clubpm/meeting-notes' ? ' active' : ''}`}
-              data-tour-id="nav.admin"
-            >
-              <span className="pm-nav-item-icon">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
-                </svg>
-              </span>
-              <span className="pm-nav-item-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-                <span>Admin</span>
-                {(pendingRewardsCount > 0 || pendingCrCount > 0 || pendingCertCount > 0) && (
-                  <span className="pm-admin-badge-group">
-                    {pendingRewardsCount > 0 && (
-                      <span className="pm-admin-badge" title="Pending rewards">
-                        {pendingRewardsCount}
-                      </span>
-                    )}
-                    {pendingCrCount > 0 && (
-                      <span className="pm-admin-badge" title="Open change requests">
-                        {pendingCrCount}
-                      </span>
-                    )}
-                    {pendingCertCount > 0 && (
-                      <span className="pm-admin-badge" title="Certificates awaiting review">
-                        {pendingCertCount}
-                      </span>
-                    )}
-                  </span>
-                )}
-              </span>
-            </Link>
-          )}
         </div>
 
         {/* Project-specific tabs — visible when inside a project */}

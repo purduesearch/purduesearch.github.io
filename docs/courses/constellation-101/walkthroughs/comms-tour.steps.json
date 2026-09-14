@@ -32,11 +32,20 @@
       "advance": { "on": "next" }
     },
     {
-      "id": "to-calendar",
+      "id": "open-chat-group",
+      "anchor": "nav.chat.group",
+      "route": "/clubpm/notifications/preferences",
+      "title": "Communication lives together",
+      "body": "Open Chat to find channels, members, and the club's shared schedule in one place.",
+      "placement": "right",
+      "advance": { "on": "click" }
+    },
+    {
+      "id": "to-social",
       "anchor": "nav.calendar",
       "route": "/clubpm/notifications/preferences",
-      "title": "Now the calendar",
-      "body": "Notifications tell you what already happened. The calendar is the other half.",
+      "title": "Now Social",
+      "body": "Notifications tell you what already happened. Social shows the meetings and dates ahead.",
       "placement": "right",
       "advance": { "on": "click" }
     },
