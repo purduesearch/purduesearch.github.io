@@ -8,15 +8,17 @@ name: Install Courses
 # receives. Also available manually from the Actions tab.
 #
 # Two things happen on the server and both are necessary:
-#   1. `npm run seed:courses` upserts the course/module/section/question rows.
+#   1. `npm run seed:courses` installs new courses and refreshes Constellation
+#      101. Other existing courses are skipped to preserve editor-added content.
 #   2. pm2 restart. The backend serves step bodies from docs/courses at request
 #      time (tourStepService.loadTourSteps) behind a permanent in-process Map
 #      cache, so without the restart an updated .steps.json is on disk and the
 #      old one is still being served.
 #
 # Non-destructive toward learners: the seeder never touches CourseEnrollment,
-# CourseSectionProgress or CourseQuizAttempt, and a section dropped from
-# course.json is renamed "[archived] …" rather than deleted. Safe to re-run.
+# CourseSectionProgress or CourseQuizAttempt. On the re-seedable Constellation
+# 101 course, a section dropped from course.json is renamed "[archived] …"
+# rather than deleted. Safe to re-run without resetting editor-owned courses.
 #
 # NOT automated: publishing. A newly seeded course is created DRAFT and is
 # invisible to members until an admin publishes it at /clubpm/courses/:id/edit.

@@ -1,8 +1,13 @@
 # Constellation Courses — Content Source
 
-This directory is the **single source of truth** for Constellation's onboarding curriculum. Course
+This directory is the **installation source** for Constellation's onboarding curriculum. Course
 structure, walkthrough steps, quiz banks, and video scripts all live here and are installed into the
 database by `npm run seed:courses`.
+
+The seeder installs every new course once, but only re-seeds `constellation-101`. Once any other
+course exists, its database copy is editor-owned and the seeder skips it completely. This preserves
+content added after installation, including uploaded decks and video links. Walkthrough step files
+remain runtime-loaded from this directory and are refreshed when the backend restarts.
 
 Design spec: [`../superpowers/specs/2026-08-02-constellation-walkthrough-course-design.md`](../superpowers/specs/2026-08-02-constellation-walkthrough-course-design.md)
 

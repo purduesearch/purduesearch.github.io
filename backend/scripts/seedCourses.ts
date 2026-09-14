@@ -5,9 +5,11 @@
  * (no docs/ directory there). That is deliberate: installing a course is an
  * authoring act performed from a checkout, not a runtime operation.
  *
- * Idempotent and non-destructive toward learners: it upserts course / module /
- * section / question rows and never touches CourseEnrollment,
- * CourseSectionProgress, or CourseQuizAttempt.
+ * New courses are installed once. Constellation 101 alone is refreshed on
+ * later runs; every other existing course is editor-owned and skipped so the
+ * seed cannot erase additions made after installation (such as video links).
+ * The script never touches CourseEnrollment, CourseSectionProgress, or
+ * CourseQuizAttempt.
  *
  * Run: cd backend && npm run seed:courses
  */
@@ -17,6 +19,7 @@ import { fileURLToPath } from "node:url";
 import { prisma } from "../src/db/prisma.js";
 import { loadTourSteps } from "../src/services/tourStepService.js";
 import { courseBodyToDoc } from "../src/services/courseMarkdown.js";
+import { shouldSeedCourse } from "../src/services/courseSeedPolicy.js";
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const COURSES = path.join(REPO_ROOT, "docs", "courses");
@@ -230,6 +233,18 @@ async function seedTrainings(dir: string, authorId: string): Promise<Map<string,
 
 async function seedCourse(dir: string, authorId: string) {
   const doc = JSON.parse(fs.readFileSync(path.join(dir, "course.json"), "utf8"));
+
+  // This check must happen before seedTrainings or any other write. Courses
+  // other than Constellation 101 become database/editor-owned after their
+  // initial install, including all section config added through the UI.
+  const existingCourse = await prisma.course.findUnique({
+    where: { slug: doc.slug },
+    select: { id: true },
+  });
+  if (!shouldSeedCourse(doc.slug, existingCourse !== null)) {
+    console.log(`  · ${doc.slug}: already installed; skipped to preserve editor changes`);
+    return;
+  }
 
   const course = await prisma.course.upsert({
     where: { slug: doc.slug },
