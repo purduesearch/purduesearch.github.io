@@ -870,7 +870,7 @@ function KanbanSubtaskRow({ subtask, onClick, isDropTarget = false, isSelected =
 
 // ── Assignee Panel (right column) ────────────────────────────
 
-function AssigneePanel({ members, channelMemberSlackIds = [], hasLinkedChannel = false, onAssign }) {
+function AssigneePanel({ members, channelMemberSlackIds = [], hasLinkedChannel = false, selectedMemberIds, onMemberClick }) {
   const [collapsed, setCollapsed] = useState(false);
   const [search, setSearch] = useState("");
 
@@ -959,7 +959,12 @@ function AssigneePanel({ members, channelMemberSlackIds = [], hasLinkedChannel =
               </p>
             ) : (
               filtered.map((pm) => (
-                <DraggableMemberChip key={pm.memberId} pm={pm} />
+                <DraggableMemberChip
+                  key={pm.memberId}
+                  pm={pm}
+                  selected={selectedMemberIds.has(pm.memberId)}
+                  onClick={onMemberClick}
+                />
               ))
             )}
           </div>
@@ -996,7 +1001,7 @@ function DraggableSpecialChip({ id, label, iconClass, accentColor }) {
   );
 }
 
-function DraggableMemberChip({ pm }) {
+function DraggableMemberChip({ pm, selected, onClick }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `member-${pm.memberId}`,
     data: { type: "member", memberId: pm.memberId },
@@ -1008,7 +1013,10 @@ function DraggableMemberChip({ pm }) {
       ref={setNodeRef}
       {...attributes}
       {...listeners}
-      className="cpm-assignee-chip"
+      className={`cpm-assignee-chip${selected ? " cpm-assignee-chip--selected" : ""}`}
+      aria-pressed={selected}
+      title="Drag to assign. Ctrl/Cmd-click to add or remove from a group."
+      onClick={(event) => onClick(pm.memberId, event)}
       style={{
         opacity: isDragging ? 0.4 : 1,
         borderColor: isAdmin ? "#f9ca24" : undefined,
@@ -2187,6 +2195,7 @@ export default function ProjectDetail() {
   const [overBin, setOverBin] = useState(null);
   const [overTaskId, setOverTaskId] = useState(null);
   const [activeMember, setActiveMember] = useState(null);
+  const [selectedMemberIds, setSelectedMemberIds] = useState(() => new Set());
   const [assigneePanelOpen] = useState(true); // reserved for future toggle UX
   const [showAddTask, setShowAddTask] = useState(false);
   const [addTaskInitialStatus, setAddTaskInitialStatus] = useState("TODO");
@@ -2543,22 +2552,34 @@ export default function ProjectDetail() {
     });
   }, [project?.id]);
 
-  // Clear bulk selection on Escape and whenever the active tab changes.
+  // Clear bulk selections on Escape and whenever the active tab changes.
   useEffect(() => {
     const onKeyDown = (e) => {
-      if (e.key === "Escape" && selectedTaskIds.size > 0) {
+      if (e.key === "Escape" && (selectedTaskIds.size > 0 || selectedMemberIds.size > 0)) {
         setSelectedTaskIds(new Set());
+        setSelectedMemberIds(new Set());
         setLastClickedId(null);
       }
     };
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
-  }, [selectedTaskIds]);
+  }, [selectedTaskIds, selectedMemberIds]);
 
   useEffect(() => {
     setSelectedTaskIds(new Set());
+    setSelectedMemberIds(new Set());
     setLastClickedId(null);
   }, [activeTab]);
+
+  const handleMemberClick = useCallback((memberId, event) => {
+    if (!event?.ctrlKey && !event?.metaKey) return;
+    setSelectedMemberIds(prev => {
+      const next = new Set(prev);
+      if (next.has(memberId)) next.delete(memberId);
+      else next.add(memberId);
+      return next;
+    });
+  }, []);
 
   const handleRowClick = useCallback((task, event) => {
     if (event?.ctrlKey || event?.metaKey) {
@@ -2787,16 +2808,21 @@ export default function ProjectDetail() {
       const found = findTask(overTargetId);
       if (!found) return;
       const { task, parentTask } = found;
-      const alreadyAssigned = (task.assignees ?? []).some(a => a.id === memberId);
-      if (alreadyAssigned) return;
-      const memberObj = allMembers.find(m => m.memberId === memberId)?.member;
-      const newAssigneeIds = [...(task.assignees ?? []).map(a => a.id), memberId];
-      if (memberObj) {
-        applyAssigneeUpdate(task.id, parentTask?.id ?? null, [...(task.assignees ?? []), memberObj]);
-      }
+      const draggedMemberIds = selectedMemberIds.has(memberId) && selectedMemberIds.size > 1
+        ? [...selectedMemberIds]
+        : [memberId];
+      const existingIds = new Set((task.assignees ?? []).map(a => a.id));
+      const addedMemberIds = draggedMemberIds.filter(id => !existingIds.has(id));
+      if (addedMemberIds.length === 0) return;
+      const addedMembers = addedMemberIds
+        .map(id => allMembers.find(m => m.memberId === id)?.member)
+        .filter(Boolean);
+      const newAssigneeIds = [...existingIds, ...addedMemberIds];
+      applyAssigneeUpdate(task.id, parentTask?.id ?? null, [...(task.assignees ?? []), ...addedMembers]);
       try {
         const updated = await patch(`/api/tasks/${task.id}`, { assigneeIds: newAssigneeIds });
         applyAssigneeUpdate(task.id, parentTask?.id ?? null, updated.assignees ?? []);
+        if (draggedMemberIds.length > 1) setSelectedMemberIds(new Set());
       } catch {
         fetchProject();
       }
@@ -3426,19 +3452,8 @@ export default function ProjectDetail() {
             members={allMembers.length > 0 ? allMembers : (project.members || [])}
             channelMemberSlackIds={project.channelMemberSlackIds ?? []}
             hasLinkedChannel={!!project.slackChannelId}
-            onAssign={async (memberId, taskId) => {
-              try {
-                const task = project.tasks.find((t) => t.id === taskId);
-                if (!task) return;
-                const existing = (task.assignees || []).map((a) => a.id);
-                if (existing.includes(memberId)) return;
-                const next = [...existing, memberId];
-                await patch(`/api/tasks/${taskId}`, { assigneeIds: next });
-                fetchProject();
-              } catch (err) {
-                console.error("Failed to assign member", err);
-              }
-            }}
+            selectedMemberIds={selectedMemberIds}
+            onMemberClick={handleMemberClick}
           />
         )}
 
@@ -3492,6 +3507,9 @@ export default function ProjectDetail() {
             <div className="cpm-assignee-chip" style={{ cursor: "grabbing", boxShadow: "0 8px 32px rgba(0,0,0,0.45)", opacity: 0.95 }}>
               <ChipAvatar member={activeMember.member} />
               <span className="cpm-assignee-chip-name">{activeMember.member?.displayName}</span>
+              {selectedMemberIds.has(activeMember.memberId) && selectedMemberIds.size > 1 && (
+                <span className="cpm-drag-group-badge">{selectedMemberIds.size}</span>
+              )}
             </div>
           ) : null}
         </DragOverlay>

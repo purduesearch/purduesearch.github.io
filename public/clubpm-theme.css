@@ -2238,6 +2238,13 @@ html::-webkit-scrollbar { display: none; }
   box-shadow: 0 2px 8px rgba(0,0,0,0.2);
 }
 
+.cpm-assignee-chip--selected,
+.cpm-assignee-chip--selected:hover {
+  background: color-mix(in srgb, var(--clubpm-accent-primary) 16%, var(--clubpm-surface-200));
+  border-color: var(--clubpm-accent-primary);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--clubpm-accent-primary) 24%, transparent);
+}
+
 .cpm-assignee-chip:active {
   cursor: grabbing;
   opacity: 0.7;
