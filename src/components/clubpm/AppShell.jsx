@@ -30,14 +30,14 @@ function getBreadcrumb(pathname) {
   if (pathname === '/clubpm') return [{ label: 'Dashboard' }];
   if (pathname.match(/\/clubpm\/projects\/[^/]+\/gantt/)) return [{ label: 'Projects', href: '/clubpm' }, { label: 'Gantt' }];
   if (pathname.match(/\/clubpm\/projects\/[^/]+/)) return [{ label: 'Projects', href: '/clubpm' }, { label: 'Project Detail' }];
-  if (pathname === '/clubpm/members') return [{ label: 'Chat', href: '/clubpm/chat' }, { label: 'Members' }];
+  if (pathname === '/clubpm/members') return [{ label: 'Social' }, { label: 'Members' }];
   if (pathname === '/clubpm/courses') return [{ label: 'Other' }, { label: 'Courses' }];
   if (pathname.match(/\/clubpm\/courses\/[^/]+\/edit/)) return [{ label: 'Other' }, { label: 'Courses', href: '/clubpm/courses' }, { label: 'Editor' }];
   if (pathname.match(/\/clubpm\/courses\/[^/]+\/learn/)) return [{ label: 'Other' }, { label: 'Courses', href: '/clubpm/courses' }, { label: 'Player' }];
   if (pathname === '/clubpm/notifications') return [{ label: 'Notifications' }];
   if (pathname === '/clubpm/notifications/preferences') return [{ label: 'Notifications', href: '/clubpm/notifications' }, { label: 'Preferences' }];
   if (pathname === '/clubpm/activity') return [{ label: 'Activity' }];
-  if (pathname === '/clubpm/calendar') return [{ label: 'Chat', href: '/clubpm/chat' }, { label: 'Social' }];
+  if (pathname === '/clubpm/calendar') return [{ label: 'Social' }, { label: 'Calendar' }];
   if (pathname === '/clubpm/admin') return [{ label: 'Other' }, { label: 'Admin' }];
   if (pathname === '/clubpm/meeting-notes') return [{ label: 'Other' }, { label: 'Admin', href: '/clubpm/admin' }, { label: 'Meeting Notes' }];
   if (pathname === '/clubpm/outreach') return [{ label: 'Other' }, { label: 'Outreach Hub' }];
@@ -45,7 +45,7 @@ function getBreadcrumb(pathname) {
   if (pathname.startsWith('/clubpm/profile/')) return [{ label: 'Members', href: '/clubpm/members' }, { label: 'Profile' }];
   if (pathname === '/clubpm/shop') return [{ label: 'Shop' }];
   if (pathname === '/clubpm/challenges') return [{ label: 'Challenges' }];
-  if (pathname.startsWith('/clubpm/chat')) return [{ label: 'Chat' }];
+  if (pathname.startsWith('/clubpm/chat')) return [{ label: 'Social' }, { label: 'Chat' }];
   return [{ label: 'Constellation' }];
 }
 
@@ -62,14 +62,14 @@ const NAV_ITEMS = [
     ),
   },
   {
-    label: 'Chat',
-    id: 'chat',
-    tourId: 'nav.chat.group',
+    label: 'Social',
+    id: 'social',
+    tourId: 'nav.social',
     icon: <i className="fas fa-comments" aria-hidden="true" style={{ fontSize: 15, width: 18, textAlign: 'center' }} />,
     children: [
       { label: 'Chat',    href: '/clubpm/chat', tourId: 'nav.chat' },
       { label: 'Members', href: '/clubpm/members', tourId: 'nav.members' },
-      { label: 'Social',  href: '/clubpm/calendar', tourId: 'nav.calendar' },
+      { label: 'Calendar', href: '/clubpm/calendar', tourId: 'nav.calendar' },
     ],
   },
   {

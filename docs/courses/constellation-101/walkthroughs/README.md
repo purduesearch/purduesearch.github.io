@@ -116,8 +116,8 @@ Ends the course by closing V01's loop: Constellation comes to you. The preferenc
 argues *against* muting rather than just describing the toggles, because the member who mutes
 everything is the member who quietly stops being asked to do things.
 
-The tour opens the Chat group before pointing to Social because both groups in the sidebar start
-collapsed. Social is the shared calendar route; the name reflects that it holds meetings and events.
+The tour opens the Social group before pointing to Calendar because both groups in the sidebar start
+collapsed. Social keeps the club's channels, member directory, and shared calendar together.
 
 The last step introduces AI insights with "treat them as a colleague's opinion: often useful,
 occasionally wrong, never the final word." Setting that expectation once, early, is cheaper than

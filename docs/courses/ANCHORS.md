@@ -23,11 +23,11 @@ step files.
 |---|---|---|
 | `nav.sidebar` | The whole sidebar, for coarse dimming | `*` |
 | `nav.dashboard` | Dashboard link | `*` |
-| `nav.chat.group` | Chat group header (collapsible, not a link) | `*` |
-| `nav.chat` | Chat link — a child of the Chat group† | `*` |
+| `nav.social` | Social group header (collapsible, not a link) | `*` |
+| `nav.chat` | Chat link — a child of the Social group† | `*` |
 | `nav.projects` | Projects link | `*` |
-| `nav.members` | Members link — a child of the Chat group† | `*` |
-| `nav.calendar` | Social link — a child of the Chat group† | `*` |
+| `nav.members` | Members link — a child of the Social group† | `*` |
+| `nav.calendar` | Calendar link — a child of the Social group† | `*` |
 | `nav.courses` | Courses link — a child of the Other group† | `*` |
 | `nav.shop` | Shop link | `*` |
 | `nav.other` | Other group header (collapsed by default, not a link) | `*` |
