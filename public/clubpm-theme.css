@@ -16047,6 +16047,9 @@ i.fa-coins { color: #ffd96b; }
   border-radius: 8px; padding: 6px;
   transition: background 0.18s ease, transform 0.18s ease;
 }
+.pm-sidebar:not(:hover):not(.is-tour-pinned) .pm-sidebar-user--link {
+  padding-left: 16px;
+}
 .pm-sidebar-user--link:hover { background: rgba(255,255,255,0.06); }
 .pm-sidebar-user--link:active { transform: scale(0.98); }
 
@@ -23272,8 +23275,8 @@ html:not(.aos-off) [data-aos].aos-animate  { opacity: 1; transform: none; }
 .pm-tour-editor-breakages ul { margin: 8px 0 0; padding-left: 18px; font-size: .85rem; line-height: 1.6; }
 
 /* === Sidebar nav groups (collapsible) ============================== */
-/* The rail is icon-only until hovered, and child rows carry no icon, so
-   they stay hidden rather than rendering as blank strips. */
+/* Open groups keep their height when the rail collapses. Their labels follow
+   the normal icon-rail fade, so reopening the rail does not make the nav jump. */
 .pm-nav-group-header { justify-content: flex-start; }
 .pm-nav-group-chevron {
   margin-left: auto;
@@ -23282,8 +23285,10 @@ html:not(.aos-off) [data-aos].aos-animate  { opacity: 1; transform: none; }
   transition: opacity 0.15s ease;
 }
 .pm-sidebar:hover .pm-nav-group-chevron { opacity: 0.6; }
-.pm-nav-group-children { display: none; }
-.pm-sidebar:hover .pm-nav-group-children { display: block; }
+.pm-nav-group-children { display: block; }
+.pm-sidebar:not(:hover):not(.is-tour-pinned) .pm-nav-group-children {
+  visibility: hidden;
+}
 .pm-nav-child {
   height: 34px;
   padding-left: 52px;
