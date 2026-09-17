@@ -21,7 +21,7 @@ remember to visit will stop visiting it. This video's job is to establish that i
 | 00:00–00:18 | Notification bell, dropdown open | Hold on unread items |
 | 00:18–00:42 | Split: task assigned ← → Slack DM arrives | Assign in one pane, DM lands in the other |
 | 00:42–01:06 | Notification preferences | Scroll the toggle list |
-| 01:06–01:30 | Calendar page | Show an event, then its RSVP |
+| 01:06–01:30 | Calendar page | Desktop: Month; phone: agenda-first with date and project filters. Show an event, then its RSVP |
 | 01:30–01:36 | Dashboard | Hold, fade |
 
 ## Visual edits
@@ -77,6 +77,8 @@ Constellation entirely is a member nobody can reach.
 
 And meetings live on the calendar here. Events, RSVPs, and scheduling polls — so "when is everyone
 free" stops being a forty-message thread.
+On a phone, Calendar opens as an agenda: choose a date, filter by project, or switch to Month.
+Chat opens on your channel list. People & DMs opens the inbox; Back returns from a conversation or thread.
 
 **[01:30 — dashboard]**
 
@@ -86,7 +88,7 @@ You don't have to remember to check Constellation. Set your preferences once and
 
 ---
 
-**Word count:** ~240 · **Target pace:** 150 wpm + written pauses ≈ 1:36
+**Word count:** ~280 · **Target pace:** 150 wpm + written pauses ≈ 1:52
 
 ## Notes for the recorder
 

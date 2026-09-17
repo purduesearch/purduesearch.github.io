@@ -9,8 +9,11 @@
 import React, { useEffect } from "react";
 import { createPortal } from "react-dom";
 import { parseDriveUrl, getPreviewUrl, getTypeMeta } from "../../utils/driveUtils";
+import MobileSheet from "./MobileSheet";
+import { useCompactLayout } from "../../clubpm/layout/compactLayout";
 
 export default function DrivePreviewModal({ url, label, onClose }) {
+  const compact = useCompactLayout();
   const parsed = parseDriveUrl(url);
   const previewUrl = getPreviewUrl(parsed);
   const meta = getTypeMeta(parsed.kind);
@@ -21,6 +24,49 @@ export default function DrivePreviewModal({ url, label, onClose }) {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
+
+  const body = (
+    <div className="cpm-drive-preview-body">
+      {previewUrl ? (
+        <iframe
+          title={`Drive preview: ${displayLabel}`}
+          src={previewUrl}
+          className="cpm-drive-preview-iframe"
+          loading="lazy"
+          allow="autoplay; clipboard-read; clipboard-write"
+          allowFullScreen
+        />
+      ) : (
+        <div className="cpm-drive-preview-fallback">
+          <i className={`fas ${meta.icon}`} style={{ color: meta.color, fontSize: 48 }} aria-hidden="true" />
+          <p>This link can't be previewed inline.</p>
+          <a href={url} target="_blank" rel="noopener noreferrer" className="clubpm-btn-primary">
+            Open in new tab
+          </a>
+        </div>
+      )}
+    </div>
+  );
+
+  // Phone: the same preview, full screen, with "Open in Drive" kept in the
+  // dialog header so the escape hatch survives the smaller layout.
+  if (compact) {
+    return (
+      <MobileSheet
+        title={label || displayLabel}
+        onClose={onClose}
+        variant="fullscreen"
+        className="pm-m-files-layer pm-m-drive-preview-layer"
+        headerExtra={(
+          <a href={url} target="_blank" rel="noopener noreferrer" className="cpm-drive-preview-open">
+            Open in Drive <i className="fas fa-external-link-alt" aria-hidden="true" />
+          </a>
+        )}
+      >
+        {body}
+      </MobileSheet>
+    );
+  }
 
   return createPortal(
     <div className="cpm-drive-preview-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
@@ -41,26 +87,7 @@ export default function DrivePreviewModal({ url, label, onClose }) {
           </span>
         </div>
 
-        <div className="cpm-drive-preview-body">
-          {previewUrl ? (
-            <iframe
-              title={`Drive preview: ${displayLabel}`}
-              src={previewUrl}
-              className="cpm-drive-preview-iframe"
-              loading="lazy"
-              allow="autoplay; clipboard-read; clipboard-write"
-              allowFullScreen
-            />
-          ) : (
-            <div className="cpm-drive-preview-fallback">
-              <i className={`fas ${meta.icon}`} style={{ color: meta.color, fontSize: 48 }} aria-hidden="true" />
-              <p>This link can't be previewed inline.</p>
-              <a href={url} target="_blank" rel="noopener noreferrer" className="clubpm-btn-primary">
-                Open in new tab
-              </a>
-            </div>
-          )}
-        </div>
+        {body}
       </div>
     </div>,
     document.body

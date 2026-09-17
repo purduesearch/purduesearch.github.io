@@ -1,5 +1,4 @@
-import { prisma } from "../db/prisma.js";
-import type { Member } from "@prisma/client";
+import { prisma, type AppMember as Member } from "../db/prisma.js";
 import type { WebClient } from "@slack/web-api";
 import type { App } from "@slack/bolt";
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { createPortal } from "react-dom";
-import { useParams, Link, useSearchParams, useNavigate } from "react-router-dom";
+import { useParams, Link, useSearchParams } from "react-router-dom";
 import toast from "react-hot-toast";
 import { get, post, patch, setNextRewardOrigin, bulkArchive, unarchiveTask, getArchivedTasks, getProjectBlockers, createBlocker, updateBlocker } from "../../api/clubPmClient";
 import MemberBadge from "../../components/clubpm/MemberBadge";
@@ -45,6 +45,9 @@ import { CSS } from "@dnd-kit/utilities";
 import { animate, spring, revealStagger, prefersReducedMotion } from "../../clubpm/anim/motion";
 import { burstAt } from "../../components/clubpm/celebrate/confetti";
 import useStreakWatcher from "../../hooks/useStreakWatcher";
+import MobileSheet from "../../components/clubpm/MobileSheet";
+import { useCompactLayout } from "../../clubpm/layout/compactLayout";
+import { requestShellOverlay } from "../../clubpm/layout/shellOverlay";
 
 // ── Constants ────────────────────────────────────────────────
 
@@ -54,6 +57,12 @@ const BINS = [
   { id: "BLOCKED",     label: "Blocked",     color: "var(--clubpm-accent-red, #e17055)" },
   { id: "DONE",        label: "Completed",   color: "var(--clubpm-accent-green)" },
 ];
+const BIN_TOUR_IDS = {
+  TODO: "board.column.TODO",
+  IN_PROGRESS: "board.column.IN_PROGRESS",
+  BLOCKED: "board.column.BLOCKED",
+  DONE: "board.column.DONE",
+};
 
 const PRIORITY_RANK = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
 
@@ -429,6 +438,177 @@ function StatusBin({ bin, tasks, subtasksByParent, expandedParents, onTogglePare
         </SortableContext>
       )}
     </div>
+  );
+}
+
+function MobileTaskRow({ task, onOpen, onMove, onAssign, canEdit, tourId }) {
+  const due = task.dueDate ? new Date(task.dueDate) : null;
+  const overdue = due && task.status !== 'DONE' && due < new Date();
+  return (
+    <div className="pm-m-task-row" data-task-id={task.id} data-tour-id={tourId}>
+      <button
+        type="button"
+        className={`pm-m-task-status pm-m-task-status--${task.status.toLowerCase()}`}
+        onClick={() => canEdit ? onMove(task) : onOpen(task)}
+        aria-label={canEdit ? `Status: ${BINS.find(b => b.id === task.status)?.label ?? task.status}. Move task` : `Status: ${task.status}`}
+      >
+        <i className={task.status === 'DONE' ? 'fas fa-check' : task.status === 'BLOCKED' ? 'fas fa-ban' : 'fas fa-circle'} aria-hidden="true" />
+      </button>
+      <button type="button" className="pm-m-task-main" onClick={() => onOpen(task)}>
+        <span className="pm-m-task-title">{task.title}</span>
+        <span className="pm-m-task-meta">
+          <span className={`pm-m-task-priority pm-m-task-priority--${(task.priority ?? 'MEDIUM').toLowerCase()}`}>{(task.priority ?? 'MEDIUM').toLowerCase()}</span>
+          {due ? <span className={overdue ? 'is-overdue' : ''}><i className="fas fa-calendar-day" aria-hidden="true" /> {due.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span> : <span>No due date</span>}
+          {(task.subtasks?.length ?? 0) > 0 ? <span><i className="fas fa-list-check" aria-hidden="true" /> {task.subtasks.length}</span> : null}
+        </span>
+      </button>
+      <div className="pm-m-task-actions">
+        {canEdit ? (
+          <>
+            <button type="button" onClick={() => onMove(task)}><i className="fas fa-arrow-right-arrow-left" aria-hidden="true" /> Move</button>
+            <button type="button" onClick={() => onAssign(task)}><i className="fas fa-user-plus" aria-hidden="true" /> Assign</button>
+          </>
+        ) : null}
+        <AvatarStack assignees={task.assignees ?? []} />
+      </div>
+    </div>
+  );
+}
+
+function CompactStatusGroup({ bin, open, onToggle, onOpenTask, onMove, onAssign, canEdit, lead = null }) {
+  return (
+    <section className="pm-m-task-group" data-tour-id={BIN_TOUR_IDS[bin.id]}>
+      <button type="button" className="pm-m-task-group-head" onClick={onToggle} aria-expanded={open}>
+        <span className="pm-m-task-group-dot" style={{ background: bin.color }} />
+        <span>{bin.label}</span><span className="pm-m-count">{bin.tasks.length}</span>
+        <i className={`fas fa-chevron-${open ? 'up' : 'down'}`} aria-hidden="true" />
+      </button>
+      {open ? (
+        <div className="pm-m-task-group-body">
+          {lead}
+          {bin.tasks.length ? bin.tasks.map((task, index) => (
+            <MobileTaskRow
+              key={task.id}
+              task={task}
+              tourId={bin.id === 'TODO' && index === 0 ? "board.card.first" : bin.id === 'BLOCKED' && index === 0 ? "board.blocker.bin" : undefined}
+              onOpen={onOpenTask}
+              onMove={onMove}
+              onAssign={onAssign}
+              canEdit={canEdit}
+            />
+          )) : <div className="pm-m-task-empty">No tasks.</div>}
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+function CompactTaskFilters({ sortBy, onSort, priority, onPriority, due, onDue, showArchived, onShowArchived, onClear }) {
+  return (
+    <div className="pm-m-task-filter-form">
+      <label><span>Sort by</span><select value={sortBy} onChange={e => onSort(e.target.value)}>
+        <option value="priority">Priority</option><option value="dueDate">Due date</option><option value="created">Newest</option><option value="title">Title</option><option value="tags">Tags</option>
+      </select></label>
+      <label><span>Priority</span><select value={priority} onChange={e => onPriority(e.target.value)}>
+        <option value="all">All priorities</option>{Object.keys(PRIORITY_RANK).map(value => <option key={value} value={value}>{value.charAt(0) + value.slice(1).toLowerCase()}</option>)}
+      </select></label>
+      <label><span>Due date</span><select value={due} onChange={e => onDue(e.target.value)}>
+        <option value="any">Any date</option><option value="overdue">Overdue</option><option value="week">Next 7 days</option><option value="none">No due date</option>
+      </select></label>
+      <label className="pm-m-check"><input type="checkbox" checked={showArchived} onChange={e => onShowArchived(e.target.checked)} /> Show archived tasks</label>
+      <button type="button" className="pm-m-btn" onClick={onClear}>Clear filters</button>
+    </div>
+  );
+}
+
+function CompactAssigneePicker({ task, members, onChange }) {
+  const [query, setQuery] = useState('');
+  const selected = new Set((task.assignees ?? []).map(a => a.id));
+  const filtered = members.filter(pm => (pm.member?.displayName ?? '').toLowerCase().includes(query.trim().toLowerCase()));
+  return (
+    <div className="pm-m-assign-picker">
+      <label className="pm-m-search"><i className="fas fa-magnifying-glass" aria-hidden="true" /><input type="search" className="pm-m-input" placeholder="Find a member" value={query} onChange={e => setQuery(e.target.value)} /></label>
+      <button type="button" className="pm-m-row" onClick={() => onChange([])}><i className="fas fa-user-slash pm-m-row-icon" aria-hidden="true" /><span className="pm-m-row-main">Nobody</span>{selected.size === 0 ? <i className="fas fa-check" aria-hidden="true" /> : null}</button>
+      {filtered.map(pm => {
+        const m = pm.member;
+        const active = selected.has(m.id);
+        return <button key={m.id} type="button" className="pm-m-row" aria-pressed={active} onClick={() => onChange(active ? [...selected].filter(id => id !== m.id) : [...selected, m.id])}><AvatarPortrait member={m} size={32} /><span className="pm-m-row-main">{m.displayName}</span>{active ? <i className="fas fa-check" aria-hidden="true" /> : null}</button>;
+      })}
+    </div>
+  );
+}
+
+// Phone replacement for the desktop Blocked sub-bin header controls (owner
+// picker, rename/recolor, Resolve). Those live on drag targets that the phone
+// list does not render, so without this a category blocker could not be
+// resolved, renamed or reassigned from a phone at all.
+function CompactBlockerList({ groups, canEdit, onEdit, onResolve }) {
+  const categories = groups.filter(g => g.type === 'category');
+  if (!categories.length) return null;
+  return (
+    <div className="pm-m-blockers" aria-label="Blockers">
+      {categories.map(g => (
+        <div key={g.id} className="pm-m-blocker">
+          <div className="pm-m-blocker-main">
+            <i className="fas fa-tag" style={{ color: g.blocker.color || 'var(--pm-accent-coral, #e17055)' }} aria-hidden="true" />
+            <div className="pm-m-blocker-text">
+              <div className="pm-m-blocker-label">{g.blocker.label}</div>
+              <div className="pm-m-blocker-meta">
+                {g.items.length} task{g.items.length === 1 ? '' : 's'} · {g.blocker.assignee?.displayName ? `Responsible: ${g.blocker.assignee.displayName}` : 'No one responsible'}
+              </div>
+            </div>
+          </div>
+          {canEdit ? (
+            <div className="pm-m-blocker-actions">
+              <button type="button" className="pm-m-btn" data-m-opener={`blocker-edit-${g.id}`} onClick={() => onEdit(g.blocker)}>
+                <i className="fas fa-pencil-alt" aria-hidden="true" /> Edit
+              </button>
+              <button type="button" className="pm-m-btn" data-m-opener={`blocker-resolve-${g.id}`} onClick={() => onResolve(g.blocker, g.items.length)}>
+                <i className="fas fa-check" aria-hidden="true" /> Resolve
+              </button>
+            </div>
+          ) : null}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// Name / colour / responsible person for a category blocker, as a phone form.
+// Native <select> for the owner so the list is never clipped by the sheet.
+function CompactBlockerForm({ initial = null, projectMembers = [], submitLabel, busy, onSubmit }) {
+  const [label, setLabel] = useState(initial?.label ?? '');
+  const [color, setColor] = useState(initial?.color || BLOCKER_SWATCHES[0]);
+  const [assigneeId, setAssigneeId] = useState(initial?.assignee?.id ?? '');
+  const trimmed = label.trim();
+  return (
+    <form className="pm-m-task-filter-form pm-m-blocker-form" onSubmit={e => { e.preventDefault(); if (trimmed && !busy) onSubmit({ label: trimmed, color, assigneeId: assigneeId || null }); }}>
+      <label><div>Blocker name</div><input className="pm-m-input" value={label} onChange={e => setLabel(e.target.value)} placeholder="e.g. Waiting on parts" data-autofocus={initial ? undefined : true} /></label>
+      <fieldset className="pm-m-blocker-swatches">
+        <legend>Colour</legend>
+        {BLOCKER_SWATCHES.map(c => (
+          <button key={c} type="button" aria-label={`Colour ${c}`} aria-pressed={color === c} style={{ background: c }} onClick={() => setColor(c)} />
+        ))}
+      </fieldset>
+      <label><div>Responsible</div><select value={assigneeId} onChange={e => setAssigneeId(e.target.value)}>
+        <option value="">No one</option>
+        {projectMembers.map(m => <option key={m.id} value={m.id}>{m.displayName}</option>)}
+      </select></label>
+      <button type="submit" className="pm-m-btn pm-m-btn--primary" disabled={!trimmed || busy}>{busy ? 'Saving…' : submitLabel}</button>
+    </form>
+  );
+}
+
+function CompactMilestones({ milestones = [], tasks = [], projectId }) {
+  return (
+    <section className="pm-m-milestones" aria-labelledby="pm-m-milestones-title" data-tour-id="project.milestones">
+      <div className="pm-m-home-section-head"><h2 id="pm-m-milestones-title">Milestones</h2><Link to={`/clubpm/projects/${projectId}/gantt`}>Open timeline</Link></div>
+      {milestones.length ? milestones.map(m => {
+        const linked = tasks.filter(t => t.milestoneId === m.id || t.milestone?.id === m.id);
+        const done = linked.filter(t => t.status === 'DONE').length;
+        return <details key={m.id} className="pm-m-milestone"><summary><span>{m.title}</span><span>{done}/{linked.length}</span><i className="fas fa-chevron-down" aria-hidden="true" /></summary><div>{m.targetDate ? `Target ${new Date(m.targetDate).toLocaleDateString()}` : 'No target date'} · {(m.status ?? 'ON_TRACK').replaceAll('_', ' ').toLowerCase()}</div></details>;
+      }) : <div className="pm-m-task-empty">No milestones yet.</div>}
+    </section>
   );
 }
 
@@ -1036,10 +1216,12 @@ function DraggableMemberChip({ pm, selected, onClick }) {
 const PRIORITY_LEVELS = ["CRITICAL", "HIGH", "MEDIUM", "LOW"];
 
 function AddProjectTaskModal({ projectId, initialStatus, projectMembers, onClose, onCreated }) {
+  const compact = useCompactLayout();
   const [title, setTitle] = useState("");
   const [priority, setPriority] = useState("MEDIUM");
   const [dueDate, setDueDate] = useState("");
   const [saving, setSaving] = useState(false);
+  const submittingRef = useRef(false);
   const [error, setError] = useState(null);
   const [milestoneId, setMilestoneId] = useState("");
   const [milestones, setMilestones] = useState([]);
@@ -1093,7 +1275,8 @@ function AddProjectTaskModal({ projectId, initialStatus, projectMembers, onClose
 
   async function handleSubmit(e) {
     e.preventDefault();
-    if (!title.trim()) return;
+    if (!title.trim() || saving || submittingRef.current) return;
+    submittingRef.current = true;
     setSaving(true);
     setError(null);
     try {
@@ -1110,17 +1293,13 @@ function AddProjectTaskModal({ projectId, initialStatus, projectMembers, onClose
     } catch (err) {
       setError(err.message ?? "Failed to create task");
     } finally {
+      submittingRef.current = false;
       setSaving(false);
     }
   }
 
-  return createPortal(
-    <div
-      style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.65)", zIndex: 1000,
-        display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(2px)" }}
-      onClick={e => e.target === e.currentTarget && onClose()}
-    >
-      <div data-tour-id="task.create.modal"
+  const panel = (
+      <div data-tour-id="task.create.modal" className="pm-m-task-create"
         style={{ background: "var(--clubpm-surface-100)", borderRadius: 12, width: "min(480px, 94vw)",
         boxShadow: "0 24px 80px rgba(0,0,0,0.5)", border: "1px solid var(--clubpm-border)", overflow: "hidden" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between",
@@ -1207,7 +1386,7 @@ function AddProjectTaskModal({ projectId, initialStatus, projectMembers, onClose
                   <div style={{ display: "flex", gap: 6 }}>
                     <input type="text" placeholder="New tag name" value={newTagName}
                       onChange={e => setNewTagName(e.target.value)}
-                      onKeyDown={e => e.key === "Enter" && createTag()}
+                      onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); createTag(); } }}
                       style={{ ...inputStyle, flex: 1 }} />
                     <input type="color" value={newTagColor} onChange={e => setNewTagColor(e.target.value)}
                       style={{ width: 38, padding: 2, borderRadius: 6, cursor: "pointer",
@@ -1245,7 +1424,10 @@ function AddProjectTaskModal({ projectId, initialStatus, projectMembers, onClose
           </div>
         </form>
       </div>
-    </div>,
+  );
+  if (compact) return <MobileSheet title="New task" variant="fullscreen" onClose={onClose} className="pm-m-task-create-layer">{panel}</MobileSheet>;
+  return createPortal(
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.65)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(2px)" }} onClick={e => e.target === e.currentTarget && onClose()}>{panel}</div>,
     document.body
   );
 }
@@ -1459,6 +1641,7 @@ function SuggestedTaskCard({ task, projectId, onAccepted, onDismiss }) {
 // ── AI Panel ─────────────────────────────────────────────────
 
 function AiPanel({ project, allMembers, projectBlockers, onActionPlanExecuted }) {
+  const compact = useCompactLayout();
   const [qaQuestion, setQaQuestion] = useState("");
   const [qaAnswer, setQaAnswer] = useState(null);
   const [qaLoading, setQaLoading] = useState(false);
@@ -1561,7 +1744,7 @@ function AiPanel({ project, allMembers, projectBlockers, onActionPlanExecuted })
   };
 
   return (
-    <div className="cpm-ai-panel" style={{ padding: "24px", maxWidth: 780 }}>
+    <div className="cpm-ai-panel" style={compact ? { padding: "12px 16px 24px" } : { padding: "24px", maxWidth: 780 }}>
       <h3 style={{
         fontSize: 15, fontWeight: 700, color: "var(--clubpm-text-primary)", marginBottom: 20,
         display: "flex", alignItems: "center", gap: 8,
@@ -2013,7 +2196,14 @@ function DriveFilesPanel({ project, isAdmin, onProjectChange }) {
 // sessionStorage per project so a user reopening the same project sees the
 // pane they were on; users opening a *different* project start on Drive.
 
+const FILE_SOURCES = [
+  { id: "drive",  label: "Drive",  icon: "fab fa-google-drive" },
+  { id: "github", label: "GitHub", icon: "fab fa-github" },
+  { id: "vault",  label: "Vault",  icon: "fas fa-database" },
+];
+
 function FilesTabContent({ project, member, isAdmin, onProjectChange }) {
+  const compact = useCompactLayout();
   const storageKey = `cpm.files.sub.${project.id}`;
   const [sub, setSub] = useState(() => {
     try {
@@ -2028,7 +2218,28 @@ function FilesTabContent({ project, member, isAdmin, onProjectChange }) {
   }, [storageKey, sub]);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+    <div style={compact ? undefined : { display: "flex", flexDirection: "column", gap: 16 }} className={compact ? "pm-m-files" : undefined}>
+      {compact ? (
+        // Labelled source selector instead of a second icon toolbar. The
+        // selection is the same sessionStorage value the desktop toggle uses,
+        // so returning from an item detail lands on the same source.
+        <div className="pm-m-source" role="group" aria-label="Files source">
+          <span className="pm-m-source-label" id={`files-source-${project.id}`}>Source</span>
+          <div className="pm-m-segment pm-m-segment--wide" role="group" aria-labelledby={`files-source-${project.id}`}>
+            {FILE_SOURCES.map(opt => (
+              <button
+                key={opt.id}
+                type="button"
+                aria-pressed={sub === opt.id}
+                onClick={() => setSub(opt.id)}
+                data-tour-id={opt.id === "vault" ? "project.tab.vault" : undefined}
+              >
+                <i className={opt.icon} aria-hidden="true" /> {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : (
       <div
         role="tablist"
         aria-label="Files source"
@@ -2039,11 +2250,7 @@ function FilesTabContent({ project, member, isAdmin, onProjectChange }) {
           border: "1px solid var(--clubpm-border)",
         }}
       >
-        {[
-          { id: "drive",  label: "Drive",  icon: "fab fa-google-drive" },
-          { id: "github", label: "GitHub", icon: "fab fa-github" },
-          { id: "vault",  label: "Vault",  icon: "fas fa-database" },
-        ].map(opt => (
+        {FILE_SOURCES.map(opt => (
           <button
             key={opt.id}
             type="button"
@@ -2066,6 +2273,7 @@ function FilesTabContent({ project, member, isAdmin, onProjectChange }) {
           </button>
         ))}
       </div>
+      )}
 
       {sub === "drive" ? (
         <DriveFilesPanel
@@ -2088,6 +2296,7 @@ export default function ProjectDetail() {
   const { id } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const { member } = useClubPmAuth();
+  const compact = useCompactLayout();
   const { setProjectNav, clearProjectNav } = useProjectNav();
   const notifyStreak = useStreakWatcher();
 
@@ -2199,7 +2408,6 @@ export default function ProjectDetail() {
   const [assigneePanelOpen] = useState(true); // reserved for future toggle UX
   const [showAddTask, setShowAddTask] = useState(false);
   const [addTaskInitialStatus, setAddTaskInitialStatus] = useState("TODO");
-  const navigate = useNavigate();
   const [expandedParents, setExpandedParents] = useState(new Set());
   const [sortBy, setSortBy] = useState("priority");
   const [headerDrivePreview, setHeaderDrivePreview] = useState(null); // { url, label }
@@ -2224,6 +2432,14 @@ export default function ProjectDetail() {
   const [archivedTasks, setArchivedTasks] = useState([]);
   const [archivedLoading, setArchivedLoading] = useState(false);
   const [archivedGroupOpen, setArchivedGroupOpen] = useState(false);
+  const [compactScope, setCompactScope] = useState('mine');
+  const [compactQuery, setCompactQuery] = useState('');
+  const [compactPriority, setCompactPriority] = useState('all');
+  const [compactDue, setCompactDue] = useState('any');
+  const [compactGroups, setCompactGroups] = useState(() => new Set(['TODO', 'IN_PROGRESS', 'BLOCKED']));
+  const [compactLayer, setCompactLayer] = useState(null); // { type: filters|move|assign, task? }
+  const [compactSaving, setCompactSaving] = useState(false);
+  const taskReturnRef = useRef(null);
 
   // Build subtask map from embedded subtasks (project fetches top-level only, subtasks are nested)
   const subtasksByParent = useMemo(() => {
@@ -2260,6 +2476,26 @@ export default function ProjectDetail() {
       )),
     }));
   }, [project, sortBy]);
+
+  const compactTasksByBin = useMemo(() => {
+    const now = new Date();
+    const week = new Date(now); week.setDate(now.getDate() + 7);
+    const q = compactQuery.trim().toLowerCase();
+    return tasksByBin.map(bin => ({
+      ...bin,
+      tasks: bin.tasks.filter(task => {
+        if (compactScope === 'mine' && !(task.assignees ?? []).some(a => a.id === member?.id)) return false;
+        if (q && !`${task.title ?? ''} ${task.description ?? ''} ${(task.tags ?? []).map(t => t.name).join(' ')}`.toLowerCase().includes(q)) return false;
+        if (compactPriority !== 'all' && task.priority !== compactPriority) return false;
+        if (compactDue === 'none' && task.dueDate) return false;
+        if (compactDue === 'overdue' && (!task.dueDate || task.status === 'DONE' || new Date(task.dueDate) >= now)) return false;
+        if (compactDue === 'week' && (!task.dueDate || new Date(task.dueDate) < now || new Date(task.dueDate) > week)) return false;
+        return true;
+      }),
+    }));
+  }, [tasksByBin, compactScope, compactQuery, compactPriority, compactDue, member?.id]);
+
+  const compactFilterCount = (compactPriority !== 'all' ? 1 : 0) + (compactDue !== 'any' ? 1 : 0) + (showArchived ? 1 : 0);
 
   // Flat visual order of every visible row (matches StatusBin's render order)
   // so shift-click can resolve a contiguous range across bins/subtasks.
@@ -2607,8 +2843,18 @@ export default function ProjectDetail() {
       return;
     }
     setLastClickedId(task.id);
+    const scrollHost = document.querySelector('.cpm-proj-main-body') ?? document.querySelector('.pm-shell-content');
+    taskReturnRef.current = {
+      scrollTop: scrollHost?.scrollTop ?? window.scrollY,
+      taskId: task.id,
+    };
     setSelectedTask(task);
-  }, [lastClickedId, flatTaskOrder]);
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      next.set('task', task.id);
+      return next;
+    });
+  }, [lastClickedId, flatTaskOrder, setSearchParams]);
 
   // Activity rows carry a task id only; resolve it against the loaded project and
   // reuse the single TaskModal opener rather than introducing a second one.
@@ -2617,8 +2863,8 @@ export default function ProjectDetail() {
     const found =
       tasks.find(t => t.id === taskId) ??
       tasks.flatMap(t => t.subtasks ?? []).find(s => s.id === taskId);
-    if (found) setSelectedTask(found);
-  }, [project]);
+    if (found) handleRowClick(found);
+  }, [project, handleRowClick]);
 
   // RiskRadarCard hands back the whole task object; ProjectActivity hands back an id.
   // Normalise here so both surfaces share one opener.
@@ -2626,15 +2872,49 @@ export default function ProjectDetail() {
     handleActivityOpenTask(typeof task === "string" ? task : task?.id);
   }, [handleActivityOpenTask]);
 
+  const togglePinned = useCallback(() => {
+    setPinned(p => {
+      const next = !p;
+      try {
+        const stored = JSON.parse(localStorage.getItem('pm-starred-projects') || '[]');
+        const updated = next
+          ? [...stored.filter(x => x !== id), id]
+          : stored.filter(x => x !== id);
+        localStorage.setItem('pm-starred-projects', JSON.stringify(updated));
+        window.dispatchEvent(new Event('pm-stars-changed'));
+      } catch {}
+      return next;
+    });
+  }, [id]);
+
+  // Same rule as the hero's edit button below (computed there after the
+  // loading guard); repeated here because this effect runs before it.
+  const canEditProject = !!project && (
+    !project.slackChannelId ||
+    (project.channelMemberSlackIds ?? []).includes(member?.slackId)
+  );
+
   useEffect(() => {
     if (!project) return;
     setProjectNav({
+      projectId: project.id,
       projectName: project.name,
       tabs: NAV_TABS,
       activeTab,
       onTabChange: changeTab,
+      // Project-level operations for the phone project sheet. Each mirrors a
+      // control the desktop hero already renders, under the same permission.
+      // The timeline had no entry point at all before this.
+      actions: [
+        { id: 'edit', label: 'Edit project', icon: 'fa-pencil-alt', hidden: !canEditProject, onSelect: () => setShowEditProject(true) },
+        { id: 'chat', label: 'Project chat', icon: 'fa-comments', to: `/clubpm/projects/${project.id}?tab=chat` },
+        { id: 'drive', label: 'Open Drive folder', icon: 'fa-folder-open', hidden: !project.driveLink, onSelect: () => setHeaderDrivePreview({ url: project.driveLink, label: 'Drive folder' }) },
+        { id: 'description', label: 'Edit description', icon: 'fa-align-left', hidden: !member?.isAdmin, onSelect: () => { setDescValue(project.description ?? ''); setDescEdit(true); } },
+        { id: 'pin', label: pinned ? 'Unpin project' : 'Pin project', icon: 'fa-star', onSelect: togglePinned },
+        { id: 'timeline', label: 'Timeline (Gantt)', icon: 'fa-chart-gantt', to: `/clubpm/projects/${project.id}/gantt` },
+      ],
     });
-  }, [project?.name, activeTab, setProjectNav, changeTab]);
+  }, [project?.id, project?.name, activeTab, setProjectNav, changeTab, canEditProject, pinned, togglePinned]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     return () => clearProjectNav();
@@ -2686,11 +2966,36 @@ export default function ProjectDetail() {
   }, []);
 
   const taskIdFromParam = searchParams.get("task");
+  // The id the user just closed. Clearing selectedTask renders before the
+  // router drops `?task=` (navigations are transitions), and without this the
+  // effect below saw the stale param and reopened the task: a task opened from
+  // the Dashboard could not be closed at all.
+  const dismissedTaskIdRef = useRef(null);
   useEffect(() => {
-    if (!taskIdFromParam || !project) return;
-    const found = project.tasks.find(t => t.id === taskIdFromParam);
-    if (found && !selectedTask) setSelectedTask(found);
-  }, [taskIdFromParam, project]);
+    if (!taskIdFromParam) { dismissedTaskIdRef.current = null; return; }
+    if (!project || taskIdFromParam === dismissedTaskIdRef.current) return;
+    const found = findTaskById(taskIdFromParam)?.task;
+    if (found && selectedTask?.id !== found.id) setSelectedTask(found);
+  }, [taskIdFromParam, project, selectedTask?.id, findTaskById]);
+
+  const closeTaskModal = useCallback(() => {
+    dismissedTaskIdRef.current = new URLSearchParams(window.location.search).get('task');
+    setSelectedTask(null);
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      next.delete('task');
+      return next;
+    }, { replace: true });
+    const restore = taskReturnRef.current;
+    window.requestAnimationFrame(() => {
+      if (restore) {
+        const scrollHost = document.querySelector('.cpm-proj-main-body') ?? document.querySelector('.pm-shell-content');
+        if (scrollHost) scrollHost.scrollTo({ top: restore.scrollTop, behavior: 'auto' });
+        else window.scrollTo({ top: restore.scrollTop, behavior: 'auto' });
+      }
+      document.querySelector(`[data-task-id="${restore?.taskId ?? ''}"] .pm-m-task-main`)?.focus({ preventScroll: true });
+    });
+  }, [setSearchParams]);
 
   const handleDragStart = (event) => {
     const { active } = event;
@@ -2914,6 +3219,33 @@ export default function ProjectDetail() {
     fetchProject();
   };
 
+  const handleCompactAssignees = async (task, memberIds) => {
+    if (compactSaving) return;
+    setCompactSaving(true);
+    const previousTasks = project.tasks;
+    const assignees = memberIds.map(memberId => allMembers.find(pm => pm.memberId === memberId)?.member).filter(Boolean);
+    const update = tasks => tasks.map(top => {
+      if (top.id === task.id) return { ...top, assignees };
+      if ((top.subtasks ?? []).some(sub => sub.id === task.id)) {
+        return { ...top, subtasks: top.subtasks.map(sub => sub.id === task.id ? { ...sub, assignees } : sub) };
+      }
+      return top;
+    });
+    setProject(prev => ({ ...prev, tasks: update(prev.tasks) }));
+    setCompactLayer(prev => prev?.task?.id === task.id ? { ...prev, task: { ...prev.task, assignees } } : prev);
+    try {
+      const updated = await patch(`/api/tasks/${task.id}`, { assigneeIds: memberIds });
+      handleTaskUpdate({ ...task, ...updated });
+      setCompactLayer(prev => prev?.task?.id === task.id ? { ...prev, task: { ...task, ...updated } } : prev);
+    } catch (err) {
+      setProject(prev => ({ ...prev, tasks: previousTasks }));
+      setCompactLayer(prev => prev?.task?.id === task.id ? { ...prev, task } : prev);
+      toast.error(err?.message ?? 'Failed to update assignees');
+    } finally {
+      setCompactSaving(false);
+    }
+  };
+
   // ── Bulk selection actions ───────────────────────────────────
 
   const clearSelection = () => {
@@ -3093,7 +3425,10 @@ export default function ProjectDetail() {
         onDragEnd={handleDragEnd}
       >
         <main ref={tabBodyRef} className="cpm-project-main">
-          <header className="pm-proj-hero" data-tour-id="project.header">
+          {/* On a phone the conversation needs the height: the shell header
+              already names the project (and opens its actions), so the hero
+              steps aside on Chat › Messages. */}
+          <header className={`pm-proj-hero${compact && activeTab === "chat" && chatSection === "messages" ? " pm-proj-hero--m-hidden" : ""}`} data-tour-id="project.header">
             {/* Breadcrumb */}
             <div className="pm-proj-breadcrumb">
               <Link to="/clubpm" style={{ color: 'var(--pm-text-muted)', fontSize: '0.8rem', textDecoration: 'none' }}>
@@ -3112,18 +3447,8 @@ export default function ProjectDetail() {
                     {project.status}
                   </span>
                   <span className="pm-proj-type-chip">{project.type}</span>
-                  <SlackChannelPicker
-                    project={project}
-                    channels={slackChannels}
-                    channelsState={slackChannelsState}
-                    onSaved={fetchProject}
-                  />
-                  <DriveFolderPill
-                    project={project}
-                    isAdmin={!!member?.isAdmin}
-                    onPreview={url => setHeaderDrivePreview({ url, label: "Drive folder" })}
-                    onSaved={updated => setProject(prev => ({ ...prev, ...updated }))}
-                  />
+                  {!compact && <SlackChannelPicker project={project} channels={slackChannels} channelsState={slackChannelsState} onSaved={fetchProject} />}
+                  {!compact && <DriveFolderPill project={project} isAdmin={!!member?.isAdmin} onPreview={url => setHeaderDrivePreview({ url, label: "Drive folder" })} onSaved={updated => setProject(prev => ({ ...prev, ...updated }))} />}
                   {project.slackChannelId && !canEdit && (
                     <span style={{ fontSize: 11, color: 'var(--pm-accent-amber)', display: 'flex', alignItems: 'center', gap: 4 }}>
                       <i className="fas fa-lock" style={{ fontSize: 10 }} /> View only
@@ -3132,7 +3457,11 @@ export default function ProjectDetail() {
                 </div>
               </div>
               <div className="pm-proj-hero-actions">
-              {canEdit && (
+              {compact ? (
+                <button type="button" className="pm-m-project-actions-btn" data-tour-id="project.actions" onClick={() => requestShellOverlay('projects')} aria-haspopup="dialog">
+                  <i className="fas fa-ellipsis" aria-hidden="true" /> Actions
+                </button>
+              ) : canEdit && (
                 <button
                   className="pm-proj-edit-btn"
                   onClick={() => setShowEditProject(true)}
@@ -3142,34 +3471,44 @@ export default function ProjectDetail() {
                   <i className="fas fa-pencil-alt" aria-hidden="true" />
                 </button>
               )}
-              <button
+              {!compact && <button
                 className={`pm-pin-btn${pinned ? ' active' : ''}`}
-                onClick={() => setPinned(p => {
-                  const next = !p;
-                  try {
-                    const stored = JSON.parse(localStorage.getItem('pm-starred-projects') || '[]');
-                    const updated = next
-                      ? [...stored.filter(x => x !== id), id]
-                      : stored.filter(x => x !== id);
-                    localStorage.setItem('pm-starred-projects', JSON.stringify(updated));
-                    window.dispatchEvent(new Event('pm-stars-changed'));
-                  } catch {}
-                  return next;
-                })}
+                onClick={togglePinned}
                 title={pinned ? 'Unpin project' : 'Pin project'}
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill={pinned ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
                 </svg>
-              </button>
+              </button>}
               </div>
             </div>
 
             {/* Progress bar */}
             <ProgressBar tasks={project.tasks} />
 
+            {compact && (
+              <details className="pm-m-project-resources" open={descEdit || undefined}>
+                <summary><i className="fas fa-circle-info" aria-hidden="true" /> Project details & resources <i className="fas fa-chevron-down" aria-hidden="true" /></summary>
+                <div className="pm-m-project-resources-body">
+                  {descEdit ? (
+                    <div className="pm-proj-description-edit">
+                      <textarea className="pm-proj-description-textarea" value={descValue} onChange={e => setDescValue(e.target.value)} rows={4} autoFocus />
+                      <div className="pm-proj-description-actions"><button className="pm-proj-description-save" onClick={saveDescription}>Save</button><button className="pm-proj-description-cancel" onClick={() => setDescEdit(false)}>Cancel</button></div>
+                    </div>
+                  ) : (
+                    <div className="pm-m-project-description-row">
+                      {project.description ? <p>{project.description}</p> : <p className="pm-proj-description-empty">No project description yet.</p>}
+                      {member?.isAdmin ? <button type="button" className="pm-m-btn" onClick={() => { setDescValue(project.description ?? ''); setDescEdit(true); }}><i className="fas fa-pencil-alt" aria-hidden="true" /> Edit description</button> : null}
+                    </div>
+                  )}
+                  <SlackChannelPicker project={project} channels={slackChannels} channelsState={slackChannelsState} onSaved={fetchProject} />
+                  <DriveFolderPill project={project} isAdmin={!!member?.isAdmin} onPreview={url => setHeaderDrivePreview({ url, label: "Drive folder" })} onSaved={updated => setProject(prev => ({ ...prev, ...updated }))} />
+                </div>
+              </details>
+            )}
+
             {/* Project description (admin-editable) */}
-            {(project.description || member?.isAdmin) && (
+            {!compact && (project.description || member?.isAdmin) && (
               <div className="pm-proj-description">
                 {descEdit ? (
                   <div className="pm-proj-description-edit">
@@ -3227,6 +3566,28 @@ export default function ProjectDetail() {
 
           {activeTab === "tasks" && (
             <div className="cpm-proj-main-body" style={{ padding: "16px 0 24px" }}>
+              {compact ? (
+                <>
+                  <div className="pm-m-task-toolbar" data-tour-id="board.filters">
+                    <div className="pm-m-task-toolbar-row">
+                      <div className="pm-m-segment" role="group" aria-label="Task scope" data-tour-id="board.scope">
+                        <button type="button" aria-pressed={compactScope === 'mine'} onClick={() => setCompactScope('mine')}>My tasks</button>
+                        <button type="button" aria-pressed={compactScope === 'all'} onClick={() => setCompactScope('all')}>All tasks</button>
+                      </div>
+                      {canEdit ? <button type="button" className="pm-m-btn pm-m-btn--primary" data-tour-id="board.newtask" onClick={() => { setAddTaskInitialStatus('TODO'); setShowAddTask(true); }}><i className="fas fa-plus" aria-hidden="true" /> New task</button> : null}
+                    </div>
+                    <div className="pm-m-task-toolbar-row">
+                      <label className="pm-m-search" data-tour-id="board.search"><i className="fas fa-magnifying-glass" aria-hidden="true" /><input className="pm-m-input" type="search" value={compactQuery} onChange={e => setCompactQuery(e.target.value)} placeholder="Search tasks" aria-label="Search tasks" /></label>
+                      <button type="button" className="pm-m-btn" data-m-opener="task-filters" onClick={() => setCompactLayer({ type: 'filters' })} aria-haspopup="dialog"><i className="fas fa-sliders" aria-hidden="true" /> Filters{compactFilterCount ? ` (${compactFilterCount})` : ''}</button>
+                    </div>
+                  </div>
+                  <div className="pm-m-task-groups">
+                    {compactTasksByBin.every(bin => bin.tasks.length === 0) ? <div className="pm-m-task-empty pm-m-task-empty--card">No tasks match this view. <button type="button" onClick={() => { setCompactScope('all'); setCompactQuery(''); setCompactPriority('all'); setCompactDue('any'); }}>Show all tasks</button></div> : null}
+                    {compactTasksByBin.map(bin => <CompactStatusGroup key={bin.id} bin={bin} open={compactGroups.has(bin.id)} onToggle={() => setCompactGroups(prev => { const next = new Set(prev); if (next.has(bin.id)) next.delete(bin.id); else next.add(bin.id); return next; })} onOpenTask={handleRowClick} onMove={task => setCompactLayer({ type: 'move', task })} onAssign={task => setCompactLayer({ type: 'assign', task })} canEdit={canEdit} lead={bin.id === 'BLOCKED' ? <CompactBlockerList groups={blockedGroups} canEdit={canEdit} onEdit={blocker => setCompactLayer({ type: 'blocker-edit', blocker })} onResolve={(blocker, count) => setCompactLayer({ type: 'blocker-resolve', blocker, count })} /> : null} />)}
+                  </div>
+                </>
+              ) : (
+                <>
               <div data-tour-id="board.filters" style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 10, padding: "0 12px 8px" }}>
                 <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--pm-text-secondary)", cursor: "pointer" }}>
                   <input
@@ -3280,10 +3641,14 @@ export default function ProjectDetail() {
                   />
                 ))}
               </div>
+                </>
+              )}
 
               {showArchived && (
                 <div style={{ padding: "16px 12px 0" }}>
                   <button
+                    className="cpm-archived-toggle"
+                    aria-expanded={archivedGroupOpen}
                     onClick={() => setArchivedGroupOpen(o => !o)}
                     style={{
                       display: "flex", alignItems: "center", gap: 8, width: "100%",
@@ -3332,6 +3697,7 @@ export default function ProjectDetail() {
                             {t.title}
                           </span>
                           <button
+                            className="cpm-archived-unarchive"
                             onClick={() => handleUnarchiveTask(t.id)}
                             style={{
                               fontSize: 11, padding: "4px 10px", borderRadius: 6,
@@ -3348,7 +3714,9 @@ export default function ProjectDetail() {
                 </div>
               )}
 
-              <div style={{ padding: "24px 0 0" }}>
+              {compact ? (
+                <CompactMilestones milestones={project.milestones ?? []} tasks={project.tasks} projectId={project.id} />
+              ) : <div style={{ padding: "24px 0 0" }}>
                 <h3
                   style={{
                     fontSize: 13,
@@ -3366,12 +3734,12 @@ export default function ProjectDetail() {
                 >
                   <GanttChart tasks={project.tasks} milestones={project.milestones ?? []} />
                 </div>
-              </div>
+              </div>}
             </div>
           )}
 
           {activeTab === "files" && (
-            <div className="cpm-proj-main-body" style={{ padding: "24px" }}>
+            <div className="cpm-proj-main-body" style={{ padding: compact ? "12px 0 24px" : "24px" }}>
               <FilesTabContent
                 project={project}
                 member={member}
@@ -3382,7 +3750,7 @@ export default function ProjectDetail() {
           )}
 
           {activeTab === "chat" && (
-            <div className={`cpm-proj-main-body${chatSection === "messages" ? " cpm-proj-main-body--chat" : ""}`} style={{ padding: "16px 24px 24px" }}>
+            <div className={`cpm-proj-main-body${chatSection === "messages" ? " cpm-proj-main-body--chat" : ""}`} style={{ padding: compact ? "6px var(--pm-m-gutter) 0" : "16px 24px 24px" }}>
               <div className="presskit-report-subtabs cpm-project-merged-subtabs">
                 {[["messages", "Chat"], ["members", "Members"]].map(([section, label]) => (
                   <button
@@ -3409,7 +3777,27 @@ export default function ProjectDetail() {
           )}
 
           {activeTab === "insights" && (
-            <div className="cpm-proj-main-body" style={{ padding: "16px 24px 24px" }}>
+            <div className="cpm-proj-main-body" style={{ padding: compact ? "12px 0 24px" : "16px 24px 24px" }}>
+              {compact ? (
+                // One labelled section selector, not a second sticky tab row.
+                // The section still writes the same ?view= value, so existing
+                // links and the legacy redirects are unaffected.
+                <div className="pm-m-source pm-m-insights-source" role="group" aria-label="Insights section">
+                  <span className="pm-m-source-label" id="insights-section-label">Section</span>
+                  <div className="pm-m-segment pm-m-segment--grid" role="group" aria-labelledby="insights-section-label">
+                    {[["charts", "Charts"], ["activity", "Activity"], ["presskit", "Press Kit"], ["ai", "AI"]].map(([id, label]) => (
+                      <button
+                        key={id}
+                        type="button"
+                        aria-pressed={reportTab === id}
+                        onClick={() => changeInsightSection(id)}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : (
               <div className="presskit-report-subtabs">
                 {[["charts", "Charts"], ["activity", "Activity"], ["presskit", "Press Kit"], ["ai", "AI"]].map(([id, label]) => (
                   <button
@@ -3422,6 +3810,7 @@ export default function ProjectDetail() {
                   </button>
                 ))}
               </div>
+              )}
               {reportTab === "charts" && (
                 <ProjectAnalytics project={project} onOpenTask={handleAnalyticsOpenTask} />
               )}
@@ -3447,7 +3836,7 @@ export default function ProjectDetail() {
           )}
         </main>
 
-        {activeTab === "tasks" && assigneePanelOpen && (
+        {activeTab === "tasks" && assigneePanelOpen && !compact && (
           <AssigneePanel
             members={allMembers.length > 0 ? allMembers : (project.members || [])}
             channelMemberSlackIds={project.channelMemberSlackIds ?? []}
@@ -3522,8 +3911,7 @@ export default function ProjectDetail() {
           projectBlockers={projectBlockers}
           onBlockersChange={refreshBlockers}
           onClose={() => {
-            setSelectedTask(null);
-            navigate(`/clubpm/projects/${id}`, { replace: true });
+            closeTaskModal();
           }}
           onUpdate={handleTaskUpdate}
           onDelete={handleTaskDelete}
@@ -3551,6 +3939,86 @@ export default function ProjectDetail() {
           onClose={() => setShowAddTask(false)}
           onCreated={handleTaskCreated}
         />
+      )}
+
+      {compact && compactLayer?.type === 'filters' && (
+        <MobileSheet title="Filters & sort" onClose={() => setCompactLayer(null)} returnFocusSelector='[data-m-opener="task-filters"]'>
+          <CompactTaskFilters
+            sortBy={sortBy}
+            onSort={setSortBy}
+            priority={compactPriority}
+            onPriority={setCompactPriority}
+            due={compactDue}
+            onDue={setCompactDue}
+            showArchived={showArchived}
+            onShowArchived={setShowArchived}
+            onClear={() => { setSortBy('priority'); setCompactPriority('all'); setCompactDue('any'); setShowArchived(false); }}
+          />
+        </MobileSheet>
+      )}
+
+      {compact && compactLayer?.type === 'move' && compactLayer.task && (
+        <MobileSheet title={`Move “${compactLayer.task.title}”`} onClose={() => setCompactLayer(null)}>
+          <div className="pm-m-move-picker">
+            {BINS.map(bin => <button key={bin.id} type="button" className="pm-m-row" aria-current={compactLayer.task.status === bin.id ? 'true' : undefined} disabled={compactLayer.task.status === bin.id || compactSaving} onClick={async () => { if (bin.id === 'BLOCKED') { setCompactLayer({ type: 'move-blocked', task: compactLayer.task }); return; } setCompactSaving(true); try { await moveTasksToStatus([compactLayer.task.id], bin.id); setCompactLayer(null); } finally { setCompactSaving(false); } }}><span className="pm-m-task-group-dot" style={{ background: bin.color }} /><span className="pm-m-row-main">{bin.label}</span>{compactLayer.task.status === bin.id ? <span className="pm-m-row-end">Current</span> : null}</button>)}
+          </div>
+        </MobileSheet>
+      )}
+
+      {compact && compactLayer?.type === 'assign' && compactLayer.task && (
+        <MobileSheet title={`Assign “${compactLayer.task.title}”`} onClose={() => setCompactLayer(null)}>
+          <CompactAssigneePicker task={compactLayer.task} members={allMembers} onChange={ids => handleCompactAssignees(compactLayer.task, ids)} />
+          {compactSaving ? <div className="pm-m-save-state" role="status">Saving…</div> : null}
+        </MobileSheet>
+      )}
+
+      {/* Move › Blocked asks what is blocking the task, as the desktop drop does. */}
+      {compact && compactLayer?.type === 'move-blocked' && compactLayer.task && (
+        <MobileSheet title={`What's blocking “${compactLayer.task.title}”?`} onClose={() => setCompactLayer(null)}>
+          <div className="pm-m-move-picker">
+            {(projectBlockers ?? []).filter(b => !b.resolvedAt).map(b => (
+              <button key={b.id} type="button" className="pm-m-row" disabled={compactSaving} onClick={async () => { setCompactSaving(true); try { await attachBlockerToTasks([compactLayer.task.id], b.id); setCompactLayer(null); } finally { setCompactSaving(false); } }}>
+                <i className="fas fa-tag pm-m-row-icon" style={{ color: b.color || undefined }} aria-hidden="true" /><div className="pm-m-row-main">{b.label}</div>
+              </button>
+            ))}
+          </div>
+          <h3 className="pm-m-sheet-subhead">New blocker</h3>
+          <CompactBlockerForm
+            projectMembers={(project.members ?? []).map(pm => pm.member ?? pm)}
+            submitLabel="Create blocker and move"
+            busy={compactSaving}
+            onSubmit={async ({ label, color, assigneeId }) => { setCompactSaving(true); try { await createBlockerAndAttach(label, color, [compactLayer.task.id], assigneeId); setCompactLayer(null); } finally { setCompactSaving(false); } }}
+          />
+          <button type="button" className="pm-m-btn pm-m-blocker-plain" disabled={compactSaving} onClick={async () => { setCompactSaving(true); try { await moveTasksToStatus([compactLayer.task.id], 'BLOCKED'); setCompactLayer(null); } finally { setCompactSaving(false); } }}>
+            Mark blocked without naming a blocker
+          </button>
+        </MobileSheet>
+      )}
+
+      {compact && compactLayer?.type === 'blocker-edit' && compactLayer.blocker && (
+        <MobileSheet title={`Edit blocker “${compactLayer.blocker.label}”`} onClose={() => setCompactLayer(null)} returnFocusSelector={`[data-m-opener="blocker-edit-${compactLayer.blocker.id}"]`}>
+          <CompactBlockerForm
+            initial={compactLayer.blocker}
+            projectMembers={(project.members ?? []).map(pm => pm.member ?? pm)}
+            submitLabel="Save blocker"
+            busy={compactSaving}
+            onSubmit={async (fields) => { setCompactSaving(true); try { await handleRenameBlocker(compactLayer.blocker.id, fields); setCompactLayer(null); } finally { setCompactSaving(false); } }}
+          />
+        </MobileSheet>
+      )}
+
+      {compact && compactLayer?.type === 'blocker-resolve' && compactLayer.blocker && (
+        <MobileSheet title={`Resolve “${compactLayer.blocker.label}”?`} onClose={() => setCompactLayer(null)} returnFocusSelector={`[data-m-opener="blocker-resolve-${compactLayer.blocker.id}"]`}>
+          <div className="pm-m-blocker-confirm">
+            <div>
+              This removes the blocker from {compactLayer.count === 1 ? 'its 1 task' : `all ${compactLayer.count} of its tasks`}. A task with nothing else blocking it returns to To do.
+            </div>
+            <button type="button" className="pm-m-btn pm-m-btn--primary" disabled={compactSaving} onClick={async () => { setCompactSaving(true); try { await handleResolveBlocker(compactLayer.blocker.id); setCompactLayer(null); } finally { setCompactSaving(false); } }}>
+              {compactSaving ? 'Resolving…' : 'Resolve blocker'}
+            </button>
+            <button type="button" className="pm-m-btn" onClick={() => setCompactLayer(null)}>Cancel</button>
+          </div>
+        </MobileSheet>
       )}
 
       {headerDrivePreview && (

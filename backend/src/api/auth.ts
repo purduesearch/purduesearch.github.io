@@ -306,6 +306,8 @@ authRouter.get("/logout", async (req: Request, res: Response) => {
 authRouter.get("/me", requireAuth, async (req: Request, res: Response) => {
   const member = await prisma.member.findUnique({
     where: { id: req.memberId! },
+    // Read (never returned) only to tell whether a Slack user token is stored.
+    omit: { slackUserToken: false },
     include: {
       tasks: {
         include: { project: true },
@@ -324,10 +326,9 @@ authRouter.get("/me", requireAuth, async (req: Request, res: Response) => {
     return;
   }
 
-  // Strip encrypted OAuth tokens — caller doesn't need them
+  // Strip the Slack token read above. The other encrypted credentials are
+  // globally omitted by the Prisma client (db/prisma.ts).
   const {
-    githubAccessToken: _gat,
-    githubRefreshToken: _grt,
     githubTokenExpiresAt: _gte,
     slackUserToken: _sut,
     tokenVersion,

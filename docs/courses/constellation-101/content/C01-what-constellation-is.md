@@ -53,7 +53,7 @@ notification preferences once, and it comes and finds you in Slack.
 
 Several sections are **walkthroughs**: Constellation takes over your screen, dims everything that
 isn't relevant, and points at exactly where to go. Some of them ask you to actually do things —
-create a task, drag a card, log time.
+create a task, move it with an explicit status control (or drag it on desktop), and log time.
 
 > **Nothing you do in this course touches real club data.**
 > The moment a walkthrough needs somewhere to practice, Constellation sets up a private training

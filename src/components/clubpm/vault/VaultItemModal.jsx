@@ -1,6 +1,8 @@
 import React, { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import toast from "react-hot-toast";
+import MobileSheet from "../MobileSheet";
+import { useCompactLayout } from "../../../clubpm/layout/compactLayout";
 import {
   getVaultItem,
   patchVaultItem,
@@ -51,6 +53,7 @@ function actorLabel(actor) {
 }
 
 export default function VaultItemModal({ itemId, project, member, isAdmin, onClose, onChanged }) {
+  const compact = useCompactLayout();
   const [item, setItem] = useState(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
@@ -309,13 +312,15 @@ export default function VaultItemModal({ itemId, project, member, isAdmin, onClo
   const canRelease = isHolder || isAdmin;
   const canDelete = (!!item?.createdBy && item.createdBy.id === member?.id) || isAdmin;
 
-  return createPortal(
+  const modal = (
     <>
-      <div className="cpm-vault-item-panel-overlay" onClick={onClose} />
+      {!compact && <div className="cpm-vault-item-panel-overlay" onClick={onClose} />}
       <div className="cpm-vault-item-panel">
-        <button type="button" className="cpm-vault-modal-close" onClick={onClose} aria-label="Close">
-          <i className="fas fa-times" aria-hidden="true" />
-        </button>
+        {!compact && (
+          <button type="button" className="cpm-vault-modal-close" onClick={onClose} aria-label="Close">
+            <i className="fas fa-times" aria-hidden="true" />
+          </button>
+        )}
 
         {loading ? (
           <div className="cpm-vault-loading"><div className="cpm-spinner" /></div>
@@ -671,7 +676,23 @@ export default function VaultItemModal({ itemId, project, member, isAdmin, onClo
           onChanged={() => { setCrPreset(null); notifyChanged(); }}
         />
       )}
-    </>,
-    document.body
+    </>
   );
+
+  // Phone: the docked side panel becomes a full-screen dialog. Metadata,
+  // versions/history, BOM, check-out/release, download, and the change-request
+  // actions are the same controls — nothing is dropped.
+  if (compact) {
+    return (
+      <MobileSheet
+        title={item?.name ?? "Vault item"}
+        onClose={onClose}
+        variant="fullscreen"
+        className="pm-m-files-layer pm-m-vault-item-layer"
+      >
+        {modal.props.children}
+      </MobileSheet>
+    );
+  }
+  return createPortal(modal, document.body);
 }

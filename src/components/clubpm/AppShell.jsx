@@ -25,6 +25,15 @@ import useCelebrationCheck from '../../hooks/useCelebrationCheck';
 import { tweenNumber, tweenWidthPercent } from '../../clubpm/anim/motion';
 import { progressToNextRank } from '../../clubpm/engagement/rankProgress';
 import CosmeticStylesProvider from '../../clubpm/cosmetics/CosmeticStylesContext';
+import { useCompactLayout, COMPACT_CLASS } from '../../clubpm/layout/compactLayout';
+import { useVisualViewportKeyboard } from '../../clubpm/layout/visualViewportKeyboard';
+import { useShellOverlay, getShellReveal, SHELL_REVEAL_EVENT, SHELL_OPEN_EVENT } from '../../clubpm/layout/shellOverlay';
+import useNotificationFeed from './useNotificationFeed';
+import MobileHeader, { MobileProjectSections } from './MobileHeader';
+import MobileBottomNav from './MobileBottomNav';
+import MobileSheet from './MobileSheet';
+import MobileProjectPicker from './MobileProjectPicker';
+import MobileMoreMenu from './MobileMoreMenu';
 
 function getBreadcrumb(pathname) {
   if (pathname === '/clubpm') return [{ label: 'Dashboard' }];
@@ -266,10 +275,20 @@ function SidebarXpDoubloons({ member }) {
 export default function AppShell({ children }) {
   const { member, loading, logout } = useClubPmAuth();
   const { setShowHelp } = useShortcutsRegistry() ?? {};
-  const { projectNav } = useProjectNav() ?? {};
+  const {
+    projectNav,
+    projects: sidebarProjects,
+    setProjects: setSidebarProjects,
+    projectsLoad,
+    setProjectsLoad,
+  } = useProjectNav() ?? {};
   const location = useLocation();
+  const compact = useCompactLayout();
+  const keyboard = useVisualViewportKeyboard(compact);
+  const { overlay, openOverlay, closeOverlay, navigateFromOverlay } = useShellOverlay();
+  // One feed for the whole shell, whichever presentation is mounted.
+  const notificationFeed = useNotificationFeed({ enabled: !loading && !!member });
   const [paletteOpen, setPaletteOpen] = useState(false);
-  const [sidebarProjects, setSidebarProjects] = useState([]);
   const [showCreateProject, setShowCreateProject] = useState(false);
   const [starredIds, setStarredIds] = useState(() => {
     try { return JSON.parse(localStorage.getItem('pm-starred-projects') || '[]'); } catch { return []; }
@@ -279,6 +298,17 @@ export default function AppShell({ children }) {
     document.documentElement.classList.remove('pm-theme-light');
     try { localStorage.removeItem('pm-theme'); } catch {}
   }, []);
+
+  // Legacy dialogs portal straight to <body>, outside the shell, so the
+  // `.pm-shell--compact` class on the shell root cannot reach them. This marker
+  // lets the compact stylesheet size those portals for a phone without every
+  // one of them having to thread the layout hook through its own render.
+  // Removed with the shell, so the desktop tree never carries it.
+  useEffect(() => {
+    if (!compact) return undefined;
+    document.body.classList.add('pm-m-compact');
+    return () => document.body.classList.remove('pm-m-compact');
+  }, [compact]);
 
   const { pendingRank, dismissRank } = useRankWatcher();
   const { celebration, clearCelebration } = useCelebrationCheck();
@@ -321,10 +351,26 @@ export default function AppShell({ children }) {
     };
   }, [member, fetchPendingCount, fetchPendingCrCount, fetchPendingCertCount]);
 
+  const loadProjects = useCallback(() => {
+    setProjectsLoad({ status: 'loading', message: '' });
+    return get('/api/projects')
+      .then(list => {
+        setSidebarProjects(list);
+        setProjectsLoad({ status: 'ready', message: '' });
+      })
+      .catch(err => setProjectsLoad({ status: 'error', message: err?.message ?? '' }));
+  }, [setProjectsLoad, setSidebarProjects]);
+
   useEffect(() => {
     if (!member) return;
-    get('/api/projects').then(setSidebarProjects).catch(() => {});
-  }, [member]);
+    loadProjects();
+  }, [member, loadProjects]);
+
+  useEffect(() => {
+    const refresh = () => loadProjects();
+    window.addEventListener('pm-projects-refresh', refresh);
+    return () => window.removeEventListener('pm-projects-refresh', refresh);
+  }, [loadProjects]);
 
   // EditProjectModal broadcasts saves so a rename shows up in the sidebar immediately.
   useEffect(() => {
@@ -335,7 +381,7 @@ export default function AppShell({ children }) {
     };
     window.addEventListener('pm-project-updated', handler);
     return () => window.removeEventListener('pm-project-updated', handler);
-  }, []);
+  }, [setSidebarProjects]);
 
   // Apply equipped dashboard theme (cosmetic) as `theme-<slug>` on documentElement.
   // Re-applies when the avatar-updated event fires.
@@ -366,15 +412,60 @@ export default function AppShell({ children }) {
     return () => window.removeEventListener('pm-stars-changed', handler);
   }, []);
 
+  // The phone presentation keeps its open sheet in history (useShellOverlay);
+  // the listeners below are registered once, so they read it through a ref.
+  const overlayApiRef = useRef({ compact, overlay, openOverlay, closeOverlay });
+  overlayApiRef.current = { compact, overlay, openOverlay, closeOverlay };
+
   useEffect(() => {
     const handler = (e) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault();
-        setPaletteOpen(p => !p);
+        const api = overlayApiRef.current;
+        if (!api.compact) { setPaletteOpen(p => !p); return; }
+        if (api.overlay === 'search') api.closeOverlay();
+        else api.openOverlay('search');
       }
     };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
+  }, []);
+
+  // Walkthrough reveal (contracts.md §7): a compact tour step can ask for the
+  // More or Projects sheet to be open before its anchor is measured. The
+  // request is sticky (read on mount) because this shell remounts per route.
+  // Only a sheet the tour opened is closed by the tour.
+  const tourOpenedRef = useRef(null);
+  useEffect(() => {
+    const apply = (target) => {
+      const api = overlayApiRef.current;
+      if (!api.compact) return;
+      if (target === 'expand') return; // page-owned <details> listens itself
+      if (target) {
+        tourOpenedRef.current = target;
+        if (api.overlay !== target) api.openOverlay(target);
+      } else if (tourOpenedRef.current) {
+        const opened = tourOpenedRef.current;
+        tourOpenedRef.current = null;
+        if (api.overlay === opened) api.closeOverlay();
+      }
+    };
+    const onReveal = (e) => apply(e.detail?.target ?? null);
+    const pending = getShellReveal(window.location.pathname);
+    if (pending) apply(pending);
+    window.addEventListener(SHELL_REVEAL_EVENT, onReveal);
+    return () => window.removeEventListener(SHELL_REVEAL_EVENT, onReveal);
+  // Re-run when the layout flips so a reveal requested on desktop applies
+  // after a resize into the compact shell.
+  }, [compact]);
+
+  useEffect(() => {
+    const onOpen = e => {
+      const api = overlayApiRef.current;
+      if (api.compact && e.detail?.id) api.openOverlay(e.detail.id);
+    };
+    window.addEventListener(SHELL_OPEN_EVENT, onOpen);
+    return () => window.removeEventListener(SHELL_OPEN_EVENT, onOpen);
   }, []);
 
   if (loading) {
@@ -395,8 +486,18 @@ export default function AppShell({ children }) {
 
   return (
     <CosmeticStylesProvider>
-    <div className="clubpm-app pm-shell">
-      {/* Sidebar */}
+    <div
+      className={`clubpm-app pm-shell${compact ? ` ${COMPACT_CLASS}${keyboard.open ? ' pm-m-keyboard-open' : ''}` : ''}`}
+      style={compact && keyboard.height ? {
+        '--pm-m-visual-height': `${keyboard.height}px`,
+        '--pm-m-visual-top': `${keyboard.top}px`,
+      } : undefined}
+    >
+      {/* Sidebar — desktop only. Every slot below stays at a fixed position in
+          the tree whichever branch is mounted (null placeholders), so crossing
+          the compact breakpoint never remounts the page: drafts, filters and
+          open dialogs in `children` survive a rotation. */}
+      {compact ? null : (
       <nav className="pm-sidebar" data-tour-id="nav.sidebar">
         {/* Logo */}
         <div className="pm-sidebar-logo">
@@ -530,9 +631,19 @@ export default function AppShell({ children }) {
           </button>
         </div>
       </nav>
+      )}
 
       {/* Right: topbar + content */}
       <div className="pm-shell-main">
+        {compact ? (
+          <MobileHeader
+            projectName={projectNav?.projectName}
+            unreadCount={notificationFeed.unreadCount}
+            overlay={overlay}
+            onOpenSearch={() => openOverlay('search')}
+            onOpenProjects={() => openOverlay('projects')}
+          />
+        ) : (
         <header className="pm-topbar">
           {/* Breadcrumb */}
           <div className="pm-breadcrumb">
@@ -577,9 +688,12 @@ export default function AppShell({ children }) {
             {member ? <div data-tour-id="topbar.streak"><StreakBadge /></div> : null}
 
             {/* Notification bell */}
-            <div data-tour-id="topbar.notifications"><NotificationBell /></div>
+            <div data-tour-id="topbar.notifications"><NotificationBell feed={notificationFeed} /></div>
           </div>
         </header>
+        )}
+
+        {compact && projectNav ? <MobileProjectSections projectNav={projectNav} /> : null}
 
         <AnimatePresence mode="wait">
           <motion.main
@@ -597,9 +711,62 @@ export default function AppShell({ children }) {
         </AnimatePresence>
       </div>
 
+      {compact ? (
+        <MobileBottomNav
+          pathname={location.pathname}
+          overlay={overlay}
+          onOpenProjects={() => openOverlay('projects')}
+          onOpenMore={() => openOverlay('more')}
+        />
+      ) : null}
+
+      {compact && overlay === 'projects' ? (
+        <MobileSheet
+          title="Projects"
+          onClose={closeOverlay}
+          returnFocusSelector={projectNav ? '[data-m-opener="project-title"]' : '[data-m-opener="projects"]'}
+        >
+          <MobileProjectPicker
+            projects={sidebarProjects}
+            starredIds={starredIds}
+            loadState={projectsLoad}
+            onRetry={loadProjects}
+            currentProjectId={projectNav?.projectId ?? null}
+            currentProjectName={projectNav?.projectName ?? null}
+            projectActions={projectNav?.actions ?? []}
+            canCreate={!!member?.isAdmin}
+            onSelectProject={p => {
+              if (p.id === projectNav?.projectId) closeOverlay();
+              else navigateFromOverlay(`/clubpm/projects/${p.id}`);
+            }}
+            onSelectAction={action => {
+              if (action.to) { navigateFromOverlay(action.to); return; }
+              closeOverlay();
+              action.onSelect?.();
+            }}
+            onNewProject={() => { closeOverlay(); setShowCreateProject(true); }}
+          />
+        </MobileSheet>
+      ) : null}
+
+      {compact && overlay === 'more' ? (
+        <MobileSheet title="More" onClose={closeOverlay} returnFocusSelector='[data-m-opener="more"]'>
+          <MobileMoreMenu
+            member={member}
+            location={location}
+            adminCounts={{ rewards: pendingRewardsCount, crs: pendingCrCount, certificates: pendingCertCount }}
+            onNavigate={navigateFromOverlay}
+            onShowHelp={() => { closeOverlay(); setShowHelp?.(true); }}
+            onLogout={logout}
+          />
+        </MobileSheet>
+      ) : null}
+
       <AICommandPalette
-        isOpen={paletteOpen}
-        onClose={() => setPaletteOpen(false)}
+        isOpen={compact ? overlay === 'search' : paletteOpen}
+        onClose={compact ? closeOverlay : () => setPaletteOpen(false)}
+        onNavigate={compact ? navigateFromOverlay : undefined}
+        compact={compact}
         projects={sidebarProjects}
       />
       {showCreateProject && (

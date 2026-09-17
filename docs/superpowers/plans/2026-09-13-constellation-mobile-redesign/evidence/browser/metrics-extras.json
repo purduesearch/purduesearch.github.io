@@ -1,0 +1,162 @@
+{
+  "generatedAt": "2026-09-14T01:52:22.368Z",
+  "api": "http://localhost:3001 (FIXTURE)",
+  "captures": [
+    {
+      "name": "x767-mouse-home",
+      "note": "767x1024 mouse",
+      "file": "evidence/browser/x767-mouse-home.png",
+      "url": "/clubpm/",
+      "innerWidth": 767,
+      "deviceWidth": 767,
+      "layoutWiderThanDevice": 0,
+      "sidebar": 64,
+      "projectMain": null,
+      "topbarActionsRight": 747
+    },
+    {
+      "name": "x767-mouse-tasks",
+      "note": "767x1024 mouse",
+      "file": "evidence/browser/x767-mouse-tasks.png",
+      "url": "/clubpm/projects/p1",
+      "innerWidth": 767,
+      "deviceWidth": 767,
+      "layoutWiderThanDevice": 0,
+      "sidebar": 64,
+      "projectMain": 423,
+      "topbarActionsRight": 747
+    },
+    {
+      "name": "x767-mouse-conversation",
+      "note": "767x1024 mouse",
+      "file": "evidence/browser/x767-mouse-conversation.png",
+      "url": "/clubpm/chat/C_FIX_GENERAL",
+      "innerWidth": 767,
+      "deviceWidth": 767,
+      "layoutWiderThanDevice": 0,
+      "sidebar": 64,
+      "projectMain": null,
+      "topbarActionsRight": 747
+    },
+    {
+      "name": "x768-tablet-home",
+      "note": "768x1024 touch",
+      "file": "evidence/browser/x768-tablet-home.png",
+      "url": "/clubpm/",
+      "innerWidth": 768,
+      "deviceWidth": 768,
+      "layoutWiderThanDevice": 0,
+      "sidebar": 64,
+      "projectMain": null,
+      "topbarActionsRight": 748
+    },
+    {
+      "name": "x768-tablet-tasks",
+      "note": "768x1024 touch",
+      "file": "evidence/browser/x768-tablet-tasks.png",
+      "url": "/clubpm/projects/p1",
+      "innerWidth": 768,
+      "deviceWidth": 768,
+      "layoutWiderThanDevice": 0,
+      "sidebar": 64,
+      "projectMain": 424,
+      "topbarActionsRight": 748
+    },
+    {
+      "name": "x768-tablet-conversation",
+      "note": "768x1024 touch",
+      "file": "evidence/browser/x768-tablet-conversation.png",
+      "url": "/clubpm/chat/C_FIX_GENERAL",
+      "innerWidth": 768,
+      "deviceWidth": 768,
+      "layoutWiderThanDevice": 0,
+      "sidebar": 64,
+      "projectMain": null,
+      "topbarActionsRight": 748
+    },
+    {
+      "name": "x1024-tablet-home",
+      "note": "1024x768 touch",
+      "file": "evidence/browser/x1024-tablet-home.png",
+      "url": "/clubpm/",
+      "innerWidth": 1024,
+      "deviceWidth": 1024,
+      "layoutWiderThanDevice": 0,
+      "sidebar": 64,
+      "projectMain": null,
+      "topbarActionsRight": 1004
+    },
+    {
+      "name": "x1024-tablet-tasks",
+      "note": "1024x768 touch",
+      "file": "evidence/browser/x1024-tablet-tasks.png",
+      "url": "/clubpm/projects/p1",
+      "innerWidth": 1024,
+      "deviceWidth": 1024,
+      "layoutWiderThanDevice": 0,
+      "sidebar": 64,
+      "projectMain": 680,
+      "topbarActionsRight": 1004
+    },
+    {
+      "name": "x1024-tablet-conversation",
+      "note": "1024x768 touch",
+      "file": "evidence/browser/x1024-tablet-conversation.png",
+      "url": "/clubpm/chat/C_FIX_GENERAL",
+      "innerWidth": 1024,
+      "deviceWidth": 1024,
+      "layoutWiderThanDevice": 0,
+      "sidebar": 64,
+      "projectMain": null,
+      "topbarActionsRight": 1004
+    },
+    {
+      "name": "x1440-admin-rankup-celebration",
+      "note": "RankUpModal after persona switch (reward overlay evidence)",
+      "file": "evidence/browser/x1440-admin-rankup-celebration.png",
+      "url": "/clubpm/",
+      "innerWidth": 1440,
+      "deviceWidth": 1440,
+      "layoutWiderThanDevice": 0,
+      "sidebar": 64,
+      "projectMain": null,
+      "topbarActionsRight": 1420
+    },
+    {
+      "name": "x1440-admin-sidebar-hover-other",
+      "note": "Mouse hover expands the rail to 220px; Other › Admin with badges",
+      "file": "evidence/browser/x1440-admin-sidebar-hover-other.png",
+      "url": "/clubpm/",
+      "innerWidth": 1440,
+      "deviceWidth": 1440,
+      "layoutWiderThanDevice": 0,
+      "sidebar": 220,
+      "projectMain": null,
+      "topbarActionsRight": 1420
+    },
+    {
+      "name": "x390-admin-rankup-celebration",
+      "note": "RankUpModal after persona switch (reward overlay evidence)",
+      "file": "evidence/browser/x390-admin-rankup-celebration.png",
+      "url": "/clubpm/",
+      "innerWidth": 431,
+      "deviceWidth": 390,
+      "layoutWiderThanDevice": 41,
+      "sidebar": 64,
+      "projectMain": null,
+      "topbarActionsRight": 425
+    },
+    {
+      "name": "x390-admin-sidebar-after-tap-other",
+      "note": "Tap on the collapsed rail: sticky :hover expands it over content; Other group opens",
+      "file": "evidence/browser/x390-admin-sidebar-after-tap-other.png",
+      "url": "/clubpm/",
+      "innerWidth": 431,
+      "deviceWidth": 390,
+      "layoutWiderThanDevice": 41,
+      "sidebar": 220,
+      "projectMain": null,
+      "topbarActionsRight": 425
+    }
+  ]
+}

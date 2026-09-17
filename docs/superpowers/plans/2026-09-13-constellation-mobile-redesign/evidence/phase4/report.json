@@ -1,0 +1,528 @@
+{
+  "generatedAt": "2026-09-17T01:27:39.090Z",
+  "disclaimer": "Headless Chrome touch/viewport emulation against the fixture API only. No real device, real account, software keyboard, or screen reader was used, and nothing was sent, published, approved or purchased.",
+  "summary": {
+    "passed": 53,
+    "failed": 0,
+    "total": 53
+  },
+  "checks": [
+    {
+      "name": "A/p320: Files has one labelled Source selector, not a second icon toolbar",
+      "pass": true,
+      "detail": {
+        "label": "Source",
+        "labels": [
+          "Drive",
+          "GitHub",
+          "Vault"
+        ],
+        "pressed": [
+          "Drive"
+        ],
+        "sizes": [
+          44,
+          44,
+          44
+        ],
+        "desktopTablist": false
+      }
+    },
+    {
+      "name": "A/p320: every source control is touch-sized and exactly one is current",
+      "pass": true,
+      "detail": {
+        "label": "Source",
+        "labels": [
+          "Drive",
+          "GitHub",
+          "Vault"
+        ],
+        "pressed": [
+          "Drive"
+        ],
+        "sizes": [
+          44,
+          44,
+          44
+        ],
+        "desktopTablist": false
+      }
+    },
+    {
+      "name": "A/p320: Files has no page-wide horizontal overflow",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "A/p320: vault items are a single-column full-width list",
+      "pass": true,
+      "detail": {
+        "cards": 2,
+        "cols": 1,
+        "remembered": "vault"
+      }
+    },
+    {
+      "name": "A: the chosen source is remembered in the same sessionStorage key the desktop toggle uses",
+      "pass": true,
+      "detail": {
+        "cards": 2,
+        "cols": 1,
+        "remembered": "vault"
+      }
+    },
+    {
+      "name": "A/p320: a vault item opens full screen through the shared overlay stack, not clipped",
+      "pass": true,
+      "detail": {
+        "fullscreen": true,
+        "inert": true,
+        "clipped": false
+      }
+    },
+    {
+      "name": "A/p320: item detail still carries metadata, versions/history and its actions",
+      "pass": true,
+      "detail": "SRC-0001Rev B Check out New check-in DeleteVersions3DCompareBOMChangesHistoryvbracket-rev-b.step144.5 KBby Unknown\"Fixtu"
+    },
+    {
+      "name": "A/p320: the GitHub pane fits without page-wide overflow",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "B/p320: Insights uses one labelled section selector instead of the desktop strip",
+      "pass": true,
+      "detail": {
+        "labels": [
+          "Charts",
+          "Activity",
+          "Press Kit",
+          "AI"
+        ],
+        "pressed": 1,
+        "sizes": [
+          44,
+          44,
+          44,
+          44
+        ],
+        "desktopStrip": false
+      }
+    },
+    {
+      "name": "B/p320: section controls are touch-sized",
+      "pass": true,
+      "detail": [
+        44,
+        44,
+        44,
+        44
+      ]
+    },
+    {
+      "name": "B/p320: every chart card offers a Chart / Data control",
+      "pass": true,
+      "detail": {
+        "hasToggle": true,
+        "labels": [
+          "Chart",
+          "Data"
+        ]
+      }
+    },
+    {
+      "name": "B/p320: the Data view shows the card's own rows as a readable table (or says there are none)",
+      "pass": true,
+      "detail": {
+        "rows": 130,
+        "cols": 4,
+        "empty": false,
+        "wrapped": true
+      }
+    },
+    {
+      "name": "B/p320: Insights charts do not widen the page",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "B/p320: the action-plan goal field is present and at least 16px (no iOS zoom on focus)",
+      "pass": true,
+      "detail": {
+        "goal": true,
+        "fontSize": 16
+      }
+    },
+    {
+      "name": "B/p320: the timeline opens on a schedule list, with the chart one tap away",
+      "pass": true,
+      "detail": {
+        "labels": [
+          "Schedule",
+          "Timeline"
+        ],
+        "pressed": [
+          "Schedule"
+        ],
+        "scheduleRows": 6,
+        "svg": false
+      }
+    },
+    {
+      "name": "B/p320: the timeline pans inside its own frame and never widens the page",
+      "pass": true,
+      "detail": {
+        "svg": true,
+        "contained": true,
+        "pannable": true,
+        "pageOverflow": 0
+      }
+    },
+    {
+      "name": "C/p320: seven tabs become one labelled Section chip row",
+      "pass": true,
+      "detail": {
+        "count": 7,
+        "labels": [
+          "Composer",
+          "Board",
+          "Calendar",
+          "Campaigns",
+          "CRM",
+          "Blog",
+          "Insights"
+        ],
+        "pressed": 1,
+        "sizes": [
+          44,
+          44,
+          44,
+          44,
+          44,
+          44,
+          44
+        ],
+        "desktopTabs": false,
+        "anchors": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "name": "C/p320: each tour-targeted section keeps exactly one mounted anchor",
+      "pass": true,
+      "detail": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "name": "C/p320: Outreach has no page-wide horizontal overflow",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "C/p320: the board is a stage-filtered list with an explicit Move per card, not five columns",
+      "pass": true,
+      "detail": {
+        "stages": [
+          "Draft1",
+          "Submitted0",
+          "In Review1",
+          "Approved0",
+          "Published0"
+        ],
+        "board": false,
+        "items": 1,
+        "moves": 1
+      }
+    },
+    {
+      "name": "C/p320: Move offers every status, marking the current one",
+      "pass": true,
+      "detail": {
+        "moveSheet": "Move “FIXTURE launch recap post”",
+        "moveRows": [
+          "DraftCurrent",
+          "Submitted",
+          "In Review",
+          "Approved",
+          "Published"
+        ]
+      }
+    },
+    {
+      "name": "C: Move goes through the existing submission PATCH path",
+      "pass": true,
+      "detail": [
+        "GET /api/outreach/campaigns",
+        "GET /api/outreach/contacts",
+        "GET /api/outreach/courses/certificates/pending",
+        "GET /api/outreach/submissions",
+        "PATCH /api/outreach/submissions/s1"
+      ]
+    },
+    {
+      "name": "C/p320: the CRM pipeline is a stage-filtered list with explicit Move",
+      "pass": true,
+      "detail": {
+        "stages": 5,
+        "board": false,
+        "moves": 1
+      }
+    },
+    {
+      "name": "E/p320: the contents list is collapsed behind one control that says where you are",
+      "pass": true,
+      "detail": "ContentsSection 2 of 3"
+    },
+    {
+      "name": "E/p320: Previous and Next are present, touch-sized and on screen",
+      "pass": true,
+      "detail": [
+        {
+          "label": "Previous",
+          "disabled": false,
+          "h": 48
+        },
+        {
+          "label": "Next",
+          "disabled": true,
+          "h": 48
+        }
+      ]
+    },
+    {
+      "name": "E/p320: the lesson and its step controls stay inside the gutter",
+      "pass": true,
+      "detail": {
+        "right": 304,
+        "left": 16,
+        "overflow": 0
+      }
+    },
+    {
+      "name": "E/p320: opening Contents reveals the same learner rail",
+      "pass": true,
+      "detail": {
+        "open": true,
+        "rail": true
+      }
+    },
+    {
+      "name": "F/p320: admin sections are labelled in a jump list",
+      "pass": true,
+      "detail": [
+        "Pending rewards",
+        "Reward config",
+        "Integrations",
+        "Slack archive",
+        "Meeting notes"
+      ]
+    },
+    {
+      "name": "F/p320: every tour-targeted admin section is still rendered with a real height",
+      "pass": true,
+      "detail": [
+        344,
+        82,
+        112
+      ]
+    },
+    {
+      "name": "F/p320: the admin page does not scroll sideways",
+      "pass": true,
+      "detail": 0
+    },
+    {
+      "name": "F: a non-admin is still redirected away from /clubpm/admin",
+      "pass": true,
+      "detail": {
+        "path": "/clubpm",
+        "adminRow": false
+      }
+    },
+    {
+      "name": "G/p320: Profile fits the screen with no horizontal overflow",
+      "pass": true,
+      "detail": {
+        "present": true,
+        "overflow": 0
+      }
+    },
+    {
+      "name": "G/p320: Profile has no sub-44px control",
+      "pass": true,
+      "detail": []
+    },
+    {
+      "name": "G/p320: Shop fits the screen with no horizontal overflow",
+      "pass": true,
+      "detail": {
+        "present": true,
+        "overflow": 0
+      }
+    },
+    {
+      "name": "G/p320: Shop has no sub-44px control",
+      "pass": true,
+      "detail": []
+    },
+    {
+      "name": "G/p320: Challenges fits the screen with no horizontal overflow",
+      "pass": true,
+      "detail": {
+        "present": true,
+        "overflow": 0
+      }
+    },
+    {
+      "name": "G/p320: Challenges has no sub-44px control",
+      "pass": true,
+      "detail": []
+    },
+    {
+      "name": "H/p320: every scope-justification section and the Limited Use language still render",
+      "pass": true,
+      "detail": {
+        "wordmarkLines": 1,
+        "sections": 5,
+        "limitedUse": true,
+        "button": {
+          "w": 246,
+          "h": 48
+        },
+        "tableContained": true,
+        "overflow": 0
+      }
+    },
+    {
+      "name": "H/p320: the single sign-in action is full width and touch-sized",
+      "pass": true,
+      "detail": {
+        "w": 246,
+        "h": 48
+      }
+    },
+    {
+      "name": "H/p320: the scope table scrolls inside its own frame, not the page",
+      "pass": true,
+      "detail": {
+        "wordmarkLines": 1,
+        "sections": 5,
+        "limitedUse": true,
+        "button": {
+          "w": 246,
+          "h": 48
+        },
+        "tableContained": true,
+        "overflow": 0
+      }
+    },
+    {
+      "name": "H/p320: the wordmark shrinks to one line instead of breaking mid-word",
+      "pass": true,
+      "detail": 1
+    },
+    {
+      "name": "landscape 844x390: the Files source selector still fits without overflow",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "desktop 1280: Files keeps its existing presentation",
+      "pass": true,
+      "detail": {
+        "ok": true,
+        "noCompact": true
+      }
+    },
+    {
+      "name": "desktop 1280: Files has no page-wide horizontal overflow",
+      "pass": true,
+      "detail": 0
+    },
+    {
+      "name": "desktop 1280: Insights keeps its existing presentation",
+      "pass": true,
+      "detail": {
+        "ok": true,
+        "noCompact": true
+      }
+    },
+    {
+      "name": "desktop 1280: Insights has no page-wide horizontal overflow",
+      "pass": true,
+      "detail": 0
+    },
+    {
+      "name": "desktop 1280: Outreach keeps its existing presentation",
+      "pass": true,
+      "detail": {
+        "ok": true,
+        "noCompact": true
+      }
+    },
+    {
+      "name": "desktop 1280: Outreach has no page-wide horizontal overflow",
+      "pass": true,
+      "detail": 0
+    },
+    {
+      "name": "desktop 1280: Gantt keeps its existing presentation",
+      "pass": true,
+      "detail": {
+        "ok": true,
+        "noCompact": true
+      }
+    },
+    {
+      "name": "desktop 1280: Gantt has no page-wide horizontal overflow",
+      "pass": true,
+      "detail": 0
+    },
+    {
+      "name": "desktop 1280: Admin keeps its existing presentation",
+      "pass": true,
+      "detail": {
+        "ok": true,
+        "noCompact": true
+      }
+    },
+    {
+      "name": "desktop 1280: Admin has no page-wide horizontal overflow",
+      "pass": true,
+      "detail": 0
+    },
+    {
+      "name": "desktop 1280: the Outreach board keeps five drag columns and adds no Move buttons",
+      "pass": true,
+      "detail": {
+        "columns": 5,
+        "bodies": 5,
+        "move": 0
+      }
+    }
+  ],
+  "screenshots": [
+    "evidence/phase4/p320-files-source.png",
+    "evidence/phase4/p320-vault-item.png",
+    "evidence/phase4/p320-insights-data.png",
+    "evidence/phase4/p320-gantt-schedule.png",
+    "evidence/phase4/p320-outreach-move.png",
+    "evidence/phase4/p320-course-learn.png",
+    "evidence/phase4/p320-admin.png",
+    "evidence/phase4/p320-profile.png",
+    "evidence/phase4/p320-shop.png",
+    "evidence/phase4/p320-challenges.png",
+    "evidence/phase4/p320-login.png",
+    "evidence/phase4/l844-files.png",
+    "evidence/phase4/d1280-outreach-board.png"
+  ],
+  "consoleErrors": []
+}

@@ -1,0 +1,535 @@
+{
+  "generatedAt": "2026-09-17T01:57:18.962Z",
+  "note": "Chromium viewport/touch emulation against fixture data (production build unless stated). Not real iOS/Android, real-account, software-keyboard, or screen-reader evidence.",
+  "summary": {
+    "passed": 56,
+    "failed": 0,
+    "total": 56
+  },
+  "checks": [
+    {
+      "name": "J1 task: a My work row on Home opens the task full screen by its ?task= link",
+      "pass": true,
+      "detail": {
+        "u": "/clubpm/projects/p1?task=t1",
+        "dialog": "Write the thermal-vacuum test procedure and get sign-off from the faculty advisor before booking chamber time"
+      }
+    },
+    {
+      "name": "J1 task: the status picker options are touch-sized and inside the screen",
+      "pass": true,
+      "detail": [
+        {
+          "t": "Not Started",
+          "h": 44,
+          "r": 265
+        },
+        {
+          "t": "●In Progress",
+          "h": 44,
+          "r": 265
+        },
+        {
+          "t": "✓Completed",
+          "h": 44,
+          "r": 265
+        },
+        {
+          "t": "×Blocked",
+          "h": 44,
+          "r": 265
+        }
+      ]
+    },
+    {
+      "name": "J1 task: status can be changed inside task detail without dragging (PATCH issued)",
+      "pass": true,
+      "detail": {
+        "statusCtl": {
+          "select": false,
+          "options": [],
+          "btns": [
+            "Not Started"
+          ]
+        },
+        "patches": 1
+      }
+    },
+    {
+      "name": "J1 task: a double-tapped comment submit posts once while the first is in flight",
+      "pass": true,
+      "detail": 1
+    },
+    {
+      "name": "J1 task: closing detail lands on the project task list (no ?task=) with the phone shell intact",
+      "pass": true,
+      "detail": {
+        "u": "/clubpm/projects/p1",
+        "dialog": null,
+        "nav": true
+      }
+    },
+    {
+      "name": "J1b blockers: the phone Blocked group lists the category blocker with owner, Edit and Resolve (≥44px)",
+      "pass": true,
+      "detail": {
+        "text": "FIXTURE Waiting on parts\n1 task · No one responsible\nEdit\nResolve",
+        "btns": [
+          {
+            "t": "Edit",
+            "h": 44
+          },
+          {
+            "t": "Resolve",
+            "h": 44
+          }
+        ]
+      }
+    },
+    {
+      "name": "J1b blockers: Edit opens a named sheet with name, colour and responsible fields",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "J1b blockers: saving reassigns through the existing PATCH /api/blockers/:id and closes the sheet",
+      "pass": true,
+      "detail": 1
+    },
+    {
+      "name": "J1b blockers: Resolve asks for confirmation first (nothing sent yet)",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "J1b blockers: confirming resolves once through POST /api/blockers/:id/resolve",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "J1b blockers: Move › Blocked asks what is blocking the task (existing blocker, new blocker, or plain)",
+      "pass": true,
+      "detail": "What's blocking “Write the thermal-vacuum test procedure and get sign-off from the faculty advisor before booking chamber time”?"
+    },
+    {
+      "name": "J1b blockers: choosing an existing blocker attaches it via POST /api/tasks/:id/blockers",
+      "pass": true,
+      "detail": {
+        "GET /api/members": 1,
+        "GET /api/members/cosmetic-styles": 1,
+        "GET /api/members/m1/profile": 1,
+        "GET /api/members/me/celebration": 1,
+        "GET /api/notifications": 1,
+        "GET /api/notifications/stream": 1,
+        "GET /api/projects": 2,
+        "GET /api/projects/p1": 4,
+        "GET /api/projects/p1/blockers": 4,
+        "GET /api/slack/channels": 1,
+        "GET /auth/me": 1,
+        "PATCH /api/blockers/bk1": 1,
+        "POST /api/blockers/bk1/resolve": 1,
+        "POST /api/tasks/t1/blockers": 1
+      }
+    },
+    {
+      "name": "J1b blockers: desktop keeps its sub-bin controls and renders no phone blocker list",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "J2 chat: Projects sheet → project → Chat section opens the linked conversation in ≤3 taps",
+      "pass": true,
+      "detail": "/clubpm/projects/p1?tab=chat"
+    },
+    {
+      "name": "J2 chat: the composer is on screen above the bottom bar",
+      "pass": true,
+      "detail": {
+        "comp": {
+          "top": 509,
+          "bottom": 571,
+          "h": 62
+        },
+        "navTop": 579
+      }
+    },
+    {
+      "name": "J2 chat: reply sends exactly once on a double tap and clears the composer",
+      "pass": true,
+      "detail": 1
+    },
+    {
+      "name": "J2 chat: with the viewport contracted (keyboard proxy) the project composer stays visible and the bar hides",
+      "pass": true,
+      "detail": {
+        "open": true,
+        "bottom": 376,
+        "vh": 380
+      }
+    },
+    {
+      "name": "J3 event: Calendar (bottom bar) → agenda row opens event detail with an RSVP action",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "J3 event: RSVP completes (state flips to Not attending) and a double tap sends one request",
+      "pass": true,
+      "detail": {
+        "rsvps": 1,
+        "rsvpText": "Not attendingClose"
+      }
+    },
+    {
+      "name": "J3 event: RSVP control is touch-sized and inside the viewport",
+      "pass": true,
+      "detail": {
+        "top": 425,
+        "bottom": 469,
+        "h": 44
+      }
+    },
+    {
+      "name": "J3 event: Back closes the event and stays on Calendar",
+      "pass": true,
+      "detail": "/clubpm/calendar"
+    },
+    {
+      "name": "J4 file: Projects → Files → Vault → item → Download retrieves the file (signed-URL fetch, then the file request)",
+      "pass": true,
+      "detail": {
+        "fileGets": 1,
+        "downloads": [
+          "fixture-bracket-rev-b.step",
+          "fixture-bracket-rev-b.step"
+        ]
+      }
+    },
+    {
+      "name": "J4 file: the download does not navigate the app away or close the item",
+      "pass": true,
+      "detail": {
+        "before": "/clubpm/projects/p1?tab=files",
+        "after": "/clubpm/projects/p1?tab=files"
+      }
+    },
+    {
+      "name": "J4 file: Escape closes the item and the Vault source is still selected",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "J5 training: More → Courses → Continue resumes at the enrollment's last section (2 / 3)",
+      "pass": true,
+      "detail": {
+        "take": "Continue",
+        "url": "/clubpm/courses/fixture-course/learn",
+        "pos": "2 / 3",
+        "title": " FIXTURE Constellation basics"
+      }
+    },
+    {
+      "name": "J5 training: Next is disabled because the only later section is locked",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "J5 training: Mark complete & continue is reachable and a double tap records one completion",
+      "pass": true,
+      "detail": {
+        "completeBtn": true,
+        "completes": 1
+      }
+    },
+    {
+      "name": "J5 training: Previous steps back to section 1",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "J5 training: Previous/Next sit above the bottom bar",
+      "pass": true,
+      "detail": {
+        "stepsBottom": 401,
+        "navTop": 579
+      }
+    },
+    {
+      "name": "history: refresh with More open restores the sheet",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "history: Back closes the restored sheet without leaving Home",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "history: Forward reopens it",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "direct link + refresh: task opens the requested detail both times",
+      "pass": true,
+      "detail": {
+        "direct": true,
+        "refreshed": true,
+        "url": "/clubpm/projects/p1?tab=tasks&task=t3"
+      }
+    },
+    {
+      "name": "direct link + refresh: thread opens the requested detail both times",
+      "pass": true,
+      "detail": {
+        "direct": true,
+        "refreshed": true,
+        "url": "/clubpm/chat/C_FIX_GENERAL?thread=1757700240.000100"
+      }
+    },
+    {
+      "name": "direct link + refresh: dm opens the requested detail both times",
+      "pass": true,
+      "detail": {
+        "direct": true,
+        "refreshed": true,
+        "url": "/clubpm/members?view=dms&dm=D_FIX_JORDAN"
+      }
+    },
+    {
+      "name": "direct link + refresh: event opens the requested detail both times",
+      "pass": true,
+      "detail": {
+        "direct": true,
+        "refreshed": true,
+        "url": "/clubpm/calendar?event=e1"
+      }
+    },
+    {
+      "name": "direct link + refresh: files source opens the requested detail both times",
+      "pass": true,
+      "detail": {
+        "direct": true,
+        "refreshed": true,
+        "url": "/clubpm/projects/p1?tab=files"
+      }
+    },
+    {
+      "name": "direct link + refresh: insights ai opens the requested detail both times",
+      "pass": true,
+      "detail": {
+        "direct": true,
+        "refreshed": true,
+        "url": "/clubpm/projects/p1?tab=insights&view=ai"
+      }
+    },
+    {
+      "name": "direct link + refresh: outreach crm opens the requested detail both times",
+      "pass": true,
+      "detail": {
+        "direct": true,
+        "refreshed": true,
+        "url": "/clubpm/outreach?tab=crm"
+      }
+    },
+    {
+      "name": "direct link: header Back on a directly opened thread returns to its conversation, not off-site",
+      "pass": true,
+      "detail": "/clubpm/chat/C_FIX_GENERAL"
+    },
+    {
+      "name": "history: Back after switching project sections returns to the screen that opened the project (sections replace, D4)",
+      "pass": true,
+      "detail": "/clubpm"
+    },
+    {
+      "name": "keyboard: Enter on More opens the sheet; 40 Tab/Shift+Tab presses never leave the dialog",
+      "pass": true,
+      "detail": {
+        "openedByKey": true,
+        "escaped": []
+      }
+    },
+    {
+      "name": "keyboard: Escape closes More and returns focus to the More button",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "keyboard: a focused bottom-bar item shows a visible focus indicator",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "keyboard: Enter on a task row opens detail and Tab stays inside it",
+      "pass": true,
+      "detail": {
+        "taskByKey": true,
+        "taskEsc": []
+      }
+    },
+    {
+      "name": "keyboard: Escape closes task detail and focus returns to a task row",
+      "pass": true,
+      "detail": "pm-m-task-main"
+    },
+    {
+      "name": "keyboard: Ctrl+K opens full-screen Search on the phone shell (hardware keyboard)",
+      "pass": true,
+      "detail": "Search"
+    },
+    {
+      "name": "a11y tree: Primary navigation landmark and banner/main are exposed",
+      "pass": true,
+      "detail": {
+        "nav": true,
+        "main": true
+      }
+    },
+    {
+      "name": "a11y: exactly one current item in the bottom bar (Projects on a project route)",
+      "pass": true,
+      "detail": [
+        "Projects=page"
+      ]
+    },
+    {
+      "name": "a11y tree: no unnamed buttons or links on the phone task screen",
+      "pass": true,
+      "detail": 0
+    },
+    {
+      "name": "a11y tree: open Projects sheet is a named dialog, background links are removed from the tree, opener reports expanded",
+      "pass": true,
+      "detail": {
+        "dialogs": [
+          "Projects"
+        ],
+        "exposedOutside": 0,
+        "expanded": [
+          "Orbital Debris Tracking Payload — Integration & Environmental Test Campaign (Phase II) — switch project",
+          "Not Started1",
+          "In Progress2",
+          "Blocked1",
+          "Projects"
+        ]
+      }
+    },
+    {
+      "name": "drafts: chat composer text survives portrait → landscape → desktop width → portrait",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "drafts: DM composer text survives rotation",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "composer: DM composer stays visible with a keyboard-contracted viewport",
+      "pass": true,
+      "detail": {
+        "bottom": 476,
+        "vh": 480,
+        "open": true
+      }
+    },
+    {
+      "name": "composer: thread composer stays visible with a keyboard-contracted viewport",
+      "pass": true,
+      "detail": {
+        "bottom": 476,
+        "vh": 480
+      }
+    },
+    {
+      "name": "listeners: exactly one live notification EventSource in the page after three bottom-bar navigations",
+      "pass": true,
+      "detail": {
+        "live": 1,
+        "streamsOpenedSinceReset": 4
+      }
+    }
+  ],
+  "screenshots": [
+    "evidence/phase5/j1-after-close.png",
+    "evidence/phase5/j1b-blockers.png",
+    "evidence/phase5/j2-project-chat.png",
+    "evidence/phase5/j3-rsvp.png",
+    "evidence/phase5/j4-vault-download.png",
+    "evidence/phase5/j5-course.png"
+  ],
+  "notes": [
+    {
+      "taskStatusOptions": [
+        {
+          "t": "Not Started",
+          "h": 44,
+          "r": 265
+        },
+        {
+          "t": "●In Progress",
+          "h": 44,
+          "r": 265
+        },
+        {
+          "t": "✓Completed",
+          "h": 44,
+          "r": 265
+        },
+        {
+          "t": "×Blocked",
+          "h": 44,
+          "r": 265
+        }
+      ]
+    },
+    {
+      "j1BackAfterClose": "/clubpm"
+    },
+    {
+      "requestsFirstLoad": {
+        "GET /api/challenges/active": 1,
+        "GET /api/events/upcoming": 1,
+        "GET /api/github/dashboard/feed": 1,
+        "GET /api/members/cosmetic-styles": 1,
+        "GET /api/members/m1/profile": 1,
+        "GET /api/members/me": 1,
+        "GET /api/members/me/celebration": 1,
+        "GET /api/notifications": 1,
+        "GET /api/notifications/stream": 1,
+        "GET /api/projects": 1,
+        "GET /auth/me": 1
+      },
+      "requestsAfterThreeHops": {
+        "GET /api/challenges/active": 2,
+        "GET /api/chat/conversations": 1,
+        "GET /api/events": 1,
+        "GET /api/events/upcoming": 2,
+        "GET /api/github/dashboard/feed": 2,
+        "GET /api/meeting-polls": 1,
+        "GET /api/members": 1,
+        "GET /api/members/cosmetic-styles": 4,
+        "GET /api/members/m1/profile": 4,
+        "GET /api/members/me": 3,
+        "GET /api/members/me/celebration": 4,
+        "GET /api/notifications": 4,
+        "GET /api/notifications/stream": 4,
+        "GET /api/projects": 5,
+        "GET /auth/me": 1
+      },
+      "sse": {
+        "opened": 4,
+        "open": 208
+      }
+    }
+  ],
+  "consoleErrors": [],
+  "timingsMs": {
+    "J1": 10573,
+    "J2": 7483,
+    "J3": 4228,
+    "J4": 5322,
+    "J5": 4820
+  }
+}

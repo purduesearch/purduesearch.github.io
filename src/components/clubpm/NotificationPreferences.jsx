@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import { get, patch } from '../../api/clubPmClient';
 import OrbitLoader from '../OrbitLoader';
@@ -50,8 +50,9 @@ export default function NotificationPreferences() {
   const [quietStart, setQuietStart]                     = useState(22);
   const [quietEnd, setQuietEnd]                         = useState(8);
 
-  // Load from /auth/me on mount
-  useEffect(() => {
+  const load = useCallback(() => {
+    setLoading(true);
+    setError(null);
     get('/auth/me')
       .then(member => {
         setNotificationChannels(member.notificationChannels ?? {});
@@ -65,6 +66,9 @@ export default function NotificationPreferences() {
       .catch(err => setError(err.message ?? 'Failed to load preferences'))
       .finally(() => setLoading(false));
   }, []);
+
+  // Load from /auth/me on mount
+  useEffect(() => { load(); }, [load]);
 
   // Channel select handler
   function setChannel(eventType, value) {
@@ -104,6 +108,15 @@ export default function NotificationPreferences() {
     return (
       <div className="pm-prefs-page">
         <div style={{ display: 'flex', justifyContent: 'center', padding: '40px 0' }}><OrbitLoader size={80} /></div>
+      </div>
+    );
+  }
+
+  if (error && Object.keys(notificationChannels).length === 0) {
+    return (
+      <div className="pm-prefs-page pm-prefs-load-error" role="alert">
+        <div>{error}</div>
+        <button type="button" className="clubpm-btn-secondary" onClick={load}>Retry</button>
       </div>
     );
   }

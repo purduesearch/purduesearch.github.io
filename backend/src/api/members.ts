@@ -354,13 +354,10 @@ membersRouter.get("/", async (_req: Request, res: Response) => {
       orderBy: { displayName: "asc" },
     });
 
-    // Strip the encrypted OAuth tokens from every row — the roster is readable
-    // by any signed-in member and has no use for them.
+    // The roster is readable by any signed-in member. Encrypted credentials are
+    // globally omitted by the Prisma client (db/prisma.ts); strip the rest here.
     res.json(
       members.map(({
-        githubAccessToken: _gat,
-        githubRefreshToken: _grt,
-        slackUserToken: _sut,
         mutedSlackChannelIds: _msc,
         slackUserScopes: _sus,
         tokenVersion: _tv,
@@ -423,10 +420,7 @@ membersRouter.get("/:id", async (req: Request, res: Response) => {
       slackId: _slackId,
       isAdmin: _isAdmin,
       githubLogin: _githubLogin,
-      githubAccessToken: _gat,
-      githubRefreshToken: _grt,
       githubTokenExpiresAt: _gte,
-      slackUserToken: _sut,
       slackUserTokenAt: _suta,
       mutedSlackChannelIds: _msc,
       slackUserScopes: _sus,

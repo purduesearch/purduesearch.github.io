@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useRef, useEffect } from "react";
+import { useCompactLayout } from "../../clubpm/layout/compactLayout";
 
 // ── Constants ────────────────────────────────────────────────
 
@@ -79,7 +80,85 @@ function computeCriticalPath(sortedTasks) {
 
 // ── Component ────────────────────────────────────────────────
 
+/** "12 Mar" — short enough for a 320px row, unambiguous across months. */
+function shortDate(value) {
+  if (!value) return null;
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toLocaleDateString("en-US", { day: "numeric", month: "short" });
+}
+
+/**
+ * Phone presentation of the timeline: the same rows, read as a schedule.
+ *
+ * A 260px label column plus a pannable day grid cannot be read on a phone, and
+ * the bar tooltip is a hover interaction. The schedule carries every fact the
+ * bars encode — start, due, status, subtask nesting, dependency count and
+ * milestone dates — as text, and the timeline itself stays one tap away.
+ */
+function GanttSchedule({ rows, milestones, criticalPathSet }) {
+  const dated = [...milestones]
+    .filter(m => m.dueDate)
+    .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
+
+  return (
+    <div className="pm-m-gantt-schedule">
+      {dated.length > 0 && (
+        <section className="pm-m-gantt-group">
+          <h4>Milestones</h4>
+          <ul>
+            {dated.map(m => (
+              <li key={m.id} className="pm-m-gantt-row">
+                <span className="pm-m-gantt-row-title">{m.title}</span>
+                <span className="pm-m-gantt-row-meta">
+                  <span className="pm-m-gantt-chip">{(m.health ?? "ON_TRACK").replace(/_/g, " ").toLowerCase()}</span>
+                  <span>Due {shortDate(m.dueDate)}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      <section className="pm-m-gantt-group">
+        <h4>Schedule</h4>
+        <ul>
+          {rows.map(({ task, isSubtask }) => {
+            const start = shortDate(task.createdAt);
+            const due = shortDate(task.dueDate);
+            const depCount = task.dependencies?.length ?? 0;
+            return (
+              <li
+                key={task.id}
+                className={`pm-m-gantt-row${isSubtask ? " pm-m-gantt-row--sub" : ""}`}
+              >
+                <span className="pm-m-gantt-row-title">{task.title}</span>
+                <span className="pm-m-gantt-row-meta">
+                  <span
+                    className="pm-m-gantt-dot"
+                    style={{ background: STATUS_COLORS[task.status] ?? STATUS_COLORS.TODO }}
+                    aria-hidden="true"
+                  />
+                  <span>{(task.status ?? "TODO").replace(/_/g, " ").toLowerCase()}</span>
+                  {start && <span>Start {start}</span>}
+                  <span>{due ? `Due ${due}` : "No due date"}</span>
+                  {depCount > 0 && <span>{depCount} dependenc{depCount === 1 ? "y" : "ies"}</span>}
+                  {criticalPathSet.has(task.id) && <span className="pm-m-gantt-chip">Critical path</span>}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      </section>
+    </div>
+  );
+}
+
 export default function GanttChart({ tasks, milestones = [] }) {
+  const compact = useCompactLayout();
+  // The list is the phone default; the timeline stays available and pans inside
+  // its own scroller, never widening the page.
+  const [compactView, setCompactView] = useState("schedule");
   const [hoveredTask, setHoveredTask] = useState(null);
   const [scale, setScale] = useState("week");
   const [containerWidth, setContainerWidth] = useState(0);
@@ -300,37 +379,11 @@ export default function GanttChart({ tasks, milestones = [] }) {
     );
   }
 
-  return (
-    <div ref={containerRef}>
-      {/* ── Scale controls ───────────────────────────────── */}
-      <div className="pm-gantt-toolbar">
-        {["day", "week", "month"].map((s) => (
-          <button
-            key={s}
-            className={`pm-gantt-scale-btn${scale === s ? " active" : ""}`}
-            onClick={() => setScale(s)}
-          >
-            {s.charAt(0).toUpperCase() + s.slice(1)}
-          </button>
-        ))}
-        <div aria-hidden="true" style={{ width: 1, background: "var(--clubpm-border)", margin: "0 8px", alignSelf: "stretch" }} />
-        {[
-          { id: "oldest_active", label: "Oldest" },
-          { id: "today",         label: "Today"  },
-          { id: "newest_active", label: "Newest" },
-        ].map((m) => (
-          <button
-            key={m.id}
-            className={`pm-gantt-scale-btn${centerMode === m.id ? " active" : ""}`}
-            onClick={() => setCenterMode(m.id)}
-          >
-            {m.label}
-          </button>
-        ))}
-      </div>
-
-      {/* ── Chart ────────────────────────────────────────── */}
-      <div className="overflow-x-auto" ref={scrollRef}>
+  // One chart frame, used by both presentations: the desktop timeline and the
+  // phone Timeline view. Its horizontal scrolling is contained here, so the
+  // page itself never scrolls sideways.
+  const chartFrame = (
+    <div className={`overflow-x-auto${compact ? " pm-m-gantt-frame" : ""}`} ref={scrollRef}>
         <svg
           width={chartWidth}
           height={chartHeight}
@@ -673,7 +726,93 @@ export default function GanttChart({ tasks, milestones = [] }) {
             />
           ))}
         </svg>
+    </div>
+  );
+
+  if (compact) {
+    return (
+      <div ref={containerRef} className="pm-m-gantt">
+        <div className="pm-m-source" role="group" aria-label="Timeline presentation">
+          <span className="pm-m-source-label" id="gantt-view-label">View</span>
+          <div className="pm-m-segment" role="group" aria-labelledby="gantt-view-label">
+            <button type="button" aria-pressed={compactView === "schedule"} onClick={() => setCompactView("schedule")}>
+              Schedule
+            </button>
+            <button type="button" aria-pressed={compactView === "timeline"} onClick={() => setCompactView("timeline")}>
+              Timeline
+            </button>
+          </div>
+        </div>
+
+        {compactView === "schedule" ? (
+          <GanttSchedule rows={flatRows} milestones={milestones} criticalPathSet={criticalPathSet} />
+        ) : (
+          <>
+            <div className="pm-gantt-toolbar pm-m-gantt-toolbar">
+              {["day", "week", "month"].map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  className={`pm-gantt-scale-btn${scale === s ? " active" : ""}`}
+                  onClick={() => setScale(s)}
+                >
+                  {s.charAt(0).toUpperCase() + s.slice(1)}
+                </button>
+              ))}
+              {[
+                { id: "oldest_active", label: "Oldest" },
+                { id: "today", label: "Today" },
+                { id: "newest_active", label: "Newest" },
+              ].map((m) => (
+                <button
+                  key={m.id}
+                  type="button"
+                  className={`pm-gantt-scale-btn${centerMode === m.id ? " active" : ""}`}
+                  onClick={() => setCenterMode(m.id)}
+                >
+                  {m.label}
+                </button>
+              ))}
+            </div>
+            <p className="pm-m-gantt-hint">Drag sideways inside the frame below to pan the timeline.</p>
+            {chartFrame}
+          </>
+        )}
       </div>
+    );
+  }
+
+  return (
+    <div ref={containerRef}>
+      {/* ── Scale controls ───────────────────────────────── */}
+      <div className="pm-gantt-toolbar">
+        {["day", "week", "month"].map((s) => (
+          <button
+            key={s}
+            className={`pm-gantt-scale-btn${scale === s ? " active" : ""}`}
+            onClick={() => setScale(s)}
+          >
+            {s.charAt(0).toUpperCase() + s.slice(1)}
+          </button>
+        ))}
+        <div aria-hidden="true" style={{ width: 1, background: "var(--clubpm-border)", margin: "0 8px", alignSelf: "stretch" }} />
+        {[
+          { id: "oldest_active", label: "Oldest" },
+          { id: "today",         label: "Today"  },
+          { id: "newest_active", label: "Newest" },
+        ].map((m) => (
+          <button
+            key={m.id}
+            className={`pm-gantt-scale-btn${centerMode === m.id ? " active" : ""}`}
+            onClick={() => setCenterMode(m.id)}
+          >
+            {m.label}
+          </button>
+        ))}
+      </div>
+
+      {/* ── Chart ────────────────────────────────────────── */}
+      {chartFrame}
     </div>
   );
 }

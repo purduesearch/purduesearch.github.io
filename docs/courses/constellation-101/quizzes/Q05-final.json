@@ -10,9 +10,9 @@
       "kind": "SINGLE",
       "points": 1,
       "prompt": "Someone asks in Slack whether the battery mount is done. What's the right move?",
-      "explanation": "Point at the board. The column is the authoritative answer, and answering from memory in chat is exactly the habit Constellation exists to replace.",
+      "explanation": "Point at the task list. Its status group is authoritative, and answering from memory in chat is exactly the habit Constellation exists to replace.",
       "answers": [
-        { "order": 0, "text": "Check the task's column on the board and answer from that", "isCorrect": true },
+        { "order": 0, "text": "Check the task's status group and answer from that", "isCorrect": true },
         { "order": 1, "text": "Answer from memory — you were in the meeting", "isCorrect": false },
         { "order": 2, "text": "Ask whoever you think was assigned to it", "isCorrect": false },
         { "order": 3, "text": "Check the project's Drive folder for a recent file", "isCorrect": false }

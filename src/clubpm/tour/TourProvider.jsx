@@ -1,10 +1,26 @@
 import React, {
-  createContext, useCallback, useContext, useEffect, useMemo, useRef, useState,
+  createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState,
 } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { recordTourProgress, reportTourBreakage } from "../../api/clubPmClient";
+import { useCompactLayout } from "../layout/compactLayout";
+import { requestShellReveal } from "../layout/shellOverlay";
 import { findAnchor } from "./anchorDom";
 import TourOverlay from "./TourOverlay";
+
+/**
+ * The step as the learner's current layout should run it.
+ *
+ * A step may carry a `compact` object (contracts.md §7) whose fields replace the
+ * desktop ones on the phone shell — usually `anchor`, `body` and `placement`,
+ * sometimes `advance`, plus `reveal: "more" | "projects"` for an anchor that
+ * lives inside a phone sheet. Desktop runs the step exactly as written.
+ */
+export function effectiveStep(step, compact) {
+  if (!step) return null;
+  if (!compact || !step.compact) return step;
+  return { ...step, ...step.compact };
+}
 
 const TourContext = createContext(null);
 export const useTour = () => useContext(TourContext);
@@ -51,8 +67,21 @@ export function TourProvider({ children }) {
 
   useEffect(() => { stepIndexRef.current = stepIndex; }, [stepIndex]);
 
-  const step = tour?.steps[stepIndex] ?? null;
+  const compact = useCompactLayout();
+  const rawStep = tour?.steps[stepIndex] ?? null;
+  const step = useMemo(() => effectiveStep(rawStep, compact), [rawStep, compact]);
   const stepCount = tour?.steps.length ?? 0;
+
+  // Reveal the phone sheet that holds this step's anchor BEFORE anything looks
+  // for it. A layout effect runs ahead of every passive effect in the commit —
+  // including the overlay's anchor lookup and the click subscription below —
+  // and the request is sticky, so a shell that mounts later still honours it.
+  // Clearing it (any non-reveal step, a pause, the end of the tour) lets the
+  // shell close only a sheet the tour itself opened.
+  const revealTarget = status === "running" ? step?.reveal ?? null : null;
+  useLayoutEffect(() => {
+    requestShellReveal(revealTarget, step?.route);
+  }, [revealTarget, step?.route]);
 
   // Resume a tour the learner paused or that survived a reload.
   useEffect(() => {

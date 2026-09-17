@@ -24,7 +24,7 @@ video in Constellation 101 and it earns the length.
 | 00:34–01:02 | Task modal, top | Title, status, priority |
 | 01:02–01:30 | Task modal | Assignees, due date |
 | 01:30–01:58 | Task modal, description | Scroll to acceptance criteria |
-| 01:58–02:22 | Task modal, subtasks + dependencies | Hover each |
+| 01:58–02:22 | Task detail, subtasks + dependencies | Expand each section |
 | 02:22–02:44 | Task modal, comments | Type an `@` mention, show the picker |
 | 02:44–03:02 | Task modal, time log | Open the log-time control |
 | 03:02–03:10 | Board, card now showing avatars | Close modal, hold |
@@ -44,7 +44,7 @@ named, and they make one comparison the narration can only describe. Everything 
 | 01:20 | **Ghosted mock notification** slides in at the top-right as "reminds people before a due date" is said, then fades | Shows the consequence of the field instead of asserting it. Must be visibly a mock, not a real captured notification |
 | 01:38 | **Zoom to 1.25×** on the acceptance-criteria block and hold there for the whole beat | This is the sub-section most likely to be re-watched. Make it legible at phone size |
 | 02:02 | **Split callout:** subtasks outlined teal, dependencies outlined coral, **both on screen at once** | The single most-missed concept in the course. Two colours, simultaneous, is the whole edit — do not cut between them |
-| 02:14 | **Red strike-through animation** over the Done control as "will not let you drag it to done" lands | Enforcement is the point. Showing the refusal beats describing it |
+| 02:14 | **Red strike-through animation** over the Done control as the refusal lands | Enforcement is the point. Showing the refusal beats describing it |
 | 02:28 | **Zoom to 1.3×** on the `@` mention picker as it opens | It's a small UI element carrying a big idea |
 | 02:36 | **Two badge icons** (in-app bell, Slack mark) pop in beside the mention, hold 2 s | "Both places" is the payload of this beat |
 | 02:50 | **Lower third:** "over 2 hours → officer approval" during the time-log shot | The one rule in this video learners are surprised by later. Put it on screen |
@@ -70,7 +70,8 @@ task. "Route and secure the main wiring harness through bay two" is.
 
 *(beat)*
 
-Status is the column. You can change it here or by dragging the card — same thing.
+Status controls the desktop column and the phone status group. You can change it here or with the
+labelled Move control; dragging on desktop is an optional shortcut for the same operation.
 
 Then priority. Low, medium, high, critical. One honest warning: if everything on your board is
 critical, priority has stopped carrying information. Use it sparingly and it stays useful.
@@ -104,7 +105,7 @@ Subtasks are pieces of *this* task. They live inside it and they close with it.
 *(pause)*
 
 A dependency is a different task that has to finish before this one can start. That's not a note —
-Constellation enforces it. A task with an open dependency will not let you drag it to done.
+Constellation enforces it. A task with an open dependency will not let any status control move it to done.
 
 **[02:22 — comments, @ mention]**
 

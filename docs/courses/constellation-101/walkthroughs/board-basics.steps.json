@@ -21,6 +21,7 @@
       "body": "A project has several views. The board is the one you'll live in.",
       "placement": "bottom",
       "dim": ["nav.sidebar"],
+      "compact": { "body": "A project has several sections. Tasks is the one you'll use most often.", "dim": [] },
       "advance": { "on": "click" }
     },
     {
@@ -30,6 +31,7 @@
       "title": "To-do",
       "body": "Agreed on, not started. If it's in here, someone has decided it should happen.",
       "placement": "right",
+      "compact": { "body": "Agreed on, not started. The count and rows live in this collapsible status group.", "placement": "top" },
       "advance": { "on": "next" }
     },
     {
@@ -39,6 +41,7 @@
       "title": "In progress",
       "body": "Someone is actively working on it right now. If a card sits here for three weeks, that's information — it usually means it's blocked and nobody said so.",
       "placement": "right",
+      "compact": { "body": "Someone is actively working on it. Tap the group to expand or collapse it; no dragging is required.", "placement": "top" },
       "advance": { "on": "next" }
     },
     {
@@ -48,6 +51,7 @@
       "title": "Blocked",
       "body": "Stopped by something outside the task itself. Constellation moves cards here on its own when you attach a blocker or add a dependency — you'll do both in module 3.",
       "placement": "left",
+      "compact": { "body": "Stopped by something outside the task itself. Constellation moves tasks here when you attach a blocker or dependency.", "placement": "top" },
       "advance": { "on": "next" }
     },
     {
@@ -57,6 +61,7 @@
       "title": "Done",
       "body": "Finished, by the definition written in the task — not \"mostly finished.\" Moving a card here is what triggers XP.",
       "placement": "left",
+      "compact": { "body": "Finished by the definition in the task. Use the labelled Move control or the status control inside a task.", "placement": "top" },
       "advance": { "on": "next" }
     },
     {
@@ -66,6 +71,7 @@
       "title": "Filter the noise",
       "body": "On a real project this board is long. Filter by assignee, priority, milestone, or tag to get down to what you care about.",
       "placement": "bottom",
+      "compact": { "body": "Start with My tasks or All tasks, search by text, then open Filters & sort for priority, due date, archived tasks, and ordering.", "placement": "top" },
       "advance": { "on": "next" }
     },
     {
@@ -75,6 +81,7 @@
       "title": "Assign by dragging",
       "body": "These chips are draggable. Drop one on a card to assign that person — faster than opening the task when you're triaging a dozen of them.",
       "placement": "bottom",
+      "compact": { "anchor": "board.card.first", "title": "Assign without dragging", "body": "Every task row has a labelled Assign control. Open it to add or remove people; dragging is never required on a phone.", "placement": "top" },
       "advance": { "on": "next" }
     },
     {
@@ -84,6 +91,7 @@
       "title": "Open a task",
       "body": "Click this card. The board shows you a summary; the real record is inside.",
       "placement": "right",
+      "compact": { "body": "Tap this task row. The group shows a summary; the full record opens as a phone-sized screen.", "placement": "top" },
       "advance": { "on": "click" }
     },
     {

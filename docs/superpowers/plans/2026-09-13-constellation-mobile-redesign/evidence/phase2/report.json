@@ -1,0 +1,468 @@
+{
+  "generatedAt": "2026-09-17T01:25:54.765Z",
+  "disclaimer": "Headless Chrome touch/viewport emulation with fixture data only; no real device, real account, software keyboard, or screen reader was used.",
+  "summary": {
+    "passed": 31,
+    "failed": 0,
+    "total": 31
+  },
+  "checks": [
+    {
+      "name": "p320: Home prioritizes work, next event, projects, supporting panels",
+      "pass": true,
+      "detail": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "name": "p320: project quick actions are visible, labelled, and touch-sized",
+      "pass": true,
+      "detail": {
+        "order": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "labels": [
+          "Tasks",
+          "Files"
+        ],
+        "controls": [
+          {
+            "w": 128,
+            "h": 44
+          },
+          {
+            "w": 128,
+            "h": 44
+          }
+        ],
+        "overflow": 0
+      }
+    },
+    {
+      "name": "p320: Home has no horizontal page overflow",
+      "pass": true,
+      "detail": 0
+    },
+    {
+      "name": "p390: Home prioritizes work, next event, projects, supporting panels",
+      "pass": true,
+      "detail": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "name": "p390: project quick actions are visible, labelled, and touch-sized",
+      "pass": true,
+      "detail": {
+        "order": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "labels": [
+          "Tasks",
+          "Files"
+        ],
+        "controls": [
+          {
+            "w": 163,
+            "h": 44
+          },
+          {
+            "w": 163,
+            "h": 44
+          }
+        ],
+        "overflow": 0
+      }
+    },
+    {
+      "name": "p390: Home has no horizontal page overflow",
+      "pass": true,
+      "detail": 0
+    },
+    {
+      "name": "p430: Home prioritizes work, next event, projects, supporting panels",
+      "pass": true,
+      "detail": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "name": "p430: project quick actions are visible, labelled, and touch-sized",
+      "pass": true,
+      "detail": {
+        "order": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "labels": [
+          "Tasks",
+          "Files"
+        ],
+        "controls": [
+          {
+            "w": 183,
+            "h": 44
+          },
+          {
+            "w": 183,
+            "h": 44
+          }
+        ],
+        "overflow": 0
+      }
+    },
+    {
+      "name": "p430: Home has no horizontal page overflow",
+      "pass": true,
+      "detail": 0
+    },
+    {
+      "name": "p320: compact status groups replace desktop bins",
+      "pass": true,
+      "detail": [
+        {
+          "text": "Not Started1",
+          "open": "true"
+        },
+        {
+          "text": "In Progress2",
+          "open": "true"
+        },
+        {
+          "text": "Blocked1",
+          "open": "true"
+        },
+        {
+          "text": "Completed1",
+          "open": "false"
+        }
+      ]
+    },
+    {
+      "name": "p320: every editable task row has visible Move and Assign controls",
+      "pass": true,
+      "detail": {
+        "rows": 4,
+        "move": 4,
+        "assign": 4
+      }
+    },
+    {
+      "name": "p320: no phone assignee rail or horizontal overflow",
+      "pass": true,
+      "detail": {
+        "url": "/clubpm/projects/p1?tab=tasks&view=board",
+        "overflow": 0,
+        "compact": true,
+        "groups": [
+          {
+            "text": "Not Started1",
+            "open": "true"
+          },
+          {
+            "text": "In Progress2",
+            "open": "true"
+          },
+          {
+            "text": "Blocked1",
+            "open": "true"
+          },
+          {
+            "text": "Completed1",
+            "open": "false"
+          }
+        ],
+        "rows": 4,
+        "move": 4,
+        "assign": 4,
+        "assigneePanel": false,
+        "dialog": null,
+        "footer": null,
+        "active": "Skip to main content\n    You need to enable JavaScript to run this app.\n    Orbital Debris Tracking Payload — Integration & Environmental Test Campaign (Phase II)2TasksFilesChatInsightsDashboard›Orbital Debris Tracking Payload — Integration & Environmental Test Campaign (Phase II)Orbital Debris Tracking Payload — Integration & Environmental Test Campaign (Phase II)ACTIVEENGINEERING Actions17%■ 1■ 2■ 1■ 2 Project details & resources FIXTURE — long description to exercise the header. FIXTURE — long description to exercise the header. FIXTURE — long description to exercise the header. FIXTURE — long description to exercise the header. — Link Slack channel —My tasksAll tasks New task FiltersNot Started1Write the thermal-vacuum test procedure and get sign-off from the faculty advisor before booking chamber timemedium Sep 15 Move AssignRIn Progress2Vibration fixture CAD reviewcritical Sep 17 Move AssignRMHarness continuity checklow Sep 18 Move AssignRBlocked1FIXTURE Waiting on parts1 task · No one responsible Edit ResolveWaiting on sponsor NDAmedium Sep 19 Move AssignRCompleted1MilestonesOpen timelineCritical design review0/1Target 9/30/2026 · on track\n    To pick up a draggable item, press the space bar.\n    While dragging, use the arrow keys to move the item.\n    Press space again to drop the item in its new position, or press escape to cancel.\n  HomeProjectsChatCalendarMore"
+      }
+    },
+    {
+      "name": "p320: Filters & sort uses the shared sheet with sort, priority, due and archive controls",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "p320: compact milestone summary retains Timeline access",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "p320: Project actions expose Timeline and project resources",
+      "pass": true,
+      "detail": [
+        "Edit project",
+        "Project chat",
+        "Pin project",
+        "Timeline (Gantt)",
+        "Orbital Debris Tracking Payload — Integration & Environmental Test Campaign (Phase II)activeOpen",
+        "Hydroponics Rackactive",
+        "Outreach Nightpaused",
+        "Empty Fixture Projectactive"
+      ]
+    },
+    {
+      "name": "p320: Move opens an explicit status picker",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "p320: status changes without drag",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "p320: Assign opens the searchable member picker",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "p320: assignment uses the existing task patch permission path",
+      "pass": true,
+      "detail": {
+        "GET /api/challenges/active": 6,
+        "GET /api/events/upcoming": 6,
+        "GET /api/github/dashboard/feed": 6,
+        "GET /api/members": 2,
+        "GET /api/members/cosmetic-styles": 8,
+        "GET /api/members/m1/profile": 8,
+        "GET /api/members/me": 6,
+        "GET /api/members/me/celebration": 8,
+        "GET /api/notifications": 8,
+        "GET /api/notifications/stream": 4,
+        "GET /api/projects": 10,
+        "GET /api/projects/p1": 3,
+        "GET /api/projects/p1/blockers": 2,
+        "GET /api/slack/channels": 2,
+        "GET /auth/me": 8,
+        "GET /logo192.png": 4,
+        "PATCH /api/tasks/t1": 2
+      }
+    },
+    {
+      "name": "p320: task opens full-screen and preserves deep-link query context",
+      "pass": true,
+      "detail": {
+        "url": "/clubpm/projects/p1?tab=tasks&view=board&task=t1",
+        "overflow": 0,
+        "compact": true,
+        "groups": [
+          {
+            "text": "Not Started1",
+            "open": "true"
+          },
+          {
+            "text": "In Progress0",
+            "open": "true"
+          },
+          {
+            "text": "Blocked0",
+            "open": "true"
+          },
+          {
+            "text": "Completed0",
+            "open": "false"
+          }
+        ],
+        "rows": 1,
+        "move": 1,
+        "assign": 1,
+        "assigneePanel": false,
+        "dialog": "Write the thermal-vacuum test procedure and get sign-off from the faculty advisor before booking chamber time",
+        "footer": null,
+        "active": "Write the thermal-vacuum test procedure and get sign-off from the faculty advisor before booking chamber time"
+      }
+    },
+    {
+      "name": "p320: title, status, assignee, and due date are prominent in task detail",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "p320: comment posts once and clears after success",
+      "pass": true,
+      "detail": {
+        "GET /api/challenges/active": 6,
+        "GET /api/events/upcoming": 6,
+        "GET /api/github/dashboard/feed": 6,
+        "GET /api/github/projects/p1/repos": 2,
+        "GET /api/members": 2,
+        "GET /api/members/cosmetic-styles": 8,
+        "GET /api/members/m1/profile": 8,
+        "GET /api/members/me": 6,
+        "GET /api/members/me/celebration": 8,
+        "GET /api/notifications": 8,
+        "GET /api/notifications/stream": 4,
+        "GET /api/projects": 12,
+        "GET /api/projects/p1": 5,
+        "GET /api/projects/p1/blockers": 2,
+        "GET /api/projects/p1/tags": 2,
+        "GET /api/slack/channels": 2,
+        "GET /api/tasks/t1": 2,
+        "GET /api/tasks/t1/comments": 2,
+        "GET /api/tasks/t1/history": 2,
+        "GET /api/tasks/t1/subtasks": 2,
+        "GET /auth/me": 8,
+        "GET /logo192.png": 4,
+        "PATCH /api/tasks/t1": 2,
+        "POST /api/tasks/t1/comments": 1
+      }
+    },
+    {
+      "name": "p320: closing restores project URL and task filter context",
+      "pass": true,
+      "detail": {
+        "url": "/clubpm/projects/p1?tab=tasks&view=board",
+        "query": "thermal-vacuum",
+        "scroll": 114,
+        "focused": true
+      }
+    },
+    {
+      "name": "p320: closing restores a non-zero task-list scroll position",
+      "pass": true,
+      "detail": {
+        "nonzeroScroll": 180,
+        "restoredScroll": 180
+      }
+    },
+    {
+      "name": "rotation and breakpoint crossing preserve the create draft",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "failed task save retains the draft and displays a retryable error",
+      "pass": true,
+      "detail": {
+        "draft": "Retry-safe phone draft",
+        "error": true
+      }
+    },
+    {
+      "name": "keyboard-height proxy keeps the create action footer visible",
+      "pass": true,
+      "detail": {
+        "left": 0,
+        "top": 396,
+        "right": 320,
+        "bottom": 460,
+        "width": 320,
+        "height": 64
+      }
+    },
+    {
+      "name": "task create succeeds on retry without a duplicate in-flight submission",
+      "pass": true,
+      "detail": {
+        "GET /api/challenges/active": 6,
+        "GET /api/events/upcoming": 6,
+        "GET /api/github/dashboard/feed": 6,
+        "GET /api/github/projects/p1/repos": 4,
+        "GET /api/members": 2,
+        "GET /api/members/cosmetic-styles": 8,
+        "GET /api/members/m1/profile": 8,
+        "GET /api/members/m1/streak": 1,
+        "GET /api/members/me": 6,
+        "GET /api/members/me/celebration": 8,
+        "GET /api/milestones/project/p1": 2,
+        "GET /api/notifications": 8,
+        "GET /api/notifications/stream": 4,
+        "GET /api/projects": 14,
+        "GET /api/projects/p1": 8,
+        "GET /api/projects/p1/blockers": 2,
+        "GET /api/projects/p1/tags": 6,
+        "GET /api/slack/channels": 2,
+        "GET /api/tasks/t1": 4,
+        "GET /api/tasks/t1/comments": 4,
+        "GET /api/tasks/t1/history": 4,
+        "GET /api/tasks/t1/subtasks": 4,
+        "GET /auth/me": 8,
+        "GET /logo192.png": 4,
+        "PATCH /api/tasks/t1": 2,
+        "POST /api/projects/p1/tasks": 2,
+        "POST /api/tasks/t1/comments": 1
+      }
+    },
+    {
+      "name": "landscape phone keeps compact controls and no horizontal overflow",
+      "pass": true,
+      "detail": {
+        "url": "/clubpm/projects/p1",
+        "overflow": 0,
+        "compact": true,
+        "groups": [
+          {
+            "text": "Not Started1",
+            "open": "true"
+          },
+          {
+            "text": "In Progress2",
+            "open": "true"
+          },
+          {
+            "text": "Blocked1",
+            "open": "true"
+          },
+          {
+            "text": "Completed1",
+            "open": "false"
+          }
+        ],
+        "rows": 4,
+        "move": 4,
+        "assign": 4,
+        "assigneePanel": false,
+        "dialog": null,
+        "footer": null,
+        "active": "Skip to main content\n    You need to enable JavaScript to run this app.\n    Orbital Debris Tracking Payload — Integration & Environmental Test Campaign (Phase II)2TasksFilesChatInsightsDashboard›Orbital Debris Tracking Payload — Integration & Environmental Test Campaign (Phase II)Orbital Debris Tracking Payload — Integration & Environmental Test Campaign (Phase II)ACTIVEENGINEERING Actions17%■ 1■ 2■ 1■ 2 Project details & resources FIXTURE — long description to exercise the header. FIXTURE — long description to exercise the header. FIXTURE — long description to exercise the header. FIXTURE — long description to exercise the header. — Link Slack channel —My tasksAll tasks New task FiltersNot Started1Write the thermal-vacuum test procedure and get sign-off from the faculty advisor before booking chamber timemedium Sep 15 Move AssignRIn Progress2Vibration fixture CAD reviewcritical Sep 17 Move AssignRMHarness continuity checklow Sep 18 Move AssignRBlocked1FIXTURE Waiting on parts1 task · No one responsible Edit ResolveWaiting on sponsor NDAmedium Sep 19 Move AssignRCompleted1MilestonesOpen timelineCritical design review0/1Target 9/30/2026 · on track\n    To pick up a draggable item, press the space bar.\n    While dragging, use the arrow keys to move the item.\n    Press space again to drop the item in its new position, or press escape to cancel.\n  HomeProjectsChatCalendarMore"
+      }
+    },
+    {
+      "name": "desktop retains status bins, drag assignee rail, and no phone groups",
+      "pass": true,
+      "detail": {
+        "compact": false,
+        "mobileGroups": 0,
+        "bins": 4,
+        "assignee": true,
+        "overflow": 0
+      }
+    },
+    {
+      "name": "desktop project task page has no page-wide horizontal overflow",
+      "pass": true,
+      "detail": 0
+    }
+  ],
+  "screenshots": [
+    "evidence/phase2/p320-home.png",
+    "evidence/phase2/p320-task-groups.png",
+    "evidence/phase2/p320-task-detail.png",
+    "evidence/phase2/p320-create-failed.png",
+    "evidence/phase2/l844-task-groups.png",
+    "evidence/phase2/d1280-task-regression.png"
+  ],
+  "consoleErrors": []
+}

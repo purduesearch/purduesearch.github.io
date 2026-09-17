@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import MobileSheet from '../../components/clubpm/MobileSheet';
 import CalendarView from '../../components/clubpm/CalendarView';
 import CalendarFilters from '../../components/clubpm/CalendarFilters';
 import EventFormModal from '../../components/clubpm/EventFormModal';
@@ -17,6 +18,8 @@ import {
 } from '../../api/clubPmClient';
 import { useClubPmAuth } from '../../clubpm/ClubPmAuth';
 import { revealStagger } from '../../clubpm/anim/motion';
+import { useCompactLayout } from '../../clubpm/layout/compactLayout';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 
 // ── Helpers ───────────────────────────────────────────────────────
 
@@ -65,16 +68,21 @@ function getFetchRange(date, viewMode) {
 
 // ── Event Detail Modal ────────────────────────────────────────────
 
-function EventDetailModal({ event, onClose, onEdit, onDelete, isAdmin, projects }) {
+function EventDetailModal({ event, onClose, onEdit, onDelete, onRsvp, currentMemberId, isAdmin, projects, compact }) {
+  const [rsvpBusy, setRsvpBusy] = useState(false);
+  const [rsvpError, setRsvpError] = useState('');
+  // `disabled` only applies after a render; the ref also stops a same-tick second tap.
+  const rsvpInFlight = useRef(false);
   if (!event) return null;
 
   const borderColor = EVENT_TYPE_COLOR[event.type] ?? EVENT_TYPE_COLOR.OTHER;
   const iconClass   = EVENT_TYPE_ICON[event.type]  ?? EVENT_TYPE_ICON.OTHER;
   const linkedProject = projects.find(p => p.id === event.projectId);
+  const attending = event.attendees?.some(a => a.id === currentMemberId);
 
   const modal = (
     <div
-      className="cpm-modal-overlay"
+      className={`cpm-modal-overlay${compact ? ' pm-shell--compact pm-m-calendar-layer' : ''}`}
       style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}
     >
@@ -191,6 +199,24 @@ function EventDetailModal({ event, onClose, onEdit, onDelete, isAdmin, projects 
         </div>
 
         <div className="pm-cal-modal-footer">
+          <button
+            type="button"
+            className={`cpm-btn ${attending ? 'cpm-btn-ghost' : 'cpm-btn-primary'}`}
+            disabled={rsvpBusy}
+            onClick={async () => {
+              if (rsvpInFlight.current) return;
+              rsvpInFlight.current = true;
+              setRsvpBusy(true);
+              setRsvpError('');
+              try { await onRsvp(event, attending ? 'leave' : 'join'); }
+              catch (err) { setRsvpError(err?.message || 'Could not update your RSVP.'); }
+              finally { rsvpInFlight.current = false; setRsvpBusy(false); }
+            }}
+          >
+            <i className={attending ? 'fas fa-user-minus' : 'fas fa-user-check'} aria-hidden="true" />
+            {rsvpBusy ? 'Saving…' : attending ? 'Not attending' : 'RSVP'}
+          </button>
+          {rsvpError && <div className="pm-cal-rsvp-error" role="alert">{rsvpError}</div>}
           {isAdmin && (
             <ConfirmInline
               label="Delete"
@@ -217,6 +243,7 @@ function EventDetailModal({ event, onClose, onEdit, onDelete, isAdmin, projects 
     </div>
   );
 
+  if (compact) return <MobileSheet title="Event details" onClose={onClose} variant="fullscreen" className="pm-m-calendar-layer">{modal.props.children}</MobileSheet>;
   return createPortal(modal, document.body);
 }
 
@@ -236,16 +263,21 @@ function DetailRow({ icon, label, children }) {
 
 export default function CalendarPage() {
   const { member } = useClubPmAuth();
+  const compact = useCompactLayout();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const isAdmin = member?.role === 'ADMIN' || member?.isAdmin;
 
   const [cursor, setCursor] = useState(new Date());
-  const [viewMode, setViewMode] = useState('month');
+  const [viewMode, setViewMode] = useState(() => compact ? 'agenda' : 'month');
   const [events, setEvents]   = useState([]);
   const [tasks, setTasks]     = useState([]);
   const [projects, setProjects] = useState([]);
   const [members, setMembers]   = useState([]);
 
   const [eventsLoading, setEventsLoading] = useState(false);
+  const [eventsReady, setEventsReady] = useState(false);
   const [eventsError, setEventsError]     = useState(null);
 
   const [selectedEvent, setSelectedEvent]     = useState(null);
@@ -331,6 +363,7 @@ export default function CalendarPage() {
       setEventsError(err.message ?? 'Failed to load events');
     } finally {
       setEventsLoading(false);
+      setEventsReady(true);
     }
   }, []);
 
@@ -350,6 +383,22 @@ export default function CalendarPage() {
   useEffect(() => {
     fetchEvents(cursor, viewMode);
   }, [cursor, viewMode, fetchEvents]);
+
+  useEffect(() => {
+    const eventId = searchParams.get('event');
+    if (!eventId) { if (compact) setSelectedEvent(null); return undefined; }
+    if (!eventsReady || eventsLoading) return undefined;
+    const linked = events.find(event => event.id === eventId);
+    if (linked) { setSelectedEvent(linked); return undefined; }
+    // A notification can point outside the currently painted agenda/month.
+    // Resolve it through the existing authorized event-detail endpoint.
+    setSelectedEvent(null);
+    let alive = true;
+    get(`/api/events/${encodeURIComponent(eventId)}`)
+      .then(event => { if (alive) setSelectedEvent(event); })
+      .catch(err => { if (alive) setEventsError(err.message ?? 'Could not open this event'); });
+    return () => { alive = false; };
+  }, [compact, events, eventsLoading, eventsReady, searchParams]);
 
   // ── Meeting polls ────────────────────────────────────────────
   const refreshPolls = useCallback(async () => {
@@ -434,6 +483,33 @@ export default function CalendarPage() {
     }
   }
 
+  async function handleRsvp(event, action) {
+    const updated = await post(`/api/events/${event.id}/attendees`, { action });
+    setEvents(prev => prev.map(item => item.id === updated.id ? updated : item));
+    setSelectedEvent(updated);
+  }
+
+  const openEvent = useCallback((event) => {
+    setSelectedEvent(event);
+    if (!compact) return;
+    const next = new URLSearchParams(searchParams);
+    next.set('event', event.id);
+    navigate(`${location.pathname}?${next}`, {
+      state: { ...(location.state ?? {}), pmCalendarEvent: true },
+    });
+  }, [compact, location.pathname, location.state, navigate, searchParams]);
+
+  const closeEvent = useCallback(() => {
+    setSelectedEvent(null);
+    if (!compact) return;
+    if (location.state?.pmCalendarEvent) navigate(-1);
+    else {
+      const next = new URLSearchParams(searchParams);
+      next.delete('event');
+      navigate(`${location.pathname}${next.size ? `?${next}` : ''}`, { replace: true });
+    }
+  }, [compact, location.pathname, location.state, navigate, searchParams]);
+
   async function handleEventMove(eventId, targetDayKey) {
     const event = events.find(e => e.id === eventId);
     if (!event) return;
@@ -474,7 +550,7 @@ export default function CalendarPage() {
   }
 
   return (
-    <div className="clubpm-animate-fade-in" style={{ padding: '0 0 40px' }}>
+    <div className="clubpm-animate-fade-in pm-cal-page" style={{ padding: '0 0 40px' }}>
 
       {/* Page header */}
       <div className="pm-cal-header">
@@ -578,9 +654,10 @@ export default function CalendarPage() {
           events={filteredEvents}
           cursor={cursor}
           viewMode={viewMode}
+          compact={compact}
           onCursorChange={setCursor}
           onViewModeChange={setViewMode}
-          onEventClick={setSelectedEvent}
+          onEventClick={openEvent}
           onEventMove={isAdmin ? handleEventMove : undefined}
           toolbarActions={
             <>
@@ -621,6 +698,7 @@ export default function CalendarPage() {
         editEvent={editingEvent}
         projects={projects}
         members={members}
+        compact={compact}
       />
 
       {/* iCal feed import modal (admins only) */}
@@ -629,17 +707,21 @@ export default function CalendarPage() {
           isOpen={showImport}
           onClose={() => setShowImport(false)}
           onImported={() => fetchEvents(cursor, viewMode)}
+          compact={compact}
         />
       )}
 
       {/* Event detail modal */}
       <EventDetailModal
         event={selectedEvent}
-        onClose={() => setSelectedEvent(null)}
+        onClose={closeEvent}
         onEdit={(ev) => { setEditingEvent(ev); setShowEventForm(true); }}
         onDelete={handleDeleteEvent}
+        onRsvp={handleRsvp}
+        currentMemberId={member?.id}
         isAdmin={isAdmin}
         projects={projects}
+        compact={compact}
       />
 
       {/* Meeting poll create/edit modal */}
@@ -650,6 +732,7 @@ export default function CalendarPage() {
         editPoll={editingPoll}
         projects={projects}
         members={members}
+        compact={compact}
       />
 
       {/* Meeting poll board modal.
@@ -659,7 +742,7 @@ export default function CalendarPage() {
           of the viewport, so rendered inline it scrolled away with the page. */}
       {activePoll && createPortal(
         <div
-          className="cpm-modal-overlay"
+          className={`cpm-modal-overlay${compact ? ' pm-shell--compact pm-m-calendar-layer' : ''}`}
           onClick={e => { if (e.target === e.currentTarget) setActivePoll(null); }}
         >
           <div className="pm-poll-board-modal" onClick={e => e.stopPropagation()}>

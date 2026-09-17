@@ -3,7 +3,7 @@ import { getConversationThread, markConversationRead } from "../../../api/clubPm
 import ChatMessage from "./ChatMessage";
 import ChatComposer from "./ChatComposer";
 
-export default function ChatThreadDrawer({ channelId, ts, conversation = null, onClose }) {
+export default function ChatThreadDrawer({ channelId, ts, conversation = null, onClose, compact = false }) {
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -51,8 +51,13 @@ export default function ChatThreadDrawer({ channelId, ts, conversation = null, o
   // In-flow flex column beside the message list, not position: fixed — so the
   // transformed ClubPM panel ancestors can't capture it.
   return (
-    <aside className="cpm-chat-drawer" role="complementary" aria-label="Thread">
+    <aside className="cpm-chat-drawer" aria-label="Thread">
       <div className="cpm-chat-drawer-head">
+        {compact && (
+          <button type="button" className="cpm-chat-thread-back" onClick={onClose} aria-label="Back to conversation">
+            <i className="fas fa-arrow-left" aria-hidden="true" />
+          </button>
+        )}
         <b>Thread</b>
         <button type="button" className="cpm-chat-drawer-close" onClick={onClose} aria-label="Close thread">
           <i className="fas fa-xmark" aria-hidden="true" />
@@ -61,7 +66,7 @@ export default function ChatThreadDrawer({ channelId, ts, conversation = null, o
 
       <div className="cpm-chat-drawer-body">
         {loading && <div className="cpm-spinner" aria-label="Loading" />}
-        {error && <div className="cpm-chat-empty">{error}</div>}
+        {error && <div className="cpm-chat-empty"><div>{error}</div><button type="button" className="cpm-chat-linkbtn" onClick={() => load(false)}>Retry</button></div>}
         {!loading && !error && messages.map(m => (
           <ChatMessage key={m.id} message={m} channelId={channelId} canPost={canPost} compact onChanged={() => load(true)} />
         ))}

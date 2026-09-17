@@ -8,16 +8,6 @@ ctrl + Z to undo (in any section)
 
 Fixes for mobile (borderline unusable)
 
-On the project page, merge members and chat into the same tab
-Merge ai into the reports page (renamed to insights)
-In the left nav, rename Outreach to Other, then Hub to Outreach Hub, and put Courses and Admin under this category renamed category (make sure this category is always collapsed by default) (with a more fitting icon)
-Move Members out of outreach and into Chat, then move calendar here and rename it to Social
-In any of the project pages, you can scroll such that the top header (with the project name, slack channel, google drive) moves, fix this. The chat section under projects also has an additional scroll bar that causes the place to send messages to be cut off (three total when it should have just one)
-
-Prevent the any courses from being re-seeded (as this resets any content added after they were first seeded)
-
 Add patch notes that are generated from the Git history (one check at the beginning of the day, with version number tracking)
 
 Rework slack features (all of them to match what is on the web). Make it so that you can message the Constellation bot with plain text to enact a project action plan (e.g. Move the wiring task I'm working on to done, and then it checks your tasks and proposes moving it to done (you confirm with a reaction))
-
-Add the ability to ctrl click to select multiple assignee widgets in the project detail page

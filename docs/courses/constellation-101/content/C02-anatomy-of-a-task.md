@@ -16,7 +16,7 @@ useful skill is knowing which field to reach for, and that comes from having rea
 | Field | What it's for | What it changes downstream |
 |---|---|---|
 | **Title** | The outcome, in one line | It's what everyone sees on the board — the only field most people ever read |
-| **Status** | TODO · IN_PROGRESS · BLOCKED · DONE | It *is* the column. Dragging the card and changing it here are the same operation |
+| **Status** | TODO · IN_PROGRESS · BLOCKED · DONE | It determines the desktop column or phone status group. Move and the detail selector perform the same operation; desktop dragging is optional |
 | **Priority** | LOW · MEDIUM · HIGH · CRITICAL | Sorting and filtering only. Priority never blocks or forces anything |
 | **Assignees** | Who is doing it | Puts it on their dashboard; they get notified when assigned |
 | **Due date** | A real commitment | Teammates plan around it. Leave it empty rather than invent one |

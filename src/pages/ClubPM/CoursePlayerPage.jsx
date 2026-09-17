@@ -11,7 +11,9 @@ import AssignmentSection from '../../components/clubpm/courses/AssignmentSection
 import TrainingSection from '../../components/clubpm/courses/TrainingSection';
 import { SECTION_KINDS } from '../../components/clubpm/courses/CourseSectionRail';
 import { hasReadableContent } from '../../lib/pmDoc';
+import { stepNeighbours } from '../../lib/courseSteps';
 import OrbitLoader from '../../components/OrbitLoader';
+import { useCompactLayout } from '../../clubpm/layout/compactLayout';
 import {
   getLearnerCourse, completeCourseSection, listCourseQuestions,
 } from '../../api/clubPmClient';
@@ -138,10 +140,10 @@ export default function CoursePlayerPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { pathname, search, state: locationState } = useLocation();
-  // Which walkthrough completions this mount has already sent. handleComplete's
-  // identity changes twice per call (it closes over `completing`), so the effect
-  // below re-runs after every completion — without a record of what was already
-  // handled it would re-fire against the same unchanged location state forever.
+  // Which walkthrough completions this mount has already sent. The effect below
+  // re-runs whenever handleComplete's identity changes (it follows `load`), and
+  // without a record of what was already handled it would re-fire against the
+  // same unchanged location state.
   const handledToursRef = useRef(new Set());
   // The editor's Preview link. Honoured server-side for the author/admin only:
   // every section unlocked, and no enrollment created — otherwise checking your
@@ -152,8 +154,12 @@ export default function CoursePlayerPage() {
   const [course, setCourse] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const compact = useCompactLayout();
+  // Phone: the contents list starts collapsed so the lesson is the page.
+  const [contentsOpen, setContentsOpen] = useState(false);
   const [selectedId, setSelectedId] = useState(null);
   const [completing, setCompleting] = useState(false);
+  const completingRef = useRef(false);
   // In-video pop-ups for the selected VIDEO section (learner-safe shape).
   const [popups, setPopups] = useState([]);
   // Mirrors selectedId so `load` can read the current selection without taking a
@@ -243,7 +249,9 @@ export default function CoursePlayerPage() {
   // clubPmClient turns into the RewardFlux / quest / rank events — if particles
   // do not fly, the response shape is wrong, not this call site.
   const handleComplete = useCallback(async (sectionId, { advance = true } = {}) => {
-    if (completing) return;
+    // `completing` is stale for a second tap in the same tick; the ref is not.
+    if (completingRef.current) return;
+    completingRef.current = true;
     setCompleting(true);
     try {
       const res = await completeCourseSection(sectionId);
@@ -252,9 +260,10 @@ export default function CoursePlayerPage() {
     } catch (err) {
       toast.error(err.message ?? 'Could not mark that section complete');
     } finally {
+      completingRef.current = false;
       setCompleting(false);
     }
-  }, [completing, load]);
+  }, [load]);
 
   // A finished walkthrough navigates back here with the section it completed.
   // The router entry is then replaced without that state, so neither a refresh
@@ -300,6 +309,11 @@ export default function CoursePlayerPage() {
   const completedCount = sections.filter((s) => s.status === 'COMPLETED').length;
   const pct = sections.length ? Math.round((completedCount / sections.length) * 100) : 0;
 
+  // Step navigation walks the flat, server-ordered section list and skips
+  // anything the sequencing rules have locked, so Next can never jump a gate.
+  const { index: selectedIndex, previous: prevSection, next: nextSection } =
+    stepNeighbours(sections, selectedId);
+
   return (
     <div className="clubpm-app pm-course-learn">
       <header className="pm-course-learn-header">
@@ -334,7 +348,29 @@ export default function CoursePlayerPage() {
       </header>
 
       <div className="pm-course-learn-body">
-        <LearnerRail modules={modules} sections={sections} selectedId={selectedId} onSelect={setSelectedId} />
+        {/* The rail is the course's contents. On a phone it cannot stand beside
+            the lesson, and leaving it above pushes the lesson off the screen, so
+            it collapses behind one control that names where the learner is.
+            <details> keeps it mounted, so module open/closed state survives. */}
+        {compact ? (
+          <details className="pm-m-course-contents" open={contentsOpen} onToggle={(e) => setContentsOpen(e.currentTarget.open)}>
+            <summary>
+              <i className="fas fa-list" aria-hidden="true" />
+              <span className="pm-m-course-contents-label">Contents</span>
+              <span className="pm-m-course-contents-pos">
+                {selectedIndex >= 0 ? `Section ${selectedIndex + 1} of ${sections.length}` : `${sections.length} sections`}
+              </span>
+            </summary>
+            <LearnerRail
+              modules={modules}
+              sections={sections}
+              selectedId={selectedId}
+              onSelect={(id) => { setSelectedId(id); setContentsOpen(false); }}
+            />
+          </details>
+        ) : (
+          <LearnerRail modules={modules} sections={sections} selectedId={selectedId} onSelect={setSelectedId} />
+        )}
 
         <main className="pm-course-learn-main">
           {!selected ? (
@@ -512,6 +548,33 @@ export default function CoursePlayerPage() {
                 </div>
               )}
             </>
+          )}
+
+          {/* Previous / Next: the rail is the only way through a course today,
+              and on a phone it is collapsed. Both skip locked sections, so this
+              never offers a step the sequencing rules forbid. */}
+          {selected && sections.length > 1 && (
+            <nav className="pm-m-course-steps" aria-label="Section navigation">
+              <button
+                type="button"
+                className="pm-m-btn"
+                disabled={!prevSection}
+                onClick={() => prevSection && setSelectedId(prevSection.id)}
+              >
+                <i className="fas fa-chevron-left" aria-hidden="true" /> Previous
+              </button>
+              <span className="pm-m-course-steps-pos">
+                {selectedIndex + 1} / {sections.length}
+              </span>
+              <button
+                type="button"
+                className="pm-m-btn"
+                disabled={!nextSection}
+                onClick={() => nextSection && setSelectedId(nextSection.id)}
+              >
+                Next <i className="fas fa-chevron-right" aria-hidden="true" />
+              </button>
+            </nav>
           )}
         </main>
       </div>

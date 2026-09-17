@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import OrbitLoader from '../../components/OrbitLoader';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { get, post, listProjectRepos, openDm } from '../../api/clubPmClient';
 import { useClubPmAuth } from '../../clubpm/ClubPmAuth';
 import KudosButton from '../../components/clubpm/KudosButton';
@@ -15,6 +15,7 @@ import toast from 'react-hot-toast';
 import DmInbox from '../../components/clubpm/members/DmInbox';
 import DmPanel from '../../components/clubpm/members/DmPanel';
 import { SlackReconnectNotice } from '../../components/clubpm/chat/ChatComposer';
+import { useCompactLayout } from '../../clubpm/layout/compactLayout';
 
 const ROLES = ['Admin', 'Lead', 'Member'];
 
@@ -390,9 +391,15 @@ function MemberDrawer({ member, onClose, isOwnProfile, onMessage }) {
 
 export default function MembersView({ projectId = null }) {
   const { member: currentMember } = useClubPmAuth();
+  const compact = useCompactLayout();
+  const location = useLocation();
+  const navigate = useNavigate();
   const canDm = !!currentMember?.slackCapabilities?.dm;
   const [searchParams, setSearchParams] = useSearchParams();
   const dmChannelId = searchParams.get('dm');
+  const [mobileSection, setMobileSectionState] = useState(() => (
+    projectId || searchParams.get('view') === 'people' ? 'people' : 'dms'
+  ));
 
   const [members, setMembers]     = useState([]);
   const [loading, setLoading]     = useState(true);
@@ -425,8 +432,33 @@ export default function MembersView({ projectId = null }) {
       if (channelId) next.set('dm', channelId);
       else next.delete('dm');
       return next;
-    });
-  }, [setSearchParams]);
+    }, compact && channelId ? { state: { ...(location.state ?? {}), pmDmDetail: true } } : undefined);
+  }, [compact, location.state, setSearchParams]);
+
+  const closeDm = useCallback(() => {
+    if (!compact) { setDm(null); return; }
+    if (location.state?.pmDmDetail) navigate(-1);
+    else {
+      setSearchParams(prev => {
+        const next = new URLSearchParams(prev);
+        next.delete('dm');
+        next.delete('thread');
+        if (!projectId) next.set('view', 'dms');
+        return next;
+      }, { replace: true });
+    }
+  }, [compact, location.state, navigate, projectId, setDm, setSearchParams]);
+
+  const setMobileSection = useCallback((section) => {
+    setMobileSectionState(section);
+    if (!projectId) {
+      setSearchParams(prev => {
+        const next = new URLSearchParams(prev);
+        next.set('view', section);
+        return next;
+      }, { replace: true });
+    }
+  }, [projectId, setSearchParams]);
 
   const startDm = async (memberIds) => {
     if (!canDm) { setShowReconnect(true); return; }
@@ -497,7 +529,7 @@ export default function MembersView({ projectId = null }) {
   const messageFn = (m) => (m.id === currentMember?.id ? undefined : (target) => startDm([target.id]));
 
   return (
-    <div className={`pm-members-page${projectId ? ' pm-members-page--project' : ''}`}>
+    <div className={`pm-members-page${projectId ? ' pm-members-page--project' : ''}${dmChannelId ? ' pm-members-page--detail' : ''}`}>
       <div className="pm-members-header">
         <h1 className="pm-page-title">{projectId ? 'Project members' : 'Members'}</h1>
         <div className="pm-members-header-actions">
@@ -519,7 +551,18 @@ export default function MembersView({ projectId = null }) {
 
       {showReconnect && <SlackReconnectNotice />}
 
-      <div className={`pm-members-layout${dmChannelId ? ' pm-members-layout--dm' : ''}`}>
+      {compact && !dmChannelId && (
+        <div className="pm-m-members-switch" role="tablist" aria-label="People and direct messages">
+          <button type="button" role="tab" aria-selected={mobileSection === 'dms'} onClick={() => setMobileSection('dms')}>
+            <i className="fas fa-comments" aria-hidden="true" /> Inbox
+          </button>
+          <button type="button" role="tab" aria-selected={mobileSection === 'people'} onClick={() => setMobileSection('people')}>
+            <i className="fas fa-user-group" aria-hidden="true" /> People
+          </button>
+        </div>
+      )}
+
+      <div className={`pm-members-layout${dmChannelId ? ' pm-members-layout--dm' : ''} pm-members-layout--m-${mobileSection}`}>
         <DmInbox activeChannelId={dmChannelId} onOpen={setDm} slackIdFilter={rosterSlackIds} />
 
         <div className="pm-members-roster">
@@ -571,7 +614,29 @@ export default function MembersView({ projectId = null }) {
           )}
         </div>
 
-        {dmChannelId && <DmPanel channelId={dmChannelId} onClose={() => setDm(null)} />}
+        {dmChannelId && (
+          <DmPanel
+            channelId={dmChannelId}
+            onClose={closeDm}
+            compact={compact}
+            initialThreadTs={searchParams.get('thread')}
+            onOpenThread={ts => {
+              const next = new URLSearchParams(searchParams);
+              next.set('thread', ts);
+              navigate(`${location.pathname}?${next}`, {
+                state: { ...(location.state ?? {}), pmChatThread: true },
+              });
+            }}
+            onCloseThread={() => {
+              if (location.state?.pmChatThread) navigate(-1);
+              else {
+                const next = new URLSearchParams(searchParams);
+                next.delete('thread');
+                navigate(`${location.pathname}?${next}`, { replace: true });
+              }
+            }}
+          />
+        )}
       </div>
 
       {selecting && selectedIds.size > 0 && (

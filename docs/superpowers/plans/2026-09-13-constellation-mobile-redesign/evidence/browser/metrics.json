@@ -1,0 +1,5871 @@
+{
+  "generatedAt": "2026-09-14T01:50:34.170Z",
+  "app": "http://localhost:3000",
+  "api": "http://localhost:3001 (FIXTURE)",
+  "captures": [
+    {
+      "name": "d1440-home",
+      "note": "",
+      "file": "evidence/browser/d1440-home.png",
+      "url": "/clubpm/",
+      "viewport": {
+        "vw": 1440,
+        "vh": 900,
+        "innerWidth": 1440,
+        "deviceWidth": 1440
+      },
+      "layoutWiderThanDevice": 0,
+      "docOverflowX": 0,
+      "contentOverflowX": 0,
+      "sidebar": {
+        "left": 0,
+        "top": 0,
+        "width": 64,
+        "height": 900
+      },
+      "sidebarLabelOpacity": "0",
+      "shellMain": {
+        "left": 64,
+        "top": 0,
+        "width": 1376,
+        "height": 900
+      },
+      "topbar": {
+        "left": 64,
+        "top": 0,
+        "width": 1376,
+        "height": 56
+      },
+      "breadcrumb": "Constellation",
+      "projectMain": null,
+      "assigneePanel": null,
+      "chatSide": null,
+      "chatMain": null,
+      "composer": null,
+      "taskModal": null,
+      "errorBoundary": false,
+      "interactiveInView": 55,
+      "under44InView": 51,
+      "under44Sample": [
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Orbital Debris Tracking Payload — Integr"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Hydroponics Rack"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Outreach Night"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Empty Fixture Project"
+        },
+        {
+          "el": "button.pm-sidebar-doubloons.pm-sidebar-doubloons--link",
+          "w": 44,
+          "h": 21,
+          "label": "Open Shop"
+        },
+        {
+          "el": "a.pm-backhome-btn",
+          "w": 63,
+          "h": 36,
+          "label": "Back to the SEARCH site"
+        },
+        {
+          "el": "button.pm-signout-btn",
+          "w": 63,
+          "h": 36,
+          "label": "Sign out"
+        },
+        {
+          "el": "button.pm-topbar-btn",
+          "w": 34,
+          "h": 34,
+          "label": "Show keyboard shortcuts"
+        },
+        {
+          "el": "button.pm-cmd-k-btn",
+          "w": 61,
+          "h": 34,
+          "label": "Search (⌘K)"
+        },
+        {
+          "el": "a.pm-topbar-btn",
+          "w": 34,
+          "h": 34,
+          "label": "Quests and achievements"
+        }
+      ],
+      "overflowRightOfViewport": [],
+      "interactiveBeyondRightEdge": []
+    },
+    {
+      "name": "d1440-tasks",
+      "note": "",
+      "file": "evidence/browser/d1440-tasks.png",
+      "url": "/clubpm/projects/p1",
+      "viewport": {
+        "vw": 1440,
+        "vh": 900,
+        "innerWidth": 1440,
+        "deviceWidth": 1440
+      },
+      "layoutWiderThanDevice": 0,
+      "docOverflowX": 0,
+      "contentOverflowX": 0,
+      "sidebar": {
+        "left": 0,
+        "top": 0,
+        "width": 64,
+        "height": 900
+      },
+      "sidebarLabelOpacity": "0",
+      "shellMain": {
+        "left": 64,
+        "top": 0,
+        "width": 1376,
+        "height": 900
+      },
+      "topbar": {
+        "left": 64,
+        "top": 0,
+        "width": 1376,
+        "height": 56
+      },
+      "breadcrumb": "Projects›Project Detail",
+      "projectMain": {
+        "left": 64,
+        "top": 56,
+        "width": 1096,
+        "height": 844
+      },
+      "assigneePanel": {
+        "left": 1160,
+        "top": 56,
+        "width": 280,
+        "height": 844
+      },
+      "chatSide": null,
+      "chatMain": null,
+      "composer": null,
+      "taskModal": null,
+      "errorBoundary": false,
+      "interactiveInView": 56,
+      "under44InView": 48,
+      "under44Sample": [
+        {
+          "el": "a.pm-sidebar-project-item.active",
+          "w": 63,
+          "h": 34,
+          "label": "Orbital Debris Tracking Payload — Integr"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Hydroponics Rack"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Outreach Night"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Empty Fixture Project"
+        },
+        {
+          "el": "button.pm-sidebar-doubloons.pm-sidebar-doubloons--link",
+          "w": 44,
+          "h": 21,
+          "label": "Open Shop"
+        },
+        {
+          "el": "a.pm-backhome-btn",
+          "w": 63,
+          "h": 36,
+          "label": "Back to the SEARCH site"
+        },
+        {
+          "el": "button.pm-signout-btn",
+          "w": 63,
+          "h": 36,
+          "label": "Sign out"
+        },
+        {
+          "el": "a",
+          "w": 53,
+          "h": 21,
+          "label": "Projects"
+        },
+        {
+          "el": "button.pm-topbar-btn",
+          "w": 34,
+          "h": 34,
+          "label": "Show keyboard shortcuts"
+        },
+        {
+          "el": "button.pm-cmd-k-btn",
+          "w": 61,
+          "h": 34,
+          "label": "Search (⌘K)"
+        }
+      ],
+      "overflowRightOfViewport": [],
+      "interactiveBeyondRightEdge": []
+    },
+    {
+      "name": "d1440-chatlist",
+      "note": "",
+      "file": "evidence/browser/d1440-chatlist.png",
+      "url": "/clubpm/chat/C_FIX_GENERAL",
+      "viewport": {
+        "vw": 1440,
+        "vh": 900,
+        "innerWidth": 1440,
+        "deviceWidth": 1440
+      },
+      "layoutWiderThanDevice": 0,
+      "docOverflowX": 0,
+      "contentOverflowX": 0,
+      "sidebar": {
+        "left": 0,
+        "top": 0,
+        "width": 64,
+        "height": 900
+      },
+      "sidebarLabelOpacity": "0",
+      "shellMain": {
+        "left": 64,
+        "top": 0,
+        "width": 1376,
+        "height": 900
+      },
+      "topbar": {
+        "left": 64,
+        "top": 0,
+        "width": 1376,
+        "height": 56
+      },
+      "breadcrumb": "Social›Chat",
+      "projectMain": null,
+      "assigneePanel": null,
+      "chatSide": {
+        "left": 64,
+        "top": 56,
+        "width": 260,
+        "height": 760
+      },
+      "chatMain": {
+        "left": 340,
+        "top": 56,
+        "width": 1100,
+        "height": 760
+      },
+      "composer": {
+        "left": 357,
+        "top": 751,
+        "width": 1066,
+        "height": 52
+      },
+      "taskModal": null,
+      "errorBoundary": false,
+      "interactiveInView": 29,
+      "under44InView": 21,
+      "under44Sample": [
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Orbital Debris Tracking Payload — Integr"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Hydroponics Rack"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Outreach Night"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Empty Fixture Project"
+        },
+        {
+          "el": "button.pm-sidebar-doubloons.pm-sidebar-doubloons--link",
+          "w": 44,
+          "h": 21,
+          "label": "Open Shop"
+        },
+        {
+          "el": "a.pm-backhome-btn",
+          "w": 63,
+          "h": 36,
+          "label": "Back to the SEARCH site"
+        },
+        {
+          "el": "button.pm-signout-btn",
+          "w": 63,
+          "h": 36,
+          "label": "Sign out"
+        },
+        {
+          "el": "button.pm-topbar-btn",
+          "w": 34,
+          "h": 34,
+          "label": "Show keyboard shortcuts"
+        },
+        {
+          "el": "button.pm-cmd-k-btn",
+          "w": 61,
+          "h": 34,
+          "label": "Search (⌘K)"
+        },
+        {
+          "el": "a.pm-topbar-btn",
+          "w": 34,
+          "h": 34,
+          "label": "Quests and achievements"
+        }
+      ],
+      "overflowRightOfViewport": [],
+      "interactiveBeyondRightEdge": []
+    },
+    {
+      "name": "d1440-conversation",
+      "note": "",
+      "file": "evidence/browser/d1440-conversation.png",
+      "url": "/clubpm/chat/C_FIX_GENERAL",
+      "viewport": {
+        "vw": 1440,
+        "vh": 900,
+        "innerWidth": 1440,
+        "deviceWidth": 1440
+      },
+      "layoutWiderThanDevice": 0,
+      "docOverflowX": 0,
+      "contentOverflowX": 0,
+      "sidebar": {
+        "left": 0,
+        "top": 0,
+        "width": 64,
+        "height": 900
+      },
+      "sidebarLabelOpacity": "0",
+      "shellMain": {
+        "left": 64,
+        "top": 0,
+        "width": 1376,
+        "height": 900
+      },
+      "topbar": {
+        "left": 64,
+        "top": 0,
+        "width": 1376,
+        "height": 56
+      },
+      "breadcrumb": "Social›Chat",
+      "projectMain": null,
+      "assigneePanel": null,
+      "chatSide": {
+        "left": 64,
+        "top": 56,
+        "width": 260,
+        "height": 760
+      },
+      "chatMain": {
+        "left": 340,
+        "top": 56,
+        "width": 1100,
+        "height": 760
+      },
+      "composer": {
+        "left": 357,
+        "top": 751,
+        "width": 1066,
+        "height": 52
+      },
+      "taskModal": null,
+      "errorBoundary": false,
+      "interactiveInView": 29,
+      "under44InView": 21,
+      "under44Sample": [
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Orbital Debris Tracking Payload — Integr"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Hydroponics Rack"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Outreach Night"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Empty Fixture Project"
+        },
+        {
+          "el": "button.pm-sidebar-doubloons.pm-sidebar-doubloons--link",
+          "w": 44,
+          "h": 21,
+          "label": "Open Shop"
+        },
+        {
+          "el": "a.pm-backhome-btn",
+          "w": 63,
+          "h": 36,
+          "label": "Back to the SEARCH site"
+        },
+        {
+          "el": "button.pm-signout-btn",
+          "w": 63,
+          "h": 36,
+          "label": "Sign out"
+        },
+        {
+          "el": "button.pm-topbar-btn",
+          "w": 34,
+          "h": 34,
+          "label": "Show keyboard shortcuts"
+        },
+        {
+          "el": "button.pm-cmd-k-btn",
+          "w": 61,
+          "h": 34,
+          "label": "Search (⌘K)"
+        },
+        {
+          "el": "a.pm-topbar-btn",
+          "w": 34,
+          "h": 34,
+          "label": "Quests and achievements"
+        }
+      ],
+      "overflowRightOfViewport": [],
+      "interactiveBeyondRightEdge": []
+    },
+    {
+      "name": "d1440-members",
+      "note": "",
+      "file": "evidence/browser/d1440-members.png",
+      "url": "/clubpm/members",
+      "viewport": {
+        "vw": 1440,
+        "vh": 900,
+        "innerWidth": 1440,
+        "deviceWidth": 1440
+      },
+      "layoutWiderThanDevice": 0,
+      "docOverflowX": 0,
+      "contentOverflowX": 0,
+      "sidebar": {
+        "left": 0,
+        "top": 0,
+        "width": 64,
+        "height": 900
+      },
+      "sidebarLabelOpacity": "0",
+      "shellMain": {
+        "left": 64,
+        "top": 0,
+        "width": 1376,
+        "height": 900
+      },
+      "topbar": {
+        "left": 64,
+        "top": 0,
+        "width": 1376,
+        "height": 56
+      },
+      "breadcrumb": "Social›Members",
+      "projectMain": null,
+      "assigneePanel": null,
+      "chatSide": null,
+      "chatMain": null,
+      "composer": null,
+      "taskModal": null,
+      "errorBoundary": false,
+      "interactiveInView": 40,
+      "under44InView": 31,
+      "under44Sample": [
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Orbital Debris Tracking Payload — Integr"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Hydroponics Rack"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Outreach Night"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Empty Fixture Project"
+        },
+        {
+          "el": "button.pm-sidebar-doubloons.pm-sidebar-doubloons--link",
+          "w": 44,
+          "h": 21,
+          "label": "Open Shop"
+        },
+        {
+          "el": "a.pm-backhome-btn",
+          "w": 63,
+          "h": 36,
+          "label": "Back to the SEARCH site"
+        },
+        {
+          "el": "button.pm-signout-btn",
+          "w": 63,
+          "h": 36,
+          "label": "Sign out"
+        },
+        {
+          "el": "button.pm-topbar-btn",
+          "w": 34,
+          "h": 34,
+          "label": "Show keyboard shortcuts"
+        },
+        {
+          "el": "button.pm-cmd-k-btn",
+          "w": 61,
+          "h": 34,
+          "label": "Search (⌘K)"
+        },
+        {
+          "el": "a.pm-topbar-btn",
+          "w": 34,
+          "h": 34,
+          "label": "Quests and achievements"
+        }
+      ],
+      "overflowRightOfViewport": [],
+      "interactiveBeyondRightEdge": []
+    },
+    {
+      "name": "d1440-calendar",
+      "note": "",
+      "file": "evidence/browser/d1440-calendar.png",
+      "url": "/clubpm/calendar",
+      "viewport": {
+        "vw": 1440,
+        "vh": 900,
+        "innerWidth": 1440,
+        "deviceWidth": 1440
+      },
+      "layoutWiderThanDevice": 0,
+      "docOverflowX": 0,
+      "contentOverflowX": 0,
+      "sidebar": {
+        "left": 0,
+        "top": 0,
+        "width": 64,
+        "height": 900
+      },
+      "sidebarLabelOpacity": "0",
+      "shellMain": {
+        "left": 64,
+        "top": 0,
+        "width": 1376,
+        "height": 900
+      },
+      "topbar": {
+        "left": 64,
+        "top": 0,
+        "width": 1376,
+        "height": 56
+      },
+      "breadcrumb": "Social›Calendar",
+      "projectMain": null,
+      "assigneePanel": null,
+      "chatSide": null,
+      "chatMain": null,
+      "composer": null,
+      "taskModal": null,
+      "errorBoundary": false,
+      "interactiveInView": 39,
+      "under44InView": 35,
+      "under44Sample": [
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Orbital Debris Tracking Payload — Integr"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Hydroponics Rack"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Outreach Night"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Empty Fixture Project"
+        },
+        {
+          "el": "button.pm-sidebar-doubloons.pm-sidebar-doubloons--link",
+          "w": 44,
+          "h": 21,
+          "label": "Open Shop"
+        },
+        {
+          "el": "a.pm-backhome-btn",
+          "w": 63,
+          "h": 36,
+          "label": "Back to the SEARCH site"
+        },
+        {
+          "el": "button.pm-signout-btn",
+          "w": 63,
+          "h": 36,
+          "label": "Sign out"
+        },
+        {
+          "el": "button.pm-topbar-btn",
+          "w": 34,
+          "h": 34,
+          "label": "Show keyboard shortcuts"
+        },
+        {
+          "el": "button.pm-cmd-k-btn",
+          "w": 61,
+          "h": 34,
+          "label": "Search (⌘K)"
+        },
+        {
+          "el": "a.pm-topbar-btn",
+          "w": 34,
+          "h": 34,
+          "label": "Quests and achievements"
+        }
+      ],
+      "overflowRightOfViewport": [
+        {
+          "el": "div.cpm-cal-month-col-header",
+          "right": 2166,
+          "text": "Saturday"
+        },
+        {
+          "el": "div.cpm-cal-month-cell",
+          "right": 2166,
+          "text": "5"
+        },
+        {
+          "el": "div.cpm-cal-month-cell",
+          "right": 2166,
+          "text": "12‹RWrite the thermal-vacuum test proced"
+        },
+        {
+          "el": "div.cpm-cal-month-cell",
+          "right": 2166,
+          "text": "19"
+        },
+        {
+          "el": "div.cpm-cal-month-cell",
+          "right": 2166,
+          "text": "26"
+        },
+        {
+          "el": "div.cpm-cal-month-cell.other-month",
+          "right": 2166,
+          "text": "3"
+        },
+        {
+          "el": "div.cpm-cal-month-cell.other-month",
+          "right": 2166,
+          "text": "10"
+        },
+        {
+          "el": "div.cpm-cal-month-col-header",
+          "right": 1526,
+          "text": "Friday"
+        }
+      ],
+      "interactiveBeyondRightEdge": []
+    },
+    {
+      "name": "d1440-notifications",
+      "note": "",
+      "file": "evidence/browser/d1440-notifications.png",
+      "url": "/clubpm/notifications",
+      "viewport": {
+        "vw": 1440,
+        "vh": 900,
+        "innerWidth": 1440,
+        "deviceWidth": 1440
+      },
+      "layoutWiderThanDevice": 0,
+      "docOverflowX": 0,
+      "contentOverflowX": 0,
+      "sidebar": {
+        "left": 0,
+        "top": 0,
+        "width": 64,
+        "height": 900
+      },
+      "sidebarLabelOpacity": "0",
+      "shellMain": {
+        "left": 64,
+        "top": 0,
+        "width": 1376,
+        "height": 900
+      },
+      "topbar": {
+        "left": 64,
+        "top": 0,
+        "width": 1376,
+        "height": 56
+      },
+      "breadcrumb": "Notifications",
+      "projectMain": null,
+      "assigneePanel": null,
+      "chatSide": null,
+      "chatMain": null,
+      "composer": null,
+      "taskModal": null,
+      "errorBoundary": false,
+      "interactiveInView": 26,
+      "under44InView": 22,
+      "under44Sample": [
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Orbital Debris Tracking Payload — Integr"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Hydroponics Rack"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Outreach Night"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Empty Fixture Project"
+        },
+        {
+          "el": "button.pm-sidebar-doubloons.pm-sidebar-doubloons--link",
+          "w": 44,
+          "h": 21,
+          "label": "Open Shop"
+        },
+        {
+          "el": "a.pm-backhome-btn",
+          "w": 63,
+          "h": 36,
+          "label": "Back to the SEARCH site"
+        },
+        {
+          "el": "button.pm-signout-btn",
+          "w": 63,
+          "h": 36,
+          "label": "Sign out"
+        },
+        {
+          "el": "button.pm-topbar-btn",
+          "w": 34,
+          "h": 34,
+          "label": "Show keyboard shortcuts"
+        },
+        {
+          "el": "button.pm-cmd-k-btn",
+          "w": 61,
+          "h": 34,
+          "label": "Search (⌘K)"
+        },
+        {
+          "el": "a.pm-topbar-btn",
+          "w": 34,
+          "h": 34,
+          "label": "Quests and achievements"
+        }
+      ],
+      "overflowRightOfViewport": [],
+      "interactiveBeyondRightEdge": []
+    },
+    {
+      "name": "d1280-home",
+      "note": "",
+      "file": "evidence/browser/d1280-home.png",
+      "url": "/clubpm/",
+      "viewport": {
+        "vw": 1280,
+        "vh": 800,
+        "innerWidth": 1280,
+        "deviceWidth": 1280
+      },
+      "layoutWiderThanDevice": 0,
+      "docOverflowX": 0,
+      "contentOverflowX": 0,
+      "sidebar": {
+        "left": 0,
+        "top": 0,
+        "width": 64,
+        "height": 800
+      },
+      "sidebarLabelOpacity": "0",
+      "shellMain": {
+        "left": 64,
+        "top": 0,
+        "width": 1216,
+        "height": 800
+      },
+      "topbar": {
+        "left": 64,
+        "top": 0,
+        "width": 1216,
+        "height": 56
+      },
+      "breadcrumb": "Constellation",
+      "projectMain": null,
+      "assigneePanel": null,
+      "chatSide": null,
+      "chatMain": null,
+      "composer": null,
+      "taskModal": null,
+      "errorBoundary": false,
+      "interactiveInView": 54,
+      "under44InView": 50,
+      "under44Sample": [
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Orbital Debris Tracking Payload — Integr"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Hydroponics Rack"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Outreach Night"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Empty Fixture Project"
+        },
+        {
+          "el": "button.pm-sidebar-doubloons.pm-sidebar-doubloons--link",
+          "w": 44,
+          "h": 21,
+          "label": "Open Shop"
+        },
+        {
+          "el": "a.pm-backhome-btn",
+          "w": 63,
+          "h": 36,
+          "label": "Back to the SEARCH site"
+        },
+        {
+          "el": "button.pm-signout-btn",
+          "w": 63,
+          "h": 36,
+          "label": "Sign out"
+        },
+        {
+          "el": "button.pm-topbar-btn",
+          "w": 34,
+          "h": 34,
+          "label": "Show keyboard shortcuts"
+        },
+        {
+          "el": "button.pm-cmd-k-btn",
+          "w": 61,
+          "h": 34,
+          "label": "Search (⌘K)"
+        },
+        {
+          "el": "a.pm-topbar-btn",
+          "w": 34,
+          "h": 34,
+          "label": "Quests and achievements"
+        }
+      ],
+      "overflowRightOfViewport": [],
+      "interactiveBeyondRightEdge": []
+    },
+    {
+      "name": "d1280-tasks",
+      "note": "",
+      "file": "evidence/browser/d1280-tasks.png",
+      "url": "/clubpm/projects/p1",
+      "viewport": {
+        "vw": 1280,
+        "vh": 800,
+        "innerWidth": 1280,
+        "deviceWidth": 1280
+      },
+      "layoutWiderThanDevice": 0,
+      "docOverflowX": 0,
+      "contentOverflowX": 0,
+      "sidebar": {
+        "left": 0,
+        "top": 0,
+        "width": 64,
+        "height": 800
+      },
+      "sidebarLabelOpacity": "0",
+      "shellMain": {
+        "left": 64,
+        "top": 0,
+        "width": 1216,
+        "height": 800
+      },
+      "topbar": {
+        "left": 64,
+        "top": 0,
+        "width": 1216,
+        "height": 56
+      },
+      "breadcrumb": "Projects›Project Detail",
+      "projectMain": {
+        "left": 64,
+        "top": 56,
+        "width": 936,
+        "height": 744
+      },
+      "assigneePanel": {
+        "left": 1000,
+        "top": 56,
+        "width": 280,
+        "height": 744
+      },
+      "chatSide": null,
+      "chatMain": null,
+      "composer": null,
+      "taskModal": null,
+      "errorBoundary": false,
+      "interactiveInView": 50,
+      "under44InView": 42,
+      "under44Sample": [
+        {
+          "el": "a.pm-sidebar-project-item.active",
+          "w": 63,
+          "h": 34,
+          "label": "Orbital Debris Tracking Payload — Integr"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Hydroponics Rack"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Outreach Night"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Empty Fixture Project"
+        },
+        {
+          "el": "button.pm-sidebar-doubloons.pm-sidebar-doubloons--link",
+          "w": 44,
+          "h": 21,
+          "label": "Open Shop"
+        },
+        {
+          "el": "a.pm-backhome-btn",
+          "w": 63,
+          "h": 36,
+          "label": "Back to the SEARCH site"
+        },
+        {
+          "el": "button.pm-signout-btn",
+          "w": 63,
+          "h": 36,
+          "label": "Sign out"
+        },
+        {
+          "el": "a",
+          "w": 53,
+          "h": 21,
+          "label": "Projects"
+        },
+        {
+          "el": "button.pm-topbar-btn",
+          "w": 34,
+          "h": 34,
+          "label": "Show keyboard shortcuts"
+        },
+        {
+          "el": "button.pm-cmd-k-btn",
+          "w": 61,
+          "h": 34,
+          "label": "Search (⌘K)"
+        }
+      ],
+      "overflowRightOfViewport": [],
+      "interactiveBeyondRightEdge": []
+    },
+    {
+      "name": "d1280-chatlist",
+      "note": "",
+      "file": "evidence/browser/d1280-chatlist.png",
+      "url": "/clubpm/chat/C_FIX_GENERAL",
+      "viewport": {
+        "vw": 1280,
+        "vh": 800,
+        "innerWidth": 1280,
+        "deviceWidth": 1280
+      },
+      "layoutWiderThanDevice": 0,
+      "docOverflowX": 0,
+      "contentOverflowX": 0,
+      "sidebar": {
+        "left": 0,
+        "top": 0,
+        "width": 64,
+        "height": 800
+      },
+      "sidebarLabelOpacity": "0",
+      "shellMain": {
+        "left": 64,
+        "top": 0,
+        "width": 1216,
+        "height": 800
+      },
+      "topbar": {
+        "left": 64,
+        "top": 0,
+        "width": 1216,
+        "height": 56
+      },
+      "breadcrumb": "Social›Chat",
+      "projectMain": null,
+      "assigneePanel": null,
+      "chatSide": {
+        "left": 64,
+        "top": 56,
+        "width": 260,
+        "height": 660
+      },
+      "chatMain": {
+        "left": 340,
+        "top": 56,
+        "width": 940,
+        "height": 660
+      },
+      "composer": {
+        "left": 357,
+        "top": 651,
+        "width": 906,
+        "height": 52
+      },
+      "taskModal": null,
+      "errorBoundary": false,
+      "interactiveInView": 28,
+      "under44InView": 20,
+      "under44Sample": [
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Orbital Debris Tracking Payload — Integr"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Hydroponics Rack"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Outreach Night"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Empty Fixture Project"
+        },
+        {
+          "el": "button.pm-sidebar-doubloons.pm-sidebar-doubloons--link",
+          "w": 44,
+          "h": 21,
+          "label": "Open Shop"
+        },
+        {
+          "el": "a.pm-backhome-btn",
+          "w": 63,
+          "h": 36,
+          "label": "Back to the SEARCH site"
+        },
+        {
+          "el": "button.pm-signout-btn",
+          "w": 63,
+          "h": 36,
+          "label": "Sign out"
+        },
+        {
+          "el": "button.pm-topbar-btn",
+          "w": 34,
+          "h": 34,
+          "label": "Show keyboard shortcuts"
+        },
+        {
+          "el": "button.pm-cmd-k-btn",
+          "w": 61,
+          "h": 34,
+          "label": "Search (⌘K)"
+        },
+        {
+          "el": "a.pm-topbar-btn",
+          "w": 34,
+          "h": 34,
+          "label": "Quests and achievements"
+        }
+      ],
+      "overflowRightOfViewport": [],
+      "interactiveBeyondRightEdge": []
+    },
+    {
+      "name": "d1280-conversation",
+      "note": "",
+      "file": "evidence/browser/d1280-conversation.png",
+      "url": "/clubpm/chat/C_FIX_GENERAL",
+      "viewport": {
+        "vw": 1280,
+        "vh": 800,
+        "innerWidth": 1280,
+        "deviceWidth": 1280
+      },
+      "layoutWiderThanDevice": 0,
+      "docOverflowX": 0,
+      "contentOverflowX": 0,
+      "sidebar": {
+        "left": 0,
+        "top": 0,
+        "width": 64,
+        "height": 800
+      },
+      "sidebarLabelOpacity": "0",
+      "shellMain": {
+        "left": 64,
+        "top": 0,
+        "width": 1216,
+        "height": 800
+      },
+      "topbar": {
+        "left": 64,
+        "top": 0,
+        "width": 1216,
+        "height": 56
+      },
+      "breadcrumb": "Social›Chat",
+      "projectMain": null,
+      "assigneePanel": null,
+      "chatSide": {
+        "left": 64,
+        "top": 56,
+        "width": 260,
+        "height": 660
+      },
+      "chatMain": {
+        "left": 340,
+        "top": 56,
+        "width": 940,
+        "height": 660
+      },
+      "composer": {
+        "left": 357,
+        "top": 651,
+        "width": 906,
+        "height": 52
+      },
+      "taskModal": null,
+      "errorBoundary": false,
+      "interactiveInView": 28,
+      "under44InView": 20,
+      "under44Sample": [
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Orbital Debris Tracking Payload — Integr"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Hydroponics Rack"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Outreach Night"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Empty Fixture Project"
+        },
+        {
+          "el": "button.pm-sidebar-doubloons.pm-sidebar-doubloons--link",
+          "w": 44,
+          "h": 21,
+          "label": "Open Shop"
+        },
+        {
+          "el": "a.pm-backhome-btn",
+          "w": 63,
+          "h": 36,
+          "label": "Back to the SEARCH site"
+        },
+        {
+          "el": "button.pm-signout-btn",
+          "w": 63,
+          "h": 36,
+          "label": "Sign out"
+        },
+        {
+          "el": "button.pm-topbar-btn",
+          "w": 34,
+          "h": 34,
+          "label": "Show keyboard shortcuts"
+        },
+        {
+          "el": "button.pm-cmd-k-btn",
+          "w": 61,
+          "h": 34,
+          "label": "Search (⌘K)"
+        },
+        {
+          "el": "a.pm-topbar-btn",
+          "w": 34,
+          "h": 34,
+          "label": "Quests and achievements"
+        }
+      ],
+      "overflowRightOfViewport": [],
+      "interactiveBeyondRightEdge": []
+    },
+    {
+      "name": "d1280-members",
+      "note": "",
+      "file": "evidence/browser/d1280-members.png",
+      "url": "/clubpm/members",
+      "viewport": {
+        "vw": 1280,
+        "vh": 800,
+        "innerWidth": 1280,
+        "deviceWidth": 1280
+      },
+      "layoutWiderThanDevice": 0,
+      "docOverflowX": 0,
+      "contentOverflowX": 0,
+      "sidebar": {
+        "left": 0,
+        "top": 0,
+        "width": 64,
+        "height": 800
+      },
+      "sidebarLabelOpacity": "0",
+      "shellMain": {
+        "left": 64,
+        "top": 0,
+        "width": 1216,
+        "height": 800
+      },
+      "topbar": {
+        "left": 64,
+        "top": 0,
+        "width": 1216,
+        "height": 56
+      },
+      "breadcrumb": "Social›Members",
+      "projectMain": null,
+      "assigneePanel": null,
+      "chatSide": null,
+      "chatMain": null,
+      "composer": null,
+      "taskModal": null,
+      "errorBoundary": false,
+      "interactiveInView": 39,
+      "under44InView": 30,
+      "under44Sample": [
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Orbital Debris Tracking Payload — Integr"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Hydroponics Rack"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Outreach Night"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Empty Fixture Project"
+        },
+        {
+          "el": "button.pm-sidebar-doubloons.pm-sidebar-doubloons--link",
+          "w": 44,
+          "h": 21,
+          "label": "Open Shop"
+        },
+        {
+          "el": "a.pm-backhome-btn",
+          "w": 63,
+          "h": 36,
+          "label": "Back to the SEARCH site"
+        },
+        {
+          "el": "button.pm-signout-btn",
+          "w": 63,
+          "h": 36,
+          "label": "Sign out"
+        },
+        {
+          "el": "button.pm-topbar-btn",
+          "w": 34,
+          "h": 34,
+          "label": "Show keyboard shortcuts"
+        },
+        {
+          "el": "button.pm-cmd-k-btn",
+          "w": 61,
+          "h": 34,
+          "label": "Search (⌘K)"
+        },
+        {
+          "el": "a.pm-topbar-btn",
+          "w": 34,
+          "h": 34,
+          "label": "Quests and achievements"
+        }
+      ],
+      "overflowRightOfViewport": [],
+      "interactiveBeyondRightEdge": []
+    },
+    {
+      "name": "d1280-calendar",
+      "note": "",
+      "file": "evidence/browser/d1280-calendar.png",
+      "url": "/clubpm/calendar",
+      "viewport": {
+        "vw": 1280,
+        "vh": 800,
+        "innerWidth": 1280,
+        "deviceWidth": 1280
+      },
+      "layoutWiderThanDevice": 0,
+      "docOverflowX": 0,
+      "contentOverflowX": 0,
+      "sidebar": {
+        "left": 0,
+        "top": 0,
+        "width": 64,
+        "height": 800
+      },
+      "sidebarLabelOpacity": "0",
+      "shellMain": {
+        "left": 64,
+        "top": 0,
+        "width": 1216,
+        "height": 800
+      },
+      "topbar": {
+        "left": 64,
+        "top": 0,
+        "width": 1216,
+        "height": 56
+      },
+      "breadcrumb": "Social›Calendar",
+      "projectMain": null,
+      "assigneePanel": null,
+      "chatSide": null,
+      "chatMain": null,
+      "composer": null,
+      "taskModal": null,
+      "errorBoundary": false,
+      "interactiveInView": 39,
+      "under44InView": 35,
+      "under44Sample": [
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Orbital Debris Tracking Payload — Integr"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Hydroponics Rack"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Outreach Night"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Empty Fixture Project"
+        },
+        {
+          "el": "button.pm-sidebar-doubloons.pm-sidebar-doubloons--link",
+          "w": 44,
+          "h": 21,
+          "label": "Open Shop"
+        },
+        {
+          "el": "a.pm-backhome-btn",
+          "w": 63,
+          "h": 36,
+          "label": "Back to the SEARCH site"
+        },
+        {
+          "el": "button.pm-signout-btn",
+          "w": 63,
+          "h": 36,
+          "label": "Sign out"
+        },
+        {
+          "el": "button.pm-topbar-btn",
+          "w": 34,
+          "h": 34,
+          "label": "Show keyboard shortcuts"
+        },
+        {
+          "el": "button.pm-cmd-k-btn",
+          "w": 61,
+          "h": 34,
+          "label": "Search (⌘K)"
+        },
+        {
+          "el": "a.pm-topbar-btn",
+          "w": 34,
+          "h": 34,
+          "label": "Quests and achievements"
+        }
+      ],
+      "overflowRightOfViewport": [
+        {
+          "el": "div.cpm-cal-month-col-header",
+          "right": 2166,
+          "text": "Saturday"
+        },
+        {
+          "el": "div.cpm-cal-month-cell",
+          "right": 2166,
+          "text": "5"
+        },
+        {
+          "el": "div.cpm-cal-month-cell",
+          "right": 2166,
+          "text": "12‹RWrite the thermal-vacuum test proced"
+        },
+        {
+          "el": "div.cpm-cal-month-cell",
+          "right": 2166,
+          "text": "19"
+        },
+        {
+          "el": "div.cpm-cal-month-cell",
+          "right": 2166,
+          "text": "26"
+        },
+        {
+          "el": "div.cpm-cal-month-cell.other-month",
+          "right": 2166,
+          "text": "3"
+        },
+        {
+          "el": "div.cpm-cal-month-cell.other-month",
+          "right": 2166,
+          "text": "10"
+        },
+        {
+          "el": "div.cpm-cal-month-col-header",
+          "right": 1526,
+          "text": "Friday"
+        }
+      ],
+      "interactiveBeyondRightEdge": []
+    },
+    {
+      "name": "d1280-notifications",
+      "note": "",
+      "file": "evidence/browser/d1280-notifications.png",
+      "url": "/clubpm/notifications",
+      "viewport": {
+        "vw": 1280,
+        "vh": 800,
+        "innerWidth": 1280,
+        "deviceWidth": 1280
+      },
+      "layoutWiderThanDevice": 0,
+      "docOverflowX": 0,
+      "contentOverflowX": 0,
+      "sidebar": {
+        "left": 0,
+        "top": 0,
+        "width": 64,
+        "height": 800
+      },
+      "sidebarLabelOpacity": "0",
+      "shellMain": {
+        "left": 64,
+        "top": 0,
+        "width": 1216,
+        "height": 800
+      },
+      "topbar": {
+        "left": 64,
+        "top": 0,
+        "width": 1216,
+        "height": 56
+      },
+      "breadcrumb": "Notifications",
+      "projectMain": null,
+      "assigneePanel": null,
+      "chatSide": null,
+      "chatMain": null,
+      "composer": null,
+      "taskModal": null,
+      "errorBoundary": false,
+      "interactiveInView": 26,
+      "under44InView": 22,
+      "under44Sample": [
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Orbital Debris Tracking Payload — Integr"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Hydroponics Rack"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Outreach Night"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Empty Fixture Project"
+        },
+        {
+          "el": "button.pm-sidebar-doubloons.pm-sidebar-doubloons--link",
+          "w": 44,
+          "h": 21,
+          "label": "Open Shop"
+        },
+        {
+          "el": "a.pm-backhome-btn",
+          "w": 63,
+          "h": 36,
+          "label": "Back to the SEARCH site"
+        },
+        {
+          "el": "button.pm-signout-btn",
+          "w": 63,
+          "h": 36,
+          "label": "Sign out"
+        },
+        {
+          "el": "button.pm-topbar-btn",
+          "w": 34,
+          "h": 34,
+          "label": "Show keyboard shortcuts"
+        },
+        {
+          "el": "button.pm-cmd-k-btn",
+          "w": 61,
+          "h": 34,
+          "label": "Search (⌘K)"
+        },
+        {
+          "el": "a.pm-topbar-btn",
+          "w": 34,
+          "h": 34,
+          "label": "Quests and achievements"
+        }
+      ],
+      "overflowRightOfViewport": [],
+      "interactiveBeyondRightEdge": []
+    },
+    {
+      "name": "p390-home",
+      "note": "",
+      "file": "evidence/browser/p390-home.png",
+      "url": "/clubpm/",
+      "viewport": {
+        "vw": 390,
+        "vh": 933,
+        "innerWidth": 431,
+        "deviceWidth": 390
+      },
+      "layoutWiderThanDevice": 41,
+      "docOverflowX": 41,
+      "contentOverflowX": 0,
+      "sidebar": {
+        "left": 0,
+        "top": 0,
+        "width": 64,
+        "height": 844
+      },
+      "sidebarLabelOpacity": "0",
+      "shellMain": {
+        "left": 64,
+        "top": 0,
+        "width": 326,
+        "height": 844
+      },
+      "topbar": {
+        "left": 64,
+        "top": 0,
+        "width": 326,
+        "height": 56
+      },
+      "breadcrumb": "Constellation",
+      "projectMain": null,
+      "assigneePanel": null,
+      "chatSide": null,
+      "chatMain": null,
+      "composer": null,
+      "taskModal": null,
+      "errorBoundary": false,
+      "interactiveInView": 33,
+      "under44InView": 29,
+      "under44Sample": [
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Orbital Debris Tracking Payload — Integr"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Hydroponics Rack"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Outreach Night"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Empty Fixture Project"
+        },
+        {
+          "el": "button.pm-sidebar-doubloons.pm-sidebar-doubloons--link",
+          "w": 44,
+          "h": 21,
+          "label": "Open Shop"
+        },
+        {
+          "el": "a.pm-backhome-btn",
+          "w": 63,
+          "h": 36,
+          "label": "Back to the SEARCH site"
+        },
+        {
+          "el": "button.pm-signout-btn",
+          "w": 63,
+          "h": 36,
+          "label": "Sign out"
+        },
+        {
+          "el": "button.pm-topbar-btn",
+          "w": 34,
+          "h": 34,
+          "label": "Show keyboard shortcuts"
+        },
+        {
+          "el": "button.pm-cmd-k-btn",
+          "w": 61,
+          "h": 34,
+          "label": "Search (⌘K)"
+        },
+        {
+          "el": "a.pm-topbar-btn",
+          "w": 34,
+          "h": 34,
+          "label": "Quests and achievements"
+        }
+      ],
+      "overflowRightOfViewport": [
+        {
+          "el": "div.pm-reward-flux-layer",
+          "right": 431,
+          "text": ""
+        },
+        {
+          "el": "div.pm-topbar-actions",
+          "right": 425,
+          "text": "⌘K41"
+        },
+        {
+          "el": "div",
+          "right": 415,
+          "text": ""
+        }
+      ],
+      "interactiveBeyondRightEdge": [
+        {
+          "el": "button.pm-notif-bell-btn",
+          "left": 389,
+          "text": "Notifications, 1 unread"
+        }
+      ]
+    },
+    {
+      "name": "p390-tasks",
+      "note": "",
+      "file": "evidence/browser/p390-tasks.png",
+      "url": "/clubpm/projects/p1",
+      "viewport": {
+        "vw": 390,
+        "vh": 1002,
+        "innerWidth": 463,
+        "deviceWidth": 390
+      },
+      "layoutWiderThanDevice": 73,
+      "docOverflowX": 73,
+      "contentOverflowX": 0,
+      "sidebar": {
+        "left": 0,
+        "top": 0,
+        "width": 64,
+        "height": 844
+      },
+      "sidebarLabelOpacity": "0",
+      "shellMain": {
+        "left": 64,
+        "top": 0,
+        "width": 326,
+        "height": 844
+      },
+      "topbar": {
+        "left": 64,
+        "top": 0,
+        "width": 326,
+        "height": 56
+      },
+      "breadcrumb": "Projects›Project Detail",
+      "projectMain": {
+        "left": 64,
+        "top": 56,
+        "width": 46,
+        "height": 788
+      },
+      "assigneePanel": {
+        "left": 110,
+        "top": 56,
+        "width": 280,
+        "height": 788
+      },
+      "chatSide": null,
+      "chatMain": null,
+      "composer": null,
+      "taskModal": null,
+      "errorBoundary": false,
+      "interactiveInView": 41,
+      "under44InView": 33,
+      "under44Sample": [
+        {
+          "el": "a.pm-sidebar-project-item.active",
+          "w": 63,
+          "h": 34,
+          "label": "Orbital Debris Tracking Payload — Integr"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Hydroponics Rack"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Outreach Night"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Empty Fixture Project"
+        },
+        {
+          "el": "button.pm-sidebar-doubloons.pm-sidebar-doubloons--link",
+          "w": 44,
+          "h": 21,
+          "label": "Open Shop"
+        },
+        {
+          "el": "a.pm-backhome-btn",
+          "w": 63,
+          "h": 36,
+          "label": "Back to the SEARCH site"
+        },
+        {
+          "el": "button.pm-signout-btn",
+          "w": 63,
+          "h": 36,
+          "label": "Sign out"
+        },
+        {
+          "el": "a",
+          "w": 53,
+          "h": 21,
+          "label": "Projects"
+        },
+        {
+          "el": "button.pm-topbar-btn",
+          "w": 34,
+          "h": 34,
+          "label": "Show keyboard shortcuts"
+        },
+        {
+          "el": "button.pm-cmd-k-btn",
+          "w": 61,
+          "h": 34,
+          "label": "Search (⌘K)"
+        }
+      ],
+      "overflowRightOfViewport": [
+        {
+          "el": "button.pm-gantt-scale-btn",
+          "right": 523,
+          "text": "Newest"
+        },
+        {
+          "el": "div.pm-reward-flux-layer",
+          "right": 463,
+          "text": ""
+        },
+        {
+          "el": "div.pm-topbar-actions",
+          "right": 457,
+          "text": "⌘K41"
+        },
+        {
+          "el": "svg",
+          "right": 449,
+          "text": "Sep 26714Kickoff meeting notesRileyWaiti"
+        },
+        {
+          "el": "div",
+          "right": 447,
+          "text": ""
+        },
+        {
+          "el": "button.pm-gantt-scale-btn.active",
+          "right": 446,
+          "text": "Today"
+        }
+      ],
+      "interactiveBeyondRightEdge": [
+        {
+          "el": "button.pm-notif-bell-btn",
+          "left": 421,
+          "text": "Notifications, 1 unread"
+        },
+        {
+          "el": "button.pm-gantt-scale-btn",
+          "left": 452,
+          "text": "Newest"
+        }
+      ]
+    },
+    {
+      "name": "p390-chatlist",
+      "note": "",
+      "file": "evidence/browser/p390-chatlist.png",
+      "url": "/clubpm/chat/C_FIX_GENERAL",
+      "viewport": {
+        "vw": 390,
+        "vh": 940,
+        "innerWidth": 434,
+        "deviceWidth": 390
+      },
+      "layoutWiderThanDevice": 44,
+      "docOverflowX": 44,
+      "contentOverflowX": 0,
+      "sidebar": {
+        "left": 0,
+        "top": 0,
+        "width": 64,
+        "height": 844
+      },
+      "sidebarLabelOpacity": "0",
+      "shellMain": {
+        "left": 64,
+        "top": 0,
+        "width": 326,
+        "height": 844
+      },
+      "topbar": {
+        "left": 64,
+        "top": 0,
+        "width": 326,
+        "height": 56
+      },
+      "breadcrumb": "Social›Chat",
+      "projectMain": null,
+      "assigneePanel": null,
+      "chatSide": {
+        "left": 64,
+        "top": 56,
+        "width": 326,
+        "height": 260
+      },
+      "chatMain": {
+        "left": 64,
+        "top": 332,
+        "width": 326,
+        "height": 1953
+      },
+      "composer": {
+        "left": 81,
+        "top": 2220,
+        "width": 292,
+        "height": 52
+      },
+      "taskModal": null,
+      "errorBoundary": false,
+      "interactiveInView": 25,
+      "under44InView": 18,
+      "under44Sample": [
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Orbital Debris Tracking Payload — Integr"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Hydroponics Rack"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Outreach Night"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Empty Fixture Project"
+        },
+        {
+          "el": "button.pm-sidebar-doubloons.pm-sidebar-doubloons--link",
+          "w": 44,
+          "h": 21,
+          "label": "Open Shop"
+        },
+        {
+          "el": "a.pm-backhome-btn",
+          "w": 63,
+          "h": 36,
+          "label": "Back to the SEARCH site"
+        },
+        {
+          "el": "button.pm-signout-btn",
+          "w": 63,
+          "h": 36,
+          "label": "Sign out"
+        },
+        {
+          "el": "button.pm-topbar-btn",
+          "w": 34,
+          "h": 34,
+          "label": "Show keyboard shortcuts"
+        },
+        {
+          "el": "button.pm-cmd-k-btn",
+          "w": 61,
+          "h": 34,
+          "label": "Search (⌘K)"
+        },
+        {
+          "el": "a.pm-topbar-btn",
+          "w": 34,
+          "h": 34,
+          "label": "Quests and achievements"
+        }
+      ],
+      "overflowRightOfViewport": [
+        {
+          "el": "div.pm-reward-flux-layer",
+          "right": 434,
+          "text": ""
+        },
+        {
+          "el": "div.pm-topbar-actions",
+          "right": 428,
+          "text": "⌘K41"
+        },
+        {
+          "el": "div",
+          "right": 418,
+          "text": ""
+        }
+      ],
+      "interactiveBeyondRightEdge": [
+        {
+          "el": "button.pm-notif-bell-btn",
+          "left": 392,
+          "text": "Notifications, 1 unread"
+        }
+      ]
+    },
+    {
+      "name": "p390-conversation",
+      "note": "",
+      "file": "evidence/browser/p390-conversation.png",
+      "url": "/clubpm/chat/C_FIX_GENERAL",
+      "viewport": {
+        "vw": 390,
+        "vh": 940,
+        "innerWidth": 434,
+        "deviceWidth": 390
+      },
+      "layoutWiderThanDevice": 44,
+      "docOverflowX": 44,
+      "contentOverflowX": 0,
+      "sidebar": {
+        "left": 0,
+        "top": 0,
+        "width": 64,
+        "height": 844
+      },
+      "sidebarLabelOpacity": "0",
+      "shellMain": {
+        "left": 64,
+        "top": 0,
+        "width": 326,
+        "height": 844
+      },
+      "topbar": {
+        "left": 64,
+        "top": 0,
+        "width": 326,
+        "height": 56
+      },
+      "breadcrumb": "Social›Chat",
+      "projectMain": null,
+      "assigneePanel": null,
+      "chatSide": {
+        "left": 64,
+        "top": 56,
+        "width": 326,
+        "height": 260
+      },
+      "chatMain": {
+        "left": 64,
+        "top": 332,
+        "width": 326,
+        "height": 1953
+      },
+      "composer": {
+        "left": 81,
+        "top": 2220,
+        "width": 292,
+        "height": 52
+      },
+      "taskModal": null,
+      "errorBoundary": false,
+      "interactiveInView": 25,
+      "under44InView": 18,
+      "under44Sample": [
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Orbital Debris Tracking Payload — Integr"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Hydroponics Rack"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Outreach Night"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Empty Fixture Project"
+        },
+        {
+          "el": "button.pm-sidebar-doubloons.pm-sidebar-doubloons--link",
+          "w": 44,
+          "h": 21,
+          "label": "Open Shop"
+        },
+        {
+          "el": "a.pm-backhome-btn",
+          "w": 63,
+          "h": 36,
+          "label": "Back to the SEARCH site"
+        },
+        {
+          "el": "button.pm-signout-btn",
+          "w": 63,
+          "h": 36,
+          "label": "Sign out"
+        },
+        {
+          "el": "button.pm-topbar-btn",
+          "w": 34,
+          "h": 34,
+          "label": "Show keyboard shortcuts"
+        },
+        {
+          "el": "button.pm-cmd-k-btn",
+          "w": 61,
+          "h": 34,
+          "label": "Search (⌘K)"
+        },
+        {
+          "el": "a.pm-topbar-btn",
+          "w": 34,
+          "h": 34,
+          "label": "Quests and achievements"
+        }
+      ],
+      "overflowRightOfViewport": [
+        {
+          "el": "div.pm-reward-flux-layer",
+          "right": 434,
+          "text": ""
+        },
+        {
+          "el": "div.pm-topbar-actions",
+          "right": 428,
+          "text": "⌘K41"
+        },
+        {
+          "el": "div",
+          "right": 418,
+          "text": ""
+        }
+      ],
+      "interactiveBeyondRightEdge": [
+        {
+          "el": "button.pm-notif-bell-btn",
+          "left": 392,
+          "text": "Notifications, 1 unread"
+        }
+      ]
+    },
+    {
+      "name": "p390-members",
+      "note": "",
+      "file": "evidence/browser/p390-members.png",
+      "url": "/clubpm/members",
+      "viewport": {
+        "vw": 390,
+        "vh": 1005,
+        "innerWidth": 465,
+        "deviceWidth": 390
+      },
+      "layoutWiderThanDevice": 75,
+      "docOverflowX": 75,
+      "contentOverflowX": 0,
+      "sidebar": {
+        "left": 0,
+        "top": 0,
+        "width": 64,
+        "height": 844
+      },
+      "sidebarLabelOpacity": "0",
+      "shellMain": {
+        "left": 64,
+        "top": 0,
+        "width": 326,
+        "height": 844
+      },
+      "topbar": {
+        "left": 64,
+        "top": 0,
+        "width": 326,
+        "height": 56
+      },
+      "breadcrumb": "Social›Members",
+      "projectMain": null,
+      "assigneePanel": null,
+      "chatSide": null,
+      "chatMain": null,
+      "composer": null,
+      "taskModal": null,
+      "errorBoundary": false,
+      "interactiveInView": 23,
+      "under44InView": 17,
+      "under44Sample": [
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Orbital Debris Tracking Payload — Integr"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Hydroponics Rack"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Outreach Night"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Empty Fixture Project"
+        },
+        {
+          "el": "button.pm-sidebar-doubloons.pm-sidebar-doubloons--link",
+          "w": 44,
+          "h": 21,
+          "label": "Open Shop"
+        },
+        {
+          "el": "a.pm-backhome-btn",
+          "w": 63,
+          "h": 36,
+          "label": "Back to the SEARCH site"
+        },
+        {
+          "el": "button.pm-signout-btn",
+          "w": 63,
+          "h": 36,
+          "label": "Sign out"
+        },
+        {
+          "el": "button.pm-topbar-btn",
+          "w": 34,
+          "h": 34,
+          "label": "Show keyboard shortcuts"
+        },
+        {
+          "el": "button.pm-cmd-k-btn",
+          "w": 61,
+          "h": 34,
+          "label": "Search (⌘K)"
+        },
+        {
+          "el": "a.pm-topbar-btn",
+          "w": 34,
+          "h": 34,
+          "label": "Quests and achievements"
+        }
+      ],
+      "overflowRightOfViewport": [
+        {
+          "el": "div.pm-reward-flux-layer",
+          "right": 465,
+          "text": ""
+        },
+        {
+          "el": "div.pm-topbar-actions",
+          "right": 459,
+          "text": "⌘K41"
+        },
+        {
+          "el": "div",
+          "right": 449,
+          "text": ""
+        },
+        {
+          "el": "span.member-name-frame",
+          "right": 449,
+          "text": "Maximilian Alexander Longname-Fixture"
+        }
+      ],
+      "interactiveBeyondRightEdge": [
+        {
+          "el": "button.pm-notif-bell-btn",
+          "left": 423,
+          "text": "Notifications, 1 unread"
+        }
+      ]
+    },
+    {
+      "name": "p390-calendar",
+      "note": "",
+      "file": "evidence/browser/p390-calendar.png",
+      "url": "/clubpm/calendar",
+      "viewport": {
+        "vw": 390,
+        "vh": 1000,
+        "innerWidth": 462,
+        "deviceWidth": 390
+      },
+      "layoutWiderThanDevice": 72,
+      "docOverflowX": 72,
+      "contentOverflowX": 15,
+      "sidebar": {
+        "left": 0,
+        "top": 0,
+        "width": 64,
+        "height": 844
+      },
+      "sidebarLabelOpacity": "0",
+      "shellMain": {
+        "left": 64,
+        "top": 0,
+        "width": 326,
+        "height": 844
+      },
+      "topbar": {
+        "left": 64,
+        "top": 0,
+        "width": 326,
+        "height": 56
+      },
+      "breadcrumb": "Social›Calendar",
+      "projectMain": null,
+      "assigneePanel": null,
+      "chatSide": null,
+      "chatMain": null,
+      "composer": null,
+      "taskModal": null,
+      "errorBoundary": false,
+      "interactiveInView": 36,
+      "under44InView": 32,
+      "under44Sample": [
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Orbital Debris Tracking Payload — Integr"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Hydroponics Rack"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Outreach Night"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Empty Fixture Project"
+        },
+        {
+          "el": "button.pm-sidebar-doubloons.pm-sidebar-doubloons--link",
+          "w": 44,
+          "h": 21,
+          "label": "Open Shop"
+        },
+        {
+          "el": "a.pm-backhome-btn",
+          "w": 63,
+          "h": 36,
+          "label": "Back to the SEARCH site"
+        },
+        {
+          "el": "button.pm-signout-btn",
+          "w": 63,
+          "h": 36,
+          "label": "Sign out"
+        },
+        {
+          "el": "button.pm-topbar-btn",
+          "w": 34,
+          "h": 34,
+          "label": "Show keyboard shortcuts"
+        },
+        {
+          "el": "button.pm-cmd-k-btn",
+          "w": 61,
+          "h": 34,
+          "label": "Search (⌘K)"
+        },
+        {
+          "el": "a.pm-topbar-btn",
+          "w": 34,
+          "h": 34,
+          "label": "Quests and achievements"
+        }
+      ],
+      "overflowRightOfViewport": [
+        {
+          "el": "div.cpm-cal-month-col-header",
+          "right": 2166,
+          "text": "Saturday"
+        },
+        {
+          "el": "div.cpm-cal-month-cell",
+          "right": 2166,
+          "text": "5"
+        },
+        {
+          "el": "div.cpm-cal-month-cell",
+          "right": 2166,
+          "text": "12‹RWrite the thermal-vacuum test proced"
+        },
+        {
+          "el": "div.cpm-cal-month-cell",
+          "right": 2166,
+          "text": "19"
+        },
+        {
+          "el": "div.cpm-cal-month-cell",
+          "right": 2166,
+          "text": "26"
+        },
+        {
+          "el": "div.cpm-cal-month-cell.other-month",
+          "right": 2166,
+          "text": "3"
+        },
+        {
+          "el": "div.cpm-cal-month-cell.other-month",
+          "right": 2166,
+          "text": "10"
+        },
+        {
+          "el": "div.cpm-cal-month-col-header",
+          "right": 1526,
+          "text": "Friday"
+        }
+      ],
+      "interactiveBeyondRightEdge": [
+        {
+          "el": "button.pm-notif-bell-btn",
+          "left": 420,
+          "text": "Notifications, 1 unread"
+        },
+        {
+          "el": "button.cpm-cal-view-btn.active",
+          "left": 402,
+          "text": "Month"
+        },
+        {
+          "el": "button.cpm-cal-view-btn",
+          "left": 465,
+          "text": "Agenda"
+        }
+      ]
+    },
+    {
+      "name": "p390-notifications",
+      "note": "",
+      "file": "evidence/browser/p390-notifications.png",
+      "url": "/clubpm/notifications",
+      "viewport": {
+        "vw": 390,
+        "vh": 925,
+        "innerWidth": 427,
+        "deviceWidth": 390
+      },
+      "layoutWiderThanDevice": 37,
+      "docOverflowX": 37,
+      "contentOverflowX": 0,
+      "sidebar": {
+        "left": 0,
+        "top": 0,
+        "width": 64,
+        "height": 844
+      },
+      "sidebarLabelOpacity": "0",
+      "shellMain": {
+        "left": 64,
+        "top": 0,
+        "width": 326,
+        "height": 844
+      },
+      "topbar": {
+        "left": 64,
+        "top": 0,
+        "width": 326,
+        "height": 56
+      },
+      "breadcrumb": "Notifications",
+      "projectMain": null,
+      "assigneePanel": null,
+      "chatSide": null,
+      "chatMain": null,
+      "composer": null,
+      "taskModal": null,
+      "errorBoundary": false,
+      "interactiveInView": 26,
+      "under44InView": 19,
+      "under44Sample": [
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Orbital Debris Tracking Payload — Integr"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Hydroponics Rack"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Outreach Night"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Empty Fixture Project"
+        },
+        {
+          "el": "button.pm-sidebar-doubloons.pm-sidebar-doubloons--link",
+          "w": 44,
+          "h": 21,
+          "label": "Open Shop"
+        },
+        {
+          "el": "a.pm-backhome-btn",
+          "w": 63,
+          "h": 36,
+          "label": "Back to the SEARCH site"
+        },
+        {
+          "el": "button.pm-signout-btn",
+          "w": 63,
+          "h": 36,
+          "label": "Sign out"
+        },
+        {
+          "el": "button.pm-topbar-btn",
+          "w": 34,
+          "h": 34,
+          "label": "Show keyboard shortcuts"
+        },
+        {
+          "el": "button.pm-cmd-k-btn",
+          "w": 61,
+          "h": 34,
+          "label": "Search (⌘K)"
+        },
+        {
+          "el": "a.pm-topbar-btn",
+          "w": 34,
+          "h": 34,
+          "label": "Quests and achievements"
+        }
+      ],
+      "overflowRightOfViewport": [
+        {
+          "el": "div.pm-reward-flux-layer",
+          "right": 427,
+          "text": ""
+        },
+        {
+          "el": "div.pm-topbar-actions",
+          "right": 422,
+          "text": "⌘K41"
+        },
+        {
+          "el": "div",
+          "right": 411,
+          "text": ""
+        }
+      ],
+      "interactiveBeyondRightEdge": []
+    },
+    {
+      "name": "p320-home",
+      "note": "",
+      "file": "evidence/browser/p320-home.png",
+      "url": "/clubpm/",
+      "viewport": {
+        "vw": 320,
+        "vh": 862,
+        "innerWidth": 431,
+        "deviceWidth": 320
+      },
+      "layoutWiderThanDevice": 111,
+      "docOverflowX": 111,
+      "contentOverflowX": 0,
+      "sidebar": {
+        "left": 0,
+        "top": 0,
+        "width": 64,
+        "height": 640
+      },
+      "sidebarLabelOpacity": "0",
+      "shellMain": {
+        "left": 64,
+        "top": 0,
+        "width": 256,
+        "height": 640
+      },
+      "topbar": {
+        "left": 64,
+        "top": 0,
+        "width": 256,
+        "height": 56
+      },
+      "breadcrumb": "Constellation",
+      "projectMain": null,
+      "assigneePanel": null,
+      "chatSide": null,
+      "chatMain": null,
+      "composer": null,
+      "taskModal": null,
+      "errorBoundary": false,
+      "interactiveInView": 30,
+      "under44InView": 26,
+      "under44Sample": [
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Orbital Debris Tracking Payload — Integr"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Hydroponics Rack"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Outreach Night"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Empty Fixture Project"
+        },
+        {
+          "el": "button.pm-sidebar-doubloons.pm-sidebar-doubloons--link",
+          "w": 44,
+          "h": 21,
+          "label": "Open Shop"
+        },
+        {
+          "el": "a.pm-backhome-btn",
+          "w": 63,
+          "h": 36,
+          "label": "Back to the SEARCH site"
+        },
+        {
+          "el": "button.pm-signout-btn",
+          "w": 63,
+          "h": 36,
+          "label": "Sign out"
+        },
+        {
+          "el": "button.pm-topbar-btn",
+          "w": 34,
+          "h": 34,
+          "label": "Show keyboard shortcuts"
+        },
+        {
+          "el": "button.pm-cmd-k-btn",
+          "w": 61,
+          "h": 34,
+          "label": "Search (⌘K)"
+        },
+        {
+          "el": "a.pm-topbar-btn",
+          "w": 34,
+          "h": 34,
+          "label": "Quests and achievements"
+        }
+      ],
+      "overflowRightOfViewport": [
+        {
+          "el": "div.pm-reward-flux-layer",
+          "right": 431,
+          "text": ""
+        },
+        {
+          "el": "div.pm-topbar-actions",
+          "right": 425,
+          "text": "⌘K41"
+        },
+        {
+          "el": "div",
+          "right": 415,
+          "text": ""
+        },
+        {
+          "el": "button.cpm-nav-btn",
+          "right": 385,
+          "text": "Week"
+        },
+        {
+          "el": "div.cpm-panel-header-right",
+          "right": 324,
+          "text": "Sort: DefaultSort: Tags"
+        }
+      ],
+      "interactiveBeyondRightEdge": [
+        {
+          "el": "a.pm-streak-badge.is-active",
+          "left": 340,
+          "text": "4-day streak. 0 freezes available. Last "
+        },
+        {
+          "el": "button.pm-notif-bell-btn",
+          "left": 389,
+          "text": "Notifications, 1 unread"
+        },
+        {
+          "el": "button.cpm-nav-btn",
+          "left": 323,
+          "text": "Week"
+        }
+      ]
+    },
+    {
+      "name": "p320-tasks",
+      "note": "",
+      "file": "evidence/browser/p320-tasks.png",
+      "url": "/clubpm/projects/p1",
+      "viewport": {
+        "vw": 320,
+        "vh": 926,
+        "innerWidth": 463,
+        "deviceWidth": 320
+      },
+      "layoutWiderThanDevice": 143,
+      "docOverflowX": 143,
+      "contentOverflowX": 0,
+      "sidebar": {
+        "left": 0,
+        "top": 0,
+        "width": 64,
+        "height": 640
+      },
+      "sidebarLabelOpacity": "0",
+      "shellMain": {
+        "left": 64,
+        "top": 0,
+        "width": 256,
+        "height": 640
+      },
+      "topbar": {
+        "left": 64,
+        "top": 0,
+        "width": 256,
+        "height": 56
+      },
+      "breadcrumb": "Projects›Project Detail",
+      "projectMain": {
+        "left": 64,
+        "top": 56,
+        "width": 0,
+        "height": 584
+      },
+      "assigneePanel": {
+        "left": 64,
+        "top": 56,
+        "width": 280,
+        "height": 584
+      },
+      "chatSide": null,
+      "chatMain": null,
+      "composer": null,
+      "taskModal": null,
+      "errorBoundary": false,
+      "interactiveInView": 37,
+      "under44InView": 29,
+      "under44Sample": [
+        {
+          "el": "a.pm-sidebar-project-item.active",
+          "w": 63,
+          "h": 34,
+          "label": "Orbital Debris Tracking Payload — Integr"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Hydroponics Rack"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Outreach Night"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Empty Fixture Project"
+        },
+        {
+          "el": "button.pm-sidebar-doubloons.pm-sidebar-doubloons--link",
+          "w": 44,
+          "h": 21,
+          "label": "Open Shop"
+        },
+        {
+          "el": "a.pm-backhome-btn",
+          "w": 63,
+          "h": 36,
+          "label": "Back to the SEARCH site"
+        },
+        {
+          "el": "button.pm-signout-btn",
+          "w": 63,
+          "h": 36,
+          "label": "Sign out"
+        },
+        {
+          "el": "a",
+          "w": 53,
+          "h": 21,
+          "label": "Projects"
+        },
+        {
+          "el": "button.pm-topbar-btn",
+          "w": 34,
+          "h": 34,
+          "label": "Show keyboard shortcuts"
+        },
+        {
+          "el": "button.pm-cmd-k-btn",
+          "w": 61,
+          "h": 34,
+          "label": "Search (⌘K)"
+        }
+      ],
+      "overflowRightOfViewport": [
+        {
+          "el": "button.pm-gantt-scale-btn",
+          "right": 523,
+          "text": "Newest"
+        },
+        {
+          "el": "div.pm-reward-flux-layer",
+          "right": 463,
+          "text": ""
+        },
+        {
+          "el": "div.pm-topbar-actions",
+          "right": 457,
+          "text": "⌘K41"
+        },
+        {
+          "el": "svg",
+          "right": 449,
+          "text": "Sep 26714Kickoff meeting notesRileyWaiti"
+        },
+        {
+          "el": "div",
+          "right": 447,
+          "text": ""
+        },
+        {
+          "el": "button.pm-gantt-scale-btn.active",
+          "right": 446,
+          "text": "Today"
+        },
+        {
+          "el": "button.pm-gantt-scale-btn",
+          "right": 375,
+          "text": "Oldest"
+        },
+        {
+          "el": "aside.cpm-assignee-panel",
+          "right": 344,
+          "text": "MembersAssigneesEveryoneNobodyRFRiley Fi"
+        }
+      ],
+      "interactiveBeyondRightEdge": [
+        {
+          "el": "a.pm-topbar-btn",
+          "left": 330,
+          "text": "Quests and achievements"
+        },
+        {
+          "el": "a.pm-streak-badge.is-active",
+          "left": 372,
+          "text": "4-day streak. 0 freezes available. Last "
+        },
+        {
+          "el": "button.pm-notif-bell-btn",
+          "left": 421,
+          "text": "Notifications, 1 unread"
+        },
+        {
+          "el": "button.pm-gantt-scale-btn.active",
+          "left": 381,
+          "text": "Today"
+        },
+        {
+          "el": "button.pm-gantt-scale-btn",
+          "left": 452,
+          "text": "Newest"
+        }
+      ]
+    },
+    {
+      "name": "p320-chatlist",
+      "note": "",
+      "file": "evidence/browser/p320-chatlist.png",
+      "url": "/clubpm/chat/C_FIX_GENERAL",
+      "viewport": {
+        "vw": 320,
+        "vh": 868,
+        "innerWidth": 434,
+        "deviceWidth": 320
+      },
+      "layoutWiderThanDevice": 114,
+      "docOverflowX": 114,
+      "contentOverflowX": 0,
+      "sidebar": {
+        "left": 0,
+        "top": 0,
+        "width": 64,
+        "height": 640
+      },
+      "sidebarLabelOpacity": "0",
+      "shellMain": {
+        "left": 64,
+        "top": 0,
+        "width": 256,
+        "height": 640
+      },
+      "topbar": {
+        "left": 64,
+        "top": 0,
+        "width": 256,
+        "height": 56
+      },
+      "breadcrumb": "Social›Chat",
+      "projectMain": null,
+      "assigneePanel": null,
+      "chatSide": {
+        "left": 64,
+        "top": 56,
+        "width": 256,
+        "height": 260
+      },
+      "chatMain": {
+        "left": 64,
+        "top": 332,
+        "width": 256,
+        "height": 2547
+      },
+      "composer": {
+        "left": 81,
+        "top": 2814,
+        "width": 222,
+        "height": 52
+      },
+      "taskModal": null,
+      "errorBoundary": false,
+      "interactiveInView": 23,
+      "under44InView": 15,
+      "under44Sample": [
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Orbital Debris Tracking Payload — Integr"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Hydroponics Rack"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Outreach Night"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Empty Fixture Project"
+        },
+        {
+          "el": "button.pm-sidebar-doubloons.pm-sidebar-doubloons--link",
+          "w": 44,
+          "h": 21,
+          "label": "Open Shop"
+        },
+        {
+          "el": "a.pm-backhome-btn",
+          "w": 63,
+          "h": 36,
+          "label": "Back to the SEARCH site"
+        },
+        {
+          "el": "button.pm-signout-btn",
+          "w": 63,
+          "h": 36,
+          "label": "Sign out"
+        },
+        {
+          "el": "button.pm-topbar-btn",
+          "w": 34,
+          "h": 34,
+          "label": "Show keyboard shortcuts"
+        },
+        {
+          "el": "button.pm-cmd-k-btn",
+          "w": 61,
+          "h": 34,
+          "label": "Search (⌘K)"
+        },
+        {
+          "el": "a.pm-topbar-btn",
+          "w": 34,
+          "h": 34,
+          "label": "Quests and achievements"
+        }
+      ],
+      "overflowRightOfViewport": [
+        {
+          "el": "div.pm-reward-flux-layer",
+          "right": 434,
+          "text": ""
+        },
+        {
+          "el": "div.pm-topbar-actions",
+          "right": 428,
+          "text": "⌘K41"
+        },
+        {
+          "el": "div",
+          "right": 418,
+          "text": ""
+        }
+      ],
+      "interactiveBeyondRightEdge": [
+        {
+          "el": "a.pm-streak-badge.is-active",
+          "left": 343,
+          "text": "4-day streak. 0 freezes available. Last "
+        },
+        {
+          "el": "button.pm-notif-bell-btn",
+          "left": 392,
+          "text": "Notifications, 1 unread"
+        }
+      ]
+    },
+    {
+      "name": "p320-conversation",
+      "note": "",
+      "file": "evidence/browser/p320-conversation.png",
+      "url": "/clubpm/chat/C_FIX_GENERAL",
+      "viewport": {
+        "vw": 320,
+        "vh": 868,
+        "innerWidth": 434,
+        "deviceWidth": 320
+      },
+      "layoutWiderThanDevice": 114,
+      "docOverflowX": 114,
+      "contentOverflowX": 0,
+      "sidebar": {
+        "left": 0,
+        "top": 0,
+        "width": 64,
+        "height": 640
+      },
+      "sidebarLabelOpacity": "0",
+      "shellMain": {
+        "left": 64,
+        "top": 0,
+        "width": 256,
+        "height": 640
+      },
+      "topbar": {
+        "left": 64,
+        "top": 0,
+        "width": 256,
+        "height": 56
+      },
+      "breadcrumb": "Social›Chat",
+      "projectMain": null,
+      "assigneePanel": null,
+      "chatSide": {
+        "left": 64,
+        "top": 56,
+        "width": 256,
+        "height": 260
+      },
+      "chatMain": {
+        "left": 64,
+        "top": 332,
+        "width": 256,
+        "height": 2547
+      },
+      "composer": {
+        "left": 81,
+        "top": 2814,
+        "width": 222,
+        "height": 52
+      },
+      "taskModal": null,
+      "errorBoundary": false,
+      "interactiveInView": 23,
+      "under44InView": 15,
+      "under44Sample": [
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Orbital Debris Tracking Payload — Integr"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Hydroponics Rack"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Outreach Night"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Empty Fixture Project"
+        },
+        {
+          "el": "button.pm-sidebar-doubloons.pm-sidebar-doubloons--link",
+          "w": 44,
+          "h": 21,
+          "label": "Open Shop"
+        },
+        {
+          "el": "a.pm-backhome-btn",
+          "w": 63,
+          "h": 36,
+          "label": "Back to the SEARCH site"
+        },
+        {
+          "el": "button.pm-signout-btn",
+          "w": 63,
+          "h": 36,
+          "label": "Sign out"
+        },
+        {
+          "el": "button.pm-topbar-btn",
+          "w": 34,
+          "h": 34,
+          "label": "Show keyboard shortcuts"
+        },
+        {
+          "el": "button.pm-cmd-k-btn",
+          "w": 61,
+          "h": 34,
+          "label": "Search (⌘K)"
+        },
+        {
+          "el": "a.pm-topbar-btn",
+          "w": 34,
+          "h": 34,
+          "label": "Quests and achievements"
+        }
+      ],
+      "overflowRightOfViewport": [
+        {
+          "el": "div.pm-reward-flux-layer",
+          "right": 434,
+          "text": ""
+        },
+        {
+          "el": "div.pm-topbar-actions",
+          "right": 428,
+          "text": "⌘K41"
+        },
+        {
+          "el": "div",
+          "right": 418,
+          "text": ""
+        }
+      ],
+      "interactiveBeyondRightEdge": [
+        {
+          "el": "a.pm-streak-badge.is-active",
+          "left": 343,
+          "text": "4-day streak. 0 freezes available. Last "
+        },
+        {
+          "el": "button.pm-notif-bell-btn",
+          "left": 392,
+          "text": "Notifications, 1 unread"
+        }
+      ]
+    },
+    {
+      "name": "p320-members",
+      "note": "",
+      "file": "evidence/browser/p320-members.png",
+      "url": "/clubpm/members",
+      "viewport": {
+        "vw": 320,
+        "vh": 928,
+        "innerWidth": 464,
+        "deviceWidth": 320
+      },
+      "layoutWiderThanDevice": 144,
+      "docOverflowX": 144,
+      "contentOverflowX": 30,
+      "sidebar": {
+        "left": 0,
+        "top": 0,
+        "width": 64,
+        "height": 640
+      },
+      "sidebarLabelOpacity": "0",
+      "shellMain": {
+        "left": 64,
+        "top": 0,
+        "width": 256,
+        "height": 640
+      },
+      "topbar": {
+        "left": 64,
+        "top": 0,
+        "width": 256,
+        "height": 56
+      },
+      "breadcrumb": "Social›Members",
+      "projectMain": null,
+      "assigneePanel": null,
+      "chatSide": null,
+      "chatMain": null,
+      "composer": null,
+      "taskModal": null,
+      "errorBoundary": false,
+      "interactiveInView": 20,
+      "under44InView": 15,
+      "under44Sample": [
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Orbital Debris Tracking Payload — Integr"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Hydroponics Rack"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Outreach Night"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Empty Fixture Project"
+        },
+        {
+          "el": "button.pm-sidebar-doubloons.pm-sidebar-doubloons--link",
+          "w": 44,
+          "h": 21,
+          "label": "Open Shop"
+        },
+        {
+          "el": "a.pm-backhome-btn",
+          "w": 63,
+          "h": 36,
+          "label": "Back to the SEARCH site"
+        },
+        {
+          "el": "button.pm-signout-btn",
+          "w": 63,
+          "h": 36,
+          "label": "Sign out"
+        },
+        {
+          "el": "button.pm-topbar-btn",
+          "w": 34,
+          "h": 34,
+          "label": "Show keyboard shortcuts"
+        },
+        {
+          "el": "button.pm-cmd-k-btn",
+          "w": 61,
+          "h": 34,
+          "label": "Search (⌘K)"
+        },
+        {
+          "el": "button.clubpm-btn-secondary",
+          "w": 161,
+          "h": 36,
+          "label": "Group message"
+        }
+      ],
+      "overflowRightOfViewport": [
+        {
+          "el": "div.pm-reward-flux-layer",
+          "right": 464,
+          "text": ""
+        },
+        {
+          "el": "div.pm-topbar-actions",
+          "right": 459,
+          "text": "⌘K41"
+        },
+        {
+          "el": "div",
+          "right": 448,
+          "text": ""
+        },
+        {
+          "el": "div.cpm-leaderboard-controls",
+          "right": 350,
+          "text": "All-timeFall 2025Spring 2026Fall 2026"
+        },
+        {
+          "el": "div.pm-member-card.pm-member-card--enriched",
+          "right": 324,
+          "text": "RFRiley Fixture@riley.fixtureFixture mem"
+        },
+        {
+          "el": "div.pm-member-card.pm-member-card--enriched",
+          "right": 324,
+          "text": "JQJordan Q. Placeholder@jordan.q.placeho"
+        },
+        {
+          "el": "div.pm-member-card.pm-member-card--enriched",
+          "right": 324,
+          "text": "STSam Testcase@sam.testcaseFixture membe"
+        },
+        {
+          "el": "div.pm-member-card.pm-member-card--enriched",
+          "right": 324,
+          "text": "MAMaximilian Alexander Longname-Fixture@"
+        }
+      ],
+      "interactiveBeyondRightEdge": [
+        {
+          "el": "a.pm-topbar-btn",
+          "left": 332,
+          "text": "Quests and achievements"
+        },
+        {
+          "el": "a.pm-streak-badge.is-active",
+          "left": 374,
+          "text": "4-day streak. 0 freezes available. Last "
+        },
+        {
+          "el": "button.pm-notif-bell-btn",
+          "left": 423,
+          "text": "Notifications, 1 unread"
+        }
+      ]
+    },
+    {
+      "name": "p320-calendar",
+      "note": "",
+      "file": "evidence/browser/p320-calendar.png",
+      "url": "/clubpm/calendar",
+      "viewport": {
+        "vw": 320,
+        "vh": 924,
+        "innerWidth": 462,
+        "deviceWidth": 320
+      },
+      "layoutWiderThanDevice": 142,
+      "docOverflowX": 142,
+      "contentOverflowX": 85,
+      "sidebar": {
+        "left": 0,
+        "top": 0,
+        "width": 64,
+        "height": 640
+      },
+      "sidebarLabelOpacity": "0",
+      "shellMain": {
+        "left": 64,
+        "top": 0,
+        "width": 256,
+        "height": 640
+      },
+      "topbar": {
+        "left": 64,
+        "top": 0,
+        "width": 256,
+        "height": 56
+      },
+      "breadcrumb": "Social›Calendar",
+      "projectMain": null,
+      "assigneePanel": null,
+      "chatSide": null,
+      "chatMain": null,
+      "composer": null,
+      "taskModal": null,
+      "errorBoundary": false,
+      "interactiveInView": 33,
+      "under44InView": 29,
+      "under44Sample": [
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Orbital Debris Tracking Payload — Integr"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Hydroponics Rack"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Outreach Night"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Empty Fixture Project"
+        },
+        {
+          "el": "button.pm-sidebar-doubloons.pm-sidebar-doubloons--link",
+          "w": 44,
+          "h": 21,
+          "label": "Open Shop"
+        },
+        {
+          "el": "a.pm-backhome-btn",
+          "w": 63,
+          "h": 36,
+          "label": "Back to the SEARCH site"
+        },
+        {
+          "el": "button.pm-signout-btn",
+          "w": 63,
+          "h": 36,
+          "label": "Sign out"
+        },
+        {
+          "el": "button.pm-topbar-btn",
+          "w": 34,
+          "h": 34,
+          "label": "Show keyboard shortcuts"
+        },
+        {
+          "el": "button.pm-cmd-k-btn",
+          "w": 61,
+          "h": 34,
+          "label": "Search (⌘K)"
+        },
+        {
+          "el": "input",
+          "w": 13,
+          "h": 13,
+          "label": ""
+        }
+      ],
+      "overflowRightOfViewport": [
+        {
+          "el": "div.cpm-cal-month-col-header",
+          "right": 2166,
+          "text": "Saturday"
+        },
+        {
+          "el": "div.cpm-cal-month-cell",
+          "right": 2166,
+          "text": "5"
+        },
+        {
+          "el": "div.cpm-cal-month-cell",
+          "right": 2166,
+          "text": "12‹RWrite the thermal-vacuum test proced"
+        },
+        {
+          "el": "div.cpm-cal-month-cell",
+          "right": 2166,
+          "text": "19"
+        },
+        {
+          "el": "div.cpm-cal-month-cell",
+          "right": 2166,
+          "text": "26"
+        },
+        {
+          "el": "div.cpm-cal-month-cell.other-month",
+          "right": 2166,
+          "text": "3"
+        },
+        {
+          "el": "div.cpm-cal-month-cell.other-month",
+          "right": 2166,
+          "text": "10"
+        },
+        {
+          "el": "div.cpm-cal-month-col-header",
+          "right": 1526,
+          "text": "Friday"
+        }
+      ],
+      "interactiveBeyondRightEdge": [
+        {
+          "el": "a.pm-topbar-btn",
+          "left": 329,
+          "text": "Quests and achievements"
+        },
+        {
+          "el": "a.pm-streak-badge.is-active",
+          "left": 371,
+          "text": "4-day streak. 0 freezes available. Last "
+        },
+        {
+          "el": "button.pm-notif-bell-btn",
+          "left": 420,
+          "text": "Notifications, 1 unread"
+        },
+        {
+          "el": "button.cpm-cal-view-btn",
+          "left": 343,
+          "text": "Week"
+        },
+        {
+          "el": "button.cpm-cal-view-btn.active",
+          "left": 402,
+          "text": "Month"
+        },
+        {
+          "el": "button.cpm-cal-view-btn",
+          "left": 465,
+          "text": "Agenda"
+        }
+      ]
+    },
+    {
+      "name": "p320-notifications",
+      "note": "",
+      "file": "evidence/browser/p320-notifications.png",
+      "url": "/clubpm/notifications",
+      "viewport": {
+        "vw": 320,
+        "vh": 854,
+        "innerWidth": 427,
+        "deviceWidth": 320
+      },
+      "layoutWiderThanDevice": 107,
+      "docOverflowX": 107,
+      "contentOverflowX": 29,
+      "sidebar": {
+        "left": 0,
+        "top": 0,
+        "width": 64,
+        "height": 640
+      },
+      "sidebarLabelOpacity": "0",
+      "shellMain": {
+        "left": 64,
+        "top": 0,
+        "width": 256,
+        "height": 640
+      },
+      "topbar": {
+        "left": 64,
+        "top": 0,
+        "width": 256,
+        "height": 56
+      },
+      "breadcrumb": "Notifications",
+      "projectMain": null,
+      "assigneePanel": null,
+      "chatSide": null,
+      "chatMain": null,
+      "composer": null,
+      "taskModal": null,
+      "errorBoundary": false,
+      "interactiveInView": 24,
+      "under44InView": 15,
+      "under44Sample": [
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Orbital Debris Tracking Payload — Integr"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Hydroponics Rack"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Outreach Night"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Empty Fixture Project"
+        },
+        {
+          "el": "button.pm-sidebar-doubloons.pm-sidebar-doubloons--link",
+          "w": 44,
+          "h": 21,
+          "label": "Open Shop"
+        },
+        {
+          "el": "a.pm-backhome-btn",
+          "w": 63,
+          "h": 36,
+          "label": "Back to the SEARCH site"
+        },
+        {
+          "el": "button.pm-signout-btn",
+          "w": 63,
+          "h": 36,
+          "label": "Sign out"
+        },
+        {
+          "el": "button.pm-topbar-btn",
+          "w": 34,
+          "h": 34,
+          "label": "Show keyboard shortcuts"
+        },
+        {
+          "el": "button.pm-cmd-k-btn",
+          "w": 61,
+          "h": 34,
+          "label": "Search (⌘K)"
+        },
+        {
+          "el": "a.pm-topbar-btn",
+          "w": 34,
+          "h": 34,
+          "label": "Quests and achievements"
+        }
+      ],
+      "overflowRightOfViewport": [
+        {
+          "el": "div.pm-reward-flux-layer",
+          "right": 427,
+          "text": ""
+        },
+        {
+          "el": "div.pm-topbar-actions",
+          "right": 422,
+          "text": "⌘K41"
+        },
+        {
+          "el": "div",
+          "right": 411,
+          "text": ""
+        },
+        {
+          "el": "button.pm-notif-tab",
+          "right": 349,
+          "text": "Projects"
+        }
+      ],
+      "interactiveBeyondRightEdge": [
+        {
+          "el": "a.pm-streak-badge.is-active",
+          "left": 337,
+          "text": "4-day streak. 0 freezes available. Last "
+        },
+        {
+          "el": "button.pm-notif-bell-btn",
+          "left": 386,
+          "text": "Notifications, 1 unread"
+        }
+      ]
+    },
+    {
+      "name": "l844-home",
+      "note": "",
+      "file": "evidence/browser/l844-home.png",
+      "url": "/clubpm/",
+      "viewport": {
+        "vw": 844,
+        "vh": 390,
+        "innerWidth": 844,
+        "deviceWidth": 844
+      },
+      "layoutWiderThanDevice": 0,
+      "docOverflowX": 0,
+      "contentOverflowX": 0,
+      "sidebar": {
+        "left": 0,
+        "top": 0,
+        "width": 64,
+        "height": 390
+      },
+      "sidebarLabelOpacity": "0",
+      "shellMain": {
+        "left": 64,
+        "top": 0,
+        "width": 780,
+        "height": 390
+      },
+      "topbar": {
+        "left": 64,
+        "top": 0,
+        "width": 780,
+        "height": 56
+      },
+      "breadcrumb": "Constellation",
+      "projectMain": null,
+      "assigneePanel": null,
+      "chatSide": null,
+      "chatMain": null,
+      "composer": null,
+      "taskModal": null,
+      "errorBoundary": false,
+      "interactiveInView": 39,
+      "under44InView": 35,
+      "under44Sample": [
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Orbital Debris Tracking Payload — Integr"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Hydroponics Rack"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Outreach Night"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Empty Fixture Project"
+        },
+        {
+          "el": "button.pm-sidebar-doubloons.pm-sidebar-doubloons--link",
+          "w": 44,
+          "h": 21,
+          "label": "Open Shop"
+        },
+        {
+          "el": "a.pm-backhome-btn",
+          "w": 63,
+          "h": 36,
+          "label": "Back to the SEARCH site"
+        },
+        {
+          "el": "button.pm-signout-btn",
+          "w": 63,
+          "h": 36,
+          "label": "Sign out"
+        },
+        {
+          "el": "button.pm-topbar-btn",
+          "w": 34,
+          "h": 34,
+          "label": "Show keyboard shortcuts"
+        },
+        {
+          "el": "button.pm-cmd-k-btn",
+          "w": 61,
+          "h": 34,
+          "label": "Search (⌘K)"
+        },
+        {
+          "el": "a.pm-topbar-btn",
+          "w": 34,
+          "h": 34,
+          "label": "Quests and achievements"
+        }
+      ],
+      "overflowRightOfViewport": [
+        {
+          "el": "button.cpm-nav-btn",
+          "right": 865,
+          "text": "Week"
+        }
+      ],
+      "interactiveBeyondRightEdge": []
+    },
+    {
+      "name": "l844-tasks",
+      "note": "",
+      "file": "evidence/browser/l844-tasks.png",
+      "url": "/clubpm/projects/p1",
+      "viewport": {
+        "vw": 844,
+        "vh": 390,
+        "innerWidth": 844,
+        "deviceWidth": 844
+      },
+      "layoutWiderThanDevice": 0,
+      "docOverflowX": 0,
+      "contentOverflowX": 0,
+      "sidebar": {
+        "left": 0,
+        "top": 0,
+        "width": 64,
+        "height": 390
+      },
+      "sidebarLabelOpacity": "0",
+      "shellMain": {
+        "left": 64,
+        "top": 0,
+        "width": 780,
+        "height": 390
+      },
+      "topbar": {
+        "left": 64,
+        "top": 0,
+        "width": 780,
+        "height": 56
+      },
+      "breadcrumb": "Projects›Project Detail",
+      "projectMain": {
+        "left": 64,
+        "top": 56,
+        "width": 500,
+        "height": 334
+      },
+      "assigneePanel": {
+        "left": 564,
+        "top": 56,
+        "width": 280,
+        "height": 334
+      },
+      "chatSide": null,
+      "chatMain": null,
+      "composer": null,
+      "taskModal": null,
+      "errorBoundary": false,
+      "interactiveInView": 32,
+      "under44InView": 25,
+      "under44Sample": [
+        {
+          "el": "a",
+          "w": 53,
+          "h": 21,
+          "label": "Projects"
+        },
+        {
+          "el": "button.pm-topbar-btn",
+          "w": 34,
+          "h": 34,
+          "label": "Show keyboard shortcuts"
+        },
+        {
+          "el": "button.pm-cmd-k-btn",
+          "w": 61,
+          "h": 34,
+          "label": "Search (⌘K)"
+        },
+        {
+          "el": "a.pm-topbar-btn",
+          "w": 34,
+          "h": 34,
+          "label": "Quests and achievements"
+        },
+        {
+          "el": "a.pm-streak-badge.is-active",
+          "w": 63,
+          "h": 36,
+          "label": "4-day streak. 0 freezes available. Last "
+        },
+        {
+          "el": "button.pm-notif-bell-btn",
+          "w": 36,
+          "h": 36,
+          "label": "Notifications, 1 unread"
+        },
+        {
+          "el": "a",
+          "w": 65,
+          "h": 19,
+          "label": "Dashboard"
+        },
+        {
+          "el": "select",
+          "w": 153,
+          "h": 24,
+          "label": "— Link Slack channel —"
+        },
+        {
+          "el": "button.pm-proj-edit-btn",
+          "w": 34,
+          "h": 34,
+          "label": "Edit project"
+        },
+        {
+          "el": "button.pm-pin-btn",
+          "w": 34,
+          "h": 34,
+          "label": "Pin project"
+        }
+      ],
+      "overflowRightOfViewport": [],
+      "interactiveBeyondRightEdge": []
+    },
+    {
+      "name": "l844-conversation",
+      "note": "",
+      "file": "evidence/browser/l844-conversation.png",
+      "url": "/clubpm/chat/C_FIX_GENERAL",
+      "viewport": {
+        "vw": 844,
+        "vh": 390,
+        "innerWidth": 844,
+        "deviceWidth": 844
+      },
+      "layoutWiderThanDevice": 0,
+      "docOverflowX": 0,
+      "contentOverflowX": 0,
+      "sidebar": {
+        "left": 0,
+        "top": 0,
+        "width": 64,
+        "height": 390
+      },
+      "sidebarLabelOpacity": "0",
+      "shellMain": {
+        "left": 64,
+        "top": 0,
+        "width": 780,
+        "height": 390
+      },
+      "topbar": {
+        "left": 64,
+        "top": 0,
+        "width": 780,
+        "height": 56
+      },
+      "breadcrumb": "Social›Chat",
+      "projectMain": null,
+      "assigneePanel": null,
+      "chatSide": {
+        "left": 64,
+        "top": 56,
+        "width": 780,
+        "height": 260
+      },
+      "chatMain": {
+        "left": 64,
+        "top": 332,
+        "width": 780,
+        "height": 1257
+      },
+      "composer": {
+        "left": 81,
+        "top": 1524,
+        "width": 746,
+        "height": 52
+      },
+      "taskModal": null,
+      "errorBoundary": false,
+      "interactiveInView": 25,
+      "under44InView": 18,
+      "under44Sample": [
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Orbital Debris Tracking Payload — Integr"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Hydroponics Rack"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Outreach Night"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Empty Fixture Project"
+        },
+        {
+          "el": "button.pm-sidebar-doubloons.pm-sidebar-doubloons--link",
+          "w": 44,
+          "h": 21,
+          "label": "Open Shop"
+        },
+        {
+          "el": "a.pm-backhome-btn",
+          "w": 63,
+          "h": 36,
+          "label": "Back to the SEARCH site"
+        },
+        {
+          "el": "button.pm-signout-btn",
+          "w": 63,
+          "h": 36,
+          "label": "Sign out"
+        },
+        {
+          "el": "button.pm-topbar-btn",
+          "w": 34,
+          "h": 34,
+          "label": "Show keyboard shortcuts"
+        },
+        {
+          "el": "button.pm-cmd-k-btn",
+          "w": 61,
+          "h": 34,
+          "label": "Search (⌘K)"
+        },
+        {
+          "el": "a.pm-topbar-btn",
+          "w": 34,
+          "h": 34,
+          "label": "Quests and achievements"
+        }
+      ],
+      "overflowRightOfViewport": [],
+      "interactiveBeyondRightEdge": []
+    },
+    {
+      "name": "p390-task-modal-deeplink",
+      "note": "?task= deep link opens TaskModal",
+      "file": "evidence/browser/p390-task-modal-deeplink.png",
+      "url": "/clubpm/projects/p1?task=t3",
+      "viewport": {
+        "vw": 390,
+        "vh": 1002,
+        "innerWidth": 463,
+        "deviceWidth": 390
+      },
+      "layoutWiderThanDevice": 73,
+      "docOverflowX": 73,
+      "contentOverflowX": 0,
+      "sidebar": {
+        "left": 0,
+        "top": 0,
+        "width": 64,
+        "height": 844
+      },
+      "sidebarLabelOpacity": "0",
+      "shellMain": {
+        "left": 64,
+        "top": 0,
+        "width": 326,
+        "height": 844
+      },
+      "topbar": {
+        "left": 64,
+        "top": 0,
+        "width": 326,
+        "height": 56
+      },
+      "breadcrumb": "Projects›Project Detail",
+      "projectMain": {
+        "left": 64,
+        "top": 56,
+        "width": 46,
+        "height": 788
+      },
+      "assigneePanel": {
+        "left": 110,
+        "top": 56,
+        "width": 280,
+        "height": 788
+      },
+      "chatSide": null,
+      "chatMain": null,
+      "composer": null,
+      "taskModal": {
+        "left": 44,
+        "top": 113,
+        "width": 374,
+        "height": 776
+      },
+      "errorBoundary": false,
+      "interactiveInView": 53,
+      "under44InView": 44,
+      "under44Sample": [
+        {
+          "el": "a.pm-sidebar-project-item.active",
+          "w": 63,
+          "h": 34,
+          "label": "Orbital Debris Tracking Payload — Integr"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Hydroponics Rack"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Outreach Night"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Empty Fixture Project"
+        },
+        {
+          "el": "button.pm-sidebar-doubloons.pm-sidebar-doubloons--link",
+          "w": 44,
+          "h": 21,
+          "label": "Open Shop"
+        },
+        {
+          "el": "a.pm-backhome-btn",
+          "w": 63,
+          "h": 36,
+          "label": "Back to the SEARCH site"
+        },
+        {
+          "el": "button.pm-signout-btn",
+          "w": 63,
+          "h": 36,
+          "label": "Sign out"
+        },
+        {
+          "el": "a",
+          "w": 53,
+          "h": 21,
+          "label": "Projects"
+        },
+        {
+          "el": "button.pm-topbar-btn",
+          "w": 34,
+          "h": 34,
+          "label": "Show keyboard shortcuts"
+        },
+        {
+          "el": "button.pm-cmd-k-btn",
+          "w": 61,
+          "h": 34,
+          "label": "Search (⌘K)"
+        }
+      ],
+      "overflowRightOfViewport": [
+        {
+          "el": "button.pm-gantt-scale-btn",
+          "right": 523,
+          "text": "Newest"
+        },
+        {
+          "el": "div.pm-reward-flux-layer",
+          "right": 463,
+          "text": ""
+        },
+        {
+          "el": "div",
+          "right": 463,
+          "text": "Orbital Debris Tracking Payload — Integr"
+        },
+        {
+          "el": "div.pm-topbar-actions",
+          "right": 457,
+          "text": "⌘K41"
+        },
+        {
+          "el": "svg",
+          "right": 449,
+          "text": "Sep 26714Kickoff meeting notesRileyWaiti"
+        },
+        {
+          "el": "div",
+          "right": 447,
+          "text": ""
+        },
+        {
+          "el": "button.pm-gantt-scale-btn.active",
+          "right": 446,
+          "text": "Today"
+        }
+      ],
+      "interactiveBeyondRightEdge": [
+        {
+          "el": "button.pm-notif-bell-btn",
+          "left": 421,
+          "text": "Notifications, 1 unread"
+        },
+        {
+          "el": "button.pm-gantt-scale-btn",
+          "left": 452,
+          "text": "Newest"
+        },
+        {
+          "el": "button",
+          "left": 425,
+          "text": "Critical"
+        },
+        {
+          "el": "input",
+          "left": 425,
+          "text": ""
+        },
+        {
+          "el": "input",
+          "left": 519,
+          "text": "Tag color"
+        },
+        {
+          "el": "button",
+          "left": 545,
+          "text": "Create"
+        }
+      ]
+    },
+    {
+      "name": "p390-project-insights-ai",
+      "note": "legacy/current Insights AI deep link",
+      "file": "evidence/browser/p390-project-insights-ai.png",
+      "url": "/clubpm/projects/p1?tab=insights&view=ai",
+      "viewport": {
+        "vw": 390,
+        "vh": 1002,
+        "innerWidth": 463,
+        "deviceWidth": 390
+      },
+      "layoutWiderThanDevice": 73,
+      "docOverflowX": 73,
+      "contentOverflowX": 0,
+      "sidebar": {
+        "left": 0,
+        "top": 0,
+        "width": 64,
+        "height": 844
+      },
+      "sidebarLabelOpacity": "0",
+      "shellMain": {
+        "left": 64,
+        "top": 0,
+        "width": 326,
+        "height": 844
+      },
+      "topbar": {
+        "left": 64,
+        "top": 0,
+        "width": 326,
+        "height": 56
+      },
+      "breadcrumb": "Projects›Project Detail",
+      "projectMain": {
+        "left": 64,
+        "top": 56,
+        "width": 326,
+        "height": 788
+      },
+      "assigneePanel": null,
+      "chatSide": null,
+      "chatMain": null,
+      "composer": null,
+      "taskModal": null,
+      "errorBoundary": false,
+      "interactiveInView": 35,
+      "under44InView": 20,
+      "under44Sample": [
+        {
+          "el": "a.pm-sidebar-project-item.active",
+          "w": 63,
+          "h": 34,
+          "label": "Orbital Debris Tracking Payload — Integr"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Hydroponics Rack"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Outreach Night"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Empty Fixture Project"
+        },
+        {
+          "el": "button.pm-sidebar-doubloons.pm-sidebar-doubloons--link",
+          "w": 44,
+          "h": 21,
+          "label": "Open Shop"
+        },
+        {
+          "el": "a.pm-backhome-btn",
+          "w": 63,
+          "h": 36,
+          "label": "Back to the SEARCH site"
+        },
+        {
+          "el": "button.pm-signout-btn",
+          "w": 63,
+          "h": 36,
+          "label": "Sign out"
+        },
+        {
+          "el": "a",
+          "w": 53,
+          "h": 21,
+          "label": "Projects"
+        },
+        {
+          "el": "button.pm-topbar-btn",
+          "w": 34,
+          "h": 34,
+          "label": "Show keyboard shortcuts"
+        },
+        {
+          "el": "button.pm-cmd-k-btn",
+          "w": 61,
+          "h": 34,
+          "label": "Search (⌘K)"
+        }
+      ],
+      "overflowRightOfViewport": [
+        {
+          "el": "div.pm-reward-flux-layer",
+          "right": 463,
+          "text": ""
+        },
+        {
+          "el": "div.pm-topbar-actions",
+          "right": 457,
+          "text": "⌘K41"
+        },
+        {
+          "el": "div",
+          "right": 447,
+          "text": ""
+        },
+        {
+          "el": "button.clubpm-btn-primary",
+          "right": 427,
+          "text": "Suggest plan"
+        }
+      ],
+      "interactiveBeyondRightEdge": [
+        {
+          "el": "button.pm-notif-bell-btn",
+          "left": 421,
+          "text": "Notifications, 1 unread"
+        }
+      ]
+    },
+    {
+      "name": "p390-project-files",
+      "note": "Files tab",
+      "file": "evidence/browser/p390-project-files.png",
+      "url": "/clubpm/projects/p1?tab=files",
+      "viewport": {
+        "vw": 390,
+        "vh": 1002,
+        "innerWidth": 463,
+        "deviceWidth": 390
+      },
+      "layoutWiderThanDevice": 73,
+      "docOverflowX": 73,
+      "contentOverflowX": 0,
+      "sidebar": {
+        "left": 0,
+        "top": 0,
+        "width": 64,
+        "height": 844
+      },
+      "sidebarLabelOpacity": "0",
+      "shellMain": {
+        "left": 64,
+        "top": 0,
+        "width": 326,
+        "height": 844
+      },
+      "topbar": {
+        "left": 64,
+        "top": 0,
+        "width": 326,
+        "height": 56
+      },
+      "breadcrumb": "Projects›Project Detail",
+      "projectMain": {
+        "left": 64,
+        "top": 56,
+        "width": 326,
+        "height": 788
+      },
+      "assigneePanel": null,
+      "chatSide": null,
+      "chatMain": null,
+      "composer": null,
+      "taskModal": null,
+      "errorBoundary": false,
+      "interactiveInView": 28,
+      "under44InView": 20,
+      "under44Sample": [
+        {
+          "el": "a.pm-sidebar-project-item.active",
+          "w": 63,
+          "h": 34,
+          "label": "Orbital Debris Tracking Payload — Integr"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Hydroponics Rack"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Outreach Night"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Empty Fixture Project"
+        },
+        {
+          "el": "button.pm-sidebar-doubloons.pm-sidebar-doubloons--link",
+          "w": 44,
+          "h": 21,
+          "label": "Open Shop"
+        },
+        {
+          "el": "a.pm-backhome-btn",
+          "w": 63,
+          "h": 36,
+          "label": "Back to the SEARCH site"
+        },
+        {
+          "el": "button.pm-signout-btn",
+          "w": 63,
+          "h": 36,
+          "label": "Sign out"
+        },
+        {
+          "el": "a",
+          "w": 53,
+          "h": 21,
+          "label": "Projects"
+        },
+        {
+          "el": "button.pm-topbar-btn",
+          "w": 34,
+          "h": 34,
+          "label": "Show keyboard shortcuts"
+        },
+        {
+          "el": "button.pm-cmd-k-btn",
+          "w": 61,
+          "h": 34,
+          "label": "Search (⌘K)"
+        }
+      ],
+      "overflowRightOfViewport": [
+        {
+          "el": "div.pm-reward-flux-layer",
+          "right": 463,
+          "text": ""
+        },
+        {
+          "el": "div.pm-topbar-actions",
+          "right": 457,
+          "text": "⌘K41"
+        },
+        {
+          "el": "div",
+          "right": 447,
+          "text": ""
+        }
+      ],
+      "interactiveBeyondRightEdge": [
+        {
+          "el": "button.pm-notif-bell-btn",
+          "left": 421,
+          "text": "Notifications, 1 unread"
+        }
+      ]
+    },
+    {
+      "name": "p390-project-empty",
+      "note": "Project with no tasks",
+      "file": "evidence/browser/p390-project-empty.png",
+      "url": "/clubpm/projects/p4",
+      "viewport": {
+        "vw": 390,
+        "vh": 1002,
+        "innerWidth": 463,
+        "deviceWidth": 390
+      },
+      "layoutWiderThanDevice": 73,
+      "docOverflowX": 73,
+      "contentOverflowX": 0,
+      "sidebar": {
+        "left": 0,
+        "top": 0,
+        "width": 64,
+        "height": 844
+      },
+      "sidebarLabelOpacity": "0",
+      "shellMain": {
+        "left": 64,
+        "top": 0,
+        "width": 326,
+        "height": 844
+      },
+      "topbar": {
+        "left": 64,
+        "top": 0,
+        "width": 326,
+        "height": 56
+      },
+      "breadcrumb": "Projects›Project Detail",
+      "projectMain": {
+        "left": 64,
+        "top": 56,
+        "width": 46,
+        "height": 788
+      },
+      "assigneePanel": {
+        "left": 110,
+        "top": 56,
+        "width": 280,
+        "height": 788
+      },
+      "chatSide": null,
+      "chatMain": null,
+      "composer": null,
+      "taskModal": null,
+      "errorBoundary": false,
+      "interactiveInView": 42,
+      "under44InView": 34,
+      "under44Sample": [
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Orbital Debris Tracking Payload — Integr"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Hydroponics Rack"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Outreach Night"
+        },
+        {
+          "el": "a.pm-sidebar-project-item.active",
+          "w": 63,
+          "h": 34,
+          "label": "Empty Fixture Project"
+        },
+        {
+          "el": "button.pm-sidebar-doubloons.pm-sidebar-doubloons--link",
+          "w": 44,
+          "h": 21,
+          "label": "Open Shop"
+        },
+        {
+          "el": "a.pm-backhome-btn",
+          "w": 63,
+          "h": 36,
+          "label": "Back to the SEARCH site"
+        },
+        {
+          "el": "button.pm-signout-btn",
+          "w": 63,
+          "h": 36,
+          "label": "Sign out"
+        },
+        {
+          "el": "a",
+          "w": 53,
+          "h": 21,
+          "label": "Projects"
+        },
+        {
+          "el": "button.pm-topbar-btn",
+          "w": 34,
+          "h": 34,
+          "label": "Show keyboard shortcuts"
+        },
+        {
+          "el": "button.pm-cmd-k-btn",
+          "w": 61,
+          "h": 34,
+          "label": "Search (⌘K)"
+        }
+      ],
+      "overflowRightOfViewport": [
+        {
+          "el": "div.pm-reward-flux-layer",
+          "right": 463,
+          "text": ""
+        },
+        {
+          "el": "div.pm-topbar-actions",
+          "right": 457,
+          "text": "⌘K41"
+        },
+        {
+          "el": "div",
+          "right": 447,
+          "text": ""
+        }
+      ],
+      "interactiveBeyondRightEdge": [
+        {
+          "el": "button.pm-notif-bell-btn",
+          "left": 421,
+          "text": "Notifications, 1 unread"
+        }
+      ]
+    },
+    {
+      "name": "p320-task-modal-deeplink",
+      "note": "?task= deep link at 320px",
+      "file": "evidence/browser/p320-task-modal-deeplink.png",
+      "url": "/clubpm/projects/p1?task=t3",
+      "viewport": {
+        "vw": 320,
+        "vh": 926,
+        "innerWidth": 463,
+        "deviceWidth": 320
+      },
+      "layoutWiderThanDevice": 143,
+      "docOverflowX": 143,
+      "contentOverflowX": 0,
+      "sidebar": {
+        "left": 0,
+        "top": 0,
+        "width": 64,
+        "height": 640
+      },
+      "sidebarLabelOpacity": "0",
+      "shellMain": {
+        "left": 64,
+        "top": 0,
+        "width": 256,
+        "height": 640
+      },
+      "topbar": {
+        "left": 64,
+        "top": 0,
+        "width": 256,
+        "height": 56
+      },
+      "breadcrumb": "Projects›Project Detail",
+      "projectMain": {
+        "left": 64,
+        "top": 56,
+        "width": 0,
+        "height": 584
+      },
+      "assigneePanel": {
+        "left": 64,
+        "top": 56,
+        "width": 280,
+        "height": 584
+      },
+      "chatSide": null,
+      "chatMain": null,
+      "composer": null,
+      "taskModal": {
+        "left": 78,
+        "top": 169,
+        "width": 307,
+        "height": 589
+      },
+      "errorBoundary": false,
+      "interactiveInView": 44,
+      "under44InView": 35,
+      "under44Sample": [
+        {
+          "el": "a.pm-sidebar-project-item.active",
+          "w": 63,
+          "h": 34,
+          "label": "Orbital Debris Tracking Payload — Integr"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Hydroponics Rack"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Outreach Night"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Empty Fixture Project"
+        },
+        {
+          "el": "button.pm-sidebar-doubloons.pm-sidebar-doubloons--link",
+          "w": 44,
+          "h": 21,
+          "label": "Open Shop"
+        },
+        {
+          "el": "a.pm-backhome-btn",
+          "w": 63,
+          "h": 36,
+          "label": "Back to the SEARCH site"
+        },
+        {
+          "el": "button.pm-signout-btn",
+          "w": 63,
+          "h": 36,
+          "label": "Sign out"
+        },
+        {
+          "el": "a",
+          "w": 53,
+          "h": 21,
+          "label": "Projects"
+        },
+        {
+          "el": "button.pm-topbar-btn",
+          "w": 34,
+          "h": 34,
+          "label": "Show keyboard shortcuts"
+        },
+        {
+          "el": "button.pm-cmd-k-btn",
+          "w": 61,
+          "h": 34,
+          "label": "Search (⌘K)"
+        }
+      ],
+      "overflowRightOfViewport": [
+        {
+          "el": "button.pm-gantt-scale-btn",
+          "right": 523,
+          "text": "Newest"
+        },
+        {
+          "el": "div.pm-reward-flux-layer",
+          "right": 463,
+          "text": ""
+        },
+        {
+          "el": "div",
+          "right": 463,
+          "text": "Orbital Debris Tracking Payload — Integr"
+        },
+        {
+          "el": "div.pm-topbar-actions",
+          "right": 457,
+          "text": "⌘K41"
+        },
+        {
+          "el": "svg",
+          "right": 449,
+          "text": "Sep 26714Kickoff meeting notesRileyWaiti"
+        },
+        {
+          "el": "div",
+          "right": 447,
+          "text": ""
+        },
+        {
+          "el": "button.pm-gantt-scale-btn.active",
+          "right": 446,
+          "text": "Today"
+        },
+        {
+          "el": "button.pm-gantt-scale-btn",
+          "right": 375,
+          "text": "Oldest"
+        }
+      ],
+      "interactiveBeyondRightEdge": [
+        {
+          "el": "a.pm-topbar-btn",
+          "left": 330,
+          "text": "Quests and achievements"
+        },
+        {
+          "el": "a.pm-streak-badge.is-active",
+          "left": 372,
+          "text": "4-day streak. 0 freezes available. Last "
+        },
+        {
+          "el": "button.pm-notif-bell-btn",
+          "left": 421,
+          "text": "Notifications, 1 unread"
+        },
+        {
+          "el": "button.pm-gantt-scale-btn.active",
+          "left": 381,
+          "text": "Today"
+        },
+        {
+          "el": "button.pm-gantt-scale-btn",
+          "left": 452,
+          "text": "Newest"
+        },
+        {
+          "el": "button",
+          "left": 331,
+          "text": "···"
+        },
+        {
+          "el": "button",
+          "left": 458,
+          "text": "Critical"
+        },
+        {
+          "el": "input",
+          "left": 458,
+          "text": ""
+        },
+        {
+          "el": "input",
+          "left": 552,
+          "text": "Tag color"
+        },
+        {
+          "el": "button",
+          "left": 578,
+          "text": "Create"
+        }
+      ]
+    },
+    {
+      "name": "p390-home-after-tap-social",
+      "note": "Tapped the Social group icon in the 64px rail",
+      "file": "evidence/browser/p390-home-after-tap-social.png",
+      "url": "/clubpm/",
+      "viewport": {
+        "vw": 390,
+        "vh": 933,
+        "innerWidth": 431,
+        "deviceWidth": 390
+      },
+      "layoutWiderThanDevice": 41,
+      "docOverflowX": 41,
+      "contentOverflowX": 0,
+      "sidebar": {
+        "left": 0,
+        "top": 0,
+        "width": 220,
+        "height": 844
+      },
+      "sidebarLabelOpacity": "1",
+      "shellMain": {
+        "left": 64,
+        "top": 0,
+        "width": 326,
+        "height": 844
+      },
+      "topbar": {
+        "left": 64,
+        "top": 0,
+        "width": 326,
+        "height": 56
+      },
+      "breadcrumb": "Constellation",
+      "projectMain": null,
+      "assigneePanel": null,
+      "chatSide": null,
+      "chatMain": null,
+      "composer": null,
+      "taskModal": null,
+      "errorBoundary": false,
+      "interactiveInView": 36,
+      "under44InView": 32,
+      "under44Sample": [
+        {
+          "el": "a.pm-nav-item.pm-nav-child",
+          "w": 219,
+          "h": 34,
+          "label": "Chat"
+        },
+        {
+          "el": "a.pm-nav-item.pm-nav-child",
+          "w": 219,
+          "h": 34,
+          "label": "Members"
+        },
+        {
+          "el": "a.pm-nav-item.pm-nav-child",
+          "w": 219,
+          "h": 34,
+          "label": "Calendar"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 219,
+          "h": 34,
+          "label": "Orbital Debris Tracking Payload — Integr"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 219,
+          "h": 34,
+          "label": "Hydroponics Rack"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 219,
+          "h": 34,
+          "label": "Outreach Night"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 219,
+          "h": 34,
+          "label": "Empty Fixture Project"
+        },
+        {
+          "el": "button.pm-sidebar-doubloons.pm-sidebar-doubloons--link",
+          "w": 44,
+          "h": 21,
+          "label": "Open Shop"
+        },
+        {
+          "el": "a.pm-backhome-btn",
+          "w": 219,
+          "h": 36,
+          "label": "Back to the SEARCH site"
+        },
+        {
+          "el": "button.pm-signout-btn",
+          "w": 219,
+          "h": 36,
+          "label": "Sign out"
+        }
+      ],
+      "overflowRightOfViewport": [
+        {
+          "el": "div.pm-reward-flux-layer",
+          "right": 431,
+          "text": ""
+        },
+        {
+          "el": "div.pm-topbar-actions",
+          "right": 425,
+          "text": "⌘K41"
+        },
+        {
+          "el": "div",
+          "right": 415,
+          "text": ""
+        }
+      ],
+      "interactiveBeyondRightEdge": [
+        {
+          "el": "button.pm-notif-bell-btn",
+          "left": 389,
+          "text": "Notifications, 1 unread"
+        }
+      ]
+    },
+    {
+      "name": "p390-home-admin-manyprojects",
+      "note": "Admin persona, 26 projects",
+      "file": "evidence/browser/p390-home-admin-manyprojects.png",
+      "url": "/clubpm/",
+      "viewport": {
+        "vw": 390,
+        "vh": 933,
+        "innerWidth": 431,
+        "deviceWidth": 390
+      },
+      "layoutWiderThanDevice": 41,
+      "docOverflowX": 41,
+      "contentOverflowX": 0,
+      "sidebar": {
+        "left": 0,
+        "top": 0,
+        "width": 64,
+        "height": 844
+      },
+      "sidebarLabelOpacity": "0",
+      "shellMain": {
+        "left": 64,
+        "top": 0,
+        "width": 326,
+        "height": 844
+      },
+      "topbar": {
+        "left": 64,
+        "top": 0,
+        "width": 326,
+        "height": 56
+      },
+      "breadcrumb": "Constellation",
+      "projectMain": null,
+      "assigneePanel": null,
+      "chatSide": null,
+      "chatMain": null,
+      "composer": null,
+      "taskModal": null,
+      "errorBoundary": false,
+      "interactiveInView": 51,
+      "under44InView": 46,
+      "under44Sample": [
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Orbital Debris Tracking Payload — Integr"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Hydroponics Rack"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Outreach Night"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Empty Fixture Project"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Lunar Rover Wheel Study 1"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Crew Habitat Airlock Mock-up 2"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "CubeSat Ground Station 3"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Lunar Rover Wheel Study 4"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Crew Habitat Airlock Mock-up 5"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "CubeSat Ground Station 6"
+        }
+      ],
+      "overflowRightOfViewport": [
+        {
+          "el": "div.pm-celebrate-backdrop",
+          "right": 431,
+          "text": "RANK UPPIONEERYou've reached a new tier."
+        },
+        {
+          "el": "div.pm-reward-flux-layer",
+          "right": 431,
+          "text": ""
+        },
+        {
+          "el": "div.pm-topbar-actions",
+          "right": 425,
+          "text": "⌘K41"
+        },
+        {
+          "el": "div",
+          "right": 415,
+          "text": ""
+        }
+      ],
+      "interactiveBeyondRightEdge": [
+        {
+          "el": "button.pm-notif-bell-btn",
+          "left": 389,
+          "text": "Notifications, 1 unread"
+        }
+      ]
+    },
+    {
+      "name": "d1440-home-admin-manyprojects",
+      "note": "Admin persona, 26 projects",
+      "file": "evidence/browser/d1440-home-admin-manyprojects.png",
+      "url": "/clubpm/",
+      "viewport": {
+        "vw": 1440,
+        "vh": 900,
+        "innerWidth": 1440,
+        "deviceWidth": 1440
+      },
+      "layoutWiderThanDevice": 0,
+      "docOverflowX": 0,
+      "contentOverflowX": 0,
+      "sidebar": {
+        "left": 0,
+        "top": 0,
+        "width": 64,
+        "height": 900
+      },
+      "sidebarLabelOpacity": "0",
+      "shellMain": {
+        "left": 64,
+        "top": 0,
+        "width": 1376,
+        "height": 900
+      },
+      "topbar": {
+        "left": 64,
+        "top": 0,
+        "width": 1376,
+        "height": 56
+      },
+      "breadcrumb": "Constellation",
+      "projectMain": null,
+      "assigneePanel": null,
+      "chatSide": null,
+      "chatMain": null,
+      "composer": null,
+      "taskModal": null,
+      "errorBoundary": false,
+      "interactiveInView": 72,
+      "under44InView": 67,
+      "under44Sample": [
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Orbital Debris Tracking Payload — Integr"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Hydroponics Rack"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Outreach Night"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Empty Fixture Project"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Lunar Rover Wheel Study 1"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Crew Habitat Airlock Mock-up 2"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "CubeSat Ground Station 3"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Lunar Rover Wheel Study 4"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Crew Habitat Airlock Mock-up 5"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "CubeSat Ground Station 6"
+        }
+      ],
+      "overflowRightOfViewport": [],
+      "interactiveBeyondRightEdge": []
+    },
+    {
+      "name": "p390-home-noprojects",
+      "note": "Member with no projects",
+      "file": "evidence/browser/p390-home-noprojects.png",
+      "url": "/clubpm/",
+      "viewport": {
+        "vw": 390,
+        "vh": 933,
+        "innerWidth": 431,
+        "deviceWidth": 390
+      },
+      "layoutWiderThanDevice": 41,
+      "docOverflowX": 41,
+      "contentOverflowX": 0,
+      "sidebar": {
+        "left": 0,
+        "top": 0,
+        "width": 64,
+        "height": 844
+      },
+      "sidebarLabelOpacity": "0",
+      "shellMain": {
+        "left": 64,
+        "top": 0,
+        "width": 326,
+        "height": 844
+      },
+      "topbar": {
+        "left": 64,
+        "top": 0,
+        "width": 326,
+        "height": 56
+      },
+      "breadcrumb": "Constellation",
+      "projectMain": null,
+      "assigneePanel": null,
+      "chatSide": null,
+      "chatMain": null,
+      "composer": null,
+      "taskModal": null,
+      "errorBoundary": false,
+      "interactiveInView": 29,
+      "under44InView": 25,
+      "under44Sample": [
+        {
+          "el": "button.pm-sidebar-doubloons.pm-sidebar-doubloons--link",
+          "w": 44,
+          "h": 21,
+          "label": "Open Shop"
+        },
+        {
+          "el": "a.pm-backhome-btn",
+          "w": 63,
+          "h": 36,
+          "label": "Back to the SEARCH site"
+        },
+        {
+          "el": "button.pm-signout-btn",
+          "w": 63,
+          "h": 36,
+          "label": "Sign out"
+        },
+        {
+          "el": "button.pm-topbar-btn",
+          "w": 34,
+          "h": 34,
+          "label": "Show keyboard shortcuts"
+        },
+        {
+          "el": "button.pm-cmd-k-btn",
+          "w": 61,
+          "h": 34,
+          "label": "Search (⌘K)"
+        },
+        {
+          "el": "a.pm-topbar-btn",
+          "w": 34,
+          "h": 34,
+          "label": "Quests and achievements"
+        },
+        {
+          "el": "a.pm-streak-badge.is-active",
+          "w": 41,
+          "h": 36,
+          "label": "4-day streak. 0 freezes available. Last "
+        },
+        {
+          "el": "button.pm-notif-bell-btn",
+          "w": 36,
+          "h": 36,
+          "label": "Notifications, 1 unread"
+        },
+        {
+          "el": "button.cpm-panel-recap-btn",
+          "w": 85,
+          "h": 24,
+          "label": "Full Recap"
+        },
+        {
+          "el": "select",
+          "w": 98,
+          "h": 24,
+          "label": "Sort: DefaultSort: Tags"
+        }
+      ],
+      "overflowRightOfViewport": [
+        {
+          "el": "div.pm-reward-flux-layer",
+          "right": 431,
+          "text": ""
+        },
+        {
+          "el": "div.pm-topbar-actions",
+          "right": 425,
+          "text": "⌘K41"
+        },
+        {
+          "el": "div",
+          "right": 415,
+          "text": ""
+        }
+      ],
+      "interactiveBeyondRightEdge": [
+        {
+          "el": "button.pm-notif-bell-btn",
+          "left": 389,
+          "text": "Notifications, 1 unread"
+        }
+      ]
+    },
+    {
+      "name": "p390-conversation-keyboard-proxy",
+      "note": "Viewport height 460px approximates an open software keyboard; NOT a device test",
+      "file": "evidence/browser/p390-conversation-keyboard-proxy.png",
+      "url": "/clubpm/chat/C_FIX_GENERAL",
+      "viewport": {
+        "vw": 390,
+        "vh": 512,
+        "innerWidth": 434,
+        "deviceWidth": 390
+      },
+      "layoutWiderThanDevice": 44,
+      "docOverflowX": 44,
+      "contentOverflowX": 0,
+      "sidebar": {
+        "left": 0,
+        "top": 0,
+        "width": 64,
+        "height": 460
+      },
+      "sidebarLabelOpacity": "0",
+      "shellMain": {
+        "left": 64,
+        "top": 0,
+        "width": 326,
+        "height": 460
+      },
+      "topbar": {
+        "left": 64,
+        "top": 0,
+        "width": 326,
+        "height": 56
+      },
+      "breadcrumb": "Social›Chat",
+      "projectMain": null,
+      "assigneePanel": null,
+      "chatSide": {
+        "left": 64,
+        "top": -1385,
+        "width": 326,
+        "height": 260
+      },
+      "chatMain": {
+        "left": 64,
+        "top": -1109,
+        "width": 326,
+        "height": 1953
+      },
+      "composer": {
+        "left": 81,
+        "top": 779,
+        "width": 292,
+        "height": 52
+      },
+      "taskModal": null,
+      "errorBoundary": false,
+      "interactiveInView": 15,
+      "under44InView": 11,
+      "under44Sample": [
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Orbital Debris Tracking Payload — Integr"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Hydroponics Rack"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Outreach Night"
+        },
+        {
+          "el": "a.pm-sidebar-project-item",
+          "w": 63,
+          "h": 34,
+          "label": "Empty Fixture Project"
+        },
+        {
+          "el": "button.pm-sidebar-doubloons.pm-sidebar-doubloons--link",
+          "w": 44,
+          "h": 21,
+          "label": "Open Shop"
+        },
+        {
+          "el": "a.pm-backhome-btn",
+          "w": 63,
+          "h": 36,
+          "label": "Back to the SEARCH site"
+        },
+        {
+          "el": "button.pm-signout-btn",
+          "w": 63,
+          "h": 36,
+          "label": "Sign out"
+        },
+        {
+          "el": "button.pm-topbar-btn",
+          "w": 34,
+          "h": 34,
+          "label": "Show keyboard shortcuts"
+        },
+        {
+          "el": "button.pm-cmd-k-btn",
+          "w": 61,
+          "h": 34,
+          "label": "Search (⌘K)"
+        },
+        {
+          "el": "a.pm-topbar-btn",
+          "w": 34,
+          "h": 34,
+          "label": "Quests and achievements"
+        }
+      ],
+      "overflowRightOfViewport": [
+        {
+          "el": "div.pm-reward-flux-layer",
+          "right": 434,
+          "text": ""
+        },
+        {
+          "el": "div.pm-topbar-actions",
+          "right": 428,
+          "text": "⌘K41"
+        },
+        {
+          "el": "div",
+          "right": 418,
+          "text": ""
+        }
+      ],
+      "interactiveBeyondRightEdge": [
+        {
+          "el": "button.pm-notif-bell-btn",
+          "left": 392,
+          "text": "Notifications, 1 unread"
+        }
+      ]
+    },
+    {
+      "name": "p320-login",
+      "note": "Signed out (fixture /auth/me → 401)",
+      "file": "evidence/browser/p320-login.png",
+      "url": "/clubpm/login",
+      "viewport": {
+        "vw": 320,
+        "vh": 640,
+        "innerWidth": 320,
+        "deviceWidth": 320
+      },
+      "layoutWiderThanDevice": 0,
+      "docOverflowX": 0,
+      "contentOverflowX": null,
+      "sidebar": null,
+      "sidebarLabelOpacity": null,
+      "shellMain": null,
+      "topbar": null,
+      "breadcrumb": "",
+      "projectMain": null,
+      "assigneePanel": null,
+      "chatSide": null,
+      "chatMain": null,
+      "composer": null,
+      "taskModal": null,
+      "errorBoundary": false,
+      "interactiveInView": 3,
+      "under44InView": 2,
+      "under44Sample": [
+        {
+          "el": "a.navbar-brand.d-lg-none",
+          "w": 66,
+          "h": 38,
+          "label": "SEARCH"
+        },
+        {
+          "el": "button.navbar-toggler.ml-auto",
+          "w": 46,
+          "h": 32,
+          "label": "Toggle navigation"
+        }
+      ],
+      "overflowRightOfViewport": [
+        {
+          "el": "main.pm-login-doc",
+          "right": 626,
+          "text": "Application home pageWhat Constellation "
+        }
+      ],
+      "interactiveBeyondRightEdge": []
+    },
+    {
+      "name": "p390-login",
+      "note": "Signed out (fixture /auth/me → 401)",
+      "file": "evidence/browser/p390-login.png",
+      "url": "/clubpm/login",
+      "viewport": {
+        "vw": 390,
+        "vh": 844,
+        "innerWidth": 390,
+        "deviceWidth": 390
+      },
+      "layoutWiderThanDevice": 0,
+      "docOverflowX": 0,
+      "contentOverflowX": null,
+      "sidebar": null,
+      "sidebarLabelOpacity": null,
+      "shellMain": null,
+      "topbar": null,
+      "breadcrumb": "",
+      "projectMain": null,
+      "assigneePanel": null,
+      "chatSide": null,
+      "chatMain": null,
+      "composer": null,
+      "taskModal": null,
+      "errorBoundary": false,
+      "interactiveInView": 3,
+      "under44InView": 2,
+      "under44Sample": [
+        {
+          "el": "a.navbar-brand.d-lg-none",
+          "w": 73,
+          "h": 38,
+          "label": "SEARCH"
+        },
+        {
+          "el": "button.navbar-toggler.ml-auto",
+          "w": 46,
+          "h": 32,
+          "label": "Toggle navigation"
+        }
+      ],
+      "overflowRightOfViewport": [
+        {
+          "el": "main.pm-login-doc",
+          "right": 626,
+          "text": "Application home pageWhat Constellation "
+        }
+      ],
+      "interactiveBeyondRightEdge": []
+    },
+    {
+      "name": "d1280-login",
+      "note": "Signed out (fixture /auth/me → 401)",
+      "file": "evidence/browser/d1280-login.png",
+      "url": "/clubpm/login",
+      "viewport": {
+        "vw": 1280,
+        "vh": 800,
+        "innerWidth": 1280,
+        "deviceWidth": 1280
+      },
+      "layoutWiderThanDevice": 0,
+      "docOverflowX": 0,
+      "contentOverflowX": null,
+      "sidebar": null,
+      "sidebarLabelOpacity": null,
+      "shellMain": null,
+      "topbar": null,
+      "breadcrumb": "",
+      "projectMain": null,
+      "assigneePanel": null,
+      "chatSide": null,
+      "chatMain": null,
+      "composer": null,
+      "taskModal": null,
+      "errorBoundary": false,
+      "interactiveInView": 13,
+      "under44InView": 12,
+      "under44Sample": [
+        {
+          "el": "a.nav-link.nav-underline-target",
+          "w": 60,
+          "h": 33,
+          "label": "Home"
+        },
+        {
+          "el": "a.nav-link.nav-underline-target",
+          "w": 61,
+          "h": 33,
+          "label": "About"
+        },
+        {
+          "el": "a.nav-link.nav-underline-target",
+          "w": 51,
+          "h": 33,
+          "label": "Blog"
+        },
+        {
+          "el": "a.nav-link.nav-underline-target",
+          "w": 77,
+          "h": 33,
+          "label": "Business"
+        },
+        {
+          "el": "button.nav-link.nav-underline-target",
+          "w": 76,
+          "h": 33,
+          "label": "Teams ▾"
+        },
+        {
+          "el": "a.navbar-brand.d-flex",
+          "w": 85,
+          "h": 44,
+          "label": "SEARCH"
+        },
+        {
+          "el": "button.search-icon-btn",
+          "w": 32,
+          "h": 28,
+          "label": "Open search"
+        },
+        {
+          "el": "button.search-clear-btn",
+          "w": 13,
+          "h": 17,
+          "label": "Close search"
+        },
+        {
+          "el": "a.nav-link.nav-underline-target",
+          "w": 104,
+          "h": 33,
+          "label": "Constellation"
+        },
+        {
+          "el": "a.nav-link.nav-underline-target",
+          "w": 81,
+          "h": 33,
+          "label": "Outreach"
+        }
+      ],
+      "overflowRightOfViewport": [],
+      "interactiveBeyondRightEdge": []
+    }
+  ],
+  "navigationRequests": {
+    "sidebarDashboardToChat": {
+      "state": {
+        "persona": "member",
+        "projects": "few"
+      },
+      "sse": {
+        "opened": 1,
+        "open": 42
+      },
+      "log": {
+        "GET /api/chat/conversations": 4,
+        "GET /api/chat/conversations/C_FIX_GENERAL": 2,
+        "GET /api/chat/conversations/C_FIX_GENERAL/messages": 2,
+        "GET /api/members": 1,
+        "GET /api/members/cosmetic-styles": 4,
+        "GET /api/members/m1/profile": 4,
+        "GET /api/members/me/celebration": 4,
+        "GET /api/notifications": 4,
+        "GET /api/notifications/stream": 1,
+        "GET /api/projects": 4
+      }
+    },
+    "projectTabToFiles": {
+      "state": {
+        "persona": "member",
+        "projects": "few"
+      },
+      "sse": {
+        "opened": 0,
+        "open": 43
+      },
+      "log": {}
+    }
+  },
+  "history": {
+    "beforeTab": "/clubpm/projects/p1",
+    "afterTab": "/clubpm/projects/p1?tab=insights (history.length=50)",
+    "afterBack": "/clubpm/",
+    "withModal": "/clubpm/projects/p1?tab=insights&view=activity&task=t3 modal=false",
+    "afterClose": "/clubpm/projects/p1?tab=insights&view=activity&task=t3 activeTabInsights=false",
+    "signedOutDeepLink": "/clubpm/login"
+  },
+  "consoleErrors": [
+    "Each child in a list should have a unique \"key\" prop.%s%s See https://react.dev/link/warning-keys for more information.",
+    "%o",
+    "[ClubPM ErrorBoundary]"
+  ]
+}

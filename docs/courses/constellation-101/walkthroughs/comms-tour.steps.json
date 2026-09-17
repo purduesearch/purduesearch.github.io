@@ -38,7 +38,8 @@
       "title": "Communication lives together",
       "body": "Open Social to find channels, members, and the club's shared schedule in one place.",
       "placement": "right",
-      "advance": { "on": "click" }
+      "advance": { "on": "click" },
+      "compact": { "anchor": "nav.chat", "body": "Communication lives on this bar: Chat holds every channel you can read, and Calendar sits beside it. The Chat list starts with People & DMs, which is also available under More.", "placement": "top", "advance": { "on": "next" } }
     },
     {
       "id": "to-calendar",
@@ -48,6 +49,8 @@
       "body": "Notifications tell you what already happened. The calendar shows the meetings and dates ahead.",
       "placement": "right",
       "advance": { "on": "click" }
+,
+      "compact": { "placement": "top" }
     },
     {
       "id": "grid",
@@ -76,6 +79,8 @@
       "body": "One last thing to point at.",
       "placement": "right",
       "advance": { "on": "click" }
+,
+      "compact": { "body": "One last thing to point at. Tap Home.", "placement": "top" }
     },
     {
       "id": "agenda-again",
@@ -84,6 +89,7 @@
       "title": "It all lands here",
       "body": "Everything you just configured surfaces on this panel. Notifications tell you the moment something changes; this tells you what's coming.",
       "placement": "left",
+      "compact": { "body": "Expand the 7-day agenda to see what is coming after the Next event card.", "placement": "top", "reveal": "expand" },
       "advance": { "on": "next" }
     },
     {
@@ -93,6 +99,7 @@
       "title": "And Constellation reads it too",
       "body": "These cards are generated from your projects — risks, capacity, things that have gone quiet. Treat them as a colleague's opinion: often useful, occasionally wrong, never the final word.",
       "placement": "bottom",
+      "compact": { "body": "Expand Project insights for risks, capacity, and quiet work. Treat them as useful signals, not the final word.", "placement": "top", "reveal": "expand" },
       "advance": { "on": "next" }
     }
   ]

@@ -13,6 +13,8 @@ import {
 import OrbitLoader from '../OrbitLoader';
 import { get, post, patch, del } from '../../api/clubPmClient';
 import toast from 'react-hot-toast';
+import MobileSheet from './MobileSheet';
+import { useCompactLayout } from '../../clubpm/layout/compactLayout';
 
 // ── Constants ─────────────────────────────────────────────────
 
@@ -825,6 +827,7 @@ function StageColumn({ stage, contacts, onOpen, draggingId, tourCardId }) {
 // ── CrmTab (exported) ─────────────────────────────────────────
 
 export default function CrmTab({ isAdmin, currentMemberId, campaigns = [] }) {
+  const compact = useCompactLayout();
   const [contacts,      setContacts]      = useState([]);
   const [loading,       setLoading]       = useState(true);
   const [typeFilter,    setTypeFilter]    = useState('');
@@ -835,6 +838,10 @@ export default function CrmTab({ isAdmin, currentMemberId, campaigns = [] }) {
   const [openDrawerId,  setOpenDrawerId]  = useState(null);
   const [showCsvModal,  setShowCsvModal]  = useState(false);
   const [draggingId,    setDraggingId]    = useState(null);
+  // Phone pipeline: which stage the list is showing, and the contact whose Move
+  // sheet is open.
+  const [stageFilter,   setStageFilter]   = useState(STAGES[0].id);
+  const [moveContact,   setMoveContact]   = useState(null);
 
   // A short activation distance keeps the card's click-to-open intact: a press
   // that never travels 5px is a click, anything further is a drag.
@@ -883,25 +890,28 @@ export default function CrmTab({ isAdmin, currentMemberId, campaigns = [] }) {
     return null;
   }, [columns]);
 
-  const handleDragEnd = async ({ active, over }) => {
-    setDraggingId(null);
-    if (!over) return;
-
-    const newStage = over.id;
-    const moved = contacts.find(c => c.id === active.id);
+  /** One stage change, however it was asked for: drag or the phone Move sheet. */
+  const changeStage = useCallback(async (contactId, newStage) => {
+    const moved = contacts.find(c => c.id === contactId);
     if (!moved || moved.stage === newStage) return;
 
-    const optimistic = contacts.map(c => c.id === active.id ? { ...c, stage: newStage } : c);
+    const optimistic = contacts.map(c => c.id === contactId ? { ...c, stage: newStage } : c);
     setContacts(optimistic);
     buildColumns(optimistic);
 
     try {
-      await patch(`/api/outreach/contacts/${active.id}`, { stage: newStage });
+      await patch(`/api/outreach/contacts/${contactId}`, { stage: newStage });
     } catch (err) {
       setContacts(contacts);
       buildColumns(contacts);
       toast.error(err.message ?? 'Could not change the stage.');
     }
+  }, [contacts, buildColumns]);
+
+  const handleDragEnd = ({ active, over }) => {
+    setDraggingId(null);
+    if (!over) return;
+    changeStage(active.id, over.id);
   };
 
   const handleCreate = async (data) => {
@@ -1024,6 +1034,89 @@ export default function CrmTab({ isAdmin, currentMemberId, campaigns = [] }) {
           )}
         </div>
       ) : (
+        compact ? (
+        // Phone: one stage at a time, with an explicit Move control per contact
+        // instead of dragging a card across a five-column board.
+        <>
+          <div className="pm-m-source" role="group" aria-label="Pipeline stage">
+            <span className="pm-m-source-label" id="crm-stage-label">Stage</span>
+            <div className="pm-m-chip-row" role="group" aria-labelledby="crm-stage-label">
+              {STAGES.map(stage => (
+                <button
+                  key={stage.id}
+                  type="button"
+                  className="pm-m-chip"
+                  aria-pressed={stageFilter === stage.id}
+                  onClick={() => setStageFilter(stage.id)}
+                >
+                  <span className="pm-crm-col-dot" style={{ background: stage.color }} aria-hidden="true" />
+                  {stage.label}
+                  <span className="pm-m-chip-count">{(columns[stage.id] ?? []).length}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="pm-m-crm-list">
+            {(columns[stageFilter] ?? []).length === 0 ? (
+              <p className="pm-crm-col-empty">No contacts in {STAGES.find(s => s.id === stageFilter)?.label ?? stageFilter}.</p>
+            ) : (columns[stageFilter] ?? []).map(c => (
+              <div key={c.id} className="pm-m-crm-item">
+                <ContactCardBody
+                  contact={c}
+                  data-tour-id={c.id === tourCardId ? 'outreach.contact.card' : undefined}
+                  style={{ '--stage': stageColor(c.stage) }}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`Open ${c.name}`}
+                  onClick={() => setOpenDrawerId(c.id)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpenDrawerId(c.id); }
+                  }}
+                />
+                <button
+                  type="button"
+                  className="pm-m-btn pm-m-btn--block"
+                  data-m-opener={`crm-move-${c.id}`}
+                  aria-haspopup="dialog"
+                  onClick={() => setMoveContact(c)}
+                >
+                  <i className="fas fa-arrow-right-arrow-left" aria-hidden="true" /> Move
+                </button>
+              </div>
+            ))}
+          </div>
+
+          {moveContact && (
+            <MobileSheet
+              title={`Move ${moveContact.name}`}
+              onClose={() => setMoveContact(null)}
+              returnFocusSelector={`[data-m-opener="crm-move-${moveContact.id}"]`}
+            >
+              <div className="pm-m-card">
+                {STAGES.map(stage => (
+                  <button
+                    key={stage.id}
+                    type="button"
+                    className="pm-m-row"
+                    aria-current={moveContact.stage === stage.id ? 'true' : undefined}
+                    disabled={moveContact.stage === stage.id}
+                    onClick={() => {
+                      changeStage(moveContact.id, stage.id);
+                      setStageFilter(stage.id);
+                      setMoveContact(null);
+                    }}
+                  >
+                    <span className="pm-m-task-group-dot" style={{ background: stage.color }} />
+                    <span className="pm-m-row-main">{stage.label}</span>
+                    {moveContact.stage === stage.id ? <span className="pm-m-row-end">Current</span> : null}
+                  </button>
+                ))}
+              </div>
+            </MobileSheet>
+          )}
+        </>
+        ) : (
         <DndContext
           sensors={sensors}
           collisionDetection={pointerWithin}
@@ -1057,7 +1150,7 @@ export default function CrmTab({ isAdmin, currentMemberId, campaigns = [] }) {
             document.body
           )}
         </DndContext>
-      )}
+      ))}
 
       {(showForm || editContact) && (
         <ContactFormModal

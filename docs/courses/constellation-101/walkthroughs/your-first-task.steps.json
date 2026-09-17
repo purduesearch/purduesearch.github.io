@@ -12,6 +12,7 @@
       "body": "Real one this time — real API call, real row in the database. Just in your own training project, where it can't bother anyone.",
       "placement": "bottom",
       "dim": ["nav.sidebar"],
+      "compact": { "body": "Make a real task in your private training project. The labelled New task control opens a full-screen form.", "dim": [] },
       "advance": { "on": "click" }
     },
     {
@@ -30,6 +31,7 @@
       "title": "Save it",
       "body": "Press Create Task. It'll land at the top of the to-do column.",
       "placement": "right",
+      "compact": { "body": "Press Create Task in the footer above the keyboard. Your input stays in place if saving fails, so you can correct or retry it.", "placement": "top" },
       "advance": { "on": "api", "method": "POST", "path": "/api/projects/:id/tasks" }
     },
     {
@@ -39,6 +41,7 @@
       "title": "Now open it",
       "body": "Creating a task doesn't open it — the form only asks for a title, a priority and a date. Click your new card to get the full task: assignees, description, comments, time.",
       "placement": "right",
+      "compact": { "body": "Creating a task closes the form. Expand Not Started if needed, then tap your new row for assignees, description, comments, and time.", "placement": "top" },
       "advance": { "on": "click" }
     },
     {
@@ -84,6 +87,7 @@
       "title": "Start work on it",
       "body": "Set the status to In progress. Doing it here and dragging the card between columns are the same operation — use whichever is nearer.",
       "placement": "left",
+      "compact": { "body": "Set the status to In progress. You can also use the labelled Move control on the task row; no dragging is required.", "placement": "top" },
       "advance": { "on": "api", "method": "PATCH", "path": "/api/tasks/:id" }
     },
     {
@@ -120,6 +124,7 @@
       "title": "That's the whole loop",
       "body": "Close the task and your card is sitting in Done. Create, own, date, specify, start, discuss, log, finish — every piece of work in this club goes through those eight steps, and you've now done all of them.",
       "placement": "center",
+      "compact": { "body": "Close the full-screen task and it appears in Completed. Create, own, date, specify, start, discuss, log, finish: that is the whole loop.", "placement": "top" },
       "advance": { "on": "next" }
     }
   ]

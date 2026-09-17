@@ -37,6 +37,9 @@ export default function ChatConversation({
   emptyHint = null,
   onJoined = null,
   composerPlaceholder = "Message",
+  compact = false,
+  onOpenThread = null,
+  onCloseThread = null,
 }) {
   const [messages, setMessages] = useState([]);
   const [hasMore, setHasMore] = useState(false);
@@ -61,6 +64,8 @@ export default function ChatConversation({
   };
 
   const scrollRef = useRef(null);
+  const conversationScrollRef = useRef(0);
+  const previousThreadRef = useRef(initialThreadTs);
   const lastMarkedRef = useRef(null);
   const markTimerRef = useRef(null);
 
@@ -70,6 +75,20 @@ export default function ChatConversation({
     setThreadTs(initialThreadTs);
     lastMarkedRef.current = null;
   }, [channelId, initialThreadTs]);
+
+  useEffect(() => {
+    const previous = previousThreadRef.current;
+    if (compact && previous && !threadTs) {
+      requestAnimationFrame(() => {
+        // The phone thread swaps two full-height panes. Wait for the returned
+        // conversation pane to be laid out before restoring its scroll offset.
+        requestAnimationFrame(() => {
+          if (scrollRef.current) scrollRef.current.scrollTop = conversationScrollRef.current;
+        });
+      });
+    }
+    previousThreadRef.current = threadTs;
+  }, [compact, threadTs]);
 
   // ── History ────────────────────────────────────────────────
   const load = useCallback(async () => {
@@ -175,9 +194,18 @@ export default function ChatConversation({
 
   const shown = results ?? messages;
   const canPost = !!conversation?.canPost;
+  const openThread = (ts) => {
+    if (scrollRef.current) conversationScrollRef.current = scrollRef.current.scrollTop;
+    if (compact && onOpenThread) onOpenThread(ts);
+    else setThreadTs(ts);
+  };
+  const closeThread = () => {
+    if (compact && onCloseThread) onCloseThread();
+    else setThreadTs(null);
+  };
 
   return (
-    <div className="cpm-chat-conv">
+    <div className={`cpm-chat-conv${threadTs ? " cpm-chat-conv--thread" : ""}`}>
       <div className="cpm-chat-toolbar">
         <form className="cpm-chat-search" onSubmit={runSearch}>
           <input
@@ -238,7 +266,7 @@ export default function ChatConversation({
                 message={m}
                 channelId={channelId}
                 canPost={canPost}
-                onOpenThread={setThreadTs}
+                onOpenThread={openThread}
                 onChanged={() => refreshLatest()}
               />
             ))}
@@ -259,7 +287,8 @@ export default function ChatConversation({
             channelId={channelId}
             ts={threadTs}
             conversation={conversation}
-            onClose={() => setThreadTs(null)}
+            onClose={closeThread}
+            compact={compact}
           />
         )}
       </div>

@@ -1,7 +1,8 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import TaskModal from './TaskModal';
-import { get, patch } from '../../api/clubPmClient';
+import { get, patch, post } from '../../api/clubPmClient';
+import { useCompactLayout } from '../../clubpm/layout/compactLayout';
 
 jest.mock('../../api/clubPmClient', () => ({
   get: jest.fn(),
@@ -18,6 +19,9 @@ jest.mock('react-hot-toast', () => ({
 jest.mock('../../clubpm/ClubPmAuth', () => ({
   useClubPmAuth: () => ({ member: { id: 'm1', displayName: 'Me' } }),
 }));
+jest.mock('../../clubpm/layout/compactLayout', () => ({
+  useCompactLayout: jest.fn(),
+}));
 jest.mock('./github/GitHubTaskSection', () => () => null);
 
 const ADA = { id: 'm2', displayName: 'Ada Lovelace' };
@@ -26,6 +30,7 @@ const SUB = { id: 's1', title: 'Child task', projectId: 'proj1', status: 'TODO',
 
 beforeEach(() => {
   jest.clearAllMocks();
+  useCompactLayout.mockReturnValue(false);
   get.mockImplementation((url) => {
     if (url === '/api/tasks/p1/subtasks') return Promise.resolve([SUB]);
     if (url === '/api/tasks/p1') return Promise.resolve(PARENT);
@@ -77,5 +82,42 @@ describe('TaskModal nested subtask edits', () => {
 
     // No stale copy of the old title survives in the parent's subtask list.
     await waitFor(() => expect(screen.queryByText('Child task')).toBeNull());
+  });
+});
+
+describe('TaskModal compact workflow', () => {
+  it('uses the shared full-screen dialog while retaining prominent task controls', async () => {
+    useCompactLayout.mockReturnValue(true);
+    render(<TaskModal task={PARENT} onClose={jest.fn()} onUpdate={jest.fn()} />);
+
+    const dialog = await screen.findByRole('dialog', { name: 'Parent task' });
+    expect(dialog).toHaveClass('pm-m-dialog');
+    expect(screen.getByRole('button', { name: 'Close Parent task' })).toBeInTheDocument();
+    expect(screen.getByText('Assigned to')).toBeInTheDocument();
+    expect(screen.getByText('Due Date')).toBeInTheDocument();
+    expect(screen.getByText('Status')).toBeInTheDocument();
+    await screen.findAllByText('Child task');
+    expect(screen.getByText(/Subtasks \(1\)/)).toBeInTheDocument();
+    expect(screen.getByText('Attachments')).toBeInTheDocument();
+    expect(screen.getByText('Time Tracking')).toBeInTheDocument();
+  });
+
+  it('keeps a failed comment draft and prevents a duplicate submission', async () => {
+    useCompactLayout.mockReturnValue(true);
+    let rejectPost;
+    post.mockImplementation((url) => {
+      if (url.endsWith('/comments')) return new Promise((_, reject) => { rejectPost = reject; });
+      return Promise.resolve({});
+    });
+    render(<TaskModal task={PARENT} onClose={jest.fn()} onUpdate={jest.fn()} />);
+
+    const input = await screen.findByPlaceholderText(/Write a comment here/);
+    fireEvent.change(input, { target: { value: 'Still here after retry' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(post).toHaveBeenCalledTimes(1);
+
+    rejectPost(new Error('Offline'));
+    await waitFor(() => expect(input).toHaveValue('Still here after retry'));
   });
 });

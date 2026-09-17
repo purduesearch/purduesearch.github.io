@@ -21,7 +21,7 @@ has accepted that Constellation is worth learning. This video is where that happ
 |---|---|---|
 | 00:00–00:18 | Slack, a real-looking project channel | Slow scroll through a messy thread |
 | 00:18–00:40 | Constellation dashboard | Fade in, cursor still |
-| 00:40–01:05 | Project board | Pan across the four columns |
+| 00:40–01:05 | Project board | Desktop capture: pan across the four columns. Phone companion capture: scroll the four compact status groups |
 | 01:05–01:30 | Task modal, comments + time log visible | Open one card |
 | 01:30–01:52 | Split: Slack DM notification beside the board | Show a DM arriving as a task changes |
 | 01:52–02:14 | Profile: rank bar, XP history | Scroll the XP list |
@@ -66,9 +66,9 @@ the state of the club's work somewhere that doesn't go away.
 
 **[00:40 — pan across the board]**
 
-Every piece of work is a task. Every task sits in one of four columns, and that column is the truth
-about it — not what someone said in chat, not what you remember agreeing to. To-do, in progress,
-blocked, and done.
+Every piece of work is a task. Every task has one of four statuses, and that status is the truth
+about it — shown as columns on desktop and compact groups on a phone, not buried in chat or left to
+what you remember agreeing to. To-do, in progress, blocked, and done.
 
 *(pause)*
 

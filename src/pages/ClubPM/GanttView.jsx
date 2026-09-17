@@ -39,7 +39,7 @@ export default function GanttView() {
 
   return (
     <div className="clubpm-app min-h-screen bg-[var(--clubpm-surface-50)]">
-      <div className="w-full px-8 py-8 clubpm-animate-fade-in">
+      <div className="w-full px-8 py-8 clubpm-animate-fade-in cpm-gantt-page">
         <div className="mb-6">
           <Link
             to={`/clubpm/projects/${project.id}`}

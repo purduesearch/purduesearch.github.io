@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { listConversations, getConversation } from "../../api/clubPmClient";
 import ChatConversation from "../../components/clubpm/chat/ChatConversation";
+import { useCompactLayout } from "../../clubpm/layout/compactLayout";
 
-function ChannelLink({ c, active }) {
+function ChannelLink({ c, active, compact }) {
   const unread = c.unread > 0 && !c.muted;
   return (
     <Link
       to={`/clubpm/chat/${c.slackChannelId}`}
+      state={compact ? { from: "/clubpm/chat" } : undefined}
       className={`cpm-chatpage-item${active ? " active" : ""}${unread ? " unread" : ""}`}
     >
       <i className={c.kind === "PRIVATE_CHANNEL" ? "fas fa-lock" : "fas fa-hashtag"} aria-hidden="true" />
@@ -26,7 +28,9 @@ function ChannelLink({ c, active }) {
 export default function ChatPage() {
   const { channelId } = useParams();
   const [searchParams] = useSearchParams();
+  const location = useLocation();
   const navigate = useNavigate();
+  const compact = useCompactLayout();
 
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
@@ -36,6 +40,7 @@ export default function ChatPage() {
   const [convError, setConvError] = useState(null);
 
   const refresh = useCallback(() => {
+    setError(null);
     listConversations().then(setData).catch(() => setError("Could not load channels."));
   }, []);
   useEffect(() => { refresh(); }, [refresh]);
@@ -58,8 +63,8 @@ export default function ChatPage() {
   // No channel in the URL: open the most recently active one you're in.
   const firstMine = mine[0]?.slackChannelId;
   useEffect(() => {
-    if (!channelId && firstMine) navigate(`/clubpm/chat/${firstMine}`, { replace: true });
-  }, [channelId, firstMine, navigate]);
+    if (!compact && !channelId && firstMine) navigate(`/clubpm/chat/${firstMine}`, { replace: true });
+  }, [compact, channelId, firstMine, navigate]);
 
   const loadConversation = useCallback(() => {
     if (!channelId) return;
@@ -77,8 +82,13 @@ export default function ChatPage() {
   }, [channelId, loadConversation]);
 
   return (
-    <div className="cpm-chatpage">
+    <div className={`cpm-chatpage${channelId ? " cpm-chatpage--conversation" : " cpm-chatpage--list"}`}>
       <aside className="cpm-chatpage-side" aria-label="Channels">
+        {compact && <Link to="/clubpm/members?view=dms" className="cpm-chatpage-people" data-tour-id="chat.people">
+          <i className="fas fa-user-group" aria-hidden="true" />
+          <label className="cpm-chat-plain">People &amp; DMs</label>
+          <i className="fas fa-chevron-right" aria-hidden="true" />
+        </Link>}
         <input
           className="cpm-chatpage-filter"
           type="search"
@@ -87,12 +97,17 @@ export default function ChatPage() {
           value={filter}
           onChange={e => setFilter(e.target.value)}
         />
-        {error && <div className="cpm-chat-banner cpm-chat-banner--error">{error}</div>}
+        {error && (
+          <div className="cpm-chat-banner cpm-chat-banner--error">
+            <div>{error}</div>
+            <button type="button" className="cpm-chat-linkbtn" onClick={refresh}>Retry</button>
+          </div>
+        )}
         {!data && !error && <div className="cpm-spinner" aria-label="Loading" />}
 
         <div className="cpm-chatpage-group">Channels</div>
         {mine.filter(matches).map(c => (
-          <ChannelLink key={c.slackChannelId} c={c} active={c.slackChannelId === channelId} />
+          <ChannelLink key={c.slackChannelId} c={c} active={c.slackChannelId === channelId} compact={compact} />
         ))}
         {data && mine.length === 0 && <div className="cpm-chatpage-hint">You haven't joined any channels yet.</div>}
 
@@ -101,16 +116,21 @@ export default function ChatPage() {
           Browse public channels ({browse.length})
         </button>
         {showBrowse && browse.filter(matches).map(c => (
-          <ChannelLink key={c.slackChannelId} c={c} active={c.slackChannelId === channelId} />
+          <ChannelLink key={c.slackChannelId} c={c} active={c.slackChannelId === channelId} compact={compact} />
         ))}
 
-        <Link to="/clubpm/members" className="cpm-chatpage-dmlink">
+        <Link to="/clubpm/members?view=dms" className="cpm-chatpage-dmlink">
           <i className="fas fa-user-group" aria-hidden="true" /> Direct messages are on the Members page
         </Link>
       </aside>
 
       <section className="cpm-chatpage-main">
-        {convError && <div className="cpm-chat-empty">{convError}</div>}
+        {convError && (
+          <div className="cpm-chat-empty">
+            <div>{convError}</div>
+            <button type="button" className="cpm-chat-linkbtn" onClick={loadConversation}>Retry</button>
+          </div>
+        )}
         {conversation && (
           <>
             <header className="cpm-chatpage-head">
@@ -123,13 +143,29 @@ export default function ChatPage() {
               channelId={channelId}
               conversation={conversation}
               initialThreadTs={searchParams.get("thread")}
+              compact={compact}
+              onOpenThread={ts => {
+                const next = new URLSearchParams(searchParams);
+                next.set("thread", ts);
+                navigate(`${location.pathname}?${next}`, {
+                  state: { ...(location.state ?? {}), pmChatThread: true },
+                });
+              }}
+              onCloseThread={() => {
+                if (location.state?.pmChatThread) navigate(-1);
+                else {
+                  const next = new URLSearchParams(searchParams);
+                  next.delete("thread");
+                  navigate(`${location.pathname}${next.size ? `?${next}` : ""}`, { replace: true });
+                }
+              }}
               composerPlaceholder={`Message #${conversation.name ?? "channel"}`}
               onJoined={() => { loadConversation(); refresh(); }}
             />
           </>
         )}
-        {!channelId && data && mine.length === 0 && (
-          <div className="cpm-chat-empty">Pick a public channel on the left to preview it.</div>
+        {!channelId && data && (
+          <div className="cpm-chat-empty">Choose a channel to read it, or browse a public channel to preview and join.</div>
         )}
       </section>
     </div>

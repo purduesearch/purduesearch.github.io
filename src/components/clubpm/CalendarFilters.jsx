@@ -77,6 +77,7 @@ export default function CalendarFilters({ projects, members, filters, onChange }
 
   return (
     <div
+      className="cpm-calendar-filters"
       style={{
         display: 'flex',
         flexWrap: 'wrap',

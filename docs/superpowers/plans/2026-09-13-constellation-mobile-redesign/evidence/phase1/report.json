@@ -1,0 +1,1478 @@
+{
+  "generatedAt": "2026-09-17T01:25:23.757Z",
+  "scope": "Headless Chrome emulation against the fixture API. NOT a real device, real account, or screen reader.",
+  "summary": {
+    "passed": 213,
+    "failed": 0
+  },
+  "checks": [
+    {
+      "name": "d1440: desktop shell mounts",
+      "pass": true,
+      "detail": {
+        "compactClass": false,
+        "sidebar": true
+      }
+    },
+    {
+      "name": "d1440: no duplicate tour ids",
+      "pass": true,
+      "detail": []
+    },
+    {
+      "name": "d1280: desktop shell mounts",
+      "pass": true,
+      "detail": {
+        "compactClass": false,
+        "sidebar": true
+      }
+    },
+    {
+      "name": "d1280: no duplicate tour ids",
+      "pass": true,
+      "detail": []
+    },
+    {
+      "name": "x768: desktop shell mounts",
+      "pass": true,
+      "detail": {
+        "compactClass": false,
+        "sidebar": true
+      }
+    },
+    {
+      "name": "x768: no duplicate tour ids",
+      "pass": true,
+      "detail": []
+    },
+    {
+      "name": "x767: compact shell mounts",
+      "pass": true,
+      "detail": {
+        "compactClass": true,
+        "sidebar": false
+      }
+    },
+    {
+      "name": "x767: no duplicate tour ids",
+      "pass": true,
+      "detail": []
+    },
+    {
+      "name": "p390: compact shell mounts",
+      "pass": true,
+      "detail": {
+        "compactClass": true,
+        "sidebar": false
+      }
+    },
+    {
+      "name": "p390: no duplicate tour ids",
+      "pass": true,
+      "detail": []
+    },
+    {
+      "name": "p320: compact shell mounts",
+      "pass": true,
+      "detail": {
+        "compactClass": true,
+        "sidebar": false
+      }
+    },
+    {
+      "name": "p320: no duplicate tour ids",
+      "pass": true,
+      "detail": []
+    },
+    {
+      "name": "l844: compact shell mounts",
+      "pass": true,
+      "detail": {
+        "compactClass": true,
+        "sidebar": false
+      }
+    },
+    {
+      "name": "l844: no duplicate tour ids",
+      "pass": true,
+      "detail": []
+    },
+    {
+      "name": "l1024: desktop shell mounts",
+      "pass": true,
+      "detail": {
+        "compactClass": false,
+        "sidebar": true
+      }
+    },
+    {
+      "name": "l1024: no duplicate tour ids",
+      "pass": true,
+      "detail": []
+    },
+    {
+      "name": "d1440-home: sidebar/topbar/main rects + breadcrumb equal Phase 0",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "d1440-tasks: sidebar/topbar/main rects + breadcrumb equal Phase 0",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "d1440-chatlist: sidebar/topbar/main rects + breadcrumb equal Phase 0",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "d1440-members: sidebar/topbar/main rects + breadcrumb equal Phase 0",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "d1440-calendar: sidebar/topbar/main rects + breadcrumb equal Phase 0",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "d1440-notifications: sidebar/topbar/main rects + breadcrumb equal Phase 0",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "d1280-home: sidebar/topbar/main rects + breadcrumb equal Phase 0",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "d1280-tasks: sidebar/topbar/main rects + breadcrumb equal Phase 0",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "d1280-chatlist: sidebar/topbar/main rects + breadcrumb equal Phase 0",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "d1280-members: sidebar/topbar/main rects + breadcrumb equal Phase 0",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "d1280-calendar: sidebar/topbar/main rects + breadcrumb equal Phase 0",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "d1280-notifications: sidebar/topbar/main rects + breadcrumb equal Phase 0",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "d1280: Ctrl+K opens the unchanged desktop palette box",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "p390-home: 5 labelled items, all in view, all hit-testable",
+      "pass": true,
+      "detail": {
+        "n": 5,
+        "inView": true,
+        "missed": [],
+        "truncated": []
+      }
+    },
+    {
+      "name": "p390-home: exactly one current item (Home)",
+      "pass": true,
+      "detail": [
+        "Home"
+      ]
+    },
+    {
+      "name": "p390-home: no page-wide horizontal overflow",
+      "pass": true,
+      "detail": {
+        "wider": 0,
+        "docOverflowX": 0
+      }
+    },
+    {
+      "name": "p390-home: bottom bar and header targets ≥44px",
+      "pass": true,
+      "detail": []
+    },
+    {
+      "name": "p390-home: header title \"Home\"",
+      "pass": true,
+      "detail": "Home"
+    },
+    {
+      "name": "p390-home: Back absent",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "p390-home: no duplicate tour ids, no error boundary",
+      "pass": true,
+      "detail": []
+    },
+    {
+      "name": "p390-tasks: 5 labelled items, all in view, all hit-testable",
+      "pass": true,
+      "detail": {
+        "n": 5,
+        "inView": true,
+        "missed": [],
+        "truncated": []
+      }
+    },
+    {
+      "name": "p390-tasks: exactly one current item (Projects)",
+      "pass": true,
+      "detail": [
+        "Projects"
+      ]
+    },
+    {
+      "name": "p390-tasks: no page-wide horizontal overflow",
+      "pass": true,
+      "detail": {
+        "wider": 0,
+        "docOverflowX": 0
+      }
+    },
+    {
+      "name": "p390-tasks: bottom bar and header targets ≥44px",
+      "pass": true,
+      "detail": []
+    },
+    {
+      "name": "p390-tasks: Back absent",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "p390-tasks: no duplicate tour ids, no error boundary",
+      "pass": true,
+      "detail": []
+    },
+    {
+      "name": "p390-tasks: four project sections from ProjectNavContext",
+      "pass": true,
+      "detail": [
+        "Tasks:87x44",
+        "Files:87x44",
+        "Chat:87x44",
+        "Insights:87x44"
+      ]
+    },
+    {
+      "name": "p390-tasks: header is the project switch",
+      "pass": true,
+      "detail": [
+        "Orbital Debris Tracking Payload — Integration & Environmental Test Campaign (Phase II) — switch project",
+        "Search",
+        "Notifications, 2 unread"
+      ]
+    },
+    {
+      "name": "p390-chatlist: 5 labelled items, all in view, all hit-testable",
+      "pass": true,
+      "detail": {
+        "n": 5,
+        "inView": true,
+        "missed": [],
+        "truncated": []
+      }
+    },
+    {
+      "name": "p390-chatlist: exactly one current item (Chat)",
+      "pass": true,
+      "detail": [
+        "Chat"
+      ]
+    },
+    {
+      "name": "p390-chatlist: no page-wide horizontal overflow",
+      "pass": true,
+      "detail": {
+        "wider": 0,
+        "docOverflowX": 0
+      }
+    },
+    {
+      "name": "p390-chatlist: bottom bar and header targets ≥44px",
+      "pass": true,
+      "detail": []
+    },
+    {
+      "name": "p390-chatlist: header title \"Chat\"",
+      "pass": true,
+      "detail": "Chat"
+    },
+    {
+      "name": "p390-chatlist: Back absent",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "p390-chatlist: no duplicate tour ids, no error boundary",
+      "pass": true,
+      "detail": []
+    },
+    {
+      "name": "p390-conversation: 5 labelled items, all in view, all hit-testable",
+      "pass": true,
+      "detail": {
+        "n": 5,
+        "inView": true,
+        "missed": [],
+        "truncated": []
+      }
+    },
+    {
+      "name": "p390-conversation: exactly one current item (Chat)",
+      "pass": true,
+      "detail": [
+        "Chat"
+      ]
+    },
+    {
+      "name": "p390-conversation: no page-wide horizontal overflow",
+      "pass": true,
+      "detail": {
+        "wider": 0,
+        "docOverflowX": 0
+      }
+    },
+    {
+      "name": "p390-conversation: bottom bar and header targets ≥44px",
+      "pass": true,
+      "detail": []
+    },
+    {
+      "name": "p390-conversation: header title \"Conversation\"",
+      "pass": true,
+      "detail": "Conversation"
+    },
+    {
+      "name": "p390-conversation: Back shown",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "p390-conversation: no duplicate tour ids, no error boundary",
+      "pass": true,
+      "detail": []
+    },
+    {
+      "name": "p390-members: 5 labelled items, all in view, all hit-testable",
+      "pass": true,
+      "detail": {
+        "n": 5,
+        "inView": true,
+        "missed": [],
+        "truncated": []
+      }
+    },
+    {
+      "name": "p390-members: exactly one current item (Chat)",
+      "pass": true,
+      "detail": [
+        "Chat"
+      ]
+    },
+    {
+      "name": "p390-members: no page-wide horizontal overflow",
+      "pass": true,
+      "detail": {
+        "wider": 0,
+        "docOverflowX": 0
+      }
+    },
+    {
+      "name": "p390-members: bottom bar and header targets ≥44px",
+      "pass": true,
+      "detail": []
+    },
+    {
+      "name": "p390-members: header title \"People & DMs\"",
+      "pass": true,
+      "detail": "People & DMs"
+    },
+    {
+      "name": "p390-members: Back shown",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "p390-members: no duplicate tour ids, no error boundary",
+      "pass": true,
+      "detail": []
+    },
+    {
+      "name": "p390-calendar: 5 labelled items, all in view, all hit-testable",
+      "pass": true,
+      "detail": {
+        "n": 5,
+        "inView": true,
+        "missed": [],
+        "truncated": []
+      }
+    },
+    {
+      "name": "p390-calendar: exactly one current item (Calendar)",
+      "pass": true,
+      "detail": [
+        "Calendar"
+      ]
+    },
+    {
+      "name": "p390-calendar: no page-wide horizontal overflow",
+      "pass": true,
+      "detail": {
+        "wider": 0,
+        "docOverflowX": 0
+      }
+    },
+    {
+      "name": "p390-calendar: bottom bar and header targets ≥44px",
+      "pass": true,
+      "detail": []
+    },
+    {
+      "name": "p390-calendar: header title \"Calendar\"",
+      "pass": true,
+      "detail": "Calendar"
+    },
+    {
+      "name": "p390-calendar: Back absent",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "p390-calendar: no duplicate tour ids, no error boundary",
+      "pass": true,
+      "detail": []
+    },
+    {
+      "name": "p390-notifications: 5 labelled items, all in view, all hit-testable",
+      "pass": true,
+      "detail": {
+        "n": 5,
+        "inView": true,
+        "missed": [],
+        "truncated": []
+      }
+    },
+    {
+      "name": "p390-notifications: exactly one current item (More)",
+      "pass": true,
+      "detail": [
+        "More"
+      ]
+    },
+    {
+      "name": "p390-notifications: no page-wide horizontal overflow",
+      "pass": true,
+      "detail": {
+        "wider": 0,
+        "docOverflowX": 0
+      }
+    },
+    {
+      "name": "p390-notifications: bottom bar and header targets ≥44px",
+      "pass": true,
+      "detail": []
+    },
+    {
+      "name": "p390-notifications: header title \"Notifications\"",
+      "pass": true,
+      "detail": "Notifications"
+    },
+    {
+      "name": "p390-notifications: Back shown",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "p390-notifications: no duplicate tour ids, no error boundary",
+      "pass": true,
+      "detail": []
+    },
+    {
+      "name": "p390-prefs: 5 labelled items, all in view, all hit-testable",
+      "pass": true,
+      "detail": {
+        "n": 5,
+        "inView": true,
+        "missed": [],
+        "truncated": []
+      }
+    },
+    {
+      "name": "p390-prefs: exactly one current item (More)",
+      "pass": true,
+      "detail": [
+        "More"
+      ]
+    },
+    {
+      "name": "p390-prefs: no page-wide horizontal overflow",
+      "pass": true,
+      "detail": {
+        "wider": 0,
+        "docOverflowX": 0
+      }
+    },
+    {
+      "name": "p390-prefs: bottom bar and header targets ≥44px",
+      "pass": true,
+      "detail": []
+    },
+    {
+      "name": "p390-prefs: header title \"Notification preferences\"",
+      "pass": true,
+      "detail": "Notification preferences"
+    },
+    {
+      "name": "p390-prefs: Back shown",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "p390-prefs: no duplicate tour ids, no error boundary",
+      "pass": true,
+      "detail": []
+    },
+    {
+      "name": "p390-profile: 5 labelled items, all in view, all hit-testable",
+      "pass": true,
+      "detail": {
+        "n": 5,
+        "inView": true,
+        "missed": [],
+        "truncated": []
+      }
+    },
+    {
+      "name": "p390-profile: exactly one current item (More)",
+      "pass": true,
+      "detail": [
+        "More"
+      ]
+    },
+    {
+      "name": "p390-profile: no page-wide horizontal overflow",
+      "pass": true,
+      "detail": {
+        "wider": 0,
+        "docOverflowX": 0
+      }
+    },
+    {
+      "name": "p390-profile: bottom bar and header targets ≥44px",
+      "pass": true,
+      "detail": []
+    },
+    {
+      "name": "p390-profile: header title \"Profile\"",
+      "pass": true,
+      "detail": "Profile"
+    },
+    {
+      "name": "p390-profile: Back shown",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "p390-profile: no duplicate tour ids, no error boundary",
+      "pass": true,
+      "detail": []
+    },
+    {
+      "name": "p390-courses: 5 labelled items, all in view, all hit-testable",
+      "pass": true,
+      "detail": {
+        "n": 5,
+        "inView": true,
+        "missed": [],
+        "truncated": []
+      }
+    },
+    {
+      "name": "p390-courses: exactly one current item (More)",
+      "pass": true,
+      "detail": [
+        "More"
+      ]
+    },
+    {
+      "name": "p390-courses: no page-wide horizontal overflow",
+      "pass": true,
+      "detail": {
+        "wider": 0,
+        "docOverflowX": 0
+      }
+    },
+    {
+      "name": "p390-courses: bottom bar and header targets ≥44px",
+      "pass": true,
+      "detail": []
+    },
+    {
+      "name": "p390-courses: header title \"Courses\"",
+      "pass": true,
+      "detail": "Courses"
+    },
+    {
+      "name": "p390-courses: Back shown",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "p390-courses: no duplicate tour ids, no error boundary",
+      "pass": true,
+      "detail": []
+    },
+    {
+      "name": "p390-outreach: 5 labelled items, all in view, all hit-testable",
+      "pass": true,
+      "detail": {
+        "n": 5,
+        "inView": true,
+        "missed": [],
+        "truncated": []
+      }
+    },
+    {
+      "name": "p390-outreach: exactly one current item (More)",
+      "pass": true,
+      "detail": [
+        "More"
+      ]
+    },
+    {
+      "name": "p390-outreach: no page-wide horizontal overflow",
+      "pass": true,
+      "detail": {
+        "wider": 0,
+        "docOverflowX": 0
+      }
+    },
+    {
+      "name": "p390-outreach: bottom bar and header targets ≥44px",
+      "pass": true,
+      "detail": []
+    },
+    {
+      "name": "p390-outreach: header title \"Outreach Hub\"",
+      "pass": true,
+      "detail": "Outreach Hub"
+    },
+    {
+      "name": "p390-outreach: Back shown",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "p390-outreach: no duplicate tour ids, no error boundary",
+      "pass": true,
+      "detail": []
+    },
+    {
+      "name": "p390-gantt: 5 labelled items, all in view, all hit-testable",
+      "pass": true,
+      "detail": {
+        "n": 5,
+        "inView": true,
+        "missed": [],
+        "truncated": []
+      }
+    },
+    {
+      "name": "p390-gantt: exactly one current item (Projects)",
+      "pass": true,
+      "detail": [
+        "Projects"
+      ]
+    },
+    {
+      "name": "p390-gantt: no page-wide horizontal overflow",
+      "pass": true,
+      "detail": {
+        "wider": 0,
+        "docOverflowX": 0
+      }
+    },
+    {
+      "name": "p390-gantt: bottom bar and header targets ≥44px",
+      "pass": true,
+      "detail": []
+    },
+    {
+      "name": "p390-gantt: header title \"Timeline\"",
+      "pass": true,
+      "detail": "Timeline"
+    },
+    {
+      "name": "p390-gantt: Back shown",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "p390-gantt: no duplicate tour ids, no error boundary",
+      "pass": true,
+      "detail": []
+    },
+    {
+      "name": "p320-home: 5 labelled items, all in view, all hit-testable",
+      "pass": true,
+      "detail": {
+        "n": 5,
+        "inView": true,
+        "missed": [],
+        "truncated": []
+      }
+    },
+    {
+      "name": "p320-home: exactly one current item (Home)",
+      "pass": true,
+      "detail": [
+        "Home"
+      ]
+    },
+    {
+      "name": "p320-home: no page-wide horizontal overflow",
+      "pass": true,
+      "detail": {
+        "wider": 0,
+        "docOverflowX": 0
+      }
+    },
+    {
+      "name": "p320-home: bottom bar and header targets ≥44px",
+      "pass": true,
+      "detail": []
+    },
+    {
+      "name": "p320-home: header title \"Home\"",
+      "pass": true,
+      "detail": "Home"
+    },
+    {
+      "name": "p320-home: Back absent",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "p320-home: no duplicate tour ids, no error boundary",
+      "pass": true,
+      "detail": []
+    },
+    {
+      "name": "p320-tasks: 5 labelled items, all in view, all hit-testable",
+      "pass": true,
+      "detail": {
+        "n": 5,
+        "inView": true,
+        "missed": [],
+        "truncated": []
+      }
+    },
+    {
+      "name": "p320-tasks: exactly one current item (Projects)",
+      "pass": true,
+      "detail": [
+        "Projects"
+      ]
+    },
+    {
+      "name": "p320-tasks: no page-wide horizontal overflow",
+      "pass": true,
+      "detail": {
+        "wider": 0,
+        "docOverflowX": 0
+      }
+    },
+    {
+      "name": "p320-tasks: bottom bar and header targets ≥44px",
+      "pass": true,
+      "detail": []
+    },
+    {
+      "name": "p320-tasks: Back absent",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "p320-tasks: no duplicate tour ids, no error boundary",
+      "pass": true,
+      "detail": []
+    },
+    {
+      "name": "p320-tasks: four project sections from ProjectNavContext",
+      "pass": true,
+      "detail": [
+        "Tasks:69x44",
+        "Files:69x44",
+        "Chat:69x44",
+        "Insights:69x44"
+      ]
+    },
+    {
+      "name": "p320-tasks: header is the project switch",
+      "pass": true,
+      "detail": [
+        "Orbital Debris Tracking Payload — Integration & Environmental Test Campaign (Phase II) — switch project",
+        "Search",
+        "Notifications, 2 unread"
+      ]
+    },
+    {
+      "name": "p320-chatlist: 5 labelled items, all in view, all hit-testable",
+      "pass": true,
+      "detail": {
+        "n": 5,
+        "inView": true,
+        "missed": [],
+        "truncated": []
+      }
+    },
+    {
+      "name": "p320-chatlist: exactly one current item (Chat)",
+      "pass": true,
+      "detail": [
+        "Chat"
+      ]
+    },
+    {
+      "name": "p320-chatlist: no page-wide horizontal overflow",
+      "pass": true,
+      "detail": {
+        "wider": 0,
+        "docOverflowX": 0
+      }
+    },
+    {
+      "name": "p320-chatlist: bottom bar and header targets ≥44px",
+      "pass": true,
+      "detail": []
+    },
+    {
+      "name": "p320-chatlist: header title \"Chat\"",
+      "pass": true,
+      "detail": "Chat"
+    },
+    {
+      "name": "p320-chatlist: Back absent",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "p320-chatlist: no duplicate tour ids, no error boundary",
+      "pass": true,
+      "detail": []
+    },
+    {
+      "name": "p320-conversation: 5 labelled items, all in view, all hit-testable",
+      "pass": true,
+      "detail": {
+        "n": 5,
+        "inView": true,
+        "missed": [],
+        "truncated": []
+      }
+    },
+    {
+      "name": "p320-conversation: exactly one current item (Chat)",
+      "pass": true,
+      "detail": [
+        "Chat"
+      ]
+    },
+    {
+      "name": "p320-conversation: no page-wide horizontal overflow",
+      "pass": true,
+      "detail": {
+        "wider": 0,
+        "docOverflowX": 0
+      }
+    },
+    {
+      "name": "p320-conversation: bottom bar and header targets ≥44px",
+      "pass": true,
+      "detail": []
+    },
+    {
+      "name": "p320-conversation: header title \"Conversation\"",
+      "pass": true,
+      "detail": "Conversation"
+    },
+    {
+      "name": "p320-conversation: Back shown",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "p320-conversation: no duplicate tour ids, no error boundary",
+      "pass": true,
+      "detail": []
+    },
+    {
+      "name": "p320-calendar: 5 labelled items, all in view, all hit-testable",
+      "pass": true,
+      "detail": {
+        "n": 5,
+        "inView": true,
+        "missed": [],
+        "truncated": []
+      }
+    },
+    {
+      "name": "p320-calendar: exactly one current item (Calendar)",
+      "pass": true,
+      "detail": [
+        "Calendar"
+      ]
+    },
+    {
+      "name": "p320-calendar: no page-wide horizontal overflow",
+      "pass": true,
+      "detail": {
+        "wider": 0,
+        "docOverflowX": 0
+      }
+    },
+    {
+      "name": "p320-calendar: bottom bar and header targets ≥44px",
+      "pass": true,
+      "detail": []
+    },
+    {
+      "name": "p320-calendar: header title \"Calendar\"",
+      "pass": true,
+      "detail": "Calendar"
+    },
+    {
+      "name": "p320-calendar: Back absent",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "p320-calendar: no duplicate tour ids, no error boundary",
+      "pass": true,
+      "detail": []
+    },
+    {
+      "name": "l844-home: 5 labelled items, all in view, all hit-testable",
+      "pass": true,
+      "detail": {
+        "n": 5,
+        "inView": true,
+        "missed": [],
+        "truncated": []
+      }
+    },
+    {
+      "name": "l844-home: exactly one current item (Home)",
+      "pass": true,
+      "detail": [
+        "Home"
+      ]
+    },
+    {
+      "name": "l844-home: no page-wide horizontal overflow",
+      "pass": true,
+      "detail": {
+        "wider": 0,
+        "docOverflowX": 0
+      }
+    },
+    {
+      "name": "l844-home: bottom bar and header targets ≥44px",
+      "pass": true,
+      "detail": []
+    },
+    {
+      "name": "l844-home: header title \"Home\"",
+      "pass": true,
+      "detail": "Home"
+    },
+    {
+      "name": "l844-home: Back absent",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "l844-home: no duplicate tour ids, no error boundary",
+      "pass": true,
+      "detail": []
+    },
+    {
+      "name": "l844-tasks: 5 labelled items, all in view, all hit-testable",
+      "pass": true,
+      "detail": {
+        "n": 5,
+        "inView": true,
+        "missed": [],
+        "truncated": []
+      }
+    },
+    {
+      "name": "l844-tasks: exactly one current item (Projects)",
+      "pass": true,
+      "detail": [
+        "Projects"
+      ]
+    },
+    {
+      "name": "l844-tasks: no page-wide horizontal overflow",
+      "pass": true,
+      "detail": {
+        "wider": 0,
+        "docOverflowX": 0
+      }
+    },
+    {
+      "name": "l844-tasks: bottom bar and header targets ≥44px",
+      "pass": true,
+      "detail": []
+    },
+    {
+      "name": "l844-tasks: Back absent",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "l844-tasks: no duplicate tour ids, no error boundary",
+      "pass": true,
+      "detail": []
+    },
+    {
+      "name": "l844-tasks: four project sections from ProjectNavContext",
+      "pass": true,
+      "detail": [
+        "Tasks:200x44",
+        "Files:200x44",
+        "Chat:200x44",
+        "Insights:200x44"
+      ]
+    },
+    {
+      "name": "l844-tasks: header is the project switch",
+      "pass": true,
+      "detail": [
+        "Orbital Debris Tracking Payload — Integration & Environmental Test Campaign (Phase II) — switch project",
+        "Search",
+        "Notifications, 2 unread"
+      ]
+    },
+    {
+      "name": "l844-chatlist: 5 labelled items, all in view, all hit-testable",
+      "pass": true,
+      "detail": {
+        "n": 5,
+        "inView": true,
+        "missed": [],
+        "truncated": []
+      }
+    },
+    {
+      "name": "l844-chatlist: exactly one current item (Chat)",
+      "pass": true,
+      "detail": [
+        "Chat"
+      ]
+    },
+    {
+      "name": "l844-chatlist: no page-wide horizontal overflow",
+      "pass": true,
+      "detail": {
+        "wider": 0,
+        "docOverflowX": 0
+      }
+    },
+    {
+      "name": "l844-chatlist: bottom bar and header targets ≥44px",
+      "pass": true,
+      "detail": []
+    },
+    {
+      "name": "l844-chatlist: header title \"Chat\"",
+      "pass": true,
+      "detail": "Chat"
+    },
+    {
+      "name": "l844-chatlist: Back absent",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "l844-chatlist: no duplicate tour ids, no error boundary",
+      "pass": true,
+      "detail": []
+    },
+    {
+      "name": "l844-conversation: 5 labelled items, all in view, all hit-testable",
+      "pass": true,
+      "detail": {
+        "n": 5,
+        "inView": true,
+        "missed": [],
+        "truncated": []
+      }
+    },
+    {
+      "name": "l844-conversation: exactly one current item (Chat)",
+      "pass": true,
+      "detail": [
+        "Chat"
+      ]
+    },
+    {
+      "name": "l844-conversation: no page-wide horizontal overflow",
+      "pass": true,
+      "detail": {
+        "wider": 0,
+        "docOverflowX": 0
+      }
+    },
+    {
+      "name": "l844-conversation: bottom bar and header targets ≥44px",
+      "pass": true,
+      "detail": []
+    },
+    {
+      "name": "l844-conversation: header title \"Conversation\"",
+      "pass": true,
+      "detail": "Conversation"
+    },
+    {
+      "name": "l844-conversation: Back shown",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "l844-conversation: no duplicate tour ids, no error boundary",
+      "pass": true,
+      "detail": []
+    },
+    {
+      "name": "l844-calendar: 5 labelled items, all in view, all hit-testable",
+      "pass": true,
+      "detail": {
+        "n": 5,
+        "inView": true,
+        "missed": [],
+        "truncated": []
+      }
+    },
+    {
+      "name": "l844-calendar: exactly one current item (Calendar)",
+      "pass": true,
+      "detail": [
+        "Calendar"
+      ]
+    },
+    {
+      "name": "l844-calendar: no page-wide horizontal overflow",
+      "pass": true,
+      "detail": {
+        "wider": 0,
+        "docOverflowX": 0
+      }
+    },
+    {
+      "name": "l844-calendar: bottom bar and header targets ≥44px",
+      "pass": true,
+      "detail": []
+    },
+    {
+      "name": "l844-calendar: header title \"Calendar\"",
+      "pass": true,
+      "detail": "Calendar"
+    },
+    {
+      "name": "l844-calendar: Back absent",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "l844-calendar: no duplicate tour ids, no error boundary",
+      "pass": true,
+      "detail": []
+    },
+    {
+      "name": "More: opens as a modal sheet; More expanded; Calendar still current; app inert",
+      "pass": true,
+      "detail": {
+        "dialogs": [
+          "More"
+        ],
+        "inert": true
+      }
+    },
+    {
+      "name": "More: focus starts on the sheet heading",
+      "pass": true,
+      "detail": "More"
+    },
+    {
+      "name": "More (member): every destination present, no Admin",
+      "pass": true,
+      "detail": [
+        "Profile",
+        "Quests & achievements",
+        "Shop",
+        "People & DMs",
+        "Notification Center",
+        "Notification preferences",
+        "Outreach Hub",
+        "Blog",
+        "Courses",
+        "Keyboard shortcuts",
+        "Main site",
+        "Sign out"
+      ]
+    },
+    {
+      "name": "More: every row hit-testable and ≥44px tall",
+      "pass": true,
+      "detail": []
+    },
+    {
+      "name": "Back closes the More sheet and stays on Calendar",
+      "pass": true,
+      "detail": {
+        "url": "/clubpm/calendar",
+        "dialogs": []
+      }
+    },
+    {
+      "name": "Forward reopens the More sheet (Q10: reopen)",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "Choosing Shop in More navigates and closes the sheet",
+      "pass": true,
+      "detail": "/clubpm/shop"
+    },
+    {
+      "name": "Back from Shop returns to Calendar (sheet entry was replaced)",
+      "pass": true,
+      "detail": "/clubpm/calendar"
+    },
+    {
+      "name": "Escape closes the sheet; focus returns to the More button",
+      "pass": true,
+      "detail": "More"
+    },
+    {
+      "name": "More › Keyboard shortcuts closes the sheet and opens the shortcuts modal",
+      "pass": true,
+      "detail": {
+        "modal": true,
+        "sheet": false,
+        "url": "/clubpm/calendar"
+      }
+    },
+    {
+      "name": "Projects: sheet lists the projects; search field not focused",
+      "pass": true,
+      "detail": {
+        "rows": 4,
+        "active": "Projects"
+      }
+    },
+    {
+      "name": "Projects: choosing one opens its existing URL",
+      "pass": true,
+      "detail": "/clubpm/projects/p1"
+    },
+    {
+      "name": "Project sections: Files switches ?tab=files and marks it current",
+      "pass": true,
+      "detail": "/clubpm/projects/p1?tab=files"
+    },
+    {
+      "name": "Back after a section switch leaves the project (replace — desktop parity)",
+      "pass": true,
+      "detail": "/clubpm/calendar"
+    },
+    {
+      "name": "Project title opens the picker with This project actions",
+      "pass": true,
+      "detail": [
+        "Edit project",
+        "Project chat",
+        "Pin project",
+        "Timeline (Gantt)"
+      ]
+    },
+    {
+      "name": "Timeline action opens the Gantt route (no entry point existed before)",
+      "pass": true,
+      "detail": "/clubpm/projects/p1/gantt"
+    },
+    {
+      "name": "Search: full-screen dialog with the field focused",
+      "pass": true,
+      "detail": {
+        "w": 390,
+        "h": 844,
+        "focused": true
+      }
+    },
+    {
+      "name": "Back closes Search",
+      "pass": true,
+      "detail": {
+        "url": "/clubpm/",
+        "dialogs": []
+      }
+    },
+    {
+      "name": "Bell opens the Notification Center page",
+      "pass": true,
+      "detail": "/clubpm/notifications"
+    },
+    {
+      "name": "Projects: a failed load shows an error with Retry",
+      "pass": true,
+      "detail": "Projects didn't load. Projects unavailable (fixture) Retry"
+    },
+    {
+      "name": "Projects: Retry recovers the list",
+      "pass": true,
+      "detail": 4
+    },
+    {
+      "name": "More (admin): Admin row present",
+      "pass": true,
+      "detail": "Admin32"
+    },
+    {
+      "name": "Projects (26): sheet caps its height and scrolls internally",
+      "pass": true,
+      "detail": {
+        "many": 26,
+        "top": 118,
+        "scrolls": true
+      }
+    },
+    {
+      "name": "Five breakpoint crossings: no notification/project/auth refetch, no new stream",
+      "pass": true,
+      "detail": {
+        "refetched": [],
+        "sse": {
+          "opened": 0,
+          "open": 167
+        }
+      }
+    },
+    {
+      "name": "Tour: compact step opens More and rings nav.xp (phone copy, card not covering it)",
+      "pass": true,
+      "detail": {
+        "sheet": true,
+        "ringAroundTarget": true,
+        "body": "Your rank progress and your spendable balance. On a phone they sit at the top of More. We'll come back to what earns each one in module 4.",
+        "cardCoversTarget": false
+      }
+    },
+    {
+      "name": "Tour: the next step (dash.work) closes the sheet the tour opened",
+      "pass": true,
+      "detail": {
+        "sheet": false,
+        "anchor": "What's on you"
+      }
+    },
+    {
+      "name": "Tour (desktop): same step keeps desktop copy, pins the sidebar, opens no sheet",
+      "pass": true,
+      "detail": {
+        "inSidebar": true,
+        "pinned": true,
+        "body": "Your rank progress and your spendable balance, always in the sidebar. We'll come back to what earns each one in module 4.",
+        "sheet": false
+      }
+    }
+  ],
+  "shots": [
+    "evidence/phase1/d1440-home.png",
+    "evidence/phase1/d1440-tasks.png",
+    "evidence/phase1/d1440-chatlist.png",
+    "evidence/phase1/d1440-members.png",
+    "evidence/phase1/d1440-calendar.png",
+    "evidence/phase1/d1440-notifications.png",
+    "evidence/phase1/d1280-home.png",
+    "evidence/phase1/d1280-tasks.png",
+    "evidence/phase1/d1280-chatlist.png",
+    "evidence/phase1/d1280-members.png",
+    "evidence/phase1/d1280-calendar.png",
+    "evidence/phase1/d1280-notifications.png",
+    "evidence/phase1/p390-home.png",
+    "evidence/phase1/p390-tasks.png",
+    "evidence/phase1/p390-chatlist.png",
+    "evidence/phase1/p390-conversation.png",
+    "evidence/phase1/p390-members.png",
+    "evidence/phase1/p390-calendar.png",
+    "evidence/phase1/p390-notifications.png",
+    "evidence/phase1/p390-prefs.png",
+    "evidence/phase1/p390-profile.png",
+    "evidence/phase1/p390-courses.png",
+    "evidence/phase1/p390-outreach.png",
+    "evidence/phase1/p390-gantt.png",
+    "evidence/phase1/p320-home.png",
+    "evidence/phase1/p320-tasks.png",
+    "evidence/phase1/p320-chatlist.png",
+    "evidence/phase1/p320-conversation.png",
+    "evidence/phase1/p320-calendar.png",
+    "evidence/phase1/l844-home.png",
+    "evidence/phase1/l844-tasks.png",
+    "evidence/phase1/l844-chatlist.png",
+    "evidence/phase1/l844-conversation.png",
+    "evidence/phase1/l844-calendar.png",
+    "evidence/phase1/p390-more-sheet.png",
+    "evidence/phase1/p390-projects-sheet.png",
+    "evidence/phase1/p390-project-sheet-actions.png",
+    "evidence/phase1/p390-search.png",
+    "evidence/phase1/p390-projects-error.png",
+    "evidence/phase1/p390-more-admin.png",
+    "evidence/phase1/p390-projects-many.png",
+    "evidence/phase1/p390-tour-xp-reveal.png",
+    "evidence/phase1/d1280-tour-xp.png"
+  ],
+  "log": {
+    "crossing": {
+      "state": {
+        "persona": "member",
+        "projects": "few",
+        "failTaskCreate": "0",
+        "failChatSend": "0",
+        "slowWrites": "0",
+        "failAuth": "0",
+        "slackExpired": "0",
+        "failProjects": "0"
+      },
+      "sse": {
+        "opened": 0,
+        "open": 167
+      },
+      "log": {
+        "GET /api/challenges/active": 8,
+        "GET /api/github/dashboard/feed": 8,
+        "GET /api/members/m1/streak": 1
+      }
+    }
+  },
+  "consoleErrors": []
+}

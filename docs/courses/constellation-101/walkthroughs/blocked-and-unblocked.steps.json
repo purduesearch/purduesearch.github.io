@@ -11,6 +11,7 @@
       "title": "Open a to-do task",
       "body": "Click the highlighted card. We're going to stop this task two different ways, and then unstop it. Both mechanisms exist because they model genuinely different situations.",
       "placement": "right",
+      "compact": { "body": "Tap the highlighted task. We're going to stop it two different ways, then unstop it.", "placement": "top" },
       "advance": { "on": "click" }
     },
     {
@@ -38,6 +39,7 @@
       "title": "Now try to finish it",
       "body": "Set the status to Done. It won't let you — and it tells you which task is in the way. The same check runs on the server, so nobody routes around it by dragging.",
       "placement": "left",
+      "compact": { "body": "Set the status to Done. It will refuse and name the unfinished dependency. The same server check protects the phone Move control.", "placement": "top" },
       "advance": { "on": "next" }
     },
     {
@@ -65,6 +67,7 @@
       "title": "It moved itself",
       "body": "Close the task with the × at the top left of the modal, then look at the board. Attaching a blocker forces the card to BLOCKED — the board can't show something as active while it's stuck.",
       "placement": "left",
+      "compact": { "body": "Close the full-screen task, then look at the Blocked group. Attaching a blocker forces the task there while it is stuck.", "placement": "top" },
       "advance": { "on": "next" }
     },
     {
@@ -74,6 +77,7 @@
       "title": "Grouped by reason",
       "body": "Blocked cards cluster under the reason blocking them. Which turns \"why is nothing moving\" into a list of four things somebody needs to go chase.",
       "placement": "left",
+      "compact": { "body": "On a phone the Blocked group lists each blocker first, with who is responsible and Edit and Resolve buttons, then the blocked tasks. Resolve clears that blocker from every task it sits on.", "placement": "top" },
       "advance": { "on": "next" }
     },
     {
@@ -83,6 +87,7 @@
       "title": "Open it again",
       "body": "Click your task inside this bin. Everything about a blocked card is still editable — being blocked is a state, not a lock.",
       "placement": "left",
+      "compact": { "body": "Tap your blocked task. Everything about it is still editable; blocked is a state, not a lock.", "placement": "top" },
       "advance": { "on": "click" }
     },
     {

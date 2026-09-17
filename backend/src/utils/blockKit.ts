@@ -1,5 +1,6 @@
 import type { KnownBlock, Block } from "@slack/types";
-import type { Task, Member, Project } from "@prisma/client";
+import type { Task, Project } from "@prisma/client";
+import type { AppMember as Member } from "../db/prisma.js";
 
 type TaskWithRelations = Task & { assignees: Member[]; project: Project };
 

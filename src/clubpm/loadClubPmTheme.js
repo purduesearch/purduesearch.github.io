@@ -26,7 +26,7 @@ import { loadTheme, lazyWithTheme } from '../theme/loadTheme';
 // loadTheme() keys its memo and its DOM guard on the (marker, href) pair, so a
 // bump here is correctly treated as a new sheet rather than resolving against
 // the stale <link>.
-const HREF = '/clubpm-theme.css?v=2';
+const HREF = '/clubpm-theme.css?v=6';
 const MARKER = 'data-clubpm-theme';
 
 export function loadClubPmTheme() {

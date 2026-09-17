@@ -30,7 +30,7 @@ export default function KeyboardShortcutsModal({ onClose }) {
 
   return (
     <div className="pm-shortcuts-backdrop" onClick={onClose}>
-      <div className="pm-shortcuts-modal" onClick={e => e.stopPropagation()}>
+      <div className="pm-shortcuts-modal" role="dialog" aria-label="Keyboard shortcuts" onClick={e => e.stopPropagation()}>
         <div className="pm-shortcuts-header">
           <span className="pm-shortcuts-title">
             <i className="fas fa-keyboard" aria-hidden="true" />

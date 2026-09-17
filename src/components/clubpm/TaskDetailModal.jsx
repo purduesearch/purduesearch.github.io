@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { get, post, patch } from '../../api/clubPmClient';
 import { formatDistanceToNow } from 'date-fns';
+import MobileSheet from './MobileSheet';
+import { useCompactLayout } from '../../clubpm/layout/compactLayout';
 
 const STATUS_OPTIONS = ['TODO', 'IN_PROGRESS', 'BLOCKED', 'DONE'];
 const STATUS_LABELS  = { TODO: 'Todo', IN_PROGRESS: 'In Progress', BLOCKED: 'Blocked', DONE: 'Done' };
@@ -18,6 +20,7 @@ function RelativeTime({ dateStr }) {
 }
 
 export default function TaskDetailModal({ task, projectMembers = [], onClose, onUpdate }) {
+  const compact = useCompactLayout();
   const [localTask, setLocalTask] = useState(null);
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState('');
@@ -109,9 +112,7 @@ export default function TaskDetailModal({ task, projectMembers = [], onClose, on
 
   const open = !!task;
 
-  return (
-    <>
-      {open && <div className="pm-tdm-overlay" onClick={onClose} />}
+  const panel = (
       <div className={`pm-tdm-panel${open ? ' open' : ''}`}>
         {localTask && (
           <>
@@ -376,6 +377,9 @@ export default function TaskDetailModal({ task, projectMembers = [], onClose, on
           </>
         )}
       </div>
-    </>
   );
+  if (compact) {
+    return open ? <MobileSheet title={localTask?.title || 'Task'} variant="fullscreen" onClose={onClose} className="pm-m-task-detail pm-m-task-detail--legacy">{panel}</MobileSheet> : null;
+  }
+  return <>{open && <div className="pm-tdm-overlay" onClick={onClose} />}{panel}</>;
 }

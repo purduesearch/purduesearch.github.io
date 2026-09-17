@@ -8,6 +8,8 @@ import AttachmentPickerModal from "./AttachmentPickerModal";
 import DrivePreviewModal from "./DrivePreviewModal";
 import GitHubTaskSection from "./github/GitHubTaskSection";
 import { parseDriveUrl, getTypeMeta } from "../../utils/driveUtils";
+import MobileSheet from "./MobileSheet";
+import { useCompactLayout } from "../../clubpm/layout/compactLayout";
 
 // ─── Constants ────────────────────────────────────────────────
 
@@ -107,7 +109,7 @@ function AvatarPill({ member }) {
 function IconBtn({ icon, title, onClick, danger, style={} }) {
   const [hov, setHov] = useState(false);
   return (
-    <button title={title} onClick={onClick}
+    <button title={title} aria-label={title} onClick={onClick}
       onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
       style={{
         display:"flex", alignItems:"center", justifyContent:"center",
@@ -143,12 +145,24 @@ function ActionBtn({ icon, label, onClick, style={} }) {
 
 function SectionHeader({ icon, label, open, onToggle, onAction, actionIcon, actionTitle }) {
   return (
-    <div onClick={onToggle} style={{
+    <div
+      role="button"
+      tabIndex={0}
+      aria-expanded={open}
+      onClick={onToggle}
+      onKeyDown={event => {
+        if (event.target !== event.currentTarget) return;
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onToggle();
+        }
+      }}
+      style={{
       display:"flex", alignItems:"center", gap:8, padding:"11px 20px",
       cursor:"pointer", borderBottom:"1px solid var(--clubpm-border)",
       background:"var(--clubpm-surface-100)",
       userSelect:"none",
-    }}>
+      }}>
       <i className={`fas fa-${icon}`} style={{ color:"var(--clubpm-text-muted)", fontSize:13 }} />
       <span style={{ fontSize:13, fontWeight:600, color:"var(--clubpm-text-primary)", flex:1 }}>{label}</span>
       {onAction && (
@@ -687,6 +701,8 @@ function CommentRow({ comment, taskId, currentMember, onUpdate, onDelete, isRepl
   const [showReplyInput, setShowReplyInput] = useState(false);
   const [replyDraft, setReplyDraft] = useState("");
   const [submittingReply, setSubmittingReply] = useState(false);
+  // State alone lets two same-tick submits both pass the check; the ref does not.
+  const replyInFlight = useRef(false);
 
   const isAuthor = currentMember && comment.authorId === currentMember.id;
   const isAdmin = currentMember?.isAdmin;
@@ -736,7 +752,8 @@ function CommentRow({ comment, taskId, currentMember, onUpdate, onDelete, isRepl
   }
 
   async function handleSubmitReply() {
-    if (!replyDraft.trim() || submittingReply) return;
+    if (!replyDraft.trim() || replyInFlight.current) return;
+    replyInFlight.current = true;
     setSubmittingReply(true);
     try {
       const newReply = await post(`/api/tasks/${taskId}/comments`, { content: replyDraft.trim(), parentId: comment.id });
@@ -746,6 +763,7 @@ function CommentRow({ comment, taskId, currentMember, onUpdate, onDelete, isRepl
     } catch (e) {
       console.error("Failed to post reply", e);
     } finally {
+      replyInFlight.current = false;
       setSubmittingReply(false);
     }
   }
@@ -1096,6 +1114,7 @@ function MetaRow({ label, children, tourId }) {
 
 export default function TaskModal({ task: initialTask, project, projectBlockers = [], onBlockersChange, readOnly = false, onClose, onUpdate, onDelete, onTaskCreated }) {
   const { member } = useClubPmAuth();
+  const compact = useCompactLayout();
 
   const [task, setTask] = useState(initialTask);
 
@@ -1143,6 +1162,8 @@ export default function TaskModal({ task: initialTask, project, projectBlockers 
 
   const [commentDraft, setCommentDraft] = useState("");
   const [submittingComment, setSubmittingComment] = useState(false);
+  // Same-tick double-submit guard (see replyInFlight).
+  const commentInFlight = useRef(false);
 
   const [editingDesc, setEditingDesc] = useState(false);
   const [descDraft, setDescDraft] = useState(task.description ?? "");
@@ -1271,13 +1292,17 @@ export default function TaskModal({ task: initialTask, project, projectBlockers 
   }, [task, member, saveField, onUpdate, blockingTasks, taskBlockers]);
 
   async function submitComment() {
-    if (!commentDraft.trim() || submittingComment) return;
+    if (!commentDraft.trim() || commentInFlight.current) return;
+    commentInFlight.current = true;
     setSubmittingComment(true);
     try {
       const c = await post(`/api/tasks/${task.id}/comments`, { content: commentDraft.trim() });
       setComments(prev => [...prev, { replies: [], reactions: {}, ...c }]);
       setCommentDraft("");
+    } catch (err) {
+      toast.error(err?.message || "Failed to post comment. Your draft was kept.");
     } finally {
+      commentInFlight.current = false;
       setSubmittingComment(false);
     }
   }
@@ -1554,37 +1579,34 @@ export default function TaskModal({ task: initialTask, project, projectBlockers 
   const dueInfo = dueDateLabel(task.dueDate);
   const createdByMember = task.createdBy ?? task.assignees?.[0];
 
+  const effectiveFullscreen = compact || fullscreen;
   const modalStyle = {
     background:"var(--clubpm-surface-100)",
-    borderRadius: fullscreen ? 0 : 14,
-    width: fullscreen ? "100vw" : "min(820px, 96vw)",
-    maxHeight: fullscreen ? "100vh" : "92vh",
-    height: fullscreen ? "100vh" : undefined,
+    borderRadius: effectiveFullscreen ? 0 : 14,
+    width: effectiveFullscreen ? "100%" : "min(820px, 96vw)",
+    maxHeight: effectiveFullscreen ? "100%" : "92vh",
+    height: effectiveFullscreen ? "100%" : undefined,
     overflow:"hidden",
     display:"flex", flexDirection:"column",
     boxShadow:"0 32px 100px rgba(0,0,0,0.6)",
     border:"1px solid var(--clubpm-border)",
-    position: fullscreen ? "fixed" : "relative",
-    inset: fullscreen ? 0 : undefined,
+    position: compact ? "relative" : (fullscreen ? "fixed" : "relative"),
+    inset: !compact && fullscreen ? 0 : undefined,
   };
 
-  const modal = (
-    <div style={{
-      ...styles.overlay,
-      alignItems: fullscreen ? "flex-start" : "center",
-    }} onClick={e => { if (!fullscreen && e.target === e.currentTarget) onClose(); }}>
-      <div style={modalStyle} data-tour-id="task.modal">
+  const modalPanel = (
+      <div className="pm-task-modal-panel" style={modalStyle} data-tour-id="task.modal">
 
         {/* Top bar */}
-        <div style={{
+        <div className="pm-task-modal-topbar" style={{
           display:"flex", alignItems:"center", justifyContent:"space-between",
           padding:"8px 14px", borderBottom:"1px solid var(--clubpm-border)",
           background:"var(--clubpm-surface-200)", flexShrink:0,
         }}>
           <div style={{ display:"flex", alignItems:"center", gap:4 }}>
             <IconBtn icon="times" title="Close" onClick={onClose} />
-            <IconBtn icon="expand-arrows-alt" title={fullscreen ? "Exit full screen" : "Full screen"}
-              onClick={() => setFullscreen(f => !f)} />
+            {!compact && <IconBtn icon="expand-arrows-alt" title={fullscreen ? "Exit full screen" : "Full screen"}
+              onClick={() => setFullscreen(f => !f)} />}
           </div>
           <div style={{ display:"flex", alignItems:"center", gap:6, fontSize:11, color:"var(--clubpm-text-muted)" }}>
             <span>{task.project?.name ?? "Project"}</span>
@@ -1650,7 +1672,7 @@ export default function TaskModal({ task: initialTask, project, projectBlockers 
 
               {!readOnly && (
                 <div ref={menuRef} style={{ position:"relative" }}>
-                  <button onClick={() => setMenuOpen(o => !o)} style={{
+                  <button onClick={() => setMenuOpen(o => !o)} aria-label="More task actions" aria-expanded={menuOpen} style={{
                     display:"flex", alignItems:"center", justifyContent:"center",
                     width:32, height:32, borderRadius:6, border:"1px solid var(--clubpm-border)",
                     background: menuOpen ? "var(--clubpm-surface-300)" : "var(--clubpm-surface-200)",
@@ -1659,7 +1681,7 @@ export default function TaskModal({ task: initialTask, project, projectBlockers 
                   }}>···</button>
 
                   {menuOpen && (
-                    <div style={{
+                    <div className="pm-task-modal-menu" style={{
                       position:"absolute", top:"calc(100% + 4px)", left:0, zIndex:300,
                       background:"var(--clubpm-surface-200)", border:"1px solid var(--clubpm-border)",
                       borderRadius:10, boxShadow:"0 8px 32px rgba(0,0,0,0.35)",
@@ -1711,7 +1733,7 @@ export default function TaskModal({ task: initialTask, project, projectBlockers 
           </div>
 
           {/* Metadata grid */}
-          <div style={{
+          <div className="pm-task-modal-meta" style={{
             display:"grid", gridTemplateColumns:"130px 1fr 130px 1fr",
             gap:"10px 0", padding:"12px 20px",
             borderTop:"1px solid var(--clubpm-border)", borderBottom:"1px solid var(--clubpm-border)",
@@ -2249,7 +2271,7 @@ export default function TaskModal({ task: initialTask, project, projectBlockers 
           </div>
 
           {/* Comments & History tabs */}
-          <div style={{ flexShrink:0 }}>
+          <div className="pm-task-modal-activity" style={{ flexShrink:0 }}>
             <div style={{
               display:"flex", alignItems:"center", gap:2,
               padding:"0 20px", borderTop:"1px solid var(--clubpm-border)",
@@ -2300,7 +2322,7 @@ export default function TaskModal({ task: initialTask, project, projectBlockers 
                     />
                   ))}
 
-                  <div data-tour-id="task.modal.comments" style={{ display:"flex", alignItems:"center", gap:10, marginTop:4 }}>
+                  <div className="pm-task-modal-comment" data-tour-id="task.modal.comments" style={{ display:"flex", alignItems:"center", gap:10, marginTop:4 }}>
                     {member?.avatarUrl
                       ? <img src={member.avatarUrl} alt={member.displayName} style={{ width:28, height:28, borderRadius:"50%", flexShrink:0 }} />
                       : <div style={{
@@ -2324,10 +2346,10 @@ export default function TaskModal({ task: initialTask, project, projectBlockers 
                       onBlur={e => e.target.style.borderColor = "var(--clubpm-border)"}
                     />
                     {commentDraft.trim() && (
-                      <button onClick={submitComment} disabled={submittingComment} style={{
+                      <button onClick={submitComment} disabled={submittingComment} aria-label="Post comment" style={{
                         ...styles.primaryBtn, padding:"7px 14px", opacity: submittingComment ? 0.7 : 1,
                       }}>
-                        <i className="fas fa-paper-plane" />
+                        <i className="fas fa-paper-plane" aria-hidden="true" />
                       </button>
                     )}
                   </div>
@@ -2346,12 +2368,19 @@ export default function TaskModal({ task: initialTask, project, projectBlockers 
           </div>
         </div>
       </div>
+  );
+
+  const modal = (
+    <div style={{ ...styles.overlay, alignItems: fullscreen ? "flex-start" : "center" }} onClick={e => { if (!fullscreen && e.target === e.currentTarget) onClose(); }}>
+      {modalPanel}
     </div>
   );
 
   return (
     <>
-      {createPortal(modal, document.body)}
+      {compact
+        ? <MobileSheet title={task.title || "Task"} variant="fullscreen" onClose={onClose} className="pm-m-task-detail" returnFocusSelector={`[data-task-id="${task.id}"] .pm-m-task-main`}>{modalPanel}</MobileSheet>
+        : createPortal(modal, document.body)}
 
       {showSubtaskModal && (
         <CreateSubtaskModal

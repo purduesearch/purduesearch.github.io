@@ -2707,6 +2707,8 @@ html::-webkit-scrollbar { display: none; }
 .pm-login-wordmark {
   text-align: center;
 }
+/* Was an inline style on the <h1>; moved here so the phone query can shrink it. */
+.pm-login-wordmark h1 { font-size: 3.5rem; }
 .pm-login-typewriter {
   color: var(--pm-text-secondary);
   font-size: 1rem;
@@ -24307,10 +24309,53 @@ html:not(.aos-off) [data-aos].aos-animate  { opacity: 1; transform: none; }
 .pm-login-footer a:hover { color: var(--pm-text-primary); text-decoration: underline; }
 .pm-login-footer p { margin: 0; color: var(--pm-text-muted) !important; }
 
+/* Phone sign-in (Constellation mobile redesign, Phase 4H).
+   The login route renders OUTSIDE AppShell, so neither `.pm-shell--compact` nor
+   `body.pm-m-compact` reaches it — this is a plain width query, like the rest of
+   the login styles. Layout only: every `.pm-login-doc` scope-justification and
+   Limited Use section is required by the Google OAuth review and must keep
+   rendering in full (root AGENTS.md, Domain/hostnames). Nothing here hides one. */
 @media (max-width: 640px) {
   .pm-login-doc { padding-bottom: 2.5rem; }
   .pm-login-doc-section { padding: 2.5rem 0; }
   .pm-login-footer-inner { flex-direction: column; align-items: flex-start; }
+
+  .pm-login-content,
+  .pm-login-hero,
+  .pm-login-card,
+  .pm-login-doc { min-width: 0; }
+  /* The hero and the card each carried 2rem of side padding, which left a
+     320px screen with a ~160px content column. One gutter is enough. */
+  .pm-login-hero {
+    padding: 1.5rem max(1rem, env(safe-area-inset-left, 0px)) 1.5rem max(1rem, env(safe-area-inset-right, 0px));
+  }
+  .pm-login-card { padding: 1.25rem; }
+  .pm-login-hero { display: block; }
+  .pm-login-figure { max-width: 100%; margin: 20px auto 0; }
+  /* Sized to keep "Constellation" on one line at 320px. `overflow-wrap` is
+     deliberately NOT set here: it would break the wordmark mid-word rather than
+     shrink it. */
+  .pm-login-wordmark h1 { font-size: clamp(1.55rem, 8.6vw, 2.6rem); letter-spacing: 0; }
+  .pm-login-lede, .pm-login-eyebrow { overflow-wrap: anywhere; }
+  .pm-login-features { grid-template-columns: minmax(0, 1fr); }
+  .pm-login-feature { min-width: 0; }
+  /* The one action on the page: full width and comfortably tappable. */
+  .pm-slack-btn { width: 100%; min-height: 48px; justify-content: center; }
+  .pm-login-callout { padding: 14px; overflow-wrap: anywhere; }
+  .pm-login-scroll-cue { min-height: 44px; }
+  /* The scope-justification table stays complete and scrolls inside its own
+     frame rather than widening the page. */
+  .pm-login-table-wrap {
+    max-width: 100%;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+    border: 1px solid var(--pm-border);
+    border-radius: 10px;
+  }
+  .pm-login-table { min-width: 520px; }
+  .pm-login-doc-section h2 { overflow-wrap: anywhere; }
+  .pm-login-footer a { margin-right: 0; display: inline-block; min-height: 44px; line-height: 44px; }
 }
 
 /* == Meeting scheduler: mobile board, link sharing, suggested availability == */
@@ -27178,4 +27223,1719 @@ button.cpm-chat-reaction:disabled { cursor: default; }
   border-color: var(--pm-accent-teal, #00e5cc);
   background: rgba(0, 229, 204, 0.09);
   color: var(--pm-accent-teal, #00e5cc);
+}
+
+/* ==========================================================================
+   Compact (phone) shell — Constellation mobile redesign, Phase 1.
+
+   Every rule here is doubly gated:
+   1. the @media condition is COMPACT_QUERY from src/clubpm/layout/compactLayout.js,
+      character for character (compactLayout.test.js fails if they drift), and
+   2. every selector is scoped under .pm-shell--compact, the class AppShell sets
+      only while useCompactLayout() is true (and that each portalled phone layer
+      carries itself).
+   So a desktop-sized viewport never matches, and disabling the rollout switch
+   (REACT_APP_CLUBPM_COMPACT=off / localStorage pm-compact=off) removes the class
+   and with it every rule below. No desktop selector is modified.
+   Contracts: docs/superpowers/plans/2026-09-13-constellation-mobile-redesign/contracts.md
+   ========================================================================== */
+@media (max-width: 767.98px), (pointer: coarse) and (hover: none) and (max-width: 1023.98px) and (max-height: 499.98px) {
+  .pm-shell--compact {
+    --pm-m-header-h: 56px;
+    --pm-m-nav-h: 60px;
+    --pm-m-tap: 44px;
+    --pm-m-gutter: 16px;
+    --pm-m-safe-top: env(safe-area-inset-top, 0px);
+    --pm-m-safe-bottom: env(safe-area-inset-bottom, 0px);
+    --pm-m-safe-left: env(safe-area-inset-left, 0px);
+    --pm-m-safe-right: env(safe-area-inset-right, 0px);
+  }
+
+  /* ── Frame: header / sections / one scrolling main / bottom bar ── */
+  .pm-shell.pm-shell--compact {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
+    height: 100vh;
+    height: 100dvh;
+    min-height: 0;
+    /* border-box: with the default content-box the side insets (landscape
+       notch) were added outside the viewport, so the right one never showed. */
+    box-sizing: border-box;
+    padding-left: var(--pm-m-safe-left);
+    padding-right: var(--pm-m-safe-right);
+  }
+  .pm-shell.pm-shell--compact > .pm-shell-main {
+    grid-row: 1;
+    margin-left: 0;
+    height: auto;
+    min-height: 0;
+    min-width: 0;
+  }
+  .pm-shell.pm-shell--compact > .pm-m-nav { grid-row: 2; }
+  .pm-shell.pm-shell--compact .pm-shell-content {
+    min-width: 0;
+    overflow-x: hidden;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+  .pm-shell.pm-shell--compact :focus-visible {
+    outline: 2px solid var(--pm-accent-teal);
+    outline-offset: 2px;
+  }
+
+  /* ── Header ── */
+  .pm-shell--compact .pm-m-header {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-height: calc(var(--pm-m-header-h) + var(--pm-m-safe-top));
+    padding: var(--pm-m-safe-top) 4px 0 var(--pm-m-gutter);
+    background: var(--pm-bg-surface);
+    border-bottom: 1px solid var(--pm-border);
+    position: relative;
+    z-index: 60;
+  }
+  .pm-shell--compact .pm-m-header--detail { padding-left: 4px; }
+  .pm-shell--compact .pm-m-title {
+    flex: 1 1 auto;
+    min-width: 0;
+    margin: 0;
+    font: 700 1.1rem/1.2 var(--pm-font-display);
+    color: var(--pm-text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .pm-shell--compact .pm-m-icon-btn {
+    flex: none;
+    position: relative;
+    width: var(--pm-m-tap);
+    height: var(--pm-m-tap);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    border-radius: 10px;
+    background: none;
+    color: var(--pm-text-secondary);
+    font-size: 17px;
+    text-decoration: none;
+    cursor: pointer;
+  }
+  .pm-shell--compact .pm-m-icon-btn:active,
+  .pm-shell--compact .pm-m-icon-btn[aria-expanded="true"],
+  .pm-shell--compact .pm-m-icon-btn[aria-current="page"] {
+    background: var(--pm-bg-overlay);
+    color: var(--pm-text-primary);
+  }
+  .pm-shell--compact .pm-m-badge {
+    position: absolute;
+    top: 6px;
+    right: 4px;
+    min-width: 17px;
+    height: 17px;
+    padding: 0 4px;
+    border-radius: 999px;
+    background: var(--pm-accent-coral);
+    color: #0d0f14;
+    font: 700 10px/17px var(--pm-font-body);
+    text-align: center;
+  }
+  .pm-shell--compact .pm-m-project-switch {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    height: var(--pm-m-tap);
+    padding: 0 8px 0 0;
+    border: 0;
+    background: none;
+    color: var(--pm-text-primary);
+    text-align: left;
+    cursor: pointer;
+  }
+  .pm-shell--compact .pm-m-project-switch .pm-m-title { flex: 0 1 auto; }
+  .pm-shell--compact .pm-m-project-switch i { flex: none; font-size: 12px; color: var(--pm-text-secondary); }
+
+  /* ── Project sections (Tasks / Files / Chat / Insights) ── */
+  .pm-shell--compact .pm-m-sections {
+    width: auto; /* a <nav>: see .pm-m-nav */
+    flex-shrink: 0;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 4px;
+    padding: 6px var(--pm-m-gutter);
+    background: var(--pm-bg-surface);
+    border-bottom: 1px solid var(--pm-border);
+    position: relative;
+    z-index: 59;
+  }
+  .pm-shell--compact .pm-m-section-btn {
+    min-width: 0;
+    min-height: var(--pm-m-tap);
+    padding: 0 2px;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    background: none;
+    color: var(--pm-text-secondary);
+    font: 600 14px/1.1 var(--pm-font-body);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: pointer;
+  }
+  .pm-shell--compact .pm-m-section-btn[aria-current="page"] {
+    color: var(--pm-accent-teal);
+    background: rgba(0, 229, 204, 0.08);
+    border-color: var(--pm-border-active);
+  }
+
+  /* ── Bottom navigation ── */
+  .pm-shell--compact .pm-m-nav {
+    /* width: auto — style.min.css sizes every <nav> to 100vw, which ran the
+       bar off the right edge whenever side safe-area insets apply. */
+    width: auto;
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    min-height: calc(var(--pm-m-nav-h) + var(--pm-m-safe-bottom));
+    padding-bottom: var(--pm-m-safe-bottom);
+    background: var(--pm-bg-surface);
+    border-top: 1px solid var(--pm-border);
+    position: relative;
+    z-index: 90;
+  }
+  .pm-shell--compact .pm-m-nav-item {
+    position: relative;
+    min-width: 0;
+    min-height: var(--pm-m-nav-h);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    padding: 0 2px;
+    border: 0;
+    background: none;
+    color: var(--pm-text-secondary);
+    font: 600 11.5px/1.1 var(--pm-font-body);
+    text-decoration: none;
+    cursor: pointer;
+  }
+  .pm-shell--compact .pm-m-nav-item i { font-size: 18px; }
+  .pm-shell--compact .pm-m-nav-item span {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .pm-shell--compact .pm-m-nav-item[aria-current="page"] { color: var(--pm-accent-teal); }
+  .pm-shell--compact .pm-m-nav-item[aria-current="page"]::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 22%;
+    right: 22%;
+    height: 3px;
+    border-radius: 0 0 3px 3px;
+    background: var(--pm-accent-teal);
+  }
+  .pm-shell--compact .pm-m-nav-item[aria-expanded="true"] {
+    color: var(--pm-text-primary);
+    background: var(--pm-bg-overlay);
+  }
+
+  /* ── Overlay layers (portalled to <body>, outside .clubpm-app) ── */
+  body.pm-m-scroll-lock { overflow: hidden; }
+  .pm-m-layer.pm-shell--compact {
+    position: fixed;
+    inset: 0;
+    z-index: 820;
+    font-family: var(--pm-font-body);
+    font-size: 15px;
+    line-height: 1.4;
+    color: var(--pm-text-primary);
+  }
+  .pm-m-layer.pm-shell--compact *,
+  .pm-m-layer.pm-shell--compact *::before,
+  .pm-m-layer.pm-shell--compact *::after { box-sizing: border-box; }
+  .pm-m-layer.pm-shell--compact .pm-m-scrim {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    animation: pm-m-fade 0.15s ease;
+  }
+  .pm-m-layer.pm-shell--compact .pm-m-sheet {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1;
+    max-height: 86vh;
+    max-height: 86dvh;
+    display: flex;
+    flex-direction: column;
+    padding-bottom: var(--pm-m-safe-bottom);
+    background: var(--pm-bg-surface);
+    border: 1px solid var(--pm-border);
+    border-bottom: 0;
+    border-radius: 16px 16px 0 0;
+    box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.5);
+    animation: pm-m-rise 0.2s ease;
+  }
+  .pm-m-layer.pm-shell--compact .pm-m-dialog {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    padding-top: var(--pm-m-safe-top);
+    padding-bottom: var(--pm-m-safe-bottom);
+    background: var(--pm-bg-base);
+    animation: pm-m-rise 0.2s ease;
+  }
+  .pm-m-layer.pm-shell--compact .pm-m-sheet-grip {
+    flex: none;
+    width: 36px;
+    height: 4px;
+    margin: 8px auto 0;
+    border-radius: 4px;
+    background: var(--pm-bg-overlay);
+  }
+  .pm-m-layer.pm-shell--compact .pm-m-sheet-head {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 4px 6px var(--pm-m-gutter);
+    border-bottom: 1px solid var(--pm-border);
+  }
+  .pm-m-layer.pm-shell--compact .pm-m-sheet-head h2 {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+    font: 700 1.05rem/1.2 var(--pm-font-display);
+    color: var(--pm-text-primary);
+  }
+  .pm-m-layer.pm-shell--compact .pm-m-sheet-head h2:focus { outline: none; }
+  .pm-m-layer.pm-shell--compact .pm-m-sheet-head h2:focus-visible { outline: 2px solid var(--pm-accent-teal); outline-offset: 2px; }
+  .pm-m-layer.pm-shell--compact .pm-m-sheet-body {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    padding: 4px var(--pm-m-gutter) 16px;
+  }
+  .pm-m-layer.pm-shell--compact .pm-m-sheet-foot {
+    flex: none;
+    display: flex;
+    gap: 8px;
+    padding: 10px var(--pm-m-gutter);
+    border-top: 1px solid var(--pm-border);
+    background: var(--pm-bg-surface);
+  }
+  .pm-m-layer.pm-shell--compact :focus-visible { outline: 2px solid var(--pm-accent-teal); outline-offset: 2px; }
+  .pm-m-layer.pm-shell--compact .pm-m-icon-btn {
+    flex: none;
+    width: var(--pm-m-tap);
+    height: var(--pm-m-tap);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    border-radius: 10px;
+    background: none;
+    color: var(--pm-text-secondary);
+    font-size: 18px;
+    cursor: pointer;
+  }
+
+  /* Rows, groups and cards shared by the Projects and More sheets. */
+  .pm-m-layer.pm-shell--compact .pm-m-group-label {
+    margin: 18px 4px 6px;
+    font: 700 11px/1.2 var(--pm-font-body);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--pm-text-secondary);
+  }
+  .pm-m-layer.pm-shell--compact .pm-m-card {
+    margin-top: 8px;
+    overflow: hidden;
+    background: var(--pm-bg-elevated);
+    border: 1px solid var(--pm-border);
+    border-radius: 12px;
+  }
+  .pm-m-layer.pm-shell--compact .pm-m-card--spaced { margin-top: 20px; }
+  .pm-m-layer.pm-shell--compact .pm-m-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    min-height: 52px;
+    padding: 8px 12px;
+    border: 0;
+    border-bottom: 1px solid var(--pm-border);
+    background: none;
+    color: var(--pm-text-primary);
+    font: 600 15px/1.3 var(--pm-font-body);
+    text-align: left;
+    text-decoration: none;
+    cursor: pointer;
+  }
+  .pm-m-layer.pm-shell--compact .pm-m-row:last-child { border-bottom: 0; }
+  .pm-m-layer.pm-shell--compact .pm-m-row:active { background: var(--pm-bg-overlay); }
+  .pm-m-layer.pm-shell--compact .pm-m-row[aria-current="page"] {
+    color: var(--pm-accent-teal);
+    background: rgba(0, 229, 204, 0.06);
+  }
+  .pm-m-layer.pm-shell--compact .pm-m-row--danger { color: var(--pm-accent-coral); }
+  .pm-m-layer.pm-shell--compact .pm-m-row-icon {
+    flex: none;
+    width: 32px;
+    height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9px;
+    background: var(--pm-bg-overlay);
+    color: var(--pm-text-secondary);
+    font-size: 14px;
+  }
+  .pm-m-layer.pm-shell--compact .pm-m-row--danger .pm-m-row-icon { color: var(--pm-accent-coral); }
+  .pm-m-layer.pm-shell--compact .pm-m-row-main { flex: 1; min-width: 0; }
+  .pm-m-layer.pm-shell--compact .pm-m-row-title { overflow-wrap: anywhere; }
+  .pm-m-layer.pm-shell--compact .pm-m-row-meta {
+    margin-top: 2px;
+    font: 500 12.5px/1.3 var(--pm-font-body);
+    color: var(--pm-text-secondary);
+    text-transform: capitalize;
+  }
+  .pm-m-layer.pm-shell--compact .pm-m-row-end {
+    flex: none;
+    font: 600 12px/1 var(--pm-font-body);
+    color: var(--pm-accent-teal);
+  }
+  .pm-m-layer.pm-shell--compact .pm-m-row-star { flex: none; width: 10px; color: #f9ca24; font-size: 13px; }
+  .pm-m-layer.pm-shell--compact .pm-m-dot { flex: none; width: 10px; height: 10px; border-radius: 50%; }
+  .pm-m-layer.pm-shell--compact .pm-m-empty {
+    padding: 24px 16px;
+    text-align: center;
+    color: var(--pm-text-secondary);
+  }
+  .pm-m-layer.pm-shell--compact .pm-m-error {
+    display: grid;
+    gap: 10px;
+    justify-items: start;
+    padding: 14px;
+    color: var(--pm-accent-coral);
+    background: rgba(255, 107, 107, 0.06);
+  }
+  .pm-m-layer.pm-shell--compact .pm-m-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: var(--pm-m-tap);
+    padding: 0 14px;
+    border: 1px solid var(--pm-border);
+    border-radius: 10px;
+    background: var(--pm-bg-overlay);
+    color: var(--pm-text-primary);
+    font: 600 15px/1 var(--pm-font-body);
+    cursor: pointer;
+  }
+  .pm-m-layer.pm-shell--compact .pm-m-btn--block { width: 100%; margin-top: 16px; }
+  .pm-m-layer.pm-shell--compact .pm-m-search { position: relative; display: block; }
+  .pm-m-layer.pm-shell--compact .pm-m-search i {
+    position: absolute;
+    left: 13px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--pm-text-secondary);
+    pointer-events: none;
+  }
+  .pm-m-layer.pm-shell--compact .pm-m-input {
+    width: 100%;
+    min-height: var(--pm-m-tap);
+    padding: 10px 12px 10px 38px;
+    border: 1px solid var(--pm-border);
+    border-radius: 10px;
+    background: var(--pm-bg-overlay);
+    color: var(--pm-text-primary);
+    font: 400 16px/1.2 var(--pm-font-body); /* 16px: no iOS zoom-on-focus */
+  }
+
+  /* More: account row and the progress block. */
+  .pm-m-layer.pm-shell--compact .pm-m-account {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    font-weight: 600;
+  }
+  .pm-m-layer.pm-shell--compact .pm-m-rank { flex: none; display: inline-flex; }
+  .pm-m-layer.pm-shell--compact .pm-m-progress { display: grid; gap: 10px; padding: 12px; border-bottom: 1px solid var(--pm-border); }
+  .pm-m-layer.pm-shell--compact .pm-m-xpbar { height: 6px; overflow: hidden; border-radius: 999px; background: var(--pm-bg-overlay); }
+  .pm-m-layer.pm-shell--compact .pm-m-xpbar > div {
+    height: 100%;
+    background: linear-gradient(90deg, var(--pm-accent-teal), var(--pm-accent-violet));
+  }
+  .pm-m-layer.pm-shell--compact .pm-m-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .pm-m-layer.pm-shell--compact .pm-m-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    min-height: 56px;
+    padding: 6px;
+    border-radius: 10px;
+    background: var(--pm-bg-overlay);
+    text-align: center;
+  }
+  .pm-m-layer.pm-shell--compact .pm-m-stat b { font-size: 16px; color: var(--pm-text-primary); overflow-wrap: anywhere; }
+  .pm-m-layer.pm-shell--compact .pm-m-stat small { font-size: 11.5px; color: var(--pm-text-secondary); }
+  .pm-m-layer.pm-shell--compact .pm-m-signout-gap { height: 20px; }
+  .pm-m-layer.pm-shell--compact .pm-admin-badge-group { display: inline-flex; gap: 4px; flex: none; }
+
+  /* Search: the command palette's own markup inside a full-screen layer. */
+  .pm-m-layer--palette.pm-shell--compact .pm-palette-input-wrap {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 8px 0 4px;
+    padding: 0 12px;
+    border: 1px solid var(--pm-border);
+    border-radius: 10px;
+    background: var(--pm-bg-overlay);
+  }
+  .pm-m-layer--palette.pm-shell--compact .pm-palette-input {
+    flex: 1;
+    min-width: 0;
+    min-height: var(--pm-m-tap);
+    border: 0;
+    background: none;
+    color: var(--pm-text-primary);
+    font: 400 16px/1.2 var(--pm-font-body);
+    outline: none;
+  }
+  .pm-m-layer--palette.pm-shell--compact .pm-palette-clear {
+    width: var(--pm-m-tap);
+    height: var(--pm-m-tap);
+    font-size: 20px !important;
+  }
+  .pm-m-layer--palette.pm-shell--compact .pm-palette-results { max-height: none; overflow: visible; }
+  .pm-m-layer--palette.pm-shell--compact .pm-palette-item { min-height: 48px; padding: 10px 8px; border-radius: 10px; }
+  .pm-m-layer--palette.pm-shell--compact .pm-palette-item-meta { max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* Phase 2: Home and the complete phone task loop. */
+  .pm-shell--compact .cpm-dashboard-root,
+  .pm-shell--compact .cpm-project-page { min-width: 0; width: 100%; overflow-x: clip; }
+  .pm-shell--compact .cpm-dashboard-root { padding: 10px var(--pm-m-gutter) 24px; }
+  .pm-shell--compact .pm-m-home-flow { display: grid; gap: 12px; min-width: 0; }
+  .pm-shell--compact .pm-m-home-flow .cpm-work-panel,
+  .pm-shell--compact .pm-m-home-flow .pm-upcoming-events-widget { margin: 0; min-width: 0; }
+  .pm-shell--compact .pm-m-home-flow .cpm-panel-header { padding: 12px; }
+  .pm-shell--compact .pm-m-home-flow .cpm-panel-header-top { gap: 8px; }
+  .pm-shell--compact .pm-m-home-flow .cpm-panel-header-left { min-width: 0; flex-wrap: wrap; }
+  .pm-shell--compact .pm-m-home-flow .cpm-panel-recap-btn { min-height: 36px; }
+  .pm-shell--compact .pm-m-home-flow .cpm-filter-bar { flex-wrap: wrap; overflow: visible; }
+  .pm-shell--compact .pm-m-home-flow .cpm-task-row { min-width: 0; padding: 10px 8px; align-items: flex-start; flex-wrap: wrap; }
+  .pm-shell--compact .pm-m-home-flow .cpm-task-row-info { min-width: 0; flex: 1 1 180px; }
+  .pm-shell--compact .pm-m-home-flow .cpm-task-row-meta { width: 100%; padding-left: 34px; flex-wrap: wrap; }
+  .pm-shell--compact .pm-upcoming-events-header { padding: 12px; }
+  .pm-shell--compact .pm-upcoming-event-row { display: grid; grid-template-columns: 8px 32px minmax(0, 1fr); gap: 8px; padding: 10px; }
+  .pm-shell--compact .pm-upcoming-event-badges { grid-column: 2 / -1; display: flex; flex-wrap: wrap; justify-content: flex-start; }
+  .pm-shell--compact .pm-event-qr-panel { grid-column: 1 / -1; }
+  .pm-shell--compact .pm-m-home-section-head { display: flex; align-items: center; gap: 8px; min-height: 44px; }
+  .pm-shell--compact .pm-m-home-section-head h2 { flex: 1; margin: 0; font: 700 1rem/1.2 var(--pm-font-display); color: var(--pm-text-primary); }
+  .pm-shell--compact .pm-m-home-section-head > span { min-width: 28px; padding: 3px 8px; border-radius: 999px; background: var(--pm-bg-overlay); color: var(--pm-text-secondary); text-align: center; font-size: 12px; }
+  .pm-shell--compact .pm-m-home-section-head a { color: var(--pm-accent-teal); font-size: 13px; }
+  .pm-shell--compact .pm-m-home-projects { min-width: 0; }
+  .pm-shell--compact .pm-m-home-project-list { overflow: hidden; border: 1px solid var(--pm-border); border-radius: 12px; background: var(--pm-bg-elevated); }
+  .pm-shell--compact .cpm-project-item { display: grid; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--pm-border); }
+  .pm-shell--compact .pm-m-home-project-list > div:last-child .cpm-project-item { border-bottom: 0; }
+  .pm-shell--compact .cpm-project-name { min-width: 0; min-height: 32px; display: flex; align-items: center; gap: 8px; color: var(--pm-text-primary); text-decoration: none; }
+  .pm-shell--compact .cpm-project-name-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pm-shell--compact .cpm-quick-actions--labeled { position: static; opacity: 1; visibility: visible; display: flex; gap: 6px; transform: none; }
+  .pm-shell--compact .cpm-quick-actions--labeled .cpm-quick-btn { flex: 1; min-width: 0; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; border: 1px solid var(--pm-border); border-radius: 9px; color: var(--pm-text-secondary); text-decoration: none; font-size: 12px; }
+  .pm-shell--compact .pm-m-home-empty { padding: 20px; color: var(--pm-text-secondary); text-align: center; }
+  .pm-shell--compact .pm-m-home-support { overflow: hidden; border: 1px solid var(--pm-border); border-radius: 12px; background: var(--pm-bg-elevated); }
+  .pm-shell--compact .pm-m-home-support > summary,
+  .pm-shell--compact .pm-m-project-resources > summary { min-height: 48px; display: flex; align-items: center; gap: 10px; padding: 8px 12px; color: var(--pm-text-primary); font-weight: 700; cursor: pointer; list-style: none; }
+  .pm-shell--compact .pm-m-home-support > summary::-webkit-details-marker,
+  .pm-shell--compact .pm-m-project-resources > summary::-webkit-details-marker { display: none; }
+  .pm-shell--compact .pm-m-home-support > summary .fa-chevron-down,
+  .pm-shell--compact .pm-m-project-resources > summary .fa-chevron-down { margin-left: auto; color: var(--pm-text-secondary); transition: transform .15s; }
+  .pm-shell--compact .pm-m-home-support[open] > summary .fa-chevron-down,
+  .pm-shell--compact .pm-m-project-resources[open] > summary .fa-chevron-down { transform: rotate(180deg); }
+  .pm-shell--compact .pm-m-home-support-body { min-width: 0; padding: 0 8px 8px; }
+  .pm-shell--compact .pm-m-home-support-body > [data-tour-id] { margin: 0; }
+
+  .pm-shell--compact .cpm-project-layout { display: block; min-width: 0; height: 100%; overflow: hidden; }
+  .pm-shell--compact .cpm-project-main { width: 100%; min-width: 0; height: 100%; }
+  .pm-shell--compact .pm-proj-hero { position: sticky; top: 0; z-index: 20; padding: 8px var(--pm-m-gutter); background: var(--pm-bg-base); }
+  .pm-shell--compact .pm-proj-breadcrumb { display: none; }
+  .pm-shell--compact .pm-proj-hero-row { gap: 8px; align-items: center; }
+  .pm-shell--compact .pm-proj-title { font-size: 1.05rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pm-shell--compact .pm-proj-type-chip { display: none; }
+  .pm-shell--compact .pm-proj-health-chip { font-size: 10px; }
+  .pm-shell--compact .pm-proj-hero-actions { flex: none; }
+  .pm-shell--compact .pm-m-project-actions-btn { min-height: 44px; display: inline-flex; align-items: center; gap: 6px; padding: 0 10px; border: 1px solid var(--pm-border); border-radius: 9px; background: var(--pm-bg-overlay); color: var(--pm-text-primary); font: 600 13px/1 var(--pm-font-body); }
+  .pm-shell--compact .pm-proj-progress { margin-top: 8px; }
+  .pm-shell--compact .pm-m-project-resources { margin-top: 6px; border-top: 1px solid var(--pm-border); }
+  .pm-shell--compact .pm-m-project-resources > summary { min-height: 40px; padding: 4px 0; color: var(--pm-text-secondary); font-size: 12px; }
+  .pm-shell--compact .pm-m-project-resources-body { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 6px 0; }
+  .pm-shell--compact .pm-m-project-resources-body > p,
+  .pm-shell--compact .pm-m-project-description-row { flex: 1 1 100%; margin: 0; color: var(--pm-text-secondary); font-size: 13px; line-height: 1.45; }
+  .pm-shell--compact .pm-m-project-description-row .pm-m-btn { min-height: 40px; margin-top: 6px; }
+  .pm-shell--compact .cpm-proj-main-body { min-width: 0; }
+
+  .pm-shell--compact .pm-m-task-toolbar { display: grid; gap: 8px; padding: 0 var(--pm-m-gutter) 10px; }
+  .pm-shell--compact .pm-m-task-toolbar-row { min-width: 0; display: flex; align-items: center; gap: 8px; }
+  .pm-shell--compact .pm-m-task-toolbar .pm-m-search { position: relative; flex: 1; min-width: 0; }
+  .pm-shell--compact .pm-m-task-toolbar .pm-m-search i { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--pm-text-secondary); pointer-events: none; }
+  .pm-shell--compact .pm-m-task-toolbar .pm-m-input { width: 100%; min-height: 44px; padding: 8px 10px 8px 36px; border: 1px solid var(--pm-border); border-radius: 10px; background: var(--pm-bg-overlay); color: var(--pm-text-primary); font-size: 16px; }
+  .pm-shell--compact .pm-m-btn { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 0 12px; border: 1px solid var(--pm-border); border-radius: 10px; background: var(--pm-bg-overlay); color: var(--pm-text-primary); font: 600 13px/1 var(--pm-font-body); }
+  .pm-shell--compact .pm-m-btn--primary { border-color: var(--pm-accent-teal); background: var(--pm-accent-teal); color: #08110f; }
+  .pm-shell--compact .pm-m-segment { flex: 1; min-width: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 3px; border: 1px solid var(--pm-border); border-radius: 10px; background: var(--pm-bg-overlay); }
+  .pm-shell--compact .pm-m-segment button { min-width: 0; min-height: 36px; border: 0; border-radius: 7px; background: none; color: var(--pm-text-secondary); font: 600 13px/1 var(--pm-font-body); }
+  .pm-shell--compact .pm-m-segment button[aria-pressed="true"] { background: var(--pm-bg-elevated); color: var(--pm-accent-teal); }
+  .pm-shell--compact .pm-m-task-groups { display: grid; gap: 8px; padding: 0 var(--pm-m-gutter); }
+  .pm-shell--compact .pm-m-task-group { min-width: 0; overflow: hidden; border: 1px solid var(--pm-border); border-radius: 12px; background: var(--pm-bg-elevated); }
+  .pm-shell--compact .pm-m-task-group-head { width: 100%; min-height: 46px; display: flex; align-items: center; gap: 9px; padding: 6px 12px; border: 0; background: var(--pm-bg-surface); color: var(--pm-text-primary); font: 700 14px/1.2 var(--pm-font-body); text-align: left; }
+  .pm-shell--compact .pm-m-task-group-head > .fa-chevron-up,
+  .pm-shell--compact .pm-m-task-group-head > .fa-chevron-down { margin-left: auto; color: var(--pm-text-secondary); }
+  .pm-shell--compact .pm-m-task-group-dot { flex: none; width: 10px; height: 10px; border-radius: 50%; }
+  .pm-shell--compact .pm-m-count { padding: 2px 7px; border-radius: 999px; background: var(--pm-bg-overlay); color: var(--pm-text-secondary); font-size: 11px; }
+  .pm-shell--compact .pm-m-task-group-body > * + * { border-top: 1px solid var(--pm-border); }
+  .pm-shell--compact .pm-m-task-row { min-width: 0; display: grid; grid-template-columns: 32px minmax(0, 1fr); gap: 7px 9px; padding: 9px 10px; }
+  .pm-shell--compact .pm-m-task-status { align-self: start; width: 32px; height: 32px; border: 1px solid var(--pm-border); border-radius: 50%; background: var(--pm-bg-overlay); color: var(--pm-text-secondary); }
+  .pm-shell--compact .pm-m-task-status--in_progress { color: var(--pm-accent-amber); }
+  .pm-shell--compact .pm-m-task-status--blocked { color: var(--pm-accent-coral); }
+  .pm-shell--compact .pm-m-task-status--done { color: var(--pm-accent-teal); }
+  .pm-shell--compact .pm-m-task-main { min-width: 0; display: grid; gap: 5px; padding: 0; border: 0; background: none; color: inherit; text-align: left; }
+  .pm-shell--compact .pm-m-task-title { color: var(--pm-text-primary); font: 600 14px/1.35 var(--pm-font-body); overflow-wrap: anywhere; }
+  .pm-shell--compact .pm-m-task-meta { display: flex; flex-wrap: wrap; gap: 7px 10px; color: var(--pm-text-secondary); font-size: 11.5px; }
+  .pm-shell--compact .pm-m-task-meta .is-overdue { color: var(--pm-accent-coral); }
+  .pm-shell--compact .pm-m-task-priority { text-transform: capitalize; }
+  .pm-shell--compact .pm-m-task-priority--critical,
+  .pm-shell--compact .pm-m-task-priority--high { color: var(--pm-accent-coral); }
+  .pm-shell--compact .pm-m-task-actions { grid-column: 2; min-width: 0; display: flex; align-items: center; gap: 6px; }
+  .pm-shell--compact .pm-m-task-actions > button { min-height: 44px; display: inline-flex; align-items: center; gap: 5px; padding: 0 9px; border: 1px solid var(--pm-border); border-radius: 8px; background: var(--pm-bg-overlay); color: var(--pm-text-secondary); font: 600 12px/1 var(--pm-font-body); }
+  .pm-shell--compact .pm-m-task-actions .cpm-avatar-stack { margin-left: auto; }
+  .pm-shell--compact .pm-m-task-empty { padding: 14px; color: var(--pm-text-secondary); font-size: 13px; text-align: center; }
+  .pm-shell--compact .pm-m-task-empty--card { border: 1px dashed var(--pm-border); border-radius: 10px; }
+  .pm-shell--compact .pm-m-task-empty button { border: 0; background: none; color: var(--pm-accent-teal); text-decoration: underline; }
+  .pm-shell--compact .pm-m-milestones { display: grid; gap: 7px; margin: 18px var(--pm-m-gutter) 0; }
+  .pm-shell--compact .pm-m-milestone { overflow: hidden; border: 1px solid var(--pm-border); border-radius: 10px; background: var(--pm-bg-elevated); }
+  .pm-shell--compact .pm-m-milestone summary { min-height: 44px; display: flex; align-items: center; gap: 8px; padding: 8px 11px; list-style: none; color: var(--pm-text-primary); font-size: 13px; }
+  .pm-shell--compact .pm-m-milestone summary span:first-child { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pm-shell--compact .pm-m-milestone summary::-webkit-details-marker { display: none; }
+  .pm-shell--compact .pm-m-milestone > div { padding: 0 11px 11px; color: var(--pm-text-secondary); font-size: 12px; }
+
+  .pm-m-layer.pm-shell--compact .pm-m-task-filter-form { display: grid; gap: 14px; padding-top: 8px; }
+  .pm-m-layer.pm-shell--compact .pm-m-task-filter-form label { display: grid; gap: 5px; color: var(--pm-text-secondary); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+  .pm-m-layer.pm-shell--compact .pm-m-task-filter-form select { width: 100%; min-height: 46px; padding: 8px 10px; border: 1px solid var(--pm-border); border-radius: 9px; background: var(--pm-bg-overlay); color: var(--pm-text-primary); font-size: 16px; text-transform: none; }
+  .pm-m-layer.pm-shell--compact .pm-m-task-filter-form .pm-m-check { display: flex; align-items: center; gap: 9px; min-height: 44px; color: var(--pm-text-primary); font-size: 15px; text-transform: none; }
+  .pm-m-layer.pm-shell--compact .pm-m-task-filter-form .pm-m-check input { width: 20px; height: 20px; }
+  .pm-m-layer.pm-shell--compact .pm-m-assign-picker,
+  .pm-m-layer.pm-shell--compact .pm-m-move-picker { display: grid; gap: 0; }
+  .pm-m-layer.pm-shell--compact .pm-m-assign-picker .pm-m-search { margin: 8px 0; }
+  .pm-m-layer.pm-shell--compact .pm-m-save-state { padding: 10px; color: var(--pm-text-secondary); text-align: center; }
+
+  /* Phase 5: category blockers on phones (the desktop sub-bin header controls
+     sit on drag targets the phone list does not render). */
+  .pm-shell--compact .pm-m-blockers { display: grid; gap: 8px; padding: 8px 0 10px; border-bottom: 1px solid var(--pm-border); margin-bottom: 4px; }
+  .pm-shell--compact .pm-m-blocker { display: grid; gap: 8px; padding: 10px 11px; border: 1px solid var(--pm-border); border-radius: 10px; background: var(--pm-bg-overlay); }
+  .pm-shell--compact .pm-m-blocker-main { display: flex; align-items: flex-start; gap: 10px; min-width: 0; }
+  .pm-shell--compact .pm-m-blocker-main > i { margin-top: 3px; }
+  .pm-shell--compact .pm-m-blocker-text { min-width: 0; }
+  .pm-shell--compact .pm-m-blocker-label { color: var(--pm-text-primary); font-weight: 700; font-size: 14px; overflow-wrap: anywhere; }
+  .pm-shell--compact .pm-m-blocker-meta { color: var(--pm-text-secondary); font-size: 12px; overflow-wrap: anywhere; }
+  .pm-shell--compact .pm-m-blocker-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .pm-m-layer.pm-shell--compact .pm-m-sheet-subhead { margin: 16px 0 4px; color: var(--pm-text-secondary); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+  .pm-m-layer.pm-shell--compact .pm-m-blocker-form .pm-m-input { width: 100%; min-height: 46px; padding: 8px 10px; font-size: 16px; text-transform: none; letter-spacing: 0; }
+  .pm-m-layer.pm-shell--compact .pm-m-blocker-swatches { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; border: 0; }
+  .pm-m-layer.pm-shell--compact .pm-m-blocker-swatches legend { width: 100%; margin-bottom: 5px; padding: 0; color: var(--pm-text-secondary); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+  .pm-m-layer.pm-shell--compact .pm-m-blocker-swatches button { width: 44px; height: 44px; border: 2px solid transparent; border-radius: 50%; }
+  .pm-m-layer.pm-shell--compact .pm-m-blocker-swatches button[aria-pressed="true"] { border-color: var(--pm-text-primary); box-shadow: 0 0 0 2px var(--pm-bg-base) inset; }
+  .pm-m-layer.pm-shell--compact .pm-m-blocker-plain { width: 100%; margin-top: 14px; }
+  .pm-m-layer.pm-shell--compact .pm-m-blocker-confirm { display: grid; gap: 10px; padding-top: 6px; color: var(--pm-text-primary); font-size: 15px; line-height: 1.45; }
+  /* Outreach "new submission" button: its desktop spot (inline bottom: 32px,
+     z-index 200) lands on the bottom bar's More item. Lift it clear of the bar
+     and the home indicator, and get it out of the way while typing. */
+  .pm-shell--compact .pm-fab {
+    bottom: calc(var(--pm-m-nav-h) + var(--pm-m-safe-bottom) + 16px) !important;
+    right: max(16px, env(safe-area-inset-right, 0px));
+    width: 56px;
+    height: 56px;
+  }
+  .pm-shell--compact.pm-m-keyboard-open .pm-fab { display: none; }
+  /* Phase 5: project Chat › Messages. The hero left ~70px of history at
+     320×640 and pushed the composer under the software keyboard. */
+  .pm-shell--compact .pm-proj-hero.pm-proj-hero--m-hidden { display: none; }
+  .pm-shell--compact .cpm-project-merged-subtabs { display: flex; gap: 6px; margin-bottom: 6px; }
+  .pm-shell--compact .cpm-project-merged-subtabs .presskit-subtab { min-height: 44px; flex: 1; }
+  .pm-shell--compact.pm-m-keyboard-open .cpm-proj-main-body--chat .cpm-project-merged-subtabs,
+  .pm-shell--compact.pm-m-keyboard-open .pm-m-sections { display: none; }
+  /* Phase 5: legacy dialogs still carry inline 12–14px form text, which makes
+     iOS Safari zoom the page on focus, and 20–30px close buttons. The body
+     marker exists only while the phone shell is mounted. */
+  body.pm-m-compact :is(input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"], [type="hidden"]), select, textarea) {
+    font-size: 16px !important;
+  }
+  body.pm-m-compact :is(button[aria-label="Close"], button[aria-label="Close modal"], button[aria-label="Close dialog"]) {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .pm-shell--compact .cpm-archived-toggle { min-height: 44px; }
+  .pm-shell--compact .cpm-archived-unarchive { min-height: 44px; min-width: 44px; font-size: 13px !important; }
+
+  .pm-m-layer.pm-shell--compact.pm-m-task-detail .pm-m-sheet-body,
+  .pm-m-layer.pm-shell--compact.pm-m-task-create-layer .pm-m-sheet-body { padding: 0; overflow: hidden; }
+  .pm-m-layer.pm-shell--compact .pm-task-modal-panel { width: 100% !important; max-height: none !important; height: 100% !important; border: 0 !important; box-shadow: none !important; }
+  .pm-m-layer.pm-shell--compact .pm-task-modal-topbar { display: none !important; }
+  /* Phase 5: the "···" menu opened rightwards from a button near the right
+     edge and ran ~100px off a 320px screen. Anchor it to the button's right. */
+  .pm-m-layer.pm-shell--compact .pm-task-modal-menu { left: auto !important; right: 0; max-width: calc(100vw - 24px); }
+  .pm-m-layer.pm-shell--compact .pm-task-modal-meta { grid-template-columns: 104px minmax(0, 1fr) !important; gap: 10px 0 !important; padding: 12px var(--pm-m-gutter) !important; }
+  .pm-m-layer.pm-shell--compact .pm-task-modal-panel input,
+  .pm-m-layer.pm-shell--compact .pm-task-modal-panel textarea,
+  .pm-m-layer.pm-shell--compact .pm-task-modal-panel select { min-height: 44px; max-width: 100%; font-size: 16px !important; }
+  .pm-m-layer.pm-shell--compact .pm-task-modal-panel [data-tour-id^="task.modal"] { min-width: 0; }
+  .pm-m-layer.pm-shell--compact .pm-task-modal-panel [data-tour-id="task.modal.assignees"] { flex-wrap: wrap; }
+  .pm-m-layer.pm-shell--compact .pm-task-modal-panel [data-tour-id="task.modal.comments"] { position: sticky; bottom: 0; z-index: 3; margin: 0 -8px -6px !important; padding: 10px 8px calc(10px + var(--pm-m-safe-bottom)); background: var(--pm-bg-elevated); border-top: 1px solid var(--pm-border); }
+  .pm-m-layer.pm-shell--compact .pm-task-modal-panel button { min-height: 44px; }
+  .pm-m-layer.pm-shell--compact .pm-task-modal-panel .pm-task-modal-activity { min-width: 0; }
+  .pm-m-layer.pm-shell--compact .pm-m-task-create { width: 100% !important; max-width: none !important; height: 100%; display: flex; flex-direction: column; overflow: hidden !important; border: 0 !important; border-radius: 0 !important; box-shadow: none !important; background: var(--pm-bg-base) !important; }
+  .pm-m-layer.pm-shell--compact .pm-m-task-create > .cpm-filter-header,
+  .pm-m-layer.pm-shell--compact .pm-m-task-create > div:first-child:not([data-tour-id]) { display: none !important; }
+  .pm-m-layer.pm-shell--compact .pm-m-task-create form { min-height: 0; height: 100%; display: grid; grid-template-rows: minmax(0, 1fr) auto; }
+  .pm-m-layer.pm-shell--compact .pm-m-task-create form > div:first-child { overflow-y: auto; overscroll-behavior: contain; padding: 16px var(--pm-m-gutter) !important; }
+  .pm-m-layer.pm-shell--compact .pm-m-task-create .cpm-filter-footer,
+  .pm-m-layer.pm-shell--compact .pm-m-task-create form > div:last-child { position: sticky; bottom: 0; min-height: 64px; display: flex; align-items: center; justify-content: flex-end; gap: 8px; padding: 10px var(--pm-m-gutter) calc(10px + var(--pm-m-safe-bottom)) !important; background: var(--pm-bg-surface) !important; border-top: 1px solid var(--pm-border); }
+  .pm-m-layer.pm-shell--compact .pm-m-task-create input,
+  .pm-m-layer.pm-shell--compact .pm-m-task-create select,
+  .pm-m-layer.pm-shell--compact .pm-m-task-create textarea { min-height: 44px; max-width: 100%; font-size: 16px !important; }
+  .pm-m-layer.pm-shell--compact .pm-m-task-create [style*="grid-template-columns"] { grid-template-columns: minmax(0, 1fr) !important; }
+  .pm-m-layer.pm-shell--compact.pm-m-task-detail--legacy .pm-tdm-panel { position: static; width: 100%; max-width: none; height: 100%; transform: none; opacity: 1; border: 0; border-radius: 0; }
+  .pm-m-layer.pm-shell--compact.pm-m-task-detail--legacy .pm-tdm-header { display: none; }
+  .pm-m-layer.pm-shell--compact.pm-m-task-detail--legacy .pm-tdm-body { padding: 12px var(--pm-m-gutter); }
+  .pm-m-layer.pm-shell--compact.pm-m-task-detail--legacy input,
+  .pm-m-layer.pm-shell--compact.pm-m-task-detail--legacy textarea { font-size: 16px; min-height: 44px; }
+
+  /* Phase 3: visual-viewport keyboard coordination. Hardware keyboards do
+     not add this class because visualViewport has not contracted by 150px. */
+  .pm-shell.pm-shell--compact.pm-m-keyboard-open {
+    position: fixed;
+    top: var(--pm-m-visual-top, 0px);
+    right: 0;
+    left: 0;
+    height: var(--pm-m-visual-height, 100dvh);
+    grid-template-rows: minmax(0, 1fr);
+  }
+  .pm-shell.pm-shell--compact.pm-m-keyboard-open > .pm-m-nav { display: none; }
+
+  /* Chat list > conversation > thread: one mounted data owner, one visible
+     pane. Keeping hidden panes mounted preserves drafts and scroll position. */
+  .pm-shell--compact .pm-shell-content:has(.cpm-chatpage),
+  .pm-shell--compact .pm-shell-content:has(.pm-members-page--detail) { overflow: hidden; }
+  .pm-shell--compact .cpm-chatpage {
+    display: block;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    padding: 0;
+  }
+  .pm-shell--compact .cpm-chatpage-side,
+  .pm-shell--compact .cpm-chatpage-main {
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    max-height: none;
+    border: 0;
+    border-radius: 0;
+    background: var(--pm-bg-base);
+  }
+  .pm-shell--compact .cpm-chatpage-side { padding: 10px var(--pm-m-gutter) 20px; }
+  .pm-shell--compact .cpm-chatpage-main { padding: 8px var(--pm-m-gutter) 0; }
+  .pm-shell--compact .cpm-chatpage--list .cpm-chatpage-main,
+  .pm-shell--compact .cpm-chatpage--conversation .cpm-chatpage-side { display: none; }
+  .pm-shell--compact .cpm-chatpage-people {
+    min-height: 52px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+    padding: 8px 10px;
+    border: 1px solid var(--pm-border);
+    border-radius: 10px;
+    background: var(--pm-bg-elevated);
+    color: var(--pm-accent-teal);
+    text-decoration: none;
+  }
+  .pm-shell--compact .cpm-chatpage-people label { flex: 1; color: inherit; font-weight: 700; }
+  .pm-shell--compact .cpm-chatpage-filter { min-height: 44px; font-size: 16px; }
+  .pm-shell--compact .cpm-chatpage-item,
+  .pm-shell--compact .cpm-chatpage-browse-toggle,
+  .pm-shell--compact .cpm-chatpage-dmlink { min-height: 44px; padding: 9px 8px; }
+  .pm-shell--compact .cpm-chatpage-dmlink { margin-top: 12px; }
+  .pm-shell--compact .cpm-chatpage-head { flex: none; min-height: 40px; margin-bottom: 4px; }
+  .pm-shell--compact .cpm-chat-conv,
+  .pm-shell--compact .cpm-chat-layout,
+  .pm-shell--compact .cpm-chat-main { height: 100%; min-height: 0; }
+  .pm-shell--compact .cpm-chat-toolbar { flex: none; flex-wrap: nowrap; }
+  .pm-shell--compact .cpm-chat-search { min-width: 0; }
+  .pm-shell--compact .cpm-chat-search input,
+  .pm-shell--compact .cpm-chat-composer-input { font-size: 16px; }
+  .pm-shell--compact .cpm-chat-search button,
+  .pm-shell--compact .cpm-chat-backfill-btn,
+  .pm-shell--compact .cpm-chat-composer-btn,
+  .pm-shell--compact .cpm-chat-composer-send { min-width: 44px; min-height: 44px; }
+  .pm-shell--compact .cpm-chat-scroll { padding: 2px 0 8px; overscroll-behavior: contain; }
+  .pm-shell--compact .cpm-chat-composer { flex: none; margin: 0 0 max(8px, var(--pm-m-safe-bottom)); }
+  .pm-shell--compact.pm-m-keyboard-open .cpm-chat-composer { margin-bottom: 4px; }
+  .pm-shell--compact .cpm-chat-composer--failed { flex-wrap: wrap; border-color: var(--pm-accent-coral); }
+  .pm-shell--compact .cpm-chat-send-error { flex: 1 0 100%; display: flex; align-items: center; gap: 8px; color: var(--pm-accent-coral); font-size: 12px; }
+  .pm-shell--compact .cpm-chat-send-error > div { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+  .pm-shell--compact .cpm-chat-msg { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 6px 10px; }
+  .pm-shell--compact .cpm-chat-msg-actions { position: relative; top: auto; right: auto; grid-column: 2; align-self: start; justify-self: end; display: flex; width: max-content; margin: 0; box-shadow: none; }
+  .pm-shell--compact .cpm-chat-msg-actions > button,
+  .pm-shell--compact .cpm-chat-react-picker > button { width: 44px; height: 44px; }
+  .pm-shell--compact .cpm-chat-react-picker { flex-wrap: wrap; width: max-content; max-width: min(280px, calc(100vw - 32px)); }
+  .pm-shell--compact .cpm-chat-reaction,
+  .pm-shell--compact .cpm-chat-thread-btn { min-height: 44px; min-width: 44px; }
+  .pm-shell--compact .cpm-chat-drawer { display: none; }
+  .pm-shell--compact .cpm-chat-conv--thread > .cpm-chat-toolbar,
+  .pm-shell--compact .cpm-chatpage:has(.cpm-chat-conv--thread) .cpm-chatpage-head { display: none; }
+  .pm-shell--compact .cpm-chat-conv--thread .cpm-chat-main { display: none; }
+  .pm-shell--compact .cpm-chat-conv--thread .cpm-chat-drawer {
+    display: flex;
+    width: 100%;
+    height: 100%;
+    flex: 1 1 auto;
+    border: 0;
+    border-radius: 0;
+  }
+  .pm-shell--compact .cpm-chat-drawer-body { flex: 1; min-height: 0; overscroll-behavior: contain; }
+  .pm-shell--compact .cpm-chat-thread-back,
+  .pm-shell--compact .cpm-chat-drawer-close { width: 44px; height: 44px; border: 0; border-radius: 8px; background: none; color: var(--pm-text-secondary); }
+  .pm-shell--compact .cpm-chat-drawer-head b { flex: 1; }
+
+  /* People and DMs reuse the existing inbox and roster; the phone selector
+     only changes which of those already-mounted panes is visible. */
+  .pm-shell--compact .pm-members-page { min-width: 0; padding: 10px var(--pm-m-gutter) 24px; }
+  .pm-shell--compact .pm-members-header { align-items: flex-start; gap: 8px; }
+  .pm-shell--compact .pm-members-header-actions { width: 100%; }
+  .pm-shell--compact .pm-members-header-actions > button { min-height: 44px; }
+  .pm-shell--compact .pm-m-members-switch { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; margin: 10px 0; padding: 3px; border: 1px solid var(--pm-border); border-radius: 11px; background: var(--pm-bg-overlay); }
+  .pm-shell--compact .pm-m-members-switch button { min-height: 44px; border: 0; border-radius: 8px; background: none; color: var(--pm-text-secondary); font: 700 14px/1 var(--pm-font-body); }
+  .pm-shell--compact .pm-m-members-switch button[aria-selected="true"] { background: var(--pm-bg-elevated); color: var(--pm-accent-teal); }
+  .pm-shell--compact .pm-members-layout { display: block; }
+  .pm-shell--compact .pm-members-layout--m-dms .pm-members-roster,
+  .pm-shell--compact .pm-members-layout--m-people .cpm-dm-inbox { display: none; }
+  .pm-shell--compact .cpm-dm-inbox { position: static; max-height: none; padding: 0; border: 0; background: none; }
+  .pm-shell--compact .cpm-dm-row { min-height: 58px; border-bottom: 1px solid var(--pm-border); border-radius: 0; }
+  .pm-shell--compact .pm-members-page--detail { width: 100%; height: 100%; padding: 0; }
+  .pm-shell--compact .pm-members-page--detail > :not(.pm-members-layout) { display: none; }
+  .pm-shell--compact .pm-members-page--detail .cpm-dm-inbox,
+  .pm-shell--compact .pm-members-page--detail .pm-members-roster { display: none; }
+  .pm-shell--compact .pm-members-page--detail .pm-members-layout,
+  .pm-shell--compact .pm-members-page--detail .cpm-dm-panel { width: 100%; height: 100%; min-height: 0; }
+  .pm-shell--compact .cpm-dm-panel { position: static; padding: 8px var(--pm-m-gutter) 0; border: 0; border-radius: 0; background: var(--pm-bg-base); }
+  .pm-shell--compact .cpm-dm-panel-close { width: 44px; height: 44px; }
+  .pm-shell--compact .cpm-dm-panel .cpm-chat-drawer { position: static; inset: auto; }
+  .pm-shell--compact .pm-members-search,
+  .pm-shell--compact .pm-members-filter-select { min-height: 44px; font-size: 16px; }
+
+  /* Agenda-first Calendar. Month stays available; dense day/week modes remain
+     untouched on desktop. */
+  .pm-shell--compact .pm-cal-page { min-width: 0; padding: 8px var(--pm-m-gutter) 24px !important; }
+  .pm-shell--compact .pm-cal-header { display: none; }
+  .pm-shell--compact .cpm-cal-toolbar { display: grid; gap: 8px; padding: 8px 0; }
+  .pm-shell--compact .cpm-cal-toolbar-left { display: grid; grid-template-columns: auto 44px minmax(0, 1fr) 44px; gap: 5px; }
+  .pm-shell--compact .cpm-cal-today-btn,
+  .pm-shell--compact .cpm-cal-nav-btn { min-height: 44px; }
+  .pm-shell--compact .cpm-cal-nav-btn { width: 44px; }
+  .pm-shell--compact .cpm-cal-date-label { min-width: 0; align-self: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pm-shell--compact .pm-m-cal-date-picker { grid-column: 1 / -1; display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 10px; color: var(--pm-text-secondary); font-size: 12px; }
+  .pm-shell--compact .pm-m-cal-date-picker input { min-height: 44px; padding: 7px 10px; border: 1px solid var(--pm-border); border-radius: 9px; background: var(--pm-bg-elevated); color: var(--pm-text-primary); font-size: 16px; color-scheme: dark; }
+  .pm-shell--compact .cpm-cal-view-switcher { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .pm-shell--compact .cpm-cal-view-btn { min-height: 44px; font-size: 14px; }
+  .pm-shell--compact .cpm-cal-toolbar-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; width: 100%; }
+  .pm-shell--compact .cpm-cal-toolbar-actions .cpm-btn { min-height: 44px; margin: 0; }
+  .pm-shell--compact .cpm-cal-toolbar-actions .cpm-btn:last-child:nth-child(3) { grid-column: 1 / -1; }
+  .pm-shell--compact .cpm-calendar-filters { margin: 0 0 10px !important; padding: 8px !important; }
+  .pm-shell--compact .cpm-calendar-filters details { width: 100%; min-width: 0 !important; }
+  .pm-shell--compact .cpm-calendar-filters summary { min-height: 44px; display: flex; align-items: center; }
+  .pm-shell--compact .cpm-calendar-filters button,
+  .pm-shell--compact .cpm-calendar-filters label { min-height: 44px; }
+  .pm-shell--compact .cpm-cal-agenda-header { display: none; }
+  .pm-shell--compact .cpm-cal-agenda-day-group { display: grid; grid-template-columns: 66px minmax(0, 1fr); }
+  .pm-shell--compact .cpm-cal-agenda-date { grid-row: 1 / span 2; padding: 12px 8px; }
+  .pm-shell--compact .cpm-cal-agenda-time { display: none; }
+  .pm-shell--compact .cpm-cal-agenda-events { min-width: 0; padding: 6px; border-left: 1px solid var(--pm-border); }
+  .pm-shell--compact .cpm-cal-agenda-row { min-height: 44px; padding: 8px; }
+  .pm-shell--compact .cpm-cal-month-grid { min-width: 640px; }
+  .pm-shell--compact .cpm-cal-root:has(.cpm-cal-month-grid) { overflow-x: auto; }
+
+  /* Calendar portals carry both classes themselves so this stays scoped even
+     though they render outside the shell. */
+  .pm-m-calendar-layer.pm-shell--compact { top: var(--pm-m-visual-top, 0px); bottom: auto; height: var(--pm-m-visual-height, 100dvh); align-items: stretch !important; justify-content: stretch !important; padding: var(--pm-m-safe-top) 0 var(--pm-m-safe-bottom); }
+  .pm-m-calendar-layer.pm-shell--compact .cpm-event-modal,
+  .pm-m-calendar-layer.pm-shell--compact .pm-cal-detail,
+  .pm-m-calendar-layer.pm-shell--compact .pm-cal-import-modal,
+  .pm-m-calendar-layer.pm-shell--compact .pm-poll-modal,
+  .pm-m-calendar-layer.pm-shell--compact .pm-poll-board-modal { width: 100%; max-width: none; height: 100%; max-height: none; border: 0; border-radius: 0; overflow-y: auto; }
+  .pm-m-calendar-layer.pm-shell--compact input,
+  .pm-m-calendar-layer.pm-shell--compact textarea,
+  .pm-m-calendar-layer.pm-shell--compact select { min-height: 44px; font-size: 16px; }
+  .pm-m-calendar-layer.pm-shell--compact button { min-height: 44px; }
+  .pm-m-calendar-layer.pm-shell--compact .pm-m-sheet-body { display: flex; min-height: 0; padding: 0; overflow: hidden; }
+  .pm-m-calendar-layer.pm-shell--compact .cpm-event-modal-header,
+  .pm-m-calendar-layer.pm-shell--compact .pm-cal-import-head { display: none; }
+  .pm-m-calendar-layer.pm-shell--compact .cpm-event-modal-footer,
+  .pm-m-calendar-layer.pm-shell--compact .pm-cal-import-actions { position: sticky; bottom: 0; flex: none; background: var(--pm-bg-surface); }
+  .pm-m-calendar-layer.pm-shell--compact .pm-cal-modal-footer { position: sticky; bottom: 0; flex-wrap: wrap; padding-bottom: calc(10px + var(--pm-m-safe-bottom)); background: var(--pm-bg-surface); }
+  .pm-m-calendar-layer.pm-shell--compact .pm-cal-rsvp-error { flex: 1 0 100%; color: var(--pm-accent-coral); font-size: 12px; }
+
+  /* Notification center and preferences: readable rows and reachable controls. */
+  .pm-shell--compact .pm-notif-center,
+  .pm-shell--compact .pm-prefs-page { width: 100%; max-width: none; padding: 10px var(--pm-m-gutter) 24px; }
+  .pm-shell--compact .pm-notif-center-header { align-items: flex-start; gap: 10px; flex-wrap: wrap; }
+  .pm-shell--compact .pm-notif-center-header > div:last-child { width: 100%; display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .pm-shell--compact .pm-notif-center-header button { min-height: 44px; padding: 8px !important; }
+  .pm-shell--compact .pm-notif-tabs { overflow-x: auto; overscroll-behavior-x: contain; }
+  .pm-shell--compact .pm-notif-tab { flex: 0 0 auto; min-height: 44px; }
+  .pm-shell--compact .pm-notif-item { min-height: 72px; padding: 10px 8px; align-items: flex-start; }
+  .pm-shell--compact .pm-notif-dismiss { min-width: 44px; min-height: 44px; font-size: 22px; }
+  .pm-shell--compact .pm-notif-error,
+  .pm-shell--compact .pm-prefs-load-error { display: grid; gap: 12px; justify-items: start; color: var(--pm-accent-coral); }
+  .pm-shell--compact .pm-prefs-row { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; padding: 12px 0; }
+  .pm-shell--compact .pm-prefs-select,
+  .pm-shell--compact .pm-prefs-number { width: 100%; min-height: 44px; font-size: 16px; }
+  .pm-shell--compact .pm-prefs-row--check { display: flex; }
+  .pm-shell--compact .pm-prefs-save-row { position: sticky; bottom: 0; padding: 10px 0 calc(10px + var(--pm-m-safe-bottom)); background: var(--pm-bg-base); }
+  .pm-shell--compact .pm-prefs-save-btn { width: 100%; min-height: 48px; }
+
+  /* ── Phase 4A: Files, Vault, GitHub ───────────────────────────────
+     A labelled source selector replaces the second icon toolbar, item lists
+     become full-width rows, and every portalled dialog in this area fills the
+     screen instead of being clipped. `body.pm-m-compact` is set by AppShell
+     only while the compact shell is mounted; it is the only way to reach the
+     legacy dialogs that portal to <body> outside the shell root. */
+  .pm-shell--compact .pm-m-files { display: grid; gap: 14px; min-width: 0; padding: 0 var(--pm-m-gutter); }
+  .pm-shell--compact .pm-m-source { display: grid; gap: 6px; min-width: 0; }
+  .pm-shell--compact .pm-m-source-label {
+    font: 700 11px/1 var(--pm-font-body);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--pm-text-secondary);
+  }
+  .pm-shell--compact .pm-m-segment--wide { width: 100%; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .pm-shell--compact .pm-m-segment--wide button { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+
+  /* Drive: header wraps, the folder embed gets a usable height. */
+  .pm-shell--compact .cpm-drive-files-header { flex-wrap: wrap; gap: 8px; }
+  .pm-shell--compact .cpm-drive-files-header-actions { width: 100%; display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); gap: 8px; }
+  .pm-shell--compact .cpm-drive-files-header-actions > * { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
+  .pm-shell--compact .cpm-drive-folder-embed { height: 60vh; min-height: 320px; }
+  .pm-shell--compact .cpm-drive-files-empty { padding: 20px 12px; }
+  .pm-shell--compact .cpm-drive-files-empty .clubpm-btn-primary,
+  .pm-shell--compact .cpm-drive-files-empty .cpm-attach-cancel { min-height: 44px; }
+
+  /* GitHub: one column, readable rows, a scrollable sub-tab strip. */
+  .pm-shell--compact .cpm-gh-header { flex-wrap: wrap; gap: 10px; }
+  .pm-shell--compact .cpm-gh-header-actions { width: 100%; display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; }
+  .pm-shell--compact .cpm-gh-header-actions > * { min-height: 44px; }
+  .pm-shell--compact .cpm-gh-subtabs { overflow-x: auto; overscroll-behavior-x: contain; }
+  .pm-shell--compact .cpm-gh-subtab { flex: 0 0 auto; min-height: 44px; }
+  .pm-shell--compact .cpm-gh-stats-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .pm-shell--compact .cpm-gh-filter-row { flex-wrap: wrap; gap: 8px; }
+  .pm-shell--compact .cpm-gh-filter-row > * { min-height: 44px; }
+  .pm-shell--compact .cpm-gh-list-row { min-height: 56px; padding: 10px 8px; align-items: flex-start; flex-wrap: wrap; }
+  .pm-shell--compact .cpm-gh-list-main { flex: 1 1 100%; min-width: 0; }
+  .pm-shell--compact .cpm-gh-list-title { flex-wrap: wrap; overflow-wrap: anywhere; }
+  .pm-shell--compact .cpm-gh-breadcrumb { flex-wrap: wrap; }
+
+  /* Vault: stacked toolbar, single-column item list, wrapping filter chips. */
+  .pm-shell--compact .cpm-vault-subnav { display: flex; align-self: stretch; overflow-x: auto; overscroll-behavior-x: contain; }
+  .pm-shell--compact .cpm-vault-pill { flex: 0 0 auto; min-height: 44px; }
+  .pm-shell--compact .cpm-vault-toolbar { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  .pm-shell--compact .cpm-vault-search { width: 100%; min-height: 44px; font-size: 16px; }
+  .pm-shell--compact .cpm-vault-filters { display: flex; flex-wrap: wrap; gap: 6px; }
+  .pm-shell--compact .cpm-vault-filter-chip { min-height: 44px; }
+  .pm-shell--compact .cpm-vault-toolbar .clubpm-btn-primary,
+  .pm-shell--compact .cpm-vault-toolbar .cpm-vault-btn-ghost { width: 100%; min-height: 44px; justify-content: center; }
+  .pm-shell--compact .cpm-vault-ask-panel textarea { width: 100%; font-size: 16px; }
+  .pm-shell--compact .cpm-vault-grid { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .pm-shell--compact .cpm-vault-sa-row { flex-wrap: wrap; gap: 8px; }
+  .pm-shell--compact .cpm-vault-sa-email { overflow-wrap: anywhere; }
+  .pm-shell--compact .cpm-vault-copy-btn { min-width: 44px; min-height: 44px; }
+  .pm-shell--compact .cpm-vault-setup-card .clubpm-btn-primary { min-height: 44px; }
+  .pm-shell--compact .cpm-vault-cr-list { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .pm-shell--compact .cpm-vault-cr-card { min-width: 0; }
+  .pm-shell--compact .cpm-vault-cr-card-top { flex-wrap: wrap; gap: 6px; }
+  .pm-shell--compact .cpm-vault-cr-title { overflow-wrap: anywhere; }
+  .pm-shell--compact .cpm-vault-cr-meta { flex-wrap: wrap; gap: 6px; }
+  .pm-shell--compact .cpm-vault-cr-review-actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; }
+  .pm-shell--compact .cpm-vault-cr-review-actions button,
+  .pm-shell--compact .cpm-vault-cr-card button { min-height: 44px; }
+  .pm-shell--compact .cpm-vault-cr-grid { grid-template-columns: minmax(0, 1fr); }
+
+  /* Legacy dialogs portalled to <body>: full screen instead of a clipped box. */
+  body.pm-m-compact .cpm-gh-modal-overlay,
+  body.pm-m-compact .cpm-drive-edit-overlay { padding: 0; align-items: stretch; justify-content: stretch; }
+  body.pm-m-compact .cpm-gh-modal,
+  body.pm-m-compact .cpm-drive-edit-modal {
+    width: 100%;
+    max-width: none;
+    max-height: none;
+    height: 100dvh;
+    border: 0;
+    border-radius: 0;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  body.pm-m-compact .cpm-gh-modal-body { flex: 1 1 auto; min-height: 0; }
+  body.pm-m-compact .cpm-gh-modal-footer { position: sticky; bottom: 0; background: var(--clubpm-surface-100, #0d1117); flex-wrap: wrap; gap: 8px; }
+  body.pm-m-compact .cpm-gh-modal-overlay input,
+  body.pm-m-compact .cpm-gh-modal-overlay select,
+  body.pm-m-compact .cpm-gh-modal-overlay textarea,
+  body.pm-m-compact .cpm-drive-edit-overlay input,
+  body.pm-m-compact .cpm-drive-edit-overlay textarea { min-height: 44px; font-size: 16px; }
+  body.pm-m-compact .cpm-gh-modal-overlay button,
+  body.pm-m-compact .cpm-drive-edit-overlay button { min-height: 44px; }
+
+  /* Files dialogs that moved into the shared overlay stack. */
+  .pm-m-files-layer.pm-shell--compact .pm-m-sheet-body { padding: 0; }
+  .pm-m-files-layer.pm-shell--compact .cpm-vault-item-panel,
+  .pm-m-files-layer.pm-shell--compact .cpm-vault-upload-modal,
+  .pm-m-files-layer.pm-shell--compact .cpm-vault-cr-modal {
+    position: static;
+    width: 100%;
+    max-width: none;
+    max-height: none;
+    height: auto;
+    border: 0;
+    border-left: 0;
+    border-radius: 0;
+    box-shadow: none;
+    padding: 12px var(--pm-m-gutter) calc(16px + var(--pm-m-safe-bottom));
+    overflow: visible;
+  }
+  .pm-m-files-layer.pm-shell--compact .cpm-vault-upload-header,
+  .pm-m-files-layer.pm-shell--compact .cpm-vault-item-panel > .cpm-vault-modal-close { display: none; }
+  .pm-m-files-layer.pm-shell--compact input,
+  .pm-m-files-layer.pm-shell--compact textarea,
+  .pm-m-files-layer.pm-shell--compact select { min-height: 44px; font-size: 16px; }
+  .pm-m-files-layer.pm-shell--compact button { min-height: 44px; }
+  .pm-m-files-layer.pm-shell--compact .cpm-vault-item-actions,
+  .pm-m-files-layer.pm-shell--compact .cpm-vault-cr-review-actions,
+  .pm-m-files-layer.pm-shell--compact .cpm-vault-version-actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; }
+  .pm-m-files-layer.pm-shell--compact .cpm-vault-version-row,
+  .pm-m-files-layer.pm-shell--compact .cpm-vault-history-row,
+  .pm-m-files-layer.pm-shell--compact .cpm-vault-bom-row { flex-wrap: wrap; gap: 8px; }
+  .pm-m-files-layer.pm-shell--compact .cpm-vault-cr-grid { grid-template-columns: minmax(0, 1fr); }
+  .pm-m-files-layer.pm-shell--compact .cpm-vault-model-viewer { max-width: 100%; }
+  .pm-m-drive-preview-layer.pm-shell--compact .pm-m-sheet-body { display: flex; min-height: 0; padding: 0; }
+  .pm-m-drive-preview-layer.pm-shell--compact .cpm-drive-preview-body { flex: 1 1 auto; min-height: 0; display: flex; }
+  .pm-m-drive-preview-layer.pm-shell--compact .cpm-drive-preview-iframe { flex: 1 1 auto; width: 100%; height: 100%; border: 0; }
+  .pm-m-drive-preview-layer.pm-shell--compact .cpm-drive-preview-open { flex: none; font-size: 13px; white-space: nowrap; }
+
+  /* ── Phase 4B: Insights, AI, Gantt ────────────────────────────────
+     One labelled section selector, charts that can be read as data, a
+     full-screen review for each proposed AI action, and a schedule list as the
+     first timeline presentation. */
+  .pm-shell--compact .pm-m-insights-source { padding: 0 var(--pm-m-gutter) 12px; }
+  .pm-shell--compact .pm-m-segment--grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px; }
+  .pm-shell--compact .pm-m-segment--grid button { min-height: 44px; }
+
+  /* Charts: readable labels, and the same numbers available as a list. */
+  .pm-shell--compact .pm-an-root { padding: 0 var(--pm-m-gutter); min-width: 0; }
+  .pm-shell--compact .pm-an-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .pm-shell--compact .pm-an-card { min-width: 0; }
+  .pm-shell--compact .pm-an-card-head { flex-wrap: wrap; gap: 8px; }
+  .pm-shell--compact .pm-an-card-menu-btn { min-width: 44px; min-height: 44px; }
+  .pm-shell--compact .pm-an-card-menu-item { min-height: 44px; }
+  .pm-shell--compact .pm-an-kpis { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .pm-shell--compact .pm-an-kpi { min-width: 0; }
+  .pm-shell--compact .pm-an-kpi-value { overflow-wrap: anywhere; }
+  .pm-shell--compact .pm-an-toolbar { flex-wrap: wrap; gap: 8px; }
+  .pm-shell--compact .pm-an-toolbar-group { flex-wrap: wrap; min-width: 0; }
+  .pm-shell--compact .pm-an-select { min-height: 44px; font-size: 16px; max-width: 100%; }
+  .pm-shell--compact .pm-an-seg button,
+  .pm-shell--compact .pm-an-toggle { min-height: 44px; }
+  .pm-shell--compact .pm-m-an-view { padding: 4px 0 8px; }
+  .pm-shell--compact .pm-m-an-data { min-width: 0; }
+  .pm-shell--compact .pm-m-an-table-wrap { max-height: 320px; overflow: auto; overscroll-behavior: contain; border: 1px solid var(--pm-border); border-radius: 10px; }
+  .pm-shell--compact .pm-m-an-table { width: 100%; border-collapse: collapse; font: 400 13px/1.35 var(--pm-font-body); }
+  .pm-shell--compact .pm-m-an-table caption { padding: 8px 10px; text-align: left; color: var(--pm-text-secondary); font-size: 12px; }
+  .pm-shell--compact .pm-m-an-table th,
+  .pm-shell--compact .pm-m-an-table td { padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--pm-border); overflow-wrap: anywhere; }
+  .pm-shell--compact .pm-m-an-table thead th { position: sticky; top: 0; background: var(--pm-bg-elevated); color: var(--pm-text-secondary); font-size: 12px; }
+  .pm-shell--compact .pm-m-an-table tbody th { font-weight: 600; color: var(--pm-text-primary); }
+  .pm-shell--compact .pm-m-an-data-empty { padding: 16px 4px; color: var(--pm-text-secondary); font-size: 13px; }
+
+  /* Activity and press kit: one column, no clipped rails. */
+  .pm-shell--compact .pm-activity { padding: 0 var(--pm-m-gutter); min-width: 0; }
+  .pm-shell--compact .pm-activity-filters { flex-wrap: wrap; gap: 8px; }
+  .pm-shell--compact .pm-activity-filters > * { min-height: 44px; }
+  .pm-shell--compact .pm-activity-search { width: 100%; min-height: 44px; font-size: 16px; }
+  .pm-shell--compact .pm-activity-group { min-width: 0; }
+  .pm-shell--compact .pm-activity-body { min-width: 0; overflow-wrap: anywhere; }
+  .pm-shell--compact .pm-activity-chips { flex-wrap: wrap; }
+  .pm-shell--compact .pm-activity-more { width: 100%; min-height: 44px; }
+  .pm-shell--compact .presskit-panel { padding: 0 var(--pm-m-gutter); min-width: 0; }
+  .pm-shell--compact .presskit-sections-grid { grid-template-columns: minmax(0, 1fr); }
+  .pm-shell--compact .presskit-settings-row,
+  .pm-shell--compact .presskit-audience-row,
+  .pm-shell--compact .presskit-generate-actions { flex-wrap: wrap; gap: 8px; }
+  .pm-shell--compact .presskit-panel button { min-height: 44px; }
+  .pm-shell--compact .presskit-revs-drawer { position: static; width: 100%; max-width: none; }
+
+  /* AI: a scannable proposal list with an explicit per-action review. */
+  .pm-shell--compact .cpm-ai-panel { min-width: 0; }
+  .pm-shell--compact .cpm-ai-panel input,
+  .pm-shell--compact .cpm-ai-panel textarea,
+  .pm-shell--compact .cpm-ai-panel select { font-size: 16px; }
+  .pm-shell--compact .cpm-ai-panel form { flex-wrap: wrap; }
+  .pm-shell--compact .cpm-ai-panel form > button { width: 100%; min-height: 44px; }
+  .pm-shell--compact .cpm-actionplan-mode-row { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  .pm-shell--compact .cpm-actionplan-mode-btn { min-height: 56px; }
+  .pm-shell--compact .cpm-actionplan-goal-form { display: grid; gap: 8px; }
+  .pm-shell--compact .cpm-actionplan-goal-input { width: 100%; min-height: 44px; font-size: 16px; }
+  .pm-shell--compact .cpm-actionplan-goal-form button { width: 100%; min-height: 44px; }
+  .pm-shell--compact .cpm-actionplan-execute-row button { width: 100%; min-height: 48px; }
+  .pm-shell--compact .pm-m-plan-row { display: grid; gap: 8px; min-width: 0; }
+  .pm-shell--compact .pm-m-plan-row-main { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-width: 0; }
+  .pm-shell--compact .pm-m-plan-row-summary { flex: 1 1 100%; color: var(--pm-text-secondary); font-size: 13px; overflow-wrap: anywhere; }
+  .pm-shell--compact .pm-m-plan-row-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .pm-shell--compact .pm-m-plan-row-actions .pm-m-btn { min-height: 44px; justify-content: center; }
+  .pm-m-actionplan-layer.pm-shell--compact .cpm-actionplan-card { border: 0; padding: 0; background: none; }
+  .pm-m-actionplan-layer.pm-shell--compact .cpm-actionplan-fields { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .pm-m-actionplan-layer.pm-shell--compact .cpm-actionplan-field input,
+  .pm-m-actionplan-layer.pm-shell--compact .cpm-actionplan-field select,
+  .pm-m-actionplan-layer.pm-shell--compact .cpm-actionplan-field textarea { width: 100%; min-height: 44px; font-size: 16px; }
+  .pm-m-actionplan-layer.pm-shell--compact .cpm-actionplan-toggle-btn { min-width: 44px; min-height: 44px; }
+
+  /* Gantt: the schedule list is the phone default; the timeline pans inside a
+     contained frame with a visible instruction, never widening the page. */
+  .pm-shell--compact .pm-m-gantt { min-width: 0; padding: 0 var(--pm-m-gutter) 8px; }
+  .pm-shell--compact .pm-m-gantt-toolbar { flex-wrap: wrap; gap: 6px; }
+  .pm-shell--compact .pm-m-gantt-toolbar .pm-gantt-scale-btn { min-height: 44px; }
+  .pm-shell--compact .pm-m-gantt-hint { margin: 8px 0; color: var(--pm-text-secondary); font-size: 12px; }
+  .pm-shell--compact .pm-m-gantt-frame {
+    max-width: 100%;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+    border: 1px solid var(--pm-border);
+    border-radius: 10px;
+  }
+  .pm-shell--compact .pm-m-gantt-schedule { display: grid; gap: 16px; }
+  .pm-shell--compact .pm-m-gantt-group > h4 {
+    margin: 0 0 6px;
+    font: 700 11px/1 var(--pm-font-body);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--pm-text-secondary);
+  }
+  .pm-shell--compact .pm-m-gantt-group ul { margin: 0; padding: 0; list-style: none; border: 1px solid var(--pm-border); border-radius: 10px; overflow: hidden; }
+  .pm-shell--compact .pm-m-gantt-row { display: grid; gap: 4px; padding: 10px 12px; border-bottom: 1px solid var(--pm-border); }
+  .pm-shell--compact .pm-m-gantt-row:last-child { border-bottom: 0; }
+  .pm-shell--compact .pm-m-gantt-row--sub { padding-left: 28px; }
+  .pm-shell--compact .pm-m-gantt-row-title { color: var(--pm-text-primary); font: 600 14px/1.3 var(--pm-font-body); overflow-wrap: anywhere; }
+  .pm-shell--compact .pm-m-gantt-row-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; color: var(--pm-text-secondary); font-size: 12px; }
+  .pm-shell--compact .pm-m-gantt-dot { width: 8px; height: 8px; border-radius: 999px; }
+  .pm-shell--compact .pm-m-gantt-chip { padding: 1px 7px; border: 1px solid var(--pm-border); border-radius: 999px; text-transform: capitalize; }
+
+  /* The standalone /gantt route reuses the same list; only its page chrome
+     needs narrowing. */
+  .pm-shell--compact .cpm-gantt-page { padding: 12px var(--pm-m-gutter) 24px; min-width: 0; }
+  .pm-shell--compact .cpm-gantt-page .clubpm-glass-card { padding: 10px; overflow: visible; }
+  .pm-shell--compact .cpm-gantt-page h1 { font-size: 1.25rem; }
+
+  /* ── Phase 4C: Outreach ───────────────────────────────────────────
+     One labelled Section chip row instead of seven tabs; the board and the CRM
+     pipeline become stage-filtered lists with an explicit Move control. */
+  .pm-shell--compact .pm-outreach-hub { padding: 0 0 8px; min-width: 0; }
+  .pm-shell--compact .pm-outreach-page-header { flex-wrap: wrap; gap: 10px; padding: 12px var(--pm-m-gutter) 0; }
+  .pm-shell--compact .pm-outreach-page-header > div:nth-child(2) { max-width: none !important; width: 100%; }
+  .pm-shell--compact .pm-outreach-page-title { font-size: 1.15rem; }
+  .pm-shell--compact .pm-outreach-activity-btn { min-height: 44px; }
+  .pm-shell--compact .pm-m-outreach-source { padding: 12px var(--pm-m-gutter) 0; }
+  .pm-shell--compact .pm-outreach-tab-content { padding: 12px var(--pm-m-gutter) 0; min-width: 0; }
+
+  /* Chip rows are the shared shape for "pick one of these" on a phone. */
+  .pm-shell--compact .pm-m-chip-row { display: flex; flex-wrap: wrap; gap: 6px; min-width: 0; }
+  .pm-shell--compact .pm-m-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 44px;
+    padding: 6px 12px;
+    border: 1px solid var(--pm-border);
+    border-radius: 999px;
+    background: var(--pm-bg-elevated);
+    color: var(--pm-text-secondary);
+    font: 600 13px/1 var(--pm-font-body);
+  }
+  .pm-shell--compact .pm-m-chip[aria-pressed="true"] {
+    border-color: var(--pm-accent-teal);
+    color: var(--pm-accent-teal);
+    background: rgba(0, 229, 204, 0.1);
+  }
+  .pm-shell--compact .pm-m-chip-count { color: var(--pm-text-muted); font-variant-numeric: tabular-nums; }
+
+  .pm-shell--compact .pm-m-outreach-list,
+  .pm-shell--compact .pm-m-crm-list { display: grid; gap: 12px; padding-top: 12px; min-width: 0; }
+  .pm-shell--compact .pm-m-outreach-item,
+  .pm-shell--compact .pm-m-crm-item { display: grid; gap: 6px; min-width: 0; }
+  .pm-shell--compact .pm-m-outreach-item .pm-outreach-card,
+  .pm-shell--compact .pm-m-crm-item .pm-crm-card { width: 100%; min-width: 0; }
+  .pm-shell--compact .pm-outreach-card-actions { flex-wrap: wrap; gap: 6px; }
+  .pm-shell--compact .pm-outreach-card-actions button { min-height: 44px; min-width: 44px; }
+  .pm-shell--compact .pm-outreach-card-content { overflow-wrap: anywhere; }
+  .pm-shell--compact .pm-board-campaign-filter { flex-wrap: wrap; gap: 6px; }
+  .pm-shell--compact .pm-campaign-chip { min-height: 44px; }
+  .pm-shell--compact .pm-bulk-toolbar { flex-wrap: wrap; gap: 8px; position: sticky; bottom: 0; z-index: 2; }
+  .pm-shell--compact .pm-bulk-toolbar button,
+  .pm-shell--compact .pm-bulk-toolbar select { min-height: 44px; font-size: 16px; }
+
+  /* CRM: filters, search and the contact drawer. */
+  .pm-shell--compact .pm-crm-filters { display: grid; gap: 8px; }
+  .pm-shell--compact .pm-crm-search { width: 100%; }
+  .pm-shell--compact .pm-crm-search-input { width: 100%; min-height: 44px; font-size: 16px; }
+  .pm-shell--compact .pm-crm-head { flex-wrap: wrap; gap: 8px; }
+  .pm-shell--compact .pm-crm-head button { min-height: 44px; }
+  .pm-shell--compact .pm-crm-stage-btn { flex: 1 1 45%; min-height: 44px; }
+
+  /* Composer: one column, a clear preview step, and a reachable send row. */
+  .pm-shell--compact .pm-composer-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .pm-shell--compact .pm-composer-main,
+  .pm-shell--compact .pm-composer-sidebar { min-width: 0; width: 100%; }
+  .pm-shell--compact .pm-composer-row { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .pm-shell--compact .pm-composer-platform-toggles,
+  .pm-shell--compact .pm-composer-preview-tabs,
+  .pm-shell--compact .pm-composer-override-tabs { flex-wrap: wrap; gap: 6px; }
+  .pm-shell--compact .pm-composer-platform-toggles button,
+  .pm-shell--compact .pm-composer-preview-tabs button,
+  .pm-shell--compact .pm-composer-override-tabs button { min-height: 44px; }
+  .pm-shell--compact .pm-composer-preview-section { min-width: 0; overflow-x: hidden; }
+  .pm-shell--compact .pm-composer-media-list { grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); }
+  .pm-shell--compact .cpm-form-input,
+  .pm-shell--compact .cpm-form-select,
+  .pm-shell--compact .cpm-form-textarea { width: 100%; min-height: 44px; font-size: 16px; }
+  /* The send/save row stays reachable above the bottom bar and the keyboard;
+     the existing confirmation and safety steps are untouched. */
+  .pm-shell--compact .pm-composer-actions {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    display: grid;
+    gap: 8px;
+    padding: 10px 0 calc(10px + var(--pm-m-safe-bottom));
+    background: var(--pm-bg-base);
+    border-top: 1px solid var(--pm-border);
+  }
+  .pm-shell--compact .pm-composer-actions-right { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; }
+  .pm-shell--compact .pm-composer-actions button { min-height: 48px; }
+
+  /* Campaigns: cards stack, the detail drawer fills the screen. */
+  .pm-shell--compact .pm-campaigns-tab { min-width: 0; }
+  .pm-shell--compact .pm-campaigns-header { flex-wrap: wrap; gap: 8px; }
+  .pm-shell--compact .pm-campaigns-grid,
+  .pm-shell--compact .pm-campaign-card-stats,
+  .pm-shell--compact .pm-campaign-form-row { grid-template-columns: minmax(0, 1fr); }
+  .pm-shell--compact .pm-campaign-drawer-tabs { flex-wrap: wrap; gap: 6px; }
+  .pm-shell--compact .pm-campaign-drawer-tabs button { min-height: 44px; }
+  .pm-shell--compact .pm-campaign-card { min-width: 0; }
+  .pm-shell--compact .pm-campaign-card-header,
+  .pm-shell--compact .pm-campaign-card-footer,
+  .pm-shell--compact .pm-campaign-card-meta { flex-wrap: wrap; gap: 6px; }
+  .pm-shell--compact .pm-campaign-approver-grid { grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); }
+  .pm-shell--compact .pm-outreach-stats-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+
+  /* Outreach dialogs and drawers that portal to <body>. */
+  body.pm-m-compact .pm-campaign-drawer-overlay,
+  body.pm-m-compact .pm-modal-overlay,
+  body.pm-m-compact .pm-crm-drawer-overlay { padding: 0; align-items: stretch; justify-content: stretch; }
+  body.pm-m-compact .pm-campaign-drawer,
+  body.pm-m-compact .pm-modal-panel,
+  body.pm-m-compact .pm-crm-drawer {
+    width: 100%;
+    max-width: none;
+    height: 100dvh;
+    max-height: none;
+    border: 0;
+    border-radius: 0;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    overflow-y: auto;
+  }
+  body.pm-m-compact .pm-modal-panel input,
+  body.pm-m-compact .pm-modal-panel select,
+  body.pm-m-compact .pm-modal-panel textarea,
+  body.pm-m-compact .pm-crm-drawer input,
+  body.pm-m-compact .pm-crm-drawer textarea { min-height: 44px; font-size: 16px; }
+  body.pm-m-compact .pm-modal-panel button,
+  body.pm-m-compact .pm-campaign-drawer button,
+  body.pm-m-compact .pm-crm-drawer button { min-height: 44px; }
+  body.pm-m-compact .pm-crm-form-row { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  body.pm-m-compact .pm-crm-form-actions { position: sticky; bottom: 0; flex-wrap: wrap; gap: 8px; background: var(--pm-bg-surface); padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px)); }
+
+  /* ── Phase 4D: blog and course editors ───────────────────────────
+     A short primary toolbar with More formatting behind it, a full-width
+     preview, the course structure rail as a picker, and a save/publish row that
+     stays reachable. Collaboration, draft state and the publish safeguards are
+     untouched — only where the controls sit changes. */
+  .pm-shell--compact .cpm-blog-editor-page { min-width: 0; }
+  .pm-shell--compact .cpm-blog-editor-header {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 8px var(--pm-m-gutter);
+    background: var(--pm-bg-surface);
+  }
+  .pm-shell--compact .cpm-blog-editor-header-left { flex: 1 1 100%; min-width: 0; gap: 8px; }
+  .pm-shell--compact .cpm-blog-title-input { width: 100%; min-width: 0; font-size: 18px; }
+  .pm-shell--compact .cpm-blog-editor-header-actions { width: 100%; flex-wrap: wrap; gap: 6px; }
+  .pm-shell--compact .cpm-blog-editor-header-actions .clubpm-btn-secondary,
+  .pm-shell--compact .cpm-blog-editor-header-actions .clubpm-btn-primary,
+  .pm-shell--compact .cpm-blog-tool-btn { min-height: 44px; min-width: 44px; }
+  .pm-shell--compact .cpm-blog-tool-group { flex-wrap: wrap; gap: 4px; }
+  .pm-shell--compact .cpm-blog-header-sep { display: none; }
+  .pm-shell--compact .cpm-blog-editor-body { max-width: none; padding: 12px var(--pm-m-gutter) 32px; }
+  .pm-shell--compact .cpm-blog-toolbar-row { flex-wrap: wrap; gap: 8px; }
+  .pm-shell--compact .cpm-blog-toolbar-aside { width: 100%; justify-content: space-between; }
+
+  /* Primary toolbar: one row, sticky under the header, everything 44px. */
+  .pm-shell--compact .pm-m-blog-toolbar {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    padding: 6px 0;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    background: var(--pm-bg-base);
+  }
+  .pm-shell--compact .pm-m-blog-toolbar > * { flex: 0 0 auto; min-height: 44px; min-width: 44px; }
+  .pm-shell--compact .pm-m-blog-toolbar .pm-m-btn { margin-left: auto; }
+
+  /* The full toolbar inside its sheet: bands stack, menus open in flow so a
+     popup can never be clipped by the dialog. */
+  .pm-m-editor-layer.pm-shell--compact .cpm-blog-toolbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+    padding: 0;
+    border: 0;
+    background: none;
+  }
+  .pm-m-editor-layer.pm-shell--compact .cpm-blog-tb-toggle-wrap { display: none; }
+  .pm-m-editor-layer.pm-shell--compact .cpm-blog-tb-band {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--pm-border);
+  }
+  .pm-m-editor-layer.pm-shell--compact .cpm-blog-tb-band:last-child { border-bottom: 0; }
+  .pm-m-editor-layer.pm-shell--compact .cpm-blog-tb-btn,
+  .pm-m-editor-layer.pm-shell--compact .cpm-blog-tb-menu-trigger,
+  .pm-m-editor-layer.pm-shell--compact .cpm-blog-add-section-btn { min-height: 44px; min-width: 44px; }
+  .pm-m-editor-layer.pm-shell--compact .cpm-blog-tb-select { min-height: 44px; font-size: 16px; }
+  .pm-m-editor-layer.pm-shell--compact .cpm-blog-tb-menu { position: static; }
+  .pm-m-editor-layer.pm-shell--compact .cpm-blog-tb-menu-pop {
+    position: static;
+    width: 100%;
+    margin-top: 6px;
+    max-height: 50vh;
+    overflow-y: auto;
+  }
+  .pm-m-editor-layer.pm-shell--compact .cpm-blog-tb-menu-item { min-height: 44px; }
+  .pm-m-editor-layer.pm-shell--compact .pm-course-rail { width: 100%; max-width: none; position: static; }
+  .pm-m-editor-layer.pm-shell--compact .pm-course-rail-row { min-height: 48px; }
+  .pm-m-editor-layer.pm-shell--compact .pm-course-rail-req,
+  .pm-m-editor-layer.pm-shell--compact .pm-course-rail-del,
+  .pm-m-editor-layer.pm-shell--compact .pm-course-rail-add { min-width: 44px; min-height: 44px; }
+
+  /* Preview: full width, tall enough to judge, with its own scroll. */
+  .pm-shell--compact .cpm-blog-previewframe { width: 100%; }
+  .pm-shell--compact .cpm-blog-previewframe-bar { flex-wrap: wrap; gap: 6px; }
+  .pm-shell--compact .cpm-blog-previewframe-bar button { min-height: 44px; }
+  .pm-shell--compact .cpm-blog-previewframe-frame { width: 100% !important; max-width: 100%; height: 70vh; }
+
+  /* Side panels (meta, review, AI) and drawers fill the screen instead of
+     docking to a gutter that does not exist at this width. */
+  .pm-shell--compact .cpm-blog-meta-panel,
+  .pm-shell--compact .presskit-revs-drawer {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    max-width: none;
+    height: 100dvh;
+    border-radius: 0;
+    z-index: 860;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .pm-shell--compact .cpm-blog-meta-panel-close { min-width: 44px; min-height: 44px; }
+  .pm-shell--compact .cpm-blog-meta-panel-body input,
+  .pm-shell--compact .cpm-blog-meta-panel-body textarea,
+  .pm-shell--compact .cpm-blog-meta-panel-body select { width: 100%; min-height: 44px; font-size: 16px; }
+  body.pm-m-compact .cpm-blog-snippet-overlay { padding: 0; align-items: stretch; }
+  body.pm-m-compact .cpm-blog-revision-modal,
+  body.pm-m-compact .cpm-blog-snippet-modal { width: 100%; max-width: none; height: 100dvh; max-height: none; border-radius: 0; }
+  body.pm-m-compact .cpm-blog-snippet-header button,
+  body.pm-m-compact .cpm-blog-revision-modal button { min-height: 44px; }
+  .pm-shell--compact .cpm-blog-publish-pop { right: 0; left: auto; min-width: 220px; }
+  .pm-shell--compact .cpm-blog-publish-pop button[role="menuitem"] { min-height: 44px; }
+  .pm-shell--compact .cpm-blog-findbar { flex-wrap: wrap; gap: 6px; }
+  .pm-shell--compact .cpm-blog-find-input { min-height: 44px; font-size: 16px; }
+  .pm-shell--compact .cpm-blog-markdown-textarea { width: 100%; font-size: 16px; }
+  .pm-shell--compact .ProseMirror { font-size: 16px; }
+
+  /* Course editor: the rail becomes a labelled picker above the editor. */
+  .pm-shell--compact .pm-course-editor-body { display: block; padding: 0 var(--pm-m-gutter); }
+  .pm-shell--compact .pm-course-editor-main { max-width: none; margin: 0; }
+  .pm-shell--compact .pm-m-course-picker {
+    display: grid;
+    grid-template-columns: auto auto minmax(0, 1fr);
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    min-height: 48px;
+    margin: 10px 0;
+    text-align: left;
+  }
+  .pm-shell--compact .pm-m-course-picker-label { font-weight: 700; }
+  .pm-shell--compact .pm-m-course-picker-current {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--pm-text-secondary);
+    font-weight: 400;
+  }
+
+  /* ── Phase 4E: course learning ───────────────────────────────────
+     Contents collapse behind one control, the lesson gets the full width, and
+     Previous / Next are always reachable at the foot of the section. */
+  .pm-shell--compact .pm-course-learn { padding: 10px var(--pm-m-gutter) 24px; min-width: 0; }
+  .pm-shell--compact .pm-course-learn-header { gap: 8px; padding-bottom: 12px; }
+  .pm-shell--compact .pm-course-learn-heading h1 { font-size: 1.15rem; }
+  .pm-shell--compact .pm-course-learn-progress { flex-wrap: wrap; gap: 6px; width: 100%; }
+  .pm-shell--compact .pm-course-learn-header > button { min-height: 44px; }
+  .pm-shell--compact .pm-course-learn-body { display: block; }
+  .pm-shell--compact .pm-course-learn-main { min-width: 0; }
+  .pm-shell--compact .pm-course-learn-section-title { font-size: 1.1rem; overflow-wrap: anywhere; }
+
+  .pm-shell--compact .pm-m-course-contents {
+    margin: 12px 0;
+    border: 1px solid var(--pm-border);
+    border-radius: 12px;
+    background: var(--pm-bg-surface);
+  }
+  .pm-shell--compact .pm-m-course-contents > summary {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 48px;
+    padding: 0 12px;
+    cursor: pointer;
+    color: var(--pm-text-primary);
+    font: 600 14px/1.2 var(--pm-font-body);
+    list-style: none;
+  }
+  .pm-shell--compact .pm-m-course-contents > summary::-webkit-details-marker { display: none; }
+  .pm-shell--compact .pm-m-course-contents-label { flex: none; }
+  .pm-shell--compact .pm-m-course-contents-pos {
+    margin-left: auto;
+    color: var(--pm-text-secondary);
+    font-weight: 400;
+    font-size: 12px;
+  }
+  .pm-shell--compact .pm-m-course-contents .pm-course-learn-rail {
+    position: static;
+    flex: none;
+    width: 100%;
+    max-height: 60vh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    border: 0;
+    border-top: 1px solid var(--pm-border);
+    border-radius: 0;
+  }
+  .pm-shell--compact .pm-course-learn-rail-item,
+  .pm-shell--compact .pm-course-learn-module-head { min-height: 44px; }
+  .pm-shell--compact .pm-course-learn-rail-title { overflow-wrap: anywhere; }
+
+  /* `width: auto` is load-bearing: public/style.min.css (loaded on every page
+     from index.html) carries a bare `nav { width: 100vw }`, so any <nav> inside
+     ClubPM is 100vw until it says otherwise. Same for .pm-m-admin-jump below. */
+  .pm-shell--compact .pm-m-course-steps {
+    width: auto;
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    display: grid;
+    /* minmax(0, 1fr), not 1fr: a bare 1fr keeps each track at its button's
+       min-content width, and the two buttons plus the counter overflowed a
+       288px column at 320px. */
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    align-items: center;
+    gap: 8px;
+    margin-top: 20px;
+    padding: 10px 0 calc(10px + var(--pm-m-safe-bottom));
+    background: var(--pm-bg-base);
+    border-top: 1px solid var(--pm-border);
+  }
+  .pm-shell--compact .pm-m-course-steps .pm-m-btn { min-width: 0; min-height: 48px; padding-inline: 8px; justify-content: center; white-space: nowrap; }
+  .pm-shell--compact .pm-m-course-steps-pos { color: var(--pm-text-secondary); font-size: 12px; font-variant-numeric: tabular-nums; }
+  .pm-shell--compact .pm-course-learn-actions { flex-wrap: wrap; gap: 8px; }
+  .pm-shell--compact .pm-course-learn-actions button { min-height: 48px; }
+
+  /* Lessons, quizzes and assignments: one readable column, 16px inputs. */
+  .pm-shell--compact .pm-course-learn-reader,
+  .pm-shell--compact .pm-course-quiz,
+  .pm-shell--compact .pm-lit,
+  .pm-shell--compact .pm-assign,
+  .pm-shell--compact .pm-tour-launch { min-width: 0; }
+  .pm-shell--compact .pm-course-quiz-answers { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  .pm-shell--compact .pm-course-quiz-answer,
+  .pm-shell--compact .pm-course-quiz button,
+  .pm-shell--compact .pm-lit button,
+  .pm-shell--compact .pm-assign button,
+  .pm-shell--compact .pm-tour-launch button,
+  .pm-shell--compact .pm-course-player-btn { min-height: 44px; }
+  .pm-shell--compact .pm-course-quiz-head,
+  .pm-shell--compact .pm-course-quiz-actions,
+  .pm-shell--compact .pm-lit-composer-foot,
+  .pm-shell--compact .pm-tour-launch-actions,
+  .pm-shell--compact .pm-tour-launch-facts,
+  .pm-shell--compact .pm-course-player-bar { flex-wrap: wrap; gap: 8px; }
+  .pm-shell--compact .pm-lit-composer textarea,
+  .pm-shell--compact .pm-assign-composer textarea,
+  .pm-shell--compact .pm-course-quiz textarea,
+  .pm-shell--compact .pm-lit-citation input,
+  .pm-shell--compact .pm-assign input { width: 100%; font-size: 16px; }
+  .pm-shell--compact .pm-assign-drop { padding: 18px 12px; }
+  .pm-shell--compact .pm-course-slide-stage { width: 100%; max-width: 100%; }
+
+  /* ── Phase 4F: admin and meeting notes ───────────────────────────
+     Labelled section groups, dense tables read as cards, and review detail that
+     fills the screen. Role restrictions are untouched: AdminView still redirects
+     non-admins, and no gate moved into a menu. */
+  .pm-shell--compact .pm-admin-page { min-width: 0; }
+  .pm-shell--compact .pm-admin-page > h2 { padding: 0 var(--pm-m-gutter); font-size: 1.2rem; }
+  .pm-shell--compact .pm-admin-page > section { padding: 0 var(--pm-m-gutter); min-width: 0; }
+  /* width: auto — see the nav note on .pm-m-course-steps. */
+  .pm-shell--compact .pm-m-admin-jump { width: auto; padding: 0 var(--pm-m-gutter); }
+  .pm-shell--compact .pm-m-admin-jump .pm-m-chip { text-decoration: none; }
+  .pm-shell--compact .pm-admin-page > section[id] { scroll-margin-top: calc(var(--pm-m-header-h) + 12px); }
+
+  /* Pending rewards: each row is a card, its actions a full-width pair. */
+  .pm-shell--compact .cpm-pending-panel,
+  .pm-shell--compact .cpm-event-config-panel,
+  .pm-shell--compact .cpm-profile-card { min-width: 0; padding: 12px; }
+  .pm-shell--compact .cpm-pending-row {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 8px 10px;
+    padding: 12px 0;
+  }
+  .pm-shell--compact .cpm-pending-row-main { min-width: 0; }
+  .pm-shell--compact .cpm-pending-title,
+  .pm-shell--compact .cpm-pending-meta { overflow-wrap: anywhere; }
+  .pm-shell--compact .cpm-pending-actions {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 8px;
+  }
+  .pm-shell--compact .cpm-pending-actions button,
+  .pm-shell--compact .cpm-pending-adjust { min-height: 44px; }
+  .pm-shell--compact .cpm-pending-adjust { width: 100%; font-size: 16px; }
+  .pm-shell--compact .cpm-pending-history-details summary { min-height: 44px; display: flex; align-items: center; }
+
+  /* Reward config and Slack archive tables scroll inside their own frame with a
+     visible border, so the page itself never scrolls sideways. */
+  .pm-shell--compact .cpm-event-config-panel > *:has(> .cpm-event-config-table),
+  .pm-shell--compact .cpm-chat-banner { min-width: 0; }
+  .pm-shell--compact .cpm-event-config-table {
+    display: block;
+    max-width: 100%;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    border: 1px solid var(--pm-border);
+    border-radius: 10px;
+  }
+  .pm-shell--compact .cpm-event-config-panel input,
+  .pm-shell--compact .cpm-event-config-panel select { min-height: 44px; font-size: 16px; }
+  .pm-shell--compact .cpm-event-config-panel button,
+  .pm-shell--compact .cpm-chat-backfill-btn,
+  .pm-shell--compact .cpm-profile-card button { min-height: 44px; }
+
+  /* Meeting notes: one column, a readable project list, a tall editor. */
+  .pm-shell--compact .pm-meeting-notes-page { padding: 0; min-width: 0; }
+  .pm-shell--compact .pm-meeting-notes-topbar { flex-wrap: wrap; gap: 8px; }
+  .pm-shell--compact .pm-meeting-notes-title-group { min-width: 0; }
+  .pm-shell--compact .pm-meeting-notes-date-control { width: 100%; flex-wrap: wrap; gap: 8px; }
+  .pm-shell--compact .pm-meeting-date-input { flex: 1 1 160px; min-height: 44px; font-size: 16px; color-scheme: dark; }
+  .pm-shell--compact .pm-meeting-notes-layout { grid-template-columns: minmax(0, 1fr); gap: 14px; }
+  .pm-shell--compact .pm-meeting-notes-left,
+  .pm-shell--compact .pm-meeting-notes-right { min-width: 0; }
+  .pm-shell--compact .pm-meeting-project-card-header,
+  .pm-shell--compact .pm-meeting-project-stats-inline,
+  .pm-shell--compact .pm-meeting-editor-header,
+  .pm-shell--compact .pm-meeting-editor-actions { flex-wrap: wrap; gap: 8px; }
+  .pm-shell--compact .pm-meeting-editor-actions button,
+  .pm-shell--compact .pm-meeting-regenerate-btn,
+  .pm-shell--compact .pm-meeting-retry-btn { min-height: 44px; }
+  .pm-shell--compact .pm-meeting-editor-textarea { width: 100%; min-height: 50vh; font-size: 16px; }
+  .pm-shell--compact .pm-meeting-project-card-name,
+  .pm-shell--compact .pm-meeting-project-list-item { overflow-wrap: anywhere; }
+
+  /* ── Phase 4G: Profile, Shop, Challenges ─────────────────────────
+     Single-column account controls, item grids that fit, and celebrations whose
+     dismiss control is reachable above the bottom bar. Purchase, equip and claim
+     rules are untouched — only the layout changes. */
+  .pm-shell--compact .pm-shop,
+  .pm-shell--compact .challenges-page { padding: 10px var(--pm-m-gutter) 24px; min-width: 0; }
+  .pm-shell--compact .cpm-profile-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .pm-shell--compact .cpm-profile-card { min-width: 0; padding: 12px; }
+  .pm-shell--compact .cpm-profile-contact-row { flex-wrap: wrap; gap: 6px; overflow-wrap: anywhere; }
+  .pm-shell--compact .cpm-profile-edit-form { display: grid; gap: 10px; }
+  .pm-shell--compact .cpm-profile-edit-form input,
+  .pm-shell--compact .cpm-profile-edit-form textarea { width: 100%; min-height: 44px; font-size: 16px; }
+  .pm-shell--compact .cpm-profile-edit-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .pm-shell--compact .cpm-profile-edit-actions button,
+  .pm-shell--compact .cpm-profile-edit-btn { min-height: 44px; }
+  .pm-shell--compact .cpm-locker-slot { min-width: 0; }
+  .pm-shell--compact .cpm-cosmetic-grid { grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 8px; }
+  .pm-shell--compact .cpm-cosmetic-grid button { min-height: 44px; }
+  .pm-shell--compact .pm-member-badges { flex-wrap: wrap; gap: 6px; }
+
+  .pm-shell--compact .pm-shop-header { flex-wrap: wrap; gap: 8px; }
+  .pm-shell--compact .pm-shop-title { font-size: 1.2rem; }
+  .pm-shell--compact .pm-shop-header-meta { flex-wrap: wrap; gap: 8px; }
+  .pm-shell--compact .pm-shop-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+  .pm-shell--compact .pm-consumables-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+  .pm-shell--compact .pm-shop-card-body { min-width: 0; }
+  .pm-shell--compact .pm-shop-card-desc { overflow-wrap: anywhere; }
+  .pm-shell--compact .pm-shop-card-foot { flex-wrap: wrap; gap: 6px; }
+  .pm-shell--compact .pm-shop-card-buy { width: 100%; min-height: 44px; }
+  .pm-shell--compact .pm-shop-card-heart { min-width: 44px; min-height: 44px; }
+
+  /* The streak card's three stat tiles have a 90px minimum each, which at 320px
+     overflowed the card and clipped "Last active". */
+  .pm-shell--compact .pm-streak-hub { flex-wrap: wrap; gap: 12px; }
+  .pm-shell--compact .pm-streak-hub-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); width: 100%; }
+  .pm-shell--compact .pm-streak-hub-stat { min-width: 0; }
+  .pm-shell--compact .pm-streak-hub-stat-label { overflow-wrap: anywhere; }
+  .pm-shell--compact .pm-streak-hub-actions { width: 100%; }
+  .pm-shell--compact .pm-streak-hub-freeze-btn { width: 100%; min-height: 44px; }
+  .pm-shell--compact .challenges-page-header { flex-wrap: wrap; gap: 8px; }
+  .pm-shell--compact .challenges-page-title { font-size: 1.2rem; }
+  .pm-shell--compact .challenges-tabs { flex-wrap: wrap; gap: 6px; }
+  .pm-shell--compact .challenges-tab-btn { flex: 1 1 auto; min-height: 44px; }
+  .pm-shell--compact .challenges-list { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .pm-shell--compact .achievements-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+  .pm-shell--compact .quest-card,
+  .pm-shell--compact .achievement-card { min-width: 0; }
+  .pm-shell--compact .quest-body { min-width: 0; overflow-wrap: anywhere; }
+  .pm-shell--compact .quest-claim-btn { min-height: 44px; }
+
+  /* Celebrations cover the bottom bar by design; what matters is that their own
+     dismiss control clears the safe area and stays on screen at 320px. */
+  body.pm-m-compact .pm-celebrate-backdrop,
+  body.pm-m-compact .reward-roll-backdrop,
+  body.pm-m-compact .cosmetic-unlock-backdrop { padding: 16px; overflow-y: auto; }
+  body.pm-m-compact .pm-rankup-card,
+  body.pm-m-compact .reward-roll-modal,
+  body.pm-m-compact .cosmetic-unlock-modal {
+    width: 100%;
+    max-width: 100%;
+    max-height: calc(100dvh - 32px);
+    overflow-y: auto;
+    margin-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  body.pm-m-compact .pm-rankup-continue,
+  body.pm-m-compact .reward-roll-close-btn { min-height: 48px; width: 100%; }
+  body.pm-m-compact .reward-roll-items { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  body.pm-m-compact .badge-reel-wrap { max-width: 100%; }
+
+  /* ── Phase 4H: connection and error states ───────────────────────
+     The login route is outside the shell, so its phone rules live with the rest
+     of the login styles in a plain width query (see "Phone sign-in" below the
+     compact block). What belongs here is every in-shell failure surface: a
+     phone user who hits one must still be able to read it and act on it. */
+  .pm-shell--compact .pm-error-boundary,
+  .pm-shell--compact .cpm-vault-setup-card,
+  .pm-shell--compact .cpm-gh-empty-card,
+  .pm-shell--compact .cpm-chat-reconnect {
+    min-width: 0;
+    margin: 12px var(--pm-m-gutter);
+    padding: 16px 14px;
+    overflow-wrap: anywhere;
+  }
+  .pm-shell--compact .pm-error-boundary-btn,
+  .pm-shell--compact .cpm-gh-empty-card button,
+  .pm-shell--compact .cpm-gh-error button { width: 100%; min-height: 44px; }
+  .pm-shell--compact .cpm-chat-reconnect-btn { width: 100%; min-height: 48px; justify-content: center; }
+  .pm-shell--compact .cpm-chat-send-error { flex-wrap: wrap; gap: 8px; }
+  .pm-shell--compact .cpm-chat-send-error button { min-height: 44px; }
+
+  /* Short landscape phones: trade labels-under-icons for height. */
+  @media (max-height: 499.98px) {
+    .pm-shell--compact { --pm-m-header-h: 48px; --pm-m-nav-h: 48px; }
+    .pm-shell--compact .pm-m-nav-item { flex-direction: row; gap: 6px; font-size: 12.5px; }
+    .pm-shell--compact .pm-m-nav-item[aria-current="page"]::before { left: 12%; right: 12%; }
+    /* Phase 5: was 36px; the 44px touch target wins over 8px of height. */
+    .pm-shell--compact .pm-m-section-btn { min-height: 44px; }
+    .pm-shell--compact .pm-m-sections { padding-block: 2px; }
+    .pm-m-layer.pm-shell--compact .pm-m-sheet {
+      max-height: 92vh;
+      max-height: 92dvh;
+      left: max(0px, calc(50% - 280px));
+      right: max(0px, calc(50% - 280px));
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .pm-m-layer.pm-shell--compact .pm-m-scrim,
+    .pm-m-layer.pm-shell--compact .pm-m-sheet,
+    .pm-m-layer.pm-shell--compact .pm-m-dialog { animation: none; }
+  }
+}
+
+@keyframes pm-m-rise { from { transform: translateY(24px); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes pm-m-fade { from { opacity: 0; } to { opacity: 1; } }
+
+/* Walkthrough card on narrow screens: dock it at the top when the spotlight is
+   in the lower half (the phone bottom bar and sheets live there). Same width
+   threshold as TourOverlay's MOBILE_W. */
+@media (max-width: 640px) {
+  .pm-tour-card.is-docked.is-docked-top {
+    top: 0;
+    bottom: auto;
+    border-radius: 0 0 16px 16px;
+    border-top: none;
+    border-bottom: 1px solid var(--pm-accent-teal);
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: 16px;
+  }
 }

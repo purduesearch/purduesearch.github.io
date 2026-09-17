@@ -20,7 +20,7 @@ the corresponding `.json` and vice versa, so the two cannot silently drift.
 > Chat is built to move forward; it cannot tell you the state of anything.
 
 **q01-2 (SINGLE)** You want to know whether the hydroponics wiring is finished. Where is the authoritative answer?
-- ✓ The column its task sits in on the project board
+- ✓ The task's status group on the project task list
 - The most recent message in the project's Slack channel
 - Whoever you last spoke to about it
 - The project's Drive folder
@@ -136,7 +136,7 @@ the corresponding `.json` and vice versa, so the two cannot silently drift.
 ## Q05 — Final · 8 questions · **pass 80%** · **3 attempts**
 
 **q05-1 (SINGLE)** Someone asks in Slack whether the battery mount is done.
-- ✓ Check the task's column on the board and answer from that
+- ✓ Check the task's status group and answer from that
 - Answer from memory — you were in the meeting
 - Ask whoever you think was assigned to it
 - Check the project's Drive folder for a recent file

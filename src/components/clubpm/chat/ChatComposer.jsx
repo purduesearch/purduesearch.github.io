@@ -6,6 +6,7 @@ import { encodeOutgoing } from "./encodeOutgoing";
 
 // One roster fetch per page load, shared by every composer on the page.
 let rosterPromise = null;
+const drafts = new Map();
 function loadRoster() {
   if (!rosterPromise) {
     rosterPromise = get("/api/members").catch(() => {
@@ -56,8 +57,11 @@ export default function ChatComposer({
   const [roster, setRoster] = useState([]);
   const [suggest, setSuggest] = useState(null); // { query, start }
   const [highlight, setHighlight] = useState(0);
+  const [failed, setFailed] = useState(null);
   const areaRef = useRef(null);
   const fileRef = useRef(null);
+  const sendingRef = useRef(false);
+  const draftKey = `${channelId}:${threadTs ?? "main"}`;
 
   useEffect(() => {
     let alive = true;
@@ -65,7 +69,13 @@ export default function ChatComposer({
     return () => { alive = false; };
   }, []);
 
-  useEffect(() => { setText(""); setMentions({}); setSuggest(null); }, [channelId, threadTs]);
+  useEffect(() => {
+    const draft = drafts.get(draftKey);
+    setText(draft?.text ?? "");
+    setMentions(draft?.mentions ?? {});
+    setSuggest(null);
+    setFailed(draft?.failed ?? null);
+  }, [draftKey]);
 
   const myId = member?.id;
   const matches = useMemo(() => {
@@ -97,6 +107,10 @@ export default function ChatComposer({
   const onChange = (e) => {
     const value = e.target.value;
     setText(value);
+    const retainedFailure = failed?.kind === "file" ? failed : null;
+    setFailed(retainedFailure);
+    if (value || retainedFailure) drafts.set(draftKey, { text: value, mentions, failed: retainedFailure });
+    else drafts.delete(draftKey);
     const caret = e.target.selectionStart ?? value.length;
     const m = /(^|\s)@([^\s@]{0,30})$/.exec(value.slice(0, caret));
     setSuggest(m ? { query: m[2], start: caret - m[2].length - 1 } : null);
@@ -109,27 +123,42 @@ export default function ChatComposer({
     const before = text.slice(0, suggest.start);
     const after = text.slice(caret);
     const label = person.displayName;
-    setText(`${before}@${label} ${after}`);
-    setMentions(prev => ({ ...prev, [label]: person.slackId }));
+    const nextText = `${before}@${label} ${after}`;
+    const nextMentions = { ...mentions, [label]: person.slackId };
+    setText(nextText);
+    drafts.set(draftKey, { text: nextText, mentions: nextMentions, failed });
+    setMentions(nextMentions);
     setSuggest(null);
     const pos = before.length + label.length + 2;
     requestAnimationFrame(() => { el?.focus(); el?.setSelectionRange(pos, pos); });
   };
 
-  const submit = async () => {
-    const body = text.trim();
-    if (!body || sending) return;
+  const sendMessage = async (encoded, displayText) => {
+    if (sendingRef.current) return;
+    sendingRef.current = true;
+    setFailed(null);
     setSending(true);
     try {
-      const res = await sendChatMessage(channelId, { text: encodeOutgoing(body, mentions), threadTs: threadTs ?? undefined });
+      const res = await sendChatMessage(channelId, { text: encoded, threadTs: threadTs ?? undefined });
       setText("");
+      drafts.delete(draftKey);
       setMentions({});
       onSent?.(res?.ts ?? null);
     } catch (err) {
       handleError(err);
+      const failure = { kind: "message", encoded, displayText, message: err?.message || "Could not send this message." };
+      setFailed(failure);
+      drafts.set(draftKey, { text, mentions, failed: failure });
     } finally {
+      sendingRef.current = false;
       setSending(false);
     }
+  };
+
+  const submit = async () => {
+    const body = text.trim();
+    if (!body || sendingRef.current) return;
+    await sendMessage(encodeOutgoing(body, mentions), body);
   };
 
   const onKeyDown = (e) => {
@@ -145,27 +174,50 @@ export default function ChatComposer({
     }
   };
 
+  const uploadFile = async (file, options, displayText = text) => {
+    if (sendingRef.current) return;
+    sendingRef.current = true;
+    setFailed(null);
+    setSending(true);
+    try {
+      await uploadChatFile(channelId, file, options);
+      const draft = drafts.get(draftKey);
+      if ((draft?.text ?? "").trim() === displayText.trim()) {
+        setText("");
+        drafts.delete(draftKey);
+        setMentions({});
+      } else if (draft) {
+        drafts.set(draftKey, { ...draft, failed: null });
+      }
+      toast.success("Uploaded — it appears here once Slack shares it.");
+      onSent?.(null);
+    } catch (err) {
+      handleError(err);
+      const failure = { kind: "file", file, options, displayText, message: err?.message || `Could not upload ${file.name}.` };
+      setFailed(failure);
+      drafts.set(draftKey, { text, mentions, failed: failure });
+    } finally {
+      sendingRef.current = false;
+      setSending(false);
+    }
+  };
+
   const onFile = async (e) => {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
     if (!caps.files) { setNeedsReconnect(true); return; }
-    setSending(true);
-    try {
-      const body = text.trim();
-      await uploadChatFile(channelId, file, {
-        threadTs: threadTs ?? undefined,
-        comment: body ? encodeOutgoing(body, mentions) : undefined,
-      });
-      setText("");
-      setMentions({});
-      toast.success("Uploaded — it appears here once Slack shares it.");
-      onSent?.(null);
-    } catch (err) {
-      handleError(err);
-    } finally {
-      setSending(false);
-    }
+    const body = text.trim();
+    await uploadFile(file, {
+      threadTs: threadTs ?? undefined,
+      comment: body ? encodeOutgoing(body, mentions) : undefined,
+    });
+  };
+
+  const retry = () => {
+    if (!failed) return;
+    if (failed.kind === "file") uploadFile(failed.file, failed.options, failed.displayText);
+    else sendMessage(failed.encoded, failed.displayText);
   };
 
   if (!conversation) return null;
@@ -183,7 +235,13 @@ export default function ChatComposer({
   }
 
   return (
-    <div className="cpm-chat-composer">
+    <div className={`cpm-chat-composer${failed ? " cpm-chat-composer--failed" : ""}`}>
+      {failed && (
+        <div className="cpm-chat-send-error" role="alert">
+          <div>{failed.message}</div>
+          <button type="button" className="cpm-chat-linkbtn" onClick={retry} disabled={sending}>Retry</button>
+        </div>
+      )}
       {suggest && matches.length > 0 && (
         <div className="cpm-chat-suggest" role="listbox" aria-label="Mention someone">
           {matches.map((m, i) => (
@@ -211,7 +269,7 @@ export default function ChatComposer({
       >
         <i className="fas fa-paperclip" aria-hidden="true" />
       </button>
-      <input ref={fileRef} type="file" hidden onChange={onFile} />
+      <input ref={fileRef} type="file" aria-label="Choose attachment" hidden onChange={onFile} />
       <textarea
         ref={areaRef}
         className="cpm-chat-composer-input"

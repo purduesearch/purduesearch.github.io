@@ -1,8 +1,10 @@
 /**
  * The tour anchor vocabulary.
  *
- * Every id here must be rendered by exactly one component as `data-tour-id`,
- * and every `anchor` in a *.steps.json file must appear here.
+ * Every id here must be rendered by exactly one component as `data-tour-id` —
+ * or, for a `layout: "both"` shell id, by one desktop and one phone owner that
+ * are never mounted together — and every `anchor` in a *.steps.json file
+ * (including a step's `compact.anchor`) must appear here.
  * `scripts/check-tour-anchors.js` enforces all three directions on every build.
  *
  * `route` is where the anchor is reachable — the runtime navigates there before
@@ -15,55 +17,71 @@
  * together, in the same commit, along with any step file that targets the id.
  */
 export const TOUR_ANCHORS = Object.freeze({
-  // Shell and navigation — src/components/clubpm/AppShell.jsx
-  "nav.sidebar":            { label: "Sidebar",              route: "*", note: "Whole rail, for coarse dimming" },
-  "nav.dashboard":          { label: "Dashboard link",       route: "*", note: "" },
-  "nav.social":             { label: "Social group",         route: "*", note: "Collapsible group containing Chat, Members, and Calendar" },
-  "nav.chat":               { label: "Chat link",            route: "*", note: "Child of the Social group; every readable Slack channel" },
-  "nav.projects":           { label: "Projects link",        route: "*", note: "" },
-  "nav.members":            { label: "Members link",         route: "*", note: "Child of the Social group — expand it first" },
-  "nav.calendar":           { label: "Calendar link",        route: "*", note: "Child of the Social group" },
-  "nav.courses":            { label: "Courses link",         route: "*", note: "Child of the Other group" },
-  "nav.shop":               { label: "Shop link",            route: "*", note: "" },
-  "nav.other":              { label: "Other group",          route: "*", note: "Collapsed by default; contains Outreach Hub, Blog, Courses, and Admin" },
-  "nav.admin":              { label: "Admin link",           route: "*", note: "Admins only — child of Other and absent for other members" },
-  "nav.profile":            { label: "Profile link",         route: "*", note: "Sidebar user block" },
-  "topbar.notifications":   { label: "Notification bell",    route: "*", note: "" },
-  "topbar.search":          { label: "Command palette",      route: "*", note: "AI command palette trigger" },
-  "topbar.streak":          { label: "Streak counter",       route: "*", note: "Flame counter" },
-  "topbar.challenges":      { label: "Quests button",        route: "*", note: "Trophy icon — was the nav.challenges sidebar link" },
+  // Shell and navigation — desktop: src/components/clubpm/AppShell.jsx (sidebar
+  // + topbar); phone: MobileBottomNav, MobileHeader, MobileMoreMenu and
+  // MobileProjectPicker. `layout` says which shell mounts the id: "both" = a
+  // desktop owner and a phone owner in mutually exclusive branches (never both
+  // mounted), "desktop" / "compact" = that shell only. `reveal` names the phone
+  // sheet the element lives in. A step whose anchor is desktop-only needs a
+  // `compact.anchor`, and a step whose phone anchor has a `reveal` needs the
+  // same `compact.reveal`. check-tour-anchors.js enforces both.
+  "nav.sidebar":            { label: "Sidebar",              route: "*", layout: "desktop", note: "Whole desktop rail, for coarse dimming — the phone equivalent is nav.bar" },
+  "nav.bar":                { label: "Bottom navigation",    route: "*", layout: "compact", note: "Phone bottom bar: Home, Projects, Chat, Calendar, More" },
+  "nav.dashboard":          { label: "Dashboard link",       route: "*", layout: "both",    note: "Sidebar Dashboard link; bottom-bar Home on phones" },
+  "nav.social":             { label: "Social group",         route: "*", layout: "desktop", note: "Collapsible sidebar group containing Chat, Members, and Calendar — no phone equivalent (use nav.chat)" },
+  "nav.chat":               { label: "Chat link",            route: "*", layout: "both",    note: "Child of the Social group; bottom-bar Chat on phones" },
+  "nav.projects":           { label: "Projects link",        route: "*", layout: "both",    note: "Sidebar project list; bottom-bar Projects button on phones (opens projects.sheet)" },
+  "projects.sheet":         { label: "Project list sheet",   route: "*", layout: "compact", reveal: "projects", note: "Project list inside the phone Projects sheet" },
+  "nav.members":            { label: "Members link",         route: "*", layout: "both", reveal: "more",    note: "Child of the Social group — expand it first; More › People & DMs on phones" },
+  "nav.calendar":           { label: "Calendar link",        route: "*", layout: "both",    note: "Child of the Social group; bottom-bar Calendar on phones" },
+  "nav.courses":            { label: "Courses link",         route: "*", layout: "both", reveal: "more",    note: "Child of the Other group; More › Courses on phones" },
+  "nav.shop":               { label: "Shop link",            route: "*", layout: "both", reveal: "more",    note: "Sidebar doubloon counter; More › Shop on phones" },
+  "nav.other":              { label: "Other group",          route: "*", layout: "desktop", note: "Collapsed by default; contains Outreach Hub, Blog, Courses, and Admin — on phones those are More rows" },
+  "nav.admin":              { label: "Admin link",           route: "*", layout: "both", reveal: "more",    note: "Admins only — child of Other; More › Admin on phones; absent for other members" },
+  "nav.profile":            { label: "Profile link",         route: "*", layout: "both", reveal: "more",    note: "Sidebar user block; More › Profile on phones" },
+  "nav.more":               { label: "More button",          route: "*", layout: "compact", note: "Bottom-bar More; opens the sheet holding every other destination" },
+  "topbar.notifications":   { label: "Notification bell",    route: "*", layout: "both",    note: "Dropdown on desktop; on phones a link to /clubpm/notifications" },
+  "topbar.search":          { label: "Command palette",      route: "*", layout: "both",    note: "AI command palette trigger; header Search icon on phones (full-screen)" },
+  "chat.people":            { label: "People & DMs shortcut", route: "/clubpm/chat", layout: "compact", note: "First row on the phone channel-list landing screen" },
+  "topbar.streak":          { label: "Streak counter",       route: "*", layout: "both", reveal: "more",    note: "Flame counter; More › Progress on phones" },
+  "topbar.challenges":      { label: "Quests button",        route: "*", layout: "both", reveal: "more",    note: "Trophy icon — was the nav.challenges sidebar link; More › Quests & achievements on phones" },
 
   // Dashboard — src/pages/ClubPM/Dashboard.jsx
-  "nav.xp":                 { label: "XP bar",               route: "*",       note: "Sidebar XP progress bar — the product has no XP stat tile" },
-  "nav.rank":               { label: "Rank badge",           route: "*",       note: "Sidebar rank icon" },
-  "dash.quests":            { label: "Daily quests",         route: "/clubpm", note: "" },
+  "nav.xp":                 { label: "XP bar",               route: "*",       layout: "both", reveal: "more", note: "Sidebar XP progress bar; More › Progress on phones — the product has no XP stat tile" },
+  "nav.rank":               { label: "Rank badge",           route: "*",       layout: "both", reveal: "more", note: "Sidebar rank icon; More account row on phones" },
+  "dash.quests":            { label: "Daily quests",         route: "/clubpm", layout: "both", reveal: "expand", note: "Expanded supporting panel on phones" },
   "dash.work":              { label: "My work",              route: "/clubpm", note: "Filterable task list" },
-  "dash.agenda":            { label: "Agenda panel",         route: "/clubpm", note: "7-day agenda" },
+  "dash.agenda":            { label: "Agenda panel",         route: "/clubpm", layout: "both", reveal: "expand", note: "7-day agenda; supporting panel on phones" },
   "dash.leaderboard":       { label: "Leaderboard",          route: "/clubpm/members", note: "Bottom of the member roster — moved off the dashboard" },
-  "dash.insights":          { label: "AI insight cards",     route: "/clubpm", note: "" },
-  "dash.project.card":      { label: "Project card",         route: "/clubpm", note: "First card in the grid only" },
+  "dash.insights":          { label: "AI insight cards",     route: "/clubpm", layout: "both", reveal: "expand", note: "Expanded supporting panel on phones" },
+  "dash.project.card":      { label: "Project card",         route: "/clubpm", layout: "compact", note: "First row in Home's My projects panel" },
 
   // Project detail — src/pages/ClubPM/ProjectDetail.jsx
-  "project.header":         { label: "Project header",       route: "/clubpm/projects/:id", note: "Title + status row" },
-  // The project tab bar is rendered by AppShell from the ProjectNavContext, not
-  // by ProjectDetail — ProjectDetail only supplies the list. Put the ids on
-  // AppShell's buttons or they exist in the source and never in the DOM.
-  "project.tab.tasks":      { label: "Tasks tab",            route: "/clubpm/projects/:id", note: "Sidebar project tab (AppShell)" },
-  "project.tab.files":      { label: "Files tab",            route: "/clubpm/projects/:id", note: "Sidebar project tab (AppShell)" },
-  "project.tab.chat":       { label: "Chat tab",             route: "/clubpm/projects/:id", note: "Sidebar project tab (AppShell) — contains Chat and Members" },
-  "project.tab.insights":   { label: "Insights tab",         route: "/clubpm/projects/:id", note: "Sidebar project tab (AppShell) — charts, activity, press kit, and AI" },
-  "project.tab.vault":      { label: "Vault sub-tab",        route: "/clubpm/projects/:id", note: "Inside the Files tab — open project.tab.files first" },
-  "board.newtask":          { label: "New task button",      route: "/clubpm/projects/:id", note: "" },
-  "board.filters":          { label: "Board filters",        route: "/clubpm/projects/:id", note: "Filter / search row above the board" },
+  "project.header":         { label: "Project header",       route: "/clubpm/projects/:id", layout: "both", note: "Title + status row; compact hero stays short" },
+  "project.actions":        { label: "Project actions",      route: "/clubpm/projects/:id", layout: "compact", note: "Labelled phone control opening the shared Projects sheet" },
+  "project.milestones":     { label: "Milestone summary",    route: "/clubpm/projects/:id", layout: "compact", note: "Compact milestone list with Timeline link" },
+  // The project tab bar (desktop sidebar tabs, phone section bar) is rendered by
+  // AppShell from the ProjectNavContext, not by ProjectDetail — ProjectDetail
+  // only supplies the list (with these ids as `tourId`). Only one of the two
+  // presentations mounts, so each id is in the DOM once.
+  "project.tab.tasks":      { label: "Tasks tab",            route: "/clubpm/projects/:id", note: "Sidebar project tab on desktop; section bar under the phone header (AppShell)" },
+  "project.tab.files":      { label: "Files tab",            route: "/clubpm/projects/:id", note: "Sidebar project tab on desktop; section bar under the phone header (AppShell)" },
+  "project.tab.chat":       { label: "Chat tab",             route: "/clubpm/projects/:id", note: "Sidebar project tab on desktop; section bar under the phone header (AppShell) — contains Chat and Members" },
+  "project.tab.insights":   { label: "Insights tab",         route: "/clubpm/projects/:id", note: "Sidebar project tab on desktop; section bar under the phone header (AppShell) — charts, activity, press kit, and AI" },
+  "project.tab.vault":      { label: "Vault sub-tab",        route: "/clubpm/projects/:id", layout: "both", note: "Inside the Files tab — open project.tab.files first. Desktop pill row; labelled Source selector on phones" },
+  "board.newtask":          { label: "New task button",      route: "/clubpm/projects/:id", layout: "both", note: "" },
+  "board.filters":          { label: "Task controls",        route: "/clubpm/projects/:id", layout: "both", note: "Desktop sort row; phone scope, search, and Filters & sort toolbar" },
+  "board.scope":            { label: "Task scope",           route: "/clubpm/projects/:id", layout: "compact", note: "My tasks / All tasks segmented control" },
+  "board.search":           { label: "Task search",          route: "/clubpm/projects/:id", layout: "compact", note: "Phone task search" },
   // The four columns carry the uppercase TaskStatus enum value so the id cannot
   // drift from the enum it is derived from.
   "board.column.TODO":        { label: "To-do column",       route: "/clubpm/projects/:id", note: "" },
   "board.column.IN_PROGRESS": { label: "In-progress column", route: "/clubpm/projects/:id", note: "" },
   "board.column.BLOCKED":     { label: "Blocked column",     route: "/clubpm/projects/:id", note: "" },
   "board.column.DONE":        { label: "Done column",        route: "/clubpm/projects/:id", note: "" },
-  "board.card.first":       { label: "First task card",      route: "/clubpm/projects/:id", note: "First card of the TODO column only" },
-  "board.memberchips":      { label: "Member chip rail",     route: "/clubpm/projects/:id", note: "Draggable onto tasks" },
-  "board.blocker.bin":      { label: "Blocker sub-bin",      route: "/clubpm/projects/:id", note: "Under the Blocked column" },
+  "board.card.first":       { label: "First task card",      route: "/clubpm/projects/:id", layout: "both", note: "First task in the TODO column/group" },
+  "board.memberchips":      { label: "Member chip rail",     route: "/clubpm/projects/:id", layout: "desktop", note: "Desktop drag assignment; phone rows use labelled Assign" },
+  "board.blocker.bin":      { label: "Blocked-task group",   route: "/clubpm/projects/:id", layout: "both", note: "Desktop blocker sub-bin; first matching blocked row on phones" },
   "ai.goal":                { label: "Action-plan goal",     route: "/clubpm/projects/:id", note: "Goal input in Insights → AI" },
 
   // New-task modal — src/pages/ClubPM/ProjectDetail.jsx (AddProjectTaskModal).
@@ -123,20 +141,20 @@ export const TOUR_ANCHORS = Object.freeze({
   "cr.review":              { label: "CR review controls",   route: "/clubpm/projects/:id", note: "Approve / reject — admins only, inside the CR modal, and only while the CR is OPEN" },
 
   // Outreach and blog — src/pages/ClubPM/OutreachHub.jsx, BlogEditorPage.jsx
-  "outreach.tab.contacts":  { label: "Contacts tab",         route: "/clubpm/outreach", note: "" },
-  "outreach.tab.campaigns": { label: "Campaigns tab",        route: "/clubpm/outreach", note: "" },
-  "outreach.tab.blog":      { label: "Blog tab",             route: "/clubpm/outreach", note: "" },
+  "outreach.tab.contacts":  { label: "Contacts tab",         route: "/clubpm/outreach", layout: "both", note: "Desktop tab bar; phone Section chip row" },
+  "outreach.tab.campaigns": { label: "Campaigns tab",        route: "/clubpm/outreach", layout: "both", note: "Desktop tab bar; phone Section chip row" },
+  "outreach.tab.blog":      { label: "Blog tab",             route: "/clubpm/outreach", layout: "both", note: "Desktop tab bar; phone Section chip row" },
   "outreach.contact.new":   { label: "Add contact",          route: "/clubpm/outreach", note: "" },
   "outreach.contact.form":  { label: "Contact form",         route: "/clubpm/outreach", note: "The New/Edit contact modal panel" },
   "outreach.campaign.new":  { label: "New campaign",         route: "/clubpm/outreach", note: "Campaigns tab header action" },
   "outreach.campaign.form": { label: "Campaign form",        route: "/clubpm/outreach", note: "The New/Edit campaign modal panel" },
-  "outreach.contact.card":  { label: "Contact card",         route: "/clubpm/outreach", note: "First card on the CRM board, in column order" },
+  "outreach.contact.card":  { label: "Contact card",         route: "/clubpm/outreach", layout: "both", note: "First card on the CRM board, in column order; first card in the phone stage list" },
   "outreach.contact.timeline": { label: "Timeline tab",      route: "/clubpm/outreach", note: "Tab inside the contact drawer — open a contact first" },
   "outreach.contact.history": { label: "Interaction history", route: "/clubpm/outreach", note: "Body of the drawer's Timeline tab — select that tab first" },
   "outreach.contact.followup": { label: "Next follow-up field", route: "/clubpm/outreach", note: "Date field in the contact form — only while the modal is open" },
   "blog.new":               { label: "New post",             route: "/clubpm/outreach", note: "Blog tab header action" },
   "blog.editor.body":       { label: "Editor canvas",        route: "/clubpm/outreach/blog/:id/edit", note: "" },
-  "blog.editor.toolbar":    { label: "Formatting toolbar",   route: "/clubpm/outreach/blog/:id/edit", note: "" },
+  "blog.editor.toolbar":    { label: "Formatting toolbar",   route: "/clubpm/outreach/blog/:id/edit", layout: "both", note: "Full desktop toolbar; phone primary row, with the rest behind More formatting" },
   "blog.editor.presence":   { label: "Collaborator presence", route: "/clubpm/outreach/blog/:id/edit", note: "" },
   "blog.editor.publish":    { label: "Publish control",      route: "/clubpm/outreach/blog/:id/edit", note: "Publish / schedule" },
   "blog.editor.save":       { label: "Save draft button",    route: "/clubpm/outreach/blog/:id/edit", note: "Explicit save — the editor also autosaves 1.5s after you stop typing" },

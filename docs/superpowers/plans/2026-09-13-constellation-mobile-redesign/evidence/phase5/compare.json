@@ -1,0 +1,3662 @@
+{
+  "generatedAt": "2026-09-17T01:52:00.478Z",
+  "note": "Chromium viewport/touch emulation against fixture data (production build unless stated). Not real iOS/Android, real-account, software-keyboard, or screen-reader evidence.",
+  "summary": {
+    "passed": 11,
+    "failed": 0,
+    "total": 11
+  },
+  "checks": [
+    {
+      "name": "d1280: 22 desktop routes — shell geometry, breadcrumb and pixels match the pre-redesign build (≤0.05% pixels)",
+      "pass": true,
+      "detail": []
+    },
+    {
+      "name": "d1440: 22 desktop routes — shell geometry, breadcrumb and pixels match the pre-redesign build (≤0.05% pixels)",
+      "pass": true,
+      "detail": []
+    },
+    {
+      "name": "p390: public pages + login render the same as the pre-redesign build (first viewport, ≤0.05% pixels)",
+      "pass": true,
+      "detail": []
+    },
+    {
+      "name": "d1280: public pages + login render the same as the pre-redesign build (first viewport, ≤0.05% pixels)",
+      "pass": true,
+      "detail": []
+    },
+    {
+      "name": "public after ClubPM (phone): leaving the app removes body.pm-m-compact, phone nodes, inert and scroll lock",
+      "pass": true,
+      "detail": {
+        "url": "/about",
+        "marker": false,
+        "phoneNodes": 0,
+        "inert": false,
+        "overflow": 0,
+        "scrollLocked": "hidden auto"
+      }
+    },
+    {
+      "name": "desktop: dragging a task between status bins issues the task PATCH, same as before",
+      "pass": true,
+      "detail": {
+        "head": {
+          "dragged": true,
+          "taskPatch": 1
+        },
+        "cur": {
+          "dragged": true,
+          "taskPatch": 1
+        }
+      }
+    },
+    {
+      "name": "desktop: dragging an Outreach card to another column issues the status PATCH (dnd-kit now; hello-pangea before)",
+      "pass": true,
+      "detail": {
+        "head": {
+          "cols": 5,
+          "dragged": true,
+          "oPatch": 1
+        },
+        "cur": {
+          "cols": 5,
+          "dragged": true,
+          "oPatch": 1
+        }
+      }
+    },
+    {
+      "name": "desktop: a task opened from the Dashboard closes, and a task row reopens detail, same as before (Phase 5 regression fix)",
+      "pass": true,
+      "detail": {
+        "head": {
+          "openedFromHome": true,
+          "closed": true,
+          "openTaskId": null,
+          "reopened": true,
+          "closedAgain": true
+        },
+        "cur": {
+          "openedFromHome": true,
+          "closed": true,
+          "openTaskId": null,
+          "reopened": true,
+          "closedAgain": true
+        }
+      }
+    },
+    {
+      "name": "desktop: g e / g o shortcuts, Ctrl+K palette, ? help and sidebar hover expansion behave as before",
+      "pass": true,
+      "detail": {
+        "head": {
+          "ge": "/clubpm/calendar",
+          "go": "/clubpm/outreach",
+          "palette": true,
+          "help": true,
+          "sidebar": [
+            64,
+            220
+          ]
+        },
+        "cur": {
+          "ge": "/clubpm/calendar",
+          "go": "/clubpm/outreach",
+          "palette": true,
+          "help": true,
+          "sidebar": [
+            64,
+            220
+          ]
+        }
+      }
+    },
+    {
+      "name": "perf (desktop): task-route load and blocking time within 25% (+50 ms) of the pre-redesign build",
+      "pass": true,
+      "detail": {
+        "head": {
+          "loadMsMedian": 648,
+          "loads": [
+            680,
+            641,
+            647,
+            648,
+            653
+          ],
+          "longTaskBlockingMsMedian": 50,
+          "scrollP95FrameMsMedian": 16.799999999999727,
+          "listeners": {
+            "window": [
+              22,
+              22
+            ],
+            "document": [
+              15,
+              15
+            ]
+          },
+          "heapMB": 37
+        },
+        "cur": {
+          "loadMsMedian": 654,
+          "loads": [
+            666,
+            639,
+            640,
+            654,
+            657
+          ],
+          "longTaskBlockingMsMedian": 51,
+          "scrollP95FrameMsMedian": 16.700000000000273,
+          "listeners": {
+            "window": [
+              33,
+              33
+            ],
+            "document": [
+              15,
+              15
+            ]
+          },
+          "heapMB": 38
+        }
+      }
+    },
+    {
+      "name": "listeners: 12 in-app navigations add no window/document listeners beyond the pre-redesign build (desktop and phone)",
+      "pass": true,
+      "detail": {
+        "head": [
+          {
+            "window": [
+              22,
+              22
+            ],
+            "document": [
+              15,
+              15
+            ]
+          },
+          {
+            "window": [
+              22,
+              22
+            ],
+            "document": [
+              15,
+              15
+            ]
+          }
+        ],
+        "cur": [
+          {
+            "window": [
+              33,
+              33
+            ],
+            "document": [
+              15,
+              15
+            ]
+          },
+          {
+            "window": [
+              38,
+              38
+            ],
+            "document": [
+              13,
+              13
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "screenshots": [],
+  "notes": [
+    {
+      "desktopDiff": "d1280:learn",
+      "ratio": 0.00384,
+      "noise": 0,
+      "box": [
+        366,
+        333,
+        556,
+        362
+      ],
+      "reason": "course player gained a Previous/Next row on every width (Phase 4E)"
+    },
+    {
+      "desktopDiff": "d1280:shop",
+      "ratio": 0.00156,
+      "noise": 0.00319,
+      "box": [
+        113,
+        95,
+        1141,
+        608
+      ],
+      "reason": "same-route HEAD captures differ as much (nondeterministic content)"
+    },
+    {
+      "desktopDiff": "d1440:learn",
+      "ratio": 0.00304,
+      "noise": 0,
+      "box": [
+        434,
+        333,
+        624,
+        362
+      ],
+      "reason": "course player gained a Previous/Next row on every width (Phase 4E)"
+    },
+    {
+      "desktopDiff": "d1440:shop",
+      "ratio": 0.00267,
+      "noise": 0.00264,
+      "box": [
+        187,
+        95,
+        1221,
+        636
+      ],
+      "reason": "same-route HEAD captures differ as much (nondeterministic content)"
+    },
+    {
+      "publicDiff": "p390:login",
+      "ratio": 0.24945,
+      "reason": "phone sign-in layout (Phase 4H): one gutter, full-width sign-in button, scaled wordmark"
+    },
+    {
+      "perf": {
+        "head-d1280": {
+          "loadMsMedian": 648,
+          "loads": [
+            680,
+            641,
+            647,
+            648,
+            653
+          ],
+          "longTaskBlockingMsMedian": 50,
+          "scrollP95FrameMsMedian": 16.799999999999727,
+          "listeners": {
+            "window": [
+              22,
+              22
+            ],
+            "document": [
+              15,
+              15
+            ]
+          },
+          "heapMB": 37
+        },
+        "cur-d1280": {
+          "loadMsMedian": 654,
+          "loads": [
+            666,
+            639,
+            640,
+            654,
+            657
+          ],
+          "longTaskBlockingMsMedian": 51,
+          "scrollP95FrameMsMedian": 16.700000000000273,
+          "listeners": {
+            "window": [
+              33,
+              33
+            ],
+            "document": [
+              15,
+              15
+            ]
+          },
+          "heapMB": 38
+        },
+        "head-p390": {
+          "loadMsMedian": 665,
+          "loads": [
+            674,
+            651,
+            660,
+            665,
+            682
+          ],
+          "longTaskBlockingMsMedian": 55,
+          "scrollP95FrameMsMedian": 16.799999999999727,
+          "listeners": {
+            "window": [
+              22,
+              22
+            ],
+            "document": [
+              15,
+              15
+            ]
+          },
+          "heapMB": 42
+        },
+        "cur-p390": {
+          "loadMsMedian": 654,
+          "loads": [
+            696,
+            663,
+            648,
+            654,
+            654
+          ],
+          "longTaskBlockingMsMedian": 50,
+          "scrollP95FrameMsMedian": 16.799999999999727,
+          "listeners": {
+            "window": [
+              38,
+              38
+            ],
+            "document": [
+              13,
+              13
+            ]
+          },
+          "heapMB": 40
+        }
+      }
+    }
+  ],
+  "consoleErrors": [],
+  "results": {
+    "desktop": {
+      "d1280:home": {
+        "diff": {
+          "changedPixels": 0,
+          "ratio": 0,
+          "box": null
+        },
+        "geoSame": true,
+        "head": {
+          "sidebar": [
+            0,
+            0,
+            64,
+            800
+          ],
+          "topbar": [
+            64,
+            0,
+            1216,
+            56
+          ],
+          "main": [
+            64,
+            0,
+            1216,
+            800
+          ],
+          "content": [
+            64,
+            56,
+            1216,
+            744
+          ],
+          "crumb": "Dashboard",
+          "overflow": 0,
+          "url": "/clubpm"
+        },
+        "cur": {
+          "sidebar": [
+            0,
+            0,
+            64,
+            800
+          ],
+          "topbar": [
+            64,
+            0,
+            1216,
+            56
+          ],
+          "main": [
+            64,
+            0,
+            1216,
+            800
+          ],
+          "content": [
+            64,
+            56,
+            1216,
+            744
+          ],
+          "crumb": "Dashboard",
+          "overflow": 0,
+          "url": "/clubpm"
+        }
+      },
+      "d1280:tasks": {
+        "diff": {
+          "changedPixels": 14,
+          "ratio": 0.00001,
+          "box": [
+            19,
+            628,
+            41,
+            659
+          ]
+        },
+        "geoSame": true,
+        "head": {
+          "sidebar": [
+            0,
+            0,
+            64,
+            800
+          ],
+          "topbar": [
+            64,
+            0,
+            1216,
+            56
+          ],
+          "main": [
+            64,
+            0,
+            1216,
+            800
+          ],
+          "content": [
+            64,
+            56,
+            1216,
+            744
+          ],
+          "crumb": "Projects›Project Detail",
+          "overflow": 0,
+          "url": "/clubpm/projects/p1"
+        },
+        "cur": {
+          "sidebar": [
+            0,
+            0,
+            64,
+            800
+          ],
+          "topbar": [
+            64,
+            0,
+            1216,
+            56
+          ],
+          "main": [
+            64,
+            0,
+            1216,
+            800
+          ],
+          "content": [
+            64,
+            56,
+            1216,
+            744
+          ],
+          "crumb": "Projects›Project Detail",
+          "overflow": 0,
+          "url": "/clubpm/projects/p1"
+        }
+      },
+      "d1280:files": {
+        "diff": {
+          "changedPixels": 0,
+          "ratio": 0,
+          "box": null
+        },
+        "geoSame": true,
+        "head": {
+          "sidebar": [
+            0,
+            0,
+            64,
+            800
+          ],
+          "topbar": [
+            64,
+            0,
+            1216,
+            56
+          ],
+          "main": [
+            64,
+            0,
+            1216,
+            800
+          ],
+          "content": [
+            64,
+            56,
+            1216,
+            744
+          ],
+          "crumb": "Projects›Project Detail",
+          "overflow": 0,
+          "url": "/clubpm/projects/p1?tab=files"
+        },
+        "cur": {
+          "sidebar": [
+            0,
+            0,
+            64,
+            800
+          ],
+          "topbar": [
+            64,
+            0,
+            1216,
+            56
+          ],
+          "main": [
+            64,
+            0,
+            1216,
+            800
+          ],
+          "content": [
+            64,
+            56,
+            1216,
+            744
+          ],
+          "crumb": "Projects›Project Detail",
+          "overflow": 0,
+          "url": "/clubpm/projects/p1?tab=files"
+        }
+      },
+      "d1280:insights": {
+        "diff": {
+          "changedPixels": 0,
+          "ratio": 0,
+          "box": null
+        },
+        "geoSame": true,
+        "head": {
+          "sidebar": [
+            0,
+            0,
+            64,
+            800
+          ],
+          "topbar": [
+            64,
+            0,
+            1216,
+            56
+          ],
+          "main": [
+            64,
+            0,
+            1216,
+            800
+          ],
+          "content": [
+            64,
+            56,
+            1216,
+            744
+          ],
+          "crumb": "Projects›Project Detail",
+          "overflow": 0,
+          "url": "/clubpm/projects/p1?tab=insights"
+        },
+        "cur": {
+          "sidebar": [
+            0,
+            0,
+            64,
+            800
+          ],
+          "topbar": [
+            64,
+            0,
+            1216,
+            56
+          ],
+          "main": [
+            64,
+            0,
+            1216,
+            800
+          ],
+          "content": [
+            64,
+            56,
+            1216,
+            744
+          ],
+          "crumb": "Projects›Project Detail",
+          "overflow": 0,
+          "url": "/clubpm/projects/p1?tab=insights"
+        }
+      },
+      "d1280:ai": {
+        "diff": {
+          "changedPixels": 14,
+          "ratio": 0.00001,
+          "box": [
+            19,
+            628,
+            41,
+            659
+          ]
+        },
+        "geoSame": true,
+        "head": {
+          "sidebar": [
+            0,
+            0,
+            64,
+            800
+          ],
+          "topbar": [
+            64,
+            0,
+            1216,
+            56
+          ],
+          "main": [
+            64,
+            0,
+            1216,
+            800
+          ],
+          "content": [
+            64,
+            56,
+            1216,
+            744
+          ],
+          "crumb": "Projects›Project Detail",
+          "overflow": 0,
+          "url": "/clubpm/projects/p1?tab=insights&view=ai"
+        },
+        "cur": {
+          "sidebar": [
+            0,
+            0,
+            64,
+            800
+          ],
+          "topbar": [
+            64,
+            0,
+            1216,
+            56
+          ],
+          "main": [
+            64,
+            0,
+            1216,
+            800
+          ],
+          "content": [
+            64,
+            56,
+            1216,
+            744
+          ],
+          "crumb": "Projects›Project Detail",
+          "overflow": 0,
+          "url": "/clubpm/projects/p1?tab=insights&view=ai"
+        }
+      },
+      "d1280:task-modal": {
+        "diff": {
+          "changedPixels": 0,
+          "ratio": 0,
+          "box": null
+        },
+        "geoSame": true,
+        "head": {
+          "sidebar": [
+            0,
+            0,
+            64,
+            800
+          ],
+          "topbar": [
+            64,
+            0,
+            1216,
+            56
+          ],
+          "main": [
+            64,
+            0,
+            1216,
+            800
+          ],
+          "content": [
+            64,
+            56,
+            1216,
+            744
+          ],
+          "crumb": "Projects›Project Detail",
+          "overflow": 0,
+          "url": "/clubpm/projects/p1?task=t3"
+        },
+        "cur": {
+          "sidebar": [
+            0,
+            0,
+            64,
+            800
+          ],
+          "topbar": [
+            64,
+            0,
+            1216,
+            56
+          ],
+          "main": [
+            64,
+            0,
+            1216,
+            800
+          ],
+          "content": [
+            64,
+            56,
+            1216,
+            744
+          ],
+          "crumb": "Projects›Project Detail",
+          "overflow": 0,
+          "url": "/clubpm/projects/p1?task=t3"
+        }
+      },
+      "d1280:conversation": {
+        "diff": {
+          "changedPixels": 0,
+          "ratio": 0,
+          "box": null
+        },
+        "geoSame": true,
+        "head": {
+          "sidebar": [
+            0,
+            0,
+            64,
+            800
+          ],
+          "topbar": [
+            64,
+            0,
+            1216,
+            56
+          ],
+          "main": [
+            64,
+            0,
+            1216,
+            800
+          ],
+          "content": [
+            64,
+            56,
+            1216,
+            744
+          ],
+          "crumb": "Social›Chat",
+          "overflow": 0,
+          "url": "/clubpm/chat/C_FIX_GENERAL"
+        },
+        "cur": {
+          "sidebar": [
+            0,
+            0,
+            64,
+            800
+          ],
+          "topbar": [
+            64,
+            0,
+            1216,
+            56
+          ],
+          "main": [
+            64,
+            0,
+            1216,
+            800
+          ],
+          "content": [
+            64,
+            56,
+            1216,
+            744
+          ],
+          "crumb": "Social›Chat",
+          "overflow": 0,
+          "url": "/clubpm/chat/C_FIX_GENERAL"
+        }
+      },
+      "d1280:thread": {
+        "diff": {
+          "changedPixels": 0,
+          "ratio": 0,
+          "box": null
+        },
+        "geoSame": true,
+        "head": {
+          "sidebar": [
+            0,
+            0,
+            64,
+            800
+          ],
+          "topbar": [
+            64,
+            0,
+            1216,
+            56
+          ],
+          "main": [
+            64,
+            0,
+            1216,
+            800
+          ],
+          "content": [
+            64,
+            56,
+            1216,
+            744
+          ],
+          "crumb": "Social›Chat",
+          "overflow": 0,
+          "url": "/clubpm/chat/C_FIX_GENERAL?thread=1757700240.000100"
+        },
+        "cur": {
+          "sidebar": [
+            0,
+            0,
+            64,
+            800
+          ],
+          "topbar": [
+            64,
+            0,
+            1216,
+            56
+          ],
+          "main": [
+            64,
+            0,
+            1216,
+            800
+          ],
+          "content": [
+            64,
+            56,
+            1216,
+            744
+          ],
+          "crumb": "Social›Chat",
+          "overflow": 0,
+          "url": "/clubpm/chat/C_FIX_GENERAL?thread=1757700240.000100"
+        }
+      },
+      "d1280:members": {
+        "diff": {
+          "changedPixels": 0,
+          "ratio": 0,
+          "box": null
+        },
+        "geoSame": true,
+        "head": {
+          "sidebar": [
+            0,
+            0,
+            64,
+            800
+          ],
+          "topbar": [
+            64,
+            0,
+            1216,
+            56
+          ],
+          "main": [
+            64,
+            0,
+            1216,
+            800
+          ],
+          "content": [
+            64,
+            56,
+            1216,
+            744
+          ],
+          "crumb": "Social›Members",
+          "overflow": 0,
+          "url": "/clubpm/members"
+        },
+        "cur": {
+          "sidebar": [
+            0,
+            0,
+            64,
+            800
+          ],
+          "topbar": [
+            64,
+            0,
+            1216,
+            56
+          ],
+          "main": [
+            64,
+            0,
+            1216,
+            800
+          ],
+          "content": [
+            64,
+            56,
+            1216,
+            744
+          ],
+          "crumb": "Social›Members",
+          "overflow": 0,
+          "url": "/clubpm/members"
+        }
+      },
+      "d1280:dm": {
+        "diff": {
+          "changedPixels": 0,
+          "ratio": 0,
+          "box": null
+        },
+        "geoSame": true,
+        "head": {
+          "sidebar": [
+            0,
+            0,
+            64,
+            800
+          ],
+          "topbar": [
+            64,
+            0,
+            1216,
+            56
+          ],
+          "main": [
+            64,
+            0,
+            1216,
+            800
+          ],
+          "content": [
+            64,
+            56,
+            1216,
+            744
+          ],
+          "crumb": "Social›Members",
+          "overflow": 0,
+          "url": "/clubpm/members?dm=D_FIX_JORDAN"
+        },
+        "cur": {
+          "sidebar": [
+            0,
+            0,
+            64,
+            800
+          ],
+          "topbar": [
+            64,
+            0,
+            1216,
+            56
+          ],
+          "main": [
+            64,
+            0,
+            1216,
+            800
+          ],
+          "content": [
+            64,
+            56,
+            1216,
+            744
+          ],
+          "crumb": "Social›Members",
+          "overflow": 0,
+          "url": "/clubpm/members?dm=D_FIX_JORDAN"
+        }
+      },
+      "d1280:calendar": {
+        "diff": {
+          "changedPixels": 0,
+          "ratio": 0,
+          "box": null
+        },
+        "geoSame": true,
+        "head": {
+          "sidebar": [
+            0,
+            0,
+            64,
+            800
+          ],
+          "topbar": [
+            64,
+            0,
+            1216,
+            56
+          ],
+          "main": [
+            64,
+            0,
+            1216,
+            800
+          ],
+          "content": [
+            64,
+            56,
+            1216,
+            744
+          ],
+          "crumb": "Social›Calendar",
+          "overflow": 0,
+          "url": "/clubpm/calendar"
+        },
+        "cur": {
+          "sidebar": [
+            0,
+            0,
+            64,
+            800
+          ],
+          "topbar": [
+            64,
+            0,
+            1216,
+            56
+          ],
+          "main": [
+            64,
+            0,
+            1216,
+            800
+          ],
+          "content": [
+            64,
+            56,
+            1216,
+            744
+          ],
+          "crumb": "Social›Calendar",
+          "overflow": 0,
+          "url": "/clubpm/calendar"
+        }
+      },
+      "d1280:notifications": {
+        "diff": {
+          "changedPixels": 0,
+          "ratio": 0,
+          "box": null
+        },
+        "geoSame": true,
+        "head": {
+          "sidebar": [
+            0,
+            0,
+            64,
+            800
+          ],
+          "topbar": [
+            64,
+            0,
+            1216,
+            56
+          ],
+          "main": [
+            64,
+            0,
+            1216,
+            800
+          ],
+          "content": [
+            64,
+            56,
+            1216,
+            744
+          ],
+          "crumb": "Notifications",
+          "overflow": 0,
+          "url": "/clubpm/notifications"
+        },
+        "cur": {
+          "sidebar": [
+            0,
+            0,
+            64,
+            800
+          ],
+          "topbar": [
+            64,
+            0,
+            1216,
+            56
+          ],
+          "main": [
+            64,
+            0,
+            1216,
+            800
+          ],
+          "content": [
+            64,
+            56,
+            1216,
+            744
+          ],
+          "crumb": "Notifications",
+          "overflow": 0,
+          "url": "/clubpm/notifications"
+        }
+      },
+      "d1280:prefs": {
+        "diff": {
+          "changedPixels": 0,
+          "ratio": 0,
+          "box": null
+        },
+        "geoSame": true,
+        "head": {
+          "sidebar": [
+            0,
+            0,
+            64,
+            800
+          ],
+          "topbar": [
+            64,
+            0,
+            1216,
+            56
+          ],
+          "main": [
+            64,
+            0,
+            1216,
+            800
+          ],
+          "content": [
+            64,
+            56,
+            1216,
+            744
+          ],
+          "crumb": "Notifications›Preferences",
+          "overflow": 0,
+          "url": "/clubpm/notifications/preferences"
+        },
+        "cur": {
+          "sidebar": [
+            0,
+            0,
+            64,
+            800
+          ],
+          "topbar": [
+            64,
+            0,
+            1216,
+            56
+          ],
+          "main": [
+            64,
+            0,
+            1216,
+            800
+          ],
+          "content": [
+            64,
+            56,
+            1216,
+            744
+          ],
+          "crumb": "Notifications›Preferences",
+          "overflow": 0,
+          "url": "/clubpm/notifications/preferences"
+        }
+      },
+      "d1280:admin": {
+        "diff": {
+          "changedPixels": 0,
+          "ratio": 0,
+          "box": null
+        },
+        "geoSame": true,
+        "head": {
+          "sidebar": [
+            0,
+            0,
+            64,
+            800
+          ],
+          "topbar": [
+            64,
+            0,
+            1216,
+            56
+          ],
+          "main": [
+            64,
+            0,
+            1216,
+            800
+          ],
+          "content": [
+            64,
+            56,
+            1216,
+            744
+          ],
+          "crumb": "Other›Admin",
+          "overflow": 0,
+          "url": "/clubpm/admin"
+        },
+        "cur": {
+          "sidebar": [
+            0,
+            0,
+            64,
+            800
+          ],
+          "topbar": [
+            64,
+            0,
+            1216,
+            56
+          ],
+          "main": [
+            64,
+            0,
+            1216,
+            800
+          ],
+          "content": [
+            64,
+            56,
+            1216,
+            744
+          ],
+          "crumb": "Other›Admin",
+          "overflow": 0,
+          "url": "/clubpm/admin"
+        }
+      },
+      "d1280:outreach": {
+        "diff": {
+          "changedPixels": 0,
+          "ratio": 0,
+          "box": null
+        },
+        "geoSame": true,
+        "head": {
+          "sidebar": [
+            0,
+            0,
+            64,
+            800
+          ],
+          "topbar": [
+            64,
+            0,
+            1216,
+            56
+          ],
+          "main": [
+            64,
+            0,
+            1216,
+            800
+          ],
+          "content": [
+            64,
+            56,
+            1216,
+            744
+          ],
+          "crumb": "Other›Outreach Hub",
+          "overflow": 0,
+          "url": "/clubpm/outreach?tab=board"
+        },
+        "cur": {
+          "sidebar": [
+            0,
+            0,
+            64,
+            800
+          ],
+          "topbar": [
+            64,
+            0,
+            1216,
+            56
+          ],
+          "main": [
+            64,
+            0,
+            1216,
+            800
+          ],
+          "content": [
+            64,
+            56,
+            1216,
+            744
+          ],
+          "crumb": "Other›Outreach Hub",
+          "overflow": 0,
+          "url": "/clubpm/outreach?tab=board"
+        }
+      },
+      "d1280:crm": {
+        "diff": {
+          "changedPixels": 0,
+          "ratio": 0,
+          "box": null
+        },
+        "geoSame": true,
+        "head": {
+          "sidebar": [
+            0,
+            0,
+            64,
+            800
+          ],
+          "topbar": [
+            64,
+            0,
+            1216,
+            56
+          ],
+          "main": [
+            64,
+            0,
+            1216,
+            800
+          ],
+          "content": [
+            64,
+            56,
+            1216,
+            744
+          ],
+          "crumb": "Other›Outreach Hub",
+          "overflow": 0,
+          "url": "/clubpm/outreach?tab=crm"
+        },
+        "cur": {
+          "sidebar": [
+            0,
+            0,
+            64,
+            800
+          ],
+          "topbar": [
+            64,
+            0,
+            1216,
+            56
+          ],
+          "main": [
+            64,
+            0,
+            1216,
+            800
+          ],
+          "content": [
+            64,
+            56,
+            1216,
+            744
+          ],
+          "crumb": "Other›Outreach Hub",
+          "overflow": 0,
+          "url": "/clubpm/outreach?tab=crm"
+        }
+      },
+      "d1280:courses": {
+        "diff": {
+          "changedPixels": 0,
+          "ratio": 0,
+          "box": null
+        },
+        "geoSame": true,
+        "head": {
+          "sidebar": [
+            0,
+            0,
+            64,
+            800
+          ],
+          "topbar": [
+            64,
+            0,
+            1216,
+            56
+          ],
+          "main": [
+            64,
+            0,
+            1216,
+            800
+          ],
+          "content": [
+            64,
+            56,
+            1216,
+            744
+          ],
+          "crumb": "Other›Courses",
+          "overflow": 0,
+          "url": "/clubpm/courses"
+        },
+        "cur": {
+          "sidebar": [
+            0,
+            0,
+            64,
+            800
+          ],
+          "topbar": [
+            64,
+            0,
+            1216,
+            56
+          ],
+          "main": [
+            64,
+            0,
+            1216,
+            800
+          ],
+          "content": [
+            64,
+            56,
+            1216,
+            744
+          ],
+          "crumb": "Other›Courses",
+          "overflow": 0,
+          "url": "/clubpm/courses"
+        }
+      },
+      "d1280:learn": {
+        "diff": {
+          "changedPixels": 3935,
+          "ratio": 0.00384,
+          "box": [
+            366,
+            333,
+            556,
+            362
+          ]
+        },
+        "geoSame": true,
+        "head": {
+          "sidebar": [
+            0,
+            0,
+            64,
+            800
+          ],
+          "topbar": [
+            64,
+            0,
+            1216,
+            56
+          ],
+          "main": [
+            64,
+            0,
+            1216,
+            800
+          ],
+          "content": [
+            64,
+            56,
+            1216,
+            744
+          ],
+          "crumb": "Other›Courses›Player",
+          "overflow": 0,
+          "url": "/clubpm/courses/fixture-course/learn"
+        },
+        "cur": {
+          "sidebar": [
+            0,
+            0,
+            64,
+            800
+          ],
+          "topbar": [
+            64,
+            0,
+            1216,
+            56
+          ],
+          "main": [
+            64,
+            0,
+            1216,
+            800
+          ],
+          "content": [
+            64,
+            56,
+            1216,
+            744
+          ],
+          "crumb": "Other›Courses›Player",
+          "overflow": 0,
+          "url": "/clubpm/courses/fixture-course/learn"
+        },
+        "noise": {
+          "changedPixels": 0,
+          "ratio": 0,
+          "box": null
+        }
+      },
+      "d1280:gantt": {
+        "diff": {
+          "changedPixels": 0,
+          "ratio": 0,
+          "box": null
+        },
+        "geoSame": true,
+        "head": {
+          "sidebar": [
+            0,
+            0,
+            64,
+            800
+          ],
+          "topbar": [
+            64,
+            0,
+            1216,
+            56
+          ],
+          "main": [
+            64,
+            0,
+            1216,
+            800
+          ],
+          "content": [
+            64,
+            56,
+            1216,
+            744
+          ],
+          "crumb": "Projects›Gantt",
+          "overflow": 0,
+          "url": "/clubpm/projects/p1/gantt"
+        },
+        "cur": {
+          "sidebar": [
+            0,
+            0,
+            64,
+            800
+          ],
+          "topbar": [
+            64,
+            0,
+            1216,
+            56
+          ],
+          "main": [
+            64,
+            0,
+            1216,
+            800
+          ],
+          "content": [
+            64,
+            56,
+            1216,
+            744
+          ],
+          "crumb": "Projects›Gantt",
+          "overflow": 0,
+          "url": "/clubpm/projects/p1/gantt"
+        }
+      },
+      "d1280:profile": {
+        "diff": {
+          "changedPixels": 0,
+          "ratio": 0,
+          "box": null
+        },
+        "geoSame": true,
+        "head": {
+          "sidebar": [
+            0,
+            0,
+            64,
+            800
+          ],
+          "topbar": [
+            64,
+            0,
+            1216,
+            56
+          ],
+          "main": [
+            64,
+            0,
+            1216,
+            800
+          ],
+          "content": [
+            64,
+            56,
+            1216,
+            744
+          ],
+          "crumb": "Profile",
+          "overflow": 0,
+          "url": "/clubpm/profile"
+        },
+        "cur": {
+          "sidebar": [
+            0,
+            0,
+            64,
+            800
+          ],
+          "topbar": [
+            64,
+            0,
+            1216,
+            56
+          ],
+          "main": [
+            64,
+            0,
+            1216,
+            800
+          ],
+          "content": [
+            64,
+            56,
+            1216,
+            744
+          ],
+          "crumb": "Profile",
+          "overflow": 0,
+          "url": "/clubpm/profile"
+        }
+      },
+      "d1280:shop": {
+        "diff": {
+          "changedPixels": 1601,
+          "ratio": 0.00156,
+          "box": [
+            113,
+            95,
+            1141,
+            608
+          ]
+        },
+        "geoSame": true,
+        "head": {
+          "sidebar": [
+            0,
+            0,
+            64,
+            800
+          ],
+          "topbar": [
+            64,
+            0,
+            1216,
+            56
+          ],
+          "main": [
+            64,
+            0,
+            1216,
+            800
+          ],
+          "content": [
+            64,
+            56,
+            1216,
+            744
+          ],
+          "crumb": "Shop",
+          "overflow": 0,
+          "url": "/clubpm/shop"
+        },
+        "cur": {
+          "sidebar": [
+            0,
+            0,
+            64,
+            800
+          ],
+          "topbar": [
+            64,
+            0,
+            1216,
+            56
+          ],
+          "main": [
+            64,
+            0,
+            1216,
+            800
+          ],
+          "content": [
+            64,
+            56,
+            1216,
+            744
+          ],
+          "crumb": "Shop",
+          "overflow": 0,
+          "url": "/clubpm/shop"
+        },
+        "noise": {
+          "changedPixels": 3263,
+          "ratio": 0.00319,
+          "box": [
+            107,
+            95,
+            1140,
+            608
+          ]
+        }
+      },
+      "d1280:challenges": {
+        "diff": {
+          "changedPixels": 0,
+          "ratio": 0,
+          "box": null
+        },
+        "geoSame": true,
+        "head": {
+          "sidebar": [
+            0,
+            0,
+            64,
+            800
+          ],
+          "topbar": [
+            64,
+            0,
+            1216,
+            56
+          ],
+          "main": [
+            64,
+            0,
+            1216,
+            800
+          ],
+          "content": [
+            64,
+            56,
+            1216,
+            744
+          ],
+          "crumb": "Challenges",
+          "overflow": 0,
+          "url": "/clubpm/challenges"
+        },
+        "cur": {
+          "sidebar": [
+            0,
+            0,
+            64,
+            800
+          ],
+          "topbar": [
+            64,
+            0,
+            1216,
+            56
+          ],
+          "main": [
+            64,
+            0,
+            1216,
+            800
+          ],
+          "content": [
+            64,
+            56,
+            1216,
+            744
+          ],
+          "crumb": "Challenges",
+          "overflow": 0,
+          "url": "/clubpm/challenges"
+        }
+      },
+      "d1440:home": {
+        "diff": {
+          "changedPixels": 0,
+          "ratio": 0,
+          "box": null
+        },
+        "geoSame": true,
+        "head": {
+          "sidebar": [
+            0,
+            0,
+            64,
+            900
+          ],
+          "topbar": [
+            64,
+            0,
+            1376,
+            56
+          ],
+          "main": [
+            64,
+            0,
+            1376,
+            900
+          ],
+          "content": [
+            64,
+            56,
+            1376,
+            844
+          ],
+          "crumb": "Dashboard",
+          "overflow": 0,
+          "url": "/clubpm"
+        },
+        "cur": {
+          "sidebar": [
+            0,
+            0,
+            64,
+            900
+          ],
+          "topbar": [
+            64,
+            0,
+            1376,
+            56
+          ],
+          "main": [
+            64,
+            0,
+            1376,
+            900
+          ],
+          "content": [
+            64,
+            56,
+            1376,
+            844
+          ],
+          "crumb": "Dashboard",
+          "overflow": 0,
+          "url": "/clubpm"
+        }
+      },
+      "d1440:tasks": {
+        "diff": {
+          "changedPixels": 35,
+          "ratio": 0.00003,
+          "box": [
+            787,
+            892,
+            818,
+            898
+          ]
+        },
+        "geoSame": true,
+        "head": {
+          "sidebar": [
+            0,
+            0,
+            64,
+            900
+          ],
+          "topbar": [
+            64,
+            0,
+            1376,
+            56
+          ],
+          "main": [
+            64,
+            0,
+            1376,
+            900
+          ],
+          "content": [
+            64,
+            56,
+            1376,
+            844
+          ],
+          "crumb": "Projects›Project Detail",
+          "overflow": 0,
+          "url": "/clubpm/projects/p1"
+        },
+        "cur": {
+          "sidebar": [
+            0,
+            0,
+            64,
+            900
+          ],
+          "topbar": [
+            64,
+            0,
+            1376,
+            56
+          ],
+          "main": [
+            64,
+            0,
+            1376,
+            900
+          ],
+          "content": [
+            64,
+            56,
+            1376,
+            844
+          ],
+          "crumb": "Projects›Project Detail",
+          "overflow": 0,
+          "url": "/clubpm/projects/p1"
+        }
+      },
+      "d1440:files": {
+        "diff": {
+          "changedPixels": 0,
+          "ratio": 0,
+          "box": null
+        },
+        "geoSame": true,
+        "head": {
+          "sidebar": [
+            0,
+            0,
+            64,
+            900
+          ],
+          "topbar": [
+            64,
+            0,
+            1376,
+            56
+          ],
+          "main": [
+            64,
+            0,
+            1376,
+            900
+          ],
+          "content": [
+            64,
+            56,
+            1376,
+            844
+          ],
+          "crumb": "Projects›Project Detail",
+          "overflow": 0,
+          "url": "/clubpm/projects/p1?tab=files"
+        },
+        "cur": {
+          "sidebar": [
+            0,
+            0,
+            64,
+            900
+          ],
+          "topbar": [
+            64,
+            0,
+            1376,
+            56
+          ],
+          "main": [
+            64,
+            0,
+            1376,
+            900
+          ],
+          "content": [
+            64,
+            56,
+            1376,
+            844
+          ],
+          "crumb": "Projects›Project Detail",
+          "overflow": 0,
+          "url": "/clubpm/projects/p1?tab=files"
+        }
+      },
+      "d1440:insights": {
+        "diff": {
+          "changedPixels": 0,
+          "ratio": 0,
+          "box": null
+        },
+        "geoSame": true,
+        "head": {
+          "sidebar": [
+            0,
+            0,
+            64,
+            900
+          ],
+          "topbar": [
+            64,
+            0,
+            1376,
+            56
+          ],
+          "main": [
+            64,
+            0,
+            1376,
+            900
+          ],
+          "content": [
+            64,
+            56,
+            1376,
+            844
+          ],
+          "crumb": "Projects›Project Detail",
+          "overflow": 0,
+          "url": "/clubpm/projects/p1?tab=insights"
+        },
+        "cur": {
+          "sidebar": [
+            0,
+            0,
+            64,
+            900
+          ],
+          "topbar": [
+            64,
+            0,
+            1376,
+            56
+          ],
+          "main": [
+            64,
+            0,
+            1376,
+            900
+          ],
+          "content": [
+            64,
+            56,
+            1376,
+            844
+          ],
+          "crumb": "Projects›Project Detail",
+          "overflow": 0,
+          "url": "/clubpm/projects/p1?tab=insights"
+        }
+      },
+      "d1440:ai": {
+        "diff": {
+          "changedPixels": 0,
+          "ratio": 0,
+          "box": null
+        },
+        "geoSame": true,
+        "head": {
+          "sidebar": [
+            0,
+            0,
+            64,
+            900
+          ],
+          "topbar": [
+            64,
+            0,
+            1376,
+            56
+          ],
+          "main": [
+            64,
+            0,
+            1376,
+            900
+          ],
+          "content": [
+            64,
+            56,
+            1376,
+            844
+          ],
+          "crumb": "Projects›Project Detail",
+          "overflow": 0,
+          "url": "/clubpm/projects/p1?tab=insights&view=ai"
+        },
+        "cur": {
+          "sidebar": [
+            0,
+            0,
+            64,
+            900
+          ],
+          "topbar": [
+            64,
+            0,
+            1376,
+            56
+          ],
+          "main": [
+            64,
+            0,
+            1376,
+            900
+          ],
+          "content": [
+            64,
+            56,
+            1376,
+            844
+          ],
+          "crumb": "Projects›Project Detail",
+          "overflow": 0,
+          "url": "/clubpm/projects/p1?tab=insights&view=ai"
+        }
+      },
+      "d1440:task-modal": {
+        "diff": {
+          "changedPixels": 0,
+          "ratio": 0,
+          "box": null
+        },
+        "geoSame": true,
+        "head": {
+          "sidebar": [
+            0,
+            0,
+            64,
+            900
+          ],
+          "topbar": [
+            64,
+            0,
+            1376,
+            56
+          ],
+          "main": [
+            64,
+            0,
+            1376,
+            900
+          ],
+          "content": [
+            64,
+            56,
+            1376,
+            844
+          ],
+          "crumb": "Projects›Project Detail",
+          "overflow": 0,
+          "url": "/clubpm/projects/p1?task=t3"
+        },
+        "cur": {
+          "sidebar": [
+            0,
+            0,
+            64,
+            900
+          ],
+          "topbar": [
+            64,
+            0,
+            1376,
+            56
+          ],
+          "main": [
+            64,
+            0,
+            1376,
+            900
+          ],
+          "content": [
+            64,
+            56,
+            1376,
+            844
+          ],
+          "crumb": "Projects›Project Detail",
+          "overflow": 0,
+          "url": "/clubpm/projects/p1?task=t3"
+        }
+      },
+      "d1440:conversation": {
+        "diff": {
+          "changedPixels": 0,
+          "ratio": 0,
+          "box": null
+        },
+        "geoSame": true,
+        "head": {
+          "sidebar": [
+            0,
+            0,
+            64,
+            900
+          ],
+          "topbar": [
+            64,
+            0,
+            1376,
+            56
+          ],
+          "main": [
+            64,
+            0,
+            1376,
+            900
+          ],
+          "content": [
+            64,
+            56,
+            1376,
+            844
+          ],
+          "crumb": "Social›Chat",
+          "overflow": 0,
+          "url": "/clubpm/chat/C_FIX_GENERAL"
+        },
+        "cur": {
+          "sidebar": [
+            0,
+            0,
+            64,
+            900
+          ],
+          "topbar": [
+            64,
+            0,
+            1376,
+            56
+          ],
+          "main": [
+            64,
+            0,
+            1376,
+            900
+          ],
+          "content": [
+            64,
+            56,
+            1376,
+            844
+          ],
+          "crumb": "Social›Chat",
+          "overflow": 0,
+          "url": "/clubpm/chat/C_FIX_GENERAL"
+        }
+      },
+      "d1440:thread": {
+        "diff": {
+          "changedPixels": 0,
+          "ratio": 0,
+          "box": null
+        },
+        "geoSame": true,
+        "head": {
+          "sidebar": [
+            0,
+            0,
+            64,
+            900
+          ],
+          "topbar": [
+            64,
+            0,
+            1376,
+            56
+          ],
+          "main": [
+            64,
+            0,
+            1376,
+            900
+          ],
+          "content": [
+            64,
+            56,
+            1376,
+            844
+          ],
+          "crumb": "Social›Chat",
+          "overflow": 0,
+          "url": "/clubpm/chat/C_FIX_GENERAL?thread=1757700240.000100"
+        },
+        "cur": {
+          "sidebar": [
+            0,
+            0,
+            64,
+            900
+          ],
+          "topbar": [
+            64,
+            0,
+            1376,
+            56
+          ],
+          "main": [
+            64,
+            0,
+            1376,
+            900
+          ],
+          "content": [
+            64,
+            56,
+            1376,
+            844
+          ],
+          "crumb": "Social›Chat",
+          "overflow": 0,
+          "url": "/clubpm/chat/C_FIX_GENERAL?thread=1757700240.000100"
+        }
+      },
+      "d1440:members": {
+        "diff": {
+          "changedPixels": 0,
+          "ratio": 0,
+          "box": null
+        },
+        "geoSame": true,
+        "head": {
+          "sidebar": [
+            0,
+            0,
+            64,
+            900
+          ],
+          "topbar": [
+            64,
+            0,
+            1376,
+            56
+          ],
+          "main": [
+            64,
+            0,
+            1376,
+            900
+          ],
+          "content": [
+            64,
+            56,
+            1376,
+            844
+          ],
+          "crumb": "Social›Members",
+          "overflow": 0,
+          "url": "/clubpm/members"
+        },
+        "cur": {
+          "sidebar": [
+            0,
+            0,
+            64,
+            900
+          ],
+          "topbar": [
+            64,
+            0,
+            1376,
+            56
+          ],
+          "main": [
+            64,
+            0,
+            1376,
+            900
+          ],
+          "content": [
+            64,
+            56,
+            1376,
+            844
+          ],
+          "crumb": "Social›Members",
+          "overflow": 0,
+          "url": "/clubpm/members"
+        }
+      },
+      "d1440:dm": {
+        "diff": {
+          "changedPixels": 0,
+          "ratio": 0,
+          "box": null
+        },
+        "geoSame": true,
+        "head": {
+          "sidebar": [
+            0,
+            0,
+            64,
+            900
+          ],
+          "topbar": [
+            64,
+            0,
+            1376,
+            56
+          ],
+          "main": [
+            64,
+            0,
+            1376,
+            900
+          ],
+          "content": [
+            64,
+            56,
+            1376,
+            844
+          ],
+          "crumb": "Social›Members",
+          "overflow": 0,
+          "url": "/clubpm/members?dm=D_FIX_JORDAN"
+        },
+        "cur": {
+          "sidebar": [
+            0,
+            0,
+            64,
+            900
+          ],
+          "topbar": [
+            64,
+            0,
+            1376,
+            56
+          ],
+          "main": [
+            64,
+            0,
+            1376,
+            900
+          ],
+          "content": [
+            64,
+            56,
+            1376,
+            844
+          ],
+          "crumb": "Social›Members",
+          "overflow": 0,
+          "url": "/clubpm/members?dm=D_FIX_JORDAN"
+        }
+      },
+      "d1440:calendar": {
+        "diff": {
+          "changedPixels": 0,
+          "ratio": 0,
+          "box": null
+        },
+        "geoSame": true,
+        "head": {
+          "sidebar": [
+            0,
+            0,
+            64,
+            900
+          ],
+          "topbar": [
+            64,
+            0,
+            1376,
+            56
+          ],
+          "main": [
+            64,
+            0,
+            1376,
+            900
+          ],
+          "content": [
+            64,
+            56,
+            1376,
+            844
+          ],
+          "crumb": "Social›Calendar",
+          "overflow": 0,
+          "url": "/clubpm/calendar"
+        },
+        "cur": {
+          "sidebar": [
+            0,
+            0,
+            64,
+            900
+          ],
+          "topbar": [
+            64,
+            0,
+            1376,
+            56
+          ],
+          "main": [
+            64,
+            0,
+            1376,
+            900
+          ],
+          "content": [
+            64,
+            56,
+            1376,
+            844
+          ],
+          "crumb": "Social›Calendar",
+          "overflow": 0,
+          "url": "/clubpm/calendar"
+        }
+      },
+      "d1440:notifications": {
+        "diff": {
+          "changedPixels": 0,
+          "ratio": 0,
+          "box": null
+        },
+        "geoSame": true,
+        "head": {
+          "sidebar": [
+            0,
+            0,
+            64,
+            900
+          ],
+          "topbar": [
+            64,
+            0,
+            1376,
+            56
+          ],
+          "main": [
+            64,
+            0,
+            1376,
+            900
+          ],
+          "content": [
+            64,
+            56,
+            1376,
+            844
+          ],
+          "crumb": "Notifications",
+          "overflow": 0,
+          "url": "/clubpm/notifications"
+        },
+        "cur": {
+          "sidebar": [
+            0,
+            0,
+            64,
+            900
+          ],
+          "topbar": [
+            64,
+            0,
+            1376,
+            56
+          ],
+          "main": [
+            64,
+            0,
+            1376,
+            900
+          ],
+          "content": [
+            64,
+            56,
+            1376,
+            844
+          ],
+          "crumb": "Notifications",
+          "overflow": 0,
+          "url": "/clubpm/notifications"
+        }
+      },
+      "d1440:prefs": {
+        "diff": {
+          "changedPixels": 0,
+          "ratio": 0,
+          "box": null
+        },
+        "geoSame": true,
+        "head": {
+          "sidebar": [
+            0,
+            0,
+            64,
+            900
+          ],
+          "topbar": [
+            64,
+            0,
+            1376,
+            56
+          ],
+          "main": [
+            64,
+            0,
+            1376,
+            900
+          ],
+          "content": [
+            64,
+            56,
+            1376,
+            844
+          ],
+          "crumb": "Notifications›Preferences",
+          "overflow": 0,
+          "url": "/clubpm/notifications/preferences"
+        },
+        "cur": {
+          "sidebar": [
+            0,
+            0,
+            64,
+            900
+          ],
+          "topbar": [
+            64,
+            0,
+            1376,
+            56
+          ],
+          "main": [
+            64,
+            0,
+            1376,
+            900
+          ],
+          "content": [
+            64,
+            56,
+            1376,
+            844
+          ],
+          "crumb": "Notifications›Preferences",
+          "overflow": 0,
+          "url": "/clubpm/notifications/preferences"
+        }
+      },
+      "d1440:admin": {
+        "diff": {
+          "changedPixels": 0,
+          "ratio": 0,
+          "box": null
+        },
+        "geoSame": true,
+        "head": {
+          "sidebar": [
+            0,
+            0,
+            64,
+            900
+          ],
+          "topbar": [
+            64,
+            0,
+            1376,
+            56
+          ],
+          "main": [
+            64,
+            0,
+            1376,
+            900
+          ],
+          "content": [
+            64,
+            56,
+            1376,
+            844
+          ],
+          "crumb": "Other›Admin",
+          "overflow": 0,
+          "url": "/clubpm/admin"
+        },
+        "cur": {
+          "sidebar": [
+            0,
+            0,
+            64,
+            900
+          ],
+          "topbar": [
+            64,
+            0,
+            1376,
+            56
+          ],
+          "main": [
+            64,
+            0,
+            1376,
+            900
+          ],
+          "content": [
+            64,
+            56,
+            1376,
+            844
+          ],
+          "crumb": "Other›Admin",
+          "overflow": 0,
+          "url": "/clubpm/admin"
+        }
+      },
+      "d1440:outreach": {
+        "diff": {
+          "changedPixels": 0,
+          "ratio": 0,
+          "box": null
+        },
+        "geoSame": true,
+        "head": {
+          "sidebar": [
+            0,
+            0,
+            64,
+            900
+          ],
+          "topbar": [
+            64,
+            0,
+            1376,
+            56
+          ],
+          "main": [
+            64,
+            0,
+            1376,
+            900
+          ],
+          "content": [
+            64,
+            56,
+            1376,
+            844
+          ],
+          "crumb": "Other›Outreach Hub",
+          "overflow": 0,
+          "url": "/clubpm/outreach?tab=board"
+        },
+        "cur": {
+          "sidebar": [
+            0,
+            0,
+            64,
+            900
+          ],
+          "topbar": [
+            64,
+            0,
+            1376,
+            56
+          ],
+          "main": [
+            64,
+            0,
+            1376,
+            900
+          ],
+          "content": [
+            64,
+            56,
+            1376,
+            844
+          ],
+          "crumb": "Other›Outreach Hub",
+          "overflow": 0,
+          "url": "/clubpm/outreach?tab=board"
+        }
+      },
+      "d1440:crm": {
+        "diff": {
+          "changedPixels": 0,
+          "ratio": 0,
+          "box": null
+        },
+        "geoSame": true,
+        "head": {
+          "sidebar": [
+            0,
+            0,
+            64,
+            900
+          ],
+          "topbar": [
+            64,
+            0,
+            1376,
+            56
+          ],
+          "main": [
+            64,
+            0,
+            1376,
+            900
+          ],
+          "content": [
+            64,
+            56,
+            1376,
+            844
+          ],
+          "crumb": "Other›Outreach Hub",
+          "overflow": 0,
+          "url": "/clubpm/outreach?tab=crm"
+        },
+        "cur": {
+          "sidebar": [
+            0,
+            0,
+            64,
+            900
+          ],
+          "topbar": [
+            64,
+            0,
+            1376,
+            56
+          ],
+          "main": [
+            64,
+            0,
+            1376,
+            900
+          ],
+          "content": [
+            64,
+            56,
+            1376,
+            844
+          ],
+          "crumb": "Other›Outreach Hub",
+          "overflow": 0,
+          "url": "/clubpm/outreach?tab=crm"
+        }
+      },
+      "d1440:courses": {
+        "diff": {
+          "changedPixels": 0,
+          "ratio": 0,
+          "box": null
+        },
+        "geoSame": true,
+        "head": {
+          "sidebar": [
+            0,
+            0,
+            64,
+            900
+          ],
+          "topbar": [
+            64,
+            0,
+            1376,
+            56
+          ],
+          "main": [
+            64,
+            0,
+            1376,
+            900
+          ],
+          "content": [
+            64,
+            56,
+            1376,
+            844
+          ],
+          "crumb": "Other›Courses",
+          "overflow": 0,
+          "url": "/clubpm/courses"
+        },
+        "cur": {
+          "sidebar": [
+            0,
+            0,
+            64,
+            900
+          ],
+          "topbar": [
+            64,
+            0,
+            1376,
+            56
+          ],
+          "main": [
+            64,
+            0,
+            1376,
+            900
+          ],
+          "content": [
+            64,
+            56,
+            1376,
+            844
+          ],
+          "crumb": "Other›Courses",
+          "overflow": 0,
+          "url": "/clubpm/courses"
+        }
+      },
+      "d1440:learn": {
+        "diff": {
+          "changedPixels": 3935,
+          "ratio": 0.00304,
+          "box": [
+            434,
+            333,
+            624,
+            362
+          ]
+        },
+        "geoSame": true,
+        "head": {
+          "sidebar": [
+            0,
+            0,
+            64,
+            900
+          ],
+          "topbar": [
+            64,
+            0,
+            1376,
+            56
+          ],
+          "main": [
+            64,
+            0,
+            1376,
+            900
+          ],
+          "content": [
+            64,
+            56,
+            1376,
+            844
+          ],
+          "crumb": "Other›Courses›Player",
+          "overflow": 0,
+          "url": "/clubpm/courses/fixture-course/learn"
+        },
+        "cur": {
+          "sidebar": [
+            0,
+            0,
+            64,
+            900
+          ],
+          "topbar": [
+            64,
+            0,
+            1376,
+            56
+          ],
+          "main": [
+            64,
+            0,
+            1376,
+            900
+          ],
+          "content": [
+            64,
+            56,
+            1376,
+            844
+          ],
+          "crumb": "Other›Courses›Player",
+          "overflow": 0,
+          "url": "/clubpm/courses/fixture-course/learn"
+        },
+        "noise": {
+          "changedPixels": 0,
+          "ratio": 0,
+          "box": null
+        }
+      },
+      "d1440:gantt": {
+        "diff": {
+          "changedPixels": 0,
+          "ratio": 0,
+          "box": null
+        },
+        "geoSame": true,
+        "head": {
+          "sidebar": [
+            0,
+            0,
+            64,
+            900
+          ],
+          "topbar": [
+            64,
+            0,
+            1376,
+            56
+          ],
+          "main": [
+            64,
+            0,
+            1376,
+            900
+          ],
+          "content": [
+            64,
+            56,
+            1376,
+            844
+          ],
+          "crumb": "Projects›Gantt",
+          "overflow": 0,
+          "url": "/clubpm/projects/p1/gantt"
+        },
+        "cur": {
+          "sidebar": [
+            0,
+            0,
+            64,
+            900
+          ],
+          "topbar": [
+            64,
+            0,
+            1376,
+            56
+          ],
+          "main": [
+            64,
+            0,
+            1376,
+            900
+          ],
+          "content": [
+            64,
+            56,
+            1376,
+            844
+          ],
+          "crumb": "Projects›Gantt",
+          "overflow": 0,
+          "url": "/clubpm/projects/p1/gantt"
+        }
+      },
+      "d1440:profile": {
+        "diff": {
+          "changedPixels": 0,
+          "ratio": 0,
+          "box": null
+        },
+        "geoSame": true,
+        "head": {
+          "sidebar": [
+            0,
+            0,
+            64,
+            900
+          ],
+          "topbar": [
+            64,
+            0,
+            1376,
+            56
+          ],
+          "main": [
+            64,
+            0,
+            1376,
+            900
+          ],
+          "content": [
+            64,
+            56,
+            1376,
+            844
+          ],
+          "crumb": "Profile",
+          "overflow": 0,
+          "url": "/clubpm/profile"
+        },
+        "cur": {
+          "sidebar": [
+            0,
+            0,
+            64,
+            900
+          ],
+          "topbar": [
+            64,
+            0,
+            1376,
+            56
+          ],
+          "main": [
+            64,
+            0,
+            1376,
+            900
+          ],
+          "content": [
+            64,
+            56,
+            1376,
+            844
+          ],
+          "crumb": "Profile",
+          "overflow": 0,
+          "url": "/clubpm/profile"
+        }
+      },
+      "d1440:shop": {
+        "diff": {
+          "changedPixels": 3457,
+          "ratio": 0.00267,
+          "box": [
+            187,
+            95,
+            1221,
+            636
+          ]
+        },
+        "geoSame": true,
+        "head": {
+          "sidebar": [
+            0,
+            0,
+            64,
+            900
+          ],
+          "topbar": [
+            64,
+            0,
+            1376,
+            56
+          ],
+          "main": [
+            64,
+            0,
+            1376,
+            900
+          ],
+          "content": [
+            64,
+            56,
+            1376,
+            844
+          ],
+          "crumb": "Shop",
+          "overflow": 0,
+          "url": "/clubpm/shop"
+        },
+        "cur": {
+          "sidebar": [
+            0,
+            0,
+            64,
+            900
+          ],
+          "topbar": [
+            64,
+            0,
+            1376,
+            56
+          ],
+          "main": [
+            64,
+            0,
+            1376,
+            900
+          ],
+          "content": [
+            64,
+            56,
+            1376,
+            844
+          ],
+          "crumb": "Shop",
+          "overflow": 0,
+          "url": "/clubpm/shop"
+        },
+        "noise": {
+          "changedPixels": 3424,
+          "ratio": 0.00264,
+          "box": [
+            193,
+            95,
+            1212,
+            608
+          ]
+        }
+      },
+      "d1440:challenges": {
+        "diff": {
+          "changedPixels": 0,
+          "ratio": 0,
+          "box": null
+        },
+        "geoSame": true,
+        "head": {
+          "sidebar": [
+            0,
+            0,
+            64,
+            900
+          ],
+          "topbar": [
+            64,
+            0,
+            1376,
+            56
+          ],
+          "main": [
+            64,
+            0,
+            1376,
+            900
+          ],
+          "content": [
+            64,
+            56,
+            1376,
+            844
+          ],
+          "crumb": "Challenges",
+          "overflow": 0,
+          "url": "/clubpm/challenges"
+        },
+        "cur": {
+          "sidebar": [
+            0,
+            0,
+            64,
+            900
+          ],
+          "topbar": [
+            64,
+            0,
+            1376,
+            56
+          ],
+          "main": [
+            64,
+            0,
+            1376,
+            900
+          ],
+          "content": [
+            64,
+            56,
+            1376,
+            844
+          ],
+          "crumb": "Challenges",
+          "overflow": 0,
+          "url": "/clubpm/challenges"
+        }
+      }
+    },
+    "public": {
+      "p390:home": {
+        "diff": {
+          "changedPixels": 0,
+          "ratio": 0,
+          "box": null
+        },
+        "head": 0,
+        "cur": 0
+      },
+      "p390:about": {
+        "diff": {
+          "changedPixels": 0,
+          "ratio": 0,
+          "box": null
+        },
+        "head": 0,
+        "cur": 0
+      },
+      "p390:ares": {
+        "diff": {
+          "changedPixels": 0,
+          "ratio": 0,
+          "box": null
+        },
+        "head": 0,
+        "cur": 0
+      },
+      "p390:blog": {
+        "diff": {
+          "changedPixels": 0,
+          "ratio": 0,
+          "box": null
+        },
+        "head": 0,
+        "cur": 0
+      },
+      "p390:contact": {
+        "diff": {
+          "changedPixels": 0,
+          "ratio": 0,
+          "box": null
+        },
+        "head": 0,
+        "cur": 0
+      },
+      "p390:outreach": {
+        "diff": {
+          "changedPixels": 0,
+          "ratio": 0,
+          "box": null
+        },
+        "head": 0,
+        "cur": 0
+      },
+      "p390:astrousa": {
+        "diff": {
+          "changedPixels": 0,
+          "ratio": 0,
+          "box": null
+        },
+        "head": 0,
+        "cur": 0
+      },
+      "p390:login": {
+        "diff": {
+          "changedPixels": 82109,
+          "ratio": 0.24945,
+          "box": [
+            16,
+            129,
+            373,
+            843
+          ]
+        },
+        "head": 0,
+        "cur": 0
+      },
+      "p390:rsvp": {
+        "diff": {
+          "changedPixels": 0,
+          "ratio": 0,
+          "box": null
+        },
+        "head": 0,
+        "cur": 0
+      },
+      "d1280:home": {
+        "diff": {
+          "changedPixels": 0,
+          "ratio": 0,
+          "box": null
+        },
+        "head": 0,
+        "cur": 0
+      },
+      "d1280:about": {
+        "diff": {
+          "changedPixels": 0,
+          "ratio": 0,
+          "box": null
+        },
+        "head": 0,
+        "cur": 0
+      },
+      "d1280:ares": {
+        "diff": {
+          "changedPixels": 0,
+          "ratio": 0,
+          "box": null
+        },
+        "head": 0,
+        "cur": 0
+      },
+      "d1280:blog": {
+        "diff": {
+          "changedPixels": 0,
+          "ratio": 0,
+          "box": null
+        },
+        "head": 0,
+        "cur": 0
+      },
+      "d1280:contact": {
+        "diff": {
+          "changedPixels": 0,
+          "ratio": 0,
+          "box": null
+        },
+        "head": 0,
+        "cur": 0
+      },
+      "d1280:outreach": {
+        "diff": {
+          "changedPixels": 0,
+          "ratio": 0,
+          "box": null
+        },
+        "head": 0,
+        "cur": 0
+      },
+      "d1280:astrousa": {
+        "diff": {
+          "changedPixels": 0,
+          "ratio": 0,
+          "box": null
+        },
+        "head": 0,
+        "cur": 0
+      },
+      "d1280:login": {
+        "diff": {
+          "changedPixels": 0,
+          "ratio": 0,
+          "box": null
+        },
+        "head": 0,
+        "cur": 0
+      },
+      "d1280:rsvp": {
+        "diff": {
+          "changedPixels": 0,
+          "ratio": 0,
+          "box": null
+        },
+        "head": 0,
+        "cur": 0
+      }
+    },
+    "perf": {
+      "head-d1280": {
+        "loadMsMedian": 648,
+        "loads": [
+          680,
+          641,
+          647,
+          648,
+          653
+        ],
+        "longTaskBlockingMsMedian": 50,
+        "scrollP95FrameMsMedian": 16.799999999999727,
+        "listeners": {
+          "window": [
+            22,
+            22
+          ],
+          "document": [
+            15,
+            15
+          ]
+        },
+        "heapMB": 37
+      },
+      "cur-d1280": {
+        "loadMsMedian": 654,
+        "loads": [
+          666,
+          639,
+          640,
+          654,
+          657
+        ],
+        "longTaskBlockingMsMedian": 51,
+        "scrollP95FrameMsMedian": 16.700000000000273,
+        "listeners": {
+          "window": [
+            33,
+            33
+          ],
+          "document": [
+            15,
+            15
+          ]
+        },
+        "heapMB": 38
+      },
+      "head-p390": {
+        "loadMsMedian": 665,
+        "loads": [
+          674,
+          651,
+          660,
+          665,
+          682
+        ],
+        "longTaskBlockingMsMedian": 55,
+        "scrollP95FrameMsMedian": 16.799999999999727,
+        "listeners": {
+          "window": [
+            22,
+            22
+          ],
+          "document": [
+            15,
+            15
+          ]
+        },
+        "heapMB": 42
+      },
+      "cur-p390": {
+        "loadMsMedian": 654,
+        "loads": [
+          696,
+          663,
+          648,
+          654,
+          654
+        ],
+        "longTaskBlockingMsMedian": 50,
+        "scrollP95FrameMsMedian": 16.799999999999727,
+        "listeners": {
+          "window": [
+            38,
+            38
+          ],
+          "document": [
+            13,
+            13
+          ]
+        },
+        "heapMB": 40
+      }
+    },
+    "drag-task-head": {
+      "dragged": true,
+      "taskPatch": 1
+    },
+    "drag-outreach-head": {
+      "cols": 5,
+      "dragged": true,
+      "oPatch": 1
+    },
+    "taskclose-head": {
+      "openedFromHome": true,
+      "closed": true,
+      "openTaskId": null,
+      "reopened": true,
+      "closedAgain": true
+    },
+    "keys-head": {
+      "ge": "/clubpm/calendar",
+      "go": "/clubpm/outreach",
+      "palette": true,
+      "help": true,
+      "sidebar": [
+        64,
+        220
+      ]
+    },
+    "drag-task-cur": {
+      "dragged": true,
+      "taskPatch": 1
+    },
+    "drag-outreach-cur": {
+      "cols": 5,
+      "dragged": true,
+      "oPatch": 1
+    },
+    "taskclose-cur": {
+      "openedFromHome": true,
+      "closed": true,
+      "openTaskId": null,
+      "reopened": true,
+      "closedAgain": true
+    },
+    "keys-cur": {
+      "ge": "/clubpm/calendar",
+      "go": "/clubpm/outreach",
+      "palette": true,
+      "help": true,
+      "sidebar": [
+        64,
+        220
+      ]
+    }
+  }
+}

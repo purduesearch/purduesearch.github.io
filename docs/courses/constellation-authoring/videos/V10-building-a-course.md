@@ -56,6 +56,10 @@ If you're taking this, you're going to write training material for the club. Her
 A course is modules, and a module is sections. Modules gate: finish this one to unlock the next. A
 section is one piece of teaching, and there are five kinds.
 
+On a phone the rail does not sit beside the editor — it is behind the **Sections** button at the top
+of the page, which names whatever you have open. Everything in it is the same: add, reorder,
+required, delete.
+
 **[00:52 — cycling the kinds]**
 
 Picking the right one is most of the job, so here's the short version.

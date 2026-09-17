@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Constellation phone prototype — review frames</title>
+  <style>
+    body { margin: 0; padding: 16px; background: #07080b; color: #f0f2f7; font: 14px/1.4 system-ui, sans-serif; }
+    h1 { font-size: 18px; margin: 0 0 4px; }
+    p { color: #8892a4; margin: 0 0 12px; max-width: 900px; }
+    form { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; margin-bottom: 16px; }
+    label { display: grid; gap: 4px; font-size: 12px; color: #8892a4; }
+    select, button { font: inherit; padding: 6px 10px; border-radius: 8px; border: 1px solid #333a4d; background: #13161e; color: #f0f2f7; min-height: 36px; }
+    .frames { display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start; }
+    figure { margin: 0; }
+    figcaption { font-size: 12px; color: #8892a4; margin-bottom: 6px; }
+    iframe { border: 1px solid #333a4d; border-radius: 18px; background: #0d0f14; display: block; }
+  </style>
+</head>
+<body>
+  <h1>Constellation phone prototype — review frames</h1>
+  <p>Every frame is the same prototype at a different size, loaded with <b>fixture data only</b>. Frames on a mouse-driven desktop do not match the coarse-pointer landscape condition by themselves, so the landscape frame passes <code>compact=1</code>; use real devices or DevTools device mode for the true media-query check. The 768px frame demonstrates that the desktop layout is left alone at the boundary.</p>
+  <form id="controls">
+    <label>Persona<select name="persona"><option value="member">Member</option><option value="admin">Admin</option></select></label>
+    <label>Projects<select name="projects"><option value="few">Few (long names)</option><option value="many">Many (26)</option><option value="none">None (empty)</option><option value="error">Load error</option></select></label>
+    <label>Start at<select name="start">
+      <option value="/clubpm">Home</option>
+      <option value="/clubpm/projects/p1">Project › Tasks</option>
+      <option value="/clubpm/projects/p4">Empty project</option>
+      <option value="/clubpm/projects/p1?task=p1-t1">Task detail (deep link)</option>
+      <option value="/clubpm/chat">Chat › channel list</option>
+      <option value="/clubpm/chat/C1">Conversation</option>
+      <option value="/clubpm/members?view=dms">People &amp; DMs</option>
+      <option value="/clubpm/calendar">Calendar</option>
+      <option value="/clubpm/projects/p1?tab=reports">Legacy ?tab=reports link</option>
+    </select></label>
+    <label>Keyboard<select name="kb"><option value="0">Real detection only</option><option value="1">Simulate software keyboard on focus</option></select></label>
+    <button type="submit">Reload frames</button>
+  </form>
+  <div class="frames" id="frames"></div>
+  <script>
+    var FRAMES = [
+      { w: 320, h: 640, label: '320 × 640 (small phone)' },
+      { w: 390, h: 844, label: '390 × 844 (typical phone)' },
+      { w: 844, h: 390, label: '844 × 390 landscape (compact=1)', force: true },
+      { w: 768, h: 700, label: '768 × 700 (boundary: desktop kept)' },
+    ];
+    function build() {
+      var f = new FormData(document.getElementById('controls'));
+      var qs = 'persona=' + f.get('persona') + '&projects=' + f.get('projects') + '&kb=' + f.get('kb');
+      document.getElementById('frames').innerHTML = FRAMES.map(function (fr) {
+        return '<figure><figcaption>' + fr.label + '</figcaption><iframe title="' + fr.label + '" width="' + fr.w + '" height="' + fr.h + '" src="index.html?' + qs + (fr.force ? '&compact=1' : '') + '#' + f.get('start') + '"></iframe></figure>';
+      }).join('');
+    }
+    document.getElementById('controls').addEventListener('submit', function (e) { e.preventDefault(); build(); });
+    build();
+  </script>
+</body>
+</html>

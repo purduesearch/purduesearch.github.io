@@ -2,6 +2,8 @@ import React, { useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { suggestActions, executePlan, getAiPlanPrompt, importAiPlan } from "../../api/clubPmClient";
 import ClaudePromptSteps from "./ClaudePromptSteps";
+import MobileSheet from "./MobileSheet";
+import { useCompactLayout } from "../../clubpm/layout/compactLayout";
 
 const TYPE_LABELS = {
   CREATE_TASK: "Create Task",
@@ -58,6 +60,12 @@ function toDateInputValue(v) {
 }
 
 export default function ActionPlanReview({ projectId, project, allMembers, projectBlockers, onExecuted }) {
+  const compact = useCompactLayout();
+  // Index of the action being reviewed full-screen on a phone. A proposal's
+  // rationale, target picker and every editable field need more width than a
+  // 320px card, so the list stays a scannable summary and each action opens
+  // into the shared full-screen dialog with the same editor desktop shows.
+  const [reviewIndex, setReviewIndex] = useState(null);
   const [goal, setGoal] = useState("");
   const [suggesting, setSuggesting] = useState(false);
   const [planItems, setPlanItems] = useState(null); // null = no plan generated yet
@@ -104,6 +112,7 @@ export default function ActionPlanReview({ projectId, project, allMembers, proje
   function switchMode(next) {
     if (next === manualMode) return;
     setManualMode(next);
+    setReviewIndex(null);
     setPlanItems(null);
     setDroppedNotes([]);
     setPromptText("");
@@ -132,6 +141,7 @@ export default function ActionPlanReview({ projectId, project, allMembers, proje
     setImporting(true);
     try {
       const { actions, dropped } = await importAiPlan(projectId, pasteText);
+      setReviewIndex(null);
       setPlanItems(toPlanItems(actions));
       setDroppedNotes(dropped || []);
       if (actions?.length) {
@@ -150,6 +160,7 @@ export default function ActionPlanReview({ projectId, project, allMembers, proje
     setPromptText("");
     setPromptGoal("");
     setPasteText("");
+    setReviewIndex(null);
     setPlanItems(null);
     setDroppedNotes([]);
   }
@@ -160,11 +171,13 @@ export default function ActionPlanReview({ projectId, project, allMembers, proje
     setSuggesting(true);
     try {
       const { actions } = await suggestActions(projectId, goal.trim());
+      setReviewIndex(null);
       setPlanItems(toPlanItems(actions));
       setDroppedNotes([]);
       if (!actions?.length) toast.error("AI found no concrete actions for that goal.");
     } catch (err) {
       toast.error(err.message ?? "Failed to generate action plan");
+      setReviewIndex(null);
       setPlanItems(null);
     } finally {
       setSuggesting(false);
@@ -339,7 +352,16 @@ export default function ActionPlanReview({ projectId, project, allMembers, proje
       {Array.isArray(planItems) && planItems.length > 0 && (
         <>
           <div className="cpm-actionplan-list">
-            {planItems.map((item, idx) => (
+            {planItems.map((item, idx) => (compact ? (
+              <ActionSummaryRow
+                key={item._id}
+                item={item}
+                index={idx}
+                targetLabel={item.targetTaskId ? (taskTitleById.get(item.targetTaskId) ?? "Unknown task") : null}
+                onToggleAccept={() => updateItem(idx, { _accepted: !item._accepted })}
+                onReview={() => setReviewIndex(idx)}
+              />
+            ) : (
               <ActionCard
                 key={item._id}
                 item={item}
@@ -353,8 +375,40 @@ export default function ActionPlanReview({ projectId, project, allMembers, proje
                 onParamChange={(key, value) => updateParam(idx, key, value)}
                 onToggleArrayParam={(key, value) => toggleArrayParam(idx, key, value)}
               />
-            ))}
+            )))}
           </div>
+
+          {compact && reviewIndex !== null && planItems[reviewIndex] ? (
+            <MobileSheet
+              title={TYPE_LABELS[planItems[reviewIndex].type] ?? planItems[reviewIndex].type}
+              onClose={() => setReviewIndex(null)}
+              variant="fullscreen"
+              className="pm-m-actionplan-layer"
+              returnFocusSelector={`[data-m-opener="plan-action-${reviewIndex}"]`}
+              footer={(
+                <button
+                  type="button"
+                  className="pm-m-btn pm-m-btn--primary pm-m-btn--block"
+                  onClick={() => setReviewIndex(null)}
+                >
+                  Done
+                </button>
+              )}
+            >
+              <ActionCard
+                item={planItems[reviewIndex]}
+                taskTitleById={taskTitleById}
+                tasks={tasks}
+                members={members}
+                milestones={milestones}
+                blockers={blockers}
+                onToggleAccept={() => updateItem(reviewIndex, { _accepted: !planItems[reviewIndex]._accepted })}
+                onSetTarget={val => updateItem(reviewIndex, { targetTaskId: val || null })}
+                onParamChange={(key, value) => updateParam(reviewIndex, key, value)}
+                onToggleArrayParam={(key, value) => toggleArrayParam(reviewIndex, key, value)}
+              />
+            </MobileSheet>
+          ) : null}
           <div className="cpm-actionplan-execute-row">
             <button
               className="clubpm-btn-primary"
@@ -374,6 +428,57 @@ export default function ActionPlanReview({ projectId, project, allMembers, proje
           {manualMode
             ? "Nothing in that reply could be applied to this project. Rebuild the prompt so the reply uses current task ids, then try again."
             : "No concrete actions were proposed for that goal — try being more specific."}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Phone list row for one proposed action: what it is, what it targets, whether
+ * it is accepted, and an explicit Review control that opens the full editor.
+ * Accept/decline stays on the row so the common case needs no drill-down.
+ */
+function ActionSummaryRow({ item, index, targetLabel, onToggleAccept, onReview }) {
+  const result = item._result;
+  const summary = item.params?.title || item.params?.content || item.params?.status
+    || item.params?.priority || item.params?.dueDate || item.rationale || "";
+
+  return (
+    <div className={`cpm-actionplan-card pm-m-plan-row${item._accepted ? "" : " declined"}${result ? (result.ok ? " succeeded" : " failed") : ""}`}>
+      <div className="pm-m-plan-row-main">
+        <span className="cpm-actionplan-type-badge">{TYPE_LABELS[item.type] ?? item.type}</span>
+        {targetLabel && <span className="cpm-actionplan-target">on "{targetLabel}"</span>}
+        {summary && <span className="pm-m-plan-row-summary">{summary}</span>}
+      </div>
+      <div className="pm-m-plan-row-actions">
+        <button
+          type="button"
+          className={`pm-m-btn${item._accepted ? " pm-m-btn--primary" : ""}`}
+          onClick={onToggleAccept}
+          disabled={result?.ok}
+          aria-pressed={!!item._accepted}
+        >
+          <i className={`fas ${item._accepted ? "fa-check" : "fa-xmark"}`} aria-hidden="true" />
+          {item._accepted ? " Accepted" : " Declined"}
+        </button>
+        <button
+          type="button"
+          className="pm-m-btn"
+          data-m-opener={`plan-action-${index}`}
+          aria-haspopup="dialog"
+          onClick={onReview}
+        >
+          Review
+        </button>
+      </div>
+      {result && (
+        <div className={`cpm-actionplan-result ${result.ok ? "result-ok" : (result.error?.includes("Forbidden") ? "result-skip" : "result-fail")}`}>
+          {result.ok
+            ? <><i className="fas fa-circle-check" aria-hidden="true" /> Applied</>
+            : result.error?.includes("Forbidden")
+              ? <><i className="fas fa-ban" aria-hidden="true" /> Skipped: no permission</>
+              : <><i className="fas fa-circle-exclamation" aria-hidden="true" /> Failed: {result.error}</>}
         </div>
       )}
     </div>

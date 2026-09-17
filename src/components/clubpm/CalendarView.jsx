@@ -51,6 +51,11 @@ function dayKey(d) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 
+function dateFromKey(value) {
+  const [year, month, day] = value.split('-').map(Number);
+  return new Date(year, month - 1, day, 12, 0, 0);
+}
+
 function formatHour(h) {
   if (h === 0)  return "12:00 AM";
   if (h < 12)   return `${h}:00 AM`;
@@ -121,6 +126,7 @@ function TaskChip({ task, onClick }) {
 export default function CalendarView({
   tasks, events = [], onTaskClick, onEventClick, onEventMove,
   cursor, viewMode, onCursorChange, onViewModeChange, toolbarActions = null,
+  compact = false,
 }) {
   const [showFullDay, setShowFullDay] = useState(false);
   const [dragId, setDragId]         = useState(null);
@@ -229,8 +235,18 @@ export default function CalendarView({
           </span>
           <button className="cpm-cal-nav-btn" onClick={() => navigate(+1)}>›</button>
         </div>
+        {compact && (
+          <label className="pm-m-cal-date-picker">
+            <span>Date</span>
+            <input
+              type="date"
+              value={dayKey(cursor)}
+              onChange={event => event.target.value && onCursorChange(dateFromKey(event.target.value))}
+            />
+          </label>
+        )}
         <div className="cpm-cal-view-switcher">
-          {["day","week","month","agenda"].map(v => (
+          {(compact ? ["agenda", "month"] : ["day","week","month","agenda"]).map(v => (
             <button
               key={v}
               className={`cpm-cal-view-btn${viewMode === v ? " active" : ""}`}

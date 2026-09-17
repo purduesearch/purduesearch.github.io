@@ -1,0 +1,12 @@
+{
+  "generatedAt": "2026-09-16",
+  "method": "gzip -9 (Node zlib default) of every build/static/js/*.js and the public stylesheets; HEAD = production build of commit 4cb57ccb, cur = production build of the Phase 5 working tree",
+  "head": { "chunks": 86, "jsRawKB": 7101.1, "jsGzKB": 1986.9, "mainGzKB": 212.4, "clubpmCssGzKB": 90.6, "searchCssGzKB": 26.3, "styleMinGzBytes": 3235, "faSubsetCssGzBytes": 5369, "faSolidWoff2Bytes": 23188 },
+  "cur":  { "chunks": 87, "jsRawKB": 7091.8, "jsGzKB": 1979.0, "mainGzKB": 213.4, "clubpmCssGzKB": 101.2, "searchCssGzKB": 26.3, "styleMinGzBytes": 3235, "faSubsetCssGzBytes": 5477, "faSolidWoff2Bytes": 24104 },
+  "notes": [
+    "Total JS is 7.9 kB gzip smaller: the Outreach board no longer bundles @hello-pangea/dnd.",
+    "main.js +1.0 kB gzip (shell, layout hook, sheet primitive).",
+    "clubpm-theme.css +10.6 kB gzip; it is only fetched on /clubpm/* routes.",
+    "search-theme.css and style.min.css are byte-identical to HEAD; fa-subset.css +108 B and the solid webfont +916 B for new icon glyphs (every visitor downloads these two)."
+  ]
+}

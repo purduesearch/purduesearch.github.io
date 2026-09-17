@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import MobileSheet from "../MobileSheet";
+import { useCompactLayout } from "../../../clubpm/layout/compactLayout";
 import toast from "react-hot-toast";
 import {
   get,
@@ -23,6 +25,7 @@ import { CR_STATUS_LABEL, nextRevisionLetter, notifyCrCountChanged } from "./vau
 // author-or-admin-editable releaseNotes textarea while OPEN, reviewNote
 // display, and admin Approve/Reject + author-or-admin Cancel actions.
 export default function ChangeRequestModal({ project, member, isAdmin, crId, preset, onClose, onChanged }) {
+  const compact = useCompactLayout();
   const isCreate = !crId;
   const [cr, setCr] = useState(null);
   const [loading, setLoading] = useState(!isCreate);
@@ -237,8 +240,8 @@ export default function ChangeRequestModal({ project, member, isAdmin, crId, pre
 
   const availableVaultItems = vaultItems.filter((vi) => !pickedItems.some((p) => p.itemId === vi.id));
 
-  return createPortal(
-    <div className="cpm-modal-overlay" onClick={(e) => { if (!busy && e.target === e.currentTarget) onClose(); }}>
+  const modal = (
+    <div className={`cpm-modal-overlay${compact ? " pm-shell--compact pm-m-files-layer" : ""}`} onClick={(e) => { if (!busy && e.target === e.currentTarget) onClose(); }}>
       <div className="cpm-vault-cr-modal">
         <div className="cpm-vault-upload-header">
           <span className="cpm-vault-upload-title">
@@ -454,7 +457,21 @@ export default function ChangeRequestModal({ project, member, isAdmin, crId, pre
           )}
         </div>
       </div>
-    </div>,
-    document.body
+    </div>
   );
+
+  // Review and create both stay available on phones; only the container changes.
+  if (compact) {
+    return (
+      <MobileSheet
+        title={isCreate ? "New change request" : cr ? `CR-${cr.number}` : "Change request"}
+        onClose={() => { if (!busy) onClose(); }}
+        variant="fullscreen"
+        className="pm-m-files-layer"
+      >
+        {modal.props.children}
+      </MobileSheet>
+    );
+  }
+  return createPortal(modal, document.body);
 }

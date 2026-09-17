@@ -40,6 +40,8 @@
       "body": "This is where doubloons actually go.",
       "placement": "right",
       "advance": { "on": "click" }
+,
+      "compact": { "reveal": "more", "body": "This is where doubloons actually go. On a phone the Shop sits under your progress in More." }
     },
     {
       "id": "balance",
@@ -67,6 +69,8 @@
       "body": "Last stop.",
       "placement": "right",
       "advance": { "on": "click" }
+,
+      "compact": { "reveal": "more", "body": "Last stop — Profile is at the top of More." }
     },
     {
       "id": "rank",

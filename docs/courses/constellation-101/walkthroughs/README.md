@@ -15,6 +15,21 @@ training project.**
 | `rewards-tour` | 8 | `/clubpm/challenges` | No | 1 (optional) |
 | `comms-tour` | 10 | `/clubpm/notifications` | No | 0 |
 
+## Phone and desktop
+
+Constellation has two shells: the desktop sidebar + topbar, and a phone layout (bottom bar with
+Home / Projects / Chat / Calendar / More, a compact header with Search and the bell, and sheets for
+Projects and More). A step's optional `compact` object replaces its anchor and copy on the phone
+shell; `compact.reveal` opens the More or Projects sheet before the step looks for its target.
+`scripts/check-tour-anchors.js` refuses a step that would have nothing to point at on either shell.
+Phone copy says "tap", never "click", and never tells the learner to drag.
+
+| Tour | Phone overrides |
+|---|---|
+| `first-look` | `the-rail` → `nav.bar` (the bottom bar); `dashboard-link` says Home; `xp` and `streak` reveal More; `notifications` says tap (the phone bell opens the Notification Center page rather than a dropdown); `projects-next` points at the Projects button |
+| `comms-tour` | `open-social-group` → `nav.chat`, advancing on Next: the phone has no Social group — Chat and Calendar sit on the bar and the Chat landing screen begins with People & DMs (also in More); `to-calendar` / `back-to-dash` only re-place the card |
+| `rewards-tour` | `to-shop` and `to-profile` reveal More |
+
 ## The shape of the arc
 
 The three read-only tours (`first-look`, `board-basics`, `comms-tour`) exist to build a map. The two
@@ -34,7 +49,12 @@ Runs on the learner's **real dashboard**, not the training project, and that's t
 thing they see should be their own account, so the product feels like theirs before it feels like a
 lesson.
 
-Nothing here mutates. The one `click` step (the notification bell) is a disclosure, not a change.
+Nothing here mutates. The one `click` step (the notification bell) is a disclosure, not a change —
+on desktop it opens the dropdown; on a phone the bell is a link to the Notification Center, and the
+next step's `/clubpm` route brings the learner straight back.
+
+On a phone the XP bar and the streak live in More, so those two steps open the More sheet first
+(`compact.reveal: "more"`) and the sheet closes again when the tour moves on.
 
 `streak` is marked `optional` because a brand-new member's streak widget may not have rendered any
 history yet, and a step that spotlights an empty box teaches nothing.
@@ -45,8 +65,11 @@ Step 1 does one job and it is the most important line in the whole course: **tel
 project is disposable.** People are careful with software they think is real, and careful people
 don't click things. The tour is worth less if they're worried.
 
-Steps 3–6 walk the four columns in board order rather than in logical order. Reading left to right
-matches what their eyes will do forever after.
+Steps 3–6 walk the four statuses in board order rather than in logical order. Desktop presents them
+as columns; phones present the same statuses as counted, collapsible groups.
+
+The phone version points assignment at the labelled **Assign** control on a task row. It must never
+target the desktop-only member chip rail or teach dragging as required interaction.
 
 The `IN_PROGRESS` copy plants "a card that sits here for three weeks is usually blocked and nobody
 said so" — which is the actual failure mode this whole system is trying to catch, seeded before the
@@ -63,9 +86,9 @@ different component (`TaskModal`, reached by clicking the card), so without an e
 the next five steps hunt for a modal that was never opened and degrade one after another. Any step
 sequence that crosses from `task.create.*` to `task.modal.*` needs a spotlit click in between.
 
-The status changes are made in the modal rather than by dragging, for the same reason: dragging
-means closing the modal, and the steps after it need the modal open. The copy still says dragging is
-the same operation, because it is.
+The status changes are made in task detail rather than by dragging, because the steps after them
+need the detail open. Phone copy also names the explicit row-level Move control; desktop copy may
+still explain that dragging performs the same mutation.
 
 Three copy decisions worth preserving:
 
@@ -96,6 +119,11 @@ the same reason as `your-first-task`'s `open-it`: `resolve` needs the task modal
 before it asked the learner to close it. A step that silently assumes a modal is open is the most
 common way these files break.
 
+On phones `board.blocker.bin` resolves to the first blocked task row, because the compact list groups
+by status. Per-task attach/detach stays inside task detail; the project-wide blocker controls
+(responsible person, rename/recolour, Resolve for every attached task) are listed at the top of the
+phone Blocked group, and Move › Blocked asks what is blocking the task, as the desktop drop does.
+
 The blocker this module attaches is the seeded "Waiting on the machine shop". `ensureTrainingProject`
 re-creates it, and un-resolves it, every time the sandbox is entered — resolving a category is
 otherwise a one-way door, and a learner who took this module once could never take it again.
@@ -116,8 +144,11 @@ Ends the course by closing V01's loop: Constellation comes to you. The preferenc
 argues *against* muting rather than just describing the toggles, because the member who mutes
 everything is the member who quietly stops being asked to do things.
 
-The tour opens the Social group before pointing to Calendar because both groups in the sidebar start
-collapsed. Social keeps the club's channels, member directory, and shared calendar together.
+On desktop the tour opens the Social group before pointing to Calendar because both groups in the
+sidebar start collapsed. Social keeps the club's channels, member directory, and shared calendar
+together. The phone shell has no Social group, so `open-social-group` instead spotlights Chat on the
+bottom bar and names where the other two live (Calendar beside it, People & DMs at the top of Chat and in More); it advances
+on Next rather than a click, because tapping Chat would navigate away from the step's screen.
 
 The last step introduces AI insights with "treat them as a colleague's opinion: often useful,
 occasionally wrong, never the final word." Setting that expectation once, early, is cheaper than

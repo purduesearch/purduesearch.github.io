@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <!-- viewport-fit=cover so env(safe-area-inset-*) is non-zero on notched phones -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex">
+  <title>Constellation — phone prototype</title>
+  <!-- Full Font Awesome 6 Free from the repo's own dependency (no CDN). The
+       production app uses the generated subset, public/fa-subset.css; Phase 1
+       must confirm new icons survive `npm run check:icons`. -->
+  <link rel="stylesheet" href="../../../../../node_modules/@fortawesome/fontawesome-free/css/all.min.css">
+  <!-- Same families as public/index.html; falls back to system fonts offline. -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <!-- Non-blocking: offline or slow networks must not delay the prototype. -->
+  <link rel="stylesheet" media="print" onload="this.media='all'" href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=JetBrains+Mono:wght@400;600&family=Syne:wght@600;700;800&display=swap">
+  <link rel="stylesheet" href="proto.css">
+</head>
+<body>
+  <div class="proto-ribbon" aria-hidden="true">Prototype · fixture data · not connected</div>
+  <div id="app" class="m-app"></div>
+  <div id="route-dialog"></div>
+  <div id="overlays"></div>
+  <div id="toast" class="m-toast" role="status" aria-live="polite" hidden></div>
+  <script src="fixtures.js"></script>
+  <script src="proto.js"></script>
+</body>
+</html>

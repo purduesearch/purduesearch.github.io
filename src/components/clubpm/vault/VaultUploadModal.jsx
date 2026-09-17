@@ -1,5 +1,7 @@
 import React, { useCallback, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import MobileSheet from "../MobileSheet";
+import { useCompactLayout } from "../../../clubpm/layout/compactLayout";
 import toast from "react-hot-toast";
 import { uploadVaultFile, checkVaultDuplicates } from "../../../api/clubPmClient";
 import { formatBytes } from "./vaultUtils";
@@ -16,6 +18,7 @@ function defaultNameFromFile(fileName) {
 //  - item     → checking in a new version of that item, posted to the item's
 //    versions endpoint.
 export default function VaultUploadModal({ project, item, onClose, onDone }) {
+  const compact = useCompactLayout();
   const inputRef = useRef(null);
   const [file, setFile] = useState(null);
   const [name, setName] = useState("");
@@ -103,9 +106,9 @@ export default function VaultUploadModal({ project, item, onClose, onDone }) {
       .catch(() => toast.error("Could not copy — copy it manually"));
   }
 
-  return createPortal(
+  const modal = (
     <div
-      className="cpm-modal-overlay"
+      className={`cpm-modal-overlay${compact ? " pm-shell--compact pm-m-files-layer" : ""}`}
       onClick={(e) => { if (!uploading && e.target === e.currentTarget) onClose(); }}
     >
       <div className="cpm-vault-upload-modal">
@@ -265,7 +268,22 @@ export default function VaultUploadModal({ project, item, onClose, onDone }) {
           </button>
         </div>
       </div>
-    </div>,
-    document.body
+    </div>
   );
+
+  // Phones get the shared full-screen dialog (focus trap, Escape, inert
+  // background); the desktop modal is unchanged.
+  if (compact) {
+    return (
+      <MobileSheet
+        title={isNewVersion ? `New check-in — ${targetItem.name}` : "Check in file"}
+        onClose={() => { if (!uploading) onClose(); }}
+        variant="fullscreen"
+        className="pm-m-files-layer"
+      >
+        {modal.props.children}
+      </MobileSheet>
+    );
+  }
+  return createPortal(modal, document.body);
 }

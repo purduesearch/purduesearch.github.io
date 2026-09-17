@@ -14,6 +14,8 @@ import AssignmentBuilder from '../../components/clubpm/courses/AssignmentBuilder
 import TrainingBuilder from '../../components/clubpm/courses/TrainingBuilder';
 import CourseModuleSettings from '../../components/clubpm/courses/CourseModuleSettings';
 import OrbitLoader from '../../components/OrbitLoader';
+import MobileSheet from '../../components/clubpm/MobileSheet';
+import { useCompactLayout } from '../../clubpm/layout/compactLayout';
 import { useClubPmAuth } from '../../clubpm/ClubPmAuth';
 import {
   getCourse, updateCourse, publishCourse, unpublishCourse, archiveCourse, deleteCourse,
@@ -128,6 +130,9 @@ export default function CourseEditorPage() {
   const { id } = useParams();
   const { member } = useClubPmAuth();
   const navigate = useNavigate();
+  const compact = useCompactLayout();
+  // Phone: the structure rail opens as a full-screen picker.
+  const [railSheet, setRailSheet] = useState(false);
 
   const [course, setCourse]     = useState(null);
   const [modules, setModules] = useState([]);
@@ -566,6 +571,28 @@ export default function CourseEditorPage() {
     );
   }
 
+  // One rail definition for both layouts, so the phone picker can never drift
+  // from the desktop rail's actions.
+  const railElement = ({ closeAfterSelect }) => (
+    <CourseSectionRail
+      modules={modules}
+      selectedId={selectedKind === 'module' ? selectedModuleId : selectedSectionId}
+      selectedKind={selectedKind}
+      canEdit={canEditDoc}
+      onSelectSection={(sid) => { handleSelectSection(sid); if (closeAfterSelect) setRailSheet(false); }}
+      onSelectModule={(mid) => { handleSelectModule(mid); if (closeAfterSelect) setRailSheet(false); }}
+      onSaveStructure={handleSaveStructure}
+      onAddModule={handleAddModule}
+      onAddSection={handleAddSection}
+      // The rail toggles `isRequired` fire-and-forget, so the rejection is
+      // handled here rather than at its call site.
+      onUpdateSection={(sid, patch) => handleUpdateSection(sid, patch)
+        .catch(() => toast.error('Could not update that section'))}
+      onDeleteSection={handleDeleteSection}
+      onDeleteModule={handleDeleteModule}
+    />
+  );
+
   return (
     <div className="cpm-blog-editor-page pm-course-editor">
       <header className="cpm-blog-editor-header">
@@ -644,23 +671,40 @@ export default function CourseEditorPage() {
       </header>
 
       <div className="pm-course-editor-body">
-        <CourseSectionRail
-          modules={modules}
-          selectedId={selectedKind === 'module' ? selectedModuleId : selectedSectionId}
-          selectedKind={selectedKind}
-          canEdit={canEditDoc}
-          onSelectSection={handleSelectSection}
-          onSelectModule={handleSelectModule}
-          onSaveStructure={handleSaveStructure}
-          onAddModule={handleAddModule}
-          onAddSection={handleAddSection}
-          // The rail toggles `isRequired` fire-and-forget, so the rejection is
-          // handled here rather than at its call site.
-          onUpdateSection={(sid, patch) => handleUpdateSection(sid, patch)
-            .catch(() => toast.error('Could not update that section'))}
-          onDeleteSection={handleDeleteSection}
-          onDeleteModule={handleDeleteModule}
-        />
+        {/* The rail is the course's structure: modules, their sections, adding,
+            reordering and deleting. On a phone it cannot sit beside the editor,
+            so it becomes a picker — one labelled control naming what is open,
+            opening the same rail full screen. Choosing a target closes it. */}
+        {compact ? (
+          <>
+            <button
+              type="button"
+              className="pm-m-btn pm-m-btn--block pm-m-course-picker"
+              data-m-opener="course-sections"
+              aria-haspopup="dialog"
+              onClick={() => setRailSheet(true)}
+            >
+              <i className="fas fa-list" aria-hidden="true" />
+              <span className="pm-m-course-picker-label">Sections</span>
+              <span className="pm-m-course-picker-current">
+                {selectedKind === 'module'
+                  ? (selectedModule?.title ?? 'Module')
+                  : (selectedSection?.title ?? 'No section selected')}
+              </span>
+            </button>
+            {railSheet && (
+              <MobileSheet
+                title="Course sections"
+                onClose={() => setRailSheet(false)}
+                variant="fullscreen"
+                className="pm-m-editor-layer"
+                returnFocusSelector='[data-m-opener="course-sections"]'
+              >
+                {railElement({ closeAfterSelect: true })}
+              </MobileSheet>
+            )}
+          </>
+        ) : railElement({ closeAfterSelect: false })}
 
         <div className="cpm-blog-editor-body pm-course-editor-main">
           <input

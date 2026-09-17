@@ -32,6 +32,9 @@ import BlogSectionSettings from './BlogSectionSettings';
 import BlogThemeBar from './BlogThemeBar';
 import BlogSelectionBubble from './BlogSelectionBubble';
 import AvatarPortrait from '../avatar/AvatarPortrait';
+import MobileSheet from '../MobileSheet';
+import CompactPrimaryToolbar from './CompactPrimaryToolbar';
+import { useCompactLayout } from '../../../clubpm/layout/compactLayout';
 import { suggestionExtensions, findMarkRanges } from './suggestionMarks';
 import {
   SuggestingMode, modesFor, storedMode, rememberMode, MODE_LABELS, MODE_ICONS,
@@ -510,6 +513,7 @@ function Toolbar({ editor, onToggleFind, onToggleSnippets, onAddSection, onToggl
   );
 }
 
+
 function FindBar({ editor, onClose }) {
   const [term, setTerm] = React.useState('');
   const [replaceWith, setReplaceWith] = React.useState('');
@@ -757,6 +761,7 @@ export default function BlogEditor({
   onAskAi, onThreadsChanged, onThreadFocus, threadsRefreshKey = 0, onThreadPositions,
   focusedThreadId = null,
 }) {
+  const compact = useCompactLayout();
   const [showFind, setShowFind] = React.useState(false);
   const [showSnippets, setShowSnippets] = React.useState(false);
   const [showSecLib, setShowSecLib] = React.useState(false);
@@ -788,6 +793,8 @@ export default function BlogEditor({
   // Collapsed by default on narrow viewports so the toolbar doesn't push the
   // title/body below the fold; users can still expand it with the chevron.
   const [toolbarOpen, setToolbarOpen] = React.useState(() => (typeof window === 'undefined' || window.innerWidth > 640));
+  // Phone: the full toolbar lives in a full-screen sheet behind More formatting.
+  const [toolbarSheet, setToolbarSheet] = React.useState(false);
   const shortcutsRegistry = useShortcutsRegistry();
   // Latest values read by the fallback-seed effect without re-arming it.
   // syncedRef tracks whether the Yjs doc has actually synced from the server
@@ -1165,6 +1172,45 @@ export default function BlogEditor({
           reachable — that is how you get back out. */}
       {editable && (
         <div className={`cpm-blog-toolbar-row${mode === 'viewing' ? ' is-viewing' : ''}`}>
+          {compact ? (
+            <>
+              {/* Phone: a short primary bar of the actions used while writing,
+                  plus one labelled More formatting control that opens the whole
+                  toolbar full screen. Nothing is removed — the sheet renders the
+                  same <Toolbar />, so every band, menu and select is still there
+                  and there is only one implementation to keep correct. */}
+              <CompactPrimaryToolbar
+                editor={editor}
+                onAddSection={() => setShowSecLib(true)}
+                onOpenMore={() => setToolbarSheet(true)}
+                inert={mode === 'viewing'}
+              />
+              {toolbarSheet && (
+                <MobileSheet
+                  title="Formatting"
+                  onClose={() => setToolbarSheet(false)}
+                  variant="fullscreen"
+                  className="pm-m-editor-layer"
+                  returnFocusSelector='[data-m-opener="blog-toolbar"]'
+                >
+                  <Toolbar
+                    editor={editor}
+                    onToggleFind={() => { setToolbarSheet(false); setShowFind((s) => !s); }}
+                    onToggleSnippets={() => { setToolbarSheet(false); setShowSnippets(true); }}
+                    onAddSection={() => { setToolbarSheet(false); setShowSecLib(true); }}
+                    onToggleMarkdown={() => { setToolbarSheet(false); toggleMarkdown(); }}
+                    markdownMode={markdownMode}
+                    onShowShortcuts={() => shortcutsRegistry?.setShowHelp(true)}
+                    toolbarOpen
+                    onToggleToolbarOpen={() => setToolbarSheet(false)}
+                    theme={theme}
+                    onThemeChange={onThemeChange}
+                    inert={mode === 'viewing'}
+                  />
+                </MobileSheet>
+              )}
+            </>
+          ) : (
           <Toolbar
             editor={editor}
             onToggleFind={() => setShowFind((s) => !s)}
@@ -1179,6 +1225,7 @@ export default function BlogEditor({
             onThemeChange={onThemeChange}
             inert={mode === 'viewing'}
           />
+          )}
           {/* Mode and presence read as one right-hand cluster rather than two
               islands drifting in whatever width the formatting bar leaves. */}
           <div className="cpm-blog-toolbar-aside">

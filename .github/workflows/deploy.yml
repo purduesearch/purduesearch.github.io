@@ -40,6 +40,11 @@ jobs:
           CI: false
           # Points the ClubPM API client at the Oracle backend (set in repo Settings → Secrets)
           REACT_APP_API_URL: ${{ secrets.REACT_APP_API_URL }}
+          # Temporary rollout switch for the Constellation phone layout
+          # (src/clubpm/layout/compactLayout.js). Unset = on. Set the repo
+          # variable to "off" and re-run this workflow to ship the desktop shell
+          # at every width. Remove once the mobile redesign is stable.
+          REACT_APP_CLUBPM_COMPACT: ${{ vars.REACT_APP_CLUBPM_COMPACT }}
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3

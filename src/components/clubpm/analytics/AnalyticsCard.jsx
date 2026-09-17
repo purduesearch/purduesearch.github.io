@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useId, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import { toCsv, downloadCsv } from './analyticsTheme';
+import { useCompactLayout } from '../../../clubpm/layout/compactLayout';
 
 const CHART_TYPE_LABELS = {
   area: 'Area',
@@ -93,11 +94,18 @@ export default function AnalyticsCard({
   height = 240,
   children,
 }) {
+  const compact = useCompactLayout();
   const [menuOpen, setMenuOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  // Phones get a readable list of the same numbers the chart plots. A 320px
+  // chart cannot carry legible axis labels, and pointing at a series to read a
+  // tooltip is a hover interaction — so the data itself is the alternative,
+  // not a smaller picture of it. Desktop never shows this control.
+  const [showData, setShowData] = useState(false);
   const rootRef = useRef(null);
   const triggerRef = useRef(null);
   const menuId = useId();
+  const dataId = useId();
 
   const types = Array.isArray(chartTypes) ? chartTypes : [];
   const showChartTypes = types.length >= 2 && typeof onChartTypeChange === 'function';
@@ -157,6 +165,12 @@ export default function AnalyticsCard({
       toast.error(err && err.message ? err.message : 'Could not export the CSV.');
     }
   };
+
+  const dataColumns = (csv && Array.isArray(csv.columns) ? csv.columns : []).map(c =>
+    typeof c === 'string' ? { key: c, label: c } : { label: c.key, ...c }
+  );
+  const dataRows = csv && Array.isArray(csv.rows) ? csv.rows : [];
+  const dataAvailable = dataColumns.length > 0 && dataRows.length > 0;
 
   return (
     <section className="pm-an-card" ref={rootRef}>
@@ -240,9 +254,59 @@ export default function AnalyticsCard({
         ) : null}
       </header>
 
-      <div className="pm-an-card-body" style={{ height }}>
-        {children}
-      </div>
+      {compact ? (
+        <div className="pm-m-an-view" role="group" aria-label={`${title || 'Chart'} presentation`}>
+          <div className="pm-m-segment">
+            <button type="button" aria-pressed={!showData} onClick={() => setShowData(false)}>
+              Chart
+            </button>
+            <button
+              type="button"
+              aria-pressed={showData}
+              aria-controls={showData ? dataId : undefined}
+              onClick={() => setShowData(true)}
+            >
+              Data
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {compact && showData ? (
+        <div className="pm-m-an-data" id={dataId}>
+          {dataAvailable ? (
+            <div className="pm-m-an-table-wrap">
+              <table className="pm-m-an-table">
+                <caption>{subtitle || title}</caption>
+                <thead>
+                  <tr>
+                    {dataColumns.map(col => <th key={col.key} scope="col">{col.label}</th>)}
+                  </tr>
+                </thead>
+                <tbody>
+                  {dataRows.map((row, i) => (
+                    <tr key={row?.id ?? row?.label ?? row?.date ?? i}>
+                      {dataColumns.map((col, ci) => {
+                        const value = row ? row[col.key] : '';
+                        const text = value === null || value === undefined ? '—' : String(value);
+                        return ci === 0
+                          ? <th key={col.key} scope="row">{text}</th>
+                          : <td key={col.key}>{text}</td>;
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="pm-m-an-data-empty">No data in this range yet.</div>
+          )}
+        </div>
+      ) : (
+        <div className="pm-an-card-body" style={{ height }}>
+          {children}
+        </div>
+      )}
     </section>
   );
 }

@@ -18,7 +18,7 @@ closer to the file you're editing — nested files add detail, they don't replac
 
 Static SPA for the Purdue SEARCH club, deployed to GitHub Pages and served at the custom domain **`purduesearch.org`** (`public/CNAME`; the old `purduesearch.github.io` URL 301-redirects to it). The backend is reached at **`api.purduesearch.org`**. The React app lives at the **repo root** (`src/`, `public/`, `package.json`). Pages are per-program (AstroUSA, SA²TP, etc.) with shared layout components and a global CSS file. A separate **ClubPM** subsystem (protected routes under `/clubpm`) provides project-management dashboards backed by a `backend/` Node.js/Express/Prisma/Slack service. A standalone Vite+TypeScript admin app lives in `frontend/` (separate build, not deployed to GitHub Pages).
 
-**Stack:** React 19, React Router 7, Framer Motion (page transitions), Font Awesome (icons), mxGraph 4.2.2 (interactive diagrams), Three.js (3D model viewer), `@lottiefiles/react-lottie-player` (Lottie animations), `@dnd-kit/core` (ProjectDetail kanban + CrmTab pipeline board), `@hello-pangea/dnd` (OutreachHub BoardTab only — legacy, migrate on next touch), Fuse.js (fuzzy search), GSAP (scroll/flow animations), recharts (analytics charts), react-hot-toast (notifications), plain CSS custom properties.
+**Stack:** React 19, React Router 7, Framer Motion (page transitions), Font Awesome (icons), mxGraph 4.2.2 (interactive diagrams), Three.js (3D model viewer), `@lottiefiles/react-lottie-player` (Lottie animations), `@dnd-kit/core` + `@dnd-kit/sortable` (ProjectDetail kanban, CrmTab pipeline board, and OutreachHub BoardTab), Fuse.js (fuzzy search), GSAP (scroll/flow animations), recharts (analytics charts), react-hot-toast (notifications), plain CSS custom properties.
 
 ---
 
@@ -202,7 +202,9 @@ Use `rg` first and read only the relevant section of these large files.
 ### General
 - `public/` assets are served at `/` in dev and in the GitHub Pages build. Paths in JSX must start with `/` (e.g., `/astrousa/fig1.jpg`).
 - No `.env` is needed for frontend dev or build. `REACT_APP_API_URL` is optional locally (CRA's `proxy` field forwards to `localhost:3001`) and is supplied as a repo secret in CI.
+- **Constellation phone layout (temporary rollout switch).** The compact shell mounts when `COMPACT_QUERY` in `src/clubpm/layout/compactLayout.js` matches. `REACT_APP_CLUBPM_COMPACT=off` at build time (repo *variable* of the same name, read by `deploy.yml`) ships the desktop shell at every width; per browser, `localStorage['pm-compact'] = 'on' | 'off'` overrides it for previewing. CSS for it is only under `.pm-shell--compact` inside the identical `@media` block at the end of `clubpm-theme.css`. Remove the switch once the redesign is stable (plan Phase 5).
 - `mxgraph` is an npm dependency in `package.json`; do not remove it or switch to a CDN reference.
+- **`@hello-pangea/dnd` is still in `package.json` but nothing imports it** — OutreachHub's BoardTab was migrated to `@dnd-kit`. Drop the dependency in a change of its own (it touches the lockfile), not as a side effect of unrelated work.
 - **`Event.isPublic` defaults to `false` in the DB on purpose.** Only the ClubPM event form and the Slack `/event` modal opt in (UI default on, with a confirm step in `EventFormModal`). Any new event-creating path stays private unless it deliberately passes `isPublic`. `eventService` forces `DEADLINE` events to `false`.
 
 ---

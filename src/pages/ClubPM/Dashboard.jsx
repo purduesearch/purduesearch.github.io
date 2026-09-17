@@ -8,6 +8,10 @@ import { ProgressIndicator, PriorityBars, AvatarStack } from "../../components/c
 import ProjectCard from "../../components/clubpm/ProjectCard";
 import { revealStagger } from "../../clubpm/anim/motion";
 import DailyQuestsWidget from "../../components/clubpm/challenges/DailyQuestsWidget";
+import MobileSheet from "../../components/clubpm/MobileSheet";
+import { useCompactLayout } from "../../clubpm/layout/compactLayout";
+import { useProjectNav } from "../../clubpm/ProjectNavContext";
+import { SHELL_REVEAL_EVENT, getShellReveal } from "../../clubpm/layout/shellOverlay";
 
 const WEB_BASE = process.env.REACT_APP_WEB_URL ?? window.location.origin;
 
@@ -70,7 +74,7 @@ function GithubActivityWidget() {
 
 // ── AIInsightCards ────────────────────────────────────────────
 
-function AIInsightCards({ projects, tasks }) {
+function AIInsightCards({ projects, tasks, tourId = "dash.insights" }) {
   // 1. Most blocked project — project whose tasks have the most BLOCKED status
   const mostBlocked = useMemo(() => {
     if (!projects.length) return null;
@@ -139,7 +143,7 @@ function AIInsightCards({ projects, tasks }) {
   }, []);
 
   return (
-    <div ref={insightRowRef} className="pm-insight-row pm-project-grid-wrap" data-tour-id="dash.insights">
+    <div ref={insightRowRef} className="pm-insight-row pm-project-grid-wrap" data-tour-id={tourId}>
 
       {/* Card 1: Most Blocked */}
       <div className="pm-insight-card pm-card--liftable" style={{ borderLeftColor: mostBlocked?.count > 0 ? '#e17055' : 'var(--pm-border)' }}>
@@ -525,11 +529,13 @@ function FilterBar({ tasks, filters, setFilter, onClearAll, allTags = [] }) {
 // ── Add Task Modal ────────────────────────────────────────────
 
 function AddTaskModal({ projects, onClose, onCreated }) {
+  const compact = useCompactLayout();
   const [projectId, setProjectId] = useState(projects[0]?.id ?? "");
   const [title, setTitle] = useState("");
   const [priority, setPriority] = useState("MEDIUM");
   const [dueDate, setDueDate] = useState("");
   const [saving, setSaving] = useState(false);
+  const submittingRef = useRef(false);
   const [error, setError] = useState(null);
   const [tags, setTags]           = useState([]);
   const [projectTags, setProjectTags] = useState([]);
@@ -569,7 +575,8 @@ function AddTaskModal({ projects, onClose, onCreated }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!title.trim() || !projectId) return;
+    if (!title.trim() || !projectId || saving || submittingRef.current) return;
+    submittingRef.current = true;
     setSaving(true);
     setError(null);
     try {
@@ -584,13 +591,13 @@ function AddTaskModal({ projects, onClose, onCreated }) {
     } catch (err) {
       setError(err.message ?? "Failed to create task");
     } finally {
+      submittingRef.current = false;
       setSaving(false);
     }
   };
 
-  return createPortal(
-    <div className="cpm-modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="cpm-add-task-modal">
+  const panel = (
+      <div className="cpm-add-task-modal pm-m-task-create">
         <div className="cpm-filter-header">
           New Task
           <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--clubpm-text-muted)", fontSize: 18 }}>×</button>
@@ -664,7 +671,7 @@ function AddTaskModal({ projects, onClose, onCreated }) {
                   <div style={{ display: "flex", gap: 5 }}>
                     <input type="text" placeholder="New tag name" value={newTagName}
                       onChange={e => setNewTagName(e.target.value)}
-                      onKeyDown={e => e.key === "Enter" && createTag()}
+                      onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); createTag(); } }}
                       style={{ flex: 1, padding: "5px 8px", borderRadius: 6, fontSize: 12,
                         background: "var(--clubpm-surface-300)", border: "1px solid var(--clubpm-border)",
                         color: "var(--clubpm-text-primary)", outline: "none" }} />
@@ -696,7 +703,13 @@ function AddTaskModal({ projects, onClose, onCreated }) {
           </div>
         </form>
       </div>
-    </div>,
+  );
+
+  if (compact) {
+    return <MobileSheet title="New task" variant="fullscreen" onClose={onClose} className="pm-m-task-create-layer">{panel}</MobileSheet>;
+  }
+  return createPortal(
+    <div className="cpm-modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>{panel}</div>,
     document.body
   );
 }
@@ -872,7 +885,7 @@ function FullRecapModal({ tasks, onClose }) {
 
 // ── Work Panel ────────────────────────────────────────────────
 
-function WorkPanel({ tasks, onProgressChange, projects, onTaskCreated }) {
+function WorkPanel({ tasks, onProgressChange, projects, onTaskCreated, compact = false }) {
   const { member } = useClubPmAuth();
   const [showAddTask, setShowAddTask] = useState(false);
   const [showRecap, setShowRecap]     = useState(false);
@@ -900,7 +913,7 @@ function WorkPanel({ tasks, onProgressChange, projects, onTaskCreated }) {
         <div className="cpm-panel-header">
           <div className="cpm-panel-header-top">
             <div className="cpm-panel-header-left">
-              <h2 className="cpm-panel-title">Work</h2>
+              <h2 className="cpm-panel-title">{compact ? "My work" : "Work"}</h2>
               {member?.isAdmin && (
                 <span style={{ fontSize: 11, padding: "2px 7px", borderRadius: 10,
                   background: "rgba(249,202,36,0.15)", border: "1px solid #f9ca24",
@@ -989,7 +1002,7 @@ function WorkPanel({ tasks, onProgressChange, projects, onTaskCreated }) {
 
 // ── Agenda Panel ──────────────────────────────────────────────
 
-function AgendaPanel({ tasks, onProgressChange }) {
+function AgendaPanel({ tasks, onProgressChange, tourId = "dash.agenda" }) {
   const [viewStart, setViewStart] = useState(() => startOfDay(new Date()));
   const [filters, setFilters]     = useState(DEFAULT_FILTERS);
 
@@ -1022,7 +1035,7 @@ function AgendaPanel({ tasks, onProgressChange }) {
     : `${MONTHS_FULL[startMonth]} – ${MONTHS_FULL[endMonth]}`;
 
   return (
-    <aside className="cpm-agenda-panel" data-tour-id="dash.agenda">
+    <aside className="cpm-agenda-panel" data-tour-id={tourId}>
       <div className="cpm-panel-header">
         <div className="cpm-panel-header-top">
           <h2 className="cpm-panel-title">Agenda</h2>
@@ -1099,8 +1112,8 @@ function ProjectsSidebar({ projects, onAddProject }) {
                 </p>
               </div>
             )
-            : projects.map((p, index) => (
-              <div key={p.id} data-tour-id={index === 0 ? "dash.project.card" : undefined}>
+            : projects.map((p) => (
+              <div key={p.id}>
                 <ProjectCard project={p} />
               </div>
             ))
@@ -1111,7 +1124,7 @@ function ProjectsSidebar({ projects, onAddProject }) {
   );
 }
 
-function ProjectListItem({ project }) {
+function ProjectListItem({ project, compact = false }) {
   const [hovered, setHovered] = useState(false);
   const dotClass = { ACTIVE: "cpm-dot-active", PAUSED: "cpm-dot-paused", COMPLETED: "cpm-dot-done", ARCHIVED: "cpm-dot-muted" }[project.status] ?? "cpm-dot-muted";
   return (
@@ -1120,15 +1133,61 @@ function ProjectListItem({ project }) {
         <span className={`cpm-status-dot ${dotClass}`} />
         <span className="cpm-project-name-text">{project.name}</span>
       </Link>
-      <div className={`cpm-quick-actions${hovered ? " cpm-quick-actions--visible" : ""}`}>
-        <Link to={`/clubpm/projects/${project.id}`} className="cpm-quick-btn" title="Tasks"><i className="fas fa-list-check" /></Link>
-        <Link to={`/clubpm/projects/${project.id}?tab=calendar`} className="cpm-quick-btn" title="Calendar"><i className="fas fa-calendar-alt" /></Link>
+      <div className={`cpm-quick-actions${hovered || compact ? " cpm-quick-actions--visible" : ""}${compact ? " cpm-quick-actions--labeled" : ""}`}>
+        <Link to={`/clubpm/projects/${project.id}`} className="cpm-quick-btn" title="Tasks"><i className="fas fa-list-check" /><span>Tasks</span></Link>
+        <Link to={`/clubpm/projects/${project.id}?tab=files`} className="cpm-quick-btn" title="Files"><i className="fas fa-folder-open" /><span>Files</span></Link>
         {project.driveLink
-          ? <a href={project.driveLink} target="_blank" rel="noopener noreferrer" className="cpm-quick-btn cpm-quick-btn--drive" title="Files"><i className="fab fa-google-drive" /></a>
-          : <span className="cpm-quick-btn cpm-quick-btn--disabled" title="No Drive link"><i className="fab fa-google-drive" /></span>
+          ? <a href={project.driveLink} target="_blank" rel="noopener noreferrer" className="cpm-quick-btn cpm-quick-btn--drive" title="Open Drive"><i className="fab fa-google-drive" /><span>Drive</span></a>
+          : null
         }
       </div>
     </div>
+  );
+}
+
+function MobileProjectsPanel({ projects, member }) {
+  const visible = useMemo(() => {
+    if (member?.isAdmin) return projects;
+    const mine = projects.filter(project => (project.members ?? []).some(pm =>
+      (pm.memberId ?? pm.member?.id ?? pm.id) === member?.id
+    ));
+    // Older /api/projects payloads omit members. In that case the shell's
+    // authorized collection is still the safest useful fallback.
+    return mine.length || projects.some(p => (p.members ?? []).length) ? mine : projects;
+  }, [projects, member]);
+
+  return (
+    <section className="pm-m-home-projects" aria-labelledby="pm-m-home-projects-title">
+      <div className="pm-m-home-section-head">
+        <h2 id="pm-m-home-projects-title">My projects</h2>
+        <span>{visible.length}</span>
+      </div>
+      <div className="pm-m-home-project-list">
+        {visible.length ? visible.map((project, index) => (
+          <div key={project.id} data-tour-id={index === 0 ? "dash.project.card" : undefined}>
+            <ProjectListItem project={project} compact />
+          </div>
+        )) : <div className="pm-m-home-empty">No projects are assigned to you yet.</div>}
+      </div>
+    </section>
+  );
+}
+
+function MobileSupportingPanel({ title, icon, tourId, children }) {
+  const detailsRef = useRef(null);
+  useEffect(() => {
+    const reveal = e => {
+      if (e.detail?.target === 'expand' && detailsRef.current) detailsRef.current.open = true;
+    };
+    window.addEventListener(SHELL_REVEAL_EVENT, reveal);
+    if (getShellReveal(window.location.pathname) === 'expand' && detailsRef.current) detailsRef.current.open = true;
+    return () => window.removeEventListener(SHELL_REVEAL_EVENT, reveal);
+  }, []);
+  return (
+    <details ref={detailsRef} className="pm-m-home-support" data-tour-id={tourId}>
+      <summary><i className={`fas ${icon}`} aria-hidden="true" />{title}<i className="fas fa-chevron-down" aria-hidden="true" /></summary>
+      <div className="pm-m-home-support-body">{children}</div>
+    </details>
   );
 }
 
@@ -1394,18 +1453,16 @@ function UpcomingEventsWidget({ events, loading }) {
 
 export default function Dashboard() {
   const { member } = useClubPmAuth();
-  const [projects, setProjects] = useState([]);
+  const compact = useCompactLayout();
+  const { projects = [] } = useProjectNav() ?? {};
   const [myTasks, setMyTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [upcomingEvents, setUpcomingEvents]   = useState([]);
   const [eventsLoading, setEventsLoading]     = useState(true);
 
   const loadDashboard = useCallback(() => {
-    Promise.all([
-      get("/api/projects"),
-      member ? get("/api/members/me").then(m => m.tasks ?? []) : Promise.resolve([]),
-    ])
-      .then(([projectData, taskData]) => { setProjects(projectData); setMyTasks(taskData); })
+    (member ? get("/api/members/me").then(m => m.tasks ?? []) : Promise.resolve([]))
+      .then(setMyTasks)
       .catch(console.error)
       .finally(() => setLoading(false));
   }, [member]);
@@ -1431,6 +1488,11 @@ export default function Dashboard() {
       );
   };
 
+  const handleTaskCreated = () => {
+    loadDashboard();
+    window.dispatchEvent(new Event('pm-projects-refresh'));
+  };
+
   if (loading) {
     return (
       <div className="clubpm-app" style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "60vh" }}>
@@ -1441,23 +1503,36 @@ export default function Dashboard() {
 
   return (
     <div className="clubpm-app cpm-dashboard-root">
-      <div data-tour-id="dash.quests"><DailyQuestsWidget /></div>
-      <AIInsightCards projects={projects} tasks={myTasks} />
-      <GithubActivityWidget />
-      <div className="cpm-dashboard-layout">
-        <WorkPanel
-          tasks={myTasks}
-          onProgressChange={handleProgressChange}
-          projects={projects}
-          onTaskCreated={loadDashboard}
-        />
-        <AgendaPanel tasks={myTasks} onProgressChange={handleProgressChange} />
-      </div>
-
-      {/* Upcoming events closes the page. The leaderboard moved to the bottom
-          of /clubpm/members; pending rewards + reward config are in
-          /clubpm/admin. */}
-      <UpcomingEventsWidget events={upcomingEvents} loading={eventsLoading} />
+      {compact ? (
+        <div className="pm-m-home-flow">
+          <WorkPanel tasks={myTasks} onProgressChange={handleProgressChange} projects={projects} onTaskCreated={handleTaskCreated} compact />
+          <UpcomingEventsWidget events={upcomingEvents.slice(0, 1)} loading={eventsLoading} />
+          <MobileProjectsPanel projects={projects} member={member} />
+          <MobileSupportingPanel title="Progress & quests" icon="fa-trophy" tourId="dash.quests">
+            <DailyQuestsWidget />
+          </MobileSupportingPanel>
+          <MobileSupportingPanel title="7-day agenda" icon="fa-calendar-days" tourId="dash.agenda">
+            <AgendaPanel tasks={myTasks} onProgressChange={handleProgressChange} tourId={null} />
+          </MobileSupportingPanel>
+          <MobileSupportingPanel title="Project insights" icon="fa-chart-line" tourId="dash.insights">
+            <AIInsightCards projects={projects} tasks={myTasks} tourId={null} />
+          </MobileSupportingPanel>
+          <MobileSupportingPanel title="GitHub activity" icon="fa-code-branch">
+            <GithubActivityWidget />
+          </MobileSupportingPanel>
+        </div>
+      ) : (
+        <>
+          <div data-tour-id="dash.quests"><DailyQuestsWidget /></div>
+          <AIInsightCards projects={projects} tasks={myTasks} />
+          <GithubActivityWidget />
+          <div className="cpm-dashboard-layout">
+            <WorkPanel tasks={myTasks} onProgressChange={handleProgressChange} projects={projects} onTaskCreated={handleTaskCreated} />
+            <AgendaPanel tasks={myTasks} onProgressChange={handleProgressChange} />
+          </div>
+          <UpcomingEventsWidget events={upcomingEvents} loading={eventsLoading} />
+        </>
+      )}
     </div>
   );
 }

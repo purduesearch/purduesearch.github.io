@@ -12,6 +12,8 @@
       "body": "Everything in Constellation hangs off this rail. It never moves, and it's on every screen — so if you're ever lost, you're one click from home.",
       "placement": "right",
       "advance": { "on": "next" }
+,
+      "compact": { "anchor": "nav.bar", "body": "Everything in Constellation hangs off this bar. It's at the bottom of every screen — so if you're ever lost, you're one tap from home.", "placement": "top" }
     },
     {
       "id": "dashboard-link",
@@ -21,6 +23,8 @@
       "body": "This is your landing page — not the club's, yours. Everything on it is filtered to what you're actually involved in.",
       "placement": "right",
       "advance": { "on": "next" }
+,
+      "compact": { "title": "You're on Home", "body": "Home is your landing page — not the club's, yours. Everything on it is filtered to what you're actually involved in.", "placement": "top" }
     },
     {
       "id": "xp",
@@ -30,6 +34,8 @@
       "body": "Your rank progress and your spendable balance, always in the sidebar. We'll come back to what earns each one in module 4.",
       "placement": "right",
       "advance": { "on": "next" }
+,
+      "compact": { "reveal": "more", "body": "Your rank progress and your spendable balance. On a phone they sit at the top of More. We'll come back to what earns each one in module 4." }
     },
     {
       "id": "work-panel",
@@ -47,6 +53,7 @@
       "title": "The next seven days",
       "body": "Due dates and meetings, together. This is the panel that stops a deadline from surprising you.",
       "placement": "left",
+      "compact": { "body": "Expand the 7-day agenda when you need the week beyond the Next event card.", "placement": "top", "reveal": "expand" },
       "advance": { "on": "next" }
     },
     {
@@ -57,6 +64,8 @@
       "body": "Go ahead and click the bell. This is the complete record of everything that's wanted your attention.",
       "placement": "bottom",
       "advance": { "on": "click" }
+,
+      "compact": { "body": "Go ahead and tap the bell. It opens the complete record of everything that's wanted your attention." }
     },
     {
       "id": "streak",
@@ -67,6 +76,8 @@
       "placement": "bottom",
       "advance": { "on": "next" },
       "optional": true
+,
+      "compact": { "reveal": "more", "body": "Consecutive days you've done something real in Constellation — on a phone it's with your progress in More. It resets at 2am — and no, opening the app doesn't count." }
     },
     {
       "id": "projects-next",
@@ -76,6 +87,8 @@
       "body": "Projects are where the actual work lives, and that's where we're headed next — on a private practice project we'll set up just for you.",
       "placement": "right",
       "advance": { "on": "next" }
+,
+      "compact": { "body": "Projects are where the actual work lives — this button lists every one you can open. That's where we're headed next, on a private practice project we'll set up just for you.", "placement": "top" }
     }
   ]
 }

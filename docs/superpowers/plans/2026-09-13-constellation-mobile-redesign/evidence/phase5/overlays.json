@@ -1,0 +1,461 @@
+{
+  "generatedAt": "2026-09-17T01:30:21.621Z",
+  "note": "Chromium viewport/touch emulation against fixture data (production build unless stated). Not real iOS/Android, real-account, software-keyboard, or screen-reader evidence.",
+  "summary": {
+    "passed": 12,
+    "failed": 0,
+    "total": 12
+  },
+  "checks": [
+    {
+      "name": "create-project: opens on a 320px phone inside the screen, no control past the edge, 16px form text, touch-sized close",
+      "pass": true,
+      "detail": {
+        "found": true,
+        "rect": [
+          1,
+          190,
+          318,
+          313
+        ],
+        "horizontallyInside": true,
+        "scrollable": false,
+        "tallerThanScreen": false,
+        "beyond": [],
+        "small": [],
+        "smallFonts": 0,
+        "pageOverflow": 0
+      }
+    },
+    {
+      "name": "edit-project: opens on a 320px phone inside the screen, no control past the edge, 16px form text, touch-sized close",
+      "pass": true,
+      "detail": {
+        "found": true,
+        "rect": [
+          24,
+          24,
+          272,
+          592
+        ],
+        "horizontallyInside": true,
+        "scrollable": true,
+        "tallerThanScreen": false,
+        "beyond": [],
+        "small": [],
+        "smallFonts": 0,
+        "pageOverflow": 0
+      }
+    },
+    {
+      "name": "task overflow menu: opens on a phone and every item is inside the screen",
+      "pass": true,
+      "detail": {
+        "opened": true,
+        "menu": [
+          {
+            "t": "Duplicate",
+            "h": 44,
+            "right": 286
+          },
+          {
+            "t": "Move Task",
+            "h": 44,
+            "right": 286
+          },
+          {
+            "t": "Shift Deadlines",
+            "h": 44,
+            "right": 286
+          },
+          {
+            "t": "Change Parent Task",
+            "h": 44,
+            "right": 286
+          },
+          {
+            "t": "Archive",
+            "h": 44,
+            "right": 286
+          }
+        ]
+      }
+    },
+    {
+      "name": "task-move: opens on a 320px phone inside the screen, no control past the edge, 16px form text, touch-sized close",
+      "pass": true,
+      "detail": {
+        "found": true,
+        "rect": [
+          16,
+          154,
+          288,
+          333
+        ],
+        "horizontallyInside": true,
+        "scrollable": true,
+        "tallerThanScreen": false,
+        "beyond": [],
+        "small": [
+          ""
+        ],
+        "smallFonts": 0,
+        "pageOverflow": 0
+      }
+    },
+    {
+      "name": "task-shift: opens on a 320px phone inside the screen, no control past the edge, 16px form text, touch-sized close",
+      "pass": true,
+      "detail": {
+        "found": true,
+        "rect": [
+          16,
+          77,
+          288,
+          487
+        ],
+        "horizontallyInside": true,
+        "scrollable": true,
+        "tallerThanScreen": false,
+        "beyond": [],
+        "small": [
+          "",
+          "1d",
+          "2d",
+          "3d",
+          "5d",
+          "7d"
+        ],
+        "smallFonts": 0,
+        "pageOverflow": 0
+      }
+    },
+    {
+      "name": "task-parent: opens on a 320px phone inside the screen, no control past the edge, 16px form text, touch-sized close",
+      "pass": true,
+      "detail": {
+        "found": true,
+        "rect": [
+          16,
+          129,
+          288,
+          383
+        ],
+        "horizontallyInside": true,
+        "scrollable": true,
+        "tallerThanScreen": false,
+        "beyond": [],
+        "small": [
+          ""
+        ],
+        "smallFonts": 0,
+        "pageOverflow": 0
+      }
+    },
+    {
+      "name": "outreach: the New submission button sits above the bottom bar and is hit-testable",
+      "pass": true,
+      "detail": {
+        "fab": [
+          508,
+          564,
+          56
+        ],
+        "navTop": 579,
+        "hit": true
+      }
+    },
+    {
+      "name": "outreach-new-submission: opens on a 320px phone inside the screen, no control past the edge, 16px form text, touch-sized close",
+      "pass": true,
+      "detail": {
+        "found": true,
+        "rect": [
+          16,
+          26,
+          288,
+          589
+        ],
+        "horizontallyInside": true,
+        "scrollable": true,
+        "tallerThanScreen": false,
+        "beyond": [],
+        "small": [
+          "Add URL"
+        ],
+        "smallFonts": 0,
+        "pageOverflow": 0
+      }
+    },
+    {
+      "name": "blog-generate: opens on a 320px phone inside the screen, no control past the edge, 16px form text, touch-sized close",
+      "pass": true,
+      "detail": {
+        "found": true,
+        "rect": [
+          16,
+          32,
+          288,
+          576
+        ],
+        "horizontallyInside": true,
+        "scrollable": true,
+        "tallerThanScreen": false,
+        "beyond": [],
+        "small": [],
+        "smallFonts": 0,
+        "pageOverflow": 0
+      }
+    },
+    {
+      "name": "courses: admin Progress dashboard opens without page overflow",
+      "pass": true,
+      "detail": true
+    },
+    {
+      "name": "course-assign: opens on a 320px phone inside the screen, no control past the edge, 16px form text, touch-sized close",
+      "pass": true,
+      "detail": {
+        "found": true,
+        "rect": [
+          16,
+          64,
+          288,
+          512
+        ],
+        "horizontallyInside": true,
+        "scrollable": false,
+        "tallerThanScreen": false,
+        "beyond": [],
+        "small": [],
+        "smallFonts": 0,
+        "pageOverflow": 0
+      }
+    },
+    {
+      "name": "shortcuts: opens on a 320px phone inside the screen, no control past the edge, 16px form text, touch-sized close",
+      "pass": true,
+      "detail": {
+        "found": true,
+        "rect": [
+          20,
+          129,
+          280,
+          382
+        ],
+        "horizontallyInside": true,
+        "scrollable": false,
+        "tallerThanScreen": false,
+        "beyond": [],
+        "small": [],
+        "smallFonts": 0,
+        "pageOverflow": 0
+      }
+    }
+  ],
+  "screenshots": [
+    "evidence/phase5/p320-overlay-create-project.png",
+    "evidence/phase5/p320-overlay-edit-project.png",
+    "evidence/phase5/p320-overlay-task-move.png",
+    "evidence/phase5/p320-overlay-task-shift.png",
+    "evidence/phase5/p320-overlay-task-parent.png",
+    "evidence/phase5/p320-overlay-outreach-new-submission.png",
+    "evidence/phase5/p320-overlay-blog-generate.png",
+    "evidence/phase5/p320-overlay-course-assign.png",
+    "evidence/phase5/p320-overlay-shortcuts.png"
+  ],
+  "notes": [
+    {
+      "taskMenuItemHeights": [
+        {
+          "t": "Duplicate",
+          "h": 44,
+          "right": 286
+        },
+        {
+          "t": "Move Task",
+          "h": 44,
+          "right": 286
+        },
+        {
+          "t": "Shift Deadlines",
+          "h": 44,
+          "right": 286
+        },
+        {
+          "t": "Change Parent Task",
+          "h": 44,
+          "right": 286
+        },
+        {
+          "t": "Archive",
+          "h": 44,
+          "right": 286
+        }
+      ]
+    },
+    {
+      "contributorImport": "trigger not rendered for fixture project (needs a linked repo)"
+    }
+  ],
+  "consoleErrors": [],
+  "results": {
+    "create-project": {
+      "found": true,
+      "rect": [
+        1,
+        190,
+        318,
+        313
+      ],
+      "horizontallyInside": true,
+      "scrollable": false,
+      "tallerThanScreen": false,
+      "beyond": [],
+      "small": [],
+      "smallFonts": 0,
+      "pageOverflow": 0
+    },
+    "edit-project": {
+      "found": true,
+      "rect": [
+        24,
+        24,
+        272,
+        592
+      ],
+      "horizontallyInside": true,
+      "scrollable": true,
+      "tallerThanScreen": false,
+      "beyond": [],
+      "small": [],
+      "smallFonts": 0,
+      "pageOverflow": 0
+    },
+    "task-move": {
+      "found": true,
+      "rect": [
+        16,
+        154,
+        288,
+        333
+      ],
+      "horizontallyInside": true,
+      "scrollable": true,
+      "tallerThanScreen": false,
+      "beyond": [],
+      "small": [
+        ""
+      ],
+      "smallFonts": 0,
+      "pageOverflow": 0
+    },
+    "task-shift": {
+      "found": true,
+      "rect": [
+        16,
+        77,
+        288,
+        487
+      ],
+      "horizontallyInside": true,
+      "scrollable": true,
+      "tallerThanScreen": false,
+      "beyond": [],
+      "small": [
+        "",
+        "1d",
+        "2d",
+        "3d",
+        "5d",
+        "7d"
+      ],
+      "smallFonts": 0,
+      "pageOverflow": 0
+    },
+    "task-parent": {
+      "found": true,
+      "rect": [
+        16,
+        129,
+        288,
+        383
+      ],
+      "horizontallyInside": true,
+      "scrollable": true,
+      "tallerThanScreen": false,
+      "beyond": [],
+      "small": [
+        ""
+      ],
+      "smallFonts": 0,
+      "pageOverflow": 0
+    },
+    "outreach-new-submission": {
+      "found": true,
+      "rect": [
+        16,
+        26,
+        288,
+        589
+      ],
+      "horizontallyInside": true,
+      "scrollable": true,
+      "tallerThanScreen": false,
+      "beyond": [],
+      "small": [
+        "Add URL"
+      ],
+      "smallFonts": 0,
+      "pageOverflow": 0
+    },
+    "blog-generate": {
+      "found": true,
+      "rect": [
+        16,
+        32,
+        288,
+        576
+      ],
+      "horizontallyInside": true,
+      "scrollable": true,
+      "tallerThanScreen": false,
+      "beyond": [],
+      "small": [],
+      "smallFonts": 0,
+      "pageOverflow": 0
+    },
+    "course-assign": {
+      "found": true,
+      "rect": [
+        16,
+        64,
+        288,
+        512
+      ],
+      "horizontallyInside": true,
+      "scrollable": false,
+      "tallerThanScreen": false,
+      "beyond": [],
+      "small": [],
+      "smallFonts": 0,
+      "pageOverflow": 0
+    },
+    "shortcuts": {
+      "found": true,
+      "rect": [
+        20,
+        129,
+        280,
+        382
+      ],
+      "horizontallyInside": true,
+      "scrollable": false,
+      "tallerThanScreen": false,
+      "beyond": [],
+      "small": [],
+      "smallFonts": 0,
+      "pageOverflow": 0
+    }
+  }
+}

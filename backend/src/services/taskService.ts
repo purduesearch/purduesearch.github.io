@@ -1,5 +1,5 @@
-import { prisma } from "../db/prisma.js";
-import type { Task, TaskStatus, TaskProgress, Priority, Prisma, Member, Project, RecurringInterval, Tag } from "@prisma/client";
+import { prisma, type AppMember as Member } from "../db/prisma.js";
+import type { Task, TaskStatus, TaskProgress, Priority, Prisma, Project, RecurringInterval, Tag } from "@prisma/client";
 import { logActivity } from "./activityService.js";
 import { EXCLUDE_TRAINING } from "./trainingSandboxService.js";
 

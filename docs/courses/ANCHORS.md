@@ -16,34 +16,50 @@ step files.
    one, removing a dead anchor becomes a visual risk instead of a cleanup.
 5. `route` records where the anchor is reachable. The tour runtime navigates there before hunting for
    the element, so a wrong `route` means a step that degrades for no reason.
+6. **Phone steps.** A step can carry a `compact` object whose fields replace the desktop ones when
+   the phone shell is mounted (`anchor`, `title`, `body`, `placement`, `advance`, `dim`). An anchor
+   inside a phone sheet needs `compact.reveal` (`"more"` or `"projects"`): the runtime opens that sheet
+   before it looks for the element. The check fails a step whose anchor is desktop-only without a
+   `compact.anchor`, and a phone anchor whose sheet the step does not reveal. Never make a phone
+   step "work" by skipping it.
 
-## Shell and navigation — `src/components/clubpm/AppShell.jsx`
+## Shell and navigation
 
-| Anchor | Element | Route |
-|---|---|---|
-| `nav.sidebar` | The whole sidebar, for coarse dimming | `*` |
-| `nav.dashboard` | Dashboard link | `*` |
-| `nav.social` | Social group header (collapsible, not a link) | `*` |
-| `nav.chat` | Chat link — a child of the Social group† | `*` |
-| `nav.projects` | Projects link | `*` |
-| `nav.members` | Members link — a child of the Social group† | `*` |
-| `nav.calendar` | Calendar link — a child of the Social group† | `*` |
-| `nav.courses` | Courses link — a child of the Other group† | `*` |
-| `nav.shop` | Shop link | `*` |
-| `nav.other` | Other group header (collapsed by default, not a link) | `*` |
-| `nav.admin` | Admin link — an admins-only child of the Other group† | `*` |
-| `nav.profile` | Sidebar user / profile link | `*` |
-| `nav.xp` | Sidebar XP progress bar | `*` |
-| `nav.rank` | Sidebar rank badge | `*` |
-| `topbar.notifications` | Notification bell | `*` |
-| `topbar.search` | AI command palette trigger | `*` |
-| `topbar.streak` | Streak flame counter | `*` |
-| `topbar.challenges` | Quests button (trophy icon) | `*` |
+Desktop: `src/components/clubpm/AppShell.jsx` (sidebar + topbar). Phone (compact layout,
+`src/clubpm/layout/compactLayout.js`): `MobileBottomNav.jsx`, `MobileHeader.jsx`,
+`MobileMoreMenu.jsx`, `MobileProjectPicker.jsx`. **Layout**: *both* = a desktop owner and a phone
+owner, never mounted together; *desktop* / *phone* = that shell only. **Reveal**: the phone sheet a
+step must open first (`compact.reveal`).
+
+| Anchor | Desktop element | Phone element | Layout | Reveal | Route |
+|---|---|---|---|---|---|
+| `nav.sidebar` | The whole sidebar, for coarse dimming | — (use `nav.bar`) | desktop | | `*` |
+| `nav.bar` | — | Bottom navigation bar | phone | | `*` |
+| `nav.dashboard` | Dashboard link | Bottom-bar **Home** | both | | `*` |
+| `nav.social` | Social group header (collapsible, not a link) | — (Chat is on the bar; People & DMs in More) | desktop | | `*` |
+| `nav.chat` | Chat link — a child of the Social group† | Bottom-bar **Chat** | both | | `*` |
+| `nav.projects` | Sidebar project list | Bottom-bar **Projects** button (opens the sheet) | both | | `*` |
+| `projects.sheet` | — | Project list inside the Projects sheet | phone | projects | `*` |
+| `nav.members` | Members link — a child of the Social group† | More › **People & DMs** | both | more | `*` |
+| `nav.calendar` | Calendar link — a child of the Social group† | Bottom-bar **Calendar** | both | | `*` |
+| `nav.courses` | Courses link — a child of the Other group† | More › **Courses** | both | more | `*` |
+| `nav.shop` | Sidebar doubloon counter (opens the Shop) | More › **Shop** | both | more | `*` |
+| `nav.other` | Other group header (collapsed by default, not a link) | — (its links are More rows) | desktop | | `*` |
+| `nav.admin` | Admin link — an admins-only child of the Other group† | More › **Admin** (admins only) | both | more | `*` |
+| `nav.profile` | Sidebar user / profile link | More › **Profile** | both | more | `*` |
+| `nav.xp` | Sidebar XP progress bar | More › progress block | both | more | `*` |
+| `nav.rank` | Sidebar rank badge | More › account row rank badge | both | more | `*` |
+| `nav.more` | — | Bottom-bar **More** button | phone | | `*` |
+| `topbar.notifications` | Notification bell (dropdown) | Header bell — a link to `/clubpm/notifications` | both | | `*` |
+| `topbar.search` | AI command palette trigger | Header **Search** icon (full-screen search) | both | | `*` |
+| `chat.people` | — | **People & DMs** shortcut above the phone channel list | phone | | `/clubpm/chat` |
+| `topbar.streak` | Streak flame counter | More › progress block streak | both | more | `*` |
+| `topbar.challenges` | Quests button (trophy icon) | More › **Quests & achievements** | both | more | `*` |
 
 † The sidebar is an icon-only rail that expands on hover, and group children are `display: none`
 until it does. The static check still sees `nav.members` because the literal is in `NAV_ITEMS`, but a
-step that targets it will measure a zero rect and degrade. Don't target a group child until the rail
-keeps its children in layout.
+desktop step that targets it will measure a zero rect and degrade. Don't target a desktop group
+child until the rail keeps its children in layout. (On phones every one of these is a labelled row.)
 
 ## Dashboard — `src/pages/ClubPM/Dashboard.jsx`
 
@@ -54,30 +70,35 @@ keeps its children in layout.
 | `dash.agenda` | 7-day agenda panel | `/clubpm` |
 | `dash.leaderboard` | Leaderboard panel, at the bottom of the member roster | `/clubpm/members` |
 | `dash.insights` | AI insight cards | `/clubpm` |
-| `dash.project.card` | First project card in the grid | `/clubpm` |
+| `dash.project.card` | First row in the phone **My projects** panel | `/clubpm` |
 
 ## Project detail — `src/pages/ClubPM/ProjectDetail.jsx`
 
 | Anchor | Element | Route |
 |---|---|---|
-| `project.header` | Project title + status row | `/clubpm/projects/:id` |
+| `project.header` | Project title + status row; compact hero stays short | `/clubpm/projects/:id` |
+| `project.actions` | Labelled phone Project actions control | `/clubpm/projects/:id` |
+| `project.milestones` | Phone milestone summary with Timeline link | `/clubpm/projects/:id` |
 | `project.tab.tasks` | Tasks tab&Dagger; | `/clubpm/projects/:id` |
 | `project.tab.files` | Files tab&Dagger; | `/clubpm/projects/:id` |
 | `project.tab.chat` | Chat tab (Chat + Members)&Dagger; | `/clubpm/projects/:id` |
 | `project.tab.insights` | Insights tab (Charts + Activity + Press Kit + AI)&Dagger; | `/clubpm/projects/:id` |
-| `project.tab.vault` | Vault **sub**-tab, inside the Files tab | `/clubpm/projects/:id` |
+| `project.tab.vault` | Vault **sub**-tab, inside the Files tab — desktop pill row, phone labelled **Source** selector | `/clubpm/projects/:id` |
 | `board.newtask` | "New task" button | `/clubpm/projects/:id` |
-| `board.filters` | Filter / search row above the board | `/clubpm/projects/:id` |
+| `board.filters` | Desktop sort row; phone scope, search, and **Filters & sort** toolbar | `/clubpm/projects/:id` |
+| `board.scope` | Phone **My tasks / All tasks** control | `/clubpm/projects/:id` |
+| `board.search` | Phone task search | `/clubpm/projects/:id` |
 | `board.column.TODO` | To-do column | `/clubpm/projects/:id` |
 | `board.column.IN_PROGRESS` | In-progress column | `/clubpm/projects/:id` |
 | `board.column.BLOCKED` | Blocked column | `/clubpm/projects/:id` |
 | `board.column.DONE` | Done column | `/clubpm/projects/:id` |
 | `board.card.first` | First card in the to-do column | `/clubpm/projects/:id` |
-| `board.memberchips` | Draggable member chip rail | `/clubpm/projects/:id` |
-| `board.blocker.bin` | Blocker sub-bin under the Blocked column | `/clubpm/projects/:id` |
+| `board.memberchips` | Desktop-only draggable member chip rail; phone rows use labelled **Assign** | `/clubpm/projects/:id` |
+| `board.blocker.bin` | Desktop blocker sub-bin; first matching blocked row on phones | `/clubpm/projects/:id` |
 | `ai.goal` | Action-plan goal input | `/clubpm/projects/:id` |
 
-&Dagger; The project tab bar is rendered by **AppShell** from `ProjectNavContext`; `ProjectDetail` only
+&Dagger; The project tab bar — sidebar tabs on desktop, the Tasks / Files / Chat / Insights section bar
+under the header on phones — is rendered by **AppShell** from `ProjectNavContext`; `ProjectDetail` only
 supplies the list (`NAV_TABS`, each entry carrying its `tourId`). These ids must sit on AppShell's
 buttons. They previously sat on a `ProjectSidebar` component in `ProjectDetail.jsx` that nothing
 rendered — the static check passed while every step targeting them degraded.
@@ -160,20 +181,20 @@ Everything below is behind **Files &rarr; Vault**; a step must open both before 
 
 | Anchor | Element | Route |
 |---|---|---|
-| `outreach.tab.contacts` | Contacts tab | `/clubpm/outreach` |
-| `outreach.tab.campaigns` | Campaigns tab | `/clubpm/outreach` |
-| `outreach.tab.blog` | Blog tab | `/clubpm/outreach` |
+| `outreach.tab.contacts` | Contacts tab — desktop tab bar, phone **Section** chip row | `/clubpm/outreach` |
+| `outreach.tab.campaigns` | Campaigns tab — desktop tab bar, phone **Section** chip row | `/clubpm/outreach` |
+| `outreach.tab.blog` | Blog tab — desktop tab bar, phone **Section** chip row | `/clubpm/outreach` |
 | `outreach.contact.new` | Add contact | `/clubpm/outreach` |
 | `outreach.contact.form` | New/Edit contact modal panel | `/clubpm/outreach` |
 | `outreach.campaign.new` | New campaign | `/clubpm/outreach` |
 | `outreach.campaign.form` | New/Edit campaign modal panel | `/clubpm/outreach` |
-| `outreach.contact.card` | First card on the CRM board, in column order — opens the drawer | `/clubpm/outreach` |
+| `outreach.contact.card` | First card on the CRM board, in column order — opens the drawer. On phones, the first card in the selected stage list | `/clubpm/outreach` |
 | `outreach.contact.timeline` | "Timeline" tab inside the contact drawer | `/clubpm/outreach` |
 | `outreach.contact.history` | Body of the drawer's Timeline tab — select that tab first | `/clubpm/outreach` |
 | `outreach.contact.followup` | "Next follow-up" date field — **only while the contact modal is open** | `/clubpm/outreach` |
 | `blog.new` | New-post button on the Blog tab | `/clubpm/outreach` |
 | `blog.editor.body` | Editor canvas | `/clubpm/outreach/blog/:id/edit` |
-| `blog.editor.toolbar` | Formatting toolbar | `/clubpm/outreach/blog/:id/edit` |
+| `blog.editor.toolbar` | Formatting toolbar — full bar on desktop, phone primary row with the rest behind **More formatting** | `/clubpm/outreach/blog/:id/edit` |
 | `blog.editor.presence` | Collaborator presence row | `/clubpm/outreach/blog/:id/edit` |
 | `blog.editor.publish` | Publish / schedule control | `/clubpm/outreach/blog/:id/edit` |
 | `blog.editor.save` | "Save draft" button (the editor also autosaves ~1.5s after typing stops) | `/clubpm/outreach/blog/:id/edit` |

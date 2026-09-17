@@ -12,6 +12,8 @@
       "body": "Yours will be a draft and nobody else will see it. Open Courses in the sidebar.",
       "placement": "right",
       "advance": { "on": "click" }
+,
+      "compact": { "reveal": "more", "body": "Yours will be a draft and nobody else will see it. Open Courses — on a phone it's in More, under Tools." }
     },
     {
       "id": "new-course",
@@ -66,6 +68,8 @@
       "body": "It's on the catalog page, because it's about people rather than content. Head back to Courses.",
       "placement": "right",
       "advance": { "on": "click" }
+,
+      "compact": { "reveal": "more", "body": "It's on the catalog page, because it's about people rather than content. Head back to Courses in More." }
     },
     {
       "id": "progress-dashboard",

@@ -10,17 +10,20 @@ author.
 
 | # | Anchor | Advance | Copy |
 |---|---|---|---|
-| 1 | `nav.courses` | `click` | "Every course, draft and published. Yours will be a draft and nobody else will see it." |
+| 1 | `nav.courses` (phone: reveal More) | `click` | "Every course, draft and published. Yours will be a draft and nobody else will see it." |
 | 2 | `courses.new` | `api` POST `/api/outreach/courses` | "Make one. Title it anything." |
 | 3 | `course.editor.rail` | `next` | "Modules on the left, sections inside them. Modules gate — finish one to unlock the next." |
 | 4 | `course.editor.addsection` | `api` POST `/api/outreach/courses/:id/sections` | "Add a CONTENT section. Prose is for the 'why' — the thing someone reads once." |
 | 5 | `course.editor.addsection` | `api` POST `/api/outreach/courses/:id/sections` | "Now a QUIZ. Notice WALKTHROUGH isn't offerable here — tour steps are repo files, reviewed like code." |
 | 6 | `course.editor.preview` | `next` | "Preview opens the learner view with everything unlocked and nothing recorded. Always read your own course this way before assigning it." |
-| 7 | `nav.courses` | `click` | "Assignment isn't in the editor — it's on the catalog page, because it's about people rather than content." |
+| 7 | `nav.courses` (phone: reveal More) | `click` | "Assignment isn't in the editor — it's on the catalog page, because it's about people rather than content." |
 | 8 | `courses.progress` | `click` *(optional)* | "Open the progress dashboard: who's enrolled, who's stalled, who never started. Officers only." |
 | 9 | `courses.assign` | `next` *(optional)* | "Assign with a due date and members get notified. **Don't assign this one** — leave it in draft." |
 
 **Design notes**
+
+- **Phone shell.** Courses is a row in the More sheet, so steps 1 and 7 open More before
+  spotlighting it; the phone copy says "Open Courses in More" instead of "in the sidebar".
 
 - **Step 5 is the step that carries the course.** The author will look for a "walkthrough" option,
   not find one, and be confused — so the tour explains it at exactly the moment they'd notice.

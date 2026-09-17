@@ -2,13 +2,21 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { get } from '../../api/clubPmClient';
+import MobileSheet from './MobileSheet';
 
 const QUICK_COMMANDS = [
   { id: 'new-project', label: '/new-project', description: 'Create a new project', route: '/clubpm' },
   { id: 'my-tasks',   label: '/my-tasks',    description: 'Go to your task dashboard', route: '/clubpm' },
 ];
 
-export default function AICommandPalette({ isOpen, onClose, projects = [] }) {
+/**
+ * `compact` renders the same search, results and actions as a full-screen
+ * phone dialog inside the shell's overlay stack (focus trap, inert background,
+ * Escape and Back handled by MobileSheet + useShellOverlay). `onNavigate`, when
+ * given, replaces "close then navigate" so choosing a result replaces the
+ * dialog's history entry instead of racing a Back against a push.
+ */
+export default function AICommandPalette({ isOpen, onClose, projects = [], compact = false, onNavigate }) {
   const navigate  = useNavigate();
   const inputRef  = useRef(null);
   const listRef   = useRef(null);
@@ -40,13 +48,13 @@ export default function AICommandPalette({ isOpen, onClose, projects = [] }) {
     debounceRef.current = setTimeout(() => setDQ(val), 200);
   }, []);
 
-  // Escape closes palette
+  // Escape closes palette (the compact dialog handles its own Escape)
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen || compact) return;
     const handler = (e) => { if (e.key === 'Escape') onClose(); };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, compact]);
 
   // Live task search via API
   useEffect(() => {
@@ -111,15 +119,21 @@ export default function AICommandPalette({ isOpen, onClose, projects = [] }) {
 
   const activateItem = useCallback((item) => {
     if (!item) return;
-    onClose();
+    let to = null;
     if (item.type === 'command') {
-      navigate(item.route);
+      to = item.route;
     } else if (item.type === 'project') {
-      navigate(`/clubpm/projects/${item.id}`);
+      to = `/clubpm/projects/${item.id}`;
     } else if (item.type === 'task') {
-      navigate(`/clubpm/projects/${item.projectId}`);
+      to = `/clubpm/projects/${item.projectId}`;
     }
-  }, [navigate, onClose]);
+    if (onNavigate) {
+      if (to) onNavigate(to); else onClose();
+      return;
+    }
+    onClose();
+    if (to) navigate(to);
+  }, [navigate, onClose, onNavigate]);
 
   // Scroll selected item into view
   useEffect(() => {
@@ -171,9 +185,8 @@ export default function AICommandPalette({ isOpen, onClose, projects = [] }) {
     );
   };
 
-  const content = (
-    <div className="pm-palette-backdrop" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="pm-palette-box">
+  const inner = (
+    <>
         <div className="pm-palette-input-wrap">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, color: 'var(--pm-text-muted)' }}>
             <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
@@ -188,12 +201,16 @@ export default function AICommandPalette({ isOpen, onClose, projects = [] }) {
             onKeyDown={handleKeyDown}
             autoComplete="off"
             spellCheck={false}
+            // Search is the one phone dialog that focuses its field on open:
+            // the user asked for it by pressing Search.
+            {...(compact ? { 'data-autofocus': '', 'aria-label': 'Search tasks and projects', type: 'search' } : {})}
           />
           {query && (
             <button
               style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--pm-text-muted)', padding: '0 4px', lineHeight: 1 }}
               onClick={() => { setQuery(''); setDQ(''); setTaskResults([]); inputRef.current?.focus(); }}
               tabIndex={-1}
+              {...(compact ? { 'aria-label': 'Clear search', className: 'pm-palette-clear' } : {})}
             >
               ×
             </button>
@@ -240,6 +257,27 @@ export default function AICommandPalette({ isOpen, onClose, projects = [] }) {
             </>
           )}
         </div>
+    </>
+  );
+
+  if (compact) {
+    return (
+      <MobileSheet
+        title="Search"
+        variant="fullscreen"
+        onClose={onClose}
+        returnFocusSelector='[data-m-opener="search"]'
+        className="pm-m-layer--palette"
+      >
+        {inner}
+      </MobileSheet>
+    );
+  }
+
+  const content = (
+    <div className="pm-palette-backdrop" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="pm-palette-box">
+        {inner}
       </div>
     </div>
   );

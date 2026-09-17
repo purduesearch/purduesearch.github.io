@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import MobileSheet from './MobileSheet';
 
 const EVENT_TYPE_CONFIG = {
   MEETING:  { icon: 'fas fa-users',              color: '#00cec9', label: 'Meeting'  },
@@ -52,7 +53,7 @@ const EMPTY = {
   isPublic: true,
 };
 
-export default function EventFormModal({ isOpen, onClose, onSave, editEvent, projects = [], members = [] }) {
+export default function EventFormModal({ isOpen, onClose, onSave, editEvent, projects = [], members = [], compact = false }) {
   const [form, setForm]         = useState(EMPTY);
   const [showAll, setShowAll]   = useState(false);
   const [saving, setSaving]     = useState(false);
@@ -170,7 +171,7 @@ export default function EventFormModal({ isOpen, onClose, onSave, editEvent, pro
 
   const modal = (
     <div
-      className="cpm-modal-overlay"
+      className={`cpm-modal-overlay${compact ? ' pm-shell--compact pm-m-calendar-layer' : ''}`}
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div
@@ -608,5 +609,6 @@ export default function EventFormModal({ isOpen, onClose, onSave, editEvent, pro
     </div>
   );
 
+  if (compact) return <MobileSheet title={editEvent ? 'Edit Event' : 'New Event'} onClose={onClose} variant="fullscreen" className="pm-m-calendar-layer">{modal.props.children}</MobileSheet>;
   return createPortal(modal, document.body);
 }

@@ -169,6 +169,11 @@ export default function TourOverlay() {
     ? undefined
     : { top: pos.top, left: pos.left, width: CARD_W };
 
+  // On a phone the card docks to an edge. The phone shell's bottom bar and its
+  // sheets (More, Projects) sit at the bottom of the screen, so a target in the
+  // lower half gets the card docked at the top instead of on top of it.
+  const dockTop = mobile && spotlight && spotlight.top + spotlight.height / 2 > vp.h / 2;
+
   const pct = stepCount > 1 ? (stepIndex / (stepCount - 1)) * 100 : 100;
 
   return createPortal(
@@ -219,6 +224,7 @@ export default function TourOverlay() {
           "pm-tour-card",
           degraded ? "is-degraded" : "",
           mobile ? "is-docked" : "",
+          dockTop ? "is-docked-top" : "",
         ].filter(Boolean).join(" ")}
         style={cardStyle}
         role="dialog"

@@ -11,7 +11,8 @@
       "title": "Only officers see this link",
       "body": "Everything behind it is club-wide and real — this tour won't have you change anything. Open it.",
       "placement": "right",
-      "advance": { "on": "click" }
+      "advance": { "on": "click" },
+      "compact": { "reveal": "more", "body": "Everything behind it is club-wide and real — this tour won't have you change anything. On a phone it's under More › Tools. Open it." }
     },
     {
       "id": "pending-queue",
@@ -65,7 +66,8 @@
       "title": "Officers see every project",
       "body": "Including ones they aren't a member of. Use that to unstick things, not to browse.",
       "placement": "right",
-      "advance": { "on": "next" }
+      "advance": { "on": "next" },
+      "compact": { "anchor": "projects.sheet", "reveal": "projects", "body": "Including ones they aren't a member of — the Projects button lists every one. Use that to unstick things, not to browse." }
     },
     {
       "id": "two-things",

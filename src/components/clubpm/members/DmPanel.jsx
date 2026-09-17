@@ -3,7 +3,7 @@ import { getConversation } from "../../../api/clubPmClient";
 import ChatConversation from "../chat/ChatConversation";
 
 /** One open DM or group DM, docked beside the roster. URL state is `?dm=`. */
-export default function DmPanel({ channelId, onClose }) {
+export default function DmPanel({ channelId, onClose, compact = false, initialThreadTs = null, onOpenThread, onCloseThread }) {
   const [conversation, setConversation] = useState(null);
   const [error, setError] = useState(null);
 
@@ -38,6 +38,10 @@ export default function DmPanel({ channelId, onClose }) {
           conversation={conversation}
           emptyHint="No messages yet — say hi."
           composerPlaceholder={names ? `Message ${names}` : "Message"}
+          compact={compact}
+          initialThreadTs={initialThreadTs}
+          onOpenThread={onOpenThread}
+          onCloseThread={onCloseThread}
         />
       )}
     </section>

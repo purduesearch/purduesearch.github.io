@@ -13,6 +13,7 @@ import { ProjectNavProvider } from './clubpm/ProjectNavContext';
 import { lazyWithClubPmTheme } from './clubpm/loadClubPmTheme';
 import { lazyWithTheme } from './theme/loadTheme';
 import { TourProvider } from './clubpm/tour/TourProvider';
+import { useCompactLayout } from './clubpm/layout/compactLayout';
 import ClubPmLoading from './components/clubpm/ClubPmLoading';
 import Home from './pages/Home';
 
@@ -197,28 +198,40 @@ function App() {
         <ClubPmAuthProvider>
           <TourProvider>
             <GlobalShortcutsSetup />
-          <Toaster
-            position="bottom-right"
-            toastOptions={{
-              style: {
-                background: 'var(--pm-bg-elevated)',
-                color: 'var(--pm-text-primary)',
-                border: '1px solid var(--pm-border)',
-                fontFamily: 'DM Sans, sans-serif',
-                fontSize: '14px',
-              },
-              success: { iconTheme: { primary: '#00e5c3', secondary: '#000' } },
-              error:   { iconTheme: { primary: '#ff6b6b', secondary: '#fff' } },
-              // Class hook so the `celebrate` variant (toast.success(msg, { className: 'pm-toast-celebrate' }))
-              // gets the bright-teal glow + bigger size from search-theme.css.
-              className: '',
-            }}
-          />
+            <AppToaster />
             <AnimatedRoutes />
           </TourProvider>
         </ClubPmAuthProvider>
       </ShortcutsProvider>
     </BrowserRouter>
+  );
+}
+
+// On the compact Constellation shell a bottom-right toast lands on the bottom
+// navigation bar, so there it sits bottom-centre, above the bar and the safe
+// area. Everywhere else — desktop and the public site — it is unchanged.
+function AppToaster() {
+  const { pathname } = useLocation();
+  const compact = useCompactLayout() && pathname.startsWith('/clubpm') && pathname !== '/clubpm/login';
+  return (
+    <Toaster
+      position={compact ? 'bottom-center' : 'bottom-right'}
+      containerStyle={compact ? { bottom: 'calc(76px + env(safe-area-inset-bottom, 0px))' } : undefined}
+      toastOptions={{
+        style: {
+          background: 'var(--pm-bg-elevated)',
+          color: 'var(--pm-text-primary)',
+          border: '1px solid var(--pm-border)',
+          fontFamily: 'DM Sans, sans-serif',
+          fontSize: '14px',
+        },
+        success: { iconTheme: { primary: '#00e5c3', secondary: '#000' } },
+        error:   { iconTheme: { primary: '#ff6b6b', secondary: '#fff' } },
+        // Class hook so the `celebrate` variant (toast.success(msg, { className: 'pm-toast-celebrate' }))
+        // gets the bright-teal glow + bigger size from search-theme.css.
+        className: '',
+      }}
+    />
   );
 }
 

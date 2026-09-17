@@ -1,0 +1,304 @@
+{
+  "generatedAt": "2026-09-17T01:26:39.062Z",
+  "note": "Chromium touch/viewport emulation against fixture data; not real iOS/Android, real-account, upload-picker, or screen-reader evidence.",
+  "summary": {
+    "passed": 46,
+    "failed": 0,
+    "total": 46
+  },
+  "checks": [
+    {
+      "name": "phone /chat stays on list",
+      "pass": true,
+      "detail": {
+        "url": "/clubpm/chat",
+        "list": true,
+        "people": "People & DMs",
+        "unread": 1,
+        "muted": 1,
+        "overflow": 0
+      }
+    },
+    {
+      "name": "People & DMs is a visible list entry",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "unread and mute state remain visible",
+      "pass": true,
+      "detail": {
+        "url": "/clubpm/chat",
+        "list": true,
+        "people": "People & DMs",
+        "unread": 1,
+        "muted": 1,
+        "overflow": 0
+      }
+    },
+    {
+      "name": "phone channel list has no page overflow",
+      "pass": true,
+      "detail": 0
+    },
+    {
+      "name": "list drill-down opens one conversation pane",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "browser Back returns conversation to channel list",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "browser Forward reopens conversation",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "attachment and send controls are at least 44px",
+      "pass": true,
+      "detail": {
+        "attach": [
+          44,
+          44
+        ],
+        "send": [
+          44,
+          44
+        ],
+        "reactions": 1
+      }
+    },
+    {
+      "name": "reactions remain available on touch",
+      "pass": true,
+      "detail": 1
+    },
+    {
+      "name": "mention suggestions remain available",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "focused composer with no viewport contraction keeps global navigation",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "software-keyboard viewport contraction hides nav and keeps composer visible",
+      "pass": true,
+      "detail": {
+        "open": true,
+        "nav": false,
+        "composerBottom": 556,
+        "viewport": 560
+      }
+    },
+    {
+      "name": "restoring the visual viewport restores global navigation",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "failed send retains draft and exposes Retry",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "retry clears the draft after success",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "thread drill-down is URL-backed and single-pane",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "thread messages scroll above the reachable bottom composer",
+      "pass": true,
+      "detail": {
+        "bottom": 775,
+        "navTop": 783
+      }
+    },
+    {
+      "name": "touch message actions do not squeeze message text into a side column",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "thread Back restores the conversation and its scroll",
+      "pass": true,
+      "detail": {
+        "url": "/clubpm/chat/C_FIX_GENERAL",
+        "top": 501,
+        "beforeThreadTop": 501
+      }
+    },
+    {
+      "name": "thread Forward reopens the same thread",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "public-channel preview exposes Join",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "Join uses the existing membership endpoint once",
+      "pass": true,
+      "detail": 1
+    },
+    {
+      "name": "People & DMs opens on the inbox entry",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "DM detail preserves ?dm= and replaces list with one pane",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "DM browser Back returns to the same inbox",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "direct ?dm= link opens full-screen DM detail",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "direct DM return falls back to the inbox without leaving Members",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "project Members entry retains project scope and starts on the roster",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "phone Calendar is agenda-first with date, project filter, and Month",
+      "pass": true,
+      "detail": {
+        "agenda": true,
+        "date": true,
+        "project": true,
+        "month": true,
+        "poll": true,
+        "event": false
+      }
+    },
+    {
+      "name": "member can create polls but not admin-only events",
+      "pass": true,
+      "detail": {
+        "agenda": true,
+        "date": true,
+        "project": true,
+        "month": true,
+        "poll": true,
+        "event": false
+      }
+    },
+    {
+      "name": "event detail exposes RSVP",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "RSVP action is labelled",
+      "pass": true,
+      "detail": "cpm-btn cpm-btn-primary"
+    },
+    {
+      "name": "RSVP reaches attendee endpoint and updates state",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "Calendar browser Back closes event detail and returns to agenda",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "Calendar browser Forward restores the same event detail",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "notification rows render readably on phone",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "channel/thread notification deep-link opens exact thread",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "task notification deep-link preserves task id",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "event notification deep-link opens the exact event",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "event deep-link outside the current agenda resolves authorized detail",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "authorized phone Calendar exposes event and poll creation",
+      "pass": true,
+      "detail": [
+        "New Poll",
+        "Import",
+        "New Event"
+      ]
+    },
+    {
+      "name": "phone Calendar form reuses the shared isolated full-screen dialog",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "public event creation requires explicit confirmation before submission",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "Escape closes the Calendar form and releases the shared dialog isolation",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "desktop /chat still redirects to the first channel",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "desktop messaging remains multi-pane",
+      "pass": true,
+      "detail": ""
+    }
+  ],
+  "screenshots": [
+    "evidence/phase3/chat-list-p390.png",
+    "evidence/phase3/thread-p390.png",
+    "evidence/phase3/dm-detail-p390.png",
+    "evidence/phase3/calendar-agenda-p390.png",
+    "evidence/phase3/calendar-event-p390.png",
+    "evidence/phase3/chat-desktop-d1280.png"
+  ],
+  "consoleErrors": []
+}

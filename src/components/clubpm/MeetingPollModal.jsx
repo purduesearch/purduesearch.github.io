@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import MobileSheet from './MobileSheet';
 import MiniMonthCalendar from './MiniMonthCalendar';
 import {
   buildSlotStarts, decomposeSlots, localTimeZone, SLOT_SIZES,
@@ -29,7 +30,7 @@ const EMPTY = {
   responseDeadline: '',
 };
 
-export default function MeetingPollModal({ isOpen, onClose, onSave, editPoll, projects = [], members = [] }) {
+export default function MeetingPollModal({ isOpen, onClose, onSave, editPoll, projects = [], members = [], compact = false }) {
   const [form, setForm]   = useState(EMPTY);
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
@@ -119,7 +120,7 @@ export default function MeetingPollModal({ isOpen, onClose, onSave, editPoll, pr
     : 0;
 
   const modal = (
-    <div className="cpm-modal-overlay" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+    <div className={`cpm-modal-overlay${compact ? ' pm-shell--compact pm-m-calendar-layer' : ''}`} onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="cpm-event-modal" style={{ borderTop: '3px solid var(--pm-accent-teal, #00e5cc)' }} onClick={e => e.stopPropagation()}>
         <div className="cpm-event-modal-header">
           <h2 className="cpm-event-modal-title">
@@ -302,5 +303,6 @@ export default function MeetingPollModal({ isOpen, onClose, onSave, editPoll, pr
     </div>
   );
 
+  if (compact) return <MobileSheet title={editPoll ? 'Edit Poll' : 'New Poll'} onClose={onClose} variant="fullscreen" className="pm-m-calendar-layer">{modal.props.children}</MobileSheet>;
   return createPortal(modal, document.body);
 }

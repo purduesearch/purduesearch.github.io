@@ -3,6 +3,8 @@ import {
   getChatChannels, getConversation, startChatBackfill, getChatBackfillStatus,
 } from "../../../api/clubPmClient";
 import ChatConversation from "./ChatConversation";
+import { useLocation, useNavigate } from "react-router-dom";
+import { useCompactLayout } from "../../../clubpm/layout/compactLayout";
 
 /**
  * The project Chat tab: a picker over the project's linked channels (already
@@ -11,6 +13,9 @@ import ChatConversation from "./ChatConversation";
  */
 export default function ChatTab({ project, isAdmin, initialChannelId = null, initialThreadTs = null }) {
   const projectId = project?.id;
+  const compact = useCompactLayout();
+  const location = useLocation();
+  const navigate = useNavigate();
 
   const [channels, setChannels] = useState([]);
   const [channelsLoaded, setChannelsLoaded] = useState(false);
@@ -154,6 +159,24 @@ export default function ChatTab({ project, isAdmin, initialChannelId = null, ini
           channelId={channelId}
           conversation={conversation}
           initialThreadTs={channelId === initialChannelId ? initialThreadTs : null}
+          compact={compact}
+          onOpenThread={ts => {
+            const next = new URLSearchParams(location.search);
+            next.set("tab", "chat");
+            next.set("channel", channelId);
+            next.set("thread", ts);
+            navigate(`${location.pathname}?${next}`, {
+              state: { ...(location.state ?? {}), pmChatThread: true },
+            });
+          }}
+          onCloseThread={() => {
+            if (location.state?.pmChatThread) navigate(-1);
+            else {
+              const next = new URLSearchParams(location.search);
+              next.delete("thread");
+              navigate(`${location.pathname}?${next}`, { replace: true });
+            }
+          }}
           emptyHint={isAdmin ? "Nothing archived here yet — use “Import history” to pull in what Slack still has." : "Nothing archived here yet."}
           onJoined={loadConversation}
         />

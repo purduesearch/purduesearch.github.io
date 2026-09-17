@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
+import MobileSheet from './MobileSheet';
 import { previewEventImport, importEvents } from '../../api/clubPmClient';
 
 const EVENT_TYPES = ['MEETING', 'DEADLINE', 'WORKSHOP', 'SOCIAL', 'OTHER'];
@@ -14,7 +15,7 @@ function fmt(iso) {
  * calendar. One-shot — preview, pick, import. Events already imported are
  * matched by ICS UID server-side and cannot be duplicated.
  */
-export default function CalendarImportModal({ isOpen, onClose, onImported }) {
+export default function CalendarImportModal({ isOpen, onClose, onImported, compact = false }) {
   const [url, setUrl]         = useState('');
   const [preview, setPreview] = useState(null);
   const [picked, setPicked]   = useState(new Set());
@@ -61,8 +62,8 @@ export default function CalendarImportModal({ isOpen, onClose, onImported }) {
 
   const importable = preview?.events.filter(ev => !ev.alreadyImported) ?? [];
 
-  return createPortal(
-    <div className="cpm-modal-overlay" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+  const modal = (
+    <div className={`cpm-modal-overlay${compact ? ' pm-shell--compact pm-m-calendar-layer' : ''}`} onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="pm-cal-import-modal" onClick={e => e.stopPropagation()}>
         <div className="pm-cal-import-head">
           <h2><i className="fas fa-file-import" /> Import events</h2>
@@ -155,7 +156,8 @@ export default function CalendarImportModal({ isOpen, onClose, onImported }) {
           </>
         )}
       </div>
-    </div>,
-    document.body
+    </div>
   );
+  if (compact) return <MobileSheet title="Import Calendar" onClose={onClose} variant="fullscreen" className="pm-m-calendar-layer">{modal.props.children}</MobileSheet>;
+  return createPortal(modal, document.body);
 }

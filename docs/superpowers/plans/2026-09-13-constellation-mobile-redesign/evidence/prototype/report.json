@@ -1,0 +1,1175 @@
+{
+  "generatedAt": "2026-09-14T02:02:47.036Z",
+  "base": "http://localhost:4410/docs/superpowers/plans/2026-09-13-constellation-mobile-redesign/prototype/index.html",
+  "fixtureOnly": true,
+  "passed": 205,
+  "failed": 0,
+  "results": [
+    {
+      "name": "compact condition: 767px wide, mouse",
+      "ok": true,
+      "detail": "compact=true, bottom nav rendered=true"
+    },
+    {
+      "name": "compact condition: 768px wide, mouse",
+      "ok": true,
+      "detail": "compact=false, bottom nav rendered=false"
+    },
+    {
+      "name": "compact condition: 320 portrait touch",
+      "ok": true,
+      "detail": "compact=true, bottom nav rendered=true"
+    },
+    {
+      "name": "compact condition: 844×390 landscape touch",
+      "ok": true,
+      "detail": "compact=true, bottom nav rendered=true"
+    },
+    {
+      "name": "compact condition: 1023×480 touch",
+      "ok": true,
+      "detail": "compact=true, bottom nav rendered=true"
+    },
+    {
+      "name": "compact condition: 1024×480 touch",
+      "ok": true,
+      "detail": "compact=false, bottom nav rendered=false"
+    },
+    {
+      "name": "compact condition: 900×520 touch (too tall)",
+      "ok": true,
+      "detail": "compact=false, bottom nav rendered=false"
+    },
+    {
+      "name": "compact condition: 844×390 mouse window",
+      "ok": true,
+      "detail": "compact=false, bottom nav rendered=false"
+    },
+    {
+      "name": "p320 member home: no page-wide horizontal overflow",
+      "ok": true,
+      "detail": "scrollWidth=320, innerWidth=320"
+    },
+    {
+      "name": "p320 member home: 5 labelled nav items, none truncated, ≥44px",
+      "ok": true,
+      "detail": "Home/Projects/Chat/Calendar/More"
+    },
+    {
+      "name": "p320 member home: current item = home",
+      "ok": true,
+      "detail": "current=home"
+    },
+    {
+      "name": "p320 member tasks: no page-wide horizontal overflow",
+      "ok": true,
+      "detail": "scrollWidth=320, innerWidth=320"
+    },
+    {
+      "name": "p320 member tasks: 5 labelled nav items, none truncated, ≥44px",
+      "ok": true,
+      "detail": "Home/Projects/Chat/Calendar/More"
+    },
+    {
+      "name": "p320 member tasks: current item = projects",
+      "ok": true,
+      "detail": "current=projects"
+    },
+    {
+      "name": "p320 member empty-project: no page-wide horizontal overflow",
+      "ok": true,
+      "detail": "scrollWidth=320, innerWidth=320"
+    },
+    {
+      "name": "p320 member empty-project: 5 labelled nav items, none truncated, ≥44px",
+      "ok": true,
+      "detail": "Home/Projects/Chat/Calendar/More"
+    },
+    {
+      "name": "p320 member empty-project: current item = projects",
+      "ok": true,
+      "detail": "current=projects"
+    },
+    {
+      "name": "p320 member chat-list: no page-wide horizontal overflow",
+      "ok": true,
+      "detail": "scrollWidth=320, innerWidth=320"
+    },
+    {
+      "name": "p320 member chat-list: 5 labelled nav items, none truncated, ≥44px",
+      "ok": true,
+      "detail": "Home/Projects/Chat/Calendar/More"
+    },
+    {
+      "name": "p320 member chat-list: current item = chat",
+      "ok": true,
+      "detail": "current=chat"
+    },
+    {
+      "name": "p320 member conversation: no page-wide horizontal overflow",
+      "ok": true,
+      "detail": "scrollWidth=320, innerWidth=320"
+    },
+    {
+      "name": "p320 member conversation: 5 labelled nav items, none truncated, ≥44px",
+      "ok": true,
+      "detail": "Home/Projects/Chat/Calendar/More"
+    },
+    {
+      "name": "p320 member conversation: current item = chat",
+      "ok": true,
+      "detail": "current=chat"
+    },
+    {
+      "name": "p320 member people: no page-wide horizontal overflow",
+      "ok": true,
+      "detail": "scrollWidth=320, innerWidth=320"
+    },
+    {
+      "name": "p320 member people: 5 labelled nav items, none truncated, ≥44px",
+      "ok": true,
+      "detail": "Home/Projects/Chat/Calendar/More"
+    },
+    {
+      "name": "p320 member people: current item = chat",
+      "ok": true,
+      "detail": "current=chat"
+    },
+    {
+      "name": "p320 member calendar: no page-wide horizontal overflow",
+      "ok": true,
+      "detail": "scrollWidth=320, innerWidth=320"
+    },
+    {
+      "name": "p320 member calendar: 5 labelled nav items, none truncated, ≥44px",
+      "ok": true,
+      "detail": "Home/Projects/Chat/Calendar/More"
+    },
+    {
+      "name": "p320 member calendar: current item = calendar",
+      "ok": true,
+      "detail": "current=calendar"
+    },
+    {
+      "name": "p320 member notifications: no page-wide horizontal overflow",
+      "ok": true,
+      "detail": "scrollWidth=320, innerWidth=320"
+    },
+    {
+      "name": "p320 member notifications: 5 labelled nav items, none truncated, ≥44px",
+      "ok": true,
+      "detail": "Home/Projects/Chat/Calendar/More"
+    },
+    {
+      "name": "p320 member notifications: current item = more",
+      "ok": true,
+      "detail": "current=more"
+    },
+    {
+      "name": "p320 member gantt: no page-wide horizontal overflow",
+      "ok": true,
+      "detail": "scrollWidth=320, innerWidth=320"
+    },
+    {
+      "name": "p320 member gantt: 5 labelled nav items, none truncated, ≥44px",
+      "ok": true,
+      "detail": "Home/Projects/Chat/Calendar/More"
+    },
+    {
+      "name": "p320 member gantt: current item = projects",
+      "ok": true,
+      "detail": "current=projects"
+    },
+    {
+      "name": "p320 admin home: no page-wide horizontal overflow",
+      "ok": true,
+      "detail": "scrollWidth=320, innerWidth=320"
+    },
+    {
+      "name": "p320 admin home: 5 labelled nav items, none truncated, ≥44px",
+      "ok": true,
+      "detail": "Home/Projects/Chat/Calendar/More"
+    },
+    {
+      "name": "p320 admin home: current item = home",
+      "ok": true,
+      "detail": "current=home"
+    },
+    {
+      "name": "p320 admin tasks: no page-wide horizontal overflow",
+      "ok": true,
+      "detail": "scrollWidth=320, innerWidth=320"
+    },
+    {
+      "name": "p320 admin tasks: 5 labelled nav items, none truncated, ≥44px",
+      "ok": true,
+      "detail": "Home/Projects/Chat/Calendar/More"
+    },
+    {
+      "name": "p320 admin tasks: current item = projects",
+      "ok": true,
+      "detail": "current=projects"
+    },
+    {
+      "name": "p320 admin empty-project: no page-wide horizontal overflow",
+      "ok": true,
+      "detail": "scrollWidth=320, innerWidth=320"
+    },
+    {
+      "name": "p320 admin empty-project: 5 labelled nav items, none truncated, ≥44px",
+      "ok": true,
+      "detail": "Home/Projects/Chat/Calendar/More"
+    },
+    {
+      "name": "p320 admin empty-project: current item = projects",
+      "ok": true,
+      "detail": "current=projects"
+    },
+    {
+      "name": "p320 admin chat-list: no page-wide horizontal overflow",
+      "ok": true,
+      "detail": "scrollWidth=320, innerWidth=320"
+    },
+    {
+      "name": "p320 admin chat-list: 5 labelled nav items, none truncated, ≥44px",
+      "ok": true,
+      "detail": "Home/Projects/Chat/Calendar/More"
+    },
+    {
+      "name": "p320 admin chat-list: current item = chat",
+      "ok": true,
+      "detail": "current=chat"
+    },
+    {
+      "name": "p320 admin conversation: no page-wide horizontal overflow",
+      "ok": true,
+      "detail": "scrollWidth=320, innerWidth=320"
+    },
+    {
+      "name": "p320 admin conversation: 5 labelled nav items, none truncated, ≥44px",
+      "ok": true,
+      "detail": "Home/Projects/Chat/Calendar/More"
+    },
+    {
+      "name": "p320 admin conversation: current item = chat",
+      "ok": true,
+      "detail": "current=chat"
+    },
+    {
+      "name": "p320 admin people: no page-wide horizontal overflow",
+      "ok": true,
+      "detail": "scrollWidth=320, innerWidth=320"
+    },
+    {
+      "name": "p320 admin people: 5 labelled nav items, none truncated, ≥44px",
+      "ok": true,
+      "detail": "Home/Projects/Chat/Calendar/More"
+    },
+    {
+      "name": "p320 admin people: current item = chat",
+      "ok": true,
+      "detail": "current=chat"
+    },
+    {
+      "name": "p320 admin calendar: no page-wide horizontal overflow",
+      "ok": true,
+      "detail": "scrollWidth=320, innerWidth=320"
+    },
+    {
+      "name": "p320 admin calendar: 5 labelled nav items, none truncated, ≥44px",
+      "ok": true,
+      "detail": "Home/Projects/Chat/Calendar/More"
+    },
+    {
+      "name": "p320 admin calendar: current item = calendar",
+      "ok": true,
+      "detail": "current=calendar"
+    },
+    {
+      "name": "p320 admin notifications: no page-wide horizontal overflow",
+      "ok": true,
+      "detail": "scrollWidth=320, innerWidth=320"
+    },
+    {
+      "name": "p320 admin notifications: 5 labelled nav items, none truncated, ≥44px",
+      "ok": true,
+      "detail": "Home/Projects/Chat/Calendar/More"
+    },
+    {
+      "name": "p320 admin notifications: current item = more",
+      "ok": true,
+      "detail": "current=more"
+    },
+    {
+      "name": "p320 admin gantt: no page-wide horizontal overflow",
+      "ok": true,
+      "detail": "scrollWidth=320, innerWidth=320"
+    },
+    {
+      "name": "p320 admin gantt: 5 labelled nav items, none truncated, ≥44px",
+      "ok": true,
+      "detail": "Home/Projects/Chat/Calendar/More"
+    },
+    {
+      "name": "p320 admin gantt: current item = projects",
+      "ok": true,
+      "detail": "current=projects"
+    },
+    {
+      "name": "p390 member home: no page-wide horizontal overflow",
+      "ok": true,
+      "detail": "scrollWidth=390, innerWidth=390"
+    },
+    {
+      "name": "p390 member home: 5 labelled nav items, none truncated, ≥44px",
+      "ok": true,
+      "detail": "Home/Projects/Chat/Calendar/More"
+    },
+    {
+      "name": "p390 member home: current item = home",
+      "ok": true,
+      "detail": "current=home"
+    },
+    {
+      "name": "p390 member tasks: no page-wide horizontal overflow",
+      "ok": true,
+      "detail": "scrollWidth=390, innerWidth=390"
+    },
+    {
+      "name": "p390 member tasks: 5 labelled nav items, none truncated, ≥44px",
+      "ok": true,
+      "detail": "Home/Projects/Chat/Calendar/More"
+    },
+    {
+      "name": "p390 member tasks: current item = projects",
+      "ok": true,
+      "detail": "current=projects"
+    },
+    {
+      "name": "p390 member empty-project: no page-wide horizontal overflow",
+      "ok": true,
+      "detail": "scrollWidth=390, innerWidth=390"
+    },
+    {
+      "name": "p390 member empty-project: 5 labelled nav items, none truncated, ≥44px",
+      "ok": true,
+      "detail": "Home/Projects/Chat/Calendar/More"
+    },
+    {
+      "name": "p390 member empty-project: current item = projects",
+      "ok": true,
+      "detail": "current=projects"
+    },
+    {
+      "name": "p390 member chat-list: no page-wide horizontal overflow",
+      "ok": true,
+      "detail": "scrollWidth=390, innerWidth=390"
+    },
+    {
+      "name": "p390 member chat-list: 5 labelled nav items, none truncated, ≥44px",
+      "ok": true,
+      "detail": "Home/Projects/Chat/Calendar/More"
+    },
+    {
+      "name": "p390 member chat-list: current item = chat",
+      "ok": true,
+      "detail": "current=chat"
+    },
+    {
+      "name": "p390 member conversation: no page-wide horizontal overflow",
+      "ok": true,
+      "detail": "scrollWidth=390, innerWidth=390"
+    },
+    {
+      "name": "p390 member conversation: 5 labelled nav items, none truncated, ≥44px",
+      "ok": true,
+      "detail": "Home/Projects/Chat/Calendar/More"
+    },
+    {
+      "name": "p390 member conversation: current item = chat",
+      "ok": true,
+      "detail": "current=chat"
+    },
+    {
+      "name": "p390 member people: no page-wide horizontal overflow",
+      "ok": true,
+      "detail": "scrollWidth=390, innerWidth=390"
+    },
+    {
+      "name": "p390 member people: 5 labelled nav items, none truncated, ≥44px",
+      "ok": true,
+      "detail": "Home/Projects/Chat/Calendar/More"
+    },
+    {
+      "name": "p390 member people: current item = chat",
+      "ok": true,
+      "detail": "current=chat"
+    },
+    {
+      "name": "p390 member calendar: no page-wide horizontal overflow",
+      "ok": true,
+      "detail": "scrollWidth=390, innerWidth=390"
+    },
+    {
+      "name": "p390 member calendar: 5 labelled nav items, none truncated, ≥44px",
+      "ok": true,
+      "detail": "Home/Projects/Chat/Calendar/More"
+    },
+    {
+      "name": "p390 member calendar: current item = calendar",
+      "ok": true,
+      "detail": "current=calendar"
+    },
+    {
+      "name": "p390 member notifications: no page-wide horizontal overflow",
+      "ok": true,
+      "detail": "scrollWidth=390, innerWidth=390"
+    },
+    {
+      "name": "p390 member notifications: 5 labelled nav items, none truncated, ≥44px",
+      "ok": true,
+      "detail": "Home/Projects/Chat/Calendar/More"
+    },
+    {
+      "name": "p390 member notifications: current item = more",
+      "ok": true,
+      "detail": "current=more"
+    },
+    {
+      "name": "p390 member gantt: no page-wide horizontal overflow",
+      "ok": true,
+      "detail": "scrollWidth=390, innerWidth=390"
+    },
+    {
+      "name": "p390 member gantt: 5 labelled nav items, none truncated, ≥44px",
+      "ok": true,
+      "detail": "Home/Projects/Chat/Calendar/More"
+    },
+    {
+      "name": "p390 member gantt: current item = projects",
+      "ok": true,
+      "detail": "current=projects"
+    },
+    {
+      "name": "p390 admin home: no page-wide horizontal overflow",
+      "ok": true,
+      "detail": "scrollWidth=390, innerWidth=390"
+    },
+    {
+      "name": "p390 admin home: 5 labelled nav items, none truncated, ≥44px",
+      "ok": true,
+      "detail": "Home/Projects/Chat/Calendar/More"
+    },
+    {
+      "name": "p390 admin home: current item = home",
+      "ok": true,
+      "detail": "current=home"
+    },
+    {
+      "name": "p390 admin tasks: no page-wide horizontal overflow",
+      "ok": true,
+      "detail": "scrollWidth=390, innerWidth=390"
+    },
+    {
+      "name": "p390 admin tasks: 5 labelled nav items, none truncated, ≥44px",
+      "ok": true,
+      "detail": "Home/Projects/Chat/Calendar/More"
+    },
+    {
+      "name": "p390 admin tasks: current item = projects",
+      "ok": true,
+      "detail": "current=projects"
+    },
+    {
+      "name": "p390 admin empty-project: no page-wide horizontal overflow",
+      "ok": true,
+      "detail": "scrollWidth=390, innerWidth=390"
+    },
+    {
+      "name": "p390 admin empty-project: 5 labelled nav items, none truncated, ≥44px",
+      "ok": true,
+      "detail": "Home/Projects/Chat/Calendar/More"
+    },
+    {
+      "name": "p390 admin empty-project: current item = projects",
+      "ok": true,
+      "detail": "current=projects"
+    },
+    {
+      "name": "p390 admin chat-list: no page-wide horizontal overflow",
+      "ok": true,
+      "detail": "scrollWidth=390, innerWidth=390"
+    },
+    {
+      "name": "p390 admin chat-list: 5 labelled nav items, none truncated, ≥44px",
+      "ok": true,
+      "detail": "Home/Projects/Chat/Calendar/More"
+    },
+    {
+      "name": "p390 admin chat-list: current item = chat",
+      "ok": true,
+      "detail": "current=chat"
+    },
+    {
+      "name": "p390 admin conversation: no page-wide horizontal overflow",
+      "ok": true,
+      "detail": "scrollWidth=390, innerWidth=390"
+    },
+    {
+      "name": "p390 admin conversation: 5 labelled nav items, none truncated, ≥44px",
+      "ok": true,
+      "detail": "Home/Projects/Chat/Calendar/More"
+    },
+    {
+      "name": "p390 admin conversation: current item = chat",
+      "ok": true,
+      "detail": "current=chat"
+    },
+    {
+      "name": "p390 admin people: no page-wide horizontal overflow",
+      "ok": true,
+      "detail": "scrollWidth=390, innerWidth=390"
+    },
+    {
+      "name": "p390 admin people: 5 labelled nav items, none truncated, ≥44px",
+      "ok": true,
+      "detail": "Home/Projects/Chat/Calendar/More"
+    },
+    {
+      "name": "p390 admin people: current item = chat",
+      "ok": true,
+      "detail": "current=chat"
+    },
+    {
+      "name": "p390 admin calendar: no page-wide horizontal overflow",
+      "ok": true,
+      "detail": "scrollWidth=390, innerWidth=390"
+    },
+    {
+      "name": "p390 admin calendar: 5 labelled nav items, none truncated, ≥44px",
+      "ok": true,
+      "detail": "Home/Projects/Chat/Calendar/More"
+    },
+    {
+      "name": "p390 admin calendar: current item = calendar",
+      "ok": true,
+      "detail": "current=calendar"
+    },
+    {
+      "name": "p390 admin notifications: no page-wide horizontal overflow",
+      "ok": true,
+      "detail": "scrollWidth=390, innerWidth=390"
+    },
+    {
+      "name": "p390 admin notifications: 5 labelled nav items, none truncated, ≥44px",
+      "ok": true,
+      "detail": "Home/Projects/Chat/Calendar/More"
+    },
+    {
+      "name": "p390 admin notifications: current item = more",
+      "ok": true,
+      "detail": "current=more"
+    },
+    {
+      "name": "p390 admin gantt: no page-wide horizontal overflow",
+      "ok": true,
+      "detail": "scrollWidth=390, innerWidth=390"
+    },
+    {
+      "name": "p390 admin gantt: 5 labelled nav items, none truncated, ≥44px",
+      "ok": true,
+      "detail": "Home/Projects/Chat/Calendar/More"
+    },
+    {
+      "name": "p390 admin gantt: current item = projects",
+      "ok": true,
+      "detail": "current=projects"
+    },
+    {
+      "name": "l844 member home: no page-wide horizontal overflow",
+      "ok": true,
+      "detail": "scrollWidth=844, innerWidth=844"
+    },
+    {
+      "name": "l844 member home: 5 labelled nav items, none truncated, ≥44px",
+      "ok": true,
+      "detail": "Home/Projects/Chat/Calendar/More"
+    },
+    {
+      "name": "l844 member home: current item = home",
+      "ok": true,
+      "detail": "current=home"
+    },
+    {
+      "name": "l844 member tasks: no page-wide horizontal overflow",
+      "ok": true,
+      "detail": "scrollWidth=844, innerWidth=844"
+    },
+    {
+      "name": "l844 member tasks: 5 labelled nav items, none truncated, ≥44px",
+      "ok": true,
+      "detail": "Home/Projects/Chat/Calendar/More"
+    },
+    {
+      "name": "l844 member tasks: current item = projects",
+      "ok": true,
+      "detail": "current=projects"
+    },
+    {
+      "name": "l844 member empty-project: no page-wide horizontal overflow",
+      "ok": true,
+      "detail": "scrollWidth=844, innerWidth=844"
+    },
+    {
+      "name": "l844 member empty-project: 5 labelled nav items, none truncated, ≥44px",
+      "ok": true,
+      "detail": "Home/Projects/Chat/Calendar/More"
+    },
+    {
+      "name": "l844 member empty-project: current item = projects",
+      "ok": true,
+      "detail": "current=projects"
+    },
+    {
+      "name": "l844 member chat-list: no page-wide horizontal overflow",
+      "ok": true,
+      "detail": "scrollWidth=844, innerWidth=844"
+    },
+    {
+      "name": "l844 member chat-list: 5 labelled nav items, none truncated, ≥44px",
+      "ok": true,
+      "detail": "Home/Projects/Chat/Calendar/More"
+    },
+    {
+      "name": "l844 member chat-list: current item = chat",
+      "ok": true,
+      "detail": "current=chat"
+    },
+    {
+      "name": "l844 member conversation: no page-wide horizontal overflow",
+      "ok": true,
+      "detail": "scrollWidth=844, innerWidth=844"
+    },
+    {
+      "name": "l844 member conversation: 5 labelled nav items, none truncated, ≥44px",
+      "ok": true,
+      "detail": "Home/Projects/Chat/Calendar/More"
+    },
+    {
+      "name": "l844 member conversation: current item = chat",
+      "ok": true,
+      "detail": "current=chat"
+    },
+    {
+      "name": "l844 member people: no page-wide horizontal overflow",
+      "ok": true,
+      "detail": "scrollWidth=844, innerWidth=844"
+    },
+    {
+      "name": "l844 member people: 5 labelled nav items, none truncated, ≥44px",
+      "ok": true,
+      "detail": "Home/Projects/Chat/Calendar/More"
+    },
+    {
+      "name": "l844 member people: current item = chat",
+      "ok": true,
+      "detail": "current=chat"
+    },
+    {
+      "name": "l844 member calendar: no page-wide horizontal overflow",
+      "ok": true,
+      "detail": "scrollWidth=844, innerWidth=844"
+    },
+    {
+      "name": "l844 member calendar: 5 labelled nav items, none truncated, ≥44px",
+      "ok": true,
+      "detail": "Home/Projects/Chat/Calendar/More"
+    },
+    {
+      "name": "l844 member calendar: current item = calendar",
+      "ok": true,
+      "detail": "current=calendar"
+    },
+    {
+      "name": "l844 member notifications: no page-wide horizontal overflow",
+      "ok": true,
+      "detail": "scrollWidth=844, innerWidth=844"
+    },
+    {
+      "name": "l844 member notifications: 5 labelled nav items, none truncated, ≥44px",
+      "ok": true,
+      "detail": "Home/Projects/Chat/Calendar/More"
+    },
+    {
+      "name": "l844 member notifications: current item = more",
+      "ok": true,
+      "detail": "current=more"
+    },
+    {
+      "name": "l844 member gantt: no page-wide horizontal overflow",
+      "ok": true,
+      "detail": "scrollWidth=844, innerWidth=844"
+    },
+    {
+      "name": "l844 member gantt: 5 labelled nav items, none truncated, ≥44px",
+      "ok": true,
+      "detail": "Home/Projects/Chat/Calendar/More"
+    },
+    {
+      "name": "l844 member gantt: current item = projects",
+      "ok": true,
+      "detail": "current=projects"
+    },
+    {
+      "name": "l844 admin home: no page-wide horizontal overflow",
+      "ok": true,
+      "detail": "scrollWidth=844, innerWidth=844"
+    },
+    {
+      "name": "l844 admin home: 5 labelled nav items, none truncated, ≥44px",
+      "ok": true,
+      "detail": "Home/Projects/Chat/Calendar/More"
+    },
+    {
+      "name": "l844 admin home: current item = home",
+      "ok": true,
+      "detail": "current=home"
+    },
+    {
+      "name": "l844 admin tasks: no page-wide horizontal overflow",
+      "ok": true,
+      "detail": "scrollWidth=844, innerWidth=844"
+    },
+    {
+      "name": "l844 admin tasks: 5 labelled nav items, none truncated, ≥44px",
+      "ok": true,
+      "detail": "Home/Projects/Chat/Calendar/More"
+    },
+    {
+      "name": "l844 admin tasks: current item = projects",
+      "ok": true,
+      "detail": "current=projects"
+    },
+    {
+      "name": "l844 admin empty-project: no page-wide horizontal overflow",
+      "ok": true,
+      "detail": "scrollWidth=844, innerWidth=844"
+    },
+    {
+      "name": "l844 admin empty-project: 5 labelled nav items, none truncated, ≥44px",
+      "ok": true,
+      "detail": "Home/Projects/Chat/Calendar/More"
+    },
+    {
+      "name": "l844 admin empty-project: current item = projects",
+      "ok": true,
+      "detail": "current=projects"
+    },
+    {
+      "name": "l844 admin chat-list: no page-wide horizontal overflow",
+      "ok": true,
+      "detail": "scrollWidth=844, innerWidth=844"
+    },
+    {
+      "name": "l844 admin chat-list: 5 labelled nav items, none truncated, ≥44px",
+      "ok": true,
+      "detail": "Home/Projects/Chat/Calendar/More"
+    },
+    {
+      "name": "l844 admin chat-list: current item = chat",
+      "ok": true,
+      "detail": "current=chat"
+    },
+    {
+      "name": "l844 admin conversation: no page-wide horizontal overflow",
+      "ok": true,
+      "detail": "scrollWidth=844, innerWidth=844"
+    },
+    {
+      "name": "l844 admin conversation: 5 labelled nav items, none truncated, ≥44px",
+      "ok": true,
+      "detail": "Home/Projects/Chat/Calendar/More"
+    },
+    {
+      "name": "l844 admin conversation: current item = chat",
+      "ok": true,
+      "detail": "current=chat"
+    },
+    {
+      "name": "l844 admin people: no page-wide horizontal overflow",
+      "ok": true,
+      "detail": "scrollWidth=844, innerWidth=844"
+    },
+    {
+      "name": "l844 admin people: 5 labelled nav items, none truncated, ≥44px",
+      "ok": true,
+      "detail": "Home/Projects/Chat/Calendar/More"
+    },
+    {
+      "name": "l844 admin people: current item = chat",
+      "ok": true,
+      "detail": "current=chat"
+    },
+    {
+      "name": "l844 admin calendar: no page-wide horizontal overflow",
+      "ok": true,
+      "detail": "scrollWidth=844, innerWidth=844"
+    },
+    {
+      "name": "l844 admin calendar: 5 labelled nav items, none truncated, ≥44px",
+      "ok": true,
+      "detail": "Home/Projects/Chat/Calendar/More"
+    },
+    {
+      "name": "l844 admin calendar: current item = calendar",
+      "ok": true,
+      "detail": "current=calendar"
+    },
+    {
+      "name": "l844 admin notifications: no page-wide horizontal overflow",
+      "ok": true,
+      "detail": "scrollWidth=844, innerWidth=844"
+    },
+    {
+      "name": "l844 admin notifications: 5 labelled nav items, none truncated, ≥44px",
+      "ok": true,
+      "detail": "Home/Projects/Chat/Calendar/More"
+    },
+    {
+      "name": "l844 admin notifications: current item = more",
+      "ok": true,
+      "detail": "current=more"
+    },
+    {
+      "name": "l844 admin gantt: no page-wide horizontal overflow",
+      "ok": true,
+      "detail": "scrollWidth=844, innerWidth=844"
+    },
+    {
+      "name": "l844 admin gantt: 5 labelled nav items, none truncated, ≥44px",
+      "ok": true,
+      "detail": "Home/Projects/Chat/Calendar/More"
+    },
+    {
+      "name": "l844 admin gantt: current item = projects",
+      "ok": true,
+      "detail": "current=projects"
+    },
+    {
+      "name": "task opens full-screen from Home",
+      "ok": true,
+      "detail": "#/clubpm/projects/p1?task=p1-t1"
+    },
+    {
+      "name": "status changes via explicit control",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "assign picker opens over task (stacked overlay)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Escape closes only the top overlay",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "closing task returns to the list it came from",
+      "ok": true,
+      "detail": "#/clubpm"
+    },
+    {
+      "name": "Projects sheet open + aria-expanded",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "admin sees New project in picker",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "project search filters list",
+      "ok": true,
+      "detail": "4 rows for \"cubesat\""
+    },
+    {
+      "name": "choosing a project navigates and closes sheet",
+      "ok": true,
+      "detail": "#/clubpm/projects/px3"
+    },
+    {
+      "name": "Back after picking returns to Home (sheet not reopened)",
+      "ok": true,
+      "detail": "#/clubpm"
+    },
+    {
+      "name": "Forward returns to the project",
+      "ok": true,
+      "detail": "#/clubpm/projects/px3"
+    },
+    {
+      "name": "member More has no Admin row",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "browser Back closes More sheet, stays on page",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "focus returns to More after Escape",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "admin More has Admin row with separate badges",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "/clubpm/chat stays on the channel list (no auto-open)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "conversation Back returns to channel list",
+      "ok": true,
+      "detail": "#/clubpm/chat"
+    },
+    {
+      "name": "composer draft preserved",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "composer sits above bottom nav, not under it",
+      "ok": true,
+      "detail": "{\"composerBottom\":579,\"navTop\":579}"
+    },
+    {
+      "name": "simulated software keyboard hides bottom nav",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "focus alone (no viewport shrink) keeps bottom nav",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "unjoined channel shows preview + Join, no composer",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "deep-linked task Back → project Tasks",
+      "ok": true,
+      "detail": "#/clubpm/projects/p1"
+    },
+    {
+      "name": "deep-linked conversation Back → channel list",
+      "ok": true,
+      "detail": "#/clubpm/chat"
+    },
+    {
+      "name": "legacy ?tab=reports rewritten to Insights (replace)",
+      "ok": true,
+      "detail": "#/clubpm/projects/p1?tab=insights"
+    },
+    {
+      "name": "legacy ?tab=members rewritten to Chat › Members",
+      "ok": true,
+      "detail": "#/clubpm/projects/p1?tab=chat&view=members"
+    },
+    {
+      "name": "section switches do not add history entries",
+      "ok": true,
+      "detail": "#/clubpm"
+    },
+    {
+      "name": "empty project shows create-first-task action",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "empty title blocked with message",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "new-task draft kept after closing",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "project load error shows Retry",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "bulk bar appears after selecting",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "draft survives rotation",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "crossing to desktop shows desktop presentation",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "draft survives desktop↔phone crossing",
+      "ok": true,
+      "detail": ""
+    }
+  ],
+  "controlsUnder40pxInView": {
+    "p320 member home": [
+      "Status: Not started. Change st 36x36",
+      "Status: In progress. Change st 36x36",
+      "Status: In progress. Change st 36x36",
+      "Status: Not started. Change st 36x36",
+      "Status: Not started. Change st 36x36"
+    ],
+    "p320 member tasks": [
+      "Status: Not started. Change st 36x36",
+      "Status: Not started. Change st 36x36",
+      "Status: In progress. Change st 36x36"
+    ],
+    "p320 member conversation": [
+      "3 replies 86x32",
+      "Message actions: react, reply  44x36",
+      "Message actions: react, reply  44x36",
+      "Message actions: react, reply  44x36",
+      "Message actions: react, reply  44x36"
+    ],
+    "p320 member calendar": [
+      "Respond 55x32"
+    ],
+    "p320 admin tasks": [
+      "Status: Not started. Change st 36x36",
+      "Status: Not started. Change st 36x36",
+      "Status: In progress. Change st 36x36"
+    ],
+    "p320 admin conversation": [
+      "3 replies 86x32",
+      "Message actions: react, reply  44x36",
+      "Message actions: react, reply  44x36",
+      "Message actions: react, reply  44x36",
+      "Message actions: react, reply  44x36"
+    ],
+    "p320 admin calendar": [
+      "Respond 55x32"
+    ],
+    "p390 member home": [
+      "Status: Not started. Change st 36x36",
+      "Status: In progress. Change st 36x36",
+      "Status: In progress. Change st 36x36",
+      "Status: Not started. Change st 36x36",
+      "Status: Not started. Change st 36x36"
+    ],
+    "p390 member tasks": [
+      "Status: Not started. Change st 36x36",
+      "Status: Not started. Change st 36x36",
+      "Status: In progress. Change st 36x36",
+      "Status: In progress. Change st 36x36",
+      "Status: Blocked. Change status 36x36"
+    ],
+    "p390 member conversation": [
+      "Message actions: react, reply  44x36",
+      "Message actions: react, reply  44x36",
+      "2 reactions 51x32",
+      "Message actions: react, reply  44x36",
+      "3 replies 86x32",
+      "Message actions: react, reply  44x36",
+      "Message actions: react, reply  44x36",
+      "Message actions: react, reply  44x36",
+      "Message actions: react, reply  44x36"
+    ],
+    "p390 member calendar": [
+      "Respond 55x32"
+    ],
+    "p390 admin tasks": [
+      "Status: Not started. Change st 36x36",
+      "Status: Not started. Change st 36x36",
+      "Status: In progress. Change st 36x36",
+      "Status: In progress. Change st 36x36",
+      "Status: Blocked. Change status 36x36"
+    ],
+    "p390 admin conversation": [
+      "Message actions: react, reply  44x36",
+      "Message actions: react, reply  44x36",
+      "2 reactions 51x32",
+      "Message actions: react, reply  44x36",
+      "3 replies 86x32",
+      "Message actions: react, reply  44x36",
+      "Message actions: react, reply  44x36",
+      "Message actions: react, reply  44x36",
+      "Message actions: react, reply  44x36"
+    ],
+    "p390 admin calendar": [
+      "Respond 55x32"
+    ],
+    "l844 member home": [
+      "Status: Not started. Change st 36x36",
+      "Status: In progress. Change st 36x36",
+      "Status: In progress. Change st 36x36",
+      "Status: Not started. Change st 36x36"
+    ],
+    "l844 member tasks": [
+      "Tasks 200x36",
+      "Files 200x36",
+      "Chat 200x36",
+      "Insights 200x36",
+      "Status: Not started. Change st 36x36",
+      "Status: Not started. Change st 36x36"
+    ],
+    "l844 member empty-project": [
+      "Tasks 200x36",
+      "Files 200x36",
+      "Chat 200x36",
+      "Insights 200x36"
+    ],
+    "l844 member conversation": [
+      "Message actions: react, reply  44x36",
+      "Message actions: react, reply  44x36",
+      "Message actions: react, reply  44x36",
+      "Message actions: react, reply  44x36"
+    ],
+    "l844 member calendar": [
+      "Respond 55x32"
+    ],
+    "l844 admin tasks": [
+      "Tasks 200x36",
+      "Files 200x36",
+      "Chat 200x36",
+      "Insights 200x36",
+      "Status: Not started. Change st 36x36",
+      "Status: Not started. Change st 36x36"
+    ],
+    "l844 admin empty-project": [
+      "Tasks 200x36",
+      "Files 200x36",
+      "Chat 200x36",
+      "Insights 200x36"
+    ],
+    "l844 admin conversation": [
+      "Message actions: react, reply  44x36",
+      "Message actions: react, reply  44x36",
+      "Message actions: react, reply  44x36",
+      "Message actions: react, reply  44x36"
+    ],
+    "l844 admin calendar": [
+      "Respond 55x32"
+    ]
+  },
+  "pageErrors": []
+}

@@ -24,9 +24,9 @@
       "kind": "SINGLE",
       "points": 1,
       "prompt": "You want to know whether the hydroponics wiring is finished. Where is the authoritative answer?",
-      "explanation": "The column a task sits in is the truth about its state — not what someone said in chat and not what anyone remembers agreeing to. That is the entire premise of the board.",
+      "explanation": "The task's status group (a column on desktop) is the truth about its state — not what someone said in chat or remembered agreeing to.",
       "answers": [
-        { "order": 0, "text": "The column its task sits in on the project board", "isCorrect": true },
+        { "order": 0, "text": "The task's status group on the project task list", "isCorrect": true },
         { "order": 1, "text": "The most recent message in the project's Slack channel", "isCorrect": false },
         { "order": 2, "text": "Whoever you last spoke to about it", "isCorrect": false },
         { "order": 3, "text": "The project's Drive folder", "isCorrect": false }

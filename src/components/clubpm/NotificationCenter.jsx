@@ -168,18 +168,20 @@ export default function NotificationCenter() {
   const [loadingMore,  setLoadingMore]   = useState(false);
   const [loading,       setLoading]       = useState(true);
   const [activeTab,     setActiveTab]     = useState("All");
+  const [error,         setError]         = useState(null);
   const sentinelRef = useRef(null);
   const navigate    = useNavigate();
 
   // ── Initial fetch ─────────────────────────────────────────
   const fetchNotifs = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const data = await get("/api/notifications?limit=20");
       setNotifications(data.notifications ?? data ?? []);
       setNextCursor(data.nextCursor ?? null);
     } catch {
-      // silently ignore
+      setError("Could not load notifications.");
     } finally {
       setLoading(false);
     }
@@ -228,7 +230,11 @@ export default function NotificationCenter() {
       navigate(notif.metadata.link);
       return;
     }
-    if (notif.projectId || notif.taskId) {
+    if (notif.taskId && notif.projectId) {
+      navigate(`/clubpm/projects/${notif.projectId}?task=${encodeURIComponent(notif.taskId)}`);
+    } else if (notif.metadata?.eventId) {
+      navigate(`/clubpm/calendar?event=${encodeURIComponent(notif.metadata.eventId)}`);
+    } else if (notif.projectId) {
       navigate(`/clubpm/projects/${notif.projectId}`);
     }
   }, [navigate]);
@@ -345,7 +351,12 @@ export default function NotificationCenter() {
       </div>
 
       {/* Content */}
-      {loading ? (
+      {error ? (
+        <div className="pm-notif-empty pm-notif-error" role="alert">
+          <div>{error}</div>
+          <button type="button" className="clubpm-btn-secondary" onClick={fetchNotifs}>Retry</button>
+        </div>
+      ) : loading ? (
         <div style={{ display: "flex", justifyContent: "center", padding: "48px 0" }}>
           <OrbitLoader size={72} />
         </div>

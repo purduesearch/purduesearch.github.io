@@ -1,7 +1,27 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { revealStagger } from '../../clubpm/anim/motion';
 import OrbitLoader from '../../components/OrbitLoader';
-import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
+// Repository rule: the board's drag-and-drop is @dnd-kit, like every other
+// ClubPM board. The legacy @hello-pangea/dnd usage was migrated here.
+import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  pointerWithin,
+  useSensor,
+  useSensors,
+  useDroppable,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  useSortable,
+  arrayMove,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import MobileSheet from '../../components/clubpm/MobileSheet';
+import { useCompactLayout } from '../../clubpm/layout/compactLayout';
 import { get, post, patch, del } from '../../api/clubPmClient';
 import { useClubPmAuth } from '../../clubpm/ClubPmAuth';
 import SubmissionFormModal from '../../components/clubpm/SubmissionFormModal';
@@ -382,16 +402,73 @@ function BulkToolbar({ selectedIds, onClearSelection, onBulkStatus, onBulkDelete
   );
 }
 
+/** One draggable submission card on the desktop board. */
+function SortableSubmission({ submission, columnId, canDrag, children }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: submission.id,
+    disabled: !canDrag,
+    data: { columnId },
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={{
+        transform: CSS.Translate.toString(transform),
+        transition,
+        opacity: isDragging ? 0.4 : 1,
+      }}
+      {...listeners}
+      {...attributes}
+    >
+      {children}
+    </div>
+  );
+}
+
+/** The column body is its own droppable so an empty column can accept a card. */
+function BoardColumnBody({ columnId, isEmpty, children }) {
+  const { setNodeRef, isOver } = useDroppable({ id: `col:${columnId}`, data: { columnId } });
+  return (
+    <div
+      ref={setNodeRef}
+      className={`pm-outreach-col-body${isOver ? ' drag-over' : ''}`}
+    >
+      {isEmpty && !isOver && (
+        <div className="pm-outreach-col-empty">
+          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M22 12h-6l-2 3H10l-2-3H2"/><path d="M5.45 5.11L2 12v6a2 2 0 002 2h16a2 2 0 002-2v-6l-3.45-6.89A2 2 0 0016.76 4H7.24a2 2 0 00-1.79 1.11z"/>
+          </svg>
+          <span>No submissions</span>
+        </div>
+      )}
+      {children}
+    </div>
+  );
+}
+
 function BoardTab({ submissions, member, onEdit, onReview, onDelete, onStatusChange, onBulkReload, campaigns, onSafetyUpdate, onExpandBlog }) {
+  const compact = useCompactLayout();
   const [columns,        setColumns]        = useState({});
   const [selectedIds,    setSelectedIds]    = useState(new Set());
   const [bulkLoading,    setBulkLoading]    = useState(false);
   const [copyTarget,     setCopyTarget]     = useState(null);
   const [campaignFilter, setCampaignFilter] = useState(null); // null = "All"
+  const [draggingId,     setDraggingId]     = useState(null);
+  // Phone: one stage at a time, plus an explicit Move control per card.
+  const [stageFilter,    setStageFilter]    = useState(BOARD_COLUMNS[0].id);
+  const [moveTarget,     setMoveTarget]     = useState(null);
 
-  const filtered = campaignFilter
-    ? submissions.filter(s => s.campaignId === campaignFilter)
-    : submissions;
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
+  );
+
+  // Memoised: the column rebuild below depends on this list's identity, and an
+  // array rebuilt on every render made that effect re-run (and re-set state) on
+  // every render.
+  const filtered = useMemo(() => (
+    campaignFilter ? submissions.filter(s => s.campaignId === campaignFilter) : submissions
+  ), [submissions, campaignFilter]);
 
   useEffect(() => {
     const cols = {};
@@ -460,33 +537,57 @@ function BoardTab({ submissions, member, onEdit, onReview, onDelete, onStatusCha
     }
   };
 
-  const handleDragEnd = (result) => {
-    const { destination, source, draggableId } = result;
-    if (!destination) return;
-    if (destination.droppableId === source.droppableId && destination.index === source.index) return;
+  /** Apply a status change the same way whichever control asked for it. */
+  const moveSubmission = useCallback((id, fromColumn, toColumn, toIndex) => {
+    if (!toColumn || fromColumn === toColumn) return;
+    setColumns(prev => {
+      const next = { ...prev };
+      const srcList = [...(prev[fromColumn] ?? [])];
+      const dstList = [...(prev[toColumn] ?? [])];
+      const idx = srcList.findIndex(s => s.id === id);
+      if (idx === -1) return prev;
+      const [moved] = srcList.splice(idx, 1);
+      dstList.splice(toIndex ?? dstList.length, 0, { ...moved, status: toColumn });
+      next[fromColumn] = srcList;
+      next[toColumn] = dstList;
+      return next;
+    });
+    onStatusChange?.(id, toColumn);
+    toast.success(`Moved to ${STATUS_LABELS[toColumn] ?? toColumn}`);
+  }, [onStatusChange]);
 
-    if (destination.droppableId !== source.droppableId) {
-      setColumns(prev => {
-        const next = { ...prev };
-        const srcList = [...(prev[source.droppableId] ?? [])];
-        const dstList = [...(prev[destination.droppableId] ?? [])];
-        const [moved] = srcList.splice(source.index, 1);
-        dstList.splice(destination.index, 0, { ...moved, status: destination.droppableId });
-        next[source.droppableId] = srcList;
-        next[destination.droppableId] = dstList;
-        return next;
-      });
-      onStatusChange?.(draggableId, destination.droppableId);
-      toast.success(`Moved to ${STATUS_LABELS[destination.droppableId] ?? destination.droppableId}`);
-    } else {
-      setColumns(prev => {
-        const list = [...(prev[source.droppableId] ?? [])];
-        const [moved] = list.splice(source.index, 1);
-        list.splice(destination.index, 0, moved);
-        return { ...prev, [source.droppableId]: list };
-      });
+  const columnOf = useCallback((id) => {
+    if (typeof id === 'string' && id.startsWith('col:')) return id.slice(4);
+    return BOARD_COLUMNS.find(col => (columns[col.id] ?? []).some(s => s.id === id))?.id ?? null;
+  }, [columns]);
+
+  const handleDragEnd = ({ active, over }) => {
+    setDraggingId(null);
+    if (!over) return;
+
+    const from = active.data.current?.columnId ?? columnOf(active.id);
+    const to = over.data.current?.columnId ?? columnOf(over.id);
+    if (!from || !to) return;
+
+    if (from === to) {
+      // Reorder inside one column. This is display-only, exactly as before: no
+      // order is persisted, and a reload restores the server order.
+      const list = columns[from] ?? [];
+      const oldIndex = list.findIndex(s => s.id === active.id);
+      const newIndex = list.findIndex(s => s.id === over.id);
+      if (oldIndex === -1 || newIndex === -1 || oldIndex === newIndex) return;
+      setColumns(prev => ({ ...prev, [from]: arrayMove(prev[from] ?? [], oldIndex, newIndex) }));
+      return;
     }
+
+    const dstList = columns[to] ?? [];
+    const overIndex = dstList.findIndex(s => s.id === over.id);
+    moveSubmission(active.id, from, to, overIndex === -1 ? dstList.length : overIndex);
   };
+
+  const draggingSubmission = draggingId
+    ? Object.values(columns).flat().find(s => s.id === draggingId)
+    : null;
 
   return (
     <div className="pm-board-tab-wrapper">
@@ -520,7 +621,75 @@ function BoardTab({ submissions, member, onEdit, onReview, onDelete, onStatusCha
           loading={bulkLoading}
         />
       )}
-      <DragDropContext onDragEnd={handleDragEnd}>
+      {compact ? (
+        // Phones get one stage at a time and an explicit Move control per card.
+        // Five side-by-side columns cannot be read at 320px, and dragging a card
+        // between them is not a touch interaction.
+        <>
+          <div className="pm-m-source" role="group" aria-label="Board stage">
+            <span className="pm-m-source-label" id="outreach-stage-label">Stage</span>
+            <div className="pm-m-chip-row" role="group" aria-labelledby="outreach-stage-label">
+              {BOARD_COLUMNS.map(col => (
+                <button
+                  key={col.id}
+                  type="button"
+                  className="pm-m-chip"
+                  aria-pressed={stageFilter === col.id}
+                  onClick={() => setStageFilter(col.id)}
+                >
+                  <span className="pm-kanban-col-dot" style={{ background: col.color }} aria-hidden="true" />
+                  {col.label}
+                  <span className="pm-m-chip-count">{(columns[col.id] ?? []).length}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="pm-m-outreach-list">
+            {(columns[stageFilter] ?? []).length === 0 ? (
+              <p className="pm-m-task-empty pm-m-task-empty--card">
+                No submissions in {STATUS_LABELS[stageFilter] ?? stageFilter}.
+              </p>
+            ) : (columns[stageFilter] ?? []).map(s => {
+              const canMove = member?.isAdmin || member?.id === s.authorId;
+              return (
+                <div key={s.id} className="pm-m-outreach-item">
+                  <SubmissionCard
+                    submission={s}
+                    member={member}
+                    onEdit={onEdit}
+                    onReview={onReview}
+                    onDelete={onDelete}
+                    onCopy={setCopyTarget}
+                    selectedIds={selectedIds}
+                    toggleSelect={toggleSelect}
+                    onSafetyUpdate={onSafetyUpdate}
+                    onExpandBlog={onExpandBlog}
+                  />
+                  {canMove && (
+                    <button
+                      type="button"
+                      className="pm-m-btn pm-m-btn--block"
+                      data-m-opener={`outreach-move-${s.id}`}
+                      aria-haspopup="dialog"
+                      onClick={() => setMoveTarget(s)}
+                    >
+                      <i className="fas fa-arrow-right-arrow-left" aria-hidden="true" /> Move
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </>
+      ) : (
+      <DndContext
+        sensors={sensors}
+        collisionDetection={pointerWithin}
+        onDragStart={({ active }) => setDraggingId(active.id)}
+        onDragCancel={() => setDraggingId(null)}
+        onDragEnd={handleDragEnd}
+      >
         <div className="pm-outreach-board">
           {BOARD_COLUMNS.map(col => (
             <div key={col.id} className="pm-outreach-col">
@@ -529,60 +698,79 @@ function BoardTab({ submissions, member, onEdit, onReview, onDelete, onStatusCha
                 <span className="pm-kanban-col-label" style={{ color: col.color }}>{col.label}</span>
                 <span className="pm-kanban-col-count">{(columns[col.id] ?? []).length}</span>
               </div>
-              <Droppable droppableId={col.id}>
-                {(provided, snapshot) => (
-                  <div
-                    ref={provided.innerRef}
-                    {...provided.droppableProps}
-                    className={`pm-outreach-col-body${snapshot.isDraggingOver ? ' drag-over' : ''}`}
-                  >
-                    {(columns[col.id] ?? []).length === 0 && !snapshot.isDraggingOver && (
-                      <div className="pm-outreach-col-empty">
-                        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                          <path d="M22 12h-6l-2 3H10l-2-3H2"/><path d="M5.45 5.11L2 12v6a2 2 0 002 2h16a2 2 0 002-2v-6l-3.45-6.89A2 2 0 0016.76 4H7.24a2 2 0 00-1.79 1.11z"/>
-                        </svg>
-                        <span>No submissions</span>
-                      </div>
-                    )}
-                    {(columns[col.id] ?? []).map((s, index) => {
-                      const canDrag = member?.isAdmin || member?.id === s.authorId;
-                      return (
-                        <Draggable key={s.id} draggableId={s.id} index={index} isDragDisabled={!canDrag}>
-                          {(dragProvided, dragSnapshot) => (
-                            <div
-                              ref={dragProvided.innerRef}
-                              {...dragProvided.draggableProps}
-                              {...dragProvided.dragHandleProps}
-                              style={{
-                                ...dragProvided.draggableProps.style,
-                                opacity: dragSnapshot.isDragging ? 0.85 : 1,
-                              }}
-                            >
-                              <SubmissionCard
-                                submission={s}
-                                member={member}
-                                onEdit={onEdit}
-                                onReview={onReview}
-                                onDelete={onDelete}
-                                onCopy={setCopyTarget}
-                                selectedIds={selectedIds}
-                                toggleSelect={toggleSelect}
-                                onSafetyUpdate={onSafetyUpdate}
-                                onExpandBlog={onExpandBlog}
-                              />
-                            </div>
-                          )}
-                        </Draggable>
-                      );
-                    })}
-                    {provided.placeholder}
-                  </div>
-                )}
-              </Droppable>
+              <SortableContext
+                items={(columns[col.id] ?? []).map(s => s.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                <BoardColumnBody columnId={col.id} isEmpty={(columns[col.id] ?? []).length === 0}>
+                  {(columns[col.id] ?? []).map(s => (
+                    <SortableSubmission
+                      key={s.id}
+                      submission={s}
+                      columnId={col.id}
+                      canDrag={member?.isAdmin || member?.id === s.authorId}
+                    >
+                      <SubmissionCard
+                        submission={s}
+                        member={member}
+                        onEdit={onEdit}
+                        onReview={onReview}
+                        onDelete={onDelete}
+                        onCopy={setCopyTarget}
+                        selectedIds={selectedIds}
+                        toggleSelect={toggleSelect}
+                        onSafetyUpdate={onSafetyUpdate}
+                        onExpandBlog={onExpandBlog}
+                      />
+                    </SortableSubmission>
+                  ))}
+                </BoardColumnBody>
+              </SortableContext>
             </div>
           ))}
         </div>
-      </DragDropContext>
+
+        {createPortal(
+          <DragOverlay dropAnimation={null}>
+            {draggingSubmission && (
+              <div className="pm-outreach-card pm-outreach-card--lifted">
+                <div className="pm-outreach-card-title">{draggingSubmission.title}</div>
+              </div>
+            )}
+          </DragOverlay>,
+          document.body
+        )}
+      </DndContext>
+      )}
+
+      {compact && moveTarget && (
+        <MobileSheet
+          title={`Move “${moveTarget.title}”`}
+          onClose={() => setMoveTarget(null)}
+          returnFocusSelector={`[data-m-opener="outreach-move-${moveTarget.id}"]`}
+        >
+          <div className="pm-m-card">
+            {BOARD_COLUMNS.map(col => (
+              <button
+                key={col.id}
+                type="button"
+                className="pm-m-row"
+                aria-current={moveTarget.status === col.id ? 'true' : undefined}
+                disabled={moveTarget.status === col.id}
+                onClick={() => {
+                  moveSubmission(moveTarget.id, moveTarget.status, col.id);
+                  setStageFilter(col.id);
+                  setMoveTarget(null);
+                }}
+              >
+                <span className="pm-m-task-group-dot" style={{ background: col.color }} />
+                <span className="pm-m-row-main">{col.label}</span>
+                {moveTarget.status === col.id ? <span className="pm-m-row-end">Current</span> : null}
+              </button>
+            ))}
+          </div>
+        </MobileSheet>
+      )}
 
       {copyTarget && (
         <CrossPostBundle
@@ -723,6 +911,7 @@ const TABS = [
 
 export default function OutreachHub() {
   const { member } = useClubPmAuth();
+  const compact = useCompactLayout();
   // The sidebar's Outreach > Blog child deep-links here as ?tab=blog, so the
   // opening tab comes from the URL whenever it names a real one.
   const [searchParams] = useSearchParams();
@@ -888,7 +1077,34 @@ export default function OutreachHub() {
         </button>
       </div>
 
-      {/* Tab bar */}
+      {/* Section selector (phones) / tab bar (desktop). Seven tabs do not fit a
+          phone without a second scrolling strip, so the phone gets one labelled
+          selector that names the section it is on. */}
+      {compact ? (
+        <div className="pm-m-source pm-m-outreach-source" role="group" aria-label="Outreach section">
+          <span className="pm-m-source-label" id="outreach-section-label">Section</span>
+          {/* Real buttons, not a <select>: each section keeps its own mounted
+              walkthrough anchor, and the tour can click one. */}
+          <div className="pm-m-chip-row" role="group" aria-labelledby="outreach-section-label">
+            {TABS.map(tab => (
+              <button
+                key={tab.id}
+                type="button"
+                className="pm-m-chip"
+                aria-pressed={activeTab === tab.id}
+                data-tour-id={{
+                  crm: 'outreach.tab.contacts',
+                  campaigns: 'outreach.tab.campaigns',
+                  blog: 'outreach.tab.blog',
+                }[tab.id]}
+                onClick={() => setActiveTab(tab.id)}
+              >
+                <i className={tab.icon} aria-hidden="true" /> {tab.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : (
       <div className="pm-outreach-tabs" role="tablist">
         {TABS.map(tab => (
           <button
@@ -908,6 +1124,7 @@ export default function OutreachHub() {
           </button>
         ))}
       </div>
+      )}
 
       {/* Tab content */}
       <div ref={tabContentRef} className="pm-outreach-tab-content" role="tabpanel">
@@ -971,16 +1188,19 @@ export default function OutreachHub() {
         )}
       </div>
 
-      {/* FAB — create new submission */}
-      <button
-        className="pm-fab"
-        onClick={() => { setEditSubmission(null); setShowCreateModal(true); }}
-        title="New submission"
-        aria-label="Create new submission"
-        style={{ bottom: 32 }}
-      >
-        +
-      </button>
+      {/* FAB — create new submission. On a phone the Composer section already is
+          the creation surface, and the button would sit on its sticky Send row. */}
+      {!(compact && activeTab === 'composer') && (
+        <button
+          className="pm-fab"
+          onClick={() => { setEditSubmission(null); setShowCreateModal(true); }}
+          title="New submission"
+          aria-label="Create new submission"
+          style={{ bottom: 32 }}
+        >
+          +
+        </button>
+      )}
 
       {/* Create / Edit modal */}
       <SubmissionFormModal
