@@ -528,6 +528,9 @@ const Software = () => {
             <Link to="/software/suits" className="btn-slide">
               <span>Full 2025–26 Technical Details</span>
             </Link>
+            <Link to="/software/field-notebook" className="btn-slide" style={{ marginLeft: '1rem' }}>
+              <span>VISOR Field Notebook</span>
+            </Link>
           </div>
         </div>
       </section>

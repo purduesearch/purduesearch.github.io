@@ -26,7 +26,6 @@ const BlogPost = lazy(() => import('./pages/BlogPost'));
 const About = lazy(() => import('./pages/About'));
 const Research = lazy(() => import('./pages/Research'));
 const SA2TP = lazy(() => import('./pages/SA2TP'));
-const Software = lazy(() => import('./pages/Software'));
 const Business = lazy(() => import('./pages/Business'));
 const AstroUSA = lazy(() => import('./pages/AstroUSA'));
 
@@ -38,6 +37,14 @@ const Outreach = lazy(() => import('./pages/Outreach'));
 const Contact = lazy(() => import('./pages/Contact'));
 const Blog = lazy(() => import('./pages/Blog'));
 const Suits = lazy(() => import('./pages/Software/Suits'));
+// Field Notebook is the only page that needs Azeret Mono / Caveat Brush / Saira Condensed /
+// Special Elite / Zilla Slab; loaded at runtime (like ares-theme.css) so the rest of the
+// site never pays for fonts it doesn't use. See src/theme/loadTheme.js.
+const FIELD_NOTEBOOK_FONTS = [
+  'https://fonts.googleapis.com/css2?family=Azeret+Mono:wght@400;500;600&family=Caveat+Brush&family=Saira+Condensed:wght@600;700;800&family=Special+Elite&family=Zilla+Slab:wght@400;500;600;700&display=swap',
+  'data-field-notebook-fonts',
+];
+const FieldNotebook = lazy(lazyWithTheme(...FIELD_NOTEBOOK_FONTS)(() => import('./pages/Software/FieldNotebook')));
 const Rascal = lazy(() => import('./pages/Research/Rascal'));
 const Crew1 = lazy(() => import('./pages/SA2TP/Crew1'));
 const RodInterview = lazy(() => import('./pages/SA2TP/RodInterview'));
@@ -166,8 +173,9 @@ function AnimatedRoutes() {
             <Route path="/sa2tp" element={<PageWrapper><SA2TP /></PageWrapper>} />
             <Route path="/sa2tp/crew1" element={<PageWrapper><Crew1 /></PageWrapper>} />
             <Route path="/sa2tp/rod-interview" element={<PageWrapper><RodInterview /></PageWrapper>} />
-            <Route path="/software" element={<PageWrapper><Software /></PageWrapper>} />
+            <Route path="/software" element={<PageWrapper><FieldNotebook /></PageWrapper>} />
             <Route path="/software/suits" element={<PageWrapper><Suits /></PageWrapper>} />
+            <Route path="/software/field-notebook" element={<Navigate to="/software" replace />} />
             <Route path="/business" element={<PageWrapper><Business /></PageWrapper>} />
             <Route path="/astrousa" element={<PageWrapper><AstroUSA /></PageWrapper>} />
             <Route path="/astrousa/overview" element={<PageWrapper><AstroOverview /></PageWrapper>} />
