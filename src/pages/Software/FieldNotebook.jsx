@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
@@ -7,12 +7,13 @@ import SEOHead from '../../components/SEOHead';
 import JsonLd from '../../components/JsonLd';
 import { breadcrumbs } from '../../seo/schema';
 
-// Torn-edge masks (--tornA/B/C), paper grain (--grain), tape texture (--tape), and the
+// Top-edge masks (--tornA/B/C), paper grain (--grain), tape texture (--tape), and the
 // ink-stamp mask (--stampink) are inline SVG data URIs, extracted verbatim from the design
 // handoff file (`Field notebook redesign critique/design_handoff_field_notebook/Software
 // Redesign Directions.dc.html`). Do not hand-edit these; regenerate from that source file
 // if the artwork changes. They are applied as CSS custom properties on the page root and
-// referenced via var(--x) throughout, exactly as the design file does.
+// referenced via var(--x) throughout, exactly as the design file does. --tornRightBottom
+// extends that treatment with a turbulence-displaced mask for the other exposed edges.
 const PAPER_VARS = {
     "--paper": "#eee7d8",
     "--paper2": "#e2d8c3",
@@ -26,6 +27,7 @@ const PAPER_VARS = {
     "--tornA": "url('data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20width=%221200%22%20height=%2236%22%20viewBox=%220%200%201200%2036%22%20preserveAspectRatio=%22none%22%3E%3Cdefs%3E%3Cfilter%20id=%22a%22%20x=%22-2%25%22%20y=%22-100%25%22%20width=%22104%25%22%20height=%22340%25%22%3E%3CfeTurbulence%20type=%22fractalNoise%22%20baseFrequency=%220.55%200.85%22%20numOctaves=%223%22%20seed=%2211%22%20result=%22n%22/%3E%3CfeDisplacementMap%20in=%22SourceGraphic%22%20in2=%22n%22%20scale=%224%22%20xChannelSelector=%22R%22%20yChannelSelector=%22G%22/%3E%3C/filter%3E%3Cfilter%20id=%22b%22%20x=%22-2%25%22%20y=%22-100%25%22%20width=%22104%25%22%20height=%22340%25%22%3E%3CfeTurbulence%20type=%22fractalNoise%22%20baseFrequency=%220.9%201.2%22%20numOctaves=%222%22%20seed=%224%22%20result=%22n%22/%3E%3CfeDisplacementMap%20in=%22SourceGraphic%22%20in2=%22n%22%20scale=%225%22%20xChannelSelector=%22R%22%20yChannelSelector=%22G%22%20result=%22d%22/%3E%3CfeGaussianBlur%20in=%22d%22%20stdDeviation=%221.1%22/%3E%3C/filter%3E%3Cpath%20id=%22p%22%20fill=%22white%22%20d=%22M0,36%20L0,9.9%20L20.1,10.4%20L47.9,10.5%20L79.4,10.6%20L114.6,7.3%20L141.2,7.7%20L173.3,7.8%20L190.0,7.5%20L218.5,7.2%20L255.9,6.1%20L273.8,5.1%20L311.6,5.4%20L326.7,5.4%20L353.1,5.0%20L371.7,5.0%20L403.9,5.1%20L432.1,5.5%20L476.8,5.0%20L495.9,5.0%20L514.0,5.0%20L535.4,5.0%20L572.8,5.1%20L606.0,5.0%20L625.6,5.4%20L646.8,5.4%20L680.2,5.7%20L721.5,5.0%20L756.1,5.0%20L795.0,6.6%20L829.6,6.5%20L854.7,12.2%20L889.0,11.6%20L922.6,9.4%20L952.3,10.8%20L968.2,17.2%20L1003.4,17.9%20L1029.2,17.7%20L1056.3,16.4%20L1093.6,20.2%20L1120.9,20.6%20L1153.6,16.3%20L1182.5,15.5%20L1200.0,16.8%20L1200,36%20Z%22/%3E%3Cg%20id=%22f%22%20fill=%22white%22%3E%3Crect%20x=%22166%22%20y=%221.9%22%20width=%221.6%22%20height=%2210.1%22/%3E%3Crect%20x=%221040%22%20y=%222.6%22%20width=%221.4%22%20height=%2212.9%22/%3E%3Crect%20x=%22464%22%20y=%224.6%22%20width=%221.4%22%20height=%2212.6%22/%3E%3Crect%20x=%22137%22%20y=%223.0%22%20width=%221.3%22%20height=%227.8%22/%3E%3Crect%20x=%22820%22%20y=%223.6%22%20width=%221.2%22%20height=%2210.5%22/%3E%3Crect%20x=%22697%22%20y=%222.3%22%20width=%221.7%22%20height=%227.2%22/%3E%3C/g%3E%3C/defs%3E%3Cuse%20href=%22%23p%22%20filter=%22url(%23b)%22%20opacity=%220.45%22%20transform=%22translate(0,-2.4)%22/%3E%3Cuse%20href=%22%23p%22%20filter=%22url(%23a)%22/%3E%3Cuse%20href=%22%23f%22%20filter=%22url(%23a)%22%20opacity=%220.5%22/%3E%3C/svg%3E')",
     "--tornB": "url('data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20width=%221200%22%20height=%2236%22%20viewBox=%220%200%201200%2036%22%20preserveAspectRatio=%22none%22%3E%3Cdefs%3E%3Cfilter%20id=%22a%22%20x=%22-2%25%22%20y=%22-100%25%22%20width=%22104%25%22%20height=%22340%25%22%3E%3CfeTurbulence%20type=%22fractalNoise%22%20baseFrequency=%220.62%200.95%22%20numOctaves=%223%22%20seed=%2223%22%20result=%22n%22/%3E%3CfeDisplacementMap%20in=%22SourceGraphic%22%20in2=%22n%22%20scale=%223.4%22%20xChannelSelector=%22R%22%20yChannelSelector=%22G%22/%3E%3C/filter%3E%3Cfilter%20id=%22b%22%20x=%22-2%25%22%20y=%22-100%25%22%20width=%22104%25%22%20height=%22340%25%22%3E%3CfeTurbulence%20type=%22fractalNoise%22%20baseFrequency=%221.0%201.3%22%20numOctaves=%222%22%20seed=%229%22%20result=%22n%22/%3E%3CfeDisplacementMap%20in=%22SourceGraphic%22%20in2=%22n%22%20scale=%224.4%22%20xChannelSelector=%22R%22%20yChannelSelector=%22G%22%20result=%22d%22/%3E%3CfeGaussianBlur%20in=%22d%22%20stdDeviation=%221%22/%3E%3C/filter%3E%3Cpath%20id=%22p%22%20fill=%22white%22%20d=%22M0,36%20L0,10.4%20L37.6,9.3%20L75.9,7.8%20L95.0,8.8%20L137.8,9.6%20L178.4,8.7%20L212.8,8.6%20L240.5,10.2%20L258.5,9.9%20L297.2,10.1%20L318.6,10.3%20L348.5,9.4%20L387.9,11.0%20L404.9,9.3%20L445.1,9.7%20L489.4,8.3%20L519.8,7.7%20L556.2,8.0%20L581.7,8.0%20L597.4,8.2%20L635.1,8.2%20L670.5,7.8%20L702.4,7.2%20L720.4,6.0%20L745.2,5.0%20L760.1,5.8%20L776.2,5.0%20L817.8,5.0%20L862.6,5.5%20L883.2,6.5%20L922.2,5.3%20L967.6,13.7%20L995.7,14.7%20L1027.9,16.1%20L1051.5,13.9%20L1067.7,15.0%20L1098.2,16.7%20L1143.4,20.3%20L1170.6,19.3%20L1188.9,18.9%20L1200.0,18.6%20L1200,36%20Z%22/%3E%3Cg%20id=%22f%22%20fill=%22white%22%3E%3Crect%20x=%22749%22%20y=%224.5%22%20width=%221.5%22%20height=%227.9%22/%3E%3Crect%20x=%22413%22%20y=%223.4%22%20width=%221.6%22%20height=%2211.1%22/%3E%3Crect%20x=%22932%22%20y=%223.7%22%20width=%221.3%22%20height=%228.9%22/%3E%3Crect%20x=%22736%22%20y=%222.8%22%20width=%221.5%22%20height=%2210.3%22/%3E%3Crect%20x=%22353%22%20y=%221.8%22%20width=%221.6%22%20height=%229.8%22/%3E%3C/g%3E%3C/defs%3E%3Cuse%20href=%22%23p%22%20filter=%22url(%23b)%22%20opacity=%220.4%22%20transform=%22translate(0,-2.4)%22/%3E%3Cuse%20href=%22%23p%22%20filter=%22url(%23a)%22/%3E%3Cuse%20href=%22%23f%22%20filter=%22url(%23a)%22%20opacity=%220.5%22/%3E%3C/svg%3E')",
     "--tornC": "url('data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20width=%221200%22%20height=%2236%22%20viewBox=%220%200%201200%2036%22%20preserveAspectRatio=%22none%22%3E%3Cdefs%3E%3Cfilter%20id=%22a%22%20x=%22-2%25%22%20y=%22-100%25%22%20width=%22104%25%22%20height=%22340%25%22%3E%3CfeTurbulence%20type=%22fractalNoise%22%20baseFrequency=%220.48%200.78%22%20numOctaves=%223%22%20seed=%2231%22%20result=%22n%22/%3E%3CfeDisplacementMap%20in=%22SourceGraphic%22%20in2=%22n%22%20scale=%224.6%22%20xChannelSelector=%22R%22%20yChannelSelector=%22G%22/%3E%3C/filter%3E%3Cfilter%20id=%22b%22%20x=%22-2%25%22%20y=%22-100%25%22%20width=%22104%25%22%20height=%22340%25%22%3E%3CfeTurbulence%20type=%22fractalNoise%22%20baseFrequency=%220.85%201.15%22%20numOctaves=%222%22%20seed=%2215%22%20result=%22n%22/%3E%3CfeDisplacementMap%20in=%22SourceGraphic%22%20in2=%22n%22%20scale=%225.6%22%20xChannelSelector=%22R%22%20yChannelSelector=%22G%22%20result=%22d%22/%3E%3CfeGaussianBlur%20in=%22d%22%20stdDeviation=%221.3%22/%3E%3C/filter%3E%3Cpath%20id=%22p%22%20fill=%22white%22%20d=%22M0,36%20L0,10.9%20L33.3,5.7%20L63.4,7.3%20L79.4,8.7%20L113.3,9.6%20L149.5,10.7%20L170.8,10.5%20L195.6,10.8%20L234.1,7.3%20L279.3,7.3%20L319.5,6.9%20L351.3,7.0%20L380.1,8.3%20L397.0,8.7%20L443.0,8.1%20L471.2,8.1%20L491.5,14.4%20L512.2,13.4%20L545.4,13.7%20L568.7,14.2%20L583.0,14.7%20L604.4,9.5%20L632.8,8.7%20L659.0,8.7%20L685.2,7.6%20L702.0,7.8%20L744.4,14.1%20L782.5,9.5%20L814.1,7.9%20L829.0,6.4%20L867.6,7.9%20L902.0,7.8%20L945.5,11.0%20L990.2,11.6%20L1026.9,10.3%20L1042.9,10.6%20L1074.4,10.7%20L1098.0,11.3%20L1131.2,9.3%20L1155.4,9.7%20L1196.2,6.2%20L1200.0,5.0%20L1200,36%20Z%22/%3E%3Cg%20id=%22f%22%20fill=%22white%22%3E%3Crect%20x=%22999%22%20y=%221.8%22%20width=%221.3%22%20height=%2210.4%22/%3E%3Crect%20x=%22891%22%20y=%222.1%22%20width=%221.6%22%20height=%2211.9%22/%3E%3Crect%20x=%22167%22%20y=%223.6%22%20width=%221.6%22%20height=%2213.0%22/%3E%3Crect%20x=%22879%22%20y=%224.4%22%20width=%221.6%22%20height=%2212.2%22/%3E%3Crect%20x=%22489%22%20y=%222.1%22%20width=%221.2%22%20height=%229.0%22/%3E%3Crect%20x=%22506%22%20y=%224.6%22%20width=%221.5%22%20height=%227.5%22/%3E%3Crect%20x=%22100%22%20y=%221.6%22%20width=%221.4%22%20height=%2210.1%22/%3E%3C/g%3E%3C/defs%3E%3Cuse%20href=%22%23p%22%20filter=%22url(%23b)%22%20opacity=%220.5%22%20transform=%22translate(0,-2.4)%22/%3E%3Cuse%20href=%22%23p%22%20filter=%22url(%23a)%22/%3E%3Cuse%20href=%22%23f%22%20filter=%22url(%23a)%22%20opacity=%220.5%22/%3E%3C/svg%3E')",
+    "--tornRightBottom": "url('data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20width=%221200%22%20height=%22900%22%20viewBox=%220%200%201200%20900%22%20preserveAspectRatio=%22none%22%3E%3Cdefs%3E%3Cfilter%20id=%22t%22%20x=%22-4%25%22%20y=%22-5%25%22%20width=%22108%25%22%20height=%22110%25%22%3E%3CfeTurbulence%20type=%22fractalNoise%22%20baseFrequency=%220.018%200.032%22%20numOctaves=%224%22%20seed=%2253%22%20result=%22n%22/%3E%3CfeDisplacementMap%20in=%22SourceGraphic%22%20in2=%22n%22%20scale=%2218%22%20xChannelSelector=%22R%22%20yChannelSelector=%22G%22/%3E%3C/filter%3E%3C/defs%3E%3Crect%20x=%22-32%22%20y=%2210%22%20width=%221224%22%20height=%22882%22%20fill=%22white%22%20filter=%22url(%23t)%22/%3E%3C/svg%3E')",
     "--grain": "url('data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20width=%22180%22%20height=%22180%22%3E%3Cfilter%20id=%22n%22%3E%3CfeTurbulence%20type=%22fractalNoise%22%20baseFrequency=%220.85%22%20numOctaves=%222%22%20stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect%20width=%22180%22%20height=%22180%22%20filter=%22url(%23n)%22/%3E%3C/svg%3E')",
     "--tape": "url('data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20width=%22120%22%20height=%2240%22%20viewBox=%220%200%20120%2040%22%20preserveAspectRatio=%22none%22%3E%3Cdefs%3E%3Cfilter%20id=%22t%22%20x=%22-10%25%22%20y=%22-25%25%22%20width=%22120%25%22%20height=%22150%25%22%3E%3CfeTurbulence%20type=%22fractalNoise%22%20baseFrequency=%220.5%200.09%22%20numOctaves=%222%22%20seed=%226%22%20result=%22n%22/%3E%3CfeDisplacementMap%20in=%22SourceGraphic%22%20in2=%22n%22%20scale=%225%22%20xChannelSelector=%22R%22%20yChannelSelector=%22G%22/%3E%3C/filter%3E%3C/defs%3E%3Crect%20x=%224%22%20y=%224%22%20width=%22112%22%20height=%2232%22%20fill=%22white%22%20filter=%22url(%23t)%22/%3E%3C/svg%3E')",
 };
@@ -33,11 +35,40 @@ const PAPER_VARS = {
 // Scoped to this page only (rendered via a plain <style> tag, not a shared stylesheet) —
 // see src/AGENTS.md on the three-stylesheet split; this keyframe has nowhere reusable to
 // live and every visitor to the rest of the site would otherwise pay for it.
-const MARQUEE_STYLE = `
+const NOTEBOOK_STYLE = `
 @keyframes visor-marquee {
   from { transform: translateX(0); }
   to { transform: translateX(-50%); }
 }
+
+/* The notebook reads as a stack of separate sheets. Keep the bound left edge
+   straight; the top mask plus this right/bottom outline supply the torn edges. */
+.field-notebook-page [data-page] + [data-page] {
+  margin-top: clamp(26px, 3.2vw, 44px) !important;
+}
+.field-notebook-page [data-stick] {
+  filter: drop-shadow(0 14px 22px rgba(10, 6, 4, .38));
+  perspective: none !important;
+}
+.field-notebook-page [data-leaf] {
+  backface-visibility: visible !important;
+  mask-image: var(--tornRightBottom);
+  mask-position: left top;
+  mask-repeat: no-repeat;
+  mask-size: 100% 100%;
+  transform: none !important;
+  will-change: auto !important;
+  -webkit-mask-image: var(--tornRightBottom);
+  -webkit-mask-position: left top;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-size: 100% 100%;
+}
+.field-notebook-page [data-shadow],
+.field-notebook-page [data-curl],
+.field-notebook-page [data-under] {
+  display: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .field-notebook-marquee { animation: none !important; }
 }
@@ -46,167 +77,6 @@ const MARQUEE_STYLE = `
 const FieldNotebook = () => {
   useEffect(() => {
     if (window.AOS) window.AOS.init({ once: true });
-  }, []);
-
-  const rootRef = useRef(null);
-
-  // Scroll-driven paper page-turn, ported from the design handoff's componentDidMount
-  // logic. It works purely off data-page/data-stick/data-leaf/data-paper/data-shadow/
-  // data-curl/data-under attributes via querySelectorAll, so the JSX below keeps those
-  // attributes and this effect needs no per-page refs. Desktop + motion-allowed gets the
-  // 3D page-turn; everyone else (narrow viewport, or prefers-reduced-motion) gets a
-  // simpler translate/fade as each page's sticky top comes into view.
-  useEffect(() => {
-    const root = rootRef.current;
-    if (!root) return undefined;
-
-    const pages = Array.prototype.map.call(root.querySelectorAll('[data-page]'), (wrap) => ({
-      wrap,
-      stick: wrap.querySelector('[data-stick]'),
-      leaf: wrap.querySelector('[data-leaf]'),
-      paper: wrap.querySelector('[data-paper]'),
-      shadow: wrap.querySelector('[data-shadow]'),
-      curl: wrap.querySelector('[data-curl]'),
-      under: wrap.querySelector('[data-under]'),
-      top: 0,
-      h: 0,
-      turnPx: 0,
-      prog: -1,
-      vis: true,
-    }));
-
-    if (!pages.length) return undefined;
-
-    const mqWide = window.matchMedia('(min-width: 900px)');
-    const mqReduced = window.matchMedia('(prefers-reduced-motion: reduce)');
-    const turning = () => mqWide.matches && !mqReduced.matches;
-
-    let turn = 480;
-    let raf = null;
-    let rraf = null;
-    let ro = null;
-    let cancelled = false;
-
-    // This page's navbar stays in document flow and scrolls away before a leaf
-    // turns, so the full viewport is available to the paper animation.
-
-    const reset = (p) => {
-      p.leaf.style.transform = '';
-      p.curl.style.opacity = '0';
-      p.under.style.opacity = '0';
-      p.shadow.style.boxShadow = '0 12px 30px rgba(10,6,4,.42)';
-    };
-
-    const layout = () => {
-      const vh = window.innerHeight;
-      const on = turning();
-      turn = Math.round(Math.min(560, Math.max(300, vh * 0.7)));
-      const heights = pages.map((p) => p.leaf.offsetHeight);
-      pages.forEach((p, i) => {
-        const last = i === pages.length - 1;
-        p.h = heights[i];
-        p.wrap.style.zIndex = on ? String(90 - i * 10) : String(10 + i);
-        if (!on) {
-          p.wrap.style.height = '';
-          p.wrap.style.marginTop = '';
-          p.stick.style.position = 'relative';
-          p.stick.style.top = '';
-          p.leaf.style.transform = '';
-          p.curl.style.opacity = '0';
-          p.under.style.opacity = '0';
-          p.prog = -1;
-          return;
-        }
-        p.top = p.h < vh - 28 ? 14 : vh - p.h - 14;
-        p.turnPx = Math.round(Math.max(240, Math.min(turn, p.h * 0.8)));
-        p.stick.style.position = 'sticky';
-        p.stick.style.top = `${p.top}px`;
-        p.wrap.style.height = `${p.h + (last ? 0 : p.turnPx)}px`;
-        const prev = pages[i - 1];
-        p.wrap.style.marginTop = prev ? `${16 - (prev.turnPx || turn)}px` : '0px';
-      });
-    };
-
-    const tick = () => {
-      const vh = window.innerHeight;
-      const on = turning();
-      const n = pages.length;
-      const reads = pages.map((p) => p.wrap.getBoundingClientRect());
-
-      for (let i = 0; i < n; i += 1) {
-        const p = pages[i];
-        const r = reads[i];
-        if (r.bottom < -120 || r.top > vh + 200) {
-          if (p.vis) { reset(p); p.vis = false; p.prog = -1; }
-          continue;
-        }
-        p.vis = true;
-        if (!on) {
-          const q = Math.min(1, Math.max(0, (vh - r.top) / (vh * 0.55)));
-          const e = q * q * (3 - 2 * q);
-          p.leaf.style.transform = `translate3d(0,${((1 - e) * 12).toFixed(2)}px,0)`;
-          p.shadow.style.boxShadow = `0 ${(6 + e * 8).toFixed(1)}px ${(16 + e * 16).toFixed(1)}px rgba(10,6,4,${(0.26 + e * 0.14).toFixed(3)})`;
-          p.under.style.opacity = ((1 - e) * 0.12).toFixed(3);
-          p.curl.style.opacity = '0';
-          continue;
-        }
-        const last = i === n - 1;
-        if (last) { reset(p); continue; }
-        const remain = r.bottom - (p.top + p.h);
-        let raw = 1 - Math.min(1, Math.max(0, remain / (p.turnPx || turn)));
-        raw = Math.min(1, Math.max(0, (raw - 0.14) / 0.86));
-        const e = raw * raw * (3 - 2 * raw);
-        if (Math.abs(e - p.prog) < 0.002) continue;
-        p.prog = e;
-        p.leaf.style.transform = `rotateX(${(-e * 96).toFixed(2)}deg) translateY(${(-e * 8).toFixed(1)}px) rotate(${(-e * 0.7).toFixed(2)}deg)`;
-        p.curl.style.opacity = (e * 0.85).toFixed(3);
-        p.shadow.style.boxShadow = `0 ${(12 + e * 46).toFixed(1)}px ${(30 + e * 72).toFixed(1)}px rgba(10,6,4,${(0.42 + e * 0.18).toFixed(3)})`;
-        const next = pages[i + 1];
-        if (next) {
-          next.under.style.opacity = (0.5 * (1 - e)).toFixed(3);
-          next.under.style.transform = `translateY(${(-e * 6).toFixed(1)}%)`;
-        }
-      }
-    };
-
-    const onScroll = () => {
-      if (raf) return;
-      raf = requestAnimationFrame(() => { raf = null; tick(); });
-    };
-    const onResize = () => {
-      if (rraf) return;
-      rraf = requestAnimationFrame(() => { rraf = null; layout(); tick(); });
-    };
-    const onMedia = () => { layout(); tick(); };
-
-    mqWide.addEventListener('change', onMedia);
-    mqReduced.addEventListener('change', onMedia);
-    window.addEventListener('scroll', onScroll, { passive: true });
-    window.addEventListener('resize', onResize);
-
-    layout();
-    tick();
-
-    if (window.ResizeObserver) {
-      ro = new ResizeObserver(onResize);
-      pages.forEach((p) => ro.observe(p.leaf));
-    }
-    if (document.fonts && document.fonts.ready) {
-      document.fonts.ready.then(() => {
-        if (!cancelled) { layout(); tick(); }
-      });
-    }
-
-    return () => {
-      cancelled = true;
-      if (raf) cancelAnimationFrame(raf);
-      if (rraf) cancelAnimationFrame(rraf);
-      if (ro) ro.disconnect();
-      window.removeEventListener('scroll', onScroll);
-      window.removeEventListener('resize', onResize);
-      mqWide.removeEventListener('change', onMedia);
-      mqReduced.removeEventListener('change', onMedia);
-    };
   }, []);
 
   return (
@@ -222,10 +92,9 @@ const FieldNotebook = () => {
       ])} />
       <Navbar solid />
       <Breadcrumb />
-      <style>{MARQUEE_STYLE}</style>
+      <style>{NOTEBOOK_STYLE}</style>
 
       <div
-        ref={rootRef}
         style={{
           position: 'relative',
           fontFamily: "'Zilla Slab',Georgia,serif",
