@@ -32,13 +32,27 @@ const PAPER_VARS = {
     "--tape": "url('data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20width=%22120%22%20height=%2240%22%20viewBox=%220%200%20120%2040%22%20preserveAspectRatio=%22none%22%3E%3Cdefs%3E%3Cfilter%20id=%22t%22%20x=%22-10%25%22%20y=%22-25%25%22%20width=%22120%25%22%20height=%22150%25%22%3E%3CfeTurbulence%20type=%22fractalNoise%22%20baseFrequency=%220.5%200.09%22%20numOctaves=%222%22%20seed=%226%22%20result=%22n%22/%3E%3CfeDisplacementMap%20in=%22SourceGraphic%22%20in2=%22n%22%20scale=%225%22%20xChannelSelector=%22R%22%20yChannelSelector=%22G%22/%3E%3C/filter%3E%3C/defs%3E%3Crect%20x=%224%22%20y=%224%22%20width=%22112%22%20height=%2232%22%20fill=%22white%22%20filter=%22url(%23t)%22/%3E%3C/svg%3E')",
 };
 
-// Scoped to this page only (rendered via a plain <style> tag, not a shared stylesheet) —
+// Scoped to this page only (rendered via a plain <style> tag, not a shared stylesheet):
 // see src/AGENTS.md on the three-stylesheet split; this keyframe has nowhere reusable to
 // live and every visitor to the rest of the site would otherwise pay for it.
 const NOTEBOOK_STYLE = `
 @keyframes visor-marquee {
-  from { transform: translateX(0); }
   to { transform: translateX(-50%); }
+}
+
+.field-notebook-page .field-notebook-marquee {
+  display: flex;
+  width: max-content;
+  animation: visor-marquee 24s linear infinite;
+}
+.field-notebook-page .field-notebook-marquee:hover {
+  animation-play-state: paused;
+}
+.field-notebook-page .field-notebook-sponsor-set {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 64px;
+  padding-right: 64px;
 }
 
 /* The notebook reads as a stack of separate sheets. Keep the bound left edge
@@ -70,8 +84,19 @@ const NOTEBOOK_STYLE = `
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .field-notebook-marquee { animation: none !important; }
+  .field-notebook-page .field-notebook-marquee {
+    animation: none;
+    width: 100%;
+  }
+  .field-notebook-page .field-notebook-sponsor-set {
+    flex-wrap: wrap;
+    gap: 20px;
+  }
+  .field-notebook-page .field-notebook-sponsor-set[aria-hidden="true"] {
+    display: none;
+  }
 }
+
 `;
 
 const FieldNotebook = () => {
@@ -82,8 +107,8 @@ const FieldNotebook = () => {
   return (
     <div className="field-notebook-page">
       <SEOHead
-        title="VISOR Field Notebook — NASA SUITS"
-        description="A working record of Purdue SEARCH's VISOR team: the 2026-27 research log, test & evaluation plan, prior NASA SUITS work, and sponsor requirements."
+        title="VISOR Field Notebook: NASA SUITS"
+        description="Meet Purdue SEARCH's VISOR team: its NASA SUITS history, current HoloLens 2 development, research directions, testing plans, and ways to support the team."
         canonical="/software"
       />
       <JsonLd data={breadcrumbs([
@@ -118,7 +143,7 @@ const FieldNotebook = () => {
                   </div>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: "12px", flexWrap: "wrap", borderBottom: "1px solid var(--rule)", paddingBottom: "9px", marginBottom: "27px" }}>
                     <span style={{ fontFamily: "'Azeret Mono',ui-monospace,monospace", fontSize: "10.5px", letterSpacing: ".04em", textTransform: "uppercase", color: "var(--ink2)" }}>
-                      VISOR — Field Notebook
+                      VISOR: Field Notebook
                     </span>
                     <span style={{ fontFamily: "'Azeret Mono',ui-monospace,monospace", fontSize: "10.5px", letterSpacing: ".04em", color: "var(--ink2)" }}>
                       PG. 01 / 05
@@ -138,10 +163,10 @@ const FieldNotebook = () => {
                         VISOR
                       </h1>
                       <span style={{ position: "relative", display: "inline-block", fontFamily: "'Azeret Mono',ui-monospace,monospace", fontSize: "11px", letterSpacing: ".02em", color: "var(--mars)", marginTop: "13px", borderBottom: "1px solid rgba(184,50,37,.6)", paddingBottom: "3px" }}>
-                        rev 2026–27 — research & development cycle
+                        rev 2026–27: research & development cycle
                       </span>
                       <p style={{ fontSize: "17px", lineHeight: "29px", color: "var(--ink2)", margin: "20px 0 0", maxWidth: "50ch" }}>
-                        Purdue SEARCH · NASA SUITS — a working record of the VISOR team’s 2026–27 research and development, and what it takes to get to Houston.
+                        Virtual Interface for Space Operations and Reconnaissance. Founded as JARVIS in fall 2023, VISOR develops hardware and software to support astronauts during NASA SUITS lunar mission simulations.
                       </p>
                       <div style={{ display: "flex", flexWrap: "wrap", gap: "16px 40px", marginTop: "27px", alignItems: "baseline", paddingTop: "16px", borderTop: "1px solid var(--rule)" }}>
                         <div>
@@ -154,10 +179,10 @@ const FieldNotebook = () => {
                         </div>
                         <div>
                           <span style={{ fontFamily: "'Saira Condensed','Arial Narrow',sans-serif", fontWeight: "700", fontSize: "30px", color: "var(--ink)" }}>
-                            2×
+                            2
                           </span>
                           <span style={{ fontFamily: "'Azeret Mono',ui-monospace,monospace", fontSize: "11px", color: "var(--ink2)", marginLeft: "8px" }}>
-                            innovation award, 3 seasons
+                            awards across 3 seasons
                           </span>
                         </div>
                         <div>
@@ -171,27 +196,22 @@ const FieldNotebook = () => {
                       </div>
                     </div>
                     <div style={{ position: "relative", minWidth: "0", transform: "rotate(1.4deg)", marginTop: "8px" }}>
-                      <div style={{ aspectRatio: "4/3", backgroundImage: "repeating-linear-gradient(45deg,var(--paper2),var(--paper2) 10px,#d6caaf 10px,#d6caaf 20px)", border: "1px solid var(--rule)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 6px rgba(20,12,6,.14)" }}>
-                        <span style={{ fontFamily: "'Azeret Mono',ui-monospace,monospace", fontSize: "11px", color: "var(--ink2)", textTransform: "uppercase", letterSpacing: ".02em", textAlign: "center", padding: "0 12px" }}>
-                          photo placeholder — working session
-                        </span>
+                      <div style={{ aspectRatio: "4/3", border: "1px solid var(--rule)", boxShadow: "0 2px 6px rgba(20,12,6,.14)", overflow: "hidden", position: "relative" }}>
+                        <img loading="lazy" src="/software/Meeting_SUITS.webp" alt="VISOR team members gathered around a table" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
                       </div>
                       <span style={{ position: "absolute", top: "-11px", left: "18px", width: "64px", height: "22px", background: "linear-gradient(104deg,rgba(255,253,246,.52),rgba(236,230,215,.32) 45%,rgba(255,255,255,.46))", maskImage: "var(--tape)", maskSize: "100% 100%", WebkitMaskImage: "var(--tape)", WebkitMaskSize: "100% 100%", transform: "rotate(-7deg)", filter: "drop-shadow(0 1px 1.5px rgba(30,18,8,.22))" }} />
                       <span style={{ position: "absolute", top: "-9px", right: "22px", width: "58px", height: "20px", background: "linear-gradient(80deg,rgba(255,255,250,.46),rgba(238,232,218,.3) 55%,rgba(255,255,255,.42))", maskImage: "var(--tape)", maskSize: "100% 100%", WebkitMaskImage: "var(--tape)", WebkitMaskSize: "100% 100%", transform: "rotate(5deg)", filter: "drop-shadow(0 1px 1.5px rgba(30,18,8,.2))" }} />
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: "10px", flexWrap: "wrap", marginTop: "9px" }}>
                         <p style={{ fontFamily: "'Azeret Mono',ui-monospace,monospace", fontSize: "11px", lineHeight: "1.55", color: "var(--ink2)", margin: "0", maxWidth: "34ch" }}>
-                          fig — VISOR members reviewing system design
+                          fig: VISOR team working together
                         </p>
-                        <span style={{ fontFamily: "'Azeret Mono',ui-monospace,monospace", fontSize: "10.5px", color: "var(--mars)", border: "1px solid var(--mars)", padding: "2px 6px", whiteSpace: "nowrap" }}>
-                          IMG–000A
-                        </span>
                       </div>
                     </div>
                   </div>
                   <div style={{ marginTop: "27px", paddingTop: "20px", borderTop: "1px solid var(--rule)", display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(300px,100%),1fr))", gap: "20px 40px", alignItems: "start" }}>
                     <div style={{ minWidth: "0" }}>
                       <div style={{ fontFamily: "'Azeret Mono',ui-monospace,monospace", fontSize: "10.5px", letterSpacing: ".05em", color: "var(--mars)", marginBottom: "22px" }}>
-                        TEAM LEADS — EQUAL RESPONSIBILITY
+                        TEAM LEADS: EQUAL RESPONSIBILITY
                       </div>
                       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(190px,100%),1fr))", gap: "18px" }}>
                         <div style={{ border: "1px solid var(--ink)", position: "relative", padding: "20px 16px 18px" }}>
@@ -214,7 +234,7 @@ const FieldNotebook = () => {
                     </div>
                     <div style={{ minWidth: "0" }}>
                       <div style={{ fontFamily: "'Azeret Mono',ui-monospace,monospace", fontSize: "10.5px", letterSpacing: ".05em", color: "var(--ink2)", marginBottom: "22px" }}>
-                        STUDENT PARTICIPATION — ALL DISCIPLINES
+                        STUDENT PARTICIPATION: ALL DISCIPLINES
                       </div>
                       <p style={{ fontSize: "16px", lineHeight: "28px", color: "var(--ink2)", margin: "0", maxWidth: "42ch" }}>
                         Purdue students: VISOR is looking for builders, researchers, and communicators. 
@@ -247,7 +267,7 @@ const FieldNotebook = () => {
                   </div>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: "12px", flexWrap: "wrap", borderBottom: "1px solid var(--rule)", paddingBottom: "9px", marginBottom: "27px" }}>
                     <span style={{ fontFamily: "'Azeret Mono',ui-monospace,monospace", fontSize: "10.5px", letterSpacing: ".04em", textTransform: "uppercase", color: "var(--ink2)" }}>
-                      VISOR — Field Notebook
+                      VISOR: Field Notebook
                     </span>
                     <span style={{ fontFamily: "'Azeret Mono',ui-monospace,monospace", fontSize: "10.5px", letterSpacing: ".04em", color: "var(--ink2)" }}>
                       PG. 02 / 05
@@ -262,7 +282,7 @@ const FieldNotebook = () => {
                     </h2>
                   </div>
                   <p style={{ fontSize: "16px", lineHeight: "28px", color: "var(--ink2)", margin: "0 0 27px", maxWidth: "64ch" }}>
-                    The 2026–27 work recorded below represents research directions and prototype development, not a finalized system architecture.
+                    HoloLens 2 is VISOR's current development platform. The team is also evaluating custom XR hardware, LiDAR, robotic arms, and new ways to support navigation and interaction during lunar tasks.
                   </p>
                   <div style={{ borderTop: "1px solid var(--rule)", paddingTop: "16px", marginBottom: "27px" }}>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: "8px 18px", alignItems: "baseline", marginBottom: "8px" }}>
@@ -278,12 +298,6 @@ const FieldNotebook = () => {
                     </div>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 28px", fontFamily: "'Azeret Mono',ui-monospace,monospace", fontSize: "11px", lineHeight: "15px", color: "var(--ink2)", marginBottom: "9px" }}>
                       <div>
-                        PROTOTYPE ID 
-                        <span style={{ color: "var(--ink)" }}>
-                          HMD–01
-                        </span>
-                      </div>
-                      <div>
                         PLATFORM 
                         <span style={{ color: "var(--ink)" }}>
                           HoloLens 2
@@ -291,7 +305,7 @@ const FieldNotebook = () => {
                       </div>
                     </div>
                     <p style={{ fontSize: "15px", lineHeight: "26px", color: "var(--ink2)", margin: "0", maxWidth: "64ch" }}>
-                      Developing the mission interface on Microsoft HoloLens 2, with a custom headset platform as a longer-term research direction.
+                      Developing the mission interface on Microsoft HoloLens 2 while evaluating a custom XR headset as a future platform.
                     </p>
                   </div>
                   <div style={{ borderTop: "1px solid var(--rule)", paddingTop: "16px", marginBottom: "27px", display: "flex", gap: "24px", flexWrap: "wrap" }}>
@@ -308,26 +322,11 @@ const FieldNotebook = () => {
                         </span>
                       </div>
                       <div style={{ fontFamily: "'Azeret Mono',ui-monospace,monospace", fontSize: "11px", lineHeight: "15px", color: "var(--ink2)", marginBottom: "9px" }}>
-                        PROTOTYPE ID 
-                        <span style={{ color: "var(--ink)" }}>
-                          NAV–02
-                        </span>
+                        STATUS: evaluating possible roles in the system
                       </div>
                       <p style={{ fontSize: "15px", lineHeight: "26px", color: "var(--ink2)", margin: "0", maxWidth: "60ch" }}>
-                        Spatial sensing for unfamiliar terrain, studied alongside whether a robotic arm can extend navigation and interaction when attention and mobility are constrained — treated as one investigation, not two separate features.
+                        LiDAR sensing and robotic arms are both under evaluation. The team is studying how they could support terrain awareness, navigation, and interaction without treating either as a finished feature.
                       </p>
-                    </div>
-                    <div style={{ width: "168px", flexShrink: "0", position: "relative", paddingTop: "6px", marginLeft: "40px" }}>
-                      <div style={{ border: "1px dashed var(--ink2)", padding: "10px", fontFamily: "'Azeret Mono',ui-monospace,monospace", fontSize: "10.5px", lineHeight: "1.55", color: "var(--ink2)", textAlign: "center" }}>
-                        terrain scan — concept
-                      </div>
-                      <span style={{ display: "inline-block", marginTop: "8px", color: "var(--mars)", fontFamily: "'Caveat Brush',cursive", fontSize: "17px", lineHeight: "1.1", transform: "rotate(-2.4deg)" }}>
-                        check clearance
-                      </span>
-                      <svg width="40" height="28" viewBox="0 0 40 28" aria-hidden="true" style={{ position: "absolute", left: "-38px", top: "24px" }}>
-                        <line x1="0" y1="4" x2="30" y2="16" stroke="#b83225" strokeWidth="1.5" strokeDasharray="4 3" />
-                        <polygon points="30,10 38,16 30,22" fill="#b83225" />
-                      </svg>
                     </div>
                   </div>
                   <div style={{ borderTop: "1px solid var(--rule)", paddingTop: "16px" }}>
@@ -336,20 +335,17 @@ const FieldNotebook = () => {
                         R–03
                       </span>
                       <span style={{ fontFamily: "'Saira Condensed','Arial Narrow',sans-serif", fontWeight: "700", fontSize: "20px", color: "var(--ink)" }}>
-                        Machine learning task support
+                        Onboard assistance and interaction
                       </span>
                       <span style={{ border: "1px solid var(--ink)", fontFamily: "'Azeret Mono',ui-monospace,monospace", fontSize: "9.5px", letterSpacing: ".04em", padding: "2px 7px", color: "var(--ink2)" }}>
-                        PROTOTYPE
+                        EXPLORATORY
                       </span>
                     </div>
                     <div style={{ fontFamily: "'Azeret Mono',ui-monospace,monospace", fontSize: "11px", lineHeight: "15px", color: "var(--ink2)", marginBottom: "9px" }}>
-                      PROTOTYPE ID 
-                      <span style={{ color: "var(--ink)" }}>
-                        ML–03
-                      </span>
+                      STATUS: evaluating concepts for 2027
                     </div>
                     <p style={{ fontSize: "15px", lineHeight: "26px", color: "var(--ink2)", margin: "0", maxWidth: "62ch" }}>
-                      Prototyping assistance that helps an operator act on the right information at the right moment, without adding another interface to manage.
+                      The 2027 proposal considers onboard computing, computer-vision gesture recognition, a suit-mounted light, and holographic route guidance. These are research directions, not completed system features.
                     </p>
                   </div>
                   <div data-curl="" style={{ position: "absolute", inset: "0", zIndex: "3", pointerEvents: "none", opacity: "0", background: "linear-gradient(to bottom,rgba(255,255,255,.5) 0%,rgba(255,255,255,0) 9%,rgba(28,17,9,0) 42%,rgba(28,17,9,.5) 100%)" }} />
@@ -374,7 +370,7 @@ const FieldNotebook = () => {
                   </div>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: "12px", flexWrap: "wrap", borderBottom: "1px solid var(--rule)", paddingBottom: "9px", marginBottom: "27px" }}>
                     <span style={{ fontFamily: "'Azeret Mono',ui-monospace,monospace", fontSize: "10.5px", letterSpacing: ".04em", textTransform: "uppercase", color: "var(--ink2)" }}>
-                      VISOR — Field Notebook
+                      VISOR: Field Notebook
                     </span>
                     <span style={{ fontFamily: "'Azeret Mono',ui-monospace,monospace", fontSize: "10.5px", letterSpacing: ".04em", color: "var(--ink2)" }}>
                       PG. 03 / 05
@@ -386,15 +382,15 @@ const FieldNotebook = () => {
                         02
                       </span>
                       <h2 style={{ fontFamily: "'Saira Condensed','Arial Narrow',sans-serif", fontWeight: "700", fontSize: "clamp(23px,2.2vw,31px)", color: "var(--ink)", margin: "0", textTransform: "uppercase", letterSpacing: ".02em" }}>
-                        Test & Evaluation Record
+                        Test & Evaluation Plan
                       </h2>
                     </div>
                     <span style={{ display: "inline-block", borderStyle: "solid", borderColor: "var(--mars)", borderWidth: "2px 1.5px 2.5px 1.5px", borderRadius: "1.5px", color: "var(--mars)", fontFamily: "'Special Elite','Courier New',monospace", textTransform: "uppercase", transform: "rotate(2.7deg)", opacity: ".94", maskImage: "var(--stampink)", WebkitMaskImage: "var(--stampink)", maskSize: "240px 96px", WebkitMaskSize: "240px 96px", maskPosition: "-58px -14px", WebkitMaskPosition: "-58px -14px", filter: "blur(.18px)", fontSize: "12.5px", letterSpacing: ".13em", padding: "5px 11px 4px" }}>
-                      Test Record
+                      In Progress
                     </span>
                   </div>
                   <p style={{ fontSize: "16px", lineHeight: "28px", color: "var(--ink2)", margin: "0 0 27px", maxWidth: "64ch" }}>
-                    Two of the 2026–27 directions concern how VISOR tests, not what it builds.
+                    VISOR is putting a repeatable testing process in place for the 2026–27 cycle. The team is preparing on-campus scenarios and adding biometric measures to study cognitive load alongside direct observation.
                   </p>
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(2,minmax(0,1fr))", borderTop: "1px solid var(--rule)", borderBottom: "1px solid var(--rule)" }}>
                     <div style={{ padding: "18px 22px 18px 0" }}>
@@ -405,7 +401,7 @@ const FieldNotebook = () => {
                         Prototype
                       </div>
                       <p style={{ fontSize: "13.5px", lineHeight: "22.5px", color: "var(--ink2)", margin: "0" }}>
-                        Build a focused hardware or interface hypothesis.
+                        Build and check a focused hardware or interface prototype.
                       </p>
                     </div>
                     <div style={{ padding: "18px 0 18px 22px", borderLeft: "1px solid var(--rule)" }}>
@@ -416,7 +412,7 @@ const FieldNotebook = () => {
                         Run it at Purdue
                       </div>
                       <p style={{ fontSize: "13.5px", lineHeight: "22.5px", color: "var(--ink2)", margin: "0" }}>
-                        A mock test location is planned so integrated scenarios can happen earlier and more often.
+                        The team is preparing a mock test location for integrated scenarios on campus.
                       </p>
                     </div>
                     <div style={{ padding: "18px 22px 18px 0", marginTop: "24px", borderTop: "1px solid var(--rule)" }}>
@@ -427,14 +423,14 @@ const FieldNotebook = () => {
                         Measure
                       </div>
                       <p style={{ fontSize: "13.5px", lineHeight: "22.5px", color: "var(--ink2)", margin: "0 0 6px" }}>
-                        Pair observation with biometric signals for an objective read on cognitive load.
+                        Add biometric signals alongside observation to study cognitive load during tasks.
                       </p>
                       <p style={{ fontSize: "11px", margin: "0", lineHeight: "1.4" }}>
                         <span style={{ color: "var(--ink2)", textDecoration: "line-through" }}>
-                          observe only
+                          observation alone
                         </span>
                         <span style={{ display: "inline-block", color: "var(--mars)", fontFamily: "'Caveat Brush',cursive", fontSize: "19px", lineHeight: "1", transform: "rotate(-1.8deg) translateY(1px)", marginLeft: "3px" }}>
-                          → add biometric channel
+                          → biometric channel in development
                         </span>
                       </p>
                     </div>
@@ -446,19 +442,19 @@ const FieldNotebook = () => {
                         Iterate
                       </div>
                       <p style={{ fontSize: "13.5px", lineHeight: "22.5px", color: "var(--ink2)", margin: "0" }}>
-                        Use the evidence to decide what earns another build cycle.
+                        Use findings from each test to guide the next build cycle.
                       </p>
                     </div>
                   </div>
                   <div style={{ marginTop: "27px", fontFamily: "'Azeret Mono',ui-monospace,monospace", fontSize: "11px", color: "var(--ink2)", display: "flex", flexDirection: "column", gap: "7px", maxWidth: "70ch" }}>
                     <div style={{ borderBottom: "1px dotted var(--rule)", paddingBottom: "5px" }}>
-                      LOG — baseline observation window opened
+                      STATUS: baseline observation process in development
                     </div>
                     <div style={{ borderBottom: "1px dotted var(--rule)", paddingBottom: "5px" }}>
-                      LOG — biometric channel added to measurement pass
+                      STATUS: biometric measurement being added
                     </div>
                     <div style={{ borderBottom: "1px dotted var(--rule)", paddingBottom: "5px" }}>
-                      LOG — integrated scenario scheduling moved on-campus
+                      STATUS: on-campus scenario setup in progress
                     </div>
                   </div>
                   <div data-curl="" style={{ position: "absolute", inset: "0", zIndex: "3", pointerEvents: "none", opacity: "0", background: "linear-gradient(to bottom,rgba(255,255,255,.5) 0%,rgba(255,255,255,0) 9%,rgba(28,17,9,0) 42%,rgba(28,17,9,.5) 100%)" }} />
@@ -482,7 +478,7 @@ const FieldNotebook = () => {
                   </div>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: "12px", flexWrap: "wrap", borderBottom: "1px solid var(--rule)", paddingBottom: "9px", marginBottom: "27px" }}>
                     <span style={{ fontFamily: "'Azeret Mono',ui-monospace,monospace", fontSize: "10.5px", letterSpacing: ".04em", textTransform: "uppercase", color: "var(--ink2)" }}>
-                      VISOR — Field Notebook
+                      VISOR: Field Notebook
                     </span>
                     <span style={{ fontFamily: "'Azeret Mono',ui-monospace,monospace", fontSize: "10.5px", letterSpacing: ".04em", color: "var(--ink2)" }}>
                       PG. 04 / 05
@@ -496,61 +492,49 @@ const FieldNotebook = () => {
                       Previous NASA SUITS Work
                     </h2>
                   </div>
+                  <p style={{ fontSize: "16px", lineHeight: "28px", color: "var(--ink2)", margin: "0 0 14px", maxWidth: "64ch" }}>
+                    Founded by Gurmehar Singh as Team JARVIS in fall 2023, VISOR has spent three NASA SUITS seasons developing interfaces for simulated lunar EVAs. Past work includes a lunar rover interface and a wearable AR headset with a wrist-mounted display, drawing on telemetry, biometric measurements, voice-responsive AI, and navigation.
+                  </p>
                   <p style={{ fontSize: "16px", lineHeight: "28px", color: "var(--ink2)", margin: "0 0 27px", maxWidth: "64ch" }}>
-                    Prior VISOR teams built and fielded a full mission interface. The images below document that work as historical reference.
+                    The team earned the Pay It Forward Award for outreach in its first season, followed by an Innovation Award for AI and navigation in its second. In its third season, the team reports completing every assigned field test task, though it did not receive an award.
                   </p>
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(280px,100%),1fr))", gap: "27px 32px", alignItems: "start" }}>
                     <div style={{ position: "relative", minWidth: "0", transform: "rotate(-1.2deg)", gridColumn: "span 1" }}>
-                      <div style={{ aspectRatio: "1.6", backgroundImage: "repeating-linear-gradient(45deg,var(--paper2),var(--paper2) 10px,#d6caaf 10px,#d6caaf 20px)", border: "1px solid var(--rule)", display: "flex", alignItems: "center", justifyContent: "center", position: "relative", boxShadow: "0 2px 6px rgba(20,12,6,.14)" }}>
-                        <span style={{ fontFamily: "'Azeret Mono',ui-monospace,monospace", fontSize: "11px", letterSpacing: ".02em", color: "var(--ink2)", textTransform: "uppercase", textAlign: "center", padding: "0 12px" }}>
-                          photo placeholder — rover interface
-                        </span>
+                      <div style={{ aspectRatio: "1.6", border: "1px solid var(--rule)", position: "relative", boxShadow: "0 2px 6px rgba(20,12,6,.14)", overflow: "hidden" }}>
+                        <img loading="lazy" src="/software/suits_rover_ui.webp" alt="JARVIS rover interface with map, alerts, telemetry, and procedures" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
                         <span style={{ position: "absolute", left: "26%", top: "30%", width: "34px", height: "34px", border: "2px solid var(--mars)", borderRadius: "50%" }} />
                       </div>
                       <span style={{ position: "absolute", top: "-11px", left: "22px", width: "62px", height: "21px", background: "linear-gradient(96deg,rgba(255,253,246,.5),rgba(236,230,215,.3) 50%,rgba(255,255,255,.44))", maskImage: "var(--tape)", maskSize: "100% 100%", WebkitMaskImage: "var(--tape)", WebkitMaskSize: "100% 100%", transform: "rotate(4deg)", filter: "drop-shadow(0 1px 1.5px rgba(30,18,8,.22))" }} />
                       <span style={{ position: "absolute", top: "-10px", right: "18px", width: "56px", height: "19px", background: "linear-gradient(72deg,rgba(255,255,250,.44),rgba(238,232,218,.3) 55%,rgba(255,255,255,.4))", maskImage: "var(--tape)", maskSize: "100% 100%", WebkitMaskImage: "var(--tape)", WebkitMaskSize: "100% 100%", transform: "rotate(-6deg)", filter: "drop-shadow(0 1px 1.5px rgba(30,18,8,.2))" }} />
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: "10px", marginTop: "9px", flexWrap: "wrap" }}>
                         <p style={{ fontFamily: "'Azeret Mono',ui-monospace,monospace", fontSize: "11px", lineHeight: "1.55", color: "var(--ink2)", margin: "0", maxWidth: "42ch" }}>
-                          fig — previous VISOR rover interface, fielded at NASA SUITS: telemetry, navigation, alerts, and procedures in one view
+                          fig: JARVIS rover interface with map, alerts, telemetry, and procedures
                         </p>
-                        <span style={{ fontFamily: "'Azeret Mono',ui-monospace,monospace", fontSize: "10.5px", color: "var(--mars)", border: "1px solid var(--mars)", padding: "2px 6px", whiteSpace: "nowrap" }}>
-                          IMG–014
-                        </span>
                       </div>
                     </div>
                     <div style={{ minWidth: "0", display: "flex", flexDirection: "column", gap: "27px" }}>
                       <div style={{ position: "relative", transform: "rotate(1.6deg)" }}>
-                        <div style={{ aspectRatio: "4/3", backgroundImage: "repeating-linear-gradient(45deg,var(--paper2),var(--paper2) 10px,#d6caaf 10px,#d6caaf 20px)", border: "1px solid var(--rule)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 5px rgba(20,12,6,.12)" }}>
-                          <span style={{ fontFamily: "'Azeret Mono',ui-monospace,monospace", fontSize: "10.5px", letterSpacing: ".02em", color: "var(--ink2)", textTransform: "uppercase", textAlign: "center", padding: "0 10px" }}>
-                            photo placeholder — integration testing
-                          </span>
+                        <div style={{ aspectRatio: "4/3", border: "1px solid var(--rule)", boxShadow: "0 2px 5px rgba(20,12,6,.12)", overflow: "hidden", position: "relative" }}>
+                          <img loading="lazy" src="/software/Data_Monitors_Suits.webp" alt="VISOR member working at a desk with telemetry displays" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
                         </div>
                         <span style={{ position: "absolute", top: "-9px", right: "14px", width: "50px", height: "18px", background: "linear-gradient(88deg,rgba(255,253,246,.46),rgba(238,232,218,.3) 50%,rgba(255,255,255,.4))", maskImage: "var(--tape)", maskSize: "100% 100%", WebkitMaskImage: "var(--tape)", WebkitMaskSize: "100% 100%", transform: "rotate(-7deg)", filter: "drop-shadow(0 1px 1.5px rgba(30,18,8,.2))" }} />
                         <p style={{ fontFamily: "'Azeret Mono',ui-monospace,monospace", fontSize: "11px", lineHeight: "1.55", color: "var(--ink2)", margin: "8px 0 0" }}>
-                          fig — software under integrated testing 
-                          <span style={{ color: "var(--mars)" }}>
-                            IMG–015
-                          </span>
+                          fig: VISOR software and telemetry displays in use
                         </p>
                       </div>
                       <div style={{ position: "relative", transform: "rotate(-1.4deg)" }}>
-                        <div style={{ aspectRatio: "16/9", backgroundImage: "repeating-linear-gradient(45deg,var(--paper2),var(--paper2) 10px,#d6caaf 10px,#d6caaf 20px)", border: "1px solid var(--rule)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 5px rgba(20,12,6,.12)" }}>
-                          <span style={{ fontFamily: "'Azeret Mono',ui-monospace,monospace", fontSize: "10.5px", letterSpacing: ".02em", color: "var(--ink2)", textTransform: "uppercase", textAlign: "center", padding: "0 10px" }}>
-                            photo placeholder — Houston field test
-                          </span>
+                        <div style={{ aspectRatio: "16/9", border: "1px solid var(--rule)", boxShadow: "0 2px 5px rgba(20,12,6,.12)", overflow: "hidden", position: "relative" }}>
+                          <img loading="lazy" src="/software/Win_Photo_Suits.webp" alt="VISOR team members at a NASA SUITS event" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
                         </div>
                         <span style={{ position: "absolute", top: "-9px", left: "50%", width: "54px", height: "18px", marginLeft: "-27px", background: "linear-gradient(100deg,rgba(255,255,250,.48),rgba(238,232,218,.3) 55%,rgba(255,255,255,.42))", maskImage: "var(--tape)", maskSize: "100% 100%", WebkitMaskImage: "var(--tape)", WebkitMaskSize: "100% 100%", transform: "rotate(2deg)", filter: "drop-shadow(0 1px 1.5px rgba(30,18,8,.2))" }} />
                         <p style={{ fontFamily: "'Azeret Mono',ui-monospace,monospace", fontSize: "11px", lineHeight: "1.55", color: "var(--ink2)", margin: "8px 0 0" }}>
-                          fig — NASA SUITS finals, Houston 
-                          <span style={{ color: "var(--mars)" }}>
-                            IMG–016
-                          </span>
+                          fig: VISOR team members at NASA SUITS
                         </p>
                       </div>
                     </div>
                   </div>
                   <span style={{ marginTop: "27px", display: "inline-block", borderStyle: "solid", borderColor: "var(--mars)", borderWidth: "2px 1.5px 2.5px 1.5px", borderRadius: "1.5px", color: "var(--mars)", fontFamily: "'Special Elite','Courier New',monospace", textTransform: "uppercase", transform: "rotate(-2.1deg)", opacity: ".94", maskImage: "var(--stampink)", WebkitMaskImage: "var(--stampink)", maskSize: "240px 96px", WebkitMaskSize: "240px 96px", maskPosition: "-120px -30px", WebkitMaskPosition: "-120px -30px", filter: "blur(.18px)", fontSize: "12.5px", letterSpacing: ".1em", padding: "6px 13px 5px" }}>
-                    2 Innovation Awards — 3 Seasons
+                    Pay It Forward + Innovation: 3 Seasons
                   </span>
                   <div style={{ marginTop: "34px", paddingTop: "27px", borderTop: "1px solid var(--rule)" }}>
                     <div style={{ display: "flex", alignItems: "baseline", gap: "10px", marginBottom: "5px" }}>
@@ -562,56 +546,31 @@ const FieldNotebook = () => {
                       </h2>
                     </div>
                     <p style={{ fontSize: "16px", lineHeight: "28px", color: "var(--ink2)", margin: "0 0 24px", maxWidth: "64ch" }}>
-                      VISOR's 2026–27 cycle runs on the generosity of the following partners.
+                      Thank you to Purdue University's Department of Computer Science for supporting VISOR's work.
                     </p>
                     <div style={{ overflow: "hidden", width: "100%" }}>
-                      <div className="field-notebook-marquee" style={{ display: "flex", gap: "64px", width: "max-content", animation: "visor-marquee 20s linear infinite" }}>
-                        <div style={{ flex: "0 0 auto", display: "flex", flexDirection: "column", gap: "10px" }}>
-                          <div style={{ width: "260px", height: "130px", backgroundImage: "repeating-linear-gradient(45deg,var(--paper2),var(--paper2) 10px,#d6caaf 10px,#d6caaf 20px)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                            <span style={{ fontFamily: "'Azeret Mono',ui-monospace,monospace", fontSize: "11px", letterSpacing: ".05em", color: "var(--ink2)", textTransform: "uppercase" }}>
-                              logo placeholder
-                            </span>
+                      <div className="field-notebook-marquee">
+                        {[false, true].map((duplicate) => (
+                          <div key={String(duplicate)} className="field-notebook-sponsor-set" aria-hidden={duplicate}>
+                            <div style={{ flex: "0 0 260px", display: "flex", flexDirection: "column", gap: "10px" }}>
+                              <div style={{ height: "130px", backgroundImage: "repeating-linear-gradient(45deg,var(--paper2),var(--paper2) 10px,#d6caaf 10px,#d6caaf 20px)", display: "flex", alignItems: "center", justifyContent: "center", border: "1px solid var(--rule)" }}>
+                                <span style={{ fontFamily: "'Saira Condensed','Arial Narrow',sans-serif", fontWeight: "700", fontSize: "27px", color: "var(--ink)" }}>
+                                  Purdue CS
+                                </span>
+                              </div>
+                              <div style={{ fontFamily: "'Azeret Mono',ui-monospace,monospace", fontSize: "10.5px", letterSpacing: ".04em", color: "var(--ink2)" }}>
+                                Purdue University Department of Computer Science
+                              </div>
+                            </div>
+                            {[1, 2].map((slot) => (
+                              <div key={slot} style={{ flex: "0 0 260px", minHeight: "130px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                <span style={{ fontFamily: "'Azeret Mono',ui-monospace,monospace", fontSize: "11px", letterSpacing: ".05em", color: "var(--ink2)", textTransform: "uppercase" }}>
+                                  + Open sponsor slot
+                                </span>
+                              </div>
+                            ))}
                           </div>
-                          <div style={{ fontFamily: "'Saira Condensed','Arial Narrow',sans-serif", fontWeight: "700", fontSize: "22px", color: "var(--ink)" }}>
-                            Purdue CS
-                          </div>
-                          <div style={{ fontFamily: "'Azeret Mono',ui-monospace,monospace", fontSize: "10.5px", letterSpacing: ".04em", color: "var(--ink2)" }}>
-                            Department of Computer Science
-                          </div>
-                        </div>
-                        <div style={{ flex: "0 0 auto", width: "260px", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                          <span style={{ fontFamily: "'Azeret Mono',ui-monospace,monospace", fontSize: "11px", letterSpacing: ".05em", color: "var(--ink2)", textTransform: "uppercase" }}>
-                            + open sponsor slot
-                          </span>
-                        </div>
-                        <div style={{ flex: "0 0 auto", width: "260px", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                          <span style={{ fontFamily: "'Azeret Mono',ui-monospace,monospace", fontSize: "11px", letterSpacing: ".05em", color: "var(--ink2)", textTransform: "uppercase" }}>
-                            + open sponsor slot
-                          </span>
-                        </div>
-                        <div style={{ flex: "0 0 auto", display: "flex", flexDirection: "column", gap: "10px" }}>
-                          <div style={{ width: "260px", height: "130px", backgroundImage: "repeating-linear-gradient(45deg,var(--paper2),var(--paper2) 10px,#d6caaf 10px,#d6caaf 20px)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                            <span style={{ fontFamily: "'Azeret Mono',ui-monospace,monospace", fontSize: "11px", letterSpacing: ".05em", color: "var(--ink2)", textTransform: "uppercase" }}>
-                              logo placeholder
-                            </span>
-                          </div>
-                          <div style={{ fontFamily: "'Saira Condensed','Arial Narrow',sans-serif", fontWeight: "700", fontSize: "22px", color: "var(--ink)" }}>
-                            Purdue CS
-                          </div>
-                          <div style={{ fontFamily: "'Azeret Mono',ui-monospace,monospace", fontSize: "10.5px", letterSpacing: ".04em", color: "var(--ink2)" }}>
-                            Department of Computer Science
-                          </div>
-                        </div>
-                        <div style={{ flex: "0 0 auto", width: "260px", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                          <span style={{ fontFamily: "'Azeret Mono',ui-monospace,monospace", fontSize: "11px", letterSpacing: ".05em", color: "var(--ink2)", textTransform: "uppercase" }}>
-                            + open sponsor slot
-                          </span>
-                        </div>
-                        <div style={{ flex: "0 0 auto", width: "260px", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                          <span style={{ fontFamily: "'Azeret Mono',ui-monospace,monospace", fontSize: "11px", letterSpacing: ".05em", color: "var(--ink2)", textTransform: "uppercase" }}>
-                            + open sponsor slot
-                          </span>
-                        </div>
+                        ))}
                       </div>
                     </div>
                   </div>
@@ -636,7 +595,7 @@ const FieldNotebook = () => {
                   </div>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: "12px", flexWrap: "wrap", borderBottom: "1px solid var(--rule)", paddingBottom: "9px", marginBottom: "27px" }}>
                     <span style={{ fontFamily: "'Azeret Mono',ui-monospace,monospace", fontSize: "10.5px", letterSpacing: ".04em", textTransform: "uppercase", color: "var(--ink2)" }}>
-                      VISOR — Field Notebook
+                      VISOR: Field Notebook
                     </span>
                     <span style={{ fontFamily: "'Azeret Mono',ui-monospace,monospace", fontSize: "10.5px", letterSpacing: ".04em", color: "var(--ink2)" }}>
                       PG. 05 / 05
@@ -647,18 +606,18 @@ const FieldNotebook = () => {
                       04
                     </span>
                     <h2 style={{ fontFamily: "'Saira Condensed','Arial Narrow',sans-serif", fontWeight: "700", fontSize: "clamp(23px,2.2vw,31px)", color: "var(--ink)", margin: "0", textTransform: "uppercase", letterSpacing: ".02em" }}>
-                      Sponsor Requirements
+                      Ways to Support VISOR
                     </h2>
                   </div>
                   <p style={{ fontSize: "16px", lineHeight: "28px", color: "var(--ink2)", margin: "0 0 20px", maxWidth: "64ch" }}>
-                    Support priorities for the 2026–27 VISOR development cycle, and what a contribution goes toward.
+                    VISOR welcomes conversations with people and organizations who would like to support the 2026–27 development cycle. These are examples of areas where a contribution could help.
                   </p>
                   <div style={{ display: "flex", flexDirection: "column", borderTop: "1px solid var(--rule)" }}>
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(230px,100%),1fr))", gap: "9px 28px", padding: "14px 0", borderBottom: "1px solid var(--rule)", alignItems: "start" }}>
                       <div style={{ display: "flex", gap: "10px", alignItems: "baseline", minWidth: "0" }}>
-                        <span style={{ width: "13px", height: "13px", border: "1.5px solid var(--ink)", display: "inline-block", flexShrink: "0" }} />
+                        <span style={{ width: "7px", height: "7px", borderRadius: "50%", background: "var(--mars)", display: "inline-block", flexShrink: "0" }} />
                         <span style={{ fontFamily: "'Azeret Mono',ui-monospace,monospace", fontSize: "11px", color: "var(--mars)", flexShrink: "0" }}>
-                          REQ–01
+                          AREA–01
                         </span>
                         <span style={{ fontFamily: "'Saira Condensed','Arial Narrow',sans-serif", fontWeight: "700", fontSize: "17px", lineHeight: "20px", letterSpacing: ".01em", color: "var(--ink)" }}>
                           XR / sensing hardware
@@ -666,7 +625,7 @@ const FieldNotebook = () => {
                       </div>
                       <div>
                         <div style={{ fontFamily: "'Azeret Mono',ui-monospace,monospace", fontSize: "10px", letterSpacing: ".05em", color: "var(--mars)", marginBottom: "3px" }}>
-                          NEEDED FOR
+                          COULD SUPPORT
                         </div>
                         <div style={{ fontSize: "14px", lineHeight: "21px", color: "var(--ink2)" }}>
                           Custom headset and navigation prototypes
@@ -674,7 +633,7 @@ const FieldNotebook = () => {
                       </div>
                       <div>
                         <div style={{ fontFamily: "'Azeret Mono',ui-monospace,monospace", fontSize: "10px", letterSpacing: ".05em", color: "var(--ink2)", marginBottom: "3px" }}>
-                          EXAMPLES
+                          POSSIBILITIES
                         </div>
                         <div style={{ fontSize: "14px", lineHeight: "21px", color: "var(--ink2)" }}>
                           Displays · optics · cameras · IMUs
@@ -683,9 +642,9 @@ const FieldNotebook = () => {
                     </div>
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(230px,100%),1fr))", gap: "9px 28px", padding: "14px 0", borderBottom: "1px solid var(--rule)", alignItems: "start" }}>
                       <div style={{ display: "flex", gap: "10px", alignItems: "baseline", minWidth: "0" }}>
-                        <span style={{ width: "13px", height: "13px", border: "1.5px solid var(--ink)", display: "inline-block", flexShrink: "0" }} />
+                        <span style={{ width: "7px", height: "7px", borderRadius: "50%", background: "var(--mars)", display: "inline-block", flexShrink: "0" }} />
                         <span style={{ fontFamily: "'Azeret Mono',ui-monospace,monospace", fontSize: "11px", color: "var(--mars)", flexShrink: "0" }}>
-                          REQ–02
+                          AREA–02
                         </span>
                         <span style={{ fontFamily: "'Saira Condensed','Arial Narrow',sans-serif", fontWeight: "700", fontSize: "17px", lineHeight: "20px", letterSpacing: ".01em", color: "var(--ink)" }}>
                           LiDAR / robotics
@@ -693,7 +652,7 @@ const FieldNotebook = () => {
                       </div>
                       <div>
                         <div style={{ fontFamily: "'Azeret Mono',ui-monospace,monospace", fontSize: "10px", letterSpacing: ".05em", color: "var(--mars)", marginBottom: "3px" }}>
-                          NEEDED FOR
+                          COULD SUPPORT
                         </div>
                         <div style={{ fontSize: "14px", lineHeight: "21px", color: "var(--ink2)" }}>
                           Spatial navigation experiments
@@ -701,7 +660,7 @@ const FieldNotebook = () => {
                       </div>
                       <div>
                         <div style={{ fontFamily: "'Azeret Mono',ui-monospace,monospace", fontSize: "10px", letterSpacing: ".05em", color: "var(--ink2)", marginBottom: "3px" }}>
-                          EXAMPLES
+                          POSSIBILITIES
                         </div>
                         <div style={{ fontSize: "14px", lineHeight: "21px", color: "var(--ink2)" }}>
                           LiDAR units · robotic components
@@ -710,9 +669,9 @@ const FieldNotebook = () => {
                     </div>
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(230px,100%),1fr))", gap: "9px 28px", padding: "14px 0", borderBottom: "1px solid var(--rule)", alignItems: "start" }}>
                       <div style={{ display: "flex", gap: "10px", alignItems: "baseline", minWidth: "0" }}>
-                        <span style={{ width: "13px", height: "13px", border: "1.5px solid var(--ink)", display: "inline-block", flexShrink: "0" }} />
+                        <span style={{ width: "7px", height: "7px", borderRadius: "50%", background: "var(--mars)", display: "inline-block", flexShrink: "0" }} />
                         <span style={{ fontFamily: "'Azeret Mono',ui-monospace,monospace", fontSize: "11px", color: "var(--mars)", flexShrink: "0" }}>
-                          REQ–03
+                          AREA–03
                         </span>
                         <span style={{ fontFamily: "'Saira Condensed','Arial Narrow',sans-serif", fontWeight: "700", fontSize: "17px", lineHeight: "20px", letterSpacing: ".01em", color: "var(--ink)" }}>
                           Fabrication
@@ -720,7 +679,7 @@ const FieldNotebook = () => {
                       </div>
                       <div>
                         <div style={{ fontFamily: "'Azeret Mono',ui-monospace,monospace", fontSize: "10px", letterSpacing: ".05em", color: "var(--mars)", marginBottom: "3px" }}>
-                          NEEDED FOR
+                          COULD SUPPORT
                         </div>
                         <div style={{ fontSize: "14px", lineHeight: "21px", color: "var(--ink2)" }}>
                           Custom enclosures and mechanical systems
@@ -728,7 +687,7 @@ const FieldNotebook = () => {
                       </div>
                       <div>
                         <div style={{ fontFamily: "'Azeret Mono',ui-monospace,monospace", fontSize: "10px", letterSpacing: ".05em", color: "var(--ink2)", marginBottom: "3px" }}>
-                          EXAMPLES
+                          POSSIBILITIES
                         </div>
                         <div style={{ fontSize: "14px", lineHeight: "21px", color: "var(--ink2)" }}>
                           CNC · additive manufacturing · machining access
@@ -737,9 +696,9 @@ const FieldNotebook = () => {
                     </div>
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(230px,100%),1fr))", gap: "9px 28px", padding: "14px 0", borderBottom: "1px solid var(--rule)", alignItems: "start" }}>
                       <div style={{ display: "flex", gap: "10px", alignItems: "baseline", minWidth: "0" }}>
-                        <span style={{ width: "13px", height: "13px", border: "1.5px solid var(--ink)", display: "inline-block", flexShrink: "0" }} />
+                        <span style={{ width: "7px", height: "7px", borderRadius: "50%", background: "var(--mars)", display: "inline-block", flexShrink: "0" }} />
                         <span style={{ fontFamily: "'Azeret Mono',ui-monospace,monospace", fontSize: "11px", color: "var(--mars)", flexShrink: "0" }}>
-                          REQ–04
+                          AREA–04
                         </span>
                         <span style={{ fontFamily: "'Saira Condensed','Arial Narrow',sans-serif", fontWeight: "700", fontSize: "17px", lineHeight: "20px", letterSpacing: ".01em", color: "var(--ink)" }}>
                           Travel support
@@ -747,7 +706,7 @@ const FieldNotebook = () => {
                       </div>
                       <div>
                         <div style={{ fontFamily: "'Azeret Mono',ui-monospace,monospace", fontSize: "10px", letterSpacing: ".05em", color: "var(--mars)", marginBottom: "3px" }}>
-                          NEEDED FOR
+                          COULD SUPPORT
                         </div>
                         <div style={{ fontSize: "14px", lineHeight: "21px", color: "var(--ink2)" }}>
                           NASA SUITS testing in Houston
@@ -755,7 +714,7 @@ const FieldNotebook = () => {
                       </div>
                       <div>
                         <div style={{ fontFamily: "'Azeret Mono',ui-monospace,monospace", fontSize: "10px", letterSpacing: ".05em", color: "var(--ink2)", marginBottom: "3px" }}>
-                          EXAMPLES
+                          POSSIBILITIES
                         </div>
                         <div style={{ fontSize: "14px", lineHeight: "21px", color: "var(--ink2)" }}>
                           Travel funding · lodging
@@ -764,9 +723,9 @@ const FieldNotebook = () => {
                     </div>
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(230px,100%),1fr))", gap: "9px 28px", padding: "14px 0", borderBottom: "1px solid var(--rule)", alignItems: "start" }}>
                       <div style={{ display: "flex", gap: "10px", alignItems: "baseline", minWidth: "0" }}>
-                        <span style={{ width: "13px", height: "13px", border: "1.5px solid var(--ink)", display: "inline-block", flexShrink: "0" }} />
+                        <span style={{ width: "7px", height: "7px", borderRadius: "50%", background: "var(--mars)", display: "inline-block", flexShrink: "0" }} />
                         <span style={{ fontFamily: "'Azeret Mono',ui-monospace,monospace", fontSize: "11px", color: "var(--mars)", flexShrink: "0" }}>
-                          REQ–05
+                          AREA–05
                         </span>
                         <span style={{ fontFamily: "'Saira Condensed','Arial Narrow',sans-serif", fontWeight: "700", fontSize: "17px", lineHeight: "20px", letterSpacing: ".01em", color: "var(--ink)" }}>
                           Biometric equipment
@@ -774,7 +733,7 @@ const FieldNotebook = () => {
                       </div>
                       <div>
                         <div style={{ fontFamily: "'Azeret Mono',ui-monospace,monospace", fontSize: "10px", letterSpacing: ".05em", color: "var(--mars)", marginBottom: "3px" }}>
-                          NEEDED FOR
+                          COULD SUPPORT
                         </div>
                         <div style={{ fontSize: "14px", lineHeight: "21px", color: "var(--ink2)" }}>
                           Human-factors evaluation
@@ -782,7 +741,7 @@ const FieldNotebook = () => {
                       </div>
                       <div>
                         <div style={{ fontFamily: "'Azeret Mono',ui-monospace,monospace", fontSize: "10px", letterSpacing: ".05em", color: "var(--ink2)", marginBottom: "3px" }}>
-                          EXAMPLES
+                          POSSIBILITIES
                         </div>
                         <div style={{ fontSize: "14px", lineHeight: "21px", color: "var(--ink2)" }}>
                           Eye tracking · physiological sensors
@@ -791,9 +750,9 @@ const FieldNotebook = () => {
                     </div>
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(230px,100%),1fr))", gap: "9px 28px", padding: "14px 0", borderBottom: "1px solid var(--rule)", alignItems: "start" }}>
                       <div style={{ display: "flex", gap: "10px", alignItems: "baseline", minWidth: "0" }}>
-                        <span style={{ width: "13px", height: "13px", border: "1.5px solid var(--ink)", display: "inline-block", flexShrink: "0" }} />
+                        <span style={{ width: "7px", height: "7px", borderRadius: "50%", background: "var(--mars)", display: "inline-block", flexShrink: "0" }} />
                         <span style={{ fontFamily: "'Azeret Mono',ui-monospace,monospace", fontSize: "11px", color: "var(--mars)", flexShrink: "0" }}>
-                          REQ–06
+                          AREA–06
                         </span>
                         <span style={{ fontFamily: "'Saira Condensed','Arial Narrow',sans-serif", fontWeight: "700", fontSize: "17px", lineHeight: "20px", letterSpacing: ".01em", color: "var(--ink)" }}>
                           Mentorship & sponsorship
@@ -801,7 +760,7 @@ const FieldNotebook = () => {
                       </div>
                       <div>
                         <div style={{ fontFamily: "'Azeret Mono',ui-monospace,monospace", fontSize: "10px", letterSpacing: ".05em", color: "var(--mars)", marginBottom: "3px" }}>
-                          NEEDED FOR
+                          COULD SUPPORT
                         </div>
                         <div style={{ fontSize: "14px", lineHeight: "21px", color: "var(--ink2)" }}>
                           Sustained engineering capacity across the cycle
@@ -809,7 +768,7 @@ const FieldNotebook = () => {
                       </div>
                       <div>
                         <div style={{ fontFamily: "'Azeret Mono',ui-monospace,monospace", fontSize: "10px", letterSpacing: ".05em", color: "var(--ink2)", marginBottom: "3px" }}>
-                          EXAMPLES
+                          POSSIBILITIES
                         </div>
                         <div style={{ fontSize: "14px", lineHeight: "21px", color: "var(--ink2)" }}>
                           Technical mentorship · engineering support · financial sponsorship
@@ -819,17 +778,14 @@ const FieldNotebook = () => {
                   </div>
                   <div style={{ marginTop: "27px", border: "1.5px solid var(--mars)", padding: "22px", position: "relative", maxWidth: "520px" }}>
                     <span style={{ position: "absolute", top: "-10px", left: "16px", background: "var(--paper)", padding: "0 8px", fontFamily: "'Special Elite','Courier New',monospace", fontSize: "11.5px", letterSpacing: ".09em", color: "var(--mars)", transform: "rotate(-2deg)", display: "inline-block" }}>
-                      SPONSOR
+                      LET'S TALK
                     </span>
                     <p style={{ fontSize: "15.5px", lineHeight: "23px", color: "var(--ink)", margin: "4px 0 14px" }}>
-                      Interested in supporting VISOR?
+                      Have an idea for supporting VISOR? We would be glad to hear from you.
                     </p>
                     <Link to="/contact" style={{ fontFamily: "'Azeret Mono',ui-monospace,monospace", fontSize: "13px", letterSpacing: ".04em", color: "var(--mars)", textDecoration: "none", fontWeight: "700", borderBottom: "1.5px solid var(--mars)" }}>
-                      Contact VISOR about sponsorship →
+                      Start a conversation →
                     </Link>
-                    <div style={{ marginTop: "16px", borderTop: "1px dashed var(--rule)", paddingTop: "9px", fontFamily: "'Azeret Mono',ui-monospace,monospace", fontSize: "10px", color: "var(--ink2)", letterSpacing: ".04em" }}>
-                      SIGN–OFF: ______________________
-                    </div>
                   </div>
                   <div data-curl="" style={{ position: "absolute", inset: "0", zIndex: "3", pointerEvents: "none", opacity: "0", background: "linear-gradient(to bottom,rgba(255,255,255,.5) 0%,rgba(255,255,255,0) 9%,rgba(28,17,9,0) 42%,rgba(28,17,9,.5) 100%)" }} />
                   <div data-under="" style={{ position: "absolute", inset: "0", zIndex: "2", pointerEvents: "none", opacity: "0", background: "linear-gradient(to bottom,rgba(16,9,5,.6) 0%,rgba(16,9,5,.18) 42%,rgba(16,9,5,0) 78%)" }} />
@@ -840,7 +796,7 @@ const FieldNotebook = () => {
         </div>
         <div style={{ maxWidth: "1280px", margin: "0 auto", padding: "24px clamp(10px,2.2vw,32px) 56px", textAlign: "center" }}>
           <span style={{ fontFamily: "'Azeret Mono',ui-monospace,monospace", fontSize: "11px", letterSpacing: ".05em", color: "#8b8073" }}>
-            — end of field notebook, rev 2026–27 —
+            End of field notebook, rev 2026–27
           </span>
         </div>
       </div>
