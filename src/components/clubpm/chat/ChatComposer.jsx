@@ -17,6 +17,15 @@ function loadRoster() {
   return rosterPromise;
 }
 
+/**
+ * Pre-fill a conversation's main composer, e.g. from the lab overlap finder.
+ * `mentions` maps display name (without "@") to Slack user id, as the composer's
+ * autocomplete does; the next composer mounted for this channel picks it up.
+ */
+export function seedDraft(channelId, text, mentions = {}) {
+  drafts.set(`${channelId}:main`, { text, mentions, failed: null });
+}
+
 /** Sign in with Slack again (for the portal scopes) and come back to this page. */
 export function reconnectHref() {
   const back = window.location.pathname + window.location.search;

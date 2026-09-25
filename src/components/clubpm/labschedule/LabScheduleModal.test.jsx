@@ -1,14 +1,21 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import LabScheduleModal from './LabScheduleModal';
-import { listWorkspaces, getWorkspaceWeek, listLabBuddyRequests } from '../../../api/clubPmClient';
+import { listWorkspaces, getWorkspaceWeek, listLabBuddyRequests, getMyLabVisits, labCheckIn } from '../../../api/clubPmClient';
 
 jest.mock('../../../api/clubPmClient', () => ({
   listWorkspaces: jest.fn(),
   getWorkspaceWeek: jest.fn(),
   applyLabRect: jest.fn(),
   listLabBuddyRequests: jest.fn(),
+  getChatChannels: jest.fn(),
+  openDm: jest.fn(),
+  getMyLabVisits: jest.fn(),
+  labCheckIn: jest.fn(),
+  labCheckOut: jest.fn(),
+  labConfirm: jest.fn(),
+  labAllocate: jest.fn(),
 }));
 jest.mock('../../../clubpm/ClubPmAuth', () => ({ useClubPmAuth: () => ({ member: { id: 'me' } }) }));
 
@@ -36,6 +43,7 @@ function renderModal() {
 beforeEach(() => {
   listWorkspaces.mockResolvedValue([SPACE]);
   listLabBuddyRequests.mockResolvedValue([]);
+  getMyLabVisits.mockResolvedValue({ open: null, pending: [], unallocated: [], todoTasks: [] });
 });
 
 test('renders the space, a presence block and my requirement status', async () => {
@@ -64,4 +72,92 @@ test('no spaces shows guidance', async () => {
   listWorkspaces.mockResolvedValue([]);
   renderModal();
   expect(await screen.findByText('No lab spaces yet')).toBeInTheDocument();
+});
+
+test('find overlap lists shared windows for the chosen people', async () => {
+  const o = (memberId, startMin, endMin) => ({ shiftId: `s-${memberId}`, memberId, date: '2026-09-29', startMin, endMin, buddyWanted: false, weekly: true });
+  getWorkspaceWeek.mockResolvedValue(week({ occurrences: [o('me', 780, 900), o('a', 840, 960)] }));
+  renderModal();
+  fireEvent.click(await screen.findByRole('radio', { name: /Find overlap/ }));
+  expect(screen.getByText('Pick at least two people.')).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: /Member/ }));
+  expect(screen.getByText(/Tue 2:00–3:00 PM/)).toBeInTheDocument();
+  expect(screen.getByText('weekly')).toBeInTheDocument();
+});
+
+test('choosing a window drafts a Slack invite without sending it', async () => {
+  const o = (memberId, startMin, endMin) => ({ shiftId: `s-${memberId}`, memberId, date: '2026-09-29', startMin, endMin, buddyWanted: false, weekly: false });
+  getWorkspaceWeek.mockResolvedValue(week({
+    occurrences: [o('me', 780, 900), o('a', 840, 960)],
+    members: [{ id: 'a', displayName: 'Lily Chen', avatarUrl: null, slackId: 'U1', projects: [] }],
+  }));
+  renderModal();
+  fireEvent.click(await screen.findByRole('radio', { name: /Find overlap/ }));
+  fireEvent.click(screen.getByRole('button', { name: /Lily/ }));
+  fireEvent.click(screen.getByText(/Tue 2:00–3:00 PM/));
+  expect(screen.getByRole('textbox', { name: 'Message' }))
+    .toHaveValue('Hey @Lily Chen, would you like to meet in the lab Tuesday 2:00–3:00 PM this week?');
+  expect(screen.getByRole('option', { name: /Group DM/ })).toBeInTheDocument();
+  expect(screen.queryByRole('radio', { name: /Every Tuesday/ })).not.toBeInTheDocument();
+});
+
+test('check in here calls the API for the current space', async () => {
+  getWorkspaceWeek.mockResolvedValue(week());
+  labCheckIn.mockResolvedValue({ visit: { id: 'v1' }, closedPrevious: null });
+  renderModal();
+  fireEvent.click(await screen.findByRole('button', { name: /Check in here/ }));
+  expect(labCheckIn).toHaveBeenCalledWith('ws1');
+});
+
+test('an open visit offers check out, a pending one offers confirm', async () => {
+  getWorkspaceWeek.mockResolvedValue(week());
+  const ws = { id: 'ws1', name: 'Propulsion Lab', color: '#00e5cc', timezone: 'America/New_York' };
+  getMyLabVisits.mockResolvedValue({
+    open: { id: 'v1', checkedInAt: new Date(Date.now() - 72 * 60000).toISOString(), workspace: ws },
+    pending: [{ id: 'v2', checkedInAt: '2026-09-24T18:00:00Z', checkedOutAt: '2026-09-24T21:00:00Z', workspace: ws }],
+    unallocated: [], todoTasks: [],
+  });
+  renderModal();
+  expect(await screen.findByRole('button', { name: /Check out/ })).toBeInTheDocument();
+  expect(screen.getByText('1h 12m')).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Confirm' })).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: /Check in here/ })).not.toBeInTheDocument();
+});
+
+test('admins can toggle the coverage overlay', async () => {
+  getWorkspaceWeek.mockResolvedValue(week({ coverage: [{ date: '2026-09-28', startMin: 720, endMin: 780, kind: 'solo' }] }));
+  renderModal();
+  const toggle = await screen.findByRole('button', { name: /Coverage/ });
+  fireEvent.click(toggle);
+  expect(screen.getByText('Scheduled alone')).toBeInTheDocument();
+  expect(screen.getByRole('img', { name: /12:00–1:00 PM: someone is scheduled alone/ })).toBeInTheDocument();
+});
+
+test('members without coverage data see no toggle', async () => {
+  getWorkspaceWeek.mockResolvedValue(week());
+  renderModal();
+  await screen.findByText('3 here');
+  expect(screen.queryByRole('button', { name: /Coverage/ })).not.toBeInTheDocument();
+});
+
+test('opened from a task: overlap mode, assignees preselected, task named in the draft', async () => {
+  const o = (memberId, startMin, endMin) => ({ shiftId: `s-${memberId}`, memberId, date: '2026-09-29', startMin, endMin, buddyWanted: false, weekly: false });
+  getWorkspaceWeek.mockResolvedValue(week({
+    occurrences: [o('a', 780, 900), o('b', 840, 960)],
+    members: [
+      { id: 'a', displayName: 'Lily Chen', avatarUrl: null, slackId: 'U1', projects: [] },
+      { id: 'b', displayName: 'Omar Diaz', avatarUrl: null, slackId: 'U2', projects: [] },
+    ],
+  }));
+  render(
+    <MemoryRouter>
+      <LabScheduleModal isOpen onClose={() => {}} initialMode="overlap" initialMemberIds={['a', 'b', 'c']}
+        initialPeople={[{ id: 'c', displayName: 'Cara Stone' }]} taskContext={{ id: 't1', title: 'Weld frame' }} />
+    </MemoryRouter>,
+  );
+  expect(await screen.findByRole('radio', { name: /Find overlap/ })).toHaveAttribute('aria-checked', 'true');
+  expect(await screen.findByRole('button', { name: /Cara/ })).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: /Cara/ }));   // drop the assignee with no lab time
+  fireEvent.click(screen.getByText(/Tue 2:00–3:00 PM/));
+  expect(screen.getByRole('textbox', { name: 'Message' }).value).toContain('Weld frame');
 });

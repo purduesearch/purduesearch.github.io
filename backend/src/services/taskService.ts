@@ -553,8 +553,8 @@ function computeNextDueDate(currentDue: Date, interval: string): Date {
 
 // ── Time Logging ────────────────────────────────────────────
 
-export async function logTime(taskId: string, memberId: string, minutes: number, note?: string) {
-  return prisma.timeLog.create({ data: { taskId, memberId, minutes, note } });
+export async function logTime(taskId: string, memberId: string, minutes: number, note?: string, labVisitId?: string) {
+  return prisma.timeLog.create({ data: { taskId, memberId, minutes, note, labVisitId } });
 }
 
 // ── spawnNextOccurrence (recurrencePattern-based) ───────────

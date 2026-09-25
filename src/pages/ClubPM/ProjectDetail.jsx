@@ -5,6 +5,7 @@ import toast from "react-hot-toast";
 import { get, post, patch, setNextRewardOrigin, bulkArchive, unarchiveTask, getArchivedTasks, getProjectBlockers, createBlocker, updateBlocker } from "../../api/clubPmClient";
 import MemberBadge from "../../components/clubpm/MemberBadge";
 import LabTimeButton from "../../components/clubpm/labschedule/LabTimeButton";
+import LabPresenceCard from "../../components/clubpm/labschedule/LabPresenceCard";
 import AvatarPortrait from "../../components/clubpm/avatar/AvatarPortrait";
 import { useClubPmAuth } from "../../clubpm/ClubPmAuth";
 import { useProjectNav } from "../../clubpm/ProjectNavContext";
@@ -13,6 +14,7 @@ import BulkActionBar from "../../components/clubpm/BulkActionBar";
 import ProjectActivity from "../../components/clubpm/ProjectActivity";
 import ReportingView from "../../components/clubpm/ReportingView";
 import ProjectAnalytics from "../../components/clubpm/analytics";
+import ProjectTimeInsights from "../../components/clubpm/analytics/ProjectTimeInsights";
 import PressKitPanel from "../../components/clubpm/PressKitPanel";
 import GanttChart from "../../components/clubpm/GanttChart";
 import { PriorityBars, AvatarStack } from "../../components/clubpm/TaskPrimitives";
@@ -2342,7 +2344,7 @@ export default function ProjectDetail() {
       setActiveTab(tabParam);
       const view = searchParams.get("view");
       if (tabParam === "chat") setChatSection(view === "members" || searchParams.get("dm") ? "members" : "messages");
-      if (tabParam === "insights") setReportTab(["activity", "presskit", "ai"].includes(view) ? view : "charts");
+      if (tabParam === "insights") setReportTab(["time", "activity", "presskit", "ai"].includes(view) ? view : "charts");
     }
   }, [tabParam, searchParams, setSearchParams]);
 
@@ -3459,6 +3461,7 @@ export default function ProjectDetail() {
               </div>
               <div className="pm-proj-hero-actions">
               <LabTimeButton projectId={project.id} compact={compact} />
+              <LabPresenceCard projectId={project.id} variant="badge" />
               {compact ? (
                 <button type="button" className="pm-m-project-actions-btn" data-tour-id="project.actions" onClick={() => requestShellOverlay('projects')} aria-haspopup="dialog">
                   <i className="fas fa-ellipsis" aria-hidden="true" /> Actions
@@ -3787,7 +3790,7 @@ export default function ProjectDetail() {
                 <div className="pm-m-source pm-m-insights-source" role="group" aria-label="Insights section">
                   <span className="pm-m-source-label" id="insights-section-label">Section</span>
                   <div className="pm-m-segment pm-m-segment--grid" role="group" aria-labelledby="insights-section-label">
-                    {[["charts", "Charts"], ["activity", "Activity"], ["presskit", "Press Kit"], ["ai", "AI"]].map(([id, label]) => (
+                    {[["charts", "Charts"], ["time", "Time"], ["activity", "Activity"], ["presskit", "Press Kit"], ["ai", "AI"]].map(([id, label]) => (
                       <button
                         key={id}
                         type="button"
@@ -3801,7 +3804,7 @@ export default function ProjectDetail() {
                 </div>
               ) : (
               <div className="presskit-report-subtabs">
-                {[["charts", "Charts"], ["activity", "Activity"], ["presskit", "Press Kit"], ["ai", "AI"]].map(([id, label]) => (
+                {[["charts", "Charts"], ["time", "Time"], ["activity", "Activity"], ["presskit", "Press Kit"], ["ai", "AI"]].map(([id, label]) => (
                   <button
                     key={id}
                     type="button"
@@ -3815,6 +3818,9 @@ export default function ProjectDetail() {
               )}
               {reportTab === "charts" && (
                 <ProjectAnalytics project={project} onOpenTask={handleAnalyticsOpenTask} />
+              )}
+              {reportTab === "time" && (
+                <ProjectTimeInsights project={project} onOpenTask={handleAnalyticsOpenTask} />
               )}
               {reportTab === "activity" && (
                 <div style={{ paddingTop: 8 }}>

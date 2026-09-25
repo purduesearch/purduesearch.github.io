@@ -68,7 +68,7 @@ export const TOUR_ANCHORS = Object.freeze({
   "project.tab.tasks":      { label: "Tasks tab",            route: "/clubpm/projects/:id", note: "Sidebar project tab on desktop; section bar under the phone header (AppShell)" },
   "project.tab.files":      { label: "Files tab",            route: "/clubpm/projects/:id", note: "Sidebar project tab on desktop; section bar under the phone header (AppShell)" },
   "project.tab.chat":       { label: "Chat tab",             route: "/clubpm/projects/:id", note: "Sidebar project tab on desktop; section bar under the phone header (AppShell) — contains Chat and Members" },
-  "project.tab.insights":   { label: "Insights tab",         route: "/clubpm/projects/:id", note: "Sidebar project tab on desktop; section bar under the phone header (AppShell) — charts, activity, press kit, and AI" },
+  "project.tab.insights":   { label: "Insights tab",         route: "/clubpm/projects/:id", note: "Sidebar project tab on desktop; section bar under the phone header (AppShell) — charts, time, activity, press kit, and AI" },
   "project.tab.vault":      { label: "Vault sub-tab",        route: "/clubpm/projects/:id", layout: "both", note: "Inside the Files tab — open project.tab.files first. Desktop pill row; labelled Source selector on phones" },
   "board.newtask":          { label: "New task button",      route: "/clubpm/projects/:id", layout: "both", note: "" },
   "board.filters":          { label: "Task controls",        route: "/clubpm/projects/:id", layout: "both", note: "Desktop sort row; phone scope, search, and Filters & sort toolbar" },

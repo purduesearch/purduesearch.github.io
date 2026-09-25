@@ -766,6 +766,27 @@ export const deleteLabShift           = (shiftId)                 => del(`/api/w
 export const listLabBuddyRequests     = (projectId)               =>
   get(`/api/workspaces/buddy-requests${projectId ? `?projectId=${encodeURIComponent(projectId)}` : ''}`);
 
+// ── Lab check-in/out (LabVisit) ──────────────────────────────
+export const getMyLabVisits = () => get('/api/lab-visits/me');
+export function getLabPresence({ projectId, workspaceId } = {}) {
+  const q = new URLSearchParams();
+  if (projectId) q.set('projectId', projectId);
+  if (workspaceId) q.set('workspaceId', workspaceId);
+  const s = q.toString();
+  return get(`/api/lab-visits/present${s ? `?${s}` : ''}`);
+}
+export const labCheckIn  = (workspaceId)   => post('/api/lab-visits/check-in', { workspaceId });
+export const labCheckOut = (at)            => post('/api/lab-visits/check-out', at ? { at } : {});
+export const labConfirm  = (at)            => post('/api/lab-visits/confirm', at ? { at } : {});
+export const labAllocate = (visitId, taskId) => post(`/api/lab-visits/${encodeURIComponent(visitId)}/allocate`, { taskId });
+export function getProjectTimeInsights(projectId, { from, to } = {}) {
+  const q = new URLSearchParams();
+  if (from) q.set('from', from);
+  if (to) q.set('to', to);
+  const s = q.toString();
+  return get(`/api/projects/${encodeURIComponent(projectId)}/time-insights${s ? `?${s}` : ''}`);
+}
+
 // ── Meeting scheduler (when2meet availability polls) ─────────
 
 export const listMeetingPolls = (params = {}) => {

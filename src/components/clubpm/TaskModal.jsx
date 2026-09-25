@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import toast from "react-hot-toast";
-import { get, post, patch, del, archiveTask, unarchiveTask } from "../../api/clubPmClient";
+import { get, post, patch, del, archiveTask, unarchiveTask, listWorkspaces } from "../../api/clubPmClient";
+import LabScheduleModal from "./labschedule/LabScheduleModal";
 import { useClubPmAuth } from "../../clubpm/ClubPmAuth";
 import MemberBadge from "./MemberBadge";
 import AttachmentPickerModal from "./AttachmentPickerModal";
@@ -1120,6 +1121,21 @@ export default function TaskModal({ task: initialTask, project, projectBlockers 
 
   const [fullscreen, setFullscreen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  // "Find lab time together" (lab plan decision 14): only for shared tasks in
+  // projects that have lab spaces. The space list is fetched once per project.
+  const [labOpen, setLabOpen] = useState(false);
+  const [projectHasLab, setProjectHasLab] = useState(false);
+  const labProjectId = task?.projectId ?? project?.id ?? null;
+  const labAssigneeIds = (task?.assignees ?? []).map(a => a.id);
+  const sharedTask = labAssigneeIds.length >= 2;
+  useEffect(() => {
+    if (!sharedTask || !labProjectId) return undefined;
+    let alive = true;
+    listWorkspaces({ projectId: labProjectId })
+      .then(l => { if (alive) setProjectHasLab(Array.isArray(l) && l.length > 0); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [sharedTask, labProjectId]);
   const [tab, setTab] = useState("comments");
   const [descOpen, setDescOpen] = useState(true);
   const [subtasksOpen, setSubtasksOpen] = useState(true);
@@ -1607,6 +1623,9 @@ export default function TaskModal({ task: initialTask, project, projectBlockers 
             <IconBtn icon="times" title="Close" onClick={onClose} />
             {!compact && <IconBtn icon="expand-arrows-alt" title={fullscreen ? "Exit full screen" : "Full screen"}
               onClick={() => setFullscreen(f => !f)} />}
+            {sharedTask && projectHasLab && (
+              <IconBtn icon="people-arrows" title="Find lab time together" onClick={() => setLabOpen(true)} />
+            )}
           </div>
           <div style={{ display:"flex", alignItems:"center", gap:6, fontSize:11, color:"var(--clubpm-text-muted)" }}>
             <span>{task.project?.name ?? "Project"}</span>
@@ -2462,6 +2481,19 @@ export default function TaskModal({ task: initialTask, project, projectBlockers 
             setNestedTask(null);
           }}
           onTaskCreated={onTaskCreated}
+        />
+      )}
+
+      {labOpen && (
+        <LabScheduleModal
+          isOpen
+          onClose={() => setLabOpen(false)}
+          projectId={labProjectId}
+          initialMode="overlap"
+          initialMemberIds={labAssigneeIds}
+          initialPeople={task.assignees}
+          taskContext={{ id: task.id, title: task.title }}
+          compact={compact}
         />
       )}
     </>

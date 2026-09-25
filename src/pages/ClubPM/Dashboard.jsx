@@ -12,6 +12,7 @@ import MobileSheet from "../../components/clubpm/MobileSheet";
 import { useCompactLayout } from "../../clubpm/layout/compactLayout";
 import { useProjectNav } from "../../clubpm/ProjectNavContext";
 import { SHELL_REVEAL_EVENT, getShellReveal } from "../../clubpm/layout/shellOverlay";
+import LabPresenceCard from "../../components/clubpm/labschedule/LabPresenceCard";
 
 const WEB_BASE = process.env.REACT_APP_WEB_URL ?? window.location.origin;
 
@@ -1507,6 +1508,7 @@ export default function Dashboard() {
         <div className="pm-m-home-flow">
           <WorkPanel tasks={myTasks} onProgressChange={handleProgressChange} projects={projects} onTaskCreated={handleTaskCreated} compact />
           <UpcomingEventsWidget events={upcomingEvents.slice(0, 1)} loading={eventsLoading} />
+          <LabPresenceCard />
           <MobileProjectsPanel projects={projects} member={member} />
           <MobileSupportingPanel title="Progress & quests" icon="fa-trophy" tourId="dash.quests">
             <DailyQuestsWidget />
@@ -1531,6 +1533,7 @@ export default function Dashboard() {
             <AgendaPanel tasks={myTasks} onProgressChange={handleProgressChange} />
           </div>
           <UpcomingEventsWidget events={upcomingEvents} loading={eventsLoading} />
+          <LabPresenceCard />
         </>
       )}
     </div>
