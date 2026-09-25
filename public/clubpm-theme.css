@@ -29359,3 +29359,36 @@ button.cpm-chat-reaction:disabled { cursor: default; }
 @media (prefers-reduced-motion: reduce) {
   .pm-lab-block, .pm-lab-pop, .pm-lab-cell.is-saving { transition: none; animation: none; }
 }
+
+/* === Lab check-in QR (admin) + scan landing page (/clubpm/lab/:id) === */
+.pm-lab-qr { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; }
+.pm-lab-qr-code { flex: 0 0 auto; padding: 8px; border-radius: 10px; background: #fff; line-height: 0; }
+.pm-lab-qr-code canvas { width: 160px; height: 160px; }
+.pm-lab-qr-side { flex: 1 1 220px; display: flex; flex-direction: column; gap: 10px; }
+.pm-lab-qr-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.pm-lab-qr-actions i { margin-right: 6px; }
+
+.pm-lab-scan { display: flex; justify-content: center; padding: 24px 16px 48px; }
+.pm-lab-scan-card {
+  width: 100%; max-width: 420px; display: flex; flex-direction: column; align-items: center; gap: 14px;
+  padding: 28px 20px; border: 1px solid var(--pm-border); border-top: 4px solid var(--pm-lab-space, var(--pm-accent-teal));
+  border-radius: 14px; background: var(--pm-bg-surface); text-align: center;
+}
+.pm-lab-scan-card h1 { margin: 0; font-family: var(--pm-font-display); font-size: 1.3rem; color: var(--pm-text-primary); }
+.pm-lab-scan-card p { margin: 0; color: var(--pm-text-secondary); }
+.pm-lab-scan-icon { font-size: 2rem; color: var(--pm-text-muted); }
+.pm-lab-scan-space { display: inline-flex; align-items: center; gap: 8px; font-family: var(--pm-font-display); font-size: 1.4rem; font-weight: 700; color: var(--pm-text-primary); }
+.pm-lab-scan-meta { font-size: 0.85rem; color: var(--pm-text-muted); }
+.pm-lab-scan-meta i { margin-right: 4px; }
+.pm-lab-scan-status strong { color: var(--pm-text-primary); }
+.pm-lab-scan-btn { width: 100%; min-height: 52px; font-size: 1.05rem; justify-content: center; }
+.pm-lab-scan-btn i { margin-right: 8px; }
+.pm-lab-scan-done {
+  width: 100%; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 12px;
+  border-radius: 10px; background: rgba(0, 229, 204, 0.08); color: var(--pm-text-secondary); font-size: 0.9rem;
+}
+.pm-lab-scan-done i { font-size: 1.6rem; color: var(--pm-accent-teal); }
+.pm-lab-scan-done strong { color: var(--pm-text-primary); font-size: 1rem; }
+.pm-lab-scan-done.is-out { background: rgba(245, 166, 35, 0.08); }
+.pm-lab-scan-done.is-out i { color: var(--pm-accent-amber); }
+.pm-lab-scan-note { font-size: 0.85rem; }

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import ConfirmInline from '../ConfirmInline';
+import LabCheckInQr from './LabCheckInQr';
 import {
   get, listWorkspaces, createWorkspace, updateWorkspace, archiveWorkspace,
   setWorkspaceProjects, setWorkspaceRequirements, listTrainings, listCourses,
@@ -191,6 +192,7 @@ export default function WorkspaceAdminPanel() {
             items={trainings.map(t => ({ id: t.id, label: t.name }))} selected={form.trainingIds} onToggle={id => toggle('trainingIds', id)} />
           <ChipPicker label="Required courses" empty="No courses found."
             items={courses.map(c => ({ id: c.id, label: c.title }))} selected={form.courseIds} onToggle={id => toggle('courseIds', id)} />
+          {editing !== 'new' && !editing.archived && <LabCheckInQr space={editing} />}
           {error && <div className="pm-lab-admin-error" role="alert">{error}</div>}
           <div className="pm-lab-admin-actions">
             {editing !== 'new' && !editing.archived && (

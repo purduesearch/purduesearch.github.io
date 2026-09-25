@@ -70,6 +70,7 @@ const CoursePlayerPage       = lazy(lazyWithClubPmTheme(() => import('./pages/Cl
 const ClubPmProfile  = lazy(lazyWithClubPmTheme(() => import('./pages/ClubPM/Profile')));
 const ClubPmShop     = lazy(lazyWithClubPmTheme(() => import('./pages/ClubPM/Shop')));
 const ChallengesPage = lazy(lazyWithClubPmTheme(() => import('./pages/ClubPM/ChallengesPage')));
+const LabScanPage    = lazy(lazyWithClubPmTheme(() => import('./pages/ClubPM/LabScanPage')));
 
 // Old course URLs carried the id/slug in the middle of the path, so they need
 // the param forwarded rather than a flat <Navigate to="…">.
@@ -151,6 +152,7 @@ function AnimatedRoutes() {
             <Route path="/clubpm/profile/:memberId" element={<ClubPmProtectedPage><Suspense fallback={clubPmFallback}><ClubPmProfile /></Suspense></ClubPmProtectedPage>} />
             <Route path="/clubpm/shop" element={<ClubPmProtectedPage><Suspense fallback={clubPmFallback}><ClubPmShop /></Suspense></ClubPmProtectedPage>} />
             <Route path="/clubpm/challenges" element={<ClubPmProtectedPage><Suspense fallback={clubPmFallback}><ChallengesPage /></Suspense></ClubPmProtectedPage>} />
+            <Route path="/clubpm/lab/:workspaceId" element={<ClubPmProtectedPage><Suspense fallback={clubPmFallback}><LabScanPage /></Suspense></ClubPmProtectedPage>} />
 
             {/* Public outreach routes (no auth) */}
             <Route path="/rsvp/:eventId" element={<EventRsvp />} />

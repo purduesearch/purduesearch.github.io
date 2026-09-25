@@ -1,4 +1,5 @@
 import React from "react";
+import { useLocation } from "react-router-dom";
 import Navbar from "../../components/Navbar";
 import SEOHead from "../../components/SEOHead";
 
@@ -12,7 +13,16 @@ import SEOHead from "../../components/SEOHead";
  * Google OAuth reviewer reads, so the scope table and the Limited Use language
  * must not be trimmed for visual tidiness.
  */
+/** ?returnTo= set by AppShell for deep links; only same-origin relative paths pass. */
+function slackLoginHref(search) {
+  const base = `${process.env.REACT_APP_API_URL || ''}/auth/slack`;
+  const raw = new URLSearchParams(search).get("returnTo");
+  if (!raw || !raw.startsWith("/") || raw.startsWith("//")) return base;
+  return `${base}?returnTo=${encodeURIComponent(raw)}`;
+}
+
 export default function Login() {
+  const { search } = useLocation();
   return (
     <>
     <Navbar />
@@ -67,7 +77,7 @@ export default function Login() {
 
             <a
               id="slack-login-btn"
-              href={`${process.env.REACT_APP_API_URL || ''}/auth/slack`}
+              href={slackLoginHref(search)}
               className="pm-slack-btn"
             >
               <span className="pm-slack-btn-shimmer" />

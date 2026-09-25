@@ -55,6 +55,7 @@ function getBreadcrumb(pathname) {
   if (pathname === '/clubpm/shop') return [{ label: 'Shop' }];
   if (pathname === '/clubpm/challenges') return [{ label: 'Challenges' }];
   if (pathname.startsWith('/clubpm/chat')) return [{ label: 'Social' }, { label: 'Chat' }];
+  if (pathname.startsWith('/clubpm/lab/')) return [{ label: 'Lab check-in' }];
   return [{ label: 'Constellation' }];
 }
 
@@ -477,7 +478,10 @@ export default function AppShell({ children }) {
   }
 
   if (!member) {
-    return <Navigate to="/clubpm/login" replace />;
+    // Keep the deep link (e.g. a scanned lab check-in QR code) through sign-in.
+    const back = `${location.pathname}${location.search}`;
+    const loginTo = back && back !== '/clubpm' ? `/clubpm/login?returnTo=${encodeURIComponent(back)}` : '/clubpm/login';
+    return <Navigate to={loginTo} replace />;
   }
 
   const crumbs = getBreadcrumb(location.pathname);
