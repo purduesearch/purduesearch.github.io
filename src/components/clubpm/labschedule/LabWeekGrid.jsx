@@ -13,9 +13,15 @@ import {
 //    own time erases instead of adds. Release hands the rectangle to onRect.
 //  - Overlap: blocks dimmed; each shared window from the overlap finder is a
 //    button that hands (window, rect) to onWindowClick.
+//  - Coverage (admins, Everyone mode): striped bands over solo / untrained gaps.
+const COVERAGE_TEXT = {
+  solo: 'someone is scheduled alone',
+  untrained: 'nobody present has every requirement',
+};
+
 export default function LabWeekGrid({
   week, meId, mode, canEdit, pending, onRect, onBlockClick, membersById,
-  overlapWindows = [], selection = null, onWindowClick,
+  overlapWindows = [], selection = null, onWindowClick, coverage = null,
 }) {
   const { workspace, dates, blocks, events, occurrences } = week;
   const rows = useMemo(() => rowStarts(workspace.openStartMin, workspace.openEndMin), [workspace.openStartMin, workspace.openEndMin]);
@@ -116,6 +122,15 @@ export default function LabWeekGrid({
               {h >= 22 && <span>{w.memberIds.length} overlap</span>}
               {h >= 40 && <span className="pm-lab-block-time">{fmtRange(w.startMin, w.endMin)}</span>}
             </button>
+          );
+        })}
+        {mode === 'everyone' && coverage?.filter(g => g.date === date).map(g => {
+          const { top, height: h } = blockBox(g.startMin, g.endMin, workspace.openStartMin);
+          const text = `${fmtRange(g.startMin, g.endMin)}: ${COVERAGE_TEXT[g.kind]}`;
+          return (
+            <div key={`c${g.startMin}-${g.kind}`} className={`pm-lab-coverage is-${g.kind}`} style={{ top, height: h }}>
+              <span className="pm-lab-coverage-tab" title={text} role="img" aria-label={text} />
+            </div>
           );
         })}
         {dayEvents.map(ev => {

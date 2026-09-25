@@ -81,6 +81,7 @@ export default function LabScheduleModal({
   const [overlapIds, setOverlapIds] = useState(null);  // Set, seeded on first week load
   const [minCount, setMinCount] = useState(null);      // null = all chosen
   const [selection, setSelection] = useState(null);    // { window, box } | null
+  const [showCoverage, setShowCoverage] = useState(false);
   const reqId = useRef(0);
 
   const refreshBuddies = useCallback(() => {
@@ -226,6 +227,7 @@ export default function LabScheduleModal({
           dates={week?.dates} onWeek={moveWeek}
           mode={mode} onMode={changeMode}
           canSchedule={!!week?.canSchedule} showOverlap={showOverlap} space={space} myStatus={myStatus}
+          hasCoverage={!!week?.coverage} showCoverage={showCoverage} onCoverage={setShowCoverage}
         />
         <LabVisitBar space={space} canSchedule={!!week?.canSchedule} onChanged={loadWeek} />
         <div className="pm-lab-main">
@@ -245,6 +247,7 @@ export default function LabScheduleModal({
                   onRect={(rect, op, point) => { setDetail(null); setPending({ rect, op, point, saving: false }); }}
                   onBlockClick={(block, box) => setDetail({ block, box })}
                   overlapWindows={windows} selection={selection?.window ?? null} onWindowClick={selectWindow}
+                  coverage={showCoverage ? week.coverage ?? null : null}
                 />
                 {mode === 'everyone' && week.blocks.length === 0 && week.events.length === 0 && (
                   <div className="pm-lab-empty-overlay">
@@ -255,6 +258,13 @@ export default function LabScheduleModal({
                       </button>
                     )}
                   </div>
+                )}
+                {mode === 'everyone' && showCoverage && week.coverage && (
+                  <p className="pm-lab-hint pm-lab-coverage-legend">
+                    <span className="pm-lab-coverage-swatch is-solo" aria-hidden="true" /><span>Scheduled alone</span>
+                    <span className="pm-lab-coverage-swatch is-untrained" aria-hidden="true" /><span>Nobody present has every requirement</span>
+                    {week.coverage.length === 0 && <span> · No gaps this week</span>}
+                  </p>
                 )}
                 {mode === 'edit' && (
                   <p className="pm-lab-hint">

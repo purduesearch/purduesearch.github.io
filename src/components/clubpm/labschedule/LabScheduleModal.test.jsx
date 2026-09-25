@@ -123,3 +123,19 @@ test('an open visit offers check out, a pending one offers confirm', async () =>
   expect(screen.getByRole('button', { name: 'Confirm' })).toBeInTheDocument();
   expect(screen.queryByRole('button', { name: /Check in here/ })).not.toBeInTheDocument();
 });
+
+test('admins can toggle the coverage overlay', async () => {
+  getWorkspaceWeek.mockResolvedValue(week({ coverage: [{ date: '2026-09-28', startMin: 720, endMin: 780, kind: 'solo' }] }));
+  renderModal();
+  const toggle = await screen.findByRole('button', { name: /Coverage/ });
+  fireEvent.click(toggle);
+  expect(screen.getByText('Scheduled alone')).toBeInTheDocument();
+  expect(screen.getByRole('img', { name: /12:00–1:00 PM: someone is scheduled alone/ })).toBeInTheDocument();
+});
+
+test('members without coverage data see no toggle', async () => {
+  getWorkspaceWeek.mockResolvedValue(week());
+  renderModal();
+  await screen.findByText('3 here');
+  expect(screen.queryByRole('button', { name: /Coverage/ })).not.toBeInTheDocument();
+});

@@ -20,7 +20,7 @@ function RequirementChip({ req, state }) {
   return <span className={cls}>{inner}</span>;
 }
 
-export default function LabSpaceHeader({ spaces, spaceId, onSpace, dates, onWeek, mode, onMode, canSchedule, showOverlap, space, myStatus }) {
+export default function LabSpaceHeader({ spaces, spaceId, onSpace, dates, onWeek, mode, onMode, canSchedule, showOverlap, space, myStatus, hasCoverage = false, showCoverage = false, onCoverage }) {
   return (
     <div className="pm-lab-head">
       <div className="pm-lab-spaces" role="tablist" aria-label="Lab spaces">
@@ -61,6 +61,12 @@ export default function LabSpaceHeader({ spaces, spaceId, onSpace, dates, onWeek
               </button>
             )}
           </div>
+        )}
+        {hasCoverage && mode === 'everyone' && (
+          <button type="button" className={`pm-lab-coverage-toggle${showCoverage ? ' is-on' : ''}`} aria-pressed={showCoverage}
+            onClick={() => onCoverage?.(!showCoverage)} title="Admins: highlight solo and untrained time">
+            <i className="fas fa-shield-halved" aria-hidden="true" /> Coverage
+          </button>
         )}
         {!canSchedule && space && dates && (
           <span className="pm-lab-viewonly">
