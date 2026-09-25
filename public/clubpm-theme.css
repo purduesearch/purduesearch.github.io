@@ -28920,6 +28920,19 @@ button.cpm-chat-reaction:disabled { cursor: default; }
     .pm-m-layer.pm-shell--compact .pm-m-sheet,
     .pm-m-layer.pm-shell--compact .pm-m-dialog { animation: none; }
   }
+
+  /* Lab schedule — phone shell. The modal is a MobileSheet portalled to <body>,
+     so it is reached through the body.pm-m-compact marker, not .pm-shell--compact. */
+  body.pm-m-compact .pm-lab { padding: 0 0 16px; }
+  body.pm-m-compact .pm-lab-head { position: static; }
+  body.pm-m-compact .pm-lab-grid-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  body.pm-m-compact .pm-lab-grid { min-width: 560px; }
+  body.pm-m-compact .pm-lab-grid-head,
+  body.pm-m-compact .pm-lab-grid-body { gap: 2px; }
+  body.pm-m-compact .pm-lab-dom { font-size: 15px; width: 26px; height: 26px; }
+  body.pm-m-compact .pm-lab-block { padding: 3px 4px; }
+  body.pm-m-compact .pm-lab-block-time { display: none; }
+  body.pm-m-compact .pm-lab-empty-overlay { left: 12px; right: 12px; }
 }
 
 @keyframes pm-m-rise { from { transform: translateY(24px); opacity: 0; } to { transform: none; opacity: 1; } }
@@ -29194,19 +29207,3 @@ button.cpm-chat-reaction:disabled { cursor: default; }
 @media (prefers-reduced-motion: reduce) {
   .pm-lab-block, .pm-lab-pop, .pm-lab-cell.is-saving { transition: none; animation: none; }
 }
-
-/* Lab schedule — phone shell. The modal is a MobileSheet portalled to <body>,
-   so it is reached through the body.pm-m-compact marker, not .pm-shell--compact. */
-@media (max-width: 767.98px), (pointer: coarse) and (hover: none) and (max-width: 1023.98px) and (max-height: 499.98px) {
-  body.pm-m-compact .pm-lab { padding: 0 0 16px; }
-  body.pm-m-compact .pm-lab-head { position: static; }
-  body.pm-m-compact .pm-lab-grid-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-  body.pm-m-compact .pm-lab-grid { min-width: 560px; }
-  body.pm-m-compact .pm-lab-grid-head,
-  body.pm-m-compact .pm-lab-grid-body { gap: 2px; }
-  body.pm-m-compact .pm-lab-dom { font-size: 15px; width: 26px; height: 26px; }
-  body.pm-m-compact .pm-lab-block { padding: 3px 4px; }
-  body.pm-m-compact .pm-lab-block-time { display: none; }
-  body.pm-m-compact .pm-lab-empty-overlay { left: 12px; right: 12px; }
-}
-
