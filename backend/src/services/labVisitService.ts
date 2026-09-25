@@ -324,3 +324,33 @@ export async function discardExpiredPending(now = new Date()): Promise<number> {
   });
   return res.count;
 }
+
+// ── Space lookup (Slack /lab) ────────────────────────────────
+
+/** Non-archived spaces whose slug or name starts with `query` (case-insensitive). */
+export async function findSpaces(query: string) {
+  const q = query.trim().toLowerCase();
+  const all = await prisma.workspace.findMany({
+    where: { archivedAt: null },
+    select: { id: true, name: true, slug: true, timezone: true },
+    orderBy: { name: "asc" },
+  });
+  if (!q) return all;
+  const exact = all.filter(w => w.slug === q || w.name.toLowerCase() === q);
+  return exact.length ? exact : all.filter(w => w.slug.startsWith(q) || w.name.toLowerCase().startsWith(q));
+}
+
+/** Spaces where the member has a scheduled occurrence today (each space's own local date). */
+export async function scheduledSpacesToday(memberId: string, now = new Date()) {
+  const shifts = await prisma.labShift.findMany({
+    where: { memberId, endsOn: { gte: new Date(now.getTime() - 2 * DAY_MS) }, workspace: { archivedAt: null } },
+    select: { workspaceId: true, workspace: { select: { id: true, name: true, slug: true, timezone: true } } },
+    distinct: ["workspaceId"],
+  });
+  const out: { id: string; name: string; slug: string; timezone: string }[] = [];
+  for (const s of shifts) {
+    const today = localDateMinutes(now, s.workspace.timezone).date;
+    if ((await occurrencesOn(s.workspaceId, today, memberId)).length) out.push(s.workspace);
+  }
+  return out;
+}

@@ -8,10 +8,24 @@ import { buildRiskReport, buildCapacityReport } from "../utils/blockKit.js";
 import { getProjectByChannel } from "../services/projectService.js";
 import { getMilestonesForProject } from "../services/milestoneService.js";
 import { isAdminBySlackId } from "../services/memberService.js";
+import * as labVisits from "../services/labVisitService.js";
+import { localDateMinutes, formatRange } from "../services/labScheduleCore.js";
+import { parseLocalTime, reminderAt } from "../services/labVisitCore.js";
 
 // ── Command Registration ─────────────────────────────────────
 
 export function registerCommands(app: App): void {
+  // /lab is also reachable as "/pm lab ..." below; both call handleLab.
+  app.command("/lab", async ({ command, ack, respond }) => {
+    await ack();
+    try {
+      await handleLab(command.text.trim().split(/\s+/).filter(Boolean), command, respond);
+    } catch (error) {
+      console.error("/lab error:", error);
+      await respond({ response_type: "ephemeral", text: `❌ ${error instanceof Error ? error.message : "Something went wrong."}` });
+    }
+  });
+
   app.command("/pm", async ({ command, ack, respond, client }) => {
     await ack();
 
@@ -231,6 +245,11 @@ export function registerCommands(app: App): void {
           break;
         }
 
+        case "lab": {
+          await handleLab(args.slice(1), command, respond);
+          break;
+        }
+
         case "help":
         default: {
           await respond({
@@ -345,4 +364,169 @@ async function handleMyTasks(
     response_type: "ephemeral",
     blocks: buildWeeklyDigest(member, tasks),
   });
+}
+
+// ── /lab — check in / out of a lab space ─────────────────────
+// Decision 10 of the lab overlap/check-in plan. Every reply is ephemeral.
+
+const LAB_HELP = [
+  "*Lab check-in*",
+  "`/lab in [space]` — Check in (space name or slug; defaults to this channel's project space)",
+  "`/lab out [time]` — Check out now, or at a time today (`4:30pm`, `16:30`)",
+  "`/lab confirm [time]` — Confirm a visit we closed for you overnight",
+  "`/lab who` — Who's in the lab right now",
+  "`/lab status` — Your open visit",
+].join("\n");
+
+function fmtDuration(min: number): string {
+  return `${Math.floor(min / 60)}h ${min % 60}m`;
+}
+
+function closeSummary(r: labVisits.CloseResult, spaceName: string): { text: string; blocks?: unknown[] } {
+  if (r.discarded) return { text: `👋 Checked out of *${spaceName}*. That was under 5 minutes, so no time was logged.` };
+  if (r.allocations.length) {
+    const lines = r.allocations.map(a => `• ${fmtDuration(a.minutes)} → ${a.title}`).join("\n");
+    return { text: `👋 Checked out of *${spaceName}*. Logged:\n${lines}` };
+  }
+  const head = `👋 Checked out of *${spaceName}*. You had no tasks in progress, so ${fmtDuration(r.unallocatedMinutes)} is waiting to be logged.`;
+  if (!r.todoTasks.length) return { text: `${head} Log it from the lab banner in Constellation once you have a task.` };
+  return {
+    text: head,
+    blocks: [
+      { type: "section", text: { type: "mrkdwn", text: `${head}\nPick a task to log it to:` } },
+      ...r.todoTasks.map(t => ({
+        type: "section",
+        text: { type: "mrkdwn", text: `*${t.title.slice(0, 150)}*\n${t.projectName}` },
+        accessory: {
+          type: "button", action_id: "lab_allocate", text: { type: "plain_text", text: "Log here" },
+          value: JSON.stringify({ visitId: r.visit.id, taskId: t.id }),
+        },
+      })),
+    ],
+  };
+}
+
+const TIME_HINT = "Try `4:30pm` or `16:30`.";
+
+async function handleLab(args: string[], command: { user_id: string; channel_id: string }, respond: RespondFn): Promise<void> {
+  const reply = (msg: Record<string, unknown>) => respond({ response_type: "ephemeral", ...msg });
+  const member = await prisma.member.findUnique({ where: { slackId: command.user_id }, select: { id: true } });
+  if (!member) { await reply({ text: "Log in to Constellation first, then try again." }); return; }
+  const sub = (args[0] ?? "help").toLowerCase();
+  const rest = args.slice(1).join(" ").trim();
+  const now = new Date();
+
+  try {
+    switch (sub) {
+      case "in": {
+        let spaces = rest ? await labVisits.findSpaces(rest) : [];
+        if (rest && spaces.length === 0) {
+          await reply({ text: `❌ No lab space matches "${rest}". Send \`/lab in\` with no name to see the list.` });
+          return;
+        }
+        if (!rest) {
+          const project = await getProjectByChannel(command.channel_id);
+          if (project) {
+            const linked = await prisma.workspace.findMany({
+              where: { archivedAt: null, projects: { some: { projectId: project.id } } },
+              select: { id: true, name: true, slug: true, timezone: true },
+            });
+            if (linked.length === 1) spaces = linked;
+          }
+          if (spaces.length === 0) {
+            const today = await labVisits.scheduledSpacesToday(member.id, now);
+            if (today.length === 1) spaces = today;
+          }
+          if (spaces.length === 0) spaces = await labVisits.findSpaces("");
+        }
+        if (spaces.length !== 1) {
+          const list = spaces.map(w => `• *${w.name}* — \`/lab in ${w.slug}\``).join("\n");
+          await reply({ text: spaces.length ? `Which space?\n${list}` : "There are no lab spaces yet." });
+          return;
+        }
+        const r = await labVisits.checkIn(member.id, spaces[0].id, "SLACK", now);
+        const prev = r.closedPrevious ? `${closeSummary(r.closedPrevious, r.closedPrevious.workspaceName).text}\n` : "";
+        const until = r.visit.expectedEndAt
+          ? ` Your scheduled time ends at ${labVisits.localClock(r.visit.expectedEndAt, r.workspace.timezone)}.`
+          : "";
+        await reply({
+          text: `${prev}🧪 Checked in to *${r.workspace.name}* at ${labVisits.localClock(now, r.workspace.timezone)}.${until} Use \`/lab out\` when you leave.`,
+        });
+        return;
+      }
+
+      case "out": {
+        const mine = await labVisits.getMyVisits(member.id, now);
+        if (!mine.open) { await reply({ text: "You're not checked in. Use `/lab in` to start a visit." }); return; }
+        let at: Date | undefined;
+        if (rest) {
+          const tz = mine.open.workspace.timezone;
+          at = parseLocalTime(rest, localDateMinutes(now, tz).date, tz) ?? undefined;
+          if (!at) { await reply({ text: `❌ I couldn't read "${rest}" as a time. ${TIME_HINT}` }); return; }
+        }
+        const r = await labVisits.checkOut(member.id, { at, source: "SLACK" }, now);
+        await reply(closeSummary(r, r.workspace.name));
+        return;
+      }
+
+      case "confirm": {
+        const mine = await labVisits.getMyVisits(member.id, now);
+        const pending = mine.pending[0];
+        if (!pending) { await reply({ text: "You have no lab visit waiting for confirmation." }); return; }
+        let at: Date | undefined;
+        if (rest) {
+          // The time is on the visit's own local day, not today.
+          const tz = pending.workspace.timezone;
+          at = parseLocalTime(rest, localDateMinutes(pending.checkedInAt, tz).date, tz) ?? undefined;
+          if (!at) { await reply({ text: `❌ I couldn't read "${rest}" as a time. ${TIME_HINT}` }); return; }
+        }
+        const r = await labVisits.confirmPending(member.id, { at, source: "SLACK" }, now);
+        const s = closeSummary(r, r.workspace.name);
+        await reply({ ...s, text: `${s.text.replace("Checked out of", "Confirmed your visit to")}\n_Auto-closed visits don't earn XP._` });
+        return;
+      }
+
+      case "who": {
+        const project = await getProjectByChannel(command.channel_id);
+        let spaces = await labVisits.getPresent(project ? { projectId: project.id } : {}, now);
+        if (project && spaces.length === 0) spaces = await labVisits.getPresent({}, now);
+        const lines = spaces.map(sp => {
+          const inNow = sp.checkedIn.map(c => c.member.displayName);
+          const sched = sp.scheduled.map(c => `${c.member.displayName} (${formatRange(c.startMin, c.endMin)})`);
+          const parts = [
+            inNow.length ? `checked in: ${inNow.join(", ")}` : "nobody checked in",
+            ...(sched.length ? [`scheduled now: ${sched.join(", ")}`] : []),
+          ];
+          return `• *${sp.workspace.name}* — ${parts.join("; ")}`;
+        });
+        await reply({ text: lines.length ? `🧪 *Lab right now*\n${lines.join("\n")}` : "There are no lab spaces yet." });
+        return;
+      }
+
+      case "status": {
+        const mine = await labVisits.getMyVisits(member.id, now);
+        const out: string[] = [];
+        if (mine.open) {
+          const tz = mine.open.workspace.timezone;
+          const elapsed = Math.max(0, Math.floor((now.getTime() - mine.open.checkedInAt.getTime()) / 60_000));
+          out.push(`🧪 Checked in to *${mine.open.workspace.name}* since ${labVisits.localClock(mine.open.checkedInAt, tz)} (${fmtDuration(elapsed)}). `
+            + `Reminder at ${labVisits.localClock(reminderAt(mine.open), tz)}.`);
+        } else {
+          out.push("You're not checked in.");
+        }
+        if (mine.pending.length) out.push(`⏳ ${mine.pending.length} visit(s) waiting for \`/lab confirm\`.`);
+        const unalloc = mine.unallocated.reduce((n, v) => n + v.unallocatedMinutes, 0);
+        if (unalloc) out.push(`📝 ${fmtDuration(unalloc)} of lab time not logged to a task yet. Use the lab banner in Constellation.`);
+        await reply({ text: out.join("\n") });
+        return;
+      }
+
+      case "help":
+      default:
+        await reply({ text: LAB_HELP });
+    }
+  } catch (err) {
+    if (err instanceof labVisits.LabVisitError) { await reply({ text: `❌ ${err.message}` }); return; }
+    throw err;
+  }
 }

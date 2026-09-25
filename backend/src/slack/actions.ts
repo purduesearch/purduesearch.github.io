@@ -6,6 +6,7 @@ import { openAddNoteModal, openNewTaskModal, openSnoozeModal, openSubtaskModal, 
 import { prisma } from "../db/prisma.js";
 import { retrieveAiTask } from "../utils/aiTaskCache.js";
 import { refreshAppHome } from "./home.js";
+import { allocateUnallocated, LabVisitError } from "../services/labVisitService.js";
 
 // ── Action Registration ──────────────────────────────────────
 
@@ -107,6 +108,31 @@ export function registerActions(app: App): void {
       }
     }
   );
+
+  // ── Lab check-out: log unallocated minutes to a TODO task ──
+  // Button from `/lab out` when the member had no IN_PROGRESS tasks.
+  // allocateUnallocated checks the clicker owns the visit and the task.
+  app.action("lab_allocate", async ({ action, ack, body, respond }) => {
+    await ack();
+    try {
+      if (!("value" in action) || !action.value) return;
+      const { visitId, taskId } = JSON.parse(action.value) as { visitId?: string; taskId?: string };
+      if (!visitId || !taskId) return;
+      const member = await prisma.member.findUnique({ where: { slackId: body.user.id }, select: { id: true } });
+      if (!member) { await respond({ response_type: "ephemeral", replace_original: false, text: "Log in to Constellation first." }); return; }
+      const r = await allocateUnallocated(member.id, visitId, taskId, "SLACK");
+      await respond({
+        replace_original: true,
+        text: `✅ Logged ${Math.floor(r.minutes / 60)}h ${r.minutes % 60}m of lab time to *${r.title}*.`,
+      });
+    } catch (error) {
+      if (error instanceof LabVisitError) {
+        await respond({ response_type: "ephemeral", replace_original: false, text: `❌ ${error.message}` });
+        return;
+      }
+      console.error("lab_allocate error:", error);
+    }
+  });
 
   // ── Dismiss TODO prompt ──────────────────────────────────
   app.action("dismiss_todo_prompt", async ({ ack, respond }) => {

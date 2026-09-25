@@ -115,6 +115,10 @@ export function buildHelpCard(): (KnownBlock | Block)[] {
           "`/pm subtask` — Create a subtask under an existing task",
           "`/pm my-tasks` — View your open tasks",
           "",
+          "*Lab*",
+          "`/lab in [space]` / `/lab out [time]` — Check in and out of a lab space (also `/pm lab ...`)",
+          "`/lab confirm [time]` · `/lab who` · `/lab status`",
+          "",
           "*Project Info*",
           "`/pm report` — Detailed report for this channel's project",
           "`/pm health` — Health scorecard for this channel's project",
@@ -777,4 +781,4 @@ export function buildDriveTaskPreview(
   blocks.push({ type: "divider" });
   return blocks;
 }
-
+

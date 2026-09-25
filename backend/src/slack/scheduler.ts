@@ -7,6 +7,7 @@ import { sweepVaultTmpDir } from "../api/vault.js";
 import { remindNonResponders } from "../api/meetingPolls.js";
 import * as pollService from "../services/pollService.js";
 import { EXCLUDE_TRAINING } from "../services/trainingSandboxService.js";
+import { sendDueReminders, autoCloseStale, discardExpiredPending } from "../services/labVisitService.js";
 
 // ── Scheduler ────────────────────────────────────────────────
 //
@@ -15,6 +16,8 @@ import { EXCLUDE_TRAINING } from "../services/trainingSandboxService.js";
 // removed 2026-09-12; the bot now speaks in Slack only in direct response to
 // someone using it there, plus the web-triggered DMs routed by
 // createNotification. Do not add a scheduled Slack send back here.
+// Deliberate exceptions: the meeting-poll reminder, and the lab check-out
+// reminder + auto-close notice (one each per visit, via createNotification).
 
 export function startScheduler(app: App): void {
 
@@ -557,4 +560,33 @@ export function startScheduler(app: App): void {
   });
 
   console.log("  📅 Scheduled: Every 5 minutes     — Auto-publish due scheduled blog posts");
+
+  // ── Lab visits (check-in/out) ────────────────────────────────────
+  // Reminder: once per OPEN visit, 15 min after its scheduled end or 5 h in.
+  cron.schedule("*/5 * * * *", async () => {
+    try {
+      const n = await sendDueReminders();
+      if (n) console.log(`[lab] check-out reminders sent: ${n}`);
+    } catch (err) {
+      console.error("[lab] reminder cron error:", err);
+    }
+  });
+  // Auto-close: first sweep after local midnight closes forgotten visits, pending confirmation.
+  cron.schedule("7 * * * *", async () => {
+    try {
+      const n = await autoCloseStale();
+      if (n) console.log(`[lab] auto-closed visits: ${n}`);
+    } catch (err) {
+      console.error("[lab] auto-close cron error:", err);
+    }
+  });
+  cron.schedule("30 4 * * *", async () => {
+    try {
+      const n = await discardExpiredPending();
+      if (n) console.log(`[lab] discarded unconfirmed visits: ${n}`);
+    } catch (err) {
+      console.error("[lab] discard cron error:", err);
+    }
+  });
+  console.log("  📅 Scheduled: Every 5 minutes     — Lab check-out reminders (hourly :07 auto-close, daily 4:30 discard)");
 }
