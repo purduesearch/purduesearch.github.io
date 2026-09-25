@@ -141,6 +141,40 @@ export function mergePresence(date: Ymd, occurrences: Occurrence[], bands: Event
   return out;
 }
 
+// ── Coverage (admin view, plan decision 13) ──────────────────
+
+export type CoverageKind = "solo" | "untrained";
+export interface CoverageGap { date: Ymd; startMin: number; endMin: number; kind: CoverageKind; }
+
+/**
+ * 30-minute slots inside open hours where someone is scheduled alone ("solo"), or
+ * where people are present but none of them meets every space requirement
+ * ("untrained"). "untrained" wins when both apply. Adjacent slots of the same kind
+ * merge into one gap. A member missing from `requirementOkByMember` counts as not ok.
+ */
+export function coverageGaps(
+  dates: Ymd[], occurrences: Occurrence[], requirementOkByMember: Record<string, boolean>,
+  open: number, close: number,
+): CoverageGap[] {
+  const out: CoverageGap[] = [];
+  for (const date of dates) {
+    const occ = occurrences.filter(o => o.date === date);
+    if (occ.length === 0) continue;
+    for (let a = open; a < close; a += SLOT_MINUTES) {
+      const b = Math.min(a + SLOT_MINUTES, close);
+      const here = new Set(occ.filter(o => o.startMin < b && o.endMin > a).map(o => o.memberId));
+      let kind: CoverageKind | null = null;
+      if (here.size > 0 && ![...here].some(id => requirementOkByMember[id] === true)) kind = "untrained";
+      else if (here.size === 1) kind = "solo";
+      if (!kind) continue;
+      const prev = out[out.length - 1];
+      if (prev && prev.date === date && prev.endMin === a && prev.kind === kind) prev.endMin = b;
+      else out.push({ date, startMin: a, endMin: b, kind });
+    }
+  }
+  return out;
+}
+
 // ── Apply (add / erase a rectangle) ──────────────────────────
 
 export type ApplyOp = "add" | "erase";

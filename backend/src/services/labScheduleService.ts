@@ -7,7 +7,7 @@ import { createNotification } from "./notificationCrud.js";
 import {
   addDays, weekDates, mondayOf, toDbDate, fromDbDate, todayIn, isYmd,
   expandShifts, eventToBand, mergePresence, validateApply, planErase, rectToShifts,
-  overlapsFor, describeDrafts, describeOverlaps,
+  overlapsFor, describeDrafts, describeOverlaps, coverageGaps,
   type ShiftRow, type SkipRow, type ShiftDraft, type Ymd,
 } from "./labScheduleCore.js";
 import { getWorkspace, canSchedule, isAdminMember, requirementStatus, type WorkspaceDto } from "./workspaceService.js";
@@ -112,7 +112,17 @@ export async function getWeek(workspaceId: string, anyDayInWeek: Ymd, viewerId: 
     members: ids.map(id => ({ ...people.get(id)!, projects: memberships.filter(m => m.memberId === id).map(m => m.project) })),
     requirementStatus: reqStatus,
     canSchedule: mayEdit && !ws.archived,
+    // Admin-only coverage overlay (decision 13).
+    ...(viewerIsAdmin ? { coverage: coverageGaps(dates, occurrences, requirementOkMap(ws, reqStatus), ws.openStartMin, ws.openEndMin) } : {}),
   };
+}
+
+function requirementOkMap(ws: WorkspaceDto, status: Awaited<ReturnType<typeof requirementStatus>>): Record<string, boolean> {
+  const out: Record<string, boolean> = {};
+  for (const [memberId, byReq] of Object.entries(status)) {
+    out[memberId] = ws.requirements.every(r => byReq?.[r.id] === "ok");
+  }
+  return out;
 }
 
 // ── Write ────────────────────────────────────────────────────

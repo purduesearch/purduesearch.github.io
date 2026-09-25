@@ -3,7 +3,7 @@
 import {
   addDays, weekdayOf, mondayOf, weekDates, isYmd, localDateMinutes,
   expandShifts, mergePresence, eventToBand, validateApply, rectToShifts, planErase,
-  overlapsFor, formatRange, describeDrafts, describeOverlaps,
+  overlapsFor, formatRange, describeDrafts, describeOverlaps, coverageGaps,
   type ShiftRow, type Occurrence,
 } from "./labScheduleCore.js";
 
@@ -178,6 +178,21 @@ console.log("formatting");
   check("one-off description", describeDrafts([{ ...weekly, endsOn: MON }]) === "Mon Sep 28, 2:00–5:00 PM");
   check("more count", describeDrafts([weekly, { ...weekly, weekday: 2, startsOn: "2026-09-29" }]) === "Mondays 2:00–5:00 PM (+1 more)");
   check("overlap description", describeOverlaps([{ date: MON, startMin: 900, endMin: 1020 }]) === "Mon Sep 28, 3:00–5:00 PM");
+}
+
+console.log("coverageGaps");
+{
+  const ok = { A: true, B: true, C: false };
+  const gaps = coverageGaps([MON], [occ("A", 840, 960), occ("B", 900, 960)], ok, 480, 1320);
+  check("solo gap before B arrives", eq(gaps, [{ date: MON, startMin: 840, endMin: 900, kind: "solo" }]));
+  const untrained = coverageGaps([MON], [occ("C", 600, 720)], ok, 480, 1320);
+  check("untrained beats solo", eq(untrained, [{ date: MON, startMin: 600, endMin: 720, kind: "untrained" }]));
+  const mixed = coverageGaps([MON], [occ("A", 600, 660), occ("C", 600, 720)], ok, 480, 1320);
+  check("trained companion covers, then untrained alone", eq(mixed, [{ date: MON, startMin: 660, endMin: 720, kind: "untrained" }]));
+  const clipped = coverageGaps([MON], [occ("A", 420, 540)], ok, 480, 1320);
+  check("clipped to open hours", eq(clipped, [{ date: MON, startMin: 480, endMin: 540, kind: "solo" }]));
+  check("empty day has no gaps", coverageGaps([MON, "2026-09-29"], [], ok, 480, 1320).length === 0);
+  check("unknown member counts as untrained", coverageGaps([MON], [occ("Z", 600, 630)], ok, 480, 1320)[0]?.kind === "untrained");
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);

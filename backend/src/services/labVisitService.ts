@@ -113,7 +113,22 @@ export async function checkIn(memberId: string, workspaceId: string, source: Sou
     return tx.labVisit.create({ data: { memberId, workspaceId, source, checkedInAt: now, expectedEndAt } });
   }, { isolationLevel: "Serializable" });
 
+  await nudgeIfAlone(memberId, ws, visit.id, now).catch(err => console.error("[labVisits] alone nudge:", err));
   return { visit, workspace: ws, closedPrevious };
+}
+
+/** Decision 13: in-app only (no slackText) when nobody else is here or scheduled now. */
+async function nudgeIfAlone(memberId: string, ws: WorkspaceDto, visitId: string, now: Date) {
+  const others = await prisma.labVisit.count({ where: { workspaceId: ws.id, status: "OPEN", id: { not: visitId } } });
+  if (others > 0) return;
+  const local = localDateMinutes(now, ws.timezone);
+  const occ = await occurrencesOn(ws.id, local.date);
+  if (occ.some(o => o.memberId !== memberId && o.startMin <= local.minutes && o.endMin > local.minutes)) return;
+  await createNotification({
+    type: "LAB_ALONE", recipientId: memberId,
+    message: `You're the only one in ${ws.name} right now. Let someone know where you are.`,
+    metadata: { workspaceId: ws.id, visitId },
+  });
 }
 
 function validateEnd(visit: { checkedInAt: Date }, at: Date | undefined, now: Date): Date {
