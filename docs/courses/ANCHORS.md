@@ -77,6 +77,7 @@ child until the rail keeps its children in layout. (On phones every one of these
 | Anchor | Element | Route |
 |---|---|---|
 | `project.header` | Project title + status row; compact hero stays short | `/clubpm/projects/:id` |
+| `project.lab` | Lab time button (only when the project has lab spaces) | `/clubpm/projects/:id` |
 | `project.actions` | Labelled phone Project actions control | `/clubpm/projects/:id` |
 | `project.milestones` | Phone milestone summary with Timeline link | `/clubpm/projects/:id` |
 | `project.tab.tasks` | Tasks tab&Dagger; | `/clubpm/projects/:id` |
@@ -156,6 +157,7 @@ consecutive steps hunting for a modal nobody opened.
 | `notifications.slack` | Slack DM toggle row | `/clubpm/notifications/preferences` |
 | `calendar.grid` | Month grid | `/clubpm/calendar` |
 | `calendar.event` | First event chip | `/clubpm/calendar` |
+| `calendar.lab` | Lab schedule button | `/clubpm/calendar` |
 
 ## Vault and change requests — `src/components/clubpm/vault/`
 

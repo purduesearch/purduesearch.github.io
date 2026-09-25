@@ -4,6 +4,13 @@ import { prisma } from "../db/prisma.js";
 import * as eventService from "../services/eventService.js";
 import type { EventType } from "@prisma/client";
 
+// A lab-space link must point at a live workspace. Returns an error message or null.
+async function checkWorkspace(workspaceId: string | null | undefined): Promise<string | null> {
+  if (!workspaceId) return null;
+  const ws = await prisma.workspace.findUnique({ where: { id: workspaceId }, select: { archivedAt: true } });
+  return !ws || ws.archivedAt ? "Unknown or archived lab space" : null;
+}
+
 export const eventsRouter = Router();
 eventsRouter.use(requireAuth);
 
@@ -84,6 +91,7 @@ eventsRouter.post("/", async (req: Request, res: Response) => {
       isVirtual,
       isPublic,
       projectId,
+      workspaceId,
       priorityTaskIds,
       organizerId,
       attendeeIds,
@@ -101,6 +109,7 @@ eventsRouter.post("/", async (req: Request, res: Response) => {
       isVirtual?: boolean;
       isPublic?: boolean;
       projectId?: string;
+      workspaceId?: string | null;
       priorityTaskIds?: string[];
       organizerId?: string;
       attendeeIds?: string[];
@@ -115,6 +124,9 @@ eventsRouter.post("/", async (req: Request, res: Response) => {
       return;
     }
 
+    const wsError = await checkWorkspace(workspaceId);
+    if (wsError) { res.status(400).json({ error: wsError }); return; }
+
     const event = await eventService.createEvent({
       title,
       description,
@@ -125,6 +137,7 @@ eventsRouter.post("/", async (req: Request, res: Response) => {
       isVirtual,
       isPublic,
       projectId,
+      workspaceId:       workspaceId || undefined,
       priorityTaskIds,
       organizerId,
       attendeeIds,
@@ -164,6 +177,7 @@ eventsRouter.patch("/:id", async (req: Request, res: Response) => {
       isVirtual,
       isPublic,
       projectId,
+      workspaceId,
       priorityTaskIds,
       organizerId,
       attendeeIds,
@@ -182,6 +196,7 @@ eventsRouter.patch("/:id", async (req: Request, res: Response) => {
       isVirtual?: boolean;
       isPublic?: boolean;
       projectId?: string;
+      workspaceId?: string | null;
       priorityTaskIds?: string[];
       organizerId?: string;
       attendeeIds?: string[];
@@ -197,6 +212,9 @@ eventsRouter.patch("/:id", async (req: Request, res: Response) => {
       return;
     }
 
+    const wsError = await checkWorkspace(workspaceId);
+    if (wsError) { res.status(400).json({ error: wsError }); return; }
+
     const event = await eventService.updateEvent(req.params.id as string, {
       title,
       description,
@@ -207,6 +225,7 @@ eventsRouter.patch("/:id", async (req: Request, res: Response) => {
       isVirtual,
       isPublic,
       projectId,
+      workspaceId:       workspaceId === undefined ? undefined : (workspaceId || null),
       priorityTaskIds,
       organizerId,
       attendeeIds,

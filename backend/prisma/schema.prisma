@@ -121,6 +121,8 @@ enum NotificationType {
   BLOG_COMMENTED
   TRAINING_CERT_REVIEWED
   TRAINING_EXPIRING
+  LAB_BUDDY_JOINED
+  LAB_BUDDY_WANTED
   // Slack pings mirrored into Constellation (slack portal). Never DM'd back to Slack.
   SLACK_DM
   SLACK_MENTION
@@ -148,8 +150,8 @@ enum BlogThreadOrigin {
 // ── Models ───────────────────────────────────────────────────
 
 model Member {
-  id                      String               @id @default(cuid())
-  slackId                 String               @unique
+  id                      String                  @id @default(cuid())
+  slackId                 String                  @unique
   slackHandle             String
   displayName             String
   avatarUrl               String?
@@ -157,53 +159,53 @@ model Member {
   email                   String?
   timezone                String?
   bio                     String?
-  role                    Role                 @default(MEMBER)
-  isAdmin                 Boolean              @default(false)
-  isBot                   Boolean              @default(false)
-  kanbanColumnOrder       String[]             @default(["TODO", "IN_PROGRESS", "BLOCKED", "DONE"])
-  notificationPrefs       String[]             @default(["daily_reminders", "weekly_digest", "project_updates"])
+  role                    Role                    @default(MEMBER)
+  isAdmin                 Boolean                 @default(false)
+  isBot                   Boolean                 @default(false)
+  kanbanColumnOrder       String[]                @default(["TODO", "IN_PROGRESS", "BLOCKED", "DONE"])
+  notificationPrefs       String[]                @default(["daily_reminders", "weekly_digest", "project_updates"])
   notificationChannels    Json?
   quietHoursStart         Int?
   quietHoursEnd           Int?
-  mutedProjectIds         String[]             @default([])
-  tasks                   Task[]               @relation("TaskAssignees")
-  createdTasks            Task[]               @relation("TaskCreator")
-  archivedTasks           Task[]               @relation("TaskArchiver")
-  assignedBlockers        Blocker[]            @relation("BlockerAssignee")
+  mutedProjectIds         String[]                @default([])
+  tasks                   Task[]                  @relation("TaskAssignees")
+  createdTasks            Task[]                  @relation("TaskCreator")
+  archivedTasks           Task[]                  @relation("TaskArchiver")
+  assignedBlockers        Blocker[]               @relation("BlockerAssignee")
   projects                ProjectMember[]
   comments                TaskComment[]
   activities              Activity[]
-  notifications           Notification[]       @relation("NotificationRecipient")
-  sentNotifications       Notification[]       @relation("NotificationActor")
+  notifications           Notification[]          @relation("NotificationRecipient")
+  sentNotifications       Notification[]          @relation("NotificationActor")
   activityLogs            ActivityLog[]
-  ownedMilestones         Milestone[]          @relation("MilestoneOwner")
+  ownedMilestones         Milestone[]             @relation("MilestoneOwner")
   timeLogs                TimeLog[]
   updates                 ProjectUpdate[]
-  organizedEvents         Event[]              @relation("EventOrganizer")
-  attendedEvents          Event[]              @relation("EventAttendees")
-  rsvps                   EventRsvp[]          @relation("MemberRsvps")
-  organizedPolls          MeetingPoll[]        @relation("PollOrganizer")
-  invitedPolls            MeetingPoll[]        @relation("PollInvitees")
-  pollResponses           MeetingResponse[]    @relation("MemberPollResponses")
-  submissions             OutreachSubmission[] @relation("SubmissionAuthor")
-  reviewedSubmissions     OutreachSubmission[] @relation("SubmissionReviewer")
-  outreachComments        OutreachComment[]    @relation("OutreachCommentAuthor")
-  assets                  OutreachAsset[]      @relation("AssetUploader")
-  campaignsOwned          Campaign[]           @relation("CampaignOwner")
-  ownedContacts           OutreachContact[]    @relation("ContactOwner")
+  organizedEvents         Event[]                 @relation("EventOrganizer")
+  attendedEvents          Event[]                 @relation("EventAttendees")
+  rsvps                   EventRsvp[]             @relation("MemberRsvps")
+  organizedPolls          MeetingPoll[]           @relation("PollOrganizer")
+  invitedPolls            MeetingPoll[]           @relation("PollInvitees")
+  pollResponses           MeetingResponse[]       @relation("MemberPollResponses")
+  submissions             OutreachSubmission[]    @relation("SubmissionAuthor")
+  reviewedSubmissions     OutreachSubmission[]    @relation("SubmissionReviewer")
+  outreachComments        OutreachComment[]       @relation("OutreachCommentAuthor")
+  assets                  OutreachAsset[]         @relation("AssetUploader")
+  campaignsOwned          Campaign[]              @relation("CampaignOwner")
+  ownedContacts           OutreachContact[]       @relation("ContactOwner")
   contactInteractions     ContactInteraction[]
   recordedMetrics         PostMetric[]
-  ownedRecurringTemplates RecurringTemplate[]  @relation("RecurringTemplateOwner")
-  submissionApprovals     ApprovalRecord[]     @relation("SubmissionApprover")
-  blogPosts               BlogPost[]           @relation("BlogPostCreator")
-  blogRevisions           BlogRevision[]       @relation("BlogRevisionAuthor")
+  ownedRecurringTemplates RecurringTemplate[]     @relation("RecurringTemplateOwner")
+  submissionApprovals     ApprovalRecord[]        @relation("SubmissionApprover")
+  blogPosts               BlogPost[]              @relation("BlogPostCreator")
+  blogRevisions           BlogRevision[]          @relation("BlogRevisionAuthor")
   courseSectionRevisions  CourseSectionRevision[] @relation("CourseSectionRevisionAuthor")
-  blogAuthorships         BlogAuthor[]         @relation("BlogAuthorMember")
-  blogSnippets            BlogSnippet[]        @relation("BlogSnippetCreator")
-  pressKitsCreated        ProjectPressKit[]    @relation("PressKitCreator")
-  pressKitRevisions       PressKitRevision[]   @relation("PressKitRevisionAuthor")
-  blogThreadsCreated      BlogThread[]         @relation("BlogThreadCreator")
-  blogThreadComments      BlogThreadComment[]  @relation("BlogThreadCommenter")
+  blogAuthorships         BlogAuthor[]            @relation("BlogAuthorMember")
+  blogSnippets            BlogSnippet[]           @relation("BlogSnippetCreator")
+  pressKitsCreated        ProjectPressKit[]       @relation("PressKitCreator")
+  pressKitRevisions       PressKitRevision[]      @relation("PressKitRevisionAuthor")
+  blogThreadsCreated      BlogThread[]            @relation("BlogThreadCreator")
+  blogThreadComments      BlogThreadComment[]     @relation("BlogThreadCommenter")
   slackReadCursors        SlackReadCursor[]
 
   // ── Slack user OAuth (per-member) ──
@@ -224,10 +226,10 @@ model Member {
   // ── Private iCal feed (Google/Outlook/Apple "secret address") ──
   // AES-GCM at rest via encryptSecret, exactly like slackUserToken. Never
   // returned to any client, including its owner — only the host is displayed.
-  icsFeedUrl           String?
-  icsFeedLabel         String?
-  icsFeedCheckedAt     DateTime?
-  icsFeedStatus        String?
+  icsFeedUrl       String?
+  icsFeedLabel     String?
+  icsFeedCheckedAt DateTime?
+  icsFeedStatus    String?
 
   // ── GitHub OAuth (per-member) ──
   // Access/refresh tokens are AES-GCM encrypted at rest (see backend/src/utils/crypto.ts).
@@ -286,14 +288,16 @@ model Member {
   reviewedChangeRequests ChangeRequest[] @relation("ChangeRequestReviewer")
 
   // ── Courses ──
-  createdCourses    Course[]           @relation("CourseCreator")
-  courseEnrollments CourseEnrollment[] @relation("CourseEnrollmentMember")
-  assignedCourses   CourseEnrollment[] @relation("CourseEnrollmentAssigner")
-  courseGenJobs     CourseGenJob[]     @relation("CourseGenJobCreator")
+  createdCourses    Course[]               @relation("CourseCreator")
+  courseEnrollments CourseEnrollment[]     @relation("CourseEnrollmentMember")
+  assignedCourses   CourseEnrollment[]     @relation("CourseEnrollmentAssigner")
+  courseGenJobs     CourseGenJob[]         @relation("CourseGenJobCreator")
   workSubmissions   CourseWorkSubmission[]
 
   // ── Safety trainings (NOT the walkthrough "training project") ──
   trainingsCreated      Training[]            @relation("TrainingCreator")
+  workspacesCreated     Workspace[]           @relation("WorkspaceCreator")
+  labShifts             LabShift[]            @relation("MemberLabShifts")
   trainingCertificates  TrainingCertificate[] @relation("TrainingCertificateMember")
   trainingCertsReviewed TrainingCertificate[] @relation("TrainingCertificateReviewer")
 
@@ -304,24 +308,24 @@ model Member {
 }
 
 model Project {
-  id               String        @id @default(cuid())
-  name             String
-  description      String?
-  driveLink        String?
-  slackChannel     String?
-  slackChannelId   String?
-  slackChannelName String?
-  status           ProjectStatus @default(ACTIVE)
-  type             ProjectType
-  startDate        DateTime?
-  targetDate       DateTime?
-  programTag       String? // "astrousa" | "sa2tp" | "research" | "software" | "business" (for public archive grouping)
-  pressKitToken    String?       @unique
+  id                  String        @id @default(cuid())
+  name                String
+  description         String?
+  driveLink           String?
+  slackChannel        String?
+  slackChannelId      String?
+  slackChannelName    String?
+  status              ProjectStatus @default(ACTIVE)
+  type                ProjectType
+  startDate           DateTime?
+  targetDate          DateTime?
+  programTag          String? // "astrousa" | "sa2tp" | "research" | "software" | "business" (for public archive grouping)
+  pressKitToken       String?       @unique
   // Non-null means this is that member's private training project for the
   // onboarding course. The @unique is what makes ensureTrainingProject
   // idempotent by construction rather than by convention. Training projects are
   // excluded from every real listing — see Task 10.
-  trainingForMemberId String? @unique
+  trainingForMemberId String?       @unique
 
   // ── GitHub link ──
   // githubRepo is "owner/repo" (mirrors driveLink). githubInstallId is the
@@ -354,11 +358,12 @@ model Project {
 
   // ── Constellation Vault (CAD change management) ──
   vaultFolderId    String?
-  vaultPartPrefix  String          @default("PRT")
-  vaultPartCounter Int             @default(0)
-  vaultCrCounter   Int             @default(0)
+  vaultPartPrefix  String             @default("PRT")
+  vaultPartCounter Int                @default(0)
+  vaultCrCounter   Int                @default(0)
   vaultItems       VaultItem[]
   changeRequests   ChangeRequest[]
+  workspaces       WorkspaceProject[]
 }
 
 model ProjectMember {
@@ -779,25 +784,25 @@ model TaskBlocker {
 }
 
 model Notification {
-  id          String           @id @default(cuid())
-  type        NotificationType
-  recipientId String
-  recipient   Member           @relation("NotificationRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
-  actorId     String?
-  actor       Member?          @relation("NotificationActor", fields: [actorId], references: [id], onDelete: SetNull)
-  projectId   String?
-  project     Project?         @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  taskId      String?
-  task        Task?            @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  commentId   String?
-  message     String
-  read        Boolean          @default(false)
-  readAt      DateTime?
-  metadata    Json?
+  id             String           @id @default(cuid())
+  type           NotificationType
+  recipientId    String
+  recipient      Member           @relation("NotificationRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  actorId        String?
+  actor          Member?          @relation("NotificationActor", fields: [actorId], references: [id], onDelete: SetNull)
+  projectId      String?
+  project        Project?         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  taskId         String?
+  task           Task?            @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  commentId      String?
+  message        String
+  read           Boolean          @default(false)
+  readAt         DateTime?
+  metadata       Json?
   /// Set only on SLACK_* notifications: the conversation and message that pinged.
   slackChannelId String?
   slackTs        String?
-  createdAt   DateTime         @default(now())
+  createdAt      DateTime         @default(now())
 
   @@index([recipientId, read, createdAt(sort: Desc)])
   @@index([recipientId, createdAt(sort: Desc)])
@@ -847,6 +852,10 @@ model Event {
   project   Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
   projectId String?
 
+  // Lab schedule: the space this event is held in. Shows on that space's grid.
+  workspace   Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  workspaceId String?
+
   priorityTasks Task[] @relation("EventPriorityTasks")
 
   organizer   Member? @relation("EventOrganizer", fields: [organizerId], references: [id], onDelete: SetNull)
@@ -883,6 +892,7 @@ model Event {
   @@index([projectId])
   @@index([organizerId])
   @@index([externalUid])
+  @@index([workspaceId])
 }
 
 // ── Outreach ─────────────────────────────────────────────────
@@ -1093,36 +1103,36 @@ model BlogSnippet {
 }
 
 model BlogThread {
-  id           String              @id @default(cuid())
+  id              String              @id @default(cuid())
   // Exactly one of postId / pressKitId / courseSectionId is set — enforced in
   // blogThreadService.
   postId          String?
-  post            BlogPost?        @relation(fields: [postId], references: [id], onDelete: Cascade)
+  post            BlogPost?           @relation(fields: [postId], references: [id], onDelete: Cascade)
   pressKitId      String?
-  pressKit        ProjectPressKit? @relation(fields: [pressKitId], references: [id], onDelete: Cascade)
+  pressKit        ProjectPressKit?    @relation(fields: [pressKitId], references: [id], onDelete: Cascade)
   courseSectionId String?
-  courseSection   CourseSection?   @relation(fields: [courseSectionId], references: [id], onDelete: Cascade)
-  kind         BlogThreadKind
-  status       BlogThreadStatus    @default(OPEN)
-  origin       BlogThreadOrigin    @default(HUMAN)
+  courseSection   CourseSection?      @relation(fields: [courseSectionId], references: [id], onDelete: Cascade)
+  kind            BlogThreadKind
+  status          BlogThreadStatus    @default(OPEN)
+  origin          BlogThreadOrigin    @default(HUMAN)
   // Snapshot of the quoted text. The marks in the Y.Doc are the live anchor;
   // this lets an orphaned thread still show what it referred to.
-  anchorText   String
+  anchorText      String
   // COMMENT threads anchor here, as encoded Yjs relative positions, instead of
   // via a commentMark in the document: a comment is metadata ABOUT content, so
   // it must never reach contentJson, revisions, or markdown export. SUGGESTION
   // threads keep their marks — proposed text is content and belongs in the CRDT.
-  anchorStart  Bytes?
-  anchorEnd    Bytes?
-  replaceWith  String? // SUGGESTION only: the proposal, denormalised for panel display
-  rationale    String? // AI's stated reason, shown on the card
-  createdById  String
-  createdBy    Member              @relation("BlogThreadCreator", fields: [createdById], references: [id])
-  resolvedById String?
-  resolvedAt   DateTime?
-  createdAt    DateTime            @default(now())
-  updatedAt    DateTime            @updatedAt
-  comments     BlogThreadComment[]
+  anchorStart     Bytes?
+  anchorEnd       Bytes?
+  replaceWith     String? // SUGGESTION only: the proposal, denormalised for panel display
+  rationale       String? // AI's stated reason, shown on the card
+  createdById     String
+  createdBy       Member              @relation("BlogThreadCreator", fields: [createdById], references: [id])
+  resolvedById    String?
+  resolvedAt      DateTime?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  comments        BlogThreadComment[]
 
   @@index([postId, status])
   @@index([pressKitId, status])
@@ -2038,9 +2048,10 @@ model Course {
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
 
-  sections    CourseSection[]
-  modules     CourseModule[]
-  enrollments CourseEnrollment[]
+  sections              CourseSection[]
+  modules               CourseModule[]
+  enrollments           CourseEnrollment[]
+  workspaceRequirements WorkspaceRequirement[]
 
   @@index([status])
   @@index([createdById])
@@ -2072,27 +2083,27 @@ model CourseModule {
 }
 
 model CourseSection {
-  id            String            @id @default(cuid())
-  courseId      String
-  course        Course            @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  moduleId      String
-  module        CourseModule      @relation(fields: [moduleId], references: [id], onDelete: Cascade)
-  order         Int
-  title         String
-  kind          CourseSectionKind @default(CONTENT)
-  isRequired    Boolean           @default(true)
-  contentJson   Json
-  contentYjs    Bytes?
+  id               String            @id @default(cuid())
+  courseId         String
+  course           Course            @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  moduleId         String
+  module           CourseModule      @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  order            Int
+  title            String
+  kind             CourseSectionKind @default(CONTENT)
+  isRequired       Boolean           @default(true)
+  contentJson      Json
+  contentYjs       Bytes?
   // VIDEO: { youtubeId, allowedRates[], lockSeek, ... }
-  videoConfig   Json?
+  videoConfig      Json?
   // SLIDES: { sourceKind, sourceName, audioUrl, audioFileId, audioDurationSec, autoAdvance }
   // One JSON column, like videoConfig — every writer spreads the previous value
   // so a partial save cannot drop keys it does not own.
-  slideConfig   Json?
+  slideConfig      Json?
   // WALKTHROUGH: { tourId, entryRoute, requiresTrainingProject, stepCount }
   // One JSON column, same idiom as videoConfig / slideConfig — every writer
   // spreads the previous value so a partial save cannot drop keys it does not own.
-  tourConfig    Json?
+  tourConfig       Json?
   // LIT_REVIEW: { pdfDriveFileId, pdfTitle, citation, promptText, minWords,
   //               referenceSummary, rubric: [{ id, point, weight }] }
   // Same one-column idiom as videoConfig / slideConfig / tourConfig: every
@@ -2102,7 +2113,7 @@ model CourseSection {
   // `referenceSummary` and `rubric` are AUTHOR-ONLY. The learner payload builds
   // its own object from the safe keys (see sanitizeLitConfig) rather than
   // deleting the secret ones off this column.
-  litConfig     Json?
+  litConfig        Json?
   // ASSIGNMENT: { promptText, handoutDriveFileId, handoutName, handoutMimeType,
   //               minWords, referenceAnswer, rubric: [{ id, point, weight }] }
   // Same one-column idiom as videoConfig / slideConfig / tourConfig / litConfig:
@@ -2118,13 +2129,13 @@ model CourseSection {
   // per-section configuration; a Training row is shared BETWEEN sections and
   // courses, so it has to be relational. Required-vs-optional rides on the
   // existing `isRequired`, so a TRAINING section needs no config column at all.
-  trainingId    String?
-  training      Training?         @relation(fields: [trainingId], references: [id])
+  trainingId       String?
+  training         Training?         @relation(fields: [trainingId], references: [id])
   // QUIZ only
-  passThreshold Int?
-  maxAttempts   Int?
-  createdAt     DateTime          @default(now())
-  updatedAt     DateTime          @updatedAt
+  passThreshold    Int?
+  maxAttempts      Int?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
 
   questions CourseQuestion[]
   slides    CourseSlide[]
@@ -2313,8 +2324,9 @@ model Training {
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
-  sections     CourseSection[]
-  certificates TrainingCertificate[]
+  sections              CourseSection[]
+  certificates          TrainingCertificate[]
+  workspaceRequirements WorkspaceRequirement[]
 
   @@index([archivedAt])
 }
@@ -2325,31 +2337,31 @@ model Training {
 /// `status` on an existing row, but a resubmission always creates a new one, so
 /// the attempt history survives a disputed rejection.
 model TrainingCertificate {
-  id             String             @id @default(cuid())
-  trainingId     String
-  training       Training           @relation(fields: [trainingId], references: [id])
-  memberId       String
-  member         Member             @relation("TrainingCertificateMember", fields: [memberId], references: [id], onDelete: Cascade)
+  id         String         @id @default(cuid())
+  trainingId String
+  training   Training       @relation(fields: [trainingId], references: [id])
+  memberId   String
+  member     Member         @relation("TrainingCertificateMember", fields: [memberId], references: [id], onDelete: Cascade)
   /// Which course section it was uploaded from, if any. Nullable so a
   /// certificate can outlive the course that collected it.
-  sectionId      String?
-  section        CourseSection?     @relation(fields: [sectionId], references: [id], onDelete: SetNull)
+  sectionId  String?
+  section    CourseSection? @relation(fields: [sectionId], references: [id], onDelete: SetNull)
 
   /// The file is RETAINED, unlike CourseWorkSubmission which discards it after
   /// text extraction. It stays private in the bot's Drive — this fileId is NEVER
   /// passed to makeDriveFilePublic. Serving goes through the authenticated proxy.
-  driveFileId    String
-  fileName       String
-  fileMimeType   String
-  fileSize       Int
+  driveFileId  String
+  fileName     String
+  fileMimeType String
+  fileSize     Int
 
   /// The date printed on the certificate, entered by the member.
-  completedOn    DateTime
+  completedOn DateTime
   /// Server-computed at submission: completedOn + training.renewalMonths. Null
   /// when the training never expires. SNAPSHOTTED, not derived on read — editing
   /// a registry entry's renewalMonths later must not silently re-date every
   /// certificate already issued under the old period.
-  expiresOn      DateTime?
+  expiresOn   DateTime?
 
   status         TrainingCertStatus @default(PENDING)
   reviewedById   String?
@@ -2522,7 +2534,6 @@ model DocShareSettings {
   updatedAt DateTime       @updatedAt
 }
 
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Slack chat archive
 //
@@ -2551,17 +2562,17 @@ enum SlackFileStorage {
 }
 
 model SlackChannelArchive {
-  id               String  @id @default(cuid())
-  slackChannelId   String  @unique
+  id               String                @id @default(cuid())
+  slackChannelId   String                @unique
   slackChannelName String?
-  isPrivate        Boolean @default(false)
-  archiveEnabled   Boolean @default(true)
+  isPrivate        Boolean               @default(false)
+  archiveEnabled   Boolean               @default(true)
   /// Who may read this conversation is decided by kind + SlackConversationMember
   /// (services/slackConversationAccess.ts). isPrivate is kept for old readers.
   kind             SlackConversationKind @default(CHANNEL)
 
   /// Drive folder holding this channel's mirrored attachments.
-  driveFolderId    String?
+  driveFolderId String?
 
   backfillStatus   SlackBackfillStatus @default(NOT_STARTED)
   /// Slack ts paginated back to — makes backfill resumable after a crash.
@@ -2570,22 +2581,22 @@ model SlackChannelArchive {
   backfillError    String?
   backfilledAt     DateTime?
 
-  lastMessageAt    DateTime?
-  messageCount     Int      @default(0)
+  lastMessageAt DateTime?
+  messageCount  Int       @default(0)
 
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model SlackMessage {
-  id              String @id @default(cuid())
-  slackChannelId  String
+  id             String  @id @default(cuid())
+  slackChannelId String
   /// Slack's message ts — the natural key.
-  ts              String
+  ts             String
   /// Parent ts when this is a reply.
-  threadTs        String?
+  threadTs       String?
   /// Maintained on the PARENT row; recomputed, never incremented.
-  replyCount      Int    @default(0)
+  replyCount     Int     @default(0)
 
   authorSlackId   String?
   /// Null for non-members and deactivated users. Ingest never creates Members.
@@ -2595,20 +2606,20 @@ model SlackMessage {
   authorAvatarUrl String?
 
   /// Raw Slack mrkdwn — the source of truth. Rendered to tokens on read.
-  text            String    @db.Text
-  editedAt        DateTime?
+  text       String    @db.Text
+  editedAt   DateTime?
   /// Tombstone. The row and its files are kept.
-  deletedAt       DateTime?
+  deletedAt  DateTime?
   /// { ":emoji:": { count: number, slackIds: string[] } }
-  reactions       Json?
+  reactions  Json?
   /// Bot/app message. Archived since the portal pass (previously dropped).
-  isBot           Boolean   @default(false)
+  isBot      Boolean   @default(false)
   /// Raw { blocks, attachments } for bot messages. Rendered on READ by
   /// services/slackBlocks.ts, so improving the renderer never needs a backfill.
-  botPayload      Json?
+  botPayload Json?
 
-  postedAt        DateTime
-  files           SlackMessageFile[]
+  postedAt DateTime
+  files    SlackMessageFile[]
 
   @@unique([slackChannelId, ts])
   @@index([slackChannelId, postedAt])
@@ -2617,31 +2628,31 @@ model SlackMessage {
 }
 
 model SlackMessageFile {
-  id             String       @id @default(cuid())
-  messageId      String
-  message        SlackMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  id        String       @id @default(cuid())
+  messageId String
+  message   SlackMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
 
-  slackFileId    String  @unique
-  name           String
-  mimeType       String?
-  sizeBytes      Int?
-  isImage        Boolean @default(false)
+  slackFileId String  @unique
+  name        String
+  mimeType    String?
+  sizeBytes   Int?
+  isImage     Boolean @default(false)
   /// So the UI can reserve layout space without fetching the bytes.
-  width          Int?
-  height         Int?
+  width       Int?
+  height      Int?
 
   storage        SlackFileStorage @default(SLACK_ONLY)
   driveFileId    String?
   localPath      String?
-  mirrorAttempts Int      @default(0)
+  mirrorAttempts Int              @default(0)
   mirrorError    String?
   mirroredAt     DateTime?
 
   /// Denormalized from SlackMessage.postedAt so the nightly sweep is a single
   /// index scan instead of a join.
-  postedAt       DateTime
+  postedAt DateTime
 
-  createdAt      DateTime @default(now())
+  createdAt DateTime @default(now())
 
   @@index([storage, postedAt])
   @@index([messageId])
@@ -2652,10 +2663,10 @@ model SlackMessageFile {
 // ─────────────────────────────────────────────────────────────────────────────
 
 enum SlackConversationKind {
-  CHANNEL          // public channel — any club member may read
-  PRIVATE_CHANNEL  // participants only
-  IM               // 1:1 DM — participants only, admins included in "not allowed"
-  MPIM             // group DM — participants only
+  CHANNEL // public channel — any club member may read
+  PRIVATE_CHANNEL // participants only
+  IM // 1:1 DM — participants only, admins included in "not allowed"
+  MPIM // group DM — participants only
 }
 
 /// Mirror of Slack conversation membership, and the SOURCE OF TRUTH for who
@@ -2682,4 +2693,96 @@ model SlackReadCursor {
   updatedAt      DateTime @updatedAt
 
   @@id([memberId, slackChannelId])
+}
+
+// ── Lab schedule ─────────────────────────────────────────────
+// A lab or work space members can say they will be in. Shifts are weekly
+// rules in the space's local wall-clock time, expanded on read by
+// services/labScheduleCore.ts. See docs/superpowers/specs/2026-09-25-lab-schedule-design.md.
+
+model Workspace {
+  id            String    @id @default(cuid())
+  name          String
+  slug          String    @unique
+  description   String?
+  location      String?
+  color         String    @default("#00e5cc")
+  /// Advisory only: over-capacity blocks are highlighted, never rejected.
+  capacity      Int?
+  timezone      String    @default("America/New_York")
+  /// Grid window, minutes past local midnight, multiples of 30.
+  openStartMin  Int       @default(480)
+  openEndMin    Int       @default(1320)
+  /// Term end: default end date of new weekly shifts.
+  defaultEndsOn DateTime? @db.Date
+  /// Soft delete. Shifts are kept.
+  archivedAt    DateTime?
+  createdById   String
+  createdBy     Member    @relation("WorkspaceCreator", fields: [createdById], references: [id])
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  projects     WorkspaceProject[]
+  requirements WorkspaceRequirement[]
+  shifts       LabShift[]
+  events       Event[]
+
+  @@index([archivedAt])
+}
+
+model WorkspaceProject {
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  projectId   String
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@id([workspaceId, projectId])
+  @@index([projectId])
+}
+
+/// Exactly one of trainingId / courseId is set (enforced by workspaceService).
+model WorkspaceRequirement {
+  id          String    @id @default(cuid())
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  trainingId  String?
+  training    Training? @relation(fields: [trainingId], references: [id])
+  courseId    String?
+  course      Course?   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, trainingId])
+  @@unique([workspaceId, courseId])
+}
+
+model LabShift {
+  id          String         @id @default(cuid())
+  memberId    String
+  member      Member         @relation("MemberLabShifts", fields: [memberId], references: [id], onDelete: Cascade)
+  workspaceId String
+  workspace   Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  /// 0 = Sunday … 6 = Saturday, in the workspace timezone.
+  weekday     Int
+  /// Local minutes past midnight, multiples of 30; endMin is exclusive.
+  startMin    Int
+  endMin      Int
+  /// First and last local dates the rule applies. Equal = one-off.
+  startsOn    DateTime       @db.Date
+  endsOn      DateTime       @db.Date
+  buddyWanted Boolean        @default(false)
+  note        String?
+  skips       LabShiftSkip[]
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@index([workspaceId, startsOn, endsOn])
+  @@index([memberId])
+}
+
+/// "Not this week": one occurrence of a weekly LabShift is cancelled.
+model LabShiftSkip {
+  shiftId String
+  shift   LabShift @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+  date    DateTime @db.Date
+
+  @@id([shiftId, date])
 }

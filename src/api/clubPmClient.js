@@ -746,6 +746,26 @@ export function getCourseCollabWsUrl() {
   return `${origin.replace(/^http/, 'ws')}/collab/course`;
 }
 
+// ── Lab schedule (workspaces) ────────────────────────────────
+
+export const listWorkspaces = (params = {}) => {
+  const q = new URLSearchParams(
+    Object.entries(params).filter(([, v]) => v != null && v !== '')
+  ).toString();
+  return get(`/api/workspaces${q ? `?${q}` : ''}`);
+};
+export const createWorkspace          = (data)                    => post('/api/workspaces', data);
+export const updateWorkspace          = (id, data)                => patch(`/api/workspaces/${id}`, data);
+export const archiveWorkspace         = (id)                      => del(`/api/workspaces/${id}`);
+export const setWorkspaceProjects     = (id, projectIds)          => put(`/api/workspaces/${id}/projects`, { projectIds });
+export const setWorkspaceRequirements = (id, trainingIds, courseIds) => put(`/api/workspaces/${id}/requirements`, { trainingIds, courseIds });
+export const getWorkspaceWeek         = (id, start)               => get(`/api/workspaces/${id}/week?start=${encodeURIComponent(start)}`);
+export const applyLabRect             = (id, body)                => post(`/api/workspaces/${id}/shifts/apply`, body);
+export const updateLabShift           = (shiftId, data)           => patch(`/api/workspaces/shifts/${shiftId}`, data);
+export const deleteLabShift           = (shiftId)                 => del(`/api/workspaces/shifts/${shiftId}`);
+export const listLabBuddyRequests     = (projectId)               =>
+  get(`/api/workspaces/buddy-requests${projectId ? `?projectId=${encodeURIComponent(projectId)}` : ''}`);
+
 // ── Meeting scheduler (when2meet availability polls) ─────────
 
 export const listMeetingPolls = (params = {}) => {

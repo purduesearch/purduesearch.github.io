@@ -15,6 +15,7 @@ interface CreateEventInput {
   isVirtual?: boolean;
   isPublic?: boolean;
   projectId?: string;
+  workspaceId?: string | null;
   priorityTaskIds?: string[];
   organizerId?: string;
   attendeeIds?: string[];
@@ -34,6 +35,7 @@ interface UpdateEventInput {
   isVirtual?: boolean;
   isPublic?: boolean;
   projectId?: string;
+  workspaceId?: string | null;
   priorityTaskIds?: string[];
   organizerId?: string;
   attendeeIds?: string[];
@@ -58,6 +60,7 @@ interface EventFilters {
 
 const eventInclude = {
   project:   { select: { id: true, name: true } },
+  workspace: { select: { id: true, name: true, color: true, location: true } },
   organizer: { select: { id: true, displayName: true, avatarUrl: true } },
   attendees: { select: { id: true, displayName: true, avatarUrl: true } },
   _count:    { select: { priorityTasks: true, attendees: true } },
@@ -78,6 +81,7 @@ interface SeriesBase {
   recurrencePattern: string;
   recurrenceEndDate?: Date | null;
   projectId?: string | null;
+  workspaceId?: string | null;
   organizerId?: string | null;
   attendeeIds?: string[];
 }
@@ -107,6 +111,9 @@ async function spawnOccurrences(base: SeriesBase) {
           recurrenceEndDate: base.recurrenceEndDate ?? undefined,
           ...(base.projectId
             ? { project: { connect: { id: base.projectId } } }
+            : {}),
+          ...(base.workspaceId
+            ? { workspace: { connect: { id: base.workspaceId } } }
             : {}),
           ...(base.organizerId
             ? { organizer: { connect: { id: base.organizerId } } }
@@ -150,6 +157,9 @@ export async function createEvent(data: CreateEventInput) {
       recurrenceEndDate:  data.recurrenceEndDate,
       ...(data.projectId
         ? { project: { connect: { id: data.projectId } } }
+        : {}),
+      ...(data.workspaceId
+        ? { workspace: { connect: { id: data.workspaceId } } }
         : {}),
       ...(data.organizerId
         ? { organizer: { connect: { id: data.organizerId } } }
@@ -307,6 +317,9 @@ function seriesChanges(before: EventForEdit, data: UpdateEventInput, updateData:
   if (data.projectId !== undefined && norm(data.projectId) !== before.projectId) {
     out.project = updateData.project;
   }
+  if (data.workspaceId !== undefined && norm(data.workspaceId) !== before.workspaceId) {
+    out.workspace = updateData.workspace;
+  }
   if (data.organizerId !== undefined && norm(data.organizerId) !== before.organizerId) {
     out.organizer = updateData.organizer;
   }
@@ -341,6 +354,11 @@ function buildUpdateData(data: UpdateEventInput): Record<string, any> {
   if (data.projectId !== undefined) {
     updateData.project = data.projectId
       ? { connect: { id: data.projectId } }
+      : { disconnect: true };
+  }
+  if (data.workspaceId !== undefined) {
+    updateData.workspace = data.workspaceId
+      ? { connect: { id: data.workspaceId } }
       : { disconnect: true };
   }
   if (data.organizerId !== undefined) {

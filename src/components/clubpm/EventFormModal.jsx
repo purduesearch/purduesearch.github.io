@@ -46,6 +46,7 @@ const EMPTY = {
   endDate: '', endTime: '',
   location: '', isVirtual: false,
   projectId: '', notes: '',
+  workspaceId: '',
   isRecurring: false, recurrencePattern: 'weekly', recurrenceEndDate: '',
   attendeeIds: [],
   // New events are public by default (decided 2026-09-11); saving a public
@@ -53,7 +54,7 @@ const EMPTY = {
   isPublic: true,
 };
 
-export default function EventFormModal({ isOpen, onClose, onSave, editEvent, projects = [], members = [], compact = false }) {
+export default function EventFormModal({ isOpen, onClose, onSave, editEvent, projects = [], members = [], workspaces = [], compact = false }) {
   const [form, setForm]         = useState(EMPTY);
   const [showAll, setShowAll]   = useState(false);
   const [saving, setSaving]     = useState(false);
@@ -72,6 +73,7 @@ export default function EventFormModal({ isOpen, onClose, onSave, editEvent, pro
         type: editEvent.type ?? 'MEETING',
         description: editEvent.description ?? '',
         isPublic: editEvent.isPublic ?? false,
+        workspaceId: editEvent.workspaceId ?? editEvent.workspace?.id ?? '',
         startDate: toLocalDateString(editEvent.startTime),
         startTime: toLocalTimeString(editEvent.startTime),
         endDate: toLocalDateString(editEvent.endTime),
@@ -127,6 +129,8 @@ export default function EventFormModal({ isOpen, onClose, onSave, editEvent, pro
       isVirtual: form.isVirtual,
       isPublic: form.type !== 'DEADLINE' && form.isPublic,
       projectId: form.projectId || undefined,
+      // null (not undefined) on edit so clearing the select actually unlinks it.
+      workspaceId: form.workspaceId || (editEvent ? null : undefined),
       notes: form.notes.trim() || undefined,
       isRecurring: form.isRecurring,
       recurrencePattern: form.isRecurring ? form.recurrencePattern : undefined,
@@ -365,6 +369,30 @@ export default function EventFormModal({ isOpen, onClose, onSave, editEvent, pro
               </button>
             </div>
           </div>
+
+          {workspaces.length > 0 && (
+            <div className="cpm-form-field">
+              <label className="cpm-form-label" htmlFor="event-workspace">Lab space</label>
+              <select
+                id="event-workspace"
+                className="cpm-form-input"
+                value={form.workspaceId}
+                onChange={e => {
+                  const id = e.target.value;
+                  const ws = workspaces.find(w => w.id === id);
+                  setForm(prev => ({
+                    ...prev,
+                    workspaceId: id,
+                    location: prev.isVirtual || prev.location.trim() ? prev.location : (ws?.location ?? prev.location),
+                  }));
+                }}
+              >
+                <option value="">— None —</option>
+                {workspaces.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+              </select>
+              <span className="pm-lab-form-hint">Shows this event on the space&apos;s lab schedule.</span>
+            </div>
+          )}
 
           {/* Description — the public-facing blurb (Notes stays members-only) */}
           <div className="cpm-form-field">
