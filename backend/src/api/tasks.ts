@@ -3,9 +3,10 @@ import { requireAuth } from "./auth.js";
 import { channelAuth } from "../middleware/channelAuth.js";
 import { getTaskPermissions, requireTaskEdit } from "../middleware/taskAccess.js";
 import { aiRateLimit } from "../middleware/aiRateLimit.js";
-import { updateTask, deleteTask, getTask, createSubtask, getSubtasks, addDependency, removeDependency, logTime, createTask, assertCanComplete, assertNotCategoryBlocked } from "../services/taskService.js";
+import { updateTask, deleteTask, getTask, createSubtask, getSubtasks, addDependency, removeDependency, createTask, assertCanComplete, assertNotCategoryBlocked } from "../services/taskService.js";
 import { assertCiGatePasses, applyCompletionSideEffects } from "../services/taskCompletionService.js";
 import { logAuditEvent, diffObjects, getTaskAuditLog } from "../services/activityService.js";
+import { recordTimeLog } from "../services/timeLogService.js";
 import type { TaskStatus, TaskProgress, Priority, NotificationType } from "@prisma/client";
 import { GeminiRateLimitError } from "../services/geminiService.js";
 import { runJson } from "../services/ai/aiRouter.js";
@@ -1313,28 +1314,7 @@ tasksRouter.post("/:id/time-logs", requireAuth, requireTaskEdit, async (req: Req
       res.status(400).json({ error: "minutes must be a positive number" });
       return;
     }
-    const log = await logTime(taskId, memberId, minutes, note);
-
-    logAuditEvent({
-      taskId, memberId: memberId ?? null, source: "WEB",
-      eventType: "TIME_LOGGED",
-      payload: { minutes, note: note ?? null },
-    }).catch(console.error);
-
-    // Engagement: award XP / doubloons proportional to hours logged (fire-and-forget)
-    (async () => {
-      const { handleTimeLog } = await import("../services/rewardService.js");
-      await handleTimeLog(taskId, memberId, minutes);
-    })().catch(err => console.error("[reward] handleTimeLog:", err));
-
-    // Challenge hooks
-    (async () => {
-      const { recordEvent } = await import("../services/challengeService.js");
-      await recordEvent(memberId, "TIME_LOG_ENTRY", 1, { taskId });
-      await recordEvent(memberId, "TIME_LOG_HOURS", minutes, { taskId });
-      await recordEvent(memberId, "TIME_LOG_UNIQUE_TASKS", 1, { taskId });
-      // TIME_LOG_WEEKDAY: tracked via DAILY_ACTIVE (streakService fires first action of day)
-    })().catch(err => console.error("[challenge] timelog hooks:", err));
+    const log = await recordTimeLog({ taskId, memberId, minutes, note, source: "WEB" });
 
     res.status(201).json(log);
   } catch (error) {
