@@ -65,7 +65,7 @@ function BlockDetails({ block, box, week, meId, membersById, onClose }) {
 
 export default function LabScheduleModal({
   isOpen, onClose, projectId = null, initialWorkspaceId = null, compact = false,
-  initialMode = 'everyone', initialMemberIds = null, taskContext = null,
+  initialMode = 'everyone', initialMemberIds = null, taskContext = null, initialPeople = null,
 }) {
   const { member } = useClubPmAuth();
   const meId = member?.id;
@@ -132,10 +132,14 @@ export default function LabScheduleModal({
   const scheduledIds = useMemo(() => new Set((week?.occurrences ?? []).map(o => o.memberId)), [week]);
   const overlapPeople = useMemo(() => {
     if (!week) return [];
-    const list = week.members.filter(m => scheduledIds.has(m.id) || m.id === meId);
+    const list = week.members.filter(m => scheduledIds.has(m.id) || m.id === meId || initialMemberIds?.includes(m.id));
+    // Preselected people (e.g. a task's assignees) stay pickable even with no lab time this week.
+    for (const p of initialPeople ?? []) {
+      if (p?.id && !list.some(m => m.id === p.id)) list.push({ slackId: null, avatarUrl: null, projects: [], ...p });
+    }
     if (meId && !list.some(m => m.id === meId)) list.unshift({ id: meId, displayName: member?.displayName ?? 'You', avatarUrl: member?.avatarUrl ?? null, slackId: member?.slackId ?? null, projects: [] });
     return list.sort((a, b) => (a.id === meId ? -1 : b.id === meId ? 1 : a.displayName.localeCompare(b.displayName)));
-  }, [week, scheduledIds, meId, member]);
+  }, [week, scheduledIds, meId, member, initialMemberIds, initialPeople]);
   useEffect(() => {
     if (!week || overlapIds) return;
     let ids;
