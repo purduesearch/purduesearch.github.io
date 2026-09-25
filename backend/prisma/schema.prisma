@@ -123,6 +123,9 @@ enum NotificationType {
   TRAINING_EXPIRING
   LAB_BUDDY_JOINED
   LAB_BUDDY_WANTED
+  LAB_CHECKOUT_REMINDER
+  LAB_VISIT_PENDING
+  LAB_ALONE
   // Slack pings mirrored into Constellation (slack portal). Never DM'd back to Slack.
   SLACK_DM
   SLACK_MENTION
@@ -298,6 +301,7 @@ model Member {
   trainingsCreated      Training[]            @relation("TrainingCreator")
   workspacesCreated     Workspace[]           @relation("WorkspaceCreator")
   labShifts             LabShift[]            @relation("MemberLabShifts")
+  labVisits             LabVisit[]            @relation("MemberLabVisits")
   trainingCertificates  TrainingCertificate[] @relation("TrainingCertificateMember")
   trainingCertsReviewed TrainingCertificate[] @relation("TrainingCertificateReviewer")
 
@@ -811,17 +815,21 @@ model Notification {
 }
 
 model TimeLog {
-  id       String   @id @default(cuid())
-  taskId   String
-  memberId String
-  minutes  Int
-  note     String?
-  loggedAt DateTime @default(now())
-  task     Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  member   Member   @relation(fields: [memberId], references: [id])
+  id         String    @id @default(cuid())
+  taskId     String
+  memberId   String
+  minutes    Int
+  note       String?
+  loggedAt   DateTime  @default(now())
+  task       Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  member     Member    @relation(fields: [memberId], references: [id])
+  /// Set when the time came from a lab check-in/out split.
+  labVisitId String?
+  labVisit   LabVisit? @relation(fields: [labVisitId], references: [id], onDelete: SetNull)
 
   @@index([taskId])
   @@index([memberId])
+  @@index([labVisitId])
 }
 
 // ── Events ───────────────────────────────────────────────────
@@ -2726,6 +2734,7 @@ model Workspace {
   requirements WorkspaceRequirement[]
   shifts       LabShift[]
   events       Event[]
+  labVisits    LabVisit[]
 
   @@index([archivedAt])
 }
@@ -2785,4 +2794,37 @@ model LabShiftSkip {
   date    DateTime @db.Date
 
   @@id([shiftId, date])
+}
+
+enum LabVisitStatus {
+  OPEN
+  CLOSED
+  PENDING_CONFIRM
+  DISCARDED
+}
+
+/// One lab check-in. Closing it splits its minutes into TimeLog rows.
+model LabVisit {
+  id                 String         @id @default(cuid())
+  memberId           String
+  member             Member         @relation("MemberLabVisits", fields: [memberId], references: [id], onDelete: Cascade)
+  workspaceId        String
+  workspace          Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  status             LabVisitStatus @default(OPEN)
+  source             ActivitySource
+  checkedInAt        DateTime
+  checkedOutAt       DateTime?
+  /// End of the scheduled shift the check-in fell inside, if any.
+  expectedEndAt      DateTime?
+  reminderSentAt     DateTime?
+  /// Set when the visit was closed by the midnight sweep.
+  autoClosed         Boolean        @default(false)
+  /// Minutes not yet assigned to any task (zero in-progress tasks at check-out).
+  unallocatedMinutes Int            @default(0)
+  timeLogs           TimeLog[]
+  createdAt          DateTime       @default(now())
+
+  @@index([memberId, status])
+  @@index([workspaceId, checkedInAt])
+  @@index([status, checkedInAt])
 }
