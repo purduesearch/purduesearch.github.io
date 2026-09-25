@@ -1,7 +1,7 @@
 import {
   addDays, mondayOf, weekdayOf, fmtMin, fmtMinShort, fmtRange, dayHeader, weekLabel, rowStarts,
   blockBox, heatLevel, rectFromIndices, ownCells, othersHeat, overlapNames, describeRect,
-  collapsedDays, unmetRequirements, ROW_PX,
+  collapsedDays, unmetRequirements, ROW_PX, overlapWindows, scoreWindow, draftLabMessage,
 } from './labScheduleUtils';
 
 const MON = '2026-09-28';
@@ -62,4 +62,58 @@ test('unmet requirements', () => {
   const ws = { requirements: [{ id: 'r1', name: 'Lab Safety' }, { id: 'r2', name: 'Chem' }] };
   expect(unmetRequirements(ws, { r1: 'ok', r2: 'expired' })).toEqual([{ id: 'r2', name: 'Chem', state: 'expired' }]);
   expect(unmetRequirements(ws, undefined).map(r => r.state)).toEqual(['missing', 'missing']);
+});
+
+describe('overlap finder', () => {
+  const o = (memberId, startMin, endMin, weekly = true, date = MON) =>
+    ({ shiftId: `s-${memberId}-${startMin}`, memberId, date, startMin, endMin, buddyWanted: false, weekly });
+
+  test('two-person overlap', () => {
+    const w = overlapWindows([o('A', 780, 900), o('B', 840, 960)], ['A', 'B'], 2, WEEK);
+    expect(w).toEqual([{ date: MON, startMin: 840, endMin: 900, memberIds: ['A', 'B'], weekly: true }]);
+  });
+
+  test('threshold N of M', () => {
+    const occs = [o('A', 780, 900), o('B', 840, 960), o('C', 900, 960)];
+    expect(overlapWindows(occs, ['A', 'B', 'C'], 3, WEEK)).toEqual([]);
+    const w = overlapWindows(occs, ['A', 'B', 'C'], 2, WEEK);
+    expect(w.map(x => [x.startMin, x.endMin, x.memberIds])).toEqual([
+      [840, 900, ['A', 'B']],
+      [900, 960, ['B', 'C']],
+    ]);
+  });
+
+  test('differing member sets split windows; ranking by minutes x people', () => {
+    const occs = [o('A', 780, 960), o('B', 780, 960), o('C', 840, 900)];
+    const w = overlapWindows(occs, ['A', 'B', 'C'], 2, WEEK);
+    expect(w.map(x => [x.startMin, x.endMin, x.memberIds.length])).toEqual([
+      [840, 900, 3], // 60 min x 3 people = 180
+      [780, 840, 2], // 120, earlier start wins the tie
+      [900, 960, 2],
+    ]);
+    expect(scoreWindow(w[0])).toBe(180);
+  });
+
+  test('ignores members not chosen', () => {
+    expect(overlapWindows([o('A', 780, 900), o('Z', 780, 900)], ['A', 'B'], 2, WEEK)).toEqual([]);
+  });
+
+  test('weekly flag false when any contributor is one-off', () => {
+    const w = overlapWindows([o('A', 780, 900), o('B', 780, 900, false)], ['A', 'B'], 2, WEEK);
+    expect(w[0].weekly).toBe(false);
+    const w2 = overlapWindows([o('A', 780, 900), o('B', 780, 900)], ['A', 'B'], 2, WEEK);
+    expect(w2[0].weekly).toBe(true);
+  });
+
+  test('message wording', () => {
+    const window = { date: '2026-09-29', startMin: 780, endMin: 840, memberIds: ['A', 'B'], weekly: true };
+    expect(draftLabMessage({ names: ['@Gram'], window, recurring: false }))
+      .toBe('Hey @Gram, would you like to meet in the lab Tuesday 1:00–2:00 PM this week?');
+    expect(draftLabMessage({ names: ['@Gram', '@Lily'], window, recurring: true }))
+      .toBe('Hey @Gram and @Lily, would you like to meet in the lab every Tuesday 1:00–2:00 PM?');
+    expect(draftLabMessage({ names: ['@Gram', 'Lily', '@Max'], window, recurring: false }))
+      .toBe('Hey @Gram, Lily, and @Max, would you like to meet in the lab Tuesday 1:00–2:00 PM this week?');
+    expect(draftLabMessage({ names: ['@Gram'], window, recurring: true, taskTitle: 'Wire harness' }))
+      .toBe('Hey @Gram, would you like to meet in the lab every Tuesday 1:00–2:00 PM to work on "Wire harness"?');
+  });
 });

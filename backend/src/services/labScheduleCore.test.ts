@@ -46,10 +46,12 @@ console.log("expandShifts");
   check("one-off next week does not", expandShifts([shift({ id: "o2", weekday: 3, startsOn: "2026-10-07", endsOn: "2026-10-07" })], [], WEEK).length === 0);
   check("rule starting later does not", expandShifts([shift({ startsOn: "2026-10-05" })], [], WEEK).length === 0);
   check("rule ended earlier does not", expandShifts([shift({ endsOn: "2026-09-27" })], [], WEEK).length === 0);
+  check("recurring rule is weekly", expandShifts([weekly], [], WEEK)[0].weekly === true);
+  check("one-off is not weekly", expandShifts([oneOff], [], WEEK)[0].weekly === false);
 }
 
 const occ = (memberId: string, startMin: number, endMin: number, buddyWanted = false, date = MON): Occurrence =>
-  ({ shiftId: `x-${memberId}-${startMin}`, memberId, date, startMin, endMin, buddyWanted });
+  ({ shiftId: `x-${memberId}-${startMin}`, memberId, date, startMin, endMin, buddyWanted, weekly: true });
 
 console.log("mergePresence");
 {

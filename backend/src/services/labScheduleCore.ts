@@ -29,6 +29,8 @@ export interface SkipRow { shiftId: string; date: Ymd; }
 export interface Occurrence {
   shiftId: string; memberId: string; date: Ymd;
   startMin: number; endMin: number; buddyWanted: boolean;
+  /** True when the occurrence comes from a recurring rule (startsOn !== endsOn). */
+  weekly: boolean;
 }
 export interface EventBand {
   eventId: string; title: string; date: Ymd;
@@ -85,7 +87,7 @@ export function expandShifts(shifts: ShiftRow[], skips: SkipRow[], dates: Ymd[])
     for (const s of shifts) {
       if (s.weekday !== wd || s.startsOn > date || s.endsOn < date) continue;
       if (skipped.has(`${s.id}|${date}`)) continue;
-      out.push({ shiftId: s.id, memberId: s.memberId, date, startMin: s.startMin, endMin: s.endMin, buddyWanted: s.buddyWanted });
+      out.push({ shiftId: s.id, memberId: s.memberId, date, startMin: s.startMin, endMin: s.endMin, buddyWanted: s.buddyWanted, weekly: s.startsOn !== s.endsOn });
     }
   }
   return out.sort((a, b) => a.date.localeCompare(b.date) || a.startMin - b.startMin);

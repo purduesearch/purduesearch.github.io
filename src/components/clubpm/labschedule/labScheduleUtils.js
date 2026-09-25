@@ -110,3 +110,58 @@ export function unmetRequirements(workspace, statusForMe) {
     .map(r => ({ ...r, state: statusForMe?.[r.id] ?? 'missing' }))
     .filter(r => r.state !== 'ok');
 }
+
+// ── Overlap finder ───────────────────────────────────────────
+
+const DOW_LONG = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+export function scoreWindow(w) { return (w.endMin - w.startMin) * w.memberIds.length; }
+
+/**
+ * Windows where >= minCount of memberIds overlap, per date, merged across 30-min slots.
+ * Consecutive qualifying slots merge only when the set of people present is identical.
+ * `weekly` is true when every occurrence contributing to the window is a recurring rule.
+ * Returns [{ date, startMin, endMin, memberIds, weekly }] sorted by score desc then date/start.
+ */
+export function overlapWindows(occurrences, memberIds, minCount, dates, slot = SLOT) {
+  const chosen = new Set(memberIds);
+  const need = Math.max(1, minCount);
+  const out = [];
+  for (const date of dates) {
+    const occ = occurrences.filter(o => o.date === date && chosen.has(o.memberId));
+    if (occ.length === 0) continue;
+    const lo = Math.min(...occ.map(o => o.startMin));
+    const hi = Math.max(...occ.map(o => o.endMin));
+    let cur = null;
+    for (let m = lo; m < hi; m += slot) {
+      const here = occ.filter(o => o.startMin <= m && o.endMin >= m + slot);
+      const ids = [...new Set(here.map(o => o.memberId))].sort();
+      if (ids.length < need) { cur = null; continue; }
+      const weekly = here.every(o => o.weekly);
+      if (cur && cur.endMin === m && cur.memberIds.join(',') === ids.join(',')) {
+        cur.endMin = m + slot;
+        cur.weekly = cur.weekly && weekly;
+      } else {
+        cur = { date, startMin: m, endMin: m + slot, memberIds: ids, weekly };
+        out.push(cur);
+      }
+    }
+  }
+  return out.sort((a, b) => scoreWindow(b) - scoreWindow(a) || a.date.localeCompare(b.date) || a.startMin - b.startMin);
+}
+
+function joinNames(names) {
+  if (names.length <= 1) return names[0] ?? '';
+  if (names.length === 2) return `${names[0]} and ${names[1]}`;
+  return `${names.slice(0, -1).join(', ')}, and ${names[names.length - 1]}`;
+}
+
+/** Names arrive pre-formatted ("@Display Name" or a plain name). */
+export function draftLabMessage({ names, window, recurring, taskTitle }) {
+  const day = DOW_LONG[weekdayOf(window.date)];
+  const when = recurring
+    ? `every ${day} ${fmtRange(window.startMin, window.endMin)}`
+    : `${day} ${fmtRange(window.startMin, window.endMin)} this week`;
+  const task = taskTitle ? ` to work on "${taskTitle}"` : '';
+  return `Hey ${joinNames(names)}, would you like to meet in the lab ${when}${task}?`;
+}

@@ -68,14 +68,14 @@ export async function getWeek(workspaceId: string, anyDayInWeek: Ymd, viewerId: 
   const [shifts, events, viewerIsAdmin] = await Promise.all([
     prisma.labShift.findMany({
       where: { workspaceId, startsOn: { lte: toDbDate(last) }, endsOn: { gte: toDbDate(first) } },
-      include: { skips: true, member: { select: { id: true, displayName: true, avatarUrl: true } } },
+      include: { skips: true, member: { select: { id: true, displayName: true, avatarUrl: true, slackId: true } } },
     }),
     prisma.event.findMany({
       where: {
         workspaceId,
         startTime: { gte: new Date(toDbDate(first).getTime() - DAY_MS), lt: new Date(toDbDate(last).getTime() + 2 * DAY_MS) },
       },
-      select: { id: true, title: true, startTime: true, endTime: true, attendees: { select: { id: true, displayName: true, avatarUrl: true } } },
+      select: { id: true, title: true, startTime: true, endTime: true, attendees: { select: { id: true, displayName: true, avatarUrl: true, slackId: true } } },
       orderBy: { startTime: "asc" },
     }),
     isAdminMember(viewerId),
@@ -88,7 +88,7 @@ export async function getWeek(workspaceId: string, anyDayInWeek: Ymd, viewerId: 
     .filter(b => dates.includes(b.date));
   const blocks = dates.flatMap(d => mergePresence(d, occurrences, bands));
 
-  const people = new Map<string, { id: string; displayName: string; avatarUrl: string | null }>();
+  const people = new Map<string, { id: string; displayName: string; avatarUrl: string | null; slackId: string }>();
   for (const s of shifts) people.set(s.member.id, s.member);
   for (const e of events) for (const a of e.attendees) people.set(a.id, a);
   const ids = [...people.keys()];
