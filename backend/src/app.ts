@@ -27,6 +27,7 @@ import { initDmBatcher } from "./services/dmBatcher.js";
 import { eventsRouter } from "./api/events.js";
 import { eventImportRouter } from "./api/eventImport.js";
 import { meetingPollsRouter } from "./api/meetingPolls.js";
+import { workspacesRouter } from "./api/workspaces.js";
 import { outreachRouter } from "./api/outreach.js";
 import { pressKitRouter } from "./api/pressKit.js";
 import { redirectRouter } from "./api/redirect.js";
@@ -164,6 +165,7 @@ app.use("/api/notifications", notificationsRouter); // sseRouter is mounted abov
 app.use("/api/events/import", eventImportRouter);
 app.use("/api/events", eventsRouter);
 app.use("/api/meeting-polls", meetingPollsRouter);
+app.use("/api/workspaces", workspacesRouter);
 app.use("/api/outreach", outreachRouter);
 app.use("/api", pressKitRouter);
 app.use("/api/blog", blogRouter);
