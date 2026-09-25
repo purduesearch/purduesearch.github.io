@@ -121,14 +121,14 @@ dates and expanded in the workspace timezone, so a 2 PM shift stays 2 PM across 
 
 ### 4.1 `services/labScheduleCore.ts` (pure, no Prisma)
 
-- `expandShifts(shifts, skips, weekStart, tz)` → occurrences `{ shiftId, memberId, date, startMin, endMin, buddyWanted }` for the seven local dates from `weekStart`.
+- `expandShifts(shifts, skips, dates)` → occurrences (times are already local, so no timezone is needed here; `eventToBand(event, tz)` converts event instants) `{ shiftId, memberId, date, startMin, endMin, buddyWanted }` for the seven local dates from `weekStart`.
 - `mergePresence(occurrences, events)` → per-day blocks: maximal intervals where the set of present people is constant, each with `{ startMin, endMin, memberIds, headcount, solo, buddyWanted }`. Event attendees are included in headcount; events are also returned as separate bands.
 - `rectToShifts(rect, scope, defaultEndsOn)` → shift rows for an add. `scope: 'weekly'` → one row per selected weekday, `startsOn` = the first date in the rectangle for that weekday, `endsOn` = the chosen end date. `scope: 'dates'` → one one-off row per selected date.
 - `planErase(existingShifts, rect, scope)` → `{ updates, creates, deletes, skips }`:
   - `weekly`: for each own shift on a selected weekday whose time range intersects the rectangle, starting from the first selected date: trim (`startMin`/`endMin` change), split (erase inside the block becomes two rows), or delete when fully covered. If the shift started before the first selected date, the old row is ended the day before and the trimmed remainder starts on that date, so past weeks stay intact.
   - `dates`: for each covered occurrence, add a `LabShiftSkip`; if the occurrence is only partly covered, also create one-off rows for the uncovered remainder.
 - `intervalsOverlap(a, b)`.
-- Adding over your own existing time in the same space merges adjacent/overlapping rows with identical `weekday`, date range, and `buddyWanted`, so repeated drags do not stack duplicates.
+- An `add` is **erase-then-insert** over the same rectangle and scope: your own time inside the rectangle is cleared first, then the new rows are written. Repeated drags never stack duplicates, and re-adding is how the buddy flag changes for a range. Adjacent rows are not merged; presence merging hides the seam.
 
 ### 4.2 `services/workspaceService.ts`
 
@@ -165,7 +165,7 @@ Event create/update in `eventService` accepts `workspaceId`; it rejects archived
 ### 4.5 Validation (400 with a human message)
 
 `startMin < endMin`; both multiples of 30; within `openStartMin..openEndMin`; `dates` non-empty, at most 7,
-all within one week; `endsOn ≥` first date and ≤ one year out; space not archived.
+all within one week; `endsOn ≥` first date and ≤ one year out; space not archived. When the space has no term end and the member picks no date, weekly shifts end 16 weeks after the first selected date.
 Unauthorised schedulers get 403.
 
 ## 5. Notifications
@@ -173,16 +173,18 @@ Unauthorised schedulers get 403.
 All go through `createNotification` with `slackText`, so each recipient's `notificationChannels` preference decides in-app vs Slack DM.
 
 - **`LAB_BUDDY_JOINED`** — after an `add`, compute overlaps over the next 14 days between the new occurrences and other members' `buddyWanted` occurrences in the same space. One notification per recipient per apply-op, e.g. "Sam will join you in Propulsion Lab — Mon 3–5 PM (weekly)". Never sent to the actor.
-- **`LAB_BUDDY_WANTED`** — when a shift is created with, or switched to, `buddyWanted`, notify members of the actor's own projects that are assigned to that space (excluding the actor). At most one per actor per space per local day (checked against recent `Notification` rows).
+- **`LAB_BUDDY_WANTED`** — when a shift is created with, or switched to, `buddyWanted`, notify members of the actor's own projects that are assigned to that space (excluding the actor). At most one per actor per space per rolling 24 hours (checked against recent `Notification` rows by `metadata.workspaceId`).
 - No notification on erase. No new cron jobs.
 
 ## 6. Frontend
+
+Notifications deep-link to `/clubpm/calendar?lab=<workspaceId>`, which opens the modal on that space.
 
 ### 6.1 Entry points
 
 - **Calendar page** header: "Lab schedule" button (`fas fa-flask`) opens `LabScheduleModal` with all spaces.
 - **Project page** header: "Lab time" button opens the modal limited to the project's spaces. An amber count badge shows teammates' open buddy requests for the next 14 days. Hidden when the project has no assigned spaces.
-- Neither adds a `NAV_TABS` entry. Both get `data-tour-id` anchors (`lab-schedule-open-calendar`, `lab-schedule-open-project`) registered in `src/clubpm/tour/tourAnchors.js` and `docs/courses/ANCHORS.md` in the same commit.
+- Neither adds a `NAV_TABS` entry. Both get `data-tour-id` anchors (`calendar.lab`, `project.lab`) registered in `src/clubpm/tour/tourAnchors.js` and `docs/courses/ANCHORS.md` in the same commit.
 - **`EventFormModal`**: optional "Workspace" select; picking one fills an empty `location` with the space's location. Events with a space show a coloured space chip in calendar views.
 - **`AdminView`**: new "Workspaces" panel.
 
@@ -196,7 +198,7 @@ Large `cpm-modal-overlay` on desktop; `MobileSheet variant="fullscreen"` on comp
 - **Edit view**: 30-minute cells. Other people appear as dim heat shading; the viewer's time is solid teal. Rectangle marquee as in `MeetingPollBoard` (pointer events; touch via `elementFromPoint`). On release a popover (bottom sheet on compact) offers: Every week / Just these days; "Until" date (defaults to term end); Looking for company toggle; a live overlap preview ("Overlaps Sam (Mon), Riley (Wed)"); requirement warnings; Cancel / Add. A drag that starts on the viewer's own cell switches to erase and the popover offers Remove every week / Just this week.
 - **Looking for company** list (side rail on desktop, section below the grid on compact): upcoming buddy requests in the viewer's spaces, each with a "Join" button that selects the matching rectangle in Edit view.
 - **Empty state**: "No one scheduled here this week yet. Switch to Edit my time and drag to add yours."
-- Saves are optimistic with rollback and a toast on failure; a `useRef` in-flight guard prevents double submit.
+- While a save is in flight the selection stays drawn in a "saving" state; the server returns the recomputed week, which replaces local state. On failure the selection clears and a toast shows the error. A `useRef` in-flight guard prevents double submit.
 
 ### 6.3 Admin "Workspaces" panel
 
