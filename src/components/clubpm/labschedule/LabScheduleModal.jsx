@@ -11,6 +11,7 @@ import BuddyRequestList from './BuddyRequestList';
 import LabOverlapPanel from './LabOverlapPanel';
 import LabDraftPopover from './LabDraftPopover';
 import LabAvatar from './LabAvatar';
+import LabVisitBar from './LabVisitBar';
 import {
   addDays, mondayOf, todayInZone, overlapNames, unmetRequirements, dayHeader, fmtRange, overlapWindows,
 } from './labScheduleUtils';
@@ -226,6 +227,7 @@ export default function LabScheduleModal({
           mode={mode} onMode={changeMode}
           canSchedule={!!week?.canSchedule} showOverlap={showOverlap} space={space} myStatus={myStatus}
         />
+        <LabVisitBar space={space} canSchedule={!!week?.canSchedule} onChanged={loadWeek} />
         <div className="pm-lab-main">
           <div className="pm-lab-grid-wrap">
             {weekError ? (

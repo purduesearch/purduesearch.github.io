@@ -2,7 +2,7 @@ import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import LabScheduleModal from './LabScheduleModal';
-import { listWorkspaces, getWorkspaceWeek, listLabBuddyRequests } from '../../../api/clubPmClient';
+import { listWorkspaces, getWorkspaceWeek, listLabBuddyRequests, getMyLabVisits, labCheckIn } from '../../../api/clubPmClient';
 
 jest.mock('../../../api/clubPmClient', () => ({
   listWorkspaces: jest.fn(),
@@ -11,6 +11,11 @@ jest.mock('../../../api/clubPmClient', () => ({
   listLabBuddyRequests: jest.fn(),
   getChatChannels: jest.fn(),
   openDm: jest.fn(),
+  getMyLabVisits: jest.fn(),
+  labCheckIn: jest.fn(),
+  labCheckOut: jest.fn(),
+  labConfirm: jest.fn(),
+  labAllocate: jest.fn(),
 }));
 jest.mock('../../../clubpm/ClubPmAuth', () => ({ useClubPmAuth: () => ({ member: { id: 'me' } }) }));
 
@@ -38,6 +43,7 @@ function renderModal() {
 beforeEach(() => {
   listWorkspaces.mockResolvedValue([SPACE]);
   listLabBuddyRequests.mockResolvedValue([]);
+  getMyLabVisits.mockResolvedValue({ open: null, pending: [], unallocated: [], todoTasks: [] });
 });
 
 test('renders the space, a presence block and my requirement status', async () => {
@@ -93,4 +99,27 @@ test('choosing a window drafts a Slack invite without sending it', async () => {
     .toHaveValue('Hey @Lily Chen, would you like to meet in the lab Tuesday 2:00–3:00 PM this week?');
   expect(screen.getByRole('option', { name: /Group DM/ })).toBeInTheDocument();
   expect(screen.queryByRole('radio', { name: /Every Tuesday/ })).not.toBeInTheDocument();
+});
+
+test('check in here calls the API for the current space', async () => {
+  getWorkspaceWeek.mockResolvedValue(week());
+  labCheckIn.mockResolvedValue({ visit: { id: 'v1' }, closedPrevious: null });
+  renderModal();
+  fireEvent.click(await screen.findByRole('button', { name: /Check in here/ }));
+  expect(labCheckIn).toHaveBeenCalledWith('ws1');
+});
+
+test('an open visit offers check out, a pending one offers confirm', async () => {
+  getWorkspaceWeek.mockResolvedValue(week());
+  const ws = { id: 'ws1', name: 'Propulsion Lab', color: '#00e5cc', timezone: 'America/New_York' };
+  getMyLabVisits.mockResolvedValue({
+    open: { id: 'v1', checkedInAt: new Date(Date.now() - 72 * 60000).toISOString(), workspace: ws },
+    pending: [{ id: 'v2', checkedInAt: '2026-09-24T18:00:00Z', checkedOutAt: '2026-09-24T21:00:00Z', workspace: ws }],
+    unallocated: [], todoTasks: [],
+  });
+  renderModal();
+  expect(await screen.findByRole('button', { name: /Check out/ })).toBeInTheDocument();
+  expect(screen.getByText('1h 12m')).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Confirm' })).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: /Check in here/ })).not.toBeInTheDocument();
 });

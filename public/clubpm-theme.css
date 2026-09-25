@@ -29254,6 +29254,26 @@ button.cpm-chat-reaction:disabled { cursor: default; }
 .pm-lab-draft select { flex: 1; min-width: 0; }
 .pm-lab-draft-note { font-size: 11px; color: var(--pm-text-secondary); }
 
+/* Lab check-in/out bar (LabVisitBar) */
+.pm-lab-visits { display: flex; flex-direction: column; gap: 6px; margin: 0 0 10px; }
+.pm-lab-visit {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; padding: 8px 12px;
+  border: 1px solid var(--pm-border); border-radius: 10px; background: var(--pm-bg-surface);
+  font-size: 13px; color: var(--pm-text-secondary);
+}
+.pm-lab-visit > i { color: var(--pm-accent-teal); }
+.pm-lab-visit > span { flex: 1 1 200px; min-width: 0; }
+.pm-lab-visit strong { color: var(--pm-text-primary); }
+.pm-lab-visit.is-open { border-color: var(--pm-accent-teal); background: rgba(0, 229, 204, 0.08); }
+.pm-lab-visit.is-pending, .pm-lab-visit.is-unallocated { border-color: var(--pm-accent-amber); }
+.pm-lab-visit.is-pending > i, .pm-lab-visit.is-unallocated > i { color: var(--pm-accent-amber); }
+.pm-lab-visit select, .pm-lab-visit input[type="time"] {
+  padding: 5px 8px; border-radius: 8px; border: 1px solid var(--pm-border);
+  background: var(--pm-bg-base); color: var(--pm-text-primary); font: inherit; font-size: 13px;
+}
+.pm-lab-visit select { max-width: 280px; min-width: 0; }
+.pm-lab-visit-note { font-size: 12px; }
+
 @media (max-width: 900px) {
   .pm-lab-main { grid-template-columns: 1fr; }
   .pm-lab-buddies, .pm-lab-overlap { position: static; }
