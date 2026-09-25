@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import MobileSheet from '../MobileSheet';
 import { describeRect } from './labScheduleUtils';
@@ -14,6 +14,20 @@ export default function LabShiftPopover({ rect, op, point, defaultEndsOn, overla
   const [endsOn, setEndsOn] = useState(initialEnds);
   const [buddy, setBuddy] = useState(false);
   const inFlight = useRef(false);
+  // Measured height of the floating card: its content grows with the Until
+  // field, buddy toggle, overlap and requirement lines, so a fixed estimate
+  // let the actions slide off-screen when the drag ended low in the viewport.
+  const popRef = useRef(null);
+  const [popHeight, setPopHeight] = useState(0);
+  useLayoutEffect(() => {
+    const el = popRef.current;
+    if (!el) return undefined;
+    setPopHeight(el.offsetHeight);
+    if (typeof ResizeObserver === 'undefined') return undefined;
+    const ro = new ResizeObserver(() => setPopHeight(el.offsetHeight));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [compact]);
 
   useEffect(() => { setScope('weekly'); setEndsOn(initialEnds); setBuddy(false); }, [rect, initialEnds]);
 
@@ -98,9 +112,9 @@ export default function LabShiftPopover({ rect, op, point, defaultEndsOn, overla
   }
   const W = 290;
   const left = Math.min(Math.max(12, (point?.clientX ?? 0) + 14), window.innerWidth - W - 12);
-  const top = Math.min(Math.max(12, (point?.clientY ?? 0) - 40), window.innerHeight - 380);
+  const top = Math.max(12, Math.min((point?.clientY ?? 0) - 40, window.innerHeight - (popHeight || 380) - 12));
   return createPortal(
-    <div className="pm-lab-pop" role="dialog" aria-label={adding ? 'Add lab time' : 'Remove lab time'} style={{ left, top, width: W }}>
+    <div ref={popRef} className="pm-lab-pop" role="dialog" aria-label={adding ? 'Add lab time' : 'Remove lab time'} style={{ left, top, width: W }}>
       {body}
       {actions}
     </div>,
