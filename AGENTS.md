@@ -49,6 +49,7 @@ Static SPA for the Purdue SEARCH club, deployed to GitHub Pages and served at th
 │   │   └── ProjectNavContext.js    # Project navigation context
 │   ├── hooks/
 │   │   ├── useFlowAnimations.js
+│   │   ├── useRectMarquee.js
 │   │   └── useSearch.js
 │   ├── theme/
 │   │   └── loadTheme.js            # Generic runtime <link> loader (href, marker) — ares-theme.css and clubpm-theme.css both go through it
@@ -110,6 +111,7 @@ Static SPA for the Purdue SEARCH club, deployed to GitHub Pages and served at th
 │           ├── chat/               # Slack portal: ChatConversation (one conversation, any kind), ChatComposer
 │           │                       #   (mentions/uploads/reconnect prompt), ChatBlocks (bot Block Kit), ChatTab,
 │           │                       #   ChatMessage, ChatThreadDrawer — NEVER emit <span>/<p> here (see invariants)
+│           ├── labschedule/        # Lab schedule modal (week grid, rectangle drag, buddy list) — opened from Calendar and the project header
 │           ├── members/            # DmInbox + DmPanel — DMs live on the Members page; ?dm=<channelId> is URL state
 │           └── ...
 ├── backend/                        # Node.js / Express / Prisma / Slack Bolt
