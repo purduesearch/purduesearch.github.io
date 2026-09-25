@@ -6969,3 +6969,7 @@ button.home-events-day[aria-pressed="true"] .home-events-dot { background: #fff 
 
 /* Contact page — no hero, so clear the fixed navbar. */
 .contact-page { padding-top: var(--navbar-height); }
+
+/* Keep the notebook header in normal flow so the stacked sheets start below it. */
+.field-notebook-page #header-navbar { position: relative !important; }
+.field-notebook-page .breadcrumb-nav { width: auto; }
