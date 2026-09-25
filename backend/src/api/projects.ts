@@ -23,6 +23,7 @@ import {
   driveToTasksPrompt, meetingNotesToTasksPrompt, projectContextPrompt,
 } from "../utils/aiPrompts.js";
 import { buildProjectContext } from "../services/projectContextService.js";
+import { getProjectTimeInsights } from "../services/timeInsightsService.js";
 import { suggestProjectActions, executeActionPlan, buildPlanPrompt, importActionPlan, type ActionPlanAction } from "../services/aiActionService.js";
 import {
   analyzeProjectRisks, generateSprintPlan, generateProjectBrief,
@@ -301,6 +302,26 @@ projectsRouter.get("/:id/activity", async (req: Request, res: Response) => {
   } catch (error) {
     console.error("Get project activity error:", error);
     res.status(500).json({ error: "Failed to get project activity" });
+  }
+});
+
+// ── GET /api/projects/:id/time-insights ─────────────────────
+// Manual vs lab time, per week / member / task. Default range: last 12 weeks.
+
+projectsRouter.get("/:id/time-insights", async (req: Request, res: Response) => {
+  try {
+    const parse = (v: unknown) => {
+      if (typeof v !== "string" || !v) return undefined;
+      const d = new Date(v);
+      return Number.isNaN(d.getTime()) ? null : d;
+    };
+    const from = parse(req.query.from), to = parse(req.query.to);
+    if (from === null || to === null) { res.status(400).json({ error: "from/to must be ISO dates" }); return; }
+    if (from && to && from > to) { res.status(400).json({ error: "from must be before to" }); return; }
+    res.json(await getProjectTimeInsights(req.params.id as string, { from, to }));
+  } catch (error) {
+    console.error("Get project time insights error:", error);
+    res.status(500).json({ error: "Failed to get time insights" });
   }
 });
 
