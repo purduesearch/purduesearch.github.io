@@ -9,6 +9,7 @@ import LabWeekGrid from './LabWeekGrid';
 import LabShiftPopover from './LabShiftPopover';
 import BuddyRequestList from './BuddyRequestList';
 import LabOverlapPanel from './LabOverlapPanel';
+import LabDraftPopover from './LabDraftPopover';
 import LabAvatar from './LabAvatar';
 import {
   addDays, mondayOf, todayInZone, overlapNames, unmetRequirements, dayHeader, fmtRange, overlapWindows,
@@ -148,7 +149,7 @@ export default function LabScheduleModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `chosen` is derived from overlapIds
     [week, mode, overlapIds, effectiveMin],
   );
-  const showOverlap = !!week && (week.members.length >= 2 || (initialMemberIds?.length ?? 0) >= 2);
+  const showOverlap = overlapPeople.length >= 2 || (initialMemberIds?.length ?? 0) >= 2;
 
   function toggleOverlap(id) {
     setSelection(null);
@@ -241,6 +242,7 @@ export default function LabScheduleModal({
                   membersById={membersById}
                   onRect={(rect, op, point) => { setDetail(null); setPending({ rect, op, point, saving: false }); }}
                   onBlockClick={(block, box) => setDetail({ block, box })}
+                  overlapWindows={windows} selection={selection?.window ?? null} onWindowClick={selectWindow}
                 />
                 {mode === 'everyone' && week.blocks.length === 0 && week.events.length === 0 && (
                   <div className="pm-lab-empty-overlay">
@@ -285,6 +287,14 @@ export default function LabScheduleModal({
           overlaps={overlapNames(pending.rect, week.occurrences, meId, membersById)}
           unmet={unmet} busy={pending.saving} compact={compact}
           onConfirm={confirm} onCancel={() => setPending(null)}
+        />
+      )}
+      {selection && week && mode === 'overlap' && (
+        <LabDraftPopover
+          key={`${selection.window.date}|${selection.window.startMin}|${selection.window.memberIds.join(',')}`}
+          window={selection.window} box={selection.box} meId={meId} membersById={membersById}
+          projectId={projectId} taskContext={taskContext}
+          onCancel={() => setSelection(null)} onClose={onClose}
         />
       )}
       {detail && week && (

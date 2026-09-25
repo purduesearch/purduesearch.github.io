@@ -9,6 +9,8 @@ jest.mock('../../../api/clubPmClient', () => ({
   getWorkspaceWeek: jest.fn(),
   applyLabRect: jest.fn(),
   listLabBuddyRequests: jest.fn(),
+  getChatChannels: jest.fn(),
+  openDm: jest.fn(),
 }));
 jest.mock('../../../clubpm/ClubPmAuth', () => ({ useClubPmAuth: () => ({ member: { id: 'me' } }) }));
 
@@ -75,4 +77,20 @@ test('find overlap lists shared windows for the chosen people', async () => {
   fireEvent.click(screen.getByRole('button', { name: /Member/ }));
   expect(screen.getByText(/Tue 2:00–3:00 PM/)).toBeInTheDocument();
   expect(screen.getByText('weekly')).toBeInTheDocument();
+});
+
+test('choosing a window drafts a Slack invite without sending it', async () => {
+  const o = (memberId, startMin, endMin) => ({ shiftId: `s-${memberId}`, memberId, date: '2026-09-29', startMin, endMin, buddyWanted: false, weekly: false });
+  getWorkspaceWeek.mockResolvedValue(week({
+    occurrences: [o('me', 780, 900), o('a', 840, 960)],
+    members: [{ id: 'a', displayName: 'Lily Chen', avatarUrl: null, slackId: 'U1', projects: [] }],
+  }));
+  renderModal();
+  fireEvent.click(await screen.findByRole('radio', { name: /Find overlap/ }));
+  fireEvent.click(screen.getByRole('button', { name: /Lily/ }));
+  fireEvent.click(screen.getByText(/Tue 2:00–3:00 PM/));
+  expect(screen.getByRole('textbox', { name: 'Message' }))
+    .toHaveValue('Hey @Lily Chen, would you like to meet in the lab Tuesday 2:00–3:00 PM this week?');
+  expect(screen.getByRole('option', { name: /Group DM/ })).toBeInTheDocument();
+  expect(screen.queryByRole('radio', { name: /Every Tuesday/ })).not.toBeInTheDocument();
 });
