@@ -8,8 +8,11 @@ import LabSpaceHeader from './LabSpaceHeader';
 import LabWeekGrid from './LabWeekGrid';
 import LabShiftPopover from './LabShiftPopover';
 import BuddyRequestList from './BuddyRequestList';
+import LabOverlapPanel from './LabOverlapPanel';
 import LabAvatar from './LabAvatar';
-import { addDays, mondayOf, todayInZone, overlapNames, unmetRequirements, dayHeader, fmtRange } from './labScheduleUtils';
+import {
+  addDays, mondayOf, todayInZone, overlapNames, unmetRequirements, dayHeader, fmtRange, overlapWindows,
+} from './labScheduleUtils';
 
 function BlockDetails({ block, box, week, meId, membersById, onClose }) {
   useEffect(() => {
@@ -58,7 +61,10 @@ function BlockDetails({ block, box, week, meId, membersById, onClose }) {
   );
 }
 
-export default function LabScheduleModal({ isOpen, onClose, projectId = null, initialWorkspaceId = null, compact = false }) {
+export default function LabScheduleModal({
+  isOpen, onClose, projectId = null, initialWorkspaceId = null, compact = false,
+  initialMode = 'everyone', initialMemberIds = null, taskContext = null,
+}) {
   const { member } = useClubPmAuth();
   const meId = member?.id;
   const [spaces, setSpaces] = useState(null);     // null while loading
@@ -70,6 +76,9 @@ export default function LabScheduleModal({ isOpen, onClose, projectId = null, in
   const [pending, setPending] = useState(null);   // { rect, op, point, saving }
   const [detail, setDetail] = useState(null);     // { block, box }
   const [buddies, setBuddies] = useState([]);
+  const [overlapIds, setOverlapIds] = useState(null);  // Set, seeded on first week load
+  const [minCount, setMinCount] = useState(null);      // null = all chosen
+  const [selection, setSelection] = useState(null);    // { window, box } | null
   const reqId = useRef(0);
 
   const refreshBuddies = useCallback(() => {
@@ -79,7 +88,8 @@ export default function LabScheduleModal({ isOpen, onClose, projectId = null, in
   useEffect(() => {
     if (!isOpen) return undefined;
     let alive = true;
-    setSpaces(null); setWeek(null); setPending(null); setDetail(null); setMode('everyone');
+    setSpaces(null); setWeek(null); setPending(null); setDetail(null); setMode(initialMode);
+    setOverlapIds(null); setMinCount(null); setSelection(null);
     listWorkspaces(projectId ? { projectId } : {})
       .then(list => {
         if (!alive) return;
@@ -92,6 +102,7 @@ export default function LabScheduleModal({ isOpen, onClose, projectId = null, in
       .catch(() => { if (alive) setSpaces([]); });
     refreshBuddies();
     return () => { alive = false; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- initialMode is read once per open
   }, [isOpen, projectId, initialWorkspaceId, refreshBuddies]);
 
   const loadWeek = useCallback(async () => {
@@ -112,16 +123,54 @@ export default function LabScheduleModal({ isOpen, onClose, projectId = null, in
   const myStatus = week?.requirementStatus?.[meId];
   const unmet = useMemo(() => (space && week ? unmetRequirements(space, myStatus) : []), [space, week, myStatus]);
 
+  // Overlap finder: the people who can be picked are everyone with lab time
+  // this week, plus me. Default pick (decision 1): the task's people when opened
+  // from a task, else me + my project's members with lab time, else me only.
+  const scheduledIds = useMemo(() => new Set((week?.occurrences ?? []).map(o => o.memberId)), [week]);
+  const overlapPeople = useMemo(() => {
+    if (!week) return [];
+    const list = week.members.filter(m => scheduledIds.has(m.id) || m.id === meId);
+    if (meId && !list.some(m => m.id === meId)) list.unshift({ id: meId, displayName: member?.displayName ?? 'You', avatarUrl: member?.avatarUrl ?? null, slackId: member?.slackId ?? null, projects: [] });
+    return list.sort((a, b) => (a.id === meId ? -1 : b.id === meId ? 1 : a.displayName.localeCompare(b.displayName)));
+  }, [week, scheduledIds, meId, member]);
+  useEffect(() => {
+    if (!week || overlapIds) return;
+    let ids;
+    if (initialMemberIds?.length) ids = initialMemberIds;
+    else if (projectId) ids = [meId, ...week.members.filter(m => scheduledIds.has(m.id) && m.projects?.some(p => p.id === projectId)).map(m => m.id)];
+    else ids = [meId];
+    setOverlapIds(new Set(ids.filter(Boolean)));
+  }, [week, overlapIds, initialMemberIds, projectId, meId, scheduledIds]);
+  const chosen = overlapIds ?? new Set();
+  const effectiveMin = chosen.size < 3 || minCount == null ? chosen.size : Math.min(Math.max(2, minCount), chosen.size);
+  const windows = useMemo(
+    () => (week && mode === 'overlap' && chosen.size >= 2 ? overlapWindows(week.occurrences, [...chosen], effectiveMin, week.dates) : []),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `chosen` is derived from overlapIds
+    [week, mode, overlapIds, effectiveMin],
+  );
+  const showOverlap = !!week && (week.members.length >= 2 || (initialMemberIds?.length ?? 0) >= 2);
+
+  function toggleOverlap(id) {
+    setSelection(null);
+    setOverlapIds(prev => {
+      const next = new Set(prev ?? []);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+  function changeMinCount(n) { setSelection(null); setMinCount(n); }
+  function selectWindow(w, box) { setDetail(null); setSelection({ window: w, box }); }
+
   function selectSpace(id) {
     const s = spaces.find(x => x.id === id);
-    setSpaceId(id); setWeek(null); setPending(null); setDetail(null);
+    setSpaceId(id); setWeek(null); setPending(null); setDetail(null); setSelection(null); setOverlapIds(null);
     setMonday(mondayOf(todayInZone(s.timezone)));
   }
   function moveWeek(delta) {
-    setPending(null); setDetail(null); setWeek(null);
+    setPending(null); setDetail(null); setSelection(null); setWeek(null);
     setMonday(m => (delta === 0 ? mondayOf(todayInZone(space.timezone)) : addDays(m, 7 * delta)));
   }
-  function changeMode(m) { setPending(null); setDetail(null); setMode(m); }
+  function changeMode(m) { setPending(null); setDetail(null); setSelection(null); setMode(m); }
 
   async function confirm({ scope, endsOn, buddyWanted }) {
     if (!pending) return;
@@ -174,7 +223,7 @@ export default function LabScheduleModal({ isOpen, onClose, projectId = null, in
           spaces={spaces} spaceId={spaceId} onSpace={selectSpace}
           dates={week?.dates} onWeek={moveWeek}
           mode={mode} onMode={changeMode}
-          canSchedule={!!week?.canSchedule} space={space} myStatus={myStatus}
+          canSchedule={!!week?.canSchedule} showOverlap={showOverlap} space={space} myStatus={myStatus}
         />
         <div className="pm-lab-main">
           <div className="pm-lab-grid-wrap">
@@ -211,7 +260,16 @@ export default function LabScheduleModal({ isOpen, onClose, projectId = null, in
               </>
             )}
           </div>
-          <BuddyRequestList requests={buddies} onJoin={joinBuddy} />
+          {mode === 'overlap' && week ? (
+            <LabOverlapPanel
+              people={overlapPeople} meId={meId} chosenIds={chosen} onToggle={toggleOverlap}
+              minCount={effectiveMin} maxCount={chosen.size} onMinCount={changeMinCount}
+              windows={windows} selection={selection?.window ?? null} onSelect={selectWindow}
+              membersById={membersById}
+            />
+          ) : (
+            <BuddyRequestList requests={buddies} onJoin={joinBuddy} />
+          )}
         </div>
       </>
     );

@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import LabScheduleModal from './LabScheduleModal';
 import { listWorkspaces, getWorkspaceWeek, listLabBuddyRequests } from '../../../api/clubPmClient';
@@ -64,4 +64,15 @@ test('no spaces shows guidance', async () => {
   listWorkspaces.mockResolvedValue([]);
   renderModal();
   expect(await screen.findByText('No lab spaces yet')).toBeInTheDocument();
+});
+
+test('find overlap lists shared windows for the chosen people', async () => {
+  const o = (memberId, startMin, endMin) => ({ shiftId: `s-${memberId}`, memberId, date: '2026-09-29', startMin, endMin, buddyWanted: false, weekly: true });
+  getWorkspaceWeek.mockResolvedValue(week({ occurrences: [o('me', 780, 900), o('a', 840, 960)] }));
+  renderModal();
+  fireEvent.click(await screen.findByRole('radio', { name: /Find overlap/ }));
+  expect(screen.getByText('Pick at least two people.')).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: /Member/ }));
+  expect(screen.getByText(/Tue 2:00–3:00 PM/)).toBeInTheDocument();
+  expect(screen.getByText('weekly')).toBeInTheDocument();
 });

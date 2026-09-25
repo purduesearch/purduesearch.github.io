@@ -29200,9 +29200,63 @@ button.cpm-chat-reaction:disabled { cursor: default; }
 .pm-lab-admin-actions { grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 8px; }
 .pm-lab-admin-error { grid-column: 1 / -1; color: var(--pm-accent-coral); font-size: 12px; }
 
+/* Lab overlap finder: side panel, grid windows, Slack draft popover */
+.pm-lab-overlap { position: sticky; top: 130px; display: flex; flex-direction: column; gap: 10px; padding: 12px; background: var(--pm-bg-surface); border: 1px solid var(--pm-border); border-radius: 12px; }
+.pm-lab-overlap h3 { margin: 0; display: flex; align-items: center; gap: 8px; font-family: var(--pm-font-display, 'Syne', sans-serif); font-size: 13px; color: var(--pm-accent-teal); }
+.pm-lab-overlap-people { display: flex; flex-wrap: wrap; gap: 6px; }
+.pm-lab-overlap-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 3px 10px 3px 3px; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--pm-border); background: transparent; color: var(--pm-text-secondary);
+  font: inherit; font-size: 12px;
+}
+.pm-lab-overlap-chip.is-on { border-color: var(--pm-accent-teal); color: var(--pm-text-primary); background: rgba(0, 229, 204, 0.1); }
+.pm-lab-overlap-chip:not(.is-on) .pm-lab-avatar { opacity: 0.5; }
+.pm-lab-overlap-min { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--pm-text-secondary); }
+.pm-lab-overlap-min strong { min-width: 16px; text-align: center; color: var(--pm-text-primary); }
+.pm-lab-overlap-empty { margin: 0; font-size: 12px; color: var(--pm-text-secondary); }
+.pm-lab-overlap-empty strong { display: block; color: var(--pm-text-primary); }
+.pm-lab-overlap-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.pm-lab-overlap-row {
+  width: 100%; display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+  padding: 8px 10px; border-radius: 10px; cursor: pointer; text-align: left;
+  border: 1px solid transparent; border-left: 3px solid var(--pm-accent-teal);
+  background: var(--pm-bg-elevated); color: var(--pm-text-primary); font: inherit; font-size: 12.5px;
+}
+.pm-lab-overlap-row:hover, .pm-lab-overlap-row:focus-visible { border-color: var(--pm-border-active); }
+.pm-lab-overlap-row.is-selected { border-color: var(--pm-accent-teal); background: rgba(0, 229, 204, 0.12); }
+.pm-lab-overlap-when { display: flex; align-items: center; gap: 6px; font-weight: 600; }
+.pm-lab-overlap-weekly {
+  padding: 0 6px; border-radius: 999px; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em;
+  color: var(--pm-accent-violet); border: 1px solid var(--pm-accent-violet);
+}
+.pm-lab-overlap-names { font-size: 11px; color: var(--pm-text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+
+.pm-lab-col.is-overlap-dim .pm-lab-block, .pm-lab-col.is-overlap-dim .pm-lab-event { opacity: 0.28; pointer-events: none; }
+.pm-lab-overlap-win {
+  position: absolute; left: 4px; right: 4px; z-index: 3;
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+  padding: 4px 6px; overflow: hidden; cursor: pointer;
+  border: 1px solid var(--pm-accent-teal); border-radius: 8px;
+  background: rgba(0, 229, 204, 0.22); color: var(--pm-text-primary);
+  font: inherit; font-size: 11px; font-weight: 600; text-align: left;
+  transition: transform 0.12s, box-shadow 0.12s;
+}
+.pm-lab-overlap-win:hover, .pm-lab-overlap-win:focus-visible { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35); }
+.pm-lab-overlap-win.is-weekly { border-style: solid; border-left-width: 3px; }
+.pm-lab-overlap-win.is-selected { background: rgba(0, 229, 204, 0.4); box-shadow: 0 0 0 2px var(--pm-accent-teal); }
+
+.pm-lab-draft textarea {
+  width: 100%; min-height: 96px; resize: vertical; box-sizing: border-box;
+  padding: 8px 10px; border-radius: 8px; border: 1px solid var(--pm-border);
+  background: var(--pm-bg-surface); color: var(--pm-text-primary); font: inherit; font-size: 13px;
+}
+.pm-lab-draft select { flex: 1; min-width: 0; }
+.pm-lab-draft-note { font-size: 11px; color: var(--pm-text-secondary); }
+
 @media (max-width: 900px) {
   .pm-lab-main { grid-template-columns: 1fr; }
-  .pm-lab-buddies { position: static; }
+  .pm-lab-buddies, .pm-lab-overlap { position: static; }
   .pm-lab-admin-form { grid-template-columns: 1fr; }
 }
 @media (prefers-reduced-motion: reduce) {

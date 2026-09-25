@@ -20,7 +20,7 @@ function RequirementChip({ req, state }) {
   return <span className={cls}>{inner}</span>;
 }
 
-export default function LabSpaceHeader({ spaces, spaceId, onSpace, dates, onWeek, mode, onMode, canSchedule, space, myStatus }) {
+export default function LabSpaceHeader({ spaces, spaceId, onSpace, dates, onWeek, mode, onMode, canSchedule, showOverlap, space, myStatus }) {
   return (
     <div className="pm-lab-head">
       <div className="pm-lab-spaces" role="tablist" aria-label="Lab spaces">
@@ -45,16 +45,24 @@ export default function LabSpaceHeader({ spaces, spaceId, onSpace, dates, onWeek
           </button>
           {dates && <span className="pm-lab-weeklabel">{weekLabel(dates)}</span>}
         </div>
-        {canSchedule ? (
+        {(canSchedule || showOverlap) && (
           <div className="pm-lab-mode" role="radiogroup" aria-label="View">
             <button type="button" role="radio" aria-checked={mode === 'everyone'} className={mode === 'everyone' ? 'is-on' : ''} onClick={() => onMode('everyone')}>
               <i className="fas fa-users" aria-hidden="true" /> Everyone
             </button>
-            <button type="button" role="radio" aria-checked={mode === 'edit'} className={mode === 'edit' ? 'is-on' : ''} onClick={() => onMode('edit')}>
-              <i className="fas fa-pen" aria-hidden="true" /> Edit my time
-            </button>
+            {canSchedule && (
+              <button type="button" role="radio" aria-checked={mode === 'edit'} className={mode === 'edit' ? 'is-on' : ''} onClick={() => onMode('edit')}>
+                <i className="fas fa-pen" aria-hidden="true" /> Edit my time
+              </button>
+            )}
+            {showOverlap && (
+              <button type="button" role="radio" aria-checked={mode === 'overlap'} className={mode === 'overlap' ? 'is-on' : ''} onClick={() => onMode('overlap')}>
+                <i className="fas fa-people-arrows" aria-hidden="true" /> Find overlap
+              </button>
+            )}
           </div>
-        ) : space && dates && (
+        )}
+        {!canSchedule && space && dates && (
           <span className="pm-lab-viewonly">
             <i className="fas fa-eye" aria-hidden="true" /> View only — ask an admin to assign this space to your project
           </span>
