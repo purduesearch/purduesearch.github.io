@@ -779,6 +779,13 @@ export const labCheckIn  = (workspaceId)   => post('/api/lab-visits/check-in', {
 export const labCheckOut = (at)            => post('/api/lab-visits/check-out', at ? { at } : {});
 export const labConfirm  = (at)            => post('/api/lab-visits/confirm', at ? { at } : {});
 export const labAllocate = (visitId, taskId) => post(`/api/lab-visits/${encodeURIComponent(visitId)}/allocate`, { taskId });
+export function getProjectTimeInsights(projectId, { from, to } = {}) {
+  const q = new URLSearchParams();
+  if (from) q.set('from', from);
+  if (to) q.set('to', to);
+  const s = q.toString();
+  return get(`/api/projects/${encodeURIComponent(projectId)}/time-insights${s ? `?${s}` : ''}`);
+}
 
 // ── Meeting scheduler (when2meet availability polls) ─────────
 

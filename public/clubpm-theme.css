@@ -28266,6 +28266,8 @@ button.cpm-chat-reaction:disabled { cursor: default; }
   .pm-shell--compact .pm-an-kpis { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
   .pm-shell--compact .pm-an-kpi { min-width: 0; }
   .pm-shell--compact .pm-an-kpi-value { overflow-wrap: anywhere; }
+  .pm-shell--compact .pm-time-tasks .pm-an-card-head { align-items: flex-start; }
+  .pm-shell--compact .pm-time-table td, .pm-shell--compact .pm-time-table th { padding: 8px 6px; }
   .pm-shell--compact .pm-an-toolbar { flex-wrap: wrap; gap: 8px; }
   .pm-shell--compact .pm-an-toolbar-group { flex-wrap: wrap; min-width: 0; }
   .pm-shell--compact .pm-an-select { min-height: 44px; font-size: 16px; max-width: 100%; }
@@ -29329,6 +29331,25 @@ button.cpm-chat-reaction:disabled { cursor: default; }
   border: 1px solid var(--pm-accent-amber);
 }
 .pm-lab-coverage-swatch.is-untrained { background: repeating-linear-gradient(135deg, var(--pm-accent-coral) 0 3px, transparent 3px 6px); border-color: var(--pm-accent-coral); }
+
+/* Insights → Time (ProjectTimeInsights). Reuses the .pm-an-* analytics shell. */
+.pm-time-none { margin: 0; font-size: 13px; color: var(--pm-text-secondary); }
+.pm-time-table-wrap { overflow-x: auto; }
+.pm-time-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.pm-time-table th {
+  text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--pm-border); white-space: nowrap;
+  font-family: var(--pm-font-display); font-size: 0.64rem; font-weight: 600; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--pm-text-secondary);
+}
+.pm-time-table td { padding: 7px 10px; border-bottom: 1px solid var(--pm-border); color: var(--pm-text-primary); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pm-time-table td:first-child { white-space: normal; width: 100%; }
+.pm-time-table tbody tr:hover { background: rgba(255, 255, 255, 0.03); }
+.pm-time-task { padding: 0; border: none; background: none; color: var(--pm-text-primary); font: inherit; text-align: left; cursor: pointer; }
+.pm-time-task:hover, .pm-time-task:focus-visible { color: var(--pm-accent-teal); text-decoration: underline; }
+.pm-time-status { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; background: var(--pm-bg-elevated); color: var(--pm-text-secondary); }
+.pm-time-status.is-in_progress { color: var(--pm-accent-amber); }
+.pm-time-status.is-blocked { color: var(--pm-accent-coral); }
+.pm-time-status.is-done { color: var(--pm-accent-teal); }
 
 @media (max-width: 900px) {
   .pm-lab-main { grid-template-columns: 1fr; }
