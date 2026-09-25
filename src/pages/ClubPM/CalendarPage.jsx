@@ -6,11 +6,13 @@ import CalendarFilters from '../../components/clubpm/CalendarFilters';
 import EventFormModal from '../../components/clubpm/EventFormModal';
 import MeetingPollModal from '../../components/clubpm/MeetingPollModal';
 import MeetingPollBoard from '../../components/clubpm/MeetingPollBoard';
+import LabScheduleModal from '../../components/clubpm/labschedule/LabScheduleModal';
 import ConfirmInline from '../../components/clubpm/ConfirmInline';
 import CalendarImportModal from '../../components/clubpm/CalendarImportModal';
 import AvatarPortrait from '../../components/clubpm/avatar/AvatarPortrait';
 import {
   get, post, patch,
+  listWorkspaces,
   listMeetingPolls, createMeetingPoll, updateMeetingPoll, deleteMeetingPoll,
   getMeetingPoll, submitAvailability, finalizeMeetingPoll, remindMeetingPoll,
   getAvailabilitySuggestion,
@@ -68,7 +70,7 @@ function getFetchRange(date, viewMode) {
 
 // ── Event Detail Modal ────────────────────────────────────────────
 
-function EventDetailModal({ event, onClose, onEdit, onDelete, onRsvp, currentMemberId, isAdmin, projects, compact }) {
+function EventDetailModal({ event, onClose, onEdit, onDelete, onRsvp, onOpenLab, currentMemberId, isAdmin, projects, compact }) {
   const [rsvpBusy, setRsvpBusy] = useState(false);
   const [rsvpError, setRsvpError] = useState('');
   // `disabled` only applies after a render; the ref also stops a same-tick second tap.
@@ -145,6 +147,15 @@ function EventDetailModal({ event, onClose, onEdit, onDelete, onRsvp, currentMem
           {(event.location || event.isVirtual) && (
             <DetailRow icon={event.isVirtual ? 'fas fa-video' : 'fas fa-map-marker-alt'} label="Location">
               {event.isVirtual ? 'Virtual / Online' : event.location}
+            </DetailRow>
+          )}
+
+          {event.workspace && (
+            <DetailRow icon="fas fa-flask" label="Lab space">
+              <button type="button" className="pm-lab-event-chip" style={{ '--pm-lab-space': event.workspace.color }}
+                onClick={() => onOpenLab?.(event.workspace.id)}>
+                {event.workspace.name}
+              </button>
             </DetailRow>
           )}
 
@@ -275,6 +286,21 @@ export default function CalendarPage() {
   const [tasks, setTasks]     = useState([]);
   const [projects, setProjects] = useState([]);
   const [members, setMembers]   = useState([]);
+  const [workspaces, setWorkspaces] = useState([]);
+  const [showLab, setShowLab] = useState(false);
+  const [labSpaceId, setLabSpaceId] = useState(null);
+  const labParam = searchParams.get('lab');
+  useEffect(() => {
+    if (labParam) { setLabSpaceId(labParam); setShowLab(true); }
+  }, [labParam]);
+  const closeLab = useCallback(() => {
+    setShowLab(false);
+    if (labParam) {
+      const next = new URLSearchParams(searchParams);
+      next.delete('lab');
+      navigate(`${location.pathname}${next.size ? `?${next}` : ''}`, { replace: true });
+    }
+  }, [labParam, searchParams, navigate, location.pathname]);
 
   const [eventsLoading, setEventsLoading] = useState(false);
   const [eventsReady, setEventsReady] = useState(false);
@@ -377,6 +403,9 @@ export default function CalendarPage() {
       .catch(() => {});
     get('/api/members')
       .then(data => setMembers(Array.isArray(data) ? data : (data.members ?? [])))
+      .catch(() => {});
+    listWorkspaces()
+      .then(data => setWorkspaces(Array.isArray(data) ? data : []))
       .catch(() => {});
   }, []);
 
@@ -664,6 +693,15 @@ export default function CalendarPage() {
               <button
                 type="button"
                 className="cpm-btn cpm-btn-ghost"
+                data-tour-id="calendar.lab"
+                onClick={() => { setLabSpaceId(null); setShowLab(true); }}
+              >
+                <i className="fas fa-flask" style={{ marginRight: 6 }} aria-hidden="true" />
+                Lab schedule
+              </button>
+              <button
+                type="button"
+                className="cpm-btn cpm-btn-ghost"
                 onClick={() => { setEditingPoll(null); setShowPollForm(true); }}
               >
                 <i className="fas fa-calendar-check" style={{ marginRight: 6 }} />
@@ -690,6 +728,13 @@ export default function CalendarPage() {
         />
       </div>
 
+      <LabScheduleModal
+        isOpen={showLab}
+        onClose={closeLab}
+        initialWorkspaceId={labSpaceId}
+        compact={compact}
+      />
+
       {/* Event form modal */}
       <EventFormModal
         isOpen={showEventForm}
@@ -698,6 +743,7 @@ export default function CalendarPage() {
         editEvent={editingEvent}
         projects={projects}
         members={members}
+        workspaces={workspaces}
         compact={compact}
       />
 
@@ -718,6 +764,7 @@ export default function CalendarPage() {
         onEdit={(ev) => { setEditingEvent(ev); setShowEventForm(true); }}
         onDelete={handleDeleteEvent}
         onRsvp={handleRsvp}
+        onOpenLab={(id) => { closeEvent(); setLabSpaceId(id); setShowLab(true); }}
         currentMemberId={member?.id}
         isAdmin={isAdmin}
         projects={projects}

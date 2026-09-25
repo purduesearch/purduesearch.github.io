@@ -4,6 +4,7 @@ import { useParams, Link, useSearchParams } from "react-router-dom";
 import toast from "react-hot-toast";
 import { get, post, patch, setNextRewardOrigin, bulkArchive, unarchiveTask, getArchivedTasks, getProjectBlockers, createBlocker, updateBlocker } from "../../api/clubPmClient";
 import MemberBadge from "../../components/clubpm/MemberBadge";
+import LabTimeButton from "../../components/clubpm/labschedule/LabTimeButton";
 import AvatarPortrait from "../../components/clubpm/avatar/AvatarPortrait";
 import { useClubPmAuth } from "../../clubpm/ClubPmAuth";
 import { useProjectNav } from "../../clubpm/ProjectNavContext";
@@ -3457,6 +3458,7 @@ export default function ProjectDetail() {
                 </div>
               </div>
               <div className="pm-proj-hero-actions">
+              <LabTimeButton projectId={project.id} compact={compact} />
               {compact ? (
                 <button type="button" className="pm-m-project-actions-btn" data-tour-id="project.actions" onClick={() => requestShellOverlay('projects')} aria-haspopup="dialog">
                   <i className="fas fa-ellipsis" aria-hidden="true" /> Actions

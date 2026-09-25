@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import CalendarPage from './CalendarPage';
-import { get, post } from '../../api/clubPmClient';
+import { get, post, listWorkspaces } from '../../api/clubPmClient';
 
 jest.mock('../../clubpm/layout/compactLayout', () => ({ useCompactLayout: () => true }));
 jest.mock('../../clubpm/ClubPmAuth', () => ({
@@ -11,6 +11,7 @@ jest.mock('../../clubpm/anim/motion', () => ({ revealStagger: jest.fn() }));
 jest.mock('../../api/clubPmClient', () => ({
   get: jest.fn(), post: jest.fn(), patch: jest.fn(),
   listMeetingPolls: jest.fn().mockResolvedValue([]),
+  listWorkspaces: jest.fn(),
   createMeetingPoll: jest.fn(), updateMeetingPoll: jest.fn(), deleteMeetingPoll: jest.fn(),
   getMeetingPoll: jest.fn(), submitAvailability: jest.fn(), finalizeMeetingPoll: jest.fn(),
   remindMeetingPoll: jest.fn(), getAvailabilitySuggestion: jest.fn(),
@@ -49,6 +50,7 @@ beforeEach(() => {
     return Promise.resolve([]);
   });
   post.mockResolvedValue({ ...event, attendees: [{ id: 'M1', displayName: 'Member' }] });
+  listWorkspaces.mockResolvedValue([]);
 });
 
 test('phone Calendar starts agenda-first and retains Month and project filters', async () => {

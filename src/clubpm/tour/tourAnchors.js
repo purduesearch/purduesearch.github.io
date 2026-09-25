@@ -58,6 +58,7 @@ export const TOUR_ANCHORS = Object.freeze({
 
   // Project detail — src/pages/ClubPM/ProjectDetail.jsx
   "project.header":         { label: "Project header",       route: "/clubpm/projects/:id", layout: "both", note: "Title + status row; compact hero stays short" },
+  "project.lab":            { label: "Lab time button",      route: "/clubpm/projects/:id", note: "Only rendered when the project has assigned lab spaces" },
   "project.actions":        { label: "Project actions",      route: "/clubpm/projects/:id", layout: "compact", note: "Labelled phone control opening the shared Projects sheet" },
   "project.milestones":     { label: "Milestone summary",    route: "/clubpm/projects/:id", layout: "compact", note: "Compact milestone list with Timeline link" },
   // The project tab bar (desktop sidebar tabs, phone section bar) is rendered by
@@ -123,6 +124,7 @@ export const TOUR_ANCHORS = Object.freeze({
   "notifications.slack":    { label: "Slack DM toggle",      route: "/clubpm/notifications/preferences", note: "" },
   "calendar.grid":          { label: "Month grid",           route: "/clubpm/calendar", note: "" },
   "calendar.event":         { label: "Event chip",           route: "/clubpm/calendar", note: "First event only" },
+  "calendar.lab":           { label: "Lab schedule button",  route: "/clubpm/calendar", note: "Opens the lab schedule modal" },
 
   // Vault and change requests — src/components/clubpm/vault/
   // Everything below lives under Files → Vault, so a step targeting one of them
