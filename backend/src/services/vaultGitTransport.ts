@@ -12,13 +12,17 @@ export class VaultGitError extends Error {
   }
 }
 
-export async function installationToken(installId: number): Promise<string> {
+export async function installationAuth(installId: number): Promise<{ token: string; permissions: Record<string, string> }> {
   const client = octokitForInstallation(installId);
   if (!client) throw new VaultGitError("AUTH");
   try {
-    const auth = await client.auth({ type: "installation" }) as { token: string };
-    return auth.token;
+    const auth = await client.auth({ type: "installation" }) as { token: string; permissions?: Record<string, string> };
+    return { token: auth.token, permissions: auth.permissions ?? {} };
   } catch { throw new VaultGitError("AUTH"); }
+}
+
+export async function installationToken(installId: number): Promise<string> {
+  return (await installationAuth(installId)).token;
 }
 
 export async function sha256File(file: string): Promise<string> {

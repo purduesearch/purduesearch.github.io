@@ -6,7 +6,7 @@ import multer from "multer";
 import { prisma } from "../db/prisma.js";
 import { requireAuth, requireAdmin } from "./auth.js";
 import { canAccessVaultProject, enqueueVaultUpload, processVaultJob, publicJob } from "../services/vaultGithubJobs.js";
-import { commitVaultFile, installationToken, remoteHead, sha256File, VaultGitError } from "../services/vaultGitTransport.js";
+import { commitVaultFile, installationAuth, installationToken, remoteHead, sha256File, VaultGitError } from "../services/vaultGitTransport.js";
 import { isAdminMember, sanitizeFileName } from "../services/vaultService.js";
 import { findRepoInstallId } from "../services/githubService.js";
 import { sameUpload } from "../services/vaultJobProtocol.js";
@@ -160,11 +160,14 @@ vaultGithubRouter.put("/projects/:projectId/vault/repository", requireAdmin, asy
   const sameSlug = await prisma.projectRepo.findMany({ where: { slug: { equals: linked.slug, mode: "insensitive" }, vaultRepository: { isNot: null } }, include: { vaultRepository: true } });
   if (sameSlug.some(row => row.vaultRepository?.projectId !== projectId && row.vaultRepository?.branch === branch)) { res.status(409).json({ error: "Repository branch already bound to another Vault" }); return; }
   try {
-    const token = await installationToken(linked.installId);
+    const { token, permissions } = await installationAuth(linked.installId);
     const info = await fetch(`https://api.github.com/repos/${linked.slug}`, { headers: { Authorization: `Bearer ${token}`, Accept: "application/vnd.github+json", "User-Agent": "Constellation-Vault" } });
     if (!info.ok) { res.status(502).json({ error: "APP_PERMISSION" }); return; }
-    const details = await info.json() as { private?: boolean; permissions?: { push?: boolean } };
-    if (!details.private || !details.permissions?.push) { res.status(400).json({ error: "Vault repository must be private and App writable" }); return; }
+    const details = await info.json() as { private?: boolean };
+    if (!details.private) { res.status(400).json({ error: "Vault repository must be private" }); return; }
+    // The repo payload's `permissions` object is only filled for user tokens; an installation's
+    // write access is the token's own `contents` permission.
+    if (permissions.contents !== "write") { res.status(400).json({ error: "GitHub App needs Contents: Read and write on this repository" }); return; }
     const head = await remoteHead(linked.slug, branch, linked.installId);
     const repoSlug = linked.slug.toLowerCase();
     const repo = await prisma.vaultRepository.upsert({ where: { projectId }, create: { projectId, projectRepoId, repoSlug, branch, installId: linked.installId, lastHeadSha: head, setupStatus: "PENDING" }, update: { projectRepoId, repoSlug, branch, installId: linked.installId, lastHeadSha: head, setupStatus: "PENDING", writeEnabled: false, healthError: null } });
