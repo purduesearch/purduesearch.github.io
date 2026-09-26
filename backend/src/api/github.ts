@@ -18,6 +18,7 @@ import {
   listMilestones,
   getMemberRepoStats,
   repoSlug,
+  findRepoInstallId,
 } from "../services/githubService.js";
 import {
   suggestBranchName,
@@ -155,8 +156,9 @@ githubRouter.post("/projects/:id/repos", async (req: Request, res: Response) => 
 
     const slug = repoSlug(ref);
     try {
+      const installId = await findRepoInstallId(slug);
       const created = await prisma.projectRepo.create({
-        data: { projectId, slug, createdById: memberId },
+        data: { projectId, slug, createdById: memberId, installId },
       });
       logAuditEvent({
         projectId,

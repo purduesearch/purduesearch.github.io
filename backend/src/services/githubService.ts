@@ -65,6 +65,24 @@ export function octokitForInstallation(installationId: number): Octokit | null {
   });
 }
 
+/**
+ * The App installation id that covers `owner/repo`, or null when the App is
+ * not configured or not installed on it. Linked repos are created from the
+ * member's OAuth token, so their `installId` starts empty; callers that need
+ * App access resolve it here instead of asking an admin to type the number.
+ */
+export async function findRepoInstallId(slug: string): Promise<number | null> {
+  const app = appOctokit();
+  const [owner, repo] = slug.split("/");
+  if (!app || !owner || !repo) return null;
+  try {
+    const { data } = await app.apps.getRepoInstallation({ owner, repo });
+    return data.id;
+  } catch {
+    return null;
+  }
+}
+
 // ── User-token refresh ───────────────────────────────────────
 //
 // A GitHub App with "Expire user authorization tokens" enabled issues access

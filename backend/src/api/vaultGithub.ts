@@ -8,6 +8,7 @@ import { requireAuth, requireAdmin } from "./auth.js";
 import { canAccessVaultProject, enqueueVaultUpload, processVaultJob, publicJob } from "../services/vaultGithubJobs.js";
 import { commitVaultFile, installationToken, remoteHead, sha256File, VaultGitError } from "../services/vaultGitTransport.js";
 import { isAdminMember, sanitizeFileName } from "../services/vaultService.js";
+import { findRepoInstallId } from "../services/githubService.js";
 import { sameUpload } from "../services/vaultJobProtocol.js";
 import { cutoverBlockers, cutoverTransition, hasCutoverAuthority, reconcileVaultRepository, repairMessages, vaultLegacyCounts, verifyProjectBytes } from "../services/vaultCutoverService.js";
 import { autoWatchSoon } from "../services/vaultNotificationService.js";
@@ -144,7 +145,11 @@ vaultGithubRouter.put("/projects/:projectId/vault/repository", requireAdmin, asy
   const projectRepoId = String(req.body.projectRepoId ?? "");
   const branch = String(req.body.branch ?? "vault");
   if (!/^[A-Za-z0-9][A-Za-z0-9._/-]{0,99}$/.test(branch) || branch.endsWith("/") || branch.endsWith(".") || branch.includes("..") || branch.includes("//") || branch.includes(".lock")) { res.status(400).json({ error: "Invalid branch" }); return; }
-  const linked = await prisma.projectRepo.findFirst({ where: { id: projectRepoId, projectId } });
+  let linked = await prisma.projectRepo.findFirst({ where: { id: projectRepoId, projectId } });
+  if (linked && !linked.installId) {
+    const installId = await findRepoInstallId(linked.slug);
+    if (installId) linked = await prisma.projectRepo.update({ where: { id: linked.id }, data: { installId } });
+  }
   if (!linked?.installId) { res.status(400).json({ error: "Linked repository needs an App installation" }); return; }
   const binding = await prisma.vaultRepository.findUnique({ where: { projectId } });
   if (binding && await prisma.vaultUploadJob.count({ where: { projectId, state: { in: ["UPLOADED", "LFS_STORED", "COMMITTED", "RETRY"] } } })) { res.status(409).json({ error: "Resolve pending Vault jobs before reconfiguring" }); return; }
