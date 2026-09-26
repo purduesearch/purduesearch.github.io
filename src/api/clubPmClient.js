@@ -352,13 +352,22 @@ export const releaseVaultCheckout = (id) => del(`/api/vault/items/${id}/checkout
 export const promoteVaultItem     = (id) => post(`/api/vault/items/${id}/promote`, {});
 export const getVaultItemHistory  = (id) => get(`/api/vault/items/${id}/history`);
 export const patchVaultSettings   = (projectId, body) => patch(`/api/projects/${projectId}/vault/settings`, body);
+export const getVaultRepository = (projectId) => get(`/api/projects/${projectId}/vault/repository`);
+export const getVaultRepositoryHealth = (projectId) => get(`/api/projects/${projectId}/vault/repository/health`);
+export const getVaultCommits = (projectId) => get(`/api/projects/${projectId}/vault/repository/commits`);
+export const setVaultRepository = (projectId, body) => put(`/api/projects/${projectId}/vault/repository`, body);
+export const verifyVaultRepository = (projectId) => post(`/api/projects/${projectId}/vault/repository/verify`, {});
+export const setVaultGithubWrites = (projectId, writeEnabled) => patch(`/api/projects/${projectId}/vault/repository`, { writeEnabled });
+export const getVaultUploadJob = (id) => get(`/api/vault/upload-jobs/${id}`);
+export const retryVaultUploadJob = (id, body = {}) => post(`/api/vault/upload-jobs/${id}/retry`, body);
+export const compareVaultVersions = (itemId, beforeId, afterId) => get(`/api/vault/items/${itemId}/compare?before=${encodeURIComponent(beforeId)}&after=${encodeURIComponent(afterId)}`);
 export const vaultDownloadUrl     = (versionId) => `${BASE_URL}/api/vault/versions/${versionId}/download`;
 
 // Multipart vault upload (new item or new version) with a live progress
 // callback. get/post/patch/del only send JSON, and fetch() has no upload
 // progress event, so this goes straight through XHR (same FormData idiom as
 // uploadBlogImage, plus xhr.upload.onprogress).
-export function uploadVaultFile(path, file, fields = {}, onProgress) {
+export function uploadVaultFile(path, file, fields = {}, onProgress, headers = {}) {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open("POST", `${BASE_URL}${path}`);
@@ -366,6 +375,7 @@ export function uploadVaultFile(path, file, fields = {}, onProgress) {
     // Bearer token for cross-origin users whose session cookie is blocked —
     // same auth the JSON helpers and uploadBlogImage send.
     Object.entries(authHeaders()).forEach(([k, v]) => xhr.setRequestHeader(k, v));
+    Object.entries(headers).forEach(([k, v]) => xhr.setRequestHeader(k, v));
     xhr.upload.onprogress = (e) => { if (e.lengthComputable && onProgress) onProgress(e.loaded / e.total); };
     xhr.onload = () => {
       let body = null; try { body = JSON.parse(xhr.responseText); } catch {}
@@ -396,6 +406,38 @@ export const cancelCr  = (id) => post(`/api/change-requests/${id}/cancel`, {});
 export const approveCr = (id, body = {}) => post(`/api/change-requests/${id}/approve`, body);
 export const rejectCr  = (id, body = {}) => post(`/api/change-requests/${id}/reject`, body);
 export const getCrPendingCount = () => get(`/api/change-requests/pending/count`);
+export const getCrReviewStatus = (id) => get(`/api/change-requests/${id}/review-status`);
+export const linkCrPr = (id, body) => post(`/api/change-requests/${id}/pr`, body);
+export const syncCrPr = (id) => post(`/api/change-requests/${id}/pr/sync`, {});
+export const signoffCr = (id) => post(`/api/change-requests/${id}/signoff`, {});
+export const revokeCrSignoff = (id) => del(`/api/change-requests/${id}/signoff`);
+export const getVaultReviewerRules = (projectId) => get(`/api/projects/${projectId}/vault/reviewer-rules`);
+export const saveVaultReviewerRules = (projectId, body) => put(`/api/projects/${projectId}/vault/reviewer-rules`, body);
+
+// Vault releases (Phase 7): build readiness, drawing requirements, manifests and packages
+export const getCrReadiness = (id) => get(`/api/change-requests/${id}/readiness`);
+export const getCrRelease = (id) => get(`/api/change-requests/${id}/release`);
+export const listVaultReleases = (projectId) => get(`/api/projects/${projectId}/vault/releases`);
+export const getVaultDrawingRequirements = (projectId) => get(`/api/projects/${projectId}/vault/drawing-requirements`);
+export const saveVaultDrawingRequirements = (projectId, requirements) => put(`/api/projects/${projectId}/vault/drawing-requirements`, { requirements });
+export const setVaultDrawingFor = (itemId, drawingForId) => put(`/api/vault/items/${itemId}/drawing-for`, { drawingForId });
+export const getVaultRelease = (releaseId) => get(`/api/vault-releases/${releaseId}`);
+export const getVaultReleasePackageUrl = (releaseId) => get(`/api/vault-releases/${releaseId}/package-url`);
+export const buildVaultReleasePackage = (releaseId) => post(`/api/vault-releases/${releaseId}/package`, {});
+export const verifyVaultRelease = (releaseId) => post(`/api/vault-releases/${releaseId}/verify`, {});
+// Phase 9 geometry diff. POST returns the cached row (DONE) or a queued one
+// (PENDING/RUNNING) to poll with GET until DONE or FAILED.
+export const requestVaultGeometryDiff = (body) => post(`/api/vault/geometry-diffs`, body);
+export const getVaultGeometryDiff = (diffId) => get(`/api/vault/geometry-diffs/${diffId}`);
+export const getVaultGeometryCapabilities = () => get(`/api/vault/geometry/capabilities`);
+// Binary STL of a STEP side's tessellation — what the diff actually measured.
+export const vaultGeometryMeshUrl = (diffId, side) => `${BASE_URL}/api/vault/geometry-diffs/${diffId}/mesh/${side}`;
+// The manifest is small; fetch its exact bytes (never re-serialized JSON) for saving.
+export async function getVaultReleaseManifestText(releaseId) {
+  const response = await fetch(`${BASE_URL}/api/vault-releases/${releaseId}/manifest`, { credentials: "include", headers: authHeaders() });
+  if (!response.ok) throw new Error(`Manifest unavailable (${response.status})`);
+  return response.text();
+}
 
 // Vault BOM / where-used (Pack C)
 export const addVaultBomLink    = (itemId, body) => post(`/api/vault/items/${itemId}/bom`, body);
@@ -407,6 +449,27 @@ export const removeVaultBomLink = (itemId, childItemId) => del(`/api/vault/items
 export const getVaultVersionDownloadUrl = (versionId) => get(`/api/vault/versions/${versionId}/download-url`);
 
 // Vault AI copilot (Pack B)
+// ── Vault search, saved views, subscriptions (Phase 8) ────────
+// Search params: q, projectId, kinds[], released, checkedOut, crStatus,
+// fileExts[], authorId ("me"), watching, since, until, sort, limit, offset.
+export function searchVault(params = {}) {
+  const qs = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value === undefined || value === null || value === "" || (Array.isArray(value) && value.length === 0)) continue;
+    qs.set(key, Array.isArray(value) ? value.join(",") : String(value));
+  }
+  return get(`/api/vault/search?${qs.toString()}`);
+}
+export const listVaultSavedViews  = (projectId) => get(`/api/vault/saved-views${projectId ? `?projectId=${encodeURIComponent(projectId)}` : ""}`);
+export const createVaultSavedView = (body) => post(`/api/vault/saved-views`, body);
+export const updateVaultSavedView = (id, body) => patch(`/api/vault/saved-views/${id}`, body);
+export const deleteVaultSavedView = (id) => del(`/api/vault/saved-views/${id}`);
+export const getVaultSubscription = (itemId) => get(`/api/vault/items/${itemId}/subscription`);
+export const setVaultSubscription = (itemId, body) => put(`/api/vault/items/${itemId}/subscription`, body);
+export const unwatchVaultItem     = (itemId) => del(`/api/vault/items/${itemId}/subscription`);
+export const listVaultSubscriptions = (projectId) => get(`/api/vault/subscriptions${projectId ? `?projectId=${encodeURIComponent(projectId)}` : ""}`);
+export const rebuildVaultSearchIndex = (projectId) => post(`/api/projects/${projectId}/vault/search/rebuild`, {});
+
 export const askVault             = (projectId, question) => post(`/api/projects/${projectId}/vault/ask`, { question });
 export const checkVaultDuplicates = (projectId, body) => post(`/api/projects/${projectId}/vault/check-duplicates`, body);
 export const aiCrReleaseNotes     = (id) => post(`/api/change-requests/${id}/ai-release-notes`, {});

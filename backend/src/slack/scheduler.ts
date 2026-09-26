@@ -81,6 +81,73 @@ export function startScheduler(app: App): void {
     }
   });
 
+  // ── Every 20 min — reconcile PR-linked Vault change requests ─────
+  // Webhooks are the fast path; this catches missed deliveries and permission
+  // loss. Also prunes delivery ids old enough that GitHub will not redeliver.
+  cron.schedule("*/20 * * * *", async () => {
+    try {
+      const { syncPr } = await import("../services/vaultPrReviewService.js");
+      const open = await prisma.changeRequest.findMany({ where: { status: "OPEN", prRepoSlug: { not: null } }, select: { id: true } });
+      for (const cr of open) await syncPr(cr.id).catch(err => console.error("[vault-pr] reconcile failed", cr.id, err?.message || err));
+      await prisma.vaultWebhookDelivery.deleteMany({ where: { createdAt: { lt: new Date(Date.now() - 30 * 86_400_000) } } });
+    } catch (error) {
+      console.error("❌ Vault PR reconcile error:", error);
+    }
+  });
+
+  // ── Every 2 min — Vault notification outbox ─────────────────────
+  // Finishes fan-outs a crash interrupted and retries failed Slack/in-app
+  // deliveries with backoff. Deliveries are unique per event/recipient/channel,
+  // so a retry can never double-notify.
+  cron.schedule("*/2 * * * *", async () => {
+    try {
+      const { processDueVaultNotifications } = await import("../services/vaultNotificationService.js");
+      await processDueVaultNotifications();
+    } catch (error) {
+      console.error("❌ Vault notification retry error:", error);
+    }
+  });
+
+  // ── Every 30 min — Vault search index reconcile ───────────────────
+  // Reindexes Vault rows changed in the last 40 minutes (covers a missed
+  // fire-and-forget update) and resyncs each Vault branch's GitHub commits
+  // (covers a missed push webhook). Full rebuild: npm run vault:search-rebuild.
+  cron.schedule("*/30 * * * *", async () => {
+    try {
+      const { reconcileVaultSearch } = await import("../services/vaultSearchService.js");
+      await reconcileVaultSearch();
+    } catch (error) {
+      console.error("❌ Vault search reconcile error:", error);
+    }
+  });
+
+  // ── Every 15 min — finish or retry Vault release packages ─────────
+  // Manifests are written inside the approval transaction; packages are
+  // derived from them. A failed or interrupted build (missing bytes, GitHub
+  // outage, restart) is retried from the same pinned manifest, never re-pinned.
+  cron.schedule("*/15 * * * *", async () => {
+    try {
+      const { retryReleasePackages } = await import("../services/vaultReleaseService.js");
+      await retryReleasePackages();
+    } catch (error) {
+      console.error("❌ Vault release package retry error:", error);
+    }
+  });
+
+  // ── Every 2 min — Vault geometry diffs (Phase 9) ──────────────────
+  // Requests kick the queue immediately; this picks up anything a restart or
+  // a busy worker left behind, retries storage failures, and prunes cached
+  // results and converted meshes past VAULT_GEOMETRY_RETENTION_DAYS.
+  cron.schedule("*/2 * * * *", async () => {
+    try {
+      const { processDueGeometryDiffs, pruneGeometryCache } = await import("../services/vaultGeometryService.js");
+      await processDueGeometryDiffs();
+      await pruneGeometryCache();
+    } catch (error) {
+      console.error("❌ Vault geometry diff error:", error);
+    }
+  });
+
   // ── Daily 3:45 AM — Drop training projects untouched for 30 days ──
   cron.schedule("45 3 * * *", async () => {
     try {

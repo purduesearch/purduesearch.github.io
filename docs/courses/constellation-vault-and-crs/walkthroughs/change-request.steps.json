@@ -8,112 +8,147 @@
       "id": "open-files-tab",
       "anchor": "project.tab.files",
       "route": "/clubpm/projects/:id",
-      "title": "Change requests live under the Vault",
-      "body": "Which lives under Files. Open the Files tab.",
-      "placement": "right",
-      "dim": ["nav.sidebar"],
-      "advance": { "on": "click" }
+      "title": "Open Files",
+      "body": "Change Requests is a view within Vault, under Files.",
+      "placement": "bottom",
+      "advance": {
+        "on": "click"
+      }
     },
     {
       "id": "open-vault-tab",
       "anchor": "project.tab.vault",
       "route": "/clubpm/projects/:id",
-      "title": "Then the Vault",
-      "body": "Open it.",
+      "title": "Open Vault",
+      "body": "Select the Vault source.",
       "placement": "bottom",
-      "advance": { "on": "click" }
+      "advance": {
+        "on": "click"
+      }
     },
     {
       "id": "open-crs",
       "anchor": "vault.tab.crs",
       "route": "/clubpm/projects/:id",
-      "title": "And its Change Requests view",
-      "body": "The Vault splits in two: the parts themselves, and the proposals to change them. Open Change Requests.",
+      "title": "Open Change Requests",
+      "body": "Stored versions and release proposals have separate views.",
       "placement": "bottom",
-      "advance": { "on": "click" }
-    },
-    {
-      "id": "cr-list",
-      "anchor": "cr.list",
-      "route": "/clubpm/projects/:id",
-      "title": "Every proposed change, open and closed",
-      "body": "A change request is how a modification to a vaulted part gets agreed to before it becomes the current version.",
-      "placement": "right",
-      "advance": { "on": "next" }
+      "advance": {
+        "on": "click"
+      }
     },
     {
       "id": "cr-new",
       "anchor": "cr.new",
       "route": "/clubpm/projects/:id",
-      "title": "Raise one",
-      "body": "Click New change request.",
+      "title": "Start a request",
+      "body": "Choose New change request. Complete the Vault check-in walkthrough first so your training project has a version to propose.",
       "placement": "bottom",
-      "advance": { "on": "click" }
+      "advance": {
+        "on": "click"
+      }
     },
     {
       "id": "cr-fields",
-      "anchor": "cr.new",
+      "anchor": "cr.form",
       "route": "/clubpm/projects/:id",
-      "title": "Title says what changes; rationale says why",
-      "body": "The rationale is the field that's still useful in six months, when nobody remembers the conversation that produced this.",
+      "title": "Name the proposed release",
+      "body": "Enter a Title and Reason, select at least one item and one version. A linked task is optional. The form warns when an item is used in an assembly.",
       "placement": "bottom",
-      "advance": { "on": "next" }
+      "advance": {
+        "on": "next"
+      }
     },
     {
       "id": "cr-submit",
-      "anchor": "cr.new",
+      "anchor": "cr.form",
       "route": "/clubpm/projects/:id",
-      "title": "Submit it",
-      "body": "Fill both fields and submit.",
+      "title": "Submit the request",
+      "body": "Submit the completed form.",
       "placement": "bottom",
-      "advance": { "on": "api", "method": "POST", "path": "/api/projects/:id/change-requests" }
+      "advance": {
+        "on": "api",
+        "method": "POST",
+        "path": "/api/projects/:id/change-requests"
+      }
     },
     {
-      "id": "cr-impact",
+      "id": "cr-list",
       "anchor": "cr.list",
       "route": "/clubpm/projects/:id",
-      "title": "Constellation worked out what it affects",
-      "body": "The impact came from the BOM. You didn't have to remember which assemblies use this part — that's the whole reason the BOM is worth maintaining.",
-      "placement": "right",
-      "advance": { "on": "next" }
+      "title": "Find your request",
+      "body": "The list shows the submitted request. Open it for release notes, an optional AI impact summary, and review status.",
+      "placement": "bottom",
+      "advance": {
+        "on": "next"
+      }
     },
     {
       "id": "cr-open",
       "anchor": "cr.card",
       "route": "/clubpm/projects/:id",
-      "title": "Open the one you just raised",
-      "body": "Click the card. The review controls live inside it, not on the list.",
-      "placement": "right",
-      "advance": { "on": "click" }
+      "title": "Open a request",
+      "body": "Open the first request card. If you already practiced here, it may not be the request you just submitted.",
+      "placement": "bottom",
+      "advance": {
+        "on": "click"
+      }
+    },
+    {
+      "id": "cr-pr-gate",
+      "anchor": "cr.prReview",
+      "route": "/clubpm/projects/:id",
+      "title": "Check release review",
+      "body": "This panel shows required sign-offs and, when linked, the GitHub PR title, head commit, reviews, checks, and timeline. Pending, failing, or stale gates block admin approval. Required reviewers may sign off here; only admins release a revision.",
+      "placement": "bottom",
+      "advance": { "on": "next" }
+    },
+    {
+      "id": "cr-readiness",
+      "anchor": "cr.readiness",
+      "route": "/clubpm/projects/:id",
+      "title": "Check build readiness",
+      "body": "On an open request, this lists where the items are used, open tasks they touch, missing required drawings, and assemblies on stale revisions. Blockers stop approval; warnings are the reviewer's call. Approved requests show their release package here instead.",
+      "placement": "bottom",
+      "advance": { "on": "next" },
+      "optional": true
     },
     {
       "id": "cr-review-intro",
-      "anchor": "cr.review",
+      "anchor": "cr.reject",
       "route": "/clubpm/projects/:id",
-      "title": "Normally someone else reviews this",
-      "body": "In your training project you're both people, so you'll review your own. That is an artefact of the sandbox, not how this works on real work. Approve and Reject only appear for officers — if you don't see them, skip ahead.",
-      "placement": "left",
-      "optional": true,
-      "advance": { "on": "next" }
+      "title": "Review permissions",
+      "body": "Only ClubPM admins see Reject on an open request. A regular learner should skip this step; an officer can demonstrate it.",
+      "placement": "bottom",
+      "advance": {
+        "on": "next"
+      },
+      "optional": true
     },
     {
       "id": "cr-reject",
-      "anchor": "cr.review",
+      "anchor": "cr.reject",
       "route": "/clubpm/projects/:id",
-      "title": "Reject it, with a reason",
-      "body": "Rejecting isn't rude — \"not until after the design review\" is a real answer. If your account can't review change requests, skip this step; an officer will have shown you the same screen.",
-      "placement": "left",
-      "optional": true,
-      "advance": { "on": "api", "method": "POST", "path": "/api/change-requests/:id/reject" }
+      "title": "Reject with a reason",
+      "body": "An admin can choose Reject and enter a review reason in the prompt. A regular learner should skip this step.",
+      "placement": "bottom",
+      "advance": {
+        "on": "api",
+        "method": "POST",
+        "path": "/api/change-requests/:id/reject"
+      },
+      "optional": true
     },
     {
       "id": "cr-record",
-      "anchor": "cr.list",
+      "anchor": "cr.modal",
       "route": "/clubpm/projects/:id",
-      "title": "It's still there, with the reason attached",
-      "body": "That record is what stops the same change being re-proposed blind in a month by someone who never heard the answer.",
-      "placement": "right",
-      "advance": { "on": "next" }
+      "title": "Read the decision",
+      "body": "If an admin made a decision, the request detail stays open and shows its new status. A Review note appears when the reviewer entered one. If you skipped review, the request remains Open.",
+      "placement": "bottom",
+      "advance": {
+        "on": "next"
+      }
     }
   ]
 }

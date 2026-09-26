@@ -183,7 +183,13 @@ Use `rg` first and read only the relevant section of these large files.
 | `backend/prisma/schema.prisma` | model names, enum values |
 | `src/pages/ClubPM/Dashboard.jsx` | component names, hook usage |
 | `backend/src/api/tasks.ts` | route paths, type names |
-| `backend/src/api/vault.ts` | route paths |
+| `backend/src/api/vault.ts`, `backend/src/api/vaultGithub.ts` | provider-pinned routes, repository setup, and GitHub jobs |
+
+Vault training and rollout guidance lives in `docs/VAULT-GITHUB-PHASE4-RUNBOOK.md` and
+`docs/courses/constellation-vault-and-crs/`. An enabled Vault repository stores new source files
+through GitHub/LFS; the separate Files → Drive source remains a general document link. Existing
+Drive-backed Vault versions and rollback writes remain supported until inventory verification and
+the owner-approved retention period are complete.
 
 ---
 

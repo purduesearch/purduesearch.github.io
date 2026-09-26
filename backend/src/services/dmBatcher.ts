@@ -123,3 +123,14 @@ export async function flushDm(slackId: string): Promise<void> {
     // Never throw — log and continue
   }
 }
+
+/**
+ * Send one DM now and throw if Slack refuses it. For callers that keep their
+ * own durable retry state (Vault notifications) — queueDm's in-memory batch
+ * is lost on restart and never reports a failure.
+ */
+export async function sendSlackDmNow(slackId: string, text: string): Promise<void> {
+  if (!slackApp) throw new Error("SLACK_NOT_READY");
+  const result = await slackApp.client.chat.postMessage({ channel: slackId, text });
+  if (!result.ok) throw new Error(result.error || "SLACK_POST_FAILED");
+}

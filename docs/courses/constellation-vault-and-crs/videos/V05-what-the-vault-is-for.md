@@ -1,125 +1,25 @@
-# V05 — What the Vault is for
+﻿# V05 — What the Vault is for
 
-| | |
-|---|---|
-| **Course / section** | Vault & CRs · M1 · "What the Vault is for" |
-| **Runtime** | 3:00 |
-| **Format** | Screen capture + VO |
-| **Prerequisite on screen** | Vault tab with ~8 items, one checked out, one with 4 versions, a small BOM |
-| **Recorded** | ☐ |
+> Vault & CRs · M1 · screen capture and voice-over · recording pending
 
-## Purpose
+## Recording setup
 
-Justify a process before teaching it. Check-out/check-in feels like friction to someone who has only
-ever put CAD in a Drive folder, and a member who thinks a rule is pointless routes around it.
+Use a disposable project with two Vault items, one with two versions and one checked out. For a
+GitHub storage demonstration, an admin must bind and enable a private Vault repository first.
+The standard private training project has no seeded Vault files or repository.
 
-## Shot list
+## Shot list and narration
 
-| Time | Screen | Action |
+| Shot | Live action | Narration |
 |---|---|---|
-| 00:00–00:22 | A Drive folder of CAD files | Slow scroll: `bracket_v2_FINAL_actual.step` |
-| 00:22–00:46 | Vault tab, item tree | Fade in |
-| 00:46–01:16 | One item, version history | Expand versions |
-| 01:16–01:48 | Checked-out item | Show the lock and who holds it |
-| 01:48–02:16 | Upload a new version | Show it appending, not replacing |
-| 02:16–02:44 | BOM view | Expand an assembly |
-| 02:44–03:00 | Item linked to a task | Hold, fade |
+| 1 | Files source selector: Drive, GitHub, Vault | "Drive is the project's general document link. GitHub is the code source. The Vault tracks parts and revisions." |
+| 2 | Vault header and item list | "When enabled, the header names the repository and branch used for new check-ins. Older versions can still be stored in Drive; each version shows its provider." |
+| 3 | Open item and Versions | "One item has numbered check-ins with filenames, authors, change descriptions, and dates. GitHub-backed versions also show their commit. A commit means stored; it does not mean released." |
+| 4 | Check out an item | "The holder is visible in item detail. Check with them before editing the same part." |
+| 5 | New check-in dialog | "Select a file and enter the required change description. A GitHub check-in transfers, commits, and indexes before the dialog closes. A successful check-in releases your checkout." |
+| 6 | Versions and BOM tabs | "The old version stays available. A BOM links child items with quantities and notes. The current BOM does not pin a child version, so confirm released revisions before ordering." |
+| 7 | Change Requests view | "Propose an exact item version for release. Only approval in ClubPM assigns a revision letter." |
 
-## Visual edits
-
-The opening gag is carried entirely by the edit — get that right and the rest is light annotation.
-
-| Time | Edit | Why |
-|---|---|---|
-| 00:06 | **Highlight each filename in turn** as it's read, leaving the previous ones highlighted | The pile-up is the joke, and the joke is the argument. They have to accumulate on screen |
-| 00:18 | **Question-mark overlay** on the folder as "nobody is completely sure which" lands | One beat, then gone. Don't hold it into the Vault shot |
-| 00:22 | **Cross-dissolve**, slow, folder → Vault tree | The one place a soft transition is right: this is a *replacement*, not a contrast |
-| 00:34 | **Callout:** "one item = one part" anchored to a tree row | The single conceptual correction this video is making. Say it in text as well as voice |
-| 00:52 | **Number the version rows** 1 – 4 down the left as history expands | Version *ordering* is the idea; the UI shows dates, which read as a list rather than a sequence |
-| 01:04 | **Zoom to 1.3×** on the uploader name and note of one version | These two fields are why the history is useful. They're also small |
-| 01:22 | **Lock icon pulsed once**, then a **name chip** ("checked out by …") pinned beside it for the rest of the shot | The lock is the mechanism and the visible holder is the point. Pin it, don't flash it |
-| 01:40 | **Caption:** "one silently lost afternoon — usually somebody else's" | The line that sells check-out. It should exist in text too |
-| 01:56 | **Stack animation** — the new version drops on *top* of the pile, the pile stays visible | "Appending, not replacing" is a spatial idea and deserves a spatial edit |
-| 02:24 | **Quantity badges** fade in beside each BOM line as the assembly expands | Turns a list of parts into a bill of materials at a glance |
-| 02:34 | **Reverse arrows** from one child part back up to the parent assembly | Plants where-used a beat before C06 formalises it |
-| 02:50 | **Connector line** drawn between the Vault item and its linked task card | The closing idea is that these are one thing. Draw it |
-
-## Narration
-
-**[00:00 — Drive folder]**
-
-Here's a folder that has happened to every engineering team that ever existed.
-
-*(pause — let the filenames land)*
-
-`bracket_v2`. `bracket_v2_final`. `bracket_v2_FINAL_actual`. `bracket_v2_FINAL_actual_JUSTIN`.
-
-Somebody machined one of these last week. Nobody is completely sure which.
-
-**[00:22 — Vault]**
-
-This is the Constellation Vault. It exists so that question has an answer.
-
-*(beat)*
-
-Every part is one item. One item has one current version, and every version that came before it,
-in order, with who uploaded it and why.
-
-**[00:46 — version history]**
-
-Notice what this is not. It's not a folder of files that happen to be named similarly. It's one part
-with a history — and the current version isn't a matter of interpretation. It's a field.
-
-**[01:16 — checked-out item]**
-
-Now the part that feels like friction the first time.
-
-To change something, you check it out. While you hold it, it's locked, and everyone else can see that
-you hold it.
-
-*(pause)*
-
-That is the whole mechanism, and it exists for one reason: two people editing the same part in
-parallel doesn't produce two versions. It produces one silently lost afternoon, usually somebody
-else's.
-
-**[01:48 — upload new version]**
-
-When you're done, you upload and check it back in. The new version goes on top — the old one doesn't
-disappear, it just stops being current.
-
-*(beat)*
-
-Which means "can we go back to how it was on Tuesday" is a two-click question instead of an
-archaeology project.
-
-**[02:16 — BOM]**
-
-Assemblies know what they're made of. Expand one and you get its bill of materials — every part,
-every quantity, at the versions this assembly actually references.
-
-*(pause)*
-
-That's the thing you hand to whoever is ordering, and it's the thing that tells you what a change to
-one bracket is about to affect.
-
-**[02:44 — item linked to a task]**
-
-And because a Vault item can be linked to a task, the part, the work on the part, and the
-conversation about the part all end up in the same place.
-
-Next you'll check something out yourself.
-
-*(hold, fade)*
-
----
-
-**Word count:** ~430 · ≈ 3:00
-
-## Notes for the recorder
-
-- The filename gag in the opening shot must be **fabricated**. Do not screen-capture a real project's
-  Drive folder to make a point about it being messy.
-- "One silently lost afternoon, usually somebody else's" is the line that sells check-out. Keep it.
-- Do not skip the version-history shot to save time — the idea that old versions survive is what makes
-  people willing to check things in at all.
+Use invented file names and disposable bytes. Do not show private repository contents or a real
+member's work. The app-authenticated Vault download and preview path is the teaching path even if
+the member also has direct repository access.

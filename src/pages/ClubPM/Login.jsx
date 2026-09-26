@@ -221,8 +221,8 @@ export default function Login() {
             </div>
             <div>
               <dt>Files and CAD parts</dt>
-              <dd>A parts vault with version history, check-out, and change requests, backed by
-                the club&apos;s Google Drive.</dd>
+              <dd>A parts vault with version history, check-out, and change requests. Enabled
+                repositories store new Vault check-ins in GitHub; legacy versions can remain in Drive.</dd>
             </div>
             <div>
               <dt>Events and scheduling</dt>
@@ -255,10 +255,10 @@ export default function Login() {
           </div>
 
           <p>
-            SEARCH keeps its documents, CAD files, images, and presentation decks in Google
-            Drive. Constellation reads and writes those files so that a part in the vault, an
-            image in a blog post, or a deck in a training course is the same file the club
-            already has in Drive — rather than a second copy that drifts out of date.
+            SEARCH links general project documents from Drive and uses its connected Google account
+            for features such as blog images and training materials. The CAD Vault has separate
+            storage: GitHub and Git LFS for enabled repositories, with legacy Drive versions
+            available through the Vault. Files → Drive remains a separate document source.
           </p>
 
           <div className="pm-login-table-wrap">
@@ -271,13 +271,12 @@ export default function Login() {
               </thead>
               <tbody>
                 <tr>
-                  <td><code>https://www.googleapis.com/auth/drive</code></td>
+                  <td><code>https://www.googleapis.com/auth/drive.file</code>, <code>https://www.googleapis.com/auth/drive.readonly</code></td>
                   <td>
-                    Create and organize the club&apos;s project folders in Drive; upload and
-                    download CAD files and their revisions in the parts vault; store images
-                    used in published blog posts; read presentation decks that members link
-                    to a training course and convert them for display; and list the contents
-                    of a project&apos;s Drive folder inside the project&apos;s Files tab.
+                    Manage files created by Constellation, including blog and training assets
+                    and legacy Vault files; read and export linked Google Slides decks for
+                    training. A project&apos;s general Drive source is a separate link, and
+                    GitHub-backed Vault check-ins use the configured repository.
                   </td>
                 </tr>
                 <tr>

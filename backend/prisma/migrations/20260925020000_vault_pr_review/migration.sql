@@ -1,0 +1,17 @@
+ALTER TYPE "ActivityEventType" ADD VALUE 'CHANGE_REQUEST_PR_LINKED';
+ALTER TYPE "ActivityEventType" ADD VALUE 'CHANGE_REQUEST_PR_SYNCED';
+ALTER TYPE "ActivityEventType" ADD VALUE 'CHANGE_REQUEST_SIGNED_OFF';
+ALTER TYPE "ActivityEventType" ADD VALUE 'CHANGE_REQUEST_SIGNOFF_REVOKED';
+ALTER TYPE "ActivityEventType" ADD VALUE 'VAULT_REVIEWER_RULE_CHANGED';
+ALTER TABLE "VaultRepository" ADD COLUMN "requiredChecks" JSONB;
+ALTER TABLE "ChangeRequest" ADD COLUMN "prRepoSlug" TEXT, ADD COLUMN "prNumber" INTEGER, ADD COLUMN "prSnapshot" JSONB, ADD COLUMN "prSyncedAt" TIMESTAMP(3);
+CREATE TABLE "VaultReviewerRule" ("id" TEXT NOT NULL, "projectId" TEXT NOT NULL, "scope" TEXT NOT NULL, "value" TEXT NOT NULL, "reviewerId" TEXT NOT NULL, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, CONSTRAINT "VaultReviewerRule_pkey" PRIMARY KEY ("id"));
+CREATE UNIQUE INDEX "VaultReviewerRule_projectId_scope_value_reviewerId_key" ON "VaultReviewerRule"("projectId", "scope", "value", "reviewerId");
+CREATE INDEX "VaultReviewerRule_projectId_idx" ON "VaultReviewerRule"("projectId");
+ALTER TABLE "VaultReviewerRule" ADD CONSTRAINT "VaultReviewerRule_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "Project"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "VaultReviewerRule" ADD CONSTRAINT "VaultReviewerRule_reviewerId_fkey" FOREIGN KEY ("reviewerId") REFERENCES "Member"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+CREATE TABLE "VaultSignoff" ("id" TEXT NOT NULL, "changeRequestId" TEXT NOT NULL, "memberId" TEXT NOT NULL, "fingerprint" TEXT NOT NULL, "prHeadSha" TEXT, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, CONSTRAINT "VaultSignoff_pkey" PRIMARY KEY ("id"));
+CREATE UNIQUE INDEX "VaultSignoff_changeRequestId_memberId_key" ON "VaultSignoff"("changeRequestId", "memberId");
+ALTER TABLE "VaultSignoff" ADD CONSTRAINT "VaultSignoff_changeRequestId_fkey" FOREIGN KEY ("changeRequestId") REFERENCES "ChangeRequest"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "VaultSignoff" ADD CONSTRAINT "VaultSignoff_memberId_fkey" FOREIGN KEY ("memberId") REFERENCES "Member"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+CREATE TABLE "VaultWebhookDelivery" ("id" TEXT NOT NULL, "event" TEXT NOT NULL, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, CONSTRAINT "VaultWebhookDelivery_pkey" PRIMARY KEY ("id"));

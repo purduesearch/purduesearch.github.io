@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react";
 import toast from "react-hot-toast";
-import { listCrs, approveCr, rejectCr } from "../../../api/clubPmClient";
+import { listCrs, rejectCr, getVaultReviewerRules, saveVaultReviewerRules, getVault, getVaultDrawingRequirements, saveVaultDrawingRequirements } from "../../../api/clubPmClient";
 import { formatRelativeTime } from "../../../utils/driveUtils";
 import { CR_STATUS_LABEL, notifyCrCountChanged } from "./vaultUtils";
 import ChangeRequestModal from "./ChangeRequestModal";
@@ -16,6 +16,12 @@ export default function ChangeRequestList({ project, member, isAdmin, mode = "al
   const [selectedCrId, setSelectedCrId] = useState(null);
   const [showCreate, setShowCreate] = useState(false);
   const [busyId, setBusyId] = useState(null);
+  const [showRules, setShowRules] = useState(false);
+  const [rules, setRules] = useState([]);
+  const [checks, setChecks] = useState("");
+  const [vaultItems, setVaultItems] = useState([]);
+  const [showDrawingRules, setShowDrawingRules] = useState(false);
+  const [drawingRules, setDrawingRules] = useState([]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -32,20 +38,39 @@ export default function ChangeRequestList({ project, member, isAdmin, mode = "al
 
   useEffect(() => { load(); }, [load]);
 
-  async function handleApprove(cr, e) {
-    e.stopPropagation();
-    if (busyId) return;
-    setBusyId(cr.id);
+  async function openRules() {
     try {
-      await approveCr(cr.id);
-      toast.success(`CR-${cr.number} approved`);
-      notifyCrCountChanged();
+      const [settings, vault] = await Promise.all([getVaultReviewerRules(project.id), getVault(project.id)]);
+      setRules(settings.rules.map(({ scope, value, reviewerId }) => ({ scope, value, reviewerId })));
+      setChecks((settings.requiredChecks || []).join(", "));
+      setVaultItems(vault.items || []);
+      setShowRules(true);
+    } catch (err) { toast.error(err.message || "Failed to load review rules"); }
+  }
+
+  async function saveRules() {
+    try {
+      await saveVaultReviewerRules(project.id, { rules, requiredChecks: checks.split(",").map(s => s.trim()).filter(Boolean) });
+      setShowRules(false);
+      toast.success("Review rules saved");
       load();
-    } catch (err) {
-      toast.error(err.message || "Failed to approve");
-    } finally {
-      setBusyId(null);
-    }
+    } catch (err) { toast.error(err.message || "Failed to save review rules"); }
+  }
+
+  async function openDrawingRules() {
+    try {
+      const rows = await getVaultDrawingRequirements(project.id);
+      setDrawingRules(rows.map(({ scope, value, severity }) => ({ scope, value, severity })));
+      setShowDrawingRules(true);
+    } catch (err) { toast.error(err.message || "Failed to load drawing requirements"); }
+  }
+
+  async function saveDrawingRules() {
+    try {
+      await saveVaultDrawingRequirements(project.id, drawingRules);
+      setShowDrawingRules(false);
+      toast.success("Drawing requirements saved");
+    } catch (err) { toast.error(err.message || "Failed to save drawing requirements"); }
   }
 
   async function handleReject(cr, e) {
@@ -81,8 +106,36 @@ export default function ChangeRequestList({ project, member, isAdmin, mode = "al
           <button type="button" className="clubpm-btn-primary" data-tour-id="cr.new" onClick={() => setShowCreate(true)}>
             <i className="fas fa-plus" aria-hidden="true" /> New change request
           </button>
+          {isAdmin && <button type="button" className="cpm-vault-btn-ghost" onClick={openRules}>Review rules</button>}
+          {isAdmin && <button type="button" className="cpm-vault-btn-ghost" onClick={openDrawingRules}>Drawing requirements</button>}
         </div>
       )}
+      {showRules && <div className="cpm-vault-review-panel" data-tour-id="cr.rules">
+        <h3>Required release reviewers</h3>
+        <p>Each matching rule needs that member's sign-off. Subsystem matches a part number prefix; BOM parent matches direct children.</p>
+        {rules.map((rule, index) => <div className="cpm-vault-rule-row" key={index}>
+          <select aria-label="Rule scope" value={rule.scope} onChange={e => setRules(prev => prev.map((r, i) => i === index ? { ...r, scope: e.target.value, value: "" } : r))}><option value="SUBSYSTEM">Subsystem prefix</option><option value="BOM_PARENT">BOM parent</option></select>
+          {rule.scope === "BOM_PARENT" ? <select aria-label="BOM parent" value={rule.value} onChange={e => setRules(prev => prev.map((r, i) => i === index ? { ...r, value: e.target.value } : r))}><option value="">Select parent</option>{vaultItems.map(item => <option key={item.id} value={item.id}>{item.partNumber || item.name}</option>)}</select> : <input aria-label="Subsystem prefix" value={rule.value} onChange={e => setRules(prev => prev.map((r, i) => i === index ? { ...r, value: e.target.value } : r))} placeholder="e.g. PROP" />}
+          <select aria-label="Required reviewer" value={rule.reviewerId} onChange={e => setRules(prev => prev.map((r, i) => i === index ? { ...r, reviewerId: e.target.value } : r))}><option value="">Select reviewer</option>{(project.members || []).map(pm => { const m = pm.member || pm; return <option key={m.id} value={m.id}>{m.displayName}</option>; })}</select>
+          <button type="button" className="cpm-vault-btn-ghost" onClick={() => setRules(prev => prev.filter((_, i) => i !== index))}>Remove</button>
+        </div>)}
+        <button type="button" className="cpm-vault-btn-ghost" onClick={() => setRules(prev => [...prev, { scope: "SUBSYSTEM", value: "", reviewerId: "" }])}>Add rule</button>
+        <label className="cpm-vault-field"><span>Required GitHub checks (comma separated; blank requires all reported checks)</span><input value={checks} onChange={e => setChecks(e.target.value)} /></label>
+        <button type="button" className="clubpm-btn-primary" onClick={saveRules}>Save rules</button><button type="button" className="cpm-vault-btn-ghost" onClick={() => setShowRules(false)}>Cancel</button>
+      </div>}
+
+      {showDrawingRules && <div className="cpm-vault-review-panel" data-tour-id="cr.drawingRules">
+        <h3>Required drawings</h3>
+        <div>Checked for every file a release pins: the released items and their whole BOM. A <strong>blocker</strong> stops approval until a drawing item is linked and released; a <strong>warning</strong> only shows in build readiness.</div>
+        {drawingRules.map((rule, index) => <div className="cpm-vault-rule-row" key={index}>
+          <select aria-label="Requirement scope" value={rule.scope} onChange={e => setDrawingRules(prev => prev.map((r, i) => i === index ? { ...r, scope: e.target.value, value: "" } : r))}><option value="ALL">Every item</option><option value="SUBSYSTEM">Part number prefix</option><option value="EXTENSION">File type</option></select>
+          {rule.scope !== "ALL" && <input aria-label={rule.scope === "EXTENSION" ? "File extensions" : "Part number prefix"} value={rule.value} onChange={e => setDrawingRules(prev => prev.map((r, i) => i === index ? { ...r, value: e.target.value } : r))} placeholder={rule.scope === "EXTENSION" ? "e.g. sldprt, step" : "e.g. PROP"} />}
+          <select aria-label="Severity" value={rule.severity} onChange={e => setDrawingRules(prev => prev.map((r, i) => i === index ? { ...r, severity: e.target.value } : r))}><option value="WARNING">Warning</option><option value="BLOCKER">Blocks approval</option></select>
+          <button type="button" className="cpm-vault-btn-ghost" onClick={() => setDrawingRules(prev => prev.filter((_, i) => i !== index))}>Remove</button>
+        </div>)}
+        <button type="button" className="cpm-vault-btn-ghost" onClick={() => setDrawingRules(prev => [...prev, { scope: "SUBSYSTEM", value: "", severity: "WARNING" }])}>Add requirement</button>
+        <button type="button" className="clubpm-btn-primary" onClick={saveDrawingRules}>Save requirements</button><button type="button" className="cpm-vault-btn-ghost" onClick={() => setShowDrawingRules(false)}>Cancel</button>
+      </div>}
 
       {crs.length === 0 ? (
         <div className="cpm-vault-empty">
@@ -128,14 +181,7 @@ export default function ChangeRequestList({ project, member, isAdmin, mode = "al
 
                 {mode === "review" && cr.status === "OPEN" && (
                   <div className="cpm-vault-cr-review-actions">
-                    <button
-                      type="button"
-                      className="clubpm-btn-primary"
-                      disabled={busyId === cr.id}
-                      onClick={(e) => handleApprove(cr, e)}
-                    >
-                      Approve
-                    </button>
+                    <button type="button" className="clubpm-btn-primary" onClick={(e) => { e.stopPropagation(); setSelectedCrId(cr.id); }}>Review</button>
                     <button
                       type="button"
                       className="cpm-vault-btn-danger"

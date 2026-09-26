@@ -9,13 +9,29 @@
       "order": 0,
       "kind": "SINGLE",
       "points": 1,
-      "prompt": "Why does the Vault require you to check an item out before changing it?",
-      "explanation": "So two people cannot edit the same part in parallel. That situation does not produce two versions to reconcile — it produces one person's work silently overwritten, usually discovered days later.",
+      "prompt": "Why check out a Vault item before editing it?",
+      "explanation": "Checkout shows who is editing an item so teammates can coordinate. It is not a hard lock against every possible upload.",
       "answers": [
-        { "order": 0, "text": "So two people can't edit the same part at once and silently lose one of the edits", "isCorrect": true },
-        { "order": 1, "text": "So officers can approve every change before it's made", "isCorrect": false },
-        { "order": 2, "text": "To limit how many files are stored in Drive", "isCorrect": false },
-        { "order": 3, "text": "To track how long each member spends on CAD", "isCorrect": false }
+        {
+          "order": 0,
+          "text": "To show teammates who is editing it so they can coordinate",
+          "isCorrect": true
+        },
+        {
+          "order": 1,
+          "text": "So officers can approve every change before it's made",
+          "isCorrect": false
+        },
+        {
+          "order": 2,
+          "text": "To limit how many files are stored in the repository",
+          "isCorrect": false
+        },
+        {
+          "order": 3,
+          "text": "To track how long each member spends on CAD",
+          "isCorrect": false
+        }
       ]
     },
     {
@@ -24,12 +40,28 @@
       "kind": "SINGLE",
       "points": 1,
       "prompt": "You upload a new version of an item. What happens to the previous one?",
-      "explanation": "It's kept. Versions append rather than replace, so the whole history stays browsable and reverting to an earlier state is a two-click operation instead of an archaeology project.",
+      "explanation": "The previous version stays in the Vault history, even after a new check-in becomes the latest. Downloading an older version does not automatically restore it.",
       "answers": [
-        { "order": 0, "text": "It's kept in the version history and stops being the current version", "isCorrect": true },
-        { "order": 1, "text": "It's deleted to save storage", "isCorrect": false },
-        { "order": 2, "text": "It's moved to the project's Drive folder", "isCorrect": false },
-        { "order": 3, "text": "It stays current until an officer promotes the new one", "isCorrect": false }
+        {
+          "order": 0,
+          "text": "It's kept in the version history and stops being the current version",
+          "isCorrect": true
+        },
+        {
+          "order": 1,
+          "text": "It's deleted to save storage",
+          "isCorrect": false
+        },
+        {
+          "order": 2,
+          "text": "It is copied into the general Files source",
+          "isCorrect": false
+        },
+        {
+          "order": 3,
+          "text": "It stays current until an officer promotes the new one",
+          "isCorrect": false
+        }
       ]
     },
     {
@@ -37,13 +69,29 @@
       "order": 2,
       "kind": "SINGLE",
       "points": 1,
-      "prompt": "What does an assembly's BOM tell you?",
-      "explanation": "Every part it's made of, the quantities, and the specific versions this assembly references. It's what you hand to whoever is ordering, and what tells you the blast radius of changing one part.",
+      "prompt": "What does an assembly's current BOM show?",
+      "explanation": "The current BOM links child items, quantities, and optional notes. It does not pin child version IDs.",
       "answers": [
-        { "order": 0, "text": "Every part it contains, the quantities, and the versions it references", "isCorrect": true },
-        { "order": 1, "text": "Who has worked on the assembly and for how long", "isCorrect": false },
-        { "order": 2, "text": "The order in which the parts should be assembled", "isCorrect": false },
-        { "order": 3, "text": "Which parts are currently checked out", "isCorrect": false }
+        {
+          "order": 0,
+          "text": "Linked child items and quantities, without pinned child versions",
+          "isCorrect": true
+        },
+        {
+          "order": 1,
+          "text": "Who has worked on the assembly and for how long",
+          "isCorrect": false
+        },
+        {
+          "order": 2,
+          "text": "The order in which the parts should be assembled",
+          "isCorrect": false
+        },
+        {
+          "order": 3,
+          "text": "Which parts are currently checked out",
+          "isCorrect": false
+        }
       ]
     },
     {
@@ -54,22 +102,106 @@
       "prompt": "You need to edit a part that a teammate currently has checked out. What's the right move?",
       "explanation": "Talk to them — the lock is visible and it names the holder, which is the point. Uploading a parallel copy outside the Vault recreates exactly the `_FINAL_actual` problem the Vault exists to prevent.",
       "answers": [
-        { "order": 0, "text": "Message them — the lock shows who holds it — and wait or agree a hand-off", "isCorrect": true },
-        { "order": 1, "text": "Work on your own copy and upload it as a separate item", "isCorrect": false },
-        { "order": 2, "text": "Email the file to them and ask them to merge it", "isCorrect": false },
-        { "order": 3, "text": "Put your version in the project's Drive folder instead", "isCorrect": false }
+        {
+          "order": 0,
+          "text": "Message them — the lock shows who holds it — and wait or agree a hand-off",
+          "isCorrect": true
+        },
+        {
+          "order": 1,
+          "text": "Work on your own copy and upload it as a separate item",
+          "isCorrect": false
+        },
+        {
+          "order": 2,
+          "text": "Email the file to them and ask them to merge it",
+          "isCorrect": false
+        },
+        {
+          "order": 3,
+          "text": "Upload a competing version without contacting the holder",
+          "isCorrect": false
+        }
       ]
     },
     {
       "id": "q06-5",
       "order": 4,
-      "kind": "TRUE_FALSE",
+      "kind": "SINGLE",
       "points": 1,
-      "prompt": "A Vault item can be linked to a task, so the part and the work on the part live together.",
-      "explanation": "True. Linking an item to a task keeps the part, the work, and the conversation about it in one place instead of scattered across three systems.",
+      "prompt": "Where can you link a Vault release proposal to a project task?",
+      "explanation": "The change-request form has an optional Linked task picker. Item detail does not currently offer a direct task link.",
       "answers": [
-        { "order": 0, "text": "True", "isCorrect": true },
-        { "order": 1, "text": "False", "isCorrect": false }
+        {
+          "order": 0,
+          "text": "In the change-request form's optional Linked task field",
+          "isCorrect": true
+        },
+        {
+          "order": 1,
+          "text": "Directly from every Vault item detail",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "id": "q06-6",
+      "order": 5,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "You want a Slack DM whenever someone checks in a new version of one bracket, and nothing about the rest of the Vault. What do you do?",
+      "explanation": "Watch that item and keep New check-ins on in its chevron menu, then set \"New check-in on an item I watch\" to Slack DM or Both in Notification preferences. Watches are per item; delivery is per event type. Notices only reach members who can still open the project.",
+      "answers": [
+        {
+          "order": 0,
+          "text": "Watch the bracket, and set Vault check-ins to Slack DM or Both in Notification preferences",
+          "isCorrect": true
+        },
+        {
+          "order": 1,
+          "text": "Check the bracket out and leave it checked out so every check-in pings you",
+          "isCorrect": false
+        },
+        {
+          "order": 2,
+          "text": "Save a search for the bracket's part number; saved views send alerts",
+          "isCorrect": false
+        },
+        {
+          "order": 3,
+          "text": "Nothing: every project member is messaged about every check-in",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "id": "q06-7",
+      "order": 6,
+      "kind": "SINGLE",
+      "points": 1,
+      "prompt": "The Changes tab compares two STL versions of a bracket. The geometry diff shows sizes in \"model units\" and no volume. Why?",
+      "explanation": "STL files store no length unit, so the diff will not guess one. Declare the unit the files were exported in and it can report physical sizes and, for a closed solid, the volume.",
+      "answers": [
+        {
+          "order": 0,
+          "text": "STL files carry no unit, and no export unit has been declared yet",
+          "isCorrect": true
+        },
+        {
+          "order": 1,
+          "text": "The bracket is too small for the diff to measure",
+          "isCorrect": false
+        },
+        {
+          "order": 2,
+          "text": "Volumes are only shown after a change request is approved",
+          "isCorrect": false
+        },
+        {
+          "order": 3,
+          "text": "The diff only measures STEP files",
+          "isCorrect": false
+        }
       ]
     }
   ]

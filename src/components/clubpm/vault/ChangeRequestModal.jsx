@@ -15,8 +15,15 @@ import {
   getVaultItem,
   aiCrReleaseNotes,
   aiCrImpact,
+  getCrReviewStatus,
+  linkCrPr,
+  syncCrPr,
+  signoffCr,
+  revokeCrSignoff,
+  getCrReadiness,
 } from "../../../api/clubPmClient";
 import { CR_STATUS_LABEL, nextRevisionLetter, notifyCrCountChanged } from "./vaultUtils";
+import { ReadinessPanel, ReleasePanel } from "./VaultReleasePanels";
 
 // Create mode (no `crId`): title/reason/task-link/item-picker form, posts a
 // new OPEN change request. `preset` (from VaultItemModal's "Request release")
@@ -48,6 +55,20 @@ export default function ChangeRequestModal({ project, member, isAdmin, crId, pre
   const [aiDraftBusy, setAiDraftBusy] = useState(false);
   const [impactBusy, setImpactBusy] = useState(false);
   const [impactSummary, setImpactSummary] = useState(null);
+  const [review, setReview] = useState(null);
+  const [prInput, setPrInput] = useState("");
+  const [readiness, setReadiness] = useState(null);
+  const [readinessLoading, setReadinessLoading] = useState(false);
+  const [readinessError, setReadinessError] = useState(null);
+
+  const loadReadiness = useCallback(async () => {
+    if (!crId) return;
+    setReadinessLoading(true);
+    setReadinessError(null);
+    try { setReadiness(await getCrReadiness(crId)); }
+    catch (err) { setReadinessError(err.message || "Failed to check build readiness"); }
+    finally { setReadinessLoading(false); }
+  }, [crId]);
 
   useEffect(() => {
     if (isCreate) return;
@@ -59,11 +80,13 @@ export default function ChangeRequestModal({ project, member, isAdmin, crId, pre
         if (cancelled) return;
         setCr(data);
         setReleaseNotesDraft(data.releaseNotes ?? "");
+        getCrReviewStatus(crId).then((status) => { if (!cancelled) setReview(status); }).catch(() => {});
+        loadReadiness();
       })
       .catch((err) => { if (!cancelled) setLoadError(err.message || "Failed to load change request"); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [isCreate, crId]);
+  }, [isCreate, crId, loadReadiness]);
 
   // Create-mode only: task-link options + vault items for the item picker.
   useEffect(() => {
@@ -205,6 +228,7 @@ export default function ChangeRequestModal({ project, member, isAdmin, crId, pre
     try {
       const updated = await action();
       setCr(updated);
+      loadReadiness();
       toast.success(successMsg);
       notifyCrCountChanged();
       onChanged?.();
@@ -221,6 +245,26 @@ export default function ChangeRequestModal({ project, member, isAdmin, crId, pre
       "Change request approved",
       "Failed to approve"
     );
+  }
+
+  async function reviewAction(action) {
+    if (!cr || busy) return;
+    setBusy(true);
+    try {
+      const status = await action();
+      setReview(status);
+      const updated = await getCr(cr.id);
+      setCr(updated);
+      loadReadiness();
+      onChanged?.();
+    } catch (err) { toast.error(err.message || "Review action failed"); }
+    finally { setBusy(false); }
+  }
+
+  function handleLinkPr() {
+    const match = prInput.trim().match(/^(?:https:\/\/github\.com\/)?([A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+)\/pull\/(\d+)\/?$/);
+    if (!match) { toast.error("Enter a GitHub PR URL or owner/repo/pull/number"); return; }
+    reviewAction(() => linkCrPr(cr.id, { repoSlug: match[1], number: Number(match[2]) }));
   }
 
   function handleRejectClick() {
@@ -242,7 +286,7 @@ export default function ChangeRequestModal({ project, member, isAdmin, crId, pre
 
   const modal = (
     <div className={`cpm-modal-overlay${compact ? " pm-shell--compact pm-m-files-layer" : ""}`} onClick={(e) => { if (!busy && e.target === e.currentTarget) onClose(); }}>
-      <div className="cpm-vault-cr-modal">
+      <div className="cpm-vault-cr-modal" data-tour-id={isCreate ? "cr.form" : "cr.modal"}>
         <div className="cpm-vault-upload-header">
           <span className="cpm-vault-upload-title">
             {isCreate ? "New change request" : cr ? `CR-${cr.number} · ${cr.title}` : "Change request"}
@@ -373,6 +417,32 @@ export default function ChangeRequestModal({ project, member, isAdmin, crId, pre
               )}
             </div>
 
+            <section className="cpm-vault-review-panel" data-tour-id="cr.prReview">
+              <h3>Release review</h3>
+              <strong className={`cpm-vault-review-state cpm-vault-review-state-${review?.state || "pending"}`}>{review?.state || "pending"}</strong>
+              {(review?.reasons || []).map((reason) => <div key={reason}>{reason}</div>)}
+              {cr.status === "OPEN" && (cr.authorId === member?.id || isAdmin) && <div className="cpm-vault-pr-link-form"><input aria-label="GitHub PR URL" placeholder="owner/repo/pull/123" value={prInput} onChange={(e) => setPrInput(e.target.value)} /><button type="button" className="cpm-vault-btn-ghost" disabled={busy} onClick={handleLinkPr}>Link PR</button></div>}
+              {cr.prRepoSlug && <>
+                <div><a href={`https://github.com/${cr.prRepoSlug}/pull/${cr.prNumber}`} target="_blank" rel="noopener noreferrer">{review?.pr?.title || `PR #${cr.prNumber}`}</a> · {review?.pr?.state || "unknown"} · head {review?.pr?.headSha?.slice(0, 12) || "unknown"}</div>
+                <button type="button" className="cpm-vault-btn-ghost" disabled={busy} onClick={() => reviewAction(() => syncCrPr(cr.id))}>Refresh PR</button>
+                <div>GitHub reviews: {(review?.pr?.reviews || []).map(r => `${r.login}: ${r.state}`).join(", ") || "none"}</div>
+                <div>Checks: {(review?.pr?.checks || []).map(c => `${c.name}: ${c.conclusion || c.status}`).join(", ") || "none"}</div>
+              </>}
+              <h4>Required sign-off</h4>
+              {(review?.required || []).length ? review.required.map(r => {
+                const rule = review.rules.find(rule => rule.id === r.ruleId);
+                return <div key={r.ruleId}>{rule?.reviewer?.displayName || "Reviewer"} · {rule?.scope === "BOM_PARENT" ? "BOM parent" : "Subsystem"} {rule?.value} · {r.state === "unauthorized" ? "lost project access — admin must update rules" : r.state}</div>;
+              }) : <div>No reviewer rules match these items.</div>}
+              {cr.status === "OPEN" && review?.required?.some(r => r.reviewerId === member?.id) && <div><button type="button" className="cpm-vault-btn-ghost" disabled={busy} onClick={() => reviewAction(() => signoffCr(cr.id))}>Sign off on this version and PR head</button><button type="button" className="cpm-vault-btn-ghost" disabled={busy} onClick={() => reviewAction(() => revokeCrSignoff(cr.id))}>Revoke sign-off</button></div>}
+              <h4>Timeline</h4>
+              {(review?.pr?.timeline || []).map((event, i) => <div key={`${event.at}-${i}`}>{event.at?.slice(0, 10)} · {event.actor || "GitHub"} · {event.label}</div>)}
+              <div>ClubPM: {cr.createdAt?.slice(0, 10)} · request opened{cr.reviewedAt ? `; ${cr.reviewedAt.slice(0, 10)} · ${cr.status.toLowerCase()}` : ""}</div>
+            </section>
+
+            {cr.status === "APPROVED"
+              ? <ReleasePanel crId={cr.id} />
+              : cr.status === "OPEN" && <ReadinessPanel readiness={readiness} loading={readinessLoading} error={readinessError} onRefresh={loadReadiness} />}
+
             {cr.description && (
               <div className="cpm-vault-field">
                 <span>Reason</span>
@@ -445,10 +515,10 @@ export default function ChangeRequestModal({ project, member, isAdmin, crId, pre
               )}
               {isAdmin && cr.status === "OPEN" && (
                 <>
-                  <button type="button" className="cpm-vault-btn-danger" onClick={handleRejectClick} disabled={busy}>
+                  <button type="button" className="cpm-vault-btn-danger" data-tour-id="cr.reject" onClick={handleRejectClick} disabled={busy}>
                     Reject
                   </button>
-                  <button type="button" className="clubpm-btn-primary" data-tour-id="cr.review" onClick={handleApprove} disabled={busy}>
+                  <button type="button" className="clubpm-btn-primary" data-tour-id="cr.review" onClick={handleApprove} disabled={busy || review?.state !== "approved" || readiness?.state === "blocked"} title={readiness?.state === "blocked" ? "Resolve the build-readiness blockers first" : undefined}>
                     Approve
                   </button>
                 </>

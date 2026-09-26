@@ -22,6 +22,14 @@ const EVENT_TYPES = [
   { key: 'MILESTONE_COMPLETED', label: 'Milestone completed' },
 ];
 
+// Vault items you watch (Files → Vault → Watch). The watch itself chooses the
+// events per item; these choose how each kind reaches you.
+const VAULT_EVENT_TYPES = [
+  { key: 'VAULT_CHECKIN',           label: 'New check-in on an item I watch' },
+  { key: 'VAULT_CR_DECIDED',        label: 'Change request approved or rejected' },
+  { key: 'VAULT_CHECKOUT_CONFLICT', label: 'Checkout conflict on my item or one I watch' },
+];
+
 // Slack pings mirrored into Constellation. They are never sent back to Slack
 // as a DM — the ping already happened there — so the only choices are
 // "show it here" or "don't".
@@ -47,6 +55,7 @@ export default function NotificationPreferences() {
   // Form state
   const [notificationChannels, setNotificationChannels] = useState({});
   const [quietEnabled, setQuietEnabled]                 = useState(false);
+  const [vaultAutoWatch, setVaultAutoWatch]             = useState(true);
   const [quietStart, setQuietStart]                     = useState(22);
   const [quietEnd, setQuietEnd]                         = useState(8);
 
@@ -56,6 +65,7 @@ export default function NotificationPreferences() {
     get('/auth/me')
       .then(member => {
         setNotificationChannels(member.notificationChannels ?? {});
+        setVaultAutoWatch(member.vaultAutoWatch ?? true);
         const hasQuiet = member.quietHoursStart != null && member.quietHoursEnd != null;
         setQuietEnabled(hasQuiet);
         if (hasQuiet) {
@@ -88,6 +98,7 @@ export default function NotificationPreferences() {
     // Send null explicitly when disabling quiet hours so Prisma clears the Int? fields
     const payload = {
       notificationChannels,
+      vaultAutoWatch,
       quietHoursStart: quietEnabled ? Number(quietStart) : null,
       quietHoursEnd:   quietEnabled ? Number(quietEnd)   : null,
     };
@@ -145,6 +156,39 @@ export default function NotificationPreferences() {
                 </select>
               </div>
             ))}
+          </div>
+        </div>
+
+        {/* ── Vault watches ─────────────────────────────── */}
+        <div className="pm-prefs-section" data-tour-id="notifications.vault">
+          <div className="pm-prefs-section-title">Vault</div>
+          <div className="pm-prefs-section-body">
+            {VAULT_EVENT_TYPES.map(({ key, label }) => (
+              <div key={key} className="pm-prefs-row">
+                <span className="pm-prefs-label">{label}</span>
+                <select
+                  className="pm-prefs-select"
+                  value={getChannel(key)}
+                  onChange={e => setChannel(key, e.target.value)}
+                >
+                  {CHANNEL_OPTIONS.map(opt => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+              </div>
+            ))}
+            <label className="pm-prefs-row pm-prefs-row--check">
+              <input
+                type="checkbox"
+                className="pm-prefs-checkbox"
+                checked={vaultAutoWatch}
+                onChange={e => setVaultAutoWatch(e.target.checked)}
+              />
+              <span className="pm-prefs-label">Watch Vault items automatically when I create, check in or check out one</span>
+            </label>
+            <p className="pm-prefs-hint">
+              Unwatching an item keeps it unwatched, even if you check it in again later.
+            </p>
           </div>
         </div>
 

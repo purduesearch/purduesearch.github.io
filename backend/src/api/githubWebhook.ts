@@ -8,6 +8,10 @@ import {
   handlePushEvent,
   handleCheckEvent,
 } from "../services/githubSyncService.js";
+import { prisma } from "../db/prisma.js";
+import { reconcileVaultRepository } from "../services/vaultCutoverService.js";
+import { syncLinkedPrs } from "../services/vaultPrReviewService.js";
+import { indexPushPayload } from "../services/vaultSearchService.js";
 
 // Webhook receiver for the GitHub App. Mounted BEFORE express.json() in
 // app.ts so the raw body is available for HMAC verification.
@@ -74,13 +78,44 @@ githubWebhookRouter.post("/", async (req: Request, res: Response) => {
   // Dispatch — wrapped so any thrown handler doesn't crash the process.
   Promise.resolve().then(async () => {
     try {
+      const vaultReviewEvent = ["pull_request", "pull_request_review", "check_run", "check_suite"].includes(event);
+      let processVaultReview = vaultReviewEvent;
+      if (vaultReviewEvent && typeof delivery === "string") {
+        try { await prisma.vaultWebhookDelivery.create({ data: { id: delivery, event } }); }
+        catch (err: any) { if (err?.code === "P2002") processVaultReview = false; else throw err; }
+      }
+      // A delivery id is claimed before syncing so a duplicate delivery is a no-op.
+      // If the sync fails, release the claim so a manual redelivery can retry it;
+      // the scheduler's PR reconcile covers deliveries nobody redelivers.
+      const syncVaultReview = async (number?: number) => {
+        if (!processVaultReview) return;
+        const failed = await syncLinkedPrs(payload.repository?.full_name || "", number);
+        if (failed && typeof delivery === "string") await prisma.vaultWebhookDelivery.deleteMany({ where: { id: delivery } });
+      };
       switch (event) {
         case "issues":               await handleIssueEvent(payload);              break;
-        case "pull_request":         await handlePullRequestEvent(payload);         break;
-        case "pull_request_review":  await handlePullRequestReviewEvent(payload);   break;
-        case "push":                 await handlePushEvent(payload);               break;
-        case "check_suite":
-        case "check_run":            await handleCheckEvent(payload);              break;
+        case "pull_request":         await handlePullRequestEvent(payload); await syncVaultReview(payload.pull_request?.number); break;
+        case "pull_request_review":  await handlePullRequestReviewEvent(payload); await syncVaultReview(payload.pull_request?.number); break;
+        case "push":
+          await handlePushEvent(payload);
+          if (payload.repository?.full_name && payload.ref) {
+            const branch = String(payload.ref).replace(/^refs\/heads\//, "");
+            const repos = await prisma.vaultRepository.findMany({ where: { repoSlug: String(payload.repository.full_name).toLowerCase(), branch }, select: { projectId: true } });
+            for (const repo of repos) await reconcileVaultRepository(repo.projectId, payload.after);
+            // Search: commits are keyed by SHA, so a redelivered push rewrites the same rows.
+            if (repos.length) await indexPushPayload(payload).catch((err) => console.error("[github-webhook] vault search index failed:", err?.message || err));
+          }
+          break;
+        case "installation":
+        case "installation_repositories": {
+          const repos = await prisma.vaultRepository.findMany({ where: { installId: payload.installation?.id }, select: { projectId: true } });
+          for (const repo of repos) await reconcileVaultRepository(repo.projectId);
+          const linked = await prisma.projectRepo.findMany({ where: { installId: payload.installation?.id }, select: { slug: true } });
+          for (const repo of linked) await syncLinkedPrs(repo.slug);
+          break;
+        }
+        case "check_suite":          await handleCheckEvent(payload); await syncVaultReview(); break;
+        case "check_run":            await handleCheckEvent(payload); await syncVaultReview(); break;
         case "ping":
           console.log(`[github-webhook] ping ok delivery=${delivery}`);
           break;

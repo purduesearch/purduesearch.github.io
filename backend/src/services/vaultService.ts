@@ -235,19 +235,19 @@ export async function isAdminMember(memberId: string): Promise<boolean> {
 
 const SIGNED_URL_TTL_MS = 5 * 60 * 1000;
 
-function vaultUrlHmac(path: string, exp: number): string {
-  return crypto.createHmac("sha256", getSessionSecret()).update(`${path}:${exp}`).digest("hex");
+function vaultUrlHmac(path: string, exp: number, memberId: string): string {
+  return crypto.createHmac("sha256", getSessionSecret()).update(`${path}:${exp}:${memberId}`).digest("hex");
 }
 
 /** Sign a router-relative path (e.g. /vault/versions/<id>/download) → query suffix. */
-export function signVaultPath(path: string): { exp: number; sig: string } {
+export function signVaultPath(path: string, memberId: string): { exp: number; sig: string } {
   const exp = Date.now() + SIGNED_URL_TTL_MS;
-  return { exp, sig: vaultUrlHmac(path, exp) };
+  return { exp, sig: vaultUrlHmac(path, exp, memberId) };
 }
 
-export function verifyVaultSignature(path: string, exp: number, sig: string): boolean {
-  if (!Number.isFinite(exp) || exp < Date.now()) return false;
-  const expected = vaultUrlHmac(path, exp);
+export function verifyVaultSignature(path: string, exp: number, sig: string, memberId: string): boolean {
+  if (!Number.isFinite(exp) || exp < Date.now() || exp > Date.now() + SIGNED_URL_TTL_MS || !memberId) return false;
+  const expected = vaultUrlHmac(path, exp, memberId);
   if (sig.length !== expected.length) return false;
   return crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected));
 }

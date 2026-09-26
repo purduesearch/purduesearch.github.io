@@ -28,7 +28,21 @@ import { extensionOf } from "./vaultUtils";
  *                        teardown. Lets a parent (e.g. VaultCompareView) read
  *                        or drive the camera without this component knowing
  *                        anything about that use case.
+ *   meshUrl            — optional; fetch binary STL from here instead of the
+ *                        version download (a STEP side's tessellation from the
+ *                        geometry diff — exactly what was measured).
+ *   frame              — optional { center: [x,y,z], radius } in comparison
+ *                        units. When set, the model is NOT re-centred on
+ *                        itself: every viewer sharing a frame draws in the same
+ *                        coordinates, so a moved part visibly moves.
+ *   scale              — model units → comparison units (geometry diff).
+ *   overlay            — optional { points: [[x,y,z,kind,dev]], arrows:
+ *                        [{from,to,label}] } in comparison units; kind 0 added,
+ *                        1 removed, 2 changed. Drawn through the model.
+ *   autoRotate         — default true; aligned diff views pass false.
  */
+export const OVERLAY_COLORS = ["#2dd4a8", "#ff5c7a", "#f5a623"];
+export const ARROW_COLOR = "#9b8cff";
 export default function VaultModelViewer({
   versionId,
   fileName,
@@ -36,11 +50,17 @@ export default function VaultModelViewer({
   color = "#c8d0d8",
   onCaptureThumbnail,
   onControlsReady,
+  meshUrl,
+  frame,
+  scale = 1,
+  overlay,
+  autoRotate = true,
 }) {
   const mountRef = useRef(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const ext = extensionOf(fileName);
+  const ext = meshUrl ? "stl" : extensionOf(fileName);
+  const frameKey = frame ? `${frame.center.join(",")}:${frame.radius}` : "";
 
   // The caller (VaultItemModal) re-renders on every unrelated state change
   // (busy flags, tab switches, etc.) and can't easily keep this callback
@@ -118,7 +138,7 @@ export default function VaultModelViewer({
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.06;
-    controls.autoRotate = true;
+    controls.autoRotate = autoRotate;
     controls.autoRotateSpeed = 0.9;
     controls.enablePan = false;
     controls.minDistance = 10;
@@ -150,11 +170,40 @@ export default function VaultModelViewer({
       controls.update();
     }
 
+    // Shared-frame mode: draw in comparison coordinates, offset only by the
+    // frame centre, so two viewers with the same frame line up exactly.
+    function fitToFrame(obj) {
+      const [cx, cy, cz] = frame.center;
+      const r = frame.radius || 1;
+      const root = new THREE.Group();
+      root.position.set(-cx, -cy, -cz);
+      obj.scale.multiplyScalar(scale);
+      root.add(obj);
+      const marks = buildOverlay(overlay, r);
+      if (marks) root.add(marks);
+      scene.add(root);
+      const fovRad = camera.fov * (Math.PI / 180);
+      const dist = (r / Math.tan(fovRad / 2)) * 1.3;
+      camera.position.set(dist * 0.55, dist * 0.35, dist);
+      camera.near = r / 500;
+      camera.far = r * 100;
+      camera.updateProjectionMatrix();
+      grid.scale.setScalar((r * 4) / 500);
+      grid.position.y = -r;
+      controls.maxDistance = r * 16;
+      controls.minDistance = r * 0.1;
+      controls.target.set(0, 0, 0);
+      controls.update();
+    }
+
     function onLoaded(obj) {
       if (cancelled) return;
       object = obj;
-      scene.add(object);
-      fitToObject(object);
+      if (frame) fitToFrame(object);
+      else {
+        scene.add(object);
+        fitToObject(object);
+      }
       setLoading(false);
     }
 
@@ -170,7 +219,7 @@ export default function VaultModelViewer({
       try {
         // Bearer header included — cross-origin users may have no usable
         // session cookie (third-party cookies blocked).
-        const res = await fetch(vaultDownloadUrl(versionId), {
+        const res = await fetch(meshUrl || vaultDownloadUrl(versionId), {
           credentials: "include",
           headers: authHeaders(),
         });
@@ -283,6 +332,13 @@ export default function VaultModelViewer({
       cancelAnimationFrame(frameId);
       ro.disconnect();
       controls.dispose();
+      scene.traverse((child) => {
+        // Overlay markers, arrows and the grid live outside `object`.
+        if (child.isPoints || child.isLine || (child.isMesh && child.parent?.type === "ArrowHelper")) {
+          child.geometry?.dispose();
+          child.material?.dispose();
+        }
+      });
       if (object) {
         object.traverse((child) => {
           if (child.isMesh) {
@@ -298,7 +354,9 @@ export default function VaultModelViewer({
       }
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [versionId, ext, height, color]);
+    // frameKey stands in for `frame`; overlay/scale come from one memoised diff result.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [versionId, ext, height, color, meshUrl, frameKey, scale, overlay, autoRotate]);
 
   return (
     <div className="cpm-vault-model-viewer" style={{ height }}>
@@ -317,4 +375,38 @@ export default function VaultModelViewer({
       <div ref={mountRef} style={{ width: "100%", height: "100%" }} />
     </div>
   );
+}
+
+/** Changed-surface markers (drawn through the model) and displacement arrows. */
+function buildOverlay(overlay, radius) {
+  if (!overlay) return null;
+  const group = new THREE.Group();
+  const points = overlay.points ?? [];
+  if (points.length) {
+    const positions = new Float32Array(points.length * 3);
+    const colors = new Float32Array(points.length * 3);
+    const palette = OVERLAY_COLORS.map((c) => new THREE.Color(c));
+    points.forEach((p, i) => {
+      positions.set([p[0], p[1], p[2]], i * 3);
+      const c = palette[p[3]] ?? palette[2];
+      colors.set([c.r, c.g, c.b], i * 3);
+    });
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+    geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+    const material = new THREE.PointsMaterial({ size: 5, sizeAttenuation: false, vertexColors: true, depthTest: false, transparent: true, opacity: 0.9 });
+    const cloud = new THREE.Points(geometry, material);
+    cloud.renderOrder = 2;
+    group.add(cloud);
+  }
+  for (const a of overlay.arrows ?? []) {
+    const from = new THREE.Vector3(...a.from);
+    const dir = new THREE.Vector3(...a.to).sub(from);
+    const length = dir.length();
+    if (length <= 0) continue;
+    const arrow = new THREE.ArrowHelper(dir.normalize(), from, length, new THREE.Color(ARROW_COLOR), Math.min(length * 0.3, radius * 0.08), Math.min(length * 0.15, radius * 0.04));
+    arrow.traverse((child) => { if (child.material) { child.material.depthTest = false; child.renderOrder = 3; } });
+    group.add(arrow);
+  }
+  return group;
 }

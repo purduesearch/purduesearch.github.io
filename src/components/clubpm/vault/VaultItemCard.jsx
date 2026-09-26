@@ -54,7 +54,7 @@ export default function VaultItemCard({ item, onClick, tourId }) {
   // teammate has opened the item's 3D tab at least once; falls back to the
   // extension icon otherwise, or if the authenticated fetch fails.
   const thumbSrc = useAuthedThumbnail(
-    latest?.thumbnailFileId ? `${apiBaseUrl}/api/vault/versions/${latest.id}/thumbnail` : null
+    (latest?.thumbnailFileId || latest?.thumbnailPath) ? `${apiBaseUrl}/api/vault/versions/${latest.id}/thumbnail` : null
   );
 
   return (
@@ -86,6 +86,8 @@ export default function VaultItemCard({ item, onClick, tourId }) {
       )}
 
       <div className="cpm-vault-card-name" title={item.name}>{item.name}</div>
+      {item.description && <div className="cpm-vault-card-description">{item.description}</div>}
+      {latest && <div className="cpm-vault-card-description">{latest.fileName} · {latest.note || "No check-in note"} · {latest.uploadedBy?.displayName || "Unknown"} · {latest.createdAt ? new Date(latest.createdAt).toLocaleDateString() : ""}</div>}
 
       <div className="cpm-vault-card-chips">
         {item.partNumber && (
@@ -97,6 +99,8 @@ export default function VaultItemCard({ item, onClick, tourId }) {
           <span className="cpm-vault-chip-unreleased">Unreleased</span>
         )}
         {latest && <span className="cpm-vault-chip-version">v{latest.versionNumber}</span>}
+        {latest && <span className="cpm-vault-chip-version">{latest.storageProvider === "GITHUB" ? "GitHub" : "Drive"} stored</span>}
+        {item.openCrCount > 0 && <span className="cpm-vault-chip-version">{item.openCrCount} in review</span>}
       </div>
     </div>
   );

@@ -115,6 +115,7 @@ enum NotificationType {
   VAULT_CR_SUBMITTED
   VAULT_CR_DECIDED
   VAULT_CHECKIN
+  VAULT_CHECKOUT_CONFLICT
   MEETING_POLL_INVITE
   MEETING_POLL_FINALIZED
   MEETING_POLL_REMINDER
@@ -171,6 +172,8 @@ model Member {
   quietHoursStart         Int?
   quietHoursEnd           Int?
   mutedProjectIds         String[]                @default([])
+  /// Watch Vault items automatically when you create one, check in a version or check it out.
+  vaultAutoWatch          Boolean                 @default(true)
   tasks                   Task[]                  @relation("TaskAssignees")
   createdTasks            Task[]                  @relation("TaskCreator")
   archivedTasks           Task[]                  @relation("TaskArchiver")
@@ -284,11 +287,16 @@ model Member {
   createdAt    DateTime @default(now())
 
   // ── Constellation Vault (CAD change management) ──
-  vaultCheckouts         VaultItem[]     @relation("VaultCheckout")
-  createdVaultItems      VaultItem[]     @relation("VaultItemCreator")
-  vaultVersionUploads    VaultVersion[]  @relation("VaultVersionUploader")
-  authoredChangeRequests ChangeRequest[] @relation("ChangeRequestAuthor")
-  reviewedChangeRequests ChangeRequest[] @relation("ChangeRequestReviewer")
+  vaultCheckouts         VaultItem[]                 @relation("VaultCheckout")
+  createdVaultItems      VaultItem[]                 @relation("VaultItemCreator")
+  vaultVersionUploads    VaultVersion[]              @relation("VaultVersionUploader")
+  authoredChangeRequests ChangeRequest[]             @relation("ChangeRequestAuthor")
+  reviewedChangeRequests ChangeRequest[]             @relation("ChangeRequestReviewer")
+  vaultReviewerRules     VaultReviewerRule[]
+  vaultSignoffs          VaultSignoff[]
+  vaultSubscriptions     VaultSubscription[]
+  vaultSavedViews        VaultSavedView[]
+  vaultDeliveries        VaultNotificationDelivery[]
 
   // ── Courses ──
   createdCourses    Course[]               @relation("CourseCreator")
@@ -361,13 +369,22 @@ model Project {
   updatedAt               DateTime                    @updatedAt
 
   // ── Constellation Vault (CAD change management) ──
-  vaultFolderId    String?
-  vaultPartPrefix  String             @default("PRT")
-  vaultPartCounter Int                @default(0)
-  vaultCrCounter   Int                @default(0)
-  vaultItems       VaultItem[]
-  changeRequests   ChangeRequest[]
-  workspaces       WorkspaceProject[]
+  vaultFolderId            String?
+  vaultPartPrefix          String                    @default("PRT")
+  vaultPartCounter         Int                       @default(0)
+  vaultCrCounter           Int                       @default(0)
+  vaultItems               VaultItem[]
+  changeRequests           ChangeRequest[]
+  vaultReviewerRules       VaultReviewerRule[]
+  vaultDrawingRequirements VaultDrawingRequirement[]
+  vaultReleases            VaultRelease[]
+  vaultGeometryDiffs       VaultGeometryDiff[]
+  vaultRepository          VaultRepository?
+  vaultJobs                VaultUploadJob[]
+  vaultSearchDocs          VaultSearchDoc[]
+  vaultSavedViews          VaultSavedView[]
+  vaultEvents              VaultNotificationEvent[]
+  workspaces               WorkspaceProject[]
 }
 
 model ProjectMember {
@@ -615,9 +632,21 @@ enum ActivityEventType {
   CHANGE_REQUEST_APPROVED
   CHANGE_REQUEST_REJECTED
   CHANGE_REQUEST_CANCELLED
+  CHANGE_REQUEST_PR_LINKED
+  CHANGE_REQUEST_PR_SYNCED
+  CHANGE_REQUEST_SIGNED_OFF
+  CHANGE_REQUEST_SIGNOFF_REVOKED
+  VAULT_REVIEWER_RULE_CHANGED
   VAULT_BOM_LINK_ADDED
   VAULT_BOM_LINK_UPDATED
   VAULT_BOM_LINK_REMOVED
+  VAULT_DRAWING_REQUIREMENT_CHANGED
+  VAULT_DRAWING_LINK_CHANGED
+  VAULT_RELEASE_MANIFEST_CREATED
+  VAULT_RELEASE_PACKAGE_BUILT
+  VAULT_RELEASE_PACKAGE_FAILED
+  VAULT_RELEASE_PACKAGE_DOWNLOADED
+  VAULT_RELEASE_VERIFIED
   TOUR_STEP_BROKEN
 }
 
@@ -730,8 +759,90 @@ model ProjectRepo {
   createdById       String?
   createdAt         DateTime             @default(now())
   milestoneMaps     GitHubMilestoneMap[]
+  vaultRepository   VaultRepository?
 
   @@unique([projectId, slug])
+}
+
+enum VaultStorageProvider {
+  DRIVE
+  GITHUB
+}
+
+enum VaultUploadState {
+  UPLOADED
+  LFS_STORED
+  COMMITTED
+  INDEXED
+  RETRY
+  FAILED
+}
+
+model VaultRepository {
+  id                    String           @id @default(cuid())
+  projectId             String           @unique
+  project               Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectRepoId         String           @unique
+  projectRepo           ProjectRepo      @relation(fields: [projectRepoId], references: [id], onDelete: Restrict)
+  repoSlug              String
+  branch                String           @default("vault")
+  installId             Int
+  writeEnabled          Boolean          @default(false)
+  setupStatus           String           @default("PENDING")
+  migrationState        String           @default("NOT_STARTED")
+  phase3VerifiedAt      DateTime?
+  phase3DriveVersions   Int?
+  phase3DriveThumbnails Int?
+  phase3DriveItems      Int?
+  cutoverAt             DateTime?
+  retentionUntil        DateTime?
+  driftHeadSha          String?
+  legacyWritesInFlight  Int              @default(0)
+  healthError           String?
+  requiredChecks        Json? // array of GitHub check or status context names; empty means all reported checks
+  lastHeadSha           String?
+  lastSyncedAt          DateTime?
+  leaseOwner            String?
+  leaseUntil            DateTime?
+  jobs                  VaultUploadJob[]
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
+
+  @@unique([projectRepoId, branch])
+  @@unique([repoSlug, branch])
+}
+
+model VaultUploadJob {
+  id              String           @id @default(cuid())
+  projectId       String
+  project         Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  repositoryId    String
+  repository      VaultRepository  @relation(fields: [repositoryId], references: [id], onDelete: Restrict)
+  itemId          String
+  item            VaultItem        @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  uploaderId      String
+  idempotencyKey  String
+  state           VaultUploadState @default(UPLOADED)
+  diskPath        String
+  fileName        String
+  mimeType        String?
+  note            String
+  sizeBytes       BigInt
+  sha256          String
+  expectedHeadSha String?
+  commitSha       String?
+  blobSha         String?
+  lfsOid          String?
+  versionId       String?          @unique
+  version         VaultVersion?    @relation(fields: [versionId], references: [id], onDelete: SetNull)
+  errorCode       String?
+  attempts        Int              @default(0)
+  retryAt         DateTime?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@unique([projectId, idempotencyKey])
+  @@index([repositoryId, state])
 }
 
 model Tag {
@@ -1880,7 +1991,7 @@ model VaultItem {
   project         Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
   name            String
   description     String?
-  driveFolderId   String
+  driveFolderId   String?
   partNumber      String?
   currentRevision String?
   checkedOutById  String?
@@ -1891,9 +2002,16 @@ model VaultItem {
   createdBy       Member?             @relation("VaultItemCreator", fields: [createdById], references: [id], onDelete: SetNull)
   deletedAt       DateTime?
   versions        VaultVersion[]
+  uploadJobs      VaultUploadJob[]
   crItems         ChangeRequestItem[]
   childLinks      VaultBomEdge[]      @relation("BomParent")
   parentLinks     VaultBomEdge[]      @relation("BomChild")
+  // A drawing item documents exactly one part/assembly item; build readiness
+  // reads this link against the project's VaultDrawingRequirement rows.
+  drawingForId    String?
+  drawingFor      VaultItem?          @relation("VaultDrawing", fields: [drawingForId], references: [id], onDelete: SetNull)
+  drawings        VaultItem[]         @relation("VaultDrawing")
+  subscriptions   VaultSubscription[]
   createdAt       DateTime            @default(now())
   updatedAt       DateTime            @updatedAt
 
@@ -1902,24 +2020,41 @@ model VaultItem {
 }
 
 model VaultVersion {
-  id              String              @id @default(cuid())
-  itemId          String
-  item            VaultItem           @relation(fields: [itemId], references: [id], onDelete: Cascade)
-  versionNumber   Int
-  driveFileId     String
-  fileName        String
-  mimeType        String?
-  sizeBytes       Int?
-  checksumMd5     String?
-  note            String?
-  uploadedById    String?
-  uploadedBy      Member?             @relation("VaultVersionUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
-  revision        String?
-  releasedAt      DateTime?
-  releasedByCrId  String?
-  thumbnailFileId String?
-  crItems         ChangeRequestItem[]
-  createdAt       DateTime            @default(now())
+  id                 String                @id @default(cuid())
+  itemId             String
+  item               VaultItem             @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  versionNumber      Int
+  driveFileId        String?
+  storageProvider    VaultStorageProvider  @default(DRIVE)
+  repositoryId       String?
+  branch             String?
+  filePath           String?
+  commitSha          String?
+  blobSha            String?
+  sha256             String?
+  lfsOid             String?
+  lfsSize            Int?
+  fileName           String
+  mimeType           String?
+  sizeBytes          Int?
+  checksumMd5        String?
+  note               String?
+  uploadedById       String?
+  uploadedBy         Member?               @relation("VaultVersionUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
+  revision           String?
+  releasedAt         DateTime?
+  releasedByCrId     String?
+  thumbnailFileId    String?
+  thumbnailProvider  VaultStorageProvider?
+  thumbnailPath      String?
+  thumbnailCommitSha String?
+  thumbnailBlobSha   String?
+  thumbnailSha256    String?
+  thumbnailLfsOid    String?
+  thumbnailLfsSize   Int?
+  uploadJob          VaultUploadJob?
+  crItems            ChangeRequestItem[]
+  createdAt          DateTime              @default(now())
 
   @@unique([itemId, versionNumber])
   // DB backstop for the approveCr serializable transaction: no two released
@@ -1947,11 +2082,126 @@ model ChangeRequest {
   taskId       String?
   task         Task?               @relation(fields: [taskId], references: [id], onDelete: SetNull)
   items        ChangeRequestItem[]
+  prRepoSlug   String?
+  prNumber     Int?
+  prSnapshot   Json?
+  prSyncedAt   DateTime?
+  signoffs     VaultSignoff[]
+  release      VaultRelease?
   createdAt    DateTime            @default(now())
   updatedAt    DateTime            @updatedAt
 
   @@unique([projectId, number])
   @@index([projectId, status])
+}
+
+model VaultReviewerRule {
+  id         String   @id @default(cuid())
+  projectId  String
+  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  scope      String // SUBSYSTEM or BOM_PARENT
+  value      String // subsystem prefix or parent VaultItem ID
+  reviewerId String
+  reviewer   Member   @relation(fields: [reviewerId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@unique([projectId, scope, value, reviewerId])
+  @@index([projectId])
+}
+
+model VaultSignoff {
+  id              String        @id @default(cuid())
+  changeRequestId String
+  changeRequest   ChangeRequest @relation(fields: [changeRequestId], references: [id], onDelete: Cascade)
+  memberId        String
+  member          Member        @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  fingerprint     String
+  prHeadSha       String?
+  createdAt       DateTime      @default(now())
+
+  @@unique([changeRequestId, memberId])
+}
+
+// Which items need a released drawing before (or alongside) a release.
+// scope ALL matches every item; SUBSYSTEM matches a part-number prefix ending
+// at "/" or "-" (case-insensitive); EXTENSION matches the pinned file's
+// extension (value without the dot, case-insensitive). severity BLOCKER stops
+// approval; WARNING only shows in the readiness report.
+model VaultDrawingRequirement {
+  id        String   @id @default(cuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  scope     String // ALL | SUBSYSTEM | EXTENSION
+  value     String   @default("")
+  severity  String // WARNING | BLOCKER
+  createdAt DateTime @default(now())
+
+  @@index([projectId])
+}
+
+// Immutable release record written inside approveCr's serializable
+// transaction. manifestJson is TEXT, not JSONB (which reorders keys), so its
+// SHA-256 stays reproducible byte for byte. Only the package* columns and
+// leaseUntil change after insert; the package is a pure function of the manifest.
+model VaultRelease {
+  id              String        @id @default(cuid())
+  projectId       String
+  project         Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  changeRequestId String        @unique
+  changeRequest   ChangeRequest @relation(fields: [changeRequestId], references: [id], onDelete: Cascade)
+  manifestJson    String
+  manifestSha256  String
+  readiness       Json
+  createdById     String?
+  packageState    String        @default("PENDING") // PENDING | BUILDING | READY | FAILED
+  packageSha256   String?
+  packageSize     BigInt?
+  packageError    String?
+  packageAttempts Int           @default(0)
+  packageBuiltAt  DateTime?
+  leaseUntil      DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([projectId, createdAt])
+  @@index([packageState])
+}
+
+// Phase 9 geometry diff between two pinned versions. A cache row: the result
+// is a pure function of cacheKey (algorithm version + both versions' SHA-256 +
+// formats + declared unit + tolerance), so it is computed once per project and
+// reused. Unique per project, never across projects, so a result is only ever
+// read through the project that requested it.
+model VaultGeometryDiff {
+  id               String    @id @default(cuid())
+  projectId        String
+  project          Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  cacheKey         String
+  algorithmVersion String
+  beforeVersionId  String
+  afterVersionId   String
+  beforeSha256     String
+  afterSha256      String
+  options          Json
+  state            String    @default("PENDING") // PENDING | RUNNING | DONE | FAILED
+  outcomeStatus    String? // COMPLETE or a GeometryErrorCode (CONVERSION_FAILED, TOO_LARGE, …); set only when state is DONE
+  resultJson       String?
+  error            String?
+  attempts         Int       @default(0)
+  leaseUntil       DateTime?
+  requestedById    String?
+  completedAt      DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@unique([projectId, cacheKey])
+  @@index([state])
+}
+
+model VaultWebhookDelivery {
+  id        String   @id // GitHub X-GitHub-Delivery UUID
+  event     String
+  createdAt DateTime @default(now())
 }
 
 model ChangeRequestItem {
@@ -1967,6 +2217,118 @@ model ChangeRequestItem {
 
   @@unique([changeRequestId, itemId])
   @@index([itemId])
+}
+
+// ── Vault subscriptions, notifications and search (Phase 8) ──
+
+// One member watching one item. The three flags are that member's per-item
+// event choice; how a notification is delivered (in-app / Slack / off) still
+// comes from Member.notificationChannels for the notification type.
+model VaultSubscription {
+  memberId  String
+  member    Member    @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  itemId    String
+  item      VaultItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  projectId String
+  checkins  Boolean   @default(true)
+  decisions Boolean   @default(true)
+  conflicts Boolean   @default(true)
+  source    String    @default("MANUAL") // MANUAL | AUTO
+  createdAt DateTime  @default(now())
+
+  @@id([memberId, itemId])
+  @@index([itemId])
+  @@index([memberId, projectId])
+}
+
+// Durable notification outbox. `id` is a deterministic event key
+// (checkin:<versionId>, cr:<crId>:<status>, conflict:<itemId>:<kind>:<ms>) so a
+// retried job, a duplicate webhook or a replayed request collapses onto one row.
+model VaultNotificationEvent {
+  id                 String                      @id
+  kind               String // CHECKIN | CR_DECIDED | CHECKOUT_CONFLICT
+  projectId          String
+  project            Project                     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  itemIds            String[]
+  actorId            String?
+  directRecipientIds String[]                    @default([])
+  payload            Json
+  fannedOutAt        DateTime?
+  createdAt          DateTime                    @default(now())
+  deliveries         VaultNotificationDelivery[]
+
+  @@index([fannedOutAt, createdAt])
+}
+
+// One recipient on one channel for one event. The unique key is the
+// deduplication guarantee: nobody receives the same event twice on the same
+// channel. IN_APP rows turn SENT in the transaction that creates the
+// Notification row; SLACK rows retry with backoff and end FAILED.
+model VaultNotificationDelivery {
+  id             String                 @id @default(cuid())
+  eventId        String
+  event          VaultNotificationEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  recipientId    String
+  recipient      Member                 @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+  channel        String // IN_APP | SLACK
+  state          String                 @default("PENDING") // PENDING | SENDING | SENT | FAILED
+  attempts       Int                    @default(0)
+  lastError      String?
+  nextAttemptAt  DateTime               @default(now())
+  leaseUntil     DateTime?
+  notificationId String?
+  sentAt         DateTime?
+  createdAt      DateTime               @default(now())
+
+  @@unique([eventId, recipientId, channel])
+  @@index([state, nextAttemptAt])
+}
+
+// Search index row. id = "<KIND>:<sourceId>". searchVector is written only by
+// the raw upsert in vaultSearchService.ts (weighted 'simple' tsvector); the
+// Prisma client never writes it.
+model VaultSearchDoc {
+  id           String                   @id
+  projectId    String
+  project      Project                  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  kind         String // ITEM | VERSION | CR | COMMIT
+  itemId       String?
+  versionId    String?
+  crId         String?
+  commitSha    String?
+  title        String
+  body         String                   @default("")
+  partNumber   String?
+  fileName     String?
+  fileExt      String?
+  authorId     String?
+  authorName   String?
+  released     Boolean                  @default(false)
+  checkedOut   Boolean                  @default(false)
+  crStatus     String?
+  url          String?
+  occurredAt   DateTime
+  searchVector Unsupported("tsvector")?
+  indexedAt    DateTime                 @default(now())
+
+  @@index([projectId, kind, occurredAt])
+  @@index([itemId])
+  @@index([searchVector], type: Gin)
+}
+
+// A member's named search. projectId null = a cross-project view.
+model VaultSavedView {
+  id        String   @id @default(cuid())
+  memberId  String
+  member    Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name      String
+  query     Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([memberId, projectId])
 }
 
 model VaultBomEdge {

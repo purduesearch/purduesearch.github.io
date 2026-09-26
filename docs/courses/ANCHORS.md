@@ -155,6 +155,7 @@ consecutive steps hunting for a modal nobody opened.
 | `notifications.list` | Notification list | `/clubpm/notifications` |
 | `notifications.prefs` | Preferences link | `/clubpm/notifications` |
 | `notifications.slack` | Slack DM toggle row | `/clubpm/notifications/preferences` |
+| `notifications.vault` | Vault section: delivery per Vault event and the auto-watch checkbox | `/clubpm/notifications/preferences` |
 | `calendar.grid` | Month grid | `/clubpm/calendar` |
 | `calendar.event` | First event chip | `/clubpm/calendar` |
 | `calendar.lab` | Lab schedule button | `/clubpm/calendar` |
@@ -164,20 +165,37 @@ consecutive steps hunting for a modal nobody opened.
 | Anchor | Element | Route |
 |---|---|---|
 Everything below is behind **Files &rarr; Vault**; a step must open both before it can target one.
-
-| Anchor | Element | Route |
 |---|---|---|
 | `vault.tab.crs` | "Change Requests" pill in the Vault sub-nav | `/clubpm/projects/:id` |
-| `vault.tree` | Item tree | `/clubpm/projects/:id` |
+| `vault.tab.search` | "Search" pill in the Vault sub-nav | `/clubpm/projects/:id` |
+| `vault.search` | Search panel: query, filters, saved views and results (under `vault.tab.search`) | `/clubpm/projects/:id` |
+| `vault.watch` | Watch button and event chooser inside the item modal | `/clubpm/projects/:id` |
+| `vault.repository` | Repository and storage status header | `/clubpm/projects/:id` |
+| `vault.tree` | Searchable item list | `/clubpm/projects/:id` |
 | `vault.item` | First vault item row | `/clubpm/projects/:id` |
+| `vault.item.modal` | Item detail panel and checkout holder | `/clubpm/projects/:id` |
 | `vault.checkout` | Check-out button | `/clubpm/projects/:id` |
-| `vault.upload` | New-version upload | `/clubpm/projects/:id` |
+| `vault.release` | Release checkout, when held | `/clubpm/projects/:id` |
+| `vault.upload` | Check in file on Vault toolbar; creates an item | `/clubpm/projects/:id` |
+| `vault.item.upload` | New check-in inside item detail | `/clubpm/projects/:id` |
+| `vault.upload.form` | File and required change-description dialog | `/clubpm/projects/:id` |
 | `vault.versions` | Version history | `/clubpm/projects/:id` |
+| `vault.changes` | Two-version Changes view | `/clubpm/projects/:id` |
+| `vault.geometryDiff` | Geometry diff panel inside Changes (STL/OBJ/glTF/GLB/STEP): units, tolerance, measurements, aligned views | `/clubpm/projects/:id` |
 | `vault.bom` | BOM view | `/clubpm/projects/:id` |
+| `vault.drawingFor` | BOM tab drawing link — marks an item as the drawing of another | `/clubpm/projects/:id` |
 | `cr.new` | New change request | `/clubpm/projects/:id` |
+| `cr.form` | New request form with item/version picker | `/clubpm/projects/:id` |
+| `cr.modal` | Open request detail and decision record | `/clubpm/projects/:id` |
+| `cr.reject` | Reject button, admins only on an open request | `/clubpm/projects/:id` |
 | `cr.list` | Change-request list (under `vault.tab.crs`) | `/clubpm/projects/:id` |
 | `cr.card` | First change-request card — opens the CR modal | `/clubpm/projects/:id` |
-| `cr.review` | Approve / reject — **admins only**, inside the CR modal, CR must be OPEN | `/clubpm/projects/:id` |
+| `cr.review` | Approve button, admins only on an open request | `/clubpm/projects/:id` |
+| `cr.prReview` | Linked PR checks, sign-offs, gate state, and timeline | `/clubpm/projects/:id` |
+| `cr.rules` | Admin reviewer-rule editor | `/clubpm/projects/:id` |
+| `cr.readiness` | Build readiness on an open request: blockers, warnings, where-used, drawings, stale assemblies, tasks | `/clubpm/projects/:id` |
+| `cr.release` | Release package on an approved request: manifest hash, pinned files, download, verify | `/clubpm/projects/:id` |
+| `cr.drawingRules` | Admin drawing-requirement editor | `/clubpm/projects/:id` |
 
 ## Outreach and blog — `src/pages/ClubPM/OutreachHub.jsx`, `BlogEditorPage.jsx`
 

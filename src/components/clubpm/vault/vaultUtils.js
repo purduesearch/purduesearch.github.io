@@ -14,6 +14,21 @@ export function isPreviewable(fileName) {
   return PREVIEWABLE_EXTENSIONS.has(extensionOf(fileName));
 }
 
+// Phase 9 geometry diff: everything the backend can measure. STEP/STP has no
+// in-browser preview of its own; the diff serves its OpenCascade tessellation.
+export const GEOMETRY_DIFF_EXTENSIONS = new Set(["stl", "obj", "gltf", "glb", "step", "stp"]);
+// Formats whose files carry no length unit, so the member must declare one.
+export const UNITLESS_GEOMETRY_EXTENSIONS = new Set(["stl", "obj"]);
+
+export function isGeometryDiffable(fileName) {
+  return GEOMETRY_DIFF_EXTENSIONS.has(extensionOf(fileName));
+}
+
+export function isStepFile(fileName) {
+  const ext = extensionOf(fileName);
+  return ext === "step" || ext === "stp";
+}
+
 export function formatBytes(bytes) {
   if (bytes == null) return "";
   if (bytes < 1024) return `${bytes} B`;

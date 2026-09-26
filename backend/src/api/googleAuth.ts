@@ -9,7 +9,8 @@ export const googleAuthRouter = Router();
 // drive.file (not the restricted /auth/drive) so the app needs no Google
 // verification: the bot can only touch files/folders IT creates. The project's
 // linked "Files" folder is human-managed (view-only, `Project.driveLink`); the
-// only bot-created folder is the vault's "CAD" folder (see ensureVaultFolder).
+// legacy Vault CAD folder is bot-created (see ensureVaultFolder). GitHub-enabled
+// Vault check-ins use their configured repository.
 // drive.readonly is needed ONLY to export a Google Slides deck the bot account
 // did not create (drive.file covers files we upload ourselves). Adding it means
 // an admin must RECONNECT the account — the stored refresh token does not carry

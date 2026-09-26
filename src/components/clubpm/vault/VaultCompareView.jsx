@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import VaultModelViewer from "./VaultModelViewer";
+import { vaultGeometryMeshUrl } from "../../../api/clubPmClient";
+import { isStepFile } from "./vaultUtils";
 
 // Loaded only via React.lazy from VaultItemModal — it imports VaultModelViewer
 // (and therefore three.js) eagerly, which is fine because this whole module
@@ -16,15 +18,21 @@ import VaultModelViewer from "./VaultModelViewer";
  *              filters item.versions down to STL/OBJ/GLB before passing this
  *              in), desc order (newest first), each with
  *              id/versionNumber/fileName/revision.
+ *   diff     — optional completed geometry diff (VaultGeometryDiffPanel). When
+ *              set, the pair is fixed to its before/after versions, both
+ *              viewers share the diff's frame (so displacements are visible,
+ *              not re-centred away), draw its markers and arrows, and a STEP
+ *              side renders the tessellation the diff measured.
  */
-export default function VaultCompareView({ versions }) {
+export default function VaultCompareView({ versions, diff }) {
   const list = versions ?? [];
+  const report = diff?.result?.status === "COMPLETE" ? diff.result : null;
 
   // Default to comparing the two newest previewable versions: left = older
   // ("before"), right = newer ("after").
-  const [leftId, setLeftId] = useState(list[1]?.id ?? list[0]?.id ?? "");
-  const [rightId, setRightId] = useState(list[0]?.id ?? "");
-  const [syncEnabled, setSyncEnabled] = useState(false);
+  const [leftId, setLeftId] = useState(report ? diff.beforeVersionId : list[1]?.id ?? list[0]?.id ?? "");
+  const [rightId, setRightId] = useState(report ? diff.afterVersionId : list[0]?.id ?? "");
+  const [syncEnabled, setSyncEnabled] = useState(!!report);
 
   const leftApiRef = useRef(null);
   const rightApiRef = useRef(null);
@@ -91,10 +99,11 @@ export default function VaultCompareView({ versions }) {
 
     return () => {
       cancelAnimationFrame(frameId);
+      if (report) return; // aligned diff views never auto-rotate
       if (leftApiRef.current) leftApiRef.current.controls.autoRotate = true;
       if (rightApiRef.current) rightApiRef.current.controls.autoRotate = true;
     };
-  }, [syncEnabled]);
+  }, [syncEnabled, report]);
 
   if (list.length === 0) {
     return (
@@ -118,46 +127,74 @@ export default function VaultCompareView({ versions }) {
 
       <div className="cpm-vault-compare-grid">
         <ComparePane
-          label="Left"
+          label={report ? "Before" : "Left"}
           list={list}
           versionId={leftId}
           onVersionChange={setLeftId}
           version={leftVersion}
           onControlsReady={handleLeftControlsReady}
+          locked={!!report}
+          viewerProps={report ? alignedProps(diff, report, "before") : null}
         />
         <ComparePane
-          label="Right"
+          label={report ? "After" : "Right"}
           list={list}
           versionId={rightId}
           onVersionChange={setRightId}
           version={rightVersion}
           onControlsReady={handleRightControlsReady}
+          locked={!!report}
+          viewerProps={report ? alignedProps(diff, report, "after") : null}
         />
       </div>
     </div>
   );
 }
 
-function ComparePane({ label, list, versionId, onVersionChange, version, onControlsReady }) {
+/** Shared frame + this side's markers; the after side also carries the displacement arrows. */
+function alignedProps(diff, report, side) {
+  const summary = report[side];
+  return {
+    frame: report.overlay.frame,
+    scale: summary.scaleToComparison ?? 1,
+    overlay: { points: report.overlay[side], arrows: side === "after" ? report.overlay.arrows : [] },
+    autoRotate: false,
+    meshUrl: summary.format === "step" ? vaultGeometryMeshUrl(diff.id, side) : undefined,
+  };
+}
+
+function versionLabel(v) {
+  return `${v.revision ? `Rev ${v.revision}` : `v${v.versionNumber}`} · ${v.fileName}`;
+}
+
+function ComparePane({ label, list, versionId, onVersionChange, version, onControlsReady, locked, viewerProps }) {
   return (
     <div className="cpm-vault-compare-pane">
-      <label className="cpm-vault-field">
-        <span>{label}</span>
-        <select value={versionId} onChange={(e) => onVersionChange(e.target.value)}>
-          {list.map((v) => (
-            <option key={v.id} value={v.id}>
-              {v.revision ? `Rev ${v.revision}` : `v${v.versionNumber}`} · {v.fileName}
-            </option>
-          ))}
-        </select>
-      </label>
-      {version && (
+      {locked ? (
+        <div className="cpm-vault-field">
+          <div className="cpm-vault-compare-pane-title">{label}</div>
+          <div>{version ? versionLabel(version) : "Version unavailable"}</div>
+        </div>
+      ) : (
+        <label className="cpm-vault-field">
+          <span>{label}</span>
+          <select value={versionId} onChange={(e) => onVersionChange(e.target.value)}>
+            {list.map((v) => (
+              <option key={v.id} value={v.id}>
+                {versionLabel(v)}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+      {version && (!isStepFile(version.fileName) || viewerProps?.meshUrl) && (
         <VaultModelViewer
           key={version.id}
           versionId={version.id}
           fileName={version.fileName}
           height={320}
           onControlsReady={onControlsReady}
+          {...(viewerProps || {})}
         />
       )}
     </div>

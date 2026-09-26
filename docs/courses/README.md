@@ -232,8 +232,8 @@ someone for the answers.
 | `blocked-and-unblocked` | 101 | 11 | **Yes** — 4 real API calls |
 | `rewards-tour` | 101 | 8 | Partly — claims one quest |
 | `comms-tour` | 101 | 9 | No — read-only |
-| `vault-checkout` | Vault | 10 | **Yes** — 4 real API calls |
-| `change-request` | Vault | 12 | **Yes** — 2 real API calls |
+| `vault-checkout` | Vault | 13 | **Yes** — checkout API; file uploads use the active storage provider |
+| `change-request` | Vault | 11 | **Yes** — submit API; optional admin rejection API |
 | `crm-and-campaigns` | Outreach | 12 | **Yes** — 2 real API calls |
 | `blog-editor` | Outreach | 9 | **Yes** — 2 real API calls |
 | `admin-tour` | Admin | 8 | No — read-only, admin-gated |
@@ -243,13 +243,15 @@ Step counts here must match both the `.steps.json` file and the `stepCount` in t
 `course.json`. The seed enforces the second pair and fails loudly on a mismatch; this table is the
 one that can silently drift, so check it when you add a step.
 
-Every hands-on step runs against the learner's own **training project** — a seeded, private,
-throwaway project hidden from every real view in the product. Nothing a learner does inside a
-walkthrough touches club data or mints real XP.
+Walkthroughs marked **Yes** use the learner's own private training project, hidden from normal
+project views and reward reporting. Other walkthroughs use their named surfaces; check each
+outline before treating actions as disposable. The training project seeds tasks, milestones, and
+a blocker, but no Vault items or repository.
 
-**All 12 `.steps.json` files are written and passing** — `node scripts/check-tour-anchors.js` reports
-108 anchors registered, 108 rendered, 90 referenced by steps. Every anchor an elective step needs is
-in `ANCHORS.md`.
+**All 12 `.steps.json` files are written and passing** — run `node scripts/check-tour-anchors.js`
+for the current registry, rendered, and used counts. Every anchor an elective step needs is
+in `ANCHORS.md`. The Vault tour starts with an empty training Vault and requires learner-supplied
+disposable files; a GitHub-backed pilot requires a separately configured private repository.
 
 The `walkthroughs/README.md` beside each set of step files is the rationale: every step, its anchor,
 how it advances, and which lines are load-bearing. The check script compares **ids, not prose**, so

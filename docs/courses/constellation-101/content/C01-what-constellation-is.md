@@ -33,8 +33,8 @@ Everything else in this course is a consequence of that idea.
 | Tool | Still used for | What Constellation adds |
 |---|---|---|
 | **Slack** | All conversation | DMs you when something needs you |
-| **Google Drive** | Documents, CAD, media | Links files to the task or project they belong to |
-| **GitHub** | Code | Links pull requests to tasks; can block "done" on failing checks |
+| **Google Drive** | General documents and media | Links the project's separate Drive source in Files |
+| **GitHub** | Code and, for enabled Vault projects, versioned CAD files | Links pull requests to tasks; Vault check-ins use a configured repository and Git LFS |
 
 If you take one thing from this page: you don't have to remember to check Constellation. Set your
 notification preferences once, and it comes and finds you in Slack.

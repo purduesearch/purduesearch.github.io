@@ -2084,8 +2084,8 @@ function DriveFolderPill({ project, isAdmin, onPreview, onSaved }) {
 // folder linked to the project (`project.driveLink`) and links out to it. The
 // bot's drive.file OAuth scope can't list a folder it didn't create, so
 // browsing/adding/editing happen in Drive itself; the app never provisions or
-// mutates the folder. (The writable, bot-owned "CAD" folder is under the Vault
-// subtab.)
+// mutates the folder. Legacy Vault versions can use a separate bot-owned CAD
+// folder; GitHub-enabled Vault check-ins use the configured repository.
 
 function DriveFilesPanel({ project, isAdmin, onProjectChange }) {
   const [editing, setEditing] = useState(false);
@@ -2205,10 +2205,31 @@ const FILE_SOURCES = [
   { id: "vault",  label: "Vault",  icon: "fas fa-database" },
 ];
 
+const VAULT_LINK_PARAMS = ["vaultItem", "vaultVersion", "vaultCr"];
+
 function FilesTabContent({ project, member, isAdmin, onProjectChange }) {
   const compact = useCompactLayout();
   const storageKey = `cpm.files.sub.${project.id}`;
+  // ?sub= (Vault notification and search links, the GitHub install return)
+  // wins over the remembered source.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const urlSub = searchParams.get("sub");
+  const vaultItem = searchParams.get("vaultItem");
+  const vaultVersion = searchParams.get("vaultVersion");
+  const vaultCr = searchParams.get("vaultCr");
+  const vaultDeepLink = useMemo(
+    () => (vaultItem || vaultCr ? { itemId: vaultItem, versionId: vaultVersion, crId: vaultCr } : null),
+    [vaultItem, vaultVersion, vaultCr]
+  );
+  const clearVaultDeepLink = useCallback(() => {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      VAULT_LINK_PARAMS.forEach(k => next.delete(k));
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
   const [sub, setSub] = useState(() => {
+    if (urlSub === "drive" || urlSub === "github" || urlSub === "vault") return urlSub;
     try {
       const stored = sessionStorage.getItem(storageKey);
       return stored === "github" || stored === "vault" ? stored : "drive";
@@ -2219,6 +2240,14 @@ function FilesTabContent({ project, member, isAdmin, onProjectChange }) {
   useEffect(() => {
     try { sessionStorage.setItem(storageKey, sub); } catch { /* ignore */ }
   }, [storageKey, sub]);
+  useEffect(() => {
+    if (urlSub === "drive" || urlSub === "github" || urlSub === "vault") setSub(urlSub);
+  }, [urlSub]);
+  // A manual choice drops the link's ?sub so a reload keeps what was picked.
+  const chooseSub = useCallback((id) => {
+    setSub(id);
+    if (urlSub) setSearchParams(prev => { const next = new URLSearchParams(prev); next.delete("sub"); return next; }, { replace: true });
+  }, [urlSub, setSearchParams]);
 
   return (
     <div style={compact ? undefined : { display: "flex", flexDirection: "column", gap: 16 }} className={compact ? "pm-m-files" : undefined}>
@@ -2234,7 +2263,7 @@ function FilesTabContent({ project, member, isAdmin, onProjectChange }) {
                 key={opt.id}
                 type="button"
                 aria-pressed={sub === opt.id}
-                onClick={() => setSub(opt.id)}
+                onClick={() => chooseSub(opt.id)}
                 data-tour-id={opt.id === "vault" ? "project.tab.vault" : undefined}
               >
                 <i className={opt.icon} aria-hidden="true" /> {opt.label}
@@ -2259,7 +2288,7 @@ function FilesTabContent({ project, member, isAdmin, onProjectChange }) {
             type="button"
             role="tab"
             aria-selected={sub === opt.id}
-            onClick={() => setSub(opt.id)}
+            onClick={() => chooseSub(opt.id)}
             data-tour-id={opt.id === "vault" ? "project.tab.vault" : undefined}
             style={{
               display: "inline-flex", alignItems: "center", gap: 6,
@@ -2285,7 +2314,7 @@ function FilesTabContent({ project, member, isAdmin, onProjectChange }) {
           onProjectChange={onProjectChange}
         />
       ) : sub === "vault" ? (
-        <VaultTab project={project} member={member} isAdmin={isAdmin} />
+        <VaultTab project={project} member={member} isAdmin={isAdmin} deepLink={vaultDeepLink} onDeepLinkDone={clearVaultDeepLink} />
       ) : (
         <GitHubPanel project={project} />
       )}
@@ -2358,6 +2387,7 @@ export default function ProjectDetail() {
       if (id === "tasks") next.delete("tab");
       else next.set("tab", id);
       if (id !== "chat") { next.delete("channel"); next.delete("thread"); }
+      if (id !== "files") { next.delete("sub"); VAULT_LINK_PARAMS.forEach(k => next.delete(k)); }
       next.delete("dm");
       next.delete("view");
       return next;

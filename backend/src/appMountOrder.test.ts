@@ -32,7 +32,7 @@ const indexOf = (router: string) => mounts.findIndex((m) => m.router === router)
 check("found the app.use mounts", mounts.length > 20);
 
 // Routers whose routes authenticate via a `?token=` query param.
-const QUERY_TOKEN_ROUTERS = ["sseRouter", "chatRouter"];
+const QUERY_TOKEN_ROUTERS = ["sseRouter", "chatRouter", "vaultReleasesRouter"];
 
 // Routers that attach a pathless requireAuth, keyed to a mount path that
 // shadows a query-token router. Bare "/api" mounts are checked generically.

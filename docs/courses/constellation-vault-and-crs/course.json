@@ -40,7 +40,7 @@
             "tourId": "vault-checkout",
             "entryRoute": "/clubpm/projects/:trainingProjectId",
             "requiresTrainingProject": true,
-            "stepCount": 10
+            "stepCount": 14
           }
         },
         {
@@ -86,7 +86,7 @@
             "tourId": "change-request",
             "entryRoute": "/clubpm/projects/:trainingProjectId",
             "requiresTrainingProject": true,
-            "stepCount": 12
+            "stepCount": 11
           }
         },
         {

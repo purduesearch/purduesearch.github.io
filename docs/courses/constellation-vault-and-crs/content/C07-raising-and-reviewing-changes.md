@@ -21,6 +21,8 @@ citable in Slack, in a task comment, and in a competition design report six mont
 
 Approval is the only thing in Constellation that mints a revision letter. Everything else in the
 Vault — uploading, checking in, promoting — leaves the item's official revision exactly where it was.
+On pilot projects, a GitHub commit records storage and appears in the version's activity. It does
+not approve the change or update the released revision.
 
 ## When do you actually need one?
 
@@ -47,13 +49,13 @@ A change request has two fields that do real work, and people fill in the wrong 
 **Title — what changes.** Specific enough to review without opening it. "Widen the battery tray
 mounting slots from 5.2 to 6.5 mm," not "battery tray update."
 
-**Rationale — why it changes.** This is the field that's still earning its keep in eighteen months.
+**Reason — why it changes.** This is the field that's still earning its keep in eighteen months.
 
-> The people who know why a part is shaped the way it is graduate. The rationale field is the
+> The people who know why a part is shaped the way it is graduate. The Reason field is the
 > project's memory of its own reasoning, and it is the only part of the design record that a future
 > member cannot reconstruct from the files.
 
-A good rationale answers three things in about three sentences:
+A good Reason answers three things in about three sentences:
 
 1. **What went wrong or changed** — "The M6 hardware we could actually source is 6 mm, not 5."
 2. **What you considered and rejected** — "Reaming in place was an option; it breaks the anodising."
@@ -62,26 +64,65 @@ A good rationale answers three things in about three sentences:
 That third one is what separates a proposal from a request. Reviewers approve trade-offs they can
 see much faster than trade-offs they have to go and find.
 
-You don't have to list the affected items. Constellation derives them from the BOM, which is
-precisely the thing a person under deadline pressure gets wrong. There's also an AI impact summary
-if you want a second opinion on blast radius, and it can draft release notes once the change lands
-— both are drafts you read, not answers you forward.
+Select each item and the exact version to release. The form shows a where-used warning for selected
+items that another assembly references. Once the request is open, its **Build readiness** panel
+computes the full impact report described below. You can also request an AI impact summary or
+release-note draft; review those drafts before relying on them.
 
 **Link the CR to its task.** A change request that names the task it came out of turns three
 artefacts — the part, the work, and the decision — into one thread.
 
 ## Reviewing one
 
+The request's **Release review** panel shows the ClubPM gate and any linked GitHub PR. The author
+or an admin can link a PR from a repository already linked to this project. The panel mirrors its
+title, head commit, review decisions, checks, and timeline. A GitHub commit stores work; it does
+not release a Vault revision. A linked PR must be open, ready for review, approved on the current
+head, and have passing checks. A requested change or failing check blocks approval.
+
+Admins configure required reviewers under **Review rules** in the request list. A subsystem rule
+matches a part-number prefix, including slash-separated descendants; a BOM-parent rule matches
+every part anywhere beneath that assembly, not only its direct children. Every matching reviewer
+must sign off on the proposed versions and current PR head. A new Vault version or PR head makes an
+earlier sign-off stale. A required reviewer can sign off or revoke in the request panel. A lost
+GitHub App permission leaves the gate pending until access is restored and the PR is refreshed;
+Constellation also rechecks linked PRs every 20 minutes in case a GitHub notification was missed.
+If a required reviewer leaves the project, the gate shows **failing** until an admin updates the
+review rules. Only an admin can approve the CR and assign the released revision after the gate
+says **approved**.
+
+### Build readiness: blockers and warnings
+
+An open request also shows **Build readiness**. It walks the whole BOM beneath each item you are
+releasing, pins one version of every part, and reports:
+
+- **Where used** — every chain from the item up to a top-level assembly.
+- **Affected open tasks** — the linked task, tasks linked to other open requests on the same items
+  or their assemblies, and open tasks that mention an affected item's name or part number.
+- **Missing required drawings** — admins set **Drawing requirements** in the request list, by part
+  number prefix, file type, or every item. A drawing counts once it is released, including in the
+  same request.
+- **Assemblies on stale revisions** — released assemblies that were built against an older revision
+  of a part this request changes, or that predate a component they will now be built with.
+
+Each finding is either a **blocker** or a **warning**. Blockers stop approval: a component in the
+BOM with no released revision, a file whose stored bytes cannot be pinned, a BOM cycle, or a missing
+drawing whose requirement is set to *blocks approval*. Warnings — stale assemblies, affected tasks,
+another open request on the same items, a drawing older than its part — are for the reviewer's
+judgement. The server applies the same rules again inside the approval, so a blocker cannot slip
+through a stale page.
+
 If you're the reviewer, your job is not to check that the CAD is pretty. It's to answer four
 questions:
 
-1. **Is the rationale legible?** Could someone who wasn't in the room understand this in a year?
-2. **Does the impact list contain a surprise?** If it touches something the author clearly didn't
-   expect, that's the finding — say so.
+1. **Is the Reason legible?** Could someone who wasn't in the room understand this in a year?
+2. **Does build readiness contain a surprise?** A stale assembly, an open task, or a where-used
+   chain the author did not mention deserves a question. It shows structure, not geometry: whether
+   the part still fits is still your call.
 3. **Is anything downstream already committed?** Ordered, machined, or being machined right now.
 4. **Is now the right time?** Sometimes the change is correct and the week is wrong.
 
-Then approve or reject, **with a comment either way**. An approval that says nothing is a click; an
+Then approve or reject. Approval offers an optional note; rejection prompts for a reason. An approval that says nothing is a click; an
 approval that says "yes — confirm the anodising vendor is fine with the wider slot before you
 release" is a review.
 
@@ -105,12 +146,23 @@ The moment a reviewer approves:
 
 - The named version is **released** — stamped with the next revision letter and the date
 - The item's **current revision** advances to match
-- Members holding **downstream items** that reference it are notified
+- An immutable **release manifest** is written in the same step: every pinned item and version,
+  its revision letter, repository and commit, file path, the SHA-256 of the real bytes, and the exact
+  recursive BOM with quantities
 - The whole thing is written to the project's audit trail with who approved it and when
+
+After approval, the request shows **Release package**. Constellation builds one downloadable
+archive from the manifest alone: the pinned files, `BOM.csv` with extended quantities,
+`manifest.json`, and `SHA256SUMS` so a manufacturer can check every file with
+`sha256sum -c SHA256SUMS`. Later pushes to the Vault branch do not change it — files are read by
+their pinned commit, and any byte that no longer matches its hash fails the build instead of being
+swapped in. A failed build (a GitHub outage, a missing file) shows its reason and retries on its
+own; **Verify reproducibility** rebuilds the package from the pinned versions and confirms it is
+byte-for-byte identical. Only project members can open or download it.
 
 Two things it deliberately does *not* do: it doesn't grant anybody XP — a review process that paid
 out would immediately start producing change requests for the wrong reasons — and it doesn't close
-any linked tasks. Approving the change is not doing the work.
+any linked tasks or update assemblies flagged as stale. Approving the change is not doing the work.
 
 ## The honest summary
 
@@ -120,4 +172,6 @@ That's it. On a team where the person who machined the part graduates in May, it
 its own sake — it's the only memory the project has, written down at the one moment when everyone
 involved still knows why.
 
-Next, the walkthrough: you'll raise one, watch Constellation work out what it affects, and reject it.
+Next, the walkthrough: after creating a practice Vault version, you'll select it in a request.
+An officer can demonstrate rejection. Ordinary members assigned by a rule can sign off on a
+request, while only admins can approve or reject the release.

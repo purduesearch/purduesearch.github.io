@@ -4,6 +4,7 @@
 // challengeService, never grant XP from vault code.
 
 import fs from "node:fs";
+import { createHash, randomUUID } from "node:crypto";
 import path from "node:path";
 import { Readable } from "node:stream";
 import { Router, type Request, type Response } from "express";
@@ -11,8 +12,6 @@ import multer from "multer";
 import { requireAuth, requireAdmin } from "./auth.js";
 import { prisma } from "../db/prisma.js";
 import { logAuditEvent, diffObjects } from "../services/activityService.js";
-import { createNotification } from "../services/notificationCrud.js";
-import { queueDm } from "../services/dmBatcher.js";
 import {
   createDriveFolder,
   uploadStreamToDrive,
@@ -34,6 +33,12 @@ import {
   type VaultHealth,
 } from "../services/vaultService.js";
 import { askVault, findDuplicateCandidates } from "../services/vaultContextService.js";
+import { canAccessVaultProject } from "../services/vaultGithubJobs.js";
+import { commitVaultThumbnail, materializeVaultObject, VaultGitError } from "../services/vaultGitTransport.js";
+import { acquireLegacyVaultWrite, releaseLegacyVaultWrite } from "../services/vaultCutoverService.js";
+import { autoWatchSoon, notifyVaultCheckin, notifyVaultCheckoutConflict } from "../services/vaultNotificationService.js";
+import { eventKeys } from "../services/vaultNotifyCore.js";
+import { reindexItemSoon } from "../services/vaultSearchService.js";
 
 export const vaultRouter = Router();
 
@@ -46,8 +51,8 @@ const SIGNED_BINARY_PATH = /^\/vault\/versions\/[^/]+\/(download|thumbnail)$/;
 
 vaultRouter.use((req: Request, res: Response, next) => {
   if (req.method === "GET" && SIGNED_BINARY_PATH.test(req.path)) {
-    const { exp, sig } = req.query as { exp?: string; sig?: string };
-    if (typeof exp === "string" && typeof sig === "string" && verifyVaultSignature(req.path, Number(exp), sig)) {
+    const { exp, sig, memberId } = req.query as { exp?: string; sig?: string; memberId?: string };
+    if (typeof exp === "string" && typeof sig === "string" && typeof memberId === "string" && verifyVaultSignature(req.path, Number(exp), sig, memberId)) {
       next();
       return;
     }
@@ -142,13 +147,14 @@ function healthErrorMessage(health: VaultHealth): string {
 vaultRouter.get("/projects/:projectId/vault", async (req: Request, res: Response) => {
   try {
     const projectId = req.params.projectId as string;
+    if (!(await canAccessVaultProject(req.memberId, projectId))) { res.status(403).json({ error: "Forbidden" }); return; }
     const health = await getVaultHealth(projectId);
 
     const items = await prisma.vaultItem.findMany({
       where: { projectId, deletedAt: null },
       orderBy: { updatedAt: "desc" },
       include: {
-        versions: { orderBy: { versionNumber: "desc" }, take: 1 },
+        versions: { orderBy: { versionNumber: "desc" }, take: 1, include: { uploadedBy: MEMBER_SUMMARY } },
         checkedOutBy: MEMBER_SUMMARY,
         _count: { select: { crItems: { where: { changeRequest: { status: "OPEN" } } } } },
       },
@@ -175,8 +181,16 @@ vaultRouter.post(
   "/projects/:projectId/vault/items",
   itemUpload.single("file"),
   async (req: Request, res: Response) => {
+    let legacyWriteProject: string | null = null;
     try {
       const projectId = req.params.projectId as string;
+      if (!(await canAccessVaultProject(req.memberId, projectId))) { res.status(403).json({ error: "Forbidden" }); return; }
+      const githubWrites = await prisma.vaultRepository.findUnique({ where: { projectId }, select: { writeEnabled: true, migrationState: true } });
+      if (githubWrites?.migrationState === "FROZEN") { res.status(409).json({ error: "Vault writes are paused for cutover" }); return; }
+      if (githubWrites?.writeEnabled) { res.status(409).json({ error: "Use GitHub Vault item creation" }); return; }
+      const intent = await acquireLegacyVaultWrite(projectId);
+      if (intent === "PAUSED") { res.status(409).json({ error: "Vault writes are paused for cutover" }); return; }
+      if (intent === "ACQUIRED") legacyWriteProject = projectId;
       if (!req.file) {
         res.status(400).json({ error: "file is required" });
         return;
@@ -254,12 +268,15 @@ vaultRouter.post(
         eventType: "VAULT_VERSION_CHECKED_IN",
         payload: { itemId: item.id, versionId: version.id, versionNumber: version.versionNumber, fileName: version.fileName },
       }).catch(console.error);
+      autoWatchSoon(req.memberId, item.id, projectId);
+      reindexItemSoon(item.id);
 
       res.status(201).json({ item, version });
     } catch (error) {
       console.error("Create vault item error:", error);
       res.status(500).json({ error: "Failed to create vault item" });
     } finally {
+      if (legacyWriteProject) await releaseLegacyVaultWrite(legacyWriteProject);
       cleanupTempFile(req.file?.path);
     }
   }
@@ -270,6 +287,9 @@ vaultRouter.post(
 vaultRouter.get("/vault/items/:id", async (req: Request, res: Response) => {
   try {
     const id = req.params.id as string;
+    const scope = await prisma.vaultItem.findUnique({ where: { id }, select: { projectId: true } });
+    if (!scope) { res.status(404).json({ error: "Vault item not found" }); return; }
+    if (!(await canAccessVaultProject(req.memberId, scope.projectId))) { res.status(403).json({ error: "Forbidden" }); return; }
     const item = await prisma.vaultItem.findUnique({
       where: { id },
       include: {
@@ -278,7 +298,9 @@ vaultRouter.get("/vault/items/:id", async (req: Request, res: Response) => {
         createdBy: MEMBER_SUMMARY,
         childLinks: { include: { child: { select: { id: true, name: true, partNumber: true } } } },
         parentLinks: { include: { parent: { select: { id: true, name: true, partNumber: true } } } },
-        crItems: { include: { changeRequest: { select: { id: true, number: true, title: true, status: true } } } },
+        drawingFor: { select: { id: true, name: true, partNumber: true } },
+        drawings: { where: { deletedAt: null }, select: { id: true, name: true, partNumber: true, currentRevision: true } },
+        crItems: { include: { changeRequest: { select: { id: true, number: true, title: true, status: true, prRepoSlug: true, prNumber: true, prSnapshot: true, prSyncedAt: true } } } },
       },
     });
     if (!item || item.deletedAt) {
@@ -304,6 +326,7 @@ vaultRouter.patch("/vault/items/:id", async (req: Request, res: Response) => {
       res.status(404).json({ error: "Vault item not found" });
       return;
     }
+    if (!(await canAccessVaultProject(req.memberId, existing.projectId))) { res.status(403).json({ error: "Forbidden" }); return; }
 
     const { name, description } = req.body as { name?: string; description?: string | null };
     const data: { name?: string; description?: string | null } = {};
@@ -323,7 +346,7 @@ vaultRouter.patch("/vault/items/:id", async (req: Request, res: Response) => {
 
     const updated = await prisma.vaultItem.update({ where: { id }, data });
 
-    if (data.name && data.name !== existing.name) {
+    if (data.name && data.name !== existing.name && existing.driveFolderId) {
       renameDriveFile(existing.driveFolderId, data.name).catch((err) =>
         console.error("[vault] rename drive folder error:", err)
       );
@@ -335,6 +358,7 @@ vaultRouter.patch("/vault/items/:id", async (req: Request, res: Response) => {
       eventType: "VAULT_ITEM_UPDATED",
       payload: { itemId: id, changes },
     }).catch(console.error);
+    reindexItemSoon(id);
 
     res.json(updated);
   } catch (error) {
@@ -384,6 +408,7 @@ vaultRouter.delete("/vault/items/:id", async (req: Request, res: Response) => {
       eventType: "VAULT_ITEM_DELETED",
       payload: { itemId: id, name: item.name },
     }).catch(console.error);
+    reindexItemSoon(id);
 
     res.json({ ok: true });
   } catch (error) {
@@ -400,6 +425,7 @@ vaultRouter.post(
   "/vault/items/:id/versions",
   itemUpload.single("file"),
   async (req: Request, res: Response) => {
+    let legacyWriteProject: string | null = null;
     try {
       const id = req.params.id as string;
       if (!req.file) {
@@ -415,6 +441,14 @@ vaultRouter.post(
         res.status(404).json({ error: "Vault item not found" });
         return;
       }
+      if (!(await canAccessVaultProject(req.memberId, item.projectId))) { res.status(403).json({ error: "Forbidden" }); return; }
+      const githubWrites = await prisma.vaultRepository.findUnique({ where: { projectId: item.projectId }, select: { writeEnabled: true, migrationState: true } });
+      if (githubWrites?.migrationState === "FROZEN") { res.status(409).json({ error: "Vault writes are paused for cutover" }); return; }
+      if (githubWrites?.writeEnabled) { res.status(409).json({ error: "Use GitHub Vault check-in" }); return; }
+      const intent = await acquireLegacyVaultWrite(item.projectId);
+      if (intent === "PAUSED") { res.status(409).json({ error: "Vault writes are paused for cutover" }); return; }
+      if (intent === "ACQUIRED") legacyWriteProject = item.projectId;
+      if (!item.driveFolderId) { res.status(409).json({ error: "Use GitHub check-in for this item" }); return; }
 
       const note = typeof req.body.note === "string" ? req.body.note.trim() || null : null;
       const sanitizedFile = sanitizeFileName(req.file.originalname) || "file";
@@ -485,16 +519,10 @@ vaultRouter.post(
       } else if (item.checkedOutById && item.checkedOutBy) {
         const holder = item.checkedOutBy;
         warning = { checkedOutBy: { id: holder.id, displayName: holder.displayName, avatarUrl: holder.avatarUrl } };
-        const message = `A new version of "${item.name}" was checked in while you had it checked out.`;
-        await createNotification({
-          type: "VAULT_CHECKIN",
-          recipientId: holder.id,
-          actorId: req.memberId ?? undefined,
-          projectId: item.projectId,
-          message,
-        });
-        if (holder.slackId) queueDm(holder.slackId, message);
       }
+      notifyVaultCheckin(item, version, req.memberId ?? null, item.checkedOutById && item.checkedOutById !== req.memberId ? item.checkedOutById : null);
+      autoWatchSoon(req.memberId, id, item.projectId);
+      reindexItemSoon(id);
 
       logAuditEvent({
         projectId: item.projectId, memberId: req.memberId ?? null, source: "WEB",
@@ -507,6 +535,7 @@ vaultRouter.post(
       console.error("Check in vault version error:", error);
       res.status(500).json({ error: "Failed to check in version" });
     } finally {
+      if (legacyWriteProject) await releaseLegacyVaultWrite(legacyWriteProject);
       cleanupTempFile(req.file?.path);
     }
   }
@@ -518,11 +547,40 @@ vaultRouter.post(
 vaultRouter.get("/vault/versions/:id/download", async (req: Request, res: Response) => {
   try {
     const id = req.params.id as string;
-    const version = await prisma.vaultVersion.findUnique({ where: { id } });
+    const version = await prisma.vaultVersion.findUnique({ where: { id }, include: { item: { select: { projectId: true } } } });
     if (!version) {
       res.status(404).json({ error: "Version not found" });
       return;
     }
+    const signedMember = typeof req.query.memberId === "string" && typeof req.query.exp === "string" && typeof req.query.sig === "string" && verifyVaultSignature(req.path, Number(req.query.exp), req.query.sig, req.query.memberId) ? req.query.memberId : undefined;
+    if (!(await canAccessVaultProject(signedMember || req.memberId, version.item.projectId))) { res.status(403).json({ error: "Forbidden" }); return; }
+    if (version.storageProvider === "GITHUB") {
+      const repository = await prisma.vaultRepository.findUnique({ where: { id: version.repositoryId! }, include: { projectRepo: true } });
+      if (!repository || !version.commitSha || !version.filePath || !version.sha256) { res.status(503).json({ error: "Version storage incomplete" }); return; }
+      const materialized = await materializeVaultObject(repository.projectRepo.slug, version.branch || repository.branch, repository.installId, version.commitSha, version.filePath, version.sha256);
+      const size = (await fs.promises.stat(materialized.file)).size;
+      const range = req.headers.range;
+      let start = 0, end = size - 1;
+      if (range) {
+        const match = /^bytes=(\d*)-(\d*)$/.exec(range);
+        if (!match || (!match[1] && !match[2])) { await materialized.cleanup(); res.status(416).setHeader("Content-Range", `bytes */${size}`).end(); return; }
+        if (!match[1]) { const suffix = Number(match[2]); start = Math.max(0, size - suffix); }
+        else { start = Number(match[1]); if (match[2]) end = Math.min(end, Number(match[2])); }
+        if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end) || start > end || start >= size) { await materialized.cleanup(); res.status(416).setHeader("Content-Range", `bytes */${size}`).end(); return; }
+        res.status(206).setHeader("Content-Range", `bytes ${start}-${end}/${size}`);
+      }
+      res.setHeader("Accept-Ranges", "bytes");
+      res.setHeader("Content-Length", end - start + 1);
+      res.setHeader("Content-Type", version.mimeType || "application/octet-stream");
+      res.setHeader("Content-Disposition", `attachment; filename="${version.fileName.replace(/["\r\n]/g, "")}"`);
+      const stream = fs.createReadStream(materialized.file, { start, end });
+      const cleanup = () => { materialized.cleanup().catch(() => undefined); };
+      stream.on("error", () => { cleanup(); if (!res.headersSent) res.status(500).end(); else res.destroy(); });
+      res.on("close", cleanup);
+      stream.pipe(res);
+      return;
+    }
+    if (!version.driveFileId) { res.status(503).json({ error: "Legacy file unavailable" }); return; }
 
     const file = await getDriveFileStream(version.driveFileId);
     if (!file) {
@@ -552,6 +610,7 @@ vaultRouter.post(
   // field name "file" matches clubPmClient's uploadVaultFile FormData key
   thumbnailUpload.single("file"),
   async (req: Request, res: Response) => {
+    let legacyWriteProject: string | null = null;
     try {
       if (!req.file) {
         res.status(400).json({ error: "PNG thumbnail file is required" });
@@ -561,12 +620,48 @@ vaultRouter.post(
       const id = req.params.id as string;
       const version = await prisma.vaultVersion.findUnique({
         where: { id },
-        include: { item: { select: { driveFolderId: true, deletedAt: true } } },
+        include: { item: { select: { projectId: true, driveFolderId: true, deletedAt: true } } },
       });
       if (!version || !version.item || version.item.deletedAt) {
         res.status(404).json({ error: "Version not found" });
         return;
       }
+      if (!(await canAccessVaultProject(req.memberId, version.item.projectId))) { res.status(403).json({ error: "Forbidden" }); return; }
+      const cutover = await prisma.vaultRepository.findUnique({ where: { projectId: version.item.projectId }, select: { migrationState: true, writeEnabled: true } });
+      if (cutover?.migrationState === "FROZEN") { res.status(409).json({ error: "Vault writes are paused for cutover" }); return; }
+      if (version.storageProvider === "DRIVE" && cutover?.writeEnabled) { res.status(409).json({ error: "Drive thumbnail writes are closed after cutover" }); return; }
+      if (version.storageProvider === "GITHUB" && (cutover?.migrationState === "DRIVE_ROLLBACK" || !cutover?.writeEnabled)) { res.status(409).json({ error: "GitHub thumbnail writes are disabled" }); return; }
+      if (version.storageProvider === "DRIVE") {
+        const intent = await acquireLegacyVaultWrite(version.item.projectId);
+        if (intent === "PAUSED") { res.status(409).json({ error: "Vault writes are paused for cutover" }); return; }
+        if (intent === "ACQUIRED") legacyWriteProject = version.item.projectId;
+      }
+      if (version.storageProvider === "GITHUB") {
+        if (!req.file.buffer.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))) { res.status(400).json({ error: "PNG thumbnail required" }); return; }
+        const repository = version.repositoryId ? await prisma.vaultRepository.findUnique({ where: { id: version.repositoryId }, include: { projectRepo: true } }) : null;
+        if (!repository || !version.commitSha) { res.status(503).json({ error: "Version repository unavailable" }); return; }
+        const hash = createHash("sha256").update(req.file.buffer).digest("hex");
+        if (version.thumbnailSha256 === hash) { res.json(version); return; }
+        const leaseOwner = randomUUID();
+        const leaseMs = 60_000;
+        const claimed = await prisma.vaultRepository.updateMany({ where: { id: repository.id, OR: [{ leaseUntil: null }, { leaseUntil: { lt: new Date() } }] }, data: { leaseOwner, leaseUntil: new Date(Date.now() + leaseMs) } });
+        if (!claimed.count) { res.status(409).json({ error: "Vault branch busy; retry the thumbnail" }); return; }
+        const heartbeat = setInterval(() => { prisma.vaultRepository.updateMany({ where: { id: repository.id, leaseOwner }, data: { leaseUntil: new Date(Date.now() + leaseMs) } }).catch(() => undefined); }, leaseMs / 3);
+        try {
+          const result = await commitVaultThumbnail({ slug: repository.projectRepo.slug, branch: repository.branch, installId: repository.installId, itemId: version.itemId, versionId: version.id, bytes: req.file.buffer, expectedHeadSha: repository.lastHeadSha! }, async commitSha => {
+            await prisma.vaultRepository.update({ where: { id: repository.id }, data: { lastHeadSha: commitSha, lastSyncedAt: new Date() } });
+          });
+          const updated = await prisma.$transaction(async tx => {
+            const row = await tx.vaultVersion.update({ where: { id: version.id }, data: { thumbnailProvider: "GITHUB", thumbnailPath: result.path, thumbnailCommitSha: result.commitSha, thumbnailBlobSha: result.blobSha, thumbnailSha256: result.sha256, thumbnailLfsOid: result.sha256, thumbnailLfsSize: req.file!.buffer.length } });
+            await tx.vaultRepository.update({ where: { id: repository.id }, data: { lastHeadSha: result.commitSha, lastSyncedAt: new Date(), healthError: null } });
+            return row;
+          });
+          res.json(updated);
+        } catch (error) { res.status(error instanceof VaultGitError && error.code === "BRANCH_DRIFT" ? 409 : 502).json({ error: error instanceof VaultGitError ? error.code : "Thumbnail upload failed" }); }
+        finally { clearInterval(heartbeat); await prisma.vaultRepository.updateMany({ where: { id: repository.id, leaseOwner }, data: { leaseOwner: null, leaseUntil: null } }); }
+        return;
+      }
+      if (!version.item.driveFolderId) { res.status(409).json({ error: "GitHub thumbnail upload requires Phase 2" }); return; }
 
       const uploaded = await uploadStreamToDrive(
         Readable.from(req.file.buffer),
@@ -588,6 +683,8 @@ vaultRouter.post(
     } catch (error) {
       console.error("Upload vault thumbnail error:", error);
       res.status(500).json({ error: "Failed to upload thumbnail" });
+    } finally {
+      if (legacyWriteProject) await releaseLegacyVaultWrite(legacyWriteProject);
     }
   }
 );
@@ -599,7 +696,23 @@ vaultRouter.post(
 vaultRouter.get("/vault/versions/:id/thumbnail", async (req: Request, res: Response) => {
   try {
     const id = req.params.id as string;
-    const version = await prisma.vaultVersion.findUnique({ where: { id } });
+    const version = await prisma.vaultVersion.findUnique({ where: { id }, include: { item: { select: { projectId: true } } } });
+    if (version) {
+      const signedMember = typeof req.query.memberId === "string" && typeof req.query.exp === "string" && typeof req.query.sig === "string" && verifyVaultSignature(req.path, Number(req.query.exp), req.query.sig, req.query.memberId) ? req.query.memberId : undefined;
+      if (!(await canAccessVaultProject(signedMember || req.memberId, version.item.projectId))) { res.status(403).json({ error: "Forbidden" }); return; }
+    }
+    if (version?.thumbnailProvider === "GITHUB") {
+      const repository = version.repositoryId ? await prisma.vaultRepository.findUnique({ where: { id: version.repositoryId }, include: { projectRepo: true } }) : null;
+      if (!repository || !version.thumbnailPath || !version.thumbnailCommitSha || !version.thumbnailSha256) { res.status(503).json({ error: "Thumbnail storage incomplete" }); return; }
+      const materialized = await materializeVaultObject(repository.projectRepo.slug, version.branch || repository.branch, repository.installId, version.thumbnailCommitSha, version.thumbnailPath, version.thumbnailSha256);
+      res.setHeader("Cache-Control", "private, max-age=300");
+      res.setHeader("Content-Type", "image/png");
+      const stream = fs.createReadStream(materialized.file);
+      res.on("close", () => { materialized.cleanup().catch(() => undefined); });
+      stream.on("error", () => { materialized.cleanup().catch(() => undefined); if (!res.headersSent) res.status(500).end(); else res.destroy(); });
+      stream.pipe(res);
+      return;
+    }
     if (!version || !version.thumbnailFileId) {
       res.status(404).json({ error: "No thumbnail for this version" });
       return;
@@ -632,15 +745,16 @@ vaultRouter.get("/vault/versions/:id/thumbnail", async (req: Request, res: Respo
 vaultRouter.get("/vault/versions/:id/download-url", async (req: Request, res: Response) => {
   try {
     const id = req.params.id as string;
-    const version = await prisma.vaultVersion.findUnique({ where: { id }, select: { id: true } });
+    const version = await prisma.vaultVersion.findUnique({ where: { id }, select: { id: true, item: { select: { projectId: true } } } });
     if (!version) {
       res.status(404).json({ error: "Version not found" });
       return;
     }
+    if (!(await canAccessVaultProject(req.memberId, version.item.projectId))) { res.status(403).json({ error: "Forbidden" }); return; }
 
     const downloadPath = `/vault/versions/${id}/download`;
-    const { exp, sig } = signVaultPath(downloadPath);
-    res.json({ url: `/api${downloadPath}?exp=${exp}&sig=${sig}`, expiresAt: exp });
+    const { exp, sig } = signVaultPath(downloadPath, req.memberId!);
+    res.json({ url: `/api${downloadPath}?exp=${exp}&sig=${sig}&memberId=${encodeURIComponent(req.memberId!)}`, expiresAt: exp });
   } catch (error) {
     console.error("Get vault download url error:", error);
     res.status(500).json({ error: "Failed to create download link" });
@@ -665,8 +779,12 @@ vaultRouter.post("/vault/items/:id/checkout", async (req: Request, res: Response
       return;
     }
 
+    if (!(await canAccessVaultProject(req.memberId, item.projectId))) { res.status(403).json({ error: "Forbidden" }); return; }
+
     const heldByOther = !!item.checkedOutById && item.checkedOutById !== req.memberId;
     if (heldByOther && !force) {
+      // One notice per requester per checkout session, however often they retry.
+      notifyVaultCheckoutConflict(item, req.memberId ?? null, item.checkedOutById!, "CHECKOUT_BLOCKED", eventKeys.blocked(id, req.memberId ?? "", item.checkedOutById!, item.checkedOutAt));
       res.status(409).json({ error: "Item is already checked out", holder: item.checkedOutBy });
       return;
     }
@@ -684,16 +802,10 @@ vaultRouter.post("/vault/items/:id/checkout", async (req: Request, res: Response
     });
 
     if (previousHolder) {
-      const message = `Your checkout of "${item.name}" was taken over by another member.`;
-      await createNotification({
-        type: "VAULT_CHECKIN",
-        recipientId: previousHolder.id,
-        actorId: req.memberId ?? undefined,
-        projectId: item.projectId,
-        message,
-      });
-      if (previousHolder.slackId) queueDm(previousHolder.slackId, message);
+      notifyVaultCheckoutConflict(item, req.memberId ?? null, previousHolder.id, "TAKEOVER", eventKeys.takeover(id, previousHolder.id, item.checkedOutAt));
     }
+    autoWatchSoon(req.memberId, id, item.projectId);
+    reindexItemSoon(id);
 
     logAuditEvent({
       projectId: item.projectId, memberId: req.memberId ?? null, source: "WEB",
@@ -719,6 +831,7 @@ vaultRouter.delete("/vault/items/:id/checkout", async (req: Request, res: Respon
       res.status(404).json({ error: "Vault item not found" });
       return;
     }
+    if (!(await canAccessVaultProject(req.memberId, item.projectId))) { res.status(403).json({ error: "Forbidden" }); return; }
     if (!item.checkedOutById) {
       res.json(item);
       return;
@@ -741,6 +854,7 @@ vaultRouter.delete("/vault/items/:id/checkout", async (req: Request, res: Respon
       eventType: "VAULT_CHECKOUT_RELEASED",
       payload: { itemId: id, previousHolderId },
     }).catch(console.error);
+    reindexItemSoon(id);
 
     res.json(updated);
   } catch (error) {
@@ -760,6 +874,7 @@ vaultRouter.post("/vault/items/:id/promote", async (req: Request, res: Response)
       res.status(404).json({ error: "Vault item not found" });
       return;
     }
+    if (!(await canAccessVaultProject(req.memberId, item.projectId))) { res.status(403).json({ error: "Forbidden" }); return; }
     if (item.partNumber) {
       res.status(409).json({ error: "Item is already promoted to a part number" });
       return;
@@ -784,6 +899,7 @@ vaultRouter.post("/vault/items/:id/promote", async (req: Request, res: Response)
       eventType: "VAULT_ITEM_PROMOTED",
       payload: { itemId: id, partNumber },
     }).catch(console.error);
+    reindexItemSoon(id);
 
     res.json(updated);
   } catch (error) {

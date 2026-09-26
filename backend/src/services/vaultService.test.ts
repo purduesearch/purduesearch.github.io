@@ -13,7 +13,7 @@
 // Excluded from the production build (tsconfig `exclude` covers *.test.ts).
 // Uses the same tiny inline assertion harness as courseProgressService.test.ts.
 
-import { ensureVaultFolder, type VaultFolderDeps } from "./vaultService.js";
+import { ensureVaultFolder, signVaultPath, verifyVaultSignature, nextRevisionLetter, type VaultFolderDeps } from "./vaultService.js";
 import type { DriveResult, DriveFolderMeta } from "./driveService.js";
 
 let passed = 0, failed = 0;
@@ -198,6 +198,18 @@ console.log("ensureVaultFolder — a nameless project still gets a folder");
   const res = await ensureVaultFolder("p1", deps);
   check("provisions", "folderId" in res && res.folderId === "cad");
   check("falls back to a placeholder name", typeof calls.created[0]?.name === "string" && calls.created[0].name.length > 0);
+}
+
+console.log("Vault private-link scope and release revision rules");
+{
+  const path = "/vault/versions/version-1/download";
+  const signed = signVaultPath(path, "member-1");
+  check("signed download verifies for its member and path", verifyVaultSignature(path, signed.exp, signed.sig, "member-1"));
+  check("another member cannot reuse the signed download", !verifyVaultSignature(path, signed.exp, signed.sig, "member-2"));
+  check("another version cannot reuse the signed download", !verifyVaultSignature("/vault/versions/version-2/download", signed.exp, signed.sig, "member-1"));
+  check("thumbnail cannot reuse the download signature", !verifyVaultSignature("/vault/versions/version-1/thumbnail", signed.exp, signed.sig, "member-1"));
+  check("expired download is denied", !verifyVaultSignature(path, Date.now() - 1, signed.sig, "member-1"));
+  check("release sequence passes Z to AA", nextRevisionLetter("Z") === "AA");
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);

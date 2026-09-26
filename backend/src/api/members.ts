@@ -129,6 +129,7 @@ membersRouter.patch("/me/notification-preferences", async (req: Request, res: Re
       quietHoursStart,
       quietHoursEnd,
       mutedProjectIds,
+      vaultAutoWatch,
     } = req.body;
 
     // Validate quiet hours range
@@ -147,6 +148,13 @@ membersRouter.patch("/me/notification-preferences", async (req: Request, res: Re
     if (quietHoursStart !== undefined)      updateData.quietHoursStart      = quietHoursStart;
     if (quietHoursEnd !== undefined)        updateData.quietHoursEnd        = quietHoursEnd;
     if (mutedProjectIds !== undefined)      updateData.mutedProjectIds      = mutedProjectIds;
+    if (vaultAutoWatch !== undefined) {
+      if (typeof vaultAutoWatch !== "boolean") {
+        res.status(400).json({ error: "vaultAutoWatch must be a boolean" });
+        return;
+      }
+      updateData.vaultAutoWatch = vaultAutoWatch;
+    }
 
     const member = await prisma.member.update({
       where: { id: req.memberId },
@@ -157,6 +165,7 @@ membersRouter.patch("/me/notification-preferences", async (req: Request, res: Re
         quietHoursStart:      true,
         quietHoursEnd:        true,
         mutedProjectIds:      true,
+        vaultAutoWatch:       true,
       },
     });
 

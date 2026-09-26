@@ -3,7 +3,7 @@
    dialog rendered into, and `inert` on the app root. */
 // Phase 4A: the Files/Vault/GitHub dialogs must fill a phone screen through the
 // shared overlay stack, and must leave the desktop modals exactly as they were.
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import VaultUploadModal from './VaultUploadModal';
 import DrivePreviewModal from '../DrivePreviewModal';
 
@@ -45,6 +45,17 @@ describe('VaultUploadModal', () => {
     expect(document.querySelector('.pm-m-layer')).toBeNull();
     expect(document.getElementById('root')).not.toHaveAttribute('inert');
     expect(container).toBeTruthy();
+  });
+
+  it('lets a phone user select a file and enter the required change description', () => {
+    mockCompact = true;
+    render(<VaultUploadModal project={{ id: 'p1' }} item={{ id: 'item1', name: 'Bracket' }} onClose={() => {}} />);
+    const submit = screen.getByRole('button', { name: 'Check in' });
+    fireEvent.change(document.querySelector('input[type="file"]'), { target: { files: [new File(['CAD'], 'bracket.step')] } });
+    expect(submit).toBeDisabled();
+    fireEvent.change(screen.getByRole('textbox', { name: /Change description/ }), { target: { value: 'Updated holes' } });
+    expect(submit).toBeEnabled();
+    expect(screen.getByRole('dialog').closest('.pm-m-layer--fullscreen')).not.toBeNull();
   });
 });
 

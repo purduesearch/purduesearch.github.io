@@ -17,7 +17,8 @@
     "quests:refresh": "tsx prisma/refreshQuests.ts",
     "seed:courses": "tsx scripts/seedCourses.ts",
     "check:courses": "tsx scripts/checkCourseMarkdown.ts",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "vault:search-rebuild": "tsx scripts/vault-search-rebuild.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
@@ -56,6 +57,7 @@
     "marked": "^18.0.5",
     "multer": "^2.1.1",
     "node-cron": "^3.0.3",
+    "occt-import-js": "0.0.23",
     "pdf-parse": "^1.1.1",
     "puppeteer": "^25.3.0",
     "resend": "^6.12.3",

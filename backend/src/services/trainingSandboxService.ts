@@ -2,6 +2,10 @@ import { prisma } from "../db/prisma.js";
 
 export const TRAINING_PROJECT_NAME = "Constellation 101 — Training";
 
+// Vault and CR courses use this same private project, but deliberately do not
+// seed fake file bytes, versions, repository bindings, BOMs, or approvals. The
+// Vault tour first creates an item from a learner-supplied disposable file;
+// GitHub job practice requires a separately configured private pilot project.
 export const TRAINING_FIXTURE = {
   tasks: [
     { title: "Draft the agenda for the design review", status: "TODO",        priority: "MEDIUM" },

@@ -53,7 +53,12 @@ import { inventoryRouter } from "./api/inventory.js";
 import { challengesRouter } from "./api/challenges.js";
 import { blockersRouter } from "./api/blockers.js";
 import { vaultRouter } from "./api/vault.js";
+import { vaultGithubRouter } from "./api/vaultGithub.js";
+import { vaultSearchRouter } from "./api/vaultSearch.js";
+import { vaultGeometryRouter } from "./api/vaultGeometry.js";
+import { startVaultJobWorker } from "./services/vaultGithubJobs.js";
 import { changeRequestsRouter } from "./api/changeRequests.js";
+import { vaultReleasesRouter } from "./api/vaultReleases.js";
 import { blogRouter } from "./api/blog.js";
 import { blogThreadsRouter } from "./api/blogThreads.js";
 import { blogAiRouter } from "./api/blogAi.js";
@@ -153,9 +158,16 @@ app.use("/api/public", publicRouter);
 // 401s that request (no cookie, no Authorization header) before it reaches the
 // /stream handler. Guarded by src/appMountOrder.test.ts.
 app.use("/api/notifications", sseRouter);
+// Release packages accept a signed `?sig=` link (an <a href> cannot carry the
+// Bearer header), so this must also stay above every bare "/api" router.
+app.use("/api/vault-releases", vaultReleasesRouter);
 app.use("/api", blockersRouter);
 app.use("/api", trainingRouter); // POST /api/training-project
 app.use("/api", vaultRouter);
+app.use("/api", vaultGithubRouter);
+app.use("/api", vaultSearchRouter);
+app.use("/api", vaultGeometryRouter);
+startVaultJobWorker();
 app.use("/api", changeRequestsRouter);
 app.use("/api/members", membersRouter);
 app.use("/api/activity", activityRouter);
