@@ -478,7 +478,7 @@ export async function gatherPressKitData(projectId: string): Promise<PressKitCon
     title: pm.member.title,
     role: pm.member.role,
     avatarUrl: pm.member.avatarUrl,
-    isLead: (pm.projectRole ?? "").toUpperCase() === "LEAD",
+    isLead: pm.isLead || (pm.projectRole ?? "").toUpperCase() === "LEAD",
     rank: pm.member.rank ?? null,
     projectRole: pm.projectRole ?? null,
     joinedAt: pm.joinedAt ?? null,

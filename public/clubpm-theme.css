@@ -29550,3 +29550,96 @@ button.cpm-chat-reaction:disabled { cursor: default; }
 .cpm-vault-geometry-limits summary { cursor: pointer; font-size: 13px; font-weight: 600; }
 .cpm-vault-geometry-limits ul { margin: 6px 0 0; padding-left: 1.1rem; display: grid; gap: 4px; font-size: 12px; }
 .cpm-vault-compare-pane-title { font-size: 12px; font-weight: 700; color: var(--pm-text-secondary); }
+
+/* === Project leads ===================================================== */
+/* Amber ring on a lead's avatar (assignee widget, member cards). box-shadow,
+   not border, so the ring never changes the avatar's layout size. */
+.cpm-lead-ring { box-shadow: 0 0 0 2px var(--clubpm-surface-200, #1a1a1a), 0 0 0 4px var(--pm-accent-amber, #f5a623); }
+.cpm-lead-tag {
+  font-size: 9px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+  padding: 1px 5px; border-radius: 4px;
+  color: var(--pm-accent-amber, #f5a623); border: 1px solid var(--pm-accent-amber, #f5a623);
+  background: rgba(245, 166, 35, 0.12);
+}
+.pm-member-lead-toggle {
+  display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 6px;
+  font-size: 12px; cursor: pointer; background: none;
+  border: 1px solid var(--clubpm-border); color: var(--clubpm-text-muted);
+}
+.pm-member-lead-toggle.on { border-color: var(--pm-accent-amber, #f5a623); color: var(--pm-accent-amber, #f5a623); background: rgba(245, 166, 35, 0.12); }
+.pm-member-lead-toggle:disabled { opacity: 0.5; cursor: wait; }
+
+/* ===== Action plan: searchable member picker ===== */
+.cpm-member-combobox {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cpm-member-combobox .cpm-actionplan-chip i {
+  margin-left: 4px;
+  font-size: 10px;
+  opacity: 0.8;
+}
+
+.cpm-member-combobox-field {
+  position: relative;
+}
+
+.cpm-member-combobox-list {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 20;
+  max-height: 220px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  background: var(--clubpm-surface-200);
+  border: 1px solid var(--clubpm-border);
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.cpm-member-combobox-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  color: var(--clubpm-text-primary);
+  cursor: pointer;
+}
+
+.cpm-member-combobox-option.active {
+  background: rgba(0, 229, 204, 0.12);
+  color: var(--clubpm-accent-primary);
+}
+
+.cpm-member-combobox-avatar {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  object-fit: cover;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  background: var(--clubpm-surface-300);
+  color: var(--clubpm-text-muted);
+}
+
+.cpm-member-combobox-empty {
+  padding: 6px 8px;
+  font-size: 12px;
+  color: var(--clubpm-text-muted);
+}
+
+body.pm-m-compact .cpm-member-combobox-option {
+  min-height: 44px;
+  font-size: 15px;
+}

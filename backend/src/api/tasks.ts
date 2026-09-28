@@ -494,7 +494,7 @@ tasksRouter.patch("/:id", channelAuth, async (req: Request, res: Response) => {
 
     const { canEdit } = await getTaskPermissions(req.memberId!, taskId);
     if (!canEdit) {
-      res.status(403).json({ error: "Only assignees, the creator, or an admin can edit this task" });
+      res.status(403).json({ error: "Only assignees, the creator, a project lead, or an admin can edit this task" });
       return;
     }
 
@@ -786,7 +786,7 @@ tasksRouter.delete("/:id", channelAuth, async (req: Request, res: Response) => {
 
     const { canDelete } = await getTaskPermissions(req.memberId!, taskId);
     if (!canDelete) {
-      res.status(403).json({ error: "Only the creator or an admin can delete this task" });
+      res.status(403).json({ error: "Only the creator, a project lead, or an admin can delete this task" });
       return;
     }
 
@@ -1131,12 +1131,9 @@ tasksRouter.delete("/:id/comments/:commentId", async (req: Request, res: Respons
 
     const isAuthor = comment.authorId === memberId;
     if (!isAuthor) {
-      const member = await prismaClient.member.findUnique({
-        where: { id: memberId },
-        select: { isAdmin: true },
-      });
-      if (!member?.isAdmin) {
-        res.status(403).json({ error: "Forbidden: only the author or an admin can delete this comment" });
+      const { isAdmin, isLead } = await getTaskPermissions(memberId, comment.taskId);
+      if (!isAdmin && !isLead) {
+        res.status(403).json({ error: "Forbidden: only the author, a project lead, or an admin can delete this comment" });
         return;
       }
     }

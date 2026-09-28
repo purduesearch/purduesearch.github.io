@@ -285,6 +285,43 @@ projectsRouter.patch("/:id", channelAuth, async (req: Request, res: Response) =>
   }
 });
 
+// ── PUT /api/projects/:id/members/:memberId/lead ─────────────
+// Admin only. Leads get admin task powers inside this project (taskAccess.ts).
+
+projectsRouter.put("/:id/members/:memberId/lead", async (req: Request, res: Response) => {
+  try {
+    const actor = await prisma.member.findUnique({ where: { id: req.memberId! }, select: { isAdmin: true } });
+    if (!actor?.isAdmin) {
+      res.status(403).json({ error: "Only admins can change project leads" });
+      return;
+    }
+    const { isLead } = req.body as { isLead?: unknown };
+    if (typeof isLead !== "boolean") {
+      res.status(400).json({ error: "isLead must be a boolean" });
+      return;
+    }
+    const projectId = req.params.id as string;
+    const memberId = req.params.memberId as string;
+    const existing = await prisma.projectMember.findUnique({
+      where: { projectId_memberId: { projectId, memberId } },
+      select: { memberId: true },
+    });
+    if (!existing) {
+      res.status(404).json({ error: "Member is not on this project" });
+      return;
+    }
+    const row = await prisma.projectMember.update({
+      where: { projectId_memberId: { projectId, memberId } },
+      data: { isLead },
+      select: { projectId: true, memberId: true, isLead: true },
+    });
+    res.json(row);
+  } catch (error) {
+    console.error("Set project lead error:", error);
+    res.status(500).json({ error: "Failed to update project lead" });
+  }
+});
+
 // ── GET /api/projects/:id/activity ──────────────────────────
 
 projectsRouter.get("/:id/activity", async (req: Request, res: Response) => {

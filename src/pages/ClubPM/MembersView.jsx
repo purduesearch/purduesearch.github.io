@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import OrbitLoader from '../../components/OrbitLoader';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { get, post, listProjectRepos, openDm } from '../../api/clubPmClient';
+import { get, post, listProjectRepos, openDm, setProjectLead } from '../../api/clubPmClient';
 import { useClubPmAuth } from '../../clubpm/ClubPmAuth';
 import KudosButton from '../../components/clubpm/KudosButton';
 import AvatarPortrait from '../../components/clubpm/avatar/AvatarPortrait';
@@ -41,7 +41,7 @@ function MembersStats({ members }) {
 
 // ── Member card ───────────────────────────────────────────────
 
-function MemberCard({ member, onClick, onMessage, selectable = false, selected = false, onToggleSelect }) {
+function MemberCard({ member, onClick, onMessage, selectable = false, selected = false, onToggleSelect, isProjectLead = false, onToggleLead, leadBusy = false }) {
   const { displayName, slackHandle, role, isAdmin, title, email, timezone, _count } = member;
 
   const taskCount    = _count?.tasks    ?? 0;
@@ -65,7 +65,7 @@ function MemberCard({ member, onClick, onMessage, selectable = false, selected =
       )}
       <div className="pm-member-top">
         <span className="pm-member-avatar-wrap">
-          <AvatarPortrait member={member} size={56} className="pm-member-avatar" />
+          <AvatarPortrait member={member} size={56} className={`pm-member-avatar${isProjectLead ? ' cpm-lead-ring' : ''}`} />
           {member.rank ? (
             <span className="cpm-member-badge-rank-overlay" aria-hidden="true">
               <RankIcon member={member} size={24} />
@@ -82,6 +82,7 @@ function MemberCard({ member, onClick, onMessage, selectable = false, selected =
             <span className={`pm-member-role-badge ${isAdmin ? 'admin' : role?.toLowerCase() || 'member'}`}>
               {roleLabel}
             </span>
+            {isProjectLead && <span className="cpm-lead-tag" title="Project lead">Project lead</span>}
           </div>
         </div>
       </div>
@@ -125,6 +126,19 @@ function MemberCard({ member, onClick, onMessage, selectable = false, selected =
           <i className="fas fa-user" />
         </Link>
         <KudosButton memberId={member.id} displayName={displayName} />
+        {onToggleLead && (
+          <button
+            type="button"
+            className={`pm-member-lead-toggle${isProjectLead ? ' on' : ''}`}
+            aria-pressed={isProjectLead}
+            disabled={leadBusy}
+            title={isProjectLead ? 'Remove project lead' : 'Make project lead'}
+            onClick={() => onToggleLead(member)}
+          >
+            <i className="fas fa-crown" aria-hidden="true" />
+            {isProjectLead ? 'Lead' : 'Make lead'}
+          </button>
+        )}
         {onMessage && (
           <button
             type="button"
@@ -411,6 +425,8 @@ export default function MembersView({ projectId = null }) {
   const [selectedIds, setSelectedIds]       = useState(() => new Set());
   const [showReconnect, setShowReconnect]   = useState(false);
   const [opening, setOpening]               = useState(false);
+  const [leadBusyId, setLeadBusyId]         = useState(null);
+  const leadInFlight = useRef(false);
 
   // GET /api/members already carries each member's projects, so the project
   // version is a filter, not a second endpoint.
@@ -424,6 +440,32 @@ export default function MembersView({ projectId = null }) {
   }, [projectId]);
 
   useEffect(() => { fetchMembers(); }, [fetchMembers]);
+
+  const isLeadHere = useCallback(
+    m => !!m.projects?.some(pm => pm.project?.id === projectId && pm.isLead),
+    [projectId]
+  );
+
+  // Admin only, project view only. The ref stops a same-tick double click.
+  const toggleLead = useCallback(async (m) => {
+    if (leadInFlight.current) return;
+    leadInFlight.current = true;
+    setLeadBusyId(m.id);
+    const next = !isLeadHere(m);
+    try {
+      await setProjectLead(projectId, m.id, next);
+      setMembers(prev => prev.map(x => x.id !== m.id ? x : {
+        ...x,
+        projects: x.projects.map(pm => pm.project?.id === projectId ? { ...pm, isLead: next } : pm),
+      }));
+      toast.success(next ? `${m.displayName} is now a project lead` : `${m.displayName} is no longer a project lead`);
+    } catch (err) {
+      toast.error(err?.message || 'Failed to update project lead');
+    } finally {
+      leadInFlight.current = false;
+      setLeadBusyId(null);
+    }
+  }, [projectId, isLeadHere]);
 
   // The open DM is URL state (?dm=) so notifications can deep-link to it (D12).
   const setDm = useCallback((channelId) => {
@@ -608,6 +650,9 @@ export default function MembersView({ projectId = null }) {
                   selectable={selecting && m.id !== currentMember?.id}
                   selected={selectedIds.has(m.id)}
                   onToggleSelect={toggleSelect}
+                  isProjectLead={projectId ? isLeadHere(m) : false}
+                  onToggleLead={projectId && currentMember?.isAdmin ? toggleLead : undefined}
+                  leadBusy={leadBusyId === m.id}
                 />
               ))}
             </div>

@@ -340,6 +340,11 @@ function AssigneeEditor({ assignees = [], projectMembers = [], onChange }) {
     m.displayName?.toLowerCase().includes(search.toLowerCase())
   );
   const assigneeIds = assignees.map(a => a.id);
+  // Task assignees carry no project role, so look leads up in the project roster.
+  const leadIds = new Set(projectMembers.filter(m => m.isLead).map(m => m.id));
+  const leadProps = id => leadIds.has(id)
+    ? { className: "cpm-lead-ring", title: "Project lead" }
+    : {};
 
   function toggle(member) {
     const isOn = assigneeIds.includes(member.id);
@@ -363,9 +368,9 @@ function AssigneeEditor({ assignees = [], projectMembers = [], onChange }) {
           : assignees.slice(0,3).map(a => (
               <div key={a.id} style={{ display:"flex", alignItems:"center", gap:4 }}>
                 {a.avatarUrl
-                  ? <img src={a.avatarUrl} alt={a.displayName}
+                  ? <img src={a.avatarUrl} alt={a.displayName} {...leadProps(a.id)}
                       style={{ width:20, height:20, borderRadius:"50%" }} />
-                  : <div style={{
+                  : <div {...leadProps(a.id)} style={{
                       width:20, height:20, borderRadius:"50%", background:"var(--clubpm-accent-primary)",
                       color:"#fff", fontSize:9, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center"
                     }}>{(a.displayName??"?")[0].toUpperCase()}</div>
@@ -406,13 +411,14 @@ function AssigneeEditor({ assignees = [], projectMembers = [], onChange }) {
                     onMouseEnter={e => { if (!checked) e.currentTarget.style.background = "var(--clubpm-surface-300)"; }}
                     onMouseLeave={e => { e.currentTarget.style.background = checked ? "rgba(108,92,231,0.12)" : "none"; }}>
                       {m.avatarUrl
-                        ? <img src={m.avatarUrl} alt={m.displayName} style={{ width:22, height:22, borderRadius:"50%" }} />
-                        : <div style={{
+                        ? <img src={m.avatarUrl} alt={m.displayName} {...leadProps(m.id)} style={{ width:22, height:22, borderRadius:"50%" }} />
+                        : <div {...leadProps(m.id)} style={{
                             width:22, height:22, borderRadius:"50%", background:"var(--clubpm-accent-primary)",
                             color:"#fff", fontSize:10, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center",
                           }}>{(m.displayName??"?")[0].toUpperCase()}</div>
                       }
                       <span style={{ fontSize:12, color:"var(--clubpm-text-primary)", flex:1 }}>{m.displayName}</span>
+                      {m.isLead && <span className="cpm-lead-tag">Lead</span>}
                       {checked && <i className="fas fa-check" style={{ fontSize:10, color:"var(--clubpm-accent-primary)" }} />}
                     </button>
                   );
@@ -695,7 +701,7 @@ function ConfirmDeleteDialog({ taskTitle, onConfirm, onCancel, saving }) {
 
 const QUICK_REACTIONS = ["👍", "🎉", "❤️", "👀"];
 
-function CommentRow({ comment, taskId, currentMember, onUpdate, onDelete, isReply = false }) {
+function CommentRow({ comment, taskId, currentMember, canModerate = false, onUpdate, onDelete, isReply = false }) {
   const [editing, setEditing] = useState(false);
   const [editDraft, setEditDraft] = useState(comment.content);
   const [savingEdit, setSavingEdit] = useState(false);
@@ -706,9 +712,9 @@ function CommentRow({ comment, taskId, currentMember, onUpdate, onDelete, isRepl
   const replyInFlight = useRef(false);
 
   const isAuthor = currentMember && comment.authorId === currentMember.id;
-  const isAdmin = currentMember?.isAdmin;
   const canEdit = isAuthor;
-  const canDelete = isAuthor || isAdmin;
+  // canModerate = admin or lead of this task's project (server re-checks).
+  const canDelete = isAuthor || canModerate;
 
   async function handleSaveEdit() {
     if (!editDraft.trim() || savingEdit) return;
@@ -898,6 +904,7 @@ function CommentRow({ comment, taskId, currentMember, onUpdate, onDelete, isRepl
                   comment={reply}
                   taskId={taskId}
                   currentMember={currentMember}
+                  canModerate={canModerate}
                   onUpdate={handleUpdateReply}
                   onDelete={handleDeleteReply}
                   isReply={true}
@@ -1145,6 +1152,9 @@ export default function TaskModal({ task: initialTask, project, projectBlockers 
   const [history, setHistory] = useState([]);
   const [subtasks, setSubtasks] = useState([]);
   const [projectMembers, setProjectMembers] = useState([]);
+  // Admins and leads of this task's project get admin task powers.
+  const canManage = !!member?.isAdmin
+    || projectMembers.some(pm => pm.id === member?.id && pm.isLead);
   const [allProjects, setAllProjects] = useState([]);
   const [projectTasks, setProjectTasks] = useState([]);
 
@@ -1224,7 +1234,7 @@ export default function TaskModal({ task: initialTask, project, projectBlockers 
     }
     if (task.projectId) {
       get(`/api/projects/${task.projectId}`).then(p => {
-        const members = (p.members ?? []).map(pm => pm.member ?? pm);
+        const members = (p.members ?? []).map(pm => (pm.member ? { ...pm.member, isLead: !!pm.isLead } : pm));
         setProjectMembers(members);
         setProjectTasks(p.tasks ?? []);
         if (members.length === 0) {
@@ -1711,7 +1721,7 @@ export default function TaskModal({ task: initialTask, project, projectBlockers 
                         { icon:"arrows-alt",   label:"Move Task",           action: () => { setMenuOpen(false); setShowMoveModal(true); } },
                         { icon:"calendar-week",label:"Shift Deadlines",     action: () => { setMenuOpen(false); setShowShiftModal(true); } },
                         { icon:"sitemap",      label:"Change Parent Task",  action: () => { setMenuOpen(false); setShowParentPicker(true); } },
-                        (task.status === "DONE" || member?.isAdmin || task?.createdById === member?.id) && {
+                        (task.status === "DONE" || canManage || task?.createdById === member?.id) && {
                           icon: task.archivedAt ? "box-open" : "archive",
                           label: task.archivedAt ? "Unarchive" : "Archive",
                           action: handleArchiveToggle,
@@ -1729,7 +1739,7 @@ export default function TaskModal({ task: initialTask, project, projectBlockers 
                           {label}
                         </button>
                       ))}
-                      {(member?.isAdmin || task?.createdById === member?.id) && (
+                      {(canManage || task?.createdById === member?.id) && (
                         <>
                           <div style={{ height:1, background:"var(--clubpm-border)", margin:"4px 0" }} />
                           <button onClick={() => { setMenuOpen(false); setShowDeleteConfirm(true); }} style={{
@@ -2336,6 +2346,7 @@ export default function TaskModal({ task: initialTask, project, projectBlockers 
                       comment={c}
                       taskId={task.id}
                       currentMember={member}
+                      canModerate={canManage}
                       onUpdate={updated => setComments(prev => prev.map(x => x.id === updated.id ? updated : x))}
                       onDelete={id => setComments(prev => prev.filter(x => x.id !== id))}
                     />

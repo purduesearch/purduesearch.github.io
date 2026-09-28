@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useId, useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { suggestActions, executePlan, getAiPlanPrompt, importAiPlan } from "../../api/clubPmClient";
 import ClaudePromptSteps from "./ClaudePromptSteps";
@@ -81,10 +81,20 @@ export default function ActionPlanReview({ projectId, project, allMembers, proje
   const [importing, setImporting] = useState(false);
   const [droppedNotes, setDroppedNotes] = useState([]);
 
-  const members = useMemo(() => {
-    const src = allMembers?.length ? allMembers : (project?.members || []);
-    return src.map(pm => pm.member ?? pm).filter(Boolean);
-  }, [allMembers, project]);
+  // Only this project's members are offered as assignees/owners. The club-wide
+  // roster is kept solely to name an id the AI proposed that isn't on the
+  // project, so the chip reads as a person (and can be removed) rather than
+  // an opaque id.
+  const members = useMemo(() => (
+    (project?.members || []).map(pm => pm.member ?? pm).filter(Boolean)
+      .sort((a, b) => (a.displayName ?? "").localeCompare(b.displayName ?? ""))
+  ), [project]);
+  const memberNameById = useMemo(() => {
+    const map = new Map();
+    for (const m of (allMembers || []).map(pm => pm.member ?? pm)) if (m?.id) map.set(m.id, m.displayName);
+    for (const m of members) map.set(m.id, m.displayName);
+    return map;
+  }, [allMembers, members]);
 
   const tasks = useMemo(() => project?.tasks ?? [], [project]);
   const milestones = project?.milestones ?? [];
@@ -368,6 +378,7 @@ export default function ActionPlanReview({ projectId, project, allMembers, proje
                 taskTitleById={taskTitleById}
                 tasks={tasks}
                 members={members}
+                memberNameById={memberNameById}
                 milestones={milestones}
                 blockers={blockers}
                 onToggleAccept={() => updateItem(idx, { _accepted: !item._accepted })}
@@ -400,6 +411,7 @@ export default function ActionPlanReview({ projectId, project, allMembers, proje
                 taskTitleById={taskTitleById}
                 tasks={tasks}
                 members={members}
+                memberNameById={memberNameById}
                 milestones={milestones}
                 blockers={blockers}
                 onToggleAccept={() => updateItem(reviewIndex, { _accepted: !planItems[reviewIndex]._accepted })}
@@ -485,7 +497,7 @@ function ActionSummaryRow({ item, index, targetLabel, onToggleAccept, onReview }
   );
 }
 
-function ActionCard({ item, taskTitleById, tasks, members, milestones, blockers, onToggleAccept, onSetTarget, onParamChange, onToggleArrayParam }) {
+function ActionCard({ item, taskTitleById, tasks, members, memberNameById, milestones, blockers, onToggleAccept, onSetTarget, onParamChange, onToggleArrayParam }) {
   const fields = FIELD_CONFIG[item.type] ?? [];
   const showTargetPicker = REQUIRES_TARGET.has(item.type) || item.type === "LINK_MILESTONE";
   const targetLabel = item.targetTaskId ? (taskTitleById.get(item.targetTaskId) ?? "Unknown task") : null;
@@ -539,6 +551,7 @@ function ActionCard({ item, taskTitleById, tasks, members, milestones, blockers,
               item={item}
               tasks={tasks}
               members={members}
+              memberNameById={memberNameById}
               milestones={milestones}
               blockers={blockers}
               onParamChange={onParamChange}
@@ -561,7 +574,7 @@ function ActionCard({ item, taskTitleById, tasks, members, milestones, blockers,
   );
 }
 
-function FieldEditor({ fieldKey, item, tasks, members, milestones, blockers, onParamChange, onToggleArrayParam }) {
+function FieldEditor({ fieldKey, item, tasks, members, memberNameById, milestones, blockers, onParamChange, onToggleArrayParam }) {
   const value = item.params[fieldKey];
 
   switch (fieldKey) {
@@ -610,18 +623,13 @@ function FieldEditor({ fieldKey, item, tasks, members, milestones, blockers, onP
       return (
         <div className="cpm-actionplan-field">
           <label>Assignees</label>
-          <div className="cpm-actionplan-chip-list">
-            {members.map(m => (
-              <button
-                type="button"
-                key={m.id}
-                className={`cpm-actionplan-chip${(value ?? []).includes(m.id) ? " selected" : ""}`}
-                onClick={() => onToggleArrayParam("assigneeIds", m.id)}
-              >
-                {m.displayName}
-              </button>
-            ))}
-          </div>
+          <MemberCombobox
+            label="Assignees"
+            members={members}
+            memberNameById={memberNameById}
+            selectedIds={Array.isArray(value) ? value : []}
+            onToggle={id => onToggleArrayParam("assigneeIds", id)}
+          />
         </div>
       );
     case "subtasks":
@@ -649,10 +657,14 @@ function FieldEditor({ fieldKey, item, tasks, members, milestones, blockers, onP
       return (
         <div className="cpm-actionplan-field">
           <label>Owner</label>
-          <select value={value ?? ""} onChange={e => onParamChange("ownerId", e.target.value || undefined)}>
-            <option value="">— none —</option>
-            {members.map(m => <option key={m.id} value={m.id}>{m.displayName}</option>)}
-          </select>
+          <MemberCombobox
+            label="Owner"
+            single
+            members={members}
+            memberNameById={memberNameById}
+            selectedIds={value ? [value] : []}
+            onToggle={id => onParamChange("ownerId", id === value ? undefined : id)}
+          />
         </div>
       );
     case "blockingTaskId":
@@ -696,4 +708,124 @@ function FieldEditor({ fieldKey, item, tasks, members, milestones, blockers, onP
     default:
       return null;
   }
+}
+
+/**
+ * Searchable member picker for the action-plan editor. Selected people show as
+ * removable chips; typing filters the project's members in a dropdown listbox.
+ * `single` makes a choice replace the current one and closes the list.
+ */
+function MemberCombobox({ label, members, memberNameById, selectedIds, onToggle, single = false }) {
+  const [query, setQuery] = useState("");
+  const [open, setOpen] = useState(false);
+  const [activeIdx, setActiveIdx] = useState(0);
+  const inputRef = useRef(null);
+  const listId = useId();
+
+  const q = query.trim().toLowerCase();
+  const options = useMemo(() => members.filter(m => (
+    !selectedIds.includes(m.id)
+    && (!q || (m.displayName ?? "").toLowerCase().includes(q) || (m.slackHandle ?? "").toLowerCase().includes(q))
+  )), [members, selectedIds, q]);
+
+  function choose(m) {
+    if (single && selectedIds[0] && selectedIds[0] !== m.id) onToggle(selectedIds[0]);
+    onToggle(m.id);
+    setQuery("");
+    setActiveIdx(0);
+    if (single) setOpen(false);
+    else inputRef.current?.focus();
+  }
+
+  function onKeyDown(e) {
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setOpen(true);
+      setActiveIdx(i => Math.min(i + 1, options.length - 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActiveIdx(i => Math.max(i - 1, 0));
+    } else if (e.key === "Enter") {
+      if (open && options[activeIdx]) {
+        e.preventDefault();
+        choose(options[activeIdx]);
+      }
+    } else if (e.key === "Escape") {
+      if (open) {
+        e.stopPropagation();
+        setOpen(false);
+      }
+    } else if (e.key === "Backspace" && !query && selectedIds.length) {
+      onToggle(selectedIds[selectedIds.length - 1]);
+    }
+  }
+
+  const activeId = open && options[activeIdx] ? `${listId}-${options[activeIdx].id}` : undefined;
+
+  return (
+    <div className="cpm-member-combobox">
+      {selectedIds.length > 0 && (
+        <div className="cpm-actionplan-chip-list">
+          {selectedIds.map(id => {
+            const name = memberNameById.get(id) ?? "Unknown member";
+            return (
+              <button
+                type="button"
+                key={id}
+                className="cpm-actionplan-chip selected"
+                onClick={() => onToggle(id)}
+                aria-label={`Remove ${name}`}
+                title={`Remove ${name}`}
+              >
+                {name} <i className="fas fa-xmark" aria-hidden="true" />
+              </button>
+            );
+          })}
+        </div>
+      )}
+      <div className="cpm-member-combobox-field">
+        <input
+          ref={inputRef}
+          type="text"
+          role="combobox"
+          aria-label={`Search project members for ${label}`}
+          aria-expanded={open}
+          aria-controls={listId}
+          aria-autocomplete="list"
+          aria-activedescendant={activeId}
+          placeholder={single && selectedIds.length ? "Change owner…" : "Search project members…"}
+          value={query}
+          onChange={e => { setQuery(e.target.value); setActiveIdx(0); setOpen(true); }}
+          onFocus={() => setOpen(true)}
+          onBlur={() => setOpen(false)}
+          onKeyDown={onKeyDown}
+        />
+        {open && (
+          <ul className="cpm-member-combobox-list" id={listId} role="listbox" aria-label={label}>
+            {options.length === 0 ? (
+              <li className="cpm-member-combobox-empty" role="presentation">
+                {members.length === 0 ? "This project has no members" : "No matching project members"}
+              </li>
+            ) : options.map((m, i) => (
+              <li
+                key={m.id}
+                id={`${listId}-${m.id}`}
+                role="option"
+                aria-selected={i === activeIdx}
+                className={`cpm-member-combobox-option${i === activeIdx ? " active" : ""}`}
+                // mousedown, not click: the input's blur would close the list first.
+                onMouseDown={e => { e.preventDefault(); choose(m); }}
+                onMouseEnter={() => setActiveIdx(i)}
+              >
+                {m.avatarUrl
+                  ? <img src={m.avatarUrl} alt="" className="cpm-member-combobox-avatar" />
+                  : <i className="fas fa-user cpm-member-combobox-avatar" aria-hidden="true" />}
+                {m.displayName}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+  );
 }
