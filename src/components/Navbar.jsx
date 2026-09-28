@@ -2,16 +2,14 @@ import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import SearchBar from './SearchBar';
+import { SLACK_JOIN_URL } from '../lib/siteLinks';
 import { useClubPmAuth } from '../clubpm/ClubPmAuth';
 
-const NAV_LINKS = [
-  { label: 'Home',     to: '/' },
-  { label: 'About',    to: '/about' },
-  { label: 'Blog',     to: '/blog' },
-  { label: 'Business', to: '/business' },
-];
+// Primary nav reads About · Teams ▾ · Blog; Home is the centre wordmark.
+const NAV_BEFORE_TEAMS = [{ label: 'About', to: '/about' }];
+const NAV_AFTER_TEAMS  = [{ label: 'Blog',  to: '/blog' }];
 
-const TEAMS_PATHS = ['/research', '/sa2tp', '/software', '/astrousa', '/ares'];
+const TEAMS_PATHS = ['/research', '/sa2tp', '/software', '/astrousa', '/ares', '/business', '/outreach'];
 
 // `solid` keeps the opaque bar at scrollY 0 — for pages with no dark hero
 // behind the navbar, where the transparent state's white links vanish.
@@ -25,6 +23,15 @@ const Navbar = ({ solid = false }) => {
   const { member, logout } = useClubPmAuth();
 
   const isTeamsActive = TEAMS_PATHS.some(p => pathname === p || pathname.startsWith(p + '/'));
+
+  const renderNavLink = ({ label, to }) => (
+    <li key={to} className="nav-item" style={{ position: 'relative' }}>
+      <Link className="nav-link nav-underline-target" to={to} onClick={closeMenu}>{label}</Link>
+      {(pathname === to || pathname.startsWith(to + '/')) && (
+        <motion.span layoutId="nav-underline" className="nav-active-indicator" />
+      )}
+    </li>
+  );
 
   useEffect(() => {
     const onScroll = () => setIsScrolled(window.scrollY > 120);
@@ -108,23 +115,15 @@ const Navbar = ({ solid = false }) => {
 
           {/* ── Left: logo + primary nav ── */}
           <div className="nav-section-left d-flex align-items-center">
-            <img
-              src="/icons/purdue_search_logo.png"
-              style={{ width: '3rem', marginRight: '0.5rem' }}
-              alt="SEARCH Logo"
-            />
+            <Link to="/" onClick={closeMenu} className="d-flex align-items-center">
+              <img
+                src="/icons/purdue_search_logo.png"
+                style={{ width: '3rem', marginRight: '0.5rem' }}
+                alt="SEARCH home"
+              />
+            </Link>
             <ul className="navbar-nav">
-              {NAV_LINKS.map(({ label, to }) => {
-                const isActive = to === '/' ? pathname === '/' : pathname === to || pathname.startsWith(to + '/');
-                return (
-                  <li key={to} className="nav-item" style={{ position: 'relative' }}>
-                    <Link className="nav-link nav-underline-target" to={to} onClick={closeMenu}>{label}</Link>
-                    {isActive && (
-                      <motion.span layoutId="nav-underline" className="nav-active-indicator" />
-                    )}
-                  </li>
-                );
-              })}
+              {NAV_BEFORE_TEAMS.map(renderNavLink)}
 
               {/* Teams dropdown */}
               <li className="nav-item" id="teams-dropdown" style={{ position: 'relative' }}>
@@ -146,9 +145,12 @@ const Navbar = ({ solid = false }) => {
                     <Link className="teams-dropdown-item" to="/software"  onClick={handleTeamsLinkClick}>SUITS</Link>
                     <Link className="teams-dropdown-item" to="/astrousa"  onClick={handleTeamsLinkClick}>ASTRO-USA</Link>
                     <Link className="teams-dropdown-item" to="/ares"      onClick={handleTeamsLinkClick}>ARES</Link>
+                    <Link className="teams-dropdown-item" to="/business"  onClick={handleTeamsLinkClick}>Business &amp; Operations</Link>
+                    <Link className="teams-dropdown-item" to="/outreach"  onClick={handleTeamsLinkClick}>Outreach</Link>
                   </div>
                 )}
               </li>
+              {NAV_AFTER_TEAMS.map(renderNavLink)}
             </ul>
           </div>
 
@@ -202,23 +204,16 @@ const Navbar = ({ solid = false }) => {
                   )}
                 </li>
               )}
-              <li className="nav-item" style={{ position: 'relative' }}>
-                <Link className="nav-link nav-underline-target" to="/outreach" onClick={closeMenu}>Outreach</Link>
-                {pathname === '/outreach' && (
-                  <motion.span layoutId="nav-underline" className="nav-active-indicator" />
-                )}
-              </li>
-              <li className="nav-item ml-2">
-                <Link to="/contact" className="navbar-cta-btn" onClick={closeMenu}>Contact Us</Link>
-              </li>
+              {renderNavLink({ label: 'Contact', to: '/contact' })}
               <li className="nav-item ml-2">
                 <a
-                  href="https://giving.purdue.edu/west-lafayette/?q=search"
-                  className="navbar-donate-btn"
+                  href={SLACK_JOIN_URL}
+                  className="navbar-cta-btn"
                   target="_blank"
                   rel="noopener noreferrer"
+                  onClick={closeMenu}
                 >
-                  Donate
+                  Join our Slack<span className="sr-only"> (opens in a new tab)</span>
                 </a>
               </li>
             </ul>

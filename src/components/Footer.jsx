@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { SLACK_JOIN_URL, DONATE_URL } from '../lib/siteLinks';
 
 const Footer = () => (
   <footer id="search-footer">
@@ -64,7 +65,7 @@ const Footer = () => (
               </a>
             </li>
             <li>
-              <a href="https://giving.purdue.edu/west-lafayette/?q=search" target="_blank" rel="noopener noreferrer">
+              <a href={DONATE_URL} target="_blank" rel="noopener noreferrer">
                 Donate Now
               </a>
             </li>
@@ -98,7 +99,7 @@ const Footer = () => (
           <p className="footer-discord-sub">Connect with SEARCH members on Slack</p>
         </div>
         <a
-          href="https://linktr.ee/purduesearch#281987267"
+          href={SLACK_JOIN_URL}
           className="btn-slide-outline footer-slack-btn"
           target="_blank"
           rel="noopener noreferrer"
@@ -111,7 +112,7 @@ const Footer = () => (
       <div className="footer-donate-cta">
         <p>Support the next generation of analog astronauts</p>
         <a
-          href="https://giving.purdue.edu/west-lafayette/?q=search"
+          href={DONATE_URL}
           className="btn-slide-fill footer-donate-btn"
           target="_blank"
           rel="noopener noreferrer"

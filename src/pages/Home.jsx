@@ -10,6 +10,7 @@ import JsonLd from '../components/JsonLd';
 import PublicEventsCalendar from '../components/events/PublicEventsCalendar';
 import { websiteSchema } from '../seo/schema';
 import { SITE_URL } from '../seo/siteUrl';
+import { SLACK_JOIN_URL } from '../lib/siteLinks';
 import { pressFeedback } from '../anim/motion';
 import { parallaxLayer, staggerGroup, heroIntro } from '../anim/scrollFx';
 
@@ -56,105 +57,52 @@ const IG_POSTS = [
   },
 ];
 
-const CAL_MONTHS = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
-];
-const CAL_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-
-const CAL_EVENTS = [
-  { month: 4, day: 15, title: 'General Meeting', desc: 'Weekly meeting — all members welcome, 7PM ARMS 1010' },
-  { month: 4, day: 22, title: 'SA²TP Info Session', desc: 'Learn about the Crew-4 application, 6PM LWSN B155' },
-  { month: 5, day: 5,  title: 'ASTRO-USA Build Day', desc: 'Habitat construction session, Purdue campus' },
-  { month: 5, day: 12, title: 'Speaker Event', desc: 'TBA — check Instagram @purdue_search for details' },
-];
-
-const TESTIMONIALS = [
+// Find-your-team rows. Every line is restated from copy that already
+// shipped on this page or in public/llms.txt — no new claims.
+const TEAMS = [
   {
-    name: 'Nathanael Herman',
-    role: 'President',
-    photo: '/officers/herman.webp',
-    quote: 'SEARCH gave me a community of people as passionate about space exploration as I am — and the projects to match.',
+    to: '/research',
+    name: 'Research',
+    what: "Bio-astronautics and hydroponics research toward NASA's LEAF initiative, plus NASA challenges like RASC-AL.",
+    work: 'Run experiments and grow plants for spaceflight.',
   },
   {
-    name: 'Ryan DeAngelis',
-    role: 'Vice President',
-    photo: '/officers/deangelis.webp',
-    quote: 'Running SA²TP showed me what student-led leadership can accomplish when everyone is driven by the same mission.',
+    to: '/sa2tp',
+    name: <>SA<sup>2</sup>TP</>,
+    what: 'The Student Analog Astronaut Training Program: three weeks of fitness, flight, scuba, and NASA facility visits.',
+    work: 'Train as an analog astronaut.',
   },
   {
-    name: 'Devyani Tyagi',
-    role: 'Treasurer',
-    photo: '/officers/tyagi.webp',
-    quote: 'The interdisciplinary nature of SEARCH is what sets it apart — physicists, engineers, and writers all working toward the stars.',
+    to: '/astrousa',
+    name: 'ASTRO-USA',
+    what: "An analog research station on Purdue's campus: a self-sustaining, closed-loop habitat for long-duration mission simulation.",
+    work: 'Design habitat systems, from architecture to hydroponics and life support.',
   },
   {
-    name: 'Gurmehar Singh',
-    role: 'Software Lead',
-    photo: '/officers/singh.webp',
-    quote: 'Building AR interfaces for NASA SUITS was surreal. We shipped real software tested at Johnson Space Center.',
+    to: '/ares',
+    name: 'ARES',
+    what: 'A wearable CO\u2082 and biophysical sensing headset that detects the pocket of rebreathed air that forms in front of the face.',
+    work: 'Build wearable sensors and study how breath moves.',
   },
   {
-    name: 'Ilina Adhikari',
-    role: 'ASTRO-USA Lead',
-    photo: '/officers/adhikari.webp',
-    quote: "Designing a functional space habitat on Purdue's campus is the kind of challenge that pushes you beyond the textbook.",
+    to: '/software',
+    name: 'Software',
+    what: 'VR space suit interfaces, lunar navigation, and space logistics design with AI, built for NASA SUITS.',
+    work: 'Write software for spacesuits and missions.',
   },
   {
-    name: 'John Peters',
-    role: 'Astronaut Training Lead',
-    photo: '/officers/peters.webp',
-    quote: "Teaching scuba, fitness, and flight skills to future analog astronauts is the most rewarding thing I've done in college.",
+    to: '/business',
+    name: 'Business & Operations',
+    what: 'The team behind every trip, partnership, and sponsorship, including research trips to Biosphere 2 and Kennedy Space Center.',
+    work: 'Plan trips, find sponsors, and keep missions funded.',
   },
   {
-    name: 'Spruha Vashi',
-    role: 'Analogs Lead',
-    photo: '/officers/vashi.webp',
-    quote: 'Partnering with HI-SEAS opens doors most undergrads never get to walk through.',
+    to: '/outreach',
+    name: 'Outreach',
+    what: '3+ events per semester with speakers from NASA, SpaceX, SETI, and Blue Origin.',
+    work: 'Host speakers and run campus events.',
   },
 ];
-
-const PROGRAMS = [
-  'Competed in national challenges such as NASA RASC-AL and NASA SUITS — qualifying for the on-site round at Johnson Space Center in 2024.',
-  'Hosted outreach events with researchers from NASA, SpaceX, SETI, Blue Origin, and Virgin Galactic.',
-  'Led a student-run Analog Astronaut Training Program including flight, scuba, and fitness certification.',
-  'Organized research trips to world-class analog facilities including Biosphere 2 and Kennedy Space Center.',
-  'Conducting bio-astronautics and hydroponics research toward NASA\'s LEAF initiative.',
-  'Designing ASTRO-USA — a self-sustaining, closed-loop habitat on Purdue\'s campus for long-duration mission simulation.',
-];
-
-// 3D tilt card — used for mission pillars
-const TiltCard = ({ children, className, style }) => {
-  const cardRef = useRef(null);
-  const prefersReduced = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
-
-  const handleMouseMove = (e) => {
-    if (prefersReduced || isMobile) return;
-    const card = cardRef.current;
-    if (!card) return;
-    const { left, top, width, height } = card.getBoundingClientRect();
-    const x = (e.clientX - left) / width  - 0.5; // -0.5 to 0.5
-    const y = (e.clientY - top)  / height - 0.5;
-    card.style.transform = `perspective(700px) rotateX(${-y * 12}deg) rotateY(${x * 12}deg) scale(1.03)`;
-  };
-
-  const handleMouseLeave = () => {
-    if (cardRef.current) cardRef.current.style.transform = '';
-  };
-
-  return (
-    <div
-      ref={cardRef}
-      className={className}
-      style={{ ...style, transition: 'transform 0.25s ease', willChange: 'transform' }}
-      onMouseMove={handleMouseMove}
-      onMouseLeave={handleMouseLeave}
-    >
-      {children}
-    </div>
-  );
-};
 
 const Home = () => {
   const videoRef   = useRef(null);
@@ -164,16 +112,12 @@ const Home = () => {
   const heroCtaSecondaryRef = useRef(null);
   const heroContentRef = useRef(null);
   const clientBgRef = useRef(null);
-  const missionPillarsRef = useRef(null);
+  const teamListRef = useRef(null);
   const igGridRef = useRef(null);
-  const missionPillarsSectionRef = useRef(null);
+  const teamSectionRef = useRef(null);
   const aboutSearchSectionRef = useRef(null);
   const [showStars, setShowStars] = useState(false);
   const [showDroneVideo, setShowDroneVideo] = useState(false);
-  const [activeIdx, setActiveIdx] = useState(0);
-  const [progIdx, setProgIdx] = useState(0);
-  const [carouselPaused, setCarouselPaused] = useState(false);
-  const testimonialStageRef = useRef(null);
 
   // Tactile press feedback on the hero CTAs
   useEffect(() => {
@@ -188,21 +132,6 @@ const Home = () => {
   const { scrollY } = useScroll();
   const wordmarkOpacity = useTransform(scrollY, [0, 300], [1, 0]);
   const wordmarkScale   = useTransform(scrollY, [0, 300], [1, 0.85]);
-
-  // Calendar: compute current month grid
-  const today = new Date();
-  const calYear = today.getFullYear();
-  const calMonth = today.getMonth(); // 0-indexed
-  const firstDOW = new Date(calYear, calMonth, 1).getDay();
-  const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
-  const eventDays = new Set(
-    CAL_EVENTS.filter(e => e.month === calMonth + 1).map(e => e.day)
-  );
-  const calCells = [
-    ...Array(firstDOW).fill(null),
-    ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
-  ];
-  while (calCells.length % 7 !== 0) calCells.push(null);
 
   // GSAP ScrollTrigger — scrub video through hero extender
   useEffect(() => {
@@ -302,7 +231,7 @@ const Home = () => {
       // with GSAP too would fight over the same inline `style.opacity`.
       heroIntro(heroContentRef.current, ':scope > *:not(.hero-wordmark)'),
       parallaxLayer(clientBgRef.current),
-      staggerGroup(missionPillarsRef.current, '.col-md-4'),
+      staggerGroup(teamListRef.current, '.team-row-item'),
       staggerGroup(igGridRef.current, '.ig-card'),
     ];
     return () => cleanups.forEach(fn => fn());
@@ -312,7 +241,7 @@ const Home = () => {
   // viewport, so three.js is fetched just-in-time and never blocks the
   // initial bundle. Fires once, then disconnects.
   useEffect(() => {
-    const section = missionPillarsSectionRef.current;
+    const section = teamSectionRef.current;
     if (!section) return;
 
     const io = new IntersectionObserver(
@@ -350,39 +279,6 @@ const Home = () => {
     return () => io.disconnect();
   }, []);
 
-  // Testimonial auto-advance — paused on hover or keyboard focus within the stage
-  useEffect(() => {
-    if (carouselPaused) return;
-    const id = setInterval(
-      () => setActiveIdx(prev => (prev + 1) % TESTIMONIALS.length),
-      5000
-    );
-    return () => clearInterval(id);
-  }, [carouselPaused]);
-
-  // Pause/resume handlers for the testimonial carousel (hover + focus-within)
-  useEffect(() => {
-    const el = testimonialStageRef.current;
-    if (!el) return;
-    const pause = () => setCarouselPaused(true);
-    const resume = () => setCarouselPaused(false);
-    el.addEventListener('pointerenter', pause);
-    el.addEventListener('pointerleave', resume);
-    el.addEventListener('focusin', pause);
-    el.addEventListener('focusout', resume);
-    return () => {
-      el.removeEventListener('pointerenter', pause);
-      el.removeEventListener('pointerleave', resume);
-      el.removeEventListener('focusin', pause);
-      el.removeEventListener('focusout', resume);
-    };
-  }, []);
-
-  // Programs quote auto-advance
-  useEffect(() => {
-    const id = setInterval(() => setProgIdx(prev => (prev + 1) % PROGRAMS.length), 4000);
-    return () => clearInterval(id);
-  }, []);
 
   // AOS init
   useEffect(() => {
@@ -441,11 +337,19 @@ const Home = () => {
             Student-led human spaceflight research, training, and outreach — right here on Earth.
           </p>
           <div className="d-flex justify-content-center" style={{ gap: '1rem', flexWrap: 'wrap' }}>
-            <Link ref={heroCtaPrimaryRef} to="/about" className="btn-slide-white" style={{ padding: '0.65rem 2rem', fontFamily: 'var(--font-body)', fontWeight: 500 }}>
+            <a
+              ref={heroCtaPrimaryRef}
+              href={SLACK_JOIN_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Join our Slack (opens in a new tab)"
+              className="btn-slide-fill"
+              style={{ padding: '0.65rem 2rem', fontFamily: 'var(--font-body)', fontWeight: 500 }}
+            >
+              <span><i className="fab fa-slack mr-2" aria-hidden="true" />Join our Slack</span>
+            </a>
+            <Link ref={heroCtaSecondaryRef} to="/about" className="btn-slide-white" style={{ padding: '0.65rem 2rem', fontFamily: 'var(--font-body)', fontWeight: 500 }}>
               <span>Meet the Team</span>
-            </Link>
-            <Link ref={heroCtaSecondaryRef} to="/contact" className="btn-slide-fill" style={{ padding: '0.65rem 2rem', fontFamily: 'var(--font-body)', fontWeight: 500 }}>
-              <span>Contact Us</span>
             </Link>
           </div>
           <div style={{ marginTop: '3rem' }}>
@@ -481,154 +385,63 @@ const Home = () => {
         </div>
       </section>
 
-      {/* ===== TESTIMONIAL CAROUSEL ===== */}
-      <section
-        id="testimonial-carousel"
-        ref={testimonialStageRef}
-        role="region"
-        aria-roledescription="carousel"
-        aria-label="Testimonials"
-      >
-        <div className="container">
-          <div className="title-wrap text-center mb-2" data-aos="fade-up">
-            <h2 className="section-title">Voices from <b>Our Team</b></h2>
-            <p className="tc-subtitle">Hear from the students who have led SEARCH.</p>
-          </div>
-          <div className="testimonial-stage" data-aos="fade-up">
-            {TESTIMONIALS.map((t, i) => {
-              let cls = 'tcard--hidden';
-              if (i === activeIdx) cls = 'tcard--active';
-              else if (i === (activeIdx - 1 + TESTIMONIALS.length) % TESTIMONIALS.length) cls = 'tcard--prev';
-              else if (i === (activeIdx + 1) % TESTIMONIALS.length) cls = 'tcard--next';
-              return (
-                <div key={t.name} className={`tcard ${cls}`} onClick={() => setActiveIdx(i)}>
-                  <img loading="lazy" src={t.photo} alt={t.name} />
-                  <p className="tc-quote">"{t.quote}"</p>
-                  <div className="tc-name">{t.name}</div>
-                  <div className="tc-role">{t.role}</div>
-                </div>
-              );
-            })}
-          </div>
-          <div className="tc-dots">
-            {TESTIMONIALS.map((_, i) => (
-              <button
-                key={i}
-                className={`tc-dot${i === activeIdx ? ' active' : ''}`}
-                onClick={() => setActiveIdx(i)}
-                aria-label={`Go to slide ${i + 1}`}
-              />
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ===== MISSION PILLARS — dark background, 3-column icon cards ===== */}
-      <section id="mission-pillars" className="mission-pillars-stars-host" ref={missionPillarsSectionRef}>
+      {/* ===== FIND YOUR TEAM — one list replaces mission pillars, subteam
+          cards and the rotating programs quote, which all said the same thing ===== */}
+      <section id="find-your-team" className="stars-host" ref={teamSectionRef} aria-labelledby="find-your-team-heading">
         {showStars && (
           <Suspense fallback={null}>
             <StarfieldCanvas />
           </Suspense>
         )}
-        <div className="container mission-pillars-content">
-          <div className="title-wrap mb-5 text-center" data-aos="fade-up">
-            <h2 className="section-title">Our <b>Mission</b></h2>
-            <p style={{ color: 'rgba(245,239,230,0.65)', maxWidth: '560px', margin: '0 auto' }}>
-              SEARCH advances human spaceflight readiness through three interconnected pillars.
+        <div className="container stars-content">
+          <div className="team-intro" data-aos="fade-up">
+            <h2 id="find-your-team-heading" className="section-title">Find your <b>team</b></h2>
+            <p>
+              Every team is student-led. We've competed in national challenges such as NASA RASC-AL
+              and NASA SUITS, qualifying for the on-site round at Johnson Space Center in 2024.
             </p>
           </div>
-          <div className="row justify-content-center" ref={missionPillarsRef}>
-            {[
-              { icon: '/icons/rocket-solid.svg', title: 'Research', body: 'Student-led research in bio-astronautics and hydroponics. Competing in NASA challenges such as RASC-AL and SUITS.', delay: '0' },
-              { icon: '/icons/user-astronaut-solid.svg', title: 'Training', body: 'Running the Student Analog Astronaut Training Program — three weeks of fitness, flight, scuba, and NASA facility visits.', delay: '100' },
-              { icon: '/icons/shuttle-space-solid.svg', title: 'Outreach', body: '3+ events per semester with speakers from NASA, SpaceX, SETI, and Blue Origin.', delay: '200' },
-            ].map(({ icon, title, body }) => (
-              <div key={title} className="col-md-4 col-sm-12">
-                <TiltCard className="pillar-card">
-                  <div className="pillar-icon-wrap">
-                    <img loading="lazy" src={icon} alt={title} />
-                  </div>
-                  <h4>{title}</h4>
-                  <p>{body}</p>
-                </TiltCard>
-              </div>
-            ))}
+          <div className="team-list-head" aria-hidden="true">
+            <span>Team</span>
+            <span>What it is</span>
+            <span>What you'd do</span>
           </div>
+          <ul className="team-list" ref={teamListRef}>
+            {TEAMS.map(({ to, name, what, work }) => (
+              <li key={to} className="team-row-item">
+                <Link to={to} className="team-row">
+                  <h3 className="team-row-name">{name}</h3>
+                  <p className="team-row-what">{what}</p>
+                  <p className="team-row-work">
+                    <span className="team-row-label">What you'd do: </span>{work}
+                  </p>
+                  <i className="fas fa-arrow-right team-row-arrow" aria-hidden="true" />
+                </Link>
+              </li>
+            ))}
+          </ul>
         </div>
       </section>
 
-      <section id="features" className="bg-white">
-        <div className="container">
-          <div className="section-content">
-            <div className="title-wrap mb-5" data-aos="fade-up">
-              <h2 className="section-title">Presenting our <b>Subteams</b></h2>
-              <p className="section-sub-title">
-                At SEARCH, we do multi-disciplinary projects in collaboration with various Purdue departments and companies across the country.
-                Our organization is divided into multiple sub-teams, with some working on research, some on designing analog programs,
-                organizing outreach events with scientists and engineers etc.
-              </p>
-            </div>
-            <div className="row">
-              <div className="col-md-10 offset-md-1 features-holder">
-                <div className="row">
-                  <div className="col-md-4 col-sm-12 text-center mt-4">
-                    <div className="shadow rounded feature-item p-4 mb-4" data-aos="fade-right" data-aos-delay={100}>
-                      <div className="my-4">
-                        <img loading="lazy" src="/icons/rocket-solid.svg" width="50px" alt="Research" />
-                      </div>
-                      <h4><Link to="/research">Research</Link></h4>
-                      <p>Learn about the various research projects and NASA competitions we've been doing</p>
-                    </div>
-                    <div className="shadow rounded feature-item p-4 mb-4" data-aos="fade-right" data-aos-delay={200}>
-                      <div className="my-4">
-                        <img loading="lazy" src="/icons/microscope-solid.svg" width="50px" alt="Business & Operations" />
-                      </div>
-                      <h4><Link to="/business">Business &amp; Operations</Link></h4>
-                      <p>
-                        The team behind every trip, partnership, and sponsorship that keeps
-                        SEARCH's missions funded and running.
-                      </p>
-                    </div>
-                  </div>
-                  <div className="col-md-4 col-sm-12 text-center">
-                    <div className="shadow rounded feature-item p-4 mb-4" data-aos="fade-up" data-aos-delay={150}>
-                      <div className="my-4">
-                        <img loading="lazy" src="/icons/user-astronaut-solid.svg" width="50px" alt="SA2TP" />
-                      </div>
-                      <h4><Link to="/sa2tp">SA<sup>2</sup>TP</Link></h4>
-                      <p>You know what's cooler than astronaut training? Astronaut training AND Scuba certification!</p>
-                    </div>
-                    <div className="shadow rounded feature-item p-4 mb-4" data-aos="fade-up" data-aos-delay={250}>
-                      <div className="my-4">
-                        <img loading="lazy" src="/icons/galactic-senate.svg" width="50px" alt="ASTRO-USA" />
-                      </div>
-                      <h4><Link to="/astrousa">ASTRO-USA</Link></h4>
-                      <p>Our Most ambitious undertaking ever! Building an analog research station on Purdue Campus</p>
-                    </div>
-                  </div>
-                  <div className="col-md-4 col-sm-12 text-center mt-4">
-                    <div className="shadow rounded feature-item p-4 mb-4" data-aos="fade-left" data-aos-delay={100}>
-                      <div className="my-4">
-                        <img loading="lazy" src="/icons/robot-solid.svg" width="50px" alt="Software" />
-                      </div>
-                      <h4><Link to="/software">Software</Link></h4>
-                      <p>
-                        Want to put your coding skills to use by building VR space suit interfaces, lunar navigation
-                        or space logistics design with AI? Click here to find out more
-                      </p>
-                    </div>
-                    <div className="shadow rounded feature-item p-4 mb-4" data-aos="fade-left" data-aos-delay={200}>
-                      <div className="my-4">
-                        <img loading="lazy" src="/icons/shuttle-space-solid.svg" width="50px" alt="Outreach" />
-                      </div>
-                      <h4><Link to="/outreach">Outreach</Link></h4>
-                      <p>Learn about our outreach programs with industry collaborators at NASA, SpaceX, SETI and more</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
+      {/* ===== JOIN BAND — the club's real join step, mid-page ===== */}
+      <section id="join-band" className="join-band" aria-labelledby="join-band-heading">
+        <div className="container join-band-inner">
+          <div className="join-band-copy">
+            <h2 id="join-band-heading">Find your crew on Slack</h2>
+            <p>
+              SEARCH runs on Slack. Join to meet members, follow subteam channels,
+              and hear about the next meeting. Every major is welcome.
+            </p>
           </div>
+          <a
+            href={SLACK_JOIN_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Join our Slack (opens in a new tab)"
+            className="btn-slide-white join-band-btn"
+          >
+            <span><i className="fab fa-slack mr-2" aria-hidden="true" />Join our Slack</span>
+          </a>
         </div>
       </section>
 
@@ -675,36 +488,6 @@ const Home = () => {
             </div>
             <div className="col-md-6 about-visual-col mt-4 mt-md-0" data-aos="fade-left">
               <img loading="lazy" src="/bg-2.webp" alt="SEARCH members at the station" />
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* No .parallax-bg layer here: it pointed at /bg-white.jpg, which has never
-          existed in public/, so it 404'd on every homepage load and painted
-          nothing. The section's own .overlay.bg-white tint is the intended look.
-          .parallax-host stays on the section even with no layer to move — it is
-          what supplies `position: relative`, and .overlay::before is an inset-0
-          absolute box that would escape to the initial containing block without it. */}
-      <section id="programs-showcase" className="section-padding bg-white overlay parallax-host">
-        <div className="container">
-          <div className="section-content" data-aos="fade-up">
-            <div className="heading-section text-center">
-              <h2>Programs</h2>
-            </div>
-            <div className="program-quote-wrap">
-              <i className="testi-icon fa fa-3x fa-quote-left" aria-hidden="true" />
-              <p className="program-quote-text">{PROGRAMS[progIdx]}</p>
-              <div className="tc-dots" style={{ marginTop: '1.5rem' }}>
-                {PROGRAMS.map((_, i) => (
-                  <button
-                    key={i}
-                    className={`tc-dot${i === progIdx ? ' active' : ''}`}
-                    onClick={() => setProgIdx(i)}
-                    aria-label={`Go to program ${i + 1}`}
-                  />
-                ))}
-              </div>
             </div>
           </div>
         </div>
@@ -767,75 +550,6 @@ const Home = () => {
           </div>
         </div>
       </section>
-
-      {/* ===== EVENTS CALENDAR ===== */}
-      {/* <section id="events-calendar">
-        <div className="container">
-          <div className="title-wrap text-center mb-5" data-aos="fade-up">
-            <h2 className="section-title">Upcoming <b>Events</b></h2>
-            <p className="section-sub-title">
-              What's happening at SEARCH this month. Follow us on Instagram for the latest updates.
-            </p>
-          </div>
-          <div className="cal-wrap" data-aos="fade-up">
-            <div className="cal-card">
-              <div className="cal-month-header">
-                <span className="cal-month-title">
-                  {CAL_MONTHS[calMonth]} {calYear}
-                </span>
-                <a
-                  href="https://www.instagram.com/purdue_search/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{ color: '#fff', fontSize: '0.8rem', textDecoration: 'none' }}
-                >
-                  <i className="fab fa-instagram" /> @purdue_search
-                </a>
-              </div>
-              <div className="cal-dow">
-                {CAL_DAYS.map(d => <span key={d}>{d}</span>)}
-              </div>
-              <div className="cal-grid">
-                {calCells.map((day, idx) => (
-                  <div
-                    key={idx}
-                    className={[
-                      'cal-cell',
-                      day === null ? 'other-month' : '',
-                      day === today.getDate() && calMonth === today.getMonth() ? 'today' : '',
-                      day && eventDays.has(day) ? 'has-event' : '',
-                    ].filter(Boolean).join(' ')}
-                  >
-                    {day !== null && <span className="cal-date">{day}</span>}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <div className="cal-events-list">
-                {CAL_EVENTS.map((ev, i) => (
-                  <div key={i} className="cal-event-item">
-                    <div className="cal-event-date">
-                      {CAL_MONTHS[ev.month - 1]} {ev.day}
-                    </div>
-                    <div className="cal-event-title">{ev.title}</div>
-                    <div className="cal-event-desc">{ev.desc}</div>
-                  </div>
-                ))}
-              </div>
-              <div className="cal-outlook-note">
-                📅 Outlook calendar embed coming soon —
-                subscribe via{' '}
-                <a href="https://www.instagram.com/purdue_search/" target="_blank" rel="noopener noreferrer">
-                  Instagram
-                </a>{' '}
-                for event notifications.
-              </div>
-            </div>
-          </div>
-        </div>
-      </section> */}
 
       <Footer />
     </div>

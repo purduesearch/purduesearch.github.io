@@ -3,7 +3,7 @@ import * as THREE from 'three';
 
 /**
  * Lazy WebGL starfield — a subtle drifting point-cloud rendered behind the
- * Home mission-pillars section. Plain Three.js (no react-three-fiber),
+ * Home find-your-team section. Plain Three.js (no react-three-fiber),
  * following the STLViewer.jsx house pattern.
  *
  * Props:
