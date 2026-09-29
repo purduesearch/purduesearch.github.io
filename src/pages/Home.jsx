@@ -62,9 +62,9 @@ const IG_POSTS = [
 const TEAMS = [
   {
     to: '/research',
-    name: 'Research',
-    what: "Bio-astronautics and hydroponics research toward NASA's LEAF initiative, plus NASA challenges like RASC-AL.",
-    work: 'Run experiments and grow plants for spaceflight.',
+    name: 'Microgreens',
+    what: "Designing, building, and qualifying a microgreen growth chamber for NASA's LEAF initiative.",
+    work: 'Grow microgreens and build the chamber that feeds astronauts.',
   },
   {
     to: '/sa2tp',
