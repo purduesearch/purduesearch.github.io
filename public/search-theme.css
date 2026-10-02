@@ -6870,3 +6870,7 @@ button.home-events-day[aria-pressed="true"] .home-events-dot { background: #fff 
   padding-top: clamp(2.5rem, 5vw, 4rem);
   padding-bottom: 0.5rem;
 }
+
+/* Keep the notebook header in normal flow so the stacked sheets start below it. */
+.field-notebook-page #header-navbar { position: relative !important; }
+.field-notebook-page .breadcrumb-nav { width: auto; }
