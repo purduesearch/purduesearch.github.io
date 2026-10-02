@@ -8,10 +8,13 @@ function HeroView({ node, updateAttributes, editor }) {
   const { heading, subheading, bgImage, align, overlay } = node.attrs;
   const editable = useIsEditable(editor);
   const style = bgImage ? { backgroundImage: `url(${bgImage})` } : undefined;
-  const { busy: uploading, pickImage } = useImageUpload();
+  const { busy: uploading, pickImage, pickFromPhotos } = useImageUpload();
   const pickBackground = async () => {
     const upload = await pickImage();
     if (upload) updateAttributes({ bgImage: upload.url });
+  };
+  const pickBackgroundFromPhotos = () => {
+    pickFromPhotos().then((upload) => { if (upload) updateAttributes({ bgImage: upload.url }); });
   };
   return (
     <NodeViewWrapper as="header" className={`cpm-blog-hero cpm-blog-hero--${align || 'center'}${overlay ? ' cpm-blog-hero--overlay' : ''}`} style={style}>
@@ -27,6 +30,9 @@ function HeroView({ node, updateAttributes, editor }) {
                 <input placeholder="Background image URL" value={bgImage || ''} onChange={(e) => updateAttributes({ bgImage: e.target.value })} />
                 <button type="button" className="clubpm-btn-secondary cpm-blog-img-src-btn" onClick={pickBackground} disabled={uploading}>
                   {uploading ? 'Uploading…' : (bgImage ? 'Replace' : 'Upload')}
+                </button>
+                <button type="button" className="cpm-blog-tb-btn" title="Pick from photo albums" onClick={pickBackgroundFromPhotos} disabled={uploading}>
+                  <i className="fas fa-images" aria-hidden="true" />
                 </button>
                 {bgImage ? (
                   <button type="button" className="cpm-blog-tb-btn" title="Remove background image" onClick={() => updateAttributes({ bgImage: '' })}>

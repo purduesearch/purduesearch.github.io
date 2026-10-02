@@ -84,7 +84,7 @@ function ImageView({ node, updateAttributes, selected, editor }) {
   const { src, alt, align, width, caption, widthUnit } = node.attrs;
   const [suggesting, setSuggesting] = React.useState(false);
   const editable = useIsEditable(editor);
-  const { busy: uploading, pickImage } = useImageUpload();
+  const { busy: uploading, pickImage, pickFromPhotos } = useImageUpload();
 
   // Used both to fill an empty placeholder and to swap an existing picture.
   // replacedImageAttrs keeps align/width/caption and clears alt.
@@ -92,6 +92,11 @@ function ImageView({ node, updateAttributes, selected, editor }) {
     const upload = await pickImage();
     if (!upload) return;
     updateAttributes(replacedImageAttrs(node.attrs, upload));
+  };
+  const replaceFromPhotos = () => {
+    pickFromPhotos().then((upload) => {
+      if (upload) updateAttributes(replacedImageAttrs(node.attrs, upload));
+    });
   };
 
   const setAlign = (a) => updateAttributes({ align: a });
@@ -144,6 +149,7 @@ function ImageView({ node, updateAttributes, selected, editor }) {
           <button type="button" className="cpm-blog-tb-btn" title="Reset size" onClick={() => updateAttributes({ width: null, widthUnit: 'px' })}><i className="fas fa-rotate-left" aria-hidden="true" /></button>
           <span className="cpm-blog-tb-sep" />
           <button type="button" className="cpm-blog-tb-btn" title="Replace image" onClick={replaceImage} disabled={uploading}><i className="fas fa-arrows-rotate" aria-hidden="true" /></button>
+          <button type="button" className="cpm-blog-tb-btn" title="Replace from photo album" onClick={replaceFromPhotos} disabled={uploading}><i className="fas fa-images" aria-hidden="true" /></button>
         </div>
       )}
 
@@ -166,6 +172,15 @@ function ImageView({ node, updateAttributes, selected, editor }) {
           >
             <i className="fas fa-arrow-up-from-bracket" aria-hidden="true" style={{ marginRight: 6 }} />
             {uploading ? 'Uploading…' : 'Upload image'}
+          </button>
+          <button
+            type="button"
+            className="clubpm-btn-secondary cpm-blog-img-placeholder-btn"
+            onClick={replaceFromPhotos}
+            disabled={uploading}
+          >
+            <i className="fas fa-images" aria-hidden="true" style={{ marginRight: 6 }} />
+            Photo albums
           </button>
         </div>
       ) : null}

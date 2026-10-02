@@ -197,6 +197,7 @@ model Member {
   reviewedSubmissions     OutreachSubmission[]    @relation("SubmissionReviewer")
   outreachComments        OutreachComment[]       @relation("OutreachCommentAuthor")
   assets                  OutreachAsset[]         @relation("AssetUploader")
+  photoAlbums             PhotoAlbum[]            @relation("PhotoAlbumAdder")
   campaignsOwned          Campaign[]              @relation("CampaignOwner")
   ownedContacts           OutreachContact[]       @relation("ContactOwner")
   contactInteractions     ContactInteraction[]
@@ -1348,6 +1349,26 @@ model OutreachAsset {
   createdAt    DateTime @default(now())
 
   @@index([uploadedById])
+}
+
+// A Google Photos album shared by link, club-wide. Members pick photos from it
+// into blog posts and the Asset Library (services/photoAlbumService.ts). The
+// share link is the only credential; the photo list is read live, not stored.
+model PhotoAlbum {
+  id            String    @id @default(cuid())
+  // Google's album id (AF1Qip…) from the resolved link, so a short link and a
+  // long link to the same album collapse to one row.
+  googleAlbumId String    @unique
+  shareUrl      String
+  title         String
+  coverUrl      String?
+  photoCount    Int?
+  addedById     String
+  addedBy       Member    @relation("PhotoAlbumAdder", fields: [addedById], references: [id])
+  lastSyncedAt  DateTime?
+  createdAt     DateTime  @default(now())
+
+  @@index([addedById])
 }
 
 model Campaign {

@@ -1,7 +1,7 @@
 # Constellation patch notes
 
-Members see patch notes at `/clubpm/patch-notes`. To open the page, use **What's new** in the
-sidebar footer, or **More → Help → What's new** on a phone. The notes come from git history.
+Members see patch notes at `/clubpm/patch-notes`. To open the page, use **Other → What's new** in the
+sidebar, or **More → Help → What's new** on a phone. The notes come from git history.
 Nobody writes them by hand.
 
 ## How it works

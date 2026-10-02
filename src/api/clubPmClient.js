@@ -786,15 +786,18 @@ export const listPendingCertificates = () =>
 export const reviewCertificate = (certificateId, body) =>
   post(`/api/outreach/courses/certificates/${certificateId}/review`, body);
 
-// These two build URLs rather than fetching, because they are used as <iframe>
-// and <a href> targets. Both routes are authenticated — the browser sends the
-// session cookie, which is why this works without the Bearer header. A member
-// whose browser blocks the cross-origin cookie sees the fallback download link
-// that TrainingSection renders beside the preview.
+// These two build URLs rather than fetching, because they are used as <object>
+// and <a href> targets, which cannot send the Bearer header — and Brave/Safari
+// block the cross-site session cookie. So the token rides along as `?token=`,
+// like conversationFileUrl. Never build these URLs by hand in a component.
+const withTokenParam = (url) => {
+  const token = getStoredToken();
+  return token ? `${url}?token=${encodeURIComponent(token)}` : url;
+};
 export const certificateFileUrl = (certificateId) =>
-  `${BASE_URL}/api/outreach/courses/certificates/${certificateId}/file`;
+  withTokenParam(`${BASE_URL}/api/outreach/courses/certificates/${encodeURIComponent(certificateId)}/file`);
 export const trainingExampleUrl = (trainingId) =>
-  `${BASE_URL}/api/outreach/courses/trainings/${trainingId}/example-file`;
+  withTokenParam(`${BASE_URL}/api/outreach/courses/trainings/${encodeURIComponent(trainingId)}/example-file`);
 
 export const assignCourse = (courseId, memberIds, dueDate = null) =>
   post(`/api/outreach/courses/${courseId}/assign`, { memberIds, dueDate });
@@ -956,6 +959,17 @@ export function proxyImageSrc(src) {
 // not a fetch call, so there is no connect() helper here.
 export const getGoogleDriveStatus = () => get("/auth/google/status");
 export const disconnectGoogleDrive = () => del("/auth/google");
+
+// Club-wide Google Photos albums, added by share link (backend/src/api/photoAlbums.ts).
+// No Google sign-in: the share link is the access grant.
+export const listPhotoAlbums = () => get("/api/photo-albums");
+export const addPhotoAlbum = (url, title) => post("/api/photo-albums", { url, title });
+export const removePhotoAlbum = (id) => del(`/api/photo-albums/${encodeURIComponent(id)}`);
+export const getPhotoAlbumPhotos = (id, { refresh = false } = {}) =>
+  get(`/api/photo-albums/${encodeURIComponent(id)}/photos${refresh ? "?refresh=1" : ""}`);
+// target 'blog' → { images: [{ url, width, height, photoId }], missing, failed }
+// target 'asset' → same plus `assets` (new OutreachAsset rows).
+export const importAlbumPhotos = (id, body) => post(`/api/photo-albums/${encodeURIComponent(id)}/import`, body);
 
 // Multi-repo GitHub integration (Workstream B — see
 // docs/superpowers/specs/2026-07-06-clubpm-drive-multirepo-design.md §4).

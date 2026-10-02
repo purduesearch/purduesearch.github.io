@@ -1,6 +1,7 @@
 import { Router, type Request, type Response } from "express";
 import multer from "multer";
 import { requireAuth } from "./auth.js";
+import { fileProxyAuth } from "./projectChat.js";
 import { prisma } from "../db/prisma.js";
 import * as courseService from "../services/courseService.js";
 import * as progressService from "../services/courseProgressService.js";
@@ -26,6 +27,14 @@ const certUpload = multer({
 
 export const coursesRouter = Router();
 coursesRouter.use(requireAuth);
+
+// The two Drive file proxies, split out because they are opened as <a href> /
+// <object data> targets: those cannot send the Bearer header, and Brave/Safari
+// block the cross-site session cookie, so they authenticate with a signed
+// `?token=` query param instead (fileProxyAuth). No pathless requireAuth here —
+// it would 401 that request first — and app.ts mounts this router above every
+// router whose pathless requireAuth covers /api/outreach/courses/*.
+export const courseFilesRouter = Router();
 
 async function isAdmin(memberId?: string): Promise<boolean> {
   if (!memberId) return false;
@@ -227,7 +236,7 @@ coursesRouter.delete("/trainings/:tid/example", async (req: Request, res: Respon
 
 // Any signed-in member — an example certificate is teaching material, and a
 // learner has to see it to know what to submit.
-coursesRouter.get("/trainings/:tid/example-file", async (req: Request, res: Response) => {
+courseFilesRouter.get("/trainings/:tid/example-file", fileProxyAuth, async (req: Request, res: Response) => {
   try {
     const row = await prisma.training.findUnique({
       where: { id: req.params.tid as string },
@@ -1682,7 +1691,7 @@ coursesRouter.post("/certificates/:cid/review", async (req: Request, res: Respon
 // The authenticated proxy. This is the ONLY way a certificate file is served —
 // the Drive file is never made public, so a leaked URL is not a leaked
 // certificate.
-coursesRouter.get("/certificates/:cid/file", async (req: Request, res: Response) => {
+courseFilesRouter.get("/certificates/:cid/file", fileProxyAuth, async (req: Request, res: Response) => {
   try {
     const cert = await prisma.trainingCertificate.findUnique({
       where: { id: req.params.cid as string },

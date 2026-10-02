@@ -1,5 +1,6 @@
 import React from 'react';
 import { uploadBlogImage } from '../../../api/clubPmClient';
+import { pickFromAlbums } from '../photoAlbums/AlbumPhotoPicker';
 
 // Shared "pick a file, upload it, hand back the URL" flow for every blog image
 // slot. Creating the input on demand keeps call sites free of hidden <input>
@@ -7,6 +8,8 @@ import { uploadBlogImage } from '../../../api/clubPmClient';
 //
 // pickImage() resolves { url, width, height } on success, or null if the user
 // cancelled or the upload failed (failures are reported here, once).
+// pickFromPhotos() is the same contract for one photo picked from the club's
+// shared photo albums.
 export default function useImageUpload() {
   const [busy, setBusy] = React.useState(false);
   const mounted = React.useRef(true);
@@ -46,5 +49,15 @@ export default function useImageUpload() {
     input.click();
   }), []);
 
-  return { busy, pickImage };
+  const pickFromPhotos = React.useCallback(() => {
+    setBusy(true);
+    return pickFromAlbums({ maxItems: 1, target: 'blog' })
+      .then((result) => {
+        const im = result?.images?.[0];
+        return im ? { url: im.url, width: im.width, height: im.height } : null;
+      })
+      .finally(() => { if (mounted.current) setBusy(false); });
+  }, []);
+
+  return { busy, pickImage, pickFromPhotos };
 }

@@ -1,13 +1,9 @@
 Full instagram api integration (collect likes, fast post, sync posts to home page, etc.)
 
-Performance improvements
-
 LinkedIn Api integration for quick posting
 
 ctrl + Z to undo (in any section)
 
-Fixes for mobile (borderline unusable)
-
-Add patch notes that are generated from the Git history (one check at the beginning of the day, with version number tracking)
-
 Rework slack features (all of them to match what is on the web). Make it so that you can message the Constellation bot with plain text to enact a project action plan (e.g. Move the wiring task I'm working on to done, and then it checks your tasks and proposes moving it to done (you confirm with a reaction))
+
+Add Google photo album support

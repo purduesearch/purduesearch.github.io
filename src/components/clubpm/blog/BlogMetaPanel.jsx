@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import toast from 'react-hot-toast';
 import AssetPicker from '../AssetPicker';
 import BlogCardPanel from './BlogCardPanel';
+import { AlbumPhotosButton } from '../photoAlbums/AlbumPhotoPicker';
 import {
   listBlogTags, createBlogTag, listBlogCategories, createBlogCategory,
   setBlogTaxonomy, uploadBlogImage,
@@ -55,6 +56,7 @@ function CoverImageField({ label, value, onChange }) {
           <button type="button" className="clubpm-btn-secondary" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
             {uploading ? 'Uploading…' : 'Upload'}
           </button>
+          <AlbumPhotosButton onPicked={({ images }) => onChange(images[0].url)} disabled={uploading} />
           <button type="button" className="clubpm-btn-secondary" onClick={() => setPickerOpen(true)}>
             Library
           </button>

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { get, post, del } from '../../api/clubPmClient';
 import OrbitLoader from '../OrbitLoader';
 import toast from 'react-hot-toast';
+import { AlbumPhotosButton } from './photoAlbums/AlbumPhotoPicker';
 
 const KIND_OPTIONS = ['IMAGE', 'VIDEO', 'GRAPHIC', 'LOGO', 'DOC'];
 
@@ -213,6 +214,11 @@ export default function AssetPicker({
     setShowAddForm(false);
   };
 
+  // The import endpoint creates the OutreachAsset rows itself (tag "photo-album").
+  const handlePhotosImported = ({ assets: imported }) => {
+    if (Array.isArray(imported) && imported.length) setAllAssets(prev => [...imported, ...prev]);
+  };
+
   const selectable = typeof onSelect === 'function';
 
   return (
@@ -224,6 +230,13 @@ export default function AssetPicker({
             <i className="fas fa-photo-video" aria-hidden="true" /> {title}
           </h2>
           <div className="pm-asset-modal-header-actions">
+            <AlbumPhotosButton
+              className="cpm-btn cpm-btn--secondary pm-asset-add-btn"
+              maxItems={30}
+              target="asset"
+              label="Import from photo albums"
+              onPicked={handlePhotosImported}
+            />
             {!showAddForm && (
               <button
                 className="cpm-btn cpm-btn--secondary pm-asset-add-btn"

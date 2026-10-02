@@ -12,7 +12,7 @@ const SEG = (opts, value, onPick) => (
 export default function BlogSectionSettings({ editor, pos, onClose }) {
   const [attrs, setAttrs] = React.useState(null);
   // Must stay above the `if (!attrs) return null` early return.
-  const { busy: uploading, pickImage } = useImageUpload();
+  const { busy: uploading, pickImage, pickFromPhotos } = useImageUpload();
 
   // Always resolve from the current pos — the panel now follows the caret, so a
   // stale `attrs` from a previously selected section would silently edit the
@@ -33,6 +33,9 @@ export default function BlogSectionSettings({ editor, pos, onClose }) {
   const pickBackground = async () => {
     const upload = await pickImage();
     if (upload) update({ background: { kind: 'image', value: upload.url } });
+  };
+  const pickBackgroundFromPhotos = () => {
+    pickFromPhotos().then((upload) => { if (upload) update({ background: { kind: 'image', value: upload.url } }); });
   };
 
   return (
@@ -63,6 +66,9 @@ export default function BlogSectionSettings({ editor, pos, onClose }) {
           />
           <button type="button" className="clubpm-btn-secondary cpm-blog-img-src-btn" onClick={pickBackground} disabled={uploading}>
             {uploading ? 'Uploading…' : (bg.value ? 'Replace' : 'Upload')}
+          </button>
+          <button type="button" className="cpm-blog-tb-btn" title="Pick from photo albums" onClick={pickBackgroundFromPhotos} disabled={uploading}>
+            <i className="fas fa-images" aria-hidden="true" />
           </button>
           {bg.value ? (
             <button type="button" className="cpm-blog-tb-btn" title="Remove background image" onClick={() => update({ background: { kind: 'image', value: '' } })}>

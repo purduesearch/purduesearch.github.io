@@ -6,6 +6,7 @@ import useImageUpload from './useImageUpload';
 import { galleryImagesWithReplacement } from '../../../lib/blogImageDrop';
 import { initBlogCarousels } from '../../../lib/blogCarousel';
 import { useIsEditable } from './useIsEditable';
+import { AlbumPhotosButton } from '../photoAlbums/AlbumPhotoPicker';
 
 function GalleryView({ node, updateAttributes, editor }) {
   const images = Array.isArray(node.attrs.images) ? node.attrs.images : [];
@@ -43,6 +44,15 @@ function GalleryView({ node, updateAttributes, editor }) {
     }
   };
 
+  // Read the latest node attrs at completion, not the ones captured at click:
+  // collaborators may have edited the carousel while the picker was open.
+  const nodeRef = React.useRef(node);
+  nodeRef.current = node;
+  const addFromPhotos = ({ images: picked }) => {
+    const current = Array.isArray(nodeRef.current.attrs.images) ? nodeRef.current.attrs.images : [];
+    updateAttributes({ images: [...current, ...picked.map((p) => ({ src: p.url, alt: '', caption: '' }))] });
+  };
+
   const removeAt = (i) => updateAttributes({ images: images.filter((_, idx) => idx !== i) });
   const move = (i, dir) => {
     const j = i + dir;
@@ -74,6 +84,7 @@ function GalleryView({ node, updateAttributes, editor }) {
           <button type="button" className="clubpm-btn-secondary" onClick={() => fileRef.current?.click()} disabled={busy}>
             {busy ? 'Uploading…' : 'Add images'}
           </button>
+          <AlbumPhotosButton maxItems={30} onPicked={addFromPhotos} disabled={busy} />
           <input ref={fileRef} type="file" accept="image/*" multiple hidden onChange={(e) => { addFiles(e.target.files); e.target.value = ''; }} />
         </div>
       )}

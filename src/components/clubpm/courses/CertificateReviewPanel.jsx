@@ -56,8 +56,8 @@ function ReviewRow({ cert, onDone }) {
       </div>
 
       {/* An <object> renders both PDFs and images without branching on mime
-          type. The link beneath is the fallback when a browser blocks the
-          cross-origin session cookie the proxy route relies on. */}
+          type. The link beneath is the fallback for a browser that cannot
+          render it inline; both URLs carry the `?token=` the proxy needs. */}
       <object
         className="cpm-cert-review-frame"
         data={certificateFileUrl(cert.id)}

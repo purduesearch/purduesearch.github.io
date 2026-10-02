@@ -1,10 +1,9 @@
 import { Router, type Request, type Response } from "express";
 import multer from "multer";
-import sharp from "sharp";
 import { requireAuth } from "./auth.js";
 import { prisma } from "../db/prisma.js";
 import * as blogService from "../services/blogService.js";
-import { uploadImageToDrive } from "../services/driveService.js";
+import { storeBlogImage } from "../services/blogImageStore.js";
 import type { BlogStatus, DocAccessLevel } from "@prisma/client";
 import type { PMDoc } from "../services/blogRender.js";
 import { resolveDocAccess, atLeast } from "../services/docAccessService.js";
@@ -302,9 +301,8 @@ blogRouter.delete("/posts/:id", async (req: Request, res: Response) => {
 });
 
 // ── Media upload ─────────────────────────────────────────────
-// Multipart field `image`; recompresses to webp (max 1600px wide, animation
-// preserved) and stores on
-// Google Drive. Returns { url, width, height } for the editor image node.
+// Multipart field `image`; recompressed and stored on Drive by storeBlogImage
+// (also used by the Google Photos import). Returns { url, width, height }.
 
 blogRouter.post(
   "/upload",
@@ -315,36 +313,12 @@ blogRouter.post(
         res.status(400).json({ error: "image file is required" });
         return;
       }
-      // `animated` decodes every frame (GIF/animated WebP) — sharp's default
-      // reads only the first, which silently flattened uploaded GIFs.
-      const { data, info } = await sharp(req.file.buffer, { animated: true })
-        .rotate() // honor EXIF orientation before stripping metadata
-        .resize({ width: 1600, withoutEnlargement: true })
-        .webp({ quality: 82 })
-        .toBuffer({ resolveWithObject: true });
-
-      const folderId =
-        process.env.DRIVE_BLOG_IMAGES_FOLDER_ID ||
-        process.env.DRIVE_AI_IMAGES_FOLDER_ID ||
-        undefined;
-      const filename = `blog-${Date.now()}.webp`;
-      const uploaded = await uploadImageToDrive(
-        data.toString("base64"),
-        "image/webp",
-        filename,
-        folderId
-      );
-      if (!uploaded) {
+      const stored = await storeBlogImage(req.file.buffer, `${req.protocol}://${req.get("host")}`);
+      if (!stored) {
         res.status(502).json({ error: "Failed to upload image" });
         return;
       }
-      const origin = `${req.protocol}://${req.get("host")}`;
-      res.json({
-        url: `${origin}/api/public/blog-image/${uploaded.fileId}`,
-        width: info.width,
-        // Animated output is a vertical strip of frames; pageHeight is one frame.
-        height: info.pageHeight ?? info.height,
-      });
+      res.json({ url: stored.url, width: stored.width, height: stored.height });
     } catch (error) {
       console.error("POST /blog/upload error:", error);
       res.status(500).json({ error: "Failed to process image" });

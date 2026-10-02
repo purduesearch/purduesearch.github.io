@@ -37,11 +37,12 @@ import { brandVoicesRouter } from "./api/brandVoices.js";
 import { campaignsRouter } from "./api/campaigns.js";
 import { contactsRouter } from "./api/contacts.js";
 import { insightsRouter } from "./api/insights.js";
-import { coursesRouter } from "./api/courses.js";
+import { coursesRouter, courseFilesRouter } from "./api/courses.js";
 import { courseGenRouter } from "./api/courseGen.js";
 import { publicRouter } from "./api/public.js";
 import { githubAuthRouter } from "./api/githubAuth.js";
 import { googleAuthRouter } from "./api/googleAuth.js";
+import { photoAlbumsRouter } from "./api/photoAlbums.js";
 import { githubRouter } from "./api/github.js";
 import { githubWebhookRouter } from "./api/githubWebhook.js";
 import { rewardsRouter } from "./api/rewards.js";
@@ -161,6 +162,10 @@ app.use("/api/notifications", sseRouter);
 // Release packages accept a signed `?sig=` link (an <a href> cannot carry the
 // Bearer header), so this must also stay above every bare "/api" router.
 app.use("/api/vault-releases", vaultReleasesRouter);
+// Certificate / example-certificate file proxies take `?token=` (they are <a href>
+// and <object data> targets), so they must stay above every bare "/api" router
+// AND outreachRouter, whose pathless requireAuth covers /api/outreach/courses/*.
+app.use("/api/outreach/courses", courseFilesRouter);
 app.use("/api", blockersRouter);
 app.use("/api", trainingRouter); // POST /api/training-project
 app.use("/api", vaultRouter);
@@ -183,6 +188,7 @@ app.use("/api/lab-visits", labVisitsRouter);
 app.use("/api/outreach", outreachRouter);
 app.use("/api", pressKitRouter);
 app.use("/api/blog", blogRouter);
+app.use("/api/photo-albums", photoAlbumsRouter);
 app.use("/api/blog", blogThreadsRouter);
 app.use("/api/blog", blogAiRouter);
 app.use("/api/docs", docAccessRouter);

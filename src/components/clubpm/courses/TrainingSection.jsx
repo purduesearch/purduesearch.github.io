@@ -145,7 +145,7 @@ export default function TrainingSection({ section, onCompleted }) {
           </p>
           {/* An <object> rather than <img>: most certificates are PDFs, and this
               renders both without branching on mime type. The link beneath is the
-              fallback for a browser that blocks the cross-origin session cookie. */}
+              fallback for a browser that cannot render it inline. */}
           <object
             className="cpm-training-example-frame"
             data={trainingExampleUrl(training.id)}

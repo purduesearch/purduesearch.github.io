@@ -57,7 +57,7 @@ function getBreadcrumb(pathname) {
   if (pathname === '/clubpm/challenges') return [{ label: 'Challenges' }];
   if (pathname.startsWith('/clubpm/chat')) return [{ label: 'Social' }, { label: 'Chat' }];
   if (pathname.startsWith('/clubpm/lab/')) return [{ label: 'Lab check-in' }];
-  if (pathname === '/clubpm/patch-notes') return [{ label: "What's new" }];
+  if (pathname === '/clubpm/patch-notes') return [{ label: 'Other' }, { label: "What's new" }];
   return [{ label: 'Constellation' }];
 }
 
@@ -100,6 +100,7 @@ const NAV_ITEMS = [
       { label: 'Blog',         href: '/clubpm/outreach?tab=blog', activePrefixes: ['/clubpm/outreach/blog/'] },
       { label: 'Courses',      href: '/clubpm/courses', tourId: 'nav.courses', activePrefixes: ['/clubpm/courses/'] },
       { label: 'Admin',        href: '/clubpm/admin', tourId: 'nav.admin', adminOnly: true, activePrefixes: ['/clubpm/meeting-notes'] },
+      { label: "What's new",   href: '/clubpm/patch-notes', patchNotes: true },
     ],
   },
 ];
@@ -119,6 +120,8 @@ function isChildActive(child, location) {
 function NavGroup({ item, location, isAdmin, adminCounts }) {
   const children = item.children.filter(child => !child.adminOnly || isAdmin);
   const hasActiveChild = children.some(c => isChildActive(c, location));
+  const patchNotes = usePatchNotesBadge();
+  const showUnseenDot = patchNotes.unseen && children.some(c => c.patchNotes);
   // Groups start collapsed on every mount, then reveal the current destination.
   const [open, setOpen] = useState(false);
   useEffect(() => { if (hasActiveChild) setOpen(true); }, [hasActiveChild]);
@@ -136,6 +139,7 @@ function NavGroup({ item, location, isAdmin, adminCounts }) {
       >
         <span className="pm-nav-item-icon">{item.icon}</span>
         <span className="pm-nav-item-label">{item.label}</span>
+        {showUnseenDot && !open && <span className="pm-whatsnew-dot pm-whatsnew-dot--inline" role="img" aria-label="New release" />}
         <i className={`fas fa-chevron-${open ? 'down' : 'right'} pm-nav-group-chevron`} aria-hidden="true" />
       </button>
       {open && (
@@ -148,7 +152,11 @@ function NavGroup({ item, location, isAdmin, adminCounts }) {
               data-tour-id={child.tourId}
             >
               <span className="pm-nav-item-label" style={child.adminOnly ? { display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' } : undefined}>
-                <span>{child.label}</span>
+                <span>
+                  {child.label}
+                  {child.patchNotes && patchNotes.current && <span className="pm-whatsnew-version"> v{patchNotes.current}</span>}
+                  {child.patchNotes && patchNotes.unseen && <span className="pm-whatsnew-dot pm-whatsnew-dot--inline" role="img" aria-label="New release" />}
+                </span>
                 {child.adminOnly && (adminCounts.rewards > 0 || adminCounts.crs > 0 || adminCounts.certificates > 0) && (
                   <span className="pm-admin-badge-group">
                     {adminCounts.rewards > 0 && <span className="pm-admin-badge" title="Pending rewards">{adminCounts.rewards}</span>}
@@ -227,25 +235,6 @@ function CreateProjectModal({ onClose, onCreate }) {
         </form>
       </div>
     </div>
-  );
-}
-
-function SidebarWhatsNew() {
-  const { current, unseen } = usePatchNotesBadge();
-  return (
-    <Link
-      to="/clubpm/patch-notes"
-      className="pm-backhome-btn pm-whatsnew-btn"
-      title={current ? `What's new in Constellation v${current}` : "What's new"}
-    >
-      <span className="pm-whatsnew-icon">
-        <i className="fas fa-wand-magic-sparkles" aria-hidden="true" />
-        {unseen && <span className="pm-whatsnew-dot" role="img" aria-label="New release" />}
-      </span>
-      <span className="pm-backhome-label">
-        What&rsquo;s new{current ? <span className="pm-whatsnew-version"> v{current}</span> : null}
-      </span>
-    </Link>
   );
 }
 
@@ -642,7 +631,6 @@ export default function AppShell({ children }) {
             </span>
           </Link>
           {member && <SidebarXpDoubloons member={member} />}
-          <SidebarWhatsNew />
           <Link to="/" className="pm-backhome-btn" title="Back to the SEARCH site">
             <i className="fas fa-house" aria-hidden="true" />
             <span className="pm-backhome-label">Main site</span>

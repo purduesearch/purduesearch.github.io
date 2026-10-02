@@ -17,6 +17,7 @@ import { SearchAndReplace } from '@sereneinserenade/tiptap-search-and-replace';
 import * as Y from 'yjs';
 import { HocuspocusProvider } from '@hocuspocus/provider';
 import BlogImage, { uploadImageFiles } from './BlogImage';
+import { pickFromAlbums } from '../photoAlbums/AlbumPhotoPicker';
 import BlogEmbed, { buildEmbed } from './BlogEmbed';
 import BlogGallery from './BlogGallery';
 import BlogToc from './BlogToc';
@@ -337,6 +338,17 @@ function Toolbar({ editor, onToggleFind, onToggleSnippets, onAddSection, onToggl
     const { provider, html } = buildEmbed(url);
     editor.chain().focus().insertContent({ type: 'embed', attrs: { url: url.trim(), provider, html } }).run();
   };
+  // Several photos go in as one carousel; a single photo as a plain image.
+  const insertFromPhotos = () => {
+    pickFromAlbums({ maxItems: 30, target: 'blog' }).then((result) => {
+      const images = result?.images || [];
+      if (!images.length) return;
+      const content = images.length === 1
+        ? { type: 'image', attrs: { src: images[0].url, naturalWidth: images[0].width, naturalHeight: images[0].height } }
+        : { type: 'gallery', attrs: { images: images.map((im) => ({ src: im.url, alt: '', caption: '' })) } };
+      editor.chain().focus().insertContent(content).run();
+    });
+  };
   const insertGallery = () => {
     editor.chain().focus().insertContent({ type: 'gallery', attrs: { images: [] } }).run();
   };
@@ -367,6 +379,7 @@ function Toolbar({ editor, onToggleFind, onToggleSnippets, onAddSection, onToggl
   ];
   const insertItems = [
     { title: 'Image', icon: 'fa-image', onClick: () => fileRef.current?.click() },
+    { title: 'From photo album', icon: 'fa-mountain-sun', onClick: insertFromPhotos },
     { title: 'Embed (video / social)', icon: 'fa-photo-film', onClick: insertEmbed },
     { title: 'Image gallery', icon: 'fa-images', onClick: insertGallery },
     { title: 'Table', icon: 'fa-table', active: inTable, onClick: () => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run() },
