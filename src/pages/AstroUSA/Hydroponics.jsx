@@ -26,11 +26,13 @@ const AstroHydroponics = () => {
       ])} />
       <Navbar />
       <Breadcrumb />
-      <main id="main-content" className="jumbotron-post jumbotron-single d-flex align-items-center" style={{ backgroundImage: 'url(/software/2023_24/SUITS/bg.webp)' }}>
+      <header className="jumbotron-post jumbotron-single d-flex align-items-center" style={{ backgroundImage: 'url(/astrousa/Group_Photo_ASTRO.webp)' }}>
         <div className="container text-center" style={{ top: 30 }}>
           <h1 className="display-2 mb-4">Habitat Systems: Hydroponics</h1>
         </div>
-      </main>
+      </header>
+
+      <main id="main-content">
 
       {/* ===== ABOUT ===== */}
       <section id="hydro-about">
@@ -41,9 +43,9 @@ const AstroHydroponics = () => {
           <div className="mg-media-row" data-aos="fade-up">
             <div className="mg-media-text">
               <span className="about-section-label">Automated Cultivation</span>
-              <h3 style={{ fontFamily: 'var(--font-heading)', marginBottom: '1rem' }}>
+              <h2 style={{ fontFamily: 'var(--font-heading)', marginBottom: '1rem' }}>
                 Growing Food for the Habitat
-              </h3>
+              </h2>
               <p style={{ color: 'var(--color-muted)', lineHeight: '1.8' }}>
                 The hydroponics team is working under Dr. Marshall Porterfield of the Agricultural
                 and Biological Engineering Department at Purdue to develop a system capable of growing
@@ -124,9 +126,9 @@ const AstroHydroponics = () => {
           <div className="mg-media-row reverse" data-aos="fade-up">
             <div className="mg-media-text">
               <span className="about-section-label">Long-Duration Missions</span>
-              <h3 style={{ fontFamily: 'var(--font-heading)', marginBottom: '1rem' }}>
+              <h2 style={{ fontFamily: 'var(--font-heading)', marginBottom: '1rem' }}>
                 Food Production Beyond Low Earth Orbit
-              </h3>
+              </h2>
               <p style={{ color: 'var(--color-muted)', lineHeight: '1.8' }}>
                 NASA's LEAF (Long-duration EVA And Food) initiative investigates plant growth in
                 microgravity and closed-loop habitat environments. SEARCH's hydroponics system
@@ -161,6 +163,7 @@ const AstroHydroponics = () => {
           </Link>
         </div>
       </section>
+      </main>
 
       <Footer />
     </div>

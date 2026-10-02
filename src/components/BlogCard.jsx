@@ -1,29 +1,30 @@
+import { Link } from 'react-router-dom';
+import ExternalLink from './ExternalLink';
+
 /**
  * Reusable blog/news card.
  * Maps to the existing .blog-item DOM structure in search-theme.css.
  * All props are optional — render only what is provided.
+ * The title is the card's only link; its ::after stretches over the whole card.
  */
 const BlogCard = ({ image, imageAlt, tag, title, href, date, excerpt, author }) => {
   const isExternal = typeof href === 'string' && /^https?:\/\//.test(href);
-  const linkProps = isExternal ? { target: '_blank', rel: 'noopener noreferrer' } : {};
+  const target = href || '#';
+  const titleContent = <h3 className="blog-title-text">{title}</h3>;
   return (
-  <div className="blog-item">
+  <div className="blog-item blog-item--linked">
     {image && (
       <div className="blog-img">
-        <a href={href || '#'} {...linkProps}>
-          <img loading="lazy" src={image} alt={imageAlt || title || ''} />
-        </a>
+        <img loading="lazy" src={image} alt={imageAlt || title || ''} />
       </div>
     )}
     <div className="blog-text">
-      {tag && (
-        <div className="blog-tag">
-          <a href={href || '#'} {...linkProps}><h6><small>{tag}</small></h6></a>
-        </div>
-      )}
+      {tag && <p className="blog-tag"><small>{tag}</small></p>}
       {title && (
         <div className="blog-title">
-          <a href={href || '#'} {...linkProps}><h4>{title}</h4></a>
+          {isExternal
+            ? <ExternalLink href={target} className="blog-card-link">{titleContent}</ExternalLink>
+            : <Link to={target} className="blog-card-link">{titleContent}</Link>}
         </div>
       )}
       {date && (

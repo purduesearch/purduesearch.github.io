@@ -10,6 +10,8 @@ import JsonLd from '../components/JsonLd';
 import PublicEventsCalendar from '../components/events/PublicEventsCalendar';
 import { websiteSchema } from '../seo/schema';
 import { SITE_URL } from '../seo/siteUrl';
+import ExternalLink from '../components/ExternalLink';
+import { TEAMS } from '../lib/teams';
 import { SLACK_JOIN_URL } from '../lib/siteLinks';
 import { pressFeedback } from '../anim/motion';
 import { parallaxLayer, staggerGroup, heroIntro } from '../anim/scrollFx';
@@ -57,52 +59,38 @@ const IG_POSTS = [
   },
 ];
 
-// Find-your-team rows. Every line is restated from copy that already
-// shipped on this page or in public/llms.txt — no new claims.
-const TEAMS = [
-  {
-    to: '/research',
-    name: 'Microgreens',
-    what: "Designing, building, and qualifying a microgreen growth chamber for NASA's LEAF initiative.",
-    work: 'Grow microgreens and build the chamber that feeds astronauts.',
-  },
-  {
-    to: '/sa2tp',
-    name: <>SA<sup>2</sup>TP</>,
-    what: 'The Student Analog Astronaut Training Program: three weeks of fitness, flight, scuba, and NASA facility visits.',
-    work: 'Train as an analog astronaut.',
-  },
-  {
-    to: '/astrousa',
-    name: 'ASTRO-USA',
-    what: "An analog research station on Purdue's campus: a self-sustaining, closed-loop habitat for long-duration mission simulation.",
-    work: 'Design habitat systems, from architecture to hydroponics and life support.',
-  },
-  {
-    to: '/ares',
-    name: 'ARES',
-    what: 'A wearable CO\u2082 and biophysical sensing headset that detects the pocket of rebreathed air that forms in front of the face.',
-    work: 'Build wearable sensors and study how breath moves.',
-  },
-  {
-    to: '/software',
-    name: 'Software',
-    what: 'VR space suit interfaces, lunar navigation, and space logistics design with AI, built for NASA SUITS.',
-    work: 'Write software for spacesuits and missions.',
-  },
-  {
-    to: '/business',
-    name: 'Business & Operations',
-    what: 'The team behind every trip, partnership, and sponsorship, including research trips to Biosphere 2 and Kennedy Space Center.',
-    work: 'Plan trips, find sponsors, and keep missions funded.',
-  },
-  {
-    to: '/outreach',
-    name: 'Outreach',
-    what: '3+ events per semester with speakers from NASA, SpaceX, SETI, and Blue Origin.',
-    work: 'Host speakers and run campus events.',
-  },
-];
+const INSTAGRAM_URL = 'https://www.instagram.com/purdue_search/';
+const IG_API_BASE = process.env.REACT_APP_API_URL || '';
+
+const IG_DATE = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+// Backend post → IgTile props. Image paths are relative to the API origin.
+const liveToTile = (p) => ({
+  image: `${IG_API_BASE}${p.image}`,
+  caption: p.caption,
+  date: IG_DATE.format(new Date(p.timestamp)),
+  likes: typeof p.likeCount === 'number' ? p.likeCount : null,
+  href: p.permalink,
+});
+
+// One Instagram tile. The caption is visible text, so the image is decorative.
+// `likes` null hides the heart (the owner can hide like counts).
+const IgTile = ({ image, caption, date, likes, href }) => (
+  <ExternalLink className="ig-card" href={href}>
+    <img loading="lazy" className="ig-card-img" src={image} alt="" width="640" height="640" />
+    <div className="ig-card-body">
+      <p className="ig-card-caption">{caption}</p>
+      <div className="ig-card-meta">
+        <span>{date}</span>
+        {likes != null && (
+          <span className="ig-card-likes">
+            <i className="fas fa-heart" aria-hidden="true" />{likes}
+          </span>
+        )}
+      </div>
+    </div>
+  </ExternalLink>
+);
 
 const Home = () => {
   const videoRef   = useRef(null);
@@ -118,6 +106,20 @@ const Home = () => {
   const aboutSearchSectionRef = useRef(null);
   const [showStars, setShowStars] = useState(false);
   const [showDroneVideo, setShowDroneVideo] = useState(false);
+  // null until the live feed answers with posts; loading, error and empty all keep IG_POSTS.
+  const [livePosts, setLivePosts] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`${IG_API_BASE}/api/public/instagram`)
+      .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+      .then(data => {
+        if (cancelled || !Array.isArray(data?.posts) || data.posts.length === 0) return;
+        setLivePosts(data.posts.map(liveToTile));
+      })
+      .catch(() => { /* keep the static fallback */ });
+    return () => { cancelled = true; };
+  }, []);
 
   // Tactile press feedback on the hero CTAs
   useEffect(() => {
@@ -268,7 +270,9 @@ const Home = () => {
     const io = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting) {
-          setShowDroneVideo(true);
+          const skip = window.matchMedia('(max-width: 767.98px), (prefers-reduced-motion: reduce)').matches
+            || navigator.connection?.saveData;
+          if (!skip) setShowDroneVideo(true);
           io.disconnect();
         }
       },
@@ -317,7 +321,8 @@ const Home = () => {
       <Navbar />
 
       {/* ===== HERO ===== */}
-      <main id="main-content" className="hero-scroll-extender" ref={heroRef}>
+      <main id="main-content">
+      <header className="hero-scroll-extender" ref={heroRef}>
       <div className="jumbotron d-flex align-items-center" style={{ backgroundImage: 'none', height: '100vh', overflow: 'hidden' }}>
         <video
           ref={videoRef}
@@ -337,27 +342,24 @@ const Home = () => {
             Student-led human spaceflight research, training, and outreach — right here on Earth.
           </p>
           <div className="d-flex justify-content-center" style={{ gap: '1rem', flexWrap: 'wrap' }}>
-            <a
+            <ExternalLink
               ref={heroCtaPrimaryRef}
               href={SLACK_JOIN_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label="Join our Slack (opens in a new tab)"
               className="btn-slide-fill"
               style={{ padding: '0.65rem 2rem', fontFamily: 'var(--font-body)', fontWeight: 500 }}
             >
               <span><i className="fab fa-slack mr-2" aria-hidden="true" />Join our Slack</span>
-            </a>
+            </ExternalLink>
             <Link ref={heroCtaSecondaryRef} to="/about" className="btn-slide-white" style={{ padding: '0.65rem 2rem', fontFamily: 'var(--font-body)', fontWeight: 500 }}>
               <span>Meet the Team</span>
             </Link>
           </div>
           <div style={{ marginTop: '3rem' }}>
-            <img loading="lazy" src="/icons/PU-H-Full-Rev-RGB.png" style={{ width: '12em', opacity: 0.85 }} alt="Purdue University" />
+            <img src="/icons/PU-H-Full-Rev-RGB.png" width="1257" height="225" style={{ width: '12em', height: 'auto', opacity: 0.85 }} alt="Purdue University" />
           </div>
         </div>
       </div>
-      </main>{/* /hero-scroll-extender */}
+      </header>{/* /hero-scroll-extender */}
 
       {/* ===== UPCOMING EVENTS — public Constellation events (isPublic, non-deadline) ===== */}
       <PublicEventsCalendar />
@@ -372,14 +374,14 @@ const Home = () => {
         <div className="logo-marquee-wrap">
           <div className="logo-marquee" aria-hidden="true">
             {[...Array(2)].flatMap((_, copy) => [
-              <div key={`bo-${copy}`} className="client-item"><img loading="lazy" src="/outreach/companies/blueorigin.webp" alt="Blue Origin" /></div>,
-              <div key={`hs-${copy}`} className="client-item"><img loading="lazy" src="/outreach/companies/hiseas.webp" alt="Hi-SEAS" /></div>,
-              <div key={`na-${copy}`} className="client-item"><img loading="lazy" src="/outreach/companies/nasa.webp" alt="NASA" /></div>,
-              <div key={`pa-${copy}`} className="client-item"><img loading="lazy" src="/outreach/companies/PAC.webp" alt="Purdue Aerospace Council" /></div>,
-              <div key={`ps-${copy}`} className="client-item"><img loading="lazy" src="/outreach/companies/psp.webp" alt="Purdue Space Program" /></div>,
-              <div key={`se-${copy}`} className="client-item"><img loading="lazy" src="/outreach/companies/seti.webp" alt="SETI Institute" /></div>,
-              <div key={`sx-${copy}`} className="client-item"><img loading="lazy" src="/outreach/companies/spacex.webp" alt="SpaceX" /></div>,
-              <div key={`vg-${copy}`} className="client-item"><img loading="lazy" src="/outreach/companies/virgingalactic.svg" alt="Virgin Galactic" /></div>,
+              <div key={`bo-${copy}`} className="client-item"><img loading="lazy" src="/outreach/companies/blueorigin.webp" alt="Blue Origin" width="1200" height="611" /></div>,
+              <div key={`hs-${copy}`} className="client-item"><img loading="lazy" src="/outreach/companies/hiseas.webp" alt="Hi-SEAS" width="2500" height="653" /></div>,
+              <div key={`na-${copy}`} className="client-item"><img loading="lazy" src="/outreach/companies/nasa.webp" alt="NASA" width="2449" height="2048" /></div>,
+              <div key={`pa-${copy}`} className="client-item"><img loading="lazy" src="/outreach/companies/PAC.webp" alt="Purdue Aerospace Council" width="170" height="170" /></div>,
+              <div key={`ps-${copy}`} className="client-item"><img loading="lazy" src="/outreach/companies/psp.webp" alt="Purdue Space Program" width="1532" height="1018" /></div>,
+              <div key={`se-${copy}`} className="client-item"><img loading="lazy" src="/outreach/companies/seti.webp" alt="SETI Institute" width="400" height="243" /></div>,
+              <div key={`sx-${copy}`} className="client-item"><img loading="lazy" src="/outreach/companies/spacex.webp" alt="SpaceX" width="1280" height="160" /></div>,
+              <div key={`vg-${copy}`} className="client-item"><img loading="lazy" src="/outreach/companies/virgingalactic.svg" alt="Virgin Galactic" width="407" height="246" /></div>,
             ])}
           </div>
         </div>
@@ -433,15 +435,9 @@ const Home = () => {
               and hear about the next meeting. Every major is welcome.
             </p>
           </div>
-          <a
-            href={SLACK_JOIN_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label="Join our Slack (opens in a new tab)"
-            className="btn-slide-white join-band-btn"
-          >
+          <ExternalLink href={SLACK_JOIN_URL} className="btn-slide-white join-band-btn">
             <span><i className="fab fa-slack mr-2" aria-hidden="true" />Join our Slack</span>
-          </a>
+          </ExternalLink>
         </div>
       </section>
 
@@ -472,7 +468,7 @@ const Home = () => {
                   <span>Events / semester</span>
                 </div>
                 <div className="about-stat">
-                  <strong data-count="6">6</strong>
+                  <strong data-count="7">7</strong>
                   <span>Subteams</span>
                 </div>
                 <div className="about-stat">
@@ -487,7 +483,7 @@ const Home = () => {
               </div>
             </div>
             <div className="col-md-6 about-visual-col mt-4 mt-md-0" data-aos="fade-left">
-              <img loading="lazy" src="/bg-2.webp" alt="SEARCH members at the station" />
+              <img loading="lazy" src="/bg-2.webp" alt="SEARCH members at the station" width="1920" height="897" />
             </div>
           </div>
         </div>
@@ -497,59 +493,28 @@ const Home = () => {
       <section id="instagram-feed">
         <div className="container">
           <div className="ig-header" data-aos="fade-up">
-            <a
-              className="ig-handle"
-              href="https://www.instagram.com/purdue_search/"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <i className="fab fa-instagram" />
+            <ExternalLink className="ig-handle" href={INSTAGRAM_URL}>
+              <i className="fab fa-instagram" aria-hidden="true" />
               @purdue_search
-            </a>
-            <a
-              className="ig-follow-btn"
-              href="https://www.instagram.com/purdue_search/"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
+            </ExternalLink>
+            <ExternalLink className="ig-follow-btn" href={INSTAGRAM_URL}>
               Follow Us
-            </a>
+            </ExternalLink>
           </div>
           <div className="ig-grid" ref={igGridRef}>
-            {IG_POSTS.map((post, i) => (
-              <a
-                key={i}
-                className="ig-card"
-                href="https://www.instagram.com/purdue_search/"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <img loading="lazy" className="ig-card-img" src={post.image} alt={post.caption} />
-                <div className="ig-card-body">
-                  <p className="ig-card-caption">{post.caption}</p>
-                  <div className="ig-card-meta">
-                    <span>{post.date}</span>
-                    <span className="ig-card-likes">
-                      <i className="fas fa-heart" />{post.likes}
-                    </span>
-                  </div>
-                </div>
-              </a>
+            {(livePosts ?? IG_POSTS.map((p) => ({ ...p, href: INSTAGRAM_URL }))).map((post) => (
+              <IgTile key={post.image} {...post} />
             ))}
           </div>
           <div className="ig-see-more" data-aos="fade-up">
-            <a
-              className="btn-slide-outline"
-              href="https://www.instagram.com/purdue_search/"
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{ padding: '0.6rem 2rem' }}
-            >
+            <ExternalLink className="btn-slide-outline" href={INSTAGRAM_URL} style={{ padding: '0.6rem 2rem' }}>
               <span>See All Posts on Instagram</span>
-            </a>
+            </ExternalLink>
           </div>
         </div>
       </section>
+
+      </main>
 
       <Footer />
     </div>

@@ -80,8 +80,8 @@ const Business = () => {
       <Navbar />
 
       {/* ===== 1 — HERO ===== */}
-      <main
-        id="main-content"
+      <main id="main-content">
+      <header
         className="jumbotron jumbotron-single d-flex align-items-center"
         style={{ backgroundImage: 'url(/business/buisness.webp), url(/analogs_bg.webp)' }}
       >
@@ -92,7 +92,7 @@ const Business = () => {
             forging partnerships, and securing the resources SEARCH needs to reach further.
           </p>
         </div>
-      </main>
+      </header>
 
       {/* ===== 2 — MISSION STATEMENT ===== */}
       <section id="biz-mission">
@@ -131,7 +131,7 @@ const Business = () => {
               </p>
             </div>
             <div className="mg-media-img" data-aos="fade-left">
-              <img loading="lazy" src="/analogs/2022/habitat.webp" alt="SEARCH analog habitat environment" />
+              <img loading="lazy" width={1100} height={550} src="/analogs/2022/habitat.webp" alt="SEARCH analog habitat environment" />
             </div>
           </div>
         </div>
@@ -151,7 +151,7 @@ const Business = () => {
           <div className="biz-functions-grid" ref={functionsGridRef}>
             <div className="biz-function-card glow-track" data-aos="fade-up" data-aos-delay="0">
               <i className="fas fa-map-marked-alt biz-fn-icon" aria-hidden="true"></i>
-              <h4 className="biz-fn-title">Trip &amp; Event Logistics</h4>
+              <h3 className="biz-fn-title">Trip &amp; Event Logistics</h3>
               <p className="biz-fn-desc">
                 From transportation and accommodation to site access and crew manifests,
                 the Business team owns every detail that gets SEARCH members where they need to be.
@@ -159,7 +159,7 @@ const Business = () => {
             </div>
             <div className="biz-function-card glow-track" data-aos="fade-up" data-aos-delay="100">
               <i className="fas fa-handshake biz-fn-icon" aria-hidden="true"></i>
-              <h4 className="biz-fn-title">Industry Partnerships</h4>
+              <h3 className="biz-fn-title">Industry Partnerships</h3>
               <p className="biz-fn-desc">
                 We build lasting relationships with aerospace companies and research institutions,
                 opening doors to mentorship, co-branded events, and real-world project exposure
@@ -168,7 +168,7 @@ const Business = () => {
             </div>
             <div className="biz-function-card glow-track" data-aos="fade-up" data-aos-delay="200">
               <i className="fas fa-dollar-sign biz-fn-icon" aria-hidden="true"></i>
-              <h4 className="biz-fn-title">Sponsorships &amp; Funding</h4>
+              <h3 className="biz-fn-title">Sponsorships &amp; Funding</h3>
               <p className="biz-fn-desc">
                 Identifying grant opportunities, managing sponsor relationships, and securing
                 the funding that makes analog trips, hardware purchases, and program expansion
@@ -263,10 +263,10 @@ const Business = () => {
           </div>
           <div className="trips-grid" data-aos="fade-up">
             <div className="trip-card">
-              <img loading="lazy" src="/analogs/BIosphere.webp" alt="Biosphere 2" />
+              <img loading="lazy" width={825} height={1100} src="/analogs/BIosphere.webp" alt="Biosphere 2" />
               <div className="trip-card-body">
                 <span className="about-section-label">Oracle, Arizona</span>
-                <h4>Biosphere 2</h4>
+                <h3>Biosphere 2</h3>
                 <p>
                   One of the world's largest closed ecological systems, Biosphere 2 provided
                   first-hand insight into nutrient cycling, plant growth management, and
@@ -277,10 +277,10 @@ const Business = () => {
               </div>
             </div>
             <div className="trip-card">
-              <img loading="lazy" src="/analogs/KSC.webp" alt="Kennedy Space Center" />
+              <img loading="lazy" width={825} height={1100} src="/analogs/KSC.webp" alt="Kennedy Space Center" />
               <div className="trip-card-body">
                 <span className="about-section-label">Merritt Island, Florida</span>
-                <h4>Kennedy Space Center</h4>
+                <h3>Kennedy Space Center</h3>
                 <p>
                   A visit to NASA's primary launch facility gave SEARCH members an up-close
                   look at launch infrastructure, mission planning operations, and the
@@ -347,6 +347,7 @@ const Business = () => {
           </div>
         </div>
       </section>
+      </main>
 
       <Footer />
     </div>

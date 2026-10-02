@@ -5,12 +5,15 @@ import BlogCard from '../components/BlogCard';
 import SEOHead from '../components/SEOHead';
 import JsonLd from '../components/JsonLd';
 import { breadcrumbs } from '../seo/schema';
+import ExternalLink from '../components/ExternalLink';
 import { SITE_URL } from '../seo/siteUrl';
 
 const BLOG_API_BASE = process.env.REACT_APP_API_URL || '';
 
 const Blog = () => {
   const [dynamicPosts, setDynamicPosts] = useState([]);
+  const [status, setStatus] = useState('loading'); // loading | ready | error
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     if (window.AOS) window.AOS.init({ once: true });
@@ -19,12 +22,17 @@ const Blog = () => {
   // Fetch AI-expanded blog posts from the outreach backend (best-effort)
   useEffect(() => {
     let cancelled = false;
+    setStatus('loading');
     fetch(`${BLOG_API_BASE}/api/public/blog`)
-      .then(r => r.ok ? r.json() : [])
-      .then(data => { if (!cancelled) setDynamicPosts(Array.isArray(data) ? data : []); })
-      .catch(() => {});
+      .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+      .then(data => {
+        if (cancelled) return;
+        setDynamicPosts(Array.isArray(data) ? data : []);
+        setStatus('ready');
+      })
+      .catch(() => { if (!cancelled) setStatus('error'); });
     return () => { cancelled = true; };
-  }, []);
+  }, [attempt]);
 
   useEffect(() => {
     const link = document.createElement('link');
@@ -66,15 +74,16 @@ const Blog = () => {
         { name: 'Blog', path: '/blog' },
       ])} />
       <Navbar />
-      <main id="main-content" className="jumbotron jumbotron-single d-flex align-items-center" style={{ backgroundImage: 'url(/Purdue_Sky.webp)' }}>
+      <header className="jumbotron jumbotron-single d-flex align-items-center" style={{ backgroundImage: 'url(/Purdue_Sky.webp)' }}>
         <div className="container text-center">
           <h1 className="display-2 mb-4">Blog</h1>
           <p className="header-sub-title" style={{ fontWeight: 'bold', fontSize: '120%' }}>
             Latest news and updates from Purdue SEARCH.
           </p>
         </div>
-      </main>
+      </header>
 
+      <main id="main-content">
       <section id="blog" className="bg-grey">
         <div className="container">
           <div className="section-content">
@@ -83,19 +92,40 @@ const Blog = () => {
               <p className="section-sub-title">Recent highlights from SEARCH programs, competitions, and research.</p>
             </div>
 
-            {(() => {
+            {status === 'loading' && (
+              <div className="row" aria-busy="true" aria-label="Loading posts">
+                {[0, 1, 2].map(i => (
+                  <div key={i} className="col-md-4 mb-4">
+                    <div className="home-events-skeleton blog-skeleton" />
+                  </div>
+                ))}
+              </div>
+            )}
+            {status === 'error' && (
+              <div role="alert">
+                <p style={{ color: 'var(--color-muted)' }}>Couldn't load posts.</p>
+                <button type="button" className="btn-slide-outline" onClick={() => setAttempt(n => n + 1)}>
+                  <span>Try again</span>
+                </button>
+              </div>
+            )}
+            {status === 'ready' && (() => {
               const byYear = {};
               for (const p of dynamicPosts) {
                 const y = p.publishedAt ? new Date(p.publishedAt).getFullYear() : 'Undated';
                 (byYear[y] ||= []).push(p);
               }
-              const years = Object.keys(byYear).sort((a, b) => (b === 'Undated' ? -1 : Number(b) - Number(a)));
+              const years = Object.keys(byYear).sort((a, b) => {
+                if (a === 'Undated') return 1;
+                if (b === 'Undated') return -1;
+                return Number(b) - Number(a);
+              });
               if (years.length === 0) {
                 return <p style={{ color: 'var(--color-muted)' }}>No posts yet — check back soon.</p>;
               }
               return years.map((year) => (
                 <div key={year} className="mb-5">
-                  <h3><b>{year}</b></h3><br />
+                  <h3 className="mb-3"><b>{year}</b></h3>
                   <div className="row">
                     <div className="col-md-12 blog-holder">
                       <div className="row">
@@ -125,26 +155,23 @@ const Blog = () => {
               <p style={{ color: 'var(--color-muted)', marginBottom: '1rem' }}>
                 Follow us for real-time updates
               </p>
-              <a
+              <ExternalLink
                 href="https://www.instagram.com/purdue_search/"
-                className="btn-slide-outline mr-3"
-                target="_blank"
-                rel="noopener noreferrer"
+                                className="btn-slide-outline mr-3"
               >
                 <span><i className="fab fa-instagram mr-1" aria-hidden="true" /> Instagram</span>
-              </a>
-              <a
+              </ExternalLink>
+              <ExternalLink
                 href="https://twitter.com/purduesearch"
-                className="btn-slide-outline"
-                target="_blank"
-                rel="noopener noreferrer"
+                                className="btn-slide-outline"
               >
                 <span><i className="fab fa-twitter mr-1" aria-hidden="true" /> Twitter</span>
-              </a>
+              </ExternalLink>
             </div>
           </div>
         </div>
       </section>
+      </main>
 
       <Footer />
     </div>

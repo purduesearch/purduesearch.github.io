@@ -4,6 +4,7 @@ import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import ExternalLink from '../components/ExternalLink';
 import SEOHead from '../components/SEOHead';
 import { countUpOnView } from '../anim/motion';
 
@@ -273,8 +274,8 @@ const Research = () => {
       <Navbar />
 
       {/* ===== HERO ===== */}
-      <main
-        id="main-content"
+      <main id="main-content">
+      <header
         className="jumbotron jumbotron-single d-flex align-items-center"
         style={{ backgroundImage: 'url(/research/Research_Hero.webp)' }}
       >
@@ -286,7 +287,7 @@ const Research = () => {
             uses minimal resources.
           </p>
         </div>
-      </main>
+      </header>
 
       {/* ===== MISSION BACKGROUND ===== */}
       <section id="mg-background" style={{ background: 'var(--color-bg-dark)', padding: '5rem 0' }}>
@@ -420,7 +421,7 @@ const Research = () => {
           <div className="mg-group-photo-wrap" data-aos="fade-up" data-aos-delay="120">
             <img
               loading="lazy"
-              src="/research/group_work.webp"
+              src="/research/group_work.webp" width="1100" height="825"
               alt="Microgreen Microwaves team working across all three sub-groups in the Purdue ABE lab"
             />
             <p className="mg-group-photo-caption">
@@ -444,7 +445,7 @@ const Research = () => {
             {PHASES.map((ph, i) => (
               <div key={ph.num} className="mg-phase-card" data-aos="fade-up" data-aos-delay={i * 80}>
                 <div className="mg-phase-num">{ph.num}</div>
-                <h4 className="mg-phase-title">{ph.title}</h4>
+                <h3 className="mg-phase-title">{ph.title}</h3>
                 <ul className="mg-phase-list">
                   {ph.deliverables.map(d => (
                     <li key={d}>{d}</li>
@@ -491,7 +492,7 @@ const Research = () => {
               </p>
             </div>
             <div className="mg-media-img" data-aos="fade-left">
-              <img loading="lazy" src="/research/Labspace.webp" alt="Microgreen lab workspace at Purdue" />
+              <img loading="lazy" src="/research/Labspace.webp" width="1100" height="514" alt="Microgreen lab workspace at Purdue" />
             </div>
           </div>
 
@@ -501,7 +502,7 @@ const Research = () => {
               <div key={f.title} className="col-md-4 col-sm-6 col-12 mb-4" data-aos="fade-up" data-aos-delay={i * 60}>
                 <div className="mg-tech-card shadow rounded p-4 h-100">
                   <i className={`${f.icon} mg-tech-icon`} aria-hidden="true" />
-                  <h5 className="mg-tech-title">{f.title}</h5>
+                  <h4 className="mg-tech-title">{f.title}</h4>
                   <p className="mg-tech-body">{f.body}</p>
                 </div>
               </div>
@@ -523,7 +524,7 @@ const Research = () => {
               </p>
             </div>
             <div className="mg-media-img" data-aos="fade-right">
-              <img loading="lazy" src="/research/Mia_work.webp" alt="SEARCH member recording experimental data in lab notebook" />
+              <img loading="lazy" src="/research/Mia_work.webp" width="825" height="1100" alt="SEARCH member recording experimental data in lab notebook" />
             </div>
           </div>
         </div>
@@ -621,7 +622,7 @@ const Research = () => {
                 </p>
               </div>
               <div className="mg-media-img" data-aos="fade-left">
-                <img loading="lazy" src="/research/ICES2025_Research.webp" alt="ICES 2025 Conference" />
+                <img loading="lazy" src="/research/ICES2025_Research.webp" width="1100" height="987" alt="ICES 2025 Conference" />
               </div>
             </div>
           </div>
@@ -657,7 +658,7 @@ const Research = () => {
                 </p>
               </div>
               <div className="mg-media-img" data-aos="fade-right">
-                <img loading="lazy" src="/research/Biosphere_Chamber.webp" alt="Biosphere 2 Research Chamber" />
+                <img loading="lazy" src="/research/Biosphere_Chamber.webp" width="1100" height="514" alt="Biosphere 2 Research Chamber" />
               </div>
             </div>
           </div>
@@ -685,17 +686,12 @@ const Research = () => {
                     ) : (
                       <img loading="lazy" src={prof.photo} alt={prof.name} />
                     )}
-                    <h4>{prof.name}</h4>
+                    <h3>{prof.name}</h3>
                     <p className="prof-title">{prof.title}</p>
-                    <a
-                      href={prof.linkedin}
-                      className="btn-linkedin"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      <i className="fab fa-linkedin" />
+                    <ExternalLink href={prof.linkedin} className="btn-linkedin">
+                      <i className="fab fa-linkedin" aria-hidden="true" />
                       LinkedIn
-                    </a>
+                    </ExternalLink>
                   </div>
                 </div>
               ))}
@@ -738,7 +734,7 @@ const Research = () => {
                 An overview of SEARCH's research projects and NASA design competitions
               </p>
             </div>
-            <h3><b>2023–24</b></h3><br />
+            <h3><b>2023–24</b></h3>
             <div className="row">
               <div className="col-md-12 blog-holder">
                 <div className="row">
@@ -746,18 +742,18 @@ const Research = () => {
                     <div className="blog-item">
                       <div className="blog-img">
                         <Link to="/research/rascal">
-                          <img loading="lazy" src="/research/2023_24/rascal/astros-pup-pr-hab-horizontal4.webp" alt="NASA RASC-AL 2024" />
+                          <img loading="lazy" src="/research/2023_24/rascal/astros-pup-pr-hab-horizontal4.webp" width="1100" height="619" alt="NASA RASC-AL 2024" />
                         </Link>
                       </div>
                       <div className="blog-text">
-                        <div className="blog-tag"><a href="#top"><h6><small>NASA</small></h6></a></div>
+                        <div className="blog-tag"><a href="#top"><small>NASA</small></a></div>
                         <div className="blog-title"><Link to="/research/rascal"><h4>NASA RASC-AL 2024</h4></Link></div>
                         <div className="blog-meta"><p className="blog-date">3 Mar 2024</p></div>
                         <div className="blog-desc"><p>RASC-AL is NASA's design challenge for university students. SEARCH has competed multiple times in this prestigious national competition.</p></div>
                         <div className="blog-author"><p>by Hrishikesh Viswanath</p></div>
                         <div className="blog-share-wrapper">
-                          <a className="blog-share" aria-label="Purdue SEARCH on Instagram" href="https://www.instagram.com/purdue_search/" target="_blank" rel="noopener noreferrer"><i className="fab fa-instagram" /></a>
-                          <a className="blog-share" aria-label="Purdue SEARCH on Twitter" href="https://twitter.com/purduesearch" target="_blank" rel="noopener noreferrer"><i className="fab fa-twitter-square" /></a>
+                          <ExternalLink className="blog-share" aria-label="Purdue SEARCH on Instagram" href="https://www.instagram.com/purdue_search/"><i className="fab fa-instagram" aria-hidden="true" /></ExternalLink>
+                          <ExternalLink className="blog-share" aria-label="Purdue SEARCH on Twitter" href="https://twitter.com/purduesearch"><i className="fab fa-twitter-square" aria-hidden="true" /></ExternalLink>
                         </div>
                       </div>
                     </div>
@@ -765,7 +761,7 @@ const Research = () => {
                 </div>
               </div>
             </div>
-            <h3><b>2022–23</b></h3><br />
+            <h3 className="mt-4"><b>2022–23</b></h3>
             <div className="row">
               <div className="col-md-12 blog-holder">
                 <div className="row">
@@ -773,18 +769,18 @@ const Research = () => {
                     <div className="blog-item">
                       <div className="blog-img">
                         <Link to="/research/rascal">
-                          <img loading="lazy" src="/research/2022_23/mars_mission.webp" alt="NASA RASC-AL 2023" />
+                          <img loading="lazy" src="/research/2022_23/mars_mission.webp" width="1920" height="1080" alt="NASA RASC-AL 2023" />
                         </Link>
                       </div>
                       <div className="blog-text">
-                        <div className="blog-tag"><a href="#top"><h6><small>NASA</small></h6></a></div>
+                        <div className="blog-tag"><a href="#top"><small>NASA</small></a></div>
                         <div className="blog-title"><Link to="/research/rascal"><h4>NASA RASC-AL 2023</h4></Link></div>
                         <div className="blog-meta"><p className="blog-date">3 Mar 2023</p></div>
                         <div className="blog-desc"><p>RASC-AL is NASA's design challenge for university students. SEARCH has competed multiple times in this prestigious national competition.</p></div>
                         <div className="blog-author"><p>by Hrishikesh Viswanath</p></div>
                         <div className="blog-share-wrapper">
-                          <a className="blog-share" aria-label="Purdue SEARCH on Instagram" href="https://www.instagram.com/purdue_search/" target="_blank" rel="noopener noreferrer"><i className="fab fa-instagram" /></a>
-                          <a className="blog-share" aria-label="Purdue SEARCH on Twitter" href="https://twitter.com/purduesearch" target="_blank" rel="noopener noreferrer"><i className="fab fa-twitter-square" /></a>
+                          <ExternalLink className="blog-share" aria-label="Purdue SEARCH on Instagram" href="https://www.instagram.com/purdue_search/"><i className="fab fa-instagram" aria-hidden="true" /></ExternalLink>
+                          <ExternalLink className="blog-share" aria-label="Purdue SEARCH on Twitter" href="https://twitter.com/purduesearch"><i className="fab fa-twitter-square" aria-hidden="true" /></ExternalLink>
                         </div>
                       </div>
                     </div>
@@ -795,6 +791,8 @@ const Research = () => {
           </div>
         </div>
       </section>
+
+      </main>
 
       <Footer />
     </div>

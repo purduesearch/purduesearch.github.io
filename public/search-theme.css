@@ -1088,7 +1088,7 @@ section#single-content .feature-item {
 
 .about-section-label {
   display: inline-block;
-  font-size: 0.7rem;
+  font-size: 0.875rem;
   font-weight: 700;
   letter-spacing: 0.18em;
   text-transform: uppercase;
@@ -1144,7 +1144,7 @@ section#single-content .feature-item {
 }
 .mg-media-row.reverse { flex-direction: row-reverse; }
 .mg-media-text { flex: 1 1 340px; }
-.mg-media-img  { flex: 1 1 340px; }
+.mg-media-img  { flex: 1 1 min(340px, 100%); }
 .mg-media-img img {
   width: 100%;
   border-radius: 8px;
@@ -1172,14 +1172,14 @@ section#single-content .feature-item {
   border: 3px solid rgba(245,239,230,0.25);
   margin-bottom: 1rem;
 }
-.prof-card h4 {
+.prof-card h3 {
   font-family: var(--font-heading) !important;
   font-size: 1.1rem;
   color: #fff;
   margin-bottom: 0.2rem;
 }
 .prof-card .prof-title {
-  font-size: 0.78rem;
+  font-size: 0.875rem;
   color: rgba(245,239,230,0.55);
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -3836,17 +3836,17 @@ html::-webkit-scrollbar { display: none; }
 .mg-stat-row { display: flex; justify-content: center; gap: 2rem; flex-wrap: wrap; margin-top: 2rem; }
 .mg-stat-card { text-align: center; padding: 1.5rem 2rem; background: #fff; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.07); min-width: 130px; }
 .mg-stat-num { font-family: var(--font-heading); font-size: 2.5rem; font-weight: 700; color: var(--color-accent); line-height: 1; }
-.mg-stat-label { font-size: 0.8rem; font-weight: 600; color: var(--color-muted); letter-spacing: 0.05em; text-transform: uppercase; margin-top: 0.4rem; }
+.mg-stat-label { font-size: 0.875rem; font-weight: 600; color: var(--color-muted); letter-spacing: 0.05em; text-transform: uppercase; margin-top: 0.4rem; }
 
 /* Sub-groups */
 .mg-subgroup-strip { display: flex; gap: 1.5rem; flex-wrap: wrap; justify-content: center; }
 .mg-subgroup-card { flex: 1; min-width: 240px; max-width: 340px; background: #fff; border: 1px solid var(--color-border); border-radius: 14px; padding: 2rem 1.5rem; box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
 .mg-subgroup-header { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem; }
-.mg-subgroup-share { font-family: var(--font-heading); font-size: 0.75rem; font-weight: 700; color: #fff; padding: 0.2em 0.65em; border-radius: 20px; letter-spacing: 0.05em; }
+.mg-subgroup-share { font-family: var(--font-heading); font-size: 0.875rem; font-weight: 700; color: #fff; padding: 0.2em 0.65em; border-radius: 20px; letter-spacing: 0.05em; }
 .mg-subgroup-name { font-family: var(--font-heading); font-size: 1.3rem; font-weight: 600; color: var(--color-text); margin-bottom: 0.6rem; }
 .mg-subgroup-desc { font-size: 0.875rem; color: var(--color-muted); line-height: 1.7; margin-bottom: 1rem; }
 .mg-subgroup-skills { display: flex; flex-wrap: wrap; gap: 0.35rem; }
-.mg-skill-chip { display: inline-block; background: rgba(74,124,63,0.1); border: 1px solid rgba(74,124,63,0.25); border-radius: 20px; padding: 0.15em 0.65em; font-size: 0.78rem; font-weight: 600; color: #4a7c3f; }
+.mg-skill-chip { display: inline-block; background: rgba(74,124,63,0.1); border: 1px solid rgba(74,124,63,0.25); border-radius: 20px; padding: 0.15em 0.65em; font-size: 0.875rem; font-weight: 600; color: #4a7c3f; }
 
 /* Phase roadmap */
 .mg-phase-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.25rem; }
@@ -3854,7 +3854,7 @@ html::-webkit-scrollbar { display: none; }
 .mg-phase-num { font-family: var(--font-heading); font-size: 2rem; font-weight: 700; color: var(--color-accent); line-height: 1; margin-bottom: 0.5rem; }
 .mg-phase-title { font-family: var(--font-heading); font-size: 1rem; color: #fff; margin-bottom: 0.85rem; line-height: 1.3; }
 .mg-phase-list { list-style: none; padding: 0; margin: 0; }
-.mg-phase-list li { font-size: 0.8rem; color: rgba(245,239,230,0.6); padding: 0.25rem 0; border-bottom: 1px solid rgba(255,255,255,0.05); line-height: 1.5; }
+.mg-phase-list li { font-size: 0.875rem; color: rgba(245,239,230,0.6); padding: 0.25rem 0; border-bottom: 1px solid rgba(255,255,255,0.05); line-height: 1.5; }
 .mg-phase-list li:last-child { border-bottom: none; }
 
 /* Technical feature cards */
@@ -3866,10 +3866,10 @@ html::-webkit-scrollbar { display: none; }
 /* Academic references */
 .mg-ref-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; }
 .mg-ref-card { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.09); border-radius: 10px; padding: 1.25rem 1.25rem 1rem; }
-.mg-ref-year { display: inline-block; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em; padding: 0.15em 0.6em; border-radius: 20px; background: var(--color-accent); color: #fff; margin-bottom: 0.5rem; }
-.mg-ref-authors { font-size: 0.82rem; font-weight: 600; color: rgba(245,239,230,0.85); margin-bottom: 0.3rem; }
-.mg-ref-title { font-size: 0.82rem; color: rgba(245,239,230,0.7); margin-bottom: 0.25rem; line-height: 1.5; }
-.mg-ref-journal { font-size: 0.78rem; color: rgba(245,239,230,0.45); margin: 0; }
+.mg-ref-year { display: inline-block; font-size: 0.875rem; font-weight: 700; letter-spacing: 0.08em; padding: 0.15em 0.6em; border-radius: 20px; background: var(--color-accent); color: #fff; margin-bottom: 0.5rem; }
+.mg-ref-authors { font-size: 0.875rem; font-weight: 600; color: rgba(245,239,230,0.85); margin-bottom: 0.3rem; }
+.mg-ref-title { font-size: 0.875rem; color: rgba(245,239,230,0.7); margin-bottom: 0.25rem; line-height: 1.5; }
+.mg-ref-journal { font-size: 0.875rem; color: rgba(245,239,230,0.45); margin: 0; }
 
 @media (max-width: 768px) {
   .mg-stat-card { min-width: 110px; padding: 1rem 1.25rem; }
@@ -3886,7 +3886,7 @@ html::-webkit-scrollbar { display: none; }
 /* Group lab photo accent */
 .mg-group-photo-wrap { margin-top: 2.5rem; border-radius: 14px; overflow: hidden; position: relative; }
 .mg-group-photo-wrap img { width: 100%; height: 420px; object-fit: cover; object-position: center 40%; display: block; }
-.mg-group-photo-caption { background: rgba(0,0,0,0.55); color: rgba(255,255,255,0.65); font-size: 0.8rem; line-height: 1.6; padding: 0.6rem 1rem; margin: 0; }
+.mg-group-photo-caption { background: rgba(0,0,0,0.55); color: rgba(255,255,255,0.65); font-size: 0.875rem; line-height: 1.6; padding: 0.6rem 1rem; margin: 0; }
 @media (max-width: 768px) { .mg-group-photo-wrap img { height: 260px; } }
 
 /* â”€â”€ STL 3D Viewer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
@@ -6870,3 +6870,194 @@ button.home-events-day[aria-pressed="true"] .home-events-dot { background: #fff 
   padding-top: clamp(2.5rem, 5vw, 4rem);
   padding-bottom: 0.5rem;
 }
+
+
+/* === PUBLIC POLISH — russet-plover ===========================
+   Phase 1: type floor. public/style.min.css sizes text in bare vw
+   units, which collapse on phones (0.93vw = 3.6px at 390px). That
+   file is vendor and never edited; each rule is overridden here with
+   a rem floor. Desktop sizes at >= 1440px are kept by the vw term. */
+.btn {
+  font-size: max(0.9375rem, 0.93vw);
+}
+.blog-meta p,
+.blog-author p {
+  font-size: max(0.875rem, 0.93vw);
+}
+.jumbotron-single h1,
+.jumbotron-post h1 {
+  font-size: clamp(2.25rem, 3.18vw, 4.5rem) !important;
+}
+.jumbotron i,
+.jumbotron-post i {
+  font-size: max(1rem, 1.27vw);
+}
+.fs-40 {
+  font-size: clamp(2rem, 2.65vw, 2.5rem);
+}
+.skill-item p {
+  font-size: max(0.875rem, 1.06vw);
+}
+.grid-link a {
+  font-size: max(0.875rem, 1.32vw);
+}
+#header-navbar .navbar-toggler {
+  font-size: max(1rem, 2.12vw);
+}
+@media (max-width: 767.98px) {
+  .jumbotron-post h1 {
+    font-size: clamp(2.25rem, 9vw, 3rem) !important;
+  }
+  .progress {
+    font-size: 0.875rem;
+  }
+}
+
+/* Home (russet-plover P3): img width/height attrs reserve space; keep CSS-driven sizing */
+.logo-marquee .client-item img { height: auto; }
+
+/* About + Contact (russet-plover P4) */
+.about-hero-sub {
+  font-weight: 400;
+  font-size: 1.125rem;
+  line-height: 1.6;
+  max-width: 62ch;
+  margin-left: auto;
+  margin-right: auto;
+}
+.about-section .about-section-label {
+  font-size: 0.8125rem;
+}
+.about-mission-list {
+  margin: 0 0 1.5rem;
+  padding-left: 1.25rem;
+  color: var(--color-muted);
+  line-height: 1.85;
+}
+.about-mission-list li {
+  margin-bottom: 0.5rem;
+}
+.officer-photo {
+  width: 150px;
+  max-width: 100%;
+  height: auto;
+  aspect-ratio: 1;
+}
+.about-person-name {
+  font-size: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+.about-person-role {
+  font-size: 1.25rem;
+  color: var(--color-muted);
+  margin-bottom: 0.5rem;
+}
+.about-past-title,
+.contact-card-title {
+  font-size: 1.25rem;
+}
+#events {
+  scroll-margin-top: calc(var(--navbar-height, 80px) + 1rem);
+}
+@media (max-width: 767.98px) {
+  #who-we-are .features-holder > .row,
+  #officers-2025 .features-holder > .row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 0.75rem;
+    margin-left: 0;
+    margin-right: 0;
+  }
+  #who-we-are .features-holder > .row > [class*="col-"],
+  #officers-2025 .features-holder > .row > [class*="col-"] {
+    display: contents;
+  }
+  #who-we-are .feature-item,
+  #officers-2025 .feature-item {
+    padding: 1rem 0.5rem !important;
+    margin-bottom: 0.75rem !important;
+    overflow-wrap: anywhere;
+  }
+  #who-we-are .feature-item > div,
+  #officers-2025 .feature-item > div {
+    margin: 0.5rem 0 !important;
+  }
+  .about-person-name {
+    font-size: 1.0625rem;
+  }
+  .about-person-role {
+    font-size: 0.875rem;
+  }
+}
+
+/* Blog cards — one link per card (title), stretched over the whole card. */
+.blog-item--linked { position: relative; }
+.blog-item--linked .blog-card-link { color: var(--color-text); }
+.blog-item--linked .blog-card-link::after { content: ''; position: absolute; inset: 0; z-index: 1; }
+.blog-item--linked .blog-card-link:hover { color: var(--color-accent); }
+.blog-item--linked .blog-card-link:focus-visible { outline: none; }
+.blog-item--linked:focus-within { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+.blog-item--linked .blog-title-text { font-size: 1.5rem; margin: 0; color: inherit; }
+.blog-item--linked .blog-tag { margin: 0 0 0.5rem; color: var(--color-muted); text-transform: uppercase; }
+.blog-skeleton { height: 320px; }
+
+/* Research / Software images keep their aspect ratio now that they carry width/height attributes */
+.mg-media-img img { height: auto; }
+
+/* SA2TP + Outreach — images carry width/height attributes; keep their aspect ratio (inline heights still win) */
+.sa2tp-page img[width][height],
+.outreach-page img[width][height] { height: auto; }
+
+/* Card tag line (was an h6) and social icons with a 44px hit area */
+.blog-tag-text { margin: 0 0 0.5rem; font-size: 1rem; line-height: 1.2; text-transform: uppercase; color: var(--color-muted); }
+.sa2tp-page .blog-share,
+.outreach-page .blog-share {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+}
+
+/* === PUBLIC POLISH — russet-plover, Phase 8 (AstroUSA) ===
+   Closed diagram panel leaves the tab order and a11y tree; the
+   visibility flip waits for the slide-out to finish. Power chain
+   scrolls inside its own box; subsystem chips reach 44px on phones. */
+.astro-diagram-panel {
+  visibility: hidden;
+  transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1), visibility 0s linear 0.28s;
+}
+.astro-diagram-panel.open {
+  visibility: visible;
+  transition-delay: 0s;
+}
+.power-chain-wrap {
+  max-width: 100%;
+  -webkit-overflow-scrolling: touch;
+}
+@media (max-width: 767.98px) {
+  .astro-key-btn {
+    min-height: 44px;
+    font-size: 0.8125rem;
+    padding: 0.4rem 0.9rem;
+  }
+  .power-node-label {
+    font-size: 0.75rem;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .astro-diagram-panel { transition: none; }
+}
+.coming-soon-badge { font-size: 0.8125rem; }
+.timeline-bullets { font-size: 0.875rem; }
+.astro-diagram-caption { font-size: 0.8125rem; }
+
+/* Breadcrumb tap targets (russet-plover phase 9) */
+.breadcrumb-list li a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+
+/* AstroUSA — images carry width/height attributes; keep aspect ratio (zero specificity: class and inline heights still win) */
+:where(img[width][height]) { height: auto; }

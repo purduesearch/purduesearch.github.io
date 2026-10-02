@@ -7,6 +7,7 @@ import { sweepVaultTmpDir } from "../api/vault.js";
 import { remindNonResponders } from "../api/meetingPolls.js";
 import * as pollService from "../services/pollService.js";
 import { EXCLUDE_TRAINING } from "../services/trainingSandboxService.js";
+import { ensureToken, refreshFeed, getPublicFeed } from "../services/instagramFeedService.js";
 import { sendDueReminders, autoCloseStale, discardExpiredPending } from "../services/labVisitService.js";
 
 // ── Scheduler ────────────────────────────────────────────────
@@ -655,5 +656,25 @@ export function startScheduler(app: App): void {
       console.error("[lab] discard cron error:", err);
     }
   });
+  // ── Instagram feed cache (data maintenance only, no Slack sends) ─────
+  const runInstagramRefresh = async () => {
+    try {
+      await ensureToken();
+      const r = await refreshFeed();
+      if (r.ok) console.log(`[instagram] feed refreshed: ${r.count} posts`);
+    } catch (err) {
+      console.error("[instagram] cron error:", err);
+    }
+  };
+  cron.schedule("40 */3 * * *", runInstagramRefresh);
+  // First fill after boot when nothing is cached yet.
+  setTimeout(async () => {
+    try {
+      if ((await getPublicFeed()).length === 0) await runInstagramRefresh();
+    } catch (err) {
+      console.error("[instagram] boot fill error:", err);
+    }
+  }, 30_000).unref();
+  console.log("  📅 Scheduled: Every 3 hours (:40) — Instagram feed refresh");
   console.log("  📅 Scheduled: Every 5 minutes     — Lab check-out reminders (hourly :07 auto-close, daily 4:30 discard)");
 }

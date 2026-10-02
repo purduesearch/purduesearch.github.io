@@ -4,6 +4,7 @@ import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
 import Breadcrumb from '../../components/Breadcrumb';
 import SEOHead from '../../components/SEOHead';
+import ExternalLink from '../../components/ExternalLink';
 import JsonLd from '../../components/JsonLd';
 import { breadcrumbs } from '../../seo/schema';
 
@@ -26,11 +27,13 @@ const Rascal = () => {
       ])} />
       <Navbar />
       <Breadcrumb />
-      <main id="main-content" className="jumbotron-post jumbotron-single d-flex align-items-center" style={{ backgroundImage: 'url(/research/2022_23/mars_mission.webp)' }}>
+      <header className="jumbotron-post jumbotron-single d-flex align-items-center" style={{ backgroundImage: 'url(/research/2022_23/mars_mission.webp)' }}>
         <div className="container text-center" style={{ top: 30 }}>
           <h1 className="display-2 mb-4">NASA RASC-AL 2023 Competition</h1>
         </div>
-      </main>
+      </header>
+
+      <main id="main-content">
 
       <section style={{ top: 25 }}>
         <div className="shadow container" style={{ maxWidth: '83%', marginLeft: '8%', marginRight: '8%', paddingRight: 8, paddingTop: 8, marginBottom: '8%', paddingBottom: 8 }}>
@@ -38,17 +41,17 @@ const Rascal = () => {
             <div className="row" style={{ maxWidth: '100%' }}>
               <div className="col-md-25 offset-md-1 mt-1" style={{ maxWidth: '100%' }}>
                 <div style={{ marginLeft: '1%', marginRight: '10%', textAlign: 'justify' }}>
-                  <h4>About the Challenge</h4>
+                  <h2 className="h4">About the Challenge</h2>
                   <img loading="lazy"className="float-left" style={{ maxWidth: '45%', borderRadius: 20 }} src="/research/2022_23/mars_mission.webp" alt="Mars Mission" />
                   <i>"NASA is pioneering the future of space exploration as we extend humanity's presence further into the solar system.
                     The 2023 RASC-AL Competition is seeking undergraduate and graduate teams to develop new concepts that
                     leverage innovation to improve our ability to operate on the Moon, Mars and beyond."</i>
                   <br /><br />
-                  <h4>The Team</h4>
+                  <h2 className="h4">The Team</h2>
                   <i>As part of SEARCH, Purdue University participated in the 2023 RASC-AL Challenge. The team chose Homesteading Mars
                     as the topic to research. The team comprised a group of graduate students, undergraduate students and PhD mentors.
                   </i><br /><br />
-                  <h4>P.U.R.E. S.P.A.C.E. — Purdue University Research Expedition: Sustainable Planetary Access, Colonization and Exploration</h4>
+                  <h2 className="h4">P.U.R.E. S.P.A.C.E. — Purdue University Research Expedition: Sustainable Planetary Access, Colonization and Exploration</h2>
                   <p>
                     Proposed in our model is a system that relies on sustainable research, production and growth, through In-Situ
                     Resource Utilization, aquaponics, and other forms of reuse and recycling. Our proposal is best organized into six categories:
@@ -75,7 +78,7 @@ const Rascal = () => {
                       allowFullScreen
                     />
                     Finally, the Food and Aquaponics Research Module (FARM) is dedicated to overcoming the health challenges of human space flight through aquaponics and vertical farming systems.<br /><br />
-                    Here is a link to the <a href="https://drive.google.com/file/d/1CXIf-BjmNxkB1M1Act1oBQ13DG8Pcota/view?usp=sharing" target="_blank" rel="noopener noreferrer">Technical Report</a> the team submitted to NASA<br /><br /><br />
+                    Here is a link to the <ExternalLink href="https://drive.google.com/file/d/1CXIf-BjmNxkB1M1Act1oBQ13DG8Pcota/view?usp=sharing">Technical Report</ExternalLink> the team submitted to NASA<br /><br /><br />
                     <img loading="lazy"src="/research/2022_23/Team_Photo.webp" style={{ borderRadius: 10 }} alt="RASC-AL Team 2023" />
                   </p>
                 </div>
@@ -99,6 +102,7 @@ const Rascal = () => {
           </Link>
         </div>
       </section>
+      </main>
 
       <Footer />
     </div>

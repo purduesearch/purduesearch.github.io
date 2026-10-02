@@ -1,15 +1,15 @@
-import { useEffect, useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import SearchBar from './SearchBar';
 import { SLACK_JOIN_URL } from '../lib/siteLinks';
+import ExternalLink from './ExternalLink';
 import { useClubPmAuth } from '../clubpm/ClubPmAuth';
+import { TEAMS, TEAMS_PATHS } from '../lib/teams';
 
 // Primary nav reads About · Teams ▾ · Blog; Home is the centre wordmark.
 const NAV_BEFORE_TEAMS = [{ label: 'About', to: '/about' }];
 const NAV_AFTER_TEAMS  = [{ label: 'Blog',  to: '/blog' }];
-
-const TEAMS_PATHS = ['/research', '/sa2tp', '/software', '/astrousa', '/ares', '/business', '/outreach'];
 
 // `solid` keeps the opaque bar at scrollY 0 — for pages with no dark hero
 // behind the navbar, where the transparent state's white links vanish.
@@ -18,8 +18,8 @@ const Navbar = ({ solid = false }) => {
   const [teamsOpen, setTeamsOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const teamsToggleRef = useRef(null);
   const { pathname } = useLocation();
-  const navigate = useNavigate();
   const { member, logout } = useClubPmAuth();
 
   const isTeamsActive = TEAMS_PATHS.some(p => pathname === p || pathname.startsWith(p + '/'));
@@ -62,6 +62,18 @@ const Navbar = ({ solid = false }) => {
     return () => mq.removeEventListener('change', onChange);
   }, [menuOpen]);
 
+  // Escape closes the Teams disclosure and returns focus to its toggle
+  useEffect(() => {
+    if (!teamsOpen) return;
+    const onKeyDown = (e) => {
+      if (e.key !== 'Escape') return;
+      setTeamsOpen(false);
+      teamsToggleRef.current?.focus();
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [teamsOpen]);
+
   useEffect(() => {
     const onClickOutside = (e) => {
       if (!e.target.closest('#teams-dropdown')) setTeamsOpen(false);
@@ -72,6 +84,10 @@ const Navbar = ({ solid = false }) => {
   }, []);
 
   const closeMenu = () => setMenuOpen(false);
+  // Tabbing out of the Teams item closes the disclosure
+  const handleTeamsBlur = (e) => {
+    if (!e.currentTarget.contains(e.relatedTarget)) setTeamsOpen(false);
+  };
   const handleTeamsLinkClick = () => { setTeamsOpen(false); setMenuOpen(false); };
   const handleProfileLinkClick = () => { setProfileOpen(false); setMenuOpen(false); };
   const handleLogout = () => {
@@ -106,7 +122,7 @@ const Navbar = ({ solid = false }) => {
           aria-label="Toggle navigation"
         >
           {menuOpen
-            ? <i className="fas fa-times" style={{ fontSize: '1.25rem' }} />
+            ? <i className="fas fa-times" style={{ fontSize: '1.25rem' }} aria-hidden="true" />
             : <i className="fas fa-bars" aria-hidden="true" />
           }
         </button>
@@ -115,7 +131,7 @@ const Navbar = ({ solid = false }) => {
 
           {/* ── Left: logo + primary nav ── */}
           <div className="nav-section-left d-flex align-items-center">
-            <Link to="/" onClick={closeMenu} className="d-flex align-items-center">
+            <Link to="/" onClick={closeMenu} className="d-none d-lg-flex align-items-center">
               <img
                 src="/icons/purdue_search_logo.png"
                 style={{ width: '3rem', marginRight: '0.5rem' }}
@@ -126,11 +142,13 @@ const Navbar = ({ solid = false }) => {
               {NAV_BEFORE_TEAMS.map(renderNavLink)}
 
               {/* Teams dropdown */}
-              <li className="nav-item" id="teams-dropdown" style={{ position: 'relative' }}>
+              <li className="nav-item" id="teams-dropdown" style={{ position: 'relative' }} onBlur={handleTeamsBlur}>
                 <button
+                  ref={teamsToggleRef}
+                  type="button"
+                  aria-controls="teams-menu"
                   className={`nav-link nav-underline-target teams-dropdown-toggle${teamsOpen ? ' open' : ''}`}
                   onClick={() => setTeamsOpen(v => !v)}
-                  aria-haspopup="true"
                   aria-expanded={teamsOpen}
                 >
                   Teams <span className="teams-caret" aria-hidden="true">▾</span>
@@ -139,14 +157,10 @@ const Navbar = ({ solid = false }) => {
                   <motion.span layoutId="nav-underline" className="nav-active-indicator" />
                 )}
                 {teamsOpen && (
-                  <div className="teams-dropdown-menu" role="menu">
-                    <Link className="teams-dropdown-item" to="/research"  onClick={handleTeamsLinkClick}>Microgreen Microwaves</Link>
-                    <Link className="teams-dropdown-item" to="/sa2tp"     onClick={handleTeamsLinkClick}>Astronaut Training</Link>
-                    <Link className="teams-dropdown-item" to="/software"  onClick={handleTeamsLinkClick}>SUITS</Link>
-                    <Link className="teams-dropdown-item" to="/astrousa"  onClick={handleTeamsLinkClick}>ASTRO-USA</Link>
-                    <Link className="teams-dropdown-item" to="/ares"      onClick={handleTeamsLinkClick}>ARES</Link>
-                    <Link className="teams-dropdown-item" to="/business"  onClick={handleTeamsLinkClick}>Business &amp; Operations</Link>
-                    <Link className="teams-dropdown-item" to="/outreach"  onClick={handleTeamsLinkClick}>Outreach</Link>
+                  <div className="teams-dropdown-menu" id="teams-menu">
+                    {TEAMS.map(({ to, name }) => (
+                      <Link key={to} className="teams-dropdown-item" to={to} onClick={handleTeamsLinkClick}>{name}</Link>
+                    ))}
                   </div>
                 )}
               </li>
@@ -167,7 +181,7 @@ const Navbar = ({ solid = false }) => {
           {/* ── Right: utility links + CTAs ── */}
           <div className="nav-section-right d-flex align-items-center">
             <ul className="navbar-nav align-items-center">
-              <li className="nav-item mr-1">
+              <li className="nav-item nav-item-search mr-1">
                 <SearchBar />
               </li>
               {member ? (
@@ -175,6 +189,8 @@ const Navbar = ({ solid = false }) => {
                   <button
                     className="nav-link teams-dropdown-toggle d-flex align-items-center"
                     onClick={() => setProfileOpen(v => !v)}
+                    aria-label={`Account menu for ${member.displayName}`}
+                    aria-expanded={profileOpen}
                     style={{ background: 'transparent', border: 'none', padding: 0 }}
                   >
                     {member.avatarUrl ? (
@@ -205,16 +221,14 @@ const Navbar = ({ solid = false }) => {
                 </li>
               )}
               {renderNavLink({ label: 'Contact', to: '/contact' })}
-              <li className="nav-item ml-2">
-                <a
+              <li className="nav-item nav-item-join ml-2">
+                <ExternalLink
                   href={SLACK_JOIN_URL}
                   className="navbar-cta-btn"
-                  target="_blank"
-                  rel="noopener noreferrer"
                   onClick={closeMenu}
                 >
-                  Join our Slack<span className="sr-only"> (opens in a new tab)</span>
-                </a>
+                  Join our Slack
+                </ExternalLink>
               </li>
             </ul>
           </div>

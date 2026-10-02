@@ -5,6 +5,7 @@ import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import ExternalLink from '../components/ExternalLink';
 import SEOHead from '../components/SEOHead';
 import { staggerGroup } from '../anim/scrollFx';
 
@@ -107,7 +108,7 @@ const SA2TP = () => {
   }, []);
 
   return (
-    <div>
+    <div className="sa2tp-page">
       <SEOHead
         title="SA²TP Analog Astronaut Training"
         description="The Student Analog Astronaut Training Program at Purdue prepares students with flight training, skydiving, scuba certification, NASA facility visits, and more."
@@ -116,7 +117,8 @@ const SA2TP = () => {
       <Navbar />
 
       {/* ===== SCROLL-SCRUBBED VIDEO HERO ===== */}
-      <main id="main-content" className="hero-scroll-extender" ref={heroRef}>
+      <main id="main-content">
+      <div className="hero-scroll-extender" ref={heroRef}>
       <div className="video-scrub-hero" style={{ height: '100vh', overflow: 'hidden', background: '#12121c' }}>
         <video
           ref={videoRef}
@@ -142,19 +144,17 @@ const SA2TP = () => {
               src="/animations/rocket-launch.json"
               style={{ height: 56, width: 56 }}
             />
-            <a
+            <ExternalLink
               href="https://forms.gle/chCitrDyU1jkYjET9"
               className="btn-slide-fill"
-              target="_blank"
-              rel="noopener noreferrer"
               style={{ padding: '0.65rem 2rem', display: 'inline-block' }}
             >
               <span>Apply — Crew 4</span>
-            </a>
+            </ExternalLink>
           </div>
         </div>
       </div>
-      </main>{/* /hero-scroll-extender */}
+      </div>{/* /hero-scroll-extender */}
 
       {/* ===== PROGRAM OVERVIEW ===== */}
       <section id="sa2tp-overview" className="bg-grey">
@@ -189,7 +189,7 @@ const SA2TP = () => {
             <div className="col-lg-5 text-center" data-aos="fade-left" style={{ padding: '2rem' }}>
               <img
                 loading="lazy"
-                src="/sa2tp/SA2TP_Logo.webp"
+                src="/sa2tp/SA2TP_Logo.webp" width="545" height="458"
                 alt="SA2TP Logo"
                 style={{ maxWidth: '280px', width: '100%', filter: 'drop-shadow(0 8px 24px rgba(0,0,0,0.15))' }}
               />
@@ -226,7 +226,7 @@ const SA2TP = () => {
               </p>
             </div>
             <div className="mg-media-img" data-aos="fade-left">
-              <img loading="lazy" src="/sa2tp/Plane.webp" alt="SA2TP Flight Training" />
+              <img loading="lazy" src="/sa2tp/Plane.webp" width="1100" height="825" alt="SA2TP Flight Training" />
             </div>
           </div>
         </div>
@@ -252,7 +252,7 @@ const SA2TP = () => {
           preload="metadata"
         />
         <div className="section-video-overlay" />
-        <div className="section-video-content container" style={{ padding: '6rem 0' }}>
+        <div className="section-video-content container" style={{ padding: '6rem 15px' }}>
           <div className="row">
             <div className="col-lg-6 col-md-8" data-aos="fade-right">
               <span className="about-section-label" style={{ color: 'rgba(255,255,255,0.7)' }}>Altitude Training</span>
@@ -301,10 +301,10 @@ const SA2TP = () => {
           </div>
           <div className="scuba-grid" data-aos="fade-up">
             <div>
-              <img loading="lazy" src="/sa2tp/Scuba.webp" alt="Scuba Training" style={{ width: '100%', borderRadius: '10px', objectFit: 'cover', aspectRatio: '4/3' }} />
+              <img loading="lazy" src="/sa2tp/Scuba.webp" width="1100" height="514" alt="Scuba Training" style={{ width: '100%', borderRadius: '10px', objectFit: 'cover', aspectRatio: '4/3' }} />
             </div>
             <div>
-              <img loading="lazy" src="/sa2tp/Scuba2.webp" alt="Scuba Training 2" style={{ width: '100%', borderRadius: '10px', objectFit: 'cover', aspectRatio: '4/3' }} />
+              <img loading="lazy" src="/sa2tp/Scuba2.webp" width="1100" height="619" alt="Scuba Training 2" style={{ width: '100%', borderRadius: '10px', objectFit: 'cover', aspectRatio: '4/3' }} />
             </div>
           </div>
           <div className="row mt-5">
@@ -339,7 +339,7 @@ const SA2TP = () => {
                 <div className="feature-icon" style={{ marginBottom: '1rem' }}>
                   <i className="fas fa-rocket" style={{ fontSize: '2.2rem', color: 'var(--color-accent)' }} />
                 </div>
-                <h5 style={{ fontFamily: 'var(--font-heading)', marginBottom: '0.6rem' }}>NASA Space Academy</h5>
+                <h3 style={{ fontSize: '1.25rem', fontFamily: 'var(--font-heading)', marginBottom: '0.6rem' }}>NASA Space Academy</h3>
                 <p style={{ color: 'var(--color-muted)', fontSize: '0.92rem', lineHeight: '1.7' }}>
                   Trainees travel to NASA Marshall Space Flight Center in Huntsville, AL for the
                   Adult Space Flight Academy — experiencing mission simulations, hardware walkthroughs,
@@ -354,7 +354,7 @@ const SA2TP = () => {
                 <div className="feature-icon" style={{ marginBottom: '1rem' }}>
                   <i className="fas fa-wind" style={{ fontSize: '2.2rem', color: 'var(--color-accent)' }} />
                 </div>
-                <h5 style={{ fontFamily: 'var(--font-heading)', marginBottom: '0.6rem' }}>Indoor Skydiving (iFly)</h5>
+                <h3 style={{ fontSize: '1.25rem', fontFamily: 'var(--font-heading)', marginBottom: '0.6rem' }}>Indoor Skydiving (iFly)</h3>
                 <p style={{ color: 'var(--color-muted)', fontSize: '0.92rem', lineHeight: '1.7' }}>
                   Before or after their real jump, trainees train in a vertical wind tunnel at iFly.
                   Controlled body-flight practice improves spatial awareness, core stability, and
@@ -369,7 +369,7 @@ const SA2TP = () => {
                 <div className="feature-icon" style={{ marginBottom: '1rem' }}>
                   <i className="fas fa-map-marked-alt" style={{ fontSize: '2.2rem', color: 'var(--color-accent)' }} />
                 </div>
-                <h5 style={{ fontFamily: 'var(--font-heading)', marginBottom: '0.6rem' }}>Orienteering</h5>
+                <h3 style={{ fontSize: '1.25rem', fontFamily: 'var(--font-heading)', marginBottom: '0.6rem' }}>Orienteering</h3>
                 <p style={{ color: 'var(--color-muted)', fontSize: '0.92rem', lineHeight: '1.7' }}>
                   In partnership with the Purdue Outing Club, crews complete a wilderness orienteering
                   challenge — navigating terrain using map and compass, mirroring the wayfinding
@@ -384,7 +384,7 @@ const SA2TP = () => {
                 <div className="feature-icon" style={{ marginBottom: '1rem' }}>
                   <i className="fas fa-home" style={{ fontSize: '2.2rem', color: 'var(--color-accent)' }} />
                 </div>
-                <h5 style={{ fontFamily: 'var(--font-heading)', marginBottom: '0.6rem' }}>ASTRO-USA Habitat</h5>
+                <h3 style={{ fontSize: '1.25rem', fontFamily: 'var(--font-heading)', marginBottom: '0.6rem' }}>ASTRO-USA Habitat</h3>
                 <p style={{ color: 'var(--color-muted)', fontSize: '0.92rem', lineHeight: '1.7' }}>
                   Crews interact with SEARCH's own analog habitat — participating in mission-control
                   scenarios and closed-loop habitat simulations that connect the training program
@@ -399,10 +399,10 @@ const SA2TP = () => {
           <div className="row mt-4" data-aos="fade-up">
             <div className="col-lg-10 offset-lg-1">
               <div style={{ background: 'var(--color-bg)', borderRadius: 12, padding: '1.8rem 2rem', border: '1px solid var(--color-border)' }}>
-                <h5 style={{ fontFamily: 'var(--font-heading)', marginBottom: '1rem' }}>
+                <h3 style={{ fontSize: '1.25rem', fontFamily: 'var(--font-heading)', marginBottom: '1rem' }}>
                   <i className="fas fa-chalkboard-teacher" style={{ color: 'var(--color-accent)', marginRight: '0.5rem' }} />
                   Workshops &amp; Supplemental Training
-                </h5>
+                </h3>
                 <div className="row">
                   <div className="col-md-4">
                     <p style={{ color: 'var(--color-muted)', fontSize: '0.92rem', lineHeight: '1.7', marginBottom: 0 }}>
@@ -445,11 +445,11 @@ const SA2TP = () => {
             <div className="col-lg-4 col-md-6 mb-5 text-center">
               <img
                 loading="lazy"
-                src="/sa2tp/Crew1_Patch.webp"
+                src="/sa2tp/Crew1_Patch.webp" width="1096" height="931"
                 alt="SA2TP Crew 1 Mission Patch"
                 style={{ width: '180px', height: '180px', objectFit: 'contain', marginBottom: '1.2rem', filter: 'drop-shadow(0 6px 18px rgba(0,0,0,0.18))' }}
               />
-              <h5 style={{ fontFamily: 'var(--font-heading)', marginBottom: '0.3rem' }}>Crew 1 — Summer 2023</h5>
+              <h3 style={{ fontSize: '1.25rem', fontFamily: 'var(--font-heading)', marginBottom: '0.3rem' }}>Crew 1 — Summer 2023</h3>
               <p style={{ color: 'var(--color-muted)', fontSize: '0.9rem', marginBottom: '0.5rem' }}>
                 <em>Logistics Lead: Émilie Laflèche</em>
               </p>
@@ -465,11 +465,11 @@ const SA2TP = () => {
             <div className="col-lg-4 col-md-6 mb-5 text-center">
               <img
                 loading="lazy"
-                src="/sa2tp/Crew2_Patch.webp"
+                src="/sa2tp/Crew2_Patch.webp" width="697" height="1056"
                 alt="SA2TP Crew 2 Mission Patch"
                 style={{ width: '180px', height: '180px', objectFit: 'contain', marginBottom: '1.2rem', filter: 'drop-shadow(0 6px 18px rgba(0,0,0,0.18))' }}
               />
-              <h5 style={{ fontFamily: 'var(--font-heading)', marginBottom: '0.3rem' }}>Crew 2 — 2024</h5>
+              <h3 style={{ fontSize: '1.25rem', fontFamily: 'var(--font-heading)', marginBottom: '0.3rem' }}>Crew 2 — 2024</h3>
               <p style={{ color: 'var(--color-muted)', fontSize: '0.9rem', marginBottom: '0.5rem' }}>
                 <em>Logistics Lead: John Peters</em>
               </p>
@@ -485,11 +485,11 @@ const SA2TP = () => {
             <div className="col-lg-4 col-md-6 mb-5 text-center">
               <img
                 loading="lazy"
-                src="/sa2tp/Crew3_Patch.webp"
+                src="/sa2tp/Crew3_Patch.webp" width="823" height="793"
                 alt="SA2TP Crew 3 Mission Patch"
                 style={{ width: '180px', height: '180px', objectFit: 'contain', marginBottom: '1.2rem', filter: 'drop-shadow(0 6px 18px rgba(0,0,0,0.18))' }}
               />
-              <h5 style={{ fontFamily: 'var(--font-heading)', marginBottom: '0.3rem' }}>Crew 3 — Summer 2025</h5>
+              <h3 style={{ fontSize: '1.25rem', fontFamily: 'var(--font-heading)', marginBottom: '0.3rem' }}>Crew 3 — Summer 2025</h3>
               <p style={{ color: 'var(--color-muted)', fontSize: '0.9rem', marginBottom: '0.5rem' }}>
                 <em>Logistics Lead: John Peters</em>
               </p>
@@ -520,10 +520,10 @@ const SA2TP = () => {
                   <div className="col-md-4 blog-item-wrapper" data-aos="fade-up">
                     <div className="blog-item">
                       <div className="blog-img">
-                        <img loading="lazy" src="/sa2tp/Crew3_Patch.webp" alt="Crew 3 Summer 2025" style={{ objectFit: 'contain', background: '#f4f4f4' }} />
+                        <img loading="lazy" src="/sa2tp/Crew3_Patch.webp" width="823" height="793" alt="Crew 3 Summer 2025" style={{ objectFit: 'contain', background: '#f4f4f4' }} />
                       </div>
                       <div className="blog-text">
-                        <div className="blog-tag"><a href="#top"><h6><small>SA²TP</small></h6></a></div>
+                        <div className="blog-tag"><p className="blog-tag-text"><small>SA²TP</small></p></div>
                         <div className="blog-title"><h4>Crew 3 — Summer 2025</h4></div>
                         <div className="blog-meta"><p className="blog-date">Summer 2025</p></div>
                         <div className="blog-desc">
@@ -531,8 +531,8 @@ const SA2TP = () => {
                         </div>
                         <div className="blog-author"><p>by Purdue SEARCH</p></div>
                         <div className="blog-share-wrapper">
-                          <a className="blog-share" aria-label="Purdue SEARCH on Instagram" href="https://www.instagram.com/purdue_search/" target="_blank" rel="noopener noreferrer"><i className="fab fa-instagram" /></a>
-                          <a className="blog-share" aria-label="Purdue SEARCH on Twitter" href="https://twitter.com/purduesearch" target="_blank" rel="noopener noreferrer"><i className="fab fa-twitter-square" /></a>
+                          <ExternalLink className="blog-share" aria-label="Purdue SEARCH on Instagram" href="https://www.instagram.com/purdue_search/"><i className="fab fa-instagram" /></ExternalLink>
+                          <ExternalLink className="blog-share" aria-label="Purdue SEARCH on Twitter" href="https://twitter.com/purduesearch"><i className="fab fa-twitter-square" /></ExternalLink>
                         </div>
                       </div>
                     </div>
@@ -545,17 +545,17 @@ const SA2TP = () => {
                   <div className="col-md-4 blog-item-wrapper" data-aos="fade-up">
                     <div className="blog-item">
                       <div className="blog-img">
-                        <Link to="/sa2tp/rod-interview"><img loading="lazy" src="/sa2tp/2023/interview_bg.webp" alt="Leadership on SA2TP" /></Link>
+                        <Link to="/sa2tp/rod-interview"><img loading="lazy" src="/sa2tp/2023/interview_bg.webp" width="1100" height="593" alt="Leadership on SA2TP" /></Link>
                       </div>
                       <div className="blog-text">
-                        <div className="blog-tag"><a href="#top"><h6><small>SA²TP</small></h6></a></div>
+                        <div className="blog-tag"><p className="blog-tag-text"><small>SA²TP</small></p></div>
                         <div className="blog-title"><Link to="/sa2tp/rod-interview"><h4>Leadership on SA²TP</h4></Link></div>
                         <div className="blog-meta"><p className="blog-date">2 Nov 2023</p></div>
                         <div className="blog-desc"><p>This is an interview by Purdue Exponent, with the members of SEARCH regarding our summer analog astronaut training program</p></div>
                         <div className="blog-author"><p>by James Kling</p></div>
                         <div className="blog-share-wrapper">
-                          <a className="blog-share" aria-label="Purdue SEARCH on Instagram" href="https://www.instagram.com/purdue_search/" target="_blank" rel="noopener noreferrer"><i className="fab fa-instagram" /></a>
-                          <a className="blog-share" aria-label="Purdue SEARCH on Twitter" href="https://twitter.com/purduesearch" target="_blank" rel="noopener noreferrer"><i className="fab fa-twitter-square" /></a>
+                          <ExternalLink className="blog-share" aria-label="Purdue SEARCH on Instagram" href="https://www.instagram.com/purdue_search/"><i className="fab fa-instagram" /></ExternalLink>
+                          <ExternalLink className="blog-share" aria-label="Purdue SEARCH on Twitter" href="https://twitter.com/purduesearch"><i className="fab fa-twitter-square" /></ExternalLink>
                         </div>
                       </div>
                     </div>
@@ -564,17 +564,17 @@ const SA2TP = () => {
                   <div className="col-md-4 blog-item-wrapper" data-aos="fade-up">
                     <div className="blog-item">
                       <div className="blog-img">
-                        <Link to="/sa2tp/crew1"><img loading="lazy" src="/sa2tp/2023/PXL_20230808_201504997.webp" alt="Summer 23 Astronaut Training" /></Link>
+                        <Link to="/sa2tp/crew1"><img loading="lazy" src="/sa2tp/2023/PXL_20230808_201504997.webp" width="1100" height="619" alt="Summer 23 Astronaut Training" /></Link>
                       </div>
                       <div className="blog-text">
-                        <div className="blog-tag"><a href="#top"><h6><small>SA²TP</small></h6></a></div>
+                        <div className="blog-tag"><p className="blog-tag-text"><small>SA²TP</small></p></div>
                         <div className="blog-title"><Link to="/sa2tp/crew1"><h4>Summer 23 Astronaut Training</h4></Link></div>
                         <div className="blog-meta"><p className="blog-date">30 Jun 2023</p></div>
                         <div className="blog-desc"><p>Our first ever student run astronaut training program happened in the summer of 2023. The program involved fitness training, flight training, scuba certification and a trip to NASA in Huntsville, Alabama</p></div>
                         <div className="blog-author"><p>by Hrishikesh Viswanath</p></div>
                         <div className="blog-share-wrapper">
-                          <a className="blog-share" aria-label="Purdue SEARCH on Instagram" href="https://www.instagram.com/purdue_search/" target="_blank" rel="noopener noreferrer"><i className="fab fa-instagram" /></a>
-                          <a className="blog-share" aria-label="Purdue SEARCH on Twitter" href="https://twitter.com/purduesearch" target="_blank" rel="noopener noreferrer"><i className="fab fa-twitter-square" /></a>
+                          <ExternalLink className="blog-share" aria-label="Purdue SEARCH on Instagram" href="https://www.instagram.com/purdue_search/"><i className="fab fa-instagram" /></ExternalLink>
+                          <ExternalLink className="blog-share" aria-label="Purdue SEARCH on Twitter" href="https://twitter.com/purduesearch"><i className="fab fa-twitter-square" /></ExternalLink>
                         </div>
                       </div>
                     </div>
@@ -586,6 +586,8 @@ const SA2TP = () => {
           </div>
         </div>
       </section>
+
+      </main>
 
       <Footer />
     </div>

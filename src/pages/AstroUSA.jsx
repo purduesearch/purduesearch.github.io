@@ -4,6 +4,7 @@ import { Player } from '@lottiefiles/react-lottie-player';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import SEOHead from '../components/SEOHead';
+import ExternalLink from '../components/ExternalLink';
 import SectionProgressRail from '../components/SectionProgressRail';
 
 const AstroFlowDiagram = lazy(() => import('../components/AstroFlowDiagram'));
@@ -189,8 +190,8 @@ const AstroUSA = () => {
       <SectionProgressRail sections={ASTRO_RAIL_SECTIONS} />
 
       {/* ===== HERO ===== */}
-      <main
-        id="main-content"
+      <main id="main-content">
+      <header
         className="jumbotron jumbotron-single d-flex align-items-center"
         style={{ backgroundImage: 'url(/astrousa/Group_Photo_ASTRO.webp)' }}
       >
@@ -201,7 +202,7 @@ const AstroUSA = () => {
             a fully closed-loop habitat analog being built on Purdue's campus.
           </p>
         </div>
-      </main>
+      </header>
 
       {/* ===== SECTION 0: MISSION INTRO ===== */}
       <section id="astro-mission">
@@ -395,20 +396,20 @@ const AstroUSA = () => {
             </div>
             <div className="mg-media-img" data-aos="fade-left">
               <figure className="blueprint-img">
-                <img loading="lazy" src="/astrousa/fig3_floor_layout.webp" alt="Food Production Module floor layout (top-down)" />
+                <img loading="lazy" width={624} height={220} src="/astrousa/fig3_floor_layout.webp" alt="Food Production Module floor layout (top-down)" />
               </figure>
             </div>
           </div>
           <div style={{ display: 'flex', gap: '1.5rem', marginTop: '2.5rem', flexWrap: 'wrap' }} data-aos="fade-up">
             <figure className="blueprint-img" style={{ flex: '1 1 300px' }}>
-              <img loading="lazy" src="/astrousa/fig2_floor_plan.webp" alt="Food Production Module floor plan" style={{ width: '100%' }} />
-              <figcaption style={{ textAlign: 'center', fontSize: '0.78rem', color: 'var(--color-muted)', marginTop: '0.6rem', padding: '0 0.5rem' }}>
+              <img loading="lazy" width={624} height={187} src="/astrousa/fig2_floor_plan.webp" alt="Food Production Module floor plan" style={{ width: '100%' }} />
+              <figcaption style={{ textAlign: 'center', fontSize: '0.875rem', color: 'var(--color-muted)', marginTop: '0.6rem', padding: '0 0.5rem' }}>
                 Food Production Module floor plan
               </figcaption>
             </figure>
             <figure className="blueprint-img" style={{ flex: '1 1 300px' }}>
-              <img loading="lazy" src="/astrousa/fig10_minihab_layout.webp" alt="2D layout of Mini-Hab" style={{ width: '100%' }} />
-              <figcaption style={{ textAlign: 'center', fontSize: '0.78rem', color: 'var(--color-muted)', marginTop: '0.6rem', padding: '0 0.5rem' }}>
+              <img loading="lazy" width={624} height={154} src="/astrousa/fig10_minihab_layout.webp" alt="2D layout of Mini-Hab" style={{ width: '100%' }} />
+              <figcaption style={{ textAlign: 'center', fontSize: '0.875rem', color: 'var(--color-muted)', marginTop: '0.6rem', padding: '0 0.5rem' }}>
                 Mini-Hab 2D layout
               </figcaption>
             </figure>
@@ -428,14 +429,14 @@ const AstroUSA = () => {
 
           <div style={{ display: 'flex', gap: '1.5rem', marginTop: '1.5rem', flexWrap: 'wrap' }} data-aos="fade-up">
             <figure style={{ flex: '1 1 300px', margin: 0 }}>
-              <img loading="lazy" src="/astrousa/Sparks_ASTRO.webp" alt="Welding and fabrication on the ASTRO-USA habitat" style={{ width: '100%', borderRadius: '10px', display: 'block' }} />
-              <figcaption style={{ textAlign: 'center', fontSize: '0.78rem', color: 'var(--color-muted)', marginTop: '0.6rem' }}>
+              <img loading="lazy" width={825} height={1100} src="/astrousa/Sparks_ASTRO.webp" alt="Welding and fabrication on the ASTRO-USA habitat" style={{ width: '100%', borderRadius: '10px', display: 'block' }} />
+              <figcaption style={{ textAlign: 'center', fontSize: '0.875rem', color: 'var(--color-muted)', marginTop: '0.6rem' }}>
                 Welding and fabrication work on the habitat frame
               </figcaption>
             </figure>
             <figure style={{ flex: '1 1 300px', margin: 0 }}>
-              <img loading="lazy" src="/astrousa/Drill_Work_ASTRO.webp" alt="Structural drilling and assembly on the ASTRO-USA habitat" style={{ width: '100%', borderRadius: '10px', display: 'block' }} />
-              <figcaption style={{ textAlign: 'center', fontSize: '0.78rem', color: 'var(--color-muted)', marginTop: '0.6rem' }}>
+              <img loading="lazy" width={652} height={847} src="/astrousa/Drill_Work_ASTRO.webp" alt="Structural drilling and assembly on the ASTRO-USA habitat" style={{ width: '100%', borderRadius: '10px', display: 'block' }} />
+              <figcaption style={{ textAlign: 'center', fontSize: '0.875rem', color: 'var(--color-muted)', marginTop: '0.6rem' }}>
                 Structural drilling and panel assembly
               </figcaption>
             </figure>
@@ -485,26 +486,26 @@ const AstroUSA = () => {
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem', marginTop: '2.5rem' }} data-aos="fade-up">
             <figure style={{ margin: 0 }}>
-              <img loading="lazy" src="/astrousa/Overview.webp" alt="Power systems overview" style={{ width: '100%', borderRadius: '10px' }} />
-              <figcaption style={{ textAlign: 'center', fontSize: '0.78rem', color: 'var(--color-muted)', marginTop: '0.6rem' }}>
+              <img loading="lazy" width={1100} height={712} src="/astrousa/Overview.webp" alt="Power systems overview" style={{ width: '100%', borderRadius: '10px' }} />
+              <figcaption style={{ textAlign: 'center', fontSize: '0.875rem', color: 'var(--color-muted)', marginTop: '0.6rem' }}>
                 Power systems overview
               </figcaption>
             </figure>
             <figure style={{ margin: 0 }}>
-              <img loading="lazy" src="/astrousa/Solar_One-Line_Diagram.webp" alt="Solar one-line electrical diagram" style={{ width: '100%', borderRadius: '10px' }} />
-              <figcaption style={{ textAlign: 'center', fontSize: '0.78rem', color: 'var(--color-muted)', marginTop: '0.6rem' }}>
+              <img loading="lazy" width={1100} height={854} src="/astrousa/Solar_One-Line_Diagram.webp" alt="Solar one-line electrical diagram" style={{ width: '100%', borderRadius: '10px' }} />
+              <figcaption style={{ textAlign: 'center', fontSize: '0.875rem', color: 'var(--color-muted)', marginTop: '0.6rem' }}>
                 Solar one-line diagram
               </figcaption>
             </figure>
             <figure style={{ margin: 0 }}>
-              <img loading="lazy" src="/astrousa/One-Line_Diagram.webp" alt="Full one-line power distribution diagram" style={{ width: '100%', borderRadius: '10px' }} />
-              <figcaption style={{ textAlign: 'center', fontSize: '0.78rem', color: 'var(--color-muted)', marginTop: '0.6rem' }}>
+              <img loading="lazy" width={1100} height={796} src="/astrousa/One-Line_Diagram.webp" alt="Full one-line power distribution diagram" style={{ width: '100%', borderRadius: '10px' }} />
+              <figcaption style={{ textAlign: 'center', fontSize: '0.875rem', color: 'var(--color-muted)', marginTop: '0.6rem' }}>
                 One-line power distribution
               </figcaption>
             </figure>
             <figure style={{ margin: 0 }}>
-              <img loading="lazy" src="/astrousa/Wiring_Diagram.webp" alt="Habitat wiring diagram" style={{ width: '100%', borderRadius: '10px' }} />
-              <figcaption style={{ textAlign: 'center', fontSize: '0.78rem', color: 'var(--color-muted)', marginTop: '0.6rem' }}>
+              <img loading="lazy" width={1100} height={801} src="/astrousa/Wiring_Diagram.webp" alt="Habitat wiring diagram" style={{ width: '100%', borderRadius: '10px' }} />
+              <figcaption style={{ textAlign: 'center', fontSize: '0.875rem', color: 'var(--color-muted)', marginTop: '0.6rem' }}>
                 Habitat wiring diagram
               </figcaption>
             </figure>
@@ -602,17 +603,17 @@ const AstroUSA = () => {
           <div className="row" ref={growthRef} data-aos="fade-up">
             <div className="col-md-6 mb-4">
               <div className="growth-img">
-                <img loading="lazy" src="/astrousa/fig4_nft_towers.webp" alt="27×11 NFT tower assemblies" style={{ width: '100%', borderRadius: '12px', objectFit: 'cover', aspectRatio: '4/3' }} />
+                <img loading="lazy" width={1100} height={506} src="/astrousa/fig4_nft_towers.webp" alt="27×11 NFT tower assemblies" style={{ width: '100%', borderRadius: '12px', objectFit: 'cover', aspectRatio: '4/3' }} />
               </div>
-              <p style={{ fontSize: '0.78rem', color: 'var(--color-muted)', marginTop: '0.6rem', textAlign: 'center' }}>
+              <p style={{ fontSize: '0.875rem', color: 'var(--color-muted)', marginTop: '0.6rem', textAlign: 'center' }}>
                 27×11 NFT tower assemblies
               </p>
             </div>
             <div className="col-md-6 mb-4">
               <div className="growth-img">
-                <img loading="lazy" src="/astrousa/fig5_propagation.webp" alt="Propagation station and DWC buckets" style={{ width: '100%', borderRadius: '12px', objectFit: 'cover', aspectRatio: '4/3' }} />
+                <img loading="lazy" width={1100} height={543} src="/astrousa/fig5_propagation.webp" alt="Propagation station and DWC buckets" style={{ width: '100%', borderRadius: '12px', objectFit: 'cover', aspectRatio: '4/3' }} />
               </div>
-              <p style={{ fontSize: '0.78rem', color: 'var(--color-muted)', marginTop: '0.6rem', textAlign: 'center' }}>
+              <p style={{ fontSize: '0.875rem', color: 'var(--color-muted)', marginTop: '0.6rem', textAlign: 'center' }}>
                 Propagation station + DWC buckets
               </p>
             </div>
@@ -634,11 +635,11 @@ const AstroUSA = () => {
               </p>
             </div>
             <div className="mg-media-img" data-aos="fade-left">
-              <img loading="lazy" src="/astrousa/Mycoponics.webp" alt="Mycoponics fungal system" style={{ borderRadius: '10px', width: '100%' }} />
+              <img loading="lazy" width={685} height={1100} src="/astrousa/Mycoponics.webp" alt="Mycoponics fungal system" style={{ borderRadius: '10px', width: '100%' }} />
             </div>
           </div>
           <div style={{ marginTop: '2rem' }} data-aos="fade-up">
-            <img loading="lazy" src="/astrousa/Hydroponics_Work_ASTRO.webp" alt="Hydroponics system work at Purdue Greenhouse" style={{ width: '100%', borderRadius: '10px', objectFit: 'cover', maxHeight: '420px' }} />
+            <img loading="lazy" width={1100} height={514} src="/astrousa/Hydroponics_Work_ASTRO.webp" alt="Hydroponics system work at Purdue Greenhouse" style={{ width: '100%', borderRadius: '10px', objectFit: 'cover', maxHeight: '420px' }} />
           </div>
         </div>
       </section>
@@ -814,17 +815,17 @@ const AstroUSA = () => {
                   <div className="col-md-4 blog-item-wrapper" data-aos="fade-up" data-aos-delay={200}>
                     <div className="blog-item">
                       <div className="blog-img">
-                        <Link to="/astrousa/overview"><img loading="lazy" src="/astrousa/astro-overview.webp" alt="Habitat Overview" /></Link>
+                        <Link to="/astrousa/overview"><img loading="lazy" width={1024} height={1024} src="/astrousa/astro-overview.webp" alt="Habitat Overview" /></Link>
                       </div>
                       <div className="blog-text">
-                        <div className="blog-tag"><a href="#top"><h6><small>General</small></h6></a></div>
-                        <div className="blog-title"><Link to="/astrousa/overview"><h4>Habitat Overview</h4></Link></div>
+                        <div className="blog-tag"><a href="#top"><small>General</small></a></div>
+                        <div className="blog-title"><Link to="/astrousa/overview"><h3>Habitat Overview</h3></Link></div>
                         <div className="blog-meta"><p className="blog-date">3 March 2024</p></div>
                         <div className="blog-desc"><p>Learn more about the background, goals, and designs of the ASTRO-USA habitat!</p></div>
                         <div className="blog-author"><p>by Ilina Adhikari, Brasen Garcia, Ryan DeAngelis, Nathanael Herman</p></div>
                         <div className="blog-share-wrapper">
-                          <a className="blog-share" aria-label="Purdue SEARCH on Instagram" href="https://www.instagram.com/purdue_search/" target="_blank" rel="noopener noreferrer"><i className="fab fa-instagram" /></a>
-                          <a className="blog-share" aria-label="Purdue SEARCH on Twitter" href="https://twitter.com/purduesearch" target="_blank" rel="noopener noreferrer"><i className="fab fa-twitter-square" /></a>
+                          <ExternalLink className="blog-share" aria-label="Purdue SEARCH on Instagram" href="https://www.instagram.com/purdue_search/"><i aria-hidden="true" className="fab fa-instagram" /></ExternalLink>
+                          <ExternalLink className="blog-share" aria-label="Purdue SEARCH on Twitter" href="https://twitter.com/purduesearch"><i aria-hidden="true" className="fab fa-twitter-square" /></ExternalLink>
                         </div>
                       </div>
                     </div>
@@ -833,17 +834,17 @@ const AstroUSA = () => {
                   <div className="col-md-4 blog-item-wrapper" data-aos="fade-up" data-aos-delay={200}>
                     <div className="blog-item">
                       <div className="blog-img">
-                        <Link to="/astrousa/architecture"><img loading="lazy" src="/astrousa/architecture_design.webp" alt="Architecture Design" /></Link>
+                        <Link to="/astrousa/architecture"><img loading="lazy" width={1024} height={512} src="/astrousa/architecture_design.webp" alt="Architecture Design" /></Link>
                       </div>
                       <div className="blog-text">
-                        <div className="blog-tag"><a href="#top"><h6><small>Architecture</small></h6></a></div>
-                        <div className="blog-title"><Link to="/astrousa/architecture"><h4>Architecture Design</h4></Link></div>
+                        <div className="blog-tag"><a href="#top"><small>Architecture</small></a></div>
+                        <div className="blog-title"><Link to="/astrousa/architecture"><h3>Architecture Design</h3></Link></div>
                         <div className="blog-meta"><p className="blog-date">23 Feb 2024</p></div>
                         <div className="blog-desc"><p>An in depth look on the design process for the ASTRO-USA habitat</p></div>
                         <div className="blog-author"><p>by Ilina Adhikari, Brasen Garcia, Ryan DeAngelis</p></div>
                         <div className="blog-share-wrapper">
-                          <a className="blog-share" aria-label="Purdue SEARCH on Instagram" href="https://www.instagram.com/purdue_search/" target="_blank" rel="noopener noreferrer"><i className="fab fa-instagram" /></a>
-                          <a className="blog-share" aria-label="Purdue SEARCH on Twitter" href="https://twitter.com/purduesearch" target="_blank" rel="noopener noreferrer"><i className="fab fa-twitter-square" /></a>
+                          <ExternalLink className="blog-share" aria-label="Purdue SEARCH on Instagram" href="https://www.instagram.com/purdue_search/"><i aria-hidden="true" className="fab fa-instagram" /></ExternalLink>
+                          <ExternalLink className="blog-share" aria-label="Purdue SEARCH on Twitter" href="https://twitter.com/purduesearch"><i aria-hidden="true" className="fab fa-twitter-square" /></ExternalLink>
                         </div>
                       </div>
                     </div>
@@ -852,17 +853,17 @@ const AstroUSA = () => {
                   <div className="col-md-4 blog-item-wrapper" data-aos="fade-up" data-aos-delay={200}>
                     <div className="blog-item">
                       <div className="blog-img">
-                        <Link to="/astrousa/hydroponics"><img loading="lazy" src="/research/2023_24/hydroponics/hydro.webp" alt="Hydroponics" /></Link>
+                        <Link to="/astrousa/hydroponics"><img loading="lazy" width={735} height={378} src="/research/2023_24/hydroponics/hydro.webp" alt="Hydroponics" /></Link>
                       </div>
                       <div className="blog-text">
-                        <div className="blog-tag"><a href="#top"><h6><small>Bio-Astronautics</small></h6></a></div>
-                        <div className="blog-title"><Link to="/astrousa/hydroponics"><h4>Hydroponics</h4></Link></div>
+                        <div className="blog-tag"><a href="#top"><small>Bio-Astronautics</small></a></div>
+                        <div className="blog-title"><Link to="/astrousa/hydroponics"><h3>Hydroponics</h3></Link></div>
                         <div className="blog-meta"><p className="blog-date">9 Feb 2024</p></div>
                         <div className="blog-desc"><p>A team of students developing an autonomous hydroponic system at Purdue's Greenhouse for implementation in ASTRO-USA!</p></div>
                         <div className="blog-author"><p>by Ilina Adhikari</p></div>
                         <div className="blog-share-wrapper">
-                          <a className="blog-share" aria-label="Purdue SEARCH on Instagram" href="https://www.instagram.com/purdue_search/" target="_blank" rel="noopener noreferrer"><i className="fab fa-instagram" /></a>
-                          <a className="blog-share" aria-label="Purdue SEARCH on Twitter" href="https://twitter.com/purduesearch" target="_blank" rel="noopener noreferrer"><i className="fab fa-twitter-square" /></a>
+                          <ExternalLink className="blog-share" aria-label="Purdue SEARCH on Instagram" href="https://www.instagram.com/purdue_search/"><i aria-hidden="true" className="fab fa-instagram" /></ExternalLink>
+                          <ExternalLink className="blog-share" aria-label="Purdue SEARCH on Twitter" href="https://twitter.com/purduesearch"><i aria-hidden="true" className="fab fa-twitter-square" /></ExternalLink>
                         </div>
                       </div>
                     </div>
@@ -873,6 +874,7 @@ const AstroUSA = () => {
           </div>
         </div>
       </section>
+      </main>
 
       <Footer />
     </div>

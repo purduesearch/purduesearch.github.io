@@ -1,6 +1,8 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { SLACK_JOIN_URL, DONATE_URL } from '../lib/siteLinks';
+import { TEAMS } from '../lib/teams';
+import ExternalLink from './ExternalLink';
 
 const Footer = () => (
   <footer id="search-footer">
@@ -23,27 +25,23 @@ const Footer = () => (
           </p>
         </div>
 
-        {/* Programs links */}
+        {/* Team links — first four are programs, the rest support teams */}
         <div className="col-lg-2 col-md-6 mb-4 footer-nav-col">
           <h4>Programs</h4>
           <ul>
-            <li><Link to="/research">Research</Link></li>
-            {/* No "Analog Programs" entry: /analogs has no route (the page was
-                removed in a8f763b3), so this link soft-404'd from every page. */}
-            <li><Link to="/sa2tp">SA²TP</Link></li>
-            <li><Link to="/astrousa">ASTRO-USA</Link></li>
-            <li><Link to="/ares">ARES</Link></li>
+            {TEAMS.slice(0, 4).map(({ to, name }) => (
+              <li key={to}><Link to={to}>{name}</Link></li>
+            ))}
           </ul>
         </div>
 
-        {/* Team links */}
         <div className="col-lg-2 col-md-6 mb-4 footer-nav-col">
           <h4>Team</h4>
           <ul>
-            <li><Link to="/software">Software</Link></li>
-            <li><Link to="/outreach">Outreach</Link></li>
+            {TEAMS.slice(4).map(({ to, name }) => (
+              <li key={to}><Link to={to}>{name}</Link></li>
+            ))}
             <li><Link to="/about">About Us</Link></li>
-            <li><Link to="/contact">Contact</Link></li>
           </ul>
         </div>
 
@@ -55,34 +53,34 @@ const Footer = () => (
               <Link to="/contact">Contact Us</Link>
             </li>
             <li>
-              <a href="https://www.instagram.com/purdue_search/" target="_blank" rel="noopener noreferrer">
+              <ExternalLink href="https://www.instagram.com/purdue_search/">
                 Instagram
-              </a>
+              </ExternalLink>
             </li>
             <li>
-              <a href="https://twitter.com/purduesearch" target="_blank" rel="noopener noreferrer">
-                Twitter / X
-              </a>
+              <ExternalLink href="https://twitter.com/purduesearch">
+                X (Twitter)
+              </ExternalLink>
             </li>
             <li>
-              <a href={DONATE_URL} target="_blank" rel="noopener noreferrer">
+              <ExternalLink href={DONATE_URL}>
                 Donate Now
-              </a>
+              </ExternalLink>
             </li>
             <li>
-              <a href="https://boilerlink.purdue.edu/organization/search" target="_blank" rel="noopener noreferrer">
+              <ExternalLink href="https://boilerlink.purdue.edu/organization/search">
                 BoilerLink
-              </a>
+              </ExternalLink>
             </li>
             <li>
-              <a href="https://www.linkedin.com/company/purdue-search/" target="_blank" rel="noopener noreferrer">
+              <ExternalLink href="https://www.linkedin.com/company/purdue-search/">
                 LinkedIn
-              </a>
+              </ExternalLink>
             </li>
             <li>
-              <a href="https://www.facebook.com/share/14YKGkqYqNh/" target="_blank" rel="noopener noreferrer">
+              <ExternalLink href="https://www.facebook.com/share/14YKGkqYqNh/">
                 Facebook
-              </a>
+              </ExternalLink>
             </li>
           </ul>
         </div>
@@ -98,27 +96,17 @@ const Footer = () => (
           <p className="footer-discord-heading">Join the conversation</p>
           <p className="footer-discord-sub">Connect with SEARCH members on Slack</p>
         </div>
-        <a
-          href={SLACK_JOIN_URL}
-          className="btn-slide-outline footer-slack-btn"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
+        <ExternalLink href={SLACK_JOIN_URL} className="btn-slide-outline footer-slack-btn">
           <span>Join Slack</span>
-        </a>
+        </ExternalLink>
       </div>
 
       {/* Donate CTA row */}
       <div className="footer-donate-cta">
         <p>Support the next generation of analog astronauts</p>
-        <a
-          href={DONATE_URL}
-          className="btn-slide-fill footer-donate-btn"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
+        <ExternalLink href={DONATE_URL} className="btn-slide-fill footer-donate-btn">
           <span>Donate Now</span>
-        </a>
+        </ExternalLink>
       </div>
     </div>
 
@@ -139,21 +127,21 @@ const Footer = () => (
           <li><a href="/legal/terms.html">Terms of Service</a></li>
         </ul>
         <div className="social-circles">
-          <a className="social-circle" href="https://twitter.com/purduesearch" target="_blank" rel="noopener noreferrer" aria-label="Twitter">
-            <i className="fab fa-twitter" />
-          </a>
-          <a className="social-circle" href="https://instagram.com/purdue_search" target="_blank" rel="noopener noreferrer" aria-label="Instagram">
-            <i className="fab fa-instagram" />
-          </a>
-          <a className="social-circle" href="https://www.linkedin.com/company/purdue-search/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn">
-            <i className="fab fa-linkedin-in" />
-          </a>
-          <a className="social-circle" href="https://www.youtube.com/@PurdueSEARCH" target="_blank" rel="noopener noreferrer" aria-label="YouTube">
-            <i className="fab fa-youtube" />
-          </a>
-          <a className="social-circle" href="https://www.facebook.com/share/14YKGkqYqNh/" target="_blank" rel="noopener noreferrer" aria-label="Facebook">
-            <i className="fab fa-facebook-f" />
-          </a>
+          <ExternalLink className="social-circle" href="https://twitter.com/purduesearch" aria-label="X (Twitter)">
+            <i className="fab fa-x-twitter" aria-hidden="true" />
+          </ExternalLink>
+          <ExternalLink className="social-circle" href="https://instagram.com/purdue_search" aria-label="Instagram">
+            <i className="fab fa-instagram" aria-hidden="true" />
+          </ExternalLink>
+          <ExternalLink className="social-circle" href="https://www.linkedin.com/company/purdue-search/" aria-label="LinkedIn">
+            <i className="fab fa-linkedin-in" aria-hidden="true" />
+          </ExternalLink>
+          <ExternalLink className="social-circle" href="https://www.youtube.com/@PurdueSEARCH" aria-label="YouTube">
+            <i className="fab fa-youtube" aria-hidden="true" />
+          </ExternalLink>
+          <ExternalLink className="social-circle" href="https://www.facebook.com/share/14YKGkqYqNh/" aria-label="Facebook">
+            <i className="fab fa-facebook-f" aria-hidden="true" />
+          </ExternalLink>
         </div>
       </div>
     </div>

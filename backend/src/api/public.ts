@@ -2,6 +2,7 @@ import { Router, type Request, type Response } from "express";
 import { prisma } from "../db/prisma.js";
 import * as pollService from "../services/pollService.js";
 import { streamDriveFile } from "../services/driveService.js";
+import { getPublicFeed } from "../services/instagramFeedService.js";
 import {
   PUBLIC_EVENT_WHERE, PUBLIC_EVENT_SELECT, serializePublicEvent,
   parsePublicRange, buildPublicIcsFeed, icsFileName,
@@ -57,6 +58,18 @@ publicRouter.get("/events", async (req: Request, res: Response) => {
   } catch (error) {
     console.error("GET /public/events error:", error);
     res.status(500).json({ error: "Failed to load events" });
+  }
+});
+
+// Cached Instagram posts for the homepage. Images are mirrored under /uploads/instagram.
+publicRouter.get("/instagram", async (_req: Request, res: Response) => {
+  try {
+    const posts = await getPublicFeed();
+    res.setHeader("Cache-Control", "public, max-age=900");
+    res.json({ posts });
+  } catch (error) {
+    console.error("GET /public/instagram error:", error);
+    res.status(500).json({ error: "Failed to load Instagram feed" });
   }
 });
 

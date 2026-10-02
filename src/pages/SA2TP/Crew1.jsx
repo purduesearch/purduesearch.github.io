@@ -26,11 +26,13 @@ const Crew1 = () => {
       ])} />
       <Navbar />
       <Breadcrumb />
-      <main id="main-content" className="jumbotron-post jumbotron-single d-flex align-items-center" style={{ backgroundImage: 'url(/software/2023_24/SUITS/bg.webp)' }}>
+      <header className="jumbotron-post jumbotron-single d-flex align-items-center" style={{ backgroundImage: 'url(/sa2tp.webp)' }}>
         <div className="container text-center" style={{ top: 30 }}>
           <h1 className="display-2 mb-4">Crew 1 Mission 2023</h1>
         </div>
-      </main>
+      </header>
+
+      <main id="main-content">
 
       <section style={{ top: 25 }}>
         <div className="shadow container" style={{ maxWidth: '83%', marginLeft: '8%', marginRight: '8%', paddingRight: 8, paddingTop: 8, marginBottom: '8%', paddingBottom: 8 }}>
@@ -38,7 +40,7 @@ const Crew1 = () => {
             <div className="row" style={{ maxWidth: '100%' }}>
               <div className="col-md-25 offset-md-1 mt-1" style={{ maxWidth: '100%' }}>
                 <div style={{ marginLeft: '1%', marginRight: '10%', textAlign: 'justify' }}>
-                  <h4>About the Mission</h4>
+                  <h2 className="h4">About the Mission</h2>
                   <img loading="lazy"className="float-left" width="220px" src="/sa2tp/2023/logo.webp" alt="SA2TP Logo" />
                   <i>In Purdue's Space and Earth Analogs Research Chapter (SEARCH), we not only dream of the impossible, but work
                     to make it a reality. Since 2022, we have coordinated analog astronaut training programs at Purdue alongside
@@ -49,7 +51,7 @@ const Crew1 = () => {
                   <br /><br />
                   <img loading="lazy"src="/sa2tp/2023/PXL_20230808_201504997.webp" alt="SA2TP members at the station" style={{ borderRadius: 10 }} />
                   <br /><br />
-                  <h4>About SA2TP</h4>
+                  <h2 className="h4">About SA2TP</h2>
                   A program unlike any other, the SA2 TP aims to build a community of space-minded individuals
                   that train, network, and learn together in an environment that supports their career
                   aspirations. For the program's inaugural run, the top 6 applicants (both graduate and
@@ -65,8 +67,8 @@ const Crew1 = () => {
                   <img loading="lazy"className="float-right" src="/sa2tp/2023/IMG_20230813_115931.webp" alt="Space Academy" style={{ borderRadius: 20, maxWidth: '35%', padding: '1%' }} />
                   <br />
                   <br />
-                  <h4>Goals</h4>
-                  <h5>Science and Technology</h5>
+                  <h2 className="h4">Goals</h2>
+                  <h3 className="h5">Science and Technology</h3>
                   Astronauts must have a comprehensive
                   knowledge of science, technology, engineering,
                   and math (STEM) to solve space exploration's
@@ -75,7 +77,7 @@ const Crew1 = () => {
                   workshops, 3D printing challenges, and more for
                   participants to learn to think like an astronaut.
                   <br /><br />
-                  <h5>Health and Fitness</h5>
+                  <h3 className="h5">Health and Fitness</h3>
                   A healthy astronaut corps in mind, body, and
                   soul is essential to ensure a successful mission.
                   Space psychology, nutrition, and fitness
@@ -83,7 +85,7 @@ const Crew1 = () => {
                   challenges the human body experiences in
                   space and educate on mitigation strategies.
                   <br /><br />
-                  <h5>Astronautics and Spaceflight</h5>
+                  <h3 className="h5">Astronautics and Spaceflight</h3>
                   Co-led by PSP and Lunabotics, SA2TP
                   participants will gain a firsthand understanding
                   of the mechanical systems keeping space
@@ -93,20 +95,20 @@ const Crew1 = () => {
                   <br />
                   <img loading="lazy"className="center" src="/sa2tp/2023/IMG_20230811_194834.webp" alt="Activities" style={{ borderRadius: 10 }} />
                   <br /><br />
-                  <h4>Activities</h4>
-                  <h5>Astrodynamics</h5>
+                  <h2 className="h4">Activities</h2>
+                  <h3 className="h5">Astrodynamics</h3>
                   <ul>
                     <li>Intro to Orbital Mechanics Lecture</li>
                     <li>Astrodynamics Simulation Workshop</li>
                     <li>Kerbal Space Program Team Bonding Challenge</li>
                   </ul>
-                  <h5>Health</h5>
+                  <h3 className="h5">Health</h3>
                   <ul>
                     <li>Space Nutrition Seminar with former CSA space nutrition specialist Katherine Dulong</li>
                     <li>Space Psychology Seminar</li>
                     <li>Fitness Sessions</li>
                   </ul>
-                  <h5>Mechanical</h5>
+                  <h3 className="h5">Mechanical</h3>
                   <ul>
                     <li>Intro to Rocketry Lecture</li>
                     <li>Cubesat Lecture and Workshop</li>
@@ -114,20 +116,20 @@ const Crew1 = () => {
                     <li>Rover Mechanical Design Lecture (CAD, FEA Workshop)</li>
                     <li>Rover Demonstration and Operation</li>
                   </ul>
-                  <h5>Technical Skills</h5>
+                  <h3 className="h5">Technical Skills</h3>
                   <ul>
                     <li>Simulations Lectures and Workshops</li>
                     <li>3D Printing Challenge</li>
                     <li>SA2TP Hackathon</li>
                     <li>Test Flights</li>
                   </ul>
-                  <h5>Survival Skills</h5>
+                  <h3 className="h5">Survival Skills</h3>
                   <ul>
                     <li>Orienteering and Celestial Navigation Crash Course</li>
                     <li>First Aid Seminar</li>
                     <li>Essential Survival Skills</li>
                   </ul>
-                  <h5>Soft Skills</h5>
+                  <h3 className="h5">Soft Skills</h3>
                   <ul>
                     <li>Outreach Workshop</li>
                     <li>Space Program Selection and Planning</li>
@@ -157,6 +159,7 @@ const Crew1 = () => {
           </Link>
         </div>
       </section>
+      </main>
 
       <Footer />
     </div>

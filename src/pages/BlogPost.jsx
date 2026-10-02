@@ -47,9 +47,9 @@ export default function BlogPost() {
     return (
       <div>
         <Navbar />
-        <div style={{ padding: '120px 20px', textAlign: 'center', color: 'var(--color-muted)' }}>
+        <main id="main-content" style={{ padding: '120px 20px', textAlign: 'center', color: 'var(--color-muted)' }}>
           Loading…
-        </div>
+        </main>
         <Footer />
       </div>
     );
@@ -59,13 +59,13 @@ export default function BlogPost() {
     return (
       <div>
         <Navbar />
-        <div style={{ padding: '120px 20px', textAlign: 'center' }}>
+        <main id="main-content" style={{ padding: '120px 20px', textAlign: 'center' }}>
           <h1 style={{ color: 'var(--color-accent)' }}>Post not found</h1>
           <p style={{ color: 'var(--color-muted)' }}>It may have been removed or the URL is wrong.</p>
           <Link to="/blog" className="btn-slide-outline" style={{ display: 'inline-block', marginTop: 16 }}>
             <span>← Back to blog</span>
           </Link>
-        </div>
+        </main>
         <Footer />
       </div>
     );
@@ -97,8 +97,7 @@ export default function BlogPost() {
       <Navbar />
 
       {/* Hero banner */}
-      <main
-        id="main-content"
+      <header
         className="jumbotron jumbotron-single d-flex align-items-center"
         style={{ backgroundImage: `url(${post.coverImageUrl ?? '/Purdue_Sky.webp'})` }}
       >
@@ -117,8 +116,9 @@ export default function BlogPost() {
             {post.readingTimeMin && <span>{post.readingTimeMin} min read</span>}
           </p>
         </div>
-      </main>
+      </header>
 
+      <main id="main-content">
       <section className="bg-white">
         <div className="pm-blog-article">
           <div
@@ -152,6 +152,7 @@ export default function BlogPost() {
           </div>
         </div>
       </section>
+      </main>
 
       <Footer />
     </div>

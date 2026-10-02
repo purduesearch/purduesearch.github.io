@@ -26,11 +26,13 @@ const RodInterview = () => {
       ])} />
       <Navbar />
       <Breadcrumb />
-      <main id="main-content" className="jumbotron-post jumbotron-single d-flex align-items-center" style={{ backgroundImage: 'url(/software/2023_24/SUITS/bg.webp)' }}>
+      <header className="jumbotron-post jumbotron-single d-flex align-items-center" style={{ backgroundImage: 'url(/sa2tp.webp)' }}>
         <div className="container text-center" style={{ top: 30 }}>
           <h1 className="display-2 mb-4">SEARCH Leadership Talks about SA2TP</h1>
         </div>
-      </main>
+      </header>
+
+      <main id="main-content">
 
       <section style={{ top: 25 }}>
         <div className="shadow container" style={{ maxWidth: '83%', marginLeft: '8%', marginRight: '8%', paddingRight: 8, paddingTop: 8, marginBottom: '8%', paddingBottom: 8 }}>
@@ -38,7 +40,7 @@ const RodInterview = () => {
             <div className="row" style={{ maxWidth: '100%' }}>
               <div className="col-md-25 offset-md-1 mt-1" style={{ maxWidth: '100%' }}>
                 <div style={{ marginLeft: '1%', marginRight: '10%', textAlign: 'justify' }}>
-                  <h4>This Article, by James Kling, appeared in Purdue Exponent on November 2, 2023</h4>
+                  <h2 className="h4">This Article, by James Kling, appeared in Purdue Exponent on November 2, 2023</h2>
                   <img loading="lazy"src="/sa2tp/2023/PXL_20230808_201504997.webp" alt="SA2TP members at the station" style={{ borderRadius: 10 }} />
                   After weather had canceled flight lessons multiple times for those participating in a three-week mock astronaut program in July, graduate student Moacir Becker said their instructor told them to fly toward the storm.
                   "I had taken some flight lessons before here at Purdue, but I had definitely never flown toward the storm," he said.
@@ -95,6 +97,7 @@ const RodInterview = () => {
           </Link>
         </div>
       </section>
+      </main>
 
       <Footer />
     </div>

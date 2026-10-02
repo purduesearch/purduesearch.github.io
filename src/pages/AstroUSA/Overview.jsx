@@ -26,32 +26,34 @@ const AstroOverview = () => {
       ])} />
       <Navbar />
       <Breadcrumb />
-      <main id="main-content" className="jumbotron-post jumbotron-single d-flex align-items-center" style={{ backgroundImage: 'url(/software/2023_24/SUITS/bg.webp)' }}>
+      <header className="jumbotron-post jumbotron-single d-flex align-items-center" style={{ backgroundImage: 'url(/astrousa/Group_Photo_ASTRO.webp)' }}>
         <div className="container text-center" style={{ top: 30 }}>
           <h1 className="display-2 mb-4">ASTRO-USA Overview</h1>
         </div>
-      </main>
+      </header>
+
+      <main id="main-content">
 
       <section style={{ top: 25 }}>
         <div className="shadow container" style={{ maxWidth: '83%', marginLeft: '8%', marginRight: '8%', paddingRight: 8, paddingTop: 8, marginBottom: '8%', paddingBottom: 8 }}>
           <div className="section-content blog-content">
             <div className="row" style={{ maxWidth: '100%' }}>
               <div className="col-md-25 offset-md-1 mt-1" style={{ maxWidth: '100%' }}>
-                <h4>Background</h4>
+                <h2 className="h4">Background</h2>
                 <p>For decades, Purdue University researchers have been pioneers in space technology advancement and exploration. Heralded "The Cradle of Astronauts" and boasting a world leading program in Aeronautics and
                   Astronautics, Purdue remains as the top research institution for many space-related disciplines. It is time to take the next step and build the world's first research facility dedicated to bioastronautics,
                   closed loop habitation, and advancement in spaceflight operations. The Space and Earth Analogs Research Chapter (SEARCH) of Purdue plans to build a self-sustaining, innovative, and inclusive lunar habitat
                   to foster interdisciplinary research and development. The organization hopes to leverage the collective expertise of its members and partners to design an analog biosphere prepared to support human life
                   under extreme extraterrestrial conditions through research, design, and prototyping of a self-contained structure. SEARCH of Purdue will bring unique opportunities that are beneficial to all students across the institute.
                 </p>
-                <h5>Goals</h5>
+                <h3 className="h5">Goals</h3>
                 <p>The ASTRO-USA team has identified 3 main goals to measure the success of the project:</p>
                 <ul>
                   <li>World's first fully closed loop analog astronaut facility dedicated to Bioregenerative Life Support Systems Research and Bioastronautics</li>
                   <li>Increase analog mission and research opportunities for Purdue students and globally</li>
                   <li>Create a facility for SEARCH operations and various collaborations</li>
                 </ul>
-                <h4>Bioregenerative Life Support Systems</h4>
+                <h2 className="h4">Bioregenerative Life Support Systems</h2>
                 <p>The ASTRO-USA habitat proposes the usage of a Bioregenerative Life-Support System (BLSS) inside of the closed loop habitat to provide life support to analog astronaut researchers. BLSS consists of different
                   systems capable of recycling oxygen, food, and water used by humans in order to reduce waste and extend the life of missions without the use of resupplies from Earth to continue operations. The system depends
                   heavily on the plants in the habitat and their lifecycle – as plants mature, they are able to use the CO2 exhaled by humans to grow and supply oxygen in the process. Plants are not only important to the BLSS,
@@ -62,10 +64,10 @@ const AstroOverview = () => {
                   <br />
                   The first step to developing the BLS Systems is to research, design, and create the hydroponic system. More information on that work can be found on the <Link to="/astrousa/hydroponics">Hydroponics Team Page</Link>.
                 </p>
-                <h4>Habitat Design</h4>
+                <h2 className="h4">Habitat Design</h2>
                 <p>The ASTRO-USA habitat features 3 different modules: the main module in the middle, and two farming modules on the side. Within this habitat, analog astronauts will be able to live, work, and sustain themselves
                   over the course of the mission.</p>
-                <h5>Main Module</h5>
+                <h3 className="h5">Main Module</h3>
                 <p>The main module consists of two floors: the first floor for working and the top floor for living. The first floor contains a workshop capable of conducting many different experiments. Analog participants
                   will be able to bring in their own equipment as well as use the provided basic equipment that will be located in the workshop. The soil and agricultural provides a dedicated area for conducting research related
                   to plant growth and cultivation in different environments, especially if they will not be suitable for the open farming modules. This area will also be important in the early stages of the habitat when the farming
@@ -82,7 +84,7 @@ const AstroOverview = () => {
                   Throughout the first and second floors of the habitat, there will be internal windows placed so that the astronauts can see into the farming modules. This is important to increase mental health/happiness and decrease
                   feelings of isolation, claustrophobia, and lonliness during the course of the mission. It will also allow for unique experiments, such as monitoring the change in human health and plant growth with various circadian cycles.
                 </p>
-                <h5>Farming Modules</h5>
+                <h3 className="h5">Farming Modules</h3>
                 <p>The farming modules contain more than enough grow space to properly sustain at least 6 astronauts for 2 weeks off of the cultivated produce. The goal is to also provide enough space to run experiments
                   to grow many types of plants in various conditions for research. The left farming module has been created with exactly this in mind since it has many ways to section off certain rows of hydroponic towers.
                   The right farming module is much more open to provide various areas of immersement inside the module, including a garden area, working area, and meeting area. This is to conduct research pertaining to bioastronautics
@@ -112,6 +114,7 @@ const AstroOverview = () => {
           </Link>
         </div>
       </section>
+      </main>
 
       <Footer />
     </div>

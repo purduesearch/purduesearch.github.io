@@ -3194,3 +3194,16 @@ model LabVisit {
   @@index([workspaceId, checkedInAt])
   @@index([status, checkedInAt])
 }
+
+// Single-row cache of the club's Instagram feed (key "default"). The long-lived
+// token is AES-GCM encrypted via utils/crypto.ts and refreshed by the cron in
+// slack/scheduler.ts. postsJson is derived and safe to clear.
+model InstagramFeedState {
+  id             String    @id @default("default")
+  accessTokenEnc String?
+  tokenExpiresAt DateTime?
+  postsJson      String    @default("[]") @db.Text
+  fetchedAt      DateTime?
+  lastError      String?
+  updatedAt      DateTime  @updatedAt
+}

@@ -26,23 +26,25 @@ const AstroArchitecture = () => {
       ])} />
       <Navbar />
       <Breadcrumb />
-      <main id="main-content" className="jumbotron-post jumbotron-single d-flex align-items-center" style={{ backgroundImage: 'url(/software/2023_24/SUITS/bg.webp)' }}>
+      <header className="jumbotron-post jumbotron-single d-flex align-items-center" style={{ backgroundImage: 'url(/astrousa/Group_Photo_ASTRO.webp)' }}>
         <div className="container text-center" style={{ top: 30 }}>
           <h1 className="display-2 mb-4">Architecture Designs</h1>
         </div>
-      </main>
+      </header>
+
+      <main id="main-content">
 
       <section style={{ top: 25 }}>
         <div className="shadow container" style={{ maxWidth: '83%', marginLeft: '8%', marginRight: '8%', paddingRight: 8, paddingTop: 8, marginBottom: '8%', paddingBottom: 8 }}>
           <div className="section-content blog-content">
             <div className="row" style={{ maxWidth: '100%' }}>
               <div className="col-md-25 offset-md-1 mt-1" style={{ maxWidth: '100%' }}>
-                <h4>The Design Phase</h4>
+                <h2 className="h4">The Design Phase</h2>
                 <p>During the Fall of 2023, our ASTRO-USA team (Ilina Adhikari, Brasen Garcia, Ryan DeAngelis) worked on multiple designs for the analog space habitat and conducted
                   a Business design review with construction companies and have reached out to companies such as The Hayes Group, Keene Homes and Citation Homes.
                   The designs have undergone multiple iterations of incremental changes.
                 </p>
-                <h4>Requirements</h4>
+                <h2 className="h4">Requirements</h2>
                 <p>The primary requirements for an analog habitat are as follows</p>
                 <ul>
                   <li>Design shall be modular with standardized modules for ease of expansion</li>
@@ -54,7 +56,7 @@ const AstroArchitecture = () => {
                   <li>Atmosphere shall be isolated and regulated</li>
                   <li>Shall incorporate large and adaptable workspaces</li>
                 </ul>
-                <h4>Layouts</h4>
+                <h2 className="h4">Layouts</h2>
                 The initial designs were inspired by Biosphere 2 and had circular layouts. The habitat was to have a modular structure with 3 agriculture/hydroponics modules and 3 research modules.
                 <figure style={{ display: 'block', marginLeft: 'auto', marginRight: 'auto' }}>
                   <img loading="lazy"style={{ display: 'inline-block', padding: '1%', borderRadius: 20 }} width="45%" src="/astrousa/2023_24/circular_rvt_1.webp" alt="Circular Design 1" />
@@ -69,7 +71,7 @@ const AstroArchitecture = () => {
                   <img loading="lazy"style={{ display: 'inline-block', padding: '1%', borderRadius: 20 }} width="45%" src="/astrousa/2023_24/circular_interior_l2_2.webp" alt="Interior Level 2 View 2" />
                 </figure>
                 <br /><br />
-                <h5>Iterations</h5>
+                <h3 className="h5">Iterations</h3>
                 After internal discussions, The following changes were made
                 <ul>
                   <li>Medbay changed to BioAstronautics Lab
@@ -106,7 +108,7 @@ const AstroArchitecture = () => {
                   <img loading="lazy"style={{ display: 'inline-block', padding: '1%', borderRadius: 20 }} width="45%" src="/astrousa/2023_24/iteration_3_1.webp" alt="Iteration 3 View 1" />
                   <img loading="lazy"style={{ display: 'inline-block', padding: '1%', borderRadius: 20 }} width="45%" src="/astrousa/2023_24/iteration_3_2.webp" alt="Iteration 3 View 2" />
                 </figure>
-                <h5>Shipping Container/Grain Silo Layouts</h5>
+                <h3 className="h5">Shipping Container/Grain Silo Layouts</h3>
                 The team explored cost-effective options such as using Shipping containers or Grain Silos. However, these designs
                 would have to be rectangular.
                 Each core module floor would be made up of 4 40ft shipping containers which results in a total square footage of 2480.
@@ -161,6 +163,7 @@ const AstroArchitecture = () => {
           </Link>
         </div>
       </section>
+      </main>
 
       <Footer />
     </div>

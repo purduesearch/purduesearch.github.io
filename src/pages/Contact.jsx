@@ -3,6 +3,8 @@ import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import SEOHead from '../components/SEOHead';
 import PublicEventsCalendar from '../components/events/PublicEventsCalendar';
+import ExternalLink from '../components/ExternalLink';
+import { SLACK_JOIN_URL } from '../lib/siteLinks';
 
 const Contact = () => {
   useEffect(() => {
@@ -47,9 +49,9 @@ const Contact = () => {
                 </div>
                 <p className="text-center mt-3" style={{ fontSize: '0.875rem', color: 'var(--color-muted)' }}>
                   If the form doesn't load,{' '}
-                  <a href="https://forms.gle/8PUCmvD63rwyPYZy9" target="_blank" rel="noopener noreferrer">
+                  <ExternalLink href="https://forms.gle/8PUCmvD63rwyPYZy9">
                     open it directly
-                  </a>.
+                  </ExternalLink>.
                 </p>
               </div>
             </div>
@@ -62,36 +64,38 @@ const Contact = () => {
             <div className="row text-center mt-4">
               <div className="col-md-3" data-aos="fade-up">
                 <i className="fas fa-map-marker-alt fs-40 py-4 d-block" aria-hidden="true" />
-                <h5>LOCATION</h5>
+                <h3 className="contact-card-title">LOCATION</h3>
                 <p>Purdue University, West Lafayette, IN</p>
               </div>
               <div className="col-md-3" data-aos="fade-up" data-aos-delay={200}>
                 <i className="fas fa-clock fs-40 py-4 d-block" aria-hidden="true" />
-                <h5>MEETING TIME</h5>
-                <p>Weekly meetings during semester</p>
+                <h3 className="contact-card-title">MEETING TIME</h3>
+                <p>Weekly during the semester — see <a href="#events">Upcoming Events below</a></p>
               </div>
               <div className="col-md-3" data-aos="fade-up" data-aos-delay={400}>
-                <i className="fas fa-phone fs-40 py-4 d-block" aria-hidden="true" />
-                <h5>SOCIAL</h5>
-                <p>@purdue_search on Instagram</p>
+                <i className="fab fa-instagram fs-40 py-4 d-block" aria-hidden="true" />
+                <h3 className="contact-card-title">SOCIAL</h3>
+                <p>
+                  <ExternalLink href="https://www.instagram.com/purdue_search/">@purdue_search</ExternalLink> on Instagram
+                </p>
               </div>
               <div className="col-md-3" data-aos="fade-up" data-aos-delay={600}>
                 <i className="fas fa-envelope fs-40 py-4 d-block" aria-hidden="true" />
-                <h5>EMAIL US</h5>
+                <h3 className="contact-card-title">EMAIL US</h3>
                 <p>
                   <a href="mailto:purduesearch@gmail.com">
                     purduesearch@gmail.com
                   </a>
                 </p>
                 <p>
-                  <a href="https://forms.gle/8PUCmvD63rwyPYZy9" target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.875rem' }}>
-                    Apply via Google Form
-                  </a>
+                  <ExternalLink href={SLACK_JOIN_URL} style={{ fontSize: '0.875rem' }}>
+                    Join our Slack
+                  </ExternalLink>
                 </p>
                 <p>
-                  <a href="https://forms.gle/BF1xNLWT6H1Zhupf8" target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.875rem' }}>
+                  <ExternalLink href="https://forms.gle/BF1xNLWT6H1Zhupf8" style={{ fontSize: '0.875rem' }}>
                     Share Feedback
-                  </a>
+                  </ExternalLink>
                 </p>
               </div>
             </div>

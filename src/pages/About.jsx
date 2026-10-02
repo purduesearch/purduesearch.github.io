@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import { Link } from 'react-router-dom';
 import SEOHead from '../components/SEOHead';
 
 const About = () => {
@@ -59,18 +60,20 @@ const About = () => {
       <Navbar />
 
       {/* ===== HERO ===== */}
-      <main id="main-content" className="jumbotron jumbotron-single d-flex align-items-center"
+      <header className="jumbotron jumbotron-single d-flex align-items-center"
         style={{ backgroundImage: 'url(/about/About_Hero.webp)' }}>
         <div className="container text-center">
           <h1 className="display-3 mb-4" style={{ fontFamily: 'Oswald, sans-serif' }}>About Us</h1>
-          <p className="header-sub-title" style={{ fontWeight: 'bold', fontSize: '120%' }}>
+          <p className="header-sub-title about-hero-sub">
             For decades, Purdue University researchers have been pioneers in space technology advancement
             and exploration. Heralded "The Cradle of Astronauts" and boasting a world-leading program in
             Aeronautics and Astronautics, Purdue remains the top research institution for many space-related
             disciplines.
           </p>
         </div>
-      </main>
+      </header>
+
+      <main id="main-content">
 
       {/* ===== MISSION ===== */}
       <section id="about-mission" className="about-section">
@@ -86,6 +89,8 @@ const About = () => {
             </p>
             <p>
               SEARCH of Purdue supports this mission by promoting learning, innovation, and engagement in human space exploration. We pursue this mission by aiming to:
+            </p>
+            <ul className="about-mission-list">
               <li>Advance research and technology that strengthen human space exploration capabilities through collaborative research and development, student competitions, and analog programs.</li>
               <li>Cultivate interdisciplinary collaboration between students and departments with diverse interests and areas of expertise.</li>
               <li>Connect students directly with faculty, researchers, and mentors to expand networking opportunities and encourage involvement in both SEARCH projects and broader university research efforts.</li>
@@ -94,10 +99,10 @@ const About = () => {
               <li>Build external institutional partnerships and secure funding that advance Purdue’s research and technology related to human spaceflight and exploration.</li>
               <li>Increase campus-wide awareness of space exploration and research through an open guest lecture series.</li>
               <li>Inspire younger generations to engage in space exploration through K-12 outreach events.</li>
-            </p>
+            </ul>
             <p>
               If you are interested in any of these activities, please connect with us — all contact
-              information is on the Contact page.
+              information is on the <Link to="/contact">Contact page</Link>.
             </p>
           </div>
         </div>
@@ -194,31 +199,31 @@ const About = () => {
                 <div className="col-md-4 col-sm-12 text-center mt-4">
                   <div className="shadow rounded feature-item p-4 mb-4" data-aos="fade-up">
                     <div className="my-4"><img loading="lazy" src="/officers/john.webp" width="150px" className="officer-photo" alt="John Peters" /></div>
-                    <h4>John Peters</h4><h5>President</h5>
+                    <h3 className="about-person-name">John Peters</h3><p className="about-person-role">President</p>
                   </div>
                   <div className="shadow rounded feature-item p-4 mb-4" data-aos="fade-up">
                     <div className="my-4"><img loading="lazy" src="/officers/myles.webp" width="150px" className="officer-photo" alt="Myles Bryan" /></div>
-                    <h4>Myles Bryan</h4><h5>Vice President</h5>
+                    <h3 className="about-person-name">Myles Bryan</h3><p className="about-person-role">Vice President</p>
                   </div>
                 </div>
                 <div className="col-md-4 col-sm-12 text-center">
                   <div className="shadow rounded feature-item p-4 mb-4" data-aos="fade-up">
                     <div className="my-4"><img loading="lazy" src="/officers/brayden.webp" width="150px" className="officer-photo" alt="Brayden Quale" /></div>
-                    <h4>Brayden Quale</h4><h5>Treasurer</h5>
+                    <h3 className="about-person-name">Brayden Quale</h3><p className="about-person-role">Treasurer</p>
                   </div>
                   <div className="shadow rounded feature-item p-4 mb-4" data-aos="fade-up">
                     <div className="my-4"><img loading="lazy" src="/officers/sam.webp" width="150px" className="officer-photo" alt="Sam Waymire" /></div>
-                    <h4>Sam Waymire</h4><h5>Astronaut Training Lead</h5>
+                    <h3 className="about-person-name">Sam Waymire</h3><p className="about-person-role">Astronaut Training Lead</p>
                   </div>
                 </div>
                 <div className="col-md-4 col-sm-12 text-center mt-4">
                   <div className="shadow rounded feature-item p-4 mb-4" data-aos="fade-up">
                     <div className="my-4"><img loading="lazy" src="/officers/shruti.webp" width="150px" className="officer-photo" alt="Shruti Subramaniyan" /></div>
-                    <h4>Shruti Subramaniyan</h4><h5>Research Co-Lead</h5>
+                    <h3 className="about-person-name">Shruti Subramaniyan</h3><p className="about-person-role">Research Co-Lead</p>
                   </div>
                   <div className="shadow rounded feature-item p-4 mb-4" data-aos="fade-up">
                     <div className="my-4"><img loading="lazy" src="/officers/henry.webp" width="150px" className="officer-photo" alt="Henry Ewald" /></div>
-                    <h4>Henry Ewald</h4><h5>Research Co-Lead</h5>
+                    <h3 className="about-person-name">Henry Ewald</h3><p className="about-person-role">Research Co-Lead</p>
                   </div>
                 </div>
               </div>
@@ -231,31 +236,31 @@ const About = () => {
                 <div className="col-md-4 col-sm-12 text-center mt-4">
                   <div className="shadow rounded feature-item p-4 mb-4" data-aos="fade-up">
                     <div className="my-4"><img loading="lazy" src="/officers/azeem.webp" width="150px" className="officer-photo" alt="Azeem Ehtisham" /></div>
-                    <h4>Azeem Ehtisham</h4><h5>Software Co-Lead</h5>
+                    <h3 className="about-person-name">Azeem Ehtisham</h3><p className="about-person-role">Software Co-Lead</p>
                   </div>
                   <div className="shadow rounded feature-item p-4 mb-4" data-aos="fade-up">
                     <div className="my-4"><img loading="lazy" src="/officers/jason.webp" width="150px" className="officer-photo" alt="Jason White" /></div>
-                    <h4>Jason White</h4><h5>Software Co-Lead</h5>
+                    <h3 className="about-person-name">Jason White</h3><p className="about-person-role">Software Co-Lead</p>
                   </div>
                 </div>
                 <div className="col-md-4 col-sm-12 text-center">
                   <div className="shadow rounded feature-item p-4 mb-4" data-aos="fade-up">
                     <div className="my-4"><img loading="lazy" src="/officers/melissa.webp" width="150px" className="officer-photo" alt="Melissa Cook" /></div>
-                    <h4>Melissa Cook</h4><h5>Outreach Co-Lead</h5>
+                    <h3 className="about-person-name">Melissa Cook</h3><p className="about-person-role">Outreach Co-Lead</p>
                   </div>
                   <div className="shadow rounded feature-item p-4 mb-4" data-aos="fade-up">
                     <div className="my-4"><img loading="lazy" src="/officers/katie.webp" width="150px" className="officer-photo" alt="Katie Downs" /></div>
-                    <h4>Katie Downs</h4><h5>Outreach Co-Lead</h5>
+                    <h3 className="about-person-name">Katie Downs</h3><p className="about-person-role">Outreach Co-Lead</p>
                   </div>
                 </div>
                 <div className="col-md-4 col-sm-12 text-center mt-4">
                   <div className="shadow rounded feature-item p-4 mb-4" data-aos="fade-up">
                     <div className="my-4"><img loading="lazy" src="/officers/chelsea.webp" width="150px" className="officer-photo" alt="Chelsea Garcia" /></div>
-                    <h4>Chelsea Garcia</h4><h5>ASTRO-USA Chief Engineer</h5>
+                    <h3 className="about-person-name">Chelsea Garcia</h3><p className="about-person-role">ASTRO-USA Chief Engineer</p>
                   </div>
                   <div className="shadow rounded feature-item p-4 mb-4" data-aos="fade-up">
                     <div className="my-4"><img loading="lazy" src="/officers/keegan.webp" width="150px" className="officer-photo" alt="Keegan Breese" /></div>
-                    <h4>Keegan Breese</h4><h5>ASTRO-USA Project Manager</h5>
+                    <h3 className="about-person-name">Keegan Breese</h3><p className="about-person-role">ASTRO-USA Project Manager</p>
                   </div>
                 </div>
               </div>
@@ -279,31 +284,31 @@ const About = () => {
                 <div className="col-md-4 col-sm-12 text-center mt-4">
                   <div className="shadow rounded feature-item p-4 mb-4" data-aos="fade-up">
                     <div className="my-4"><img loading="lazy" src="/officers/john.webp" width="150px" className="officer-photo" alt="John Peters" /></div>
-                    <h4>John Peters</h4><h5>President</h5>
+                    <h3 className="about-person-name">John Peters</h3><p className="about-person-role">President</p>
                   </div>
                   <div className="shadow rounded feature-item p-4 mb-4" data-aos="fade-up">
                     <div className="my-4"><img loading="lazy" src="/officers/myles.webp" width="150px" className="officer-photo" alt="Myles Bryan" /></div>
-                    <h4>Myles Bryan</h4><h5>Vice President</h5>
+                    <h3 className="about-person-name">Myles Bryan</h3><p className="about-person-role">Vice President</p>
                   </div>
                 </div>
                 <div className="col-md-4 col-sm-12 text-center">
                   <div className="shadow rounded feature-item p-4 mb-4" data-aos="fade-up">
                     <div className="my-4"><img loading="lazy" src="/officers/brayden.webp" width="150px" className="officer-photo" alt="Brayden Quale" /></div>
-                    <h4>Brayden Quale</h4><h5>Treasurer</h5>
+                    <h3 className="about-person-name">Brayden Quale</h3><p className="about-person-role">Treasurer</p>
                   </div>
                   <div className="shadow rounded feature-item p-4 mb-4" data-aos="fade-up">
                     <div className="my-4"><img loading="lazy" src="/officers/sam.webp" width="150px" className="officer-photo" alt="Sam Waymire" /></div>
-                    <h4>Sam Waymire</h4><h5>Astronaut Training Lead</h5>
+                    <h3 className="about-person-name">Sam Waymire</h3><p className="about-person-role">Astronaut Training Lead</p>
                   </div>
                 </div>
                 <div className="col-md-4 col-sm-12 text-center mt-4">
                   <div className="shadow rounded feature-item p-4 mb-4" data-aos="fade-up">
                     <div className="my-4"><img loading="lazy" src="/officers/shruti.webp" width="150px" className="officer-photo" alt="Shruti Subramaniyan" /></div>
-                    <h4>Shruti Subramaniyan</h4><h5>Research Co-Lead</h5>
+                    <h3 className="about-person-name">Shruti Subramaniyan</h3><p className="about-person-role">Research Co-Lead</p>
                   </div>
                   <div className="shadow rounded feature-item p-4 mb-4" data-aos="fade-up">
                     <div className="my-4"><img loading="lazy" src="/officers/henry.webp" width="150px" className="officer-photo" alt="Henry Ewald" /></div>
-                    <h4>Henry Ewald</h4><h5>Research Co-Lead</h5>
+                    <h3 className="about-person-name">Henry Ewald</h3><p className="about-person-role">Research Co-Lead</p>
                   </div>
                 </div>
               </div>
@@ -316,27 +321,27 @@ const About = () => {
                 <div className="col-md-4 col-sm-12 text-center mt-4">
                   <div className="shadow rounded feature-item p-4 mb-4" data-aos="fade-up">
                     <div className="my-4"><img loading="lazy" src="/officers/swastik.webp" width="150px" className="officer-photo" alt="Swastik Patel" /></div>
-                    <h4>Swastik Patel</h4><h5>Software Lead</h5>
+                    <h3 className="about-person-name">Swastik Patel</h3><p className="about-person-role">Software Lead</p>
                   </div>
                   <div className="shadow rounded feature-item p-4 mb-4" data-aos="fade-up">
                     <div className="my-4"><img loading="lazy" src="/officers/heer.webp" width="150px" className="officer-photo" alt="Heer Meta" /></div>
-                    <h4>Heer Meta</h4><h5>Business Lead</h5>
+                    <h3 className="about-person-name">Heer Meta</h3><p className="about-person-role">Business Lead</p>
                   </div>
                 </div>
                 <div className="col-md-4 col-sm-12 text-center">
                   <div className="shadow rounded feature-item p-4 mb-4" data-aos="fade-up">
                     <div className="my-4"><img loading="lazy" src="/officers/melissa.webp" width="150px" className="officer-photo" alt="Melissa Cook" /></div>
-                    <h4>Melissa Cook</h4><h5>Outreach Lead</h5>
+                    <h3 className="about-person-name">Melissa Cook</h3><p className="about-person-role">Outreach Lead</p>
                   </div>
                   <div className="shadow rounded feature-item p-4 mb-4" data-aos="fade-up">
                     <div className="my-4"><img loading="lazy" src="/officers/ethan.webp" width="150px" className="officer-photo" alt="Ethan Williamson" /></div>
-                    <h4>Ethan Williamson</h4><h5>ASTRO-USA Chief Engineer</h5>
+                    <h3 className="about-person-name">Ethan Williamson</h3><p className="about-person-role">ASTRO-USA Chief Engineer</p>
                   </div>
                 </div>
                 <div className="col-md-4 col-sm-12 text-center mt-4">
                   <div className="shadow rounded feature-item p-4 mb-4" data-aos="fade-up">
                     <div className="my-4"><img loading="lazy" src="/officers/vijay.webp" width="150px" className="officer-photo" alt="Vijay Muthmukumar" /></div>
-                    <h4>Vijay Muthmukumar</h4><h5>ASTRO-USA Project Manager</h5>
+                    <h3 className="about-person-name">Vijay Muthmukumar</h3><p className="about-person-role">ASTRO-USA Project Manager</p>
                   </div>
                 </div>
               </div>
@@ -355,19 +360,19 @@ const About = () => {
                     <div className="col-md-4 col-sm-12 text-center mt-4">
                       <div className="shadow rounded feature-item p-4 mb-4" data-aos="fade-up">
                         <div className="my-4"><img loading="lazy" src="/officers/advisors/porterfield.webp" width="150px" className="officer-photo" alt="Dr. Marshall Porterfield" /></div>
-                        <h4>Dr. Marshall Porterfield</h4><h5>Primary Advisor</h5><p>Professor of Biological Engineering &amp; Space Biophysics</p>
+                        <h3 className="about-person-name">Dr. Marshall Porterfield</h3><p className="about-person-role">Primary Advisor</p><p>Professor of Biological Engineering &amp; Space Biophysics</p>
                       </div>
                     </div>
                     <div className="col-md-4 col-sm-12 text-center">
                       <div className="shadow rounded feature-item p-4 mb-4" data-aos="fade-up">
                         <div className="my-4"><img loading="lazy" src="/officers/advisors/bera.webp" width="150px" className="officer-photo" alt="Dr. Aniket Bera" /></div>
-                        <h4>Dr. Aniket Bera</h4><h5>Software Advisor</h5><p>Associate Professor, CS</p>
+                        <h3 className="about-person-name">Dr. Aniket Bera</h3><p className="about-person-role">Software Advisor</p><p>Associate Professor, CS</p>
                       </div>
                     </div>
                     <div className="col-md-4 col-sm-12 text-center mt-4">
                       <div className="shadow rounded feature-item p-4 mb-4" data-aos="fade-up">
                         <div className="my-4"><img loading="lazy" src="/officers/advisors/schmitt.webp" width="150px" className="officer-photo" alt="Rodrigo Schmitt" /></div>
-                        <h4>Rodrigo Schmitt</h4><h5>Founder</h5><p>PhD Student, Purdue University</p>
+                        <h3 className="about-person-name">Rodrigo Schmitt</h3><p className="about-person-role">Founder</p><p>PhD Student, Purdue University</p>
                       </div>
                     </div>
                   </div>
@@ -382,7 +387,7 @@ const About = () => {
                       <h2><b>Past Leadership</b></h2>
                     </div>
                       <div className="panel-body">
-                      <h5>Officers Spring 2025</h5>
+                      <h3 className="about-past-title">Officers Spring 2025</h3>
                       <table className="table table-condensed table-striped table-bordered">
                         <thead><tr><th style={{ color: 'black' }}>Position</th><th style={{ color: 'black' }}>Name</th></tr></thead>
                         <tbody>
@@ -403,7 +408,7 @@ const About = () => {
                       </table>
                     </div>
                     <div className="panel-body">
-                      <h5>Officers 2024 Academic Year</h5>
+                      <h3 className="about-past-title">Officers 2024 Academic Year</h3>
                       <table className="table table-condensed table-striped table-bordered">
                         <thead><tr><th style={{ color: 'black' }}>Position</th><th style={{ color: 'black' }}>Name</th></tr></thead>
                         <tbody>
@@ -424,7 +429,7 @@ const About = () => {
                       </table>
                     </div>
                     <div className="panel-body">
-                      <h5>Officers Summer and Fall 2023</h5>
+                      <h3 className="about-past-title">Officers Summer and Fall 2023</h3>
                       <table className="table table-condensed table-striped table-bordered">
                         <thead><tr><th style={{ color: 'black' }}>Position</th><th style={{ color: 'black' }}>Name</th></tr></thead>
                         <tbody>
@@ -443,7 +448,7 @@ const About = () => {
                       </table>
                     </div>
                     <div className="panel-body">
-                      <h5>Officers Spring 2023</h5>
+                      <h3 className="about-past-title">Officers Spring 2023</h3>
                       <table className="table table-condensed table-striped table-bordered">
                         <thead><tr><th style={{ color: 'black' }}>Position</th><th style={{ color: 'black' }}>Name</th></tr></thead>
                         <tbody>
@@ -461,7 +466,7 @@ const About = () => {
                       </table>
                     </div>
                     <div className="panel-body">
-                      <h5>Officers Fall 2022</h5>
+                      <h3 className="about-past-title">Officers Fall 2022</h3>
                       <table className="table table-condensed table-striped table-bordered">
                         <thead><tr><th style={{ color: 'black' }}>Position</th><th style={{ color: 'black' }}>Name</th></tr></thead>
                         <tbody>
@@ -485,6 +490,8 @@ const About = () => {
 
         </div>
       </section>
+
+      </main>
 
       <Footer />
     </>
