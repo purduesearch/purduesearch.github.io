@@ -7061,3 +7061,7 @@ button.home-events-day[aria-pressed="true"] .home-events-dot { background: #fff 
 
 /* AstroUSA — images carry width/height attributes; keep aspect ratio (zero specificity: class and inline heights still win) */
 :where(img[width][height]) { height: auto; }
+
+/* Keep the notebook header in normal flow so the stacked sheets start below it. */
+.field-notebook-page #header-navbar { position: relative !important; }
+.field-notebook-page .breadcrumb-nav { width: auto; }

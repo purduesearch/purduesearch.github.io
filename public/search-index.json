@@ -70,18 +70,11 @@
     "tags": ["rascal", "rasc-al", "nasa", "competition", "2023", "2024", "lunar", "habitat", "design", "aerospace"]
   },
   {
-    "title": "Software — NASA SUITS Challenge",
+    "title": "VISOR — NASA SUITS",
     "path": "/software",
     "section": "Programs",
-    "excerpt": "The SEARCH software team develops augmented reality interfaces for astronaut telemetry using Microsoft HoloLens, competing in NASA's SUITS (Spacesuit User Interface Technologies for Students) Challenge.",
-    "tags": ["suits", "software", "ar", "augmented reality", "nasa", "hololens", "microsoft", "telemetry", "spacesuit"]
-  },
-  {
-    "title": "SUITS — Project Details",
-    "path": "/software/suits",
-    "section": "Programs",
-    "excerpt": "SEARCH presented their SUITS AR interface at Johnson Space Center. The system overlays real-time life-support telemetry onto an astronaut's field of view using HoloLens 2 headsets.",
-    "tags": ["suits", "johnson space center", "jsc", "hololens", "ar", "nasa", "presentation", "software"]
+    "excerpt": "Meet Purdue SEARCH's VISOR team: Virtual Interfaces for Space Operations and Reconnaissance. Explore its NASA SUITS history and ways to support the team.",
+    "tags": ["visor", "jarvis", "suits", "software", "nasa", "history", "support"]
   },
   {
     "title": "Analog Programs",
