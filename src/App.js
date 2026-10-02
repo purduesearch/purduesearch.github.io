@@ -36,7 +36,6 @@ const AresHeadset    = lazy(lazyWithTheme(...ARES_THEME)(() => import('./pages/A
 const Outreach = lazy(() => import('./pages/Outreach'));
 const Contact = lazy(() => import('./pages/Contact'));
 const Blog = lazy(() => import('./pages/Blog'));
-const Suits = lazy(() => import('./pages/Software/Suits'));
 // Field Notebook is the only page that needs Azeret Mono / Caveat Brush / Saira Condensed /
 // Special Elite / Zilla Slab; loaded at runtime (like ares-theme.css) so the rest of the
 // site never pays for fonts it doesn't use. See src/theme/loadTheme.js.
@@ -176,7 +175,7 @@ function AnimatedRoutes() {
             <Route path="/sa2tp/crew1" element={<PageWrapper><Crew1 /></PageWrapper>} />
             <Route path="/sa2tp/rod-interview" element={<PageWrapper><RodInterview /></PageWrapper>} />
             <Route path="/software" element={<PageWrapper><FieldNotebook /></PageWrapper>} />
-            <Route path="/software/suits" element={<PageWrapper><Suits /></PageWrapper>} />
+            <Route path="/software/suits" element={<Navigate to="/software" replace />} />
             <Route path="/software/field-notebook" element={<Navigate to="/software" replace />} />
             <Route path="/business" element={<PageWrapper><Business /></PageWrapper>} />
             <Route path="/astrousa" element={<PageWrapper><AstroUSA /></PageWrapper>} />
