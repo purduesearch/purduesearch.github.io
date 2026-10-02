@@ -73,16 +73,18 @@
     "yjs": "^13.6.31"
   },
   "scripts": {
+    "prestart": "node scripts/patch-notes.mjs generate",
     "start": "react-scripts start",
     "build:icons": "node scripts/build-fa-subset.mjs",
     "check:icons": "node scripts/build-fa-subset.mjs --report",
     "optimize:images": "node scripts/optimize-images.mjs",
-    "prebuild": "npm run build:icons",
+    "prebuild": "npm run build:icons && node scripts/patch-notes.mjs generate",
     "build": "react-scripts build",
     "postbuild": "node -e \"require('fs').copyFileSync('build/index.html', 'build/404.html')\" && node scripts/minify-public-css.mjs",
     "test": "node scripts/check-tour-anchors.js && react-scripts test",
     "test:ci": "react-scripts test --watchAll=false",
-    "test:scripts": "node --test scripts/optimize-images.test.mjs",
+    "test:scripts": "node --test scripts/optimize-images.test.mjs scripts/patch-notes.test.mjs",
+    "patch-notes:preview": "node scripts/patch-notes.mjs preview",
     "lint": "eslint src --ext .js,.jsx",
     "eject": "react-scripts eject"
   },

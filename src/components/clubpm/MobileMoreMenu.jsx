@@ -3,6 +3,7 @@ import AvatarPortrait from './avatar/AvatarPortrait';
 import RankIcon from './RankIcon';
 import StreakBadge from './StreakBadge';
 import { progressToNextRank } from '../../clubpm/engagement/rankProgress';
+import { usePatchNotesBadge } from '../../clubpm/patchNotes';
 
 // Same matching rule as the desktop sidebar's isChildActive: /clubpm/outreach
 // and /clubpm/outreach?tab=blog are one route but must not both light up.
@@ -51,6 +52,7 @@ export default function MobileMoreMenu({ member, location, adminCounts, onNaviga
   const { pct, next } = progressToNextRank(xp);
   const hasAdminBadges = adminCounts.rewards > 0 || adminCounts.crs > 0 || adminCounts.certificates > 0;
   const row = { location, onNavigate };
+  const patchNotes = usePatchNotesBadge();
 
   return (
     <div className="pm-m-more">
@@ -124,6 +126,10 @@ export default function MobileMoreMenu({ member, location, adminCounts, onNaviga
           <i className="fas fa-keyboard pm-m-row-icon" aria-hidden="true" />
           <div className="pm-m-row-main">Keyboard shortcuts</div>
         </button>
+        <Row {...row} href="/clubpm/patch-notes" icon="fa-wand-magic-sparkles" label="What's new">
+          {patchNotes.current && <span className="pm-m-row-meta">v{patchNotes.current}</span>}
+          {patchNotes.unseen && <span className="pm-whatsnew-dot pm-whatsnew-dot--inline" role="img" aria-label="New release" />}
+        </Row>
       </div>
 
       <div className="pm-m-card pm-m-card--spaced">

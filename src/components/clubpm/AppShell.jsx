@@ -34,6 +34,7 @@ import MobileBottomNav from './MobileBottomNav';
 import MobileSheet from './MobileSheet';
 import MobileProjectPicker from './MobileProjectPicker';
 import MobileMoreMenu from './MobileMoreMenu';
+import { usePatchNotesBadge } from '../../clubpm/patchNotes';
 
 function getBreadcrumb(pathname) {
   if (pathname === '/clubpm') return [{ label: 'Dashboard' }];
@@ -56,6 +57,7 @@ function getBreadcrumb(pathname) {
   if (pathname === '/clubpm/challenges') return [{ label: 'Challenges' }];
   if (pathname.startsWith('/clubpm/chat')) return [{ label: 'Social' }, { label: 'Chat' }];
   if (pathname.startsWith('/clubpm/lab/')) return [{ label: 'Lab check-in' }];
+  if (pathname === '/clubpm/patch-notes') return [{ label: "What's new" }];
   return [{ label: 'Constellation' }];
 }
 
@@ -225,6 +227,25 @@ function CreateProjectModal({ onClose, onCreate }) {
         </form>
       </div>
     </div>
+  );
+}
+
+function SidebarWhatsNew() {
+  const { current, unseen } = usePatchNotesBadge();
+  return (
+    <Link
+      to="/clubpm/patch-notes"
+      className="pm-backhome-btn pm-whatsnew-btn"
+      title={current ? `What's new in Constellation v${current}` : "What's new"}
+    >
+      <span className="pm-whatsnew-icon">
+        <i className="fas fa-wand-magic-sparkles" aria-hidden="true" />
+        {unseen && <span className="pm-whatsnew-dot" role="img" aria-label="New release" />}
+      </span>
+      <span className="pm-backhome-label">
+        What&rsquo;s new{current ? <span className="pm-whatsnew-version"> v{current}</span> : null}
+      </span>
+    </Link>
   );
 }
 
@@ -621,6 +642,7 @@ export default function AppShell({ children }) {
             </span>
           </Link>
           {member && <SidebarXpDoubloons member={member} />}
+          <SidebarWhatsNew />
           <Link to="/" className="pm-backhome-btn" title="Back to the SEARCH site">
             <i className="fas fa-house" aria-hidden="true" />
             <span className="pm-backhome-label">Main site</span>

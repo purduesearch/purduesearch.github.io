@@ -1,0 +1,63 @@
+name: Constellation Patch Notes
+
+# Once a day, tag main as the next Constellation version when it has
+# member-facing changes since the last release, then redeploy so the
+# "What's new" page picks the tag up. Rules: scripts/patch-notes.core.mjs.
+# Guide: docs/PATCH-NOTES.md.
+
+on:
+  schedule:
+    # 10:00 UTC = 6:00 a.m. Eastern Daylight Time (5:00 a.m. in winter).
+    # GitHub may start scheduled runs late under load.
+    - cron: '0 10 * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Only print what the next release would contain'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write  # push the release tag
+  actions: write   # start the Pages deploy
+
+concurrency:
+  group: patch-notes
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Preview
+        run: node scripts/patch-notes.mjs preview
+
+      - name: Tag release
+        id: release
+        if: ${{ !inputs.dry_run }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          node scripts/patch-notes.mjs release
+
+      - name: Push tag and redeploy
+        if: ${{ steps.release.outputs.tag != '' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          git push origin "refs/tags/$TAG"
+          # A push made with GITHUB_TOKEN does not trigger other workflows,
+          # but a workflow_dispatch does.
+          gh workflow run deploy.yml --ref main

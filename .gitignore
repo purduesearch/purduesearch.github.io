@@ -39,3 +39,6 @@ backend/uploads/vault-tmp/
 
 # superpowers visual-brainstorm mockups (local only)
 .superpowers/
+
+# Constellation patch notes — generated from git tags at prestart/prebuild (scripts/patch-notes.mjs)
+/public/constellation-patch-notes.json

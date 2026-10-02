@@ -22,6 +22,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          # Full history + tags: the prebuild step turns constellation-v* tags
+          # into the Constellation patch notes (scripts/patch-notes.mjs).
+          fetch-depth: 0
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
