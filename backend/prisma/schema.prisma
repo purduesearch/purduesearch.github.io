@@ -318,6 +318,9 @@ model Member {
   docAccessGrants  DocAccessGrant[]   @relation("DocAccessMember")
   docAccessGranted DocAccessGrant[]   @relation("DocAccessGranter")
   docShareSet      DocShareSettings[] @relation("DocShareSetter")
+  slackCardQueue    SlackCardQueue[]   @relation("SlackCardQueueRecipient")
+  slackItemLinks    SlackItemLink[]    @relation("SlackItemLinker")
+  slackPlanSessions SlackPlanSession[] @relation("SlackPlanOwner")
 }
 
 model Project {
@@ -3230,4 +3233,119 @@ model InstagramFeedState {
   fetchedAt      DateTime?
   lastError      String?
   updatedAt      DateTime  @updatedAt
+}
+
+enum SlackEntityType {
+  TASK
+  VAULT_ITEM
+  CHANGE_REQUEST
+  GITHUB
+  DRIVE_FILE
+  MILESTONE
+  EVENT
+  MEETING_POLL
+}
+
+enum SlackCardKind {
+  TASK_BUNDLE
+  LINK_CARD
+  VAULT_NOTICE
+  POLL_INVITE
+  CHECKIN
+}
+
+/// Durable queue for DM card bundles (L6). One row per (recipient, entity, reason) waiting to send.
+model SlackCardQueue {
+  id          String            @id @default(cuid())
+  recipientId String
+  recipient   Member            @relation("SlackCardQueueRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  entityType  SlackEntityType
+  entityId    String
+  reason      String            // "ASSIGNED" | "POLL_INVITE" | "VAULT" …
+  actorId     String?
+  queuedAt    DateTime          @default(now())
+  sentAt      DateTime?
+  messageId   String?
+  message     SlackCardMessage? @relation(fields: [messageId], references: [id], onDelete: SetNull)
+
+  @@index([sentAt, recipientId])
+  @@index([entityType, entityId])
+}
+
+/// A bot message whose blocks render live Constellation state. Re-rendered on change.
+model SlackCardMessage {
+  id             String           @id @default(cuid())
+  kind           SlackCardKind
+  slackChannelId String
+  ts             String
+  threadTs       String?
+  /// DM bundles: the member it was sent to (buttons depend on the viewer).
+  recipientId    String?
+  /// LINK_CARD: ts of the member message the card annotates.
+  sourceTs       String?
+  createdAt      DateTime         @default(now())
+  renderedAt     DateTime         @default(now())
+  refs           SlackCardRef[]
+  queued         SlackCardQueue[]
+
+  @@unique([slackChannelId, ts])
+  @@index([slackChannelId, sourceTs])
+}
+
+model SlackCardRef {
+  id         String           @id @default(cuid())
+  messageId  String
+  message    SlackCardMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  entityType SlackEntityType
+  entityId   String
+  position   Int
+
+  @@unique([messageId, entityType, entityId])
+  @@index([entityType, entityId])
+}
+
+/// A member attached a Constellation item to a Slack message (L5). Backs "Mentioned in Slack".
+model SlackItemLink {
+  id             String          @id @default(cuid())
+  slackChannelId String
+  messageTs      String
+  threadTs       String?
+  entityType     SlackEntityType
+  /// TASK/VAULT_ITEM/CHANGE_REQUEST/MILESTONE/EVENT/MEETING_POLL: row id.
+  /// GITHUB: GitHubLink.id when a row exists, else "owner/repo#123" or "owner/repo@sha".
+  /// DRIVE_FILE: the Drive file id.
+  entityId       String
+  /// Title snapshot, shown if the entity is later deleted.
+  label          String
+  url            String?
+  projectId      String?
+  linkedById     String?
+  linkedBy       Member?         @relation("SlackItemLinker", fields: [linkedById], references: [id], onDelete: SetNull)
+  createdAt      DateTime        @default(now())
+
+  @@unique([slackChannelId, messageTs, entityType, entityId])
+  @@index([entityType, entityId])
+}
+
+/// One action-plan review in a Slack modal (L8).
+model SlackPlanSession {
+  id              String   @id @default(cuid())
+  memberId        String
+  member          Member   @relation("SlackPlanOwner", fields: [memberId], references: [id], onDelete: Cascade)
+  projectId       String
+  goal            String
+  /// Normalized ActionPlan JSON (aiActionService.normalizeActionPlan output), edited in place.
+  actionsJson     String   @db.Text
+  /// { "<index>": "ACCEPTED" | "SKIPPED" | "EDITED" }
+  decisions       Json     @default("{}")
+  /// ActionExecutionResult[] after a run.
+  resultsJson     Json?
+  status          String   @default("OPEN") // OPEN | RUNNING | DONE | DISCARDED
+  viewId          String?
+  sourceChannelId String?
+  sourceTs        String?
+  createdAt       DateTime @default(now())
+  expiresAt       DateTime
+
+  @@index([memberId, status])
 }
