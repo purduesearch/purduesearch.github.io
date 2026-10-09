@@ -1,4 +1,5 @@
 import type { App } from "@slack/bolt";
+import { openTaskModal } from "./taskModal.js";
 import type { TaskStatus } from "@prisma/client";
 import { prisma } from "../../db/prisma.js";
 import { getTask, createSubtask } from "../../services/taskService.js";
@@ -53,17 +54,9 @@ export function registerTaskCardActions(app: App): void {
         } else if (id === "tc_done") await updateTaskAsMember(actor.id, p.t, { status: "DONE" }, "SLACK");
         else if (id === "tc_assign_me") await updateTaskAsMember(actor.id, p.t, { assigneeIds: [...new Set([...task.assignees.map(a => a.id), actor.id])] }, "SLACK");
         else if (operation === "edit") {
-          // P17 replaces this fallback and adopts the contract below.
-          const modulePath = "./taskModal.js";
-          let handlers;
-          try { handlers = await import(modulePath); } catch (error: any) { if (error.code !== "ERR_MODULE_NOT_FOUND") throw error; }
-          if (handlers?.openTaskModal) {
-            // Reuse the already-open loading view so the original trigger is not consumed twice.
-            await handlers.openTaskModal(ctx.client, (ctx.body as any).trigger_id, actor.id, { taskId: p.t, openedView: opened?.view });
-          } else {
-            await reply(ctx, "Editing from Slack ships in the next phase");
-            if (opened?.view?.id) await ctx.client.views.update({ view_id: opened.view.id, hash: opened.view.hash, view: { ...loadingView("Edit task"), blocks: [{ type: "section", text: { type: "mrkdwn", text: "Editing from Slack ships in the next phase" } }] } });
-          }
+          await openTaskModal(ctx.client, (ctx.body as any).trigger_id, {
+            memberId: actor.id, isAdmin: actor.isAdmin, taskId: p.t, openedView: opened?.view,
+          });
         } else if (operation === "enrich" || operation === "deadline") {
           const today = new Date().toISOString().split("T")[0];
           const project = await prisma.project.findUnique({ where: { id: task.projectId }, select: { type: true, targetDate: true } });

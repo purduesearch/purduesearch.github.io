@@ -1,8 +1,9 @@
 import type { App, SlashCommand } from "@slack/bolt";
 import type { WebClient } from "@slack/web-api";
+import { openTaskModal } from "./handlers/taskModal.js";
 import { prisma } from "../db/prisma.js";
 import { buildHelpCard, buildProjectReport, buildProjectHealth, buildMilestoneView } from "../utils/blockKit.js";
-import { openStandupModal, openNewTaskModal, openNewProjectModal, openTaskDoneModal, openSubtaskModal, openDriveParseModal, openMeetingNotesModal, openSprintPlanModal } from "./modals.js";
+import { openStandupModal, openNewProjectModal, openTaskDoneModal, openSubtaskModal, openDriveParseModal, openMeetingNotesModal, openSprintPlanModal } from "./modals.js";
 import { analyzeProjectRisks, generateStakeholderEmail, analyzeTeamCapacity } from "../services/projectAnalysisService.js";
 import { generateText } from "../services/geminiService.js";
 import { buildRiskReport, buildCapacityReport } from "../utils/blockKit.js";
@@ -52,8 +53,7 @@ export async function runLegacyPm(
         if (action === "done") {
           await openTaskDoneModal(client, command.trigger_id, command.user_id);
         } else {
-          const isAdmin = await isAdminBySlackId(command.user_id);
-          await openNewTaskModal(client, command.trigger_id, command.channel_id, undefined, undefined, undefined, undefined, undefined, isAdmin);
+          await openTaskModal(client, command.trigger_id, { channelId: command.channel_id, memberId: command.user_id, isAdmin: false });
         }
         break;
       }
