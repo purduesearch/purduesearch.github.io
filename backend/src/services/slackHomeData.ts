@@ -1,7 +1,8 @@
 import type { Member as PrismaMember } from "@prisma/client";
-type Member = Pick<PrismaMember, "id" | "isAdmin" | "displayName">;
+type Member = Pick<PrismaMember, "id" | "isAdmin" | "displayName"> & { timezone?: string | null };
 import { prisma } from "../db/prisma.js";
 import { getUpcomingEvents } from "./eventService.js";
+import { getMemberRsvps } from "./eventRsvpService.js";
 import { canRespond, listPolls } from "./pollService.js";
 import { getMyVisits } from "./labVisitService.js";
 import { extractFileId, listDriveFolderFiles } from "./driveService.js";
@@ -121,8 +122,6 @@ export async function loadCalendarData(member: Member): Promise<CalendarData> {
   const [upcoming, projects, polls] = await Promise.all([getUpcomingEvents(14), loadHomeProjects(member), unansweredPolls(member)]);
   const ids = new Set(projects.map(p => p.id));
   const events = upcoming.filter(e => !e.projectId || ids.has(e.projectId));
-  // P29 replaces this read with getMemberRsvps(member.id, events.map(e => e.id)).
-  const rsvps = await prisma.eventRsvp.findMany({ where: { memberId: member.id, eventId: { in: events.map(e => e.id) } }, select: { eventId: true } });
-  const going = new Set(rsvps.map(r => r.eventId));
-  return { frontendUrl: frontend(), now: new Date(), polls, events: events.map(e => ({ id: e.id, title: e.title, startsAt: e.startTime, location: e.location, going: going.has(e.id), url: `${frontend()}/clubpm/calendar?event=${e.id}` })) };
+  const going = await getMemberRsvps(member.id, events.map(e => e.id));
+  return { frontendUrl: frontend(), now: new Date(), timezone: member.timezone, polls, events: events.map(e => ({ id: e.id, title: e.title, startsAt: e.startTime, location: e.location, count: e._count.rsvps, going: going.has(e.id), url: `${frontend()}/clubpm/calendar?event=${e.id}` })) };
 }

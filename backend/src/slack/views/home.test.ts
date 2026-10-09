@@ -61,10 +61,10 @@ test("maximum Calendar data fits budget and encodes RSVP state", () => {
   const events = links.map(l => ({ ...l, startsAt: "2026-10-10", going: true }));
   const view = buildCalendar({ frontendUrl, now, events, polls: links });
   check(view, "calendar");
-  assert.match(JSON.stringify(view), /Cancel RSVP/);
+  assert.match(JSON.stringify(view), /Going ✓ · Cancel/);
   const row = view.blocks[3];
   assert.ok(row.type === "section" && row.accessory?.type === "button");
-  assert.deepEqual(JSON.parse(row.accessory.value!), { e: "item0", going: false });
+  assert.deepEqual(JSON.parse(row.accessory.value!), { e: "item0", g: false });
   assert.match(JSON.stringify(view), /poll_open/);
 });
 test("all empty tabs render useful states", () => {

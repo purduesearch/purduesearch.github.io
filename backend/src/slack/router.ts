@@ -6,6 +6,7 @@ import { handleTaskCommand, handleFindCommand } from "./handlers/quickAdd.js";
 import { handlePlanCommand } from "./handlers/plan.js";
 import { handleAskCommand } from "./handlers/mentionIntents.js";
 import { handleVaultCommand } from "./handlers/vault.js";
+import { handleEventsCommand } from "./handlers/calendar.js";
 
 export type CmdCtx = {
   args: string[];
@@ -22,6 +23,7 @@ SUBCOMMANDS.find = handleFindCommand;
 SUBCOMMANDS.plan = handlePlanCommand;
 SUBCOMMANDS.ask = handleAskCommand;
 SUBCOMMANDS.vault = handleVaultCommand;
+SUBCOMMANDS.events = handleEventsCommand;
 
 async function sendHelp(ctx: CmdCtx): Promise<void> {
   await ctx.respond({ response_type: "ephemeral", text: "Constellation command reference", blocks: buildHelpCard() });

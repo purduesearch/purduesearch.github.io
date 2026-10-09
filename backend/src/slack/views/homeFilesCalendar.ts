@@ -1,7 +1,8 @@
 import type { KnownBlock, HomeView } from "@slack/types";
 import { trunc } from "./common.js";
-import { homeButton, homeDate, homeLink, homeOverflow, homeSection, homeView } from "./home.js";
+import { homeButton, homeLink, homeOverflow, homeSection, homeView } from "./home.js";
 import type { HomeLink, HomePoll, HomeProject } from "./home.js";
+import { buildEventRow } from "./eventCards.js";
 
 export interface FilesData {
   frontendUrl: string; projects: HomeProject[]; projectId?: string | null;
@@ -9,8 +10,8 @@ export interface FilesData {
   github?: { url?: string; repositories: HomeLink[]; pullRequests: HomeLink[]; issues: HomeLink[]; recentLinks: HomeLink[] };
   vault?: { url?: string; checkouts: HomeLink[]; reviews: HomeLink[]; latestRelease?: HomeLink | null };
 }
-export interface HomeEvent extends HomeLink { startsAt: Date | string; going: boolean; location?: string | null }
-export interface CalendarData { frontendUrl: string; now: Date; events: HomeEvent[]; polls: HomePoll[] }
+export interface HomeEvent extends HomeLink { id: string; startsAt: Date | string; going: boolean; location?: string | null; count?: number }
+export interface CalendarData { frontendUrl: string; now: Date; events: HomeEvent[]; polls: HomePoll[]; timezone?: string | null }
 
 export function buildFiles(data: FilesData): HomeView {
   const body: KnownBlock[] = [];
@@ -58,7 +59,7 @@ export function buildCalendar(data: CalendarData): HomeView {
   const events = data.events.filter(e => new Date(e.startsAt).getTime() >= now && new Date(e.startsAt).getTime() < end).sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime());
   if (!events.length) body.push(homeSection("No events in the next 14 days."));
   for (const event of events.slice(0, 45)) {
-    body.push({ ...homeSection(`${homeLink(event)}\n${homeDate(event.startsAt)}${event.location ? ` · ${trunc(event.location, 180).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}` : ""} · ${event.going ? "You're going" : "Not RSVPed"}`), accessory: homeButton(event.going ? "Cancel RSVP" : "RSVP", "cal_rsvp", JSON.stringify({ e: event.id, going: !event.going })) });
+    body.push(buildEventRow(event, data.timezone));
   }
   homeOverflow(body, events.length - 45, `${data.frontendUrl}/clubpm/calendar`);
   body.push(homeSection("*Open polls*"));

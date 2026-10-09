@@ -8,6 +8,7 @@ import { registerPlan } from "./handlers/plan.js";
 import { registerMentionIntents } from "./handlers/mentionIntents.js";
 import { registerShortcuts } from "./handlers/shortcuts.js";
 import { registerVault } from "./handlers/vault.js";
+import { registerCalendar } from "./handlers/calendar.js";
 
 export function registerMirror(app: App): void {
   registerRouter(app);
@@ -19,4 +20,5 @@ export function registerMirror(app: App): void {
   registerMentionIntents(app);
   registerShortcuts(app);
   registerVault(app);
+  registerCalendar(app);
 }
