@@ -6,7 +6,7 @@
 | **Runtime** | 2:30 |
 | **Format** | Screen capture + VO. No face cam, no music. |
 | **Capture account** | Seeded demo member (`demo.nestling`) — never a real account |
-| **Prerequisite on screen** | Demo project with ~12 tasks, 3 milestones, some GitHub activity |
+| **Prerequisite on screen** | Demo project with ~12 tasks, 3 milestones, recent project activity |
 | **Recorded** | ☐ |
 
 ## Purpose

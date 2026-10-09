@@ -53,7 +53,7 @@
       "title": "The next seven days",
       "body": "Due dates and meetings, together. This is the panel that stops a deadline from surprising you.",
       "placement": "left",
-      "compact": { "body": "Expand the 7-day agenda when you need the week beyond the Next event card.", "placement": "top", "reveal": "expand" },
+      "compact": { "body": "Expand the 7-day agenda to see your due dates and meetings for the week.", "placement": "top", "reveal": "expand" },
       "advance": { "on": "next" }
     },
     {

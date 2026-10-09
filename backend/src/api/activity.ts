@@ -8,6 +8,31 @@ export const activityRouter = Router();
 
 activityRouter.use(requireAuth);
 
+// Latest audit events across only the caller's contributor projects.
+activityRouter.get("/dashboard", async (req: Request, res: Response) => {
+  try {
+    const items = await prisma.activityLog.findMany({
+      where: {
+        project: { is: {
+          ...EXCLUDE_TRAINING,
+          members: { some: { memberId: req.memberId! } },
+        } },
+      },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      take: 15,
+      include: {
+        project: { select: { id: true, name: true } },
+        member: { select: { id: true, displayName: true, avatarUrl: true } },
+        task: { select: { id: true, title: true } },
+      },
+    });
+    res.json({ items });
+  } catch (error) {
+    console.error("Fetch dashboard activity error:", error);
+    res.status(500).json({ error: "Failed to fetch dashboard activity" });
+  }
+});
+
 activityRouter.get("/", async (_req: Request, res: Response) => {
   try {
     // Fetch recent ProjectUpdates

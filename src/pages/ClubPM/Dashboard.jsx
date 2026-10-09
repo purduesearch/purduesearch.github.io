@@ -1,77 +1,16 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { Link, useNavigate } from "react-router-dom";
-import { QRCodeCanvas } from "qrcode.react";
 import { get, post, patch } from "../../api/clubPmClient";
 import { useClubPmAuth } from "../../clubpm/ClubPmAuth";
 import { ProgressIndicator, PriorityBars, AvatarStack } from "../../components/clubpm/TaskPrimitives";
 import ProjectCard from "../../components/clubpm/ProjectCard";
 import { revealStagger } from "../../clubpm/anim/motion";
-import DailyQuestsWidget from "../../components/clubpm/challenges/DailyQuestsWidget";
+import DashboardActivity from "../../components/clubpm/DashboardActivity";
 import MobileSheet from "../../components/clubpm/MobileSheet";
 import { useCompactLayout } from "../../clubpm/layout/compactLayout";
 import { useProjectNav } from "../../clubpm/ProjectNavContext";
 import { SHELL_REVEAL_EVENT, getShellReveal } from "../../clubpm/layout/shellOverlay";
-import LabPresenceCard from "../../components/clubpm/labschedule/LabPresenceCard";
-
-const WEB_BASE = process.env.REACT_APP_WEB_URL ?? window.location.origin;
-
-// ── GithubActivityWidget ──────────────────────────────────────
-
-const GH_EVENT_META = {
-  GITHUB_PR_OPENED:   { icon: "fa-code-pull-request", color: "var(--clubpm-accent-cyan)",    label: "PR opened" },
-  GITHUB_PR_MERGED:   { icon: "fa-code-merge",        color: "var(--clubpm-accent-primary)", label: "PR merged" },
-  GITHUB_PR_CLOSED:   { icon: "fa-times-circle",      color: "var(--clubpm-text-muted)",     label: "PR closed" },
-  GITHUB_PR_REVIEW:   { icon: "fa-eye",               color: "var(--clubpm-accent-yellow)",  label: "Review" },
-  GITHUB_CI_FAILED:   { icon: "fa-times-circle",      color: "#e17055",                      label: "CI failed" },
-  GITHUB_CI_PASSED:   { icon: "fa-check-circle",      color: "var(--clubpm-accent-green)",   label: "CI passed" },
-  GITHUB_ISSUE_SYNCED:{ icon: "fa-sync-alt",          color: "var(--clubpm-text-muted)",     label: "Issue synced" },
-  GITHUB_BRANCH_CREATED: { icon: "fa-code-branch",   color: "var(--clubpm-accent-primary)", label: "Branch created" },
-  GITHUB_PUSH:        { icon: "fa-upload",            color: "var(--clubpm-accent-cyan)",    label: "Push" },
-  GITHUB_REPO_LINKED: { icon: "fa-link",              color: "var(--clubpm-accent-green)",   label: "Repo linked" },
-};
-
-function GithubActivityWidget() {
-  const [events, setEvents] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    get("/api/github/dashboard/feed")
-      .then(data => setEvents(data.events ?? []))
-      .catch(() => setEvents([]))
-      .finally(() => setLoading(false));
-  }, []);
-
-  if (loading || events.length === 0) return null;
-
-  return (
-    <div className="pm-gh-activity-widget">
-      <div className="pm-gh-activity-title">
-        <i className="fab fa-github" aria-hidden="true" /> GitHub Activity
-      </div>
-      <div className="pm-gh-activity-list">
-        {events.map(ev => {
-          const meta = GH_EVENT_META[ev.eventType] ?? { icon: "fa-code", color: "var(--clubpm-text-muted)", label: ev.eventType };
-          const payload = ev.payload ?? {};
-          const desc = payload.title ?? payload.branchName ?? payload.sha?.slice(0, 7) ?? "";
-          return (
-            <div key={ev.id} className="pm-gh-activity-row">
-              <i className={`fas ${meta.icon} pm-gh-activity-icon`} style={{ color: meta.color }} aria-hidden="true" />
-              <div className="pm-gh-activity-body">
-                <span className="pm-gh-activity-label">{meta.label}</span>
-                {desc && <span className="pm-gh-activity-desc">{desc}</span>}
-                {ev.project && <span className="pm-gh-activity-project">{ev.project.name}</span>}
-              </div>
-              <span className="pm-gh-activity-time">
-                {new Date(ev.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-              </span>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
 
 // ── AIInsightCards ────────────────────────────────────────────
 
@@ -1283,173 +1222,6 @@ function CreateProjectModal({ onClose, onCreate }) {
   );
 }
 
-// ── UpcomingEventsWidget ──────────────────────────────────────
-
-const EVENT_TYPE_ICONS = {
-  MEETING:   'fa-users',
-  DEADLINE:  'fa-flag',
-  WORKSHOP:  'fa-chalkboard-teacher',
-  SOCIAL:    'fa-star',
-  OTHER:     'fa-calendar-alt',
-};
-const EVENT_TYPE_COLORS = {
-  MEETING:   'var(--pm-accent-teal)',
-  DEADLINE:  'var(--pm-accent-coral)',
-  WORKSHOP:  'var(--pm-accent-amber)',
-  SOCIAL:    'var(--pm-accent-violet)',
-  OTHER:     'var(--pm-text-muted)',
-};
-
-function UpcomingEventsWidget({ events, loading }) {
-  const [expandedId, setExpandedId] = useState(null);
-  const [copied, setCopied] = useState(false);
-
-  function fmtEventDate(iso) {
-    const d = new Date(iso);
-    const now = new Date();
-    const today = new Date(now); today.setHours(0,0,0,0);
-    const tomorrow = new Date(today); tomorrow.setDate(today.getDate()+1);
-    const eventDay = new Date(d); eventDay.setHours(0,0,0,0);
-    const prefix = eventDay.getTime() === today.getTime()   ? 'Today'
-                 : eventDay.getTime() === tomorrow.getTime() ? 'Tomorrow'
-                 : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    const time = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-    return `${prefix} · ${time}`;
-  }
-
-  function copyLink(url) {
-    navigator.clipboard.writeText(url).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1800);
-    });
-  }
-
-  return (
-    <div className="pm-upcoming-events-widget">
-      <div className="pm-upcoming-events-header">
-        <div className="pm-upcoming-events-title">
-          <i className="fas fa-calendar-alt" />
-          Upcoming Events
-        </div>
-        <Link to="/clubpm/calendar" className="pm-upcoming-events-link">
-          View Calendar <i className="fas fa-arrow-right" />
-        </Link>
-      </div>
-
-      {loading ? (
-        <div className="pm-upcoming-events-loading">
-          <div className="pm-spinner" style={{ width: 18, height: 18 }} />
-        </div>
-      ) : events.length === 0 ? (
-        <div className="pm-upcoming-events-empty">No upcoming events in the next 7 days</div>
-      ) : (
-        <div className="pm-upcoming-events-list">
-          {events.slice(0, 7).map(ev => {
-            const rsvpUrl = `${WEB_BASE}/rsvp/${ev.id}`;
-            const rsvpCount = ev._count?.rsvps ?? 0;
-            const attendedCount = ev.rsvps?.length ?? 0;
-            const isExpanded = expandedId === ev.id;
-
-            return (
-              <div key={ev.id} className={`pm-upcoming-event-row${isExpanded ? ' pm-upcoming-event-row--expanded' : ''}`}>
-                <div
-                  className="pm-upcoming-event-type-dot"
-                  style={{ background: EVENT_TYPE_COLORS[ev.type] ?? 'var(--pm-text-muted)' }}
-                />
-                <div className="pm-upcoming-event-icon">
-                  <i className={`fas ${EVENT_TYPE_ICONS[ev.type] ?? 'fa-calendar-alt'}`} style={{ color: EVENT_TYPE_COLORS[ev.type] }} />
-                </div>
-                <div
-                  className="pm-upcoming-event-info"
-                  onClick={() => setExpandedId(isExpanded ? null : ev.id)}
-                  style={{ cursor: 'pointer', flex: 1 }}
-                >
-                  <div className="pm-upcoming-event-title">
-                    {ev.title}
-                    {ev.isPublic && (
-                      <i className="fas fa-eye cpm-public-eye" title="Public on purduesearch.org" aria-label="Public on purduesearch.org" />
-                    )}
-                  </div>
-                  <div className="pm-upcoming-event-meta">
-                    <span>{fmtEventDate(ev.startTime)}</span>
-                    {ev.location && <span> · {ev.location}</span>}
-                    {ev.isVirtual && <span className="pm-upcoming-event-virtual">Virtual</span>}
-                  </div>
-                </div>
-                <div className="pm-upcoming-event-badges">
-                  {ev.project && (
-                    <span className="pm-upcoming-event-project-badge">{ev.project.name}</span>
-                  )}
-                  {ev._count?.priorityTasks > 0 && (
-                    <span className="pm-upcoming-event-tasks-badge" title="Priority tasks">
-                      <i className="fas fa-tasks" /> {ev._count.priorityTasks}
-                    </span>
-                  )}
-                  <span className="pm-event-rsvp-chip" title="RSVPs">
-                    <i className="fas fa-ticket-alt" /> {rsvpCount}
-                  </span>
-                  <span className="pm-event-attended-chip" title="Attended">
-                    <i className="fas fa-user-check" /> {attendedCount}
-                  </span>
-                  <button
-                    className="pm-event-qr-toggle"
-                    onClick={e => { e.stopPropagation(); setExpandedId(isExpanded ? null : ev.id); }}
-                    title={isExpanded ? 'Hide QR code' : 'Show QR code'}
-                    aria-expanded={isExpanded}
-                  >
-                    <i className="fas fa-qrcode" />
-                  </button>
-                </div>
-
-                {isExpanded && (
-                  <div className="pm-event-qr-panel">
-                    <QRCodeCanvas
-                      id={`qr-canvas-${ev.id}`}
-                      value={rsvpUrl}
-                      size={160}
-                      bgColor="#ffffff"
-                      fgColor="#000000"
-                      level="M"
-                    />
-                    <div className="pm-event-qr-actions">
-                      <p className="pm-event-qr-label">Scan to RSVP / check in</p>
-                      <button
-                        className="pm-event-qr-copy-btn"
-                        onClick={() => copyLink(rsvpUrl)}
-                      >
-                        <i className={`fas ${copied ? 'fa-check' : 'fa-link'}`} />
-                        {copied ? 'Copied!' : 'Copy link'}
-                      </button>
-                      <button
-                        className="pm-event-qr-copy-btn"
-                        onClick={() => {
-                          const canvas = document.getElementById(`qr-canvas-${ev.id}`);
-                          if (!canvas) return;
-                          canvas.toBlob(blob => {
-                            const url = URL.createObjectURL(blob);
-                            const a = document.createElement('a');
-                            a.href = url;
-                            a.download = `${ev.title.replace(/\s+/g, '-')}-rsvp-qr.png`;
-                            a.click();
-                            URL.revokeObjectURL(url);
-                          });
-                        }}
-                      >
-                        <i className="fas fa-download" />
-                        Download QR
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-}
-
 // ── Dashboard ─────────────────────────────────────────────────
 
 export default function Dashboard() {
@@ -1458,8 +1230,6 @@ export default function Dashboard() {
   const { projects = [] } = useProjectNav() ?? {};
   const [myTasks, setMyTasks] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [upcomingEvents, setUpcomingEvents]   = useState([]);
-  const [eventsLoading, setEventsLoading]     = useState(true);
 
   const loadDashboard = useCallback(() => {
     (member ? get("/api/members/me").then(m => m.tasks ?? []) : Promise.resolve([]))
@@ -1469,13 +1239,6 @@ export default function Dashboard() {
   }, [member]);
 
   useEffect(() => {
-    get("/api/events/upcoming")
-      .then(setUpcomingEvents)
-      .catch(() => setUpcomingEvents([]))
-      .finally(() => setEventsLoading(false));
-  }, []);
-
-  useEffect(() => {
     loadDashboard();
   }, [loadDashboard]);
 
@@ -1483,7 +1246,10 @@ export default function Dashboard() {
     const original = myTasks.find(t => t.id === taskId)?.progress ?? "NO_PROGRESS";
     setMyTasks(prev => prev.map(t => t.id === taskId ? { ...t, progress: newProgress } : t));
     patch(`/api/tasks/${taskId}`, { progress: newProgress })
-      .then(() => loadDashboard())
+      .then(() => {
+        loadDashboard();
+        window.dispatchEvent(new Event('pm-projects-refresh'));
+      })
       .catch(() =>
         setMyTasks(prev => prev.map(t => t.id === taskId ? { ...t, progress: original } : t))
       );
@@ -1507,33 +1273,23 @@ export default function Dashboard() {
       {compact ? (
         <div className="pm-m-home-flow">
           <WorkPanel tasks={myTasks} onProgressChange={handleProgressChange} projects={projects} onTaskCreated={handleTaskCreated} compact />
-          <UpcomingEventsWidget events={upcomingEvents.slice(0, 1)} loading={eventsLoading} />
-          <LabPresenceCard />
           <MobileProjectsPanel projects={projects} member={member} />
-          <MobileSupportingPanel title="Progress & quests" icon="fa-trophy" tourId="dash.quests">
-            <DailyQuestsWidget />
-          </MobileSupportingPanel>
+          <DashboardActivity memberId={member?.id} />
           <MobileSupportingPanel title="7-day agenda" icon="fa-calendar-days" tourId="dash.agenda">
             <AgendaPanel tasks={myTasks} onProgressChange={handleProgressChange} tourId={null} />
           </MobileSupportingPanel>
           <MobileSupportingPanel title="Project insights" icon="fa-chart-line" tourId="dash.insights">
             <AIInsightCards projects={projects} tasks={myTasks} tourId={null} />
           </MobileSupportingPanel>
-          <MobileSupportingPanel title="GitHub activity" icon="fa-code-branch">
-            <GithubActivityWidget />
-          </MobileSupportingPanel>
         </div>
       ) : (
         <>
-          <div data-tour-id="dash.quests"><DailyQuestsWidget /></div>
-          <AIInsightCards projects={projects} tasks={myTasks} />
-          <GithubActivityWidget />
           <div className="cpm-dashboard-layout">
             <WorkPanel tasks={myTasks} onProgressChange={handleProgressChange} projects={projects} onTaskCreated={handleTaskCreated} />
             <AgendaPanel tasks={myTasks} onProgressChange={handleProgressChange} />
           </div>
-          <UpcomingEventsWidget events={upcomingEvents} loading={eventsLoading} />
-          <LabPresenceCard />
+          <DashboardActivity memberId={member?.id} />
+          <AIInsightCards projects={projects} tasks={myTasks} />
         </>
       )}
     </div>

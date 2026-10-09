@@ -98,7 +98,7 @@ const FILTER_GROUPS = [
 
 // ── Human-readable descriptions ──────────────────────────────
 
-function describeEvent(log) {
+export function describeEvent(log) {
   const actor = log.member?.displayName ?? "Someone";
   const p     = log.payload ?? {};
 
@@ -259,7 +259,9 @@ function describeEvent(log) {
       return <><strong>{actor}</strong> ran an AI action plan ({p.succeeded ?? 0}/{p.totalActions ?? 0} applied)</>;
 
     default:
-      return <><strong>{actor}</strong> made a change</>;
+      return <><strong>{actor}</strong>: {log.eventType.toLowerCase().replace(/_/g, " ")}
+        {(p.itemName || p.title || p.taskTitle) && <> · <em>{p.itemName || p.title || p.taskTitle}</em></>}
+      </>;
   }
 }
 

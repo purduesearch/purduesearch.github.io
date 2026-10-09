@@ -15,6 +15,9 @@ training project.**
 | `rewards-tour` | 8 | `/clubpm/challenges` | No | 1 (optional) |
 | `comms-tour` | 10 | `/clubpm/notifications` | No | 0 |
 
+The dashboard puts assigned work first and shows recent activity from projects you contribute to.
+Project insights and the seven-day agenda remain available; quests live on Challenges.
+
 ## Phone and desktop
 
 Constellation has two shells: the desktop sidebar + topbar, and a phone layout (bottom bar with

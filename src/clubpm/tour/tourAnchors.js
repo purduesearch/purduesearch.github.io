@@ -49,7 +49,6 @@ export const TOUR_ANCHORS = Object.freeze({
   // Dashboard — src/pages/ClubPM/Dashboard.jsx
   "nav.xp":                 { label: "XP bar",               route: "*",       layout: "both", reveal: "more", note: "Sidebar XP progress bar; More › Progress on phones — the product has no XP stat tile" },
   "nav.rank":               { label: "Rank badge",           route: "*",       layout: "both", reveal: "more", note: "Sidebar rank icon; More account row on phones" },
-  "dash.quests":            { label: "Daily quests",         route: "/clubpm", layout: "both", reveal: "expand", note: "Expanded supporting panel on phones" },
   "dash.work":              { label: "My work",              route: "/clubpm", note: "Filterable task list" },
   "dash.agenda":            { label: "Agenda panel",         route: "/clubpm", layout: "both", reveal: "expand", note: "7-day agenda; supporting panel on phones" },
   "dash.leaderboard":       { label: "Leaderboard",          route: "/clubpm/members", note: "Bottom of the member roster — moved off the dashboard" },

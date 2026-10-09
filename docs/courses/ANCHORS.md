@@ -65,7 +65,6 @@ child until the rail keeps its children in layout. (On phones every one of these
 
 | Anchor | Element | Route |
 |---|---|---|
-| `dash.quests` | Daily quests widget | `/clubpm` |
 | `dash.work` | "My work" filterable task list | `/clubpm` |
 | `dash.agenda` | 7-day agenda panel | `/clubpm` |
 | `dash.leaderboard` | Leaderboard panel, at the bottom of the member roster | `/clubpm/members` |

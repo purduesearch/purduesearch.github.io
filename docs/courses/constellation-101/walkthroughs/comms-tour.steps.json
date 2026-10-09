@@ -89,7 +89,7 @@
       "title": "It all lands here",
       "body": "Everything you just configured surfaces on this panel. Notifications tell you the moment something changes; this tells you what's coming.",
       "placement": "left",
-      "compact": { "body": "Expand the 7-day agenda to see what is coming after the Next event card.", "placement": "top", "reveal": "expand" },
+      "compact": { "body": "Expand the 7-day agenda to see your due dates and meetings for the week.", "placement": "top", "reveal": "expand" },
       "advance": { "on": "next" }
     },
     {
