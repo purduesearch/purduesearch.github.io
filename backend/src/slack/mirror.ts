@@ -6,6 +6,7 @@ import { registerQuickAdd } from "./handlers/quickAdd.js";
 import { registerMentions } from "./handlers/mentions.js";
 import { registerPlan } from "./handlers/plan.js";
 import { registerMentionIntents } from "./handlers/mentionIntents.js";
+import { registerShortcuts } from "./handlers/shortcuts.js";
 
 export function registerMirror(app: App): void {
   registerRouter(app);
@@ -15,4 +16,5 @@ export function registerMirror(app: App): void {
   registerMentions(app);
   registerPlan(app);
   registerMentionIntents(app);
+  registerShortcuts(app);
 }

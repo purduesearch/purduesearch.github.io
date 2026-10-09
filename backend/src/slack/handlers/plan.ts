@@ -12,6 +12,7 @@ import type { CmdCtx } from "../router.js";
 export interface OpenPlanOptions {
   memberId: string; projectId?: string; goal?: string; threadText?: string;
   source?: { channelId: string; ts: string }; channelId?: string;
+  openedView?: { id?: string; hash?: string };
 }
 type Pending = { memberId: string; threadText?: string; source?: OpenPlanOptions["source"]; expires: number };
 const pending = new Map<string, Pending>();
@@ -49,7 +50,7 @@ async function generate(client: WebClient, viewId: string, opts: OpenPlanOptions
   await update(client, viewId, await render(session), hash);
 }
 export async function openPlanModal(client: WebClient, triggerId: string, opts: OpenPlanOptions): Promise<void> {
-  const opened = (await client.views.open({ trigger_id: triggerId, view: loadingView("Action plan") })).view;
+  const opened = opts.openedView ?? (await client.views.open({ trigger_id: triggerId, view: loadingView("Action plan") })).view;
   if (!opened?.id) return;
   if (opened.hash) hashes.set(opened.id, opened.hash);
   try {

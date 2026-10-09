@@ -39,13 +39,19 @@ export async function readMentionThread(channelId: string, threadTs: string, mem
   return (result.messages ?? []).map(message => message.text ?? "").join("\n").slice(0, 30_000);
 }
 
-export async function showAttachPicker(context: MentionIntentContext, recommendation?: Recommendation): Promise<void> {
+export async function showAttachPicker(context: MentionIntentContext, recommendation?: Recommendation, fallback?: (message: any) => Promise<unknown>): Promise<void> {
   const rec = recommendation ?? await recommend({ memberId: context.memberId, projectIds: context.projectIds, text: context.text, threadText: context.threadText });
   for (const [id, entry] of pickers) if (entry.expiresAt <= Date.now()) pickers.delete(id);
   const id = randomUUID();
   pickers.set(id, { context, recommendation: rec, candidates: new Map(rec.picks.map(pick => [pick.candidate.key, pick.candidate])), expiresAt: Date.now() + ttl });
-  await context.client.chat.postEphemeral({ channel: context.channelId, user: context.slackUserId, thread_ts: context.threadTs,
-    text: "Pick what to attach to this message", blocks: buildAttachPicker(rec, { pickerId: id, aiUsed: rec.aiUsed }) });
+  const message = { text: "Pick what to attach to this message", blocks: buildAttachPicker(rec, { pickerId: id, aiUsed: rec.aiUsed }) };
+  try {
+    await context.client.chat.postEphemeral({ channel: context.channelId, user: context.slackUserId, thread_ts: context.threadTs, ...message });
+  } catch (error) {
+    if (!fallback) { pickers.delete(id); throw error; }
+    try { await fallback({ response_type: "ephemeral", replace_original: false, thread_ts: context.threadTs, ...message }); }
+    catch (fallbackError) { pickers.delete(id); throw fallbackError; }
+  }
 }
 
 async function route(context: MentionIntentContext): Promise<boolean> {
