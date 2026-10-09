@@ -1,13 +1,14 @@
 import { Router, type Request, type Response } from "express";
+import { updateTaskAsMember, TaskMutationError, type TaskPatch } from "../services/taskMutationService.js";
 import { requireAuth } from "./auth.js";
 import { channelAuth } from "../middleware/channelAuth.js";
 import { getTaskPermissions, requireTaskEdit } from "../middleware/taskAccess.js";
 import { aiRateLimit } from "../middleware/aiRateLimit.js";
 import { updateTask, deleteTask, getTask, createSubtask, getSubtasks, addDependency, removeDependency, createTask, assertCanComplete, assertNotCategoryBlocked } from "../services/taskService.js";
 import { assertCiGatePasses, applyCompletionSideEffects } from "../services/taskCompletionService.js";
-import { logAuditEvent, diffObjects, getTaskAuditLog } from "../services/activityService.js";
+import { logAuditEvent, getTaskAuditLog } from "../services/activityService.js";
 import { recordTimeLog } from "../services/timeLogService.js";
-import type { TaskStatus, TaskProgress, Priority, NotificationType } from "@prisma/client";
+import type { TaskStatus, Priority, NotificationType } from "@prisma/client";
 import { GeminiRateLimitError } from "../services/geminiService.js";
 import { runJson } from "../services/ai/aiRouter.js";
 import {
@@ -17,38 +18,6 @@ import { prisma as prismaClient } from "../db/prisma.js";
 import { createNotification } from "../services/notificationCrud.js";
 import { parseMentionHandles } from "../services/mentionService.js";
 import { EXCLUDE_TRAINING } from "../services/trainingSandboxService.js";
-
-// ── Attachment helpers ──────────────────────────────────────
-//
-// Frontend sends attachments as { url, label? } objects. We normalise them
-// before writing so every stored row has a guaranteed-clickable absolute URL
-// and a non-empty label. Strings (from older clients) are tolerated.
-
-type AttachmentInput = string | { url?: string; label?: string };
-type Attachment = { url: string; label: string };
-
-function hostOf(url: string): string {
-  try { return new URL(url).host; } catch { return url; }
-}
-
-function normaliseAttachment(att: AttachmentInput): Attachment | null {
-  const raw = typeof att === "string" ? { url: att, label: att } : att ?? {};
-  const url = typeof raw.url === "string" ? raw.url.trim() : "";
-  if (!url) return null;
-  const absoluteUrl = /^https?:\/\//i.test(url) ? url : `https://${url}`;
-  const label =
-    (typeof raw.label === "string" ? raw.label.trim() : "") ||
-    hostOf(absoluteUrl);
-  return { url: absoluteUrl, label };
-}
-
-function normaliseAttachments(input: unknown): Attachment[] | undefined {
-  if (input === undefined) return undefined;
-  if (!Array.isArray(input)) return [];
-  return input
-    .map(normaliseAttachment)
-    .filter((a): a is Attachment => a !== null);
-}
 
 export const tasksRouter = Router();
 
@@ -465,291 +434,18 @@ tasksRouter.post("/bulk-archive", async (req: Request, res: Response) => {
 // ── PATCH /api/tasks/:id ─────────────────────────────────────
 
 tasksRouter.patch("/:id", channelAuth, async (req: Request, res: Response) => {
-  const requestStartedAt = new Date();
   try {
     const taskId = req.params.id as string;
-    const { title, description, status, progress, priority, dueDate, assigneeIds, tags, attachments, parentTaskId, blockingTaskIds, blockingTaskReasons } =
-      req.body as {
-        title?: string;
-        description?: string;
-        status?: TaskStatus;
-        progress?: TaskProgress;
-        priority?: Priority;
-        dueDate?: string | null;
-        assigneeIds?: string[];
-        tags?: string[];
-        attachments?: AttachmentInput[];
-        parentTaskId?: string | null;
-        blockingTaskIds?: string[];
-        blockingTaskReasons?: Record<string, string | null>;
-      };
-
-    const normalisedAttachments = normaliseAttachments(attachments);
-
-    const existingTask = await getTask(taskId);
-    if (!existingTask) {
-      res.status(404).json({ error: "Task not found" });
-      return;
-    }
-
-    const { canEdit } = await getTaskPermissions(req.memberId!, taskId);
-    if (!canEdit) {
-      res.status(403).json({ error: "Only assignees, the creator, a project lead, or an admin can edit this task" });
-      return;
-    }
-
-    if (status && status !== existingTask.status) {
-      const lockError = assertNotCategoryBlocked(existingTask as any, status);
-      if (lockError) {
-        res.status(400).json({ error: lockError });
-        return;
-      }
-    }
-
-    if (status === "DONE" && existingTask.status !== "DONE") {
-      const blockerError = assertCanComplete(existingTask as any);
-      if (blockerError) {
-        res.status(400).json({ error: blockerError });
-        return;
-      }
-
-      // CI gating (Phase 3): if the project requires passing CI and the most
-      // recent CI activity for the task is a failure, block the transition.
-      const ciError = await assertCiGatePasses(taskId, existingTask.projectId);
-      if (ciError) {
-        res.status(409).json({ error: ciError });
-        return;
-      }
-    }
-
-    if (parentTaskId !== undefined) {
-      console.log(`[updateTask] id=${taskId} parentTaskId=${parentTaskId ?? "null (removing parent)"}`);
-    }
-
-    const task = await updateTask(taskId, {
-      title,
-      description,
-      status,
-      progress,
-      priority,
-      dueDate: dueDate === null ? undefined : dueDate ? new Date(dueDate) : undefined,
-      assigneeIds,
-      tags,
-      attachments: normalisedAttachments,
-      parentTaskId,
-      blockedByIds: blockingTaskIds,
-      blockedByReasons: blockingTaskReasons,
-    });
-
-    const isNowDone = existingTask.status !== "DONE" && task.status === "DONE";
-
-    // Audit log — fire-and-forget, never block the response
-    (() => {
-      const memberId = req.memberId;
-      const assigneesBefore = (existingTask.assignees ?? []).map((a: any) => a.id).sort().join(",");
-      const assigneesAfter  = (task.assignees ?? []).map((a: any) => a.id).sort().join(",");
-      const assigneesChanged = assigneesBefore !== assigneesAfter;
-
-      // Engagement: streak ticks on any forward status transition that isn't
-      // the DONE transition (DONE is handled by handleTaskComplete below).
-      // Forward order: TODO < IN_PROGRESS < DONE; BLOCKED is a side channel.
-      const STATUS_RANK: Record<string, number> = { TODO: 0, BLOCKED: 0, IN_PROGRESS: 1, DONE: 2 };
-      const beforeRank = STATUS_RANK[existingTask.status] ?? 0;
-      const afterRank  = STATUS_RANK[task.status]         ?? 0;
-      const isForwardAdvance = !isNowDone && afterRank > beforeRank && memberId;
-      if (isForwardAdvance) {
-        (async () => {
-          // Dragging a fixture card across the training board is the very first
-          // thing a walkthrough asks for. It must not keep a streak alive.
-          const { isTrainingTask } = await import("../services/trainingSandboxService.js");
-          if (await isTrainingTask(taskId)) return;
-          const { recordActivity } = await import("../services/streakService.js");
-          await recordActivity(memberId!, "TASK_ADVANCE");
-        })().catch(err => console.error("[streak] task advance:", err));
-      }
-
-      if (isNowDone) {
-        // TASK_COMPLETED audit event + engagement grant are handled by
-        // applyCompletionSideEffects (called below, awaited so the response
-        // can carry the reward deltas).
-      } else if (assigneesChanged && task.status === existingTask.status) {
-        logAuditEvent({
-          taskId: taskId, memberId: memberId ?? null, source: "WEB",
-          eventType: "TASK_ASSIGNED",
-          payload: {
-            taskTitle:     task.title,
-            assigneeNames: (task.assignees ?? []).map((a: any) => a.displayName),
-          },
-        }).catch(console.error);
-      } else {
-        const WATCHED = ["status", "priority", "dueDate", "title", "description"];
-        const changes = diffObjects(existingTask as any, task as any, WATCHED);
-        if (changes.length > 0) {
-          logAuditEvent({
-            taskId: taskId, memberId: memberId ?? null, source: "WEB",
-            eventType: "TASK_UPDATED",
-            payload: { taskTitle: task.title, changes },
-          }).catch(console.error);
-        }
-      }
-    })();
-
-    // Notification emitters (fire-and-forget)
-    (() => {
-      const actorId = req.memberId;
-      if (!actorId) return Promise.resolve();
-
-      const assigneesBefore = (existingTask.assignees ?? []).map((a: any) => a.id);
-      const assigneesAfter  = (task.assignees ?? []).map((a: any) => a.id);
-      const assigneesChanged = assigneesBefore.sort().join(",") !== assigneesAfter.sort().join(",");
-      const addedAssigneeIds = assigneesAfter.filter((id: string) => !assigneesBefore.includes(id));
-
-      return (async () => {
-        const [actor, proj] = await Promise.all([
-          prismaClient.member.findUnique({ where: { id: actorId }, select: { displayName: true } }),
-          prismaClient.project.findUnique({ where: { id: task.projectId }, select: { name: true } }),
-        ]);
-
-        if (assigneesChanged && addedAssigneeIds.length > 0) {
-          const addedAssignees = (task.assignees ?? []).filter(
-            (a: any) => addedAssigneeIds.includes(a.id)
-          );
-          for (const assignee of addedAssignees) {
-            if (assignee.id === actorId) continue;
-            await createNotification({
-              type: "TASK_ASSIGNED" as NotificationType,
-              recipientId: assignee.id,
-              actorId,
-              projectId: task.projectId,
-              taskId,
-              message: `${actor?.displayName ?? "Someone"} assigned you to "${task.title}" in ${proj?.name ?? "a project"}`,
-              slackText: `📋 *${actor?.displayName ?? "Someone"}* assigned you to *${task.title}* in ${proj?.name ?? "a project"}`,
-            });
-          }
-        }
-        // Completed-notification fan-out for the DONE transition is handled
-        // by applyCompletionSideEffects (called below).
-      })();
-    })().catch(console.error);
-
-    // If task is linked to a milestone, refresh its health (fire-and-forget).
-    // The DONE-transition refresh is handled by applyCompletionSideEffects
-    // below, so this only needs to fire for non-completion updates.
-    if (!isNowDone && (task as any).milestoneId) {
-      const { refreshMilestoneHealth } = await import("../services/milestoneService.js");
-      refreshMilestoneHealth((task as any).milestoneId).catch(console.error);
-    }
-
-    // Engagement grant + per-assignee challenge hooks for the DONE
-    // transition are shared with PATCH /bulk via applyCompletionSideEffects —
-    // awaited so the response can surface reward deltas to the frontend
-    // dispatcher (sidebar XP bar, +XP particles, rank-up modal, progress toasts).
-    let actorReward: import("../services/rewardService.js").ActorRewardSummary | null = null;
-    let progressMilestones: import("../services/challengeService.js").ProgressMilestone[] = [];
-    if (isNowDone) {
-      const result = await applyCompletionSideEffects({
-        taskId,
-        actorId: req.memberId!,
-        existingTask,
-        updatedTask: task,
-      });
-      actorReward = result.actorReward;
-      progressMilestones = result.progressMilestones;
-    }
-
-    // Remaining challenge hooks — awaited so we can surface progress
-    // milestones in the response (frontend toasts at 25/50/75% bands).
-    {
-      const actorId = req.memberId;
-      if (actorId) {
-        const prevStatus = existingTask.status;
-        const toInProgress = prevStatus !== "IN_PROGRESS" && task.status === "IN_PROGRESS";
-        const prevAssignees = ((existingTask.assignees ?? []) as any[]).map((a: any) => a.id as string);
-        const nextAssignees = ((task.assignees ?? []) as any[]).map((a: any) => a.id as string);
-        const addedAssignees = nextAssignees.filter((id: string) => !prevAssignees.includes(id));
-        const prevTagCount = ((existingTask.tags ?? []) as any[]).length;
-        const nextTagCount = (((task as any).tags ?? []) as any[]).length;
-        const tagsAdded = nextTagCount > prevTagCount;
-        const prevAttCount = (existingTask.attachments as any[] | null)?.length ?? 0;
-        const nextAttCount = (task.attachments as any[] | null)?.length ?? 0;
-        const newAttachments = nextAttCount - prevAttCount;
-
-        try {
-          const { recordEvent } = await import("../services/challengeService.js");
-
-          if (toInProgress) {
-            progressMilestones = progressMilestones.concat(
-              await recordEvent(actorId, "TASK_MOVED_BACKLOG_TO_INPROGRESS", 1)
-            );
-          }
-
-          if (addedAssignees.length > 0) {
-            for (const aid of addedAssignees) {
-              if (aid !== actorId) {
-                progressMilestones = progressMilestones.concat(
-                  await recordEvent(actorId, "TASK_ASSIGNED_TO_TEAMMATE", 1, { teammateId: aid })
-                );
-                progressMilestones = progressMilestones.concat(
-                  await recordEvent(actorId, "UNIQUE_ASSIGNEES", 1, { teammateId: aid })
-                );
-              }
-            }
-          }
-
-          if (tagsAdded) {
-            progressMilestones = progressMilestones.concat(
-              await recordEvent(actorId, "TASK_LABELED", 1, { taskId })
-            );
-          }
-
-          if (newAttachments > 0) {
-            for (let i = 0; i < newAttachments; i++) {
-              progressMilestones = progressMilestones.concat(
-                await recordEvent(actorId, "FILE_ATTACHED", 1, { taskId })
-              );
-            }
-          }
-        } catch (err) {
-          console.error("[challenge] task update hooks:", err);
-        }
-      }
-    }
-
+    const { task, actorReward, progressMilestones, achievementUnlocks } =
+      await updateTaskAsMember(req.memberId!, taskId, req.body as TaskPatch, "WEB");
     const responseBody: any = { ...task };
     if (actorReward) Object.assign(responseBody, actorReward);
     if (progressMilestones.length > 0) responseBody.progressMilestones = progressMilestones;
-
-    // Surface any achievements auto-unlocked during recordEvent so the client
-    // can fire RewardFlux + a celebration modal. Looks for unlocks since the
-    // task update started — recordEvent → evaluateAchievements → claimAchievement
-    // writes MemberAchievement rows with unlockedAt = now().
-    try {
-      const actorId = req.memberId;
-      if (actorId) {
-        const recentUnlocks = await prismaClient.memberAchievement.findMany({
-          where: { memberId: actorId, unlockedAt: { gte: requestStartedAt } },
-          include: { challenge: { select: { name: true, description: true, iconClass: true, tier: true, xpReward: true, doubloonReward: true } } },
-        });
-        if (recentUnlocks.length > 0) {
-          responseBody.achievementUnlocks = recentUnlocks.map(u => ({
-            memberAchievementId: u.id,
-            name: u.challenge.name,
-            description: u.challenge.description,
-            iconClass: u.challenge.iconClass,
-            tier: u.challenge.tier,
-            xpReward: u.challenge.xpReward,
-            doubloonReward: u.challenge.doubloonReward,
-          }));
-        }
-      }
-    } catch (err) {
-      console.error("[challenge] achievement unlock surface:", err);
-    }
-
+    if (achievementUnlocks.length > 0) responseBody.achievementUnlocks = achievementUnlocks;
     res.json(responseBody);
   } catch (error: any) {
-    if (error?.message?.includes("circular")) {
-      res.status(400).json({ error: error.message });
+    if (error instanceof TaskMutationError) {
+      res.status(error.status).json({ error: error.message });
       return;
     }
     console.error("Update task error:", error);
