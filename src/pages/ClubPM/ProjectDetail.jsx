@@ -1221,7 +1221,8 @@ function DraggableMemberChip({ pm, selected, onClick, lead, onOpenCard }) {
       onDoubleClick={(event) => onOpenCard(pm, event.currentTarget.getBoundingClientRect())}
       style={{
         opacity: isDragging ? 0.4 : 1,
-        borderColor: isAdmin && !isLead ? "#f9ca24" : undefined,
+        borderColor: isLead ? "var(--pm-accent-violet, #a78bfa)" : isAdmin ? "#f9ca24" : undefined,
+        background: isLead ? "color-mix(in srgb, var(--pm-accent-violet, #a78bfa) 14%, var(--clubpm-surface-200))" : undefined,
       }}
     >
       <ChipAvatar member={pm.member} />
@@ -1284,7 +1285,7 @@ function MemberLeadCard({ pm, lead, anchor, canEdit, projectId, onClose, onSaved
       className="cpm-lead-card"
       role="dialog"
       aria-label={`${m.displayName} member card`}
-      style={{ left, top }}
+      style={{ position: "fixed", zIndex: 1200, width: 260, left, top, padding: 12, display: "flex", flexDirection: "column", gap: 8, background: "var(--clubpm-surface-200, #1a1a1a)", border: "1px solid var(--clubpm-border)", borderRadius: 12, boxShadow: "0 12px 32px rgba(0,0,0,0.45)" }}
     >
       <div className="cpm-lead-card-head">
         <AvatarPortrait member={m} size={44} className={isLead ? "cpm-lead-ring-violet" : undefined} />

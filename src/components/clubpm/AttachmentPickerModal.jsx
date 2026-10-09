@@ -200,28 +200,15 @@ function BrowseTab({ projectId, onAdd, onClose }) {
         {data.files.map(f => {
           const kind = mimeTypeToKind(f.mimeType);
           const meta = getTypeMeta(kind);
-          if (kind === "folder") {
-            return (
-              <li
-                key={f.id}
-                className="cpm-attach-browse-row"
-                onClick={() => openFolder(f)}
-              >
-                <span className="cpm-attach-browse-check" aria-hidden="true" />
-                <i className={`fas ${meta.icon} cpm-attach-browse-icon`} style={{ color: meta.color }} aria-hidden="true" />
-                <span className="cpm-attach-browse-name" title={f.name}>{f.name}</span>
-                <span className="cpm-attach-browse-meta">
-                  Open <i className="fas fa-chevron-right" aria-hidden="true" />
-                </span>
-              </li>
-            );
-          }
+          const isFolder = kind === "folder";
           const isSelected = !!selected[f.id];
           return (
             <li
               key={f.id}
               className={`cpm-attach-browse-row ${isSelected ? "is-selected" : ""}`}
               onClick={() => toggle(f)}
+              onDoubleClick={isFolder ? () => openFolder(f) : undefined}
+              title={isFolder ? "Double-click to open" : undefined}
             >
               <span className="cpm-attach-browse-check" aria-hidden="true">
                 {isSelected ? <i className="fas fa-check-square" /> : <i className="far fa-square" />}
