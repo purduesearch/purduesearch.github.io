@@ -1,5 +1,5 @@
 import { Router, type Request, type Response } from "express";
-import { updateTaskAsMember, addCommentAsMember, logTimeAsMember, TaskMutationError, type TaskPatch } from "../services/taskMutationService.js";
+import { updateTaskAsMember, archiveTaskAsMember, addCommentAsMember, logTimeAsMember, TaskMutationError, type TaskPatch } from "../services/taskMutationService.js";
 import { requireAuth } from "./auth.js";
 import { channelAuth } from "../middleware/channelAuth.js";
 import { getTaskPermissions, requireTaskEdit } from "../middleware/taskAccess.js";
@@ -507,46 +507,13 @@ tasksRouter.delete("/:id", channelAuth, async (req: Request, res: Response) => {
 
 tasksRouter.post("/:id/archive", async (req: Request, res: Response) => {
   try {
-    const taskId = req.params.id as string;
-    const memberId = req.memberId!;
-
-    const existingTask = await getTask(taskId);
-    if (!existingTask) {
-      res.status(404).json({ error: "Task not found" });
-      return;
-    }
-
-    const { canArchive } = await getTaskPermissions(memberId, taskId);
-    if (!canArchive) {
-      res.status(403).json({ error: "Only the creator, an admin, or a completed task's team can archive it" });
-      return;
-    }
-
-    const task = await prismaClient.task.update({
-      where: { id: taskId },
-      data: { archivedAt: new Date(), archivedById: memberId },
-    });
-    emitTaskChanged(taskId);
-
-    logAuditEvent({
-      projectId: existingTask.projectId,
-      taskId,
-      memberId,
-      source: "WEB",
-      eventType: "TASK_ARCHIVED",
-      payload: { taskTitle: existingTask.title },
-    }).catch(console.error);
-
-    const blockedDeps = await prismaClient.taskDependency.findMany({
-      where: { blockingTaskId: taskId },
-      include: { blockedTask: { select: { id: true, title: true, status: true, archivedAt: true } } },
-    });
-    const dependencyWarnings = blockedDeps
-      .map((dep) => dep.blockedTask)
-      .filter((t) => t.status !== "DONE" && !t.archivedAt);
-
-    res.json({ task, dependencyWarnings });
+    const result = await archiveTaskAsMember(req.memberId!, req.params.id as string, "WEB");
+    res.json(result);
   } catch (error) {
+    if (error instanceof TaskMutationError) {
+      res.status(error.status).json({ error: error.message });
+      return;
+    }
     console.error("Archive task error:", error);
     res.status(500).json({ error: "Failed to archive task" });
   }

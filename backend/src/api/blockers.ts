@@ -2,10 +2,10 @@ import { Router, type Request, type Response } from "express";
 import { requireAuth } from "./auth.js";
 import { requireTaskEdit } from "../middleware/taskAccess.js";
 import { prisma } from "../db/prisma.js";
-import { createNotification } from "../services/notificationCrud.js";
-import { queueDm } from "../services/dmBatcher.js";
 import { logAuditEvent } from "../services/activityService.js";
 import { emitTaskChanged } from "../services/taskChangeBus.js";
+import { createBlockerAsMember, attachBlockerAsMember, notifyBlockerAssignee } from "../services/blockerMutationService.js";
+import { TaskMutationError } from "../services/taskMutationService.js";
 
 export const blockersRouter = Router();
 blockersRouter.use(requireAuth);
@@ -32,22 +32,14 @@ blockersRouter.get("/projects/:projectId/blockers", async (req: Request, res: Re
 
 blockersRouter.post("/projects/:projectId/blockers", async (req: Request, res: Response) => {
   try {
-    const projectId = req.params.projectId as string;
-    const { label, color, assigneeId } = req.body as { label: string; color?: string; assigneeId?: string | null };
-    if (!label) {
-      res.status(400).json({ error: "label is required" });
-      return;
-    }
-    const blocker = await prisma.blocker.create({
-      data: { projectId, label, color: color ?? null, assigneeId: assigneeId ?? null },
-    });
-
-    if (blocker.assigneeId) {
-      await notifyBlockerAssignee(blocker.id, blocker.assigneeId, blocker.label, req.memberId ?? null);
-    }
+    const blocker = await createBlockerAsMember(req.memberId!, req.params.projectId as string, req.body, "WEB");
 
     res.status(201).json(blocker);
   } catch (error) {
+    if (error instanceof TaskMutationError) {
+      res.status(error.status).json({ error: error.message });
+      return;
+    }
     console.error("Create blocker error:", error);
     res.status(500).json({ error: "Failed to create blocker" });
   }
@@ -135,45 +127,16 @@ blockersRouter.patch("/blockers/:id", async (req: Request, res: Response) => {
 // ── POST /api/tasks/:id/blockers ──────────────────────────────
 // Attach an existing category blocker to a task; sets task BLOCKED.
 
-blockersRouter.post("/tasks/:id/blockers", requireTaskEdit, async (req: Request, res: Response) => {
+blockersRouter.post("/tasks/:id/blockers", async (req: Request, res: Response) => {
   try {
-    const taskId = req.params.id as string;
-    const { blockerId, reason } = req.body as { blockerId: string; reason?: string | null };
-    if (!blockerId) {
-      res.status(400).json({ error: "blockerId is required" });
-      return;
-    }
-
-    const blocker = await prisma.blocker.findUnique({ where: { id: blockerId } });
-    if (!blocker || blocker.resolvedAt) {
-      res.status(400).json({ error: "Blocker not found or already resolved" });
-      return;
-    }
-
-    await prisma.taskBlocker.upsert({
-      where: { taskId_blockerId: { taskId, blockerId } },
-      create: { taskId, blockerId, reason: reason ?? null },
-      update: { reason: reason ?? null },
-    });
-    emitTaskChanged(taskId);
-
-    // completedAt: null — leaving DONE clears it; a no-op when already null.
-    await prisma.task.update({ where: { id: taskId }, data: { status: "BLOCKED", completedAt: null } });
-    emitTaskChanged(taskId);
-
-    const task = await prisma.task.findUnique({
-      where: { id: taskId },
-      include: { blockers: { include: { blocker: true } } },
-    });
-
-    logAuditEvent({
-      taskId, projectId: blocker.projectId, memberId: req.memberId ?? null, source: "WEB",
-      eventType: "TASK_BLOCKER_ATTACHED",
-      payload: { taskTitle: (task as any)?.title, blockerLabel: blocker.label, reason: reason ?? null },
-    }).catch(console.error);
+    const task = await attachBlockerAsMember(req.memberId!, req.params.id as string, req.body, "WEB");
 
     res.json(task);
   } catch (error) {
+    if (error instanceof TaskMutationError) {
+      res.status(error.status).json({ error: error.message });
+      return;
+    }
     console.error("Attach blocker error:", error);
     res.status(500).json({ error: "Failed to attach blocker" });
   }
@@ -213,47 +176,6 @@ blockersRouter.delete("/tasks/:id/blockers/:blockerId", requireTaskEdit, async (
     res.status(500).json({ error: "Failed to detach blocker" });
   }
 });
-
-// ── Helper ─────────────────────────────────────────────────────
-// Notifies a newly (re)assigned blocker owner in-app + via Slack DM, and
-// records an audit event.
-
-async function notifyBlockerAssignee(
-  blockerId: string,
-  assigneeId: string,
-  label: string,
-  actorId: string | null
-): Promise<void> {
-  const blocker = await prisma.blocker.findUnique({
-    where: { id: blockerId },
-    select: { projectId: true },
-  });
-  const assignee = await prisma.member.findUnique({
-    where: { id: assigneeId },
-    select: { slackId: true },
-  });
-  if (!blocker || !assignee) return;
-
-  const message = `You're responsible for resolving blocker '${label}'`;
-
-  await createNotification({
-    type: "SYSTEM",
-    recipientId: assigneeId,
-    actorId: actorId ?? undefined,
-    projectId: blocker.projectId,
-    message,
-  });
-
-  if (assignee.slackId) queueDm(assignee.slackId, message);
-
-  await logAuditEvent({
-    projectId: blocker.projectId,
-    memberId: actorId,
-    source: "WEB",
-    eventType: "BLOCKER_ASSIGNED",
-    payload: { blockerId, assigneeId, label },
-  });
-}
 
 // ── Helper ─────────────────────────────────────────────────────
 // Clears a task's BLOCKED status once it has no open category blockers and

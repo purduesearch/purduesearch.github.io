@@ -515,3 +515,43 @@ export async function addCommentAsMember(
   })().catch(err => console.error("[challenge] comment hooks:", err));
   return populatedComment || comment;
 }
+
+/** Archive with the web permission check and dependency warnings. */
+export async function archiveTaskAsMember(memberId: string, taskId: string, source: MutationSource) {
+
+  const existingTask = await getTask(taskId);
+  if (!existingTask) {
+    throw new TaskMutationError(404, "Task not found");
+  }
+
+  const { canArchive } = await getTaskPermissions(memberId, taskId);
+  if (!canArchive) {
+    throw new TaskMutationError(403, "Only the creator, an admin, or a completed task's team can archive it");
+  }
+
+  const task = await prismaClient.task.update({
+    where: { id: taskId },
+    data: { archivedAt: new Date(), archivedById: memberId },
+  });
+  const { emitTaskChanged } = await import("./taskChangeBus.js");
+  emitTaskChanged(taskId);
+
+  logAuditEvent({
+    projectId: existingTask.projectId,
+    taskId,
+    memberId,
+    source: source === "AI" ? "WEB" : source,
+    eventType: "TASK_ARCHIVED",
+    payload: { taskTitle: existingTask.title },
+  }).catch(console.error);
+
+  const blockedDeps = await prismaClient.taskDependency.findMany({
+    where: { blockingTaskId: taskId },
+    include: { blockedTask: { select: { id: true, title: true, status: true, archivedAt: true } } },
+  });
+  const dependencyWarnings = blockedDeps
+    .map((dep) => dep.blockedTask)
+    .filter((t) => t.status !== "DONE" && !t.archivedAt);
+
+  return { task, dependencyWarnings };
+}
