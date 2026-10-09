@@ -8,6 +8,7 @@ import MemberBadge from "./MemberBadge";
 import AttachmentPickerModal from "./AttachmentPickerModal";
 import DrivePreviewModal from "./DrivePreviewModal";
 import GitHubTaskSection from "./github/GitHubTaskSection";
+import SlackMentions from "./SlackMentions";
 import { parseDriveUrl, getTypeMeta } from "../../utils/driveUtils";
 import MobileSheet from "./MobileSheet";
 import { useCompactLayout } from "../../clubpm/layout/compactLayout";
@@ -2038,6 +2039,8 @@ export default function TaskModal({ task: initialTask, project, projectBlockers 
           <div style={{ padding: "0 20px 16px" }}>
             <GitHubTaskSection task={task} project={project} />
           </div>
+
+          <SlackMentions entityType="TASK" entityId={task.id} />
 
           {/* Dependencies */}
           {(() => {

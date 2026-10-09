@@ -27,6 +27,7 @@ import ChangeRequestModal from "./ChangeRequestModal";
 import VaultChangesView from "./VaultChangesView";
 import VaultVersionThumbnail from "./VaultVersionThumbnail";
 import VaultWatchButton from "./VaultWatchButton";
+import SlackMentions from "../SlackMentions";
 
 // three.js is ~150+ kB gzip — VaultModelViewer must only ever be reached via
 // React.lazy so it lands in its own chunk instead of the main bundle.
@@ -728,6 +729,7 @@ export default function VaultItemModal({ itemId, project, member, isAdmin, repos
                 </div>
               )
             )}
+            <SlackMentions entityType="VAULT_ITEM" entityId={item.id} />
           </>
         ) : null}
       </div>
