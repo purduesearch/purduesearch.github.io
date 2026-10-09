@@ -14,6 +14,7 @@ import { storeAiTask } from "../utils/aiTaskCache.js";
 import { prisma } from "../db/prisma.js";
 import { ingestSlackMessage, applyReaction } from "../services/slackArchiveService.js";
 import { deliverSlackPings } from "../services/slackNotifyService.js";
+import { handleVaultFileShared } from "./handlers/vaultCheckin.js";
 
 const mentionInviteDays = new Map<string, string>();
 
@@ -304,6 +305,7 @@ export function registerEvents(app: App): void {
     try {
       const fileInfo = await client.files.info({ file: (event as any).file_id });
       const file = fileInfo.file as any;
+      if (file && await handleVaultFileShared(event, file, client)) return;
       if (!file || !file.mimetype?.startsWith("image/")) return;
 
       const channelId = file.channels?.[0] ?? (event as any).channel_id;
