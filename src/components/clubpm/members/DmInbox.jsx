@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { formatDistanceToNowStrict } from "date-fns";
 import { listConversations, importMyDms } from "../../../api/clubPmClient";
 import { useClubPmAuth } from "../../../clubpm/ClubPmAuth";
@@ -13,39 +13,55 @@ const DM_KINDS = new Set(["IM", "MPIM"]);
  * include at least one of those people — the project Chat → Members view passes its
  * roster.
  */
-export default function DmInbox({ activeChannelId, onOpen, slackIdFilter = null }) {
+export default function DmInbox({ activeChannelId, onOpen, slackIdFilter = null, projectId = null }) {
   const { member } = useClubPmAuth();
   const canRead = !!member?.slackCapabilities?.read;
   const [dms, setDms] = useState(null);
   const [error, setError] = useState(null);
+  const requestRef = useRef(0);
 
   const refresh = useCallback(() => {
-    listConversations()
-      .then(d => { setDms(d.dms ?? []); setError(null); })
-      .catch(() => setError("Could not load your messages."));
-  }, []);
+    const request = ++requestRef.current;
+    listConversations(projectId)
+      .then(d => { if (request === requestRef.current) { setDms(d.dms ?? []); setError(null); } })
+      .catch(() => { if (request === requestRef.current) setError("Could not load your messages."); });
+  }, [projectId]);
 
-  useEffect(() => { if (canRead) refresh(); }, [canRead, refresh]);
+  useEffect(() => {
+    const requestState = requestRef;
+    setDms(null);
+    setError(null);
+    if (canRead) refresh();
+    return () => { requestState.current++; };
+  }, [canRead, refresh]);
 
   // Import DM history once per browser session. The server skips conversations
   // already imported, so this is cheap after the first time.
   useEffect(() => {
     if (!canRead) return;
+    const importKey = `${IMPORT_KEY}.${member.id}.${projectId || 'club'}`;
     try {
-      if (sessionStorage.getItem(IMPORT_KEY) === "1") return;
-      sessionStorage.setItem(IMPORT_KEY, "1");
+      if (sessionStorage.getItem(importKey) === "1") return;
+      sessionStorage.setItem(importKey, "1");
     } catch {
       // sessionStorage unavailable — importing again is harmless
     }
-    importMyDms()
-      .then(r => { if (r?.conversations) setTimeout(refresh, 4000); })
-      .catch(() => {});
-  }, [canRead, refresh]);
+    let cancelled = false;
+    let timer;
+    importMyDms(projectId)
+      .then(r => {
+        if (!cancelled && r?.conversations) timer = setTimeout(refresh, 4000);
+        if (!r?.started) sessionStorage.removeItem(importKey);
+      })
+      .catch(() => { try { sessionStorage.removeItem(importKey); } catch {} });
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [canRead, member?.id, projectId, refresh]);
 
   // Live: new DM messages, new conversations, and reads elsewhere.
   useEffect(() => {
     let t;
     const bump = (e) => {
+      if (!canRead) return;
       if (e.type === "clubpm:slack-message" && !DM_KINDS.has(e.detail?.convKind)) return;
       clearTimeout(t);
       t = setTimeout(refresh, 600);
@@ -53,7 +69,7 @@ export default function DmInbox({ activeChannelId, onOpen, slackIdFilter = null 
     const events = ["clubpm:slack-message", "clubpm:slack-membership", "clubpm:conversation-read"];
     events.forEach(ev => window.addEventListener(ev, bump));
     return () => { clearTimeout(t); events.forEach(ev => window.removeEventListener(ev, bump)); };
-  }, [refresh]);
+  }, [canRead, refresh]);
 
   const shown = useMemo(
     () => (dms ?? []).filter(d => !slackIdFilter || d.participants.some(p => slackIdFilter.has(p.slackId))),

@@ -9,7 +9,6 @@ import AvatarPortrait from '../../components/clubpm/avatar/AvatarPortrait';
 import RankIcon from '../../components/clubpm/RankIcon';
 import LeaderboardPanel from '../../components/clubpm/LeaderboardPanel';
 import { tzOffset, copyToClipboard } from '../../clubpm/members/memberShared';
-import { revealStagger } from '../../clubpm/anim/motion';
 import { MemberName } from '../../clubpm/cosmetics/CosmeticStylesContext';
 import toast from 'react-hot-toast';
 import DmInbox from '../../components/clubpm/members/DmInbox';
@@ -417,6 +416,8 @@ export default function MembersView({ projectId = null }) {
 
   const [members, setMembers]     = useState([]);
   const [loading, setLoading]     = useState(true);
+  const [loadError, setLoadError] = useState(null);
+  const rosterRequest = useRef(0);
   const [search, setSearch]       = useState('');
   const [filterRole, setFilterRole]         = useState('');
   const [selectedMember, setSelectedMember] = useState(null);
@@ -428,18 +429,22 @@ export default function MembersView({ projectId = null }) {
   const [leadBusyId, setLeadBusyId]         = useState(null);
   const leadInFlight = useRef(false);
 
-  // GET /api/members already carries each member's projects, so the project
-  // version is a filter, not a second endpoint.
   const fetchMembers = useCallback(() => {
-    get('/api/members')
-      .then(data => setMembers(
-        projectId ? data.filter(m => m.projects?.some(pm => pm.project?.id === projectId)) : data
-      ))
-      .catch(err => console.error('Failed to load members:', err))
-      .finally(() => setLoading(false));
+    const request = ++rosterRequest.current;
+    setLoading(true);
+    setLoadError(null);
+    setMembers([]);
+    get(`/api/members${projectId ? `?projectId=${encodeURIComponent(projectId)}` : ''}`)
+      .then(data => { if (request === rosterRequest.current) setMembers(data); })
+      .catch(() => { if (request === rosterRequest.current) setLoadError('Could not load members.'); })
+      .finally(() => { if (request === rosterRequest.current) setLoading(false); });
   }, [projectId]);
 
-  useEffect(() => { fetchMembers(); }, [fetchMembers]);
+  useEffect(() => {
+    const requestState = rosterRequest;
+    fetchMembers();
+    return () => { requestState.current++; };
+  }, [fetchMembers]);
 
   const isLeadHere = useCallback(
     m => !!m.projects?.some(pm => pm.project?.id === projectId && pm.isLead),
@@ -536,7 +541,7 @@ export default function MembersView({ projectId = null }) {
   );
 
   const filtered = useMemo(() => {
-    const q = search.toLowerCase();
+    const q = search.trim().toLowerCase();
     return members.filter(m => {
       const matchesSearch = !q ||
         m.displayName?.toLowerCase().includes(q) ||
@@ -550,23 +555,6 @@ export default function MembersView({ projectId = null }) {
       return matchesSearch && matchesRole;
     });
   }, [members, search, filterRole]);
-
-  const gridRef = useRef(null);
-  // Only animate when loading flips true → false AFTER we've observed loading.
-  // Initial mount (before fetch starts) must NOT animate, and filter/search
-  // changes (which only mutate `filtered`) also must not re-trigger.
-  const sawLoadingRef = useRef(false);
-  useEffect(() => {
-    if (loading) {
-      sawLoadingRef.current = true;
-      return;
-    }
-    if (!sawLoadingRef.current) return;
-    sawLoadingRef.current = false;
-    if (!gridRef.current) return;
-    const cards = gridRef.current.querySelectorAll('.pm-member-card');
-    if (cards.length) revealStagger(cards, { delay: 50, duration: 480 });
-  }, [loading]);
 
   const messageFn = (m) => (m.id === currentMember?.id ? undefined : (target) => startDm([target.id]));
 
@@ -605,7 +593,7 @@ export default function MembersView({ projectId = null }) {
       )}
 
       <div className={`pm-members-layout${dmChannelId ? ' pm-members-layout--dm' : ''} pm-members-layout--m-${mobileSection}`}>
-        <DmInbox activeChannelId={dmChannelId} onOpen={setDm} slackIdFilter={rosterSlackIds} />
+        <DmInbox key={projectId || 'club'} projectId={projectId} activeChannelId={dmChannelId} onOpen={setDm} slackIdFilter={rosterSlackIds} />
 
         <div className="pm-members-roster">
           {!loading && <MembersStats members={members} />}
@@ -637,10 +625,14 @@ export default function MembersView({ projectId = null }) {
 
           {loading ? (
             <div style={{ display: 'flex', justifyContent: 'center', padding: '48px 0' }}><OrbitLoader size={80} /></div>
+          ) : loadError ? (
+            <div className="pm-empty-state" role="alert">
+              {loadError} <button type="button" className="clubpm-btn-secondary" onClick={fetchMembers}>Retry</button>
+            </div>
           ) : filtered.length === 0 ? (
             <div className="pm-empty-state">No members found.</div>
           ) : (
-            <div ref={gridRef} className="pm-members-grid" data-tour-id={projectId ? undefined : "admin.members"}>
+            <div className="pm-members-grid" data-tour-id={projectId ? undefined : "admin.members"}>
               {filtered.map(m => (
                 <MemberCard
                   key={m.id}

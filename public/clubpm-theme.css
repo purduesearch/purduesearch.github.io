@@ -16163,9 +16163,9 @@ i.fa-coins { color: #ffd96b; }
   background: var(--pm-accent-teal, #2dd4bf); color: #0d0f14;
 }
 
-/* â”€â”€ Members card hover lift + initial-hidden state for stagger â”€â”€ */
+/* Members stay visible when search remounts cards. */
 .pm-member-card {
-  opacity: 0; transform: translateY(12px);
+  opacity: 1; transform: none;
   transition: transform 0.18s ease, box-shadow 0.18s ease;
 }
 @media (hover: hover) {

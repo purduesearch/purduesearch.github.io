@@ -4,6 +4,7 @@ import { prisma } from "../db/prisma.js";
 import { getTasksForMember } from "../services/taskService.js";
 import { sendKudos, getKudosCaps, KudosCapError } from "../services/kudosService.js";
 import { EXCLUDE_TRAINING } from "../services/trainingSandboxService.js";
+import { projectRosterSlackIds } from "../services/projectRosterScope.js";
 import { encryptSecret, decryptSecret } from "../utils/crypto.js";
 import {
   assertSafeFeedUrl, fetchIcs, parseIcs, IcsFeedError, ICS_ERROR_MESSAGE,
@@ -341,10 +342,13 @@ membersRouter.get("/cosmetic-styles", async (_req: Request, res: Response) => {
 
 // ── GET /api/members ─────────────────────────────────────────
 
-membersRouter.get("/", async (_req: Request, res: Response) => {
+membersRouter.get("/", async (req: Request, res: Response) => {
   try {
+    const projectId = typeof req.query.projectId === "string" ? req.query.projectId : null;
+    const slackIds = projectId ? await projectRosterSlackIds(projectId) : undefined;
+    if (slackIds === null) return void res.status(404).json({ error: "Project not found" });
     const members = await prisma.member.findMany({
-      where: { isBot: false },
+      where: { isBot: false, ...(slackIds ? { slackId: { in: slackIds } } : {}) },
       include: {
         _count: {
           // Filtered counts, not raw ones: the roster's task/project numbers are

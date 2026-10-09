@@ -1035,7 +1035,7 @@ export function retryFailedSlackMirrors() {
 
 const chatPath = (channelId, rest = "") => `/api/chat/conversations/${encodeURIComponent(channelId)}${rest}`;
 
-export const listConversations = () => get("/api/chat/conversations");
+export const listConversations = (projectId = null) => get(`/api/chat/conversations${projectId ? `?projectId=${encodeURIComponent(projectId)}` : ''}`);
 export const getConversation = (channelId) => get(chatPath(channelId));
 
 export function getConversationMessages(channelId, before) {
@@ -1060,7 +1060,7 @@ export const muteConversation = (channelId, muted) => post(chatPath(channelId, "
 /** Open (or find) a DM / group DM with these Member ids → { channelId, kind }. */
 export const openDm = (memberIds) => post("/api/chat/dms", { memberIds });
 /** Import the signed-in member's DM history (idempotent server-side). */
-export const importMyDms = () => post("/api/chat/dms/import", {});
+export const importMyDms = (projectId = null) => post("/api/chat/dms/import", projectId ? { projectId } : {});
 /** Admin: join + import every public channel. */
 export const backfillPublicChannels = () => post("/api/slack-archive/backfill-public", {});
 

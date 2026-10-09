@@ -155,7 +155,8 @@ export async function getBackfillStatus(slackChannelId: string) {
  * A member's own DMs and group DMs: discover them with THEIR token (the bot
  * can see none of them), record membership, then import each sequentially.
  */
-export async function importMemberDms(memberId: string): Promise<{ started: boolean; conversations?: number; reason?: string }> {
+export async function importMemberDms(memberId: string, rosterSlackIds?: string[]): Promise<{ started: boolean; conversations?: number; reason?: string }> {
+  if (rosterSlackIds?.length === 0) return { started: true, conversations: 0 };
   if (importing.has(memberId)) return { started: false, reason: "already_running" };
   const uc = await userClientFor(memberId);
   if (!uc) return { started: false, reason: "not_connected" };
@@ -170,7 +171,22 @@ export async function importMemberDms(memberId: string): Promise<{ started: bool
         types: "im,mpim", exclude_archived: true, limit: 200, ...(cursor ? { cursor } : {}),
       });
       for (const c of (res.channels ?? []) as { id?: string; is_im?: boolean; user?: string }[]) {
-        if (c.id) found.push({ id: c.id, kind: c.is_im ? "IM" : "MPIM", other: c.user });
+        if (!c.id) continue;
+        if (rosterSlackIds) {
+          if (c.is_im) {
+            if (!c.user || c.user === uc.slackId || !rosterSlackIds.includes(c.user)) continue;
+          } else {
+            const participants: string[] = [];
+            let memberCursor: string | undefined;
+            do {
+              const page = await uc.client.conversations.members({ channel: c.id, limit: 200, cursor: memberCursor });
+              participants.push(...(page.members ?? []));
+              memberCursor = page.response_metadata?.next_cursor || undefined;
+            } while (memberCursor);
+            if (!participants.some(id => id !== uc.slackId && rosterSlackIds.includes(id))) continue;
+          }
+        }
+        found.push({ id: c.id, kind: c.is_im ? "IM" : "MPIM", other: c.user });
       }
       cursor = res.response_metadata?.next_cursor || undefined;
     } while (cursor);

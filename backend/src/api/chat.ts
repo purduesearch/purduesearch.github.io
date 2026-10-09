@@ -14,6 +14,7 @@ import {
   SendError, sendMessage, editMessage, deleteMessage, react, uploadFile, openDm, joinChannel,
 } from "../services/slackSendService.js";
 import { importMemberDms } from "../services/slackBackfillService.js";
+import { projectRosterSlackIds } from "../services/projectRosterScope.js";
 
 /**
  * /api/chat — the conversation-scoped Slack portal API.
@@ -76,14 +77,24 @@ chatRouter.get("/conversations", requireAuth, async (req: Request, res: Response
     });
     if (!me) return void res.status(401).json({ error: "Not authenticated" });
 
+    const projectId = typeof req.query.projectId === "string" ? req.query.projectId : null;
+    const roster = projectId ? await projectRosterSlackIds(projectId) : undefined;
+    if (roster === null) return void res.status(404).json({ error: "Project not found" });
+
     const myRows = await prisma.slackConversationMember.findMany({
       where: { slackUserId: me.slackId },
       select: { slackChannelId: true },
     });
     const mine = new Set(myRows.map((r) => r.slackChannelId));
+    const matchingRows = roster ? await prisma.slackConversationMember.findMany({
+      where: { slackChannelId: { in: [...mine] }, slackUserId: { in: roster.filter(id => id !== me.slackId) } },
+      select: { slackChannelId: true },
+    }) : null;
 
     const archives = await prisma.slackChannelArchive.findMany({
-      where: { archiveEnabled: true, OR: [{ kind: "CHANNEL" }, { slackChannelId: { in: [...mine] } }] },
+      where: matchingRows
+        ? { archiveEnabled: true, kind: { in: ["IM", "MPIM"] }, slackChannelId: { in: matchingRows.map(r => r.slackChannelId) } }
+        : { archiveEnabled: true, OR: [{ kind: "CHANNEL" }, { slackChannelId: { in: [...mine] } }] },
       select: { slackChannelId: true, slackChannelName: true, kind: true, lastMessageAt: true },
       orderBy: { lastMessageAt: { sort: "desc", nulls: "last" } },
     });
@@ -394,7 +405,10 @@ chatRouter.post("/dms", requireAuth, async (req: Request, res: Response) => {
 
 chatRouter.post("/dms/import", requireAuth, async (req: Request, res: Response) => {
   try {
-    const r = await importMemberDms(req.memberId!);
+    const projectId = typeof req.body?.projectId === "string" ? req.body.projectId : null;
+    const roster = projectId ? await projectRosterSlackIds(projectId) : undefined;
+    if (roster === null) return void res.status(404).json({ error: "Project not found" });
+    const r = await importMemberDms(req.memberId!, roster);
     if (!r.started && r.reason === "reconnect") {
       return void res.status(409).json({ error: "Reconnect Slack to import your DMs.", code: "reconnect" });
     }
