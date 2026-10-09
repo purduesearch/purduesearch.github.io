@@ -1,14 +1,16 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import MembersView from './MembersView';
-import { get, listConversations, importMyDms } from '../../api/clubPmClient';
+import { get, listConversations, importMyDms, setProjectLead } from '../../api/clubPmClient';
+
+let mockIsAdmin = false;
 
 jest.mock('../../api/clubPmClient', () => ({
   get: jest.fn(), post: jest.fn(), listProjectRepos: jest.fn(), openDm: jest.fn(),
   setProjectLead: jest.fn(), listConversations: jest.fn(), importMyDms: jest.fn(),
 }));
 jest.mock('../../clubpm/ClubPmAuth', () => ({
-  useClubPmAuth: () => ({ member: { id: 'me', slackId: 'UME', slackCapabilities: { read: true, dm: true } } }),
+  useClubPmAuth: () => ({ member: { id: 'me', slackId: 'UME', isAdmin: mockIsAdmin, slackCapabilities: { read: true, dm: true } } }),
 }));
 jest.mock('../../clubpm/layout/compactLayout', () => ({ useCompactLayout: () => false }));
 jest.mock('../../components/OrbitLoader', () => () => <div>Loading roster</div>);
@@ -26,11 +28,75 @@ const roster = Array.from({ length: 100 }, (_, i) => ({
 }));
 
 beforeEach(() => {
+  mockIsAdmin = false;
   jest.clearAllMocks();
   sessionStorage.clear();
   get.mockResolvedValue(roster);
   listConversations.mockResolvedValue({ dms: [] });
   importMyDms.mockResolvedValue({ started: true, conversations: 0 });
+});
+
+function roleMember({ isAdmin = false, isLead = false, leadTitle = null } = {}) {
+  return { ...roster[99], isAdmin, projects: [{ project: { id: 'p1' }, isLead, leadTitle }] };
+}
+
+test('make sublead opens the shared title editor, saves the title and refreshes assignees', async () => {
+  mockIsAdmin = true;
+  get.mockResolvedValue([roleMember()]);
+  setProjectLead.mockResolvedValue({ projectId: 'p1', memberId: 'm99', isLead: true, leadTitle: 'Microgreens lead' });
+  const onLeadsChanged = jest.fn();
+  render(<MemoryRouter><MembersView projectId="p1" onLeadsChanged={onLeadsChanged} /></MemoryRouter>);
+  fireEvent.click(await screen.findByRole('button', { name: 'Make sublead' }));
+  expect(setProjectLead).not.toHaveBeenCalled();
+  fireEvent.change(screen.getByLabelText('Sublead role (optional)'), { target: { value: 'Microgreens lead' } });
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Make sublead' }));
+  await waitFor(() => expect(setProjectLead).toHaveBeenCalledWith('p1', 'm99', true, 'Microgreens lead'));
+  await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  expect(screen.getByText('Microgreens lead')).toBeVisible();
+  expect(screen.getByRole('button', { name: /^Zelda Last/ })).toHaveClass('pm-member-card--sublead');
+  expect(onLeadsChanged).toHaveBeenCalledTimes(1);
+});
+
+test('an existing sublead title can be edited and removed', async () => {
+  mockIsAdmin = true;
+  get.mockResolvedValue([roleMember({ isLead: true, leadTitle: 'Old title' })]);
+  setProjectLead.mockResolvedValueOnce({ projectId: 'p1', memberId: 'm99', isLead: true, leadTitle: 'New title' })
+    .mockResolvedValueOnce({ projectId: 'p1', memberId: 'm99', isLead: false, leadTitle: null });
+  render(<MemoryRouter><MembersView projectId="p1" /></MemoryRouter>);
+  fireEvent.click(await screen.findByRole('button', { name: 'Edit role' }));
+  expect(screen.getByLabelText('Sublead role (optional)')).toHaveValue('Old title');
+  fireEvent.change(screen.getByLabelText('Sublead role (optional)'), { target: { value: 'New title' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Save role' }));
+  await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  expect(screen.getByText('New title')).toBeVisible();
+  fireEvent.click(screen.getByRole('button', { name: 'Edit role' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Remove sublead' }));
+  await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  expect(setProjectLead).toHaveBeenLastCalledWith('p1', 'm99', false, null);
+  expect(screen.queryByText('New title')).toBeNull();
+  expect(screen.getByRole('button', { name: /^Zelda Last/ })).not.toHaveClass('pm-member-card--sublead');
+});
+
+test('admins keep gold styling and edit only their role title', async () => {
+  mockIsAdmin = true;
+  get.mockResolvedValue([roleMember({ isAdmin: true, isLead: true, leadTitle: 'Director' })]);
+  setProjectLead.mockResolvedValue({ projectId: 'p1', memberId: 'm99', isLead: false, leadTitle: 'President' });
+  render(<MemoryRouter><MembersView projectId="p1" /></MemoryRouter>);
+  fireEvent.click(await screen.findByRole('button', { name: 'Edit title' }));
+  expect(screen.getByRole('button', { name: /^Zelda Last/ })).toHaveClass('pm-member-card--admin');
+  expect(screen.queryByRole('button', { name: 'Remove sublead' })).toBeNull();
+  fireEvent.change(screen.getByLabelText('Admin role title (optional)'), { target: { value: 'President' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Save title' }));
+  await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  expect(setProjectLead).toHaveBeenCalledWith('p1', 'm99', false, 'President');
+  expect(screen.getByText('President')).toBeVisible();
+});
+
+test('members can see sublead titles without role editing permissions', async () => {
+  get.mockResolvedValue([roleMember({ isLead: true, leadTitle: 'Microgreens lead' })]);
+  render(<MemoryRouter><MembersView projectId="p1" /></MemoryRouter>);
+  expect(await screen.findByText('Microgreens lead')).toBeVisible();
+  expect(screen.queryByRole('button', { name: /Make sublead|Edit role|Edit title/ })).toBeNull();
 });
 
 test('project requests scope the roster, inbox and history import before loading', async () => {

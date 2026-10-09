@@ -29566,7 +29566,7 @@ button.cpm-chat-reaction:disabled { cursor: default; }
   font-size: 12px; cursor: pointer; background: none;
   border: 1px solid var(--clubpm-border); color: var(--clubpm-text-muted);
 }
-.pm-member-lead-toggle.on { border-color: var(--pm-accent-amber, #f5a623); color: var(--pm-accent-amber, #f5a623); background: rgba(245, 166, 35, 0.12); }
+.pm-member-lead-toggle.on { border-color: var(--pm-accent-violet, #a78bfa); color: var(--pm-accent-violet, #a78bfa); background: color-mix(in srgb, var(--pm-accent-violet, #a78bfa) 14%, transparent); }
 .pm-member-lead-toggle:disabled { opacity: 0.5; cursor: wait; }
 
 /* ===== Action plan: searchable member picker ===== */
@@ -30072,3 +30072,23 @@ body.pm-m-compact .pm-albums-icon-btn { width: 44px; height: 44px; }
 .cpm-lead-card-btn--primary { border-color: var(--pm-accent-violet, #a78bfa); color: var(--pm-accent-violet, #a78bfa); background: color-mix(in srgb, var(--pm-accent-violet, #a78bfa) 14%, transparent); }
 .cpm-lead-card-btn--primary.cpm-lead-card-btn--admin { border-color: #f9ca24; color: #f9ca24; background: color-mix(in srgb, #f9ca24 14%, transparent); }
 .cpm-lead-card-btn:disabled { opacity: 0.5; cursor: wait; }
+
+/* Project roster roles use the same accents as assignee chips. */
+.pm-member-card.pm-member-card--sublead,
+.pm-member-card.pm-member-card--sublead:hover {
+  border: 1px solid var(--pm-accent-violet, #a78bfa);
+  border-left-width: 3px;
+}
+.pm-member-card.pm-member-card--admin,
+.pm-member-card.pm-member-card--admin:hover {
+  border: 1px solid #f9ca24;
+  border-left-width: 3px;
+}
+.cpm-admin-ring {
+  box-shadow: 0 0 0 2px var(--clubpm-surface-200, #1a1a1a), 0 0 0 4px #f9ca24;
+}
+.pm-member-lead-toggle--admin {
+  border-color: #f9ca24;
+  color: #f9ca24;
+  background: color-mix(in srgb, #f9ca24 14%, transparent);
+}

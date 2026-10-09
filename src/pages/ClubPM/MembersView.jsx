@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import OrbitLoader from '../../components/OrbitLoader';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { get, post, listProjectRepos, openDm, setProjectLead } from '../../api/clubPmClient';
+import { get, post, listProjectRepos, openDm } from '../../api/clubPmClient';
 import { useClubPmAuth } from '../../clubpm/ClubPmAuth';
 import KudosButton from '../../components/clubpm/KudosButton';
 import AvatarPortrait from '../../components/clubpm/avatar/AvatarPortrait';
@@ -13,6 +13,7 @@ import { MemberName } from '../../clubpm/cosmetics/CosmeticStylesContext';
 import toast from 'react-hot-toast';
 import DmInbox from '../../components/clubpm/members/DmInbox';
 import DmPanel from '../../components/clubpm/members/DmPanel';
+import MemberLeadCard from '../../components/clubpm/members/MemberLeadCard';
 import { SlackReconnectNotice } from '../../components/clubpm/chat/ChatComposer';
 import { useCompactLayout } from '../../clubpm/layout/compactLayout';
 
@@ -40,8 +41,9 @@ function MembersStats({ members }) {
 
 // ── Member card ───────────────────────────────────────────────
 
-function MemberCard({ member, onClick, onMessage, selectable = false, selected = false, onToggleSelect, isProjectLead = false, onToggleLead, leadBusy = false }) {
+function MemberCard({ member, onClick, onMessage, selectable = false, selected = false, onToggleSelect, lead, onEditLead }) {
   const { displayName, slackHandle, role, isAdmin, title, email, timezone, _count } = member;
+  const isProjectLead = !isAdmin && !!lead?.isLead;
 
   const taskCount    = _count?.tasks    ?? 0;
   const projectCount = _count?.projects ?? 0;
@@ -50,7 +52,7 @@ function MemberCard({ member, onClick, onMessage, selectable = false, selected =
 
   return (
     <div
-      className={`pm-member-card pm-member-card--enriched${selected ? ' pm-member-card--selected' : ''}`}
+      className={`pm-member-card pm-member-card--enriched${isAdmin ? ' pm-member-card--admin' : isProjectLead ? ' pm-member-card--sublead' : ''}${selected ? ' pm-member-card--selected' : ''}`}
       onClick={() => (selectable ? onToggleSelect?.(member) : onClick())}
       role="button"
       tabIndex={0}
@@ -64,7 +66,7 @@ function MemberCard({ member, onClick, onMessage, selectable = false, selected =
       )}
       <div className="pm-member-top">
         <span className="pm-member-avatar-wrap">
-          <AvatarPortrait member={member} size={56} className={`pm-member-avatar${isProjectLead ? ' cpm-lead-ring' : ''}`} />
+          <AvatarPortrait member={member} size={56} className={`pm-member-avatar${isAdmin ? ' cpm-admin-ring' : isProjectLead ? ' cpm-lead-ring-violet' : ''}`} />
           {member.rank ? (
             <span className="cpm-member-badge-rank-overlay" aria-hidden="true">
               <RankIcon member={member} size={24} />
@@ -81,7 +83,12 @@ function MemberCard({ member, onClick, onMessage, selectable = false, selected =
             <span className={`pm-member-role-badge ${isAdmin ? 'admin' : role?.toLowerCase() || 'member'}`}>
               {roleLabel}
             </span>
-            {isProjectLead && <span className="cpm-lead-tag" title="Project lead">Project lead</span>}
+            {(isProjectLead || (isAdmin && lead?.leadTitle)) && (
+              <span className={`cpm-sublead-tag${isAdmin ? ' cpm-admin-tag' : ''}`}>
+                <i className={isAdmin ? 'fas fa-crown' : 'fas fa-user-shield'} aria-hidden="true" />{' '}
+                {lead?.leadTitle || 'Sublead'}
+              </span>
+            )}
           </div>
         </div>
       </div>
@@ -125,17 +132,16 @@ function MemberCard({ member, onClick, onMessage, selectable = false, selected =
           <i className="fas fa-user" />
         </Link>
         <KudosButton memberId={member.id} displayName={displayName} />
-        {onToggleLead && !isAdmin && (
+        {onEditLead && (
           <button
             type="button"
-            className={`pm-member-lead-toggle${isProjectLead ? ' on' : ''}`}
+            className={`pm-member-lead-toggle${isAdmin ? ' pm-member-lead-toggle--admin' : isProjectLead ? ' on' : ''}`}
             aria-pressed={isProjectLead}
-            disabled={leadBusy}
-            title={isProjectLead ? 'Remove project lead' : 'Make project lead'}
-            onClick={() => onToggleLead(member)}
+            title={isAdmin ? 'Edit admin role title' : isProjectLead ? 'Edit sublead role' : 'Make sublead'}
+            onClick={e => onEditLead(member, e.currentTarget.getBoundingClientRect())}
           >
-            <i className="fas fa-crown" aria-hidden="true" />
-            {isProjectLead ? 'Lead' : 'Make lead'}
+            <i className={isAdmin ? 'fas fa-crown' : 'fas fa-user-shield'} aria-hidden="true" />
+            {isAdmin ? 'Edit title' : isProjectLead ? 'Edit role' : 'Make sublead'}
           </button>
         )}
         {onMessage && (
@@ -402,7 +408,7 @@ function MemberDrawer({ member, onClose, isOwnProfile, onMessage }) {
 
 // ── Main view ─────────────────────────────────────────────────
 
-export default function MembersView({ projectId = null }) {
+export default function MembersView({ projectId = null, onLeadsChanged }) {
   const { member: currentMember } = useClubPmAuth();
   const compact = useCompactLayout();
   const location = useLocation();
@@ -426,8 +432,8 @@ export default function MembersView({ projectId = null }) {
   const [selectedIds, setSelectedIds]       = useState(() => new Set());
   const [showReconnect, setShowReconnect]   = useState(false);
   const [opening, setOpening]               = useState(false);
-  const [leadBusyId, setLeadBusyId]         = useState(null);
-  const leadInFlight = useRef(false);
+  const [leadCard, setLeadCard] = useState(null);
+  const closeLeadCard = useCallback(() => setLeadCard(null), []);
 
   const fetchMembers = useCallback(() => {
     const request = ++rosterRequest.current;
@@ -446,31 +452,21 @@ export default function MembersView({ projectId = null }) {
     return () => { requestState.current++; };
   }, [fetchMembers]);
 
-  const isLeadHere = useCallback(
-    m => !!m.projects?.some(pm => pm.project?.id === projectId && pm.isLead),
+  const projectRole = useCallback(
+    m => m.projects?.find(pm => pm.project?.id === projectId),
     [projectId]
   );
 
-  // Admin only, project view only. The ref stops a same-tick double click.
-  const toggleLead = useCallback(async (m) => {
-    if (leadInFlight.current) return;
-    leadInFlight.current = true;
-    setLeadBusyId(m.id);
-    const next = !isLeadHere(m);
-    try {
-      await setProjectLead(projectId, m.id, next);
-      setMembers(prev => prev.map(x => x.id !== m.id ? x : {
-        ...x,
-        projects: x.projects.map(pm => pm.project?.id === projectId ? { ...pm, isLead: next } : pm),
-      }));
-      toast.success(next ? `${m.displayName} is now a project lead` : `${m.displayName} is no longer a project lead`);
-    } catch (err) {
-      toast.error(err?.message || 'Failed to update project lead');
-    } finally {
-      leadInFlight.current = false;
-      setLeadBusyId(null);
-    }
-  }, [projectId, isLeadHere]);
+  const saveProjectRole = useCallback(row => {
+    setMembers(prev => prev.map(m => m.id !== row.memberId ? m : {
+      ...m,
+      projects: m.projects.map(pm => pm.project?.id === row.projectId
+        ? { ...pm, isLead: row.isLead, leadTitle: row.leadTitle } : pm),
+    }));
+    onLeadsChanged?.();
+  }, [onLeadsChanged]);
+
+  useEffect(() => { setLeadCard(null); }, [projectId]);
 
   // The open DM is URL state (?dm=) so notifications can deep-link to it (D12).
   const setDm = useCallback((channelId) => {
@@ -642,9 +638,9 @@ export default function MembersView({ projectId = null }) {
                   selectable={selecting && m.id !== currentMember?.id}
                   selected={selectedIds.has(m.id)}
                   onToggleSelect={toggleSelect}
-                  isProjectLead={projectId ? isLeadHere(m) : false}
-                  onToggleLead={projectId && currentMember?.isAdmin ? toggleLead : undefined}
-                  leadBusy={leadBusyId === m.id}
+                  lead={projectId ? projectRole(m) : undefined}
+                  onEditLead={projectId && currentMember?.isAdmin && projectRole(m)
+                    ? (target, anchor) => setLeadCard({ member: target, anchor }) : undefined}
                 />
               ))}
             </div>
@@ -689,6 +685,18 @@ export default function MembersView({ projectId = null }) {
             Message {selectedIds.size === 1 ? '1 person' : `${selectedIds.size} people`}
           </button>
         </div>
+      )}
+
+      {leadCard && (
+        <MemberLeadCard
+          pm={{ memberId: leadCard.member.id, member: leadCard.member }}
+          lead={projectRole(leadCard.member)}
+          anchor={leadCard.anchor}
+          canEdit={!!currentMember?.isAdmin}
+          projectId={projectId}
+          onClose={closeLeadCard}
+          onSaved={saveProjectRole}
+        />
       )}
 
       {selectedMember && (
