@@ -17,7 +17,7 @@ import {
 import { logAuditEvent, diffObjects, getProjectAuditLog } from "../services/activityService.js";
 import type { ProjectType, ProjectStatus, TaskStatus, Priority, NotificationType } from "@prisma/client";
 import { createNotification } from "../services/notificationCrud.js";
-import { fetchDriveFileAsText, extractFileId, listDriveFolderFiles, getDriveFileMeta } from "../services/driveService.js";
+import { fetchDriveFileAsText, extractFileId, listDriveFolderFiles, getDriveFileMeta, isDriveDescendantOf } from "../services/driveService.js";
 import { runJson, runText, todayContext } from "../services/ai/aiRouter.js";
 import {
   driveToTasksPrompt, meetingNotesToTasksPrompt, projectContextPrompt,
@@ -295,11 +295,18 @@ projectsRouter.put("/:id/members/:memberId/lead", async (req: Request, res: Resp
       res.status(403).json({ error: "Only admins can change project leads" });
       return;
     }
-    const { isLead } = req.body as { isLead?: unknown };
+    const { isLead, leadTitle } = req.body as { isLead?: unknown; leadTitle?: unknown };
     if (typeof isLead !== "boolean") {
       res.status(400).json({ error: "isLead must be a boolean" });
       return;
     }
+    if (leadTitle != null && typeof leadTitle !== "string") {
+      res.status(400).json({ error: "leadTitle must be a string" });
+      return;
+    }
+    // Blank means "no title"; a title only exists on a lead.
+    const trimmedTitle = typeof leadTitle === "string" ? leadTitle.trim().slice(0, 60) : "";
+    const nextTitle = isLead && trimmedTitle ? trimmedTitle : null;
     const projectId = req.params.id as string;
     const memberId = req.params.memberId as string;
     const existing = await prisma.projectMember.findUnique({
@@ -312,8 +319,8 @@ projectsRouter.put("/:id/members/:memberId/lead", async (req: Request, res: Resp
     }
     const row = await prisma.projectMember.update({
       where: { projectId_memberId: { projectId, memberId } },
-      data: { isLead },
-      select: { projectId: true, memberId: true, isLead: true },
+      data: { isLead, leadTitle: nextTitle },
+      select: { projectId: true, memberId: true, isLead: true, leadTitle: true },
     });
     res.json(row);
   } catch (error) {
@@ -582,10 +589,21 @@ projectsRouter.get("/:id/drive-files", async (req: Request, res: Response) => {
       return;
     }
 
-    const folderId = extractFileId(driveLink);
-    if (!folderId) {
+    const rootFolderId = extractFileId(driveLink);
+    if (!rootFolderId) {
       res.json({ folderId: null, folderName: null, folderWebViewLink: driveLink, files: [], notFolder: true, noLink: false });
       return;
+    }
+
+    // Optional subfolder to browse. Must be inside the linked folder.
+    let folderId = rootFolderId;
+    const requested = typeof req.query.folderId === "string" ? req.query.folderId : "";
+    if (requested && requested !== rootFolderId) {
+      if (!/^[a-zA-Z0-9_-]+$/.test(requested) || !(await isDriveDescendantOf(requested, rootFolderId))) {
+        res.status(400).json({ error: "Folder is not inside this project's linked Drive folder" });
+        return;
+      }
+      folderId = requested;
     }
 
     // Best-effort: under drive.file these return null/[] for folders the bot
@@ -597,6 +615,7 @@ projectsRouter.get("/:id/drive-files", async (req: Request, res: Response) => {
 
     res.json({
       folderId,
+      rootFolderId,
       folderName: folderMeta?.name ?? null,
       folderWebViewLink: folderMeta?.webViewLink ?? driveLink,
       files,

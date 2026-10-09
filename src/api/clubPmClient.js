@@ -353,7 +353,7 @@ export const promoteVaultItem     = (id) => post(`/api/vault/items/${id}/promote
 export const getVaultItemHistory  = (id) => get(`/api/vault/items/${id}/history`);
 export const patchVaultSettings   = (projectId, body) => patch(`/api/projects/${projectId}/vault/settings`, body);
 // Admin only: flag a project member as a lead (admin task powers in that project).
-export const setProjectLead = (projectId, memberId, isLead) => put(`/api/projects/${projectId}/members/${memberId}/lead`, { isLead });
+export const setProjectLead = (projectId, memberId, isLead, leadTitle = null) => put(`/api/projects/${projectId}/members/${memberId}/lead`, { isLead, leadTitle });
 export const getVaultRepository = (projectId) => get(`/api/projects/${projectId}/vault/repository`);
 export const getVaultRepositoryHealth = (projectId) => get(`/api/projects/${projectId}/vault/repository/health`);
 export const getVaultCommits = (projectId) => get(`/api/projects/${projectId}/vault/repository/commits`);

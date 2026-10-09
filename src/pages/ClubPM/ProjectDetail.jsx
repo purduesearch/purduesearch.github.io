@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import { createPortal } from "react-dom";
 import { useParams, Link, useSearchParams } from "react-router-dom";
 import toast from "react-hot-toast";
-import { get, post, patch, setNextRewardOrigin, bulkArchive, unarchiveTask, getArchivedTasks, getProjectBlockers, createBlocker, updateBlocker } from "../../api/clubPmClient";
+import { get, post, patch, setNextRewardOrigin, bulkArchive, unarchiveTask, getArchivedTasks, getProjectBlockers, createBlocker, updateBlocker, setProjectLead } from "../../api/clubPmClient";
 import MemberBadge from "../../components/clubpm/MemberBadge";
 import LabTimeButton from "../../components/clubpm/labschedule/LabTimeButton";
 import LabPresenceCard from "../../components/clubpm/labschedule/LabPresenceCard";
@@ -1053,9 +1053,11 @@ function KanbanSubtaskRow({ subtask, onClick, isDropTarget = false, isSelected =
 
 // ── Assignee Panel (right column) ────────────────────────────
 
-function AssigneePanel({ members, channelMemberSlackIds = [], hasLinkedChannel = false, selectedMemberIds, onMemberClick }) {
+function AssigneePanel({ members, channelMemberSlackIds = [], hasLinkedChannel = false, selectedMemberIds, onMemberClick, leadByMemberId, canEditLeads = false, projectId, onLeadsChanged }) {
   const [collapsed, setCollapsed] = useState(false);
   const [search, setSearch] = useState("");
+  const [card, setCard] = useState(null); // { pm, anchor }
+  const closeCard = useCallback(() => setCard(null), []);
 
   const filtered = useMemo(() => {
     let list = members;
@@ -1147,11 +1149,24 @@ function AssigneePanel({ members, channelMemberSlackIds = [], hasLinkedChannel =
                   pm={pm}
                   selected={selectedMemberIds.has(pm.memberId)}
                   onClick={onMemberClick}
+                  lead={leadByMemberId?.get(pm.memberId)}
+                  onOpenCard={(p, anchor) => setCard({ pm: p, anchor })}
                 />
               ))
             )}
           </div>
         </div>
+      )}
+      {card && (
+        <MemberLeadCard
+          pm={card.pm}
+          lead={leadByMemberId?.get(card.pm.memberId)}
+          anchor={card.anchor}
+          canEdit={canEditLeads && !!leadByMemberId?.has(card.pm.memberId)}
+          projectId={projectId}
+          onClose={closeCard}
+          onSaved={onLeadsChanged}
+        />
       )}
     </aside>
   );
@@ -1184,33 +1199,133 @@ function DraggableSpecialChip({ id, label, iconClass, accentColor }) {
   );
 }
 
-function DraggableMemberChip({ pm, selected, onClick }) {
+function DraggableMemberChip({ pm, selected, onClick, lead, onOpenCard }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `member-${pm.memberId}`,
     data: { type: "member", memberId: pm.memberId },
   });
 
   const isAdmin = pm.member?.isAdmin || pm.isAdmin;
+  const isLead = !!lead?.isLead;
   return (
     <div
       ref={setNodeRef}
       {...attributes}
       {...listeners}
-      className={`cpm-assignee-chip${selected ? " cpm-assignee-chip--selected" : ""}`}
+      className={`cpm-assignee-chip${selected ? " cpm-assignee-chip--selected" : ""}${isLead ? " cpm-assignee-chip--lead" : ""}`}
       aria-pressed={selected}
-      title="Drag to assign. Ctrl/Cmd-click to add or remove from a group."
+      title={isLead
+        ? `${lead.leadTitle || "Sublead"}. Double-click for details. Drag to assign.`
+        : "Drag to assign. Double-click for details. Ctrl/Cmd-click to add or remove from a group."}
       onClick={(event) => onClick(pm.memberId, event)}
+      onDoubleClick={(event) => onOpenCard(pm, event.currentTarget.getBoundingClientRect())}
       style={{
         opacity: isDragging ? 0.4 : 1,
-        borderColor: isAdmin ? "#f9ca24" : undefined,
+        borderColor: isAdmin && !isLead ? "#f9ca24" : undefined,
       }}
     >
       <ChipAvatar member={pm.member} />
       <span className="cpm-assignee-chip-name">
         {pm.member.displayName}
         {isAdmin && " 👑"}
+        {lead?.leadTitle && <span className="cpm-assignee-chip-title">{lead.leadTitle}</span>}
       </span>
+      {isLead && <i className="fas fa-user-shield cpm-assignee-chip-lead-icon" aria-label="Sublead" />}
     </div>
+  );
+}
+
+// Double-click card for an assignee chip. Admins can make/remove a sublead and
+// set its optional title here; everyone else gets a read-only view.
+function MemberLeadCard({ pm, lead, anchor, canEdit, projectId, onClose, onSaved }) {
+  const isLead = !!lead?.isLead;
+  const [title, setTitle] = useState(lead?.leadTitle ?? "");
+  const [busy, setBusy] = useState(false);
+  const inFlight = useRef(false);
+  const cardRef = useRef(null);
+
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === "Escape") onClose(); };
+    const onDown = (e) => { if (cardRef.current && !cardRef.current.contains(e.target)) onClose(); };
+    document.addEventListener("keydown", onKey);
+    document.addEventListener("mousedown", onDown);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.removeEventListener("mousedown", onDown);
+    };
+  }, [onClose]);
+
+  const save = async (nextIsLead) => {
+    if (inFlight.current) return;
+    inFlight.current = true;
+    setBusy(true);
+    try {
+      await setProjectLead(projectId, pm.memberId, nextIsLead, nextIsLead ? title : null);
+      toast.success(nextIsLead
+        ? (isLead ? "Sublead title updated" : `${pm.member.displayName} is now a sublead`)
+        : `${pm.member.displayName} is no longer a sublead`);
+      onSaved();
+      onClose();
+    } catch (err) {
+      toast.error(err?.message || "Failed to update sublead");
+    } finally {
+      inFlight.current = false;
+      setBusy(false);
+    }
+  };
+
+  const left = Math.max(8, Math.min(anchor.left - 200, window.innerWidth - 268));
+  const top = Math.min(anchor.bottom + 6, window.innerHeight - 260);
+  const m = pm.member;
+
+  return createPortal(
+    <div
+      ref={cardRef}
+      className="cpm-lead-card"
+      role="dialog"
+      aria-label={`${m.displayName} member card`}
+      style={{ left, top }}
+    >
+      <div className="cpm-lead-card-head">
+        <AvatarPortrait member={m} size={44} className={isLead ? "cpm-lead-ring-violet" : undefined} />
+        <div style={{ minWidth: 0 }}>
+          <div className="cpm-lead-card-name">{m.displayName}</div>
+          <div className="cpm-lead-card-sub">
+            {isLead
+              ? <span className="cpm-sublead-tag"><i className="fas fa-user-shield" aria-hidden="true" /> {lead.leadTitle || "Sublead"}</span>
+              : (m.rank ? String(m.rank).charAt(0) + String(m.rank).slice(1).toLowerCase() : "Member")}
+          </div>
+        </div>
+      </div>
+      {canEdit ? (
+        <>
+          <label className="cpm-lead-card-label" htmlFor="cpm-sublead-title">Sublead role (optional)</label>
+          <input
+            id="cpm-sublead-title"
+            className="cpm-assignee-search"
+            type="text"
+            maxLength={60}
+            placeholder="e.g. Microgreens lead"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") save(true); }}
+          />
+          <div className="cpm-lead-card-actions">
+            <button type="button" className="cpm-lead-card-btn cpm-lead-card-btn--primary" disabled={busy} onClick={() => save(true)}>
+              {isLead ? "Save role" : "Make sublead"}
+            </button>
+            {isLead && (
+              <button type="button" className="cpm-lead-card-btn" disabled={busy} onClick={() => save(false)}>
+                Remove sublead
+              </button>
+            )}
+          </div>
+        </>
+      ) : (
+        <div className="cpm-lead-card-sub">{isLead ? "Project sublead" : "Only admins can set subleads."}</div>
+      )}
+    </div>,
+    document.body
   );
 }
 
@@ -2560,6 +2675,12 @@ export default function ProjectDetail() {
       .finally(() => setLoading(false));
   }, [id]);
 
+  // memberId -> { isLead, leadTitle } for everyone on this project.
+  const leadByMemberId = useMemo(
+    () => new Map((project?.members ?? []).map(pm => [pm.memberId ?? pm.member?.id, { isLead: !!pm.isLead, leadTitle: pm.leadTitle ?? null }])),
+    [project?.members]
+  );
+
   const fetchBlockers = useCallback(() => {
     if (!id) return;
     getProjectBlockers(id).then(setProjectBlockers).catch(() => {});
@@ -3881,6 +4002,10 @@ export default function ProjectDetail() {
             hasLinkedChannel={!!project.slackChannelId}
             selectedMemberIds={selectedMemberIds}
             onMemberClick={handleMemberClick}
+            leadByMemberId={leadByMemberId}
+            canEditLeads={!!member?.isAdmin}
+            projectId={id}
+            onLeadsChanged={fetchProject}
           />
         )}
 

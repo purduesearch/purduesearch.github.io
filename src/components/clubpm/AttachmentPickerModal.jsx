@@ -96,15 +96,23 @@ function PasteTab({ onAdd, onClose }) {
 function BrowseTab({ projectId, onAdd, onClose }) {
   const [state, setState] = useState({ loading: true, data: null, error: null });
   const [selected, setSelected] = useState({}); // { [fileId]: file }
+  // Subfolders entered below the linked root; selection survives navigation.
+  const [path, setPath] = useState([]); // [{ id, name }]
+  const currentFolderId = path.length ? path[path.length - 1].id : null;
 
   useEffect(() => {
     let cancelled = false;
     setState({ loading: true, data: null, error: null });
-    get(`/api/projects/${projectId}/drive-files`)
+    const qs = currentFolderId ? `?folderId=${encodeURIComponent(currentFolderId)}` : "";
+    get(`/api/projects/${projectId}/drive-files${qs}`)
       .then(data => { if (!cancelled) setState({ loading: false, data, error: null }); })
       .catch(err => { if (!cancelled) setState({ loading: false, data: null, error: err?.message ?? "Failed to load files" }); });
     return () => { cancelled = true; };
-  }, [projectId]);
+  }, [projectId, currentFolderId]);
+
+  function openFolder(f) {
+    setPath(prev => [...prev, { id: f.id, name: f.name }]);
+  }
 
   function toggle(file) {
     setSelected(prev => {
@@ -131,7 +139,14 @@ function BrowseTab({ projectId, onAdd, onClose }) {
     return <div className="cpm-attach-browse-empty"><span className="cpm-spinner" /> Loading files…</div>;
   }
   if (state.error) {
-    return <div className="cpm-attach-browse-empty cpm-attach-browse-error">{state.error}</div>;
+    return (
+      <div className="cpm-attach-browse-empty cpm-attach-browse-error">
+        {state.error}
+        {path.length > 0 && (
+          <button type="button" className="cpm-attach-cancel" onClick={() => setPath([])}>Back to top folder</button>
+        )}
+      </div>
+    );
   }
 
   const { data } = state;
@@ -152,7 +167,7 @@ function BrowseTab({ projectId, onAdd, onClose }) {
       </div>
     );
   }
-  if (!data?.files?.length) {
+  if (!data?.files?.length && path.length === 0) {
     return <div className="cpm-attach-browse-empty">This Drive folder is empty.</div>;
   }
 
@@ -160,6 +175,17 @@ function BrowseTab({ projectId, onAdd, onClose }) {
     <>
       <div className="cpm-attach-browse-header">
         <span>
+          {path.length > 0 && (
+            <button
+              type="button"
+              className="cpm-attach-cancel"
+              style={{ marginRight: 8 }}
+              onClick={() => setPath(prev => prev.slice(0, -1))}
+              aria-label="Up one folder"
+            >
+              <i className="fas fa-arrow-left" aria-hidden="true" />
+            </button>
+          )}
           <i className="fas fa-folder" style={{ color: "#FFC107", marginRight: 6 }} aria-hidden="true" />
           {data.folderName || "Drive folder"}
         </span>
@@ -168,10 +194,28 @@ function BrowseTab({ projectId, onAdd, onClose }) {
         </span>
       </div>
 
+      {data.files.length === 0 && <div className="cpm-attach-browse-empty">This folder is empty.</div>}
+
       <ul className="cpm-attach-browse-list">
         {data.files.map(f => {
           const kind = mimeTypeToKind(f.mimeType);
           const meta = getTypeMeta(kind);
+          if (kind === "folder") {
+            return (
+              <li
+                key={f.id}
+                className="cpm-attach-browse-row"
+                onClick={() => openFolder(f)}
+              >
+                <span className="cpm-attach-browse-check" aria-hidden="true" />
+                <i className={`fas ${meta.icon} cpm-attach-browse-icon`} style={{ color: meta.color }} aria-hidden="true" />
+                <span className="cpm-attach-browse-name" title={f.name}>{f.name}</span>
+                <span className="cpm-attach-browse-meta">
+                  Open <i className="fas fa-chevron-right" aria-hidden="true" />
+                </span>
+              </li>
+            );
+          }
           const isSelected = !!selected[f.id];
           return (
             <li

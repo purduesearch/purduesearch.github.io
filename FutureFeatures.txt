@@ -5,5 +5,3 @@ LinkedIn Api integration for quick posting
 ctrl + Z to undo (in any section)
 
 Rework slack features (all of them to match what is on the web). Make it so that you can message the Constellation bot with plain text to enact a project action plan (e.g. Move the wiring task I'm working on to done, and then it checks your tasks and proposes moving it to done (you confirm with a reaction))
-
-Add Google photo album support

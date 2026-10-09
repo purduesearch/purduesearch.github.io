@@ -214,6 +214,26 @@ export async function listDriveFolderFiles(folderId: string): Promise<DriveFolde
   }
 }
 
+/** True when `folderId` is `rootId` or nested (any depth, max 12 hops) beneath it. */
+export async function isDriveDescendantOf(folderId: string, rootId: string): Promise<boolean> {
+  try {
+    const drive = await getBotDrive();
+    if (!drive) return false;
+    let current = folderId;
+    for (let hop = 0; hop < 12; hop++) {
+      if (current === rootId) return true;
+      const res = await drive.files.get({ fileId: current, fields: "parents" });
+      const parent = res.data.parents?.[0];
+      if (!parent) return false;
+      current = parent;
+    }
+    return false;
+  } catch (err) {
+    console.error("[driveService] isDriveDescendantOf error:", err);
+    return false;
+  }
+}
+
 /** Get metadata for a single Drive file/folder (lightweight). */
 export async function getDriveFileMeta(fileId: string): Promise<{ id: string; name: string; mimeType: string; webViewLink?: string } | null> {
   try {

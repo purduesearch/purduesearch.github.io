@@ -398,7 +398,10 @@ model ProjectMember {
   /// (edit/assign/delete/archive any task, delete comments). Set by admins.
   /// Separate from the free-text projectRole, which channel sync resets.
   isLead      Boolean  @default(false)
-  joinedAt    DateTime @default(now())
+  /// Optional admin-set title shown on a lead ("Microgreens lead"). Only
+  /// meaningful while isLead is true; cleared when lead is removed.
+  leadTitle   String?
+  joinedAt   DateTime @default(now())
 
   @@id([projectId, memberId])
 }
