@@ -15,6 +15,7 @@ import {
 } from "../utils/aiPrompts.js";
 import { prisma as prismaClient } from "../db/prisma.js";
 import { EXCLUDE_TRAINING } from "../services/trainingSandboxService.js";
+import { emitTaskChanged } from "../services/taskChangeBus.js";
 
 export const tasksRouter = Router();
 
@@ -405,6 +406,7 @@ tasksRouter.post("/bulk-archive", async (req: Request, res: Response) => {
             ? { archivedAt: new Date(), archivedById: memberId }
             : { archivedAt: null, archivedById: null },
         });
+        emitTaskChanged(id);
 
         logAuditEvent({
           projectId: existingTask.projectId,
@@ -524,6 +526,7 @@ tasksRouter.post("/:id/archive", async (req: Request, res: Response) => {
       where: { id: taskId },
       data: { archivedAt: new Date(), archivedById: memberId },
     });
+    emitTaskChanged(taskId);
 
     logAuditEvent({
       projectId: existingTask.projectId,
@@ -572,6 +575,7 @@ tasksRouter.post("/:id/unarchive", async (req: Request, res: Response) => {
       where: { id: taskId },
       data: { archivedAt: null, archivedById: null },
     });
+    emitTaskChanged(taskId);
 
     logAuditEvent({
       projectId: existingTask.projectId,
@@ -680,6 +684,7 @@ tasksRouter.patch("/:id/comments/:commentId", async (req: Request, res: Response
       data: { content, editedAt: new Date() },
       include: { author: true },
     });
+    emitTaskChanged(comment.taskId);
 
     logAuditEvent({
       taskId: comment.taskId, memberId: memberId ?? null, source: "WEB",
@@ -719,6 +724,7 @@ tasksRouter.delete("/:id/comments/:commentId", async (req: Request, res: Respons
     }
 
     await prisma.taskComment.delete({ where: { id: commentId } });
+    emitTaskChanged(comment.taskId);
 
     logAuditEvent({
       taskId: comment.taskId, memberId: memberId ?? null, source: "WEB",

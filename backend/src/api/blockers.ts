@@ -5,6 +5,7 @@ import { prisma } from "../db/prisma.js";
 import { createNotification } from "../services/notificationCrud.js";
 import { queueDm } from "../services/dmBatcher.js";
 import { logAuditEvent } from "../services/activityService.js";
+import { emitTaskChanged } from "../services/taskChangeBus.js";
 
 export const blockersRouter = Router();
 blockersRouter.use(requireAuth);
@@ -74,6 +75,7 @@ blockersRouter.post("/blockers/:id/resolve", async (req: Request, res: Response)
       prisma.blocker.update({ where: { id }, data: { resolvedAt: new Date() } }),
       prisma.taskBlocker.deleteMany({ where: { blockerId: id } }),
     ]);
+    emitTaskChanged(affectedTaskIds);
 
     await recomputeBlockedStatus(affectedTaskIds);
 
@@ -114,6 +116,10 @@ blockersRouter.patch("/blockers/:id", async (req: Request, res: Response) => {
 
     const before = await prisma.blocker.findUnique({ where: { id }, select: { assigneeId: true } });
     const blocker = await prisma.blocker.update({ where: { id }, data });
+    const attachedTasks = await prisma.taskBlocker.findMany({
+      where: { blockerId: id }, select: { taskId: true },
+    });
+    emitTaskChanged(attachedTasks.map((task) => task.taskId));
 
     if (blocker.assigneeId && blocker.assigneeId !== before?.assigneeId) {
       await notifyBlockerAssignee(blocker.id, blocker.assigneeId, blocker.label, req.memberId ?? null);
@@ -149,9 +155,11 @@ blockersRouter.post("/tasks/:id/blockers", requireTaskEdit, async (req: Request,
       create: { taskId, blockerId, reason: reason ?? null },
       update: { reason: reason ?? null },
     });
+    emitTaskChanged(taskId);
 
     // completedAt: null — leaving DONE clears it; a no-op when already null.
     await prisma.task.update({ where: { id: taskId }, data: { status: "BLOCKED", completedAt: null } });
+    emitTaskChanged(taskId);
 
     const task = await prisma.task.findUnique({
       where: { id: taskId },
@@ -184,6 +192,7 @@ blockersRouter.delete("/tasks/:id/blockers/:blockerId", requireTaskEdit, async (
     await prisma.taskBlocker.delete({
       where: { taskId_blockerId: { taskId, blockerId } },
     });
+    emitTaskChanged(taskId);
 
     await recomputeBlockedStatus([taskId]);
 
@@ -267,6 +276,7 @@ export async function recomputeBlockedStatus(taskIds: string[]): Promise<void> {
     if (!hasOpenDep && !hasOpenCategory) {
       // completedAt: null — leaving DONE clears it; a no-op when already null.
       await prisma.task.update({ where: { id: taskId }, data: { status: "TODO", completedAt: null } });
+      emitTaskChanged(taskId);
     }
   }
 }
