@@ -150,6 +150,7 @@ export function refreshCardsSoon(entityType: SlackEntityType, entityId: string):
   }).catch(error => console.error("Slack card reference lookup failed", error));
 }
 
-export async function postLinkCard(_opts: { channelId: string; sourceTs: string; threadTs: string; linkerId: string }): Promise<void> {
-  throw new Error("P20");
+export async function postLinkCard(opts: { channelId: string; sourceTs: string; threadTs: string; linkerId: string }): Promise<void> {
+  const handler = await import("../slack/handlers/mentions.js");
+  await handler.postLinkCard(opts);
 }

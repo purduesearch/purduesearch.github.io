@@ -15,6 +15,8 @@ import { prisma } from "../db/prisma.js";
 import { ingestSlackMessage, applyReaction } from "../services/slackArchiveService.js";
 import { deliverSlackPings } from "../services/slackNotifyService.js";
 
+const mentionInviteDays = new Map<string, string>();
+
 // ── Helpers ──────────────────────────────────────────────────
 
 import { extractSuggestedAssignees, type MemberStub } from "./views/taskDraft.js";
@@ -62,6 +64,29 @@ export function registerEvents(app: App): void {
     } catch (error) {
       console.error("[slackArchive] ingest failed:", error);
     }
+
+    // User-token events can see a mention where the bot cannot receive app_mention.
+    try {
+      const authorizations = (body as { authorizations?: { is_bot?: boolean }[] }).authorizations ?? [];
+      const msg = message as { text?: string; user?: string; bot_id?: string; subtype?: string; channel: string };
+      if (result?.event === "new" && !msg.subtype && !msg.bot_id && msg.user && authorizations.some(auth => auth.is_bot === false)) {
+        const botId = await getBotUserId(app.client);
+        if (botId && msg.user !== botId && msg.text?.includes(`<@${botId}>`)) {
+          const membership = await prisma.slackConversationMember.findFirst({ where: { slackChannelId: msg.channel, slackUserId: botId } });
+          const day = new Date().toISOString().slice(0, 10);
+          for (const [key, date] of mentionInviteDays) if (date !== day) mentionInviteDays.delete(key);
+          const key = `${msg.channel}:${msg.user}`;
+          if (!membership && mentionInviteDays.get(key) !== day) {
+            mentionInviteDays.set(key, day);
+            try {
+              const dm = await app.client.conversations.open({ users: msg.user });
+              if (!dm.channel?.id) throw new Error("Unable to open mention invitation DM");
+              await app.client.chat.postMessage({ channel: dm.channel.id, text: "Invite me with /invite @Constellation to use me there." });
+            } catch (error) { mentionInviteDays.delete(key); throw error; }
+          }
+        }
+      }
+    } catch (error) { console.error("[mentions] invitation failed", error); }
 
     // Mirror Slack's pings into Constellation. Live path ONLY — backfill never
     // notifies (D10). Separate error boundary: a ping bug must not lose the
