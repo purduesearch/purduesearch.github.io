@@ -1068,11 +1068,21 @@ function AssigneePanel({ members, channelMemberSlackIds = [], hasLinkedChannel =
     }
 
     const q = search.trim().toLowerCase();
-    if (!q) return list;
-    return list.filter((pm) =>
-      (pm.member?.displayName ?? "").toLowerCase().includes(q)
+    if (q) {
+      list = list.filter((pm) =>
+        (pm.member?.displayName ?? "").toLowerCase().includes(q)
+      );
+    }
+
+    const roleRank = pm => {
+      if (pm.member?.isAdmin || pm.isAdmin) return 0;
+      return leadByMemberId?.get(pm.memberId)?.isLead ? 1 : 2;
+    };
+    return [...list].sort((a, b) =>
+      roleRank(a) - roleRank(b)
+      || (a.member?.displayName ?? "").localeCompare(b.member?.displayName ?? "", "en", { sensitivity: "base" })
     );
-  }, [members, channelMemberSlackIds, hasLinkedChannel, search]);
+  }, [members, channelMemberSlackIds, hasLinkedChannel, search, leadByMemberId]);
 
   return (
     <aside className="cpm-assignee-panel">
