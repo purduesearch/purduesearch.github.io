@@ -101,7 +101,7 @@ export async function postLinkCard(opts: { channelId: string; sourceTs: string; 
     }
     await prisma.$transaction(async tx => {
       await tx.slackCardRef.deleteMany({ where: { messageId: message!.id } });
-      const refs = links.filter(link => link.entityType === "TASK" || link.entityType === "VAULT_ITEM");
+      const refs = links;
       if (refs.length) await tx.slackCardRef.createMany({ data: refs.map((link, position) => ({ messageId: message!.id, entityType: link.entityType, entityId: link.entityId, position })) });
       await tx.slackCardMessage.update({ where: { id: message!.id }, data: { renderedAt: new Date() } });
     });
