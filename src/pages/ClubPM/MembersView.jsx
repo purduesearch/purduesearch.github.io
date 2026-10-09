@@ -126,7 +126,7 @@ function MemberCard({ member, onClick, onMessage, selectable = false, selected =
           <i className="fas fa-user" />
         </Link>
         <KudosButton memberId={member.id} displayName={displayName} />
-        {onToggleLead && (
+        {onToggleLead && !isAdmin && (
           <button
             type="button"
             className={`pm-member-lead-toggle${isProjectLead ? ' on' : ''}`}

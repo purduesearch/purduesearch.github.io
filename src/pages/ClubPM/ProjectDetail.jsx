@@ -1206,7 +1206,7 @@ function DraggableMemberChip({ pm, selected, onClick, lead, onOpenCard }) {
   });
 
   const isAdmin = pm.member?.isAdmin || pm.isAdmin;
-  const isLead = !!lead?.isLead;
+  const isLead = !isAdmin && !!lead?.isLead;
   return (
     <div
       ref={setNodeRef}
@@ -1214,7 +1214,9 @@ function DraggableMemberChip({ pm, selected, onClick, lead, onOpenCard }) {
       {...listeners}
       className={`cpm-assignee-chip${selected ? " cpm-assignee-chip--selected" : ""}${isLead ? " cpm-assignee-chip--lead" : ""}`}
       aria-pressed={selected}
-      title={isLead
+      title={isAdmin
+        ? `${lead?.leadTitle || "Admin"}. Double-click for details. Drag to assign.`
+        : isLead
         ? `${lead.leadTitle || "Sublead"}. Double-click for details. Drag to assign.`
         : "Drag to assign. Double-click for details. Ctrl/Cmd-click to add or remove from a group."}
       onClick={(event) => onClick(pm.memberId, event)}
@@ -1228,9 +1230,9 @@ function DraggableMemberChip({ pm, selected, onClick, lead, onOpenCard }) {
       <ChipAvatar member={pm.member} />
       <span className="cpm-assignee-chip-name">
         {pm.member.displayName}
-        {isAdmin && " 👑"}
         {lead?.leadTitle && <span className="cpm-assignee-chip-title">{lead.leadTitle}</span>}
       </span>
+      {isAdmin && <i className="fas fa-crown cpm-assignee-chip-lead-icon cpm-assignee-chip-admin-icon" aria-label="Admin" />}
       {isLead && <i className="fas fa-user-shield cpm-assignee-chip-lead-icon" aria-label="Sublead" />}
     </div>
   );
@@ -1239,7 +1241,9 @@ function DraggableMemberChip({ pm, selected, onClick, lead, onOpenCard }) {
 // Double-click card for an assignee chip. Admins can make/remove a sublead and
 // set its optional title here; everyone else gets a read-only view.
 function MemberLeadCard({ pm, lead, anchor, canEdit, projectId, onClose, onSaved }) {
-  const isLead = !!lead?.isLead;
+  // Admin outranks sublead: admins only get a role title, never the sublead toggle.
+  const targetIsAdmin = !!(pm.member?.isAdmin || pm.isAdmin);
+  const isLead = !targetIsAdmin && !!lead?.isLead;
   const [title, setTitle] = useState(lead?.leadTitle ?? "");
   const [busy, setBusy] = useState(false);
   const inFlight = useRef(false);
@@ -1261,10 +1265,15 @@ function MemberLeadCard({ pm, lead, anchor, canEdit, projectId, onClose, onSaved
     inFlight.current = true;
     setBusy(true);
     try {
-      await setProjectLead(projectId, pm.memberId, nextIsLead, nextIsLead ? title : null);
-      toast.success(nextIsLead
-        ? (isLead ? "Sublead title updated" : `${pm.member.displayName} is now a sublead`)
-        : `${pm.member.displayName} is no longer a sublead`);
+      if (targetIsAdmin) {
+        await setProjectLead(projectId, pm.memberId, false, nextIsLead ? title : "");
+        toast.success(nextIsLead ? "Admin role updated" : "Admin role cleared");
+      } else {
+        await setProjectLead(projectId, pm.memberId, nextIsLead, nextIsLead ? title : null);
+        toast.success(nextIsLead
+          ? (isLead ? "Sublead title updated" : `${pm.member.displayName} is now a sublead`)
+          : `${pm.member.displayName} is no longer a sublead`);
+      }
       onSaved();
       onClose();
     } catch (err) {
@@ -1292,7 +1301,9 @@ function MemberLeadCard({ pm, lead, anchor, canEdit, projectId, onClose, onSaved
         <div style={{ minWidth: 0 }}>
           <div className="cpm-lead-card-name">{m.displayName}</div>
           <div className="cpm-lead-card-sub">
-            {isLead
+            {targetIsAdmin
+              ? <span className="cpm-sublead-tag cpm-admin-tag"><i className="fas fa-crown" aria-hidden="true" /> {lead?.leadTitle || "Admin"}</span>
+              : isLead
               ? <span className="cpm-sublead-tag"><i className="fas fa-user-shield" aria-hidden="true" /> {lead.leadTitle || "Sublead"}</span>
               : (m.rank ? String(m.rank).charAt(0) + String(m.rank).slice(1).toLowerCase() : "Member")}
           </div>
@@ -1300,7 +1311,7 @@ function MemberLeadCard({ pm, lead, anchor, canEdit, projectId, onClose, onSaved
       </div>
       {canEdit ? (
         <>
-          <label className="cpm-lead-card-label" htmlFor="cpm-sublead-title">Sublead role (optional)</label>
+          <label className="cpm-lead-card-label" htmlFor="cpm-sublead-title">{targetIsAdmin ? "Admin role title (optional)" : "Sublead role (optional)"}</label>
           <input
             id="cpm-sublead-title"
             className="cpm-assignee-search"
@@ -1313,8 +1324,13 @@ function MemberLeadCard({ pm, lead, anchor, canEdit, projectId, onClose, onSaved
           />
           <div className="cpm-lead-card-actions">
             <button type="button" className="cpm-lead-card-btn cpm-lead-card-btn--primary" disabled={busy} onClick={() => save(true)}>
-              {isLead ? "Save role" : "Make sublead"}
+              {targetIsAdmin ? "Save title" : isLead ? "Save role" : "Make sublead"}
             </button>
+            {targetIsAdmin && lead?.leadTitle && (
+              <button type="button" className="cpm-lead-card-btn" disabled={busy} onClick={() => save(false)}>
+                Clear title
+              </button>
+            )}
             {isLead && (
               <button type="button" className="cpm-lead-card-btn" disabled={busy} onClick={() => save(false)}>
                 Remove sublead
@@ -1323,7 +1339,7 @@ function MemberLeadCard({ pm, lead, anchor, canEdit, projectId, onClose, onSaved
           </div>
         </>
       ) : (
-        <div className="cpm-lead-card-sub">{isLead ? "Project sublead" : "Only admins can set subleads."}</div>
+        <div className="cpm-lead-card-sub">{targetIsAdmin ? "Admin" : isLead ? "Project sublead" : "Only admins can set subleads."}</div>
       )}
     </div>,
     document.body
@@ -2678,7 +2694,7 @@ export default function ProjectDetail() {
 
   // memberId -> { isLead, leadTitle } for everyone on this project.
   const leadByMemberId = useMemo(
-    () => new Map((project?.members ?? []).map(pm => [pm.memberId ?? pm.member?.id, { isLead: !!pm.isLead, leadTitle: pm.leadTitle ?? null }])),
+    () => new Map((project?.members ?? []).map(pm => [pm.memberId ?? pm.member?.id, { isLead: !!pm.isLead && !(pm.member?.isAdmin || pm.isAdmin), leadTitle: pm.leadTitle ?? null }])),
     [project?.members]
   );
 

@@ -30043,6 +30043,11 @@ body.pm-m-compact .pm-albums-icon-btn { width: 44px; height: 44px; }
   display: block; font-size: 9px; font-weight: 600; letter-spacing: 0.03em; line-height: 1.1; opacity: 0.85;
 }
 .cpm-assignee-chip-lead-icon { font-size: 10px; color: var(--pm-accent-violet, #a78bfa); flex-shrink: 0; }
+.cpm-assignee-chip-admin-icon { color: #f9ca24; }
+.cpm-admin-tag {
+  color: #f9ca24; border-color: #f9ca24;
+  background: color-mix(in srgb, #f9ca24 14%, transparent);
+}
 .cpm-lead-ring-violet { box-shadow: 0 0 0 2px var(--clubpm-surface-200, #1a1a1a), 0 0 0 4px var(--pm-accent-violet, #a78bfa); }
 .cpm-sublead-tag {
   display: inline-flex; align-items: center; gap: 4px; font-size: 10px; font-weight: 700;

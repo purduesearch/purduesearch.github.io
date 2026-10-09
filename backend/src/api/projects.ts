@@ -304,22 +304,25 @@ projectsRouter.put("/:id/members/:memberId/lead", async (req: Request, res: Resp
       res.status(400).json({ error: "leadTitle must be a string" });
       return;
     }
-    // Blank means "no title"; a title only exists on a lead.
-    const trimmedTitle = typeof leadTitle === "string" ? leadTitle.trim().slice(0, 60) : "";
-    const nextTitle = isLead && trimmedTitle ? trimmedTitle : null;
     const projectId = req.params.id as string;
     const memberId = req.params.memberId as string;
     const existing = await prisma.projectMember.findUnique({
       where: { projectId_memberId: { projectId, memberId } },
-      select: { memberId: true },
+      select: { memberId: true, member: { select: { isAdmin: true } } },
     });
     if (!existing) {
       res.status(404).json({ error: "Member is not on this project" });
       return;
     }
+    // Admin outranks sublead: an admin is never stored as a lead, but may keep
+    // a role title. For everyone else a title only exists on a lead.
+    const targetIsAdmin = !!existing.member?.isAdmin;
+    const nextIsLead = targetIsAdmin ? false : isLead;
+    const trimmedTitle = typeof leadTitle === "string" ? leadTitle.trim().slice(0, 60) : "";
+    const nextTitle = trimmedTitle && (targetIsAdmin || nextIsLead) ? trimmedTitle : null;
     const row = await prisma.projectMember.update({
       where: { projectId_memberId: { projectId, memberId } },
-      data: { isLead, leadTitle: nextTitle },
+      data: { isLead: nextIsLead, leadTitle: nextTitle },
       select: { projectId: true, memberId: true, isLead: true, leadTitle: true },
     });
     res.json(row);
