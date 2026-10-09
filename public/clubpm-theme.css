@@ -30145,3 +30145,37 @@ body.pm-m-compact .pm-albums-icon-btn { width: 44px; height: 44px; }
   .pm-dashboard-activity-header { padding: 16px; }
   .pm-dashboard-activity-list li { padding: 12px 16px; flex-direction: column; gap: 2px; }
 }
+
+/* === Slack mentions === */
+.cpm-slack-mentions {
+  background: var(--pm-surface);
+  border: 1px solid var(--clubpm-border, #2a2f36);
+  border-radius: 8px;
+  padding: 12px;
+}
+.cpm-slack-mentions-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 10px;
+  color: var(--pm-text-muted, #8b949e);
+  font-size: 12px;
+  font-weight: 600;
+}
+.cpm-slack-mentions-title .fa-slack { color: var(--pm-accent-teal); font-size: 14px; }
+.cpm-slack-mentions-list { list-style: none; padding: 0; margin: 0; }
+.cpm-slack-mentions-row { display: flex; align-items: flex-start; gap: 8px; padding: 10px 0; }
+.cpm-slack-mentions-row + .cpm-slack-mentions-row { border-top: 1px solid var(--clubpm-border, #2a2f36); }
+.cpm-slack-mentions-content { flex: 1; min-width: 0; }
+.cpm-slack-mentions-meta { display: flex; flex-wrap: wrap; gap: 4px; color: var(--pm-text-muted, #8b949e); font-size: 12px; overflow-wrap: anywhere; }
+.cpm-slack-mentions-meta strong { color: var(--clubpm-text-primary, #fff); }
+.cpm-slack-mentions-snippet { margin: 6px 0; font-size: 13px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
+.cpm-slack-mentions-open { display: inline-flex; align-items: center; gap: 5px; min-height: 32px; color: var(--pm-accent-teal); font-size: 12px; }
+.cpm-slack-mentions-unlink { display: grid; place-items: center; flex-shrink: 0; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--pm-text-muted, #8b949e); cursor: pointer; }
+.cpm-slack-mentions-unlink:hover { background: var(--pm-elevated); color: var(--pm-accent-coral); }
+.cpm-slack-mentions-unlink:disabled { opacity: 0.5; cursor: wait; }
+.cpm-slack-mentions-unlink:focus-visible, .cpm-slack-mentions-open:focus-visible { outline: 2px solid var(--pm-accent-teal); outline-offset: 2px; }
+@media (max-width: 640px) {
+  .cpm-slack-mentions-unlink { width: 44px; height: 44px; }
+  .cpm-slack-mentions-open { min-height: 44px; }
+}

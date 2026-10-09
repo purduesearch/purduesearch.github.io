@@ -7,7 +7,7 @@ import type { Candidate } from "./slackMentionService.js";
 export interface BacklinkDto {
   id: string; channelId: string; channelName: string; messageTs: string;
   permalink: string | null; snippet: string; authorName: string | null;
-  linkedByName: string | null; createdAt: Date;
+  linkedByName: string | null; linkedById: string | null; createdAt: Date;
 }
 const permalinks = new Map<string, { url: string; expires: number }>();
 
@@ -59,6 +59,6 @@ export async function listBacklinks(viewerId: string, entityType: SlackEntityTyp
       prisma.slackMessage.findFirst({ where: { slackChannelId: link.slackChannelId, ts: link.messageTs } }),
       permalink(link.slackChannelId, link.messageTs, viewerId),
     ]);
-    return { id: link.id, channelId: link.slackChannelId, channelName: channel?.slackChannelName ?? link.slackChannelId, messageTs: link.messageTs, permalink: url, snippet: Array.from(message?.deletedAt ? "" : message?.text ?? "").slice(0, 140).join(""), authorName: message?.authorName ?? null, linkedByName: link.linkedBy?.displayName ?? null, createdAt: link.createdAt };
+    return { id: link.id, channelId: link.slackChannelId, channelName: channel?.slackChannelName ?? link.slackChannelId, messageTs: link.messageTs, permalink: url, snippet: Array.from(message?.deletedAt ? "" : message?.text ?? "").slice(0, 140).join(""), authorName: message?.authorName ?? null, linkedByName: link.linkedBy?.displayName ?? null, linkedById: link.linkedById, createdAt: link.createdAt };
   }));
 }
