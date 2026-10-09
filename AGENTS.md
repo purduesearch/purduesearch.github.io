@@ -20,6 +20,8 @@ Static SPA for the Purdue SEARCH club, deployed to GitHub Pages and served at th
 
 **Stack:** React 19, React Router 7, Framer Motion (page transitions), Font Awesome (icons), mxGraph 4.2.2 (interactive diagrams), Three.js (3D model viewer), `@lottiefiles/react-lottie-player` (Lottie animations), `@dnd-kit/core` + `@dnd-kit/sortable` (ProjectDetail kanban, CrmTab pipeline board, and OutreachHub BoardTab), Fuse.js (fuzzy search), GSAP (scroll/flow animations), recharts (analytics charts), react-hot-toast (notifications), plain CSS custom properties.
 
+**Slack mirror:** the bot is **Constellation**. `/c` is the primary slash command, `/constellation` its long alias, and `/pm` remains a compatibility alias; `/lab` stays available. Root `slack-manifest.yaml` declares commands, scopes, events and message shortcuts. The handler map, registry ownership and mirror invariants live in `backend/src/slack/AGENTS.md`; Slack actions use the same mutation services and permissions as the web, and task assignment cards go only to DMs.
+
 ---
 
 ## File Structure

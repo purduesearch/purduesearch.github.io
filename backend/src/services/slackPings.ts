@@ -13,7 +13,7 @@ export interface Ping { slackUserId: string; type: PingType }
 export interface PingInput {
   convKind: ConversationKind;
   authorSlackId: string | null;
-  /** Our own Club PM bot. Constellation already notified natively for its posts (D9). */
+  /** Our own Constellation bot. Already notified natively for its posts (D9). */
   isOwnBot: boolean;
   /** Raw mrkdwn. */
   text: string;

@@ -17,7 +17,7 @@ import { parseLocalTime, reminderAt } from "../services/labVisitCore.js";
 // ── Command Registration ─────────────────────────────────────
 
 export function registerCommands(app: App): void {
-  // /lab is also reachable as "/pm lab ..." below; both call handleLab.
+  // /lab is also reachable as "/c lab ..." below; both call handleLab.
   app.command("/lab", async ({ command, ack, respond }) => {
     await ack();
     try {
@@ -183,7 +183,7 @@ export async function runLegacyPm(
         } else {
           await respond({
             response_type: "ephemeral",
-            text: "Usage: `/pm outreach submit` — submit content\n`/pm outreach queue` — check queue status",
+            text: "Usage: `/c outreach submit` — submit content\n`/c outreach queue` — check queue status",
           });
         }
         break;
@@ -212,7 +212,7 @@ export async function runLegacyPm(
       case "ask": {
         const question = args.slice(1).join(" ").trim();
         if (!question) {
-          await respond({ response_type: "ephemeral", text: "Usage: `/pm ask <your question about the project>`" });
+          await respond({ response_type: "ephemeral", text: "Usage: `/c ask <your question about the project>`" });
           break;
         }
         const project = await getProjectByChannel(command.channel_id);

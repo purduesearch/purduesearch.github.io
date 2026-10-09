@@ -113,7 +113,7 @@ Officers reliably burn out on things the system already does.
 
 | Don't | Because |
 |---|---|
-| Compile a weekly status summary | `/pm report` in a project channel builds one on demand |
+| Compile a weekly status summary | `/c report` in a project channel builds one on demand |
 | Watch milestone health daily | It's recalculated every morning |
 | Approve every change request personally | Sub-team leads should review their own area's CRs |
 

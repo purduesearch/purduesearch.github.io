@@ -1513,7 +1513,7 @@ function SlackChannelPicker({ project, channels, channelsState, onSaved }) {
           await post(`/api/slack/channels/${channelId}/invite-bot`, {});
         } catch (inviteErr) {
           const code = inviteErr?.message ?? "unknown_error";
-          setError(`Could not invite bot (${code}). Run \`/invite @Club PM\` in #${ch.name} then retry.`);
+          setError(`Could not invite bot (${code}). Run \`/invite @Constellation\` in #${ch.name} then retry.`);
           setSelected(project.slackChannelId ?? "");
           return;
         }

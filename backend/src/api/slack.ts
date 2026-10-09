@@ -160,9 +160,9 @@ slackRouter.post("/channels/:id/invite-bot", async (req: Request, res: Response)
     const userToken = await getSlackUserToken(req);
 
     // Without a user token, try to self-join with the bot token. That needs the
-    // `channels:join` bot scope, which slack-manifest.yaml does not currently
-    // request — if it isn't granted this returns `missing_scope`, which the UI
-    // turns into "run /invite @Club PM in #channel". Private channels always
+    // `channels:join` bot scope declared in slack-manifest.yaml. If the installed
+    // app hasn't been granted it, `missing_scope` makes the UI show
+    // "run /invite @Constellation in #channel". Private channels always
     // require a human to invite the bot regardless.
     if (!userToken) {
       try {

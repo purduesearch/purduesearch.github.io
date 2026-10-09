@@ -81,7 +81,7 @@ export function buildWeeklyDigest(
       elements: [
         {
           type: "mrkdwn",
-          text: `💡 Use \`/pm task done [id]\` to mark tasks complete`,
+          text: `💡 Use Mark done on a task card, or open Constellation to mark tasks complete`,
         },
       ],
     },
