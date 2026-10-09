@@ -1323,7 +1323,7 @@ function MemberLeadCard({ pm, lead, anchor, canEdit, projectId, onClose, onSaved
             onKeyDown={(e) => { if (e.key === "Enter") save(true); }}
           />
           <div className="cpm-lead-card-actions">
-            <button type="button" className="cpm-lead-card-btn cpm-lead-card-btn--primary" disabled={busy} onClick={() => save(true)}>
+            <button type="button" className={`cpm-lead-card-btn cpm-lead-card-btn--primary${targetIsAdmin ? " cpm-lead-card-btn--admin" : ""}`} disabled={busy} onClick={() => save(true)}>
               {targetIsAdmin ? "Save title" : isLead ? "Save role" : "Make sublead"}
             </button>
             {targetIsAdmin && lead?.leadTitle && (

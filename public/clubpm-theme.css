@@ -30070,4 +30070,5 @@ body.pm-m-compact .pm-albums-icon-btn { width: 44px; height: 44px; }
   border: 1px solid var(--clubpm-border); color: var(--clubpm-text-muted);
 }
 .cpm-lead-card-btn--primary { border-color: var(--pm-accent-violet, #a78bfa); color: var(--pm-accent-violet, #a78bfa); background: color-mix(in srgb, var(--pm-accent-violet, #a78bfa) 14%, transparent); }
+.cpm-lead-card-btn--primary.cpm-lead-card-btn--admin { border-color: #f9ca24; color: #f9ca24; background: color-mix(in srgb, #f9ca24 14%, transparent); }
 .cpm-lead-card-btn:disabled { opacity: 0.5; cursor: wait; }

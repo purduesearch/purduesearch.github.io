@@ -8,6 +8,7 @@ import type {
 import { boltApp } from "../slack/bolt.js";
 import { resolveSlackMember } from "./memberService.js";
 import { EXCLUDE_TRAINING } from "./trainingSandboxService.js";
+import { planChannelMemberSync } from "./projectMemberSyncCore.js";
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -188,14 +189,16 @@ export async function addMemberToProject(
 // ── Sync project membership from linked Slack channel ────────
 //
 // For each user in the project's linked Slack channel, ensure a Member row
-// exists (refreshing isBot via users.info) and a ProjectMember row exists
-// for every non-bot. Also removes any ProjectMember whose Member is a bot
+// exists (created via users.info only for never-seen users) and a
+// ProjectMember row exists for every non-bot. Also removes any ProjectMember whose Member is a bot
 // (cleanup for rows added before the isBot flag existed).
 //
 // Per-project debounce avoids re-syncing on every page load: defaults to 60s,
 // matching the existing channelMembersCache TTL.
 
 const lastSyncByProject = new Map<string, number>();
+// users.info is Slack Tier 4 (~100/min); a small batch stays well under it.
+const RESOLVE_CONCURRENCY = 5;
 
 export async function syncProjectMembersFromChannel(
   projectId: string,
@@ -222,14 +225,45 @@ export async function syncProjectMembersFromChannel(
     return;
   }
 
-  for (const slackId of slackIds) {
-    try {
-      const member = await resolveSlackMember(slackId, boltApp.client);
-      if (member.isBot) continue;
-      await addMemberToProject(projectId, member.id);
-    } catch (err) {
-      console.warn(`[syncProjectMembersFromChannel] failed for slackId=${slackId}:`, (err as Error).message);
-    }
+  // Only members missing from the project need work, and only members we have
+  // never seen need a Slack call. Profiles of known members are refreshed at
+  // login and by Slack events, not here — this runs on the project page's
+  // critical path.
+  const known = await prisma.member.findMany({
+    where: { slackId: { in: slackIds } },
+    select: {
+      id: true,
+      slackId: true,
+      isBot: true,
+      projects: { where: { projectId }, select: { projectId: true } },
+    },
+  });
+  const plan = planChannelMemberSync(
+    slackIds,
+    known.map(m => ({ slackId: m.slackId, memberId: m.id, isBot: m.isBot, inProject: m.projects.length > 0 })),
+  );
+
+  const addIds = [...plan.addMemberIds];
+  for (let i = 0; i < plan.resolveSlackIds.length; i += RESOLVE_CONCURRENCY) {
+    const batch = plan.resolveSlackIds.slice(i, i + RESOLVE_CONCURRENCY);
+    const resolved = await Promise.all(batch.map(async slackId => {
+      try {
+        return await resolveSlackMember(slackId, boltApp.client);
+      } catch (err) {
+        console.warn(`[syncProjectMembersFromChannel] failed for slackId=${slackId}:`, (err as Error).message);
+        return null;
+      }
+    }));
+    for (const m of resolved) if (m && !m.isBot) addIds.push(m.id);
+  }
+
+  // createMany + skipDuplicates, not addMemberToProject's upsert: an upsert
+  // would reset projectRole on rows a concurrent request already created.
+  if (addIds.length > 0) {
+    await prisma.projectMember.createMany({
+      data: addIds.map(memberId => ({ projectId, memberId })),
+      skipDuplicates: true,
+    });
   }
 
   // Cleanup: remove any ProjectMember that is a bot.
