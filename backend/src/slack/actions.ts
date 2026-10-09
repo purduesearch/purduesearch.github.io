@@ -191,17 +191,6 @@ export function registerActions(app: App): void {
   });
 
   // ── Home: Create Task ──────────────────────────────────────
-  app.action("home_create_task", async ({ ack, body, client }) => {
-    await ack();
-    try {
-      if ("trigger_id" in body && body.trigger_id) {
-        await openTaskModal(client, body.trigger_id, { memberId: body.user.id, isAdmin: false });
-      }
-    } catch (error) {
-      console.error("home_create_task error:", error);
-    }
-  });
-
   // ── Home: Create Subtask ───────────────────────────────────
   app.action("home_create_subtask", async ({ ack, body, client }) => {
     await ack();
