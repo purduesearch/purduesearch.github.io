@@ -20,9 +20,11 @@
 // Member.mutedProjectIds, and each VaultSubscription's per-event flags.
 
 import type { Prisma } from "@prisma/client";
+import type { KnownBlock } from "@slack/types";
 import { prisma } from "../db/prisma.js";
 import { activityBus } from "./activityService.js";
 import { sendSlackDmNow } from "./dmBatcher.js";
+import { buildVaultNoticeBlocks, type VaultNoticeContext } from "../slack/views/vaultCards.js";
 import {
   checkinEventRows,
   conflictEventRow,
@@ -61,7 +63,8 @@ export interface OutboxStore {
 
 export interface NotifyDeps {
   store: OutboxStore;
-  sendSlack: (slackId: string, text: string) => Promise<void>;
+  sendSlack: (slackId: string, text: string, blocks?: KnownBlock[]) => Promise<void>;
+  loadNoticeContext?: (event: VaultEventRow, recipientId: string) => Promise<VaultNoticeContext>;
   emit: (recipientId: string, notification: unknown) => void;
   now: () => Date;
   frontendUrl: string | undefined;
@@ -157,6 +160,20 @@ const defaultDeps: NotifyDeps = {
   emit: (recipientId, notification) => activityBus.emit(`notification:${recipientId}`, notification),
   now: () => new Date(),
   frontendUrl: process.env.FRONTEND_URL,
+  loadNoticeContext: async (event, recipientId) => {
+    const member = await prisma.member.findUnique({ where: { id: recipientId }, select: { isAdmin: true, role: true } });
+    const viewer = { memberId: recipientId, isAdmin: member?.isAdmin === true || member?.role === "ADMIN" };
+    if (event.kind === "CR_SUBMITTED" || event.kind === "CR_DECIDED") {
+      const cr = event.payload.crId ? await prisma.changeRequest.findUnique({ where: { id: event.payload.crId }, include: { items: { include: { item: true } } } }) : null;
+      // Dynamic import avoids the existing CR-service/outbox dependency cycle.
+      const review = cr ? await (await import("./vaultPrReviewService.js")).reviewStatus(cr.id) : undefined;
+      return { viewer, cr, review };
+    }
+    const itemId = event.payload.itemId ?? event.itemIds[0];
+    const item = itemId ? await prisma.vaultItem.findUnique({ where: { id: itemId }, include: { checkedOutBy: { select: { displayName: true, slackId: true } } } }) : null;
+    const subscription = item ? await prisma.vaultSubscription.findUnique({ where: { memberId_itemId: { memberId: recipientId, itemId: item.id } } }) : null;
+    return { viewer: { ...viewer, watching: subscriptionView(subscription).watching }, item: item?.deletedAt ? null : item };
+  },
 };
 
 // ── Enqueue ───────────────────────────────────────────────────
@@ -202,6 +219,13 @@ export function notifyCrDecision(cr: { id: string; projectId: string; number: nu
     .catch((err) => console.error("[vault-notify] CR decision notify failed", cr.id, err?.message || err));
 }
 
+export async function notifyCrSubmission(cr: { id: string; projectId: string; number: number; title: string }): Promise<void> {
+  const admins = await prisma.member.findMany({ where: { isAdmin: true }, select: { id: true } });
+  const event: VaultEventRow = { id: `cr:${cr.id}:submitted`, kind: "CR_SUBMITTED", projectId: cr.projectId, itemIds: [], actorId: null, directRecipientIds: admins.map(m => m.id), payload: { crId: cr.id, crNumber: cr.number, crTitle: cr.title } };
+  await enqueueVaultEvent(event);
+  await dispatchVaultEvent(event.id);
+}
+
 export function notifyVaultCheckoutConflict(item: ItemRef, actorId: string | null, holderId: string, conflict: ConflictKind, key: string): void {
   actorName(actorId)
     .then((name) => emitVaultEvent(conflictEventRow(item, actorId, name, holderId, conflict, key)))
@@ -236,13 +260,14 @@ async function deliver(d: ClaimedDelivery, event: VaultEventRow, deps: NotifyDep
         actorId: event.actorId,
         projectId: event.projectId,
         message,
-        metadata: { link, vaultEventId: event.id, kind: event.kind, ...event.payload },
+        metadata: event.kind === "CR_SUBMITTED" ? { crId: event.payload.crId, number: event.payload.crNumber, link } : { link, vaultEventId: event.id, kind: event.kind, ...event.payload },
       });
       if (created === null) return "LOST";
       deps.emit(d.recipientId, created);
     } else {
       if (!d.slackId) throw new Error("NO_SLACK_ID");
-      await deps.sendSlack(d.slackId, slackText(message, link, deps.frontendUrl));
+      const context = deps.loadNoticeContext ? await deps.loadNoticeContext(event, d.recipientId) : { viewer: { memberId: d.recipientId, isAdmin: false } };
+      await deps.sendSlack(d.slackId, slackText(message, link, deps.frontendUrl), buildVaultNoticeBlocks(event, context));
       await deps.store.markSent(d.id, deps.now());
     }
     return "SENT";

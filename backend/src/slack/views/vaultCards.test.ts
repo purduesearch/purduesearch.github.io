@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { buildVaultItemCard, buildVaultCrCard, buildVaultCheckoutConflict, buildCrNoteModal, vaultCardUrl, type VaultCardItem } from "./vaultCards.js";
+import { buildVaultItemCard, buildVaultCrCard, buildVaultCheckoutConflict, buildCrNoteModal, buildVaultNoticeBlocks, vaultCardUrl, type VaultCardItem } from "./vaultCards.js";
+import type { VaultEventRow } from "../../services/vaultNotifyCore.js";
 import { assertBlockBudget, LIMITS } from "./common.js";
 let passed = 0;
 function check(name: string, fn: () => void) { fn(); passed++; console.log(`✓ ${name}`); }
@@ -65,5 +66,25 @@ check("long facts truncate below Slack budgets and escape markdown", () => {
     if (b.type === "context") for (const e of b.elements) if (e.type === "mrkdwn") assert(e.text.length <= LIMITS.sectionText);
   }
   assert(JSON.stringify(blocks).includes("&lt;&amp;&gt;"));
+});
+check("notice cards retain event details with current holder and checkout actions", () => {
+  const event: VaultEventRow = { id: "e1", kind: "CHECKIN", projectId: "p1", itemIds: [item.id], actorId: "m2", directRecipientIds: [], payload: { itemId: item.id, itemName: item.name, actorName: "Ada", versionNumber: 2, fileName: "bracket.step", note: "thicker" } };
+  for (const kind of ["CHECKIN", "CHECKOUT_CONFLICT"] as const) {
+    const blocks = buildVaultNoticeBlocks({ ...event, kind, payload: { ...event.payload, conflict: "CHECKOUT_BLOCKED" } }, { viewer, item: held });
+    assertBlockBudget(blocks, LIMITS.messageBlocks);
+    assert(JSON.stringify(blocks).includes("<@U2>"));
+    assert.deepEqual(buttons(blocks).map(b => b.action_id), ["vc_open", "vc_checkout", "vc_watch"]);
+    if (kind === "CHECKIN") assert(JSON.stringify(blocks).includes("bracket.step"));
+  }
+});
+check("submission notices show admin review buttons; decided notices show only Open", () => {
+  const event: VaultEventRow = { id: "e2", kind: "CR_SUBMITTED", projectId: "p1", itemIds: [item.id], actorId: null, directRecipientIds: [viewer.memberId], payload: { crId: cr.id, crTitle: cr.title, crNumber: 5 } };
+  const submitted = buildVaultNoticeBlocks(event, { viewer: { ...viewer, isAdmin: true }, cr, review });
+  assertBlockBudget(submitted, LIMITS.messageBlocks);
+  assert(JSON.stringify(submitted).includes("needs review"));
+  assert.deepEqual(buttons(submitted).map(b => b.action_id), ["vc_open", "cr_approve", "cr_reject", "cr_signoff"]);
+  const decided = buildVaultNoticeBlocks({ ...event, kind: "CR_DECIDED", payload: { ...event.payload, decision: "APPROVED" } }, { viewer, cr: { ...cr, status: "APPROVED" }, review });
+  assertBlockBudget(decided, LIMITS.messageBlocks);
+  assert.deepEqual(buttons(decided).map(b => b.action_id), ["vc_open"]);
 });
 console.log(`${passed} checks passed`);

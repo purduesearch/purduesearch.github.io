@@ -1,5 +1,6 @@
 import type { ActionsBlock, Button, KnownBlock, ModalView } from "@slack/types";
 import { vaultLink } from "../../services/vaultSearchCore.js";
+import { renderMessage, type VaultEventRow } from "../../services/vaultNotifyCore.js";
 import { escapeMrkdwn, memberRef, trunc, assertBlockBudget, LIMITS } from "./common.js";
 
 export interface VaultCardItem {
@@ -15,6 +16,21 @@ export interface VaultCardCr {
 }
 export interface VaultCardReview {
   state: string; reasons: string[]; signoffs: { memberId: string }[];
+}
+export interface VaultNoticeContext {
+  viewer: VaultCardViewer;
+  item?: VaultCardItem | null;
+  cr?: VaultCardCr | null;
+  review?: VaultCardReview;
+}
+/** Snapshot wording plus current entity state; actions always recheck permissions. */
+export function buildVaultNoticeBlocks(event: VaultEventRow, context: VaultNoticeContext): KnownBlock[] {
+  const blocks: KnownBlock[] = [{ type: "section", text: { type: "mrkdwn", text: escaped(renderMessage(event, context.viewer.memberId), LIMITS.sectionText) } }];
+  if (event.kind === "CR_SUBMITTED" || event.kind === "CR_DECIDED") {
+    if (context.cr) blocks.push(...buildVaultCrCard(context.cr, context.viewer, context.review ?? { state: "Unavailable", reasons: [], signoffs: [] }));
+  } else if (context.item) blocks.push(...buildVaultItemCard(context.item, context.viewer));
+  assertBlockBudget(blocks, LIMITS.messageBlocks);
+  return blocks;
 }
 const text = (s: string) => ({ type: "plain_text" as const, text: s });
 // Escape can expand each character fivefold; bound the final Slack text.

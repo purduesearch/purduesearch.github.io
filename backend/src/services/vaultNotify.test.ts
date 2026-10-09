@@ -19,6 +19,7 @@ import {
   type VaultEventRow,
 } from "./vaultNotifyCore.js";
 import { dispatchVaultEvent, processDueVaultNotifications, subscriptionView, type ClaimedDelivery, type NotifyDeps, type OutboxStore } from "./vaultNotificationService.js";
+import type { KnownBlock } from "@slack/types";
 
 let passed = 0, failed = 0;
 function check(name: string, cond: boolean) {
@@ -106,7 +107,7 @@ function makeWorld(audience: { subscribers: Subscriber[]; profiles: Map<string, 
   const events = new Map<string, VaultEventRow & { fannedOutAt: Date | null }>();
   const deliveries: Delivery[] = [];
   const notifications: Array<{ recipientId: string; message: string; link: unknown }> = [];
-  const slackSent: Array<{ slackId: string; text: string }> = [];
+  const slackSent: Array<{ slackId: string; text: string; blocks?: KnownBlock[] }> = [];
   const failSlack = { remaining: 0, always: false };
   const failInApp = { remaining: 0 };
   let seq = 0;
@@ -150,9 +151,10 @@ function makeWorld(audience: { subscribers: Subscriber[]; profiles: Map<string, 
     now: () => new Date(clock),
     frontendUrl: "https://purduesearch.org",
     emit: () => undefined,
-    sendSlack: async (slackId, text) => {
+    loadNoticeContext: async (_event, recipientId) => ({ viewer: { memberId: recipientId, isAdmin: true }, item, cr: { id: "c1", projectId: "p1", title: "Stiffen mount", status: "OPEN", items: [] } }),
+    sendSlack: async (slackId, text, blocks) => {
       if (failSlack.always || failSlack.remaining > 0) { failSlack.remaining--; throw new Error("ratelimited"); }
-      slackSent.push({ slackId, text });
+      slackSent.push({ slackId, text, blocks });
     },
   };
   /** Same semantics as enqueueVaultEvent: createMany skipDuplicates on the key. */
@@ -161,6 +163,16 @@ function makeWorld(audience: { subscribers: Subscriber[]; profiles: Map<string, 
 }
 
 async function outboxTests() {
+  {
+    const submission: VaultEventRow = { id: eventKeys.crSubmitted("c1"), kind: "CR_SUBMITTED", projectId: "p1", itemIds: [], actorId: null, directRecipientIds: ["admin", "off"], payload: { crId: "c1", crNumber: 12, crTitle: "Stiffen mount" } };
+    const w = makeWorld({ subscribers: [sub("watcher")], profiles: new Map([["admin", profile("admin", { canAccess: false, mutedProjectIds: ["p1"] })], ["off", profile("off", { notificationChannels: { VAULT_CR_SUBMITTED: "off" } })], ["watcher", profile("watcher")]]) });
+    w.enqueue(submission);
+    await dispatchVaultEvent(submission.id, w.deps);
+    await dispatchVaultEvent(submission.id, w.deps);
+    check("submission preserves the all-admin in-app audience and wording", w.notifications.length === 1 && w.notifications[0].message === 'New change request "Stiffen mount" (CR-12) needs review.');
+    check("submission honors notification preferences and deduplicates Slack", w.slackSent.length === 1 && w.slackSent[0].slackId === "U-admin");
+    check("submission includes CR review actions", JSON.stringify(w.slackSent[0].blocks).includes("cr_approve") && JSON.stringify(w.slackSent[0].blocks).includes("cr_reject"));
+  }
   const audience = { subscribers: [sub("watcher"), sub("other")], profiles: new Map([["watcher", profile("watcher")], ["other", profile("other")]]) };
 
   // Dedupe: a retried job / duplicate webhook enqueues the same key again.
@@ -173,6 +185,7 @@ async function outboxTests() {
     await processDueVaultNotifications(w.deps);
     check("each recipient gets exactly one in-app notice", w.notifications.length === 2 && new Set(w.notifications.map((n) => n.recipientId)).size === 2);
     check("each recipient gets exactly one Slack DM", w.slackSent.length === 2);
+    check("Vault Slack delivery carries item checkout buttons", JSON.stringify(w.slackSent[0].blocks).includes("vc_checkout"));
     check("Slack text carries the absolute deep link", w.slackSent[0].text.includes("<https://purduesearch.org/clubpm/projects/p1?tab=files&sub=vault&vaultItem=i1&vaultVersion=v2|Open in Constellation>"));
     check("in-app metadata carries the relative deep link", w.notifications[0].link === "/clubpm/projects/p1?tab=files&sub=vault&vaultItem=i1&vaultVersion=v2");
     check("fan-out happens once", w.deliveries.length === 4);

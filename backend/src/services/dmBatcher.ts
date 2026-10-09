@@ -1,4 +1,5 @@
 import type { App } from "@slack/bolt";
+import type { KnownBlock } from "@slack/types";
 
 // ── DM Batcher Service ────────────────────────────────────────
 // In-memory 3-minute debounce batching for Slack DMs.
@@ -129,8 +130,8 @@ export async function flushDm(slackId: string): Promise<void> {
  * own durable retry state (Vault notifications) — queueDm's in-memory batch
  * is lost on restart and never reports a failure.
  */
-export async function sendSlackDmNow(slackId: string, text: string): Promise<void> {
+export async function sendSlackDmNow(slackId: string, text: string, blocks?: KnownBlock[]): Promise<void> {
   if (!slackApp) throw new Error("SLACK_NOT_READY");
-  const result = await slackApp.client.chat.postMessage({ channel: slackId, text });
+  const result = await slackApp.client.chat.postMessage({ channel: slackId, text, blocks });
   if (!result.ok) throw new Error(result.error || "SLACK_POST_FAILED");
 }

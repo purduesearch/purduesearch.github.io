@@ -6,15 +6,13 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "../db/prisma.js";
 import { logAuditEvent } from "./activityService.js";
-import { createNotification } from "./notificationCrud.js";
 import { nextRevisionLetter, allocateCrNumber, isAdminMember, MEMBER_SUMMARY } from "./vaultService.js";
 import type { ChangeRequestStatus } from "@prisma/client";
 import { reviewStatus, syncPr } from "./vaultPrReviewService.js";
 import { buildReviewItems, proposalFingerprint, reviewGate } from "./vaultReviewPolicy.js";
 import { buildReleasePackage, loadReleaseSnapshot, prepareRelease } from "./vaultReleaseService.js";
 import { buildManifest, type ReadinessReport } from "./vaultReleasePolicy.js";
-import { notifyCrDecision } from "./vaultNotificationService.js";
-import { vaultLink } from "./vaultSearchCore.js";
+import { notifyCrDecision, notifyCrSubmission } from "./vaultNotificationService.js";
 import { reindexCrSoon, reindexItemSoon } from "./vaultSearchService.js";
 
 const CR_INCLUDE = {
@@ -126,18 +124,7 @@ async function notifyAdminsOfSubmission(cr: {
   number: number;
   title: string;
 }): Promise<void> {
-  const admins = await prisma.member.findMany({ where: { isAdmin: true }, select: { id: true, slackId: true } });
-  const message = `New change request "${cr.title}" (CR-${cr.number}) needs review.`;
-  for (const admin of admins) {
-    await createNotification({
-      type: "VAULT_CR_SUBMITTED",
-      recipientId: admin.id,
-      projectId: cr.projectId,
-      message,
-      metadata: { crId: cr.id, number: cr.number, link: vaultLink({ projectId: cr.projectId, crId: cr.id }) },
-      slackText: message,
-    });
-  }
+  await notifyCrSubmission(cr);
 }
 
 // ── CRUD ──────────────────────────────────────────────────────
