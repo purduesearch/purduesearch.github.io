@@ -14,6 +14,7 @@ import {
   getTasksForProject,
   createTask,
 } from "../services/taskService.js";
+import { createTaskAsMember } from "../services/taskMutationService.js";
 import { logAuditEvent, diffObjects, getProjectAuditLog } from "../services/activityService.js";
 import type { ProjectType, ProjectStatus, TaskStatus, Priority, NotificationType } from "@prisma/client";
 import { createNotification } from "../services/notificationCrud.js";
@@ -423,7 +424,7 @@ projectsRouter.post("/:id/tasks", async (req: Request, res: Response) => {
     const memberId = req.memberId;
     console.log(`[createTask req] projectId=${projectId} dueDate=${JSON.stringify(dueDate)} actor=${memberId} ua="${(req.headers["user-agent"] ?? "").slice(0, 80)}"`);
 
-    const task = await createTask({
+    const task = await createTaskAsMember(req.memberId ?? null, {
       title,
       description,
       priority,
@@ -434,29 +435,9 @@ projectsRouter.post("/:id/tasks", async (req: Request, res: Response) => {
       status,
       milestoneId: milestoneId ?? undefined,
       tagIds,
-      createdById: memberId,
-    });
+    }, "WEB");
 
     console.log(`[createTask] created id=${task.id} parentTaskId=${(task as any).parentTaskId ?? "none"}`);
-
-    // If task is linked to a milestone, refresh its health (fire-and-forget)
-    if (milestoneId) {
-      const { refreshMilestoneHealth } = await import("../services/milestoneService.js");
-      refreshMilestoneHealth(milestoneId).catch(console.error);
-    }
-
-    logAuditEvent({
-      projectId,
-      taskId:   task.id,
-      memberId: memberId ?? null,
-      source:   "WEB",
-      eventType: "TASK_CREATED",
-      payload: {
-        taskTitle:     task.title,
-        priority:      task.priority,
-        assigneeNames: (task as any).assignees?.map((a: any) => a.displayName) ?? [],
-      },
-    }).catch(console.error);
 
     res.status(201).json(task);
   } catch (error: any) {

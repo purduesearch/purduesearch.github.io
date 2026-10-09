@@ -1,5 +1,5 @@
 import { Router, type Request, type Response } from "express";
-import { updateTaskAsMember, TaskMutationError, type TaskPatch } from "../services/taskMutationService.js";
+import { updateTaskAsMember, addCommentAsMember, logTimeAsMember, TaskMutationError, type TaskPatch } from "../services/taskMutationService.js";
 import { requireAuth } from "./auth.js";
 import { channelAuth } from "../middleware/channelAuth.js";
 import { getTaskPermissions, requireTaskEdit } from "../middleware/taskAccess.js";
@@ -7,16 +7,13 @@ import { aiRateLimit } from "../middleware/aiRateLimit.js";
 import { updateTask, deleteTask, getTask, createSubtask, getSubtasks, addDependency, removeDependency, createTask, assertCanComplete, assertNotCategoryBlocked } from "../services/taskService.js";
 import { assertCiGatePasses, applyCompletionSideEffects } from "../services/taskCompletionService.js";
 import { logAuditEvent, getTaskAuditLog } from "../services/activityService.js";
-import { recordTimeLog } from "../services/timeLogService.js";
-import type { TaskStatus, Priority, NotificationType } from "@prisma/client";
+import type { TaskStatus, Priority } from "@prisma/client";
 import { GeminiRateLimitError } from "../services/geminiService.js";
 import { runJson } from "../services/ai/aiRouter.js";
 import {
   duplicateDetectionPrompt, enrichTaskPrompt, deadlineSuggestionPrompt, nlToTaskPrompt, imageToTaskPrompt,
 } from "../utils/aiPrompts.js";
 import { prisma as prismaClient } from "../db/prisma.js";
-import { createNotification } from "../services/notificationCrud.js";
-import { parseMentionHandles } from "../services/mentionService.js";
 import { EXCLUDE_TRAINING } from "../services/trainingSandboxService.js";
 
 export const tasksRouter = Router();
@@ -643,124 +640,11 @@ tasksRouter.get("/:id/history", async (req: Request, res: Response) => {
 
 tasksRouter.post("/:id/comments", requireAuth, channelAuth, async (req: Request, res: Response) => {
   try {
-    const taskId = req.params.id as string;
     const { content, parentId } = req.body as { content: string; parentId?: string };
-    const memberId = req.memberId!;
-
-    if (!content) {
-      res.status(400).json({ error: "Content is required" });
-      return;
-    }
-
-    const { prisma } = await import("../db/prisma.js");
-    const comment = await prisma.taskComment.create({
-      data: {
-        content,
-        taskId,
-        authorId: memberId,
-        ...(parentId ? { parentId } : {}),
-      },
-    });
-
-    const populatedComment = await prisma.taskComment.findUnique({
-      where: { id: comment.id },
-      include: { author: true, task: { include: { project: true } } },
-    });
-
-    // If this is a reply, notify the parent comment's author
-    if (parentId && populatedComment) {
-      const parentComment = await prisma.taskComment.findUnique({
-        where: { id: parentId },
-        select: { authorId: true },
-      });
-      if (parentComment && parentComment.authorId !== memberId) {
-        createNotification({
-          type: "COMMENT_REPLY" as NotificationType,
-          recipientId: parentComment.authorId,
-          actorId: memberId,
-          taskId,
-          commentId: comment.id,
-          message: `${populatedComment.author.displayName} replied to your comment on task "${populatedComment.task.title}"`,
-          slackText: `↩️ *${populatedComment.author.displayName}* replied to your comment on *${populatedComment.task.title}*`,
-        }).catch(console.error);
-      }
-    }
-
-    // Handle @mentions
-    const mentions = parseMentionHandles(content);
-
-    if (mentions.length > 0) {
-      const mentionedMembers = await prisma.member.findMany({
-        where: { slackHandle: { in: mentions } }
-      });
-
-      console.log(`[mentions] Found ${mentionedMembers.length} members matching handles: ${mentions.join(", ")}`);
-
-      for (const m of mentionedMembers) {
-        if (!m.slackId) {
-          console.log(`[mentions] Skipping member ${m.displayName}: no slackId`);
-          continue;
-        }
-        if (!populatedComment) {
-          console.log(`[mentions] Skipping member ${m.displayName}: populatedComment is null`);
-          continue;
-        }
-
-        try {
-          // Lazy import to avoid circular dependency at module load time
-          const { boltApp } = await import("../slack/bolt.js");
-          await boltApp.client.chat.postMessage({
-            channel: m.slackId,
-            text: `🔔 *${populatedComment.author.displayName}* mentioned you in a comment on task *${populatedComment.task.title}* (${populatedComment.task.project.name}):\n\n> ${content}\n\n<${process.env.FRONTEND_URL}/clubpm/projects/${populatedComment.task.projectId}|View Task>`
-          });
-          console.log(`[mentions] Sent DM to Slack user ${m.slackId} (${m.displayName})`);
-        } catch (dmErr) {
-          console.error(`[mentions] Failed to DM ${m.slackId} (${m.displayName}):`, dmErr);
-        }
-      }
-    }
-
-    // Notify task assignees of new comment (exclude author)
-    const taskForNotif = await prismaClient.task.findUnique({
-      where: { id: taskId },
-      include: { assignees: true, project: true },
-    });
-    if (taskForNotif) {
-      const author = await prismaClient.member.findUnique({
-        where: { id: memberId },
-        select: { displayName: true },
-      });
-      for (const assignee of taskForNotif.assignees) {
-        if (assignee.id === memberId) continue; // skip actor
-        createNotification({
-          type: "TASK_COMMENTED" as NotificationType,
-          recipientId: assignee.id,
-          actorId: memberId,
-          projectId: taskForNotif.projectId,
-          taskId,
-          message: `${author?.displayName ?? "Someone"} commented on "${taskForNotif.title}"`,
-          slackText: `💬 *${author?.displayName ?? "Someone"}* commented on *${taskForNotif.title}* (${(taskForNotif as any).project.name}):\n> ${content.slice(0, 200)}`,
-        }).catch(console.error);
-      }
-    }
-
-    logAuditEvent({
-      taskId, memberId: memberId ?? null, source: "WEB",
-      eventType: "COMMENT_ADDED",
-      payload: { commentId: comment.id, excerpt: content.slice(0, 120) },
-    }).catch(console.error);
-
-    res.status(201).json(populatedComment || comment);
-
-    // Challenge hooks
-    (async () => {
-      const { recordEvent } = await import("../services/challengeService.js");
-      const wordCount = content.trim().split(/\s+/).length;
-      await recordEvent(memberId, "COMMENT_WRITTEN", 1, { taskId });
-      if (wordCount >= 10) await recordEvent(memberId, "COMMENT_LONG", 1, { taskId });
-      await recordEvent(memberId, "STATUS_COMMENT", 1, { taskId });
-    })().catch(err => console.error("[challenge] comment hooks:", err));
+    const comment = await addCommentAsMember(req.memberId!, req.params.id as string, content, { parentId, source: "WEB" });
+    res.status(201).json(comment);
   } catch (error) {
+    if (error instanceof TaskMutationError) { res.status(error.status).json({ error: error.message }); return; }
     console.error("Create comment error:", error);
     res.status(500).json({ error: "Failed to create comment" });
   }
@@ -1007,10 +891,11 @@ tasksRouter.post("/:id/time-logs", requireAuth, requireTaskEdit, async (req: Req
       res.status(400).json({ error: "minutes must be a positive number" });
       return;
     }
-    const log = await recordTimeLog({ taskId, memberId, minutes, note, source: "WEB" });
+    const log = await logTimeAsMember(memberId, taskId, minutes, note, "WEB");
 
     res.status(201).json(log);
   } catch (error) {
+    if (error instanceof TaskMutationError) { res.status(error.status).json({ error: error.message }); return; }
     console.error("Log time error:", error);
     res.status(500).json({ error: "Failed to log time" });
   }

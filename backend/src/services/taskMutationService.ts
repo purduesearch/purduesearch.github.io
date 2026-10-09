@@ -1,10 +1,12 @@
 import type { TaskStatus, TaskProgress, Priority, NotificationType } from "@prisma/client";
 import { prisma as prismaClient } from "../db/prisma.js";
 import { getTaskPermissions } from "../middleware/taskAccess.js";
-import { getTask, updateTask, assertCanComplete, assertNotCategoryBlocked } from "./taskService.js";
+import { getTask, createTask, updateTask, assertCanComplete, assertNotCategoryBlocked } from "./taskService.js";
 import { assertCiGatePasses, applyCompletionSideEffects } from "./taskCompletionService.js";
 import { logAuditEvent, diffObjects } from "./activityService.js";
 import { createNotification } from "./notificationCrud.js";
+import { recordTimeLog } from "./timeLogService.js";
+import { parseMentionHandles } from "./mentionService.js";
 import type { ActorRewardSummary } from "./rewardService.js";
 import type { ProgressMilestone } from "./challengeService.js";
 
@@ -66,7 +68,7 @@ function normaliseAttachment(att: AttachmentInput): Attachment | null {
   return { url: absoluteUrl, label };
 }
 
-function normaliseAttachments(input: unknown): Attachment[] | undefined {
+export function normaliseAttachments(input: unknown): Attachment[] | undefined {
   if (input === undefined) return undefined;
   if (!Array.isArray(input)) return [];
   return input
@@ -190,42 +192,11 @@ export async function updateTaskAsMember(
       }
     })();
 
-    // Notification emitters (fire-and-forget)
-    (() => {
-      if (!actorId) return Promise.resolve();
-
-      const assigneesBefore = (existingTask.assignees ?? []).map((a: any) => a.id);
-      const assigneesAfter  = (task.assignees ?? []).map((a: any) => a.id);
-      const assigneesChanged = assigneesBefore.sort().join(",") !== assigneesAfter.sort().join(",");
-      const addedAssigneeIds = assigneesAfter.filter((id: string) => !assigneesBefore.includes(id));
-
-      return (async () => {
-        const [actor, proj] = await Promise.all([
-          prismaClient.member.findUnique({ where: { id: actorId }, select: { displayName: true } }),
-          prismaClient.project.findUnique({ where: { id: task.projectId }, select: { name: true } }),
-        ]);
-
-        if (assigneesChanged && addedAssigneeIds.length > 0) {
-          const addedAssignees = (task.assignees ?? []).filter(
-            (a: any) => addedAssigneeIds.includes(a.id)
-          );
-          for (const assignee of addedAssignees) {
-            if (assignee.id === actorId) continue;
-            await createNotification({
-              type: "TASK_ASSIGNED" as NotificationType,
-              recipientId: assignee.id,
-              actorId,
-              projectId: task.projectId,
-              taskId,
-              message: `${actor?.displayName ?? "Someone"} assigned you to "${task.title}" in ${proj?.name ?? "a project"}`,
-              slackText: `📋 *${actor?.displayName ?? "Someone"}* assigned you to *${task.title}* in ${proj?.name ?? "a project"}`,
-            });
-          }
-        }
-        // Completed-notification fan-out for the DONE transition is handled
-        // by applyCompletionSideEffects (called below).
-      })();
-    })().catch(console.error);
+    // Assignment notifications retain the PATCH path's fire-and-forget behavior.
+    const previousAssigneeIds = (existingTask.assignees ?? []).map(a => a.id);
+    const addedAssigneeIds = (task.assignees ?? []).map(a => a.id)
+      .filter(id => !previousAssigneeIds.includes(id));
+    notifyAddedAssignees({ taskId, actorId, addedAssigneeIds }).catch(console.error);
 
     // If task is linked to a milestone, refresh its health (fire-and-forget).
     // The DONE-transition refresh is handled by applyCompletionSideEffects
@@ -345,4 +316,202 @@ export async function updateTaskAsMember(
     }
     throw error;
   }
+}
+
+export interface CreateTaskInput {
+  projectId: string;
+  title: string;
+  description?: string;
+  priority?: Priority;
+  status?: TaskStatus;
+  dueDate?: Date;
+  assigneeIds?: string[];
+  parentTaskId?: string;
+  milestoneId?: string;
+  tagIds?: string[];
+  estimatedHours?: number;
+  storyPoints?: number;
+  isRecurring?: boolean;
+  recurrencePattern?: string;
+  recurrenceEndDate?: Date;
+  attachments?: { url: string; label?: string }[];
+}
+
+export async function notifyAddedAssignees(opts: {
+  taskId: string;
+  actorId: string | null;
+  addedAssigneeIds: string[];
+}): Promise<void> {
+  const recipients = [...new Set(opts.addedAssigneeIds)].filter(id => id !== opts.actorId);
+  if (recipients.length === 0) return;
+  const task = await getTask(opts.taskId);
+  if (!task) return;
+  const [actor, project] = await Promise.all([
+    opts.actorId ? prismaClient.member.findUnique({ where: { id: opts.actorId }, select: { displayName: true } }) : null,
+    prismaClient.project.findUnique({ where: { id: task.projectId }, select: { name: true } }),
+  ]);
+  for (const recipientId of recipients) {
+    await createNotification({
+      type: "TASK_ASSIGNED", recipientId, actorId: opts.actorId ?? undefined, projectId: task.projectId, taskId: opts.taskId,
+      message: `${actor?.displayName ?? "Someone"} assigned you to "${task.title}" in ${project?.name ?? "a project"}`,
+      slackText: `📋 *${actor?.displayName ?? "Someone"}* assigned you to *${task.title}* in ${project?.name ?? "a project"}`,
+    });
+  }
+}
+
+export async function createTaskAsMember(
+  actorId: string | null,
+  input: CreateTaskInput,
+  source: MutationSource,
+): Promise<any> {
+  const { attachments, ...taskInput } = input;
+  let task = await createTask({ ...taskInput, createdById: actorId ?? undefined });
+  const normalisedAttachments = normaliseAttachments(attachments);
+  if (normalisedAttachments !== undefined) {
+    task = await updateTask(task.id, { attachments: normalisedAttachments });
+  }
+  if (task.milestoneId) {
+    const { refreshMilestoneHealth } = await import("./milestoneService.js");
+    refreshMilestoneHealth(task.milestoneId).catch(console.error);
+  }
+  logAuditEvent({
+    projectId: input.projectId, taskId: task.id, memberId: actorId, source: source === "AI" ? "WEB" : source,
+    eventType: "TASK_CREATED",
+    payload: { taskTitle: task.title, priority: task.priority, assigneeNames: task.assignees.map(a => a.displayName),
+      ...(source === "AI" ? { viaAiPlan: true } : {}), },
+  }).catch(console.error);
+  await notifyAddedAssignees({ taskId: task.id, actorId, addedAssigneeIds: task.assignees.map(a => a.id) }).catch(console.error);
+  // P14: emitTaskChanged
+  return task;
+}
+
+export async function logTimeAsMember(
+  actorId: string,
+  taskId: string,
+  minutes: number,
+  note: string | undefined,
+  source: Exclude<MutationSource, "AI">,
+): Promise<any> {
+  if (typeof minutes !== "number" || !Number.isFinite(minutes) || minutes <= 0) throw new TaskMutationError(400, "minutes must be a positive number");
+  const { canEdit } = await getTaskPermissions(actorId, taskId);
+  if (!canEdit) throw new TaskMutationError(403, "Only assignees, the creator, a project lead, or an admin can edit this task");
+  return recordTimeLog({ taskId, memberId: actorId, minutes, note, source });
+}
+
+export async function addCommentAsMember(
+  actorId: string,
+  taskId: string,
+  content: string,
+  opts: { parentId?: string | null; source: MutationSource },
+): Promise<any> {
+  if (!content) throw new TaskMutationError(400, "Content is required");
+  const memberId = actorId;
+  const { parentId } = opts;
+  const { prisma } = await import("../db/prisma.js");
+  const comment = await prisma.taskComment.create({
+    data: {
+      content,
+      taskId,
+      authorId: memberId,
+      ...(parentId ? { parentId } : {}),
+    },
+  });
+
+  const populatedComment = await prisma.taskComment.findUnique({
+    where: { id: comment.id },
+    include: { author: true, task: { include: { project: true } } },
+  });
+
+  // If this is a reply, notify the parent comment's author
+  if (parentId && populatedComment) {
+    const parentComment = await prisma.taskComment.findUnique({
+      where: { id: parentId },
+      select: { authorId: true },
+    });
+    if (parentComment && parentComment.authorId !== memberId) {
+      createNotification({
+        type: "COMMENT_REPLY" as NotificationType,
+        recipientId: parentComment.authorId,
+        actorId: memberId,
+        taskId,
+        commentId: comment.id,
+        message: `${populatedComment.author.displayName} replied to your comment on task "${populatedComment.task.title}"`,
+        slackText: `↩️ *${populatedComment.author.displayName}* replied to your comment on *${populatedComment.task.title}*`,
+      }).catch(console.error);
+    }
+  }
+
+  // Handle @mentions
+  const mentions = parseMentionHandles(content);
+
+  if (mentions.length > 0) {
+    const mentionedMembers = await prisma.member.findMany({
+      where: { slackHandle: { in: mentions } }
+    });
+
+    console.log(`[mentions] Found ${mentionedMembers.length} members matching handles: ${mentions.join(", ")}`);
+
+    for (const m of mentionedMembers) {
+      if (!m.slackId) {
+        console.log(`[mentions] Skipping member ${m.displayName}: no slackId`);
+        continue;
+      }
+      if (!populatedComment) {
+        console.log(`[mentions] Skipping member ${m.displayName}: populatedComment is null`);
+        continue;
+      }
+
+      try {
+        // Lazy import to avoid circular dependency at module load time
+        const { boltApp } = await import("../slack/bolt.js");
+        await boltApp.client.chat.postMessage({
+          channel: m.slackId,
+          text: `🔔 *${populatedComment.author.displayName}* mentioned you in a comment on task *${populatedComment.task.title}* (${populatedComment.task.project.name}):\n\n> ${content}\n\n<${process.env.FRONTEND_URL}/clubpm/projects/${populatedComment.task.projectId}|View Task>`
+        });
+        console.log(`[mentions] Sent DM to Slack user ${m.slackId} (${m.displayName})`);
+      } catch (dmErr) {
+        console.error(`[mentions] Failed to DM ${m.slackId} (${m.displayName}):`, dmErr);
+      }
+    }
+  }
+
+  // Notify task assignees of new comment (exclude author)
+  const taskForNotif = await prismaClient.task.findUnique({
+    where: { id: taskId },
+    include: { assignees: true, project: true },
+  });
+  if (taskForNotif) {
+    const author = await prismaClient.member.findUnique({
+      where: { id: memberId },
+      select: { displayName: true },
+    });
+    for (const assignee of taskForNotif.assignees) {
+      if (assignee.id === memberId) continue; // skip actor
+      createNotification({
+        type: "TASK_COMMENTED" as NotificationType,
+        recipientId: assignee.id,
+        actorId: memberId,
+        projectId: taskForNotif.projectId,
+        taskId,
+        message: `${author?.displayName ?? "Someone"} commented on "${taskForNotif.title}"`,
+        slackText: `💬 *${author?.displayName ?? "Someone"}* commented on *${taskForNotif.title}* (${(taskForNotif as any).project.name}):\n> ${content.slice(0, 200)}`,
+      }).catch(console.error);
+    }
+  }
+
+  logAuditEvent({
+    taskId, memberId: memberId ?? null, source: opts.source === "AI" ? "WEB" : opts.source,
+    eventType: "COMMENT_ADDED",
+    payload: { commentId: comment.id, excerpt: content.slice(0, 120) },
+  }).catch(console.error);
+
+  // Challenge hooks
+  (async () => {
+    const { recordEvent } = await import("./challengeService.js");
+    const wordCount = content.trim().split(/\s+/).length;
+    await recordEvent(memberId, "COMMENT_WRITTEN", 1, { taskId });
+    if (wordCount >= 10) await recordEvent(memberId, "COMMENT_LONG", 1, { taskId });
+    await recordEvent(memberId, "STATUS_COMMENT", 1, { taskId });
+  })().catch(err => console.error("[challenge] comment hooks:", err));
+  return populatedComment || comment;
 }
