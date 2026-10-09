@@ -11,6 +11,7 @@ import { registerVault } from "./handlers/vault.js";
 import { registerCalendar } from "./handlers/calendar.js";
 import { registerVaultCheckin } from "./handlers/vaultCheckin.js";
 import { registerPolls } from "./handlers/polls.js";
+import { registerUnfurls } from "./handlers/unfurls.js";
 
 export function registerMirror(app: App): void {
   registerRouter(app);
@@ -25,4 +26,5 @@ export function registerMirror(app: App): void {
   registerCalendar(app);
   registerVaultCheckin(app);
   registerPolls(app);
+  registerUnfurls(app);
 }
