@@ -3,12 +3,20 @@ import type { KnownBlock } from "@slack/types";
 import { prisma } from "../db/prisma.js";
 import { buildTaskBundle, type CardTask } from "../slack/views/taskCard.js";
 import { planBundles } from "./slackCardCore.js";
+import { onTaskChanged } from "./taskChangeBus.js";
 
 export type CardMessage = Prisma.SlackCardMessageGetPayload<{ include: { refs: true } }>;
 export type CardRenderer = (message: CardMessage) => Promise<{ text: string; blocks: KnownBlock[] }>;
 const renderers = new Map<SlackCardKind, CardRenderer>();
 const refreshTimers = new Map<string, NodeJS.Timeout>();
 let flushing = false;
+let refreshStarted = false;
+
+export function startCardRefresh(): void {
+  if (refreshStarted) return;
+  refreshStarted = true;
+  onTaskChanged(ids => ids.forEach(id => refreshCardsSoon("TASK", id)));
+}
 
 export function registerCardRenderer(kind: SlackCardKind, renderer: CardRenderer): void {
   renderers.set(kind, renderer);

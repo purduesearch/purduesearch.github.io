@@ -643,22 +643,6 @@ export function registerModals(app: App): void {
         },
       }).catch(console.error);
 
-      // DM each assigned member (except submitter)
-      if (assigneeIds.length > 0) {
-        (async () => {
-          try {
-            const { queueDm } = await import("../services/dmBatcher.js");
-            for (const assigneeId of assigneeIds) {
-              const assigneeMember = await prisma.member.findUnique({ where: { id: assigneeId }, select: { slackId: true, id: true } });
-              if (!assigneeMember?.slackId) continue;
-              if (actor && assigneeMember.id === actor.id) continue; // skip self-assignment
-              queueDm(assigneeMember.slackId, `📋 *${actor?.displayName ?? "Someone"}* assigned you to a new task: *${title}*`);
-            }
-          } catch (err) {
-            console.error("new_task_submit DM error:", err);
-          }
-        })();
-      }
     } catch (error) {
       console.error("New task submission error:", error);
     }

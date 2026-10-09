@@ -24,6 +24,7 @@ import { startScheduler } from "./slack/scheduler.js";
 import { notificationsRouter } from "./api/notifications.js";
 import { sseRouter } from "./api/sse.js";
 import { initDmBatcher } from "./services/dmBatcher.js";
+import { startCardRefresh } from "./services/slackCardService.js";
 import { eventsRouter } from "./api/events.js";
 import { eventImportRouter } from "./api/eventImport.js";
 import { meetingPollsRouter } from "./api/meetingPolls.js";
@@ -237,6 +238,7 @@ async function start(): Promise<void> {
 
     // Initialize DM batcher (must come before scheduler)
     initDmBatcher(boltApp);
+    startCardRefresh();
 
     // Sync admin status from leadership channel on boot
     if (process.env.LEADERSHIP_CHANNEL_ID) {

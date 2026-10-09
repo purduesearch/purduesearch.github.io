@@ -353,6 +353,7 @@ export async function notifyAddedAssignees(opts: {
   for (const recipientId of recipients) {
     await createNotification({
       type: "TASK_ASSIGNED", recipientId, actorId: opts.actorId ?? undefined, projectId: task.projectId, taskId: opts.taskId,
+      slackCard: { entityType: "TASK", entityId: opts.taskId, reason: "ASSIGNED" },
       message: `${actor?.displayName ?? "Someone"} assigned you to "${task.title}" in ${project?.name ?? "a project"}`,
       slackText: `📋 *${actor?.displayName ?? "Someone"}* assigned you to *${task.title}* in ${project?.name ?? "a project"}`,
     });
@@ -381,7 +382,6 @@ export async function createTaskAsMember(
       ...(source === "AI" ? { viaAiPlan: true } : {}), },
   }).catch(console.error);
   await notifyAddedAssignees({ taskId: task.id, actorId, addedAssigneeIds: task.assignees.map(a => a.id) }).catch(console.error);
-  // P14: emitTaskChanged
   return task;
 }
 
