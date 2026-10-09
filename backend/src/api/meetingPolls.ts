@@ -465,9 +465,8 @@ async function notifyInvitees(poll: LoadedPoll, actorId: string): Promise<void> 
       projectId: poll.projectId ?? undefined,
       message,
       metadata: { pollId: poll.id, token: poll.publicToken, url },
+      slackCard: { entityType: "MEETING_POLL", entityId: poll.id, reason: "POLL_INVITE" },
     });
-    const full = await prisma.member.findUnique({ where: { id: m.id }, select: { slackId: true } });
-    if (full?.slackId) queueDm(full.slackId, `🗓️ ${message}: ${url}`);
   }
 }
 

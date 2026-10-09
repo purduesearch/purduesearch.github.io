@@ -10,6 +10,7 @@ import { registerShortcuts } from "./handlers/shortcuts.js";
 import { registerVault } from "./handlers/vault.js";
 import { registerCalendar } from "./handlers/calendar.js";
 import { registerVaultCheckin } from "./handlers/vaultCheckin.js";
+import { registerPolls } from "./handlers/polls.js";
 
 export function registerMirror(app: App): void {
   registerRouter(app);
@@ -23,4 +24,5 @@ export function registerMirror(app: App): void {
   registerVault(app);
   registerCalendar(app);
   registerVaultCheckin(app);
+  registerPolls(app);
 }

@@ -84,6 +84,41 @@ export async function flushDueCardBundles(now: Date = new Date()): Promise<numbe
     const rows = await prisma.slackCardQueue.findMany({ where: { sentAt: null }, orderBy: [{ queuedAt: "asc" }, { id: "asc" }] });
     for (const bundle of planBundles(rows, now)) {
       const selected = rows.filter(row => bundle.rowIds.includes(row.id));
+      if (selected[0].entityType === "MEETING_POLL") {
+        const renderer = renderers.get("POLL_INVITE");
+        if (!renderer) continue;
+        try {
+          const recipient = await prisma.member.findUnique({ where: { id: bundle.recipientId }, select: { slackId: true } });
+          if (!recipient?.slackId) {
+            await prisma.slackCardQueue.updateMany({ where: { id: { in: bundle.rowIds }, sentAt: null }, data: { sentAt: now } });
+            continue;
+          }
+          const { boltApp } = await import("../slack/bolt.js");
+          const opened = await boltApp.client.conversations.open({ users: recipient.slackId });
+          if (!opened.channel?.id) throw new Error("SLACK_DM_OPEN_FAILED");
+          // One invite per message keeps every queued poll actionable, even for large batches.
+          for (const entityId of bundle.entityIds) {
+            const draft: CardMessage = {
+              id: "pending", kind: "POLL_INVITE", slackChannelId: opened.channel.id, ts: "pending",
+              threadTs: null, recipientId: bundle.recipientId, sourceTs: null, createdAt: now, renderedAt: now,
+              refs: [{ id: "pending", messageId: "pending", entityType: "MEETING_POLL", entityId, position: 0 }],
+            };
+            const rendered = await renderer(draft);
+            const result = await boltApp.client.chat.postMessage({ channel: opened.channel.id, ...rendered });
+            if (!result.ok || !result.ts) throw new Error(result.error ?? "SLACK_POST_FAILED");
+            await prisma.$transaction(async tx => {
+              const message = await tx.slackCardMessage.create({ data: {
+                kind: "POLL_INVITE", slackChannelId: opened.channel!.id!, ts: result.ts!, recipientId: bundle.recipientId,
+                renderedAt: now, refs: { create: { entityType: "MEETING_POLL", entityId, position: 0 } },
+              } });
+              await tx.slackCardQueue.updateMany({ where: { id: { in: selected.filter(row => row.entityId === entityId).map(row => row.id) }, sentAt: null }, data: { sentAt: now, messageId: message.id } });
+            });
+            sent++;
+            if (entityId !== bundle.entityIds.at(-1)) await new Promise(resolve => setTimeout(resolve, 1000));
+          }
+        } catch (error) { console.error("Slack poll invite delivery failed:", error); }
+        continue;
+      }
       // Other card kinds are delivered by their dedicated later-phase services.
       if (selected[0].entityType !== "TASK") continue;
       try {
