@@ -1,4 +1,5 @@
-import type { App } from "@slack/bolt";
+import type { App, SlashCommand } from "@slack/bolt";
+import type { WebClient } from "@slack/web-api";
 import { prisma } from "../db/prisma.js";
 import { buildHelpCard, buildProjectReport, buildProjectHealth, buildMilestoneView } from "../utils/blockKit.js";
 import { openStandupModal, openNewTaskModal, openNewProjectModal, openTaskDoneModal, openSubtaskModal, openDriveParseModal, openMeetingNotesModal, openSprintPlanModal } from "./modals.js";
@@ -29,252 +30,259 @@ export function registerCommands(app: App): void {
   app.command("/pm", async ({ command, ack, respond, client }) => {
     await ack();
 
-    const text = command.text.trim();
-    const args = text.split(/\s+/);
-    const subcommand = args[0]?.toLowerCase() ?? "help";
-
-    try {
-      switch (subcommand) {
-        case "task": {
-          const action = args[1]?.toLowerCase();
-          if (action === "done") {
-            await openTaskDoneModal(client, command.trigger_id, command.user_id);
-          } else {
-            const isAdmin = await isAdminBySlackId(command.user_id);
-            await openNewTaskModal(client, command.trigger_id, command.channel_id, undefined, undefined, undefined, undefined, undefined, isAdmin);
-          }
-          break;
-        }
-
-        case "standup": {
-          await openStandupModal(client, command.trigger_id, command.channel_id);
-          break;
-        }
-
-        case "project": {
-          await openNewProjectModal(client, command.trigger_id, command.channel_id, command.user_id);
-          break;
-        }
-
-        case "subtask": {
-          await openSubtaskModal(client, command.trigger_id, command.channel_id);
-          break;
-        }
-
-        case "my-tasks": {
-          await handleMyTasks(command, respond);
-          break;
-        }
-
-        case "report": {
-          const project = await getProjectByChannel(command.channel_id);
-          if (!project) { await respond({ response_type: "ephemeral", text: "❌ No project linked to this channel." }); break; }
-          await handleReport(project.id, respond);
-          break;
-        }
-
-        case "health": {
-          const project = await getProjectByChannel(command.channel_id);
-          if (!project) { await respond({ response_type: "ephemeral", text: "❌ No project linked to this channel." }); break; }
-          await handleHealth(project.id, respond);
-          break;
-        }
-
-        case "milestones": {
-          const project = await getProjectByChannel(command.channel_id);
-          if (!project) { await respond({ response_type: "ephemeral", text: "❌ No project linked to this channel." }); break; }
-          await handleMilestones(project.id, respond);
-          break;
-        }
-
-        case "milestone": {
-          const { openMilestoneModal } = await import("./modals.js");
-          await openMilestoneModal(client, command.trigger_id, command.channel_id);
-          break;
-        }
-
-        case "drive": {
-          const url = args[1];
-          await openDriveParseModal(client, command.trigger_id, command.channel_id, url);
-          break;
-        }
-
-        case "sprint": {
-          const project = await getProjectByChannel(command.channel_id);
-          if (!project) { await respond({ response_type: "ephemeral", text: "❌ No project linked to this channel." }); break; }
-          await openSprintPlanModal(client, command.trigger_id, project.id);
-          break;
-        }
-
-        case "risks": {
-          const project = await getProjectByChannel(command.channel_id);
-          if (!project) { await respond({ response_type: "ephemeral", text: "❌ No project linked to this channel." }); break; }
-          await respond({ response_type: "ephemeral", text: "🔍 Analyzing project risks…" });
-          const risks = await analyzeProjectRisks(project.id) as any;
-          if (!risks) { await respond({ response_type: "ephemeral", text: "❌ Risk analysis failed." }); break; }
-          const riskEmoji: Record<string, string> = { LOW: "🟢", MEDIUM: "🟡", HIGH: "🔴", CRITICAL: "🚨" };
-          await respond({
-            response_type: "ephemeral",
-            blocks: buildRiskReport(project, risks),
-            text: `${riskEmoji[risks.overallRisk] ?? "⚪"} Risk: ${risks.overallRisk} — ${risks.topRecommendation}`,
-          });
-          break;
-        }
-
-        case "meeting": {
-          const meetingAction = args[1]?.toLowerCase();
-          if (meetingAction === "create") {
-            const { openEventCreateModal } = await import("./modals.js");
-            await openEventCreateModal(client, command.trigger_id, command.channel_id);
-          } else if (meetingAction === "list") {
-            const { getUpcomingEvents } = await import("../services/eventService.js");
-            const upcoming = await getUpcomingEvents(7);
-            if (!upcoming.length) {
-              await respond({ response_type: "ephemeral", text: "📅 No meetings scheduled in the next 7 days." });
-            } else {
-              const lines = upcoming.slice(0, 5).map(ev => {
-                const d = new Date(ev.startTime);
-                const fmt = d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
-                const t   = d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
-                const loc = ev.isVirtual ? "Virtual" : (ev.location ?? "TBD");
-                return `• *${ev.title}* — ${fmt} ${t} (${loc})`;
-              });
-              await respond({ response_type: "ephemeral", text: `📅 *Upcoming Meetings:*\n${lines.join("\n")}` });
-            }
-          } else if (meetingAction === "notes") {
-            const { generateWeeklyMeetingTemplate } = await import("../services/meetingNotesService.js");
-            const template = await generateWeeklyMeetingTemplate();
-            await respond({
-              response_type: "ephemeral",
-              text: `*📋 This week's meeting template:*\n\`\`\`${template.agendaTemplate.slice(0, 2800)}\`\`\``,
-            });
-          } else {
-            await openMeetingNotesModal(client, command.trigger_id, command.channel_id);
-          }
-          break;
-        }
-
-        case "outreach": {
-          const outreachAction = args[1]?.toLowerCase();
-          if (outreachAction === "submit") {
-            const { openOutreachSubmitModal } = await import("./modals.js");
-            await openOutreachSubmitModal(client, command.trigger_id, command.user_id);
-          } else if (outreachAction === "queue") {
-            const pending = await prisma.outreachSubmission.count({
-              where: { status: { in: ["SUBMITTED", "IN_REVIEW"] } },
-            });
-            const approved = await prisma.outreachSubmission.count({ where: { status: "APPROVED" } });
-            await respond({
-              response_type: "ephemeral",
-              text: `📢 *Outreach Queue:* ${pending} pending review · ${approved} approved`,
-            });
-          } else {
-            await respond({
-              response_type: "ephemeral",
-              text: "Usage: `/pm outreach submit` — submit content\n`/pm outreach queue` — check queue status",
-            });
-          }
-          break;
-        }
-
-        case "email": {
-          const project = await getProjectByChannel(command.channel_id);
-          if (!project) { await respond({ response_type: "ephemeral", text: "❌ No project linked to this channel." }); break; }
-          await respond({ response_type: "ephemeral", text: "✍️ Drafting stakeholder email…" });
-          const email = await generateStakeholderEmail(project.id) as any;
-          if (!email) { await respond({ response_type: "ephemeral", text: "❌ Failed to generate email." }); break; }
-          await respond({ response_type: "ephemeral", text: `*Subject:* ${email.subject}\n\n${email.body}` });
-          break;
-        }
-
-        case "capacity": {
-          const project = await getProjectByChannel(command.channel_id);
-          if (!project) { await respond({ response_type: "ephemeral", text: "❌ No project linked to this channel." }); break; }
-          await respond({ response_type: "ephemeral", text: "📊 Analyzing team capacity…" });
-          const cap = await analyzeTeamCapacity(project.id) as any;
-          if (!cap) { await respond({ response_type: "ephemeral", text: "❌ Capacity analysis failed." }); break; }
-          await respond({ response_type: "ephemeral", blocks: buildCapacityReport(project, cap), text: cap.summary });
-          break;
-        }
-
-        case "ask": {
-          const question = args.slice(1).join(" ").trim();
-          if (!question) {
-            await respond({ response_type: "ephemeral", text: "Usage: `/pm ask <your question about the project>`" });
-            break;
-          }
-          const project = await getProjectByChannel(command.channel_id);
-          await respond({ response_type: "ephemeral", text: "🤔 Thinking…" });
-
-          let contextBlock = "";
-          if (project) {
-            const tasks = await prisma.task.findMany({
-              where: { projectId: project.id },
-              select: { title: true, status: true, priority: true, dueDate: true },
-            });
-            const statusCounts: Record<string, number> = {};
-            for (const t of tasks) statusCounts[t.status] = (statusCounts[t.status] ?? 0) + 1;
-            contextBlock = `\nProject: ${project.name} (status: ${project.status})\nTasks: ${JSON.stringify(statusCounts)}\nTotal tasks: ${tasks.length}`;
-          }
-
-          const prompt = `You are a project management assistant for a university engineering club. Answer the following question concisely and helpfully (max 3 sentences).${contextBlock}\n\nQuestion: ${question}`;
-          const answer = await generateText(prompt, `ask:${command.channel_id}:${question.slice(0, 32)}`);
-          await respond({ response_type: "ephemeral", text: `🤖 *AI Answer:* ${answer}` });
-          break;
-        }
-
-        case "description": {
-          const isAdmin = await isAdminBySlackId(command.user_id);
-          if (!isAdmin) {
-            await respond({ response_type: "ephemeral", text: "❌ Only admins can edit project descriptions." });
-            break;
-          }
-          const project = await getProjectByChannel(command.channel_id);
-          if (!project) {
-            await respond({ response_type: "ephemeral", text: "❌ No project is linked to this channel." });
-            break;
-          }
-          const newDesc = args.slice(1).join(" ").trim();
-          if (!newDesc) {
-            const current = (project as any).description ?? "_No description set._";
-            await respond({ response_type: "ephemeral", text: `*Current description for ${(project as any).name}:*\n${current}` });
-            break;
-          }
-          await prisma.project.update({ where: { id: (project as any).id }, data: { description: newDesc } });
-          await respond({ response_type: "ephemeral", text: `✅ Description updated for *${(project as any).name}*.` });
-          break;
-        }
-
-        case "lab": {
-          await handleLab(args.slice(1), command, respond);
-          break;
-        }
-
-        case "help":
-        default: {
-          await respond({
-            response_type: "ephemeral",
-            blocks: buildHelpCard(),
-          });
-          break;
-        }
-      }
-    } catch (error) {
-      console.error("Command error:", error);
-      const message =
-        error instanceof Error ? error.message : "An unexpected error occurred";
-      await respond({
-        response_type: "ephemeral",
-        text: `❌ Error: ${message}`,
-      });
-    }
+    await runLegacyPm(command.text.trim().split(/\s+/).filter(Boolean), command, respond, client);
   });
 }
 
 // ── Subcommand Handlers ──────────────────────────────────────
 
 
-type RespondFn = (msg: Record<string, unknown>) => Promise<unknown>;
+export async function runLegacyPm(
+  args: string[],
+  command: SlashCommand,
+  respond: RespondFn,
+  client: WebClient,
+): Promise<void> {
+  const subcommand = args[0]?.toLowerCase() || "help";
+
+  try {
+    switch (subcommand) {
+      case "task": {
+        const action = args[1]?.toLowerCase();
+        if (action === "done") {
+          await openTaskDoneModal(client, command.trigger_id, command.user_id);
+        } else {
+          const isAdmin = await isAdminBySlackId(command.user_id);
+          await openNewTaskModal(client, command.trigger_id, command.channel_id, undefined, undefined, undefined, undefined, undefined, isAdmin);
+        }
+        break;
+      }
+
+      case "standup": {
+        await openStandupModal(client, command.trigger_id, command.channel_id);
+        break;
+      }
+
+      case "project": {
+        await openNewProjectModal(client, command.trigger_id, command.channel_id, command.user_id);
+        break;
+      }
+
+      case "subtask": {
+        await openSubtaskModal(client, command.trigger_id, command.channel_id);
+        break;
+      }
+
+      case "my-tasks": {
+        await handleMyTasks(command, respond);
+        break;
+      }
+
+      case "report": {
+        const project = await getProjectByChannel(command.channel_id);
+        if (!project) { await respond({ response_type: "ephemeral", text: "❌ No project linked to this channel." }); break; }
+        await handleReport(project.id, respond);
+        break;
+      }
+
+      case "health": {
+        const project = await getProjectByChannel(command.channel_id);
+        if (!project) { await respond({ response_type: "ephemeral", text: "❌ No project linked to this channel." }); break; }
+        await handleHealth(project.id, respond);
+        break;
+      }
+
+      case "milestones": {
+        const project = await getProjectByChannel(command.channel_id);
+        if (!project) { await respond({ response_type: "ephemeral", text: "❌ No project linked to this channel." }); break; }
+        await handleMilestones(project.id, respond);
+        break;
+      }
+
+      case "milestone": {
+        const { openMilestoneModal } = await import("./modals.js");
+        await openMilestoneModal(client, command.trigger_id, command.channel_id);
+        break;
+      }
+
+      case "drive": {
+        const url = args[1];
+        await openDriveParseModal(client, command.trigger_id, command.channel_id, url);
+        break;
+      }
+
+      case "sprint": {
+        const project = await getProjectByChannel(command.channel_id);
+        if (!project) { await respond({ response_type: "ephemeral", text: "❌ No project linked to this channel." }); break; }
+        await openSprintPlanModal(client, command.trigger_id, project.id);
+        break;
+      }
+
+      case "risks": {
+        const project = await getProjectByChannel(command.channel_id);
+        if (!project) { await respond({ response_type: "ephemeral", text: "❌ No project linked to this channel." }); break; }
+        await respond({ response_type: "ephemeral", text: "🔍 Analyzing project risks…" });
+        const risks = await analyzeProjectRisks(project.id) as any;
+        if (!risks) { await respond({ response_type: "ephemeral", text: "❌ Risk analysis failed." }); break; }
+        const riskEmoji: Record<string, string> = { LOW: "🟢", MEDIUM: "🟡", HIGH: "🔴", CRITICAL: "🚨" };
+        await respond({
+          response_type: "ephemeral",
+          blocks: buildRiskReport(project, risks),
+          text: `${riskEmoji[risks.overallRisk] ?? "⚪"} Risk: ${risks.overallRisk} — ${risks.topRecommendation}`,
+        });
+        break;
+      }
+
+      case "meeting": {
+        const meetingAction = args[1]?.toLowerCase();
+        if (meetingAction === "create") {
+          const { openEventCreateModal } = await import("./modals.js");
+          await openEventCreateModal(client, command.trigger_id, command.channel_id);
+        } else if (meetingAction === "list") {
+          const { getUpcomingEvents } = await import("../services/eventService.js");
+          const upcoming = await getUpcomingEvents(7);
+          if (!upcoming.length) {
+            await respond({ response_type: "ephemeral", text: "📅 No meetings scheduled in the next 7 days." });
+          } else {
+            const lines = upcoming.slice(0, 5).map(ev => {
+              const d = new Date(ev.startTime);
+              const fmt = d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+              const t   = d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+              const loc = ev.isVirtual ? "Virtual" : (ev.location ?? "TBD");
+              return `• *${ev.title}* — ${fmt} ${t} (${loc})`;
+            });
+            await respond({ response_type: "ephemeral", text: `📅 *Upcoming Meetings:*\n${lines.join("\n")}` });
+          }
+        } else if (meetingAction === "notes") {
+          const { generateWeeklyMeetingTemplate } = await import("../services/meetingNotesService.js");
+          const template = await generateWeeklyMeetingTemplate();
+          await respond({
+            response_type: "ephemeral",
+            text: `*📋 This week's meeting template:*\n\`\`\`${template.agendaTemplate.slice(0, 2800)}\`\`\``,
+          });
+        } else {
+          await openMeetingNotesModal(client, command.trigger_id, command.channel_id);
+        }
+        break;
+      }
+
+      case "outreach": {
+        const outreachAction = args[1]?.toLowerCase();
+        if (outreachAction === "submit") {
+          const { openOutreachSubmitModal } = await import("./modals.js");
+          await openOutreachSubmitModal(client, command.trigger_id, command.user_id);
+        } else if (outreachAction === "queue") {
+          const pending = await prisma.outreachSubmission.count({
+            where: { status: { in: ["SUBMITTED", "IN_REVIEW"] } },
+          });
+          const approved = await prisma.outreachSubmission.count({ where: { status: "APPROVED" } });
+          await respond({
+            response_type: "ephemeral",
+            text: `📢 *Outreach Queue:* ${pending} pending review · ${approved} approved`,
+          });
+        } else {
+          await respond({
+            response_type: "ephemeral",
+            text: "Usage: `/pm outreach submit` — submit content\n`/pm outreach queue` — check queue status",
+          });
+        }
+        break;
+      }
+
+      case "email": {
+        const project = await getProjectByChannel(command.channel_id);
+        if (!project) { await respond({ response_type: "ephemeral", text: "❌ No project linked to this channel." }); break; }
+        await respond({ response_type: "ephemeral", text: "✍️ Drafting stakeholder email…" });
+        const email = await generateStakeholderEmail(project.id) as any;
+        if (!email) { await respond({ response_type: "ephemeral", text: "❌ Failed to generate email." }); break; }
+        await respond({ response_type: "ephemeral", text: `*Subject:* ${email.subject}\n\n${email.body}` });
+        break;
+      }
+
+      case "capacity": {
+        const project = await getProjectByChannel(command.channel_id);
+        if (!project) { await respond({ response_type: "ephemeral", text: "❌ No project linked to this channel." }); break; }
+        await respond({ response_type: "ephemeral", text: "📊 Analyzing team capacity…" });
+        const cap = await analyzeTeamCapacity(project.id) as any;
+        if (!cap) { await respond({ response_type: "ephemeral", text: "❌ Capacity analysis failed." }); break; }
+        await respond({ response_type: "ephemeral", blocks: buildCapacityReport(project, cap), text: cap.summary });
+        break;
+      }
+
+      case "ask": {
+        const question = args.slice(1).join(" ").trim();
+        if (!question) {
+          await respond({ response_type: "ephemeral", text: "Usage: `/pm ask <your question about the project>`" });
+          break;
+        }
+        const project = await getProjectByChannel(command.channel_id);
+        await respond({ response_type: "ephemeral", text: "🤔 Thinking…" });
+
+        let contextBlock = "";
+        if (project) {
+          const tasks = await prisma.task.findMany({
+            where: { projectId: project.id },
+            select: { title: true, status: true, priority: true, dueDate: true },
+          });
+          const statusCounts: Record<string, number> = {};
+          for (const t of tasks) statusCounts[t.status] = (statusCounts[t.status] ?? 0) + 1;
+          contextBlock = `\nProject: ${project.name} (status: ${project.status})\nTasks: ${JSON.stringify(statusCounts)}\nTotal tasks: ${tasks.length}`;
+        }
+
+        const prompt = `You are a project management assistant for a university engineering club. Answer the following question concisely and helpfully (max 3 sentences).${contextBlock}\n\nQuestion: ${question}`;
+        const answer = await generateText(prompt, `ask:${command.channel_id}:${question.slice(0, 32)}`);
+        await respond({ response_type: "ephemeral", text: `🤖 *AI Answer:* ${answer}` });
+        break;
+      }
+
+      case "description": {
+        const isAdmin = await isAdminBySlackId(command.user_id);
+        if (!isAdmin) {
+          await respond({ response_type: "ephemeral", text: "❌ Only admins can edit project descriptions." });
+          break;
+        }
+        const project = await getProjectByChannel(command.channel_id);
+        if (!project) {
+          await respond({ response_type: "ephemeral", text: "❌ No project is linked to this channel." });
+          break;
+        }
+        const newDesc = args.slice(1).join(" ").trim();
+        if (!newDesc) {
+          const current = (project as any).description ?? "_No description set._";
+          await respond({ response_type: "ephemeral", text: `*Current description for ${(project as any).name}:*\n${current}` });
+          break;
+        }
+        await prisma.project.update({ where: { id: (project as any).id }, data: { description: newDesc } });
+        await respond({ response_type: "ephemeral", text: `✅ Description updated for *${(project as any).name}*.` });
+        break;
+      }
+
+      case "lab": {
+        await handleLab(args.slice(1), command, respond);
+        break;
+      }
+
+      case "help":
+      default: {
+        await respond({
+          response_type: "ephemeral",
+          blocks: buildHelpCard(),
+        });
+        break;
+      }
+    }
+  } catch (error) {
+    console.error("Command error:", error);
+    const message =
+      error instanceof Error ? error.message : "An unexpected error occurred";
+    await respond({
+      response_type: "ephemeral",
+      text: `❌ Error: ${message}`,
+    });
+  }
+}
+
+export type RespondFn = (msg: Record<string, unknown>) => Promise<unknown>;
 
 async function fetchReportData(projectId: string) {
   const [project, milestones] = await Promise.all([
