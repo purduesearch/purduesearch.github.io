@@ -1,4 +1,5 @@
 import type { App } from "@slack/bolt";
+import { draftTask } from "./handlers/quickAdd.js";
 import { openTaskModal } from "./handlers/taskModal.js";
 import { getTask, updateTask } from "../services/taskService.js";
 import { resolveSlackMember } from "../services/memberService.js";
@@ -76,7 +77,7 @@ export function registerActions(app: App): void {
   // ── Create Task from Message (TODO auto-detect) ──────────
   app.action(
     "create_task_from_message",
-    async ({ action, ack, respond, body, client }) => {
+    async ({ action, ack, respond, body }) => {
       await ack();
 
       try {
@@ -93,10 +94,7 @@ export function registerActions(app: App): void {
             ? (body.channel as { id: string }).id
             : "";
 
-        if ("trigger_id" in body && body.trigger_id) {
-          await openTaskModal(client, body.trigger_id, { channelId, memberId: body.user.id, isAdmin: false, prefill: { title: initialTitle } });
-          await respond({ delete_original: true });
-        }
+        await draftTask({ text: initialTitle, slackId: body.user.id, channelId, respond });
       } catch (error) {
         console.error("create_task_from_message error:", error);
         await respond({
@@ -239,7 +237,7 @@ export function registerActions(app: App): void {
   });
 
   // ── AI: Create Task from AI Suggestion ─────────────────────
-  app.action("ai_create_task", async ({ action, ack, body, client }) => {
+  app.action("ai_create_task", async ({ action, ack, body, client, respond }) => {
     await ack();
     try {
       if (!("value" in action) || !action.value) return;
@@ -258,9 +256,10 @@ export function registerActions(app: App): void {
       }
 
       const cached = cacheKey ? retrieveAiTask(cacheKey) : null;
+      if (cacheKey && !cached) { await respond({ response_type: "ephemeral", text: "This draft expired. Run /c task again." }); return; }
 
       await openTaskModal(client, body.trigger_id, { channelId, memberId: body.user.id, isAdmin: false, prefill: {
-        title: cached?.title, description: cached?.description, dueDate: cached?.dueDate,
+        title: cached?.title, description: cached?.description, dueDate: cached?.dueDate, priority: cached?.priority as "LOW" | "MEDIUM" | "HIGH" | "CRITICAL" | undefined,
         assigneeSlackIds: cached?.suggestedAssigneeSlackIds, parentTaskId: cached?.parentTaskId,
       } });
     } catch (error) {

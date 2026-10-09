@@ -2,6 +2,7 @@ import type { App, SlashCommand } from "@slack/bolt";
 import type { WebClient } from "@slack/web-api";
 import { runLegacyPm, type RespondFn } from "./commands.js";
 import { buildHelpCard } from "../utils/blockKit.js";
+import { handleTaskCommand, handleFindCommand } from "./handlers/quickAdd.js";
 
 export type CmdCtx = {
   args: string[];
@@ -13,6 +14,8 @@ export type CmdCtx = {
 };
 export type CmdHandler = (ctx: CmdCtx) => Promise<void>;
 export const SUBCOMMANDS: Record<string, CmdHandler> = {};
+SUBCOMMANDS.task = handleTaskCommand;
+SUBCOMMANDS.find = handleFindCommand;
 
 async function sendHelp(ctx: CmdCtx): Promise<void> {
   await ctx.respond({ response_type: "ephemeral", text: "Constellation command reference", blocks: buildHelpCard() });
