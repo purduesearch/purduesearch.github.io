@@ -13,6 +13,7 @@ import {
 } from "./githubService.js";
 import { logAuditEvent } from "./activityService.js";
 import { createNotification } from "./notificationCrud.js";
+import { emitTaskChanged } from "./taskChangeBus.js";
 
 // Maps GitHub state strings to ClubPM TaskStatus.
 function ghStateToTaskStatus(state: string, merged?: boolean): TaskStatus {
@@ -125,6 +126,7 @@ export async function linkTaskToIssue(opts: {
         where: { id: opts.taskId },
         data: { tags: { connect: tagIds.map(id => ({ id })) } },
       });
+      emitTaskChanged(opts.taskId);
     }
   }
 
@@ -386,6 +388,7 @@ export async function importIssuesAsTasks(opts: {
           tags: { connect: tagIds.map(id => ({ id })) },
         },
       });
+      emitTaskChanged(task.id);
       await prisma.gitHubLink.create({
         data: {
           taskId: task.id,
@@ -807,6 +810,7 @@ export async function handleIssueEvent(payload: any): Promise<void> {
       if (action === "reopened") taskUpdates.status = "TODO" as TaskStatus;
 
       await prisma.task.update({ where: { id: link.taskId }, data: taskUpdates });
+      emitTaskChanged(link.taskId);
       await prisma.gitHubLink.update({
         where: { id: link.id },
         data: { title: issue.title, state: issue.state, lastSyncedAt: new Date() },
@@ -893,6 +897,7 @@ export async function handlePullRequestEvent(payload: any): Promise<void> {
             // Leaving DONE clears completedAt; a no-op when it was already null.
             data: { status: "IN_PROGRESS", progress: "IN_PROGRESS", completedAt: null },
           });
+          emitTaskChanged(linkedTaskId);
         }
         if (action === "closed" && pr.merged) {
           const prev = await prisma.task.findUnique({
@@ -907,6 +912,7 @@ export async function handlePullRequestEvent(payload: any): Promise<void> {
               completedAt: prev?.completedAt ?? new Date(),
             },
           });
+          emitTaskChanged(linkedTaskId);
           notifyTaskAssignees(linkedTaskId, {
             type: "GITHUB_PR_MERGED",
             projectId: p.id,
@@ -1060,6 +1066,7 @@ export async function handlePushEvent(payload: any): Promise<void> {
               completedAt: prevIssueTask?.completedAt ?? new Date(),
             },
           });
+          emitTaskChanged(issueLink.taskId);
           logAuditEvent({
             projectId: proj.id,
             taskId: issueLink.taskId,

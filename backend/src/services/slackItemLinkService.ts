@@ -24,13 +24,15 @@ export async function linkItems(opts: { channelId: string; messageTs: string; th
   return unique.size;
 }
 
+async function canUnlink(link: { linkedById: string | null }, actorId: string): Promise<boolean> {
+  const actor = await prisma.member.findUnique({ where: { id: actorId }, select: { isAdmin: true, role: true } });
+  return !!actor && (link.linkedById === actorId || actor.isAdmin || actor.role === "ADMIN");
+}
+
 export async function unlinkItem(linkId: string, actorId: string): Promise<void> {
-  const [link, actor] = await Promise.all([
-    prisma.slackItemLink.findUnique({ where: { id: linkId } }),
-    prisma.member.findUnique({ where: { id: actorId }, select: { isAdmin: true, role: true } }),
-  ]);
+  const link = await prisma.slackItemLink.findUnique({ where: { id: linkId } });
   if (!link) throw new Error("Link not found");
-  if (!actor || (link.linkedById !== actorId && !actor.isAdmin && actor.role !== "ADMIN")) throw new Error("Only the linker or an admin can unlink this item");
+  if (!await canUnlink(link, actorId)) throw new Error("Only the linker or an admin can unlink this item");
   await prisma.slackItemLink.delete({ where: { id: linkId } });
 }
 

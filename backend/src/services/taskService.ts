@@ -520,7 +520,7 @@ async function spawnRecurringTask(completedTask: Task & { assignees: Member[] })
     completedTask.recurringInterval!
   );
 
-  await prisma.task.create({
+  const nextTask = await prisma.task.create({
     data: {
       title: completedTask.title,
       description: completedTask.description,
@@ -541,6 +541,7 @@ async function spawnRecurringTask(completedTask: Task & { assignees: Member[] })
     where: { id: completedTask.id },
     data: { lastSpawnedAt: new Date() },
   });
+  emitTaskChanged([completedTask.id, nextTask.id]);
 }
 
 function computeNextDueDate(currentDue: Date, interval: string): Date {
@@ -583,7 +584,7 @@ export async function spawnNextOccurrence(task: Task & { assignees: Member[]; ta
   };
   patterns[task.recurrencePattern]?.();
   if (task.recurrenceEndDate && next > task.recurrenceEndDate) return;
-  await prisma.task.create({
+  const nextTask = await prisma.task.create({
     data: {
       title: task.title, description: task.description, priority: task.priority,
       projectId: task.projectId, dueDate: next, status: "TODO",
@@ -595,6 +596,7 @@ export async function spawnNextOccurrence(task: Task & { assignees: Member[]; ta
       tags:      { connect: task.tags.map(t => ({ id: t.id })) },
     },
   });
+  emitTaskChanged(nextTask.id);
 }
 
 // ── Slack-Oriented Helpers ──────────────────────────────────

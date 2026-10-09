@@ -113,7 +113,7 @@ export async function postLinkCard(opts: { channelId: string; sourceTs: string; 
 async function accessibleCandidates(entry: Picker, memberId: string): Promise<Candidate[]> {
   const member = await prisma.member.findUnique({ where: { id: memberId } });
   if (!member) throw new Error(signIn());
-  const projects = await prisma.project.findMany({ where: { id: { in: entry.context.projectIds }, ...(member.isAdmin ? {} : { members: { some: { memberId } } }) }, select: { id: true } });
+  const projects = await prisma.project.findMany({ where: { id: { in: entry.context.projectIds }, members: { some: { memberId } } }, select: { id: true } });
   return gatherCandidates(memberId, projects.map(project => project.id));
 }
 
@@ -143,7 +143,7 @@ export function registerMentions(app: App): void {
       if (!member) { await client.chat.postEphemeral({ channel: event.channel, user: event.user, text: signIn() }); return; }
       if (member.isBot || !(await getConversationAccess(member.id, event.channel)).canRead) return;
       const channelProjects = await getProjectsForChannel(event.channel);
-      const accessible = await prisma.project.findMany({ where: member.isAdmin ? {} : { members: { some: { memberId: member.id } } }, select: { id: true } });
+      const accessible = await prisma.project.findMany({ where: { members: { some: { memberId: member.id } } }, select: { id: true } });
       const allowed = new Set(accessible.map(project => project.id));
       const projectIds = channelProjects.length ? channelProjects.map(project => project.id).filter(id => allowed.has(id)) : [...allowed];
       const text = stripMention(event.text, await getBotUserId(client) ?? "");
