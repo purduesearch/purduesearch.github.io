@@ -1,7 +1,7 @@
-import type { TaskStatus, TaskProgress, Priority, NotificationType } from "@prisma/client";
+import type { TaskStatus, TaskProgress, Priority, NotificationType, RecurringInterval } from "@prisma/client";
 import { prisma as prismaClient } from "../db/prisma.js";
 import { getTaskPermissions } from "../middleware/taskAccess.js";
-import { getTask, createTask, updateTask, assertCanComplete, assertNotCategoryBlocked } from "./taskService.js";
+import { getTask, createTask, createSubtask, updateTask, assertCanComplete, assertNotCategoryBlocked } from "./taskService.js";
 import { assertCiGatePasses, applyCompletionSideEffects } from "./taskCompletionService.js";
 import { logAuditEvent, diffObjects } from "./activityService.js";
 import { createNotification } from "./notificationCrud.js";
@@ -27,6 +27,21 @@ export interface TaskPatch {
   dueDate?: string | null;
   assigneeIds?: string[];
   tags?: string[];
+  /** Tag ids, like the legacy `tags` field. When both are supplied this wins. */
+  tagIds?: string[];
+  milestoneId?: string | null;
+  estimatedHours?: number | null;
+  storyPoints?: number | null;
+  isRecurring?: boolean;
+  recurrencePattern?: string | null;
+  recurrenceEndDate?: Date | string | null;
+  recurringInterval?: RecurringInterval | null;
+  recurringParentId?: string | null;
+  /** Replace category blocker membership; omitted leaves it unchanged. */
+  blockerIds?: string[];
+  newBlocker?: string;
+  /** Upsert rows. Omitted existing children remain attached. */
+  subtasks?: { id?: string; title: string; assigneeIds?: string[] }[];
   attachments?: { url: string; label?: string }[];
   parentTaskId?: string | null;
   blockingTaskIds?: string[];
@@ -99,6 +114,36 @@ export async function updateTaskAsMember(
       throw new TaskMutationError(403, "Only assignees, the creator, a project lead, or an admin can edit this task");
     }
 
+    // Validate every submitted child before changing the parent. Editing a
+    // parent does not grant edit permission on another member's child task.
+    for (const child of patch.subtasks ?? []) {
+      if (!child.title.trim()) throw new TaskMutationError(400, "Subtask title is required");
+      if (child.id) {
+        if (!existingTask.subtasks.some(t => t.id === child.id)) {
+          throw new TaskMutationError(400, "Subtask does not belong to this task");
+        }
+        if (!(await getTaskPermissions(actorId, child.id)).canEdit) {
+          throw new TaskMutationError(403, "You do not have permission to modify this subtask");
+        }
+      }
+    }
+    if (patch.blockerIds !== undefined) {
+      const blockers = await prismaClient.blocker.findMany({
+        where: { id: { in: patch.blockerIds }, projectId: existingTask.projectId, resolvedAt: null },
+        select: { id: true },
+      });
+      if (new Set(patch.blockerIds).size !== blockers.length) {
+        throw new TaskMutationError(400, "Blocker not found in this project or already resolved");
+      }
+    }
+    if (patch.newBlocker !== undefined && !patch.newBlocker.trim()) {
+      throw new TaskMutationError(400, "Blocker label is required");
+    }
+    if (status === "DONE" && (patch.newBlocker !== undefined || patch.blockerIds?.some(id =>
+      !existingTask.blockers.some(b => b.blockerId === id)))) {
+      throw new TaskMutationError(400, "Cannot complete a task while attaching an active blocker");
+    }
+
     if (status && status !== existingTask.status) {
       const lockError = assertNotCategoryBlocked(existingTask as any, status);
       if (lockError) {
@@ -124,7 +169,7 @@ export async function updateTaskAsMember(
       console.log(`[updateTask] id=${taskId} parentTaskId=${parentTaskId ?? "null (removing parent)"}`);
     }
 
-    const task = await updateTask(taskId, {
+    let task = await updateTask(taskId, {
       title,
       description,
       status,
@@ -132,12 +177,58 @@ export async function updateTaskAsMember(
       priority,
       dueDate: dueDate === null ? undefined : dueDate ? new Date(dueDate) : undefined,
       assigneeIds,
-      tags,
+      tags: patch.tagIds ?? tags,
+      milestoneId: patch.milestoneId,
+      estimatedHours: patch.estimatedHours,
+      storyPoints: patch.storyPoints,
+      isRecurring: patch.isRecurring,
+      recurrencePattern: patch.recurrencePattern,
+      recurrenceEndDate: patch.recurrenceEndDate === undefined ? undefined
+        : patch.recurrenceEndDate === null ? null : new Date(patch.recurrenceEndDate),
+      recurringInterval: patch.recurringInterval,
+      recurringParentId: patch.recurringParentId,
       attachments: normalisedAttachments,
       parentTaskId,
       blockedByIds: blockingTaskIds,
       blockedByReasons: blockingTaskReasons,
     });
+
+    if (patch.blockerIds !== undefined || patch.newBlocker !== undefined) {
+      const { createBlockerAsMember, attachBlockerAsMember } = await import("./blockerMutationService.js");
+      const desired = new Set(patch.blockerIds ?? existingTask.blockers.map(b => b.blockerId));
+      if (patch.newBlocker !== undefined) {
+        const blocker = await createBlockerAsMember(actorId, existingTask.projectId, { label: patch.newBlocker.trim() }, source);
+        desired.add(blocker.id);
+      }
+      for (const old of existingTask.blockers) {
+        if (desired.has(old.blockerId)) continue;
+        await prismaClient.taskBlocker.delete({ where: { taskId_blockerId: { taskId, blockerId: old.blockerId } } });
+        logAuditEvent({ taskId, projectId: existingTask.projectId, memberId: actorId, source: auditSource,
+          eventType: "TASK_BLOCKER_DETACHED", payload: { taskTitle: task.title, blockerLabel: old.blocker.label } }).catch(console.error);
+      }
+      const before = new Set(existingTask.blockers.map(b => b.blockerId));
+      for (const blockerId of desired) {
+        if (!before.has(blockerId)) await attachBlockerAsMember(actorId, taskId, { blockerId }, source);
+      }
+      // Same detach rule as REST: only clear BLOCKED when no open category
+      // blockers or task dependencies remain; retain other statuses.
+      const refreshed = await getTask(taskId);
+      if (refreshed?.status === "BLOCKED" && !assertCanComplete(refreshed)) {
+        await updateTask(taskId, { status: "TODO" });
+      }
+      const { emitTaskChanged } = await import("./taskChangeBus.js");
+      emitTaskChanged(taskId);
+      task = (await getTask(taskId))!;
+    }
+    for (const child of patch.subtasks ?? []) {
+      if (child.id) {
+        await updateTaskAsMember(actorId, child.id, { title: child.title, assigneeIds: child.assigneeIds }, source);
+      } else {
+        const created = await createSubtask(taskId, { title: child.title, assigneeIds: child.assigneeIds, createdById: actorId });
+        await notifyAddedAssignees({ taskId: created.id, actorId, addedAssigneeIds: created.assignees.map(a => a.id) });
+      }
+    }
+    if (patch.subtasks !== undefined) task = (await getTask(taskId))!;
 
     const isNowDone = existingTask.status !== "DONE" && task.status === "DONE";
 
@@ -180,7 +271,8 @@ export async function updateTaskAsMember(
           },
         }).catch(console.error);
       } else {
-        const WATCHED = ["status", "priority", "dueDate", "title", "description"];
+        const WATCHED = ["status", "priority", "dueDate", "title", "description", "milestoneId", "estimatedHours",
+          "storyPoints", "isRecurring", "recurrencePattern", "recurrenceEndDate", "recurringInterval", "parentTaskId"];
         const changes = diffObjects(existingTask as any, task as any, WATCHED);
         if (changes.length > 0) {
           logAuditEvent({
@@ -204,6 +296,10 @@ export async function updateTaskAsMember(
     if (!isNowDone && (task as any).milestoneId) {
       const { refreshMilestoneHealth } = await import("./milestoneService.js");
       refreshMilestoneHealth((task as any).milestoneId).catch(console.error);
+    }
+    if (patch.milestoneId !== undefined && existingTask.milestoneId && existingTask.milestoneId !== task.milestoneId) {
+      const { refreshMilestoneHealth } = await import("./milestoneService.js");
+      refreshMilestoneHealth(existingTask.milestoneId).catch(console.error);
     }
 
     // Engagement grant + per-assignee challenge hooks for the DONE

@@ -410,7 +410,7 @@ export async function getSubtasks(taskId: string) {
 
 export async function createSubtask(
   parentTaskId: string,
-  data: { title: string; assigneeIds?: string[] }
+  data: { title: string; assigneeIds?: string[]; createdById?: string }
 ) {
   const parent = await prisma.task.findUnique({ where: { id: parentTaskId } });
   if (!parent) throw new Error("Parent task not found");
@@ -420,6 +420,7 @@ export async function createSubtask(
       title: data.title,
       projectId: parent.projectId,
       parentTaskId,
+      createdById: data.createdById,
       ...(data.assigneeIds && data.assigneeIds.length > 0
         ? { assignees: { connect: data.assigneeIds.map(id => ({ id })) } }
         : {}),
