@@ -49,10 +49,7 @@ export async function showAttachPicker(context: MentionIntentContext, recommenda
 }
 
 async function route(context: MentionIntentContext): Promise<boolean> {
-  // P21 supplies this module; absence while rolling out retains the attach flow.
-  let module: { routeIntent: (context: MentionIntentContext) => Promise<unknown> };
-  try { module = await import("./" + "mentionIntents.js"); }
-  catch (error) { if ((error as NodeJS.ErrnoException).code === "ERR_MODULE_NOT_FOUND") return false; throw error; }
+  const module = await import("./mentionIntents.js");
   await module.routeIntent(context);
   return true;
 }

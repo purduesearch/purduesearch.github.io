@@ -19,11 +19,11 @@ import { logAuditEvent, diffObjects, getProjectAuditLog } from "../services/acti
 import type { ProjectType, ProjectStatus, TaskStatus, Priority, NotificationType } from "@prisma/client";
 import { createNotification } from "../services/notificationCrud.js";
 import { fetchDriveFileAsText, extractFileId, listDriveFolderFiles, getDriveFileMeta, isDriveDescendantOf } from "../services/driveService.js";
-import { runJson, runText, todayContext } from "../services/ai/aiRouter.js";
+import { runJson } from "../services/ai/aiRouter.js";
 import {
-  driveToTasksPrompt, meetingNotesToTasksPrompt, projectContextPrompt,
+  driveToTasksPrompt, meetingNotesToTasksPrompt,
 } from "../utils/aiPrompts.js";
-import { buildProjectContext } from "../services/projectContextService.js";
+import { askProject } from "../services/projectAskService.js";
 import { getProjectTimeInsights } from "../services/timeInsightsService.js";
 import { suggestProjectActions, executeActionPlan, buildPlanPrompt, importActionPlan, type ActionPlanAction } from "../services/aiActionService.js";
 import {
@@ -868,17 +868,12 @@ projectsRouter.post("/:id/ask", async (req: Request, res: Response) => {
       return;
     }
 
-    const context = await buildProjectContext(projectId);
+    const answer = await askProject(projectId, question, req.memberId ?? null);
 
-    if (!context) {
+    if (answer === null) {
       res.status(404).json({ error: "Project not found" });
       return;
     }
-
-    const answer = await runText({ memberId: req.memberId }, "high", {
-      prompt: projectContextPrompt(question, todayContext(), context),
-      json: false,
-    });
 
     res.json({ answer });
   } catch (error) {

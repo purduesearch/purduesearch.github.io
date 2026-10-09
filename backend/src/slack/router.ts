@@ -4,6 +4,7 @@ import { runLegacyPm, type RespondFn } from "./commands.js";
 import { buildHelpCard } from "../utils/blockKit.js";
 import { handleTaskCommand, handleFindCommand } from "./handlers/quickAdd.js";
 import { handlePlanCommand } from "./handlers/plan.js";
+import { handleAskCommand } from "./handlers/mentionIntents.js";
 
 export type CmdCtx = {
   args: string[];
@@ -18,6 +19,7 @@ export const SUBCOMMANDS: Record<string, CmdHandler> = {};
 SUBCOMMANDS.task = handleTaskCommand;
 SUBCOMMANDS.find = handleFindCommand;
 SUBCOMMANDS.plan = handlePlanCommand;
+SUBCOMMANDS.ask = handleAskCommand;
 
 async function sendHelp(ctx: CmdCtx): Promise<void> {
   await ctx.respond({ response_type: "ephemeral", text: "Constellation command reference", blocks: buildHelpCard() });
