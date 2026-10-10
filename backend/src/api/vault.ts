@@ -36,8 +36,8 @@ import { askVault, findDuplicateCandidates } from "../services/vaultContextServi
 import { canAccessVaultProject } from "../services/vaultGithubJobs.js";
 import { commitVaultThumbnail, materializeVaultObject, VaultGitError } from "../services/vaultGitTransport.js";
 import { acquireLegacyVaultWrite, releaseLegacyVaultWrite } from "../services/vaultCutoverService.js";
-import { autoWatchSoon, notifyVaultCheckin, notifyVaultCheckoutConflict } from "../services/vaultNotificationService.js";
-import { eventKeys } from "../services/vaultNotifyCore.js";
+import { autoWatchSoon, notifyVaultCheckin } from "../services/vaultNotificationService.js";
+import { checkoutItem, undoCheckout, VaultCheckoutError } from "../services/vaultCheckoutService.js";
 import { reindexItemSoon } from "../services/vaultSearchService.js";
 
 export const vaultRouter = Router();
@@ -767,54 +767,14 @@ vaultRouter.get("/vault/versions/:id/download-url", async (req: Request, res: Re
 
 vaultRouter.post("/vault/items/:id/checkout", async (req: Request, res: Response) => {
   try {
-    const id = req.params.id as string;
     const { note, force } = req.body as { note?: string; force?: boolean };
-
-    const item = await prisma.vaultItem.findUnique({
-      where: { id },
-      include: { checkedOutBy: { select: { id: true, displayName: true, avatarUrl: true, slackId: true } } },
-    });
-    if (!item || item.deletedAt) {
-      res.status(404).json({ error: "Vault item not found" });
-      return;
-    }
-
-    if (!(await canAccessVaultProject(req.memberId, item.projectId))) { res.status(403).json({ error: "Forbidden" }); return; }
-
-    const heldByOther = !!item.checkedOutById && item.checkedOutById !== req.memberId;
-    if (heldByOther && !force) {
-      // One notice per requester per checkout session, however often they retry.
-      notifyVaultCheckoutConflict(item, req.memberId ?? null, item.checkedOutById!, "CHECKOUT_BLOCKED", eventKeys.blocked(id, req.memberId ?? "", item.checkedOutById!, item.checkedOutAt));
-      res.status(409).json({ error: "Item is already checked out", holder: item.checkedOutBy });
-      return;
-    }
-
-    const previousHolder = heldByOther ? item.checkedOutBy : null;
-
-    const updated = await prisma.vaultItem.update({
-      where: { id },
-      data: {
-        checkedOutById: req.memberId,
-        checkedOutAt: new Date(),
-        checkoutNote: typeof note === "string" ? note.trim() || null : null,
-      },
-      include: { checkedOutBy: MEMBER_SUMMARY },
-    });
-
-    if (previousHolder) {
-      notifyVaultCheckoutConflict(item, req.memberId ?? null, previousHolder.id, "TAKEOVER", eventKeys.takeover(id, previousHolder.id, item.checkedOutAt));
-    }
-    autoWatchSoon(req.memberId, id, item.projectId);
-    reindexItemSoon(id);
-
-    logAuditEvent({
-      projectId: item.projectId, memberId: req.memberId ?? null, source: "WEB",
-      eventType: "VAULT_ITEM_CHECKED_OUT",
-      payload: { itemId: id, forced: !!previousHolder, previousHolderId: previousHolder?.id ?? null },
-    }).catch(console.error);
-
+    const updated = await checkoutItem(req.memberId!, req.params.id as string, { note, force, source: "WEB" });
     res.json(updated);
   } catch (error) {
+    if (error instanceof VaultCheckoutError) {
+      res.status(error.status).json({ error: error.message, ...(error.holder !== undefined ? { holder: error.holder } : {}) });
+      return;
+    }
     console.error("Checkout vault item error:", error);
     res.status(500).json({ error: "Failed to check out item" });
   }
@@ -825,39 +785,13 @@ vaultRouter.post("/vault/items/:id/checkout", async (req: Request, res: Response
 
 vaultRouter.delete("/vault/items/:id/checkout", async (req: Request, res: Response) => {
   try {
-    const id = req.params.id as string;
-    const item = await prisma.vaultItem.findUnique({ where: { id } });
-    if (!item || item.deletedAt) {
-      res.status(404).json({ error: "Vault item not found" });
-      return;
-    }
-    if (!(await canAccessVaultProject(req.memberId, item.projectId))) { res.status(403).json({ error: "Forbidden" }); return; }
-    if (!item.checkedOutById) {
-      res.json(item);
-      return;
-    }
-
-    const isHolderOrAdmin = item.checkedOutById === req.memberId || (await isAdminMember(req.memberId!));
-    if (!isHolderOrAdmin) {
-      res.status(403).json({ error: "Only the checkout holder or an admin can release this checkout" });
-      return;
-    }
-
-    const previousHolderId = item.checkedOutById;
-    const updated = await prisma.vaultItem.update({
-      where: { id },
-      data: { checkedOutById: null, checkedOutAt: null, checkoutNote: null },
-    });
-
-    logAuditEvent({
-      projectId: item.projectId, memberId: req.memberId ?? null, source: "WEB",
-      eventType: "VAULT_CHECKOUT_RELEASED",
-      payload: { itemId: id, previousHolderId },
-    }).catch(console.error);
-    reindexItemSoon(id);
-
+    const updated = await undoCheckout(req.memberId!, req.params.id as string, "WEB");
     res.json(updated);
   } catch (error) {
+    if (error instanceof VaultCheckoutError) {
+      res.status(error.status).json({ error: error.message });
+      return;
+    }
     console.error("Release vault checkout error:", error);
     res.status(500).json({ error: "Failed to release checkout" });
   }

@@ -4,6 +4,7 @@ import { registerActions } from "./actions.js";
 import { registerEvents } from "./events.js";
 import { registerModals, registerAiModals } from "./modals.js";
 import { registerHome } from "./home.js";
+import { registerMirror } from "./mirror.js";
 
 // ── Bolt App Init ────────────────────────────────────────────
 
@@ -28,6 +29,7 @@ registerEvents(boltApp);
 registerModals(boltApp);
 registerAiModals(boltApp);
 registerHome(boltApp);
+registerMirror(boltApp);
 
 // ── Start Bolt ───────────────────────────────────────────────
 

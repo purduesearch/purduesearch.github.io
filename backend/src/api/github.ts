@@ -2,6 +2,7 @@ import { Router, type Request, type Response } from "express";
 import type { ProjectRepo } from "@prisma/client";
 import { requireAuth } from "./auth.js";
 import { prisma } from "../db/prisma.js";
+import { emitTaskChanged } from "../services/taskChangeBus.js";
 import {
   octokitForMember,
   octokitForRepo,
@@ -502,6 +503,7 @@ githubRouter.post("/tasks/:taskId/link", async (req: Request, res: Response) => 
             where: { id: taskId },
             data: { tags: { connect: tagIds.map(id => ({ id })) } },
           });
+          emitTaskChanged(taskId);
         }
       }
 

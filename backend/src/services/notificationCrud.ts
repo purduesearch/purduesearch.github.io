@@ -2,14 +2,16 @@ import { prisma } from "../db/prisma.js";
 import { activityBus } from "./activityService.js";
 import { addPing, removePing, newestPing, pingCount, type PingEntry } from "./slackPingAggregate.js";
 import { queueDm } from "./dmBatcher.js";
+import { queueCard } from "./slackCardService.js";
 import { routeFor } from "./notificationRouting.js";
-import type { Notification, NotificationType } from "@prisma/client";
+import { notificationsEnabled, canNotifyMember } from "./notificationGate.js";
+import type { Notification, NotificationType, SlackEntityType } from "@prisma/client";
 
 // ── Create ───────────────────────────────────────────────────
 
 /**
  * Create one notification, delivered per the recipient's preference for its
- * type (D14). `slackText` opts a call site in to the Slack DM; a caller that
+ * type (D14). `slackText` or `slackCard` opts a call site in to the Slack DM; a caller that
  * passes none keeps its pre-portal behaviour (in-app only). No caller uses the
  * return value, which is null when the member turned this type off or chose
  * Slack-only.
@@ -24,11 +26,13 @@ export async function createNotification(data: {
   message: string;
   metadata?: Record<string, any>;
   slackText?: string;
+  slackCard?: { entityType: SlackEntityType; entityId: string; reason: string };
 }): Promise<Notification | null> {
   const recipient = await prisma.member.findUnique({
     where: { id: data.recipientId },
-    select: { slackId: true, notificationChannels: true },
+    select: { slackId: true, notificationChannels: true, notificationsDisabled: true },
   });
+  if (!notificationsEnabled(recipient?.notificationsDisabled)) return null;
   const prefs = (recipient?.notificationChannels ?? {}) as Record<string, unknown>;
   const route = routeFor(data.type, prefs[data.type]);
 
@@ -50,8 +54,13 @@ export async function createNotification(data: {
     activityBus.emit(`notification:${data.recipientId}`, notification);
   }
 
-  if (route.slack && data.slackText && recipient?.slackId) {
-    queueDm(recipient.slackId, data.slackText);
+  // Slack portal invariant 10: card and text DMs share notification preference routing.
+  if (route.slack && recipient?.slackId) {
+    if (data.slackCard) {
+      await queueCard({ recipientId: data.recipientId, actorId: data.actorId, ...data.slackCard });
+    } else if (data.slackText) {
+      queueDm(recipient.slackId, data.slackText);
+    }
   }
   return notification;
 }
@@ -233,6 +242,7 @@ export async function upsertSlackNotification(data: {
   isGroup: boolean;
   link: string;
 }): Promise<Notification | null> {
+  if (!await canNotifyMember(data.recipientId)) return null;
   const dupe = await prisma.notification.findFirst({
     where: { recipientId: data.recipientId, slackChannelId: data.slackChannelId, slackTs: data.slackTs, type: data.type },
     select: { id: true },

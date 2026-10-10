@@ -335,6 +335,10 @@ export const unarchiveTask     = (id) => post(`/api/tasks/${id}/unarchive`, {});
 export const bulkArchive       = (ids, archived) => post(`/api/tasks/bulk-archive`, { ids, archived });
 export const getArchivedTasks  = (projectId) => get(`/api/projects/${projectId}/tasks?archived=1`);
 
+// Slack backlinks (filtered by the viewer's conversation access).
+export const getSlackLinks = (entityType, entityId) => get(`/api/slack-links?entityType=${encodeURIComponent(entityType)}&entityId=${encodeURIComponent(entityId)}`);
+export const deleteSlackLink = (id) => del(`/api/slack-links/${encodeURIComponent(id)}`);
+
 // ── Blockers ─────────────────────────────────────────────────
 
 export const getProjectBlockers = (projectId) => get(`/api/projects/${projectId}/blockers`);

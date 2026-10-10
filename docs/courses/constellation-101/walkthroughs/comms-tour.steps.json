@@ -9,7 +9,7 @@
       "anchor": "notifications.list",
       "route": "/clubpm/notifications",
       "title": "The complete record",
-      "body": "Every mention, assignment, and unblock. Slack DMs can be missed or muted; this list never loses one.",
+      "body": "This list records notifications you enabled. During testing, notifications start disabled for everyone; open Preferences to opt in.",
       "placement": "right",
       "advance": { "on": "next" }
     },
@@ -27,7 +27,7 @@
       "anchor": "notifications.slack",
       "route": "/clubpm/notifications/preferences",
       "title": "Per-category, per-channel",
-      "body": "Each category can go in-app, to Slack, both, or neither. Tune it here rather than muting Constellation in Slack outright — a member nobody can reach is a member who stops getting asked.",
+      "body": "First uncheck Disable all notifications and save to opt in during testing. Each category can then go in-app, to Slack, both, or neither. Explicit document mentions can notify you; ordinary document comments and suggestions, blocker assignments, kudos and outreach review status stay silent.",
       "placement": "left",
       "advance": { "on": "next" }
     },

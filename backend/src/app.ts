@@ -14,6 +14,7 @@ import { authRouter } from "./api/auth.js";
 import { projectsRouter, tagsRouter, trainingRouter } from "./api/projects.js";
 import { projectChatRouter, slackArchiveAdminRouter } from "./api/projectChat.js";
 import { chatRouter } from "./api/chat.js";
+import { slackLinksRouter } from "./api/slackLinks.js";
 import { tasksRouter } from "./api/tasks.js";
 import { membersRouter } from "./api/members.js";
 import { activityRouter } from "./api/activity.js";
@@ -24,6 +25,7 @@ import { startScheduler } from "./slack/scheduler.js";
 import { notificationsRouter } from "./api/notifications.js";
 import { sseRouter } from "./api/sse.js";
 import { initDmBatcher } from "./services/dmBatcher.js";
+import { startCardRefresh } from "./services/slackCardService.js";
 import { eventsRouter } from "./api/events.js";
 import { eventImportRouter } from "./api/eventImport.js";
 import { meetingPollsRouter } from "./api/meetingPolls.js";
@@ -145,6 +147,7 @@ app.use("/api/slack-archive", slackArchiveAdminRouter);
 // Above every bare "/api" router: the chat file proxy authenticates with a
 // `?token=` query param, which a pathless requireAuth would 401 first.
 app.use("/api/chat", chatRouter);
+app.use("/api/slack-links", slackLinksRouter);
 app.use("/api/tags", tagsRouter);
 app.use("/api/tasks", tasksRouter);
 // Mounted before the bare "/api" routers below (blockersRouter, streakRouter):
@@ -237,6 +240,7 @@ async function start(): Promise<void> {
 
     // Initialize DM batcher (must come before scheduler)
     initDmBatcher(boltApp);
+    startCardRefresh();
 
     // Sync admin status from leadership channel on boot
     if (process.env.LEADERSHIP_CHANNEL_ID) {

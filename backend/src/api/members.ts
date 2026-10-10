@@ -127,6 +127,7 @@ membersRouter.patch("/me/notification-preferences", async (req: Request, res: Re
     const {
       notificationPrefs,
       notificationChannels,
+      notificationsDisabled,
       quietHoursStart,
       quietHoursEnd,
       mutedProjectIds,
@@ -134,16 +135,23 @@ membersRouter.patch("/me/notification-preferences", async (req: Request, res: Re
     } = req.body;
 
     // Validate quiet hours range
-    if (quietHoursStart !== undefined && (quietHoursStart < 0 || quietHoursStart > 23 || !Number.isInteger(quietHoursStart))) {
+    if (quietHoursStart != null && (quietHoursStart < 0 || quietHoursStart > 23 || !Number.isInteger(quietHoursStart))) {
       res.status(400).json({ error: "quietHoursStart must be an integer between 0 and 23" });
       return;
     }
-    if (quietHoursEnd !== undefined && (quietHoursEnd < 0 || quietHoursEnd > 23 || !Number.isInteger(quietHoursEnd))) {
+    if (quietHoursEnd != null && (quietHoursEnd < 0 || quietHoursEnd > 23 || !Number.isInteger(quietHoursEnd))) {
       res.status(400).json({ error: "quietHoursEnd must be an integer between 0 and 23" });
       return;
     }
 
     const updateData: Record<string, unknown> = {};
+    if (notificationsDisabled !== undefined) {
+      if (typeof notificationsDisabled !== "boolean") {
+        res.status(400).json({ error: "notificationsDisabled must be a boolean" });
+        return;
+      }
+      updateData.notificationsDisabled = notificationsDisabled;
+    }
     if (notificationPrefs !== undefined)    updateData.notificationPrefs    = notificationPrefs;
     if (notificationChannels !== undefined) updateData.notificationChannels = notificationChannels;
     if (quietHoursStart !== undefined)      updateData.quietHoursStart      = quietHoursStart;
@@ -163,6 +171,7 @@ membersRouter.patch("/me/notification-preferences", async (req: Request, res: Re
       select: {
         notificationPrefs:    true,
         notificationChannels: true,
+        notificationsDisabled: true,
         quietHoursStart:      true,
         quietHoursEnd:        true,
         mutedProjectIds:      true,

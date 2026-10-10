@@ -5,7 +5,7 @@
 import { routeFor } from "./notificationRouting.js";
 import { vaultLink } from "./vaultSearchCore.js";
 
-export type VaultEventKind = "CHECKIN" | "CR_DECIDED" | "CHECKOUT_CONFLICT";
+export type VaultEventKind = "CHECKIN" | "CR_SUBMITTED" | "CR_DECIDED" | "CHECKOUT_CONFLICT";
 export type DeliveryChannel = "IN_APP" | "SLACK";
 export type ConflictKind = "CHECKIN_WHILE_HELD" | "TAKEOVER" | "CHECKOUT_BLOCKED";
 
@@ -39,6 +39,7 @@ export interface VaultEventRow {
 // Deterministic, so the same real-world event always maps to one outbox row.
 
 export const eventKeys = {
+  crSubmitted: (crId: string) => `cr:${crId}:submitted`,
   checkin: (versionId: string) => `checkin:${versionId}`,
   crDecided: (crId: string, decision: string) => `cr:${crId}:${decision}`,
   checkinWhileHeld: (itemId: string, versionId: string) => `conflict:${itemId}:checkin:${versionId}`,
@@ -82,8 +83,9 @@ export function crDecisionEventRow(cr: { id: string; projectId: string; number: 
   };
 }
 
-export const NOTIFICATION_TYPE: Record<VaultEventKind, "VAULT_CHECKIN" | "VAULT_CR_DECIDED" | "VAULT_CHECKOUT_CONFLICT"> = {
+export const NOTIFICATION_TYPE: Record<VaultEventKind, "VAULT_CHECKIN" | "VAULT_CR_SUBMITTED" | "VAULT_CR_DECIDED" | "VAULT_CHECKOUT_CONFLICT"> = {
   CHECKIN: "VAULT_CHECKIN",
+  CR_SUBMITTED: "VAULT_CR_SUBMITTED",
   CR_DECIDED: "VAULT_CR_DECIDED",
   CHECKOUT_CONFLICT: "VAULT_CHECKOUT_CONFLICT",
 };
@@ -96,12 +98,14 @@ export interface RecipientProfile {
   slackId: string | null;
   isBot: boolean;
   notificationChannels: unknown;
+  notificationsDisabled: boolean;
   mutedProjectIds: string[];
   /** canAccessVaultProject for the event's project, evaluated now. */
   canAccess: boolean;
 }
 
 function wants(sub: Subscriber, kind: VaultEventKind): boolean {
+  if (kind === "CR_SUBMITTED") return false; // Submission requests go only to admins.
   return kind === "CHECKIN" ? sub.checkins : kind === "CR_DECIDED" ? sub.decisions : sub.conflicts;
 }
 
@@ -122,8 +126,10 @@ export function planDeliveries(event: VaultEventRow, subscribers: Subscriber[], 
   for (const id of [...recipients].sort()) {
     if (id === event.actorId) continue;
     const profile = profiles.get(id);
-    if (!profile || profile.isBot || !profile.canAccess) continue;
-    if (profile.mutedProjectIds.includes(event.projectId)) continue;
+    if (!profile) continue;
+    if (profile.notificationsDisabled !== false) continue;
+    // Submission notices retain the existing all-admin audience and preferences.
+    if (event.kind !== "CR_SUBMITTED" && (profile.isBot || !profile.canAccess || profile.mutedProjectIds.includes(event.projectId))) continue;
     const prefs = (profile.notificationChannels ?? {}) as Record<string, unknown>;
     const route = routeFor(type, prefs[type]);
     if (route.inApp) out.push({ recipientId: id, channel: "IN_APP" });
@@ -140,7 +146,7 @@ function itemLabel(p: VaultEventPayload): string {
 
 export function eventLink(event: VaultEventRow): string {
   const p = event.payload;
-  if (event.kind === "CR_DECIDED") return vaultLink({ projectId: event.projectId, crId: p.crId });
+  if (event.kind === "CR_DECIDED" || event.kind === "CR_SUBMITTED") return vaultLink({ projectId: event.projectId, crId: p.crId });
   return vaultLink({ projectId: event.projectId, itemId: p.itemId ?? event.itemIds[0], versionId: p.versionId });
 }
 
@@ -150,6 +156,8 @@ export function renderMessage(event: VaultEventRow, recipientId: string): string
   const who = p.actorName || "Someone";
   const direct = event.directRecipientIds.includes(recipientId);
   switch (event.kind) {
+    case "CR_SUBMITTED":
+      return `New change request "${p.crTitle}" (CR-${p.crNumber}) needs review.`;
     case "CHECKIN": {
       const note = p.note ? `: ${p.note.length > 120 ? `${p.note.slice(0, 117)}…` : p.note}` : "";
       return `${who} checked in v${p.versionNumber ?? "?"} of ${itemLabel(p)} (${p.fileName ?? "file"})${note}`;

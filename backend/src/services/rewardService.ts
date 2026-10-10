@@ -12,6 +12,7 @@ import { logAuditEvent } from "./activityService.js";
 import { recordActivity } from "./streakService.js";
 import { createNotification } from "./notificationCrud.js";
 import { isTrainingTask } from "./trainingSandboxService.js";
+import { emitTaskChanged } from "./taskChangeBus.js";
 
 // Streak activity hook — never throws into the caller. Returns a Promise so
 // hot paths (e.g. handleTaskComplete) can await before responding, ensuring
@@ -463,6 +464,7 @@ export async function handleTaskComplete(
     where: { id: task.id },
     data:  { rewardGrantedAt: new Date() },
   });
+  emitTaskChanged(task.id);
 
   return actorSummary;
 }

@@ -2,6 +2,7 @@ import { prisma, type AppMember as Member } from "../db/prisma.js";
 import type { Task, TaskStatus, TaskProgress, Priority, Prisma, Project, RecurringInterval, Tag } from "@prisma/client";
 import { logActivity } from "./activityService.js";
 import { EXCLUDE_TRAINING } from "./trainingSandboxService.js";
+import { emitTaskChanged } from "./taskChangeBus.js";
 
 // ── Helpers ──────────────────────────────────────────────────
 
@@ -127,6 +128,7 @@ export async function createTask(
     ).catch(err => console.error("[challenge] TASK_CREATED_WITH_DETAILS:", err));
   }
 
+  emitTaskChanged(task.parentTaskId ? [task.id, task.parentTaskId] : task.id);
   return task;
 }
 
@@ -315,11 +317,14 @@ export async function updateTask(
     ).catch(err => console.error("[challenge] TASK_CREATED_WITH_DETAILS (update):", err));
   }
 
+  emitTaskChanged(updated.parentTaskId ? [id, updated.parentTaskId] : id);
   return updated;
 }
 
 export async function deleteTask(id: string): Promise<Task> {
-  return prisma.task.delete({ where: { id } });
+  const task = await prisma.task.delete({ where: { id } });
+  emitTaskChanged(task.parentTaskId ? [id, task.parentTaskId] : id);
+  return task;
 }
 
 export async function getTask(id: string) {
@@ -405,7 +410,7 @@ export async function getSubtasks(taskId: string) {
 
 export async function createSubtask(
   parentTaskId: string,
-  data: { title: string; assigneeIds?: string[] }
+  data: { title: string; assigneeIds?: string[]; createdById?: string }
 ) {
   const parent = await prisma.task.findUnique({ where: { id: parentTaskId } });
   if (!parent) throw new Error("Parent task not found");
@@ -415,6 +420,7 @@ export async function createSubtask(
       title: data.title,
       projectId: parent.projectId,
       parentTaskId,
+      createdById: data.createdById,
       ...(data.assigneeIds && data.assigneeIds.length > 0
         ? { assignees: { connect: data.assigneeIds.map(id => ({ id })) } }
         : {}),
@@ -428,6 +434,7 @@ export async function createSubtask(
     projectId: subtask.projectId,
     metadata: { parentTaskId },
   });
+  emitTaskChanged([parentTaskId, subtask.id]);
   return subtask;
 }
 
@@ -445,6 +452,8 @@ export async function addDependency(taskId: string, blockedById: string, reason?
     update: reason !== undefined ? { reason: reason ?? null } : {},
   });
 
+  emitTaskChanged([taskId, blockedById]);
+
   return prisma.task.findUnique({
     where: { id: taskId },
     include: {
@@ -458,6 +467,8 @@ export async function removeDependency(taskId: string, blockedById: string) {
   await prisma.taskDependency.delete({
     where: { blockingTaskId_blockedTaskId: { blockingTaskId: blockedById, blockedTaskId: taskId } },
   });
+
+  emitTaskChanged([taskId, blockedById]);
 
   return prisma.task.findUnique({
     where: { id: taskId },
@@ -509,7 +520,7 @@ async function spawnRecurringTask(completedTask: Task & { assignees: Member[] })
     completedTask.recurringInterval!
   );
 
-  await prisma.task.create({
+  const nextTask = await prisma.task.create({
     data: {
       title: completedTask.title,
       description: completedTask.description,
@@ -530,6 +541,7 @@ async function spawnRecurringTask(completedTask: Task & { assignees: Member[] })
     where: { id: completedTask.id },
     data: { lastSpawnedAt: new Date() },
   });
+  emitTaskChanged([completedTask.id, nextTask.id]);
 }
 
 function computeNextDueDate(currentDue: Date, interval: string): Date {
@@ -554,7 +566,9 @@ function computeNextDueDate(currentDue: Date, interval: string): Date {
 // ── Time Logging ────────────────────────────────────────────
 
 export async function logTime(taskId: string, memberId: string, minutes: number, note?: string, labVisitId?: string) {
-  return prisma.timeLog.create({ data: { taskId, memberId, minutes, note, labVisitId } });
+  const entry = await prisma.timeLog.create({ data: { taskId, memberId, minutes, note, labVisitId } });
+  emitTaskChanged(taskId);
+  return entry;
 }
 
 // ── spawnNextOccurrence (recurrencePattern-based) ───────────
@@ -570,7 +584,7 @@ export async function spawnNextOccurrence(task: Task & { assignees: Member[]; ta
   };
   patterns[task.recurrencePattern]?.();
   if (task.recurrenceEndDate && next > task.recurrenceEndDate) return;
-  await prisma.task.create({
+  const nextTask = await prisma.task.create({
     data: {
       title: task.title, description: task.description, priority: task.priority,
       projectId: task.projectId, dueDate: next, status: "TODO",
@@ -582,6 +596,7 @@ export async function spawnNextOccurrence(task: Task & { assignees: Member[]; ta
       tags:      { connect: task.tags.map(t => ({ id: t.id })) },
     },
   });
+  emitTaskChanged(nextTask.id);
 }
 
 // ── Slack-Oriented Helpers ──────────────────────────────────

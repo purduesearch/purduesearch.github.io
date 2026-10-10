@@ -1,4 +1,5 @@
 import cron from "node-cron";
+import { flushDueCardBundles } from "../services/slackCardService.js";
 import type { App } from "@slack/bolt";
 import { syncAdminStatus } from "../services/memberService.js";
 import { prisma } from "../db/prisma.js";
@@ -21,6 +22,13 @@ import { sendDueReminders, autoCloseStale, discardExpiredPending } from "../serv
 // reminder + auto-close notice (one each per visit, via createNotification).
 
 export function startScheduler(app: App): void {
+  cron.schedule("* * * * *", async () => {
+    try {
+      await flushDueCardBundles();
+    } catch (error) {
+      console.error("Slack card bundle flush failed", error);
+    }
+  });
 
   // ── Daily 8:15 AM — Safety-training certificate expiry ───────────
   //

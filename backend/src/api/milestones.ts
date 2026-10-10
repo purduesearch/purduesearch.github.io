@@ -2,6 +2,7 @@ import { Router, type Request, type Response } from "express";
 import { requireAuth } from "./auth.js";
 import { getMilestoneWithProgress, refreshMilestoneHealth } from "../services/milestoneService.js";
 import { logAuditEvent, diffObjects } from "../services/activityService.js";
+import { emitTaskChanged } from "../services/taskChangeBus.js";
 
 export const milestonesRouter = Router();
 milestonesRouter.use(requireAuth);
@@ -127,7 +128,7 @@ milestonesRouter.patch("/:id", async (req: Request, res: Response) => {
     };
     const { prisma } = await import("../db/prisma.js");
 
-    const before = await prisma.milestone.findUnique({ where: { id: milestoneId } });
+    const before = await prisma.milestone.findUnique({ where: { id: milestoneId }, include: { tasks: { select: { id: true } } } });
 
     // Build update data
     const data: any = {};
@@ -147,12 +148,14 @@ milestonesRouter.patch("/:id", async (req: Request, res: Response) => {
         where: { milestoneId },
         data: { milestoneId: null },
       });
+      emitTaskChanged(before?.tasks.map(task => task.id) ?? []);
       // Then, link the selected tasks
       if (milestoneTaskIds.length > 0) {
         await prisma.task.updateMany({
           where: { id: { in: milestoneTaskIds } },
           data: { milestoneId },
         });
+        emitTaskChanged(milestoneTaskIds);
       }
     }
 
@@ -175,6 +178,7 @@ milestonesRouter.patch("/:id", async (req: Request, res: Response) => {
 
     // Refresh health after any update
     await refreshMilestoneHealth(milestoneId);
+    emitTaskChanged(milestone.tasks.map(task => task.id));
 
     const memberId = req.memberId;
     if (before) {
@@ -216,12 +220,13 @@ milestonesRouter.delete("/:id", async (req: Request, res: Response) => {
   try {
     const milestoneId = req.params.id as string;
     const { prisma } = await import("../db/prisma.js");
-    const milestone = await prisma.milestone.findUnique({ where: { id: milestoneId } });
+    const milestone = await prisma.milestone.findUnique({ where: { id: milestoneId }, include: { tasks: { select: { id: true } } } });
     // Unlink tasks first
     await prisma.task.updateMany({
       where: { milestoneId },
       data: { milestoneId: null },
     });
+    emitTaskChanged(milestone?.tasks.map(task => task.id) ?? []);
     await prisma.milestone.delete({ where: { id: milestoneId } });
 
     if (milestone) {

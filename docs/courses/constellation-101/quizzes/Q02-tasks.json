@@ -79,8 +79,8 @@
       "order": 5,
       "kind": "TRUE_FALSE",
       "points": 1,
-      "prompt": "Typing @someone in a task comment sends them a Slack DM as well as an in-app notification.",
-      "explanation": "True. Mentions are parsed on save, matched to members, and delivered both in-app and by Slack DM. That is what makes the comment thread a real place to ask a question rather than a message in a bottle.",
+      "prompt": "When notifications are enabled and mention delivery is set to Both, typing @someone in a task comment sends them a Slack DM as well as an in-app notification.",
+      "explanation": "True under those settings. Mentions are parsed on save and matched to members. The master switch and per-category delivery preference control whether and where they arrive. Notifications start disabled during testing.",
       "answers": [
         { "order": 0, "text": "True", "isCorrect": true },
         { "order": 1, "text": "False", "isCorrect": false }

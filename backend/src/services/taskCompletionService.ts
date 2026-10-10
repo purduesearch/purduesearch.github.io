@@ -4,6 +4,7 @@ import { logAuditEvent } from "./activityService.js";
 import { createNotification } from "./notificationCrud.js";
 import { getTask, updateTask } from "./taskService.js";
 import { octokitForRepo, parseRepoUrl, getPull } from "./githubService.js";
+import { emitTaskChanged } from "./taskChangeBus.js";
 
 // ── Shared task-completion side effects ─────────────────────────────
 //
@@ -173,5 +174,6 @@ export async function applyCompletionSideEffects(opts: {
     console.error("[challenge] task completion hooks:", err);
   }
 
+  emitTaskChanged(taskId);
   return { actorReward, progressMilestones };
 }

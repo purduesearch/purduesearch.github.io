@@ -1,8 +1,9 @@
 import type { App } from "@slack/bolt";
+import { draftTask } from "./handlers/quickAdd.js";
+import { openTaskModal } from "./handlers/taskModal.js";
 import { getTask, updateTask } from "../services/taskService.js";
-import { isAdminBySlackId } from "../services/memberService.js";
 import { resolveSlackMember } from "../services/memberService.js";
-import { openAddNoteModal, openNewTaskModal, openSnoozeModal, openSubtaskModal, openStandupModal, openImageTaskModal } from "./modals.js";
+import { openAddNoteModal, openSnoozeModal, openSubtaskModal, openStandupModal, openImageTaskModal } from "./modals.js";
 import { prisma } from "../db/prisma.js";
 import { retrieveAiTask } from "../utils/aiTaskCache.js";
 import { refreshAppHome } from "./home.js";
@@ -76,7 +77,7 @@ export function registerActions(app: App): void {
   // ── Create Task from Message (TODO auto-detect) ──────────
   app.action(
     "create_task_from_message",
-    async ({ action, ack, respond, body, client }) => {
+    async ({ action, ack, respond, body }) => {
       await ack();
 
       try {
@@ -93,12 +94,7 @@ export function registerActions(app: App): void {
             ? (body.channel as { id: string }).id
             : "";
 
-        const isAdminUser = await isAdminBySlackId(body.user.id);
-
-        if ("trigger_id" in body && body.trigger_id) {
-          await openNewTaskModal(client, body.trigger_id, channelId, initialTitle, undefined, undefined, undefined, undefined, isAdminUser);
-          await respond({ delete_original: true });
-        }
+        await draftTask({ text: initialTitle, slackId: body.user.id, channelId, respond });
       } catch (error) {
         console.error("create_task_from_message error:", error);
         await respond({
@@ -169,8 +165,7 @@ export function registerActions(app: App): void {
         }
 
         if ("trigger_id" in body && body.trigger_id) {
-          const isAdmin = await isAdminBySlackId(body.user.id);
-          await openNewTaskModal(client, body.trigger_id, channelId ?? "", initialTitle, undefined, undefined, undefined, undefined, isAdmin);
+          await openTaskModal(client, body.trigger_id, { channelId, memberId: body.user.id, isAdmin: false, prefill: { title: initialTitle } });
           await respond({ delete_original: true });
         }
       } catch (error) {
@@ -196,18 +191,6 @@ export function registerActions(app: App): void {
   });
 
   // ── Home: Create Task ──────────────────────────────────────
-  app.action("home_create_task", async ({ ack, body, client }) => {
-    await ack();
-    try {
-      if ("trigger_id" in body && body.trigger_id) {
-        const isAdmin = await isAdminBySlackId(body.user.id);
-        await openNewTaskModal(client, body.trigger_id, "", undefined, undefined, undefined, undefined, undefined, isAdmin);
-      }
-    } catch (error) {
-      console.error("home_create_task error:", error);
-    }
-  });
-
   // ── Home: Create Subtask ───────────────────────────────────
   app.action("home_create_subtask", async ({ ack, body, client }) => {
     await ack();
@@ -243,7 +226,7 @@ export function registerActions(app: App): void {
   });
 
   // ── AI: Create Task from AI Suggestion ─────────────────────
-  app.action("ai_create_task", async ({ action, ack, body, client }) => {
+  app.action("ai_create_task", async ({ action, ack, body, client, respond }) => {
     await ack();
     try {
       if (!("value" in action) || !action.value) return;
@@ -262,20 +245,12 @@ export function registerActions(app: App): void {
       }
 
       const cached = cacheKey ? retrieveAiTask(cacheKey) : null;
+      if (cacheKey && !cached) { await respond({ response_type: "ephemeral", text: "This draft expired. Run /c task again." }); return; }
 
-      const isAdminUser = await isAdminBySlackId(body.user.id);
-
-      await openNewTaskModal(
-        client,
-        body.trigger_id,
-        channelId,
-        cached?.title,
-        cached?.description,
-        cached?.dueDate,
-        cached?.suggestedAssigneeSlackIds,
-        cached?.parentTaskId,
-        isAdminUser
-      );
+      await openTaskModal(client, body.trigger_id, { channelId, memberId: body.user.id, isAdmin: false, prefill: {
+        title: cached?.title, description: cached?.description, dueDate: cached?.dueDate, priority: cached?.priority as "LOW" | "MEDIUM" | "HIGH" | "CRITICAL" | undefined,
+        assigneeSlackIds: cached?.suggestedAssigneeSlackIds, parentTaskId: cached?.parentTaskId,
+      } });
     } catch (error) {
       console.error("ai_create_task error:", error);
     }
@@ -312,9 +287,8 @@ export function registerActions(app: App): void {
     try {
       if (!("value" in action) || !action.value) return;
       const { title, description, dueDate, channelId } = JSON.parse(action.value);
-      const isAdminUser = await isAdminBySlackId(body.user.id);
       const triggerId = ("trigger_id" in body ? body.trigger_id : "") as string;
-      await openNewTaskModal(client, triggerId, channelId, title, description, dueDate, undefined, undefined, isAdminUser);
+      await openTaskModal(client, triggerId, { channelId, memberId: body.user.id, isAdmin: false, prefill: { title, description, dueDate } });
     } catch (err) {
       console.error("ai_create_drive_task error:", err);
     }

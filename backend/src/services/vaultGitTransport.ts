@@ -38,11 +38,17 @@ function run(command: string, args: string[], cwd: string, env: NodeJS.ProcessEn
     let diagnostic = "";
     child.stdout.on("data", (part: Buffer) => { if (output.length < 4096) output += part.toString(); });
     child.stderr.on("data", (part: Buffer) => { if (diagnostic.length < 4096) diagnostic += part.toString(); });
-    child.on("error", () => reject(new VaultGitError("GIT_ERROR")));
+    // Log the subcommand only: the rest of args can carry repo paths, never the token (askpass supplies it).
+    const label = `${command} ${args.find(arg => !arg.startsWith("-") && arg !== cwd && !path.isAbsolute(arg)) ?? ""}`.trim();
+    child.on("error", (error) => {
+      console.error(`[vault-git] ${label} failed to start:`, error.message);
+      reject(new VaultGitError("GIT_ERROR"));
+    });
     child.on("close", (code) => {
       if (code === 0) { resolve(output.trim()); return; }
       const lower = diagnostic.toLowerCase();
       const kind = /quota|billing|bandwidth|storage limit/.test(lower) ? "LFS_QUOTA" : /permission|protected branch|ruleset|write access/.test(lower) ? "PERMISSION" : /authentication failed|bad credentials|http 401|http 403/.test(lower) ? "AUTH" : "GIT_ERROR";
+      console.error(`[vault-git] ${label} exited ${code} (${kind}): ${diagnostic.replace(/x-access-token:[^@\s]+@/g, "x-access-token:***@").trim().slice(0, 1000)}`);
       reject(new VaultGitError(kind));
     });
   });

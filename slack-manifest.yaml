@@ -1,17 +1,52 @@
 display_information:
-  name: SEARCH PM
-  description: Slack-first project management for SEARCH engineering club
+  name: Constellation
+  description: Constellation, inside Slack
   background_color: "#1a1a2e"
 
 features:
   bot_user:
-    display_name: Club PM
+    display_name: Constellation
     always_online: true
+  app_home:
+    home_tab_enabled: true
+    messages_tab_enabled: true
+    messages_tab_read_only_enabled: false
   slash_commands:
+    - command: /c
+      description: Constellation tasks, plans, and CAD
+      usage_hint: "task | plan | vault | find | help"
+      should_escape: false
+    - command: /constellation
+      description: Constellation tasks, plans, and CAD
+      usage_hint: "task | plan | vault | find | help"
+      should_escape: false
     - command: /pm
-      description: Manage projects and tasks
+      description: Legacy Constellation commands
       usage_hint: "task | standup | report | help"
       should_escape: false
+    - command: /lab
+      description: Check in, check out, and see lab visits
+      usage_hint: "in | out | who | status"
+      should_escape: false
+  shortcuts:
+    - name: Create task
+      type: message
+      callback_id: sc_create_task
+      description: Create a Constellation task from this message
+    - name: Attach Constellation items
+      type: message
+      callback_id: sc_attach_items
+      description: Attach tasks, CAD, and other items to this message
+    - name: Plan from this thread
+      type: message
+      callback_id: sc_plan_thread
+      description: Review a Constellation action plan from this thread
+    - name: Add to task
+      type: message
+      callback_id: sc_add_to_task
+      description: Add this message to an existing Constellation task
+  unfurl_domains:
+    - purduesearch.org
 
 oauth_config:
   redirect_urls:
@@ -19,6 +54,11 @@ oauth_config:
     - https://YOUR_ORACLE_DOMAIN/auth/slack/callback
   scopes:
     bot:
+      - app_mentions:read
+      - links:read
+      - links:write
+      - im:history
+      - im:read
       - chat:write
       - commands
       - channels:read
@@ -60,6 +100,10 @@ settings:
   token_rotation_enabled: false
   event_subscriptions:
     bot_events:
+      - app_mention
+      - link_shared
+      - message.im
+      - app_home_opened
       - message.channels
       - message.groups
       - channel_created

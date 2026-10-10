@@ -14,10 +14,13 @@ import { storeAiTask } from "../utils/aiTaskCache.js";
 import { prisma } from "../db/prisma.js";
 import { ingestSlackMessage, applyReaction } from "../services/slackArchiveService.js";
 import { deliverSlackPings } from "../services/slackNotifyService.js";
+import { handleVaultFileShared } from "./handlers/vaultCheckin.js";
+
+const mentionInviteDays = new Map<string, string>();
 
 // ── Helpers ──────────────────────────────────────────────────
 
-type MemberStub = { slackId: string; displayName: string };
+import { extractSuggestedAssignees, type MemberStub } from "./views/taskDraft.js";
 
 // Fetches all Member records whose slackId appears in the given channel.
 // Requires channels:read (public) / groups:read (private) scopes.
@@ -42,106 +45,6 @@ async function getChannelMembers(client: WebClient, channelId: string): Promise<
   });
 }
 
-// Escape special regex chars in a literal string
-function escapeRegex(s: string): string {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-// Strip punctuation used in names/handles for comparison
-function normalize(s: string): string {
-  return s.toLowerCase().replace(/[.'\-_]/g, "");
-}
-
-// Score how well `query` (a handle or fragment) matches a member's name.
-// Returns 0 if no meaningful match.
-function nameMatchScore(query: string, member: MemberStub): number {
-  const q = normalize(query);
-  if (q.length < 2) return 0;
-
-  const parts = member.displayName.toLowerCase().split(/\s+/);
-  const firstName = normalize(parts[0] ?? "");
-  const lastName = normalize(parts[parts.length - 1] ?? "");
-  const fullCompact = normalize(member.displayName);
-
-  if (fullCompact === q) return 100;         // exact full name (no spaces)
-  if (firstName === q) return 90;            // exact first name
-  if (lastName === q && q.length >= 3) return 70; // exact last name
-  if (q.length >= 3 && firstName.startsWith(q)) return 60; // first-name prefix
-  if (q.length >= 4 && fullCompact.includes(q)) return 40; // substring of full name
-
-  return 0;
-}
-
-// Find the single best-matching member for a query string (used for @handle lookups).
-// Returns null if no member scores above the minimum threshold.
-function bestMatch(query: string, members: MemberStub[]): MemberStub | null {
-  let top: { member: MemberStub; score: number } | null = null;
-  for (const m of members) {
-    const s = nameMatchScore(query, m);
-    if (s > 0 && (!top || s > top.score)) top = { member: m, score: s };
-  }
-  return top && top.score >= 60 ? top.member : null;
-}
-
-// Returns whether a member's display name appears naturally in the text.
-function nameAppearsInText(member: MemberStub, lowerText: string): boolean {
-  const lowerName = member.displayName.toLowerCase();
-
-  // Full display name verbatim
-  if (lowerText.includes(lowerName)) return true;
-
-  const parts = lowerName.split(/\s+/).filter(p => p.length >= 3);
-
-  // Every significant name part present as a whole word (handles "First Last" split across text)
-  if (parts.length >= 2 && parts.every(p => new RegExp(`\\b${escapeRegex(p)}\\b`).test(lowerText))) {
-    return true;
-  }
-
-  // First name only — require ≥ 4 chars to cut down false positives
-  const first = parts[0];
-  if (first && first.length >= 4 && new RegExp(`\\b${escapeRegex(first)}\\b`).test(lowerText)) {
-    return true;
-  }
-
-  return false;
-}
-
-// Returns Slack user IDs for people mentioned in the text, drawn from `members`.
-// Handles three forms: <@USERID> Slack tags, @handle plain text, and natural
-// language name references ("have Henry fix this", "assign to Sarah").
-function extractSuggestedAssignees(text: string, members: MemberStub[]): string[] {
-  if (members.length === 0) return [];
-  const found = new Set<string>();
-
-  // 1. Explicit Slack <@USERID> tags
-  for (const match of text.matchAll(/<@([A-Z0-9]+)(?:\|[^>]+)?>/g)) {
-    const member = members.find(m => m.slackId === match[1]);
-    if (member) found.add(member.slackId);
-  }
-
-  // Remove Slack tags before further processing
-  const noSlackTags = text.replace(/<@[^>]+>/g, " ");
-
-  // 2. Plain @handle mentions — e.g. "@henry", "@john.smith"
-  for (const match of noSlackTags.matchAll(/@([\w.']+)/g)) {
-    if (found.size >= 5) break;
-    const remaining = members.filter(m => !found.has(m.slackId));
-    const member = bestMatch(match[1], remaining);
-    if (member) found.add(member.slackId);
-  }
-
-  // 3. Natural language names in the remaining text
-  const plainText = noSlackTags.replace(/@[\w.']+/g, " ").toLowerCase();
-  for (const member of members) {
-    if (found.has(member.slackId)) continue;
-    if (nameAppearsInText(member, plainText)) found.add(member.slackId);
-  }
-
-  return [...found];
-}
-
-// ── Event Registration ───────────────────────────────────────
-
 export function registerEvents(app: App): void {
   // ── Message: archive + auto-detect TODO/ACTION ────────────
   // The archive call runs FIRST and in its own try/catch. The two concerns get
@@ -162,6 +65,29 @@ export function registerEvents(app: App): void {
     } catch (error) {
       console.error("[slackArchive] ingest failed:", error);
     }
+
+    // User-token events can see a mention where the bot cannot receive app_mention.
+    try {
+      const authorizations = (body as { authorizations?: { is_bot?: boolean }[] }).authorizations ?? [];
+      const msg = message as { text?: string; user?: string; bot_id?: string; subtype?: string; channel: string };
+      if (result?.event === "new" && !msg.subtype && !msg.bot_id && msg.user && authorizations.some(auth => auth.is_bot === false)) {
+        const botId = await getBotUserId(app.client);
+        if (botId && msg.user !== botId && msg.text?.includes(`<@${botId}>`)) {
+          const membership = await prisma.slackConversationMember.findFirst({ where: { slackChannelId: msg.channel, slackUserId: botId } });
+          const day = new Date().toISOString().slice(0, 10);
+          for (const [key, date] of mentionInviteDays) if (date !== day) mentionInviteDays.delete(key);
+          const key = `${msg.channel}:${msg.user}`;
+          if (!membership && mentionInviteDays.get(key) !== day) {
+            mentionInviteDays.set(key, day);
+            try {
+              const dm = await app.client.conversations.open({ users: msg.user });
+              if (!dm.channel?.id) throw new Error("Unable to open mention invitation DM");
+              await app.client.chat.postMessage({ channel: dm.channel.id, text: "Invite me with /invite @Constellation to use me there." });
+            } catch (error) { mentionInviteDays.delete(key); throw error; }
+          }
+        }
+      }
+    } catch (error) { console.error("[mentions] invitation failed", error); }
 
     // Mirror Slack's pings into Constellation. Live path ONLY — backfill never
     // notifies (D10). Separate error boundary: a ping bug must not lose the
@@ -379,6 +305,7 @@ export function registerEvents(app: App): void {
     try {
       const fileInfo = await client.files.info({ file: (event as any).file_id });
       const file = fileInfo.file as any;
+      if (file && await handleVaultFileShared(event, file, client)) return;
       if (!file || !file.mimetype?.startsWith("image/")) return;
 
       const channelId = file.channels?.[0] ?? (event as any).channel_id;

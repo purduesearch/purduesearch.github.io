@@ -5,11 +5,13 @@ import { suggestActionsPrompt } from "../utils/aiPrompts.js";
 import { runJson } from "./ai/aiRouter.js";
 import { parsePastedPlan } from "./ai/planTextExtract.js";
 import { getTaskPermissions } from "../middleware/taskAccess.js";
+import { createTaskAsMember, notifyAddedAssignees } from "./taskMutationService.js";
 import { logAuditEvent, diffObjects } from "./activityService.js";
 import { recomputeBlockedStatus } from "../api/blockers.js";
 import { refreshMilestoneHealth } from "./milestoneService.js";
+import { emitTaskChanged } from "./taskChangeBus.js";
 import {
-  createTask, updateTask, deleteTask, getTask, createSubtask, addDependency,
+  updateTask, deleteTask, getTask, createSubtask, addDependency,
   assertCanComplete, assertNotCategoryBlocked,
 } from "./taskService.js";
 
@@ -332,21 +334,15 @@ async function dispatchAction(projectId: string, memberId: string, action: Actio
   switch (action.type) {
     case "CREATE_TASK": {
       const p = action.params as { title: string; description?: string; priority?: Priority; dueDate?: string | null; assigneeIds?: string[]; milestoneId?: string; subtasks?: string[] };
-      const created = await createTask({
+      const created = await createTaskAsMember(memberId, {
         title: p.title.trim(),
         description: p.description,
         priority: p.priority,
-        dueDate: p.dueDate ?? undefined,
+        dueDate: p.dueDate ? new Date(p.dueDate) : undefined,
         projectId,
         assigneeIds: p.assigneeIds,
         milestoneId: p.milestoneId,
-        createdById: memberId,
-      });
-      await logAuditEvent({
-        taskId: created.id, projectId, memberId, source: "WEB",
-        eventType: "TASK_CREATED",
-        payload: { taskTitle: created.title, viaAiPlan: true },
-      });
+      }, "AI");
       // Create any child subtasks the plan attached to this new task.
       const subtaskTitles = Array.isArray(p.subtasks) ? p.subtasks : [];
       for (const stTitle of subtaskTitles) {
@@ -375,6 +371,13 @@ async function dispatchAction(projectId: string, memberId: string, action: Actio
         dueDate: p.dueDate === undefined ? undefined : (p.dueDate === null ? null : new Date(p.dueDate)),
         assigneeIds: p.assigneeIds,
       });
+      if (p.assigneeIds !== undefined) {
+        await notifyAddedAssignees({
+          taskId, actorId: memberId,
+          addedAssigneeIds: updated.assignees.map(a => a.id)
+            .filter(id => !before.assignees.some(a => a.id === id)),
+        });
+      }
       const changes = diffObjects(before as any, updated as any, ["title", "description", "priority", "dueDate"]);
       await logAuditEvent({
         taskId, projectId, memberId, source: "WEB",
@@ -458,7 +461,13 @@ async function dispatchAction(projectId: string, memberId: string, action: Actio
       const taskId = requireTargetId(action);
       await requireEditable(taskId, projectId, memberId);
       const { assigneeIds } = action.params as { assigneeIds: string[] };
+      const before = await getTask(taskId);
+      if (!before) throw new Error("Task not found");
       const updated = await updateTask(taskId, { assigneeIds });
+      await notifyAddedAssignees({
+        taskId, actorId: memberId,
+        addedAssigneeIds: updated.assignees.map(a => a.id).filter(id => !before.assignees.some(a => a.id === id)),
+      });
       await logAuditEvent({
         taskId, projectId, memberId, source: "WEB",
         eventType: "TASK_ASSIGNED",
@@ -509,8 +518,10 @@ async function dispatchAction(projectId: string, memberId: string, action: Actio
         create: { taskId, blockerId, reason: reason ?? null },
         update: { reason: reason ?? null },
       });
+      emitTaskChanged(taskId);
       // completedAt: null — leaving DONE clears it; a no-op when already null.
       const task = await prisma.task.update({ where: { id: taskId }, data: { status: "BLOCKED", completedAt: null } });
+      emitTaskChanged(taskId);
       await logAuditEvent({
         taskId, projectId, memberId, source: "WEB",
         eventType: "TASK_BLOCKER_ATTACHED",
@@ -531,6 +542,7 @@ async function dispatchAction(projectId: string, memberId: string, action: Actio
         prisma.blocker.update({ where: { id: blockerId }, data: { resolvedAt: new Date() } }),
         prisma.taskBlocker.deleteMany({ where: { blockerId } }),
       ]);
+      emitTaskChanged(affectedTaskIds);
       await recomputeBlockedStatus(affectedTaskIds);
       await logAuditEvent({
         projectId, memberId, source: "WEB",
@@ -545,6 +557,7 @@ async function dispatchAction(projectId: string, memberId: string, action: Actio
       await assertTaskInProject(taskId, projectId);
       const { content } = action.params as { content: string };
       const comment = await prisma.taskComment.create({ data: { content: content.trim(), taskId, authorId: memberId } });
+      emitTaskChanged(taskId);
       await logAuditEvent({
         taskId, projectId, memberId, source: "WEB",
         eventType: "COMMENT_ADDED",
@@ -583,6 +596,7 @@ async function dispatchAction(projectId: string, memberId: string, action: Actio
       if (ids.length === 0) throw new Error("At least one task id is required");
       for (const id of ids) await requireEditable(id, projectId, memberId);
       await prisma.task.updateMany({ where: { id: { in: ids } }, data: { milestoneId } });
+      emitTaskChanged(ids);
       await refreshMilestoneHealth(milestoneId);
       await logAuditEvent({
         projectId, memberId, source: "WEB",
