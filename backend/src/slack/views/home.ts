@@ -15,7 +15,7 @@ export interface ProjectsData { frontendUrl: string; projects: HomeProject[] }
 export function homeTabs(active: HomeTab): ActionsBlock {
   const tabs: [HomeTab, string][] = [["mywork", "My work"], ["projects", "Projects"], ["files", "Files"], ["calendar", "Calendar"]];
   return { type: "actions", block_id: "home_tabs", elements: tabs.map(([value, text]) => ({
-    type: "button" as const, text: { type: "plain_text" as const, text }, action_id: "home_tab", value,
+    type: "button" as const, text: { type: "plain_text" as const, text }, action_id: `home_tab_${value}`, value,
     ...(active === value ? { style: "primary" as const } : {}),
   })) };
 }

@@ -45,7 +45,7 @@ export function registerHome(app: App): void {
   app.event("app_home_opened", async ({ event, client }) => {
     if (event.tab === "home") await refreshAppHome(client, event.user);
   });
-  app.action("home_tab", async ({ ack, body, action, client }) => {
+  app.action(/^home_tab_/, async ({ ack, body, action, client }) => {
     await ack();
     if (action.type !== "button" || !action.value || !isTab(action.value)) return;
     tabs.set(body.user.id, action.value);
