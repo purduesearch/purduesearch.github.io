@@ -29,7 +29,8 @@ test("all four tab buttons identify the active tab", () => {
     const row = homeTabs(active);
     assert.equal(row.elements.length, 4);
     assert.equal(row.elements.filter(e => e.type === "button" && e.style === "primary").length, 1);
-    assert.ok(row.elements.every(e => e.type === "button" && e.action_id === "home_tab"));
+    assert.ok(row.elements.every(e => e.type === "button" && e.action_id === `home_tab_${e.value}`));
+    assert.equal(new Set(row.elements.map(e => e.type === "button" ? e.action_id : "")).size, 4, "Slack rejects duplicate action_ids within one block");
   }
 });
 test("maximum My work data fits budget and preserves overflow", () => {
