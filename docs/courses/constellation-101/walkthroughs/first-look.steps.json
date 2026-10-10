@@ -61,7 +61,7 @@
       "anchor": "topbar.notifications",
       "route": "/clubpm",
       "title": "Open your notifications",
-      "body": "Go ahead and click the bell. This is the complete record of everything that's wanted your attention.",
+      "body": "Click the bell to see your notifications. The Notification preferences link at the top of the dropdown lets you choose what reaches you and where.",
       "placement": "bottom",
       "advance": { "on": "click" }
 ,

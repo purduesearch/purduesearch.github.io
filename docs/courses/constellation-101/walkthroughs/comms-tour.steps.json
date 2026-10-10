@@ -18,7 +18,7 @@
       "anchor": "notifications.prefs",
       "route": "/clubpm/notifications",
       "title": "Open your preferences",
-      "body": "This is the screen worth spending two minutes on today rather than on the day it annoys you.",
+      "body": "Open Preferences to choose what reaches you and where. On desktop, you can also reach this page through Notification preferences at the top of the bell dropdown.",
       "placement": "bottom",
       "advance": { "on": "click" }
     },

@@ -30179,3 +30179,35 @@ body.pm-m-compact .pm-albums-icon-btn { width: 44px; height: 44px; }
   .cpm-slack-mentions-unlink { width: 44px; height: 44px; }
   .cpm-slack-mentions-open { min-height: 44px; }
 }
+
+/* Notification settings remain reachable in the sticky dropdown header. */
+.pm-notif-header {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
+.pm-notif-header-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.pm-notif-preferences-link {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: 6px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  color: var(--pm-accent-teal);
+  font-family: var(--pm-font-body);
+  font-size: 12px;
+  text-decoration: none;
+}
+.pm-notif-preferences-link:hover {
+  background: rgba(0,229,195,0.08);
+}
+.pm-notif-preferences-link:focus-visible {
+  outline: 2px solid var(--pm-accent-teal);
+  outline-offset: 2px;
+}

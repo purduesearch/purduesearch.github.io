@@ -50,7 +50,7 @@ step must open first (`compact.reveal`).
 | `nav.xp` | Sidebar XP progress bar | More › progress block | both | more | `*` |
 | `nav.rank` | Sidebar rank badge | More › account row rank badge | both | more | `*` |
 | `nav.more` | — | Bottom-bar **More** button | phone | | `*` |
-| `topbar.notifications` | Notification bell (dropdown) | Header bell — a link to `/clubpm/notifications` | both | | `*` |
+| `topbar.notifications` | Notification bell (dropdown with Notification preferences link) | Header bell — a link to `/clubpm/notifications` | both | | `*` |
 | `topbar.search` | AI command palette trigger | Header **Search** icon (full-screen search) | both | | `*` |
 | `chat.people` | — | **People & DMs** shortcut above the phone channel list | phone | | `/clubpm/chat` |
 | `topbar.streak` | Streak flame counter | More › progress block streak | both | more | `*` |
