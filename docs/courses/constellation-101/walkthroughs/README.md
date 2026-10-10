@@ -143,6 +143,10 @@ which is the exact failure this system is trying to avoid.
 
 ### `comms-tour` — 10 steps
 
+Desktop members can open Notification preferences directly from the bell dropdown header.
+The first-look tour points out that shortcut; this tour uses Preferences on the full Notifications
+page, which is also reachable from the phone bell.
+
 Ends the course by closing V01's loop: Constellation comes to you. The preferences step deliberately
 argues *against* muting rather than just describing the toggles, because the member who mutes
 everything is the member who quietly stops being asked to do things.

@@ -40,7 +40,7 @@ export const TOUR_ANCHORS = Object.freeze({
   "nav.admin":              { label: "Admin link",           route: "*", layout: "both", reveal: "more",    note: "Admins only — child of Other; More › Admin on phones; absent for other members" },
   "nav.profile":            { label: "Profile link",         route: "*", layout: "both", reveal: "more",    note: "Sidebar user block; More › Profile on phones" },
   "nav.more":               { label: "More button",          route: "*", layout: "compact", note: "Bottom-bar More; opens the sheet holding every other destination" },
-  "topbar.notifications":   { label: "Notification bell",    route: "*", layout: "both",    note: "Dropdown on desktop; on phones a link to /clubpm/notifications" },
+  "topbar.notifications":   { label: "Notification bell",    route: "*", layout: "both",    note: "Dropdown with Notification preferences link on desktop; on phones a link to /clubpm/notifications" },
   "topbar.search":          { label: "Command palette",      route: "*", layout: "both",    note: "AI command palette trigger; header Search icon on phones (full-screen)" },
   "chat.people":            { label: "People & DMs shortcut", route: "/clubpm/chat", layout: "compact", note: "First row on the phone channel-list landing screen" },
   "topbar.streak":          { label: "Streak counter",       route: "*", layout: "both", reveal: "more",    note: "Flame counter; More › Progress on phones" },

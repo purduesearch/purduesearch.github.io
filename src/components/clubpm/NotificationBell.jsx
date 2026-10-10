@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import { Link } from "react-router-dom";
 import { formatDistanceToNow } from "date-fns";
 import LottieBell from "./anim/LottieBell";
 
@@ -178,14 +179,24 @@ export default function NotificationBell({ feed }) {
         <div className="pm-notif-dropdown" role="dialog" aria-label="Notifications">
           {/* Header */}
           <div className="pm-notif-header">
-            <span style={{ fontWeight: 600, fontSize: 13, color: "var(--pm-text-primary)" }}>
-              Notifications
-            </span>
-            {unreadCount > 0 && (
-              <button className="pm-notif-mark-all" onClick={handleMarkAll}>
-                Mark all read
-              </button>
-            )}
+            <div className="pm-notif-header-summary">
+              <span style={{ fontWeight: 600, fontSize: 13, color: "var(--pm-text-primary)" }}>
+                Notifications
+              </span>
+              {unreadCount > 0 && (
+                <button className="pm-notif-mark-all" onClick={handleMarkAll}>
+                  Mark all read
+                </button>
+              )}
+            </div>
+            <Link
+              className="pm-notif-preferences-link"
+              to="/clubpm/notifications/preferences"
+              onClick={() => setOpen(false)}
+            >
+              <i className="fas fa-sliders-h" aria-hidden="true" />
+              Notification preferences
+            </Link>
           </div>
 
           {/* Tab bar */}
