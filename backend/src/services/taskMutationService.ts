@@ -548,25 +548,20 @@ export async function addCommentAsMember(
     console.log(`[mentions] Found ${mentionedMembers.length} members matching handles: ${mentions.join(", ")}`);
 
     for (const m of mentionedMembers) {
-      if (!m.slackId) {
-        console.log(`[mentions] Skipping member ${m.displayName}: no slackId`);
-        continue;
-      }
       if (!populatedComment) {
         console.log(`[mentions] Skipping member ${m.displayName}: populatedComment is null`);
         continue;
       }
 
       try {
-        // Lazy import to avoid circular dependency at module load time
-        const { boltApp } = await import("../slack/bolt.js");
-        await boltApp.client.chat.postMessage({
-          channel: m.slackId,
-          text: `🔔 *${populatedComment.author.displayName}* mentioned you in a comment on task *${populatedComment.task.title}* (${populatedComment.task.project.name}):\n\n> ${content}\n\n<${process.env.FRONTEND_URL}/clubpm/projects/${populatedComment.task.projectId}|View Task>`
+        await createNotification({
+          type: "TASK_MENTIONED", recipientId: m.id, actorId: memberId,
+          projectId: populatedComment.task.projectId, taskId, commentId: comment.id,
+          message: `${populatedComment.author.displayName} mentioned you on "${populatedComment.task.title}"`,
+          slackText: `${populatedComment.author.displayName} mentioned you in a comment on ${populatedComment.task.title}:\n> ${content}`,
         });
-        console.log(`[mentions] Sent DM to Slack user ${m.slackId} (${m.displayName})`);
       } catch (dmErr) {
-        console.error(`[mentions] Failed to DM ${m.slackId} (${m.displayName}):`, dmErr);
+        console.error(`[mentions] Failed to notify ${m.id} (${m.displayName}):`, dmErr);
       }
     }
   }

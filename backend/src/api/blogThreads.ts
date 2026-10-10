@@ -3,7 +3,7 @@ import { requireAuth } from "./auth.js";
 import * as threads from "../services/blogThreadService.js";
 import type { DocRef, DocType } from "../services/blogThreadService.js";
 import type { BlogThreadStatus } from "@prisma/client";
-import { notifyThreadActivity, notifyMentions } from "../services/blogThreadNotify.js";
+import { notifyMentions } from "../services/blogThreadNotify.js";
 import { findMentionedMembers } from "../services/mentionService.js";
 import {
   resolveDocAccess, atLeast, type DocRef as AccessRef,
@@ -101,15 +101,6 @@ blogThreadsRouter.post("/docs/:docType/:docId/threads", async (req: Request, res
       rationale: typeof rationale === "string" ? rationale : undefined,
       origin: origin === "AI" ? "AI" : "HUMAN",
     });
-    if (thread.origin !== "AI") {
-      void notifyThreadActivity({
-        docRef: ctx.ref,
-        actorId: req.memberId!,
-        threadId: thread.id,
-        kind,
-        snippet: (typeof body === "string" && body.trim()) ? body : anchorText,
-      });
-    }
     res.status(201).json(thread);
   } catch (err) {
     console.error("[blogThreads] create error:", err);
@@ -185,14 +176,6 @@ blogThreadsRouter.post("/threads/:id/comments", async (req: Request, res: Respon
       return;
     }
     const updated = await threads.addComment(req.params.id as string, req.memberId!, body);
-    void notifyThreadActivity({
-      docRef: ctx.ref,
-      actorId: req.memberId!,
-      threadId: req.params.id as string,
-      kind: updated?.kind === "SUGGESTION" ? "SUGGESTION" : "COMMENT",
-      snippet: body,
-    });
-
     // @mentions are notified separately from the draft's owners, and answered
     // with whoever cannot actually open the document so the client can offer a
     // one-click grant. That offer is only actionable by someone who holds EDIT

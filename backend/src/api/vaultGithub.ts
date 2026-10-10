@@ -193,6 +193,7 @@ vaultGithubRouter.post("/projects/:projectId/vault/repository/verify", requireAd
     res.json({ setupStatus: "READY", lastHeadSha: result.commitSha });
   } catch (error) {
     const code = safeError(error);
+    if (!(error instanceof VaultGitError)) console.error("[vault-verify] unexpected error:", error);
     await prisma.vaultRepository.update({ where: { id: repo.id }, data: { setupStatus: "ERROR", healthError: code } });
     res.status(502).json({ error: code });
   } finally { await fs.rm(scratch, { force: true }); }

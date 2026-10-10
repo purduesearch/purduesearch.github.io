@@ -42,9 +42,9 @@ await assert.rejects(service.createBlockerAsMember("actor", "p", { label: "" }, 
 assert.equal(calls.length, 0);
 const blocker = await service.createBlockerAsMember("actor", "p", { label: " Supply ", assigneeId: "owner" }, "SLACK");
 assert.equal(blocker.label, " Supply "); // REST never trimmed creation labels.
-assert.deepEqual(calls.map(c => c[0]), ["create", "notification", "dm", "audit"]);
-assert.equal(calls[1][1].actorId, "actor");
-assert.equal(calls[3][1].source, "SLACK");
+assert.deepEqual(calls.map(c => c[0]), ["create", "audit"]);
+assert.equal(calls[1][1].memberId, "actor");
+assert.equal(calls[1][1].source, "SLACK");
 calls.length = 0;
 canEdit = false;
 await assert.rejects(service.attachBlockerAsMember("outsider", "t", { blockerId: "b" }, "SLACK"), { status: 403 });

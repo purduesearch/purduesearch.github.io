@@ -4,7 +4,7 @@ import { requireTaskEdit } from "../middleware/taskAccess.js";
 import { prisma } from "../db/prisma.js";
 import { logAuditEvent } from "../services/activityService.js";
 import { emitTaskChanged } from "../services/taskChangeBus.js";
-import { createBlockerAsMember, attachBlockerAsMember, notifyBlockerAssignee } from "../services/blockerMutationService.js";
+import { createBlockerAsMember, attachBlockerAsMember, recordBlockerAssignment } from "../services/blockerMutationService.js";
 import { TaskMutationError } from "../services/taskMutationService.js";
 
 export const blockersRouter = Router();
@@ -114,7 +114,7 @@ blockersRouter.patch("/blockers/:id", async (req: Request, res: Response) => {
     emitTaskChanged(attachedTasks.map((task) => task.taskId));
 
     if (blocker.assigneeId && blocker.assigneeId !== before?.assigneeId) {
-      await notifyBlockerAssignee(blocker.id, blocker.assigneeId, blocker.label, req.memberId ?? null);
+      await recordBlockerAssignment(blocker.id, blocker.assigneeId, blocker.label, req.memberId ?? null);
     }
 
     res.json(blocker);

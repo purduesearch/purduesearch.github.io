@@ -169,6 +169,7 @@ model Member {
   kanbanColumnOrder       String[]                @default(["TODO", "IN_PROGRESS", "BLOCKED", "DONE"])
   notificationPrefs       String[]                @default(["daily_reminders", "weekly_digest", "project_updates"])
   notificationChannels    Json?
+  notificationsDisabled   Boolean                 @default(true)
   quietHoursStart         Int?
   quietHoursEnd           Int?
   mutedProjectIds         String[]                @default([])

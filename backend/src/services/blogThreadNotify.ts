@@ -1,6 +1,5 @@
 import { prisma } from "../db/prisma.js";
 import { createNotification } from "./notificationCrud.js";
-import { queueDm } from "./dmBatcher.js";
 import type { DocRef } from "./blogThreadService.js";
 
 /**
@@ -50,62 +49,8 @@ async function docSummary(
 }
 
 /**
- * Tell a draft's authors that someone reviewed it. Fire-and-forget: a review
- * comment must still succeed if Slack or the notification write fails, so this
- * never throws and callers do not await it.
- */
-export async function notifyThreadActivity(args: {
-  docRef: DocRef;
-  actorId: string;
-  threadId: string;
-  kind: "COMMENT" | "SUGGESTION";
-  snippet: string;
-}): Promise<void> {
-  try {
-    const { docRef, actorId, kind, snippet } = args;
-
-    const summary = await docSummary(docRef);
-    if (!summary) return;
-    const { label, recipientIds } = summary;
-
-    // Never notify the person who just acted.
-    const targets = [...new Set(recipientIds)].filter((id) => id && id !== actorId);
-    if (targets.length === 0) return;
-
-    const actor = await prisma.member.findUnique({
-      where: { id: actorId },
-      select: { displayName: true },
-    });
-    const who = actor?.displayName ?? "Someone";
-    const verb = kind === "SUGGESTION" ? "suggested an edit on" : "commented on";
-    const message = `${who} ${verb} “${label}”: ${snippet.slice(0, 120)}`;
-
-    const members = await prisma.member.findMany({
-      where: { id: { in: targets } },
-      select: { id: true, slackId: true },
-    });
-
-    await Promise.all(members.map((m) =>
-      createNotification({
-        type: "BLOG_COMMENTED",
-        recipientId: m.id,
-        actorId,
-        message,
-        metadata: { threadId: args.threadId, docType: docRef.docType, docId: docRef.docId },
-      })
-    ));
-
-    members.forEach((m) => { if (m.slackId) queueDm(m.slackId, message); });
-  } catch (err) {
-    console.error("[blogThreadNotify] failed:", err);
-  }
-}
-
-/**
- * Ping each `@mentioned` member. Deliberately separate from
- * notifyThreadActivity: a mention reaches people who have nothing to do with
- * the draft, so it carries its own wording and its own recipient list. Also
- * fire-and-forget — the comment is already written by the time this runs.
+ * Ping each explicitly mentioned member; ordinary review activity stays silent.
+ * Fire-and-forget — the comment is already written by the time this runs.
  *
  * Whether the mentioned member can actually open the document is not decided
  * here; the route answers that so the commenter can be offered a grant.
@@ -137,6 +82,7 @@ export async function notifyMentions(args: {
         recipientId: m.id,
         actorId,
         message,
+        slackText: message,
         metadata: {
           threadId,
           docType: docRef.docType,
@@ -146,7 +92,6 @@ export async function notifyMentions(args: {
       })
     ));
 
-    members.forEach((m) => { if (m.slackId) queueDm(m.slackId, message); });
   } catch (err) {
     console.error("[blogThreadNotify] mention notify failed:", err);
   }

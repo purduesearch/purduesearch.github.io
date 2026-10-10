@@ -3,8 +3,6 @@
 
 import { prisma } from "../db/prisma.js";
 import { handleKudosReceived } from "./rewardService.js";
-import { queueDm } from "./dmBatcher.js";
-import { createNotification } from "./notificationCrud.js";
 
 export const WEEKLY_SEND_CAP    = 3;
 export const WEEKLY_RECEIVE_CAP = 5;
@@ -69,25 +67,6 @@ export async function sendKudos(
   // Engagement reward (fire-and-forget)
   handleKudosReceived(toId, fromId).catch(err =>
     console.error("[kudos] handleKudosReceived:", err));
-
-  // In-app + Slack notification to the recipient (fire-and-forget)
-  void (async () => {
-    const [from, to] = await Promise.all([
-      prisma.member.findUnique({ where: { id: fromId }, select: { displayName: true } }),
-      prisma.member.findUnique({ where: { id: toId },   select: { slackId: true } }),
-    ]);
-    try {
-      await createNotification({
-        type: "SYSTEM",
-        recipientId: toId,
-        actorId: fromId,
-        message: `${from?.displayName ?? "Someone"} sent you kudos!`,
-      });
-    } catch (err) { console.error("[kudos] notification:", err); }
-    if (to?.slackId) {
-      queueDm(to.slackId, `❤️ *${from?.displayName ?? "Someone"}* sent you kudos!`);
-    }
-  })();
 
   return {
     sentThisWeek:        sentThisWeek + 1,

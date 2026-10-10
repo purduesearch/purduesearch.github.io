@@ -71,7 +71,7 @@ the corresponding `.json` and vice versa, so the two cannot silently drift.
 - XP is granted immediately with no review
 - It's recorded but never earns XP
 
-**q02-6 (TRUE_FALSE)** Typing @someone in a task comment sends them a Slack DM as well as an in-app notification. → ✓ **True**
+**q02-6 (TRUE_FALSE)** When notifications are enabled and mention delivery is set to Both, typing @someone in a task comment sends them a Slack DM as well as an in-app notification. → ✓ **True**
 
 ---
 

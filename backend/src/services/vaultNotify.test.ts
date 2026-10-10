@@ -27,7 +27,7 @@ function check(name: string, cond: boolean) {
 }
 
 const profile = (id: string, over: Partial<RecipientProfile> = {}): RecipientProfile => ({
-  id, slackId: `U-${id}`, isBot: false, notificationChannels: {}, mutedProjectIds: [], canAccess: true, ...over,
+  id, slackId: `U-${id}`, isBot: false, notificationChannels: {}, notificationsDisabled: false, mutedProjectIds: [], canAccess: true, ...over,
 });
 const sub = (memberId: string, itemId = "i1", over: Partial<Subscriber> = {}): Subscriber => ({ memberId, itemId, checkins: true, decisions: true, conflicts: true, ...over });
 
@@ -55,6 +55,7 @@ const [checkin] = checkinEventRows(item, version, "actor", "Ada", null);
     sub("nocheckins", "i1", { checkins: false }), sub("otheritem", "i9"),
   ];
   const plan = planDeliveries(checkin, subs, profiles);
+  check("master switch suppresses both Vault channels", planDeliveries(checkin, [sub("disabled")], new Map([["disabled", profile("disabled", { notificationsDisabled: true })]])).length === 0);
   const has = (id: string, ch: string) => plan.some((p) => p.recipientId === id && p.channel === ch);
   const any = (id: string) => plan.some((p) => p.recipientId === id);
   check("a watcher gets in-app and Slack by default", has("watcher", "IN_APP") && has("watcher", "SLACK"));
@@ -148,6 +149,7 @@ function makeWorld(audience: { subscribers: Subscriber[]; profiles: Map<string, 
   };
   const deps: NotifyDeps = {
     store,
+    canNotify: async id => audience.profiles.get(id)?.notificationsDisabled === false,
     now: () => new Date(clock),
     frontendUrl: "https://purduesearch.org",
     emit: () => undefined,
@@ -163,6 +165,21 @@ function makeWorld(audience: { subscribers: Subscriber[]; profiles: Map<string, 
 }
 
 async function outboxTests() {
+  {
+    const watcher = profile("watcher");
+    const w = makeWorld({ subscribers: [sub("watcher")], profiles: new Map([["watcher", watcher]]) });
+    w.enqueue(checkin);
+    await w.deps.store.createDeliveries(checkin.id, [
+      { recipientId: "watcher", channel: "IN_APP" }, { recipientId: "watcher", channel: "SLACK" },
+    ]);
+    await w.deps.store.markFannedOut(checkin.id, w.deps.now());
+    watcher.notificationsDisabled = true;
+    await processDueVaultNotifications(w.deps);
+    check("pending Vault deliveries respect disabling after fanout", w.notifications.length === 0 && w.slackSent.length === 0);
+    watcher.notificationsDisabled = false;
+    await processDueVaultNotifications(w.deps);
+    check("suppressed Vault deliveries do not replay after opt-in", w.notifications.length === 0 && w.slackSent.length === 0);
+  }
   {
     const submission: VaultEventRow = { id: eventKeys.crSubmitted("c1"), kind: "CR_SUBMITTED", projectId: "p1", itemIds: [], actorId: null, directRecipientIds: ["admin", "off"], payload: { crId: "c1", crNumber: 12, crTitle: "Stiffen mount" } };
     const w = makeWorld({ subscribers: [sub("watcher")], profiles: new Map([["admin", profile("admin", { canAccess: false, mutedProjectIds: ["p1"] })], ["off", profile("off", { notificationChannels: { VAULT_CR_SUBMITTED: "off" } })], ["watcher", profile("watcher")]]) });

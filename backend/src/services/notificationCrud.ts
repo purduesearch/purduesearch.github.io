@@ -4,6 +4,7 @@ import { addPing, removePing, newestPing, pingCount, type PingEntry } from "./sl
 import { queueDm } from "./dmBatcher.js";
 import { queueCard } from "./slackCardService.js";
 import { routeFor } from "./notificationRouting.js";
+import { notificationsEnabled, canNotifyMember } from "./notificationGate.js";
 import type { Notification, NotificationType, SlackEntityType } from "@prisma/client";
 
 // ── Create ───────────────────────────────────────────────────
@@ -29,8 +30,9 @@ export async function createNotification(data: {
 }): Promise<Notification | null> {
   const recipient = await prisma.member.findUnique({
     where: { id: data.recipientId },
-    select: { slackId: true, notificationChannels: true },
+    select: { slackId: true, notificationChannels: true, notificationsDisabled: true },
   });
+  if (!notificationsEnabled(recipient?.notificationsDisabled)) return null;
   const prefs = (recipient?.notificationChannels ?? {}) as Record<string, unknown>;
   const route = routeFor(data.type, prefs[data.type]);
 
@@ -240,6 +242,7 @@ export async function upsertSlackNotification(data: {
   isGroup: boolean;
   link: string;
 }): Promise<Notification | null> {
+  if (!await canNotifyMember(data.recipientId)) return null;
   const dupe = await prisma.notification.findFirst({
     where: { recipientId: data.recipientId, slackChannelId: data.slackChannelId, slackTs: data.slackTs, type: data.type },
     select: { id: true },

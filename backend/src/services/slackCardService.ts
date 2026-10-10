@@ -4,6 +4,7 @@ import { prisma } from "../db/prisma.js";
 import { buildTaskBundle, type CardTask } from "../slack/views/taskCard.js";
 import { planBundles } from "./slackCardCore.js";
 import { onTaskChanged } from "./taskChangeBus.js";
+import { canNotifyMember } from "./notificationGate.js";
 
 export type CardMessage = Prisma.SlackCardMessageGetPayload<{ include: { refs: true } }>;
 export type CardRenderer = (message: CardMessage) => Promise<{ text: string; blocks: KnownBlock[] }>;
@@ -84,6 +85,10 @@ export async function flushDueCardBundles(now: Date = new Date()): Promise<numbe
     const rows = await prisma.slackCardQueue.findMany({ where: { sentAt: null }, orderBy: [{ queuedAt: "asc" }, { id: "asc" }] });
     for (const bundle of planBundles(rows, now)) {
       const selected = rows.filter(row => bundle.rowIds.includes(row.id));
+      if (!await canNotifyMember(bundle.recipientId)) {
+        await prisma.slackCardQueue.updateMany({ where: { id: { in: bundle.rowIds }, sentAt: null }, data: { sentAt: now } });
+        continue;
+      }
       if (selected[0].entityType === "MEETING_POLL") {
         const renderer = renderers.get("POLL_INVITE");
         if (!renderer) continue;

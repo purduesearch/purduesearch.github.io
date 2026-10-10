@@ -20,6 +20,7 @@ const EVENT_TYPES = [
   { key: 'COMMENT_REPLY',       label: 'Reply to my comment' },
   { key: 'PROJECT_UPDATE',      label: 'Project update posted' },
   { key: 'MILESTONE_COMPLETED', label: 'Milestone completed' },
+  { key: 'BLOG_COMMENTED',      label: 'Explicit mentions in documents' },
 ];
 
 // Vault items you watch (Files → Vault → Watch). The watch itself chooses the
@@ -54,6 +55,7 @@ export default function NotificationPreferences() {
 
   // Form state
   const [notificationChannels, setNotificationChannels] = useState({});
+  const [notificationsDisabled, setNotificationsDisabled] = useState(true);
   const [quietEnabled, setQuietEnabled]                 = useState(false);
   const [vaultAutoWatch, setVaultAutoWatch]             = useState(true);
   const [quietStart, setQuietStart]                     = useState(22);
@@ -65,6 +67,7 @@ export default function NotificationPreferences() {
     get('/auth/me')
       .then(member => {
         setNotificationChannels(member.notificationChannels ?? {});
+        setNotificationsDisabled(member.notificationsDisabled ?? true);
         setVaultAutoWatch(member.vaultAutoWatch ?? true);
         const hasQuiet = member.quietHoursStart != null && member.quietHoursEnd != null;
         setQuietEnabled(hasQuiet);
@@ -98,6 +101,7 @@ export default function NotificationPreferences() {
     // Send null explicitly when disabling quiet hours so Prisma clears the Int? fields
     const payload = {
       notificationChannels,
+      notificationsDisabled,
       vaultAutoWatch,
       quietHoursStart: quietEnabled ? Number(quietStart) : null,
       quietHoursEnd:   quietEnabled ? Number(quietEnd)   : null,
@@ -137,6 +141,22 @@ export default function NotificationPreferences() {
       <h1 className="pm-page-title" style={{ marginBottom: 24 }}>Notification Preferences</h1>
 
       <form onSubmit={handleSave}>
+        <div className="pm-prefs-section">
+          <div className="pm-prefs-section-title">All notifications</div>
+          <div className="pm-prefs-section-body">
+            <label className="pm-prefs-row pm-prefs-row--check">
+              <input type="checkbox" className="pm-prefs-checkbox"
+                checked={notificationsDisabled}
+                onChange={e => setNotificationsDisabled(e.target.checked)} />
+              <span className="pm-prefs-label">Disable all notifications</span>
+            </label>
+            <p className="pm-prefs-hint">
+              Notifications start disabled during testing. Uncheck this and save to enable
+              notifications using your delivery settings below. This applies to Constellation
+              notifications and bot notification DMs; Slack's own notifications are controlled in Slack.
+            </p>
+          </div>
+        </div>
 
         {/* ── Section 1: Per-event delivery channel ───────── */}
         <div className="pm-prefs-section" data-tour-id="notifications.slack">

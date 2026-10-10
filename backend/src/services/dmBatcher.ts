@@ -1,5 +1,7 @@
 import type { App } from "@slack/bolt";
 import type { KnownBlock } from "@slack/types";
+import { prisma } from "../db/prisma.js";
+import { notificationsEnabled } from "./notificationGate.js";
 
 // ── DM Batcher Service ────────────────────────────────────────
 // In-memory 3-minute debounce batching for Slack DMs.
@@ -29,11 +31,19 @@ export function initDmBatcher(app: App): void {
  * @param slackId - The Slack user ID (U123ABC, not @username)
  * @param message - The message text to queue
  */
-export function queueDm(slackId: string, message: string): void {
+export async function queueDm(slackId: string, message: string): Promise<void> {
   if (!slackApp) {
     console.warn(
       "⚠️  DM Batcher not initialized. Call initDmBatcher() at startup."
     );
+    return;
+  }
+
+  try {
+    const member = await prisma.member.findUnique({ where: { slackId }, select: { notificationsDisabled: true } });
+    if (!notificationsEnabled(member?.notificationsDisabled)) return;
+  } catch (error) {
+    console.error("Could not check notification preference", error instanceof Error ? error.message : error);
     return;
   }
 
@@ -82,6 +92,8 @@ export async function flushDm(slackId: string): Promise<void> {
   queues.delete(slackId);
 
   try {
+    const member = await prisma.member.findUnique({ where: { slackId }, select: { notificationsDisabled: true } });
+    if (!notificationsEnabled(member?.notificationsDisabled)) return;
     // Format message based on count
     let text: string;
     let blocks: any[] = [];
@@ -131,6 +143,8 @@ export async function flushDm(slackId: string): Promise<void> {
  * is lost on restart and never reports a failure.
  */
 export async function sendSlackDmNow(slackId: string, text: string, blocks?: KnownBlock[]): Promise<void> {
+  const member = await prisma.member.findUnique({ where: { slackId }, select: { notificationsDisabled: true } });
+  if (!notificationsEnabled(member?.notificationsDisabled)) return;
   if (!slackApp) throw new Error("SLACK_NOT_READY");
   const result = await slackApp.client.chat.postMessage({ channel: slackId, text, blocks });
   if (!result.ok) throw new Error(result.error || "SLACK_POST_FAILED");

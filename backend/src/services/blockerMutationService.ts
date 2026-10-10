@@ -1,7 +1,5 @@
 import { prisma } from "../db/prisma.js";
 import { getTaskPermissions } from "../middleware/taskAccess.js";
-import { createNotification } from "./notificationCrud.js";
-import { queueDm } from "./dmBatcher.js";
 import { logAuditEvent } from "./activityService.js";
 import { emitTaskChanged } from "./taskChangeBus.js";
 import { TaskMutationError, type MutationSource } from "./taskMutationService.js";
@@ -19,7 +17,7 @@ export async function createBlockerAsMember(actorId: string, projectId: string, 
   });
 
   if (blocker.assigneeId) {
-    await notifyBlockerAssignee(blocker.id, blocker.assigneeId, blocker.label, actorId, source);
+    await recordBlockerAssignment(blocker.id, blocker.assigneeId, blocker.label, actorId, source);
   }
 
   return blocker;
@@ -63,7 +61,7 @@ export async function attachBlockerAsMember(actorId: string, taskId: string, inp
   return task;
 }
 
-export async function notifyBlockerAssignee(
+export async function recordBlockerAssignment(
   blockerId: string,
   assigneeId: string,
   label: string,
@@ -74,23 +72,7 @@ export async function notifyBlockerAssignee(
     where: { id: blockerId },
     select: { projectId: true },
   });
-  const assignee = await prisma.member.findUnique({
-    where: { id: assigneeId },
-    select: { slackId: true },
-  });
-  if (!blocker || !assignee) return;
-
-  const message = `You're responsible for resolving blocker '${label}'`;
-
-  await createNotification({
-    type: "SYSTEM",
-    recipientId: assigneeId,
-    actorId: actorId ?? undefined,
-    projectId: blocker.projectId,
-    message,
-  });
-
-  if (assignee.slackId) queueDm(assignee.slackId, message);
+  if (!blocker) return;
 
   await logAuditEvent({
     projectId: blocker.projectId,

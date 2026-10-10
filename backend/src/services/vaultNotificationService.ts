@@ -24,6 +24,7 @@ import type { KnownBlock } from "@slack/types";
 import { prisma } from "../db/prisma.js";
 import { activityBus } from "./activityService.js";
 import { sendSlackDmNow } from "./dmBatcher.js";
+import { canNotifyMember } from "./notificationGate.js";
 import { buildVaultNoticeBlocks, type VaultNoticeContext } from "../slack/views/vaultCards.js";
 import {
   checkinEventRows,
@@ -65,6 +66,7 @@ export interface NotifyDeps {
   store: OutboxStore;
   sendSlack: (slackId: string, text: string, blocks?: KnownBlock[]) => Promise<void>;
   loadNoticeContext?: (event: VaultEventRow, recipientId: string) => Promise<VaultNoticeContext>;
+  canNotify?: (recipientId: string) => Promise<boolean>;
   emit: (recipientId: string, notification: unknown) => void;
   now: () => Date;
   frontendUrl: string | undefined;
@@ -73,7 +75,7 @@ export interface NotifyDeps {
 type Db = Prisma.TransactionClient | typeof prisma;
 
 async function loadProfiles(db: Db, ids: string[]) {
-  return db.member.findMany({ where: { id: { in: ids } }, select: { id: true, slackId: true, isBot: true, isAdmin: true, role: true, notificationChannels: true, mutedProjectIds: true } });
+  return db.member.findMany({ where: { id: { in: ids } }, select: { id: true, slackId: true, isBot: true, isAdmin: true, role: true, notificationChannels: true, notificationsDisabled: true, mutedProjectIds: true } });
 }
 
 export const prismaOutboxStore: OutboxStore = {
@@ -94,6 +96,7 @@ export const prismaOutboxStore: OutboxStore = {
       slackId: m.slackId || null,
       isBot: m.isBot,
       notificationChannels: m.notificationChannels,
+      notificationsDisabled: m.notificationsDisabled,
       mutedProjectIds: m.mutedProjectIds,
       canAccess: m.isAdmin || m.role === "ADMIN" || inProject.has(m.id),
     }]));
@@ -155,6 +158,7 @@ export const prismaOutboxStore: OutboxStore = {
 };
 
 const defaultDeps: NotifyDeps = {
+  canNotify: canNotifyMember,
   store: prismaOutboxStore,
   sendSlack: sendSlackDmNow,
   emit: (recipientId, notification) => activityBus.emit(`notification:${recipientId}`, notification),
@@ -253,6 +257,10 @@ async function deliver(d: ClaimedDelivery, event: VaultEventRow, deps: NotifyDep
   const message = renderMessage(event, d.recipientId);
   const link = eventLink(event);
   try {
+    if (deps.canNotify && !await deps.canNotify(d.recipientId)) {
+      await deps.store.markSent(d.id, deps.now());
+      return "LOST";
+    }
     if (d.channel === "IN_APP") {
       const created = await deps.store.commitInApp(d.id, deps.now(), {
         type: NOTIFICATION_TYPE[event.kind],

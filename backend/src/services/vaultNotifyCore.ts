@@ -98,6 +98,7 @@ export interface RecipientProfile {
   slackId: string | null;
   isBot: boolean;
   notificationChannels: unknown;
+  notificationsDisabled: boolean;
   mutedProjectIds: string[];
   /** canAccessVaultProject for the event's project, evaluated now. */
   canAccess: boolean;
@@ -126,6 +127,7 @@ export function planDeliveries(event: VaultEventRow, subscribers: Subscriber[], 
     if (id === event.actorId) continue;
     const profile = profiles.get(id);
     if (!profile) continue;
+    if (profile.notificationsDisabled !== false) continue;
     // Submission notices retain the existing all-admin audience and preferences.
     if (event.kind !== "CR_SUBMITTED" && (profile.isBot || !profile.canAccess || profile.mutedProjectIds.includes(event.projectId))) continue;
     const prefs = (profile.notificationChannels ?? {}) as Record<string, unknown>;
