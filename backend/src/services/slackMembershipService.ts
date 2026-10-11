@@ -126,6 +126,17 @@ export async function ensureMembersKnown(
       await syncConversationMembers(channelId, await botClient());
       return;
     }
+    if (kind === "PRIVATE_CHANNEL") {
+      // A bot-delivered event carries the bot's own user id here, which matches no
+      // Member. The bot can list a private channel it is in, so try it first.
+      try {
+        await syncConversationMembers(channelId, await botClient());
+        await backfillChannelName(channelId, await botClient());
+        return;
+      } catch {
+        // Bot is not in it — fall back to the authorizing member's token.
+      }
+    }
     if (!authorizedSlackUserId) return;
     const member = await prisma.member.findUnique({ where: { slackId: authorizedSlackUserId }, select: { id: true } });
     const uc = member ? await userClientFor(member.id) : null;

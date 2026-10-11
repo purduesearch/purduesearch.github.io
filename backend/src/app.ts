@@ -242,6 +242,14 @@ async function start(): Promise<void> {
     initDmBatcher(boltApp);
     startCardRefresh();
 
+    // Uninstalling the Slack app removes the bot from every channel, and the
+    // nightly 03:55 job is otherwise the only thing that rejoins them. Without
+    // the bot in a channel, @Constellation mentions and link cards do nothing.
+    void import("./services/slackMembershipService.js")
+      .then(({ joinAllPublicChannels }) => joinAllPublicChannels(boltApp.client))
+      .then(j => console.log(`👥 [slackPortal] boot: joined ${j.joined}/${j.seen} public channels`))
+      .catch(err => console.error("[slackPortal] boot channel join failed:", err?.data?.error ?? err));
+
     // Sync admin status from leadership channel on boot
     if (process.env.LEADERSHIP_CHANNEL_ID) {
       syncAdminStatus(boltApp)

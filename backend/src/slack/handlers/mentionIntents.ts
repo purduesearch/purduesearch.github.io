@@ -8,7 +8,7 @@ import { getTaskPermissions } from "../../middleware/taskAccess.js";
 import { createBlockerAsMember, attachBlockerAsMember } from "../../services/blockerMutationService.js";
 import { draftTask } from "./quickAdd.js";
 import { openPlanModal } from "./plan.js";
-import { readMentionThread, showAttachPicker, type MentionIntentContext } from "./mentions.js";
+import { ephemeralThread, readMentionThread, showAttachPicker, type MentionIntentContext } from "./mentions.js";
 import type { CmdCtx } from "../router.js";
 import { escapeMrkdwn, loadingView, taskUrl, trunc } from "../views/common.js";
 
@@ -27,7 +27,7 @@ function fallback(id: string, context: MentionIntentContext): any[] {
   return [{ type: "context", elements: [{ type: "mrkdwn", text: "Not what you meant?" }] }, { type: "actions", elements: [{ type: "button", text: plain("Attach items instead"), action_id: "mi_attach_instead", value: id }] }];
 }
 async function reply(context: MentionIntentContext, id: string, text: string, blocks: any[] = [section(text)]) {
-  await context.client.chat.postEphemeral({ channel: context.channelId, user: context.slackUserId, ...(context.threadTs ? { thread_ts: context.threadTs } : {}), text: trunc(text, 3000), blocks: [...blocks, ...fallback(id, context)] });
+  await context.client.chat.postEphemeral({ channel: context.channelId, user: context.slackUserId, ...ephemeralThread(context), text: trunc(text, 3000), blocks: [...blocks, ...fallback(id, context)] });
 }
 async function projects(context: MentionIntentContext) {
   const member = await prisma.member.findUnique({ where: { id: context.memberId } });

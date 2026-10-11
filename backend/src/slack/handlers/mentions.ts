@@ -4,7 +4,8 @@ import { randomUUID } from "node:crypto";
 import { prisma } from "../../db/prisma.js";
 import { getProjectsForChannel } from "../../services/projectService.js";
 import { getBotUserId } from "../../services/memberService.js";
-import { resolveReadClient } from "../../services/slackMembershipService.js";
+import { resolveReadClient, syncConversationMembers } from "../../services/slackMembershipService.js";
+import { ensureChannelArchive } from "../../services/slackArchiveService.js";
 import { getConversationAccess } from "../../middleware/conversationAccess.js";
 import { fastIntent, stripMention, type MentionIntent } from "../../services/slackMentionCore.js";
 import { gatherCandidates, recommend, type Candidate, type Recommendation } from "../../services/slackMentionService.js";
@@ -39,6 +40,15 @@ export async function readMentionThread(channelId: string, threadTs: string, mem
   return (result.messages ?? []).map(message => message.text ?? "").join("\n").slice(0, 30_000);
 }
 
+/**
+ * Where an ephemeral reply goes. Slack shows an ephemeral posted with the thread_ts of a
+ * top-level message that has no replies only inside a thread nobody can see, so the reply
+ * looks like silence. Only reply in a thread when the source message is already in one.
+ */
+export function ephemeralThread(context: { sourceTs: string; threadTs: string }): { thread_ts?: string } {
+  return context.threadTs && context.threadTs !== context.sourceTs ? { thread_ts: context.threadTs } : {};
+}
+
 export async function showAttachPicker(context: MentionIntentContext, recommendation?: Recommendation, fallback?: (message: any) => Promise<unknown>): Promise<void> {
   const rec = recommendation ?? await recommend({ memberId: context.memberId, projectIds: context.projectIds, text: context.text, threadText: context.threadText });
   for (const [id, entry] of pickers) if (entry.expiresAt <= Date.now()) pickers.delete(id);
@@ -46,10 +56,10 @@ export async function showAttachPicker(context: MentionIntentContext, recommenda
   pickers.set(id, { context, recommendation: rec, candidates: new Map(rec.picks.map(pick => [pick.candidate.key, pick.candidate])), expiresAt: Date.now() + ttl });
   const message = { text: "Pick what to attach to this message", blocks: buildAttachPicker(rec, { pickerId: id, aiUsed: rec.aiUsed }) };
   try {
-    await context.client.chat.postEphemeral({ channel: context.channelId, user: context.slackUserId, thread_ts: context.threadTs, ...message });
+    await context.client.chat.postEphemeral({ channel: context.channelId, user: context.slackUserId, ...ephemeralThread(context), ...message });
   } catch (error) {
     if (!fallback) { pickers.delete(id); throw error; }
-    try { await fallback({ response_type: "ephemeral", replace_original: false, thread_ts: context.threadTs, ...message }); }
+    try { await fallback({ response_type: "ephemeral", replace_original: false, ...ephemeralThread(context), ...message }); }
     catch (fallbackError) { pickers.delete(id); throw fallbackError; }
   }
 }
@@ -134,29 +144,66 @@ function selected(values: Record<string, Record<string, { selected_options?: { v
   return Object.values(values).flatMap(block => Object.values(block).flatMap(action => action.selected_options?.map(option => option.value) ?? []));
 }
 
+/**
+ * Access check for an app_mention. Slack only delivers app_mention from a conversation the bot
+ * is in, so when the mirror has no archive row or an out-of-date member list (a channel the bot
+ * was just invited to, or one it rejoined after a reinstall) the bot can repair both and check again.
+ */
+async function canReadForMention(memberId: string, channelId: string, client: WebClient): Promise<boolean> {
+  if ((await getConversationAccess(memberId, channelId)).canRead) return true;
+  try {
+    await ensureChannelArchive(channelId, client);
+    await syncConversationMembers(channelId, client);
+  } catch (error) {
+    console.warn(`[mentions] could not refresh members of ${channelId}:`, (error as { data?: { error?: string } }).data?.error ?? error);
+  }
+  return (await getConversationAccess(memberId, channelId)).canRead;
+}
+
 export function registerMentions(app: App): void {
   registerCardRenderer("LINK_CARD", async (message: CardMessage) => (await renderLinks(message.slackChannelId, message.sourceTs ?? "")).rendered);
   app.event("app_mention", async ({ event, client }) => {
+    if ((event as { bot_id?: string }).bot_id || !event.user) return;
+    const slackUserId = event.user;
+    // Every exit below tells the person why: a mention that does nothing reads as a broken bot.
+    const tell = (text: string) => client.chat.postEphemeral({ channel: event.channel, user: slackUserId, ...(event.thread_ts ? { thread_ts: event.thread_ts } : {}), text })
+      .catch(error => console.error("[mentions] could not reply to app_mention:", (error as { data?: { error?: string } }).data?.error ?? error));
     try {
-      if ((event as { bot_id?: string }).bot_id || event.user === await getBotUserId(client)) return;
-      if (!event.user) return;
-      const member = await prisma.member.findUnique({ where: { slackId: event.user } });
-      if (!member) { await client.chat.postEphemeral({ channel: event.channel, user: event.user, text: signIn() }); return; }
-      if (member.isBot || !(await getConversationAccess(member.id, event.channel)).canRead) return;
+      const botUserId = await getBotUserId(client);
+      if (slackUserId === botUserId) return;
+      console.log(`[mentions] app_mention from ${slackUserId} in ${event.channel}`);
+      const member = await prisma.member.findUnique({ where: { slackId: slackUserId } });
+      if (!member) { await tell(signIn()); return; }
+      if (member.isBot) return;
+      if (!(await canReadForMention(member.id, event.channel, client))) {
+        console.warn(`[mentions] ${slackUserId} has no recorded access to ${event.channel}`);
+        await tell("I could not confirm you are a member of this conversation yet. Try again in a minute.");
+        return;
+      }
       const channelProjects = await getProjectsForChannel(event.channel);
       const accessible = await prisma.project.findMany({ where: { members: { some: { memberId: member.id } } }, select: { id: true } });
       const allowed = new Set(accessible.map(project => project.id));
       const projectIds = channelProjects.length ? channelProjects.map(project => project.id).filter(id => allowed.has(id)) : [...allowed];
-      const text = stripMention(event.text, await getBotUserId(client) ?? "");
+      const text = stripMention(event.text, botUserId ?? "");
       const intent = fastIntent(text);
-      const context: MentionIntentContext = { intent: intent?.intent ?? "ATTACH", intentArg: intent?.arg ?? null, memberId: member.id, slackUserId: event.user,
+      // An unreadable thread (for example a revoked user token) must not swallow the mention.
+      const threadText = event.thread_ts
+        ? await readMentionThread(event.channel, event.thread_ts, member.id).catch(error => {
+          console.warn("[mentions] thread read failed:", (error as { data?: { error?: string } }).data?.error ?? error);
+          return undefined;
+        })
+        : undefined;
+      const context: MentionIntentContext = { intent: intent?.intent ?? "ATTACH", intentArg: intent?.arg ?? null, memberId: member.id, slackUserId,
         channelId: event.channel, sourceTs: event.ts, threadTs: event.thread_ts ?? event.ts, projectIds, text, client,
-        ...(event.thread_ts ? { threadText: await readMentionThread(event.channel, event.thread_ts, member.id) } : {}) };
+        ...(threadText !== undefined ? { threadText } : {}) };
       if (context.intent !== "ATTACH" && await route(context)) return;
       const rec = await recommend({ memberId: member.id, projectIds, text, threadText: context.threadText });
       if (rec.intent !== "ATTACH" && await route({ ...context, intent: rec.intent, intentArg: rec.intentArg })) return;
       await showAttachPicker(context, rec);
-    } catch (error) { console.error("[mentions] app_mention failed", error); }
+    } catch (error) {
+      console.error("[mentions] app_mention failed:", error);
+      await tell("Something went wrong handling that mention. Try again shortly.");
+    }
   });
 
   app.action("ap_attach", async ({ ack, body, action, respond }) => {
@@ -219,7 +266,7 @@ export function registerMentions(app: App): void {
       if (!member) throw new Error(signIn());
       await attach(entry, member.id, selected(view.state.values as any));
       await entry.dismiss?.();
-    } catch (error) { await client.chat.postEphemeral({ channel: entry.context.channelId, user: body.user.id, thread_ts: entry.context.threadTs, text: (error as Error).message }); }
+    } catch (error) { await client.chat.postEphemeral({ channel: entry.context.channelId, user: body.user.id, ...ephemeralThread(entry.context), text: (error as Error).message }); }
   });
   app.action("lc_item", async ({ ack, body, action, client }) => {
     await ack();
