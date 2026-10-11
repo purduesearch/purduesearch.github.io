@@ -1,5 +1,6 @@
 import type { KnownBlock, HomeView } from "@slack/types";
 import { trunc } from "./common.js";
+import { vaultLink } from "../../services/vaultSearchCore.js";
 import { homeButton, homeLink, homeOverflow, homeSection, homeView } from "./home.js";
 import type { HomeLink, HomePoll, HomeProject } from "./home.js";
 import { buildEventRow } from "./eventCards.js";
@@ -42,7 +43,7 @@ export function buildFiles(data: FilesData): HomeView {
     group("Open issues", data.github.issues, "No open issues.", githubUrl);
     group("Recent links", data.github.recentLinks, "No recent GitHub links.", githubUrl);
   }
-  const vaultUrl = data.vault?.url ?? `${projectUrl}?tab=vault`;
+  const vaultUrl = data.vault?.url ?? (selected ? `${data.frontendUrl}${vaultLink({ projectId: selected.id })}` : projectUrl);
   body.push(homeSection(`*Vault* · ${homeLink({ title: "Open ↗", url: vaultUrl })}`));
   if (!data.vault) body.push(homeSection("No Vault linked — set one up in project settings"));
   else {

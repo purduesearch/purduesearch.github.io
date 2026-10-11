@@ -2,7 +2,7 @@ import type { Prisma, SlackCardKind, SlackEntityType } from "@prisma/client";
 import type { KnownBlock } from "@slack/types";
 import { prisma } from "../db/prisma.js";
 import { buildTaskBundle, type CardTask } from "../slack/views/taskCard.js";
-import { planBundles } from "./slackCardCore.js";
+import { planBundles, planCardRetry } from "./slackCardCore.js";
 import { onTaskChanged } from "./taskChangeBus.js";
 import { canNotifyMember } from "./notificationGate.js";
 
@@ -77,12 +77,22 @@ registerCardRenderer("TASK_BUNDLE", async message => {
   return rendered;
 });
 
+async function recordFailure(rows: { id: string; attempts: number }[], error: unknown, now: Date): Promise<void> {
+  const attempts = Math.max(0, ...rows.map(row => row.attempts)) + 1;
+  const slackError = (error as { data?: { error?: string } }).data?.error;
+  const nextAttemptAt = planCardRetry(attempts, slackError, now);
+  const lastError = String(slackError ?? (error instanceof Error ? error.message : error)).slice(0, 500);
+  // sentAt: null leaves rows that went out before the failure untouched.
+  await prisma.slackCardQueue.updateMany({ where: { id: { in: rows.map(row => row.id) }, sentAt: null },
+    data: nextAttemptAt ? { attempts, nextAttemptAt, lastError } : { attempts, failedAt: now, lastError } });
+}
+
 export async function flushDueCardBundles(now: Date = new Date()): Promise<number> {
   if (flushing) return 0;
   flushing = true;
   let sent = 0;
   try {
-    const rows = await prisma.slackCardQueue.findMany({ where: { sentAt: null }, orderBy: [{ queuedAt: "asc" }, { id: "asc" }] });
+    const rows = await prisma.slackCardQueue.findMany({ where: { sentAt: null, failedAt: null, OR: [{ nextAttemptAt: null }, { nextAttemptAt: { lte: now } }] }, orderBy: [{ queuedAt: "asc" }, { id: "asc" }] });
     for (const bundle of planBundles(rows, now)) {
       const selected = rows.filter(row => bundle.rowIds.includes(row.id));
       if (!await canNotifyMember(bundle.recipientId)) {
@@ -121,7 +131,10 @@ export async function flushDueCardBundles(now: Date = new Date()): Promise<numbe
             sent++;
             if (entityId !== bundle.entityIds.at(-1)) await new Promise(resolve => setTimeout(resolve, 1000));
           }
-        } catch (error) { console.error("Slack poll invite delivery failed:", error); }
+        } catch (error) {
+          console.error("Slack poll invite delivery failed:", error);
+          await recordFailure(selected, error, now).catch(e => console.error("Slack card failure bookkeeping failed", e));
+        }
         continue;
       }
       // Other card kinds are delivered by their dedicated later-phase services.
@@ -148,8 +161,9 @@ export async function flushDueCardBundles(now: Date = new Date()): Promise<numbe
         });
         sent++;
       } catch (error) {
-        // Unsent rows remain durable for the next minute's retry.
+        // Unsent rows back off and retry, then stop at MAX_CARD_ATTEMPTS.
         console.error("Slack card bundle delivery failed", error);
+        await recordFailure(selected, error, now).catch(e => console.error("Slack card failure bookkeeping failed", e));
       }
     }
     return sent;

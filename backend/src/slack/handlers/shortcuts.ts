@@ -60,7 +60,8 @@ export function registerShortcuts(app: App): void {
           await openTaskModal(ctx.client, ctx.shortcut.trigger_id, { memberId: member.id, isAdmin: member.isAdmin, channelId: source.channelId, openedView: opened,
             prefill: { title: parsed?.title ?? (trunc(source.text, 200) || "Slack task"), description: parsed?.description ?? source.text, priority: parsed?.priority, dueDate: parsed?.dueDate } });
         } else if (callback_id === "sc_attach_items") {
-          const projects = (await getProjectsForChannel(source.channelId)).filter(project => member.isAdmin || project.members.some(row => row.memberId === member.id));
+          // Attaching has no admin bypass (attach() rechecks membership), so offer member projects only.
+          const projects = (await getProjectsForChannel(source.channelId)).filter(project => project.members.some(row => row.memberId === member.id));
           await showAttachPicker({ intent: "ATTACH", intentArg: null, memberId: member.id, slackUserId: ctx.shortcut.user.id, channelId: source.channelId, sourceTs: source.messageTs,
             threadTs: source.threadTs, projectIds: projects.map(project => project.id), text: source.text, client: ctx.client }, undefined, ctx.respond);
         } else if (callback_id === "sc_plan_thread") {

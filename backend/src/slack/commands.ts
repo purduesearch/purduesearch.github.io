@@ -27,12 +27,7 @@ export function registerCommands(app: App): void {
       await respond({ response_type: "ephemeral", text: `❌ ${error instanceof Error ? error.message : "Something went wrong."}` });
     }
   });
-
-  app.command("/pm", async ({ command, ack, respond, client }) => {
-    await ack();
-
-    await runLegacyPm(command.text.trim().split(/\s+/).filter(Boolean), command, respond, client);
-  });
+  // /pm is registered by router.ts alongside /c, so it reaches the new subcommands too.
 }
 
 // ── Subcommand Handlers ──────────────────────────────────────

@@ -4,6 +4,7 @@ import { canAccessVaultProject } from "./vaultGithubJobs.js";
 import { autoWatchSoon, notifyVaultCheckoutConflict } from "./vaultNotificationService.js";
 import { eventKeys } from "./vaultNotifyCore.js";
 import { reindexItemSoon } from "./vaultSearchService.js";
+import { refreshCardsSoon } from "./slackCardService.js";
 import { isAdminMember, MEMBER_SUMMARY } from "./vaultService.js";
 
 export class VaultCheckoutError extends Error {
@@ -48,6 +49,8 @@ export async function checkoutItem(
   }
   autoWatchSoon(memberId, itemId, item.projectId);
   reindexItemSoon(itemId);
+  // Web and Slack checkouts both keep linked Slack cards live.
+  refreshCardsSoon("VAULT_ITEM", itemId);
   logAuditEvent({
     projectId: item.projectId, memberId, source: opts.source,
     eventType: "VAULT_ITEM_CHECKED_OUT",
@@ -77,5 +80,6 @@ export async function undoCheckout(memberId: string, itemId: string, source: "WE
     payload: { itemId, previousHolderId },
   }).catch(console.error);
   reindexItemSoon(itemId);
+  refreshCardsSoon("VAULT_ITEM", itemId);
   return updated;
 }

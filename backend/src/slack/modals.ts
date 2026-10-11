@@ -1,7 +1,7 @@
 import type { App } from "@slack/bolt";
 import type { WebClient } from "@slack/web-api";
 import { prisma } from "../db/prisma.js";
-import { createTask, updateTask, getTask, reassignTaskFromSlack } from "../services/taskService.js";
+import { createTask, updateTask, getTask } from "../services/taskService.js";
 import { resolveSlackMember } from "../services/memberService.js";
 import { getProjectByChannel } from "../services/projectService.js";
 import { EXCLUDE_TRAINING } from "../services/trainingSandboxService.js";
@@ -710,25 +710,32 @@ export function registerModals(app: App): void {
 
       if (!selectedUserId) return;
 
-      const member = await resolveSlackMember(selectedUserId, client);
+      // Look members up rather than auto-creating them, and write through the shared
+      // mutation service: same edit check as the web, and it sends the assignee's
+      // notification by their channel preferences.
+      const [actor, member] = await Promise.all([
+        prisma.member.findUnique({ where: { slackId: body.user.id } }),
+        prisma.member.findUnique({ where: { slackId: selectedUserId } }),
+      ]);
+      const tell = (text: string) => client.chat.postMessage({ channel: body.user.id, text });
+      if (!actor) { await tell("Sign in to Constellation first."); return; }
+      if (!member) { await tell(`<@${selectedUserId}> must sign in to Constellation before they can be assigned.`); return; }
       const prevTask = await getTask(taskId);
       const prevAssigneeNames = prevTask?.assignees?.map((a: any) => a.displayName) ?? [];
 
-      await reassignTaskFromSlack(taskId, member.id);
-
-      const task = await getTask(taskId);
-      if (task) {
-        // Notify in DM to the assigner
-        await client.chat.postMessage({
-          channel: body.user.id,
-          text: `✅ Task "${task.title}" has been reassigned to <@${selectedUserId}>.`,
-        });
+      const { updateTaskAsMember } = await import("../services/taskMutationService.js");
+      try {
+        await updateTaskAsMember(actor.id, taskId, { assigneeIds: [member.id] }, "SLACK");
+      } catch (err) {
+        await tell(`❌ ${err instanceof Error ? err.message : "Unable to reassign this task."}`);
+        return;
       }
 
-      const actor = await resolveSlackMember(body.user.id).catch(() => null);
+      await tell(`✅ Task "${prevTask?.title ?? "task"}" has been reassigned to <@${selectedUserId}>.`);
+
       logAuditEvent({
         taskId:   taskId,
-        memberId: actor?.id ?? null,
+        memberId: actor.id,
         source:   "SLACK",
         eventType: "TASK_REASSIGNED",
         payload: {
@@ -737,18 +744,6 @@ export function registerModals(app: App): void {
           toName:    member.displayName,
         },
       }).catch(console.error);
-
-      // DM the new assignee
-      (async () => {
-        try {
-          const { queueDm } = await import("../services/dmBatcher.js");
-          if (member.slackId && actor?.id !== member.id) {
-            queueDm(member.slackId, `📋 *${actor?.displayName ?? "Someone"}* assigned you to: *${task?.title ?? "a task"}*`);
-          }
-        } catch (err) {
-          console.error("reassign_submit assignee DM error:", err);
-        }
-      })();
     } catch (error) {
       console.error("Reassign submission error:", error);
     }
@@ -1613,18 +1608,23 @@ export function registerAiModals(app: App): void {
 
   // Image task submit
   app.view("image_task_submit", async ({ ack, body, view, client }) => {
-    await ack();
+    // Keep the modal open on a loading view: the trigger_id would expire during the
+    // download and Gemini call, so the task form is filled into this same view instead.
+    const { loadingView } = await import("./views/common.js");
+    await ack({ response_action: "update", view: loadingView("Create task") });
+    const showMessage = (text: string) => client.views.update({ view_id: view.id,
+      view: { ...loadingView("Create task"), blocks: [{ type: "section", text: { type: "plain_text", text } }] } }).catch(console.error);
     try {
       const { channelId, fileUrl } = JSON.parse(view.private_metadata);
       const note = view.state.values.note_block?.note?.value ?? "";
 
       const project = await getProjectByChannel(channelId);
-      if (!project) return;
+      if (!project) { await showMessage("This channel is not linked to a project."); return; }
 
       // Download file as base64 using bot token
       const fileResp = await fetch(fileUrl, { headers: { Authorization: `Bearer ${process.env.SLACK_BOT_TOKEN}` } });
       if (!fileResp.ok) {
-        await client.chat.postEphemeral({ channel: channelId, user: body.user.id, text: "❌ Couldn't download the image." });
+        await showMessage("Couldn't download the image.");
         return;
       }
       const buffer = await fileResp.arrayBuffer();
@@ -1637,18 +1637,23 @@ export function registerAiModals(app: App): void {
       );
 
       if (!result) {
-        await client.chat.postEphemeral({ channel: channelId, user: body.user.id, text: "❌ Couldn't analyze the image." });
+        await showMessage("Couldn't analyze the image.");
         return;
       }
 
       if (result.hasTask) {
-        const isAdminUser = await import("../services/memberService.js").then(m => m.isAdminBySlackId(body.user.id));
-        await openNewTaskModal(client, ("trigger_id" in body ? (body as any).trigger_id : "") ?? "", channelId, result.title, result.description, undefined, undefined, undefined, isAdminUser);
+        // The mirror task modal creates through createTaskAsMember: project and assignee
+        // checks, plus assignment cards for every added assignee.
+        const { openTaskModal } = await import("./handlers/taskModal.js");
+        const priority = ["LOW", "MEDIUM", "HIGH", "CRITICAL"].includes(result.priority) ? result.priority as "LOW" | "MEDIUM" | "HIGH" | "CRITICAL" : undefined;
+        await openTaskModal(client, "", { memberId: body.user.id, isAdmin: false, channelId, openedView: { id: view.id },
+          prefill: { title: result.title, description: result.description, priority, projectId: project.id } });
       } else {
-        await client.chat.postEphemeral({ channel: channelId, user: body.user.id, text: `🖼️ ${result.screenshotDescription}\n\nNo specific task detected.` });
+        await showMessage(`${result.screenshotDescription}\n\nNo specific task detected.`);
       }
     } catch (err) {
       console.error("image_task_submit error:", err);
+      await showMessage("Unable to read this image. Try again shortly.");
     }
   });
 }

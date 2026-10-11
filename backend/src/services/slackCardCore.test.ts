@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { bundleIsDue, planBundles, BUNDLE_QUIET_MS, BUNDLE_MAX_WAIT_MS, type QueueRow } from "./slackCardCore.js";
+import { bundleIsDue, planBundles, planCardRetry, BUNDLE_QUIET_MS, BUNDLE_MAX_WAIT_MS, MAX_CARD_ATTEMPTS, type QueueRow } from "./slackCardCore.js";
 
 let passed = 0;
 function test(name: string, fn: () => void) {
@@ -34,4 +34,10 @@ test("different entity kinds never share bundles or deduplication", () => {
   assert.deepEqual(bundles.map(b => b.rowIds), [["a"], ["b"]]);
 });
 test("tied timestamps retain queue order", () => assert.deepEqual(planBundles([row("b", BUNDLE_QUIET_MS), row("a", BUNDLE_QUIET_MS)], now)[0].entityIds, ["b", "a"]));
+test("failed deliveries back off, then stop", () => {
+  assert.equal(planCardRetry(1, undefined, now)?.getTime(), now.getTime() + 60_000);
+  assert.equal(planCardRetry(3, "ratelimited", now)?.getTime(), now.getTime() + 4 * 60_000);
+  assert.equal(planCardRetry(MAX_CARD_ATTEMPTS, undefined, now), null);
+});
+test("a deactivated recipient is not retried", () => assert.equal(planCardRetry(1, "user_not_found", now), null));
 console.log(`slackCardCore: ${passed} passed, 0 failed`);

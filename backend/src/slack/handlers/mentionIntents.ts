@@ -21,11 +21,13 @@ function remember(context: MentionIntentContext): string {
   for (const [key, entry] of contexts) if (entry.expires <= Date.now()) contexts.delete(key);
   const id = randomUUID(); contexts.set(id, { context, expires: Date.now() + 30 * 60_000 }); return id;
 }
-function fallback(id: string): any[] {
+function fallback(id: string, context: MentionIntentContext): any[] {
+  // `/c ask` has no source message, so there is nothing to attach items to.
+  if (!context.sourceTs) return [];
   return [{ type: "context", elements: [{ type: "mrkdwn", text: "Not what you meant?" }] }, { type: "actions", elements: [{ type: "button", text: plain("Attach items instead"), action_id: "mi_attach_instead", value: id }] }];
 }
 async function reply(context: MentionIntentContext, id: string, text: string, blocks: any[] = [section(text)]) {
-  await context.client.chat.postEphemeral({ channel: context.channelId, user: context.slackUserId, ...(context.threadTs ? { thread_ts: context.threadTs } : {}), text: trunc(text, 3000), blocks: [...blocks, ...fallback(id)] });
+  await context.client.chat.postEphemeral({ channel: context.channelId, user: context.slackUserId, ...(context.threadTs ? { thread_ts: context.threadTs } : {}), text: trunc(text, 3000), blocks: [...blocks, ...fallback(id, context)] });
 }
 async function projects(context: MentionIntentContext) {
   const member = await prisma.member.findUnique({ where: { id: context.memberId } });
@@ -131,7 +133,9 @@ export function registerMentionIntents(app: App): void {
         return;
       }
       const context = { ...await owned(data.id, ctx.body.user.id), client: ctx.client };
-      if (actionId === "mi_attach_instead") { await showAttachPicker({ ...context, intent: "ATTACH" }); return; }
+      if (actionId === "mi_attach_instead") {
+        if (!context.sourceTs) throw new Error("Tag @Constellation on a message to attach items to it.");
+        await showAttachPicker({ ...context, intent: "ATTACH" }); return; }
       if (actionId === "mi_ask") {
         if (!(await projects(context)).some(p => p.id === data.p)) throw new Error("You cannot access this project.");
         await reply(context, data.id, await answer(data.p, context.intentArg ?? context.text, context.memberId)); return;
@@ -143,7 +147,7 @@ export function registerMentionIntents(app: App): void {
       const task = await validateTask(context, taskId);
       if (!await prisma.blocker.findFirst({ where: { id: blockerId, projectId: task.projectId, resolvedAt: null }, select: { id: true } })) throw new Error("Choose an active blocker from the task's project.");
       await attachBlockerAsMember(context.memberId, task.id, { blockerId, reason: context.intentArg }, "SLACK");
-      await ctx.respond({ replace_original: true, text: "Blocker attached.", blocks: [section("Blocker attached."), ...fallback(data.id)] });
+      await ctx.respond({ replace_original: true, text: "Blocker attached.", blocks: [section("Blocker attached."), ...fallback(data.id, context)] });
     } catch (error) { await ctx.respond({ replace_original: false, text: error instanceof Error ? error.message : "Unable to handle this reply." }); }
   });
   app.view("mi_blocker_submit", async ctx => {

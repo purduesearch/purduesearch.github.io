@@ -1,5 +1,5 @@
 import type { ActionsBlock, HomeView, KnownBlock, SectionBlock } from "@slack/types";
-import { assertBlockBudget, escapeMrkdwn, relativeDue, statusPill, trunc } from "./common.js";
+import { assertBlockBudget, escapeMrkdwn, mrkdwnLink, relativeDue, statusPill, trunc } from "./common.js";
 
 export type HomeTab = "mywork" | "projects" | "files" | "calendar";
 export interface HomeLink { id: string; title: string; url: string }
@@ -24,8 +24,7 @@ export function homeSection(text: string): SectionBlock {
   return { type: "section", text: { type: "mrkdwn", text: trunc(text, 3000) } };
 }
 export function homeLink(item: Pick<HomeLink, "title" | "url">): string {
-  // Escape delimiters so a title or URL cannot create a second Slack link.
-  return `<${item.url.replace(/[<>|\s]/g, c => encodeURIComponent(c))}|${escapeMrkdwn(trunc(item.title, 180)).replace(/\|/g, "&#124;")}>`;
+  return mrkdwnLink(item.url, trunc(item.title, 180));
 }
 export function homeButton(text: string, action_id: string, value: string) {
   return { type: "button" as const, text: { type: "plain_text" as const, text: trunc(text, 75) }, action_id, value };

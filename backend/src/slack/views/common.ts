@@ -1,5 +1,6 @@
 import type { KnownBlock, ModalView } from "@slack/types";
 import type { Priority, TaskStatus } from "@prisma/client";
+import { vaultLink } from "../../services/vaultSearchCore.js";
 
 export const LIMITS = Object.freeze({
   messageBlocks: 50, viewBlocks: 100, sectionText: 3000, headerText: 150,
@@ -50,6 +51,11 @@ export function escapeMrkdwn(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
+/** `<url|title>` with delimiters escaped so neither part can open a second link or a `<!channel>` ping. */
+export function mrkdwnLink(url: string, title: string): string {
+  return `<${url.replace(/[<>|\s]/g, c => encodeURIComponent(c))}|${escapeMrkdwn(title).replace(/\|/g, "&#124;")}>`;
+}
+
 export function memberRef(m: { slackId?: string | null; displayName: string }): string {
   return m.slackId ? `<@${m.slackId}>` : escapeMrkdwn(m.displayName);
 }
@@ -59,6 +65,10 @@ function frontendUrl(): string {
 }
 export function projectUrl(id: string): string {
   return `${frontendUrl()}/clubpm/projects/${encodeURIComponent(id)}`;
+}
+/** Files → Vault deep link, the same one Vault search and notifications use. */
+export function vaultItemUrl(projectId: string, itemId?: string): string {
+  return `${frontendUrl()}${vaultLink({ projectId, itemId })}`;
 }
 export function taskUrl(projectId: string, taskId: string): string {
   return `${projectUrl(projectId)}?task=${encodeURIComponent(taskId)}`;

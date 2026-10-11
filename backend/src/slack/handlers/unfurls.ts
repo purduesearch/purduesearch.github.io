@@ -29,7 +29,8 @@ async function previewFor(ref: EntityRef, projectIds: Set<string>): Promise<Unfu
     return { title: task.title, pill: statusPill(task.status), facts: [
       `${priorityDot(task.priority)} ${task.priority}`, task.dueDate ? `Due ${relativeDue(task.dueDate)}` : "No due date",
       `Assignees: ${task.assignees.map(a => a.displayName).join(", ") || "Unassigned"}`,
-    ], action: { label: "Assign me", actionId: "tc_assign_me", value: { t: task.id } } };
+    // No "Assign me": assigning needs task edit rights, which most channel readers lack. Open covers it.
+    ] };
   }
   if (ref.type === "VAULT_ITEM") {
     const item = await prisma.vaultItem.findUnique({ where: { id: ref.id }, select: { id: true, projectId: true, name: true, partNumber: true, currentRevision: true, checkedOutById: true, deletedAt: true } });

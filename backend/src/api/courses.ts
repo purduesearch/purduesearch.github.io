@@ -1671,15 +1671,8 @@ coursesRouter.post("/certificates/:cid/review", async (req: Request, res: Respon
       actorId: req.memberId!,
       message,
       metadata: { certificateId: cert.id, sectionId: cert.sectionId, decision: body.decision },
+      slackText: message,
     });
-    const member = await prisma.member.findUnique({
-      where: { id: cert.memberId },
-      select: { slackId: true },
-    });
-    if (member?.slackId) {
-      const { queueDm } = await import("../services/dmBatcher.js");
-      queueDm(member.slackId, message);
-    }
 
     res.json({ certificate: cert });
   } catch (error) {

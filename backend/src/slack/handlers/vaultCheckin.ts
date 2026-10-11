@@ -13,7 +13,7 @@ import { canAccessVaultProject, enqueueVaultUpload, processVaultJob } from "../.
 import { accessibleVaultProjectIds } from "../../services/vaultSearchService.js";
 import { resolveReadClient } from "../../services/slackMembershipService.js";
 import { getBotUserId } from "../../services/memberService.js";
-import { escapeMrkdwn, loadingView, projectUrl, trunc } from "../views/common.js";
+import { escapeMrkdwn, loadingView, trunc, vaultItemUrl } from "../views/common.js";
 
 const cad = /\.(step|stp|sldprt|sldasm|slddrw|ipt|iam|f3d|stl|obj|gltf|glb|dxf|dwg|pdf)$/i;
 type Item = { id: string; name: string; partNumber: string | null; projectId: string };
@@ -119,7 +119,7 @@ export async function handleVaultFileShared(event: any, file: any, client: WebCl
 }
 
 async function updateProgress(client: WebClient, entry: Pending, item: Item, state: string, code?: string | null) {
-  const url = `${projectUrl(item.projectId)}?tab=vault&item=${encodeURIComponent(item.id)}`;
+  const url = vaultItemUrl(item.projectId, item.id);
   const stages = ["UPLOADED", "LFS_STORED", "COMMITTED", "INDEXED"];
   const index = stages.indexOf(state);
   const progress = index >= 0 ? ["Uploaded", "Stored", "Committed", "Indexed"].map((label, i) => `${i <= index ? "✓" : "○"} ${label}`).join(" → ") : state === "FAILED" ? `Check-in failed${code ? ` (${escapeMrkdwn(code)})` : ""}. <${url}|Retry on the web>` : `Waiting to retry${code ? ` (${escapeMrkdwn(code)})` : ""}. <${url}|Open on the web>`;
@@ -159,7 +159,7 @@ async function upload(entry: Pending, item: Item, note: string, client: WebClien
     }
     await updateProgress(client, entry, item, "RETRY", "Still processing; follow progress on the web");
   } catch (err) {
-    const url = `${projectUrl(item.projectId)}?tab=vault&item=${encodeURIComponent(item.id)}`;
+    const url = vaultItemUrl(item.projectId, item.id);
     await client.chat.update({ channel: entry.channelId, ts: entry.ts, text: errorText(err), blocks: [{ type: "section", text: { type: "mrkdwn", text: trunc(`${escapeMrkdwn(errorText(err))}\n<${url}|Retry on the web>`, 3000) } }] });
   } finally {
     if (dir) await rm(dir, { recursive: true, force: true });
