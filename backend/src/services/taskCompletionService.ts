@@ -115,15 +115,18 @@ export async function applyCompletionSideEffects(opts: {
     eventType: "TASK_COMPLETED", payload: { taskTitle: updatedTask.title },
   }).catch(console.error);
 
-  // Completed-notification fan-out — fire-and-forget. (No actor/project
+  // Completed-notification fan-out — fire-and-forget. Recipients are the
+  // task's creator and its assignees, minus the actor. (No actor/project
   // lookup needed here — unlike the TASK_ASSIGNED notification in the route,
   // this message doesn't interpolate the actor's display name or project.)
   (async () => {
-    for (const assignee of (updatedTask.assignees ?? [])) {
-      if ((assignee as any).id === actorId) continue;
+    const recipientIds = new Set<string>((updatedTask.assignees ?? []).map((a: any) => a.id));
+    if (updatedTask.createdById) recipientIds.add(updatedTask.createdById);
+    recipientIds.delete(actorId);
+    for (const recipientId of recipientIds) {
       await createNotification({
         type: "TASK_COMPLETED" as NotificationType,
-        recipientId: (assignee as any).id,
+        recipientId,
         actorId,
         projectId: updatedTask.projectId,
         taskId,

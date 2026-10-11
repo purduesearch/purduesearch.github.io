@@ -55,7 +55,7 @@ export default function NotificationPreferences() {
 
   // Form state
   const [notificationChannels, setNotificationChannels] = useState({});
-  const [notificationsDisabled, setNotificationsDisabled] = useState(true);
+  const [notificationsDisabled, setNotificationsDisabled] = useState(false);
   const [quietEnabled, setQuietEnabled]                 = useState(false);
   const [vaultAutoWatch, setVaultAutoWatch]             = useState(true);
   const [quietStart, setQuietStart]                     = useState(22);
@@ -67,7 +67,7 @@ export default function NotificationPreferences() {
     get('/auth/me')
       .then(member => {
         setNotificationChannels(member.notificationChannels ?? {});
-        setNotificationsDisabled(member.notificationsDisabled ?? true);
+        setNotificationsDisabled(member.notificationsDisabled ?? false);
         setVaultAutoWatch(member.vaultAutoWatch ?? true);
         const hasQuiet = member.quietHoursStart != null && member.quietHoursEnd != null;
         setQuietEnabled(hasQuiet);
@@ -151,8 +151,8 @@ export default function NotificationPreferences() {
               <span className="pm-prefs-label">Disable all notifications</span>
             </label>
             <p className="pm-prefs-hint">
-              Notifications start disabled during testing. Uncheck this and save to enable
-              notifications using your delivery settings below. This applies to Constellation
+              Notifications are on by default. Check this and save to turn off all
+              notifications; leave it unchecked to use your delivery settings below. This applies to Constellation
               notifications and bot notification DMs; Slack's own notifications are controlled in Slack.
             </p>
           </div>

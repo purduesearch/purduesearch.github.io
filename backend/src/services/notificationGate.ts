@@ -1,6 +1,6 @@
 import { prisma } from "../db/prisma.js";
 
-/** Fail closed during testing: only an explicit opt-in enables notifications. */
+/** Fail closed: only an explicit `false` enables notifications. The DB default is `false` (on). */
 export function notificationsEnabled(disabled: unknown): boolean {
   return disabled === false;
 }

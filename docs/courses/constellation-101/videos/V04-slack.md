@@ -67,8 +67,8 @@ knows when to interrupt you there.
 **[00:42 — notification preferences]**
 
 Open Notification preferences at the top of the bell dropdown. You control it here.
-During testing, Disable all notifications starts checked for everyone.
-Uncheck it and save to opt in. The delivery categories below choose in-app, Slack, both, or neither.
+Disable all notifications starts unchecked, so notifications are on for everyone.
+Check it and save to turn them all off. The delivery categories below choose in-app, Slack, both, or neither.
 Ordinary document comments and suggestions, blocker assignments, kudos and outreach review status
 stay silent; explicit mentions still follow your settings.
 

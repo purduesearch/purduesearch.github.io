@@ -37,9 +37,9 @@ Everything else in this course is a consequence of that idea.
 | **GitHub** | Code and, for enabled Vault projects, versioned CAD files | Links pull requests to tasks; Vault check-ins use a configured repository and Git LFS |
 
 If you take one thing from this page: you don't have to remember to check Constellation. Set your
-notification preferences once, and it comes and finds you in Slack. During testing, notifications
-start disabled: open Notifications → Preferences, uncheck Disable all notifications, and save
-to opt in.
+notification preferences once, and it comes and finds you in Slack. Notifications are on by
+default; to turn them all off, open Notifications → Preferences, check Disable all notifications,
+and save.
 
 ## What's in this course
 

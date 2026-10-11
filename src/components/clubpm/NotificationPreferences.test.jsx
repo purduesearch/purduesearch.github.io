@@ -11,12 +11,11 @@ beforeEach(() => {
   patch.mockResolvedValue({});
 });
 
-test('defaults to notifications off and saves explicit opt-in with quiet hours disabled', async () => {
+test('defaults to notifications on and saves with quiet hours disabled', async () => {
   get.mockResolvedValue({});
   render(<NotificationPreferences />);
   const master = await screen.findByRole('checkbox', { name: 'Disable all notifications' });
-  expect(master.checked).toBe(true);
-  fireEvent.click(master);
+  expect(master.checked).toBe(false);
   fireEvent.click(screen.getByRole('button', { name: 'Save preferences' }));
   await waitFor(() => expect(patch).toHaveBeenCalledWith('/api/members/me/notification-preferences', expect.objectContaining({
     notificationsDisabled: false, quietHoursStart: null, quietHoursEnd: null,
