@@ -31,3 +31,13 @@ export function planBundles(rows: QueueRow[], now: Date): { recipientId: string;
     entityIds: [...new Set(group.map(row => row.entityId))],
   }));
 }
+
+export const MAX_CARD_ATTEMPTS = 5;
+/** Slack errors that no retry can fix: the recipient or their DM is gone. */
+const PERMANENT_SLACK_ERRORS = new Set(["user_not_found", "account_inactive", "cannot_dm_bot", "user_disabled", "not_allowed_token_type"]);
+
+/** After a failed delivery: when to try again (backoff 1, 2, 4, 8 minutes), or null to give up. */
+export function planCardRetry(attempts: number, slackError: string | undefined, now: Date): Date | null {
+  if (attempts >= MAX_CARD_ATTEMPTS || (slackError && PERMANENT_SLACK_ERRORS.has(slackError))) return null;
+  return new Date(now.getTime() + 60_000 * 2 ** Math.max(0, attempts - 1));
+}

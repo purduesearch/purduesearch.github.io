@@ -3,7 +3,6 @@ import { requireAuth } from "./auth.js";
 import { prisma } from "../db/prisma.js";
 import * as pollService from "../services/pollService.js";
 import { createNotification } from "../services/notificationCrud.js";
-import { queueDm } from "../services/dmBatcher.js";
 import type { MeetingPollAudience } from "@prisma/client";
 import { decryptSecret } from "../utils/crypto.js";
 import {
@@ -489,9 +488,8 @@ async function notifyFinalized(poll: LoadedPoll): Promise<void> {
       projectId: poll.projectId ?? undefined,
       message,
       metadata: { pollId: poll.id, eventId: poll.eventId ?? null },
+      slackText: `✅ ${message}`,
     });
-    const full = await prisma.member.findUnique({ where: { id }, select: { slackId: true } });
-    if (full?.slackId) queueDm(full.slackId, `✅ ${message}`);
   }
 }
 
@@ -509,9 +507,8 @@ export async function remindNonResponders(poll: LoadedPoll, actorId: string | nu
       projectId: poll.projectId ?? undefined,
       message,
       metadata: { pollId: poll.id, token: poll.publicToken, url },
+      slackText: `⏰ ${message}: ${url}`,
     });
-    const full = await prisma.member.findUnique({ where: { id: m.id }, select: { slackId: true } });
-    if (full?.slackId) queueDm(full.slackId, `⏰ ${message}: ${url}`);
     notified++;
   }
   return notified;

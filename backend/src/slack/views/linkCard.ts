@@ -1,6 +1,6 @@
 import type { KnownBlock, Overflow } from "@slack/types";
 import type { Candidate } from "../../services/slackMentionService.js";
-import { assertBlockBudget, escapeMrkdwn, LIMITS, statusPill, trunc } from "./common.js";
+import { assertBlockBudget, escapeMrkdwn, LIMITS, mrkdwnLink, statusPill, trunc } from "./common.js";
 
 type OverflowOption = Overflow["options"][number];
 
@@ -27,8 +27,8 @@ export function buildLinkCard(items: LinkCardItem[], ctx: { linkedBySlackId?: st
     if (item.kind === "TASK" && item.status !== "DONE") options.push(option("Mark done", "done"));
     if (item.kind === "VAULT_ITEM" && !item.checkedOutById && item.status !== "CHECKED_OUT") options.push(option("Check out", "checkout"));
     options.push(option("Unlink", "unlink"));
-    const title = escapeMrkdwn(trunc(item.title, 500)) || "Untitled";
-    const link = item.url ? `<${item.url}|${title}>` : title;
+    const title = trunc(item.title, 500) || "Untitled";
+    const link = item.url ? mrkdwnLink(item.url, title) : escapeMrkdwn(title);
     const facts = [item.status ? escapeMrkdwn(statusPill(item.status)) : "", item.meta ? escapeMrkdwn(trunc(item.meta, 1000)) : ""].filter(Boolean).join(" · ");
     return { type: "section", text: { type: "mrkdwn", text: `${emoji[item.kind]} *${link}*${facts ? `\n${facts}` : ""}` },
       accessory: { type: "overflow", action_id: "lc_item", options } };

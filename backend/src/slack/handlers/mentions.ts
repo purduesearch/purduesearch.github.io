@@ -9,7 +9,7 @@ import { getConversationAccess } from "../../middleware/conversationAccess.js";
 import { fastIntent, stripMention, type MentionIntent } from "../../services/slackMentionCore.js";
 import { gatherCandidates, recommend, type Candidate, type Recommendation } from "../../services/slackMentionService.js";
 import { linkItems, unlinkItem } from "../../services/slackItemLinkService.js";
-import { registerCardRenderer, refreshCardsSoon, type CardMessage } from "../../services/slackCardService.js";
+import { registerCardRenderer, type CardMessage } from "../../services/slackCardService.js";
 import { updateTaskAsMember } from "../../services/taskMutationService.js";
 import { checkoutItem } from "../../services/vaultCheckoutService.js";
 import { buildAttachPicker, buildAttachSearchModal, ATTACH_GROUPS } from "../views/attachPicker.js";
@@ -119,6 +119,7 @@ async function accessibleCandidates(entry: Picker, memberId: string): Promise<Ca
 
 async function attach(entry: Picker, memberId: string, keys: string[]) {
   if (!(await getConversationAccess(memberId, entry.context.channelId)).canRead) throw new Error("You cannot read this conversation.");
+  if (!entry.context.sourceTs) throw new Error("Tag @Constellation on a message to attach items to it.");
   if (!keys.length) throw new Error("Select at least one item to attach.");
   // Recheck project membership and vault visibility rather than trusting cached AI/search picks.
   const fresh = await accessibleCandidates(entry, memberId);
@@ -231,7 +232,7 @@ export function registerMentions(app: App): void {
       if (!link) throw new Error("This link no longer exists.");
       if (!(await getConversationAccess(member.id, link.slackChannelId)).canRead) throw new Error("You cannot read this conversation.");
       if (value.a === "done" && link.entityType === "TASK") await updateTaskAsMember(member.id, link.entityId, { status: "DONE" }, "SLACK");
-      else if (value.a === "checkout" && link.entityType === "VAULT_ITEM") { await checkoutItem(member.id, link.entityId, { source: "SLACK" }); refreshCardsSoon("VAULT_ITEM", link.entityId); }
+      else if (value.a === "checkout" && link.entityType === "VAULT_ITEM") await checkoutItem(member.id, link.entityId, { source: "SLACK" });
       else if (value.a === "unlink") await unlinkItem(link.id, member.id);
       else throw new Error("Unsupported item action.");
       await postLinkCard({ channelId: link.slackChannelId, sourceTs: link.messageTs, threadTs: link.threadTs ?? link.messageTs, linkerId: member.id });

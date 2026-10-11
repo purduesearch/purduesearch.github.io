@@ -18,7 +18,10 @@ export type CmdCtx = {
 };
 export type CmdHandler = (ctx: CmdCtx) => Promise<void>;
 export const SUBCOMMANDS: Record<string, CmdHandler> = {};
-SUBCOMMANDS.task = handleTaskCommand;
+// `task done` keeps opening the done picker; any other text is a quick-add sentence.
+SUBCOMMANDS.task = ctx => ctx.args.length === 2 && ctx.args[1].toLowerCase() === "done"
+  ? runLegacyPm(ctx.args, ctx.command, ctx.respond, ctx.client)
+  : handleTaskCommand(ctx);
 SUBCOMMANDS.find = handleFindCommand;
 SUBCOMMANDS.plan = handlePlanCommand;
 SUBCOMMANDS.ask = handleAskCommand;
@@ -30,7 +33,8 @@ async function sendHelp(ctx: CmdCtx): Promise<void> {
 }
 
 export function registerRouter(app: App): void {
-  for (const alias of ["/c", "/constellation"]) {
+  // /pm is the compatibility alias, so it gets the same subcommands as /c.
+  for (const alias of ["/c", "/constellation", "/pm"]) {
     app.command(alias, async ({ command, ack, respond, client }) => {
       await ack();
       const text = command.text.trim();

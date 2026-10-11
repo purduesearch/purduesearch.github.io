@@ -88,6 +88,12 @@ check("link text escapes labels and renders live credit with safe GitHub fallbac
   assert.match(json, /:link:/);
   assert.match(JSON.stringify(buildLinkCard([item("GITHUB")], { githubEmojiAvailable: true })), /:octocat:/);
 });
+check("a crafted URL cannot close the link and ping the channel", () => {
+  const row = buildLinkCard([{ ...item("DRIVE_FILE"), title: "a|b", url: "https://drive.google.com/x?a=><!channel>" }])[0];
+  assert.ok(row.type === "section" && row.text);
+  assert.doesNotMatch(row.text.text, /<!channel>/);
+  assert.match(row.text.text, /<https:\/\/drive\.google\.com\/x\?a=%3E%3C!channel%3E\|a&#124;b>/);
+});
 check("large context cards remain within the message budget", () => {
   assertBlockBudget(buildLinkCard(Array.from({ length: 75 }, () => item("TASK"))), LIMITS.messageBlocks);
 });

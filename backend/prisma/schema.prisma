@@ -3266,6 +3266,11 @@ model SlackCardQueue {
   actorId     String?
   queuedAt    DateTime          @default(now())
   sentAt      DateTime?
+  /// Failed delivery attempts; the row stops retrying at failedAt (see slackCardCore.planCardRetry).
+  attempts      Int               @default(0)
+  nextAttemptAt DateTime?
+  failedAt      DateTime?
+  lastError     String?
   messageId   String?
   message     SlackCardMessage? @relation(fields: [messageId], references: [id], onDelete: SetNull)
 
