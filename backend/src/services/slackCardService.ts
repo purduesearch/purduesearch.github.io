@@ -96,6 +96,7 @@ export async function flushDueCardBundles(now: Date = new Date()): Promise<numbe
     for (const bundle of planBundles(rows, now)) {
       const selected = rows.filter(row => bundle.rowIds.includes(row.id));
       if (!await canNotifyMember(bundle.recipientId)) {
+        console.log(`[slackCards] dropped ${bundle.rowIds.length} card(s) for ${bundle.recipientId}: notifications disabled`);
         await prisma.slackCardQueue.updateMany({ where: { id: { in: bundle.rowIds }, sentAt: null }, data: { sentAt: now } });
         continue;
       }
@@ -143,6 +144,7 @@ export async function flushDueCardBundles(now: Date = new Date()): Promise<numbe
         const { recipient, tasks, rendered } = await renderTaskBundle(bundle.recipientId, bundle.entityIds,
           selected.flatMap(row => row.actorId ? [row.actorId] : []), now);
         if (!tasks.length || !recipient?.slackId) {
+          console.log(`[slackCards] dropped ${bundle.rowIds.length} card(s) for ${bundle.recipientId}: ${recipient?.slackId ? "no task still assigned to them" : "no Slack id"}`);
           await prisma.slackCardQueue.updateMany({ where: { id: { in: bundle.rowIds }, sentAt: null }, data: { sentAt: now, messageId: null } });
           continue;
         }
@@ -159,6 +161,7 @@ export async function flushDueCardBundles(now: Date = new Date()): Promise<numbe
           } });
           await tx.slackCardQueue.updateMany({ where: { id: { in: bundle.rowIds }, sentAt: null }, data: { sentAt: now, messageId: message.id } });
         });
+        console.log(`[slackCards] sent ${tasks.length} task card(s) to ${recipient.slackId}`);
         sent++;
       } catch (error) {
         // Unsent rows back off and retry, then stop at MAX_CARD_ATTEMPTS.
