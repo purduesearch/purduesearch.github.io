@@ -18,7 +18,9 @@
     "seed:courses": "tsx scripts/seedCourses.ts",
     "check:courses": "tsx scripts/checkCourseMarkdown.ts",
     "db:studio": "prisma studio",
-    "vault:search-rebuild": "tsx scripts/vault-search-rebuild.ts"
+    "vault:search-rebuild": "tsx scripts/vault-search-rebuild.ts",
+    "seed:skills": "tsx prisma/seedSkills.ts",
+    "skills:run": "tsx scripts/skills-run.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

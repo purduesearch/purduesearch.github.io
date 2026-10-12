@@ -7065,3 +7065,33 @@ button.home-events-day[aria-pressed="true"] .home-events-dot { background: #fff 
 /* Keep the notebook header in normal flow so the stacked sheets start below it. */
 .field-notebook-page #header-navbar { position: relative !important; }
 .field-notebook-page .breadcrumb-nav { width: auto; }
+
+/* === Public skills portfolio (/portfolio/:slug) ============================== */
+.portfolio-page { max-width: 760px; margin: 0 auto; padding: 32px 16px 64px; color: var(--color-text); }
+.portfolio-header { display: flex; gap: 16px; align-items: center; margin-bottom: 12px; }
+.portfolio-avatar { border-radius: 50%; object-fit: cover; background: var(--color-bg-card); }
+.portfolio-header h1 { margin: 0; font-size: 1.75rem; line-height: 1.2; }
+.portfolio-title { color: var(--color-muted); }
+.portfolio-headline { margin-top: 2px; font-weight: 600; }
+.portfolio-bio { line-height: 1.6; margin: 8px 0 12px; }
+.portfolio-note { font-size: 0.85rem; color: var(--color-muted); line-height: 1.5; }
+.portfolio-group { margin-top: 28px; }
+.portfolio-group h2 { font-size: 0.8rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--color-muted); margin: 0 0 8px; border-bottom: 1px solid var(--color-border); padding-bottom: 6px; }
+.portfolio-group ul, .portfolio-evidence ul { list-style: none; margin: 0; padding: 0; }
+.portfolio-skill { padding: 10px 0; border-bottom: 1px solid var(--color-border); }
+.portfolio-skill-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
+.portfolio-skill-name { font-weight: 600; }
+.portfolio-skill-level { font-size: 0.85rem; color: var(--color-muted); }
+.portfolio-skill-meta { font-size: 0.8rem; color: var(--color-muted); margin-top: 2px; }
+.portfolio-pips { display: inline-flex; gap: 3px; }
+.portfolio-pips span { width: 14px; height: 6px; border-radius: 3px; background: var(--color-border); }
+.portfolio-pips span.on { background: var(--color-accent); }
+.portfolio-badge { font-size: 0.72rem; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--color-border); color: var(--color-muted); }
+.portfolio-badge--verified { border-color: var(--color-accent); color: var(--color-accent); }
+.portfolio-evidence { margin-top: 6px; }
+.portfolio-evidence summary { cursor: pointer; font-size: 0.85rem; color: var(--color-accent); }
+.portfolio-evidence li { display: flex; gap: 10px; padding: 6px 0; font-size: 0.9rem; }
+.portfolio-evidence li > i { width: 16px; margin-top: 3px; color: var(--color-muted); }
+.portfolio-footer { margin-top: 36px; font-size: 0.8rem; color: var(--color-muted); line-height: 1.5; border-top: 1px solid var(--color-border); padding-top: 12px; }
+.portfolio-empty { text-align: center; padding: 64px 0; }
+@media print { .portfolio-evidence:not([open]) ul { display: block; } .portfolio-footer a { color: inherit; } }

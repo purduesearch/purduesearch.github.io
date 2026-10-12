@@ -1,6 +1,7 @@
 User-agent: *
 Allow: /
 Disallow: /search
+Disallow: /portfolio/
 
 Sitemap: https://purduesearch.org/sitemap.xml
 

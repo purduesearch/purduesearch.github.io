@@ -143,6 +143,24 @@ export function startScheduler(app: App): void {
     }
   });
 
+  // ── Sunday 02:30 — weekly skills analysis ────────────────────────
+  // Reads new GitHub/CAD/task work, has Gemini label it against the taxonomy,
+  // writes append-only evidence and recomputes assessments. No Slack sends. It is
+  // incremental and idempotent, and an overlapping run is refused by a DB lease.
+  // Off unless SKILLS_ENABLED=1 so a deploy never starts spending quota unasked.
+  cron.schedule("30 2 * * 0", async () => {
+    if (process.env.SKILLS_ENABLED !== "1") return;
+    try {
+      const { runWeeklySkillRun } = await import("../services/skillPipelineService.js");
+      const s = await runWeeklySkillRun({ trigger: "CRON" });
+      const { embedMissingEvidence } = await import("../services/skillSearchService.js");
+      await embedMissingEvidence().catch(e => console.error("[skills] embed backfill failed:", e?.message || e));
+      console.log(`[skills] weekly run ${s.status}`, JSON.stringify({ runId: s.runId, counts: s.counts, estCostUsd: s.estCostUsd, errors: s.errors.length }));
+    } catch (error) {
+      console.error("❌ Weekly skills run error:", error);
+    }
+  });
+
   // ── Every 2 min — Vault geometry diffs (Phase 9) ──────────────────
   // Requests kick the queue immediately; this picks up anything a restart or
   // a busy worker left behind, retries storage failures, and prunes cached

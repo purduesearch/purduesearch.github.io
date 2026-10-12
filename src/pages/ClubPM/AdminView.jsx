@@ -13,6 +13,7 @@ import EventRewardConfigPanel from "../../components/clubpm/EventRewardConfigPan
 import GoogleDriveConnectButton from "../../components/clubpm/GoogleDriveConnectButton";
 import SlackArchivePanel from "../../components/clubpm/SlackArchivePanel";
 import WorkspaceAdminPanel from "../../components/clubpm/admin/WorkspaceAdminPanel";
+import SkillsAdmin from "../../components/clubpm/skills/SkillsAdmin";
 import MeetingNotesView from "./MeetingNotesView";
 
 // Labelled groups for the phone jump list. Every section stays mounted and
@@ -24,6 +25,7 @@ const ADMIN_SECTIONS = [
   { id: "pm-admin-config", label: "Reward config", icon: "fas fa-sliders" },
   { id: "pm-admin-integrations", label: "Integrations", icon: "fas fa-plug" },
   { id: "pm-admin-workspaces", label: "Lab spaces", icon: "fas fa-flask" },
+  { id: "pm-admin-skills", label: "Skills", icon: "fas fa-bolt" },
   { id: "pm-admin-archive", label: "Slack archive", icon: "fab fa-slack" },
   { id: "pm-admin-notes", label: "Meeting notes", icon: "fas fa-file-lines" },
 ];
@@ -84,6 +86,10 @@ export default function AdminView() {
 
       <section id="pm-admin-workspaces">
         <WorkspaceAdminPanel />
+      </section>
+
+      <section id="pm-admin-skills">
+        <SkillsAdmin />
       </section>
 
       <section id="pm-admin-archive">

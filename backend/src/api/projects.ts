@@ -27,7 +27,7 @@ import { runJson } from "../services/ai/aiRouter.js";
 import {
   meetingNotesToTasksPrompt,
 } from "../utils/aiPrompts.js";
-import { askProject } from "../services/projectAskService.js";
+import { askProjectDetailed } from "../services/projectAskService.js";
 import { getProjectTimeInsights } from "../services/timeInsightsService.js";
 import { suggestProjectActions, executeActionPlan, buildPlanPrompt, importActionPlan, type ActionPlanAction } from "../services/aiActionService.js";
 import {
@@ -1028,14 +1028,15 @@ projectsRouter.post("/:id/ask", async (req: Request, res: Response) => {
       return;
     }
 
-    const answer = await askProject(projectId, question, req.memberId ?? null);
+    const result = await askProjectDetailed(projectId, question, req.memberId ?? null);
 
-    if (answer === null) {
+    if (result === null) {
       res.status(404).json({ error: "Project not found" });
       return;
     }
 
-    res.json({ answer });
+    // skillMatches is only present for staffing/expertise questions (additive field).
+    res.json({ answer: result.answer, ...(result.skillMatches ? { skillMatches: result.skillMatches } : {}) });
   } catch (error) {
     console.error("Project ask error:", error);
     res.status(500).json({ error: "Failed to answer question" });

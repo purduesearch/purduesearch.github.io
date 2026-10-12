@@ -59,6 +59,21 @@ export interface ProjectContextMember {
   completedLast14d: number;
   /** Hours this member logged on THIS project's tasks in the last 14 days. */
   loggedHoursLast14d: number;
+  /**
+   * Strongest evidence-backed skills (advisory estimates; AI-inferred, lead-verified
+   * or peer-endorsed rows only, never bare self-claims). Absent when the skills
+   * tables hold nothing for this member.
+   */
+  topSkills?: ProjectContextSkill[];
+}
+
+export interface ProjectContextSkill {
+  name: string;
+  level: number;
+  confidence: "LOW" | "MEDIUM" | "HIGH";
+  provenance: "AI_INFERRED" | "PEER_ENDORSED" | "MANAGER_VERIFIED";
+  /** ISO date of the most recent supporting work, when known. */
+  lastDemonstrated: string | null;
 }
 
 export interface ProjectContextVelocity {
@@ -294,6 +309,21 @@ export async function buildProjectContext(
     taskCounts: milestoneCounts.get(m.id) ?? { total: 0, done: 0 },
   }));
 
+  const skillRows = await prisma.skillAssessment.findMany({
+    where: { memberId: { in: [...projectMemberIds] }, provenance: { in: ["AI_INFERRED", "PEER_ENDORSED", "MANAGER_VERIFIED"] } },
+    select: { memberId: true, level: true, confidenceBand: true, provenance: true, lastDemonstrated: true, skill: { select: { name: true } } },
+  });
+  const bandRank = { LOW: 0, MEDIUM: 1, HIGH: 2 } as const;
+  const skillsByMember = new Map<string, ProjectContextSkill[]>();
+  for (const r of skillRows.sort((a, b) => b.level - a.level || bandRank[b.confidenceBand] - bandRank[a.confidenceBand] || a.skill.name.localeCompare(b.skill.name))) {
+    if (r.provenance === "AI_INFERRED" && r.confidenceBand === "LOW" && r.level < 3) continue; // thin signal, not worth the tokens
+    const list = skillsByMember.get(r.memberId) ?? [];
+    if (list.length < 5 && !list.some((x) => x.name === r.skill.name)) {
+      list.push({ name: r.skill.name, level: r.level, confidence: r.confidenceBand, provenance: r.provenance as ProjectContextSkill["provenance"], lastDemonstrated: isoDate(r.lastDemonstrated) });
+      skillsByMember.set(r.memberId, list);
+    }
+  }
+
   const members: ProjectContextMember[] = project.members.map((pm) => {
     const l = loadByMember.get(pm.memberId) ?? emptyLoad();
     return {
@@ -309,6 +339,7 @@ export async function buildProjectContext(
       openUnestimatedCount: l.unestimated,
       completedLast14d: doneByMember.get(pm.memberId) ?? 0,
       loggedHoursLast14d: round1((loggedMinutesByMember.get(pm.memberId) ?? 0) / 60),
+      ...(skillsByMember.has(pm.memberId) ? { topSkills: skillsByMember.get(pm.memberId) } : {}),
     };
   });
 

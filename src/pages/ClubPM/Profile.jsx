@@ -17,6 +17,7 @@ import GhStatsSection from "../../components/clubpm/GhStatsSection";
 import GitHubConnectButton from "../../components/clubpm/github/GitHubConnectButton";
 import IcsFeedConnect from "../../components/clubpm/IcsFeedConnect";
 import TrainingStatusStrip from "../../components/clubpm/courses/TrainingStatusStrip";
+import SkillsPanel from "../../components/clubpm/skills/SkillsPanel";
 import { progressToNextRank } from "../../clubpm/engagement/rankProgress";
 import { tzOffset, copyToClipboard, activityLabels } from "../../clubpm/members/memberShared";
 import { MemberName, useCosmeticStyles } from "../../clubpm/cosmetics/CosmeticStylesContext";
@@ -239,6 +240,9 @@ export default function Profile() {
           </h3>
           <XpHeatmap data={xpHistory} activity={activity} />
         </div>
+
+        {/* Skills: inferred from your work, visible only to you here. Admins see the staffing view under Admin. */}
+        {isSelf && <SkillsPanel projects={(profile.projects ?? []).map(pm => pm.project).filter(Boolean)} />}
 
         {/* Projects */}
         <div className="cpm-profile-card">

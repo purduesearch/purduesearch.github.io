@@ -54,3 +54,5 @@ Handler map (all paths relative to `backend/src/slack/`):
 - `views/common.ts` — pure Block Kit budgets, truncation, pills and links shared by all builders. Pure views have standalone sibling tests.
 
 Assignments are queued for a 10-minute debounce, capped at 15 minutes after the first card, with up to five full cards and compact overflow. Live cards refresh silently in place. Link cards reply under the source message; the same source has one card that subsequent attachments update. Plan state lives in `SlackPlanSession`, not modal metadata.
+
+The weekly **skills analysis** (`30 2 * * 0`, `skillPipelineService.runWeeklySkillRun` then `embedMissingEvidence`) is a data-maintenance cron, not a Slack send, and is off unless `SKILLS_ENABLED=1`. Its overlap guard is a `SkillRun` lease plus a Postgres advisory lock. See `docs/SKILLS.md`.

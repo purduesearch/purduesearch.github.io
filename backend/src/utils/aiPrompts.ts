@@ -314,49 +314,25 @@ Return ONLY: {
 
 // ── Project Q&A (rich context) ────────────────────────────────
 
-export function projectContextPrompt(question: string, today: string, context: ProjectContext): string {
-  const { project, tasks, milestones, members, recentActivity, activeBlockers } = context;
-
-  const taskLines = tasks.map(t => {
-    const flags = [
-      t.blockedByOpenDependencies ? "waiting-on-dependency" : null,
-      t.activeCategoryBlockers.length ? `blocked-by:${t.activeCategoryBlockers.join("/")}` : null,
-      t.subtaskCounts.total ? `subtasks:${t.subtaskCounts.done}/${t.subtaskCounts.total}` : null,
-    ].filter(Boolean).join(" ");
-    const desc = t.description ? `\n  ${t.description.slice(0, 300)}` : "";
-    return `- [${t.status}] "${t.title}" | ${t.priority} | due: ${t.dueDate ?? "none"} | ${t.assignees.join(", ") || "unassigned"}${t.milestoneTitle ? ` | milestone: ${t.milestoneTitle}` : ""}${flags ? ` | ${flags}` : ""}${desc}`;
-  }).join("\n") || "none";
-
-  const milestoneLines = milestones.map(m => `${m.title} (${m.status}, due ${m.targetDate ?? "no date"})`).join(", ") || "none";
-
-  const memberLines = members.map(m => `${m.displayName} (${m.projectRole}, ${m.openTaskCount} open tasks)`).join(", ") || "unknown";
-
-  const blockerLines = activeBlockers.map(b => `${b.label}${b.assigneeName ? ` (owner: ${b.assigneeName})` : ""} — affects: ${b.attachedTaskTitles.join(", ") || "no tasks"}`).join("\n") || "none";
-
-  const activityLines = recentActivity.map(a => `${a.createdAt}: ${a.eventType}${a.actorName ? ` by ${a.actorName}` : ""}${a.taskTitle ? ` on "${a.taskTitle}"` : ""}`).join("\n") || "none";
+export function projectContextPrompt(question: string, today: string, context: ProjectContext, skillBlock?: string, includeMemberSkills = true): string {
+  // Same snapshot and exact computed signals the action-plan and analysis features use,
+  // so Q&A sees estimates, logged hours, blockers, per-member load and what is late,
+  // not just task titles. Skills are advisory and only added to the team lines here.
+  const snapshot = renderProjectContext(context, today, { descChars: 300, activity: true, skills: includeMemberSkills });
+  const signals = renderSignals(computeProjectSignals(context, today));
 
   return `${today}
 
-You are a project assistant for "${project.name}" (${project.type}).
-Description: ${project.description ?? "none"}
-Target: ${project.targetDate ?? "TBD"}
+You are the project assistant for "${context.project.name}" (${context.project.type}), a student engineering team. You work on ONE project; everything you may know about it is below.
 
-Team (${members.length}): ${memberLines}
+${snapshot}
 
-Tasks (${tasks.length}${context.truncated ? ", truncated to most relevant" : ""}):
-${taskLines}
+${signals}${skillBlock ? `\n\n${skillBlock}` : ""}
 
-Milestones: ${milestoneLines}
+Question: "${question.replace(/"/g, "'")}"
 
-Active blockers:
-${blockerLines}
-
-Recent activity:
-${activityLines}
-
-Question: "${question}"
-
-Answer concisely and factually based only on the data above. If the answer isn't in the data, say so.`;
+Answer concisely and factually based only on the data above. The computed signals are exact; do not recompute them. If the answer isn't in the data, say so.
+Skill levels are advisory estimates from past work (1 aware to 5 expert) with a separate confidence: when suggesting who could take something on, name at most 3 people, say why using their skills and the work described, mention low confidence or old evidence, and never rank people overall. Prefer people already on the project; say when someone is not.`;
 }
 
 // ── Agentic action-plan generation ────────────────────────────

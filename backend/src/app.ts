@@ -42,6 +42,8 @@ import { insightsRouter } from "./api/insights.js";
 import { coursesRouter, courseFilesRouter } from "./api/courses.js";
 import { courseGenRouter } from "./api/courseGen.js";
 import { publicRouter } from "./api/public.js";
+import { skillsRouter, publicPortfolioRouter } from "./api/skills.js";
+import { skillsAdminRouter } from "./api/skillsAdmin.js";
 import { githubAuthRouter } from "./api/githubAuth.js";
 import { googleAuthRouter } from "./api/googleAuth.js";
 import { photoAlbumsRouter } from "./api/photoAlbums.js";
@@ -150,6 +152,11 @@ app.use("/api/chat", chatRouter);
 app.use("/api/slack-links", slackLinksRouter);
 app.use("/api/tags", tagsRouter);
 app.use("/api/tasks", tasksRouter);
+// Skills: above the bare "/api" routers like the other prefixed routers. The public portfolio is
+// unauthenticated and mounts before publicRouter so nothing there can shadow it.
+app.use("/api/skills", skillsRouter);
+app.use("/api/admin/skills", skillsAdminRouter);
+app.use("/api/public/portfolio", publicPortfolioRouter);
 // Mounted before the bare "/api" routers below (blockersRouter, streakRouter):
 // those attach requireAuth via router.use() with no path, which Express runs
 // for every /api/* request that reaches them — mounting publicRouter first

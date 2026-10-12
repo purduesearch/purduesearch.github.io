@@ -30249,3 +30249,86 @@ body.pm-m-compact .pm-albums-icon-btn { width: 44px; height: 44px; }
 .pm-sidebar-project-manage:hover { color: var(--pm-accent-teal); background: rgba(0, 229, 204, 0.1); }
 .pm-proj-subproject-chip { text-decoration: none; display: inline-flex; align-items: center; gap: 5px; }
 .pm-proj-subproject-chip:hover { color: var(--pm-accent-teal); border-color: var(--pm-border-active); }
+
+/* === Skills (profile card + settings) ======================================= */
+.cpm-skills .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.cpm-skill-count { font-size: 12px; font-weight: 600; color: var(--pm-text-muted, #8a93a6); margin-left: 6px; }
+.cpm-skills-notice { margin: 0 0 8px; font-size: 12px; line-height: 1.5; color: var(--pm-text-muted, #8a93a6); }
+.cpm-skill-group { margin-top: 14px; }
+.cpm-skill-group h4 { margin: 0 0 6px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--pm-text-secondary, #b5bccb); }
+.cpm-skill-group ul, .cpm-skill-provs, .cpm-skill-evidence { list-style: none; margin: 0; padding: 0; }
+.cpm-skill { border-top: 1px solid var(--clubpm-border, rgba(255, 255, 255, 0.08)); padding: 8px 0; }
+.cpm-skill-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
+.cpm-skill-toggle { display: inline-flex; align-items: center; gap: 8px; background: none; border: 0; padding: 4px 0; color: inherit; font: inherit; cursor: pointer; text-align: left; }
+.cpm-skill-toggle i { width: 12px; font-size: 10px; color: var(--pm-text-muted, #8a93a6); }
+.cpm-skill-name { font-weight: 600; }
+.cpm-skill-type { font-size: 11px; color: var(--pm-text-muted, #8a93a6); text-transform: capitalize; }
+.cpm-skill-pips { display: inline-flex; gap: 3px; }
+.cpm-skill-pips span { width: 14px; height: 6px; border-radius: 3px; background: var(--clubpm-surface-300, rgba(255, 255, 255, 0.12)); }
+.cpm-skill-pips span.on { background: var(--pm-accent-teal, #00e5cc); }
+.cpm-skill-band, .cpm-skill-pill { font-size: 11px; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--clubpm-border, rgba(255, 255, 255, 0.12)); color: var(--pm-text-secondary, #b5bccb); }
+.cpm-skill-band--high { color: var(--pm-accent-teal, #00e5cc); border-color: currentColor; }
+.cpm-skill-band--medium { color: var(--pm-accent-amber, #f5a623); border-color: currentColor; }
+.cpm-skill-meta { font-size: 12px; color: var(--pm-text-muted, #8a93a6); }
+.cpm-skill-icon { margin-left: auto; background: none; border: 0; color: var(--pm-text-muted, #8a93a6); cursor: pointer; padding: 4px 6px; border-radius: 6px; }
+.cpm-skill-icon:hover, .cpm-skill-icon:focus-visible { color: var(--pm-accent-teal, #00e5cc); }
+.cpm-skill-disagree { margin: 6px 0 0 20px; font-size: 12px; color: var(--pm-accent-amber, #f5a623); }
+.cpm-skill-detail { margin: 8px 0 0 20px; display: flex; flex-direction: column; gap: 10px; }
+.cpm-skill-provs li { font-size: 13px; line-height: 1.5; margin-bottom: 4px; }
+.cpm-skill-note { color: var(--pm-text-secondary, #b5bccb); }
+.cpm-skill-rationale { font-size: 12px; color: var(--pm-text-muted, #8a93a6); margin-left: 20px; }
+.cpm-skill-evidence li { display: flex; gap: 10px; padding: 6px 0; border-top: 1px dashed var(--clubpm-border, rgba(255, 255, 255, 0.08)); font-size: 13px; }
+.cpm-skill-evidence li > i { width: 16px; margin-top: 3px; color: var(--pm-text-muted, #8a93a6); }
+.cpm-skill-evidence-body { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.cpm-skill-evidence-meta { font-size: 12px; color: var(--pm-text-muted, #8a93a6); margin-top: 2px; }
+.cpm-skill-evidence-empty { font-size: 13px; color: var(--pm-text-muted, #8a93a6); padding: 6px 0; }
+.cpm-skill-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-top: 6px; }
+.cpm-skill-link { background: none; border: 0; padding: 0; font: inherit; font-size: 12px; color: var(--pm-accent-teal, #00e5cc); cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+.cpm-skill-link:disabled { opacity: 0.5; cursor: default; }
+.cpm-skill-flag, .cpm-skills-form { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
+.cpm-skill-flag label, .cpm-skills-form label, .cpm-skills-picker legend { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--pm-text-secondary, #b5bccb); }
+.cpm-skill-flag textarea, .cpm-skills-form input:not([type="checkbox"]), .cpm-skills-form select, .cpm-skills-form textarea {
+  background: var(--clubpm-surface-200, #1b2030); color: inherit; border: 1px solid var(--clubpm-border, rgba(255, 255, 255, 0.12)); border-radius: 8px; padding: 8px 10px; font: inherit; font-size: 14px; width: 100%; box-sizing: border-box;
+}
+.cpm-skills-settings { margin-top: 18px; border-top: 1px solid var(--clubpm-border, rgba(255, 255, 255, 0.08)); }
+.cpm-skills-section { border-bottom: 1px solid var(--clubpm-border, rgba(255, 255, 255, 0.08)); padding: 10px 0; }
+.cpm-skills-section > summary { cursor: pointer; font-weight: 600; font-size: 14px; }
+.cpm-skills-form .cpm-skills-check, .cpm-skills-projects .cpm-skills-check { flex-direction: row; align-items: center; gap: 8px; font-size: 13px; }
+.cpm-skills-projects h5 { margin: 12px 0 6px; font-size: 12px; color: var(--pm-text-secondary, #b5bccb); }
+.cpm-skills-picker { border: 1px solid var(--clubpm-border, rgba(255, 255, 255, 0.12)); border-radius: 8px; padding: 8px; display: flex; flex-wrap: wrap; gap: 6px; max-height: 180px; overflow: auto; margin: 0; }
+.cpm-skills-picker legend { padding: 0 6px; }
+.cpm-skills-chip { flex-direction: row !important; align-items: center; gap: 6px !important; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--clubpm-border, rgba(255, 255, 255, 0.12)); cursor: pointer; }
+.cpm-skills-chip.on { border-color: var(--pm-accent-teal, #00e5cc); color: var(--pm-accent-teal, #00e5cc); }
+.cpm-skills-chip input { position: absolute; opacity: 0; pointer-events: none; }
+.cpm-skills-chip:focus-within { outline: 2px solid var(--pm-accent-teal, #00e5cc); outline-offset: 2px; }
+@media (max-width: 640px) {
+  .cpm-skill-detail, .cpm-skill-disagree { margin-left: 0; }
+  .cpm-skill-link, .cpm-skill-icon, .cpm-skill-toggle { min-height: 44px; }
+}
+
+/* === Skills (admin tab) ====================================================== */
+.cpm-skills-admin-card { background: var(--clubpm-surface-200, #1b2030); border: 1px solid var(--clubpm-border, rgba(255, 255, 255, 0.1)); border-radius: 10px; padding: 12px 14px; margin: 10px 0; }
+.cpm-skills-admin-status { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px 24px; font-size: 13px; }
+.cpm-skill-pill--succeeded { color: var(--pm-accent-teal, #00e5cc); border-color: currentColor; }
+.cpm-skill-pill--partial { color: var(--pm-accent-amber, #f5a623); border-color: currentColor; }
+.cpm-skill-pill--failed { color: var(--pm-accent-coral, #ff6b6b); border-color: currentColor; }
+.cpm-skills-admin-tabs { display: flex; flex-wrap: wrap; gap: 4px; margin: 16px 0 12px; border-bottom: 1px solid var(--clubpm-border, rgba(255, 255, 255, 0.1)); }
+.cpm-skills-admin-tabs button { background: none; border: 0; border-bottom: 2px solid transparent; color: var(--pm-text-secondary, #b5bccb); padding: 8px 12px; font: inherit; font-size: 14px; cursor: pointer; }
+.cpm-skills-admin-tabs button.on { color: var(--pm-accent-teal, #00e5cc); border-bottom-color: var(--pm-accent-teal, #00e5cc); }
+.cpm-skills-admin-tabs--sub { margin-top: 0; }
+.cpm-skills-admin-tabs--sub button { font-size: 13px; padding: 6px 10px; }
+.cpm-skills-admin-filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; align-items: end; }
+.cpm-skills-admin-filters label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--pm-text-secondary, #b5bccb); }
+.cpm-skills-admin-filters input, .cpm-skills-admin-filters select, .cpm-skill-actions select, .cpm-skill-actions input {
+  background: var(--clubpm-surface-200, #1b2030); color: inherit; border: 1px solid var(--clubpm-border, rgba(255, 255, 255, 0.12)); border-radius: 8px; padding: 8px 10px; font: inherit; font-size: 14px; min-width: 0;
+}
+.cpm-skills-admin-people { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.cpm-skills-admin-person { border: 1px solid var(--clubpm-border, rgba(255, 255, 255, 0.1)); border-radius: 10px; padding: 10px 12px; }
+.cpm-skills-admin-person-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
+.cpm-skills-admin-skill { border-top: 1px dashed var(--clubpm-border, rgba(255, 255, 255, 0.08)); margin-top: 8px; padding-top: 8px; }
+.cpm-skills-answer { font-size: 15px; line-height: 1.55; margin: 0 0 8px; }
+.cpm-skill-cited { background: rgba(0, 229, 204, 0.06); border-radius: 6px; }
+@media (max-width: 640px) {
+  .cpm-skills-admin-tabs button { min-height: 44px; }
+  .cpm-skills-admin-filters { grid-template-columns: 1fr; }
+}

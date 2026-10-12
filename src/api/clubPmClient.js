@@ -1102,3 +1102,57 @@ export function conversationFileUrl(slackFileId) {
   const base = `${BASE_URL}/api/chat/files/${encodeURIComponent(slackFileId)}`;
   return token ? `${base}?token=${encodeURIComponent(token)}` : base;
 }
+
+// ── Skills ────────────────────────────────────────────────────
+// Weekly AI-inferred skills with linked evidence. Member calls act on the signed-in
+// member only; admin calls need an admin session. See backend/src/api/skills*.ts.
+
+export const skillsApi = {
+  me: () => get("/api/skills/me"),
+  evidence: (skillId) => get(`/api/skills/me/${encodeURIComponent(skillId)}/evidence`),
+  taxonomy: () => get("/api/skills/taxonomy"),
+  claim: (skillId, level, note) => put(`/api/skills/me/claims/${encodeURIComponent(skillId)}`, { level, note: note || null }),
+  unclaim: (skillId) => del(`/api/skills/me/claims/${encodeURIComponent(skillId)}`),
+  dispute: ({ skillId, evidenceId, reason }) => post("/api/skills/me/disputes", { skillId, evidenceId: evidenceId ?? null, reason }),
+  setSkillPublic: (skillId, isPublic) => put(`/api/skills/me/visibility/skills/${encodeURIComponent(skillId)}`, { isPublic }),
+  setProjectPublic: (projectId, isPublic) => put(`/api/skills/me/visibility/projects/${encodeURIComponent(projectId)}`, { isPublic }),
+  setPortfolio: (body) => put("/api/skills/me/portfolio", body),
+  addEvidence: (body) => post("/api/skills/me/evidence", body),
+  endorse: (body) => post("/api/skills/endorse", body),
+  unendorse: (memberId, skillId) => del(`/api/skills/endorse/${encodeURIComponent(memberId)}/${encodeURIComponent(skillId)}`),
+};
+
+export const skillsAdminApi = {
+  status: () => get("/api/admin/skills/status"),
+  runs: (limit = 20) => get(`/api/admin/skills/runs?limit=${limit}`),
+  startRun: (body = {}) => post("/api/admin/skills/runs", body),
+  recompute: () => post("/api/admin/skills/recompute", {}),
+  embedMissing: () => post("/api/admin/skills/embed-missing", {}),
+  search: (params) => get(`/api/admin/skills/search?${new URLSearchParams(Object.entries(params).filter(([, v]) => v !== undefined && v !== "" && v !== null)).toString()}`),
+  ask: (question, projectId) => post("/api/admin/skills/ask", { question, projectId: projectId || undefined }),
+  person: (memberId) => get(`/api/admin/skills/people/${encodeURIComponent(memberId)}`),
+  disagreements: () => get("/api/admin/skills/disagreements"),
+  verify: (body) => post("/api/admin/skills/endorse", body),
+  addPersonEvidence: (memberId, body) => post(`/api/admin/skills/people/${encodeURIComponent(memberId)}/evidence`, body),
+  disputes: (status = "OPEN") => get(`/api/admin/skills/disputes?status=${status}`),
+  resolveDispute: (id, decision, resolution) => post(`/api/admin/skills/disputes/${encodeURIComponent(id)}/resolve`, { decision, resolution: resolution || null }),
+  proposals: (status = "PENDING") => get(`/api/admin/skills/proposals?status=${status}`),
+  approveProposal: (id, body = {}) => post(`/api/admin/skills/proposals/${encodeURIComponent(id)}/approve`, body),
+  rejectProposal: (id) => post(`/api/admin/skills/proposals/${encodeURIComponent(id)}/reject`, {}),
+  mergeProposal: (id, skillId) => post(`/api/admin/skills/proposals/${encodeURIComponent(id)}/merge`, { skillId }),
+  taxonomy: () => get("/api/admin/skills/taxonomy"),
+  createSkill: (body) => post("/api/admin/skills/taxonomy", body),
+  patchSkill: (id, body) => patch(`/api/admin/skills/taxonomy/${encodeURIComponent(id)}`, body),
+  addAlias: (id, alias) => post(`/api/admin/skills/taxonomy/${encodeURIComponent(id)}/aliases`, { alias }),
+  removeAlias: (aliasId) => del(`/api/admin/skills/aliases/${encodeURIComponent(aliasId)}`),
+  addEdge: (id, toId, kind) => post(`/api/admin/skills/taxonomy/${encodeURIComponent(id)}/edges`, { toId, kind }),
+  removeEdge: (edgeId) => del(`/api/admin/skills/edges/${encodeURIComponent(edgeId)}`),
+};
+
+/** Public, unauthenticated: no cookie, no token. Resolves null when the portfolio is not enabled. */
+export async function getPublicPortfolio(slug) {
+  const response = await fetch(`${BASE_URL}/api/public/portfolio/${encodeURIComponent(slug)}`, { headers: { Accept: "application/json" } });
+  if (response.status === 404) return null;
+  if (!response.ok) throw new ApiError(response.status, "Could not load this portfolio");
+  return response.json();
+}

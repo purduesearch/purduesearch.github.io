@@ -15,6 +15,17 @@ export interface RenderOptions {
   tasks?: "all" | "open";
   /** Include the recent audit trail. Default false. */
   activity?: boolean;
+  /** Add each member's strongest evidence-backed skills to their line. Default false so other prompts are unchanged. */
+  skills?: boolean;
+}
+
+const BAND_WORD = { LOW: "low", MEDIUM: "med", HIGH: "high" } as const;
+
+/** "CAD L4 (high conf, last 2026-09), PCB Design L3 (med conf)": advisory estimates, level and confidence kept apart. */
+export function renderMemberSkills(skills: NonNullable<ProjectContext["members"][number]["topSkills"]>): string {
+  return skills
+    .map((s) => `${s.name} L${s.level} (${BAND_WORD[s.confidence]} conf${s.provenance === "MANAGER_VERIFIED" ? ", lead-verified" : s.provenance === "PEER_ENDORSED" ? ", peer-endorsed" : ""}${s.lastDemonstrated ? `, last ${s.lastDemonstrated.slice(0, 7)}` : ""})`)
+    .join(", ");
 }
 
 const idTag = (id: string, on: boolean) => (on ? `id="${id}" ` : "");
@@ -52,7 +63,8 @@ export function renderProjectContext(context: ProjectContext, today: string, opt
     `(${m.openHighPriorityCount} high/critical, ${m.openOverdueCount} overdue), ` +
     `${m.openStoryPoints}pts + ${m.openEstimatedHours}h estimated` +
     `${m.openUnestimatedCount ? `, ${m.openUnestimatedCount} unestimated` : ""}; ` +
-    `last 14d: ${m.completedLast14d} done, ${m.loggedHoursLast14d}h logged`
+    `last 14d: ${m.completedLast14d} done, ${m.loggedHoursLast14d}h logged` +
+    (opts.skills && m.topSkills?.length ? `; skills (advisory): ${renderMemberSkills(m.topSkills)}` : "")
   ).join("\n") || "none";
 
   const milestoneLines = milestones.map((m) =>

@@ -3,7 +3,7 @@ import type { WebClient } from "@slack/web-api";
 import { prisma } from "../db/prisma.js";
 import { createTask, updateTask, getTask } from "../services/taskService.js";
 import { resolveSlackMember } from "../services/memberService.js";
-import { getProjectByChannel } from "../services/projectService.js";
+import { getProjectByChannel, addManualMemberToProject } from "../services/projectService.js";
 import { EXCLUDE_TRAINING } from "../services/trainingSandboxService.js";
 import { buildDriveTaskPreview } from "../utils/blockKit.js";
 import { fetchDriveFileAsText, extractFileId } from "../services/driveService.js";
@@ -789,6 +789,12 @@ export function registerModals(app: App): void {
       });
 
       const projectActor = await resolveSlackMember(body.user.id).catch(() => null);
+      // Same rule as the REST create: the creator is the whole roster until a channel is linked or members are added.
+      if (projectActor) {
+        await addManualMemberToProject(project.id, projectActor.id).catch(err =>
+          console.warn("add creator to project failed:", err)
+        );
+      }
       logAuditEvent({
         projectId: project.id,
         memberId:  projectActor?.id ?? null,

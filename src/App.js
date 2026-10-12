@@ -21,6 +21,7 @@ import Home from './pages/Home';
 const PublicCampaign = lazy(() => import('./pages/PublicCampaign'));
 const EventRsvp = lazy(() => import('./pages/Public/EventRsvp'));
 const PublicSchedule = lazy(() => import('./pages/Public/PublicSchedule'));
+const Portfolio = lazy(() => import('./pages/Public/Portfolio'));
 const Archive = lazy(() => import('./pages/Archive'));
 const BlogPost = lazy(() => import('./pages/BlogPost'));
 const About = lazy(() => import('./pages/About'));
@@ -165,6 +166,7 @@ function AnimatedRoutes() {
             {/* Public outreach routes (no auth) */}
             <Route path="/rsvp/:eventId" element={<EventRsvp />} />
             <Route path="/schedule/:token" element={<PublicSchedule />} />
+            <Route path="/portfolio/:slug" element={<Portfolio />} />
             <Route path="/r/c/:slug" element={<PublicCampaign />} />
             <Route path="/r/archive" element={<Archive />} />
 
