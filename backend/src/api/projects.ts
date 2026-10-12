@@ -116,6 +116,11 @@ projectsRouter.post("/", async (req: Request, res: Response) => {
       parentId: parentId || undefined,
     });
 
+    // The creator is the whole roster until a Slack channel is linked or someone is added.
+    await addManualMemberToProject(project.id, memberId).catch(err =>
+      console.warn("add creator to project failed:", err)
+    );
+
     logAuditEvent({
       projectId: project.id,
       memberId:  memberId ?? null,
@@ -421,16 +426,22 @@ projectsRouter.delete("/:id", async (req: Request, res: Response) => {
 });
 
 // ── POST/DELETE /api/projects/:id/members ────────────────────
-// Admin only. Adds any club member, independent of the project's Slack channel.
+// Admins or existing project members. Adds any club member, independent of the project's Slack channel.
 
 projectsRouter.post("/:id/members", async (req: Request, res: Response) => {
   try {
-    const actor = await prisma.member.findUnique({ where: { id: req.memberId! }, select: { isAdmin: true } });
-    if (!actor?.isAdmin) {
-      res.status(403).json({ error: "Only admins can add project members" });
+    const projectId = req.params.id as string;
+    const [actor, actorRow] = await Promise.all([
+      prisma.member.findUnique({ where: { id: req.memberId! }, select: { isAdmin: true } }),
+      prisma.projectMember.findUnique({
+        where: { projectId_memberId: { projectId, memberId: req.memberId! } },
+        select: { memberId: true },
+      }),
+    ]);
+    if (!actor?.isAdmin && !actorRow) {
+      res.status(403).json({ error: "Only admins or project members can add project members" });
       return;
     }
-    const projectId = req.params.id as string;
     const { memberId } = req.body as { memberId?: unknown };
     if (typeof memberId !== "string" || !memberId) {
       res.status(400).json({ error: "memberId is required" });

@@ -11,6 +11,7 @@ import GitHubTaskSection from "./github/GitHubTaskSection";
 import SlackMentions from "./SlackMentions";
 import { parseDriveUrl, getTypeMeta } from "../../utils/driveUtils";
 import MobileSheet from "./MobileSheet";
+import { ConfirmAddMemberDialog, OutsideTag, outsideMatches } from "./OutsideMemberAdd";
 import { useCompactLayout } from "../../clubpm/layout/compactLayout";
 
 // ─── Constants ────────────────────────────────────────────────
@@ -326,9 +327,11 @@ function StatusSelect({ value, onChange }) {
   );
 }
 
-function AssigneeEditor({ assignees = [], projectMembers = [], onChange }) {
+function AssigneeEditor({ assignees = [], projectMembers = [], onChange, projectId, onMemberAdded }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const [clubMembers, setClubMembers] = useState(null);
+  const [pendingOutside, setPendingOutside] = useState(null);
   const ref = useRef();
   useEffect(() => {
     if (!open) return;
@@ -340,6 +343,16 @@ function AssigneeEditor({ assignees = [], projectMembers = [], onChange }) {
   const filtered = projectMembers.filter(m =>
     m.displayName?.toLowerCase().includes(search.toLowerCase())
   );
+  // Club members are fetched (once) and offered only when nobody on the project matches.
+  const wantsOutside = !!projectId && filtered.length === 0 && search.trim() !== "";
+  useEffect(() => {
+    if (wantsOutside && clubMembers === null) {
+      get("/api/members").then(setClubMembers).catch(() => setClubMembers([]));
+    }
+  }, [wantsOutside, clubMembers]);
+  const outside = wantsOutside
+    ? outsideMatches(clubMembers, new Set(projectMembers.map(m => m.id)), search)
+    : [];
   const assigneeIds = assignees.map(a => a.id);
   // Task assignees carry no project role, so look leads up in the project roster.
   const leadIds = new Set(projectMembers.filter(m => m.isLead).map(m => m.id));
@@ -398,7 +411,24 @@ function AssigneeEditor({ assignees = [], projectMembers = [], onChange }) {
               color:"var(--clubpm-text-primary)", outline:"none", boxSizing:"border-box", marginBottom:6,
             }} />
           <div style={{ maxHeight:180, overflowY:"auto", display:"flex", flexDirection:"column", gap:2 }}>
-            {filtered.length === 0
+            {filtered.length === 0 && outside.length > 0
+              ? outside.map(m => (
+                  <button key={m.id} onClick={() => setPendingOutside(m)} title="Not on this project. Click to add." style={{
+                    display:"flex", alignItems:"center", gap:8, padding:"6px 8px", border:"none",
+                    borderRadius:5, cursor:"pointer", textAlign:"left", background:"none",
+                  }}>
+                    {m.avatarUrl
+                      ? <img src={m.avatarUrl} alt={m.displayName} style={{ width:22, height:22, borderRadius:"50%" }} />
+                      : <div style={{
+                          width:22, height:22, borderRadius:"50%", background:"var(--clubpm-accent-primary)",
+                          color:"#fff", fontSize:10, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center",
+                        }}>{(m.displayName??"?")[0].toUpperCase()}</div>
+                    }
+                    <span style={{ fontSize:12, color:"var(--clubpm-text-primary)", flex:1 }}>{m.displayName}</span>
+                    <OutsideTag />
+                  </button>
+                ))
+            : filtered.length === 0
               ? <p style={{ fontSize:11, color:"var(--clubpm-text-muted)", textAlign:"center", padding:"8px 0" }}>No members found</p>
               : filtered.map(m => {
                   const checked = assigneeIds.includes(m.id);
@@ -427,6 +457,18 @@ function AssigneeEditor({ assignees = [], projectMembers = [], onChange }) {
             }
           </div>
         </div>
+      )}
+      {pendingOutside && (
+        <ConfirmAddMemberDialog
+          projectId={projectId}
+          member={pendingOutside}
+          onClose={() => setPendingOutside(null)}
+          onAdded={m => {
+            setSearch("");
+            onMemberAdded?.(m);
+            onChange([...assignees, m]);
+          }}
+        />
       )}
     </div>
   );
@@ -1153,6 +1195,9 @@ export default function TaskModal({ task: initialTask, project, projectBlockers 
   const [history, setHistory] = useState([]);
   const [subtasks, setSubtasks] = useState([]);
   const [projectMembers, setProjectMembers] = useState([]);
+  const addProjectMember = useCallback(m => {
+    setProjectMembers(prev => prev.some(p => p.id === m.id) ? prev : [...prev, { ...m, isLead: false }]);
+  }, []);
   // Admins and leads of this task's project get admin task powers.
   const canManage = !!member?.isAdmin
     || projectMembers.some(pm => pm.id === member?.id && pm.isLead);
@@ -1238,11 +1283,6 @@ export default function TaskModal({ task: initialTask, project, projectBlockers 
         const members = (p.members ?? []).map(pm => (pm.member ? { ...pm.member, isLead: !!pm.isLead } : pm));
         setProjectMembers(members);
         setProjectTasks(p.tasks ?? []);
-        if (members.length === 0) {
-          get("/api/members").then(all => {
-            setProjectMembers(all.map(m => ({ id: m.id, displayName: m.displayName, avatarUrl: m.avatarUrl })));
-          }).catch(() => {});
-        }
       }).catch(() => {});
       get("/api/projects").then(setAllProjects).catch(() => {});
       get(`/api/projects/${task.projectId}/tags`).then(setProjectTags).catch(() => {});
@@ -1785,6 +1825,8 @@ export default function TaskModal({ task: initialTask, project, projectBlockers 
               <AssigneeEditor
                 assignees={task.assignees ?? []}
                 projectMembers={projectMembers}
+                projectId={task.projectId}
+                onMemberAdded={addProjectMember}
                 onChange={assignees => saveField({ assigneeIds: assignees.map(a => a.id), assignees })}
               />
             </MetaRow>
@@ -2419,6 +2461,7 @@ export default function TaskModal({ task: initialTask, project, projectBlockers 
         <CreateSubtaskModal
           parentTask={task}
           projectMembers={projectMembers}
+          onMemberAdded={addProjectMember}
           onCreated={handleSubtaskCreated}
           onClose={() => setShowSubtaskModal(false)}
         />
@@ -2516,7 +2559,7 @@ export default function TaskModal({ task: initialTask, project, projectBlockers 
 
 // ─── Create Subtask Modal ──────────────────────────────────────
 
-function CreateSubtaskModal({ parentTask, projectMembers, onCreated, onClose }) {
+function CreateSubtaskModal({ parentTask, projectMembers, onMemberAdded, onCreated, onClose }) {
   const [title, setTitle] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [priority, setPriority] = useState("MEDIUM");
@@ -2598,6 +2641,8 @@ function CreateSubtaskModal({ parentTask, projectMembers, onCreated, onClose }) 
             <AssigneeEditor
               assignees={assignees}
               projectMembers={projectMembers}
+              projectId={parentTask.projectId}
+              onMemberAdded={onMemberAdded}
               onChange={setAssignees}
             />
           </div>

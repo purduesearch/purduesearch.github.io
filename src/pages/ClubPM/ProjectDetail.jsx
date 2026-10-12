@@ -7,6 +7,7 @@ import MemberBadge from "../../components/clubpm/MemberBadge";
 import LabTimeButton from "../../components/clubpm/labschedule/LabTimeButton";
 import LabPresenceCard from "../../components/clubpm/labschedule/LabPresenceCard";
 import AvatarPortrait from "../../components/clubpm/avatar/AvatarPortrait";
+import { ConfirmAddMemberDialog, OutsideTag, outsideMatches } from "../../components/clubpm/OutsideMemberAdd";
 import { useClubPmAuth } from "../../clubpm/ClubPmAuth";
 import { useProjectNav } from "../../clubpm/ProjectNavContext";
 import TaskModal from "../../components/clubpm/TaskModal";
@@ -526,10 +527,14 @@ function CompactTaskFilters({ sortBy, onSort, priority, onPriority, due, onDue, 
   );
 }
 
-function CompactAssigneePicker({ task, members, onChange }) {
+function CompactAssigneePicker({ task, members, outsideCandidates = [], projectId, onChange, onMemberAdded }) {
   const [query, setQuery] = useState('');
+  const [pendingOutside, setPendingOutside] = useState(null);
   const selected = new Set((task.assignees ?? []).map(a => a.id));
   const filtered = members.filter(pm => (pm.member?.displayName ?? '').toLowerCase().includes(query.trim().toLowerCase()));
+  const outside = filtered.length === 0
+    ? outsideMatches(outsideCandidates, new Set(members.map(pm => pm.memberId)), query)
+    : [];
   return (
     <div className="pm-m-assign-picker">
       <label className="pm-m-search"><i className="fas fa-magnifying-glass" aria-hidden="true" /><input type="search" className="pm-m-input" placeholder="Find a member" value={query} onChange={e => setQuery(e.target.value)} /></label>
@@ -539,6 +544,19 @@ function CompactAssigneePicker({ task, members, onChange }) {
         const active = selected.has(m.id);
         return <button key={m.id} type="button" className="pm-m-row" aria-pressed={active} onClick={() => onChange(active ? [...selected].filter(id => id !== m.id) : [...selected, m.id])}><AvatarPortrait member={m} size={32} /><span className="pm-m-row-main">{m.displayName}</span>{active ? <i className="fas fa-check" aria-hidden="true" /> : null}</button>;
       })}
+      {outside.map(m => (
+        <button key={m.id} type="button" className="pm-m-row" onClick={() => setPendingOutside(m)}>
+          <AvatarPortrait member={m} size={32} /><span className="pm-m-row-main">{m.displayName}</span><OutsideTag />
+        </button>
+      ))}
+      {pendingOutside && (
+        <ConfirmAddMemberDialog
+          projectId={projectId}
+          member={pendingOutside}
+          onClose={() => setPendingOutside(null)}
+          onAdded={async m => { setQuery(''); await onMemberAdded?.(m); onChange([...selected, m.id]); }}
+        />
+      )}
     </div>
   );
 }
@@ -1053,22 +1071,32 @@ function KanbanSubtaskRow({ subtask, onClick, isDropTarget = false, isSelected =
   );
 }
 
+// ── Assignee roster ──────────────────────────────────────────
+// Who can be assigned on a project: its channel members plus anyone added by
+// hand when a Slack channel is linked, otherwise its explicit member rows
+// (the creator, then anyone added). Never the whole club.
+
+function projectRoster(project) {
+  const rows = (project?.members ?? []).filter(pm => pm.member);
+  const channelIds = project?.channelMemberSlackIds ?? [];
+  if (project?.slackChannelId && channelIds.length > 0) {
+    const idSet = new Set(channelIds);
+    return rows.filter(pm => pm.addedManually || idSet.has(pm.member.slackId));
+  }
+  return rows;
+}
+
 // ── Assignee Panel (right column) ────────────────────────────
 
-function AssigneePanel({ members, projectMembers = [], channelMemberSlackIds = [], hasLinkedChannel = false, selectedMemberIds, onMemberClick, leadByMemberId, canEditLeads = false, projectId, onLeadsChanged }) {
+function AssigneePanel({ members, outsideCandidates = [], selectedMemberIds, onMemberClick, leadByMemberId, canEditLeads = false, projectId, onLeadsChanged, onMemberAdded }) {
   const [collapsed, setCollapsed] = useState(false);
   const [search, setSearch] = useState("");
   const [card, setCard] = useState(null); // { pm, anchor }
+  const [pendingOutside, setPendingOutside] = useState(null);
   const closeCard = useCallback(() => setCard(null), []);
 
   const filtered = useMemo(() => {
     let list = members;
-
-    if (hasLinkedChannel && channelMemberSlackIds.length > 0) {
-      const idSet = new Set(channelMemberSlackIds);
-      const manualIds = new Set((projectMembers ?? []).filter(pm => pm.addedManually).map(pm => pm.memberId));
-      list = list.filter(pm => idSet.has(pm.member?.slackId) || manualIds.has(pm.memberId));
-    }
 
     const q = search.trim().toLowerCase();
     if (q) {
@@ -1085,7 +1113,15 @@ function AssigneePanel({ members, projectMembers = [], channelMemberSlackIds = [
       roleRank(a) - roleRank(b)
       || (a.member?.displayName ?? "").localeCompare(b.member?.displayName ?? "", "en", { sensitivity: "base" })
     );
-  }, [members, projectMembers, channelMemberSlackIds, hasLinkedChannel, search, leadByMemberId]);
+  }, [members, search, leadByMemberId]);
+
+  // Club members are only offered once nobody on the project matches the search.
+  const outside = useMemo(
+    () => (filtered.length === 0 && search.trim()
+      ? outsideMatches(outsideCandidates, new Set(members.map(pm => pm.memberId)), search)
+      : []),
+    [filtered.length, search, outsideCandidates, members]
+  );
 
   return (
     <aside className="cpm-assignee-panel">
@@ -1124,11 +1160,6 @@ function AssigneePanel({ members, projectMembers = [], channelMemberSlackIds = [
           >
             Assignees
           </div>
-          {hasLinkedChannel && (
-            <div style={{ fontSize: 10, color: "var(--clubpm-text-muted)", padding: "0 0 4px" }}>
-              Showing channel members only
-            </div>
-          )}
           <div style={{ display: "flex", gap: 6, paddingBottom: 8, borderBottom: "1px solid var(--clubpm-border)" }}>
             <DraggableSpecialChip
               id="special-everyone"
@@ -1151,7 +1182,24 @@ function AssigneePanel({ members, projectMembers = [], channelMemberSlackIds = [
             onChange={(e) => setSearch(e.target.value)}
           />
           <div data-tour-id="board.memberchips" style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-            {filtered.length === 0 ? (
+            {filtered.length === 0 && outside.length > 0 ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: 4, width: "100%" }}>
+                {outside.map(m => (
+                  <button
+                    key={m.id}
+                    type="button"
+                    className="cpm-assignee-chip"
+                    title="Not on this project. Click to add."
+                    onClick={() => setPendingOutside(m)}
+                    style={{ width: "100%", justifyContent: "flex-start", cursor: "pointer" }}
+                  >
+                    <ChipAvatar member={m} />
+                    <span className="cpm-assignee-chip-name">{m.displayName}</span>
+                    <OutsideTag />
+                  </button>
+                ))}
+              </div>
+            ) : filtered.length === 0 ? (
               <p style={{ fontSize: 12, color: "var(--clubpm-text-muted)", padding: "4px 0" }}>
                 No members
               </p>
@@ -1179,6 +1227,14 @@ function AssigneePanel({ members, projectMembers = [], channelMemberSlackIds = [
           projectId={projectId}
           onClose={closeCard}
           onSaved={onLeadsChanged}
+        />
+      )}
+      {pendingOutside && (
+        <ConfirmAddMemberDialog
+          projectId={projectId}
+          member={pendingOutside}
+          onClose={() => setPendingOutside(null)}
+          onAdded={async m => { setSearch(""); await onMemberAdded?.(m); }}
         />
       )}
     </aside>
@@ -2610,6 +2666,8 @@ export default function ProjectDetail() {
     [project?.members]
   );
 
+  const rosterMembers = useMemo(() => projectRoster(project), [project]);
+
   const fetchBlockers = useCallback(() => {
     if (!id) return;
     getProjectBlockers(id).then(setProjectBlockers).catch(() => {});
@@ -3179,8 +3237,8 @@ export default function ProjectDetail() {
       if (!found) return;
       const { task, parentTask } = found;
       const everyone = active.id === "special-everyone";
-      const memberIds = everyone ? allMembers.map(m => m.memberId) : [];
-      const memberObjs = everyone ? allMembers.map(m => m.member).filter(Boolean) : [];
+      const memberIds = everyone ? rosterMembers.map(m => m.memberId) : [];
+      const memberObjs = everyone ? rosterMembers.map(m => m.member).filter(Boolean) : [];
       applyAssigneeUpdate(task.id, parentTask?.id ?? null, memberObjs);
       try {
         const updated = await patch(`/api/tasks/${task.id}`, { assigneeIds: memberIds });
@@ -3952,10 +4010,9 @@ export default function ProjectDetail() {
 
         {activeTab === "tasks" && assigneePanelOpen && !compact && (
           <AssigneePanel
-            members={allMembers.length > 0 ? allMembers : (project.members || [])}
-            projectMembers={project.members ?? []}
-            channelMemberSlackIds={project.channelMemberSlackIds ?? []}
-            hasLinkedChannel={!!project.slackChannelId}
+            members={rosterMembers}
+            outsideCandidates={allMembers}
+            onMemberAdded={fetchProject}
             selectedMemberIds={selectedMemberIds}
             onMemberClick={handleMemberClick}
             leadByMemberId={leadByMemberId}
@@ -4086,7 +4143,7 @@ export default function ProjectDetail() {
 
       {compact && compactLayer?.type === 'assign' && compactLayer.task && (
         <MobileSheet title={`Assign “${compactLayer.task.title}”`} onClose={() => setCompactLayer(null)}>
-          <CompactAssigneePicker task={compactLayer.task} members={allMembers} onChange={ids => handleCompactAssignees(compactLayer.task, ids)} />
+          <CompactAssigneePicker task={compactLayer.task} members={rosterMembers} outsideCandidates={allMembers} projectId={project.id} onMemberAdded={fetchProject} onChange={ids => handleCompactAssignees(compactLayer.task, ids)} />
           {compactSaving ? <div className="pm-m-save-state" role="status">Saving…</div> : null}
         </MobileSheet>
       )}
