@@ -30211,3 +30211,41 @@ body.pm-m-compact .pm-albums-icon-btn { width: 44px; height: 44px; }
   outline: 2px solid var(--pm-accent-teal);
   outline-offset: 2px;
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   Sub-projects + admin project management
+   ═══════════════════════════════════════════════════════════════════ */
+.cpm-proj-admin-modal { width: min(560px, 94vw); }
+.cpm-proj-admin-section { display: flex; flex-direction: column; gap: 8px; padding-bottom: 14px; border-bottom: 1px solid var(--clubpm-border); }
+.cpm-proj-admin-section:last-child { border-bottom: none; padding-bottom: 0; }
+.cpm-proj-admin-title { margin: 0; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--clubpm-text-muted); }
+.cpm-proj-admin-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.cpm-proj-admin-list--scroll { max-height: 180px; overflow-y: auto; }
+.cpm-proj-admin-row { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 6px; background: var(--clubpm-surface-300); font-size: 13px; }
+.cpm-proj-admin-row-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--clubpm-text-primary); text-decoration: none; }
+.cpm-proj-admin-tag { font-size: 10px; color: var(--clubpm-text-muted); text-transform: uppercase; letter-spacing: 0.05em; flex-shrink: 0; }
+.cpm-proj-admin-inline { display: flex; gap: 8px; align-items: center; }
+.cpm-proj-admin-inline .cpm-proj-edit-input { flex: 1; min-width: 0; }
+.cpm-proj-admin-danger .cpm-proj-admin-title { color: var(--pm-accent-coral); }
+.cpm-proj-admin-delete {
+  align-self: flex-start;
+  font-size: 12px; font-weight: 600; padding: 8px 14px; border-radius: 6px; cursor: pointer;
+  border: 1px solid var(--pm-accent-coral); background: rgba(225, 112, 85, 0.12); color: var(--pm-accent-coral);
+}
+.cpm-proj-admin-delete:hover:not(:disabled) { background: var(--pm-accent-coral); color: #0d0f14; }
+.cpm-proj-admin-delete:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.pm-sidebar-project-item--child { padding-left: 34px; }
+.pm-sidebar-project-row { position: relative; display: flex; align-items: center; }
+.pm-sidebar-project-row > .pm-sidebar-project-item { flex: 1; min-width: 0; }
+.pm-sidebar-project-manage {
+  position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+  width: 22px; height: 22px; border-radius: 4px; border: none; background: none;
+  color: var(--pm-text-muted); cursor: pointer; font-size: 11px; opacity: 0;
+  transition: opacity 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+.pm-sidebar:hover .pm-sidebar-project-row:hover .pm-sidebar-project-manage,
+.pm-sidebar-project-manage:focus-visible { opacity: 1; }
+.pm-sidebar-project-manage:hover { color: var(--pm-accent-teal); background: rgba(0, 229, 204, 0.1); }
+.pm-proj-subproject-chip { text-decoration: none; display: inline-flex; align-items: center; gap: 5px; }
+.pm-proj-subproject-chip:hover { color: var(--pm-accent-teal); border-color: var(--pm-border-active); }

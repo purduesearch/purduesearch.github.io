@@ -20,6 +20,7 @@ interface CreateProjectInput {
   type: ProjectType;
   startDate?: Date;
   targetDate?: Date;
+  parentId?: string | null;
 }
 
 interface UpdateProjectInput {
@@ -37,6 +38,7 @@ interface UpdateProjectInput {
   programTag?: string | null;
   startDate?: Date | null;
   targetDate?: Date | null;
+  parentId?: string | null;
 }
 
 // ── Channel membership cache (60s TTL) ──────────────────────
@@ -89,6 +91,8 @@ export async function getProject(
   return prisma.project.findUnique({
     where: { id },
     include: {
+      parent: { select: { id: true, name: true } },
+      children: { select: { id: true, name: true, status: true }, orderBy: { name: "asc" } },
       members: { include: { member: true } },
       tasks: {
         where: { parentTaskId: null, ...archivedFilter }, // top-level tasks only
@@ -270,6 +274,26 @@ export async function syncProjectMembersFromChannel(
   await prisma.projectMember.deleteMany({
     where: { projectId, member: { isBot: true } },
   });
+}
+
+/** Admin add: a club member joins a project regardless of its Slack channel.
+ * Never downgrades an existing row's role; only marks it manual. */
+export async function addManualMemberToProject(projectId: string, memberId: string) {
+  return prisma.projectMember.upsert({
+    where: { projectId_memberId: { projectId, memberId } },
+    update: { addedManually: true },
+    create: { projectId, memberId, addedManually: true },
+  });
+}
+
+/** Hard delete. Vault upload jobs restrict-reference their repository and item,
+ * so they and the repository rows go first; everything else cascades. */
+export async function deleteProject(projectId: string): Promise<void> {
+  await prisma.$transaction([
+    prisma.vaultUploadJob.deleteMany({ where: { projectId } }),
+    prisma.vaultRepository.deleteMany({ where: { projectId } }),
+    prisma.project.delete({ where: { id: projectId } }),
+  ]);
 }
 
 export async function removeMemberFromProject(

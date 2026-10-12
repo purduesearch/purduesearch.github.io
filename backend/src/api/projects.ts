@@ -9,7 +9,11 @@ import {
   getProjectsWithTaskStats,
   getChannelMemberSlackIds,
   syncProjectMembersFromChannel,
+  addManualMemberToProject,
+  removeMemberFromProject,
+  deleteProject,
 } from "../services/projectService.js";
+import { parentAssignmentError, deleteBlockedReason, deleteConfirmationMatches } from "../services/projectHierarchyCore.js";
 import {
   getTasksForProject,
   createTask,
@@ -65,7 +69,7 @@ projectsRouter.post("/", async (req: Request, res: Response) => {
       return;
     }
 
-    const { name, description, driveLink, slackChannel, type, startDate, targetDate } =
+    const { name, description, driveLink, slackChannel, type, startDate, targetDate, parentId } =
       req.body as {
         name: string;
         description?: string;
@@ -74,11 +78,27 @@ projectsRouter.post("/", async (req: Request, res: Response) => {
         type: ProjectType;
         startDate?: string;
         targetDate?: string;
+        parentId?: string | null;
       };
 
     if (!name || !type) {
       res.status(400).json({ error: "name and type are required" });
       return;
+    }
+    if (!PROJECT_TYPES.includes(type)) {
+      res.status(400).json({ error: `Invalid type "${type}"` });
+      return;
+    }
+    if (parentId) {
+      const parent = await prisma.project.findUnique({
+        where: { id: parentId },
+        select: { id: true, parentId: true, trainingForMemberId: true },
+      });
+      const problem = parentAssignmentError({ projectId: null, parent, childCount: 0 });
+      if (problem) {
+        res.status(400).json({ error: problem });
+        return;
+      }
     }
 
     // driveLink is optional at creation — an admin links the human-managed Files
@@ -93,6 +113,7 @@ projectsRouter.post("/", async (req: Request, res: Response) => {
       type,
       startDate: startDate ? new Date(startDate) : undefined,
       targetDate: targetDate ? new Date(targetDate) : undefined,
+      parentId: parentId || undefined,
     });
 
     logAuditEvent({
@@ -100,7 +121,7 @@ projectsRouter.post("/", async (req: Request, res: Response) => {
       memberId:  memberId ?? null,
       source:    "WEB",
       eventType: "PROJECT_CREATED",
-      payload:   { projectName: project.name },
+      payload:   { projectName: project.name, ...(parentId ? { parentId } : {}) },
     }).catch(console.error);
 
     res.status(201).json(project);
@@ -149,7 +170,7 @@ projectsRouter.get("/:id", async (req: Request, res: Response) => {
 projectsRouter.patch("/:id", channelAuth, async (req: Request, res: Response) => {
   try {
     const projectId = req.params.id as string;
-    const { name, description, driveLink, githubRepo, githubInstallId, githubBlockDoneOnCiFail, slackChannel, slackChannelId, slackChannelName, status, type, programTag, startDate, targetDate } =
+    const { name, description, driveLink, githubRepo, githubInstallId, githubBlockDoneOnCiFail, slackChannel, slackChannelId, slackChannelName, status, type, programTag, startDate, targetDate, parentId } =
       req.body as {
         name?: string;
         description?: string;
@@ -166,6 +187,8 @@ projectsRouter.patch("/:id", channelAuth, async (req: Request, res: Response) =>
         // null (or "") clears the date; omitted leaves it untouched.
         startDate?: string | null;
         targetDate?: string | null;
+        // null (or "") detaches from the parent; omitted leaves it untouched.
+        parentId?: string | null;
       };
 
     const trimmedName = typeof name === "string" ? name.trim() : undefined;
@@ -237,6 +260,29 @@ projectsRouter.patch("/:id", channelAuth, async (req: Request, res: Response) =>
       }
     }
 
+    // Re-parenting changes the sidebar/dashboard structure, so it is admin-only.
+    const nextParentId = parentId === undefined ? undefined : (parentId || null);
+    if (nextParentId !== undefined && (before.parentId ?? null) !== nextParentId) {
+      if (!actor?.isAdmin) {
+        res.status(403).json({ error: "Only admins can move a project under another project" });
+        return;
+      }
+      if (nextParentId) {
+        const [parent, childCount] = await Promise.all([
+          prisma.project.findUnique({
+            where: { id: nextParentId },
+            select: { id: true, parentId: true, trainingForMemberId: true },
+          }),
+          prisma.project.count({ where: { parentId: projectId } }),
+        ]);
+        const problem = parentAssignmentError({ projectId, parent, childCount });
+        if (problem) {
+          res.status(400).json({ error: problem });
+          return;
+        }
+      }
+    }
+
     const project = await updateProject(projectId, {
       name: trimmedName,
       description,
@@ -252,10 +298,11 @@ projectsRouter.patch("/:id", channelAuth, async (req: Request, res: Response) =>
       programTag: nextProgramTag,
       startDate: nextStartDate,
       targetDate: nextTargetDate,
+      parentId: nextParentId,
     });
 
     {
-      const WATCHED_PROJECT_FIELDS = ["name", "status", "description", "type", "programTag", "startDate", "targetDate", "driveLink", "githubRepo"];
+      const WATCHED_PROJECT_FIELDS = ["name", "status", "description", "type", "programTag", "startDate", "targetDate", "driveLink", "githubRepo", "parentId"];
       const changes = diffObjects(before as any, project as any, WATCHED_PROJECT_FIELDS);
       if (changes.length > 0) {
         const memberId = req.memberId;
@@ -330,6 +377,108 @@ projectsRouter.put("/:id/members/:memberId/lead", async (req: Request, res: Resp
   } catch (error) {
     console.error("Set project lead error:", error);
     res.status(500).json({ error: "Failed to update project lead" });
+  }
+});
+
+// ── DELETE /api/projects/:id ─────────────────────────────────
+// Admin only, irreversible. Needs the exact project name in `confirmName` and
+// refuses while sub-projects exist (409) so a parent never takes children with it.
+
+projectsRouter.delete("/:id", async (req: Request, res: Response) => {
+  try {
+    const actor = await prisma.member.findUnique({ where: { id: req.memberId! }, select: { isAdmin: true } });
+    if (!actor?.isAdmin) {
+      res.status(403).json({ error: "Only admins can delete projects" });
+      return;
+    }
+    const projectId = req.params.id as string;
+    const project = await prisma.project.findUnique({
+      where: { id: projectId },
+      select: { id: true, name: true, trainingForMemberId: true, children: { select: { name: true } } },
+    });
+    if (!project || project.trainingForMemberId) {
+      res.status(404).json({ error: "Project not found" });
+      return;
+    }
+    const blocked = deleteBlockedReason(project.children.map(c => c.name));
+    if (blocked) {
+      res.status(409).json({ error: blocked });
+      return;
+    }
+    const confirmName = (req.body as { confirmName?: unknown } | undefined)?.confirmName;
+    if (!deleteConfirmationMatches(project.name, confirmName)) {
+      res.status(400).json({ error: "Type the exact project name to confirm deletion" });
+      return;
+    }
+
+    await deleteProject(projectId);
+    console.info(`[projects] ${req.memberId} deleted project ${projectId} "${project.name}"`);
+    res.json({ ok: true });
+  } catch (error) {
+    console.error("Delete project error:", error);
+    res.status(500).json({ error: "Failed to delete project" });
+  }
+});
+
+// ── POST/DELETE /api/projects/:id/members ────────────────────
+// Admin only. Adds any club member, independent of the project's Slack channel.
+
+projectsRouter.post("/:id/members", async (req: Request, res: Response) => {
+  try {
+    const actor = await prisma.member.findUnique({ where: { id: req.memberId! }, select: { isAdmin: true } });
+    if (!actor?.isAdmin) {
+      res.status(403).json({ error: "Only admins can add project members" });
+      return;
+    }
+    const projectId = req.params.id as string;
+    const { memberId } = req.body as { memberId?: unknown };
+    if (typeof memberId !== "string" || !memberId) {
+      res.status(400).json({ error: "memberId is required" });
+      return;
+    }
+    const [project, member] = await Promise.all([
+      prisma.project.findUnique({ where: { id: projectId }, select: { id: true } }),
+      prisma.member.findUnique({ where: { id: memberId }, select: { id: true, isBot: true } }),
+    ]);
+    if (!project) { res.status(404).json({ error: "Project not found" }); return; }
+    if (!member || member.isBot) { res.status(404).json({ error: "Member not found" }); return; }
+
+    await addManualMemberToProject(projectId, memberId);
+    const row = await prisma.projectMember.findUnique({
+      where: { projectId_memberId: { projectId, memberId } },
+      include: { member: true },
+    });
+    res.status(201).json(row);
+  } catch (error) {
+    console.error("Add project member error:", error);
+    res.status(500).json({ error: "Failed to add project member" });
+  }
+});
+
+projectsRouter.delete("/:id/members/:memberId", async (req: Request, res: Response) => {
+  try {
+    const actor = await prisma.member.findUnique({ where: { id: req.memberId! }, select: { isAdmin: true } });
+    if (!actor?.isAdmin) {
+      res.status(403).json({ error: "Only admins can remove project members" });
+      return;
+    }
+    const projectId = req.params.id as string;
+    const memberId = req.params.memberId as string;
+    const existing = await prisma.projectMember.findUnique({
+      where: { projectId_memberId: { projectId, memberId } },
+      select: { addedManually: true },
+    });
+    if (!existing) { res.status(404).json({ error: "Member is not on this project" }); return; }
+    // Channel-synced members would just be re-added on the next sync.
+    if (!existing.addedManually) {
+      res.status(409).json({ error: "This member comes from the Slack channel — remove them there" });
+      return;
+    }
+    await removeMemberFromProject(projectId, memberId);
+    res.json({ ok: true });
+  } catch (error) {
+    console.error("Remove project member error:", error);
+    res.status(500).json({ error: "Failed to remove project member" });
   }
 });
 

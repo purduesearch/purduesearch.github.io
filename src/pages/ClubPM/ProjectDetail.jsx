@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { createPortal } from "react-dom";
-import { useParams, Link, useSearchParams } from "react-router-dom";
+import { useParams, Link, useSearchParams, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { get, post, patch, setNextRewardOrigin, bulkArchive, unarchiveTask, getArchivedTasks, getProjectBlockers, createBlocker, updateBlocker } from "../../api/clubPmClient";
 import MemberBadge from "../../components/clubpm/MemberBadge";
@@ -21,6 +21,7 @@ import { PriorityBars, AvatarStack } from "../../components/clubpm/TaskPrimitive
 import DrivePreviewModal from "../../components/clubpm/DrivePreviewModal";
 import EditDriveFolderModal from "../../components/clubpm/EditDriveFolderModal";
 import EditProjectModal from "../../components/clubpm/EditProjectModal";
+import ProjectAdminModal from "../../components/clubpm/ProjectAdminModal";
 import GitHubPanel from "../../components/clubpm/github/GitHubPanel";
 import ActionPlanReview from "../../components/clubpm/ActionPlanReview";
 import VaultTab from "../../components/clubpm/vault/VaultTab";
@@ -1054,7 +1055,7 @@ function KanbanSubtaskRow({ subtask, onClick, isDropTarget = false, isSelected =
 
 // ── Assignee Panel (right column) ────────────────────────────
 
-function AssigneePanel({ members, channelMemberSlackIds = [], hasLinkedChannel = false, selectedMemberIds, onMemberClick, leadByMemberId, canEditLeads = false, projectId, onLeadsChanged }) {
+function AssigneePanel({ members, projectMembers = [], channelMemberSlackIds = [], hasLinkedChannel = false, selectedMemberIds, onMemberClick, leadByMemberId, canEditLeads = false, projectId, onLeadsChanged }) {
   const [collapsed, setCollapsed] = useState(false);
   const [search, setSearch] = useState("");
   const [card, setCard] = useState(null); // { pm, anchor }
@@ -1065,7 +1066,8 @@ function AssigneePanel({ members, channelMemberSlackIds = [], hasLinkedChannel =
 
     if (hasLinkedChannel && channelMemberSlackIds.length > 0) {
       const idSet = new Set(channelMemberSlackIds);
-      list = list.filter(pm => idSet.has(pm.member?.slackId));
+      const manualIds = new Set((projectMembers ?? []).filter(pm => pm.addedManually).map(pm => pm.memberId));
+      list = list.filter(pm => idSet.has(pm.member?.slackId) || manualIds.has(pm.memberId));
     }
 
     const q = search.trim().toLowerCase();
@@ -1083,7 +1085,7 @@ function AssigneePanel({ members, channelMemberSlackIds = [], hasLinkedChannel =
       roleRank(a) - roleRank(b)
       || (a.member?.displayName ?? "").localeCompare(b.member?.displayName ?? "", "en", { sensitivity: "base" })
     );
-  }, [members, channelMemberSlackIds, hasLinkedChannel, search, leadByMemberId]);
+  }, [members, projectMembers, channelMemberSlackIds, hasLinkedChannel, search, leadByMemberId]);
 
   return (
     <aside className="cpm-assignee-panel">
@@ -2362,6 +2364,7 @@ function FilesTabContent({ project, member, isAdmin, onProjectChange }) {
 
 export default function ProjectDetail() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { member } = useClubPmAuth();
   const compact = useCompactLayout();
@@ -2481,6 +2484,7 @@ export default function ProjectDetail() {
   const [sortBy, setSortBy] = useState("priority");
   const [headerDrivePreview, setHeaderDrivePreview] = useState(null); // { url, label }
   const [showEditProject, setShowEditProject] = useState(false);
+  const [showManageProject, setShowManageProject] = useState(false);
   const [pinned, setPinned] = useState(() => {
     try {
       const stored = JSON.parse(localStorage.getItem('pm-starred-projects') || '[]');
@@ -2966,7 +2970,8 @@ export default function ProjectDetail() {
   // loading guard); repeated here because this effect runs before it.
   const canEditProject = !!project && (
     !project.slackChannelId ||
-    (project.channelMemberSlackIds ?? []).includes(member?.slackId)
+    (project.channelMemberSlackIds ?? []).includes(member?.slackId) ||
+    (project.members ?? []).some(pm => pm.memberId === member?.id && pm.addedManually)
   );
 
   useEffect(() => {
@@ -2984,6 +2989,7 @@ export default function ProjectDetail() {
         { id: 'edit', label: 'Edit project', icon: 'fa-pencil-alt', hidden: !canEditProject, onSelect: () => setShowEditProject(true) },
         { id: 'chat', label: 'Project chat', icon: 'fa-comments', to: `/clubpm/projects/${project.id}?tab=chat` },
         { id: 'drive', label: 'Open Drive folder', icon: 'fa-folder-open', hidden: !project.driveLink, onSelect: () => setHeaderDrivePreview({ url: project.driveLink, label: 'Drive folder' }) },
+        { id: 'manage', label: 'Sub-projects, members & delete', icon: 'fa-sliders', hidden: !member?.isAdmin, onSelect: () => setShowManageProject(true) },
         { id: 'description', label: 'Edit description', icon: 'fa-align-left', hidden: !member?.isAdmin, onSelect: () => { setDescValue(project.description ?? ''); setDescEdit(true); } },
         { id: 'pin', label: pinned ? 'Unpin project' : 'Pin project', icon: 'fa-star', onSelect: togglePinned },
         { id: 'timeline', label: 'Timeline (Gantt)', icon: 'fa-chart-gantt', to: `/clubpm/projects/${project.id}/gantt` },
@@ -3487,7 +3493,8 @@ export default function ProjectDetail() {
 
   const canEdit =
     !project.slackChannelId ||
-    (project.channelMemberSlackIds ?? []).includes(member?.slackId);
+    (project.channelMemberSlackIds ?? []).includes(member?.slackId) ||
+    (project.members ?? []).some(pm => pm.memberId === member?.id && pm.addedManually);
 
   return (
     <div className="clubpm-app cpm-project-page">
@@ -3510,6 +3517,14 @@ export default function ProjectDetail() {
                 Dashboard
               </Link>
               <span style={{ color: 'var(--pm-text-muted)', margin: '0 6px', fontSize: '0.8rem' }}>›</span>
+              {project.parent && (
+                <>
+                  <Link to={`/clubpm/projects/${project.parent.id}`} style={{ color: 'var(--pm-text-muted)', fontSize: '0.8rem', textDecoration: 'none' }}>
+                    {project.parent.name}
+                  </Link>
+                  <span style={{ color: 'var(--pm-text-muted)', margin: '0 6px', fontSize: '0.8rem' }}>›</span>
+                </>
+              )}
               <span style={{ color: 'var(--pm-text-secondary)', fontSize: '0.8rem' }}>{project.name}</span>
             </div>
 
@@ -3522,6 +3537,11 @@ export default function ProjectDetail() {
                     {project.status}
                   </span>
                   <span className="pm-proj-type-chip">{project.type}</span>
+                  {(project.children ?? []).map(c => (
+                    <Link key={c.id} to={`/clubpm/projects/${c.id}`} className="pm-proj-type-chip pm-proj-subproject-chip" title="Sub-project">
+                      <i className="fas fa-sitemap" aria-hidden="true" /> {c.name}
+                    </Link>
+                  ))}
                   {!compact && <SlackChannelPicker project={project} channels={slackChannels} channelsState={slackChannelsState} onSaved={fetchProject} />}
                   {!compact && <DriveFolderPill project={project} isAdmin={!!member?.isAdmin} onPreview={url => setHeaderDrivePreview({ url, label: "Drive folder" })} onSaved={updated => setProject(prev => ({ ...prev, ...updated }))} />}
                   {project.slackChannelId && !canEdit && (
@@ -3546,6 +3566,16 @@ export default function ProjectDetail() {
                   aria-label="Edit project"
                 >
                   <i className="fas fa-pencil-alt" aria-hidden="true" />
+                </button>
+              )}
+              {!compact && member?.isAdmin && (
+                <button
+                  className="pm-proj-edit-btn"
+                  onClick={() => setShowManageProject(true)}
+                  title="Sub-projects, members and delete"
+                  aria-label="Manage project"
+                >
+                  <i className="fas fa-sliders" aria-hidden="true" />
                 </button>
               )}
               {!compact && <button
@@ -3919,6 +3949,7 @@ export default function ProjectDetail() {
         {activeTab === "tasks" && assigneePanelOpen && !compact && (
           <AssigneePanel
             members={allMembers.length > 0 ? allMembers : (project.members || [])}
+            projectMembers={project.members ?? []}
             channelMemberSlackIds={project.channelMemberSlackIds ?? []}
             hasLinkedChannel={!!project.slackChannelId}
             selectedMemberIds={selectedMemberIds}
@@ -4110,6 +4141,15 @@ export default function ProjectDetail() {
           url={headerDrivePreview.url}
           label={headerDrivePreview.label}
           onClose={() => setHeaderDrivePreview(null)}
+        />
+      )}
+
+      {showManageProject && member?.isAdmin && (
+        <ProjectAdminModal
+          projectId={project.id}
+          onClose={() => setShowManageProject(false)}
+          onChanged={fetchProject}
+          onDeleted={() => navigate("/clubpm")}
         />
       )}
 

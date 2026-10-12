@@ -210,11 +210,16 @@ export async function patch(path, data) {
   return handleResponse(response, "PATCH", path);
 }
 
-export async function del(path) {
+export async function del(path, data) {
   const response = await fetch(`${BASE_URL}${path}`, {
     method: "DELETE",
     credentials: "include",
-    headers: { Accept: "application/json", ...authHeaders() },
+    headers: {
+      ...(data === undefined ? {} : { "Content-Type": "application/json" }),
+      Accept: "application/json",
+      ...authHeaders(),
+    },
+    ...(data === undefined ? {} : { body: JSON.stringify(data) }),
   });
 
   if (response.status === 401) {

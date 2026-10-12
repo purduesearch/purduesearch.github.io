@@ -33,6 +33,8 @@ import MobileHeader, { MobileProjectSections } from './MobileHeader';
 import MobileBottomNav from './MobileBottomNav';
 import MobileSheet from './MobileSheet';
 import MobileProjectPicker from './MobileProjectPicker';
+import ProjectAdminModal from './ProjectAdminModal';
+import { buildProjectRows } from '../../clubpm/projectTree';
 import MobileMoreMenu from './MobileMoreMenu';
 import { usePatchNotesBadge } from '../../clubpm/patchNotes';
 
@@ -180,9 +182,12 @@ function statusDotColor(status) {
   return 'var(--pm-text-muted)';
 }
 
-function CreateProjectModal({ onClose, onCreate }) {
+function CreateProjectModal({ onClose, onCreate, projects = [] }) {
   const [name, setName] = useState('');
   const [type, setType] = useState('ENGINEERING');
+  const [parentId, setParentId] = useState('');
+  // Only top-level, non-training projects can be parents (one level deep).
+  const parentOptions = projects.filter(p => !p.parentId);
   const [targetDate, setTargetDate] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
@@ -192,7 +197,7 @@ function CreateProjectModal({ onClose, onCreate }) {
     if (!name.trim()) return;
     setSaving(true); setError(null);
     try {
-      const project = await post('/api/projects', { name: name.trim(), type, targetDate: targetDate || undefined });
+      const project = await post('/api/projects', { name: name.trim(), type, targetDate: targetDate || undefined, parentId: parentId || undefined });
       onCreate(project);
       onClose();
     } catch (err) {
@@ -226,6 +231,15 @@ function CreateProjectModal({ onClose, onCreate }) {
                 <option value="HYBRID">Hybrid</option>
               </select>
             </div>
+            {parentOptions.length > 0 && (
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--pm-text-secondary)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Sub-project of</div>
+                <select value={parentId} onChange={e => setParentId(e.target.value)} style={{ width: '100%', padding: '8px 10px', borderRadius: 6, background: 'var(--pm-bg-overlay)', border: '1px solid var(--pm-border)', color: 'var(--pm-text-primary)', fontSize: 13 }}>
+                  <option value="">None (top-level project)</option>
+                  {parentOptions.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+              </div>
+            )}
             {error && <p style={{ fontSize: 12, color: 'var(--pm-accent-coral)', margin: 0 }}>{error}</p>}
           </div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, padding: '12px 20px', borderTop: '1px solid var(--pm-border)' }}>
@@ -294,6 +308,7 @@ export default function AppShell({ children }) {
     setProjectsLoad,
   } = useProjectNav() ?? {};
   const location = useLocation();
+  const navigate = useNavigate();
   const compact = useCompactLayout();
   const keyboard = useVisualViewportKeyboard(compact);
   const { overlay, openOverlay, closeOverlay, navigateFromOverlay } = useShellOverlay();
@@ -301,6 +316,7 @@ export default function AppShell({ children }) {
   const notificationFeed = useNotificationFeed({ enabled: !loading && !!member });
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [showCreateProject, setShowCreateProject] = useState(false);
+  const [manageProjectId, setManageProjectId] = useState(null);
   const [starredIds, setStarredIds] = useState(() => {
     try { return JSON.parse(localStorage.getItem('pm-starred-projects') || '[]'); } catch { return []; }
   });
@@ -596,24 +612,28 @@ export default function AppShell({ children }) {
             )}
           </div>
           <div className="pm-sidebar-project-list">
-            {[...sidebarProjects]
-              .sort((a, b) => {
-                const aS = starredIds.includes(a.id) ? 0 : 1;
-                const bS = starredIds.includes(b.id) ? 0 : 1;
-                return aS - bS;
-              })
-              .map(p => (
-              <Link
-                key={p.id}
-                to={`/clubpm/projects/${p.id}`}
-                className={`pm-sidebar-project-item${location.pathname === `/clubpm/projects/${p.id}` ? ' active' : ''}`}
-              >
-                {starredIds.includes(p.id)
-                  ? <span style={{ color: '#f9ca24', fontSize: 13, flexShrink: 0, lineHeight: 1 }}>★</span>
-                  : <span className="pm-sidebar-project-dot" style={{ background: statusDotColor(p.status) }} />
-                }
-                <span className="pm-sidebar-project-name">{p.name}</span>
-              </Link>
+            {buildProjectRows(sidebarProjects, { starredIds }).map(({ project: p, depth }) => (
+              <div key={p.id} className="pm-sidebar-project-row">
+                <Link
+                  to={`/clubpm/projects/${p.id}`}
+                  className={`pm-sidebar-project-item${depth ? ' pm-sidebar-project-item--child' : ''}${location.pathname === `/clubpm/projects/${p.id}` ? ' active' : ''}`}
+                >
+                  {starredIds.includes(p.id)
+                    ? <span style={{ color: '#f9ca24', fontSize: 13, flexShrink: 0, lineHeight: 1 }}>★</span>
+                    : <span className="pm-sidebar-project-dot" style={{ background: statusDotColor(p.status) }} />
+                  }
+                  <span className="pm-sidebar-project-name">{p.name}</span>
+                </Link>
+                {member?.isAdmin && (
+                  <button
+                    type="button"
+                    className="pm-sidebar-project-manage"
+                    title={`Manage ${p.name}`}
+                    aria-label={`Manage ${p.name}`}
+                    onClick={() => setManageProjectId(p.id)}
+                  ><i className="fas fa-ellipsis" aria-hidden="true" /></button>
+                )}
+              </div>
             ))}
           </div>
         </div>
@@ -785,8 +805,18 @@ export default function AppShell({ children }) {
       />
       {showCreateProject && (
         <CreateProjectModal
+          projects={sidebarProjects}
           onClose={() => setShowCreateProject(false)}
           onCreate={project => setSidebarProjects(prev => [project, ...prev])}
+        />
+      )}
+      {manageProjectId && member?.isAdmin && (
+        <ProjectAdminModal
+          projectId={manageProjectId}
+          onClose={() => setManageProjectId(null)}
+          onDeleted={() => {
+            if (location.pathname.startsWith(`/clubpm/projects/${manageProjectId}`)) navigate('/clubpm');
+          }}
         />
       )}
       {pendingRank ? <RankUpModal rank={pendingRank} onDismiss={dismissRank} /> : null}

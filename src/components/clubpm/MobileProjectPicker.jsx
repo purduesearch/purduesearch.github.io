@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { buildProjectRows } from '../../clubpm/projectTree';
 
 function statusDotColor(status) {
   if (status === 'ACTIVE')    return 'var(--pm-accent-teal)';
@@ -36,9 +37,10 @@ export default function MobileProjectPicker({
 
   const sorted = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return [...projects]
-      .filter(p => !q || (p.name || '').toLowerCase().includes(q))
-      .sort((a, b) => (starredIds.includes(a.id) ? 0 : 1) - (starredIds.includes(b.id) ? 0 : 1));
+    return buildProjectRows(
+      projects.filter(p => !q || (p.name || '').toLowerCase().includes(q)),
+      { starredIds }
+    );
   }, [projects, starredIds, query]);
 
   const visibleActions = projectActions.filter(a => !a.hidden);
@@ -97,7 +99,7 @@ export default function MobileProjectPicker({
             {query.trim() ? `No project matches “${query.trim()}”.` : 'You have no projects yet.'}
           </div>
         )}
-        {loadState.status === 'ready' && sorted.map(p => {
+        {loadState.status === 'ready' && sorted.map(({ project: p, depth }) => {
           const current = p.id === currentProjectId;
           const starred = starredIds.includes(p.id);
           return (
@@ -105,6 +107,7 @@ export default function MobileProjectPicker({
               key={p.id}
               type="button"
               className="pm-m-row"
+              style={depth ? { paddingLeft: 36 } : undefined}
               aria-current={current ? 'page' : undefined}
               onClick={() => onSelectProject(p)}
             >

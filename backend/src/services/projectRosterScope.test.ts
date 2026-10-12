@@ -17,4 +17,9 @@ await assert.rejects(projectRosterSlackIds("linked", {
   ...deps, channelMembers: async () => { throw new Error("Slack unavailable"); },
 }), /Slack unavailable/);
 assert.equal(fallbackCalls, 1, "failed channel requests must not widen the roster");
+assert.deepEqual(
+  await projectRosterSlackIds("linked", { ...deps, manualMembers: async () => ["UMAN", "U1"] }),
+  ["U1", "UZ", "UMAN"],
+  "admin-added members join a linked roster without duplicates",
+);
 console.log("Project roster scope tests passed");

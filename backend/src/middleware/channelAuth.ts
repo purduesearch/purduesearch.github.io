@@ -3,7 +3,8 @@ import { prisma } from "../db/prisma.js";
 import { getChannelMemberSlackIds } from "../services/projectService.js";
 
 /**
- * Rejects mutations if the current user is not a member of the project's linked Slack channel.
+ * Rejects mutations if the current user is not a member of the project's linked Slack channel
+ * (admin-added project members count as members).
  * Attach after requireAuth. Reads projectId from:
  *   - req.params.id   (for PATCH /api/projects/:id)
  *   - task → projectId  (for PATCH/DELETE /api/tasks/:id)
@@ -47,6 +48,12 @@ export async function channelAuth(
       where: { id: memberId },
       select: { slackId: true },
     });
+
+    const manual = await prisma.projectMember.findFirst({
+      where: { projectId, memberId, addedManually: true },
+      select: { memberId: true },
+    });
+    if (manual) { next(); return; }
 
     const memberSlackIds = await getChannelMemberSlackIds(project.slackChannelId);
 

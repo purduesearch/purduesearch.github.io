@@ -316,9 +316,9 @@ model Member {
   trainingCertsReviewed TrainingCertificate[] @relation("TrainingCertificateReviewer")
 
   // ── Per-document access control ──
-  docAccessGrants  DocAccessGrant[]   @relation("DocAccessMember")
-  docAccessGranted DocAccessGrant[]   @relation("DocAccessGranter")
-  docShareSet      DocShareSettings[] @relation("DocShareSetter")
+  docAccessGrants   DocAccessGrant[]   @relation("DocAccessMember")
+  docAccessGranted  DocAccessGrant[]   @relation("DocAccessGranter")
+  docShareSet       DocShareSettings[] @relation("DocShareSetter")
   slackCardQueue    SlackCardQueue[]   @relation("SlackCardQueueRecipient")
   slackItemLinks    SlackItemLink[]    @relation("SlackItemLinker")
   slackPlanSessions SlackPlanSession[] @relation("SlackPlanOwner")
@@ -343,6 +343,15 @@ model Project {
   // idempotent by construction rather than by convention. Training projects are
   // excluded from every real listing — see Task 10.
   trainingForMemberId String?       @unique
+
+  // ── Sub-projects (one level) ──
+  // A sub-project is a full project in its own right (own tasks, chat, channel,
+  // integrations); parentId only groups it under the parent in the UI. Depth is
+  // capped at one level by the API. Restrict: a parent with children cannot be
+  // deleted until the children are deleted or detached.
+  parentId String?
+  parent   Project?  @relation("SubProjects", fields: [parentId], references: [id], onDelete: Restrict)
+  children Project[] @relation("SubProjects")
 
   // ── GitHub link ──
   // githubRepo is "owner/repo" (mirrors driveLink). githubInstallId is the
@@ -390,22 +399,28 @@ model Project {
   vaultSavedViews          VaultSavedView[]
   vaultEvents              VaultNotificationEvent[]
   workspaces               WorkspaceProject[]
+
+  @@index([parentId])
 }
 
 model ProjectMember {
-  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  projectId   String
-  member      Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
-  memberId    String
-  projectRole String   @default("Contributor")
+  project       Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId     String
+  member        Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  memberId      String
+  projectRole   String   @default("Contributor")
   /// Project lead: admin-equivalent task powers inside this project only
   /// (edit/assign/delete/archive any task, delete comments). Set by admins.
   /// Separate from the free-text projectRole, which channel sync resets.
-  isLead      Boolean  @default(false)
+  isLead        Boolean  @default(false)
   /// Optional admin-set title shown on a lead ("Microgreens lead"). Only
   /// meaningful while isLead is true; cleared when lead is removed.
-  leadTitle   String?
-  joinedAt   DateTime @default(now())
+  leadTitle     String?
+  /// Added by an admin rather than synced from the linked Slack channel. Such a
+  /// member keeps edit access when the project has a channel they are not in;
+  /// channel sync never touches the flag.
+  addedManually Boolean  @default(false)
+  joinedAt      DateTime @default(now())
 
   @@id([projectId, memberId])
 }
@@ -3257,22 +3272,22 @@ enum SlackCardKind {
 
 /// Durable queue for DM card bundles (L6). One row per (recipient, entity, reason) waiting to send.
 model SlackCardQueue {
-  id          String            @id @default(cuid())
-  recipientId String
-  recipient   Member            @relation("SlackCardQueueRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
-  entityType  SlackEntityType
-  entityId    String
-  reason      String            // "ASSIGNED" | "POLL_INVITE" | "VAULT" …
-  actorId     String?
-  queuedAt    DateTime          @default(now())
-  sentAt      DateTime?
+  id            String            @id @default(cuid())
+  recipientId   String
+  recipient     Member            @relation("SlackCardQueueRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  entityType    SlackEntityType
+  entityId      String
+  reason        String // "ASSIGNED" | "POLL_INVITE" | "VAULT" …
+  actorId       String?
+  queuedAt      DateTime          @default(now())
+  sentAt        DateTime?
   /// Failed delivery attempts; the row stops retrying at failedAt (see slackCardCore.planCardRetry).
   attempts      Int               @default(0)
   nextAttemptAt DateTime?
   failedAt      DateTime?
   lastError     String?
-  messageId   String?
-  message     SlackCardMessage? @relation(fields: [messageId], references: [id], onDelete: SetNull)
+  messageId     String?
+  message       SlackCardMessage? @relation(fields: [messageId], references: [id], onDelete: SetNull)
 
   @@index([sentAt, recipientId])
   @@index([entityType, entityId])
