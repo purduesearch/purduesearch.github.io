@@ -1619,6 +1619,10 @@ function SuggestedTaskCard({ task, projectId, onAccepted, onDismiss }) {
           priority,
           dueDate: dueDate || undefined,
           suggestedAssigneeName: task.suggestedAssigneeName ?? task.assigneeName ?? undefined,
+          suggestedAssigneeId: task.suggestedAssigneeId ?? undefined,
+          suggestedMilestoneId: task.suggestedMilestoneId ?? undefined,
+          storyPoints: task.storyPoints ?? undefined,
+          estimatedHours: task.estimatedHours ?? undefined,
         }],
       });
       onAccepted();

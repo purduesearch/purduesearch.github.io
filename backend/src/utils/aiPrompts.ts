@@ -1,25 +1,36 @@
 import type { ProjectContext } from "../services/projectContextService.js";
 import { todayContext } from "../services/ai/aiRouter.js";
+import { renderProjectContext, computeProjectSignals, renderSignals } from "./projectContextRender.js";
 
 // ── Task extraction from documents ────────────────────────────
 
-export function driveToTasksPrompt(projectName: string, projectDescription: string, existingTaskTitles: string[], today: string, suggestedTaskCount?: number) {
+export function driveToTasksPrompt(context: ProjectContext, today: string, suggestedTaskCount?: number) {
   const countHint = suggestedTaskCount
     ? `Aim to extract approximately ${suggestedTaskCount} tasks (adjust slightly if the document clearly warrants more or fewer).`
     : "Extract all clearly actionable tasks.";
-  return `You are a project management assistant for a student engineering/research team.
+  const snapshot = renderProjectContext(context, today, { ids: true, descChars: 120, tasks: "open" });
+  return `You are a project management assistant for a student engineering/research team. You work on ONE project; the snapshot below is everything you may know about it.
 
-Project: "${projectName}"
-Description: "${projectDescription}"
-Today: ${today}
-Existing open tasks (do NOT duplicate these): ${existingTaskTitles.length > 0 ? existingTaskTitles.map(t => `"${t}"`).join(", ") : "none"}
+${snapshot}
 
-Read the document below and extract actionable tasks. ${countHint} For each task, determine:
+Read the document at the end and extract actionable tasks for this project. ${countHint}
+Rules:
+- Do NOT duplicate any open task above, and do not re-extract work the document describes as already done. If the document only adds detail to an existing task, skip it.
+- Fit the work to the project: use the team's real member ids, milestone ids and the sizing the team already uses (look at the points and hours on existing tasks) rather than inventing a scale.
+- Only suggest an assignee when the document names or clearly implies a person who is on the team list. Never invent members.
+- Only suggest a milestone when the task clearly belongs to one of the milestones listed.
+
+For each task, determine:
 - title: short imperative title (≤80 chars)
 - description: 1-3 sentence context from the doc
 - priority: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW"
-- dueDate: ISO date string if clearly mentioned, otherwise null
-- suggestedAssigneeName: person's name if mentioned in doc, otherwise null
+- dueDate: ISO date string if clearly mentioned (resolve relative dates against today), otherwise null
+- suggestedAssigneeName: that person's name exactly as listed in the team, otherwise null
+- suggestedAssigneeId: that person's id from the team list, otherwise null
+- suggestedMilestoneId: a milestone id from the list, otherwise null
+- storyPoints: integer 1, 2, 3, 5 or 8 if the document gives enough to size it, otherwise null
+- estimatedHours: number if the document states or implies one, otherwise null
+- dependsOn: titles of open tasks above, or other tasks in this extraction, that must finish first (usually empty)
 - sourceContext: exact quote (≤100 chars) from the doc that led to this task
 
 Return ONLY a JSON object: { "tasks": [...] }. If no tasks found, return { "tasks": [] }.`;
@@ -118,46 +129,61 @@ Return ONLY: { "suggestedDueDate": "ISO date", "reasoning": "1-2 sentences" }`;
 
 // ── Risk analysis ─────────────────────────────────────────────
 
-export function riskAnalysisPrompt(project: { name: string; targetDate?: string }, tasks: Array<{ title: string; status: string; dueDate?: string | null; priority: string; assignees: string[] }>, today: string) {
-  return `Analyze this project for risks. Be specific and actionable.
+export function riskAnalysisPrompt(context: ProjectContext, today: string) {
+  const snapshot = renderProjectContext(context, today, { ids: true, descChars: 160, activity: true });
+  const signals = renderSignals(computeProjectSignals(context, today));
+  return `Analyze this ONE project for risks. Be specific and actionable. You may use only the data below; do not assume facts about other projects or people outside the team list.
 
-Project: "${project.name}" (target: ${project.targetDate ?? "no deadline"})
-Today: ${today}
+${snapshot}
 
-Tasks (${tasks.length} total):
-${tasks.map(t => `- [${t.status}] "${t.title}" | due: ${t.dueDate ?? "none"} | priority: ${t.priority} | assignees: ${t.assignees.join(", ") || "unassigned"}`).join("\n")}
+${signals}
 
-Identify:
-1. Schedule risks (overdue, no assignee on high-priority, etc.)
-2. Dependency risks (likely blocking chains)
-3. Coverage gaps (areas with no tasks but probably need work)
-4. Team load issues
+Identify, using the real tasks, people, milestones, dates and velocity above:
+1. Schedule risks (overdue work, milestones or the target date that current velocity cannot reach, work due soon with no owner)
+2. Dependency risks (real waiting-on chains and category blockers, and which milestones they hold up)
+3. Coverage gaps (areas the description and milestones imply but no task covers)
+4. Team load and bus-factor risks (overloaded members, work only one person touches, people with no recent activity)
+5. Momentum risks (stale in-progress work, a velocity that has stalled in the recent activity)
+Skip any category that has no real evidence. Do not pad the list; a healthy project can have few risks.
 
-Return ONLY: {
+Every risk must cite task ids from the list. Return ONLY: {
   "overallRisk": "LOW" | "MEDIUM" | "HIGH" | "CRITICAL",
   "riskScore": 0-100,
-  "risks": [{ "category": string, "description": string, "affectedTasks": [string], "severity": "LOW"|"MEDIUM"|"HIGH" }],
+  "risks": [{ "category": string, "description": string, "affectedTaskIds": [string], "owner": "member name from the team list who should act, or null", "mitigation": "one concrete next step", "severity": "LOW"|"MEDIUM"|"HIGH" }],
   "topRecommendation": "single most important action the PM should take right now"
 }`;
 }
 
 // ── Sprint planning ───────────────────────────────────────────
 
-export function sprintPlanPrompt(
-  tasks: Array<{ id: string; title: string; status: string; priority: string; storyPoints?: number | null; assignees: string[]; dueDate?: string | null }>,
-  teamCapacityPoints: number,
-  sprintLengthDays: number,
-  today: string
-) {
-  return `Plan the next ${sprintLengthDays}-day sprint for this team. Team capacity: ${teamCapacityPoints} story points.
-Today: ${today}
+export interface SprintPlanInputs {
+  capacityPoints: number;
+  /** Where the capacity figure came from, shown to the model so it can say how firm it is. */
+  capacitySource: "requested" | "velocity" | "default";
+  sprintDays: number;
+}
 
-Backlog (non-DONE tasks):
-${tasks.filter(t => t.status !== "DONE").map(t => `- [${t.id}] "${t.title}" | ${t.priority} | ${t.storyPoints ?? "?"}pts | ${t.assignees.join(", ") || "unassigned"} | due ${t.dueDate ?? "no date"}`).join("\n")}
+export function sprintPlanPrompt(context: ProjectContext, inputs: SprintPlanInputs, today: string) {
+  const snapshot = renderProjectContext(context, today, { ids: true, descChars: 160, tasks: "open", activity: true });
+  const signals = renderSignals(computeProjectSignals(context, today));
+  const hoursPerPerson = inputs.sprintDays * 3;
+  const sourceNote = {
+    requested: "set by the person running this plan",
+    velocity: `derived from this project's last ${context.velocity.windowDays} days of completed points`,
+    default: "a default, because the project has no completed-points history yet; say so in risksInPlan",
+  }[inputs.capacitySource];
+  return `Plan the next ${inputs.sprintDays}-day sprint for this ONE project. Capacity: ${inputs.capacityPoints} story points (${sourceNote}). Assume each member has about ${hoursPerPerson}h available in the sprint (part-time students) and never fill someone beyond that.
 
-Select tasks for the sprint. Prefer: high priority, upcoming deadlines, unblocking work, balanced assignee load.
+${snapshot}
+
+${signals}
+
+Select tasks for the sprint from the open tasks above, by id. Use only these ids. Prefer, in order: work that unblocks other tasks or a milestone due soon, overdue and high-priority work, upcoming deadlines, then anything that balances load across the members listed. Do not select a task that is waiting on an open dependency or category blocker unless the plan also includes the task it waits on. Subtasks travel with their parent, so do not list a parent and its subtasks separately.
+If tasks have no points, size them from similar estimated tasks and say so in risksInPlan rather than treating them as free.
+If an unassigned task is selected, propose an owner from the team list with spare capacity.
+
 Return ONLY: {
-  "sprintTasks": [{ "taskId": string, "reason": "short reason" }],
+  "sprintTasks": [{ "taskId": string, "reason": "short reason", "suggestedAssigneeId": "member id, only for unassigned tasks, else null" }],
   "totalPoints": number,
   "focusTheme": "1 sentence describing sprint theme",
   "risksInPlan": ["risk 1", "risk 2"] or []
@@ -234,24 +260,25 @@ Omit low-confidence (<0.7) suggestions.`;
 
 // ── Capacity / workload analysis ──────────────────────────────
 
-export function capacityAnalysisPrompt(
-  members: Array<{ name: string; taskCount: number; highPriorityCount: number; totalEstimatedHours: number | null }>,
-  sprintDays: number
-) {
-  return `Analyze team workload and suggest redistribution if needed. Sprint length: ${sprintDays} days.
+export function capacityAnalysisPrompt(context: ProjectContext, sprintDays: number, today: string) {
+  const snapshot = renderProjectContext(context, today, { ids: true, descChars: 100, tasks: "open" });
+  return `Analyze the workload of this ONE project's team and suggest redistribution if needed. Sprint length: ${sprintDays} days. Only the people in the team list belong to this project; judge them only by the work and time shown here, not by anything they may do elsewhere.
 
-Members:
-${members.map(m => `- ${m.name}: ${m.taskCount} tasks (${m.highPriorityCount} high/critical), ~${m.totalEstimatedHours ?? "?"}h estimated`).join("\n")}
+${snapshot}
 
-Assume each member has ~${sprintDays * 3}h available (part-time students, 3h/day).
+Assume each member has about ${sprintDays * 3}h available per sprint (part-time students, 3h/day) unless their logged hours in the last 14 days clearly show a different pace; if you adjust, say so.
+Read the numbers carefully: "unestimated" tasks make the point and hour totals lower bounds. Include members with no open work as underloaded. Count unassigned open work as a team-level gap, not as someone's load.
+Suggest moves only of real open tasks (by id) from an overloaded member to a member with spare capacity, preferring tasks that are not in progress and not already close to done. Never move a task to someone who is not on the team list.
+
 Return ONLY: {
   "overloaded": [{ "member": string, "recommendation": string }],
   "underloaded": [{ "member": string, "suggestion": string }],
+  "reassignments": [{ "taskId": string, "toMemberId": string, "reason": "short reason" }],
+  "unassignedWork": "1 sentence on the unowned open work and who could take it, or null",
   "balanceScore": 0-100,
   "summary": "1-2 sentence overall assessment"
 }`;
 }
-
 // ── NL → task (web UI) ────────────────────────────────────────
 
 export function nlToTaskPrompt(input: string, projectName: string, members: string[], today: string) {
@@ -338,35 +365,21 @@ Answer concisely and factually based only on the data above. If the answer isn't
 // listed below — the caller drops/clamps anything else.
 
 export function suggestActionsPrompt(goal: string, context: ProjectContext): string {
-  const { project, tasks, milestones, members, activeBlockers } = context;
-
-  const taskLines = tasks.map(t =>
-    `- id="${t.id}" [${t.status}] "${t.title}" | ${t.priority} | due: ${t.dueDate ?? "none"} | assignees: ${t.assignees.join(", ") || "none"}${t.milestoneTitle ? ` | milestone: ${t.milestoneTitle}` : ""}${t.description ? `\n  ${t.description.slice(0, 200)}` : ""}`
-  ).join("\n") || "none";
-
-  const memberLines = members.map(m => `- id="${m.id}" ${m.displayName} (${m.projectRole}, ${m.openTaskCount} open tasks)`).join("\n") || "none";
-
-  const milestoneLines = milestones.map(m => `- id="${m.id}" "${m.title}" (${m.status}, due ${m.targetDate ?? "no date"})`).join("\n") || "none";
-
-  const blockerLines = activeBlockers.map(b => `- id="${b.id}" "${b.label}"${b.assigneeName ? ` (owner: ${b.assigneeName})` : ""} — affects: ${b.attachedTaskTitles.join(", ") || "no tasks"}`).join("\n") || "none";
+  const { project } = context;
+  const today = new Date().toISOString().split("T")[0];
+  const snapshot = renderProjectContext(context, today, { ids: true, descChars: 200, activity: true });
+  const signals = renderSignals(computeProjectSignals(context, today));
 
   return `${todayContext()}
 
 You are an agentic project-management assistant for "${project.name}" (${project.type}). Given a goal, propose an ORDERED list of concrete actions to move the project toward it. A human will review, edit, and selectively execute your plan — so be specific and use only real ids from the lists below.
+You know only this one project. Plan around its real people, workload, estimates, velocity, dependencies and deadlines: do not assign work to someone who is already overloaded when a teammate has room, do not schedule more than the team's recent velocity suggests it can finish, and do not duplicate work that an existing task already covers (update that task instead).
 
 Goal: "${goal}"
 
-Existing tasks:
-${taskLines}
+${snapshot}
 
-Team members:
-${memberLines}
-
-Milestones:
-${milestoneLines}
-
-Active category blockers:
-${blockerLines}
+${signals}
 
 Each action is an object: { "type": string, "targetTaskId": string or null, "params": object, "rationale": "1 sentence: why this action helps the goal" }
 

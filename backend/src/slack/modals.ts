@@ -8,7 +8,7 @@ import { EXCLUDE_TRAINING } from "../services/trainingSandboxService.js";
 import { buildDriveTaskPreview } from "../utils/blockKit.js";
 import { fetchDriveFileAsText, extractFileId } from "../services/driveService.js";
 import { generateJsonFromImage, generateJsonFromDocument } from "../services/geminiService.js";
-import { driveToTasksPrompt, meetingNotesToTasksPrompt, imageToTaskPrompt } from "../utils/aiPrompts.js";
+import { meetingNotesToTasksPrompt, imageToTaskPrompt } from "../utils/aiPrompts.js";
 import { logAuditEvent } from "../services/activityService.js";
 
 
@@ -1522,12 +1522,8 @@ export function registerAiModals(app: App): void {
         return;
       }
 
-      const existingTasks = await prisma.task.findMany({ where: { projectId: project.id, status: { not: "DONE" } }, select: { title: true } });
-      const today = new Date().toISOString().split("T")[0];
-      const result = await generateJsonFromDocument<{ tasks: any[] }>(
-        fileResult.text,
-        driveToTasksPrompt(project.name, project.description ?? "", existingTasks.map(t => t.title), today)
-      );
+      const { parseDriveDocument } = await import("../services/projectAnalysisService.js");
+      const result = await parseDriveDocument(project.id, fileResult.text);
 
       if (!result?.tasks?.length) {
         await client.chat.postEphemeral({ channel: channelId, user: body.user.id, text: "🤷 No actionable tasks found in that document." });
@@ -1588,14 +1584,15 @@ export function registerAiModals(app: App): void {
     await ack();
     try {
       const { projectId } = JSON.parse(view.private_metadata);
-      const capacityPoints = parseInt(view.state.values.capacity_block?.capacity_points?.value ?? "40") || 40;
+      // Blank means "use this project's own velocity" (resolved in generateSprintPlan).
+      const capacityPoints = parseInt(view.state.values.capacity_block?.capacity_points?.value ?? "") || undefined;
       const sprintDays = parseInt(view.state.values.days_block?.sprint_days?.value ?? "14") || 14;
 
       const { generateSprintPlan } = await import("../services/projectAnalysisService.js");
       const plan = await generateSprintPlan(projectId, capacityPoints, sprintDays) as any;
       if (!plan) return;
 
-      const lines = (plan.sprintTasks ?? []).slice(0, 15).map((t: any) => `• \`${t.taskId}\` — ${t.reason}`);
+      const lines = (plan.sprintTasks ?? []).slice(0, 15).map((t: any) => `• *${t.title}*${t.points != null ? ` (${t.points}pts)` : ""} — ${t.reason}`);
       await client.chat.postEphemeral({
         channel: body.user.id,
         user: body.user.id,

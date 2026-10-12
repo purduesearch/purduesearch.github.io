@@ -25,14 +25,14 @@ import { createNotification } from "../services/notificationCrud.js";
 import { fetchDriveFileAsText, extractFileId, listDriveFolderFiles, getDriveFileMeta, isDriveDescendantOf } from "../services/driveService.js";
 import { runJson } from "../services/ai/aiRouter.js";
 import {
-  driveToTasksPrompt, meetingNotesToTasksPrompt,
+  meetingNotesToTasksPrompt,
 } from "../utils/aiPrompts.js";
 import { askProject } from "../services/projectAskService.js";
 import { getProjectTimeInsights } from "../services/timeInsightsService.js";
 import { suggestProjectActions, executeActionPlan, buildPlanPrompt, importActionPlan, type ActionPlanAction } from "../services/aiActionService.js";
 import {
   analyzeProjectRisks, generateSprintPlan, generateProjectBrief,
-  inferTaskDependencies, analyzeTeamCapacity, generateStakeholderEmail,
+  inferTaskDependencies, analyzeTeamCapacity, generateStakeholderEmail, parseDriveDocument,
 } from "../services/projectAnalysisService.js";
 import { ensureTrainingProject } from "../services/trainingSandboxService.js";
 
@@ -785,28 +785,15 @@ projectsRouter.post("/:id/parse-drive", async (req: Request, res: Response) => {
       return;
     }
 
-    const project = await getProject(projectId);
-    if (!project) {
+    // Project-scoped: the prompt carries only this project's members, milestones, open
+    // tasks and sizing, and the result is validated against them (see parseDriveDocument).
+    const parsed = await parseDriveDocument(projectId, fileResult.text, { memberId: req.memberId, suggestedTaskCount });
+    if (!parsed) {
       res.status(404).json({ error: "Project not found" });
       return;
     }
 
-    const existingTasks = await prisma.task.findMany({
-      where: { projectId, status: { not: "DONE" }, archivedAt: null },
-      select: { title: true },
-    });
-    const existingTaskTitles = existingTasks.map(t => t.title);
-    const today = new Date().toISOString().split("T")[0];
-
-    // Truncation lives in the router now (truncateForAdapter), keyed to the selected
-    // adapter's ceiling rather than Gemini's fixed 3.6M — Anthropic's is lower and
-    // OpenAI's lower still, so a long Drive doc must not be pre-cut for Gemini here.
-    const result = await runJson<{ tasks: any[] }>({ memberId: req.memberId }, "medium", {
-      json: true,
-      prompt: `${driveToTasksPrompt((project as any).name, (project as any).description ?? "", existingTaskTitles, today, suggestedTaskCount)}\n\n---DOCUMENT---\n${fileResult.text}`,
-    });
-
-    res.json({ tasks: result?.tasks ?? [], sourceFileName: fileResult.name });
+    res.json({ tasks: parsed.tasks, skippedDuplicates: parsed.skippedDuplicates, sourceFileName: fileResult.name });
   } catch (error) {
     console.error("Parse drive error:", error);
     res.status(500).json({ error: "Failed to parse Drive file" });
@@ -825,6 +812,10 @@ projectsRouter.post("/:id/parse-drive/confirm", async (req: Request, res: Respon
         priority?: Priority;
         dueDate?: string;
         suggestedAssigneeName?: string;
+        suggestedAssigneeId?: string;
+        suggestedMilestoneId?: string;
+        storyPoints?: number;
+        estimatedHours?: number;
       }>;
     };
 
@@ -838,10 +829,16 @@ projectsRouter.post("/:id/parse-drive/confirm", async (req: Request, res: Respon
       include: { member: true },
     });
 
+    const projectMilestoneIds = new Set(
+      (await prisma.milestone.findMany({ where: { projectId }, select: { id: true } })).map(m => m.id),
+    );
+
     let created = 0;
     for (const t of tasks) {
-      let assigneeId: string | undefined;
-      if (t.suggestedAssigneeName) {
+      // An id the client sends back is only honoured if it belongs to THIS project.
+      let assigneeId: string | undefined = t.suggestedAssigneeId && projectMembers.some(pm => pm.memberId === t.suggestedAssigneeId)
+        ? t.suggestedAssigneeId : undefined;
+      if (!assigneeId && t.suggestedAssigneeName) {
         const nameLower = t.suggestedAssigneeName.toLowerCase();
         const match = projectMembers.find(
           pm =>
@@ -857,6 +854,9 @@ projectsRouter.post("/:id/parse-drive/confirm", async (req: Request, res: Respon
         dueDate: t.dueDate ? new Date(t.dueDate) : undefined,
         projectId,
         assigneeIds: assigneeId ? [assigneeId] : [],
+        milestoneId: t.suggestedMilestoneId && projectMilestoneIds.has(t.suggestedMilestoneId) ? t.suggestedMilestoneId : undefined,
+        storyPoints: Number.isInteger(t.storyPoints) && t.storyPoints! > 0 && t.storyPoints! <= 100 ? t.storyPoints : undefined,
+        estimatedHours: typeof t.estimatedHours === "number" && t.estimatedHours > 0 && t.estimatedHours <= 200 ? t.estimatedHours : undefined,
       });
       created++;
     }
