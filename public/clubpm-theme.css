@@ -30862,8 +30862,17 @@ button.cpm-sk-stat:hover, button.cpm-sk-stat:focus-visible { border-color: var(-
 .cpm-rollup-color { width: 44px; height: 34px; padding: 2px; border: 1px solid var(--pm-border, rgba(255, 255, 255, 0.2)); border-radius: 6px; background: var(--pm-elevated); cursor: pointer; }
 .cpm-rollup-color:disabled { opacity: 0.5; cursor: not-allowed; }
 .cpm-rollup-actions { display: flex; justify-content: flex-end; }
-.cpm-proj-admin-row { flex-wrap: wrap; }
-.cpm-proj-admin-row-rollup { flex-basis: 100%; }
+.cpm-proj-admin-row--stack { flex-direction: column; align-items: stretch; gap: 8px; }
+.cpm-proj-admin-row-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.cpm-proj-admin-row-head .cpm-proj-edit-cancel { flex: none; white-space: nowrap; }
+.cpm-proj-admin-row-rollup { width: 100%; min-width: 0; }
+.cpm-proj-admin-row-rollup .cpm-rollup-settings { margin-top: 0; }
+.cpm-rollup-settings .cpm-rollup-toggle { display: flex; flex-direction: row; align-items: flex-start; gap: 12px; }
+.cpm-rollup-settings .cpm-rollup-toggle-text { display: flex; flex-direction: column; gap: 2px; flex: 1 1 0; min-width: 0; margin: 0; cursor: pointer; }
+.cpm-rollup-settings .cpm-rollup-toggle-label { display: block; font-size: 14px; font-weight: 600; color: var(--clubpm-text-primary, var(--pm-text, inherit)); }
+.cpm-rollup-settings .cpm-rollup-toggle-help { display: block; font-size: 12px; line-height: 1.4; color: var(--clubpm-text-muted, var(--pm-text-muted)); }
+.cpm-rollup-settings button.cpm-rollup-switch { flex: none; box-sizing: border-box; width: 36px; min-width: 36px; height: 20px; min-height: 20px; padding: 0; margin: 1px 0 0; line-height: 0; border-radius: 999px; }
+.cpm-rollup-settings button.cpm-rollup-switch .cpm-rollup-switch-knob { display: block; }
 @media (prefers-reduced-motion: reduce) { .cpm-rollup-switch-knob { transition: none; } }
 
 /* === Sub-project roll-up === */

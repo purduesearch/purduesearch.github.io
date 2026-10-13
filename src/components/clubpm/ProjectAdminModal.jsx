@@ -173,7 +173,8 @@ export default function ProjectAdminModal({ projectId, onClose, onDeleted, onCha
                       : (
                         <ul className="cpm-proj-admin-list">
                           {children.map(c => (
-                            <li key={c.id} className="cpm-proj-admin-row">
+                            <li key={c.id} className="cpm-proj-admin-row cpm-proj-admin-row--stack">
+                              <div className="cpm-proj-admin-row-head">
                               <Link to={`/clubpm/projects/${c.id}`} onClick={onClose} className="cpm-proj-admin-row-name">{c.name}</Link>
                               <span className="cpm-proj-admin-tag">{(c.status ?? "").toLowerCase()}</span>
                               <button
@@ -191,6 +192,7 @@ export default function ProjectAdminModal({ projectId, onClose, onDeleted, onCha
                                   await reload();
                                 }, "Sub-project detached")}
                               >Detach</button>
+                              </div>
                               {rollupOpenId === c.id && (
                                 <div className="cpm-proj-admin-row-rollup">
                                   <SubProjectRollupSettings
