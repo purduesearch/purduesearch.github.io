@@ -3,6 +3,7 @@ import { requireAuth } from "./auth.js";
 import { getMilestoneWithProgress, refreshMilestoneHealth } from "../services/milestoneService.js";
 import { logAuditEvent, diffObjects } from "../services/activityService.js";
 import { emitTaskChanged } from "../services/taskChangeBus.js";
+import { getRollupChildren } from "../services/subProjectRollupService.js";
 
 export const milestonesRouter = Router();
 milestonesRouter.use(requireAuth);
@@ -13,22 +14,39 @@ milestonesRouter.get("/project/:projectId", async (req: Request, res: Response) 
   try {
     const projectId = req.params.projectId as string;
     const { prisma } = await import("../db/prisma.js");
-    const milestones = await prisma.milestone.findMany({
-      where: { projectId },
-      include: {
-        tasks: {
-          select: {
-            id: true,
-            title: true,
-            status: true,
-            priority: true,
-            assignees: { select: { id: true, displayName: true } },
-          },
+    const include = {
+      tasks: {
+        select: {
+          id: true,
+          title: true,
+          status: true,
+          priority: true,
+          assignees: { select: { id: true, displayName: true } },
         },
-        owner: { select: { id: true, displayName: true, avatarUrl: true } },
       },
+      owner: { select: { id: true, displayName: true, avatarUrl: true } },
+    };
+    const local = await prisma.milestone.findMany({
+      where: { projectId },
+      include,
       orderBy: { dueDate: "asc" },
     });
+    let milestones: Array<(typeof local)[number] & { rollup?: unknown }> = local;
+    if (req.query.rollup === "1") {
+      const children = await getRollupChildren(projectId, "milestones");
+      if (children.length > 0) {
+        const childMilestones = await prisma.milestone.findMany({
+          where: { projectId: { in: children.map((c) => c.id) } },
+          include,
+          orderBy: { dueDate: "asc" },
+        });
+        const badges = new Map(children.map((c) => [c.id, c.badge]));
+        milestones = [
+          ...local,
+          ...childMilestones.map((m) => ({ ...m, rollup: badges.get(m.projectId) })),
+        ];
+      }
+    }
     const enriched = milestones.map((m) => {
       const tasks = (m as any).tasks as { status: string }[];
       const total = tasks.length;
@@ -129,6 +147,17 @@ milestonesRouter.patch("/:id", async (req: Request, res: Response) => {
     const { prisma } = await import("../db/prisma.js");
 
     const before = await prisma.milestone.findUnique({ where: { id: milestoneId }, include: { tasks: { select: { id: true } } } });
+
+    if (milestoneTaskIds !== undefined && milestoneTaskIds.length > 0) {
+      const ids = [...new Set(milestoneTaskIds)];
+      const inProject = await prisma.task.count({
+        where: { id: { in: ids }, projectId: before?.projectId },
+      });
+      if (!before || inProject !== ids.length) {
+        res.status(400).json({ error: "Those tasks belong to a different project" });
+        return;
+      }
+    }
 
     // Build update data
     const data: any = {};

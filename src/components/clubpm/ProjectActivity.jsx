@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import { startOfDay, isToday, isYesterday, differenceInCalendarDays, format } from "date-fns";
 import { get } from "../../api/clubPmClient";
 import MemberBadge from "./MemberBadge";
+import { RollupSourceChip } from "./rollup/RollupChips";
 
 // ── Event type metadata ──────────────────────────────────────
 // `tone` is a token name only; Phase A2 maps tones to colors in clubpm-theme.css.
@@ -382,6 +383,7 @@ function ActivityRow({ log, isLast, onOpenTask }) {
         <div className="pm-activity-meta">
           <RelativeTime iso={log.createdAt} />
           <SourceBadge source={log.source} />
+          <RollupSourceChip rollup={log.rollup} />
         </div>
       </div>
 
@@ -418,7 +420,7 @@ export default function ProjectActivity({ projectId, members = [], onOpenTask })
   const fetchLogs = useCallback(async (cursor = null, append = false) => {
     if (!projectId) return;
     const group = FILTER_GROUPS.find(g => g.id === activeGroup) ?? FILTER_GROUPS[0];
-    const qs = new URLSearchParams({ limit: "50" });
+    const qs = new URLSearchParams({ limit: "50", rollup: "1" });
     if (cursor)             qs.set("cursor", cursor);
     if (group.types.length) qs.set("eventType", group.types.join(","));
     if (memberId)           qs.set("memberId", memberId);

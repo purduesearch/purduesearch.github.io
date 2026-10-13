@@ -9,6 +9,7 @@ import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import toast from "react-hot-toast";
 import { get, post, patch, del } from "../../api/clubPmClient";
+import SubProjectRollupSettings from "./SubProjectRollupSettings";
 
 const TYPE_OPTIONS = [
   { value: "ENGINEERING", label: "Engineering" },
@@ -32,6 +33,7 @@ export default function ProjectAdminModal({ projectId, onClose, onDeleted, onCha
   const [subType, setSubType] = useState("ENGINEERING");
   const [memberQuery, setMemberQuery] = useState("");
   const [confirmName, setConfirmName] = useState("");
+  const [rollupOpenId, setRollupOpenId] = useState(null);
   const inFlight = useRef(false);
 
   const load = useCallback(async () => {
@@ -177,12 +179,29 @@ export default function ProjectAdminModal({ projectId, onClose, onDeleted, onCha
                               <button
                                 type="button"
                                 className="cpm-proj-edit-cancel"
+                                aria-expanded={rollupOpenId === c.id}
+                                onClick={() => setRollupOpenId(id => (id === c.id ? null : c.id))}
+                              >Roll-up…</button>
+                              <button
+                                type="button"
+                                className="cpm-proj-edit-cancel"
                                 disabled={busy}
                                 onClick={() => run(async () => {
                                   await patch(`/api/projects/${c.id}`, { parentId: null });
                                   await reload();
                                 }, "Sub-project detached")}
                               >Detach</button>
+                              {rollupOpenId === c.id && (
+                                <div className="cpm-proj-admin-row-rollup">
+                                  <SubProjectRollupSettings
+                                    projectId={c.id}
+                                    projectName={c.name}
+                                    parentName={project.name}
+                                    canEdit={true}
+                                    onSaved={onChanged}
+                                  />
+                                </div>
+                              )}
                             </li>
                           ))}
                         </ul>
@@ -219,6 +238,19 @@ export default function ProjectAdminModal({ projectId, onClose, onDeleted, onCha
                   </label>
                 )}
               </section>
+
+              {isChild && (
+                <section className="cpm-proj-admin-section">
+                  <h3 className="cpm-proj-admin-title">Roll-up into parent</h3>
+                  <SubProjectRollupSettings
+                    projectId={projectId}
+                    projectName={project.name}
+                    parentName={project.parent?.name ?? "parent"}
+                    canEdit={true}
+                    onSaved={onChanged}
+                  />
+                </section>
+              )}
 
               {/* Members */}
               <section className="cpm-proj-admin-section">

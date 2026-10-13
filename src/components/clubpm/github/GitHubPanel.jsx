@@ -31,6 +31,7 @@ import IssuePreviewModal from "./IssuePreviewModal";
 import PrPreviewModal from "./PrPreviewModal";
 import FilePreviewModal from "./FilePreviewModal";
 import ImportIssuesModal from "./ImportIssuesModal";
+import { RollupSourceChip, RollupSourceFilter, matchesSource } from "../rollup/RollupChips";
 
 const SUB_TABS = [
   { id: "issues",   label: "Issues",   icon: "fa-circle-dot" },
@@ -79,7 +80,7 @@ export default function GitHubPanel({ project }) {
       return;
     }
     setReposLoading(true);
-    listProjectRepos(projectId)
+    listProjectRepos(projectId, { rollup: true })
       .then(d => {
         const list = d?.repos ?? [];
         setRepos(list);
@@ -94,6 +95,17 @@ export default function GitHubPanel({ project }) {
   }, [projectId]);
 
   useEffect(loadRepos, [loadRepos]);
+
+  const [sourceFilter, setSourceFilter] = useState("all");
+  const rollupSources = useMemo(() => {
+    const seen = new Map();
+    for (const r of repos) if (r.rollup) seen.set(r.rollup.projectId, r.rollup);
+    return [...seen.values()];
+  }, [repos]);
+  const visibleRepos = useMemo(
+    () => repos.filter(r => matchesSource(r, sourceFilter)),
+    [repos, sourceFilter]
+  );
 
   const selectedRepo = useMemo(
     () => repos.find(r => r.id === selectedRepoId) ?? null,
@@ -231,8 +243,9 @@ export default function GitHubPanel({ project }) {
 
   return (
     <div className="cpm-gh-panel">
+      <RollupSourceFilter sources={rollupSources} value={sourceFilter} onChange={setSourceFilter} />
       <div className="cpm-gh-subtabs" role="tablist" aria-label="Linked repositories">
-        {repos.map(r => (
+        {visibleRepos.map(r => (
           <button
             key={r.id}
             role="tab"
@@ -242,6 +255,7 @@ export default function GitHubPanel({ project }) {
             title={r.slug}
           >
             <i className="fab fa-github" aria-hidden="true" /> {r.slug}
+            <RollupSourceChip rollup={r.rollup} />
           </button>
         ))}
         {isAdmin && (
@@ -280,7 +294,7 @@ export default function GitHubPanel({ project }) {
               <button className="cpm-gh-edit-btn" onClick={() => setImporting(true)} title="Import open issues as tasks">
                 <i className="fas fa-download" aria-hidden="true" /> Import issues
               </button>
-              {isAdmin && (
+              {isAdmin && !selectedRepo.rollup && (
                 <button
                   className="cpm-gh-modal-clear"
                   onClick={() => handleRemoveRepo(selectedRepo)}

@@ -29,6 +29,9 @@ import {
 } from "../utils/aiPrompts.js";
 import { askProjectDetailed } from "../services/projectAskService.js";
 import { getProjectTimeInsights } from "../services/timeInsightsService.js";
+import { getRollupChildren } from "../services/subProjectRollupService.js";
+import { getRollupSettings, saveRollupSettings, getRollupSources } from "../services/subProjectRollupService.js";
+import { normalizeRollupPatch, ROLLUP_FLAGS } from "../services/subProjectRollupCore.js";
 import { suggestProjectActions, executeActionPlan, buildPlanPrompt, importActionPlan, type ActionPlanAction } from "../services/aiActionService.js";
 import {
   analyzeProjectRisks, generateSprintPlan, generateProjectBrief,
@@ -148,7 +151,7 @@ projectsRouter.get("/:id", async (req: Request, res: Response) => {
       console.warn("syncProjectMembersFromChannel failed:", err)
     );
 
-    const project = await getProject(projectId);
+    const project = await getProject(projectId, { memberId: req.memberId });
     if (!project) {
       res.status(404).json({ error: "Project not found" });
       return;
@@ -163,10 +166,74 @@ projectsRouter.get("/:id", async (req: Request, res: Response) => {
       }
     }
 
-    res.json({ ...project, channelMemberSlackIds });
+    const [rollupSources, rollup] = await Promise.all([
+      getRollupSources(projectId),
+      project.parentId ? getRollupSettings(projectId) : Promise.resolve(null),
+    ]);
+
+    res.json({ ...project, channelMemberSlackIds, rollupSources, rollup });
   } catch (error) {
     console.error("Get project error:", error);
     res.status(500).json({ error: "Failed to get project" });
+  }
+});
+
+// ── GET/PUT /api/projects/:id/rollup ─────────────────────────
+// Sub-project roll-up settings. Any member reads; only admins write.
+
+projectsRouter.get("/:id/rollup", async (req: Request, res: Response) => {
+  try {
+    const projectId = req.params.id as string;
+    const project = await prisma.project.findUnique({ where: { id: projectId }, select: { parentId: true } });
+    if (!project) {
+      res.status(404).json({ error: "Project not found" });
+      return;
+    }
+    res.json({ parentId: project.parentId, settings: await getRollupSettings(projectId) });
+  } catch (error) {
+    console.error("Get rollup error:", error);
+    res.status(500).json({ error: "Failed to get roll-up settings" });
+  }
+});
+
+projectsRouter.put("/:id/rollup", async (req: Request, res: Response) => {
+  try {
+    const actor = await prisma.member.findUnique({ where: { id: req.memberId! }, select: { isAdmin: true } });
+    if (!actor?.isAdmin) {
+      res.status(403).json({ error: "Only admins can change roll-up settings" });
+      return;
+    }
+    const projectId = req.params.id as string;
+    const project = await prisma.project.findUnique({ where: { id: projectId }, select: { parentId: true } });
+    if (!project) {
+      res.status(404).json({ error: "Project not found" });
+      return;
+    }
+    if (!project.parentId) {
+      res.status(400).json({ error: "Only sub-projects have roll-up settings" });
+      return;
+    }
+    const parsed = normalizeRollupPatch(req.body);
+    if (!parsed.ok) {
+      res.status(400).json({ error: parsed.error });
+      return;
+    }
+    const before = await getRollupSettings(projectId);
+    const settings = await saveRollupSettings(projectId, parsed.patch, req.memberId!);
+    const changes = diffObjects(before as any, settings as any, [...ROLLUP_FLAGS, "tagEnabled", "tagLabel", "tagColor"]);
+    if (changes.length > 0) {
+      logAuditEvent({
+        projectId,
+        memberId: req.memberId ?? null,
+        source: "WEB",
+        eventType: "PROJECT_UPDATED",
+        payload: { changes: changes.map((c) => ({ ...c, field: `rollup.${c.field}` })) },
+      }).catch(console.error);
+    }
+    res.json(settings);
+  } catch (error) {
+    console.error("Save rollup error:", error);
+    res.status(500).json({ error: "Failed to save roll-up settings" });
   }
 });
 
@@ -223,7 +290,7 @@ projectsRouter.patch("/:id", channelAuth, async (req: Request, res: Response) =>
       return;
     }
 
-    const before = await getProject(projectId);
+    const before = await getProject(projectId, { noRollup: true });
     if (!before) {
       res.status(404).json({ error: "Project not found" });
       return;
@@ -305,6 +372,11 @@ projectsRouter.patch("/:id", channelAuth, async (req: Request, res: Response) =>
       targetDate: nextTargetDate,
       parentId: nextParentId,
     });
+
+    // Roll-up settings only mean something while a parent is set.
+    if (nextParentId === null && before.parentId) {
+      await prisma.subProjectRollup.deleteMany({ where: { projectId } });
+    }
 
     {
       const WATCHED_PROJECT_FIELDS = ["name", "status", "description", "type", "programTag", "startDate", "targetDate", "driveLink", "githubRepo", "parentId"];
@@ -505,8 +577,19 @@ projectsRouter.get("/:id/activity", async (req: Request, res: Response) => {
       : undefined;
     const memberId  = req.query.memberId as string | undefined;
 
-    const result = await getProjectAuditLog(projectId, { cursor, limit, eventTypes, memberId });
-    res.json(result);
+    if (req.query.rollup !== "1") {
+      res.json(await getProjectAuditLog(projectId, { cursor, limit, eventTypes, memberId }));
+      return;
+    }
+    const children = await getRollupChildren(projectId, "insights");
+    const result = await getProjectAuditLog([projectId, ...children.map(c => c.id)], { cursor, limit, eventTypes, memberId });
+    const badges = new Map(children.map(c => [c.id, c.badge]));
+    res.json({
+      ...result,
+      items: result.items.map(i => (i.projectId !== projectId && badges.has(i.projectId)
+        ? { ...i, rollup: badges.get(i.projectId) }
+        : i)),
+    });
   } catch (error) {
     console.error("Get project activity error:", error);
     res.status(500).json({ error: "Failed to get project activity" });
@@ -526,7 +609,13 @@ projectsRouter.get("/:id/time-insights", async (req: Request, res: Response) => 
     const from = parse(req.query.from), to = parse(req.query.to);
     if (from === null || to === null) { res.status(400).json({ error: "from/to must be ISO dates" }); return; }
     if (from && to && from > to) { res.status(400).json({ error: "from must be before to" }); return; }
-    res.json(await getProjectTimeInsights(req.params.id as string, { from, to }));
+    const projectId = req.params.id as string;
+    if (req.query.rollup !== "1") {
+      res.json(await getProjectTimeInsights(projectId, { from, to }));
+      return;
+    }
+    const children = await getRollupChildren(projectId, "insights");
+    res.json(await getProjectTimeInsights([projectId, ...children.map(c => c.id)], { from, to }));
   } catch (error) {
     console.error("Get project time insights error:", error);
     res.status(500).json({ error: "Failed to get time insights" });
@@ -538,16 +627,20 @@ projectsRouter.get("/:id/time-insights", async (req: Request, res: Response) => 
 projectsRouter.get("/:id/tasks", async (req: Request, res: Response) => {
   try {
     const projectId = req.params.id as string;
-    const { status, assigneeId, archived } = req.query as {
+    const { status, assigneeId, archived, rollup } = req.query as {
       status?: TaskStatus;
       assigneeId?: string;
       archived?: string;
+      rollup?: string;
     };
 
     const tasks = await getTasksForProject(
       projectId,
       { status, assigneeId },
-      archived === "1" || archived === "true" ? { archivedOnly: true } : {}
+      {
+        ...(archived === "1" || archived === "true" ? { archivedOnly: true } : {}),
+        ...(rollup === "1" && req.memberId ? { rollup: { memberId: req.memberId } } : {}),
+      }
     );
 
     res.json(tasks);
@@ -715,7 +808,7 @@ projectsRouter.post("/:id/updates", async (req: Request, res: Response) => {
 projectsRouter.get("/:id/drive-files", async (req: Request, res: Response) => {
   try {
     const projectId = req.params.id as string;
-    const project = await getProject(projectId);
+    const project = await getProject(projectId, { noRollup: true });
     if (!project) {
       res.status(404).json({ error: "Project not found" });
       return;
@@ -891,7 +984,7 @@ projectsRouter.post("/:id/parse-meeting-notes", async (req: Request, res: Respon
       return;
     }
 
-    const project = await getProject(projectId);
+    const project = await getProject(projectId, { noRollup: true });
     if (!project) {
       res.status(404).json({ error: "Project not found" });
       return;

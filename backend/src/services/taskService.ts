@@ -3,6 +3,8 @@ import type { Task, TaskStatus, TaskProgress, Priority, Prisma, Project, Recurri
 import { logActivity } from "./activityService.js";
 import { EXCLUDE_TRAINING } from "./trainingSandboxService.js";
 import { emitTaskChanged } from "./taskChangeBus.js";
+import { getRollupChildren } from "./subProjectRollupService.js";
+import { canEditProjectsBatch } from "./projectEditAccess.js";
 
 // ── Helpers ──────────────────────────────────────────────────
 
@@ -356,16 +358,17 @@ export async function getTask(id: string) {
 export async function getTasksForProject(
   projectId: string,
   filters?: TaskFilters,
-  options: { includeArchived?: boolean; archivedOnly?: boolean } = {}
+  options: { includeArchived?: boolean; archivedOnly?: boolean; rollup?: { memberId: string } } = {}
 ) {
-  const where: any = { projectId };
+  const children = options.rollup ? await getRollupChildren(projectId, "tasks") : [];
+  const where: any = { projectId: children.length ? { in: [projectId, ...children.map((c) => c.id)] } : projectId };
   if (options.archivedOnly) where.archivedAt = { not: null };
   else if (!options.includeArchived) where.archivedAt = null;
   if (filters?.status) where.status = filters.status;
   if (filters?.assigneeId) where.assignees = { some: { id: filters.assigneeId } };
   if (filters?.priority) where.priority = filters.priority;
 
-  return prisma.task.findMany({
+  const tasks = await prisma.task.findMany({
     where,
     include: {
       assignees: true,
@@ -381,6 +384,16 @@ export async function getTasksForProject(
       blockedBy: { include: { blockingTask: { select: { id: true, title: true, status: true } } } },
     },
     orderBy: [{ priority: "desc" }, { createdAt: "desc" }],
+  });
+  if (!children.length) return tasks;
+
+  const editMap = await canEditProjectsBatch(options.rollup!.memberId, children.map((c) => c.id));
+  const byChild = new Map(children.map((c) => [c.id, c]));
+  return tasks.map((t) => {
+    const c = byChild.get(t.projectId);
+    return c
+      ? { ...t, rollup: { ...c.badge, canEdit: editMap.get(c.id) ?? false, insights: c.settings.insights } }
+      : t;
   });
 }
 

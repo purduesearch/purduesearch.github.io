@@ -358,8 +358,9 @@ model Project {
   // capped at one level by the API. Restrict: a parent with children cannot be
   // deleted until the children are deleted or detached.
   parentId String?
-  parent   Project?  @relation("SubProjects", fields: [parentId], references: [id], onDelete: Restrict)
-  children Project[] @relation("SubProjects")
+  parent   Project?          @relation("SubProjects", fields: [parentId], references: [id], onDelete: Restrict)
+  children Project[]         @relation("SubProjects")
+  rollup   SubProjectRollup?
 
   // ── GitHub link ──
   // githubRepo is "owner/repo" (mirrors driveLink). githubInstallId is the
@@ -431,6 +432,29 @@ model ProjectMember {
   joinedAt      DateTime @default(now())
 
   @@id([projectId, memberId])
+}
+
+/// Per-sub-project roll-up into its parent. One row per child project; no row
+/// means every roll-up is off. Only meaningful while Project.parentId is set —
+/// detaching deletes the row (api/projects.ts PATCH /:id).
+model SubProjectRollup {
+  projectId            String   @id
+  project              Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  tasks                Boolean  @default(false)
+  tagEnabled           Boolean  @default(false)
+  /// null = use the sub-project's name.
+  tagLabel             String?
+  /// null = DEFAULT_ROLLUP_COLOR in subProjectRollupCore.ts.
+  tagColor             String?
+  github               Boolean  @default(false)
+  slack                Boolean  @default(false)
+  vault                Boolean  @default(false)
+  milestones           Boolean  @default(false)
+  insights             Boolean  @default(false)
+  parentMembersCanEdit Boolean  @default(false)
+  aiContext            Boolean  @default(false)
+  updatedById          String?
+  updatedAt            DateTime @updatedAt
 }
 
 model Task {

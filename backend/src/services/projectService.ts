@@ -9,6 +9,8 @@ import { boltApp } from "../slack/bolt.js";
 import { resolveSlackMember } from "./memberService.js";
 import { EXCLUDE_TRAINING } from "./trainingSandboxService.js";
 import { planChannelMemberSync } from "./projectMemberSyncCore.js";
+import { getRollupChildren } from "./subProjectRollupService.js";
+import { canEditProjectsBatch } from "./projectEditAccess.js";
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -78,9 +80,26 @@ export async function listProjects(): Promise<Project[]> {
   });
 }
 
+export const TASK_BOARD_INCLUDE = {
+  assignees: true,
+  tags: true,
+  createdBy: { select: { id: true, displayName: true, avatarUrl: true } },
+  subtasks: {
+    include: {
+      assignees: true,
+      createdBy: { select: { id: true, displayName: true, avatarUrl: true } },
+    },
+    orderBy: { createdAt: "asc" },
+  },
+  blockedBy: { include: { blockingTask: { select: { id: true, title: true, status: true } } } },
+  blocks:    { include: { blockedTask:  { select: { id: true, title: true, status: true } } } },
+  blockers:  { include: { blocker: true } },
+  milestone: true,
+} satisfies Prisma.TaskInclude;
+
 export async function getProject(
   id: string,
-  options: { includeArchived?: boolean; archivedOnly?: boolean } = {}
+  options: { includeArchived?: boolean; archivedOnly?: boolean; memberId?: string; noRollup?: boolean } = {}
 ) {
   const archivedFilter = options.archivedOnly
     ? { archivedAt: { not: null } }
@@ -88,7 +107,7 @@ export async function getProject(
       ? {}
       : { archivedAt: null };
 
-  return prisma.project.findUnique({
+  const project = await prisma.project.findUnique({
     where: { id },
     include: {
       parent: { select: { id: true, name: true } },
@@ -96,22 +115,7 @@ export async function getProject(
       members: { include: { member: true } },
       tasks: {
         where: { parentTaskId: null, ...archivedFilter }, // top-level tasks only
-        include: {
-          assignees: true,
-          tags: true,
-          createdBy: { select: { id: true, displayName: true, avatarUrl: true } },
-          subtasks: {
-            include: {
-              assignees: true,
-              createdBy: { select: { id: true, displayName: true, avatarUrl: true } },
-            },
-            orderBy: { createdAt: "asc" },
-          },
-          blockedBy: { include: { blockingTask: { select: { id: true, title: true, status: true } } } },
-          blocks:    { include: { blockedTask:  { select: { id: true, title: true, status: true } } } },
-          blockers:  { include: { blocker: true } },
-          milestone: true,
-        },
+        include: TASK_BOARD_INCLUDE,
         orderBy: { createdAt: "desc" },
       },
       milestones: {
@@ -124,6 +128,25 @@ export async function getProject(
       },
     },
   });
+  if (!project || options.noRollup) return project;
+
+  const children = await getRollupChildren(id, "tasks");
+  if (children.length === 0) return project;
+
+  const editMap = options.memberId
+    ? await canEditProjectsBatch(options.memberId, children.map((c) => c.id))
+    : new Map<string, boolean>();
+  const byChild = new Map(children.map((c) => [c.id, c]));
+  const childTasks = await prisma.task.findMany({
+    where: { projectId: { in: children.map((c) => c.id) }, parentTaskId: null, ...archivedFilter },
+    include: TASK_BOARD_INCLUDE,
+  });
+  const rolled = childTasks.map((t) => {
+    const c = byChild.get(t.projectId)!;
+    return { ...t, rollup: { ...c.badge, canEdit: editMap.get(c.id) ?? false, insights: c.settings.insights } };
+  });
+  const tasks = [...project.tasks, ...rolled].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  return { ...project, tasks };
 }
 
 export async function getProjectsForChannel(channelId: string) {

@@ -22,4 +22,13 @@ assert.deepEqual(
   ["U1", "UZ", "UMAN"],
   "admin-added members join a linked roster without duplicates",
 );
+const child = (flag: boolean) => ({
+  ...deps,
+  project: async (id: string) => id === "child"
+    ? { slackChannelId: "C2", parentId: "parent", parentMembersCanEdit: flag }
+    : { slackChannelId: "C1" },
+  channelMembers: async (c: string) => c === "C2" ? ["UC"] : ["UP", "UC"],
+});
+assert.deepEqual(await projectRosterSlackIds("child", child(true)), ["UC", "UP"], "parent roster joins when flag on");
+assert.deepEqual(await projectRosterSlackIds("child", child(false)), ["UC"], "flag off keeps child roster only");
 console.log("Project roster scope tests passed");

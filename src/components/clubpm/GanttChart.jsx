@@ -1,5 +1,6 @@
 import React, { useMemo, useState, useRef, useEffect } from "react";
 import { useCompactLayout } from "../../clubpm/layout/compactLayout";
+import { RollupSourceChip, RollupSourceFilter, matchesSource } from "./rollup/RollupChips";
 
 // ── Constants ────────────────────────────────────────────────
 
@@ -110,6 +111,7 @@ function GanttSchedule({ rows, milestones, criticalPathSet }) {
             {dated.map(m => (
               <li key={m.id} className="pm-m-gantt-row">
                 <span className="pm-m-gantt-row-title">{m.title}</span>
+                <RollupSourceChip rollup={m.rollup} />
                 <span className="pm-m-gantt-row-meta">
                   <span className="pm-m-gantt-chip">{(m.health ?? "ON_TRACK").replace(/_/g, " ").toLowerCase()}</span>
                   <span>Due {shortDate(m.dueDate)}</span>
@@ -133,6 +135,7 @@ function GanttSchedule({ rows, milestones, criticalPathSet }) {
                 className={`pm-m-gantt-row${isSubtask ? " pm-m-gantt-row--sub" : ""}`}
               >
                 <span className="pm-m-gantt-row-title">{task.title}</span>
+                <RollupSourceChip rollup={task.rollup} />
                 <span className="pm-m-gantt-row-meta">
                   <span
                     className="pm-m-gantt-dot"
@@ -154,7 +157,13 @@ function GanttSchedule({ rows, milestones, criticalPathSet }) {
   );
 }
 
-export default function GanttChart({ tasks, milestones = [] }) {
+export default function GanttChart({ tasks: allTasks, milestones: allMilestones = [], sources = [], sourceFilter: sourceFilterProp }) {
+  // Page-supplied filter wins; otherwise own Source filter when rolled-up items exist.
+  const [ownFilter, setOwnFilter] = useState("all");
+  const controlled = sourceFilterProp !== undefined;
+  const sourceFilter = controlled ? sourceFilterProp : ownFilter;
+  const tasks = useMemo(() => allTasks.filter(t => matchesSource(t, sourceFilter)), [allTasks, sourceFilter]);
+  const milestones = useMemo(() => allMilestones.filter(m => matchesSource(m, sourceFilter)), [allMilestones, sourceFilter]);
   const compact = useCompactLayout();
   // The list is the phone default; the timeline stays available and pans inside
   // its own scroller, never widening the page.
@@ -371,11 +380,18 @@ export default function GanttChart({ tasks, milestones = [] }) {
     return arrows;
   }, [sortedTasks, taskIndexMap, flatRows, minDate, DAY_WIDTH]);
 
+  const filterEl = controlled ? null : (
+    <RollupSourceFilter sources={sources} value={sourceFilter} onChange={setOwnFilter} />
+  );
+
   if (sortedTasks.length === 0) {
     return (
-      <p style={{ color: "var(--pm-text-muted)", fontSize: 14, textAlign: "center", padding: "48px 0" }}>
-        No tasks with dates to display.
-      </p>
+      <>
+        {filterEl}
+        <p style={{ color: "var(--pm-text-muted)", fontSize: 14, textAlign: "center", padding: "48px 0" }}>
+          No tasks with dates to display.
+        </p>
+      </>
     );
   }
 
@@ -572,6 +588,11 @@ export default function GanttChart({ tasks, milestones = [] }) {
                   {task.title.length > (isSubtask ? 24 : 28)
                     ? task.title.slice(0, isSubtask ? 24 : 28) + "…"
                     : task.title}
+                  {task.rollup && (
+                    <tspan dx={6} fontSize={10} fill={task.rollup.color}>
+                      {task.rollup.projectName.length > 12 ? task.rollup.projectName.slice(0, 11) + "…" : task.rollup.projectName}
+                    </tspan>
+                  )}
                 </text>
 
                 {/* Critical path star indicator */}
@@ -732,6 +753,7 @@ export default function GanttChart({ tasks, milestones = [] }) {
   if (compact) {
     return (
       <div ref={containerRef} className="pm-m-gantt">
+        {filterEl}
         <div className="pm-m-source" role="group" aria-label="Timeline presentation">
           <span className="pm-m-source-label" id="gantt-view-label">View</span>
           <div className="pm-m-segment" role="group" aria-labelledby="gantt-view-label">
@@ -784,6 +806,7 @@ export default function GanttChart({ tasks, milestones = [] }) {
 
   return (
     <div ref={containerRef}>
+      {filterEl}
       {/* ── Scale controls ───────────────────────────────── */}
       <div className="pm-gantt-toolbar">
         {["day", "week", "month"].map((s) => (

@@ -8,8 +8,11 @@ export default function GanttView() {
   const [project, setProject] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  const [milestones, setMilestones] = useState([]);
+
   useEffect(() => {
     if (!id) return;
+    get(`/api/milestones/project/${id}?rollup=1`).then(setMilestones).catch(() => {});
     get(`/api/projects/${id}`)
       .then(setProject)
       .catch(console.error)
@@ -58,7 +61,7 @@ export default function GanttView() {
               No tasks to display. Create tasks to see the Gantt chart.
             </p>
           ) : (
-            <GanttChart tasks={project.tasks} />
+            <GanttChart tasks={project.tasks} milestones={milestones} sources={project.rollupSources ?? []} />
           )}
         </div>
       </div>

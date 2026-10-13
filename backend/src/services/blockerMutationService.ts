@@ -35,6 +35,10 @@ export async function attachBlockerAsMember(actorId: string, taskId: string, inp
   if (!blocker || blocker.resolvedAt) {
     throw new TaskMutationError(400, "Blocker not found or already resolved");
   }
+  const owner = await prisma.task.findUnique({ where: { id: taskId }, select: { projectId: true } });
+  if (!owner || blocker.projectId !== owner.projectId) {
+    throw new TaskMutationError(400, "That blocker belongs to a different project");
+  }
 
   await prisma.taskBlocker.upsert({
     where: { taskId_blockerId: { taskId, blockerId } },
