@@ -1300,8 +1300,11 @@ html::-webkit-scrollbar { display: none; }
 }
 
 .cpm-kanban-progress--none { color: var(--clubpm-surface-500); }
-.cpm-kanban-progress--in  { color: var(--clubpm-accent-orange); }
+.cpm-kanban-progress--in  { color: var(--clubpm-accent-orange); background: rgba(253, 203, 110, 0.12); }
 .cpm-kanban-progress--done { color: var(--clubpm-accent-green); background: rgba(0,184,148,0.15); }
+.cpm-kanban-progress--blocked { color: var(--clubpm-accent-red, #e17055); background: rgba(225, 112, 85, 0.15); }
+.cpm-kanban-progress--done i,
+.cpm-kanban-progress--blocked i { font-size: 7px; }
 
 
 /* â”€â”€ ClubPM Dashboard Layout (Freedcamp-style) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */

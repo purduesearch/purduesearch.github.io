@@ -19,7 +19,7 @@ import ProjectAnalytics from "../../components/clubpm/analytics";
 import ProjectTimeInsights from "../../components/clubpm/analytics/ProjectTimeInsights";
 import PressKitPanel from "../../components/clubpm/PressKitPanel";
 import GanttChart from "../../components/clubpm/GanttChart";
-import { PriorityBars, AvatarStack } from "../../components/clubpm/TaskPrimitives";
+import { PriorityBars, AvatarStack, StatusRing } from "../../components/clubpm/TaskPrimitives";
 import DrivePreviewModal from "../../components/clubpm/DrivePreviewModal";
 import EditDriveFolderModal from "../../components/clubpm/EditDriveFolderModal";
 import EditProjectModal from "../../components/clubpm/EditProjectModal";
@@ -971,18 +971,7 @@ function CompactTaskRow({ task, onClick, subtaskCount = 0, isExpanded = false, o
           pointerEvents: "none",
         }}
       />
-      <span
-        className={`cpm-kanban-progress ${
-          task.status === "DONE"
-            ? "cpm-kanban-progress--done"
-            : task.status === "IN_PROGRESS" || task.status === "BLOCKED"
-            ? "cpm-kanban-progress--in"
-            : "cpm-kanban-progress--none"
-        }`}
-        style={{ flexShrink: 0 }}
-      >
-        {task.status === "DONE" && <i className="fas fa-check" style={{ fontSize: 6 }} />}
-      </span>
+      <StatusRing status={task.status} />
       <PriorityBars priority={task.priority} />
       <span className="cpm-task-row-compact-name">{task.title}</span>
       {subtaskCount > 0 && (
@@ -1057,18 +1046,7 @@ function KanbanSubtaskRow({ subtask, onClick, isDropTarget = false, isSelected =
       {isSelected && (
         <i className="fas fa-check-circle cpm-task-row-compact-checkbox" aria-hidden="true" />
       )}
-      <span
-        className={`cpm-kanban-progress ${
-          subtask.status === "DONE"
-            ? "cpm-kanban-progress--done"
-            : subtask.status === "IN_PROGRESS" || subtask.status === "BLOCKED"
-            ? "cpm-kanban-progress--in"
-            : "cpm-kanban-progress--none"
-        }`}
-        style={{ flexShrink: 0 }}
-      >
-        {subtask.status === "DONE" && <i className="fas fa-check" style={{ fontSize: 6 }} />}
-      </span>
+      <StatusRing status={subtask.status} />
       <PriorityBars priority={subtask.priority} />
       <span className="cpm-task-row-compact-name" style={{ color: "var(--clubpm-text-secondary)" }}>
         {subtask.title}
