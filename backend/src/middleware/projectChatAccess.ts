@@ -1,6 +1,9 @@
 import type { Request, Response, NextFunction } from "express";
 import { prisma } from "../db/prisma.js";
 import { filterReadableChannels } from "./conversationAccess.js";
+import { getRollupChildren } from "../services/subProjectRollupService.js";
+
+type RollupBadge = Awaited<ReturnType<typeof getRollupChildren>>[number]["badge"];
 
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
@@ -8,6 +11,7 @@ declare global {
     interface Request {
       chatChannelIds?: string[];
       chatIsAdmin?: boolean;
+      chatChannelSource?: Map<string, RollupBadge>;
     }
   }
 }
@@ -35,6 +39,24 @@ export function unionChannelIds(
 }
 
 /**
+ * Candidate channel ids contributed by roll-up children, each tagged with its
+ * badge. Pure. A channel the parent already links itself stays local (no badge),
+ * and the first child to claim an id wins. These are only CANDIDATES: the caller
+ * must still run them through the readability filter.
+ */
+export function planRollupChannels(
+  localIds: string[],
+  children: { badge: RollupBadge; channelIds: string[] }[]
+): Map<string, RollupBadge> {
+  const local = new Set(localIds);
+  const out = new Map<string, RollupBadge>();
+  for (const c of children) {
+    for (const id of c.channelIds) if (!local.has(id) && !out.has(id)) out.set(id, c.badge);
+  }
+  return out;
+}
+
+/**
  * Read access to a project's chat tab: admin OR project member — and then only the linked channels Slack lets this member see.
  *
  * Returns the project's linked channel ids from the SAME call, so every read
@@ -45,7 +67,14 @@ export function unionChannelIds(
 export async function getProjectChatAccess(
   memberId: string,
   projectId: string
-): Promise<{ canRead: boolean; isAdmin: boolean; channelIds: string[] }> {
+): Promise<{
+  canRead: boolean;
+  isAdmin: boolean;
+  /** This project's own readable channels. Backfill and admin routes use only these. */
+  channelIds: string[];
+  /** Readable channels rolled up from sub-projects, keyed by channel id. */
+  channelSource: Map<string, RollupBadge>;
+}> {
   const [member, project, membership, targets] = await Promise.all([
     prisma.member.findUnique({ where: { id: memberId }, select: { isAdmin: true } }),
     prisma.project.findUnique({
@@ -61,7 +90,7 @@ export async function getProjectChatAccess(
     }),
   ]);
 
-  if (!project) return { canRead: false, isAdmin: false, channelIds: [] };
+  if (!project) return { canRead: false, isAdmin: false, channelIds: [], channelSource: new Map() };
 
   const isAdmin = member?.isAdmin ?? false;
   const canRead = isAdmin || !!membership;
@@ -69,8 +98,38 @@ export async function getProjectChatAccess(
   // read it. A private linked channel is listed only for its Slack members —
   // admins included. Admin still gates the project-level tools (backfill,
   // storage health), which expose no message content.
-  const channelIds = canRead ? await filterReadableChannels(memberId, unionChannelIds(targets, project)) : [];
-  return { canRead, isAdmin, channelIds };
+  const localCandidates = unionChannelIds(targets, project);
+  let candidateSource = new Map<string, RollupBadge>();
+  if (canRead) {
+    const children = await getRollupChildren(projectId, "slack");
+    if (children.length) {
+      const childTargets = await prisma.projectNotificationTarget.findMany({
+        where: { projectId: { in: children.map((c) => c.id) } },
+        select: { projectId: true, slackChannelId: true },
+      });
+      const childProjects = await prisma.project.findMany({
+        where: { id: { in: children.map((c) => c.id) } },
+        select: { id: true, slackChannelId: true, slackChannel: true },
+      });
+      candidateSource = planRollupChannels(
+        localCandidates,
+        children.map((c) => ({
+          badge: c.badge,
+          channelIds: unionChannelIds(
+            childTargets.filter((t) => t.projectId === c.id),
+            childProjects.find((p) => p.id === c.id) ?? { slackChannelId: null, slackChannel: null }
+          ),
+        }))
+      );
+    }
+  }
+  // One readability pass over local AND rolled-up ids: added ids never skip it.
+  const readable = canRead
+    ? new Set(await filterReadableChannels(memberId, [...localCandidates, ...candidateSource.keys()]))
+    : new Set<string>();
+  const channelIds = localCandidates.filter((id) => readable.has(id));
+  const channelSource = new Map([...candidateSource].filter(([id]) => readable.has(id)));
+  return { canRead, isAdmin, channelIds, channelSource };
 }
 
 export async function requireProjectChatRead(
@@ -79,12 +138,13 @@ export async function requireProjectChatRead(
   next: NextFunction
 ): Promise<void> {
   const projectId = req.params.projectId as string;
-  const { canRead, isAdmin, channelIds } = await getProjectChatAccess(req.memberId!, projectId);
+  const { canRead, isAdmin, channelIds, channelSource } = await getProjectChatAccess(req.memberId!, projectId);
   if (!canRead) {
     res.status(403).json({ error: "You do not have access to this project's chat" });
     return;
   }
   req.chatChannelIds = channelIds;
+  req.chatChannelSource = channelSource;
   req.chatIsAdmin = isAdmin;
   next();
 }

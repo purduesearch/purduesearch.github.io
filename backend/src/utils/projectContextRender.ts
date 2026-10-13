@@ -47,7 +47,7 @@ export function renderTaskLine(t: ProjectContextTask, ids: boolean, descChars: n
     t.status !== "DONE" && t.daysSinceUpdate >= 7 ? `untouched:${t.daysSinceUpdate}d` : null,
   ].filter(Boolean).join(" ");
   const desc = descChars > 0 && t.description ? `\n  ${t.description.slice(0, descChars)}` : "";
-  return `- ${idTag(t.id, ids)}[${t.status}] "${t.title}" | ${t.priority} | ${estimateLabel(t)} | due: ${t.dueDate ?? "none"} | assignees: ${t.assignees.join(", ") || "none"}${t.milestoneTitle ? ` | milestone: ${t.milestoneTitle}` : ""}${flags ? ` | ${flags}` : ""}${desc}`;
+  return `- ${idTag(t.id, ids)}[${t.status}] ${t.projectName ? `[${t.projectName}] ` : ""}"${t.title}" | ${t.priority} | ${estimateLabel(t)} | due: ${t.dueDate ?? "none"} | assignees: ${t.assignees.join(", ") || "none"}${t.milestoneTitle ? ` | milestone: ${t.milestoneTitle}` : ""}${flags ? ` | ${flags}` : ""}${desc}`;
 }
 
 export function renderProjectContext(context: ProjectContext, today: string, opts: RenderOptions = {}): string {
@@ -86,6 +86,9 @@ export function renderProjectContext(context: ProjectContext, today: string, opt
     `Unassigned open work: ${unassignedOpen.tasks} tasks (${unassignedOpen.highPriority} high/critical), ${unassignedOpen.storyPoints}pts, ${unassignedOpen.estimatedHours}h estimated.`,
     `Velocity, last ${velocity.windowDays} days: ${velocity.tasksCompleted} tasks and ${velocity.pointsCompleted}pts completed (${velocity.tasksPerWeek} tasks/week, ${velocity.pointsPerWeek}pts/week).`,
     "",
+    ...(context.rollupProjects?.length
+      ? [`Tasks marked [Name] come from sub-projects of this project (${context.rollupProjects!.map((p) => p.name).join(", ")}); unmarked tasks belong to this project. Team, milestones, blockers and velocity below describe this project only.`]
+      : []),
     `Tasks (${shown.length}${context.truncated ? ", truncated to the most relevant" : ""}):`,
     taskLines,
     "",

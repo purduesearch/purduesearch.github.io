@@ -35,6 +35,7 @@ import {
   recentGithubActivityForMember,
 } from "../services/githubSyncService.js";
 import { logAuditEvent } from "../services/activityService.js";
+import { getRollupChildren } from "../services/subProjectRollupService.js";
 
 export const githubRouter = Router();
 
@@ -100,10 +101,25 @@ githubRouter.get("/repo", async (req: Request, res: Response) => {
 githubRouter.get("/projects/:id/repos", async (req: Request, res: Response) => {
   try {
     const projectId = req.params.id as string;
-    const repos = await prisma.projectRepo.findMany({
+    const local = await prisma.projectRepo.findMany({
       where: { projectId },
       orderBy: { createdAt: "asc" },
     });
+    let repos: Array<ProjectRepo & { rollup?: unknown }> = local;
+    if (req.query.rollup === "1") {
+      const children = await getRollupChildren(projectId, "github");
+      if (children.length > 0) {
+        const childRepos = await prisma.projectRepo.findMany({
+          where: { projectId: { in: children.map((c) => c.id) } },
+          orderBy: { createdAt: "asc" },
+        });
+        const badges = new Map(children.map((c) => [c.id, c.badge]));
+        repos = [
+          ...local,
+          ...childRepos.map((r) => ({ ...r, rollup: badges.get(r.projectId) })),
+        ];
+      }
+    }
     res.json({ repos });
   } catch (err) {
     console.error("[github] list repos error:", err);

@@ -13,7 +13,7 @@ const DUE_SHIFTS = [-7, -1, 1, 7];
 
 // One toolbar button that opens a panel above the bar. `children` receives a
 // `close` callback so a panel can dismiss itself after applying.
-function BarMenu({ icon, label, disabled, width = 240, align = "left", children }) {
+function BarMenu({ icon, label, disabled, title, width = 240, align = "left", children }) {
   const [open, setOpen] = useState(false);
   const ref = useRef();
 
@@ -40,6 +40,7 @@ function BarMenu({ icon, label, disabled, width = 240, align = "left", children 
         type="button"
         className={`cpm-bulk-bar-btn${open ? " cpm-bulk-bar-btn--open" : ""}`}
         disabled={disabled}
+        title={title}
         aria-expanded={open}
         aria-haspopup="dialog"
         onClick={() => setOpen((o) => !o)}
@@ -247,7 +248,7 @@ function EstimatePanel({ onPatch, close, total }) {
 }
 
 // "More" panel: a short list of actions, some of which open a sub-view.
-function MorePanel({ close, total, blockers, blockerCounts, onPatch, onDuplicate, onCopyLinks, onArchive }) {
+function MorePanel({ close, total, blockers, blockerCounts, blockersDisabledReason, onPatch, onDuplicate, onCopyLinks, onArchive }) {
   const [view, setView] = useState(null);
   if (view === "estimate") return <EstimatePanel onPatch={onPatch} close={close} total={total} />;
   if (view === "blockers") {
@@ -267,7 +268,7 @@ function MorePanel({ close, total, blockers, blockerCounts, onPatch, onDuplicate
   }
   const items = [
     { id: "estimate", icon: "fa-stopwatch", label: "Estimate (points, hours)…", run: () => setView("estimate") },
-    { id: "blockers", icon: "fa-hand", label: "Category blockers…", run: () => setView("blockers") },
+    { id: "blockers", icon: "fa-hand", label: "Category blockers…", run: () => setView("blockers"), disabledReason: blockersDisabledReason },
     { id: "duplicate", icon: "fa-clone", label: `Duplicate ${total}`, run: () => { onDuplicate(); close(); } },
     { id: "links", icon: "fa-link", label: "Copy links", run: () => { onCopyLinks(); close(); } },
     { id: "archive", icon: "fa-box-archive", label: `Archive ${total}`, run: () => { onArchive(); close(); } },
@@ -275,7 +276,7 @@ function MorePanel({ close, total, blockers, blockerCounts, onPatch, onDuplicate
   return (
     <div className="cpm-bulk-bar-popover-list">
       {items.map((item) => (
-        <button key={item.id} type="button" className="cpm-bulk-bar-popover-item" onClick={item.run}>
+        <button key={item.id} type="button" className="cpm-bulk-bar-popover-item" onClick={item.run} disabled={!!item.disabledReason} title={item.disabledReason}>
           <ItemLead item={item} />
           <span className="cpm-bulk-bar-popover-label">{item.label}</span>
         </button>
@@ -544,6 +545,15 @@ export default function BulkActionBar({
   const blockerCounts = useMemo(() => countBy(selectedTasks, (t) => (t.blockers ?? []).map((b) => b.blockerId ?? b.blocker?.id)), [selectedTasks]);
   const withDue = selectedTasks.filter((t) => t.dueDate).length;
   const anySubtask = selectedTasks.some((t) => t.parentTaskId);
+  // Milestones and category blockers belong to one project; the lists here are
+  // this page's project, so any rolled-up task in the selection can't use them.
+  const anyRolledUp = selectedTasks.some((t) => t.rollup);
+  const sourceCount = new Set(selectedTasks.map((t) => t.rollup?.projectId ?? "local")).size;
+  const crossProjectReason = anyRolledUp
+    ? (sourceCount > 1
+      ? "Selection mixes projects. Milestones and blockers belong to one project"
+      : "Milestones and blockers belong to the sub-project. Open it to change them")
+    : undefined;
 
   if (!active) return null;
 
@@ -628,7 +638,7 @@ export default function BulkActionBar({
         )}
       </BarMenu>
 
-      <BarMenu icon="fa-flag-checkered" label="Milestone" disabled={busy}>
+      <BarMenu icon="fa-flag-checkered" label="Milestone" disabled={busy || !!crossProjectReason} title={crossProjectReason}>
         {(close) => (
           <PickList
             items={[
@@ -653,6 +663,7 @@ export default function BulkActionBar({
             total={count}
             blockers={blockers}
             blockerCounts={blockerCounts}
+            blockersDisabledReason={crossProjectReason}
             onPatch={onPatch}
             onDuplicate={onDuplicate}
             onCopyLinks={onCopyLinks}

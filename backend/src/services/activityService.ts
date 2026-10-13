@@ -113,7 +113,7 @@ export function diffObjects(
 }
 
 export async function getProjectAuditLog(
-  projectId: string,
+  projectId: string | string[],
   opts: {
     cursor?: string;
     limit?: number;
@@ -137,7 +137,7 @@ export async function getProjectAuditLog(
   const take = Math.min(limit ?? 50, 100);
   const logs = await prisma.activityLog.findMany({
     where: {
-      projectId,
+      projectId: Array.isArray(projectId) ? { in: projectId } : projectId,
       ...eventTypeFilter,
       ...(memberId ? { memberId } : {}),
     },

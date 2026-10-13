@@ -1,6 +1,6 @@
 import type { Request, Response, NextFunction } from "express";
 import { prisma } from "../db/prisma.js";
-import { getChannelMemberSlackIds } from "../services/projectService.js";
+import { canEditProject } from "../services/projectEditAccess.js";
 
 /**
  * Rejects mutations if the current user is not a member of the project's linked Slack channel
@@ -37,27 +37,13 @@ export async function channelAuth(
 
     if (!project?.slackChannelId) { next(); return; }
 
-    // Look up the current user's slackId from the session
     const memberId = req.memberId;
     if (!memberId) {
       res.status(401).json({ error: "Not authenticated" });
       return;
     }
 
-    const member = await prisma.member.findUnique({
-      where: { id: memberId },
-      select: { slackId: true },
-    });
-
-    const manual = await prisma.projectMember.findFirst({
-      where: { projectId, memberId, addedManually: true },
-      select: { memberId: true },
-    });
-    if (manual) { next(); return; }
-
-    const memberSlackIds = await getChannelMemberSlackIds(project.slackChannelId);
-
-    if (!member?.slackId || !memberSlackIds.includes(member.slackId)) {
+    if (!(await canEditProject(memberId, projectId))) {
       res.status(403).json({
         error: "You must be a member of the linked Slack channel to edit this project.",
       });

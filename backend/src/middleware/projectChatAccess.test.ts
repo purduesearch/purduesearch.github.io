@@ -1,7 +1,7 @@
 // Pure-logic unit tests for the chat channel-id union. No DB.
 // Run: cd backend && npx tsx src/middleware/projectChatAccess.test.ts
 
-import { unionChannelIds } from "./projectChatAccess.js";
+import { unionChannelIds, planRollupChannels } from "./projectChatAccess.js";
 
 let passed = 0, failed = 0;
 function check(name: string, cond: boolean) {
@@ -38,6 +38,20 @@ console.log("unionChannelIds");
 }
 {
   check("no links at all yields nothing", unionChannelIds([], noProject).length === 0);
+}
+
+console.log("planRollupChannels");
+{
+  const a = { projectId: "a", projectName: "A", label: "A", color: "#000000", tagEnabled: false };
+  const b = { ...a, projectId: "b", projectName: "B", label: "B" };
+  const m = planRollupChannels(["C1"], [
+    { badge: a, channelIds: ["C1", "C2", "GPRIV"] },
+    { badge: b, channelIds: ["C2", "C3"] },
+  ]);
+  check("channel the parent links stays local", !m.has("C1"));
+  check("first child wins a shared id", m.get("C2")?.projectId === "a");
+  check("later child keeps its own ids", m.get("C3")?.projectId === "b");
+  check("private child id is only a candidate (readability filter runs after)", m.has("GPRIV"));
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);

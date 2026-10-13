@@ -39,6 +39,7 @@ import { acquireLegacyVaultWrite, releaseLegacyVaultWrite } from "../services/va
 import { autoWatchSoon, notifyVaultCheckin } from "../services/vaultNotificationService.js";
 import { checkoutItem, undoCheckout, VaultCheckoutError } from "../services/vaultCheckoutService.js";
 import { reindexItemSoon } from "../services/vaultSearchService.js";
+import { getRollupChildren } from "../services/subProjectRollupService.js";
 
 export const vaultRouter = Router();
 
@@ -150,24 +151,35 @@ vaultRouter.get("/projects/:projectId/vault", async (req: Request, res: Response
     if (!(await canAccessVaultProject(req.memberId, projectId))) { res.status(403).json({ error: "Forbidden" }); return; }
     const health = await getVaultHealth(projectId);
 
-    const items = await prisma.vaultItem.findMany({
-      where: { projectId, deletedAt: null },
-      orderBy: { updatedAt: "desc" },
+    const itemQuery = {
+      orderBy: { updatedAt: "desc" as const },
       include: {
-        versions: { orderBy: { versionNumber: "desc" }, take: 1, include: { uploadedBy: MEMBER_SUMMARY } },
+        versions: { orderBy: { versionNumber: "desc" as const }, take: 1, include: { uploadedBy: MEMBER_SUMMARY } },
         checkedOutBy: MEMBER_SUMMARY,
-        _count: { select: { crItems: { where: { changeRequest: { status: "OPEN" } } } } },
+        _count: { select: { crItems: { where: { changeRequest: { status: "OPEN" as const } } } } },
       },
-    });
-
-    res.json({
-      health,
-      items: items.map(({ versions, _count, ...item }) => ({
+    };
+    const shape = <T extends { versions: unknown[]; _count: { crItems: number } }>(rows: T[], rollup?: unknown) =>
+      rows.map(({ versions, _count, ...item }) => ({
         ...item,
         latestVersion: versions[0] ?? null,
         openCrCount: _count.crItems,
-      })),
-    });
+        ...(rollup ? { rollup } : {}),
+      }));
+
+    const local = await prisma.vaultItem.findMany({ where: { projectId, deletedAt: null }, ...itemQuery });
+    const items = shape(local);
+
+    // Roll-up: only children whose Vault this member can open. Access is not widened by the parent.
+    if (req.query.rollup === "1") {
+      for (const child of await getRollupChildren(projectId, "vault")) {
+        if (!(await canAccessVaultProject(req.memberId, child.id))) continue;
+        const childRows = await prisma.vaultItem.findMany({ where: { projectId: child.id, deletedAt: null }, ...itemQuery });
+        items.push(...shape(childRows, child.badge));
+      }
+    }
+
+    res.json({ health, items });
   } catch (error) {
     console.error("Get vault error:", error);
     res.status(500).json({ error: "Failed to load vault" });

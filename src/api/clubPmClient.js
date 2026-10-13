@@ -355,7 +355,7 @@ export const updateBlocker      = (id, data) => patch(`/api/blockers/${id}`, dat
 
 // ── Vault (Constellation Vault CAD change management) ──────────
 
-export const getVault             = (projectId) => get(`/api/projects/${projectId}/vault`);
+export const getVault             = (projectId, { rollup } = {}) => get(`/api/projects/${projectId}/vault${rollup ? "?rollup=1" : ""}`);
 export const getVaultItem         = (id) => get(`/api/vault/items/${id}`);
 export const patchVaultItem       = (id, body) => patch(`/api/vault/items/${id}`, body);
 export const deleteVaultItem      = (id) => del(`/api/vault/items/${id}`);
@@ -859,8 +859,9 @@ export const labCheckIn  = (workspaceId)   => post('/api/lab-visits/check-in', {
 export const labCheckOut = (at)            => post('/api/lab-visits/check-out', at ? { at } : {});
 export const labConfirm  = (at)            => post('/api/lab-visits/confirm', at ? { at } : {});
 export const labAllocate = (visitId, taskId) => post(`/api/lab-visits/${encodeURIComponent(visitId)}/allocate`, { taskId });
-export function getProjectTimeInsights(projectId, { from, to } = {}) {
+export function getProjectTimeInsights(projectId, { from, to, rollup } = {}) {
   const q = new URLSearchParams();
+  if (rollup) q.set('rollup', '1');
   if (from) q.set('from', from);
   if (to) q.set('to', to);
   const s = q.toString();
@@ -987,7 +988,10 @@ export const importAlbumPhotos = (id, body) => post(`/api/photo-albums/${encodeU
 // docs/superpowers/specs/2026-07-06-clubpm-drive-multirepo-design.md §4).
 // All repos linked to a project are equal (no "primary" repo); adding a repo
 // appends a new ProjectRepo row rather than replacing a single project field.
-export const listProjectRepos  = (projectId) => get(`/api/github/projects/${projectId}/repos`);
+export const listProjectRepos  = (projectId, { rollup } = {}) =>
+  get(`/api/github/projects/${projectId}/repos${rollup ? "?rollup=1" : ""}`);
+export const getProjectRollup  = (id) => get(`/api/projects/${id}/rollup`);
+export const saveProjectRollup = (id, body) => put(`/api/projects/${id}/rollup`, body);
 export const addProjectRepo    = (projectId, url) => post(`/api/github/projects/${projectId}/repos`, { url });
 export const updateProjectRepo = (repoId, body) => patch(`/api/github/repos/${repoId}`, body);
 export const removeProjectRepo = (repoId) => del(`/api/github/repos/${repoId}`);

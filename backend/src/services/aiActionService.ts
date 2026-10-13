@@ -158,6 +158,9 @@ export function normalizeActionPlan(
   rawActions: unknown, context: ProjectContext, dropped?: DroppedAction[]
 ): ActionPlan {
   const taskIds = new Set(context.tasks.map(t => t.id));
+  // Tasks rolled up from sub-projects. Category blockers and milestones belong to
+  // this project, so an action that attaches or links them may only touch local tasks.
+  const localTaskIds = new Set(context.tasks.filter(t => !t.projectName).map(t => t.id));
   const memberIds = new Set(context.members.map(m => m.id));
   const milestoneIds = new Set(context.milestones.map(m => m.id));
   const blockerIds = new Set(context.activeBlockers.map(b => b.id));
@@ -198,6 +201,10 @@ export function normalizeActionPlan(
       if (!taskIds.has(targetTaskId)) { drop("Points at a task that is not in this project any more. Rebuild the prompt so the plan uses current tasks."); continue; }
     } else if (type !== "LINK_MILESTONE") {
       targetTaskId = null;
+    }
+
+    if (type === "ATTACH_BLOCKER" && targetTaskId && !localTaskIds.has(targetTaskId)) {
+      drop("A blocker can only be attached to a task in this project, not a sub-project's task."); continue;
     }
 
     if (type === "CREATE_TASK") {
@@ -258,9 +265,9 @@ export function normalizeActionPlan(
       if (typeof params.milestoneId !== "string" || !milestoneIds.has(params.milestoneId)) {
         drop("That milestone is not in this project."); continue;
       }
-      if (targetTaskId && !taskIds.has(targetTaskId)) targetTaskId = null;
+      if (targetTaskId && !localTaskIds.has(targetTaskId)) targetTaskId = null;
       const extraIds = Array.isArray(params.taskIds)
-        ? params.taskIds.filter((id: unknown) => typeof id === "string" && taskIds.has(id))
+        ? params.taskIds.filter((id: unknown) => typeof id === "string" && localTaskIds.has(id))
         : [];
       params.taskIds = extraIds;
       if (!targetTaskId && extraIds.length === 0) { drop("None of the tasks it would link are in this project."); continue; }
@@ -305,14 +312,33 @@ export async function executeActionPlan(
 
 // ── Permission / scope helpers ───────────────────────────────────
 
-async function assertTaskInProject(taskId: string, projectId: string): Promise<{ id: string; projectId: string }> {
-  const task = await prisma.task.findUnique({ where: { id: taskId }, select: { id: true, projectId: true } });
-  if (!task || task.projectId !== projectId) throw new Error("Task not found in this project");
-  return task;
+/**
+ * A task is in scope when it belongs to `projectId`, or (unless `localOnly`) to a
+ * non-archived sub-project that rolls its tasks into this project's AI context.
+ * `localOnly` is for actions that write a parent-owned row (category blocker,
+ * milestone): those must never reach a sub-project's task.
+ */
+async function assertTaskInProject(
+  taskId: string, projectId: string, opts: { localOnly?: boolean } = {}
+): Promise<{ id: string; projectId: string }> {
+  const task = await prisma.task.findUnique({
+    where: { id: taskId },
+    select: {
+      id: true, projectId: true,
+      project: { select: { parentId: true, status: true, rollup: { select: { aiContext: true } } } },
+    },
+  });
+  if (!task) throw new Error("Task not found in this project");
+  if (task.projectId === projectId) return task;
+  const p = task.project;
+  if (!opts.localOnly && p.parentId === projectId && p.status !== "ARCHIVED" && p.rollup?.aiContext) return task;
+  throw new Error("Task not found in this project");
 }
 
-async function requireEditable(taskId: string, projectId: string, memberId: string): Promise<void> {
-  await assertTaskInProject(taskId, projectId);
+async function requireEditable(
+  taskId: string, projectId: string, memberId: string, opts: { localOnly?: boolean } = {}
+): Promise<void> {
+  await assertTaskInProject(taskId, projectId, opts);
   const { canEdit } = await getTaskPermissions(memberId, taskId);
   if (!canEdit) throw new Error(`Forbidden: no edit permission on task ${taskId}`);
 }
@@ -507,7 +533,7 @@ async function dispatchAction(projectId: string, memberId: string, action: Actio
 
     case "ATTACH_BLOCKER": {
       const taskId = requireTargetId(action);
-      await requireEditable(taskId, projectId, memberId);
+      await requireEditable(taskId, projectId, memberId, { localOnly: true });
       const { blockerId, reason } = action.params as { blockerId: string; reason?: string | null };
       const blocker = await prisma.blocker.findUnique({ where: { id: blockerId } });
       if (!blocker || blocker.projectId !== projectId || blocker.resolvedAt) {
@@ -594,7 +620,7 @@ async function dispatchAction(projectId: string, memberId: string, action: Actio
         ...(Array.isArray(taskIds) ? taskIds : []),
       ]));
       if (ids.length === 0) throw new Error("At least one task id is required");
-      for (const id of ids) await requireEditable(id, projectId, memberId);
+      for (const id of ids) await requireEditable(id, projectId, memberId, { localOnly: true });
       await prisma.task.updateMany({ where: { id: { in: ids } }, data: { milestoneId } });
       emitTaskChanged(ids);
       await refreshMilestoneHealth(milestoneId);

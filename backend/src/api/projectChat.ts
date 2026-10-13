@@ -20,7 +20,8 @@ projectChatRouter.get(
   requireProjectChatRead,
   async (req: Request, res: Response) => {
     try {
-      const ids = req.chatChannelIds ?? [];
+      const source = req.chatChannelSource ?? new Map();
+      const ids = [...(req.chatChannelIds ?? []), ...source.keys()];
       const archives = await prisma.slackChannelArchive.findMany({
         where: { slackChannelId: { in: ids } },
       });
@@ -37,6 +38,7 @@ projectChatRouter.get(
             lastMessageAt: a?.lastMessageAt ?? null,
             backfillStatus: a?.backfillStatus ?? "NOT_STARTED",
             archived: !!a,
+            rollup: source.get(id) ?? undefined,
           };
         }),
         isAdmin: !!req.chatIsAdmin,
@@ -101,7 +103,12 @@ projectChatRouter.post(
     try {
       const channelId = typeof req.body?.channelId === "string" ? req.body.channelId : null;
       if (!channelId || !(req.chatChannelIds ?? []).includes(channelId)) {
-        return void res.status(400).json({ error: "channelId is not linked to this project" });
+        const rolled = channelId && req.chatChannelSource?.has(channelId);
+        return void res.status(400).json({
+          error: rolled
+            ? "This channel belongs to a sub-project; start the backfill from that project"
+            : "channelId is not linked to this project",
+        });
       }
       res.json(await startBackfill(channelId, { requesterMemberId: req.memberId }));
     } catch (error) {

@@ -13,6 +13,8 @@ export const DEFAULT_INSIGHT_WEEKS = 12;
 export interface InsightPerson { id: string; displayName: string; avatarUrl: string | null; }
 export interface InsightLog {
   taskId: string; memberId: string; minutes: number; loggedAt: Date; labVisitId: string | null;
+  /** Needed only for `byProject`; absent in single-project callers. */
+  projectId?: string;
   member: { displayName: string; avatarUrl: string | null };
 }
 export interface InsightTask {
@@ -27,6 +29,8 @@ export interface TimeInsights {
   totals: { minutes: number; manualMinutes: number; labMinutes: number; unallocatedLabMinutes: number };
   byWeek: { weekStart: Ymd; manualMinutes: number; labMinutes: number }[];
   byMember: { memberId: string; displayName: string; avatarUrl: string | null; minutes: number; labMinutes: number }[];
+  /** Minutes per contributing project; empty unless the caller supplied `projects`. */
+  byProject: { projectId: string; name: string; minutes: number }[];
   tasks: {
     id: string; title: string; status: string; minutes: number; labMinutes: number;
     firstLoggedAt: string | null; completedAt: string | null; activeDays: number | null;
@@ -45,8 +49,9 @@ export function activeDays(firstLoggedAt: Date | null, completedAt: Date | null,
 
 export function buildTimeInsights(input: {
   logs: InsightLog[]; tasks: InsightTask[]; unallocated: number; from: Date; to: Date; now?: Date;
+  projects?: { id: string; name: string }[];
 }): TimeInsights {
-  const { logs, tasks, unallocated, from, to } = input;
+  const { logs, tasks, unallocated, from, to, projects } = input;
   const now = input.now ?? new Date();
   const inRange = logs.filter(l => l.loggedAt >= from && l.loggedAt <= to);
 
@@ -56,9 +61,11 @@ export function buildTimeInsights(input: {
   }
   const members = new Map<string, TimeInsights["byMember"][number]>();
   const perTask = new Map<string, { minutes: number; labMinutes: number }>();
+  const perProject = new Map<string, number>();
   let manual = 0, lab = 0;
 
   for (const l of inRange) {
+    if (l.projectId) perProject.set(l.projectId, (perProject.get(l.projectId) ?? 0) + l.minutes);
     const isLab = l.labVisitId != null;
     if (isLab) lab += l.minutes; else manual += l.minutes;
 
@@ -95,24 +102,35 @@ export function buildTimeInsights(input: {
     totals: { minutes: manual + lab, manualMinutes: manual, labMinutes: lab, unallocatedLabMinutes: unallocated },
     byWeek: [...weeks].map(([weekStart, v]) => ({ weekStart, ...v })),
     byMember: [...members.values()].sort((a, b) => b.minutes - a.minutes || a.displayName.localeCompare(b.displayName)),
+    byProject: (projects ?? [])
+      .map(p => ({ projectId: p.id, name: p.name, minutes: perProject.get(p.id) ?? 0 }))
+      .filter(p => p.minutes > 0)
+      .sort((a, b) => b.minutes - a.minutes || a.name.localeCompare(b.name)),
     tasks: taskRows,
   };
 }
 
-export async function getProjectTimeInsights(projectId: string, opts: { from?: Date; to?: Date } = {}, now = new Date()) {
+/**
+ * `projectIds` may be one id or several; the first is the primary project.
+ * Unallocated lab minutes stay primary-only (a roll-up never claims a child's lab time).
+ */
+export async function getProjectTimeInsights(projectIds: string | string[], opts: { from?: Date; to?: Date } = {}, now = new Date()) {
+  const ids = Array.isArray(projectIds) ? projectIds : [projectIds];
+  const projectId = ids[0]!;
   const to = opts.to ?? now;
   const from = opts.from ?? new Date(to.getTime() - DEFAULT_INSIGHT_WEEKS * 7 * DAY_MS);
 
   const logs = await prisma.timeLog.findMany({
-    where: { task: { projectId }, loggedAt: { gte: from, lte: to } },
+    where: { task: { projectId: { in: ids } }, loggedAt: { gte: from, lte: to } },
     select: {
       taskId: true, memberId: true, minutes: true, loggedAt: true, labVisitId: true,
+      task: { select: { projectId: true } },
       member: { select: { displayName: true, avatarUrl: true } },
     },
   });
   const taskIds = [...new Set(logs.map(l => l.taskId))];
 
-  const [taskRows, firsts, spaces] = await Promise.all([
+  const [taskRows, firsts, spaces, projects] = await Promise.all([
     prisma.task.findMany({
       where: { id: { in: taskIds } },
       select: {
@@ -126,6 +144,9 @@ export async function getProjectTimeInsights(projectId: string, opts: { from?: D
       where: { projects: { some: { projectId } } },
       select: { id: true, _count: { select: { projects: true } } },
     }),
+    ids.length > 1
+      ? prisma.project.findMany({ where: { id: { in: ids } }, select: { id: true, name: true } })
+      : Promise.resolve([]),
   ]);
   const firstBy = new Map(firsts.map(f => [f.taskId, f._min.loggedAt]));
   const soleSpaceIds = spaces.filter(s => s._count.projects === 1).map(s => s.id);
@@ -137,7 +158,8 @@ export async function getProjectTimeInsights(projectId: string, opts: { from?: D
     : 0;
 
   return buildTimeInsights({
-    logs,
+    logs: logs.map(({ task, ...l }) => ({ ...l, projectId: task.projectId })),
+    projects,
     tasks: taskRows.map(t => ({ ...t, firstLoggedAt: firstBy.get(t.id) ?? null })),
     unallocated, from, to, now,
   });
