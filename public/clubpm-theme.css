@@ -17241,6 +17241,315 @@ i.fa-coins { color: #ffd96b; }
   cursor: default;
 }
 
+/* Bulk bar menus (BulkActionBar.jsx): every action opens a panel above the bar. */
+.cpm-bulk-action-bar {
+  flex-wrap: wrap;
+  max-width: calc(100vw - 32px);
+}
+
+.cpm-bulk-bar-menu {
+  position: relative;
+}
+
+.cpm-bulk-bar-btn--open {
+  border-color: var(--clubpm-accent-primary);
+  background: var(--clubpm-surface-300);
+}
+
+.cpm-bulk-bar-caret {
+  font-size: 8px;
+  opacity: 0.6;
+}
+
+.cpm-bulk-bar-text-btn {
+  border: none;
+  background: none;
+  padding: 0 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--clubpm-accent-primary);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.cpm-bulk-bar-text-btn:hover:not(:disabled) {
+  text-decoration: underline;
+}
+
+.cpm-bulk-bar-popover--right {
+  left: auto;
+  right: 0;
+}
+
+.cpm-bulk-bar-popover-heading {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--clubpm-text-muted);
+  padding: 4px 2px 0;
+}
+
+.cpm-bulk-bar-popover-empty {
+  font-size: 11px;
+  color: var(--clubpm-text-muted);
+  text-align: center;
+  padding: 8px 0;
+  margin: 0;
+}
+
+.cpm-bulk-bar-popover-note {
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--clubpm-text-muted);
+  margin: 0;
+}
+
+.cpm-bulk-bar-popover-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cpm-bulk-bar-popover-hint {
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  color: var(--clubpm-text-muted);
+  flex-shrink: 0;
+}
+
+.cpm-bulk-bar-popover-check {
+  font-size: 10px;
+  flex-shrink: 0;
+}
+
+.cpm-bulk-bar-popover-icon {
+  width: 20px;
+  text-align: center;
+  font-size: 11px;
+  color: var(--clubpm-text-secondary);
+  flex-shrink: 0;
+}
+
+.cpm-bulk-bar-popover-avatar {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.cpm-bulk-bar-popover-item:disabled {
+  opacity: 0.45;
+  cursor: default;
+  background: none;
+}
+
+.cpm-bulk-bar-swatch {
+  width: 10px;
+  height: 10px;
+  margin: 0 5px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.cpm-bulk-bar-status-dot,
+.cpm-bulk-bar-priority-dot {
+  width: 8px;
+  height: 8px;
+  margin: 0 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--clubpm-text-muted);
+}
+
+.cpm-bulk-bar-status-dot--in_progress { background: #74b9ff; }
+.cpm-bulk-bar-status-dot--blocked     { background: #e17055; }
+.cpm-bulk-bar-status-dot--done        { background: #00b894; }
+.cpm-bulk-bar-priority-dot--critical  { background: #d63031; }
+.cpm-bulk-bar-priority-dot--high      { background: #e17055; }
+.cpm-bulk-bar-priority-dot--medium    { background: #fdcb6e; }
+.cpm-bulk-bar-priority-dot--low       { background: #74b9ff; }
+
+.cpm-bulk-bar-segment {
+  display: flex;
+  padding: 2px;
+  gap: 2px;
+  border-radius: 6px;
+  background: var(--clubpm-surface-300);
+}
+
+.cpm-bulk-bar-segment-btn {
+  flex: 1;
+  padding: 5px 6px;
+  border: none;
+  border-radius: 5px;
+  background: none;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--clubpm-text-secondary);
+  cursor: pointer;
+}
+
+.cpm-bulk-bar-segment-btn--active {
+  background: var(--clubpm-surface-100);
+  color: var(--clubpm-text-primary);
+}
+
+.cpm-bulk-bar-inline {
+  display: flex;
+  gap: 6px;
+}
+
+.cpm-bulk-bar-inline .cpm-bulk-bar-date {
+  flex: 1;
+  min-width: 0;
+}
+
+.cpm-bulk-bar-inline .cpm-bulk-bar-popover-apply {
+  margin-top: 0;
+  white-space: nowrap;
+}
+
+.cpm-bulk-bar-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.cpm-bulk-bar-chip {
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--clubpm-border);
+  background: var(--clubpm-surface-300);
+  color: var(--clubpm-text-primary);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cpm-bulk-bar-chip:hover:not(:disabled) {
+  border-color: var(--clubpm-accent-primary);
+}
+
+.cpm-bulk-bar-chip:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.cpm-bulk-bar-popover-link {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 2px;
+  border: none;
+  background: none;
+  font-size: 11px;
+  font-weight: 600;
+  color: #e17055;
+  cursor: pointer;
+  text-align: left;
+}
+
+.cpm-bulk-bar-popover-link:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.cpm-bulk-bar-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin: 0;
+  font-size: 11px;
+  color: var(--clubpm-text-secondary);
+}
+
+/* Move-to-project review step */
+.cpm-bulk-move-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--clubpm-text-primary);
+}
+
+.cpm-bulk-move-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: min(52vh, 420px);
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.cpm-bulk-move-section {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.cpm-bulk-move-section--warn {
+  padding: 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(253,203,110,0.35);
+  background: rgba(253,203,110,0.08);
+}
+
+.cpm-bulk-move-section--warn .cpm-bulk-bar-popover-heading {
+  color: #fdcb6e;
+}
+
+.cpm-bulk-move-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--clubpm-border);
+  background: var(--clubpm-surface-300);
+  font-size: 11px;
+  color: var(--clubpm-text-primary);
+}
+
+.cpm-bulk-move-chip .cpm-bulk-bar-swatch {
+  margin: 0;
+}
+
+.cpm-bulk-move-new {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--clubpm-accent-primary);
+}
+
+.cpm-bulk-move-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 12px;
+  color: var(--clubpm-text-primary);
+  cursor: pointer;
+}
+
+.cpm-bulk-move-linked {
+  padding: 4px 6px;
+  border-radius: 5px;
+}
+
+.cpm-bulk-move-linked:hover {
+  background: var(--clubpm-surface-300);
+}
+
+.cpm-bulk-move-error {
+  margin: 0;
+  font-size: 12px;
+  color: #e17055;
+}
+
 /* â”€â”€ ClubPM: BLOCKED column sub-bins â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .cpm-blocked-subbin {

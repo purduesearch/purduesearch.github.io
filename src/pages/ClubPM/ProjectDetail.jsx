@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import { createPortal } from "react-dom";
 import { useParams, Link, useSearchParams, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
-import { get, post, patch, setNextRewardOrigin, bulkArchive, unarchiveTask, getArchivedTasks, getProjectBlockers, createBlocker, updateBlocker } from "../../api/clubPmClient";
+import { get, post, patch, setNextRewardOrigin, bulkArchive, bulkMoveTasks, bulkDuplicateTasks, unarchiveTask, getArchivedTasks, getProjectBlockers, createBlocker, updateBlocker } from "../../api/clubPmClient";
 import MemberBadge from "../../components/clubpm/MemberBadge";
 import LabTimeButton from "../../components/clubpm/labschedule/LabTimeButton";
 import LabPresenceCard from "../../components/clubpm/labschedule/LabPresenceCard";
@@ -2936,11 +2936,21 @@ export default function ProjectDetail() {
         setSelectedTaskIds(new Set());
         setSelectedMemberIds(new Set());
         setLastClickedId(null);
+        return;
+      }
+      // Ctrl/Cmd+A selects every visible task once a selection has started,
+      // so it never hijacks the browser's select-all on an idle board.
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "a" && selectedTaskIds.size > 0 && activeTab === "tasks" && !selectedTask) {
+        const el = e.target;
+        const editable = el?.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(el?.tagName);
+        if (editable) return;
+        e.preventDefault();
+        setSelectedTaskIds(new Set(flatTaskOrder));
       }
     };
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
-  }, [selectedTaskIds, selectedMemberIds]);
+  }, [selectedTaskIds, selectedMemberIds, activeTab, selectedTask, flatTaskOrder]);
 
   useEffect(() => {
     setSelectedTaskIds(new Set());
@@ -3396,31 +3406,117 @@ export default function ProjectDetail() {
     setLastClickedId(null);
   };
 
+  // Selected rows as task objects (top-level and subtasks), for the bulk bar.
+  const selectedTasks = useMemo(() => {
+    if (!project || selectedTaskIds.size === 0) return [];
+    const out = [];
+    for (const t of project.tasks ?? []) {
+      if (selectedTaskIds.has(t.id)) out.push(t);
+      for (const s of t.subtasks ?? []) if (selectedTaskIds.has(s.id)) out.push({ ...s, parentTaskId: s.parentTaskId ?? t.id });
+    }
+    return out;
+  }, [project, selectedTaskIds]);
+
+  const reportSkipped = (skipped, verb) => {
+    if (!skipped?.length) return;
+    const reasons = [...new Set(skipped.map(s => s.reason))].join("; ");
+    toast.error(`${skipped.length} task(s) not ${verb}: ${reasons}`, { duration: 6000 });
+  };
+
+  // Fields that can be applied to the local copy immediately; relative and
+  // relational edits (add/remove sets, shifts, nesting) wait for the refetch.
+  const OPTIMISTIC_BULK_FIELDS = ["status", "priority", "storyPoints", "estimatedHours"];
+
+  // Selection is kept after an edit so several fields can be changed in a row.
   const handleBulkPatch = async (patchFields) => {
     if (selectedTaskIds.size === 0) return;
     const ids = [...selectedTaskIds];
+    const optimistic = Object.fromEntries(Object.entries(patchFields).filter(([k]) => OPTIMISTIC_BULK_FIELDS.includes(k)));
+    if (typeof patchFields.dueDate === "string") optimistic.dueDate = patchFields.dueDate;
     setBulkActing(true);
-    setProject(prev => prev ? {
-      ...prev,
-      tasks: prev.tasks.map(t => {
-        let next = selectedTaskIds.has(t.id) ? { ...t, ...patchFields } : t;
-        if (next.subtasks?.length) {
-          next = { ...next, subtasks: next.subtasks.map(s => selectedTaskIds.has(s.id) ? { ...s, ...patchFields } : s) };
-        }
-        return next;
-      }),
-    } : prev);
+    if (Object.keys(optimistic).length > 0) {
+      setProject(prev => prev ? {
+        ...prev,
+        tasks: prev.tasks.map(t => {
+          let next = selectedTaskIds.has(t.id) ? { ...t, ...optimistic } : t;
+          if (next.subtasks?.length) {
+            next = { ...next, subtasks: next.subtasks.map(s => selectedTaskIds.has(s.id) ? { ...s, ...optimistic } : s) };
+          }
+          return next;
+        }),
+      } : prev);
+    }
     try {
       const res = await patch("/api/tasks/bulk", { ids, patch: patchFields });
-      if (res.skipped?.length > 0) {
-        alert(`${res.skipped.length} task(s) were skipped:\n` + res.skipped.map(s => `- ${s.reason}`).join("\n"));
-      }
+      const changed = res.updated?.length ?? 0;
+      if (changed > 0) toast.success(`Updated ${changed} task${changed === 1 ? "" : "s"}`);
+      else if (!res.skipped?.length) toast("Nothing to change", { icon: "ℹ️" });
+      reportSkipped(res.skipped, "updated");
     } catch (err) {
-      alert(err?.message ?? "Bulk update failed");
+      toast.error(err?.message ?? "Bulk update failed");
     } finally {
       setBulkActing(false);
       fetchProject();
+      if (patchFields.addBlockerIds || patchFields.removeBlockerIds) fetchBlockers();
+    }
+  };
+
+  // extraIds: dependency-linked tasks the member chose to bring along in the
+  // move review; addMissingMembers: keep outside assignees by adding them.
+  const handleBulkMove = async (targetProjectId, targetName, { extraIds = [], addMissingMembers = true } = {}) => {
+    if (selectedTaskIds.size === 0) return;
+    const ids = [...new Set([...selectedTaskIds, ...extraIds])];
+    setBulkActing(true);
+    try {
+      const res = await bulkMoveTasks(ids, targetProjectId, { addMissingMembers });
+      const moved = res.moved?.length ?? 0;
+      if (moved > 0) {
+        const c = res.created ?? {};
+        const extras = [
+          c.tags && `${c.tags} tag${c.tags === 1 ? "" : "s"}`,
+          c.blockers && `${c.blockers} blocker${c.blockers === 1 ? "" : "s"}`,
+          c.milestones && `${c.milestones} milestone${c.milestones === 1 ? "" : "s"}`,
+          c.members && `${c.members} member${c.members === 1 ? "" : "s"}`,
+        ].filter(Boolean);
+        toast.success(`Moved ${moved} task${moved === 1 ? "" : "s"} to ${targetName}` + (extras.length ? ` (added ${extras.join(", ")})` : ""));
+      }
+      reportSkipped(res.skipped, "moved");
+      if (selectedTask && res.moved?.includes(selectedTask.id)) setSelectedTask(null);
       clearSelection();
+    } catch (err) {
+      toast.error(err?.message ?? "Move failed");
+    } finally {
+      setBulkActing(false);
+      fetchProject();
+    }
+  };
+
+  const handleBulkDuplicate = async () => {
+    if (selectedTaskIds.size === 0) return;
+    setBulkActing(true);
+    try {
+      const res = await bulkDuplicateTasks([...selectedTaskIds]);
+      const created = res.created ?? [];
+      if (created.length > 0) toast.success(`Duplicated ${created.length} task${created.length === 1 ? "" : "s"}`);
+      reportSkipped(res.skipped, "duplicated");
+      // Select the copies so they can be edited straight away.
+      if (created.length > 0) setSelectedTaskIds(new Set(created.map(t => t.id)));
+    } catch (err) {
+      toast.error(err?.message ?? "Duplicate failed");
+    } finally {
+      setBulkActing(false);
+      fetchProject();
+    }
+  };
+
+  const handleBulkCopyLinks = async () => {
+    const base = `${window.location.origin}/clubpm/projects/${id}?task=`;
+    const text = selectedTasks.map(t => `${t.title} — ${base}${t.id}`).join("\n");
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success(`Copied ${selectedTasks.length} link${selectedTasks.length === 1 ? "" : "s"}`);
+    } catch {
+      toast.error("Clipboard is unavailable");
     }
   };
 
@@ -4229,14 +4325,21 @@ export default function ProjectDetail() {
 
       {activeTab === "tasks" && canEdit && (
         <BulkActionBar
-          count={selectedTaskIds.size}
+          selectedTasks={selectedTasks}
+          projectId={project.id}
           projectMembers={(project.members ?? []).map(pm => pm.member ?? pm)}
+          milestones={project.milestones ?? []}
+          blockers={projectBlockers}
+          projects={allProjects}
+          parentCandidates={project.tasks ?? []}
+          totalVisible={flatTaskOrder.length}
           busy={bulkActing}
           deleteConfirm={bulkDeleteConfirm}
-          onAssign={(memberIds) => handleBulkPatch({ assigneeIds: memberIds })}
-          onDueDate={(iso) => handleBulkPatch({ dueDate: iso })}
-          onStatus={(status) => handleBulkPatch({ status })}
-          onPriority={(priority) => handleBulkPatch({ priority })}
+          onPatch={handleBulkPatch}
+          onMove={handleBulkMove}
+          onDuplicate={handleBulkDuplicate}
+          onCopyLinks={handleBulkCopyLinks}
+          onSelectAll={() => setSelectedTaskIds(new Set(flatTaskOrder))}
           onArchive={handleBulkArchive}
           onRequestDelete={() => setBulkDeleteConfirm(true)}
           onCancelDelete={() => setBulkDeleteConfirm(false)}

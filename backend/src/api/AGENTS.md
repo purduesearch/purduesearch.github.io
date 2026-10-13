@@ -42,7 +42,10 @@ GET    /api/tasks/search                        full-text search (max 20)
 POST   /api/tasks/check-duplicates              AI duplicate detection
 POST   /api/tasks/create-from-nl               NL → structured task
 POST   /api/tasks/create-from-image            screenshot → task extraction
-PATCH  /api/tasks/bulk                         bulk updates with completion invariants
+PATCH  /api/tasks/bulk                         { ids, patch } — per-task patch via taskBulkCore.planTaskPatch → updateTaskAsMember (status, priority, progress, dueDate|null, dueShiftDays, assigneeIds|add|remove, tagIds|add|remove, milestoneId|null, storyPoints, estimatedHours, add/removeBlockerIds, parentTaskId|null)
+POST   /api/tasks/bulk-move/preview            { ids, projectId } — dry run: tags/blockers/milestones matched or to-create, assignees outside target, dependency-linked tasks
+POST   /api/tasks/bulk-move                    { ids, projectId, addMissingMembers? } — move via services/taskMoveService.ts; subtasks follow parent; tags/blockers/milestones matched by name or created; deps kept; outside assignees added as manual members (default) or unassigned; no notifications
+POST   /api/tasks/bulk-duplicate               { ids } — "(copy)" of each task as TODO, no subtasks/comments/time; no assignment notifications
 POST   /api/tasks/bulk-delete                  bulk hard delete with permission checks
 POST   /api/tasks/bulk-archive                 bulk archive
 GET    /api/tasks/:id                           single task + assignees + milestone

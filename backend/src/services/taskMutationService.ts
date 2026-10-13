@@ -460,6 +460,8 @@ export async function createTaskAsMember(
   actorId: string | null,
   input: CreateTaskInput,
   source: MutationSource,
+  /** notify: false skips assignment notifications (e.g. bulk duplicate). */
+  opts: { notify?: boolean } = {},
 ): Promise<any> {
   const { attachments, ...taskInput } = input;
   let task = await createTask({ ...taskInput, createdById: actorId ?? undefined });
@@ -477,7 +479,9 @@ export async function createTaskAsMember(
     payload: { taskTitle: task.title, priority: task.priority, assigneeNames: task.assignees.map(a => a.displayName),
       ...(source === "AI" ? { viaAiPlan: true } : {}), },
   }).catch(console.error);
-  await notifyAddedAssignees({ taskId: task.id, actorId, addedAssigneeIds: task.assignees.map(a => a.id) }).catch(console.error);
+  if (opts.notify !== false) {
+    await notifyAddedAssignees({ taskId: task.id, actorId, addedAssigneeIds: task.assignees.map(a => a.id) }).catch(console.error);
+  }
   return task;
 }
 

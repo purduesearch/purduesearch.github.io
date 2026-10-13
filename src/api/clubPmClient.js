@@ -338,6 +338,9 @@ export const removeIcsFeed = ()           => del('/api/members/me/ics-feed');
 export const archiveTask       = (id) => post(`/api/tasks/${id}/archive`, {});
 export const unarchiveTask     = (id) => post(`/api/tasks/${id}/unarchive`, {});
 export const bulkArchive       = (ids, archived) => post(`/api/tasks/bulk-archive`, { ids, archived });
+export const previewBulkMove   = (ids, projectId) => post(`/api/tasks/bulk-move/preview`, { ids, projectId });
+export const bulkMoveTasks     = (ids, projectId, opts = {}) => post(`/api/tasks/bulk-move`, { ids, projectId, ...opts });
+export const bulkDuplicateTasks = (ids) => post(`/api/tasks/bulk-duplicate`, { ids });
 export const getArchivedTasks  = (projectId) => get(`/api/projects/${projectId}/tasks?archived=1`);
 
 // Slack backlinks (filtered by the viewer's conversation access).
