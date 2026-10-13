@@ -159,7 +159,7 @@ export default function ProjectAdminModal({ projectId, onClose, onDeleted, onCha
           {project && (
             <>
               {/* Sub-projects */}
-              <section className="cpm-proj-admin-section">
+              <div className="cpm-proj-admin-section">
                 <h3 className="cpm-proj-admin-title">Sub-projects</h3>
                 {isChild ? (
                   <p className="cpm-proj-edit-hint">
@@ -239,10 +239,10 @@ export default function ProjectAdminModal({ projectId, onClose, onDeleted, onCha
                     </select>
                   </label>
                 )}
-              </section>
+              </div>
 
               {isChild && (
-                <section className="cpm-proj-admin-section">
+                <div className="cpm-proj-admin-section">
                   <h3 className="cpm-proj-admin-title">Roll-up into parent</h3>
                   <SubProjectRollupSettings
                     projectId={projectId}
@@ -251,11 +251,11 @@ export default function ProjectAdminModal({ projectId, onClose, onDeleted, onCha
                     canEdit={true}
                     onSaved={onChanged}
                   />
-                </section>
+                </div>
               )}
 
               {/* Members */}
-              <section className="cpm-proj-admin-section">
+              <div className="cpm-proj-admin-section">
                 <h3 className="cpm-proj-admin-title">Members</h3>
                 <p className="cpm-proj-edit-hint">
                   {project.slackChannelId
@@ -300,10 +300,10 @@ export default function ProjectAdminModal({ projectId, onClose, onDeleted, onCha
                     ))}
                   </ul>
                 )}
-              </section>
+              </div>
 
               {/* Danger zone */}
-              <section className="cpm-proj-admin-section cpm-proj-admin-danger">
+              <div className="cpm-proj-admin-section cpm-proj-admin-danger">
                 <h3 className="cpm-proj-admin-title">Archive or delete</h3>
                 <div className="cpm-proj-admin-inline">
                   <button type="button" className="cpm-proj-edit-cancel" disabled={busy} onClick={toggleArchive}>
@@ -338,7 +338,7 @@ export default function ProjectAdminModal({ projectId, onClose, onDeleted, onCha
                 >
                   <i className="fas fa-trash" aria-hidden="true" /> Delete project permanently
                 </button>
-              </section>
+              </div>
             </>
           )}
 
