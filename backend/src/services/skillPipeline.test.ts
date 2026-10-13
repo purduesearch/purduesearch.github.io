@@ -284,5 +284,33 @@ const env = { SKILLS_BATCH_MIN_ITEMS: "1000" } as NodeJS.ProcessEnv;
   check("evidence written with empty embedding when embed fails", st.written.length === 1 && st.written[0].embedLen === 0 && r.counts.embedFailed === 1);
 }
 
+// ── heartbeat, cancel, taxonomy bootstrap ──
+{
+  const st = memoryStore(); const llm = fakeLlm();
+  const beats: string[] = [];
+  let seeded = 0;
+  st.store.heartbeat = async (_id, a) => { beats.push(a.progress.stage); return { cancel: a.progress.stage === "analyze" && a.progress.done >= 1 }; };
+  st.store.ensureTaxonomy = async () => { seeded++; return 5; };
+  const arts = [art({ sourceRef: "c1" }), art({ sourceRef: "c2" }), art({ sourceRef: "c3" })];
+  const r = await runSkillPipeline({ trigger: "CRON" }, { store: st.store, llm, now: () => NOW, env: { ...env, SKILLS_CONCURRENCY: "1", SKILLS_HEARTBEAT_MS: "0" } as NodeJS.ProcessEnv, collectors: collectors({ task: result(arts) }) });
+  check("empty taxonomy bootstrapped once and counted", seeded === 1 && r.counts.starterSkillsInstalled === 5);
+  check("progress reported per stage", beats.includes("collect:github") && beats.includes("analyze"));
+  check("cancel stops the run as FAILED without moving watermarks", r.status === "FAILED" && r.reason === "cancelled" && Object.keys(r.watermarks).length === 0 && st.written.length === 0);
+  check("cancelled run stops calling the model", llm.calls < arts.length);
+}
+
+// ── proposal-only work is recorded so approving the proposal can credit it ──
+{
+  const st = memoryStore();
+  const llm = fakeLlm({ proposal: "Kubernetes" });
+  llm.generateJson = async () => ({ text: JSON.stringify({ skills: [], proposedSkills: [{ name: "Kubernetes", type: "TOOL", rationale: "deploys" }], contribution: "AUTHORED", complexity: 3, outcome: "MERGED", summary: "Deployed the API to a cluster." }), usage: { tokensIn: 10, tokensOut: 5 } });
+  const seen: (string | null | undefined)[] = [];
+  const orig = st.store.proposal;
+  st.store.proposal = async (input, ctx) => { seen.push(input.evidenceId); return orig(input, ctx); };
+  await runSkillPipeline({ trigger: "CRON" }, { store: st.store, llm, now: () => NOW, env, collectors: collectors({ task: result([art({ sourceRef: "k1" })]) }) });
+  check("untagged evidence written and linked to the proposal", st.written.length === 1 && st.written[0].skills.length === 0 && seen[0] === "ev-1");
+  check("untagged evidence does not trigger recompute", st.recomputed.length === 0);
+}
+
 console.log(`skillPipeline: ${passed} passed, ${failed} failed`);
 if (failed) process.exit(1);

@@ -26,6 +26,7 @@ on:
           - engagement
           - challenges
           - engagement+challenges
+          - skills
         default: engagement
 
 jobs:
@@ -65,6 +66,10 @@ jobs:
                 npm run seed:engagement
                 echo "== npm run seed:challenges =="
                 npm run seed:challenges
+                ;;
+              skills)
+                echo "== npm run seed:skills =="
+                npm run seed:skills
                 ;;
               *)
                 echo "Unknown seed target: $SEED_TARGET" >&2

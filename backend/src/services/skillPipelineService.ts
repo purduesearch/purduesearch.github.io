@@ -25,8 +25,9 @@ import {
 import { PROMPT_VERSION, RUBRIC_VERSION, type SkillArtifact } from "./skillPrompts.js";
 import { buildAliasIndex } from "./skillMatchCore.js";
 import {
-  loadSkillLites, loadSuppressed, recordProposal, type ProposalOutcome, type ProposedSkillInput,
+  loadSkillLites, loadSuppressed, recordProposal, seedTaxonomy, type ProposalOutcome, type ProposedSkillInput,
 } from "./skillTaxonomyService.js";
+import { SEED_SKILLS } from "./skillSeedData.js";
 
 // ── Store (all I/O) ──────────────────────────────────────────
 
@@ -55,7 +56,15 @@ export interface PipelineStore {
   write(a: SkillArtifact, analysis: Parameters<typeof writeEvidence>[1], embedding: number[], meta: Parameters<typeof writeEvidence>[3]): Promise<string | null>;
   recompute(memberIds: string[], modelVersion: string | null): Promise<{ members: number; upserted: number; removed: number }>;
   finishRun(id: string, patch: RunPatch): Promise<void>;
+  /** Extend the lease, publish progress, and report whether an admin asked to stop. Optional in tests. */
+  heartbeat?(id: string, a: { leaseMinutes: number; progress: RunProgress; now: Date }): Promise<{ cancel: boolean }>;
+  /** Install the starter taxonomy when there are no active skills at all. Returns how many were created. */
+  ensureTaxonomy?(): Promise<number>;
 }
+
+export interface RunProgress { stage: string; done: number; total: number }
+
+export class RunCancelled extends Error { constructor() { super("cancelled by an admin"); } }
 
 export const prismaStore: PipelineStore = {
   async startRun(a) {
@@ -105,10 +114,23 @@ export const prismaStore: PipelineStore = {
   proposal: (input, ctx) => recordProposal(input, ctx),
   write: (a, analysis, embedding, meta) => writeEvidence(a, analysis, embedding, meta),
   async recompute(memberIds, modelVersion) { return recomputeMembers(memberIds, { modelVersion }); },
+  async heartbeat(id, a) {
+    const row = await prisma.skillRun.update({
+      where: { id },
+      data: { leaseUntil: new Date(a.now.getTime() + a.leaseMinutes * 60_000), progress: { ...a.progress, updatedAt: a.now.toISOString() } },
+      select: { cancelRequested: true },
+    });
+    return { cancel: row.cancelRequested };
+  },
+  async ensureTaxonomy() {
+    if (await prisma.skill.count({ where: { status: "ACTIVE" } })) return 0;
+    return (await seedTaxonomy(SEED_SKILLS)).created;
+  },
   async finishRun(id, p) {
     await prisma.skillRun.update({
       where: { id },
       data: {
+        progress: Prisma.DbNull, leaseUntil: null,
         status: p.status, finishedAt: p.finishedAt, watermarks: p.watermarks, counts: p.counts, tokensIn: p.tokensIn, tokensOut: p.tokensOut,
         embedTokens: p.embedTokens, estCostUsd: p.estCostUsd, errors: p.errors.slice(0, 50), modelVersion: p.modelVersion,
       },
@@ -181,21 +203,42 @@ export async function runSkillPipeline(opts: PipelineOptions, deps: PipelineDeps
   const bump = (k: string, n = 1) => { c[k] = (c[k] ?? 0) + n; };
   const err = (stage: string, message: string) => { if (summary.errors.length < 50) summary.errors.push({ stage, message: message.slice(0, 300) }); };
 
+  // Short lease, renewed by heartbeats: a run killed by a deploy or crash frees the slot in minutes, not hours.
+  const leaseMinutes = intEnv(env.SKILLS_RUN_LEASE_MINUTES, 20);
   if (!opts.dryRun) {
     const runId = await store.startRun({
       trigger: opts.trigger, scope: opts.memberIds?.length ? { memberIds: opts.memberIds } : explicitWindow ? { since: opts.since, until: opts.until } : null,
-      leaseMinutes: intEnv(env.SKILLS_RUN_LEASE_MINUTES, 240), startedById: opts.startedById, now,
+      leaseMinutes, startedById: opts.startedById, now,
     });
     if (!runId) return { ...summary, status: "SKIPPED", reason: "another skills run is in progress" };
     summary.runId = runId;
   }
 
+  let lastBeat = 0;
+  const beatEveryMs = Number.isFinite(Number(env.SKILLS_HEARTBEAT_MS)) && env.SKILLS_HEARTBEAT_MS !== "" && env.SKILLS_HEARTBEAT_MS !== undefined ? Number(env.SKILLS_HEARTBEAT_MS) : 5_000;
+  /** Throttled to one write per 5 s unless forced (stage changes). Throws RunCancelled when asked to stop. */
+  const beat = async (progress: RunProgress, force = false, leaseFor = leaseMinutes) => {
+    if (!summary.runId || !store.heartbeat) return;
+    const t = Date.now();
+    if (!force && t - lastBeat < beatEveryMs) return;
+    lastBeat = t;
+    const r = await store.heartbeat(summary.runId, { leaseMinutes: leaseFor, progress, now: new Date() }).catch(() => ({ cancel: false }));
+    if (r.cancel) throw new RunCancelled();
+  };
+
   try {
+    // 0. A fresh install has no skills; every analysis would come back empty.
+    if (store.ensureTaxonomy) {
+      const seeded = await store.ensureTaxonomy();
+      if (seeded) { bump("starterSkillsInstalled", seeded); log(`[skills] installed ${seeded} starter skills`); }
+    }
+
     // 1. Collect
     const previous = explicitWindow ? {} : await store.previousWatermarks();
     const origins: Origin[] = [];
     const collected = new Map<CollectorName, { ok: boolean; result: CollectResult | null }>();
-    for (const name of COLLECTORS) {
+    for (const [ci, name] of COLLECTORS.entries()) {
+      await beat({ stage: `collect:${name}`, done: ci, total: COLLECTORS.length }, true);
       const win: CollectWindow = {
         ...computeWindow({ now, lastWatermark: previous[name] ?? null, initialLookbackDays, sinceOverride: opts.since, untilOverride: opts.until }),
         memberIds: opts.memberIds, maxArtifacts: collectCap, maxChars: maxArtifactChars(env),
@@ -245,11 +288,22 @@ export async function runSkillPipeline(opts: PipelineOptions, deps: PipelineDeps
     // 4. Analyse
     const useBatch = !!llm!.batchGenerateJson && work.length >= batchThreshold;
     const outcomes = new Map<number, AnalysisOutcome>();
+    // A batch job is one long wait with no checkpoints: hold the lease for its whole timeout.
+    await beat({ stage: useBatch ? "analyze:batch" : "analyze", done: 0, total: work.length }, true,
+      useBatch ? Math.max(leaseMinutes, intEnv(env.SKILLS_BATCH_TIMEOUT_MINUTES, 180) + 15) : leaseMinutes);
     if (useBatch) {
       const batched = await analyzeArtifactsBatch(work.map((o, i) => ({ id: String(i), artifact: o.artifact })), taxonomy, llm!);
       for (const [k, v] of batched) outcomes.set(Number(k), v);
     } else {
-      await mapPool(work, concurrency, async (o, i) => { outcomes.set(i, await analyzeArtifact(o.artifact, taxonomy, llm!)); });
+      let done = 0;
+      let cancelled = false;
+      await mapPool(work, concurrency, async (o, i) => {
+        if (cancelled) return;
+        outcomes.set(i, await analyzeArtifact(o.artifact, taxonomy, llm!));
+        done++;
+        try { await beat({ stage: "analyze", done, total: work.length }); } catch (e) { if (e instanceof RunCancelled) cancelled = true; else throw e; }
+      });
+      if (cancelled) throw new RunCancelled();
     }
 
     type Ready = { o: Origin; analysis: Extract<AnalysisOutcome, { status: "ok" }>["analysis"] };
@@ -273,6 +327,7 @@ export async function runSkillPipeline(opts: PipelineOptions, deps: PipelineDeps
     });
 
     // 5. Embed, write evidence, queue proposals
+    await beat({ stage: "write", done: 0, total: ready.length }, true);
     const withSkills = ready.filter((r) => r.analysis.skills.length > 0);
     let vectors: number[][] = [];
     if (withSkills.length) {
@@ -286,12 +341,18 @@ export async function runSkillPipeline(opts: PipelineOptions, deps: PipelineDeps
     }
     const meta = { modelVersion: llm!.modelVersion, promptVersion: PROMPT_VERSION, rubricVersion: RUBRIC_VERSION, runId: summary.runId };
     const touched = new Set<string>();
-    for (const r of ready) {
+    for (const [ri, r] of ready.entries()) {
+      await beat({ stage: "write", done: ri, total: ready.length });
       let evidenceId: string | null = null;
       if (r.analysis.skills.length > 0) {
         const vec = vectors[withSkills.indexOf(r)] ?? [];
         evidenceId = await store.write(r.o.artifact, r.analysis, vec, meta);
         if (evidenceId) { bump("evidenceWritten"); touched.add(r.o.artifact.memberId); } else bump("duplicateSkipped");
+      } else if (r.analysis.proposed.length > 0) {
+        // Work that only shows a not-yet-listed skill is still recorded (with no tags), so approving
+        // the proposal can credit it straight away instead of waiting for a backfill.
+        evidenceId = await store.write(r.o.artifact, r.analysis, [], meta);
+        bump("noSkillSignal");
       } else bump("noSkillSignal");
       for (const p of r.analysis.proposed) {
         const res = await store.proposal({ name: p.name, type: p.type, rationale: p.rationale, evidenceId, runId: summary.runId }, { index: taxonomy.index, suppressed });
@@ -302,6 +363,7 @@ export async function runSkillPipeline(opts: PipelineOptions, deps: PipelineDeps
 
     // 6. Assessments for everyone whose evidence changed
     if (touched.size) {
+      await beat({ stage: "recompute", done: 0, total: touched.size }, true);
       const rec = await store.recompute([...touched], llm!.modelVersion);
       bump("membersRecomputed", rec.members); bump("assessmentsWritten", rec.upserted);
     }
@@ -320,7 +382,8 @@ export async function runSkillPipeline(opts: PipelineOptions, deps: PipelineDeps
     summary.status = runStatus({ collectorsTotal: COLLECTORS.length, collectorsFailed: c.collectorsFailed ?? 0, analyzed: c.analyzed ?? 0, failed: (c.failed ?? 0) + (c.invalid ?? 0) });
   } catch (e) {
     summary.status = "FAILED";
-    err("pipeline", String((e as Error)?.stack ?? e));
+    if (e instanceof RunCancelled) { summary.reason = "cancelled"; err("cancelled", "An admin stopped this run. Evidence already written is kept; watermarks did not move."); }
+    else err("pipeline", String((e as Error)?.stack ?? e));
   }
 
   if (summary.runId) {

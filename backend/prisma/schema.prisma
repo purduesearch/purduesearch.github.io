@@ -3530,6 +3530,8 @@ model SkillProposal {
   runId            String?
   /// How many artifacts proposed it (bumped on dedupe).
   seenCount        Int                 @default(1)
+  /// Every evidence row whose analysis proposed this name; linked to the skill on approve/merge.
+  evidenceIds      String[]            @default([])
   status           SkillProposalStatus @default(PENDING)
   mergedIntoId     String?
   createdSkillId   String?
@@ -3666,35 +3668,41 @@ model SkillProjectVisibility {
 
 /// A public portfolio exists only while enabled = true (opt-in).
 model MemberPortfolio {
-  memberId  String   @id
-  member    Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
-  slug      String   @unique
-  enabled   Boolean  @default(false)
-  headline  String?
-  updatedAt DateTime @updatedAt
+  memberId      String   @id
+  member        Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  slug          String   @unique
+  enabled       Boolean  @default(false)
+  headline      String?
+  /// Public skills appear on the member's in-app profile for other members. Independent of `enabled`.
+  showOnProfile Boolean  @default(true)
+  updatedAt     DateTime @updatedAt
 }
 
 model SkillRun {
-  id            String          @id @default(cuid())
-  trigger       SkillRunTrigger
-  status        SkillRunStatus  @default(RUNNING)
-  startedAt     DateTime        @default(now())
-  finishedAt    DateTime?
+  id              String          @id @default(cuid())
+  trigger         SkillRunTrigger
+  status          SkillRunStatus  @default(RUNNING)
+  startedAt       DateTime        @default(now())
+  finishedAt      DateTime?
   /// Overlap guard: a RUNNING run past this is considered dead.
-  leaseUntil    DateTime?
+  leaseUntil      DateTime?
   /// { github?: ISO, cad?: ISO, task?: ISO } -- advanced only on success.
-  watermarks    Json            @default("{}")
+  watermarks      Json            @default("{}")
   /// { seen, analyzed, skipped, failed, evidenceWritten, proposals, assessments }
-  counts        Json            @default("{}")
-  tokensIn      Int             @default(0)
-  tokensOut     Int             @default(0)
-  embedTokens   Int             @default(0)
-  estCostUsd    Float           @default(0)
-  errors        Json            @default("[]")
-  scope         Json?
-  modelVersion  String?
-  promptVersion String?
-  startedById   String?
+  counts          Json            @default("{}")
+  tokensIn        Int             @default(0)
+  tokensOut       Int             @default(0)
+  embedTokens     Int             @default(0)
+  estCostUsd      Float           @default(0)
+  errors          Json            @default("[]")
+  scope           Json?
+  modelVersion    String?
+  promptVersion   String?
+  startedById     String?
+  /// Live progress while RUNNING: { stage, done, total, updatedAt }. Null once finished.
+  progress        Json?
+  /// Set by an admin; the run stops at its next checkpoint and finishes as FAILED ("cancelled").
+  cancelRequested Boolean         @default(false)
 
   @@index([status, startedAt])
 }

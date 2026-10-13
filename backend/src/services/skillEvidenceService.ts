@@ -44,11 +44,11 @@ export async function writeEvidence(
   const banned = new Set((await db.skillDispute.findMany({ where: { memberId: a.memberId, status: "UPHELD" }, select: { skillId: true } })).map((d) => d.skillId));
   if (banned.size) {
     const skills = analysis.skills.filter((s) => !banned.has(s.skillId));
-    if (!skills.length) return null;
+    if (!skills.length && analysis.skills.length) return null;
     analysis = { ...analysis, skills };
   }
   try {
-    return await (db === prisma ? prisma.$transaction((tx) => insert(tx)) : insert(db as Prisma.TransactionClient));
+    return await (db === prisma ? prisma.$transaction((tx) => insert(tx), { timeout: 30_000, maxWait: 15_000 }) : insert(db as Prisma.TransactionClient));
   } catch (err) {
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") return null; // concurrent identical write
     throw err;

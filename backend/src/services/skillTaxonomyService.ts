@@ -17,6 +17,8 @@ import {
   type SkillLite,
 } from "./skillMatchCore.js";
 import type { SeedSkill } from "./skillSeedData.js";
+import { recomputeMembers } from "./skillAssessmentService.js";
+import { MAPPED_PROPOSAL_FIT } from "./skillValidateCore.js";
 
 type Db = typeof prisma | Prisma.TransactionClient;
 
@@ -197,7 +199,10 @@ export async function recordProposal(input: ProposedSkillInput, ctx: { index: Al
   const nameNorm = normalizeSkillName(input.name);
   const pending = await db.skillProposal.findFirst({ where: { nameNorm, status: "PENDING" }, select: { id: true } });
   if (pending) {
-    await db.skillProposal.update({ where: { id: pending.id }, data: { seenCount: { increment: 1 } } });
+    await db.skillProposal.update({
+      where: { id: pending.id },
+      data: { seenCount: { increment: 1 }, ...(input.evidenceId ? { evidenceIds: { push: input.evidenceId } } : {}) },
+    });
     return { kind: "queued", proposalId: pending.id, isNew: false };
   }
   const row = await db.skillProposal.create({
@@ -209,6 +214,7 @@ export async function recordProposal(input: ProposedSkillInput, ctx: { index: Al
       suggestedParents: (input.parentSlugs ?? []).slice(0, 4),
       rationale: input.rationale?.slice(0, 500) ?? null,
       evidenceId: input.evidenceId ?? null,
+      evidenceIds: input.evidenceId ? [input.evidenceId] : [],
       runId: input.runId ?? null,
     },
     select: { id: true },
@@ -223,8 +229,30 @@ async function pendingProposal(id: string, db: Db) {
   return p;
 }
 
-export async function approveProposal(id: string, reviewerId: string, overrides: { name?: string; type?: SkillType; parentIds?: string[]; aliases?: string[] } = {}): Promise<{ skillId: string }> {
-  return prisma.$transaction(async (tx) => {
+/**
+ * The work that proposed a name now counts toward the skill it became: link each
+ * current evidence row (at the same fit a mapped proposal gets) and recompute those
+ * members. Skips members who had this skill upheld as wrong. No model call.
+ */
+export async function creditProposalEvidence(evidenceIds: string[], skillId: string): Promise<{ credited: number; members: number }> {
+  const ids = [...new Set(evidenceIds)].filter(Boolean);
+  if (!ids.length) return { credited: 0, members: 0 };
+  const rows = await prisma.skillEvidence.findMany({ where: { id: { in: ids }, supersededAt: null }, select: { id: true, memberId: true } });
+  const banned = new Set((await prisma.skillDispute.findMany({
+    where: { skillId, status: "UPHELD", memberId: { in: [...new Set(rows.map((r) => r.memberId))] } }, select: { memberId: true },
+  })).map((d) => d.memberId));
+  const keep = rows.filter((r) => !banned.has(r.memberId));
+  if (!keep.length) return { credited: 0, members: 0 };
+  const res = await prisma.skillEvidenceSkill.createMany({ data: keep.map((r) => ({ evidenceId: r.id, skillId, weight: MAPPED_PROPOSAL_FIT })), skipDuplicates: true });
+  const members = [...new Set(keep.map((r) => r.memberId))];
+  await recomputeMembers(members);
+  return { credited: res.count, members: members.length };
+}
+
+const proposalEvidence = (p: { evidenceId: string | null; evidenceIds: string[] }) => [...p.evidenceIds, ...(p.evidenceId ? [p.evidenceId] : [])];
+
+export async function approveProposal(id: string, reviewerId: string, overrides: { name?: string; type?: SkillType; parentIds?: string[]; aliases?: string[] } = {}): Promise<{ skillId: string; credited: number }> {
+  const out = await prisma.$transaction(async (tx) => {
     const p = await pendingProposal(id, tx);
     let parentIds = overrides.parentIds;
     if (!parentIds) {
@@ -238,8 +266,10 @@ export async function approveProposal(id: string, reviewerId: string, overrides:
       parentIds,
     }, tx);
     await tx.skillProposal.update({ where: { id }, data: { status: "APPROVED", createdSkillId: skill.id, reviewedById: reviewerId, reviewedAt: new Date() } });
-    return { skillId: skill.id };
+    return { skillId: skill.id, evidence: proposalEvidence(p) };
   });
+  const { credited } = await creditProposalEvidence(out.evidence, out.skillId);
+  return { skillId: out.skillId, credited };
 }
 
 export async function rejectProposal(id: string, reviewerId: string): Promise<void> {
@@ -251,15 +281,37 @@ export async function rejectProposal(id: string, reviewerId: string): Promise<vo
 }
 
 /** The proposed name becomes an alias of an existing skill (duplicate, not new). */
-export async function mergeProposal(id: string, intoSkillId: string, reviewerId: string): Promise<void> {
-  await prisma.$transaction(async (tx) => {
+export async function mergeProposal(id: string, intoSkillId: string, reviewerId: string): Promise<{ credited: number }> {
+  const evidence = await prisma.$transaction(async (tx) => {
     const p = await pendingProposal(id, tx);
     if (!await tx.skill.findUnique({ where: { id: intoSkillId }, select: { id: true } })) throw new TaxonomyError("NOT_FOUND", "Target skill not found");
     for (const form of [p.name, ...p.aliases]) {
       try { await addAlias(intoSkillId, form, tx); } catch (e) { if (!(e instanceof TaxonomyError && e.code === "ALIAS_TAKEN")) throw e; }
     }
     await tx.skillProposal.update({ where: { id }, data: { status: "MERGED", mergedIntoId: intoSkillId, reviewedById: reviewerId, reviewedAt: new Date() } });
+    return proposalEvidence(p);
   });
+  return { credited: (await creditProposalEvidence(evidence, intoSkillId)).credited };
+}
+
+/**
+ * Pending proposals whose name now resolves to a skill (an admin added it or an alias
+ * by hand) are merged automatically and their work credited. Returns how many.
+ */
+export async function autoResolveProposals(reviewerId: string | null = null): Promise<number> {
+  const pending = await prisma.skillProposal.findMany({ where: { status: "PENDING" }, select: { id: true, name: true, evidenceId: true, evidenceIds: true } });
+  if (!pending.length) return 0;
+  const index = await loadAliasIndex();
+  let n = 0;
+  for (const p of pending) {
+    const skillId = resolveSkillName(p.name, index);
+    if (!skillId) continue;
+    const moved = await prisma.skillProposal.updateMany({ where: { id: p.id, status: "PENDING" }, data: { status: "MERGED", mergedIntoId: skillId, reviewedById: reviewerId, reviewedAt: new Date() } });
+    if (!moved.count) continue;
+    await creditProposalEvidence(proposalEvidence(p), skillId);
+    n++;
+  }
+  return n;
 }
 
 export async function listProposals(status: "PENDING" | "APPROVED" | "REJECTED" | "MERGED" = "PENDING", db: Db = prisma) {

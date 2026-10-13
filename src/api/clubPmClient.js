@@ -1109,6 +1109,7 @@ export function conversationFileUrl(slackFileId) {
 
 export const skillsApi = {
   me: () => get("/api/skills/me"),
+  member: (memberId) => get(`/api/skills/members/${encodeURIComponent(memberId)}`),
   evidence: (skillId) => get(`/api/skills/me/${encodeURIComponent(skillId)}/evidence`),
   taxonomy: () => get("/api/skills/taxonomy"),
   claim: (skillId, level, note) => put(`/api/skills/me/claims/${encodeURIComponent(skillId)}`, { level, note: note || null }),
@@ -1126,6 +1127,10 @@ export const skillsAdminApi = {
   status: () => get("/api/admin/skills/status"),
   runs: (limit = 20) => get(`/api/admin/skills/runs?limit=${limit}`),
   startRun: (body = {}) => post("/api/admin/skills/runs", body),
+  cancelRun: (id) => post(`/api/admin/skills/runs/${encodeURIComponent(id)}/cancel`, {}),
+  seedTaxonomy: () => post("/api/admin/skills/taxonomy/seed", {}),
+  matrix: () => get("/api/admin/skills/matrix"),
+  personEvidence: (memberId, skillId) => get(`/api/admin/skills/people/${encodeURIComponent(memberId)}/evidence/${encodeURIComponent(skillId)}`),
   recompute: () => post("/api/admin/skills/recompute", {}),
   embedMissing: () => post("/api/admin/skills/embed-missing", {}),
   search: (params) => get(`/api/admin/skills/search?${new URLSearchParams(Object.entries(params).filter(([, v]) => v !== undefined && v !== "" && v !== null)).toString()}`),

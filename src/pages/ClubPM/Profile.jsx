@@ -18,6 +18,7 @@ import GitHubConnectButton from "../../components/clubpm/github/GitHubConnectBut
 import IcsFeedConnect from "../../components/clubpm/IcsFeedConnect";
 import TrainingStatusStrip from "../../components/clubpm/courses/TrainingStatusStrip";
 import SkillsPanel from "../../components/clubpm/skills/SkillsPanel";
+import MemberSkillsCard from "../../components/clubpm/skills/MemberSkillsCard";
 import { progressToNextRank } from "../../clubpm/engagement/rankProgress";
 import { tzOffset, copyToClipboard, activityLabels } from "../../clubpm/members/memberShared";
 import { MemberName, useCosmeticStyles } from "../../clubpm/cosmetics/CosmeticStylesContext";
@@ -241,8 +242,10 @@ export default function Profile() {
           <XpHeatmap data={xpHistory} activity={activity} />
         </div>
 
-        {/* Skills: inferred from your work, visible only to you here. Admins see the staffing view under Admin. */}
-        {isSelf && <SkillsPanel projects={(profile.projects ?? []).map(pm => pm.project).filter(Boolean)} />}
+        {/* Skills: your own full view (with evidence, claims and privacy), or what a teammate has not hidden. */}
+        {isSelf
+          ? <SkillsPanel projects={(profile.projects ?? []).map(pm => pm.project).filter(Boolean)} />
+          : <MemberSkillsCard memberId={memberId} displayName={profile.displayName} />}
 
         {/* Projects */}
         <div className="cpm-profile-card">

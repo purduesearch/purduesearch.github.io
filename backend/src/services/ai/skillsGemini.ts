@@ -110,31 +110,101 @@ export function estimateCostUsd(u: { tokensIn: number; tokensOut: number; embedT
 /** Rough token estimate for text the API does not meter back (embeddings). */
 export const approxTokens = (text: string) => Math.ceil(text.length / 4);
 
+// ── Config ───────────────────────────────────────────────────
+
+export interface SkillsLlmConfig {
+  model: string | null;
+  embedModel: string;
+  keySet: boolean;
+  /** Human-readable reasons the lane cannot run; empty when it can. */
+  problems: string[];
+  /** Schema field the model accepts: Gemini 1.x/2.0 only take the OpenAPI `responseSchema`. */
+  schemaMode: "json" | "openapi";
+  thinkingBudget: number | null;
+  maxOutputTokens: number;
+  batch: boolean;
+  rpm: number;
+}
+
+/** Older models reject `responseJsonSchema` (400 INVALID_ARGUMENT) and have no thinking. */
+export const isLegacyModel = (model: string) => /gemini-(1(\.\d)?|2\.0)(-|$)/i.test(model);
+/** 2.5-series models think by default, and thinking tokens count against maxOutputTokens. */
+const isThinking25 = (model: string) => /gemini-2\.5/i.test(model);
+
+const intOr = (v: string | undefined, d: number) => (v !== undefined && v !== "" && Number.isFinite(Number(v)) ? Math.floor(Number(v)) : d);
+
+/** Everything the lane needs from the environment, checked without throwing so the admin panel can show it. */
+export function skillsLlmConfig(env: NodeJS.ProcessEnv = process.env): SkillsLlmConfig {
+  const model = env.SKILLS_MODEL || env.GEMINI_MODEL || null;
+  const problems: string[] = [];
+  if (!env.GEMINI_API_KEY) problems.push("GEMINI_API_KEY is not set on the server");
+  if (!model) problems.push("Set SKILLS_MODEL (or GEMINI_MODEL) for the skills pipeline");
+  const legacy = !!model && isLegacyModel(model);
+  // An explicit SKILLS_THINKING_BUDGET always wins. Otherwise a 2.5 model gets a small
+  // budget: labelling one artifact needs little reasoning, and unbounded thinking used
+  // to exhaust the output limit and come back as an empty or cut-off response.
+  const explicit = env.SKILLS_THINKING_BUDGET;
+  const thinkingBudget = legacy ? null : explicit !== undefined && explicit !== "" ? intOr(explicit, 0) : model && isThinking25(model) ? 512 : null;
+  return {
+    model, embedModel: env.SKILLS_EMBED_MODEL || "gemini-embedding-001", keySet: !!env.GEMINI_API_KEY, problems,
+    schemaMode: legacy || env.SKILLS_SCHEMA_MODE === "openapi" ? "openapi" : "json",
+    thinkingBudget, maxOutputTokens: Math.max(512, intOr(env.SKILLS_MAX_OUTPUT_TOKENS, 4096)),
+    batch: env.SKILLS_USE_BATCH === "1", rpm: Math.max(1, intOr(env.SKILLS_RPM, 20)),
+  };
+}
+
+/**
+ * JSON Schema -> the OpenAPI subset `responseSchema` takes (upper-case types, no
+ * `additionalProperties`). Used for legacy models and as the fallback when a model
+ * rejects `responseJsonSchema`.
+ */
+export function toOpenApiSchema(schema: unknown): unknown {
+  if (Array.isArray(schema)) return schema.map(toOpenApiSchema);
+  if (!schema || typeof schema !== "object") return schema;
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(schema as Record<string, unknown>)) {
+    if (k === "additionalProperties" || k === "$schema") continue;
+    if (k === "type" && typeof v === "string") out.type = v.toUpperCase();
+    else if (k === "properties" && v && typeof v === "object") out.properties = Object.fromEntries(Object.entries(v).map(([pk, pv]) => [pk, toOpenApiSchema(pv)]));
+    else if (k === "items") out.items = toOpenApiSchema(v);
+    else out[k] = v;
+  }
+  return out;
+}
+
+/** A 400 that names the schema or thinking field: the model does not support it, so downgrade instead of failing every artifact. */
+export function isShapeUnsupported(err: unknown): boolean {
+  const e = err as { status?: number; message?: string };
+  const msg = e?.message ?? "";
+  return (e?.status === 400 || /INVALID_ARGUMENT|\b400\b/.test(msg)) && /response_?json_?schema|json schema|thinking/i.test(msg);
+}
+
 // ── Gemini implementation ────────────────────────────────────
 
 const TERMINAL_OK = new Set(["JOB_STATE_SUCCEEDED", "JOB_STATE_PARTIALLY_SUCCEEDED"]);
 const TERMINAL_BAD = new Set(["JOB_STATE_FAILED", "JOB_STATE_CANCELLED", "JOB_STATE_EXPIRED"]);
 
 export function createGeminiSkillsLlm(env: NodeJS.ProcessEnv = process.env, deps: { sleep?: (ms: number) => Promise<void> } = {}): SkillsLlm {
-  const apiKey = env.GEMINI_API_KEY;
-  if (!apiKey) throw new LlmError("GEMINI_API_KEY is not set");
-  const model = env.SKILLS_MODEL || env.GEMINI_MODEL;
-  if (!model) throw new LlmError("Set SKILLS_MODEL (or GEMINI_MODEL) for the skills pipeline");
-  const embedModel = env.SKILLS_EMBED_MODEL || "gemini-embedding-001";
+  const cfg = skillsLlmConfig(env);
+  if (cfg.problems.length) throw new LlmError(cfg.problems.join("; "));
+  const apiKey = env.GEMINI_API_KEY!;
+  const model = cfg.model!;
+  const embedModel = cfg.embedModel;
   const dims = Number(env.SKILLS_EMBED_DIMS || 768);
-  const rpm = Number(env.SKILLS_RPM || 20);
-  const thinking = env.SKILLS_THINKING_BUDGET;
   const sleep = deps.sleep ?? realSleep;
 
   const ai = new GoogleGenAI({ apiKey });
-  const acquire = createRateLimiter({ rpm, sleep });
+  const acquire = createRateLimiter({ rpm: cfg.rpm, sleep });
+  // Mutable: the first schema/thinking rejection downgrades the lane for the rest of the run.
+  let schemaMode = cfg.schemaMode;
+  let thinkingBudget = cfg.thinkingBudget;
 
-  const config = (req: GenerateRequest) => ({
+  const config = (req: GenerateRequest, maxOut = req.maxOutputTokens ?? cfg.maxOutputTokens) => ({
     responseMimeType: "application/json",
-    responseJsonSchema: req.schema,
-    maxOutputTokens: req.maxOutputTokens ?? 1024,
+    ...(schemaMode === "json" ? { responseJsonSchema: req.schema } : { responseSchema: toOpenApiSchema(req.schema) as object }),
+    maxOutputTokens: maxOut,
     temperature: 0,
-    ...(thinking !== undefined && thinking !== "" ? { thinkingConfig: { thinkingBudget: Number(thinking) } } : {}),
+    ...(thinkingBudget !== null ? { thinkingConfig: { thinkingBudget } } : {}),
   });
 
   const usageOf = (u: { promptTokenCount?: number; candidatesTokenCount?: number; thoughtsTokenCount?: number } | undefined): LlmUsage => ({
@@ -142,18 +212,41 @@ export function createGeminiSkillsLlm(env: NodeJS.ProcessEnv = process.env, deps
     tokensOut: (u?.candidatesTokenCount ?? 0) + (u?.thoughtsTokenCount ?? 0),
   });
 
+  /** One call. A rejected request shape downgrades once; a cut-off answer (MAX_TOKENS) is retried once with double the room. */
+  async function callOnce(req: GenerateRequest): Promise<GenerateResult> {
+    let maxOut = req.maxOutputTokens ?? cfg.maxOutputTokens;
+    for (let attempt = 0; attempt < 4; attempt++) {
+      await acquire();
+      let res;
+      try {
+        res = await ai.models.generateContent({ model, contents: req.prompt, config: config(req, maxOut) });
+      } catch (err) {
+        if (!isShapeUnsupported(err)) throw err;
+        if (/thinking/i.test((err as Error)?.message ?? "") && thinkingBudget !== null) thinkingBudget = null;
+        else if (schemaMode === "json") schemaMode = "openapi";
+        else throw err;
+        console.warn(`[skills] ${model} rejected the request shape; retrying with schema=${schemaMode} thinking=${thinkingBudget ?? "model default"}`);
+        continue;
+      }
+      const finish = String(res.candidates?.[0]?.finishReason ?? "");
+      const text = (res.text ?? "").trim();
+      if (finish === "MAX_TOKENS" && maxOut < 16_384) { maxOut *= 2; continue; }
+      if (!text) {
+        const why = res.promptFeedback?.blockReason ? `blocked: ${res.promptFeedback.blockReason}` : finish ? `finish reason ${finish}` : "no candidates";
+        throw new LlmError(`empty response from Gemini (${why})`, undefined, finish === "OTHER" || finish === "");
+      }
+      if (finish === "MAX_TOKENS") throw new LlmError("Gemini response was cut off (MAX_TOKENS); raise SKILLS_MAX_OUTPUT_TOKENS or lower SKILLS_THINKING_BUDGET");
+      return { text, usage: usageOf(res.usageMetadata) };
+    }
+    throw new LlmError("Gemini did not return a usable response after adjusting the request");
+  }
+
   const llm: SkillsLlm = {
     modelVersion: model,
     embedModel,
 
     async generateJson(req) {
-      return withRetry(async () => {
-        await acquire();
-        const res = await ai.models.generateContent({ model, contents: req.prompt, config: config(req) });
-        const text = (res.text ?? "").trim();
-        if (!text) throw new LlmError("empty response from Gemini", undefined, false);
-        return { text, usage: usageOf(res.usageMetadata) };
-      }, { sleep });
+      return withRetry(() => callOnce(req), { sleep });
     },
 
     async embed(texts) {
@@ -174,7 +267,7 @@ export function createGeminiSkillsLlm(env: NodeJS.ProcessEnv = process.env, deps
     },
   };
 
-  if (env.SKILLS_USE_BATCH === "1") {
+  if (cfg.batch) {
     const pollMs = Number(env.SKILLS_BATCH_POLL_SECONDS || 30) * 1000;
     const timeoutMs = Number(env.SKILLS_BATCH_TIMEOUT_MINUTES || 180) * 60_000;
     llm.batchGenerateJson = async (items) => {
