@@ -14,6 +14,7 @@ import MobileSheet from "./MobileSheet";
 import { ConfirmAddMemberDialog, OutsideTag, outsideMatches } from "./OutsideMemberAdd";
 import { useCompactLayout } from "../../clubpm/layout/compactLayout";
 import { RollupTagChip } from "./rollup/RollupChips";
+import { useTaskCompletionActions } from "./celebrate/useTaskCompletion";
 
 // ─── Constants ────────────────────────────────────────────────
 
@@ -1164,11 +1165,16 @@ function MetaRow({ label, children, tourId }) {
 
 // ─── Main TaskModal ────────────────────────────────────────────
 
-export default function TaskModal({ task: initialTask, project, projectBlockers = [], onBlockersChange, readOnly = false, onClose, onUpdate, onDelete, onTaskCreated }) {
+export default function TaskModal({ task: initialTask, project, projectBlockers = [], onBlockersChange, readOnly = false, onClose, onUpdate, onStatusMove, onDelete, onTaskCreated }) {
   const { member } = useClubPmAuth();
   const compact = useCompactLayout();
 
   const [task, setTask] = useState(initialTask);
+  const completionActions = useTaskCompletionActions();
+  const boardStatus = completionActions?.statusOf?.(task.id);
+  useEffect(() => {
+    if (boardStatus) setTask(current => current.status === boardStatus ? current : { ...current, status: boardStatus });
+  }, [boardStatus]);
 
   const [fullscreen, setFullscreen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -1310,6 +1316,15 @@ export default function TaskModal({ task: initialTask, project, projectBlockers 
   }, [task, onUpdate]);
 
   const handleStatusChange = useCallback(async (newStatus) => {
+    if (onStatusMove) {
+      const previous = task;
+      setTask(t => ({ ...t, status: newStatus }));
+      try {
+        const result = await onStatusMove(task, newStatus);
+        setTask(t => t.status === newStatus ? { ...t, ...result } : t);
+      } catch { setTask(t => t.status === newStatus ? previous : t); }
+      return;
+    }
     if (newStatus === "DONE") {
       // Re-fetch live blocker status — local state can go stale if a blocker
       // was completed elsewhere while this modal was open.
@@ -1357,7 +1372,7 @@ export default function TaskModal({ task: initialTask, project, projectBlockers 
       }
     }
     await saveField(fields);
-  }, [task, member, saveField, onUpdate, blockingTasks, taskBlockers]);
+  }, [task, member, saveField, onUpdate, onStatusMove, blockingTasks, taskBlockers]);
 
   async function submitComment() {
     if (!commentDraft.trim() || commentInFlight.current) return;
@@ -2525,6 +2540,7 @@ export default function TaskModal({ task: initialTask, project, projectBlockers 
       {nestedTask && (
         <TaskModal
           task={nestedTask}
+          onStatusMove={onStatusMove}
           onClose={() => setNestedTask(null)}
           onUpdate={updated => {
             if (updated.id === task.id) setTask(updated);

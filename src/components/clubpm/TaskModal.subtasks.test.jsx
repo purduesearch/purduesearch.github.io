@@ -1,11 +1,12 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import TaskModal from './TaskModal';
-import { get, patch, post } from '../../api/clubPmClient';
+import { get, patch, post, getSlackLinks } from '../../api/clubPmClient';
 import { useCompactLayout } from '../../clubpm/layout/compactLayout';
 
 jest.mock('../../api/clubPmClient', () => ({
   get: jest.fn(),
+  getSlackLinks: jest.fn(() => Promise.resolve([])),
   post: jest.fn(),
   patch: jest.fn(),
   del: jest.fn(),
@@ -30,6 +31,7 @@ const SUB = { id: 's1', title: 'Child task', projectId: 'proj1', status: 'TODO',
 
 beforeEach(() => {
   jest.clearAllMocks();
+  getSlackLinks.mockResolvedValue([]);
   useCompactLayout.mockReturnValue(false);
   get.mockImplementation((url) => {
     if (url === '/api/tasks/p1/subtasks') return Promise.resolve([SUB]);
@@ -120,4 +122,17 @@ describe('TaskModal compact workflow', () => {
     rejectPost(new Error('Offline'));
     await waitFor(() => expect(input).toHaveValue('Still here after retry'));
   });
+});
+
+test('status picker delegates optimistically to the board completion transaction', async () => {
+  let resolveMove;
+  const onStatusMove = jest.fn(() => new Promise(resolve => { resolveMove = resolve; }));
+  render(<TaskModal task={PARENT} onClose={jest.fn()} onUpdate={jest.fn()} onStatusMove={onStatusMove} />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Not Started' }));
+  fireEvent.click(screen.getByRole('button', { name: /Completed/ }));
+  expect(onStatusMove).toHaveBeenCalledWith(PARENT, 'DONE');
+  expect(screen.getByRole('button', { name: /Completed/ })).toBeInTheDocument();
+  expect(patch).not.toHaveBeenCalled();
+  resolveMove({ ...PARENT, status: 'DONE' });
+  await waitFor(() => expect(screen.getByRole('button', { name: /Completed/ })).toBeInTheDocument());
 });

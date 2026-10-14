@@ -49,8 +49,8 @@ import {
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { animate, spring, revealStagger, prefersReducedMotion } from "../../clubpm/anim/motion";
-import { burstAt } from "../../components/clubpm/celebrate/confetti";
+import { revealStagger } from "../../clubpm/anim/motion";
+import useTaskCompletion, { TaskCompletionContext, useTaskCompletionActions } from "../../components/clubpm/celebrate/useTaskCompletion";
 import useStreakWatcher from "../../hooks/useStreakWatcher";
 import MobileSheet from "../../components/clubpm/MobileSheet";
 import { useCompactLayout } from "../../clubpm/layout/compactLayout";
@@ -287,6 +287,13 @@ function ProgressBar({ tasks }) {
 
 function StatusBin({ bin, tasks, subtasksByParent, expandedParents, onToggleParent, isOver, overTaskId, overBlockerId, onTaskClick, onAddTask, canEdit = true, canAdd = canEdit, sortBy = "priority", selectedTaskIds, blockedGroups, onResolveBlocker, onRenameBlocker, projectMembers }) {
   const [collapsed, setCollapsed] = useState(false);
+  const completionActions = useTaskCompletionActions();
+  const completionVersion = completionActions?.version ?? 0;
+  const [lastCompletion, setLastCompletion] = useState(completionVersion);
+  if (bin.id === 'DONE' && lastCompletion !== completionVersion) {
+    setLastCompletion(completionVersion);
+    setCollapsed(false);
+  }
   const { setNodeRef } = useDroppable({ id: bin.id });
   const isBlockedBin = bin.id === "BLOCKED";
 
@@ -324,7 +331,7 @@ function StatusBin({ bin, tasks, subtasksByParent, expandedParents, onTogglePare
             style={{ fontSize: 10, color: "var(--clubpm-text-muted)" }}
           />
           <span>{bin.label}</span>
-          <span style={{ color: "var(--clubpm-text-muted)", fontWeight: 400 }}>
+          <span data-completion-count={bin.id} style={{ color: "var(--clubpm-text-muted)", fontWeight: 400 }}>
             {tasks.length}
           </span>
         </button>
@@ -380,7 +387,7 @@ function StatusBin({ bin, tasks, subtasksByParent, expandedParents, onTogglePare
               <div style={{ padding: "12px 16px", fontSize: 12, color: "var(--clubpm-text-muted)", fontStyle: "italic" }}>
                 Drop tasks here
               </div>
-            ) : sortBy === "tags" ? (
+            ) : sortBy === "tags" && bin.id !== "DONE" ? (
               getTagGroups(tasks).map(group => (
                 <React.Fragment key={group.tag?.id ?? "untagged"}>
                   <div style={{
@@ -455,17 +462,20 @@ function StatusBin({ bin, tasks, subtasksByParent, expandedParents, onTogglePare
 }
 
 function MobileTaskRow({ task, onOpen, onMove, onAssign, canEdit, tourId }) {
+  const completionActions = useTaskCompletionActions();
+  const { setNodeRef, listeners, attributes, isDragging } = useDraggable({ id: task.id, disabled: !canEdit || task.status === 'BLOCKED' });
   const due = task.dueDate ? new Date(task.dueDate) : null;
   const overdue = due && task.status !== 'DONE' && due < new Date();
   return (
-    <div className="pm-m-task-row" data-task-id={task.id} data-tour-id={tourId}>
+    <div ref={setNodeRef} style={{ opacity: isDragging ? .5 : 1 }} className="pm-m-task-row" data-completion-id={task.id} data-completion-status={task.status} data-task-id={task.id} data-tour-id={tourId}>
       <button
         type="button"
-        className={`pm-m-task-status pm-m-task-status--${task.status.toLowerCase()}`}
-        onClick={() => canEdit ? onMove(task) : onOpen(task)}
-        aria-label={canEdit ? `Status: ${BINS.find(b => b.id === task.status)?.label ?? task.status}. Move task` : `Status: ${task.status}`}
+        className={`pm-task-check pm-m-task-status pm-m-task-status--${task.status.toLowerCase()}`}
+        onClick={() => canEdit ? task.status === 'BLOCKED' ? onMove(task) : completionActions.move([task.id], task.status === 'DONE' ? 'TODO' : 'DONE') : onOpen(task)}
+        aria-label={canEdit ? `${task.status === 'BLOCKED' ? 'Move' : task.status === 'DONE' ? 'Reopen' : 'Complete'} task: ${task.title}` : `Status: ${task.status}`}
+        aria-pressed={task.status === 'DONE'}
       >
-        <i className={task.status === 'DONE' ? 'fas fa-check' : task.status === 'BLOCKED' ? 'fas fa-ban' : 'fas fa-circle'} aria-hidden="true" />
+        {task.status === 'BLOCKED' ? <i className="fas fa-ban" aria-hidden="true" /> : <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 6.4l2.4 2.4 4.6-5" /></svg>}
       </button>
       <button type="button" className="pm-m-task-main" onClick={() => onOpen(task)}>
         <span className="pm-m-task-title">{task.title}</span>
@@ -476,6 +486,8 @@ function MobileTaskRow({ task, onOpen, onMove, onAssign, canEdit, tourId }) {
           <RollupTagChip rollup={task.rollup} />
         </span>
       </button>
+      {canEdit && task.status !== 'BLOCKED' && <button type="button" className="pm-m-task-grip" {...attributes} {...listeners}
+        aria-label={`Drag task: ${task.title}`}><i className="fas fa-grip-vertical" aria-hidden="true" /></button>}
       <div className="pm-m-task-actions">
         {canEdit ? (
           <>
@@ -490,11 +502,12 @@ function MobileTaskRow({ task, onOpen, onMove, onAssign, canEdit, tourId }) {
 }
 
 function CompactStatusGroup({ bin, open, onToggle, onOpenTask, onMove, onAssign, canEdit, lead = null }) {
+  const { setNodeRef, isOver } = useDroppable({ id: bin.id });
   return (
-    <section className="pm-m-task-group" data-tour-id={BIN_TOUR_IDS[bin.id]}>
+    <section ref={setNodeRef} className={`pm-m-task-group${isOver ? " cpm-status-bin--over" : ""}`} data-bin-id={bin.id} data-tour-id={BIN_TOUR_IDS[bin.id]}>
       <button type="button" className="pm-m-task-group-head" onClick={onToggle} aria-expanded={open}>
         <span className="pm-m-task-group-dot" style={{ background: bin.color }} />
-        <span>{bin.label}</span><span className="pm-m-count">{bin.tasks.length}</span>
+        <span>{bin.label}</span><span className="pm-m-count" data-completion-count={bin.id}>{bin.tasks.length}</span>
         <i className={`fas fa-chevron-${open ? 'up' : 'down'}`} aria-hidden="true" />
       </button>
       {open ? (
@@ -860,6 +873,8 @@ function BlockedTaskRow({ task, reason, selected, onTaskClick, groupId }) {
   return (
     <div
       ref={setNodeRef}
+      data-completion-id={task.id}
+      data-completion-status={task.status}
       className={`cpm-task-row-compact cpm-blocked-task-row${selected ? " cpm-task-row-compact--selected" : ""}${isOver ? " cpm-task-row-compact--member-target" : ""}`}
       onClick={(e) => onTaskClick(task, e)}
     >
@@ -931,6 +946,7 @@ function BlockerNameModal({ count, projectMembers, onCreate, onCancel }) {
 // ── Compact Task Row ─────────────────────────────────────────
 
 function CompactTaskRow({ task, onClick, subtaskCount = 0, isExpanded = false, onToggleExpand, isDropTarget = false, isSelected = false, tourId, canEdit = true }) {
+  const completionActions = useTaskCompletionActions();
   const {
     attributes,
     listeners,
@@ -953,6 +969,8 @@ function CompactTaskRow({ task, onClick, subtaskCount = 0, isExpanded = false, o
       {...attributes}
       {...listeners}
       data-tour-id={(tourId)}
+      data-completion-id={task.id}
+      data-completion-status={task.status}
       className={`cpm-task-row-compact${isDropTarget ? " cpm-task-row-compact--member-target" : ""}${isSelected ? " cpm-task-row-compact--selected" : ""}`}
       onClick={(e) => {
         if (!isDragging) onClick(task, e);
@@ -961,16 +979,13 @@ function CompactTaskRow({ task, onClick, subtaskCount = 0, isExpanded = false, o
       {isSelected && (
         <i className="fas fa-check-circle cpm-task-row-compact-checkbox" aria-hidden="true" />
       )}
-      <i
-        className="fas fa-grip-vertical"
-        style={{
-          color: "var(--clubpm-text-muted)",
-          fontSize: 11,
-          flexShrink: 0,
-          pointerEvents: "none",
-        }}
-      />
-      <StatusRing status={task.status} />
+      <button type="button" className="pm-task-grip" {...listeners}
+        aria-label={`Drag task: ${task.title}`} disabled={!canEdit}
+        onClick={e => e.stopPropagation()}>
+        <i className="fas fa-grip-vertical" aria-hidden="true" />
+      </button>
+      <StatusRing status={task.status} title={task.title}
+        onComplete={canEdit ? () => completionActions.move([task.id], task.status === 'DONE' ? 'TODO' : 'DONE') : undefined} />
       <PriorityBars priority={task.priority} />
       <span className="cpm-task-row-compact-name">{task.title}</span>
       {subtaskCount > 0 && (
@@ -1027,6 +1042,7 @@ function CompactTaskRow({ task, onClick, subtaskCount = 0, isExpanded = false, o
 // ── Kanban Subtask Row (non-draggable, indented) ─────────────
 
 function KanbanSubtaskRow({ subtask, onClick, isDropTarget = false, isSelected = false }) {
+  const completionActions = useTaskCompletionActions();
   const { setNodeRef } = useDroppable({ id: subtask.id });
   return (
     <div style={{ display: "flex", alignItems: "stretch" }}>
@@ -1038,15 +1054,18 @@ function KanbanSubtaskRow({ subtask, onClick, isDropTarget = false, isSelected =
     <div
       ref={setNodeRef}
       className={`cpm-task-row-compact${isDropTarget ? " cpm-task-row-compact--member-target" : ""}${isSelected ? " cpm-task-row-compact--selected" : ""}`}
+      data-completion-id={subtask.id}
+      data-completion-status={subtask.status}
       style={{ flex: 1, paddingLeft: 8, cursor: "pointer" }}
       onClick={(e) => onClick(subtask, e)}
     >
       {isSelected && (
         <i className="fas fa-check-circle cpm-task-row-compact-checkbox" aria-hidden="true" />
       )}
-      <StatusRing status={subtask.status} />
+      <StatusRing status={subtask.status} title={subtask.title}
+        onComplete={() => completionActions.move([subtask.id], subtask.status === 'DONE' ? 'TODO' : 'DONE')} />
       <PriorityBars priority={subtask.priority} />
-      <span className="cpm-task-row-compact-name" style={{ color: "var(--clubpm-text-secondary)" }}>
+      <span className="cpm-task-row-compact-name">
         {subtask.title}
       </span>
       <AvatarStack assignees={subtask.assignees} />
@@ -2454,6 +2473,11 @@ export default function ProjectDetail() {
   const notifyStreak = useStreakWatcher();
 
   const [project, setProject] = useState(null);
+  const completionRootRef = useRef(null);
+  const completion = useTaskCompletion(completionRootRef, project, setProject,
+    (taskId, fields) => taskId
+      ? patch(`/api/tasks/${taskId}`, fields)
+      : patch('/api/tasks/bulk', fields));
   const [allProjects, setAllProjects] = useState([]);
   const [allMembers, setAllMembers] = useState([]);
   const [slackChannels, setSlackChannels] = useState([]);
@@ -2645,6 +2669,10 @@ export default function ProjectDetail() {
   const tasksByBin = useMemo(() => {
     if (!project) return BINS.map(b => ({ ...b, tasks: [] }));
     const sorted = (arr) => [...arr].sort((a, b) => {
+      if (a.status === 'DONE' && b.status === 'DONE') {
+        const rank = (completion.order[b.id] ?? 0) - (completion.order[a.id] ?? 0);
+        if (rank) return rank;
+      }
       if (sortBy === "priority") return (PRIORITY_RANK[a.priority] ?? 4) - (PRIORITY_RANK[b.priority] ?? 4);
       if (sortBy === "dueDate")  return (a.dueDate ? new Date(a.dueDate) : Infinity) - (b.dueDate ? new Date(b.dueDate) : Infinity);
       if (sortBy === "status")   return (a.status ?? "").localeCompare(b.status ?? "");
@@ -2665,7 +2693,7 @@ export default function ProjectDetail() {
         (t) => !t.parentTaskId && t.status === b.id && matchesSource(t, activeSource)
       )),
     }));
-  }, [project, sortBy, activeSource]);
+  }, [project, sortBy, activeSource, completion.order]);
 
   // Progress and charts count a rolled-up task only when its sub-project opted in.
   const insightsProject = useMemo(
@@ -2698,7 +2726,7 @@ export default function ProjectDetail() {
   const flatTaskOrder = useMemo(() => {
     const order = [];
     tasksByBin.forEach((bin) => {
-      const groups = sortBy === "tags" ? getTagGroups(bin.tasks) : [{ tasks: bin.tasks }];
+      const groups = sortBy === "tags" && bin.id !== "DONE" ? getTagGroups(bin.tasks) : [{ tasks: bin.tasks }];
       groups.forEach((group) => {
         group.tasks.forEach((task) => {
           order.push(task.id);
@@ -2786,74 +2814,35 @@ export default function ProjectDetail() {
     return null;
   }, [project]);
 
-  // Single-task status move — keeps the reward-origin + confetti niceties.
-  const moveSingleTask = async (task, newStatus, dropRect) => {
-    const taskId = task.id;
-    const patchBody = { status: newStatus };
-    if (newStatus === "IN_PROGRESS" && member) {
-      const alreadyAssigned = (task.assignees ?? []).some(a => a.id === member.id);
-      if (!alreadyAssigned) patchBody.assigneeIds = [...(task.assignees ?? []).map(a => a.id), member.id];
-    }
-    const previousTasks = project.tasks;
+  // Local status actions share the same optimistic transaction and celebration.
+  const moveSingleTask = async (task, newStatus, dropRect, extraFields = {}) => {
     if (dropRect) setNextRewardOrigin(dropRect.left + dropRect.width / 2, dropRect.top + dropRect.height / 2);
-    setProject(prev => ({
-      ...prev,
-      tasks: prev.tasks.map(t => t.id === taskId ? {
-        ...t,
-        status: newStatus,
-        assignees: newStatus === "IN_PROGRESS" && member && !(t.assignees ?? []).some(a => a.id === member.id)
-          ? [...(t.assignees ?? []), member]
-          : t.assignees,
-      } : t),
-    }));
-    try {
-      const updated = await patch(`/api/tasks/${taskId}`, patchBody);
-      setProject(prev => ({ ...prev, tasks: prev.tasks.map(t => t.id === taskId ? { ...t, ...updated } : t) }));
-      notifyStreak();
-      if (newStatus === "DONE") celebrateDoneBin();
-    } catch (err) {
-      setProject(prev => ({ ...prev, tasks: previousTasks }));
-      if (err?.message) alert(err.message);
+    const fields = { ...extraFields };
+    if (newStatus === 'IN_PROGRESS' && member && !(task.assignees ?? []).some(a => a.id === member.id)) {
+      fields.assigneeIds = [...(task.assignees ?? []).map(a => a.id), member.id];
     }
+    const updated = await completion.move([task], newStatus, dropRect, fields);
+    if (updated.length) notifyStreak();
+    return updated[0];
   };
 
-  // Group status move — one optimistic pass + the bulk endpoint, then reconcile.
-  const bulkMoveStatus = async (ids, newStatus) => {
-    const idSet = new Set(ids);
-    const previousTasks = project.tasks;
-    setProject(prev => ({
-      ...prev,
-      tasks: prev.tasks.map(t => {
-        let next = idSet.has(t.id) ? { ...t, status: newStatus } : t;
-        if (next.subtasks?.length) next = { ...next, subtasks: next.subtasks.map(s => idSet.has(s.id) ? { ...s, status: newStatus } : s) };
-        return next;
-      }),
-    }));
-    try {
-      const res = await patch("/api/tasks/bulk", { ids, patch: { status: newStatus } });
-      if (res.skipped?.length) {
-        alert(`${res.skipped.length} task(s) were not moved:\n` + res.skipped.map(s => `- ${s.reason}`).join("\n"));
-      }
-      notifyStreak();
-      if (newStatus === "DONE") celebrateDoneBin();
-    } catch (err) {
-      setProject(prev => ({ ...prev, tasks: previousTasks }));
-      alert(err?.message ?? "Failed to move tasks");
-    } finally {
-      fetchProject();
-    }
+  const bulkMoveStatus = async (ids, newStatus, dropRect, fields = {}) => {
+    const tasks = ids.map(tid => findTaskById(tid)?.task).filter(Boolean);
+    const updated = await completion.move(tasks, newStatus, dropRect, fields);
+    if (updated.length) notifyStreak();
+    return updated;
   };
 
   // Move one or more tasks to a status, mirroring the backend's blocker rules so
   // a locked/dep-gated task fails fast (with a message) instead of round-tripping.
-  const moveTasksToStatus = async (ids, newStatus, dropRect) => {
+  const moveTasksToStatus = async (ids, newStatus, dropRect, fields = {}) => {
     const movable = [];
     const blocked = [];
     for (const tid of ids) {
       const f = findTaskById(tid);
       if (!f) continue;
       const t = f.task;
-      if (t.status === newStatus) continue;
+      if (!taskCanEdit(f.parentTask ?? t, canEdit) || t.status === newStatus) continue;
       const hasOpenCat = (t.blockers ?? []).some(tb => tb.blocker && !tb.blocker.resolvedAt);
       if (hasOpenCat && newStatus !== "BLOCKED") { blocked.push(`${t.title} — locked until its blocker is resolved`); continue; }
       if (newStatus === "DONE") {
@@ -2864,8 +2853,9 @@ export default function ProjectDetail() {
     }
     if (blocked.length) alert(`Some tasks couldn't be moved:\n\n${blocked.join("\n")}`);
     if (!movable.length) return;
-    if (movable.length === 1) await moveSingleTask(movable[0], newStatus, dropRect);
-    else await bulkMoveStatus(movable.map(t => t.id), newStatus);
+    if (newStatus === 'DONE') setCompactGroups(prev => new Set([...prev, 'DONE']));
+    if (movable.length === 1) return moveSingleTask(movable[0], newStatus, dropRect, fields);
+    return bulkMoveStatus(movable.map(t => t.id), newStatus, dropRect, fields);
   };
 
   // Attach an existing category blocker to one or more tasks (drop onto a sub-bin).
@@ -2924,18 +2914,6 @@ export default function ProjectDetail() {
     } finally {
       refreshBlockers();
     }
-  };
-
-  // DONE-bin settle-bounce + confetti, shared by single and group moves.
-  const celebrateDoneBin = () => {
-    requestAnimationFrame(() => requestAnimationFrame(() => {
-      const doneBin = document.querySelector('[data-bin-id="DONE"]');
-      if (!doneBin) return;
-      if (!prefersReducedMotion()) {
-        animate(doneBin, { scale: [1, 1.01, 1], duration: 400, ease: spring });
-      }
-      burstAt(doneBin, { palette: 'taskComplete' });
-    }));
   };
 
   // Groups the BLOCKED column into collapsible sub-bins: one per active
@@ -3251,6 +3229,7 @@ export default function ProjectDetail() {
   }, [setSearchParams]);
 
   const handleDragStart = (event) => {
+    completion.cancel(event.active.id);
     const { active } = event;
     if (typeof active.id === "string" && (active.id.startsWith("member-") || active.id === "special-everyone" || active.id === "special-nobody")) {
       setActiveTask(null);
@@ -3540,6 +3519,14 @@ export default function ProjectDetail() {
   // Selection is kept after an edit so several fields can be changed in a row.
   const handleBulkPatch = async (patchFields) => {
     if (selectedTaskIds.size === 0) return;
+    if (patchFields.status) {
+      const { status, ...fields } = patchFields;
+      await moveTasksToStatus([...selectedTaskIds].filter(tid => {
+        const found = findTaskById(tid);
+        return found && taskCanEdit(found.parentTask ?? found.task, canEdit);
+      }), status, undefined, fields);
+      return;
+    }
     const ids = [...selectedTaskIds];
     const optimistic = Object.fromEntries(Object.entries(patchFields).filter(([k]) => OPTIMISTIC_BULK_FIELDS.includes(k)));
     if (typeof patchFields.dueDate === "string") optimistic.dueDate = patchFields.dueDate;
@@ -3769,7 +3756,9 @@ export default function ProjectDetail() {
   const canAdd = canEdit || createSources.length > 0;
 
   return (
-    <div className="clubpm-app cpm-project-page">
+    <TaskCompletionContext.Provider value={{ move: moveTasksToStatus, statusOf: tid => findTaskById(tid)?.task.status, version: Math.max(0, ...Object.values(completion.order)) }}>
+    <div ref={completionRootRef} className="clubpm-app cpm-project-page">
+    <div ref={completion.liveRef} className="pm-completion-live" aria-live="polite" aria-atomic="true" />
     <div className="cpm-project-layout">
       <DndContext
         sensors={sensors}
@@ -3777,6 +3766,7 @@ export default function ProjectDetail() {
         onDragStart={handleDragStart}
         onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
+        onDragCancel={() => { setActiveTask(null); setActiveMember(null); setOverBin(null); setOverTaskId(null); }}
       >
         <main ref={tabBodyRef} className="cpm-project-main">
           {/* On a phone the conversation needs the height: the shell header
@@ -4245,7 +4235,7 @@ export default function ProjectDetail() {
               const groupCount = selectedTaskIds.has(activeTask.id) ? selectedTaskIds.size : 1;
               const isGroup = groupCount > 1;
               return (
-                <div style={{ position: "relative", cursor: "grabbing", maxWidth: 480 }}>
+                <div style={{ position: "relative", cursor: "grabbing" }}>
                   {isGroup && (
                     <>
                       <div className="cpm-drag-stack cpm-drag-stack--2" />
@@ -4256,7 +4246,7 @@ export default function ProjectDetail() {
                     style={{
                       position: "relative",
                       opacity: 0.97,
-                      transform: "scale(1.02)",
+                      transform: "rotate(1.2deg) scale(1.02)",
                       boxShadow: "0 20px 60px rgba(0,0,0,0.5)",
                       background: "var(--clubpm-surface-200)",
                       border: "1px solid var(--clubpm-border)",
@@ -4308,6 +4298,11 @@ export default function ProjectDetail() {
             closeTaskModal();
           }}
           onUpdate={handleTaskUpdate}
+          onStatusMove={async (task, status) => {
+            const updated = await moveTasksToStatus([task.id], status);
+            if (!updated) throw new Error('Status update failed');
+            return updated;
+          }}
           onDelete={handleTaskDelete}
           onTaskCreated={handleTaskCreated}
         />
@@ -4477,5 +4472,6 @@ export default function ProjectDetail() {
       )}
     </div>
     </div>
+    </TaskCompletionContext.Provider>
   );
 }

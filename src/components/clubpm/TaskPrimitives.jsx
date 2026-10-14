@@ -45,14 +45,22 @@ export function ProgressIndicator({ progress, taskId, onUpdate, size = 24 }) {
 
 // ── Status Ring (read-only, matches ProgressIndicator look) ───
 
-export function StatusRing({ status }) {
+export function StatusRing({ status, onComplete, title }) {
   const mod = status === "DONE" ? "done" : status === "BLOCKED" ? "blocked" : status === "IN_PROGRESS" ? "in" : "none";
+  const Tag = onComplete ? 'button' : 'span';
   return (
-    <span className={`cpm-kanban-progress cpm-kanban-progress--${mod}`} style={{ flexShrink: 0 }} aria-hidden="true">
-      {status === "DONE" && <i className="fas fa-check" />}
+    <Tag className={`cpm-kanban-progress cpm-kanban-progress--${mod} pm-task-check`}
+      type={onComplete ? 'button' : undefined}
+      aria-hidden={onComplete ? undefined : true}
+      aria-label={onComplete ? `${status === 'DONE' ? 'Reopen' : 'Complete'} task: ${title}` : undefined}
+      aria-pressed={onComplete ? status === 'DONE' : undefined}
+      onPointerDown={onComplete ? e => e.stopPropagation() : undefined}
+      onKeyDown={onComplete ? e => e.stopPropagation() : undefined}
+      onClick={onComplete ? e => { e.stopPropagation(); onComplete(); } : undefined}>
+      <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 6.4l2.4 2.4 4.6-5" /></svg>
       {status === "BLOCKED" && <i className="fas fa-xmark" />}
       {status === "IN_PROGRESS" && <span className="cpm-progress-half" />}
-    </span>
+    </Tag>
   );
 }
 

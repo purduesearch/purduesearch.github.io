@@ -31030,3 +31030,126 @@ button.cpm-sk-stat:hover, button.cpm-sk-stat:focus-visible { border-color: var(-
   border-top: 2px dashed currentColor;
 }
 .pm-sidebar .pm-sidebar-project-child-star { flex: none; color: #f9ca24; font-size: 10px; }
+/* Task completion: local actions opt in; settled rows never animate on mount. */
+.clubpm-app { --pm-task-completed: #19e3c3; --pm-task-check-ink: #07110f; }
+.pm-theme-light .clubpm-app,
+[data-theme="light"] .clubpm-app { --pm-task-completed: #00a58c; }
+.cpm-project-page { --clubpm-accent-green: var(--pm-task-completed); }
+[data-completion-id] { position: relative; overflow: visible; }
+.pm-shell--compact .pm-m-task-group { overflow: visible; }
+[data-completion-count] { display: inline-block; }
+.pm-task-check {
+  position: relative; display: inline-flex; align-items: center; justify-content: center;
+  flex: none; width: 20px; height: 20px; padding: 0; border-radius: 50%;
+  border: 2px solid var(--clubpm-text-muted); background: transparent;
+  overflow: visible; color: var(--clubpm-text-muted);
+}
+button.pm-task-check { cursor: pointer; }
+.pm-task-check:focus-visible, .pm-completion-toast button:focus-visible {
+  outline: 2px solid var(--pm-task-completed); outline-offset: 4px;
+}
+.pm-task-check svg { position: absolute; inset: 50% auto auto 50%; transform: translate(-50%, -50%); width: 12px; height: 12px; fill: none; pointer-events: none; }
+.pm-task-check path {
+  stroke: var(--pm-task-check-ink); stroke-width: 2; stroke-linecap: round;
+  stroke-linejoin: round; stroke-dasharray: 11; stroke-dashoffset: 11;
+}
+.pm-task-check.cpm-kanban-progress--in,
+.pm-shell--compact .pm-task-check.pm-m-task-status--in_progress {
+  border-color: var(--pm-accent-amber);
+  background: linear-gradient(transparent 50%, var(--pm-accent-amber) 50%);
+}
+.pm-task-check .cpm-progress-half { display: none; }
+.pm-task-check.cpm-kanban-progress--done,
+.pm-shell--compact .pm-task-check.pm-m-task-status--done {
+  border-color: var(--pm-task-completed); background: var(--pm-task-completed);
+}
+.pm-task-check.cpm-kanban-progress--done path,
+.pm-shell--compact .pm-task-check.pm-m-task-status--done path { stroke-dashoffset: 0; }
+[data-completion-id] :is(.cpm-task-row-compact-name, .pm-m-task-title) {
+  background: linear-gradient(currentColor, currentColor) 0 55% / 0% 1.5px no-repeat;
+}
+[data-completion-status="DONE"] :is(.cpm-task-row-compact-name, .pm-m-task-title) {
+  background-size: 100% 1.5px; color: var(--clubpm-text-muted);
+}
+[data-completion-status="DONE"] :is(.cpm-priority-bars, .pm-m-task-priority) { opacity: .35; filter: grayscale(1); }
+[data-completion-status="DONE"] .cpm-avatar-stack { opacity: .55; }
+.pm-task-landing { z-index: 20; will-change: transform; }
+.pm-task-landing .pm-task-check,
+.pm-shell--compact .pm-task-landing .pm-task-check {
+  border-color: var(--pm-accent-amber); background: linear-gradient(transparent 50%, var(--pm-accent-amber) 50%);
+}
+.pm-task-landing .pm-task-check path { stroke-dashoffset: 11; }
+.pm-task-landing :is(.cpm-task-row-compact-name, .pm-m-task-title) { background-size: 0% 1.5px; color: var(--clubpm-text-primary); }
+.pm-task-landing :is(.cpm-priority-bars, .pm-m-task-priority, .cpm-avatar-stack) { opacity: 1; filter: none; }
+.pm-task-celebrating { z-index: 1; }
+.pm-task-celebrating::before {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  box-shadow: inset 0 0 0 1px var(--pm-task-completed), 0 0 26px color-mix(in srgb, var(--pm-task-completed) 45%, transparent);
+  animation: pm-task-glow 1100ms ease-out both;
+}
+.pm-task-celebrating::after {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  background: linear-gradient(100deg, transparent 30%, color-mix(in srgb, var(--pm-task-completed) 32%, transparent) 50%, transparent 70%) 100% 0 / 300% 100%;
+  animation: pm-task-sweep 850ms ease-out 100ms both;
+}
+.pm-task-celebrating .pm-task-check {
+  animation: pm-task-fill 250ms ease-out both, pm-task-pop 550ms cubic-bezier(.34,1.56,.64,1) 100ms;
+}
+.pm-task-celebrating .pm-task-check::before {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  background: linear-gradient(transparent 50%, var(--pm-accent-amber) 50%);
+  animation: pm-task-glow 250ms ease-out both;
+}
+.pm-task-celebrating .pm-task-check path { animation: pm-task-draw 300ms ease-out 200ms both; }
+.pm-task-ripple {
+  position: absolute; inset: -2px; border-radius: 50%; border: 2px solid var(--pm-task-completed);
+  pointer-events: none; animation: pm-task-ripple 800ms ease-out both;
+}
+.pm-task-celebrating :is(.cpm-task-row-compact-name, .pm-m-task-title) {
+  animation: pm-task-strike 450ms cubic-bezier(.6,0,.2,1) 250ms both,
+    pm-task-mute 400ms ease 250ms both;
+}
+.pm-task-celebrating :is(.cpm-priority-bars, .pm-m-task-priority) { animation: pm-task-dim 400ms ease both; }
+.pm-task-celebrating .cpm-avatar-stack { animation: pm-task-avatar-dim 400ms ease both; }
+.pm-task-confetti { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2147483647; }
+.pm-completion-live { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.clubpm-app.pm-completion-toast {
+  display: flex; align-items: center; gap: 12px; min-height: 0; width: auto; max-width: min(540px, calc(100vw - 24px));
+  padding: 10px 12px 10px 16px; margin-bottom: env(safe-area-inset-bottom, 0px);
+  border: 1px solid var(--pm-border); border-radius: 999px; background: var(--pm-elevated);
+  color: var(--pm-text-primary); box-shadow: 0 12px 36px rgba(0,0,0,.35);
+  opacity: 0; transform: translateY(160%); transition: transform 450ms cubic-bezier(.34,1.4,.5,1), opacity 200ms;
+}
+.pm-completion-toast.is-visible { opacity: 1; transform: translateY(0); animation: pm-task-toast-enter 450ms cubic-bezier(.34,1.4,.5,1); }
+.pm-completion-toast span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pm-completion-toast button {
+  flex: none; border: 1px solid var(--pm-border); border-radius: 999px; padding: 6px 12px;
+  font: inherit; color: var(--pm-task-completed); background: transparent; cursor: pointer;
+}
+@keyframes pm-task-glow { from { opacity: 1; } to { opacity: 0; } }
+@keyframes pm-task-sweep { from { background-position: 100% 0; opacity: 1; } to { background-position: 0% 0; opacity: 0; } }
+@keyframes pm-task-fill { from { border-color: var(--pm-accent-amber); background-color: transparent; } to { border-color: var(--pm-task-completed); background-color: var(--pm-task-completed); } }
+@keyframes pm-task-draw { from { stroke-dashoffset: 11; } to { stroke-dashoffset: 0; } }
+@keyframes pm-task-pop { 0%, 100% { transform: scale(1); } 35% { transform: scale(1.55); } }
+@keyframes pm-task-ripple { from { transform: scale(1); opacity: .9; } to { transform: scale(3); opacity: 0; } }
+@keyframes pm-task-strike { from { background-size: 0% 1.5px; } to { background-size: 100% 1.5px; } }
+@keyframes pm-task-mute { from { color: var(--clubpm-text-primary); } to { color: var(--clubpm-text-muted); } }
+@keyframes pm-task-dim { from { opacity: 1; filter: grayscale(0); } to { opacity: .35; filter: grayscale(1); } }
+@keyframes pm-task-avatar-dim { from { opacity: 1; } to { opacity: .55; } }
+@media (prefers-reduced-motion: reduce) {
+  .pm-task-celebrating::before, .pm-task-celebrating::after, .pm-task-celebrating .pm-task-check::before, .pm-task-ripple { display: none; }
+  .pm-task-celebrating .pm-task-check, .pm-task-celebrating .pm-task-check path,
+  .pm-task-celebrating :is(.cpm-task-row-compact-name, .pm-m-task-title, .cpm-priority-bars, .pm-m-task-priority, .cpm-avatar-stack) { animation: none; }
+  .pm-task-celebrating { animation: pm-task-fade 180ms ease-out; }
+  .clubpm-app.pm-completion-toast { transform: none; transition: opacity 180ms; }
+  .pm-completion-toast.is-visible { animation: pm-task-fade 180ms ease-out; }
+}
+
+@keyframes pm-task-fade { from { opacity: .65; } to { opacity: 1; } }
+@keyframes pm-task-toast-enter { from { opacity: 0; transform: translateY(160%); } to { opacity: 1; transform: translateY(0); } }
+.pm-task-grip, .pm-m-task-grip {
+  touch-action: none; border: 0; background: none; color: var(--clubpm-text-muted);
+  cursor: grab; flex: none; padding: 0; font-size: 11px;
+}
+.pm-shell--compact .pm-m-task-grip { grid-column: 1; grid-row: 2; min-height: 44px; }
+.pm-task-grip:focus-visible, .pm-m-task-grip:focus-visible { outline: 2px solid var(--pm-task-completed); outline-offset: 3px; }

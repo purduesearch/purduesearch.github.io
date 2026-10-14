@@ -1,11 +1,12 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import TaskModal from './TaskModal';
-import { get, post } from '../../api/clubPmClient';
+import { get, post, getSlackLinks } from '../../api/clubPmClient';
 import { useCompactLayout } from '../../clubpm/layout/compactLayout';
 
 jest.mock('../../api/clubPmClient', () => ({
   get: jest.fn(),
+  getSlackLinks: jest.fn(() => Promise.resolve([])),
   post: jest.fn(),
   patch: jest.fn(),
   del: jest.fn(),
@@ -28,6 +29,7 @@ const TASK = { id: 't1', title: 'Comment target', projectId: 'proj1', status: 'T
 
 beforeEach(() => {
   jest.clearAllMocks();
+  getSlackLinks.mockResolvedValue([]);
   useCompactLayout.mockReturnValue(false);
   get.mockImplementation((url) => {
     if (url === '/api/tasks/t1') return Promise.resolve(TASK);
