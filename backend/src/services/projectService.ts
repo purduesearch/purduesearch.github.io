@@ -11,6 +11,7 @@ import { EXCLUDE_TRAINING } from "./trainingSandboxService.js";
 import { planChannelMemberSync } from "./projectMemberSyncCore.js";
 import { getRollupChildren } from "./subProjectRollupService.js";
 import { canEditProjectsBatch } from "./projectEditAccess.js";
+import { createProjectWithInheritedRoles } from "./projectRoleInheritance.js";
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -189,7 +190,7 @@ export async function getProjectByChannel(channelId: string) {
 }
 
 export async function createProject(data: CreateProjectInput): Promise<Project> {
-  return prisma.project.create({ data });
+  return createProjectWithInheritedRoles(prisma, data);
 }
 
 export async function updateProject(
@@ -334,6 +335,7 @@ export async function getProjectsWithTaskStats() {
   const projects = await prisma.project.findMany({
     where: { ...EXCLUDE_TRAINING },
     include: {
+      rollup: { select: { tagColor: true } },
       members: { include: { member: true } },
       tasks: { where: { archivedAt: null }, select: { status: true } },
     },

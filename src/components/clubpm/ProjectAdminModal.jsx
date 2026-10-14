@@ -223,6 +223,7 @@ export default function ProjectAdminModal({ projectId, onClose, onDeleted, onCha
                       </select>
                       <button type="submit" className="clubpm-btn-primary" disabled={busy || !subName.trim()}>Add</button>
                     </form>
+                    <p className="cpm-proj-edit-hint">New sub-projects copy this project's admin titles and sublead roles. You can edit them independently in the sub-project's Members view.</p>
                   </>
                 )}
                 {children.length === 0 && (

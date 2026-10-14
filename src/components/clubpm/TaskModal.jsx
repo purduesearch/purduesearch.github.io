@@ -13,7 +13,7 @@ import { parseDriveUrl, getTypeMeta } from "../../utils/driveUtils";
 import MobileSheet from "./MobileSheet";
 import { ConfirmAddMemberDialog, OutsideTag, outsideMatches } from "./OutsideMemberAdd";
 import { useCompactLayout } from "../../clubpm/layout/compactLayout";
-import { RollupSourceChip } from "./rollup/RollupChips";
+import { RollupTagChip } from "./rollup/RollupChips";
 
 // ─── Constants ────────────────────────────────────────────────
 
@@ -1680,8 +1680,7 @@ export default function TaskModal({ task: initialTask, project, projectBlockers 
             )}
           </div>
           <div style={{ display:"flex", alignItems:"center", gap:6, fontSize:11, color:"var(--clubpm-text-muted)" }}>
-            <span>{task.project?.name ?? "Project"}</span>
-            <RollupSourceChip rollup={task.rollup} />
+            {task.rollup ? <RollupTagChip rollup={task.rollup} /> : <span>{task.project?.name ?? "Project"}</span>}
             <i className="fas fa-chevron-right" style={{ fontSize:8 }} />
             <span>Tasks</span>
             <i className="fas fa-chevron-right" style={{ fontSize:8 }} />

@@ -3,6 +3,10 @@
 // A child whose parent is not in the list (not loaded, or filtered out by a
 // search) is shown as a root so it never disappears.
 
+export function subProjectTagColor(project) {
+  return project.rollup?.tagColor || '#6c5ce7';
+}
+
 /**
  * @param {Array<{id: string, parentId?: string|null}>} projects
  * @param {{ starredIds?: string[] }} [opts] starred roots sort first; order is otherwise preserved

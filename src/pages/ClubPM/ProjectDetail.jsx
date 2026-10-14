@@ -473,7 +473,6 @@ function MobileTaskRow({ task, onOpen, onMove, onAssign, canEdit, tourId }) {
           <span className={`pm-m-task-priority pm-m-task-priority--${(task.priority ?? 'MEDIUM').toLowerCase()}`}>{(task.priority ?? 'MEDIUM').toLowerCase()}</span>
           {due ? <span className={overdue ? 'is-overdue' : ''}><i className="fas fa-calendar-day" aria-hidden="true" /> {due.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span> : <span>No due date</span>}
           {(task.subtasks?.length ?? 0) > 0 ? <span><i className="fas fa-list-check" aria-hidden="true" /> {task.subtasks.length}</span> : null}
-          <RollupSourceChip rollup={task.rollup} />
           <RollupTagChip rollup={task.rollup} />
         </span>
       </button>
@@ -870,7 +869,7 @@ function BlockedTaskRow({ task, reason, selected, onTaskClick, groupId }) {
       <PriorityBars priority={task.priority} />
       <span className="cpm-task-row-compact-name">{task.title}</span>
       <AvatarStack assignees={task.assignees} />
-      <RollupSourceChip rollup={task.rollup} />
+      <RollupTagChip rollup={task.rollup} />
       {reason && <span className="cpm-blocked-task-reason" title={reason}>{reason}</span>}
     </div>
   );
@@ -1004,7 +1003,6 @@ function CompactTaskRow({ task, onClick, subtaskCount = 0, isExpanded = false, o
           })}
         </span>
       )}
-      <RollupSourceChip rollup={task.rollup} />
       {((task.tags && task.tags.length > 0) || task.rollup?.tagEnabled) && (
         <div style={{ display: "flex", gap: 3, flexShrink: 0 }}>
           <RollupTagChip rollup={task.rollup} />

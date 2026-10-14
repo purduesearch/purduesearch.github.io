@@ -90,6 +90,7 @@ export default function SubProjectRollupSettings({ projectId, projectName, paren
       setForm(s);
       setSaved(s);
       toast.success("Roll-up settings saved");
+      window.dispatchEvent(new Event("pm-projects-refresh"));
       onSaved?.(s);
     } catch (err) {
       toast.error(err?.message ?? "Could not save roll-up settings");

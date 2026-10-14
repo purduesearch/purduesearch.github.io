@@ -119,7 +119,7 @@ projectsRouter.post("/", async (req: Request, res: Response) => {
       parentId: parentId || undefined,
     });
 
-    // The creator is the whole roster until a Slack channel is linked or someone is added.
+    // Add the creator without overwriting any role inherited from the parent.
     await addManualMemberToProject(project.id, memberId).catch(err =>
       console.warn("add creator to project failed:", err)
     );

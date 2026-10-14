@@ -30944,7 +30944,7 @@ button.cpm-sk-stat:hover, button.cpm-sk-stat:focus-visible { border-color: var(-
   padding-right: 6px;
 }
 .pm-sidebar:hover .pm-sidebar-project-actions,
-.pm-sidebar:focus-within .pm-sidebar-project-actions,
+.pm-sidebar:has(:focus-visible) .pm-sidebar-project-actions,
 .pm-sidebar.is-tour-pinned .pm-sidebar-project-actions { display: flex; }
 .pm-sidebar .pm-sidebar-project-actions > button {
   appearance: none;
@@ -30987,8 +30987,9 @@ button.cpm-sk-stat:hover, button.cpm-sk-stat:focus-visible { border-color: var(-
 .pm-sidebar .pm-sidebar-project-row > .pm-sidebar-project-item { padding-right: 8px; }
 .pm-sidebar .pm-sidebar-project-name { min-width: 0; }
 .pm-sidebar .pm-sidebar-project-item--child { padding-left: 24px; gap: 6px; }
-.pm-sidebar:focus-within { width: 220px; }
-.pm-sidebar:focus-within .pm-sidebar-project-name { opacity: 1; }
+/* Keyboard focus keeps projects usable; mouse-click focus must not pin the rail open. */
+.pm-sidebar:has(:focus-visible) { width: 220px; }
+.pm-sidebar:has(:focus-visible) .pm-sidebar-project-name { opacity: 1; }
 
 /* A dashed hierarchy connector stays visible independently of the icon font. */
 .cpm-project-child-marker {

@@ -34,7 +34,7 @@ import MobileBottomNav from './MobileBottomNav';
 import MobileSheet from './MobileSheet';
 import MobileProjectPicker from './MobileProjectPicker';
 import ProjectAdminModal from './ProjectAdminModal';
-import { buildProjectRows } from '../../clubpm/projectTree';
+import { buildProjectRows, subProjectTagColor } from '../../clubpm/projectTree';
 import MobileMoreMenu from './MobileMoreMenu';
 import { usePatchNotesBadge } from '../../clubpm/patchNotes';
 
@@ -638,7 +638,7 @@ export default function AppShell({ children }) {
                   className={`pm-sidebar-project-item${depth ? ' pm-sidebar-project-item--child' : ''}${location.pathname === `/clubpm/projects/${p.id}` ? ' active' : ''}`}
                 >
                   {depth
-                    ? <span className="cpm-project-child-marker" style={{ color: statusDotColor(p.status) }} aria-hidden="true" />
+                    ? <span className="cpm-project-child-marker" style={{ color: subProjectTagColor(p) }} aria-hidden="true" />
                     : starredIds.includes(p.id)
                       ? <span style={{ color: '#f9ca24', fontSize: 13, flexShrink: 0, lineHeight: 1 }}>★</span>
                       : <span className="pm-sidebar-project-dot" style={{ background: statusDotColor(p.status) }} />
