@@ -1,13 +1,14 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import MembersView from './MembersView';
-import { get, listConversations, importMyDms, setProjectLead } from '../../api/clubPmClient';
+import { get, listConversations, importMyDms, setProjectLead, skillsApi } from '../../api/clubPmClient';
 
 let mockIsAdmin = false;
 
 jest.mock('../../api/clubPmClient', () => ({
   get: jest.fn(), post: jest.fn(), listProjectRepos: jest.fn(), openDm: jest.fn(),
   setProjectLead: jest.fn(), listConversations: jest.fn(), importMyDms: jest.fn(),
+  skillsApi: { member: jest.fn(() => Promise.resolve({ hidden: true, groups: [] })) },
 }));
 jest.mock('../../clubpm/ClubPmAuth', () => ({
   useClubPmAuth: () => ({ member: { id: 'me', slackId: 'UME', isAdmin: mockIsAdmin, slackCapabilities: { read: true, dm: true } } }),
@@ -30,6 +31,7 @@ const roster = Array.from({ length: 100 }, (_, i) => ({
 beforeEach(() => {
   mockIsAdmin = false;
   jest.clearAllMocks();
+  skillsApi.member.mockResolvedValue({ hidden: true, groups: [] });
   sessionStorage.clear();
   get.mockResolvedValue(roster);
   listConversations.mockResolvedValue({ dms: [] });

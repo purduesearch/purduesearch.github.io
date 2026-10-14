@@ -4,11 +4,11 @@ import OrbitLoader from '../../components/OrbitLoader';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { get, post, listProjectRepos, openDm } from '../../api/clubPmClient';
 import { useClubPmAuth } from '../../clubpm/ClubPmAuth';
-import KudosButton from '../../components/clubpm/KudosButton';
 import AvatarPortrait from '../../components/clubpm/avatar/AvatarPortrait';
 import RankIcon from '../../components/clubpm/RankIcon';
 import LeaderboardPanel from '../../components/clubpm/LeaderboardPanel';
 import { tzOffset, copyToClipboard } from '../../clubpm/members/memberShared';
+import { MemberFacts, MemberSkillStrip, MemberActions } from '../../components/clubpm/members/MemberCardParts';
 import { MemberName } from '../../clubpm/cosmetics/CosmeticStylesContext';
 import toast from 'react-hot-toast';
 import DmInbox from '../../components/clubpm/members/DmInbox';
@@ -42,13 +42,10 @@ function MembersStats({ members }) {
 // ── Member card ───────────────────────────────────────────────
 
 function MemberCard({ member, onClick, onMessage, selectable = false, selected = false, onToggleSelect, lead, onEditLead }) {
-  const { displayName, slackHandle, role, isAdmin, title, email, timezone, _count } = member;
+  const { displayName, slackHandle, role, isAdmin, title } = member;
   const isProjectLead = !isAdmin && !!lead?.isLead;
 
-  const taskCount    = _count?.tasks    ?? 0;
-  const projectCount = _count?.projects ?? 0;
   const roleLabel    = isAdmin ? 'Admin' : (role === 'LEAD' ? 'Lead' : 'Member');
-  const offset       = tzOffset(timezone);
 
   return (
     <div
@@ -93,45 +90,10 @@ function MemberCard({ member, onClick, onMessage, selectable = false, selected =
         </div>
       </div>
 
-      <div className="pm-member-card-body">
-        {email && (
-          <button
-            className="pm-member-email-btn"
-            onClick={e => { e.stopPropagation(); copyToClipboard(email); }}
-            title="Click to copy email"
-          >
-            <i className="fas fa-envelope" />
-            <span>{email}</span>
-          </button>
-        )}
-        {offset && (
-          <div className="pm-member-tz">
-            <i className="fas fa-clock" />
-            <span>{offset}</span>
-          </div>
-        )}
-      </div>
+      <MemberFacts member={member} />
+      <MemberSkillStrip memberId={member.id} lazy />
 
-      <div className="pm-member-stats">
-        <span className="pm-member-stat">
-          <i className="fas fa-tasks" />
-          {taskCount} task{taskCount !== 1 ? 's' : ''}
-        </span>
-        <span className="pm-member-stat">
-          <i className="fas fa-folder" />
-          {projectCount} project{projectCount !== 1 ? 's' : ''}
-        </span>
-      </div>
-
-      <div className="pm-member-card-actions" onClick={e => e.stopPropagation()}>
-        <Link
-          to={`/clubpm/profile/${member.id}`}
-          className="pm-member-card-profile-btn"
-          title="View full profile"
-        >
-          <i className="fas fa-user" />
-        </Link>
-        <KudosButton memberId={member.id} displayName={displayName} />
+      <MemberActions member={member} onMessage={onMessage}>
         {onEditLead && (
           <button
             type="button"
@@ -144,18 +106,7 @@ function MemberCard({ member, onClick, onMessage, selectable = false, selected =
             {isAdmin ? 'Edit title' : isProjectLead ? 'Edit role' : 'Make sublead'}
           </button>
         )}
-        {onMessage && (
-          <button
-            type="button"
-            className="pm-member-card-message-btn"
-            title={`Message ${displayName}`}
-            aria-label={`Message ${displayName}`}
-            onClick={() => onMessage(member)}
-          >
-            <i className="fas fa-comment" aria-hidden="true" />
-          </button>
-        )}
-      </div>
+      </MemberActions>
     </div>
   );
 }
