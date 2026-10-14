@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import React, { useContext, useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useParams, Link, useSearchParams, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
@@ -51,6 +51,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { revealStagger } from "../../clubpm/anim/motion";
 import useTaskCompletion, { TaskCompletionContext, useTaskCompletionActions } from "../../components/clubpm/celebrate/useTaskCompletion";
+import useTaskAssignment, { TaskAssignmentContext, assignmentCounts } from "../../components/clubpm/celebrate/useTaskAssignment";
 import useStreakWatcher from "../../hooks/useStreakWatcher";
 import MobileSheet from "../../components/clubpm/MobileSheet";
 import { useCompactLayout } from "../../clubpm/layout/compactLayout";
@@ -101,22 +102,20 @@ function kanbanCollisionDetection(args) {
     // pointer is over a row the row wins; over the bare bin header, the bin wins.
     const targets = args.droppableContainers.filter((c) => {
       const cid = c.id;
+      if (cid === "assignment-cancel") return true;
+      if (c.data.current?.canAssign === false) return false;
       if (typeof cid === "string" && cid.startsWith("noop-")) return false;
       if (typeof cid === "string" && cid.startsWith("blocker-")) return true;
       return !isContainerId(cid);
     });
     const hits = pointerWithin({ ...args, droppableContainers: targets });
     if (hits.length) {
+      const cancel = hits.find(h => h.id === "assignment-cancel");
+      if (cancel) return [cancel];
       const row = hits.find((h) => !(typeof h.id === "string" && h.id.startsWith("blocker-")));
       return row ? [row] : [hits[0]];
     }
-    // Nothing directly under the pointer → snap to the nearest task row (never a
-    // bin), preserving the old "assign to closest card" behaviour.
-    const rows = {
-      ...args,
-      droppableContainers: targets.filter((c) => !(typeof c.id === "string" && c.id.startsWith("blocker-"))),
-    };
-    return closestCenter(rows);
+    return []; // Empty space cancels member assignment.
   }
 
   const containers = {
@@ -869,11 +868,14 @@ function BlockedTaskRow({ task, reason, selected, onTaskClick, groupId }) {
   // Namespaced id (a task can appear under several blocker groups at once, and
   // dnd-kit droppable ids are global — so plain task.id would collide). The real
   // task id travels in `data` for the drop handler to read back.
-  const { setNodeRef, isOver } = useDroppable({ id: `btask-${groupId}-${task.id}`, data: { taskId: task.id } });
+  const { setNodeRef, isOver } = useDroppable({ id: `btask-${groupId}-${task.id}`, data: { taskId: task.id, canAssign: task.canAssign !== false }, disabled: task.canAssign === false });
   return (
     <div
       ref={setNodeRef}
       data-completion-id={task.id}
+      role="button" tabIndex={0}
+      aria-label={`Open task: ${task.title}`}
+      onKeyDown={e => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onTaskClick(task, e); } }}
       data-completion-status={task.status}
       className={`cpm-task-row-compact cpm-blocked-task-row${selected ? " cpm-task-row-compact--selected" : ""}${isOver ? " cpm-task-row-compact--member-target" : ""}`}
       onClick={(e) => onTaskClick(task, e)}
@@ -883,7 +885,7 @@ function BlockedTaskRow({ task, reason, selected, onTaskClick, groupId }) {
       )}
       <PriorityBars priority={task.priority} />
       <span className="cpm-task-row-compact-name">{task.title}</span>
-      <AvatarStack assignees={task.assignees} />
+      <AvatarStack assignees={task.assignees} taskId={task.id} />
       <RollupTagChip rollup={task.rollup} />
       {reason && <span className="cpm-blocked-task-reason" title={reason}>{reason}</span>}
     </div>
@@ -954,7 +956,7 @@ function CompactTaskRow({ task, onClick, subtaskCount = 0, isExpanded = false, o
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: task.id, disabled: canEdit ? false : { draggable: true } });
+  } = useSortable({ id: task.id, data: { canAssign: task.canAssign !== false }, disabled: { draggable: !canEdit, droppable: task.canAssign === false } });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -970,6 +972,9 @@ function CompactTaskRow({ task, onClick, subtaskCount = 0, isExpanded = false, o
       {...listeners}
       data-tour-id={(tourId)}
       data-completion-id={task.id}
+      role="button" tabIndex={0}
+      aria-label={`Open task: ${task.title}`}
+      onKeyDown={e => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onClick(task, e); } }}
       data-completion-status={task.status}
       className={`cpm-task-row-compact${isDropTarget ? " cpm-task-row-compact--member-target" : ""}${isSelected ? " cpm-task-row-compact--selected" : ""}`}
       onClick={(e) => {
@@ -1002,7 +1007,7 @@ function CompactTaskRow({ task, onClick, subtaskCount = 0, isExpanded = false, o
           {subtaskCount}
         </button>
       )}
-      <AvatarStack assignees={task.assignees} />
+      <AvatarStack assignees={task.assignees} taskId={task.id} />
       {task.dueDate && (
         <span
           style={{
@@ -1043,7 +1048,7 @@ function CompactTaskRow({ task, onClick, subtaskCount = 0, isExpanded = false, o
 
 function KanbanSubtaskRow({ subtask, onClick, isDropTarget = false, isSelected = false }) {
   const completionActions = useTaskCompletionActions();
-  const { setNodeRef } = useDroppable({ id: subtask.id });
+  const { setNodeRef } = useDroppable({ id: subtask.id, data: { canAssign: subtask.canAssign !== false }, disabled: subtask.canAssign === false });
   return (
     <div style={{ display: "flex", alignItems: "stretch" }}>
       <div style={{ width: 40, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "flex-end", paddingRight: 4 }}>
@@ -1055,6 +1060,9 @@ function KanbanSubtaskRow({ subtask, onClick, isDropTarget = false, isSelected =
       ref={setNodeRef}
       className={`cpm-task-row-compact${isDropTarget ? " cpm-task-row-compact--member-target" : ""}${isSelected ? " cpm-task-row-compact--selected" : ""}`}
       data-completion-id={subtask.id}
+      role="button" tabIndex={0}
+      aria-label={`Open task: ${subtask.title}`}
+      onKeyDown={e => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onClick(subtask, e); } }}
       data-completion-status={subtask.status}
       style={{ flex: 1, paddingLeft: 8, cursor: "pointer" }}
       onClick={(e) => onClick(subtask, e)}
@@ -1068,7 +1076,7 @@ function KanbanSubtaskRow({ subtask, onClick, isDropTarget = false, isSelected =
       <span className="cpm-task-row-compact-name">
         {subtask.title}
       </span>
-      <AvatarStack assignees={subtask.assignees} />
+      <AvatarStack assignees={subtask.assignees} taskId={subtask.id} />
       {subtask.dueDate && (
         <span style={{ fontSize: 11, color: "var(--clubpm-text-muted)", flexShrink: 0, whiteSpace: "nowrap" }}>
           {new Date(subtask.dueDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
@@ -1096,7 +1104,9 @@ function projectRoster(project) {
 
 // ── Assignee Panel (right column) ────────────────────────────
 
-function AssigneePanel({ members, outsideCandidates = [], selectedMemberIds, onMemberClick, leadByMemberId, canEditLeads = false, projectId, onLeadsChanged, onMemberAdded }) {
+function AssigneePanel({ counts, members, outsideCandidates = [], selectedMemberIds, onMemberClick, leadByMemberId, canEditLeads = false, projectId, onLeadsChanged, onMemberAdded }) {
+  const { setNodeRef: cancelRef, isOver: cancelOver } = useDroppable({ id: "assignment-cancel" });
+  const assignment = useContext(TaskAssignmentContext);
   const [collapsed, setCollapsed] = useState(false);
   const [search, setSearch] = useState("");
   const [card, setCard] = useState(null); // { pm, anchor }
@@ -1132,7 +1142,7 @@ function AssigneePanel({ members, outsideCandidates = [], selectedMemberIds, onM
   );
 
   return (
-    <aside className="cpm-assignee-panel">
+    <aside ref={cancelRef} className={`cpm-assignee-panel${cancelOver && assignment?.dragging ? " pm-assignment-cancel-target" : ""}`} aria-label="Assignees; drop here to cancel assignment">
       <div className="cpm-assignee-panel-header">
         <span style={{ fontSize: 13, fontWeight: 600, color: "var(--clubpm-text-primary)" }}>
           Members
@@ -1216,6 +1226,7 @@ function AssigneePanel({ members, outsideCandidates = [], selectedMemberIds, onM
                 <DraggableMemberChip
                   key={pm.memberId}
                   pm={pm}
+                  count={counts?.get(pm.memberId) ?? 0}
                   selected={selectedMemberIds.has(pm.memberId)}
                   onClick={onMemberClick}
                   lead={leadByMemberId?.get(pm.memberId)}
@@ -1276,7 +1287,7 @@ function DraggableSpecialChip({ id, label, iconClass, accentColor }) {
   );
 }
 
-function DraggableMemberChip({ pm, selected, onClick, lead, onOpenCard }) {
+function DraggableMemberChip({ count = 0, pm, selected, onClick, lead, onOpenCard }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `member-${pm.memberId}`,
     data: { type: "member", memberId: pm.memberId },
@@ -1290,6 +1301,7 @@ function DraggableMemberChip({ pm, selected, onClick, lead, onOpenCard }) {
       {...attributes}
       {...listeners}
       className={`cpm-assignee-chip${selected ? " cpm-assignee-chip--selected" : ""}${isLead ? " cpm-assignee-chip--lead" : ""}`}
+      data-assignment-source={pm.memberId}
       aria-pressed={selected}
       title={isAdmin
         ? `${lead?.leadTitle || "Admin"}. Double-click for details. Drag to assign.`
@@ -1299,7 +1311,7 @@ function DraggableMemberChip({ pm, selected, onClick, lead, onOpenCard }) {
       onClick={(event) => onClick(pm.memberId, event)}
       onDoubleClick={(event) => onOpenCard(pm, event.currentTarget.getBoundingClientRect())}
       style={{
-        opacity: isDragging ? 0.4 : 1,
+        opacity: isDragging ? 0.25 : 1,
         borderColor: isLead ? "var(--pm-accent-violet, #a78bfa)" : isAdmin ? "#f9ca24" : undefined,
         background: isLead ? "color-mix(in srgb, var(--pm-accent-violet, #a78bfa) 14%, var(--clubpm-surface-200))" : undefined,
       }}
@@ -1309,6 +1321,7 @@ function DraggableMemberChip({ pm, selected, onClick, lead, onOpenCard }) {
         {pm.member.displayName}
         {lead?.leadTitle && <span className="cpm-assignee-chip-title">{lead.leadTitle}</span>}
       </span>
+      <span className="pm-assignment-count" aria-label={`${count} assigned unfinished tasks`}>{count}</span>
       {isAdmin && <i className="fas fa-crown cpm-assignee-chip-lead-icon cpm-assignee-chip-admin-icon" aria-label="Admin" />}
       {isLead && <i className="fas fa-user-shield cpm-assignee-chip-lead-icon" aria-label="Sublead" />}
     </div>
@@ -2478,6 +2491,9 @@ export default function ProjectDetail() {
     (taskId, fields) => taskId
       ? patch(`/api/tasks/${taskId}`, fields)
       : patch('/api/tasks/bulk', fields));
+  const assignment = useTaskAssignment(completionRootRef, project, setProject,
+    (taskId, fields) => patch(`/api/tasks/${taskId}`, fields));
+  const counts = useMemo(() => assignmentCounts(project?.tasks), [project?.tasks]);
   const [allProjects, setAllProjects] = useState([]);
   const [allMembers, setAllMembers] = useState([]);
   const [slackChannels, setSlackChannels] = useState([]);
@@ -3229,6 +3245,7 @@ export default function ProjectDetail() {
   }, [setSearchParams]);
 
   const handleDragStart = (event) => {
+    assignment.start(event.activatorEvent?.clientX ?? 0);
     completion.cancel(event.active.id);
     const { active } = event;
     if (typeof active.id === "string" && (active.id.startsWith("member-") || active.id === "special-everyone" || active.id === "special-nobody")) {
@@ -3256,10 +3273,12 @@ export default function ProjectDetail() {
       // A member can be dropped on a task row (assign) or a blocker category
       // sub-bin (set the blocker's responsible owner).
       const isBlockerBin = typeof overId === "string" && overId.startsWith("blocker-");
+      const targetId = over?.data?.current?.taskId ?? overId;
+      assignment.setHover(targetId && targetId !== "assignment-cancel" && !isBlockerBin ? { id: targetId, memberIds: selectedMemberIds.has(active.data.current?.memberId) && selectedMemberIds.size > 1 ? [...selectedMemberIds] : [active.data.current?.memberId] } : null);
       setOverBin(isBlockerBin ? overId : null);
       const isTopLevel = !isBlockerBin && overId && project?.tasks.some(t => t.id === overId);
       const isSubtask = !isBlockerBin && !isTopLevel && overId && project?.tasks.some(t => (t.subtasks ?? []).some(s => s.id === overId));
-      setOverTaskId(isTopLevel || isSubtask ? overId : null);
+      setOverTaskId(isTopLevel || isSubtask ? overId : over?.data?.current?.taskId ?? null);
     } else {
       setOverTaskId(null);
       setOverBin(isContainerId(overId) ? overId : null);
@@ -3272,7 +3291,8 @@ export default function ProjectDetail() {
     setOverBin(null);
     setOverTaskId(null);
     const { active, over } = event;
-    if (!over || !project) return;
+    if (!over || over.id === "assignment-cancel" || !project) { assignment.endDrag(true); return; }
+    assignment.endDrag();
 
     // Permission is per task: a rolled-up task answers to its own project.
     // Subtasks inherit their parent's rollup.
@@ -3352,26 +3372,15 @@ export default function ProjectDetail() {
       if (!memberId) return;
       const found = findTask(overTargetId);
       if (!found) return;
-      const { task, parentTask } = found;
-      if (!canEditTaskId(task.id)) return;
+      const { task } = found;
+      if (task.canAssign === false || (task.canAssign == null && !canEditTaskId(task.id))) { assignment.endDrag(true); return; }
       const draggedMemberIds = selectedMemberIds.has(memberId) && selectedMemberIds.size > 1
         ? [...selectedMemberIds]
         : [memberId];
-      const existingIds = new Set((task.assignees ?? []).map(a => a.id));
-      const addedMemberIds = draggedMemberIds.filter(id => !existingIds.has(id));
-      if (addedMemberIds.length === 0) return;
-      const addedMembers = addedMemberIds
-        .map(id => allMembers.find(m => m.memberId === id)?.member)
-        .filter(Boolean);
-      const newAssigneeIds = [...existingIds, ...addedMemberIds];
-      applyAssigneeUpdate(task.id, parentTask?.id ?? null, [...(task.assignees ?? []), ...addedMembers]);
-      try {
-        const updated = await patch(`/api/tasks/${task.id}`, { assigneeIds: newAssigneeIds });
-        applyAssigneeUpdate(task.id, parentTask?.id ?? null, updated.assignees ?? []);
-        if (draggedMemberIds.length > 1) setSelectedMemberIds(new Set());
-      } catch {
-        fetchProject();
-      }
+      const draggedMembers = draggedMemberIds.map(mid => allMembers.find(m => m.memberId === mid)?.member).filter(Boolean);
+      const saved = await assignment.assign(task.id, draggedMembers, task.canAssign !== false);
+      if (saved && draggedMemberIds.length > 1) setSelectedMemberIds(new Set());
+
       return;
     }
 
@@ -3756,17 +3765,20 @@ export default function ProjectDetail() {
   const canAdd = canEdit || createSources.length > 0;
 
   return (
+    <TaskAssignmentContext.Provider value={{ ...assignment, dragging: !!activeMember }}>
     <TaskCompletionContext.Provider value={{ move: moveTasksToStatus, statusOf: tid => findTaskById(tid)?.task.status, version: Math.max(0, ...Object.values(completion.order)) }}>
     <div ref={completionRootRef} className="clubpm-app cpm-project-page">
+    <div ref={assignment.liveRef} className="pm-completion-live" aria-live="polite" aria-atomic="true" />
     <div ref={completion.liveRef} className="pm-completion-live" aria-live="polite" aria-atomic="true" />
     <div className="cpm-project-layout">
       <DndContext
         sensors={sensors}
         collisionDetection={kanbanCollisionDetection}
         onDragStart={handleDragStart}
+        onDragMove={event => assignment.move((event.activatorEvent?.clientX ?? 0) + event.delta.x)}
         onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
-        onDragCancel={() => { setActiveTask(null); setActiveMember(null); setOverBin(null); setOverTaskId(null); }}
+        onDragCancel={() => { assignment.endDrag(true); setActiveTask(null); setActiveMember(null); setOverBin(null); setOverTaskId(null); }}
       >
         <main ref={tabBodyRef} className="cpm-project-main">
           {/* On a phone the conversation needs the height: the shell header
@@ -4217,6 +4229,7 @@ export default function ProjectDetail() {
 
         {activeTab === "tasks" && assigneePanelOpen && !compact && (
           <AssigneePanel
+            counts={counts}
             members={rosterMembers}
             outsideCandidates={allMembers}
             onMemberAdded={fetchProject}
@@ -4276,7 +4289,7 @@ export default function ProjectDetail() {
               );
             })()
           ) : activeMember ? (
-            <div className="cpm-assignee-chip" style={{ cursor: "grabbing", boxShadow: "0 8px 32px rgba(0,0,0,0.45)", opacity: 0.95 }}>
+            <div data-assignment-ghost className="cpm-assignee-chip pm-assignment-ghost">
               <ChipAvatar member={activeMember.member} />
               <span className="cpm-assignee-chip-name">{activeMember.member?.displayName}</span>
               {selectedMemberIds.has(activeMember.memberId) && selectedMemberIds.size > 1 && (
@@ -4473,5 +4486,6 @@ export default function ProjectDetail() {
     </div>
     </div>
     </TaskCompletionContext.Provider>
+    </TaskAssignmentContext.Provider>
   );
 }

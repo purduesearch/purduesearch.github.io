@@ -372,7 +372,9 @@ function AssigneeEditor({ assignees = [], projectMembers = [], onChange, project
 
   return (
     <div ref={ref} style={{ position:"relative" }}>
-      <div onClick={() => setOpen(o => !o)} style={{
+      <div role="button" tabIndex={0} aria-expanded={open} aria-label="Edit task assignees"
+      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpen(o => !o); } if (e.key === 'Escape') setOpen(false); }}
+      onClick={() => setOpen(o => !o)} style={{
         display:"flex", alignItems:"center", gap:4, cursor:"pointer", flexWrap:"wrap",
         padding:"3px 6px", borderRadius:5, border:"1px solid transparent", transition:"border-color 0.15s",
         minWidth:80,

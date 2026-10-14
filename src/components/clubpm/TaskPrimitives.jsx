@@ -1,5 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import LottieCheck from "./anim/LottieCheck";
+import AvatarPortrait from './avatar/AvatarPortrait';
+import { useTaskAssignmentActions } from './celebrate/useTaskAssignment';
 
 // ── Progress Indicator ────────────────────────────────────────
 
@@ -118,63 +120,94 @@ export function StarProgress({ percent = 0 }) {
 // a brief leftward shift to make visual room. Diff-based so the animation
 // only fires on actual additions.
 
-export function AvatarStack({ assignees }) {
+function animateAvatar(el, frames, options) {
+  try { return el?.animate?.(frames, options); } catch { return null; }
+}
+
+export function AvatarStack({ assignees, taskId }) {
+  const assignment = useTaskAssignmentActions();
+  const presentation = taskId != null && assignment?.presentation?.id === taskId ? assignment.presentation : null;
+  const order = assignment?.frontOrder?.[taskId] ?? [];
+  const sorted = [...(assignees ?? [])].sort((a, b) => {
+    const rank = id => order.includes(id) ? order.indexOf(id) : order.length;
+    return rank(a.id) - rank(b.id);
+  });
+  const displayed = presentation?.assignees ?? sorted;
+  const preview = presentation?.incoming || (taskId != null && assignment?.hover?.id === taskId &&
+    assignment.hover.memberIds.some(id => id && !(assignees ?? []).some(a => a.id === id)));
+  const hasPreview = !!preview;
   const prevIdsRef = useRef([]);
   const slotRefs = useRef(new Map());
+  const previousPreview = useRef(false);
+
+  useEffect(() => {
+    if (previousPreview.current === hasPreview) return;
+    previousPreview.current = hasPreview;
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches) return;
+    const animations = Array.from(slotRefs.current.values(), el => animateAvatar(el, [
+      { transform: `translateX(${hasPreview ? -17 : 21}px)` },
+      { transform: `translateX(${hasPreview ? 4 : 0}px)` },
+    ], { duration: 340, easing: 'cubic-bezier(.3,1.3,.4,1)' })).filter(Boolean);
+    return () => animations.forEach(a => a.cancel());
+  }, [hasPreview]);
 
   useEffect(() => {
     const currentIds = (assignees ?? []).map(m => m.id);
     const added = currentIds.filter(id => !prevIdsRef.current.includes(id));
     const isFirstRender = prevIdsRef.current.length === 0 && currentIds.length > 0;
     prevIdsRef.current = currentIds;
+    if (presentation || (taskId != null && assignment?.hover?.id === taskId)) return;
     if (isFirstRender || added.length === 0) return;
     if (typeof window === "undefined") return;
     const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
     if (reduce) return;
     // Fire-and-forget — keep this module free of the animejs dep so the
     // primitive stays cheap. Pop the new avatar elements via inline JS.
-    requestAnimationFrame(() => {
+    const animations = [];
+    const frame = requestAnimationFrame(() => {
       added.forEach(id => {
         const el = slotRefs.current.get(id);
         if (!el) return;
-        el.animate(
+        if (!el.animate) return;
+        animations.push(animateAvatar(el,
           [
             { transform: "scale(0)", opacity: 0 },
             { transform: "scale(1.18)", opacity: 1, offset: 0.65 },
             { transform: "scale(1)", opacity: 1 },
           ],
           { duration: 220, easing: "cubic-bezier(.4,1.6,.5,1)" },
-        );
+        ));
       });
       // Subtle leftward shift on existing avatars so they yield room.
       currentIds.forEach(id => {
         if (added.includes(id)) return;
         const el = slotRefs.current.get(id);
         if (!el) return;
-        el.animate(
+        if (!el.animate) return;
+        animations.push(animateAvatar(el,
           [{ transform: "translateX(0)" }, { transform: "translateX(-6px)" }, { transform: "translateX(0)" }],
           { duration: 180, easing: "ease-out" },
-        );
+        ));
       });
     });
-  }, [assignees]);
+    return () => { cancelAnimationFrame(frame); animations.forEach(a => a?.cancel()); };
+  }, [assignees, presentation, assignment?.hover?.id, taskId]);
 
-  if (!assignees?.length) return <span className="cpm-avatar-placeholder" />;
-  const shown = assignees.slice(0, 3);
-  const extra = assignees.length - 3;
+  if (!displayed?.length && !preview) return <span className="cpm-avatar-placeholder" />;
+  const shown = (displayed ?? []).slice(0, 5);
+  const extra = (displayed?.length ?? 0) - 5;
   return (
     <div className="cpm-avatar-stack">
+      {preview && <><span className="pm-assignment-drop-tag">Drop to assign</span><span className="pm-assignment-placeholder" /></>}
       {shown.map((m, i) => (
         <div
           key={m.id}
+          data-assignment-member={m.id}
           ref={el => { if (el) slotRefs.current.set(m.id, el); else slotRefs.current.delete(m.id); }}
           className="cpm-avatar-slot"
           style={{ zIndex: shown.length - i }}
         >
-          {m.avatarUrl
-            ? <img src={m.avatarUrl} alt={m.displayName} className="cpm-avatar-img" title={m.displayName} />
-            : <div className="cpm-avatar-initials" title={m.displayName}>{(m.displayName || "?").charAt(0).toUpperCase()}</div>
-          }
+          <AvatarPortrait member={m} size={22} className="cpm-avatar-img" />
         </div>
       ))}
       {extra > 0 && <div className="cpm-avatar-slot cpm-avatar-extra" title={`+${extra} more`}>+{extra}</div>}

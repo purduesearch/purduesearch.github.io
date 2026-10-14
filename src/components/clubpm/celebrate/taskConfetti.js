@@ -88,7 +88,7 @@ export function releaseTaskConfetti(page) {
   if (!pages.size && !particles.length && canvas) dispose();
 }
 
-export function taskBurst(owner, x, y, count = 48) {
+export function taskBurst(owner, x, y, count = 48, palette = colors) {
   if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
   if (!prepareCanvas()) return;
   canvas.setAttribute('data-active', 'true');
@@ -98,7 +98,7 @@ export function taskBurst(owner, x, y, count = 48) {
     particles.push({ owner, x, y, vx: Math.cos(angle) * speed,
       vy: Math.sin(angle) * speed - 3, rotation: Math.random() * Math.PI * 2,
       spin: (Math.random() - .5) * .4, width: 4 + Math.random() * 5,
-      height: 3 + Math.random() * 4, color: colors[i % colors.length],
+      height: 3 + Math.random() * 4, color: (palette.length ? palette : colors)[i % (palette.length || colors.length)],
       age: 0, circle: Math.random() < .3 });
   }
   if (!raf) { lastTime = performance.now(); raf = requestAnimationFrame(tick); }
