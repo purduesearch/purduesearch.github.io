@@ -80,10 +80,10 @@ function PriorityBars({ priority }) {
 function StatusDot({ status, size=12 }) {
   const s = STATUS_OPTIONS.find(o => o.value === status) ?? STATUS_OPTIONS[0];
   return (
-    <span style={{
+    <span className={status === "BLOCKED" ? "pm-task-status-dot--blocked" : undefined} style={{
       display:"inline-flex", alignItems:"center", justifyContent:"center",
       width:size, height:size, borderRadius:"50%",
-      border:`1.5px solid ${s.color}`, flexShrink:0, fontSize:size*0.55,
+      border:`1.5px solid ${s.color}`, flexShrink:0, fontSize:status === "BLOCKED" ? undefined : size*0.55,
       color: s.color,
     }}>
       {status === "DONE" && "✓"}

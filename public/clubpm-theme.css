@@ -31116,7 +31116,7 @@ button.pm-task-check { cursor: pointer; }
 .clubpm-app.pm-completion-toast {
   display: flex; align-items: center; gap: 12px; min-height: 0; width: auto; max-width: min(540px, calc(100vw - 24px));
   padding: 10px 12px 10px 16px; margin-bottom: env(safe-area-inset-bottom, 0px);
-  border: 1px solid var(--pm-border); border-radius: 999px; background: var(--pm-elevated);
+  border: 1px solid var(--pm-border); border-radius: 999px; background: rgba(0, 0, 0, .6);
   color: var(--pm-text-primary); box-shadow: 0 12px 36px rgba(0,0,0,.35);
   opacity: 0; transform: translateY(160%); transition: transform 450ms cubic-bezier(.34,1.4,.5,1), opacity 200ms;
 }
@@ -31153,3 +31153,22 @@ button.pm-task-check { cursor: pointer; }
 }
 .pm-shell--compact .pm-m-task-grip { grid-column: 1; grid-row: 2; min-height: 44px; }
 .pm-task-grip:focus-visible, .pm-m-task-grip:focus-visible { outline: 2px solid var(--pm-task-completed); outline-offset: 3px; }
+
+/* Keep blocked status rings distinct from the completion check's base style. */
+.pm-task-check.cpm-kanban-progress--blocked,
+.pm-shell--compact .pm-task-check.pm-m-task-status--blocked {
+  border-color: var(--clubpm-accent-red);
+  /* Read-only rings are spans; override ClubPM's blanket span inheritance. */
+  color: var(--clubpm-accent-red) !important;
+  background: transparent;
+}
+.pm-task-check.cpm-kanban-progress--blocked .fa-xmark {
+  color: inherit;
+  font-size: 12px;
+  line-height: 1;
+}
+.clubpm-app .pm-task-status-dot--blocked {
+  color: var(--clubpm-accent-red) !important;
+  font-size: 10px;
+  line-height: 1;
+}
