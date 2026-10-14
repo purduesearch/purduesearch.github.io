@@ -8,7 +8,7 @@ import { manualArtifact } from "./skillArtifactCore.js";
 import { recomputeMembers } from "./skillAssessmentService.js";
 import { writeEvidence } from "./skillEvidenceService.js";
 import { RUBRIC_VERSION } from "./skillPrompts.js";
-import { buildPublicPortfolio, normalizeSlug, shapeSkills, type AssessmentRow, type PortfolioEvidenceRow, type SkillNode } from "./skillViewCore.js";
+import { buildProfileSkills, buildPublicPortfolio, normalizeSlug, shapeSkills, type AssessmentRow, type PortfolioEvidenceRow, type SkillNode } from "./skillViewCore.js";
 import { TaxonomyError } from "./skillTaxonomyService.js";
 
 const bad = (msg: string) => new TaxonomyError("INVALID", msg);
@@ -56,7 +56,8 @@ export async function getMySkills(memberId: string) {
     groups: shapeSkills(rows, nodes).map((g) => ({ ...g, skills: g.skills.map((s) => ({ ...s, isPublic: visMap.get(s.skillId) !== false })) })),
     projects: projects.map((p) => ({ ...p, isPublic: projMap.get(p.id) !== false })),
     disputes,
-    portfolio: portfolio ? { slug: portfolio.slug, enabled: portfolio.enabled, headline: portfolio.headline } : null,
+    portfolio: portfolio ? { slug: portfolio.slug, enabled: portfolio.enabled, headline: portfolio.headline, showOnProfile: portfolio.showOnProfile } : null,
+    showOnProfile: portfolio?.showOnProfile ?? true,
     lastAnalysisAt: lastRun?.finishedAt ?? null,
     notice: "These are advisory estimates inferred from your project work. You can see all of it here, dispute anything that looks wrong, and choose what is public.",
   };
@@ -161,7 +162,7 @@ export async function setProjectVisibility(memberId: string, projectId: string, 
   await prisma.skillProjectVisibility.upsert({ where: { memberId_projectId: { memberId, projectId } }, create: { memberId, projectId, isPublic }, update: { isPublic } });
 }
 
-export async function setPortfolio(memberId: string, input: { slug?: unknown; enabled?: unknown; headline?: unknown }) {
+export async function setPortfolio(memberId: string, input: { slug?: unknown; enabled?: unknown; headline?: unknown; showOnProfile?: unknown }) {
   const existing = await prisma.memberPortfolio.findUnique({ where: { memberId } });
   let slug = existing?.slug ?? null;
   if (input.slug !== undefined) {
@@ -177,10 +178,14 @@ export async function setPortfolio(memberId: string, input: { slug?: unknown; en
   const enabled = input.enabled === undefined ? existing?.enabled ?? false : input.enabled;
   if (typeof enabled !== "boolean") throw bad("enabled must be true or false");
   const headline = input.headline === undefined ? existing?.headline ?? null : input.headline === null || input.headline === "" ? null : text(input.headline, 1, 120, "headline");
-  const taken = await prisma.memberPortfolio.findFirst({ where: { slug, NOT: { memberId } }, select: { memberId: true } });
+  const showOnProfile = input.showOnProfile === undefined ? existing?.showOnProfile ?? true : input.showOnProfile;
+  if (typeof showOnProfile !== "boolean") throw bad("showOnProfile must be true or false");
+  let taken = await prisma.memberPortfolio.findFirst({ where: { slug, NOT: { memberId } }, select: { memberId: true } });
+  // A generated slug (the member only toggled a setting) must not block saving: make it unique.
+  if (taken && input.slug === undefined && !existing) { slug = `${slug}-${memberId.slice(-4).toLowerCase()}`; taken = null; }
   if (taken) throw new TaxonomyError("CONFLICT", "That portfolio address is taken");
-  const row = await prisma.memberPortfolio.upsert({ where: { memberId }, create: { memberId, slug, enabled, headline }, update: { slug, enabled, headline } });
-  return { slug: row.slug, enabled: row.enabled, headline: row.headline };
+  const row = await prisma.memberPortfolio.upsert({ where: { memberId }, create: { memberId, slug, enabled, headline, showOnProfile }, update: { slug, enabled, headline, showOnProfile } });
+  return { slug: row.slug, enabled: row.enabled, headline: row.headline, showOnProfile: row.showOnProfile };
 }
 
 // ── Manual evidence ──────────────────────────────────────────
@@ -272,4 +277,50 @@ export async function getPublicPortfolio(slugRaw: string) {
     disputedSkillIds: new Set(disputes.map((d) => d.skillId)),
     evidence,
   });
+}
+
+// ── Teammate view ────────────────────────────────────────────
+
+/**
+ * Another member's skills as a signed-in teammate sees them on the profile page.
+ * Same safety as the portfolio (allow-list shaping, hidden and disputed skills left
+ * out) but no opt-in needed: the member can turn it off with showOnProfile.
+ */
+export async function getMemberProfileSkills(viewer: { id: string; isAdmin: boolean }, memberId: string) {
+  const member = await prisma.member.findFirst({ where: { id: memberId, isBot: false }, select: { id: true, githubLogin: true } });
+  if (!member) throw new TaxonomyError("NOT_FOUND", "Member not found");
+  const [portfolio, nodes, rows, vis, disputes, evidenceRows, viewerProjects] = await Promise.all([
+    prisma.memberPortfolio.findUnique({ where: { memberId }, select: { showOnProfile: true } }),
+    loadSkillNodes(),
+    assessmentRowsFor(memberId),
+    prisma.skillVisibility.findMany({ where: { memberId } }),
+    prisma.skillDispute.findMany({ where: { memberId, status: "OPEN" }, select: { skillId: true } }),
+    prisma.skillEvidence.findMany({
+      where: { memberId, supersededAt: null }, orderBy: { occurredAt: "desc" }, take: 400,
+      select: { id: true, source: true, summary: true, sourceUrl: true, occurredAt: true, projectId: true, skills: { select: { skillId: true } } },
+    }),
+    viewer.isAdmin ? Promise.resolve(null) : prisma.projectMember.findMany({ where: { memberId: viewer.id }, select: { projectId: true } }),
+  ]);
+  const showOnProfile = portfolio?.showOnProfile ?? true;
+  const projectIds = [...new Set(evidenceRows.map((e) => e.projectId).filter((p): p is string => !!p))];
+  const projects = projectIds.length ? await prisma.project.findMany({ where: { id: { in: projectIds } }, select: { id: true, name: true } }) : [];
+  const names = new Map(projects.map((p) => [p.id, p.name]));
+  const groups = buildProfileSkills({
+    viewerId: viewer.id,
+    viewerProjectIds: viewerProjects ? new Set(viewerProjects.map((p) => p.projectId)) : null,
+    showOnProfile: showOnProfile || viewer.id === memberId,
+    skills: nodes, assessments: rows,
+    skillVisibility: new Map(vis.map((v) => [v.skillId, v.isPublic])),
+    disputedSkillIds: new Set(disputes.map((d) => d.skillId)),
+    evidence: evidenceRows.map((e) => ({
+      id: e.id, skillIds: e.skills.map((x) => x.skillId), source: e.source, summary: e.summary, sourceUrl: e.sourceUrl, occurredAt: e.occurredAt,
+      projectId: e.projectId, projectName: e.projectId ? names.get(e.projectId) ?? null : null,
+    })),
+  });
+  return {
+    hidden: !showOnProfile && viewer.id !== memberId,
+    githubLinked: !!member.githubLogin,
+    groups,
+    notice: "Advisory estimates from this member's project work and from teammates. Use them to find who to ask, not to rate anyone.",
+  };
 }

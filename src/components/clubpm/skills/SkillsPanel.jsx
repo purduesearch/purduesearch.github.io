@@ -127,7 +127,7 @@ function SkillRow({ skill, openDispute, onChanged }) {
         {openDispute && <span className="cpm-skill-pill">under review</span>}
         <button type="button" className="cpm-skill-icon" disabled={busy} aria-pressed={skill.isPublic}
           onClick={() => run(() => skillsApi.setSkillPublic(skill.skillId, !skill.isPublic), "Could not change that")}
-          title={skill.isPublic ? "Shown on your portfolio (if you turn it on). Click to hide." : "Hidden from your portfolio. Click to show."}>
+          title={skill.isPublic ? "Shown to teammates on your profile and on your portfolio (if on). Click to hide." : "Hidden from teammates and your portfolio. Click to show."}>
           <i className={skill.isPublic ? "fas fa-eye" : "fas fa-eye-slash"} aria-hidden="true" />
           <span className="sr-only">{skill.isPublic ? "Public" : "Hidden"}</span>
         </button>

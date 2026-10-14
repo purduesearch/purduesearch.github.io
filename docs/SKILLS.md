@@ -24,7 +24,8 @@ Scoring rules and the written rubric: [skills/RUBRIC.md](skills/RUBRIC.md).
 | Scoring | `skillScoringCore.ts` (pure, unit tested) |
 | APIs | `api/skills.ts` (member + public portfolio), `api/skillsAdmin.ts` |
 | Search / assistant | `skillSearchService.ts`, `skillQueryCore.ts`, `projectAskService.ts`, `utils/aiPrompts.ts` |
-| UI | `src/components/clubpm/skills/*`, `src/pages/Public/Portfolio.jsx`, Admin → Skills |
+| Signals | `services/skillSignalCore.ts` (file types and names → hints and strong floors) |
+| UI | `src/components/clubpm/skills/*` (`SkillsAdmin` shell, `SkillsRunPanel`, `SkillsMatrix`, `SkillsTaxonomy`, `SkillsReview`, `MemberSkillsCard`), `src/pages/Public/Portfolio.jsx` |
 
 ## Data model
 
@@ -41,12 +42,14 @@ Scoring rules and the written rubric: [skills/RUBRIC.md](skills/RUBRIC.md).
 ## Setup
 
 1. Apply the migration: `cd backend && npx prisma migrate deploy` (dev: `npm run db:migrate`).
-2. Seed the starter taxonomy: `npm run seed:skills`. It is idempotent and only adds. It is a curated set of about 130
+2. Seed the starter taxonomy: `npm run seed:skills`, the **Seed Backend** workflow with target `skills`, or Admin → Skills → Taxonomy → "Install about 130 starter skills". A run that finds no active skills installs them itself. It is idempotent and only adds. It is a curated set of about 130
    skills for engineering teams (CAD, electronics, software, aerospace, manufacturing, soft skills) named after concepts
    in ESCO, O*NET and SFIA, with `source` recording which. It is **not** an import of those standards and sets no
    `externalId`; a full import can fill `externalId` later without changing slugs.
 3. Configure `.env` (see the Skills block in the root `.env.example`): `GEMINI_API_KEY`, and `SKILLS_MODEL` (or rely on
-   `GEMINI_MODEL`; use a model that supports JSON-schema output). The key is read on the server only.
+   `GEMINI_MODEL`). Any current Gemini model works: 1.x/2.0 models are sent the OpenAPI response schema automatically,
+   2.5 models get a bounded thinking budget. The key is read on the server only. Admin → Skills → Overview lists anything
+   missing.
 4. Members need a linked GitHub account (`githubLogin`) for pull requests and reviews to be attributed. Unmatched
    logins are counted in the run report, not guessed.
 5. Try it without spending anything: `npm run skills:run -- --dry-run` (collects, estimates tokens and cost, writes
@@ -60,7 +63,7 @@ Scoring rules and the written rubric: [skills/RUBRIC.md](skills/RUBRIC.md).
 |---|---|
 | Normal incremental run | `npm run skills:run` |
 | Estimate only | `npm run skills:run -- --dry-run` |
-| Check one member | `npm run skills:run -- --member <memberId>` (or Admin → Skills → "Check one member") |
+| Check one member | `npm run skills:run -- --member <memberId>` (or Admin → Skills → Overview → Who) |
 | Backfill history | `npm run skills:run -- --since 2026-01-01 [--until 2026-06-01] [--chunk-days 14]` |
 | Rebuild assessments (no model calls) | `npm run skills:run -- --recompute` |
 | Fill missing embeddings | `npm run skills:run -- --embed-missing` |
@@ -76,8 +79,22 @@ How a run stays safe:
 - **Scoped runs never move the watermarks** (single member, explicit window, backfill).
 - **Failures are contained.** One bad artifact or one down collector does not stop the rest; the status panel lists the
   issues. Invalid model output is counted and dropped, never stored.
-- **After approving a proposed skill**, run a backfill for the window you care about: work that only suggested the new
-  name was recorded without a skill tag.
+- **Approving or merging a proposed skill credits the work that proposed it straight away** (no model call): that work
+  was recorded untagged, and the approval links it at a modest fit and recomputes those people. Adding a skill or another
+  name by hand also merges any pending proposal it now covers.
+- **Stoppable.** Runs renew a short lease while they work and publish their stage and progress. Admin → Skills → Overview
+  can stop a live run (it finishes the current item, keeps what it wrote, and does not move the bookmarks) or close one
+  that stopped responding after a deploy.
+
+How tags are chosen:
+
+- Before the model reads a piece of work, file types and names produce **signals**: a `.sldasm` check-in points at
+  SolidWorks and assembly design, 200 changed lines of `.py` at Python, a `.github/workflows` file at CI/CD. Signalled
+  skills are always among the candidates and are listed in the prompt as hints to confirm.
+- **Strong** signals are a floor: a native CAD/EDA file in a check-in or an authored PR, or at least 40 changed lines of a
+  language in an authored PR. If the model leaves one out it is added at fit 0.5, because the file type alone proves the
+  tool was used. Reviews, tasks and manual entries only ever produce hints.
+- Candidates show their parent area, and the model is asked for the most specific skill the work shows.
 
 Batch mode (`SKILLS_USE_BATCH=1`) sends runs of at least `SKILLS_BATCH_MIN_ITEMS` artifacts through Gemini's batch API at
 about half price; smaller runs use paced synchronous calls (`SKILLS_RPM`, default 20) with exponential backoff and jitter
@@ -100,9 +117,9 @@ is sent whole while it has 160 skills or fewer; beyond that it is prefiltered pe
 
 | | Member (own) | Project member | Admin | Public portfolio |
 |---|---|---|---|---|
-| Skills, levels, confidence, trend, last used | all | via project assistant (project members only) | all | public skills only |
+| Skills, levels, confidence, trend, last used | all | on the profile page (skills not hidden); via project assistant | all | public skills only |
 | Rationale text and rows per provenance | yes | no | yes | no |
-| Evidence summaries and links | all | that project's only | all | public projects only; GitHub links only |
+| Evidence summaries and links | all | on the profile page: shared projects only | all | public projects only; GitHub links only |
 | Self-claims, endorsements, verifications | yes | no | yes | never shown on their own |
 | Flags / disputes | own | no | all | flagged skills withheld until resolved |
 | Disagreements between claims and data | yes | no | yes | no |
@@ -112,6 +129,15 @@ The public portfolio is **off until the member turns it on**, then shows only sk
 or have at least medium confidence, and evidence from projects the member allows. Skills and projects are public by
 default once the portfolio is on, and a member can hide any of them (eye icon) in one click. The server builds the
 public payload from an allow-list, so new columns cannot leak. Its address is `/portfolio/<slug>`, marked `noindex`.
+
+Any signed-in member sees a teammate's skills on their profile: skills the member has not hidden (eye icon), minus any
+under an open dispute, with up to three summaries of work from projects both people are on, and can endorse a skill at a
+level (stored as its own peer row). A member can switch this off in Skills → Portfolio and privacy.
+
+Admin → Skills → **People** is a coverage grid: one row per person, one column per skill in an area, each cell the
+highest-trust level held (lead-verified, then peer, then analysis, then self-claim; dashed = low confidence, outlined =
+self-claimed). It lists skills where only one person is strong (level 3+ backed by work or a lead). Rows are alphabetical
+and there is no total; select a person to see everything recorded about them and verify a level.
 
 Members see everything inferred about them with its evidence, can flag a wrong tag (an admin who upholds it removes the
 tag from scoring, and later re-analyses will not add it back), and can add claims or describe work that leaves few

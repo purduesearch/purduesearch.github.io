@@ -117,6 +117,24 @@ export default function ChatTab({ project, isAdmin, initialChannelId = null, ini
     );
   }
 
+  const selectedChannel = channels.find(c => c.slackChannelId === channelId);
+  const localChannels = channels.filter(c => !c.rollup);
+  const rollupGroups = [];
+  for (const c of channels) {
+    if (!c.rollup) continue;
+    let g = rollupGroups.find(x => x.projectId === c.rollup.projectId);
+    if (!g) {
+      g = { projectId: c.rollup.projectId, projectName: c.rollup.projectName, channels: [] };
+      rollupGroups.push(g);
+    }
+    g.channels.push(c);
+  }
+  const renderChannelOption = c => (
+    <option key={c.slackChannelId} value={c.slackChannelId}>
+      #{c.name} ({c.messageCount})
+    </option>
+  );
+
   return (
     <div className="cpm-chat-wrap">
       <div className="cpm-chat-toolbar">
@@ -126,14 +144,21 @@ export default function ChatTab({ project, isAdmin, initialChannelId = null, ini
           value={channelId ?? ""}
           onChange={e => setChannelId(e.target.value)}
         >
-          {channels.map(c => (
-            <option key={c.slackChannelId} value={c.slackChannelId}>
-              #{c.name} ({c.messageCount})
-            </option>
-          ))}
+          {rollupGroups.length === 0
+            ? channels.map(renderChannelOption)
+            : (
+              <>
+                {localChannels.length > 0 && (
+                  <optgroup label="This project">{localChannels.map(renderChannelOption)}</optgroup>
+                )}
+                {rollupGroups.map(g => (
+                  <optgroup key={g.projectId} label={g.projectName}>{g.channels.map(renderChannelOption)}</optgroup>
+                ))}
+              </>
+            )}
         </select>
 
-        {isAdmin && (
+        {isAdmin && !selectedChannel?.rollup && (
           <button
             type="button"
             className="cpm-chat-backfill-btn"

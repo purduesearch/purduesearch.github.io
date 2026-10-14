@@ -1,12 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
-import { get, askVault, getVaultRepository, getVaultRepositoryHealth, getVaultCommits, listProjectRepos, setVaultRepository, verifyVaultRepository, setVaultGithubWrites } from "../../../api/clubPmClient";
+import { getVault, askVault, getVaultRepository, getVaultRepositoryHealth, getVaultCommits, listProjectRepos, setVaultRepository, verifyVaultRepository, setVaultGithubWrites } from "../../../api/clubPmClient";
 import VaultItemCard from "./VaultItemCard";
 import VaultUploadModal from "./VaultUploadModal";
 import VaultItemModal from "./VaultItemModal";
 import ChangeRequestList from "./ChangeRequestList";
 import ChangeRequestModal from "./ChangeRequestModal";
 import VaultSearchPanel from "./VaultSearchPanel";
+import { RollupSourceFilter, matchesSource } from "../rollup/RollupChips";
 
 // Sub-view pills. "Review Queue" only shows for admins.
 const SUB_VIEWS = [
@@ -45,6 +46,7 @@ export default function VaultTab({ project, member, isAdmin, deepLink = null, on
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
   const [sort, setSort] = useState("activity");
+  const [sourceFilter, setSourceFilter] = useState("all");
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [selectedItemId, setSelectedItemId] = useState(deepLink?.itemId ?? null);
   const [selectedVersionId, setSelectedVersionId] = useState(deepLink?.versionId ?? null);
@@ -58,7 +60,7 @@ export default function VaultTab({ project, member, isAdmin, deepLink = null, on
     setLoading(true);
     setLoadError(null);
     try {
-      const data = await get(`/api/projects/${project.id}/vault`);
+      const data = await getVault(project.id, { rollup: true });
       setHealth(data.health);
       setItems(data.items || []);
       const binding = await getVaultRepository(project.id);
@@ -113,6 +115,7 @@ export default function VaultTab({ project, member, isAdmin, deepLink = null, on
   const filteredItems = useMemo(() => {
     const term = search.trim().toLowerCase();
     return items.filter(item => {
+      if (!matchesSource(item, sourceFilter)) return false;
       if (term) {
         const haystack = `${item.name} ${item.partNumber ?? ""} ${item.description ?? ""} ${item.latestVersion?.fileName ?? ""} ${item.latestVersion?.note ?? ""}`.toLowerCase();
         if (!haystack.includes(term)) return false;
@@ -127,7 +130,13 @@ export default function VaultTab({ project, member, isAdmin, deepLink = null, on
         default:            return true;
       }
     }).sort((a, b) => sort === "name" ? a.name.localeCompare(b.name) : sort === "part" ? (a.partNumber || "~").localeCompare(b.partNumber || "~") : new Date(b.latestVersion?.createdAt || b.updatedAt) - new Date(a.latestVersion?.createdAt || a.updatedAt));
-  }, [items, search, filter, sort]);
+  }, [items, search, filter, sort, sourceFilter]);
+
+  const rollupSources = useMemo(() => {
+    const seen = new Map();
+    for (const item of items) if (item.rollup) seen.set(item.rollup.projectId, item.rollup);
+    return [...seen.values()];
+  }, [items]);
 
   async function handleAsk() {
     const question = askQuestion.trim();
@@ -274,6 +283,7 @@ export default function VaultTab({ project, member, isAdmin, deepLink = null, on
                 </button>
               ))}
             </div>
+            <RollupSourceFilter sources={rollupSources} value={sourceFilter} onChange={setSourceFilter} />
             <label className="cpm-vault-sort">Sort <select value={sort} onChange={e => setSort(e.target.value)}><option value="activity">Recent activity</option><option value="name">Name</option><option value="part">Part number</option></select></label>
             <button
               type="button"

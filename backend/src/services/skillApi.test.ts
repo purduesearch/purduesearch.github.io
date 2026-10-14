@@ -43,8 +43,10 @@ check("cron stays opt-in", /SKILLS_ENABLED !== "1"/.test(read("slack/scheduler.t
 for (const f of ["api/skills.ts", "services/skillMemberService.ts", "services/skillViewCore.ts", "services/skillPrompts.ts"]) {
   check(`${f} never touches the Gemini key`, !/GEMINI_API_KEY/.test(read(f)));
 }
-check("admin route only checks the key exists, never returns it", (admin.match(/process\.env\.GEMINI_API_KEY/g) ?? []).length === 1 && !/json\([^)]*process\.env\.GEMINI/.test(admin));
-check("status panel reports configured as a boolean only", /geminiConfigured: !!process\.env\.GEMINI_API_KEY/.test(read("services/skillAdminService.ts")));
+check("admin route never reads the key itself", !/GEMINI_API_KEY/.test(admin));
+const lane = read("services/ai/skillsGemini.ts");
+check("config exposes only whether the key is set", /keySet: !!env\.GEMINI_API_KEY/.test(lane) && !/interface SkillsLlmConfig \{[^}]*apiKey/.test(lane));
+check("status panel reports configured as a boolean only", /geminiConfigured: llm\.problems\.length === 0/.test(read("services/skillAdminService.ts")) && !/process.env.GEMINI_API_KEY/.test(read("services/skillAdminService.ts")));
 
 // ── no overall score / leaderboard ──
 const adminSvc = read("services/skillAdminService.ts");

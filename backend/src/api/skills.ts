@@ -5,7 +5,7 @@ import { Router, type Request, type Response } from "express";
 import { prisma } from "../db/prisma.js";
 import { requireAuth } from "./auth.js";
 import {
-  addManualEvidence, createDispute, endorsePeer, getMyEvidence, getMySkills, getPublicPortfolio, removePeerEndorsement, removeSelfClaim,
+  addManualEvidence, createDispute, endorsePeer, getMemberProfileSkills, getMyEvidence, getMySkills, getPublicPortfolio, removePeerEndorsement, removeSelfClaim,
   setPortfolio, setProjectVisibility, setSelfClaim, setSkillVisibility,
 } from "../services/skillMemberService.js";
 import { TaxonomyError } from "../services/skillTaxonomyService.js";
@@ -58,6 +58,13 @@ skillsRouter.put("/me/visibility/projects/:projectId", throttled, wrap(async (re
 skillsRouter.put("/me/portfolio", throttled, wrap(async (req, res) => { res.json(await setPortfolio(req.memberId!, req.body ?? {})); }));
 
 skillsRouter.post("/me/evidence", throttled, wrap(async (req, res) => { res.status(201).json(await addManualEvidence(req.memberId!, req.memberId!, req.body ?? {})); }));
+
+/** Another member's skills as teammates see them (profile page). Hidden/disputed skills and other projects' work are left out. */
+skillsRouter.get("/members/:memberId", wrap(async (req, res) => {
+  const viewer = await prisma.member.findUnique({ where: { id: req.memberId! }, select: { id: true, isAdmin: true, role: true } });
+  if (!viewer) throw new TaxonomyError("FORBIDDEN", "Not signed in");
+  res.json(await getMemberProfileSkills({ id: viewer.id, isAdmin: viewer.isAdmin || viewer.role === "ADMIN" }, String(req.params.memberId)));
+}));
 
 skillsRouter.post("/endorse", throttled, wrap(async (req, res) => { await endorsePeer(req.memberId!, req.body ?? {}); res.json({ ok: true }); }));
 skillsRouter.delete("/endorse/:memberId/:skillId", throttled, wrap(async (req, res) => { await removePeerEndorsement(req.memberId!, String(req.params.memberId), String(req.params.skillId)); res.json({ ok: true }); }));

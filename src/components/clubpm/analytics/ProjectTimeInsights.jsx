@@ -40,7 +40,7 @@ export default function ProjectTimeInsights({ project, onOpenTask }) {
     setError('');
     const to = new Date();
     const from = new Date(to.getTime() - weeks * 7 * DAY_MS);
-    getProjectTimeInsights(projectId, { from: from.toISOString(), to: to.toISOString() })
+    getProjectTimeInsights(projectId, { from: from.toISOString(), to: to.toISOString(), rollup: true })
       .then(r => { if (alive) setData(r); })
       .catch(err => { if (alive) setError(err?.message ?? 'Could not load time insights.'); });
     return () => { alive = false; };
@@ -97,6 +97,17 @@ export default function ProjectTimeInsights({ project, onOpenTask }) {
           </div>
         </div>
       </div>
+
+      {(data.byProject?.length ?? 0) > 1 && (
+        <div className="cpm-rollup-breakdown" aria-label="Time by project">
+          {data.byProject.map(p => (
+            <span key={p.projectId} className="cpm-rollup-breakdown-item">
+              {p.projectId === project.id ? p.name : <><i className="fas fa-sitemap" aria-hidden="true" /> {p.name}</>}
+              {' '}<strong>{fmtHours(p.minutes)}</strong>
+            </span>
+          ))}
+        </div>
+      )}
 
       <div className="pm-an-kpis">
         {tiles.map(t => (

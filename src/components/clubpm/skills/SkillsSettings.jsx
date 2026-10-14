@@ -41,6 +41,10 @@ function PortfolioSection({ data, onChanged }) {
       setBusy(false);
     }
   };
+  const toggleProfile = async (showOnProfile) => {
+    try { await skillsApi.setPortfolio({ showOnProfile }); toast.success(showOnProfile ? "Teammates can see your public skills" : "Hidden from teammates"); onChanged(); }
+    catch (err) { toast.error(errorMessage(err, "Could not change that")); }
+  };
   const toggleProject = async (id, isPublic) => {
     try { await skillsApi.setProjectPublic(id, isPublic); onChanged(); }
     catch (err) { toast.error(errorMessage(err, "Could not change that")); }
@@ -49,6 +53,13 @@ function PortfolioSection({ data, onChanged }) {
   return (
     <details className="cpm-skills-section">
       <summary>Portfolio and privacy</summary>
+      <label className="cpm-skills-check cpm-skills-profile-toggle">
+        <input type="checkbox" checked={data.showOnProfile !== false} onChange={e => toggleProfile(e.target.checked)} />
+        Show my public skills on my profile to other members
+      </label>
+      <p className="cpm-skills-notice">
+        Teammates see the skills you have not hidden (eye icon), with work from projects you share. Flagged skills, notes and rationale are never shown.
+      </p>
       <p className="cpm-skills-notice">
         Your portfolio is a link you can share with employers. It is off until you turn it on. When on, it shows only skills marked public that are lead-verified or
         have medium or higher confidence, with short summaries of the work behind them. Flagged skills stay out until a lead reviews them. It never shows your

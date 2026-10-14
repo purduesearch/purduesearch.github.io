@@ -1,82 +1,25 @@
-// Admin: who is strong at what, with the evidence. Staffing search, natural
-// language questions, and run control. Everything here is advisory: results are
-// per skill with level and confidence side by side, never a total score or a
-// leaderboard. Review queues and the taxonomy live in SkillsReview.
+// Admin → Skills. Overview (setup, live run, history), People (coverage grid +
+// a person's full record), Find (structured search), Ask (natural language),
+// Review (proposals, flags, disagreements) and Taxonomy. Everything here is
+// advisory: per skill, level and confidence side by side, never a total score or
+// a leaderboard.
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { get, skillsAdminApi as api } from "../../../api/clubPmClient";
 import SkillsReview from "./SkillsReview";
+import SkillsRunPanel from "./SkillsRunPanel";
+import SkillsMatrix, { PersonDetail, VerifyForm } from "./SkillsMatrix";
+import SkillsTaxonomy from "./SkillsTaxonomy";
 import { BAND_LABELS, LEVEL_LABELS, PROVENANCE_META, errorMessage, formatDay, formatMonth, sourceIcon } from "./skillsShared";
 
 const ACTIVE_OPTIONS = [["", "Any time"], ["90", "Last 3 months"], ["180", "Last 6 months"], ["365", "Last year"]];
 
-function StatusPanel({ status, members, onRefresh }) {
-  const [busy, setBusy] = useState(false);
-  const [memberId, setMemberId] = useState("");
-  const [dryRun, setDryRun] = useState(null);
-  const latest = status?.latest;
-  const running = !!status?.running;
-
-  const act = async (fn, okMessage) => {
-    if (busy) return;
-    setBusy(true);
-    try { const r = await fn(); if (okMessage) toast.success(okMessage); onRefresh(); return r; }
-    catch (err) { toast.error(errorMessage(err, "That did not work")); }
-    finally { setBusy(false); }
-    return undefined;
-  };
-
-  if (!status) return <div className="cpm-skills-admin-card">Loading status…</div>;
-  return (
-    <div className="cpm-skills-admin-card" aria-label="Last run status">
-      <div className="cpm-skills-admin-status">
-        <div>
-          <strong>Last run</strong>{" "}
-          {latest ? (
-            <>
-              <span className={`cpm-skill-pill cpm-skill-pill--${latest.status.toLowerCase()}`}>{latest.status.toLowerCase()}</span>{" "}
-              {formatDay(latest.startedAt)} · {latest.trigger.toLowerCase()}
-              <div className="cpm-skill-meta">
-                {Object.entries(latest.counts ?? {}).filter(([, v]) => v).map(([k, v]) => `${k}: ${v}`).join(" · ") || "nothing to analyse"}
-                {` · ${latest.tokensIn + latest.tokensOut} tokens · est $${(latest.estCostUsd ?? 0).toFixed(3)}`}
-                {(latest.errors ?? []).length ? ` · ${latest.errors.length} issue${latest.errors.length === 1 ? "" : "s"}` : ""}
-              </div>
-            </>
-          ) : <span className="cpm-skill-meta">No run yet.</span>}
-        </div>
-        <div className="cpm-skill-meta">
-          {status.enabled ? `Scheduled: ${status.schedule}` : "Weekly schedule is off (set SKILLS_ENABLED=1)"}
-          {!status.geminiConfigured ? " · Gemini key missing" : ""}
-          <br />{status.evidenceCount} evidence items · {status.membersWithSkills} people with skills · {status.pendingProposals} proposed skills · {status.openDisputes} flagged tags
-        </div>
-      </div>
-      {(latest?.errors ?? []).length > 0 && (
-        <details className="cpm-skills-section"><summary>Issues from the last run</summary>
-          <ul className="cpm-skill-provs">{latest.errors.slice(0, 10).map((e, i) => <li key={i}><strong>{e.stage}</strong>: {e.message}</li>)}</ul>
-        </details>
-      )}
-      {running && <p className="cpm-skills-notice" role="status">A run is in progress (started {formatDay(status.running.startedAt)}). This page refreshes itself.</p>}
-      <div className="cpm-skill-actions">
-        <button type="button" className="cpm-profile-edit-save" disabled={busy || running || !status.geminiConfigured} onClick={() => act(() => api.startRun({}), "Run started")}>Run for everyone</button>
-        <button type="button" className="cpm-profile-edit-cancel" disabled={busy} onClick={async () => { const r = await act(() => api.startRun({ dryRun: true })); if (r) setDryRun(r); }}>Estimate cost (dry run)</button>
-        <select aria-label="Member for a manual check" value={memberId} onChange={e => setMemberId(e.target.value)}>
-          <option value="">Check one member…</option>
-          {members.map(m => <option key={m.id} value={m.id}>{m.displayName}</option>)}
-        </select>
-        <button type="button" className="cpm-profile-edit-cancel" disabled={busy || running || !memberId || !status.geminiConfigured} onClick={() => act(() => api.startRun({ memberId, sinceDays: 90 }), "Check started")}>Check last 90 days</button>
-        <button type="button" className="cpm-skill-link" disabled={busy} onClick={() => act(() => api.recompute(), "Scores recomputed")}>Recompute scores</button>
-      </div>
-      {dryRun && <p className="cpm-skills-notice">Dry run: {dryRun.counts.toAnalyze ?? 0} new items to analyse, about {dryRun.tokensIn + dryRun.tokensOut} tokens, est ${dryRun.estCostUsd.toFixed(3)}. Nothing was sent or saved.</p>}
-    </div>
-  );
-}
-
-function PersonCard({ hit, onVerify }) {
+function PersonCard({ hit, onVerify, onOpen }) {
   return (
     <li className="cpm-skills-admin-person">
       <div className="cpm-skills-admin-person-head">
-        <strong>{hit.member.displayName}</strong>
+        <button type="button" className="cpm-sk-name-btn" onClick={() => onOpen(hit.member.id)}>{hit.member.displayName}</button>
         {hit.member.title && <span className="cpm-skill-meta">{hit.member.title}</span>}
       </div>
       {hit.skills.map(s => (
@@ -109,39 +52,13 @@ function PersonCard({ hit, onVerify }) {
   );
 }
 
-function VerifyForm({ target, onDone, onCancel }) {
-  const [level, setLevel] = useState(3);
-  const [note, setNote] = useState("");
-  const [busy, setBusy] = useState(false);
-  const submit = async (e) => {
-    e.preventDefault();
-    if (busy) return;
-    setBusy(true);
-    try { await api.verify({ memberId: target.member.id, skillId: target.skill.skillId, level, note: note.trim() || null }); toast.success("Recorded as lead-verified"); onDone(); }
-    catch (err) { toast.error(errorMessage(err, "Could not save")); }
-    finally { setBusy(false); }
-  };
-  return (
-    <form className="cpm-skills-admin-card cpm-skills-form" onSubmit={submit}>
-      <strong>Verify {target.skill.name} for {target.member.displayName}</strong>
-      <p className="cpm-skills-notice">Your verification is stored as its own line next to the analysis. It does not overwrite it.</p>
-      <label>Level
-        <select value={level} onChange={e => setLevel(Number(e.target.value))}>{[1, 2, 3, 4, 5].map(n => <option key={n} value={n}>{n} · {LEVEL_LABELS[n]}</option>)}</select>
-      </label>
-      <label>Why (optional)<input value={note} onChange={e => setNote(e.target.value)} maxLength={280} /></label>
-      <div className="cpm-skill-actions">
-        <button type="button" className="cpm-profile-edit-cancel" onClick={onCancel}>Cancel</button>
-        <button type="submit" className="cpm-profile-edit-save" disabled={busy}>{busy ? "Saving…" : "Save"}</button>
-      </div>
-    </form>
-  );
-}
-
 function FindPeople({ taxonomy }) {
   const [form, setForm] = useState({ skill: "", minLevel: "3", activeWithinDays: "180", minConfidence: "" });
   const [result, setResult] = useState(null);
   const [busy, setBusy] = useState(false);
   const [verify, setVerify] = useState(null);
+  const [person, setPerson] = useState(null);
+  const closePerson = useCallback(() => setPerson(null), []);
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
   const run = useCallback(async (e) => {
@@ -173,13 +90,14 @@ function FindPeople({ taxonomy }) {
         </label>
         <button type="submit" className="cpm-profile-edit-save" disabled={busy}>{busy ? "Searching…" : "Search"}</button>
       </form>
-      {verify && <VerifyForm target={verify} onCancel={() => setVerify(null)} onDone={() => { setVerify(null); run(); }} />}
+      {verify && <VerifyForm member={verify.member} skill={verify.skill} onCancel={() => setVerify(null)} onDone={() => { setVerify(null); run(); }} />}
+      {person && <PersonDetail memberId={person} onClose={closePerson} />}
       {result && (
         <>
           <p className="cpm-skills-notice">{result.advisory}</p>
           {result.people.length === 0
             ? <div className="cpm-skill-evidence-empty">No one matches. Try a lower level, a longer time window, or a broader skill (searching a parent skill includes the tools under it).</div>
-            : <ul className="cpm-skills-admin-people">{result.people.map(h => <PersonCard key={h.member.id} hit={h} onVerify={(member, skill) => setVerify({ member, skill })} />)}</ul>}
+            : <ul className="cpm-skills-admin-people">{result.people.map(h => <PersonCard key={h.member.id} hit={h} onOpen={setPerson} onVerify={(member, skill) => setVerify({ member, skill: { skillId: skill.skillId, name: skill.name } })} />)}</ul>}
         </>
       )}
     </div>
@@ -259,8 +177,19 @@ function AskBox({ projects }) {
   );
 }
 
+function Stat({ icon, value, label, onClick }) {
+  const Tag = onClick ? "button" : "div";
+  return (
+    <Tag className="cpm-sk-stat" {...(onClick ? { type: "button", onClick } : {})}>
+      <i className={icon} aria-hidden="true" />
+      <span className="cpm-sk-stat-value">{value}</span>
+      <span className="cpm-sk-stat-label">{label}</span>
+    </Tag>
+  );
+}
+
 export default function SkillsAdmin() {
-  const [tab, setTab] = useState("find");
+  const [tab, setTab] = useState("overview");
   const [status, setStatus] = useState(null);
   const [taxonomy, setTaxonomy] = useState([]);
   const [members, setMembers] = useState([]);
@@ -268,39 +197,76 @@ export default function SkillsAdmin() {
   const timer = useRef(null);
 
   const refresh = useCallback(() => api.status().then(setStatus).catch(() => setStatus(s => s)), []);
+  const loadTaxonomy = useCallback(() => api.taxonomy().then(r => setTaxonomy(r.skills)).catch(() => {}), []);
   useEffect(() => {
     refresh();
-    api.taxonomy().then(r => setTaxonomy(r.skills.filter(s => s.status === "ACTIVE"))).catch(() => {});
+    loadTaxonomy();
     get("/api/members").then(r => setMembers(Array.isArray(r) ? r : [])).catch(() => {});
     get("/api/projects").then(r => setProjects(Array.isArray(r) ? r : [])).catch(() => {});
-  }, [refresh]);
+  }, [refresh, loadTaxonomy]);
 
-  // While a run is in progress, keep the panel current without a page reload.
+  // While a run or an estimate is in progress, keep the panel current without a reload.
+  const busy = !!status?.running || !!status?.dryRun?.running;
   useEffect(() => {
     clearInterval(timer.current);
-    if (status?.running) timer.current = setInterval(refresh, 10_000);
+    if (busy) timer.current = setInterval(refresh, 4_000);
     return () => clearInterval(timer.current);
-  }, [status?.running, refresh]);
+  }, [busy, refresh]);
+  // A finished run can install the starter list: reload what depends on it.
+  const wasBusy = useRef(false);
+  useEffect(() => { if (wasBusy.current && !busy) loadTaxonomy(); wasBusy.current = busy; }, [busy, loadTaxonomy]);
 
+  const reviewCount = status ? status.pendingProposals + status.openDisputes : 0;
+  const active = taxonomy.filter(s => s.status === "ACTIVE");
   const TABS = [
-    ["find", "Find people"],
-    ["ask", "Ask"],
-    ["review", `Review${status && status.pendingProposals + status.openDisputes ? ` (${status.pendingProposals + status.openDisputes})` : ""}`],
+    ["overview", "Overview", "fas fa-gauge-high"],
+    ["people", "People", "fas fa-table-cells"],
+    ["find", "Find people", "fas fa-magnifying-glass"],
+    ["ask", "Ask", "fas fa-comments"],
+    ["review", `Review${reviewCount ? ` (${reviewCount})` : ""}`, "fas fa-inbox"],
+    ["taxonomy", "Taxonomy", "fas fa-sitemap"],
   ];
+  const latest = status?.latest;
 
   return (
     <div className="cpm-profile-card cpm-skills-admin" data-testid="skills-admin">
-      <h3 style={{ marginTop: 0 }}>Skills</h3>
-      <p className="cpm-skills-notice">Inferred from tasks, CAD check-ins and GitHub work each week, with the evidence behind every skill. Advisory only: use it to find people and start a conversation, not to score anyone.</p>
-      <StatusPanel status={status} members={members} onRefresh={refresh} />
+      <header className="cpm-sk-header">
+        <div>
+          <h3>Skills</h3>
+          <p className="cpm-skills-notice">Inferred each week from tasks, CAD check-ins and GitHub work, with the evidence behind every skill. Advisory only: use it to find people and start a conversation, not to score anyone.</p>
+        </div>
+        {status && (
+          <div className={`cpm-sk-status-chip ${status.running ? "running" : latest ? latest.status.toLowerCase() : "none"}`}>
+            {status.running ? <><span className="cpm-sk-pulse" aria-hidden="true" /> Running</> : latest ? <>Last run <b>{latest.status.toLowerCase()}</b> {formatDay(latest.startedAt)}</> : "No run yet"}
+          </div>
+        )}
+      </header>
+
+      {status && (
+        <div className="cpm-sk-stats">
+          <Stat icon="fas fa-users" value={status.membersWithSkills} label={`of ${status.totalMembers ?? "?"} people have skills`} onClick={() => setTab("people")} />
+          <Stat icon="fas fa-file-lines" value={status.evidenceCount} label="pieces of work analysed" />
+          <Stat icon="fas fa-sitemap" value={status.activeSkills ?? active.length} label="skills in the list" onClick={() => setTab("taxonomy")} />
+          <Stat icon="fas fa-inbox" value={reviewCount} label={`to review: ${status.pendingProposals} proposed · ${status.openDisputes} flagged`} onClick={() => setTab("review")} />
+        </div>
+      )}
+
       <div className="cpm-skills-admin-tabs" role="tablist" aria-label="Skills tools">
-        {TABS.map(([id, label]) => (
-          <button key={id} type="button" role="tab" aria-selected={tab === id} className={tab === id ? "on" : ""} onClick={() => setTab(id)}>{label}</button>
+        {TABS.map(([id, label, icon]) => (
+          <button key={id} type="button" role="tab" aria-selected={tab === id} className={tab === id ? "on" : ""} onClick={() => setTab(id)}>
+            <i className={icon} aria-hidden="true" />{label}
+          </button>
         ))}
       </div>
-      {tab === "find" && <FindPeople taxonomy={taxonomy} />}
-      {tab === "ask" && <AskBox projects={projects} />}
-      {tab === "review" && <SkillsReview onChanged={refresh} />}
+
+      <div role="tabpanel">
+        {tab === "overview" && (status ? <SkillsRunPanel status={status} members={members} onRefresh={refresh} /> : <div className="cpm-skill-evidence-empty">Loading status…</div>)}
+        {tab === "people" && <SkillsMatrix />}
+        {tab === "find" && <FindPeople taxonomy={active} />}
+        {tab === "ask" && <AskBox projects={projects} />}
+        {tab === "review" && <SkillsReview onChanged={() => { refresh(); loadTaxonomy(); }} />}
+        {tab === "taxonomy" && <SkillsTaxonomy skills={taxonomy} onChanged={() => { loadTaxonomy(); refresh(); }} />}
+      </div>
     </div>
   );
 }

@@ -43,6 +43,19 @@ export function ProgressIndicator({ progress, taskId, onUpdate, size = 24 }) {
   );
 }
 
+// ── Status Ring (read-only, matches ProgressIndicator look) ───
+
+export function StatusRing({ status }) {
+  const mod = status === "DONE" ? "done" : status === "BLOCKED" ? "blocked" : status === "IN_PROGRESS" ? "in" : "none";
+  return (
+    <span className={`cpm-kanban-progress cpm-kanban-progress--${mod}`} style={{ flexShrink: 0 }} aria-hidden="true">
+      {status === "DONE" && <i className="fas fa-check" />}
+      {status === "BLOCKED" && <i className="fas fa-xmark" />}
+      {status === "IN_PROGRESS" && <span className="cpm-progress-half" />}
+    </span>
+  );
+}
+
 // ── Priority Bars ─────────────────────────────────────────────
 
 export const PRIORITY_CFG = {

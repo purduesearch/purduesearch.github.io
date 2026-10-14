@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { apiBaseUrl, authHeaders } from "../../../api/clubPmClient";
 import { extensionOf } from "./vaultUtils";
+import { RollupSourceChip } from "../rollup/RollupChips";
 
 // Extension → Font Awesome icon. Anything unrecognized (native CAD formats
 // like .prt/.sldprt/.f3d included) falls back to fa-cube.
@@ -101,6 +102,7 @@ export default function VaultItemCard({ item, onClick, tourId }) {
         {latest && <span className="cpm-vault-chip-version">v{latest.versionNumber}</span>}
         {latest && <span className="cpm-vault-chip-version">{latest.storageProvider === "GITHUB" ? "GitHub" : "Drive"} stored</span>}
         {item.openCrCount > 0 && <span className="cpm-vault-chip-version">{item.openCrCount} in review</span>}
+        <RollupSourceChip rollup={item.rollup} />
       </div>
     </div>
   );

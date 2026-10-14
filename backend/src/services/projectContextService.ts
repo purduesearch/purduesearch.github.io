@@ -1,12 +1,14 @@
 import { prisma } from "../db/prisma.js";
 import { getProjectAuditLog } from "./activityService.js";
-import type { TaskStatus, Priority, MilestoneStatus } from "@prisma/client";
+import { getRollupChildren } from "./subProjectRollupService.js";
+import type { Prisma, TaskStatus, Priority, MilestoneStatus } from "@prisma/client";
 
 // ── Project Context Service ──────────────────────────────────
 // Assembles a rich, typed snapshot of ONE project for AI prompts (Q&A, action
 // planning, risk analysis, sprint planning, capacity, Drive parsing). Every query
-// below is filtered by projectId, directly or through the task, so the model never
-// sees another project's tasks, time logs or people. Centralizes what was
+// below is filtered by projectId (or, for task rows, by the project id set: this
+// project plus sub-projects that opted into AI roll-up), so the model never sees
+// an unrelated project's tasks, time logs or people. Centralizes what was
 // previously assembled inline in each feature so they all see the same picture.
 
 export interface ProjectContextTask {
@@ -31,6 +33,8 @@ export interface ProjectContextTask {
   parentTitle: string | null;
   /** Whole days since the task last changed. */
   daysSinceUpdate: number;
+  /** Set only on tasks rolled up from a sub-project; absent on this project's own tasks. */
+  projectName?: string;
 }
 
 export interface ProjectContextMilestone {
@@ -116,6 +120,8 @@ export interface ProjectContext {
   members: ProjectContextMember[];
   recentActivity: ProjectContextAuditEvent[];
   activeBlockers: ProjectContextBlocker[];
+  /** Sub-projects whose tasks are merged into `tasks` (empty unless `includeRollup`). */
+  rollupProjects: { id: string; name: string }[];
   /** true if `tasks` was cut off by `taskLimit` before the project's real task count */
   truncated: boolean;
 }
@@ -125,6 +131,12 @@ export interface BuildProjectContextOptions {
   taskLimit?: number;
   /** Max recent ActivityLog rows to include. Default 30. */
   activityLimit?: number;
+  /**
+   * Merge in tasks from sub-projects that have "AI context" roll-up on. Default true.
+   * Slack's legacy askProject passes false. Members, milestones, blockers, velocity
+   * and activity always stay this project's own.
+   */
+  includeRollup?: boolean;
 }
 
 function isoDate(d: Date | null | undefined): string | null {
@@ -160,29 +172,39 @@ export async function buildProjectContext(
   // project that does not exist — every caller already handles null.
   if (project.trainingForMemberId) return null;
 
+  const rollupProjects = opts.includeRollup === false
+    ? []
+    : (await getRollupChildren(projectId, "aiContext")).map((c) => ({ id: c.id, name: c.name }));
+  const rollupIds = rollupProjects.map((c) => c.id);
+  const rollupNames = new Map(rollupProjects.map((c) => [c.id, c.name]));
+  const taskScope = { projectId: { in: [projectId, ...rollupIds] } };
+
   const now = new Date();
   const todayIso = isoDate(now)!;
   const velocitySince = new Date(now.getTime() - VELOCITY_WINDOW_DAYS * DAY_MS);
   const memberSince = new Date(now.getTime() - MEMBER_WINDOW_DAYS * DAY_MS);
   const projectMemberIds = new Set(project.members.map((pm) => pm.memberId));
 
+  const taskOrder: Prisma.TaskOrderByWithRelationInput[] = [{ status: "asc" }, { priority: "desc" }, { updatedAt: "desc" }];
+  const taskInclude = {
+    assignees: { select: { displayName: true } },
+    milestone: { select: { title: true } },
+    parentTask: { select: { title: true } },
+    blockedBy: { include: { blockingTask: { select: { title: true, status: true } } } },
+    blockers: { where: { blocker: { resolvedAt: null } }, include: { blocker: { select: { label: true } } } },
+    subtasks: { select: { status: true } },
+  } as const;
+
   const [
-    totalTaskCount, tasksRaw, milestonesRaw, activeBlockersRaw, auditLog,
+    totalTaskCount, localTasksRaw, milestonesRaw, activeBlockersRaw, auditLog,
     openRows, doneRows, loggedByTask, loggedByMember, milestoneTaskRows,
   ] = await Promise.all([
-    prisma.task.count({ where: { projectId, archivedAt: null } }),
+    prisma.task.count({ where: { ...taskScope, archivedAt: null } }),
     prisma.task.findMany({
       where: { projectId, archivedAt: null },
-      orderBy: [{ status: "asc" }, { priority: "desc" }, { updatedAt: "desc" }],
+      orderBy: taskOrder,
       take: taskLimit,
-      include: {
-        assignees: { select: { displayName: true } },
-        milestone: { select: { title: true } },
-        parentTask: { select: { title: true } },
-        blockedBy: { include: { blockingTask: { select: { title: true, status: true } } } },
-        blockers: { where: { blocker: { resolvedAt: null } }, include: { blocker: { select: { label: true } } } },
-        subtasks: { select: { status: true } },
-      },
+      include: taskInclude,
     }),
     prisma.milestone.findMany({
       where: { projectId },
@@ -209,7 +231,7 @@ export async function buildProjectContext(
       where: { projectId, archivedAt: null, status: "DONE", completedAt: { gte: velocitySince } },
       select: { storyPoints: true, completedAt: true, assignees: { select: { id: true } } },
     }),
-    prisma.timeLog.groupBy({ by: ["taskId"], where: { task: { projectId } }, _sum: { minutes: true } }),
+    prisma.timeLog.groupBy({ by: ["taskId"], where: { task: taskScope }, _sum: { minutes: true } }),
     prisma.timeLog.groupBy({
       by: ["memberId"],
       where: { task: { projectId }, loggedAt: { gte: memberSince } },
@@ -220,6 +242,17 @@ export async function buildProjectContext(
       select: { milestoneId: true, status: true },
     }),
   ]);
+
+  // taskLimit applies to the merged list, own tasks first: rolled-up work only fills what is left.
+  const rolledTasksRaw = rollupIds.length && taskLimit > localTasksRaw.length
+    ? await prisma.task.findMany({
+        where: { projectId: { in: rollupIds }, archivedAt: null },
+        orderBy: taskOrder,
+        take: taskLimit - localTasksRaw.length,
+        include: taskInclude,
+      })
+    : [];
+  const tasksRaw = [...localTasksRaw, ...rolledTasksRaw];
 
   const loggedMinutesByTask = new Map(loggedByTask.map((r) => [r.taskId, r._sum.minutes ?? 0]));
   const loggedMinutesByMember = new Map(loggedByMember.map((r) => [r.memberId, r._sum.minutes ?? 0]));
@@ -296,6 +329,7 @@ export async function buildProjectContext(
       loggedHours: round1((loggedMinutesByTask.get(t.id) ?? 0) / 60),
       parentTitle: t.parentTask?.title ?? null,
       daysSinceUpdate: Math.max(0, Math.floor((now.getTime() - t.updatedAt.getTime()) / DAY_MS)),
+      ...(t.projectId !== projectId ? { projectName: rollupNames.get(t.projectId) } : {}),
     };
   });
 
@@ -378,6 +412,7 @@ export async function buildProjectContext(
     members,
     recentActivity,
     activeBlockers,
+    rollupProjects,
     truncated: totalTaskCount > tasks.length,
   };
 }

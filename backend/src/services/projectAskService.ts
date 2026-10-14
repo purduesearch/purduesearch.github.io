@@ -18,7 +18,7 @@ export interface ProjectAnswer {
  * skill retrieval (structured filters + embeddings) scoped to what the asker may
  * see, and the answer is written from those cited candidates.
  */
-export async function askProjectDetailed(projectId: string, question: string, memberId: string | null, opts: { skills?: boolean } = {}): Promise<ProjectAnswer | null> {
+export async function askProjectDetailed(projectId: string, question: string, memberId: string | null, opts: { skills?: boolean; includeRollup?: boolean } = {}): Promise<ProjectAnswer | null> {
   const useSkills = opts.skills !== false;
   let isAdmin = false;
   if (memberId) {
@@ -26,7 +26,7 @@ export async function askProjectDetailed(projectId: string, question: string, me
     if (!member || !await prisma.project.findFirst({ where: { id: projectId, ...(member.isAdmin ? {} : { members: { some: { memberId } } }) }, select: { id: true } })) return null;
     isAdmin = member.isAdmin;
   }
-  const context = await buildProjectContext(projectId);
+  const context = await buildProjectContext(projectId, { includeRollup: opts.includeRollup });
   if (!context) return null;
 
   let skillMatches: AskResult["people"] | null = null;
@@ -54,5 +54,6 @@ export async function askProjectDetailed(projectId: string, question: string, me
 
 export async function askProject(projectId: string, question: string, memberId: string | null): Promise<string | null> {
   // Slack and other non-web callers: skill data stays in the web app, where the audience is the signed-in member.
-  return (await askProjectDetailed(projectId, question, memberId, { skills: false }))?.answer ?? null;
+  // Sub-project roll-up is web-only too; the Slack answer describes this project alone.
+  return (await askProjectDetailed(projectId, question, memberId, { skills: false, includeRollup: false }))?.answer ?? null;
 }

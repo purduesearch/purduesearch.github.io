@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import { createPortal } from "react-dom";
 import { useParams, Link, useSearchParams, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
-import { get, post, patch, setNextRewardOrigin, bulkArchive, unarchiveTask, getArchivedTasks, getProjectBlockers, createBlocker, updateBlocker } from "../../api/clubPmClient";
+import { get, post, patch, setNextRewardOrigin, bulkArchive, bulkMoveTasks, bulkDuplicateTasks, unarchiveTask, getArchivedTasks, getProjectBlockers, createBlocker, updateBlocker } from "../../api/clubPmClient";
 import MemberBadge from "../../components/clubpm/MemberBadge";
 import LabTimeButton from "../../components/clubpm/labschedule/LabTimeButton";
 import LabPresenceCard from "../../components/clubpm/labschedule/LabPresenceCard";
@@ -12,13 +12,14 @@ import { useClubPmAuth } from "../../clubpm/ClubPmAuth";
 import { useProjectNav } from "../../clubpm/ProjectNavContext";
 import TaskModal from "../../components/clubpm/TaskModal";
 import BulkActionBar from "../../components/clubpm/BulkActionBar";
+import { RollupSourceChip, RollupTagChip, RollupSourceFilter, matchesSource } from "../../components/clubpm/rollup/RollupChips";
 import ProjectActivity from "../../components/clubpm/ProjectActivity";
 import ReportingView from "../../components/clubpm/ReportingView";
 import ProjectAnalytics from "../../components/clubpm/analytics";
 import ProjectTimeInsights from "../../components/clubpm/analytics/ProjectTimeInsights";
 import PressKitPanel from "../../components/clubpm/PressKitPanel";
 import GanttChart from "../../components/clubpm/GanttChart";
-import { PriorityBars, AvatarStack } from "../../components/clubpm/TaskPrimitives";
+import { PriorityBars, AvatarStack, StatusRing } from "../../components/clubpm/TaskPrimitives";
 import DrivePreviewModal from "../../components/clubpm/DrivePreviewModal";
 import EditDriveFolderModal from "../../components/clubpm/EditDriveFolderModal";
 import EditProjectModal from "../../components/clubpm/EditProjectModal";
@@ -221,6 +222,10 @@ const STATUS_BADGE = {
 
 // ── Progress Bar (top of tasks tab) ──────────────────────────
 
+// A rolled-up task is edited under its own project's rules (server-computed
+// `rollup.canEdit`); a local task follows the page-level permission.
+const taskCanEdit = (task, pageCanEdit) => (task.rollup ? !!task.rollup.canEdit : pageCanEdit);
+
 function ProgressBar({ tasks }) {
   const allTasks = tasks.flatMap(t => [t, ...(t.subtasks ?? [])]);
   const total = allTasks.length;
@@ -280,7 +285,7 @@ function ProgressBar({ tasks }) {
 
 // ── Status Bin (collapsible droppable section) ───────────────
 
-function StatusBin({ bin, tasks, subtasksByParent, expandedParents, onToggleParent, isOver, overTaskId, overBlockerId, onTaskClick, onAddTask, canEdit = true, sortBy = "priority", selectedTaskIds, blockedGroups, onResolveBlocker, onRenameBlocker, projectMembers }) {
+function StatusBin({ bin, tasks, subtasksByParent, expandedParents, onToggleParent, isOver, overTaskId, overBlockerId, onTaskClick, onAddTask, canEdit = true, canAdd = canEdit, sortBy = "priority", selectedTaskIds, blockedGroups, onResolveBlocker, onRenameBlocker, projectMembers }) {
   const [collapsed, setCollapsed] = useState(false);
   const { setNodeRef } = useDroppable({ id: bin.id });
   const isBlockedBin = bin.id === "BLOCKED";
@@ -323,7 +328,7 @@ function StatusBin({ bin, tasks, subtasksByParent, expandedParents, onTogglePare
             {tasks.length}
           </span>
         </button>
-        {canEdit && (
+        {canAdd && (
           <button
             style={{
               background: "none",
@@ -402,6 +407,7 @@ function StatusBin({ bin, tasks, subtasksByParent, expandedParents, onTogglePare
                       <React.Fragment key={task.id}>
                         <CompactTaskRow
                           task={task}
+                          canEdit={taskCanEdit(task, canEdit)}
                           onClick={onTaskClick}
                           subtaskCount={subs.length}
                           isExpanded={isExpanded}
@@ -425,6 +431,7 @@ function StatusBin({ bin, tasks, subtasksByParent, expandedParents, onTogglePare
                   <React.Fragment key={task.id}>
                     <CompactTaskRow
                       task={task}
+                      canEdit={taskCanEdit(task, canEdit)}
                       tourId={(bin.id === "TODO" && index === 0 ? "board.card.first" : undefined)}
                       onClick={onTaskClick}
                       subtaskCount={subs.length}
@@ -466,6 +473,8 @@ function MobileTaskRow({ task, onOpen, onMove, onAssign, canEdit, tourId }) {
           <span className={`pm-m-task-priority pm-m-task-priority--${(task.priority ?? 'MEDIUM').toLowerCase()}`}>{(task.priority ?? 'MEDIUM').toLowerCase()}</span>
           {due ? <span className={overdue ? 'is-overdue' : ''}><i className="fas fa-calendar-day" aria-hidden="true" /> {due.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span> : <span>No due date</span>}
           {(task.subtasks?.length ?? 0) > 0 ? <span><i className="fas fa-list-check" aria-hidden="true" /> {task.subtasks.length}</span> : null}
+          <RollupSourceChip rollup={task.rollup} />
+          <RollupTagChip rollup={task.rollup} />
         </span>
       </button>
       <div className="pm-m-task-actions">
@@ -500,7 +509,7 @@ function CompactStatusGroup({ bin, open, onToggle, onOpenTask, onMove, onAssign,
               onOpen={onOpenTask}
               onMove={onMove}
               onAssign={onAssign}
-              canEdit={canEdit}
+              canEdit={taskCanEdit(task, canEdit)}
             />
           )) : <div className="pm-m-task-empty">No tasks.</div>}
         </div>
@@ -509,9 +518,10 @@ function CompactStatusGroup({ bin, open, onToggle, onOpenTask, onMove, onAssign,
   );
 }
 
-function CompactTaskFilters({ sortBy, onSort, priority, onPriority, due, onDue, showArchived, onShowArchived, onClear }) {
+function CompactTaskFilters({ sortBy, onSort, priority, onPriority, due, onDue, showArchived, onShowArchived, source, onSource, sources, onClear }) {
   return (
     <div className="pm-m-task-filter-form">
+      <RollupSourceFilter sources={sources} value={source} onChange={onSource} />
       <label><span>Sort by</span><select value={sortBy} onChange={e => onSort(e.target.value)}>
         <option value="priority">Priority</option><option value="dueDate">Due date</option><option value="created">Newest</option><option value="title">Title</option><option value="tags">Tags</option>
       </select></label>
@@ -629,7 +639,7 @@ function CompactMilestones({ milestones = [], tasks = [], projectId }) {
       {milestones.length ? milestones.map(m => {
         const linked = tasks.filter(t => t.milestoneId === m.id || t.milestone?.id === m.id);
         const done = linked.filter(t => t.status === 'DONE').length;
-        return <details key={m.id} className="pm-m-milestone"><summary><span>{m.title}</span><span>{done}/{linked.length}</span><i className="fas fa-chevron-down" aria-hidden="true" /></summary><div>{m.targetDate ? `Target ${new Date(m.targetDate).toLocaleDateString()}` : 'No target date'} · {(m.status ?? 'ON_TRACK').replaceAll('_', ' ').toLowerCase()}</div></details>;
+        return <details key={m.id} className="pm-m-milestone"><summary><span>{m.title}<RollupSourceChip rollup={m.rollup} /></span><span>{done}/{linked.length}</span><i className="fas fa-chevron-down" aria-hidden="true" /></summary><div>{m.targetDate ? `Target ${new Date(m.targetDate).toLocaleDateString()}` : 'No target date'} · {(m.status ?? 'ON_TRACK').replaceAll('_', ' ').toLowerCase()}</div></details>;
       }) : <div className="pm-m-task-empty">No milestones yet.</div>}
     </section>
   );
@@ -860,6 +870,7 @@ function BlockedTaskRow({ task, reason, selected, onTaskClick, groupId }) {
       <PriorityBars priority={task.priority} />
       <span className="cpm-task-row-compact-name">{task.title}</span>
       <AvatarStack assignees={task.assignees} />
+      <RollupSourceChip rollup={task.rollup} />
       {reason && <span className="cpm-blocked-task-reason" title={reason}>{reason}</span>}
     </div>
   );
@@ -920,7 +931,7 @@ function BlockerNameModal({ count, projectMembers, onCreate, onCancel }) {
 
 // ── Compact Task Row ─────────────────────────────────────────
 
-function CompactTaskRow({ task, onClick, subtaskCount = 0, isExpanded = false, onToggleExpand, isDropTarget = false, isSelected = false, tourId }) {
+function CompactTaskRow({ task, onClick, subtaskCount = 0, isExpanded = false, onToggleExpand, isDropTarget = false, isSelected = false, tourId, canEdit = true }) {
   const {
     attributes,
     listeners,
@@ -928,7 +939,7 @@ function CompactTaskRow({ task, onClick, subtaskCount = 0, isExpanded = false, o
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: task.id });
+  } = useSortable({ id: task.id, disabled: canEdit ? false : { draggable: true } });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -960,18 +971,7 @@ function CompactTaskRow({ task, onClick, subtaskCount = 0, isExpanded = false, o
           pointerEvents: "none",
         }}
       />
-      <span
-        className={`cpm-kanban-progress ${
-          task.status === "DONE"
-            ? "cpm-kanban-progress--done"
-            : task.status === "IN_PROGRESS" || task.status === "BLOCKED"
-            ? "cpm-kanban-progress--in"
-            : "cpm-kanban-progress--none"
-        }`}
-        style={{ flexShrink: 0 }}
-      >
-        {task.status === "DONE" && <i className="fas fa-check" style={{ fontSize: 6 }} />}
-      </span>
+      <StatusRing status={task.status} />
       <PriorityBars priority={task.priority} />
       <span className="cpm-task-row-compact-name">{task.title}</span>
       {subtaskCount > 0 && (
@@ -1004,9 +1004,11 @@ function CompactTaskRow({ task, onClick, subtaskCount = 0, isExpanded = false, o
           })}
         </span>
       )}
-      {task.tags && task.tags.length > 0 && (
+      <RollupSourceChip rollup={task.rollup} />
+      {((task.tags && task.tags.length > 0) || task.rollup?.tagEnabled) && (
         <div style={{ display: "flex", gap: 3, flexShrink: 0 }}>
-          {task.tags.slice(0, 2).map(tag => (
+          <RollupTagChip rollup={task.rollup} />
+          {(task.tags ?? []).slice(0, 2).map(tag => (
             <span key={tag.id} title={tag.name} style={{
               fontSize: 10, padding: "1px 6px", borderRadius: 8,
               background: tag.color + "22", border: `1px solid ${tag.color}`,
@@ -1015,7 +1017,7 @@ function CompactTaskRow({ task, onClick, subtaskCount = 0, isExpanded = false, o
               {tag.name}
             </span>
           ))}
-          {task.tags.length > 2 && (
+          {(task.tags ?? []).length > 2 && (
             <span style={{ fontSize: 10, color: "var(--clubpm-text-muted)" }}>+{task.tags.length - 2}</span>
           )}
         </div>
@@ -1044,18 +1046,7 @@ function KanbanSubtaskRow({ subtask, onClick, isDropTarget = false, isSelected =
       {isSelected && (
         <i className="fas fa-check-circle cpm-task-row-compact-checkbox" aria-hidden="true" />
       )}
-      <span
-        className={`cpm-kanban-progress ${
-          subtask.status === "DONE"
-            ? "cpm-kanban-progress--done"
-            : subtask.status === "IN_PROGRESS" || subtask.status === "BLOCKED"
-            ? "cpm-kanban-progress--in"
-            : "cpm-kanban-progress--none"
-        }`}
-        style={{ flexShrink: 0 }}
-      >
-        {subtask.status === "DONE" && <i className="fas fa-check" style={{ fontSize: 6 }} />}
-      </span>
+      <StatusRing status={subtask.status} />
       <PriorityBars priority={subtask.priority} />
       <span className="cpm-task-row-compact-name" style={{ color: "var(--clubpm-text-secondary)" }}>
         {subtask.title}
@@ -1312,7 +1303,7 @@ function DraggableMemberChip({ pm, selected, onClick, lead, onOpenCard }) {
 
 const PRIORITY_LEVELS = ["CRITICAL", "HIGH", "MEDIUM", "LOW"];
 
-function AddProjectTaskModal({ projectId, initialStatus, projectMembers, onClose, onCreated }) {
+function AddProjectTaskModal({ projectId, projectName, canCreateHere = true, childSources = [], initialStatus, projectMembers, onClose, onCreated }) {
   const compact = useCompactLayout();
   const [title, setTitle] = useState("");
   const [priority, setPriority] = useState("MEDIUM");
@@ -1327,15 +1318,20 @@ function AddProjectTaskModal({ projectId, initialStatus, projectMembers, onClose
   const [newTagName, setNewTagName]   = useState("");
   const [newTagColor, setNewTagColor] = useState("#6c5ce7");
   const [creatingTag, setCreatingTag] = useState(false);
+  // Where the task is created: this project, or a sub-project rolled up here.
+  const [targetId, setTargetId] = useState(canCreateHere ? projectId : childSources[0]?.projectId ?? projectId);
+  const childTarget = targetId === projectId ? null : childSources.find(s => s.projectId === targetId) ?? null;
 
   useEffect(() => {
+    if (childTarget) return;
+    // Link pickers list this project's own milestones only; a task can link just its own project's.
     get(`/api/milestones/project/${projectId}`)
       .then(ms => setMilestones(
-        ms.filter(m => m.status !== "COMPLETED" && m.status !== "CANCELLED")
+        ms.filter(m => !m.rollup && m.status !== "COMPLETED" && m.status !== "CANCELLED")
       ))
       .catch(() => {});
     get(`/api/projects/${projectId}/tags`).then(setProjectTags).catch(() => {});
-  }, [projectId]);
+  }, [projectId, childTarget]);
 
   function addTag(tag) {
     if (!tag) return;
@@ -1377,15 +1373,27 @@ function AddProjectTaskModal({ projectId, initialStatus, projectMembers, onClose
     setSaving(true);
     setError(null);
     try {
-      const newTask = await post(`/api/projects/${projectId}/tasks`, {
+      // Tags and milestones belong to the page's project, so a sub-project task skips both.
+      const newTask = await post(`/api/projects/${childTarget ? childTarget.projectId : projectId}/tasks`, {
         title: title.trim(),
         priority,
         status: initialStatus,
         dueDate: dueDate || undefined,
-        milestoneId: milestoneId || undefined,
-        tagIds: tags.map(t => t.id),
+        milestoneId: childTarget ? undefined : milestoneId || undefined,
+        tagIds: childTarget ? [] : tags.map(t => t.id),
       });
-      onCreated(newTask);
+      onCreated(childTarget ? {
+        ...newTask,
+        rollup: {
+          projectId: childTarget.projectId,
+          projectName: childTarget.projectName,
+          label: childTarget.label,
+          color: childTarget.color,
+          tagEnabled: childTarget.tagEnabled,
+          canEdit: true,
+          insights: !!childTarget.flags?.insights,
+        },
+      } : newTask);
       onClose();
     } catch (err) {
       setError(err.message ?? "Failed to create task");
@@ -1416,6 +1424,16 @@ function AddProjectTaskModal({ projectId, initialStatus, projectMembers, onClose
               <input autoFocus value={title} onChange={e => setTitle(e.target.value)}
                 placeholder="What needs to be done?" style={inputStyle} required />
             </div>
+            {childSources.length > 0 && (
+              <div>
+                <label style={labelStyle} htmlFor="cpm-add-task-project">Project</label>
+                <select id="cpm-add-task-project" value={targetId} onChange={e => setTargetId(e.target.value)}
+                  style={{ ...inputStyle, cursor: "pointer" }}>
+                  {canCreateHere && <option value={projectId}>{projectName ?? "This project"}</option>}
+                  {childSources.map(s => <option key={s.projectId} value={s.projectId}>{s.projectName}</option>)}
+                </select>
+              </div>
+            )}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <div>
                 <label style={labelStyle}>Priority</label>
@@ -1432,7 +1450,7 @@ function AddProjectTaskModal({ projectId, initialStatus, projectMembers, onClose
                   style={inputStyle} />
               </div>
             </div>
-            {milestones.length > 0 && (
+            {!childTarget && milestones.length > 0 && (
               <div>
                 <label style={labelStyle}>Milestone</label>
                 <select value={milestoneId} onChange={e => setMilestoneId(e.target.value)}
@@ -1446,6 +1464,11 @@ function AddProjectTaskModal({ projectId, initialStatus, projectMembers, onClose
                 </select>
               </div>
             )}
+            {childTarget ? (
+              <p style={{ fontSize: 12, color: "var(--clubpm-text-muted)", margin: 0 }}>
+                Set tags and milestones in {childTarget.projectName}.
+              </p>
+            ) : (
             <div>
               <label style={labelStyle}>
                 Tags {tags.length > 0 && (
@@ -1502,6 +1525,7 @@ function AddProjectTaskModal({ projectId, initialStatus, projectMembers, onClose
                 <span style={{ fontSize: 11, color: "var(--clubpm-text-muted)" }}>Max 5 tags</span>
               )}
             </div>
+            )}
             {error && (
               <p style={{ fontSize: 12, color: "#e17055", background: "rgba(225,112,85,0.1)",
                 borderRadius: 6, padding: "6px 10px", margin: 0 }}>{error}</p>
@@ -2542,6 +2566,17 @@ export default function ProjectDetail() {
   const [addTaskInitialStatus, setAddTaskInitialStatus] = useState("TODO");
   const [expandedParents, setExpandedParents] = useState(new Set());
   const [sortBy, setSortBy] = useState("priority");
+  const sourceKey = `cpm.tasks.source.${id}`;
+  const [sourceFilter, setSourceFilterState] = useState(() => {
+    try { return sessionStorage.getItem(sourceKey) || "all"; } catch { return "all"; }
+  });
+  const setSourceFilter = useCallback((value) => {
+    setSourceFilterState(value);
+    try { sessionStorage.setItem(sourceKey, value); } catch { /* storage unavailable */ }
+  }, [sourceKey]);
+  useEffect(() => {
+    try { setSourceFilterState(sessionStorage.getItem(sourceKey) || "all"); } catch { setSourceFilterState("all"); }
+  }, [sourceKey]);
   const [headerDrivePreview, setHeaderDrivePreview] = useState(null); // { url, label }
   const [showEditProject, setShowEditProject] = useState(false);
   const [showManageProject, setShowManageProject] = useState(false);
@@ -2585,6 +2620,30 @@ export default function ProjectDetail() {
     return map;
   }, [project]);
 
+  const rollupTaskSources = useMemo(
+    () => (project?.rollupSources ?? []).filter(s => s.flags?.tasks),
+    [project?.rollupSources]
+  );
+  // Milestones rolled up from sub-projects; the project payload carries only its own.
+  const hasMilestoneRollup = (project?.rollupSources ?? []).some(s => s.flags?.milestones);
+  const [rollupMilestones, setRollupMilestones] = useState([]);
+  useEffect(() => {
+    if (!project?.id || !hasMilestoneRollup) { setRollupMilestones([]); return undefined; }
+    let live = true;
+    get(`/api/milestones/project/${project.id}?rollup=1`)
+      .then(ms => { if (live) setRollupMilestones(ms.filter(m => m.rollup)); })
+      .catch(() => { if (live) setRollupMilestones([]); });
+    return () => { live = false; };
+  }, [project?.id, hasMilestoneRollup]);
+  const timelineMilestones = useMemo(
+    () => [...(project?.milestones ?? []), ...rollupMilestones],
+    [project?.milestones, rollupMilestones]
+  );
+  // A stored filter can outlive its source (setting turned off, sub-project detached).
+  const activeSource = sourceFilter === "all" || sourceFilter === "local" || rollupTaskSources.some(s => s.projectId === sourceFilter)
+    ? sourceFilter
+    : "all";
+
   const tasksByBin = useMemo(() => {
     if (!project) return BINS.map(b => ({ ...b, tasks: [] }));
     const sorted = (arr) => [...arr].sort((a, b) => {
@@ -2605,10 +2664,16 @@ export default function ProjectDetail() {
     return BINS.map((b) => ({
       ...b,
       tasks: sorted(project.tasks.filter(
-        (t) => !t.parentTaskId && t.status === b.id
+        (t) => !t.parentTaskId && t.status === b.id && matchesSource(t, activeSource)
       )),
     }));
-  }, [project, sortBy]);
+  }, [project, sortBy, activeSource]);
+
+  // Progress and charts count a rolled-up task only when its sub-project opted in.
+  const insightsProject = useMemo(
+    () => (project ? { ...project, tasks: project.tasks.filter(t => !t.rollup || t.rollup.insights) } : project),
+    [project]
+  );
 
   const compactTasksByBin = useMemo(() => {
     const now = new Date();
@@ -2618,7 +2683,7 @@ export default function ProjectDetail() {
       ...bin,
       tasks: bin.tasks.filter(task => {
         if (compactScope === 'mine' && !(task.assignees ?? []).some(a => a.id === member?.id)) return false;
-        if (q && !`${task.title ?? ''} ${task.description ?? ''} ${(task.tags ?? []).map(t => t.name).join(' ')}`.toLowerCase().includes(q)) return false;
+        if (q && !`${task.title ?? ''} ${task.description ?? ''} ${(task.tags ?? []).map(t => t.name).join(' ')} ${task.rollup?.label ?? ''}`.toLowerCase().includes(q)) return false;
         if (compactPriority !== 'all' && task.priority !== compactPriority) return false;
         if (compactDue === 'none' && task.dueDate) return false;
         if (compactDue === 'overdue' && (!task.dueDate || task.status === 'DONE' || new Date(task.dueDate) >= now)) return false;
@@ -2628,7 +2693,7 @@ export default function ProjectDetail() {
     }));
   }, [tasksByBin, compactScope, compactQuery, compactPriority, compactDue, member?.id]);
 
-  const compactFilterCount = (compactPriority !== 'all' ? 1 : 0) + (compactDue !== 'any' ? 1 : 0) + (showArchived ? 1 : 0);
+  const compactFilterCount = (compactPriority !== 'all' ? 1 : 0) + (compactDue !== 'any' ? 1 : 0) + (showArchived ? 1 : 0) + (activeSource !== 'all' ? 1 : 0);
 
   // Flat visual order of every visible row (matches StatusBin's render order)
   // so shift-click can resolve a contiguous range across bins/subtasks.
@@ -2690,6 +2755,26 @@ export default function ProjectDetail() {
     fetchProject();
     fetchBlockers();
   }, [fetchProject, fetchBlockers]);
+
+  // A rolled-up task's category blockers belong to its own sub-project, so the
+  // modal gets that project's list, fetched when the task opens.
+  const modalProjectId = selectedTask?.rollup?.projectId ?? null;
+  const [modalBlockers, setModalBlockers] = useState({ projectId: null, list: [] });
+  const refreshModalBlockers = useCallback(() => {
+    fetchProject();
+    if (!modalProjectId) return;
+    getProjectBlockers(modalProjectId)
+      .then(list => setModalBlockers({ projectId: modalProjectId, list }))
+      .catch(() => {});
+  }, [fetchProject, modalProjectId]);
+  useEffect(() => {
+    if (!modalProjectId) return;
+    let cancelled = false;
+    getProjectBlockers(modalProjectId)
+      .then(list => { if (!cancelled) setModalBlockers({ projectId: modalProjectId, list }); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [modalProjectId]);
 
   // Look up a task (top-level or subtask) by id within the current project.
   const findTaskById = useCallback((tid) => {
@@ -2786,7 +2871,22 @@ export default function ProjectDetail() {
   };
 
   // Attach an existing category blocker to one or more tasks (drop onto a sub-bin).
-  const attachBlockerToTasks = async (ids, blockerId, reason = null) => {
+  // A category blocker belongs to one project, so tasks rolled up from a
+  // sub-project can't take this project's blockers. Returns the tasks that can.
+  const withoutRolledUp = (ids) => {
+    const foreign = [];
+    const local = ids.filter(tid => {
+      const f = findTaskById(tid);
+      const rollup = (f?.parentTask ?? f?.task)?.rollup;
+      if (rollup) foreign.push(rollup.projectName);
+      return !rollup;
+    });
+    if (foreign.length) toast.error(`Blockers belong to one project — open ${foreign[0]} to block this task`);
+    return local;
+  };
+
+  const attachBlockerToTasks = async (rawIds, blockerId, reason = null) => {
+    const ids = withoutRolledUp(rawIds);
     const targets = ids.filter(tid => {
       const f = findTaskById(tid);
       return f && !(f.task.blockers ?? []).some(tb => tb.blockerId === blockerId && tb.blocker && !tb.blocker.resolvedAt);
@@ -2803,7 +2903,9 @@ export default function ProjectDetail() {
 
   // Create a brand-new category blocker (from the name modal) and attach the
   // dragged task(s) to it.
-  const createBlockerAndAttach = async (label, color, taskIds, assigneeId = null) => {
+  const createBlockerAndAttach = async (label, color, rawTaskIds, assigneeId = null) => {
+    const taskIds = withoutRolledUp(rawTaskIds);
+    if (!taskIds.length) { clearSelection(); return; }
     try {
       const cat = await createBlocker(id, { label, color: color || null, assigneeId: assigneeId || null });
       await Promise.all(taskIds.map(tid => post(`/api/tasks/${tid}/blockers`, { blockerId: cat.id, reason: null })));
@@ -2936,11 +3038,21 @@ export default function ProjectDetail() {
         setSelectedTaskIds(new Set());
         setSelectedMemberIds(new Set());
         setLastClickedId(null);
+        return;
+      }
+      // Ctrl/Cmd+A selects every visible task once a selection has started,
+      // so it never hijacks the browser's select-all on an idle board.
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "a" && selectedTaskIds.size > 0 && activeTab === "tasks" && !selectedTask) {
+        const el = e.target;
+        const editable = el?.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(el?.tagName);
+        if (editable) return;
+        e.preventDefault();
+        setSelectedTaskIds(new Set(flatTaskOrder));
       }
     };
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
-  }, [selectedTaskIds, selectedMemberIds]);
+  }, [selectedTaskIds, selectedMemberIds, activeTab, selectedTask, flatTaskOrder]);
 
   useEffect(() => {
     setSelectedTaskIds(new Set());
@@ -3182,9 +3294,15 @@ export default function ProjectDetail() {
     setActiveMember(null);
     setOverBin(null);
     setOverTaskId(null);
-    if (!canEdit) return;
     const { active, over } = event;
     if (!over || !project) return;
+
+    // Permission is per task: a rolled-up task answers to its own project.
+    // Subtasks inherit their parent's rollup.
+    const canEditTaskId = (tid) => {
+      const found = findTaskById(tid);
+      return !!found && taskCanEdit(found.parentTask ?? found.task, canEdit);
+    };
 
     // Blocked task rows use a namespaced droppable id and carry the real task id
     // in `data`; everywhere else the droppable id *is* the task id.
@@ -3222,6 +3340,7 @@ export default function ProjectDetail() {
     const isMemberDrag = typeof active.id === "string" &&
       (active.id.startsWith("member-") || active.id === "special-everyone" || active.id === "special-nobody");
     if (isMemberDrag && typeof over.id === "string" && over.id.startsWith("blocker-")) {
+      if (!canEdit) return;
       const blockerId = over.id.slice("blocker-".length);
       if (active.id === "special-everyone") return; // no single "everyone" owner
       const newOwnerId = active.id === "special-nobody"
@@ -3236,6 +3355,7 @@ export default function ProjectDetail() {
       const found = findTask(overTargetId);
       if (!found) return;
       const { task, parentTask } = found;
+      if (!canEditTaskId(task.id)) return;
       const everyone = active.id === "special-everyone";
       const memberIds = everyone ? rosterMembers.map(m => m.memberId) : [];
       const memberObjs = everyone ? rosterMembers.map(m => m.member).filter(Boolean) : [];
@@ -3256,6 +3376,7 @@ export default function ProjectDetail() {
       const found = findTask(overTargetId);
       if (!found) return;
       const { task, parentTask } = found;
+      if (!canEditTaskId(task.id)) return;
       const draggedMemberIds = selectedMemberIds.has(memberId) && selectedMemberIds.size > 1
         ? [...selectedMemberIds]
         : [memberId];
@@ -3282,7 +3403,8 @@ export default function ProjectDetail() {
     // moves as one group; otherwise just the grabbed task.
     const overId = over.id;
     const isGroup = selectedTaskIds.has(active.id) && selectedTaskIds.size > 1;
-    const draggedIds = isGroup ? [...selectedTaskIds] : [active.id];
+    const draggedIds = (isGroup ? [...selectedTaskIds] : [active.id]).filter(canEditTaskId);
+    if (draggedIds.length === 0) return;
 
     // Dropped onto a specific blocker category sub-bin → attach that blocker.
     if (typeof overId === "string" && overId.startsWith("blocker-")) {
@@ -3342,13 +3464,13 @@ export default function ProjectDetail() {
       p
         ? {
             ...p,
-            tasks: p.tasks.map((t) => (t.id === updatedTask.id ? updatedTask : t)),
+            tasks: p.tasks.map((t) => (t.id === updatedTask.id ? { ...updatedTask, rollup: updatedTask.rollup ?? t.rollup } : t)),
           }
         : p
     );
     // Updates can arrive from a nested subtask modal; only re-seed the open
     // modal when the edit is actually for the task it is showing.
-    setSelectedTask(prev => (prev && prev.id === updatedTask.id ? updatedTask : prev));
+    setSelectedTask(prev => (prev && prev.id === updatedTask.id ? { ...updatedTask, rollup: updatedTask.rollup ?? prev.rollup } : prev));
     // Full refetch captures parent-change restructuring and other server-side side effects.
     fetchProject();
   };
@@ -3396,31 +3518,117 @@ export default function ProjectDetail() {
     setLastClickedId(null);
   };
 
+  // Selected rows as task objects (top-level and subtasks), for the bulk bar.
+  const selectedTasks = useMemo(() => {
+    if (!project || selectedTaskIds.size === 0) return [];
+    const out = [];
+    for (const t of project.tasks ?? []) {
+      if (selectedTaskIds.has(t.id)) out.push(t);
+      for (const s of t.subtasks ?? []) if (selectedTaskIds.has(s.id)) out.push({ ...s, parentTaskId: s.parentTaskId ?? t.id });
+    }
+    return out;
+  }, [project, selectedTaskIds]);
+
+  const reportSkipped = (skipped, verb) => {
+    if (!skipped?.length) return;
+    const reasons = [...new Set(skipped.map(s => s.reason))].join("; ");
+    toast.error(`${skipped.length} task(s) not ${verb}: ${reasons}`, { duration: 6000 });
+  };
+
+  // Fields that can be applied to the local copy immediately; relative and
+  // relational edits (add/remove sets, shifts, nesting) wait for the refetch.
+  const OPTIMISTIC_BULK_FIELDS = ["status", "priority", "storyPoints", "estimatedHours"];
+
+  // Selection is kept after an edit so several fields can be changed in a row.
   const handleBulkPatch = async (patchFields) => {
     if (selectedTaskIds.size === 0) return;
     const ids = [...selectedTaskIds];
+    const optimistic = Object.fromEntries(Object.entries(patchFields).filter(([k]) => OPTIMISTIC_BULK_FIELDS.includes(k)));
+    if (typeof patchFields.dueDate === "string") optimistic.dueDate = patchFields.dueDate;
     setBulkActing(true);
-    setProject(prev => prev ? {
-      ...prev,
-      tasks: prev.tasks.map(t => {
-        let next = selectedTaskIds.has(t.id) ? { ...t, ...patchFields } : t;
-        if (next.subtasks?.length) {
-          next = { ...next, subtasks: next.subtasks.map(s => selectedTaskIds.has(s.id) ? { ...s, ...patchFields } : s) };
-        }
-        return next;
-      }),
-    } : prev);
+    if (Object.keys(optimistic).length > 0) {
+      setProject(prev => prev ? {
+        ...prev,
+        tasks: prev.tasks.map(t => {
+          let next = selectedTaskIds.has(t.id) ? { ...t, ...optimistic } : t;
+          if (next.subtasks?.length) {
+            next = { ...next, subtasks: next.subtasks.map(s => selectedTaskIds.has(s.id) ? { ...s, ...optimistic } : s) };
+          }
+          return next;
+        }),
+      } : prev);
+    }
     try {
       const res = await patch("/api/tasks/bulk", { ids, patch: patchFields });
-      if (res.skipped?.length > 0) {
-        alert(`${res.skipped.length} task(s) were skipped:\n` + res.skipped.map(s => `- ${s.reason}`).join("\n"));
-      }
+      const changed = res.updated?.length ?? 0;
+      if (changed > 0) toast.success(`Updated ${changed} task${changed === 1 ? "" : "s"}`);
+      else if (!res.skipped?.length) toast("Nothing to change", { icon: "ℹ️" });
+      reportSkipped(res.skipped, "updated");
     } catch (err) {
-      alert(err?.message ?? "Bulk update failed");
+      toast.error(err?.message ?? "Bulk update failed");
     } finally {
       setBulkActing(false);
       fetchProject();
+      if (patchFields.addBlockerIds || patchFields.removeBlockerIds) fetchBlockers();
+    }
+  };
+
+  // extraIds: dependency-linked tasks the member chose to bring along in the
+  // move review; addMissingMembers: keep outside assignees by adding them.
+  const handleBulkMove = async (targetProjectId, targetName, { extraIds = [], addMissingMembers = true } = {}) => {
+    if (selectedTaskIds.size === 0) return;
+    const ids = [...new Set([...selectedTaskIds, ...extraIds])];
+    setBulkActing(true);
+    try {
+      const res = await bulkMoveTasks(ids, targetProjectId, { addMissingMembers });
+      const moved = res.moved?.length ?? 0;
+      if (moved > 0) {
+        const c = res.created ?? {};
+        const extras = [
+          c.tags && `${c.tags} tag${c.tags === 1 ? "" : "s"}`,
+          c.blockers && `${c.blockers} blocker${c.blockers === 1 ? "" : "s"}`,
+          c.milestones && `${c.milestones} milestone${c.milestones === 1 ? "" : "s"}`,
+          c.members && `${c.members} member${c.members === 1 ? "" : "s"}`,
+        ].filter(Boolean);
+        toast.success(`Moved ${moved} task${moved === 1 ? "" : "s"} to ${targetName}` + (extras.length ? ` (added ${extras.join(", ")})` : ""));
+      }
+      reportSkipped(res.skipped, "moved");
+      if (selectedTask && res.moved?.includes(selectedTask.id)) setSelectedTask(null);
       clearSelection();
+    } catch (err) {
+      toast.error(err?.message ?? "Move failed");
+    } finally {
+      setBulkActing(false);
+      fetchProject();
+    }
+  };
+
+  const handleBulkDuplicate = async () => {
+    if (selectedTaskIds.size === 0) return;
+    setBulkActing(true);
+    try {
+      const res = await bulkDuplicateTasks([...selectedTaskIds]);
+      const created = res.created ?? [];
+      if (created.length > 0) toast.success(`Duplicated ${created.length} task${created.length === 1 ? "" : "s"}`);
+      reportSkipped(res.skipped, "duplicated");
+      // Select the copies so they can be edited straight away.
+      if (created.length > 0) setSelectedTaskIds(new Set(created.map(t => t.id)));
+    } catch (err) {
+      toast.error(err?.message ?? "Duplicate failed");
+    } finally {
+      setBulkActing(false);
+      fetchProject();
+    }
+  };
+
+  const handleBulkCopyLinks = async () => {
+    const base = `${window.location.origin}/clubpm/projects/${id}?task=`;
+    const text = selectedTasks.map(t => `${t.title} — ${base}${t.id}`).join("\n");
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success(`Copied ${selectedTasks.length} link${selectedTasks.length === 1 ? "" : "s"}`);
+    } catch {
+      toast.error("Clipboard is unavailable");
     }
   };
 
@@ -3491,7 +3699,7 @@ export default function ProjectDetail() {
   };
 
   const handleTaskCreated = (newTask) => {
-    if (newTask.projectId === project?.id) {
+    if (newTask.projectId === project?.id || newTask.rollup) {
       setProject(prev => ({
         ...prev,
         tasks: [...(prev.tasks ?? []), newTask],
@@ -3557,6 +3765,10 @@ export default function ProjectDetail() {
     !project.slackChannelId ||
     (project.channelMemberSlackIds ?? []).includes(member?.slackId) ||
     (project.members ?? []).some(pm => pm.memberId === member?.id && pm.addedManually);
+  // A task can also be created in a rolled-up sub-project the viewer can edit
+  // (known from any of its tasks already on the board).
+  const createSources = rollupTaskSources.filter(s => (project.tasks ?? []).some(t => t.rollup?.projectId === s.projectId && t.rollup.canEdit));
+  const canAdd = canEdit || createSources.length > 0;
 
   return (
     <div className="clubpm-app cpm-project-page">
@@ -3653,7 +3865,7 @@ export default function ProjectDetail() {
             </div>
 
             {/* Progress bar */}
-            <ProgressBar tasks={project.tasks} />
+            <ProgressBar tasks={insightsProject.tasks} />
 
             {compact && (
               <details className="pm-m-project-resources" open={descEdit || undefined}>
@@ -3743,7 +3955,7 @@ export default function ProjectDetail() {
                         <button type="button" aria-pressed={compactScope === 'mine'} onClick={() => setCompactScope('mine')}>My tasks</button>
                         <button type="button" aria-pressed={compactScope === 'all'} onClick={() => setCompactScope('all')}>All tasks</button>
                       </div>
-                      {canEdit ? <button type="button" className="pm-m-btn pm-m-btn--primary" data-tour-id="board.newtask" onClick={() => { setAddTaskInitialStatus('TODO'); setShowAddTask(true); }}><i className="fas fa-plus" aria-hidden="true" /> New task</button> : null}
+                      {canAdd ? <button type="button" className="pm-m-btn pm-m-btn--primary" data-tour-id="board.newtask" onClick={() => { setAddTaskInitialStatus('TODO'); setShowAddTask(true); }}><i className="fas fa-plus" aria-hidden="true" /> New task</button> : null}
                     </div>
                     <div className="pm-m-task-toolbar-row">
                       <label className="pm-m-search" data-tour-id="board.search"><i className="fas fa-magnifying-glass" aria-hidden="true" /><input className="pm-m-input" type="search" value={compactQuery} onChange={e => setCompactQuery(e.target.value)} placeholder="Search tasks" aria-label="Search tasks" /></label>
@@ -3751,7 +3963,7 @@ export default function ProjectDetail() {
                     </div>
                   </div>
                   <div className="pm-m-task-groups">
-                    {compactTasksByBin.every(bin => bin.tasks.length === 0) ? <div className="pm-m-task-empty pm-m-task-empty--card">No tasks match this view. <button type="button" onClick={() => { setCompactScope('all'); setCompactQuery(''); setCompactPriority('all'); setCompactDue('any'); }}>Show all tasks</button></div> : null}
+                    {compactTasksByBin.every(bin => bin.tasks.length === 0) ? <div className="pm-m-task-empty pm-m-task-empty--card">No tasks match this view. <button type="button" onClick={() => { setCompactScope('all'); setCompactQuery(''); setCompactPriority('all'); setCompactDue('any'); setSourceFilter('all'); }}>Show all tasks</button></div> : null}
                     {compactTasksByBin.map(bin => <CompactStatusGroup key={bin.id} bin={bin} open={compactGroups.has(bin.id)} onToggle={() => setCompactGroups(prev => { const next = new Set(prev); if (next.has(bin.id)) next.delete(bin.id); else next.add(bin.id); return next; })} onOpenTask={handleRowClick} onMove={task => setCompactLayer({ type: 'move', task })} onAssign={task => setCompactLayer({ type: 'assign', task })} canEdit={canEdit} lead={bin.id === 'BLOCKED' ? <CompactBlockerList groups={blockedGroups} canEdit={canEdit} onEdit={blocker => setCompactLayer({ type: 'blocker-edit', blocker })} onResolve={(blocker, count) => setCompactLayer({ type: 'blocker-resolve', blocker, count })} /> : null} />)}
                   </div>
                 </>
@@ -3766,6 +3978,7 @@ export default function ProjectDetail() {
                   />
                   Show archived
                 </label>
+                <RollupSourceFilter sources={rollupTaskSources} value={activeSource} onChange={setSourceFilter} />
                 <select
                   value={sortBy}
                   onChange={e => setSortBy(e.target.value)}
@@ -3801,6 +4014,7 @@ export default function ProjectDetail() {
                     onTaskClick={handleRowClick}
                     onAddTask={(status) => { setAddTaskInitialStatus(status); setShowAddTask(true); }}
                     canEdit={canEdit}
+                    canAdd={canAdd}
                     sortBy={sortBy}
                     selectedTaskIds={selectedTaskIds}
                     blockedGroups={bin.id === "BLOCKED" ? blockedGroups : undefined}
@@ -3884,7 +4098,7 @@ export default function ProjectDetail() {
               )}
 
               {compact ? (
-                <CompactMilestones milestones={project.milestones ?? []} tasks={project.tasks} projectId={project.id} />
+                <CompactMilestones milestones={timelineMilestones.filter(m => matchesSource(m, activeSource))} tasks={insightsProject.tasks} projectId={project.id} />
               ) : <div style={{ padding: "24px 0 0" }}>
                 <h3
                   style={{
@@ -3901,7 +4115,7 @@ export default function ProjectDetail() {
                   className="clubpm-glass-card"
                   style={{ margin: "0 12px 24px", overflow: "hidden" }}
                 >
-                  <GanttChart tasks={project.tasks} milestones={project.milestones ?? []} />
+                  <GanttChart tasks={project.tasks} milestones={timelineMilestones} sources={project.rollupSources ?? []} sourceFilter={activeSource} />
                 </div>
               </div>}
             </div>
@@ -3981,7 +4195,7 @@ export default function ProjectDetail() {
               </div>
               )}
               {reportTab === "charts" && (
-                <ProjectAnalytics project={project} onOpenTask={handleAnalyticsOpenTask} />
+                <ProjectAnalytics project={insightsProject}onOpenTask={handleAnalyticsOpenTask} />
               )}
               {reportTab === "time" && (
                 <ProjectTimeInsights project={project} onOpenTask={handleAnalyticsOpenTask} />
@@ -4083,9 +4297,10 @@ export default function ProjectDetail() {
       {selectedTask && (
         <TaskModal
           task={selectedTask}
-          project={project}
-          projectBlockers={projectBlockers}
-          onBlockersChange={refreshBlockers}
+          project={selectedTask.rollup ? { id: selectedTask.rollup.projectId, name: selectedTask.rollup.projectName } : project}
+          projectBlockers={selectedTask.rollup ? modalBlockers.list : projectBlockers}
+          onBlockersChange={selectedTask.rollup ? refreshModalBlockers : refreshBlockers}
+          readOnly={!!selectedTask.rollup && !selectedTask.rollup.canEdit}
           onClose={() => {
             closeTaskModal();
           }}
@@ -4107,9 +4322,12 @@ export default function ProjectDetail() {
         />
       )}
 
-      {showAddTask && project && canEdit && (
+      {showAddTask && project && canAdd && (
         <AddProjectTaskModal
           projectId={project.id}
+          projectName={project.name}
+          canCreateHere={canEdit}
+          childSources={createSources}
           initialStatus={addTaskInitialStatus}
           projectMembers={(project.members ?? []).map(pm => pm.member ?? pm)}
           onClose={() => setShowAddTask(false)}
@@ -4128,7 +4346,10 @@ export default function ProjectDetail() {
             onDue={setCompactDue}
             showArchived={showArchived}
             onShowArchived={setShowArchived}
-            onClear={() => { setSortBy('priority'); setCompactPriority('all'); setCompactDue('any'); setShowArchived(false); }}
+            source={activeSource}
+            onSource={setSourceFilter}
+            sources={rollupTaskSources}
+            onClear={() => { setSortBy('priority'); setCompactPriority('all'); setCompactDue('any'); setShowArchived(false); setSourceFilter('all'); }}
           />
         </MobileSheet>
       )}
@@ -4227,16 +4448,23 @@ export default function ProjectDetail() {
         />
       )}
 
-      {activeTab === "tasks" && canEdit && (
+      {activeTab === "tasks" && (canEdit || project.tasks.some(t => t.rollup?.canEdit)) && (
         <BulkActionBar
-          count={selectedTaskIds.size}
+          selectedTasks={selectedTasks}
+          projectId={project.id}
           projectMembers={(project.members ?? []).map(pm => pm.member ?? pm)}
+          milestones={project.milestones ?? []}
+          blockers={projectBlockers}
+          projects={allProjects}
+          parentCandidates={project.tasks ?? []}
+          totalVisible={flatTaskOrder.length}
           busy={bulkActing}
           deleteConfirm={bulkDeleteConfirm}
-          onAssign={(memberIds) => handleBulkPatch({ assigneeIds: memberIds })}
-          onDueDate={(iso) => handleBulkPatch({ dueDate: iso })}
-          onStatus={(status) => handleBulkPatch({ status })}
-          onPriority={(priority) => handleBulkPatch({ priority })}
+          onPatch={handleBulkPatch}
+          onMove={handleBulkMove}
+          onDuplicate={handleBulkDuplicate}
+          onCopyLinks={handleBulkCopyLinks}
+          onSelectAll={() => setSelectedTaskIds(new Set(flatTaskOrder))}
           onArchive={handleBulkArchive}
           onRequestDelete={() => setBulkDeleteConfirm(true)}
           onCancelDelete={() => setBulkDeleteConfirm(false)}

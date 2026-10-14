@@ -11,6 +11,8 @@ import {
   type SkillArtifact,
 } from "./skillPrompts.js";
 import { validateAnalysis, type ValidAnalysis } from "./skillValidateCore.js";
+import { applySignalFloor, detectSignals, type SkillSignal } from "./skillSignalCore.js";
+import { MAX_SKILLS_PER_ARTIFACT } from "./skillPrompts.js";
 import { isRetryable, type BatchItem, type LlmUsage, type SkillsLlm } from "./ai/skillsGemini.js";
 
 export interface TaxonomySkill extends SkillLite {
@@ -27,7 +29,7 @@ export interface Taxonomy {
 export const MAX_ALL_CANDIDATES = 160;
 const PREFILTER_TOP = 60;
 
-export function selectCandidates(artifact: SkillArtifact, skills: TaxonomySkill[], maxAll = MAX_ALL_CANDIDATES): TaxonomySkill[] {
+export function selectCandidates(artifact: SkillArtifact, skills: TaxonomySkill[], maxAll = MAX_ALL_CANDIDATES, forcedIds: Iterable<string> = []): TaxonomySkill[] {
   if (skills.length <= maxAll) return skills;
   const text = `${artifact.title}\n${artifact.body}\n${Object.values(artifact.facts).join(" ")}`;
   const byId = new Map(skills.map((s) => [s.id, s]));
@@ -39,6 +41,13 @@ export function selectCandidates(artifact: SkillArtifact, skills: TaxonomySkill[
     for (const p of s.parentIds) { const ps = byId.get(p); if (ps) chosen.set(ps.id, ps); }
   }
   for (const s of skills) if (s.type === "SOFT_SKILL") chosen.set(s.id, s);
+  // Signalled skills are always offered, with their parents, even when the text never names them.
+  for (const id of forcedIds) {
+    const s = byId.get(id);
+    if (!s) continue;
+    chosen.set(s.id, s);
+    for (const p of s.parentIds) { const ps = byId.get(p); if (ps) chosen.set(ps.id, ps); }
+  }
   return [...chosen.values()];
 }
 
@@ -46,17 +55,25 @@ export interface PreparedAnalysis {
   prompt: string;
   keyToSkillId: Map<string, string>;
   candidateCount: number;
+  signals: SkillSignal[];
 }
 
 export function prepareAnalysis(artifact: SkillArtifact, taxonomy: Taxonomy): PreparedAnalysis {
-  const chosen = selectCandidates(artifact, taxonomy.skills).slice().sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
+  const signals = detectSignals(artifact, taxonomy.index, taxonomy.skills);
+  const chosen = selectCandidates(artifact, taxonomy.skills, MAX_ALL_CANDIDATES, signals.map((s) => s.skillId))
+    .slice().sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
+  const nameOf = new Map(taxonomy.skills.map((s) => [s.id, s.name]));
   const keyToSkillId = new Map<string, string>();
+  const keyOf = new Map<string, string>();
   const candidates: PromptCandidate[] = chosen.map((s, i) => {
     const key = `s${i + 1}`;
     keyToSkillId.set(key, s.id);
-    return { key, name: s.name, type: s.type, aliases: s.aliases };
+    keyOf.set(s.id, key);
+    return { key, name: s.name, type: s.type, aliases: s.aliases, parents: s.parentIds.map((p) => nameOf.get(p)).filter((n): n is string => !!n) };
   });
-  return { prompt: buildAnalysisPrompt(artifact, candidates), keyToSkillId, candidateCount: candidates.length };
+  const kept = signals.filter((s) => keyOf.has(s.skillId));
+  const promptSignals = kept.map((s) => ({ key: keyOf.get(s.skillId)!, reason: `${nameOf.get(s.skillId)} (${s.reason})` }));
+  return { prompt: buildAnalysisPrompt(artifact, candidates, promptSignals), keyToSkillId, candidateCount: candidates.length, signals: kept };
 }
 
 export type AnalysisOutcome =
@@ -71,7 +88,7 @@ function finish(text: string, usage: LlmUsage, prep: PreparedAnalysis, taxonomy:
   try { raw = JSON.parse(text); } catch { return { status: "invalid", reason: "response was not valid JSON", usage }; }
   const result = validateAnalysis(raw, prep.keyToSkillId, (name) => resolveSkillName(name, taxonomy.index));
   return result.ok
-    ? { status: "ok", analysis: result.value, usage, candidateCount: prep.candidateCount }
+    ? { status: "ok", analysis: applySignalFloor(result.value, prep.signals, MAX_SKILLS_PER_ARTIFACT), usage, candidateCount: prep.candidateCount }
     : { status: "invalid", reason: result.reason, usage };
 }
 

@@ -46,14 +46,28 @@ export async function getTaskPermissions(
   };
 }
 
-/** True when `memberId` is flagged as a lead of `projectId`. */
+/**
+ * True when `memberId` is flagged as a lead of `projectId`, or of its parent while the
+ * sub-project's rollup.parentMembersCanEdit is on.
+ */
 export async function isProjectLead(memberId: string, projectId: string | null | undefined): Promise<boolean> {
   if (!projectId) return false;
   const row = await prisma.projectMember.findUnique({
     where: { projectId_memberId: { projectId, memberId } },
     select: { isLead: true },
   });
-  return row?.isLead ?? false;
+  if (row?.isLead) return true;
+
+  const project = await prisma.project.findUnique({
+    where: { id: projectId },
+    select: { parentId: true, rollup: { select: { parentMembersCanEdit: true } } },
+  });
+  if (!project?.parentId || !project.rollup?.parentMembersCanEdit) return false;
+  const parentRow = await prisma.projectMember.findUnique({
+    where: { projectId_memberId: { projectId: project.parentId, memberId } },
+    select: { isLead: true },
+  });
+  return parentRow?.isLead ?? false;
 }
 
 export async function requireTaskEdit(

@@ -127,6 +127,9 @@ export async function updateTaskAsMember(
         }
       }
     }
+    if (patch.milestoneId) {
+      await assertMilestoneInProject(patch.milestoneId, existingTask.projectId);
+    }
     if (patch.blockerIds !== undefined) {
       const blockers = await prismaClient.blocker.findMany({
         where: { id: { in: patch.blockerIds }, projectId: existingTask.projectId, resolvedAt: null },
@@ -433,6 +436,13 @@ export interface CreateTaskInput {
   attachments?: { url: string; label?: string }[];
 }
 
+async function assertMilestoneInProject(milestoneId: string, projectId: string): Promise<void> {
+  const milestone = await prismaClient.milestone.findUnique({ where: { id: milestoneId }, select: { projectId: true } });
+  if (!milestone || milestone.projectId !== projectId) {
+    throw new TaskMutationError(400, "That milestone belongs to a different project");
+  }
+}
+
 export async function notifyAddedAssignees(opts: {
   taskId: string;
   actorId: string | null;
@@ -460,8 +470,11 @@ export async function createTaskAsMember(
   actorId: string | null,
   input: CreateTaskInput,
   source: MutationSource,
+  /** notify: false skips assignment notifications (e.g. bulk duplicate). */
+  opts: { notify?: boolean } = {},
 ): Promise<any> {
   const { attachments, ...taskInput } = input;
+  if (taskInput.milestoneId) await assertMilestoneInProject(taskInput.milestoneId, taskInput.projectId);
   let task = await createTask({ ...taskInput, createdById: actorId ?? undefined });
   const normalisedAttachments = normaliseAttachments(attachments);
   if (normalisedAttachments !== undefined) {
@@ -477,7 +490,9 @@ export async function createTaskAsMember(
     payload: { taskTitle: task.title, priority: task.priority, assigneeNames: task.assignees.map(a => a.displayName),
       ...(source === "AI" ? { viaAiPlan: true } : {}), },
   }).catch(console.error);
-  await notifyAddedAssignees({ taskId: task.id, actorId, addedAssigneeIds: task.assignees.map(a => a.id) }).catch(console.error);
+  if (opts.notify !== false) {
+    await notifyAddedAssignees({ taskId: task.id, actorId, addedAssigneeIds: task.assignees.map(a => a.id) }).catch(console.error);
+  }
   return task;
 }
 

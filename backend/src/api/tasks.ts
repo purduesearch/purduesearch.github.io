@@ -1,13 +1,12 @@
 import { Router, type Request, type Response } from "express";
-import { updateTaskAsMember, archiveTaskAsMember, addCommentAsMember, logTimeAsMember, TaskMutationError, type TaskPatch } from "../services/taskMutationService.js";
+import { updateTaskAsMember, createTaskAsMember, archiveTaskAsMember, addCommentAsMember, logTimeAsMember, TaskMutationError, type TaskPatch } from "../services/taskMutationService.js";
 import { requireAuth } from "./auth.js";
 import { channelAuth } from "../middleware/channelAuth.js";
 import { getTaskPermissions, requireTaskEdit } from "../middleware/taskAccess.js";
 import { aiRateLimit } from "../middleware/aiRateLimit.js";
-import { updateTask, deleteTask, getTask, createSubtask, getSubtasks, addDependency, removeDependency, createTask, assertCanComplete, assertNotCategoryBlocked } from "../services/taskService.js";
-import { assertCiGatePasses, applyCompletionSideEffects } from "../services/taskCompletionService.js";
+import { updateTask, deleteTask, getTask, createSubtask, getSubtasks, addDependency, removeDependency, createTask } from "../services/taskService.js";
 import { logAuditEvent, getTaskAuditLog } from "../services/activityService.js";
-import type { TaskStatus, Priority } from "@prisma/client";
+import type { Priority } from "@prisma/client";
 import { GeminiRateLimitError } from "../services/geminiService.js";
 import { runJson } from "../services/ai/aiRouter.js";
 import {
@@ -16,6 +15,26 @@ import {
 import { prisma as prismaClient } from "../db/prisma.js";
 import { EXCLUDE_TRAINING } from "../services/trainingSandboxService.js";
 import { emitTaskChanged } from "../services/taskChangeBus.js";
+import { normalizeBulkPatch, planTaskPatch, type BulkProjectScope } from "../services/taskBulkCore.js";
+import { previewMove, executeMove } from "../services/taskMoveService.js";
+
+/** Upper bound on tasks per bulk request; each one is a full mutation. */
+const BULK_LIMIT = 200;
+
+async function loadBulkScope(projectId: string): Promise<BulkProjectScope> {
+  const [tags, milestones, blockers, parents] = await Promise.all([
+    prismaClient.tag.findMany({ where: { projectId }, select: { id: true } }),
+    prismaClient.milestone.findMany({ where: { projectId }, select: { id: true } }),
+    prismaClient.blocker.findMany({ where: { projectId, resolvedAt: null }, select: { id: true } }),
+    prismaClient.task.findMany({ where: { projectId, parentTaskId: null, archivedAt: null }, select: { id: true } }),
+  ]);
+  return {
+    tagIds: new Set(tags.map(t => t.id)),
+    milestoneIds: new Set(milestones.map(m => m.id)),
+    openBlockerIds: new Set(blockers.map(b => b.id)),
+    parentCandidateIds: new Set(parents.map(t => t.id)),
+  };
+}
 
 export const tasksRouter = Router();
 
@@ -218,21 +237,25 @@ tasksRouter.post("/create-from-image", requireAuth, aiRateLimit, async (req: Req
 
 // ── PATCH /api/tasks/bulk ────────────────────────────────────
 // Must be above /:id routes so "bulk" is not captured as an id param.
+// Each task gets its own TaskPatch (see taskBulkCore.planTaskPatch) and goes
+// through updateTaskAsMember, so permissions, audit, notifications and
+// rewards match a single-task edit.
 
 tasksRouter.patch("/bulk", async (req: Request, res: Response) => {
   try {
-    const { ids, patch } = req.body as {
-      ids: string[];
-      patch: {
-        status?: TaskStatus;
-        priority?: Priority;
-        dueDate?: string | null;
-        assigneeIds?: string[];
-      };
-    };
+    const { ids, patch: rawPatch } = req.body as { ids: string[]; patch: unknown };
 
     if (!Array.isArray(ids) || ids.length === 0) {
       res.status(400).json({ error: "ids must be a non-empty array" });
+      return;
+    }
+    if (ids.length > BULK_LIMIT) {
+      res.status(400).json({ error: `At most ${BULK_LIMIT} tasks per bulk edit` });
+      return;
+    }
+    const bulk = normalizeBulkPatch(rawPatch);
+    if (!bulk) {
+      res.status(400).json({ error: "patch has no supported fields" });
       return;
     }
 
@@ -241,82 +264,179 @@ tasksRouter.patch("/bulk", async (req: Request, res: Response) => {
     const skipped: { id: string; reason: string }[] = [];
     let actorReward: import("../services/rewardService.js").ActorRewardSummary | null = null;
     let progressMilestones: import("../services/challengeService.js").ProgressMilestone[] = [];
+    const achievementUnlocks: any[] = [];
+    const scopes = new Map<string, Promise<BulkProjectScope>>();
+    const scopeFor = (projectId: string) => {
+      if (!scopes.has(projectId)) scopes.set(projectId, loadBulkScope(projectId));
+      return scopes.get(projectId)!;
+    };
 
-    for (const id of ids) {
-      const existingTask = await getTask(id);
-      if (!existingTask) {
+    for (const id of [...new Set(ids)]) {
+      const existing = await prismaClient.task.findUnique({
+        where: { id },
+        select: {
+          id: true, projectId: true, parentTaskId: true, dueDate: true,
+          assignees: { select: { id: true } }, tags: { select: { id: true } },
+          blockers: { select: { blockerId: true } }, _count: { select: { subtasks: true } },
+        },
+      });
+      if (!existing) {
         skipped.push({ id, reason: "Task not found" });
         continue;
       }
 
-      const { canEdit } = await getTaskPermissions(memberId, id);
-      if (!canEdit) {
-        skipped.push({ id, reason: "Permission denied" });
+      const plan = planTaskPatch({
+        id, projectId: existing.projectId, parentTaskId: existing.parentTaskId,
+        subtaskCount: existing._count.subtasks, dueDate: existing.dueDate,
+        assigneeIds: existing.assignees.map(a => a.id), tagIds: existing.tags.map(t => t.id),
+        blockerIds: existing.blockers.map(b => b.blockerId),
+      }, bulk, await scopeFor(existing.projectId));
+      if (!plan.ok) {
+        // A task that already has the requested value is not a failure.
+        if (plan.reason !== "No change") skipped.push({ id, reason: plan.reason });
         continue;
       }
 
-      if (patch.status && patch.status !== existingTask.status) {
-        const lockError = assertNotCategoryBlocked(existingTask as any, patch.status);
-        if (lockError) {
-          skipped.push({ id, reason: lockError });
-          continue;
-        }
-      }
-
-      const isCompletion = patch.status === "DONE" && existingTask.status !== "DONE";
-
-      if (isCompletion) {
-        const blockerError = assertCanComplete(existingTask as any);
-        if (blockerError) {
-          skipped.push({ id, reason: blockerError });
-          continue;
-        }
-
-        const ciError = await assertCiGatePasses(id, existingTask.projectId);
-        if (ciError) {
-          skipped.push({ id, reason: ciError });
-          continue;
-        }
-      }
-
       try {
-        const task = await updateTask(id, {
-          status: patch.status,
-          priority: patch.priority,
-          dueDate: patch.dueDate === null ? undefined : patch.dueDate ? new Date(patch.dueDate) : undefined,
-          assigneeIds: patch.assigneeIds,
-        });
-        updated.push(task);
-
-        if (isCompletion) {
-          try {
-            const result = await applyCompletionSideEffects({
-              taskId: id,
-              actorId: memberId,
-              existingTask,
-              updatedTask: task,
-            });
-            if (result.actorReward) actorReward = result.actorReward;
-            if (result.progressMilestones.length > 0) {
-              progressMilestones = progressMilestones.concat(result.progressMilestones);
-            }
-          } catch (err) {
-            console.error("[reward] bulk applyCompletionSideEffects:", err);
-          }
+        let task: any = null;
+        if (Object.keys(plan.patch).length > 0) {
+          const result = await updateTaskAsMember(memberId, id, plan.patch, "WEB");
+          task = result.task;
+          if (result.actorReward) actorReward = result.actorReward;
+          progressMilestones = progressMilestones.concat(result.progressMilestones);
+          achievementUnlocks.push(...result.achievementUnlocks);
         }
+        if (plan.clearDueDate) {
+          // updateTaskAsMember reads dueDate: null as "unchanged" (REST
+          // compatibility), so clearing goes straight to the service, after
+          // the same edit-permission check.
+          if (!task && !(await getTaskPermissions(memberId, id)).canEdit) {
+            skipped.push({ id, reason: "Permission denied" });
+            continue;
+          }
+          task = await updateTask(id, { dueDate: null });
+          logAuditEvent({
+            taskId: id, memberId, source: "WEB", eventType: "TASK_UPDATED",
+            payload: { taskTitle: task.title, changes: [{ field: "dueDate", from: existing.dueDate, to: null }] },
+          }).catch(console.error);
+        }
+        updated.push(task);
       } catch (err) {
-        skipped.push({ id, reason: (err as Error).message ?? "Update failed" });
+        const reason = err instanceof TaskMutationError && err.status === 403
+          ? "Permission denied"
+          : (err as Error).message ?? "Update failed";
+        skipped.push({ id, reason });
       }
     }
 
     const responseBody: any = { updated, skipped };
     if (actorReward) Object.assign(responseBody, actorReward);
     if (progressMilestones.length > 0) responseBody.progressMilestones = progressMilestones;
+    if (achievementUnlocks.length > 0) responseBody.achievementUnlocks = achievementUnlocks;
 
     res.json(responseBody);
   } catch (error) {
     console.error("Bulk update error:", error);
     res.status(500).json({ error: "Failed to bulk update tasks" });
+  }
+});
+
+// ── POST /api/tasks/bulk-move/preview + /bulk-move ───────────
+// Move tasks (with their subtasks) to another project without losing data:
+// tags, blockers and milestones are matched by name or created in the target,
+// dependencies are kept, and assignees outside the target are added to it
+// (addMissingMembers, default true) or unassigned. The preview reports all of
+// that, plus dependency-linked tasks the member may want to move too.
+// Neither route sends notifications. See services/taskMoveService.ts.
+
+function readMoveBody(req: Request, res: Response): { ids: string[]; projectId: string } | null {
+  const { ids, projectId } = req.body as { ids: unknown; projectId: unknown };
+  if (!Array.isArray(ids) || ids.length === 0 || ids.some(id => typeof id !== "string") || typeof projectId !== "string" || !projectId) {
+    res.status(400).json({ error: "ids and projectId are required" });
+    return null;
+  }
+  if (ids.length > BULK_LIMIT) {
+    res.status(400).json({ error: `At most ${BULK_LIMIT} tasks per bulk move` });
+    return null;
+  }
+  return { ids: ids as string[], projectId };
+}
+
+tasksRouter.post("/bulk-move/preview", async (req: Request, res: Response) => {
+  const body = readMoveBody(req, res);
+  if (!body) return;
+  try {
+    res.json(await previewMove(req.memberId!, body.ids, body.projectId));
+  } catch (error) {
+    if (error instanceof TaskMutationError) { res.status(error.status).json({ error: error.message }); return; }
+    console.error("Bulk move preview error:", error);
+    res.status(500).json({ error: "Failed to preview move" });
+  }
+});
+
+tasksRouter.post("/bulk-move", async (req: Request, res: Response) => {
+  const body = readMoveBody(req, res);
+  if (!body) return;
+  try {
+    const addMissingMembers = (req.body as { addMissingMembers?: unknown }).addMissingMembers !== false;
+    res.json(await executeMove(req.memberId!, body.ids, body.projectId, { addMissingMembers }));
+  } catch (error) {
+    if (error instanceof TaskMutationError) { res.status(error.status).json({ error: error.message }); return; }
+    console.error("Bulk move error:", error);
+    res.status(500).json({ error: "Failed to move tasks" });
+  }
+});
+
+// ── POST /api/tasks/bulk-duplicate ───────────────────────────
+// Copies each task (not its subtasks, comments, time or history) into the
+// same project with status TODO. Copies keep their assignees but send no
+// assignment notifications.
+
+tasksRouter.post("/bulk-duplicate", async (req: Request, res: Response) => {
+  try {
+    const { ids } = req.body as { ids: string[] };
+    if (!Array.isArray(ids) || ids.length === 0) {
+      res.status(400).json({ error: "ids must be a non-empty array" });
+      return;
+    }
+    if (ids.length > BULK_LIMIT) {
+      res.status(400).json({ error: `At most ${BULK_LIMIT} tasks per bulk duplicate` });
+      return;
+    }
+
+    const memberId = req.memberId!;
+    const created: any[] = [];
+    const skipped: { id: string; reason: string }[] = [];
+
+    for (const id of [...new Set(ids)]) {
+      const source = await getTask(id);
+      if (!source) { skipped.push({ id, reason: "Task not found" }); continue; }
+      if (!(await getTaskPermissions(memberId, id)).canEdit) { skipped.push({ id, reason: "Permission denied" }); continue; }
+      try {
+        const copy = await createTaskAsMember(memberId, {
+          projectId: source.projectId,
+          title: `${source.title} (copy)`,
+          description: source.description ?? undefined,
+          priority: source.priority,
+          status: "TODO",
+          dueDate: source.dueDate ?? undefined,
+          assigneeIds: source.assignees.map(a => a.id),
+          parentTaskId: source.parentTaskId ?? undefined,
+          milestoneId: source.milestoneId ?? undefined,
+          tagIds: source.tags.map(t => t.id),
+          estimatedHours: source.estimatedHours ?? undefined,
+          storyPoints: source.storyPoints ?? undefined,
+        }, "WEB", { notify: false });
+        created.push(copy);
+      } catch (err) {
+        skipped.push({ id, reason: (err as Error).message ?? "Duplicate failed" });
+      }
+    }
+
+    res.json({ created, skipped });
+  } catch (error) {
+    console.error("Bulk duplicate error:", error);
+    res.status(500).json({ error: "Failed to duplicate tasks" });
   }
 });
 

@@ -34,7 +34,9 @@ export async function recomputeMembers(memberIds: string[], opts: { now?: Date; 
         where: { memberId, provenance: "AI_INFERRED", skillId: { notIn: [...assessments.keys()] } },
       });
       result.removed += gone.count;
-    });
+      // A member with dozens of skills means dozens of round trips; the 5 s interactive
+      // default aborted whole runs on a remote database ("Transaction already closed").
+    }, { timeout: 120_000, maxWait: 20_000 });
     result.members++;
   }
   return result;

@@ -4,10 +4,12 @@
 // leaderboard: results are per skill, with level and confidence side by side and
 // the evidence behind them, so a person can be judged on the work, not a number.
 
+import { Prisma } from "@prisma/client";
 import { prisma } from "../db/prisma.js";
+import { skillsLlmConfig } from "./ai/skillsGemini.js";
 import { loadSkillNodes, assessmentRowsFor } from "./skillMemberService.js";
 import { recomputeAll, recomputeMembers } from "./skillAssessmentService.js";
-import { disagreementOf, shapeSkills, type Band, type Provenance } from "./skillViewCore.js";
+import { buildMatrix, disagreementOf, shapeSkills, type Band, type Provenance } from "./skillViewCore.js";
 import { TaxonomyError, createSkill, addAlias, addEdge } from "./skillTaxonomyService.js";
 import { normalizeSkillName } from "./skillMatchCore.js";
 import type { SkillType } from "@prisma/client";
@@ -99,6 +101,25 @@ export async function searchPeople(p: SearchParams) {
     return { hit, bestLevel: best.level, bestBand: best.confidenceBand as Band, lastDemonstrated: best.lastDemonstrated?.getTime() ?? 0, name: list[0].member.displayName };
   }));
   return { advisory: ADVISORY, people: ranked.slice(0, Math.min(p.limit ?? 50, 100)).map((r) => r.hit) };
+}
+
+/** Club-wide coverage grid: who holds which skill, and where only one person is strong. */
+export async function getSkillMatrix() {
+  const [nodes, rows] = await Promise.all([
+    loadSkillNodes(),
+    prisma.skillAssessment.findMany({
+      where: { member: { isBot: false } },
+      select: {
+        memberId: true, skillId: true, provenance: true, level: true, confidence: true, confidenceBand: true, firstSeen: true, lastDemonstrated: true,
+        trend: true, rationale: true, evidenceCount: true, assertedById: true, note: true, computedAt: true,
+      },
+    }),
+  ]);
+  const members = await prisma.member.findMany({
+    where: { id: { in: [...new Set(rows.map((r) => r.memberId))] }, isBot: false },
+    select: { id: true, displayName: true, avatarUrl: true, title: true },
+  });
+  return buildMatrix(rows, nodes, members, ADVISORY);
 }
 
 export async function getPerson(memberId: string) {
@@ -209,19 +230,58 @@ export async function listRuns(limit = 20) {
 }
 
 export async function runStatusPanel() {
-  const [latest, lastGood, running, pendingProposals, openDisputes, evidence, members] = await Promise.all([
+  const now = new Date();
+  const [latest, lastGood, running, recent, pendingProposals, openDisputes, evidence, members, activeSkills, totalMembers, githubLinked, repos] = await Promise.all([
     prisma.skillRun.findFirst({ orderBy: { startedAt: "desc" } }),
     prisma.skillRun.findFirst({ where: { status: { in: ["SUCCEEDED", "PARTIAL"] } }, orderBy: { startedAt: "desc" } }),
-    prisma.skillRun.findFirst({ where: { status: "RUNNING", leaseUntil: { gt: new Date() } }, select: { id: true, startedAt: true, trigger: true } }),
+    prisma.skillRun.findFirst({ where: { status: "RUNNING" }, orderBy: { startedAt: "desc" }, select: { id: true, startedAt: true, trigger: true, progress: true, leaseUntil: true, cancelRequested: true, scope: true } }),
+    prisma.skillRun.findMany({ orderBy: { startedAt: "desc" }, take: 12, select: { id: true, trigger: true, status: true, startedAt: true, finishedAt: true, counts: true, errors: true, estCostUsd: true, tokensIn: true, tokensOut: true, scope: true, modelVersion: true } }),
     prisma.skillProposal.count({ where: { status: "PENDING" } }),
     prisma.skillDispute.count({ where: { status: "OPEN" } }),
     prisma.skillEvidence.count({ where: { supersededAt: null } }),
     prisma.skillAssessment.findMany({ where: { provenance: "AI_INFERRED" }, distinct: ["memberId"], select: { memberId: true } }),
+    prisma.skill.count({ where: { status: "ACTIVE" } }),
+    prisma.member.count({ where: { isBot: false } }),
+    prisma.member.count({ where: { isBot: false, githubLogin: { not: null } } }),
+    prisma.projectRepo.count(),
   ]);
+  const llm = skillsLlmConfig();
+  // A RUNNING row whose lease ran out belongs to a process that died (deploy, crash).
+  const stale = !!running && (!running.leaseUntil || running.leaseUntil < now);
+  const checks = [
+    { id: "key", ok: llm.keySet, label: "Gemini API key", detail: llm.keySet ? "Set on the server" : "GEMINI_API_KEY is missing in backend/.env" },
+    { id: "model", ok: !!llm.model, label: "Model", detail: llm.model ? `${llm.model} (${llm.schemaMode === "json" ? "JSON schema" : "OpenAPI schema"}${llm.thinkingBudget !== null ? `, thinking ${llm.thinkingBudget}` : ""})` : "Set SKILLS_MODEL or GEMINI_MODEL" },
+    { id: "taxonomy", ok: activeSkills > 0, label: "Skill list", detail: activeSkills ? `${activeSkills} active skills` : "Empty: install the starter skills (the next run also does this)" },
+    { id: "github", ok: githubLinked > 0 || repos === 0, label: "GitHub accounts", detail: `${githubLinked} of ${totalMembers} members linked · ${repos} repos` },
+    { id: "schedule", ok: process.env.SKILLS_ENABLED === "1", label: "Weekly schedule", detail: process.env.SKILLS_ENABLED === "1" ? "Sundays 02:30 server time" : "Off (set SKILLS_ENABLED=1)" },
+  ];
   return {
-    enabled: process.env.SKILLS_ENABLED === "1", geminiConfigured: !!process.env.GEMINI_API_KEY, schedule: "Sundays 02:30 server time",
-    running, latest, lastSuccessful: lastGood, pendingProposals, openDisputes, evidenceCount: evidence, membersWithSkills: members.length,
+    enabled: process.env.SKILLS_ENABLED === "1", geminiConfigured: llm.problems.length === 0, configProblems: llm.problems, schedule: "Sundays 02:30 server time",
+    running: running && !stale ? running : null, staleRun: stale ? running : null,
+    latest, lastSuccessful: lastGood, recent, pendingProposals, openDisputes, evidenceCount: evidence, membersWithSkills: members.length,
+    activeSkills, totalMembers, githubLinked, checks, dryRun: dryRunState,
+    llm: { model: llm.model, embedModel: llm.embedModel, batch: llm.batch, rpm: llm.rpm },
   };
+}
+
+// ── Dry runs (in memory: they write nothing, and collecting can outlast a proxy timeout) ──
+
+export interface DryRunState { running: boolean; startedAt: string; finishedAt: string | null; scope: string; result: unknown | null; error: string | null }
+export let dryRunState: DryRunState | null = null;
+export function setDryRunState(s: DryRunState | null) { dryRunState = s; }
+
+/** Admin stop: a live run stops at its next checkpoint; a dead one (lease expired) is closed now. */
+export async function cancelRun(id: string) {
+  const run = await prisma.skillRun.findUnique({ where: { id }, select: { status: true, leaseUntil: true } });
+  if (!run) throw new TaxonomyError("NOT_FOUND", "Run not found");
+  if (run.status !== "RUNNING") throw new TaxonomyError("CONFLICT", "That run already finished");
+  const now = new Date();
+  if (!run.leaseUntil || run.leaseUntil < now) {
+    await prisma.skillRun.update({ where: { id }, data: { status: "FAILED", finishedAt: now, progress: Prisma.DbNull, errors: [{ stage: "lease", message: "Run stopped responding (server restart or crash); closed by an admin." }] } });
+    return { closed: true };
+  }
+  await prisma.skillRun.update({ where: { id }, data: { cancelRequested: true } });
+  return { closed: false };
 }
 
 export async function recomputeEverything() { return recomputeAll(); }
