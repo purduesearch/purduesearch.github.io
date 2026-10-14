@@ -76,9 +76,16 @@ export function MemberFacts({ member }) {
   );
 }
 
-function SkillChip({ skill, kind }) {
+const TYPE_LABELS = { TOOL: "Tool", TECHNIQUE: "Technique", DOMAIN: "Domain", SOFT_SKILL: "Soft skill" };
+
+function SkillChip({ skill, distinct }) {
+  const type = String(skill.type || "TOOL").toLowerCase().replace("_", "-");
+  const typeLabel = TYPE_LABELS[skill.type] ?? "Skill";
   return (
-    <li className={`cpm-mc-skill cpm-mc-skill--${kind}`} title={`${skill.name}${skill.area ? ` · ${skill.area}` : ""} · level ${skill.level} of 5${skill.verifiedByLead ? " · lead verified" : ""}`}>
+    <li
+      className={`cpm-mc-skill cpm-mc-skill--${type}${distinct ? " cpm-mc-skill--distinct" : ""}`}
+      title={`${skill.name} · ${typeLabel}${skill.area ? ` · ${skill.area}` : ""} · level ${skill.level} of 5${skill.verifiedByLead ? " · lead verified" : ""}`}
+    >
       <span className="cpm-mc-skill-name">{skill.name}</span>
       <span className="cpm-mc-skill-pips" aria-label={`Level ${skill.level} of 5`}>
         {[1, 2, 3, 4, 5].map((n) => <i key={n} className={n <= skill.level ? "on" : ""} />)}
@@ -105,31 +112,22 @@ export function MemberSkillStrip({ memberId, lazy = false }) {
   else if (total === 0) body = <div className="cpm-mc-skills-note">No skills recorded yet.</div>;
   else {
     body = (
-      <>
-        <ul className="cpm-mc-skill-list" aria-label="Top skills">
-          {top.map((s) => <SkillChip key={s.skillId} skill={s} kind="top" />)}
-        </ul>
-        {distinct.length > 0 && (
-          <>
-            <div className="cpm-mc-skills-sub">Also brings</div>
-            <ul className="cpm-mc-skill-list" aria-label="Distinctive skills">
-              {distinct.map((s) => <SkillChip key={s.skillId} skill={s} kind="distinct" />)}
-            </ul>
-          </>
-        )}
-      </>
+      <ul className="cpm-mc-skill-list" aria-label="Top and distinctive skills">
+        {top.map((s) => <SkillChip key={s.skillId} skill={s} />)}
+        {distinct.map((s) => <SkillChip key={s.skillId} skill={s} distinct />)}
+      </ul>
     );
   }
   // A failed or empty load for a card in a list should not leave an empty heading.
   if (!state.loading && !state.data) return <div ref={ref} />;
   return (
-    <section ref={ref} className="cpm-mc-skills" onClick={(e) => e.stopPropagation()}>
+    <div ref={ref} className="cpm-mc-skills" onClick={(e) => e.stopPropagation()}>
       <div className="cpm-mc-skills-head">
         <span>Skills</span>
         {total > 0 && <span className="cpm-skill-count">{total}</span>}
       </div>
       {body}
-    </section>
+    </div>
   );
 }
 
