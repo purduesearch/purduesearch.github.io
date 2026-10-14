@@ -1318,8 +1318,10 @@ html::-webkit-scrollbar { display: none; }
   border-color: var(--clubpm-accent-red);
   background: rgba(225, 112, 85, 0.15);
 }
-.cpm-kanban-progress--done i,
-.cpm-kanban-progress--blocked i { font-size: 7px; color: inherit; }
+.cpm-kanban-progress.cpm-kanban-progress--done i,
+.cpm-kanban-progress.cpm-kanban-progress--blocked i { font-size: 7px; }
+.cpm-kanban-progress.cpm-kanban-progress--done i { color: var(--clubpm-accent-green); }
+.cpm-kanban-progress.cpm-kanban-progress--blocked i { color: var(--clubpm-accent-red); }
 
 
 /* â”€â”€ ClubPM Dashboard Layout (Freedcamp-style) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
