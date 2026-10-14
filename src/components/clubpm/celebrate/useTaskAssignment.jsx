@@ -66,6 +66,10 @@ export default function useTaskAssignment(rootRef, project, setProject, persist)
 
   function run(event) {
     cancel();
+    // Copy the theme into the effect layer without mounting another app page.
+    // .clubpm-app carries page backgrounds, padding and viewport-sized layout.
+    const theme = rootRef.current ? getComputedStyle(rootRef.current) : null;
+    const themeVariables = theme ? Array.from(theme).filter(name => name.startsWith('--')) : [];
     const nodes = new Set(), animations = new Set(), timers = new Set(), finishers = new Set();
     const owner = {};
     let disposed = false;
@@ -104,13 +108,18 @@ export default function useTaskAssignment(rootRef, project, setProject, persist)
       el.className = className;
       el.setAttribute('aria-hidden', 'true');
       Object.assign(el.style, style);
+      if (theme) {
+        themeVariables.forEach(name => el.style.setProperty(name, theme.getPropertyValue(name)));
+        el.style.fontFamily = theme.fontFamily;
+        el.style.color = theme.color;
+      }
       if (child) el.appendChild(child);
       document.body.appendChild(el);
       nodes.add(el);
       return el;
     }
-    const accent = rootRef.current && getComputedStyle(rootRef.current).getPropertyValue('--pm-accent-teal').trim();
-    const amber = rootRef.current && getComputedStyle(rootRef.current).getPropertyValue('--pm-accent-amber').trim();
+    const accent = theme?.getPropertyValue('--pm-accent-teal').trim();
+    const amber = theme?.getPropertyValue('--pm-accent-amber').trim();
     const cloneAvatar = member => {
       const chip = Array.from(rootRef.current?.querySelectorAll('[data-assignment-source]') ?? [])
         .find(n => n.dataset.assignmentSource === member.id);
@@ -139,7 +148,7 @@ export default function useTaskAssignment(rootRef, project, setProject, persist)
     }
     async function sequence() {
       if (event.cancel) {
-        const g = node('clubpm-app pm-assignment-cancel', { left: `${event.rect.left}px`, top: `${event.rect.top}px` }, event.ghost);
+        const g = node('pm-assignment-cancel', { left: `${event.rect.left}px`, top: `${event.rect.top}px` }, event.ghost);
         play(g, [{ opacity: 1 }, { opacity: 0 }], { duration: 200, fill: 'forwards' });
         await wait(210); cleanup(); return;
       }
@@ -168,7 +177,7 @@ export default function useTaskAssignment(rootRef, project, setProject, persist)
       if (!reduced() && event.ghost) {
         const pill = event.ghost.cloneNode(true);
         pill.style.transform = '';
-        const g = node('clubpm-app pm-assignment-cancel', { left: `${from.x}px`, top: `${from.y}px` }, pill);
+        const g = node('pm-assignment-cancel', { left: `${from.x}px`, top: `${from.y}px` }, pill);
         play(g, [{ opacity: 1, transform: 'scaleX(1)' }, { opacity: 0, transform: 'scaleX(.15)' }], { duration: 200, fill: 'forwards' });
         await wait(200); g.remove(); nodes.delete(g);
       }

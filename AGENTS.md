@@ -210,6 +210,7 @@ the owner-approved retention period are complete.
 ---
 
 ### General
+- **ClubPM CSS cache: bump the version on every stylesheet change.** `public/clubpm-theme.css` is not content-hashed, so updated JS can run against an old cached sheet. Bump `?v=` in `src/clubpm/loadClubPmTheme.js`, keep the preload in `public/index.html` identical, and update the loader test. If a CSS fix appears unchanged, verify the loaded stylesheet URL and computed styles before adding more overrides. Temporary animation portals must not use `.clubpm-app` just for tokens: it also carries page backgrounds and layout; copy the needed theme variables instead.
 - `public/` assets are served at `/` in dev and in the GitHub Pages build. Paths in JSX must start with `/` (e.g., `/astrousa/fig1.jpg`).
 - No `.env` is needed for frontend dev or build. `REACT_APP_API_URL` is optional locally (CRA's `proxy` field forwards to `localhost:3001`) and is supplied as a repo secret in CI.
 - **Constellation phone layout (temporary rollout switch).** The compact shell mounts when `COMPACT_QUERY` in `src/clubpm/layout/compactLayout.js` matches. `REACT_APP_CLUBPM_COMPACT=off` at build time (repo *variable* of the same name, read by `deploy.yml`) ships the desktop shell at every width; per browser, `localStorage['pm-compact'] = 'on' | 'off'` overrides it for previewing. CSS for it is only under `.pm-shell--compact` inside the identical `@media` block at the end of `clubpm-theme.css`. Remove the switch once the redesign is stable (plan Phase 5).

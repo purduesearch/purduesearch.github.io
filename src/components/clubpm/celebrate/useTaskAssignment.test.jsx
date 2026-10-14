@@ -69,6 +69,7 @@ test('empty drop, panel cancellation, denied targets and duplicates do not save'
   const persist = jest.fn(); render(<Harness persist={persist} />);
   act(() => actions.endDrag(true));
   expect(document.querySelector('.pm-assignment-cancel')).toBeTruthy();
+  expect(document.querySelector('.pm-assignment-cancel').classList.contains('clubpm-app')).toBe(false);
   await advance(240);
   await act(async () => { await actions.assign('missing', [members[5]], true); await actions.assign('task', [members[5]], false); });
   await advance(240);

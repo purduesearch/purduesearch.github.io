@@ -1,4 +1,5 @@
 import React, { useContext, useState, useEffect, useCallback, useMemo, useRef } from "react";
+import useProjectHeaderScroll from "../../hooks/useProjectHeaderScroll";
 import { createPortal } from "react-dom";
 import { useParams, Link, useSearchParams, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
@@ -225,7 +226,7 @@ const STATUS_BADGE = {
 // `rollup.canEdit`); a local task follows the page-level permission.
 const taskCanEdit = (task, pageCanEdit) => (task.rollup ? !!task.rollup.canEdit : pageCanEdit);
 
-function ProgressBar({ tasks }) {
+function ProgressBar({ tasks, onBackToTop }) {
   const allTasks = tasks.flatMap(t => [t, ...(t.subtasks ?? [])]);
   const total = allTasks.length;
   const done = allTasks.filter((t) => t.status === "DONE").length;
@@ -234,50 +235,32 @@ function ProgressBar({ tasks }) {
   const todo = Math.max(total - done - blocked - inProgress, 0);
   const pct = total > 0 ? Math.round((done / total) * 100) : 0;
 
-  if (total === 0) {
-    return (
-      <div className="cpm-proj-progress-row">
-        <div className="cpm-progress-bar-track">
-          <div
-            className="cpm-progress-bar-segment"
-            style={{ width: "100%", background: "var(--clubpm-surface-400)" }}
-          />
-        </div>
-        <span className="cpm-proj-progress-pct">0%</span>
-        <span className="cpm-proj-progress-stats">
-          <span style={{ color: "var(--clubpm-text-muted)" }}>No tasks yet</span>
-        </span>
-      </div>
-    );
-  }
-
+  const Track = onBackToTop ? 'button' : 'div';
+  const statuses = [
+    { label: 'Completed', count: done, color: 'var(--clubpm-accent-green)' },
+    { label: 'In progress', count: inProgress, color: 'var(--clubpm-accent-yellow)' },
+    { label: 'Blocked', count: blocked, color: 'var(--clubpm-accent-red, #e17055)' },
+    { label: 'Not started', count: todo, color: 'var(--clubpm-text-muted)' },
+  ];
   return (
     <div className="cpm-proj-progress-row">
-      <div className="cpm-progress-bar-track">
-        <div
-          className="cpm-progress-bar-segment"
-          style={{ width: `${(done / total) * 100}%`, background: "var(--clubpm-accent-green)" }}
-        />
-        <div
-          className="cpm-progress-bar-segment"
-          style={{ width: `${(inProgress / total) * 100}%`, background: "var(--clubpm-accent-yellow)" }}
-        />
-        <div
-          className="cpm-progress-bar-segment"
-          style={{ width: `${(blocked / total) * 100}%`, background: "var(--clubpm-accent-red, #e17055)" }}
-        />
-        <div
-          className="cpm-progress-bar-segment"
-          style={{ width: `${(todo / total) * 100}%`, background: "var(--clubpm-surface-400)" }}
-        />
-      </div>
+      <Track className="cpm-progress-bar-track" onClick={onBackToTop}
+        {...(onBackToTop ? { type: 'button', title: 'Back to project header', 'aria-label': `Back to project header. ${pct}% completed.` } : { 'aria-hidden': true })}>
+        {statuses.slice(0, 3).map(status => (
+          <span key={status.label} className="cpm-progress-bar-segment"
+            style={{ width: `${total ? status.count / total * 100 : 0}%`, background: status.color }} />
+        ))}
+      </Track>
+      <div className="cpm-proj-progress-legend">
       <span className="cpm-proj-progress-pct">{pct}%</span>
       <span className="cpm-proj-progress-stats">
-        <span style={{ color: "var(--clubpm-accent-green)" }}>■ {done}</span>
-        <span style={{ color: "var(--clubpm-accent-yellow)" }}>■ {inProgress}</span>
-        {blocked > 0 && <span style={{ color: "var(--clubpm-accent-red, #e17055)" }}>■ {blocked}</span>}
-        <span style={{ color: "var(--clubpm-text-muted)" }}>■ {todo}</span>
+        {total ? statuses.map(status => (
+          <span key={status.label} title={status.label} aria-label={`${status.label}: ${status.count}`} style={{ color: status.color }}>
+            <span className="cpm-proj-progress-dot" aria-hidden="true" />{status.count}
+          </span>
+        )) : <span>No tasks yet</span>}
       </span>
+      </div>
     </div>
   );
 }
@@ -330,7 +313,7 @@ function StatusBin({ bin, tasks, subtasksByParent, expandedParents, onTogglePare
             style={{ fontSize: 10, color: "var(--clubpm-text-muted)" }}
           />
           <span>{bin.label}</span>
-          <span data-completion-count={bin.id} style={{ color: "var(--clubpm-text-muted)", fontWeight: 400 }}>
+          <span data-completion-count={bin.id} style={{ color: bin.color, fontWeight: 400 }}>
             {tasks.length}
           </span>
         </button>
@@ -506,7 +489,7 @@ function CompactStatusGroup({ bin, open, onToggle, onOpenTask, onMove, onAssign,
     <section ref={setNodeRef} className={`pm-m-task-group${isOver ? " cpm-status-bin--over" : ""}`} data-bin-id={bin.id} data-tour-id={BIN_TOUR_IDS[bin.id]}>
       <button type="button" className="pm-m-task-group-head" onClick={onToggle} aria-expanded={open}>
         <span className="pm-m-task-group-dot" style={{ background: bin.color }} />
-        <span>{bin.label}</span><span className="pm-m-count" data-completion-count={bin.id}>{bin.tasks.length}</span>
+        <span style={{ color: bin.color }}>{bin.label}</span><span className="pm-m-count" data-completion-count={bin.id} style={{ color: bin.color }}>{bin.tasks.length}</span>
         <i className={`fas fa-chevron-${open ? 'up' : 'down'}`} aria-hidden="true" />
       </button>
       {open ? (
@@ -2581,6 +2564,7 @@ export default function ProjectDetail() {
   }, [setSearchParams]);
 
   const tabBodyRef = useRef(null);
+  useProjectHeaderScroll(tabBodyRef, activeTab === 'tasks', project?.id, compact, loading);
   useEffect(() => {
     if (!tabBodyRef.current) return;
     const body = tabBodyRef.current.querySelector('.cpm-proj-main-body');
@@ -3085,7 +3069,7 @@ export default function ProjectDetail() {
       return;
     }
     setLastClickedId(task.id);
-    const scrollHost = document.querySelector('.cpm-proj-main-body') ?? document.querySelector('.pm-shell-content');
+    const scrollHost = document.querySelector('.cpm-project-main--scroll-header') ?? document.querySelector('.cpm-proj-main-body') ?? document.querySelector('.pm-shell-content');
     taskReturnRef.current = {
       scrollTop: scrollHost?.scrollTop ?? window.scrollY,
       taskId: task.id,
@@ -3233,7 +3217,7 @@ export default function ProjectDetail() {
     const restore = taskReturnRef.current;
     window.requestAnimationFrame(() => {
       if (restore) {
-        const scrollHost = document.querySelector('.cpm-proj-main-body') ?? document.querySelector('.pm-shell-content');
+        const scrollHost = document.querySelector('.cpm-project-main--scroll-header') ?? document.querySelector('.cpm-proj-main-body') ?? document.querySelector('.pm-shell-content');
         if (scrollHost) scrollHost.scrollTo({ top: restore.scrollTop, behavior: 'auto' });
         else window.scrollTo({ top: restore.scrollTop, behavior: 'auto' });
       }
@@ -3777,7 +3761,7 @@ export default function ProjectDetail() {
         onDragEnd={handleDragEnd}
         onDragCancel={() => { assignment.endDrag(true); setActiveTask(null); setActiveMember(null); setOverBin(null); setOverTaskId(null); }}
       >
-        <main ref={tabBodyRef} className="cpm-project-main">
+        <main ref={tabBodyRef} className={`cpm-project-main${activeTab === 'tasks' ? ' cpm-project-main--scroll-header' : ''}`}>
           {/* On a phone the conversation needs the height: the shell header
               already names the project (and opens its actions), so the hero
               steps aside on Chat › Messages. */}
@@ -3861,8 +3845,12 @@ export default function ProjectDetail() {
               </div>
             </div>
 
-            {/* Progress bar */}
-            <ProgressBar tasks={insightsProject.tasks} />
+            {activeTab !== 'tasks' && <ProgressBar tasks={insightsProject.tasks} />}
+          </header>
+
+          {activeTab === 'tasks' && <ProgressBar tasks={insightsProject.tasks} onBackToTop={() => tabBodyRef.current?.scrollTo({ top: 0, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' })} />}
+
+          <div className={`pm-proj-details${compact && activeTab === 'chat' && chatSection === 'messages' ? ' pm-proj-hero--m-hidden' : ''}`}>
 
             {compact && (
               <details className="pm-m-project-resources" open={descEdit || undefined}>
@@ -3970,7 +3958,7 @@ export default function ProjectDetail() {
                 )}
               </div>
             )}
-          </header>
+          </div>
 
           {activeTab === "tasks" && (
             <div className="cpm-proj-main-body" style={{ padding: "16px 0 24px" }}>

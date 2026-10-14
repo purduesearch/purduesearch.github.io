@@ -31191,7 +31191,7 @@ button.pm-task-check { cursor: pointer; }
   animation: pm-assignment-preview 220ms cubic-bezier(.3,1.5,.5,1) both;
 }
 .pm-assignment-placeholder ~ .cpm-avatar-slot { transform: translateX(4px); }
-.pm-assignment-drop-tag {
+.clubpm-app .cpm-avatar-stack > .pm-assignment-drop-tag {
   position: absolute; right: 8px; top: -18px; border-radius: 999px; padding: 2px 7px;
   display: block; width: max-content; max-width: none; margin-left: 0;
   white-space: nowrap; line-height: 1.3; font-size: 10px; font-weight: 700;
@@ -31204,8 +31204,8 @@ button.pm-task-check { cursor: pointer; }
 .pm-assignment-flight, .pm-assignment-cancel, .pm-assignment-ring, .pm-assignment-dot {
   position: fixed; pointer-events: none; z-index: 9998;
 }
-/* This portal needs theme variables, without the app page's background and spacing. */
-.clubpm-app.pm-assignment-cancel {
+/* Effects inherit copied theme variables, without mounting a second app page. */
+.pm-assignment-cancel {
   min-height: 0; width: max-content; height: auto; padding: 0; margin: 0;
   background: transparent;
 }
@@ -31232,4 +31232,82 @@ button.pm-task-check { cursor: pointer; }
 @media (prefers-reduced-motion: reduce) {
   .pm-assignment-placeholder, .pm-assignment-ghost { animation: none; }
   .pm-assignment-landing::before, .pm-assignment-landing::after { display: none; }
+}
+.cpm-proj-progress-legend {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  white-space: nowrap;
+}
+.cpm-proj-progress-stats > span { display: inline-flex; align-items: center; gap: 4px; }
+.cpm-proj-progress-dot { width: 7px; height: 7px; background: currentColor; }
+.cpm-proj-progress-row .cpm-progress-bar-track { background: var(--clubpm-surface-400); }
+
+/* Project header dissolves into a sticky, full-width progress strip on Tasks. */
+.cpm-project-main--scroll-header {
+  --project-header-dissolve: 0;
+  --project-progress-expand: 0;
+  --project-header-gutter: 24px;
+  display: block;
+  overflow-y: auto;
+  scroll-padding-top: 46px;
+}
+.cpm-project-main--scroll-header > .pm-proj-hero {
+  position: relative;
+  border-bottom: 0;
+}
+.cpm-project-main--scroll-header .pm-proj-breadcrumb,
+.cpm-project-main--scroll-header .pm-proj-hero-row {
+  opacity: calc(1 - var(--project-header-dissolve));
+  transform: translateY(calc(20px * var(--project-header-dissolve))) scale(calc(1 - .04 * var(--project-header-dissolve)));
+  transform-origin: left top;
+  filter: blur(calc(4px * var(--project-header-dissolve)));
+}
+.cpm-project-main--scroll-header > .cpm-proj-progress-row {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  height: 46px;
+  margin: 0;
+  background: var(--pm-bg-surface);
+}
+.cpm-project-main--scroll-header > .cpm-proj-progress-row .cpm-progress-bar-track {
+  position: absolute;
+  left: calc(var(--project-header-gutter) * (1 - var(--project-progress-expand)));
+  right: calc(214px * (1 - var(--project-progress-expand)));
+  top: calc(20px * (1 - var(--project-progress-expand)));
+  height: calc(6px + 2px * var(--project-progress-expand));
+  border-radius: calc(4px * (1 - var(--project-progress-expand)));
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  box-shadow: 0 3px calc(18px * var(--project-progress-expand)) color-mix(in srgb, var(--clubpm-accent-green) 28%, transparent);
+}
+.cpm-project-main--scroll-header .cpm-progress-bar-track:focus-visible {
+  outline: 2px solid var(--clubpm-accent-primary);
+  outline-offset: 4px;
+}
+.cpm-project-main--scroll-header .cpm-proj-progress-legend {
+  position: absolute;
+  right: calc(var(--project-header-gutter) - 10px * var(--project-progress-expand));
+  top: calc(12px + 6px * var(--project-progress-expand));
+  padding: 3px calc(10px * var(--project-progress-expand));
+  border-radius: 999px;
+  background: var(--pm-bg-surface);
+  pointer-events: none;
+}
+.pm-proj-details {
+  flex-shrink: 0;
+  padding: 0 24px 14px;
+  background: var(--pm-bg-surface);
+  border-bottom: 1px solid var(--pm-border);
+}
+.cpm-project-main--scroll-header > .cpm-proj-main-body { overflow: visible; }
+.pm-shell--compact .cpm-project-main--scroll-header { --project-header-gutter: var(--pm-m-gutter); }
+.pm-shell--compact .cpm-project-main--scroll-header > .pm-proj-hero { position: relative; }
+.pm-shell--compact .pm-proj-details { padding: 0 var(--pm-m-gutter) 8px; }
+.pm-shell--compact .pm-proj-details.pm-proj-hero--m-hidden { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  .cpm-project-main--scroll-header .pm-proj-breadcrumb,
+  .cpm-project-main--scroll-header .pm-proj-hero-row { opacity: 1; transform: none; filter: none; }
 }
