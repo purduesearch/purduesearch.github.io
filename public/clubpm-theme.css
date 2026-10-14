@@ -30332,3 +30332,46 @@ body.pm-m-compact .pm-albums-icon-btn { width: 44px; height: 44px; }
   .cpm-skills-admin-tabs button { min-height: 44px; }
   .cpm-skills-admin-filters { grid-template-columns: 1fr; }
 }
+
+/* Parent-project disclosure, beside the existing project management menu. */
+.pm-sidebar-project-toggle {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: none;
+  color: var(--pm-text-muted);
+  font-size: 10px;
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+.pm-sidebar-project-row--manageable .pm-sidebar-project-toggle { right: 34px; }
+.pm-sidebar:hover .pm-sidebar-project-toggle,
+.pm-sidebar-project-toggle:focus-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+.pm-sidebar-project-toggle:hover {
+  color: var(--pm-accent-teal);
+  background: rgba(0, 229, 204, 0.1);
+}
+.pm-sidebar-project-toggle:focus-visible {
+  outline: 2px solid var(--pm-accent-teal);
+  outline-offset: 2px;
+}
+.pm-sidebar:hover .pm-sidebar-project-row--manageable > .pm-sidebar-project-item,
+.pm-sidebar-project-row--manageable:focus-within > .pm-sidebar-project-item,
+.pm-sidebar:hover .pm-sidebar-project-row--parent > .pm-sidebar-project-item,
+.pm-sidebar-project-row--parent:focus-within > .pm-sidebar-project-item { padding-right: 34px; }
+.pm-sidebar:hover .pm-sidebar-project-row--parent.pm-sidebar-project-row--manageable > .pm-sidebar-project-item,
+.pm-sidebar-project-row--parent.pm-sidebar-project-row--manageable:focus-within > .pm-sidebar-project-item { padding-right: 62px; }

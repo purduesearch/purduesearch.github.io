@@ -162,6 +162,32 @@ describe('route → current item and header (pure)', () => {
 });
 
 describe('desktop shell (compact off)', () => {
+  it.each([false, true])('toggles only a parent\'s children without navigating (admin: %s)', async isAdmin => {
+    mockMember.isAdmin = isAdmin;
+    const projects = [...PROJECTS, { id: 'child', name: 'Rover Wheels', parentId: 'p1', status: 'ACTIVE' }];
+    const defaultGet = mockGet.getMockImplementation();
+    mockGet.mockImplementation(path => path === '/api/projects' ? Promise.resolve(projects) : defaultGet(path));
+    renderShell('/clubpm', { compact: false });
+
+    const toggle = await screen.findByRole('button', { name: 'Collapse sub-projects of Lunar Rover' });
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('link', { name: 'Rover Wheels' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /sub-projects of Habitat/ })).not.toBeInTheDocument();
+
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByRole('link', { name: 'Rover Wheels' })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Habitat' })).toBeInTheDocument();
+    expect(probe.location.pathname).toBe('/clubpm');
+
+    fireEvent.click(toggle);
+    expect(screen.getByRole('link', { name: 'Rover Wheels' })).toBeInTheDocument();
+    fireEvent.click(toggle);
+    await act(async () => { probe.navigate('/clubpm/projects/child'); });
+    expect(screen.getByRole('link', { name: 'Rover Wheels' })).toBeInTheDocument();
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  });
+
   it('renders the sidebar and topbar and none of the phone chrome', async () => {
     renderShell('/clubpm', { compact: false });
     await waitFor(() => expect(mockGet).toHaveBeenCalledWith('/api/projects'));

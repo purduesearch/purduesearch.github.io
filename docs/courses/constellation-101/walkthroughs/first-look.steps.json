@@ -84,7 +84,7 @@
       "anchor": "nav.projects",
       "route": "/clubpm",
       "title": "That's the lap",
-      "body": "Projects are where the actual work lives, and that's where we're headed next — on a private practice project we'll set up just for you.",
+      "body": "Projects are where the actual work lives. Use a parent's arrow to show or hide its sub-projects. Next we'll set up a private practice project just for you.",
       "placement": "right",
       "advance": { "on": "next" }
 ,

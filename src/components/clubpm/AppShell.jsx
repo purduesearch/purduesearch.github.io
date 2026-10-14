@@ -302,7 +302,7 @@ export default function AppShell({ children }) {
   const { setShowHelp } = useShortcutsRegistry() ?? {};
   const {
     projectNav,
-    projects: sidebarProjects,
+    projects: sidebarProjects = [],
     setProjects: setSidebarProjects,
     projectsLoad,
     setProjectsLoad,
@@ -317,9 +317,34 @@ export default function AppShell({ children }) {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [showCreateProject, setShowCreateProject] = useState(false);
   const [manageProjectId, setManageProjectId] = useState(null);
+  const [collapsedProjectIds, setCollapsedProjectIds] = useState(() => new Set());
   const [starredIds, setStarredIds] = useState(() => {
     try { return JSON.parse(localStorage.getItem('pm-starred-projects') || '[]'); } catch { return []; }
   });
+
+  const projectRows = buildProjectRows(sidebarProjects, { starredIds });
+  const parentProjectIds = new Set(projectRows.filter(row => row.depth === 1).map(row => row.project.parentId));
+
+  // Reveal the current child when navigating to it from outside the sidebar.
+  useEffect(() => {
+    const currentProject = sidebarProjects.find(p => location.pathname === `/clubpm/projects/${p.id}` || location.pathname.startsWith(`/clubpm/projects/${p.id}/`));
+    if (!currentProject?.parentId) return;
+    setCollapsedProjectIds(previous => {
+      if (!previous.has(currentProject.parentId)) return previous;
+      const next = new Set(previous);
+      next.delete(currentProject.parentId);
+      return next;
+    });
+  }, [location.pathname, sidebarProjects]);
+
+  const toggleProjectChildren = projectId => {
+    setCollapsedProjectIds(previous => {
+      const next = new Set(previous);
+      if (next.has(projectId)) next.delete(projectId);
+      else next.add(projectId);
+      return next;
+    });
+  };
 
   useEffect(() => {
     document.documentElement.classList.remove('pm-theme-light');
@@ -612,8 +637,8 @@ export default function AppShell({ children }) {
             )}
           </div>
           <div className="pm-sidebar-project-list">
-            {buildProjectRows(sidebarProjects, { starredIds }).map(({ project: p, depth }) => (
-              <div key={p.id} className="pm-sidebar-project-row">
+            {projectRows.filter(({ project: p, depth }) => !depth || !collapsedProjectIds.has(p.parentId)).map(({ project: p, depth }) => (
+              <div key={p.id} className={`pm-sidebar-project-row${parentProjectIds.has(p.id) ? ' pm-sidebar-project-row--parent' : ''}${member?.isAdmin ? ' pm-sidebar-project-row--manageable' : ''}`}>
                 <Link
                   to={`/clubpm/projects/${p.id}`}
                   className={`pm-sidebar-project-item${depth ? ' pm-sidebar-project-item--child' : ''}${location.pathname === `/clubpm/projects/${p.id}` ? ' active' : ''}`}
@@ -624,6 +649,16 @@ export default function AppShell({ children }) {
                   }
                   <span className="pm-sidebar-project-name">{p.name}</span>
                 </Link>
+                {parentProjectIds.has(p.id) && (
+                  <button
+                    type="button"
+                    className="pm-sidebar-project-toggle"
+                    title={`${collapsedProjectIds.has(p.id) ? 'Expand' : 'Collapse'} sub-projects`}
+                    aria-label={`${collapsedProjectIds.has(p.id) ? 'Expand' : 'Collapse'} sub-projects of ${p.name}`}
+                    aria-expanded={!collapsedProjectIds.has(p.id)}
+                    onClick={() => toggleProjectChildren(p.id)}
+                  ><i className={`fas fa-chevron-${collapsedProjectIds.has(p.id) ? 'right' : 'down'}`} aria-hidden="true" /></button>
+                )}
                 {member?.isAdmin && (
                   <button
                     type="button"

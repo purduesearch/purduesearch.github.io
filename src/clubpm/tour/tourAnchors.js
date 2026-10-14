@@ -30,7 +30,7 @@ export const TOUR_ANCHORS = Object.freeze({
   "nav.dashboard":          { label: "Dashboard link",       route: "*", layout: "both",    note: "Sidebar Dashboard link; bottom-bar Home on phones" },
   "nav.social":             { label: "Social group",         route: "*", layout: "desktop", note: "Collapsible sidebar group containing Chat, Members, and Calendar — no phone equivalent (use nav.chat)" },
   "nav.chat":               { label: "Chat link",            route: "*", layout: "both",    note: "Child of the Social group; bottom-bar Chat on phones" },
-  "nav.projects":           { label: "Projects link",        route: "*", layout: "both",    note: "Sidebar project list; bottom-bar Projects button on phones (opens projects.sheet)" },
+  "nav.projects":           { label: "Projects link",        route: "*", layout: "both",    note: "Sidebar project list; parent chevrons expand/collapse sub-projects beside the admin menu; bottom-bar Projects button on phones (opens projects.sheet)" },
   "projects.sheet":         { label: "Project list sheet",   route: "*", layout: "compact", reveal: "projects", note: "Project list inside the phone Projects sheet" },
   "nav.members":            { label: "Members link",         route: "*", layout: "both", reveal: "more",    note: "Child of the Social group — expand it first; More › People & DMs on phones" },
   "nav.calendar":           { label: "Calendar link",        route: "*", layout: "both",    note: "Child of the Social group; bottom-bar Calendar on phones" },

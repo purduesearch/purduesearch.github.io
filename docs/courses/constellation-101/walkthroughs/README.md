@@ -161,6 +161,9 @@ The last step introduces AI insights with "treat them as a colleague's opinion: 
 occasionally wrong, never the final word." Setting that expectation once, early, is cheaper than
 undoing overconfidence later.
 
+The desktop `first-look` Projects step explains that parent arrows show or hide sub-projects.
+The arrow sits beside the management menu for officers; the phone Projects sheet keeps its flat list.
+
 ## Authoring rules
 
 - **Every `api` step must name a call that step actually causes.** Wiring one to a call the learner
