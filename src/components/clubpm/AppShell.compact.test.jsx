@@ -169,7 +169,11 @@ describe('desktop shell (compact off)', () => {
     mockGet.mockImplementation(path => path === '/api/projects' ? Promise.resolve(projects) : defaultGet(path));
     renderShell('/clubpm', { compact: false });
 
-    const toggle = await screen.findByRole('button', { name: 'Collapse sub-projects of Lunar Rover' });
+    const toggle = await screen.findByRole('button', { name: 'Expand sub-projects of Lunar Rover' });
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByRole('link', { name: 'Rover Wheels' })).not.toBeInTheDocument();
+    fireEvent.click(toggle);
+    expect(JSON.parse(localStorage.getItem('pm-expanded-projects'))).toEqual(['p1']);
     expect(toggle).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByRole('link', { name: 'Rover Wheels' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Rover Wheels' }).querySelector('.cpm-project-child-marker')).not.toBeNull();
@@ -187,7 +191,7 @@ describe('desktop shell (compact off)', () => {
     await act(async () => { probe.navigate('/clubpm/projects/child'); });
     expect(screen.queryByRole('link', { name: 'Rover Wheels' })).not.toBeInTheDocument();
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
-    expect(JSON.parse(localStorage.getItem('pm-collapsed-projects'))).toEqual(['p1']);
+    expect(JSON.parse(localStorage.getItem('pm-expanded-projects'))).toEqual([]);
 
     cleanup();
     document.body.appendChild(rootEl);

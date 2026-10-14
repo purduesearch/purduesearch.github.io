@@ -164,7 +164,7 @@ occasionally wrong, never the final word." Setting that expectation once, early,
 undoing overconfidence later.
 
 The desktop `first-look` Projects step explains that parent arrows show or hide sub-projects,
-remembering your choice across pages. Children use dashed markers with a small indent in both layouts.
+starting collapsed and remembering your choice across pages and reloads. Children use dashed markers with a small indent in both layouts.
 The arrow sits beside the management menu for officers; the phone Projects sheet keeps its flat list.
 
 ## Authoring rules

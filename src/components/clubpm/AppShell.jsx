@@ -317,9 +317,9 @@ export default function AppShell({ children }) {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [showCreateProject, setShowCreateProject] = useState(false);
   const [manageProjectId, setManageProjectId] = useState(null);
-  const [collapsedProjectIds, setCollapsedProjectIds] = useState(() => {
+  const [expandedProjectIds, setExpandedProjectIds] = useState(() => {
     try {
-      const stored = JSON.parse(localStorage.getItem('pm-collapsed-projects') || '[]');
+      const stored = JSON.parse(localStorage.getItem('pm-expanded-projects') || '[]');
       return new Set(Array.isArray(stored) ? stored : []);
     } catch { return new Set(); }
   });
@@ -330,18 +330,14 @@ export default function AppShell({ children }) {
   const projectRows = buildProjectRows(sidebarProjects, { starredIds });
   const parentProjectIds = new Set(projectRows.filter(row => row.depth === 1).map(row => row.project.parentId));
 
-  // AppShell can remount between routes. Keep the user's disclosure choices.
-  useEffect(() => {
-    try { localStorage.setItem('pm-collapsed-projects', JSON.stringify([...collapsedProjectIds])); } catch {}
-  }, [collapsedProjectIds]);
-
   const toggleProjectChildren = projectId => {
-    setCollapsedProjectIds(previous => {
-      const next = new Set(previous);
-      if (next.has(projectId)) next.delete(projectId);
-      else next.add(projectId);
-      return next;
-    });
+    const next = new Set(expandedProjectIds);
+    if (next.has(projectId)) next.delete(projectId);
+    else next.add(projectId);
+    // Save on the click, before navigation or reload can unmount the shell.
+    // A mounting shell must never overwrite another shell's saved choices.
+    try { localStorage.setItem('pm-expanded-projects', JSON.stringify([...next])); } catch {}
+    setExpandedProjectIds(next);
   };
 
   useEffect(() => {
@@ -635,7 +631,7 @@ export default function AppShell({ children }) {
             )}
           </div>
           <div className="pm-sidebar-project-list">
-            {projectRows.filter(({ project: p, depth }) => !depth || !collapsedProjectIds.has(p.parentId)).map(({ project: p, depth }) => (
+            {projectRows.filter(({ project: p, depth }) => !depth || expandedProjectIds.has(p.parentId)).map(({ project: p, depth }) => (
               <div key={p.id} className={`pm-sidebar-project-row${parentProjectIds.has(p.id) ? ' pm-sidebar-project-row--parent' : ''}${member?.isAdmin ? ' pm-sidebar-project-row--manageable' : ''}`}>
                 <Link
                   to={`/clubpm/projects/${p.id}`}
@@ -656,11 +652,11 @@ export default function AppShell({ children }) {
                       <button
                         type="button"
                         className="pm-sidebar-project-toggle"
-                        title={`${collapsedProjectIds.has(p.id) ? 'Expand' : 'Collapse'} sub-projects`}
-                        aria-label={`${collapsedProjectIds.has(p.id) ? 'Expand' : 'Collapse'} sub-projects of ${p.name}`}
-                        aria-expanded={!collapsedProjectIds.has(p.id)}
+                        title={`${expandedProjectIds.has(p.id) ? 'Collapse' : 'Expand'} sub-projects`}
+                        aria-label={`${expandedProjectIds.has(p.id) ? 'Collapse' : 'Expand'} sub-projects of ${p.name}`}
+                        aria-expanded={expandedProjectIds.has(p.id)}
                         onClick={() => toggleProjectChildren(p.id)}
-                      ><i className={`fas fa-chevron-${collapsedProjectIds.has(p.id) ? 'right' : 'down'}`} aria-hidden="true" /></button>
+                      ><i className={`fas fa-chevron-${expandedProjectIds.has(p.id) ? 'down' : 'right'}`} aria-hidden="true" /></button>
                     )}
                     {member?.isAdmin && (
                       <button

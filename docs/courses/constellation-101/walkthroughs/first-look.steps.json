@@ -84,7 +84,7 @@
       "anchor": "nav.projects",
       "route": "/clubpm",
       "title": "That's the lap",
-      "body": "Projects are where the actual work lives. A parent's arrow shows or hides its sub-projects and remembers your choice across pages. Dashed markers identify children. Next we'll set up a private practice project just for you.",
+      "body": "Projects start collapsed. A parent's arrow shows or hides its sub-projects and remembers your choice across pages and reloads. Dashed markers identify children. Next we'll set up a private practice project just for you.",
       "placement": "right",
       "advance": { "on": "next" }
 ,

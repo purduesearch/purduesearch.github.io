@@ -64,7 +64,7 @@
       "anchor": "nav.projects",
       "route": "*",
       "title": "Officers see every project",
-      "body": "Including ones they aren't a member of. Parent arrows show or hide sub-projects and remember your choice across pages. Dashed markers identify children; the three-dot button manages the project. Use that to unstick things, not to browse.",
+      "body": "Including ones they aren't a member of. Parents start collapsed; their arrows remember your choice across pages and reloads. Dashed markers identify children; the three-dot button manages the project. Use that to unstick things, not to browse.",
       "placement": "right",
       "advance": { "on": "next" },
       "compact": { "anchor": "projects.sheet", "reveal": "projects", "body": "Including ones they aren't a member of — the Projects button lists every one. Use that to unstick things, not to browse." }
