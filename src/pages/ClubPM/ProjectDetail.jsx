@@ -51,7 +51,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { revealStagger } from "../../clubpm/anim/motion";
 import useTaskCompletion, { TaskCompletionContext, useTaskCompletionActions } from "../../components/clubpm/celebrate/useTaskCompletion";
-import useTaskAssignment, { TaskAssignmentContext, assignmentCounts } from "../../components/clubpm/celebrate/useTaskAssignment";
+import useTaskAssignment, { TaskAssignmentContext } from "../../components/clubpm/celebrate/useTaskAssignment";
 import useStreakWatcher from "../../hooks/useStreakWatcher";
 import MobileSheet from "../../components/clubpm/MobileSheet";
 import { useCompactLayout } from "../../clubpm/layout/compactLayout";
@@ -1104,7 +1104,7 @@ function projectRoster(project) {
 
 // ── Assignee Panel (right column) ────────────────────────────
 
-function AssigneePanel({ counts, members, outsideCandidates = [], selectedMemberIds, onMemberClick, leadByMemberId, canEditLeads = false, projectId, onLeadsChanged, onMemberAdded }) {
+function AssigneePanel({ members, outsideCandidates = [], selectedMemberIds, onMemberClick, leadByMemberId, canEditLeads = false, projectId, onLeadsChanged, onMemberAdded }) {
   const { setNodeRef: cancelRef, isOver: cancelOver } = useDroppable({ id: "assignment-cancel" });
   const assignment = useContext(TaskAssignmentContext);
   const [collapsed, setCollapsed] = useState(false);
@@ -1226,7 +1226,6 @@ function AssigneePanel({ counts, members, outsideCandidates = [], selectedMember
                 <DraggableMemberChip
                   key={pm.memberId}
                   pm={pm}
-                  count={counts?.get(pm.memberId) ?? 0}
                   selected={selectedMemberIds.has(pm.memberId)}
                   onClick={onMemberClick}
                   lead={leadByMemberId?.get(pm.memberId)}
@@ -1287,7 +1286,7 @@ function DraggableSpecialChip({ id, label, iconClass, accentColor }) {
   );
 }
 
-function DraggableMemberChip({ count = 0, pm, selected, onClick, lead, onOpenCard }) {
+function DraggableMemberChip({ pm, selected, onClick, lead, onOpenCard }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `member-${pm.memberId}`,
     data: { type: "member", memberId: pm.memberId },
@@ -1321,7 +1320,6 @@ function DraggableMemberChip({ count = 0, pm, selected, onClick, lead, onOpenCar
         {pm.member.displayName}
         {lead?.leadTitle && <span className="cpm-assignee-chip-title">{lead.leadTitle}</span>}
       </span>
-      <span className="pm-assignment-count" aria-label={`${count} assigned unfinished tasks`}>{count}</span>
       {isAdmin && <i className="fas fa-crown cpm-assignee-chip-lead-icon cpm-assignee-chip-admin-icon" aria-label="Admin" />}
       {isLead && <i className="fas fa-user-shield cpm-assignee-chip-lead-icon" aria-label="Sublead" />}
     </div>
@@ -2493,7 +2491,6 @@ export default function ProjectDetail() {
       : patch('/api/tasks/bulk', fields));
   const assignment = useTaskAssignment(completionRootRef, project, setProject,
     (taskId, fields) => patch(`/api/tasks/${taskId}`, fields));
-  const counts = useMemo(() => assignmentCounts(project?.tasks), [project?.tasks]);
   const [allProjects, setAllProjects] = useState([]);
   const [allMembers, setAllMembers] = useState([]);
   const [slackChannels, setSlackChannels] = useState([]);
@@ -4229,7 +4226,6 @@ export default function ProjectDetail() {
 
         {activeTab === "tasks" && assigneePanelOpen && !compact && (
           <AssigneePanel
-            counts={counts}
             members={rosterMembers}
             outsideCandidates={allMembers}
             onMemberAdded={fetchProject}

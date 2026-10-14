@@ -3,7 +3,7 @@
 import React, { useRef, useState } from 'react';
 import { act, render, screen, fireEvent } from '@testing-library/react';
 import toast from 'react-hot-toast';
-import useTaskAssignment, { TaskAssignmentContext, assignmentCounts } from './useTaskAssignment';
+import useTaskAssignment, { TaskAssignmentContext } from './useTaskAssignment';
 import { AvatarStack } from '../TaskPrimitives';
 import { taskBurst, cancelTaskBursts } from './taskConfetti';
 
@@ -23,7 +23,7 @@ function Harness({ persist, initial = members.slice(0, 5) }) {
   return <TaskAssignmentContext.Provider value={actions}><div ref={ref}>
     <div ref={actions.liveRef} role="status" />
     <div data-assignment-ghost className="cpm-assignee-chip"><div>Avatar</div><span className="cpm-assignee-chip-name">Member 5</span></div>
-    {members.map(m => <div key={m.id} data-assignment-source={m.id}><div>{m.displayName}</div><span className="pm-assignment-count">0</span></div>)}
+    {members.map(m => <div key={m.id} data-assignment-source={m.id}><div>{m.displayName}</div></div>)}
     {project.tasks.map(t => <div key={t.id} data-completion-id={t.id} data-testid="row"><AvatarStack taskId={t.id} assignees={t.assignees} /></div>)}
   </div></TaskAssignmentContext.Provider>;
 }
@@ -45,11 +45,6 @@ beforeEach(() => {
   Element.prototype.animate = jest.fn(() => ({ cancel: jest.fn() }));
 });
 afterEach(() => { jest.useRealTimers(); delete Element.prototype.animate; });
-
-test('counts deduplicate tasks and assignees; exclude done and archived work; include subtasks', () => {
-  const active = { id: 'parent', status: 'TODO', assignees: [members[0], members[0]], subtasks: [{ id: 'sub', status: 'IN_PROGRESS', assignees: [members[0]] }] };
-  expect(assignmentCounts([active, active, { id: 'done', status: 'DONE', assignees: [members[0]] }, { id: 'archived', archivedAt: 'today', assignees: [members[0]] }]).get('m0')).toBe(2);
-});
 
 test('five visible avatars before overflow; hover opens and closes the landing preview', () => {
   render(<Harness persist={jest.fn()} />);
@@ -91,9 +86,12 @@ test('group additions save instantly, hop sequentially, displace into +N, and Un
   await flush(); expect(persist).toHaveBeenCalledTimes(1);
   await advance(250);
   expect(document.querySelectorAll('.pm-assignment-flight')).toHaveLength(1);
-  await advance(1100);
+  expect(screen.queryByText('Drop to assign')).toBeNull();
+  await advance(300);
+  expect(document.querySelectorAll('.pm-assignment-flight')).toHaveLength(2);
+  await advance(340);
   expect(taskBurst).toHaveBeenCalledTimes(1);
-  await advance(1600);
+  await advance(320);
   expect(taskBurst).toHaveBeenCalledTimes(2);
   await advance(1600);
   expect(document.querySelector('.pm-assignment-flight')).toBeNull();

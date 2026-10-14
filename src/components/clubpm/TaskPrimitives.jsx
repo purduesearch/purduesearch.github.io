@@ -198,7 +198,7 @@ export function AvatarStack({ assignees, taskId }) {
   const extra = (displayed?.length ?? 0) - 5;
   return (
     <div className="cpm-avatar-stack">
-      {preview && <><span className="pm-assignment-drop-tag">Drop to assign</span><span className="pm-assignment-placeholder" /></>}
+      {preview && <>{!presentation && <span className="pm-assignment-drop-tag">Drop to assign</span>}<span className="pm-assignment-placeholder" /></>}
       {shown.map((m, i) => (
         <div
           key={m.id}

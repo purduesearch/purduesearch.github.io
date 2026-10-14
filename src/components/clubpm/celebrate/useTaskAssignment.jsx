@@ -6,16 +6,6 @@ export const TaskAssignmentContext = createContext(null);
 export const useTaskAssignmentActions = () => useContext(TaskAssignmentContext);
 const reduced = () => window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
 export const assignmentTasks = tasks => (tasks ?? []).flatMap(t => [t, ...(t.subtasks ?? [])]);
-export function assignmentCounts(tasks) {
-  const counts = new Map();
-  const seen = new Set();
-  assignmentTasks(tasks).forEach(task => {
-    if (seen.has(task.id) || task.archivedAt || task.status === 'DONE') return;
-    seen.add(task.id);
-    new Set((task.assignees ?? []).map(a => a.id)).forEach(id => counts.set(id, (counts.get(id) ?? 0) + 1));
-  });
-  return counts;
-}
 
 // Assignment writes and effects have separate lifetimes. Cancelling a flight
 // never cancels its save. Each task's writes are serialized, including Undo.
@@ -161,50 +151,56 @@ export default function useTaskAssignment(rootRef, project, setProject, persist)
         await wait(220); cleanup(); return;
       }
       let visible = event.before;
-      for (const member of event.members) {
-        if (disposed || !event.row.isConnected) break;
-        event.row.classList.remove('pm-assignment-landing');
-        setPresentation({ id: event.id, assignees: visible, incoming: member.id });
-        // A frame lets React render the placeholder; the single target measurement
-        // is taken before this hop, never in the frame/trail loop.
-        await wait(32);
-        if (disposed || !event.row.isConnected) break;
-        const stack = event.row.querySelector('.cpm-avatar-stack');
-        const placeholder = stack?.querySelector('.pm-assignment-placeholder');
-        const target = placeholder?.getBoundingClientRect();
-        if (!target) break;
-        const displaced = visible.length >= 5 ? stack.querySelectorAll('[data-assignment-member]')[4] : null;
+      setPresentation({ id: event.id, assignees: visible, incoming: true });
+      await wait(32);
+      if (disposed || !event.row.isConnected) { cleanup(); return; }
+      const stack = event.row.querySelector('.cpm-avatar-stack');
+      const bounds = stack?.getBoundingClientRect();
+      if (!bounds) { cleanup(); return; }
+      const slots = Array.from(stack.querySelectorAll('[data-assignment-member]'));
+      const avatarSize = slots[0]?.getBoundingClientRect().width || 22;
+      const spacing = slots.length > 1
+        ? slots[1].getBoundingClientRect().left - slots[0].getBoundingClientRect().left
+        : avatarSize - 5;
+      const from = { x: event.rect.left, y: event.rect.top };
+      // Collapse the group pill once. Its avatars then launch at a fixed cadence,
+      // independently of landings and overflow hops.
+      if (!reduced() && event.ghost) {
+        const pill = event.ghost.cloneNode(true);
+        pill.style.transform = '';
+        const g = node('clubpm-app pm-assignment-cancel', { left: `${from.x}px`, top: `${from.y}px` }, pill);
+        play(g, [{ opacity: 1, transform: 'scaleX(1)' }, { opacity: 0, transform: 'scaleX(.15)' }], { duration: 200, fill: 'forwards' });
+        await wait(200); g.remove(); nodes.delete(g);
+      }
+      if (disposed) return;
+      const cadence = reduced() ? 150 : 300;
+      const flights = event.members.map(async (member, index) => {
+        if (index) await wait(index * cadence);
+        if (disposed || !event.row.isConnected) return;
+        const expected = [...event.members.slice(0, index)].reverse().concat(event.before);
+        const finalCount = expected.length + 1;
+        const width = avatarSize + (Math.min(5, finalCount) - 1 + (finalCount > 5 ? 1 : 0)) * spacing;
+        // The stack's right edge stays anchored; calculate each future left slot
+        // from the single drop measurement, including the +N slot when needed.
+        const to = { x: bounds.right - width, y: bounds.top };
+        if (!reduced()) await hop(cloneAvatar(member), from, to);
+        if (disposed || !event.row.isConnected) return;
+        const displacedId = expected.length >= 5 ? expected[4].id : null;
+        const displaced = Array.from(event.row.querySelectorAll('[data-assignment-member]')).find(n => n.dataset.assignmentMember === displacedId);
         const displacedRect = displaced?.getBoundingClientRect();
         const displacedAvatar = displaced?.firstElementChild?.cloneNode(true);
-        const from = { x: event.rect.left, y: event.rect.top };
-        const to = { x: target.left, y: target.top };
-        if (!reduced()) {
-          const avatar = cloneAvatar(member);
-          const pill = event.ghost?.cloneNode(true);
-          if (pill) {
-            pill.style.transform = '';
-            const name = pill.querySelector('.cpm-assignee-chip-name');
-            if (name) name.textContent = member.displayName;
-            const portrait = cloneAvatar(member);
-            if (portrait && pill.firstElementChild) pill.firstElementChild.replaceWith(portrait);
-            const g = node('clubpm-app pm-assignment-cancel', { left: `${from.x}px`, top: `${from.y}px` }, pill);
-            play(g, [{ opacity: 1, transform: 'scaleX(1)' }, { opacity: 0, transform: 'scaleX(.15)' }], { duration: 200, fill: 'forwards' });
-            await wait(200); g.remove(); nodes.delete(g);
-          }
-          await hop(avatar, from, to);
-        }
-        if (disposed) break;
         visible = [member, ...visible];
+        event.row.classList.remove('pm-assignment-landing');
         setPresentation({ id: event.id, assignees: visible, incoming: null });
         await wait(32);
-        if (disposed || !event.row.isConnected) break;
+        if (disposed || !event.row.isConnected) return;
         const slot = Array.from(event.row.querySelectorAll('[data-assignment-member]')).find(n => n.dataset.assignmentMember === member.id);
         play(slot, reduced() ? [{ opacity: 0, transform: 'scale(.9)' }, { opacity: 1, transform: 'scale(1)' }] :
           [{ transform: 'scale(1.3,.65)' }, { transform: 'scale(.85,1.2)', offset: .45 }, { transform: 'scale(1)' }],
         { duration: reduced() ? 150 : 420, easing: 'ease-out' });
         if (!reduced()) {
           event.row.classList.add('pm-assignment-landing');
-          const center = { x: to.x + 11, y: to.y + 11 };
+          const center = { x: to.x + avatarSize / 2, y: to.y + avatarSize / 2 };
           [0, 110].forEach(delay => {
             const ring = node('pm-assignment-ring', { left: `${center.x - 14}px`, top: `${center.y - 14}px`, borderColor: accent });
             play(ring, [{ opacity: .9, transform: 'scale(.4)' }, { opacity: 0, transform: 'scale(3.6)' }],
@@ -219,12 +215,10 @@ export default function useTaskAssignment(rootRef, project, setProject, persist)
           }
         }
         const chip = Array.from(rootRef.current?.querySelectorAll('[data-assignment-source]') ?? []).find(n => n.dataset.assignmentSource === member.id);
-        if (!reduced()) {
-          play(chip, [{ transform: 'scale(1)' }, { transform: 'scale(1.12)' }, { transform: 'scale(1)' }], { duration: 380 });
-          play(chip?.querySelector('.pm-assignment-count'), [{ transform: 'scale(.3)' }, { transform: 'scale(1.4)' }, { transform: 'scale(1)' }], { duration: 420 });
-        }
-        await wait(reduced() ? 150 : 120);
-      }
+        if (!reduced()) play(chip, [{ transform: 'scale(1)' }, { transform: 'scale(1.12)' }, { transform: 'scale(1)' }], { duration: 380 });
+        else await wait(150);
+      });
+      await Promise.all(flights);
       await wait(reduced() ? 0 : 850);
       cleanup();
     }
