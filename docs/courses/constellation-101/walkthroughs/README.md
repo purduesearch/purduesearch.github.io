@@ -18,6 +18,8 @@ training project.**
 The dashboard puts assigned work first and shows recent activity from projects you contribute to.
 Project insights and the seven-day agenda remain available; quests live on Challenges.
 
+Desktop board controls sit on the right of the project description: sort, show archived, and a source filter when sub-project tasks are available. The board-basics controls step targets this row.
+
 ## Phone and desktop
 
 Constellation has two shells: the desktop sidebar + topbar, and a phone layout (bottom bar with

@@ -645,28 +645,34 @@ export default function AppShell({ children }) {
                 >
                   {starredIds.includes(p.id)
                     ? <span style={{ color: '#f9ca24', fontSize: 13, flexShrink: 0, lineHeight: 1 }}>★</span>
-                    : <span className="pm-sidebar-project-dot" style={{ background: statusDotColor(p.status) }} />
+                    : depth
+                      ? <i className="fas fa-minus pm-sidebar-project-dash" style={{ color: statusDotColor(p.status) }} aria-hidden="true" />
+                      : <span className="pm-sidebar-project-dot" style={{ background: statusDotColor(p.status) }} />
                   }
                   <span className="pm-sidebar-project-name">{p.name}</span>
                 </Link>
-                {parentProjectIds.has(p.id) && (
-                  <button
-                    type="button"
-                    className="pm-sidebar-project-toggle"
-                    title={`${collapsedProjectIds.has(p.id) ? 'Expand' : 'Collapse'} sub-projects`}
-                    aria-label={`${collapsedProjectIds.has(p.id) ? 'Expand' : 'Collapse'} sub-projects of ${p.name}`}
-                    aria-expanded={!collapsedProjectIds.has(p.id)}
-                    onClick={() => toggleProjectChildren(p.id)}
-                  ><i className={`fas fa-chevron-${collapsedProjectIds.has(p.id) ? 'right' : 'down'}`} aria-hidden="true" /></button>
-                )}
-                {member?.isAdmin && (
-                  <button
-                    type="button"
-                    className="pm-sidebar-project-manage"
-                    title={`Manage ${p.name}`}
-                    aria-label={`Manage ${p.name}`}
-                    onClick={() => setManageProjectId(p.id)}
-                  ><i className="fas fa-ellipsis" aria-hidden="true" /></button>
+                {(parentProjectIds.has(p.id) || member?.isAdmin) && (
+                  <div className="pm-sidebar-project-actions">
+                    {parentProjectIds.has(p.id) && (
+                      <button
+                        type="button"
+                        className="pm-sidebar-project-toggle"
+                        title={`${collapsedProjectIds.has(p.id) ? 'Expand' : 'Collapse'} sub-projects`}
+                        aria-label={`${collapsedProjectIds.has(p.id) ? 'Expand' : 'Collapse'} sub-projects of ${p.name}`}
+                        aria-expanded={!collapsedProjectIds.has(p.id)}
+                        onClick={() => toggleProjectChildren(p.id)}
+                      ><i className={`fas fa-chevron-${collapsedProjectIds.has(p.id) ? 'right' : 'down'}`} aria-hidden="true" /></button>
+                    )}
+                    {member?.isAdmin && (
+                      <button
+                        type="button"
+                        className="pm-sidebar-project-manage"
+                        title={`Manage ${p.name}`}
+                        aria-label={`Manage ${p.name}`}
+                        onClick={() => setManageProjectId(p.id)}
+                      ><i className="fas fa-ellipsis" aria-hidden="true" /></button>
+                    )}
+                  </div>
                 )}
               </div>
             ))}

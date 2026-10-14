@@ -70,7 +70,7 @@ export const TOUR_ANCHORS = Object.freeze({
   "project.tab.insights":   { label: "Insights tab",         route: "/clubpm/projects/:id", note: "Sidebar project tab on desktop; section bar under the phone header (AppShell) — charts, time, activity, press kit, and AI" },
   "project.tab.vault":      { label: "Vault sub-tab",        route: "/clubpm/projects/:id", layout: "both", note: "Inside the Files tab — open project.tab.files first. Desktop pill row; labelled Source selector on phones" },
   "board.newtask":          { label: "New task button",      route: "/clubpm/projects/:id", layout: "both", note: "" },
-  "board.filters":          { label: "Task controls",        route: "/clubpm/projects/:id", layout: "both", note: "Desktop sort row; phone scope, search, and Filters & sort toolbar" },
+  "board.filters":          { label: "Task controls",        route: "/clubpm/projects/:id", layout: "both", note: "Desktop controls on the right of the project description; phone scope, search, and Filters & sort toolbar" },
   "board.scope":            { label: "Task scope",           route: "/clubpm/projects/:id", layout: "compact", note: "My tasks / All tasks segmented control" },
   "board.search":           { label: "Task search",          route: "/clubpm/projects/:id", layout: "compact", note: "Phone task search" },
   // The four columns carry the uppercase TaskStatus enum value so the id cannot

@@ -85,7 +85,7 @@ child until the rail keeps its children in layout. (On phones every one of these
 | `project.tab.insights` | Insights tab (Charts + Time + Activity + Press Kit + AI)&Dagger; | `/clubpm/projects/:id` |
 | `project.tab.vault` | Vault **sub**-tab, inside the Files tab — desktop pill row, phone labelled **Source** selector | `/clubpm/projects/:id` |
 | `board.newtask` | "New task" button | `/clubpm/projects/:id` |
-| `board.filters` | Desktop sort row; phone scope, search, and **Filters & sort** toolbar | `/clubpm/projects/:id` |
+| `board.filters` | Desktop controls on the right of the project description; phone scope, search, and **Filters & sort** toolbar | `/clubpm/projects/:id` |
 | `board.scope` | Phone **My tasks / All tasks** control | `/clubpm/projects/:id` |
 | `board.search` | Phone task search | `/clubpm/projects/:id` |
 | `board.column.TODO` | To-do column | `/clubpm/projects/:id` |

@@ -30662,49 +30662,6 @@ body.pm-m-compact .pm-albums-icon-btn { width: 44px; height: 44px; }
   .cpm-skills-admin-filters { grid-template-columns: 1fr; }
 }
 
-/* Parent-project disclosure, beside the existing project management menu. */
-.pm-sidebar-project-toggle {
-  position: absolute;
-  right: 6px;
-  top: 50%;
-  transform: translateY(-50%);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  padding: 0;
-  border: none;
-  border-radius: 4px;
-  background: none;
-  color: var(--pm-text-muted);
-  font-size: 10px;
-  cursor: pointer;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.15s ease, color 0.15s ease, background 0.15s ease;
-}
-.pm-sidebar-project-row--manageable .pm-sidebar-project-toggle { right: 34px; }
-.pm-sidebar:hover .pm-sidebar-project-toggle,
-.pm-sidebar-project-toggle:focus-visible {
-  opacity: 1;
-  pointer-events: auto;
-}
-.pm-sidebar-project-toggle:hover {
-  color: var(--pm-accent-teal);
-  background: rgba(0, 229, 204, 0.1);
-}
-.pm-sidebar-project-toggle:focus-visible {
-  outline: 2px solid var(--pm-accent-teal);
-  outline-offset: 2px;
-}
-.pm-sidebar:hover .pm-sidebar-project-row--manageable > .pm-sidebar-project-item,
-.pm-sidebar-project-row--manageable:focus-within > .pm-sidebar-project-item,
-.pm-sidebar:hover .pm-sidebar-project-row--parent > .pm-sidebar-project-item,
-.pm-sidebar-project-row--parent:focus-within > .pm-sidebar-project-item { padding-right: 34px; }
-.pm-sidebar:hover .pm-sidebar-project-row--parent.pm-sidebar-project-row--manageable > .pm-sidebar-project-item,
-.pm-sidebar-project-row--parent.pm-sidebar-project-row--manageable:focus-within > .pm-sidebar-project-item { padding-right: 62px; }
-
 /* === Skills v2: admin console, coverage grid, teammate view ================== */
 .cpm-skills-admin { --sk-teal: var(--pm-accent-teal, #00e5cc); --sk-amber: var(--pm-accent-amber, #f5a623); --sk-coral: var(--pm-accent-coral, #ff6b6b); --sk-line: var(--clubpm-border, rgba(255, 255, 255, 0.08)); --sk-raise: var(--clubpm-surface-200, #1a1e2a); --sk-sunk: var(--clubpm-surface-50, #0d0f14); }
 .cpm-sk-header { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 10px 24px; }
@@ -30947,3 +30904,68 @@ button.cpm-sk-stat:hover, button.cpm-sk-stat:focus-visible { border-color: var(-
 
 .cpm-rollup-breakdown { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 0 0 12px; font-size: 13px; color: var(--pm-text-muted); }
 .cpm-rollup-breakdown-item strong { color: var(--pm-text, inherit); font-weight: 600; }
+
+/* Desktop task preferences share the project description row. */
+.pm-proj-description-row { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 20px; }
+.pm-proj-description-content { flex: 1 1 360px; min-width: 0; }
+.pm-proj-task-controls { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 10px; margin-left: auto; }
+.pm-proj-archive-toggle { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--pm-text-secondary); cursor: pointer; white-space: nowrap; }
+.pm-proj-archive-toggle input { accent-color: var(--pm-accent-teal); }
+.pm-proj-task-sort { font-size: 12px; padding: 4px 8px; border-radius: 6px; background: var(--pm-bg-overlay); border: 1px solid var(--pm-border); color: var(--pm-text-secondary); cursor: pointer; }
+.pm-proj-task-sort:focus-visible { outline: 2px solid var(--pm-accent-teal); outline-offset: 2px; }
+
+/* Sidebar project actions occupy their own space so titles never run underneath. */
+.pm-sidebar .pm-sidebar-project-actions {
+  display: none;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 4px;
+  padding-right: 6px;
+}
+.pm-sidebar:hover .pm-sidebar-project-actions,
+.pm-sidebar:focus-within .pm-sidebar-project-actions,
+.pm-sidebar.is-tour-pinned .pm-sidebar-project-actions { display: flex; }
+.pm-sidebar .pm-sidebar-project-actions > button {
+  appearance: none;
+  position: static;
+  transform: none;
+  display: inline-flex;
+  flex: 0 0 24px;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  box-shadow: none;
+  color: var(--pm-text-muted);
+  font: inherit;
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+  transition: opacity 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+.pm-sidebar .pm-sidebar-project-actions > .pm-sidebar-project-toggle { opacity: 1; }
+.pm-sidebar .pm-sidebar-project-actions > .pm-sidebar-project-manage { opacity: 0; }
+.pm-sidebar .pm-sidebar-project-row:hover .pm-sidebar-project-manage,
+.pm-sidebar .pm-sidebar-project-row:focus-within .pm-sidebar-project-manage { opacity: 1; }
+.pm-sidebar .pm-sidebar-project-actions > button:hover {
+  color: var(--pm-accent-teal);
+  background: rgba(0, 229, 204, 0.1);
+}
+.pm-sidebar .pm-sidebar-project-actions > button:focus-visible {
+  opacity: 1;
+  outline: 2px solid var(--pm-accent-teal);
+  outline-offset: 2px;
+}
+.pm-sidebar .pm-sidebar-project-row > .pm-sidebar-project-item { padding-right: 8px; }
+.pm-sidebar .pm-sidebar-project-name { min-width: 0; }
+.pm-sidebar .pm-sidebar-project-item--child { padding-left: 26px; gap: 8px; }
+.pm-sidebar .pm-sidebar-project-dash { flex: 0 0 8px; width: 8px; font-size: 8px; text-align: center; }
+.pm-sidebar:focus-within { width: 220px; }
+.pm-sidebar:focus-within .pm-sidebar-project-name { opacity: 1; }

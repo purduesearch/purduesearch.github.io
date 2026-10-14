@@ -3889,56 +3889,86 @@ export default function ProjectDetail() {
             )}
 
             {/* Project description (admin-editable) */}
-            {!compact && (project.description || member?.isAdmin) && (
-              <div className="pm-proj-description">
-                {descEdit ? (
-                  <div className="pm-proj-description-edit">
-                    <textarea
-                      className="pm-proj-description-textarea"
-                      value={descValue}
-                      onChange={e => setDescValue(e.target.value)}
-                      placeholder="Describe this project for the press kit, stakeholders, and team…"
-                      rows={4}
-                      autoFocus
-                    />
-                    <div className="pm-proj-description-actions">
-                      <button className="pm-proj-description-save" onClick={saveDescription}>Save</button>
-                      <button className="pm-proj-description-cancel" onClick={() => setDescEdit(false)}>Cancel</button>
-                    </div>
+            {!compact && (project.description || member?.isAdmin || activeTab === "tasks") && (
+              <div className="pm-proj-description pm-proj-description-row">
+                {(project.description || member?.isAdmin) && (
+                  <div className="pm-proj-description-content">
+                    {descEdit ? (
+                      <div className="pm-proj-description-edit">
+                        <textarea
+                          className="pm-proj-description-textarea"
+                          value={descValue}
+                          onChange={e => setDescValue(e.target.value)}
+                          placeholder="Describe this project for the press kit, stakeholders, and team…"
+                          rows={4}
+                          autoFocus
+                        />
+                        <div className="pm-proj-description-actions">
+                          <button className="pm-proj-description-save" onClick={saveDescription}>Save</button>
+                          <button className="pm-proj-description-cancel" onClick={() => setDescEdit(false)}>Cancel</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="pm-proj-description-display">
+                        {project.description ? (() => {
+                          const SNIPPET_LEN = 120;
+                          const isLong = project.description.length > SNIPPET_LEN;
+                          const snippet = isLong && !descExpanded
+                            ? project.description.slice(0, SNIPPET_LEN).trimEnd() + "…"
+                            : project.description;
+                          return (
+                            <span className="pm-proj-description-text">
+                              {snippet}
+                              {isLong && (
+                                <button
+                                  className="pm-proj-description-toggle"
+                                  onClick={() => setDescExpanded(e => !e)}
+                                >
+                                  {descExpanded ? "Show less" : "Read more"}
+                                </button>
+                              )}
+                            </span>
+                          );
+                        })() : (
+                          <p className="pm-proj-description-empty">No description — add one to include it in the press kit.</p>
+                        )}
+                        {member?.isAdmin && (
+                          <button
+                            className="pm-proj-description-edit-btn"
+                            title="Edit description"
+                            onClick={() => { setDescValue(project.description ?? ""); setDescEdit(true); }}
+                          >
+                            <i className="fas fa-pencil-alt" aria-hidden="true" />
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
-                ) : (
-                  <div className="pm-proj-description-display">
-                    {project.description ? (() => {
-                      const SNIPPET_LEN = 120;
-                      const isLong = project.description.length > SNIPPET_LEN;
-                      const snippet = isLong && !descExpanded
-                        ? project.description.slice(0, SNIPPET_LEN).trimEnd() + "…"
-                        : project.description;
-                      return (
-                        <span className="pm-proj-description-text">
-                          {snippet}
-                          {isLong && (
-                            <button
-                              className="pm-proj-description-toggle"
-                              onClick={() => setDescExpanded(e => !e)}
-                            >
-                              {descExpanded ? "Show less" : "Read more"}
-                            </button>
-                          )}
-                        </span>
-                      );
-                    })() : (
-                      <p className="pm-proj-description-empty">No description — add one to include it in the press kit.</p>
-                    )}
-                    {member?.isAdmin && (
-                      <button
-                        className="pm-proj-description-edit-btn"
-                        title="Edit description"
-                        onClick={() => { setDescValue(project.description ?? ""); setDescEdit(true); }}
-                      >
-                        <i className="fas fa-pencil-alt" aria-hidden="true" />
-                      </button>
-                    )}
+                )}
+                {activeTab === "tasks" && (
+                  <div className="pm-proj-task-controls" data-tour-id="board.filters">
+                    <label className="pm-proj-archive-toggle">
+                      <input
+                        type="checkbox"
+                        checked={showArchived}
+                        onChange={e => setShowArchived(e.target.checked)}
+                      />
+                      Show archived
+                    </label>
+                    <RollupSourceFilter sources={rollupTaskSources} value={activeSource} onChange={setSourceFilter} />
+                    <select
+                      value={sortBy}
+                      onChange={e => setSortBy(e.target.value)}
+                      className="pm-proj-task-sort"
+                      aria-label="Sort tasks"
+                    >
+                      <option value="priority">Sort: Priority</option>
+                      <option value="dueDate">Sort: Due Date</option>
+                      <option value="status">Sort: Status</option>
+                      <option value="created">Sort: Created</option>
+                      <option value="title">Sort: Title</option>
+                      <option value="tags">Sort: Tags</option>
+                    </select>
                   </div>
                 )}
               </div>
@@ -3969,31 +3999,6 @@ export default function ProjectDetail() {
                 </>
               ) : (
                 <>
-              <div data-tour-id="board.filters" style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 10, padding: "0 12px 8px" }}>
-                <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--pm-text-secondary)", cursor: "pointer" }}>
-                  <input
-                    type="checkbox"
-                    checked={showArchived}
-                    onChange={e => setShowArchived(e.target.checked)}
-                  />
-                  Show archived
-                </label>
-                <RollupSourceFilter sources={rollupTaskSources} value={activeSource} onChange={setSourceFilter} />
-                <select
-                  value={sortBy}
-                  onChange={e => setSortBy(e.target.value)}
-                  style={{ fontSize: 12, padding: '4px 8px', borderRadius: 6,
-                           background: 'var(--pm-bg-overlay)', border: '1px solid var(--pm-border)',
-                           color: 'var(--pm-text-secondary)', cursor: 'pointer' }}
-                >
-                  <option value="priority">Sort: Priority</option>
-                  <option value="dueDate">Sort: Due Date</option>
-                  <option value="status">Sort: Status</option>
-                  <option value="created">Sort: Created</option>
-                  <option value="title">Sort: Title</option>
-                  <option value="tags">Sort: Tags</option>
-                </select>
-              </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 12, padding: "0 12px" }}>
                 {tasksByBin.map((bin) => (
                   <StatusBin
