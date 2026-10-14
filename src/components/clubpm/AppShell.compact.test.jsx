@@ -3,7 +3,7 @@
    root and on portalled overlay layers, where focus lands, and that every
    data-tour-id is mounted once across the page and its portals. */
 import React, { useState } from 'react';
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, useLocation, useNavigate } from 'react-router-dom';
 import { installCompactMedia } from '../../clubpm/layout/compactMediaTestUtils';
 import { requestShellReveal } from '../../clubpm/layout/shellOverlay';
@@ -172,6 +172,7 @@ describe('desktop shell (compact off)', () => {
     const toggle = await screen.findByRole('button', { name: 'Collapse sub-projects of Lunar Rover' });
     expect(toggle).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByRole('link', { name: 'Rover Wheels' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Rover Wheels' }).querySelector('.cpm-project-child-marker')).not.toBeNull();
     expect(screen.queryByRole('button', { name: /sub-projects of Habitat/ })).not.toBeInTheDocument();
 
     fireEvent.click(toggle);
@@ -184,8 +185,24 @@ describe('desktop shell (compact off)', () => {
     expect(screen.getByRole('link', { name: 'Rover Wheels' })).toBeInTheDocument();
     fireEvent.click(toggle);
     await act(async () => { probe.navigate('/clubpm/projects/child'); });
+    expect(screen.queryByRole('link', { name: 'Rover Wheels' })).not.toBeInTheDocument();
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(JSON.parse(localStorage.getItem('pm-collapsed-projects'))).toEqual(['p1']);
+
+    cleanup();
+    document.body.appendChild(rootEl);
+    media.restore();
+    renderShell('/clubpm/members', { compact: false });
+    const restoredToggle = await screen.findByRole('button', { name: 'Expand sub-projects of Lunar Rover' });
+    expect(restoredToggle).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByRole('link', { name: 'Rover Wheels' })).not.toBeInTheDocument();
+    fireEvent.click(restoredToggle);
+    cleanup();
+    document.body.appendChild(rootEl);
+    media.restore();
+    renderShell('/clubpm/calendar', { compact: false });
+    expect(await screen.findByRole('button', { name: 'Collapse sub-projects of Lunar Rover' })).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByRole('link', { name: 'Rover Wheels' })).toBeInTheDocument();
-    expect(toggle).toHaveAttribute('aria-expanded', 'true');
   });
 
   it('renders the sidebar and topbar and none of the phone chrome', async () => {

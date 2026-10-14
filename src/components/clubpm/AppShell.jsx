@@ -317,7 +317,12 @@ export default function AppShell({ children }) {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [showCreateProject, setShowCreateProject] = useState(false);
   const [manageProjectId, setManageProjectId] = useState(null);
-  const [collapsedProjectIds, setCollapsedProjectIds] = useState(() => new Set());
+  const [collapsedProjectIds, setCollapsedProjectIds] = useState(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem('pm-collapsed-projects') || '[]');
+      return new Set(Array.isArray(stored) ? stored : []);
+    } catch { return new Set(); }
+  });
   const [starredIds, setStarredIds] = useState(() => {
     try { return JSON.parse(localStorage.getItem('pm-starred-projects') || '[]'); } catch { return []; }
   });
@@ -325,17 +330,10 @@ export default function AppShell({ children }) {
   const projectRows = buildProjectRows(sidebarProjects, { starredIds });
   const parentProjectIds = new Set(projectRows.filter(row => row.depth === 1).map(row => row.project.parentId));
 
-  // Reveal the current child when navigating to it from outside the sidebar.
+  // AppShell can remount between routes. Keep the user's disclosure choices.
   useEffect(() => {
-    const currentProject = sidebarProjects.find(p => location.pathname === `/clubpm/projects/${p.id}` || location.pathname.startsWith(`/clubpm/projects/${p.id}/`));
-    if (!currentProject?.parentId) return;
-    setCollapsedProjectIds(previous => {
-      if (!previous.has(currentProject.parentId)) return previous;
-      const next = new Set(previous);
-      next.delete(currentProject.parentId);
-      return next;
-    });
-  }, [location.pathname, sidebarProjects]);
+    try { localStorage.setItem('pm-collapsed-projects', JSON.stringify([...collapsedProjectIds])); } catch {}
+  }, [collapsedProjectIds]);
 
   const toggleProjectChildren = projectId => {
     setCollapsedProjectIds(previous => {
@@ -643,13 +641,14 @@ export default function AppShell({ children }) {
                   to={`/clubpm/projects/${p.id}`}
                   className={`pm-sidebar-project-item${depth ? ' pm-sidebar-project-item--child' : ''}${location.pathname === `/clubpm/projects/${p.id}` ? ' active' : ''}`}
                 >
-                  {starredIds.includes(p.id)
-                    ? <span style={{ color: '#f9ca24', fontSize: 13, flexShrink: 0, lineHeight: 1 }}>★</span>
-                    : depth
-                      ? <i className="fas fa-minus pm-sidebar-project-dash" style={{ color: statusDotColor(p.status) }} aria-hidden="true" />
+                  {depth
+                    ? <span className="cpm-project-child-marker" style={{ color: statusDotColor(p.status) }} aria-hidden="true" />
+                    : starredIds.includes(p.id)
+                      ? <span style={{ color: '#f9ca24', fontSize: 13, flexShrink: 0, lineHeight: 1 }}>★</span>
                       : <span className="pm-sidebar-project-dot" style={{ background: statusDotColor(p.status) }} />
                   }
                   <span className="pm-sidebar-project-name">{p.name}</span>
+                  {!!depth && starredIds.includes(p.id) && <i className="fas fa-star pm-sidebar-project-child-star" aria-label="Pinned" />}
                 </Link>
                 {(parentProjectIds.has(p.id) || member?.isAdmin) && (
                   <div className="pm-sidebar-project-actions">

@@ -19,7 +19,7 @@ So the tour points, explains, and never clicks anything that writes.
 | 4 | `admin.rewards.config` | `next` | "What every event type is worth. Change these rarely, and announce it first — members plan around these numbers." |
 | 5 | `admin.integrations` | `next` | "Google Drive, and the connections that let files and meeting notes flow in. Set once, then left alone." |
 | 6 | `admin.members` | `next` | "Roles, project membership, and GitHub logins. Role is what governs permissions — rank never does." |
-| 7 | `nav.projects` (phone: `projects.sheet`, reveal Projects) | `next` | Officers see every project. Desktop parent arrows show/hide sub-projects; the adjacent three-dot button manages the project. |
+| 7 | `nav.projects` (phone: `projects.sheet`, reveal Projects) | `next` | Officers see every project. Desktop parent arrows remember show/hide choices across pages; dashed markers identify children; the adjacent three-dot button manages the project. |
 | 8 | `admin.rewards.pending` | `next` | "Two things to remember: clear the queue often, and change the numbers rarely and in public." |
 
 **Design notes**

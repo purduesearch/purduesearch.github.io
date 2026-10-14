@@ -107,17 +107,20 @@ export default function MobileProjectPicker({
               key={p.id}
               type="button"
               className="pm-m-row"
-              style={depth ? { paddingLeft: 36 } : undefined}
+              style={depth ? { paddingLeft: 16 } : undefined}
               aria-current={current ? 'page' : undefined}
               onClick={() => onSelectProject(p)}
             >
-              {starred
-                ? <i className="fas fa-star pm-m-row-star" aria-label="Pinned" />
-                : <i className="pm-m-dot" style={{ background: statusDotColor(p.status) }} aria-hidden="true" />}
+              {depth
+                ? <span className="cpm-project-child-marker" style={{ color: statusDotColor(p.status) }} aria-hidden="true" />
+                : starred
+                  ? <i className="fas fa-star pm-m-row-star" aria-label="Pinned" />
+                  : <i className="pm-m-dot" style={{ background: statusDotColor(p.status) }} aria-hidden="true" />}
               <div className="pm-m-row-main">
                 <div className="pm-m-row-title">{p.name}</div>
                 {p.status && <div className="pm-m-row-meta">{p.status.toLowerCase()}</div>}
               </div>
+              {!!depth && starred && <i className="fas fa-star pm-m-row-star" aria-label="Pinned" />}
               {current && <div className="pm-m-row-end">Open</div>}
             </button>
           );

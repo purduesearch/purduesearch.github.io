@@ -30906,9 +30906,30 @@ button.cpm-sk-stat:hover, button.cpm-sk-stat:focus-visible { border-color: var(-
 .cpm-rollup-breakdown-item strong { color: var(--pm-text, inherit); font-weight: 600; }
 
 /* Desktop task preferences share the project description row. */
-.pm-proj-description-row { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 20px; }
-.pm-proj-description-content { flex: 1 1 360px; min-width: 0; }
-.pm-proj-task-controls { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 10px; margin-left: auto; }
+.pm-proj-description-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px 20px;
+}
+.pm-proj-description-content { min-width: 0; }
+.pm-proj-task-controls {
+  grid-column: 2;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+.pm-proj-task-controls .cpm-rollup-filter { white-space: nowrap; }
+.pm-proj-task-controls .cpm-rollup-filter select {
+  width: auto;
+  max-width: 180px;
+  min-width: 0;
+}
+@media (max-width: 1000px) {
+  .pm-proj-description-row { grid-template-columns: minmax(0, 1fr); }
+  .pm-proj-task-controls { grid-column: 1; flex-wrap: wrap; }
+}
 .pm-proj-archive-toggle { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--pm-text-secondary); cursor: pointer; white-space: nowrap; }
 .pm-proj-archive-toggle input { accent-color: var(--pm-accent-teal); }
 .pm-proj-task-sort { font-size: 12px; padding: 4px 8px; border-radius: 6px; background: var(--pm-bg-overlay); border: 1px solid var(--pm-border); color: var(--pm-text-secondary); cursor: pointer; }
@@ -30965,7 +30986,16 @@ button.cpm-sk-stat:hover, button.cpm-sk-stat:focus-visible { border-color: var(-
 }
 .pm-sidebar .pm-sidebar-project-row > .pm-sidebar-project-item { padding-right: 8px; }
 .pm-sidebar .pm-sidebar-project-name { min-width: 0; }
-.pm-sidebar .pm-sidebar-project-item--child { padding-left: 26px; gap: 8px; }
-.pm-sidebar .pm-sidebar-project-dash { flex: 0 0 8px; width: 8px; font-size: 8px; text-align: center; }
+.pm-sidebar .pm-sidebar-project-item--child { padding-left: 24px; gap: 6px; }
 .pm-sidebar:focus-within { width: 220px; }
 .pm-sidebar:focus-within .pm-sidebar-project-name { opacity: 1; }
+
+/* A dashed hierarchy connector stays visible independently of the icon font. */
+.cpm-project-child-marker {
+  display: block;
+  flex: 0 0 10px;
+  width: 10px;
+  height: 0;
+  border-top: 2px dashed currentColor;
+}
+.pm-sidebar .pm-sidebar-project-child-star { flex: none; color: #f9ca24; font-size: 10px; }

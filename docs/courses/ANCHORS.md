@@ -38,7 +38,7 @@ step must open first (`compact.reveal`).
 | `nav.dashboard` | Dashboard link | Bottom-bar **Home** | both | | `*` |
 | `nav.social` | Social group header (collapsible, not a link) | — (Chat is on the bar; People & DMs in More) | desktop | | `*` |
 | `nav.chat` | Chat link — a child of the Social group† | Bottom-bar **Chat** | both | | `*` |
-| `nav.projects` | Sidebar project list; parent chevrons expand/collapse sub-projects beside the admin menu | Bottom-bar **Projects** button (opens the sheet) | both | | `*` |
+| `nav.projects` | Sidebar project list; parent chevrons remember expanded/collapsed choices across pages; children have dashed markers | Bottom-bar **Projects** button (opens the sheet); children have dashed markers | both | | `*` |
 | `projects.sheet` | — | Project list inside the Projects sheet | phone | projects | `*` |
 | `nav.members` | Members link — a child of the Social group† | More › **People & DMs** | both | more | `*` |
 | `nav.calendar` | Calendar link — a child of the Social group† | Bottom-bar **Calendar** | both | | `*` |
