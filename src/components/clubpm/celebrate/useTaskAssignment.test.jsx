@@ -1,6 +1,6 @@
 /* eslint-disable testing-library/no-node-access */
 // Effects intentionally own temporary DOM nodes; inspect their cleanup directly.
-import React, { useRef, useState } from 'react';
+import React, { useLayoutEffect, useRef, useState } from 'react';
 import { act, render, screen, fireEvent } from '@testing-library/react';
 import toast from 'react-hot-toast';
 import useTaskAssignment, { TaskAssignmentContext } from './useTaskAssignment';
@@ -15,11 +15,12 @@ jest.mock('./taskConfetti', () => ({ taskBurst: jest.fn(), cancelTaskBursts: jes
 
 const members = Array.from({ length: 8 }, (_, i) => ({ id: `m${i}`, displayName: `Member ${i}` }));
 let actions, data, replace;
-function Harness({ persist, initial = members.slice(0, 5) }) {
+function Harness({ persist, initial = members.slice(0, 5), onCommit }) {
   const ref = useRef(null);
   const [project, setProject] = useState({ id: 'project', tasks: [{ id: 'task', title: 'Target', status: 'TODO', assignees: initial }] });
   data = project; replace = setProject;
   actions = useTaskAssignment(ref, project, setProject, persist);
+  useLayoutEffect(() => { onCommit?.(ref.current); });
   return <TaskAssignmentContext.Provider value={actions}><div ref={ref}>
     <div ref={actions.liveRef} role="status" />
     <div data-assignment-ghost className="cpm-assignee-chip"><div>Avatar</div><span className="cpm-assignee-chip-name">Member 5</span></div>
@@ -54,6 +55,39 @@ test('five visible avatars before overflow; hover opens and closes the landing p
   expect(screen.getByText('Drop to assign')).toBeTruthy();
   act(() => actions.setHover(null));
   expect(screen.queryByText('Drop to assign')).toBeNull();
+});
+
+test('dropping keeps the hover landing slot and existing avatars through every pre-flight commit', async () => {
+  const commits = [];
+  render(<Harness persist={jest.fn().mockResolvedValue({})} onCommit={root => commits.push({
+    placeholder: root.querySelector('.pm-assignment-placeholder'),
+    members: Array.from(root.querySelectorAll('[data-assignment-member]'), el => el.dataset.assignmentMember),
+  })} />);
+  act(() => actions.setHover({ id: 'task', memberIds: ['m5'] }));
+  await advance(400);
+  const placeholder = document.querySelector('.pm-assignment-placeholder');
+  expect(placeholder).not.toBeNull();
+  commits.length = 0;
+  Element.prototype.animate.mockClear();
+
+  act(() => {
+    // ProjectDetail ends the drag before handing the drop to assign().
+    actions.endDrag();
+    actions.assign('task', [members[5]], true);
+  });
+  await flush();
+  await advance(250);
+
+  expect(ids()).toContain('m5');
+  expect(document.querySelector('.pm-assignment-flight')).not.toBeNull();
+  expect(commits.length).toBeGreaterThan(0);
+  commits.forEach(commit => {
+    expect(commit.placeholder).toBe(placeholder);
+    expect(commit.members).toEqual(['m0', 'm1', 'm2', 'm3', 'm4']);
+  });
+  const previewRestarts = Element.prototype.animate.mock.calls.filter(([frames]) =>
+    frames.some(frame => /^translateX\(/.test(frame.transform ?? '')));
+  expect(previewRestarts).toHaveLength(0);
 });
 
 test('shared avatar stacks work without an assignment task id, inside and outside the provider', () => {

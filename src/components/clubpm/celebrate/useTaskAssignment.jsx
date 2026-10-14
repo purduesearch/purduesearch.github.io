@@ -288,6 +288,10 @@ export default function useTaskAssignment(rootRef, project, setProject, persist)
     latest.current = record;
     setFrontOrder(previous => ({ ...previous, [id]: [...added].reverse().map(m => m.id).concat(previous[id] ?? []) }));
     pending.current = row && rect ? { id, row, rect, ghost: ghost.cloneNode(true), members: added, before: task.assignees ?? [] } : null;
+    // Keep the hover layout through the optimistic render. Waiting for run()
+    // to restore it in a layout effect briefly removes the landing slot and
+    // restarts AvatarStack's preview animation.
+    if (pending.current) setPresentation({ id, assignees: pending.current.before, incoming: true });
     update(id, t => ({ ...t, assignees: [...added].reverse().concat(t.assignees ?? []) }));
     endDrag();
     const message = `${added.map(m => m.displayName).join(', ')} assigned to ${task.title}`;
