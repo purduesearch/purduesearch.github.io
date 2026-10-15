@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import MembersView from './MembersView';
+import { MemberSkillStrip } from '../../components/clubpm/members/MemberCardParts';
 import { get, listConversations, importMyDms, setProjectLead, skillsApi } from '../../api/clubPmClient';
 
 let mockIsAdmin = false;
@@ -141,4 +142,33 @@ test('club-wide roster remains available without a project', async () => {
   expect(await screen.findByText('Zelda Last')).toBeVisible();
   expect(get).toHaveBeenCalledWith('/api/members');
   expect(listConversations).toHaveBeenCalledWith(null);
+});
+
+
+test('skill expansion reveals the remaining skills and can collapse without losing highlights', async () => {
+  skillsApi.member.mockResolvedValueOnce({ groups: [{ name: 'Engineering', skills: Array.from({ length: 7 }, (_, i) => ({ skillId: `expand-${i}`, name: `Engineering skill ${i}`, level: 5, type: 'TOOL' })) }] });
+  render(<MemberSkillStrip memberId="expansion-test-member" />);
+  const expand = await screen.findByRole('button', { name: '+2 more' });
+  expect(screen.queryByText('Engineering skill 6')).toBeNull();
+  fireEvent.click(expand);
+  expect(screen.getByText('Engineering skill 6')).toBeVisible();
+  expect(screen.getByRole('button', { name: 'Show less' })).toHaveAttribute('aria-expanded', 'true');
+  fireEvent.click(screen.getByRole('button', { name: 'Show less' }));
+  expect(screen.queryByText('Engineering skill 6')).toBeNull();
+  expect(screen.getByText('Engineering skill 0')).toBeVisible();
+});
+
+test('keyboard events on card actions do not activate the card', async () => {
+  mockIsAdmin = true;
+  get.mockResolvedValue([roleMember()]);
+  render(<MemoryRouter><MembersView projectId="p1" /></MemoryRouter>);
+  const action = await screen.findByRole('button', { name: 'Make sublead' });
+  const card = screen.getByRole('button', { name: /^Zelda Last/ });
+  const activation = jest.fn();
+  card.addEventListener('click', activation);
+  // Space must retain its native button behavior; the card must not prevent it.
+  expect(fireEvent.keyDown(action, { key: ' ' })).toBe(true);
+  expect(activation).not.toHaveBeenCalled();
+  // The card itself handles Space and prevents page scrolling.
+  expect(fireEvent.keyDown(card, { key: ' ' })).toBe(false);
 });
