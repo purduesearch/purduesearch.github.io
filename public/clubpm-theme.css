@@ -29761,7 +29761,6 @@ button.cpm-chat-reaction:disabled { cursor: default; }
 .cpm-vault-repository li { margin: 6px 0; }
 
 /* Vault repository details dialog. */
-.cpm-vault-repository-actions { display: flex; justify-content: flex-end; margin-bottom: 12px; }
 .cpm-vault-repository-modal {
   box-sizing: border-box;
   width: min(760px, calc(100vw - 32px));
@@ -31479,3 +31478,11 @@ button.pm-task-check { cursor: pointer; }
   .cpm-attach-footer > button { min-height: 44px; }
   .cpm-attach-tab { min-height: 44px; }
 }
+
+/* Shared project settings form, embedded in the management dialog. */
+.cpm-proj-edit-form { display: flex; flex-direction: column; gap: 12px; }
+
+/* Keep repository details alongside the Vault sub-view tabs. */
+.cpm-vault-nav-row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+.cpm-vault-nav-row > .cpm-vault-subnav { align-self: auto; min-width: 0; max-width: 100%; }
+.cpm-vault-nav-row > .cpm-vault-btn-ghost { flex-shrink: 0; margin-left: auto; }

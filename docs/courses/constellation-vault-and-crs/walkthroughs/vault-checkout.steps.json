@@ -27,7 +27,7 @@
       "anchor": "vault.repository",
       "route": "/clubpm/projects/:id",
       "title": "Find repository details",
-      "body": "Repository details opens a modal showing storage status, the configured repository and branch, recent commits, and admin settings. Close the modal before continuing. GitHub check-ins require an admin-enabled repository; otherwise this project uses legacy Drive storage.",
+      "body": "Repository details, beside the Vault sub-view tabs, opens a modal showing storage status, the configured repository and branch, recent commits, and admin settings. Close the modal before continuing. GitHub check-ins require an admin-enabled repository; otherwise this project uses legacy Drive storage.",
       "placement": "bottom",
       "advance": { "on": "next" }
     },

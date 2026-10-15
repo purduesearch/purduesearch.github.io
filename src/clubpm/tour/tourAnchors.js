@@ -58,7 +58,7 @@ export const TOUR_ANCHORS = Object.freeze({
   // Project detail — src/pages/ClubPM/ProjectDetail.jsx
   "project.header":         { label: "Project header",       route: "/clubpm/projects/:id", layout: "both", note: "Title + status row; compact hero stays short" },
   "project.lab":            { label: "Lab time button",      route: "/clubpm/projects/:id", note: "Only rendered when the project has assigned lab spaces" },
-  "project.actions":        { label: "Project actions",      route: "/clubpm/projects/:id", layout: "compact", note: "Labelled phone control opening the shared Projects sheet" },
+  "project.actions":        { label: "Project actions",      route: "/clubpm/projects/:id", layout: "compact", note: "Labelled phone control opening the shared Projects sheet, including the unified Project settings modal" },
   "project.milestones":     { label: "Milestone summary",    route: "/clubpm/projects/:id", layout: "compact", note: "Compact milestone list with Timeline link" },
   // The project tab bar (desktop sidebar tabs, phone section bar) is rendered by
   // AppShell from the ProjectNavContext, not by ProjectDetail — ProjectDetail
@@ -130,7 +130,7 @@ export const TOUR_ANCHORS = Object.freeze({
   // Everything below lives under Files → Vault, so a step targeting one of them
   // must be preceded by steps that open both. The Vault's own sub-nav then
   // splits the item grid from the change-request list.
-  "vault.repository":       { label: "Vault repository",     route: "/clubpm/projects/:id", note: "Files → Vault Repository details button; opens storage status and settings" },
+  "vault.repository":       { label: "Vault repository",     route: "/clubpm/projects/:id", note: "Files → Vault Repository details button beside the sub-view tabs; opens storage status and settings" },
   "vault.tree":             { label: "Item list",            route: "/clubpm/projects/:id", note: "Files → Vault" },
   "vault.item":             { label: "Vault item row",       route: "/clubpm/projects/:id", note: "First row only" },
   "vault.item.modal":       { label: "Vault item detail",    route: "/clubpm/projects/:id", note: "Item detail panel, including checkout holder" },

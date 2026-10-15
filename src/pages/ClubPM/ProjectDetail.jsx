@@ -24,7 +24,6 @@ import { PriorityBars, AvatarStack, StatusRing } from "../../components/clubpm/T
 import DriveFolderBrowser from "../../components/clubpm/DriveFolderBrowser";
 import DrivePreviewModal from "../../components/clubpm/DrivePreviewModal";
 import EditDriveFolderModal from "../../components/clubpm/EditDriveFolderModal";
-import EditProjectModal from "../../components/clubpm/EditProjectModal";
 import ProjectAdminModal from "../../components/clubpm/ProjectAdminModal";
 import GitHubPanel from "../../components/clubpm/github/GitHubPanel";
 import ActionPlanReview from "../../components/clubpm/ActionPlanReview";
@@ -32,7 +31,7 @@ import VaultTab from "../../components/clubpm/vault/VaultTab";
 import ChatTab from "../../components/clubpm/chat/ChatTab";
 import MembersView from "./MembersView";
 import MemberLeadCard from "../../components/clubpm/members/MemberLeadCard";
-import { parseDriveUrl, getTypeMeta } from "../../utils/driveUtils";
+import { parseDriveUrl } from "../../utils/driveUtils";
 import {
   DndContext,
   DragOverlay,
@@ -1565,123 +1564,6 @@ function AddProjectTaskModal({ projectId, projectName, canCreateHere = true, chi
   );
 }
 
-// ── Slack Channel Picker ─────────────────────────────────────
-
-function SlackChannelPicker({ project, channels, channelsState, onSaved }) {
-  const [saving, setSaving] = useState(false);
-  const [status, setStatus] = useState("");
-  const [error, setError] = useState("");
-  const [selected, setSelected] = useState(project.slackChannelId ?? "");
-
-  useEffect(() => {
-    setSelected(project.slackChannelId ?? "");
-  }, [project.slackChannelId]);
-
-  const { loaded, error: loadError, warning, needsAuth } = channelsState ?? {};
-
-  // The linked channel may not be in the list the current viewer can see (e.g.
-  // a private channel linked by someone else). Show it anyway so the picker
-  // never renders blank for a project that IS linked.
-  const options = useMemo(() => {
-    const list = [...channels];
-    if (project.slackChannelId && !list.some(c => c.id === project.slackChannelId)) {
-      list.unshift({
-        id: project.slackChannelId,
-        name: project.slackChannelName ?? "linked channel",
-        botIsMember: true,
-      });
-    }
-    return list;
-  }, [channels, project.slackChannelId, project.slackChannelName]);
-
-  const handleChange = async (e) => {
-    const channelId = e.target.value;
-    const ch = options.find(c => c.id === channelId);
-    setSelected(channelId);
-    setError("");
-    setSaving(true);
-    try {
-      if (channelId && ch && ch.botIsMember === false) {
-        setStatus("Inviting bot…");
-        try {
-          await post(`/api/slack/channels/${channelId}/invite-bot`, {});
-        } catch (inviteErr) {
-          const code = inviteErr?.message ?? "unknown_error";
-          setError(`Could not invite bot (${code}). Run \`/invite @Constellation\` in #${ch.name} then retry.`);
-          setSelected(project.slackChannelId ?? "");
-          return;
-        }
-      }
-      setStatus("Saving…");
-      await patch(`/api/projects/${project.id}`, {
-        slackChannelId:   channelId || null,
-        slackChannelName: ch?.name  || null,
-      });
-      onSaved();
-    } catch (err) {
-      console.error("Failed to save linked channel", err);
-      setError(err?.message ?? "Failed to save linked channel");
-      setSelected(project.slackChannelId ?? "");
-    } finally {
-      setSaving(false);
-      setStatus("");
-    }
-  };
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-        <i className="fab fa-slack" style={{ fontSize: 12, color: "var(--clubpm-text-muted)" }} />
-        <select
-          value={selected}
-          onChange={handleChange}
-          disabled={saving}
-          style={{
-            fontSize: 11,
-            padding: "3px 6px",
-            borderRadius: 5,
-            background: "var(--clubpm-surface-300)",
-            border: "1px solid var(--clubpm-border)",
-            color: selected ? "var(--clubpm-text-primary)" : "var(--clubpm-text-muted)",
-            cursor: "pointer",
-          }}
-        >
-          <option value="">
-            {!loaded ? "Loading channels…" : "— Link Slack channel —"}
-          </option>
-          {options.map(ch => (
-            <option key={ch.id} value={ch.id}>
-              #{ch.name}{ch.botIsMember === false ? " (bot not in channel)" : ""}
-            </option>
-          ))}
-        </select>
-        {saving && <span style={{ fontSize: 10, color: "var(--clubpm-text-muted)" }}>{status}</span>}
-      </div>
-      {error && (
-        <span style={{ fontSize: 10, color: "var(--clubpm-accent-danger, #e06c75)" }}>{error}</span>
-      )}
-      {!error && loaded && loadError && (
-        <span style={{ fontSize: 10, color: "var(--clubpm-accent-danger, #e06c75)" }}>
-          {loadError}
-        </span>
-      )}
-      {!error && loaded && !loadError && warning && (
-        <span style={{ fontSize: 10, color: "var(--pm-accent-amber)" }}>{warning}</span>
-      )}
-      {loaded && needsAuth && (
-        <a
-          href={
-            `${process.env.REACT_APP_API_URL || ""}/auth/slack` +
-            `?returnTo=${encodeURIComponent(`/clubpm/projects/${project.id}`)}`
-          }
-          style={{ fontSize: 10, color: "var(--pm-accent-teal)" }}
-        >
-          Reconnect Slack
-        </a>
-      )}
-    </div>
-  );
-}
 
 // ── Suggested Task Card ───────────────────────────────────────
 
@@ -2134,87 +2016,7 @@ function AiPanel({ project, allMembers, projectBlockers, onActionPlanExecuted })
   );
 }
 
-// ── Drive Folder Pill (header chip with admin edit) ──────────
 
-function DriveFolderPill({ project, isAdmin, onPreview, onSaved }) {
-  const [editing, setEditing] = useState(false);
-  const link = project.driveLink ?? null;
-  const parsed = link ? parseDriveUrl(link) : null;
-  const isFolder = parsed?.kind === "folder";
-
-  if (!link) {
-    if (!isAdmin) return null;
-    return (
-      <>
-        <button
-          type="button"
-          className="cpm-drive-pill cpm-drive-pill-add"
-          onClick={() => setEditing(true)}
-          title="Link a Drive folder to this project"
-        >
-          <i className="fab fa-google-drive" aria-hidden="true" />
-          <span>+ Link Drive folder</span>
-        </button>
-        {editing && (
-          <EditDriveFolderModal
-            projectId={project.id}
-            currentLink={null}
-            onClose={() => setEditing(false)}
-            onSaved={onSaved}
-          />
-        )}
-      </>
-    );
-  }
-
-  return (
-    <>
-      <span className="cpm-drive-pill" title={link}>
-        <i className="fab fa-google-drive" style={{ color: "#4285F4" }} aria-hidden="true" />
-        <a
-          href={link}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="cpm-drive-pill-link"
-        >
-          {isFolder ? "Drive folder" : parsed ? getTypeMeta(parsed.kind).label : "Drive link"}
-        </a>
-        <button
-          type="button"
-          onClick={() => onPreview(link)}
-          className="cpm-drive-pill-action"
-          title="Preview"
-          aria-label="Preview Drive link"
-        >
-          <i className="fas fa-eye" aria-hidden="true" />
-        </button>
-        {isAdmin && (
-          <button
-            type="button"
-            onClick={() => setEditing(true)}
-            className="cpm-drive-pill-action"
-            title="Change Drive folder"
-            aria-label="Change Drive folder"
-          >
-            <i className="fas fa-pen" aria-hidden="true" />
-          </button>
-        )}
-      </span>
-      {editing && (
-        <EditDriveFolderModal
-          projectId={project.id}
-          currentLink={link}
-          onClose={() => setEditing(false)}
-          onSaved={onSaved}
-        />
-      )}
-    </>
-  );
-}
-
-// ── Files Tab Panel (view-only link to the project's linked Drive folder) ────
-//
-// Browse the same linked folder used by task attachments. Changes to files
 // happen in Drive; folder navigation and previews stay inside Constellation.
 
 function DriveFilesPanel({ project, isAdmin, onProjectChange }) {
@@ -2461,13 +2263,6 @@ export default function ProjectDetail() {
     (taskId, fields) => patch(`/api/tasks/${taskId}`, fields));
   const [allProjects, setAllProjects] = useState([]);
   const [allMembers, setAllMembers] = useState([]);
-  const [slackChannels, setSlackChannels] = useState([]);
-  const [slackChannelsState, setSlackChannelsState] = useState({
-    loaded: false,
-    error: "",
-    warning: "",
-    needsAuth: false,
-  });
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("tasks");
   const [chatSection, setChatSection] = useState("messages");
@@ -2582,7 +2377,6 @@ export default function ProjectDetail() {
     try { setSourceFilterState(sessionStorage.getItem(sourceKey) || "all"); } catch { setSourceFilterState("all"); }
   }, [sourceKey]);
   const [headerDrivePreview, setHeaderDrivePreview] = useState(null); // { url, label }
-  const [showEditProject, setShowEditProject] = useState(false);
   const [showManageProject, setShowManageProject] = useState(false);
   const [pinned, setPinned] = useState(() => {
     try {
@@ -3118,10 +2912,9 @@ export default function ProjectDetail() {
       // control the desktop hero already renders, under the same permission.
       // The timeline had no entry point at all before this.
       actions: [
-        { id: 'edit', label: 'Edit project', icon: 'fa-pencil-alt', hidden: !canEditProject, onSelect: () => setShowEditProject(true) },
+        { id: 'settings', label: 'Project settings', icon: 'fa-sliders', hidden: !canEditProject && !member?.isAdmin, onSelect: () => setShowManageProject(true) },
         { id: 'chat', label: 'Project chat', icon: 'fa-comments', to: `/clubpm/projects/${project.id}?tab=chat` },
         { id: 'drive', label: 'Open Drive folder', icon: 'fa-folder-open', hidden: !project.driveLink, onSelect: () => setHeaderDrivePreview({ url: project.driveLink, label: 'Drive folder' }) },
-        { id: 'manage', label: 'Sub-projects, members & delete', icon: 'fa-sliders', hidden: !member?.isAdmin, onSelect: () => setShowManageProject(true) },
         { id: 'description', label: 'Edit description', icon: 'fa-align-left', hidden: !member?.isAdmin, onSelect: () => { setDescValue(project.description ?? ''); setDescEdit(true); } },
         { id: 'pin', label: pinned ? 'Unpin project' : 'Pin project', icon: 'fa-star', onSelect: togglePinned },
         { id: 'timeline', label: 'Timeline (Gantt)', icon: 'fa-chart-gantt', to: `/clubpm/projects/${project.id}/gantt` },
@@ -3137,39 +2930,6 @@ export default function ProjectDetail() {
     get("/api/projects")
       .then(setAllProjects)
       .catch(console.error);
-  }, []);
-
-  useEffect(() => {
-    // Never swallow this. When it failed silently, the picker rendered an empty
-    // dropdown with no explanation anywhere — the bug that hid a broken token
-    // path for weeks.
-    get("/api/slack/channels")
-      .then(data => {
-        // Response is { channels, needsSlackAuth, warning }; tolerate the older
-        // bare-array shape while a stale backend is still deployed.
-        if (Array.isArray(data)) {
-          setSlackChannels(data);
-          setSlackChannelsState({ loaded: true, error: "", warning: "", needsAuth: false });
-          return;
-        }
-        setSlackChannels(data?.channels ?? []);
-        setSlackChannelsState({
-          loaded: true,
-          error: "",
-          warning: data?.warning ?? "",
-          needsAuth: !!data?.needsSlackAuth,
-        });
-      })
-      .catch(err => {
-        console.error("Failed to load Slack channels", err);
-        setSlackChannels([]);
-        setSlackChannelsState({
-          loaded: true,
-          error: err?.message ?? "Could not load Slack channels",
-          warning: "",
-          needsAuth: true,
-        });
-      });
   }, []);
 
   useEffect(() => {
@@ -3782,8 +3542,6 @@ export default function ProjectDetail() {
                       <i className="fas fa-sitemap" aria-hidden="true" /> {c.name}
                     </Link>
                   ))}
-                  {!compact && <SlackChannelPicker project={project} channels={slackChannels} channelsState={slackChannelsState} onSaved={fetchProject} />}
-                  {!compact && <DriveFolderPill project={project} isAdmin={!!member?.isAdmin} onPreview={url => setHeaderDrivePreview({ url, label: "Drive folder" })} onSaved={updated => setProject(prev => ({ ...prev, ...updated }))} />}
                   {project.slackChannelId && !canEdit && (
                     <span style={{ fontSize: 11, color: 'var(--pm-accent-amber)', display: 'flex', alignItems: 'center', gap: 4 }}>
                       <i className="fas fa-lock" style={{ fontSize: 10 }} /> View only
@@ -3798,22 +3556,12 @@ export default function ProjectDetail() {
                 <button type="button" className="pm-m-project-actions-btn" data-tour-id="project.actions" onClick={() => requestShellOverlay('projects')} aria-haspopup="dialog">
                   <i className="fas fa-ellipsis" aria-hidden="true" /> Actions
                 </button>
-              ) : canEdit && (
-                <button
-                  className="pm-proj-edit-btn"
-                  onClick={() => setShowEditProject(true)}
-                  title="Edit project"
-                  aria-label="Edit project"
-                >
-                  <i className="fas fa-pencil-alt" aria-hidden="true" />
-                </button>
-              )}
-              {!compact && member?.isAdmin && (
+              ) : (canEdit || member?.isAdmin) && (
                 <button
                   className="pm-proj-edit-btn"
                   onClick={() => setShowManageProject(true)}
-                  title="Sub-projects, members and delete"
-                  aria-label="Manage project"
+                  title="Project settings"
+                  aria-label="Project settings"
                 >
                   <i className="fas fa-sliders" aria-hidden="true" />
                 </button>
@@ -3852,8 +3600,6 @@ export default function ProjectDetail() {
                       {member?.isAdmin ? <button type="button" className="pm-m-btn" onClick={() => { setDescValue(project.description ?? ''); setDescEdit(true); }}><i className="fas fa-pencil-alt" aria-hidden="true" /> Edit description</button> : null}
                     </div>
                   )}
-                  <SlackChannelPicker project={project} channels={slackChannels} channelsState={slackChannelsState} onSaved={fetchProject} />
-                  <DriveFolderPill project={project} isAdmin={!!member?.isAdmin} onPreview={url => setHeaderDrivePreview({ url, label: "Drive folder" })} onSaved={updated => setProject(prev => ({ ...prev, ...updated }))} />
                 </div>
               </details>
             )}
@@ -4406,25 +4152,12 @@ export default function ProjectDetail() {
         />
       )}
 
-      {showManageProject && member?.isAdmin && (
+      {showManageProject && (canEdit || member?.isAdmin) && (
         <ProjectAdminModal
           projectId={project.id}
           onClose={() => setShowManageProject(false)}
           onChanged={fetchProject}
           onDeleted={() => navigate("/clubpm")}
-        />
-      )}
-
-      {showEditProject && (
-        <EditProjectModal
-          project={project}
-          isAdmin={!!member?.isAdmin}
-          onClose={() => setShowEditProject(false)}
-          onSaved={updated => {
-            // PATCH returns the bare row (no tasks/members), so merge rather than replace.
-            setProject(prev => ({ ...prev, ...updated }));
-            window.dispatchEvent(new CustomEvent("pm-project-updated", { detail: updated }));
-          }}
         />
       )}
 

@@ -77,7 +77,7 @@ child until the rail keeps its children in layout. (On phones every one of these
 |---|---|---|
 | `project.header` | Project title + status row; compact hero stays short | `/clubpm/projects/:id` |
 | `project.lab` | Lab time button (only when the project has lab spaces) | `/clubpm/projects/:id` |
-| `project.actions` | Labelled phone Project actions control | `/clubpm/projects/:id` |
+| `project.actions` | Labelled phone Project actions control; Project settings combines details, Slack and admin tools | `/clubpm/projects/:id` |
 | `project.milestones` | Phone milestone summary with Timeline link | `/clubpm/projects/:id` |
 | `project.tab.tasks` | Tasks tab&Dagger; | `/clubpm/projects/:id` |
 | `project.tab.files` | Files tab&Dagger; | `/clubpm/projects/:id` |
@@ -169,7 +169,7 @@ Everything below is behind **Files &rarr; Vault**; a step must open both before 
 | `vault.tab.search` | "Search" pill in the Vault sub-nav | `/clubpm/projects/:id` |
 | `vault.search` | Search panel: query, filters, saved views and results (under `vault.tab.search`) | `/clubpm/projects/:id` |
 | `vault.watch` | Watch button and event chooser inside the item modal | `/clubpm/projects/:id` |
-| `vault.repository` | Repository details button (opens storage status and settings) | `/clubpm/projects/:id` |
+| `vault.repository` | Repository details button beside the Vault sub-view tabs (opens storage status and settings) | `/clubpm/projects/:id` |
 | `vault.tree` | Searchable item list | `/clubpm/projects/:id` |
 | `vault.item` | First vault item row | `/clubpm/projects/:id` |
 | `vault.item.modal` | Item detail panel and checkout holder | `/clubpm/projects/:id` |

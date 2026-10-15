@@ -239,7 +239,22 @@ export default function VaultTab({ project, member, isAdmin, deepLink = null, on
 
   return (
     <div className="cpm-vault-tab">
-      <div className="cpm-vault-repository-actions">
+      <div className="cpm-vault-nav-row">
+        <div className="cpm-vault-subnav" role="tablist" aria-label="Vault sub-view">
+          {SUB_VIEWS.filter(v => !v.adminOnly || isAdmin).map(v => (
+            <button
+              key={v.id}
+              type="button"
+              role="tab"
+              data-tour-id={v.tourId}
+              aria-selected={subView === v.id}
+              className={`cpm-vault-pill${subView === v.id ? " active" : ""}`}
+              onClick={() => setSubView(v.id)}
+            >
+              {v.label}
+            </button>
+          ))}
+        </div>
         <button
           type="button"
           className="cpm-vault-btn-ghost"
@@ -262,21 +277,6 @@ export default function VaultTab({ project, member, isAdmin, deepLink = null, on
           </section>
         </VaultRepositoryModal>
       )}
-      <div className="cpm-vault-subnav" role="tablist" aria-label="Vault sub-view">
-        {SUB_VIEWS.filter(v => !v.adminOnly || isAdmin).map(v => (
-          <button
-            key={v.id}
-            type="button"
-            role="tab"
-            data-tour-id={v.tourId}
-            aria-selected={subView === v.id}
-            className={`cpm-vault-pill${subView === v.id ? " active" : ""}`}
-            onClick={() => setSubView(v.id)}
-          >
-            {v.label}
-          </button>
-        ))}
-      </div>
 
       {subView === "vault" && (
         <>
