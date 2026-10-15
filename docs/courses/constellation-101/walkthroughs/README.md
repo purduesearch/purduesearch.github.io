@@ -185,4 +185,4 @@ The arrow sits beside the management menu for officers; the phone Projects sheet
 - **Keep bodies under about 40 words.** The coach card is small and a wall of text gets skipped, at
   which point the step has taught nothing and still cost a click.
 
-Task details use a status button row below the title. Description, subtasks, dependencies, blockers and conversation stay in the main column; assignees, due date, priority, tags, manual time entry, attachments and GitHub actions are in the side panel (stacked on phones). The time step uses Minutes and Log time; there is no running timer.
+Task details use a status button row below the title. Description, subtasks, dependencies, blockers and conversation stay in the main column; assignees, due date, priority, tags, manual time entry and attachments are in the side panel (stacked on phones). Add attachment also contains GitHub actions for linking and creating issues, creating branches, viewing existing links and pushing task updates to GitHub. The time step uses Minutes and Log time; there is no running timer.

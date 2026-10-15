@@ -5,6 +5,8 @@ import { get, getVault, listProjectRepos } from '../../api/clubPmClient';
 
 jest.mock('../../api/clubPmClient', () => ({ get: jest.fn(), getVault: jest.fn(), listProjectRepos: jest.fn() }));
 jest.mock('../../clubpm/layout/compactLayout', () => ({ useCompactLayout: () => false }));
+jest.mock('./github/IssuePreviewModal', () => () => null);
+jest.mock('./github/PrPreviewModal', () => () => null);
 jest.mock('./DriveFolderBrowser', () => ({
   __esModule: true,
   default: ({ onToggle }) => <button onClick={() => onToggle({ id: 'drive1', name: 'Design notes', webViewLink: 'https://drive.google.com/file/d/drive1/view' })}>Select Drive notes</button>,
@@ -104,4 +106,12 @@ test('submitting a pasted link never submits the surrounding task creation form'
   fireEvent.submit(screen.getByRole('form', { name: 'Attachment link' }));
   await waitFor(() => expect(onAdd).toHaveBeenCalledTimes(1));
   expect(createTask).not.toHaveBeenCalled();
+});
+
+test('keeps task GitHub linking and creation actions inside Add attachments', async () => {
+  render(<AttachmentPickerModal projectId="p1" task={{ id: 't1', projectId: 'p1' }} onAdd={jest.fn()} onClose={jest.fn()} />);
+  fireEvent.click(screen.getByRole('button', { name: 'GitHub actions', exact: true }));
+  expect(await screen.findByRole('button', { name: 'Link issue', exact: true })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Create issue', exact: true })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Create branch', exact: true })).toBeInTheDocument();
 });

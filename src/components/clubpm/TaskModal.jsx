@@ -8,7 +8,6 @@ import LabScheduleModal from "./labschedule/LabScheduleModal";
 import { useClubPmAuth } from "../../clubpm/ClubPmAuth";
 import AttachmentPickerModal from "./AttachmentPickerModal";
 import DrivePreviewModal from "./DrivePreviewModal";
-import GitHubTaskSection from "./github/GitHubTaskSection";
 import SlackMentions from "./SlackMentions";
 
 import MobileSheet from "./MobileSheet";
@@ -2425,11 +2424,6 @@ export default function TaskModal({ task: initialTask, project, projectBlockers 
             )}
           </div>
 
-          {/* GitHub (Phase 2) */}
-          <div style={{ padding: "0 20px 16px" }}>
-            <GitHubTaskSection task={task} project={project} />
-          </div>
-
           <SlackMentions entityType="TASK" entityId={task.id} />
 
           </aside>
@@ -2495,6 +2489,8 @@ export default function TaskModal({ task: initialTask, project, projectBlockers 
       {showAddLink && (
         <AttachmentPickerModal
           projectId={task.projectId}
+          task={task}
+          project={project}
           onAdd={handleAddLink}
           onClose={() => setShowAddLink(false)}
         />

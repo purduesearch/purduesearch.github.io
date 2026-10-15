@@ -1,0 +1,102 @@
+name: Set Skills Schedule (manual)
+
+# Enables the existing backend cron; GitHub does not run a second weekly job.
+# Available in the Actions menu after this file reaches the default branch.
+on:
+  workflow_dispatch:
+    inputs:
+      enabled:
+        description: "Enable weekly skill analysis (Sunday 02:30 server time; uses Gemini quota)"
+        type: boolean
+        required: true
+        default: true
+
+permissions:
+  contents: read
+
+# Serialize .env edits and restarts with backend deployments.
+concurrency:
+  group: oracle-clubpm
+  cancel-in-progress: false
+
+jobs:
+  set-skills-schedule:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Configure weekly skills analysis over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          SKILLS_SCHEDULE_ENABLED: ${{ inputs.enabled }}
+        with:
+          host: ${{ secrets.ORACLE_HOST }}
+          username: ${{ secrets.ORACLE_USER }}
+          key: ${{ secrets.ORACLE_SSH_KEY }}
+          envs: SKILLS_SCHEDULE_ENABLED
+          script: |
+            set -eu
+            cd /opt/clubpm/backend
+            pm2 describe clubpm-backend > /dev/null
+
+            node --input-type=module <<'NODE'
+            import fs from 'node:fs';
+            import { parse } from 'dotenv';
+
+            const input = process.env.SKILLS_SCHEDULE_ENABLED;
+            if (input !== 'true' && input !== 'false') {
+              throw new Error('Expected enabled to be true or false');
+            }
+            const enabled = input === 'true';
+            const file = '.env';
+            // Refuse to create a partial configuration on an unprovisioned server.
+            const original = fs.readFileSync(file, 'utf8');
+            const config = parse(original);
+            if (enabled) {
+              if (!config.GEMINI_API_KEY?.trim()) {
+                throw new Error('Set GEMINI_API_KEY in backend/.env before enabling skills');
+              }
+              if (!(config.SKILLS_MODEL || config.GEMINI_MODEL)?.trim()) {
+                throw new Error('Set SKILLS_MODEL or GEMINI_MODEL in backend/.env first');
+              }
+            }
+
+            const value = enabled ? '1' : '0';
+            // Remove duplicate/exported assignments too; preserve all other settings.
+            const lines = original.split(/\r?\n/).filter(line =>
+              !/^\s*(?:export\s+)?SKILLS_ENABLED\s*=/.test(line));
+            while (lines.at(-1) === '') lines.pop();
+            const updated = `${lines.join('\n')}\nSKILLS_ENABLED=${value}\n`;
+            const backup = `${file}.bak.skills.${Date.now()}`;
+            fs.copyFileSync(file, backup, fs.constants.COPYFILE_EXCL);
+            fs.chmodSync(backup, 0o600);
+            // Write in place to preserve the existing file's ownership and mode.
+            fs.writeFileSync(file, updated);
+            if (parse(fs.readFileSync(file, 'utf8')).SKILLS_ENABLED !== value) {
+              throw new Error('Failed to verify SKILLS_ENABLED');
+            }
+            console.log(`Backup saved to ${backup}; SKILLS_ENABLED=${value}`);
+            NODE
+
+            pm2 restart clubpm-backend
+            sleep 5
+            pm2 jlist | node --input-type=module -e '
+              let text = "";
+              for await (const chunk of process.stdin) text += chunk;
+              const app = JSON.parse(text).find(p => p.name === "clubpm-backend");
+              if (app?.pm2_env?.status !== "online") {
+                throw new Error("clubpm-backend is not online after restart");
+              }
+              console.log("Backend is online. Confirm Weekly schedule in Admin > Skills > Overview.");
+            '
+            date '+Server time: %Y-%m-%d %H:%M:%S %Z'
+
+      - name: Summarize
+        env:
+          ENABLED: ${{ inputs.enabled }}
+        run: |
+          if [ "$ENABLED" = "true" ]; then
+            echo 'Weekly skills analysis enabled: Sunday 02:30 in the server timezone.' >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo 'Weekly skills analysis disabled.' >> "$GITHUB_STEP_SUMMARY"
+          fi
+          echo 'Backend restarted. Verify setup and run history in Admin → Skills → Overview.' >> "$GITHUB_STEP_SUMMARY"

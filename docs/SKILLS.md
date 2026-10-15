@@ -57,6 +57,16 @@ Scoring rules and the written rubric: [skills/RUBRIC.md](skills/RUBRIC.md).
 6. Turn on the weekly job with `SKILLS_ENABLED=1` (Sundays 02:30 server time, registered in `slack/scheduler.ts`). It
    sends nothing to Slack.
 
+To enable the schedule through GitHub, open **Actions → Set Skills Schedule (manual) → Run workflow** and
+leave `enabled` checked. The workflow reuses the deployment secrets `ORACLE_HOST`, `ORACLE_USER` and
+`ORACLE_SSH_KEY`; no new secrets are required. It checks that `/opt/clubpm/backend/.env` already has
+`GEMINI_API_KEY` and either `SKILLS_MODEL` or `GEMINI_MODEL`, backs up that file, sets `SKILLS_ENABLED=1`,
+and restarts `clubpm-backend`. Run it after the backend deployment (including migrations) succeeds.
+The workflow appears in the Actions menu once it is on the default branch. Uncheck `enabled` to disable
+future weekly runs; this does not cancel a run already in progress. Confirm the setup checks and schedule
+in **Admin → Skills → Overview**. The backend must be running at the scheduled time; GitHub only configures
+the existing backend cron.
+
 ## Running it
 
 | Goal | Command |

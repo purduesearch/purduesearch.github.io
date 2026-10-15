@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import DriveFolderBrowser, { driveItemUrl } from './DriveFolderBrowser';
 import AttachmentSourceBrowser from './AttachmentSourceBrowser';
+import GitHubTaskSection from './github/GitHubTaskSection';
 import MobileSheet from './MobileSheet';
 import { useCompactLayout } from '../../clubpm/layout/compactLayout';
 
@@ -13,7 +14,7 @@ const SOURCES = [
   ['paste', 'Paste a link', 'fas fa-link'],
 ];
 
-export default function AttachmentPickerModal({ projectId, onAdd, onClose }) {
+export default function AttachmentPickerModal({ projectId, task, project, onAdd, onClose }) {
   const compact = useCompactLayout();
   const reduced = useReducedMotion();
   const [source, setSource] = useState(projectId ? 'drive' : 'paste');
@@ -53,6 +54,8 @@ export default function AttachmentPickerModal({ projectId, onAdd, onClose }) {
     finally { inFlight.current = false; setBusy(false); }
   }
   function keys(event) {
+    // GitHub previews and creation forms portal outside this dialog and own their keys.
+    if (!event.currentTarget.contains(event.target)) return;
     event.stopPropagation();
     if (event.key === 'Escape') { event.preventDefault(); if (!inFlight.current) onClose(); }
     if (event.key !== 'Tab' || compact) return;
@@ -64,12 +67,13 @@ export default function AttachmentPickerModal({ projectId, onAdd, onClose }) {
   const contents = <>
     <div className="pm-task-attachment-intro"><span className="pm-task-eyebrow">EVERYTHING IN ONE PLACE</span><p>Bring the context your task needs.</p></div>
     <div className="pm-task-attachment-sources" role="group" aria-label="Attachment source">
-      {SOURCES.map(([id, name, icon]) => <button key={id} type="button" aria-pressed={source === id} disabled={busy || (!projectId && id !== 'paste')} className={source === id ? 'is-active' : ''}
+      {[...SOURCES, ...(task?.id ? [['github-actions', 'GitHub actions', 'fab fa-github']] : [])].map(([id, name, icon]) => <button key={id} type="button" aria-pressed={source === id} disabled={busy || (!projectId && id !== 'paste')} className={source === id ? 'is-active' : ''}
         onClick={() => { setSource(id); setError(''); }}><i className={icon} aria-hidden="true" />{name}</button>)}
     </div>
     <AnimatePresence mode="wait" initial={false}>
       <motion.div key={source} className="pm-task-attachment-content" initial={{ opacity: 0, y: reduced ? 0 : 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: reduced ? 0 : 0.14 }}>
-        {source === 'paste' ? <form aria-label="Attachment link" onSubmit={submit} className="cpm-attach-paste">
+        {source === 'github-actions' ? <GitHubTaskSection task={task} project={project} />
+          : source === 'paste' ? <form aria-label="Attachment link" onSubmit={submit} className="cpm-attach-paste">
           <label htmlFor="pm-attachment-url">URL</label><input id="pm-attachment-url" type="url" required className="cpm-attach-input" value={url} onChange={e => setUrl(e.target.value)} placeholder="https://…" />
           <label htmlFor="pm-attachment-label">Label <small>(optional)</small></label><input id="pm-attachment-label" className="cpm-attach-input" value={label} onChange={e => setLabel(e.target.value)} placeholder="Give this link a helpful name" />
         </form> : source === 'drive' ? <DriveFolderBrowser key={projectId} projectId={projectId}
