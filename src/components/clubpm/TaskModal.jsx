@@ -1,15 +1,16 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import toast from "react-hot-toast";
+import { motion, useReducedMotion } from "framer-motion";
+import { attachmentMeta } from "./taskAttachmentUtils";
 import { get, post, patch, del, archiveTask, unarchiveTask, listWorkspaces } from "../../api/clubPmClient";
 import LabScheduleModal from "./labschedule/LabScheduleModal";
 import { useClubPmAuth } from "../../clubpm/ClubPmAuth";
-import MemberBadge from "./MemberBadge";
 import AttachmentPickerModal from "./AttachmentPickerModal";
 import DrivePreviewModal from "./DrivePreviewModal";
 import GitHubTaskSection from "./github/GitHubTaskSection";
 import SlackMentions from "./SlackMentions";
-import { parseDriveUrl, getTypeMeta } from "../../utils/driveUtils";
+
 import MobileSheet from "./MobileSheet";
 import { ConfirmAddMemberDialog, OutsideTag, outsideMatches } from "./OutsideMemberAdd";
 import { useCompactLayout } from "../../clubpm/layout/compactLayout";
@@ -186,7 +187,7 @@ function SectionHeader({ icon, label, open, onToggle, onAction, actionIcon, acti
 
 // ─── Inline field editors ──────────────────────────────────────
 
-function EditableTitle({ value, onChange }) {
+function EditableTitle({ value, onChange, readOnly = false }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
   const ref = useRef();
@@ -201,10 +202,10 @@ function EditableTitle({ value, onChange }) {
 
   if (editing) {
     return (
-      <input ref={ref} value={draft}
+      <input aria-label="Task title" ref={ref} value={draft}
         onChange={e => setDraft(e.target.value)}
         onBlur={commit}
-        onKeyDown={e => { if (e.key === "Enter") commit(); if (e.key === "Escape") { setDraft(value); setEditing(false); } }}
+        onKeyDown={e => { if (e.key === "Enter") commit(); if (e.key === "Escape") { e.stopPropagation(); setDraft(value); setEditing(false); } }}
         style={{
           fontSize:22, fontWeight:700, flex:1, lineHeight:1.3,
           background:"var(--clubpm-surface-200)", border:"1px solid var(--clubpm-accent-primary)",
@@ -215,7 +216,7 @@ function EditableTitle({ value, onChange }) {
     );
   }
   return (
-    <h1 onClick={() => setEditing(true)} title="Click to edit"
+    <h1 tabIndex={readOnly ? undefined : 0} onKeyDown={event => { if (!readOnly && (event.key === "Enter" || event.key === " ")) { event.preventDefault(); setEditing(true); } }} onClick={() => !readOnly && setEditing(true)} title="Click to edit"
       style={{
         fontSize:22, fontWeight:700, color:"var(--clubpm-text-primary)",
         flex:1, lineHeight:1.3, cursor:"text", margin:0,
@@ -229,104 +230,15 @@ function EditableTitle({ value, onChange }) {
   );
 }
 
-function PrioritySelect({ value, onChange }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef();
-  useEffect(() => {
-    if (!open) return;
-    const close = e => { if (!ref.current?.contains(e.target)) setOpen(false); };
-    document.addEventListener("mousedown", close);
-    return () => document.removeEventListener("mousedown", close);
-  }, [open]);
-
-  const cfg = PRIORITY_CFG[value] ?? PRIORITY_CFG.MEDIUM;
-  return (
-    <div ref={ref} style={{ position:"relative" }}>
-      <button onClick={() => setOpen(o => !o)} style={{
-        display:"flex", alignItems:"center", gap:7, background:"none", border:"none",
-        cursor:"pointer", padding:"3px 6px", borderRadius:5,
-        border:"1px solid transparent", transition:"border-color 0.15s",
-      }}
-      onMouseEnter={e => e.currentTarget.style.borderColor = "var(--clubpm-border)"}
-      onMouseLeave={e => { if (!open) e.currentTarget.style.borderColor = "transparent"; }}>
-        <PriorityBars priority={value} />
-        <span style={{ fontSize:13, color:"var(--clubpm-text-secondary)" }}>{cfg.label}</span>
-        <i className="fas fa-chevron-down" style={{ fontSize:9, color:"var(--clubpm-text-muted)" }} />
-      </button>
-      {open && (
-        <div style={{
-          position:"absolute", top:"100%", left:0, zIndex:200, marginTop:4, minWidth:130,
-          background:"var(--clubpm-surface-200)", border:"1px solid var(--clubpm-border)",
-          borderRadius:8, boxShadow:"0 8px 24px rgba(0,0,0,0.3)", padding:4,
-        }}>
-          {PRIORITY_OPTIONS.map(p => {
-            const c = PRIORITY_CFG[p];
-            return (
-              <button key={p} onClick={() => { onChange(p); setOpen(false); }} style={{
-                display:"flex", alignItems:"center", gap:8, width:"100%", textAlign:"left",
-                padding:"7px 10px", border:"none", borderRadius:5, cursor:"pointer", fontSize:12,
-                background: p === value ? "var(--clubpm-surface-300)" : "none",
-                color:"var(--clubpm-text-primary)", transition:"background 0.1s",
-              }}
-              onMouseEnter={e => e.currentTarget.style.background = "var(--clubpm-surface-300)"}
-              onMouseLeave={e => e.currentTarget.style.background = p === value ? "var(--clubpm-surface-300)" : "none"}>
-                <PriorityBars priority={p} />
-                {c.label}
-              </button>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function StatusSelect({ value, onChange }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef();
-  useEffect(() => {
-    if (!open) return;
-    const close = e => { if (!ref.current?.contains(e.target)) setOpen(false); };
-    document.addEventListener("mousedown", close);
-    return () => document.removeEventListener("mousedown", close);
-  }, [open]);
-
-  const current = STATUS_OPTIONS.find(s => s.value === value) ?? STATUS_OPTIONS[0];
-  return (
-    <div ref={ref} style={{ position:"relative" }}>
-      <button onClick={() => setOpen(o => !o)} style={{
-        display:"flex", alignItems:"center", gap:7, background:"none", border:"1px solid transparent",
-        cursor:"pointer", padding:"3px 6px", borderRadius:5, transition:"border-color 0.15s",
-      }}
-      onMouseEnter={e => e.currentTarget.style.borderColor = "var(--clubpm-border)"}
-      onMouseLeave={e => { if (!open) e.currentTarget.style.borderColor = "transparent"; }}>
-        <StatusDot status={value} />
-        <span style={{ fontSize:13, color:"var(--clubpm-text-secondary)" }}>{current.label}</span>
-        <i className="fas fa-chevron-down" style={{ fontSize:9, color:"var(--clubpm-text-muted)" }} />
-      </button>
-      {open && (
-        <div style={{
-          position:"absolute", top:"100%", left:0, zIndex:200, marginTop:4, minWidth:150,
-          background:"var(--clubpm-surface-200)", border:"1px solid var(--clubpm-border)",
-          borderRadius:8, boxShadow:"0 8px 24px rgba(0,0,0,0.3)", padding:4,
-        }}>
-          {STATUS_OPTIONS.map(s => (
-            <button key={s.value} onClick={() => { onChange(s.value); setOpen(false); }} style={{
-              display:"flex", alignItems:"center", gap:8, width:"100%", textAlign:"left",
-              padding:"7px 10px", border:"none", borderRadius:5, cursor:"pointer", fontSize:12,
-              background: s.value === value ? "var(--clubpm-surface-300)" : "none",
-              color:"var(--clubpm-text-primary)", transition:"background 0.1s",
-            }}
-            onMouseEnter={e => e.currentTarget.style.background = "var(--clubpm-surface-300)"}
-            onMouseLeave={e => e.currentTarget.style.background = s.value === value ? "var(--clubpm-surface-300)" : "none"}>
-              <StatusDot status={s.value} />
-              {s.label}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
+function PrioritySelect({ value, onChange, readOnly = false }) {
+  return <div className="pm-task-priority-options" role="group" aria-label="Priority">
+    {[...PRIORITY_OPTIONS].reverse().map(priority => <button type="button" key={priority}
+      disabled={readOnly} aria-pressed={value === priority}
+      className={value === priority ? "is-active" : ""}
+      style={{ "--priority-color": PRIORITY_CFG[priority].color }} onClick={() => onChange(priority)}>
+      <PriorityBars priority={priority} />{PRIORITY_CFG[priority].label}
+    </button>)}
+  </div>;
 }
 
 function AssigneeEditor({ assignees = [], projectMembers = [], onChange, projectId, onMemberAdded }) {
@@ -1236,8 +1148,29 @@ export default function TaskModal({ task: initialTask, project, projectBlockers 
   const [savingCategory, setSavingCategory] = useState(false);
   const [depsOpen, setDepsOpen] = useState(true);
   const [blockersOpen, setBlockersOpen] = useState(true);
-  const [timeOpen, setTimeOpen] = useState(false);
-  const [showLogTime, setShowLogTime] = useState(false);
+  const [timeOpen, setTimeOpen] = useState(true);
+  const [showLogTime, setShowLogTime] = useState(true);
+  const logInFlight = useRef(false);
+  const [loggingTime, setLoggingTime] = useState(false);
+  const [saveState, setSaveState] = useState("idle");
+  const pendingSaves = useRef(0);
+  const reduceMotion = useReducedMotion();
+  const dialogRef = useRef(null);
+  useEffect(() => {
+    if (compact) return;
+    const opener = document.activeElement;
+    dialogRef.current?.focus();
+    return () => { if (opener?.isConnected) opener.focus(); };
+  }, [compact]);
+  function dialogKeys(event) {
+    if (compact || !event.currentTarget.contains(event.target)) return;
+    if (event.key === "Escape") { event.stopPropagation(); onClose(); }
+    if (event.key !== "Tab") return;
+    const nodes = [...event.currentTarget.querySelectorAll('button:not(:disabled), input, textarea, select, a[href], [tabindex="0"]')].filter(node => node.getClientRects().length);
+    const first = nodes[0], last = nodes[nodes.length - 1];
+    if (event.shiftKey && (document.activeElement === first || document.activeElement === event.currentTarget)) { event.preventDefault(); last?.focus(); }
+    else if (!event.shiftKey && (document.activeElement === last || document.activeElement === event.currentTarget)) { event.preventDefault(); first?.focus(); }
+  }
   const [logMinutes, setLogMinutes] = useState("");
   const [logNote, setLogNote] = useState("");
 
@@ -1276,6 +1209,7 @@ export default function TaskModal({ task: initialTask, project, projectBlockers 
       get(`/api/tasks/${task.id}/subtasks`).then(setSubtasks).catch(() => {});
       // Fetch full task to get persisted blockers (blockedBy not always included in list views)
       get(`/api/tasks/${task.id}`).then(full => {
+        if (full?.timeLogs) setTask(current => ({ ...current, timeLogs: full.timeLogs }));
         if (full?.blockedBy) {
           setBlockingTasks(full.blockedBy.map(d => ({ ...d.blockingTask, reason: d.reason ?? null })));
         }
@@ -1299,6 +1233,9 @@ export default function TaskModal({ task: initialTask, project, projectBlockers 
   }, [task.id, task.projectId]);
 
   const saveField = useCallback(async (fields) => {
+    if (readOnly) return;
+    pendingSaves.current += 1;
+    setSaveState("saving");
     const previous = { ...task };
     const updated = { ...task, ...fields };
     setTask(updated);
@@ -1306,7 +1243,10 @@ export default function TaskModal({ task: initialTask, project, projectBlockers 
       const result = await patch(`/api/tasks/${task.id}`, fields);
       setTask(t => ({ ...t, ...result }));
       onUpdate?.({ ...updated, ...result });
+      setSaveState("saved");
+      return result;
     } catch (err) {
+      setSaveState("error");
       setTask(previous);
       if (err?.status === 403) {
         toast.error(err.message || "You don't have permission to edit this task");
@@ -1314,17 +1254,25 @@ export default function TaskModal({ task: initialTask, project, projectBlockers 
         if (fields.status && err?.message) alert(err.message);
         else toast.error("Failed to save task");
       }
+      return false;
     }
-  }, [task, onUpdate]);
+    finally {
+      pendingSaves.current -= 1;
+      if (pendingSaves.current > 0) setSaveState("saving");
+    }
+  }, [task, onUpdate, readOnly]);
 
   const handleStatusChange = useCallback(async (newStatus) => {
+    if (readOnly) return;
     if (onStatusMove) {
       const previous = task;
+      setSaveState("saving");
       setTask(t => ({ ...t, status: newStatus }));
       try {
         const result = await onStatusMove(task, newStatus);
         setTask(t => t.status === newStatus ? { ...t, ...result } : t);
-      } catch { setTask(t => t.status === newStatus ? previous : t); }
+        setSaveState("saved");
+      } catch { setTask(t => t.status === newStatus ? previous : t); setSaveState("error"); }
       return;
     }
     if (newStatus === "DONE") {
@@ -1374,7 +1322,7 @@ export default function TaskModal({ task: initialTask, project, projectBlockers 
       }
     }
     await saveField(fields);
-  }, [task, member, saveField, onUpdate, onStatusMove, blockingTasks, taskBlockers]);
+  }, [task, member, saveField, onUpdate, onStatusMove, blockingTasks, taskBlockers, readOnly]);
 
   async function submitComment() {
     if (!commentDraft.trim() || commentInFlight.current) return;
@@ -1509,7 +1457,8 @@ export default function TaskModal({ task: initialTask, project, projectBlockers 
   async function handleAddLink(payload) {
     const additions = Array.isArray(payload) ? payload : [payload];
     const attachments = [...(task.attachments ?? []), ...additions];
-    await saveField({ attachments });
+    const saved = await saveField({ attachments });
+    if (saved === false) throw new Error("Could not save attachments. Please try again.");
   }
 
   function addTag(tag) {
@@ -1652,13 +1601,17 @@ export default function TaskModal({ task: initialTask, project, projectBlockers 
   }
 
   async function submitLogTime() {
-    const mins = parseInt(logMinutes);
-    if (!mins || mins < 1) return;
+    const mins = Number(logMinutes);
+    if (readOnly || !Number.isInteger(mins) || mins < 1 || logInFlight.current) return;
+    logInFlight.current = true;
+    setLoggingTime(true);
     try {
       const log = await post(`/api/tasks/${task.id}/time-logs`, { minutes: mins, note: logNote.trim() || undefined });
       setTask(t => ({ ...t, timeLogs: [...(t.timeLogs ?? []), log] }));
-      setLogMinutes(""); setLogNote(""); setShowLogTime(false);
-    } catch (e) { console.error("Failed to log time", e); }
+      setLogMinutes(""); setLogNote("");
+      toast.success("Time logged");
+    } catch (e) { toast.error(e.message || "Failed to log time"); }
+    finally { logInFlight.current = false; setLoggingTime(false); }
   }
 
   const dueInfo = dueDateLabel(task.dueDate);
@@ -1668,9 +1621,9 @@ export default function TaskModal({ task: initialTask, project, projectBlockers 
   const modalStyle = {
     background:"var(--clubpm-surface-100)",
     borderRadius: effectiveFullscreen ? 0 : 14,
-    width: effectiveFullscreen ? "100%" : "min(820px, 96vw)",
+    width: effectiveFullscreen ? "100%" : "min(1080px, 96vw)",
     maxHeight: effectiveFullscreen ? "100%" : "92vh",
-    height: effectiveFullscreen ? "100%" : undefined,
+    height: effectiveFullscreen ? "100%" : "min(880px, 92vh)",
     overflow:"hidden",
     display:"flex", flexDirection:"column",
     boxShadow:"0 32px 100px rgba(0,0,0,0.6)",
@@ -1680,7 +1633,9 @@ export default function TaskModal({ task: initialTask, project, projectBlockers 
   };
 
   const modalPanel = (
-      <div className="pm-task-modal-panel" style={modalStyle} data-tour-id="task.modal">
+      <motion.div ref={dialogRef} role={compact ? undefined : "dialog"} aria-modal={compact ? undefined : true} aria-label={compact ? undefined : "Task details"} tabIndex={compact ? undefined : -1} onKeyDown={dialogKeys} className="pm-task-modal-panel pm-task-studio" style={modalStyle} data-tour-id="task.modal"
+        initial={reduceMotion ? false : { opacity: 0, y: 24, scale: 0.97 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ type: "spring", stiffness: 330, damping: 29 }}>
 
         {/* Top bar */}
         <div className="pm-task-modal-topbar" style={{
@@ -1717,14 +1672,15 @@ export default function TaskModal({ task: initialTask, project, projectBlockers 
         </div>
 
         {/* Scrollable body */}
-        <div className="cpm-scrollable" style={{ flex:1, overflowY:"auto", display:"flex", flexDirection:"column" }}>
+        <div className="cpm-scrollable pm-task-studio-body">
+          <main className="pm-task-studio-main">
 
           {/* Title + actions */}
           <div style={{ padding:"16px 20px 10px" }}>
             <div style={{ display:"flex", alignItems:"flex-start", gap:12, marginBottom:10 }}>
               <div style={{ flexShrink:0, marginTop:4 }}>
                 {(task.assignees?.[0]?.avatarUrl)
-                  ? <img src={task.assignees[0].avatarUrl}
+                  ? <img src={task.assignees[0].avatarUrl} alt=""
                       style={{ width:34, height:34, borderRadius:"50%", border:"2px solid var(--clubpm-border)" }} />
                   : <div style={{
                       width:34, height:34, borderRadius:"50%", flexShrink:0,
@@ -1734,7 +1690,7 @@ export default function TaskModal({ task: initialTask, project, projectBlockers 
                 }
               </div>
               <div data-tour-id="task.modal.title" style={{ flex:1, display:"flex" }}>
-                <EditableTitle value={task.title}
+                <EditableTitle readOnly={readOnly} value={task.title}
                   onChange={val => saveField({ title: val })} />
               </div>
             </div>
@@ -1820,160 +1776,21 @@ export default function TaskModal({ task: initialTask, project, projectBlockers 
             </div>
           </div>
 
-          {/* Metadata grid */}
-          <div className="pm-task-modal-meta" style={{
-            display:"grid", gridTemplateColumns:"130px 1fr 130px 1fr",
-            gap:"10px 0", padding:"12px 20px",
-            borderTop:"1px solid var(--clubpm-border)", borderBottom:"1px solid var(--clubpm-border)",
-            alignItems:"center",
-          }}>
-            <MetaRow label="Created By">
-              {createdByMember
-                ? <AvatarPill member={createdByMember} />
-                : <span style={{ fontSize:12, color:"var(--clubpm-text-muted)" }}>—</span>
-              }
-              {task.createdAt && (
-                <span style={{ fontSize:11, color:"var(--clubpm-text-muted)" }}>
-                  on {MONTHS_SHORT[new Date(task.createdAt).getMonth()]} {new Date(task.createdAt).getDate()}
-                </span>
-              )}
-            </MetaRow>
-
-            <MetaRow label="Assigned to" tourId="task.modal.assignees">
-              <AssigneeEditor
-                assignees={task.assignees ?? []}
-                projectMembers={projectMembers}
-                projectId={task.projectId}
-                onMemberAdded={addProjectMember}
-                onChange={assignees => saveField({ assigneeIds: assignees.map(a => a.id), assignees })}
-              />
-            </MetaRow>
-
-            <MetaRow label="Due Date" tourId="task.modal.due">
-              {editingDueDate ? (
-                <input type="date" autoFocus defaultValue={toInputDate(task.dueDate)}
-                  onBlur={e => { setEditingDueDate(false); if (e.target.value) saveField({ dueDate: new Date(e.target.value + 'T12:00:00').toISOString() }); }}
-                  onChange={e => { if (e.target.value) saveField({ dueDate: new Date(e.target.value + 'T12:00:00').toISOString() }); }}
-                  style={{ ...styles.input, width:130, padding:"4px 8px", fontSize:12 }} />
-              ) : (
-                <button onClick={() => setEditingDueDate(true)} style={{
-                  background:"none", border:"1px solid transparent", borderRadius:5, cursor:"pointer",
-                  padding:"3px 6px", fontSize:13, transition:"border-color 0.15s",
-                  color: dueInfo?.cls === "today" ? "var(--clubpm-accent-primary)"
-                    : dueInfo?.cls === "overdue" ? "#e17055"
-                    : "var(--clubpm-text-secondary)",
-                  fontWeight: dueInfo ? 500 : 400,
-                }}
-                onMouseEnter={e => e.currentTarget.style.borderColor = "var(--clubpm-border)"}
-                onMouseLeave={e => e.currentTarget.style.borderColor = "transparent"}>
-                  {dueInfo?.text ?? "Set due date"}
-                </button>
-              )}
-            </MetaRow>
-
-            <MetaRow label="Priority" tourId="task.modal.priority">
-              <PrioritySelect value={task.priority ?? "MEDIUM"}
-                onChange={val => saveField({ priority: val })} />
-            </MetaRow>
-
-            <MetaRow label="Status" tourId="task.modal.status">
-              <StatusSelect value={task.status ?? "TODO"}
-                onChange={handleStatusChange} />
-            </MetaRow>
-
-            <MetaRow label="Tags">
-              <div style={{ display: "flex", gap: 4, flexWrap: "wrap", alignItems: "center" }}>
-                {tags.map((tag) => (
-                  <span key={tag.id ?? tag} style={{
-                    fontSize: 11, padding: "2px 7px", borderRadius: 10,
-                    display: "flex", alignItems: "center", gap: 3,
-                    background: tag.color ? tag.color + "22" : "var(--clubpm-surface-300)",
-                    border: `1px solid ${tag.color ?? "var(--clubpm-border)"}`,
-                    color: tag.color ?? "var(--clubpm-text-secondary)",
-                  }}>
-                    {tag.name ?? tag}
-                    {!readOnly && (
-                      <button onClick={() => removeTag(tag)} style={{
-                        background: "none", border: "none", cursor: "pointer",
-                        padding: 0, color: "inherit", fontSize: 10, lineHeight: 1,
-                      }}>×</button>
-                    )}
-                  </span>
-                ))}
-                {!readOnly && tags.length < 5 && projectTags.filter(pt => !tags.some(t => (t.id ?? t) === (pt.id ?? pt))).length > 0 && (
-                  <select
-                    value=""
-                    onChange={e => addTag(projectTags.find(t => t.id === e.target.value))}
-                    style={{ fontSize: 11, padding: "2px 6px", borderRadius: 6,
-                      background: "var(--clubpm-surface-300)", border: "1px solid var(--clubpm-border)",
-                      color: "var(--clubpm-text-secondary)", cursor: "pointer" }}
-                  >
-                    <option value="">+ Add tag</option>
-                    {projectTags
-                      .filter(pt => !tags.some(t => (t.id ?? t) === (pt.id ?? pt)))
-                      .map(pt => <option key={pt.id} value={pt.id}>{pt.name}</option>)
-                    }
-                  </select>
-                )}
-                {!readOnly && tags.length < 5 && (
-                  <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 4 }}>
-                    <input
-                      type="text"
-                      placeholder="New tag…"
-                      value={newTagName}
-                      onChange={e => setNewTagName(e.target.value)}
-                      onKeyDown={e => e.key === "Enter" && createTag()}
-                      style={{ fontSize: 11, padding: "2px 6px", borderRadius: 5, width: 90,
-                        background: "var(--clubpm-surface-300)", border: "1px solid var(--clubpm-border)",
-                        color: "var(--clubpm-text-primary)", outline: "none" }}
-                    />
-                    <input type="color" value={newTagColor} onChange={e => setNewTagColor(e.target.value)}
-                      title="Tag color"
-                      style={{ width: 22, height: 22, padding: 1, borderRadius: 4, cursor: "pointer",
-                        border: "1px solid var(--clubpm-border)", background: "transparent" }} />
-                    <button onClick={createTag} disabled={!newTagName.trim() || creatingTag}
-                      style={{ fontSize: 10, padding: "2px 7px", borderRadius: 5,
-                        background: "var(--clubpm-accent-primary)", border: "none", color: "#fff",
-                        cursor: newTagName.trim() && !creatingTag ? "pointer" : "default",
-                        opacity: newTagName.trim() && !creatingTag ? 1 : 0.45 }}>
-                      {creatingTag ? "…" : "Create"}
-                    </button>
-                  </div>
-                )}
-                {!readOnly && tags.length >= 5 && (
-                  <span style={{ fontSize: 10, color: "var(--clubpm-text-muted)" }}>Max 5 tags</span>
-                )}
-                {tags.length === 0 && readOnly && (
-                  <span style={{ fontSize: 12, color: "var(--clubpm-text-muted)", fontStyle: "italic" }}>None</span>
-                )}
-              </div>
-            </MetaRow>
+          <div className="pm-task-status-track" data-tour-id="task.modal.status" role="group" aria-label="Task status">
+            {STATUS_OPTIONS.map(option => <button type="button" key={option.value}
+              disabled={readOnly} aria-pressed={task.status === option.value}
+              className={task.status === option.value ? "is-active" : ""}
+              onClick={() => task.status !== option.value && handleStatusChange(option.value)}>
+              {task.status === option.value && <motion.div className="pm-task-status-selection"
+                layoutId={`task-status-${task.id}`} transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 420, damping: 32 }} />}
+              <StatusDot status={option.value} /><span>{option.label}</span>
+            </button>)}
           </div>
-
-          {/* Subtasks */}
-          <div data-tour-id="task.modal.subtasks">
-            <SectionHeader icon="sitemap" label={`Subtasks (${subtasks.length})`}
-              open={subtasksOpen} onToggle={() => setSubtasksOpen(o => !o)}
-              onAction={() => setShowSubtaskModal(true)} actionIcon="plus" actionTitle="Add subtask" />
-            {subtasksOpen && (
-              <div style={{ padding:"10px 20px", display:"flex", flexDirection:"column", gap:5 }}>
-                {subtasks.length === 0
-                  ? <p style={{ fontSize:12, color:"var(--clubpm-text-muted)", fontStyle:"italic", margin:0 }}>
-                      No subtasks yet — click + to add one
-                    </p>
-                  : subtasks.map(s => (
-                      <SubtaskRow key={s.id} subtask={s} onClick={t => setNestedTask(t)} />
-                    ))
-                }
-              </div>
-            )}
-          </div>
-
           {/* Description */}
           <div data-tour-id="task.modal.description">
             <SectionHeader icon="file-alt" label="Description"
               open={descOpen} onToggle={() => setDescOpen(o => !o)}
-              onAction={() => setEditingDesc(true)} actionIcon="pencil-alt" actionTitle="Edit description" />
+              onAction={readOnly ? undefined : () => setEditingDesc(true)} actionIcon="pencil-alt" actionTitle="Edit description" />
             {descOpen && (
               <div style={{ padding:"10px 20px 16px" }}>
                 {editingDesc ? (
@@ -1996,7 +1813,7 @@ export default function TaskModal({ task: initialTask, project, projectBlockers 
                     </div>
                   </>
                 ) : (
-                  <div onClick={() => setEditingDesc(true)} style={{
+                  <div onClick={() => !readOnly && setEditingDesc(true)} style={{
                     fontSize:13, color: task.description ? "var(--clubpm-text-secondary)" : "var(--clubpm-text-muted)",
                     lineHeight:1.7, cursor:"text", padding:"8px 12px", borderRadius:8,
                     border:"1px solid transparent", minHeight:42, transition:"border-color 0.15s",
@@ -2014,93 +1831,28 @@ export default function TaskModal({ task: initialTask, project, projectBlockers 
             )}
           </div>
 
-          {/* Attachments */}
-          <div>
-            <SectionHeader icon="folder" label="Attachments"
-              open={attachOpen} onToggle={() => setAttachOpen(o => !o)}
-              onAction={() => setShowAddLink(true)} actionIcon="arrow-up" actionTitle="Add Drive link" />
-            {attachOpen && (
-              <div style={{ padding:"10px 20px 16px", display:"flex", flexDirection:"column", gap:6 }}>
-                {(task.attachments ?? []).length === 0
+          {/* Subtasks */}
+          <div data-tour-id="task.modal.subtasks">
+            <SectionHeader icon="sitemap" label={`Subtasks (${subtasks.length})`}
+              open={subtasksOpen} onToggle={() => setSubtasksOpen(o => !o)}
+              onAction={readOnly ? undefined : () => setShowSubtaskModal(true)} actionIcon="plus" actionTitle="Add subtask" />
+            {subtasks.length > 0 && <div className="pm-task-checklist-progress">
+              <span>{subtasks.filter(item => item.status === "DONE").length} of {subtasks.length} completed</span>
+              <div><motion.div initial={false} animate={{ width: `${subtasks.filter(item => item.status === "DONE").length / subtasks.length * 100}%` }} transition={{ duration: reduceMotion ? 0 : 0.45 }} /></div>
+            </div>}
+            {subtasksOpen && (
+              <div style={{ padding:"10px 20px", display:"flex", flexDirection:"column", gap:5 }}>
+                {subtasks.length === 0
                   ? <p style={{ fontSize:12, color:"var(--clubpm-text-muted)", fontStyle:"italic", margin:0 }}>
-                      No attachments yet
+                      No subtasks yet — click + to add one
                     </p>
-                  : (task.attachments ?? []).map((rawAtt, i) => {
-                      // Tolerate legacy bare-string rows that pre-date the Json column.
-                      const att = typeof rawAtt === "string" ? { url: rawAtt, label: rawAtt } : (rawAtt ?? {});
-                      if (!att.url) return null;
-                      const parsed = parseDriveUrl(att.url);
-                      const meta = getTypeMeta(parsed.kind);
-                      const canPreview = parsed.kind !== "unknown";
-                      return (
-                        <div key={i} style={{
-                          display:"flex", alignItems:"center", gap:10, padding:"8px 12px",
-                          borderRadius:7, border:"1px solid var(--clubpm-border)",
-                          background:"var(--clubpm-surface-200)",
-                        }}>
-                          <i className={`fas ${meta.icon}`} style={{ color: meta.color, fontSize:16, flexShrink:0 }} aria-hidden="true" />
-                          <a href={att.url} target="_blank" rel="noopener noreferrer" style={{
-                            fontSize:12, color:"var(--clubpm-accent-primary)", flex:1,
-                            overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
-                            textDecoration:"none",
-                          }}>{att.label || att.url}</a>
-                          <span style={{
-                            fontSize:10, color: meta.color, fontWeight:600, letterSpacing:"0.04em",
-                            textTransform:"uppercase", flexShrink:0,
-                          }}>
-                            {meta.label}
-                          </span>
-                          {canPreview && (
-                            <button
-                              type="button"
-                              onClick={() => setPreviewAttachment({ url: att.url, label: att.label })}
-                              title="Preview"
-                              aria-label="Preview attachment"
-                              style={{
-                                background:"none", border:"none", cursor:"pointer", padding:"2px 4px",
-                                color:"var(--clubpm-text-muted)", fontSize:12, borderRadius:4,
-                              }}
-                            >
-                              <i className="fas fa-eye" aria-hidden="true" />
-                            </button>
-                          )}
-                          <button onClick={() => {
-                            const next = (task.attachments ?? []).filter((_,j) => j !== i);
-                            saveField({ attachments: next });
-                          }}
-                          title="Remove attachment"
-                          aria-label="Remove attachment"
-                          style={{
-                            background:"none", border:"none", cursor:"pointer", padding:"2px 4px",
-                            color:"var(--clubpm-text-muted)", fontSize:11, borderRadius:4,
-                          }}>
-                            <i className="fas fa-times" />
-                          </button>
-                        </div>
-                      );
-                    })
+                  : subtasks.map(s => (
+                      <SubtaskRow key={s.id} subtask={s} onClick={t => setNestedTask(t)} />
+                    ))
                 }
-                <button onClick={() => setShowAddLink(true)} style={{
-                  display:"flex", alignItems:"center", gap:6, padding:"7px 10px",
-                  borderRadius:7, border:"1px dashed var(--clubpm-border)",
-                  background:"none", cursor:"pointer", fontSize:12,
-                  color:"var(--clubpm-text-muted)", transition:"border-color 0.15s, color 0.15s",
-                }}
-                onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--clubpm-accent-primary)"; e.currentTarget.style.color = "var(--clubpm-accent-primary)"; }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--clubpm-border)"; e.currentTarget.style.color = "var(--clubpm-text-muted)"; }}>
-                  <i className="fab fa-google-drive" />
-                  Add Drive link
-                </button>
               </div>
             )}
           </div>
-
-          {/* GitHub (Phase 2) */}
-          <div style={{ padding: "0 20px 16px" }}>
-            <GitHubTaskSection task={task} project={project} />
-          </div>
-
-          <SlackMentions entityType="TASK" entityId={task.id} />
 
           {/* Dependencies */}
           {(() => {
@@ -2297,71 +2049,6 @@ export default function TaskModal({ task: initialTask, project, projectBlockers 
             )}
           </div>
 
-          {/* Time Tracking */}
-          <div data-tour-id="task.modal.timelog">
-            <SectionHeader icon="clock" label="Time Tracking" open={timeOpen} onToggle={() => setTimeOpen(o => !o)} />
-            {timeOpen && (
-              <div style={{ padding:"10px 20px 16px", display:"flex", flexDirection:"column", gap:10 }}>
-                <div style={{ display:"flex", gap:20, fontSize:12, color:"var(--clubpm-text-secondary)" }}>
-                  <span>Estimated: {task.estimatedHours ? `${task.estimatedHours} hrs` : "—"}{task.storyPoints ? ` · ${task.storyPoints} pts` : ""}</span>
-                  <span>Logged: {formatLoggedTime(task.timeLogs)}</span>
-                </div>
-                {task.estimatedHours && (task.timeLogs ?? []).length > 0 && (
-                  <div style={{ height:6, borderRadius:3, background:"var(--clubpm-surface-400)", overflow:"hidden" }}>
-                    <div style={{
-                      height:"100%", borderRadius:3, background:"var(--clubpm-accent-primary)",
-                      width:`${Math.min(100, (totalLoggedMinutes(task.timeLogs) / (task.estimatedHours * 60)) * 100)}%`,
-                      transition:"width 0.3s",
-                    }} />
-                  </div>
-                )}
-                {(task.timeLogs ?? []).length > 0 && (
-                  <div style={{ display:"flex", flexDirection:"column", gap:3 }}>
-                    {task.timeLogs.map((log, i) => (
-                      <div key={i} style={{ fontSize:11, color:"var(--clubpm-text-muted)", display:"flex", gap:6 }}>
-                        <span>{Math.floor(log.minutes / 60)}h {log.minutes % 60}m</span>
-                        {log.note && <span>— {log.note}</span>}
-                      </div>
-                    ))}
-                  </div>
-                )}
-                {!readOnly && !showLogTime && (
-                  <button onClick={() => setShowLogTime(true)} style={{
-                    ...styles.cancelBtn, display:"flex", alignItems:"center", gap:6, width:"fit-content",
-                  }}>
-                    <i className="fas fa-clock" style={{ fontSize:11 }} /> Log Time
-                  </button>
-                )}
-                {showLogTime && (
-                  <div style={{ display:"flex", flexDirection:"column", gap:8,
-                    background:"var(--clubpm-surface-200)", borderRadius:8, padding:"12px" }}>
-                    <div style={{ display:"flex", gap:8 }}>
-                      <input type="number" min={1} value={logMinutes}
-                        onChange={e => setLogMinutes(e.target.value)}
-                        placeholder="Minutes"
-                        style={{ ...styles.input, width:100 }} />
-                      <input type="text" value={logNote}
-                        onChange={e => setLogNote(e.target.value)}
-                        placeholder="Note (optional)"
-                        style={{ ...styles.input, flex:1 }} />
-                    </div>
-                    <div style={{ display:"flex", gap:8 }}>
-                      <button onClick={submitLogTime}
-                        disabled={!logMinutes || parseInt(logMinutes) < 1}
-                        style={{ ...styles.primaryBtn, opacity: !logMinutes ? 0.6 : 1 }}>
-                        Submit
-                      </button>
-                      <button onClick={() => { setShowLogTime(false); setLogMinutes(""); setLogNote(""); }}
-                        style={styles.cancelBtn}>
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
           {/* Comments & History tabs */}
           <div className="pm-task-modal-activity" style={{ flexShrink:0 }}>
             <div style={{
@@ -2459,8 +2146,302 @@ export default function TaskModal({ task: initialTask, project, projectBlockers 
               )}
             </div>
           </div>
+          </main>
+          <aside className="pm-task-studio-side" aria-label="Task details">
+          {/* Metadata grid */}
+          <div className="pm-task-modal-meta" style={{
+            display:"grid", gridTemplateColumns:"130px 1fr 130px 1fr",
+            gap:"10px 0", padding:"12px 20px",
+            borderTop:"1px solid var(--clubpm-border)", borderBottom:"1px solid var(--clubpm-border)",
+            alignItems:"center",
+          }}>
+            <MetaRow label="Created By">
+              {createdByMember
+                ? <AvatarPill member={createdByMember} />
+                : <span style={{ fontSize:12, color:"var(--clubpm-text-muted)" }}>—</span>
+              }
+              {task.createdAt && (
+                <span style={{ fontSize:11, color:"var(--clubpm-text-muted)" }}>
+                  on {MONTHS_SHORT[new Date(task.createdAt).getMonth()]} {new Date(task.createdAt).getDate()}
+                </span>
+              )}
+            </MetaRow>
+
+            <MetaRow label="Assigned to" tourId="task.modal.assignees">
+              {readOnly ? (task.assignees?.length ? task.assignees.map(assignee => <AvatarPill key={assignee.id} member={assignee} />) : <span>Unassigned</span>) : <AssigneeEditor
+                assignees={task.assignees ?? []}
+                projectMembers={projectMembers}
+                projectId={task.projectId}
+                onMemberAdded={addProjectMember}
+                onChange={assignees => saveField({ assigneeIds: assignees.map(a => a.id), assignees })}
+              />}
+            </MetaRow>
+
+            <MetaRow label="Due Date" tourId="task.modal.due">
+              {editingDueDate ? (
+                <input type="date" autoFocus defaultValue={toInputDate(task.dueDate)}
+                  onBlur={e => { setEditingDueDate(false); if (e.target.value) saveField({ dueDate: new Date(e.target.value + 'T12:00:00').toISOString() }); }}
+                  onChange={e => { if (e.target.value) saveField({ dueDate: new Date(e.target.value + 'T12:00:00').toISOString() }); }}
+                  style={{ ...styles.input, width:130, padding:"4px 8px", fontSize:12 }} />
+              ) : (
+                <button disabled={readOnly} onClick={() => setEditingDueDate(true)} style={{
+                  background:"none", border:"1px solid transparent", borderRadius:5, cursor:"pointer",
+                  padding:"3px 6px", fontSize:13, transition:"border-color 0.15s",
+                  color: dueInfo?.cls === "today" ? "var(--clubpm-accent-primary)"
+                    : dueInfo?.cls === "overdue" ? "#e17055"
+                    : "var(--clubpm-text-secondary)",
+                  fontWeight: dueInfo ? 500 : 400,
+                }}
+                onMouseEnter={e => e.currentTarget.style.borderColor = "var(--clubpm-border)"}
+                onMouseLeave={e => e.currentTarget.style.borderColor = "transparent"}>
+                  {dueInfo?.text ?? "Set due date"}
+                </button>
+              )}
+              {!readOnly && <div className="pm-task-due-shortcuts">
+                {[["Today", 0], ["Tomorrow", 1], ["Next week", 7]].map(([label, days]) => <button type="button" key={label} onClick={() => {
+                  const date = new Date(); date.setDate(date.getDate() + days); date.setHours(12, 0, 0, 0);
+                  saveField({ dueDate: date.toISOString() });
+                }}>{label}</button>)}
+                {task.dueDate && <button type="button" onClick={() => saveField({ dueDate: null })}>Clear</button>}
+              </div>}
+            </MetaRow>
+
+            <MetaRow label="Priority" tourId="task.modal.priority">
+              <PrioritySelect readOnly={readOnly} value={task.priority ?? "MEDIUM"}
+                onChange={val => saveField({ priority: val })} />
+            </MetaRow>
+
+            <MetaRow label="Tags">
+              <div style={{ display: "flex", gap: 4, flexWrap: "wrap", alignItems: "center" }}>
+                {tags.map((tag) => (
+                  <span key={tag.id ?? tag} style={{
+                    fontSize: 11, padding: "2px 7px", borderRadius: 10,
+                    display: "flex", alignItems: "center", gap: 3,
+                    background: tag.color ? tag.color + "22" : "var(--clubpm-surface-300)",
+                    border: `1px solid ${tag.color ?? "var(--clubpm-border)"}`,
+                    color: tag.color ?? "var(--clubpm-text-secondary)",
+                  }}>
+                    {tag.name ?? tag}
+                    {!readOnly && (
+                      <button onClick={() => removeTag(tag)} style={{
+                        background: "none", border: "none", cursor: "pointer",
+                        padding: 0, color: "inherit", fontSize: 10, lineHeight: 1,
+                      }}>×</button>
+                    )}
+                  </span>
+                ))}
+                {!readOnly && tags.length < 5 && projectTags.filter(pt => !tags.some(t => (t.id ?? t) === (pt.id ?? pt))).length > 0 && (
+                  <select
+                    value=""
+                    onChange={e => addTag(projectTags.find(t => t.id === e.target.value))}
+                    style={{ fontSize: 11, padding: "2px 6px", borderRadius: 6,
+                      background: "var(--clubpm-surface-300)", border: "1px solid var(--clubpm-border)",
+                      color: "var(--clubpm-text-secondary)", cursor: "pointer" }}
+                  >
+                    <option value="">+ Add tag</option>
+                    {projectTags
+                      .filter(pt => !tags.some(t => (t.id ?? t) === (pt.id ?? pt)))
+                      .map(pt => <option key={pt.id} value={pt.id}>{pt.name}</option>)
+                    }
+                  </select>
+                )}
+                {!readOnly && tags.length < 5 && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 4 }}>
+                    <input
+                      type="text"
+                      placeholder="New tag…"
+                      value={newTagName}
+                      onChange={e => setNewTagName(e.target.value)}
+                      onKeyDown={e => e.key === "Enter" && createTag()}
+                      style={{ fontSize: 11, padding: "2px 6px", borderRadius: 5, width: 90,
+                        background: "var(--clubpm-surface-300)", border: "1px solid var(--clubpm-border)",
+                        color: "var(--clubpm-text-primary)", outline: "none" }}
+                    />
+                    <input type="color" value={newTagColor} onChange={e => setNewTagColor(e.target.value)}
+                      title="Tag color"
+                      style={{ width: 22, height: 22, padding: 1, borderRadius: 4, cursor: "pointer",
+                        border: "1px solid var(--clubpm-border)", background: "transparent" }} />
+                    <button onClick={createTag} disabled={!newTagName.trim() || creatingTag}
+                      style={{ fontSize: 10, padding: "2px 7px", borderRadius: 5,
+                        background: "var(--clubpm-accent-primary)", border: "none", color: "#fff",
+                        cursor: newTagName.trim() && !creatingTag ? "pointer" : "default",
+                        opacity: newTagName.trim() && !creatingTag ? 1 : 0.45 }}>
+                      {creatingTag ? "…" : "Create"}
+                    </button>
+                  </div>
+                )}
+                {!readOnly && tags.length >= 5 && (
+                  <span style={{ fontSize: 10, color: "var(--clubpm-text-muted)" }}>Max 5 tags</span>
+                )}
+                {tags.length === 0 && readOnly && (
+                  <span style={{ fontSize: 12, color: "var(--clubpm-text-muted)", fontStyle: "italic" }}>None</span>
+                )}
+              </div>
+            </MetaRow>
+          </div>
+
+          {/* Time Tracking */}
+          <div data-tour-id="task.modal.timelog">
+            <SectionHeader icon="clock" label="Time Tracking" open={timeOpen} onToggle={() => setTimeOpen(o => !o)} />
+            {timeOpen && (
+              <div style={{ padding:"10px 20px 16px", display:"flex", flexDirection:"column", gap:10 }}>
+                <div style={{ display:"flex", flexWrap:"wrap", gap:8, fontSize:12, color:"var(--clubpm-text-secondary)" }}>
+                  <span>Estimated: {task.estimatedHours ? `${task.estimatedHours} hrs` : "—"}{task.storyPoints ? ` · ${task.storyPoints} pts` : ""}</span>
+                  <span>Logged: {formatLoggedTime(task.timeLogs)}</span>
+                </div>
+                {task.estimatedHours && (task.timeLogs ?? []).length > 0 && (
+                  <div style={{ height:6, borderRadius:3, background:"var(--clubpm-surface-400)", overflow:"hidden" }}>
+                    <div style={{
+                      height:"100%", borderRadius:3, background:"var(--clubpm-accent-primary)",
+                      width:`${Math.min(100, (totalLoggedMinutes(task.timeLogs) / (task.estimatedHours * 60)) * 100)}%`,
+                      transition:"width 0.3s",
+                    }} />
+                  </div>
+                )}
+                {(task.timeLogs ?? []).length > 0 && (
+                  <div style={{ display:"flex", flexDirection:"column", gap:3 }}>
+                    {task.timeLogs.map((log, i) => (
+                      <div key={i} style={{ fontSize:11, color:"var(--clubpm-text-muted)", display:"flex", gap:6 }}>
+                        <span>{Math.floor(log.minutes / 60)}h {log.minutes % 60}m</span>
+                        {log.note && <span>— {log.note}</span>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {!readOnly && !showLogTime && (
+                  <button onClick={() => setShowLogTime(true)} style={{
+                    ...styles.cancelBtn, display:"flex", alignItems:"center", gap:6, width:"fit-content",
+                  }}>
+                    <i className="fas fa-clock" style={{ fontSize:11 }} /> Log Time
+                  </button>
+                )}
+                {!readOnly && showLogTime && (
+                  <div style={{ display:"flex", flexDirection:"column", gap:8,
+                    background:"var(--clubpm-surface-200)", borderRadius:8, padding:"12px" }}>
+                    <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
+                      <input aria-label="Minutes to log" type="number" min={1} value={logMinutes}
+                        onChange={e => setLogMinutes(e.target.value)}
+                        placeholder="Minutes"
+                        style={{ ...styles.input, width:100 }} />
+                      <input type="text" value={logNote}
+                        onChange={e => setLogNote(e.target.value)}
+                        placeholder="Note (optional)"
+                        style={{ ...styles.input, flex:1 }} />
+                    </div>
+                    <div style={{ display:"flex", gap:8 }}>
+                      <button onClick={submitLogTime}
+                        disabled={loggingTime || !Number.isInteger(Number(logMinutes)) || Number(logMinutes) < 1}
+                        style={{ ...styles.primaryBtn, opacity: !logMinutes ? 0.6 : 1 }}>
+                        {loggingTime ? "Logging..." : "Log time"}
+                      </button>
+                      <button onClick={() => { setShowLogTime(false); setLogMinutes(""); setLogNote(""); }}
+                        style={styles.cancelBtn}>
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Attachments */}
+          <div>
+            <SectionHeader icon="folder" label="Attachments"
+              open={attachOpen} onToggle={() => setAttachOpen(o => !o)}
+              onAction={readOnly ? undefined : () => setShowAddLink(true)} actionIcon="arrow-up" actionTitle="Add attachment" />
+            {attachOpen && (
+              <div style={{ padding:"10px 20px 16px", display:"flex", flexDirection:"column", gap:6 }}>
+                {(task.attachments ?? []).length === 0
+                  ? <p style={{ fontSize:12, color:"var(--clubpm-text-muted)", fontStyle:"italic", margin:0 }}>
+                      No attachments yet
+                    </p>
+                  : (task.attachments ?? []).map((rawAtt, i) => {
+                      // Tolerate legacy bare-string rows that pre-date the Json column.
+                      const att = typeof rawAtt === "string" ? { url: rawAtt, label: rawAtt } : (rawAtt ?? {});
+                      if (!att.url) return null;
+                      const meta = attachmentMeta(att.url);
+                      const canPreview = meta.preview;
+                      return (
+                        <div key={i} style={{
+                          display:"flex", alignItems:"center", gap:10, padding:"8px 12px",
+                          borderRadius:7, border:"1px solid var(--clubpm-border)",
+                          background:"var(--clubpm-surface-200)",
+                        }}>
+                          <i className={`fas ${meta.icon}`} style={{ color: meta.color, fontSize:16, flexShrink:0 }} aria-hidden="true" />
+                          <a href={att.url} target="_blank" rel="noopener noreferrer" style={{
+                            fontSize:12, color:"var(--clubpm-accent-primary)", flex:1,
+                            overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
+                            textDecoration:"none",
+                          }}>{att.label || att.url}</a>
+                          <span style={{
+                            fontSize:10, color: meta.color, fontWeight:600, letterSpacing:"0.04em",
+                            textTransform:"uppercase", flexShrink:0,
+                          }}>
+                            {meta.label}
+                          </span>
+                          {canPreview && (
+                            <button
+                              type="button"
+                              onClick={() => setPreviewAttachment({ url: att.url, label: att.label })}
+                              title="Preview"
+                              aria-label="Preview attachment"
+                              style={{
+                                background:"none", border:"none", cursor:"pointer", padding:"2px 4px",
+                                color:"var(--clubpm-text-muted)", fontSize:12, borderRadius:4,
+                              }}
+                            >
+                              <i className="fas fa-eye" aria-hidden="true" />
+                            </button>
+                          )}
+                          {!readOnly && <button onClick={() => {
+                            const next = (task.attachments ?? []).filter((_,j) => j !== i);
+                            saveField({ attachments: next });
+                          }}
+                          title="Remove attachment"
+                          aria-label="Remove attachment"
+                          style={{
+                            background:"none", border:"none", cursor:"pointer", padding:"2px 4px",
+                            color:"var(--clubpm-text-muted)", fontSize:11, borderRadius:4,
+                          }}>
+                            <i className="fas fa-times" />
+                          </button>}
+                        </div>
+                      );
+                    })
+                }
+                {!readOnly && <button className="pm-task-attach-add" onClick={() => setShowAddLink(true)} style={{
+                  display:"flex", alignItems:"center", gap:6, padding:"7px 10px",
+                  borderRadius:7, border:"1px dashed var(--clubpm-border)",
+                  background:"none", cursor:"pointer", fontSize:12,
+                  color:"var(--clubpm-text-muted)", transition:"border-color 0.15s, color 0.15s",
+                }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--clubpm-accent-primary)"; e.currentTarget.style.color = "var(--clubpm-accent-primary)"; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--clubpm-border)"; e.currentTarget.style.color = "var(--clubpm-text-muted)"; }}>
+                  <i className="fas fa-plus" aria-hidden="true" />
+                  Add attachment
+                </button>}
+              </div>
+            )}
+          </div>
+
+          {/* GitHub (Phase 2) */}
+          <div style={{ padding: "0 20px 16px" }}>
+            <GitHubTaskSection task={task} project={project} />
+          </div>
+
+          <SlackMentions entityType="TASK" entityId={task.id} />
+
+          </aside>
         </div>
-      </div>
+        <footer className="pm-task-studio-footer">
+          <span role="status" className={`pm-task-save-state is-${saveState}`}>
+            <i className={`fas ${saveState === "saving" ? "fa-circle-notch fa-spin" : saveState === "error" ? "fa-exclamation-circle" : "fa-check-circle"}`} aria-hidden="true" />
+            {readOnly ? "View only" : saveState === "saving" ? "Saving changes..." : saveState === "saved" ? "Changes saved" : saveState === "error" ? "Could not save changes" : "Changes save as you go"}
+          </span>
+          <button type="button" onClick={onClose}>Close task</button>
+        </footer>
+      </motion.div>
   );
 
   const modal = (
@@ -2542,6 +2523,8 @@ export default function TaskModal({ task: initialTask, project, projectBlockers 
       {nestedTask && (
         <TaskModal
           task={nestedTask}
+          readOnly={readOnly}
+          project={project}
           onStatusMove={onStatusMove}
           onClose={() => setNestedTask(null)}
           onUpdate={updated => {

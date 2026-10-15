@@ -122,13 +122,13 @@ consecutive steps hunting for a modal nobody opened.
 |---|---|---|
 | `task.modal` | The modal shell (opened by clicking a card) | `*` |
 | `task.modal.title` | Title field | `*` |
-| `task.modal.status` | Status selector | `*` |
+| `task.modal.status` | Status selector (buttons below the title) | `*` |
 | `task.modal.priority` | Priority selector | `*` |
 | `task.modal.assignees` | Assignee picker | `*` |
 | `task.modal.due` | Due-date field | `*` |
 | `task.modal.description` | Description body | `*` |
 | `task.modal.comments` | Comment composer | `*` |
-| `task.modal.timelog` | "Log time" control | `*` |
+| `task.modal.timelog` | Manual minutes entry in the task details side panel | `*` |
 | `task.modal.subtasks` | Subtask list | `*` |
 | `task.modal.deps` | Dependencies section | `*` |
 | `task.modal.blockers` | Blockers section | `*` |

@@ -21,12 +21,12 @@ video in Constellation 101 and it earns the length.
 |---|---|---|
 | 00:00–00:16 | Board, wide | Hold on the four columns |
 | 00:16–00:34 | Board | Click a card — modal opens |
-| 00:34–01:02 | Task modal, top | Title, status, priority |
-| 01:02–01:30 | Task modal | Assignees, due date |
+| 00:34–01:02 | Task modal, top and side panel | Title and status buttons; priority chips in the side panel |
+| 01:02–01:30 | Task modal, side panel | Assignees, due date |
 | 01:30–01:58 | Task modal, description | Scroll to acceptance criteria |
 | 01:58–02:22 | Task detail, subtasks + dependencies | Expand each section |
 | 02:22–02:44 | Task modal, comments | Type an `@` mention, show the picker |
-| 02:44–03:02 | Task modal, time log | Open the log-time control |
+| 02:44–03:02 | Task modal, time log | Enter minutes and select Log time in the side panel |
 | 03:02–03:10 | Board, card now showing avatars | Close modal, hold |
 
 ## Visual edits

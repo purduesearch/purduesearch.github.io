@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { motion, useReducedMotion } from 'framer-motion';
 import OrbitLoader from '../../components/OrbitLoader';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { get, post, listProjectRepos, openDm } from '../../api/clubPmClient';
@@ -41,20 +42,29 @@ function MembersStats({ members }) {
 
 // ── Member card ───────────────────────────────────────────────
 
-function MemberCard({ member, onClick, onMessage, selectable = false, selected = false, onToggleSelect, lead, onEditLead }) {
+function MemberCard({ member, index = 0, onClick, onMessage, selectable = false, selected = false, onToggleSelect, lead, onEditLead }) {
+  const reducedMotion = useReducedMotion();
   const { displayName, slackHandle, role, isAdmin, title } = member;
   const isProjectLead = !isAdmin && !!lead?.isLead;
 
   const roleLabel    = isAdmin ? 'Admin' : (role === 'LEAD' ? 'Lead' : 'Member');
 
   return (
-    <div
+    <motion.div
+      layout={reducedMotion ? false : 'position'}
+      initial={reducedMotion ? false : { y: 16, scale: 0.98 }}
+      animate={{ y: 0, scale: 1 }}
+      transition={{ type: 'spring', stiffness: 280, damping: 25, delay: Math.min(index, 7) * 0.035 }}
       className={`pm-member-card pm-member-card--enriched${isAdmin ? ' pm-member-card--admin' : isProjectLead ? ' pm-member-card--sublead' : ''}${selected ? ' pm-member-card--selected' : ''}`}
       onClick={() => (selectable ? onToggleSelect?.(member) : onClick())}
       role="button"
       tabIndex={0}
       aria-pressed={selectable ? selected : undefined}
-      onKeyDown={e => e.key === 'Enter' && (selectable ? onToggleSelect?.(member) : onClick())}
+      onKeyDown={e => {
+        if (e.target !== e.currentTarget || (e.key !== 'Enter' && e.key !== ' ')) return;
+        e.preventDefault();
+        selectable ? onToggleSelect?.(member) : onClick();
+      }}
     >
       {selectable && (
         <div className={`pm-member-select${selected ? ' selected' : ''}`} aria-hidden="true">
@@ -63,7 +73,7 @@ function MemberCard({ member, onClick, onMessage, selectable = false, selected =
       )}
       <div className="pm-member-top">
         <span className="pm-member-avatar-wrap">
-          <AvatarPortrait member={member} size={56} className={`pm-member-avatar${isAdmin ? ' cpm-admin-ring' : isProjectLead ? ' cpm-lead-ring-violet' : ''}`} />
+          <AvatarPortrait member={member} size={72} className={`pm-member-avatar${isAdmin ? ' cpm-admin-ring' : isProjectLead ? ' cpm-lead-ring-violet' : ''}`} />
           {member.rank ? (
             <span className="cpm-member-badge-rank-overlay" aria-hidden="true">
               <RankIcon member={member} size={24} />
@@ -107,7 +117,7 @@ function MemberCard({ member, onClick, onMessage, selectable = false, selected =
           </button>
         )}
       </MemberActions>
-    </div>
+    </motion.div>
   );
 }
 
@@ -580,9 +590,10 @@ export default function MembersView({ projectId = null, onLeadsChanged }) {
             <div className="pm-empty-state">No members found.</div>
           ) : (
             <div className="pm-members-grid" data-tour-id={projectId ? undefined : "admin.members"}>
-              {filtered.map(m => (
+              {filtered.map((m, index) => (
                 <MemberCard
                   key={m.id}
+                  index={index}
                   member={m}
                   onClick={() => setSelectedMember(m)}
                   onMessage={messageFn(m)}

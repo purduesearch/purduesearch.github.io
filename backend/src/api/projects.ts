@@ -661,7 +661,7 @@ projectsRouter.get("/:id/tasks", async (req: Request, res: Response) => {
 projectsRouter.post("/:id/tasks", async (req: Request, res: Response) => {
   try {
     const projectId = req.params.id as string;
-    const { title, description, priority, dueDate, assigneeIds, parentTaskId, status, milestoneId, tagIds } = req.body as {
+    const { title, description, priority, dueDate, assigneeIds, parentTaskId, status, milestoneId, tagIds, attachments } = req.body as {
       title: string;
       description?: string;
       priority?: Priority;
@@ -671,6 +671,7 @@ projectsRouter.post("/:id/tasks", async (req: Request, res: Response) => {
       status?: TaskStatus;
       milestoneId?: string;
       tagIds?: string[];
+      attachments?: { url: string; label?: string }[];
     };
 
     if (!title) {
@@ -694,6 +695,7 @@ projectsRouter.post("/:id/tasks", async (req: Request, res: Response) => {
       status,
       milestoneId: milestoneId ?? undefined,
       tagIds,
+      attachments,
     }, "WEB");
 
     console.log(`[createTask] created id=${task.id} parentTaskId=${(task as any).parentTaskId ?? "none"}`);

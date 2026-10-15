@@ -86,7 +86,7 @@ The module the engine exists for. The learner creates, owns, dates, specifies, s
 logs, and finishes one task, in that order, with six of those being genuine writes.
 
 Step 4 (`open-it`) is load-bearing scaffolding, not filler. **Creating a task does not open it** —
-the New Task form takes a title, a priority and a date, then closes. Everything after it lives in a
+the New Task form takes a title, description, priority, date, tags, milestone and optional attachments, then closes. Everything after it lives in a
 different component (`TaskModal`, reached by clicking the card), so without an explicit click step
 the next five steps hunt for a modal that was never opened and degrade one after another. Any step
 sequence that crosses from `task.create.*` to `task.modal.*` needs a spotlit click in between.
@@ -184,3 +184,5 @@ The arrow sits beside the management menu for officers; the phone Projects sheet
   wish." The instruction alone is forgettable; the reason is what survives.
 - **Keep bodies under about 40 words.** The coach card is small and a wall of text gets skipped, at
   which point the step has taught nothing and still cost a click.
+
+Task details use a status button row below the title. Description, subtasks, dependencies, blockers and conversation stay in the main column; assignees, due date, priority, tags, manual time entry, attachments and GitHub actions are in the side panel (stacked on phones). The time step uses Minutes and Log time; there is no running timer.

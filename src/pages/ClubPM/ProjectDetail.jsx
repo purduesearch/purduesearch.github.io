@@ -12,6 +12,7 @@ import { ConfirmAddMemberDialog, OutsideTag, outsideMatches } from "../../compon
 import { useClubPmAuth } from "../../clubpm/ClubPmAuth";
 import { useProjectNav } from "../../clubpm/ProjectNavContext";
 import TaskModal from "../../components/clubpm/TaskModal";
+import AttachmentPickerModal from "../../components/clubpm/AttachmentPickerModal";
 import BulkActionBar from "../../components/clubpm/BulkActionBar";
 import { RollupSourceChip, RollupTagChip, RollupSourceFilter, matchesSource } from "../../components/clubpm/rollup/RollupChips";
 import ProjectActivity from "../../components/clubpm/ProjectActivity";
@@ -1316,7 +1317,24 @@ const PRIORITY_LEVELS = ["CRITICAL", "HIGH", "MEDIUM", "LOW"];
 
 function AddProjectTaskModal({ projectId, projectName, canCreateHere = true, childSources = [], initialStatus, projectMembers, onClose, onCreated }) {
   const compact = useCompactLayout();
+  const createDialogRef = useRef(null);
+  const openerRef = useRef(document.activeElement);
+  useEffect(() => () => { if (openerRef.current?.isConnected) openerRef.current.focus(); }, []);
+  function creationKeys(event) {
+    if (!event.currentTarget.contains(event.target)) return;
+    if ((event.metaKey || event.ctrlKey) && event.key === "Enter") { handleSubmit(event); return; }
+    if (compact) return;
+    if (event.key === "Escape") { event.stopPropagation(); onClose(); }
+    if (event.key !== "Tab") return;
+    const nodes = [...createDialogRef.current.querySelectorAll('button:not(:disabled), input, textarea, select')].filter(node => node.getClientRects().length);
+    const first = nodes[0], last = nodes[nodes.length - 1];
+    if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+    else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+  }
   const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [attachments, setAttachments] = useState([]);
+  const [attachmentPickerOpen, setAttachmentPickerOpen] = useState(false);
   const [priority, setPriority] = useState("MEDIUM");
   const [dueDate, setDueDate] = useState("");
   const [saving, setSaving] = useState(false);
@@ -1387,6 +1405,8 @@ function AddProjectTaskModal({ projectId, projectName, canCreateHere = true, chi
       // Tags and milestones belong to the page's project, so a sub-project task skips both.
       const newTask = await post(`/api/projects/${childTarget ? childTarget.projectId : projectId}/tasks`, {
         title: title.trim(),
+        description: description.trim() || undefined,
+        attachments,
         priority,
         status: initialStatus,
         dueDate: dueDate || undefined,
@@ -1415,7 +1435,7 @@ function AddProjectTaskModal({ projectId, projectName, canCreateHere = true, chi
   }
 
   const panel = (
-      <div data-tour-id="task.create.modal" className="pm-m-task-create"
+      <div ref={createDialogRef} role={compact ? undefined : "dialog"} aria-modal={compact ? undefined : true} aria-label={compact ? undefined : "New task"} onKeyDown={creationKeys} data-tour-id="task.create.modal" className="pm-m-task-create pm-task-create-studio"
         style={{ background: "var(--clubpm-surface-100)", borderRadius: 12, width: "min(480px, 94vw)",
         boxShadow: "0 24px 80px rgba(0,0,0,0.5)", border: "1px solid var(--clubpm-border)", overflow: "hidden" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between",
@@ -1424,17 +1444,24 @@ function AddProjectTaskModal({ projectId, projectName, canCreateHere = true, chi
             <i className="fas fa-plus" style={{ marginRight: 8, color: "var(--clubpm-accent-primary)" }} />
             New Task
           </span>
-          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer",
+          <button aria-label="Close" onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer",
             color: "var(--clubpm-text-muted)", fontSize: 16, padding: "2px 6px" }}>×</button>
         </div>
 
-        <form onSubmit={handleSubmit}>
-          <div style={{ padding: "16px 20px", display: "flex", flexDirection: "column", gap: 14 }}>
+        <form onSubmit={handleSubmit} className="pm-task-create-form">
+          <div className="pm-task-create-fields">
+          <main className="pm-task-create-main">
+            <span className="pm-task-eyebrow">{projectName || "Project"} / NEW TASK</span>
             <div data-tour-id="task.create.title">
-              <label style={labelStyle}>Task Title *</label>
-              <input autoFocus value={title} onChange={e => setTitle(e.target.value)}
-                placeholder="What needs to be done?" style={inputStyle} required />
+              <label htmlFor="pm-task-create-title" className="pm-task-sr-only">Task title</label>
+              <textarea id="pm-task-create-title" autoFocus required rows={3} value={title} onChange={e => setTitle(e.target.value)} placeholder="What needs to be done?" className="pm-task-create-title" />
             </div>
+            <label htmlFor="pm-task-create-description" className="pm-task-create-label"><i className="fas fa-align-left" aria-hidden="true" /> Description</label>
+            <textarea id="pm-task-create-description" rows={7} value={description} onChange={e => setDescription(e.target.value)} placeholder="What does done look like? Add context, links, or acceptance criteria." className="pm-task-create-description" />
+            <div className="pm-task-create-hint"><i className="fas fa-lightbulb" aria-hidden="true" /> Start with a clear finish line. You can add subtasks, dependencies, and time logs after creating your task.</div>
+          </main>
+          <aside className="pm-task-create-side" aria-label="New task details">
+          <div style={{ padding: "16px 20px", display: "flex", flexDirection: "column", gap: 14 }}>
             {childSources.length > 0 && (
               <div>
                 <label style={labelStyle} htmlFor="cpm-add-task-project">Project</label>
@@ -1537,13 +1564,22 @@ function AddProjectTaskModal({ projectId, projectName, canCreateHere = true, chi
               )}
             </div>
             )}
+            <div className="pm-task-create-attachments">
+              <label style={labelStyle}>Attachments</label>
+              {attachments.map((att, index) => <div className="pm-task-create-attachment" key={att.url}>
+                <i className="fas fa-link" aria-hidden="true" /><span>{att.label}</span><button type="button" aria-label={`Remove ${att.label}`} onClick={() => setAttachments(prev => prev.filter((_, i) => i !== index))}><i className="fas fa-times" aria-hidden="true" /></button>
+              </div>)}
+              <button type="button" className="pm-task-attach-add" onClick={() => setAttachmentPickerOpen(true)}><i className="fas fa-plus" aria-hidden="true" /> Add attachment</button>
+            </div>
             {error && (
               <p style={{ fontSize: 12, color: "#e17055", background: "rgba(225,112,85,0.1)",
                 borderRadius: 6, padding: "6px 10px", margin: 0 }}>{error}</p>
             )}
           </div>
 
-          <div style={{ display: "flex", justifyContent: "flex-end", gap: 8,
+          </aside>
+          </div>
+          <div className="pm-task-create-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 8,
             padding: "12px 20px", background: "var(--clubpm-surface-200)", borderTop: "1px solid var(--clubpm-border)" }}>
             <button type="button" onClick={onClose} style={{ padding: "7px 16px", borderRadius: 7,
               border: "1px solid var(--clubpm-border)", background: "none",
@@ -1555,6 +1591,7 @@ function AddProjectTaskModal({ projectId, projectName, canCreateHere = true, chi
             </button>
           </div>
         </form>
+        {attachmentPickerOpen && <AttachmentPickerModal projectId={targetId} onClose={() => setAttachmentPickerOpen(false)} onAdd={payload => setAttachments(prev => [...new Map([...prev, ...(Array.isArray(payload) ? payload : [payload])].map(item => [item.url, item])).values()])} />}
       </div>
   );
   if (compact) return <MobileSheet title="New task" variant="fullscreen" onClose={onClose} className="pm-m-task-create-layer">{panel}</MobileSheet>;

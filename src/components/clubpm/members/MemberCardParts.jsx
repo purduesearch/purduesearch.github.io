@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import { motion, useReducedMotion } from "framer-motion";
 import { get, skillsApi } from "../../../api/clubPmClient";
 import KudosButton from "../KudosButton";
 import { tzOffset, copyToClipboard } from "../../../clubpm/members/memberShared";
@@ -90,12 +91,15 @@ function SkillChip({ skill, distinct }) {
       <span className="cpm-mc-skill-pips" aria-label={`Level ${skill.level} of 5`}>
         {[1, 2, 3, 4, 5].map((n) => <i key={n} className={n <= skill.level ? "on" : ""} />)}
       </span>
+      <span className="cpm-mc-skill-level" aria-hidden="true">{["", "Beginner", "Basic", "Intermediate", "Advanced", "Expert"][skill.level]}</span>
       {skill.verifiedByLead && <i className="fas fa-circle-check cpm-mc-skill-verified" aria-hidden="true" />}
     </li>
   );
 }
 
 export function MemberSkillStrip({ memberId, lazy = false }) {
+  const reducedMotion = useReducedMotion();
+  const [expanded, setExpanded] = useState(false);
   const [ref, near] = useNearView(lazy);
   const [state, setState] = useState({ loading: true, data: null });
   useEffect(() => {
@@ -106,16 +110,23 @@ export function MemberSkillStrip({ memberId, lazy = false }) {
   }, [memberId, near]);
 
   const { top, distinct, total } = pickSkillHighlights(state.data);
+  const highlights = [...top, ...distinct];
+  const shownIds = new Set(highlights.map(s => s.skillId));
+  const remaining = (state.data?.hidden ? [] : state.data?.groups ?? [])
+    .flatMap(group => (group.skills ?? []).map(skill => ({ ...skill, area: group.name })))
+    .filter(skill => !shownIds.has(skill.skillId));
   let body;
   if (state.loading) body = <div className="cpm-mc-skills-note">{near ? "Loading skills…" : " "}</div>;
   else if (state.data?.hidden) body = <div className="cpm-mc-skills-note">Skills are private.</div>;
   else if (total === 0) body = <div className="cpm-mc-skills-note">No skills recorded yet.</div>;
   else {
     body = (
-      <ul className="cpm-mc-skill-list" aria-label="Top and distinctive skills">
+      <motion.ul layout={reducedMotion ? false : 'size'} className="cpm-mc-skill-list" aria-label="Top and distinctive skills">
         {top.map((s) => <SkillChip key={s.skillId} skill={s} />)}
         {distinct.map((s) => <SkillChip key={s.skillId} skill={s} distinct />)}
-      </ul>
+        {expanded && remaining.map(s => <SkillChip key={s.skillId} skill={s} />)}
+        {remaining.length > 0 && <li className="cpm-mc-skill-expand"><button type="button" aria-expanded={expanded} onClick={() => setExpanded(value => !value)}>{expanded ? 'Show less' : `+${remaining.length} more`}</button></li>}
+      </motion.ul>
     );
   }
   // A failed or empty load for a card in a list should not leave an empty heading.
@@ -134,7 +145,7 @@ export function MemberSkillStrip({ memberId, lazy = false }) {
 export function MemberActions({ member, onMessage, children }) {
   return (
     <div className="pm-member-card-actions" onClick={(e) => e.stopPropagation()}>
-      <Link to={`/clubpm/profile/${member.id}`} className="pm-member-card-profile-btn" title="View full profile">
+      <Link to={`/clubpm/profile/${member.id}`} className="pm-member-card-profile-btn" title="View full profile" aria-label={`View ${member.displayName}'s profile`}>
         <i className="fas fa-user" aria-hidden="true" />
       </Link>
       <KudosButton memberId={member.id} displayName={member.displayName} />

@@ -37,9 +37,9 @@
       "anchor": "task.modal.status",
       "route": "/clubpm/projects/:id",
       "title": "Now try to finish it",
-      "body": "Set the status to Done. It won't let you — and it tells you which task is in the way. The same check runs on the server, so nobody routes around it by dragging.",
+      "body": "Select Completed in the status row below the title. It won't let you — and it tells you which task is in the way. The same check runs on the server, so nobody routes around it by dragging.",
       "placement": "left",
-      "compact": { "body": "Set the status to Done. It will refuse and name the unfinished dependency. The same server check protects the phone Move control.", "placement": "top" },
+      "compact": { "body": "Select Completed in the status row below the title. It will refuse and name the unfinished dependency. The same server check protects the phone Move control.", "placement": "top" },
       "advance": { "on": "next" }
     },
     {

@@ -97,7 +97,7 @@ describe('TaskModal compact workflow', () => {
     expect(screen.getByRole('button', { name: 'Close Parent task' })).toBeInTheDocument();
     expect(screen.getByText('Assigned to')).toBeInTheDocument();
     expect(screen.getByText('Due Date')).toBeInTheDocument();
-    expect(screen.getByText('Status')).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'Task status' })).toBeInTheDocument();
     await screen.findAllByText('Child task');
     expect(screen.getByText(/Subtasks \(1\)/)).toBeInTheDocument();
     expect(screen.getByText('Attachments')).toBeInTheDocument();

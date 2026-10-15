@@ -1,136 +1,96 @@
-// Replaces AddLinkModal. Two tabs:
-//   1. Paste URL   — original behavior (URL + label).
-//   2. Browse folder — picks one or more files from the project's linked
-//      Drive folder via GET /api/projects/:id/drive-files.
-//
-// Returns selections to the caller via onAdd, which accepts either a single
-// {url,label} object (paste tab) or an array of them (browse tab, multi-select).
+import React, { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import DriveFolderBrowser, { driveItemUrl } from './DriveFolderBrowser';
+import AttachmentSourceBrowser from './AttachmentSourceBrowser';
+import MobileSheet from './MobileSheet';
+import { useCompactLayout } from '../../clubpm/layout/compactLayout';
 
-import React, { useState } from "react";
-import { createPortal } from "react-dom";
-import DriveFolderBrowser, { driveItemUrl } from "./DriveFolderBrowser";
+const SOURCES = [
+  ['drive', 'Google Drive', 'fab fa-google-drive'], ['vault', 'CAD vault', 'fas fa-cube'],
+  ['issues', 'Issues', 'fas fa-circle-dot'], ['branches', 'Branches', 'fas fa-code-branch'],
+  ['repos', 'Repositories', 'fab fa-github'], ['files', 'GitHub files', 'fas fa-file-code'],
+  ['paste', 'Paste a link', 'fas fa-link'],
+];
 
 export default function AttachmentPickerModal({ projectId, onAdd, onClose }) {
-  const [tab, setTab] = useState("paste");
-
-  return createPortal(
-    <div className="cpm-attach-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="cpm-attach-modal" role="dialog" aria-label="Add attachment">
-        <div className="cpm-attach-header">
-          <span style={{ fontSize: 14, fontWeight: 700 }}>
-            <i className="fab fa-google-drive" style={{ marginRight: 8, color: "#4285F4" }} aria-hidden="true" />
-            Add Attachment
-          </span>
-          <button className="cpm-attach-close" onClick={onClose} aria-label="Close">
-            <i className="fas fa-times" aria-hidden="true" />
-          </button>
-        </div>
-
-        <div className="cpm-attach-tabs">
-          <button
-            className={`cpm-attach-tab ${tab === "paste" ? "is-active" : ""}`}
-            onClick={() => setTab("paste")}
-            type="button"
-          >
-            <i className="fas fa-link" aria-hidden="true" /> Paste URL
-          </button>
-          <button
-            className={`cpm-attach-tab ${tab === "browse" ? "is-active" : ""}`}
-            onClick={() => setTab("browse")}
-            type="button"
-          >
-            <i className="fas fa-folder-open" aria-hidden="true" /> Browse folder
-          </button>
-        </div>
-
-        {tab === "paste"
-          ? <PasteTab onAdd={onAdd} onClose={onClose} />
-          : <BrowseTab projectId={projectId} onAdd={onAdd} onClose={onClose} />}
-      </div>
-    </div>,
-    document.body
-  );
-}
-
-function PasteTab({ onAdd, onClose }) {
-  const [url, setUrl] = useState("");
-  const [label, setLabel] = useState("");
-
-  function submit(e) {
-    e.preventDefault();
-    if (!url.trim()) return;
-    onAdd({ url: url.trim(), label: label.trim() || url.trim() });
-    onClose();
-  }
-
-  return (
-    <form onSubmit={submit} className="cpm-attach-paste">
-      <label className="cpm-attach-field-label">URL *</label>
-      <input
-        autoFocus
-        type="url"
-        value={url}
-        onChange={e => setUrl(e.target.value)}
-        placeholder="https://drive.google.com/…"
-        className="cpm-attach-input"
-      />
-      <label className="cpm-attach-field-label">Label (optional)</label>
-      <input
-        value={label}
-        onChange={e => setLabel(e.target.value)}
-        placeholder="e.g. Design Specs v2"
-        className="cpm-attach-input"
-      />
-
-      <div className="cpm-attach-footer">
-        <button type="button" className="cpm-attach-cancel" onClick={onClose}>Cancel</button>
-        <button type="submit" className="clubpm-btn-primary" disabled={!url.trim()}>
-          Add
-        </button>
-      </div>
-    </form>
-  );
-}
-
-function BrowseTab({ projectId, onAdd, onClose }) {
+  const compact = useCompactLayout();
+  const reduced = useReducedMotion();
+  const [source, setSource] = useState(projectId ? 'drive' : 'paste');
   const [selected, setSelected] = useState({});
+  const [url, setUrl] = useState('');
+  const [label, setLabel] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const inFlight = useRef(false);
+  const panel = useRef(null);
 
-  function toggle(file) {
+  useEffect(() => {
+    if (compact) return;
+    const opener = document.activeElement;
+    panel.current?.focus();
+    return () => { if (opener?.isConnected) opener.focus(); };
+  }, [compact]);
+
+  function toggle(item) {
     setSelected(prev => {
       const next = { ...prev };
-      if (next[file.id]) delete next[file.id];
-      else next[file.id] = file;
+      if (next[item.url]) delete next[item.url]; else next[item.url] = item;
       return next;
     });
   }
-
-  function addSelected() {
-    const items = Object.values(selected).map(f => ({
-      url: driveItemUrl(f),
-      label: f.name,
-    }));
-    if (items.length === 0) return;
-    onAdd(items.length === 1 ? items[0] : items);
-    onClose();
+  const validUrl = (() => { try { return ['https:', 'http:'].includes(new URL(url.trim()).protocol); } catch { return false; } })();
+  const count = Object.keys(selected).length;
+  async function submit(event) {
+    event?.preventDefault();
+    event?.stopPropagation();
+    const items = source === 'paste' ? (validUrl ? [{ url: url.trim(), label: label.trim() || url.trim() }] : []) : Object.values(selected).map(({ url, label }) => ({ url, label }));
+    if (!items.length || inFlight.current) return;
+    inFlight.current = true;
+    setBusy(true); setError('');
+    try { await onAdd(items.length === 1 ? items[0] : items); onClose(); }
+    catch (err) { setError(err.message || 'Could not attach these items. Try again.'); }
+    finally { inFlight.current = false; setBusy(false); }
   }
-
-  const selectedCount = Object.keys(selected).length;
-
-  return (
-    <>
-      <DriveFolderBrowser key={projectId} projectId={projectId} selected={selected} onToggle={toggle} />
-
-      <div className="cpm-attach-footer">
-        <button type="button" className="cpm-attach-cancel" onClick={onClose}>Cancel</button>
-        <button
-          type="button"
-          className="clubpm-btn-primary"
-          disabled={selectedCount === 0}
-          onClick={addSelected}
-        >
-          Add{selectedCount > 0 ? ` ${selectedCount}` : ""}
-        </button>
-      </div>
-    </>
-  );
+  function keys(event) {
+    event.stopPropagation();
+    if (event.key === 'Escape') { event.preventDefault(); if (!inFlight.current) onClose(); }
+    if (event.key !== 'Tab' || compact) return;
+    const nodes = [...panel.current.querySelectorAll('button:not(:disabled), input, select, a[href]')];
+    const first = nodes[0], last = nodes[nodes.length - 1];
+    if (event.shiftKey && (document.activeElement === first || document.activeElement === panel.current)) { event.preventDefault(); last?.focus(); }
+    else if (!event.shiftKey && (document.activeElement === last || document.activeElement === panel.current)) { event.preventDefault(); first?.focus(); }
+  }
+  const contents = <>
+    <div className="pm-task-attachment-intro"><span className="pm-task-eyebrow">EVERYTHING IN ONE PLACE</span><p>Bring the context your task needs.</p></div>
+    <div className="pm-task-attachment-sources" role="group" aria-label="Attachment source">
+      {SOURCES.map(([id, name, icon]) => <button key={id} type="button" aria-pressed={source === id} disabled={busy || (!projectId && id !== 'paste')} className={source === id ? 'is-active' : ''}
+        onClick={() => { setSource(id); setError(''); }}><i className={icon} aria-hidden="true" />{name}</button>)}
+    </div>
+    <AnimatePresence mode="wait" initial={false}>
+      <motion.div key={source} className="pm-task-attachment-content" initial={{ opacity: 0, y: reduced ? 0 : 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: reduced ? 0 : 0.14 }}>
+        {source === 'paste' ? <form aria-label="Attachment link" onSubmit={submit} className="cpm-attach-paste">
+          <label htmlFor="pm-attachment-url">URL</label><input id="pm-attachment-url" type="url" required className="cpm-attach-input" value={url} onChange={e => setUrl(e.target.value)} placeholder="https://…" />
+          <label htmlFor="pm-attachment-label">Label <small>(optional)</small></label><input id="pm-attachment-label" className="cpm-attach-input" value={label} onChange={e => setLabel(e.target.value)} placeholder="Give this link a helpful name" />
+        </form> : source === 'drive' ? <DriveFolderBrowser key={projectId} projectId={projectId}
+          selected={Object.fromEntries(Object.values(selected).filter(f => f.driveId).map(f => [f.driveId, f]))}
+          onToggle={file => toggle({ url: driveItemUrl(file), label: file.name, driveId: file.id })} />
+          : <AttachmentSourceBrowser key={`${projectId}-${source}`} projectId={projectId} source={source} selected={selected} onToggle={toggle} />}
+      </motion.div>
+    </AnimatePresence>
+    {error && <p className="pm-task-attachment-error" role="alert">{error}</p>}
+    <div className="cpm-attach-footer">
+      <span className="pm-task-attachment-count" role="status">{count ? `${count} selected` : 'Choose files or paste a link'}</span>
+      <button type="button" className="cpm-attach-cancel" disabled={busy} onClick={onClose}>Cancel</button>
+      <button type="button" className="clubpm-btn-primary" disabled={busy || (source === 'paste' ? !validUrl : !count)} onClick={submit}>{busy ? 'Attaching…' : source === 'paste' ? 'Attach link' : count ? `Attach ${count}` : 'Attach selected'}</button>
+    </div>
+  </>;
+  if (compact) return <MobileSheet title="Add attachments" variant="fullscreen" onClose={() => !inFlight.current && onClose()} className="pm-task-attachment-sheet">{contents}</MobileSheet>;
+  return createPortal(<div className="cpm-attach-overlay pm-task-attachment-overlay" onClick={e => e.target === e.currentTarget && !busy && onClose()} onKeyDown={keys}>
+    <motion.div ref={panel} tabIndex={-1} role="dialog" aria-modal="true" aria-label="Add attachments" className="cpm-attach-modal pm-task-attachment-modal"
+      initial={reduced ? false : { opacity: 0, y: 16, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ type: 'spring', stiffness: 360, damping: 30 }}>
+      <div className="cpm-attach-header"><strong><i className="fas fa-paperclip" aria-hidden="true" /> Add attachments</strong><button type="button" className="cpm-attach-close" aria-label="Close" disabled={busy} onClick={onClose}><i className="fas fa-times" aria-hidden="true" /></button></div>
+      {contents}
+    </motion.div>
+  </div>, document.body);
 }
