@@ -139,37 +139,43 @@ function validateEnd(visit: { checkedInAt: Date }, at: Date | undefined, now: Da
   return at;
 }
 
-export async function checkOut(memberId: string, opts: { at?: Date; source: Source }, now = new Date()): Promise<CloseResult & { workspace: WorkspaceDto }> {
+export async function checkOut(memberId: string, opts: { at?: Date; source: Source; taskIds?: string[]; recap?: string; visitId?: string }, now = new Date()): Promise<CloseResult & { workspace: WorkspaceDto }> {
   const open = await prisma.labVisit.findFirst({ where: { memberId, status: "OPEN" } });
   if (!open) throw new LabVisitError(404, "You're not checked in.");
+  if (opts.visitId && opts.visitId !== open.id) throw new LabVisitError(409, "Your lab visit changed. Reopen check-out to continue.");
+  if (opts.taskIds !== undefined) {
+    const tasks = await prisma.task.findMany({ where: { ...openTaskWhere(memberId), id: { in: opts.taskIds } }, select: { id: true } });
+    if (tasks.length !== new Set(opts.taskIds).size) throw new LabVisitError(403, "Choose only your assigned, unarchived tasks.");
+  }
   const end = validateEnd(open, opts.at, now);
   const ws = await requireSpace(open.workspaceId);
-  return { ...(await closeVisit(open, end, opts.source)), workspace: ws };
+  return { ...(await closeVisit(open, end, opts.source, opts)), workspace: ws };
 }
 
 /**
  * Close an OPEN or PENDING_CONFIRM visit at `end` and split its minutes.
  * The status flip is a conditional update, so two concurrent closes cannot both log time.
  */
-export async function closeVisit(visit: LabVisit, end: Date, source: Source): Promise<CloseResult> {
+export async function closeVisit(visit: LabVisit, end: Date, source: Source, wrapUp?: { taskIds?: string[]; recap?: string }): Promise<CloseResult> {
   const minutes = visitMinutes(visit.checkedInAt, end);
   const discard = minutes < MIN_VISIT_MINUTES;
+  const recapData = wrapUp?.recap !== undefined ? { recap: wrapUp.recap || null } : {};
   const claimed = await prisma.labVisit.updateMany({
     where: { id: visit.id, status: visit.status },
-    data: { status: discard ? "DISCARDED" : "CLOSED", checkedOutAt: end },
+    data: { status: discard ? "DISCARDED" : "CLOSED", checkedOutAt: end, ...recapData },
   });
   if (claimed.count === 0) throw new LabVisitError(409, "This visit was already closed.");
   const base = { discarded: discard, allocations: [], unallocatedMinutes: 0, todoTasks: [] };
-  if (discard) return { ...base, visit: { ...visit, status: "DISCARDED", checkedOutAt: end } };
+  if (discard) return { ...base, visit: { ...visit, status: "DISCARDED", checkedOutAt: end, ...recapData } };
 
   const [tasks, links] = await Promise.all([
     prisma.task.findMany({
-      where: { ...openTaskWhere(visit.memberId), status: "IN_PROGRESS" },
+      where: { ...openTaskWhere(visit.memberId), ...(wrapUp?.taskIds !== undefined ? { id: { in: wrapUp.taskIds } } : { status: "IN_PROGRESS" }) },
       select: { id: true, projectId: true, title: true },
     }),
     prisma.workspaceProject.findMany({ where: { workspaceId: visit.workspaceId }, select: { projectId: true } }),
   ]);
-  const splits = splitMinutes(minutes, pickSplitTasks(tasks, links.map(l => l.projectId)));
+  const splits = splitMinutes(minutes, wrapUp?.taskIds !== undefined ? tasks.map(t => t.id) : pickSplitTasks(tasks, links.map(l => l.projectId)));
   const titleOf = new Map(tasks.map(t => [t.id, t.title]));
 
   if (splits.length === 0) {
@@ -181,12 +187,12 @@ export async function closeVisit(visit: LabVisit, end: Date, source: Source): Pr
   for (const s of splits) {
     await recordTimeLog({
       taskId: s.taskId, memberId: visit.memberId, minutes: s.minutes, source,
-      note: `Lab: ${ws?.name ?? "check-in"}`, labVisitId: visit.id, grantXp: !visit.autoClosed,
+      note: `Lab: ${ws?.name ?? "check-in"}${wrapUp?.recap ? ` — ${wrapUp.recap}` : ""}`, labVisitId: visit.id, grantXp: !visit.autoClosed,
     });
   }
   return {
     ...base,
-    visit: { ...visit, status: "CLOSED", checkedOutAt: end },
+    visit: { ...visit, status: "CLOSED", checkedOutAt: end, ...recapData },
     allocations: splits.map(s => ({ taskId: s.taskId, title: titleOf.get(s.taskId) ?? "Task", minutes: s.minutes })),
   };
 }
@@ -242,7 +248,12 @@ export async function getMyVisits(memberId: string, now = new Date()) {
       orderBy: { checkedInAt: "desc" },
     }),
   ]);
-  return { open, pending, unallocated, todoTasks: unallocated.length ? await todoTasksFor(memberId) : [] };
+  const assignedTasks = open ? await prisma.task.findMany({
+    where: { ...openTaskWhere(memberId), status: { not: "DONE" } },
+    select: { id: true, title: true, status: true, projectId: true, project: { select: { name: true } } },
+    orderBy: [{ status: "asc" }, { updatedAt: "desc" }],
+  }) : [];
+  return { open, pending, unallocated, assignedTasks, todoTasks: unallocated.length ? await todoTasksFor(memberId) : [] };
 }
 
 /** Per space: who is checked in, and who is scheduled right now but not checked in. */

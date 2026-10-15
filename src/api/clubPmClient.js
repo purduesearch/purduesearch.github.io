@@ -856,7 +856,7 @@ export function getLabPresence({ projectId, workspaceId } = {}) {
   return get(`/api/lab-visits/present${s ? `?${s}` : ''}`);
 }
 export const labCheckIn  = (workspaceId)   => post('/api/lab-visits/check-in', { workspaceId });
-export const labCheckOut = (at)            => post('/api/lab-visits/check-out', at ? { at } : {});
+export const labCheckOut = (at, wrapUp = {}) => post('/api/lab-visits/check-out', { ...(at ? { at } : {}), ...wrapUp });
 export const labConfirm  = (at)            => post('/api/lab-visits/confirm', at ? { at } : {});
 export const labAllocate = (visitId, taskId) => post(`/api/lab-visits/${encodeURIComponent(visitId)}/allocate`, { taskId });
 export function getProjectTimeInsights(projectId, { from, to, rollup } = {}) {

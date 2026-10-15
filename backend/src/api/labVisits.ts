@@ -43,7 +43,19 @@ labVisitsRouter.post("/check-in", async (req: Request, res: Response) => {
 });
 
 labVisitsRouter.post("/check-out", async (req: Request, res: Response) => {
-  try { res.json(await labVisits.checkOut(req.memberId!, { at: atFrom(req.body), source: "WEB" })); }
+  try {
+    const { taskIds, recap, visitId } = req.body ?? {};
+    if (taskIds !== undefined && (!Array.isArray(taskIds) || taskIds.some((id: unknown) => typeof id !== "string" || !id))) {
+      res.status(400).json({ error: "taskIds must be an array of task IDs." }); return;
+    }
+    if (recap !== undefined && (typeof recap !== "string" || recap.length > 4000)) {
+      res.status(400).json({ error: "Keep your recap under 4,000 characters." }); return;
+    }
+    if (visitId !== undefined && (typeof visitId !== "string" || !visitId)) {
+      res.status(400).json({ error: "visitId must be a visit ID." }); return;
+    }
+    res.json(await labVisits.checkOut(req.memberId!, { at: atFrom(req.body), source: "WEB", taskIds, recap: recap?.trim(), visitId }));
+  }
   catch (err) { sendError(res, err, "check-out"); }
 });
 

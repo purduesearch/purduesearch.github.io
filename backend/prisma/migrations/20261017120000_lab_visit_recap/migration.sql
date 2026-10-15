@@ -1,0 +1,1 @@
+ALTER TABLE "LabVisit" ADD COLUMN "recap" TEXT;
