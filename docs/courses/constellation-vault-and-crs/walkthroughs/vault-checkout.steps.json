@@ -26,8 +26,8 @@
       "id": "storage-status",
       "anchor": "vault.repository",
       "route": "/clubpm/projects/:id",
-      "title": "Check storage status",
-      "body": "The header identifies the Vault repository and branch when configured. GitHub check-ins require an admin-enabled repository; otherwise this project uses legacy Drive storage.",
+      "title": "Find repository details",
+      "body": "Repository details opens a modal showing storage status, the configured repository and branch, recent commits, and admin settings. Close the modal before continuing. GitHub check-ins require an admin-enabled repository; otherwise this project uses legacy Drive storage.",
       "placement": "bottom",
       "advance": { "on": "next" }
     },

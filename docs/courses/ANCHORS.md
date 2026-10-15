@@ -169,7 +169,7 @@ Everything below is behind **Files &rarr; Vault**; a step must open both before 
 | `vault.tab.search` | "Search" pill in the Vault sub-nav | `/clubpm/projects/:id` |
 | `vault.search` | Search panel: query, filters, saved views and results (under `vault.tab.search`) | `/clubpm/projects/:id` |
 | `vault.watch` | Watch button and event chooser inside the item modal | `/clubpm/projects/:id` |
-| `vault.repository` | Repository and storage status header | `/clubpm/projects/:id` |
+| `vault.repository` | Repository details button (opens storage status and settings) | `/clubpm/projects/:id` |
 | `vault.tree` | Searchable item list | `/clubpm/projects/:id` |
 | `vault.item` | First vault item row | `/clubpm/projects/:id` |
 | `vault.item.modal` | Item detail panel and checkout holder | `/clubpm/projects/:id` |

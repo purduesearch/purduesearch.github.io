@@ -10,7 +10,7 @@ otherwise check-ins use the legacy bot-owned Drive Vault. The general Files → 
 ## vault-checkout
 
 1. Open Files, then select Vault.
-2. Read the repository and storage status.
+2. Locate Repository details. This button opens the repository and storage status in a modal; close it before checking in a file.
 3. Use Check in file to create a practice item. Supply a file, name, and required change description.
    For a GitHub-enabled project, wait until the job reaches INDEXED and the dialog closes.
 4. Keep Recent activity sort and clear filters, then open the first item. Inspect Versions and check

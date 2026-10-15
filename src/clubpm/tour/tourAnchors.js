@@ -130,7 +130,7 @@ export const TOUR_ANCHORS = Object.freeze({
   // Everything below lives under Files → Vault, so a step targeting one of them
   // must be preceded by steps that open both. The Vault's own sub-nav then
   // splits the item grid from the change-request list.
-  "vault.repository":       { label: "Vault repository",     route: "/clubpm/projects/:id", note: "Files → Vault storage header" },
+  "vault.repository":       { label: "Vault repository",     route: "/clubpm/projects/:id", note: "Files → Vault Repository details button; opens storage status and settings" },
   "vault.tree":             { label: "Item list",            route: "/clubpm/projects/:id", note: "Files → Vault" },
   "vault.item":             { label: "Vault item row",       route: "/clubpm/projects/:id", note: "First row only" },
   "vault.item.modal":       { label: "Vault item detail",    route: "/clubpm/projects/:id", note: "Item detail panel, including checkout holder" },

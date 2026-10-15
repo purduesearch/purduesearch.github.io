@@ -126,7 +126,7 @@ Projects with an enabled Vault repository store new check-ins in GitHub with Git
 that setup still use the legacy bot-owned Drive Vault; its files are separate from the project's
 general Files → Drive source. Older versions can remain Drive-backed. Download and preview both
 through the Vault, which checks project access.
-The repository header shows branch health and recent commits; each version shows its storage provider.
+The Repository details button opens a modal with branch health, recent commits, and admin repository settings; each version shows its storage provider.
 A commit means the bytes were stored. Only ClubPM change-request approval releases a revision.
 
 ## Watching an item

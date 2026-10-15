@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { getVault, askVault, getVaultRepository, getVaultRepositoryHealth, getVaultCommits, listProjectRepos, setVaultRepository, verifyVaultRepository, setVaultGithubWrites } from "../../../api/clubPmClient";
 import VaultItemCard from "./VaultItemCard";
+import VaultRepositoryModal from "./VaultRepositoryModal";
 import VaultUploadModal from "./VaultUploadModal";
 import VaultItemModal from "./VaultItemModal";
 import ChangeRequestList from "./ChangeRequestList";
@@ -36,6 +37,7 @@ export default function VaultTab({ project, member, isAdmin, deepLink = null, on
   const [repository, setRepository] = useState(null);
   const [repoHealth, setRepoHealth] = useState(null);
   const [commits, setCommits] = useState([]);
+  const [repositoryOpen, setRepositoryOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [linkedRepos, setLinkedRepos] = useState([]);
   const [repoId, setRepoId] = useState("");
@@ -160,7 +162,7 @@ export default function VaultTab({ project, member, isAdmin, deepLink = null, on
       .catch(() => toast.error("Could not copy — copy it manually"));
   }
 
-  if (loading) {
+  if (loading && !repositoryOpen) {
     return (
       <div className="cpm-vault-loading">
         <div className="cpm-spinner" />
@@ -237,14 +239,29 @@ export default function VaultTab({ project, member, isAdmin, deepLink = null, on
 
   return (
     <div className="cpm-vault-tab">
-      <section className="cpm-vault-repository" data-tour-id="vault.repository" aria-label="Vault storage">
-        <div><strong>{repository ? repository.slug : "Drive Vault"}</strong>{repository && <> / {repository.branch} · {repository.migrationState === "FROZEN" ? "Cutover paused" : repository.writeEnabled ? "GitHub check-ins enabled" : "Drive check-ins"}</>}</div>
-        {repository?.repair && <p role="alert">{repository.repair}</p>}
-        {repository && <><div>Repository health: {repoHealth?.status || repository.setupStatus} · Visibility: {repoHealth?.visibility || "unknown"} · Last sync: {repository.lastSyncedAt ? new Date(repository.lastSyncedAt).toLocaleString() : "Pending"}</div><div>Last known commit: {repository.lastHeadSha?.slice(0, 12) || "None"} · Open change requests: {items.reduce((sum, item) => sum + (item.openCrCount || 0), 0)}</div><a href={`https://github.com/${repository.slug}/tree/${encodeURIComponent(repository.branch)}`} target="_blank" rel="noreferrer">Open on GitHub</a></>}
-        {isAdmin && <button type="button" className="cpm-vault-btn-ghost" onClick={() => setSettingsOpen(open => !open)} aria-expanded={settingsOpen}>Repository settings</button>}
-        {settingsOpen && isAdmin && <div className="cpm-vault-repo-settings"><label>Linked repository <select value={repoId} onChange={e => setRepoId(e.target.value)} disabled={settingsBusy}><option value="">Choose a linked repository</option>{linkedRepos.map(r => <option key={r.id} value={r.id}>{r.slug}</option>)}</select></label><label>Branch <input value={branch} onChange={e => setBranch(e.target.value)} disabled={settingsBusy} /></label><button type="button" onClick={() => updateRepository("bind")} disabled={!repoId || settingsBusy}>Save binding</button>{repository && <><button type="button" onClick={() => updateRepository("verify")} disabled={settingsBusy || repository.writeEnabled}>Verify App and LFS</button>{!["FROZEN", "GITHUB_ACTIVE", "DRIVE_ROLLBACK"].includes(repository.migrationState) && <button type="button" onClick={() => updateRepository("toggle")} disabled={settingsBusy || (!repository.writeEnabled && repository.setupStatus !== "READY")}>{repository.writeEnabled ? "Pause GitHub check-ins" : "Enable GitHub check-ins"}</button>}</>}</div>}
-        {commits.length > 0 && <details><summary>Recent commits</summary><ol>{commits.map(c => <li key={c.sha}><a href={c.url} target="_blank" rel="noreferrer">{c.message}</a> · {c.author} · {c.at ? new Date(c.at).toLocaleString() : ""}</li>)}</ol></details>}
-      </section>
+      <div className="cpm-vault-repository-actions">
+        <button
+          type="button"
+          className="cpm-vault-btn-ghost"
+          data-tour-id="vault.repository"
+          aria-haspopup="dialog"
+          onClick={() => setRepositoryOpen(true)}
+        >
+          <i className="fas fa-database" aria-hidden="true" /> Repository details
+        </button>
+      </div>
+      {repositoryOpen && (
+        <VaultRepositoryModal onClose={() => { setRepositoryOpen(false); setSettingsOpen(false); }}>
+          <section className="cpm-vault-repository" aria-label="Vault storage">
+            <div><strong>{repository ? repository.slug : "Drive Vault"}</strong>{repository && <> / {repository.branch} · {repository.migrationState === "FROZEN" ? "Cutover paused" : repository.writeEnabled ? "GitHub check-ins enabled" : "Drive check-ins"}</>}</div>
+            {repository?.repair && <p role="alert">{repository.repair}</p>}
+            {repository && <><div>Repository health: {repoHealth?.status || repository.setupStatus} · Visibility: {repoHealth?.visibility || "unknown"} · Last sync: {repository.lastSyncedAt ? new Date(repository.lastSyncedAt).toLocaleString() : "Pending"}</div><div>Last known commit: {repository.lastHeadSha?.slice(0, 12) || "None"} · Open change requests: {items.reduce((sum, item) => sum + (item.openCrCount || 0), 0)}</div><a href={`https://github.com/${repository.slug}/tree/${encodeURIComponent(repository.branch)}`} target="_blank" rel="noreferrer">Open on GitHub</a></>}
+            {isAdmin && <button type="button" className="cpm-vault-btn-ghost" onClick={() => setSettingsOpen(open => !open)} aria-expanded={settingsOpen}>Repository settings</button>}
+            {settingsOpen && isAdmin && <div className="cpm-vault-repo-settings"><label>Linked repository <select value={repoId} onChange={e => setRepoId(e.target.value)} disabled={settingsBusy}><option value="">Choose a linked repository</option>{linkedRepos.map(r => <option key={r.id} value={r.id}>{r.slug}</option>)}</select></label><label>Branch <input value={branch} onChange={e => setBranch(e.target.value)} disabled={settingsBusy} /></label><button type="button" onClick={() => updateRepository("bind")} disabled={!repoId || settingsBusy}>Save binding</button>{repository && <><button type="button" onClick={() => updateRepository("verify")} disabled={settingsBusy || repository.writeEnabled}>Verify App and LFS</button>{!["FROZEN", "GITHUB_ACTIVE", "DRIVE_ROLLBACK"].includes(repository.migrationState) && <button type="button" onClick={() => updateRepository("toggle")} disabled={settingsBusy || (!repository.writeEnabled && repository.setupStatus !== "READY")}>{repository.writeEnabled ? "Pause GitHub check-ins" : "Enable GitHub check-ins"}</button>}</>}</div>}
+            {commits.length > 0 && <details><summary>Recent commits</summary><ol>{commits.map(c => <li key={c.sha}><a href={c.url} target="_blank" rel="noreferrer">{c.message}</a> · {c.author} · {c.at ? new Date(c.at).toLocaleString() : ""}</li>)}</ol></details>}
+          </section>
+        </VaultRepositoryModal>
+      )}
       <div className="cpm-vault-subnav" role="tablist" aria-label="Vault sub-view">
         {SUB_VIEWS.filter(v => !v.adminOnly || isAdmin).map(v => (
           <button
