@@ -112,7 +112,7 @@ export default function MobileProjectPicker({
               onClick={() => onSelectProject(p)}
             >
               {depth
-                ? <span className="cpm-project-child-marker" style={{ color: subProjectTagColor(p) }} aria-hidden="true" />
+                ? <span className="cpm-project-child-marker" style={{ '--subproject-tag-color': subProjectTagColor(p) }} aria-hidden="true" />
                 : starred
                   ? <i className="fas fa-star pm-m-row-star" aria-label="Pinned" />
                   : <i className="pm-m-dot" style={{ background: statusDotColor(p.status) }} aria-hidden="true" />}

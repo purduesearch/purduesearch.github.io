@@ -638,7 +638,7 @@ export default function AppShell({ children }) {
                   className={`pm-sidebar-project-item${depth ? ' pm-sidebar-project-item--child' : ''}${location.pathname === `/clubpm/projects/${p.id}` ? ' active' : ''}`}
                 >
                   {depth
-                    ? <span className="cpm-project-child-marker" style={{ color: subProjectTagColor(p) }} aria-hidden="true" />
+                    ? <span className="cpm-project-child-marker" style={{ '--subproject-tag-color': subProjectTagColor(p) }} aria-hidden="true" />
                     : starredIds.includes(p.id)
                       ? <span style={{ color: '#f9ca24', fontSize: 13, flexShrink: 0, lineHeight: 1 }}>★</span>
                       : <span className="pm-sidebar-project-dot" style={{ background: statusDotColor(p.status) }} />

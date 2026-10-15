@@ -31027,7 +31027,8 @@ button.cpm-sk-stat:hover, button.cpm-sk-stat:focus-visible { border-color: var(-
   flex: 0 0 10px;
   width: 10px;
   height: 0;
-  border-top: 2px dashed currentColor;
+  /* Span text colors are reset globally; the connector uses its tag directly. */
+  border-top: 2px dashed var(--subproject-tag-color, currentColor);
 }
 .pm-sidebar .pm-sidebar-project-child-star { flex: none; color: #f9ca24; font-size: 10px; }
 /* Task completion: local actions opt in; settled rows never animate on mount. */
@@ -31069,7 +31070,8 @@ button.pm-task-check { cursor: pointer; }
   background: linear-gradient(currentColor, currentColor) 0 55% / 0% 1.5px no-repeat;
 }
 [data-completion-status="DONE"] :is(.cpm-task-row-compact-name, .pm-m-task-title) {
-  background-size: 100% 1.5px; color: var(--clubpm-text-muted);
+  /* Override the global span color reset; currentColor also mutes the strike. */
+  background-size: 100% 1.5px; color: var(--clubpm-text-muted) !important;
 }
 [data-completion-status="DONE"] :is(.cpm-priority-bars, .pm-m-task-priority) { opacity: .35; filter: grayscale(1); }
 [data-completion-status="DONE"] .cpm-avatar-stack { opacity: .55; }
@@ -31079,7 +31081,7 @@ button.pm-task-check { cursor: pointer; }
   border-color: var(--pm-accent-amber); background: linear-gradient(transparent 50%, var(--pm-accent-amber) 50%);
 }
 .pm-task-landing .pm-task-check path { stroke-dashoffset: 11; }
-.pm-task-landing :is(.cpm-task-row-compact-name, .pm-m-task-title) { background-size: 0% 1.5px; color: var(--clubpm-text-primary); }
+.pm-task-landing :is(.cpm-task-row-compact-name, .pm-m-task-title) { background-size: 0% 1.5px; color: var(--clubpm-text-primary) !important; }
 .pm-task-landing :is(.cpm-priority-bars, .pm-m-task-priority, .cpm-avatar-stack) { opacity: 1; filter: none; }
 .pm-task-celebrating { z-index: 1; }
 .pm-task-celebrating::before {
@@ -31241,7 +31243,8 @@ button.pm-task-check { cursor: pointer; }
   white-space: nowrap;
 }
 .cpm-proj-progress-stats > span { display: inline-flex; align-items: center; gap: 4px; }
-.cpm-proj-progress-dot { width: 7px; height: 7px; background: currentColor; }
+/* Keep swatches independent of the global span color: inherit !important rule. */
+.cpm-proj-progress-dot { width: 7px; height: 7px; background: var(--progress-status-color); }
 .cpm-proj-progress-row .cpm-progress-bar-track { background: var(--clubpm-surface-400); }
 
 /* Project header dissolves into a sticky, full-width progress strip on Tasks. */

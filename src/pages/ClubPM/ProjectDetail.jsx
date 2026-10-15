@@ -240,7 +240,7 @@ function ProgressBar({ tasks, onBackToTop }) {
     { label: 'Completed', count: done, color: 'var(--clubpm-accent-green)' },
     { label: 'In progress', count: inProgress, color: 'var(--clubpm-accent-yellow)' },
     { label: 'Blocked', count: blocked, color: 'var(--clubpm-accent-red, #e17055)' },
-    { label: 'Not started', count: todo, color: 'var(--clubpm-text-muted)' },
+    { label: 'Not started', count: todo, color: 'var(--clubpm-text-secondary)' },
   ];
   return (
     <div className="cpm-proj-progress-row">
@@ -255,7 +255,7 @@ function ProgressBar({ tasks, onBackToTop }) {
       <span className="cpm-proj-progress-pct">{pct}%</span>
       <span className="cpm-proj-progress-stats">
         {total ? statuses.map(status => (
-          <span key={status.label} title={status.label} aria-label={`${status.label}: ${status.count}`} style={{ color: status.color }}>
+          <span key={status.label} title={status.label} aria-label={`${status.label}: ${status.count}`} style={{ '--progress-status-color': status.color }}>
             <span className="cpm-proj-progress-dot" aria-hidden="true" />{status.count}
           </span>
         )) : <span>No tasks yet</span>}
