@@ -28,6 +28,15 @@ labVisitsRouter.get("/me", async (req: Request, res: Response) => {
   catch (err) { sendError(res, err, "me"); }
 });
 
+labVisitsRouter.get("/time-summary", async (req: Request, res: Response) => {
+  try {
+    for (const key of ["from", "to", "memberId"]) {
+      if (req.query[key] !== undefined && typeof req.query[key] !== "string") throw new labVisits.LabVisitError(400, `${key} must be a string.`);
+    }
+    res.json(await labVisits.getLabTimeSummary(req.memberId!, { from: str(req.query.from), to: str(req.query.to), memberId: str(req.query.memberId) }));
+  } catch (err) { sendError(res, err, "time-summary"); }
+});
+
 labVisitsRouter.get("/present", async (req: Request, res: Response) => {
   try {
     res.json(await labVisits.getPresent({ projectId: str(req.query.projectId), workspaceId: str(req.query.workspaceId) }));
@@ -44,7 +53,10 @@ labVisitsRouter.post("/check-in", async (req: Request, res: Response) => {
 
 labVisitsRouter.post("/check-out", async (req: Request, res: Response) => {
   try {
-    const { taskIds, recap, visitId } = req.body ?? {};
+    const { taskIds, recap, visitId, other } = req.body ?? {};
+    if (other !== undefined && typeof other !== "boolean") {
+      res.status(400).json({ error: "other must be a boolean." }); return;
+    }
     if (taskIds !== undefined && (!Array.isArray(taskIds) || taskIds.some((id: unknown) => typeof id !== "string" || !id))) {
       res.status(400).json({ error: "taskIds must be an array of task IDs." }); return;
     }
@@ -54,7 +66,7 @@ labVisitsRouter.post("/check-out", async (req: Request, res: Response) => {
     if (visitId !== undefined && (typeof visitId !== "string" || !visitId)) {
       res.status(400).json({ error: "visitId must be a visit ID." }); return;
     }
-    res.json(await labVisits.checkOut(req.memberId!, { at: atFrom(req.body), source: "WEB", taskIds, recap: recap?.trim(), visitId }));
+    res.json(await labVisits.checkOut(req.memberId!, { at: atFrom(req.body), source: "WEB", taskIds, recap: recap?.trim(), visitId, other }));
   }
   catch (err) { sendError(res, err, "check-out"); }
 });

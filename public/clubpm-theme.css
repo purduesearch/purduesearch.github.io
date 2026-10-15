@@ -31867,3 +31867,7 @@ button.pm-task-check { cursor: pointer; }
   .pm-lab-checkout-layer.pm-m-layer.pm-shell--compact .pm-m-dialog, .pm-lab-checkout-hero.is-complete .pm-lab-checkout-orbit { animation: none; }
   .pm-lab-checkout-task { transition: none; }
 }
+
+/* Other is a completed member-only allocation, always visible while searching. */
+.pm-lab-checkout-other { margin-top: 12px; }
+.pm-lab-checkout-other > i { color: var(--pm-accent-teal); margin-right: 5px; }

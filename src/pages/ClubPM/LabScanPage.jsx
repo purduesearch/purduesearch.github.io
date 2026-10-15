@@ -20,8 +20,9 @@ function fmtDuration(ms) {
 
 function closeSummary(result) {
   if (!result) return '';
-  if (result.discarded) return 'Visit was under 5 minutes, so no time was logged.';
+  if (result.discarded) return 'Short visit saved to your attendance; no task time was logged.';
   const parts = (result.allocations ?? []).map(a => `${a.minutes}m → ${a.title}`);
+  if (result.otherMinutes > 0) parts.push(`${result.otherMinutes}m logged to you (Other)`);
   if (result.unallocatedMinutes > 0) parts.push(`${result.unallocatedMinutes}m not logged to a task yet`);
   return parts.join(' · ');
 }

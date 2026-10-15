@@ -3262,6 +3262,10 @@ model LabVisit {
   autoClosed         Boolean        @default(false)
   /// Minutes not yet assigned to any task (zero in-progress tasks at check-out).
   unallocatedMinutes Int            @default(0)
+  /// Confirmed session duration, counted once per member regardless of task splits.
+  totalMinutes       Int            @default(0)
+  /// Time deliberately logged to the member via Other; not awaiting task allocation.
+  otherMinutes       Int            @default(0)
   /// Member-written session wrap-up, including sessions without task allocations.
   recap              String?        @db.Text
   timeLogs           TimeLog[]

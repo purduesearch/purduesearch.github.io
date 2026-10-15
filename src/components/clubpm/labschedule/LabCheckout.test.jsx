@@ -23,6 +23,32 @@ beforeEach(() => {
   labCheckOut.mockResolvedValue(saved);
 });
 
+test('Other clears task allocations and logs the session directly to the member', async () => {
+  labCheckOut.mockResolvedValue({ allocations: [], otherMinutes: 90, unallocatedMinutes: 0 });
+  renderCheckout();
+  fireEvent.click(screen.getByRole('checkbox', { name: /Design bracket/ }));
+  fireEvent.change(screen.getByLabelText('Status for Design bracket'), { target: { value: 'IN_PROGRESS' } });
+  fireEvent.click(screen.getByRole('checkbox', { name: /^Other/ }));
+  expect(screen.getByRole('checkbox', { name: /Design bracket/ })).not.toBeChecked();
+  expect(screen.queryByText('Your next moves')).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: /Save & check out/ }));
+  expect(await screen.findByText(/90m logged to you/)).toBeInTheDocument();
+  expect(screen.queryByText(/allocation later/)).not.toBeInTheDocument();
+  expect(labCheckOut).toHaveBeenCalledWith(expect.any(String), { visitId: 'v1', taskIds: [], recap: '', other: true });
+});
+
+test('selecting a task clears Other and Other remains available during search', async () => {
+  renderCheckout();
+  fireEvent.change(screen.getByRole('textbox', { name: 'Search assigned tasks' }), { target: { value: 'no matches' } });
+  fireEvent.click(screen.getByRole('checkbox', { name: /^Other/ }));
+  fireEvent.change(screen.getByRole('textbox', { name: 'Search assigned tasks' }), { target: { value: '' } });
+  fireEvent.click(screen.getByRole('checkbox', { name: /Design bracket/ }));
+  expect(screen.getByRole('checkbox', { name: /^Other/ })).not.toBeChecked();
+  fireEvent.click(screen.getByRole('button', { name: /Save & check out/ }));
+  await screen.findByRole('button', { name: 'Finish' });
+  expect(labCheckOut).toHaveBeenCalledWith(expect.any(String), { visitId: 'v1', taskIds: ['todo'], recap: '' });
+});
+
 test('all non-done assigned tasks are selectable and searching preserves selections across projects', async () => {
   renderCheckout();
   fireEvent.click(screen.getByRole('checkbox', { name: /Design bracket/ }));

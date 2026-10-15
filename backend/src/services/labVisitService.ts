@@ -35,6 +35,7 @@ export interface CloseResult {
   discarded: boolean;
   allocations: { taskId: string; title: string; minutes: number }[];
   unallocatedMinutes: number;
+  otherMinutes: number;
   todoTasks: { id: string; title: string; projectName: string }[];
 }
 
@@ -139,10 +140,11 @@ function validateEnd(visit: { checkedInAt: Date }, at: Date | undefined, now: Da
   return at;
 }
 
-export async function checkOut(memberId: string, opts: { at?: Date; source: Source; taskIds?: string[]; recap?: string; visitId?: string }, now = new Date()): Promise<CloseResult & { workspace: WorkspaceDto }> {
+export async function checkOut(memberId: string, opts: { at?: Date; source: Source; taskIds?: string[]; recap?: string; visitId?: string; other?: boolean }, now = new Date()): Promise<CloseResult & { workspace: WorkspaceDto }> {
   const open = await prisma.labVisit.findFirst({ where: { memberId, status: "OPEN" } });
   if (!open) throw new LabVisitError(404, "You're not checked in.");
   if (opts.visitId && opts.visitId !== open.id) throw new LabVisitError(409, "Your lab visit changed. Reopen check-out to continue.");
+  if (opts.other && opts.taskIds?.length) throw new LabVisitError(400, "Choose Other or assigned tasks, not both.");
   if (opts.taskIds !== undefined) {
     const tasks = await prisma.task.findMany({ where: { ...openTaskWhere(memberId), id: { in: opts.taskIds } }, select: { id: true } });
     if (tasks.length !== new Set(opts.taskIds).size) throw new LabVisitError(403, "Choose only your assigned, unarchived tasks.");
@@ -156,17 +158,19 @@ export async function checkOut(memberId: string, opts: { at?: Date; source: Sour
  * Close an OPEN or PENDING_CONFIRM visit at `end` and split its minutes.
  * The status flip is a conditional update, so two concurrent closes cannot both log time.
  */
-export async function closeVisit(visit: LabVisit, end: Date, source: Source, wrapUp?: { taskIds?: string[]; recap?: string }): Promise<CloseResult> {
+export async function closeVisit(visit: LabVisit, end: Date, source: Source, wrapUp?: { taskIds?: string[]; recap?: string; other?: boolean }): Promise<CloseResult> {
   const minutes = visitMinutes(visit.checkedInAt, end);
-  const discard = minutes < MIN_VISIT_MINUTES;
+  const discard = minutes < MIN_VISIT_MINUTES && !wrapUp?.other;
+  const timeData = { totalMinutes: minutes, otherMinutes: wrapUp?.other ? minutes : 0 };
   const recapData = wrapUp?.recap !== undefined ? { recap: wrapUp.recap || null } : {};
   const claimed = await prisma.labVisit.updateMany({
     where: { id: visit.id, status: visit.status },
-    data: { status: discard ? "DISCARDED" : "CLOSED", checkedOutAt: end, ...recapData },
+    data: { status: discard ? "DISCARDED" : "CLOSED", checkedOutAt: end, ...recapData, ...timeData },
   });
   if (claimed.count === 0) throw new LabVisitError(409, "This visit was already closed.");
-  const base = { discarded: discard, allocations: [], unallocatedMinutes: 0, todoTasks: [] };
-  if (discard) return { ...base, visit: { ...visit, status: "DISCARDED", checkedOutAt: end, ...recapData } };
+  const base = { discarded: discard, allocations: [], unallocatedMinutes: 0, otherMinutes: timeData.otherMinutes, todoTasks: [] };
+  const closedVisit: LabVisit = { ...visit, status: discard ? "DISCARDED" : "CLOSED", checkedOutAt: end, ...recapData, ...timeData };
+  if (discard || wrapUp?.other) return { ...base, visit: closedVisit };
 
   const [tasks, links] = await Promise.all([
     prisma.task.findMany({
@@ -192,7 +196,7 @@ export async function closeVisit(visit: LabVisit, end: Date, source: Source, wra
   }
   return {
     ...base,
-    visit: { ...visit, status: "CLOSED", checkedOutAt: end, ...recapData },
+    visit: closedVisit,
     allocations: splits.map(s => ({ taskId: s.taskId, title: titleOf.get(s.taskId) ?? "Task", minutes: s.minutes })),
   };
 }
@@ -234,6 +238,35 @@ export async function confirmPending(memberId: string, opts: { at?: Date; source
 // ── Reads ────────────────────────────────────────────────────
 
 const visitInclude = { workspace: { select: { id: true, name: true, color: true, timezone: true } } } as const;
+
+/** Attendance totals count each visit once, never the task allocations again.
+ * Members may read their own totals; club-wide or other-member reads are admin-only.
+ * Sessions are attributed to their check-in date, matching project time insights.
+ */
+export async function getLabTimeSummary(requesterId: string, opts: { memberId?: string; from?: string; to?: string } = {}, now = new Date()) {
+  const to = opts.to ? new Date(opts.to) : now;
+  const from = opts.from ? new Date(opts.from) : new Date(to.getTime() - 84 * DAY_MS);
+  if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime()) || from > to || to.getTime() - from.getTime() > 366 * DAY_MS) {
+    throw new LabVisitError(400, "Choose a valid date range of up to 366 days.");
+  }
+  const requester = await prisma.member.findUnique({ where: { id: requesterId }, select: { isAdmin: true } });
+  if (!requester) throw new LabVisitError(403, "Member not found.");
+  if (opts.memberId && opts.memberId !== requesterId && !requester.isAdmin) throw new LabVisitError(403, "You can only read your own lab time.");
+  const memberId = opts.memberId ?? (requester.isAdmin ? undefined : requesterId);
+  const rows = await prisma.labVisit.groupBy({
+    by: ["memberId"],
+    where: { ...(memberId ? { memberId } : {}), status: { in: ["CLOSED", "DISCARDED"] }, totalMinutes: { gt: 0 }, checkedInAt: { gte: from, lte: to }, checkedOutAt: { not: null } },
+    _sum: { totalMinutes: true, otherMinutes: true, unallocatedMinutes: true },
+    // Expired, unconfirmed visits have no totalMinutes; do not count those as attendance.
+    _count: { _all: true },
+  });
+  const people = await prisma.member.findMany({ where: { id: { in: rows.map(r => r.memberId) } }, select: { id: true, displayName: true } });
+  const names = new Map(people.map(p => [p.id, p.displayName]));
+  return {
+    from: from.toISOString(), to: to.toISOString(),
+    byMember: rows.map(r => ({ memberId: r.memberId, displayName: names.get(r.memberId) ?? "Member", totalMinutes: r._sum.totalMinutes ?? 0, otherMinutes: r._sum.otherMinutes ?? 0, unallocatedMinutes: r._sum.unallocatedMinutes ?? 0, visitCount: r._count._all })),
+  };
+}
 
 export async function getMyVisits(memberId: string, now = new Date()) {
   const [open, pending, unallocated] = await Promise.all([

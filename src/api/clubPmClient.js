@@ -859,6 +859,13 @@ export const labCheckIn  = (workspaceId)   => post('/api/lab-visits/check-in', {
 export const labCheckOut = (at, wrapUp = {}) => post('/api/lab-visits/check-out', { ...(at ? { at } : {}), ...wrapUp });
 export const labConfirm  = (at)            => post('/api/lab-visits/confirm', at ? { at } : {});
 export const labAllocate = (visitId, taskId) => post(`/api/lab-visits/${encodeURIComponent(visitId)}/allocate`, { taskId });
+export function getLabTimeSummary({ memberId, from, to } = {}) {
+  const q = new URLSearchParams();
+  if (memberId) q.set('memberId', memberId);
+  if (from) q.set('from', from);
+  if (to) q.set('to', to);
+  return get(`/api/lab-visits/time-summary${q.size ? `?${q}` : ''}`);
+}
 export function getProjectTimeInsights(projectId, { from, to, rollup } = {}) {
   const q = new URLSearchParams();
   if (rollup) q.set('rollup', '1');

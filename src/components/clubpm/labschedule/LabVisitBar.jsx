@@ -29,8 +29,9 @@ function endIsoFor(visit, hhmm) {
 
 function toastClose(result) {
   if (!result) return;
-  if (result.discarded) { toast('Visit was under 5 minutes, so no time was logged.'); return; }
+  if (result.discarded) { toast('Short visit saved to your attendance; no task time was logged.'); return; }
   const parts = (result.allocations ?? []).map(a => `${a.minutes}m → ${a.title}`);
+  if (result.otherMinutes > 0) parts.push(`${result.otherMinutes}m logged to you (Other)`);
   if (result.unallocatedMinutes > 0) parts.push(`${result.unallocatedMinutes}m not logged to a task yet`);
   toast.success(parts.length ? `Checked out. ${parts.join(' · ')}` : 'Checked out.');
 }

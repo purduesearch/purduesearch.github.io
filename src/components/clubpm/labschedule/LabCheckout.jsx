@@ -9,6 +9,7 @@ const SUPPORTED = new Set(['CREATE_TASK', 'SET_STATUS', 'ADD_COMMENT']);
 // an AI outage or a denied task change must never prevent someone leaving the lab.
 export default function LabCheckout({ visit, tasks = [], onClose, onComplete }) {
   const [selected, setSelected] = useState([]);
+  const [other, setOther] = useState(false);
   const [statuses, setStatuses] = useState({});
   const [query, setQuery] = useState('');
   const [recap, setRecap] = useState('');
@@ -77,7 +78,7 @@ export default function LabCheckout({ visit, tasks = [], onClose, onComplete }) 
 
   function checkout() {
     run('checkout', async () => {
-      const result = await labCheckOut(endedAt.current, { visitId: visit.id, taskIds: selected, recap: recap.trim() });
+      const result = await labCheckOut(endedAt.current, { visitId: visit.id, taskIds: selected, recap: recap.trim(), ...(other ? { other: true } : {}) });
       setClosed(result);
     });
   }
@@ -129,24 +130,25 @@ export default function LabCheckout({ visit, tasks = [], onClose, onComplete }) 
           <div className="pm-lab-checkout-orbit"><i className={`fas ${closed ? 'fa-check' : 'fa-flask'}`} aria-hidden="true" /></div>
           <div><span className="pm-lab-checkout-eyebrow">{visit.workspace?.name} · {duration}</span>
             <h3>{closed ? 'Good work. You’re checked out.' : 'What did you work on?'}</h3>
-            <p>{closed ? 'One session closer. Review your task changes below, then finish.' : 'Capture today’s progress and set up your next session.'}</p>
+            <p>{closed ? (actions.length ? 'One session closer. Review your task changes below, then finish.' : 'Your lab time is recorded. See you next session.') : 'Capture today’s progress and set up your next session.'}</p>
           </div>
         </div>
         {error && <div className="pm-lab-checkout-error" role="alert">{error}</div>}
         {closed ? <div className="pm-lab-checkout-receipt" role="status">
           <strong>{closed.discarded ? 'Short visit saved' : `${duration} in the lab`}</strong>
-          {closed.discarded && <p>Visits under 5 minutes do not log time.</p>}
+          {closed.discarded && <p>Short visits count toward your lab attendance, but do not log time to tasks.</p>}
           {(closed.allocations ?? []).map(a => <p key={a.taskId ?? a.title}><i className="fas fa-clock" aria-hidden="true" /> {a.minutes}m → {a.title}</p>)}
           {closed.unallocatedMinutes > 0 && <p>{closed.unallocatedMinutes}m saved for allocation later.</p>}
+          {closed.otherMinutes > 0 && <p><i className="fas fa-user" aria-hidden="true" /> {closed.otherMinutes}m logged to you · Other</p>}
           {applied > 0 && <p>{applied} task {applied === 1 ? 'change' : 'changes'} applied.</p>}
         </div> : <>
           <section className="pm-lab-checkout-section">
-            <div className="pm-lab-checkout-section-title"><h4><span>01</span> Your assigned tasks</h4><small>{selected.length} selected</small></div>
-            <p>Select everything you worked on. Time is split evenly; status stays unchanged unless you choose one.</p>
+            <div className="pm-lab-checkout-section-title"><h4><span>01</span> Your assigned tasks</h4><small>{other ? 'Other selected' : `${selected.length} selected`}</small></div>
+            <p>Select the tasks you worked on to split time evenly, or choose Other to log the session just to you. All lab time counts toward your attendance.</p>
             <label className="pm-lab-checkout-search"><i className="fas fa-search" aria-hidden="true" /><input aria-label="Search assigned tasks" placeholder="Find a task or project…" value={query} onChange={e => setQuery(e.target.value)} /></label>
             <div className="pm-lab-checkout-tasks">
               {visible.map(task => <div key={task.id} className={`pm-lab-checkout-task${selected.includes(task.id) ? ' is-selected' : ''}`}>
-                <label><input type="checkbox" checked={selected.includes(task.id)} onChange={e => setSelected(prev => e.target.checked ? [...prev, task.id] : prev.filter(id => id !== task.id))} />
+                <label><input type="checkbox" checked={selected.includes(task.id)} onChange={e => { setOther(false); setSelected(prev => e.target.checked ? [...prev, task.id] : prev.filter(id => id !== task.id)); }} />
                   <span><strong>{task.title}</strong><small>{task.project?.name} · {STATUSES[task.status] ?? task.status}</small></span>
                 </label>
                 {selected.includes(task.id) && <select aria-label={`Status for ${task.title}`} value={statuses[task.id] ?? task.status} onChange={e => setStatuses(prev => ({ ...prev, [task.id]: e.target.value }))}>
@@ -154,6 +156,12 @@ export default function LabCheckout({ visit, tasks = [], onClose, onComplete }) 
                 </select>}
               </div>)}
               {!visible.length && <div className="pm-lab-checkout-empty">{eligible.length ? 'No matching tasks.' : 'No open assigned tasks. Tell us what you worked on below.'}</div>}
+            </div>
+            <div className={`pm-lab-checkout-task pm-lab-checkout-other${other ? ' is-selected' : ''}`}>
+              <label><input type="checkbox" checked={other} onChange={e => { setOther(e.target.checked); if (e.target.checked) setSelected([]); }} />
+                <span><strong>Other</strong><small>Log the whole session to me, without a task.</small></span>
+              </label>
+              <i className="fas fa-user" aria-hidden="true" />
             </div>
           </section>
           <section className="pm-lab-checkout-section">
