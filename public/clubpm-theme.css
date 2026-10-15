@@ -31315,3 +31315,146 @@ button.pm-task-check { cursor: pointer; }
   .cpm-project-main--scroll-header .pm-proj-breadcrumb,
   .cpm-project-main--scroll-header .pm-proj-hero-row { opacity: 1; transform: none; filter: none; }
 }
+
+/* Shared Drive folder browser: project Files and task attachments. */
+.cpm-drive-browser {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--clubpm-border);
+  border-radius: 12px;
+  background: var(--clubpm-surface-200);
+  color: var(--clubpm-text-primary);
+  font-family: var(--pm-font-body);
+}
+.cpm-drive-browser-location,
+.cpm-drive-browser-toolbar { display: flex; align-items: center; gap: 10px; padding: 12px 14px; }
+.cpm-drive-browser-location { border-bottom: 1px solid var(--clubpm-border); }
+.cpm-drive-browser .cpm-drive-browser-crumbs {
+  position: static;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  width: auto;
+  min-width: 0;
+  overflow-x: auto;
+  background: transparent;
+  padding: 0;
+  box-shadow: none;
+}
+.cpm-drive-browser-crumbs > i { font-size: 9px; color: var(--clubpm-text-muted); }
+.cpm-drive-browser-crumbs button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  flex-shrink: 0;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--clubpm-text-secondary);
+  padding: 7px;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.cpm-drive-browser-crumbs button[aria-current] { color: var(--clubpm-text-primary); font-weight: 700; }
+.cpm-drive-browser-crumbs button > i { color: var(--pm-accent-amber); }
+.cpm-drive-browser-tool {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  width: 34px;
+  min-width: 34px;
+  height: 34px;
+  border: 1px solid var(--clubpm-border);
+  border-radius: 7px;
+  background: transparent;
+  color: var(--clubpm-text-secondary);
+  text-decoration: none;
+  cursor: pointer;
+}
+.cpm-drive-browser-tool:disabled { opacity: .35; cursor: default; }
+.cpm-drive-browser-tool:not(:disabled):hover,
+.cpm-drive-browser-crumbs button:hover { background: var(--clubpm-surface-300); color: var(--clubpm-accent-primary); }
+.cpm-drive-browser-search { display: flex; align-items: center; gap: 9px; flex: 1; min-width: 0; padding: 0 12px; }
+.cpm-drive-browser-search,
+.cpm-drive-browser-toolbar select { border: 1px solid var(--clubpm-border); border-radius: 8px; background: var(--clubpm-surface-100); color: var(--clubpm-text-secondary); }
+.cpm-drive-browser-search > i { font-size: 12px; color: var(--clubpm-text-muted); }
+.cpm-drive-browser-search input {
+  width: 100%; min-width: 0; height: 38px; border: 0; background: transparent;
+  color: var(--clubpm-text-primary); font: inherit; font-size: 13px; outline: none;
+}
+.cpm-drive-browser-search input::placeholder { color: var(--clubpm-text-secondary); }
+.cpm-drive-browser-search:focus-within { border-color: var(--clubpm-accent-primary); }
+.cpm-drive-browser-toolbar select { max-width: 170px; height: 40px; padding: 0 10px; font: inherit; font-size: 12px; }
+.cpm-drive-browser-toolbar option { background: var(--clubpm-surface-200); color: var(--clubpm-text-primary); }
+.cpm-drive-browser-content { min-height: 260px; }
+.cpm-drive-browser-list { margin: 0; padding: 0 8px 8px; list-style: none; }
+.cpm-drive-browser-row { display: flex; align-items: center; gap: 8px; padding: 0 8px; border-radius: 8px; border: 1px solid transparent; }
+.cpm-drive-browser-row + .cpm-drive-browser-row { margin-top: 3px; }
+.cpm-drive-browser-row:hover { background: var(--clubpm-surface-300); }
+.cpm-drive-browser-row.is-selected { background: rgba(0, 229, 204, .08); border-color: var(--clubpm-accent-primary); }
+.cpm-drive-browser-row > input { width: 17px; height: 17px; flex-shrink: 0; accent-color: var(--clubpm-accent-primary); cursor: pointer; }
+.cpm-drive-browser-item { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; padding: 10px 0; border: 0; background: transparent; color: inherit; text-align: left; font: inherit; cursor: pointer; }
+.cpm-drive-browser-icon { display: grid; place-items: center; width: 38px; height: 38px; flex-shrink: 0; border-radius: 9px; background: var(--clubpm-surface-300); color: var(--clubpm-text-secondary); font-size: 17px; }
+.cpm-drive-browser-icon--folder { color: var(--pm-accent-amber); background: rgba(245, 166, 35, .1); }
+.cpm-drive-browser-icon--doc { color: #84b6ff; }
+.cpm-drive-browser-icon--sheet { color: #65dba3; }
+.cpm-drive-browser-icon--pdf { color: var(--pm-accent-coral); }
+.cpm-drive-browser-icon--slide { color: var(--pm-accent-amber); }
+.cpm-drive-browser-icon--image,
+.cpm-drive-browser-icon--video { color: var(--pm-accent-violet); }
+.cpm-drive-browser-file { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: 3px; }
+.cpm-drive-browser-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; font-weight: 600; }
+.cpm-drive-browser-type,
+.cpm-drive-browser-date,
+.cpm-drive-browser-chevron { color: var(--clubpm-text-secondary); font-size: 11px; }
+.cpm-drive-browser-date { flex-shrink: 0; }
+.cpm-drive-browser-row > a { border-color: transparent; }
+.cpm-drive-browser-empty { display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 10px; min-height: 260px; padding: 28px; color: var(--clubpm-text-secondary); text-align: center; font-size: 13px; }
+.cpm-drive-browser-empty > i { font-size: 28px; color: var(--clubpm-text-muted); }
+.cpm-drive-browser-empty strong { color: var(--clubpm-text-primary); }
+.cpm-drive-browser-empty p { max-width: 440px; margin: 0; line-height: 1.6; }
+.cpm-drive-browser-summary { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 6px 20px; border-top: 1px solid var(--clubpm-border); padding: 12px 16px; color: var(--clubpm-text-secondary); font-size: 11px; }
+.cpm-drive-browser :is(button, a, select, input[type="checkbox"]):focus-visible { outline: 2px solid var(--clubpm-accent-primary); outline-offset: 2px; }
+.cpm-drive-browser--picker { display: flex; flex-direction: column; flex: 1; min-height: 0; border: 0; border-radius: 0; }
+.cpm-drive-browser--picker .cpm-drive-browser-content { flex: 1; max-height: 360px; overflow-y: auto; min-height: 0; }
+.cpm-drive-browser--picker .cpm-drive-browser-location,
+.cpm-drive-browser--picker .cpm-drive-browser-toolbar,
+.cpm-drive-browser--picker .cpm-drive-browser-summary { flex-shrink: 0; }
+.cpm-drive-browser--picker .cpm-drive-browser-empty { min-height: 160px; }
+.cpm-drive-browser--picker .cpm-drive-browser-summary { padding: 10px 16px; }
+@media (max-width: 640px) {
+  .cpm-drive-browser-location,
+  .cpm-drive-browser-toolbar { gap: 6px; padding: 10px; }
+  .cpm-drive-browser-crumbs button { max-width: 160px; min-height: 44px; }
+  .cpm-drive-browser-tool { width: 44px; min-width: 44px; height: 44px; }
+  .cpm-drive-browser-toolbar { flex-wrap: wrap; }
+  .cpm-drive-browser-search { flex-basis: 100%; }
+  .cpm-drive-browser-search input { height: 44px; font-size: 16px; }
+  .cpm-drive-browser-toolbar select { max-width: none; width: 100%; height: 44px; font-size: 16px; }
+  .cpm-drive-browser-item { gap: 9px; flex-wrap: wrap; }
+  .cpm-drive-browser-date { display: none; }
+  .cpm-drive-browser-row { padding: 0 4px; gap: 4px; }
+  .cpm-drive-browser-row > input { margin: 12px 8px; }
+}
+
+/* Icon colors live on the glyph: ClubPM deliberately makes spans inherit. */
+.cpm-drive-browser-icon--folder i { color: var(--pm-accent-amber); }
+.cpm-drive-browser-icon--doc i { color: #84b6ff; }
+.cpm-drive-browser-icon--sheet i { color: #65dba3; }
+.cpm-drive-browser-icon--pdf i { color: var(--pm-accent-coral); }
+.cpm-drive-browser-icon--slide i { color: var(--pm-accent-amber); }
+.cpm-drive-browser-icon--image i,
+.cpm-drive-browser-icon--video i { color: var(--pm-accent-violet); }
+/* Attachment dialogs are portalled outside the app shell. */
+.cpm-attach-modal { color: var(--clubpm-text-primary); font-family: var(--pm-font-body); }
+.cpm-attach-header, .cpm-attach-tabs, .cpm-attach-footer { flex-shrink: 0; }
+@media (max-width: 640px) {
+  .cpm-attach-footer > button { min-height: 44px; }
+  .cpm-attach-tab { min-height: 44px; }
+}

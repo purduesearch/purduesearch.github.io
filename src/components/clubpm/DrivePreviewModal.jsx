@@ -17,7 +17,7 @@ export default function DrivePreviewModal({ url, label, onClose }) {
   const parsed = parseDriveUrl(url);
   const previewUrl = getPreviewUrl(parsed);
   const meta = getTypeMeta(parsed.kind);
-  const displayLabel = label || parsed.kind === "folder" ? "Drive folder" : "Drive file";
+  const displayLabel = label || (parsed.kind === "folder" ? "Drive folder" : "Drive file");
 
   useEffect(() => {
     function onKey(e) { if (e.key === "Escape") onClose(); }

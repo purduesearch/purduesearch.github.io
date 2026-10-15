@@ -6,10 +6,9 @@
 // Returns selections to the caller via onAdd, which accepts either a single
 // {url,label} object (paste tab) or an array of them (browse tab, multi-select).
 
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { createPortal } from "react-dom";
-import { get } from "../../api/clubPmClient";
-import { mimeTypeToKind, getTypeMeta, formatRelativeTime, getWebViewUrl } from "../../utils/driveUtils";
+import DriveFolderBrowser, { driveItemUrl } from "./DriveFolderBrowser";
 
 export default function AttachmentPickerModal({ projectId, onAdd, onClose }) {
   const [tab, setTab] = useState("paste");
@@ -94,25 +93,7 @@ function PasteTab({ onAdd, onClose }) {
 }
 
 function BrowseTab({ projectId, onAdd, onClose }) {
-  const [state, setState] = useState({ loading: true, data: null, error: null });
-  const [selected, setSelected] = useState({}); // { [fileId]: file }
-  // Subfolders entered below the linked root; selection survives navigation.
-  const [path, setPath] = useState([]); // [{ id, name }]
-  const currentFolderId = path.length ? path[path.length - 1].id : null;
-
-  useEffect(() => {
-    let cancelled = false;
-    setState({ loading: true, data: null, error: null });
-    const qs = currentFolderId ? `?folderId=${encodeURIComponent(currentFolderId)}` : "";
-    get(`/api/projects/${projectId}/drive-files${qs}`)
-      .then(data => { if (!cancelled) setState({ loading: false, data, error: null }); })
-      .catch(err => { if (!cancelled) setState({ loading: false, data: null, error: err?.message ?? "Failed to load files" }); });
-    return () => { cancelled = true; };
-  }, [projectId, currentFolderId]);
-
-  function openFolder(f) {
-    setPath(prev => [...prev, { id: f.id, name: f.name }]);
-  }
+  const [selected, setSelected] = useState({});
 
   function toggle(file) {
     setSelected(prev => {
@@ -125,7 +106,7 @@ function BrowseTab({ projectId, onAdd, onClose }) {
 
   function addSelected() {
     const items = Object.values(selected).map(f => ({
-      url: f.webViewLink || getWebViewUrl({ kind: mimeTypeToKind(f.mimeType), id: f.id }),
+      url: driveItemUrl(f),
       label: f.name,
     }));
     if (items.length === 0) return;
@@ -135,93 +116,9 @@ function BrowseTab({ projectId, onAdd, onClose }) {
 
   const selectedCount = Object.keys(selected).length;
 
-  if (state.loading) {
-    return <div className="cpm-attach-browse-empty"><span className="cpm-spinner" /> Loading files…</div>;
-  }
-  if (state.error) {
-    return (
-      <div className="cpm-attach-browse-empty cpm-attach-browse-error">
-        {state.error}
-        {path.length > 0 && (
-          <button type="button" className="cpm-attach-cancel" onClick={() => setPath([])}>Back to top folder</button>
-        )}
-      </div>
-    );
-  }
-
-  const { data } = state;
-  if (data?.noLink) {
-    return (
-      <div className="cpm-attach-browse-empty">
-        <i className="fab fa-google-drive" style={{ fontSize: 28, color: "#4285F4", marginBottom: 8 }} aria-hidden="true" />
-        <p>No Drive folder linked to this project yet.</p>
-        <p style={{ fontSize: 11, opacity: 0.7 }}>An admin needs to link one before you can browse files.</p>
-      </div>
-    );
-  }
-  if (data?.notFolder) {
-    return (
-      <div className="cpm-attach-browse-empty">
-        <p>The linked Drive item isn't a folder, so there's nothing to browse.</p>
-        <p style={{ fontSize: 11, opacity: 0.7 }}>Use "Paste URL" instead, or ask an admin to link a folder.</p>
-      </div>
-    );
-  }
-  if (!data?.files?.length && path.length === 0) {
-    return <div className="cpm-attach-browse-empty">This Drive folder is empty.</div>;
-  }
-
   return (
     <>
-      <div className="cpm-attach-browse-header">
-        <span>
-          {path.length > 0 && (
-            <button
-              type="button"
-              className="cpm-attach-cancel"
-              style={{ marginRight: 8 }}
-              onClick={() => setPath(prev => prev.slice(0, -1))}
-              aria-label="Up one folder"
-            >
-              <i className="fas fa-arrow-left" aria-hidden="true" />
-            </button>
-          )}
-          <i className="fas fa-folder" style={{ color: "#FFC107", marginRight: 6 }} aria-hidden="true" />
-          {data.folderName || "Drive folder"}
-        </span>
-        <span style={{ fontSize: 11, color: "var(--clubpm-text-muted)" }}>
-          {data.files.length} item{data.files.length !== 1 ? "s" : ""}
-        </span>
-      </div>
-
-      {data.files.length === 0 && <div className="cpm-attach-browse-empty">This folder is empty.</div>}
-
-      <ul className="cpm-attach-browse-list">
-        {data.files.map(f => {
-          const kind = mimeTypeToKind(f.mimeType);
-          const meta = getTypeMeta(kind);
-          const isFolder = kind === "folder";
-          const isSelected = !!selected[f.id];
-          return (
-            <li
-              key={f.id}
-              className={`cpm-attach-browse-row ${isSelected ? "is-selected" : ""}`}
-              onClick={() => toggle(f)}
-              onDoubleClick={isFolder ? () => openFolder(f) : undefined}
-              title={isFolder ? "Double-click to open" : undefined}
-            >
-              <span className="cpm-attach-browse-check" aria-hidden="true">
-                {isSelected ? <i className="fas fa-check-square" /> : <i className="far fa-square" />}
-              </span>
-              <i className={`fas ${meta.icon} cpm-attach-browse-icon`} style={{ color: meta.color }} aria-hidden="true" />
-              <span className="cpm-attach-browse-name" title={f.name}>{f.name}</span>
-              <span className="cpm-attach-browse-meta">
-                {meta.label}{f.modifiedTime ? ` · ${formatRelativeTime(f.modifiedTime)}` : ""}
-              </span>
-            </li>
-          );
-        })}
-      </ul>
+      <DriveFolderBrowser key={projectId} projectId={projectId} selected={selected} onToggle={toggle} />
 
       <div className="cpm-attach-footer">
         <button type="button" className="cpm-attach-cancel" onClick={onClose}>Cancel</button>

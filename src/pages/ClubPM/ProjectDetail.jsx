@@ -21,6 +21,7 @@ import ProjectTimeInsights from "../../components/clubpm/analytics/ProjectTimeIn
 import PressKitPanel from "../../components/clubpm/PressKitPanel";
 import GanttChart from "../../components/clubpm/GanttChart";
 import { PriorityBars, AvatarStack, StatusRing } from "../../components/clubpm/TaskPrimitives";
+import DriveFolderBrowser from "../../components/clubpm/DriveFolderBrowser";
 import DrivePreviewModal from "../../components/clubpm/DrivePreviewModal";
 import EditDriveFolderModal from "../../components/clubpm/EditDriveFolderModal";
 import EditProjectModal from "../../components/clubpm/EditProjectModal";
@@ -31,7 +32,7 @@ import VaultTab from "../../components/clubpm/vault/VaultTab";
 import ChatTab from "../../components/clubpm/chat/ChatTab";
 import MembersView from "./MembersView";
 import MemberLeadCard from "../../components/clubpm/members/MemberLeadCard";
-import { parseDriveUrl, getTypeMeta, getPreviewUrl } from "../../utils/driveUtils";
+import { parseDriveUrl, getTypeMeta } from "../../utils/driveUtils";
 import {
   DndContext,
   DragOverlay,
@@ -2213,15 +2214,12 @@ function DriveFolderPill({ project, isAdmin, onPreview, onSaved }) {
 
 // ── Files Tab Panel (view-only link to the project's linked Drive folder) ────
 //
-// The Files tab is intentionally read-only: it surfaces the human-managed Drive
-// folder linked to the project (`project.driveLink`) and links out to it. The
-// bot's drive.file OAuth scope can't list a folder it didn't create, so
-// browsing/adding/editing happen in Drive itself; the app never provisions or
-// mutates the folder. Legacy Vault versions can use a separate bot-owned CAD
-// folder; GitHub-enabled Vault check-ins use the configured repository.
+// Browse the same linked folder used by task attachments. Changes to files
+// happen in Drive; folder navigation and previews stay inside Constellation.
 
 function DriveFilesPanel({ project, isAdmin, onProjectChange }) {
   const [editing, setEditing] = useState(false);
+  const [preview, setPreview] = useState(null);
   const link = project.driveLink ?? null;
   const parsed = link ? parseDriveUrl(link) : null;
   const isFolder = parsed?.kind === "folder";
@@ -2281,10 +2279,6 @@ function DriveFilesPanel({ project, isAdmin, onProjectChange }) {
     );
   }
 
-  // Folder linked → view-only inline embed of the folder's contents (Google's
-  // embeddedfolderview iframe — same mechanism as the eye-icon preview, so it
-  // works whenever the folder is shared "anyone with the link").
-  const embedUrl = getPreviewUrl(parsed);
   return (
     <div className="cpm-drive-files">
       <header className="cpm-drive-files-header">
@@ -2304,22 +2298,13 @@ function DriveFilesPanel({ project, isAdmin, onProjectChange }) {
         </div>
       </header>
 
-      {embedUrl ? (
-        <iframe
-          title="Drive folder contents"
-          src={embedUrl}
-          className="cpm-drive-folder-embed"
-          loading="lazy"
-        />
-      ) : (
-        <div className="cpm-drive-files-empty" style={{ marginTop: 4 }}>
-          <i className="fab fa-google-drive" style={{ fontSize: 32, color: "#4285F4", marginBottom: 10 }} aria-hidden="true" />
-          <p>This project's files live in a linked Google Drive folder.</p>
-          <a href={link} target="_blank" rel="noopener noreferrer" className="clubpm-btn-primary" style={{ marginTop: 12 }}>
-            Open folder in Drive <i className="fas fa-external-link-alt" aria-hidden="true" style={{ marginLeft: 6 }} />
-          </a>
-        </div>
-      )}
+      <DriveFolderBrowser
+        key={`${project.id}:${link}`}
+        projectId={project.id}
+        driveLink={link}
+        onPreview={setPreview}
+      />
+      {preview && <DrivePreviewModal {...preview} onClose={() => setPreview(null)} />}
 
       {editModal}
     </div>
