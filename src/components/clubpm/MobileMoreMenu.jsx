@@ -68,6 +68,7 @@ export default function MobileMoreMenu({ member, location, adminCounts, onNaviga
       </div>
       <div className="pm-m-card">
         <Row {...row} href="/clubpm/profile" icon="fa-user" label="Profile" tourId="nav.profile" />
+        <Row {...row} href="/clubpm/skills" icon="fa-star" label="Skills" tourId="nav.skills" />
       </div>
 
       <div className="pm-m-group-label">Progress &amp; rewards</div>

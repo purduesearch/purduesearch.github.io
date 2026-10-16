@@ -15,6 +15,8 @@ training project.**
 | `rewards-tour` | 8 | `/clubpm/challenges` | No | 1 (optional) |
 | `comms-tour` | 10 | `/clubpm/notifications` | No | 0 |
 
+An additional optional `skills-tour` (4 read-only steps, `/clubpm/skills`, no sandbox or API writes) introduces the member workspace. It covers My skills, Growth, Team coverage and Library; Automation is admin-only and is not part of the member tour. The Profile skill summary now links to this workspace. On a phone, Skills is in More, directly under Profile. The standalone tour is supplied for authors to add to a course; it does not alter required course completion.
+
 The dashboard puts assigned work first and shows recent activity from projects you contribute to.
 Project insights and the seven-day agenda remain available; quests live on Challenges.
 

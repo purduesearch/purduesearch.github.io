@@ -1,10 +1,20 @@
 # Skills system
 
 Once a week a job reads each member's new work (GitHub pull requests and reviews, CAD check-ins in the Vault,
-finished tasks, plus work they describe by hand), has Gemini label it against a fixed skill taxonomy, stores a short
+finished tasks, plus work they describe by hand), has Gemini label it against an evolving skill catalog, stores a short
 summary as **evidence**, and recomputes each person's **assessments** with plain arithmetic. Members see everything
 inferred about them and can dispute it. Admins can find people by skill and ask staffing questions. Members can
 publish an opt-in portfolio for employers.
+
+The member workspace is **`/clubpm/skills`** (sidebar Skills, or More → Skills on phones). It has My skills,
+Growth, Team coverage, Library, and admin-only Automation. The profile keeps a compact summary linking here;
+the existing Admin → Skills tools remain available. The approved direction is documented in
+[the design proposal](designs/2026-10-16-skills-overhaul/README.md).
+
+Apply **`20261016160000_skills_workspace` before deploying this backend**. It freezes existing skill/project
+sharing choices, separates teammate/public visibility, and makes newly encountered skills/projects private until
+selected. It also adds focus goals, saved opportunities, reversible catalog identities, immutable change receipts,
+and an automation policy. No production migration or schedule change is implied by checking in this implementation.
 
 Levels are **advisory estimates**, not performance scores. There is no total score and no leaderboard anywhere.
 
@@ -16,6 +26,8 @@ Scoring rules and the written rubric: [skills/RUBRIC.md](skills/RUBRIC.md).
 |---|---|
 | Schema | `prisma/schema.prisma` (Skill…SkillRun), migration `20261013120000_skills` |
 | Taxonomy | `services/skillSeedData.ts`, `skillTaxonomyService.ts`, `skillMatchCore.ts` |
+| Catalog automation | `skillCatalogCore.ts` (identity/privacy/policy), `skillCatalogService.ts` (serialized writes, limits, receipts, reversal) |
+| Workspace / access | `skillWorkspaceService.ts`, `skillWorkspaceCore.ts`, `skillAccessService.ts` (visibility before retrieval and project-only estimates) |
 | Gemini lane | `services/ai/skillsGemini.ts` (own limiter, retry, batch, embeddings, cost) |
 | Prompt + schema | `services/skillPrompts.ts` (`PROMPT_VERSION`, `RUBRIC_VERSION`) |
 | Per-artifact analysis | `skillAnalysisService.ts`, `skillValidateCore.ts` |
@@ -24,20 +36,38 @@ Scoring rules and the written rubric: [skills/RUBRIC.md](skills/RUBRIC.md).
 | Scoring | `skillScoringCore.ts` (pure, unit tested) |
 | APIs | `api/skills.ts` (member + public portfolio), `api/skillsAdmin.ts` |
 | Search / assistant | `skillSearchService.ts`, `skillQueryCore.ts`, `projectAskService.ts`, `utils/aiPrompts.ts` |
-| Signals | `services/skillSignalCore.ts` (file types and names → hints and strong floors) |
+| Signals | `services/skillSignalCore.ts` (file types and names → candidate hints; never forced skill credit) |
 | UI | `src/components/clubpm/skills/*` (`SkillsAdmin` shell, `SkillsRunPanel`, `SkillsMatrix`, `SkillsTaxonomy`, `SkillsReview`, `MemberSkillsCard`), `src/pages/Public/Portfolio.jsx` |
 
 ## Data model
 
 1. **Taxonomy** – `Skill` (type tool / technique / domain / soft skill), `SkillAlias`, `SkillEdge` (multi-parent,
-   related, prerequisite; cycles refused). Gemini never creates a skill: it picks from candidate keys, every proposed
-   name is matched against all names and aliases first ("React", "ReactJS", "React.js" are one skill), and what is left
-   goes to `SkillProposal` for an admin to add, merge as an alias, or reject.
+   related, prerequisite; cycles refused). Every proposed name is matched against names and aliases first
+   ("React", "ReactJS", "React.js" are one skill). `processCatalogProposal` automatically creates a provisional
+   concept only with a reusable definition, an exact supporting passage from a current authored/reviewed source,
+   valid broader placement (or a top-level domain), and no near-match or suppression. Exceptions stay in
+   `SkillProposal` with a reason. Defaults: creation on, 10 creations per UTC day, exact-duplicate consolidation
+   on, up to 3 merges per UTC day affecting at most 5 members each. Automation can pause or disable it.
+   Deferred supported proposals are reconsidered without another model call.
 2. **Evidence** – `SkillEvidence`, append only (a database trigger rejects every update except `supersededAt` and
    `embedding`). Keeps the source reference, the model's labels, a one-sentence summary and an embedding. Raw diffs,
-   file contents and CAD bytes stay in their systems. Stores `modelVersion`, `promptVersion` and `rubricVersion`.
+   file contents and CAD bytes stay in their systems. Stores `modelVersion`, `promptVersion` and `rubricVersion`,
+   an immutable bounded context manifest, and explicit `contributionKey` links. Context includes title, attributed
+   role, facts, truncation, and exact supporting proposal excerpts; it does not retain full documents/diffs.
 3. **Assessments** – `SkillAssessment`, derived. One row per member, skill and provenance (`AI_INFERRED`,
    `SELF_CLAIMED`, `PEER_ENDORSED`, `MANAGER_VERIFIED`), never merged. Level and confidence are separate fields.
+
+Catalog consolidation changes only `Skill.canonicalId`, under the catalog lock and in the same transaction as
+AI reassessment. Evidence and human assertions keep their original identities. Equivalent labels on an artifact
+and explicitly linked task/PR/Vault records count once per member/skill. `SkillCatalogChange` is append-only;
+undo writes a compensating keep-separate decision, restores distinct identities, and recomputes affected members.
+Later live consolidations or disputes can require dependency review before undo. The most restrictive sharing
+choice applies across equivalent originals. A similarity match alone can never consolidate concepts. Automatic
+existing-concept consolidation currently requires matching normalized names and definitions (or an identical
+external identity), matching type, no hierarchy/conflict/dispute/lock, and the configured impact/operation caps.
+
+The five-level scoring rubric remains v1. Context and deduplication change which evidence supports it, rather
+than introducing an unvalidated new proficiency scale. The source prompt is `skills-v3-context`.
 
 ## Setup
 
@@ -101,9 +131,10 @@ How tags are chosen:
 - Before the model reads a piece of work, file types and names produce **signals**: a `.sldasm` check-in points at
   SolidWorks and assembly design, 200 changed lines of `.py` at Python, a `.github/workflows` file at CI/CD. Signalled
   skills are always among the candidates and are listed in the prompt as hints to confirm.
-- **Strong** signals are a floor: a native CAD/EDA file in a check-in or an authored PR, or at least 40 changed lines of a
-  language in an authored PR. If the model leaves one out it is added at fit 0.5, because the file type alone proves the
-  tool was used. Reviews, tasks and manual entries only ever produce hints.
+- Hint strength affects candidate selection only. Native CAD files and changed-line counts never force tags,
+  proficiency, authorship or leadership. A task creator needs an attributable contribution note to produce an
+  artifact; assignment alone is explicitly insufficient. Review artifacts contain the reviewer's own explanation,
+  rather than crediting the author’s implementation or another reviewer’s note.
 - Candidates show their parent area, and the model is asked for the most specific skill the work shows.
 
 Batch mode (`SKILLS_USE_BATCH=1`) sends runs of at least `SKILLS_BATCH_MIN_ITEMS` artifacts through Gemini's batch API at
@@ -123,6 +154,13 @@ model and set `SKILLS_PRICE_*`**), 100 artifacts a week is roughly $0.15 a week,
 an estimated cost; the Admin panel shows the last run, and `--dry-run` gives a forecast before you commit. The taxonomy
 is sent whole while it has 160 skills or fewer; beyond that it is prefiltered per artifact.
 
+Automation has a conservative **per-run reservation budget** (default $2, editable in Automation). Every
+generation attempt, schema/cutoff retry and embedding reserves its bounded allowance before a provider call,
+using configured token prices, prompt/schema byte counts and the requested output ceiling. Reservations are not
+reclaimed after a call. Exhaustion defers work and prevents watermark advancement. This is an allowance at the
+configured rates, not a guarantee about an external invoice. Configure `SKILLS_PRICE_*` for the actual model.
+`SKILLS_INCLUDE_DIFFS=1` optionally includes bounded PR patches, excluding generated/vendor files; it is off by default.
+
 ## Who sees what
 
 | | Member (own) | Project member | Admin | Public portfolio |
@@ -136,13 +174,18 @@ is sent whole while it has 160 skills or fewer; beyond that it is prefiltered pe
 | Overall score or ranking | none | none | none | none |
 
 The public portfolio is **off until the member turns it on**, then shows only skills marked public that are lead-verified
-or have at least medium confidence, and evidence from projects the member allows. Skills and projects are public by
-default once the portfolio is on, and a member can hide any of them (eye icon) in one click. The server builds the
+or have at least medium confidence, and evidence from projects the member allows. Existing sharing choices are
+preserved by migration; new skills and projects require explicit public selection. Public AI estimates use only
+the evidence eligible for public display. Teammate sharing is an independent per-skill setting. The server builds the
 public payload from an allow-list, so new columns cannot leak. Its address is `/portfolio/<slug>`, marked `noindex`.
 
-Any signed-in member sees a teammate's skills on their profile: skills the member has not hidden (eye icon), minus any
-under an open dispute, with up to three summaries of work from projects both people are on, and can endorse a skill at a
-level (stored as its own peer row). A member can switch this off in Skills → Portfolio and privacy.
+Any signed-in member sees selected teammate skills on a profile, minus open disputes, with up to three summaries
+from shared projects. Project coverage and assistant retrieval evaluate visibility before collecting context;
+project-only AI estimates do not import private-project work. A member can switch discovery off in Portfolio & privacy.
+
+Growth stores up to three focus skills and saved task references. Suggestions require an explicit concept/alias
+mention in accessible, open, unassigned tasks (or a previously saved accessible task). A save is never an assignment
+or message. Missing estimates and availability are displayed as unknown; no willingness is inferred.
 
 Admin → Skills → **People** is a coverage grid: one row per person, one column per skill in an area, each cell the
 highest-trust level held (lead-verified, then peer, then analysis, then self-claim; dashed = low confidence, outlined =

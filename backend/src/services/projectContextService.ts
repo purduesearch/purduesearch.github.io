@@ -1,6 +1,7 @@
 import { prisma } from "../db/prisma.js";
 import { getProjectAuditLog } from "./activityService.js";
 import { getRollupChildren } from "./subProjectRollupService.js";
+import { visibleProjectAssessments } from "./skillAccessService.js";
 import type { Prisma, TaskStatus, Priority, MilestoneStatus } from "@prisma/client";
 
 // ── Project Context Service ──────────────────────────────────
@@ -343,10 +344,7 @@ export async function buildProjectContext(
     taskCounts: milestoneCounts.get(m.id) ?? { total: 0, done: 0 },
   }));
 
-  const skillRows = await prisma.skillAssessment.findMany({
-    where: { memberId: { in: [...projectMemberIds] }, provenance: { in: ["AI_INFERRED", "PEER_ENDORSED", "MANAGER_VERIFIED"] } },
-    select: { memberId: true, level: true, confidenceBand: true, provenance: true, lastDemonstrated: true, skill: { select: { name: true } } },
-  });
+  const skillRows = await visibleProjectAssessments([...projectMemberIds], projectId);
   const bandRank = { LOW: 0, MEDIUM: 1, HIGH: 2 } as const;
   const skillsByMember = new Map<string, ProjectContextSkill[]>();
   for (const r of skillRows.sort((a, b) => b.level - a.level || bandRank[b.confidenceBand] - bandRank[a.confidenceBand] || a.skill.name.localeCompare(b.skill.name))) {

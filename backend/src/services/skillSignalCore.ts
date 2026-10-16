@@ -1,13 +1,11 @@
 // Deterministic skill signals (pure). Before the model reads an artifact, the file
 // types and names in it already say a lot: a SolidWorks part was made in SolidWorks,
-// a PR with 300 changed lines of Python is Python work. These signals do three jobs:
+// a PR with Python files may involve Python work. These signals do two jobs:
 //
 //   1. the skills they point at are always in the model's candidate list, even when
 //      a large taxonomy is prefiltered;
-//   2. the prompt lists them as hints the model must confirm against the work;
-//   3. a few STRONG signals (native CAD/EDA files, substantial authored code) are a
-//      floor: if the model leaves one out, it is added at a modest fit, because the
-//      file type alone proves the tool was used.
+//   2. the prompt lists them as hints the model must confirm against the work.
+// They never force a tag or establish proficiency on their own.
 //
 // Signal names are resolved through the alias index, so a name the taxonomy does
 // not have simply produces no signal; nothing here can invent a skill.
@@ -19,12 +17,10 @@ import type { SkillArtifact } from "./skillPrompts.js";
 export interface SkillSignal {
   skillId: string;
   reason: string;
-  /** Strong signals are a floor (see applySignalFloor); the rest are hints. */
+  /** Hint strength for candidate selection only; never grants skill credit. */
   strong: boolean;
 }
 
-/** Fit given to a strong signal the model left out. Below a mapped proposal (0.6): the work may still be minor. */
-export const SIGNAL_FLOOR_FIT = 0.5;
 /** Changed lines in one language before an authored PR counts as a strong signal for it. */
 export const STRONG_CODE_LINES = 40;
 const MAX_TEXT_HINTS = 6;
@@ -167,19 +163,4 @@ export function detectSignals(a: SkillArtifact, index: AliasIndex, skills: Skill
     if ([...out.values()].filter((s) => s.reason === "named in the work").length >= MAX_TEXT_HINTS) break;
   }
   return [...out.values()];
-}
-
-/**
- * Strong signals the model left out are added at SIGNAL_FLOOR_FIT. Never raises a
- * fit the model gave, never adds a hint, and never re-adds a skill for a member
- * who had it upheld as wrong (the caller filters that later anyway).
- */
-export function applySignalFloor<T extends { skills: { skillId: string; fit: number }[]; warnings: string[] }>(analysis: T, signals: SkillSignal[], maxSkills: number): T {
-  const have = new Set(analysis.skills.map((s) => s.skillId));
-  const added = signals.filter((s) => s.strong && !have.has(s.skillId));
-  if (!added.length) return analysis;
-  const skills = [...analysis.skills, ...added.map((s) => ({ skillId: s.skillId, fit: SIGNAL_FLOOR_FIT }))]
-    .sort((x, y) => y.fit - x.fit || x.skillId.localeCompare(y.skillId))
-    .slice(0, maxSkills);
-  return { ...analysis, skills, warnings: [...analysis.warnings, `${added.length} skill${added.length === 1 ? "" : "s"} added from file-type signals`] };
 }

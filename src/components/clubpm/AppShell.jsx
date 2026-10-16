@@ -43,6 +43,7 @@ function getBreadcrumb(pathname) {
   if (pathname.match(/\/clubpm\/projects\/[^/]+\/gantt/)) return [{ label: 'Projects', href: '/clubpm' }, { label: 'Gantt' }];
   if (pathname.match(/\/clubpm\/projects\/[^/]+/)) return [{ label: 'Projects', href: '/clubpm' }, { label: 'Project Detail' }];
   if (pathname === '/clubpm/members') return [{ label: 'Social' }, { label: 'Members' }];
+  if (pathname === '/clubpm/skills') return [{ label: 'Skills' }];
   if (pathname === '/clubpm/courses') return [{ label: 'Other' }, { label: 'Courses' }];
   if (pathname.match(/\/clubpm\/courses\/[^/]+\/edit/)) return [{ label: 'Other' }, { label: 'Courses', href: '/clubpm/courses' }, { label: 'Editor' }];
   if (pathname.match(/\/clubpm\/courses\/[^/]+\/learn/)) return [{ label: 'Other' }, { label: 'Courses', href: '/clubpm/courses' }, { label: 'Player' }];
@@ -85,6 +86,12 @@ const NAV_ITEMS = [
       { label: 'Members', href: '/clubpm/members', tourId: 'nav.members' },
       { label: 'Calendar', href: '/clubpm/calendar', tourId: 'nav.calendar' },
     ],
+  },
+  {
+    label: 'Skills',
+    href: '/clubpm/skills',
+    tourId: 'nav.skills',
+    icon: <i className="fas fa-star" aria-hidden="true" style={{ fontSize: 15, width: 18, textAlign: 'center' }} />,
   },
   {
     label: 'Other',

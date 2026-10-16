@@ -2,6 +2,7 @@ import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 const MORE_TITLES = [
+  ['/clubpm/skills', 'Skills', '/clubpm'],
   ['/clubpm/notifications/preferences', 'Notification preferences', '/clubpm/notifications'],
   ['/clubpm/notifications', 'Notifications', '/clubpm'],
   ['/clubpm/profile', 'Profile', '/clubpm'],

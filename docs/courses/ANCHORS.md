@@ -47,6 +47,7 @@ step must open first (`compact.reveal`).
 | `nav.other` | Other group header (collapsed by default, not a link) | — (its links are More rows) | desktop | | `*` |
 | `nav.admin` | Admin link — an admins-only child of the Other group† | More › **Admin** (admins only) | both | more | `*` |
 | `nav.profile` | Sidebar user / profile link | More › **Profile** | both | more | `*` |
+| `nav.skills` | Skills link | More › **Skills** | both | more | `*` |
 | `nav.xp` | Sidebar XP progress bar | More › progress block | both | more | `*` |
 | `nav.rank` | Sidebar rank badge | More › account row rank badge | both | more | `*` |
 | `nav.more` | — | Bottom-bar **More** button | phone | | `*` |
@@ -60,6 +61,18 @@ step must open first (`compact.reveal`).
 until it does. The static check still sees `nav.members` because the literal is in `NAV_ITEMS`, but a
 desktop step that targets it will measure a zero rect and degrade. Don't target a desktop group
 child until the rail keeps its children in layout. (On phones every one of these is a labelled row.)
+
+## Skills — `src/pages/ClubPM/SkillsWorkspace.jsx`
+
+Skills workspace section controls (same on desktop and phone):
+
+| Anchor | Element | Route |
+|---|---|---|
+| `skills.my` | My skills — evidence and advisory assessments | `/clubpm/skills` |
+| `skills.growth` | Growth — focus skills and saved opportunities | `/clubpm/skills` |
+| `skills.team` | Team coverage — shared project evidence | `/clubpm/skills` |
+| `skills.library` | Library — definitions, aliases and admin receipts | `/clubpm/skills` |
+| `skills.automation` | Automation — admins only | `/clubpm/skills` |
 
 ## Dashboard — `src/pages/ClubPM/Dashboard.jsx`
 

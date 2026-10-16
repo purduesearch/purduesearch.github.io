@@ -10,6 +10,9 @@ import { writeEvidence } from "./skillEvidenceService.js";
 import { RUBRIC_VERSION } from "./skillPrompts.js";
 import { buildProfileSkills, buildPublicPortfolio, normalizeSlug, shapeSkills, type AssessmentRow, type PortfolioEvidenceRow, type SkillNode } from "./skillViewCore.js";
 import { TaxonomyError } from "./skillTaxonomyService.js";
+import { canonicalMap, identityIds, projectedDisputes, sharingProjection } from "./skillCatalogCore.js";
+import { projectEvidence } from "./skillCatalogCore.js";
+import { assessMember } from "./skillScoringCore.js";
 
 const bad = (msg: string) => new TaxonomyError("INVALID", msg);
 const isLevel = (n: unknown): n is number => typeof n === "number" && Number.isInteger(n) && n >= 1 && n <= 5;
@@ -23,17 +26,19 @@ const text = (v: unknown, min: number, max: number, what: string): string => {
 export async function loadSkillNodes(): Promise<SkillNode[]> {
   const rows = await prisma.skill.findMany({
     where: { status: "ACTIVE" },
-    select: { id: true, slug: true, name: true, type: true, parents: { where: { kind: "PARENT" }, select: { toId: true } } },
+    select: { id: true, slug: true, name: true, type: true, canonicalId: true, description: true, lifecycle: true, parents: { where: { kind: "PARENT" }, select: { toId: true } } },
   });
-  return rows.map((r) => ({ id: r.id, slug: r.slug, name: r.name, type: r.type, parentIds: r.parents.map((p) => p.toId) }));
+  return rows.map((r) => ({ id: r.id, slug: r.slug, name: r.name, type: r.type, canonicalId: r.canonicalId, description: r.description, lifecycle: r.lifecycle, parentIds: r.parents.map((p) => p.toId) }));
 }
 
 export async function assessmentRowsFor(memberId: string): Promise<AssessmentRow[]> {
   const rows = await prisma.skillAssessment.findMany({ where: { memberId } });
+  const ids = [...new Set(rows.map(r => r.assertedById).filter(Boolean))];
+  const actors = new Map((ids.length ? await prisma.member.findMany({ where: { id: { in: ids } }, select: { id: true, displayName: true } }) : []).map(m => [m.id, m.displayName]));
   return rows.map((r) => ({
     skillId: r.skillId, provenance: r.provenance, level: r.level, confidence: r.confidence, confidenceBand: r.confidenceBand,
     firstSeen: r.firstSeen, lastDemonstrated: r.lastDemonstrated, trend: r.trend, rationale: r.rationale, evidenceCount: r.evidenceCount,
-    assertedById: r.assertedById, note: r.note, computedAt: r.computedAt,
+    assertedById: r.assertedById, assertedByName: r.assertedById ? actors.get(r.assertedById) ?? "Former member" : null, note: r.note, computedAt: r.computedAt,
   }));
 }
 
@@ -50,12 +55,14 @@ export async function getMySkills(memberId: string) {
   ]);
   const projectIds = (await prisma.skillEvidence.findMany({ where: { memberId, supersededAt: null, projectId: { not: null } }, distinct: ["projectId"], select: { projectId: true } })).map((p) => p.projectId!);
   const projects = projectIds.length ? await prisma.project.findMany({ where: { id: { in: projectIds } }, select: { id: true, name: true } }) : [];
-  const visMap = new Map(vis.map((v) => [v.skillId, v.isPublic]));
+  const map = canonicalMap(nodes);
+  const visMap = sharingProjection(map, new Map(vis.map((v) => [v.skillId, v.isPublic])));
+  const teamMap = sharingProjection(map, new Map(vis.map(v => [v.skillId, v.showToTeam])));
   const projMap = new Map(projVis.map((v) => [v.projectId, v.isPublic]));
   return {
-    groups: shapeSkills(rows, nodes).map((g) => ({ ...g, skills: g.skills.map((s) => ({ ...s, isPublic: visMap.get(s.skillId) !== false })) })),
-    projects: projects.map((p) => ({ ...p, isPublic: projMap.get(p.id) !== false })),
-    disputes,
+    groups: shapeSkills(rows, nodes).map((g) => ({ ...g, skills: g.skills.map((s) => ({ ...s, isPublic: visMap.get(s.skillId) === true, showToTeam: teamMap.get(s.skillId) === true })) })),
+    projects: projects.map((p) => ({ ...p, isPublic: projMap.get(p.id) === true })),
+    disputes: disputes.map(d => ({ ...d, originalSkillId: d.skillId, skillId: map.get(d.skillId) ?? d.skillId })),
     portfolio: portfolio ? { slug: portfolio.slug, enabled: portfolio.enabled, headline: portfolio.headline, showOnProfile: portfolio.showOnProfile } : null,
     showOnProfile: portfolio?.showOnProfile ?? true,
     lastAnalysisAt: lastRun?.finishedAt ?? null,
@@ -64,17 +71,18 @@ export async function getMySkills(memberId: string) {
 }
 
 export async function getMyEvidence(memberId: string, skillId: string) {
+  const map = canonicalMap(await prisma.skill.findMany({ select: { id: true, canonicalId: true } }));
   const joins = await prisma.skillEvidenceSkill.findMany({
-    where: { skillId, evidence: { memberId, supersededAt: null } },
+    where: { skillId: { in: identityIds(skillId, map) }, evidence: { memberId, supersededAt: null } },
     select: {
       weight: true,
-      evidence: { select: { id: true, source: true, sourceRef: true, sourceUrl: true, projectId: true, occurredAt: true, contribution: true, complexity: true, outcome: true, summary: true, modelVersion: true, promptVersion: true } },
+      evidence: { select: { id: true, source: true, sourceRef: true, sourceUrl: true, projectId: true, occurredAt: true, contribution: true, complexity: true, outcome: true, summary: true, modelVersion: true, promptVersion: true, context: true, contributionKey: true } },
     },
   });
   const projectIds = [...new Set(joins.map((j) => j.evidence.projectId).filter((p): p is string => !!p))];
   const projects = projectIds.length ? await prisma.project.findMany({ where: { id: { in: projectIds } }, select: { id: true, name: true } }) : [];
   const names = new Map(projects.map((p) => [p.id, p.name]));
-  return joins
+  return [...new Map(joins.map(j => [j.evidence.id, j])).values()]
     .map((j) => ({ ...j.evidence, fit: j.weight, projectName: j.evidence.projectId ? names.get(j.evidence.projectId) ?? null : null }))
     .sort((a, b) => b.occurredAt.getTime() - a.occurredAt.getTime());
 }
@@ -140,7 +148,8 @@ export async function createDispute(memberId: string, input: { skillId?: unknown
   let evidenceId: string | null = null;
   if (input.evidenceId != null) {
     if (typeof input.evidenceId !== "string") throw bad("evidenceId must be a string");
-    const link = await prisma.skillEvidenceSkill.findFirst({ where: { evidenceId: input.evidenceId, skillId: skill.id, evidence: { memberId } }, select: { evidenceId: true } });
+    const map = canonicalMap(await prisma.skill.findMany({ select: { id: true, canonicalId: true } }));
+    const link = await prisma.skillEvidenceSkill.findFirst({ where: { evidenceId: input.evidenceId, skillId: { in: identityIds(skill.id, map) }, evidence: { memberId } }, select: { evidenceId: true } });
     if (!link) throw new TaxonomyError("NOT_FOUND", "That evidence is not tagged with this skill for you");
     evidenceId = input.evidenceId;
   }
@@ -149,10 +158,12 @@ export async function createDispute(memberId: string, input: { skillId?: unknown
   return prisma.skillDispute.create({ data: { memberId, skillId: skill.id, evidenceId, reason }, select: { id: true, status: true, createdAt: true } });
 }
 
-export async function setSkillVisibility(memberId: string, skillId: string, isPublic: unknown) {
+export async function setSkillVisibility(memberId: string, skillId: string, isPublic: unknown, audience: "public" | "team" = "public") {
   if (typeof isPublic !== "boolean") throw bad("isPublic must be true or false");
   const skill = await activeSkill(skillId);
-  await prisma.skillVisibility.upsert({ where: { memberId_skillId: { memberId, skillId: skill.id } }, create: { memberId, skillId: skill.id, isPublic }, update: { isPublic } });
+  const map = canonicalMap(await prisma.skill.findMany({ select: { id: true, canonicalId: true } }));
+  const data = audience === "public" ? { isPublic } : { showToTeam: isPublic };
+  await prisma.$transaction(identityIds(skill.id, map).map(id => prisma.skillVisibility.upsert({ where: { memberId_skillId: { memberId, skillId: id } }, create: { memberId, skillId: id, isPublic: false, showToTeam: false, ...data }, update: data })));
 }
 
 export async function setProjectVisibility(memberId: string, projectId: string, isPublic: unknown) {
@@ -259,7 +270,7 @@ export async function getPublicPortfolio(slugRaw: string) {
     prisma.skillDispute.findMany({ where: { memberId, status: "OPEN" }, select: { skillId: true } }),
     prisma.skillEvidence.findMany({
       where: { memberId, supersededAt: null }, orderBy: { occurredAt: "desc" }, take: 600,
-      select: { id: true, source: true, summary: true, sourceUrl: true, occurredAt: true, projectId: true, skills: { select: { skillId: true } } },
+      select: { id: true, source: true, summary: true, sourceUrl: true, occurredAt: true, projectId: true, contributionKey: true, contribution: true, complexity: true, outcome: true, skills: { select: { skillId: true, weight: true } } },
     }),
   ]);
   const projectIds = [...new Set(joins.map((e) => e.projectId).filter((p): p is string => !!p))];
@@ -269,12 +280,16 @@ export async function getPublicPortfolio(slugRaw: string) {
     id: e.id, skillIds: e.skills.map((s) => s.skillId), source: e.source, summary: e.summary, sourceUrl: e.sourceUrl, occurredAt: e.occurredAt,
     projectId: e.projectId, projectName: e.projectId ? names.get(e.projectId) ?? null : null,
   }));
+  const map = canonicalMap(nodes);
+  const projectChoices = new Map(projVis.map(v => [v.projectId, v.isPublic]));
+  const publicEvidence = joins.filter(e => !e.projectId || projectChoices.get(e.projectId) === true);
+  const publicAssessments: AssessmentRow[] = [...rows.filter(r => r.provenance !== "AI_INFERRED"), ...[...assessMember(projectEvidence(publicEvidence.map(e => ({ ...e, skills: e.skills.map(s => ({ skillId: s.skillId, fit: s.weight })) })), map), new Date())].map(([skillId, a]) => ({ ...a, skillId, provenance: "AI_INFERRED" as const, assertedById: "", note: null, computedAt: new Date() }))];
   return buildPublicPortfolio({
     member: portfolio.member, portfolio: { slug: portfolio.slug, enabled: portfolio.enabled, headline: portfolio.headline },
-    skills: nodes, assessments: rows,
-    skillVisibility: new Map(vis.map((v) => [v.skillId, v.isPublic])),
-    projectVisibility: new Map(projVis.map((v) => [v.projectId, v.isPublic])),
-    disputedSkillIds: new Set(disputes.map((d) => d.skillId)),
+    skills: nodes, assessments: publicAssessments,
+    skillVisibility: sharingProjection(canonicalMap(nodes), new Map(vis.map((v) => [v.skillId, v.isPublic]))),
+    projectVisibility: new Map(projectIds.map(id => [id, projectChoices.get(id) === true])),
+    disputedSkillIds: projectedDisputes(disputes.map(d => d.skillId), canonicalMap(nodes)),
     evidence,
   });
 }
@@ -286,32 +301,36 @@ export async function getPublicPortfolio(slugRaw: string) {
  * Same safety as the portfolio (allow-list shaping, hidden and disputed skills left
  * out) but no opt-in needed: the member can turn it off with showOnProfile.
  */
-export async function getMemberProfileSkills(viewer: { id: string; isAdmin: boolean }, memberId: string) {
+export async function getMemberProfileSkills(viewer: { id: string; isAdmin: boolean; projectId?: string }, memberId: string) {
+  if (viewer.projectId && !await prisma.projectMember.findFirst({ where: { memberId: viewer.id, projectId: viewer.projectId }, select: { memberId: true } })) throw new TaxonomyError("FORBIDDEN", "Not a member of this project");
   const member = await prisma.member.findFirst({ where: { id: memberId, isBot: false }, select: { id: true, githubLogin: true } });
   if (!member) throw new TaxonomyError("NOT_FOUND", "Member not found");
-  const [portfolio, nodes, rows, vis, disputes, evidenceRows, viewerProjects] = await Promise.all([
+  const viewerProjects = viewer.isAdmin && !viewer.projectId ? null : await prisma.projectMember.findMany({ where: { memberId: viewer.id, ...(viewer.projectId ? { projectId: viewer.projectId } : {}) }, select: { projectId: true } });
+  const [portfolio, nodes, rows, vis, disputes, evidenceRows] = await Promise.all([
     prisma.memberPortfolio.findUnique({ where: { memberId }, select: { showOnProfile: true } }),
     loadSkillNodes(),
     assessmentRowsFor(memberId),
     prisma.skillVisibility.findMany({ where: { memberId } }),
     prisma.skillDispute.findMany({ where: { memberId, status: "OPEN" }, select: { skillId: true } }),
     prisma.skillEvidence.findMany({
-      where: { memberId, supersededAt: null }, orderBy: { occurredAt: "desc" }, take: 400,
-      select: { id: true, source: true, summary: true, sourceUrl: true, occurredAt: true, projectId: true, skills: { select: { skillId: true } } },
+      where: { memberId, supersededAt: null, ...(viewerProjects ? { projectId: { in: viewerProjects.map(p => p.projectId) } } : {}) }, orderBy: { occurredAt: "desc" }, take: 400,
+      select: { id: true, source: true, summary: true, sourceUrl: true, occurredAt: true, projectId: true, contributionKey: true, contribution: true, complexity: true, outcome: true, skills: { select: { skillId: true, weight: true } } },
     }),
-    viewer.isAdmin ? Promise.resolve(null) : prisma.projectMember.findMany({ where: { memberId: viewer.id }, select: { projectId: true } }),
   ]);
   const showOnProfile = portfolio?.showOnProfile ?? true;
   const projectIds = [...new Set(evidenceRows.map((e) => e.projectId).filter((p): p is string => !!p))];
   const projects = projectIds.length ? await prisma.project.findMany({ where: { id: { in: projectIds } }, select: { id: true, name: true } }) : [];
   const names = new Map(projects.map((p) => [p.id, p.name]));
+  const map = canonicalMap(nodes);
+  const scopedAssessments: AssessmentRow[] = viewerProjects ? [...assessMember(projectEvidence(evidenceRows.map(e => ({ ...e, skills: e.skills.map(s => ({ skillId: s.skillId, fit: s.weight })) })), map), new Date())].map(([skillId, a]) => ({ ...a, skillId, provenance: "AI_INFERRED", assertedById: "", note: null, computedAt: new Date() })) : rows;
+  if (viewerProjects && !viewer.projectId) scopedAssessments.push(...rows.filter(r => r.provenance !== "AI_INFERRED"));
   const groups = buildProfileSkills({
     viewerId: viewer.id,
-    viewerProjectIds: viewerProjects ? new Set(viewerProjects.map((p) => p.projectId)) : null,
+    viewerProjectIds: viewer.projectId ? new Set([viewer.projectId]) : viewerProjects ? new Set(viewerProjects.map((p) => p.projectId)) : null,
     showOnProfile: showOnProfile || viewer.id === memberId,
-    skills: nodes, assessments: rows,
-    skillVisibility: new Map(vis.map((v) => [v.skillId, v.isPublic])),
-    disputedSkillIds: new Set(disputes.map((d) => d.skillId)),
+    skills: nodes, assessments: scopedAssessments,
+    skillVisibility: sharingProjection(canonicalMap(nodes), new Map(vis.map((v) => [v.skillId, v.showToTeam]))),
+    disputedSkillIds: projectedDisputes(disputes.map(d => d.skillId), canonicalMap(nodes)),
     evidence: evidenceRows.map((e) => ({
       id: e.id, skillIds: e.skills.map((x) => x.skillId), source: e.source, summary: e.summary, sourceUrl: e.sourceUrl, occurredAt: e.occurredAt,
       projectId: e.projectId, projectName: e.projectId ? names.get(e.projectId) ?? null : null,

@@ -1122,6 +1122,11 @@ export function conversationFileUrl(slackFileId) {
 // member only; admin calls need an admin session. See backend/src/api/skills*.ts.
 
 export const skillsApi = {
+  workspace: () => get("/api/skills/workspace"),
+  setGoals: (skillIds) => put("/api/skills/me/goals", { skillIds }),
+  saveOpportunity: (taskId, saved) => put(`/api/skills/me/opportunities/${encodeURIComponent(taskId)}`, { saved }),
+  coverage: (projectId) => get(`/api/skills/projects/${encodeURIComponent(projectId)}/coverage`),
+  setSkillTeamVisible: (skillId, showToTeam) => put(`/api/skills/me/team-visibility/${encodeURIComponent(skillId)}`, { showToTeam }),
   me: () => get("/api/skills/me"),
   member: (memberId) => get(`/api/skills/members/${encodeURIComponent(memberId)}`),
   evidence: (skillId) => get(`/api/skills/me/${encodeURIComponent(skillId)}/evidence`),
@@ -1138,6 +1143,10 @@ export const skillsApi = {
 };
 
 export const skillsAdminApi = {
+  catalog: () => get("/api/admin/skills/catalog"),
+  setCatalogPolicy: (body) => put("/api/admin/skills/catalog/policy", body),
+  consolidate: (sourceId, targetId) => post("/api/admin/skills/catalog/consolidate", { sourceId, targetId }),
+  reverseCatalogChange: (id) => post(`/api/admin/skills/catalog/${encodeURIComponent(id)}/reverse`, {}),
   status: () => get("/api/admin/skills/status"),
   runs: (limit = 20) => get(`/api/admin/skills/runs?limit=${limit}`),
   startRun: (body = {}) => post("/api/admin/skills/runs", body),

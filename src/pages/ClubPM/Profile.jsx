@@ -17,7 +17,7 @@ import GhStatsSection from "../../components/clubpm/GhStatsSection";
 import GitHubConnectButton from "../../components/clubpm/github/GitHubConnectButton";
 import IcsFeedConnect from "../../components/clubpm/IcsFeedConnect";
 import TrainingStatusStrip from "../../components/clubpm/courses/TrainingStatusStrip";
-import SkillsPanel from "../../components/clubpm/skills/SkillsPanel";
+import ProfileSkillsSummary from "../../components/clubpm/skills/ProfileSkillsSummary";
 import MemberSkillsCard from "../../components/clubpm/skills/MemberSkillsCard";
 import { progressToNextRank } from "../../clubpm/engagement/rankProgress";
 import { tzOffset, copyToClipboard, activityLabels } from "../../clubpm/members/memberShared";
@@ -244,7 +244,7 @@ export default function Profile() {
 
         {/* Skills: your own full view (with evidence, claims and privacy), or what a teammate has not hidden. */}
         {isSelf
-          ? <SkillsPanel projects={(profile.projects ?? []).map(pm => pm.project).filter(Boolean)} />
+          ? <ProfileSkillsSummary />
           : <MemberSkillsCard memberId={memberId} displayName={profile.displayName} />}
 
         {/* Projects */}

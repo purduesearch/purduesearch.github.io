@@ -11,9 +11,8 @@ import {
   type SkillArtifact,
 } from "./skillPrompts.js";
 import { validateAnalysis, type ValidAnalysis } from "./skillValidateCore.js";
-import { applySignalFloor, detectSignals, type SkillSignal } from "./skillSignalCore.js";
-import { MAX_SKILLS_PER_ARTIFACT } from "./skillPrompts.js";
-import { isRetryable, type BatchItem, type LlmUsage, type SkillsLlm } from "./ai/skillsGemini.js";
+import { detectSignals, type SkillSignal } from "./skillSignalCore.js";
+import { isRetryable, SkillBudgetExceeded, type BatchItem, type LlmUsage, type SkillsLlm } from "./ai/skillsGemini.js";
 
 export interface TaxonomySkill extends SkillLite {
   type: string;
@@ -88,7 +87,7 @@ function finish(text: string, usage: LlmUsage, prep: PreparedAnalysis, taxonomy:
   try { raw = JSON.parse(text); } catch { return { status: "invalid", reason: "response was not valid JSON", usage }; }
   const result = validateAnalysis(raw, prep.keyToSkillId, (name) => resolveSkillName(name, taxonomy.index));
   return result.ok
-    ? { status: "ok", analysis: applySignalFloor(result.value, prep.signals, MAX_SKILLS_PER_ARTIFACT), usage, candidateCount: prep.candidateCount }
+    ? { status: "ok", analysis: result.value, usage, candidateCount: prep.candidateCount }
     : { status: "invalid", reason: result.reason, usage };
 }
 
@@ -98,7 +97,7 @@ export async function analyzeArtifact(artifact: SkillArtifact, taxonomy: Taxonom
     const { text, usage } = await llm.generateJson({ prompt: prep.prompt, schema: ANALYSIS_JSON_SCHEMA });
     return finish(text, usage, prep, taxonomy);
   } catch (err) {
-    return { status: "error", error: String((err as Error)?.message ?? err).slice(0, 300), retryable: isRetryable(err) };
+    return { status: "error", error: String((err as Error)?.message ?? err).slice(0, 300), retryable: isRetryable(err) || err instanceof SkillBudgetExceeded };
   }
 }
 

@@ -73,7 +73,10 @@ check("multi-assignee phrased as shared", ta[0].memberRole.includes("several ass
 check("same task, different members, different hashes", ta[0].contentHash !== ta[1].contentHash);
 check("creator gets no artifact without subtasks", !ta.some((x) => x.memberId === "lead"));
 const withSubs = taskArtifacts({ ...task, assigneeIds: ["a"], assigneeCount: 1, subtaskTotal: 3, subtaskDone: 3 });
-check("creator who split work gets a distinct artifact", withSubs.length === 2 && withSubs[1].memberId === "lead" && withSubs[1].sourceRef === "t1:created");
+check("task creation alone does not prove leadership", withSubs.length === 1 && !withSubs.some(a => a.memberId === "lead"));
+const withNote = taskArtifacts({ ...task, assigneeIds: ["a"], subtaskTotal: 3, contributionNotes: { lead: "I designed the assembly sequence and validated the interface constraints." } });
+check("an attributed creator note can be analyzed", withNote.some(a => a.memberId === "lead" && a.body.includes("validated the interface")));
+check("task records carry an explicit contribution identity", ta.every(a => a.contributionKey === "task:t1"));
 check("thin tasks skipped", isTooThin({ title: "fix", description: null, tags: [] }) && taskArtifacts({ ...task, title: "fix", description: null, tags: [] }).length === 0);
 check("short title with description kept", !isTooThin({ title: "fix", description: "Repaired the intermittent solder joint on the radio board", tags: [] }));
 

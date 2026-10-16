@@ -7,7 +7,7 @@ import type { Octokit } from "@octokit/rest";
 import { prisma } from "../../db/prisma.js";
 import { octokitForRepo } from "../githubService.js";
 import { EXCLUDE_TRAINING } from "../trainingSandboxService.js";
-import { enforceCap, isBotLogin, pullAuthorArtifact, pullReviewArtifact, type PullInput } from "../skillArtifactCore.js";
+import { enforceCap, hashParts, isBotLogin, pullAuthorArtifact, pullReviewArtifact, type PullInput } from "../skillArtifactCore.js";
 import { emptyResult, type CollectResult, type CollectWindow } from "./types.js";
 
 export interface RepoRef { owner: string; repo: string }
@@ -29,8 +29,8 @@ export interface GithubSource {
   /** Closed PRs whose close/merge time falls in (since, until], OLDEST first, at most `max` (truncated=true when more exist). */
   listClosedPulls(repo: RepoRef, since: Date, until: Date, max: number): Promise<{ pulls: PullListing[]; truncated: boolean }>;
   getPullStats(repo: RepoRef, number: number): Promise<{ additions: number; deletions: number; changedFiles: number; commits: number }>;
-  getPullFiles(repo: RepoRef, number: number): Promise<{ filename: string; additions: number; deletions: number }[]>;
-  getPullReviews(repo: RepoRef, number: number): Promise<{ login: string; state: string }[]>;
+  getPullFiles(repo: RepoRef, number: number): Promise<{ filename: string; additions: number; deletions: number; patch?: string }[]>;
+  getPullReviews(repo: RepoRef, number: number): Promise<{ login: string; state: string; body?: string }[]>;
 }
 
 export interface RepoTarget { projectRepoId: string; slug: string; projectId: string; projectName: string | null }
@@ -72,11 +72,11 @@ export function octokitSource(octokit: Octokit): GithubSource {
     },
     async getPullFiles(repo, number) {
       const { data } = await octokit.pulls.listFiles({ ...repo, pull_number: number, per_page: 100 });
-      return data.map((f) => ({ filename: f.filename, additions: f.additions, deletions: f.deletions }));
+      return data.map((f) => ({ filename: f.filename, additions: f.additions, deletions: f.deletions, ...(process.env.SKILLS_INCLUDE_DIFFS === "1" && f.patch ? { patch: f.patch.slice(0, 1200) } : {}) }));
     },
     async getPullReviews(repo, number) {
       const { data } = await octokit.pulls.listReviews({ ...repo, pull_number: number, per_page: 100 });
-      return data.filter((r) => r.user?.login && r.state !== "PENDING").map((r) => ({ login: r.user!.login, state: r.state }));
+      return data.filter((r) => r.user?.login && r.state !== "PENDING").map((r) => ({ login: r.user!.login, state: r.state, body: r.body ?? "" }));
     },
   };
 }
@@ -169,8 +169,15 @@ export async function collectGithub(win: CollectWindow): Promise<CollectResult> 
   const logins = new Map<string, string>();
   for (const m of members) if (m.githubLogin) logins.set(m.githubLogin.toLowerCase(), m.id);
   const targets: RepoTarget[] = repos.map((r) => ({ projectRepoId: r.id, slug: r.slug, projectId: r.projectId, projectName: r.project?.name ?? null }));
-  return collectGithubFromRepos(targets, logins, async (t) => {
+  const result = await collectGithubFromRepos(targets, logins, async (t) => {
     const octokit = await octokitForRepo(t.projectRepoId);
     return octokit ? octokitSource(octokit) : null;
   }, win);
+  const links = await prisma.gitHubLink.findMany({ where: { projectId: { in: targets.map(t => t.projectId) }, kind: "PR", taskId: { not: null } }, select: { projectId: true, repoFullName: true, refNumber: true, taskId: true }, take: 5000 });
+  for (const a of result.artifacts) {
+    const ref = a.sourceRef.replace(/:review:.*$/, "").toLowerCase();
+    const tasks = [...new Set(links.filter(l => l.projectId === a.projectId && `${l.repoFullName}#${l.refNumber}`.toLowerCase() === ref).map(l => l.taskId!))];
+    if (tasks.length === 1) { a.contributionKey = `task:${tasks[0]}`; a.contentHash = hashParts([a.contentHash, a.contributionKey]); }
+  }
+  return result;
 }

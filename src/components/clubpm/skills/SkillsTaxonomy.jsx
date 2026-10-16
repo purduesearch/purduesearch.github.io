@@ -1,4 +1,4 @@
-// Admin → Skills → Taxonomy: the fixed list the analysis labels against, as a
+// Admin → Skills → Taxonomy: the curated view of the evolving catalog, as a
 // tree of areas. Adding a skill or another name for one also merges any pending
 // proposal it now covers (server side) and credits the work behind it.
 

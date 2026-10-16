@@ -1,4 +1,4 @@
-// Admin review queues: skills the analysis proposed (it can never add one itself),
+// Admin review queues: ambiguous/deferred concepts proposed by analysis,
 // tags members flagged as wrong, and places where claims and data disagree.
 // Approving, merging and upholding are the only ways any of this changes. The
 // taxonomy itself has its own tab (SkillsTaxonomy).
@@ -34,7 +34,7 @@ function Proposals({ skills, onChanged }) {
   const byId = useMemo(() => new Map(skills.map(s => [s.id, s])), [skills]);
 
   if (items === null) return <div className="cpm-skill-evidence-empty">Loading…</div>;
-  if (!items.length) return <div className="cpm-skill-evidence-empty">No proposed skills waiting. New names only appear here; none are added automatically.</div>;
+  if (!items.length) return <div className="cpm-skill-evidence-empty">No proposed skills waiting. Supported concepts can be created automatically; ambiguous or deferred candidates appear here.</div>;
   return (
     <ul className="cpm-skills-admin-people">
       {items.map(p => (
@@ -44,6 +44,9 @@ function Proposals({ skills, onChanged }) {
             <span className="cpm-skill-meta">proposed {p.seenCount}×{p.suggestedType ? ` · suggested ${typeLabel(p.suggestedType)}` : ""}{p.evidenceIds?.length ? ` · approving credits ${p.evidenceIds.length} piece${p.evidenceIds.length === 1 ? "" : "s"} of work` : ""}</span>
           </div>
           {p.rationale && <p className="cpm-skills-notice">{p.rationale}</p>}
+          {p.exceptionReason && <p className="cpm-skills-notice"><strong>Why review is needed:</strong> {p.exceptionReason}</p>}
+          {p.description && <p className="cpm-skills-notice">Definition: {p.description}</p>}
+          {p.supportingQuote && <blockquote className="cpm-skills-notice">{p.supportingQuote}</blockquote>}
           {p.nearSkillIds.length > 0 && (
             <p className="cpm-skills-notice">Looks close to: {p.nearSkillIds.map(id => byId.get(id)?.name).filter(Boolean).join(", ")}. Merge instead of adding a duplicate?</p>
           )}

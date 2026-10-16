@@ -8,7 +8,8 @@ import {
   addManualEvidence, createDispute, endorsePeer, getMemberProfileSkills, getMyEvidence, getMySkills, getPublicPortfolio, removePeerEndorsement, removeSelfClaim,
   setPortfolio, setProjectVisibility, setSelfClaim, setSkillVisibility,
 } from "../services/skillMemberService.js";
-import { TaxonomyError } from "../services/skillTaxonomyService.js";
+import { TaxonomyError, loadSkillLites } from "../services/skillTaxonomyService.js";
+import { getSkillWorkspace, setSkillGoals, saveSkillOpportunity, getProjectSkillCoverage } from "../services/skillWorkspaceService.js";
 
 export const skillsRouter = Router();
 export const publicPortfolioRouter = Router();
@@ -38,9 +39,16 @@ function throttled(req: Request, res: Response, next: () => void): void {
 skillsRouter.use(requireAuth);
 
 skillsRouter.get("/taxonomy", wrap(async (_req, res) => {
-  const skills = await prisma.skill.findMany({ where: { status: "ACTIVE" }, orderBy: { name: "asc" }, select: { id: true, name: true, type: true, aliases: { select: { alias: true } } } });
-  res.json({ skills: skills.map((s) => ({ id: s.id, name: s.name, type: s.type, aliases: s.aliases.map((a) => a.alias) })) });
+  const aliases = new Map((await loadSkillLites()).map(s => [s.id, s.aliases]));
+  const skills = await prisma.skill.findMany({ where: { status: "ACTIVE", canonicalId: null }, orderBy: { name: "asc" }, select: { id: true, name: true, type: true, description: true, lifecycle: true, aliases: { select: { alias: true } } } });
+  res.json({ skills: skills.map((s) => ({ ...s, aliases: aliases.get(s.id) ?? s.aliases.map((a) => a.alias) })) });
 }));
+
+skillsRouter.get("/workspace", wrap(async (req, res) => { res.json(await getSkillWorkspace(req.memberId!)); }));
+skillsRouter.put("/me/goals", throttled, wrap(async (req, res) => { await setSkillGoals(req.memberId!, req.body?.skillIds); res.json({ ok: true }); }));
+skillsRouter.put("/me/opportunities/:taskId", throttled, wrap(async (req, res) => { await saveSkillOpportunity(req.memberId!, String(req.params.taskId), req.body?.saved); res.json({ ok: true }); }));
+skillsRouter.get("/projects/:projectId/coverage", wrap(async (req, res) => { res.json(await getProjectSkillCoverage(req.memberId!, String(req.params.projectId))); }));
+skillsRouter.put("/me/team-visibility/:skillId", throttled, wrap(async (req, res) => { await setSkillVisibility(req.memberId!, String(req.params.skillId), req.body?.showToTeam, "team"); res.json({ ok: true }); }));
 
 skillsRouter.get("/me", wrap(async (req, res) => { res.json(await getMySkills(req.memberId!)); }));
 skillsRouter.get("/me/:skillId/evidence", wrap(async (req, res) => { res.json({ evidence: await getMyEvidence(req.memberId!, String(req.params.skillId)) }); }));

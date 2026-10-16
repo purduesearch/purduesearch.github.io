@@ -12,7 +12,7 @@ review, a described activity) it returns only:
 | Field | Meaning |
 |---|---|
 | skills | Which existing taxonomy skills the work shows (by short key), each with a fit from 0 to 1 |
-| proposedSkills | Skills that clearly matter but are missing. These go to an admin queue and are never created automatically |
+| proposedSkills | Missing concepts with reusable definitions, valid broader placement and exact supporting quotes; validated policy can create provisional concepts, while ambiguity stays in review |
 | contribution | AUTHORED, REVIEWED, LED or ASSISTED |
 | complexity | 1 to 5, below |
 | outcome | MERGED, SHIPPED, REWORKED, ABANDONED or NONE |
@@ -30,7 +30,7 @@ Commit counts, lines changed and file counts are weak signals and must not raise
 
 ## How levels are computed (no model involved)
 
-`backend/src/services/skillScoringCore.ts`, `SCORING_VERSION = "1"`.
+`backend/src/services/skillScoringCore.ts`, `SCORING_VERSION = "1-contributions"` (the v1 arithmetic with canonical, deduplicated inputs).
 
 Each evidence item contributes a weight for each skill it shows:
 
@@ -57,6 +57,10 @@ The total weight is saturated (`score = 1 − e^(−mass/2)`) and mapped to a le
 | 5 | Expert | 0.90 | 4 items, one of complexity 4+ |
 
 Abandoned work never counts toward the item or complexity requirements.
+
+Before the v1 arithmetic runs, the identity projection resolves equivalent concepts and deduplicates explicit
+linked contribution groups per member/skill. A task, its linked PR and linked Vault change cannot multiply
+credit for the same contribution. File extensions and line counts supply candidate hints, never forced tags.
 
 ## Confidence (separate from level)
 

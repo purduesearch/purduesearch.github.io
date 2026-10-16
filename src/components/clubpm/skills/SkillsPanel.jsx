@@ -145,7 +145,7 @@ function SkillRow({ skill, openDispute, onChanged }) {
             {skill.provenances.map(p => {
               const meta = PROVENANCE_META[p.provenance];
               return (
-                <li key={`${p.provenance}-${p.assertedById ?? ""}`}>
+                <li key={`${p.originalSkillId ?? skill.skillId}-${p.provenance}-${p.assertedById ?? ""}`}>
                   <i className={meta.icon} aria-hidden="true" />{" "}
                   <strong>{meta.label}</strong>: level {p.level} ({LEVEL_LABELS[p.level]})
                   {p.provenance === "AI_INFERRED" ? `, ${BAND_LABELS[p.confidenceBand].toLowerCase()}, ${p.evidenceCount} piece${p.evidenceCount === 1 ? "" : "s"} of work` : ""}

@@ -31,6 +31,16 @@ export class LlmError extends Error {
     super(message);
   }
 }
+export class SkillBudgetExceeded extends LlmError {
+  constructor() { super("Skills run budget reservation exhausted; remaining work is deferred"); }
+}
+export function createSkillsBudget(limit: number) {
+  let reserved = 0;
+  return (amount: number) => {
+    if (!Number.isFinite(limit) || limit <= 0 || !Number.isFinite(amount) || amount < 0 || reserved + amount > limit) throw new SkillBudgetExceeded();
+    reserved += amount;
+  };
+}
 
 // ── Retry ────────────────────────────────────────────────────
 
@@ -184,7 +194,7 @@ export function isShapeUnsupported(err: unknown): boolean {
 const TERMINAL_OK = new Set(["JOB_STATE_SUCCEEDED", "JOB_STATE_PARTIALLY_SUCCEEDED"]);
 const TERMINAL_BAD = new Set(["JOB_STATE_FAILED", "JOB_STATE_CANCELLED", "JOB_STATE_EXPIRED"]);
 
-export function createGeminiSkillsLlm(env: NodeJS.ProcessEnv = process.env, deps: { sleep?: (ms: number) => Promise<void> } = {}): SkillsLlm {
+export function createGeminiSkillsLlm(env: NodeJS.ProcessEnv = process.env, deps: { sleep?: (ms: number) => Promise<void>; reserve?: (usd: number) => void } = {}): SkillsLlm {
   const cfg = skillsLlmConfig(env);
   if (cfg.problems.length) throw new LlmError(cfg.problems.join("; "));
   const apiKey = env.GEMINI_API_KEY!;
@@ -195,6 +205,8 @@ export function createGeminiSkillsLlm(env: NodeJS.ProcessEnv = process.env, deps
 
   const ai = new GoogleGenAI({ apiKey });
   const acquire = createRateLimiter({ rpm: cfg.rpm, sleep });
+  const prices = pricesFromEnv(env);
+  const reserveGeneration = (req: GenerateRequest, maxOut: number) => deps.reserve?.(estimateCostUsd({ tokensIn: Buffer.byteLength(req.prompt + JSON.stringify(req.schema), "utf8") + 2048, tokensOut: maxOut }, prices));
   // Mutable: the first schema/thinking rejection downgrades the lane for the rest of the run.
   let schemaMode = cfg.schemaMode;
   let thinkingBudget = cfg.thinkingBudget;
@@ -216,6 +228,7 @@ export function createGeminiSkillsLlm(env: NodeJS.ProcessEnv = process.env, deps
   async function callOnce(req: GenerateRequest): Promise<GenerateResult> {
     let maxOut = req.maxOutputTokens ?? cfg.maxOutputTokens;
     for (let attempt = 0; attempt < 4; attempt++) {
+      reserveGeneration(req, maxOut);
       await acquire();
       let res;
       try {
@@ -255,6 +268,7 @@ export function createGeminiSkillsLlm(env: NodeJS.ProcessEnv = process.env, deps
       for (let i = 0; i < texts.length; i += 50) {
         const chunk = texts.slice(i, i + 50);
         const res = await withRetry(async () => {
+          deps.reserve?.(estimateCostUsd({ tokensIn: 0, tokensOut: 0, embedTokens: chunk.reduce((n, t) => n + Buffer.byteLength(t, "utf8"), 0) }, prices));
           await acquire();
           return ai.models.embedContent({ model: embedModel, contents: chunk, config: { taskType: "SEMANTIC_SIMILARITY", outputDimensionality: dims } });
         }, { sleep });
@@ -272,11 +286,21 @@ export function createGeminiSkillsLlm(env: NodeJS.ProcessEnv = process.env, deps
     const timeoutMs = Number(env.SKILLS_BATCH_TIMEOUT_MINUTES || 180) * 60_000;
     llm.batchGenerateJson = async (items) => {
       if (!items.length) return [];
-      const job = await withRetry(() => ai.batches.create({
+      const accepted: BatchItem[] = [];
+      const deferred: BatchOutcome[] = [];
+      for (const item of items) {
+        try { reserveGeneration(item, item.maxOutputTokens ?? cfg.maxOutputTokens); accepted.push(item); }
+        catch (e) { if (!(e instanceof SkillBudgetExceeded)) throw e; deferred.push({ key: item.key, error: e.message, usage: { tokensIn: 0, tokensOut: 0 } }); }
+      }
+      if (!accepted.length) return deferred;
+      let attempts = 0;
+      const job = await withRetry(() => {
+        if (attempts++ > 0) for (const item of accepted) reserveGeneration(item, item.maxOutputTokens ?? cfg.maxOutputTokens);
+        return ai.batches.create({
         model,
-        src: { inlinedRequests: items.map((i) => ({ contents: i.prompt, metadata: { key: i.key }, config: config(i) })) },
-        config: { displayName: `skills-${new Date().toISOString().slice(0, 10)}-${items.length}` },
-      }), { sleep });
+        src: { inlinedRequests: accepted.map((i) => ({ contents: i.prompt, metadata: { key: i.key }, config: config(i) })) },
+        config: { displayName: `skills-${new Date().toISOString().slice(0, 10)}-${accepted.length}` },
+      }); }, { sleep });
       if (!job.name) throw new LlmError("batch job has no name");
       const deadline = Date.now() + timeoutMs;
       let cur = job;
@@ -287,14 +311,14 @@ export function createGeminiSkillsLlm(env: NodeJS.ProcessEnv = process.env, deps
       }
       if (TERMINAL_BAD.has(String(cur.state))) throw new LlmError(`batch ${job.name} ended ${String(cur.state)}: ${cur.error?.message ?? ""}`);
       const responses = cur.dest?.inlinedResponses ?? [];
-      return items.map((item, i) => {
+      return [...accepted.map((item, i) => {
         const r = responses.find((x) => x.metadata?.key === item.key) ?? responses[i];
         if (!r || r.error || !r.response) return { key: item.key, error: r?.error?.message ?? "no response in batch", usage: { tokensIn: 0, tokensOut: 0 } };
         const text = (r.response.text ?? "").trim();
         return text
           ? { key: item.key, text, usage: usageOf(r.response.usageMetadata) }
           : { key: item.key, error: "empty response", usage: usageOf(r.response.usageMetadata) };
-      });
+      }), ...deferred];
     };
   }
 

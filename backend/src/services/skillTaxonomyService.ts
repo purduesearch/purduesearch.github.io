@@ -1,9 +1,8 @@
 // Skill taxonomy + the admin review queue for proposed skills.
 //
-// Gemini never creates skills. It picks candidate keys; any free-text name it
-// proposes goes through decideProposal() first, which maps aliases/typos onto
-// existing skills, drops names an admin already rejected, and otherwise queues a
-// SkillProposal. Only approveProposal() (admin) turns a proposal into a Skill.
+// Free-text names first resolve aliases and suppressions. The catalog service
+// can create source-backed provisional concepts under a validated policy;
+// ambiguous or unsupported candidates remain available for curator review.
 
 import type { Prisma, SkillType } from "@prisma/client";
 import { prisma } from "../db/prisma.js";
@@ -19,6 +18,7 @@ import {
 import type { SeedSkill } from "./skillSeedData.js";
 import { recomputeMembers } from "./skillAssessmentService.js";
 import { MAPPED_PROPOSAL_FIT } from "./skillValidateCore.js";
+import { canonicalMap, CATALOG_POLICY_VERSION } from "./skillCatalogCore.js";
 
 type Db = typeof prisma | Prisma.TransactionClient;
 
@@ -57,10 +57,11 @@ export function decideProposal(name: string, index: AliasIndex, suppressedNorms:
 export async function loadSkillLites(db: Db = prisma, opts: { activeOnly?: boolean } = {}): Promise<SkillLite[]> {
   const rows = await db.skill.findMany({
     where: opts.activeOnly === false ? {} : { status: "ACTIVE" },
-    select: { id: true, name: true, aliases: { select: { alias: true } } },
+    select: { id: true, name: true, canonicalId: true, aliases: { select: { alias: true } } },
     orderBy: { slug: "asc" },
   });
-  return rows.map((r) => ({ id: r.id, name: r.name, aliases: r.aliases.map((a) => a.alias) }));
+  const map = canonicalMap(rows);
+  return rows.filter(r => !r.canonicalId).map(r => ({ id: r.id, name: r.name, aliases: rows.filter(n => map.get(n.id) === r.id).flatMap(n => [...(n.id !== r.id ? [n.name] : []), ...n.aliases.map(a => a.alias)]) }));
 }
 
 export async function loadAliasIndex(db: Db = prisma): Promise<AliasIndex> {
@@ -75,6 +76,7 @@ export async function loadSuppressed(db: Db = prisma): Promise<Set<string>> {
 // ── Writes (admin / seed) ────────────────────────────────────
 
 export async function addAlias(skillId: string, alias: string, db: Db = prisma): Promise<void> {
+  if (db === prisma) return prisma.$transaction(async tx => { await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('skills-catalog'))`; return addAlias(skillId, alias, tx); });
   const norm = normalizeSkillName(alias);
   if (!norm) throw new TaxonomyError("INVALID", "Alias is empty");
   const taken = await db.skillAlias.findUnique({ where: { aliasNorm: norm }, select: { skillId: true } });
@@ -88,9 +90,12 @@ export async function addAlias(skillId: string, alias: string, db: Db = prisma):
 }
 
 export async function addEdge(fromId: string, toId: string, kind: "PARENT" | "RELATED" | "PREREQUISITE", db: Db = prisma): Promise<void> {
+  if (db === prisma) return prisma.$transaction(async tx => { await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('skills-catalog'))`; return addEdge(fromId, toId, kind, tx); });
+  const map = canonicalMap(await db.skill.findMany({ select: { id: true, canonicalId: true } }));
+  fromId = map.get(fromId) ?? fromId; toId = map.get(toId) ?? toId;
   if (fromId === toId) throw new TaxonomyError("CYCLE", "A skill cannot link to itself");
   if (kind !== "RELATED") {
-    const edges = await db.skillEdge.findMany({ where: { kind }, select: { fromId: true, toId: true } });
+    const edges = (await db.skillEdge.findMany({ where: { kind }, select: { fromId: true, toId: true } })).map(e => ({ fromId: map.get(e.fromId) ?? e.fromId, toId: map.get(e.toId) ?? e.toId }));
     if (wouldCreateCycle(edges, fromId, toId)) throw new TaxonomyError("CYCLE", `That ${kind.toLowerCase()} link would create a loop`);
   }
   await db.skillEdge.upsert({
@@ -101,6 +106,8 @@ export async function addEdge(fromId: string, toId: string, kind: "PARENT" | "RE
 }
 
 export interface NewSkill {
+  actorId?: string | null;
+  recordDecision?: boolean;
   name: string;
   type: SkillType;
   slug?: string;
@@ -117,6 +124,7 @@ async function uniqueSlug(base: string, db: Db): Promise<string> {
 }
 
 export async function createSkill(input: NewSkill, db: Db = prisma): Promise<{ id: string; slug: string }> {
+  if (db === prisma) return prisma.$transaction(async tx => { await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('skills-catalog'))`; return createSkill(input, tx); }, { timeout: 30_000, maxWait: 20_000 });
   const name = input.name.trim();
   if (!name || name.length > 80) throw new TaxonomyError("INVALID", "Skill name must be 1-80 characters");
   const index = await loadAliasIndex(db);
@@ -130,6 +138,7 @@ export async function createSkill(input: NewSkill, db: Db = prisma): Promise<{ i
   });
   for (const alias of input.aliases ?? []) await addAlias(skill.id, alias, db);
   for (const parentId of input.parentIds ?? []) await addEdge(skill.id, parentId, "PARENT", db);
+  if (input.recordDecision !== false) await db.skillCatalogChange.create({ data: { kind: "CREATE", skillId: skill.id, actorId: input.actorId ?? null, reason: "Curator added a concept", policyVersion: CATALOG_POLICY_VERSION, payload: { name, definition: input.description ?? null, parentIds: input.parentIds ?? [] } } });
   return skill;
 }
 
@@ -178,12 +187,16 @@ export interface ProposedSkillInput {
   aliases?: string[];
   type?: SkillType | null;
   parentSlugs?: string[];
+  parentIds?: string[];
   rationale?: string | null;
+  description?: string | null;
+  supportingQuote?: string | null;
   evidenceId?: string | null;
   runId?: string | null;
 }
 
 export type ProposalOutcome =
+  | { kind: "created"; skillId: string }
   | { kind: "mapped"; skillId: string }
   | { kind: "suppressed" }
   | { kind: "invalid" }
@@ -197,11 +210,14 @@ export async function recordProposal(input: ProposedSkillInput, ctx: { index: Al
   if (decision.action === "INVALID") return { kind: "invalid" };
 
   const nameNorm = normalizeSkillName(input.name);
-  const pending = await db.skillProposal.findFirst({ where: { nameNorm, status: "PENDING" }, select: { id: true } });
+  const pending = await db.skillProposal.findFirst({ where: { nameNorm, status: "PENDING" }, select: { id: true, evidenceIds: true } });
   if (pending) {
     await db.skillProposal.update({
       where: { id: pending.id },
-      data: { seenCount: { increment: 1 }, ...(input.evidenceId ? { evidenceIds: { push: input.evidenceId } } : {}) },
+      data: {
+        ...(input.evidenceId && !pending.evidenceIds.includes(input.evidenceId) ? { seenCount: { increment: 1 }, evidenceIds: { push: input.evidenceId } } : {}),
+        ...(input.description ? { description: input.description.slice(0, 500), supportingQuote: input.supportingQuote?.slice(0, 400) ?? null, evidenceId: input.evidenceId, suggestedParents: (input.parentSlugs ?? input.parentIds ?? []).slice(0, 4) } : {}),
+      },
     });
     return { kind: "queued", proposalId: pending.id, isNew: false };
   }
@@ -211,8 +227,10 @@ export async function recordProposal(input: ProposedSkillInput, ctx: { index: Al
       nameNorm,
       aliases: (input.aliases ?? []).slice(0, 8),
       suggestedType: input.type ?? null,
-      suggestedParents: (input.parentSlugs ?? []).slice(0, 4),
+      suggestedParents: (input.parentSlugs ?? input.parentIds ?? []).slice(0, 4),
       rationale: input.rationale?.slice(0, 500) ?? null,
+      description: input.description?.slice(0, 500) ?? null,
+      supportingQuote: input.supportingQuote?.slice(0, 400) ?? null,
       evidenceId: input.evidenceId ?? null,
       evidenceIds: input.evidenceId ? [input.evidenceId] : [],
       runId: input.runId ?? null,
@@ -253,15 +271,18 @@ const proposalEvidence = (p: { evidenceId: string | null; evidenceIds: string[] 
 
 export async function approveProposal(id: string, reviewerId: string, overrides: { name?: string; type?: SkillType; parentIds?: string[]; aliases?: string[] } = {}): Promise<{ skillId: string; credited: number }> {
   const out = await prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('skills-catalog'))`;
     const p = await pendingProposal(id, tx);
     let parentIds = overrides.parentIds;
     if (!parentIds) {
-      const parents = p.suggestedParents.length ? await tx.skill.findMany({ where: { slug: { in: p.suggestedParents } }, select: { id: true } }) : [];
+      const parents = p.suggestedParents.length ? await tx.skill.findMany({ where: { OR: [{ slug: { in: p.suggestedParents } }, { id: { in: p.suggestedParents } }] }, select: { id: true } }) : [];
       parentIds = parents.map((x) => x.id);
     }
     const skill = await createSkill({
+      actorId: reviewerId,
       name: overrides.name ?? p.name,
       type: overrides.type ?? p.suggestedType ?? "TOOL",
+      description: p.description,
       aliases: overrides.aliases ?? p.aliases,
       parentIds,
     }, tx);
@@ -274,6 +295,7 @@ export async function approveProposal(id: string, reviewerId: string, overrides:
 
 export async function rejectProposal(id: string, reviewerId: string): Promise<void> {
   await prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('skills-catalog'))`;
     const p = await pendingProposal(id, tx);
     await tx.skillSuppression.upsert({ where: { nameNorm: p.nameNorm }, create: { nameNorm: p.nameNorm }, update: {} });
     await tx.skillProposal.update({ where: { id }, data: { status: "REJECTED", reviewedById: reviewerId, reviewedAt: new Date() } });
@@ -283,6 +305,7 @@ export async function rejectProposal(id: string, reviewerId: string): Promise<vo
 /** The proposed name becomes an alias of an existing skill (duplicate, not new). */
 export async function mergeProposal(id: string, intoSkillId: string, reviewerId: string): Promise<{ credited: number }> {
   const evidence = await prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('skills-catalog'))`;
     const p = await pendingProposal(id, tx);
     if (!await tx.skill.findUnique({ where: { id: intoSkillId }, select: { id: true } })) throw new TaxonomyError("NOT_FOUND", "Target skill not found");
     for (const form of [p.name, ...p.aliases]) {
@@ -299,19 +322,21 @@ export async function mergeProposal(id: string, intoSkillId: string, reviewerId:
  * by hand) are merged automatically and their work credited. Returns how many.
  */
 export async function autoResolveProposals(reviewerId: string | null = null): Promise<number> {
-  const pending = await prisma.skillProposal.findMany({ where: { status: "PENDING" }, select: { id: true, name: true, evidenceId: true, evidenceIds: true } });
-  if (!pending.length) return 0;
-  const index = await loadAliasIndex();
-  let n = 0;
-  for (const p of pending) {
-    const skillId = resolveSkillName(p.name, index);
-    if (!skillId) continue;
-    const moved = await prisma.skillProposal.updateMany({ where: { id: p.id, status: "PENDING" }, data: { status: "MERGED", mergedIntoId: skillId, reviewedById: reviewerId, reviewedAt: new Date() } });
-    if (!moved.count) continue;
-    await creditProposalEvidence(proposalEvidence(p), skillId);
-    n++;
-  }
-  return n;
+  const resolved = await prisma.$transaction(async tx => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('skills-catalog'))`;
+    const pending = await tx.skillProposal.findMany({ where: { status: "PENDING" }, select: { id: true, name: true, evidenceId: true, evidenceIds: true } });
+    const index = await loadAliasIndex(tx);
+    const out: { skillId: string; evidenceIds: string[] }[] = [];
+    for (const p of pending) {
+      const skillId = resolveSkillName(p.name, index);
+      if (!skillId) continue;
+      await tx.skillProposal.update({ where: { id: p.id }, data: { status: "MERGED", mergedIntoId: skillId, reviewedById: reviewerId, reviewedAt: new Date() } });
+      out.push({ skillId, evidenceIds: proposalEvidence(p) });
+    }
+    return out;
+  }, { timeout: 30_000, maxWait: 20_000 });
+  for (const item of resolved) await creditProposalEvidence(item.evidenceIds, item.skillId);
+  return resolved.length;
 }
 
 export async function listProposals(status: "PENDING" | "APPROVED" | "REJECTED" | "MERGED" = "PENDING", db: Db = prisma) {

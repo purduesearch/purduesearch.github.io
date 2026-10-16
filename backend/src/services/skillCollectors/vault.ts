@@ -30,7 +30,7 @@ export async function collectVault(win: CollectWindow): Promise<CollectResult> {
           childLinks: { select: { child: { select: { name: true } } } },
         },
       },
-      crItems: { select: { changeRequest: { select: { number: true, title: true } } } },
+      crItems: { select: { changeRequest: { select: { number: true, title: true, taskId: true } } } },
     },
     orderBy: { createdAt: "asc" },
     take: win.maxArtifacts + 1,
@@ -43,7 +43,9 @@ export async function collectVault(win: CollectWindow): Promise<CollectResult> {
   }
   for (const v of kept) {
     if (!v.uploadedById) continue;
+    const linkedTasks = [...new Set(v.crItems.map(c => c.changeRequest.taskId).filter((id): id is string => !!id))];
     out.artifacts.push(enforceCap(vaultVersionArtifact({
+      taskId: linkedTasks.length === 1 ? linkedTasks[0] : null,
       versionId: v.id, itemId: v.itemId, itemName: v.item.name, partNumber: v.item.partNumber, itemDescription: v.item.description,
       fileName: v.fileName, sizeBytes: v.sizeBytes, versionNumber: v.versionNumber, versionCount: v.item._count.versions,
       revision: v.revision, released: !!v.releasedAt, note: v.note, uploadedAt: v.createdAt, uploadedById: v.uploadedById,
@@ -58,7 +60,7 @@ export async function collectVault(win: CollectWindow): Promise<CollectResult> {
     where: { status: { in: ["APPROVED", "REJECTED"] }, reviewedAt: { gt: win.since, lte: win.until }, project: EXCLUDE_TRAINING },
     select: {
       id: true, number: true, title: true, description: true, status: true, reviewedAt: true, reviewNote: true, reviewerId: true,
-      authorId: true, projectId: true, project: { select: { name: true } },
+      authorId: true, projectId: true, taskId: true, project: { select: { name: true } },
       items: { select: { item: { select: { name: true } } } },
       signoffs: { select: { memberId: true } },
     },
@@ -68,6 +70,7 @@ export async function collectVault(win: CollectWindow): Promise<CollectResult> {
   for (const c of crs) {
     if (!c.reviewedAt || (c.status !== "APPROVED" && c.status !== "REJECTED")) continue;
     const input: CrReviewInput = {
+      taskId: c.taskId,
       crId: c.id, number: c.number, title: c.title, description: c.description, status: c.status, decidedAt: c.reviewedAt,
       reviewNote: c.reviewNote, itemNames: c.items.map((i) => i.item.name), projectId: c.projectId, projectName: c.project?.name ?? null,
     };

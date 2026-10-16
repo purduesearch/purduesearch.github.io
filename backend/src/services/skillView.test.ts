@@ -36,6 +36,7 @@ check("self-only claim flagged", disagreementOf([{ provenance: "SELF_CLAIMED", l
 check("self 5 vs AI 2 flagged", disagreementOf([{ provenance: "SELF_CLAIMED", level: 5, confidenceBand: "LOW" }, { provenance: "AI_INFERRED", level: 2, confidenceBand: "MEDIUM" }])?.detail === "self claimed says 5, ai inferred says 2.");
 check("one level apart is not a disagreement", disagreementOf([{ provenance: "SELF_CLAIMED", level: 3, confidenceBand: "LOW" }, { provenance: "AI_INFERRED", level: 2, confidenceBand: "MEDIUM" }]) === null);
 check("AI only: nothing to compare", disagreementOf([{ provenance: "AI_INFERRED", level: 4, confidenceBand: "HIGH" }]) === null);
+check("conflicting peers are not collapsed by provenance", disagreementOf([{ provenance: "PEER_ENDORSED", level: 2, confidenceBand: "LOW" }, { provenance: "PEER_ENDORSED", level: 5, confidenceBand: "LOW" }])?.kind === "levels_differ");
 check("verified vs AI compared too", disagreementOf([{ provenance: "MANAGER_VERIFIED", level: 5, confidenceBand: "HIGH" }, { provenance: "AI_INFERRED", level: 2, confidenceBand: "LOW" }])?.spread === 3);
 
 // ── shaped (member/admin) view ──
@@ -69,7 +70,7 @@ const base = (): PortfolioInput => ({
     row({ skillId: "lead", provenance: "SELF_CLAIMED", level: 5, confidenceBand: "LOW", assertedById: "m1" }),
     row({ skillId: "sheet", provenance: "AI_INFERRED", level: 3, confidenceBand: "MEDIUM" }),
   ],
-  skillVisibility: new Map(), projectVisibility: new Map(), disputedSkillIds: new Set(),
+  skillVisibility: new Map(nodes.map(n => [n.id, true])), projectVisibility: new Map([["p1", true], ["p-secret", true]]), disputedSkillIds: new Set(),
   evidence: [
     { id: "e1", skillIds: ["sw"], source: "CAD", summary: "Modelled the antenna bracket.", sourceUrl: "https://internal/vault/1", occurredAt: new Date("2026-09-10"), projectId: "p1", projectName: "Rover" },
     { id: "e2", skillIds: ["sw"], source: "GITHUB", summary: "Scripted a SolidWorks macro.", sourceUrl: "https://github.com/club/app/pull/9", occurredAt: new Date("2026-09-12"), projectId: "p1", projectName: "Rover" },
@@ -90,8 +91,8 @@ const base = (): PortfolioInput => ({
   check("no numeric confidence, ids, or evidence ids", !/"confidence":\s*0\.|evidenceIds|assertedById|"id"|computedAt/.test(json));
   check("no email/slack/xp style fields exist on the type", !/email|slack|xp|rank|isAdmin/i.test(json));
   const sw = all.find((s) => s.name === "SolidWorks")!;
-  check("private project evidence hidden only when member hides it", sw.evidence.some((e) => e.project === "Classified Thing"));
-  const hidden = buildPublicPortfolio({ ...base(), projectVisibility: new Map([["p-secret", false]]) })!.groups.flatMap((x) => x.skills).find((s) => s.name === "SolidWorks")!;
+  check("explicitly selected project evidence is included", sw.evidence.some((e) => e.project === "Classified Thing"));
+  const hidden = buildPublicPortfolio({ ...base(), projectVisibility: new Map([...base().projectVisibility, ["p-secret", false]]) })!.groups.flatMap((x) => x.skills).find((s) => s.name === "SolidWorks")!;
   check("hidden project's evidence removed", !hidden.evidence.some((e) => e.project === "Classified Thing") && hidden.evidence.length === 2);
   check("GitHub link kept, internal CAD link dropped", sw.evidence.find((e) => e.source === "github")!.link?.includes("github.com") === true && sw.evidence.find((e) => e.source === "cad")!.link === null);
   check("evidence newest first", sw.evidence[0].date >= sw.evidence[sw.evidence.length - 1].date);
@@ -115,6 +116,7 @@ const base = (): PortfolioInput => ({
 {
   const many = base();
   many.skills = Array.from({ length: 60 }, (_, i) => ({ id: `s${i}`, slug: `s${i}`, name: `Skill ${String(i).padStart(2, "0")}`, type: "TOOL", parentIds: [] }));
+  many.skillVisibility = new Map(many.skills.map(s => [s.id, true]));
   many.assessments = many.skills.map((s) => row({ skillId: s.id, provenance: "AI_INFERRED", confidenceBand: "HIGH" }));
   many.evidence = many.skills.flatMap((s) => Array.from({ length: 9 }, (_, j) => ({ id: `${s.id}-${j}`, skillIds: [s.id], source: "GITHUB", summary: "x", sourceUrl: null, occurredAt: new Date(2026, 0, j + 1), projectId: null, projectName: null })));
   const p = buildPublicPortfolio(many)!;
