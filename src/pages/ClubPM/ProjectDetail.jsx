@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import React, { useContext, useState, useEffect, useCallback, useMemo, useRef } from "react";
+import useProjectHeaderScroll from "../../hooks/useProjectHeaderScroll";
 import { createPortal } from "react-dom";
 import { useParams, Link, useSearchParams, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
@@ -11,6 +12,7 @@ import { ConfirmAddMemberDialog, OutsideTag, outsideMatches } from "../../compon
 import { useClubPmAuth } from "../../clubpm/ClubPmAuth";
 import { useProjectNav } from "../../clubpm/ProjectNavContext";
 import TaskModal from "../../components/clubpm/TaskModal";
+import AttachmentPickerModal from "../../components/clubpm/AttachmentPickerModal";
 import BulkActionBar from "../../components/clubpm/BulkActionBar";
 import { RollupSourceChip, RollupTagChip, RollupSourceFilter, matchesSource } from "../../components/clubpm/rollup/RollupChips";
 import ProjectActivity from "../../components/clubpm/ProjectActivity";
@@ -20,9 +22,9 @@ import ProjectTimeInsights from "../../components/clubpm/analytics/ProjectTimeIn
 import PressKitPanel from "../../components/clubpm/PressKitPanel";
 import GanttChart from "../../components/clubpm/GanttChart";
 import { PriorityBars, AvatarStack, StatusRing } from "../../components/clubpm/TaskPrimitives";
+import DriveFolderBrowser from "../../components/clubpm/DriveFolderBrowser";
 import DrivePreviewModal from "../../components/clubpm/DrivePreviewModal";
 import EditDriveFolderModal from "../../components/clubpm/EditDriveFolderModal";
-import EditProjectModal from "../../components/clubpm/EditProjectModal";
 import ProjectAdminModal from "../../components/clubpm/ProjectAdminModal";
 import GitHubPanel from "../../components/clubpm/github/GitHubPanel";
 import ActionPlanReview from "../../components/clubpm/ActionPlanReview";
@@ -30,7 +32,7 @@ import VaultTab from "../../components/clubpm/vault/VaultTab";
 import ChatTab from "../../components/clubpm/chat/ChatTab";
 import MembersView from "./MembersView";
 import MemberLeadCard from "../../components/clubpm/members/MemberLeadCard";
-import { parseDriveUrl, getTypeMeta, getPreviewUrl } from "../../utils/driveUtils";
+import { parseDriveUrl } from "../../utils/driveUtils";
 import {
   DndContext,
   DragOverlay,
@@ -49,8 +51,9 @@ import {
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { animate, spring, revealStagger, prefersReducedMotion } from "../../clubpm/anim/motion";
-import { burstAt } from "../../components/clubpm/celebrate/confetti";
+import { revealStagger } from "../../clubpm/anim/motion";
+import useTaskCompletion, { TaskCompletionContext, useTaskCompletionActions } from "../../components/clubpm/celebrate/useTaskCompletion";
+import useTaskAssignment, { TaskAssignmentContext } from "../../components/clubpm/celebrate/useTaskAssignment";
 import useStreakWatcher from "../../hooks/useStreakWatcher";
 import MobileSheet from "../../components/clubpm/MobileSheet";
 import { useCompactLayout } from "../../clubpm/layout/compactLayout";
@@ -101,22 +104,20 @@ function kanbanCollisionDetection(args) {
     // pointer is over a row the row wins; over the bare bin header, the bin wins.
     const targets = args.droppableContainers.filter((c) => {
       const cid = c.id;
+      if (cid === "assignment-cancel") return true;
+      if (c.data.current?.canAssign === false) return false;
       if (typeof cid === "string" && cid.startsWith("noop-")) return false;
       if (typeof cid === "string" && cid.startsWith("blocker-")) return true;
       return !isContainerId(cid);
     });
     const hits = pointerWithin({ ...args, droppableContainers: targets });
     if (hits.length) {
+      const cancel = hits.find(h => h.id === "assignment-cancel");
+      if (cancel) return [cancel];
       const row = hits.find((h) => !(typeof h.id === "string" && h.id.startsWith("blocker-")));
       return row ? [row] : [hits[0]];
     }
-    // Nothing directly under the pointer → snap to the nearest task row (never a
-    // bin), preserving the old "assign to closest card" behaviour.
-    const rows = {
-      ...args,
-      droppableContainers: targets.filter((c) => !(typeof c.id === "string" && c.id.startsWith("blocker-"))),
-    };
-    return closestCenter(rows);
+    return []; // Empty space cancels member assignment.
   }
 
   const containers = {
@@ -226,7 +227,7 @@ const STATUS_BADGE = {
 // `rollup.canEdit`); a local task follows the page-level permission.
 const taskCanEdit = (task, pageCanEdit) => (task.rollup ? !!task.rollup.canEdit : pageCanEdit);
 
-function ProgressBar({ tasks }) {
+function ProgressBar({ tasks, onBackToTop }) {
   const allTasks = tasks.flatMap(t => [t, ...(t.subtasks ?? [])]);
   const total = allTasks.length;
   const done = allTasks.filter((t) => t.status === "DONE").length;
@@ -235,50 +236,32 @@ function ProgressBar({ tasks }) {
   const todo = Math.max(total - done - blocked - inProgress, 0);
   const pct = total > 0 ? Math.round((done / total) * 100) : 0;
 
-  if (total === 0) {
-    return (
-      <div className="cpm-proj-progress-row">
-        <div className="cpm-progress-bar-track">
-          <div
-            className="cpm-progress-bar-segment"
-            style={{ width: "100%", background: "var(--clubpm-surface-400)" }}
-          />
-        </div>
-        <span className="cpm-proj-progress-pct">0%</span>
-        <span className="cpm-proj-progress-stats">
-          <span style={{ color: "var(--clubpm-text-muted)" }}>No tasks yet</span>
-        </span>
-      </div>
-    );
-  }
-
+  const Track = onBackToTop ? 'button' : 'div';
+  const statuses = [
+    { label: 'Completed', count: done, color: 'var(--clubpm-accent-green)' },
+    { label: 'In progress', count: inProgress, color: 'var(--clubpm-accent-yellow)' },
+    { label: 'Blocked', count: blocked, color: 'var(--clubpm-accent-red, #e17055)' },
+    { label: 'Not started', count: todo, color: 'var(--clubpm-text-secondary)' },
+  ];
   return (
     <div className="cpm-proj-progress-row">
-      <div className="cpm-progress-bar-track">
-        <div
-          className="cpm-progress-bar-segment"
-          style={{ width: `${(done / total) * 100}%`, background: "var(--clubpm-accent-green)" }}
-        />
-        <div
-          className="cpm-progress-bar-segment"
-          style={{ width: `${(inProgress / total) * 100}%`, background: "var(--clubpm-accent-yellow)" }}
-        />
-        <div
-          className="cpm-progress-bar-segment"
-          style={{ width: `${(blocked / total) * 100}%`, background: "var(--clubpm-accent-red, #e17055)" }}
-        />
-        <div
-          className="cpm-progress-bar-segment"
-          style={{ width: `${(todo / total) * 100}%`, background: "var(--clubpm-surface-400)" }}
-        />
-      </div>
+      <Track className="cpm-progress-bar-track" onClick={onBackToTop}
+        {...(onBackToTop ? { type: 'button', title: 'Back to project header', 'aria-label': `Back to project header. ${pct}% completed.` } : { 'aria-hidden': true })}>
+        {statuses.slice(0, 3).map(status => (
+          <span key={status.label} className="cpm-progress-bar-segment"
+            style={{ width: `${total ? status.count / total * 100 : 0}%`, background: status.color }} />
+        ))}
+      </Track>
+      <div className="cpm-proj-progress-legend">
       <span className="cpm-proj-progress-pct">{pct}%</span>
       <span className="cpm-proj-progress-stats">
-        <span style={{ color: "var(--clubpm-accent-green)" }}>■ {done}</span>
-        <span style={{ color: "var(--clubpm-accent-yellow)" }}>■ {inProgress}</span>
-        {blocked > 0 && <span style={{ color: "var(--clubpm-accent-red, #e17055)" }}>■ {blocked}</span>}
-        <span style={{ color: "var(--clubpm-text-muted)" }}>■ {todo}</span>
+        {total ? statuses.map(status => (
+          <span key={status.label} title={status.label} aria-label={`${status.label}: ${status.count}`} style={{ '--progress-status-color': status.color }}>
+            <span className="cpm-proj-progress-dot" aria-hidden="true" />{status.count}
+          </span>
+        )) : <span>No tasks yet</span>}
       </span>
+      </div>
     </div>
   );
 }
@@ -287,6 +270,13 @@ function ProgressBar({ tasks }) {
 
 function StatusBin({ bin, tasks, subtasksByParent, expandedParents, onToggleParent, isOver, overTaskId, overBlockerId, onTaskClick, onAddTask, canEdit = true, canAdd = canEdit, sortBy = "priority", selectedTaskIds, blockedGroups, onResolveBlocker, onRenameBlocker, projectMembers }) {
   const [collapsed, setCollapsed] = useState(false);
+  const completionActions = useTaskCompletionActions();
+  const completionVersion = completionActions?.version ?? 0;
+  const [lastCompletion, setLastCompletion] = useState(completionVersion);
+  if (bin.id === 'DONE' && lastCompletion !== completionVersion) {
+    setLastCompletion(completionVersion);
+    setCollapsed(false);
+  }
   const { setNodeRef } = useDroppable({ id: bin.id });
   const isBlockedBin = bin.id === "BLOCKED";
 
@@ -324,7 +314,7 @@ function StatusBin({ bin, tasks, subtasksByParent, expandedParents, onTogglePare
             style={{ fontSize: 10, color: "var(--clubpm-text-muted)" }}
           />
           <span>{bin.label}</span>
-          <span style={{ color: "var(--clubpm-text-muted)", fontWeight: 400 }}>
+          <span data-completion-count={bin.id} style={{ color: bin.color, fontWeight: 400 }}>
             {tasks.length}
           </span>
         </button>
@@ -380,7 +370,7 @@ function StatusBin({ bin, tasks, subtasksByParent, expandedParents, onTogglePare
               <div style={{ padding: "12px 16px", fontSize: 12, color: "var(--clubpm-text-muted)", fontStyle: "italic" }}>
                 Drop tasks here
               </div>
-            ) : sortBy === "tags" ? (
+            ) : sortBy === "tags" && bin.id !== "DONE" ? (
               getTagGroups(tasks).map(group => (
                 <React.Fragment key={group.tag?.id ?? "untagged"}>
                   <div style={{
@@ -455,17 +445,20 @@ function StatusBin({ bin, tasks, subtasksByParent, expandedParents, onTogglePare
 }
 
 function MobileTaskRow({ task, onOpen, onMove, onAssign, canEdit, tourId }) {
+  const completionActions = useTaskCompletionActions();
+  const { setNodeRef, listeners, attributes, isDragging } = useDraggable({ id: task.id, disabled: !canEdit || task.status === 'BLOCKED' });
   const due = task.dueDate ? new Date(task.dueDate) : null;
   const overdue = due && task.status !== 'DONE' && due < new Date();
   return (
-    <div className="pm-m-task-row" data-task-id={task.id} data-tour-id={tourId}>
+    <div ref={setNodeRef} style={{ opacity: isDragging ? .5 : 1 }} className="pm-m-task-row" data-completion-id={task.id} data-completion-status={task.status} data-task-id={task.id} data-tour-id={tourId}>
       <button
         type="button"
-        className={`pm-m-task-status pm-m-task-status--${task.status.toLowerCase()}`}
-        onClick={() => canEdit ? onMove(task) : onOpen(task)}
-        aria-label={canEdit ? `Status: ${BINS.find(b => b.id === task.status)?.label ?? task.status}. Move task` : `Status: ${task.status}`}
+        className={`pm-task-check pm-m-task-status pm-m-task-status--${task.status.toLowerCase()}`}
+        onClick={() => canEdit ? task.status === 'BLOCKED' ? onMove(task) : completionActions.move([task.id], task.status === 'DONE' ? 'TODO' : 'DONE') : onOpen(task)}
+        aria-label={canEdit ? `${task.status === 'BLOCKED' ? 'Move' : task.status === 'DONE' ? 'Reopen' : 'Complete'} task: ${task.title}` : `Status: ${task.status}`}
+        aria-pressed={task.status === 'DONE'}
       >
-        <i className={task.status === 'DONE' ? 'fas fa-check' : task.status === 'BLOCKED' ? 'fas fa-ban' : 'fas fa-circle'} aria-hidden="true" />
+        {task.status === 'BLOCKED' ? <i className="fas fa-ban" aria-hidden="true" /> : <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 6.4l2.4 2.4 4.6-5" /></svg>}
       </button>
       <button type="button" className="pm-m-task-main" onClick={() => onOpen(task)}>
         <span className="pm-m-task-title">{task.title}</span>
@@ -476,6 +469,8 @@ function MobileTaskRow({ task, onOpen, onMove, onAssign, canEdit, tourId }) {
           <RollupTagChip rollup={task.rollup} />
         </span>
       </button>
+      {canEdit && task.status !== 'BLOCKED' && <button type="button" className="pm-m-task-grip" {...attributes} {...listeners}
+        aria-label={`Drag task: ${task.title}`}><i className="fas fa-grip-vertical" aria-hidden="true" /></button>}
       <div className="pm-m-task-actions">
         {canEdit ? (
           <>
@@ -490,11 +485,12 @@ function MobileTaskRow({ task, onOpen, onMove, onAssign, canEdit, tourId }) {
 }
 
 function CompactStatusGroup({ bin, open, onToggle, onOpenTask, onMove, onAssign, canEdit, lead = null }) {
+  const { setNodeRef, isOver } = useDroppable({ id: bin.id });
   return (
-    <section className="pm-m-task-group" data-tour-id={BIN_TOUR_IDS[bin.id]}>
+    <section ref={setNodeRef} className={`pm-m-task-group${isOver ? " cpm-status-bin--over" : ""}`} data-bin-id={bin.id} data-tour-id={BIN_TOUR_IDS[bin.id]}>
       <button type="button" className="pm-m-task-group-head" onClick={onToggle} aria-expanded={open}>
         <span className="pm-m-task-group-dot" style={{ background: bin.color }} />
-        <span>{bin.label}</span><span className="pm-m-count">{bin.tasks.length}</span>
+        <span style={{ color: bin.color }}>{bin.label}</span><span className="pm-m-count" data-completion-count={bin.id} style={{ color: bin.color }}>{bin.tasks.length}</span>
         <i className={`fas fa-chevron-${open ? 'up' : 'down'}`} aria-hidden="true" />
       </button>
       {open ? (
@@ -856,10 +852,15 @@ function BlockedTaskRow({ task, reason, selected, onTaskClick, groupId }) {
   // Namespaced id (a task can appear under several blocker groups at once, and
   // dnd-kit droppable ids are global — so plain task.id would collide). The real
   // task id travels in `data` for the drop handler to read back.
-  const { setNodeRef, isOver } = useDroppable({ id: `btask-${groupId}-${task.id}`, data: { taskId: task.id } });
+  const { setNodeRef, isOver } = useDroppable({ id: `btask-${groupId}-${task.id}`, data: { taskId: task.id, canAssign: task.canAssign !== false }, disabled: task.canAssign === false });
   return (
     <div
       ref={setNodeRef}
+      data-completion-id={task.id}
+      role="button" tabIndex={0}
+      aria-label={`Open task: ${task.title}`}
+      onKeyDown={e => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onTaskClick(task, e); } }}
+      data-completion-status={task.status}
       className={`cpm-task-row-compact cpm-blocked-task-row${selected ? " cpm-task-row-compact--selected" : ""}${isOver ? " cpm-task-row-compact--member-target" : ""}`}
       onClick={(e) => onTaskClick(task, e)}
     >
@@ -868,7 +869,7 @@ function BlockedTaskRow({ task, reason, selected, onTaskClick, groupId }) {
       )}
       <PriorityBars priority={task.priority} />
       <span className="cpm-task-row-compact-name">{task.title}</span>
-      <AvatarStack assignees={task.assignees} />
+      <AvatarStack assignees={task.assignees} taskId={task.id} />
       <RollupTagChip rollup={task.rollup} />
       {reason && <span className="cpm-blocked-task-reason" title={reason}>{reason}</span>}
     </div>
@@ -931,6 +932,7 @@ function BlockerNameModal({ count, projectMembers, onCreate, onCancel }) {
 // ── Compact Task Row ─────────────────────────────────────────
 
 function CompactTaskRow({ task, onClick, subtaskCount = 0, isExpanded = false, onToggleExpand, isDropTarget = false, isSelected = false, tourId, canEdit = true }) {
+  const completionActions = useTaskCompletionActions();
   const {
     attributes,
     listeners,
@@ -938,7 +940,7 @@ function CompactTaskRow({ task, onClick, subtaskCount = 0, isExpanded = false, o
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: task.id, disabled: canEdit ? false : { draggable: true } });
+  } = useSortable({ id: task.id, data: { canAssign: task.canAssign !== false }, disabled: { draggable: !canEdit, droppable: task.canAssign === false } });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -953,6 +955,11 @@ function CompactTaskRow({ task, onClick, subtaskCount = 0, isExpanded = false, o
       {...attributes}
       {...listeners}
       data-tour-id={(tourId)}
+      data-completion-id={task.id}
+      role="button" tabIndex={0}
+      aria-label={`Open task: ${task.title}`}
+      onKeyDown={e => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onClick(task, e); } }}
+      data-completion-status={task.status}
       className={`cpm-task-row-compact${isDropTarget ? " cpm-task-row-compact--member-target" : ""}${isSelected ? " cpm-task-row-compact--selected" : ""}`}
       onClick={(e) => {
         if (!isDragging) onClick(task, e);
@@ -961,16 +968,13 @@ function CompactTaskRow({ task, onClick, subtaskCount = 0, isExpanded = false, o
       {isSelected && (
         <i className="fas fa-check-circle cpm-task-row-compact-checkbox" aria-hidden="true" />
       )}
-      <i
-        className="fas fa-grip-vertical"
-        style={{
-          color: "var(--clubpm-text-muted)",
-          fontSize: 11,
-          flexShrink: 0,
-          pointerEvents: "none",
-        }}
-      />
-      <StatusRing status={task.status} />
+      <button type="button" className="pm-task-grip" {...listeners}
+        aria-label={`Drag task: ${task.title}`} disabled={!canEdit}
+        onClick={e => e.stopPropagation()}>
+        <i className="fas fa-grip-vertical" aria-hidden="true" />
+      </button>
+      <StatusRing status={task.status} title={task.title}
+        onComplete={canEdit ? () => completionActions.move([task.id], task.status === 'DONE' ? 'TODO' : 'DONE') : undefined} />
       <PriorityBars priority={task.priority} />
       <span className="cpm-task-row-compact-name">{task.title}</span>
       {subtaskCount > 0 && (
@@ -987,7 +991,7 @@ function CompactTaskRow({ task, onClick, subtaskCount = 0, isExpanded = false, o
           {subtaskCount}
         </button>
       )}
-      <AvatarStack assignees={task.assignees} />
+      <AvatarStack assignees={task.assignees} taskId={task.id} />
       {task.dueDate && (
         <span
           style={{
@@ -1027,7 +1031,8 @@ function CompactTaskRow({ task, onClick, subtaskCount = 0, isExpanded = false, o
 // ── Kanban Subtask Row (non-draggable, indented) ─────────────
 
 function KanbanSubtaskRow({ subtask, onClick, isDropTarget = false, isSelected = false }) {
-  const { setNodeRef } = useDroppable({ id: subtask.id });
+  const completionActions = useTaskCompletionActions();
+  const { setNodeRef } = useDroppable({ id: subtask.id, data: { canAssign: subtask.canAssign !== false }, disabled: subtask.canAssign === false });
   return (
     <div style={{ display: "flex", alignItems: "stretch" }}>
       <div style={{ width: 40, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "flex-end", paddingRight: 4 }}>
@@ -1038,18 +1043,24 @@ function KanbanSubtaskRow({ subtask, onClick, isDropTarget = false, isSelected =
     <div
       ref={setNodeRef}
       className={`cpm-task-row-compact${isDropTarget ? " cpm-task-row-compact--member-target" : ""}${isSelected ? " cpm-task-row-compact--selected" : ""}`}
+      data-completion-id={subtask.id}
+      role="button" tabIndex={0}
+      aria-label={`Open task: ${subtask.title}`}
+      onKeyDown={e => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onClick(subtask, e); } }}
+      data-completion-status={subtask.status}
       style={{ flex: 1, paddingLeft: 8, cursor: "pointer" }}
       onClick={(e) => onClick(subtask, e)}
     >
       {isSelected && (
         <i className="fas fa-check-circle cpm-task-row-compact-checkbox" aria-hidden="true" />
       )}
-      <StatusRing status={subtask.status} />
+      <StatusRing status={subtask.status} title={subtask.title}
+        onComplete={() => completionActions.move([subtask.id], subtask.status === 'DONE' ? 'TODO' : 'DONE')} />
       <PriorityBars priority={subtask.priority} />
-      <span className="cpm-task-row-compact-name" style={{ color: "var(--clubpm-text-secondary)" }}>
+      <span className="cpm-task-row-compact-name">
         {subtask.title}
       </span>
-      <AvatarStack assignees={subtask.assignees} />
+      <AvatarStack assignees={subtask.assignees} taskId={subtask.id} />
       {subtask.dueDate && (
         <span style={{ fontSize: 11, color: "var(--clubpm-text-muted)", flexShrink: 0, whiteSpace: "nowrap" }}>
           {new Date(subtask.dueDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
@@ -1078,6 +1089,8 @@ function projectRoster(project) {
 // ── Assignee Panel (right column) ────────────────────────────
 
 function AssigneePanel({ members, outsideCandidates = [], selectedMemberIds, onMemberClick, leadByMemberId, canEditLeads = false, projectId, onLeadsChanged, onMemberAdded }) {
+  const { setNodeRef: cancelRef, isOver: cancelOver } = useDroppable({ id: "assignment-cancel" });
+  const assignment = useContext(TaskAssignmentContext);
   const [collapsed, setCollapsed] = useState(false);
   const [search, setSearch] = useState("");
   const [card, setCard] = useState(null); // { pm, anchor }
@@ -1113,7 +1126,7 @@ function AssigneePanel({ members, outsideCandidates = [], selectedMemberIds, onM
   );
 
   return (
-    <aside className="cpm-assignee-panel">
+    <aside ref={cancelRef} className={`cpm-assignee-panel${cancelOver && assignment?.dragging ? " pm-assignment-cancel-target" : ""}`} aria-label="Assignees; drop here to cancel assignment">
       <div className="cpm-assignee-panel-header">
         <span style={{ fontSize: 13, fontWeight: 600, color: "var(--clubpm-text-primary)" }}>
           Members
@@ -1271,6 +1284,7 @@ function DraggableMemberChip({ pm, selected, onClick, lead, onOpenCard }) {
       {...attributes}
       {...listeners}
       className={`cpm-assignee-chip${selected ? " cpm-assignee-chip--selected" : ""}${isLead ? " cpm-assignee-chip--lead" : ""}`}
+      data-assignment-source={pm.memberId}
       aria-pressed={selected}
       title={isAdmin
         ? `${lead?.leadTitle || "Admin"}. Double-click for details. Drag to assign.`
@@ -1280,7 +1294,7 @@ function DraggableMemberChip({ pm, selected, onClick, lead, onOpenCard }) {
       onClick={(event) => onClick(pm.memberId, event)}
       onDoubleClick={(event) => onOpenCard(pm, event.currentTarget.getBoundingClientRect())}
       style={{
-        opacity: isDragging ? 0.4 : 1,
+        opacity: isDragging ? 0.25 : 1,
         borderColor: isLead ? "var(--pm-accent-violet, #a78bfa)" : isAdmin ? "#f9ca24" : undefined,
         background: isLead ? "color-mix(in srgb, var(--pm-accent-violet, #a78bfa) 14%, var(--clubpm-surface-200))" : undefined,
       }}
@@ -1303,7 +1317,24 @@ const PRIORITY_LEVELS = ["CRITICAL", "HIGH", "MEDIUM", "LOW"];
 
 function AddProjectTaskModal({ projectId, projectName, canCreateHere = true, childSources = [], initialStatus, projectMembers, onClose, onCreated }) {
   const compact = useCompactLayout();
+  const createDialogRef = useRef(null);
+  const openerRef = useRef(document.activeElement);
+  useEffect(() => () => { if (openerRef.current?.isConnected) openerRef.current.focus(); }, []);
+  function creationKeys(event) {
+    if (!event.currentTarget.contains(event.target)) return;
+    if ((event.metaKey || event.ctrlKey) && event.key === "Enter") { handleSubmit(event); return; }
+    if (compact) return;
+    if (event.key === "Escape") { event.stopPropagation(); onClose(); }
+    if (event.key !== "Tab") return;
+    const nodes = [...createDialogRef.current.querySelectorAll('button:not(:disabled), input, textarea, select')].filter(node => node.getClientRects().length);
+    const first = nodes[0], last = nodes[nodes.length - 1];
+    if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+    else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+  }
   const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [attachments, setAttachments] = useState([]);
+  const [attachmentPickerOpen, setAttachmentPickerOpen] = useState(false);
   const [priority, setPriority] = useState("MEDIUM");
   const [dueDate, setDueDate] = useState("");
   const [saving, setSaving] = useState(false);
@@ -1374,6 +1405,8 @@ function AddProjectTaskModal({ projectId, projectName, canCreateHere = true, chi
       // Tags and milestones belong to the page's project, so a sub-project task skips both.
       const newTask = await post(`/api/projects/${childTarget ? childTarget.projectId : projectId}/tasks`, {
         title: title.trim(),
+        description: description.trim() || undefined,
+        attachments,
         priority,
         status: initialStatus,
         dueDate: dueDate || undefined,
@@ -1402,7 +1435,7 @@ function AddProjectTaskModal({ projectId, projectName, canCreateHere = true, chi
   }
 
   const panel = (
-      <div data-tour-id="task.create.modal" className="pm-m-task-create"
+      <div ref={createDialogRef} role={compact ? undefined : "dialog"} aria-modal={compact ? undefined : true} aria-label={compact ? undefined : "New task"} onKeyDown={creationKeys} data-tour-id="task.create.modal" className="pm-m-task-create pm-task-create-studio"
         style={{ background: "var(--clubpm-surface-100)", borderRadius: 12, width: "min(480px, 94vw)",
         boxShadow: "0 24px 80px rgba(0,0,0,0.5)", border: "1px solid var(--clubpm-border)", overflow: "hidden" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between",
@@ -1411,17 +1444,24 @@ function AddProjectTaskModal({ projectId, projectName, canCreateHere = true, chi
             <i className="fas fa-plus" style={{ marginRight: 8, color: "var(--clubpm-accent-primary)" }} />
             New Task
           </span>
-          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer",
+          <button aria-label="Close" onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer",
             color: "var(--clubpm-text-muted)", fontSize: 16, padding: "2px 6px" }}>×</button>
         </div>
 
-        <form onSubmit={handleSubmit}>
-          <div style={{ padding: "16px 20px", display: "flex", flexDirection: "column", gap: 14 }}>
+        <form onSubmit={handleSubmit} className="pm-task-create-form">
+          <div className="pm-task-create-fields">
+          <main className="pm-task-create-main">
+            <span className="pm-task-eyebrow">{projectName || "Project"} / NEW TASK</span>
             <div data-tour-id="task.create.title">
-              <label style={labelStyle}>Task Title *</label>
-              <input autoFocus value={title} onChange={e => setTitle(e.target.value)}
-                placeholder="What needs to be done?" style={inputStyle} required />
+              <label htmlFor="pm-task-create-title" className="pm-task-sr-only">Task title</label>
+              <textarea id="pm-task-create-title" autoFocus required rows={3} value={title} onChange={e => setTitle(e.target.value)} placeholder="What needs to be done?" className="pm-task-create-title" />
             </div>
+            <label htmlFor="pm-task-create-description" className="pm-task-create-label"><i className="fas fa-align-left" aria-hidden="true" /> Description</label>
+            <textarea id="pm-task-create-description" rows={7} value={description} onChange={e => setDescription(e.target.value)} placeholder="What does done look like? Add context, links, or acceptance criteria." className="pm-task-create-description" />
+            <div className="pm-task-create-hint"><i className="fas fa-lightbulb" aria-hidden="true" /> Start with a clear finish line. You can add subtasks, dependencies, and time logs after creating your task.</div>
+          </main>
+          <aside className="pm-task-create-side" aria-label="New task details">
+          <div style={{ padding: "16px 20px", display: "flex", flexDirection: "column", gap: 14 }}>
             {childSources.length > 0 && (
               <div>
                 <label style={labelStyle} htmlFor="cpm-add-task-project">Project</label>
@@ -1524,13 +1564,22 @@ function AddProjectTaskModal({ projectId, projectName, canCreateHere = true, chi
               )}
             </div>
             )}
+            <div className="pm-task-create-attachments">
+              <label style={labelStyle}>Attachments</label>
+              {attachments.map((att, index) => <div className="pm-task-create-attachment" key={att.url}>
+                <i className="fas fa-link" aria-hidden="true" /><span>{att.label}</span><button type="button" aria-label={`Remove ${att.label}`} onClick={() => setAttachments(prev => prev.filter((_, i) => i !== index))}><i className="fas fa-times" aria-hidden="true" /></button>
+              </div>)}
+              <button type="button" className="pm-task-attach-add" onClick={() => setAttachmentPickerOpen(true)}><i className="fas fa-plus" aria-hidden="true" /> Add attachment</button>
+            </div>
             {error && (
               <p style={{ fontSize: 12, color: "#e17055", background: "rgba(225,112,85,0.1)",
                 borderRadius: 6, padding: "6px 10px", margin: 0 }}>{error}</p>
             )}
           </div>
 
-          <div style={{ display: "flex", justifyContent: "flex-end", gap: 8,
+          </aside>
+          </div>
+          <div className="pm-task-create-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 8,
             padding: "12px 20px", background: "var(--clubpm-surface-200)", borderTop: "1px solid var(--clubpm-border)" }}>
             <button type="button" onClick={onClose} style={{ padding: "7px 16px", borderRadius: 7,
               border: "1px solid var(--clubpm-border)", background: "none",
@@ -1542,6 +1591,7 @@ function AddProjectTaskModal({ projectId, projectName, canCreateHere = true, chi
             </button>
           </div>
         </form>
+        {attachmentPickerOpen && <AttachmentPickerModal projectId={targetId} onClose={() => setAttachmentPickerOpen(false)} onAdd={payload => setAttachments(prev => [...new Map([...prev, ...(Array.isArray(payload) ? payload : [payload])].map(item => [item.url, item])).values()])} />}
       </div>
   );
   if (compact) return <MobileSheet title="New task" variant="fullscreen" onClose={onClose} className="pm-m-task-create-layer">{panel}</MobileSheet>;
@@ -1551,123 +1601,6 @@ function AddProjectTaskModal({ projectId, projectName, canCreateHere = true, chi
   );
 }
 
-// ── Slack Channel Picker ─────────────────────────────────────
-
-function SlackChannelPicker({ project, channels, channelsState, onSaved }) {
-  const [saving, setSaving] = useState(false);
-  const [status, setStatus] = useState("");
-  const [error, setError] = useState("");
-  const [selected, setSelected] = useState(project.slackChannelId ?? "");
-
-  useEffect(() => {
-    setSelected(project.slackChannelId ?? "");
-  }, [project.slackChannelId]);
-
-  const { loaded, error: loadError, warning, needsAuth } = channelsState ?? {};
-
-  // The linked channel may not be in the list the current viewer can see (e.g.
-  // a private channel linked by someone else). Show it anyway so the picker
-  // never renders blank for a project that IS linked.
-  const options = useMemo(() => {
-    const list = [...channels];
-    if (project.slackChannelId && !list.some(c => c.id === project.slackChannelId)) {
-      list.unshift({
-        id: project.slackChannelId,
-        name: project.slackChannelName ?? "linked channel",
-        botIsMember: true,
-      });
-    }
-    return list;
-  }, [channels, project.slackChannelId, project.slackChannelName]);
-
-  const handleChange = async (e) => {
-    const channelId = e.target.value;
-    const ch = options.find(c => c.id === channelId);
-    setSelected(channelId);
-    setError("");
-    setSaving(true);
-    try {
-      if (channelId && ch && ch.botIsMember === false) {
-        setStatus("Inviting bot…");
-        try {
-          await post(`/api/slack/channels/${channelId}/invite-bot`, {});
-        } catch (inviteErr) {
-          const code = inviteErr?.message ?? "unknown_error";
-          setError(`Could not invite bot (${code}). Run \`/invite @Constellation\` in #${ch.name} then retry.`);
-          setSelected(project.slackChannelId ?? "");
-          return;
-        }
-      }
-      setStatus("Saving…");
-      await patch(`/api/projects/${project.id}`, {
-        slackChannelId:   channelId || null,
-        slackChannelName: ch?.name  || null,
-      });
-      onSaved();
-    } catch (err) {
-      console.error("Failed to save linked channel", err);
-      setError(err?.message ?? "Failed to save linked channel");
-      setSelected(project.slackChannelId ?? "");
-    } finally {
-      setSaving(false);
-      setStatus("");
-    }
-  };
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-        <i className="fab fa-slack" style={{ fontSize: 12, color: "var(--clubpm-text-muted)" }} />
-        <select
-          value={selected}
-          onChange={handleChange}
-          disabled={saving}
-          style={{
-            fontSize: 11,
-            padding: "3px 6px",
-            borderRadius: 5,
-            background: "var(--clubpm-surface-300)",
-            border: "1px solid var(--clubpm-border)",
-            color: selected ? "var(--clubpm-text-primary)" : "var(--clubpm-text-muted)",
-            cursor: "pointer",
-          }}
-        >
-          <option value="">
-            {!loaded ? "Loading channels…" : "— Link Slack channel —"}
-          </option>
-          {options.map(ch => (
-            <option key={ch.id} value={ch.id}>
-              #{ch.name}{ch.botIsMember === false ? " (bot not in channel)" : ""}
-            </option>
-          ))}
-        </select>
-        {saving && <span style={{ fontSize: 10, color: "var(--clubpm-text-muted)" }}>{status}</span>}
-      </div>
-      {error && (
-        <span style={{ fontSize: 10, color: "var(--clubpm-accent-danger, #e06c75)" }}>{error}</span>
-      )}
-      {!error && loaded && loadError && (
-        <span style={{ fontSize: 10, color: "var(--clubpm-accent-danger, #e06c75)" }}>
-          {loadError}
-        </span>
-      )}
-      {!error && loaded && !loadError && warning && (
-        <span style={{ fontSize: 10, color: "var(--pm-accent-amber)" }}>{warning}</span>
-      )}
-      {loaded && needsAuth && (
-        <a
-          href={
-            `${process.env.REACT_APP_API_URL || ""}/auth/slack` +
-            `?returnTo=${encodeURIComponent(`/clubpm/projects/${project.id}`)}`
-          }
-          style={{ fontSize: 10, color: "var(--pm-accent-teal)" }}
-        >
-          Reconnect Slack
-        </a>
-      )}
-    </div>
-  );
-}
 
 // ── Suggested Task Card ───────────────────────────────────────
 
@@ -2120,95 +2053,12 @@ function AiPanel({ project, allMembers, projectBlockers, onActionPlanExecuted })
   );
 }
 
-// ── Drive Folder Pill (header chip with admin edit) ──────────
 
-function DriveFolderPill({ project, isAdmin, onPreview, onSaved }) {
-  const [editing, setEditing] = useState(false);
-  const link = project.driveLink ?? null;
-  const parsed = link ? parseDriveUrl(link) : null;
-  const isFolder = parsed?.kind === "folder";
-
-  if (!link) {
-    if (!isAdmin) return null;
-    return (
-      <>
-        <button
-          type="button"
-          className="cpm-drive-pill cpm-drive-pill-add"
-          onClick={() => setEditing(true)}
-          title="Link a Drive folder to this project"
-        >
-          <i className="fab fa-google-drive" aria-hidden="true" />
-          <span>+ Link Drive folder</span>
-        </button>
-        {editing && (
-          <EditDriveFolderModal
-            projectId={project.id}
-            currentLink={null}
-            onClose={() => setEditing(false)}
-            onSaved={onSaved}
-          />
-        )}
-      </>
-    );
-  }
-
-  return (
-    <>
-      <span className="cpm-drive-pill" title={link}>
-        <i className="fab fa-google-drive" style={{ color: "#4285F4" }} aria-hidden="true" />
-        <a
-          href={link}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="cpm-drive-pill-link"
-        >
-          {isFolder ? "Drive folder" : parsed ? getTypeMeta(parsed.kind).label : "Drive link"}
-        </a>
-        <button
-          type="button"
-          onClick={() => onPreview(link)}
-          className="cpm-drive-pill-action"
-          title="Preview"
-          aria-label="Preview Drive link"
-        >
-          <i className="fas fa-eye" aria-hidden="true" />
-        </button>
-        {isAdmin && (
-          <button
-            type="button"
-            onClick={() => setEditing(true)}
-            className="cpm-drive-pill-action"
-            title="Change Drive folder"
-            aria-label="Change Drive folder"
-          >
-            <i className="fas fa-pen" aria-hidden="true" />
-          </button>
-        )}
-      </span>
-      {editing && (
-        <EditDriveFolderModal
-          projectId={project.id}
-          currentLink={link}
-          onClose={() => setEditing(false)}
-          onSaved={onSaved}
-        />
-      )}
-    </>
-  );
-}
-
-// ── Files Tab Panel (view-only link to the project's linked Drive folder) ────
-//
-// The Files tab is intentionally read-only: it surfaces the human-managed Drive
-// folder linked to the project (`project.driveLink`) and links out to it. The
-// bot's drive.file OAuth scope can't list a folder it didn't create, so
-// browsing/adding/editing happen in Drive itself; the app never provisions or
-// mutates the folder. Legacy Vault versions can use a separate bot-owned CAD
-// folder; GitHub-enabled Vault check-ins use the configured repository.
+// happen in Drive; folder navigation and previews stay inside Constellation.
 
 function DriveFilesPanel({ project, isAdmin, onProjectChange }) {
   const [editing, setEditing] = useState(false);
+  const [preview, setPreview] = useState(null);
   const link = project.driveLink ?? null;
   const parsed = link ? parseDriveUrl(link) : null;
   const isFolder = parsed?.kind === "folder";
@@ -2268,10 +2118,6 @@ function DriveFilesPanel({ project, isAdmin, onProjectChange }) {
     );
   }
 
-  // Folder linked → view-only inline embed of the folder's contents (Google's
-  // embeddedfolderview iframe — same mechanism as the eye-icon preview, so it
-  // works whenever the folder is shared "anyone with the link").
-  const embedUrl = getPreviewUrl(parsed);
   return (
     <div className="cpm-drive-files">
       <header className="cpm-drive-files-header">
@@ -2291,22 +2137,13 @@ function DriveFilesPanel({ project, isAdmin, onProjectChange }) {
         </div>
       </header>
 
-      {embedUrl ? (
-        <iframe
-          title="Drive folder contents"
-          src={embedUrl}
-          className="cpm-drive-folder-embed"
-          loading="lazy"
-        />
-      ) : (
-        <div className="cpm-drive-files-empty" style={{ marginTop: 4 }}>
-          <i className="fab fa-google-drive" style={{ fontSize: 32, color: "#4285F4", marginBottom: 10 }} aria-hidden="true" />
-          <p>This project's files live in a linked Google Drive folder.</p>
-          <a href={link} target="_blank" rel="noopener noreferrer" className="clubpm-btn-primary" style={{ marginTop: 12 }}>
-            Open folder in Drive <i className="fas fa-external-link-alt" aria-hidden="true" style={{ marginLeft: 6 }} />
-          </a>
-        </div>
-      )}
+      <DriveFolderBrowser
+        key={`${project.id}:${link}`}
+        projectId={project.id}
+        driveLink={link}
+        onPreview={setPreview}
+      />
+      {preview && <DrivePreviewModal {...preview} onClose={() => setPreview(null)} />}
 
       {editModal}
     </div>
@@ -2454,15 +2291,15 @@ export default function ProjectDetail() {
   const notifyStreak = useStreakWatcher();
 
   const [project, setProject] = useState(null);
+  const completionRootRef = useRef(null);
+  const completion = useTaskCompletion(completionRootRef, project, setProject,
+    (taskId, fields) => taskId
+      ? patch(`/api/tasks/${taskId}`, fields)
+      : patch('/api/tasks/bulk', fields));
+  const assignment = useTaskAssignment(completionRootRef, project, setProject,
+    (taskId, fields) => patch(`/api/tasks/${taskId}`, fields));
   const [allProjects, setAllProjects] = useState([]);
   const [allMembers, setAllMembers] = useState([]);
-  const [slackChannels, setSlackChannels] = useState([]);
-  const [slackChannelsState, setSlackChannelsState] = useState({
-    loaded: false,
-    error: "",
-    warning: "",
-    needsAuth: false,
-  });
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("tasks");
   const [chatSection, setChatSection] = useState("messages");
@@ -2544,6 +2381,7 @@ export default function ProjectDetail() {
   }, [setSearchParams]);
 
   const tabBodyRef = useRef(null);
+  useProjectHeaderScroll(tabBodyRef, activeTab === 'tasks', project?.id, compact, loading);
   useEffect(() => {
     if (!tabBodyRef.current) return;
     const body = tabBodyRef.current.querySelector('.cpm-proj-main-body');
@@ -2576,7 +2414,6 @@ export default function ProjectDetail() {
     try { setSourceFilterState(sessionStorage.getItem(sourceKey) || "all"); } catch { setSourceFilterState("all"); }
   }, [sourceKey]);
   const [headerDrivePreview, setHeaderDrivePreview] = useState(null); // { url, label }
-  const [showEditProject, setShowEditProject] = useState(false);
   const [showManageProject, setShowManageProject] = useState(false);
   const [pinned, setPinned] = useState(() => {
     try {
@@ -2645,6 +2482,10 @@ export default function ProjectDetail() {
   const tasksByBin = useMemo(() => {
     if (!project) return BINS.map(b => ({ ...b, tasks: [] }));
     const sorted = (arr) => [...arr].sort((a, b) => {
+      if (a.status === 'DONE' && b.status === 'DONE') {
+        const rank = (completion.order[b.id] ?? 0) - (completion.order[a.id] ?? 0);
+        if (rank) return rank;
+      }
       if (sortBy === "priority") return (PRIORITY_RANK[a.priority] ?? 4) - (PRIORITY_RANK[b.priority] ?? 4);
       if (sortBy === "dueDate")  return (a.dueDate ? new Date(a.dueDate) : Infinity) - (b.dueDate ? new Date(b.dueDate) : Infinity);
       if (sortBy === "status")   return (a.status ?? "").localeCompare(b.status ?? "");
@@ -2665,7 +2506,7 @@ export default function ProjectDetail() {
         (t) => !t.parentTaskId && t.status === b.id && matchesSource(t, activeSource)
       )),
     }));
-  }, [project, sortBy, activeSource]);
+  }, [project, sortBy, activeSource, completion.order]);
 
   // Progress and charts count a rolled-up task only when its sub-project opted in.
   const insightsProject = useMemo(
@@ -2698,7 +2539,7 @@ export default function ProjectDetail() {
   const flatTaskOrder = useMemo(() => {
     const order = [];
     tasksByBin.forEach((bin) => {
-      const groups = sortBy === "tags" ? getTagGroups(bin.tasks) : [{ tasks: bin.tasks }];
+      const groups = sortBy === "tags" && bin.id !== "DONE" ? getTagGroups(bin.tasks) : [{ tasks: bin.tasks }];
       groups.forEach((group) => {
         group.tasks.forEach((task) => {
           order.push(task.id);
@@ -2786,74 +2627,35 @@ export default function ProjectDetail() {
     return null;
   }, [project]);
 
-  // Single-task status move — keeps the reward-origin + confetti niceties.
-  const moveSingleTask = async (task, newStatus, dropRect) => {
-    const taskId = task.id;
-    const patchBody = { status: newStatus };
-    if (newStatus === "IN_PROGRESS" && member) {
-      const alreadyAssigned = (task.assignees ?? []).some(a => a.id === member.id);
-      if (!alreadyAssigned) patchBody.assigneeIds = [...(task.assignees ?? []).map(a => a.id), member.id];
-    }
-    const previousTasks = project.tasks;
+  // Local status actions share the same optimistic transaction and celebration.
+  const moveSingleTask = async (task, newStatus, dropRect, extraFields = {}) => {
     if (dropRect) setNextRewardOrigin(dropRect.left + dropRect.width / 2, dropRect.top + dropRect.height / 2);
-    setProject(prev => ({
-      ...prev,
-      tasks: prev.tasks.map(t => t.id === taskId ? {
-        ...t,
-        status: newStatus,
-        assignees: newStatus === "IN_PROGRESS" && member && !(t.assignees ?? []).some(a => a.id === member.id)
-          ? [...(t.assignees ?? []), member]
-          : t.assignees,
-      } : t),
-    }));
-    try {
-      const updated = await patch(`/api/tasks/${taskId}`, patchBody);
-      setProject(prev => ({ ...prev, tasks: prev.tasks.map(t => t.id === taskId ? { ...t, ...updated } : t) }));
-      notifyStreak();
-      if (newStatus === "DONE") celebrateDoneBin();
-    } catch (err) {
-      setProject(prev => ({ ...prev, tasks: previousTasks }));
-      if (err?.message) alert(err.message);
+    const fields = { ...extraFields };
+    if (newStatus === 'IN_PROGRESS' && member && !(task.assignees ?? []).some(a => a.id === member.id)) {
+      fields.assigneeIds = [...(task.assignees ?? []).map(a => a.id), member.id];
     }
+    const updated = await completion.move([task], newStatus, dropRect, fields);
+    if (updated.length) notifyStreak();
+    return updated[0];
   };
 
-  // Group status move — one optimistic pass + the bulk endpoint, then reconcile.
-  const bulkMoveStatus = async (ids, newStatus) => {
-    const idSet = new Set(ids);
-    const previousTasks = project.tasks;
-    setProject(prev => ({
-      ...prev,
-      tasks: prev.tasks.map(t => {
-        let next = idSet.has(t.id) ? { ...t, status: newStatus } : t;
-        if (next.subtasks?.length) next = { ...next, subtasks: next.subtasks.map(s => idSet.has(s.id) ? { ...s, status: newStatus } : s) };
-        return next;
-      }),
-    }));
-    try {
-      const res = await patch("/api/tasks/bulk", { ids, patch: { status: newStatus } });
-      if (res.skipped?.length) {
-        alert(`${res.skipped.length} task(s) were not moved:\n` + res.skipped.map(s => `- ${s.reason}`).join("\n"));
-      }
-      notifyStreak();
-      if (newStatus === "DONE") celebrateDoneBin();
-    } catch (err) {
-      setProject(prev => ({ ...prev, tasks: previousTasks }));
-      alert(err?.message ?? "Failed to move tasks");
-    } finally {
-      fetchProject();
-    }
+  const bulkMoveStatus = async (ids, newStatus, dropRect, fields = {}) => {
+    const tasks = ids.map(tid => findTaskById(tid)?.task).filter(Boolean);
+    const updated = await completion.move(tasks, newStatus, dropRect, fields);
+    if (updated.length) notifyStreak();
+    return updated;
   };
 
   // Move one or more tasks to a status, mirroring the backend's blocker rules so
   // a locked/dep-gated task fails fast (with a message) instead of round-tripping.
-  const moveTasksToStatus = async (ids, newStatus, dropRect) => {
+  const moveTasksToStatus = async (ids, newStatus, dropRect, fields = {}) => {
     const movable = [];
     const blocked = [];
     for (const tid of ids) {
       const f = findTaskById(tid);
       if (!f) continue;
       const t = f.task;
-      if (t.status === newStatus) continue;
+      if (!taskCanEdit(f.parentTask ?? t, canEdit) || t.status === newStatus) continue;
       const hasOpenCat = (t.blockers ?? []).some(tb => tb.blocker && !tb.blocker.resolvedAt);
       if (hasOpenCat && newStatus !== "BLOCKED") { blocked.push(`${t.title} — locked until its blocker is resolved`); continue; }
       if (newStatus === "DONE") {
@@ -2864,8 +2666,9 @@ export default function ProjectDetail() {
     }
     if (blocked.length) alert(`Some tasks couldn't be moved:\n\n${blocked.join("\n")}`);
     if (!movable.length) return;
-    if (movable.length === 1) await moveSingleTask(movable[0], newStatus, dropRect);
-    else await bulkMoveStatus(movable.map(t => t.id), newStatus);
+    if (newStatus === 'DONE') setCompactGroups(prev => new Set([...prev, 'DONE']));
+    if (movable.length === 1) return moveSingleTask(movable[0], newStatus, dropRect, fields);
+    return bulkMoveStatus(movable.map(t => t.id), newStatus, dropRect, fields);
   };
 
   // Attach an existing category blocker to one or more tasks (drop onto a sub-bin).
@@ -2924,18 +2727,6 @@ export default function ProjectDetail() {
     } finally {
       refreshBlockers();
     }
-  };
-
-  // DONE-bin settle-bounce + confetti, shared by single and group moves.
-  const celebrateDoneBin = () => {
-    requestAnimationFrame(() => requestAnimationFrame(() => {
-      const doneBin = document.querySelector('[data-bin-id="DONE"]');
-      if (!doneBin) return;
-      if (!prefersReducedMotion()) {
-        animate(doneBin, { scale: [1, 1.01, 1], duration: 400, ease: spring });
-      }
-      burstAt(doneBin, { palette: 'taskComplete' });
-    }));
   };
 
   // Groups the BLOCKED column into collapsible sub-bins: one per active
@@ -3094,7 +2885,7 @@ export default function ProjectDetail() {
       return;
     }
     setLastClickedId(task.id);
-    const scrollHost = document.querySelector('.cpm-proj-main-body') ?? document.querySelector('.pm-shell-content');
+    const scrollHost = document.querySelector('.cpm-project-main--scroll-header') ?? document.querySelector('.cpm-proj-main-body') ?? document.querySelector('.pm-shell-content');
     taskReturnRef.current = {
       scrollTop: scrollHost?.scrollTop ?? window.scrollY,
       taskId: task.id,
@@ -3158,10 +2949,9 @@ export default function ProjectDetail() {
       // control the desktop hero already renders, under the same permission.
       // The timeline had no entry point at all before this.
       actions: [
-        { id: 'edit', label: 'Edit project', icon: 'fa-pencil-alt', hidden: !canEditProject, onSelect: () => setShowEditProject(true) },
+        { id: 'settings', label: 'Project settings', icon: 'fa-sliders', hidden: !canEditProject && !member?.isAdmin, onSelect: () => setShowManageProject(true) },
         { id: 'chat', label: 'Project chat', icon: 'fa-comments', to: `/clubpm/projects/${project.id}?tab=chat` },
         { id: 'drive', label: 'Open Drive folder', icon: 'fa-folder-open', hidden: !project.driveLink, onSelect: () => setHeaderDrivePreview({ url: project.driveLink, label: 'Drive folder' }) },
-        { id: 'manage', label: 'Sub-projects, members & delete', icon: 'fa-sliders', hidden: !member?.isAdmin, onSelect: () => setShowManageProject(true) },
         { id: 'description', label: 'Edit description', icon: 'fa-align-left', hidden: !member?.isAdmin, onSelect: () => { setDescValue(project.description ?? ''); setDescEdit(true); } },
         { id: 'pin', label: pinned ? 'Unpin project' : 'Pin project', icon: 'fa-star', onSelect: togglePinned },
         { id: 'timeline', label: 'Timeline (Gantt)', icon: 'fa-chart-gantt', to: `/clubpm/projects/${project.id}/gantt` },
@@ -3177,39 +2967,6 @@ export default function ProjectDetail() {
     get("/api/projects")
       .then(setAllProjects)
       .catch(console.error);
-  }, []);
-
-  useEffect(() => {
-    // Never swallow this. When it failed silently, the picker rendered an empty
-    // dropdown with no explanation anywhere — the bug that hid a broken token
-    // path for weeks.
-    get("/api/slack/channels")
-      .then(data => {
-        // Response is { channels, needsSlackAuth, warning }; tolerate the older
-        // bare-array shape while a stale backend is still deployed.
-        if (Array.isArray(data)) {
-          setSlackChannels(data);
-          setSlackChannelsState({ loaded: true, error: "", warning: "", needsAuth: false });
-          return;
-        }
-        setSlackChannels(data?.channels ?? []);
-        setSlackChannelsState({
-          loaded: true,
-          error: "",
-          warning: data?.warning ?? "",
-          needsAuth: !!data?.needsSlackAuth,
-        });
-      })
-      .catch(err => {
-        console.error("Failed to load Slack channels", err);
-        setSlackChannels([]);
-        setSlackChannelsState({
-          loaded: true,
-          error: err?.message ?? "Could not load Slack channels",
-          warning: "",
-          needsAuth: true,
-        });
-      });
   }, []);
 
   useEffect(() => {
@@ -3242,7 +2999,7 @@ export default function ProjectDetail() {
     const restore = taskReturnRef.current;
     window.requestAnimationFrame(() => {
       if (restore) {
-        const scrollHost = document.querySelector('.cpm-proj-main-body') ?? document.querySelector('.pm-shell-content');
+        const scrollHost = document.querySelector('.cpm-project-main--scroll-header') ?? document.querySelector('.cpm-proj-main-body') ?? document.querySelector('.pm-shell-content');
         if (scrollHost) scrollHost.scrollTo({ top: restore.scrollTop, behavior: 'auto' });
         else window.scrollTo({ top: restore.scrollTop, behavior: 'auto' });
       }
@@ -3251,6 +3008,8 @@ export default function ProjectDetail() {
   }, [setSearchParams]);
 
   const handleDragStart = (event) => {
+    assignment.start(event.activatorEvent?.clientX ?? 0);
+    completion.cancel(event.active.id);
     const { active } = event;
     if (typeof active.id === "string" && (active.id.startsWith("member-") || active.id === "special-everyone" || active.id === "special-nobody")) {
       setActiveTask(null);
@@ -3277,10 +3036,12 @@ export default function ProjectDetail() {
       // A member can be dropped on a task row (assign) or a blocker category
       // sub-bin (set the blocker's responsible owner).
       const isBlockerBin = typeof overId === "string" && overId.startsWith("blocker-");
+      const targetId = over?.data?.current?.taskId ?? overId;
+      assignment.setHover(targetId && targetId !== "assignment-cancel" && !isBlockerBin ? { id: targetId, memberIds: selectedMemberIds.has(active.data.current?.memberId) && selectedMemberIds.size > 1 ? [...selectedMemberIds] : [active.data.current?.memberId] } : null);
       setOverBin(isBlockerBin ? overId : null);
       const isTopLevel = !isBlockerBin && overId && project?.tasks.some(t => t.id === overId);
       const isSubtask = !isBlockerBin && !isTopLevel && overId && project?.tasks.some(t => (t.subtasks ?? []).some(s => s.id === overId));
-      setOverTaskId(isTopLevel || isSubtask ? overId : null);
+      setOverTaskId(isTopLevel || isSubtask ? overId : over?.data?.current?.taskId ?? null);
     } else {
       setOverTaskId(null);
       setOverBin(isContainerId(overId) ? overId : null);
@@ -3293,7 +3054,8 @@ export default function ProjectDetail() {
     setOverBin(null);
     setOverTaskId(null);
     const { active, over } = event;
-    if (!over || !project) return;
+    if (!over || over.id === "assignment-cancel" || !project) { assignment.endDrag(true); return; }
+    assignment.endDrag();
 
     // Permission is per task: a rolled-up task answers to its own project.
     // Subtasks inherit their parent's rollup.
@@ -3373,26 +3135,15 @@ export default function ProjectDetail() {
       if (!memberId) return;
       const found = findTask(overTargetId);
       if (!found) return;
-      const { task, parentTask } = found;
-      if (!canEditTaskId(task.id)) return;
+      const { task } = found;
+      if (task.canAssign === false || (task.canAssign == null && !canEditTaskId(task.id))) { assignment.endDrag(true); return; }
       const draggedMemberIds = selectedMemberIds.has(memberId) && selectedMemberIds.size > 1
         ? [...selectedMemberIds]
         : [memberId];
-      const existingIds = new Set((task.assignees ?? []).map(a => a.id));
-      const addedMemberIds = draggedMemberIds.filter(id => !existingIds.has(id));
-      if (addedMemberIds.length === 0) return;
-      const addedMembers = addedMemberIds
-        .map(id => allMembers.find(m => m.memberId === id)?.member)
-        .filter(Boolean);
-      const newAssigneeIds = [...existingIds, ...addedMemberIds];
-      applyAssigneeUpdate(task.id, parentTask?.id ?? null, [...(task.assignees ?? []), ...addedMembers]);
-      try {
-        const updated = await patch(`/api/tasks/${task.id}`, { assigneeIds: newAssigneeIds });
-        applyAssigneeUpdate(task.id, parentTask?.id ?? null, updated.assignees ?? []);
-        if (draggedMemberIds.length > 1) setSelectedMemberIds(new Set());
-      } catch {
-        fetchProject();
-      }
+      const draggedMembers = draggedMemberIds.map(mid => allMembers.find(m => m.memberId === mid)?.member).filter(Boolean);
+      const saved = await assignment.assign(task.id, draggedMembers, task.canAssign !== false);
+      if (saved && draggedMemberIds.length > 1) setSelectedMemberIds(new Set());
+
       return;
     }
 
@@ -3540,6 +3291,14 @@ export default function ProjectDetail() {
   // Selection is kept after an edit so several fields can be changed in a row.
   const handleBulkPatch = async (patchFields) => {
     if (selectedTaskIds.size === 0) return;
+    if (patchFields.status) {
+      const { status, ...fields } = patchFields;
+      await moveTasksToStatus([...selectedTaskIds].filter(tid => {
+        const found = findTaskById(tid);
+        return found && taskCanEdit(found.parentTask ?? found.task, canEdit);
+      }), status, undefined, fields);
+      return;
+    }
     const ids = [...selectedTaskIds];
     const optimistic = Object.fromEntries(Object.entries(patchFields).filter(([k]) => OPTIMISTIC_BULK_FIELDS.includes(k)));
     if (typeof patchFields.dueDate === "string") optimistic.dueDate = patchFields.dueDate;
@@ -3769,16 +3528,22 @@ export default function ProjectDetail() {
   const canAdd = canEdit || createSources.length > 0;
 
   return (
-    <div className="clubpm-app cpm-project-page">
+    <TaskAssignmentContext.Provider value={{ ...assignment, dragging: !!activeMember }}>
+    <TaskCompletionContext.Provider value={{ move: moveTasksToStatus, statusOf: tid => findTaskById(tid)?.task.status, version: Math.max(0, ...Object.values(completion.order)) }}>
+    <div ref={completionRootRef} className="clubpm-app cpm-project-page">
+    <div ref={assignment.liveRef} className="pm-completion-live" aria-live="polite" aria-atomic="true" />
+    <div ref={completion.liveRef} className="pm-completion-live" aria-live="polite" aria-atomic="true" />
     <div className="cpm-project-layout">
       <DndContext
         sensors={sensors}
         collisionDetection={kanbanCollisionDetection}
         onDragStart={handleDragStart}
+        onDragMove={event => assignment.move((event.activatorEvent?.clientX ?? 0) + event.delta.x)}
         onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
+        onDragCancel={() => { assignment.endDrag(true); setActiveTask(null); setActiveMember(null); setOverBin(null); setOverTaskId(null); }}
       >
-        <main ref={tabBodyRef} className="cpm-project-main">
+        <main ref={tabBodyRef} className={`cpm-project-main${activeTab === 'tasks' ? ' cpm-project-main--scroll-header' : ''}`}>
           {/* On a phone the conversation needs the height: the shell header
               already names the project (and opens its actions), so the hero
               steps aside on Chat › Messages. */}
@@ -3814,8 +3579,6 @@ export default function ProjectDetail() {
                       <i className="fas fa-sitemap" aria-hidden="true" /> {c.name}
                     </Link>
                   ))}
-                  {!compact && <SlackChannelPicker project={project} channels={slackChannels} channelsState={slackChannelsState} onSaved={fetchProject} />}
-                  {!compact && <DriveFolderPill project={project} isAdmin={!!member?.isAdmin} onPreview={url => setHeaderDrivePreview({ url, label: "Drive folder" })} onSaved={updated => setProject(prev => ({ ...prev, ...updated }))} />}
                   {project.slackChannelId && !canEdit && (
                     <span style={{ fontSize: 11, color: 'var(--pm-accent-amber)', display: 'flex', alignItems: 'center', gap: 4 }}>
                       <i className="fas fa-lock" style={{ fontSize: 10 }} /> View only
@@ -3830,22 +3593,12 @@ export default function ProjectDetail() {
                 <button type="button" className="pm-m-project-actions-btn" data-tour-id="project.actions" onClick={() => requestShellOverlay('projects')} aria-haspopup="dialog">
                   <i className="fas fa-ellipsis" aria-hidden="true" /> Actions
                 </button>
-              ) : canEdit && (
-                <button
-                  className="pm-proj-edit-btn"
-                  onClick={() => setShowEditProject(true)}
-                  title="Edit project"
-                  aria-label="Edit project"
-                >
-                  <i className="fas fa-pencil-alt" aria-hidden="true" />
-                </button>
-              )}
-              {!compact && member?.isAdmin && (
+              ) : (canEdit || member?.isAdmin) && (
                 <button
                   className="pm-proj-edit-btn"
                   onClick={() => setShowManageProject(true)}
-                  title="Sub-projects, members and delete"
-                  aria-label="Manage project"
+                  title="Project settings"
+                  aria-label="Project settings"
                 >
                   <i className="fas fa-sliders" aria-hidden="true" />
                 </button>
@@ -3862,8 +3615,12 @@ export default function ProjectDetail() {
               </div>
             </div>
 
-            {/* Progress bar */}
-            <ProgressBar tasks={insightsProject.tasks} />
+            {activeTab !== 'tasks' && <ProgressBar tasks={insightsProject.tasks} />}
+          </header>
+
+          {activeTab === 'tasks' && <ProgressBar tasks={insightsProject.tasks} onBackToTop={() => tabBodyRef.current?.scrollTo({ top: 0, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' })} />}
+
+          <div className={`pm-proj-details${compact && activeTab === 'chat' && chatSection === 'messages' ? ' pm-proj-hero--m-hidden' : ''}`}>
 
             {compact && (
               <details className="pm-m-project-resources" open={descEdit || undefined}>
@@ -3880,8 +3637,6 @@ export default function ProjectDetail() {
                       {member?.isAdmin ? <button type="button" className="pm-m-btn" onClick={() => { setDescValue(project.description ?? ''); setDescEdit(true); }}><i className="fas fa-pencil-alt" aria-hidden="true" /> Edit description</button> : null}
                     </div>
                   )}
-                  <SlackChannelPicker project={project} channels={slackChannels} channelsState={slackChannelsState} onSaved={fetchProject} />
-                  <DriveFolderPill project={project} isAdmin={!!member?.isAdmin} onPreview={url => setHeaderDrivePreview({ url, label: "Drive folder" })} onSaved={updated => setProject(prev => ({ ...prev, ...updated }))} />
                 </div>
               </details>
             )}
@@ -3971,7 +3726,7 @@ export default function ProjectDetail() {
                 )}
               </div>
             )}
-          </header>
+          </div>
 
           {activeTab === "tasks" && (
             <div className="cpm-proj-main-body" style={{ padding: "16px 0 24px" }}>
@@ -4245,7 +4000,7 @@ export default function ProjectDetail() {
               const groupCount = selectedTaskIds.has(activeTask.id) ? selectedTaskIds.size : 1;
               const isGroup = groupCount > 1;
               return (
-                <div style={{ position: "relative", cursor: "grabbing", maxWidth: 480 }}>
+                <div style={{ position: "relative", cursor: "grabbing" }}>
                   {isGroup && (
                     <>
                       <div className="cpm-drag-stack cpm-drag-stack--2" />
@@ -4256,7 +4011,7 @@ export default function ProjectDetail() {
                     style={{
                       position: "relative",
                       opacity: 0.97,
-                      transform: "scale(1.02)",
+                      transform: "rotate(1.2deg) scale(1.02)",
                       boxShadow: "0 20px 60px rgba(0,0,0,0.5)",
                       background: "var(--clubpm-surface-200)",
                       border: "1px solid var(--clubpm-border)",
@@ -4286,7 +4041,7 @@ export default function ProjectDetail() {
               );
             })()
           ) : activeMember ? (
-            <div className="cpm-assignee-chip" style={{ cursor: "grabbing", boxShadow: "0 8px 32px rgba(0,0,0,0.45)", opacity: 0.95 }}>
+            <div data-assignment-ghost className="cpm-assignee-chip pm-assignment-ghost">
               <ChipAvatar member={activeMember.member} />
               <span className="cpm-assignee-chip-name">{activeMember.member?.displayName}</span>
               {selectedMemberIds.has(activeMember.memberId) && selectedMemberIds.size > 1 && (
@@ -4308,6 +4063,11 @@ export default function ProjectDetail() {
             closeTaskModal();
           }}
           onUpdate={handleTaskUpdate}
+          onStatusMove={async (task, status) => {
+            const updated = await moveTasksToStatus([task.id], status);
+            if (!updated) throw new Error('Status update failed');
+            return updated;
+          }}
           onDelete={handleTaskDelete}
           onTaskCreated={handleTaskCreated}
         />
@@ -4429,25 +4189,12 @@ export default function ProjectDetail() {
         />
       )}
 
-      {showManageProject && member?.isAdmin && (
+      {showManageProject && (canEdit || member?.isAdmin) && (
         <ProjectAdminModal
           projectId={project.id}
           onClose={() => setShowManageProject(false)}
           onChanged={fetchProject}
           onDeleted={() => navigate("/clubpm")}
-        />
-      )}
-
-      {showEditProject && (
-        <EditProjectModal
-          project={project}
-          isAdmin={!!member?.isAdmin}
-          onClose={() => setShowEditProject(false)}
-          onSaved={updated => {
-            // PATCH returns the bare row (no tasks/members), so merge rather than replace.
-            setProject(prev => ({ ...prev, ...updated }));
-            window.dispatchEvent(new CustomEvent("pm-project-updated", { detail: updated }));
-          }}
         />
       )}
 
@@ -4477,5 +4224,7 @@ export default function ProjectDetail() {
       )}
     </div>
     </div>
+    </TaskCompletionContext.Provider>
+    </TaskAssignmentContext.Provider>
   );
 }

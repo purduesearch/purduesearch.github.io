@@ -3,7 +3,7 @@
 // coordination). Self-entered work is capped server-side at complexity 3 so an
 // unverifiable entry cannot carry anyone to the top levels.
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { skillsApi } from "../../../api/clubPmClient";
 import { CONTRIBUTIONS, LEVEL_LABELS, errorMessage } from "./skillsShared";
@@ -19,17 +19,19 @@ function useTaxonomy(enabled) {
   return skills;
 }
 
-function PortfolioSection({ data, onChanged }) {
+export function PortfolioSection({ data, onChanged }) {
   const p = data.portfolio;
   const [enabled, setEnabled] = useState(p?.enabled ?? false);
   const [slug, setSlug] = useState(p?.slug ?? "");
   const [headline, setHeadline] = useState(p?.headline ?? "");
   const [busy, setBusy] = useState(false);
+  const busyRef = useRef(false);
   const url = p?.enabled && p.slug ? `${window.location.origin}/portfolio/${p.slug}` : null;
 
   const save = async (e) => {
     e.preventDefault();
-    if (busy) return;
+    if (busyRef.current) return;
+    busyRef.current = true;
     setBusy(true);
     try {
       await skillsApi.setPortfolio({ enabled, ...(slug.trim() ? { slug } : {}), headline: headline.trim() || null });
@@ -38,11 +40,12 @@ function PortfolioSection({ data, onChanged }) {
     } catch (err) {
       toast.error(errorMessage(err, "Could not save"));
     } finally {
+      busyRef.current = false;
       setBusy(false);
     }
   };
   const toggleProfile = async (showOnProfile) => {
-    try { await skillsApi.setPortfolio({ showOnProfile }); toast.success(showOnProfile ? "Teammates can see your public skills" : "Hidden from teammates"); onChanged(); }
+    try { await skillsApi.setPortfolio({ showOnProfile }); toast.success(showOnProfile ? "Teammates can see your selected skills" : "Hidden from teammates"); onChanged(); }
     catch (err) { toast.error(errorMessage(err, "Could not change that")); }
   };
   const toggleProject = async (id, isPublic) => {
@@ -55,14 +58,14 @@ function PortfolioSection({ data, onChanged }) {
       <summary>Portfolio and privacy</summary>
       <label className="cpm-skills-check cpm-skills-profile-toggle">
         <input type="checkbox" checked={data.showOnProfile !== false} onChange={e => toggleProfile(e.target.checked)} />
-        Show my public skills on my profile to other members
+        Show my selected teammate skills on my profile
       </label>
       <p className="cpm-skills-notice">
-        Teammates see the skills you have not hidden (eye icon), with work from projects you share. Flagged skills, notes and rationale are never shown.
+        Choose teammate visibility separately by opening a skill in the workspace. Teammates see eligible shared-project evidence. Flagged skills, private notes and rationale stay hidden.
       </p>
       <p className="cpm-skills-notice">
         Your portfolio is a link you can share with employers. It is off until you turn it on. When on, it shows only skills marked public that are lead-verified or
-        have medium or higher confidence, with short summaries of the work behind them. Flagged skills stay out until a lead reviews them. It never shows your
+        have medium or higher confidence, with short summaries of the work behind them. New discoveries require your selection. Flagged skills stay out until a lead reviews them. It never shows your
         email, rationale text, or reviews.
       </p>
       <form onSubmit={save} className="cpm-skills-form">
@@ -99,17 +102,19 @@ function PortfolioSection({ data, onChanged }) {
   );
 }
 
-function ClaimSection({ onChanged }) {
+export function ClaimSection({ onChanged }) {
   const [open, setOpen] = useState(false);
   const skills = useTaxonomy(open);
   const [skillId, setSkillId] = useState("");
   const [level, setLevel] = useState(3);
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
+  const busyRef = useRef(false);
 
   const save = async (e) => {
     e.preventDefault();
-    if (busy || !skillId) return;
+    if (busyRef.current || !skillId) return;
+    busyRef.current = true;
     setBusy(true);
     try {
       await skillsApi.claim(skillId, level, note.trim());
@@ -119,6 +124,7 @@ function ClaimSection({ onChanged }) {
     } catch (err) {
       toast.error(errorMessage(err, "Could not add that"));
     } finally {
+      busyRef.current = false;
       setBusy(false);
     }
   };
@@ -149,12 +155,13 @@ function ClaimSection({ onChanged }) {
   );
 }
 
-function WorkSection({ projects, onChanged }) {
+export function WorkSection({ projects, onChanged }) {
   const [open, setOpen] = useState(false);
   const skills = useTaxonomy(open);
   const blank = { title: "", description: "", link: "", occurredAt: "", contribution: "AUTHORED", projectId: "", skillIds: [] };
   const [form, setForm] = useState(blank);
   const [busy, setBusy] = useState(false);
+  const busyRef = useRef(false);
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
   const toggleSkill = (id) => setForm(f => ({
     ...f,
@@ -163,7 +170,8 @@ function WorkSection({ projects, onChanged }) {
 
   const save = async (e) => {
     e.preventDefault();
-    if (busy) return;
+    if (busyRef.current) return;
+    busyRef.current = true;
     setBusy(true);
     try {
       await skillsApi.addEvidence({
@@ -176,6 +184,7 @@ function WorkSection({ projects, onChanged }) {
     } catch (err) {
       toast.error(errorMessage(err, "Could not add that"));
     } finally {
+      busyRef.current = false;
       setBusy(false);
     }
   };

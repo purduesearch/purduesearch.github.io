@@ -1,5 +1,6 @@
 import { Router, type Request, type Response } from "express";
 import { requireAuth } from "./auth.js";
+import { taskAssignmentPermissions } from "../middleware/taskAccess.js";
 import { channelAuth } from "../middleware/channelAuth.js";
 import { prisma } from "../db/prisma.js";
 import {
@@ -171,7 +172,12 @@ projectsRouter.get("/:id", async (req: Request, res: Response) => {
       project.parentId ? getRollupSettings(projectId) : Promise.resolve(null),
     ]);
 
-    res.json({ ...project, channelMemberSlackIds, rollupSources, rollup });
+    const flattened = project.tasks.flatMap(task => [task, ...task.subtasks]);
+    const assignmentPermissions = new Map((await taskAssignmentPermissions(req.memberId!, flattened)).map(task => [task.id, task.canAssign]));
+    const tasks = project.tasks.map(task => ({ ...task, canAssign: assignmentPermissions.get(task.id),
+      subtasks: task.subtasks.map(sub => ({ ...sub, canAssign: assignmentPermissions.get(sub.id) })),
+    }));
+    res.json({ ...project, tasks, channelMemberSlackIds, rollupSources, rollup });
   } catch (error) {
     console.error("Get project error:", error);
     res.status(500).json({ error: "Failed to get project" });
@@ -643,7 +649,7 @@ projectsRouter.get("/:id/tasks", async (req: Request, res: Response) => {
       }
     );
 
-    res.json(tasks);
+    res.json(await taskAssignmentPermissions(req.memberId!, tasks));
   } catch (error) {
     console.error("Get project tasks error:", error);
     res.status(500).json({ error: "Failed to get tasks" });
@@ -655,7 +661,7 @@ projectsRouter.get("/:id/tasks", async (req: Request, res: Response) => {
 projectsRouter.post("/:id/tasks", async (req: Request, res: Response) => {
   try {
     const projectId = req.params.id as string;
-    const { title, description, priority, dueDate, assigneeIds, parentTaskId, status, milestoneId, tagIds } = req.body as {
+    const { title, description, priority, dueDate, assigneeIds, parentTaskId, status, milestoneId, tagIds, attachments } = req.body as {
       title: string;
       description?: string;
       priority?: Priority;
@@ -665,6 +671,7 @@ projectsRouter.post("/:id/tasks", async (req: Request, res: Response) => {
       status?: TaskStatus;
       milestoneId?: string;
       tagIds?: string[];
+      attachments?: { url: string; label?: string }[];
     };
 
     if (!title) {
@@ -688,6 +695,7 @@ projectsRouter.post("/:id/tasks", async (req: Request, res: Response) => {
       status,
       milestoneId: milestoneId ?? undefined,
       tagIds,
+      attachments,
     }, "WEB");
 
     console.log(`[createTask] created id=${task.id} parentTaskId=${(task as any).parentTaskId ?? "none"}`);

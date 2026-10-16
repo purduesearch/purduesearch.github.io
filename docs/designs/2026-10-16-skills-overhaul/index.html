@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Constellation · Skills design proposal</title>
+  <link rel="stylesheet" href="prototype.css">
+  <script src="prototype.js" defer></script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to Skills</a>
+  <div class="review-banner"><span><b>DESIGN PROPOSAL</b> · Fictional data · Local interactions only</span><a href="README.md">Read the design rationale ↗</a></div>
+  <div class="app">
+    <aside class="sidebar" aria-label="Constellation context">
+      <div class="brand"><span class="brand-mark" aria-hidden="true">✳</span><div>constellation<small>SEARCH · PURDUE</small></div></div>
+      <div class="workspace"><span class="workspace-icon">S</span><div>SEARCH workspace<small>Fall 2026</small></div></div>
+      <div class="side-label">WORKSPACE CONTEXT</div>
+      <div class="side-item"><span aria-hidden="true">▦</span> Overview</div>
+      <div class="side-item"><span aria-hidden="true">▧</span> Projects <small>08</small></div>
+      <div class="side-item"><span aria-hidden="true">◷</span> Calendar</div>
+      <div class="side-item"><span aria-hidden="true">♧</span> Members</div>
+      <div class="side-item selected"><span aria-hidden="true">✧</span> Skills <span class="new-pill">NEW</span></div>
+      <div class="side-item"><span aria-hidden="true">▱</span> Vault</div>
+      <div class="side-note">Skills connects the work<br>you do to what comes next.<div class="mini-stars" aria-hidden="true">· &nbsp; ✧ &nbsp; · &nbsp; +</div></div>
+      <div class="side-user"><div class="avatar">AL</div><div>Alex Lane<small>Prototype member</small></div></div>
+    </aside>
+    <div class="workspace-body">
+      <header class="topbar"><div>Workspace <span>/</span> <strong>Skills</strong></div><div class="top-right"><span class="live-dot"></span> Fall 2026 <div class="avatar tiny">AL</div></div></header>
+      <main id="main" tabindex="-1">
+        <div class="page-heading"><div><div class="eyebrow">CONSTELLATION / SKILLS</div><h1>Your next chapter starts here<span>.</span></h1><p>See what your work demonstrates. Find what you want to learn next.</p></div><button class="button secondary" data-action="portfolio">Portfolio & privacy <span aria-hidden="true">↗</span></button></div>
+        <nav class="view-nav" aria-label="Skills sections">
+          <button data-view="mine" aria-current="page">My skills</button>
+          <button data-view="growth">Growth <span class="nav-count">3</span></button>
+          <button data-view="team">Team coverage</button>
+          <button data-view="library">Library</button>
+          <button data-view="automation">Automation <span class="admin-label">ADMIN</span></button>
+        </nav>
+        <div id="view"></div>
+        <footer class="page-footer"><span>Evidence informs a conversation. Every level is an advisory estimate.</span><span id="scope-note">Your full record · visible only to you</span></footer>
+      </main>
+    </div>
+  </div>
+  <dialog id="detail" aria-labelledby="dialog-title"><div id="dialog-content"></div></dialog>
+  <div id="toast" role="status" aria-live="polite"></div>
+</body>
+</html>

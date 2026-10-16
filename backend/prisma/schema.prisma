@@ -330,6 +330,8 @@ model Member {
   skillVisibility  SkillVisibility[]
   skillProjectVis  SkillProjectVisibility[]
   skillPortfolio   MemberPortfolio?
+  skillGoals       SkillGoal[]
+  skillSaves       SkillOpportunitySave[]
 }
 
 model Project {
@@ -3262,6 +3264,12 @@ model LabVisit {
   autoClosed         Boolean        @default(false)
   /// Minutes not yet assigned to any task (zero in-progress tasks at check-out).
   unallocatedMinutes Int            @default(0)
+  /// Confirmed session duration, counted once per member regardless of task splits.
+  totalMinutes       Int            @default(0)
+  /// Time deliberately logged to the member via Other; not awaiting task allocation.
+  otherMinutes       Int            @default(0)
+  /// Member-written session wrap-up, including sessions without task allocations.
+  recap              String?        @db.Text
   timeLogs           TimeLog[]
   createdAt          DateTime       @default(now())
 
@@ -3506,6 +3514,14 @@ model Skill {
   /// ESCO | ONET | SFIA | CLUB
   source      String            @default("CLUB")
   externalId  String?
+  /// New observations remain provisional until independently supported.
+  lifecycle   String            @default("ESTABLISHED")
+  /// Reversible identity projection. Historical evidence and assertions retain their original ids.
+  canonicalId String?
+  canonical   Skill?            @relation("SkillCanonical", fields: [canonicalId], references: [id], onDelete: Restrict)
+  redirects   Skill[]           @relation("SkillCanonical")
+  policyLocked Boolean          @default(false)
+  goals       SkillGoal[]
   aliases     SkillAlias[]
   parents     SkillEdge[]       @relation("SkillEdgeFrom")
   children    SkillEdge[]       @relation("SkillEdgeTo")
@@ -3514,6 +3530,55 @@ model Skill {
   updatedAt   DateTime          @updatedAt
 
   @@index([type, status])
+  @@index([canonicalId])
+}
+
+model SkillGoal {
+  memberId String
+  member   Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  skillId  String
+  skill    Skill  @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  @@id([memberId, skillId])
+}
+
+model SkillOpportunitySave {
+  memberId String
+  member Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  /// A saved reference, never an assignment; deleted/inaccessible tasks are filtered at read time.
+  taskId String
+  createdAt DateTime @default(now())
+  @@id([memberId, taskId])
+}
+
+model SkillCatalogChange {
+  id String @id @default(cuid())
+  kind String
+  skillId String
+  targetId String?
+  actorId String?
+  automatic Boolean @default(false)
+  reason String
+  policyVersion String
+  payload Json
+  /// A compensating event points at the original; the original event is immutable.
+  reversesId String? @unique
+  createdAt DateTime @default(now())
+  @@index([createdAt])
+  @@index([skillId])
+}
+
+model SkillAutomationPolicy {
+  id String @id @default("default")
+  paused Boolean @default(false)
+  autoCreate Boolean @default(true)
+  autoConsolidate Boolean @default(true)
+  maxCreatesPerDay Int @default(10)
+  maxMergesPerDay Int @default(3)
+  maxAffectedMembers Int @default(5)
+  maxRunCostUsd Float @default(2)
+  revision Int @default(0)
+  updatedAt DateTime @updatedAt
 }
 
 model SkillAlias {
@@ -3549,6 +3614,9 @@ model SkillProposal {
   suggestedType    SkillType?
   suggestedParents String[]            @default([])
   rationale        String?
+  description      String?
+  supportingQuote  String?
+  exceptionReason  String?
   /// The evidence row that first surfaced this name.
   evidenceId       String?
   runId            String?
@@ -3592,6 +3660,10 @@ model SkillEvidence {
   complexity    Int
   outcome       SkillOutcome
   summary       String
+  /// Immutable bounded context manifest; raw source contents remain in their source system.
+  context       Json?
+  /// Explicit linked deliverable identity, never inferred from semantic similarity.
+  contributionKey String?
   embedding     Float[]              @default([])
   contentHash   String
   modelVersion  String
@@ -3670,13 +3742,14 @@ model SkillDispute {
   @@index([memberId, skillId])
 }
 
-/// Per-skill public flag. No row = default (public). Hidden skills never reach
+/// Per-skill explicit sharing choices. No row = private. Hidden skills never reach
 /// the portfolio.
 model SkillVisibility {
   memberId String
   member   Member  @relation(fields: [memberId], references: [id], onDelete: Cascade)
   skillId  String
-  isPublic Boolean @default(true)
+  isPublic Boolean @default(false)
+  showToTeam Boolean @default(false)
 
   @@id([memberId, skillId])
 }
@@ -3685,7 +3758,7 @@ model SkillProjectVisibility {
   memberId  String
   member    Member  @relation(fields: [memberId], references: [id], onDelete: Cascade)
   projectId String
-  isPublic  Boolean @default(true)
+  isPublic  Boolean @default(false)
 
   @@id([memberId, projectId])
 }

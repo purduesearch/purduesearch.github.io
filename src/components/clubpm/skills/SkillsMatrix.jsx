@@ -124,7 +124,7 @@ export function PersonDetail({ memberId, onClose, onChanged }) {
                     <div className="cpm-skill-detail">
                       <ul className="cpm-skill-provs">
                         {s.provenances.map(p => (
-                          <li key={`${p.provenance}-${p.assertedById ?? ""}`}>
+                          <li key={`${p.originalSkillId ?? s.skillId}-${p.provenance}-${p.assertedById ?? ""}`}>
                             <i className={PROVENANCE_META[p.provenance].icon} aria-hidden="true" /> <strong>{PROVENANCE_META[p.provenance].label}</strong>: level {p.level} ({LEVEL_LABELS[p.level]})
                             {p.provenance === "AI_INFERRED" ? ` · ${p.evidenceCount} piece${p.evidenceCount === 1 ? "" : "s"} of work` : ""}
                             {p.note ? <span className="cpm-skill-note"> “{p.note}”</span> : null}

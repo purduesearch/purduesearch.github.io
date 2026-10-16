@@ -1,14 +1,12 @@
-// Admin-only project management: sub-projects, members outside the Slack
-// channel, archive and delete. Self-contained (fetches its own project) so the
-// sidebar and the project page can both open it by id.
-// Every endpoint it calls enforces admin server-side; the callers only decide
-// whether to show the entry point.
-
+// Shared project settings; administrative operations remain admin-only.
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import toast from "react-hot-toast";
 import { get, post, patch, del } from "../../api/clubPmClient";
+import { useClubPmAuth } from "../../clubpm/ClubPmAuth";
+import { EditProjectForm } from "./EditProjectModal";
+import SlackChannelPicker from "./SlackChannelPicker";
 import SubProjectRollupSettings from "./SubProjectRollupSettings";
 
 const TYPE_OPTIONS = [
@@ -22,6 +20,8 @@ function refreshProjects() {
 }
 
 export default function ProjectAdminModal({ projectId, onClose, onDeleted, onChanged }) {
+  const { member } = useClubPmAuth();
+  const isAdmin = !!member?.isAdmin;
   const [project, setProject] = useState(null);
   const [allMembers, setAllMembers] = useState([]);
   const [allProjects, setAllProjects] = useState([]);
@@ -40,8 +40,8 @@ export default function ProjectAdminModal({ projectId, onClose, onDeleted, onCha
     try {
       const [p, members, projects] = await Promise.all([
         get(`/api/projects/${projectId}`),
-        get("/api/members"),
-        get("/api/projects"),
+        isAdmin ? get("/api/members") : Promise.resolve([]),
+        isAdmin ? get("/api/projects") : Promise.resolve([]),
       ]);
       setProject(p);
       setAllMembers(members);
@@ -50,9 +50,14 @@ export default function ProjectAdminModal({ projectId, onClose, onDeleted, onCha
     } catch (err) {
       setLoadError(err?.message ?? "Failed to load project");
     }
-  }, [projectId]);
+  }, [projectId, isAdmin]);
 
   useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    const onKeyDown = e => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [onClose]);
 
   // Same-tick double activation is only stopped by a ref guard, not `disabled`.
   const run = useCallback(async (fn, success) => {
@@ -135,17 +140,21 @@ export default function ProjectAdminModal({ projectId, onClose, onDeleted, onCha
     onClose();
   }, "Project deleted");
 
+  const canEdit = project && (!project.slackChannelId
+    || (project.channelMemberSlackIds ?? []).includes(member?.slackId)
+    || members.some(pm => pm.memberId === member?.id && pm.addedManually));
+
   const archived = project?.status === "ARCHIVED";
   const isChild = !!project?.parentId;
   const nameMatches = !!project && confirmName.trim() === project.name.trim();
 
   return createPortal(
     <div className="cpm-proj-edit-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="cpm-proj-edit-modal cpm-proj-admin-modal" role="dialog" aria-label="Manage project">
+      <div className="cpm-proj-edit-modal cpm-proj-admin-modal" role="dialog" aria-label="Project settings">
         <div className="cpm-proj-edit-header">
           <span>
             <i className="fas fa-sliders" style={{ marginRight: 10 }} aria-hidden="true" />
-            Manage{project ? ` · ${project.name}` : " project"}
+            Settings{project ? ` · ${project.name}` : " project"}
           </span>
           <button onClick={onClose} aria-label="Close" className="cpm-proj-edit-close">
             <i className="fas fa-times" aria-hidden="true" />
@@ -158,6 +167,23 @@ export default function ProjectAdminModal({ projectId, onClose, onDeleted, onCha
 
           {project && (
             <>
+              {canEdit && (
+                <div className="cpm-proj-admin-section">
+                  <h3 className="cpm-proj-admin-title">Project details</h3>
+                  <EditProjectForm key={JSON.stringify([project.id, project.name, project.status, project.type, project.programTag, project.startDate, project.targetDate])} project={project} isAdmin={isAdmin} onSaved={async updated => {
+                    setProject(prev => ({ ...prev, ...updated }));
+                    window.dispatchEvent(new CustomEvent("pm-project-updated", { detail: updated }));
+                    await reload();
+                  }} />
+                </div>
+              )}
+              {canEdit && (
+                <div className="cpm-proj-admin-section">
+                  <h3 className="cpm-proj-admin-title">Slack channel</h3>
+                  <SlackChannelPicker project={project} onSaved={reload} />
+                </div>
+              )}
+              {isAdmin && <>
               {/* Sub-projects */}
               <div className="cpm-proj-admin-section">
                 <h3 className="cpm-proj-admin-title">Sub-projects</h3>
@@ -340,6 +366,7 @@ export default function ProjectAdminModal({ projectId, onClose, onDeleted, onCha
                   <i className="fas fa-trash" aria-hidden="true" /> Delete project permanently
                 </button>
               </div>
+              </>}
             </>
           )}
 

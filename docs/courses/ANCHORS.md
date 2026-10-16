@@ -60,6 +60,18 @@ until it does. The static check still sees `nav.members` because the literal is 
 desktop step that targets it will measure a zero rect and degrade. Don't target a desktop group
 child until the rail keeps its children in layout. (On phones every one of these is a labelled row.)
 
+## Skills — `src/pages/ClubPM/SkillsWorkspace.jsx`
+
+Skills workspace section controls (same on desktop and phone):
+
+| Anchor | Element | Route |
+|---|---|---|
+| `skills.my` | My skills — evidence and advisory assessments | `/clubpm/profile?tab=skills` |
+| `skills.growth` | Growth — focus skills and saved opportunities | `/clubpm/profile?tab=skills` |
+| `skills.team` | Team coverage — shared project evidence | `/clubpm/profile?tab=skills` |
+| `skills.library` | Library — definitions, aliases and admin receipts | `/clubpm/profile?tab=skills` |
+| `skills.automation` | Automation — admins only | `/clubpm/profile?tab=skills` |
+
 ## Dashboard — `src/pages/ClubPM/Dashboard.jsx`
 
 | Anchor | Element | Route |
@@ -76,7 +88,7 @@ child until the rail keeps its children in layout. (On phones every one of these
 |---|---|---|
 | `project.header` | Project title + status row; compact hero stays short | `/clubpm/projects/:id` |
 | `project.lab` | Lab time button (only when the project has lab spaces) | `/clubpm/projects/:id` |
-| `project.actions` | Labelled phone Project actions control | `/clubpm/projects/:id` |
+| `project.actions` | Labelled phone Project actions control; Project settings combines details, Slack and admin tools | `/clubpm/projects/:id` |
 | `project.milestones` | Phone milestone summary with Timeline link | `/clubpm/projects/:id` |
 | `project.tab.tasks` | Tasks tab&Dagger; | `/clubpm/projects/:id` |
 | `project.tab.files` | Files tab&Dagger; | `/clubpm/projects/:id` |
@@ -121,13 +133,13 @@ consecutive steps hunting for a modal nobody opened.
 |---|---|---|
 | `task.modal` | The modal shell (opened by clicking a card) | `*` |
 | `task.modal.title` | Title field | `*` |
-| `task.modal.status` | Status selector | `*` |
+| `task.modal.status` | Status selector (buttons below the title) | `*` |
 | `task.modal.priority` | Priority selector | `*` |
 | `task.modal.assignees` | Assignee picker | `*` |
 | `task.modal.due` | Due-date field | `*` |
 | `task.modal.description` | Description body | `*` |
 | `task.modal.comments` | Comment composer | `*` |
-| `task.modal.timelog` | "Log time" control | `*` |
+| `task.modal.timelog` | Manual minutes entry in the task details side panel | `*` |
 | `task.modal.subtasks` | Subtask list | `*` |
 | `task.modal.deps` | Dependencies section | `*` |
 | `task.modal.blockers` | Blockers section | `*` |
@@ -168,7 +180,7 @@ Everything below is behind **Files &rarr; Vault**; a step must open both before 
 | `vault.tab.search` | "Search" pill in the Vault sub-nav | `/clubpm/projects/:id` |
 | `vault.search` | Search panel: query, filters, saved views and results (under `vault.tab.search`) | `/clubpm/projects/:id` |
 | `vault.watch` | Watch button and event chooser inside the item modal | `/clubpm/projects/:id` |
-| `vault.repository` | Repository and storage status header | `/clubpm/projects/:id` |
+| `vault.repository` | Repository details button beside the Vault sub-view tabs (opens storage status and settings) | `/clubpm/projects/:id` |
 | `vault.tree` | Searchable item list | `/clubpm/projects/:id` |
 | `vault.item` | First vault item row | `/clubpm/projects/:id` |
 | `vault.item.modal` | Item detail panel and checkout holder | `/clubpm/projects/:id` |

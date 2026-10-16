@@ -2,8 +2,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import {
-  listWorkspaces, getMyLabVisits, getLabPresence, labCheckIn, labCheckOut,
+  listWorkspaces, getMyLabVisits, getLabPresence, labCheckIn,
 } from '../../api/clubPmClient';
+import LabCheckout from '../../components/clubpm/labschedule/LabCheckout';
 
 // Landing page for the check-in QR code posted in each lab space
 // (/clubpm/lab/:workspaceId). Scanning opens this page; one tap checks in or out.
@@ -19,8 +20,9 @@ function fmtDuration(ms) {
 
 function closeSummary(result) {
   if (!result) return '';
-  if (result.discarded) return 'Visit was under 5 minutes, so no time was logged.';
+  if (result.discarded) return 'Short visit saved to your attendance; no task time was logged.';
   const parts = (result.allocations ?? []).map(a => `${a.minutes}m → ${a.title}`);
+  if (result.otherMinutes > 0) parts.push(`${result.otherMinutes}m logged to you (Other)`);
   if (result.unallocatedMinutes > 0) parts.push(`${result.unallocatedMinutes}m not logged to a task yet`);
   return parts.join(' · ');
 }
@@ -31,6 +33,8 @@ export default function LabScanPage() {
   const [visits, setVisits] = useState(null);
   const [presentCount, setPresentCount] = useState(0);
   const [busy, setBusy] = useState(false);
+  const [checkingOut, setCheckingOut] = useState(false);
+  const [checkInAfter, setCheckInAfter] = useState(false);
   const [done, setDone] = useState(null); // { kind: 'in' | 'out', detail }
   const [, setTick] = useState(0);
   const inFlight = useRef(false);
@@ -72,7 +76,7 @@ export default function LabScanPage() {
     }
   }
 
-  const checkIn = () => run(async () => {
+  const performCheckIn = () => run(async () => {
     const r = await labCheckIn(workspaceId);
     const prev = r?.closedPrevious;
     return {
@@ -80,7 +84,11 @@ export default function LabScanPage() {
       detail: prev ? `Checked out of ${prev.workspaceName} first. ${closeSummary(prev)}`.trim() : '',
     };
   });
-  const checkOut = () => run(async () => ({ kind: 'out', detail: closeSummary(await labCheckOut()) }));
+  const checkIn = () => {
+    if (open && open.workspace?.id !== workspaceId) { setCheckInAfter(true); setCheckingOut(true); }
+    else performCheckIn();
+  };
+  const checkOut = () => { setCheckInAfter(false); setCheckingOut(true); };
 
   if (space === undefined || visits === null) {
     return <div className="pm-lab-scan"><div className="pm-lab-scan-card"><div className="cpm-spinner" aria-label="Loading" /></div></div>;
@@ -154,6 +162,11 @@ export default function LabScanPage() {
           </p>
         )}
       </div>
+      {checkingOut && open && <LabCheckout visit={open} tasks={visits.assignedTasks ?? []}
+        onClose={() => { setCheckingOut(false); setCheckInAfter(false); }} onComplete={result => {
+          setCheckingOut(false); setDone({ kind: 'out', detail: closeSummary(result) }); load();
+          if (checkInAfter) { setCheckInAfter(false); performCheckIn(); }
+        }} />}
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
-import { getMyLabVisits, labCheckIn, labCheckOut, labConfirm, labAllocate } from '../../../api/clubPmClient';
+import { getMyLabVisits, labCheckIn, labConfirm, labAllocate } from '../../../api/clubPmClient';
+import LabCheckout from './LabCheckout';
 
 // Lab check-in/out on the web (plan decisions 5–9). Rendered by LabScheduleModal
 // above the grid; the Slack `/lab` command is the other front door to the same
@@ -28,8 +29,9 @@ function endIsoFor(visit, hhmm) {
 
 function toastClose(result) {
   if (!result) return;
-  if (result.discarded) { toast('Visit was under 5 minutes, so no time was logged.'); return; }
+  if (result.discarded) { toast('Short visit saved to your attendance; no task time was logged.'); return; }
   const parts = (result.allocations ?? []).map(a => `${a.minutes}m → ${a.title}`);
+  if (result.otherMinutes > 0) parts.push(`${result.otherMinutes}m logged to you (Other)`);
   if (result.unallocatedMinutes > 0) parts.push(`${result.unallocatedMinutes}m not logged to a task yet`);
   toast.success(parts.length ? `Checked out. ${parts.join(' · ')}` : 'Checked out.');
 }
@@ -37,6 +39,7 @@ function toastClose(result) {
 export default function LabVisitBar({ space, canSchedule, onChanged }) {
   const [data, setData] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [checkingOut, setCheckingOut] = useState(false);
   const [editEnd, setEditEnd] = useState('');
   const [pick, setPick] = useState({});   // visitId -> taskId
   const [, setTick] = useState(0);
@@ -84,7 +87,7 @@ export default function LabVisitBar({ space, canSchedule, onChanged }) {
           <strong>{fmtDuration(Date.now() - new Date(open.checkedInAt).getTime())}</strong>
         </span>
         <button type="button" className="cpm-btn cpm-btn-primary" disabled={busy}
-          onClick={() => run(async () => toastClose(await labCheckOut()))}>
+          onClick={() => setCheckingOut(true)}>
           <i className="fas fa-arrow-right-from-bracket" aria-hidden="true" /> Check out
         </button>
       </div>,
@@ -159,5 +162,10 @@ export default function LabVisitBar({ space, canSchedule, onChanged }) {
   }
 
   if (!rows.length) return null;
-  return <div className="pm-lab-visits" aria-live="polite">{rows}</div>;
+  return <><div className="pm-lab-visits" aria-live="polite">{rows}</div>
+    {checkingOut && open && <LabCheckout visit={open} tasks={data.assignedTasks ?? []}
+      onClose={() => setCheckingOut(false)} onComplete={result => {
+        setCheckingOut(false); toastClose(result); load(); onChanged?.();
+      }} />}
+  </>;
 }

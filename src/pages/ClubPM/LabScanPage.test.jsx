@@ -3,12 +3,12 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import LabScanPage from './LabScanPage';
 import {
-  listWorkspaces, getMyLabVisits, getLabPresence, labCheckIn, labCheckOut,
+  listWorkspaces, getMyLabVisits, getLabPresence, labCheckIn, labCheckOut, get,
 } from '../../api/clubPmClient';
 
 jest.mock('../../api/clubPmClient', () => ({
   listWorkspaces: jest.fn(), getMyLabVisits: jest.fn(), getLabPresence: jest.fn(),
-  labCheckIn: jest.fn(), labCheckOut: jest.fn(),
+  labCheckIn: jest.fn(), labCheckOut: jest.fn(), get: jest.fn().mockResolvedValue([]),
 }));
 
 const ws = { id: 'ws1', name: 'Propulsion Lab', color: '#00e5cc', location: 'ARMS 1010' };
@@ -23,6 +23,7 @@ function renderAt(id = 'ws1') {
 
 beforeEach(() => {
   jest.resetAllMocks();
+  get.mockResolvedValue([]);
   listWorkspaces.mockResolvedValue([ws]);
   getLabPresence.mockResolvedValue([{ workspace: ws, checkedIn: [], scheduled: [] }]);
 });
@@ -47,6 +48,9 @@ test('offers check out when already checked in here', async () => {
   labCheckOut.mockResolvedValue({ allocations: [{ minutes: 30, title: 'Nozzle test' }], unallocatedMinutes: 0 });
   renderAt();
   fireEvent.click(await screen.findByRole('button', { name: /^check out$/i }));
+  expect(labCheckOut).not.toHaveBeenCalled();
+  fireEvent.click(await screen.findByRole('button', { name: /save & check out/i }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Finish' }));
   expect(await screen.findByText('30m → Nozzle test')).toBeInTheDocument();
   expect(await screen.findByRole('button', { name: /check in here/i })).toBeInTheDocument();
 });
@@ -55,4 +59,21 @@ test('unknown or archived space shows a clear message', async () => {
   getMyLabVisits.mockResolvedValue({ open: null, pending: [], unallocated: [] });
   renderAt('gone');
   expect(await screen.findByText('Lab space not found')).toBeInTheDocument();
+});
+
+test('switching spaces wraps up the previous visit before checking in at the new one', async () => {
+  getMyLabVisits.mockResolvedValue({
+    open: { id: 'v1', checkedInAt: new Date(Date.now() - 3600000).toISOString(), workspace: { id: 'other', name: 'Other lab' } },
+    pending: [], unallocated: [], assignedTasks: [],
+  });
+  labCheckOut.mockResolvedValue({ allocations: [], unallocatedMinutes: 60 });
+  labCheckIn.mockResolvedValue({ visit: { id: 'new' }, workspace: ws });
+  renderAt();
+  fireEvent.click(await screen.findByRole('button', { name: /check in here/i }));
+  expect(labCheckIn).not.toHaveBeenCalled();
+  fireEvent.click(await screen.findByRole('button', { name: /Save & check out/ }));
+  expect(labCheckIn).not.toHaveBeenCalled();
+  fireEvent.click(await screen.findByRole('button', { name: 'Finish' }));
+  expect(await screen.findByText('Checked in to Propulsion Lab')).toBeInTheDocument();
+  expect(labCheckIn).toHaveBeenCalledWith('ws1');
 });

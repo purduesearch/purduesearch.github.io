@@ -9,7 +9,7 @@
 
 import { Prisma } from "@prisma/client";
 import { prisma } from "../db/prisma.js";
-import { createGeminiSkillsLlm, estimateCostUsd, pricesFromEnv, type SkillsLlm } from "./ai/skillsGemini.js";
+import { createGeminiSkillsLlm, createSkillsBudget, estimateCostUsd, pricesFromEnv, type SkillsLlm } from "./ai/skillsGemini.js";
 import { analyzeArtifact, analyzeArtifactsBatch, prepareAnalysis, type AnalysisOutcome, type Taxonomy } from "./skillAnalysisService.js";
 import { maxArtifactChars } from "./skillArtifactCore.js";
 import { collectGithub } from "./skillCollectors/github.js";
@@ -25,9 +25,10 @@ import {
 import { PROMPT_VERSION, RUBRIC_VERSION, type SkillArtifact } from "./skillPrompts.js";
 import { buildAliasIndex } from "./skillMatchCore.js";
 import {
-  loadSkillLites, loadSuppressed, recordProposal, seedTaxonomy, type ProposalOutcome, type ProposedSkillInput,
+  loadSkillLites, loadSuppressed, seedTaxonomy, type ProposalOutcome, type ProposedSkillInput,
 } from "./skillTaxonomyService.js";
 import { SEED_SKILLS } from "./skillSeedData.js";
+import { catalogPolicy, processCatalogProposal, reconcileCatalog } from "./skillCatalogService.js";
 
 // ── Store (all I/O) ──────────────────────────────────────────
 
@@ -52,7 +53,8 @@ export interface PipelineStore {
   loadTaxonomy(): Promise<Taxonomy>;
   loadSuppressed(): Promise<Set<string>>;
   existingKeys(artifacts: SkillArtifact[]): Promise<Set<string>>;
-  proposal(input: ProposedSkillInput, ctx: { index: Taxonomy["index"]; suppressed: ReadonlySet<string> }): Promise<ProposalOutcome>;
+  proposal(input: ProposedSkillInput & { artifact?: SkillArtifact }, ctx: { index: Taxonomy["index"]; suppressed: ReadonlySet<string> }): Promise<ProposalOutcome>;
+  reconcile?(): Promise<void>;
   write(a: SkillArtifact, analysis: Parameters<typeof writeEvidence>[1], embedding: number[], meta: Parameters<typeof writeEvidence>[3]): Promise<string | null>;
   recompute(memberIds: string[], modelVersion: string | null): Promise<{ members: number; upserted: number; removed: number }>;
   finishRun(id: string, patch: RunPatch): Promise<void>;
@@ -100,7 +102,7 @@ export const prismaStore: PipelineStore = {
   },
   async loadTaxonomy() {
     const rows = await prisma.skill.findMany({
-      where: { status: "ACTIVE" },
+      where: { status: "ACTIVE", canonicalId: null },
       select: { id: true, name: true, type: true, aliases: { select: { alias: true } }, parents: { where: { kind: "PARENT" }, select: { toId: true } } },
       orderBy: { slug: "asc" },
     });
@@ -111,7 +113,8 @@ export const prismaStore: PipelineStore = {
   },
   loadSuppressed: () => loadSuppressed(),
   existingKeys: (artifacts) => existingEvidenceKeys(artifacts),
-  proposal: (input, ctx) => recordProposal(input, ctx),
+  proposal: input => processCatalogProposal(input),
+  reconcile: () => reconcileCatalog(),
   write: (a, analysis, embedding, meta) => writeEvidence(a, analysis, embedding, meta),
   async recompute(memberIds, modelVersion) { return recomputeMembers(memberIds, { modelVersion }); },
   async heartbeat(id, a) {
@@ -228,7 +231,7 @@ export async function runSkillPipeline(opts: PipelineOptions, deps: PipelineDeps
 
   try {
     // 0. A fresh install has no skills; every analysis would come back empty.
-    if (store.ensureTaxonomy) {
+    if (!opts.dryRun && store.ensureTaxonomy) {
       const seeded = await store.ensureTaxonomy();
       if (seeded) { bump("starterSkillsInstalled", seeded); log(`[skills] installed ${seeded} starter skills`); }
     }
@@ -355,9 +358,10 @@ export async function runSkillPipeline(opts: PipelineOptions, deps: PipelineDeps
         bump("noSkillSignal");
       } else bump("noSkillSignal");
       for (const p of r.analysis.proposed) {
-        const res = await store.proposal({ name: p.name, type: p.type, rationale: p.rationale, evidenceId, runId: summary.runId }, { index: taxonomy.index, suppressed });
+        const res = await store.proposal({ name: p.name, type: p.type, rationale: p.rationale, description: p.description, supportingQuote: p.supportingQuote, parentIds: p.parentId ? [p.parentId] : [], artifact: r.o.artifact, evidenceId, runId: summary.runId }, { index: taxonomy.index, suppressed });
         if (res.kind === "queued" && res.isNew) bump("proposalsQueued");
-        else if (res.kind === "mapped") bump("proposalsMapped");
+        else if (res.kind === "mapped") { bump("proposalsMapped"); touched.add(r.o.artifact.memberId); }
+        else if (res.kind === "created") { bump("skillsCreated"); touched.add(r.o.artifact.memberId); }
       }
     }
 
@@ -367,6 +371,8 @@ export async function runSkillPipeline(opts: PipelineOptions, deps: PipelineDeps
       const rec = await store.recompute([...touched], llm!.modelVersion);
       bump("membersRecomputed", rec.members); bump("assessmentsWritten", rec.upserted);
     }
+
+    if (store.reconcile) await store.reconcile();
 
     // 7. Watermarks (only for unscoped, default-window runs)
     if (!explicitWindow) {
@@ -380,6 +386,7 @@ export async function runSkillPipeline(opts: PipelineOptions, deps: PipelineDeps
 
     summary.estCostUsd = estimateCostUsd({ tokensIn: summary.tokensIn, tokensOut: summary.tokensOut, embedTokens: summary.embedTokens, batch: useBatch }, prices);
     summary.status = runStatus({ collectorsTotal: COLLECTORS.length, collectorsFailed: c.collectorsFailed ?? 0, analyzed: c.analyzed ?? 0, failed: (c.failed ?? 0) + (c.invalid ?? 0) });
+    if (summary.errors.some(e => /budget reservation exhausted/.test(e.message))) { summary.watermarks = {}; summary.reason = "budget"; }
   } catch (e) {
     summary.status = "FAILED";
     if (e instanceof RunCancelled) { summary.reason = "cancelled"; err("cancelled", "An admin stopped this run. Evidence already written is kept; watermarks did not move."); }
@@ -397,6 +404,8 @@ export async function runSkillPipeline(opts: PipelineOptions, deps: PipelineDeps
 }
 
 /** Production wiring: real DB, real Gemini lane. */
-export function runWeeklySkillRun(opts: Partial<PipelineOptions> = {}): Promise<PipelineSummary> {
-  return runSkillPipeline({ trigger: "CRON", ...opts }, { store: prismaStore, llm: opts.dryRun ? null : createGeminiSkillsLlm() });
+export async function runWeeklySkillRun(opts: Partial<PipelineOptions> = {}): Promise<PipelineSummary> {
+  const policy = opts.dryRun ? null : await catalogPolicy();
+  if (policy?.paused) return { runId: null, status: "SKIPPED", reason: "Skills automation is paused", counts: {}, tokensIn: 0, tokensOut: 0, embedTokens: 0, estCostUsd: 0, errors: [], watermarks: {} };
+  return runSkillPipeline({ trigger: "CRON", ...opts }, { store: prismaStore, llm: opts.dryRun ? null : createGeminiSkillsLlm(process.env, { reserve: createSkillsBudget(policy!.maxRunCostUsd) }) });
 }

@@ -1,5 +1,21 @@
 import type { Request, Response, NextFunction } from "express";
 import { prisma } from "../db/prisma.js";
+import { canEditProjectsBatch } from "../services/projectEditAccess.js";
+
+type AssignmentTask = { id: string; projectId: string; createdById: string | null; archivedAt?: Date | null; assignees: { id: string }[] };
+
+/** Board hints use the same task-level rule as mutation authorization. */
+export function taskEditAllowed(memberId: string, task: Pick<AssignmentTask, "createdById" | "assignees">, isAdmin: boolean, isLead: boolean): boolean {
+  return isAdmin || isLead || task.createdById === memberId || task.assignees.some(a => a.id === memberId);
+}
+
+export async function taskAssignmentPermissions<T extends AssignmentTask>(memberId: string, tasks: T[]) {
+  const member = await prisma.member.findUnique({ where: { id: memberId }, select: { isAdmin: true } });
+  const projects = [...new Set(tasks.map(t => t.projectId))];
+  const leads = new Map(await Promise.all(projects.map(async id => [id, await isProjectLead(memberId, id)] as const)));
+  const access = await canEditProjectsBatch(memberId, projects);
+  return tasks.map(task => ({ ...task, canAssign: !!member && !!access.get(task.projectId) && !task.archivedAt && taskEditAllowed(memberId, task, member.isAdmin, leads.get(task.projectId) ?? false) }));
+}
 
 /**
  * Returns edit/delete/archive permissions for `memberId` against `taskId`.
@@ -33,11 +49,10 @@ export async function getTaskPermissions(
   const isAdmin   = member.isAdmin ?? false;
   const isLead    = await isProjectLead(memberId, task.projectId);
   const isCreator = task.createdById === memberId;
-  const isAssignee = task.assignees.some((a) => a.id === memberId);
   const isManager = isAdmin || isLead;
 
   return {
-    canEdit:    isManager || isCreator || isAssignee,
+    canEdit:    taskEditAllowed(memberId, task, isAdmin, isLead),
     canDelete:  isManager || isCreator,
     canArchive: isManager || isCreator || task.status === "DONE",
     isAdmin,

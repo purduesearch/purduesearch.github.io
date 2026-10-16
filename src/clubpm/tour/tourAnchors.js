@@ -39,6 +39,11 @@ export const TOUR_ANCHORS = Object.freeze({
   "nav.other":              { label: "Other group",          route: "*", layout: "desktop", note: "Collapsed by default; contains Outreach Hub, Blog, Courses, and Admin — on phones those are More rows" },
   "nav.admin":              { label: "Admin link",           route: "*", layout: "both", reveal: "more",    note: "Admins only — child of Other; More › Admin on phones; absent for other members" },
   "nav.profile":            { label: "Profile link",         route: "*", layout: "both", reveal: "more",    note: "Sidebar user block; More › Profile on phones" },
+  "skills.my":              { label: "My skills",            route: "/clubpm/profile?tab=skills", note: "Member evidence, confidence and distinct contributions" },
+  "skills.growth":          { label: "Growth",               route: "/clubpm/profile?tab=skills", note: "Up to three focus skills and saved project opportunities" },
+  "skills.team":            { label: "Team coverage",        route: "/clubpm/profile?tab=skills", note: "Shared evidence in a project the viewer belongs to" },
+  "skills.library":         { label: "Skill library",        route: "/clubpm/profile?tab=skills", note: "Concept definitions and aliases; admins also see catalog receipts" },
+  "skills.automation":      { label: "Skills automation",    route: "/clubpm/profile?tab=skills", note: "Admins only; policy, run health, exceptions and change history" },
   "nav.more":               { label: "More button",          route: "*", layout: "compact", note: "Bottom-bar More; opens the sheet holding every other destination" },
   "topbar.notifications":   { label: "Notification bell",    route: "*", layout: "both",    note: "Dropdown with Notification preferences link on desktop; on phones a link to /clubpm/notifications" },
   "topbar.search":          { label: "Command palette",      route: "*", layout: "both",    note: "AI command palette trigger; header Search icon on phones (full-screen)" },
@@ -57,7 +62,7 @@ export const TOUR_ANCHORS = Object.freeze({
   // Project detail — src/pages/ClubPM/ProjectDetail.jsx
   "project.header":         { label: "Project header",       route: "/clubpm/projects/:id", layout: "both", note: "Title + status row; compact hero stays short" },
   "project.lab":            { label: "Lab time button",      route: "/clubpm/projects/:id", note: "Only rendered when the project has assigned lab spaces" },
-  "project.actions":        { label: "Project actions",      route: "/clubpm/projects/:id", layout: "compact", note: "Labelled phone control opening the shared Projects sheet" },
+  "project.actions":        { label: "Project actions",      route: "/clubpm/projects/:id", layout: "compact", note: "Labelled phone control opening the shared Projects sheet, including the unified Project settings modal" },
   "project.milestones":     { label: "Milestone summary",    route: "/clubpm/projects/:id", layout: "compact", note: "Compact milestone list with Timeline link" },
   // The project tab bar (desktop sidebar tabs, phone section bar) is rendered by
   // AppShell from the ProjectNavContext, not by ProjectDetail — ProjectDetail
@@ -94,13 +99,13 @@ export const TOUR_ANCHORS = Object.freeze({
   // Task modal — src/components/clubpm/TaskModal.jsx
   "task.modal":             { label: "Task modal",           route: "*", note: "The modal shell — opens by clicking a card, never by creating one" },
   "task.modal.title":       { label: "Title field",          route: "*", note: "" },
-  "task.modal.status":      { label: "Status selector",      route: "*", note: "" },
+  "task.modal.status":      { label: "Status selector",      route: "*", note: "Segmented buttons below the task title" },
   "task.modal.priority":    { label: "Priority selector",    route: "*", note: "" },
   "task.modal.assignees":   { label: "Assignee picker",      route: "*", note: "" },
   "task.modal.due":         { label: "Due-date field",       route: "*", note: "" },
   "task.modal.description": { label: "Description",          route: "*", note: "" },
   "task.modal.comments":    { label: "Comment composer",     route: "*", note: "" },
-  "task.modal.timelog":     { label: "Log time",             route: "*", note: "" },
+  "task.modal.timelog":     { label: "Log time",             route: "*", note: "Manual minutes entry in the task details side panel" },
   "task.modal.subtasks":    { label: "Subtask list",         route: "*", note: "" },
   "task.modal.deps":        { label: "Dependencies",         route: "*", note: "" },
   "task.modal.blockers":    { label: "Blockers",             route: "*", note: "" },
@@ -129,7 +134,7 @@ export const TOUR_ANCHORS = Object.freeze({
   // Everything below lives under Files → Vault, so a step targeting one of them
   // must be preceded by steps that open both. The Vault's own sub-nav then
   // splits the item grid from the change-request list.
-  "vault.repository":       { label: "Vault repository",     route: "/clubpm/projects/:id", note: "Files → Vault storage header" },
+  "vault.repository":       { label: "Vault repository",     route: "/clubpm/projects/:id", note: "Files → Vault Repository details button beside the sub-view tabs; opens storage status and settings" },
   "vault.tree":             { label: "Item list",            route: "/clubpm/projects/:id", note: "Files → Vault" },
   "vault.item":             { label: "Vault item row",       route: "/clubpm/projects/:id", note: "First row only" },
   "vault.item.modal":       { label: "Vault item detail",    route: "/clubpm/projects/:id", note: "Item detail panel, including checkout holder" },

@@ -11,7 +11,17 @@
 export type Provenance = "AI_INFERRED" | "SELF_CLAIMED" | "PEER_ENDORSED" | "MANAGER_VERIFIED";
 export type Band = "LOW" | "MEDIUM" | "HIGH";
 
-export interface SkillNode { id: string; slug: string; name: string; type: string; parentIds: string[] }
+import { canonicalMap } from "./skillCatalogCore.js";
+export interface SkillNode { id: string; slug: string; name: string; type: string; parentIds: string[]; canonicalId?: string | null; description?: string | null; lifecycle?: string }
+
+function projectedNodes(nodes: SkillNode[]) {
+  const map = canonicalMap(nodes);
+  return nodes.filter(n => !n.canonicalId).map(n => ({ ...n, parentIds: [...new Set(n.parentIds.map(id => map.get(id) ?? id))].filter(id => id !== n.id) }));
+}
+function projectedRows<T extends AssessmentRow>(rows: T[], nodes: SkillNode[]): (T & { originalSkillId: string })[] {
+  const map = canonicalMap(nodes);
+  return rows.map(r => ({ ...r, originalSkillId: r.skillId, skillId: map.get(r.skillId) ?? r.skillId }));
+}
 
 export interface AssessmentRow {
   skillId: string;
@@ -25,6 +35,7 @@ export interface AssessmentRow {
   rationale: string | null;
   evidenceCount: number;
   assertedById: string;
+  assertedByName?: string | null;
   note: string | null;
   computedAt: Date;
 }
@@ -74,13 +85,11 @@ export interface Disagreement {
 
 /** Visible disagreement between what the data says and what people claim. Never averaged away. */
 export function disagreementOf(rows: Pick<AssessmentRow, "provenance" | "level" | "confidenceBand">[]): Disagreement | null {
-  const by = new Map<Provenance, number>();
-  for (const r of rows) by.set(r.provenance, r.level);
-  const self = by.get("SELF_CLAIMED");
-  if (self !== undefined && by.size === 1) {
+  const present = rows.map(r => [r.provenance, r.level] as const);
+  const self = rows.find(r => r.provenance === "SELF_CLAIMED")?.level;
+  if (self !== undefined && rows.every(r => r.provenance === "SELF_CLAIMED" && r.level === self)) {
     return { kind: "claim_without_evidence", spread: self, detail: `Self-claimed level ${self}; no analysed work backs it yet.` };
   }
-  const present = [...by.entries()];
   if (present.length < 2) return null;
   const levels = present.map(([, l]) => l);
   const spread = Math.max(...levels) - Math.min(...levels);
@@ -94,6 +103,7 @@ export function disagreementOf(rows: Pick<AssessmentRow, "provenance" | "level" 
 // ── Member / admin view ──────────────────────────────────────
 
 export interface ShapedProvenance {
+  originalSkillId: string;
   provenance: Provenance;
   level: number;
   confidence: number;
@@ -104,6 +114,7 @@ export interface ShapedProvenance {
   rationale: string | null;
   evidenceCount: number;
   assertedById: string | null;
+  assertedByName: string | null;
   note: string | null;
   computedAt: string;
 }
@@ -113,6 +124,8 @@ export interface ShapedSkill {
   slug: string;
   name: string;
   type: string;
+  description: string | null;
+  lifecycle: string;
   /** The row that leads the display: highest-trust provenance present. All rows are in `provenances`. */
   lead: Provenance;
   provenances: ShapedProvenance[];
@@ -124,10 +137,12 @@ export interface ShapedGroup { groupId: string; groupName: string; skills: (Shap
 const iso = (d: Date | null) => (d ? d.toISOString() : null);
 
 export function shapeSkills(rows: AssessmentRow[], nodes: SkillNode[]): ShapedGroup[] {
+  const projected = projectedRows(rows, nodes);
+  nodes = projectedNodes(nodes);
   const byId = new Map(nodes.map((n) => [n.id, n]));
   const groups = groupBy(nodes);
-  const perSkill = new Map<string, AssessmentRow[]>();
-  for (const r of rows) {
+  const perSkill = new Map<string, typeof projected>();
+  for (const r of projected) {
     if (!byId.has(r.skillId)) continue;
     perSkill.set(r.skillId, [...(perSkill.get(r.skillId) ?? []), r]);
   }
@@ -138,11 +153,12 @@ export function shapeSkills(rows: AssessmentRow[], nodes: SkillNode[]): ShapedGr
     const sorted = [...list].sort((a, b) => PROVENANCE_ORDER.indexOf(a.provenance) - PROVENANCE_ORDER.indexOf(b.provenance));
     const group = out.get(g.groupId) ?? { groupId: g.groupId, groupName: g.groupName, skills: [] };
     group.skills.push({
-      skillId, slug: node.slug, name: node.name, type: node.type, lead: sorted[0].provenance, alsoUnder: g.alsoUnder,
+      skillId, slug: node.slug, name: node.name, type: node.type, description: node.description ?? null, lifecycle: node.lifecycle ?? "ESTABLISHED", lead: sorted[0].provenance, alsoUnder: g.alsoUnder,
       provenances: sorted.map((r) => ({
+        originalSkillId: r.originalSkillId,
         provenance: r.provenance, level: r.level, confidence: r.confidence, confidenceBand: r.confidenceBand,
         firstSeen: iso(r.firstSeen), lastDemonstrated: iso(r.lastDemonstrated), trend: r.trend, rationale: r.rationale,
-        evidenceCount: r.evidenceCount, assertedById: r.assertedById || null, note: r.note, computedAt: r.computedAt.toISOString(),
+        evidenceCount: r.evidenceCount, assertedById: r.assertedById || null, assertedByName: r.assertedByName ?? null, note: r.note, computedAt: r.computedAt.toISOString(),
       })),
       disagreement: disagreementOf(list),
     });
@@ -170,9 +186,9 @@ export interface PortfolioInput {
   portfolio: { slug: string; enabled: boolean; headline: string | null };
   skills: SkillNode[];
   assessments: AssessmentRow[];
-  /** skillId -> isPublic, only for skills the member set explicitly. Missing = public by default. */
+  /** Canonical skillId -> explicit permission. Missing is private. */
   skillVisibility: ReadonlyMap<string, boolean>;
-  /** projectId -> isPublic, same default. */
+  /** projectId -> explicit permission. Missing is private. */
   projectVisibility: ReadonlyMap<string, boolean>;
   /** skills with an OPEN dispute; withheld until resolved */
   disputedSkillIds: ReadonlySet<string>;
@@ -211,6 +227,8 @@ export const PUBLIC_NOTE = "Skill levels are advisory estimates built from a tea
 /** Returns null when the portfolio is off, so the route can answer 404 without revealing the member exists. */
 export function buildPublicPortfolio(input: PortfolioInput): PublicPortfolio | null {
   if (!input.portfolio.enabled) return null;
+  const map = canonicalMap(input.skills);
+  input = { ...input, skills: projectedNodes(input.skills), assessments: projectedRows(input.assessments, input.skills), evidence: input.evidence.map(e => ({ ...e, skillIds: [...new Set(e.skillIds.map(id => map.get(id) ?? id))] })) };
   const nodes = new Map(input.skills.map((n) => [n.id, n]));
   const groups = groupBy(input.skills);
 
@@ -221,17 +239,17 @@ export function buildPublicPortfolio(input: PortfolioInput): PublicPortfolio | n
   for (const [skillId, rows] of bySkill) {
     const node = nodes.get(skillId);
     if (!node) continue;
-    if (input.skillVisibility.get(skillId) === false) continue; // member hid it
+    if (input.skillVisibility.get(skillId) !== true) continue;
     if (input.disputedSkillIds.has(skillId)) continue;          // under review
     const ai = rows.find((r) => r.provenance === "AI_INFERRED");
     const verified = rows.find((r) => r.provenance === "MANAGER_VERIFIED");
     const peer = rows.find((r) => r.provenance === "PEER_ENDORSED");
     // Evidence-backed or verified only. A bare self-claim, or a LOW-confidence inference, is not shown.
     const aiShowable = ai && ai.confidenceBand !== "LOW";
-    const lead = verified ?? (aiShowable ? ai : undefined) ?? peer;
+    const lead = verified ?? (aiShowable ? ai : undefined);
     if (!lead) continue;
     const evidence = input.evidence
-      .filter((e) => e.skillIds.includes(skillId) && (!e.projectId || input.projectVisibility.get(e.projectId) !== false))
+      .filter((e) => e.skillIds.includes(skillId) && (!e.projectId || input.projectVisibility.get(e.projectId) === true))
       .sort((a, b) => b.occurredAt.getTime() - a.occurredAt.getTime())
       .slice(0, PUBLIC_EVIDENCE_PER_SKILL)
       .map<PublicEvidence>((e) => ({
@@ -306,6 +324,8 @@ export function buildMatrix(
   members: { id: string; displayName: string; avatarUrl: string | null; title: string | null }[],
   advisory: string,
 ): SkillMatrix {
+  rows = projectedRows(rows, nodes);
+  nodes = projectedNodes(nodes);
   const byId = new Map(nodes.map((n) => [n.id, n]));
   const groups = groupBy(nodes);
   const memberById = new Map(members.map((m) => [m.id, m]));
@@ -390,6 +410,8 @@ export const PROFILE_EVIDENCE_PER_SKILL = 3;
  */
 export function buildProfileSkills(input: ProfileInput): { name: string; skills: ProfileSkill[] }[] {
   if (!input.showOnProfile) return [];
+  const map = canonicalMap(input.skills);
+  input = { ...input, skills: projectedNodes(input.skills), assessments: projectedRows(input.assessments, input.skills), evidence: input.evidence.map(e => ({ ...e, skillIds: [...new Set(e.skillIds.map(id => map.get(id) ?? id))] })) };
   const nodes = new Map(input.skills.map((n) => [n.id, n]));
   const groups = groupBy(input.skills);
   const bySkill = new Map<string, AssessmentRow[]>();
@@ -397,7 +419,7 @@ export function buildProfileSkills(input: ProfileInput): { name: string; skills:
   const out = new Map<string, ProfileSkill[]>();
   for (const [skillId, rows] of bySkill) {
     const node = nodes.get(skillId);
-    if (!node || input.skillVisibility.get(skillId) === false || input.disputedSkillIds.has(skillId)) continue;
+    if (!node || input.skillVisibility.get(skillId) !== true || input.disputedSkillIds.has(skillId)) continue;
     const sorted = [...rows].sort((a, b) => PROVENANCE_ORDER.indexOf(a.provenance) - PROVENANCE_ORDER.indexOf(b.provenance));
     const lead = sorted[0];
     const ai = rows.find((r) => r.provenance === "AI_INFERRED");

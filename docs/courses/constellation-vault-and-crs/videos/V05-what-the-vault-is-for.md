@@ -13,7 +13,7 @@ The standard private training project has no seeded Vault files or repository.
 | Shot | Live action | Narration |
 |---|---|---|
 | 1 | Files source selector: Drive, GitHub, Vault | "Drive is the project's general document link. GitHub is the code source. The Vault tracks parts and revisions." |
-| 2 | Vault header and item list | "When enabled, the header names the repository and branch used for new check-ins. Older versions can still be stored in Drive; each version shows its provider." |
+| 2 | Repository details modal and item list | "Open Repository details to see the repository and branch used for new check-ins when enabled. Close the modal to return to the item list. Older versions can still be stored in Drive; each version shows its provider." |
 | 3 | Open item and Versions | "One item has numbered check-ins with filenames, authors, change descriptions, and dates. GitHub-backed versions also show their commit. A commit means stored; it does not mean released." |
 | 4 | Check out an item | "The holder is visible in item detail. Check with them before editing the same part." |
 | 5 | New check-in dialog | "Select a file and enter the required change description. A GitHub check-in transfers, commits, and indexes before the dialog closes. A successful check-in releases your checkout." |

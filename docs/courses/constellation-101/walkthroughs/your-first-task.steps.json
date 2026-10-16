@@ -85,9 +85,9 @@
       "anchor": "task.modal.status",
       "route": "/clubpm/projects/:id",
       "title": "Start work on it",
-      "body": "Set the status to In progress. Doing it here and dragging the card between columns are the same operation — use whichever is nearer.",
+      "body": "Select In Progress in the status row below the title. Doing it here and dragging the card between columns are the same operation — use whichever is nearer.",
       "placement": "left",
-      "compact": { "body": "Set the status to In progress. You can also use the labelled Move control on the task row; no dragging is required.", "placement": "top" },
+      "compact": { "body": "Select In Progress in the status row below the title. You can also use the labelled Move control on the task row; no dragging is required.", "placement": "top" },
       "advance": { "on": "api", "method": "PATCH", "path": "/api/tasks/:id" }
     },
     {
@@ -104,7 +104,7 @@
       "anchor": "task.modal.timelog",
       "route": "/clubpm/projects/:id",
       "title": "Log some time",
-      "body": "Open Time tracking and log half an hour. Anything over two hours in one entry goes to an officer for approval — that gate is what keeps the XP ledger worth trusting.",
+      "body": "In the task details panel, enter 30 in Minutes and select Log time. Anything over two hours in one entry goes to an officer for approval — that gate is what keeps the XP ledger worth trusting.",
       "placement": "left",
       "advance": { "on": "api", "method": "POST", "path": "/api/tasks/:id/time-logs" }
     },
@@ -113,7 +113,7 @@
       "anchor": "task.modal.status",
       "route": "/clubpm/projects/:id",
       "title": "Finish it",
-      "body": "Set the status to Done. On a real project this is the moment XP is queued for you — here it's suppressed, because practice work shouldn't pay.",
+      "body": "Select Completed in the status row below the title. On a real project this is the moment XP is queued for you — here it's suppressed, because practice work shouldn't pay.",
       "placement": "left",
       "advance": { "on": "api", "method": "PATCH", "path": "/api/tasks/:id" }
     },

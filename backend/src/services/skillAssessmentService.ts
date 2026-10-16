@@ -4,18 +4,23 @@
 // own rows and are never touched here, so they can disagree with the AI row.
 
 import { prisma } from "../db/prisma.js";
+import type { Prisma } from "@prisma/client";
 import { loadEvidenceForScoring } from "./skillEvidenceService.js";
 import { assessMember, SCORING_VERSION } from "./skillScoringCore.js";
 
 export interface RecomputeResult { members: number; upserted: number; removed: number }
 
-export async function recomputeMembers(memberIds: string[], opts: { now?: Date; modelVersion?: string | null } = {}): Promise<RecomputeResult> {
+export async function recomputeMembers(memberIds: string[], opts: { now?: Date; modelVersion?: string | null; db?: Prisma.TransactionClient } = {}): Promise<RecomputeResult> {
+  if (!opts.db) return prisma.$transaction(async tx => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('skills-catalog'))`;
+    return recomputeMembers(memberIds, { ...opts, db: tx });
+  }, { timeout: 120_000, maxWait: 20_000 });
   const now = opts.now ?? new Date();
   const result: RecomputeResult = { members: 0, upserted: 0, removed: 0 };
-  const evidence = await loadEvidenceForScoring(memberIds);
+  const evidence = await loadEvidenceForScoring(memberIds, opts.db ?? prisma);
   for (const memberId of memberIds) {
     const assessments = assessMember(evidence.get(memberId) ?? [], now);
-    await prisma.$transaction(async (tx) => {
+    const write = async (tx: Prisma.TransactionClient) => {
       for (const [skillId, a] of assessments) {
         const data = {
           level: a.level, confidence: a.confidence, confidenceBand: a.confidenceBand, firstSeen: a.firstSeen, lastDemonstrated: a.lastDemonstrated,
@@ -36,7 +41,9 @@ export async function recomputeMembers(memberIds: string[], opts: { now?: Date; 
       result.removed += gone.count;
       // A member with dozens of skills means dozens of round trips; the 5 s interactive
       // default aborted whole runs on a remote database ("Transaction already closed").
-    }, { timeout: 120_000, maxWait: 20_000 });
+    };
+    if (opts.db) await write(opts.db);
+    else await prisma.$transaction(write, { timeout: 120_000, maxWait: 20_000 });
     result.members++;
   }
   return result;

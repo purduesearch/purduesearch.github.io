@@ -13,6 +13,7 @@ import { buildMatrix, disagreementOf, shapeSkills, type Band, type Provenance } 
 import { TaxonomyError, createSkill, addAlias, addEdge } from "./skillTaxonomyService.js";
 import { normalizeSkillName } from "./skillMatchCore.js";
 import type { SkillType } from "@prisma/client";
+import { canonicalMap, identityIds } from "./skillCatalogCore.js";
 
 export const ADVISORY = "Skill data is advisory. It is inferred from project work and should inform, not decide, staffing or evaluation.";
 const BAND_RANK: Record<Band, number> = { LOW: 0, MEDIUM: 1, HIGH: 2 };
@@ -41,14 +42,17 @@ export function rankPeople<T extends { bestLevel: number; bestBand: Band; lastDe
 
 /** Skill ids plus every descendant (searching "CAD" also finds SolidWorks). */
 export async function expandSkillIds(ids: string[], includeChildren = true): Promise<string[]> {
-  if (!includeChildren || !ids.length) return ids;
+  if (!ids.length) return ids;
+  const map = canonicalMap(await prisma.skill.findMany({ select: { id: true, canonicalId: true } }));
+  ids = [...new Set(ids.flatMap(id => identityIds(id, map)))];
+  if (!includeChildren) return ids;
   const edges = await prisma.skillEdge.findMany({ where: { kind: "PARENT" }, select: { fromId: true, toId: true } });
   const kids = new Map<string, string[]>();
   for (const e of edges) kids.set(e.toId, [...(kids.get(e.toId) ?? []), e.fromId]);
   const seen = new Set(ids);
   const stack = [...ids];
   while (stack.length) for (const k of kids.get(stack.pop()!) ?? []) if (!seen.has(k)) { seen.add(k); stack.push(k); }
-  return [...seen];
+  return [...new Set([...seen].flatMap(id => identityIds(id, map)))];
 }
 
 export async function searchPeople(p: SearchParams) {
@@ -195,14 +199,16 @@ export async function listTaxonomy() {
   }));
 }
 
-export async function patchSkill(id: string, input: { name?: unknown; type?: unknown; description?: unknown; status?: unknown }) {
-  const skill = await prisma.skill.findUnique({ where: { id }, select: { id: true, name: true } });
+export async function patchSkill(id: string, input: { name?: unknown; type?: unknown; description?: unknown; status?: unknown }, db: typeof prisma | Prisma.TransactionClient = prisma): Promise<void> {
+  if (db === prisma) return prisma.$transaction(async tx => { await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('skills-catalog'))`; await patchSkill(id, input, tx); });
+  const skill = await db.skill.findUnique({ where: { id }, select: { id: true, name: true, canonicalId: true, redirects: { select: { id: true } } } });
   if (!skill) throw new TaxonomyError("NOT_FOUND", "Skill not found");
+  if (skill.canonicalId || skill.redirects.length) throw new TaxonomyError("CONFLICT", "Reverse the consolidation before redefining or retiring this concept");
   const data: { name?: string; type?: SkillType; description?: string | null; status?: "ACTIVE" | "DEPRECATED" } = {};
   if (input.name !== undefined) {
     if (typeof input.name !== "string" || input.name.trim().length < 1 || input.name.trim().length > 80) throw new TaxonomyError("INVALID", "name must be 1-80 characters");
     const norm = normalizeSkillName(input.name);
-    const clash = await prisma.skillAlias.findUnique({ where: { aliasNorm: norm }, select: { skillId: true } });
+    const clash = await db.skillAlias.findUnique({ where: { aliasNorm: norm }, select: { skillId: true } });
     if (clash && clash.skillId !== id) throw new TaxonomyError("ALIAS_TAKEN", "That name is an alias of another skill");
     data.name = input.name.trim();
   }
@@ -215,7 +221,7 @@ export async function patchSkill(id: string, input: { name?: unknown; type?: unk
     if (input.status !== "ACTIVE" && input.status !== "DEPRECATED") throw new TaxonomyError("INVALID", "bad status");
     data.status = input.status;
   }
-  await prisma.skill.update({ where: { id }, data });
+  await db.skill.update({ where: { id }, data });
 }
 
 export { createSkill, addAlias, addEdge };

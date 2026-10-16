@@ -3,7 +3,7 @@
 // and additionally makes programTag admin-only. Only changed fields are sent, so
 // a non-admin saving other fields never trips the admin gate.
 
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import toast from "react-hot-toast";
 import { patch } from "../../api/clubPmClient";
@@ -34,7 +34,8 @@ const PROGRAM_OPTIONS = [
 // Dates are stored as UTC midnight (new Date("YYYY-MM-DD")), so the ISO prefix is the date.
 const toDateInput = (iso) => (iso ? String(iso).slice(0, 10) : "");
 
-export default function EditProjectModal({ project, isAdmin, onClose, onSaved }) {
+export function EditProjectForm({ project, isAdmin, onClose, onSaved }) {
+  const inFlight = useRef(false);
   const initial = {
     name: project.name ?? "",
     status: project.status ?? "ACTIVE",
@@ -67,35 +68,25 @@ export default function EditProjectModal({ project, isAdmin, onClose, onSaved })
 
   async function handleSubmit(e) {
     e.preventDefault();
-    if (!hasChanges || nameEmpty || datesInverted || saving) return;
+    if (!hasChanges || nameEmpty || datesInverted || inFlight.current) return;
+    inFlight.current = true;
     setSaving(true);
     setError(null);
     try {
       const updated = await patch(`/api/projects/${project.id}`, changes);
       toast.success("Project updated");
-      onSaved?.(updated);
-      onClose();
+      await onSaved?.(updated);
+      onClose?.();
     } catch (err) {
       setError(err?.message ?? "Failed to update project");
     } finally {
+      inFlight.current = false;
       setSaving(false);
     }
   }
 
-  return createPortal(
-    <div className="cpm-proj-edit-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="cpm-proj-edit-modal" role="dialog" aria-label="Edit project">
-        <div className="cpm-proj-edit-header">
-          <span>
-            <i className="fas fa-pencil-alt" style={{ marginRight: 10 }} aria-hidden="true" />
-            Edit project
-          </span>
-          <button onClick={onClose} aria-label="Close" className="cpm-proj-edit-close">
-            <i className="fas fa-times" aria-hidden="true" />
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit} className="cpm-proj-edit-body">
+  return (
+        <form onSubmit={handleSubmit} className="cpm-proj-edit-form">
           <label className="cpm-proj-edit-field">
             <span className="cpm-proj-edit-label">Name</span>
             <input
@@ -162,9 +153,7 @@ export default function EditProjectModal({ project, isAdmin, onClose, onSaved })
           {error && <p className="cpm-proj-edit-error">{error}</p>}
 
           <div className="cpm-proj-edit-footer">
-            <button type="button" className="cpm-proj-edit-cancel" onClick={onClose} disabled={saving}>
-              Cancel
-            </button>
+            {onClose && <button type="button" className="cpm-proj-edit-cancel" onClick={onClose} disabled={saving}>Cancel</button>}
             <button
               type="submit"
               className="clubpm-btn-primary"
@@ -174,8 +163,19 @@ export default function EditProjectModal({ project, isAdmin, onClose, onSaved })
             </button>
           </div>
         </form>
+  );
+}
+
+export default function EditProjectModal({ onClose, ...props }) {
+  return createPortal(
+    <div className="cpm-proj-edit-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="cpm-proj-edit-modal" role="dialog" aria-label="Edit project">
+        <div className="cpm-proj-edit-header">
+          <span>Edit project</span>
+          <button onClick={onClose} aria-label="Close" className="cpm-proj-edit-close"><i className="fas fa-times" aria-hidden="true" /></button>
+        </div>
+        <div className="cpm-proj-edit-body"><EditProjectForm {...props} onClose={onClose} /></div>
       </div>
-    </div>,
-    document.body
+    </div>, document.body
   );
 }

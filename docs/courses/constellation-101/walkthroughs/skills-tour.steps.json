@@ -1,0 +1,12 @@
+{
+  "tourId": "skills-tour",
+  "title": "Your evidence and your next experience",
+  "entryRoute": "/clubpm/profile?tab=skills",
+  "requiresTrainingProject": false,
+  "steps": [
+    { "id": "your-record", "anchor": "skills.my", "route": "/clubpm/profile?tab=skills", "title": "Start with the work", "body": "Open a skill to see supporting work, uncertainty, and separate statements from you, peers, and leads. Levels are advisory estimates.", "placement": "bottom", "advance": { "on": "next" } },
+    { "id": "choose-growth", "anchor": "skills.growth", "route": "/clubpm/profile?tab=skills", "title": "Choose a direction", "body": "Growth lets you choose up to three focus skills and save accessible project opportunities. Saving never assigns a task.", "placement": "bottom", "advance": { "on": "next" } },
+    { "id": "shared-coverage", "anchor": "skills.team", "route": "/clubpm/profile?tab=skills", "title": "Find someone to learn with", "body": "Team coverage uses shared evidence from a selected project. No evidence means unknown, and availability needs a conversation.", "placement": "bottom", "advance": { "on": "next" } },
+    { "id": "shared-language", "anchor": "skills.library", "route": "/clubpm/profile?tab=skills", "title": "One shared language", "body": "The Library explains concepts and aliases. Supported new concepts can appear automatically. Admins can inspect and reverse consolidations while preserving the original records.", "placement": "bottom", "advance": { "on": "next" } }
+  ]
+}

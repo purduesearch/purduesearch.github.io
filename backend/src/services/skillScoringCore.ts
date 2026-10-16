@@ -11,7 +11,7 @@
 // evidence item per PR / CAD version / task, and each is weighted by what the
 // person did (contribution), how hard it was (complexity), and how it ended.
 
-export const SCORING_VERSION = "1";
+export const SCORING_VERSION = "1-contributions";
 
 export type Contribution = "AUTHORED" | "REVIEWED" | "LED" | "ASSISTED";
 export type Outcome = "MERGED" | "SHIPPED" | "REWORKED" | "ABANDONED" | "NONE";
@@ -20,6 +20,7 @@ export type ConfidenceBand = "LOW" | "MEDIUM" | "HIGH";
 
 export interface EvidenceInput {
   id: string;
+  contributionKey?: string | null;
   source: string;
   projectId?: string | null;
   occurredAt: Date;

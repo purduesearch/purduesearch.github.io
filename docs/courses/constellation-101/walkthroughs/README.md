@@ -15,6 +15,8 @@ training project.**
 | `rewards-tour` | 8 | `/clubpm/profile?tab=quests` | No | 1 (optional) |
 | `comms-tour` | 10 | `/clubpm/notifications` | No | 0 |
 
+An additional optional `skills-tour` (4 read-only steps, `/clubpm/profile?tab=skills`, no sandbox or API writes) introduces the member workspace. It covers My skills, Growth, Team coverage and Library; Automation is admin-only and is not part of the member tour. The Profile skill summary now links to this workspace. On a phone, Skills is in More, directly under Profile. The standalone tour is supplied for authors to add to a course; it does not alter required course completion.
+
 The dashboard puts assigned work first and shows recent activity from projects you contribute to.
 Project insights and the seven-day agenda remain available; quests live on the Quests tab of your profile (the old Challenges page was merged into it).
 
@@ -86,7 +88,7 @@ The module the engine exists for. The learner creates, owns, dates, specifies, s
 logs, and finishes one task, in that order, with six of those being genuine writes.
 
 Step 4 (`open-it`) is load-bearing scaffolding, not filler. **Creating a task does not open it** —
-the New Task form takes a title, a priority and a date, then closes. Everything after it lives in a
+the New Task form takes a title, description, priority, date, tags, milestone and optional attachments, then closes. Everything after it lives in a
 different component (`TaskModal`, reached by clicking the card), so without an explicit click step
 the next five steps hunt for a modal that was never opened and degrade one after another. Any step
 sequence that crosses from `task.create.*` to `task.modal.*` needs a spotlit click in between.
@@ -184,3 +186,5 @@ The arrow sits beside the management menu for officers; the phone Projects sheet
   wish." The instruction alone is forgettable; the reason is what survives.
 - **Keep bodies under about 40 words.** The coach card is small and a wall of text gets skipped, at
   which point the step has taught nothing and still cost a click.
+
+Task details use a status button row below the title. Description, subtasks, dependencies, blockers and conversation stay in the main column; assignees, due date, priority, tags, manual time entry and attachments are in the side panel (stacked on phones). Add attachment also contains GitHub actions for linking and creating issues, creating branches, viewing existing links and pushing task updates to GitHub. The time step uses Minutes and Log time; there is no running timer.

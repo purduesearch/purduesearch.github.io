@@ -11,6 +11,7 @@ import { createGeminiSkillsLlm, type SkillsLlm } from "./ai/skillsGemini.js";
 import { todayContext } from "./geminiService.js";
 import { expandSkillIds, ADVISORY } from "./skillAdminService.js";
 import { loadAliasIndex, TaxonomyError } from "./skillTaxonomyService.js";
+import { visibleSkillPairs, visibleProjectAssessments } from "./skillAccessService.js";
 import {
   ASK_JSON_SCHEMA, buildAskPrompt, fuseRanks, parseStructuredQuery, topBySimilarity, validateAskAnswer,
   type AskPerson, type ParsedQuery,
@@ -20,6 +21,7 @@ const BAND_RANK = { LOW: 0, MEDIUM: 1, HIGH: 2 } as const;
 const MAX_CANDIDATES = 8;
 const SEMANTIC_WINDOW_DAYS = 548; // ~18 months
 const SEMANTIC_ROW_CAP = 20_000;
+type RetrievedSkill = { memberId: string; skillId: string; level: number; confidenceBand: "LOW" | "MEDIUM" | "HIGH"; provenance: string; lastDemonstrated: Date | null; trend: string; skill: { name: string } };
 
 export interface AskInput {
   question: string;
@@ -75,11 +77,15 @@ export async function askSkills(input: AskInput): Promise<AskResult> {
   const names = parsed.skillIds.length ? await prisma.skill.findMany({ where: { id: { in: parsed.skillIds } }, select: { id: true, name: true } }) : [];
   const since = parsed.activeWithinDays ? new Date(Date.now() - parsed.activeWithinDays * 86_400_000) : null;
   const memberFilter = { isBot: false, ...(scope.memberIds ? { id: { in: scope.memberIds } } : {}) };
+  const visiblePairs = scope.projectOnly ? await visibleSkillPairs(scope.memberIds ?? []) : null;
+  const assessmentAccess = visiblePairs ? { OR: visiblePairs } : {};
+  const evidenceAccess = visiblePairs ? { AND: [{ OR: visiblePairs.map(p => ({ memberId: p.memberId, skills: { some: { skillId: p.skillId } } })) }] } : {};
+  const projectRows = scope.projectOnly ? await visibleProjectAssessments(scope.memberIds ?? [], input.projectId!) : null;
 
   // ── structured candidates ──
-  const rows = skillIds.length
+  const rows: RetrievedSkill[] = projectRows ? projectRows.filter(r => skillIds.includes(r.skillId) && r.level >= (parsed.minLevel ?? 1) && (!since || r.lastDemonstrated >= since)) : skillIds.length
     ? await prisma.skillAssessment.findMany({
-        where: { skillId: { in: skillIds }, level: { gte: parsed.minLevel ?? 1 }, member: memberFilter, ...(since ? { lastDemonstrated: { gte: since } } : {}) },
+        where: { skillId: { in: skillIds }, level: { gte: parsed.minLevel ?? 1 }, member: memberFilter, ...assessmentAccess, ...(since ? { lastDemonstrated: { gte: since } } : {}) },
         include: { skill: { select: { name: true } } }, take: 1500,
       })
     : [];
@@ -102,6 +108,7 @@ export async function askSkills(input: AskInput): Promise<AskResult> {
           where: {
             supersededAt: null, embedding: { isEmpty: false }, occurredAt: { gte: new Date(Date.now() - SEMANTIC_WINDOW_DAYS * 86_400_000) },
             member: memberFilter, ...(scope.projectOnly ? { projectId: input.projectId } : {}),
+            ...evidenceAccess,
           },
           select: { id: true, memberId: true, embedding: true }, orderBy: { occurredAt: "desc" }, take: SEMANTIC_ROW_CAP,
         });
@@ -128,6 +135,7 @@ export async function askSkills(input: AskInput): Promise<AskResult> {
   const evidenceRows = await prisma.skillEvidence.findMany({
     where: {
       memberId: { in: candidates }, supersededAt: null, ...(scope.projectOnly ? { projectId: input.projectId } : {}),
+      ...evidenceAccess,
       OR: [...(skillIds.length ? [{ skills: { some: { skillId: { in: skillIds } } } }] : []), ...(semanticIds.size ? [{ id: { in: [...semanticIds] } }] : [])],
     },
     select: { id: true, memberId: true, summary: true, source: true, sourceUrl: true, occurredAt: true, projectId: true, contribution: true, complexity: true },
@@ -141,9 +149,9 @@ export async function askSkills(input: AskInput): Promise<AskResult> {
   const semanticSkillIds = !skillIds.length && semanticIds.size
     ? [...new Set((await prisma.skillEvidenceSkill.findMany({ where: { evidenceId: { in: [...semanticIds] } }, select: { skillId: true } })).map((j) => j.skillId))]
     : [];
-  const semanticSkillRows = semanticSkillIds.length
+  const semanticSkillRows: RetrievedSkill[] = projectRows ? projectRows.filter(r => semanticSkillIds.includes(r.skillId) && candidates.includes(r.memberId)) : semanticSkillIds.length
     ? await prisma.skillAssessment.findMany({
-        where: { memberId: { in: candidates }, skillId: { in: semanticSkillIds } },
+        where: { memberId: { in: candidates }, skillId: { in: semanticSkillIds }, ...assessmentAccess },
         include: { skill: { select: { name: true } } }, take: 200,
       })
     : [];

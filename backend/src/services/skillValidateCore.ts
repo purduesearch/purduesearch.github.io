@@ -17,7 +17,7 @@ export type SkillTypeName = (typeof SKILL_TYPES)[number];
 
 export interface ValidAnalysis {
   skills: { skillId: string; fit: number }[];
-  proposed: { name: string; type: SkillTypeName; rationale: string }[];
+  proposed: { name: string; type: SkillTypeName; rationale: string; description?: string; supportingQuote?: string; parentId?: string }[];
   contribution: Contribution;
   complexity: number;
   outcome: Outcome;
@@ -101,6 +101,9 @@ export function validateAnalysis(
       name,
       type: oneOf(SKILL_TYPES, item.type) ? item.type : "TOOL",
       rationale: typeof item.rationale === "string" ? truncateSentence(cleanText(item.rationale), 300) : "",
+      ...(typeof item.description === "string" ? { description: cleanText(item.description).slice(0, 500) } : {}),
+      ...(typeof item.supportingQuote === "string" ? { supportingQuote: cleanText(item.supportingQuote).slice(0, 400) } : {}),
+      ...(typeof item.parentKey === "string" && keyToSkillId.has(item.parentKey) ? { parentId: keyToSkillId.get(item.parentKey)! } : {}),
     });
   }
 

@@ -2,9 +2,9 @@
 // the teammate profile view. Pure: no DB, no network.
 // Run: cd backend && npx tsx src/services/skillSignal.test.ts
 
-import { applySignalFloor, detectSignals, filesOf, SIGNAL_FLOOR_FIT } from "./skillSignalCore.js";
+import { detectSignals, filesOf } from "./skillSignalCore.js";
 import { buildAliasIndex } from "./skillMatchCore.js";
-import { prepareAnalysis, type TaxonomySkill } from "./skillAnalysisService.js";
+import { analyzeArtifact, prepareAnalysis, type TaxonomySkill } from "./skillAnalysisService.js";
 import { isLegacyModel, isShapeUnsupported, skillsLlmConfig, toOpenApiSchema } from "./ai/skillsGemini.js";
 import { ANALYSIS_JSON_SCHEMA, type SkillArtifact } from "./skillPrompts.js";
 import { buildMatrix, buildProfileSkills, type AssessmentRow, type SkillNode } from "./skillViewCore.js";
@@ -54,15 +54,10 @@ const base: SkillArtifact = {
   check("task text names produce hints", task.some((s) => s.skillId === "react" && !s.strong));
 }
 
-// ── floor ──
+// ── source signals never grant credit on their own ──
 {
-  const a = { skills: [{ skillId: "ts", fit: 0.8 }], warnings: [] as string[] };
-  const out = applySignalFloor(a, [{ skillId: "py", reason: "x", strong: true }, { skillId: "react", reason: "x", strong: false }, { skillId: "ts", reason: "x", strong: true }], 8);
-  check("strong missing signal added at floor fit", out.skills.some((s) => s.skillId === "py" && s.fit === SIGNAL_FLOOR_FIT));
-  check("hints never added", !out.skills.some((s) => s.skillId === "react"));
-  check("model fit never lowered", out.skills.find((s) => s.skillId === "ts")!.fit === 0.8);
-  check("floor noted in warnings", out.warnings.length === 1);
-  check("no change returns same object", applySignalFloor(a, [], 8) === a);
+  const result = await analyzeArtifact(base, { skills, index }, { modelVersion: "fake", embedModel: "fake", generateJson: async () => ({ text: JSON.stringify({ skills: [], proposedSkills: [], contribution: "ASSISTED", complexity: 1, outcome: "NONE", summary: "The record does not demonstrate an attributable contribution." }), usage: { tokensIn: 10, tokensOut: 10 } }), embed: async () => ({ vectors: [], tokens: 0 }) });
+  check("large authored file signals do not force unsupported tags", result.status === "ok" && result.analysis.skills.length === 0);
 }
 
 // ── prompt ──
@@ -70,7 +65,7 @@ const base: SkillArtifact = {
   const prep = prepareAnalysis(base, { skills, index });
   check("prompt lists detected signals by key", /Detected signals:\ns\d+: Python \(200 changed lines in \.py files\)/.test(prep.prompt) || /s\d+: Python \(/.test(prep.prompt));
   check("candidates show their parent area", /SolidWorks \(tool, under CAD\)/.test(prep.prompt));
-  check("signals carried for the floor", prep.signals.some((s) => s.skillId === "py" && s.strong));
+  check("hint strength retained for candidate selection", prep.signals.some((s) => s.skillId === "py" && s.strong));
 }
 
 // ── Gemini config ──
@@ -123,7 +118,7 @@ const row = (memberId: string, skillId: string, provenance: AssessmentRow["prove
   const input = {
     viewerId: "v", viewerProjectIds: new Set(["p1"]), showOnProfile: true, skills: nodes,
     assessments: [row("a", "sw", "AI_INFERRED", 3, { confidenceBand: "LOW" }), row("a", "sw", "PEER_ENDORSED", 4, { assertedById: "v" }), row("a", "py", "AI_INFERRED", 2)],
-    skillVisibility: new Map([["py", false]]), disputedSkillIds: new Set<string>(), evidence,
+    skillVisibility: new Map([["sw", true], ["py", false]]), disputedSkillIds: new Set<string>(), evidence,
   };
   const g = buildProfileSkills(input);
   const sw = g.flatMap((x) => x.skills).find((s) => s.skillId === "sw")!;

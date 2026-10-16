@@ -19,7 +19,7 @@ import GhStatsSection from "../../components/clubpm/GhStatsSection";
 import GitHubConnectButton from "../../components/clubpm/github/GitHubConnectButton";
 import IcsFeedConnect from "../../components/clubpm/IcsFeedConnect";
 import TrainingStatusStrip from "../../components/clubpm/courses/TrainingStatusStrip";
-import SkillsPanel from "../../components/clubpm/skills/SkillsPanel";
+import SkillsWorkspace from "./SkillsWorkspace";
 import MemberSkillsCard from "../../components/clubpm/skills/MemberSkillsCard";
 import ProfileSidebar from "../../components/clubpm/profile/ProfileSidebar";
 import ProfileTabs from "../../components/clubpm/profile/ProfileTabs";
@@ -314,7 +314,7 @@ export default function Profile() {
 
           {tab === "skills" && (
             isSelf
-              ? <SkillsPanel projects={projects} />
+              ? <SkillsWorkspace />
               : <MemberSkillsCard memberId={memberId} displayName={profile.displayName} />
           )}
 

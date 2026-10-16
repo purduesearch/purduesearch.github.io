@@ -115,11 +115,18 @@ right things harder to find.
 | Firmware and analysis scripts | **GitHub**, linked to the task |
 | The conversation about any of the above | **Task comments** |
 
+**Files ? Drive** uses the same folder browser as task attachments. Click a folder to enter it,
+use the breadcrumbs or back arrow to go up, and click a file to preview it. Search filters the
+current folder; sort by name or recent changes, and refresh to fetch updates. **Open in Drive**
+lets you manage files or see contents that are unavailable in Constellation. In a task?s
+**Browse folder** picker, use the checkboxes to select files or folders; selections stay checked
+while you browse other folders, then **Add** attaches them together.
+
 Projects with an enabled Vault repository store new check-ins in GitHub with Git LFS. Projects without
 that setup still use the legacy bot-owned Drive Vault; its files are separate from the project's
 general Files → Drive source. Older versions can remain Drive-backed. Download and preview both
 through the Vault, which checks project access.
-The repository header shows branch health and recent commits; each version shows its storage provider.
+The Repository details button beside the Vault sub-view tabs opens a modal with branch health, recent commits, and admin repository settings; each version shows its storage provider.
 A commit means the bytes were stored. Only ClubPM change-request approval releases a revision.
 
 ## Watching an item

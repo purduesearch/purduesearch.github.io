@@ -24,6 +24,7 @@ export async function collectTasks(win: CollectWindow): Promise<CollectResult> {
       assignees: { select: { id: true, isBot: true } },
       subtasks: { select: { status: true } },
       timeLogs: { select: { memberId: true, minutes: true } },
+      comments: { select: { authorId: true, content: true }, orderBy: { createdAt: "desc" }, take: 20 },
     },
     orderBy: { completedAt: "asc" },
     take: win.maxArtifacts + 1,
@@ -41,6 +42,7 @@ export async function collectTasks(win: CollectWindow): Promise<CollectResult> {
     const logged: Record<string, number> = {};
     for (const l of t.timeLogs) logged[l.memberId] = (logged[l.memberId] ?? 0) + l.minutes;
     const input: TaskInput = {
+      contributionNotes: Object.fromEntries([...new Set(t.comments.map(c => c.authorId))].map(id => [id, t.comments.filter(c => c.authorId === id).map(c => c.content).join("\n").slice(0, 1800)])),
       id: t.id, title: t.title, description: t.description, tags: t.tags.map((x) => x.name), priority: t.priority,
       milestoneTitle: t.milestone?.title ?? null, projectName: t.project?.name ?? null, projectId: t.projectId,
       completedAt: t.completedAt, estimatedHours: t.estimatedHours, storyPoints: t.storyPoints,

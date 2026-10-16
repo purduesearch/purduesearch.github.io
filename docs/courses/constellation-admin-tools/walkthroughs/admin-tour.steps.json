@@ -64,7 +64,7 @@
       "anchor": "nav.projects",
       "route": "*",
       "title": "Officers see every project",
-      "body": "Including ones they aren't a member of. Parents start collapsed; their arrows remember your choice across pages and reloads. Dashed markers identify children; the three-dot button manages the project. Use that to unstick things, not to browse.",
+      "body": "Including ones they aren't a member of. Parents start collapsed; their arrows remember your choice across pages and reloads. Dashed markers identify children; the three-dot button opens Project settings for details, Slack channel, sub-projects, members, archive and delete. The project header opens the same modal. Use that to unstick things, not to browse.",
       "placement": "right",
       "advance": { "on": "next" },
       "compact": { "anchor": "projects.sheet", "reveal": "projects", "body": "Including ones they aren't a member of — the Projects button lists every one. Use that to unstick things, not to browse." }

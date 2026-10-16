@@ -77,8 +77,8 @@ export interface PullInput {
   deletions: number;
   changedFiles: number;
   commits?: number;
-  files: { filename: string; additions: number; deletions: number }[];
-  reviews: { login: string; state: string }[];
+  files: { filename: string; additions: number; deletions: number; patch?: string }[];
+  reviews: { login: string; state: string; body?: string }[];
   authorLogin: string;
 }
 
@@ -88,8 +88,9 @@ function pullBody(p: PullInput, max: number): string {
     .slice(0, 25)
     .map((f) => `${f.filename} (+${f.additions}/-${f.deletions})`)
     .join("\n");
-  const desc = capText(p.body, Math.min(1500, Math.floor(max / 3)));
-  return capText(`${desc ? `Description:\n${desc}\n\n` : ""}Largest changed files:\n${fileLines || "none listed"}`, max);
+  const desc = capText(p.body, Math.min(3000, Math.floor(max / 2)));
+  const patches = p.files.filter(f => f.patch && !/(^|\/)(vendor|node_modules|dist|build|generated)\//i.test(f.filename) && !/lock\.(json|yaml)$|\.min\./.test(f.filename)).slice(0, 3).map(f => `${f.filename}:\n${capText(f.patch, 1000)}`).join("\n");
+  return capText(`${desc ? `Description:\n${desc}\n\n` : ""}Largest changed files:\n${fileLines || "none listed"}${patches ? `\n\nBounded diff excerpts:\n${patches}` : ""}`, max);
 }
 
 function pullFacts(p: PullInput, extra: Record<string, string | number> = {}): Record<string, string | number> {
@@ -115,25 +116,28 @@ export function pullAuthorArtifact(p: PullInput, ctx: { memberId: string; projec
   const occurredAt = (p.merged ? p.mergedAt : p.closedAt) ?? new Date(0);
   return {
     memberId: ctx.memberId, source: "GITHUB", sourceRef: `${p.repo}#${p.number}`, sourceUrl: p.url,
+    contributionKey: `pr:${p.repo.toLowerCase()}#${p.number}`,
     projectId: ctx.projectId ?? null, projectName: ctx.projectName ?? null, occurredAt,
     title: capText(p.title, 200),
     memberRole: p.merged ? "opened this pull request and it was merged" : "opened this pull request, which was closed without merging",
     body, facts,
-    contentHash: hashParts(["pr-author", p.repo, p.number, p.title, p.mergedAt, p.closedAt, p.additions, p.deletions, p.changedFiles, p.reviews.length]),
+    contentHash: hashParts(["pr-author", p.repo, p.number, p.title, body, facts, p.mergedAt, p.closedAt]),
   };
 }
 
 export function pullReviewArtifact(p: PullInput, reviewer: { memberId: string; login: string; states: string[] }, ctx: { projectId?: string | null; projectName?: string | null }, max = DEFAULT_MAX_ARTIFACT_CHARS): SkillArtifact {
   const verdicts = [...new Set(reviewer.states)].join(", ").toLowerCase().replace(/_/g, " ");
+  const reviewText = p.reviews.filter(r => r.login.toLowerCase() === reviewer.login.toLowerCase()).map(r => r.body).filter(Boolean).join("\n");
   return {
     memberId: reviewer.memberId, source: "REVIEW", sourceRef: `${p.repo}#${p.number}:review:${reviewer.login.toLowerCase()}`, sourceUrl: p.url,
+    contributionKey: `pr:${p.repo.toLowerCase()}#${p.number}`,
     projectId: ctx.projectId ?? null, projectName: ctx.projectName ?? null,
     occurredAt: (p.merged ? p.mergedAt : p.closedAt) ?? new Date(0),
     title: capText(p.title, 200),
     memberRole: `reviewed someone else's pull request (${verdicts || "commented"}, ${reviewer.states.length} review event${reviewer.states.length === 1 ? "" : "s"})`,
-    body: pullBody(p, max),
+    body: capText(reviewText ? `This reviewer's own comments:\n${reviewText}` : "No authored review explanation is available. Approval alone does not establish a demonstrated skill.", max),
     facts: pullFacts(p),
-    contentHash: hashParts(["pr-review", p.repo, p.number, reviewer.login, reviewer.states, p.mergedAt, p.closedAt]),
+    contentHash: hashParts(["pr-review", p.repo, p.number, reviewer.login, reviewer.states, reviewText, p.mergedAt, p.closedAt]),
   };
 }
 
@@ -159,6 +163,7 @@ export interface TaskInput {
   createdById: string | null;
   assigneeIds: string[];
   url?: string | null;
+  contributionNotes?: Record<string, string>;
 }
 
 /** Titles like "fix" with no description say nothing about skill. */
@@ -183,21 +188,25 @@ function taskFacts(t: TaskInput, memberId: string): Record<string, string | numb
 export function taskArtifacts(t: TaskInput, max = DEFAULT_MAX_ARTIFACT_CHARS): SkillArtifact[] {
   if (isTooThin(t)) return [];
   const out: SkillArtifact[] = [];
-  const body = capText(t.description, max);
+  const body = capText(t.description, Math.floor(max * .7));
   const base = { source: "TASK" as const, sourceRef: t.id, sourceUrl: t.url ?? null, projectId: t.projectId, projectName: t.projectName, occurredAt: t.completedAt, title: capText(t.title, 200), body };
   for (const memberId of t.assigneeIds) {
     out.push({
       ...base, memberId,
-      memberRole: t.assigneeCount > 1 ? "one of several assignees who completed this task" : "assignee who completed this task",
+      memberRole: t.assigneeCount > 1 ? "one of several assignees; assignment alone does not establish who performed the work" : "assigned to the completed task; use attributable notes for the actual contribution",
+      body: capText(`${body}\n\nThis member's own contribution notes:\n${t.contributionNotes?.[memberId] || "None available. Do not assume authorship from assignment."}`, max),
+      contributionKey: `task:${t.id}`,
       facts: taskFacts(t, memberId),
-      contentHash: hashParts(["task", t.id, memberId, t.title, t.description, t.tags, t.completedAt, t.subtaskDone]),
+      contentHash: hashParts(["task", t.id, memberId, t.title, t.description, t.contributionNotes?.[memberId], t.tags, t.completedAt, t.subtaskDone]),
     });
   }
   const creator = t.createdById;
-  if (creator && !t.assigneeIds.includes(creator) && t.subtaskTotal >= 2) {
+  if (creator && !t.assigneeIds.includes(creator) && t.subtaskTotal >= 2 && t.contributionNotes?.[creator]) {
     out.push({
       ...base, memberId: creator, sourceRef: `${t.id}:created`,
-      memberRole: `created this task and broke it into ${t.subtaskTotal} subtasks that others carried out`,
+      memberRole: `task creator with an authored note; creating ${t.subtaskTotal} subtasks alone does not prove leadership`,
+      body: capText(`${body}\n\nThis member's own contribution note:\n${t.contributionNotes[creator]}`, max),
+      contributionKey: `task:${t.id}`,
       facts: taskFacts(t, creator),
       contentHash: hashParts(["task-creator", t.id, creator, t.title, t.description, t.completedAt, t.subtaskTotal]),
     });
@@ -208,6 +217,7 @@ export function taskArtifacts(t: TaskInput, max = DEFAULT_MAX_ARTIFACT_CHARS): S
 // ── CAD / Vault ──────────────────────────────────────────────
 
 export interface VaultVersionInput {
+  taskId?: string | null;
   versionId: string;
   itemId: string;
   itemName: string;
@@ -250,16 +260,18 @@ export function vaultVersionArtifact(v: VaultVersionInput, max = DEFAULT_MAX_ART
   ].filter(Boolean);
   return {
     memberId: v.uploadedById, source: "CAD", sourceRef: v.versionId, sourceUrl: v.url ?? null,
+    contributionKey: v.taskId ? `task:${v.taskId}` : null,
     projectId: v.projectId, projectName: v.projectName, occurredAt: v.uploadedAt,
     title: capText(v.itemName, 200),
     memberRole: v.versionNumber === 1 ? "created this CAD item and checked in its first version" : `checked in version ${v.versionNumber} of this CAD item`,
     body: capText(lines.join("\n"), max),
     facts,
-    contentHash: hashParts(["cad", v.versionId, v.itemName, v.note, v.fileName, v.revision, v.released, v.parentNames.length, v.childNames.length, v.crTitles]),
+    contentHash: hashParts(["cad", v.versionId, v.itemName, v.itemDescription, v.note, v.fileName, v.revision, v.released, v.parentNames, v.childNames, v.crTitles, v.taskId]),
   };
 }
 
 export interface CrReviewInput {
+  taskId?: string | null;
   crId: string;
   number: number;
   title: string;
@@ -277,12 +289,13 @@ export interface CrReviewInput {
 export function crReviewArtifact(c: CrReviewInput, memberId: string, how: "reviewer" | "signoff", max = DEFAULT_MAX_ARTIFACT_CHARS): SkillArtifact {
   return {
     memberId, source: "REVIEW", sourceRef: `cr:${c.crId}:${how}`, sourceUrl: c.url ?? null,
+    contributionKey: c.taskId ? `task:${c.taskId}` : null,
     projectId: c.projectId, projectName: c.projectName, occurredAt: c.decidedAt,
     title: capText(`CR-${c.number}: ${c.title}`, 200),
     memberRole: how === "reviewer" ? `reviewed and ${c.status === "APPROVED" ? "approved" : "rejected"} this engineering change request` : "signed off on this engineering change request",
-    body: capText([c.description, c.reviewNote ? `Review note: ${c.reviewNote}` : ""].filter(Boolean).join("\n\n"), max),
+    body: capText(how === "reviewer" ? (c.reviewNote ? `This reviewer's decision note: ${c.reviewNote}` : "No attributed review reasoning is available; approval alone does not prove proficiency.") : "Sign-off recorded without attributable review commentary. Do not infer skills from the author's work or another reviewer's note.", max),
     facts: { result: c.status.toLowerCase(), items_changed: c.itemNames.length, items: c.itemNames.slice(0, 12).join(", ") || "none" },
-    contentHash: hashParts(["cr", c.crId, memberId, how, c.status, c.decidedAt, c.reviewNote]),
+    contentHash: hashParts(["cr", c.crId, memberId, how, c.status, c.decidedAt, c.reviewNote, c.taskId]),
   };
 }
 

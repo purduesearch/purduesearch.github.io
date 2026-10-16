@@ -20,6 +20,7 @@ import { runWeeklySkillRun } from "../services/skillPipelineService.js";
 import { askSkills, embedMissingEvidence } from "../services/skillSearchService.js";
 import { aiRateLimit } from "../middleware/aiRateLimit.js";
 import type { Band, Provenance } from "../services/skillViewCore.js";
+import { catalogActivity, updateCatalogPolicy, consolidateSkills, reverseCatalogChange } from "../services/skillCatalogService.js";
 
 export const skillsAdminRouter = Router();
 skillsAdminRouter.use(requireAuth, requireAdmin);
@@ -34,6 +35,14 @@ const num = (v: unknown, name: string): number | undefined => {
   return n;
 };
 const SKILL_TYPES = ["TOOL", "TECHNIQUE", "DOMAIN", "SOFT_SKILL"];
+
+skillsAdminRouter.get("/catalog", wrap(async (_req, res) => { res.json(await catalogActivity()); }));
+skillsAdminRouter.put("/catalog/policy", wrap(async (req, res) => { res.json(await updateCatalogPolicy(req.body ?? {})); }));
+skillsAdminRouter.post("/catalog/consolidate", wrap(async (req, res) => {
+  if (typeof req.body?.sourceId !== "string" || typeof req.body?.targetId !== "string") throw new TaxonomyError("INVALID", "Choose two concepts");
+  res.json(await consolidateSkills(req.body.sourceId, req.body.targetId, req.memberId!));
+}));
+skillsAdminRouter.post("/catalog/:id/reverse", wrap(async (req, res) => { res.json(await reverseCatalogChange(String(req.params.id), req.memberId!)); }));
 
 skillsAdminRouter.get("/status", wrap(async (_req, res) => { res.json(await runStatusPanel()); }));
 skillsAdminRouter.get("/runs", wrap(async (req, res) => { res.json({ runs: await listRuns(num(req.query.limit, "limit") ?? 20) }); }));
@@ -166,6 +175,7 @@ skillsAdminRouter.post("/taxonomy", wrap(async (req, res) => {
   const b = req.body ?? {};
   if (!SKILL_TYPES.includes(b.type)) throw new TaxonomyError("INVALID", "bad type");
   const created = await createSkill({
+    actorId: req.memberId!,
     name: String(b.name ?? ""), type: b.type, description: typeof b.description === "string" ? b.description : null,
     aliases: Array.isArray(b.aliases) ? b.aliases.map(String) : [], parentIds: Array.isArray(b.parentIds) ? b.parentIds.map(String) : [],
   });

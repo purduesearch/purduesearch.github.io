@@ -86,6 +86,15 @@ function LegacyCourseRedirect({ suffix }) {
   return <Navigate to={`/clubpm/courses/${id ?? slug}/${suffix}`} replace />;
 }
 
+// The Skills workspace now lives in the profile's Skills tab. Keep old links
+// (and their ?skill= / ?view= state) working.
+function SkillsRedirect() {
+  const { search } = useLocation();
+  const params = new URLSearchParams(search);
+  params.set('tab', 'skills');
+  return <Navigate to={`/clubpm/profile?${params.toString()}`} replace />;
+}
+
 // ── Club PM protected route wrapper ──────────────────────────
 
 // Dark boot screen rather than a bare div: the cream body background from
@@ -136,6 +145,7 @@ function AnimatedRoutes() {
             <Route path="/clubpm/projects/:id" element={<ClubPmProtectedPage><ClubPmProjectDetail /></ClubPmProtectedPage>} />
             <Route path="/clubpm/projects/:id/gantt" element={<ClubPmProtectedPage><ClubPmGanttView /></ClubPmProtectedPage>} />
             <Route path="/clubpm/members" element={<ClubPmProtectedPage><ClubPmMembersView /></ClubPmProtectedPage>} />
+            <Route path="/clubpm/skills" element={<SkillsRedirect />} />
             <Route path="/clubpm/chat" element={<ClubPmProtectedPage><ClubPmChatPage /></ClubPmProtectedPage>} />
             <Route path="/clubpm/chat/:channelId" element={<ClubPmProtectedPage><ClubPmChatPage /></ClubPmProtectedPage>} />
             <Route path="/clubpm/notifications" element={<ClubPmProtectedPage><NotificationCenter /></ClubPmProtectedPage>} />
