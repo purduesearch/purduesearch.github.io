@@ -91,7 +91,6 @@ export default function MobileMoreMenu({ member, location, adminCounts, onNaviga
             </div>
           </div>
         </div>
-        <Row {...row} href="/clubpm/challenges" icon="fa-trophy" label="Quests & achievements" tourId="topbar.challenges" />
         <Row {...row} href="/clubpm/shop" icon="fa-store" label="Shop" tourId="nav.shop" />
       </div>
 

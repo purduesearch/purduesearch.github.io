@@ -14,7 +14,7 @@ function formatRelative(date) {
   return `${Math.floor(diffMs / day)} days ago`;
 }
 
-export default function StreakHubSection() {
+export default function StreakHubSection({ showHeatmap = true }) {
   const { member } = useClubPmAuth();
   const [streak, setStreak] = useState(null);
   const [activity, setActivity] = useState([]);
@@ -113,9 +113,11 @@ export default function StreakHubSection() {
         </button>
       </div>
 
-      <div style={{ width: '100%', marginTop: 4 }}>
-        <XpHeatmap data={xpHistory} activity={activity} />
-      </div>
+      {showHeatmap && (
+        <div style={{ width: '100%', marginTop: 4 }}>
+          <XpHeatmap data={xpHistory} activity={activity} />
+        </div>
+      )}
     </section>
   );
 }

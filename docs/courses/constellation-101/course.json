@@ -180,7 +180,7 @@
           "isRequired": true,
           "tourConfig": {
             "tourId": "rewards-tour",
-            "entryRoute": "/clubpm/challenges",
+            "entryRoute": "/clubpm/profile?tab=quests",
             "requiresTrainingProject": false,
             "stepCount": 8
           }

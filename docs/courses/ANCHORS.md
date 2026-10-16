@@ -54,7 +54,6 @@ step must open first (`compact.reveal`).
 | `topbar.search` | AI command palette trigger | Header **Search** icon (full-screen search) | both | | `*` |
 | `chat.people` | — | **People & DMs** shortcut above the phone channel list | phone | | `/clubpm/chat` |
 | `topbar.streak` | Streak flame counter | More › progress block streak | both | more | `*` |
-| `topbar.challenges` | Quests button (trophy icon) | More › **Quests & achievements** | both | more | `*` |
 
 † The sidebar is an icon-only rail that expands on hover, and group children are `display: none`
 until it does. The static check still sees `nav.members` because the literal is in `NAV_ITEMS`, but a
@@ -138,14 +137,14 @@ consecutive steps hunting for a modal nobody opened.
 
 | Anchor | Element | Route |
 |---|---|---|
-| `challenges.active` | Active quest list | `/clubpm/challenges` |
-| `challenges.claim` | Claim button on the first claimable quest | `/clubpm/challenges` |
-| `challenges.achievements` | Achievement grid | `/clubpm/challenges` |
+| `challenges.active` | Active quest list | `/clubpm/profile?tab=quests` |
+| `challenges.claim` | Claim button on the first claimable quest | `/clubpm/profile?tab=quests` |
+| `challenges.achievements` | Achievement grid | `/clubpm/profile?tab=quests` |
 | `shop.grid` | Cosmetic grid | `/clubpm/shop` |
 | `shop.balance` | Doubloon balance | `/clubpm/shop` |
 | `profile.rank` | Rank + XP bar | `/clubpm/profile` |
-| `profile.avatar` | Avatar editor entry | `/clubpm/profile` |
-| `profile.history` | XP history list | `/clubpm/profile` |
+| `profile.avatar` | Avatar + XP ring (identity card, every tab) | `/clubpm/profile` |
+| `profile.history` | Daily activity heatmap (Overview tab) | `/clubpm/profile?tab=overview` |
 
 ## Communications
 

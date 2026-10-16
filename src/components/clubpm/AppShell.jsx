@@ -56,7 +56,6 @@ function getBreadcrumb(pathname) {
   if (pathname === '/clubpm/profile') return [{ label: 'Profile' }];
   if (pathname.startsWith('/clubpm/profile/')) return [{ label: 'Members', href: '/clubpm/members' }, { label: 'Profile' }];
   if (pathname === '/clubpm/shop') return [{ label: 'Shop' }];
-  if (pathname === '/clubpm/challenges') return [{ label: 'Challenges' }];
   if (pathname.startsWith('/clubpm/chat')) return [{ label: 'Social' }, { label: 'Chat' }];
   if (pathname.startsWith('/clubpm/lab/')) return [{ label: 'Lab check-in' }];
   if (pathname === '/clubpm/patch-notes') return [{ label: 'Other' }, { label: "What's new" }];
@@ -742,17 +741,6 @@ export default function AppShell({ children }) {
               </svg>
               <span style={{ fontSize: '0.7rem' }}>⌘K</span>
             </button>
-
-            {/* Quests */}
-            <Link
-              to="/clubpm/challenges"
-              className={`pm-topbar-btn${location.pathname === '/clubpm/challenges' ? ' active' : ''}`}
-              title="Quests & achievements"
-              aria-label="Quests and achievements"
-              data-tour-id="topbar.challenges"
-            >
-              <i className="fas fa-trophy" aria-hidden="true" style={{ fontSize: 14 }} />
-            </Link>
 
             {/* Streak badge */}
             {member ? <div data-tour-id="topbar.streak"><StreakBadge /></div> : null}

@@ -27,13 +27,24 @@ export const useTour = () => useContext(TourContext);
 
 const RESUME_KEY = "clubpm_tour_resume";
 
-/** "/clubpm/projects/:id" matches "/clubpm/projects/abc123". */
-function routeMatches(pattern, pathname) {
+/**
+ * "/clubpm/projects/:id" matches "/clubpm/projects/abc123". A pattern may carry a
+ * query ("/clubpm/profile?tab=quests"): every key it names must equal the
+ * current one, so a step can require a specific tab of a page.
+ */
+function routeMatches(pattern, pathname, search = "") {
   if (!pattern || pattern === "*") return true;
-  const p = pattern.split("/").filter(Boolean);
+  const [patternPath, patternQuery] = pattern.split("?");
+  const p = patternPath.split("/").filter(Boolean);
   const a = pathname.split("/").filter(Boolean);
   if (p.length !== a.length) return false;
-  return p.every((seg, i) => seg.startsWith(":") || seg === a[i]);
+  if (!p.every((seg, i) => seg.startsWith(":") || seg === a[i])) return false;
+  if (!patternQuery) return true;
+  const have = new URLSearchParams(search);
+  for (const [k, v] of new URLSearchParams(patternQuery)) {
+    if (have.get(k) !== v) return false;
+  }
+  return true;
 }
 
 /**
@@ -108,7 +119,7 @@ export function TourProvider({ children }) {
     stepIndexRef.current = config.resumeAt ?? 0;
     setStatus("running");
     const entry = resolveRoute(config.entryRoute, config.projectId);
-    if (entry && !routeMatches(config.entryRoute, window.location.pathname)) {
+    if (entry && !routeMatches(config.entryRoute, window.location.pathname, window.location.search)) {
       navigate(entry);
     }
   }, [navigate]);
@@ -187,10 +198,10 @@ export function TourProvider({ children }) {
   // Navigate to the step's declared route before the overlay hunts for it.
   useEffect(() => {
     if (status !== "running" || !step?.route) return;
-    if (routeMatches(step.route, location.pathname)) return;
+    if (routeMatches(step.route, location.pathname, location.search)) return;
     const target = resolveRoute(step.route, tour?.projectId);
     if (target) navigate(target);
-  }, [status, step, location.pathname, navigate, tour]);
+  }, [status, step, location.pathname, location.search, navigate, tour]);
 
   // advance.on === "route"
   useEffect(() => {

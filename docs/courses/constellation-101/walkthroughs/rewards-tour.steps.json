@@ -1,13 +1,13 @@
 {
   "tourId": "rewards-tour",
   "title": "Quests, the shop, and your profile",
-  "entryRoute": "/clubpm/challenges",
+  "entryRoute": "/clubpm/profile?tab=quests",
   "requiresTrainingProject": false,
   "steps": [
     {
       "id": "active-quests",
       "anchor": "challenges.active",
-      "route": "/clubpm/challenges",
+      "route": "/clubpm/profile?tab=quests",
       "title": "Today's quests",
       "body": "Daily, weekly, and monthly. They rotate at midnight UTC and they're the same for everyone — nobody is being handed an easier set.",
       "placement": "right",
@@ -16,7 +16,7 @@
     {
       "id": "claim",
       "anchor": "challenges.claim",
-      "route": "/clubpm/challenges",
+      "route": "/clubpm/profile?tab=quests",
       "title": "Claim one",
       "body": "Claim it. If nothing here is finished yet, there will be no Claim button — skip this step and come back once you have done a day of real work.",
       "placement": "right",
@@ -26,7 +26,7 @@
     {
       "id": "achievements",
       "anchor": "challenges.achievements",
-      "route": "/clubpm/challenges",
+      "route": "/clubpm/profile?tab=quests",
       "title": "Achievements",
       "body": "One-off, permanent, and mostly hidden until you trigger them. They're for the things nobody would set as a goal but everyone appreciates — like being first to review someone's change request.",
       "placement": "top",
@@ -35,7 +35,7 @@
     {
       "id": "to-shop",
       "anchor": "nav.shop",
-      "route": "/clubpm/challenges",
+      "route": "/clubpm/profile?tab=quests",
       "title": "Go to the shop",
       "body": "This is where doubloons actually go.",
       "placement": "right",

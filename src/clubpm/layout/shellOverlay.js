@@ -74,7 +74,7 @@ let revealRoute = '*';      // the requesting step's route pattern
 
 function routeMatches(pattern, pathname) {
   if (!pattern || pattern === '*') return true;
-  const p = pattern.split('/').filter(Boolean);
+  const p = pattern.split('?')[0].split('/').filter(Boolean);
   const a = pathname.split('/').filter(Boolean);
   return p.length === a.length && p.every((seg, i) => seg.startsWith(':') || seg === a[i]);
 }

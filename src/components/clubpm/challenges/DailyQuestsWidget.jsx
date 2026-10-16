@@ -44,7 +44,7 @@ export default function DailyQuestsWidget() {
             <i className="fas fa-sun" aria-hidden="true" style={{ color: '#ffd600' }} />
             Daily Quests
           </div>
-          <Link className="daily-quests-widget-link" to="/clubpm/challenges">
+          <Link className="daily-quests-widget-link" to="/clubpm/profile?tab=quests">
             View All
           </Link>
         </div>
@@ -59,10 +59,10 @@ export default function DailyQuestsWidget() {
               <div
                 key={mc.id}
                 className="daily-quest-row"
-                onClick={() => navigate('/clubpm/challenges')}
+                onClick={() => navigate('/clubpm/profile?tab=quests')}
                 role="button"
                 tabIndex={0}
-                onKeyDown={e => e.key === 'Enter' && navigate('/clubpm/challenges')}
+                onKeyDown={e => e.key === 'Enter' && navigate('/clubpm/profile?tab=quests')}
               >
                 <div className="daily-quest-row-icon">
                   <i className={mc.iconClass || 'fas fa-star'} aria-hidden="true" />

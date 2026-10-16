@@ -76,7 +76,6 @@ const CourseEditorPage       = lazy(lazyWithClubPmTheme(() => import('./pages/Cl
 const CoursePlayerPage       = lazy(lazyWithClubPmTheme(() => import('./pages/ClubPM/CoursePlayerPage')));
 const ClubPmProfile  = lazy(lazyWithClubPmTheme(() => import('./pages/ClubPM/Profile')));
 const ClubPmShop     = lazy(lazyWithClubPmTheme(() => import('./pages/ClubPM/Shop')));
-const ChallengesPage = lazy(lazyWithClubPmTheme(() => import('./pages/ClubPM/ChallengesPage')));
 const LabScanPage    = lazy(lazyWithClubPmTheme(() => import('./pages/ClubPM/LabScanPage')));
 const PatchNotesPage = lazy(lazyWithClubPmTheme(() => import('./pages/ClubPM/PatchNotesPage')));
 
@@ -159,7 +158,7 @@ function AnimatedRoutes() {
             <Route path="/clubpm/profile" element={<ClubPmProtectedPage><Suspense fallback={clubPmFallback}><ClubPmProfile /></Suspense></ClubPmProtectedPage>} />
             <Route path="/clubpm/profile/:memberId" element={<ClubPmProtectedPage><Suspense fallback={clubPmFallback}><ClubPmProfile /></Suspense></ClubPmProtectedPage>} />
             <Route path="/clubpm/shop" element={<ClubPmProtectedPage><Suspense fallback={clubPmFallback}><ClubPmShop /></Suspense></ClubPmProtectedPage>} />
-            <Route path="/clubpm/challenges" element={<ClubPmProtectedPage><Suspense fallback={clubPmFallback}><ChallengesPage /></Suspense></ClubPmProtectedPage>} />
+            <Route path="/clubpm/challenges" element={<Navigate to="/clubpm/profile?tab=quests" replace />} />
             <Route path="/clubpm/lab/:workspaceId" element={<ClubPmProtectedPage><Suspense fallback={clubPmFallback}><LabScanPage /></Suspense></ClubPmProtectedPage>} />
             <Route path="/clubpm/patch-notes" element={<ClubPmProtectedPage><Suspense fallback={clubPmFallback}><PatchNotesPage /></Suspense></ClubPmProtectedPage>} />
 

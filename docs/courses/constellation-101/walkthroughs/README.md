@@ -12,11 +12,11 @@ training project.**
 | `board-basics` | 10 | training project | Yes | 0 |
 | `your-first-task` | 13 | training project | Yes | 6 |
 | `blocked-and-unblocked` | 11 | training project | Yes | 4 |
-| `rewards-tour` | 8 | `/clubpm/challenges` | No | 1 (optional) |
+| `rewards-tour` | 8 | `/clubpm/profile?tab=quests` | No | 1 (optional) |
 | `comms-tour` | 10 | `/clubpm/notifications` | No | 0 |
 
 The dashboard puts assigned work first and shows recent activity from projects you contribute to.
-Project insights and the seven-day agenda remain available; quests live on Challenges.
+Project insights and the seven-day agenda remain available; quests live on the Quests tab of your profile (the old Challenges page was merged into it).
 
 Desktop board controls sit on the right of the project description: sort, show archived, and a source filter when sub-project tasks are available. The board-basics controls step targets this row.
 

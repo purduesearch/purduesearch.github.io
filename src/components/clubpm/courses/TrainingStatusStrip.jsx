@@ -12,7 +12,7 @@ const fmtDate = (d) =>
  * not public within the club, and the backing route is `my-status`, which only
  * ever answers for the caller.
  */
-export default function TrainingStatusStrip({ isSelf }) {
+export default function TrainingStatusStrip({ isSelf, emptyText = null }) {
   const [rows, setRows]       = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -28,7 +28,10 @@ export default function TrainingStatusStrip({ isSelf }) {
 
   // Nothing to say when there is no registry yet, and nothing to say on someone
   // else's profile. Render nothing rather than an empty card.
-  if (!isSelf || loading || !rows.length) return null;
+  if (!isSelf || loading) return null;
+  if (!rows.length) {
+    return emptyText ? <section className="cpm-card cpm-training-strip"><p className="cpm-pf-empty">{emptyText}</p></section> : null;
+  }
 
   return (
     <section className="cpm-card cpm-training-strip">

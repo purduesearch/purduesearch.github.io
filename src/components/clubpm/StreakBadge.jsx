@@ -136,13 +136,13 @@ export default function StreakBadge() {
   return (
     <Link
       ref={wrapRef}
-      to="/clubpm/challenges"
+      to="/clubpm/profile?tab=quests"
       className={`pm-streak-badge ${count > 0 ? 'is-active' : ''}`}
       onMouseEnter={() => setTooltipOpen(true)}
       onMouseLeave={() => setTooltipOpen(false)}
       onFocus={() => setTooltipOpen(true)}
       onBlur={() => setTooltipOpen(false)}
-      aria-label={`${count}-day streak. ${freezes} freezes available. Last active ${lastActive}. Open Challenges.`}
+      aria-label={`${count}-day streak. ${freezes} freezes available. Last active ${lastActive}. Open your quests.`}
     >
       <img
         ref={flameRef}
@@ -167,7 +167,7 @@ export default function StreakBadge() {
             Last active {lastActive}
           </div>
           <div className="pm-streak-tooltip-row pm-streak-tooltip-sub">
-            Click to open Challenges
+            Click to open your quests
           </div>
         </div>
       ) : null}

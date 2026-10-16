@@ -25,6 +25,7 @@ export default function ChallengeCard({ challenge, onClaim, loading, claimTourId
   return (
     <div
       className="quest-card"
+      data-quest-id={id}
       data-completed={completed ? 'true' : 'false'}
     >
       <div className="quest-icon">

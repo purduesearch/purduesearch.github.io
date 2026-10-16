@@ -262,7 +262,7 @@ describe('compact shell', () => {
     expect(probe.location.state).toEqual({ pmOverlay: 'more' });
     // Non-admins get no Admin row.
     expect(within(sheet).queryByText('Admin')).toBeNull();
-    ['Profile', 'Quests & achievements', 'Shop', 'People & DMs', 'Notification Center',
+    ['Profile', 'Shop', 'People & DMs', 'Notification Center',
       'Notification preferences', 'Outreach Hub', 'Blog', 'Courses', 'Keyboard shortcuts', 'Main site', 'Sign out']
       .forEach(label => expect(within(sheet).getByText(label)).toBeInTheDocument());
     expectUniqueTourIds();

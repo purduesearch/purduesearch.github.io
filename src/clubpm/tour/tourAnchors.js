@@ -44,7 +44,6 @@ export const TOUR_ANCHORS = Object.freeze({
   "topbar.search":          { label: "Command palette",      route: "*", layout: "both",    note: "AI command palette trigger; header Search icon on phones (full-screen)" },
   "chat.people":            { label: "People & DMs shortcut", route: "/clubpm/chat", layout: "compact", note: "First row on the phone channel-list landing screen" },
   "topbar.streak":          { label: "Streak counter",       route: "*", layout: "both", reveal: "more",    note: "Flame counter; More › Progress on phones" },
-  "topbar.challenges":      { label: "Quests button",        route: "*", layout: "both", reveal: "more",    note: "Trophy icon — was the nav.challenges sidebar link; More › Quests & achievements on phones" },
 
   // Dashboard — src/pages/ClubPM/Dashboard.jsx
   "nav.xp":                 { label: "XP bar",               route: "*",       layout: "both", reveal: "more", note: "Sidebar XP progress bar; More › Progress on phones — the product has no XP stat tile" },
@@ -108,14 +107,14 @@ export const TOUR_ANCHORS = Object.freeze({
   "task.modal.history":     { label: "History tab",          route: "*", note: "Audit trail" },
 
   // Gamification
-  "challenges.active":       { label: "Active quests",       route: "/clubpm/challenges", note: "" },
-  "challenges.claim":        { label: "Claim button",        route: "/clubpm/challenges", note: "First claimable quest only" },
-  "challenges.achievements": { label: "Achievement grid",    route: "/clubpm/challenges", note: "" },
+  "challenges.active":       { label: "Active quests",       route: "/clubpm/profile?tab=quests", note: "Quests tab of the profile (the old /clubpm/challenges page was merged into it)" },
+  "challenges.claim":        { label: "Claim button",        route: "/clubpm/profile?tab=quests", note: "First claimable quest only" },
+  "challenges.achievements": { label: "Achievement grid",    route: "/clubpm/profile?tab=quests", note: "" },
   "shop.grid":               { label: "Cosmetic grid",       route: "/clubpm/shop", note: "" },
   "shop.balance":            { label: "Doubloon balance",    route: "/clubpm/shop", note: "" },
   "profile.rank":            { label: "Rank + XP bar",       route: "/clubpm/profile", note: "" },
-  "profile.avatar":          { label: "Avatar editor",       route: "/clubpm/profile", note: "" },
-  "profile.history":         { label: "XP history",          route: "/clubpm/profile", note: "" },
+  "profile.avatar":          { label: "Avatar editor",       route: "/clubpm/profile", note: "Avatar + XP ring in the identity card, visible on every tab" },
+  "profile.history":         { label: "XP history",          route: "/clubpm/profile?tab=overview", note: "Daily activity heatmap on the Overview tab" },
 
   // Communications
   "notifications.list":     { label: "Notification list",    route: "/clubpm/notifications", note: "" },

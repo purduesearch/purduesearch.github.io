@@ -6,7 +6,6 @@ const MORE_TITLES = [
   ['/clubpm/notifications', 'Notifications', '/clubpm'],
   ['/clubpm/profile', 'Profile', '/clubpm'],
   ['/clubpm/shop', 'Shop', '/clubpm'],
-  ['/clubpm/challenges', 'Quests & achievements', '/clubpm'],
   ['/clubpm/admin', 'Admin', '/clubpm'],
   ['/clubpm/courses', 'Courses', '/clubpm'],
   ['/clubpm/activity', 'Activity', '/clubpm'],
