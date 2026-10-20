@@ -32176,9 +32176,24 @@ button.pm-task-check { cursor: pointer; }
 .cpm-course-grid {
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr));
 }
+.cpm-course-card {
+  grid-template-columns: 84px minmax(0, 1fr);
+}
+.cpm-course-card-main {
+  grid-column: 1 / -1;
+  grid-row: 2;
+}
+.cpm-course-card-actions {
+  grid-column: 2;
+  grid-row: 1;
+  flex-direction: row;
+  justify-content: flex-end;
+  padding-right: 20px;
+}
 .cpm-course-card-title {
   white-space: normal;
   overflow: visible;
   text-overflow: clip;
-  overflow-wrap: anywhere;
+  overflow-wrap: normal;
+  word-break: normal;
 }
