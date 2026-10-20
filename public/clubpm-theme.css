@@ -32171,3 +32171,14 @@ button.pm-task-check { cursor: pointer; }
   .pm-sk-header > .pm-sk-button { flex: none; min-width: 44px; padding: 9px; font-size: 0; margin-top: 23px; }
   .pm-sk-header > .pm-sk-button i { font-size: 15px; }
 }
+
+/* Keep catalog titles readable in full, including on narrow screens. */
+.cpm-course-grid {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr));
+}
+.cpm-course-card-title {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
+}
