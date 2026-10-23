@@ -3,7 +3,11 @@ import {
   LIMITS,
   LockTable,
   RateLimiter,
+  familyRootOf,
   parseClientMessage,
+  roomsForRow,
+  toPatchEntry,
+  type PatchRow,
 } from "./boardPresenceCore.js";
 
 // parseClientMessage: cursor frames clamp and round fractions
@@ -113,5 +117,34 @@ assert.deepEqual(parseClientMessage(JSON.stringify(["sel", ["a", "a", "b"]])), {
   assert.equal(t.get("b")?.sid, "s1");
   assert.equal(t.get("b")?.memberId, "m1");
 }
+
+// toPatchEntry: ISO date, sorted assignees, optional keys omitted when absent
+{
+  const row: PatchRow = {
+    id: "k1", projectId: "p1", parentProjectId: null, status: "DONE", priority: "HIGH", title: "T",
+    dueDate: new Date("2026-10-30T00:00:00.000Z"), progress: "IN_PROGRESS", archivedAt: null,
+    parentTaskId: null, updatedAt: new Date(1234), assigneeIds: ["m2", "m1"],
+  };
+  assert.deepEqual(toPatchEntry(row, undefined, undefined), {
+    id: "k1", p: "p1", s: "DONE", pr: "HIGH", ti: "T", du: "2026-10-30T00:00:00.000Z", pg: "IN_PROGRESS",
+    ar: false, pt: null, a: ["m1", "m2"], u: 1234,
+  });
+  assert.deepEqual(toPatchEntry({ ...row, dueDate: null, archivedAt: new Date(0) }, { actorId: "m9", source: "SLACK" }, "s4"), {
+    id: "k1", p: "p1", s: "DONE", pr: "HIGH", ti: "T", du: null, pg: "IN_PROGRESS",
+    ar: true, pt: null, a: ["m1", "m2"], u: 1234, by: "s4", ac: "m9", src: "SLACK",
+  });
+}
+
+// roomsForRow: roll-up on gives two rooms, off gives one, root gives one
+{
+  const child = { projectId: "c1", parentProjectId: "p1" };
+  assert.deepEqual(roomsForRow(child, true), ["c1", "p1"]);
+  assert.deepEqual(roomsForRow(child, false), ["c1"]);
+  assert.deepEqual(roomsForRow({ projectId: "p1", parentProjectId: null }, true), ["p1"]);
+}
+
+// familyRootOf: a child belongs to its parent's family, a root to itself
+assert.equal(familyRootOf({ projectId: "c1", parentProjectId: "p1" }), "p1");
+assert.equal(familyRootOf({ projectId: "p1", parentProjectId: null }), "p1");
 
 console.log("boardPresenceCore tests passed");

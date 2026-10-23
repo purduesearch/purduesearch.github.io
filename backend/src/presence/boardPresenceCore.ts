@@ -187,3 +187,47 @@ export class LockTable {
     if (!this.locks.has(taskId)) this.locks.set(taskId, { sid: null, memberId, grantedAt: now, renewedAt: now, droppedAt: null });
   }
 }
+
+// ── Patches ────────────────────────────────────────────────────────────────
+
+export type PatchRow = {
+  id: string;
+  projectId: string;
+  parentProjectId: string | null;
+  status: string;
+  priority: string;
+  title: string;
+  dueDate: Date | null;
+  progress: string;
+  archivedAt: Date | null;
+  parentTaskId: string | null;
+  updatedAt: Date;
+  assigneeIds: string[];
+};
+export type PatchMeta = { actorId?: string; source?: string };
+export type PatchEntry =
+  | { id: string; p: string; s: string; pr: string; ti: string; du: string | null; pg: string; ar: boolean;
+      pt: string | null; a: string[]; u: number; by?: string; ac?: string; src?: string }
+  | { id: string; gone: true };
+
+export function toPatchEntry(row: PatchRow, meta: PatchMeta | undefined, bySid: string | null | undefined): PatchEntry {
+  const e: PatchEntry = {
+    id: row.id, p: row.projectId, s: row.status, pr: row.priority, ti: row.title,
+    du: row.dueDate ? row.dueDate.toISOString() : null, pg: row.progress, ar: row.archivedAt !== null,
+    pt: row.parentTaskId, a: [...row.assigneeIds].sort(), u: row.updatedAt.getTime(),
+  };
+  if (bySid) e.by = bySid;
+  if (meta?.actorId) e.ac = meta.actorId;
+  if (meta?.source) e.src = meta.source;
+  return e;
+}
+
+/** The family a task's board belongs to. */
+export function familyRootOf(row: Pick<PatchRow, "projectId" | "parentProjectId">): string {
+  return row.parentProjectId ?? row.projectId;
+}
+
+/** Boards that show this task: its own, plus the parent's when the child rolls tasks up. */
+export function roomsForRow(row: Pick<PatchRow, "projectId" | "parentProjectId">, parentRollsUpTasks: boolean): string[] {
+  return row.parentProjectId && parentRollsUpTasks ? [row.projectId, row.parentProjectId] : [row.projectId];
+}

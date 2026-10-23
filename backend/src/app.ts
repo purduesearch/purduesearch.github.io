@@ -72,6 +72,7 @@ import { attachBlogCollab } from "./collab/blogCollab.js";
 import { attachPressKitCollab } from "./collab/pressKitCollab.js";
 import { attachCourseCollab } from "./collab/courseCollab.js";
 import { attachBoardPresence } from "./presence/boardPresence.js";
+import { startBoardPatches } from "./presence/boardPatch.js";
 
 // ── Express Setup ────────────────────────────────────────────
 
@@ -298,6 +299,7 @@ async function start(): Promise<void> {
 
     attachBoardPresence(server);
     console.log("👥 Board presence attached at /collab/board");
+    startBoardPatches();
 
     server.on("error", (err: NodeJS.ErrnoException) => {
       if (err.code === "EADDRINUSE") {
