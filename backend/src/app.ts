@@ -71,6 +71,7 @@ import { docAccessRouter } from "./api/docAccess.js";
 import { attachBlogCollab } from "./collab/blogCollab.js";
 import { attachPressKitCollab } from "./collab/pressKitCollab.js";
 import { attachCourseCollab } from "./collab/courseCollab.js";
+import { attachBoardPresence } from "./presence/boardPresence.js";
 
 // ── Express Setup ────────────────────────────────────────────
 
@@ -294,6 +295,9 @@ async function start(): Promise<void> {
 
     attachCourseCollab(server);
     console.log("🤝 Course collab (Hocuspocus) attached at /collab/course");
+
+    attachBoardPresence(server);
+    console.log("👥 Board presence attached at /collab/board");
 
     server.on("error", (err: NodeJS.ErrnoException) => {
       if (err.code === "EADDRINUSE") {
