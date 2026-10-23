@@ -153,6 +153,16 @@ export default function useTaskAssignment(rootRef, project, setProject, persist)
         await wait(210); cleanup(); return;
       }
       if (!event.row?.isConnected) { cleanup(); return; }
+      // Remote assignment with no launch point: the data is already shown, so only the landing plays.
+      if (event.pulseOnly) {
+        event.row.classList.add('pm-assignment-landing');
+        if (!reduced()) event.members.forEach(member => {
+          const slot = Array.from(event.row.querySelectorAll('[data-assignment-member]')).find(n => n.dataset.assignmentMember === member.id);
+          play(slot, [{ transform: 'scale(1.3,.65)' }, { transform: 'scale(.85,1.2)', offset: .45 }, { transform: 'scale(1)' }],
+            { duration: 420, easing: 'ease-out' });
+        });
+        await wait(420); cleanup(); return;
+      }
       if (event.reverse) {
         const slots = Array.from(event.row.querySelectorAll('[data-assignment-member]'));
         slots.filter(n => event.ids.includes(n.dataset.assignmentMember)).forEach(n =>
@@ -267,6 +277,19 @@ export default function useTaskAssignment(rootRef, project, setProject, persist)
     }
   }
 
+  // Plays another person's assignment. The data is already applied, so this never writes.
+  // Without a launch rect it plays the landing pulse only.
+  function playRemote({ taskId, memberIds, fromRect = null }) {
+    const task = assignmentTasks(current.current?.tasks).find(t => t.id === taskId);
+    const row = rootRef.current?.querySelector(`[data-completion-id="${taskId}"]`);
+    const members = memberIds.map(id => task?.assignees?.find(a => a.id === id)).filter(Boolean);
+    if (!row || !members.length) return;
+    run({
+      id: taskId, row, rect: fromRect, pulseOnly: !fromRect, members,
+      before: (task.assignees ?? []).filter(a => !memberIds.includes(a.id)),
+    });
+  }
+
   async function assign(id, members, allowed) {
     const task = assignmentTasks(current.current?.tasks).find(t => t.id === id);
     if (!task || !allowed || task.archivedAt) { endDrag(true); return; }
@@ -357,5 +380,5 @@ export default function useTaskAssignment(rootRef, project, setProject, persist)
     // The root ref is stable for the lifetime of the project page.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rootRef, project?.id]);
-  return { assign, cancel, start, move, endDrag, hover, setHover, presentation, liveRef, frontOrder };
+  return { assign, playRemote, cancel, start, move, endDrag, hover, setHover, presentation, liveRef, frontOrder };
 }

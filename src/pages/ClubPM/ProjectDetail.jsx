@@ -476,6 +476,7 @@ function PresenceFlag({ cp }) {
     const label = cp.lock.board ? `${cp.lock.name} moving · ${cp.lock.board} board` : `${cp.lock.name} is moving`;
     return <span className="cpm-presence-flag"><i className="fas fa-lock" aria-hidden="true" /> {label}</span>;
   }
+  if (cp?.label) return <span className="cpm-presence-flag" style={cp.label.color ? { color: cp.label.color } : undefined}>{cp.label.text}</span>;
   if (cp?.selection) return <span className="cpm-presence-flag">{`${cp.selection.name} · ${cp.selection.count} selected`}</span>;
   if (cp?.viewing) return <span className="cpm-presence-flag">{`${cp.viewing.name} viewing`}</span>;
   return null;
@@ -2357,7 +2358,7 @@ export default function ProjectDetail() {
   const presence = useBoardPresence({
     projectId: project?.id, rootId: project?.parent?.id ?? project?.id, rootRef: completionRootRef,
     enabled: activeTab === "tasks" && !!project, compact,
-    onPatch: (entries, core) => handlePresencePatch(entries, core),
+    onPatch: (entries, core, state) => handlePresencePatch(entries, core, state),
   });
 
   // Preserve old project deep links while routing them into the merged tabs.
@@ -2486,8 +2487,22 @@ export default function ProjectDetail() {
   // by rows and handleRowClick, and the last rects of drag ghosts (read by the snap rule).
   const lockRef = useRef(null);
   const presenceCardRef = useRef(null);
-  presenceCardRef.current = presence.cardContext;
   const lastGhostRectsRef = useRef(new Map());
+  // taskId → { text, color, until }: short "via Slack" / "updated" flags for changes made elsewhere.
+  const [remoteLabels, setRemoteLabels] = useState(() => new Map());
+  const labelledCardContext = useMemo(() => {
+    const base = presence.cardContext;
+    if (!base) return null;
+    return {
+      cardInfo(taskId) {
+        const info = base.cardInfo(taskId);
+        const label = remoteLabels.get(taskId);
+        if (!label) return info;
+        return { ...(info ?? { lock: null, selection: null, viewing: null }), label };
+      },
+    };
+  }, [presence.cardContext, remoteLabels]);
+  presenceCardRef.current = labelledCardContext;
   useEffect(() => {
     const t = setTimeout(() => presence.client?.selection([...selectedTaskIds]), 100);
     return () => clearTimeout(t);
@@ -2644,14 +2659,85 @@ export default function ProjectDetail() {
   }, [fetchProject]);
 
   // Applies another person's committed change in place. Returns the plan for later animation code.
-  const handlePresencePatch = useCallback((entries, core) => {
+  // Read every rect and name before setProject: the animations start from the old slots.
+  const handlePresencePatch = useCallback((entries, core, state) => {
     const current = projectRef.current;
     const boardProjectIds = new Set([current?.id, ...(current?.rollupSources ?? []).map(s => s.projectId)]);
     const plan = core.planPatch(current, entries, { boardProjectIds, showArchived });
+    const now = Date.now();
+    const entryById = new Map(entries.map(e => [e.id, e]));
+    const flat = (current?.tasks ?? []).flatMap(t => [t, ...(t.subtasks ?? [])]);
+    const ghostRectOf = id => { const ghost = lastGhostRectsRef.current.get(id); return ghost && now - ghost.at <= 3000 ? ghost.rect : null; };
+    const rectOf = id => ghostRectOf(id) ?? completionRootRef.current?.querySelector(`[data-completion-id="${id}"]`)?.getBoundingClientRect() ?? null;
+    const holderOf = e => (e.by ? state?.conns.get(e.by) : null);
+    const personOf = e => {
+      const holder = holderOf(e);
+      if (holder) return { name: holder.name, memberId: holder.memberId };
+      if (!e.ac) return null;
+      const pm = (current?.members ?? []).find(m => (m.memberId ?? m.member?.id) === e.ac);
+      return { name: pm?.member?.displayName, memberId: e.ac };
+    };
+
+    if (plan.moves.length > 6) {
+      const actor = personOf(entryById.get(plan.moves[0].id));
+      const who = actor?.name ? core.shortName(actor.name) : 'Someone';
+      const binLabel = BINS.find(b => b.id === plan.moves[0].to)?.label ?? plan.moves[0].to;
+      const color = core.memberColor(actor?.memberId ?? '');
+      requestAnimationFrame(() => plan.moves.forEach(m => {
+        completionRootRef.current?.querySelector(`[data-completion-id="${m.id}"]`)?.animate?.(
+          [{ boxShadow: `0 0 0 3px ${color}` }, { boxShadow: '0 0 0 3px transparent' }], { duration: 900 });
+      }));
+      toast.success(`${who} moved ${plan.moves.length} cards to ${binLabel}`);
+    } else if (plan.moves.length) {
+      // Status is driven by applyRemote, so applyPlan must not also set it.
+      const groups = new Map();
+      for (const m of plan.moves) {
+        const task = flat.find(t => t.id === m.id);
+        if (!task) continue;
+        const group = groups.get(m.to) ?? { tasks: [], rect: null };
+        group.tasks.push(task);
+        group.rect = group.rect ?? rectOf(m.id);
+        groups.set(m.to, group);
+        delete plan.updates.get(m.id)?.status;
+      }
+      groups.forEach((group, status) => completion.applyRemote(group.tasks, status, group.rect));
+    }
+
+    for (const e of entries) {
+      if (e.gone || !plan.updates.has(e.id)) continue;
+      const holder = holderOf(e);
+      const person = personOf(e);
+      let text = null, color = null;
+      if (e.src === 'SLACK' || e.src === 'AI') {
+        text = e.src === 'SLACK' ? 'via Slack' : 'via AI plan';
+        color = '#6cb6ff';
+      } else if (ghostRectOf(e.id)) {
+        continue; // this room already showed the drag
+      } else if (holder && holder.room !== current?.id) {
+        text = `from ${state?.projects?.get(holder.room) ?? 'another'} board`;
+      } else if (e.ac && e.ac !== member?.id) {
+        text = `${person?.name ? core.shortName(person.name) : 'Someone'} updated`;
+      }
+      if (!text) continue;
+      if (!color && person) color = core.memberColor(person.memberId);
+      setRemoteLabels(prev => new Map(prev).set(e.id, { text, color, until: now + 2600 }));
+      window.setTimeout(() => setRemoteLabels(prev => {
+        const hit = prev.get(e.id);
+        if (!hit || hit.until > Date.now()) return prev;
+        const next = new Map(prev);
+        next.delete(e.id);
+        return next;
+      }), 2600);
+    }
+
+    // Assignments play after the data commits, so the landing pulse finds the new avatar slot.
+    for (const a of plan.assigned) {
+      requestAnimationFrame(() => assignment.playRemote({ taskId: a.id, memberIds: a.added }));
+    }
     setProject(cur => core.applyPlan(cur, plan));
     if (plan.refetch) refetchSoon();
     return plan;
-  }, [showArchived, refetchSoon]);
+  }, [showArchived, refetchSoon, completion, assignment, member]);
 
   // memberId -> { isLead, leadTitle } for everyone on this project.
   const leadByMemberId = useMemo(
@@ -3651,7 +3737,7 @@ export default function ProjectDetail() {
     <div ref={assignment.liveRef} className="pm-completion-live" aria-live="polite" aria-atomic="true" />
     <div ref={completion.liveRef} className="pm-completion-live" aria-live="polite" aria-atomic="true" />
     <div className="cpm-project-layout">
-      <BoardPresenceContext.Provider value={presence.cardContext}><DndContext
+      <BoardPresenceContext.Provider value={labelledCardContext}><DndContext
         sensors={sensors}
         collisionDetection={kanbanCollisionDetection}
         onDragStart={handleDragStart}

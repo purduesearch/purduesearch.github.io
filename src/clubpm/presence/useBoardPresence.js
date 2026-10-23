@@ -22,6 +22,7 @@ export default function useBoardPresence({ projectId, rootId, rootRef, enabled, 
   const carriedRef = useRef(new Set());           // task ids this tab is dragging (skipped by the anchor encoder)
   const onPatchRef = useRef(onPatch);
   onPatchRef.current = onPatch;
+  const stateRef = useRef(null);                  // latest presence state, read by onPatch (names, rooms)
 
   useEffect(() => {
     if (!enabled || !projectId || !rootId) return undefined;
@@ -30,7 +31,8 @@ export default function useBoardPresence({ projectId, rootId, rootRef, enabled, 
     const start = () => import('./boardPresenceClient').then(mod => {
       if (cancelled) return;
       coreRef.current = mod;
-      setState(mod.emptyPresence());
+      stateRef.current = mod.emptyPresence();
+      setState(stateRef.current);
       clientRef.current = mod.createBoardPresence({
         projectId, rootId, getToken: getStoredToken, onStatus: setStatus,
         onMessage(msg) {
@@ -43,7 +45,7 @@ export default function useBoardPresence({ projectId, rootId, rootRef, enabled, 
             }
             return;
           }
-          if (msg[0] === 'p') onPatchRef.current?.(msg[1], mod);
+          if (msg[0] === 'p') onPatchRef.current?.(msg[1], mod, stateRef.current);
           if (msg[0] === 'bye' || msg[0] === 'room') buffersRef.current.delete(msg[1]);
           if (msg[0] === 'hi') {
             buffersRef.current.clear();
@@ -54,7 +56,8 @@ export default function useBoardPresence({ projectId, rootId, rootRef, enabled, 
               buffersRef.current.set(sid, buf);
             }
           }
-          setState(s => mod.reducePresence(s ?? mod.emptyPresence(), msg));
+          stateRef.current = mod.reducePresence(stateRef.current ?? mod.emptyPresence(), msg);
+          setState(stateRef.current);
         },
       });
     });
@@ -67,6 +70,7 @@ export default function useBoardPresence({ projectId, rootId, rootRef, enabled, 
       clientRef.current?.dispose();
       clientRef.current = null;
       buffers.clear();
+      stateRef.current = null;
       setState(null);
       setStatus('off');
     };
