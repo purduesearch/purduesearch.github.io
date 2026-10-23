@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useRef, useState } from 'react';
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { getStoredToken } from '../../api/clubPmClient';
 
 /** Per-card presence for task rows: { lock, selection, viewing, label } or null. */
@@ -90,5 +90,17 @@ export default function useBoardPresence({ projectId, rootId, rootRef, enabled, 
     return () => { root.removeEventListener('pointermove', onMove); cancelAnimationFrame(frame); };
   }, [rootRef, compact, status]);
 
-  return { state, status, core: coreRef.current, client: clientRef.current, buffersRef, carriedRef };
+  // Per-card lookups for row flags, locks and drag guards. Null until the core has loaded.
+  const cardContext = useMemo(() => {
+    const core = coreRef.current;
+    if (!state || !core) return null;
+    return {
+      cardInfo(taskId) {
+        const info = { lock: core.lockInfo(state, taskId), selection: core.selectionInfo(state, taskId), viewing: core.viewingInfo(state, taskId) };
+        return info.lock || info.selection || info.viewing ? info : null;
+      },
+    };
+  }, [state]);
+
+  return { state, status, core: coreRef.current, client: clientRef.current, buffersRef, carriedRef, cardContext };
 }
