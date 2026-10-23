@@ -9,6 +9,7 @@ import { recordTimeLog } from "./timeLogService.js";
 import { parseMentionHandles } from "./mentionService.js";
 import type { ActorRewardSummary } from "./rewardService.js";
 import type { ProgressMilestone } from "./challengeService.js";
+import { lockedByOthers } from "./boardLockService.js";
 
 export type MutationSource = "WEB" | "SLACK" | "AI";
 
@@ -16,6 +17,14 @@ export class TaskMutationError extends Error {
   constructor(public status: number, message: string) {
     super(message);
   }
+}
+
+/** 423 when someone else is carrying one of these cards on a live board. */
+export async function assertNotBoardLocked(taskIds: string[], actorId: string): Promise<void> {
+  const held = await lockedByOthers(taskIds, actorId);
+  if (!held.length) return;
+  const holder = await prismaClient.member.findUnique({ where: { id: held[0].memberId }, select: { displayName: true } });
+  throw new TaskMutationError(423, `${holder?.displayName ?? "Someone"} is moving this card right now. Try again in a moment.`);
 }
 
 export interface TaskPatch {
@@ -113,6 +122,7 @@ export async function updateTaskAsMember(
     if (!canEdit) {
       throw new TaskMutationError(403, "Only assignees, the creator, a project lead, or an admin can edit this task");
     }
+    if (status !== undefined || assigneeIds !== undefined || parentTaskId !== undefined) await assertNotBoardLocked([taskId], actorId);
 
     // Validate every submitted child before changing the parent. Editing a
     // parent does not grant edit permission on another member's child task.
@@ -220,7 +230,7 @@ export async function updateTaskAsMember(
         await updateTask(taskId, { status: "TODO" });
       }
       const { emitTaskChanged } = await import("./taskChangeBus.js");
-      emitTaskChanged(taskId);
+      emitTaskChanged(taskId, { actorId, source });
       task = (await getTask(taskId))!;
     }
     for (const child of patch.subtasks ?? []) {
@@ -634,13 +644,14 @@ export async function archiveTaskAsMember(memberId: string, taskId: string, sour
   if (!canArchive) {
     throw new TaskMutationError(403, "Only the creator, an admin, or a completed task's team can archive it");
   }
+  await assertNotBoardLocked([taskId], memberId);
 
   const task = await prismaClient.task.update({
     where: { id: taskId },
     data: { archivedAt: new Date(), archivedById: memberId },
   });
   const { emitTaskChanged } = await import("./taskChangeBus.js");
-  emitTaskChanged(taskId);
+  emitTaskChanged(taskId, { actorId: memberId, source });
 
   logAuditEvent({
     projectId: existingTask.projectId,
