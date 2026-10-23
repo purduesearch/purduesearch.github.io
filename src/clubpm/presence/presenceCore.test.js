@@ -1,6 +1,6 @@
 import {
   shortName, memberColor, sampleAt, createSampleBuffer, pushSample, emptyPresence,
-  reducePresence, lockInfo, encodeAnchor, decodeAnchor,
+  reducePresence, lockInfo, encodeAnchor, decodeAnchor, planPatch, applyPlan,
 } from './presenceCore';
 
 describe('shortName', () => {
@@ -159,5 +159,84 @@ describe('encodeAnchor / decodeAnchor', () => {
 
     const [anchor] = encodeAnchor(root, 200, 100, new Set(['t1']));
     expect(anchor).toBe('b');
+  });
+});
+
+describe('planPatch / applyPlan', () => {
+  const ctx = { boardProjectIds: new Set(['p1']), showArchived: false };
+  const member = (id, name = 'Ana Li') => ({ id, displayName: name, avatarUrl: null });
+  const task = (over = {}) => ({
+    id: 't1', projectId: 'p1', status: 'TODO', priority: 'LOW', title: 'Card', dueDate: null,
+    progress: 'NO_PROGRESS', parentTaskId: null, updatedAt: '2026-10-01T00:00:00.000Z',
+    assignees: [], subtasks: [], ...over,
+  });
+  const project = (tasks, members = []) => ({ id: 'p1', tasks, members: members.map(m => ({ member: m })) });
+  const entry = (over = {}) => ({
+    id: 't1', p: 'p1', s: 'TODO', pr: 'LOW', ti: 'Card', du: null, pg: 'NO_PROGRESS',
+    ar: false, pt: null, a: [], u: Date.parse('2026-10-02T00:00:00.000Z'), ...over,
+  });
+
+  test('status move is planned and applied', () => {
+    const proj = project([task()]);
+    const plan = planPatch(proj, [entry({ s: 'IN_PROGRESS' })], ctx);
+    expect(plan.moves).toEqual([{ id: 't1', from: 'TODO', to: 'IN_PROGRESS' }]);
+    expect(plan.refetch).toBe(false);
+    expect(applyPlan(proj, plan).tasks[0].status).toBe('IN_PROGRESS');
+  });
+
+  test('assignee add with a known member', () => {
+    const proj = project([task()], [member('m1'), member('m2', 'Bo Chen')]);
+    const plan = planPatch(proj, [entry({ a: ['m2'] })], ctx);
+    expect(plan.assigned).toEqual([{ id: 't1', added: ['m2'] }]);
+    expect(plan.refetch).toBe(false);
+    expect(applyPlan(proj, plan).tasks[0].assignees).toEqual([member('m2', 'Bo Chen')]);
+  });
+
+  test('an unknown assignee forces a refetch', () => {
+    const plan = planPatch(project([task()]), [entry({ a: ['nobody'] })], ctx);
+    expect(plan.refetch).toBe(true);
+  });
+
+  test('a stale entry is ignored', () => {
+    const proj = project([task({ updatedAt: '2026-10-05T00:00:00.000Z' })]);
+    const plan = planPatch(proj, [entry({ s: 'DONE' })], ctx);
+    expect(plan.updates.size).toBe(0);
+    expect(plan.moves).toEqual([]);
+  });
+
+  test('a gone entry removes a subtask', () => {
+    const sub = task({ id: 's1', parentTaskId: 't1' });
+    const proj = project([task({ subtasks: [sub] })]);
+    const plan = planPatch(proj, [{ id: 's1', gone: true }], ctx);
+    expect([...plan.removed]).toEqual(['s1']);
+    const next = applyPlan(proj, plan);
+    expect(next.tasks[0].subtasks).toEqual([]);
+  });
+
+  test('a new task in the board project forces a refetch', () => {
+    const plan = planPatch(project([task()]), [entry({ id: 'tNew' })], ctx);
+    expect(plan.refetch).toBe(true);
+  });
+
+  test('a task from an unrelated project is ignored', () => {
+    const plan = planPatch(project([task()]), [entry({ id: 'tNew', p: 'other' })], ctx);
+    expect(plan.refetch).toBe(false);
+    expect(plan.updates.size).toBe(0);
+  });
+
+  test('archived without showArchived is removed', () => {
+    const proj = project([task()]);
+    const plan = planPatch(proj, [entry({ ar: true })], ctx);
+    expect([...plan.removed]).toEqual(['t1']);
+    expect(applyPlan(proj, plan).tasks).toEqual([]);
+  });
+
+  test('applyPlan keeps object identity for untouched tasks', () => {
+    const keep = task({ id: 't2' });
+    const proj = project([task(), keep]);
+    const plan = planPatch(proj, [entry({ s: 'DONE' })], ctx);
+    const next = applyPlan(proj, plan);
+    expect(next.tasks[1]).toBe(keep);
+    expect(next.tasks[0]).not.toBe(proj.tasks[0]);
   });
 });

@@ -206,3 +206,66 @@ export function viewingInfo(state, taskId) {
   }
   return null;
 }
+
+/**
+ * Relay patch entries → board changes. Pure: reads `project`, returns a plan.
+ *   ctx = { boardProjectIds: Set (this board's project id + rolled-up child ids), showArchived }
+ * plan = { updates: Map(id → fields), moves: [{ id, from, to }], assigned: [{ id, added: [memberId] }],
+ *          removed: Set(id), refetch: boolean }
+ */
+export function planPatch(project, entries, ctx) {
+  const plan = { updates: new Map(), moves: [], assigned: [], removed: new Set(), refetch: false };
+  if (!project) return plan;
+  const index = new Map();
+  for (const t of project.tasks ?? []) {
+    index.set(t.id, { task: t, parentId: null });
+    for (const s of t.subtasks ?? []) index.set(s.id, { task: s, parentId: t.id });
+  }
+  const people = new Map();
+  for (const pm of project.members ?? []) if (pm.member) people.set(pm.member.id, pm.member);
+  for (const { task } of index.values()) for (const a of task.assignees ?? []) people.set(a.id, a);
+
+  for (const e of entries) {
+    const hit = index.get(e.id);
+    if (e.gone) { if (hit) plan.removed.add(e.id); continue; }
+    if (!hit) { if (ctx.boardProjectIds.has(e.p)) plan.refetch = true; continue; }
+    const t = hit.task;
+    if (t.updatedAt && new Date(t.updatedAt).getTime() > e.u) continue; // stale
+    if ((e.pt ?? null) !== (hit.parentId ?? t.parentTaskId ?? null)) { plan.refetch = true; continue; }
+    if (t.projectId && t.projectId !== e.p) {
+      plan.removed.add(e.id);
+      if (ctx.boardProjectIds.has(e.p)) plan.refetch = true;
+      continue;
+    }
+    if (e.ar && !ctx.showArchived) { plan.removed.add(e.id); continue; }
+    const fields = { status: e.s, priority: e.pr, title: e.ti, dueDate: e.du, progress: e.pg, updatedAt: new Date(e.u).toISOString() };
+    const ids = e.a ?? [];
+    const before = (t.assignees ?? []).map(a => a.id);
+    if (ids.join() !== [...before].sort().join()) {
+      if (ids.every(id => people.has(id))) {
+        fields.assignees = ids.map(id => people.get(id));
+        const added = ids.filter(id => !before.includes(id));
+        if (added.length) plan.assigned.push({ id: e.id, added });
+      } else plan.refetch = true;
+    }
+    if (t.status !== e.s) plan.moves.push({ id: e.id, from: t.status, to: e.s });
+    plan.updates.set(e.id, fields);
+  }
+  return plan;
+}
+
+/** Applies a plan's updates/removals to a project, keeping unchanged task objects identical. */
+export function applyPlan(project, plan) {
+  if (!project || (!plan.updates.size && !plan.removed.size)) return project;
+  const patchTask = t => (plan.updates.has(t.id) ? { ...t, ...plan.updates.get(t.id) } : t);
+  const tasks = (project.tasks ?? [])
+    .filter(t => !plan.removed.has(t.id))
+    .map(t => {
+      const next = patchTask(t);
+      if (!t.subtasks?.length) return next;
+      const subtasks = t.subtasks.filter(s => !plan.removed.has(s.id)).map(patchTask);
+      const changed = subtasks.length !== t.subtasks.length || subtasks.some((s, i) => s !== t.subtasks[i]);
+      return changed ? { ...next, subtasks } : next;
+    });
+  return { ...project, tasks };
+}

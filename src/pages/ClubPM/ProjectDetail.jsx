@@ -2339,6 +2339,8 @@ export default function ProjectDetail() {
   const notifyStreak = useStreakWatcher();
 
   const [project, setProject] = useState(null);
+  const projectRef = useRef(project);
+  projectRef.current = project;
   const completionRootRef = useRef(null);
   const completion = useTaskCompletion(completionRootRef, project, setProject,
     (taskId, fields) => taskId
@@ -2354,7 +2356,8 @@ export default function ProjectDetail() {
   const [reportTab, setReportTab] = useState("charts");
   const presence = useBoardPresence({
     projectId: project?.id, rootId: project?.parent?.id ?? project?.id, rootRef: completionRootRef,
-    enabled: activeTab === "tasks" && !!project, compact, onPatch: null,
+    enabled: activeTab === "tasks" && !!project, compact,
+    onPatch: (entries, core) => handlePresencePatch(entries, core),
   });
 
   // Preserve old project deep links while routing them into the merged tabs.
@@ -2630,6 +2633,25 @@ export default function ProjectDetail() {
       .catch(console.error)
       .finally(() => setLoading(false));
   }, [id]);
+
+  // Coalesces refetches requested by patches that the local board cannot apply on its own.
+  const refetchSoon = useMemo(() => {
+    let timer = null;
+    return () => {
+      clearTimeout(timer);
+      timer = setTimeout(fetchProject, 400);
+    };
+  }, [fetchProject]);
+
+  // Applies another person's committed change in place. Returns the plan for later animation code.
+  const handlePresencePatch = useCallback((entries, core) => {
+    const current = projectRef.current;
+    const boardProjectIds = new Set([current?.id, ...(current?.rollupSources ?? []).map(s => s.projectId)]);
+    const plan = core.planPatch(current, entries, { boardProjectIds, showArchived });
+    setProject(cur => core.applyPlan(cur, plan));
+    if (plan.refetch) refetchSoon();
+    return plan;
+  }, [showArchived, refetchSoon]);
 
   // memberId -> { isLead, leadTitle } for everyone on this project.
   const leadByMemberId = useMemo(
