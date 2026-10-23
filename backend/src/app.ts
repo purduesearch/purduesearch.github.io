@@ -71,6 +71,9 @@ import { docAccessRouter } from "./api/docAccess.js";
 import { attachBlogCollab } from "./collab/blogCollab.js";
 import { attachPressKitCollab } from "./collab/pressKitCollab.js";
 import { attachCourseCollab } from "./collab/courseCollab.js";
+import { attachBoardPresence } from "./presence/boardPresence.js";
+import { startBoardPatches } from "./presence/boardPatch.js";
+import { startTaskChangePublisher } from "./presence/presenceBus.js";
 
 // ── Express Setup ────────────────────────────────────────────
 
@@ -294,6 +297,15 @@ async function start(): Promise<void> {
 
     attachCourseCollab(server);
     console.log("🤝 Course collab (Hocuspocus) attached at /collab/course");
+
+    if (process.env.PRESENCE_MODE === "standalone") {
+      startTaskChangePublisher();
+      console.log("👥 Board presence runs in separate workers (PRESENCE_MODE=standalone)");
+    } else {
+      attachBoardPresence(server);
+      startBoardPatches();
+      console.log("👥 Board presence attached at /collab/board");
+    }
 
     server.on("error", (err: NodeJS.ErrnoException) => {
       if (err.code === "EADDRINUSE") {

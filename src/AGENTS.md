@@ -91,6 +91,9 @@ For example, use `rg "\.pm-shell" public/clubpm-theme.css` or `rg "/\* ===" publ
 - `src/api/clubPmClient.js` — Fetch wrappers (get/post/patch/del/put). Base URL: `process.env.REACT_APP_API_URL || ""`. Sends session cookie **and** `Authorization: Bearer` from localStorage (`clubpm_auth_token`) on every call. Dispatches engagement/reward custom events from response envelopes. Also exports vault/CR, blog editor, Slack portal, course, and AI action-plan helpers.
 - `src/clubpm/ClubPmAuth.jsx` — Auth provider: consumes the `?lt=` login token, stores it, calls `/auth/me` with Bearer + cookie. `src/clubpm/` also holds ShortcutsRegistry, cosmetics registries + styles context, and engagement helpers.
 - `src/components/clubpm/ActionPlanReview.jsx` — Renders an `ActionPlan` as editable per-action cards (per-type field config, accept/decline, rationale) for the AiPanel "Action Plan" section in `ProjectDetail.jsx`. See **AI Action Plan** above for the schema.
+- `src/clubpm/presence/useBoardPresence.js` — Live-board hook used by `ProjectDetail.jsx`. It must not statically import `presenceCore.js` or `boardPresenceClient.js`; it loads both with dynamic `import()` after first paint (the `+0 KB` rule). `BoardPresenceContext` and `useCardPresence` hand each row its lock, selection and viewing state; rows read presence from context, not props.
+- Live-board anchors are `data-completion-id` (task rows), `data-bin-id` (status bins) and `data-presence-member` (member chips). Cursors and ghosts find the DOM through them, so renaming any of these breaks presence silently.
+- Snap rule: a patch that moves more than 6 cards gets no flight animation. It flashes each row and shows one toast. At 6 or fewer, each card animates as its own completion or assignment. Do not change the threshold without updating locked decision 10.
 
 ---
 

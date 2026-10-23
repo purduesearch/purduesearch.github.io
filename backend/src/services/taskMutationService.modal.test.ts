@@ -42,6 +42,7 @@ function fixture(editable = true) {
     "./notificationCrud.js": { createNotification: async (notice: any) => { notices.push(notice); } },
     "./timeLogService.js": {}, "./mentionService.js": {},
     "./taskChangeBus.js": { emitTaskChanged: () => {} },
+    "./boardLockService.js": { lockedByOthers: async () => [] },
     "./milestoneService.js": { refreshMilestoneHealth: async () => {} },
     "./challengeService.js": { recordEvent: async () => [] },
     "./blockerMutationService.js": {

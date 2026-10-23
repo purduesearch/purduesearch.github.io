@@ -5,7 +5,7 @@ import { suggestActionsPrompt } from "../utils/aiPrompts.js";
 import { runJson } from "./ai/aiRouter.js";
 import { parsePastedPlan } from "./ai/planTextExtract.js";
 import { getTaskPermissions } from "../middleware/taskAccess.js";
-import { createTaskAsMember, notifyAddedAssignees } from "./taskMutationService.js";
+import { assertNotBoardLocked, createTaskAsMember, notifyAddedAssignees } from "./taskMutationService.js";
 import { logAuditEvent, diffObjects } from "./activityService.js";
 import { recomputeBlockedStatus } from "../api/blockers.js";
 import { refreshMilestoneHealth } from "./milestoneService.js";
@@ -62,6 +62,9 @@ const VALID_TYPES = new Set<ActionType>([
   "ADD_COMMENT",
   "CREATE_MILESTONE", "LINK_MILESTONE",
 ]);
+
+/** Actions that can change a card's status, assignees or existence: refused (423) while someone else drags it. */
+const BOARD_LOCKED_TYPES = new Set<ActionType>(["UPDATE_TASK", "DELETE_TASK", "SET_STATUS", "ASSIGN", "ATTACH_BLOCKER"]);
 
 const REQUIRES_TARGET = new Set<ActionType>([
   "UPDATE_TASK", "DELETE_TASK", "SET_STATUS", "SET_PRIORITY", "SET_DUE", "ASSIGN",
@@ -293,7 +296,11 @@ export async function executeActionPlan(
     const action = actions[i];
     try {
       if (!action || !VALID_TYPES.has(action.type)) throw new Error("Unknown action type");
+      if (action.targetTaskId && BOARD_LOCKED_TYPES.has(action.type)) {
+        await assertNotBoardLocked([action.targetTaskId], memberId);
+      }
       await dispatchAction(projectId, memberId, action);
+      if (action.targetTaskId) emitTaskChanged(action.targetTaskId, { actorId: memberId, source: "AI" });
       results.push({ index: i, type: action.type, ok: true });
       succeeded++;
     } catch (err: any) {

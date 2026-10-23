@@ -48,7 +48,8 @@ Static SPA for the Purdue SEARCH club, deployed to GitHub Pages and served at th
 │   │   └── clubPmClient.js         # ClubPM REST API client
 │   ├── clubpm/
 │   │   ├── ClubPmAuth.jsx          # Auth provider + useClubPmAuth hook
-│   │   └── ProjectNavContext.js    # Project navigation context
+│   │   ├── ProjectNavContext.js    # Project navigation context
+│   │   └── presence/              # Live boards: socket client, presenceCore, useBoardPresence
 │   ├── hooks/
 │   │   ├── useFlowAnimations.js
 │   │   ├── useRectMarquee.js
@@ -115,6 +116,7 @@ Static SPA for the Purdue SEARCH club, deployed to GitHub Pages and served at th
 │           │                       #   ChatMessage, ChatThreadDrawer — NEVER emit <span>/<p> here (see invariants)
 │           ├── labschedule/        # Lab schedule modal (week grid, rectangle drag, buddy list) — opened from Calendar and the project header
 │           ├── members/            # DmInbox + DmPanel — DMs live on the Members page; ?dm=<channelId> is URL state
+│           ├── presence/          # Live boards: RemoteCursorsLayer, PresenceStack (lazy-loaded)
 │           └── ...
 ├── backend/                        # Node.js / Express / Prisma / Slack Bolt
 │   ├── src/
@@ -219,6 +221,7 @@ the owner-approved retention period are complete.
 - `mxgraph` is an npm dependency in `package.json`; do not remove it or switch to a CDN reference.
 - **`@hello-pangea/dnd` is still in `package.json` but nothing imports it** — OutreachHub's BoardTab was migrated to `@dnd-kit`. Drop the dependency in a change of its own (it touches the lockfile), not as a side effect of unrelated work.
 - **`Event.isPublic` defaults to `false` in the DB on purpose.** Only the ClubPM event form and the Slack `/event` modal opt in (UI default on, with a confirm step in `EventFormModal`). Any new event-creating path stays private unless it deliberately passes `isPublic`. `eventService` forces `DEADLINE` events to `false`.
+- **Live boards (`/collab/board`).** Presence is a plain `ws` relay on `/collab/board`. Keep it under `/collab/`: that is the only prefix nginx forwards upgrades for. The token goes in the first frame (`["auth", token]`), never in the URL. Cursors are always on and connect only on the project board's Tasks tab. `PRESENCE_MODE=standalone` moves the relay to separate workers; unset runs it inside the API. See `docs/PRESENCE-SCALING.md`.
 
 ---
 

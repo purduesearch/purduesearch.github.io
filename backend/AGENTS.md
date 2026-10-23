@@ -14,6 +14,8 @@ Scope: the Node.js/Express/Prisma/Slack Bolt service. Applies together with the 
 
 **Entry:** `backend/src/app.ts` — Express setup, PostgreSQL-backed sessions, Helmet, route ordering, static uploads, the Slack Bolt receiver, and the collaborative-editing WebSocket attachment.
 
+**Presence relay:** `backend/src/presence/*` serves live boards on `/collab/board`. Rooms group into families (a root project plus its direct sub-projects) that share one lock map. `boardPresence.ts` owns sockets and locks, and `boardPatch.ts` sends server-authored patches after commit from `taskChangeBus`. Locks mirror into `BoardLock` through `boardLockService.ts`. With `PRESENCE_MODE=standalone`, the API skips the relay and `server.ts` workers serve it instead (`npm run presence`). `presenceBus.ts` carries task changes between processes over Postgres. Scaling steps are in `docs/PRESENCE-SCALING.md`.
+
 ## Commands and Environment
 
 Run these from `backend/`:

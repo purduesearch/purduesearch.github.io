@@ -7,6 +7,7 @@ Scope: business logic layer. Applies together with the root and `backend/AGENTS.
 ### Services (`backend/src/services/`)
 - `taskMutationService.ts` — Shared member-authorized task create/update/comment/time mutations for WEB, SLACK and AI, including completion effects and added-assignee notifications through `createNotification`.
 - `taskChangeBus.ts` — `emitTaskChanged(taskId | taskId[])` publishes task changes from all write paths for silent live-card refresh.
+- `boardLockService.ts` — Mirrors live-board card locks into the `BoardLock` table. Fail-open: a database error never blocks a drag. `assertNotBoardLocked` in `taskMutationService.ts` turns a write to a card locked by another member into HTTP 423. `taskChangeBus` now carries optional `TaskChangeMeta` (`{ actorId, source }`) so patches know who acted.
 - `slackCardCore.ts` — Pure bundle-window and composition rules: 10-minute debounce, 15-minute first-card cap, five full cards plus compact overflow.
 - `slackCardService.ts` — Durable card queue, `flushDueCardBundles` (every minute), DM bundle rendering, thread link-card create/update and debounced live refresh; a reactive outbox, not a scheduled digest.
 - `slackMentionCore.ts` — Pure intent fast path, tokenization, lexical scoring, recommendation normalization and prompts; model candidate keys must map back to supplied candidates.

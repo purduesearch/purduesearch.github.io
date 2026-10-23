@@ -1,5 +1,5 @@
 import { Router, type Request, type Response } from "express";
-import { updateTaskAsMember, createTaskAsMember, archiveTaskAsMember, addCommentAsMember, logTimeAsMember, TaskMutationError, type TaskPatch } from "../services/taskMutationService.js";
+import { updateTaskAsMember, createTaskAsMember, archiveTaskAsMember, addCommentAsMember, logTimeAsMember, assertNotBoardLocked, TaskMutationError, type TaskPatch } from "../services/taskMutationService.js";
 import { requireAuth } from "./auth.js";
 import { channelAuth } from "../middleware/channelAuth.js";
 import { getTaskPermissions, requireTaskEdit } from "../middleware/taskAccess.js";
@@ -379,6 +379,7 @@ tasksRouter.post("/bulk-move", async (req: Request, res: Response) => {
   if (!body) return;
   try {
     const addMissingMembers = (req.body as { addMissingMembers?: unknown }).addMissingMembers !== false;
+    await assertNotBoardLocked(body.ids, req.memberId!);
     res.json(await executeMove(req.memberId!, body.ids, body.projectId, { addMissingMembers }));
   } catch (error) {
     if (error instanceof TaskMutationError) { res.status(error.status).json({ error: error.message }); return; }
@@ -452,6 +453,7 @@ tasksRouter.post("/bulk-delete", async (req: Request, res: Response) => {
     }
 
     const memberId = req.memberId!;
+    await assertNotBoardLocked(ids, memberId);
     const deleted: string[] = [];
     const skipped: { id: string; reason: string }[] = [];
 
@@ -485,6 +487,7 @@ tasksRouter.post("/bulk-delete", async (req: Request, res: Response) => {
 
     res.json({ deleted, skipped });
   } catch (error) {
+    if (error instanceof TaskMutationError) { res.status(error.status).json({ error: error.message }); return; }
     console.error("Bulk delete error:", error);
     res.status(500).json({ error: "Failed to bulk delete tasks" });
   }
@@ -503,6 +506,7 @@ tasksRouter.post("/bulk-archive", async (req: Request, res: Response) => {
     }
 
     const memberId = req.memberId!;
+    await assertNotBoardLocked(ids, memberId);
     const updated: any[] = [];
     const skipped: { id: string; reason: string }[] = [];
 
@@ -545,6 +549,7 @@ tasksRouter.post("/bulk-archive", async (req: Request, res: Response) => {
 
     res.json({ updated, skipped });
   } catch (error) {
+    if (error instanceof TaskMutationError) { res.status(error.status).json({ error: error.message }); return; }
     console.error("Bulk archive error:", error);
     res.status(500).json({ error: "Failed to bulk archive tasks" });
   }
@@ -606,6 +611,7 @@ tasksRouter.delete("/:id", channelAuth, async (req: Request, res: Response) => {
     }
 
     const memberId = req.memberId;
+    await assertNotBoardLocked([taskId], req.memberId!);
     await deleteTask(taskId);
 
     logAuditEvent({
@@ -618,6 +624,7 @@ tasksRouter.delete("/:id", channelAuth, async (req: Request, res: Response) => {
 
     res.json({ ok: true });
   } catch (error) {
+    if (error instanceof TaskMutationError) { res.status(error.status).json({ error: error.message }); return; }
     console.error("Delete task error:", error);
     res.status(500).json({ error: "Failed to delete task" });
   }

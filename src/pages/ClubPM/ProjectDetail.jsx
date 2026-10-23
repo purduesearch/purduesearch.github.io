@@ -1,4 +1,4 @@
-import React, { useContext, useState, useEffect, useCallback, useMemo, useRef } from "react";
+import React, { lazy, Suspense, useContext, useState, useEffect, useCallback, useMemo, useRef } from "react";
 import useProjectHeaderScroll from "../../hooks/useProjectHeaderScroll";
 import { createPortal } from "react-dom";
 import { useParams, Link, useSearchParams, useNavigate } from "react-router-dom";
@@ -28,6 +28,8 @@ import EditDriveFolderModal from "../../components/clubpm/EditDriveFolderModal";
 import ProjectAdminModal from "../../components/clubpm/ProjectAdminModal";
 import GitHubPanel from "../../components/clubpm/github/GitHubPanel";
 import ActionPlanReview from "../../components/clubpm/ActionPlanReview";
+import useBoardPresence, { BoardPresenceContext, useCardPresence } from "../../clubpm/presence/useBoardPresence";
+import PresenceStack from "../../components/clubpm/presence/PresenceStack";
 import VaultTab from "../../components/clubpm/vault/VaultTab";
 import ChatTab from "../../components/clubpm/chat/ChatTab";
 import MembersView from "./MembersView";
@@ -58,6 +60,8 @@ import useStreakWatcher from "../../hooks/useStreakWatcher";
 import MobileSheet from "../../components/clubpm/MobileSheet";
 import { useCompactLayout } from "../../clubpm/layout/compactLayout";
 import { requestShellOverlay } from "../../clubpm/layout/shellOverlay";
+
+const RemoteCursorsLayer = lazy(() => import("../../components/clubpm/presence/RemoteCursorsLayer"));
 
 // ── Constants ────────────────────────────────────────────────
 
@@ -444,13 +448,48 @@ function StatusBin({ bin, tasks, subtasksByParent, expandedParents, onTogglePare
   );
 }
 
+// ── Live board presence (see useCardPresence). A row with no presence renders as before.
+const PRESENCE_SHAKE = [
+  { transform: 'translateX(0)' }, { transform: 'translateX(-5px)' },
+  { transform: 'translateX(5px)' }, { transform: 'translateX(0)' },
+];
+
+function presenceRowClass(cp) {
+  if (!cp) return '';
+  return ` cpm-presence-row${cp.lock ? ' is-locked' : ''}${cp.selection && !cp.lock ? ' is-selected' : ''}${cp.viewing && !cp.lock ? ' is-viewing' : ''}`;
+}
+
+function presenceRowStyle(cp) {
+  if (!cp) return undefined;
+  return { '--presence-color': (cp.lock ?? cp.viewing ?? cp.selection)?.color, '--presence-sel-color': cp.selection?.color };
+}
+
+// True when a locked card must not open. Shakes the row instead.
+function presenceBlocksOpen(e, cp) {
+  if (!cp?.lock) return false;
+  if (!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) e.currentTarget.animate?.(PRESENCE_SHAKE, { duration: 280 });
+  return true;
+}
+
+function PresenceFlag({ cp }) {
+  if (cp?.lock) {
+    const label = cp.lock.board ? `${cp.lock.name} moving · ${cp.lock.board} board` : `${cp.lock.name} is moving`;
+    return <span className="cpm-presence-flag"><i className="fas fa-lock" aria-hidden="true" /> {label}</span>;
+  }
+  if (cp?.label) return <span className="cpm-presence-flag" style={cp.label.color ? { color: cp.label.color } : undefined}>{cp.label.text}</span>;
+  if (cp?.selection) return <span className="cpm-presence-flag">{`${cp.selection.name} · ${cp.selection.count} selected`}</span>;
+  if (cp?.viewing) return <span className="cpm-presence-flag">{`${cp.viewing.name} viewing`}</span>;
+  return null;
+}
+
 function MobileTaskRow({ task, onOpen, onMove, onAssign, canEdit, tourId }) {
   const completionActions = useTaskCompletionActions();
-  const { setNodeRef, listeners, attributes, isDragging } = useDraggable({ id: task.id, disabled: !canEdit || task.status === 'BLOCKED' });
+  const cp = useCardPresence(task.id);
+  const { setNodeRef, listeners, attributes, isDragging } = useDraggable({ id: task.id, disabled: !canEdit || task.status === 'BLOCKED' || !!cp?.lock });
   const due = task.dueDate ? new Date(task.dueDate) : null;
   const overdue = due && task.status !== 'DONE' && due < new Date();
   return (
-    <div ref={setNodeRef} style={{ opacity: isDragging ? .5 : 1 }} className="pm-m-task-row" data-completion-id={task.id} data-completion-status={task.status} data-task-id={task.id} data-tour-id={tourId}>
+    <div ref={setNodeRef} style={{ opacity: isDragging ? .5 : 1, ...presenceRowStyle(cp) }} className={`pm-m-task-row${presenceRowClass(cp)}`} data-completion-id={task.id} data-completion-status={task.status} data-task-id={task.id} data-tour-id={tourId}>
       <button
         type="button"
         className={`pm-task-check pm-m-task-status pm-m-task-status--${task.status.toLowerCase()}`}
@@ -460,7 +499,8 @@ function MobileTaskRow({ task, onOpen, onMove, onAssign, canEdit, tourId }) {
       >
         {task.status === 'BLOCKED' ? <i className="fas fa-ban" aria-hidden="true" /> : <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 6.4l2.4 2.4 4.6-5" /></svg>}
       </button>
-      <button type="button" className="pm-m-task-main" onClick={() => onOpen(task)}>
+      <PresenceFlag cp={cp} />
+      <button type="button" className="pm-m-task-main" onClick={e => { if (!presenceBlocksOpen(e, cp)) onOpen(task); }}>
         <span className="pm-m-task-title">{task.title}</span>
         <span className="pm-m-task-meta">
           <span className={`pm-m-task-priority pm-m-task-priority--${(task.priority ?? 'MEDIUM').toLowerCase()}`}>{(task.priority ?? 'MEDIUM').toLowerCase()}</span>
@@ -849,6 +889,7 @@ function BlockedSubBin({ group, onTaskClick, onResolveBlocker, onRenameBlocker, 
 // A blocked task row. Registered as a droppable (id = task.id) so an assignee
 // chip can be dropped directly onto it, matching the other kanban columns.
 function BlockedTaskRow({ task, reason, selected, onTaskClick, groupId }) {
+  const cp = useCardPresence(task.id);
   // Namespaced id (a task can appear under several blocker groups at once, and
   // dnd-kit droppable ids are global — so plain task.id would collide). The real
   // task id travels in `data` for the drop handler to read back.
@@ -859,14 +900,16 @@ function BlockedTaskRow({ task, reason, selected, onTaskClick, groupId }) {
       data-completion-id={task.id}
       role="button" tabIndex={0}
       aria-label={`Open task: ${task.title}`}
-      onKeyDown={e => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onTaskClick(task, e); } }}
+      onKeyDown={e => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); if (!presenceBlocksOpen(e, cp)) onTaskClick(task, e); } }}
       data-completion-status={task.status}
-      className={`cpm-task-row-compact cpm-blocked-task-row${selected ? " cpm-task-row-compact--selected" : ""}${isOver ? " cpm-task-row-compact--member-target" : ""}`}
-      onClick={(e) => onTaskClick(task, e)}
+      className={`cpm-task-row-compact cpm-blocked-task-row${selected ? " cpm-task-row-compact--selected" : ""}${isOver ? " cpm-task-row-compact--member-target" : ""}${presenceRowClass(cp)}`}
+      style={presenceRowStyle(cp)}
+      onClick={(e) => { if (!presenceBlocksOpen(e, cp)) onTaskClick(task, e); }}
     >
       {selected && (
         <i className="fas fa-check-circle cpm-task-row-compact-checkbox" aria-hidden="true" />
       )}
+      <PresenceFlag cp={cp} />
       <PriorityBars priority={task.priority} />
       <span className="cpm-task-row-compact-name">{task.title}</span>
       <AvatarStack assignees={task.assignees} taskId={task.id} />
@@ -933,6 +976,7 @@ function BlockerNameModal({ count, projectMembers, onCreate, onCancel }) {
 
 function CompactTaskRow({ task, onClick, subtaskCount = 0, isExpanded = false, onToggleExpand, isDropTarget = false, isSelected = false, tourId, canEdit = true }) {
   const completionActions = useTaskCompletionActions();
+  const cp = useCardPresence(task.id);
   const {
     attributes,
     listeners,
@@ -940,12 +984,13 @@ function CompactTaskRow({ task, onClick, subtaskCount = 0, isExpanded = false, o
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: task.id, data: { canAssign: task.canAssign !== false }, disabled: { draggable: !canEdit, droppable: task.canAssign === false } });
+  } = useSortable({ id: task.id, data: { canAssign: task.canAssign !== false }, disabled: { draggable: !canEdit || !!cp?.lock, droppable: task.canAssign === false } });
 
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
+    ...presenceRowStyle(cp),
   };
 
   return (
@@ -958,16 +1003,17 @@ function CompactTaskRow({ task, onClick, subtaskCount = 0, isExpanded = false, o
       data-completion-id={task.id}
       role="button" tabIndex={0}
       aria-label={`Open task: ${task.title}`}
-      onKeyDown={e => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onClick(task, e); } }}
+      onKeyDown={e => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); if (!presenceBlocksOpen(e, cp)) onClick(task, e); } }}
       data-completion-status={task.status}
-      className={`cpm-task-row-compact${isDropTarget ? " cpm-task-row-compact--member-target" : ""}${isSelected ? " cpm-task-row-compact--selected" : ""}`}
+      className={`cpm-task-row-compact${isDropTarget ? " cpm-task-row-compact--member-target" : ""}${isSelected ? " cpm-task-row-compact--selected" : ""}${presenceRowClass(cp)}`}
       onClick={(e) => {
-        if (!isDragging) onClick(task, e);
+        if (!isDragging && !presenceBlocksOpen(e, cp)) onClick(task, e);
       }}
     >
       {isSelected && (
         <i className="fas fa-check-circle cpm-task-row-compact-checkbox" aria-hidden="true" />
       )}
+      <PresenceFlag cp={cp} />
       <button type="button" className="pm-task-grip" {...listeners}
         aria-label={`Drag task: ${task.title}`} disabled={!canEdit}
         onClick={e => e.stopPropagation()}>
@@ -1032,6 +1078,7 @@ function CompactTaskRow({ task, onClick, subtaskCount = 0, isExpanded = false, o
 
 function KanbanSubtaskRow({ subtask, onClick, isDropTarget = false, isSelected = false }) {
   const completionActions = useTaskCompletionActions();
+  const cp = useCardPresence(subtask.id);
   const { setNodeRef } = useDroppable({ id: subtask.id, data: { canAssign: subtask.canAssign !== false }, disabled: subtask.canAssign === false });
   return (
     <div style={{ display: "flex", alignItems: "stretch" }}>
@@ -1042,18 +1089,19 @@ function KanbanSubtaskRow({ subtask, onClick, isDropTarget = false, isSelected =
       </div>
     <div
       ref={setNodeRef}
-      className={`cpm-task-row-compact${isDropTarget ? " cpm-task-row-compact--member-target" : ""}${isSelected ? " cpm-task-row-compact--selected" : ""}`}
+      className={`cpm-task-row-compact${isDropTarget ? " cpm-task-row-compact--member-target" : ""}${isSelected ? " cpm-task-row-compact--selected" : ""}${presenceRowClass(cp)}`}
       data-completion-id={subtask.id}
       role="button" tabIndex={0}
       aria-label={`Open task: ${subtask.title}`}
-      onKeyDown={e => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onClick(subtask, e); } }}
+      onKeyDown={e => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); if (!presenceBlocksOpen(e, cp)) onClick(subtask, e); } }}
       data-completion-status={subtask.status}
-      style={{ flex: 1, paddingLeft: 8, cursor: "pointer" }}
-      onClick={(e) => onClick(subtask, e)}
+      style={{ flex: 1, paddingLeft: 8, cursor: "pointer", ...presenceRowStyle(cp) }}
+      onClick={(e) => { if (!presenceBlocksOpen(e, cp)) onClick(subtask, e); }}
     >
       {isSelected && (
         <i className="fas fa-check-circle cpm-task-row-compact-checkbox" aria-hidden="true" />
       )}
+      <PresenceFlag cp={cp} />
       <StatusRing status={subtask.status} title={subtask.title}
         onComplete={() => completionActions.move([subtask.id], subtask.status === 'DONE' ? 'TODO' : 'DONE')} />
       <PriorityBars priority={subtask.priority} />
@@ -1280,6 +1328,7 @@ function DraggableMemberChip({ pm, selected, onClick, lead, onOpenCard }) {
   const isLead = !isAdmin && !!lead?.isLead;
   return (
     <div
+      data-presence-member={pm.memberId}
       ref={setNodeRef}
       {...attributes}
       {...listeners}
@@ -2291,6 +2340,8 @@ export default function ProjectDetail() {
   const notifyStreak = useStreakWatcher();
 
   const [project, setProject] = useState(null);
+  const projectRef = useRef(project);
+  projectRef.current = project;
   const completionRootRef = useRef(null);
   const completion = useTaskCompletion(completionRootRef, project, setProject,
     (taskId, fields) => taskId
@@ -2304,6 +2355,11 @@ export default function ProjectDetail() {
   const [activeTab, setActiveTab] = useState("tasks");
   const [chatSection, setChatSection] = useState("messages");
   const [reportTab, setReportTab] = useState("charts");
+  const presence = useBoardPresence({
+    projectId: project?.id, rootId: project?.parent?.id ?? project?.id, rootRef: completionRootRef,
+    enabled: activeTab === "tasks" && !!project, compact,
+    onPatch: (entries, core, state) => handlePresencePatch(entries, core, state),
+  });
 
   // Preserve old project deep links while routing them into the merged tabs.
   const tabParam = searchParams.get("tab");
@@ -2426,6 +2482,35 @@ export default function ProjectDetail() {
   const [descValue, setDescValue] = useState("");
   const [descExpanded, setDescExpanded] = useState(false);
   const [selectedTaskIds, setSelectedTaskIds] = useState(() => new Set());
+
+  // Live presence for this board: the lock promise of an in-flight drag, the card lookups used
+  // by rows and handleRowClick, and the last rects of drag ghosts (read by the snap rule).
+  const lockRef = useRef(null);
+  const presenceCardRef = useRef(null);
+  const lastGhostRectsRef = useRef(new Map());
+  // taskId → { text, color, until }: short "via Slack" / "updated" flags for changes made elsewhere.
+  const [remoteLabels, setRemoteLabels] = useState(() => new Map());
+  const labelledCardContext = useMemo(() => {
+    const base = presence.cardContext;
+    if (!base) return null;
+    return {
+      cardInfo(taskId) {
+        const info = base.cardInfo(taskId);
+        const label = remoteLabels.get(taskId);
+        if (!label) return info;
+        return { ...(info ?? { lock: null, selection: null, viewing: null }), label };
+      },
+    };
+  }, [presence.cardContext, remoteLabels]);
+  presenceCardRef.current = labelledCardContext;
+  useEffect(() => {
+    const t = setTimeout(() => presence.client?.selection([...selectedTaskIds]), 100);
+    return () => clearTimeout(t);
+  }, [selectedTaskIds, presence.client]);
+  useEffect(() => {
+    if (selectedTask?.id) presence.client?.open(selectedTask.id);
+    else presence.client?.close();
+  }, [selectedTask?.id, presence.client]);
   const [lastClickedId, setLastClickedId] = useState(null);
   const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
   const [bulkActing, setBulkActing] = useState(false);
@@ -2563,6 +2648,98 @@ export default function ProjectDetail() {
       .catch(console.error)
       .finally(() => setLoading(false));
   }, [id]);
+
+  // Coalesces refetches requested by patches that the local board cannot apply on its own.
+  const refetchSoon = useMemo(() => {
+    let timer = null;
+    return () => {
+      clearTimeout(timer);
+      timer = setTimeout(fetchProject, 400);
+    };
+  }, [fetchProject]);
+
+  // Applies another person's committed change in place. Returns the plan for later animation code.
+  // Read every rect and name before setProject: the animations start from the old slots.
+  const handlePresencePatch = useCallback((entries, core, state) => {
+    const current = projectRef.current;
+    const boardProjectIds = new Set([current?.id, ...(current?.rollupSources ?? []).map(s => s.projectId)]);
+    // This tab's own drag commits are already applied optimistically; replaying them could undo a newer local move.
+    entries = entries.filter(e => !(e.by && e.by === state?.self));
+    const plan = core.planPatch(current, entries, { boardProjectIds, showArchived });
+    const now = Date.now();
+    const entryById = new Map(entries.map(e => [e.id, e]));
+    const flat = (current?.tasks ?? []).flatMap(t => [t, ...(t.subtasks ?? [])]);
+    const ghostRectOf = id => { const ghost = lastGhostRectsRef.current.get(id); return ghost && now - ghost.at <= 3000 ? ghost.rect : null; };
+    const rectOf = id => ghostRectOf(id) ?? completionRootRef.current?.querySelector(`[data-completion-id="${id}"]`)?.getBoundingClientRect() ?? null;
+    const holderOf = e => (e.by ? state?.conns.get(e.by) : null);
+    const personOf = e => {
+      const holder = holderOf(e);
+      if (holder) return { name: holder.name, memberId: holder.memberId };
+      if (!e.ac) return null;
+      const pm = (current?.members ?? []).find(m => (m.memberId ?? m.member?.id) === e.ac);
+      return { name: pm?.member?.displayName, memberId: e.ac };
+    };
+
+    if (plan.moves.length > 6) {
+      const actor = personOf(entryById.get(plan.moves[0].id));
+      const who = actor?.name ? core.shortName(actor.name) : 'Someone';
+      const binLabel = BINS.find(b => b.id === plan.moves[0].to)?.label ?? plan.moves[0].to;
+      const color = core.memberColor(actor?.memberId ?? '');
+      requestAnimationFrame(() => plan.moves.forEach(m => {
+        completionRootRef.current?.querySelector(`[data-completion-id="${m.id}"]`)?.animate?.(
+          [{ boxShadow: `0 0 0 3px ${color}` }, { boxShadow: '0 0 0 3px transparent' }], { duration: 900 });
+      }));
+      toast.success(`${who} moved ${plan.moves.length} cards to ${binLabel}`);
+    } else if (plan.moves.length) {
+      // Status is driven by applyRemote, so applyPlan must not also set it.
+      const groups = new Map();
+      for (const m of plan.moves) {
+        const task = flat.find(t => t.id === m.id);
+        if (!task) continue;
+        const group = groups.get(m.to) ?? { tasks: [], rect: null };
+        group.tasks.push(task);
+        group.rect = group.rect ?? rectOf(m.id);
+        groups.set(m.to, group);
+        delete plan.updates.get(m.id)?.status;
+      }
+      groups.forEach((group, status) => completion.applyRemote(group.tasks, status, group.rect));
+    }
+
+    for (const e of entries) {
+      if (e.gone || !plan.updates.has(e.id)) continue;
+      const holder = holderOf(e);
+      const person = personOf(e);
+      let text = null, color = null;
+      if (e.src === 'SLACK' || e.src === 'AI') {
+        text = e.src === 'SLACK' ? 'via Slack' : 'via AI plan';
+        color = '#6cb6ff';
+      } else if (ghostRectOf(e.id)) {
+        continue; // this room already showed the drag
+      } else if (holder && holder.room !== current?.id) {
+        text = `from ${state?.projects?.get(holder.room) ?? 'another'} board`;
+      } else if (e.ac && e.ac !== member?.id) {
+        text = `${person?.name ? core.shortName(person.name) : 'Someone'} updated`;
+      }
+      if (!text) continue;
+      if (!color && person) color = core.memberColor(person.memberId);
+      setRemoteLabels(prev => new Map(prev).set(e.id, { text, color, until: now + 2600 }));
+      window.setTimeout(() => setRemoteLabels(prev => {
+        const hit = prev.get(e.id);
+        if (!hit || hit.until > Date.now()) return prev;
+        const next = new Map(prev);
+        next.delete(e.id);
+        return next;
+      }), 2600);
+    }
+
+    // Assignments play after the data commits, so the landing pulse finds the new avatar slot.
+    for (const a of plan.assigned) {
+      requestAnimationFrame(() => assignment.playRemote({ taskId: a.id, memberIds: a.added }));
+    }
+    setProject(cur => core.applyPlan(cur, plan));
+    if (plan.refetch) refetchSoon();
+    return plan;
+  }, [showArchived, refetchSoon, completion, assignment, member]);
 
   // memberId -> { isLead, leadTitle } for everyone on this project.
   const leadByMemberId = useMemo(
@@ -2860,6 +3037,7 @@ export default function ProjectDetail() {
   }, []);
 
   const handleRowClick = useCallback((task, event) => {
+    if (presenceCardRef.current?.cardInfo(task.id)?.lock) return;
     if (event?.ctrlKey || event?.metaKey) {
       setSelectedTaskIds(prev => {
         const next = new Set(prev);
@@ -3015,6 +3193,7 @@ export default function ProjectDetail() {
       setActiveTask(null);
       if (active.id.startsWith("member-")) {
         const memberId = active.data.current?.memberId;
+        presence.client?.carry(memberId);
         const pm = allMembers.find(m => m.memberId === memberId);
         setActiveMember(pm ?? null);
       } else {
@@ -3026,6 +3205,15 @@ export default function ProjectDetail() {
     setActiveMember(null);
     const task = project?.tasks.find((t) => t.id === active.id);
     setActiveTask(task ?? null);
+    const lockIds = selectedTaskIds.has(active.id) && selectedTaskIds.size > 1 ? [...selectedTaskIds] : [active.id];
+    presence.carriedRef.current = new Set(lockIds);
+    lockRef.current = presence.client ? presence.client.requestLock(lockIds, active.id) : null;
+    lockRef.current?.then(r => {
+      if (r.ok || r.forbidden) return;
+      // The drag lost the race: say who holds the card, then cancel the drag.
+      toast(`${presence.core?.shortName(presence.state?.conns.get(r.holderSid)?.name) ?? 'Someone'} grabbed it first`);
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true }));
+    });
   };
 
   const handleDragOver = (event) => {
@@ -3054,7 +3242,16 @@ export default function ProjectDetail() {
     setOverBin(null);
     setOverTaskId(null);
     const { active, over } = event;
-    if (!over || over.id === "assignment-cancel" || !project) { assignment.endDrag(true); return; }
+    const lockPromise = lockRef.current;
+    lockRef.current = null;
+    const carried = [...presence.carriedRef.current];
+    presence.carriedRef.current = new Set();
+    if (!over || over.id === "assignment-cancel" || !project) {
+      if (carried.length) presence.client?.cancel(carried);
+      presence.client?.carryCancel();
+      assignment.endDrag(true);
+      return;
+    }
     assignment.endDrag();
 
     // Permission is per task: a rolled-up task answers to its own project.
@@ -3100,6 +3297,7 @@ export default function ProjectDetail() {
     const isMemberDrag = typeof active.id === "string" &&
       (active.id.startsWith("member-") || active.id === "special-everyone" || active.id === "special-nobody");
     if (isMemberDrag && typeof over.id === "string" && over.id.startsWith("blocker-")) {
+      presence.client?.carryCancel();
       if (!canEdit) return;
       const blockerId = over.id.slice("blocker-".length);
       if (active.id === "special-everyone") return; // no single "everyone" owner
@@ -3132,11 +3330,12 @@ export default function ProjectDetail() {
     // Member chip dropped onto a task row → assign member
     if (typeof active.id === "string" && active.id.startsWith("member-")) {
       const memberId = active.data.current?.memberId;
-      if (!memberId) return;
+      if (!memberId) { presence.client?.carryCancel(); return; }
       const found = findTask(overTargetId);
-      if (!found) return;
+      if (!found) { presence.client?.carryCancel(); return; }
       const { task } = found;
-      if (task.canAssign === false || (task.canAssign == null && !canEditTaskId(task.id))) { assignment.endDrag(true); return; }
+      if (task.canAssign === false || (task.canAssign == null && !canEditTaskId(task.id))) { presence.client?.carryCancel(); assignment.endDrag(true); return; }
+      presence.client?.carryDrop(task.id);
       const draggedMemberIds = selectedMemberIds.has(memberId) && selectedMemberIds.size > 1
         ? [...selectedMemberIds]
         : [memberId];
@@ -3153,16 +3352,19 @@ export default function ProjectDetail() {
     const overId = over.id;
     const isGroup = selectedTaskIds.has(active.id) && selectedTaskIds.size > 1;
     const draggedIds = (isGroup ? [...selectedTaskIds] : [active.id]).filter(canEditTaskId);
-    if (draggedIds.length === 0) return;
+    if (draggedIds.length === 0) { presence.client?.cancel(carried); return; }
+    const lock = lockPromise ? await lockPromise : null;
+    if (lock && !lock.ok && !lock.forbidden) { presence.client?.cancel(carried); return; }
 
     // Dropped onto a specific blocker category sub-bin → attach that blocker.
     if (typeof overId === "string" && overId.startsWith("blocker-")) {
+      presence.client?.drop(carried, null);
       await attachBlockerToTasks(draggedIds, overId.slice("blocker-".length));
       if (isGroup) clearSelection();
       return;
     }
 
-    if (!BINS.some((b) => b.id === overId)) return;
+    if (!BINS.some((b) => b.id === overId)) { presence.client?.cancel(carried); return; }
     const newStatus = overId;
 
     // Dropped onto the BLOCKED bin's general area → ask what's blocking it,
@@ -3172,12 +3374,18 @@ export default function ProjectDetail() {
         const f = findTaskById(tid);
         return f && f.task.status !== "BLOCKED";
       });
+      presence.client?.cancel(carried);
       if (targets.length === 0) return;
       setBlockerPrompt({ taskIds: targets });
       return;
     }
 
     const dropRect = event?.active?.rect?.current?.translated;
+    // Cards that will not be written (same bin, or not editable) get no commit patch: release them now.
+    const written = carried.filter(tid => draggedIds.includes(tid) && findTaskById(tid)?.task.status !== newStatus);
+    const unwritten = carried.filter(tid => !written.includes(tid));
+    if (unwritten.length) presence.client?.cancel(unwritten);
+    if (written.length) presence.client?.drop(written, newStatus);
     await moveTasksToStatus(draggedIds, newStatus, dropRect);
     if (isGroup) clearSelection();
   };
@@ -3531,17 +3739,18 @@ export default function ProjectDetail() {
     <TaskAssignmentContext.Provider value={{ ...assignment, dragging: !!activeMember }}>
     <TaskCompletionContext.Provider value={{ move: moveTasksToStatus, statusOf: tid => findTaskById(tid)?.task.status, version: Math.max(0, ...Object.values(completion.order)) }}>
     <div ref={completionRootRef} className="clubpm-app cpm-project-page">
+    {!compact && presence.state && presence.core ? <Suspense fallback={null}><RemoteCursorsLayer rootRef={completionRootRef} presence={presence.state} buffersRef={presence.buffersRef} core={presence.core} lastGhostRectsRef={lastGhostRectsRef} /></Suspense> : null}
     <div ref={assignment.liveRef} className="pm-completion-live" aria-live="polite" aria-atomic="true" />
     <div ref={completion.liveRef} className="pm-completion-live" aria-live="polite" aria-atomic="true" />
     <div className="cpm-project-layout">
-      <DndContext
+      <BoardPresenceContext.Provider value={labelledCardContext}><DndContext
         sensors={sensors}
         collisionDetection={kanbanCollisionDetection}
         onDragStart={handleDragStart}
         onDragMove={event => assignment.move((event.activatorEvent?.clientX ?? 0) + event.delta.x)}
         onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
-        onDragCancel={() => { assignment.endDrag(true); setActiveTask(null); setActiveMember(null); setOverBin(null); setOverTaskId(null); }}
+        onDragCancel={() => { const ids = [...presence.carriedRef.current]; presence.carriedRef.current = new Set(); lockRef.current = null; if (ids.length) presence.client?.cancel(ids); presence.client?.carryCancel(); assignment.endDrag(true); setActiveTask(null); setActiveMember(null); setOverBin(null); setOverTaskId(null); }}
       >
         <main ref={tabBodyRef} className={`cpm-project-main${activeTab === 'tasks' ? ' cpm-project-main--scroll-header' : ''}`}>
           {/* On a phone the conversation needs the height: the shell header
@@ -3587,6 +3796,7 @@ export default function ProjectDetail() {
                 </div>
               </div>
               <div className="pm-proj-hero-actions">
+              <PresenceStack presence={presence.state} core={presence.core} selfMemberId={member?.id} onOpenProject={id => navigate(`/clubpm/projects/${id}`)} />
               <LabTimeButton projectId={project.id} compact={compact} />
               <LabPresenceCard projectId={project.id} variant="badge" />
               {compact ? (
@@ -4050,7 +4260,7 @@ export default function ProjectDetail() {
             </div>
           ) : null}
         </DragOverlay>
-      </DndContext>
+      </DndContext></BoardPresenceContext.Provider>
 
       {selectedTask && (
         <TaskModal

@@ -200,6 +200,30 @@ export default function useTaskCompletion(rootRef, project, setProject, persist)
       versions.current.get(records[i].id) === records[i].version).map(r => r.value);
   }
 
+  // Plays another person's completion. Same animation events as move(), but no
+  // save, no undo toast and no version bookkeeping: the data is already committed.
+  function applyRemote(tasks, status, rect) {
+    const records = tasks.map(t => ({ id: t.id, source: t.status }));
+    if (!records.length) return;
+    const burstGate = { played: false, capped: records.length > 3 };
+    records.forEach(r => {
+      cancel(r.id);
+      if (status === 'DONE') pending.current.push({ id: r.id, source: r.source, rect, burstGate });
+      else pending.current.push({ id: r.id, reverse: true });
+    });
+    if (status === 'DONE') {
+      setOrder(current => {
+        const next = { ...current };
+        records.forEach(r => { next[r.id] = ++serial.current; });
+        orderRef.current = next;
+        return next;
+      });
+    }
+    const ids = new Set(records.map(r => r.id));
+    setProject(current => current && ({ ...current,
+      tasks: mapTasks(current.tasks, t => ids.has(t.id) ? { ...t, status } : t) }));
+  }
+
   useLayoutEffect(() => {
     const rows = new Map(Array.from(rootRef.current?.querySelectorAll('[data-completion-id]') || [], row => [row.dataset.completionId, row]));
     // Rows removed by filters, collapsed groups, or page changes stop immediately.
@@ -322,5 +346,5 @@ export default function useTaskCompletion(rootRef, project, setProject, persist)
     };
   }, [rootRef]);
 
-  return { move, cancel, order, liveRef };
+  return { move, applyRemote, cancel, order, liveRef };
 }
