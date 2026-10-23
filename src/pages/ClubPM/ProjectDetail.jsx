@@ -1,4 +1,4 @@
-import React, { useContext, useState, useEffect, useCallback, useMemo, useRef } from "react";
+import React, { lazy, Suspense, useContext, useState, useEffect, useCallback, useMemo, useRef } from "react";
 import useProjectHeaderScroll from "../../hooks/useProjectHeaderScroll";
 import { createPortal } from "react-dom";
 import { useParams, Link, useSearchParams, useNavigate } from "react-router-dom";
@@ -28,6 +28,8 @@ import EditDriveFolderModal from "../../components/clubpm/EditDriveFolderModal";
 import ProjectAdminModal from "../../components/clubpm/ProjectAdminModal";
 import GitHubPanel from "../../components/clubpm/github/GitHubPanel";
 import ActionPlanReview from "../../components/clubpm/ActionPlanReview";
+import useBoardPresence from "../../clubpm/presence/useBoardPresence";
+import PresenceStack from "../../components/clubpm/presence/PresenceStack";
 import VaultTab from "../../components/clubpm/vault/VaultTab";
 import ChatTab from "../../components/clubpm/chat/ChatTab";
 import MembersView from "./MembersView";
@@ -58,6 +60,8 @@ import useStreakWatcher from "../../hooks/useStreakWatcher";
 import MobileSheet from "../../components/clubpm/MobileSheet";
 import { useCompactLayout } from "../../clubpm/layout/compactLayout";
 import { requestShellOverlay } from "../../clubpm/layout/shellOverlay";
+
+const RemoteCursorsLayer = lazy(() => import("../../components/clubpm/presence/RemoteCursorsLayer"));
 
 // ── Constants ────────────────────────────────────────────────
 
@@ -1280,6 +1284,7 @@ function DraggableMemberChip({ pm, selected, onClick, lead, onOpenCard }) {
   const isLead = !isAdmin && !!lead?.isLead;
   return (
     <div
+      data-presence-member={pm.memberId}
       ref={setNodeRef}
       {...attributes}
       {...listeners}
@@ -2304,6 +2309,10 @@ export default function ProjectDetail() {
   const [activeTab, setActiveTab] = useState("tasks");
   const [chatSection, setChatSection] = useState("messages");
   const [reportTab, setReportTab] = useState("charts");
+  const presence = useBoardPresence({
+    projectId: project?.id, rootId: project?.parent?.id ?? project?.id, rootRef: completionRootRef,
+    enabled: activeTab === "tasks" && !!project, compact, onPatch: null,
+  });
 
   // Preserve old project deep links while routing them into the merged tabs.
   const tabParam = searchParams.get("tab");
@@ -3531,6 +3540,7 @@ export default function ProjectDetail() {
     <TaskAssignmentContext.Provider value={{ ...assignment, dragging: !!activeMember }}>
     <TaskCompletionContext.Provider value={{ move: moveTasksToStatus, statusOf: tid => findTaskById(tid)?.task.status, version: Math.max(0, ...Object.values(completion.order)) }}>
     <div ref={completionRootRef} className="clubpm-app cpm-project-page">
+    {!compact && presence.state && presence.core ? <Suspense fallback={null}><RemoteCursorsLayer rootRef={completionRootRef} presence={presence.state} buffersRef={presence.buffersRef} core={presence.core} /></Suspense> : null}
     <div ref={assignment.liveRef} className="pm-completion-live" aria-live="polite" aria-atomic="true" />
     <div ref={completion.liveRef} className="pm-completion-live" aria-live="polite" aria-atomic="true" />
     <div className="cpm-project-layout">
@@ -3587,6 +3597,7 @@ export default function ProjectDetail() {
                 </div>
               </div>
               <div className="pm-proj-hero-actions">
+              <PresenceStack presence={presence.state} core={presence.core} selfMemberId={member?.id} onOpenProject={id => navigate(`/clubpm/projects/${id}`)} />
               <LabTimeButton projectId={project.id} compact={compact} />
               <LabPresenceCard projectId={project.id} variant="badge" />
               {compact ? (
