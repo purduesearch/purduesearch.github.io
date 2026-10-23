@@ -459,6 +459,19 @@ model SubProjectRollup {
   updatedAt            DateTime @updatedAt
 }
 
+/// Mirror of live board card locks held by the presence relay
+/// (backend/src/presence/boardPresence.ts), so any process can refuse a write
+/// to a card someone is dragging (HTTP 423). UNLOGGED table (see migration):
+/// contents are disposable and emptied by crash recovery, which only releases
+/// locks early. No foreign keys on purpose.
+model BoardLock {
+  taskId    String   @id
+  memberId  String
+  expiresAt DateTime
+
+  @@index([expiresAt])
+}
+
 model Task {
   id          String        @id @default(cuid())
   title       String

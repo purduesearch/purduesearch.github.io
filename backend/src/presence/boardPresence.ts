@@ -4,6 +4,7 @@ import { WebSocketServer, WebSocket, type RawData } from "ws";
 import { prisma } from "../db/prisma.js";
 import { verifyBearerToken } from "../api/auth.js";
 import { taskAssignmentPermissions } from "../middleware/taskAccess.js";
+import { mirrorAcquire, mirrorRelease, mirrorRenew, mirroredLocksFor } from "../services/boardLockService.js";
 import { LIMITS, LockTable, RateLimiter, isId, parseClientMessage, type ClientMsg, type Released } from "./boardPresenceCore.js";
 
 /**
@@ -83,7 +84,7 @@ async function loadFamily(root: string): Promise<Family> {
       select: { id: true, name: true },
     });
     const family: Family = { root, projects: new Map(rows.map(r => [r.id, r.name])), conns: new Map(), locks: new LockTable() };
-    // PHASE 3: seed unexpired mirrored locks for this family here.
+    for (const l of await mirroredLocksFor([...family.projects.keys()])) family.locks.seed(l.taskId, l.memberId, Date.now());
     families.set(root, family);
     return family;
   })().finally(() => loading.delete(root));
@@ -109,12 +110,13 @@ function snapshot(c: Conn) {
   };
 }
 
-/** Tells the family about released locks. PHASE 3 adds the mirror delete. */
+/** Tells the family about released locks, and drops their mirror rows. */
 export function announceReleased(f: Family, released: Released[]): void {
   for (const r of released) {
     if (!r.ids.length) continue;
     const holder = r.sid ? f.conns.get(r.sid) : undefined;
     if (holder?.drag) holder.drag = null;
+    mirrorRelease(r.ids);
     familycast(f, ["e", r.sid, "dc", r.ids]);
   }
 }
@@ -221,7 +223,7 @@ async function requestLock(c: Conn, ids: string[], grabbed: string): Promise<voi
   c.drag = { ids, grabbed };
   send(c, ["ok", ids]);
   familycast(f, ["e", c.sid, "ds", ids, grabbed], c);
-  // PHASE 3: mirror the grant (boardLockService.mirrorAcquire).
+  mirrorAcquire(ids, c.memberId);
 }
 
 async function joinRoom(c: Conn, projectId: string): Promise<void> {
@@ -265,13 +267,20 @@ function tick(): void {
   }
 }
 
+let lastRenew = 0;
+
 function sweep(): void {
   const now = Date.now();
+  const held: string[] = [];
   for (const f of allFamilies()) {
     announceReleased(f, f.locks.sweep(now));
     for (const c of f.conns.values()) if (now - c.lastSeen > 60_000) c.ws.terminate();
-    // PHASE 3: every 5 s, renew the mirror rows of locks still held.
+    for (const [id, h] of f.locks.entries()) if (h.sid !== null) held.push(id);
     if (!f.conns.size && !f.locks.size) families.delete(f.root);
+  }
+  if (now - lastRenew > 5_000) {
+    lastRenew = now;
+    mirrorRenew(held);
   }
 }
 
