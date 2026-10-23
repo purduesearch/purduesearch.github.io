@@ -205,6 +205,12 @@ export async function updateTaskAsMember(
       blockedByIds: blockingTaskIds,
       blockedByReasons: blockingTaskReasons,
     });
+    {
+      // updateTask() already published the change without an actor; this tags
+      // the same 25 ms presence batch with who did it and from where.
+      const { emitTaskChanged } = await import("./taskChangeBus.js");
+      emitTaskChanged(taskId, { actorId, source });
+    }
 
     if (patch.blockerIds !== undefined || patch.newBlocker !== undefined) {
       const { createBlockerAsMember, attachBlockerAsMember } = await import("./blockerMutationService.js");

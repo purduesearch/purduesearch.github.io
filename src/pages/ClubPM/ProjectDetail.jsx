@@ -2663,6 +2663,8 @@ export default function ProjectDetail() {
   const handlePresencePatch = useCallback((entries, core, state) => {
     const current = projectRef.current;
     const boardProjectIds = new Set([current?.id, ...(current?.rollupSources ?? []).map(s => s.projectId)]);
+    // This tab's own drag commits are already applied optimistically; replaying them could undo a newer local move.
+    entries = entries.filter(e => !(e.by && e.by === state?.self));
     const plan = core.planPatch(current, entries, { boardProjectIds, showArchived });
     const now = Date.now();
     const entryById = new Map(entries.map(e => [e.id, e]));
@@ -3379,7 +3381,11 @@ export default function ProjectDetail() {
     }
 
     const dropRect = event?.active?.rect?.current?.translated;
-    presence.client?.drop(carried, newStatus);
+    // Cards that will not be written (same bin, or not editable) get no commit patch: release them now.
+    const written = carried.filter(tid => draggedIds.includes(tid) && findTaskById(tid)?.task.status !== newStatus);
+    const unwritten = carried.filter(tid => !written.includes(tid));
+    if (unwritten.length) presence.client?.cancel(unwritten);
+    if (written.length) presence.client?.drop(written, newStatus);
     await moveTasksToStatus(draggedIds, newStatus, dropRect);
     if (isGroup) clearSelection();
   };

@@ -168,10 +168,13 @@ export function reducePresence(state, msg) {
     }
     case 'e': return reduceEvent(state, msg);
     case 'p': {
+      // Same rule as the relay's releaseCommitted: a patch ends only a drag that was dropped.
+      // An unrelated write to a card someone is still carrying leaves the lock up.
       const ids = new Set(msg[1].map(e => e.id));
-      if (![...ids].some(id => state.locks.has(id))) return state;
-      const locks = new Map([...state.locks].filter(([id]) => !ids.has(id)));
-      const drags = new Map([...state.drags].filter(([, d]) => !d.ids.some(id => ids.has(id))));
+      const done = new Set([...state.drags].filter(([, d]) => d.dropped && d.ids.some(id => ids.has(id))).map(([sid]) => sid));
+      if (!done.size) return state;
+      const locks = new Map([...state.locks].filter(([id, l]) => !(ids.has(id) && done.has(l.sid))));
+      const drags = new Map([...state.drags].filter(([sid]) => !done.has(sid)));
       return { ...state, locks, drags };
     }
     default: return state;

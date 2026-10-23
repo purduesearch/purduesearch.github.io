@@ -88,10 +88,18 @@ describe('reducePresence', () => {
     expect(st.sel.has('s2')).toBe(false);
   });
 
-  test('e/ds then p clears the lock and the drag', () => {
+  test('p before the drop leaves the lock up', () => {
+    let st = reducePresence(reducePresence(emptyPresence(), hiFrame), ['e', 's2', 'ds', ['t2'], 't2']);
+    st = reducePresence(st, ['p', [{ id: 't2' }]]);
+    expect(st.locks.get('t2')).toEqual({ sid: 's2', memberId: 'm2' });
+    expect(st.drags.has('s2')).toBe(true);
+  });
+
+  test('e/ds, e/de then p clears the lock and the drag', () => {
     let st = reducePresence(reducePresence(emptyPresence(), hiFrame), ['e', 's2', 'ds', ['t2', 't3'], 't2']);
     expect(st.locks.get('t2')).toEqual({ sid: 's2', memberId: 'm2' });
     expect(st.drags.has('s2')).toBe(true);
+    st = reducePresence(st, ['e', 's2', 'de', ['t2', 't3'], 'DONE']);
     st = reducePresence(st, ['p', [{ id: 't2' }, { id: 't3' }]]);
     expect(st.locks.has('t2')).toBe(false);
     expect(st.drags.has('s2')).toBe(false);

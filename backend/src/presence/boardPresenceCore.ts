@@ -5,7 +5,7 @@
  */
 
 export const LIMITS = {
-  maxMessageBytes: 4096,
+  maxMessageBytes: 10_240, // a full 200-id selection (cuids) is ~6 KB
   maxIdsPerMessage: 200,
   messagesPerSecond: 40,
   lockTtlMs: 15_000,     // a lock not renewed for this long expires

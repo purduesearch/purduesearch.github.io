@@ -29,6 +29,8 @@ export type Conn = {
   cursorDirty: boolean;
   sel: string[];
   drag: { ids: string[]; grabbed: string } | null;
+  /** Bumped by ds/de/dc, so a lock answer that lands after the drag ended is not granted. */
+  dragSeq: number;
   carry: string | null;
   viewing: string | null;
   hidden: boolean;
@@ -161,7 +163,7 @@ async function accept(ws: WebSocket, url: URL): Promise<void> {
   const c: Conn = {
     sid: `s${++sidCounter}`, ws, memberId, name: member.displayName, avatarUrl: member.avatarUrl ?? null,
     room: projectId, family, limiter: new RateLimiter(), cursor: null, cursorDirty: false,
-    sel: [], drag: null, carry: null, viewing: null, hidden: false, lastSeen: Date.now(),
+    sel: [], drag: null, dragSeq: 0, carry: null, viewing: null, hidden: false, lastSeen: Date.now(),
   };
   family.conns.set(c.sid, c);
   ws.on("message", (data: RawData) => onMessage(c, data));
@@ -186,12 +188,21 @@ function handle(c: Conn, msg: ClientMsg, now: number): void {
     case "auth": case "hb": return;
     case "c": c.cursor = [msg.anchor, msg.x, msg.y]; c.cursorDirty = true; return;
     case "sel": c.sel = msg.ids; roomcast(c, ["e", c.sid, "sel", msg.ids]); return;
-    case "ds": void requestLock(c, msg.ids, msg.grabbed); return;
+    case "ds": {
+      const seq = ++c.dragSeq;
+      requestLock(c, msg.ids, msg.grabbed, seq).catch(err => {
+        console.error("[presence] lock request failed:", err);
+        if (c.ws.readyState === WebSocket.OPEN) send(c, ["no", msg.ids, null, null]);
+      });
+      return;
+    }
     case "de":
+      c.dragSeq++;
       f.locks.markDropped(c.sid, msg.ids, now);
       familycast(f, ["e", c.sid, "de", msg.ids, msg.status], c);
       return;
     case "dc": {
+      c.dragSeq++;
       const ids = f.locks.release(c.sid, msg.ids);
       c.drag = null;
       if (ids.length) announceReleased(f, [{ sid: c.sid, memberId: c.memberId, ids }]);
@@ -203,11 +214,16 @@ function handle(c: Conn, msg: ClientMsg, now: number): void {
     case "o": c.viewing = msg.taskId; roomcast(c, ["e", c.sid, "o", msg.taskId]); return;
     case "oc": c.viewing = null; roomcast(c, ["e", c.sid, "oc"]); return;
     case "h": c.hidden = msg.hidden; if (!msg.hidden) send(c, ["hi", snapshot(c)]); return;
-    case "join": void joinRoom(c, msg.projectId); return;
+    case "join":
+      joinRoom(c, msg.projectId).catch(err => {
+        console.error("[presence] join failed:", err);
+        if (c.ws.readyState === WebSocket.OPEN) c.ws.close(1011, "error");
+      });
+      return;
   }
 }
 
-async function requestLock(c: Conn, ids: string[], grabbed: string): Promise<void> {
+async function requestLock(c: Conn, ids: string[], grabbed: string, seq: number): Promise<void> {
   const f = c.family;
   const tasks = await prisma.task.findMany({
     where: { id: { in: ids } },
@@ -215,7 +231,8 @@ async function requestLock(c: Conn, ids: string[], grabbed: string): Promise<voi
   });
   const inFamily = tasks.length === ids.length && tasks.every(t => f.projects.has(t.projectId));
   const allowed = inFamily && (await taskAssignmentPermissions(c.memberId, tasks)).every(t => t.canAssign);
-  if (c.ws.readyState !== WebSocket.OPEN) return;
+  // Closed, or the drag was dropped/cancelled while we were checking: granting now would strand the lock.
+  if (c.ws.readyState !== WebSocket.OPEN || c.dragSeq !== seq) return;
   if (!allowed) { send(c, ["no", ids, null, null]); return; }
   // Checked and granted synchronously after the await, so two racing requests cannot both win.
   const r = f.locks.tryAcquire(ids, c.sid, c.memberId, Date.now());
