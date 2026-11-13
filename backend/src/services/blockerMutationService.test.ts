@@ -17,6 +17,7 @@ const source = readFileSync(new URL("./blockerMutationService.ts", import.meta.u
 const calls: any[] = [];
 let canEdit = true;
 let resolvedAt: Date | null = null;
+let taskProjectId = "p";
 const deps = {
   TaskMutationError,
   getTaskPermissions: async (actor: string, task: string) => { calls.push(["permission", actor, task]); return { canEdit }; },
@@ -29,7 +30,7 @@ const deps = {
     taskBlocker: { upsert: async (args: any) => { calls.push(["upsert", args]); } },
     task: {
       update: async (args: any) => { calls.push(["update", args]); },
-      findUnique: async () => ({ title: "Task", blockers: [{ blocker: { label: "Supply" } }] }),
+      findUnique: async () => ({ projectId: taskProjectId, title: "Task", blockers: [{ blocker: { label: "Supply" } }] }),
     },
   },
   emitTaskChanged: (id: string) => { calls.push(["emit", id]); },
@@ -56,6 +57,11 @@ await assert.rejects(service.attachBlockerAsMember("actor", "t", { blockerId: "b
 assert.equal(calls.length, 1);
 calls.length = 0;
 resolvedAt = null;
+taskProjectId = "other-project";
+await assert.rejects(service.attachBlockerAsMember("actor", "t", { blockerId: "b" }, "WEB"), { status: 400 });
+assert.deepEqual(calls, [["permission", "actor", "t"]]);
+calls.length = 0;
+taskProjectId = "p";
 const task = await service.attachBlockerAsMember("actor", "t", { blockerId: "b", reason: "Waiting" }, "WEB");
 assert.equal(task.title, "Task");
 assert.deepEqual(calls.map(c => c[0]), ["permission", "upsert", "emit", "update", "emit", "audit"]);
@@ -71,8 +77,10 @@ const archiveSource = mutationSource.slice(mutationSource.indexOf("export async 
 calls.length = 0;
 let existing: any = null;
 let canArchive = false;
+let boardLocked = false;
 const archive = load(archiveSource, {
   ...deps,
+  assertNotBoardLocked: async () => { if (boardLocked) throw new TaskMutationError(423, "Task is locked"); },
   getTask: async () => existing,
   getTaskPermissions: async () => ({ canArchive }),
   prismaClient: {
@@ -89,6 +97,10 @@ existing = { projectId: "p", title: "Task" };
 await assert.rejects(archive.archiveTaskAsMember("actor", "t", "WEB"), { status: 403 });
 assert.equal(calls.length, 0);
 canArchive = true;
+boardLocked = true;
+await assert.rejects(archive.archiveTaskAsMember("actor", "t", "WEB"), { status: 423 });
+assert.equal(calls.length, 0);
+boardLocked = false;
 const result = await archive.archiveTaskAsMember("actor", "t", "SLACK");
 assert.deepEqual(result.task, { id: "t" });
 assert.deepEqual(result.dependencyWarnings.map((t: any) => t.id), ["open"]);
@@ -97,4 +109,4 @@ assert.equal(calls[0][1].data.archivedById, "actor");
 assert.ok(calls[0][1].data.archivedAt instanceof Date);
 assert.equal(calls[2][1].source, "SLACK");
 assert.equal(calls[2][1].eventType, "TASK_ARCHIVED");
-console.log("blocker/archive mutation extraction: 8 cases passed");
+console.log("blocker/archive mutation extraction: 10 cases passed");

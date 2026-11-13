@@ -2,8 +2,29 @@
 // Run: cd backend && npx tsx src/services/ai/planTextExtract.test.ts
 
 import { extractJsonBlock, parsePastedPlan, parsePastedSectionPlan } from "./planTextExtract.js";
-import { normalizeActionPlan, type DroppedAction } from "../aiActionService.js";
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { runInNewContext } from "node:vm";
+import ts from "typescript";
+import type { DroppedAction } from "../aiActionService.js";
 import type { ProjectContext } from "../projectContextService.js";
+
+// Exercise the real normalizer without initializing its DB/Slack/AI dependencies.
+const actionSource = readFileSync(new URL("../aiActionService.ts", import.meta.url), "utf8");
+const actionJs = ts.transpileModule(actionSource, {
+  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+}).outputText;
+const actionDependencies = new Set([
+  "../db/prisma.js", "./projectContextService.js", "../utils/aiPrompts.js", "./ai/aiRouter.js",
+  "./ai/planTextExtract.js", "../middleware/taskAccess.js", "./taskMutationService.js",
+  "./activityService.js", "../api/blockers.js", "./milestoneService.js", "./taskChangeBus.js", "./taskService.js",
+]);
+const actionExports: any = {};
+runInNewContext(actionJs, { exports: actionExports, require: (name: string) => {
+  assert.ok(actionDependencies.has(name), `Unexpected service boundary ${name}`);
+  return {};
+}, Date, console });
+const normalizeActionPlan = actionExports.normalizeActionPlan as typeof import("../aiActionService.js").normalizeActionPlan;
 
 let passed = 0, failed = 0;
 function check(name: string, cond: boolean) {

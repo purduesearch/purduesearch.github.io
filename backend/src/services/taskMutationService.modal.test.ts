@@ -31,6 +31,7 @@ function fixture(editable = true) {
   };
   const deps: Record<string, any> = {
     "../db/prisma.js": { prisma: {
+      milestone: { findUnique: async ({ where }: any) => where.id === "missing" ? null : { projectId: where.id === "milestone" ? "project" : "other-project" } },
       blocker: { findMany: async ({ where }: any) => where.id.in.filter((id: string) => id === "active").map((id: string) => ({ id })) },
       taskBlocker: { delete: async ({ where }: any) => { tasks.parent.blockers = tasks.parent.blockers.filter((b: any) => b.blockerId !== where.taskId_blockerId.blockerId); } },
       memberAchievement: { findMany: async () => [] },
@@ -79,6 +80,16 @@ test("permission refusal stops metadata and child writes", async () => {
   const f = fixture(false);
   await assert.rejects(f.update("actor", "parent", { estimatedHours: 3, subtasks: [{ title: "Child" }] }, "SLACK"), { status: 403 });
   assert.equal(f.writes.length, 0); assert.equal(f.tasks.parent.subtasks.length, 0);
+});
+
+test("foreign and missing milestones are rejected before any task writes", async () => {
+  const f = fixture();
+  for (const milestoneId of ["foreign", "missing"]) {
+    await assert.rejects(f.update("actor", "parent", { milestoneId }, "SLACK"), { status: 400 });
+  }
+  assert.equal(f.writes.length, 0);
+  assert.equal(f.notices.length, 0);
+  assert.equal(f.audits.length, 0);
 });
 
 test("legacy dependency, attachment and due date forwarding retain REST semantics", async () => {
