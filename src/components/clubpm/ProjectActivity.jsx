@@ -50,6 +50,7 @@ const EVENT_META = {
   MILESTONE_DELETED:       { icon: "fas fa-flag",           tone: "danger",    label: "Milestone" },
   MILESTONE_TASKS_LINKED:  { icon: "fas fa-link",           tone: "milestone", label: "Milestone" },
   AI_PLAN_EXECUTED:        { icon: "fas fa-robot",          tone: "ai",        label: "AI Plan"    },
+  AGENT_EXTERNAL_ACTION:   { icon: "fas fa-paper-plane",    tone: "ai",        label: "Claude"     },
 };
 
 // ── Filter groups ────────────────────────────────────────────
@@ -94,10 +95,12 @@ const FILTER_GROUPS = [
     id: "project", label: "Project", icon: "fas fa-gear",
     types: ["PROJECT_CREATED", "PROJECT_UPDATED", "PROJECT_MEMBER_ADDED", "TIME_LOGGED"],
   },
-  { id: "ai", label: "AI", icon: "fas fa-robot", types: ["AI_PLAN_EXECUTED"] },
+  { id: "ai", label: "AI", icon: "fas fa-robot", types: ["AI_PLAN_EXECUTED", "AGENT_EXTERNAL_ACTION"] },
 ];
 
 // ── Human-readable descriptions ──────────────────────────────
+
+const EXTERNAL_APP_LABELS = { email: "Email", slack: "Slack", calendar: "Calendar", docs: "Docs", other: "Other" };
 
 export function describeEvent(log) {
   const actor = log.member?.displayName ?? "Someone";
@@ -258,6 +261,12 @@ export function describeEvent(log) {
 
     case "AI_PLAN_EXECUTED":
       return <><strong>{actor}</strong> ran an AI action plan ({p.succeeded ?? 0}/{p.totalActions ?? 0} applied)</>;
+
+    case "AGENT_EXTERNAL_ACTION": {
+      const appLabel = EXTERNAL_APP_LABELS[p.app] ?? (p.app ? String(p.app) : "Other");
+      const recipients = Array.isArray(p.recipientMemberIds) ? p.recipientMemberIds.length : 0;
+      return <><strong>{actor}</strong> via Claude — {appLabel}{p.summary ? `: ${p.summary}` : ""}{recipients > 0 ? ` · ${recipients} recipient${recipients === 1 ? "" : "s"}` : ""}</>;
+    }
 
     default:
       return <><strong>{actor}</strong>: {log.eventType.toLowerCase().replace(/_/g, " ")}
