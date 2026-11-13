@@ -1,6 +1,6 @@
 # Connector insights + recommendations progress (cobalt-ibis)
 
-Updated: 2026-11-13. Phases 1–6 done.
+Updated: 2026-11-13. Phases 1–7 done.
 
 ## Decisions
 
@@ -28,7 +28,7 @@ Updated: 2026-11-13. Phases 1–6 done.
 | 4 — Pure insights core | Done — `projectInsightsCore.ts` (`computeProjectInsights`, `openHoursFor`, `HOURS_FALLBACK`, `HOURS_PER_POINT`, `AGING_BUCKETS`, `weekStartUtc`). UTC date math (website uses local); `meanCycleDays` null when no completions (website shows 0); weekly[] is Monday-aligned, so its sum can differ from the rolling `completedInWindow`. Gate: typecheck ok, backend 118/119 (baseline + 1) |
 | 5 — get_project_insights | Done — `mcp/tools/insights.ts` registered in `server.ts`; kpis/workload/weekly/aging + time (totals, byWeek, byMember; task titles dropped) + skills (≤5/member, ≤1 evidence; degrades to `not_a_member`/`unavailable`). Names only inside `untrustedData`. Gate: build ok, typecheck ok, backend 119/120 |
 | 6 — Draft cleanup cron | Done — `agentDraftCleanup.ts` (`cleanupAgentDrafts`, `runAgentDraftCleanup`); drafts pruned 24h after expiry, dismissals at `until`; `scheduler.ts` `17 * * * *`. Gate: typecheck ok, backend 120/121 |
-| 7 — Pure recommendation core | Not started |
+| 7 — Pure recommendation core | Done — `recommendationCore.ts` (`RULE_DEFAULTS`, `buildContext`, `rankCandidates`, `buildRecommendations`), id-based `RecInput` (Phase 8 maps into it). Milestone rules include overdue milestones and skip COMPLETED/CANCELLED (controller added CANCELLED). Overload reassign keeps co-assignees. Gate: typecheck ok, backend 121/122, 43 checks |
 | 8 — Recommendation tools | Not started |
 | 9 — Contacts + log-back | Not started |
 | 10 — MCP prompts | Not started |
