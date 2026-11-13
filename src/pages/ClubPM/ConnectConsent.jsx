@@ -188,7 +188,7 @@ export default function ConnectConsent({ onRedirect = redirectToCallback }) {
             {!pending.projects.length && <p className="pm-connect-note">There are no projects available to connect to your account.</p>}
             {!!pending.projects.length && <p className="pm-connect-note" aria-live="polite">{selectedProjects.length} selected</p>}
           </fieldset>
-          <p className="pm-connect-account-note">You can change these projects or disconnect later in <strong>Profile → Connected apps</strong>.</p>
+          <p className="pm-connect-account-note">You can change these projects or disconnect later in <strong>Profile → Customize → Connected apps</strong>.</p>
           <div className="pm-connect-actions">
             <button type="button" className="pm-connect-secondary" disabled={busy || expired} onClick={() => decide(false)}>Deny</button>
             <button type="button" className="pm-connect-primary" disabled={busy || expired || !selectedProjects.length} onClick={() => decide(true)}>{busy ? 'Returning to Claude…' : 'Connect selected projects'}</button>

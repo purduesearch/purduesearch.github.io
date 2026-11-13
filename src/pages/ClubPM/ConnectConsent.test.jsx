@@ -34,7 +34,7 @@ test('requires manual project selection, including for project leads', async () 
   expect(screen.getByLabelText('Share AstroUSA')).not.toBeChecked();
   expect(screen.getByLabelText('Share Software')).not.toBeChecked();
   expect(screen.getByRole('button', { name: 'Connect selected projects' })).toBeDisabled();
-  expect(screen.getByText('Profile → Connected apps')).toBeInTheDocument();
+  expect(screen.getByText('Profile → Customize → Connected apps')).toBeInTheDocument();
   expect(submitOAuthConsent).not.toHaveBeenCalled();
 });
 
