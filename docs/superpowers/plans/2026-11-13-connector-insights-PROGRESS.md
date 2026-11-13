@@ -1,6 +1,6 @@
 # Connector insights + recommendations progress (cobalt-ibis)
 
-Updated: 2026-11-13. Phases 1–3 done.
+Updated: 2026-11-13. Phases 1–4 done.
 
 ## Decisions
 
@@ -25,7 +25,7 @@ Updated: 2026-11-13. Phases 1–3 done.
 | 1 — Schema + migration | Done — `AgentPlanDraft.origin`/`recommendationKey`, `AgentRecommendationDismissal`, `AGENT_EXTERNAL_ACTION`; migration `20261114120000_connector_insights` (prisma migrate diff output). Gate: build ok, typecheck ok, backend 117/118 (baseline), root n/a |
 | 2 — Open plans to members safely | Done — `constellation.contacts` scope; plan/contacts grantable by any member, delete admin-only (consent + preview + execute); `PROJECT_SCOPED_ACTION_TYPES` + injected `canEditProject` gate in preview/execute; rate kind `log` (20/h). Gate: build ok, typecheck ok, backend 117/118 (baseline) |
 | 3 — Consent + Connected apps UI | Done — plan checkbox for every member (default on for admins, off for members), delete admin-only, contacts checkbox off by default, "read-only" note only when plan isn't offered; Connected apps contacts label. No CSS change. Gate: build ok, root 622/622 |
-| 4 — Pure insights core | Not started |
+| 4 — Pure insights core | Done — `projectInsightsCore.ts` (`computeProjectInsights`, `openHoursFor`, `HOURS_FALLBACK`, `HOURS_PER_POINT`, `AGING_BUCKETS`, `weekStartUtc`). UTC date math (website uses local); `meanCycleDays` null when no completions (website shows 0); weekly[] is Monday-aligned, so its sum can differ from the rolling `completedInWindow`. Gate: typecheck ok, backend 118/119 (baseline + 1) |
 | 5 — get_project_insights | Not started |
 | 6 — Draft cleanup cron | Not started |
 | 7 — Pure recommendation core | Not started |
