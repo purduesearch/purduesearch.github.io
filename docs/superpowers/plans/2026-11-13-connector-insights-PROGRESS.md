@@ -1,6 +1,6 @@
 # Connector insights + recommendations progress (cobalt-ibis)
 
-Updated: 2026-11-13. Phases 1–11 done.
+Updated: 2026-11-13. Phases 1–12 done.
 
 ## Decisions
 
@@ -33,7 +33,7 @@ Updated: 2026-11-13. Phases 1–11 done.
 | 9 — Contacts + log-back | Done — `mcp/tools/contacts.ts` (`get_project_contacts` under `constellation.contacts`; `record_external_action` under plan, rate `log`, roster-only recipients, local task only, actor = connection member) registered in `server.ts`. Gate: build ok, typecheck ok, backend 123/124 |
 | 10 — MCP prompts | Done — `mcp/prompts.ts` (`weekly_triage`, `review_recommendations`, `status_update_email`; args quoted + capped at 200) wired in `server.ts`; test checks every referenced tool is registered. Gate: build ok, typecheck ok, backend 124/125 |
 | 11 — Activity feed label | Done — `ProjectActivity.jsx` `AGENT_EXTERNAL_ACTION` (paper-plane, "Claude", in AI filter; "via Claude — App: summary · N recipients"); new `ProjectActivity.test.jsx`. TaskModal history untouched (server-humanized "agent external action"). No CSS. Gate: build ok, root 627/627 |
-| 12 — Security review | Not started |
+| 12 — Security review | Done — fresh Opus reviewer, all 12 checklist items PASS, no code changes. Real `normalizeActionPlan` path verified by reading (Bolt import blocks isolated run). Gate: build ok, typecheck ok, backend 124/125, root 627/627 |
 | 13 — Docs | Not started |
 | 14 — Manual rollout | Not started |
 
@@ -43,6 +43,11 @@ Updated: 2026-11-13. Phases 1–11 done.
 - Phase 13: add the `17 * * * *` connector cleanup to the `backend/src/slack/AGENTS.md` scheduler bullet.
 - Phase 8 tests use a fake `normalize`: the real `normalizeActionPlan` imports the Slack Bolt app at load (needs SLACK_APP_TOKEN). Phase 12 to review the real path; consider splitting normalize into an import-safe module later.
 - `buildProjectContext().members` includes bots (no isBot filter) — worked around in Phase 8; other AI features may want the same filter.
+- **Security review follow-ups (ranked, for Henry):**
+  1. Pre-existing, more relevant now that any member can plan: task-targeted actions (UPDATE/ASSIGN/SET_*) check only `getTaskPermissions` (admin/lead/creator/assignee), not `canEditProject`/channel access. A creator/assignee who can read but not edit a channel-linked project can still change their own tasks via the connector (and via `/ai-execute-plan`). The web `canAssign` hint does include `canEditProjectsBatch`. Decide together with the web-route follow-up above.
+  2. `preview_action_plan` normalizes against the raw 300-task `buildProjectContext` snapshot; `get_recommendations` uses `scopedContext` (all rows). Edits to tasks beyond the cap are dropped as not-in-project. Usability, not a leak.
+  3. `reasons.skillMatch` uses visible skills only — re-check if skill visibility rules change.
+  4. Dismissal rows per member are bounded only by rate limit + 30-day expiry; add a per-member cap if abused.
 - `prisma validate` needs a `DATABASE_URL` (dummy is fine).
 
 - Web routes `/api/projects/:id/ai-execute-plan` and milestone/blocker REST lack project-edit checks (pre-existing; separate decision).
