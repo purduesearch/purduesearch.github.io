@@ -18,6 +18,7 @@ import XpHeatmap from "../../components/clubpm/XpHeatmap";
 import GhStatsSection from "../../components/clubpm/GhStatsSection";
 import GitHubConnectButton from "../../components/clubpm/github/GitHubConnectButton";
 import IcsFeedConnect from "../../components/clubpm/IcsFeedConnect";
+import ConnectedApps from "../../components/clubpm/ConnectedApps";
 import TrainingStatusStrip from "../../components/clubpm/courses/TrainingStatusStrip";
 import SkillsWorkspace from "./SkillsWorkspace";
 import MemberSkillsCard from "../../components/clubpm/skills/MemberSkillsCard";
@@ -391,6 +392,7 @@ export default function Profile() {
                     <div className="cpm-pf-head"><h2>Integrations</h2></div>
                     <GitHubConnectButton />
                     <IcsFeedConnect />
+                    <ConnectedApps />
                   </div>
                 )}
               </div>

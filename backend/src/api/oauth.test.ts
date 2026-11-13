@@ -18,6 +18,9 @@ const service = {
   exchangeCode: async () => { tokens++; return { access_token: "opaque", token_type: "Bearer" }; },
   exchangeRefresh: async () => { tokens++; return { access_token: "rotated", token_type: "Bearer" }; },
   revoke: async () => { revokes++; },
+  listGrants: async (memberId: string) => ({ projects: [], grants: [{ id: "g1", memberId }] }),
+  updateGrantProjects: async (memberId: string) => { calls.push(`update:${memberId}`); },
+  revokeMemberGrant: async (memberId: string) => { calls.push(`revoke:${memberId}`); },
 } as unknown as OAuthService;
 const { oauthRouter, oauthMetadataRouter } = createOAuthRouters({ service,
   verifyLoginBearer: async token => token === "valid-login" ? "member" : null });
@@ -53,6 +56,16 @@ try {
     assert.equal((await fetch(base + "/oauth/pending/id")).status, 401);
     const result = await fetch(base + "/oauth/pending/id", { headers: { Authorization: "Bearer valid-login" } });
     assert.equal(result.status, 200); assert.equal((await result.json()).member, "member");
+  });
+  await test("connected-app grant routes require a verified login Bearer, never the cookie", async () => {
+    const send = (method: string, path: string, authorization?: string) => fetch(base + path, { method,
+      headers: { "Content-Type": "application/json", ...(authorization ? { Authorization: authorization } : {}) }, body: method === "GET" ? undefined : JSON.stringify({ projectIds: [] }) });
+    for (const [method, path] of [["GET", "/oauth/grants"], ["PATCH", "/oauth/grants/g1"], ["DELETE", "/oauth/grants/g1"]]) {
+      assert.equal((await send(method, path)).status, 401);
+      assert.equal((await send(method, path, "Bearer valid-login")).status, 200);
+    }
+    assert.ok(calls.includes("update:member") && calls.includes("revoke:member"));
+    assert.equal(calls.some(c => c.includes("cookie-member")), false);
   });
   await test("authorize redirects only after service validation and query arrays fail", async () => {
     const result = await fetch(base + "/oauth/authorize?client_id=client", { redirect: "manual" });

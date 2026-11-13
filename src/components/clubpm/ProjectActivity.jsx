@@ -325,14 +325,18 @@ function RelativeTime({ iso }) {
 
 // ── Source Badge ─────────────────────────────────────────────
 
-function SourceBadge({ source }) {
-  const slack = source === "SLACK";
+const SOURCE_BADGES = {
+  SLACK: { className: "is-slack", title: "Via Slack", label: "Slack" },
+  AGENT: { className: "is-agent", title: "Via Claude Duet", label: "Claude" },
+  WEB:   { className: "is-web", title: "Via Dashboard", label: "Web" },
+};
+
+function SourceBadge({ source, client }) {
+  const badge = SOURCE_BADGES[source] ?? SOURCE_BADGES.WEB;
+  const title = source === "AGENT" && client ? `Via ${client}` : badge.title;
   return (
-    <span
-      className={`pm-activity-source ${slack ? "is-slack" : "is-web"}`}
-      title={slack ? "Via Slack" : "Via Dashboard"}
-    >
-      {slack ? "Slack" : "Web"}
+    <span className={`pm-activity-source ${badge.className}`} title={title}>
+      {badge.label}
     </span>
   );
 }
@@ -382,7 +386,7 @@ function ActivityRow({ log, isLast, onOpenTask }) {
         <div className="pm-activity-text">{describeEvent(log)}</div>
         <div className="pm-activity-meta">
           <RelativeTime iso={log.createdAt} />
-          <SourceBadge source={log.source} />
+          <SourceBadge source={log.source} client={log.payload?.client} />
           <RollupSourceChip rollup={log.rollup} />
         </div>
       </div>

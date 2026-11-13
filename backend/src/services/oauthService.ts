@@ -220,6 +220,39 @@ export function createOAuthService(deps: { db?: OAuthDb; config?: OAuthConfig; n
       if (!result) throw invalidGrant();
       return result;
     },
+    /** Profile → Connected apps. Project names come only from projects the member can still open; `projects` feeds the edit picker. */
+    async listGrants(memberId: string) {
+      await getActiveMember(db, memberId);
+      const [grants, projects] = await Promise.all([
+        db.oAuthGrant.findMany({ where: { memberId, revokedAt: null }, include: { client: true }, orderBy: { createdAt: "desc" } }),
+        listAccessibleProjects(db, memberId),
+      ]);
+      const names = new Map(projects.map(p => [p.id, p.name]));
+      const available = projects.map(p => ({ id: p.id, name: p.name, isLead: p.members.some(m => m.isLead) }));
+      return { projects: available, grants: grants.map(g => ({
+        id: g.id, clientName: g.client.name, scopes: g.scopes, createdAt: g.createdAt.toISOString(),
+        lastUsedAt: g.lastUsedAt?.toISOString() ?? null,
+        projects: g.projectIds.filter(id => names.has(id)).map(id => ({ id, name: names.get(id)! })),
+        unavailableProjectCount: g.projectIds.filter(id => !names.has(id)).length,
+      })) };
+    },
+    async revokeMemberGrant(memberId: string, grantId: unknown) {
+      const id = oauthString(grantId, "grant", 200);
+      await db.$transaction(async tx => {
+        const grant = await tx.oAuthGrant.findUnique({ where: { id } });
+        if (!grant || grant.memberId !== memberId || grant.revokedAt) throw new OAuthError("not_found", "Connection unavailable", 404);
+        await revokeGrant(tx, id, now());
+      });
+    },
+    /** The member picks again from projects they can open now; scopes never change here. */
+    async updateGrantProjects(memberId: string, grantId: unknown, input: Record<string, unknown>) {
+      const id = oauthString(grantId, "grant", 200);
+      const projectIds = stringArray(input.projectIds, "projectIds", 100);
+      const accessible = new Set((await listAccessibleProjects(db, memberId)).map(p => p.id));
+      if (projectIds.some(p => !accessible.has(p))) throw new OAuthError("access_denied", "A selected project is unavailable", 403);
+      const updated = await db.oAuthGrant.updateMany({ where: { id, memberId, revokedAt: null }, data: { projectIds } });
+      if (updated.count !== 1) throw new OAuthError("not_found", "Connection unavailable", 404);
+    },
     async revoke(input: Record<string, unknown>) {
       const registered = await client(input.client_id);
       const raw = oauthString(input.token, "token", 2048);

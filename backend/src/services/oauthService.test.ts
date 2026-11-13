@@ -32,6 +32,7 @@ function fixture() {
       if (!row) return null;
       const result = clone(row);
       if (model === "oAuthPendingRequest" && args.include?.client) result.client = clone(state.oAuthClient.find(c => c.clientId === row.clientId));
+      if (model === "oAuthGrant" && args.include?.client) result.client = clone(state.oAuthClient.find(c => c.clientId === row.clientId));
       if (model === "oAuthToken" && args.include?.grant) {
         result.grant = clone(state.oAuthGrant.find(g => g.id === row.grantId));
         if (args.include.grant.include?.client) result.grant.client = clone(state.oAuthClient.find(c => c.clientId === result.grant.clientId));
@@ -223,5 +224,25 @@ await test("access verifier returns 401 invalid_token for malformed credentials 
   const auth = await f.approved(), tokens = await f.exchange(auth);
   f.state().member = f.state().member.filter(m => m.id !== "member");
   await assert.rejects(f.service.verifyAccessToken(tokens.access_token), (e: unknown) => e instanceof OAuthError && e.code === "invalid_token" && e.status === 401);
+});
+await test("connected apps list, edit and revoke only the member's own grants", async () => {
+  const f = fixture(), auth = await f.approved(), tokens = await f.exchange(auth);
+  const grantId = f.state().oAuthGrant[0].id;
+  const { grants: [listed], projects } = await f.service.listGrants("member");
+  assert.deepEqual(projects, [{ id: "p1", name: "One", isLead: true }]);
+  assert.equal(listed.clientName, "Claude");
+  assert.deepEqual(listed.projects, [{ id: "p1", name: "One" }]);
+  assert.equal("changeCursor" in listed, false);
+  assert.deepEqual((await f.service.listGrants("admin")).grants, []);
+  await rejects(f.service.updateGrantProjects("member", grantId, { projectIds: ["p2"] }), "access_denied");
+  await rejects(f.service.updateGrantProjects("admin", grantId, { projectIds: [] }), "not_found");
+  await f.service.updateGrantProjects("member", grantId, { projectIds: [] });
+  assert.deepEqual(f.state().oAuthGrant[0].projectIds, []);
+  await rejects(f.service.revokeMemberGrant("admin", grantId), "not_found");
+  await f.service.verifyAccessToken(tokens.access_token);
+  await f.service.revokeMemberGrant("member", grantId);
+  await rejects(f.service.verifyAccessToken(tokens.access_token), "invalid_token");
+  await rejects(f.service.exchangeRefresh({ client_id: auth.clientId, refresh_token: tokens.refresh_token }), "invalid_grant");
+  assert.deepEqual((await f.service.listGrants("member")).grants, []);
 });
 console.log(`oauthService: ${passed} passed, 0 failed`);

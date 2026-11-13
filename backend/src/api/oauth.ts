@@ -52,6 +52,14 @@ export function createOAuthRouters(deps: { service?: OAuthService; verifyLoginBe
   oauthRouter.get("/authorize", limit("authorize", 100), route(async (req, res) => res.redirect(302, await service.authorize(input(req.query)))));
   oauthRouter.get("/pending/:id", limit("pending", 100), route(async (req, res) => res.json(await service.getPending(req.params.id, await member(req)))));
   oauthRouter.post("/consent", limit("consent", 50), route(async (req, res) => res.json(await service.consent(await member(req), input(req.body)))));
+  // Profile → Connected apps. Bearer-only, like consent, so a cross-site cookie cannot revoke or widen a grant.
+  oauthRouter.get("/grants", limit("grants", 200), route(async (req, res) => res.json(await service.listGrants(await member(req)))));
+  oauthRouter.patch("/grants/:id", limit("grants", 200), route(async (req, res) => {
+    await service.updateGrantProjects(await member(req), req.params.id, input(req.body)); res.json({ ok: true });
+  }));
+  oauthRouter.delete("/grants/:id", limit("grants", 200), route(async (req, res) => {
+    await service.revokeMemberGrant(await member(req), req.params.id); res.json({ ok: true });
+  }));
   oauthRouter.post("/token", limit("token", 120), route(async (req, res) => {
     const body = input(req.body);
     if (req.headers.authorization || body.client_secret !== undefined || body.client_assertion !== undefined) throw new OAuthError("invalid_client", "Only public PKCE clients are supported");
