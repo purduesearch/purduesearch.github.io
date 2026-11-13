@@ -33,7 +33,7 @@ check("found the app.use mounts", mounts.length > 20);
 
 // Routers whose routes authenticate via a `?token=` query param.
 const QUERY_TOKEN_ROUTERS = ["sseRouter", "chatRouter", "vaultReleasesRouter", "courseFilesRouter"];
-const CONNECTOR_ROUTERS = ["oauthMetadataRouter", "oauthRouter"];
+const CONNECTOR_ROUTERS = ["oauthMetadataRouter", "oauthRouter", "mcpRouter"];
 
 // Routers that attach a pathless requireAuth, keyed to a mount path that
 // shadows a query-token router. Bare "/api" mounts are checked generically.
