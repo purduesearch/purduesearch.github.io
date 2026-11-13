@@ -1,6 +1,6 @@
 # Connector insights + recommendations progress (cobalt-ibis)
 
-Updated: 2026-11-13. Phases 1–12 done.
+Updated: 2026-11-13. Phases 1–13 done; Phase 14 (manual rollout) waiting on Henry.
 
 ## Decisions
 
@@ -34,8 +34,8 @@ Updated: 2026-11-13. Phases 1–12 done.
 | 10 — MCP prompts | Done — `mcp/prompts.ts` (`weekly_triage`, `review_recommendations`, `status_update_email`; args quoted + capped at 200) wired in `server.ts`; test checks every referenced tool is registered. Gate: build ok, typecheck ok, backend 124/125 |
 | 11 — Activity feed label | Done — `ProjectActivity.jsx` `AGENT_EXTERNAL_ACTION` (paper-plane, "Claude", in AI filter; "via Claude — App: summary · N recipients"); new `ProjectActivity.test.jsx`. TaskModal history untouched (server-humanized "agent external action"). No CSS. Gate: build ok, root 627/627 |
 | 12 — Security review | Done — fresh Opus reviewer, all 12 checklist items PASS, no code changes. Real `normalizeActionPlan` path verified by reading (Bolt import blocks isolated run). Gate: build ok, typecheck ok, backend 124/125, root 627/627 |
-| 13 — Docs | Not started |
-| 14 — Manual rollout | Not started |
+| 13 — Docs | Done — `docs/CLAUDE-DUET.md` (scopes, tools + rate limits, recommendations + `RULE_DEFAULTS`, review loop, cross-app workflow, prompts, audit/threat model incl. known gap, reconnect note); controller applied AGENTS.md lines (root, api, services, slack, prisma). Final gate: build ok, root 627/627, typecheck ok, backend 124/125 (baseline DNS failure) |
+| 14 — Manual rollout | Waiting on Henry (checklist in plan Phase 14) |
 
 ## Follow-ups
 
