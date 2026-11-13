@@ -45,7 +45,7 @@ const date = (value: Date | null) => value?.toISOString().slice(0, 10) ?? null;
 const role = (access: McpResolvedContext, project: AccessibleProject) => access.member.isAdmin ? "admin" : project.members.some(m => m.isLead) ? "lead" : "member";
 
 /** Replace relation text from the shared context with explicitly project-scoped fields. */
-function scopedContext(context: ProjectContext, rows: ProjectTaskRow[], now: Date): ProjectContext {
+export function scopedContext(context: ProjectContext, rows: ProjectTaskRow[], now: Date): ProjectContext {
   const projectId = context.project.id;
   const local = rows.filter(row => row.projectId === projectId);
   const byId = new Map(local.map(row => [row.id, row]));

@@ -1,6 +1,6 @@
 # Connector insights + recommendations progress (cobalt-ibis)
 
-Updated: 2026-11-13. Phases 1–7 done.
+Updated: 2026-11-13. Phases 1–8 done.
 
 ## Decisions
 
@@ -29,7 +29,7 @@ Updated: 2026-11-13. Phases 1–7 done.
 | 5 — get_project_insights | Done — `mcp/tools/insights.ts` registered in `server.ts`; kpis/workload/weekly/aging + time (totals, byWeek, byMember; task titles dropped) + skills (≤5/member, ≤1 evidence; degrades to `not_a_member`/`unavailable`). Names only inside `untrustedData`. Gate: build ok, typecheck ok, backend 119/120 |
 | 6 — Draft cleanup cron | Done — `agentDraftCleanup.ts` (`cleanupAgentDrafts`, `runAgentDraftCleanup`); drafts pruned 24h after expiry, dismissals at `until`; `scheduler.ts` `17 * * * *`. Gate: typecheck ok, backend 120/121 |
 | 7 — Pure recommendation core | Done — `recommendationCore.ts` (`RULE_DEFAULTS`, `buildContext`, `rankCandidates`, `buildRecommendations`), id-based `RecInput` (Phase 8 maps into it). Milestone rules include overdue milestones and skip COMPLETED/CANCELLED (controller added CANCELLED). Overload reassign keeps co-assignees. Gate: typecheck ok, backend 121/122, 43 checks |
-| 8 — Recommendation tools | Not started |
+| 8 — Recommendation tools | Done — `mcp/tools/recommendations.ts` (`get_recommendations`, `get_assignment_candidates`, `dismiss_recommendation`) registered in `server.ts`; `scopedContext` exported from `projects.ts`. Permission-filtered per task + project gate; blocked recommendations stay as findings (`planId: null`, note); grant-bound draft reuse re-verified on the row; bots/deactivated excluded via `loadInactiveMemberIds`; ASSIGN that normalizes to empty assignees dropped. Gate: build ok, typecheck ok, backend 122/123 |
 | 9 — Contacts + log-back | Not started |
 | 10 — MCP prompts | Not started |
 | 11 — Activity feed label | Not started |
@@ -41,6 +41,8 @@ Updated: 2026-11-13. Phases 1–7 done.
 
 - `icsFeedService.test.ts` needs DNS (violates the no-network test rule); inject the resolver in a separate change.
 - Phase 13: add the `17 * * * *` connector cleanup to the `backend/src/slack/AGENTS.md` scheduler bullet.
+- Phase 8 tests use a fake `normalize`: the real `normalizeActionPlan` imports the Slack Bolt app at load (needs SLACK_APP_TOKEN). Phase 12 to review the real path; consider splitting normalize into an import-safe module later.
+- `buildProjectContext().members` includes bots (no isBot filter) — worked around in Phase 8; other AI features may want the same filter.
 - `prisma validate` needs a `DATABASE_URL` (dummy is fine).
 
 - Web routes `/api/projects/:id/ai-execute-plan` and milestone/blocker REST lack project-edit checks (pre-existing; separate decision).
