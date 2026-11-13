@@ -7,6 +7,7 @@ import { createMcpContext, type McpContext, type McpContextDependencies } from "
 import { registerProjectTools } from "./tools/projects.js";
 import { registerChangeTools } from "./tools/changes.js";
 import { registerTaskTools } from "./tools/tasks.js";
+import { registerPlanTools } from "./tools/plans.js";
 
 export type McpToolRegistrar = (server: McpServer, context: McpContext) => void;
 export function createMcpServer(context: McpContext, registerTools?: McpToolRegistrar) {
@@ -18,10 +19,10 @@ export function createMcpServer(context: McpContext, registerTools?: McpToolRegi
     await context.resolve();
     return { content: [{ type: "text", text: "Constellation connection is active." }] };
   });
-  // Controller adds the project/task/plan registrars here as their phases land.
   registerProjectTools(server, context);
   registerChangeTools(server, context);
   registerTaskTools(server, context);
+  registerPlanTools(server, context);
   registerTools?.(server, context);
   return server;
 }

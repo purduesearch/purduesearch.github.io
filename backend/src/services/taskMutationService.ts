@@ -1,4 +1,4 @@
-import type { TaskStatus, TaskProgress, Priority, NotificationType, RecurringInterval } from "@prisma/client";
+import type { TaskStatus, TaskProgress, Priority, NotificationType, RecurringInterval, ActivitySource } from "@prisma/client";
 import { prisma as prismaClient } from "../db/prisma.js";
 import { getTaskPermissions } from "../middleware/taskAccess.js";
 import { getTask, createTask, createSubtask, updateTask, assertCanComplete, assertNotCategoryBlocked } from "./taskService.js";
@@ -12,6 +12,8 @@ import type { ProgressMilestone } from "./challengeService.js";
 import { lockedByOthers } from "./boardLockService.js";
 
 export type MutationSource = "WEB" | "SLACK" | "AI";
+/** Overrides the audit row an AI-plan write logs: the Claude connector records `AGENT` plus its client name. */
+export interface AuditOrigin { source: Extract<ActivitySource, "WEB" | "AGENT">; client?: string }
 
 export class TaskMutationError extends Error {
   constructor(public status: number, message: string) {
@@ -487,7 +489,7 @@ export async function createTaskAsMember(
   input: CreateTaskInput,
   source: MutationSource,
   /** notify: false skips assignment notifications (e.g. bulk duplicate). */
-  opts: { notify?: boolean } = {},
+  opts: { notify?: boolean; origin?: AuditOrigin } = {},
 ): Promise<any> {
   const { attachments, ...taskInput } = input;
   if (taskInput.milestoneId) await assertMilestoneInProject(taskInput.milestoneId, taskInput.projectId);
@@ -501,10 +503,10 @@ export async function createTaskAsMember(
     refreshMilestoneHealth(task.milestoneId).catch(console.error);
   }
   logAuditEvent({
-    projectId: input.projectId, taskId: task.id, memberId: actorId, source: source === "AI" ? "WEB" : source,
+    projectId: input.projectId, taskId: task.id, memberId: actorId, source: opts.origin?.source ?? (source === "AI" ? "WEB" : source),
     eventType: "TASK_CREATED",
     payload: { taskTitle: task.title, priority: task.priority, assigneeNames: task.assignees.map(a => a.displayName),
-      ...(source === "AI" ? { viaAiPlan: true } : {}), },
+      ...(source === "AI" ? { viaAiPlan: true } : {}), ...(opts.origin?.client ? { client: opts.origin.client } : {}) },
   }).catch(console.error);
   if (opts.notify !== false) {
     await notifyAddedAssignees({ taskId: task.id, actorId, addedAssigneeIds: task.assignees.map(a => a.id) }).catch(console.error);
