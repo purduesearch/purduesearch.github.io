@@ -5,6 +5,7 @@ import { getOAuthPendingRequest, submitOAuthConsent } from '../../api/clubPmClie
 const READ = 'constellation.read';
 const PLAN = 'constellation.plan';
 const DELETE = 'constellation.plan.delete';
+const CONTACTS = 'constellation.contacts';
 
 function needsLogin(error) {
   return error?.status === 401 || error?.message === 'invalid_token';
@@ -46,6 +47,7 @@ export default function ConnectConsent({ onRedirect = redirectToCallback }) {
   const [selectedProjects, setSelectedProjects] = useState([]);
   const [planning, setPlanning] = useState(false);
   const [deletion, setDeletion] = useState(false);
+  const [contacts, setContacts] = useState(false);
   const [expired, setExpired] = useState(false);
   const [busy, setBusy] = useState(false);
   const inFlight = useRef(false);
@@ -57,6 +59,7 @@ export default function ConnectConsent({ onRedirect = redirectToCallback }) {
     setPending(null);
     setSelectedProjects([]);
     setDeletion(false);
+    setContacts(false);
     setPlanning(false);
     setExpired(false);
     setError('');
@@ -100,8 +103,9 @@ export default function ConnectConsent({ onRedirect = redirectToCallback }) {
     };
   }, [requestId, retry]);
 
-  const canPlan = !!pending?.member?.isAdmin && pending.scopes.includes(PLAN);
-  const canDelete = canPlan && pending.scopes.includes(DELETE);
+  const canPlan = !!pending && pending.scopes.includes(PLAN);
+  const canDelete = canPlan && !!pending.member?.isAdmin && pending.scopes.includes(DELETE);
+  const canContacts = !!pending && pending.scopes.includes(CONTACTS);
 
   function toggleProject(id) {
     setSelectedProjects(ids => ids.includes(id) ? ids.filter(value => value !== id) : [...ids, id]);
@@ -117,6 +121,7 @@ export default function ConnectConsent({ onRedirect = redirectToCallback }) {
     const scopes = [READ];
     if (canPlan && planning) scopes.push(PLAN);
     if (canDelete && planning && deletion) scopes.push(DELETE);
+    if (canContacts && contacts) scopes.push(CONTACTS);
     try {
       const result = await submitOAuthConsent({
         pendingId: pending.id,
@@ -166,13 +171,17 @@ export default function ConnectConsent({ onRedirect = redirectToCallback }) {
                 setPlanning(event.target.checked);
                 if (!event.target.checked) setDeletion(false);
               }} />
-              <span><strong>Allow project changes</strong><small>Preview and apply action plans. Every change checks your current admin permissions.</small></span>
+              <span><strong>Allow project changes</strong><small>Preview and apply action plans. Every change checks your current permissions on each task.</small></span>
             </label>}
             {canDelete && <label className="pm-connect-option pm-connect-option--delete">
               <input type="checkbox" checked={deletion} disabled={!planning || busy || expired} onChange={event => setDeletion(event.target.checked)} />
               <span><strong>Allow task deletion</strong><small>Action plans may permanently delete tasks. Off unless you choose it.</small></span>
             </label>}
-            {!pending.member?.isAdmin && <p className="pm-connect-note">Your connection is read-only. Project changes require current administrator permissions.</p>}
+            {canContacts && <label className="pm-connect-option">
+              <input type="checkbox" checked={contacts} onChange={event => setContacts(event.target.checked)} />
+              <span><strong>Share teammates' contact details</strong><small>Names, emails and Slack ids of members in the projects you select, so Claude can email or message them for you.</small></span>
+            </label>}
+            {!canPlan && <p className="pm-connect-note">This connection is read-only.</p>}
           </fieldset>
           <fieldset className="pm-connect-fieldset" disabled={busy || expired} aria-describedby="pm-connect-project-note">
             <legend>Choose projects</legend>

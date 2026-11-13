@@ -73,15 +73,59 @@ test('admins can choose a read-only connection', async () => {
   await waitFor(() => expect(submitOAuthConsent).toHaveBeenCalledWith(expect.objectContaining({ scopes: ['constellation.read'] })));
 });
 
-test('non-admins cannot opt into any project changes even if response scopes contain them', async () => {
+test('non-admins are offered project changes (off by default) and never task deletion', async () => {
+  getOAuthPendingRequest.mockResolvedValue(pending({
+    member: { id: 'member', isAdmin: false },
+    requestedScopes: allScopes,
+    scopes: ['constellation.read', 'constellation.plan'],
+  }));
+  renderAt();
+  fireEvent.click(await screen.findByLabelText('Share AstroUSA'));
+  const plan = screen.getByRole('checkbox', { name: /allow project changes/i });
+  expect(plan).not.toBeChecked();
+  expect(screen.queryByRole('checkbox', { name: /allow task deletion/i })).not.toBeInTheDocument();
+  expect(screen.queryByText(/read-only/)).not.toBeInTheDocument();
+  fireEvent.click(plan);
+  fireEvent.click(screen.getByRole('button', { name: 'Connect selected projects' }));
+  await waitFor(() => expect(submitOAuthConsent).toHaveBeenCalledWith(expect.objectContaining({ scopes: ['constellation.read', 'constellation.plan'] })));
+});
+
+test('non-admins never see deletion even if the response scopes contain it', async () => {
   getOAuthPendingRequest.mockResolvedValue(pending({ member: { id: 'member', isAdmin: false } }));
   renderAt();
   fireEvent.click(await screen.findByLabelText('Share AstroUSA'));
-  expect(screen.queryByRole('checkbox', { name: /allow project changes/i })).not.toBeInTheDocument();
   expect(screen.queryByRole('checkbox', { name: /allow task deletion/i })).not.toBeInTheDocument();
-  expect(screen.getByText(/Your connection is read-only/)).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('checkbox', { name: /allow project changes/i }));
   fireEvent.click(screen.getByRole('button', { name: 'Connect selected projects' }));
-  await waitFor(() => expect(submitOAuthConsent).toHaveBeenCalledWith(expect.objectContaining({ scopes: ['constellation.read'] })));
+  await waitFor(() => expect(submitOAuthConsent).toHaveBeenCalledWith(expect.objectContaining({ scopes: ['constellation.read', 'constellation.plan'] })));
+});
+
+test('a read-only offer shows a neutral read-only note', async () => {
+  getOAuthPendingRequest.mockResolvedValue(pending({ member: { id: 'member', isAdmin: false }, scopes: ['constellation.read'] }));
+  renderAt();
+  expect(await screen.findByText('This connection is read-only.')).toBeInTheDocument();
+});
+
+test('teammate contacts are off by default and only sent when checked', async () => {
+  const scopes = [...allScopes, 'constellation.contacts'];
+  getOAuthPendingRequest.mockResolvedValue(pending({ requestedScopes: scopes, scopes }));
+  renderAt();
+  fireEvent.click(await screen.findByLabelText('Share AstroUSA'));
+  const contacts = screen.getByRole('checkbox', { name: /share teammates' contact details/i });
+  expect(contacts).not.toBeChecked();
+  fireEvent.click(screen.getByRole('button', { name: 'Connect selected projects' }));
+  await waitFor(() => expect(submitOAuthConsent).toHaveBeenCalledTimes(1));
+  expect(submitOAuthConsent.mock.calls[0][0].scopes).not.toContain('constellation.contacts');
+});
+
+test('checking teammate contacts sends the contacts scope', async () => {
+  const scopes = [...allScopes, 'constellation.contacts'];
+  getOAuthPendingRequest.mockResolvedValue(pending({ requestedScopes: scopes, scopes }));
+  renderAt();
+  fireEvent.click(await screen.findByLabelText('Share AstroUSA'));
+  fireEvent.click(screen.getByRole('checkbox', { name: /share teammates' contact details/i }));
+  fireEvent.click(screen.getByRole('button', { name: 'Connect selected projects' }));
+  await waitFor(() => expect(submitOAuthConsent).toHaveBeenCalledWith(expect.objectContaining({ scopes: ['constellation.read', 'constellation.plan', 'constellation.contacts'] })));
 });
 
 test('unrequested planning and deletion permissions are never offered or submitted', async () => {
