@@ -1,6 +1,6 @@
 # Connector insights + recommendations progress (cobalt-ibis)
 
-Updated: 2026-11-13. Phases 1–8 done.
+Updated: 2026-11-13. Phases 1–9 done.
 
 ## Decisions
 
@@ -30,7 +30,7 @@ Updated: 2026-11-13. Phases 1–8 done.
 | 6 — Draft cleanup cron | Done — `agentDraftCleanup.ts` (`cleanupAgentDrafts`, `runAgentDraftCleanup`); drafts pruned 24h after expiry, dismissals at `until`; `scheduler.ts` `17 * * * *`. Gate: typecheck ok, backend 120/121 |
 | 7 — Pure recommendation core | Done — `recommendationCore.ts` (`RULE_DEFAULTS`, `buildContext`, `rankCandidates`, `buildRecommendations`), id-based `RecInput` (Phase 8 maps into it). Milestone rules include overdue milestones and skip COMPLETED/CANCELLED (controller added CANCELLED). Overload reassign keeps co-assignees. Gate: typecheck ok, backend 121/122, 43 checks |
 | 8 — Recommendation tools | Done — `mcp/tools/recommendations.ts` (`get_recommendations`, `get_assignment_candidates`, `dismiss_recommendation`) registered in `server.ts`; `scopedContext` exported from `projects.ts`. Permission-filtered per task + project gate; blocked recommendations stay as findings (`planId: null`, note); grant-bound draft reuse re-verified on the row; bots/deactivated excluded via `loadInactiveMemberIds`; ASSIGN that normalizes to empty assignees dropped. Gate: build ok, typecheck ok, backend 122/123 |
-| 9 — Contacts + log-back | Not started |
+| 9 — Contacts + log-back | Done — `mcp/tools/contacts.ts` (`get_project_contacts` under `constellation.contacts`; `record_external_action` under plan, rate `log`, roster-only recipients, local task only, actor = connection member) registered in `server.ts`. Gate: build ok, typecheck ok, backend 123/124 |
 | 10 — MCP prompts | Not started |
 | 11 — Activity feed label | Not started |
 | 12 — Security review | Not started |

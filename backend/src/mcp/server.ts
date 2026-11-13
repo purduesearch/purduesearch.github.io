@@ -10,6 +10,7 @@ import { registerTaskTools } from "./tools/tasks.js";
 import { registerPlanTools } from "./tools/plans.js";
 import { registerInsightsTools } from "./tools/insights.js";
 import { registerRecommendationTools } from "./tools/recommendations.js";
+import { registerContactsTools } from "./tools/contacts.js";
 
 export type McpToolRegistrar = (server: McpServer, context: McpContext) => void;
 export function createMcpServer(context: McpContext, registerTools?: McpToolRegistrar) {
@@ -27,6 +28,7 @@ export function createMcpServer(context: McpContext, registerTools?: McpToolRegi
   registerPlanTools(server, context);
   registerInsightsTools(server, context);
   registerRecommendationTools(server, context);
+  registerContactsTools(server, context);
   registerTools?.(server, context);
   return server;
 }
