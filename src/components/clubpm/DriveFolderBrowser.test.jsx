@@ -1,9 +1,12 @@
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import DriveFolderBrowser from './DriveFolderBrowser';
 import AttachmentPickerModal from './AttachmentPickerModal';
 import { get } from '../../api/clubPmClient';
 
 jest.mock('../../api/clubPmClient', () => ({ get: jest.fn() }));
+// GitHub preview rendering is unrelated to the Drive browser/selection contract.
+jest.mock('./github/IssuePreviewModal', () => () => null);
+jest.mock('./github/PrPreviewModal', () => () => null);
 
 const folder = { id: 'subfolder', name: 'Research', mimeType: 'application/vnd.google-apps.folder' };
 const doc = { id: 'document', name: 'Design notes', mimeType: 'application/vnd.google-apps.document', modifiedTime: '2026-09-01T12:00:00Z' };
@@ -49,18 +52,18 @@ test('keeps selections across folders and search when adding task attachments', 
   const onAdd = jest.fn();
   const onClose = jest.fn();
   render(<AttachmentPickerModal projectId="p1" onAdd={onAdd} onClose={onClose} />);
-  fireEvent.click(screen.getByRole('button', { name: /Browse folder/ }));
+  expect(screen.getByRole('button', { name: 'Google Drive' })).toHaveAttribute('aria-pressed', 'true');
   fireEvent.click(await screen.findByRole('checkbox', { name: 'Select Test report.pdf' }));
   fireEvent.click(screen.getByRole('button', { name: 'Open folder Research' }));
   await screen.findByText('1 item');
   fireEvent.click(screen.getByRole('button', { name: 'Select file Design notes' }));
   fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'missing' } });
-  fireEvent.click(screen.getByRole('button', { name: 'Add 2' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Attach 2' }));
   expect(onAdd).toHaveBeenCalledWith([
     { url: 'https://drive.google.com/file/d/pdf/view', label: 'Test report.pdf' },
     { url: 'https://docs.google.com/document/d/document/edit', label: 'Design notes' },
   ]);
-  expect(onClose).toHaveBeenCalledTimes(1);
+  await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
 });
 
 test('ignores stale folder results and allows retry and navigation after an error', async () => {
