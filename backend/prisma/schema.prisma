@@ -215,6 +215,9 @@ model Member {
   blogThreadsCreated      BlogThread[]            @relation("BlogThreadCreator")
   blogThreadComments      BlogThreadComment[]     @relation("BlogThreadCommenter")
   slackReadCursors        SlackReadCursor[]
+  oauthPendingRequests    OAuthPendingRequest[]
+  oauthAuthCodes          OAuthAuthCode[]
+  oauthGrants             OAuthGrant[]
 
   // ── Slack user OAuth (per-member) ──
   // The user-scoped token minted by the Slack sign-in flow, AES-GCM encrypted at
@@ -285,8 +288,10 @@ model Member {
   // "fill from where you left off" transition + pop recent contributor avatars.
   lastSeenProgress Json?
 
-  tokenVersion Int      @default(0)
-  createdAt    DateTime @default(now())
+  tokenVersion  Int       @default(0)
+  /// Deactivated members cannot authenticate or use previously issued connector grants.
+  deactivatedAt DateTime?
+  createdAt     DateTime  @default(now())
 
   // ── Constellation Vault (CAD change management) ──
   vaultCheckouts         VaultItem[]                 @relation("VaultCheckout")
@@ -410,6 +415,7 @@ model Project {
   vaultSavedViews          VaultSavedView[]
   vaultEvents              VaultNotificationEvent[]
   workspaces               WorkspaceProject[]
+  agentPlanDrafts          AgentPlanDraft[]
 
   @@index([parentId])
 }
@@ -646,6 +652,7 @@ model ProjectUpdate {
 enum ActivitySource {
   WEB
   SLACK
+  AGENT
 }
 
 enum ActivityEventType {
@@ -3422,6 +3429,114 @@ model SlackPlanSession {
   expiresAt       DateTime
 
   @@index([memberId, status])
+}
+
+// ── Claude connector (OAuth 2.1 + previewed action plans) ────
+
+model OAuthClient {
+  clientId        String                @id @default(cuid())
+  name            String
+  redirectUris    String[]
+  createdAt       DateTime              @default(now())
+  pendingRequests OAuthPendingRequest[]
+  authCodes       OAuthAuthCode[]
+  grants          OAuthGrant[]
+}
+
+model OAuthPendingRequest {
+  id            String      @id @default(cuid())
+  clientId      String
+  client        OAuthClient @relation(fields: [clientId], references: [clientId], onDelete: Cascade)
+  redirectUri   String
+  scopes        String[]    @default([])
+  codeChallenge String
+  state         String?
+  memberId      String?
+  member        Member?     @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  createdAt     DateTime    @default(now())
+  expiresAt     DateTime
+
+  @@index([clientId])
+  @@index([memberId])
+  @@index([expiresAt])
+}
+
+model OAuthAuthCode {
+  /// SHA-256 digest only; never persist the authorization code itself.
+  hash          String      @id
+  clientId      String
+  client        OAuthClient @relation(fields: [clientId], references: [clientId], onDelete: Cascade)
+  memberId      String
+  member        Member      @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  scopes        String[]    @default([])
+  projectIds    String[]    @default([])
+  codeChallenge String
+  redirectUri   String
+  createdAt     DateTime    @default(now())
+  expiresAt     DateTime
+  usedAt        DateTime?
+
+  @@index([clientId])
+  @@index([memberId])
+  @@index([expiresAt])
+}
+
+model OAuthGrant {
+  id           String           @id @default(cuid())
+  clientId     String
+  client       OAuthClient      @relation(fields: [clientId], references: [clientId], onDelete: Cascade)
+  memberId     String
+  member       Member           @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  scopes       String[]         @default([])
+  projectIds   String[]         @default([])
+  /// Serialized timestamp + id cursor; nullable until the grant's first check.
+  changeCursor String?          @db.Text
+  createdAt    DateTime         @default(now())
+  revokedAt    DateTime?
+  lastUsedAt   DateTime?
+  tokens       OAuthToken[]
+  planDrafts   AgentPlanDraft[]
+
+  @@index([memberId, revokedAt])
+  @@index([clientId])
+}
+
+enum OAuthTokenKind {
+  ACCESS
+  REFRESH
+}
+
+model OAuthToken {
+  /// SHA-256 digest only; access and refresh credentials are opaque random strings.
+  hash      String         @id
+  grantId   String
+  grant     OAuthGrant     @relation(fields: [grantId], references: [id], onDelete: Cascade)
+  kind      OAuthTokenKind
+  createdAt DateTime       @default(now())
+  expiresAt DateTime
+  revokedAt DateTime?
+
+  @@index([grantId, kind])
+  @@index([expiresAt])
+}
+
+model AgentPlanDraft {
+  id          String     @id @default(cuid())
+  grantId     String
+  grant       OAuthGrant @relation(fields: [grantId], references: [id], onDelete: Cascade)
+  projectId   String
+  project     Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  /// Store exact normalized JSON bytes so the preview hash can be verified at execution.
+  actionsJson String     @db.Text
+  droppedJson String     @db.Text
+  contentHash String
+  createdAt   DateTime   @default(now())
+  expiresAt   DateTime
+  executedAt  DateTime?
+
+  @@index([grantId])
+  @@index([projectId])
+  @@index([expiresAt])
 }
 
 // ── Skills (weekly AI skill inference) ───────────────────────
