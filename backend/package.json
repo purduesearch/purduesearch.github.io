@@ -32,6 +32,7 @@
     "@google/generative-ai": "^0.24.1",
     "@hocuspocus/server": "^4.3.0",
     "@hocuspocus/transformer": "^4.3.0",
+    "@modelcontextprotocol/sdk": "1.32.2",
     "@octokit/auth-app": "^8.2.0",
     "@octokit/rest": "^22.0.1",
     "@octokit/webhooks": "^14.2.0",
@@ -69,7 +70,8 @@
     "sharp": "^0.35.2",
     "ws": "^8.18.0",
     "y-protocols": "^1.0.7",
-    "yjs": "^13.6.31"
+    "yjs": "^13.6.31",
+    "zod": "4.6.7"
   },
   "devDependencies": {
     "@types/connect-pg-simple": "^7.0.3",

@@ -32226,3 +32226,126 @@ button.pm-task-check { cursor: pointer; }
 .cpm-presence-stack-avatar.is-away { opacity: .5; box-shadow: 0 0 0 1.5px var(--pm-text-muted, #8a99ad); margin-left: 6px; cursor: pointer; }
 .cpm-presence-stack-more { margin-left: 6px; font: 500 11px/1 var(--pm-font-mono, monospace); color: var(--pm-text-muted, #8a99ad); }
 @media (prefers-reduced-motion: reduce) { .cpm-presence-cursor { transition: none; } }
+
+/* === Claude connector consent === */
+.clubpm-app .pm-connect { width: 100%; max-width: 760px; margin: 0 auto; padding: 28px 16px 48px; }
+/* The shell resets every section background with !important. Keep this card's own surface. */
+.clubpm-app .pm-connect-card { min-width: 0; padding: 28px; border: 1px solid var(--pm-border); border-radius: 20px; background-color: var(--pm-bg-surface) !important; }
+.clubpm-app .pm-connect-heading { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; }
+.clubpm-app .pm-connect-icon { display: grid; place-items: center; flex: none; width: 48px; height: 48px; border-radius: 14px; color: var(--pm-accent-teal); background: rgba(0, 229, 204, .09); font-size: 20px; }
+.clubpm-app .pm-connect-eyebrow { color: var(--pm-text-secondary); font: 500 11px/1.5 var(--pm-font-mono); text-transform: uppercase; letter-spacing: .08em; }
+.clubpm-app .pm-connect-heading h1 { margin: 2px 0 0; color: var(--pm-text-primary); font: 600 clamp(24px, 4vw, 32px)/1.2 var(--pm-font-display); }
+.clubpm-app .pm-connect-intro { margin: 0 0 24px; color: var(--pm-text-secondary); overflow-wrap: anywhere; }
+.clubpm-app .pm-connect-intro strong { color: var(--pm-text-primary); }
+.clubpm-app .pm-connect-fieldset { min-width: 0; margin: 0 0 22px; padding: 0; border: 0; }
+.clubpm-app .pm-connect-fieldset legend { float: none; width: auto; margin-bottom: 12px; padding: 0; color: var(--pm-text-primary); font: 600 16px/1.5 var(--pm-font-body); }
+.clubpm-app .pm-connect-option { display: flex; align-items: flex-start; gap: 12px; min-height: 44px; padding: 12px; margin: 0 0 8px; border: 1px solid var(--pm-border); border-radius: 10px; color: var(--pm-text-primary); cursor: pointer; }
+.clubpm-app .pm-connect-option input[type="checkbox"] { flex: none; width: 18px; height: 18px; margin: 3px 0 0; padding: 0; accent-color: var(--pm-accent-teal); font-size: 16px; cursor: pointer; }
+.clubpm-app .pm-connect-option span { min-width: 0; overflow-wrap: anywhere; }
+.clubpm-app .pm-connect-option strong { display: block; font: 600 14px/1.6 var(--pm-font-body); }
+.clubpm-app .pm-connect-option small { display: block; margin-top: 2px; color: var(--pm-text-secondary); font: 400 13px/1.55 var(--pm-font-body); }
+.clubpm-app .pm-connect-option:has(input:checked:not(:disabled)) { border-color: var(--pm-accent-teal); background: rgba(0, 229, 204, .045); }
+.clubpm-app .pm-connect-option:has(input:focus-visible) { outline: 2px solid var(--pm-accent-teal); outline-offset: 3px; }
+.clubpm-app .pm-connect-option--delete strong { color: var(--pm-accent-coral); }
+.clubpm-app .pm-connect-fieldset:disabled .pm-connect-option { cursor: default; opacity: .65; }
+.clubpm-app .pm-connect-projects { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.clubpm-app .pm-connect-project { margin: 0; }
+.clubpm-app .pm-connect-note { margin: 0 0 10px; color: var(--pm-text-secondary); font-size: 13px; line-height: 1.6; }
+.clubpm-app .pm-connect-projects + .pm-connect-note { margin-top: 10px; }
+.clubpm-app .pm-connect-account-note { padding-top: 18px; margin: 0 0 24px; border-top: 1px solid var(--pm-border); color: var(--pm-text-secondary); font-size: 13px; line-height: 1.7; }
+.clubpm-app .pm-connect-account-note strong { color: var(--pm-text-primary); font-weight: 500; }
+.clubpm-app .pm-connect-actions { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 12px; }
+.clubpm-app .pm-connect-actions button { min-height: 44px; padding: 10px 18px; border: 1px solid var(--pm-border); border-radius: 9px; font: 600 14px/1.5 var(--pm-font-body); cursor: pointer; }
+.clubpm-app .pm-connect-actions button:disabled { cursor: default; opacity: .5; }
+.clubpm-app .pm-connect-actions button:focus-visible, .clubpm-app .pm-connect-actions a:focus-visible { outline: 2px solid var(--pm-accent-teal); outline-offset: 3px; }
+.clubpm-app .pm-connect-primary { background: var(--pm-accent-teal); color: var(--pm-bg-base); }
+.clubpm-app .pm-connect-secondary { background: transparent; color: var(--pm-text-primary); }
+.clubpm-app .pm-connect-actions a { display: inline-flex; align-items: center; min-height: 44px; color: var(--pm-accent-teal); font-size: 14px; }
+.clubpm-app .pm-connect-message { padding: 20px 0; color: var(--pm-text-secondary); }
+.clubpm-app .pm-connect-error { padding: 12px 14px; margin-bottom: 20px; border: 1px solid var(--pm-accent-coral); border-radius: 10px; background: rgba(255, 107, 107, .06); color: var(--pm-text-primary); font-size: 14px; line-height: 1.6; overflow-wrap: anywhere; }
+@media (max-width: 640px) {
+  .clubpm-app .pm-connect { padding: 12px 0 28px; }
+  .clubpm-app .pm-connect-card { padding: 20px 16px; border-radius: 14px; }
+  .clubpm-app .pm-connect-projects { grid-template-columns: minmax(0, 1fr); }
+  .clubpm-app .pm-connect-actions { display: grid; grid-template-columns: minmax(0, 1fr); }
+  .clubpm-app .pm-connect-actions button { width: 100%; }
+}
+
+/* === Profile — connected apps (Claude connector grants) =========== */
+
+.pm-activity .pm-activity-source.is-agent {
+  color: var(--pm-accent-amber) !important;
+  border-color: color-mix(in srgb, var(--pm-accent-amber) 35%, transparent);
+}
+
+.pm-connected-apps {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--pm-border, rgba(255,255,255,0.08));
+}
+.pm-connected-apps-hint {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--pm-text-muted, #8b97a5);
+}
+.pm-connected-apps-error { margin: 0; font-size: 12px; color: var(--pm-accent-coral, #e17055); }
+
+.pm-connected-app {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--pm-border, rgba(255,255,255,0.08));
+  border-radius: 8px;
+}
+.pm-connected-app-head { display: flex; align-items: center; gap: 10px; }
+.pm-connected-app-head > i { color: var(--pm-accent-amber, #f5a623); font-size: 15px; }
+.pm-connected-app-text { flex: 1; min-width: 0; }
+.pm-connected-app-name { font-size: 13px; font-weight: 600; color: var(--pm-text, #e9edf1); }
+.pm-connected-app-meta { font-size: 11px; color: var(--pm-text-muted, #8b97a5); }
+.pm-connected-app-scopes { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.pm-connected-app-projects {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--pm-text-secondary, #b6c0cc);
+}
+.pm-connected-app-projects > span { min-width: 0; overflow-wrap: anywhere; }
+
+.pm-connected-app-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+.pm-connected-app-project {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--pm-text, #e9edf1);
+  cursor: pointer;
+}
+.pm-connected-app-lead {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--pm-accent-teal, #00e5cc);
+}
+.pm-connected-app-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
+
+@media (max-width: 640px) {
+  .pm-connected-app-projects { flex-direction: column; align-items: flex-start; }
+  .pm-connected-app-actions { flex-direction: column-reverse; }
+  .pm-connected-app-actions button { width: 100%; }
+}

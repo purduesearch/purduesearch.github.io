@@ -5,7 +5,7 @@ import { suggestActionsPrompt } from "../utils/aiPrompts.js";
 import { runJson } from "./ai/aiRouter.js";
 import { parsePastedPlan } from "./ai/planTextExtract.js";
 import { getTaskPermissions } from "../middleware/taskAccess.js";
-import { assertNotBoardLocked, createTaskAsMember, notifyAddedAssignees } from "./taskMutationService.js";
+import { assertNotBoardLocked, createTaskAsMember, notifyAddedAssignees, type AuditOrigin } from "./taskMutationService.js";
 import { logAuditEvent, diffObjects } from "./activityService.js";
 import { recomputeBlockedStatus } from "../api/blockers.js";
 import { refreshMilestoneHealth } from "./milestoneService.js";
@@ -287,7 +287,9 @@ export function normalizeActionPlan(
 export async function executeActionPlan(
   projectId: string,
   memberId: string,
-  actions: ActionPlanAction[]
+  actions: ActionPlanAction[],
+  /** Who the audit rows credit. Web callers omit it; the Claude connector passes `AGENT` and its client name. */
+  origin: AuditOrigin = { source: "WEB" },
 ): Promise<ActionExecutionResult[]> {
   const results: ActionExecutionResult[] = [];
   let succeeded = 0;
@@ -299,7 +301,7 @@ export async function executeActionPlan(
       if (action.targetTaskId && BOARD_LOCKED_TYPES.has(action.type)) {
         await assertNotBoardLocked([action.targetTaskId], memberId);
       }
-      await dispatchAction(projectId, memberId, action);
+      await dispatchAction(projectId, memberId, action, origin);
       if (action.targetTaskId) emitTaskChanged(action.targetTaskId, { actorId: memberId, source: "AI" });
       results.push({ index: i, type: action.type, ok: true });
       succeeded++;
@@ -309,9 +311,9 @@ export async function executeActionPlan(
   }
 
   await logAuditEvent({
-    projectId, memberId, source: "WEB",
+    projectId, memberId, source: origin.source,
     eventType: "AI_PLAN_EXECUTED",
-    payload: { totalActions: actions.length, succeeded, failed: actions.length - succeeded },
+    payload: { totalActions: actions.length, succeeded, failed: actions.length - succeeded, ...clientField(origin) },
   }).catch(err => console.error("[aiAction] AI_PLAN_EXECUTED log:", err));
 
   return results;
@@ -363,7 +365,10 @@ function requireTargetId(action: ActionPlanAction): string {
 
 // ── Dispatch ──────────────────────────────────────────────────────
 
-async function dispatchAction(projectId: string, memberId: string, action: ActionPlanAction): Promise<void> {
+const clientField = (origin: AuditOrigin) => origin.client ? { client: origin.client } : {};
+
+async function dispatchAction(projectId: string, memberId: string, action: ActionPlanAction, origin: AuditOrigin): Promise<void> {
+  const via = { viaAiPlan: true, ...clientField(origin) };
   switch (action.type) {
     case "CREATE_TASK": {
       const p = action.params as { title: string; description?: string; priority?: Priority; dueDate?: string | null; assigneeIds?: string[]; milestoneId?: string; subtasks?: string[] };
@@ -375,7 +380,7 @@ async function dispatchAction(projectId: string, memberId: string, action: Actio
         projectId,
         assigneeIds: p.assigneeIds,
         milestoneId: p.milestoneId,
-      }, "AI");
+      }, "AI", { origin });
       // Create any child subtasks the plan attached to this new task.
       const subtaskTitles = Array.isArray(p.subtasks) ? p.subtasks : [];
       for (const stTitle of subtaskTitles) {
@@ -383,9 +388,9 @@ async function dispatchAction(projectId: string, memberId: string, action: Actio
         if (!title) continue;
         const sub = await createSubtask(created.id, { title });
         await logAuditEvent({
-          taskId: created.id, projectId, memberId, source: "WEB",
+          taskId: created.id, projectId, memberId, source: origin.source,
           eventType: "TASK_SUBTASK_CREATED",
-          payload: { parentTaskTitle: created.title, subtaskTitle: sub.title, viaAiPlan: true },
+          payload: { parentTaskTitle: created.title, subtaskTitle: sub.title, ...via },
         });
       }
       return;
@@ -413,9 +418,9 @@ async function dispatchAction(projectId: string, memberId: string, action: Actio
       }
       const changes = diffObjects(before as any, updated as any, ["title", "description", "priority", "dueDate"]);
       await logAuditEvent({
-        taskId, projectId, memberId, source: "WEB",
+        taskId, projectId, memberId, source: origin.source,
         eventType: "TASK_UPDATED",
-        payload: { taskTitle: updated.title, changes, viaAiPlan: true },
+        payload: { taskTitle: updated.title, changes, ...via },
       });
       return;
     }
@@ -427,9 +432,9 @@ async function dispatchAction(projectId: string, memberId: string, action: Actio
       if (!existing) throw new Error("Task not found");
       await deleteTask(taskId);
       await logAuditEvent({
-        projectId, memberId, source: "WEB",
+        projectId, memberId, source: origin.source,
         eventType: "TASK_DELETED",
-        payload: { taskTitle: existing.title, viaAiPlan: true },
+        payload: { taskTitle: existing.title, ...via },
       });
       return;
     }
@@ -451,9 +456,9 @@ async function dispatchAction(projectId: string, memberId: string, action: Actio
       }
       const updated = await updateTask(taskId, { status });
       await logAuditEvent({
-        taskId, projectId, memberId, source: "WEB",
+        taskId, projectId, memberId, source: origin.source,
         eventType: status === "DONE" && wasNotDone ? "TASK_COMPLETED" : "TASK_UPDATED",
-        payload: { taskTitle: updated.title, status: updated.status, viaAiPlan: true },
+        payload: { taskTitle: updated.title, status: updated.status, ...via },
       });
       return;
     }
@@ -467,9 +472,9 @@ async function dispatchAction(projectId: string, memberId: string, action: Actio
       const updated = await updateTask(taskId, { priority });
       const changes = diffObjects(before as any, updated as any, ["priority"]);
       await logAuditEvent({
-        taskId, projectId, memberId, source: "WEB",
+        taskId, projectId, memberId, source: origin.source,
         eventType: "TASK_UPDATED",
-        payload: { taskTitle: updated.title, changes, viaAiPlan: true },
+        payload: { taskTitle: updated.title, changes, ...via },
       });
       return;
     }
@@ -483,9 +488,9 @@ async function dispatchAction(projectId: string, memberId: string, action: Actio
       const updated = await updateTask(taskId, { dueDate: dueDate ? new Date(dueDate) : null });
       const changes = diffObjects(before as any, updated as any, ["dueDate"]);
       await logAuditEvent({
-        taskId, projectId, memberId, source: "WEB",
+        taskId, projectId, memberId, source: origin.source,
         eventType: "TASK_UPDATED",
-        payload: { taskTitle: updated.title, changes, viaAiPlan: true },
+        payload: { taskTitle: updated.title, changes, ...via },
       });
       return;
     }
@@ -502,9 +507,9 @@ async function dispatchAction(projectId: string, memberId: string, action: Actio
         addedAssigneeIds: updated.assignees.map(a => a.id).filter(id => !before.assignees.some(a => a.id === id)),
       });
       await logAuditEvent({
-        taskId, projectId, memberId, source: "WEB",
+        taskId, projectId, memberId, source: origin.source,
         eventType: "TASK_ASSIGNED",
-        payload: { taskTitle: updated.title, assigneeNames: (updated.assignees ?? []).map((a: any) => a.displayName), viaAiPlan: true },
+        payload: { taskTitle: updated.title, assigneeNames: (updated.assignees ?? []).map((a: any) => a.displayName), ...via },
       });
       return;
     }
@@ -516,9 +521,9 @@ async function dispatchAction(projectId: string, memberId: string, action: Actio
       const parent = await getTask(taskId);
       const subtask = await createSubtask(taskId, { title: title.trim(), assigneeIds });
       await logAuditEvent({
-        taskId, projectId, memberId, source: "WEB",
+        taskId, projectId, memberId, source: origin.source,
         eventType: "TASK_SUBTASK_CREATED",
-        payload: { parentTaskTitle: parent?.title ?? null, subtaskTitle: subtask.title, viaAiPlan: true },
+        payload: { parentTaskTitle: parent?.title ?? null, subtaskTitle: subtask.title, ...via },
       });
       return;
     }
@@ -531,9 +536,9 @@ async function dispatchAction(projectId: string, memberId: string, action: Actio
       const result = await addDependency(taskId, blockingTaskId, reason ?? null);
       const blockingTask = (result as any)?.blockedBy?.find((d: any) => d.blockingTaskId === blockingTaskId)?.blockingTask;
       await logAuditEvent({
-        taskId, projectId, memberId, source: "WEB",
+        taskId, projectId, memberId, source: origin.source,
         eventType: "TASK_DEPENDENCY_ADDED",
-        payload: { taskTitle: result?.title ?? null, dependsOnTitle: blockingTask?.title ?? null, reason: reason ?? null, viaAiPlan: true },
+        payload: { taskTitle: result?.title ?? null, dependsOnTitle: blockingTask?.title ?? null, reason: reason ?? null, ...via },
       });
       return;
     }
@@ -556,9 +561,9 @@ async function dispatchAction(projectId: string, memberId: string, action: Actio
       const task = await prisma.task.update({ where: { id: taskId }, data: { status: "BLOCKED", completedAt: null } });
       emitTaskChanged(taskId);
       await logAuditEvent({
-        taskId, projectId, memberId, source: "WEB",
+        taskId, projectId, memberId, source: origin.source,
         eventType: "TASK_BLOCKER_ATTACHED",
-        payload: { taskTitle: task.title, blockerLabel: blocker.label, reason: reason ?? null, viaAiPlan: true },
+        payload: { taskTitle: task.title, blockerLabel: blocker.label, reason: reason ?? null, ...via },
       });
       return;
     }
@@ -578,9 +583,9 @@ async function dispatchAction(projectId: string, memberId: string, action: Actio
       emitTaskChanged(affectedTaskIds);
       await recomputeBlockedStatus(affectedTaskIds);
       await logAuditEvent({
-        projectId, memberId, source: "WEB",
+        projectId, memberId, source: origin.source,
         eventType: "BLOCKER_RESOLVED",
-        payload: { blockerLabel: blocker.label, affectedTaskCount: affectedTaskIds.length, viaAiPlan: true },
+        payload: { blockerLabel: blocker.label, affectedTaskCount: affectedTaskIds.length, ...via },
       });
       return;
     }
@@ -592,9 +597,9 @@ async function dispatchAction(projectId: string, memberId: string, action: Actio
       const comment = await prisma.taskComment.create({ data: { content: content.trim(), taskId, authorId: memberId } });
       emitTaskChanged(taskId);
       await logAuditEvent({
-        taskId, projectId, memberId, source: "WEB",
+        taskId, projectId, memberId, source: origin.source,
         eventType: "COMMENT_ADDED",
-        payload: { commentId: comment.id, excerpt: content.slice(0, 120), viaAiPlan: true },
+        payload: { commentId: comment.id, excerpt: content.slice(0, 120), ...via },
       });
       return;
     }
@@ -611,9 +616,9 @@ async function dispatchAction(projectId: string, memberId: string, action: Actio
         },
       });
       await logAuditEvent({
-        projectId, memberId, source: "WEB",
+        projectId, memberId, source: origin.source,
         eventType: "MILESTONE_CREATED",
-        payload: { milestoneTitle: milestone.title, viaAiPlan: true },
+        payload: { milestoneTitle: milestone.title, ...via },
       });
       return;
     }
@@ -632,9 +637,9 @@ async function dispatchAction(projectId: string, memberId: string, action: Actio
       emitTaskChanged(ids);
       await refreshMilestoneHealth(milestoneId);
       await logAuditEvent({
-        projectId, memberId, source: "WEB",
+        projectId, memberId, source: origin.source,
         eventType: "MILESTONE_TASKS_LINKED",
-        payload: { milestoneTitle: milestone.title, taskIds: ids, viaAiPlan: true },
+        payload: { milestoneTitle: milestone.title, taskIds: ids, ...via },
       });
       return;
     }

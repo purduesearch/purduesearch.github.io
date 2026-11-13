@@ -75,6 +75,7 @@ const CoursesPage            = lazy(lazyWithClubPmTheme(() => import('./pages/Cl
 const CourseEditorPage       = lazy(lazyWithClubPmTheme(() => import('./pages/ClubPM/CourseEditorPage')));
 const CoursePlayerPage       = lazy(lazyWithClubPmTheme(() => import('./pages/ClubPM/CoursePlayerPage')));
 const ClubPmProfile  = lazy(lazyWithClubPmTheme(() => import('./pages/ClubPM/Profile')));
+const ConnectConsent = lazy(lazyWithClubPmTheme(() => import('./pages/ClubPM/ConnectConsent')));
 const ClubPmShop     = lazy(lazyWithClubPmTheme(() => import('./pages/ClubPM/Shop')));
 const LabScanPage    = lazy(lazyWithClubPmTheme(() => import('./pages/ClubPM/LabScanPage')));
 const PatchNotesPage = lazy(lazyWithClubPmTheme(() => import('./pages/ClubPM/PatchNotesPage')));
@@ -166,6 +167,7 @@ function AnimatedRoutes() {
             <Route path="/clubpm/outreach/courses/:id/edit" element={<LegacyCourseRedirect suffix="edit" />} />
             <Route path="/clubpm/outreach/courses/:slug/learn" element={<LegacyCourseRedirect suffix="learn" />} />
             <Route path="/clubpm/profile" element={<ClubPmProtectedPage><Suspense fallback={clubPmFallback}><ClubPmProfile /></Suspense></ClubPmProtectedPage>} />
+            <Route path="/clubpm/connect" element={<ClubPmProtectedPage><Suspense fallback={clubPmFallback}><ConnectConsent /></Suspense></ClubPmProtectedPage>} />
             <Route path="/clubpm/profile/:memberId" element={<ClubPmProtectedPage><Suspense fallback={clubPmFallback}><ClubPmProfile /></Suspense></ClubPmProtectedPage>} />
             <Route path="/clubpm/shop" element={<ClubPmProtectedPage><Suspense fallback={clubPmFallback}><ClubPmShop /></Suspense></ClubPmProtectedPage>} />
             <Route path="/clubpm/challenges" element={<Navigate to="/clubpm/profile?tab=quests" replace />} />

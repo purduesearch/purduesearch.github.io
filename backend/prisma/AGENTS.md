@@ -11,6 +11,8 @@ Key models include `Member`, `Project`, `ProjectMember`, `Task`, `TaskComment`, 
 `BoardLock` (migration `20261023120000_board_lock`) is an **UNLOGGED** mirror of live-board card locks: `taskId` primary key, `memberId`, `expiresAt`, no foreign keys. Only `boardLockService.ts` writes it. A crash empties the table, which releases locks early; it never holds data that is not in the relay.
 The Slack mirror models are `SlackCardQueue`, `SlackCardMessage`, `SlackCardRef`, `SlackItemLink`, and `SlackPlanSession`; `SlackItemLink` rows are member-visible backlinks; list them only through `slackItemLinkService.listBacklinks`, which applies conversation access.
 
+Claude connector models (migration `20261113120000_claude_connector`): `OAuthClient`, `OAuthPendingRequest`, `OAuthAuthCode`, `OAuthGrant`, `OAuthToken`, and `AgentPlanDraft`. Authorization codes and opaque access/refresh credentials persist only as SHA-256 hashes; token kinds are `ACCESS` and `REFRESH`. Client/member deletion cascades through credentials and grants; grant deletion cascades tokens/drafts, and project deletion removes its drafts. Grant `projectIds` and `scopes` default empty and only narrow current member permissions. `changeCursor` is nullable TEXT for a serialized timestamp + id cursor. Draft `actionsJson` and `droppedJson` are exact TEXT bytes, with `contentHash` verified before execution. Expiry indexes support cleanup. `Member.deactivatedAt` supports authentication/grant rejection and revocation when a member is deactivated. `ActivitySource.AGENT` distinguishes connector writes.
+
 Key enums:
 - `Rank` — NESTLING → FLEDGLING → CADET → SPECIALIST → PIONEER → COSMONAUT → CELESTIAL (thresholds 0–21,000 XP)
 - `TaskStatus` — TODO, IN_PROGRESS, BLOCKED, DONE

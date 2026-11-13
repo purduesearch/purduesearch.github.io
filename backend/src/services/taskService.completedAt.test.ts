@@ -5,10 +5,27 @@
 // this column existed both rendered empty/flat, so the transition rules below
 // are the whole contract those charts depend on.
 import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
-import { dirname, join } from "node:path";
+import assert from "node:assert/strict";
+import { runInNewContext } from "node:vm";
+import ts from "typescript";
 import type { TaskStatus } from "@prisma/client";
-import { resolveCompletedAt } from "./taskService.js";
+
+// Run the actual service helper with offline boundaries. Importing the service
+// directly also initializes Slack through task activity notifications.
+const src = readFileSync(new URL("./taskService.ts", import.meta.url), "utf8");
+const js = ts.transpileModule(src, {
+  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+}).outputText;
+const dependencies = new Set([
+  "../db/prisma.js", "./activityService.js", "./trainingSandboxService.js",
+  "./taskChangeBus.js", "./subProjectRollupService.js", "./projectEditAccess.js",
+]);
+const serviceExports: any = {};
+runInNewContext(js, { exports: serviceExports, require: (name: string) => {
+  assert.ok(dependencies.has(name), `Unexpected service boundary ${name}`);
+  return {};
+}, Date, console });
+const resolveCompletedAt = serviceExports.resolveCompletedAt as typeof import("./taskService.js").resolveCompletedAt;
 
 let passed = 0, failed = 0;
 const check = (n: string, c: boolean) => {
@@ -65,8 +82,6 @@ const ORIGINAL = new Date("2026-05-01T09:30:00.000Z");
 
 // ── Contract: updateTask must route through the helper, and ──
 // ── completedAt must not be repurposed as a reward gate. ─────
-const here = dirname(fileURLToPath(import.meta.url));
-const src = readFileSync(join(here, "taskService.ts"), "utf8");
 check("updateTask calls resolveCompletedAt", src.includes("resolveCompletedAt(data.status, current)"));
 check("the status read selects completedAt", /completedAt: true/.test(src));
 check(

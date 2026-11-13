@@ -1,5 +1,12 @@
 const BASE_URL = process.env.REACT_APP_API_URL || "";
 
+// OAuth consent uses the existing member login Bearer header through get/post.
+export const getOAuthPendingRequest = id => get(`/oauth/pending/${encodeURIComponent(id)}`);
+export const submitOAuthConsent = data => post('/oauth/consent', data);
+export const listOAuthGrants = () => get('/oauth/grants');
+export const updateOAuthGrantProjects = (id, projectIds) => patch(`/oauth/grants/${encodeURIComponent(id)}`, { projectIds });
+export const revokeOAuthGrant = id => del(`/oauth/grants/${encodeURIComponent(id)}`);
+
 // Absolute base for full-page redirects (e.g. OAuth flows) that can't go
 // through fetch(). Empty string in dev falls back to same-origin (CRA proxy).
 export const apiBaseUrl = BASE_URL;
