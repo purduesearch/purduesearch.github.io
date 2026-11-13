@@ -11,6 +11,7 @@ import connectPgSimple from "connect-pg-simple";
 import { boltApp, startBolt } from "./slack/bolt.js";
 import { syncAdminStatus } from "./services/memberService.js";
 import { authRouter } from "./api/auth.js";
+import { oauthRouter, oauthMetadataRouter } from "./api/oauth.js";
 import { projectsRouter, tagsRouter, trainingRouter } from "./api/projects.js";
 import { projectChatRouter, slackArchiveAdminRouter } from "./api/projectChat.js";
 import { chatRouter } from "./api/chat.js";
@@ -139,6 +140,9 @@ app.use(
 
 // ── API Routes ───────────────────────────────────────────────
 
+// Connector discovery and consent must precede the pathless /api auth routers.
+app.use("/.well-known", oauthMetadataRouter);
+app.use("/oauth", oauthRouter);
 app.use("/auth", authRouter);
 app.use("/auth/github", githubAuthRouter);
 app.use("/auth/google", googleAuthRouter);
