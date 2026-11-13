@@ -1,6 +1,6 @@
 # Connector insights + recommendations progress (cobalt-ibis)
 
-Updated: 2026-11-13. Phase 1 done.
+Updated: 2026-11-13. Phases 1–2 done.
 
 ## Decisions
 
@@ -23,7 +23,7 @@ Updated: 2026-11-13. Phase 1 done.
 | Phase | Status |
 | --- | --- |
 | 1 — Schema + migration | Done — `AgentPlanDraft.origin`/`recommendationKey`, `AgentRecommendationDismissal`, `AGENT_EXTERNAL_ACTION`; migration `20261114120000_connector_insights` (prisma migrate diff output). Gate: build ok, typecheck ok, backend 117/118 (baseline), root n/a |
-| 2 — Open plans to members safely | Not started |
+| 2 — Open plans to members safely | Done — `constellation.contacts` scope; plan/contacts grantable by any member, delete admin-only (consent + preview + execute); `PROJECT_SCOPED_ACTION_TYPES` + injected `canEditProject` gate in preview/execute; rate kind `log` (20/h). Gate: build ok, typecheck ok, backend 117/118 (baseline) |
 | 3 — Consent + Connected apps UI | Not started |
 | 4 — Pure insights core | Not started |
 | 5 — get_project_insights | Not started |
@@ -40,6 +40,7 @@ Updated: 2026-11-13. Phase 1 done.
 ## Follow-ups
 
 - `icsFeedService.test.ts` needs DNS (violates the no-network test rule); inject the resolver in a separate change.
+- Until Phase 3 lands, the consent UI still offers plan to admins only (backend already allows members).
 - `prisma validate` needs a `DATABASE_URL` (dummy is fine).
 
 - Web routes `/api/projects/:id/ai-execute-plan` and milestone/blocker REST lack project-edit checks (pre-existing; separate decision).

@@ -114,17 +114,31 @@ await test("picker filters current membership/training and does not expose PKCE 
   const f = fixture(), c = await f.register(), id = await f.request(c.client_id, [...OAUTH_SCOPES]);
   const result = await f.service.getPending(id, "member");
   assert.deepEqual(result.projects.map(p => p.id), ["p1"]);
-  assert.deepEqual(result.scopes, ["constellation.read"]);
+  assert.deepEqual(result.scopes, ["constellation.read", "constellation.plan", "constellation.contacts"]);
+  assert.deepEqual((await f.service.getPending(id, "admin")).scopes, [...OAUTH_SCOPES]);
   assert.equal("codeChallenge" in result, false); assert.equal("state" in result, false);
   assert.deepEqual((await listAccessibleProjects(f.db, "admin")).map(p => p.id), ["p1", "p2"]);
 });
-await test("consent cannot add scopes, foreign projects, or non-admin project changes", async () => {
+await test("consent cannot add scopes, foreign projects, or non-admin task deletion", async () => {
   const f = fixture(), c = await f.register(), pendingId = await f.request(c.client_id);
   await rejects(f.service.consent("member", { pendingId, approve: true, scopes: ["constellation.read"], projectIds: ["p2"] }), "access_denied");
   await rejects(f.service.consent("admin", { pendingId, approve: true, scopes: ["constellation.read", "constellation.plan"], projectIds: ["p1"] }), "invalid_scope");
   const planId = await f.request(c.client_id, [...OAUTH_SCOPES]);
-  await rejects(f.service.consent("member", { pendingId: planId, approve: true, scopes: [...OAUTH_SCOPES], projectIds: ["p1"] }), "access_denied");
+  await assert.rejects(f.service.consent("member", { pendingId: planId, approve: true, scopes: [...OAUTH_SCOPES], projectIds: ["p1"] }),
+    (e: unknown) => e instanceof OAuthError && e.code === "access_denied" && e.status === 403 && e.message === "Deleting tasks requires an administrator");
+  await rejects(f.service.consent("member", { pendingId: planId, approve: true, scopes: ["constellation.read", "constellation.plan", "constellation.plan.delete"], projectIds: ["p1"] }), "access_denied");
   assert.equal(f.state().oAuthAuthCode.length, 0);
+});
+await test("a non-admin may grant plan and contacts; an admin may grant every scope", async () => {
+  const f = fixture(), c = await f.register();
+  const memberScopes = ["constellation.read", "constellation.plan", "constellation.contacts"];
+  const memberReq = await f.request(c.client_id, [...OAUTH_SCOPES]);
+  const ok = await f.service.consent("member", { pendingId: memberReq, approve: true, scopes: memberScopes, projectIds: ["p1"] });
+  assert.ok(new URL(ok.redirectUrl).searchParams.get("code"));
+  assert.deepEqual(f.state().oAuthAuthCode[0].scopes, memberScopes);
+  const adminReq = await f.request(c.client_id, [...OAUTH_SCOPES]);
+  await f.service.consent("admin", { pendingId: adminReq, approve: true, scopes: [...OAUTH_SCOPES], projectIds: ["p1"] });
+  assert.deepEqual(f.state().oAuthAuthCode[1].scopes, [...OAUTH_SCOPES]);
 });
 await test("denial consumes request, preserves state and issues no code", async () => {
   const f = fixture(), c = await f.register(), pendingId = await f.request(c.client_id);

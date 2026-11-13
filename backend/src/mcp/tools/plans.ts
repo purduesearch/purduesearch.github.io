@@ -12,6 +12,12 @@ import { jsonToolResult, safeTool, untrustedData, UNTRUSTED_DATA_WARNING } from 
 
 export const MAX_PLAN_ACTIONS = 25;
 const DELETE_SCOPE = "constellation.plan.delete";
+/** Actions with no target task: they change the project itself, so the member must be able to edit it. */
+export const PROJECT_SCOPED_ACTION_TYPES = ["CREATE_TASK", "CREATE_MILESTONE", "LINK_MILESTONE", "ATTACH_BLOCKER", "RESOLVE_BLOCKER"] as const;
+const PROJECT_SCOPED = new Set<string>(PROJECT_SCOPED_ACTION_TYPES);
+const CANNOT_EDIT = "You cannot edit this project.";
+const NO_DELETE_SCOPE = "This connection is not allowed to delete tasks.";
+const DELETE_NEEDS_ADMIN = "Deleting tasks requires an administrator.";
 
 export interface PlanDraftRow {
   id: string; grantId: string; projectId: string; actionsJson: string; droppedJson: string;
@@ -25,6 +31,8 @@ export interface PlanToolsDependencies {
   findDraft?: (id: string) => Promise<PlanDraftRow | null>;
   /** Atomically marks the draft used. Returns false if another call already claimed it. */
   claimDraft?: (id: string, at: Date) => Promise<boolean>;
+  /** The member's current project-edit permission (services/projectEditAccess.ts). */
+  canEditProject?: (memberId: string, projectId: string) => Promise<boolean>;
   now?: () => Date;
 }
 
@@ -40,6 +48,7 @@ const defaults: Required<Omit<PlanToolsDependencies, "now" | "normalize">> = {
   createDraft: data => prisma.agentPlanDraft.create({ data }),
   findDraft: id => prisma.agentPlanDraft.findUnique({ where: { id } }),
   claimDraft: async (id, at) => (await prisma.agentPlanDraft.updateMany({ where: { id, executedAt: null, expiresAt: { gt: at } }, data: { executedAt: at } })).count === 1,
+  canEditProject: async (memberId, projectId) => (await import("../../services/projectEditAccess.js")).canEditProject(memberId, projectId),
 };
 
 const actionSchema = z.object({
@@ -54,9 +63,14 @@ export function registerPlanTools(server: McpServer, context: McpContext, deps: 
   const now = deps.now ?? (() => new Date());
   // Missing, expired-and-pruned, and another grant's drafts look the same.
   const unavailable = () => new OAuthError("not_found", "Plan is unavailable. Preview it again.", 404);
+  /** Admins skip the lookup; otherwise it is consulted at most once per tool call, and only when needed. */
+  const projectEditCheck = (memberId: string, isAdmin: boolean, projectId: string) => {
+    let cached: Promise<boolean> | undefined;
+    return () => isAdmin ? Promise.resolve(true) : (cached ??= d.canEditProject(memberId, projectId));
+  };
 
   server.registerTool("preview_action_plan", {
-    description: `Validate a proposed action plan for one selected project and show exactly what it would change. Writes nothing to project data. Returns a planId to pass to execute_action_plan within one hour. Call get_plan_format first for the action schema. At most ${MAX_PLAN_ACTIONS} actions. ${UNTRUSTED_DATA_WARNING}`,
+    description: `Validate a proposed action plan for one selected project and show exactly what it would change. Writes nothing to project data. Permissions are the member's own: actions they could not take in Constellation are dropped with a reason. Returns a planId to pass to execute_action_plan within one hour. Call get_plan_format first for the action schema. At most ${MAX_PLAN_ACTIONS} actions. ${UNTRUSTED_DATA_WARNING}`,
     inputSchema: {
       projectId: z.string().min(1).max(200),
       actions: z.array(actionSchema).min(1).max(MAX_PLAN_ACTIONS),
@@ -64,7 +78,7 @@ export function registerPlanTools(server: McpServer, context: McpContext, deps: 
     },
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
   }, async ({ projectId, actions, goal }) => safeTool(async () => {
-    const access = await context.authorizeProject(projectId, { scope: "constellation.plan", admin: true, rate: "preview" });
+    const access = await context.authorizeProject(projectId, { scope: "constellation.plan", rate: "preview" });
     // The SDK enforces the schema too; this keeps the cap when the handler is reached another way.
     if (!Array.isArray(actions) || actions.length === 0 || actions.length > MAX_PLAN_ACTIONS) {
       throw new OAuthError("invalid_request", `A plan must hold 1 to ${MAX_PLAN_ACTIONS} actions.`, 400);
@@ -72,18 +86,22 @@ export function registerPlanTools(server: McpServer, context: McpContext, deps: 
     const snapshot = await d.buildContext(projectId, { includeRollup: false });
     if (!snapshot || snapshot.project.id !== projectId) throw new OAuthError("access_denied", "Project is unavailable to this connection", 403);
 
-    const canDelete = access.grant.scopes.includes(DELETE_SCOPE);
+    const hasDeleteScope = access.grant.scopes.includes(DELETE_SCOPE);
+    const canEdit = projectEditCheck(access.member.id, access.member.isAdmin, projectId);
     const dropped: DroppedAction[] = [];
-    const allowed = actions.filter((action, index) => {
-      if (action.type !== "DELETE_TASK" || canDelete) return true;
-      dropped.push({ index, type: action.type, reason: "This connection is not allowed to delete tasks." });
-      return false;
-    });
+    // One pass over the caller's list; `original[i]` is the caller's index of allowed[i].
+    const allowed: typeof actions = [], original: number[] = [];
+    for (const [index, action] of actions.entries()) {
+      let reason: string | null = null;
+      if (action.type === "DELETE_TASK") reason = !hasDeleteScope ? NO_DELETE_SCOPE : !access.member.isAdmin ? DELETE_NEEDS_ADMIN : null;
+      else if (PROJECT_SCOPED.has(action.type) && !(await canEdit())) reason = CANNOT_EDIT;
+      if (reason) { dropped.push({ index, type: action.type, reason }); continue; }
+      allowed.push(action); original.push(index);
+    }
     const run = deps.normalize ?? (await service()).normalizeActionPlan;
     const normalizedDropped: DroppedAction[] = [];
     const plan = run(allowed, snapshot, normalizedDropped);
     // normalize indexes into `allowed`; map back to the caller's indexes.
-    const original = actions.map((_, i) => i).filter(i => !dropped.some(x => x.index === i));
     for (const x of normalizedDropped) dropped.push({ ...x, index: original[x.index] ?? x.index });
     dropped.sort((a, b) => a.index - b.index);
 
@@ -101,11 +119,11 @@ export function registerPlanTools(server: McpServer, context: McpContext, deps: 
   }));
 
   server.registerTool("execute_action_plan", {
-    description: "Apply a plan previously returned by preview_action_plan on this connection. Each action re-checks your current permissions; a plan can run once and expires one hour after preview. Show the user the preview before calling this.",
+    description: "Apply a plan previously returned by preview_action_plan on this connection. Permissions are the member's own: each action re-checks their current Constellation permissions, and actions they can no longer take fail without running; a plan can run once and expires one hour after preview. Show the user the preview before calling this.",
     inputSchema: { planId: z.string().min(1).max(200) },
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false },
   }, async ({ planId }) => safeTool(async () => {
-    const access = await context.resolve({ scope: "constellation.plan", admin: true, rate: "execute" });
+    const access = await context.resolve({ scope: "constellation.plan", rate: "execute" });
     const draft = await d.findDraft(planId);
     const at = now();
     if (!draft || draft.id !== planId || draft.grantId !== access.grant.id) throw unavailable();
@@ -120,13 +138,24 @@ export function registerPlanTools(server: McpServer, context: McpContext, deps: 
     if (!Array.isArray(actions) || actions.length === 0 || actions.length > MAX_PLAN_ACTIONS) {
       throw new OAuthError("invalid_request", `A plan must hold 1 to ${MAX_PLAN_ACTIONS} actions.`, 400);
     }
-    // Re-checked here: the grant's scopes may have narrowed since preview.
-    if (actions.some(a => a.type === "DELETE_TASK") && !access.grant.scopes.includes(DELETE_SCOPE)) {
-      throw new OAuthError("insufficient_scope", "This connection is not allowed to delete tasks", 403);
+    // Re-checked here: the grant's scopes and the member's admin status may have changed since preview.
+    if (actions.some(a => a.type === "DELETE_TASK")) {
+      if (!access.grant.scopes.includes(DELETE_SCOPE)) throw new OAuthError("insufficient_scope", "This connection is not allowed to delete tasks", 403);
+      if (!access.member.isAdmin) throw new OAuthError("access_denied", "Deleting tasks requires an administrator", 403);
+    }
+    const canEdit = projectEditCheck(access.member.id, access.member.isAdmin, draft.projectId);
+    const runnable: ActionPlanAction[] = [], runnableIndex: number[] = [];
+    const refused: ActionExecutionResult[] = [];
+    for (const [index, action] of actions.entries()) {
+      if (PROJECT_SCOPED.has(action.type) && !(await canEdit())) refused.push({ index, type: action.type, ok: false, error: CANNOT_EDIT });
+      else { runnable.push(action); runnableIndex.push(index); }
     }
     if (!(await d.claimDraft(draft.id, at))) throw new OAuthError("invalid_request", "This plan already ran or expired. Preview a new one.", 409);
 
-    const results = await d.execute(draft.projectId, access.member.id, actions, { source: "AGENT", client: access.clientName });
+    const ran = runnable.length === 0 ? []
+      : await d.execute(draft.projectId, access.member.id, runnable, { source: "AGENT", client: access.clientName });
+    // execute indexes into `runnable`; map back to positions in the stored plan.
+    const results = [...refused, ...ran.map(r => ({ ...r, index: runnableIndex[r.index] ?? r.index }))].sort((a, b) => a.index - b.index);
     return jsonToolResult({ planId: draft.id, projectId: draft.projectId,
       succeeded: results.filter(r => r.ok).length, failed: results.filter(r => !r.ok).length,
       results: results.map(r => ({ index: r.index, type: r.type, ok: r.ok, error: r.error === undefined ? undefined : untrustedData(r.error) })) });

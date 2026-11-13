@@ -4,14 +4,14 @@ import { oauthService, listAccessibleProjects, type OAuthService } from "../serv
 
 export type VerifiedAccess = Awaited<ReturnType<OAuthService["verifyAccessToken"]>>;
 export type AccessibleProject = Awaited<ReturnType<typeof listAccessibleProjects>>[number];
-export type McpRateKind = "read" | "preview" | "execute";
+export type McpRateKind = "read" | "preview" | "execute" | "log";
 const HOUR_MS = 3_600_000;
-const LIMITS: Record<McpRateKind, number> = { read: 60, preview: 30, execute: 10 };
+const LIMITS: Record<McpRateKind, number> = { read: 60, preview: 30, execute: 10, log: 20 };
 
 /** Process-local, bounded grant quotas. There is no timer or token material in this store. */
 export function createGrantRateLimiter(options: { now?: () => number; maxGrants?: number } = {}) {
   const now = options.now ?? Date.now;
-  const buckets = new Map<string, { until: number; read: number; preview: number; execute: number }>();
+  const buckets = new Map<string, { until: number; read: number; preview: number; execute: number; log: number }>();
   return {
     consume(grantId: string, kind: McpRateKind) {
       const at = now();
@@ -21,7 +21,7 @@ export function createGrantRateLimiter(options: { now?: () => number; maxGrants?
           for (const [id, candidate] of buckets) if (candidate.until <= at) buckets.delete(id);
         }
         if (!bucket && buckets.size >= (options.maxGrants ?? 10_000)) throw new OAuthError("temporarily_unavailable", "Connector quota capacity is unavailable", 429);
-        bucket = { until: at + HOUR_MS, read: 0, preview: 0, execute: 0 };
+        bucket = { until: at + HOUR_MS, read: 0, preview: 0, execute: 0, log: 0 };
         buckets.set(grantId, bucket);
       }
       if (bucket[kind] >= LIMITS[kind]) throw new OAuthError("rate_limit_exceeded", "This connection's hourly tool limit has been reached", 429);

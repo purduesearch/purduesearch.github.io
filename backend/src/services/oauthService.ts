@@ -5,6 +5,9 @@ import {
   generateOpaqueToken, hashOpaqueToken, expiresAt, isExpired,
 } from "./oauthCore.js";
 
+/** Any member may grant every other scope; their own permissions still apply to each call. */
+const ADMIN_ONLY_SCOPES: ReadonlySet<string> = new Set(["constellation.plan.delete"]);
+
 export type OAuthDb = Pick<typeof prisma, "member" | "project" | "oAuthClient" | "oAuthPendingRequest" | "oAuthAuthCode" | "oAuthGrant" | "oAuthToken" | "$transaction">;
 type Store = Omit<OAuthDb, "$transaction">;
 export interface OAuthConfig { issuer: string; resource: string; frontendOrigin: string; allowedRedirectUris: string[] }
@@ -145,7 +148,7 @@ export function createOAuthService(deps: { db?: OAuthDb; config?: OAuthConfig; n
       const request = await pending(id, memberId);
       const projects = await listAccessibleProjects(db, memberId);
       return { id: request.id, client: { name: request.client.name }, requestedScopes: request.scopes,
-        scopes: request.scopes.filter(scope => member.isAdmin || scope === "constellation.read"),
+        scopes: request.scopes.filter(scope => member.isAdmin || !ADMIN_ONLY_SCOPES.has(scope)),
         projects: projects.map(p => ({ id: p.id, name: p.name, status: p.status, isLead: p.members.some(m => m.isLead) })),
         member: { id: member.id, isAdmin: member.isAdmin }, expiresAt: request.expiresAt.toISOString() };
     },
@@ -159,9 +162,9 @@ export function createOAuthService(deps: { db?: OAuthDb; config?: OAuthConfig; n
         if (request.state !== null) callback.searchParams.set("state", request.state);
         let scopes: string[] = [], projectIds: string[] = [];
         if (input.approve) {
-          scopes = validateScopes(stringArray(input.scopes, "scopes", 3));
+          scopes = validateScopes(stringArray(input.scopes, "scopes", OAUTH_SCOPES.length));
           if (scopes.some(s => !request.scopes.includes(s))) throw new OAuthError("invalid_scope", "Consent cannot add unrequested permissions");
-          if (!member.isAdmin && scopes.some(s => s !== "constellation.read")) throw new OAuthError("access_denied", "Project changes require an administrator", 403);
+          if (!member.isAdmin && scopes.some(s => ADMIN_ONLY_SCOPES.has(s))) throw new OAuthError("access_denied", "Deleting tasks requires an administrator", 403);
           projectIds = stringArray(input.projectIds, "projectIds", 100);
           const accessible = new Set((await listAccessibleProjects(tx, memberId)).map(p => p.id));
           if (projectIds.some(id => !accessible.has(id))) throw new OAuthError("access_denied", "A selected project is unavailable", 403);

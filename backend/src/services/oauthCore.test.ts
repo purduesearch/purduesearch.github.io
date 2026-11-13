@@ -79,6 +79,15 @@ test("planning and delete scopes require their narrower prerequisite scopes", ()
     rejects(() => validateScopes(scopes), "invalid_scope");
   }
 });
+test("contacts is opt-in, requires read, and the full four-scope set is valid", () => {
+  assert.equal(OAUTH_SCOPES.length, 4);
+  assert.equal((OAUTH_SCOPES as readonly string[]).includes("constellation.contacts"), true);
+  assert.deepEqual(validateScopes(["constellation.read", "constellation.contacts"]), ["constellation.read", "constellation.contacts"]);
+  assert.deepEqual(parseScopes("constellation.read constellation.plan constellation.contacts"), ["constellation.read", "constellation.plan", "constellation.contacts"]);
+  rejects(() => validateScopes(["constellation.contacts"]), "invalid_scope");
+  rejects(() => validateScopes(["constellation.plan", "constellation.contacts"]), "invalid_scope");
+  assert.deepEqual(validateScopes([...OAUTH_SCOPES]), [...OAUTH_SCOPES]);
+});
 
 test("opaque credentials use 256-bit base64url randomness with no identity payload", () => {
   const tokens = Array.from({ length: 64 }, () => generateOpaqueToken());
