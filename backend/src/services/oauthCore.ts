@@ -2,7 +2,7 @@ import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 
 /** Pure OAuth primitives. Connector credentials have no relationship to web login tokens. */
 export const OAUTH_SCOPES = [
-  "constellation.read", "constellation.plan", "constellation.plan.delete",
+  "constellation.read", "constellation.plan", "constellation.plan.delete", "constellation.contacts",
 ] as const;
 export type OAuthScope = typeof OAUTH_SCOPES[number];
 
@@ -73,8 +73,9 @@ export function validateScopes(scopes: readonly string[]): OAuthScope[] {
     throw new OAuthError("invalid_scope", "Scopes must be known, nonempty, and unique");
   }
   if ((scopes.includes("constellation.plan") && !scopes.includes("constellation.read"))
+    || (scopes.includes("constellation.contacts") && !scopes.includes("constellation.read"))
     || (scopes.includes("constellation.plan.delete") && !scopes.includes("constellation.plan"))) {
-    throw new OAuthError("invalid_scope", "Planning requires read access; deletion also requires planning access");
+    throw new OAuthError("invalid_scope", "Planning and contacts require read access; deletion also requires planning access");
   }
   return [...scopes] as OAuthScope[];
 }

@@ -90,6 +90,18 @@ export function startScheduler(app: App): void {
     }
   });
 
+  // ── Hourly :17 — connector draft cleanup (data maintenance, not a Slack send) ──
+  // Prunes AgentPlanDraft rows expired more than 24h ago and expired
+  // AgentRecommendationDismissal rows. Logs counts only.
+  cron.schedule("17 * * * *", async () => {
+    try {
+      const { runAgentDraftCleanup } = await import("../services/agentDraftCleanup.js");
+      await runAgentDraftCleanup();
+    } catch (error) {
+      console.error("[agent-drafts] cron error:", error);
+    }
+  });
+
   // ── Every 20 min — reconcile PR-linked Vault change requests ─────
   // Webhooks are the fast path; this catches missed deliveries and permission
   // loss. Also prunes delivery ids old enough that GitHub will not redeliver.

@@ -6,6 +6,7 @@ const SCOPE_LABELS = {
   'constellation.read': 'Read projects',
   'constellation.plan': 'Propose and apply changes',
   'constellation.plan.delete': 'Delete tasks',
+  'constellation.contacts': 'See teammates\' contact details',
 };
 
 function when(iso) {

@@ -61,7 +61,7 @@ await test("a verifier cannot bypass token expiry, resource, identity or deactiv
     { member: { ...original.member, deactivatedAt: new Date() } }, { grant: { ...original.grant, revokedAt: new Date() } },
   ]) await bad(createMcpContext(tokenA, { ...w.deps, verifyAccessToken: async () => ({ ...original, ...override }) as VerifiedAccess }).resolve(), 401);
 });
-await test("grant quotas isolate reads, previews and executions and reset after one hour", async () => {
+await test("grant quotas isolate reads, previews, executions and logs and reset after one hour", async () => {
   const w = world(), context = w.context();
   for (let i = 0; i < 60; i++) await context.resolve();
   await bad(context.resolve(), 429);
@@ -70,6 +70,8 @@ await test("grant quotas isolate reads, previews and executions and reset after 
   await bad(context.resolve({ rate: "execute" }), 429);
   for (let i = 0; i < 30; i++) await context.resolve({ rate: "preview" });
   await bad(context.resolve({ rate: "preview" }), 429);
+  for (let i = 0; i < 20; i++) await context.resolve({ rate: "log" });
+  await bad(context.resolve({ rate: "log" }), 429);
   w.advance(3_600_000); await context.resolve();
 });
 await test("limiter storage is bounded and expires entries without evicting active quotas", () => {

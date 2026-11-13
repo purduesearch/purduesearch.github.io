@@ -8,6 +8,10 @@ import { registerProjectTools } from "./tools/projects.js";
 import { registerChangeTools } from "./tools/changes.js";
 import { registerTaskTools } from "./tools/tasks.js";
 import { registerPlanTools } from "./tools/plans.js";
+import { registerInsightsTools } from "./tools/insights.js";
+import { registerRecommendationTools } from "./tools/recommendations.js";
+import { registerContactsTools } from "./tools/contacts.js";
+import { registerPrompts } from "./prompts.js";
 
 export type McpToolRegistrar = (server: McpServer, context: McpContext) => void;
 export function createMcpServer(context: McpContext, registerTools?: McpToolRegistrar) {
@@ -23,6 +27,10 @@ export function createMcpServer(context: McpContext, registerTools?: McpToolRegi
   registerChangeTools(server, context);
   registerTaskTools(server, context);
   registerPlanTools(server, context);
+  registerInsightsTools(server, context);
+  registerRecommendationTools(server, context);
+  registerContactsTools(server, context);
+  registerPrompts(server);
   registerTools?.(server, context);
   return server;
 }
