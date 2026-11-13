@@ -340,24 +340,7 @@ Skill levels are advisory estimates from past work (1 aware to 5 expert) with a 
 // stated goal. Every id referenced in the output MUST come from the ids
 // listed below — the caller drops/clamps anything else.
 
-export function suggestActionsPrompt(goal: string, context: ProjectContext): string {
-  const { project } = context;
-  const today = new Date().toISOString().split("T")[0];
-  const snapshot = renderProjectContext(context, today, { ids: true, descChars: 200, activity: true });
-  const signals = renderSignals(computeProjectSignals(context, today));
-
-  return `${todayContext()}
-
-You are an agentic project-management assistant for "${project.name}" (${project.type}). Given a goal, propose an ORDERED list of concrete actions to move the project toward it. A human will review, edit, and selectively execute your plan — so be specific and use only real ids from the lists below.
-You know only this one project. Plan around its real people, workload, estimates, velocity, dependencies and deadlines: do not assign work to someone who is already overloaded when a teammate has room, do not schedule more than the team's recent velocity suggests it can finish, and do not duplicate work that an existing task already covers (update that task instead).
-
-Goal: "${goal}"
-
-${snapshot}
-
-${signals}
-
-Each action is an object: { "type": string, "targetTaskId": string or null, "params": object, "rationale": "1 sentence: why this action helps the goal" }
+export const ACTION_PLAN_FORMAT = `Each action is an object: { "type": string, "targetTaskId": string or null, "params": object, "rationale": "1 sentence: why this action helps the goal" }
 
 Valid "type" values and their "params" shape:
 - CREATE_TASK: targetTaskId null. params: { title (string, required), description? (string), priority? ("LOW"|"MEDIUM"|"HIGH"|"CRITICAL"), dueDate? (ISO date string), assigneeIds? (string[], from member ids above), milestoneId? (string, from milestone ids above), subtasks? (string[] — titles of child subtasks to create under this new task) }
@@ -380,4 +363,23 @@ When a new task naturally breaks down into sub-items, steps, or a checklist, put
 Only reference ids that appear in the lists above. Do not invent ids. Keep the plan focused — prefer fewer, high-value actions over an exhaustive list.
 
 Return ONLY: { "actions": [ ... ] }. If no actions are warranted, return { "actions": [] }.`;
+
+export function suggestActionsPrompt(goal: string, context: ProjectContext): string {
+  const { project } = context;
+  const today = new Date().toISOString().split("T")[0];
+  const snapshot = renderProjectContext(context, today, { ids: true, descChars: 200, activity: true });
+  const signals = renderSignals(computeProjectSignals(context, today));
+
+  return `${todayContext()}
+
+You are an agentic project-management assistant for "${project.name}" (${project.type}). Given a goal, propose an ORDERED list of concrete actions to move the project toward it. A human will review, edit, and selectively execute your plan — so be specific and use only real ids from the lists below.
+You know only this one project. Plan around its real people, workload, estimates, velocity, dependencies and deadlines: do not assign work to someone who is already overloaded when a teammate has room, do not schedule more than the team's recent velocity suggests it can finish, and do not duplicate work that an existing task already covers (update that task instead).
+
+Goal: "${goal}"
+
+${snapshot}
+
+${signals}
+
+${ACTION_PLAN_FORMAT}`;
 }

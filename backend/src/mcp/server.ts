@@ -4,6 +4,7 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { oauthService } from "../services/oauthService.js";
 import { createMcpBearerAuth, type AuthenticatedMcpRequest } from "./auth.js";
 import { createMcpContext, type McpContext, type McpContextDependencies } from "./context.js";
+import { registerProjectTools } from "./tools/projects.js";
 
 export type McpToolRegistrar = (server: McpServer, context: McpContext) => void;
 export function createMcpServer(context: McpContext, registerTools?: McpToolRegistrar) {
@@ -16,6 +17,7 @@ export function createMcpServer(context: McpContext, registerTools?: McpToolRegi
     return { content: [{ type: "text", text: "Constellation connection is active." }] };
   });
   // Controller adds the project/task/plan registrars here as their phases land.
+  registerProjectTools(server, context);
   registerTools?.(server, context);
   return server;
 }
