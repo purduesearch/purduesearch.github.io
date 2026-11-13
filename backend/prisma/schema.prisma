@@ -218,6 +218,7 @@ model Member {
   oauthPendingRequests    OAuthPendingRequest[]
   oauthAuthCodes          OAuthAuthCode[]
   oauthGrants             OAuthGrant[]
+  agentRecommendationDismissals AgentRecommendationDismissal[]
 
   // ── Slack user OAuth (per-member) ──
   // The user-scoped token minted by the Slack sign-in flow, AES-GCM encrypted at
@@ -416,6 +417,7 @@ model Project {
   vaultEvents              VaultNotificationEvent[]
   workspaces               WorkspaceProject[]
   agentPlanDrafts          AgentPlanDraft[]
+  agentRecommendationDismissals AgentRecommendationDismissal[]
 
   @@index([parentId])
 }
@@ -729,6 +731,7 @@ enum ActivityEventType {
   VAULT_RELEASE_PACKAGE_DOWNLOADED
   VAULT_RELEASE_VERIFIED
   TOUR_STEP_BROKEN
+  AGENT_EXTERNAL_ACTION
 }
 
 enum GitHubLinkKind {
@@ -3533,10 +3536,29 @@ model AgentPlanDraft {
   createdAt   DateTime   @default(now())
   expiresAt   DateTime
   executedAt  DateTime?
+  /// AGENT (drafted by the connected Claude) | RECOMMENDED (server-recommended plan). Plain string, not an enum.
+  origin      String     @default("AGENT")
+  recommendationKey String?
 
   @@index([grantId])
   @@index([projectId])
   @@index([expiresAt])
+  @@index([grantId, recommendationKey])
+}
+
+/// Dismissal is per member (not per grant) so reconnecting does not resurface dismissed recommendations.
+model AgentRecommendationDismissal {
+  id        String   @id @default(cuid())
+  memberId  String
+  member    Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  key       String
+  until     DateTime
+  createdAt DateTime @default(now())
+
+  @@unique([memberId, projectId, key])
+  @@index([until])
 }
 
 // ── Skills (weekly AI skill inference) ───────────────────────
