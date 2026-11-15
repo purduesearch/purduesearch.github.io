@@ -1,4 +1,4 @@
-# Progress: skills to careers (saffron-osprey)
+| 8 | undefined| done | this commit | build / backend typecheck / backend test green; root test:ci n/a | 8 tests; proof gating, overrides, no levels in exports. |# Progress: skills to careers (saffron-osprey)
 
 Plan: `2026-11-15-skills-careers.md` · Handoff: `2026-11-15-skills-careers-HANDOFF.md` · Branch: `feat/skills-careers`
 
@@ -141,6 +141,19 @@ machine's temporary directory.
   passed; backend tests 132 files passed, 0 failed. Root `test:ci` n/a (no `src/` changes).
 - Deviations: none. OPEN: none. The progress update landed in a follow-up commit because the
   first edit attempt failed (no python3 on this machine).
+
+### Phase 8 — Résumé + JSON Resume cores
+
+- Fresh implementation agent. Pure `resumeCore.ts`: `buildBullets`, `exportable`, `buildJsonResume`,
+  `buildPlainText`; reuses `shareable`, `renderBullet` and `validateMemberTemplate` from the registry core.
+- Pending rules: unverified CLAIM (PENDING/NEEDS_PROOF) is pending; DECLINED claim dropped. A CONFIRMED
+  metric without a VERIFIED CONFIRM attestation at the current snapshot value is pending and not
+  shareable, so a value change makes a confirmation stale.
+- Focused tests: 8 passed. Controller gate: root build passed (existing warnings); backend typecheck
+  passed; backend tests 133 files passed, 0 failed. Root `test:ci` n/a.
+- Deviations: `buildPlainText` takes the built JSON Resume (same exclusions by construction);
+  `buildJsonResume` takes optional `{ includeEmail }`, off by default, for the member's own download only;
+  `buildBullets` takes optional `disabledMetrics`; member order is `position > 0`. OPEN: none.
 
 ## Follow-ups
 
