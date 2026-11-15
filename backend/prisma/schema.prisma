@@ -132,6 +132,8 @@ enum NotificationType {
   SLACK_MENTION
   SLACK_THREAD_REPLY
   SLACK_BROADCAST
+  CAREER_INTRO_REQUEST
+  CAREER_ATTESTATION_REVIEWED
 }
 
 enum BlogThreadKind {
@@ -154,70 +156,70 @@ enum BlogThreadOrigin {
 // ── Models ───────────────────────────────────────────────────
 
 model Member {
-  id                      String                  @id @default(cuid())
-  slackId                 String                  @unique
-  slackHandle             String
-  displayName             String
-  avatarUrl               String?
-  title                   String?
-  email                   String?
-  timezone                String?
-  bio                     String?
-  role                    Role                    @default(MEMBER)
-  isAdmin                 Boolean                 @default(false)
-  isBot                   Boolean                 @default(false)
-  kanbanColumnOrder       String[]                @default(["TODO", "IN_PROGRESS", "BLOCKED", "DONE"])
-  notificationPrefs       String[]                @default(["daily_reminders", "weekly_digest", "project_updates"])
-  notificationChannels    Json?
-  notificationsDisabled   Boolean                 @default(false)
-  quietHoursStart         Int?
-  quietHoursEnd           Int?
-  mutedProjectIds         String[]                @default([])
+  id                            String                         @id @default(cuid())
+  slackId                       String                         @unique
+  slackHandle                   String
+  displayName                   String
+  avatarUrl                     String?
+  title                         String?
+  email                         String?
+  timezone                      String?
+  bio                           String?
+  role                          Role                           @default(MEMBER)
+  isAdmin                       Boolean                        @default(false)
+  isBot                         Boolean                        @default(false)
+  kanbanColumnOrder             String[]                       @default(["TODO", "IN_PROGRESS", "BLOCKED", "DONE"])
+  notificationPrefs             String[]                       @default(["daily_reminders", "weekly_digest", "project_updates"])
+  notificationChannels          Json?
+  notificationsDisabled         Boolean                        @default(false)
+  quietHoursStart               Int?
+  quietHoursEnd                 Int?
+  mutedProjectIds               String[]                       @default([])
   /// Watch Vault items automatically when you create one, check in a version or check it out.
-  vaultAutoWatch          Boolean                 @default(true)
-  tasks                   Task[]                  @relation("TaskAssignees")
-  createdTasks            Task[]                  @relation("TaskCreator")
-  archivedTasks           Task[]                  @relation("TaskArchiver")
-  assignedBlockers        Blocker[]               @relation("BlockerAssignee")
-  projects                ProjectMember[]
-  comments                TaskComment[]
-  activities              Activity[]
-  notifications           Notification[]          @relation("NotificationRecipient")
-  sentNotifications       Notification[]          @relation("NotificationActor")
-  activityLogs            ActivityLog[]
-  ownedMilestones         Milestone[]             @relation("MilestoneOwner")
-  timeLogs                TimeLog[]
-  updates                 ProjectUpdate[]
-  organizedEvents         Event[]                 @relation("EventOrganizer")
-  attendedEvents          Event[]                 @relation("EventAttendees")
-  rsvps                   EventRsvp[]             @relation("MemberRsvps")
-  organizedPolls          MeetingPoll[]           @relation("PollOrganizer")
-  invitedPolls            MeetingPoll[]           @relation("PollInvitees")
-  pollResponses           MeetingResponse[]       @relation("MemberPollResponses")
-  submissions             OutreachSubmission[]    @relation("SubmissionAuthor")
-  reviewedSubmissions     OutreachSubmission[]    @relation("SubmissionReviewer")
-  outreachComments        OutreachComment[]       @relation("OutreachCommentAuthor")
-  assets                  OutreachAsset[]         @relation("AssetUploader")
-  photoAlbums             PhotoAlbum[]            @relation("PhotoAlbumAdder")
-  campaignsOwned          Campaign[]              @relation("CampaignOwner")
-  ownedContacts           OutreachContact[]       @relation("ContactOwner")
-  contactInteractions     ContactInteraction[]
-  recordedMetrics         PostMetric[]
-  ownedRecurringTemplates RecurringTemplate[]     @relation("RecurringTemplateOwner")
-  submissionApprovals     ApprovalRecord[]        @relation("SubmissionApprover")
-  blogPosts               BlogPost[]              @relation("BlogPostCreator")
-  blogRevisions           BlogRevision[]          @relation("BlogRevisionAuthor")
-  courseSectionRevisions  CourseSectionRevision[] @relation("CourseSectionRevisionAuthor")
-  blogAuthorships         BlogAuthor[]            @relation("BlogAuthorMember")
-  blogSnippets            BlogSnippet[]           @relation("BlogSnippetCreator")
-  pressKitsCreated        ProjectPressKit[]       @relation("PressKitCreator")
-  pressKitRevisions       PressKitRevision[]      @relation("PressKitRevisionAuthor")
-  blogThreadsCreated      BlogThread[]            @relation("BlogThreadCreator")
-  blogThreadComments      BlogThreadComment[]     @relation("BlogThreadCommenter")
-  slackReadCursors        SlackReadCursor[]
-  oauthPendingRequests    OAuthPendingRequest[]
-  oauthAuthCodes          OAuthAuthCode[]
-  oauthGrants             OAuthGrant[]
+  vaultAutoWatch                Boolean                        @default(true)
+  tasks                         Task[]                         @relation("TaskAssignees")
+  createdTasks                  Task[]                         @relation("TaskCreator")
+  archivedTasks                 Task[]                         @relation("TaskArchiver")
+  assignedBlockers              Blocker[]                      @relation("BlockerAssignee")
+  projects                      ProjectMember[]
+  comments                      TaskComment[]
+  activities                    Activity[]
+  notifications                 Notification[]                 @relation("NotificationRecipient")
+  sentNotifications             Notification[]                 @relation("NotificationActor")
+  activityLogs                  ActivityLog[]
+  ownedMilestones               Milestone[]                    @relation("MilestoneOwner")
+  timeLogs                      TimeLog[]
+  updates                       ProjectUpdate[]
+  organizedEvents               Event[]                        @relation("EventOrganizer")
+  attendedEvents                Event[]                        @relation("EventAttendees")
+  rsvps                         EventRsvp[]                    @relation("MemberRsvps")
+  organizedPolls                MeetingPoll[]                  @relation("PollOrganizer")
+  invitedPolls                  MeetingPoll[]                  @relation("PollInvitees")
+  pollResponses                 MeetingResponse[]              @relation("MemberPollResponses")
+  submissions                   OutreachSubmission[]           @relation("SubmissionAuthor")
+  reviewedSubmissions           OutreachSubmission[]           @relation("SubmissionReviewer")
+  outreachComments              OutreachComment[]              @relation("OutreachCommentAuthor")
+  assets                        OutreachAsset[]                @relation("AssetUploader")
+  photoAlbums                   PhotoAlbum[]                   @relation("PhotoAlbumAdder")
+  campaignsOwned                Campaign[]                     @relation("CampaignOwner")
+  ownedContacts                 OutreachContact[]              @relation("ContactOwner")
+  contactInteractions           ContactInteraction[]
+  recordedMetrics               PostMetric[]
+  ownedRecurringTemplates       RecurringTemplate[]            @relation("RecurringTemplateOwner")
+  submissionApprovals           ApprovalRecord[]               @relation("SubmissionApprover")
+  blogPosts                     BlogPost[]                     @relation("BlogPostCreator")
+  blogRevisions                 BlogRevision[]                 @relation("BlogRevisionAuthor")
+  courseSectionRevisions        CourseSectionRevision[]        @relation("CourseSectionRevisionAuthor")
+  blogAuthorships               BlogAuthor[]                   @relation("BlogAuthorMember")
+  blogSnippets                  BlogSnippet[]                  @relation("BlogSnippetCreator")
+  pressKitsCreated              ProjectPressKit[]              @relation("PressKitCreator")
+  pressKitRevisions             PressKitRevision[]             @relation("PressKitRevisionAuthor")
+  blogThreadsCreated            BlogThread[]                   @relation("BlogThreadCreator")
+  blogThreadComments            BlogThreadComment[]            @relation("BlogThreadCommenter")
+  slackReadCursors              SlackReadCursor[]
+  oauthPendingRequests          OAuthPendingRequest[]
+  oauthAuthCodes                OAuthAuthCode[]
+  oauthGrants                   OAuthGrant[]
   agentRecommendationDismissals AgentRecommendationDismissal[]
 
   // ── Slack user OAuth (per-member) ──
@@ -338,6 +340,16 @@ model Member {
   skillPortfolio   MemberPortfolio?
   skillGoals       SkillGoal[]
   skillSaves       SkillOpportunitySave[]
+
+  // Career sharing and member-owned records.
+  careerProfile      CareerProfile?
+  careerTargets      CareerTarget[]
+  impactSnapshots    ImpactSnapshot[]
+  impactAttestations ImpactAttestation[]
+  resumeBullets      ResumeBullet[]
+  introRequests      IntroRequest[]
+  opportunitySaves   OpportunitySave[]
+  badgeAwards        BadgeAward[]
 }
 
 model Project {
@@ -400,23 +412,23 @@ model Project {
   updatedAt               DateTime                    @updatedAt
 
   // ── Constellation Vault (CAD change management) ──
-  vaultFolderId            String?
-  vaultPartPrefix          String                    @default("PRT")
-  vaultPartCounter         Int                       @default(0)
-  vaultCrCounter           Int                       @default(0)
-  vaultItems               VaultItem[]
-  changeRequests           ChangeRequest[]
-  vaultReviewerRules       VaultReviewerRule[]
-  vaultDrawingRequirements VaultDrawingRequirement[]
-  vaultReleases            VaultRelease[]
-  vaultGeometryDiffs       VaultGeometryDiff[]
-  vaultRepository          VaultRepository?
-  vaultJobs                VaultUploadJob[]
-  vaultSearchDocs          VaultSearchDoc[]
-  vaultSavedViews          VaultSavedView[]
-  vaultEvents              VaultNotificationEvent[]
-  workspaces               WorkspaceProject[]
-  agentPlanDrafts          AgentPlanDraft[]
+  vaultFolderId                 String?
+  vaultPartPrefix               String                         @default("PRT")
+  vaultPartCounter              Int                            @default(0)
+  vaultCrCounter                Int                            @default(0)
+  vaultItems                    VaultItem[]
+  changeRequests                ChangeRequest[]
+  vaultReviewerRules            VaultReviewerRule[]
+  vaultDrawingRequirements      VaultDrawingRequirement[]
+  vaultReleases                 VaultRelease[]
+  vaultGeometryDiffs            VaultGeometryDiff[]
+  vaultRepository               VaultRepository?
+  vaultJobs                     VaultUploadJob[]
+  vaultSearchDocs               VaultSearchDoc[]
+  vaultSavedViews               VaultSavedView[]
+  vaultEvents                   VaultNotificationEvent[]
+  workspaces                    WorkspaceProject[]
+  agentPlanDrafts               AgentPlanDraft[]
   agentRecommendationDismissals AgentRecommendationDismissal[]
 
   @@index([parentId])
@@ -3524,20 +3536,20 @@ model OAuthToken {
 }
 
 model AgentPlanDraft {
-  id          String     @id @default(cuid())
-  grantId     String
-  grant       OAuthGrant @relation(fields: [grantId], references: [id], onDelete: Cascade)
-  projectId   String
-  project     Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  id                String     @id @default(cuid())
+  grantId           String
+  grant             OAuthGrant @relation(fields: [grantId], references: [id], onDelete: Cascade)
+  projectId         String
+  project           Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
   /// Store exact normalized JSON bytes so the preview hash can be verified at execution.
-  actionsJson String     @db.Text
-  droppedJson String     @db.Text
-  contentHash String
-  createdAt   DateTime   @default(now())
-  expiresAt   DateTime
-  executedAt  DateTime?
+  actionsJson       String     @db.Text
+  droppedJson       String     @db.Text
+  contentHash       String
+  createdAt         DateTime   @default(now())
+  expiresAt         DateTime
+  executedAt        DateTime?
   /// AGENT (drafted by the connected Claude) | RECOMMENDED (server-recommended plan). Plain string, not an enum.
-  origin      String     @default("AGENT")
+  origin            String     @default("AGENT")
   recommendationKey String?
 
   @@index([grantId])
@@ -3653,82 +3665,86 @@ enum SkillRunStatus {
 }
 
 model Skill {
-  id          String            @id @default(cuid())
-  slug        String            @unique
-  name        String
-  type        SkillType
-  description String?
+  id           String            @id @default(cuid())
+  slug         String            @unique
+  name         String
+  type         SkillType
+  description  String?
   /// Per-skill level notes folded into the grading rubric text.
-  rubricNotes String?
-  status      SkillStatus       @default(ACTIVE)
+  rubricNotes  String?
+  status       SkillStatus       @default(ACTIVE)
   /// ESCO | ONET | SFIA | CLUB
-  source      String            @default("CLUB")
-  externalId  String?
+  source       String            @default("CLUB")
+  externalId   String?
   /// New observations remain provisional until independently supported.
-  lifecycle   String            @default("ESTABLISHED")
+  lifecycle    String            @default("ESTABLISHED")
   /// Reversible identity projection. Historical evidence and assertions retain their original ids.
-  canonicalId String?
-  canonical   Skill?            @relation("SkillCanonical", fields: [canonicalId], references: [id], onDelete: Restrict)
-  redirects   Skill[]           @relation("SkillCanonical")
-  policyLocked Boolean          @default(false)
-  goals       SkillGoal[]
-  aliases     SkillAlias[]
-  parents     SkillEdge[]       @relation("SkillEdgeFrom")
-  children    SkillEdge[]       @relation("SkillEdgeTo")
-  assessments SkillAssessment[]
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
+  canonicalId  String?
+  canonical    Skill?            @relation("SkillCanonical", fields: [canonicalId], references: [id], onDelete: Restrict)
+  redirects    Skill[]           @relation("SkillCanonical")
+  policyLocked Boolean           @default(false)
+  goals        SkillGoal[]
+  aliases      SkillAlias[]
+  parents      SkillEdge[]       @relation("SkillEdgeFrom")
+  children     SkillEdge[]       @relation("SkillEdgeTo")
+  assessments  SkillAssessment[]
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  onetLinks    SkillOnetLink[]
 
   @@index([type, status])
   @@index([canonicalId])
 }
 
 model SkillGoal {
-  memberId String
-  member   Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
-  skillId  String
-  skill    Skill  @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  memberId  String
+  member    Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  skillId   String
+  skill     Skill    @relation(fields: [skillId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
+
   @@id([memberId, skillId])
 }
 
 model SkillOpportunitySave {
-  memberId String
-  member Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  memberId  String
+  member    Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
   /// A saved reference, never an assignment; deleted/inaccessible tasks are filtered at read time.
-  taskId String
+  taskId    String
   createdAt DateTime @default(now())
+
   @@id([memberId, taskId])
 }
 
 model SkillCatalogChange {
-  id String @id @default(cuid())
-  kind String
-  skillId String
-  targetId String?
-  actorId String?
-  automatic Boolean @default(false)
-  reason String
+  id            String   @id @default(cuid())
+  kind          String
+  skillId       String
+  targetId      String?
+  actorId       String?
+  automatic     Boolean  @default(false)
+  reason        String
   policyVersion String
-  payload Json
+  payload       Json
   /// A compensating event points at the original; the original event is immutable.
-  reversesId String? @unique
-  createdAt DateTime @default(now())
+  reversesId    String?  @unique
+  createdAt     DateTime @default(now())
+
   @@index([createdAt])
   @@index([skillId])
 }
 
 model SkillAutomationPolicy {
-  id String @id @default("default")
-  paused Boolean @default(false)
-  autoCreate Boolean @default(true)
-  autoConsolidate Boolean @default(true)
-  maxCreatesPerDay Int @default(10)
-  maxMergesPerDay Int @default(3)
-  maxAffectedMembers Int @default(5)
-  maxRunCostUsd Float @default(2)
-  revision Int @default(0)
-  updatedAt DateTime @updatedAt
+  id                 String   @id @default("default")
+  paused             Boolean  @default(false)
+  autoCreate         Boolean  @default(true)
+  autoConsolidate    Boolean  @default(true)
+  maxCreatesPerDay   Int      @default(10)
+  maxMergesPerDay    Int      @default(3)
+  maxAffectedMembers Int      @default(5)
+  maxRunCostUsd      Float    @default(2)
+  revision           Int      @default(0)
+  updatedAt          DateTime @updatedAt
 }
 
 model SkillAlias {
@@ -3795,35 +3811,35 @@ model SkillSuppression {
 /// the source system; this keeps references and derived summaries only. A
 /// Postgres trigger rejects UPDATE of everything except supersededAt and embedding.
 model SkillEvidence {
-  id            String               @id @default(cuid())
-  memberId      String
-  member        Member               @relation("SkillEvidenceMember", fields: [memberId], references: [id], onDelete: Cascade)
-  source        SkillEvidenceSource
-  sourceRef     String
-  sourceUrl     String?
+  id              String               @id @default(cuid())
+  memberId        String
+  member          Member               @relation("SkillEvidenceMember", fields: [memberId], references: [id], onDelete: Cascade)
+  source          SkillEvidenceSource
+  sourceRef       String
+  sourceUrl       String?
   /// No FK on purpose: history must survive project deletion.
-  projectId     String?
-  occurredAt    DateTime
-  skillIds      String[]
-  contribution  SkillContribution
+  projectId       String?
+  occurredAt      DateTime
+  skillIds        String[]
+  contribution    SkillContribution
   /// 1-5 against docs/skills/RUBRIC.md
-  complexity    Int
-  outcome       SkillOutcome
-  summary       String
+  complexity      Int
+  outcome         SkillOutcome
+  summary         String
   /// Immutable bounded context manifest; raw source contents remain in their source system.
-  context       Json?
+  context         Json?
   /// Explicit linked deliverable identity, never inferred from semantic similarity.
   contributionKey String?
-  embedding     Float[]              @default([])
-  contentHash   String
-  modelVersion  String
-  promptVersion String
-  rubricVersion String
-  runId         String?
+  embedding       Float[]              @default([])
+  contentHash     String
+  modelVersion    String
+  promptVersion   String
+  rubricVersion   String
+  runId           String?
   /// Set when re-analysis replaces this row; superseded rows never score.
-  supersededAt  DateTime?
-  createdAt     DateTime             @default(now())
-  skills        SkillEvidenceSkill[]
+  supersededAt    DateTime?
+  createdAt       DateTime             @default(now())
+  skills          SkillEvidenceSkill[]
 
   @@unique([memberId, source, sourceRef, contentHash])
   @@index([memberId, occurredAt])
@@ -3895,10 +3911,10 @@ model SkillDispute {
 /// Per-skill explicit sharing choices. No row = private. Hidden skills never reach
 /// the portfolio.
 model SkillVisibility {
-  memberId String
-  member   Member  @relation(fields: [memberId], references: [id], onDelete: Cascade)
-  skillId  String
-  isPublic Boolean @default(false)
+  memberId   String
+  member     Member  @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  skillId    String
+  isPublic   Boolean @default(false)
   showToTeam Boolean @default(false)
 
   @@id([memberId, skillId])
@@ -3952,4 +3968,388 @@ model SkillRun {
   cancelRequested Boolean         @default(false)
 
   @@index([status, startedAt])
+}
+
+// ── O*NET reference (O*NET 31.0, USDOL/ETA, CC BY 4.0). Written only by onetLoadService. ──
+enum OnetDomain {
+  ESSENTIAL_SKILL
+  TRANSFERABLE_SKILL
+  KNOWLEDGE
+  WORK_STYLE
+  SOFTWARE_CATEGORY
+  GWA
+  IWA
+  DWA
+  OTHER
+}
+
+enum OnetLinkKind {
+  SOFTWARE
+  ELEMENT
+  DWA
+}
+
+enum OnetLinkRelation {
+  EXACT
+  BROADER
+  RELATED
+}
+
+model OnetRelease {
+  version      String   @id // "31.0"
+  releasedOn   String // "2026-08"
+  sourceSha256 String // sha256 of onet-subset.json.gz
+  counts       Json
+  active       Boolean  @default(false)
+  loadedAt     DateTime @default(now())
+}
+
+model OnetOccupation {
+  code        String              @id // "17-2011.00"
+  title       String
+  description String
+  jobZone     Int?
+  ratings     OnetRating[]
+  software    OnetSoftware[]
+  dwas        OnetOccupationDwa[]
+  titles      OnetJobTitle[]
+  emerging    OnetEmergingTask[]
+
+  @@index([title])
+}
+
+/// Content-model elements. parentId: IWA for a DWA, GWA for an IWA, the parent category otherwise.
+model OnetElement {
+  id          String     @id // O*NET Element ID, e.g. "2.B.1.e", "2.E.9.c", "4.A.4.b.3.d.1"
+  name        String
+  description String?
+  domain      OnetDomain
+  parentId    String?
+
+  @@index([domain])
+  @@index([parentId])
+}
+
+model OnetRating {
+  occupationCode String
+  occupation     OnetOccupation @relation(fields: [occupationCode], references: [code], onDelete: Cascade)
+  elementId      String
+  scale          String // IM | LV | DR
+  value          Float
+  suppress       Boolean        @default(false)
+  notRelevant    Boolean        @default(false)
+
+  @@id([occupationCode, elementId, scale])
+  @@index([elementId, scale])
+}
+
+model OnetSoftware {
+  id             Int            @id @default(autoincrement())
+  occupationCode String
+  occupation     OnetOccupation @relation(fields: [occupationCode], references: [code], onDelete: Cascade)
+  example        String // "Dassault Systemes SolidWorks"
+  exampleNorm    String // onetLinkCore.normalizeExample(example)
+  categoryId     String // "2.E.9.c"
+  hot            Boolean
+  inDemand       Boolean
+
+  @@unique([occupationCode, example, categoryId])
+  @@index([exampleNorm])
+  @@index([categoryId])
+}
+
+model OnetOccupationDwa {
+  occupationCode String
+  occupation     OnetOccupation @relation(fields: [occupationCode], references: [code], onDelete: Cascade)
+  dwaId          String
+
+  @@id([occupationCode, dwaId])
+  @@index([dwaId])
+}
+
+model OnetJobTitle {
+  id             Int            @id @default(autoincrement())
+  occupationCode String
+  occupation     OnetOccupation @relation(fields: [occupationCode], references: [code], onDelete: Cascade)
+  title          String
+  titleNorm      String
+
+  @@index([titleNorm])
+}
+
+model OnetEmergingTask {
+  id             Int            @id @default(autoincrement())
+  occupationCode String
+  occupation     OnetOccupation @relation(fields: [occupationCode], references: [code], onDelete: Cascade)
+  task           String
+  category       String // New | Revision
+}
+
+model OnetRelatedOccupation {
+  occupationCode String
+  relatedCode    String
+  tier           String // Primary-Short | Primary-Long | Supplemental
+  rank           Int
+
+  @@id([occupationCode, relatedCode])
+}
+
+// ── Club skill ↔ O*NET ──
+model SkillOnetLink {
+  id          String           @id @default(cuid())
+  skillId     String
+  skill       Skill            @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  kind        OnetLinkKind
+  /// SOFTWARE: OnetSoftware.exampleNorm. ELEMENT / DWA: O*NET Element ID.
+  ref         String
+  relation    OnetLinkRelation @default(EXACT)
+  origin      String           @default("AUTO") // AUTO | CURATED | ADMIN
+  createdById String?
+  createdAt   DateTime         @default(now())
+
+  @@unique([skillId, kind, ref])
+  @@index([kind, ref])
+}
+
+// ── Career ──
+enum AttestationKind {
+  CLAIM
+  CONFIRM
+}
+
+enum AttestationStatus {
+  PENDING
+  VERIFIED
+  DECLINED
+  NEEDS_PROOF
+}
+
+enum IntroStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  EXPIRED
+  WITHDRAWN
+}
+
+enum OpportunitySourceKind {
+  USAJOBS
+  GREENHOUSE
+  LEVER
+  ASHBY
+  SPONSOR
+}
+
+model CareerProfile {
+  memberId          String   @id
+  member            Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  major             String?
+  gradTerm          String? // "2028-05"
+  openTo            String[] @default([]) // INTERNSHIP | COOP | FULL_TIME | RESEARCH
+  availableFrom     String? // "2027-05"
+  headline          String?
+  shareWithSponsors Boolean  @default(false)
+  showOnPublicPage  Boolean  @default(false)
+  updatedAt         DateTime @updatedAt
+}
+
+model CareerTarget {
+  memberId  String
+  member    Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  onetCode  String
+  position  Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@id([memberId, onetCode])
+}
+
+/// Derived and recomputable. One row per member and metric.
+model ImpactSnapshot {
+  memberId      String
+  member        Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  metricId      String
+  value         Float
+  detail        Json // { breakdown, projects: [{ id, name }], since }
+  sourceRefs    String[] @default([]) // first 50 source ids, for audit
+  metricVersion String
+  computedAt    DateTime @default(now())
+
+  @@id([memberId, metricId])
+  @@index([metricId])
+}
+
+model ImpactAttestation {
+  id          String            @id @default(cuid())
+  memberId    String
+  member      Member            @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  kind        AttestationKind
+  metricId    String? // CONFIRM: registry id. CLAIM: null.
+  label       String? // CLAIM only, ≤80 chars
+  value       Float
+  unit        String? // CLAIM only: USD | people | hours | items
+  dwaId       String?
+  evidenceUrl String?
+  note        String?
+  status      AttestationStatus @default(PENDING)
+  reviewerId  String?
+  reviewedAt  DateTime?
+  reviewNote  String?
+  createdAt   DateTime          @default(now())
+
+  @@index([status, createdAt])
+  @@index([memberId])
+}
+
+model ResumeBullet {
+  id         String   @id @default(cuid())
+  memberId   String
+  member     Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  sourceKind String // METRIC | ATTESTATION
+  sourceId   String // metric id or attestation id
+  template   String? // member wording; must contain {n} exactly once
+  included   Boolean  @default(true)
+  position   Int      @default(0)
+  updatedAt  DateTime @updatedAt
+
+  @@unique([memberId, sourceKind, sourceId])
+}
+
+model DemandSignal {
+  id             String   @id @default(cuid())
+  title          String
+  summary        String
+  sourceName     String
+  sourceUrl      String
+  publishedOn    String // "2026-04"
+  onetElementIds String[] @default([])
+  skillIds       String[] @default([])
+  metricIds      String[] @default([])
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model SponsorOrg {
+  id                String        @id @default(cuid())
+  name              String
+  website           String?
+  outreachContactId String?
+  active            Boolean       @default(true)
+  accessUntil       DateTime?
+  createdAt         DateTime      @default(now())
+  users             SponsorUser[]
+}
+
+model SponsorUser {
+  id           String              @id @default(cuid())
+  orgId        String
+  org          SponsorOrg          @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  email        String              @unique
+  name         String?
+  tokenVersion Int                 @default(0)
+  lastLoginAt  DateTime?
+  disabledAt   DateTime?
+  createdAt    DateTime            @default(now())
+  loginTokens  SponsorLoginToken[]
+  intros       IntroRequest[]
+}
+
+model SponsorLoginToken {
+  tokenHash     String      @id // sha256 hex
+  sponsorUserId String
+  sponsorUser   SponsorUser @relation(fields: [sponsorUserId], references: [id], onDelete: Cascade)
+  expiresAt     DateTime
+  usedAt        DateTime?
+  createdAt     DateTime    @default(now())
+
+  @@index([expiresAt])
+}
+
+model IntroRequest {
+  id            String      @id @default(cuid())
+  sponsorUserId String
+  sponsorUser   SponsorUser @relation(fields: [sponsorUserId], references: [id], onDelete: Cascade)
+  memberId      String
+  member        Member      @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  opportunityId String?
+  message       String // ≤1000 chars
+  status        IntroStatus @default(PENDING)
+  respondedAt   DateTime?
+  expiresAt     DateTime // createdAt + 21 days
+  createdAt     DateTime    @default(now())
+
+  @@index([memberId, status])
+  @@index([sponsorUserId, createdAt])
+}
+
+model OpportunitySource {
+  id            String                @id @default(cuid())
+  kind          OpportunitySourceKind
+  label         String
+  companyName   String?
+  /// USAJOBS { keyword, hiringPath? } | GREENHOUSE { boardToken } | LEVER { site, region? } | ASHBY { jobBoardName } | SPONSOR { sponsorOrgId }
+  config        Json
+  enabled       Boolean               @default(true)
+  lastFetchedAt DateTime?
+  lastError     String?
+  createdAt     DateTime              @default(now())
+  opportunities Opportunity[]
+}
+
+model Opportunity {
+  id             String            @id @default(cuid())
+  sourceId       String
+  source         OpportunitySource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  externalId     String
+  title          String
+  company        String?
+  location       String?
+  url            String
+  postedAt       DateTime?
+  closesAt       DateTime?
+  employmentType String?
+  isInternship   Boolean           @default(false)
+  description    String // plain text, ≤20,000 chars
+  onetCodes      String[]          @default([])
+  skillIds       String[]          @default([])
+  firstSeenAt    DateTime          @default(now())
+  lastSeenAt     DateTime          @default(now())
+  expiredAt      DateTime?
+  saves          OpportunitySave[]
+
+  @@unique([sourceId, externalId])
+  @@index([expiredAt])
+}
+
+model OpportunitySave {
+  memberId      String
+  member        Member      @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  opportunityId String
+  opportunity   Opportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+  createdAt     DateTime    @default(now())
+
+  @@id([memberId, opportunityId])
+}
+
+/// Singleton (id "default"), created on first read.
+model CareerSettings {
+  id              String   @id @default("default")
+  disabledMetrics String[] @default([])
+  updatedAt       DateTime @updatedAt
+}
+
+/// credentialJwt is immutable once written; revocation sets revokedAt only.
+model BadgeAward {
+  id               String    @id @default(cuid())
+  memberId         String
+  member           Member    @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  achievementId    String
+  value            Float
+  issuedAt         DateTime  @default(now())
+  credentialJwt    String    @db.Text
+  credentialSha256 String
+  revokedAt        DateTime?
+  revokedReason    String?
+
+  @@unique([memberId, achievementId])
 }
