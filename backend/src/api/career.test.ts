@@ -54,6 +54,7 @@ function makeStore() {
     certifications: async () => [{ name: "Safety", issuer: "CITI", date: "2026-01-01" }],
     badges: async () => [],
     skills: async () => [{ name: "CAD", area: "TOOL" }],
+    elementNames: async (ids: string[]) => ids.filter(i => i === "4.A.4.b.3.d.1").map(id => ({ id, name: "Train personnel to enhance job skills" })),
     countOpenClaims: async id => atts.filter(a => a.memberId === id && a.status === "PENDING").length,
     createClaim: async (memberId, d) => { const a = at({ id: `new${atts.length}`, memberId, ...d }); atts.push(a); return a; },
     attestation: async id => atts.find(a => a.id === id) ?? null,
@@ -93,6 +94,9 @@ async function main() {
     check("GET /me 200 with attribution", r.status === 200 && /O\*NET 31\.0/.test(r.json.attribution));
     check("records metric shareable", r.json.snapshots.find((s: any) => s.metricId === records.id)?.shareable === true);
     check("unconfirmed metric is pending, not shareable", r.json.snapshots.find((s: any) => s.metricId === confirmed.id)?.pending === true);
+    { const rs = r.json.snapshots.find((s: any) => s.metricId === records.id);
+      check("snapshot carries registry dwaId and DWA title when loaded", rs?.dwaId === records.dwaId && (records.dwaId === "4.A.4.b.3.d.1" ? rs?.dwaTitle === "Train personnel to enhance job skills" : true)); }
+    check("skills are names only, no level", Array.isArray(r.json.skills) && r.json.skills.every((x: unknown) => typeof x === "string"));
     check("own pending claim visible + flagged", r.json.attestations.find((a: any) => a.id === "a-pending")?.pending === true);
     check("other member's claim not visible", !r.json.attestations.some((a: any) => a.id === "a-other"));
     check("own pending claim bullet flagged pending", r.json.bullets.find((b: any) => b.claimId === "a-pending")?.pending === true);

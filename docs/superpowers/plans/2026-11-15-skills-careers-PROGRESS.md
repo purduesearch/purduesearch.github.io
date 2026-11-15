@@ -1,4 +1,4 @@
-| 11 | undefined| done | this commit | build / backend typecheck / backend test green; root test:ci n/a | 69 route tests; mounted at /api/admin/career. Seed URLs OPEN. || 10 | undefined| done | this commit | build / backend typecheck / backend test green; root test:ci n/a | 55 route tests; mounted at /api/career. || 9 | undefined| done | this commit | build / backend typecheck / backend test green; root test:ci n/a | 12 tests; deterministic statuses, no score. || 8 | undefined| done | this commit | build / backend typecheck / backend test green; root test:ci n/a | 8 tests; proof gating, overrides, no levels in exports. |# Progress: skills to careers (saffron-osprey)
+# Progress: skills to careers (saffron-osprey)
 
 Plan: `2026-11-15-skills-careers.md` · Handoff: `2026-11-15-skills-careers-HANDOFF.md` · Branch: `feat/skills-careers`
 
@@ -21,11 +21,11 @@ machine's temporary directory.
 | 5 | Linker core + link service | done | `59d2fbe6` | build / backend typecheck / backend test green; root test:ci n/a | 3 core + 6 service tests; atomic catalog hook covered. |
 | 6 | Impact metric registry core | done | `e16584e3` | build / backend typecheck / backend test green; root test:ci n/a | 32 core tests; fixed metrics, proofs, DWA ids and achievements. |
 | 7 | Impact metric service [deep] | done | `bc45180c` | build / backend typecheck / backend test green; root test:ci n/a | 29 service tests; 16 queries, atomic upserts, locked nightly run. |
-| 8 | Résumé + JSON Resume cores | todo | | | |
-| 9 | Pathway match | todo | | | |
-| 10 | Career API (member) | todo | | | |
-| 11 | Career admin API | todo | | | |
-| 12 | Career view: impact + résumé | todo | | | |
+| 8 | Résumé + JSON Resume cores | done | `65f35e1d` | build / backend typecheck / backend test green; root test:ci n/a | 8 tests; proof gating, overrides, no levels in exports. |
+| 9 | Pathway match | done | `ec2a6c45` | build / backend typecheck / backend test green; root test:ci n/a | 12 tests; deterministic statuses, no score. |
+| 10 | Career API (member) | done | `3f6208d1` | build / backend typecheck / backend test green; root test:ci n/a | 55 route tests; mounted at /api/career. |
+| 11 | Career admin API | done | `6d19324c` | build / backend typecheck / backend test green; root test:ci n/a | 69 route tests; mounted at /api/admin/career. Seed URLs OPEN. |
+| 12 | Career view: impact + résumé | done | this commit | build / backend typecheck / backend test / root test:ci green | 8 UI tests + 2 route checks; CSS v=32; anchor skills.career. |
 | 13 | Pathway + skill detail UI | todo | | | |
 | 14 | Career settings + print route | todo | | | |
 | 15 | Sponsor auth [deep] | todo | | | |
@@ -213,7 +213,32 @@ Henry asked to stop at the best spot. Work paused after Phase 11 with a clean tr
 (Career view: impact + résumé, frontend), the first phase that touches `src/`, so root `test:ci` joins
 the gate from there on.
 
+### Phase 12 — Career view: impact + résumé
+
+- Resumed 2026-11-15 in a new controller session. Fresh implementation agent created
+  `career/CareerView.jsx`, `career/ResumeBuilder.jsx` and 7 UI tests; added the `career` view (all
+  members, `data-tour-id="skills.career"`) to `SkillsWorkspace.jsx`, `careerApi` helpers to
+  `clubPmClient.js` (JSON Resume download via fetch + Bearer + blob) and `pm-career-*` rules at the end
+  of `clubpm-theme.css`.
+- Controller: CSS cache bump to `v=32` (loader, `index.html` preload, loader test); registered
+  `skills.career` in `tourAnchors.js` and `ANCHORS.md`; added Career prose to
+  `constellation-101/content/skills-workspace.md` and a note in `walkthroughs/README.md` (the skills tour
+  does not cover Career yet). Repaired this file's table: rows 8-11 had been prepended to the header line.
+- Controller backend extension so the UI matches the plan: `GET /api/career/me` snapshots now carry the
+  registry `dwaId` and the DWA title (new store method `elementNames`, reading `OnetElement.name`), and
+  `me()` returns `skills` as sorted names only (same filter as the export, no levels). The paper preview
+  and copy text show the skills line. +1 UI test, +2 route checks.
+- Controller gate: root build passed; root test:ci 91 suites / 635 tests passed; backend typecheck
+  passed; backend tests 137 files passed, 0 failed.
+- Deviations: target-role chips are read-only (the picker is Phase 13). "Edit wording" prefills by
+  replacing the first occurrence of the value with `{n}`, because the API does not return the stored
+  template. Pending bullets can be pre-ticked but never reach the paper, copy text or exports. A Recount
+  button was added. OPEN: none.
+
 ## Follow-ups
+
+- `GET /api/career/me` does not return a bullet's stored custom template, so the editor reconstructs it
+  from the rendered text. Return `template` per bullet if members report odd prefills.
 
 - Nightly impact recompute runs as one long transaction. Fine at club scale; if the member count grows
   past a few hundred, switch to per-page transactions under a session advisory lock.

@@ -1191,3 +1191,33 @@ export async function getPublicPortfolio(slug) {
   if (!response.ok) throw new ApiError(response.status, "Could not load this portfolio");
   return response.json();
 }
+
+// Career profile (own data only). Export goes through fetch so the Bearer token is sent.
+export const careerApi = {
+  me: () => get('/api/career/me'),
+  updateProfile: data => put('/api/career/me/profile', data),
+  setTargets: codes => put('/api/career/me/targets', { codes }),
+  searchOccupations: q => get(`/api/career/occupations?q=${encodeURIComponent(q)}`),
+  pathway: code => get(`/api/career/pathway/${encodeURIComponent(code)}`),
+  recompute: () => post('/api/career/me/recompute', {}),
+  setBullet: (sourceKind, sourceId, data) =>
+    put(`/api/career/me/bullets/${encodeURIComponent(sourceKind)}/${encodeURIComponent(sourceId)}`, data),
+  createClaim: data => post('/api/career/me/claims', data),
+  deleteClaim: id => del(`/api/career/me/claims/${encodeURIComponent(id)}`),
+  async downloadResumeJson() {
+    const response = await fetch(`${BASE_URL}/api/career/me/export.json`, {
+      credentials: 'include',
+      headers: { Accept: 'application/json', ...authHeaders() },
+    });
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}));
+      throw new ApiError(response.status, body.error ?? 'Request failed');
+    }
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'resume.json';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  },
+};

@@ -50,6 +50,7 @@ export interface CareerStore {
   certifications(id: string): Promise<CertRow[]>;
   badges(id: string): Promise<{ achievementId: string; issuedAt: Date }[]>;
   skills(id: string): Promise<{ name: string; area: string }[]>;
+  elementNames(ids: string[]): Promise<{ id: string; name: string }[]>;
   countOpenClaims(id: string): Promise<number>;
   createClaim(id: string, data: { label: string; value: number; unit: string | null; evidenceUrl: string }): Promise<AttestationRow>;
   attestation(attId: string): Promise<(AttestationRow & { memberId: string }) | null>;
@@ -132,15 +133,17 @@ export function createCareerService(store: CareerStore, opts: { now?: () => numb
   const lastRecompute = new Map<string, number>();
 
   async function me(memberId: string) {
-    const [profile, targets, inp, certifications, badgeRows] = await Promise.all([
+    const dwaIds = [...new Set(METRICS.flatMap(m => (m.dwaId ? [m.dwaId] : [])))];
+    const [profile, targets, inp, certifications, badgeRows, skillRows, dwaRows] = await Promise.all([
       store.profile(memberId), store.targets(memberId), inputs(store, memberId),
-      store.certifications(memberId), store.badges(memberId),
+      store.certifications(memberId), store.badges(memberId), store.skills(memberId), store.elementNames(dwaIds),
     ]);
+    const dwaTitle = new Map(dwaRows.map(r => [r.id, r.name]));
     const snapshots = METRICS.filter(m => !inp.disabled.has(m.id)).flatMap(m => {
       const s = inp.snaps.find(x => x.metricId === m.id);
       if (!s) return [];
       const ok = m.proof === "RECORDS" || inp.atts.some(a => a.kind === "CONFIRM" && shareable("CONFIRMED", a, { metricId: m.id, value: s.value }));
-      return [{ metricId: m.id, label: m.label, value: s.value, unit: s.value === 1 ? m.unitSingular : m.unitPlural, proof: m.proof, shareable: ok, pending: !ok }];
+      return [{ metricId: m.id, label: m.label, value: s.value, unit: s.value === 1 ? m.unitSingular : m.unitPlural, proof: m.proof, shareable: ok, pending: !ok, dwaId: m.dwaId, dwaTitle: m.dwaId ? dwaTitle.get(m.dwaId) ?? null : null }];
     });
     const items = badgeRows.flatMap(b => {
       const a = ACHIEVEMENTS.find(x => x.id === b.achievementId);
@@ -156,6 +159,8 @@ export function createCareerService(store: CareerStore, opts: { now?: () => numb
       bullets: buildBullets(inp.snaps, inp.atts, inp.rows, METRICS, inp.disabled),
       attestations: inp.atts.map(a => ({ ...a, pending: a.status === "PENDING" || a.status === "NEEDS_PROOF" })),
       certifications,
+      // Names only, same filter as the export: no level or confidence.
+      skills: [...new Set(skillRows.map(r => r.name))].sort((a, b) => a.localeCompare(b)),
       badges: { count: items.length, items },
       attribution: ONET_ATTRIBUTION,
     };

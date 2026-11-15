@@ -8,4 +8,6 @@ In **Growth**, choose up to three focus skills. Suggestions come from accessible
 
 **Team coverage** shows shared evidence in a project you belong to. Unknown means there is not enough shared evidence. Ask someone about availability and willingness before proposing a pairing.
 
+**Career** turns your club work into résumé material. Each number is counted from Constellation records, confirmed by a lead, or marked as your own claim. Pick which bullets to include, edit their wording (the number stays linked to its source), then copy the text, print it or download a JSON Resume. Only you see this view until you choose to share.
+
 The **Library** explains definitions and other names for a skill. New supported concepts can be created automatically. Admins use **Automation** to inspect exceptions, run health and the change history. Original evidence and human statements remain available after consolidation.

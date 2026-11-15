@@ -43,6 +43,7 @@ export const TOUR_ANCHORS = Object.freeze({
   "skills.growth":          { label: "Growth",               route: "/clubpm/profile?tab=skills", note: "Up to three focus skills and saved project opportunities" },
   "skills.team":            { label: "Team coverage",        route: "/clubpm/profile?tab=skills", note: "Shared evidence in a project the viewer belongs to" },
   "skills.library":         { label: "Skill library",        route: "/clubpm/profile?tab=skills", note: "Concept definitions and aliases; admins also see catalog receipts" },
+  "skills.career":          { label: "Career",               route: "/clubpm/profile?tab=skills", note: "Career view: verified impact numbers, résumé bullets and exports" },
   "skills.automation":      { label: "Skills automation",    route: "/clubpm/profile?tab=skills", note: "Admins only; policy, run health, exceptions and change history" },
   "nav.more":               { label: "More button",          route: "*", layout: "compact", note: "Bottom-bar More; opens the sheet holding every other destination" },
   "topbar.notifications":   { label: "Notification bell",    route: "*", layout: "both",    note: "Dropdown with Notification preferences link on desktop; on phones a link to /clubpm/notifications" },

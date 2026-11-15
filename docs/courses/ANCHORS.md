@@ -70,6 +70,7 @@ Skills workspace section controls (same on desktop and phone):
 | `skills.growth` | Growth — focus skills and saved opportunities | `/clubpm/profile?tab=skills` |
 | `skills.team` | Team coverage — shared project evidence | `/clubpm/profile?tab=skills` |
 | `skills.library` | Library — definitions, aliases and admin receipts | `/clubpm/profile?tab=skills` |
+| `skills.career` | Career — verified impact, résumé bullets and exports | `/clubpm/profile?tab=skills` |
 | `skills.automation` | Automation — admins only | `/clubpm/profile?tab=skills` |
 
 ## Dashboard — `src/pages/ClubPM/Dashboard.jsx`

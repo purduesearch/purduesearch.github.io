@@ -75,6 +75,7 @@ export const prismaCareerStore: CareerStore = {
     });
     return rows.map(r => ({ name: r.skill.name, area: r.skill.type }));
   },
+  elementNames: (ids) => (ids.length ? prisma.onetElement.findMany({ where: { id: { in: ids } }, select: { id: true, name: true } }) : Promise.resolve([])),
   countOpenClaims: (id) => prisma.impactAttestation.count({ where: { memberId: id, kind: "CLAIM", status: { in: ["PENDING", "NEEDS_PROOF"] } } }),
   createClaim: (id, d) => prisma.impactAttestation.create({
     data: { memberId: id, kind: "CLAIM", label: d.label, value: d.value, unit: d.unit, evidenceUrl: d.evidenceUrl },

@@ -6,6 +6,7 @@ import { useClubPmAuth } from '../../clubpm/ClubPmAuth';
 import MobileSheet from '../../components/clubpm/MobileSheet';
 import SkillsSettings from '../../components/clubpm/skills/SkillsSettings';
 import SkillsCatalogPanel from '../../components/clubpm/skills/SkillsCatalogPanel';
+import CareerView from '../../components/clubpm/career/CareerView';
 import { BAND_LABELS, LEVEL_LABELS, PROVENANCE_META, errorMessage, formatDay, sourceIcon } from '../../components/clubpm/skills/skillsShared';
 
 function useMutation() {
@@ -160,7 +161,7 @@ export default function SkillsWorkspace() {
     return () => { live = false; };
   }, [reload]);
   const canAdmin = member?.isAdmin || member?.role === 'ADMIN';
-  const allowedViews = ['mine', 'growth', 'team', 'library', ...(canAdmin ? ['automation'] : [])];
+  const allowedViews = ['mine', 'growth', 'team', 'library', 'career', ...(canAdmin ? ['automation'] : [])];
   const active = allowedViews.includes(params.get('view')) ? params.get('view') : 'mine';
   const changeView = value => { const next = new URLSearchParams(params); next.set('view', value); next.delete('skill'); setParams(next); if (value === 'mine') load(); };
   const openSkill = id => { const next = new URLSearchParams(params); next.set('skill', id); setParams(next); };
@@ -175,6 +176,7 @@ export default function SkillsWorkspace() {
       <button data-tour-id="skills.growth" aria-current={active === 'growth' ? 'page' : undefined} onClick={() => changeView('growth')}>Growth{data?.goals.length > 0 && <span>{data.goals.length}</span>}</button>
       <button data-tour-id="skills.team" aria-current={active === 'team' ? 'page' : undefined} onClick={() => changeView('team')}>Team coverage</button>
       <button data-tour-id="skills.library" aria-current={active === 'library' ? 'page' : undefined} onClick={() => changeView('library')}>Library</button>
+      <button data-tour-id="skills.career" aria-current={active === 'career' ? 'page' : undefined} onClick={() => changeView('career')}>Career</button>
       {canAdmin && <button data-tour-id="skills.automation" aria-current={active === 'automation' ? 'page' : undefined} onClick={() => changeView('automation')}>Automation <small>ADMIN</small></button>}
     </nav>
     {error ? <Status error onRetry={() => setReload(n => n + 1)}>Skills could not be loaded. Try again to refresh your record.</Status> : !data ? <Status>Loading your Skills workspace…</Status> : <>
@@ -189,6 +191,7 @@ export default function SkillsWorkspace() {
         </section><aside className="pm-sk-side"><div className="pm-sk-card violet"><div className="pm-sk-eyebrow">YOUR NEXT EXPERIENCE</div><h3>{data.goals[0] ? `Make room for ${data.goals[0].name}.` : 'Choose what you want to practice.'}</h3><p>Set up to three focus skills and explore real work in your projects.</p><button className="pm-sk-text-link" onClick={() => changeView('growth')}>Explore Growth ↗</button></div><div className="pm-sk-card"><h3>Recently recognized</h3>{data.recent.map(e => <div className="pm-sk-recent" key={e.id}><i className={sourceIcon(e.source)} aria-hidden="true" /><div><p>{e.summary}</p><small>{formatDay(e.occurredAt)}{e.projectName ? ` · ${e.projectName}` : ''}</small></div></div>)}{!data.recent.length && <p>Your recent project evidence will appear here.</p>}</div></aside></div>
       </>}
       {active === 'growth' && (taxonomyError ? <Status error onRetry={() => setReload(n => n + 1)}>The skill library could not be loaded.</Status> : <Growth data={data} taxonomy={taxonomy} onChanged={load} openSettings={() => setSettings(true)} />)}
+      {active === 'career' && <CareerView />}
       {active === 'team' && <TeamCoverage projects={data.projects} />}
       {(active === 'library' || active === 'automation') && <SkillsCatalogPanel mode={active} isAdmin={canAdmin} taxonomy={taxonomy} taxonomyError={taxonomyError} onRetry={() => setReload(n => n + 1)} />}
       {selected && <SkillDetail skill={selected} data={data} onChanged={load} onClose={closeSkill} />}
