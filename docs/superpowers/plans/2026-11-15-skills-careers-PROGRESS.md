@@ -1,4 +1,4 @@
-| 10 | undefined| done | this commit | build / backend typecheck / backend test green; root test:ci n/a | 55 route tests; mounted at /api/career. || 9 | undefined| done | this commit | build / backend typecheck / backend test green; root test:ci n/a | 12 tests; deterministic statuses, no score. || 8 | undefined| done | this commit | build / backend typecheck / backend test green; root test:ci n/a | 8 tests; proof gating, overrides, no levels in exports. |# Progress: skills to careers (saffron-osprey)
+| 11 | undefined| done | this commit | build / backend typecheck / backend test green; root test:ci n/a | 69 route tests; mounted at /api/admin/career. Seed URLs OPEN. || 10 | undefined| done | this commit | build / backend typecheck / backend test green; root test:ci n/a | 55 route tests; mounted at /api/career. || 9 | undefined| done | this commit | build / backend typecheck / backend test green; root test:ci n/a | 12 tests; deterministic statuses, no score. || 8 | undefined| done | this commit | build / backend typecheck / backend test green; root test:ci n/a | 8 tests; proof gating, overrides, no levels in exports. |# Progress: skills to careers (saffron-osprey)
 
 Plan: `2026-11-15-skills-careers.md` · Handoff: `2026-11-15-skills-careers-HANDOFF.md` · Branch: `feat/skills-careers`
 
@@ -187,6 +187,31 @@ machine's temporary directory.
   passed; backend tests 136 files passed, 0 failed. Root `test:ci` n/a.
 - Deviations: 4 source files (router, service, store, test). OPEN resolved: `computeForMember` already
   upserts snapshots, so recompute needs no extra write.
+
+### Phase 11 — Career admin API
+
+- Fresh implementation agent. `api/careerAdmin.ts`, `services/careerAdminService.ts`, lazily loaded
+  `services/careerAdminStore.ts`, 69 route tests. Controller applied the `app.ts` import and
+  `app.use("/api/admin/career", careerAdminRouter)` directly above `/api/career`; the router applies
+  `requireAuth` + `requireAdmin` itself. No mount-order guard needed.
+- Reuses the Phase 5 link service. Dangling links are recomputed live in `onetStatus` (same rule as
+  the loader, which exposes no query).
+- Review: only PENDING/NEEDS_PROOF CLAIM rows (atomic `updateMany`, races get 409); own claim 403;
+  reviewer = `req.memberId` in `reviewerId`; one preference-routed `CAREER_ATTESTATION_REVIEWED`
+  notification to the owner. Confirm: CONFIRMED metrics only, own metric 403, bot/missing 404,
+  zero/missing snapshot 409; a repeat confirm refreshes the existing CONFIRM row (deviation).
+- Demand signals: three seeded on first GET under an advisory lock, idempotent.
+- Controller gate: root build passed (existing warnings); backend typecheck passed; backend tests
+  137 files passed, 0 failed. Root `test:ci` n/a.
+- OPEN: the plan gives no URLs or dates for the three seeded demand signals, so the seed uses publisher
+  home pages (naceweb.org, WEF Future of Jobs 2025, linkedin.com) and approximate months. Replace them
+  with the exact report links before rollout (editable through PUT /demand-signals/:id).
+
+### Stop point (2026-11-15)
+
+Henry asked to stop at the best spot. Work paused after Phase 11 with a clean tree. Resume at Phase 12
+(Career view: impact + résumé, frontend), the first phase that touches `src/`, so root `test:ci` joins
+the gate from there on.
 
 ## Follow-ups
 
