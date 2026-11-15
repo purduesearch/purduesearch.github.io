@@ -1,4 +1,4 @@
-| 9 | undefined| done | this commit | build / backend typecheck / backend test green; root test:ci n/a | 12 tests; deterministic statuses, no score. || 8 | undefined| done | this commit | build / backend typecheck / backend test green; root test:ci n/a | 8 tests; proof gating, overrides, no levels in exports. |# Progress: skills to careers (saffron-osprey)
+| 10 | undefined| done | this commit | build / backend typecheck / backend test green; root test:ci n/a | 55 route tests; mounted at /api/career. || 9 | undefined| done | this commit | build / backend typecheck / backend test green; root test:ci n/a | 12 tests; deterministic statuses, no score. || 8 | undefined| done | this commit | build / backend typecheck / backend test green; root test:ci n/a | 8 tests; proof gating, overrides, no levels in exports. |# Progress: skills to careers (saffron-osprey)
 
 Plan: `2026-11-15-skills-careers.md` · Handoff: `2026-11-15-skills-careers-HANDOFF.md` · Branch: `feat/skills-careers`
 
@@ -169,6 +169,24 @@ machine's temporary directory.
   backend typecheck passed; backend tests 135 files passed, 0 failed. Root `test:ci` n/a.
 - Deviation: the open-task access rule is not exported from `skillWorkspaceService.ts`, so the service
   re-implements it (see follow-up). OPEN: none.
+
+### Phase 10 — Career API (member)
+
+- Fresh implementation agent. `api/career.ts` (`createCareerRouter` for injected tests; default
+  `careerRouter` uses `requireAuth`), `services/careerService.ts`, lazily loaded Prisma
+  `services/careerStore.ts`. Controller applied the `app.ts` import and
+  `app.use("/api/career", careerRouter)` after `/api/skills` (no ordering constraint).
+- Choices: DELETE claims allows PENDING and NEEDS_PROOF (else 409; others' or CONFIRM rows 404) and
+  removes the matching ResumeBullet; 20 open claims per member; evidence URL https only, no
+  credentials, ≤500 chars; occupation search q 2–80 chars, max 20 results; writes 30/min per member,
+  recompute 1/min (429). Sharing flags accepted on PUT /me/profile as strict booleans.
+- export.json: `includeEmail: false`, attachment + `no-store`, only exportable bullets, approved
+  certificates, non-revoked badges, skills as names without levels. Controller tightened the export skill
+  query to drop level-0 rows and skills with OPEN/UPHELD disputes.
+- Focused tests: 55 passed. Controller gate: root build passed (existing warnings); backend typecheck
+  passed; backend tests 136 files passed, 0 failed. Root `test:ci` n/a.
+- Deviations: 4 source files (router, service, store, test). OPEN resolved: `computeForMember` already
+  upserts snapshots, so recompute needs no extra write.
 
 ## Follow-ups
 
