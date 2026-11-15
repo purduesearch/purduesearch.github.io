@@ -1,4 +1,4 @@
-| 8 | undefined| done | this commit | build / backend typecheck / backend test green; root test:ci n/a | 8 tests; proof gating, overrides, no levels in exports. |# Progress: skills to careers (saffron-osprey)
+| 9 | undefined| done | this commit | build / backend typecheck / backend test green; root test:ci n/a | 12 tests; deterministic statuses, no score. || 8 | undefined| done | this commit | build / backend typecheck / backend test green; root test:ci n/a | 8 tests; proof gating, overrides, no levels in exports. |# Progress: skills to careers (saffron-osprey)
 
 Plan: `2026-11-15-skills-careers.md` · Handoff: `2026-11-15-skills-careers-HANDOFF.md` · Branch: `feat/skills-careers`
 
@@ -155,6 +155,21 @@ machine's temporary directory.
   `buildJsonResume` takes optional `{ includeEmail }`, off by default, for the member's own download only;
   `buildBullets` takes optional `disabledMetrics`; member order is `position > 0`. OPEN: none.
 
+### Phase 9 — Pathway match
+
+- Fresh implementation agent. Pure `pathwayCore.ts` plus `pathwayService.getPathway(memberId, code)`
+  with an injectable store. No overall score or percentage (tested). Self-only; no visibility filter.
+- Status: demonstrated = AI_INFERRED level ≥3 or MANAGER_VERIFIED; learning = AI level 1–2,
+  PEER_ENDORSED or goal; claimed = SELF_CLAIMED only. OPEN/UPHELD disputes (canonical projection)
+  void assessments; a goal still gives learning. Best status across all linked club skills.
+- Emerging club tasks: ≥2 shared normalized tokens, capped at 5 per emerging task; open = TODO or
+  IN_PROGRESS, unassigned, unarchived, non-training, in the member's projects. Related = Primary tiers.
+- Verified: `OnetRelease.active`; occupation tables hold only the loaded release, so no release filter.
+- Focused tests: 8 core + 4 service passed. Controller gate: root build passed (existing warnings);
+  backend typecheck passed; backend tests 135 files passed, 0 failed. Root `test:ci` n/a.
+- Deviation: the open-task access rule is not exported from `skillWorkspaceService.ts`, so the service
+  re-implements it (see follow-up). OPEN: none.
+
 ## Follow-ups
 
 - Nightly impact recompute runs as one long transaction. Fine at club scale; if the member count grows
@@ -162,3 +177,5 @@ machine's temporary directory.
 
 - Preserved existing Simulink/MATLAB and Data Analysis/Data Science identities; any future split
   needs a separate catalog change, not this add-only refresh.
+- Pathway open-task access rule duplicates the inline rule in `skillWorkspaceService.ts`. Extract one shared
+  helper in a later refactor so the two cannot drift.
