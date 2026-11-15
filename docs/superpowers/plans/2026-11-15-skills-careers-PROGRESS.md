@@ -16,8 +16,8 @@ machine's temporary directory.
 |---|---|---|---|---|---|
 | 1 | O*NET subset extractor | implemented; awaiting push | `0e6ecc3f` | build / backend typecheck / backend test green; root test:ci n/a | All reference counts match; 12 extractor tests. Push rejected by automatic approval review; see Open items. |
 | 2 | Schema + migration [deep] | implemented; awaiting push | `d6ad45c9` | build / backend typecheck / backend test green; root test:ci n/a | Exact locked model; offline migration diff only. |
-| 3 | O*NET loader | implemented; awaiting push | this commit (`chore(careers): phase 3 local O*NET loader`) | build / backend typecheck / backend test green; root test:ci n/a | 9 loader + 13 extractor tests; real subset checked through injected store. |
-| 4 | Starter taxonomy refresh | todo | | | |
+| 3 | O*NET loader | implemented; awaiting push | `3e23c1f0` | build / backend typecheck / backend test green; root test:ci n/a | 9 loader + 13 extractor tests; real subset checked through injected store. |
+| 4 | Starter taxonomy refresh | implemented; awaiting push | this commit (`feat(skills): add career tools and reviewed O*NET mappings`) | build / backend typecheck / backend test green; root test:ci n/a | 16 skills added, 80 reviewed links; 410 reference checks and 24 taxonomy checks. |
 | 5 | Linker core + link service | todo | | | |
 | 6 | Impact metric registry core | todo | | | |
 | 7 | Impact metric service [deep] | todo | | | |
@@ -82,8 +82,6 @@ machine's temporary directory.
 - Deviation: required Prisma format normalized existing whitespace; no semantic deviation.
   OPEN: outstanding push rejection already recorded above. No new follow-ups.
 
-## Follow-ups
-
 ### Phase 3 — O*NET loader
 
 - Fresh implementation agent: `phase_03`. Controller reviewed source/tests and applied
@@ -95,4 +93,19 @@ machine's temporary directory.
   backend tests 127 files passed, 0 failed. Root `test:ci` n/a (no `src/` changes).
 - Deviations: none. OPEN: push remains rejected by automatic approval review. No new follow-ups.
 
-None yet.
+### Phase 4 — Starter taxonomy refresh
+
+- Fresh implementation agent: `phase_04`. Controller reviewed 16 add-only starter entries
+  (146 total), 2 aliases on existing entries and 80 manually reviewed local O*NET mappings.
+- Focused tests: 410 curated-link checks and 24 existing taxonomy checks passed.
+- Controller gate: root build passed (existing warnings); backend typecheck passed;
+  backend tests 128 files passed, 0 failed. Root `test:ci` n/a (no `src/` changes).
+- Deviations: none. Existing Simulink → MATLAB and Data Analysis → Data Science aliases preserved.
+- OPEN for Phase 5: locked normalization collapses C/C++/C# to `c`; do not propose false EXACT
+  SOFTWARE links for this ambiguous identity. Curated C/C++ links use broader Programming instead.
+  Push remains blocked by automatic approval review.
+
+## Follow-ups
+
+- Preserved existing Simulink/MATLAB and Data Analysis/Data Science identities; any future split
+  needs a separate catalog change, not this add-only refresh.
