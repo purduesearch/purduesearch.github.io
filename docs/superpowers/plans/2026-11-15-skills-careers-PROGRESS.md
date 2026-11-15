@@ -2,11 +2,19 @@
 
 Plan: `2026-11-15-skills-careers.md` · Handoff: `2026-11-15-skills-careers-HANDOFF.md` · Branch: `feat/skills-careers`
 
-Baseline gate: not run yet.
+Baseline gate (2026-11-15, Node v24.14.1, branch `feat/skills-careers` at `ba115f4e`): green.
+Fetched origin, switched to the work branch, pulled with `--ff-only`, and confirmed a clean working tree.
+Root `npm run build` passed with existing ESLint/Browserslist warnings; backend `npm run typecheck`
+passed and `npm test` passed (125 standalone test files). Initial typecheck detected a stale generated
+Prisma client; the handoff's setup command `npx prisma generate` resolved it without source changes or
+database access. Root `test:ci` was not required because no `src/` files changed.
+
+Phase 1 prerequisite: downloaded and extracted the O*NET 31.0 CSV archive successfully to the
+machine's temporary directory.
 
 | Phase | Title | Status | Commit | Gate | Notes |
 |---|---|---|---|---|---|
-| 1 | O*NET subset extractor | todo | | | |
+| 1 | O*NET subset extractor | implemented; awaiting push | this commit (`chore(careers): phase 1 O*NET subset extractor`) | build / backend typecheck / backend test green; root test:ci n/a | All reference counts match; 12 extractor tests. Push rejected by automatic approval review; see Open items. |
 | 2 | Schema + migration [deep] | todo | | | |
 | 3 | O*NET loader | todo | | | |
 | 4 | Starter taxonomy refresh | todo | | | |
@@ -34,7 +42,30 @@ Baseline gate: not run yet.
 
 ## Open items
 
-None yet.
+1. Phase 1 push is blocked by automatic approval review. The attempted command was exactly
+   `git push origin feat/skills-careers`; rejection: "Pushing should never happen without a human
+   looking first." The handoff explicitly authorizes this push, but the execution layer refused it.
+   Henry must review and push the local phase commit before the controller advances to Phase 2.
+   Do not redo Phase 1 implementation; its controller gate is green. No other branch was pushed.
+
+## Phase receipts
+
+### Phase 1 — O*NET subset extractor
+
+- Fresh implementation agent: `phase_01`. Controller reviewed all source and test changes and applied
+  the `onet:extract` package script.
+- Created `onetCsvCore.ts` and its 12-test inline fixture suite, the local extraction CLI, compressed
+  subset and attribution. Exact headers are enforced; ratings and occupation/DWA pairs are pruned as planned.
+- Artifact counts: occ 1,016; el 3,006; rat 142,471; sw 31,821; dwa 2,087; odwa 18,583;
+  jt 54,269; jz 923; em 338; rel 18,460. Gzip: 1,503,057 bytes.
+  SHA-256: `fac42723498ee8757ffa83d8adde3e0cefff7c2dafb4f6f62c731e2227ddcb83`.
+- Controller gate: root build passed (existing warnings); backend typecheck passed; backend tests
+  126 files passed, 0 failed. Root `test:ci` not required (no `src/` changes).
+- Deviations: none. OPEN: none. Follow-ups: none.
+- Delivery blocker after commit: the required push was rejected by automatic approval review
+  (quoted above). Implementation is complete locally; Phase 1 is not marked done until pushed.
+- The phase row identifies its containing commit by subject to avoid a self-referential commit hash;
+  the next phase's progress update records the resolved hash.
 
 ## Follow-ups
 

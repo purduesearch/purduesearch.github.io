@@ -22,7 +22,8 @@
     "db:studio": "prisma studio",
     "vault:search-rebuild": "tsx scripts/vault-search-rebuild.ts",
     "seed:skills": "tsx prisma/seedSkills.ts",
-    "skills:run": "tsx scripts/skills-run.ts"
+    "skills:run": "tsx scripts/skills-run.ts",
+    "onet:extract": "tsx scripts/onet-extract.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
