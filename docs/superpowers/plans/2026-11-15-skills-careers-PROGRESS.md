@@ -26,6 +26,7 @@ machine's temporary directory.
 | 10 | Career API (member) | done | `3f6208d1` | build / backend typecheck / backend test green; root test:ci n/a | 55 route tests; mounted at /api/career. |
 | 11 | Career admin API | done | `6d19324c` | build / backend typecheck / backend test green; root test:ci n/a | 69 route tests; mounted at /api/admin/career. Seed URLs OPEN. |
 | 12 | Career view: impact + résumé | done | this commit | build / backend typecheck / backend test / root test:ci green | 8 UI tests + 2 route checks; CSS v=32; anchor skills.career. |
+| 13a | Skill O*NET detail endpoint (split) | done | this commit | build / backend typecheck / backend test green; root test:ci n/a | 75 route checks; GET /api/career/skills/:id/onet. |
 | 13 | Pathway + skill detail UI | todo | | | |
 | 14 | Career settings + print route | todo | | | |
 | 15 | Sponsor auth [deep] | todo | | | |
@@ -234,6 +235,20 @@ the gate from there on.
   replacing the first occurrence of the value with `{n}`, because the API does not return the stored
   template. Pending bullets can be pre-ticked but never reach the paper, copy text or exports. A Recount
   button was added. OPEN: none.
+
+### Phase 13a — Skill O*NET detail endpoint (split from Phase 13)
+
+- Deviation: the Phase 13 skill drawer needs O*NET placement, demand and matching numbers per skill, and
+  no route returned them. Adding one inside Phase 13 would break the 4-file limit, so Phase 13 is split:
+  13a (this backend route) and 13b (the planned frontend).
+- Fresh implementation agent. `GET /api/career/skills/:skillId/onet` inside the mounted career router:
+  canonical-skill resolution, 404 for missing or inactive skills; placement crumb (best link by EXACT,
+  then SOFTWARE/ELEMENT/DWA, then ref; parent walk capped at depth 10 with a cycle guard); links with
+  names; demand via `getSkillDemand` (top 3 occupations); the member's own non-zero snapshots for metrics
+  whose software categories or DWA match, minus admin-disabled metrics; the suggested bullet from the same
+  `buildBullets` output as `me()`; linked activities with names; attribution. No levels or scores.
+- Focused tests: career route suite 75 passed. Controller gate: root build passed; backend typecheck
+  passed; backend tests 137 files passed, 0 failed. Root test:ci n/a (no `src/` changes). OPEN: none.
 
 ## Follow-ups
 

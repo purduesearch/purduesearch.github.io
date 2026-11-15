@@ -67,6 +67,7 @@ export function createCareerRouter(opts: CareerRouterOptions = {}): Router {
     res.setHeader("Cache-Control", "no-store");
     res.type("application/json").send(JSON.stringify(resume, null, 2));
   }));
+  router.get("/skills/:skillId/onet", wrap(async (req, res, s) => { res.json(await s.skillOnet(req.memberId!, String(req.params.skillId))); }));
   router.get("/demand-signals", wrap(async (_req, res, s) => { res.json(await s.demandSignals()); }));
 
   return router;

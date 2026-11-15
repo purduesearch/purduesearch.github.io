@@ -18,6 +18,9 @@ check("no model imports", !/gemini|aiRouter/i.test(src));
 
 const records = METRICS.find(m => m.proof === "RECORDS")!;
 const confirmed = METRICS.find(m => m.proof === "CONFIRMED")!;
+const cadItems = METRICS.find(m => m.id === "cad_items_released")!;
+const cadRevs = METRICS.find(m => m.id === "cad_revisions")!;
+const prs = METRICS.find(m => m.id === "prs_merged")!;
 const at = (d: Partial<AttestationRow> & { id: string; memberId: string }): AttestationRow & { memberId: string } => ({
   kind: "CLAIM", status: "PENDING", metricId: null, label: "Saved money", value: 5, unit: "USD",
   evidenceUrl: "https://example.com/e", note: null, reviewNote: null, createdAt: new Date(0), ...d,
@@ -34,6 +37,20 @@ function makeStore() {
   const calls = { recompute: 0 };
   const profile: ProfileRow = { major: "ME", gradTerm: "2028-05", openTo: [], availableFrom: null, headline: "Hi", shareWithSponsors: false, showOnPublicPage: false };
   let disabled: string[] = [];
+  const skills: Record<string, { id: string; name: string; status: string; canonicalId: string | null }> = {
+    "s-sw": { id: "s-sw", name: "SolidWorks", status: "ACTIVE", canonicalId: null },
+    "s-alias": { id: "s-alias", name: "Solidworks CAD", status: "ACTIVE", canonicalId: "s-sw" },
+    "s-none": { id: "s-none", name: "Welding", status: "ACTIVE", canonicalId: null },
+    "s-old": { id: "s-old", name: "Old", status: "ARCHIVED", canonicalId: null },
+  };
+  const links: Record<string, { kind: string; ref: string; relation: string }[]> = {
+    "s-sw": [{ kind: "SOFTWARE", ref: "solidworks", relation: "EXACT" }, { kind: "DWA", ref: "4.A.2.b.2.b.1", relation: "RELATED" }],
+  };
+  const elements: Record<string, { name: string; parentId: string | null }> = {
+    "2": { name: "Skills", parentId: null }, "2.E": { name: "Technology Skills", parentId: "2" },
+    "2.E.9": { name: "Engineering software", parentId: "2.E" }, "2.E.9.c": { name: "Computer aided design software", parentId: "2.E.9" },
+    "4.A.3.b.2.d.1": { name: "Design CAD items", parentId: null }, "4.A.2.b.2.b.1": { name: "Develop software", parentId: null },
+  };
   const store: CareerStore = {
     member: async id => ({ id, displayName: "Ada", email: "ada@example.com" }),
     profile: async () => profile,
@@ -45,6 +62,9 @@ function makeStore() {
     snapshots: async () => [
       { metricId: records.id, value: 4, detail: { tool: null, projects: [] }, computedAt: new Date(1) },
       { metricId: confirmed.id, value: 3, detail: { tool: null, projects: [] }, computedAt: new Date(2) },
+      { metricId: cadItems.id, value: 5, detail: { tool: null, projects: [] }, computedAt: new Date(3) },
+      { metricId: cadRevs.id, value: 0, detail: { tool: null, projects: [] }, computedAt: new Date(3) },
+      { metricId: prs.id, value: 9, detail: { tool: null, projects: [] }, computedAt: new Date(3) },
     ],
     attestations: async id => atts.filter(a => a.memberId === id),
     bulletRows: async id => bullets.filter(b => b.memberId === id).map(b => ({ sourceKind: b.sourceKind, sourceId: b.sourceId, template: b.template, included: b.included ?? true, position: b.position ?? 0 })),
@@ -61,6 +81,12 @@ function makeStore() {
     deleteAttestation: async id => { atts.splice(atts.findIndex(a => a.id === id), 1); },
     demandSignals: async () => [],
     recompute: async () => { calls.recompute++; return 2; },
+    skill: async id => skills[id] ?? null,
+    skillLinks: async id => links[id] ?? [],
+    softwareByNorm: async refs => refs.includes("solidworks") ? [{ exampleNorm: "solidworks", example: "SolidWorks", categoryId: "2.E.9.c" }] : [],
+    elements: async ids => ids.flatMap(i => (elements[i] ? [{ id: i, ...elements[i] }] : [])),
+    skillDemand: async id => (id === "s-sw" ? { software: { hot: true, inDemandOccupations: 2, occupationsListed: 4, examples: ["SolidWorks"] },
+      topOccupations: ["a", "b", "c", "d"].map(x => ({ occupationCode: x, title: "T" + x, importance: 4, elementId: "e" })) } : null),
   };
   return { store, atts, bullets, calls, setDisabled: (d: string[]) => { disabled = d; } };
 }
@@ -177,6 +203,32 @@ async function main() {
     check("other member not limited", (await call("POST", "/me/recompute", undefined, "m2")).status === 200);
     clock += 61_000;
     check("recompute allowed after a minute", (await call("POST", "/me/recompute")).status === 200);
+
+    // skill O*NET detail
+    check("unauthenticated skill onet is 401", (await call("GET", "/skills/s-sw/onet", undefined, null)).status === 401);
+    check("unknown skill 404", (await call("GET", "/skills/nope/onet")).status === 404);
+    check("archived skill 404", (await call("GET", "/skills/s-old/onet")).status === 404);
+    r = await call("GET", "/skills/s-alias/onet");
+    check("canonical resolution", r.status === 200 && r.json.skill.id === "s-sw");
+    r = await call("GET", "/skills/s-sw/onet");
+    check("skill onet 200 with attribution", r.status === 200 && /O*NET 31.0/.test(r.json.attribution));
+    check("placement root-first ending in example", JSON.stringify(r.json.placement.map((p: any) => p.name)) === JSON.stringify(["Skills", "Technology Skills", "Engineering software", "Computer aided design software", "SolidWorks"]) && r.json.placement.at(-1).id === null);
+    check("links display names", r.json.links.some((l: any) => l.kind === "SOFTWARE" && l.name === "SolidWorks") && r.json.links.some((l: any) => l.kind === "DWA" && l.name === "Develop software"));
+    check("demand reused, top 3", r.json.demand?.hot === true && r.json.demand.topOccupations.length === 3 && r.json.demand.occupationsListed === 4);
+    check("numbers match category", r.json.numbers.some((n: any) => n.metricId === cadItems.id && n.value === 5));
+    check("numbers include dwa-link match", r.json.numbers.some((n: any) => n.metricId === prs.id && n.value === 9));
+    check("numbers exclude non-matching and zero", !r.json.numbers.some((n: any) => n.metricId === records.id || n.metricId === confirmed.id || n.metricId === cadRevs.id));
+    check("numbers in METRICS order", r.json.numbers[0].metricId === cadItems.id);
+    check("suggested bullet from first number", r.json.suggestedBullet?.metricId === cadItems.id && typeof r.json.suggestedBullet.text === "string" && r.json.suggestedBullet.pending === false && r.json.suggestedBullet.shareable === true);
+    check("activities include metric dwa and link dwa", r.json.activities.some((a: any) => a.dwaId === cadItems.dwaId && a.name === "Design CAD items") && r.json.activities.some((a: any) => a.dwaId === "4.A.2.b.2.b.1"));
+    check("activities deduped", new Set(r.json.activities.map((a: any) => a.dwaId)).size === r.json.activities.length);
+    check("no level/confidence/score keys", !/"(level|confidence|score)"/i.test(r.text));
+    h.setDisabled([cadItems.id]);
+    r = await call("GET", "/skills/s-sw/onet");
+    check("disabled metric excluded from skill numbers", !r.json.numbers.some((n: any) => n.metricId === cadItems.id) && r.json.suggestedBullet?.metricId === prs.id);
+    h.setDisabled([]);
+    r = await call("GET", "/skills/s-none/onet");
+    check("no-link skill is empty", r.status === 200 && r.json.placement.length === 0 && r.json.links.length === 0 && r.json.demand === null && r.json.numbers.length === 0 && r.json.suggestedBullet === null);
 
     check("demand signals 200", (await call("GET", "/demand-signals")).status === 200);
   } finally {

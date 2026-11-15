@@ -1,6 +1,7 @@
 // Member-facing career service: own-data reads/writes only. No model calls; numbers come from
 // impact snapshots (records) and member claims that an admin has verified.
 import { ACHIEVEMENTS, METRICS, shareable, validateMemberTemplate } from "./impactMetricCore.js";
+import type { SkillDemand } from "./onetLinkService.js";
 import {
   buildBullets, buildJsonResume, exportable,
   type AttestationInput, type BulletRowInput, type JsonResume, type SnapshotInput,
@@ -57,6 +58,11 @@ export interface CareerStore {
   deleteAttestation(attId: string): Promise<void>;
   demandSignals(): Promise<{ id: string; title: string; summary: string; sourceName: string; sourceUrl: string; publishedOn: string; onetElementIds: string[]; skillIds: string[]; metricIds: string[] }[]>;
   recompute(id: string): Promise<number>;
+  skill(id: string): Promise<{ id: string; name: string; status: string; canonicalId: string | null } | null>;
+  skillLinks(skillId: string): Promise<{ kind: string; ref: string; relation: string }[]>;
+  softwareByNorm(refs: string[]): Promise<{ exampleNorm: string; example: string; categoryId: string }[]>;
+  elements(ids: string[]): Promise<{ id: string; name: string; parentId: string | null }[]>;
+  skillDemand(skillId: string): Promise<SkillDemand | null>;
 }
 
 let defaultStoreP: Promise<CareerStore> | null = null;
@@ -187,8 +193,85 @@ export function createCareerService(store: CareerStore, opts: { now?: () => numb
     );
   }
 
+  /** Everything the skill drawer needs from O*NET for one skill. Deterministic; never exposes level, confidence or score. */
+  async function skillOnet(memberId: string, skillId: string) {
+    let skill = await store.skill(skillId);
+    if (skill?.canonicalId) skill = await store.skill(skill.canonicalId);
+    if (!skill || skill.status !== "ACTIVE") throw new CareerError("NOT_FOUND", "Skill not found.");
+    const rawLinks = await store.skillLinks(skill.id);
+    const kindRank: Record<string, number> = { SOFTWARE: 0, ELEMENT: 1, DWA: 2 };
+    const sorted = [...rawLinks].sort((a, b) =>
+      (a.relation === "EXACT" ? 0 : 1) - (b.relation === "EXACT" ? 0 : 1) || (kindRank[a.kind] ?? 9) - (kindRank[b.kind] ?? 9) || (a.ref < b.ref ? -1 : a.ref > b.ref ? 1 : 0));
+    const swRows = await store.softwareByNorm([...new Set(sorted.filter(l => l.kind === "SOFTWARE").map(l => l.ref))]);
+    const exampleOf = new Map<string, string>();
+    const categoriesOf = new Map<string, Set<string>>();
+    for (const r of swRows) {
+      if (!exampleOf.has(r.exampleNorm)) exampleOf.set(r.exampleNorm, r.example);
+      (categoriesOf.get(r.exampleNorm) ?? categoriesOf.set(r.exampleNorm, new Set()).get(r.exampleNorm)!).add(r.categoryId);
+    }
+    const swCategories = new Set([...categoriesOf.values()].flatMap(c => [...c]));
+    const dwaLinks = new Set(sorted.filter(l => l.kind === "DWA").map(l => l.ref));
+
+    const inp = await inputs(store, memberId);
+    const matching = METRICS.filter(m => !inp.disabled.has(m.id) && (m.softwareCategories.some(c => swCategories.has(c)) || (m.dwaId !== null && dwaLinks.has(m.dwaId))))
+      .flatMap(m => { const s = inp.snaps.find(x => x.metricId === m.id); return s && Number.isFinite(s.value) && s.value > 0 ? [{ m, value: s.value }] : []; });
+    const bullets = buildBullets(inp.snaps, inp.atts, inp.rows, METRICS, inp.disabled);
+    const first = matching[0];
+    const b = first ? bullets.find(x => x.metricId === first.m.id) : undefined;
+
+    // Element names + ancestry in as few reads as possible: breadth-first up the parent chain.
+    const wanted = new Set<string>([...sorted.filter(l => l.kind !== "SOFTWARE").map(l => l.ref), ...matching.flatMap(x => (x.m.dwaId ? [x.m.dwaId] : [])), ...swCategories]);
+    const el = new Map<string, { id: string; name: string; parentId: string | null }>();
+    let frontier = [...wanted];
+    for (let depth = 0; depth < 10 && frontier.length; depth++) {
+      const rows = await store.elements(frontier.filter(id => !el.has(id)));
+      frontier = [];
+      for (const r of rows) { el.set(r.id, r); if (r.parentId && !el.has(r.parentId)) frontier.push(r.parentId); }
+    }
+    const chain = (id: string): { id: string; name: string }[] => {
+      const out: { id: string; name: string }[] = [];
+      const seen = new Set<string>();
+      for (let cur: string | null = id; cur && !seen.has(cur); ) {
+        seen.add(cur);
+        const e = el.get(cur);
+        if (!e) break;
+        out.unshift({ id: e.id, name: e.name });
+        cur = e.parentId;
+      }
+      return out;
+    };
+
+    const links = sorted.map(l => ({
+      kind: l.kind as "SOFTWARE" | "ELEMENT" | "DWA", ref: l.ref, relation: l.relation,
+      name: l.kind === "SOFTWARE" ? exampleOf.get(l.ref) ?? l.ref : el.get(l.ref)?.name ?? l.ref,
+    }));
+    let placement: { id: string | null; name: string }[] = [];
+    const best = sorted[0];
+    if (best) {
+      if (best.kind === "SOFTWARE") {
+        const cat = [...(categoriesOf.get(best.ref) ?? [])].sort()[0];
+        placement = [...(cat ? chain(cat) : []), { id: null, name: exampleOf.get(best.ref) ?? best.ref }];
+      } else placement = chain(best.ref);
+    }
+    const dwaIds = [...new Set([...sorted.filter(l => l.kind === "DWA").map(l => l.ref), ...matching.flatMap(x => (x.m.dwaId ? [x.m.dwaId] : []))])];
+    const demandRaw = rawLinks.length ? await store.skillDemand(skill.id) : null;
+    return {
+      skill: { id: skill.id, name: skill.name },
+      placement,
+      links,
+      demand: demandRaw ? {
+        hot: demandRaw.software.hot, inDemandOccupations: demandRaw.software.inDemandOccupations, occupationsListed: demandRaw.software.occupationsListed,
+        topOccupations: demandRaw.topOccupations.slice(0, 3).map(o => ({ code: o.occupationCode, title: o.title })),
+      } : null,
+      numbers: matching.map(({ m, value }) => ({ metricId: m.id, label: m.label, value, unit: value === 1 ? m.unitSingular : m.unitPlural })),
+      suggestedBullet: b ? { metricId: first!.m.id, text: b.text, proof: b.proof, shareable: b.shareable, pending: b.pending } : null,
+      activities: dwaIds.map(id => ({ dwaId: id, name: el.get(id)?.name ?? id })),
+      attribution: ONET_ATTRIBUTION,
+    };
+  }
+
   return {
-    me, exportResume,
+    me, exportResume, skillOnet,
 
     updateProfile: (memberId: string, body: unknown) => store.upsertProfile(memberId, parseProfileInput(body)),
 

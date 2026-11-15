@@ -1,5 +1,6 @@
 // Prisma-backed CareerStore. Kept apart from careerService so the service and its route tests load no database.
 import { prisma } from "../db/prisma.js";
+import { getSkillDemand } from "./onetLinkService.js";
 import { computeForMember } from "./impactMetricService.js";
 import type { AttestationRow, CareerStore } from "./careerService.js";
 
@@ -87,5 +88,10 @@ export const prismaCareerStore: CareerStore = {
     where: { active: true }, orderBy: { publishedOn: "desc" },
     select: { id: true, title: true, summary: true, sourceName: true, sourceUrl: true, publishedOn: true, onetElementIds: true, skillIds: true, metricIds: true },
   }),
+  skill: (id) => prisma.skill.findUnique({ where: { id }, select: { id: true, name: true, status: true, canonicalId: true } }),
+  skillLinks: (skillId) => prisma.skillOnetLink.findMany({ where: { skillId }, select: { kind: true, ref: true, relation: true } }),
+  softwareByNorm: (refs) => (refs.length ? prisma.onetSoftware.findMany({ where: { exampleNorm: { in: refs } }, select: { exampleNorm: true, example: true, categoryId: true } }) : Promise.resolve([])),
+  elements: (ids) => (ids.length ? prisma.onetElement.findMany({ where: { id: { in: ids } }, select: { id: true, name: true, parentId: true } }) : Promise.resolve([])),
+  async skillDemand(skillId) { return (await getSkillDemand([skillId]))[skillId] ?? null; },
   async recompute(id) { return (await computeForMember(id)).length; },
 };
