@@ -18,8 +18,8 @@ machine's temporary directory.
 | 2 | Schema + migration [deep] | implemented; awaiting push | `d6ad45c9` | build / backend typecheck / backend test green; root test:ci n/a | Exact locked model; offline migration diff only. |
 | 3 | O*NET loader | implemented; awaiting push | `3e23c1f0` | build / backend typecheck / backend test green; root test:ci n/a | 9 loader + 13 extractor tests; real subset checked through injected store. |
 | 4 | Starter taxonomy refresh | implemented; awaiting push | `1ded60f9` | build / backend typecheck / backend test green; root test:ci n/a | 16 skills added, 80 reviewed links; 410 reference checks and 24 taxonomy checks. |
-| 5 | Linker core + link service | implemented; awaiting push | this commit (`chore(careers): phase 5 exact O*NET linking and demand`) | build / backend typecheck / backend test green; root test:ci n/a | 3 core + 6 service tests; atomic catalog hook covered. |
-| 6 | Impact metric registry core | todo | | | |
+| 5 | Linker core + link service | implemented; awaiting push | `59d2fbe6` | build / backend typecheck / backend test green; root test:ci n/a | 3 core + 6 service tests; atomic catalog hook covered. |
+| 6 | Impact metric registry core | implemented; awaiting push | this commit (`chore(careers): phase 6 deterministic impact metric registry`) | build / backend typecheck / backend test green; root test:ci n/a | 32 core tests; fixed metrics, proofs, DWA ids and achievements. |
 | 7 | Impact metric service [deep] | todo | | | |
 | 8 | Résumé + JSON Resume cores | todo | | | |
 | 9 | Pathway match | todo | | | |
@@ -105,8 +105,6 @@ machine's temporary directory.
   SOFTWARE links for this ambiguous identity. Curated C/C++ links use broader Programming instead.
   Push remains blocked by automatic approval review.
 
-## Follow-ups
-
 ### Phase 5 — Linker core + link service
 
 - Fresh implementation agent: `phase_05`. Controller reviewed source/tests and applied exact
@@ -120,6 +118,19 @@ machine's temporary directory.
 - Controller gate: root build passed (existing warnings); backend typecheck passed;
   backend tests 130 files passed, 0 failed. Root `test:ci` n/a (no `src/` changes).
 - Deviations: none. OPEN: push rejection remains; no new follow-ups.
+
+### Phase 6 — Impact metric registry core
+
+- Fresh implementation agent: `phase_06`. Controller reviewed the exact ordered metric/DWA/proof
+  registry and achievement thresholds, conservative counted-record templates and pure helpers.
+- `shareable` enforces attestation kind/status and optional metric/value binding;
+  `publicAggregate` returns `{ sum, contributors }` or null below 3 distinct positive contributors;
+  member template validation returns `{ valid, error? }`.
+- Focused tests: 32 passed. Controller gate: root build passed (existing warnings);
+  backend typecheck passed; backend tests 131 files passed, 0 failed. Root `test:ci` n/a.
+- Deviations: none. OPEN: outstanding automatic-review push rejection only. No new follow-ups.
+
+## Follow-ups
 
 - Preserved existing Simulink/MATLAB and Data Analysis/Data Science identities; any future split
   needs a separate catalog change, not this add-only refresh.
