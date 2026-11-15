@@ -19,7 +19,7 @@ machine's temporary directory.
 | 3 | O*NET loader | implemented; awaiting push | `3e23c1f0` | build / backend typecheck / backend test green; root test:ci n/a | 9 loader + 13 extractor tests; real subset checked through injected store. |
 | 4 | Starter taxonomy refresh | implemented; awaiting push | `1ded60f9` | build / backend typecheck / backend test green; root test:ci n/a | 16 skills added, 80 reviewed links; 410 reference checks and 24 taxonomy checks. |
 | 5 | Linker core + link service | implemented; awaiting push | `59d2fbe6` | build / backend typecheck / backend test green; root test:ci n/a | 3 core + 6 service tests; atomic catalog hook covered. |
-| 6 | Impact metric registry core | implemented; awaiting push | this commit (`chore(careers): phase 6 deterministic impact metric registry`) | build / backend typecheck / backend test green; root test:ci n/a | 32 core tests; fixed metrics, proofs, DWA ids and achievements. |
+| 6 | Impact metric registry core | implemented; awaiting push | `e16584e3` | build / backend typecheck / backend test green; root test:ci n/a | 32 core tests; fixed metrics, proofs, DWA ids and achievements. |
 | 7 | Impact metric service [deep] | todo | | | |
 | 8 | Résumé + JSON Resume cores | todo | | | |
 | 9 | Pathway match | todo | | | |

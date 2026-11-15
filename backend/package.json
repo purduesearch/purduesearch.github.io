@@ -24,7 +24,8 @@
     "seed:skills": "tsx prisma/seedSkills.ts",
     "skills:run": "tsx scripts/skills-run.ts",
     "onet:extract": "tsx scripts/onet-extract.ts",
-    "onet:load": "tsx scripts/onet-load.ts"
+    "onet:load": "tsx scripts/onet-load.ts",
+    "impact:recompute": "tsx scripts/impact-recompute.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

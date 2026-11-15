@@ -173,6 +173,16 @@ export function startScheduler(app: App): void {
     }
   });
 
+  // Daily impact snapshots: deterministic data maintenance, no notifications.
+  cron.schedule("40 3 * * *", async () => {
+    try {
+      const { recomputeAllImpact } = await import("../services/impactMetricService.js");
+      await recomputeAllImpact();
+    } catch {
+      console.error("[impact] Snapshot recompute could not start.");
+    }
+  });
+
   // ── Every 2 min — Vault geometry diffs (Phase 9) ──────────────────
   // Requests kick the queue immediately; this picks up anything a restart or
   // a busy worker left behind, retries storage failures, and prunes cached
