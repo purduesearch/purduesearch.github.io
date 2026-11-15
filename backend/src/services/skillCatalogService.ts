@@ -6,6 +6,7 @@ import { nearSkillMatches } from "./skillMatchCore.js";
 import { recomputeMembers } from "./skillAssessmentService.js";
 import { MAPPED_PROPOSAL_FIT } from "./skillValidateCore.js";
 import type { SkillArtifact } from "./skillPrompts.js";
+import { autoLink } from "./onetLinkService.js";
 
 export type CatalogDb = typeof prisma | Prisma.TransactionClient;
 export const lockCatalog = (tx: Prisma.TransactionClient) => tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('skills-catalog'))`;
@@ -60,6 +61,7 @@ export async function processCatalogProposal(input: ProposedSkillInput & { artif
     const parents = await tx.skill.findMany({ where: { OR: [{ slug: { in: input.parentSlugs ?? [] } }, { id: { in: input.parentIds ?? [] } }], status: "ACTIVE", canonicalId: null }, select: { id: true } });
     if (!parents.length && input.type !== "DOMAIN") { await tx.skillProposal.update({ where: { id: outcome.proposalId }, data: { exceptionReason: "A valid broader skill is needed before creating this concept" } }); return outcome; }
     const skill = await createSkill({ name: input.name, type: input.type ?? "TECHNIQUE", description: input.description, recordDecision: false, parentIds: parents.map(p => p.id) }, tx);
+    await autoLink(skill.id, tx);
     await tx.skill.update({ where: { id: skill.id }, data: { lifecycle: "PROVISIONAL" } });
     await tx.skillProposal.update({ where: { id: outcome.proposalId }, data: { status: "APPROVED", createdSkillId: skill.id, reviewedAt: new Date(), exceptionReason: null } });
     await tx.skillEvidenceSkill.create({ data: { evidenceId: evidence!.id, skillId: skill.id, weight: MAPPED_PROPOSAL_FIT } });

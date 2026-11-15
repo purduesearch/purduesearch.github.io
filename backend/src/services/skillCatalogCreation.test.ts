@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { processCatalogProposal } from "./skillCatalogService.js";
 import { prisma } from "../db/prisma.js";
 
-function fixture(maxCreates = 10) {
+function fixture(maxCreates = 10, failLink = false) {
   const quote = "Routed the harness around the bracket and validated the minimum bend radius.";
   const input = { name: "Harness routing", type: "TECHNIQUE" as const, description: "Plan and validate the physical routing of wiring harnesses.", rationale: "The check-in demonstrates routing and clearance validation.", supportingQuote: quote, parentIds: ["parent"], evidenceId: "e1", artifact: { memberId: "m1", source: "CAD" as const, sourceRef: "v1", occurredAt: new Date(), title: "Harness clearance change", body: quote, memberRole: "authored the check-in note", facts: {}, contentHash: "hash1" } };
   const state = { skills: [{ id: "parent", slug: "cable-systems", name: "Cable systems", type: "DOMAIN", status: "ACTIVE", canonicalId: null, aliases: [], lifecycle: "ESTABLISHED" }] as any[], proposals: [] as any[], changes: [] as any[], tags: [] as any[], evidence: { id: "e1", memberId: "m1", supersededAt: null, modelVersion: "fake-model", summary: "Routed and checked a harness." }, locks: 0 };
@@ -13,6 +13,9 @@ function fixture(maxCreates = 10) {
   });
   const tx = {
     $executeRaw: async () => { state.locks++; return 1; },
+    onetSoftware: { findMany: async () => [] },
+    onetElement: { findMany: async () => [{ id: "fixture-harness", name: "Harness routing", domain: "TRANSFERABLE_SKILL" }] },
+    skillOnetLink: { upsert: async ({ create }: any) => { if (failLink) throw new Error("injected O*NET link failure"); links.push(create); return create; } },
     skill: {
       findMany: async (args: any = {}) => state.skills.filter(s => matches(s, args.where)),
       findUnique: async (args: any) => state.skills.find(s => matches(s, args.where)) ?? null,
@@ -32,14 +35,17 @@ function fixture(maxCreates = 10) {
     skillDispute: { count: async () => 0 },
     skillCatalogChange: { count: async ({ where }: any) => state.changes.filter(c => matches(c, where)).length, create: async ({ data }: any) => { state.changes.push({ id: `change-${state.changes.length}`, createdAt: new Date(), ...data }); return state.changes.at(-1); } },
   };
-  const root = { $transaction: async (fn: any) => { const before = structuredClone(state); try { return await fn(tx); } catch (e) { Object.assign(state, before); throw e; } } } as unknown as Pick<typeof prisma, "$transaction">;
-  return { state, root, input };
+  const links: any[] = [];
+  const root = { $transaction: async (fn: any) => { const before = structuredClone(state); const oldLinks = structuredClone(links); try { return await fn(tx); } catch (e) { Object.assign(state, before); links.splice(0, links.length, ...oldLinks); throw e; } } } as unknown as Pick<typeof prisma, "$transaction">;
+  return { state, root, input, links };
 }
 {
-  const { state, root, input } = fixture();
+  const { state, root, input, links } = fixture();
   const originalEvidence = structuredClone(state.evidence);
   const result = await processCatalogProposal(input, root);
   assert.equal(result.kind, "created");
+  assert.equal(result.kind === "created" && result.skillId, state.skills.at(-1).id);
+  assert.deepEqual(links, [{ skillId: state.skills.at(-1).id, kind: "ELEMENT", ref: "fixture-harness", relation: "EXACT", origin: "AUTO" }]);
   assert.equal(state.skills.at(-1).lifecycle, "PROVISIONAL");
   assert.equal(state.changes.length, 1);
   assert.equal(state.changes[0].automatic, true);
@@ -49,6 +55,7 @@ function fixture(maxCreates = 10) {
   assert.equal(state.skills.length, 2, "repeat proposals resolve to the new canonical concept");
   assert.equal(state.changes.length, 1);
   assert.equal(state.tags.length, 1, "repeat credit is idempotent");
+  assert.equal(links.length, 1, "mapped repeat does not create duplicate O*NET links");
   assert(state.locks >= 2);
 }
 {
@@ -70,4 +77,11 @@ function fixture(maxCreates = 10) {
   assert.match(state.proposals[0].exceptionReason, /broader skill/);
   assert.equal(state.skills.length, 1);
 }
-console.log("skillCatalogCreation: supported creation, immutable evidence, receipt, retry idempotency, limits, hallucinated quote and parent validation passed");
+{
+  const { state, root, input, links } = fixture(10, true);
+  const before = structuredClone(state);
+  await assert.rejects(processCatalogProposal(input, root), /injected O\*NET link failure/);
+  assert.deepEqual(state, before, "link failure rolls back skill creation and its other writes");
+  assert.deepEqual(links, []);
+}
+console.log("skillCatalogCreation: supported creation, immutable evidence, receipt, retry idempotency, limits, hallucinated quote, parent validation and atomic O*NET links passed");

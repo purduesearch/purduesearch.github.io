@@ -17,8 +17,8 @@ machine's temporary directory.
 | 1 | O*NET subset extractor | implemented; awaiting push | `0e6ecc3f` | build / backend typecheck / backend test green; root test:ci n/a | All reference counts match; 12 extractor tests. Push rejected by automatic approval review; see Open items. |
 | 2 | Schema + migration [deep] | implemented; awaiting push | `d6ad45c9` | build / backend typecheck / backend test green; root test:ci n/a | Exact locked model; offline migration diff only. |
 | 3 | O*NET loader | implemented; awaiting push | `3e23c1f0` | build / backend typecheck / backend test green; root test:ci n/a | 9 loader + 13 extractor tests; real subset checked through injected store. |
-| 4 | Starter taxonomy refresh | implemented; awaiting push | this commit (`feat(skills): add career tools and reviewed O*NET mappings`) | build / backend typecheck / backend test green; root test:ci n/a | 16 skills added, 80 reviewed links; 410 reference checks and 24 taxonomy checks. |
-| 5 | Linker core + link service | todo | | | |
+| 4 | Starter taxonomy refresh | implemented; awaiting push | `1ded60f9` | build / backend typecheck / backend test green; root test:ci n/a | 16 skills added, 80 reviewed links; 410 reference checks and 24 taxonomy checks. |
+| 5 | Linker core + link service | implemented; awaiting push | this commit (`chore(careers): phase 5 exact O*NET linking and demand`) | build / backend typecheck / backend test green; root test:ci n/a | 3 core + 6 service tests; atomic catalog hook covered. |
 | 6 | Impact metric registry core | todo | | | |
 | 7 | Impact metric service [deep] | todo | | | |
 | 8 | Résumé + JSON Resume cores | todo | | | |
@@ -106,6 +106,20 @@ machine's temporary directory.
   Push remains blocked by automatic approval review.
 
 ## Follow-ups
+
+### Phase 5 — Linker core + link service
+
+- Fresh implementation agent: `phase_05`. Controller reviewed source/tests and applied exact
+  catalog import/call; extended catalog fixture to test exact auto-link creation, repeat deduplication,
+  and rollback of skill creation if a link write fails.
+- Exact normalized matches only; curated/admin relations preserved; admin mutation authorization;
+  distinct-occupation demand counts with suppressed/not-relevant ratings excluded.
+- Phase 4 C-family OPEN resolved: automatic linking excludes ambiguous normalized software `c`;
+  fixed normalizer and broader curated Programming links retained.
+- Focused tests: 3 core and 6 service tests passed, catalog creation tests passed.
+- Controller gate: root build passed (existing warnings); backend typecheck passed;
+  backend tests 130 files passed, 0 failed. Root `test:ci` n/a (no `src/` changes).
+- Deviations: none. OPEN: push rejection remains; no new follow-ups.
 
 - Preserved existing Simulink/MATLAB and Data Analysis/Data Science identities; any future split
   needs a separate catalog change, not this add-only refresh.
