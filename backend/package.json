@@ -23,7 +23,8 @@
     "vault:search-rebuild": "tsx scripts/vault-search-rebuild.ts",
     "seed:skills": "tsx prisma/seedSkills.ts",
     "skills:run": "tsx scripts/skills-run.ts",
-    "onet:extract": "tsx scripts/onet-extract.ts"
+    "onet:extract": "tsx scripts/onet-extract.ts",
+    "onet:load": "tsx scripts/onet-load.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

@@ -1,6 +1,6 @@
 // Tiny inline fixtures only; no real O*NET files or network.
 import assert from "node:assert/strict";
-import { buildSubset, normalizeText, ONET_HEADERS, parseCsv, type OnetFiles, type OnetFileName } from "./onetCsvCore.js";
+import { buildSubset, normalizeExample, normalizeText, ONET_HEADERS, parseCsv, type OnetFiles, type OnetFileName } from "./onetCsvCore.js";
 
 let passed = 0;
 function test(name: string, run: () => void) {
@@ -106,5 +106,18 @@ test("invalid numbers and flags fail instead of silently changing data", () => {
   files["job_zones.csv"] = fixture()["job_zones.csv"];
   files["software_skills.csv"] = csv([ONET_HEADERS["software_skills.csv"], ["x", "X", "CAD", "2.E", "CAD", "maybe", "N"]]);
   assert.throws(() => buildSubset(files), /Invalid O\*NET flag/);
+});
+test("software normalization strips only fixed vendor prefixes and trailing software", () => {
+  for (const vendor of ["Dassault Systemes", "The MathWorks", "MathWorks", "Autodesk", "PTC", "Microsoft",
+    "Atlassian", "National Instruments", "Siemens", "Oracle", "IBM"]) {
+    assert.equal(normalizeExample(`${vendor} Sample software`), "sample");
+  }
+  assert.equal(normalizeExample("Amazon Web Services AWS"), "aws");
+  assert.equal(normalizeExample("  microsoft Excel software  "), "excel");
+  assert.equal(normalizeExample("Dassault Systemes SolidWorks"), "solidworks");
+  assert.equal(normalizeExample("Café CAD"), "cafe cad");
+  assert.equal(normalizeExample("Other Microsoft Software"), "other microsoft");
+  assert.equal(normalizeExample("Microsoftish Office"), "microsoftish office");
+  assert.equal(normalizeExample("Software engineering"), "software engineering");
 });
 console.log(`${passed} O*NET extractor tests passed.`);

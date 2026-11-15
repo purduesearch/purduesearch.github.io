@@ -15,8 +15,8 @@ machine's temporary directory.
 | Phase | Title | Status | Commit | Gate | Notes |
 |---|---|---|---|---|---|
 | 1 | O*NET subset extractor | implemented; awaiting push | `0e6ecc3f` | build / backend typecheck / backend test green; root test:ci n/a | All reference counts match; 12 extractor tests. Push rejected by automatic approval review; see Open items. |
-| 2 | Schema + migration [deep] | implemented; awaiting push | this commit (`chore(careers): phase 2 schema and migration`) | build / backend typecheck / backend test green; root test:ci n/a | Exact locked model; offline migration diff only. |
-| 3 | O*NET loader | todo | | | |
+| 2 | Schema + migration [deep] | implemented; awaiting push | `d6ad45c9` | build / backend typecheck / backend test green; root test:ci n/a | Exact locked model; offline migration diff only. |
+| 3 | O*NET loader | implemented; awaiting push | this commit (`chore(careers): phase 3 local O*NET loader`) | build / backend typecheck / backend test green; root test:ci n/a | 9 loader + 13 extractor tests; real subset checked through injected store. |
 | 4 | Starter taxonomy refresh | todo | | | |
 | 5 | Linker core + link service | todo | | | |
 | 6 | Impact metric registry core | todo | | | |
@@ -70,8 +70,6 @@ machine's temporary directory.
 - The phase row identifies its containing commit by subject to avoid a self-referential commit hash;
   the next phase's progress update records the resolved hash.
 
-## Follow-ups
-
 ### Phase 2 — Schema + migration
 
 - Fresh strongest-setting implementation agent: `phase_02`. Added 25 locked models, 7 enums,
@@ -83,5 +81,18 @@ machine's temporary directory.
   backend tests 126 files passed, 0 failed. Root `test:ci` n/a (no `src/` changes).
 - Deviation: required Prisma format normalized existing whitespace; no semantic deviation.
   OPEN: outstanding push rejection already recorded above. No new follow-ups.
+
+## Follow-ups
+
+### Phase 3 — O*NET loader
+
+- Fresh implementation agent: `phase_03`. Controller reviewed source/tests and applied
+  `onet:load` and the manual seed workflow's `onet` target (workflow not executed).
+- Transactional replacement in 5,000-row batches, shared software normalization, hierarchy,
+  release switching, gzip SHA-256, and dangling-link reporting. No historical club links deleted.
+- Focused tests: 9 loader, 13 extractor; real subset passed an injected-store load; CLI help passed.
+- Controller gate: root build passed (existing warnings); backend typecheck passed;
+  backend tests 127 files passed, 0 failed. Root `test:ci` n/a (no `src/` changes).
+- Deviations: none. OPEN: push remains rejected by automatic approval review. No new follow-ups.
 
 None yet.

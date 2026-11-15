@@ -27,6 +27,7 @@ on:
           - challenges
           - engagement+challenges
           - skills
+          - onet
         default: engagement
 
 jobs:
@@ -70,6 +71,10 @@ jobs:
               skills)
                 echo "== npm run seed:skills =="
                 npm run seed:skills
+                ;;
+              onet)
+                echo "== npm run onet:load =="
+                npm run onet:load
                 ;;
               *)
                 echo "Unknown seed target: $SEED_TARGET" >&2

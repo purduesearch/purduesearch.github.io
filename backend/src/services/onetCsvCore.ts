@@ -4,6 +4,15 @@ export function normalizeText(text: string): string {
     .replace(/[^a-z0-9]+/g, " ").trim();
 }
 
+/** Shared software identity for the loader and skill linking; keep vendor stripping bounded. */
+export function normalizeExample(example: string): string {
+  const withoutVendor = example.trim()
+    .replace(/^Amazon Web Services\s+AWS\b/i, "aws")
+    .replace(/^(?:Dassault Systemes|The MathWorks|MathWorks|Autodesk|PTC|Microsoft|Atlassian|National Instruments|Siemens|Oracle|IBM)\s+/i, "")
+    .replace(/\s+software\s*$/i, "");
+  return normalizeText(withoutVendor);
+}
+
 /** RFC 4180 records, accepting CRLF or LF and an optional UTF-8 BOM. */
 export function parseCsv(input: string): string[][] {
   const text = input.replace(/^\uFEFF/, "");
