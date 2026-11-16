@@ -6,6 +6,7 @@ import { useClubPmAuth } from '../../clubpm/ClubPmAuth';
 import MobileSheet from '../../components/clubpm/MobileSheet';
 import SkillsSettings from '../../components/clubpm/skills/SkillsSettings';
 import SkillsCatalogPanel from '../../components/clubpm/skills/SkillsCatalogPanel';
+import SkillOnetSection from '../../components/clubpm/career/SkillOnetSection';
 import CareerView from '../../components/clubpm/career/CareerView';
 import { BAND_LABELS, LEVEL_LABELS, PROVENANCE_META, errorMessage, formatDay, sourceIcon } from '../../components/clubpm/skills/skillsShared';
 
@@ -70,6 +71,7 @@ function SkillDetail({ skill, data, onChanged, onClose }) {
         {e.sourceUrl && /^https?:/.test(e.sourceUrl) && <a className="pm-sk-text-link" href={e.sourceUrl} target="_blank" rel="noreferrer">Open supporting source ↗</a>}
         {!e.sourceUrl && e.projectId && <Link className="pm-sk-text-link" to={`/clubpm/projects/${e.projectId}`} onClick={onClose}>Open source project ↗</Link>}
       </article>)}
+      <SkillOnetSection skillId={skill.skillId} />
       <div className="pm-sk-callout">An estimate describes the evidence available. Tool use does not establish every related technique, and old evidence does not prove current readiness. These are advisory estimates, not certifications.</div>
       <h3>Your next step</h3><p>Choose this as a focus skill to find accessible tasks that explicitly mention it. A suggestion never assigns work.</p>
       <button className="pm-sk-button" disabled={busy} onClick={toggleGoal}>{isGoal ? 'Remove focus skill' : 'Set as focus skill'}</button>

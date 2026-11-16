@@ -27,7 +27,7 @@ machine's temporary directory.
 | 11 | Career admin API | done | `6d19324c` | build / backend typecheck / backend test green; root test:ci n/a | 69 route tests; mounted at /api/admin/career. Seed URLs OPEN. |
 | 12 | Career view: impact + résumé | done | this commit | build / backend typecheck / backend test / root test:ci green | 8 UI tests + 2 route checks; CSS v=32; anchor skills.career. |
 | 13a | Skill O*NET detail endpoint (split) | done | this commit | build / backend typecheck / backend test green; root test:ci n/a | 75 route checks; GET /api/career/skills/:id/onet. |
-| 13 | Pathway + skill detail UI | todo | | | |
+| 13 | Pathway + skill detail UI (13b) | done | this commit | build / backend typecheck / backend test / root test:ci green | 11 UI tests + drawer assertion; CSS v=33. |
 | 14 | Career settings + print route | todo | | | |
 | 15 | Sponsor auth [deep] | todo | | | |
 | 16 | Talent directory + intros [deep] | todo | | | |
@@ -249,6 +249,23 @@ the gate from there on.
   `buildBullets` output as `me()`; linked activities with names; attribution. No levels or scores.
 - Focused tests: career route suite 75 passed. Controller gate: root build passed; backend typecheck
   passed; backend tests 137 files passed, 0 failed. Root test:ci n/a (no `src/` changes). OPEN: none.
+
+### Phase 13b — Pathway + skill detail UI
+
+- Fresh implementation agent. Created `career/PathwayView.jsx`, `career/OccupationPicker.jsx`,
+  `career/SkillOnetSection.jsx` (allowed extra file, used by the skill drawer) and 11 UI tests; edited
+  `CareerView.jsx` (role chips open the pathway, remove button, Add role disabled at 3 targets),
+  `SkillsWorkspace.jsx` (drawer renders the O*NET section; test gained a careerApi mock and assertion),
+  `clubPmClient.js` (`demandSignals`, `skillOnet`) and appended `pm-career-*` pathway/drawer rules.
+- No overall score or match percentage (tested). Status is text plus a dot. Signal source links open with
+  `noopener noreferrer`; `sourceUrl` is already validated as https by the admin service. The pathway
+  attribution comes from `/me` because the pathway route returns none. Signals fetch is best-effort.
+- Controller: CSS cache bump to `v=33`; added target roles, pathway and skill O*NET detail to
+  `constellation-101/content/skills-workspace.md`. No new route or tour anchor.
+- Controller gate: root build passed; root test:ci 92 suites / 644 tests passed; backend typecheck
+  passed; backend tests 137 files passed, 0 failed.
+- Deviations: none beyond the 13a split. OPEN: harmless `act(...)` warnings from the picker's debounce
+  under fake timers.
 
 ## Follow-ups
 

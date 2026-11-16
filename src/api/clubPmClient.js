@@ -1199,6 +1199,8 @@ export const careerApi = {
   setTargets: codes => put('/api/career/me/targets', { codes }),
   searchOccupations: q => get(`/api/career/occupations?q=${encodeURIComponent(q)}`),
   pathway: code => get(`/api/career/pathway/${encodeURIComponent(code)}`),
+  demandSignals: () => get('/api/career/demand-signals'),
+  skillOnet: skillId => get(`/api/career/skills/${encodeURIComponent(skillId)}/onet`),
   recompute: () => post('/api/career/me/recompute', {}),
   setBullet: (sourceKind, sourceId, data) =>
     put(`/api/career/me/bullets/${encodeURIComponent(sourceKind)}/${encodeURIComponent(sourceId)}`, data),

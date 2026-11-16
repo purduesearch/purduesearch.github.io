@@ -3,6 +3,8 @@ import toast from 'react-hot-toast';
 import { careerApi } from '../../../api/clubPmClient';
 import { useClubPmAuth } from '../../../clubpm/ClubPmAuth';
 import ResumeBuilder from './ResumeBuilder';
+import PathwayView from './PathwayView';
+import OccupationPicker from './OccupationPicker';
 
 /** Mirrors backend validateMemberTemplate: {n} exactly once, no other braces, 300 chars max. */
 export function validateTemplate(t) {
@@ -73,6 +75,8 @@ export default function CareerView() {
   const [error, setError] = useState(false);
   const [busy, setBusy] = useState(false);
   const guard = useRef(false);
+  const [openRole, setOpenRole] = useState(null);
+  const [picking, setPicking] = useState(false);
   const seq = useRef(0);
 
   const load = useCallback(async () => {
@@ -99,8 +103,13 @@ export default function CareerView() {
     finally { guard.current = false; setBusy(false); }
   };
 
+  const saveTargets = async codes => { await careerApi.setTargets(codes); await load(); };
+  const removeTarget = code => mutate(() => careerApi.setTargets((data.targets || []).filter(t => t.code !== code).map(t => t.code)));
+
   if (error) return <div className="pm-career-state" role="alert">Your career profile could not be loaded.<button type="button" className="pm-career-btn" onClick={() => { setError(false); setData(null); load(); }}>Try again</button></div>;
   if (!data) return <div className="pm-career-state" role="status">Loading your career profile…</div>;
+
+  if (openRole) return <PathwayView code={openRole} snapshots={data.snapshots} attribution={data.attribution} onBack={() => setOpenRole(null)} />;
 
   const claims = (data.attestations || []).filter(a => a.kind === 'CLAIM' && a.status !== 'DECLINED');
   const claimById = Object.fromEntries(claims.map(c => [c.id, c]));
@@ -121,8 +130,14 @@ export default function CareerView() {
     <section className="pm-career-section" aria-label="Target roles">
       <h3>Target roles</h3>
       {data.targets?.length
-        ? <ul className="pm-career-chips">{data.targets.map(t => <li key={t.code} className="pm-career-chip">{t.title} <code>{t.code}</code></li>)}</ul>
-        : <p className="pm-career-muted">No target roles yet. Role picking is coming soon.</p>}
+        ? <ul className="pm-career-chips">{data.targets.map(t => <li key={t.code} className="pm-career-chip">
+          <button type="button" className="pm-career-chip-open" onClick={() => setOpenRole(t.code)} aria-label={`Open pathway for ${t.title}`}>{t.title} <code>{t.code}</code></button>
+          <button type="button" className="pm-career-chip-remove" onClick={() => removeTarget(t.code)} disabled={busy} aria-label={`Remove ${t.title}`}><i className="fas fa-xmark" aria-hidden="true" /></button>
+        </li>)}</ul>
+        : <p className="pm-career-muted">No target roles yet. Add up to three to see what employers expect.</p>}
+      {picking
+        ? <OccupationPicker targets={data.targets || []} onAdd={code => saveTargets([...(data.targets || []).map(t => t.code), code])} onClose={() => setPicking(false)} />
+        : <button type="button" className="pm-career-btn pm-career-btn--ghost pm-career-add" onClick={() => setPicking(true)} disabled={(data.targets || []).length >= 3}><i className="fas fa-plus" aria-hidden="true" /> Add role</button>}
       <p className="pm-career-muted">Sponsor sharing: {data.profile?.shareWithSponsors ? 'On' : 'Off'}</p>
     </section>
 
