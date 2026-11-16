@@ -7174,3 +7174,22 @@ button.home-events-day[aria-pressed="true"] .home-events-dot { background: #fff 
 .sponsor-intro-message { margin: 0.25rem 0; white-space: pre-wrap; }
 .sponsor-status { font-size: 0.85rem; border: 1px solid var(--color-border); border-radius: 999px; padding: 0.1rem 0.7rem; background: var(--color-bg-secondary); }
 .sponsor-status--accepted { border-color: var(--color-accent); color: var(--color-accent); }
+
+/* === Public badge verification (/badges/:id) === */
+.badge-verify-page { max-width: 760px; margin: 0 auto; padding: calc(var(--navbar-height) + 2rem) 16px 4rem; color: var(--color-text); }
+.badge-verify-page h1 { font-family: var(--font-heading); font-size: clamp(1.75rem, 5vw, 2.5rem); margin: 0 0 0.75rem; color: var(--color-text); }
+.badge-verify-eyebrow { text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.8rem; color: var(--color-muted); margin: 0 0 0.5rem; }
+.badge-verify-note { color: var(--color-muted); font-size: 0.95rem; }
+.badge-verify-card { border: 1px solid var(--color-border); border-radius: 12px; padding: 1.5rem; background: var(--color-bg-secondary); }
+.badge-verify-criteria { margin: 0 0 1rem; }
+.badge-verify-facts { display: grid; gap: 0.5rem; margin: 0 0 1rem; }
+.badge-verify-facts > div { display: grid; grid-template-columns: 8rem 1fr; gap: 0.75rem; }
+.badge-verify-facts dt { font-weight: 600; color: var(--color-muted); }
+.badge-verify-facts dd { margin: 0; overflow-wrap: anywhere; }
+.badge-verify-facts a { color: var(--color-accent); }
+.badge-verify-banner { margin: 0 0 1rem; padding: 0.75rem 1rem; border-radius: 8px; border: 2px solid var(--color-accent); color: var(--color-accent); font-weight: 600; }
+.badge-verify-check { display: flex; gap: 0.5rem; align-items: baseline; margin: 0 0 1rem; font-weight: 600; }
+.badge-verify-check--fail { color: var(--color-accent); }
+.badge-verify-raw summary { cursor: pointer; color: var(--color-accent); }
+.badge-verify-raw code { display: block; margin-top: 0.5rem; font-size: 0.8rem; overflow-wrap: anywhere; word-break: break-all; }
+@media (max-width: 480px) { .badge-verify-facts > div { grid-template-columns: 1fr; gap: 0.1rem; } }

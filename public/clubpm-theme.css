@@ -32515,3 +32515,19 @@ html.clubpm-route.pm-career-print-html { background-color: #e9e6df !important; c
 .pm-career-intro-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
 .pm-career-intro-preview { margin: 8px 0; padding-left: 20px; font-size: 13px; overflow-wrap: anywhere; }
 @media (max-width: 640px) { .pm-career-intro-actions .pm-career-btn { flex: 1 1 100%; } }
+
+/* === Career badges panel (Phase 22) === */
+.pm-career-badge-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.pm-career-badge { padding: 12px; border-radius: 10px; border: 1px solid var(--pm-border, rgba(255,255,255,.07)); background: var(--pm-bg-elevated, #1a1e2a); min-width: 0; }
+.pm-career-badge--revoked { opacity: .75; }
+.pm-career-badge-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.pm-career-badge-desc, .pm-career-badge-meta { margin: 6px 0 0; font-size: 13px; color: var(--pm-text-secondary, #8892a4); overflow-wrap: anywhere; }
+.pm-career-badge-status { display: inline-flex; align-items: center; gap: 6px; }
+.pm-career-badge-status--claimed, .pm-career-badge-status--eligible { color: var(--pm-accent-teal, #00e5cc); }
+.pm-career-badge-status--confirm { color: var(--pm-accent-amber, #f5a623); }
+.pm-career-badge-status--revoked { color: var(--pm-accent-coral, #ff6b6b); }
+.pm-career-badge-preview { margin: 8px 0; padding-left: 20px; font-size: 13px; overflow-wrap: anywhere; }
+.pm-career-badge-url { user-select: all; overflow-wrap: anywhere; }
+.pm-career-btn.pm-career-badge-danger { background: var(--pm-accent-coral, #ff6b6b); border-color: var(--pm-accent-coral, #ff6b6b); color: #2a0707; }
+.pm-career-badge .pm-career-input { min-height: 44px; resize: none; }
+@media (max-width: 640px) { .pm-career-badge .pm-career-intro-actions .pm-career-btn { flex: 1 1 100%; } }

@@ -7,6 +7,7 @@ import PathwayView from './PathwayView';
 import OccupationPicker from './OccupationPicker';
 import CareerSettings from './CareerSettings';
 import IntroInbox from './IntroInbox';
+import BadgesPanel from './BadgesPanel';
 
 /** Mirrors backend validateMemberTemplate: {n} exactly once, no other braces, 300 chars max. */
 export function validateTemplate(t) {
@@ -170,6 +171,8 @@ export default function CareerView() {
         </li>)}
       </ul> : <p className="pm-career-muted">No counted impact yet. As your work lands in Constellation, it shows up here.</p>}
     </section>
+
+    <BadgesPanel />
 
     <div className="pm-career-split">
       <section className="pm-career-section" aria-label="Résumé bullets">

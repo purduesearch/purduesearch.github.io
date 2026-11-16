@@ -36,7 +36,7 @@ machine's temporary directory.
 | 19 | Opportunity parsers + matching | done | b8fdabcc | build / backend typecheck / backend test green; root test:ci n/a | Pure cores; documentation checked and Ashby repaired in Phase 20. |
 | 20 | Opportunity service + APIs | done | 3ab2ebc3 | build / backend typecheck / backend test green; root test:ci n/a | 45 service/HTTP checks; pushed. |
 | 21 | Badges backend [deep] | done | this commit | build / backend typecheck / backend test green; root test:ci n/a | 222 checks across 4 files; /api/public/badges above publicRouter; jose 6.2.13. |
-| 22 | Badges frontend | todo | | | |
+| 22 | Badges frontend | done | this commit | build / test:ci / backend typecheck / backend test green | 13 UI tests; /badges/:id route; CSS v=36. |
 | 23 | Security and privacy review [deep, fresh] | todo | | | |
 | 24 | Docs | todo | | | |
 | 25 | Manual rollout (Henry) | todo | | | |
@@ -483,7 +483,25 @@ the gate from there on.
   BitstringStatusList is a follow-up). LinkedIn Add to profile parameter names not confirmed against
   official docs; test the link by hand. Emails are lowercased before hashing.
 
+### Phase 22 — Badges frontend
+
+- Fresh agent `phase_22`: created `BadgesPanel.jsx` (8 tests) mounted in `CareerView.jsx`, public
+  `BadgeVerify.jsx` (5 tests; SEOHead noindex, `<main>`, server-verified signature line, plain-language
+  verifyError reasons, revoked banner, raw JWT in `<details>`, '@'-containing strings dropped), client
+  helpers `careerApi.badges/claimBadge/revokeBadge` and `getPublicBadge`, CSS blocks in both stylesheets.
+- Claim confirm states what becomes publicly verifiable, the salted email hash, no name, no auto-publish
+  and that a revoked badge cannot be re-claimed. Revoke confirm says it is permanent.
+- Controller: applied `/badges/:id` lazy route in `src/App.js`; bumped ClubPM CSS to `?v=36` (loader,
+  index.html preload, loader test). Regenerated icon subset committed (one new icon).
+- Controller gate: root build passed; test:ci 100 suites / 692 tests passed; backend typecheck passed;
+  backend tests 149 files passed.
+
 ## Follow-ups
+
+- ResumeBuilder still lists claimed badges with its own client-built LinkedIn URL (no certUrl), so a
+  claimed badge has a LinkedIn link in two places. Point ResumeBuilder at the server `linkedInUrl` or drop
+  that list in a later cleanup (CareerView.test asserts the current link).
+- /badges/:id has not been checked in a browser at 375px.
 
 - Badge key rotation: jwks.json publishes only the current key, so old credentials show KEY_MISMATCH after
   rotation. Keep old public keys in jwks.json if rotation is ever needed.

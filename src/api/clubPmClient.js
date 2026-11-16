@@ -1192,6 +1192,14 @@ export async function getPublicPortfolio(slug) {
   return response.json();
 }
 
+/** Public, unauthenticated: one issued badge with the server's signature check. Resolves null for an unknown id. */
+export async function getPublicBadge(id) {
+  const response = await fetch(`${BASE_URL}/api/public/badges/${encodeURIComponent(id)}`, { headers: { Accept: 'application/json' } });
+  if (response.status === 404) return null;
+  if (!response.ok) throw new ApiError(response.status, 'Could not load this badge');
+  return response.json();
+}
+
 // Career profile (own data only). Export goes through fetch so the Bearer token is sent.
 export const careerApi = {
   me: () => get('/api/career/me'),
@@ -1206,6 +1214,10 @@ export const careerApi = {
     put(`/api/career/me/bullets/${encodeURIComponent(sourceKind)}/${encodeURIComponent(sourceId)}`, data),
   intros: () => get('/api/career/me/intros'),
   respondIntro: (id, accept) => post(`/api/career/me/intros/${encodeURIComponent(id)}`, { accept }),
+  badges: () => get('/api/career/me/badges'),
+  claimBadge: achievementId => post(`/api/career/me/badges/${encodeURIComponent(achievementId)}/claim`, {}),
+  revokeBadge: (awardId, reason) =>
+    post(`/api/career/me/badge-awards/${encodeURIComponent(awardId)}/revoke`, reason ? { reason } : {}),
   createClaim: data => post('/api/career/me/claims', data),
   deleteClaim: id => del(`/api/career/me/claims/${encodeURIComponent(id)}`),
   async downloadResumeJson() {
