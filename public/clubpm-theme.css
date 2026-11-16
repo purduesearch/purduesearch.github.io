@@ -32460,3 +32460,46 @@ button.pm-task-check { cursor: pointer; }
 .pm-career-suggest { padding: 12px; border-radius: 10px; background: var(--pm-bg-elevated, #1a1e2a); }
 .pm-career-suggest p { margin: 0 0 10px; font-size: 14px; }
 .pm-career-dwa-list { margin: 0; padding-left: 18px; font-size: 13px; }
+
+/* --- Career settings + print --- */
+.pm-career-settings-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.pm-career-form { display: grid; gap: 12px; max-width: 520px; margin-bottom: 20px; }
+.pm-career-field { display: grid; gap: 6px; margin: 0; padding: 0; border: 0; min-width: 0; }
+.pm-career-field label, .pm-career-field legend { font-size: 13px; font-weight: 600; }
+.pm-career-field select.pm-career-input { min-height: 44px; resize: none; }
+.pm-career-field input.pm-career-input { min-height: 44px; resize: none; }
+.pm-career-fieldset { display: flex; flex-wrap: wrap; gap: 4px 16px; }
+.pm-career-opt { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; font-weight: 400 !important; }
+.pm-career-toggle { margin-bottom: 14px; }
+.pm-career-toggle-label { display: flex; align-items: center; gap: 10px; min-height: 44px; font-weight: 600; cursor: pointer; }
+.pm-career-toggle-label input, .pm-career-opt input { width: 20px; height: 20px; }
+.pm-career-confirm { padding: 12px; border-radius: 10px; border: 1px solid var(--pm-accent-amber, #f5a623); background: var(--pm-bg-elevated, #1a1e2a); margin: 8px 0; }
+.pm-career-claim-list { list-style: none; margin: 0 0 14px; padding: 0; display: grid; gap: 8px; }
+.pm-career-claim-list li { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+
+body.pm-career-print-body,
+html.clubpm-route body.pm-career-print-body,
+html.pm-career-print-html,
+html.clubpm-route.pm-career-print-html { background-color: #e9e6df !important; color: #111 !important; }
+.pm-career-print { min-height: 100vh; padding: 16px; box-sizing: border-box; background: #e9e6df; color: #111; font-family: Georgia, 'Times New Roman', serif; }
+.pm-career-print-actions { display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; max-width: 8.5in; margin: 0 auto 12px; }
+.pm-career-print-actions a, .pm-career-print-actions button { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 14px; border-radius: 6px; border: 1px solid #333; background: #fff; color: #111; font: 600 14px system-ui, sans-serif; text-decoration: none; cursor: pointer; }
+.pm-career-print-page { max-width: 8.5in; margin: 0 auto; padding: 0.6in; background: #fff; color: #111; box-shadow: 0 2px 12px rgba(0,0,0,.18); box-sizing: border-box; line-height: 1.4; }
+.pm-career-print-page h1 { margin: 0 0 4px; font-size: 26px; }
+.pm-career-print-page h2 { margin: 18px 0 6px; padding-bottom: 3px; border-bottom: 1px solid #111; font-size: 14px; letter-spacing: .08em; text-transform: uppercase; }
+.pm-career-print-page p { margin: 2px 0; font-size: 14px; }
+.pm-career-print-page ul { margin: 0; padding-left: 20px; }
+.pm-career-print-page li { font-size: 14px; margin: 3px 0; }
+.pm-career-print-headline { font-size: 16px !important; }
+.pm-career-print-meta { color: #333; }
+.pm-career-print-attr { margin-top: 24px; font-size: 10px; color: #555; }
+@media (max-width: 640px) { .pm-career-print-page { padding: 20px; } }
+@media print {
+  @page { margin: 0.6in; }
+  body.pm-career-print-body, html.clubpm-route body.pm-career-print-body, html.pm-career-print-html { background: #fff !important; color: #000 !important; }
+  .pm-career-print { padding: 0; min-height: 0; background: #fff; color: #000; }
+  .pm-career-print-actions { display: none !important; }
+  .pm-career-print-page { max-width: none; padding: 0; box-shadow: none; background: #fff; color: #000; }
+  .pm-career-print-page li { break-inside: avoid; page-break-inside: avoid; }
+  .pm-career-print-page h2 { break-after: avoid; }
+}

@@ -60,6 +60,7 @@ const SearchResults = lazy(() => import('./pages/SearchResults'));
 // fully styled on first render (the Suspense fallback covers both fetches).
 const AppShell               = lazy(lazyWithClubPmTheme(() => import('./components/clubpm/AppShell')));
 const ClubPmLogin            = lazy(lazyWithClubPmTheme(() => import('./pages/ClubPM/Login')));
+const CareerPrint            = lazy(lazyWithClubPmTheme(() => import('./pages/ClubPM/CareerPrint')));
 const ClubPmDashboard        = lazy(lazyWithClubPmTheme(() => import('./pages/ClubPM/Dashboard')));
 const ClubPmProjectDetail    = lazy(lazyWithClubPmTheme(() => import('./pages/ClubPM/ProjectDetail')));
 const ClubPmGanttView        = lazy(lazyWithClubPmTheme(() => import('./pages/ClubPM/GanttView')));
@@ -142,6 +143,7 @@ function AnimatedRoutes() {
           <Routes location={location} key={location.pathname}>
             {/* Club PM routes */}
             <Route path="/clubpm/login" element={<Suspense fallback={clubPmFallback}><ClubPmLogin /></Suspense>} />
+            <Route path="/clubpm/career/print" element={<Suspense fallback={clubPmFallback}><CareerPrint /></Suspense>} />
             <Route path="/clubpm" element={<ClubPmProtectedPage><ClubPmDashboard /></ClubPmProtectedPage>} />
             <Route path="/clubpm/projects/:id" element={<ClubPmProtectedPage><ClubPmProjectDetail /></ClubPmProtectedPage>} />
             <Route path="/clubpm/projects/:id/gantt" element={<ClubPmProtectedPage><ClubPmGanttView /></ClubPmProtectedPage>} />

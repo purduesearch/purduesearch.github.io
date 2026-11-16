@@ -5,6 +5,7 @@ import { useClubPmAuth } from '../../../clubpm/ClubPmAuth';
 import ResumeBuilder from './ResumeBuilder';
 import PathwayView from './PathwayView';
 import OccupationPicker from './OccupationPicker';
+import CareerSettings from './CareerSettings';
 
 /** Mirrors backend validateMemberTemplate: {n} exactly once, no other braces, 300 chars max. */
 export function validateTemplate(t) {
@@ -77,6 +78,7 @@ export default function CareerView() {
   const guard = useRef(false);
   const [openRole, setOpenRole] = useState(null);
   const [picking, setPicking] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const seq = useRef(0);
 
   const load = useCallback(async () => {
@@ -138,8 +140,13 @@ export default function CareerView() {
       {picking
         ? <OccupationPicker targets={data.targets || []} onAdd={code => saveTargets([...(data.targets || []).map(t => t.code), code])} onClose={() => setPicking(false)} />
         : <button type="button" className="pm-career-btn pm-career-btn--ghost pm-career-add" onClick={() => setPicking(true)} disabled={(data.targets || []).length >= 3}><i className="fas fa-plus" aria-hidden="true" /> Add role</button>}
-      <p className="pm-career-muted">Sponsor sharing: {data.profile?.shareWithSponsors ? 'On' : 'Off'}</p>
+      <p className="pm-career-muted">Sponsor sharing: {data.profile?.shareWithSponsors ? 'On' : 'Off'}. Public page: {data.profile?.showOnPublicPage ? 'On' : 'Off'}.{' '}
+        <button type="button" className="pm-career-link" onClick={() => setSettingsOpen(true)}>Change in settings</button></p>
     </section>
+
+    {settingsOpen
+      ? <CareerSettings profile={data.profile} claims={claims} onSaved={load} onClose={() => setSettingsOpen(false)} />
+      : <div><button type="button" className="pm-career-btn pm-career-btn--ghost" onClick={() => setSettingsOpen(true)}><i className="fas fa-gear" aria-hidden="true" /> Settings</button></div>}
 
     <section className="pm-career-section" aria-label="Verified impact">
       <h3>Verified impact</h3>

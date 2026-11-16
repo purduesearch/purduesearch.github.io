@@ -28,7 +28,7 @@ machine's temporary directory.
 | 12 | Career view: impact + résumé | done | this commit | build / backend typecheck / backend test / root test:ci green | 8 UI tests + 2 route checks; CSS v=32; anchor skills.career. |
 | 13a | Skill O*NET detail endpoint (split) | done | this commit | build / backend typecheck / backend test green; root test:ci n/a | 75 route checks; GET /api/career/skills/:id/onet. |
 | 13 | Pathway + skill detail UI (13b) | done | this commit | build / backend typecheck / backend test / root test:ci green | 11 UI tests + drawer assertion; CSS v=33. |
-| 14 | Career settings + print route | todo | | | |
+| 14 | Career settings + print route | done | this commit | build / backend typecheck / backend test / root test:ci green | 10 UI tests; route /clubpm/career/print; CSS v=34. |
 | 15 | Sponsor auth [deep] | todo | | | |
 | 16 | Talent directory + intros [deep] | todo | | | |
 | 17 | Public impact page | todo | | | |
@@ -266,6 +266,24 @@ the gate from there on.
   passed; backend tests 137 files passed, 0 failed.
 - Deviations: none beyond the 13a split. OPEN: harmless `act(...)` warnings from the picker's debounce
   under fake timers.
+
+### Phase 14 — Career settings + print route
+
+- Fresh implementation agent. Created `career/CareerSettings.jsx` (profile fields, two independent sharing
+  toggles with plain explanations and a confirm step before turning either on, claim form with https-only
+  evidence link and pending-claim delete; ref-guarded submits) and `pages/ClubPM/CareerPrint.jsx`
+  (one-column résumé of exportable bullets, certifications and skill names; own auth redirect; no
+  AppShell; `@media print` rules), with 7 + 3 tests. `CareerView.jsx` shows both sharing states and opens
+  Settings.
+- Controller: applied the `src/App.js` lazy import and the `/clubpm/career/print` route beside
+  `/clubpm/login`, outside `ClubPmProtectedPage`; CSS cache bump to `v=34`; Settings sentence added to
+  `constellation-101/content/skills-workspace.md`.
+- Controller gate: root build passed; root test:ci 94 suites / 654 tests passed; backend typecheck
+  passed; backend tests 137 files passed, 0 failed.
+- Deviations: the print page adds body/html marker classes in an effect (removed on unmount) to beat the
+  `!important` dark `html.clubpm-route` background from `search-theme.css`; those two override rules sit
+  outside `.pm-career-print`. Terms are `YYYY-MM` text inputs (Safari desktop lacks `type=month`).
+  OPEN: none.
 
 ## Follow-ups
 
