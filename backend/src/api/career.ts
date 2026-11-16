@@ -12,8 +12,10 @@ import {
   type IntroMailer, type IntroService, type IntroStore,
 } from "../services/introService.js";
 import { frontendBase } from "../services/sponsorAuthService.js";
+import { OpportunityError, OPPORTUNITY_STATUS, createOpportunityService, getDefaultOpportunityStore, type OpportunityStore, type OpportunityService } from "../services/opportunityService.js";
 
 export function sendCareerError(res: Response, err: unknown): void {
+  if (err instanceof OpportunityError) { res.status(OPPORTUNITY_STATUS[err.code]).json({ error: err.message, code: err.code }); return; }
   if (err instanceof IntroError) { res.status(INTRO_STATUS[err.code]).json({ error: err.message, code: err.code }); return; }
   if (err instanceof CareerError) { res.status(CAREER_STATUS[err.code]).json({ error: err.message, code: err.code }); return; }
   console.error("[career] request failed:", err);
@@ -29,6 +31,7 @@ export interface CareerRouterOptions {
   /** Sends the accept email to the sponsor. */
   mailer?: IntroMailer;
   frontendUrl?: string;
+  opportunityStore?: OpportunityStore;
 }
 
 export function createCareerRouter(opts: CareerRouterOptions = {}): Router {
@@ -37,6 +40,10 @@ export function createCareerRouter(opts: CareerRouterOptions = {}): Router {
   const pathway = opts.pathway ?? getPathway;
   let svc: CareerService | null = null;
   const service = async (): Promise<CareerService> => (svc ??= createCareerService(opts.store ?? await getDefaultStore(), { now }));
+  let opportunitySvc: OpportunityService | null = null;
+  const opportunities = async () => opportunitySvc ??= createOpportunityService({ store: opts.opportunityStore ?? await getDefaultOpportunityStore(), now });
+  const withOpportunities = (fn: (req: Request, res: Response, s: OpportunityService) => Promise<unknown>) =>
+    (req: Request, res: Response) => { opportunities().then(s => fn(req, res, s)).catch(e => sendCareerError(res, e)); };
 
   let introSvc: IntroService | null = null;
   const intros = async (): Promise<IntroService> => (introSvc ??= createIntroService({
@@ -64,6 +71,12 @@ export function createCareerRouter(opts: CareerRouterOptions = {}): Router {
   };
 
   router.use(opts.auth ?? requireAuth);
+
+  router.get("/me/opportunities", withOpportunities(async (req, res, s) => {
+    res.setHeader("Cache-Control", "no-store"); res.json(await s.feed(req.memberId!));
+  }));
+  router.put("/me/opportunities/:id/save", throttled, withOpportunities(async (req, res, s) => { res.json(await s.save(req.memberId!, String(req.params.id))); }));
+  router.delete("/me/opportunities/:id/save", throttled, withOpportunities(async (req, res, s) => { res.json(await s.unsave(req.memberId!, String(req.params.id))); }));
 
   router.get("/me", wrap(async (req, res, s) => { res.json(await s.me(req.memberId!)); }));
   router.put("/me/profile", throttled, wrap(async (req, res, s) => { res.json({ profile: await s.updateProfile(req.memberId!, req.body) }); }));

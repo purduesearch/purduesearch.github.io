@@ -184,6 +184,17 @@ export function startScheduler(app: App): void {
     }
   });
 
+  // Daily opportunity refresh: opt-in data maintenance, no notifications.
+  cron.schedule("25 4 * * *", async () => {
+    if (process.env.CAREERS_FEED_ENABLED !== "1") return;
+    try {
+      const { refreshOpportunities } = await import("../services/opportunityService.js");
+      await refreshOpportunities();
+    } catch {
+      console.error("[careers] Opportunity refresh could not start.");
+    }
+  });
+
   // Daily impact snapshots: deterministic data maintenance, no notifications.
   cron.schedule("40 3 * * *", async () => {
     try {

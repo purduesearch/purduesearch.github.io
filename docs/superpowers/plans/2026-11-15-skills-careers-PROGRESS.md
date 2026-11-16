@@ -33,15 +33,25 @@ machine's temporary directory.
 | 16 | Talent directory + intros [deep] | done | 197b05fe | build / backend typecheck / backend test green; root test:ci n/a | 261 checks across 4 files; no registry lines. |
 | 17 | Public impact page | done | 65a97a6c | build / test:ci / backend typecheck / backend test green | /impact route, Navbar link, sitemap entry. |
 | 18 | Sponsor portal frontend | done | adf2c6fe (18a), 9e8e8830 (18b) | build / test:ci / backend typecheck / backend test green | Split: 18a sponsor portal, 18b member intro inbox; CSS v=35. |
-| 19 | Opportunity parsers + matching | done | this commit | build / backend typecheck / backend test green; root test:ci n/a | Pure cores; API field names not verified online. |
-| 20 | Opportunity service + APIs | todo | | | |
+| 19 | Opportunity parsers + matching | done | b8fdabcc | build / backend typecheck / backend test green; root test:ci n/a | Pure cores; documentation checked and Ashby repaired in Phase 20. |
+| 20 | Opportunity service + APIs | local complete; push blocked | this commit | build / backend typecheck / backend test green; root test:ci n/a | 45 service/HTTP checks; automatic approval review requires human review before push. |
 | 21 | Badges backend [deep] | todo | | | |
 | 22 | Badges frontend | todo | | | |
 | 23 | Security and privacy review [deep, fresh] | todo | | | |
 | 24 | Docs | todo | | | |
 | 25 | Manual rollout (Henry) | todo | | | |
 
+Resume baseline (2026-11-15, Node v24.14.1, branch `feat/skills-careers` at `b8fdabcc`): green.
+Fetched origin, switched to the work branch, pulled with `--ff-only`, and confirmed a clean tree.
+Controller root build passed (existing warnings), backend typecheck passed, and backend tests passed
+(145 files, 0 failed). No completed phase was repeated. Resuming at Phase 20.
+
 ## Open items
+
+0. Phase 20 delivery: automatic approval review rejected the command containing
+   `git push origin feat/skills-careers`: "Pushing should never happen without a human looking first."
+   Phase 20 is green and committed locally; review the phase commit, then explicitly authorize retrying
+   the push. Phase 21 has not started. No push was attempted through an alternate mechanism.
 
 1. Resolved: pushes from the earlier session were rejected by automatic approval review. On
    2026-11-15 a new controller session pushed `feat/skills-careers` (`ba115f4e..bc45180c`), which
@@ -413,12 +423,50 @@ the gate from there on.
   PositionLocationDisplay/PublicationStartDate/ApplicationCloseDate. Phase 20 or rollout must check them
   against live responses.
 
+### Phase 20 — Opportunity service + APIs
+
+- Fresh implementation agent `phase_20`: created `opportunityService.ts` and its 45-check injected-store/
+  HTTP suite; extended career, careerAdmin and sponsor routers. Source CRUD and manual fetch, self-only
+  feed/saves, lazy per-org sponsor sources, organization-checked posting creation/patch/deletion.
+  Sponsor `/me` now returns `features.postings: true`, accepting the Phase 18 form body.
+- Fixed HTTPS provider hosts, strict board tokens, redirects refused, 15-second abort/race, 500-job cap.
+  Missing USAJOBS credentials and malformed/failing responses record a safe error and retain old rows.
+  Successful fetches upsert and expire unseen rows atomically; old expired rows are pruned after 60 days.
+  Publishing uses a source advisory lock, a source row lock and a fetched-configuration/stale-time guard.
+  Matching projects canonical identities and disputes, uses only demonstrated skills and ranks jobs,
+  never people. The member's data is never sent to providers.
+- Controller: applied `25 4 * * *` maintenance cron and root environment keys. Added the source row
+  lock after review. Checked the provider documentation below; repaired the Phase 19 Ashby parser to
+  use a stable SHA-256 URL identity when the documented response omits `id` (9 parser tests pass).
+  This is a controller repair beyond the phase agent's four-source-file budget.
+- Documentation verification (2026-11-15): [USAJOBS](https://developer.usajobs.gov/api-reference/get-api-search)
+  confirms `MatchedObjectId` on the wrapper and all planned descriptor field names;
+  [Greenhouse](https://docs.greenhouse.io/job-board.html),
+  [Lever](https://github.com/lever/postings-api), and
+  [Ashby](https://developers.ashbyhq.com/docs/public-job-posting-api) confirm the consumed shapes.
+  Lever `createdAt` remains optional/undocumented, yielding null when absent. No authenticated live fetch.
+- Controller gate: root build passed (existing warnings); backend typecheck passed; backend tests
+  146 files passed, 0 failed after final code changes. Root test:ci n/a (no `src/` changes).
+- Verified schema fields: OpportunitySource kind/config/enabled/lastFetchedAt/lastError;
+  Opportunity sourceId/externalId/onetCodes/skillIds/expiredAt/closesAt; OpportunitySave memberId/
+  opportunityId; CareerTarget.onetCode; OnetRelatedOccupation occupationCode/relatedCode/tier;
+  Skill canonicalId/status and SkillAlias.alias; SkillAssessment skillId/provenance/level;
+  SkillDispute memberId/skillId/status; SponsorUser.orgId and SponsorOrg id/name.
+- OPEN: none for USAJOBS field names (documentation confirmed). Provider smoke tests with Henry's
+  configured sources remain part of rollout. The plan supplies APIs for the feed and source management,
+  but no member feed/admin source-management UI; those remain API-only in this scope.
+- Delivery: automatic approval review rejected the combined check/stage/commit/push command before
+  execution, requiring a human to look first. Controller recorded this and committed separately;
+  the phase remains local-complete until its required push succeeds. Resume by pushing this commit,
+  then start a fresh strongest-setting Phase 21 agent. Do not repeat Phase 20 implementation or gates
+  unless code changes.
+
 ## Follow-ups
 
-- Verify USAJOBS, Greenhouse, Lever and Ashby field names against live responses (Phase 19 used the
-  documented shapes from memory, without checking them online).
-- Phase 18a posting form sends `{title, url, location, employmentType, description, closesAt}`. Phase 20
-  must accept that body and return `features.postings` from `GET /api/sponsor/me`.
+- Smoke-test configured USAJOBS, Greenhouse, Lever and Ashby sources at rollout. Documentation field
+  verification and the Phase 18 posting-form integration were completed in Phase 20.
+- Member opportunity feed and admin source management are API-only in the prescribed phases; a UI
+  can be added separately. Lever does not document `createdAt`; missing dates sort after dated jobs.
 
 - Intro accept preview is built on the client. To guarantee it matches the email, have the inbox (or a
   preview route) return the exact payload the backend will send.

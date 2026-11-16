@@ -81,6 +81,15 @@ test("fully malformed input returns []; never throws", () => {
   }
 });
 
+test("Ashby documented shape has no id; job URL gives a stable distinct identity", () => {
+  const job = { title: "Engineer", jobUrl: "https://jobs.ashbyhq.com/acme/one", isListed: true };
+  const [first] = parseAshby({ jobs: [job] }, "Acme");
+  assert.match(first.externalId, /^url:[a-f0-9]{64}$/);
+  assert.equal(parseAshby({ jobs: [job] }, "Acme")[0].externalId, first.externalId);
+  assert.notEqual(parseAshby({ jobs: [{ ...job, jobUrl: "https://jobs.ashbyhq.com/acme/two" }] }, "Acme")[0].externalId, first.externalId);
+  assert.deepEqual(parseAshby({ jobs: [{ ...job, jobUrl: "javascript:bad" }] }, "Acme"), []);
+});
+
 test("caps: description 20,000, title 300, location 200", () => {
   const json = { jobs: [{ id: 1, title: "t".repeat(500), absolute_url: "https://a.example/1", location: { name: "l".repeat(500) }, content: "x".repeat(50_000) }] };
   const [r] = parseGreenhouse(json, "A");

@@ -3,6 +3,8 @@
 // Each parser takes already-decoded JSON from one source and returns normalized postings.
 // They are defensive: a malformed item is skipped, malformed input returns [], nothing throws.
 
+import { createHash } from "node:crypto";
+
 export interface ParsedOpportunity {
   externalId: string;
   title: string;
@@ -206,7 +208,10 @@ export function parseAshby(json: unknown, company: string): ParsedOpportunity[] 
     if (!j || j.isListed === false) return null;
     const description = typeof j.descriptionPlain === "string" ? j.descriptionPlain : stripHtml(typeof j.descriptionHtml === "string" ? j.descriptionHtml : "");
     return build({
-      externalId: j.id,
+      // Ashby's public API documents jobUrl, but no id. Hash the canonical URL to keep
+      // a stable, bounded identity without truncating two long URLs to the same key.
+      externalId: j.id ?? (httpUrl(j.jobUrl ?? j.applyUrl)
+        ? `url:${createHash("sha256").update(httpUrl(j.jobUrl ?? j.applyUrl)!).digest("hex")}` : null),
       title: j.title,
       company,
       url: j.jobUrl ?? j.applyUrl,

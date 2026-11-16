@@ -3,6 +3,7 @@
 import { Router, type Request, type RequestHandler, type Response } from "express";
 import { requireAdmin, requireAuth } from "./auth.js";
 import { OnetLinkError } from "../services/onetLinkService.js";
+import { OpportunityError, OPPORTUNITY_STATUS, createOpportunityService, getDefaultOpportunityStore, type OpportunityStore, type OpportunityService } from "../services/opportunityService.js";
 import {
   ADMIN_STATUS, CareerAdminError, createCareerAdminService, getDefaultAdminDeps,
   type CareerAdminService, type CareerAdminStore, type ReviewNotify,
@@ -11,6 +12,7 @@ import {
 const LINK_STATUS = { INVALID: 400, NOT_FOUND: 404, FORBIDDEN: 403 } as const;
 
 export function sendCareerAdminError(res: Response, err: unknown): void {
+  if (err instanceof OpportunityError) { res.status(OPPORTUNITY_STATUS[err.code]).json({ error: err.message, code: err.code }); return; }
   if (err instanceof CareerAdminError) { res.status(ADMIN_STATUS[err.code]).json({ error: err.message, code: err.code }); return; }
   if (err instanceof OnetLinkError) { res.status(LINK_STATUS[err.code]).json({ error: err.message, code: err.code }); return; }
   console.error("[career-admin] request failed:", err);
@@ -23,10 +25,16 @@ export interface CareerAdminRouterOptions {
   store?: CareerAdminStore;
   notify?: ReviewNotify;
   now?: () => number;
+  opportunityStore?: OpportunityStore;
+  opportunityFetch?: typeof fetch;
 }
 
 export function createCareerAdminRouter(opts: CareerAdminRouterOptions = {}): Router {
   const router = Router();
+  let opportunitySvc: OpportunityService | null = null;
+  const opportunities = async () => opportunitySvc ??= createOpportunityService({ store: opts.opportunityStore ?? await getDefaultOpportunityStore(), now: opts.now, fetch: opts.opportunityFetch });
+  const withOpportunities = (fn: (req: Request, res: Response, s: OpportunityService) => Promise<unknown>) =>
+    (req: Request, res: Response) => { opportunities().then(s => fn(req, res, s)).catch(e => sendCareerAdminError(res, e)); };
   let svc: CareerAdminService | null = null;
   const service = async (): Promise<CareerAdminService> => {
     if (svc) return svc;
@@ -38,6 +46,12 @@ export function createCareerAdminRouter(opts: CareerAdminRouterOptions = {}): Ro
     (req: Request, res: Response) => { service().then(s => fn(req, res, s)).catch(e => sendCareerAdminError(res, e)); };
 
   router.use(...(opts.auth ?? [requireAuth, requireAdmin]));
+
+  router.get("/sources", withOpportunities(async (_req, res, s) => { res.json({ sources: await s.sources() }); }));
+  router.post("/sources", withOpportunities(async (req, res, s) => { res.status(201).json({ source: await s.createSource(req.body) }); }));
+  router.put("/sources/:id", withOpportunities(async (req, res, s) => { res.json({ source: await s.updateSource(String(req.params.id), req.body) }); }));
+  router.delete("/sources/:id", withOpportunities(async (req, res, s) => { res.json(await s.deleteSource(String(req.params.id))); }));
+  router.post("/sources/:id/fetch", withOpportunities(async (req, res, s) => { res.json(await s.fetchSource(String(req.params.id))); }));
 
   router.get("/onet/status", wrap(async (_req, res, s) => { res.json(await s.onetStatus()); }));
   router.get("/onet/unlinked", wrap(async (_req, res, s) => { res.json(await s.unlinked()); }));

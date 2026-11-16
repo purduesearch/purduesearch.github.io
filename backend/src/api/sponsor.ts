@@ -10,6 +10,7 @@
 
 import { Router, type Request, type RequestHandler, type Response } from "express";
 import { createRequireSponsor, sponsorOf } from "../middleware/sponsorAuth.js";
+import { OpportunityError, OPPORTUNITY_STATUS, createOpportunityService, getDefaultOpportunityStore, type OpportunityStore, type OpportunityService } from "../services/opportunityService.js";
 import {
   NOT_CONFIGURED, createLoginRateLimiter, createSponsorAuthService, defaultMailer, frontendBase,
   getDefaultSponsorStore, normalizeEmail, readSponsorSecret, sponsorSummary,
@@ -32,6 +33,7 @@ export interface SponsorRouterOptions {
   introStore?: IntroStore;
   notify?: IntroNotify;
   introMailer?: IntroMailer;
+  opportunityStore?: OpportunityStore;
 }
 
 const ACCEPTED = { ok: true, message: "If that address belongs to an active sponsor account, a sign-in link is on its way." };
@@ -39,6 +41,13 @@ const ACCEPTED = { ok: true, message: "If that address belongs to an active spon
 export function createSponsorRouter(opts: SponsorRouterOptions = {}): Router {
   const router = Router();
   const now = opts.now ?? Date.now;
+  let opportunitySvc: OpportunityService | null = null;
+  const opportunities = async () => opportunitySvc ??= createOpportunityService({ store: opts.opportunityStore ?? await getDefaultOpportunityStore(), now });
+  const withOpportunities = (fn: (req: Request, res: Response, s: OpportunityService) => Promise<unknown>): RequestHandler =>
+    (req, res) => { opportunities().then(s => fn(req, res, s)).catch(e => {
+      if (e instanceof OpportunityError) { res.status(OPPORTUNITY_STATUS[e.code]).json({ error: e.message, code: e.code }); return; }
+      fail(res, e);
+    }); };
   const secret = opts.secret !== undefined ? () => readSponsorSecret(opts.secret) : () => readSponsorSecret();
   let svc: SponsorAuthService | null = null;
   const service = async (): Promise<SponsorAuthService> => (svc ??= createSponsorAuthService({
@@ -107,13 +116,17 @@ export function createSponsorRouter(opts: SponsorRouterOptions = {}): Router {
 
   router.get("/me", requireSponsor, (_req, res) => {
     res.setHeader("Cache-Control", "no-store");
-    res.json({ sponsor: sponsorSummary(sponsorOf(res)) });
+    res.json({ sponsor: sponsorSummary(sponsorOf(res)), features: { postings: true } });
   });
 
   router.post("/logout", requireSponsor, wrap(async (req, res, s) => {
     await s.logout(req.sponsorUserId!);
     res.json({ ok: true });
   }));
+
+  router.post("/postings", requireSponsor, throttled, withOpportunities(async (req, res, s) => { res.status(201).json({ posting: await s.createPosting(sponsorOf(res), req.body) }); }));
+  router.patch("/postings/:id", requireSponsor, throttled, withOpportunities(async (req, res, s) => { res.json({ posting: await s.updatePosting(sponsorOf(res), String(req.params.id), req.body) }); }));
+  router.delete("/postings/:id", requireSponsor, throttled, withOpportunities(async (req, res, s) => { res.json(await s.deletePosting(sponsorOf(res), String(req.params.id))); }));
 
   router.get("/directory", requireSponsor, withIntros(async (req, res, s) => {
     res.setHeader("Cache-Control", "no-store");
